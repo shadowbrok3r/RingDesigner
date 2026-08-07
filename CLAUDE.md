@@ -121,8 +121,6 @@ Two constants encode real metallurgy: `MIN_EDGE_MM` (0.2) because feather edges
 will not fill, and `mesh::MIN_WALL_MM` (0.5) so displacement never eats into the
 finger hole.
 
-### Seamlessness
-
 ### Windowing a layer to an arc
 
 `LayerEntry::window` gates any layer to part of the ring, or (inverted) to
@@ -178,6 +176,16 @@ jobs. Panels never build synchronously — only export does, at
 
 Panels are `pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui)` and are
 wired in `panels/mod.rs`.
+
+### The viewport needs a depth buffer asked for explicitly
+
+`eframe::NativeOptions::depth_buffer` defaults to **0**, and eframe passes that
+straight to glutin's `with_depth_size`. The window then has no depth attachment,
+`glEnable(GL_DEPTH_TEST)` and `glClear(GL_DEPTH_BUFFER_BIT)` both silently do
+nothing, and the ring renders see-through — the far wall painting over the near
+one. `main.rs` sets `depth_buffer: 24`, and `GpuMeshRenderer` queries
+`FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE` once and logs a warning at 0 bits, so this
+can never fail quietly again.
 
 ## Running the tests
 
