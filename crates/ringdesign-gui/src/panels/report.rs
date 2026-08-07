@@ -1,0 +1,450 @@
+//! Sand-cast verdict, ring dimensions, and metal weight.
+
+use egui_phosphor::regular as icon;
+
+use ringdesign_core::castability::{CastReport, DraftSettings, FaceClass, Verdict};
+use ringdesign_core::mesh::Report;
+
+use crate::app::{RingDesignerApp, Tab};
+use crate::theme;
+use crate::viewport::ShadeMode;
+
+const CLASSES: [FaceClass; 4] = [
+    FaceClass::Good,
+    FaceClass::Marginal,
+    FaceClass::Vertical,
+    FaceClass::Undercut,
+];
+
+pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    ui.add_space(6.0);
+    heading(ui, icon::SHIELD_CHECK, "Sand cast check");
+
+    let already_draft = app.shade == ShadeMode::Draft && app.tab == Tab::Solid;
+    let mut want_draft = false;
+    match app.cast.as_ref() {
+        Some(cast) => {
+            want_draft = castability(ui, cast, &app.design.draft, already_draft);
+        }
+        None => placeholder(ui, app.is_building(), "No draft analysis yet"),
+    }
+    if want_draft {
+        app.shade = ShadeMode::Draft;
+        app.tab = Tab::Solid;
+    }
+
+    ui.add_space(8.0);
+
+    match app.build.as_ref() {
+        Some(build) => {
+            let report = &build.report;
+            let size = app.design.size.display();
+            egui::CollapsingHeader::new(format!("{} Dimensions", icon::RULER))
+                .default_open(true)
+                .show(ui, |ui| dimensions(ui, report, &size));
+            egui::CollapsingHeader::new(format!("{} Metal weight", icon::SCALES))
+                .default_open(true)
+                .show(ui, |ui| metals(ui, report));
+            ui.add_space(4.0);
+            ui.label(
+                egui::RichText::new(format!(
+                    "{} {} ms • {} tris",
+                    icon::TIMER,
+                    report.build_ms,
+                    report.validation.triangle_count
+                ))
+                .small()
+                .color(theme::TEXT_DIM),
+            );
+        }
+        None => placeholder(ui, app.is_building(), "No mesh yet"),
+    }
+}
+
+// --- Castability -----------------------------------------------------------
+
+/// Returns true when the jeweller asked for the draft-coloured view.
+fn castability(
+    ui: &mut egui::Ui,
+    cast: &CastReport,
+    draft: &DraftSettings,
+    already_draft: bool,
+) -> bool {
+    verdict_banner(ui, cast);
+    ui.add_space(6.0);
+
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new("Parting plane").color(theme::TEXT_DIM));
+        ui.add(
+            egui::Label::new(egui::RichText::new(format!("{:+.2} mm", cast.parting_z_mm)).strong())
+                .selectable(true),
+        );
+        let tag = if draft.auto_parting { "auto" } else { "set by hand" };
+        ui.label(egui::RichText::new(tag).small().color(theme::ACCENT_DIM));
+    })
+    .response
+    .on_hover_text("Height of the split between cope and drag; the mould pulls +Z above it and -Z below it.");
+
+    let areas = class_areas(cast);
+    ui.add_space(4.0);
+    class_bar(ui, cast, &areas);
+    ui.add_space(3.0);
+
+    egui::Grid::new("draft_classes")
+        .num_columns(3)
+        .striped(true)
+        .min_col_width(48.0)
+        .spacing([8.0, 3.0])
+        .show(ui, |ui| {
+            let counts = [cast.good, cast.marginal, cast.vertical, cast.undercut];
+            for (k, class) in CLASSES.iter().enumerate() {
+                ui.horizontal(|ui| {
+                    swatch(ui, theme::class_color(*class));
+                    ui.label(class.label());
+                });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(
+                        egui::RichText::new(format!("{}", counts[k]))
+                            .monospace()
+                            .color(theme::TEXT_DIM),
+                    );
+                });
+                let detail = matches!(class, FaceClass::Marginal | FaceClass::Undercut);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if detail {
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "{:.1} mm2 • {:.1}%",
+                                areas[k],
+                                fraction(areas[k], cast.total_area_mm2) * 100.0
+                            ))
+                            .monospace()
+                            .color(if areas[k] > 0.0 {
+                                theme::class_color(*class)
+                            } else {
+                                theme::TEXT_DIM
+                            }),
+                        );
+                    }
+                });
+                ui.end_row();
+            }
+        });
+
+    ui.add_space(5.0);
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new("Worst draft").color(theme::TEXT_DIM));
+        ui.add(
+            egui::Label::new(
+                egui::RichText::new(format!("{:+.1}°", cast.worst_draft_deg))
+                    .strong()
+                    .color(draft_color(cast.worst_draft_deg, draft.min_draft_deg)),
+            )
+            .selectable(true),
+        );
+        ui.label(
+            egui::RichText::new(format!("min {:.1}°", draft.min_draft_deg))
+                .small()
+                .color(theme::TEXT_DIM),
+        );
+    })
+    .response
+    .on_hover_text("Most negative draft on the mesh. Below zero the face leans back under itself and locks in the sand.");
+
+    notes(ui, &cast.notes);
+
+    ui.add_space(6.0);
+    let button = egui::Button::new(format!("{} Show draft colours", icon::PALETTE));
+    let clicked = ui
+        .add_enabled(!already_draft, button)
+        .on_hover_text("Colour the ring by face class in the 3D view")
+        .clicked();
+    if already_draft {
+        ui.label(
+            egui::RichText::new("Draft colours are on")
+                .small()
+                .color(theme::TEXT_DIM),
+        );
+    }
+    clicked
+}
+
+fn verdict_banner(ui: &mut egui::Ui, cast: &CastReport) {
+    let color = theme::verdict_color(cast.verdict);
+    let glyph = match cast.verdict {
+        Verdict::Castable => icon::CHECK_CIRCLE,
+        Verdict::Marginal => icon::WARNING,
+        Verdict::NotCastable => icon::X_CIRCLE,
+    };
+    let undercut_pct = fraction(cast.undercut_area_mm2, cast.total_area_mm2) * 100.0;
+    let detail = match cast.verdict {
+        Verdict::Castable => "Every face clears a two-part pull.".to_string(),
+        Verdict::Marginal => format!(
+            "{} faces drag on the sand, {} undercut.",
+            cast.marginal, cast.undercut
+        ),
+        Verdict::NotCastable => format!(
+            "{} undercut faces • {:.1}% of the surface locks in.",
+            cast.undercut, undercut_pct
+        ),
+    };
+
+    egui::Frame::NONE
+        .fill(color.gamma_multiply(0.16))
+        .stroke(egui::Stroke::new(1.0, color.gamma_multiply(0.60)))
+        .corner_radius(6.0)
+        .inner_margin(egui::Margin::symmetric(10, 8))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(glyph).size(22.0).color(color));
+                ui.add_space(2.0);
+                ui.vertical(|ui| {
+                    ui.label(
+                        egui::RichText::new(cast.verdict.label())
+                            .size(15.0)
+                            .strong()
+                            .color(color),
+                    );
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(detail).small().color(theme::TEXT_DIM),
+                        )
+                        .wrap(),
+                    );
+                });
+            });
+        });
+}
+
+/// Per-class area in mm2; good and vertical share the released remainder by face count.
+fn class_areas(cast: &CastReport) -> [f64; 4] {
+    let rest = (cast.total_area_mm2 - cast.marginal_area_mm2 - cast.undercut_area_mm2).max(0.0);
+    let n = (cast.good + cast.vertical) as f64;
+    let (good, vertical) = if n > 0.0 {
+        (rest * cast.good as f64 / n, rest * cast.vertical as f64 / n)
+    } else {
+        (0.0, 0.0)
+    };
+    [good, cast.marginal_area_mm2, vertical, cast.undercut_area_mm2]
+}
+
+fn class_bar(ui: &mut egui::Ui, cast: &CastReport, areas: &[f64; 4]) {
+    let (response, painter) =
+        ui.allocate_painter(egui::vec2(ui.available_width(), 15.0), egui::Sense::hover());
+    let rect = response.rect;
+    painter.rect_filled(rect, 3.0, theme::BG);
+
+    let mut x = rect.left();
+    for (k, class) in CLASSES.iter().enumerate() {
+        let frac = fraction(areas[k], cast.total_area_mm2);
+        if frac <= 0.0 {
+            continue;
+        }
+        let w = ((frac * rect.width() as f64) as f32)
+            .max(2.0)
+            .min(rect.right() - x);
+        if w <= 0.0 {
+            break;
+        }
+        painter.rect_filled(
+            egui::Rect::from_min_size(egui::pos2(x, rect.top()), egui::vec2(w, rect.height())),
+            0.0,
+            theme::class_color(*class),
+        );
+        x += w;
+    }
+
+    painter.rect_stroke(
+        rect,
+        3.0,
+        egui::Stroke::new(1.0, theme::GRID),
+        egui::StrokeKind::Inside,
+    );
+
+    let tip = CLASSES
+        .iter()
+        .enumerate()
+        .map(|(k, c)| {
+            format!(
+                "{}: {:.1} mm2 ({:.1}%)",
+                c.label(),
+                areas[k],
+                fraction(areas[k], cast.total_area_mm2) * 100.0
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    response.on_hover_text(format!("{tip}\nTotal {:.1} mm2", cast.total_area_mm2));
+}
+
+fn notes(ui: &mut egui::Ui, notes: &[String]) {
+    ui.add_space(5.0);
+    if notes.is_empty() {
+        ui.label(
+            egui::RichText::new("• Nothing flagged.")
+                .small()
+                .color(theme::TEXT_DIM),
+        );
+        return;
+    }
+    for note in notes {
+        ui.horizontal_top(|ui| {
+            ui.label(egui::RichText::new("•").color(theme::ACCENT));
+            ui.add(egui::Label::new(egui::RichText::new(note)).wrap());
+        });
+    }
+}
+
+fn draft_color(worst_deg: f64, min_deg: f64) -> egui::Color32 {
+    if worst_deg < 0.0 {
+        theme::BAD
+    } else if worst_deg < min_deg {
+        theme::WARN
+    } else {
+        theme::GOOD
+    }
+}
+
+// --- Dimensions ------------------------------------------------------------
+
+fn dimensions(ui: &mut egui::Ui, report: &Report, size: &str) {
+    egui::Grid::new("dimensions")
+        .num_columns(2)
+        .striped(true)
+        .min_col_width(96.0)
+        .spacing([8.0, 3.0])
+        .show(ui, |ui| {
+            row(ui, "Ring size", size.to_string());
+            row(ui, "Inside dia", format!("{:.2} mm", report.inner_diameter_mm));
+            row(ui, "Outside dia", format!("{:.2} mm", report.outer_diameter_mm));
+            row(ui, "Band width", format!("{:.2} mm", report.band_width_mm));
+            row(
+                ui,
+                "Overall",
+                format!(
+                    "{:.2} x {:.2} x {:.2} mm",
+                    report.bounds_mm[0], report.bounds_mm[1], report.bounds_mm[2]
+                ),
+            );
+            row(ui, "Highest relief", format!("{:+.3} mm", report.max_relief_mm));
+            row(ui, "Deepest cut", format!("{:+.3} mm", report.min_relief_mm));
+            row(ui, "Surface", format!("{:.1} mm2", report.surface_area_mm2));
+            row(ui, "Volume", format!("{:.2} mm3", report.volume_mm3));
+        });
+
+    ui.add_space(5.0);
+    let v = &report.validation;
+    ui.horizontal(|ui| {
+        let (glyph, color, text) = if v.watertight {
+            (icon::CHECK_CIRCLE, theme::GOOD, "Watertight".to_string())
+        } else {
+            (
+                icon::WARNING,
+                theme::BAD,
+                format!(
+                    "Not watertight • {} boundary, {} non-manifold edges",
+                    v.boundary_edges, v.non_manifold_edges
+                ),
+            )
+        };
+        ui.label(egui::RichText::new(glyph).color(color));
+        ui.add(egui::Label::new(egui::RichText::new(text).color(color)).wrap());
+    });
+    ui.label(
+        egui::RichText::new(format!(
+            "{} tris • {} verts",
+            v.triangle_count, v.vertex_count
+        ))
+        .small()
+        .color(theme::TEXT_DIM),
+    );
+}
+
+// --- Metal weight ----------------------------------------------------------
+
+fn metals(ui: &mut egui::Ui, report: &Report) {
+    egui::Grid::new("metal_weights")
+        .num_columns(3)
+        .striped(true)
+        .min_col_width(56.0)
+        .spacing([10.0, 3.0])
+        .show(ui, |ui| {
+            ui.label(egui::RichText::new("Metal").small().color(theme::TEXT_DIM));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(egui::RichText::new("grams").small().color(theme::TEXT_DIM));
+            });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(egui::RichText::new("dwt").small().color(theme::TEXT_DIM));
+            });
+            ui.end_row();
+
+            for m in &report.metals {
+                ui.label(m.metal);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(format!("{:.2}", m.grams)).monospace(),
+                        )
+                        .selectable(true),
+                    );
+                });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(format!("{:.2}", m.dwt))
+                                .monospace()
+                                .color(theme::TEXT_DIM),
+                        )
+                        .selectable(true),
+                    );
+                });
+                ui.end_row();
+            }
+        });
+    ui.add_space(3.0);
+    ui.label(
+        egui::RichText::new("Casting weight only — no sprue, button, or finishing loss.")
+            .small()
+            .color(theme::TEXT_DIM),
+    );
+}
+
+// --- Shared bits -----------------------------------------------------------
+
+fn heading(ui: &mut egui::Ui, glyph: &str, text: &str) {
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(glyph).color(theme::ACCENT));
+        ui.label(egui::RichText::new(text).size(14.0).strong());
+    });
+    ui.add_space(3.0);
+}
+
+fn row(ui: &mut egui::Ui, label: &str, value: String) {
+    ui.label(egui::RichText::new(label).color(theme::TEXT_DIM));
+    ui.add(egui::Label::new(value).selectable(true));
+    ui.end_row();
+}
+
+/// Fixed allocation so the swatch sits on the text centre line.
+fn swatch(ui: &mut egui::Ui, color: egui::Color32) {
+    let (response, painter) =
+        ui.allocate_painter(egui::Vec2::splat(9.0), egui::Sense::hover());
+    painter.rect_filled(response.rect, 2.0, color);
+}
+
+fn placeholder(ui: &mut egui::Ui, building: bool, what: &str) {
+    ui.horizontal(|ui| {
+        if building {
+            ui.add(egui::Spinner::new().size(12.0));
+            ui.label(egui::RichText::new("Building…").color(theme::TEXT_DIM));
+        } else {
+            ui.label(egui::RichText::new(icon::CIRCLE_DASHED).color(theme::TEXT_DIM));
+            ui.label(egui::RichText::new(what).color(theme::TEXT_DIM));
+        }
+    });
+}
+
+fn fraction(part: f64, total: f64) -> f64 {
+    if total > 0.0 { (part / total).clamp(0.0, 1.0) } else { 0.0 }
+}

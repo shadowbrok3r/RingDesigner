@@ -1,0 +1,637 @@
+//! GPU mesh renderer and the 3D viewport.
+//!
+//! The mesh is uploaded once per rebuild as non-indexed triangles carrying
+//! position, smooth normal, and the draft class colour, then drawn with a
+//! single `glDrawArrays` per frame.
+
+use std::sync::Arc;
+
+use egui_glow::glow;
+use glow::HasContext;
+
+use ringdesign_core::castability::{CastReport, FaceClass};
+use ringdesign_core::mesh::{Mesh, Vec3};
+
+use crate::app::RingDesignerApp;
+use crate::theme;
+
+/// Floats per vertex: position(3), normal(3), colour(3).
+const FLOATS_PER_VERTEX: usize = 9;
+
+const VERTEX_SHADER: &str = r#"#version 330 core
+
+layout(location = 0) in vec3 a_position;
+layout(location = 1) in vec3 a_normal;
+layout(location = 2) in vec3 a_color;
+
+uniform mat4 u_mvp;
+uniform mat3 u_normal_matrix;
+
+out vec3 v_normal;
+out vec3 v_color;
+
+void main() {
+    gl_Position = u_mvp * vec4(a_position, 1.0);
+    v_normal = u_normal_matrix * a_normal;
+    v_color = a_color;
+}
+"#;
+
+const FRAGMENT_SHADER: &str = r#"#version 330 core
+
+in vec3 v_normal;
+in vec3 v_color;
+
+uniform int u_mode;
+uniform vec3 u_light_dir;
+uniform vec3 u_base_color;
+uniform float u_ambient;
+
+out vec4 frag_color;
+
+const vec3 FILL_DIR = vec3(-0.52, -0.38, 0.42);
+const vec3 HIGHLIGHT = vec3(1.0, 0.96, 0.88);
+
+void main() {
+    vec3 n = normalize(v_normal);
+    vec3 eye = vec3(0.0, 0.0, 1.0);
+    vec3 l = normalize(u_light_dir);
+    vec3 color;
+
+    if (u_mode == 2) {
+        color = n * 0.5 + 0.5;
+    } else if (u_mode == 1) {
+        float lambert = max(dot(n, l), 0.0);
+        color = v_color * (0.74 + 0.26 * lambert);
+    } else {
+        float key = pow(dot(n, l) * 0.5 + 0.5, 1.7);
+        float fill = max(dot(n, normalize(FILL_DIR)), 0.0) * 0.22;
+        vec3 h = normalize(l + eye);
+        float spec = pow(max(dot(n, h), 0.0), 58.0) * 0.85;
+        float rim = pow(1.0 - max(dot(n, eye), 0.0), 3.5) * 0.30;
+        color = u_base_color * (u_ambient + (1.0 - u_ambient) * key + fill + rim)
+              + HIGHLIGHT * spec;
+    }
+
+    frag_color = vec4(color, 1.0);
+}
+"#;
+
+const WIREFRAME_FRAGMENT_SHADER: &str = r#"#version 330 core
+
+uniform vec3 u_wire_color;
+
+out vec4 frag_color;
+
+void main() {
+    frag_color = vec4(u_wire_color, 0.55);
+}
+"#;
+
+#[derive(Clone, Copy)]
+struct GpuResources {
+    program: glow::NativeProgram,
+    wire_program: glow::NativeProgram,
+    vao: glow::NativeVertexArray,
+    vbo: glow::NativeBuffer,
+}
+
+pub struct GpuMeshRenderer {
+    resources: Option<GpuResources>,
+    vertex_count: i32,
+    pending: Option<Vec<f32>>,
+    depth_checked: bool,
+}
+
+// glow handles are u32 integers on native, safe to send across threads.
+unsafe impl Send for GpuMeshRenderer {}
+unsafe impl Sync for GpuMeshRenderer {}
+
+impl Default for GpuMeshRenderer {
+    fn default() -> Self {
+        Self { resources: None, vertex_count: 0, pending: None, depth_checked: false }
+    }
+}
+
+impl GpuMeshRenderer {
+    /// Flatten the mesh into an interleaved vertex buffer awaiting upload.
+    pub fn prepare_upload(&mut self, mesh: &Mesh, cast: Option<&CastReport>) {
+        let mut data: Vec<f32> =
+            Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
+
+        'faces: for (i, face) in mesh.faces.iter().enumerate() {
+            let rgb = match cast {
+                Some(c) => c.classes.get(i).map_or([1.0; 3], |k| k.rgb()),
+                None => [1.0; 3],
+            };
+
+            let mut tri = [[0.0f32; FLOATS_PER_VERTEX]; 3];
+            for (k, &vi) in face.iter().enumerate() {
+                let Some(p) = mesh.vertices.get(vi as usize).filter(|p| p.is_finite()) else {
+                    continue 'faces;
+                };
+                let n = match mesh.normals.get(vi as usize) {
+                    Some(n) if n.is_finite() => *n,
+                    _ => Vec3(0.0, 0.0, 1.0),
+                };
+                tri[k] = [p.0, p.1, p.2, n.0, n.1, n.2, rgb[0], rgb[1], rgb[2]];
+            }
+            for v in &tri {
+                data.extend_from_slice(v);
+            }
+        }
+
+        self.pending = Some(data);
+    }
+
+    /// Draw the mesh. Called from inside the paint callback.
+    fn paint(
+        &mut self,
+        gl: &glow::Context,
+        info: egui::PaintCallbackInfo,
+        mvp: &[f32; 16],
+        normal_matrix: &[f32; 9],
+        mode: i32,
+        base_color: [f32; 3],
+        wireframe: bool,
+        wire_color: [f32; 3],
+    ) {
+        unsafe { self.ensure_resources(gl) };
+        let Some(res) = self.resources else { return };
+
+        if let Some(verts) = self.pending.take() {
+            self.vertex_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
+            unsafe {
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.vbo));
+                gl.buffer_data_u8_slice(
+                    glow::ARRAY_BUFFER,
+                    as_u8_slice(&verts),
+                    glow::STATIC_DRAW,
+                );
+                gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            }
+        }
+
+        if self.vertex_count == 0 {
+            return;
+        }
+
+        self.warn_if_no_depth_buffer(gl);
+
+        unsafe {
+            let vp = info.viewport_in_pixels();
+            gl.viewport(vp.left_px, vp.from_bottom_px, vp.width_px, vp.height_px);
+            gl.scissor(vp.left_px, vp.from_bottom_px, vp.width_px, vp.height_px);
+
+            gl.enable(glow::DEPTH_TEST);
+            gl.depth_mask(true);
+            gl.depth_func(glow::LESS);
+            gl.enable(glow::CULL_FACE);
+            gl.cull_face(glow::BACK);
+            gl.enable(glow::SCISSOR_TEST);
+            gl.clear(glow::DEPTH_BUFFER_BIT);
+
+            gl.use_program(Some(res.program));
+            gl.bind_vertex_array(Some(res.vao));
+
+            let loc = gl.get_uniform_location(res.program, "u_mvp");
+            gl.uniform_matrix_4_f32_slice(loc.as_ref(), false, mvp);
+            let loc = gl.get_uniform_location(res.program, "u_normal_matrix");
+            gl.uniform_matrix_3_f32_slice(loc.as_ref(), false, normal_matrix);
+            let loc = gl.get_uniform_location(res.program, "u_mode");
+            gl.uniform_1_i32(loc.as_ref(), mode);
+            let loc = gl.get_uniform_location(res.program, "u_light_dir");
+            gl.uniform_3_f32(loc.as_ref(), -0.38, 0.46, 0.80);
+            let loc = gl.get_uniform_location(res.program, "u_base_color");
+            gl.uniform_3_f32(loc.as_ref(), base_color[0], base_color[1], base_color[2]);
+            let loc = gl.get_uniform_location(res.program, "u_ambient");
+            gl.uniform_1_f32(loc.as_ref(), 0.20);
+
+            gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
+            gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
+
+            if wireframe {
+                gl.use_program(Some(res.wire_program));
+                let loc = gl.get_uniform_location(res.wire_program, "u_mvp");
+                gl.uniform_matrix_4_f32_slice(loc.as_ref(), false, mvp);
+                let loc = gl.get_uniform_location(res.wire_program, "u_wire_color");
+                gl.uniform_3_f32(loc.as_ref(), wire_color[0], wire_color[1], wire_color[2]);
+
+                gl.enable(glow::BLEND);
+                gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+                gl.enable(glow::POLYGON_OFFSET_LINE);
+                gl.polygon_offset(-1.0, -1.0);
+                gl.polygon_mode(glow::FRONT_AND_BACK, glow::LINE);
+                gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
+
+                gl.disable(glow::POLYGON_OFFSET_LINE);
+                gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
+                gl.disable(glow::BLEND);
+            }
+
+            gl.bind_vertex_array(None);
+            gl.use_program(None);
+            gl.disable(glow::DEPTH_TEST);
+            gl.disable(glow::CULL_FACE);
+            gl.disable(glow::SCISSOR_TEST);
+        }
+    }
+
+    /// Depth testing is silently a no-op on a window with no depth attachment,
+    /// which reads as a see-through ring rather than as an error. Checked once.
+    fn warn_if_no_depth_buffer(&mut self, gl: &glow::Context) {
+        if self.depth_checked {
+            return;
+        }
+        self.depth_checked = true;
+        let bits = unsafe {
+            gl.get_framebuffer_attachment_parameter_i32(
+                glow::FRAMEBUFFER,
+                glow::DEPTH,
+                glow::FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE,
+            )
+        };
+        if bits <= 0 {
+            log::warn!(
+                "no depth buffer on the default framebuffer ({bits} bits): the ring will draw \
+                 see-through. NativeOptions::depth_buffer must be non-zero."
+            );
+        } else {
+            log::info!("depth buffer: {bits} bits");
+        }
+    }
+
+    unsafe fn ensure_resources(&mut self, gl: &glow::Context) {
+        if self.resources.is_some() {
+            return;
+        }
+
+        let program = unsafe { compile_program(gl, VERTEX_SHADER, FRAGMENT_SHADER) };
+        let wire_program =
+            unsafe { compile_program(gl, VERTEX_SHADER, WIREFRAME_FRAGMENT_SHADER) };
+        let vao = unsafe { gl.create_vertex_array() }.expect("create VAO");
+        let vbo = unsafe { gl.create_buffer() }.expect("create VBO");
+
+        unsafe {
+            gl.bind_vertex_array(Some(vao));
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+
+            let f = std::mem::size_of::<f32>() as i32;
+            let stride = FLOATS_PER_VERTEX as i32 * f;
+            for (loc, offset) in [(0, 0), (1, 3 * f), (2, 6 * f)] {
+                gl.enable_vertex_attrib_array(loc);
+                gl.vertex_attrib_pointer_f32(loc, 3, glow::FLOAT, false, stride, offset);
+            }
+
+            gl.bind_vertex_array(None);
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
+        }
+
+        self.resources = Some(GpuResources { program, wire_program, vao, vbo });
+    }
+
+    pub fn destroy(&mut self, gl: &glow::Context) {
+        if let Some(res) = self.resources.take() {
+            unsafe {
+                gl.delete_program(res.program);
+                gl.delete_program(res.wire_program);
+                gl.delete_vertex_array(res.vao);
+                gl.delete_buffer(res.vbo);
+            }
+        }
+        self.vertex_count = 0;
+        self.pending = None;
+    }
+}
+
+unsafe fn compile_program(
+    gl: &glow::Context,
+    vert_src: &str,
+    frag_src: &str,
+) -> glow::NativeProgram {
+    let program = unsafe { gl.create_program() }.expect("create program");
+
+    let mut shaders = Vec::with_capacity(2);
+    for (kind, src, what) in [
+        (glow::VERTEX_SHADER, vert_src, "vertex"),
+        (glow::FRAGMENT_SHADER, frag_src, "fragment"),
+    ] {
+        let shader = unsafe { gl.create_shader(kind) }.expect("create shader");
+        unsafe {
+            gl.shader_source(shader, src);
+            gl.compile_shader(shader);
+        }
+        if !unsafe { gl.get_shader_compile_status(shader) } {
+            panic!("{what} shader error: {}", unsafe { gl.get_shader_info_log(shader) });
+        }
+        unsafe { gl.attach_shader(program, shader) };
+        shaders.push(shader);
+    }
+
+    unsafe { gl.link_program(program) };
+    if !unsafe { gl.get_program_link_status(program) } {
+        panic!("program link error: {}", unsafe { gl.get_program_info_log(program) });
+    }
+
+    for shader in shaders {
+        unsafe {
+            gl.detach_shader(program, shader);
+            gl.delete_shader(shader);
+        }
+    }
+
+    program
+}
+
+fn as_u8_slice<T: Copy>(data: &[T]) -> &[u8] {
+    unsafe {
+        std::slice::from_raw_parts(
+            data.as_ptr() as *const u8,
+            std::mem::size_of_val(data),
+        )
+    }
+}
+
+// --- Shading modes ---------------------------------------------------------
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShadeMode {
+    Metal,
+    Draft,
+    Normals,
+}
+
+impl ShadeMode {
+    pub const ALL: &'static [ShadeMode] =
+        &[ShadeMode::Metal, ShadeMode::Draft, ShadeMode::Normals];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            ShadeMode::Metal => "Polished metal",
+            ShadeMode::Draft => "Draft check",
+            ShadeMode::Normals => "Normals",
+        }
+    }
+
+    fn gl_mode(self) -> i32 {
+        match self {
+            ShadeMode::Metal => 0,
+            ShadeMode::Draft => 1,
+            ShadeMode::Normals => 2,
+        }
+    }
+}
+
+// --- Viewport --------------------------------------------------------------
+
+pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    let (rect, response) =
+        ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
+    if !ui.is_rect_visible(rect) {
+        return;
+    }
+
+    let shift = ui.input(|i| i.modifiers.shift);
+    if response.dragged_by(egui::PointerButton::Primary) {
+        let delta = response.drag_delta();
+        if shift {
+            app.camera.pan_by(delta, rect.height());
+        } else {
+            app.camera.orbit(delta);
+        }
+    }
+    if response.dragged_by(egui::PointerButton::Middle) {
+        app.camera.pan_by(response.drag_delta(), rect.height());
+    }
+    if response.hovered() {
+        let scroll = ui.input(|i| i.smooth_scroll_delta.y);
+        if scroll != 0.0 {
+            app.camera.zoom_by(scroll);
+        }
+    }
+
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, 0.0, theme::VIEWPORT_BG);
+
+    if app.show_grid {
+        draw_grid(app, &painter, rect);
+    }
+
+    if app.build.is_some() {
+        let (mvp, normal_matrix) = app.camera.matrices(rect);
+        let mode = app.shade.gl_mode();
+        let base_color = theme::METAL_RGB;
+        let wireframe = app.show_wireframe;
+        let wire_color = rgb_of(theme::TEXT_DIM);
+        let renderer = app.renderer.clone();
+
+        let callback = egui_glow::CallbackFn::new(move |info, glow_painter| {
+            if let Ok(mut r) = renderer.lock() {
+                r.paint(
+                    glow_painter.gl(),
+                    info,
+                    &mvp,
+                    &normal_matrix,
+                    mode,
+                    base_color,
+                    wireframe,
+                    wire_color,
+                );
+            }
+        });
+        painter.add(egui::PaintCallback { rect, callback: Arc::new(callback) });
+    } else {
+        painter.text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            "Building…",
+            egui::FontId::proportional(15.0),
+            theme::TEXT_DIM,
+        );
+    }
+
+    if app.show_grid {
+        draw_axes(app, &painter, rect);
+    }
+
+    draw_legend(app, &painter, rect);
+
+    painter.text(
+        rect.right_bottom() - egui::vec2(12.0, 9.0),
+        egui::Align2::RIGHT_BOTTOM,
+        "Drag to orbit • Shift-drag to pan • Scroll to zoom",
+        egui::FontId::proportional(11.0),
+        theme::TEXT_DIM,
+    );
+}
+
+/// Ground grid on the sand plane, under the ring.
+fn draw_grid(app: &RingDesignerApp, painter: &egui::Painter, rect: egui::Rect) {
+    let half = app.camera.half_extent();
+    let step = grid_step(half);
+    let lines = ((half * 1.6 / step).ceil() as i32).clamp(4, 30);
+    let z = app
+        .build
+        .as_ref()
+        .and_then(|b| b.mesh.bounds())
+        .map_or(0.0, |(min, _)| min.2);
+
+    let extent = lines as f32 * step;
+    let minor = egui::Stroke::new(1.0, theme::GRID);
+    let major = egui::Stroke::new(1.0, theme::ACCENT_DIM.gamma_multiply(0.40));
+
+    for i in -lines..=lines {
+        let t = i as f32 * step;
+        let stroke = if i == 0 { major } else { minor };
+        painter.line_segment(
+            [
+                app.camera.project([-extent, t, z], rect),
+                app.camera.project([extent, t, z], rect),
+            ],
+            stroke,
+        );
+        painter.line_segment(
+            [
+                app.camera.project([t, -extent, z], rect),
+                app.camera.project([t, extent, z], rect),
+            ],
+            stroke,
+        );
+    }
+}
+
+/// Grid spacing in mm, chosen so roughly nine lines cross the view.
+fn grid_step(half_extent: f32) -> f32 {
+    for step in [0.5f32, 1.0, 2.0, 5.0, 10.0, 20.0] {
+        if half_extent / step <= 9.0 {
+            return step;
+        }
+    }
+    50.0
+}
+
+/// Corner axis indicator oriented by the current view.
+fn draw_axes(app: &RingDesignerApp, painter: &egui::Painter, rect: egui::Rect) {
+    let origin = app.camera.project([0.0, 0.0, 0.0], rect);
+    let axes = [
+        ([1.0f32, 0.0, 0.0], "X", theme::BAD),
+        ([0.0, 1.0, 0.0], "Y", theme::GOOD),
+        ([0.0, 0.0, 1.0], "Z", theme::INFO),
+    ];
+
+    let mut dirs = [egui::Vec2::ZERO; 3];
+    let mut longest = 1e-6f32;
+    for (k, (axis, _, _)) in axes.iter().enumerate() {
+        dirs[k] = app.camera.project(*axis, rect) - origin;
+        longest = longest.max(dirs[k].length());
+    }
+
+    let scale = 26.0 / longest;
+    let centre = egui::pos2(rect.left() + 46.0, rect.bottom() - 46.0);
+    painter.circle_filled(centre, 2.0, theme::TEXT_DIM);
+
+    for (k, (_, name, color)) in axes.iter().enumerate() {
+        let tip = centre + dirs[k] * scale;
+        painter.line_segment([centre, tip], egui::Stroke::new(1.6, *color));
+        painter.text(
+            centre + dirs[k] * scale * 1.3,
+            egui::Align2::CENTER_CENTER,
+            *name,
+            egui::FontId::proportional(10.0),
+            *color,
+        );
+    }
+}
+
+/// Draft colour key in draft mode, otherwise the size and overall dimensions.
+fn draw_legend(app: &RingDesignerApp, painter: &egui::Painter, rect: egui::Rect) {
+    let mut rows: Vec<(Option<egui::Color32>, String, egui::Color32)> = Vec::new();
+
+    match (app.shade, app.cast.as_ref()) {
+        (ShadeMode::Draft, Some(cast)) => {
+            for (class, count) in [
+                (FaceClass::Good, cast.good),
+                (FaceClass::Marginal, cast.marginal),
+                (FaceClass::Vertical, cast.vertical),
+                (FaceClass::Undercut, cast.undercut),
+            ] {
+                rows.push((
+                    Some(theme::class_color(class)),
+                    format!("{} • {}", class.label(), count),
+                    theme::TEXT,
+                ));
+            }
+        }
+        _ => {
+            let Some(build) = app.build.as_ref() else { return };
+            let r = &build.report;
+            rows.push((None, app.design.size.display(), theme::TEXT));
+            rows.push((
+                None,
+                format!("{:.2} mm outside dia • {:.2} mm wide", r.outer_diameter_mm, r.band_width_mm),
+                theme::TEXT_DIM,
+            ));
+            rows.push((
+                None,
+                format!(
+                    "{:.2} x {:.2} x {:.2} mm overall",
+                    r.bounds_mm[0], r.bounds_mm[1], r.bounds_mm[2]
+                ),
+                theme::TEXT_DIM,
+            ));
+        }
+    }
+
+    if rows.is_empty() {
+        return;
+    }
+
+    let font = egui::FontId::proportional(11.0);
+    let galleys: Vec<_> = rows
+        .iter()
+        .map(|(_, text, color)| painter.layout_no_wrap(text.clone(), font.clone(), *color))
+        .collect();
+
+    let swatch = 9.0f32;
+    let text_x = if rows.iter().any(|(c, _, _)| c.is_some()) { swatch + 7.0 } else { 0.0 };
+    let line_h = 16.0f32;
+    let pad = egui::vec2(9.0, 7.0);
+    let width = galleys.iter().map(|g| g.size().x).fold(0.0, f32::max) + text_x;
+    let at = rect.left_top() + egui::vec2(12.0, 12.0);
+    let panel = egui::Rect::from_min_size(
+        at,
+        egui::vec2(width, line_h * rows.len() as f32) + pad * 2.0,
+    );
+
+    painter.rect_filled(panel, 5.0, theme::PANEL.gamma_multiply(0.88));
+    painter.rect_stroke(
+        panel,
+        5.0,
+        egui::Stroke::new(1.0, theme::GRID),
+        egui::StrokeKind::Inside,
+    );
+
+    for (i, ((color, _, text_color), galley)) in rows.iter().zip(galleys).enumerate() {
+        let y = at.y + pad.y + i as f32 * line_h;
+        if let Some(c) = color {
+            painter.rect_filled(
+                egui::Rect::from_min_size(
+                    egui::pos2(at.x + pad.x, y + (line_h - swatch) * 0.5),
+                    egui::Vec2::splat(swatch),
+                ),
+                2.0,
+                *c,
+            );
+        }
+        let ty = y + (line_h - galley.size().y) * 0.5;
+        painter.galley(egui::pos2(at.x + pad.x + text_x, ty), galley, *text_color);
+    }
+}
+
+fn rgb_of(c: egui::Color32) -> [f32; 3] {
+    [
+        c.r() as f32 / 255.0,
+        c.g() as f32 / 255.0,
+        c.b() as f32 / 255.0,
+    ]
+}

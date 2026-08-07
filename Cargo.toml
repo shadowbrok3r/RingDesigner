@@ -1,0 +1,61 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/ringdesign-core",
+    "crates/ringdesign-gui",
+    "crates/ringdesign-mcp",
+    "crates/ringdesign-mcpd",
+]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+ringdesign-core = { path = "crates/ringdesign-core" }
+ringdesign-mcp = { path = "crates/ringdesign-mcp" }
+
+nalgebra = "0.35"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+anyhow = "1.0.104"
+log = "0.4.33"
+rayon = "1.12"
+parking_lot = "0.12"
+schemars = "1.2"
+
+rmcp = { version = "3.1.1", features = [
+    "server",
+    "macros",
+    "schemars",
+    "transport-io",
+    "transport-streamable-http-server",
+] }
+tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "sync", "net", "io-std", "time"] }
+hyper-util = { version = "0.1.20", features = ["tokio", "server-auto", "service"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "bmp"] }
+
+eframe = { version = "0.36.0", default-features = false, features = [
+    "persistence",
+    "default_fonts",
+    "glow",
+    "x11",
+    "wayland",
+] }
+egui = { version = "0.36.0", features = ["rayon", "serde"] }
+egui_glow = "0.36.0"
+egui-phosphor = "0.12.0"
+rfd = "0.17.2"
+env_logger = "0.11.11"
+
+# Upstream egui-phosphor still pins egui 0.35; this fork tracks 0.36.
+[patch.crates-io]
+egui-phosphor = { git = "https://github.com/shadowbrok3r/egui-phosphor", branch = "egui-036" }
+
+[profile.dev]
+opt-level = 1
+
+# Mesh generation and image sampling are unusably slow unoptimized.
+[profile.dev.package."*"]
+opt-level = 3
