@@ -22,6 +22,41 @@ in −Z.
 This is why the profile library is a family of domes and why the section view
 exists.
 
+### Side faces are where ornament goes
+
+On a face whose normal is parallel to the pull, displacement along that normal
+moves metal *along* the pull and the walls it raises are *parallel* to it. Such
+relief cannot undercut at any height. This is a guarantee of the same kind as
+the superellipse drop, not a tuning result — and it is the whole answer to "put
+the design on the sides so the detail comes through".
+
+Measured on a size-7 band with a real ornament alpha, undercut area:
+
+| surface | relief 0.15 | 0.30 | 0.50 | 0.80 | 1.60 |
+| --- | --- | --- | --- | --- | --- |
+| squared side face | 0.000% | 0.000% | 0.000% | 0.000% | 0.000% |
+| edge-flange flat (90°) | 0.000% | 0.000% | 0.000% | 0.000% | 0.000% |
+| crest of a half-round | 0.75% | 1.77% | — | — | — |
+
+`FieldContext::side_faces(min_deg)` finds them by walking the base draft inward
+from each bore edge. `SIDE_FACE_MIN_DRAFT_DEG` is **80°** — calibrated, not
+guessed: at 55° a half-round's fillet grazes the threshold on its way past and
+reports a face that then undercuts at 0.15 mm.
+
+The usable width of a side face is **`thickness - crown`**. A half-round spends
+90% of its thickness on the crown and honestly has no side; `ProfileStyle::Flat`
+spends 15% and leaves most of it. `BandProfile::flatten_sides()` drops the side
+draft to zero and shrinks the edge fillet, which is what turns a nearly-square
+face into a square one.
+
+The two edges are independent — an edge flange gives a wide face on one edge and
+none on the other — so `SideFaces::low` and `.high` are each `Option`. Only
+mirror a tiling onto both when `is_even()`; mirroring a one-sided flange lands
+the copy on bare dome, which is the worst case there is.
+
+Two flanges, one per edge, is **not** castable: the dome between two proud rims
+is a valley, and no single parting plane clears both.
+
 ## Architecture
 
 Two crates. `ringdesign-core` has no UI dependency and is where the geometry
@@ -85,6 +120,33 @@ Only the height field can introduce an undercut, which is what
 Two constants encode real metallurgy: `MIN_EDGE_MM` (0.2) because feather edges
 will not fill, and `mesh::MIN_WALL_MM` (0.5) so displacement never eats into the
 finger hole.
+
+### Seamlessness
+
+### Windowing a layer to an arc
+
+`LayerEntry::window` gates any layer to part of the ring, or (inverted) to
+everything but that part. It is what puts ornament on the shoulders flanking a
+signet without running it across the table. A gated-out layer is skipped
+entirely rather than scaled to zero, so a `Replace` layer outside its window
+cannot wipe the layers under it.
+
+A window is positional, not periodic, so it needs no integer count — `wrap_delta`
+on 360° makes it continuous across the joint. Leave some `fade_deg`: a hard end
+raises a wall the mould has to clear.
+
+### The signet table
+
+The table is a **plane**, solved per point (`plane / cos` of the angle off
+centre), because a constant offset along a curved band's normal stays curved.
+It is a vertical wall with respect to a ±Z pull, which is fine — it is blank and
+hand-engraved. Design goes on the sides.
+
+`SignetLayer::room_across` measures the surface a table can stand on, from the
+crest out, **excluding the side faces**. A shoulder that rolls off onto the
+fillet between crest and side face walls up instead of fairing: sizing a head to
+the full band width of a squared-sided profile costs 0.47% undercut at −16°,
+where a head fitted to the room costs 0.000%.
 
 ### Seamlessness
 

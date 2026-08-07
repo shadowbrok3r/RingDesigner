@@ -11,7 +11,7 @@ use ringdesign_core::{ProfileStyle, RingDesign};
 const W: usize = 760;
 const H: usize = 760;
 
-#[path = "raster.rs"]
+#[path = "common/raster.rs"]
 mod raster;
 
 
