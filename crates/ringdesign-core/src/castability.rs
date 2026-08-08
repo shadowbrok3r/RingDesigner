@@ -10,6 +10,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::adaptive::Spacing;
 use crate::alpha::AlphaLibrary;
 use crate::field::Uv;
 use crate::mesh::{Mesh, cross, norm, sub};
@@ -526,19 +527,39 @@ pub struct Section {
 /// Extract the displaced cross-section at a ring angle.
 ///
 /// This evaluates the same profile and height field the mesh build uses, so the
-/// section view and the solid always agree.
+/// section view and the solid always agree. It probes the field to recover the
+/// build's sample spacing; a caller holding a [`Spacing`] already should use
+/// [`section_at_spaced`] and skip that.
 pub fn section_at(
     design: &RingDesign,
     lib: &AlphaLibrary,
     theta_deg: f64,
     steps: usize,
 ) -> Section {
+    let spacing = design
+        .build
+        .adaptive
+        .then(|| Spacing::compute(design, &design.field_context(), lib, 1));
+    section_at_spaced(design, lib, theta_deg, steps, spacing.as_ref())
+}
+
+/// [`section_at`] against a spacing the caller already computed.
+///
+/// The vertices must land where the mesh's do, or the section view reports a
+/// shape the solid does not have.
+pub fn section_at_spaced(
+    design: &RingDesign,
+    lib: &AlphaLibrary,
+    theta_deg: f64,
+    steps: usize,
+    spacing: Option<&Spacing>,
+) -> Section {
     let n = steps.clamp(24, 4096);
     let inner_r = design.inner_radius_mm();
-    let reference = design.profile.sample(inner_r, n);
+    let reference = design.reference_loop();
     let ctx = design.field_context();
     let m = design.shank.modulation(theta_deg, reference.crest_radius_mm);
-    let loop_i = design.profile.sample_mod(inner_r, n, &m);
+    let loop_i = design.profile.sample_spaced(inner_r, n, &m, spacing.map(|s| &s.v));
     if loop_i.len() < 3 {
         return Section { theta_deg, ..Default::default() };
     }
@@ -560,8 +581,10 @@ pub fn section_at(
         }
         let mut r = p.r + h * p.nr;
         let z = p.z + h * p.nz;
+        // Identical to the clamp in `mesh::build`, including the base-profile
+        // floor, or the section reports a shape the solid does not have.
         if p.surface {
-            r = r.max(inner_r + min_wall);
+            r = r.max((inner_r + min_wall).min(p.r));
         }
         points.push(SectionPoint { r, z, surface: p.surface, ..Default::default() });
     }
@@ -679,7 +702,7 @@ mod tests {
     use crate::mesh::{BuildParams, BuildResult};
     use crate::profile::TOP_DEG;
 
-    const STEPS: BuildParams = BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: 0.5 };
+    const STEPS: BuildParams = BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: 0.5, adaptive: true };
 
     fn built(design: &RingDesign) -> BuildResult {
         crate::mesh::build(design, &AlphaLibrary::default(), STEPS)
@@ -691,7 +714,7 @@ mod tests {
     #[test]
     fn relief_holds_on_a_squared_side_face_where_it_ruins_the_crest() {
         let lib = AlphaLibrary::builtin();
-        let steps = BuildParams { theta_steps: 384, profile_steps: 160, min_wall_mm: 0.5 };
+        let steps = BuildParams { theta_steps: 384, profile_steps: 160, min_wall_mm: 0.5, adaptive: true };
         let mut base = RingDesign::default();
         base.profile.apply_style(crate::ProfileStyle::Flat);
         base.profile.flatten_sides();
@@ -997,8 +1020,15 @@ mod tests {
             ));
             let out = crate::mesh::build(&d, &lib, STEPS);
             for i in [0usize, 17, 64, 111] {
-                let theta = i as f64 / STEPS.theta_steps as f64 * 360.0;
-                let s = section_at(&d, &lib, theta, STEPS.profile_steps);
+                // Adaptive spacing means ring `i` is not at i/n of a turn.
+                let theta = out.spacing.theta[i] * 360.0;
+                let s = section_at_spaced(
+                    &d,
+                    &lib,
+                    theta,
+                    STEPS.profile_steps,
+                    Some(&out.spacing),
+                );
                 let mut worst = 0.0f64;
                 for (j, p) in s.points.iter().enumerate() {
                     let v = out.mesh.vertices[i * STEPS.profile_steps + j];

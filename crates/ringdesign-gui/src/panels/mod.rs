@@ -22,12 +22,19 @@ pub fn render(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         .default_size(316.0)
         .size_range(egui::Rangef::new(266.0, 460.0))
         .show(ui, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                design::ui(app, ui);
-                ui.add_space(6.0);
-                ui.separator();
-                layers::ui(app, ui);
-            });
+            // Layers get their own pane rather than trailing the design column,
+            // which is long enough to push "Add layer" off the bottom.
+            egui::Panel::bottom(egui::Id::new("layers_pane"))
+                .default_size(360.0)
+                .size_range(egui::Rangef::new(130.0, 720.0))
+                .show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .id_salt("layers_scroll")
+                        .show(ui, |ui| layers::ui(app, ui));
+                });
+            egui::ScrollArea::vertical()
+                .id_salt("design_scroll")
+                .show(ui, |ui| design::ui(app, ui));
         });
 
     egui::Panel::right(egui::Id::new("right"))

@@ -99,8 +99,24 @@ pub struct FieldContext {
 /// Base draft a surface must clear to count as a side face, degrees.
 pub const SIDE_FACE_MIN_DRAFT_DEG: f64 = 80.0;
 
-/// Narrowest side face worth putting ornament on, mm.
-pub const MIN_SIDE_FACE_MM: f64 = 0.25;
+/// Narrowest side face worth putting ornament on, mm. A dome leaves a sliver
+/// of near-square metal at the bore edge where the crown clamp bottoms out on
+/// MIN_EDGE_MM; that is geometry, not a surface to decorate.
+pub const MIN_SIDE_FACE_MM: f64 = 0.45;
+
+/// Share of the room across a head a signet table fills. Measured: clean here,
+/// bowing by 0.82 and walled up by 0.92.
+pub const SIGNET_TABLE_FRAC: f64 = 0.70;
+
+/// Steepest base draft a signet table will stand on. Past this the surface has
+/// dropped too far below the table plane for a shoulder to fair it back.
+pub const TABLE_MAX_DRAFT_DEG: f64 = 20.0;
+
+/// `v` of a sample index.
+#[inline]
+fn at_step(i: usize, step: f64) -> f64 {
+    i as f64 * step
+}
 
 /// The runs of `v` square enough to the mould pull to hold relief.
 ///
@@ -701,38 +717,85 @@ impl Default for SignetLayer {
 
 impl SignetLayer {
     /// A table sized to stay flat on the given band, centred on the crest.
+    ///
+    /// Table and shoulder together have to fit the room, or the fairing runs
+    /// off the surface holding it up and walls up instead. The shoulder is
+    /// taken out of the room first, so this can never produce a table that its
+    /// own [`SignetLayer::overhangs`] then complains about.
     pub fn fitted_to(ctx: &FieldContext) -> Self {
-        let width = (Self::room_across(ctx) * 0.55).clamp(2.0, 14.0);
+        let room = Self::room_across(ctx).max(0.0);
+        let shoulder = (room * 0.225).clamp(0.3, Self::default().shoulder_mm);
+        let width = (room - 2.0 * shoulder).clamp(1.0, 14.0);
         Self {
             v_mm: ctx.crest_v_mm,
             width_mm: width,
             length_mm: width * 1.6,
+            shoulder_mm: shoulder,
             ..Default::default()
         }
     }
 
     /// Surface across the band a table can stand on, mm.
     ///
-    /// Measured from the crest out, because a crest sitting off centre — a
-    /// flange takes it to one side — leaves less room than the band width says.
-    /// Side faces are excluded: a shoulder rolling off onto the fillet between
-    /// crest and side face leaves a wall rather than a fairing.
+    /// The run around the crest still flat enough to carry a plane. Past that
+    /// the base has dropped so far below the table that the shoulder has to
+    /// claw back the difference over its own short width, which is a wall, not
+    /// a fairing — and it is why a half-round is a poor base for a signet and a
+    /// flat crest a good one.
+    ///
+    /// Measured from the crest outward in both directions and taken as twice
+    /// the shorter, because a crest sitting off centre — a flange takes it to
+    /// one side — leaves less room than the band width says.
     pub fn room_across(ctx: &FieldContext) -> f64 {
-        let (lo, hi) = match ctx.side_faces(SIDE_FACE_MIN_DRAFT_DEG) {
-            Some(f) => (
-                f.low.map_or(0.0, |(_, end)| end),
-                f.high.map_or(ctx.band_v_len_mm, |(start, _)| start),
-            ),
-            None => (0.0, ctx.band_v_len_mm),
+        if ctx.surface.is_empty() || ctx.band_v_len_mm <= 1e-9 {
+            return ctx.band_v_len_mm.max(0.0);
+        }
+        let span = ctx.band_v_len_mm;
+        let flat = |v: f64| {
+            ctx.surface.draft_deg(v, span).is_some_and(|d| d <= TABLE_MAX_DRAFT_DEG)
         };
-        let half = (ctx.crest_v_mm - lo).min(hi - ctx.crest_v_mm).max(0.0);
-        (half * 2.0).min(ctx.band_v_len_mm)
+        let n = ctx.surface.samples.len();
+        let step = span / (n - 1) as f64;
+        let crest = (ctx.crest_v_mm / step).round().clamp(0.0, (n - 1) as f64) as usize;
+        let mut lo = crest;
+        while lo > 0 && flat(at_step(lo - 1, step)) {
+            lo -= 1;
+        }
+        let mut hi = crest;
+        while hi + 1 < n && flat(at_step(hi + 1, step)) {
+            hi += 1;
+        }
+        let half = (ctx.crest_v_mm - at_step(lo, step))
+            .min(at_step(hi, step) - ctx.crest_v_mm)
+            .max(0.0);
+        (half * 2.0).min(span)
     }
 
-    /// Whether the table reaches past the surface that can support it, which is
-    /// what makes it bow away from a true plane and wall up at its shoulders.
+    /// Whether the table, shoulder included, reaches past the surface that can
+    /// support it — what makes it bow away from a true plane and wall up.
+    ///
+    /// Measured on a squared-sided band, undercut starts once the reach passes
+    /// about 1.05 of the half-room. Reporting at 1.0 leaves a margin on the safe
+    /// side, so this warns a little early and never late.
     pub fn overhangs(&self, ctx: &FieldContext) -> bool {
-        self.width_mm > Self::room_across(ctx) * 0.75
+        self.reach_mm() > Self::room_across(ctx) * 0.5
+    }
+
+    /// How far the table and its shoulder extend either side of centre, mm.
+    pub fn reach_mm(&self) -> f64 {
+        self.width_mm.max(0.0) * 0.5 + self.shoulder_mm.max(0.0)
+    }
+
+    /// Grow the table to fill the head, the way a real signet's does.
+    ///
+    /// Measured on a flat crest: 0.55 of the room is clean but leaves an obvious
+    /// margin, 0.70 is clean and reads as a signet, 0.82 starts to bow at
+    /// 0.05%, and 0.92 walls up at -36 degrees.
+    pub fn fill_head(&mut self, ctx: &FieldContext) {
+        let room = Self::room_across(ctx);
+        self.width_mm = (room * SIGNET_TABLE_FRAC).max(2.0);
+        self.length_mm = self.width_mm * 1.55;
+        self.shoulder_mm = self.shoulder_mm.min((room - self.width_mm) * 0.5).max(0.4);
     }
 
     /// Usable engraving area, mm2, over the flat part of the table.
@@ -915,7 +978,8 @@ mod tests {
         );
 
         let s = SignetLayer::fitted_to(&ctx);
-        assert!(!s.overhangs(&ctx));
+        assert!(!s.overhangs(&ctx), "the default fit must not warn about itself");
+        assert!(s.reach_mm() <= room * 0.5, "fitted reach {:.2} exceeds half the room", s.reach_mm());
         let (lo, hi) = (s.v_mm - s.width_mm * 0.5, s.v_mm + s.width_mm * 0.5);
         let low_end = faces.low.map_or(0.0, |(_, e)| e);
         let high_start = faces.high.map_or(ctx.band_v_len_mm, |(s, _)| s);

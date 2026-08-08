@@ -133,6 +133,26 @@ A window is positional, not periodic, so it needs no integer count — `wrap_del
 on 360° makes it continuous across the joint. Leave some `fade_deg`: a hard end
 raises a wall the mould has to clear.
 
+### A signet is a shank, not a bump
+
+The thing that makes a signet read as a signet is the **band's own width**: a
+narrow shank swelling into a broad head, whose silhouette *is* the head outline.
+`ShankKind::Signet` does that — `width_mm` is the head, and the taper makes the
+rest. The width follows a superellipse in plan, `1 - x^a` over `head_span_deg`,
+where `a` is the same fullness exponent the table outlines use: 2 oval, 4
+cushion, 8 rectangle. Match `head_shape_a` to the table's outline and the two
+read as one shape.
+
+Measured: **the taper itself is 0.000% undercut on every profile**, down to a
+1.9 mm shank on a 12 mm head. A band that widens toward the top is single-valued
+in Z over `(r, theta)`, so it is a terrain and releases by construction. What
+undercuts is the table, not the swell.
+
+`crown_scale` on `ShankMod` lets the narrowing section round off toward a wire
+while the head keeps a flat crest, which is the classic combination — flat table,
+round shank. The crown clamp caps it, so a large value only ever means "more
+domed here".
+
 ### The signet table
 
 The table is a **plane**, solved per point (`plane / cos` of the angle off
@@ -140,11 +160,17 @@ centre), because a constant offset along a curved band's normal stays curved.
 It is a vertical wall with respect to a ±Z pull, which is fine — it is blank and
 hand-engraved. Design goes on the sides.
 
-`SignetLayer::room_across` measures the surface a table can stand on, from the
-crest out, **excluding the side faces**. A shoulder that rolls off onto the
-fillet between crest and side face walls up instead of fairing: sizing a head to
-the full band width of a squared-sided profile costs 0.47% undercut at −16°,
-where a head fitted to the room costs 0.000%.
+`SignetLayer::room_across` measures the surface a table can stand on: the run
+around the crest whose base draft stays under `TABLE_MAX_DRAFT_DEG`. Past that
+the base has fallen so far below the table plane that the shoulder has to claw
+the difference back over its own width, which is a wall rather than a fairing.
+That is the whole reason **a flat crest is the right base for a signet and a
+half-round the wrong one** — measured at 0.000% versus 1.04%.
+
+Table and shoulder together have to fit the room. `fitted_to` takes the shoulder
+out first so it can never produce a table its own `overhangs` then complains
+about, and `fill_head` grows the table to `SIGNET_TABLE_FRAC` of the room —
+measured clean at 0.70, bowing at 0.82, walled up at −36° by 0.92.
 
 ### Seamlessness
 
@@ -176,6 +202,15 @@ jobs. Panels never build synchronously — only export does, at
 
 Panels are `pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui)` and are
 wired in `panels/mod.rs`.
+
+The left column is **two panes**, not one scroll area: design on top, layers in a
+nested bottom panel. They shared a scroll once and the design column grew long
+enough to push `Add layer` off the bottom of the window, which reads as the
+feature not existing. Anything the user has to reach for belongs in its own pane
+or above the fold. For the same reason only Ring and Profile default open.
+
+File dialogs start in `library::default_design_dir()` and its `exports` sibling,
+created on demand, so everything the app writes lands in one predictable tree.
 
 ### The viewport needs a depth buffer asked for explicitly
 

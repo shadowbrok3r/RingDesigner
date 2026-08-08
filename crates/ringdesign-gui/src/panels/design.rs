@@ -4,7 +4,7 @@ use egui::RichText;
 use egui_phosphor::regular as icon;
 use ringdesign_core::field::SIDE_FACE_MIN_DRAFT_DEG;
 use ringdesign_core::profile::{
-    EDGE_FLANGE_T, MIN_EDGE_MM, ProfileStyle, SQUARED_SIDE_FILLET_MM, ShankKind,
+    EDGE_FLANGE_T, MIN_EDGE_MM, ProfileStyle, SQUARED_SIDE_FILLET_MM, ShankKind, TOP_DEG,
 };
 use ringdesign_core::sizing::RingSize;
 
@@ -12,16 +12,16 @@ use crate::app::RingDesignerApp;
 use crate::theme;
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
-    section(ui, format!("{} Ring", icon::CIRCLE_NOTCH), |ui| ring(app, ui));
-    section(ui, format!("{} Profile", icon::CIRCLE_HALF), |ui| profile(app, ui));
-    section(ui, format!("{} Shank", icon::WAVE_SINE), |ui| shank(app, ui));
-    section(ui, format!("{} Casting", icon::HAMMER), |ui| casting(app, ui));
-    section(ui, format!("{} Mesh", icon::TRIANGLE), |ui| mesh(app, ui));
+    section(ui, format!("{} Ring", icon::CIRCLE_NOTCH), true, |ui| ring(app, ui));
+    section(ui, format!("{} Profile", icon::CIRCLE_HALF), true, |ui| profile(app, ui));
+    section(ui, format!("{} Shank", icon::WAVE_SINE), false, |ui| shank(app, ui));
+    section(ui, format!("{} Casting", icon::HAMMER), false, |ui| casting(app, ui));
+    section(ui, format!("{} Mesh", icon::TRIANGLE), false, |ui| mesh(app, ui));
 }
 
-fn section(ui: &mut egui::Ui, title: String, add: impl FnOnce(&mut egui::Ui)) {
+fn section(ui: &mut egui::Ui, title: String, open: bool, add: impl FnOnce(&mut egui::Ui)) {
     egui::CollapsingHeader::new(RichText::new(title).strong())
-        .default_open(true)
+        .default_open(open)
         .show(ui, add);
 }
 
@@ -561,6 +561,31 @@ fn shank(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .text("Amount"),
         )
         .changed();
+
+    if app.design.shank.kind == ShankKind::Signet {
+        let sh = &mut app.design.shank;
+        changed |= ui
+            .add(egui::Slider::new(&mut sh.head_span_deg, 40.0..=220.0).suffix("°").text("Head arc"))
+            .on_hover_text("How far round the ring the head reaches before it is shank again.")
+            .changed();
+        changed |= ui
+            .add(
+                egui::Slider::new(&mut sh.head_shape_a, 1.5..=10.0)
+                    .fixed_decimals(1)
+                    .text("Head shape"),
+            )
+            .on_hover_text("Fullness of the head outline: 2 oval, 4 cushion, 8 rectangle.")
+            .changed();
+        let shank_mm = app.design.profile.width_mm * app.design.shank.signet_width_frac(TOP_DEG + 180.0);
+        hint(
+            ui,
+            format!(
+                "Head {:.1} mm wide, shank {shank_mm:.1} mm. Width is the head; the taper makes \
+                 the rest.",
+                app.design.profile.width_mm
+            ),
+        );
+    }
 
     if changed {
         app.mark_dirty();

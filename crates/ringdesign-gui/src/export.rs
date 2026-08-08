@@ -1,12 +1,26 @@
 //! File dialogs for mesh export, design persistence, and alpha import.
 
+use std::path::PathBuf;
+
 use ringdesign_core::{library, stl};
 
 use crate::app::RingDesignerApp;
 
+/// Directory a dialog opens in, created on demand so it is always there to
+/// browse. Everything the app writes lands under one predictable tree.
+fn dir(kind: &str) -> PathBuf {
+    let path = match kind {
+        "designs" => library::default_design_dir(),
+        _ => library::default_design_dir().with_file_name(kind),
+    };
+    let _ = std::fs::create_dir_all(&path);
+    path
+}
+
 pub fn export_stl(app: &mut RingDesignerApp) {
     let Some(path) = rfd::FileDialog::new()
         .add_filter("Binary STL", &["stl"])
+        .set_directory(dir("exports"))
         .set_file_name(format!("{}.stl", slug(&app.design.name)))
         .save_file()
     else {
@@ -32,6 +46,7 @@ pub fn export_stl(app: &mut RingDesignerApp) {
 pub fn export_obj(app: &mut RingDesignerApp) {
     let Some(path) = rfd::FileDialog::new()
         .add_filter("Wavefront OBJ", &["obj"])
+        .set_directory(dir("exports"))
         .set_file_name(format!("{}.obj", slug(&app.design.name)))
         .save_file()
     else {
@@ -54,6 +69,7 @@ pub fn export_obj(app: &mut RingDesignerApp) {
 pub fn save_design(app: &mut RingDesignerApp) {
     let Some(path) = rfd::FileDialog::new()
         .add_filter("Ring design", &["json"])
+        .set_directory(dir("designs"))
         .set_file_name(format!("{}.json", slug(&app.design.name)))
         .save_file()
     else {
@@ -68,6 +84,7 @@ pub fn save_design(app: &mut RingDesignerApp) {
 pub fn open_design(app: &mut RingDesignerApp) {
     let Some(path) = rfd::FileDialog::new()
         .add_filter("Ring design", &["json"])
+        .set_directory(dir("designs"))
         .pick_file()
     else {
         return;
@@ -87,6 +104,7 @@ pub fn open_design(app: &mut RingDesignerApp) {
 pub fn import_alphas(app: &mut RingDesignerApp) {
     let Some(paths) = rfd::FileDialog::new()
         .add_filter("Images", &["png", "jpg", "jpeg", "bmp"])
+        .set_directory(library::default_alpha_dir())
         .pick_files()
     else {
         return;

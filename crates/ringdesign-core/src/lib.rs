@@ -23,6 +23,7 @@
 //! undercut-free by construction; only the height field can introduce
 //! undercuts, and [`castability::analyze`] reports where.
 
+pub mod adaptive;
 pub mod alpha;
 pub mod castability;
 pub mod engine;
@@ -79,9 +80,14 @@ impl RingDesign {
 
     /// The reference cross-section used to parameterize the height field: the
     /// unmodulated profile, so `v` stays put as the shank tapers.
+    ///
+    /// Sampled at a fixed count rather than the build's, so `band_v_len_mm` —
+    /// and with it the scale of every layer — is the same at preview and at
+    /// export resolution. Adaptive spacing also derives from this, and a `v`
+    /// span that moved with the sampling would make that circular.
     pub fn reference_loop(&self) -> ProfileLoop {
         self.profile
-            .sample(self.inner_radius_mm(), self.build.profile_steps)
+            .sample(self.inner_radius_mm(), profile::REFERENCE_PROFILE_STEPS)
     }
 
     /// Unrolled-space context for evaluating the layer stack.

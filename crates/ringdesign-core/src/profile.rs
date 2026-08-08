@@ -11,6 +11,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::adaptive::{self, Density};
+
 /// Thinnest castable outer edge; feather edges will not fill in sand.
 pub const MIN_EDGE_MM: f64 = 0.2;
 
@@ -26,6 +28,10 @@ pub const TOP_DEG: f64 = 90.0;
 /// which keeps the swept grid's indexing aligned with what it gets back.
 pub const MIN_PROFILE_STEPS: usize = 24;
 pub const MAX_PROFILE_STEPS: usize = 1024;
+
+/// Vertices in the reference cross-section that parameterizes the height
+/// field. Fixed so the `v` span does not move with the build resolution.
+pub const REFERENCE_PROFILE_STEPS: usize = 512;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProfileStyle {
@@ -273,15 +279,35 @@ impl BandProfile {
     /// An enabled flange replaces the outer surface across its axial band with
     /// two flat faces and a rim, and its rim becomes the crest.
     pub fn sample_mod(&self, inner_r: f64, n: usize, m: &ShankMod) -> ProfileLoop {
+        self.sample_spaced(inner_r, n, m, None)
+    }
+
+    /// Sample the cross-section, optionally placing the vertices by height
+    /// field detail across `v` rather than at equal arc length.
+    ///
+    /// `field_v` is indexed by normalized `v`, which is what the layer stack is
+    /// evaluated against, so one density computed from the reference profile
+    /// applies to every modulated cross-section.
+    pub fn sample_spaced(
+        &self,
+        inner_r: f64,
+        n: usize,
+        m: &ShankMod,
+        field_v: Option<&Density>,
+    ) -> ProfileLoop {
         let n = n.clamp(MIN_PROFILE_STEPS, MAX_PROFILE_STEPS);
         let width = (self.width_mm * m.width_scale).max(0.4);
         let thickness = (self.thickness_mm * m.thickness_scale).max(0.3);
-        let crown =
-            (self.crown_mm * m.thickness_scale).clamp(0.0, (thickness - MIN_EDGE_MM).max(0.0));
-        let edge_t = (thickness - crown).max(MIN_EDGE_MM);
 
         let hw = width * 0.5;
         let comfort = self.comfort_fit_mm.clamp(0.0, hw * 0.8);
+        // The comfort dome eats into the band from the inside, so the crown may
+        // only take what it leaves. Without this the bore reaches past the outer
+        // surface at the band edge and the cross-section folds over itself — a
+        // 0.25 mm comfort fit does not fit inside a 0.2 mm edge.
+        let crown = (self.crown_mm * m.thickness_scale * m.crown_scale)
+            .clamp(0.0, (thickness - comfort - MIN_EDGE_MM).max(0.0));
+        let edge_t = (thickness - crown).max(MIN_EDGE_MM + comfort);
         let draft = self.side_draft_deg.clamp(-20.0, 30.0).to_radians();
         // Side faces slope inward over the edge thickness, narrowing the band.
         let side_inset = (edge_t * draft.tan()).clamp(-hw * 0.4, hw * 0.4);
@@ -406,25 +432,50 @@ impl BandProfile {
         surface.push(side_t_end);
         dedup(&mut surface);
 
-        // --- Split the vertex budget by arc length so triangles stay even. ---
+        // --- Place the vertex budget. ---
         let len_b = polyline_len(&bore);
         let len_s = polyline_len(&surface);
-        let total = (len_b + len_s).max(1e-9);
-        let n_s = ((n as f64 * len_s / total).round() as usize).clamp(12, n - 12);
-        let n_b = n - n_s;
 
-        let bore_pts = resample(&bore, n_b);
-        let surf_pts = resample(&surface, n_s);
+        let pts: Vec<ProfileSample> = match field_v {
+            // Equal arc length: the budget goes by span length and the samples
+            // sit evenly along each.
+            None => {
+                let total = (len_b + len_s).max(1e-9);
+                let n_s = ((n as f64 * len_s / total).round() as usize).clamp(12, n - 12);
+                let even = |c: usize| (0..c).map(|i| i as f64 / c as f64).collect::<Vec<f64>>();
+                let bore_pts = resample_at(&bore, &even(n - n_s));
+                let surf_pts = resample_at(&surface, &even(n_s));
+                bore_pts
+                    .into_iter()
+                    .map(|p| ProfileSample::bare(p[0], p[1], false))
+                    .chain(surf_pts.into_iter().map(|p| ProfileSample::bare(p[0], p[1], true)))
+                    .collect()
+            }
+            // By detail. Resampled as one closed polyline rather than two spans:
+            // the corners where the bore meets the side faces are then interior
+            // to the curvature density and always earn a sample. Sampling the
+            // spans apart leaves those corners cut across by a chord, and a
+            // chopped corner shrinks only as 1/n where a chorded curve shrinks
+            // as 1/n² — so it comes to dominate however large the budget gets.
+            Some(f) => {
+                let mut closed = bore.clone();
+                closed.extend_from_slice(&surface[1..]);
+                let mut d = adaptive::curvature_density(&closed);
+                d.finish_against(d.peak());
+                // The field only displaces the surface span, which is the tail
+                // of the loop.
+                let total = (len_b + len_s).max(1e-9);
+                d.combine_range(f, len_b / total, 1.0);
 
-        let mut pts: Vec<ProfileSample> = Vec::with_capacity(n);
-        for p in bore_pts {
-            pts.push(ProfileSample::bare(p[0], p[1], false));
-        }
-        for p in surf_pts {
-            pts.push(ProfileSample::bare(p[0], p[1], true));
-        }
+                resample_at(&closed, &d.positions(n))
+                    .into_iter()
+                    .zip(d.positions(n))
+                    .map(|(p, t)| ProfileSample::bare(p[0], p[1], t * total >= len_b))
+                    .collect()
+            }
+        };
 
-        finish_loop(pts, len_s)
+        finish_loop(pts)
     }
 }
 
@@ -493,6 +544,7 @@ pub enum ShankKind {
     ReverseTaper,
     Cathedral,
     EuroFlat,
+    Signet,
 }
 
 impl ShankKind {
@@ -502,6 +554,7 @@ impl ShankKind {
         ShankKind::ReverseTaper,
         ShankKind::Cathedral,
         ShankKind::EuroFlat,
+        ShankKind::Signet,
     ];
 
     pub fn label(self) -> &'static str {
@@ -511,6 +564,7 @@ impl ShankKind {
             ShankKind::ReverseTaper => "Reverse Taper",
             ShankKind::Cathedral => "Cathedral",
             ShankKind::EuroFlat => "Euro (flat bottom)",
+            ShankKind::Signet => "Signet",
         }
     }
 
@@ -521,6 +575,10 @@ impl ShankKind {
             ShankKind::ReverseTaper => "Narrows toward the top, widening at the palm.",
             ShankKind::Cathedral => "Shoulders swell toward the top of the ring.",
             ShankKind::EuroFlat => "Flat chord across the bottom so the ring will not spin.",
+            ShankKind::Signet => {
+                "Narrow shank swelling into a broad head at the top. The band width is the \
+                 head outline, so set Width to the head and let this taper the rest."
+            }
         }
     }
 }
@@ -530,11 +588,64 @@ pub struct ShankStyle {
     pub kind: ShankKind,
     /// Strength of the modulation, 0..1.
     pub amount: f64,
+    /// Arc the head spans before it has fallen to shank width, degrees.
+    /// Signet only.
+    #[serde(default = "default_head_span")]
+    pub head_span_deg: f64,
+    /// Fullness of the head outline, as the superellipse exponent of its plan
+    /// view: 2 is an oval, 4 a cushion, 8 a rectangle. Signet only.
+    #[serde(default = "default_head_shape")]
+    pub head_shape_a: f64,
 }
+
+fn default_head_span() -> f64 {
+    HEAD_SPAN_DEG
+}
+
+fn default_head_shape() -> f64 {
+    HEAD_SHAPE_A
+}
+
+/// Arc a signet head spans before it reaches shank width, degrees.
+pub const HEAD_SPAN_DEG: f64 = 104.0;
+/// Default head outline fullness: an oval.
+pub const HEAD_SHAPE_A: f64 = 2.0;
+/// Shank width as a fraction of the head at full strength.
+pub const SIGNET_MIN_SHANK_FRAC: f64 = 0.16;
+/// How much a signet shank rounds off as it narrows. The crown clamp caps it.
+pub const SIGNET_SHANK_ROUNDING: f64 = 9.0;
 
 impl Default for ShankStyle {
     fn default() -> Self {
-        Self { kind: ShankKind::Uniform, amount: 0.5 }
+        Self {
+            kind: ShankKind::Uniform,
+            amount: 0.5,
+            head_span_deg: HEAD_SPAN_DEG,
+            head_shape_a: HEAD_SHAPE_A,
+        }
+    }
+}
+
+impl ShankStyle {
+    /// Fraction of the band width left at a ring angle by a signet taper.
+    ///
+    /// Seen from outside, the band's own silhouette *is* the head outline, so
+    /// the width follows a superellipse in plan: `1 - x^a` over the head arc,
+    /// full width at the top falling to shank width at its edge. `a` is the
+    /// same fullness exponent the table outlines use — 2 oval, 4 cushion, 8
+    /// rectangle.
+    pub fn signet_width_frac(&self, theta_deg: f64) -> f64 {
+        let k = self.amount.clamp(0.0, 1.0);
+        let shank = 1.0 - (1.0 - SIGNET_MIN_SHANK_FRAC) * k;
+        let d = crate::field::wrap_delta(theta_deg - TOP_DEG, 360.0).abs();
+        let half = (self.head_span_deg.max(1.0) * 0.5).min(180.0);
+        if d >= half {
+            return shank;
+        }
+        let x = (d / half).clamp(0.0, 1.0);
+        let a = self.head_shape_a.clamp(1.0, 12.0);
+        let head = (1.0 - x.powf(a)).clamp(0.0, 1.0);
+        shank + (1.0 - shank) * head
     }
 }
 
@@ -543,13 +654,17 @@ impl Default for ShankStyle {
 pub struct ShankMod {
     pub width_scale: f64,
     pub thickness_scale: f64,
+    /// Scale on the crown, so a section can round off independently of the
+    /// style. The crown is clamped to the section, so a large value simply
+    /// means "fully domed here".
+    pub crown_scale: f64,
     /// Hard radial cap, used by the Euro flat chord.
     pub outer_max_r: Option<f64>,
 }
 
 impl ShankMod {
     pub fn identity() -> Self {
-        Self { width_scale: 1.0, thickness_scale: 1.0, outer_max_r: None }
+        Self { width_scale: 1.0, thickness_scale: 1.0, crown_scale: 1.0, outer_max_r: None }
     }
 }
 
@@ -565,12 +680,12 @@ impl ShankStyle {
             ShankKind::Tapered => ShankMod {
                 width_scale: 1.0 - 0.45 * k * d,
                 thickness_scale: 1.0 - 0.30 * k * d,
-                outer_max_r: None,
+                ..ShankMod::identity()
             },
             ShankKind::ReverseTaper => ShankMod {
                 width_scale: 1.0 - 0.45 * k * (1.0 - d),
                 thickness_scale: 1.0 - 0.30 * k * (1.0 - d),
-                outer_max_r: None,
+                ..ShankMod::identity()
             },
             ShankKind::Cathedral => {
                 // Swell concentrated on the shoulders either side of the top.
@@ -578,7 +693,7 @@ impl ShankStyle {
                 ShankMod {
                     width_scale: 1.0 + 0.55 * k * s,
                     thickness_scale: 1.0 + 0.25 * k * s,
-                    outer_max_r: None,
+                    ..ShankMod::identity()
                 }
             }
             ShankKind::EuroFlat => {
@@ -591,7 +706,21 @@ impl ShankStyle {
                 } else {
                     None
                 };
-                ShankMod { width_scale: 1.0, thickness_scale: 1.0, outer_max_r: cap }
+                ShankMod { outer_max_r: cap, ..ShankMod::identity() }
+            }
+            ShankKind::Signet => {
+                let w = self.signet_width_frac(theta_deg);
+                // The shank keeps most of its thickness as it narrows, which is
+                // what leaves a round wire at the back rather than a ribbon.
+                // The narrowing section rounds off toward a wire, so a flat
+                // head can sit on a round shank. The crown clamp caps it at a
+                // full dome, so this only ever means "more domed here".
+                ShankMod {
+                    width_scale: w,
+                    thickness_scale: 1.0 - 0.22 * k * (1.0 - w),
+                    crown_scale: 1.0 + SIGNET_SHANK_ROUNDING * k * (1.0 - w),
+                    outer_max_r: None,
+                }
             }
         }
     }
@@ -717,11 +846,12 @@ fn push_fillet(
     }
 }
 
-/// Resample a polyline to exactly `count` points, evenly spaced by arc length.
-/// The final point is dropped: spans are joined head-to-tail around the loop.
-fn resample(p: &[[f64; 2]], count: usize) -> Vec<[f64; 2]> {
-    if p.len() < 2 || count == 0 {
-        return p.iter().take(count).copied().collect();
+/// Resample a polyline at normalized arc-length positions, which must be
+/// monotone. The end point is never emitted: spans are joined head-to-tail
+/// around the closed loop.
+fn resample_at(p: &[[f64; 2]], targets: &[f64]) -> Vec<[f64; 2]> {
+    if p.len() < 2 || targets.is_empty() {
+        return p.iter().take(targets.len()).copied().collect();
     }
     let mut cum = Vec::with_capacity(p.len());
     let mut acc = 0.0;
@@ -732,10 +862,10 @@ fn resample(p: &[[f64; 2]], count: usize) -> Vec<[f64; 2]> {
     }
     let total = acc.max(1e-12);
 
-    let mut out = Vec::with_capacity(count);
+    let mut out = Vec::with_capacity(targets.len());
     let mut seg = 0usize;
-    for i in 0..count {
-        let target = total * (i as f64 / count as f64);
+    for &at in targets {
+        let target = total * at.clamp(0.0, 1.0);
         while seg + 2 < p.len() && cum[seg + 1] < target {
             seg += 1;
         }
@@ -751,7 +881,7 @@ fn resample(p: &[[f64; 2]], count: usize) -> Vec<[f64; 2]> {
 
 /// Compute normals, `v` coordinates, and displacement weights for a finished
 /// closed loop.
-fn finish_loop(mut pts: Vec<ProfileSample>, _surface_len_hint: f64) -> ProfileLoop {
+fn finish_loop(mut pts: Vec<ProfileSample>) -> ProfileLoop {
     let n = pts.len();
     if n < 3 {
         return ProfileLoop::default();
@@ -884,6 +1014,65 @@ mod tests {
     }
 
     #[test]
+    fn a_signet_shank_is_widest_at_the_top_and_narrowest_at_the_bottom() {
+        let sh = ShankStyle { kind: ShankKind::Signet, amount: 0.85, ..Default::default() };
+        let top = sh.signet_width_frac(TOP_DEG);
+        let bottom = sh.signet_width_frac(TOP_DEG + 180.0);
+        assert!((top - 1.0).abs() < 1e-12, "the head is not full width: {top}");
+        assert!(bottom < 0.30, "the shank is not narrow enough: {bottom}");
+
+        // Monotone from head to shank, and symmetric either side.
+        let mut last = top;
+        for step in 1..=36 {
+            let d = step as f64 * 5.0;
+            let w = sh.signet_width_frac(TOP_DEG + d);
+            assert!(w <= last + 1e-12, "width grew again at {d} deg: {w} after {last}");
+            let mirror = sh.signet_width_frac(TOP_DEG - d);
+            assert!((w - mirror).abs() < 1e-12, "lopsided at {d} deg: {w} vs {mirror}");
+            last = w;
+        }
+    }
+
+    #[test]
+    fn a_fuller_head_exponent_holds_the_width_further_round() {
+        let base = ShankStyle { kind: ShankKind::Signet, amount: 0.85, ..Default::default() };
+        let oval = ShankStyle { head_shape_a: 2.0, ..base };
+        let cushion = ShankStyle { head_shape_a: 4.0, ..base };
+        let rect = ShankStyle { head_shape_a: 8.0, ..base };
+        let at = TOP_DEG + base.head_span_deg * 0.25;
+        let (o, c, r) = (
+            oval.signet_width_frac(at),
+            cushion.signet_width_frac(at),
+            rect.signet_width_frac(at),
+        );
+        assert!(o < c && c < r, "fullness did not order: oval {o}, cushion {c}, rect {r}");
+        // All still reach full width at the top and shank width at the edge.
+        for sh in [oval, cushion, rect] {
+            assert!((sh.signet_width_frac(TOP_DEG) - 1.0).abs() < 1e-12);
+            assert!(sh.signet_width_frac(TOP_DEG + 180.0) < 0.30);
+        }
+    }
+
+    #[test]
+    fn a_signet_shank_rounds_off_as_it_narrows() {
+        let mut p = BandProfile::default();
+        p.apply_style(ProfileStyle::Flat);
+        p.width_mm = 12.0;
+        p.thickness_mm = 2.8;
+        let sh = ShankStyle { kind: ShankKind::Signet, amount: 0.85, ..Default::default() };
+        let head = sh.modulation(TOP_DEG, 10.0);
+        let back = sh.modulation(TOP_DEG + 180.0, 10.0);
+        assert!((head.crown_scale - 1.0).abs() < 1e-12, "the head must keep its flat crest");
+        assert!(back.crown_scale > 3.0, "the shank did not round off: {}", back.crown_scale);
+
+        // The crown clamp keeps that from eating the section.
+        let loop_ = p.sample_mod(9.0, 128, &back);
+        let thickness = p.thickness_mm * back.thickness_scale;
+        let depth = loop_.crest_radius_mm - 9.0;
+        assert!(depth <= thickness + 1e-6, "section grew: {depth} vs {thickness}");
+    }
+
+    #[test]
     fn shank_thickness_scale_keeps_the_crown_proportional() {
         let mut p = BandProfile::default();
         p.apply_style(ProfileStyle::HalfRound);
@@ -891,7 +1080,7 @@ mod tests {
         p.side_draft_deg = 0.0;
         p.comfort_fit_mm = 0.0;
         let inner_r = 8.65;
-        let m = ShankMod { width_scale: 1.0, thickness_scale: 0.5, outer_max_r: None };
+        let m = ShankMod { thickness_scale: 0.5, ..ShankMod::identity() };
         let l = p.sample_mod(inner_r, 256, &m);
 
         let hwo = p.width_mm * 0.5;
@@ -1101,7 +1290,7 @@ mod tests {
         let out = crate::mesh::build(
             &d,
             &crate::AlphaLibrary::builtin(),
-            crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM },
+            crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true },
         );
         let report = crate::castability::analyze(
             &out.mesh,
@@ -1177,7 +1366,7 @@ mod tests {
                 let out = crate::mesh::build(
                     &d,
                     &crate::AlphaLibrary::builtin(),
-                    crate::BuildParams { theta_steps: 128, profile_steps: steps, min_wall_mm: crate::mesh::MIN_WALL_MM },
+                    crate::BuildParams { theta_steps: 128, profile_steps: steps, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true },
                 );
                 let rep = crate::castability::analyze(
                     &out.mesh,
@@ -1238,7 +1427,7 @@ mod tests {
                 let out = crate::mesh::build(
                     &d,
                     &crate::AlphaLibrary::builtin(),
-                    crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM },
+                    crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true },
                 );
                 assert!(
                     out.report.validation.watertight,

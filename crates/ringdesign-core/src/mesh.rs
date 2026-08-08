@@ -7,6 +7,7 @@
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::adaptive::Spacing;
 use crate::alpha::AlphaLibrary;
 use crate::field::Uv;
 use crate::metal::{MetalWeight, metal_table};
@@ -142,11 +143,21 @@ pub struct BuildParams {
     pub profile_steps: usize,
     /// Metal kept between a displaced surface and the bore, mm.
     pub min_wall_mm: f64,
+    /// Place the same number of sample lines by where the detail is instead of
+    /// at equal spacing. Off by default — see the `adaptive` module for the
+    /// measurements, which show it losing on any design carrying relief.
+    #[serde(default)]
+    pub adaptive: bool,
 }
 
 impl Default for BuildParams {
     fn default() -> Self {
-        Self { theta_steps: 512, profile_steps: 192, min_wall_mm: MIN_WALL_MM }
+        Self {
+            theta_steps: 512,
+            profile_steps: 192,
+            min_wall_mm: MIN_WALL_MM,
+            adaptive: false,
+        }
     }
 }
 
@@ -187,6 +198,9 @@ pub struct BuildResult {
     pub report: Report,
     /// The unmodulated cross-section, reused by the section view.
     pub reference: ProfileLoop,
+    /// Where this build put its sample lines. The section view needs it to
+    /// slice the solid rather than an independent approximation of it.
+    pub spacing: Spacing,
 }
 
 /// Build the ring mesh from a design.
@@ -197,21 +211,30 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
     let n_prof = params.profile_steps.clamp(24, 1024);
     let inner_r = design.inner_radius_mm();
 
-    let reference = design
-        .profile
-        .sample(inner_r, n_prof);
+    let reference = design.reference_loop();
     let ctx = design.field_context();
     let min_wall = params.min_wall_mm.max(0.05);
+
+    // Both directions stay regular and wrapping, so this only moves the sample
+    // lines — the grid is still a torus and still watertight by construction.
+    let spacing = if params.adaptive {
+        Spacing::compute(design, &ctx, lib, n_theta)
+    } else {
+        Spacing::uniform(n_theta)
+    };
+    // `None` is the whole equal-arc-length path, not a flat density: with
+    // adaptive off the cross-section must not redistribute by curvature either.
+    let field_v = params.adaptive.then_some(&spacing.v);
 
     // --- Sweep: one displaced cross-section per angular step. ---
     let rings: Vec<RingSlice> = (0..n_theta)
         .into_par_iter()
         .map(|i| {
-            let frac = i as f64 / n_theta as f64;
+            let frac = spacing.theta[i];
             let theta = frac * 360.0;
             let (sin_t, cos_t) = theta.to_radians().sin_cos();
             let m = design.shank.modulation(theta, reference.crest_radius_mm);
-            let loop_i = design.profile.sample_mod(inner_r, n_prof, &m);
+            let loop_i = design.profile.sample_spaced(inner_r, n_prof, &m, field_v);
             let u = frac * ctx.circumference_mm;
 
             let mut verts = Vec::with_capacity(n_prof);
@@ -231,9 +254,12 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
 
                 let mut r = p.r + h * p.nr;
                 let z = p.z + h * p.nz;
-                // Never eat into the finger hole.
+                // Never eat into the finger hole. Floored at the base profile
+                // where that already sits inside the wall — the side faces meet
+                // the bore at the comfort radius, and a bare floor would push
+                // their inner corner outward on a ring carrying no relief.
                 if p.surface {
-                    r = r.max(inner_r + min_wall);
+                    r = r.max((inner_r + min_wall).min(p.r));
                 }
                 verts.push(Vec3(
                     (r * cos_t) as f32,
@@ -296,7 +322,7 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
         build_ms: started.elapsed().as_millis(),
     };
 
-    BuildResult { mesh, report, reference }
+    BuildResult { mesh, report, reference, spacing }
 }
 
 struct RingSlice {
@@ -359,12 +385,13 @@ pub(crate) fn norm(a: [f64; 3]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::profile::TOP_DEG;
 
     fn draft_build(design: &RingDesign) -> BuildResult {
         build(
             design,
             &AlphaLibrary::builtin(),
-            BuildParams { theta_steps: 96, profile_steps: 64, min_wall_mm: MIN_WALL_MM },
+            BuildParams { theta_steps: 96, profile_steps: 64, min_wall_mm: MIN_WALL_MM, adaptive: true },
         )
     }
 
@@ -558,6 +585,63 @@ mod tests {
             rep.verdict
         );
         assert!(out.report.validation.watertight, "{:?}", out.report.validation);
+    }
+
+    /// A band carrying a tiled alpha over the crown and milgrain on both edges:
+    /// detail concentrated across `v`, which is what adaptive spacing is for.
+    fn ornamented_design(lib: &AlphaLibrary) -> RingDesign {
+        use crate::field::{Layer, LayerEntry, MilgrainLayer};
+        use crate::tiling::TilingLayer;
+        let mut d = RingDesign::default();
+        d.profile.apply_style(crate::profile::ProfileStyle::DShape);
+        let ctx = d.field_context();
+        let name = lib.names()[0].clone();
+        d.layers
+            .layers
+            .push(LayerEntry::new("tile", Layer::Tiling(TilingLayer::default_for(name, &ctx))));
+        d.layers.layers.push(LayerEntry::new(
+            "milgrain",
+            Layer::Milgrain(MilgrainLayer { v_mm: 0.55, ..MilgrainLayer::default() }),
+        ));
+        d
+    }
+
+    fn params(theta: usize, prof: usize, adaptive: bool) -> BuildParams {
+        BuildParams { theta_steps: theta, profile_steps: prof, min_wall_mm: MIN_WALL_MM, adaptive }
+    }
+
+    #[test]
+    fn adaptive_spacing_stays_watertight_on_an_ornamented_band() {
+        let lib = AlphaLibrary::builtin();
+        let d = ornamented_design(&lib);
+        for &(t, p) in &[(96usize, 64usize), (192, 96), (384, 144)] {
+            let out = build(&d, &lib, params(t, p, true));
+            let v = out.report.validation;
+            assert!(v.watertight, "{t}x{p}: {v:?}");
+            assert_eq!(v.triangle_count, t * p * 2, "{t}x{p} lost triangles");
+        }
+    }
+
+    /// The bore is a cylinder that needs almost no samples across `v`, and
+    /// equal-arc-length spacing spends a third of the budget on it anyway.
+    #[test]
+    fn adaptive_spacing_moves_the_budget_off_the_bore() {
+        let lib = AlphaLibrary::builtin();
+        let d = ornamented_design(&lib);
+        let count = |adaptive: bool| {
+            let p = params(192, 96, adaptive);
+            let sp = adaptive.then(|| {
+                crate::adaptive::Spacing::compute(&d, &d.field_context(), &lib, 1)
+            });
+            let s = crate::castability::section_at_spaced(&d, &lib, TOP_DEG, p.profile_steps, sp.as_ref());
+            s.points.iter().filter(|q| q.surface).count()
+        };
+        let (even, detail) = (count(false), count(true));
+        println!("surface samples out of 96: equal-arc {even}, by detail {detail}");
+        assert!(
+            detail > even + 96 / 10,
+            "detail-driven spacing gave the surface {detail} of 96, equal-arc gave {even}"
+        );
     }
 
     #[test]

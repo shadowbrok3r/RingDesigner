@@ -5,7 +5,12 @@ use ringdesign_core::field::{
     Blend, BorderLayer, BorderProfile, FieldContext, Layer, MilgrainLayer,
     SIDE_FACE_MIN_DRAFT_DEG, SeatPadLayer, SignetLayer, SignetOutline, Window,
 };
-use ringdesign_core::profile::ShankKind;
+use ringdesign_core::profile::{HEAD_SPAN_DEG, ShankKind};
+
+/// Taper strength the head-shaping button applies.
+const SIGNET_TAPER: f64 = 0.85;
+/// Arc the head-shaping button gives the head, degrees.
+const SIGNET_HEAD_ARC_DEG: f64 = HEAD_SPAN_DEG;
 use ringdesign_core::tiling::TilingLayer;
 
 use crate::app::{RingDesignerApp, Tab};
@@ -226,7 +231,7 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
         .as_deref()
         .and_then(|name| app.thumbnail(ui.ctx(), name));
 
-    let mut cathedral = false;
+    let mut shape_head = false;
     let entry = &mut app.design.layers.layers[i];
     let mut dirty = ui
         .scope(|ui| {
@@ -282,14 +287,20 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
                 Layer::Border(b) => border(ui, b, &fctx),
                 Layer::SeatPad(p) => seat_pad(ui, p, &fctx),
                 Layer::Milgrain(m) => milgrain(ui, m, &fctx),
-                Layer::Signet(s) => signet(ui, s, &fctx, &mut cathedral),
+                Layer::Signet(s) => signet(ui, s, &fctx, &mut shape_head),
             };
             dirty
         })
         .inner;
-    if cathedral {
-        app.design.shank.kind = ShankKind::Cathedral;
-        app.design.shank.amount = 0.8;
+    if shape_head {
+        if let Layer::Signet(s) = &mut app.design.layers.layers[i].layer {
+            let outline = s.outline;
+            s.fill_head(&fctx);
+            app.design.shank.kind = ShankKind::Signet;
+            app.design.shank.amount = SIGNET_TAPER;
+            app.design.shank.head_span_deg = SIGNET_HEAD_ARC_DEG;
+            app.design.shank.head_shape_a = outline.exponent();
+        }
         dirty = true;
     }
     if dirty {
@@ -923,7 +934,7 @@ fn signet(
     ui: &mut egui::Ui,
     s: &mut SignetLayer,
     fctx: &FieldContext,
-    cathedral: &mut bool,
+    shape_head: &mut bool,
 ) -> bool {
     let v_max = fctx.band_v_len_mm.max(0.5);
     let c = grid(ui, "signet_grid", |ui| {
@@ -1051,16 +1062,22 @@ fn signet(
 
     ui.add_space(3.0);
     ui.label(
-        egui::RichText::new("A signet usually wants a shank that swells into the table.")
-            .small()
-            .color(theme::TEXT_DIM),
+        egui::RichText::new(
+            "A signet is a narrow shank swelling into a broad head — the band's own width \
+             is the head outline.",
+        )
+        .small()
+        .color(theme::TEXT_DIM),
     );
     if ui
-        .button(format!("{} Cathedral shank", icon::WAVE_SINE))
-        .on_hover_text("Sets the shank to Cathedral at 0.8, tapering the shoulders up to the table.")
+        .button(format!("{} Shape the head", icon::WAVE_SINE))
+        .on_hover_text(
+            "Sets the shank to Signet, matches the head outline to this table's shape, and \
+             grows the table to fill it.",
+        )
         .clicked()
     {
-        *cathedral = true;
+        *shape_head = true;
     }
 
     c

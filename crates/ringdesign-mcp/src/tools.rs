@@ -321,10 +321,16 @@ pub struct SetProfileParams {
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 pub struct SetShankParams {
-    /// Uniform, Tapered, ReverseTaper, Cathedral, or EuroFlat.
+    /// Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet.
     pub kind: Option<String>,
-    /// Strength of the modulation, 0 to 1.
+    /// Strength of the modulation, 0 to 1. On Signet this is how far the shank
+    /// narrows: 1 takes it to 16% of the head width.
     pub amount: Option<f64>,
+    /// Signet only: arc the head spans before it is shank again, degrees.
+    pub head_span_deg: Option<f64>,
+    /// Signet only: fullness of the head outline as a superellipse exponent —
+    /// 2 oval, 4 cushion, 8 rectangle.
+    pub head_shape_a: Option<f64>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -479,6 +485,9 @@ pub struct AddSignetParams {
     pub height_mm: Option<f64>,
     /// Fraction of the face that stays dead flat, 0..1.
     pub top_flat: Option<f64>,
+    /// Grow the table to fill the head, the way a real signet's does. Applied
+    /// after the explicit sizes, so it overrides width_mm and length_mm.
+    pub fill_head: Option<bool>,
     /// Shoulder fairing the table into the band, mm.
     pub shoulder_mm: Option<f64>,
     /// Rotation of the outline within the band, degrees.
@@ -1285,6 +1294,8 @@ impl RingDesignServer {
             applied.push(format!("kind={kind:?}"));
         }
         put_range(&mut d.shank.amount, p.amount, "amount", 0.0, 1.0, &mut applied)?;
+        put_range(&mut d.shank.head_span_deg, p.head_span_deg, "head_span_deg", 20.0, 300.0, &mut applied)?;
+        put_range(&mut d.shank.head_shape_a, p.head_shape_a, "head_shape_a", 1.0, 12.0, &mut applied)?;
         let change = DesignChange {
             generation: e.generation(),
             applied,
@@ -1504,6 +1515,16 @@ impl RingDesignServer {
             if p.length_mm.is_none() {
                 s.length_mm = fitted.length_mm;
                 applied.push(format!("length_mm={:.2} (fitted)", s.length_mm));
+            }
+            // Last, so it wins over both the caller's sizes and the fallbacks.
+            if p.fill_head == Some(true) {
+                s.fill_head(&ctx);
+                applied.push(format!(
+                    "fill_head: table {:.2} x {:.2} mm of {:.2} mm room across the head",
+                    s.length_mm,
+                    s.width_mm,
+                    SignetLayer::room_across(&ctx)
+                ));
             }
             if s.overhangs(&ctx) {
                 applied.push(format!(
