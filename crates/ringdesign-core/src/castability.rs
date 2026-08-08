@@ -702,7 +702,7 @@ mod tests {
     use crate::mesh::{BuildParams, BuildResult};
     use crate::profile::TOP_DEG;
 
-    const STEPS: BuildParams = BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: 0.5, adaptive: true };
+    const STEPS: BuildParams = BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: 0.5, adaptive: true, refine: None };
 
     fn built(design: &RingDesign) -> BuildResult {
         crate::mesh::build(design, &AlphaLibrary::default(), STEPS)
@@ -714,7 +714,7 @@ mod tests {
     #[test]
     fn relief_holds_on_a_squared_side_face_where_it_ruins_the_crest() {
         let lib = AlphaLibrary::builtin();
-        let steps = BuildParams { theta_steps: 384, profile_steps: 160, min_wall_mm: 0.5, adaptive: true };
+        let steps = BuildParams { theta_steps: 384, profile_steps: 160, min_wall_mm: 0.5, adaptive: true, refine: None };
         let mut base = RingDesign::default();
         base.profile.apply_style(crate::ProfileStyle::Flat);
         base.profile.flatten_sides();

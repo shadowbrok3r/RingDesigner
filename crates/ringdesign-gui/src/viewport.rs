@@ -13,6 +13,7 @@ use ringdesign_core::castability::{CastReport, FaceClass};
 use ringdesign_core::mesh::{Mesh, Vec3};
 
 use crate::app::RingDesignerApp;
+use crate::camera::Projector;
 use crate::theme;
 
 /// Floats per vertex: position(3), normal(3), colour(3).
@@ -384,7 +385,7 @@ impl ShadeMode {
 
 // --- Viewport --------------------------------------------------------------
 
-pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     let (rect, response) =
         ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
     if !ui.is_rect_visible(rect) {
@@ -392,34 +393,38 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     }
 
     let shift = ui.input(|i| i.modifiers.shift);
-    if response.dragged_by(egui::PointerButton::Primary) {
-        let delta = response.drag_delta();
-        if shift {
-            app.camera.pan_by(delta, rect.height());
-        } else {
-            app.camera.orbit(delta);
+    let scroll = if response.hovered() { ui.input(|i| i.smooth_scroll_delta.y) } else { 0.0 };
+    {
+        let Some(cam) = app.panes.get_mut(pane).map(|p| &mut p.camera) else { return };
+        if response.dragged_by(egui::PointerButton::Primary) {
+            let delta = response.drag_delta();
+            if shift {
+                cam.pan_by(delta, rect.height());
+            } else {
+                cam.orbit(delta);
+            }
         }
-    }
-    if response.dragged_by(egui::PointerButton::Middle) {
-        app.camera.pan_by(response.drag_delta(), rect.height());
-    }
-    if response.hovered() {
-        let scroll = ui.input(|i| i.smooth_scroll_delta.y);
+        if response.dragged_by(egui::PointerButton::Middle) {
+            cam.pan_by(response.drag_delta(), rect.height());
+        }
         if scroll != 0.0 {
-            app.camera.zoom_by(scroll);
+            cam.zoom_by(scroll);
         }
     }
+    let camera = app.panes[pane].camera;
+    let shade = app.panes[pane].shade;
+    let proj = camera.projector(rect);
 
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 0.0, theme::VIEWPORT_BG);
 
     if app.show_grid {
-        draw_grid(app, &painter, rect);
+        draw_grid(app, &painter, &proj, camera.half_extent());
     }
 
     if app.build.is_some() {
-        let (mvp, normal_matrix) = app.camera.matrices(rect);
-        let mode = app.shade.gl_mode();
+        let (mvp, normal_matrix) = camera.matrices(rect);
+        let mode = shade.gl_mode();
         let base_color = theme::METAL_RGB;
         let wireframe = app.show_wireframe;
         let wire_color = rgb_of(theme::TEXT_DIM);
@@ -451,10 +456,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     }
 
     if app.show_grid {
-        draw_axes(app, &painter, rect);
+        draw_axes(&painter, &proj, rect);
     }
 
-    draw_legend(app, &painter, rect);
+    draw_legend(app, shade, &painter, rect);
 
     painter.text(
         rect.right_bottom() - egui::vec2(12.0, 9.0),
@@ -466,8 +471,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 }
 
 /// Ground grid on the sand plane, under the ring.
-fn draw_grid(app: &RingDesignerApp, painter: &egui::Painter, rect: egui::Rect) {
-    let half = app.camera.half_extent();
+fn draw_grid(app: &RingDesignerApp, painter: &egui::Painter, proj: &Projector, half: f32) {
     let step = grid_step(half);
     let lines = ((half * 1.6 / step).ceil() as i32).clamp(4, 30);
     let z = app
@@ -483,20 +487,8 @@ fn draw_grid(app: &RingDesignerApp, painter: &egui::Painter, rect: egui::Rect) {
     for i in -lines..=lines {
         let t = i as f32 * step;
         let stroke = if i == 0 { major } else { minor };
-        painter.line_segment(
-            [
-                app.camera.project([-extent, t, z], rect),
-                app.camera.project([extent, t, z], rect),
-            ],
-            stroke,
-        );
-        painter.line_segment(
-            [
-                app.camera.project([t, -extent, z], rect),
-                app.camera.project([t, extent, z], rect),
-            ],
-            stroke,
-        );
+        painter.line_segment([proj.at([-extent, t, z]), proj.at([extent, t, z])], stroke);
+        painter.line_segment([proj.at([t, -extent, z]), proj.at([t, extent, z])], stroke);
     }
 }
 
@@ -511,8 +503,8 @@ fn grid_step(half_extent: f32) -> f32 {
 }
 
 /// Corner axis indicator oriented by the current view.
-fn draw_axes(app: &RingDesignerApp, painter: &egui::Painter, rect: egui::Rect) {
-    let origin = app.camera.project([0.0, 0.0, 0.0], rect);
+fn draw_axes(painter: &egui::Painter, proj: &Projector, rect: egui::Rect) {
+    let origin = proj.at([0.0, 0.0, 0.0]);
     let axes = [
         ([1.0f32, 0.0, 0.0], "X", theme::BAD),
         ([0.0, 1.0, 0.0], "Y", theme::GOOD),
@@ -522,7 +514,7 @@ fn draw_axes(app: &RingDesignerApp, painter: &egui::Painter, rect: egui::Rect) {
     let mut dirs = [egui::Vec2::ZERO; 3];
     let mut longest = 1e-6f32;
     for (k, (axis, _, _)) in axes.iter().enumerate() {
-        dirs[k] = app.camera.project(*axis, rect) - origin;
+        dirs[k] = proj.at(*axis) - origin;
         longest = longest.max(dirs[k].length());
     }
 
@@ -544,10 +536,15 @@ fn draw_axes(app: &RingDesignerApp, painter: &egui::Painter, rect: egui::Rect) {
 }
 
 /// Draft colour key in draft mode, otherwise the size and overall dimensions.
-fn draw_legend(app: &RingDesignerApp, painter: &egui::Painter, rect: egui::Rect) {
+fn draw_legend(
+    app: &RingDesignerApp,
+    shade: ShadeMode,
+    painter: &egui::Painter,
+    rect: egui::Rect,
+) {
     let mut rows: Vec<(Option<egui::Color32>, String, egui::Color32)> = Vec::new();
 
-    match (app.shade, app.cast.as_ref()) {
+    match (shade, app.cast.as_ref()) {
         (ShadeMode::Draft, Some(cast)) => {
             for (class, count) in [
                 (FaceClass::Good, cast.good),

@@ -160,17 +160,30 @@ impl OrbitCamera {
         (mvp, normal)
     }
 
-    /// Project a world point to screen space, for 2D overlays.
-    pub fn project(&self, p: [f32; 3], rect: egui::Rect) -> egui::Pos2 {
+    /// The projection for one viewport rect, with the matrices resolved once.
+    ///
+    /// Taken once per overlay rather than per point: the ground grid alone
+    /// projects over a hundred, and every one would rebuild the matrices.
+    pub fn projector(&self, rect: egui::Rect) -> Projector {
         let (mvp, _) = self.matrices(rect);
-        let clip = [
-            mvp[0] * p[0] + mvp[4] * p[1] + mvp[8] * p[2] + mvp[12],
-            mvp[1] * p[0] + mvp[5] * p[1] + mvp[9] * p[2] + mvp[13],
-        ];
-        egui::pos2(
-            rect.center().x + clip[0] * rect.width() * 0.5,
-            rect.center().y - clip[1] * rect.height() * 0.5,
-        )
+        Projector { mvp, centre: rect.center(), half: rect.size() * 0.5 }
+    }
+}
+
+/// World-to-screen for a fixed camera and rect.
+#[derive(Clone, Copy)]
+pub struct Projector {
+    mvp: [f32; 16],
+    centre: egui::Pos2,
+    half: egui::Vec2,
+}
+
+impl Projector {
+    pub fn at(&self, p: [f32; 3]) -> egui::Pos2 {
+        let m = &self.mvp;
+        let x = m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12];
+        let y = m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13];
+        egui::pos2(self.centre.x + x * self.half.x, self.centre.y - y * self.half.y)
     }
 }
 
@@ -243,7 +256,7 @@ mod tests {
     #[test]
     fn origin_projects_to_the_centre_when_centred() {
         let cam = OrbitCamera::default();
-        let p = cam.project([0.0, 0.0, 0.0], rect());
+        let p = cam.projector(rect()).at([0.0, 0.0, 0.0]);
         assert!((p.x - rect().center().x).abs() < 1.0);
         assert!((p.y - rect().center().y).abs() < 1.0);
     }

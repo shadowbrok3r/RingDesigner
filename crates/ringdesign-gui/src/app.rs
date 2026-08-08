@@ -6,17 +6,19 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use ringdesign_core::alpha::AlphaLibrary;
-use ringdesign_core::castability::{self, CastReport, Section};
+use ringdesign_core::castability::{self, CastReport};
 use ringdesign_core::field::{Layer, LayerEntry};
 use ringdesign_core::mesh::{BuildParams, BuildResult};
 use ringdesign_core::{RingDesign, library};
 
 use crate::alpha_editor::AlphaEditor;
-use crate::camera::OrbitCamera;
 use crate::mcp_host::McpHost;
-use crate::viewport::{GpuMeshRenderer, ShadeMode};
+use crate::dock::Dock;
+use crate::pane::{Layout, Pane, PaneKind};
+use crate::viewport::GpuMeshRenderer;
 
 pub const DESIGN_STORAGE_KEY: &str = "ring_design";
+pub const DOCK_STORAGE_KEY: &str = "panel_dock";
 
 /// Quiet period after the last edit before a rebuild fires.
 const DEBOUNCE: Duration = Duration::from_millis(90);
@@ -24,54 +26,29 @@ const DEBOUNCE: Duration = Duration::from_millis(90);
 /// Longest edge of an uploaded alpha preview texture.
 const THUMB_TEXTURE_EDGE: usize = 128;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Tab {
-    Solid,
-    Unrolled,
-    Section,
-}
-
-impl Tab {
-    pub const ALL: &'static [Tab] = &[Tab::Solid, Tab::Unrolled, Tab::Section];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Tab::Solid => "Ring",
-            Tab::Unrolled => "Tile Layout",
-            Tab::Section => "Cross Section",
-        }
-    }
-
-    pub fn icon(self) -> &'static str {
-        match self {
-            Tab::Solid => egui_phosphor::regular::CIRCLE_NOTCH,
-            Tab::Unrolled => egui_phosphor::regular::GRID_FOUR,
-            Tab::Section => egui_phosphor::regular::CHART_LINE,
-        }
-    }
-}
-
 pub struct RingDesignerApp {
     pub design: RingDesign,
     pub lib: Arc<AlphaLibrary>,
 
     pub build: Option<Arc<BuildResult>>,
     pub cast: Option<CastReport>,
-    pub section: Option<Section>,
-    pub section_theta_deg: f64,
 
     /// Resolution used for the interactive viewport.
     pub preview_params: BuildParams,
     /// Resolution used when writing a file.
     pub export_params: BuildParams,
 
-    pub camera: OrbitCamera,
     pub renderer: Arc<Mutex<GpuMeshRenderer>>,
-    pub shade: ShadeMode,
     pub show_wireframe: bool,
     pub show_grid: bool,
 
-    pub tab: Tab,
+    /// One per quadrant, whatever the layout currently shows.
+    pub panes: Vec<Pane>,
+    pub layout: Layout,
+    /// Pane the toolbar's view controls act on.
+    pub active_pane: usize,
+    /// Where each tool panel is docked, and how tall.
+    pub dock: Dock,
     pub selected_layer: Option<usize>,
     pub library_filter: String,
     /// Clip-and-tile window for harvesting a fragment out of an imported alpha.
@@ -115,16 +92,19 @@ impl RingDesignerApp {
             lib: Arc::new(lib),
             build: None,
             cast: None,
-            section: None,
-            section_theta_deg: ringdesign_core::profile::TOP_DEG,
             preview_params: BuildParams { theta_steps: 384, profile_steps: 144, ..Default::default() },
             export_params: BuildParams { theta_steps: 1024, profile_steps: 320, ..Default::default() },
-            camera: OrbitCamera::default(),
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
-            shade: ShadeMode::Metal,
             show_wireframe: false,
             show_grid: true,
-            tab: Tab::Solid,
+            panes: Pane::defaults(),
+            layout: Layout::Single,
+            active_pane: 0,
+            dock: cc
+                .storage
+                .and_then(|s| s.get_string(DOCK_STORAGE_KEY))
+                .and_then(|j| serde_json::from_str(&j).ok())
+                .unwrap_or_default(),
             selected_layer: None,
             library_filter: String::new(),
             alpha_editor: AlphaEditor::default(),
@@ -180,19 +160,30 @@ impl RingDesignerApp {
             Ok(done) => {
                 self.in_flight = false;
                 if done.generation == self.generation {
-                    self.status = format!(
-                        "{} tris • {:.2} mm³ • {} ms",
-                        done.result.report.validation.triangle_count,
-                        done.result.report.volume_mm3,
-                        done.result.report.build_ms
-                    );
+                    let r = &done.result.report;
+                    self.status = match r.refine {
+                        Some(s) => format!(
+                            "{} tris • within {:.3} mm • {:.2} mm³ • {} ms",
+                            r.validation.triangle_count,
+                            s.worst_error_mm,
+                            r.volume_mm3,
+                            r.build_ms
+                        ),
+                        None => format!(
+                            "{} tris • {:.2} mm³ • {} ms",
+                            r.validation.triangle_count, r.volume_mm3, r.build_ms
+                        ),
+                    };
                     if let Ok(mut r) = self.renderer.lock() {
                         r.prepare_upload(&done.result.mesh, Some(&done.cast));
                     }
-                    self.camera.fit(done.result.mesh.bounds());
+                    let bounds = done.result.mesh.bounds();
+                    for pane in &mut self.panes {
+                        pane.camera.fit(bounds);
+                    }
                     self.build = Some(Arc::new(done.result));
                     self.cast = Some(done.cast);
-                    self.refresh_section();
+                    self.refresh_sections();
                     ctx.request_repaint();
                 }
             }
@@ -238,13 +229,34 @@ impl RingDesignerApp {
         ringdesign_core::mesh::build(&self.design, &self.lib, self.export_params)
     }
 
-    pub fn refresh_section(&mut self) {
-        self.section = Some(castability::section_at(
-            &self.design,
-            &self.lib,
-            self.section_theta_deg,
-            self.preview_params.profile_steps.max(128),
-        ));
+    /// Reslice every pane showing a cross-section.
+    pub fn refresh_sections(&mut self) {
+        for i in 0..self.panes.len() {
+            if self.panes[i].kind == PaneKind::Section {
+                self.refresh_section(i);
+            }
+        }
+    }
+
+    pub fn refresh_section(&mut self, pane: usize) {
+        let Some(theta) = self.panes.get(pane).map(|p| p.section_theta_deg) else { return };
+        let steps = self.preview_params.profile_steps.max(128);
+        let s = castability::section_at(&self.design, &self.lib, theta, steps);
+        if let Some(p) = self.panes.get_mut(pane) {
+            p.section = Some(s);
+        }
+    }
+
+    /// Show `kind` in the active pane, so a control elsewhere can bring a view
+    /// up without guessing which quadrant the user is looking at.
+    pub fn focus(&mut self, kind: PaneKind) {
+        let i = self.active_pane.min(self.panes.len().saturating_sub(1));
+        if let Some(p) = self.panes.get_mut(i) {
+            p.kind = kind;
+        }
+        if kind == PaneKind::Section {
+            self.refresh_section(i);
+        }
     }
 
     // --- Layer stack -------------------------------------------------------

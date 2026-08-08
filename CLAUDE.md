@@ -103,6 +103,69 @@ Face winding: for a CCW loop with tangent `(dr, dz)` the outward 2D normal is
 `(dz, −dr)`; sweeping in +θ makes `e_θ × e_profile` point outward, so triangles
 `(i,j)→(i+1,j)→(i+1,j+1)` are already wound correctly.
 
+### Refined builds: a tolerance instead of a step count
+
+`BuildParams::refine` swaps the swept grid for a quadtree over the `(u, s)`
+torus (`refine.rs`), where `s` runs around the closed cross-section. A cell
+subdivides while the surface at its edge midpoints and centre sits further than
+`tolerance_mm` from the flat facet it would become. **The triangle count is an
+output, not an input.**
+
+It is still watertight by construction, from the same source as before: every
+corner, midpoint and centre is a point of one integer lattice, and vertices are
+keyed by lattice coordinates, so cells sharing an edge share its endpoints. The
+tree is balanced 2:1, leaving at most one hanging node per edge, and any cell
+carrying one is fanned from its centre through it.
+
+Two things that had to be right, both caught by tests:
+
+- **Balance is probed from the fine side.** A coarse cell's edge may border two
+  finer cells and one probe at its midpoint sees only whichever owns that point;
+  a fine cell's edge always has exactly one neighbour. Reading it the other way
+  leaves a finer neighbour partway along a long edge undetected, and that crack
+  shows up as boundary edges.
+- **Refinement runs until nothing is marked**, not once per level. Balancing
+  subdivides too, so a pass creates cells the pass that made them never
+  examined; a fixed level count left `tol 0.008` stuck at 0.022 mm while
+  spending 36% more triangles than `tol 0.02`.
+
+Two tolerances, not one. `tolerance_mm` bounds how far the mesh sits from the
+surface; `normal_tolerance_deg` bounds the facet's *slope*, which position does
+not — a 0.08 mm sag across a 0.2 mm cell is a 20° slope error. They pull against
+each other, so the presets loosen the angle at the coarse end and tighten it
+toward export.
+
+Measured on a size-7 D-shape with a tiled alpha and milgrain, worst facet
+deviation via `refine::grid_error_mm`:
+
+| build | triangles | ms | worst error |
+| --- | --- | --- | --- |
+| swept 384x144 | 110,592 | 13 | 0.107 mm |
+| swept 512x192 | 196,608 | 26 | 0.075 mm |
+| swept 1536x448 | 1,376,256 | 277 | 0.045 mm |
+| refined, 0.08 mm / 20° | 136,668 | 421 | 0.080 mm |
+| refined, 0.04 mm / 14° | 212,892 | 328 | 0.040 mm |
+| refined, 0.02 mm / 9° | 406,848 | 633 | 0.020 mm |
+
+The win is in how the cost *scales*, not at any one point. Halving a swept
+grid's error means halving the step in both directions, so it pays 4x the
+triangles every time — which is why 1.4M of them still only reach 0.045 mm.
+Refinement pays about 1.6-1.9x per halving, so it goes places the grid cannot
+afford at all. At loose tolerances the sweep is faster, being a trivial loop.
+**Sweep for the interactive preview, refine for export.**
+
+One caveat with teeth: `castability::analyze` reads face normals, and an
+irregular mesh reports small spurious undercuts along the crest line, where the
+true surface is tangent to the pull and any facet noise crosses zero. On a
+signet shank every swept build reports 0.000%, while refined builds report
+0.03-0.08% and up to -2.9°. Under the 1% that reads as "will not release", but
+enough to move the verdict. **Judge castability from a swept build.**
+
+`adaptive.rs` was the earlier attempt at the same goal by redistributing the
+same number of sample *lines*. It is kept, default off, and its module doc
+records why it loses on anything carrying relief: the densities are separable,
+so detail localized in `u` and `s` at once cannot be expressed.
+
 ### The castability guarantee lives in `profile.rs`
 
 The outer surface is a superellipse drop from a single crest:
@@ -212,6 +275,18 @@ or above the fold. For the same reason only Ring and Profile default open.
 File dialogs start in `library::default_design_dir()` and its `exports` sibling,
 created on demand, so everything the app writes lands in one predictable tree.
 
+### Tool panels are `egui_tiles` trees
+
+`dock.rs` holds one `egui_tiles::Tree<ToolKind>` per side, shown inside an egui
+side panel so the centre stays free for the viewport panes. Tools split, stack
+and tab within a side by drag; moving one across sides is a button, because a
+pane cannot be dragged between two separate trees.
+
+The behaviour needs `&mut RingDesignerApp` to draw a tool while the tree lives
+in the app, so `dock_side` swaps the tree out with `Tree::empty` for the
+duration of `tree.ui` and puts it back. Layout persists via eframe storage under
+`DOCK_STORAGE_KEY`.
+
 ### The viewport needs a depth buffer asked for explicitly
 
 `eframe::NativeOptions::depth_buffer` defaults to **0**, and eframe passes that
@@ -254,7 +329,10 @@ footprints stay aligned with `height`.
 - Icons: `use egui_phosphor::regular as icon;`. The font is loaded in
   `theme.rs`. Do not use raw unicode arrows or geometric shapes — they render as
   tofu.
-- `cargo` must be run with `--offline`; the network is sandboxed.
+- The network works. `--offline` is fine for a quick rebuild, but do not treat it
+  as a constraint: `cargo add` and `cargo search` reach crates.io. Assuming
+  otherwise once cost a real feature — `egui_tiles` was declared impossible
+  when it was one `cargo add` away.
 
 ## Related projects
 

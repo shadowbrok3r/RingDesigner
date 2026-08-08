@@ -148,9 +148,8 @@ fn main() {
     // The head faces +Y, so a pitch near a right angle looks straight at it.
     let views: &[(&str, f64, f64)] =
         &[("hero", 0.5, 1.15), ("face", 0.0, 1.571), ("profile", 1.571, 1.571)];
-    run("sig_oval", &signet(SignetOutline::Oval, 12.0, 0.85, 0.5), &lib, &out, views);
-    run("sig_cushion", &signet(SignetOutline::Cushion, 12.5, 0.85, 0.5), &lib, &out, views);
-    run("sig_round", &signet(SignetOutline::Round, 11.5, 0.85, 0.5), &lib, &out, views);
-    run("sig_rectangle", &signet(SignetOutline::Rectangle, 11.0, 0.85, 0.45), &lib, &out, views);
-    run("no_taper_control", &signet(SignetOutline::Oval, 12.0, 0.0, 0.5), &lib, &out, views);
+    for o in SignetOutline::ALL {
+        let name = format!("out_{}", o.label().to_lowercase());
+        run(&name, &signet(*o, 12.0, 0.85, 0.5), &lib, &out, views);
+    }
 }

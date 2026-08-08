@@ -644,7 +644,12 @@ impl ShankStyle {
         }
         let x = (d / half).clamp(0.0, 1.0);
         let a = self.head_shape_a.clamp(1.0, 12.0);
-        let head = (1.0 - x.powf(a)).clamp(0.0, 1.0);
+        // Eased, not the bare superellipse: `1 - x^a` arrives at the shank with
+        // slope -a while the shank's own slope is 0, and that step in slope is a
+        // crease running right round the head. Smoothstep flattens both ends, so
+        // the head leaves the table and joins the shank tangentially and the
+        // shoulder reads as one continuous sweep.
+        let head = crate::field::smoothstep(0.0, 1.0, (1.0 - x.powf(a)).clamp(0.0, 1.0));
         shank + (1.0 - shank) * head
     }
 }
@@ -1053,6 +1058,36 @@ mod tests {
         }
     }
 
+    /// A step in slope is a crease you can see on the shoulder. The taper has
+    /// to arrive at the shank flat, not just arrive.
+    #[test]
+    fn the_head_taper_joins_the_shank_without_a_crease() {
+        let sh = ShankStyle { kind: ShankKind::Signet, amount: 0.85, ..Default::default() };
+        let half = sh.head_span_deg * 0.5;
+        let step = 0.25;
+        let slope = |t: f64| {
+            (sh.signet_width_frac(TOP_DEG + t + step) - sh.signet_width_frac(TOP_DEG + t)) / step
+        };
+        // Flat at the top of the head and flat again where it meets the shank.
+        assert!(slope(0.0).abs() < 1e-3, "the head is peaked, not flat: {}", slope(0.0));
+        assert!(
+            slope(half - step).abs() < 5e-3,
+            "the taper still lands on the shank at slope {}",
+            slope(half - step)
+        );
+        // No step anywhere along the sweep.
+        let mut worst: f64 = 0.0;
+        let mut prev = slope(0.0);
+        let mut t = step;
+        while t < half + 8.0 {
+            let s = slope(t);
+            worst = worst.max((s - prev).abs());
+            prev = s;
+            t += step;
+        }
+        assert!(worst < 6e-3, "slope steps by {worst} per degree somewhere on the shoulder");
+    }
+
     #[test]
     fn a_signet_shank_rounds_off_as_it_narrows() {
         let mut p = BandProfile::default();
@@ -1290,7 +1325,7 @@ mod tests {
         let out = crate::mesh::build(
             &d,
             &crate::AlphaLibrary::builtin(),
-            crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true },
+            crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true, refine: None },
         );
         let report = crate::castability::analyze(
             &out.mesh,
@@ -1366,7 +1401,7 @@ mod tests {
                 let out = crate::mesh::build(
                     &d,
                     &crate::AlphaLibrary::builtin(),
-                    crate::BuildParams { theta_steps: 128, profile_steps: steps, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true },
+                    crate::BuildParams { theta_steps: 128, profile_steps: steps, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true, refine: None },
                 );
                 let rep = crate::castability::analyze(
                     &out.mesh,
@@ -1427,7 +1462,7 @@ mod tests {
                 let out = crate::mesh::build(
                     &d,
                     &crate::AlphaLibrary::builtin(),
-                    crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true },
+                    crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true, refine: None },
                 );
                 assert!(
                     out.report.validation.watertight,

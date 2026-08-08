@@ -5,8 +5,9 @@ use egui_phosphor::regular as icon;
 use ringdesign_core::castability::{CastReport, DraftSettings, FaceClass, Verdict};
 use ringdesign_core::mesh::Report;
 
-use crate::app::{RingDesignerApp, Tab};
+use crate::app::RingDesignerApp;
 use crate::theme;
+use crate::pane::PaneKind;
 use crate::viewport::ShadeMode;
 
 const CLASSES: [FaceClass; 4] = [
@@ -20,7 +21,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     ui.add_space(6.0);
     heading(ui, icon::SHIELD_CHECK, "Sand cast check");
 
-    let already_draft = app.shade == ShadeMode::Draft && app.tab == Tab::Solid;
+    let pane = app.active_pane.min(app.panes.len() - 1);
+    let already_draft =
+        app.panes[pane].shade == ShadeMode::Draft && app.panes[pane].kind == PaneKind::Solid;
     let mut want_draft = false;
     match app.cast.as_ref() {
         Some(cast) => {
@@ -29,8 +32,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         None => placeholder(ui, app.is_building(), "No draft analysis yet"),
     }
     if want_draft {
-        app.shade = ShadeMode::Draft;
-        app.tab = Tab::Solid;
+        app.panes[pane].shade = ShadeMode::Draft;
+        app.focus(PaneKind::Solid);
     }
 
     ui.add_space(8.0);

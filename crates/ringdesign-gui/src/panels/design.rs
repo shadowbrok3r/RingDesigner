@@ -8,6 +8,8 @@ use ringdesign_core::profile::{
 };
 use ringdesign_core::sizing::RingSize;
 
+use ringdesign_core::refine::RefineParams;
+
 use crate::app::RingDesignerApp;
 use crate::theme;
 
@@ -644,39 +646,66 @@ fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 // --- Mesh ------------------------------------------------------------------
 
 fn mesh(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
-    egui::Grid::new("export_res")
-        .num_columns(2)
-        .spacing([8.0, 4.0])
-        .show(ui, |ui| {
-            ui.label("Around");
-            ui.add(
-                egui::DragValue::new(&mut app.export_params.theta_steps)
-                    .speed(8.0)
-                    .range(64..=4096),
-            )
-            .on_hover_text("Sweep steps around the ring.");
-            ui.end_row();
+    crate::panels::quality_picker(ui, "export_quality", &mut app.export_params);
 
-            ui.label("Across");
-            ui.add(
-                egui::DragValue::new(&mut app.export_params.profile_steps)
-                    .speed(4.0)
-                    .range(32..=1024),
-            )
-            .on_hover_text("Vertices around the cross-section.");
-            ui.end_row();
-        });
+    match app.export_params.refine {
+        Some(r) => {
+            ui.add_space(4.0);
+            let mut tol = r.tolerance_mm;
+            if ui
+                .add(
+                    egui::Slider::new(&mut tol, 0.004..=0.2)
+                        .logarithmic(true)
+                        .fixed_decimals(3)
+                        .suffix(" mm")
+                        .text("Tolerance"),
+                )
+                .changed()
+            {
+                app.export_params.refine = Some(RefineParams { tolerance_mm: tol, ..r });
+            }
+            hint(
+                ui,
+                "Furthest the mesh may sit from the surface the design describes. The triangle \
+                 count falls out of it rather than being chosen.",
+            );
+        }
+        None => {
+            egui::Grid::new("export_res")
+                .num_columns(2)
+                .spacing([8.0, 4.0])
+                .show(ui, |ui| {
+                    ui.label("Around");
+                    ui.add(
+                        egui::DragValue::new(&mut app.export_params.theta_steps)
+                            .speed(8.0)
+                            .range(64..=4096),
+                    )
+                    .on_hover_text("Sweep steps around the ring.");
+                    ui.end_row();
 
-    ui.label(
-        RichText::new(format!(
-            "{} ~{} triangles on export",
-            icon::TRIANGLE,
-            thousands(app.export_params.triangle_estimate())
-        ))
-        .small()
-        .color(theme::TEXT_DIM),
-    );
-    hint(ui, "Preview resolution is on the toolbar.");
+                    ui.label("Across");
+                    ui.add(
+                        egui::DragValue::new(&mut app.export_params.profile_steps)
+                            .speed(4.0)
+                            .range(32..=1024),
+                    )
+                    .on_hover_text("Vertices around the cross-section.");
+                    ui.end_row();
+                });
+
+            ui.label(
+                RichText::new(format!(
+                    "{} ~{} triangles on export",
+                    icon::TRIANGLE,
+                    thousands(app.export_params.triangle_estimate())
+                ))
+                .small()
+                .color(theme::TEXT_DIM),
+            );
+        }
+    }
+    hint(ui, "Preview quality is on the toolbar.");
 }
 
 /// Group digits in threes.

@@ -8,6 +8,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::adaptive::Spacing;
+use crate::refine::RefineParams;
 use crate::alpha::AlphaLibrary;
 use crate::field::Uv;
 use crate::metal::{MetalWeight, metal_table};
@@ -148,6 +149,11 @@ pub struct BuildParams {
     /// measurements, which show it losing on any design carrying relief.
     #[serde(default)]
     pub adaptive: bool,
+    /// Refine locally to a mm tolerance instead of sweeping a fixed grid. When
+    /// set, `theta_steps` and `profile_steps` are unused: the triangle count
+    /// falls out of the tolerance rather than being chosen.
+    #[serde(default)]
+    pub refine: Option<RefineParams>,
 }
 
 impl Default for BuildParams {
@@ -157,6 +163,7 @@ impl Default for BuildParams {
             profile_steps: 192,
             min_wall_mm: MIN_WALL_MM,
             adaptive: false,
+            refine: None,
         }
     }
 }
@@ -191,6 +198,8 @@ pub struct Report {
     pub min_relief_mm: f64,
     pub metals: Vec<MetalWeight>,
     pub build_ms: u128,
+    /// What local refinement produced, when the build used it.
+    pub refine: Option<crate::refine::RefineStats>,
 }
 
 pub struct BuildResult {
@@ -206,6 +215,9 @@ pub struct BuildResult {
 /// Build the ring mesh from a design.
 pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> BuildResult {
     let started = std::time::Instant::now();
+    if let Some(rp) = params.refine {
+        return build_refined(design, lib, params, rp, started);
+    }
 
     let n_theta = params.theta_steps.clamp(24, 4096);
     let n_prof = params.profile_steps.clamp(24, 1024);
@@ -320,9 +332,56 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
         min_relief_mm: min_relief,
         metals: metal_table(volume),
         build_ms: started.elapsed().as_millis(),
+        refine: None,
     };
 
     BuildResult { mesh, report, reference, spacing }
+}
+
+/// Build by refining the `(u, s)` domain to a tolerance rather than sweeping a
+/// grid. The triangle count is an output here, not an input.
+fn build_refined(
+    design: &RingDesign,
+    lib: &AlphaLibrary,
+    params: BuildParams,
+    rp: crate::refine::RefineParams,
+    started: std::time::Instant,
+) -> BuildResult {
+    let out = crate::refine::build(design, lib, rp, params.min_wall_mm);
+    let mesh = out.mesh;
+
+    let bounds = mesh.bounds().unwrap_or_default();
+    let bounds_mm = [
+        (bounds.1.0 - bounds.0.0) as f64,
+        (bounds.1.1 - bounds.0.1) as f64,
+        (bounds.1.2 - bounds.0.2) as f64,
+    ];
+    let volume = mesh.volume_mm3();
+
+    let report = Report {
+        validation: mesh.validate(),
+        volume_mm3: volume,
+        surface_area_mm2: mesh.surface_area_mm2(),
+        bounds_mm,
+        inner_diameter_mm: design.size.inner_diameter_mm(),
+        outer_diameter_mm: bounds_mm[0].max(bounds_mm[1]),
+        band_width_mm: bounds_mm[2],
+        max_relief_mm: out.relief.0,
+        min_relief_mm: out.relief.1,
+        metals: metal_table(volume),
+        build_ms: started.elapsed().as_millis(),
+        refine: Some(out.stats),
+    };
+
+    BuildResult {
+        mesh,
+        report,
+        reference: design.reference_loop(),
+        // A refined build has no sample lines to report; the section view falls
+        // back to slicing the design at its own resolution, which is a finer
+        // sample of the same surface.
+        spacing: Spacing::uniform(params.theta_steps.max(1)),
+    }
 }
 
 struct RingSlice {
@@ -333,7 +392,7 @@ struct RingSlice {
 
 /// Area-weighted vertex normals: face normals are accumulated unnormalized, so
 /// larger triangles carry proportionally more weight.
-fn smooth_normals(vertices: &[Vec3], faces: &[[u32; 3]]) -> Vec<Vec3> {
+pub(crate) fn smooth_normals(vertices: &[Vec3], faces: &[[u32; 3]]) -> Vec<Vec3> {
     let mut acc = vec![[0.0f64; 3]; vertices.len()];
     for f in faces {
         let (Some(a), Some(b), Some(c)) = (
@@ -391,7 +450,7 @@ mod tests {
         build(
             design,
             &AlphaLibrary::builtin(),
-            BuildParams { theta_steps: 96, profile_steps: 64, min_wall_mm: MIN_WALL_MM, adaptive: true },
+            BuildParams { theta_steps: 96, profile_steps: 64, min_wall_mm: MIN_WALL_MM, adaptive: true, refine: None },
         )
     }
 
@@ -607,7 +666,7 @@ mod tests {
     }
 
     fn params(theta: usize, prof: usize, adaptive: bool) -> BuildParams {
-        BuildParams { theta_steps: theta, profile_steps: prof, min_wall_mm: MIN_WALL_MM, adaptive }
+        BuildParams { theta_steps: theta, profile_steps: prof, min_wall_mm: MIN_WALL_MM, adaptive, refine: None }
     }
 
     #[test]

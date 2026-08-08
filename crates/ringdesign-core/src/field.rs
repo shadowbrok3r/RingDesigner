@@ -640,6 +640,96 @@ pub enum SignetOutline {
     Cushion,
     Rectangle,
     Hexagon,
+    Heart,
+    Shield,
+    Octagon,
+    Marquise,
+}
+
+/// Steps in a polar boundary table. One per 0.5 degree.
+const OUTLINE_STEPS: usize = 720;
+
+/// Boundary radius per direction, normalized so the outline fits the extents.
+///
+/// A table rather than a formula, so an outline only has to be describable as
+/// "how far out is the edge in this direction" — the awkward ones are built
+/// once at first use instead of solved per vertex.
+struct PolarOutline {
+    r: [f64; OUTLINE_STEPS],
+}
+
+impl PolarOutline {
+    /// Build from a boundary radius function, rescaled to fill -1..1 in both
+    /// axes so every outline honours `length_mm` by `width_mm`.
+    fn build(f: impl Fn(f64) -> f64) -> Self {
+        let mut r = [0.0f64; OUTLINE_STEPS];
+        let (mut max_x, mut max_y) = (1e-9f64, 1e-9f64);
+        for (i, slot) in r.iter_mut().enumerate() {
+            let a = std::f64::consts::TAU * i as f64 / OUTLINE_STEPS as f64;
+            let v = f(a).max(1e-6);
+            *slot = v;
+            max_x = max_x.max((v * a.cos()).abs());
+            max_y = max_y.max((v * a.sin()).abs());
+        }
+        for (i, slot) in r.iter_mut().enumerate() {
+            let a = std::f64::consts::TAU * i as f64 / OUTLINE_STEPS as f64;
+            // Rescale each axis independently, so the table fills its extents.
+            let (x, y) = (*slot * a.cos() / max_x, *slot * a.sin() / max_y);
+            *slot = (x * x + y * y).sqrt().max(1e-6);
+        }
+        Self { r }
+    }
+
+    /// Normalized distance: 1 on the outline, 0 at the centre.
+    fn distance(&self, x: f64, y: f64) -> f64 {
+        let rad = (x * x + y * y).sqrt();
+        if rad <= 1e-12 {
+            return 0.0;
+        }
+        let a = y.atan2(x).rem_euclid(std::f64::consts::TAU);
+        let t = a / std::f64::consts::TAU * OUTLINE_STEPS as f64;
+        let i = (t.floor() as usize) % OUTLINE_STEPS;
+        let f = t - t.floor();
+        let edge = self.r[i] * (1.0 - f) + self.r[(i + 1) % OUTLINE_STEPS] * f;
+        rad / edge.max(1e-9)
+    }
+}
+
+/// The classic heart curve, with its dimple at +y.
+fn heart_radius(a: f64) -> f64 {
+    let (s, c) = a.sin_cos();
+    (s * c.abs().sqrt()) / (s + 1.4) - 2.0 * s + 2.0
+}
+
+/// A crest: flat shoulders, straight sides, a point at the bottom.
+fn shield_radius(a: f64) -> f64 {
+    let (s, c) = a.sin_cos();
+    let top = 1.0 / s.max(0.30);
+    let side = 1.0 / c.abs().max(0.62);
+    let point = 1.0 / (-s).max(0.22);
+    top.min(side).min(point)
+}
+
+/// Regular polygon boundary with `n` sides.
+fn polygon_radius(a: f64, n: f64) -> f64 {
+    let seg = std::f64::consts::TAU / n;
+    let half = seg * 0.5;
+    1.0 / (a.rem_euclid(seg) - half).cos().abs().max(1e-6)
+}
+
+fn heart_table() -> &'static PolarOutline {
+    static T: std::sync::OnceLock<PolarOutline> = std::sync::OnceLock::new();
+    T.get_or_init(|| PolarOutline::build(heart_radius))
+}
+
+fn shield_table() -> &'static PolarOutline {
+    static T: std::sync::OnceLock<PolarOutline> = std::sync::OnceLock::new();
+    T.get_or_init(|| PolarOutline::build(shield_radius))
+}
+
+fn octagon_table() -> &'static PolarOutline {
+    static T: std::sync::OnceLock<PolarOutline> = std::sync::OnceLock::new();
+    T.get_or_init(|| PolarOutline::build(|a| polygon_radius(a, 8.0)))
 }
 
 impl SignetOutline {
@@ -649,6 +739,10 @@ impl SignetOutline {
         SignetOutline::Cushion,
         SignetOutline::Rectangle,
         SignetOutline::Hexagon,
+        SignetOutline::Octagon,
+        SignetOutline::Marquise,
+        SignetOutline::Shield,
+        SignetOutline::Heart,
     ];
 
     pub fn label(self) -> &'static str {
@@ -658,16 +752,36 @@ impl SignetOutline {
             SignetOutline::Cushion => "Cushion",
             SignetOutline::Rectangle => "Rectangle",
             SignetOutline::Hexagon => "Hexagon",
+            SignetOutline::Heart => "Heart",
+            SignetOutline::Shield => "Shield",
+            SignetOutline::Octagon => "Octagon",
+            SignetOutline::Marquise => "Marquise",
         }
     }
 
-    /// Superellipse exponent for the outline. Hexagon is handled separately.
+    /// Fullness of the outline as a superellipse exponent, which is also what
+    /// the signet shank uses for the head silhouette: 2 oval, 4 cushion,
+    /// 8 rectangle. Shapes with their own boundary report the nearest match.
     pub fn exponent(self) -> f64 {
         match self {
             SignetOutline::Oval | SignetOutline::Round => 2.0,
             SignetOutline::Cushion => 4.0,
             SignetOutline::Rectangle => 8.0,
             SignetOutline::Hexagon => 2.0,
+            SignetOutline::Marquise => 1.4,
+            SignetOutline::Heart => 2.6,
+            SignetOutline::Shield => 3.2,
+            SignetOutline::Octagon => 5.0,
+        }
+    }
+
+    /// Boundary table for outlines that are not a plain superellipse.
+    fn polar(self) -> Option<&'static PolarOutline> {
+        match self {
+            SignetOutline::Heart => Some(heart_table()),
+            SignetOutline::Shield => Some(shield_table()),
+            SignetOutline::Octagon => Some(octagon_table()),
+            _ => None,
         }
     }
 }
@@ -824,10 +938,20 @@ impl SignetLayer {
         let x = x_mm / half_u;
         let y = y_mm / half_v;
 
+        if let Some(table) = self.outline.polar() {
+            // The table runs with the outline's own +y, which is across the
+            // band, so a heart points down the finger rather than round it.
+            return table.distance(y, x);
+        }
         match self.outline {
             // Three slabs 60 degrees apart, scaled to the extents: flat sides,
             // points at the length ends.
             SignetOutline::Hexagon => y.abs().max(x.abs() + 0.5 * y.abs()),
+            // A pointed ellipse: two arcs meeting at the length ends.
+            SignetOutline::Marquise => {
+                let n = 1.4f64;
+                (x.abs().powf(n) + y.abs().powf(n)).powf(1.0 / n)
+            }
             _ => {
                 let n = self.outline.exponent().max(1e-3);
                 (x.abs().powf(n) + y.abs().powf(n)).powf(1.0 / n)

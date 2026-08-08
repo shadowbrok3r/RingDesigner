@@ -13,7 +13,8 @@ const SIGNET_TAPER: f64 = 0.85;
 const SIGNET_HEAD_ARC_DEG: f64 = HEAD_SPAN_DEG;
 use ringdesign_core::tiling::TilingLayer;
 
-use crate::app::{RingDesignerApp, Tab};
+use crate::app::RingDesignerApp;
+use crate::pane::PaneKind;
 use crate::theme;
 
 /// A row button pressed during the list loop, applied once the loop is over.
@@ -25,13 +26,8 @@ enum Action {
 }
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
-    ui.add_space(6.0);
-    ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(format!("{} Layers", icon::STACK)).strong());
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            add_menu(app, ui);
-        });
-    });
+    ui.add_space(2.0);
+    add_menu(app, ui);
     ui.add_space(2.0);
 
     list(app, ui);
@@ -536,7 +532,7 @@ fn tiling(
         egui::RichText::new(format!(
             "{} The {} tab drags cells and orientation directly.",
             icon::INFO,
-            Tab::Unrolled.label()
+            PaneKind::Unrolled.label()
         ))
         .small()
         .color(theme::TEXT_DIM),

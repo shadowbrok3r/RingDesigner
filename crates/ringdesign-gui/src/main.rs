@@ -3,6 +3,8 @@
 mod alpha_editor;
 mod app;
 mod camera;
+mod dock;
+mod pane;
 mod export;
 mod mcp_host;
 mod panels;
@@ -23,6 +25,9 @@ impl eframe::App for RingDesignerApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         if let Ok(json) = serde_json::to_string(&self.design) {
             storage.set_string(app::DESIGN_STORAGE_KEY, json);
+        }
+        if let Ok(json) = serde_json::to_string(&self.dock) {
+            storage.set_string(app::DOCK_STORAGE_KEY, json);
         }
     }
 

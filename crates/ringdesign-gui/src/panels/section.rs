@@ -31,20 +31,20 @@ impl Default for ViewOpts {
     }
 }
 
-pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
-    let opts_id = egui::Id::new("section_view_opts");
+pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
+    let opts_id = egui::Id::new(("section_view_opts", pane));
 
-    egui::Panel::top("section_controls")
+    egui::Panel::top(egui::Id::new(("section_controls", pane)))
         .frame(strip_frame())
-        .show(ui, |ui| controls(app, ui, opts_id));
+        .show(ui, |ui| controls(app, ui, pane, opts_id));
 
-    egui::Panel::bottom("section_readout")
+    egui::Panel::bottom(egui::Id::new(("section_readout", pane)))
         .frame(strip_frame())
-        .show(ui, |ui| readout(app, ui));
+        .show(ui, |ui| readout(app, ui, pane));
 
     egui::CentralPanel::default()
         .frame(egui::Frame::NONE.fill(theme::VIEWPORT_BG))
-        .show(ui, |ui| canvas(app, ui, opts_id));
+        .show(ui, |ui| canvas(app, ui, pane, opts_id));
 }
 
 fn strip_frame() -> egui::Frame {
@@ -55,31 +55,50 @@ fn strip_frame() -> egui::Frame {
 
 // --- Controls --------------------------------------------------------------
 
-fn controls(app: &mut RingDesignerApp, ui: &mut egui::Ui, opts_id: egui::Id) {
+/// Width below which the strip keeps only the angle slider. A split pane is
+/// half the window, and the full row overruns itself there.
+const WIDE_CONTROLS_MM: f32 = 720.0;
+/// Width below which even the quick-angle buttons come off.
+const MEDIUM_CONTROLS_MM: f32 = 430.0;
+
+fn controls(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::Id) {
+    let width = ui.available_width();
     ui.horizontal(|ui| {
-        let slider = ui.add(
-            egui::Slider::new(&mut app.section_theta_deg, 0.0..=360.0)
-                .text("Ring angle")
+        let mut theta = app.panes[pane].section_theta_deg;
+        let slider_w = if width < MEDIUM_CONTROLS_MM { width - 24.0 } else { 210.0 };
+        let slider = ui.add_sized(
+            [slider_w.max(90.0), ui.spacing().interact_size.y],
+            egui::Slider::new(&mut theta, 0.0..=360.0)
+                .text(if width < MEDIUM_CONTROLS_MM { "" } else { "Ring angle" })
                 .suffix("°")
                 .fixed_decimals(1),
         );
         if slider.changed() {
-            app.refresh_section();
+            app.panes[pane].section_theta_deg = theta;
+            app.refresh_section(pane);
         }
 
-        for (label, deg) in QUICK_ANGLES {
-            let at = (app.section_theta_deg - deg).abs() < 0.05;
-            if ui.selectable_label(at, label).clicked() {
-                app.section_theta_deg = deg;
-                app.refresh_section();
+        if width >= MEDIUM_CONTROLS_MM {
+            for (label, deg) in QUICK_ANGLES {
+                let at = (theta - deg).abs() < 0.05;
+                if ui.selectable_label(at, label).clicked() {
+                    app.panes[pane].section_theta_deg = deg;
+                    app.refresh_section(pane);
+                }
             }
         }
 
-        ui.label(
-            RichText::new(format!("{} 90° is the top of the ring", icon::INFO))
-                .small()
-                .color(theme::TEXT_DIM),
-        );
+        if width >= WIDE_CONTROLS_MM {
+            ui.label(
+                RichText::new(format!("{} 90° is the top of the ring", icon::INFO))
+                    .small()
+                    .color(theme::TEXT_DIM),
+            );
+        }
+
+        if width < MEDIUM_CONTROLS_MM {
+            return;
+        }
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let mut opts = ui.memory_mut(|m| *m.data.get_temp_mut_or_default::<ViewOpts>(opts_id));
@@ -89,10 +108,13 @@ fn controls(app: &mut RingDesignerApp, ui: &mut egui::Ui, opts_id: egui::Id) {
                 ui.memory_mut(|m| m.data.insert_temp(opts_id, opts));
             }
 
+            if width < WIDE_CONTROLS_MM {
+                return;
+            }
             ui.separator();
 
             let draft = app.design.draft;
-            let (parting_z, mode) = match (draft.auto_parting, app.section.as_ref()) {
+            let (parting_z, mode) = match (draft.auto_parting, app.panes[pane].section.as_ref()) {
                 (true, Some(s)) => (s.parting_z_mm, "auto"),
                 (true, None) => (draft.parting_z_mm, "auto"),
                 (false, _) => (draft.parting_z_mm, "fixed"),
@@ -112,8 +134,8 @@ fn controls(app: &mut RingDesignerApp, ui: &mut egui::Ui, opts_id: egui::Id) {
 
 // --- Measurements ----------------------------------------------------------
 
-fn readout(app: &RingDesignerApp, ui: &mut egui::Ui) {
-    let Some(s) = app.section.as_ref() else {
+fn readout(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
+    let Some(s) = app.panes[pane].section.as_ref() else {
         ui.label(RichText::new("No measurements").small().color(theme::TEXT_DIM));
         return;
     };
@@ -169,7 +191,7 @@ fn field(ui: &mut egui::Ui, label: &str, value: &str, color: Color32) {
 
 // --- Canvas ----------------------------------------------------------------
 
-fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, opts_id: egui::Id) {
+fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::Id) {
     let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::hover());
     if !ui.is_rect_visible(rect) {
         return;
@@ -177,7 +199,7 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, opts_id: egui::Id) {
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 0.0, theme::VIEWPORT_BG);
 
-    let section = match app.section.as_ref() {
+    let section = match app.panes[pane].section.as_ref() {
         Some(s) if s.points.len() >= 3 => s,
         _ => {
             painter.text(

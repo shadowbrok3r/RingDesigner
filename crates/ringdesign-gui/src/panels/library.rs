@@ -16,7 +16,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     editor_window(app, ui);
 
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(format!("{} Tile Library", icon::IMAGES)).heading());
+        ui.label(egui::RichText::new(format!("{} Alphas", icon::IMAGES)).strong());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.label(egui::RichText::new(format!("{} tiles", app.lib.len())).color(theme::TEXT_DIM));
         });

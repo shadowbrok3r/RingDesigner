@@ -32,6 +32,7 @@ pub mod library;
 pub mod mesh;
 pub mod metal;
 pub mod profile;
+pub mod refine;
 pub mod sizing;
 pub mod stl;
 pub mod tiling;

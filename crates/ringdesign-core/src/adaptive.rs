@@ -52,15 +52,6 @@ const BINS: usize = 256;
 /// ratio of the triangles a redistribution can produce.
 const MAX_CONTRAST: f64 = 10.0;
 
-/// Share of the profile budget the bore keeps whatever the density says.
-const MIN_BORE_SHARE: f64 = 0.10;
-/// Share of the profile budget the displaceable surface keeps.
-const MIN_SURFACE_SHARE: f64 = 0.55;
-
-/// Fewest samples either span of the cross-section may be given.
-const MIN_BORE_STEPS: usize = 8;
-const MIN_SURFACE_STEPS: usize = 12;
-
 /// A non-negative sample density over a normalized parameter.
 ///
 /// Raw feature magnitudes go in through [`Density::raise`]; [`Density::finish`]
@@ -133,9 +124,8 @@ impl Density {
     /// peak — an edge fillet 60x sharper than the dome it joins would earn less
     /// than 4x the samples out of a 6x budget.
     ///
-    /// Two spans compared by a budget split must share `hi`. Self-normalizing
-    /// makes a straight bore's sharpest corner look like a fillet, and the bore
-    /// then keeps a share of the budget it has no detail to spend it on.
+    /// Densities that will be combined must share `hi`. Self-normalizing makes
+    /// a straight bore's sharpest corner look as sharp as a fillet.
     pub fn finish_against(&mut self, hi: f64) {
         if !(hi > 0.0) {
             self.bins.fill(1.0);
@@ -175,11 +165,6 @@ impl Density {
             let k = ((t * last as f64).round() as usize).min(last);
             self.bins[i] = self.bins[i].max(other.bins[k]);
         }
-    }
-
-    /// Integral of the density, for splitting a budget between two spans.
-    fn total(&self) -> f64 {
-        self.bins.iter().sum()
     }
 
     /// `count` normalized positions, each spanning equal density.
@@ -367,32 +352,6 @@ pub fn curvature_density(p: &[[f64; 2]]) -> Density {
     d
 }
 
-/// One span of a cross-section: its arc length and the detail along it.
-pub struct Span<'a> {
-    pub len_mm: f64,
-    pub density: &'a Density,
-}
-
-impl Span<'_> {
-    /// Samples this span asks for, as the density integrated over its length.
-    /// Weighting by length is what makes two spans comparable — the densities
-    /// are per unit *normalized* parameter, and the spans are not the same size.
-    fn demand(&self) -> f64 {
-        self.len_mm.max(0.0) * self.density.total()
-    }
-}
-
-/// Split a cross-section's vertex budget between the bore and the surface by
-/// how much detail each carries, with a floor under both.
-pub fn split_budget(n: usize, bore: Span<'_>, surface: Span<'_>) -> (usize, usize) {
-    let total = (bore.demand() + surface.demand()).max(1e-9);
-    let lo_b = ((n as f64 * MIN_BORE_SHARE).round() as usize).max(MIN_BORE_STEPS);
-    let lo_s = ((n as f64 * MIN_SURFACE_SHARE).round() as usize).max(MIN_SURFACE_STEPS);
-    let hi_s = n.saturating_sub(lo_b).max(lo_s);
-    let n_s = ((n as f64 * surface.demand() / total).round() as usize).clamp(lo_s, hi_s);
-    (n.saturating_sub(n_s), n_s)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -467,47 +426,4 @@ mod tests {
         );
     }
 
-    #[test]
-    fn the_bore_gives_up_budget_to_a_detailed_surface() {
-        let mut flat = Density::zeros(false);
-        let mut busy = Density::zeros(false);
-        busy.raise(0.5, 4.0);
-        busy.dilate(2);
-        // The shared peak is what stops the flat span inflating to its own max.
-        let hi = flat.peak().max(busy.peak());
-        flat.finish_against(hi);
-        busy.finish_against(hi);
-
-        let (n_b, n_s) = split_budget(
-            144,
-            Span { len_mm: 6.0, density: &flat },
-            Span { len_mm: 6.0, density: &busy },
-        );
-        assert_eq!(n_b + n_s, 144);
-        assert!(n_b >= MIN_BORE_STEPS, "bore starved to {n_b}");
-        assert!(n_s > 144 / 2, "surface only got {n_s} of 144");
-    }
-
-    #[test]
-    fn a_longer_span_earns_more_of_the_budget() {
-        let flat = Density::uniform();
-        let short = Span { len_mm: 2.0, density: &flat };
-        let long = Span { len_mm: 8.0, density: &flat };
-        let (n_b, n_s) = split_budget(200, short, long);
-        assert!(n_s > n_b * 2, "equal density but 4x the length only got {n_s} vs {n_b}");
-    }
-
-    #[test]
-    fn the_budget_split_holds_at_the_smallest_profile() {
-        let flat = Density::uniform();
-        for n in [24usize, 25, 32, 48, 1024] {
-            let (n_b, n_s) = split_budget(
-                n,
-                Span { len_mm: 5.0, density: &flat },
-                Span { len_mm: 8.0, density: &flat },
-            );
-            assert_eq!(n_b + n_s, n, "budget lost at n = {n}");
-            assert!(n_b >= 1 && n_s >= 1, "empty span at n = {n}: {n_b}/{n_s}");
-        }
-    }
 }
