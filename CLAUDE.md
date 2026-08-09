@@ -204,15 +204,21 @@ raises a wall the mould has to clear.
 The head **is** the ring over its arc. `ShankKind::Signet` and `SignetHead` in
 `profile.rs` build the whole thing out of the sweep:
 
-- the **face outline** is the band's own plan silhouette — the section at each
-  angle spans `SignetOutline::extent` of the position that angle projects to on
-  the table plane, so the band widens into a cushion or a shield and the shank
-  runs out of its ends;
+- the **body** is the band's plan silhouette: the union of
+  `SignetOutline::body_extent` read at the position this angle projects to on the
+  table plane, and a **swell** that carries the head's own span back to the shank
+  over an arc two and a half times as long. The outline gives the head its shape,
+  the swell gives it its tail, and neither alone is a signet. That arc is
+  `HEAD_SWELL_RATIO` × the head's own half-angle, and a **ratio** rather than an
+  angle because the swell is the head's influence: a fixed 75° came from one
+  reference and ran the swell out 20° early on a bigger head;
 - the **table** is the band's crest, with `crown_scale` taken to zero across the
   section and the radius solved as `plane / cos` of the angle off centre. Flat
   in both directions is a plane;
 - the **shoulder** is the arc past the face over which the crest falls back to
-  the shank, which is the band coming up to meet the underside of the head.
+  the shank, which is the band coming up to meet the underside of the head. It
+  is much shorter than the swell, so the width goes on widening under a crest
+  that has already come down — the broad thin shoulder of a real signet.
 
 There is no CSG and no pad. Two fields on `ShankMod` make it possible.
 `outer_r`: a head's depth is set by where its table plane sits, not by a
@@ -220,11 +226,11 @@ fraction of the band's own thickness, so the modulation names a crest radius
 outright and `sample_spaced` takes the thickness from it. `z_center_frac`: a
 swept band is centred on its own mid-plane, and an upright face is not.
 
-The band at each angle is the **union** of two strips — the shank running the
-whole way round, and the face standing where it stands — closed with `smax` and
-`smin` so the corner where they cross is filleted rather than creased. A union,
-not a blend: easing the outline into the shank fattens it, and the whole point
-of the head is that its silhouette is the face.
+The band at each angle is the **union** of the outline and the swell, closed with
+`smax` and `smin` so the corner where they cross is filleted rather than creased,
+with the shank strip under both as a floor. A union, not a blend: easing the
+outline into the swell fattens it, and the whole point of the head is that its
+silhouette is the face wherever the face is the wider of the two.
 
 **Measured 0.000% undercut on every symmetric outline**, at every taper down to
 a 1.9 mm shank on a 12 mm head, every rise to 2.2 mm, every face length to 20 mm,
@@ -232,37 +238,115 @@ every shoulder from 10° to 40°. A band that widens *and* rises toward the top 
 single-valued in Z over `(r, theta)`, so it is a terrain and releases by
 construction — the same guarantee as the superellipse drop, not a tuning result.
 
-#### The shoulder leaves the face already falling
+#### Three bought signets, measured
 
-**Anything that starts the shoulder flat leaves a shelf**, at exactly the place
-the eye goes. With a plain ramp off the end of the face, measured on a cushion
-head: the band's edge went from diving at 0.50 mm per degree to 0.003 in one
-step, and the crest from climbing at 0.14 to nothing. That is a lip standing
-2.9 mm proud of the shank, and it is the thing a real signet does not have.
+`/home/shadowbroker/jewelry-scan/RING/Signets/` holds a heart, a hexagon and an
+oval as **STEP and STL** — parametric CAD, not scans, so the numbers are exact.
+`examples/scan_signet.rs` reads them (via `examples/common/scan.rs`: split into
+components, fit the bore, align the head by its own symmetry) and prints the
+same measurements for one of them and for ours, so the columns compare.
 
-So the shoulder is a **Hermite that takes over `HEAD_TAKEOFF` inside the end of
-the face**, picking up the outline's own value *and slope* there and landing
-flat on the shank. C¹ at both ends by construction, and it does the right thing
-at either extreme without being told which it is looking at:
+The heart's STEP settles the construction outright. Per ring: **one plane** (the
+table), three cylinders, six tori, six B-splines, two spheres. The bores are
+8.65 / 9.10 / 9.50 / 9.90 / 10.30 — size 7 is exactly our `BORE_R`. The table
+sits **1.75 mm over the bore on every size**. The shank is a single torus, major
+8.7679 and minor **2.9321**, which is 4.63 mm wide by 1.40 thick with a flattened
+crown — not a half-round. Edge breaks are 0.2 mm, plan corners 0.25.
 
-| outline | slope at the face's end | a degree past it |
-| --- | --- | --- |
-| cushion | −0.123 | −0.101 |
-| rectangle | −0.074 | −0.066 |
-| shield | −0.001 | −0.005 |
+What that measurement changed, all of it visible:
 
-A cushion is already diving, so it carries on diving and the band is shank width
-almost at once. A shield's side is straight, so it leaves at full height and
-rolls off over the whole shoulder.
+| | was | reference | now |
+| --- | --- | --- | --- |
+| table area, matched to the same band | 119 mm² | 242 | 210 |
+| table over the bore | 2.65 mm | 1.77 | 1.69 |
+| width half gone by | 37° | 53° | 48° |
+| heart's upper boundary at a fifth out | 0.60 | 0.90 | 0.94 |
 
-Reading the outline at its very end instead would not do: there it is a *point*,
-so the shoulder would start from nothing. Taking over a little inside costs the
-table the last 5% of its length, which it spends on an edge break it wanted
-anyway.
+- **`heart_radius` was wrong.** It returned **zero at the dimple** — a cusp
+  running to the centre — so the outline had a spike for a point. Replaced with
+  the classic `(x² + y² − 1)³ = x²y³`, solved per ray by bisection.
+- **`head_aspect(Heart)` was 0.95**, and the reference's plate is 18.53 mm round
+  the ring by 17.64 across: **1.12**. That alone was 30% of the missing area.
+- **`HEAD_FACE_DRAFT` was 0.09.** The reference's head is a **prism** — its
+  section at the head is a clean rectangle from bore to table, so the table's
+  outline *is* the body's. Now 0.02, a token draft rather than a look.
+- **`HEAD_RISE_MM` was 0.8**, against the reference's 0.38 over its own shank.
+  Now 0.3. A signet's bulk comes from the plane standing off over a curve — the
+  reference's table centre is 1.77 mm over the bore where its corner is 5.29 —
+  not from the rise.
 
-**The crest rides the same curve**, and has to. A face that has narrowed to a
-shank while the crest is still out on the table plane is a finger of metal
-standing off the ring — the same lip by another route.
+#### The face is a facet, not an extrusion
+
+**The body and the face are different shapes.** The face is a facet cut across
+the crown of a wider body — measured on the reference, 16.0 mm of body under a
+14.7 mm table — and if the band simply carries the face's outline from the table
+down to the finger, the result is a prism with a signet's face on it. On a heart
+that is unmistakable: the dimple runs the whole depth of the ring and each lobe
+leaves a crease down the flank.
+
+So `SignetOutline::body_extent` is the face's own reach with its hollows faired
+out, and it is what the band follows. `SignetHead::body_fair` blends between the
+two; 0 is the extrusion.
+
+It is a **morphological closing** — dilate then erode — and the shape of the
+structuring element is the whole thing:
+
+- Not a blur. A blur pulls the peaks in with the hollows, and the head comes out
+  a blob with the face lost in it.
+- Not a flat window either. A flat one fills a hollow to the level of its rim and
+  holds it *exactly* there: closing a heart with one took the whole dimple side
+  of the head to a straight parallel edge over 122 of 200 stations, and left a
+  cliff where that met the shoulder. Both of those are visible.
+- A **rolling ball** — a paraboloid of radius `BODY_FAIR_R` — bridges a hollow
+  with an arc of its own radius and leaves everything it cannot reach alone. A
+  heart's notch fairs from 0.276 of the half-width to 0.065 while its lobes, its
+  point and the head's plan size stay exactly put.
+
+`BODY_FAIR_R` is 0.55 half-lengths because the residual notch and the bluntness
+of the head's end pull against each other:
+
+| ball radius | 0.35 | 0.55 | 0.85 | 1.30 |
+| --- | --- | --- | --- | --- |
+| notch left of 0.276 | 0.080 | 0.065 | 0.051 | 0.039 |
+| body's width at the head's end | 0.83 | 0.93 | 1.29 | 1.52 |
+
+Past about 0.85 the head stops ending and starts being a slab.
+
+**The body must contain the face**, or the flank leans back over the mould half
+it sits in — the same undercut as any other, said where it can be proved instead
+of sampled off a mesh. Closing is extensive, so it can only add, and it stays so
+with the ball truncated at the head's ends because the erosion's own station is
+always one of the samples it minimises over. `the_body_contains_the_face_it_carries`
+asserts it to within 1e-5, which is Catmull-Rom reconstruction noise where the
+two curves touch; `head_at` clamps the crest into the bore regardless.
+
+#### The table is read a little inside the face's end
+
+At the end itself the outline is a *point*, so a table read there runs to nothing
+and wedges the section to a fin. `HEAD_TAKEOFF` holds the crest span at the
+station 5% inside, which costs the table the last twentieth of its length — spent
+on an edge break it wanted anyway. The **body** is read right out to the point;
+it is the swell under it that keeps the band wide there, not the outline.
+
+#### A crease is a step in curvature, not in slope
+
+A surface can be C¹ and still catch the light in a line, which is why the
+silhouette is judged on its second derivative. Worst curvature of the bore's
+reach, per degree squared:
+
+| | heart | hexagon | rectangle | oval |
+| --- | --- | --- | --- | --- |
+| face extruded | 10.68 | 2.92 | 0.0062 | 0.0042 |
+| faired body | 0.0073 | 0.0232 | 0.0062 | 0.0037 |
+
+The shapes with a concavity or a corner in plan are the ones that had a crease.
+What is left on a heart is its own curvature. The hexagon keeps 0.023 because a
+hexagonal head is *meant* to show the corner where its flat side meets its
+slanted one; the body rounds it to a tight fillet rather than passing it through.
+
+Getting there needed the blends to be C² as well as C¹. `smoothstep` leaves a
+step in curvature at each end of its window, and both ends of the edge break had
+one — `smootherstep` is what the head's blends use.
 
 #### The section is built between two spans
 
@@ -285,32 +369,72 @@ the one surface it has to slide off. Proportional, not a distance: insetting by
 a distance drafts a narrow station to nothing and leaves a fin standing off the
 end of the head, which a heart does first.
 
-#### The shank is flat, and the swell is what should be long
+#### The shank is flat, and the swell is what makes it read
 
-`BlankSignet.obj` on the desktop is a real 14.7 mm round signet, and it settles
-two things. Its shank varies by **1%** over the 215 degrees behind the head, so
-tapering the strip was a wrong turn and is now pinned flat by
-`the_shank_is_flat`. What makes it read as tapering is the swell in front:
+`/home/shadowbroker/jewelry-scan/RING/BlankSignet.obj` is a real 14.7 mm round
+signet — 20 mm bore, 7 mm shank, 1.75 mm thick, table 0.265 mm proud, body 16.0
+mm across — and it settles the whole shape of a head. Measured off the mesh by
+bucketing its vertices round a circle-fitted bore:
 
 | off the head | 0° | 15° | 25° | 35° | 45° | 60° | 75° |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| reference body | 100% | 95% | 87% | 74% | 62% | 50% | 45% — the shank |
+| body width | 100% | 90% | 74% | 52% | 31% | 11% | 2% — the shank |
 | its face there | 100% | 90% | 65% | — | — | — | — |
+| crest above the shank | 13% | 37% | 77% | 85% | 39% | 9% | 0% |
 
-**The reference's face and body are not the same extent**, and here they are.
-The band's silhouette *is* the face outline, so the swell is half gone by 22°
-and over by 28° where the reference takes 37 and 75.
-`scratch_swell_against_a_real_signet` records the gap column by column.
+Three separate things, and the head only reads right when all three are:
 
-The two-span section is what that needs, and it is now in place — but the other
-half is a way to say what the body's shape *is*, and stretching the face along
-the ring is not it. Prototyped at twice the arc: it matches the reference on a
-round face and reads correctly, and then the reconciliation between a stretched
-body and a true-size face has no setting that works for an outline that narrows
-fast. Shut the draft early and the head reads as the body, a blunt blob with the
-face lost in it; shut it late and the section wedges to a fin at the head's
-ends. Measured on a heart, which narrows fastest of the nine. What is missing is
-a body defined in its own right rather than derived from the face.
+- Its **shank** varies by 1% over the 215° behind the head, so tapering the
+  strip was a wrong turn and is pinned flat by `the_shank_is_flat`.
+- Its **width** comes down over 75°, more than twice the face's own 31°. A plain
+  `smoothstep` over that arc tracks the reference to within 4% of the drop
+  everywhere. That arc is **not a constant**: see `HEAD_SWELL_RATIO` below.
+- Its **crest** follows the table plane out to the face's edge, peaks at the
+  table's corner, and is back on the shank by 75° — 43° of fall, and it leaves
+  the rim *already diving*, because a rim is an edge and the flank under it is a
+  fillet running out flat. `HEAD_SHOULDER_DEG` and `HEAD_SHOULDER_POW`.
+
+So the body is the **union of the face outline and the swell**, and that is what
+gives a head both a shape and a tail. The outline stands clear where it is
+fuller — a heart's lobes, a shield's shoulders, a rectangle's sides — and the
+swell carries everything else. Before this the band's silhouette simply *was*
+the face outline, so the swell was over the moment the face was: half gone by
+22° and finished by 28°. `the_swell_matches_a_real_signet` is both columns side
+by side; worst error went from 0.63 of the drop to 0.04.
+
+A consequence worth knowing: for an outline **leaner** than the swell at some
+station the swell wins outright, so a marquise and an oval carry the same body
+20° off the top. That is right — a real marquise signet is a pointed table on a
+rounded body — and the plate's shape lives in the crest span, which is read from
+the outline alone.
+
+**The outline hands over to the swell across the head's end**, over the last
+`HEAD_EDGE_BREAK` of the face. A straight-ended outline reaches full width at its
+last station and nothing past it, so one that simply stops steps the band onto
+the swell in a single sample: measured on a shield, **1.76 of full width per
+degree**, which is a wall. Faired onto the swell it is 0.002. What it costs is a
+chamfer on the head's last arc in plan, which is the edge break a corner wanted
+anyway.
+
+The fade has to **close at the face's end**, not straddle it. The silhouette's
+slope is discontinuous there for any shape with a straight end — the station
+stops advancing while the outline is still plunging — so a fade still half open
+at that point carries the kink straight through: a rectangle steps 0.19 of full
+width per degree against 0.002 once the fade has already closed.
+
+It is 0.45 and not the 0.18 it started at because the hand-over is the last
+curvature left in the silhouette, and widening the window spreads it: 0.022 per
+degree squared at 0.18, 0.011 at 0.30, 0.007 at 0.45, which is the head's own.
+Widening it costs nothing in the face — the bore stays outside the table's own
+span the whole way, so the safety clamp in `head_at` never bites.
+
+**The union has to be exact on a tie.** The usual smooth maximum,
+`max + r·h²/4`, rounds a crossing *outward*, and the outline and the swell are
+equal by construction at the head and again past the outline's end — a tie, not
+a crossing. Rounding there pushed the head past full width and fattened the whole
+shank by 4%. `smax` therefore crossfades between the two over the band instead of
+adding to their maximum: exact when either dominates, exact on a tie, C¹ at both
+ends.
 
 #### An upright face moves the band off its mid-plane
 
@@ -328,6 +452,16 @@ head: **-19.4° over 0.67% of the surface** — a real undercut, not facet noise
 `sample_spaced` biases the crest back by the offset, which takes it to 0.008%,
 and what is left is the crest-line phantom.
 
+**And the crest span has to reach the parting plane at all.** An upright outline
+at its last station does not straddle it — a heart's lobe is a patch of table on
+one side of the band and nothing on the other — so a span taken as drawn puts
+the crest *below* the plane and turns everything between the two into a ceiling.
+Measured on a heart: 0.24% of the surface at **-77°**, and unlike the phantom it
+did not fall with the sweep (0.30% at 192x96, 0.24% at 2048x512), which is what
+tells the two apart. `sample_spaced` widens the crest span to contain the
+parting plane by `keep` either side; the heart is 0.059% at Draft and 0.0035% at
+Export after, converging. It costs the head's ends a flat run of `keep`.
+
 Two consequences worth keeping in mind:
 
 - The furthest point on the ring is the **corner of the table**, not its middle.
@@ -339,11 +473,11 @@ Two consequences worth keeping in mind:
   build reports a phantom bounded only by its own slope error. Judge a signet
   from a swept build.
 
-`HEAD_SHOULDER_DEG` is 34° and not the 26° it started at because of that
-phantom. The shoulder morphs the section faster than anything else in the model
-— dead-flat crest to a rounded wire — and if it morphs faster than the sweep
-samples, a vertex's `z` shifts between slices and the skewed facet at the crest
-crosses zero. Measured on a bare signet band, undercut faces reported:
+A short shoulder makes that phantom worse, which is worth knowing before
+shortening one. The shoulder morphs the section faster than anything else in the
+model — dead-flat crest to a rounded wire — and if it morphs faster than the
+sweep samples, a vertex's `z` shifts between slices and the skewed facet at the
+crest crosses zero. Measured on a bare signet band, undercut faces reported:
 
 | shoulder | Draft 192x96 | Preview 384x144 | Fine 512x192 |
 | --- | --- | --- | --- |
@@ -352,7 +486,10 @@ crosses zero. Measured on a bare signet band, undercut faces reported:
 | 34° | 0 | 0 | 0 |
 | 42° | 0 | 0 | 0 |
 
-`mesh::tests::scratch_signet_head_undercuts` is that table.
+`HEAD_SHOULDER_DEG` was picked from that table before the reference was measured
+properly; at 43° it is comfortably past the knee and now comes from the object
+rather than from the mesh. `mesh::tests::scratch_signet_head_undercuts` is the
+table.
 
 #### Outlines have to survive being turned into a silhouette
 

@@ -200,42 +200,13 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
     if app.design.profile.style == ProfileStyle::Custom {
         ui.add_space(2.0);
-        hint(ui, "Superellipse exponents of d(x) = 1 - (1 - x^a)^(1/b).");
-        egui::Grid::new("profile_shape")
-            .num_columns(2)
-            .spacing([8.0, 4.0])
-            .show(ui, |ui| {
-                let p = &mut app.design.profile;
-
-                ui.label("Shape a");
-                changed |= ui
-                    .add(
-                        egui::DragValue::new(&mut p.shape_a)
-                            .speed(0.02)
-                            .range(0.25..=12.0)
-                            .fixed_decimals(2),
-                    )
-                    .on_hover_text("Higher flattens the crown and sharpens the falloff at the edges.")
-                    .changed();
-                ui.end_row();
-
-                ui.label("Shape b");
-                changed |= ui
-                    .add(
-                        egui::DragValue::new(&mut p.shape_b)
-                            .speed(0.02)
-                            .range(0.25..=12.0)
-                            .fixed_decimals(2),
-                    )
-                    .on_hover_text("Higher fills the crest out.")
-                    .changed();
-                ui.end_row();
-            });
+        changed |= crown(app, ui);
     }
 
     if changed {
         app.mark_dirty();
     }
+
 
     let p = &app.design.profile;
     let clamped = p.crown_mm > p.effective_crown_mm() + 1e-9;
@@ -628,6 +599,47 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
 
     changed |= ui
         .add(
+            egui::Slider::new(&mut head.body_fair, 0.0..=1.0)
+                .fixed_decimals(2)
+                .text("Body fairing"),
+        )
+        .on_hover_text(
+            "How far the body under the table rounds away from the face's outline. 0 extrudes \
+             the face straight down to the finger, so a heart's dimple runs the whole depth of \
+             the ring; 1 leaves the shape on the table and fairs everything beneath it.",
+        )
+        .changed();
+
+    let auto = head.swell_deg.is_none();
+    ui.horizontal(|ui| {
+        let mut on = auto;
+        if ui
+            .checkbox(&mut on, "Auto")
+            .on_hover_text("Take the swell from the head's own size, which is where it comes from.")
+            .changed()
+        {
+            head.swell_deg = (!on).then_some(head.swell_deg.unwrap_or(90.0));
+            changed = true;
+        }
+        let mut deg = head.swell_deg.unwrap_or(90.0);
+        if ui
+            .add_enabled(
+                !on,
+                egui::Slider::new(&mut deg, 20.0..=160.0).fixed_decimals(0).suffix("°").text("Swell"),
+            )
+            .on_hover_text(
+                "Arc the band's width takes to come back to the shank. This is what a signet \
+                 reads as from the side, and it runs two and a half times as far as the face.",
+            )
+            .changed()
+        {
+            head.swell_deg = Some(deg);
+            changed = true;
+        }
+    });
+
+    changed |= ui
+        .add(
             egui::Slider::new(&mut head.shoulder_deg, 8.0..=80.0)
                 .fixed_decimals(0)
                 .suffix("°")
@@ -731,6 +743,228 @@ fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     if changed {
         app.mark_dirty();
     }
+}
+
+// --- Custom crown ----------------------------------------------------------
+
+/// Points the "draw it" button seeds the curve with.
+const SEED_POINTS: usize = 7;
+/// Grab radius for a control point, pixels.
+const GRAB_PX: f32 = 9.0;
+
+/// The crown of a custom profile: either superellipse exponents, or a curve
+/// drawn by hand.
+fn crown(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
+    let mut changed = false;
+    let drawn = app.design.profile.drop_curve.is_active();
+
+    ui.horizontal(|ui| {
+        if ui
+            .selectable_label(!drawn, "Exponents")
+            .on_hover_text("Superellipse d(x) = 1 - (1 - x^a)^(1/b).")
+            .clicked()
+            && drawn
+        {
+            app.design.profile.clear_drop_curve();
+            changed = true;
+        }
+        if ui
+            .selectable_label(drawn, format!("{} Draw the crown", icon::PENCIL_SIMPLE))
+            .on_hover_text("Shape the drop from crest to edge by hand.")
+            .clicked()
+            && !drawn
+        {
+            app.design.profile.adopt_drop_curve(SEED_POINTS);
+            changed = true;
+        }
+    });
+
+    ui.add_space(3.0);
+    if !app.design.profile.drop_curve.is_active() {
+        return changed | exponents(app, ui);
+    }
+    changed | curve_canvas(app, ui)
+}
+
+fn exponents(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
+    let mut changed = false;
+        hint(ui, "Superellipse exponents of d(x) = 1 - (1 - x^a)^(1/b).");
+        egui::Grid::new("profile_shape")
+            .num_columns(2)
+            .spacing([8.0, 4.0])
+            .show(ui, |ui| {
+                let p = &mut app.design.profile;
+
+                ui.label("Shape a");
+                changed |= ui
+                    .add(
+                        egui::DragValue::new(&mut p.shape_a)
+                            .speed(0.02)
+                            .range(0.25..=12.0)
+                            .fixed_decimals(2),
+                    )
+                    .on_hover_text("Higher flattens the crown and sharpens the falloff at the edges.")
+                    .changed();
+                ui.end_row();
+
+                ui.label("Shape b");
+                changed |= ui
+                    .add(
+                        egui::DragValue::new(&mut p.shape_b)
+                            .speed(0.02)
+                            .range(0.25..=12.0)
+                            .fixed_decimals(2),
+                    )
+                    .on_hover_text("Higher fills the crest out.")
+                    .changed();
+                ui.end_row();
+            });
+    changed
+}
+
+/// Draggable control points over the drop from crest to edge.
+///
+/// `x` runs left to right from the crest to the band edge and `d` runs top to
+/// bottom from no drop to the full crown, so the picture is the shape the metal
+/// takes — falling away to the right, as the section does.
+fn curve_canvas(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
+    let mut changed = false;
+    let id = ui.make_persistent_id("drop_curve_drag");
+    let width = ui.available_width().clamp(160.0, 260.0);
+    let (response, painter) =
+        ui.allocate_painter(egui::vec2(width, 132.0), egui::Sense::click_and_drag());
+    let rect = response.rect;
+    painter.rect_filled(rect, 3.0, theme::BG);
+    let plot = rect.shrink(9.0);
+
+    let to_screen = |x: f64, d: f64| {
+        egui::pos2(
+            plot.left() + x as f32 * plot.width(),
+            plot.top() + d as f32 * plot.height(),
+        )
+    };
+    let to_curve = |p: egui::Pos2| {
+        (
+            ((p.x - plot.left()) / plot.width().max(1.0)).clamp(0.0, 1.0) as f64,
+            ((p.y - plot.top()) / plot.height().max(1.0)).clamp(0.0, 1.0) as f64,
+        )
+    };
+
+    for t in [0.0, 0.25, 0.5, 0.75, 1.0] {
+        let stroke = egui::Stroke::new(1.0, theme::GRID);
+        painter.line_segment([to_screen(t, 0.0), to_screen(t, 1.0)], stroke);
+        painter.line_segment([to_screen(0.0, t), to_screen(1.0, t)], stroke);
+    }
+
+    // --- Drag, add, remove ---
+    let mut drag: Option<usize> = ui.memory(|m| m.data.get_temp(id)).flatten();
+    let curve = app.design.profile.drop_curve;
+    if response.drag_started() {
+        drag = response.interact_pointer_pos().and_then(|p| {
+            curve
+                .points()
+                .iter()
+                .enumerate()
+                .map(|(i, q)| (i, to_screen(q[0], q[1]).distance(p)))
+                .filter(|(_, d)| *d <= GRAB_PX)
+                .min_by(|a, b| a.1.total_cmp(&b.1))
+                .map(|(i, _)| i)
+        });
+        ui.memory_mut(|m| m.data.insert_temp(id, drag));
+    }
+    if response.drag_stopped() {
+        ui.memory_mut(|m| m.data.insert_temp(id, Option::<usize>::None));
+    }
+    if response.dragged() {
+        if let (Some(i), Some(p)) = (drag, response.interact_pointer_pos()) {
+            let (x, d) = to_curve(p);
+            app.design.profile.drop_curve.set(i, x, d);
+            changed = true;
+        }
+    }
+    if response.double_clicked() {
+        if let Some(p) = response.interact_pointer_pos() {
+            let (x, d) = to_curve(p);
+            app.design.profile.drop_curve.insert(x, d);
+            changed = true;
+        }
+    }
+    if response.secondary_clicked() {
+        if let Some(p) = response.interact_pointer_pos() {
+            let hit = curve
+                .points()
+                .iter()
+                .enumerate()
+                .map(|(i, q)| (i, to_screen(q[0], q[1]).distance(p)))
+                .filter(|(_, d)| *d <= GRAB_PX)
+                .min_by(|a, b| a.1.total_cmp(&b.1));
+            if let Some((i, _)) = hit {
+                app.design.profile.drop_curve.remove(i);
+                changed = true;
+            }
+        }
+    }
+
+    // --- The curve as the sweep will read it ---
+    let curve = app.design.profile.drop_curve;
+    let line: Vec<egui::Pos2> = (0..=96)
+        .map(|i| {
+            let x = i as f64 / 96.0;
+            to_screen(x, curve.eval(x))
+        })
+        .collect();
+    let reversed = curve.worst_reversal() > 1e-6;
+    let colour = if reversed { theme::BAD } else { theme::ACCENT };
+    painter.add(egui::Shape::line(line, egui::Stroke::new(1.6, colour)));
+
+    for (i, q) in curve.points().iter().enumerate() {
+        let at = to_screen(q[0], q[1]);
+        let end = i == 0 || i + 1 == curve.len();
+        painter.circle_filled(at, if end { 2.6 } else { 3.4 }, colour);
+        if !end {
+            painter.circle_stroke(at, 3.4, egui::Stroke::new(1.0, theme::BG));
+        }
+    }
+
+    let label = |at: egui::Pos2, text: &str, align| {
+        painter.text(at, align, text, egui::FontId::proportional(9.0), theme::TEXT_DIM)
+    };
+    label(rect.left_top() + egui::vec2(3.0, 1.0), "crest", egui::Align2::LEFT_TOP);
+    label(rect.right_bottom() - egui::vec2(3.0, 1.0), "edge", egui::Align2::RIGHT_BOTTOM);
+
+    response.on_hover_text(
+        "Drag a point to reshape the crown. Double-click to add one, right-click to remove.",
+    );
+
+    let mut monotone = app.design.profile.drop_curve.monotone;
+    if ui
+        .checkbox(&mut monotone, "Cannot undercut")
+        .on_hover_text(
+            "Hold the drop so it never falls back. This is what makes any shape you can draw \
+             castable; clear it only to model an undercut deliberately.",
+        )
+        .changed()
+    {
+        app.design.profile.drop_curve.monotone = monotone;
+        // Re-running the constraint is what actually straightens an already
+        // reversed curve; setting the flag alone leaves it as drawn.
+        app.design.profile.drop_curve.sanitize();
+        changed = true;
+    }
+
+    if reversed {
+        ui.label(
+            RichText::new(format!(
+                "{} Leans back {:.0}% of the crown — this will lock in the sand.",
+                icon::WARNING,
+                curve.worst_reversal() * 100.0
+            ))
+            .small()
+            .color(theme::BAD),
+        );
+    }
+
+    changed
 }
 
 // --- Mesh ------------------------------------------------------------------

@@ -23,6 +23,46 @@ pub const MAX_ALPHA_EDGE: usize = 512;
 /// gigabytes before anyone can downscale it.
 pub const HARD_MAX_ALPHA_EDGE: usize = 8192;
 
+/// Shared decode path for [`Alpha::load`] and [`Alpha::from_bytes`].
+///
+/// The header limits reject an oversized image before its decode buffer is ever allocated, and the
+/// downscale happens before the f32 expansion, never after: one f32 per pixel means a 16000x16000
+/// image from a 1 MB file would otherwise retain a gigabyte.
+fn decode<R: std::io::BufRead + std::io::Seek>(
+    mut reader: image::ImageReader<R>,
+    name: String,
+) -> anyhow::Result<Alpha> {
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(HARD_MAX_ALPHA_EDGE as u32);
+    limits.max_image_height = Some(HARD_MAX_ALPHA_EDGE as u32);
+    reader.limits(limits);
+
+    let decoded = reader.decode()?;
+    let (sw, sh) = (decoded.width(), decoded.height());
+    if sw == 0 || sh == 0 {
+        anyhow::bail!("{name} has zero extent");
+    }
+
+    let max_edge = MAX_ALPHA_EDGE as u32;
+    let luma = if sw > max_edge || sh > max_edge {
+        let scale = (max_edge as f64 / sw.max(sh) as f64).min(1.0);
+        let tw = ((sw as f64 * scale).round() as u32).max(1);
+        let th = ((sh as f64 * scale).round() as u32).max(1);
+        image::imageops::resize(
+            &decoded.into_luma8(),
+            tw,
+            th,
+            image::imageops::FilterType::Lanczos3,
+        )
+    } else {
+        decoded.into_luma8()
+    };
+
+    let (w, h) = (luma.width() as usize, luma.height() as usize);
+    let data: Vec<f32> = luma.into_raw().into_iter().map(|p| p as f32 / 255.0).collect();
+    Ok(Alpha::new(name, w, h, data))
+}
+
 /// Ceiling on library entries, so many files cannot multiply the per-file cost.
 pub const MAX_LIBRARY_ENTRIES: usize = 1024;
 
@@ -113,43 +153,22 @@ impl Alpha {
     /// retain a gigabyte.
     pub fn load(path: impl AsRef<Path>) -> anyhow::Result<Alpha> {
         let path = path.as_ref();
-        let mut reader = image::ImageReader::open(path)?.with_guessed_format()?;
-        // Strict limits reject an oversized file from its header, before the
-        // decode buffer is ever allocated.
-        let mut limits = image::Limits::default();
-        limits.max_image_width = Some(HARD_MAX_ALPHA_EDGE as u32);
-        limits.max_image_height = Some(HARD_MAX_ALPHA_EDGE as u32);
-        reader.limits(limits);
-
-        let decoded = reader.decode()?;
-        let (sw, sh) = (decoded.width(), decoded.height());
-        if sw == 0 || sh == 0 {
-            anyhow::bail!("{} has zero extent", path.display());
-        }
-
-        let max_edge = MAX_ALPHA_EDGE as u32;
-        let luma = if sw > max_edge || sh > max_edge {
-            let scale = (max_edge as f64 / sw.max(sh) as f64).min(1.0);
-            let tw = ((sw as f64 * scale).round() as u32).max(1);
-            let th = ((sh as f64 * scale).round() as u32).max(1);
-            // Downscale before the f32 expansion, never after.
-            image::imageops::resize(
-                &decoded.into_luma8(),
-                tw,
-                th,
-                image::imageops::FilterType::Lanczos3,
-            )
-        } else {
-            decoded.into_luma8()
-        };
-
-        let (w, h) = (luma.width() as usize, luma.height() as usize);
-        let data: Vec<f32> = luma.into_raw().into_iter().map(|p| p as f32 / 255.0).collect();
+        let reader = image::ImageReader::open(path)?.with_guessed_format()?;
         let name = path
             .file_stem()
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_else(|| "alpha".to_string());
-        Ok(Alpha::new(name, w, h, data))
+        decode(reader, name).map_err(|e| e.context(format!("{}", path.display())))
+    }
+
+    /// Decode an image already in memory.
+    ///
+    /// Android hands files over as bytes — `MediaStore` returns a `Vec<u8>`, and a `content://`
+    /// URI is not a path at all — so there is nothing for [`load`](Self::load) to open. Same
+    /// limits, same downscale, same 0..1 expansion.
+    pub fn from_bytes(name: impl Into<String>, bytes: &[u8]) -> anyhow::Result<Alpha> {
+        let reader = image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format()?;
+        decode(reader, name.into())
     }
 
     /// RGBA8 preview downscaled to fit `max_edge`, as `(width, height, bytes)`.
@@ -862,6 +881,28 @@ impl AlphaLibrary {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn from_bytes_decodes_the_same_picture_as_from_disk() {
+        let dir = std::env::temp_dir().join(format!("ringdesign-frombytes-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let png = dir.join("ramp.png");
+        image::save_buffer(&png, &[0u8, 85, 170, 255], 2, 2, image::ExtendedColorType::L8).unwrap();
+
+        let from_disk = Alpha::load(&png).expect("load");
+        let bytes = std::fs::read(&png).unwrap();
+        let from_mem = Alpha::from_bytes("ramp", &bytes).expect("from_bytes");
+
+        assert_eq!((from_disk.width, from_disk.height), (from_mem.width, from_mem.height));
+        assert_eq!(from_disk.data, from_mem.data);
+        assert_eq!(from_mem.name, "ramp");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn from_bytes_rejects_something_that_is_not_an_image() {
+        assert!(Alpha::from_bytes("junk", b"not a png").is_err());
+    }
 
     fn ramp(w: usize, h: usize) -> Alpha {
         let mut data = Vec::with_capacity(w * h);
@@ -2020,5 +2061,6 @@ impl Alpha {
         };
         (hx.clamp(0.0, 1.0), vy.clamp(0.0, 1.0))
     }
+
 }
 

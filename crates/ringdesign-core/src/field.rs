@@ -747,10 +747,32 @@ impl PolarOutline {
     }
 }
 
-/// The classic heart curve, with its dimple at +y.
+/// The classic heart, `(x² + y² − 1)³ = x²y³`, with its dimple at +y.
+///
+/// Solved for the radius along each ray rather than written as one, because the
+/// closed forms that are easy to write are not this curve. The one this replaced
+/// returned **zero at the dimple** — a cusp running all the way to the centre —
+/// and the outline that came out of it had a spike for a point: measured against
+/// a real heart signet's plate, its upper boundary was at 0.60 of full reach a
+/// fifth of the way out where the reference holds 0.90.
 fn heart_radius(a: f64) -> f64 {
     let (s, c) = a.sin_cos();
-    (s * c.abs().sqrt()) / (s + 1.4) - 2.0 * s + 2.0
+    // Negative inside the curve and positive outside, so a bisection converges
+    // on the boundary from either end.
+    let f = |r: f64| {
+        let t = r * r - 1.0;
+        t * t * t - r.powi(5) * c * c * s * s * s
+    };
+    let (mut lo, mut hi) = (0.0, 2.0);
+    for _ in 0..60 {
+        let m = 0.5 * (lo + hi);
+        if f(m) <= 0.0 {
+            lo = m;
+        } else {
+            hi = m;
+        }
+    }
+    0.5 * (lo + hi)
 }
 
 /// A crest: flat shoulders, straight sides, a point at the bottom.
@@ -859,7 +881,7 @@ impl SignetOutline {
     pub fn head_aspect(self) -> f64 {
         match self {
             SignetOutline::Shield => 0.85,
-            SignetOutline::Heart => 0.95,
+            SignetOutline::Heart => 1.12,
             SignetOutline::Round => 1.0,
             SignetOutline::Octagon => 1.1,
             SignetOutline::Cushion => 1.2,
@@ -928,6 +950,21 @@ impl SignetOutline {
         silhouette(self).at(x)
     }
 
+    /// The **body's** reach at the same station: the face's own, faired out so
+    /// it carries none of the face's detail.
+    ///
+    /// A signet's face is a facet cut across the crown of a wider body, and the
+    /// two are not the same shape. Extruding the face down to the finger gives a
+    /// heart-shaped prism — the dimple runs the whole depth of the ring, and the
+    /// lobes leave creases down the flank. This is the shape the *bore* takes,
+    /// with the face left on the table where it belongs.
+    ///
+    /// Contains [`SignetOutline::extent`] everywhere, which is what keeps the
+    /// flank drafted rather than leaning back under the table.
+    pub fn body_extent(self, x: f64) -> (f64, f64) {
+        silhouette(self).body_at(x)
+    }
+
     /// Width the outline leaves across the band, as a fraction of the head's
     /// half-width.
     pub fn half_extent(self, x: f64) -> f64 {
@@ -941,10 +978,126 @@ impl SignetOutline {
 /// show up as slope steps in the band's silhouette.
 const SILHOUETTE_STEPS: usize = 1025;
 
-/// The outline's reach across the band, per station around the ring.
+/// Radius the body fairs the face's hollows with, in stations — a station is a
+/// half-length, so this is a share of the head's own reach.
+///
+/// Big enough to bridge a heart's notch, which is the point: a dimple is a
+/// feature of the **face**, and a ring that carries it down to the finger is a
+/// heart-shaped prism rather than a signet.
+const BODY_FAIR_R: f64 = 0.75;
+/// Radius the body's own corners are rounded over, in the same units. Small —
+/// it is paid for in width, and its job is to take the edge off what the fairing
+/// leaves convex, not to reshape the head.
+const BODY_ROUND_X: f64 = 0.06;
+
+/// The outline's reach across the band, per station around the ring — the sharp
+/// face, and the faired body the face is a facet of.
 struct Silhouette {
     lo: [f64; SILHOUETTE_STEPS],
     hi: [f64; SILHOUETTE_STEPS],
+    body_lo: [f64; SILHOUETTE_STEPS],
+    body_hi: [f64; SILHOUETTE_STEPS],
+}
+
+/// Running maximum (or minimum) over a window, clamped at the ends.
+fn sweep(src: &[f64; SILHOUETTE_STEPS], rad: isize, max: bool) -> [f64; SILHOUETTE_STEPS] {
+    let n = SILHOUETTE_STEPS as isize;
+    let mut out = [0.0f64; SILHOUETTE_STEPS];
+    for i in 0..n {
+        let mut m = src[i as usize];
+        for k in -rad..=rad {
+            let v = src[(i + k).clamp(0, n - 1) as usize];
+            m = if max { m.max(v) } else { m.min(v) };
+        }
+        out[i as usize] = m;
+    }
+    out
+}
+
+/// Dilate (or erode) by a paraboloid of radius `r` — a ball rolled along the
+/// curve rather than a window slid along it.
+///
+/// The shape of the structuring element is the whole difference between a
+/// fairing and a plateau. A flat window fills every hollow to the level of its
+/// rim and holds it there: measured on a heart, closing with one took the whole
+/// dimple side of the head to a straight parallel edge and left a cliff where
+/// it met the shoulder. A paraboloid bridges a hollow with an arc of its own
+/// radius and leaves everything it cannot reach alone, which is what filleting
+/// one means.
+fn roll(src: &[f64; SILHOUETTE_STEPS], r: f64, up: bool) -> [f64; SILHOUETTE_STEPS] {
+    let n = SILHOUETTE_STEPS as isize;
+    // `x` spans 2 over n-1 steps.
+    let step = 2.0 / (n - 1) as f64;
+    let mut out = [0.0f64; SILHOUETTE_STEPS];
+    for i in 0..n {
+        let mut m = if up { f64::MIN } else { f64::MAX };
+        for j in 0..n {
+            let t = (j - i) as f64 * step;
+            let bump = t * t / (2.0 * r.max(1e-6));
+            let v = src[j as usize];
+            m = if up { m.max(v - bump) } else { m.min(v + bump) };
+        }
+        out[i as usize] = m;
+    }
+    out
+}
+
+/// Box blur, run twice: one pass leaves the curvature stepping wherever the
+/// input's own slope changes, and a step in curvature is a facet you can see.
+fn blur(src: &[f64; SILHOUETTE_STEPS], rad: isize) -> [f64; SILHOUETTE_STEPS] {
+    let n = SILHOUETTE_STEPS as isize;
+    let half = (rad / 2).max(1);
+    let mut out = *src;
+    for _ in 0..2 {
+        let prev = out;
+        for i in 0..n {
+            let mut s = 0.0;
+            for k in -half..=half {
+                s += prev[(i + k).clamp(0, n - 1) as usize];
+            }
+            out[i as usize] = s / (2 * half + 1) as f64;
+        }
+    }
+    out
+}
+
+/// The body the face is a facet of: the face's own reach with its hollows faired
+/// out and its corners taken off, carrying none of the face's detail.
+///
+/// A **closing** — dilate then erode — and not a blur. Closing fills what is
+/// concave at its own radius and leaves everything convex exactly where it was,
+/// so a heart's notch fairs over while its lobes, its point and the head's whole
+/// plan size stay put. Blurring instead pulls the peaks in as well, and the head
+/// comes out a blob with the face lost in it.
+///
+/// **Containment is not decoration.** A body narrower than the table it carries
+/// leans the flank back over the mould half it sits in, which is an undercut by
+/// construction rather than by accident. Closing is extensive, so it can only
+/// add — and it stays extensive with the ball's reach truncated at the head's
+/// ends, because the erosion's own station is always one of the samples it
+/// minimises over. The rounding that follows dilates by its own radius *before*
+/// blurring over no more than that, which makes every sample the blur averages a
+/// maximum taken over a window still holding this station — so that cannot fall
+/// below the face either.
+///
+/// `sign` is 1 for the reach toward the high band edge and -1 for the low one,
+/// so one pass does both: the low edge fairs by taking minima.
+fn fair(src: &[f64; SILHOUETTE_STEPS], sign: f64) -> [f64; SILHOUETTE_STEPS] {
+    let n = SILHOUETTE_STEPS as isize;
+    // `x` spans 2 over n-1 steps, so a radius in stations is half that in cells.
+    let cells = |r: f64| ((r * 0.5 * (n - 1) as f64) as isize).max(1);
+    let mut v = *src;
+    for x in v.iter_mut() {
+        *x *= sign;
+    }
+
+    let closed = roll(&roll(&v, BODY_FAIR_R, true), BODY_FAIR_R, false);
+    let round_r = cells(BODY_ROUND_X);
+    let mut out = blur(&sweep(&closed, round_r, true), round_r);
+    for x in out.iter_mut() {
+        *x *= sign;
+    }
+    out
 }
 
 impl Silhouette {
@@ -985,7 +1138,16 @@ impl Silhouette {
                 }
             }
         }
-        Self { lo, hi }
+        let (body_lo, body_hi) = (fair(&lo, -1.0), fair(&hi, 1.0));
+        Self { lo, hi, body_lo, body_hi }
+    }
+
+    fn at(&self, x: f64) -> (f64, f64) {
+        self.sample(&self.lo, &self.hi, x)
+    }
+
+    fn body_at(&self, x: f64) -> (f64, f64) {
+        self.sample(&self.body_lo, &self.body_hi, x)
     }
 
     /// Read with a Catmull-Rom spline rather than a chord.
@@ -995,7 +1157,12 @@ impl Silhouette {
     /// smooths out — it is in the function, not the sampling. A cubic
     /// reconstruction is C¹, so the silhouette the sweep follows is as smooth
     /// as the outline it came from.
-    fn at(&self, x: f64) -> (f64, f64) {
+    fn sample(
+        &self,
+        lo: &[f64; SILHOUETTE_STEPS],
+        hi: &[f64; SILHOUETTE_STEPS],
+        x: f64,
+    ) -> (f64, f64) {
         let last = SILHOUETTE_STEPS - 1;
         let t = (x.clamp(-1.0, 1.0) + 1.0) * 0.5 * last as f64;
         let i = (t.floor() as usize).min(last - 1);
@@ -1009,7 +1176,7 @@ impl Silhouette {
                     + f * ((2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3)
                         + f * (3.0 * (p1 - p2) + p3 - p0)))
         };
-        (read(&self.lo).clamp(-1.0, 0.0), read(&self.hi).clamp(0.0, 1.0))
+        (read(lo).clamp(-1.0, 0.0), read(hi).clamp(0.0, 1.0))
     }
 }
 
@@ -1244,6 +1411,18 @@ pub fn wrap_delta(d: f64, period: f64) -> f64 {
 pub fn smoothstep(edge0: f64, edge1: f64, x: f64) -> f64 {
     let t = ((x - edge0) / (edge1 - edge0).max(1e-12)).clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
+}
+
+/// Smoothstep with the second derivative flat at both ends too.
+///
+/// Where a blend joins two curves that are going somewhere, C¹ is not enough:
+/// `smoothstep` leaves a step in curvature at each end of its window, and a step
+/// in curvature is a crease you can see under a light even though the surface is
+/// smooth. Measured on a heart head, the two ends of the edge break each left
+/// one.
+pub fn smootherstep(edge0: f64, edge1: f64, x: f64) -> f64 {
+    let t = ((x - edge0) / (edge1 - edge0).max(1e-12)).clamp(0.0, 1.0);
+    t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
 }
 
 #[cfg(test)]
@@ -1694,5 +1873,77 @@ mod silhouette_tests {
                 );
             }
         }
+    }
+
+    /// The body a face is a facet of has to **contain** it, everywhere.
+    ///
+    /// This is the castability of the head's flank, not a nicety: a body
+    /// narrower than the table it carries leans that flank back over the mould
+    /// half it sits in. Closing is extensive, which is why it can be asserted
+    /// rather than tuned.
+    ///
+    /// Sample by sample it is exact. The tolerance is for the Catmull-Rom
+    /// reconstruction, which can dip a few parts in ten million below the
+    /// samples where the two curves touch — a heart's lobe, where the body *is*
+    /// the face. Three nanometres on a 13 mm head, and `head_at` clamps the
+    /// crest into the bore regardless.
+    #[test]
+    fn the_body_contains_the_face_it_carries() {
+        for &o in SignetOutline::ALL {
+            let mut worst = (0.0f64, 0.0);
+            for i in 0..=2000 {
+                let x = -1.0 + 2.0 * i as f64 / 2000.0;
+                let (fl, fh) = o.extent(x);
+                let (bl, bh) = o.body_extent(x);
+                // The body has to reach *further* both ways: lower on the low
+                // edge, higher on the high one.
+                let out = (bl - fl).max(fh - bh);
+                if out > worst.0 {
+                    worst = (out, x);
+                }
+            }
+            assert!(
+                worst.0 < 1e-5,
+                "{o:?}: the face reaches {:.3e} past its body at x {:.3}",
+                worst.0,
+                worst.1
+            );
+        }
+    }
+
+    /// A heart's dimple belongs to the **face**. Carried down to the finger it
+    /// is a heart-shaped prism, which is what a signet is not.
+    ///
+    /// It reads on the low edge: the two lobes reach -1 at a third of the way
+    /// out either side, and the notch between them holds that edge back to
+    /// -0.72 at the head's centre.
+    #[test]
+    fn the_body_has_no_dimple() {
+        let o = SignetOutline::Heart;
+        let notch = |e: &dyn Fn(f64) -> (f64, f64)| {
+            e(0.0).0 - (0..=400).map(|i| e(i as f64 / 400.0).0).fold(0.0f64, f64::min)
+        };
+        let (face, body) = (notch(&|x| o.extent(x)), notch(&|x| o.body_extent(x)));
+        println!("heart notch: face {face:.4}, body {body:.4}");
+        assert!(face > 0.2, "the face has no notch to fair: {face:.4}");
+        assert!(
+            body < face * 0.45 && body < 0.08,
+            "the body still carries the dimple: {body:.4} of the face's {face:.4}"
+        );
+
+        // And it fairs rather than plateaus, which is the difference between a
+        // rolling ball and a flat window. A flat one fills a hollow to the level
+        // of its rim and holds it *exactly* there, so the run of identical
+        // samples is what gives it away — with one, the low edge held the same
+        // value over 122 of these stations, a straight parallel band edge with a
+        // cliff where it met the shoulder. A ball leaves an arc, which is never
+        // twice the same.
+        let lo = |i: usize| o.body_extent(i as f64 / 200.0).0;
+        let (mut run, mut worst) = (0, 0);
+        for i in 1..=200 {
+            run = if (lo(i) - lo(i - 1)).abs() < 1e-12 { run + 1 } else { 0 };
+            worst = worst.max(run);
+        }
+        assert!(worst < 8, "the body's low edge holds one value over {worst} stations");
     }
 }

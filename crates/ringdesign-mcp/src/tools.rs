@@ -339,6 +339,14 @@ pub struct SetShankParams {
     /// Signet only: arc the crest takes to fall from the head to the shank,
     /// degrees.
     pub head_shoulder_deg: Option<f64>,
+    /// Signet only: arc the band's *width* takes to come back to the shank,
+    /// degrees. Much longer than the face — this is the swell a signet reads as
+    /// from the side.
+    pub head_swell_deg: Option<f64>,
+    /// Signet only: how far the body under the table rounds away from the
+    /// face's outline, 0 to 1. 0 extrudes the face down to the finger; 1 leaves
+    /// the shape on the table and fairs everything beneath it.
+    pub head_body_fair: Option<f64>,
     /// Signet only: 1 makes the table a true plane to engrave; below that the
     /// head keeps the profile's own crown and stays domed.
     pub head_table_flat: Option<f64>,
@@ -1292,7 +1300,7 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Set the shank style and how hard it modulates. `kind` is Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet (see list_shank_styles); `amount` is 0 to 1, where 0 is no modulation. The shank scales the cross-section per ring angle — a tapered shank at amount 1 loses 45% of its width at the bottom of the finger. It does not move the height field: layers stay parameterized against the unmodulated cross-section, so a pattern narrows with the band instead of running off it. Signet is different in kind: it makes a head out of the band itself rather than adding anything to it. head_outline is the plan silhouette the band's width follows, head_length_mm the extent of the face around the ring (its extent across the band is the profile's width_mm, so set that to the head), head_rise_mm how far the table stands above the crest, head_shoulder_deg the arc the crest takes to fall back to the shank, and head_table_flat 1 for a true plane to engrave. Do not add a signet table layer on top of this — the table is already the band's own crest. Castability: measured 0.000% undercut on every outline, because a band that widens and rises toward the top is single-valued in Z over (r, theta) and so releases by construction. The flat table is a vertical wall with respect to a +/-Z pull, which is fine — it is blank and hand-engraved, and design goes on the head's flanks, which face the pull."
+        description = "Set the shank style and how hard it modulates. `kind` is Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet (see list_shank_styles); `amount` is 0 to 1, where 0 is no modulation. The shank scales the cross-section per ring angle — a tapered shank at amount 1 loses 45% of its width at the bottom of the finger. It does not move the height field: layers stay parameterized against the unmodulated cross-section, so a pattern narrows with the band instead of running off it. Signet is different in kind: it makes a head out of the band itself rather than adding anything to it. head_outline is the plan silhouette the band's width follows, head_length_mm the extent of the face around the ring (its extent across the band is the profile's width_mm, so set that to the head), head_rise_mm how far the table stands above the crest, head_shoulder_deg the arc the crest takes to fall back to the shank, head_swell_deg the much longer arc the band's *width* takes to come back to the shank, head_body_fair how far the body under the table rounds away from the face's outline, and head_table_flat 1 for a true plane to engrave. Two of those are easy to get wrong. The swell is the thing a signet reads as from the side and it is not the face: measured on a real 14.7 mm signet the face runs out at 31 degrees off the top while the body keeps widening to 75, so leave head_swell_deg near its 75 default unless you want a stubbier or longer sweep. And the face is a facet cut across a wider body, not a shape extruded down to the finger: at head_body_fair 0 a heart's dimple runs the whole depth of the ring and its lobes leave a crease down each flank, so leave it at 1 unless a prism is what you want. Do not add a signet table layer on top of this — the table is already the band's own crest. Castability: measured 0.000% undercut on every outline, because a band that widens and rises toward the top is single-valued in Z over (r, theta) and so releases by construction. The flat table is a vertical wall with respect to a +/-Z pull, which is fine — it is blank and hand-engraved, and design goes on the head's flanks, which face the pull."
     )]
     async fn set_shank(
         &self,
@@ -1322,6 +1330,19 @@ impl RingDesignServer {
         put_range(&mut h.length_mm, p.head_length_mm, "head_length_mm", 2.0, 40.0, &mut applied)?;
         put_range(&mut h.rise_mm, p.head_rise_mm, "head_rise_mm", 0.0, 8.0, &mut applied)?;
         put_range(&mut h.shoulder_deg, p.head_shoulder_deg, "head_shoulder_deg", 5.0, 120.0, &mut applied)?;
+        if let Some(v) = p.head_swell_deg {
+            // Zero hands it back to the head's own proportions, which is where
+            // it comes from unless something says otherwise.
+            if v <= 0.0 {
+                h.swell_deg = None;
+                applied.push("head_swell_deg=auto".into());
+            } else {
+                let mut set = h.swell_deg.unwrap_or(v);
+                put_range(&mut set, Some(v), "head_swell_deg", 10.0, 170.0, &mut applied)?;
+                h.swell_deg = Some(set);
+            }
+        }
+        put_range(&mut h.body_fair, p.head_body_fair, "head_body_fair", 0.0, 1.0, &mut applied)?;
         put_range(&mut h.table_flat, p.head_table_flat, "head_table_flat", 0.0, 1.0, &mut applied)?;
         put_range(&mut h.theta_deg, p.head_theta_deg, "head_theta_deg", 0.0, 360.0, &mut applied)?;
         let change = DesignChange {

@@ -92,6 +92,9 @@ pub fn open_design(app: &mut RingDesignerApp) {
     match library::load_design(&path) {
         Ok(d) => {
             app.design = d;
+            // A different file is a different session; the old timeline does
+            // not describe it.
+            app.history.reset(&app.design.clone());
             app.selected_layer = None;
             app.mark_dirty();
             app.set_status(format!("Opened {}", path.display()));

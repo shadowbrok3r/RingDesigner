@@ -14,6 +14,7 @@ use ringdesign_core::{RingDesign, library};
 use crate::alpha_editor::AlphaEditor;
 use crate::mcp_host::McpHost;
 use crate::dock::Dock;
+use crate::history::History;
 use crate::pane::{Layout, Pane, PaneKind};
 use crate::viewport::GpuMeshRenderer;
 
@@ -55,6 +56,8 @@ pub struct RingDesignerApp {
     pub alpha_editor: AlphaEditor,
     pub status: String,
     pub auto_rebuild: bool,
+    /// Named undo timeline over the design.
+    pub history: History,
 
     /// Embedded MCP server, `None` until the user starts it.
     pub mcp: Option<McpHost>,
@@ -87,6 +90,7 @@ impl RingDesignerApp {
             .and_then(|j| serde_json::from_str::<RingDesign>(&j).ok())
             .unwrap_or_default();
 
+        let design_for_history = design.clone();
         let mut app = Self {
             design,
             lib: Arc::new(lib),
@@ -110,6 +114,8 @@ impl RingDesignerApp {
             alpha_editor: AlphaEditor::default(),
             status: "Ready".into(),
             auto_rebuild: true,
+            history: History::new(&design_for_history),
+
             mcp: None,
             mcp_port: ringdesign_mcp::DEFAULT_PORT,
             mcp_error: None,
@@ -128,6 +134,9 @@ impl RingDesignerApp {
     /// MCP engine.
     pub fn mark_dirty(&mut self) {
         self.dirty_at = Some(Instant::now());
+        // Only notes that something moved; the snapshot waits for the edit to
+        // settle, so one slider drag is one history entry.
+        self.history.touch();
         if let Some(host) = self.mcp.as_mut() {
             host.push(&self.design);
         }
@@ -136,6 +145,7 @@ impl RingDesignerApp {
     /// Queue a rebuild without pushing the design back to the MCP engine.
     fn queue_rebuild(&mut self) {
         self.dirty_at = Some(Instant::now());
+        self.history.touch();
     }
 
     pub fn is_building(&self) -> bool {
@@ -193,6 +203,11 @@ impl RingDesignerApp {
                 self.status = "Build worker stopped".into();
             }
         }
+
+        // Diffed against the last committed design, so an edit is recorded
+        // however it arrived — a panel, an MCP client, a loaded file.
+        let design = self.design.clone();
+        self.history.commit_if_settled(&design);
 
         if let Some(at) = self.dirty_at {
             if self.auto_rebuild && !self.in_flight && at.elapsed() >= DEBOUNCE {
@@ -256,6 +271,40 @@ impl RingDesignerApp {
         }
         if kind == PaneKind::Section {
             self.refresh_section(i);
+        }
+    }
+
+    // --- History -----------------------------------------------------------
+
+    pub fn undo(&mut self) {
+        if let Some(d) = self.history.undo() {
+            self.apply_history(d, "Undo");
+        }
+    }
+
+    pub fn redo(&mut self) {
+        if let Some(d) = self.history.redo() {
+            self.apply_history(d, "Redo");
+        }
+    }
+
+    pub fn jump_history(&mut self, index: usize) {
+        if let Some(d) = self.history.jump_to(index) {
+            self.apply_history(d, "History");
+        }
+    }
+
+    /// Take a design back off the timeline. Goes around `mark_dirty` so the
+    /// restore is not itself recorded as an edit.
+    fn apply_history(&mut self, design: RingDesign, what: &str) {
+        self.design = design;
+        if self.selected_layer.is_some_and(|i| i >= self.design.layers.layers.len()) {
+            self.selected_layer = None;
+        }
+        self.status = format!("{what}: {}", self.history.undo_label().unwrap_or("start"));
+        self.dirty_at = Some(Instant::now());
+        if let Some(host) = self.mcp.as_mut() {
+            host.push(&self.design);
         }
     }
 

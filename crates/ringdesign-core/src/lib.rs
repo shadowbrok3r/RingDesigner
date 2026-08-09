@@ -26,6 +26,7 @@
 pub mod adaptive;
 pub mod alpha;
 pub mod castability;
+pub mod drawn;
 pub mod engine;
 pub mod field;
 pub mod library;
@@ -39,6 +40,7 @@ pub mod tiling;
 
 pub use alpha::{Alpha, AlphaLibrary};
 pub use castability::{CastReport, DraftSettings, FaceClass, Section};
+pub use drawn::{DrawnAlpha, Stroke};
 pub use engine::{DesignEngine, SharedEngine};
 pub use field::{Blend, FieldContext, Layer, LayerEntry, LayerStack, SideFaces, Uv, Window};
 pub use mesh::{BuildParams, BuildResult, Mesh, Report, Vec3, build};
@@ -57,6 +59,10 @@ pub struct RingDesign {
     pub layers: LayerStack,
     pub build: BuildParams,
     pub draft: DraftSettings,
+    /// Alphas drawn by hand, carried as strokes so the design stays self-contained. Rasterized
+    /// into the library on load; layers reference them by name like any other alpha.
+    #[serde(default)]
+    pub drawn: Vec<DrawnAlpha>,
 }
 
 impl Default for RingDesign {
@@ -69,11 +75,24 @@ impl Default for RingDesign {
             layers: LayerStack::default(),
             build: BuildParams::default(),
             draft: DraftSettings::default(),
+            drawn: Vec::new(),
         }
     }
 }
 
 impl RingDesign {
+    /// Rasterize every drawn alpha into `lib`, replacing any entry of the same name.
+    ///
+    /// Call after loading a design and whenever a drawing changes: the strokes are the source of
+    /// truth and the raster is derived, so nothing else needs to keep them in step.
+    pub fn bake_drawn(&self, lib: &mut AlphaLibrary) {
+        for d in &self.drawn {
+            if !d.is_empty() {
+                lib.insert(d.rasterize());
+            }
+        }
+    }
+
     /// Inner (finger-hole) radius in mm.
     pub fn inner_radius_mm(&self) -> f64 {
         self.size.inner_diameter_mm() * 0.5

@@ -23,6 +23,7 @@ use crate::{export, theme};
 const GUTTER: f32 = 3.0;
 
 pub fn render(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    shortcuts(app, ui);
     egui::Panel::top(egui::Id::new("toolbar")).show(ui, |ui| toolbar(app, ui));
     egui::Panel::bottom(egui::Id::new("status")).show(ui, |ui| status_bar(app, ui));
 
@@ -241,12 +242,90 @@ fn pane_head(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
     });
 }
 
+/// Ctrl+Z / Ctrl+Shift+Z, plus Ctrl+Y for the redo people expect on Windows.
+fn shortcuts(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    use egui::{Key, KeyboardShortcut, Modifiers};
+    const UNDO: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Z);
+    const REDO: KeyboardShortcut =
+        KeyboardShortcut::new(Modifiers::COMMAND.plus(Modifiers::SHIFT), Key::Z);
+    const REDO_ALT: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Y);
+
+    // Redo is checked first: its shortcut also matches undo's once the shift is
+    // ignored, and consuming undo would swallow it.
+    let (redo, redo_alt, undo) = ui.input_mut(|i| {
+        (
+            i.consume_shortcut(&REDO),
+            i.consume_shortcut(&REDO_ALT),
+            i.consume_shortcut(&UNDO),
+        )
+    });
+    if redo || redo_alt {
+        app.redo();
+    } else if undo {
+        app.undo();
+    }
+}
+
+/// Undo, redo, and the timeline they walk.
+fn history_controls(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    let undo = egui::Button::new(icon::ARROW_ARC_LEFT);
+    let hint = app.history.undo_label().unwrap_or("nothing to undo").to_string();
+    if ui
+        .add_enabled(app.history.can_undo(), undo)
+        .on_hover_text(format!("Undo {hint}  (Ctrl+Z)"))
+        .clicked()
+    {
+        app.undo();
+    }
+
+    let redo = egui::Button::new(icon::ARROW_ARC_RIGHT);
+    let hint = app.history.redo_label().unwrap_or("nothing to redo").to_string();
+    if ui
+        .add_enabled(app.history.can_redo(), redo)
+        .on_hover_text(format!("Redo {hint}  (Ctrl+Shift+Z)"))
+        .clicked()
+    {
+        app.redo();
+    }
+
+    ui.menu_button(format!("{} History", icon::CLOCK_COUNTER_CLOCKWISE), |ui| {
+        let timeline = app.history.timeline();
+        let present = app.history.present();
+        ui.set_min_width(240.0);
+        egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
+            // Newest at the top, which is where the eye goes first.
+            for (i, (label, now)) in timeline.iter().enumerate().rev() {
+                let text = if i == 0 && present == 0 {
+                    egui::RichText::new(label.clone())
+                } else {
+                    egui::RichText::new(label.clone())
+                };
+                let text = if *now {
+                    text.color(theme::ACCENT)
+                } else if i > present {
+                    // Ahead of the present: still reachable, but undone.
+                    text.color(theme::TEXT_DIM)
+                } else {
+                    text
+                };
+                if ui.selectable_label(*now, text).clicked() {
+                    app.jump_history(i);
+                    ui.close();
+                }
+            }
+        });
+    })
+    .response
+    .on_hover_text("Step back to any point in the session");
+}
+
 fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     ui.add_space(3.0);
     ui.horizontal(|ui| {
         ui.menu_button(format!("{} File", icon::FOLDER_OPEN), |ui| {
             if ui.button(format!("{} New", icon::FILE_PLUS)).clicked() {
                 app.design = ringdesign_core::RingDesign::default();
+                app.history.reset(&app.design.clone());
                 app.selected_layer = None;
                 app.mark_dirty();
                 ui.close();
@@ -284,6 +363,8 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             }
         });
 
+        ui.separator();
+        history_controls(app, ui);
         ui.separator();
 
         for &l in Layout::ALL {

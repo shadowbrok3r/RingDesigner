@@ -6,6 +6,7 @@ mod camera;
 mod dock;
 mod pane;
 mod export;
+mod history;
 mod mcp_host;
 mod panels;
 mod theme;

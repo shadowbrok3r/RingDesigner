@@ -1,8 +1,33 @@
 //! Persisting designs and locating the alpha library on disk.
 
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use crate::RingDesign;
+
+/// Overrides where the user's own files live, for platforms with no `$HOME`.
+static DATA_ROOT: OnceLock<PathBuf> = OnceLock::new();
+
+/// Point the library and design directories at `root`, once, before anything reads them.
+///
+/// Android has neither `XDG_DATA_HOME` nor `HOME`, so [`user_alpha_dir`] would otherwise fall back
+/// to `"."` — which is `/` for an app process, and unwritable. The host hands us
+/// `getFilesDir()` instead.
+pub fn set_data_root(root: impl Into<PathBuf>) {
+    let _ = DATA_ROOT.set(root.into());
+}
+
+/// The configured root, or the XDG-derived one.
+pub fn data_root() -> PathBuf {
+    if let Some(root) = DATA_ROOT.get() {
+        return root.clone();
+    }
+    std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("ringdesigner")
+}
 
 /// File extension for saved designs.
 pub const DESIGN_EXT: &str = "ring.json";
@@ -30,12 +55,7 @@ pub fn bundled_alpha_dir() -> Option<PathBuf> {
 /// The user's own alpha library in the platform data directory. This is where
 /// imports land and where a converted collection belongs.
 pub fn user_alpha_dir() -> PathBuf {
-    std::env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("ringdesigner")
-        .join("alphas")
+    data_root().join("alphas")
 }
 
 /// Every directory scanned at startup, bundled first so a user file of the same
@@ -57,8 +77,5 @@ pub fn default_alpha_dir() -> PathBuf {
 
 /// Designs directory, created on demand.
 pub fn default_design_dir() -> PathBuf {
-    default_alpha_dir()
-        .parent()
-        .map(|p| p.join("designs"))
-        .unwrap_or_else(|| PathBuf::from("designs"))
+    data_root().join("designs")
 }

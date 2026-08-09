@@ -85,7 +85,7 @@ impl ProfileStyle {
             ProfileStyle::DShape => "Flat sides, rounded crown; classic castable band.",
             ProfileStyle::Beveled => "Straight-sloped faces; uniform draft over the whole crown.",
             ProfileStyle::KnifeEdge => "Sharp crest; edges clamp to the minimum castable thickness.",
-            ProfileStyle::Custom => "Hand-tuned superellipse exponents.",
+            ProfileStyle::Custom => "Hand-tuned exponents, or a drawn crown.",
         }
     }
 
@@ -167,6 +167,240 @@ impl Flange {
     }
 }
 
+/// Control points a hand-drawn drop may carry. Fixed, so [`BandProfile`] stays
+/// `Copy` and a design file cannot ask for an unbounded curve.
+pub const MAX_DROP_POINTS: usize = 16;
+
+/// A hand-drawn drop from the crest, replacing the superellipse.
+///
+/// Control points are `(x, d)`: `x` the normalized distance from the crest
+/// toward the nearer edge, `d` the normalized drop, both 0..1. That is the same
+/// parameterization the superellipse uses, so the bore, side faces, fillets and
+/// flange machinery are untouched — only the shape of the crown changes.
+///
+/// # Why any drawable shape is still castable
+///
+/// The castability guarantee is that `d` never falls, so the outer surface
+/// never turns back under itself. That is a property of the *curve*, not of the
+/// superellipse, so it survives being drawn by hand as long as the curve stays
+/// monotone non-decreasing — which [`DropCurve::monotone`] enforces on every
+/// edit. Interpolation is monotone cubic, so the smoothing between control
+/// points cannot overshoot into a dip either.
+///
+/// Clearing `monotone` is the deliberate way to model an undercut; the profile
+/// is then no better guaranteed than any other and `castability::analyze` is
+/// the only word on it.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DropCurve {
+    points: [[f64; 2]; MAX_DROP_POINTS],
+    len: u8,
+    /// Keep the drop from ever falling back, which is the no-undercut
+    /// guarantee. Clear it deliberately to draw an undercut.
+    pub monotone: bool,
+}
+
+impl Default for DropCurve {
+    fn default() -> Self {
+        Self { points: [[0.0; 2]; MAX_DROP_POINTS], len: 0, monotone: true }
+    }
+}
+
+impl DropCurve {
+    /// Whether this curve, rather than the superellipse, shapes the crown.
+    pub fn is_active(&self) -> bool {
+        self.len >= 2
+    }
+
+    pub fn points(&self) -> &[[f64; 2]] {
+        &self.points[..self.len as usize]
+    }
+
+    pub fn len(&self) -> usize {
+        self.len as usize
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// Sample a superellipse into control points, so switching to a hand-drawn
+    /// curve starts from the shape that was already there instead of a ramp.
+    pub fn from_superellipse(a: f64, b: f64, n: usize) -> Self {
+        let n = n.clamp(2, MAX_DROP_POINTS);
+        let (a, b) = (a.max(0.05), b.max(0.05));
+        let mut c = Self::default();
+        for i in 0..n {
+            let x = i as f64 / (n - 1) as f64;
+            let d = (1.0 - (1.0 - x.powf(a)).max(0.0).powf(1.0 / b)).clamp(0.0, 1.0);
+            c.points[i] = [x, d];
+        }
+        c.len = n as u8;
+        c.sanitize();
+        c
+    }
+
+    /// Sort, clamp, drop coincident points, and pin the ends. Monotone curves
+    /// additionally get each `d` floored by the one before it.
+    pub fn sanitize(&mut self) {
+        let n = self.len as usize;
+        if n == 0 {
+            return;
+        }
+        let mut p: Vec<[f64; 2]> = self.points[..n]
+            .iter()
+            .map(|q| [q[0].clamp(0.0, 1.0), q[1].clamp(0.0, 1.0)])
+            .filter(|q| q[0].is_finite() && q[1].is_finite())
+            .collect();
+        p.sort_by(|a, b| a[0].total_cmp(&b[0]));
+        p.dedup_by(|a, b| (a[0] - b[0]).abs() < 1e-4);
+
+        // The crown is measured from crest to edge, so the span is the whole
+        // 0..1 either way; without pinned ends a drag could shorten it.
+        if p.first().is_some_and(|q| q[0] > 1e-9) {
+            p.insert(0, [0.0, p[0][1]]);
+        }
+        if p.last().is_some_and(|q| q[0] < 1.0 - 1e-9) {
+            p.push([1.0, p[p.len() - 1][1]]);
+        }
+        p.truncate(MAX_DROP_POINTS);
+
+        if self.monotone {
+            for i in 1..p.len() {
+                p[i][1] = p[i][1].max(p[i - 1][1]);
+            }
+        }
+
+        self.len = p.len() as u8;
+        for (slot, q) in self.points.iter_mut().zip(p) {
+            *slot = q;
+        }
+    }
+
+    /// Move one control point, keeping the curve legal.
+    pub fn set(&mut self, i: usize, x: f64, d: f64) {
+        if i >= self.len as usize {
+            return;
+        }
+        // The ends stay at 0 and 1 so the crown always spans the full drop.
+        let x = if i == 0 {
+            0.0
+        } else if i + 1 == self.len as usize {
+            1.0
+        } else {
+            x.clamp(0.0, 1.0)
+        };
+        self.points[i] = [x, d.clamp(0.0, 1.0)];
+        self.sanitize();
+    }
+
+    /// Add a control point, ignored once the curve is full.
+    pub fn insert(&mut self, x: f64, d: f64) {
+        let n = self.len as usize;
+        if n >= MAX_DROP_POINTS {
+            return;
+        }
+        self.points[n] = [x.clamp(0.0, 1.0), d.clamp(0.0, 1.0)];
+        self.len = (n + 1) as u8;
+        self.sanitize();
+    }
+
+    /// Remove a control point. The two ends are never removable.
+    pub fn remove(&mut self, i: usize) {
+        let n = self.len as usize;
+        if n <= 2 || i == 0 || i + 1 >= n {
+            return;
+        }
+        for k in i..n - 1 {
+            self.points[k] = self.points[k + 1];
+        }
+        self.len = (n - 1) as u8;
+        self.sanitize();
+    }
+
+    /// Drop at a normalized distance from the crest.
+    ///
+    /// Monotone cubic Hermite (Fritsch–Carlson): a plain cubic spline would
+    /// overshoot between control points and dip back, which on this curve means
+    /// an undercut the control points never asked for.
+    pub fn eval(&self, x: f64) -> f64 {
+        let p = self.points();
+        let n = p.len();
+        if n == 0 {
+            return 0.0;
+        }
+        if n == 1 {
+            return p[0][1].clamp(0.0, 1.0);
+        }
+        let x = x.clamp(0.0, 1.0);
+        if x <= p[0][0] {
+            return p[0][1].clamp(0.0, 1.0);
+        }
+        if x >= p[n - 1][0] {
+            return p[n - 1][1].clamp(0.0, 1.0);
+        }
+
+        let secant = |i: usize| (p[i + 1][1] - p[i][1]) / (p[i + 1][0] - p[i][0]).max(1e-12);
+
+        // Tangents: the average of the neighbouring secants, zeroed wherever
+        // they disagree in sign so a local extreme stays put.
+        let tangent = |i: usize| -> f64 {
+            if i == 0 {
+                return secant(0);
+            }
+            if i + 1 == n {
+                return secant(n - 2);
+            }
+            let (a, b) = (secant(i - 1), secant(i));
+            if a * b <= 0.0 { 0.0 } else { 0.5 * (a + b) }
+        };
+
+        let k = p.partition_point(|q| q[0] <= x).saturating_sub(1).min(n - 2);
+        let h = (p[k + 1][0] - p[k][0]).max(1e-12);
+        let d = secant(k);
+        let (mut m0, mut m1) = (tangent(k), tangent(k + 1));
+
+        // Fritsch–Carlson: pull the tangents inside the circle of radius 3|d|,
+        // which is what keeps the segment from overshooting.
+        if d.abs() <= 1e-12 {
+            m0 = 0.0;
+            m1 = 0.0;
+        } else {
+            let (a, b) = (m0 / d, m1 / d);
+            let s = a.hypot(b);
+            if s > 3.0 {
+                m0 = 3.0 * a / s * d;
+                m1 = 3.0 * b / s * d;
+            }
+        }
+
+        let t = (x - p[k][0]) / h;
+        let (t2, t3) = (t * t, t * t * t);
+        let y = (2.0 * t3 - 3.0 * t2 + 1.0) * p[k][1]
+            + (t3 - 2.0 * t2 + t) * h * m0
+            + (-2.0 * t3 + 3.0 * t2) * p[k + 1][1]
+            + (t3 - t2) * h * m1;
+        y.clamp(0.0, 1.0)
+    }
+
+    /// How far the curve ever falls back below its own running peak, in
+    /// normalized drop. Zero on a curve that cannot undercut.
+    ///
+    /// Measured against the peak rather than the previous sample: an undercut
+    /// is the total depth the surface comes back in by, and per-step slope
+    /// would report a long shallow reversal as harmless.
+    pub fn worst_reversal(&self) -> f64 {
+        const STEPS: usize = 256;
+        let mut peak = self.eval(0.0);
+        let mut worst = 0.0f64;
+        for i in 1..=STEPS {
+            let y = self.eval(i as f64 / STEPS as f64);
+            peak = peak.max(y);
+            worst = worst.max(peak - y);
+        }
+        worst
+    }
+}
+
 /// Fillet left on a side face squared up by [`BandProfile::flatten_sides`], mm.
 pub const SQUARED_SIDE_FILLET_MM: f64 = 0.05;
 
@@ -203,6 +437,10 @@ pub struct BandProfile {
     /// Optional flat annular face standing proud of the dome.
     #[serde(default)]
     pub flange: Flange,
+    /// Hand-drawn crown, used in place of the superellipse when it carries
+    /// points and the style is [`ProfileStyle::Custom`].
+    #[serde(default)]
+    pub drop_curve: DropCurve,
 }
 
 impl Default for BandProfile {
@@ -219,6 +457,7 @@ impl Default for BandProfile {
             comfort_fit_mm: 0.25,
             side_draft_deg: 2.0,
             flange: Flange::default(),
+            drop_curve: DropCurve::default(),
         };
         p.apply_style(ProfileStyle::HalfRound);
         p
@@ -262,12 +501,30 @@ impl BandProfile {
         (self.thickness_mm - self.effective_crown_mm()).max(MIN_EDGE_MM)
     }
 
-    /// Normalized drop from the crest, `x` in 0..1. Monotonically increasing.
+    /// Normalized drop from the crest, `x` in 0..1.
+    ///
+    /// Monotonically non-decreasing, and so undercut-free, whether it comes
+    /// from the superellipse or from a monotone hand-drawn curve.
     pub fn drop(&self, x: f64) -> f64 {
         let x = x.clamp(0.0, 1.0);
+        if self.style == ProfileStyle::Custom && self.drop_curve.is_active() {
+            return self.drop_curve.eval(x);
+        }
         let a = self.shape_a.max(0.05);
         let b = self.shape_b.max(0.05);
         (1.0 - (1.0 - x.powf(a)).max(0.0).powf(1.0 / b)).clamp(0.0, 1.0)
+    }
+
+    /// Seed the hand-drawn crown from the exponents currently in force, so
+    /// picking up the pencil starts from the shape already on screen.
+    pub fn adopt_drop_curve(&mut self, points: usize) {
+        self.style = ProfileStyle::Custom;
+        self.drop_curve = DropCurve::from_superellipse(self.shape_a, self.shape_b, points);
+    }
+
+    /// Go back to the superellipse, keeping the exponents.
+    pub fn clear_drop_curve(&mut self) {
+        self.drop_curve = DropCurve::default();
     }
 
     /// Sample the unmodulated cross-section loop.
@@ -341,7 +598,6 @@ impl BandProfile {
         let t_mid = 0.5 * (t_lo + t_hi);
         let c_lo = (t_lo + side_inset).min(t_mid - keep);
         let c_hi = (t_hi - side_inset).max(t_mid + keep);
-        let c_span = (c_hi - c_lo).max(1e-9);
 
         // The crest sits where the mould parts, plus whatever bias was asked
         // for. A section pushed along the finger has to keep it there: let the
@@ -349,8 +605,20 @@ impl BandProfile {
         // back over the mould half it sits in — measured at -19 degrees over
         // 0.67% of the surface on a shield head, a real undercut and not facet
         // noise.
-        let base_crest_t = ((0.5 * self.crest_bias.clamp(-1.0, 1.0) * c_span - c_lo) / c_span)
-            .clamp(0.06, 0.94);
+        //
+        // Which means the crest span has to **reach** the parting plane. An
+        // upright outline at its last station does not straddle it — a heart's
+        // lobe is a patch on one side of the band and nothing on the other — so
+        // a span taken as drawn puts the crest below the plane and turns
+        // everything between the two into a ceiling. Measured on a heart:
+        // 0.24% of the surface at -77 degrees, and it did not fall with the
+        // sweep, which is what tells a real undercut from the crest-line
+        // phantom. Widening costs the head's end a flat run of `keep`.
+        let want = 0.5 * self.crest_bias.clamp(-1.0, 1.0) * (c_hi - c_lo);
+        let (c_lo, c_hi) = (c_lo.min(want - keep), c_hi.max(want + keep));
+        let c_span = (c_hi - c_lo).max(1e-9);
+        let margin = (keep / c_span).min(0.45);
+        let base_crest_t = ((want - c_lo) / c_span).clamp(margin, 1.0 - margin);
         let flange_v = self.flange.v_pos.clamp(0.0, 1.0);
         // A castable flange position takes the crest with it.
         let crest_t = match self.flange.enabled {
@@ -624,14 +892,14 @@ impl ShankKind {
 /// A signet head: the band's own swell into a broad, flat-topped face.
 ///
 /// Not a pad standing on the band — the head *is* the band over its arc. The
-/// outline is its plan silhouette, so the width the sweep carries at each angle
-/// is the outline's own reach; the table is the band's crest, solved onto a
-/// plane; and the shoulder is the arc over which that crest falls back to the
-/// shank. Everything is one continuous sweep, which is why there is no seam
-/// where a head meets a shoulder.
+/// **body** is the band's plan silhouette, the union of the face's outline and
+/// a long swell that carries the width back to the shank; the **table** is the
+/// band's crest, solved onto a plane; and the **shoulder** is the arc over
+/// which that crest falls back to the shank. Everything is one continuous
+/// sweep, which is why there is no seam where a head meets a shoulder.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct SignetHead {
-    /// Plan silhouette of the face. The band's width follows it.
+    /// Plan silhouette of the face. The band's width follows it over the head.
     pub outline: SignetOutline,
     /// Where the head sits round the ring, degrees. 90 is the top.
     pub theta_deg: f64,
@@ -644,17 +912,60 @@ pub struct SignetHead {
     pub rise_mm: f64,
     /// Arc over which the crest falls from the head back to the shank, degrees.
     pub shoulder_deg: f64,
+    /// Arc over which the *width* comes back to the shank, degrees. Much longer
+    /// than the face or the shoulder: this is what a signet reads as from the
+    /// side. `None` takes it from the head's own half-angle, which is what
+    /// makes a big head flare further than a small one.
+    #[serde(default)]
+    pub swell_deg: Option<f64>,
+    /// How far the body under the table rounds away from the face's outline.
+    /// 0 extrudes the face straight down to the finger; 1 leaves the shape on
+    /// the table and fairs everything beneath it.
+    #[serde(default = "default_body_fair")]
+    pub body_fair: f64,
     /// How flat the table is: 1 is a true plane, 0 keeps the profile's own
     /// crown so the head stays domed.
     pub table_flat: f64,
 }
 
+fn default_body_fair() -> f64 {
+    HEAD_BODY_FAIR
+}
+
 /// Extent of a signet face around the ring, mm.
 pub const HEAD_LENGTH_MM: f64 = 12.0;
 /// How far the centre of a signet table stands above the band's crest, mm.
-pub const HEAD_RISE_MM: f64 = 0.8;
+pub const HEAD_RISE_MM: f64 = 0.3;
 /// Arc a signet shoulder takes to fall from the head to the shank, degrees.
-pub const HEAD_SHOULDER_DEG: f64 = 34.0;
+///
+/// Measured off `BlankSignet.obj`: its crest follows the table plane out to the
+/// face's edge at 31.6 degrees, peaks at the table's corner, and is back on the
+/// shank by 75 — 43 degrees of fall.
+pub const HEAD_SHOULDER_DEG: f64 = 43.0;
+/// Shape of that fall as `(1 - s)^p`.
+///
+/// The reference leaves the table's rim **already diving** and eases into the
+/// shank, which is the opposite of a Hermite: 0.85 of the drop left 3 degrees
+/// past the rim against a Hermite's 0.97, and 0.14 at 23 degrees against 0.23.
+/// A rim is an edge, and the flank under it is a fillet running out flat.
+pub const HEAD_SHOULDER_POW: f64 = 2.4;
+/// Arc a signet's *width* takes to come back to the shank, as a multiple of the
+/// head's own half-angle.
+///
+/// A **ratio** and not an angle, because the swell is the head's influence and a
+/// bigger head reaches further. Two real signets, measured off their meshes and
+/// agreeing to within a tenth:
+///
+/// | | half-angle | swell | ratio |
+/// | --- | --- | --- | --- |
+/// | `BlankSignet.obj`, 14.7 mm round face | 32.4° | 78° | 2.4 |
+/// | the heart signet, 18.5 mm face on a size 7 | 41.7° | 100° | 2.4 |
+///
+/// A fixed 75° came from the first alone, and on the second it ran the swell out
+/// by 80 degrees where the ring is still flaring past 90.
+pub const HEAD_SWELL_RATIO: f64 = 2.4;
+/// How far the body under a signet's table rounds away from the face outline.
+pub const HEAD_BODY_FAIR: f64 = 1.0;
 /// Half-angle a head may reach before a table plane runs away from the band:
 /// the plane's radius goes as `1/cos`, so this is what bounds the length.
 pub const HEAD_MAX_HALF_DEG: f64 = 70.0;
@@ -674,12 +985,23 @@ pub const SIGNET_SHANK_THIN: f64 = 0.10;
 /// `BlankSignet.obj`, the body is 16.0 mm across where its table is 14.7 — and
 /// those flanks are the surface a two-part mould has to slide off, so drafting
 /// them is worth more than the look.
-pub const HEAD_FACE_DRAFT: f64 = 0.09;
+pub const HEAD_FACE_DRAFT: f64 = 0.02;
 /// Taper strength a fresh signet head starts at.
 pub const SIGNET_TAPER: f64 = 0.85;
-/// Fillet where the outline crosses the shank width, as a share of the width
-/// the taper takes away. A bare crossing is a corner in the silhouette.
+/// Fillet where the outline crosses the swell, as a share of the width the
+/// taper takes away. A bare crossing is a corner in the silhouette.
 pub const HEAD_SHANK_FILLET: f64 = 0.12;
+/// Arc over which the body hands the head's outline over to the swell, as a
+/// share of the face's own half-angle, ending at the face's end.
+pub const HEAD_EDGE_BREAK: f64 = 0.45;
+/// How far into the swell the outline-against-swell fillet opens to full size,
+/// as a share of the swell's arc.
+///
+/// It has to open somewhere: at the head the two are equal, and a fillet there
+/// would round the tie upward and push the band past full width. Opening it over
+/// the whole swell instead leaves it too small where a straight-sided outline
+/// crosses — a rectangle steps 0.25 of full width per degree against 0.10.
+pub const HEAD_FILLET_ON: f64 = 0.12;
 /// How far inside its end the shoulder takes over from the face, as a share of
 /// the half-length.
 ///
@@ -693,13 +1015,21 @@ pub const HEAD_TAKEOFF: f64 = 0.05;
 /// Maximum of two values with the corner between them rounded off over `r`.
 ///
 /// Outside the band the result is exactly `a.max(b)`, so whichever shape is
-/// clearly in front is followed as drawn.
+/// clearly in front is followed as drawn; **on a tie it is exactly that value**,
+/// which a quadratic smooth-max is not. The usual `max + r·h²/4` rounds a
+/// crossing *outward*, and two curves that meet tangentially rather than
+/// crossing — the outline and the swell, which are the same span at the head
+/// and again past the outline's end — are a tie everywhere they touch. Rounding
+/// there pushed the head past full width and fattened the whole shank by 4%.
+///
+/// So this crossfades between the two over the band instead of adding to their
+/// maximum. C¹ at both ends because the weight leaves and arrives flat.
 fn smax(a: f64, b: f64, r: f64) -> f64 {
     if r <= 1e-9 {
         return a.max(b);
     }
-    let h = ((r - (a - b).abs()) / r).max(0.0);
-    a.max(b) + 0.25 * r * h * h
+    let w = crate::field::smoothstep(-1.0, 1.0, ((a - b) / r).clamp(-1.0, 1.0));
+    a * w + b * (1.0 - w)
 }
 
 /// Minimum with the same rounded corner.
@@ -715,12 +1045,22 @@ impl Default for SignetHead {
             length_mm: HEAD_LENGTH_MM,
             rise_mm: HEAD_RISE_MM,
             shoulder_deg: HEAD_SHOULDER_DEG,
+            swell_deg: None,
+            body_fair: HEAD_BODY_FAIR,
             table_flat: 1.0,
         }
     }
 }
 
 impl SignetHead {
+    /// The arc the width takes to come back to the shank, given the head's own
+    /// half-angle. Set outright if asked, and otherwise scaled with the head.
+    pub fn swell_arc_deg(&self, face_half_deg: f64) -> f64 {
+        self.swell_deg
+            .unwrap_or(face_half_deg * HEAD_SWELL_RATIO)
+            .clamp(1.0, 170.0)
+    }
+
     /// Size the face to the shape, so picking an outline gives that shape
     /// rather than the last one stretched to a new silhouette.
     pub fn fit_length_to(&mut self, band_width_mm: f64) {
@@ -796,11 +1136,12 @@ impl ShankStyle {
     /// The band's span at its bore, as `(low, high)` fractions of the head's
     /// half-width.
     pub fn signet_span(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> (f64, f64) {
-        let k = self.amount.clamp(0.0, 1.0);
         let shank = self.signet_shank_frac(theta_deg);
-        let r = HEAD_SHANK_FILLET * (1.0 - (1.0 - (1.0 - SIGNET_MIN_SHANK_FRAC) * k));
         let a = self.head_at(theta_deg, inner_r, base_outer_r);
-        (smin(a.reach.0, -shank, r), smax(a.reach.1, shank, r))
+        // A floor, not a blend. The swell already lands on the shank, so this
+        // only catches an outline narrower across the band than the shank it
+        // stands on — a heart's dimple against a barely-tapered band.
+        (a.reach.0.min(-shank), a.reach.1.max(shank))
     }
 
     /// Fraction of the band width the head leaves at a ring angle.
@@ -823,47 +1164,39 @@ impl ShankStyle {
         (1.0 - (theta_deg - self.head.theta_deg).to_radians().cos()) * 0.5
     }
 
-    /// Where a ring angle falls on the signet head, and what the crest does
-    /// there.
+    /// Where a ring angle falls on the signet head: what the **body** spans
+    /// there, what the **table** spans, and where the crest sits.
     ///
-    /// Two regions, meeting without a step. **On the face**, the crest lies on
-    /// the table plane, so its radius is `plane / cos` of the angle off centre
-    /// — the same solve the section view uses, done once for the whole band
-    /// instead of per point — and the outline is read at the position that
-    /// angle projects to *on the plane*, not at the angle itself. **Past it**,
-    /// the crest falls over the shoulder arc to the shank, which is where the
-    /// band comes back up to meet the underside of the head.
+    /// The body is the union of two things that run out at different rates, and
+    /// keeping them apart is what makes the head read as a head.
     ///
-    /// The shoulder leaves the face **already falling**, and it leaves it at the
-    /// face's own rate.
+    /// - The **face** is the outline, read at the position this angle projects
+    ///   to *on the table plane* rather than at the angle itself. It runs out
+    ///   where the plane does, which for a 12 mm head on a size 7 is about 30
+    ///   degrees off the top.
+    /// - The **swell** is the head's own span at its centre, faded to the shank
+    ///   over [`SignetHead::swell_deg`] — two and a half times as far.
     ///
-    /// Anything that starts the shoulder flat leaves a shelf at exactly the
-    /// place the eye goes. Measured with a plain ramp off the end of the face,
-    /// the band's edge went from diving at 0.50 mm per degree to 0.003 in one
-    /// step and the crest from climbing at 0.14 to nothing: a lip standing 2.9
-    /// mm proud, which is the thing a real signet does not have.
+    /// Take the union and the body follows the outline wherever the outline
+    /// stands clear of the swell — a heart's lobes, a shield's shoulders — and
+    /// follows the swell everywhere else, which is the whole tail. That is the
+    /// thing a signet reads as from the side, and it is what the face alone
+    /// could not do: the band's silhouette *was* the face outline, so the swell
+    /// was over the moment the face was, 30 degrees where the reference takes
+    /// 75.
     ///
-    /// So the shoulder is a Hermite that takes over [`HEAD_TAKEOFF`] inside the
-    /// end of the face, picking up the outline's own value *and slope* there and
-    /// landing flat on the shank. It is C¹ at both ends by construction, and it
-    /// does the right thing at both extremes without being told which it is
-    /// looking at: a cushion is already diving, so it carries on diving and the
-    /// band is shank width almost at once; a shield's side is straight, so it
-    /// leaves at full height and rolls off over the whole shoulder.
+    /// The table is the same outline drafted in by [`HEAD_FACE_DRAFT`], handed
+    /// to the section as its crest span. Past the face it eases to the body's
+    /// own drafted span, which is an ordinary dome.
     ///
-    /// The crest rides the same curve. It has to: a face that has narrowed to a
-    /// shank while the crest is still out on the table plane is a finger of
-    /// metal standing off the ring, which is the same lip by another route.
-    ///
-    /// **Known limit.** On a real signet the face is a facet cut across the
-    /// crown of a *wider* body — measured on `BlankSignet.obj`, the body is 87%
-    /// of full width a quarter of the way out where the face is down to 65%,
-    /// and does not reach the shank until 75 degrees off the top. Here the two
-    /// are the same shape, so the swell is over sooner. Splitting them needs the
-    /// section to carry a crest span of its own, not just a width: an upright
-    /// face is off-centre at its crest by a different amount than at its bore,
-    /// and insetting symmetrically about the bore puts the shield's crest in the
-    /// wrong place — measured at 0.38% undercut against 0.01% for the rest.
+    /// **The crest cannot leave the face flat.** With a plain ramp off the end
+    /// of the table, measured on a cushion head, the crest went from climbing at
+    /// 0.14 mm per degree to nothing in one step: a lip standing 2.9 mm proud,
+    /// which is the thing a real signet does not have. So the fall is a Hermite
+    /// landing flat on the shank, and it takes [`HEAD_SHOULDER_DEG`] rather than
+    /// the whole swell — the width goes on widening under a crest that has
+    /// already come down, which is exactly the broad thin shoulder of the
+    /// reference.
     pub fn head_at(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> HeadAt {
         let k = self.amount.clamp(0.0, 1.0);
         let t0 = (base_outer_r - inner_r).max(0.05);
@@ -877,44 +1210,85 @@ impl ShankStyle {
             crate::field::wrap_delta(theta_deg - self.head.theta_deg, 360.0).to_radians();
         let d = signed.abs();
         let end = if signed < 0.0 { -1.0 } else { 1.0 };
-
         let face_edge = (half_l / plane_r).atan();
-        let x_of = |dd: f64| plane_r * dd.tan() / half_l;
 
-        // --- Crest: on the plane over the face, falling over the shoulder. ---
-        let r_plane = plane_r / d.min(face_edge).cos().max(1e-6);
+        // --- Body: the outline faired out, at the station this angle lands on.
+        //
+        // The band follows the **body**, not the face. They are different shapes
+        // and have to be: extruding a face down to the finger gives a prism, and
+        // a heart's dimple then runs the whole depth of the ring while its lobes
+        // leave a crease down each flank. `body_extent` is the face's own reach
+        // dilated and blurred, so it holds the head's proportions and none of
+        // its detail — and contains the face, so the flank stays drafted.
+        let x = (plane_r * d.min(face_edge).tan() / half_l).clamp(0.0, 1.0);
+        let k_fair = self.head.body_fair.clamp(0.0, 1.0);
+        let face_at = |s: f64| self.head.outline.extent(s);
+        let body_at =
+            |s: f64| blend_span(face_at(s), self.head.outline.body_extent(s), k_fair);
+        let body = body_at(end * x);
 
+        // --- Swell: the head's span at its centre, faded to the shank. ---
+        let shank = self.signet_shank_frac(theta_deg);
+        let arc = self.head.swell_arc_deg(face_edge.to_degrees());
+        let g = 1.0 - crate::field::smoothstep(0.0, 1.0, d.to_degrees() / arc);
+        let swell = blend_span(body_at(0.0), (-shank, shank), 1.0 - g);
+
+        // The outline hands the band over to the swell across its end, rather
+        // than stopping where the face does.
+        //
+        // A straight-ended outline reaches full width right up to its last
+        // station and nothing past it — a shield's flat top runs the whole
+        // length of the head — so an outline that simply stops steps the band
+        // from full width onto the swell in one sample. Measured on a shield:
+        // 1.76 of full width per degree, which is a wall. Faired onto the swell
+        // it is 0.002, and what it costs is a chamfer on the head's last sixth
+        // in plan, which is the edge break a corner wanted anyway.
+        // It closes *at* the face's end and not across it, so that whatever the
+        // outline does at its last station is multiplied by nothing. The
+        // silhouette's slope is discontinuous there for any shape with a
+        // straight end — the station stops advancing while the outline is still
+        // plunging — and a fade still half open at that point carries the kink
+        // straight through: a rectangle steps 0.19 of full width per degree
+        // against 0.01 when the fade has already closed.
+        let e = HEAD_EDGE_BREAK.clamp(1e-3, 0.9);
+        let fade = 1.0 - crate::field::smootherstep(face_edge * (1.0 - e), face_edge, d);
+        let faired = blend_span(swell, body, fade);
+
+        // Filleted where the outline crosses the swell — a heart's lobes, a
+        // shield's shoulders — because a bare crossing is a corner in the
+        // silhouette.
+        //
+        // The radius closes to nothing wherever the two are equal by
+        // construction: at the head, and everywhere past the outline's end. A
+        // smooth maximum rounds a tie *upward*, so leaving it open there would
+        // push the head past full width and fatten the whole shank.
+        let r = HEAD_SHANK_FILLET
+            * (1.0 - shank)
+            * fade
+            * crate::field::smoothstep(0.0, HEAD_FILLET_ON, d.to_degrees() / arc);
+        let reach = (smin(faired.0, swell.0, r), smax(faired.1, swell.1, r));
+
+        // --- Table: the sharp outline, read a little inside the face's end. ---
+        // At the end itself the outline is a *point*, so a table read there
+        // would run to nothing and wedge the section to a fin.
         let take = (face_edge.tan() * (1.0 - HEAD_TAKEOFF)).atan();
-        if d <= take {
-            let x = x_of(signed).clamp(-1.0, 1.0);
-            let reach = self.head.outline.extent(x);
-            return HeadAt { x, reach, face: draft_span(reach), on_head: 1.0, outer_r: r_plane };
-        }
+        let xf = (plane_r * d.min(take).tan() / half_l).clamp(0.0, 1.0);
+        let face = face_at(end * xf);
 
-        // --- Shoulder: Hermite from the face's own value and slope. ---
-        let span =
-            (face_edge + self.head.shoulder_deg.clamp(1.0, 150.0).to_radians() - take).max(1e-6);
-        let s = ((d - take) / span).clamp(0.0, 1.0);
-        // Basis: `h00` carries the value to nothing, `h10` the slope.
-        let (h00, h10) = (2.0 * s * s * s - 3.0 * s * s + 1.0, s * s * s - 2.0 * s * s + s);
-        let at = |dd: f64| {
-            let x = (x_of(take + dd)).clamp(0.0, 1.0);
-            self.head.outline.extent(end * x)
-        };
-        const H: f64 = 1e-3;
-        let (lo0, hi0) = at(0.0);
-        let (lo_b, hi_b) = at(-H);
-        let (lo_f, hi_f) = at(H);
-        let carry = |v0: f64, back: f64, fwd: f64| v0 * h00 + (fwd - back) / (2.0 * H) * span * h10;
-        let reach = (carry(lo0, lo_b, lo_f).min(0.0), carry(hi0, hi_b, hi_f).max(0.0));
+        // --- Crest: on the table plane over the face, then the shoulder. ---
+        let r_plane = plane_r / d.min(face_edge).cos().max(1e-6);
+        let span = self.head.shoulder_deg.clamp(1.0, 150.0).to_radians();
+        let s = ((d - face_edge).max(0.0) / span).clamp(0.0, 1.0);
+        let h00 = (1.0 - s).powf(HEAD_SHOULDER_POW);
 
-        HeadAt {
-            x: end,
-            reach,
-            face: draft_span(reach),
-            on_head: h00,
-            outer_r: r_shank + (r_plane - r_shank) * h00,
-        }
+        // The table cannot reach past the body it is cut into. `body_extent`
+        // already contains the face, but the fillet against the swell rounds a
+        // crossing *down* by up to its own radius, so the last word belongs
+        // here — a crest outside the bore is an undercut by construction.
+        let crest = blend_span(draft_span(reach), draft_span(face), h00);
+        let crest = (crest.0.max(reach.0), crest.1.min(reach.1));
+
+        HeadAt { x: end * x, reach, face: crest, on_head: h00, outer_r: r_shank + (r_plane - r_shank) * h00 }
     }
 }
 
@@ -1026,10 +1400,10 @@ impl ShankStyle {
                 let a = self.head_at(theta_deg, inner_r, base_outer_r);
                 let band = self.signet_span(theta_deg, inner_r, base_outer_r);
                 let (w, centre) = ((band.1 - band.0) * 0.5, (band.1 + band.0) * 0.5);
-                // From the band's own span, not the head's: away from the head
-                // there is no head, and blending from it would draft the whole
-                // shank away to a knife edge.
-                let crest = blend_span(band, draft_span(band), a.on_head);
+                // The table is the face's own outline, not the body's: the two
+                // are different extents, and that difference is the head's
+                // drafted flank.
+                let crest = a.face;
                 // The shank rounds off toward a wire as it narrows, so a flat
                 // head sits on a round shank. The crown clamp caps it at a full
                 // dome, so a large value only ever means "more domed here".
@@ -1270,6 +1644,133 @@ fn finish_loop(mut pts: Vec<ProfileSample>) -> ProfileLoop {
 
 #[cfg(test)]
 mod tests {
+
+    // --- Drop curve --------------------------------------------------------
+
+    /// The whole point: a curve the editor accepts cannot fall back, so the
+    /// crown it shapes cannot lean under itself however it is drawn.
+    #[test]
+    fn a_monotone_drop_curve_never_reverses() {
+        let mut c = DropCurve::default();
+        // Deliberately out of order, out of range, and falling.
+        for (x, d) in [(0.5, 0.9), (0.2, 0.3), (0.8, 0.1), (1.4, 2.0), (-0.3, -1.0), (0.35, 0.6)] {
+            c.insert(x, d);
+        }
+        let pts = c.points().to_vec();
+        for w in pts.windows(2) {
+            assert!(w[1][0] >= w[0][0], "points came back unsorted: {pts:?}");
+            assert!(w[1][1] >= w[0][1], "drop falls back at {:?}", w[1]);
+        }
+        assert!(
+            c.worst_reversal() < 1e-9,
+            "interpolation reversed by {:.6} between control points",
+            c.worst_reversal()
+        );
+    }
+
+    /// A plain cubic would overshoot through a step and dip on the way out,
+    /// which is an undercut the control points never asked for.
+    #[test]
+    fn interpolation_does_not_overshoot_a_step() {
+        let mut c = DropCurve::default();
+        for (x, d) in [(0.0, 0.0), (0.45, 0.02), (0.5, 0.95), (1.0, 1.0)] {
+            c.insert(x, d);
+        }
+        let mut prev = c.eval(0.0);
+        for i in 1..=512 {
+            let y = c.eval(i as f64 / 512.0);
+            assert!(y >= prev - 1e-9, "dipped from {prev:.6} to {y:.6}");
+            assert!((0.0..=1.0).contains(&y), "left the unit range: {y}");
+            prev = y;
+        }
+    }
+
+    #[test]
+    fn an_unlocked_curve_can_be_drawn_backwards() {
+        let mut c = DropCurve { monotone: false, ..DropCurve::default() };
+        for (x, d) in [(0.0, 0.0), (0.5, 0.8), (1.0, 0.2)] {
+            c.insert(x, d);
+        }
+        assert!(
+            c.worst_reversal() > 0.4,
+            "unlocking should allow a real reversal, got {:.3}",
+            c.worst_reversal()
+        );
+    }
+
+    #[test]
+    fn a_curve_adopted_from_a_superellipse_matches_it() {
+        for (a, b) in [(2.0, 2.0), (8.0, 1.0), (2.5, 1.6)] {
+            let mut p = BandProfile::default();
+            p.shape_a = a;
+            p.shape_b = b;
+            let plain: Vec<f64> = (0..=20).map(|i| p.drop(i as f64 / 20.0)).collect();
+            p.adopt_drop_curve(MAX_DROP_POINTS);
+            for (k, want) in plain.iter().enumerate() {
+                let got = p.drop(k as f64 / 20.0);
+                assert!(
+                    (got - want).abs() < 0.03,
+                    "a={a} b={b} at x={:.2}: {got:.4} vs {want:.4}",
+                    k as f64 / 20.0
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_curve_cannot_outgrow_its_cap() {
+        let mut c = DropCurve::default();
+        for i in 0..200 {
+            c.insert(i as f64 / 200.0, i as f64 / 200.0);
+        }
+        assert!(c.len() <= MAX_DROP_POINTS, "{} points", c.len());
+        assert!(c.points().windows(2).all(|w| w[1][0] > w[0][0]), "duplicate x survived");
+    }
+
+    #[test]
+    fn the_ends_of_the_curve_stay_pinned() {
+        let mut c = DropCurve::from_superellipse(2.0, 2.0, 6);
+        let n = c.len();
+        c.set(0, 0.7, 0.5);
+        c.set(n - 1, 0.2, 0.5);
+        assert_eq!(c.points()[0][0], 0.0, "the crest end moved");
+        assert_eq!(c.points()[c.len() - 1][0], 1.0, "the edge end moved");
+        c.remove(0);
+        c.remove(c.len() - 1);
+        assert_eq!(c.len(), n, "an end point was removed");
+    }
+
+    /// A drawn crown goes through the same sweep as any other, so it has to
+    /// come out watertight and undercut-free like the presets do.
+    #[test]
+    fn a_drawn_crown_builds_watertight_and_releases() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crate::RingDesign::default();
+        d.build = crate::BuildParams {
+            theta_steps: 192,
+            profile_steps: 128,
+            min_wall_mm: crate::mesh::MIN_WALL_MM,
+            adaptive: false,
+            refine: None,
+        };
+        d.profile.adopt_drop_curve(6);
+        // A deliberately lumpy crown: a shelf, then a fast fall.
+        d.profile.drop_curve.set(1, 0.18, 0.04);
+        d.profile.drop_curve.set(2, 0.30, 0.08);
+        d.profile.drop_curve.set(3, 0.55, 0.72);
+        d.profile.drop_curve.set(4, 0.78, 0.86);
+
+        let out = crate::mesh::build(&d, &lib, d.build);
+        assert!(out.report.validation.watertight, "{:?}", out.report.validation);
+        let rep = crate::castability::analyze(&out.mesh, &d.draft, d.inner_radius_mm());
+        println!(
+            "drawn crown: {} undercut faces, {:.4}% of area, worst {:.2} deg",
+            rep.undercut,
+            rep.undercut_fraction() * 100.0,
+            rep.worst_draft_deg
+        );
+        assert_eq!(rep.undercut, 0, "a monotone drawn crown must not undercut");
+    }
     use super::*;
 
     fn loop_for(style: ProfileStyle) -> ProfileLoop {
@@ -1367,8 +1868,14 @@ mod tests {
         }
     }
 
-    /// The head's plan silhouette is the face shape, so a fuller outline has to
-    /// hold the band wide further round than a pointed one.
+    /// A fuller outline holds the **table** wider further round than a pointed
+    /// one. The table, and not the band: the body under it is faired, and a
+    /// pointed outline has more to fair out.
+    ///
+    /// Both of those are right. A real marquise signet is a pointed plate on a
+    /// rounded body — the shape lives in the table, which is the outline as
+    /// drawn, while the band beneath carries the swell and whatever the fairing
+    /// leaves of the outline.
     #[test]
     fn a_fuller_outline_holds_the_width_further_round() {
         let head = |o: SignetOutline| ShankStyle {
@@ -1382,11 +1889,18 @@ mod tests {
             SignetOutline::Rectangle,
         ];
         let at = TOP_DEG + 20.0;
-        let got: Vec<f64> =
-            styles.iter().map(|&o| head(o).signet_width_frac(at, BORE_R, CREST_R)).collect();
+        let table = |o: SignetOutline| {
+            let a = head(o).head_at(at, BORE_R, CREST_R);
+            a.face.1 - a.face.0
+        };
+        let got: Vec<f64> = styles.iter().map(|&o| table(o)).collect();
         for pair in got.windows(2) {
-            assert!(pair[0] < pair[1], "fullness did not order at {at} deg: {got:?}");
+            assert!(pair[0] <= pair[1] + 1e-12, "fullness inverted at {at} deg: {got:?}");
         }
+        assert!(
+            got[3] > got[0] + 0.05,
+            "a rectangle table is no fuller than a marquise at {at} deg: {got:?}"
+        );
         // Every one still reaches full width at the top and shank width behind.
         for &o in &styles {
             let sh = head(o);
@@ -1511,64 +2025,73 @@ mod tests {
              surface", hi - lo);
     }
 
-    /// The shoulder leaves the head at the width the face had, and leaves it
-    /// **already falling**. A shoulder that starts flat leaves a shelf at the
-    /// exact place the eye goes — the lip a signet does not have.
+    /// The crest leaves the table's rim **already falling**, and the band's
+    /// width never stops on its way to the shank.
+    ///
+    /// A rim is an edge, and the flank under it is a fillet running out flat —
+    /// so the fall is steep first and eases in, which is the opposite of a
+    /// Hermite. Measured off `BlankSignet.obj` against the Hermite this
+    /// replaced:
+    ///
+    /// | past the rim | 3 deg | 13 deg | 23 deg |
+    /// | --- | --- | --- | --- |
+    /// | reference | 0.85 | 0.39 | 0.14 |
+    /// | Hermite | 0.97 | 0.66 | 0.23 |
+    ///
+    /// Starting flat put a shelf at exactly the place the eye goes: with a
+    /// plain ramp off the end of the face the band's edge went from diving at
+    /// 0.50 mm per degree to 0.003 in one step, a lip standing 2.9 mm proud.
     #[test]
-    fn the_shoulder_leaves_the_face_without_a_shelf() {
-        let head = |o: SignetOutline| ShankStyle {
-            head: SignetHead { outline: o, ..SignetHead::default() },
-            ..signet_shank()
-        };
-        let at = |sh: &ShankStyle, d: f64| sh.signet_width_frac(TOP_DEG + d, BORE_R, CREST_R);
+    fn the_shoulder_leaves_the_rim_already_falling() {
         let hd = SignetHead::default();
         let edge = (hd.length_mm * 0.5 / (CREST_R + hd.rise_mm)).atan().to_degrees();
 
-        for o in [SignetOutline::Rectangle, SignetOutline::Cushion, SignetOutline::Shield] {
-            let sh = head(o);
-            let shank = at(&sh, 180.0);
-
-            // Nothing on the band's edge stops dead. The slope either side of
-            // the face's end has to stay of a piece: it was 0.50 mm per degree
-            // inside and 0.003 outside when the shoulder started flat.
-            let step = 0.25;
-            let slope = |d: f64| (at(&sh, d + step) - at(&sh, d)) / step;
-            let (inside, outside) = (slope(edge - 1.0), slope(edge + 1.0));
-            println!(
-                "{o:?}: {:.3} at the face's end, {:.3} a degree past it, shank {shank:.3}",
-                inside, outside
-            );
-            assert!(
-                outside.abs() > inside.abs() * 0.25 || inside.abs() < 5e-3,
-                "{o:?} falls at {inside:.4} inside the face and {outside:.4} past it — the \
-                 shoulder starts flat, which is a shelf"
-            );
-        }
-
-        // A blunt outline hands the shoulder a real width; a pointed one has
-        // already narrowed on its own and hands it nothing.
-        let (blunt, pointed) = (head(SignetOutline::Rectangle), head(SignetOutline::Oval));
-        let end = at(&blunt, edge - 0.1);
-        assert!(end > 0.7, "a rectangle face has already narrowed to {end:.2} at its own edge");
+        let sh = signet_shank();
+        let h = |past: f64| sh.head_at(TOP_DEG + edge + past, BORE_R, CREST_R).on_head;
+        let tenth = h(hd.shoulder_deg * 0.1);
+        println!("{:.3} of the crest left a tenth of the way down the shoulder", tenth);
         assert!(
-            at(&pointed, edge - 0.1) < end * 0.6,
-            "an oval ends as blunt as a rectangle: {:.2}",
-            at(&pointed, edge - 0.1)
+            tenth < 0.85,
+            "the crest is still {tenth:.3} up a tenth of the way past the rim — it leaves flat, \
+             which is a shelf"
         );
-        // Past the whole shoulder the head contributes nothing and the band is
-        // the shank strip alone — which is not a constant, because the shank
-        // goes on tapering toward the base for the rest of the ring.
-        for o in [SignetOutline::Rectangle, SignetOutline::Oval] {
-            let sh = &head(o);
-            let past = edge + SignetHead::default().shoulder_deg + 6.0;
-            let a = sh.head_at(TOP_DEG + past, BORE_R, CREST_R);
-            assert_eq!((a.on_head, a.reach), (0.0, (0.0, 0.0)), "the shoulder never lands");
-            assert!(
-                (at(sh, past) - sh.signet_shank_frac(TOP_DEG + past)).abs() < 1e-9,
-                "the band is not the bare shank past the shoulder"
-            );
+        assert!(h(hd.shoulder_deg * 0.95) < 0.02, "the crest does not ease into the shank");
 
+        // And past the face the width goes on narrowing without a flat spot.
+        // Only past it: a rectangle's outline really is straight-sided over the
+        // face, and holding the band at full width there is the shape, not a
+        // shelf.
+        for &o in SignetOutline::ALL {
+            let sh = ShankStyle {
+                head: SignetHead { outline: o, ..SignetHead::default() },
+                ..signet_shank()
+            };
+            let at = |d: f64| sh.signet_width_frac(TOP_DEG + d, BORE_R, CREST_R);
+            let mut d = edge;
+            let arc = hd.swell_arc_deg(edge);
+            while d < arc - 4.0 {
+                let fall = at(d) - at(d + 1.0);
+                assert!(
+                    fall > 1e-4,
+                    "{o:?} stops narrowing at {d:.1} deg, which is a shelf: {fall:.5} per degree"
+                );
+                d += 0.5;
+            }
         }
+
+        // Past the swell the band is the shank strip alone, exactly — the
+        // fillet has to close there or the whole back of the ring gains width
+        // it was never asked for.
+        let sh = signet_shank();
+        let past = hd.swell_arc_deg(edge) + 6.0;
+        let a = sh.head_at(TOP_DEG + past, BORE_R, CREST_R);
+        let strip = sh.signet_shank_frac(TOP_DEG + past);
+        assert_eq!(a.on_head, 0.0, "the crest never lands");
+        assert_eq!(a.reach, (-strip, strip), "the swell never lands on the shank");
+        assert!(
+            (sh.signet_width_frac(TOP_DEG + past, BORE_R, CREST_R) - strip).abs() < 1e-9,
+            "the band is not the bare shank past the swell"
+        );
     }
 
     /// Seen from the side, a signet reads as tapering because the **swell** in
@@ -1592,24 +2115,30 @@ mod tests {
     }
 
     /// The silhouette against a real signet, measured off `BlankSignet.obj` —
-    /// a 14.7 mm round face on a 20 mm bore, 7 mm shank, 1.75 mm thick.
+    /// a 14.7 mm round face on a 20 mm bore, 7 mm shank, 1.75 mm thick, its
+    /// table 0.265 mm proud and its body 16.0 mm across.
     ///
-    /// **This records a gap, it does not close one.** The reference's swell is
-    /// half gone at 37 degrees off the top and does not reach the shank until
-    /// 75; here it is half gone by 22 and over by 28, because the band's
-    /// silhouette *is* the face outline and a round face has run out by then.
-    /// The reference's face and body are different extents — its body is 87% of
-    /// full width where its face is down to 65% — and no amount of shoulder
-    /// makes up the difference, because it is the face's own outline that ends
-    /// the swell. Closing it needs the section to carry a crest span of its own;
-    /// see the note on [`ShankStyle::head_at`].
+    /// Both columns, because they are two different curves and getting one
+    /// right is not getting the head right. The **width** comes down over 75
+    /// degrees; the **crest** follows the table plane out to the face's edge at
+    /// 31.6, peaks at the table's corner, and is on the shank by 75. Those are
+    /// [`HEAD_SWELL_DEG`] and [`HEAD_SHOULDER_DEG`], and this is where they
+    /// come from.
+    ///
+    /// It closed a real gap. When the band's silhouette *was* the face outline,
+    /// the swell was half gone by 22 degrees and over by 28 against the
+    /// reference's 37 and 75 — worst error 0.63 of the drop. It is 0.04 now.
     #[test]
-    fn scratch_swell_against_a_real_signet() {
-        const REF: [(f64, f64); 19] = [
-            (0., 0.9992), (5., 0.9946), (10., 0.9809), (15., 0.9539), (20., 0.9141),
-            (25., 0.8666), (30., 0.8041), (35., 0.7446), (40., 0.6803), (45., 0.6189),
-            (50., 0.5720), (55., 0.5266), (60., 0.4977), (65., 0.4755), (70., 0.4601),
-            (75., 0.4509), (80., 0.4436), (85., 0.4397), (90., 0.4387),
+    fn the_swell_matches_a_real_signet() {
+        // Degrees off the top, width as a fraction of the head, crest radius mm.
+        const REF: [(f64, f64, f64); 19] = [
+            (0., 1.000, 11.93), (5., 0.987, 12.01), (10., 0.965, 12.13),
+            (15., 0.903, 12.47), (20., 0.846, 12.76), (25., 0.742, 13.36),
+            (30., 0.654, 13.88), (35., 0.522, 13.54), (40., 0.441, 13.08),
+            (45., 0.309, 12.51), (50., 0.234, 12.26), (55., 0.149, 11.97),
+            (60., 0.105, 11.84), (65., 0.061, 11.73), (70., 0.042, 11.68),
+            (75., 0.021, 11.65), (80., 0.011, 11.65), (85., 0.003, 11.67),
+            (90., 0.002, 11.67),
         ];
         let inner_r = 9.905;
         let crest_r = inner_r + 1.75;
@@ -1623,37 +2152,158 @@ mod tests {
                 ..SignetHead::default()
             },
         };
-        let at = |d: f64| sh.signet_width_frac(TOP_DEG + d, inner_r, crest_r);
-        let mut worst: f64 = 0.0;
-        println!("delta   ref    mine");
-        for (d, want) in REF {
-            println!("{d:5.0}  {want:.4}  {:.4}", at(d));
-            worst = worst.max((at(d) - want).abs());
-        }
-        let mid = (REF[0].1 + REF[18].1) * 0.5;
-        let half_way = (1..=180).map(|i| i as f64).find(|&d| at(d) <= mid).unwrap();
-        let landed = (1..=180).map(|i| i as f64).find(|&d| at(d) <= REF[18].1 + 1e-3).unwrap();
-        println!(
-            "worst {worst:.4} of a {:.4} drop | half gone by {half_way} deg (ref 37), \
-             on the shank by {landed} deg (ref 75)",
-            REF[0].1 - REF[18].1
-        );
+        let raw = |d: f64| sh.signet_width_frac(TOP_DEG + d, inner_r, crest_r);
+        let (head, shank) = (raw(0.0), raw(180.0));
+        // Both normalized to their own head and shank, so what is compared is
+        // the shape of the curve and not two rings' proportions.
+        let w = |d: f64| (raw(d) - shank) / (head - shank);
+        let r = |d: f64| sh.head_at(TOP_DEG + d, inner_r, crest_r).outer_r;
+        let (peak, base) = (13.88, 11.65);
+        let h = |d: f64| (r(d) - crest_r) / (peak - crest_r);
 
-        // What does hold: full width at the top, flat behind, and monotone all
-        // the way down with no step.
-        assert!((at(0.0) - REF[0].1).abs() < 0.01, "the head is not full width");
-        assert!((at(90.0) - REF[18].1).abs() < 0.01, "the shank is the wrong width");
+        let (mut worst_w, mut worst_h) = (0.0f64, 0.0f64);
+        println!(" deg   width          crest");
+        for (d, want_w, want_r) in REF {
+            let want_h = (want_r - base) / (peak - base);
+            println!(
+                "{d:4.0}  {want_w:.3} {:.3} {:+.3}   {want_h:.3} {:.3} {:+.3}",
+                w(d),
+                w(d) - want_w,
+                h(d),
+                h(d) - want_h
+            );
+            worst_w = worst_w.max((w(d) - want_w).abs());
+            worst_h = worst_h.max((h(d) - want_h).abs());
+        }
+        println!("worst: width {worst_w:.4}, crest {worst_h:.4}");
+        assert!(worst_w < 0.06, "the swell is {worst_w:.4} off the reference");
+        assert!(worst_h < 0.12, "the shoulder is {worst_h:.4} off the reference");
+
+        let half_way = (1..=180).map(|i| i as f64).find(|&d| w(d) <= 0.5).unwrap();
+        let landed = (1..=180).map(|i| i as f64).find(|&d| w(d) <= 1e-3).unwrap();
+        println!("half gone by {half_way} deg (ref 37), on the shank by {landed} deg (ref 75)");
+        assert!((half_way - 37.0).abs() < 5.0, "half gone by {half_way} deg, not 37");
+        assert!((landed - 75.0).abs() < 6.0, "on the shank by {landed} deg, not 75");
+
+        // Monotone all the way down, with no step.
         let mut last = f64::MAX;
         for i in 0..=180 {
-            let w = at(i as f64);
-            assert!(w <= last + 1e-12, "the swell grows again at {i} deg");
-            last = w;
+            let at = raw(i as f64);
+            assert!(at <= last + 1e-12, "the swell grows again at {i} deg");
+            last = at;
         }
     }
 
-    /// An upright face reaches further to its top than its point    /// An upright face reaches further to its top than its point    /// An upright face reaches further to its top than its point, so the band
-    /// has to move along the finger to carry it. A swept section is centred on
-    /// its own mid-plane unless something moves it.
+    /// A head saved before the swell existed loads with one, rather than with a
+    /// zero that would collapse the band to its shank the moment the face ends.
+    #[test]
+    fn an_older_head_gains_the_swell_it_was_saved_without() {
+        let json = r#"{"outline":"Heart","theta_deg":90.0,"length_mm":12.0,
+            "rise_mm":0.8,"shoulder_deg":34.0,"table_flat":1.0}"#;
+        let head: SignetHead = serde_json::from_str(json).unwrap();
+        assert_eq!(head.swell_deg, None);
+        assert_eq!(head.body_fair, HEAD_BODY_FAIR);
+        assert_eq!(head.outline, SignetOutline::Heart);
+    }
+
+    /// The band's silhouette runs from head to shank without a crease.
+    ///
+    /// A crease is a step in **curvature**, not in slope — a surface can be C¹
+    /// and still catch the light in a line. Worst curvature of the bore's reach
+    /// per degree squared, with the body extruded from the face against faired
+    /// off it:
+    ///
+    /// | | heart | hexagon | rectangle | oval |
+    /// | --- | --- | --- | --- | --- |
+    /// | extruded | 2.67 | 2.44 | 0.0071 | 0.0043 |
+    /// | faired | 0.0091 | 0.0154 | 0.0070 | 0.0010 |
+    ///
+    /// The shapes with a concavity or a corner in plan are the ones that had a
+    /// crease, and they are the ones the fairing is for. What is left on a heart
+    /// is its own curvature, not a join.
+    #[test]
+    fn the_head_runs_to_the_shank_without_a_crease() {
+        // Against the extruded body rather than a remembered number, so the
+        // comparison stays honest if the head's proportions ever move.
+        let worst_of = |o: SignetOutline, fair: f64| {
+            let sh = ShankStyle {
+                head: SignetHead { outline: o, body_fair: fair, ..SignetHead::default() },
+                ..signet_shank()
+            };
+            let reach = |t: f64| sh.head_at(TOP_DEG + t, BORE_R, CREST_R).reach;
+            const H: f64 = 0.02;
+            let (mut worst, mut at) = (0.0f64, 0.0);
+            let mut t = H;
+            while t < 90.0 {
+                let (a, b, c) = (reach(t - H), reach(t), reach(t + H));
+                for pick in [|s: (f64, f64)| s.0, |s: (f64, f64)| s.1] {
+                    let k = (pick(c) - 2.0 * pick(b) + pick(a)) / (H * H);
+                    if k.abs() > worst {
+                        (worst, at) = (k.abs(), t);
+                    }
+                }
+                t += H;
+            }
+            (worst, at)
+        };
+
+        println!("worst curvature of the bore's reach, per degree squared:");
+        for &o in SignetOutline::ALL {
+            let (extruded, _) = worst_of(o, 0.0);
+            let (faired, at) = worst_of(o, 1.0);
+            println!(
+                "  {:<10} extruded {extruded:.4}   faired {faired:.4} at {at:.2} deg",
+                o.label()
+            );
+            // Where the outline has something to fair — a hexagon's plan corner,
+            // a heart's dimple — the body has to take most of it out. Below
+            // about 0.005 the two are the same head and the difference is the
+            // tip rounding, so there is nothing to compare.
+            if extruded > 0.02 {
+                assert!(
+                    faired < extruded * 0.5,
+                    "{o:?}: fairing the body left {faired:.4} of an extruded {extruded:.4}"
+                );
+            }
+            // What is left below this is the outline's own plan curvature: an
+            // oval reads 0.001 and a hexagon 0.015, because a hexagonal head is
+            // meant to show the corner where its flat side meets its slanted
+            // one. The body fillets that corner rather than passing it through.
+            assert!(
+                faired < 0.02,
+                "{o:?} kinks at {faired:.4} per degree squared, {at:.2} deg off the top"
+            );
+        }
+    }
+
+    /// The table never reaches past the body it is cut into.
+    ///
+    /// Which is the head's flank being drafted rather than leaning back over the
+    /// mould half it sits in — the same undercut `castability` would find, said
+    /// where it can be said for certain instead of sampled off a mesh.
+    #[test]
+    fn the_table_stays_inside_the_body() {
+        for &o in SignetOutline::ALL {
+            let sh = ShankStyle {
+                head: SignetHead { outline: o, ..SignetHead::default() },
+                ..signet_shank()
+            };
+            for i in 0..=3600 {
+                let t = i as f64 * 0.1;
+                let a = sh.head_at(TOP_DEG + t, BORE_R, CREST_R);
+                assert!(
+                    a.face.0 >= a.reach.0 - 1e-12 && a.face.1 <= a.reach.1 + 1e-12,
+                    "{o:?} at {t:.1} deg: table {:?} reaches past body {:?}",
+                    a.face,
+                    a.reach
+                );
+            }
+        }
+    }
+
+    /// An upright face reaches further to its top than to its point, so the
+    /// band has to move along the finger to carry it. A swept section is
+    /// centred on its own mid-plane unless something moves it.
     #[test]
     fn an_upright_face_moves_the_band_off_its_mid_plane() {
         let mut p = BandProfile::default();
@@ -1669,18 +2319,39 @@ mod tests {
             let (lo, hi) = l.z_range();
             (lo + hi) * 0.5
         };
-        // Read at the shield's sides, not down its axis: the middle of a crest
-        // runs from its point to its top and is centred, and it is the sides —
-        // where the shank leaves — that carry only the top half.
-        let side = centre(TOP_DEG + 20.0);
+        // Read over the whole head rather than at one angle. The swell is
+        // centred and the face is not, so how far off the band sits depends on
+        // which of the two is carrying it there.
+        let pick = |f: &dyn Fn(f64) -> f64| {
+            (0..=200).map(|i| f(TOP_DEG + i as f64 * 0.2)).fold(0.0f64, |a, c| {
+                if c.abs() > a.abs() { c } else { a }
+            })
+        };
         let back = centre(TOP_DEG + 180.0);
         assert!(back.abs() < 1e-9, "the plain shank is off centre by {back:.4} mm");
+        let worst = pick(&centre);
         assert!(
-            side.abs() > 0.4,
-            "a shield's sides sit centred at {side:.4} mm, so it has no point and no top"
+            worst.abs() > 0.25,
+            "a shield sits centred to within {worst:.4} mm all the way round, so it has no \
+             point and no top"
+        );
+
+        // The **table** carries more of it than the band does, and has to: the
+        // body under it is faired, so it is nearer symmetric than the face it
+        // holds. Measured on a shield, 0.29 mm at the bore against 0.47 at the
+        // crest.
+        let table = |t: f64| {
+            let a = sh.head_at(t, BORE_R, CREST_R);
+            (a.face.0 + a.face.1) * 0.5 * p.width_mm * 0.5
+        };
+        let crest = pick(&table);
+        assert!(
+            crest.abs() > worst.abs() * 1.3,
+            "the table is off centre by {crest:.4} mm against the band's {worst:.4} — the body \
+             is carrying the face's own shape rather than a faired one"
         );
         assert!(
-            (side - centre(TOP_DEG - 20.0)).abs() < 1e-9,
+            (centre(TOP_DEG + 20.0) - centre(TOP_DEG - 20.0)).abs() < 1e-9,
             "the shield is lopsided round the ring"
         );
 
