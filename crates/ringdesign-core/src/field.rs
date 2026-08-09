@@ -633,8 +633,9 @@ impl MilgrainLayer {
 
 // --- Signet ----------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SignetOutline {
+    #[default]
     Oval,
     Round,
     Cushion,
@@ -659,23 +660,74 @@ struct PolarOutline {
 }
 
 impl PolarOutline {
-    /// Build from a boundary radius function, rescaled to fill -1..1 in both
-    /// axes so every outline honours `length_mm` by `width_mm`.
+    /// Build from a boundary radius function, recentred and scaled so the shape
+    /// fills -1..1 in both axes and every outline honours `length_mm` by
+    /// `width_mm`.
+    ///
+    /// Neither step can be done in the radius alone, and skipping either leaves
+    /// a table describing a shape nothing has:
+    ///
+    /// - Scaling the two axes by different factors **moves each boundary point
+    ///   round the circle**, so its new radius belongs at a new angle.
+    /// - Scaling about the origin only works if the shape is centred there. A
+    ///   heart is four times as far to its point as to its lobes, so dividing
+    ///   by the larger extent squashes the lobes to a sixth of their size and
+    ///   the outline comes out a lens.
+    ///
+    /// So the boundary is built in Cartesian, fitted to its own bounding box,
+    /// and the table read back off it by casting one ray per step.
     fn build(f: impl Fn(f64) -> f64) -> Self {
-        let mut r = [0.0f64; OUTLINE_STEPS];
-        let (mut max_x, mut max_y) = (1e-9f64, 1e-9f64);
-        for (i, slot) in r.iter_mut().enumerate() {
-            let a = std::f64::consts::TAU * i as f64 / OUTLINE_STEPS as f64;
-            let v = f(a).max(1e-6);
-            *slot = v;
-            max_x = max_x.max((v * a.cos()).abs());
-            max_y = max_y.max((v * a.sin()).abs());
+        let step = std::f64::consts::TAU / OUTLINE_STEPS as f64;
+        let raw: Vec<[f64; 2]> = (0..OUTLINE_STEPS)
+            .map(|i| {
+                let a = i as f64 * step;
+                let v = f(a).max(0.0);
+                [v * a.cos(), v * a.sin()]
+            })
+            .collect();
+        let mut lo = [f64::MAX; 2];
+        let mut hi = [f64::MIN; 2];
+        for p in &raw {
+            for k in 0..2 {
+                lo[k] = lo[k].min(p[k]);
+                hi[k] = hi[k].max(p[k]);
+            }
         }
+        let b: Vec<[f64; 2]> = raw
+            .iter()
+            .map(|p| {
+                let mut q = [0.0; 2];
+                for k in 0..2 {
+                    q[k] = 2.0 * (p[k] - lo[k]) / (hi[k] - lo[k]).max(1e-9) - 1.0;
+                }
+                q
+            })
+            .collect();
+
+        // Furthest crossing per direction, not the first: that is the
+        // silhouette, which is what a band's width can follow even where the
+        // shape is hollow behind it.
+        let mut r = [1e-6f64; OUTLINE_STEPS];
         for (i, slot) in r.iter_mut().enumerate() {
-            let a = std::f64::consts::TAU * i as f64 / OUTLINE_STEPS as f64;
-            // Rescale each axis independently, so the table fills its extents.
-            let (x, y) = (*slot * a.cos() / max_x, *slot * a.sin() / max_y);
-            *slot = (x * x + y * y).sqrt().max(1e-6);
+            let a = i as f64 * step;
+            let (sin_a, cos_a) = a.sin_cos();
+            for k in 0..OUTLINE_STEPS {
+                let (p, q) = (b[k], b[(k + 1) % OUTLINE_STEPS]);
+                let (ex, ey) = (q[0] - p[0], q[1] - p[1]);
+                // Ray x segment: the ray's own cross product vanishes on it.
+                let den = cos_a * ey - sin_a * ex;
+                if den.abs() <= 1e-12 {
+                    continue;
+                }
+                let t = (sin_a * p[0] - cos_a * p[1]) / den;
+                if !(0.0..=1.0).contains(&t) {
+                    continue;
+                }
+                let hit = (p[0] + t * ex) * cos_a + (p[1] + t * ey) * sin_a;
+                if hit > *slot {
+                    *slot = hit;
+                }
+            }
         }
         Self { r }
     }
@@ -702,12 +754,20 @@ fn heart_radius(a: f64) -> f64 {
 }
 
 /// A crest: flat shoulders, straight sides, a point at the bottom.
+///
+/// Half-planes rather than floored reciprocals. The floors made every
+/// constraint slack near the diagonals, which let the corners out to meet and
+/// left a square wearing a shield's name.
 fn shield_radius(a: f64) -> f64 {
     let (s, c) = a.sin_cos();
-    let top = 1.0 / s.max(0.30);
-    let side = 1.0 / c.abs().max(0.62);
-    let point = 1.0 / (-s).max(0.22);
-    top.min(side).min(point)
+    // `(nx, ny)` of `nx*x + ny*y <= 1`: a flat top, two straight sides, and two
+    // lines running down from the waist to a point.
+    const EDGES: [(f64, f64); 5] =
+        [(0.0, 1.0), (1.0, 0.0), (-1.0, 0.0), (0.85, -1.0), (-0.85, -1.0)];
+    EDGES.iter().fold(f64::MAX, |acc, &(nx, ny)| {
+        let d = nx * c + ny * s;
+        if d > 1e-9 { acc.min(1.0 / d) } else { acc }
+    })
 }
 
 /// Regular polygon boundary with `n` sides.
@@ -784,13 +844,195 @@ impl SignetOutline {
             _ => None,
         }
     }
+
+    /// Position in [`SignetOutline::ALL`], for indexing the cached tables.
+    fn index(self) -> usize {
+        Self::ALL.iter().position(|&o| o == self).unwrap_or(0)
+    }
+
+    /// Length-to-width ratio the shape wants — around the ring against across
+    /// the band — so picking an outline can size a head that reads as that
+    /// shape rather than a stretched one.
+    ///
+    /// The upright shapes are under 1 because their long axis runs across the
+    /// band: a crest is taller up the finger than it is wide round it.
+    pub fn head_aspect(self) -> f64 {
+        match self {
+            SignetOutline::Shield => 0.85,
+            SignetOutline::Heart => 0.95,
+            SignetOutline::Round => 1.0,
+            SignetOutline::Octagon => 1.1,
+            SignetOutline::Cushion => 1.2,
+            SignetOutline::Rectangle => 1.25,
+            SignetOutline::Hexagon => 1.3,
+            SignetOutline::Oval => 1.35,
+            SignetOutline::Marquise => 1.9,
+        }
+    }
+
+    /// Whether the outline's own "up" runs across the band rather than round
+    /// the ring.
+    ///
+    /// A crest has to read up the finger — the flat top toward one edge of the
+    /// band and the point toward the other — because that is the way it is
+    /// looked at. Turned the other way a shield lies on its side. It only
+    /// matters for shapes that are not symmetric end to end; an oval reads the
+    /// same whichever way it is turned.
+    pub fn upright(self) -> bool {
+        matches!(self, SignetOutline::Heart | SignetOutline::Shield)
+    }
+
+    /// Normalized outline distance at a point already scaled to the extents: 0
+    /// at the centre, 1 on the outline. `x` runs around the ring, `y` across
+    /// the band.
+    pub fn distance_norm(self, x: f64, y: f64) -> f64 {
+        if let Some(table) = self.polar() {
+            return if self.upright() {
+                // A quarter turn, so the shape's own +y runs across the band
+                // and toward the low edge: a crest stands with its top up the
+                // finger and its point down it, and a heart with its lobes up.
+                table.distance(x, -y)
+            } else {
+                table.distance(y, x)
+            };
+        }
+        match self {
+            // Three slabs 60 degrees apart, scaled to the extents: flat sides,
+            // points at the length ends.
+            SignetOutline::Hexagon => y.abs().max(x.abs() + 0.5 * y.abs()),
+            // A pointed ellipse: two arcs meeting at the length ends.
+            SignetOutline::Marquise => {
+                let n = 1.4f64;
+                (x.abs().powf(n) + y.abs().powf(n)).powf(1.0 / n)
+            }
+            _ => {
+                let n = self.exponent().max(1e-3);
+                (x.abs().powf(n) + y.abs().powf(n)).powf(1.0 / n)
+            }
+        }
+    }
+
+    /// The outline's reach across the band at a station around the ring, as
+    /// `(low, high)` — both normalized to the outline's own extents.
+    ///
+    /// An interval, not a half-width, because an upright shape does not reach
+    /// the same distance both ways: a shield stands its flat top against one
+    /// band edge and its point against the other. That is also why a signet
+    /// head needs [`crate::profile::ShankMod::z_center_frac`] — a swept band is
+    /// centred on its own mid-plane unless something moves it.
+    ///
+    /// This is the silhouette a swept band can carry. A band has one section
+    /// per angle, so what it can follow is the outline's furthest reach either
+    /// way, not where the shape happens to be hollow at that station.
+    pub fn extent(self, x: f64) -> (f64, f64) {
+        silhouette(self).at(x)
+    }
+
+    /// Width the outline leaves across the band, as a fraction of the head's
+    /// half-width.
+    pub fn half_extent(self, x: f64) -> f64 {
+        let (lo, hi) = self.extent(x);
+        (hi - lo) * 0.5
+    }
 }
 
-/// A raised signet table to hand-engrave, faired into the shank.
+/// Steps across an extent table, over `x` in -1..=1. Read by interpolation, so
+/// this has to out-resolve the sweep: the table's own facets would otherwise
+/// show up as slope steps in the band's silhouette.
+const SILHOUETTE_STEPS: usize = 1025;
+
+/// The outline's reach across the band, per station around the ring.
+struct Silhouette {
+    lo: [f64; SILHOUETTE_STEPS],
+    hi: [f64; SILHOUETTE_STEPS],
+}
+
+impl Silhouette {
+    /// Scanned inward from each extent in turn, then bisected onto the
+    /// crossing. The boundary is not monotone in `y` for every outline — a
+    /// heart's two lobes leave a gap at their own height — so the outermost
+    /// reach has to be found from outside; bisecting only the bracket the scan
+    /// lands in keeps that while costing nothing in precision.
+    ///
+    /// Precision is not cosmetic here. A quantized extent puts a step in the
+    /// band's width, and a step in width is a step in slope, which is a facet
+    /// you can see running round the head.
+    fn build(o: SignetOutline) -> Self {
+        const SCAN: usize = 256;
+        const BISECT: usize = 40;
+        let mut lo = [0.0f64; SILHOUETTE_STEPS];
+        let mut hi = [0.0f64; SILHOUETTE_STEPS];
+        for i in 0..SILHOUETTE_STEPS {
+            let x = -1.0 + 2.0 * i as f64 / (SILHOUETTE_STEPS - 1) as f64;
+            // `side` is which end we walk in from, so one pass does both.
+            for (side, slot) in [(1.0f64, &mut hi[i]), (-1.0, &mut lo[i])] {
+                for j in 0..=SCAN {
+                    let y = side * (1.0 - j as f64 / SCAN as f64);
+                    if o.distance_norm(x, y) > 1.0 {
+                        continue;
+                    }
+                    let (mut inside, mut outside) = (y, y + side / SCAN as f64);
+                    for _ in 0..BISECT {
+                        let mid = 0.5 * (inside + outside);
+                        if o.distance_norm(x, mid) <= 1.0 {
+                            inside = mid;
+                        } else {
+                            outside = mid;
+                        }
+                    }
+                    *slot = inside;
+                    break;
+                }
+            }
+        }
+        Self { lo, hi }
+    }
+
+    /// Read with a Catmull-Rom spline rather than a chord.
+    ///
+    /// Linear interpolation reconstructs a table as facets, and a facet in the
+    /// extent is a step in the band's slope that no amount of sweep resolution
+    /// smooths out — it is in the function, not the sampling. A cubic
+    /// reconstruction is C¹, so the silhouette the sweep follows is as smooth
+    /// as the outline it came from.
+    fn at(&self, x: f64) -> (f64, f64) {
+        let last = SILHOUETTE_STEPS - 1;
+        let t = (x.clamp(-1.0, 1.0) + 1.0) * 0.5 * last as f64;
+        let i = (t.floor() as usize).min(last - 1);
+        let f = t - i as f64;
+        let read = |table: &[f64; SILHOUETTE_STEPS]| {
+            let p = |k: isize| table[(i as isize + k).clamp(0, last as isize) as usize];
+            let (p0, p1, p2, p3) = (p(-1), p(0), p(1), p(2));
+            p1 + 0.5
+                * f
+                * ((p2 - p0)
+                    + f * ((2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3)
+                        + f * (3.0 * (p1 - p2) + p3 - p0)))
+        };
+        (read(&self.lo).clamp(-1.0, 0.0), read(&self.hi).clamp(0.0, 1.0))
+    }
+}
+
+/// One table per outline, built on first use. Per variant rather than all at
+/// once: a design uses one outline and building the other eight would be work
+/// nothing asked for.
+fn silhouette(o: SignetOutline) -> &'static Silhouette {
+    static T: [std::sync::OnceLock<Silhouette>; 9] =
+        [const { std::sync::OnceLock::new() }; 9];
+    T[o.index()].get_or_init(|| Silhouette::build(o))
+}
+
+/// A raised flat table pad standing on the band, faired into it.
 ///
-/// Displacement is constant across the flat, so the table is a uniform offset of
-/// the band and keeps the band's own curvature rather than becoming a plane: on a
-/// size 7 half-round, a 12 x 9 mm table stands 2.15 mm out of flat. The shoulder
+/// **This is not how to make a signet.** A signet's head is the band's own swell
+/// — [`crate::profile::SignetHead`] on the shank — and its outline is the band's
+/// plan silhouette. This pad sits *on top of* whatever is under it, which is the
+/// right thing for a flat facet on an otherwise ordinary band and the wrong
+/// thing for a signet, where it leaves a disc glued to a ring.
+///
+/// Displacement is solved per point rather than held constant, so the face is a
+/// true plane: a uniform offset of a curved band stays curved, and on a size 7
+/// half-round a 12 x 9 mm table would stand 2.15 mm out of flat. The shoulder
 /// takes the sides back down to the band instead of leaving a wall.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct SignetLayer {
@@ -935,28 +1177,7 @@ impl SignetLayer {
             }
             _ => ((self.length_mm * 0.5).max(1e-6), (self.width_mm * 0.5).max(1e-6)),
         };
-        let x = x_mm / half_u;
-        let y = y_mm / half_v;
-
-        if let Some(table) = self.outline.polar() {
-            // The table runs with the outline's own +y, which is across the
-            // band, so a heart points down the finger rather than round it.
-            return table.distance(y, x);
-        }
-        match self.outline {
-            // Three slabs 60 degrees apart, scaled to the extents: flat sides,
-            // points at the length ends.
-            SignetOutline::Hexagon => y.abs().max(x.abs() + 0.5 * y.abs()),
-            // A pointed ellipse: two arcs meeting at the length ends.
-            SignetOutline::Marquise => {
-                let n = 1.4f64;
-                (x.abs().powf(n) + y.abs().powf(n)).powf(1.0 / n)
-            }
-            _ => {
-                let n = self.outline.exponent().max(1e-3);
-                (x.abs().powf(n) + y.abs().powf(n)).powf(1.0 / n)
-            }
-        }
+        self.outline.distance_norm(x_mm / half_u, y_mm / half_v)
     }
 
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
@@ -1376,5 +1597,102 @@ mod tests {
             "table is {:.4} mm out of flat; a graver needs a true surface",
             hi - lo
         );
+    }
+}
+
+#[cfg(test)]
+mod silhouette_tests {
+    use super::*;
+
+    /// The extent tables, which are what a signet head's plan silhouette
+    /// follows. Printed because reading them is how four separate bugs were
+    /// found: a heart squashed to a lens, a shield that was a square, an
+    /// outline folded about its own centre, and a crest lying on its side.
+    #[test]
+    fn every_outline_gives_a_silhouette_of_its_own_shape() {
+        let sample = |o: SignetOutline| -> Vec<(f64, f64)> {
+            (0..=16).map(|i| o.extent(i as f64 / 8.0 - 1.0)).collect()
+        };
+        for &o in SignetOutline::ALL {
+            let row = sample(o);
+            let width: Vec<f64> = row.iter().map(|&(lo, hi)| (hi - lo) * 0.5).collect();
+            let text: Vec<String> = width.iter().map(|v| format!("{v:.2}")).collect();
+            println!("{:<10} {}", o.label(), text.join(" "));
+
+            // Fills the extents it was given. Not "some station is full
+            // width": a heart's widest column runs from its point up to the
+            // notch between its lobes, and never spans the whole box at once.
+            let top = row.iter().map(|&(_, hi)| hi).fold(0.0f64, f64::max);
+            let bottom = row.iter().map(|&(lo, _)| lo).fold(0.0f64, f64::min);
+            assert!(
+                (top - 1.0).abs() < 0.02 && (bottom + 1.0).abs() < 0.02,
+                "{o:?} spans {bottom:.3}..{top:.3} across the band, not -1..1"
+            );
+            // Wide enough over the middle to be a face rather than a spine.
+            assert!(width[8] > 0.55, "{o:?} is pinched at its centre: {:.2}", width[8]);
+
+            if o.upright() {
+                // An upright face leaves through its own sides, so it need not
+                // close — but it does stand off the band's mid-plane, and that
+                // offset is the whole reason its ends carry any width at all.
+                let centre: Vec<f64> = row.iter().map(|&(lo, hi)| (hi + lo) * 0.5).collect();
+                let worst = centre.iter().cloned().fold(0.0f64, |a, c| a.max(c.abs()));
+                assert!(worst > 0.15, "{o:?} is upright but sits centred: {centre:?}");
+            } else {
+                assert!(
+                    width[0] < 0.15 && width[16] < 0.15,
+                    "{o:?} does not close at its ends: {text:?}"
+                );
+            }
+        }
+
+        // A crest tapers to its point, so what is left of it out at the sides —
+        // where the shank leaves — is its top half, not a centred strip. Get
+        // the quarter turn wrong and this comes out symmetric.
+        for o in [SignetOutline::Shield, SignetOutline::Heart] {
+            let row = sample(o);
+            println!(
+                "  {o:?} spans {:?} at its sides, {:?} down the middle",
+                row[2].0.max(-9.0), row[8]
+            );
+            for (name, (lo, hi)) in [("-0.75", row[2]), ("+0.75", row[14])] {
+                // The wide end sits against the low band edge and the point
+                // against the high one, so out at the sides — where the shank
+                // leaves — what is left is the top half, not a centred strip.
+                let centre = (hi + lo) * 0.5;
+                assert!(
+                    centre < -0.15 && lo < -0.7,
+                    "{o:?} at x {name} spans {lo:.2}..{hi:.2}: it is not standing up"
+                );
+            }
+            // ...and it does reach its point somewhere down the middle.
+            assert!(row[8].1 > 0.85, "{o:?} has no point: {:?}", row[8]);
+        }
+    }
+
+    /// Rescaling an outline to fill its extents moves every boundary point, so
+    /// the table has to be read off the moved boundary. A heart is the case
+    /// that catches it: its point reaches four times as far as its lobes.
+    #[test]
+    fn a_polar_outline_fills_its_own_extents() {
+        for (name, table) in [("heart", heart_table()), ("shield", shield_table())] {
+            let mut lo = [f64::MAX; 2];
+            let mut hi = [f64::MIN; 2];
+            for (i, &r) in table.r.iter().enumerate() {
+                let a = std::f64::consts::TAU * i as f64 / OUTLINE_STEPS as f64;
+                for (k, v) in [r * a.cos(), r * a.sin()].into_iter().enumerate() {
+                    lo[k] = lo[k].min(v);
+                    hi[k] = hi[k].max(v);
+                }
+            }
+            for k in 0..2 {
+                assert!(
+                    (lo[k] + 1.0).abs() < 0.02 && (hi[k] - 1.0).abs() < 0.02,
+                    "{name} spans {:.3}..{:.3} on axis {k}, not -1..1",
+                    lo[k],
+                    hi[k]
+                );
+            }
+        }
     }
 }

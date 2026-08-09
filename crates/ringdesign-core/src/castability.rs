@@ -558,7 +558,7 @@ pub fn section_at_spaced(
     let inner_r = design.inner_radius_mm();
     let reference = design.reference_loop();
     let ctx = design.field_context();
-    let m = design.shank.modulation(theta_deg, reference.crest_radius_mm);
+    let m = design.shank.modulation(theta_deg, inner_r, reference.crest_radius_mm);
     let loop_i = design.profile.sample_spaced(inner_r, n, &m, spacing.map(|s| &s.v));
     if loop_i.len() < 3 {
         return Section { theta_deg, ..Default::default() };

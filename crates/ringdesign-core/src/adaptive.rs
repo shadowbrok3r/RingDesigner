@@ -294,20 +294,24 @@ fn shank_density(design: &RingDesign, ctx: &FieldContext) -> Density {
     let w = design.profile.width_mm;
     let t = design.profile.thickness_mm;
     let c = design.profile.effective_crown_mm();
-    let at = |i: usize| design.shank.modulation(i as f64 / BINS as f64 * 360.0, ctx.crest_radius_mm);
+    let inner_r = design.inner_radius_mm();
+    let at =
+        |i: usize| design.shank.modulation(i as f64 / BINS as f64 * 360.0, inner_r, ctx.crest_radius_mm);
+    // A cap or an outright radius appearing or vanishing between two angles is
+    // a full-thickness step, which is the sharpest thing the modulation can do.
+    let step = |a: Option<f64>, b: Option<f64>| match (a, b) {
+        (Some(x), Some(y)) => (x - y).abs(),
+        (Some(_), None) | (None, Some(_)) => t,
+        (None, None) => 0.0,
+    };
     for i in 0..BINS {
         let (a, b) = (at(i), at((i + 1) % BINS));
-        // A cap appearing or vanishing between two angles is a full-thickness
-        // step, which is the sharpest thing the modulation can do.
-        let cap = match (a.outer_max_r, b.outer_max_r) {
-            (Some(x), Some(y)) => (x - y).abs(),
-            (Some(_), None) | (None, Some(_)) => t,
-            (None, None) => 0.0,
-        };
         let g = (a.width_scale - b.width_scale).abs() * w
             + (a.thickness_scale - b.thickness_scale).abs() * t
             + (a.crown_scale - b.crown_scale).abs() * c
-            + cap;
+            + (a.z_center_frac - b.z_center_frac).abs() * w * 0.5
+            + step(a.outer_max_r, b.outer_max_r)
+            + step(a.outer_r, b.outer_r);
         d.raise(i as f64 / BINS as f64, g);
     }
     d

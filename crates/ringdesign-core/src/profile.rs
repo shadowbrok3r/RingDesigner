@@ -12,6 +12,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::adaptive::{self, Density};
+use crate::field::SignetOutline;
 
 /// Thinnest castable outer edge; feather edges will not fill in sand.
 pub const MIN_EDGE_MM: f64 = 0.2;
@@ -297,9 +298,26 @@ impl BandProfile {
     ) -> ProfileLoop {
         let n = n.clamp(MIN_PROFILE_STEPS, MAX_PROFILE_STEPS);
         let width = (self.width_mm * m.width_scale).max(0.4);
-        let thickness = (self.thickness_mm * m.thickness_scale).max(0.3);
+        let thickness = match m.outer_r {
+            Some(r) => (r - inner_r).max(0.3),
+            None => (self.thickness_mm * m.thickness_scale).max(0.3),
+        };
 
         let hw = width * 0.5;
+        // The section spans two intervals, not one symmetric half-width: the
+        // **bore** carries the band's body and the **crest** carries whatever is
+        // faceted onto it. On a signet those are different shapes — the face is
+        // a flat facet cut across the crown of a wider swell — and the draft
+        // between them is what makes a head read as a head. Both are absolute in
+        // the section's own frame, which is what lets a face that stands upright
+        // sit off-centre by a different amount at its crest than at its bore.
+        let half_w = self.width_mm * 0.5;
+        // Sanitised: both spans feed every corner of the section now, so a
+        // non-finite one would put NaN into the loop rather than a bad shape.
+        let ok = |v: f64| if v.is_finite() { v } else { 0.0 };
+        let b_c = ok(m.z_center_frac * half_w);
+        let (b_lo, b_hi) = (b_c - hw, b_c + hw);
+
         let comfort = self.comfort_fit_mm.clamp(0.0, hw * 0.8);
         // The comfort dome eats into the band from the inside, so the crown may
         // only take what it leaves. Without this the bore reaches past the outer
@@ -311,9 +329,28 @@ impl BandProfile {
         let draft = self.side_draft_deg.clamp(-20.0, 30.0).to_radians();
         // Side faces slope inward over the edge thickness, narrowing the band.
         let side_inset = (edge_t * draft.tan()).clamp(-hw * 0.4, hw * 0.4);
-        let hwo = (hw - side_inset).max(hw * 0.15);
 
-        let base_crest_t = (0.5 + 0.5 * self.crest_bias.clamp(-1.0, 1.0)).clamp(0.06, 0.94);
+        // The crest is drafted in from whatever span it was handed, so a mod
+        // that hands it the bore's own span behaves exactly as it always did.
+        let (t_lo, t_hi) = match m.crest_span {
+            Some((lo, hi)) => (ok(lo * half_w), ok(hi * half_w)),
+            None => (b_lo, b_hi),
+        };
+        let (t_lo, t_hi) = if t_lo < t_hi { (t_lo, t_hi) } else { (b_lo, b_hi) };
+        let keep = (hw * 0.075).max(0.05);
+        let t_mid = 0.5 * (t_lo + t_hi);
+        let c_lo = (t_lo + side_inset).min(t_mid - keep);
+        let c_hi = (t_hi - side_inset).max(t_mid + keep);
+        let c_span = (c_hi - c_lo).max(1e-9);
+
+        // The crest sits where the mould parts, plus whatever bias was asked
+        // for. A section pushed along the finger has to keep it there: let the
+        // crest ride down with the section and the flank between the two leans
+        // back over the mould half it sits in — measured at -19 degrees over
+        // 0.67% of the surface on a shield head, a real undercut and not facet
+        // noise.
+        let base_crest_t = ((0.5 * self.crest_bias.clamp(-1.0, 1.0) * c_span - c_lo) / c_span)
+            .clamp(0.06, 0.94);
         let flange_v = self.flange.v_pos.clamp(0.0, 1.0);
         // A castable flange position takes the crest with it.
         let crest_t = match self.flange.enabled {
@@ -322,29 +359,29 @@ impl BandProfile {
             true if (flange_v - base_crest_t).abs() <= CREST_FLANGE_T => flange_v,
             _ => base_crest_t,
         };
-        let crest_z = -hwo + 2.0 * hwo * crest_t;
+        let crest_z = c_lo + c_span * crest_t;
 
         let cap_r = |r: f64| match m.outer_max_r {
             Some(cap) => r.min(cap.max(inner_r + MIN_EDGE_MM)),
             None => r,
         };
         let r_at = |z: f64| -> f64 {
-            let z = z.clamp(-hwo, hwo);
+            let z = z.clamp(c_lo, c_hi);
             let x = if z <= crest_z {
-                (crest_z - z) / (crest_z + hwo).max(1e-9)
+                (crest_z - z) / (crest_z - c_lo).max(1e-9)
             } else {
-                (z - crest_z) / (hwo - crest_z).max(1e-9)
+                (z - crest_z) / (c_hi - crest_z).max(1e-9)
             };
             cap_r(inner_r + thickness - crown * self.drop(x))
         };
-        let bore_r = |z: f64| -> f64 { inner_r + comfort * (z / hw.max(1e-9)).powi(2) };
+        let bore_r = |z: f64| -> f64 { inner_r + comfort * ((z - b_c) / hw.max(1e-9)).powi(2) };
 
         // --- Flange band, clamped to sit inside the outer profile. ---
         let flange = self.flange.enabled.then(|| {
-            let max_t = 2.0 * hwo * 0.8;
+            let max_t = c_span * 0.8;
             let t = self.flange.thickness_mm.clamp(MIN_EDGE_MM.min(max_t), max_t);
-            let z_c = -hwo + 2.0 * hwo * flange_v;
-            let z_lo = (z_c - 0.5 * t).clamp(-hwo, hwo - t);
+            let z_c = c_lo + c_span * flange_v;
+            let z_lo = (z_c - 0.5 * t).clamp(c_lo, c_hi - t);
             let extent = self.flange.extent_mm.clamp(0.0, width.max(thickness));
             FlangeBand {
                 z_lo,
@@ -360,16 +397,16 @@ impl BandProfile {
         let nb = n * DENSE / 3;
         let bore: Vec<[f64; 2]> = (0..=nb)
             .map(|i| {
-                let z = hw - 2.0 * hw * (i as f64 / nb as f64);
+                let z = b_hi - (b_hi - b_lo) * (i as f64 / nb as f64);
                 [bore_r(z), z]
             })
             .collect();
 
         // --- Surface span: bottom side face, over the crown, top side face. ---
-        let corner_b = [inner_r + edge_t, -hwo];
-        let corner_t = [inner_r + edge_t, hwo];
-        let side_b_start = [bore_r(-hw), -hw];
-        let side_t_end = [bore_r(hw), hw];
+        let corner_b = [inner_r + edge_t, c_lo];
+        let corner_t = [inner_r + edge_t, c_hi];
+        let side_b_start = [bore_r(b_lo), b_lo];
+        let side_t_end = [bore_r(b_hi), b_hi];
 
         let ns = n * DENSE * 2 / 3;
         let dome = |z0: f64, z1: f64, steps: usize| -> Vec<[f64; 2]> {
@@ -383,10 +420,10 @@ impl BandProfile {
         };
 
         let outer: Vec<[f64; 2]> = match &flange {
-            None => dome(-hwo, hwo, ns),
+            None => dome(c_lo, c_hi, ns),
             Some(f) => {
-                let lo_span = f.z_lo + hwo;
-                let hi_span = hwo - f.z_hi;
+                let lo_span = f.z_lo - c_lo;
+                let hi_span = c_hi - f.z_hi;
                 let span = (lo_span + hi_span).max(1e-9);
                 let steps = |s: f64| ((ns as f64 * s / span) as usize).max(2);
                 let fillet = |dome_span: f64, flat: f64| {
@@ -395,7 +432,7 @@ impl BandProfile {
                 let mut o: Vec<[f64; 2]> = Vec::with_capacity(ns + 4 * ARC_STEPS);
                 if lo_span > 1e-9 {
                     let fr = fillet(lo_span, f.rim_r - r_at(f.z_lo));
-                    let d = dome(-hwo, f.z_lo - fr, steps(lo_span));
+                    let d = dome(c_lo, f.z_lo - fr, steps(lo_span));
                     let p0 = *d.last().unwrap_or(&corner_b);
                     o.extend(d);
                     push_arc(&mut o, p0, [r_at(f.z_lo), f.z_lo], [r_at(f.z_lo) + fr, f.z_lo]);
@@ -406,7 +443,7 @@ impl BandProfile {
                 o.push([f.rim_r, f.z_hi]);
                 if hi_span > 1e-9 {
                     let fr = fillet(hi_span, f.rim_r - r_at(f.z_hi));
-                    let d = dome(f.z_hi + fr, hwo, steps(hi_span));
+                    let d = dome(f.z_hi + fr, c_hi, steps(hi_span));
                     let p0 = [r_at(f.z_hi) + fr, f.z_hi];
                     o.push(p0);
                     push_arc(&mut o, p0, [r_at(f.z_hi), f.z_hi], d[0]);
@@ -418,10 +455,10 @@ impl BandProfile {
             }
         };
 
-        let er = self.edge_round_mm.clamp(0.0, thickness.min(hwo) * 0.45);
+        let er = self.edge_round_mm.clamp(0.0, thickness.min(c_span * 0.5) * 0.45);
         // Each end fillet is capped by the dome the flange leaves at that edge.
         let (er_b, er_t) = match &flange {
-            Some(f) => (er.min((f.z_lo + hwo) * 0.4), er.min((hwo - f.z_hi) * 0.4)),
+            Some(f) => (er.min((f.z_lo - c_lo) * 0.4), er.min((c_hi - f.z_hi) * 0.4)),
             None => (er, er),
         };
         let mut surface: Vec<[f64; 2]> = Vec::with_capacity(outer.len() + 4 * DENSE + 4);
@@ -576,82 +613,327 @@ impl ShankKind {
             ShankKind::Cathedral => "Shoulders swell toward the top of the ring.",
             ShankKind::EuroFlat => "Flat chord across the bottom so the ring will not spin.",
             ShankKind::Signet => {
-                "Narrow shank swelling into a broad head at the top. The band width is the \
-                 head outline, so set Width to the head and let this taper the rest."
+                "Narrow shank swelling into a broad, flat-topped head. The head is the band \
+                 itself — the face outline is the band's own silhouette and the table is its \
+                 crest — so set Width to the head and let the taper make the rest."
             }
         }
     }
 }
 
+/// A signet head: the band's own swell into a broad, flat-topped face.
+///
+/// Not a pad standing on the band — the head *is* the band over its arc. The
+/// outline is its plan silhouette, so the width the sweep carries at each angle
+/// is the outline's own reach; the table is the band's crest, solved onto a
+/// plane; and the shoulder is the arc over which that crest falls back to the
+/// shank. Everything is one continuous sweep, which is why there is no seam
+/// where a head meets a shoulder.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct ShankStyle {
-    pub kind: ShankKind,
-    /// Strength of the modulation, 0..1.
-    pub amount: f64,
-    /// Arc the head spans before it has fallen to shank width, degrees.
-    /// Signet only.
-    #[serde(default = "default_head_span")]
-    pub head_span_deg: f64,
-    /// Fullness of the head outline, as the superellipse exponent of its plan
-    /// view: 2 is an oval, 4 a cushion, 8 a rectangle. Signet only.
-    #[serde(default = "default_head_shape")]
-    pub head_shape_a: f64,
+pub struct SignetHead {
+    /// Plan silhouette of the face. The band's width follows it.
+    pub outline: SignetOutline,
+    /// Where the head sits round the ring, degrees. 90 is the top.
+    pub theta_deg: f64,
+    /// Extent of the face around the ring, mm, measured on the table plane.
+    /// The extent *across* the band is the profile's own width.
+    pub length_mm: f64,
+    /// How far the centre of the table stands above the band's crest, mm. The
+    /// ends of a flat table stand higher still — that is what a plane does over
+    /// a curve, and it is the chunk a signet head reads as.
+    pub rise_mm: f64,
+    /// Arc over which the crest falls from the head back to the shank, degrees.
+    pub shoulder_deg: f64,
+    /// How flat the table is: 1 is a true plane, 0 keeps the profile's own
+    /// crown so the head stays domed.
+    pub table_flat: f64,
 }
 
-fn default_head_span() -> f64 {
-    HEAD_SPAN_DEG
-}
-
-fn default_head_shape() -> f64 {
-    HEAD_SHAPE_A
-}
-
-/// Arc a signet head spans before it reaches shank width, degrees.
-pub const HEAD_SPAN_DEG: f64 = 104.0;
-/// Default head outline fullness: an oval.
-pub const HEAD_SHAPE_A: f64 = 2.0;
+/// Extent of a signet face around the ring, mm.
+pub const HEAD_LENGTH_MM: f64 = 12.0;
+/// How far the centre of a signet table stands above the band's crest, mm.
+pub const HEAD_RISE_MM: f64 = 0.8;
+/// Arc a signet shoulder takes to fall from the head to the shank, degrees.
+pub const HEAD_SHOULDER_DEG: f64 = 34.0;
+/// Half-angle a head may reach before a table plane runs away from the band:
+/// the plane's radius goes as `1/cos`, so this is what bounds the length.
+pub const HEAD_MAX_HALF_DEG: f64 = 70.0;
 /// Shank width as a fraction of the head at full strength.
 pub const SIGNET_MIN_SHANK_FRAC: f64 = 0.16;
 /// How much a signet shank rounds off as it narrows. The crown clamp caps it.
 pub const SIGNET_SHANK_ROUNDING: f64 = 9.0;
+/// How much of its thickness a signet shank gives up behind the head. It keeps
+/// most of it, which is what leaves a round wire at the back rather than a
+/// ribbon.
+pub const SIGNET_SHANK_THIN: f64 = 0.10;
+/// How much narrower the face is at the table than where it meets the band, as
+/// a share of the head's width.
+///
+/// A signet's head is not a straight-sided slab: its flanks are drafted, so the
+/// table is a slightly smaller copy of the outline that carries it. Measured on
+/// `BlankSignet.obj`, the body is 16.0 mm across where its table is 14.7 — and
+/// those flanks are the surface a two-part mould has to slide off, so drafting
+/// them is worth more than the look.
+pub const HEAD_FACE_DRAFT: f64 = 0.09;
+/// Taper strength a fresh signet head starts at.
+pub const SIGNET_TAPER: f64 = 0.85;
+/// Fillet where the outline crosses the shank width, as a share of the width
+/// the taper takes away. A bare crossing is a corner in the silhouette.
+pub const HEAD_SHANK_FILLET: f64 = 0.12;
+/// How far inside its end the shoulder takes over from the face, as a share of
+/// the half-length.
+///
+/// Read at the end itself the outline is a *point*, so a shoulder starting
+/// there starts from nothing and the band goes thin the instant the face stops
+/// — a plate stuck on a wire. Taking over a little inside gives the shoulder a
+/// real width and a real slope to carry out, and costs the table the last 5% of
+/// its length, which it spends on an edge break it wanted anyway.
+pub const HEAD_TAKEOFF: f64 = 0.05;
 
-impl Default for ShankStyle {
+/// Maximum of two values with the corner between them rounded off over `r`.
+///
+/// Outside the band the result is exactly `a.max(b)`, so whichever shape is
+/// clearly in front is followed as drawn.
+fn smax(a: f64, b: f64, r: f64) -> f64 {
+    if r <= 1e-9 {
+        return a.max(b);
+    }
+    let h = ((r - (a - b).abs()) / r).max(0.0);
+    a.max(b) + 0.25 * r * h * h
+}
+
+/// Minimum with the same rounded corner.
+fn smin(a: f64, b: f64, r: f64) -> f64 {
+    -smax(-a, -b, r)
+}
+
+impl Default for SignetHead {
     fn default() -> Self {
         Self {
-            kind: ShankKind::Uniform,
-            amount: 0.5,
-            head_span_deg: HEAD_SPAN_DEG,
-            head_shape_a: HEAD_SHAPE_A,
+            outline: SignetOutline::Oval,
+            theta_deg: TOP_DEG,
+            length_mm: HEAD_LENGTH_MM,
+            rise_mm: HEAD_RISE_MM,
+            shoulder_deg: HEAD_SHOULDER_DEG,
+            table_flat: 1.0,
         }
     }
 }
 
-impl ShankStyle {
-    /// Fraction of the band width left at a ring angle by a signet taper.
-    ///
-    /// Seen from outside, the band's own silhouette *is* the head outline, so
-    /// the width follows a superellipse in plan: `1 - x^a` over the head arc,
-    /// full width at the top falling to shank width at its edge. `a` is the
-    /// same fullness exponent the table outlines use — 2 oval, 4 cushion, 8
-    /// rectangle.
-    pub fn signet_width_frac(&self, theta_deg: f64) -> f64 {
-        let k = self.amount.clamp(0.0, 1.0);
-        let shank = 1.0 - (1.0 - SIGNET_MIN_SHANK_FRAC) * k;
-        let d = crate::field::wrap_delta(theta_deg - TOP_DEG, 360.0).abs();
-        let half = (self.head_span_deg.max(1.0) * 0.5).min(180.0);
-        if d >= half {
-            return shank;
-        }
-        let x = (d / half).clamp(0.0, 1.0);
-        let a = self.head_shape_a.clamp(1.0, 12.0);
-        // Eased, not the bare superellipse: `1 - x^a` arrives at the shank with
-        // slope -a while the shank's own slope is 0, and that step in slope is a
-        // crease running right round the head. Smoothstep flattens both ends, so
-        // the head leaves the table and joins the shank tangentially and the
-        // shoulder reads as one continuous sweep.
-        let head = crate::field::smoothstep(0.0, 1.0, (1.0 - x.powf(a)).clamp(0.0, 1.0));
-        shank + (1.0 - shank) * head
+impl SignetHead {
+    /// Size the face to the shape, so picking an outline gives that shape
+    /// rather than the last one stretched to a new silhouette.
+    pub fn fit_length_to(&mut self, band_width_mm: f64) {
+        self.length_mm = (band_width_mm.max(1.0) * self.outline.head_aspect()).clamp(2.0, 40.0);
     }
+}
+
+/// Where one ring angle falls on a signet head.
+#[derive(Clone, Copy, Debug)]
+pub struct HeadAt {
+    /// Position along the table plane in half-lengths: 0 at the centre, ±1 at
+    /// the two ends, saturating there. Signed, because an outline need not be
+    /// symmetric — a shield's flat top and its point are opposite ends of the
+    /// head, and folding them together would leave two flat tops.
+    pub x: f64,
+    /// How far the **body** reaches across the band here, as `(low, high)`
+    /// fractions of the head's half-width. An interval rather than a width: an
+    /// upright outline reaches further one way than the other, and that is what
+    /// moves the band off its own mid-plane.
+    pub reach: (f64, f64),
+    /// How far it reaches at the **crest**, in the same units — the table, a
+    /// drafted copy of the same shape. `reach` is what the band spans at its
+    /// bore; the difference between the two is the draft on the head's flanks.
+    pub face: (f64, f64),
+    /// 1 anywhere on the table, falling to 0 where the shank is plain again.
+    pub on_head: f64,
+    /// Radius the crest reaches here, mm.
+    pub outer_r: f64,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct ShankStyle {
+    pub kind: ShankKind,
+    /// Strength of the modulation, 0..1. On a signet this is how far the shank
+    /// narrows behind the head.
+    pub amount: f64,
+    /// Signet only: the head the band swells into.
+    #[serde(default)]
+    pub head: SignetHead,
+}
+
+impl Default for ShankStyle {
+    fn default() -> Self {
+        Self { kind: ShankKind::Uniform, amount: 0.5, head: SignetHead::default() }
+    }
+}
+
+impl ShankStyle {
+    /// Switch to a signet and give the head proportions that read as one,
+    /// rather than leaving it on whatever the last style used.
+    pub fn apply_signet(&mut self, band_width_mm: f64) {
+        self.kind = ShankKind::Signet;
+        self.amount = SIGNET_TAPER;
+        self.head.fit_length_to(band_width_mm);
+    }
+
+    /// Share of the head width left at a ring angle, and where that width sits
+    /// across the band — the band is the **union** of two strips, the shank
+    /// running the whole way round and the face standing where it stands.
+    ///
+    /// A union, not a blend. The outline is followed as drawn wherever it
+    /// stands clear: easing it into the shank fattens the shape, and the whole
+    /// point of the head is that its silhouette *is* the face. What the two
+    /// need is a fillet where they cross, which is what [`smax`] and [`smin`]
+    /// give.
+    ///
+    /// Returns `(width_frac, centre_frac)`, both against the unmodulated width.
+    pub fn signet_band(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> (f64, f64) {
+        let (lo, hi) = self.signet_span(theta_deg, inner_r, base_outer_r);
+        ((hi - lo) * 0.5, (hi + lo) * 0.5)
+    }
+
+    /// The band's span at its bore, as `(low, high)` fractions of the head's
+    /// half-width.
+    pub fn signet_span(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> (f64, f64) {
+        let k = self.amount.clamp(0.0, 1.0);
+        let shank = self.signet_shank_frac(theta_deg);
+        let r = HEAD_SHANK_FILLET * (1.0 - (1.0 - (1.0 - SIGNET_MIN_SHANK_FRAC) * k));
+        let a = self.head_at(theta_deg, inner_r, base_outer_r);
+        (smin(a.reach.0, -shank, r), smax(a.reach.1, shank, r))
+    }
+
+    /// Fraction of the band width the head leaves at a ring angle.
+    pub fn signet_width_frac(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> f64 {
+        self.signet_band(theta_deg, inner_r, base_outer_r).0
+    }
+
+    /// Half-width of the shank strip, against the head's own.
+    ///
+    /// A constant. The reference signet's shank varies by 1% over the whole
+    /// 215 degrees behind its head — what makes it read as tapering is the
+    /// length of the swell in front, not any taper in the strip itself.
+    pub fn signet_shank_frac(&self, _theta_deg: f64) -> f64 {
+        let k = self.amount.clamp(0.0, 1.0);
+        1.0 - (1.0 - SIGNET_MIN_SHANK_FRAC) * k
+    }
+
+    /// 0 beneath the head, 1 opposite it.
+    fn away_from_head(&self, theta_deg: f64) -> f64 {
+        (1.0 - (theta_deg - self.head.theta_deg).to_radians().cos()) * 0.5
+    }
+
+    /// Where a ring angle falls on the signet head, and what the crest does
+    /// there.
+    ///
+    /// Two regions, meeting without a step. **On the face**, the crest lies on
+    /// the table plane, so its radius is `plane / cos` of the angle off centre
+    /// — the same solve the section view uses, done once for the whole band
+    /// instead of per point — and the outline is read at the position that
+    /// angle projects to *on the plane*, not at the angle itself. **Past it**,
+    /// the crest falls over the shoulder arc to the shank, which is where the
+    /// band comes back up to meet the underside of the head.
+    ///
+    /// The shoulder leaves the face **already falling**, and it leaves it at the
+    /// face's own rate.
+    ///
+    /// Anything that starts the shoulder flat leaves a shelf at exactly the
+    /// place the eye goes. Measured with a plain ramp off the end of the face,
+    /// the band's edge went from diving at 0.50 mm per degree to 0.003 in one
+    /// step and the crest from climbing at 0.14 to nothing: a lip standing 2.9
+    /// mm proud, which is the thing a real signet does not have.
+    ///
+    /// So the shoulder is a Hermite that takes over [`HEAD_TAKEOFF`] inside the
+    /// end of the face, picking up the outline's own value *and slope* there and
+    /// landing flat on the shank. It is C¹ at both ends by construction, and it
+    /// does the right thing at both extremes without being told which it is
+    /// looking at: a cushion is already diving, so it carries on diving and the
+    /// band is shank width almost at once; a shield's side is straight, so it
+    /// leaves at full height and rolls off over the whole shoulder.
+    ///
+    /// The crest rides the same curve. It has to: a face that has narrowed to a
+    /// shank while the crest is still out on the table plane is a finger of
+    /// metal standing off the ring, which is the same lip by another route.
+    ///
+    /// **Known limit.** On a real signet the face is a facet cut across the
+    /// crown of a *wider* body — measured on `BlankSignet.obj`, the body is 87%
+    /// of full width a quarter of the way out where the face is down to 65%,
+    /// and does not reach the shank until 75 degrees off the top. Here the two
+    /// are the same shape, so the swell is over sooner. Splitting them needs the
+    /// section to carry a crest span of its own, not just a width: an upright
+    /// face is off-centre at its crest by a different amount than at its bore,
+    /// and insetting symmetrically about the bore puts the shield's crest in the
+    /// wrong place — measured at 0.38% undercut against 0.01% for the rest.
+    pub fn head_at(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> HeadAt {
+        let k = self.amount.clamp(0.0, 1.0);
+        let t0 = (base_outer_r - inner_r).max(0.05);
+        let r_shank =
+            inner_r + t0 * (1.0 - SIGNET_SHANK_THIN * k * self.away_from_head(theta_deg));
+
+        let plane_r = base_outer_r + self.head.rise_mm.max(0.0);
+        let half_l = (self.head.length_mm.max(0.5) * 0.5)
+            .min(plane_r * HEAD_MAX_HALF_DEG.to_radians().tan());
+        let signed =
+            crate::field::wrap_delta(theta_deg - self.head.theta_deg, 360.0).to_radians();
+        let d = signed.abs();
+        let end = if signed < 0.0 { -1.0 } else { 1.0 };
+
+        let face_edge = (half_l / plane_r).atan();
+        let x_of = |dd: f64| plane_r * dd.tan() / half_l;
+
+        // --- Crest: on the plane over the face, falling over the shoulder. ---
+        let r_plane = plane_r / d.min(face_edge).cos().max(1e-6);
+
+        let take = (face_edge.tan() * (1.0 - HEAD_TAKEOFF)).atan();
+        if d <= take {
+            let x = x_of(signed).clamp(-1.0, 1.0);
+            let reach = self.head.outline.extent(x);
+            return HeadAt { x, reach, face: draft_span(reach), on_head: 1.0, outer_r: r_plane };
+        }
+
+        // --- Shoulder: Hermite from the face's own value and slope. ---
+        let span =
+            (face_edge + self.head.shoulder_deg.clamp(1.0, 150.0).to_radians() - take).max(1e-6);
+        let s = ((d - take) / span).clamp(0.0, 1.0);
+        // Basis: `h00` carries the value to nothing, `h10` the slope.
+        let (h00, h10) = (2.0 * s * s * s - 3.0 * s * s + 1.0, s * s * s - 2.0 * s * s + s);
+        let at = |dd: f64| {
+            let x = (x_of(take + dd)).clamp(0.0, 1.0);
+            self.head.outline.extent(end * x)
+        };
+        const H: f64 = 1e-3;
+        let (lo0, hi0) = at(0.0);
+        let (lo_b, hi_b) = at(-H);
+        let (lo_f, hi_f) = at(H);
+        let carry = |v0: f64, back: f64, fwd: f64| v0 * h00 + (fwd - back) / (2.0 * H) * span * h10;
+        let reach = (carry(lo0, lo_b, lo_f).min(0.0), carry(hi0, hi_b, hi_f).max(0.0));
+
+        HeadAt {
+            x: end,
+            reach,
+            face: draft_span(reach),
+            on_head: h00,
+            outer_r: r_shank + (r_plane - r_shank) * h00,
+        }
+    }
+}
+
+/// The span a head's table reaches, given what its body reaches at the bore:
+/// the same shape, drawn in by [`HEAD_FACE_DRAFT`] about its own centre.
+///
+/// Proportional, so it cannot wedge. Insetting by a distance rather than a
+/// share drafts a narrow station to nothing and leaves a fin standing off the
+/// end of the head, which is what a heart does first.
+fn draft_span(body: (f64, f64)) -> (f64, f64) {
+    let mid = 0.5 * (body.0 + body.1);
+    let k = 1.0 - HEAD_FACE_DRAFT;
+    (mid + (body.0 - mid) * k, mid + (body.1 - mid) * k)
+}
+
+/// Blend one span toward another. Spans, not widths: an upright face is
+/// off-centre, and averaging its width would put its crest in the wrong place.
+fn blend_span(from: (f64, f64), to: (f64, f64), t: f64) -> (f64, f64) {
+    (from.0 + (to.0 - from.0) * t, from.1 + (to.1 - from.1) * t)
 }
 
 /// Per-angle modulation of the cross-section.
@@ -663,20 +945,47 @@ pub struct ShankMod {
     /// style. The crown is clamped to the section, so a large value simply
     /// means "fully domed here".
     pub crown_scale: f64,
+    /// Crest radius for this section, mm, replacing `thickness_scale` outright.
+    /// The signet head needs it: its table is a plane, so the section's depth
+    /// is set by where that plane sits, not by a fraction of the band's own.
+    pub outer_r: Option<f64>,
+    /// Where this section sits along the finger axis, as a fraction of the
+    /// unmodulated half-width. A swept band is centred on its own mid-plane;
+    /// an upright signet face is not, because it reaches further to its flat
+    /// top than to its point.
+    pub z_center_frac: f64,
+    /// The span the section reaches at its **crest**, as `(low, high)`
+    /// fractions of the unmodulated half-width — before the profile's own side
+    /// draft, which is applied on top.
+    ///
+    /// `None` hands it the bore's span, which is the ordinary band: one shape,
+    /// drafted by one angle. A signet hands it the face, so the flat facet and
+    /// the body it is cut into can be different shapes, and the draft between
+    /// them varies per angle. It is a span and not a width because an upright
+    /// face is off-centre by a different amount at its crest than at its bore.
+    pub crest_span: Option<(f64, f64)>,
     /// Hard radial cap, used by the Euro flat chord.
     pub outer_max_r: Option<f64>,
 }
 
 impl ShankMod {
     pub fn identity() -> Self {
-        Self { width_scale: 1.0, thickness_scale: 1.0, crown_scale: 1.0, outer_max_r: None }
+        Self {
+            width_scale: 1.0,
+            thickness_scale: 1.0,
+            crown_scale: 1.0,
+            outer_r: None,
+            z_center_frac: 0.0,
+            crest_span: None,
+            outer_max_r: None,
+        }
     }
 }
 
 impl ShankStyle {
     /// Modulation at a ring angle. `base_outer_r` is the unmodulated crest
-    /// radius, used to position the Euro chord.
-    pub fn modulation(&self, theta_deg: f64, base_outer_r: f64) -> ShankMod {
+    /// radius, used to position the Euro chord and the signet's table plane.
+    pub fn modulation(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> ShankMod {
         let k = self.amount.clamp(0.0, 1.0);
         // 0 at the top of the ring, 1 at the bottom of the shank.
         let d = ((theta_deg - TOP_DEG).to_radians().cos() * -0.5 + 0.5).clamp(0.0, 1.0);
@@ -714,16 +1023,27 @@ impl ShankStyle {
                 ShankMod { outer_max_r: cap, ..ShankMod::identity() }
             }
             ShankKind::Signet => {
-                let w = self.signet_width_frac(theta_deg);
-                // The shank keeps most of its thickness as it narrows, which is
-                // what leaves a round wire at the back rather than a ribbon.
-                // The narrowing section rounds off toward a wire, so a flat
-                // head can sit on a round shank. The crown clamp caps it at a
-                // full dome, so this only ever means "more domed here".
+                let a = self.head_at(theta_deg, inner_r, base_outer_r);
+                let band = self.signet_span(theta_deg, inner_r, base_outer_r);
+                let (w, centre) = ((band.1 - band.0) * 0.5, (band.1 + band.0) * 0.5);
+                // From the band's own span, not the head's: away from the head
+                // there is no head, and blending from it would draft the whole
+                // shank away to a knife edge.
+                let crest = blend_span(band, draft_span(band), a.on_head);
+                // The shank rounds off toward a wire as it narrows, so a flat
+                // head sits on a round shank. The crown clamp caps it at a full
+                // dome, so a large value only ever means "more domed here".
+                let shank_crown = 1.0 + SIGNET_SHANK_ROUNDING * k * (1.0 - w);
+                let table_crown = 1.0 - self.head.table_flat.clamp(0.0, 1.0);
                 ShankMod {
                     width_scale: w,
-                    thickness_scale: 1.0 - 0.22 * k * (1.0 - w),
-                    crown_scale: 1.0 + SIGNET_SHANK_ROUNDING * k * (1.0 - w),
+                    crest_span: Some(crest),
+                    // Unused: `outer_r` sets the section's depth outright, so
+                    // the crown stays a fraction of the profile's own.
+                    thickness_scale: 1.0,
+                    crown_scale: shank_crown + (table_crown - shank_crown) * a.on_head,
+                    outer_r: Some(a.outer_r),
+                    z_center_frac: centre,
                     outer_max_r: None,
                 }
             }
@@ -1018,11 +1338,20 @@ mod tests {
         assert!(p.edge_thickness_mm() >= MIN_EDGE_MM - 1e-9);
     }
 
+    /// A size-7 band: bore radius and unmodulated crest radius.
+    const BORE_R: f64 = 8.65;
+    const CREST_R: f64 = 10.65;
+
+    fn signet_shank() -> ShankStyle {
+        ShankStyle { kind: ShankKind::Signet, amount: 0.85, ..Default::default() }
+    }
+
     #[test]
     fn a_signet_shank_is_widest_at_the_top_and_narrowest_at_the_bottom() {
-        let sh = ShankStyle { kind: ShankKind::Signet, amount: 0.85, ..Default::default() };
-        let top = sh.signet_width_frac(TOP_DEG);
-        let bottom = sh.signet_width_frac(TOP_DEG + 180.0);
+        let sh = signet_shank();
+        let w = |t: f64| sh.signet_width_frac(t, BORE_R, CREST_R);
+        let top = w(TOP_DEG);
+        let bottom = w(TOP_DEG + 180.0);
         assert!((top - 1.0).abs() < 1e-12, "the head is not full width: {top}");
         assert!(bottom < 0.30, "the shank is not narrow enough: {bottom}");
 
@@ -1030,81 +1359,365 @@ mod tests {
         let mut last = top;
         for step in 1..=36 {
             let d = step as f64 * 5.0;
-            let w = sh.signet_width_frac(TOP_DEG + d);
-            assert!(w <= last + 1e-12, "width grew again at {d} deg: {w} after {last}");
-            let mirror = sh.signet_width_frac(TOP_DEG - d);
-            assert!((w - mirror).abs() < 1e-12, "lopsided at {d} deg: {w} vs {mirror}");
+            let at = w(TOP_DEG + d);
+            assert!(at <= last + 1e-12, "width grew again at {d} deg: {at} after {last}");
+            let mirror = w(TOP_DEG - d);
+            assert!((at - mirror).abs() < 1e-12, "lopsided at {d} deg: {at} vs {mirror}");
+            last = at;
+        }
+    }
+
+    /// The head's plan silhouette is the face shape, so a fuller outline has to
+    /// hold the band wide further round than a pointed one.
+    #[test]
+    fn a_fuller_outline_holds_the_width_further_round() {
+        let head = |o: SignetOutline| ShankStyle {
+            head: SignetHead { outline: o, ..SignetHead::default() },
+            ..signet_shank()
+        };
+        let styles = [
+            SignetOutline::Marquise,
+            SignetOutline::Oval,
+            SignetOutline::Cushion,
+            SignetOutline::Rectangle,
+        ];
+        let at = TOP_DEG + 20.0;
+        let got: Vec<f64> =
+            styles.iter().map(|&o| head(o).signet_width_frac(at, BORE_R, CREST_R)).collect();
+        for pair in got.windows(2) {
+            assert!(pair[0] < pair[1], "fullness did not order at {at} deg: {got:?}");
+        }
+        // Every one still reaches full width at the top and shank width behind.
+        for &o in &styles {
+            let sh = head(o);
+            let top = sh.signet_width_frac(TOP_DEG, BORE_R, CREST_R);
+            assert!((top - 1.0).abs() < 1e-9, "{o:?} is not full width at the top: {top}");
+            assert!(sh.signet_width_frac(TOP_DEG + 180.0, BORE_R, CREST_R) < 0.30, "{o:?}");
+        }
+    }
+
+    /// A crease is a *step* in slope, not slope itself. The outline is followed
+    /// as drawn, so the width really does dive at the end of an oval — what
+    /// must not happen is a corner, and a corner is what refusing to shrink
+    /// with the step size looks like.
+    #[test]
+    fn the_head_taper_joins_the_shank_without_a_crease() {
+        let sh = signet_shank();
+        let w = |t: f64| sh.signet_width_frac(TOP_DEG + t, BORE_R, CREST_R);
+        let half = (sh.head.length_mm * 0.5 / (CREST_R + sh.head.rise_mm)).atan().to_degrees();
+
+        // Flat at the top of the head: the face does not come to a peak there.
+        let peak = (w(0.5) - w(0.0)) / 0.5;
+        assert!(peak.abs() < 1e-3, "the head is peaked, not flat: {peak}");
+
+        // Worst change in slope per sample, over the head, the shoulder and a
+        // little of the plain shank beyond it.
+        let jump = |step: f64| {
+            let slope = |t: f64| (w(t + step) - w(t)) / step;
+            let mut worst: f64 = 0.0;
+            let mut prev = slope(0.0);
+            let mut t = step;
+            while t < half + sh.head.shoulder_deg + 8.0 {
+                let s = slope(t);
+                worst = worst.max((s - prev).abs());
+                prev = s;
+                t += step;
+            }
+            worst
+        };
+        // The worst of it sits just inside the head's tip, where the outline's
+        // own curvature is running away — an oval really does turn hard there.
+        // A corner would hold its jump as the sample shrinks; a curve, however
+        // tight, gives it up.
+        let (coarse, fine) = (jump(0.25), jump(0.0625));
+        println!("worst slope step: {coarse:.5} per degree at 0.25 deg, {fine:.5} at 0.0625 deg");
+        assert!(
+            fine < coarse * 0.6,
+            "slope steps by {fine:.5} at a quarter of the sample, against {coarse:.5} — it is \
+             not shrinking with the step, which is a corner"
+        );
+    }
+
+    #[test]
+    fn a_signet_head_is_flat_topped_and_its_shank_rounds_off() {
+        let mut p = BandProfile::default();
+        p.apply_style(ProfileStyle::HalfRound);
+        p.width_mm = 12.0;
+        p.thickness_mm = 2.0;
+        let sh = signet_shank();
+        let head = sh.modulation(TOP_DEG, BORE_R, CREST_R);
+        let back = sh.modulation(TOP_DEG + 180.0, BORE_R, CREST_R);
+        // The head flattens whatever the profile is: a signet's table does not
+        // inherit the shank's dome.
+        assert!(head.crown_scale.abs() < 1e-12, "the head kept a crown: {}", head.crown_scale);
+        assert!(back.crown_scale > 3.0, "the shank did not round off: {}", back.crown_scale);
+
+        // The crown clamp keeps the rounding from eating the section.
+        let loop_ = p.sample_mod(BORE_R, 128, &back);
+        let depth = loop_.crest_radius_mm - BORE_R;
+        assert!(depth <= p.thickness_mm + 1e-6, "section grew: {depth} vs {}", p.thickness_mm);
+    }
+
+    /// The head is the band, not a pad on it: the section at the top of the
+    /// ring has to be deeper than the shank's by the rise, and wider by the
+    /// taper.
+    #[test]
+    fn the_head_is_the_band_swelling_not_a_pad() {
+        let mut p = BandProfile::default();
+        p.apply_style(ProfileStyle::HalfRound);
+        p.width_mm = 12.0;
+        p.thickness_mm = 2.0;
+        let sh = signet_shank();
+        let at = |t: f64| {
+            let m = sh.modulation(t, BORE_R, CREST_R);
+            let l = p.sample_mod(BORE_R, 256, &m);
+            let (lo, hi) = l.z_range();
+            (l.crest_radius_mm - BORE_R, hi - lo)
+        };
+        let (head_t, head_w) = at(TOP_DEG);
+        let (shank_t, shank_w) = at(TOP_DEG + 180.0);
+        assert!(
+            head_t > shank_t + sh.head.rise_mm * 0.9,
+            "the head is only {head_t:.3} mm deep against a {shank_t:.3} mm shank"
+        );
+        assert!(head_w > shank_w * 3.0, "the head is {head_w:.2} mm wide, shank {shank_w:.2} mm");
+    }
+
+    /// The table is a plane, not a slice of cylinder. Swept into world space,
+    /// every crest point over the face has to land on one flat.
+    #[test]
+    fn the_signet_table_is_a_true_plane() {
+        let mut p = BandProfile::default();
+        p.apply_style(ProfileStyle::Flat);
+        p.width_mm = 12.0;
+        p.thickness_mm = 2.6;
+        let sh = signet_shank();
+        // The table faces +Y at the top of the ring, so a plane is a constant y.
+        let (mut lo, mut hi) = (f64::MAX, f64::MIN);
+        for i in 0..=720 {
+            let theta = TOP_DEG - 40.0 + 80.0 * i as f64 / 720.0;
+            let a = sh.head_at(theta, BORE_R, CREST_R);
+            if a.on_head < 1.0 {
+                continue;
+            }
+            let m = sh.modulation(theta, BORE_R, CREST_R);
+            let l = p.sample_mod(BORE_R, 256, &m);
+            let y = l.crest_radius_mm * theta.to_radians().sin();
+            lo = lo.min(y);
+            hi = hi.max(y);
+        }
+        assert!(hi > lo, "no samples landed on the table");
+        assert!(hi - lo < 0.02, "the table is {:.4} mm out of flat; a graver needs a true \
+             surface", hi - lo);
+    }
+
+    /// The shoulder leaves the head at the width the face had, and leaves it
+    /// **already falling**. A shoulder that starts flat leaves a shelf at the
+    /// exact place the eye goes — the lip a signet does not have.
+    #[test]
+    fn the_shoulder_leaves_the_face_without_a_shelf() {
+        let head = |o: SignetOutline| ShankStyle {
+            head: SignetHead { outline: o, ..SignetHead::default() },
+            ..signet_shank()
+        };
+        let at = |sh: &ShankStyle, d: f64| sh.signet_width_frac(TOP_DEG + d, BORE_R, CREST_R);
+        let hd = SignetHead::default();
+        let edge = (hd.length_mm * 0.5 / (CREST_R + hd.rise_mm)).atan().to_degrees();
+
+        for o in [SignetOutline::Rectangle, SignetOutline::Cushion, SignetOutline::Shield] {
+            let sh = head(o);
+            let shank = at(&sh, 180.0);
+
+            // Nothing on the band's edge stops dead. The slope either side of
+            // the face's end has to stay of a piece: it was 0.50 mm per degree
+            // inside and 0.003 outside when the shoulder started flat.
+            let step = 0.25;
+            let slope = |d: f64| (at(&sh, d + step) - at(&sh, d)) / step;
+            let (inside, outside) = (slope(edge - 1.0), slope(edge + 1.0));
+            println!(
+                "{o:?}: {:.3} at the face's end, {:.3} a degree past it, shank {shank:.3}",
+                inside, outside
+            );
+            assert!(
+                outside.abs() > inside.abs() * 0.25 || inside.abs() < 5e-3,
+                "{o:?} falls at {inside:.4} inside the face and {outside:.4} past it — the \
+                 shoulder starts flat, which is a shelf"
+            );
+        }
+
+        // A blunt outline hands the shoulder a real width; a pointed one has
+        // already narrowed on its own and hands it nothing.
+        let (blunt, pointed) = (head(SignetOutline::Rectangle), head(SignetOutline::Oval));
+        let end = at(&blunt, edge - 0.1);
+        assert!(end > 0.7, "a rectangle face has already narrowed to {end:.2} at its own edge");
+        assert!(
+            at(&pointed, edge - 0.1) < end * 0.6,
+            "an oval ends as blunt as a rectangle: {:.2}",
+            at(&pointed, edge - 0.1)
+        );
+        // Past the whole shoulder the head contributes nothing and the band is
+        // the shank strip alone — which is not a constant, because the shank
+        // goes on tapering toward the base for the rest of the ring.
+        for o in [SignetOutline::Rectangle, SignetOutline::Oval] {
+            let sh = &head(o);
+            let past = edge + SignetHead::default().shoulder_deg + 6.0;
+            let a = sh.head_at(TOP_DEG + past, BORE_R, CREST_R);
+            assert_eq!((a.on_head, a.reach), (0.0, (0.0, 0.0)), "the shoulder never lands");
+            assert!(
+                (at(sh, past) - sh.signet_shank_frac(TOP_DEG + past)).abs() < 1e-9,
+                "the band is not the bare shank past the shoulder"
+            );
+
+        }
+    }
+
+    /// Seen from the side, a signet reads as tapering because the **swell** in
+    /// front of the shank is long, not because the shank itself tapers.
+    ///
+    /// Measured on `BlankSignet.obj`: its shank varies by 1% over the 215
+    /// degrees behind the head, while the swell takes 75 degrees to come down.
+    /// Tapering the strip as well was a wrong turn — this pins it flat.
+    #[test]
+    fn the_shank_is_flat() {
+        let sh = signet_shank();
+        let at = |d: f64| sh.signet_width_frac(TOP_DEG + d, BORE_R, CREST_R);
+        let shank = at(180.0);
+        for d in [90.0, 120.0, 150.0, 180.0, 210.0, 270.0] {
+            assert!(
+                (at(d) - shank).abs() < 1e-9,
+                "the shank is not flat: {:.4} at {d} deg against {shank:.4}",
+                at(d)
+            );
+        }
+    }
+
+    /// The silhouette against a real signet, measured off `BlankSignet.obj` —
+    /// a 14.7 mm round face on a 20 mm bore, 7 mm shank, 1.75 mm thick.
+    ///
+    /// **This records a gap, it does not close one.** The reference's swell is
+    /// half gone at 37 degrees off the top and does not reach the shank until
+    /// 75; here it is half gone by 22 and over by 28, because the band's
+    /// silhouette *is* the face outline and a round face has run out by then.
+    /// The reference's face and body are different extents — its body is 87% of
+    /// full width where its face is down to 65% — and no amount of shoulder
+    /// makes up the difference, because it is the face's own outline that ends
+    /// the swell. Closing it needs the section to carry a crest span of its own;
+    /// see the note on [`ShankStyle::head_at`].
+    #[test]
+    fn scratch_swell_against_a_real_signet() {
+        const REF: [(f64, f64); 19] = [
+            (0., 0.9992), (5., 0.9946), (10., 0.9809), (15., 0.9539), (20., 0.9141),
+            (25., 0.8666), (30., 0.8041), (35., 0.7446), (40., 0.6803), (45., 0.6189),
+            (50., 0.5720), (55., 0.5266), (60., 0.4977), (65., 0.4755), (70., 0.4601),
+            (75., 0.4509), (80., 0.4436), (85., 0.4397), (90., 0.4387),
+        ];
+        let inner_r = 9.905;
+        let crest_r = inner_r + 1.75;
+        let sh = ShankStyle {
+            kind: ShankKind::Signet,
+            amount: (1.0 - 7.0 / 16.0) / (1.0 - SIGNET_MIN_SHANK_FRAC),
+            head: SignetHead {
+                outline: SignetOutline::Round,
+                length_mm: 14.7,
+                rise_mm: 0.265,
+                ..SignetHead::default()
+            },
+        };
+        let at = |d: f64| sh.signet_width_frac(TOP_DEG + d, inner_r, crest_r);
+        let mut worst: f64 = 0.0;
+        println!("delta   ref    mine");
+        for (d, want) in REF {
+            println!("{d:5.0}  {want:.4}  {:.4}", at(d));
+            worst = worst.max((at(d) - want).abs());
+        }
+        let mid = (REF[0].1 + REF[18].1) * 0.5;
+        let half_way = (1..=180).map(|i| i as f64).find(|&d| at(d) <= mid).unwrap();
+        let landed = (1..=180).map(|i| i as f64).find(|&d| at(d) <= REF[18].1 + 1e-3).unwrap();
+        println!(
+            "worst {worst:.4} of a {:.4} drop | half gone by {half_way} deg (ref 37), \
+             on the shank by {landed} deg (ref 75)",
+            REF[0].1 - REF[18].1
+        );
+
+        // What does hold: full width at the top, flat behind, and monotone all
+        // the way down with no step.
+        assert!((at(0.0) - REF[0].1).abs() < 0.01, "the head is not full width");
+        assert!((at(90.0) - REF[18].1).abs() < 0.01, "the shank is the wrong width");
+        let mut last = f64::MAX;
+        for i in 0..=180 {
+            let w = at(i as f64);
+            assert!(w <= last + 1e-12, "the swell grows again at {i} deg");
             last = w;
         }
     }
 
+    /// An upright face reaches further to its top than its point    /// An upright face reaches further to its top than its point    /// An upright face reaches further to its top than its point, so the band
+    /// has to move along the finger to carry it. A swept section is centred on
+    /// its own mid-plane unless something moves it.
     #[test]
-    fn a_fuller_head_exponent_holds_the_width_further_round() {
-        let base = ShankStyle { kind: ShankKind::Signet, amount: 0.85, ..Default::default() };
-        let oval = ShankStyle { head_shape_a: 2.0, ..base };
-        let cushion = ShankStyle { head_shape_a: 4.0, ..base };
-        let rect = ShankStyle { head_shape_a: 8.0, ..base };
-        let at = TOP_DEG + base.head_span_deg * 0.25;
-        let (o, c, r) = (
-            oval.signet_width_frac(at),
-            cushion.signet_width_frac(at),
-            rect.signet_width_frac(at),
-        );
-        assert!(o < c && c < r, "fullness did not order: oval {o}, cushion {c}, rect {r}");
-        // All still reach full width at the top and shank width at the edge.
-        for sh in [oval, cushion, rect] {
-            assert!((sh.signet_width_frac(TOP_DEG) - 1.0).abs() < 1e-12);
-            assert!(sh.signet_width_frac(TOP_DEG + 180.0) < 0.30);
-        }
-    }
-
-    /// A step in slope is a crease you can see on the shoulder. The taper has
-    /// to arrive at the shank flat, not just arrive.
-    #[test]
-    fn the_head_taper_joins_the_shank_without_a_crease() {
-        let sh = ShankStyle { kind: ShankKind::Signet, amount: 0.85, ..Default::default() };
-        let half = sh.head_span_deg * 0.5;
-        let step = 0.25;
-        let slope = |t: f64| {
-            (sh.signet_width_frac(TOP_DEG + t + step) - sh.signet_width_frac(TOP_DEG + t)) / step
-        };
-        // Flat at the top of the head and flat again where it meets the shank.
-        assert!(slope(0.0).abs() < 1e-3, "the head is peaked, not flat: {}", slope(0.0));
-        assert!(
-            slope(half - step).abs() < 5e-3,
-            "the taper still lands on the shank at slope {}",
-            slope(half - step)
-        );
-        // No step anywhere along the sweep.
-        let mut worst: f64 = 0.0;
-        let mut prev = slope(0.0);
-        let mut t = step;
-        while t < half + 8.0 {
-            let s = slope(t);
-            worst = worst.max((s - prev).abs());
-            prev = s;
-            t += step;
-        }
-        assert!(worst < 6e-3, "slope steps by {worst} per degree somewhere on the shoulder");
-    }
-
-    #[test]
-    fn a_signet_shank_rounds_off_as_it_narrows() {
+    fn an_upright_face_moves_the_band_off_its_mid_plane() {
         let mut p = BandProfile::default();
         p.apply_style(ProfileStyle::Flat);
         p.width_mm = 12.0;
-        p.thickness_mm = 2.8;
-        let sh = ShankStyle { kind: ShankKind::Signet, amount: 0.85, ..Default::default() };
-        let head = sh.modulation(TOP_DEG, 10.0);
-        let back = sh.modulation(TOP_DEG + 180.0, 10.0);
-        assert!((head.crown_scale - 1.0).abs() < 1e-12, "the head must keep its flat crest");
-        assert!(back.crown_scale > 3.0, "the shank did not round off: {}", back.crown_scale);
+        let sh = ShankStyle {
+            head: SignetHead { outline: SignetOutline::Shield, ..SignetHead::default() },
+            ..signet_shank()
+        };
+        let centre = |t: f64| {
+            let m = sh.modulation(t, BORE_R, CREST_R);
+            let l = p.sample_mod(BORE_R, 256, &m);
+            let (lo, hi) = l.z_range();
+            (lo + hi) * 0.5
+        };
+        // Read at the shield's sides, not down its axis: the middle of a crest
+        // runs from its point to its top and is centred, and it is the sides —
+        // where the shank leaves — that carry only the top half.
+        let side = centre(TOP_DEG + 20.0);
+        let back = centre(TOP_DEG + 180.0);
+        assert!(back.abs() < 1e-9, "the plain shank is off centre by {back:.4} mm");
+        assert!(
+            side.abs() > 0.4,
+            "a shield's sides sit centred at {side:.4} mm, so it has no point and no top"
+        );
+        assert!(
+            (side - centre(TOP_DEG - 20.0)).abs() < 1e-9,
+            "the shield is lopsided round the ring"
+        );
 
-        // The crown clamp keeps that from eating the section.
-        let loop_ = p.sample_mod(9.0, 128, &back);
-        let thickness = p.thickness_mm * back.thickness_scale;
-        let depth = loop_.crest_radius_mm - 9.0;
-        assert!(depth <= thickness + 1e-6, "section grew: {depth} vs {thickness}");
+        // A symmetric face does not move it, and neither does any other style.
+        for o in [SignetOutline::Oval, SignetOutline::Cushion, SignetOutline::Hexagon] {
+            let sym = ShankStyle {
+                head: SignetHead { outline: o, ..SignetHead::default() },
+                ..signet_shank()
+            };
+            let m = sym.modulation(TOP_DEG, BORE_R, CREST_R);
+            assert!(m.z_center_frac.abs() < 1e-9, "{o:?} moved the band: {}", m.z_center_frac);
+        }
+        for &kind in ShankKind::ALL {
+            let s = ShankStyle { kind, amount: 1.0, ..Default::default() };
+            let m = s.modulation(TOP_DEG + 40.0, BORE_R, CREST_R);
+            assert!(
+                kind == ShankKind::Signet || m.z_center_frac == 0.0,
+                "{kind:?} moved the band off centre"
+            );
+        }
+    }
+
+    /// A head has to be able to sit anywhere round the ring, including across
+    /// the 0/360 joint, without the silhouette tearing.
+    #[test]
+    fn a_head_at_the_joint_stays_whole() {
+        let sh = ShankStyle {
+            head: SignetHead { theta_deg: 0.0, ..SignetHead::default() },
+            ..signet_shank()
+        };
+        let w = |t: f64| sh.signet_width_frac(t, BORE_R, CREST_R);
+        assert!((w(0.0) - 1.0).abs() < 1e-9, "the head is not full width at its centre");
+        for d in [2.0, 6.0, 12.0, 20.0] {
+            let (a, b) = (w(d), w(360.0 - d));
+            assert!((a - b).abs() < 1e-9, "torn at the joint {d} deg out: {a} vs {b}");
+        }
+        assert!(w(180.0) < 0.30, "the shank did not narrow opposite the head");
     }
 
     #[test]

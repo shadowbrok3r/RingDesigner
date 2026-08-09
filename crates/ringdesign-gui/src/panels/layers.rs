@@ -5,12 +5,6 @@ use ringdesign_core::field::{
     Blend, BorderLayer, BorderProfile, FieldContext, Layer, MilgrainLayer,
     SIDE_FACE_MIN_DRAFT_DEG, SeatPadLayer, SignetLayer, SignetOutline, Window,
 };
-use ringdesign_core::profile::{HEAD_SPAN_DEG, ShankKind};
-
-/// Taper strength the head-shaping button applies.
-const SIGNET_TAPER: f64 = 0.85;
-/// Arc the head-shaping button gives the head, degrees.
-const SIGNET_HEAD_ARC_DEG: f64 = HEAD_SPAN_DEG;
 use ringdesign_core::tiling::TilingLayer;
 
 use crate::app::RingDesignerApp;
@@ -79,12 +73,15 @@ fn add_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             ui.close();
         }
         if ui
-            .button(format!("{} Signet", icon::SEAL))
-            .on_hover_text("A raised flat table to hand-engrave.")
+            .button(format!("{} Table pad", icon::SEAL))
+            .on_hover_text(
+                "A raised flat table sitting on the band. For a signet, shape the band itself \
+                 instead — Design ▸ Shank ▸ Signet makes the head out of the ring.",
+            )
             .clicked()
         {
             let signet = SignetLayer::fitted_to(&app.design.field_context());
-            app.add_layer("Signet", Layer::Signet(signet));
+            app.add_layer("Table pad", Layer::Signet(signet));
             ui.close();
         }
     });
@@ -288,14 +285,20 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
             dirty
         })
         .inner;
+    // Turn the pad into the band. The head carries the same outline, length and
+    // stand-off, so the shape does not change — it stops being something
+    // standing on the ring and becomes the ring.
     if shape_head {
-        if let Layer::Signet(s) = &mut app.design.layers.layers[i].layer {
-            let outline = s.outline;
-            s.fill_head(&fctx);
-            app.design.shank.kind = ShankKind::Signet;
-            app.design.shank.amount = SIGNET_TAPER;
-            app.design.shank.head_span_deg = SIGNET_HEAD_ARC_DEG;
-            app.design.shank.head_shape_a = outline.exponent();
+        if let Layer::Signet(s) = &app.design.layers.layers[i].layer {
+            let (outline, length, rise) = (s.outline, s.length_mm, s.height_mm);
+            let width = app.design.profile.width_mm.max(s.width_mm);
+            app.design.profile.width_mm = width;
+            app.design.shank.apply_signet(width);
+            app.design.shank.head.outline = outline;
+            app.design.shank.head.length_mm = length;
+            app.design.shank.head.rise_mm = rise;
+            app.design.layers.layers.remove(i);
+            app.selected_layer = None;
         }
         dirty = true;
     }
@@ -1059,17 +1062,17 @@ fn signet(
     ui.add_space(3.0);
     ui.label(
         egui::RichText::new(
-            "A signet is a narrow shank swelling into a broad head — the band's own width \
-             is the head outline.",
+            "This is a pad standing on the band. A signet is not — the head is the band's own \
+             swell, and its outline is the band's silhouette.",
         )
         .small()
         .color(theme::TEXT_DIM),
     );
     if ui
-        .button(format!("{} Shape the head", icon::WAVE_SINE))
+        .button(format!("{} Make this the band", icon::WAVE_SINE))
         .on_hover_text(
-            "Sets the shank to Signet, matches the head outline to this table's shape, and \
-             grows the table to fill it.",
+            "Moves this shape into the ring itself: sets the shank to Signet with the same \
+             outline, length and stand-off, and removes the pad.",
         )
         .clicked()
     {

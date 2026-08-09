@@ -2,9 +2,9 @@
 
 use egui::RichText;
 use egui_phosphor::regular as icon;
-use ringdesign_core::field::SIDE_FACE_MIN_DRAFT_DEG;
+use ringdesign_core::field::{SIDE_FACE_MIN_DRAFT_DEG, SignetOutline};
 use ringdesign_core::profile::{
-    EDGE_FLANGE_T, MIN_EDGE_MM, ProfileStyle, SQUARED_SIDE_FILLET_MM, ShankKind, TOP_DEG,
+    EDGE_FLANGE_T, MIN_EDGE_MM, ProfileStyle, SQUARED_SIDE_FILLET_MM, ShankKind,
 };
 use ringdesign_core::sizing::RingSize;
 
@@ -541,6 +541,7 @@ fn is_convex(pts: &[egui::Pos2]) -> bool {
 fn shank(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let mut changed = false;
 
+    let was = app.design.shank.kind;
     egui::ComboBox::from_id_salt("shank_kind")
         .selected_text(app.design.shank.kind.label())
         .width(180.0)
@@ -552,6 +553,12 @@ fn shank(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     .changed();
             }
         });
+    // Picking Signet from a standing start would otherwise land on whatever the
+    // last style used, which is a head nobody chose.
+    if app.design.shank.kind == ShankKind::Signet && was != ShankKind::Signet {
+        let width = app.design.profile.width_mm;
+        app.design.shank.apply_signet(width);
+    }
     hint(ui, app.design.shank.kind.description());
 
     let uniform = app.design.shank.kind == ShankKind::Uniform;
@@ -565,33 +572,116 @@ fn shank(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         .changed();
 
     if app.design.shank.kind == ShankKind::Signet {
-        let sh = &mut app.design.shank;
-        changed |= ui
-            .add(egui::Slider::new(&mut sh.head_span_deg, 40.0..=220.0).suffix("°").text("Head arc"))
-            .on_hover_text("How far round the ring the head reaches before it is shank again.")
-            .changed();
-        changed |= ui
-            .add(
-                egui::Slider::new(&mut sh.head_shape_a, 1.5..=10.0)
-                    .fixed_decimals(1)
-                    .text("Head shape"),
-            )
-            .on_hover_text("Fullness of the head outline: 2 oval, 4 cushion, 8 rectangle.")
-            .changed();
-        let shank_mm = app.design.profile.width_mm * app.design.shank.signet_width_frac(TOP_DEG + 180.0);
-        hint(
-            ui,
-            format!(
-                "Head {:.1} mm wide, shank {shank_mm:.1} mm. Width is the head; the taper makes \
-                 the rest.",
-                app.design.profile.width_mm
-            ),
-        );
+        changed |= signet_head(app, ui);
     }
 
     if changed {
         app.mark_dirty();
     }
+}
+
+/// The head is the band, so it lives here with the rest of the base geometry.
+/// There is nothing on top of anything: the outline is the band's own plan
+/// silhouette and the table is its crest.
+fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
+    let mut changed = false;
+    let band_width = app.design.profile.width_mm;
+    let head = &mut app.design.shank.head;
+
+    ui.horizontal(|ui| {
+        ui.label("Face");
+        let before = head.outline;
+        egui::ComboBox::from_id_salt("signet_outline")
+            .selected_text(head.outline.label())
+            .width(140.0)
+            .show_ui(ui, |ui| {
+                for &o in SignetOutline::ALL {
+                    changed |= ui.selectable_value(&mut head.outline, o, o.label()).clicked();
+                }
+            });
+        // A new shape wants its own proportions; the length is right there to
+        // override if the ring wants a long cushion rather than a square one.
+        if head.outline != before {
+            head.fit_length_to(band_width);
+        }
+    });
+
+    changed |= ui
+        .add(
+            egui::Slider::new(&mut head.length_mm, 3.0..=30.0)
+                .fixed_decimals(1)
+                .suffix(" mm")
+                .text("Face length"),
+        )
+        .on_hover_text("Extent of the face around the ring. Across the band it is the Width.")
+        .changed();
+
+    changed |= ui
+        .add(
+            egui::Slider::new(&mut head.rise_mm, 0.0..=4.0)
+                .fixed_decimals(2)
+                .suffix(" mm")
+                .text("Rise"),
+        )
+        .on_hover_text("How far the middle of the table stands above the band's crest.")
+        .changed();
+
+    changed |= ui
+        .add(
+            egui::Slider::new(&mut head.shoulder_deg, 8.0..=80.0)
+                .fixed_decimals(0)
+                .suffix("°")
+                .text("Shoulder"),
+        )
+        .on_hover_text("Arc the crest takes to fall from the head back to the shank.")
+        .changed();
+
+    changed |= ui
+        .add(
+            egui::Slider::new(&mut head.table_flat, 0.0..=1.0)
+                .fixed_decimals(2)
+                .text("Table flat"),
+        )
+        .on_hover_text("1 is a true plane to engrave. Below that the head keeps the profile's crown.")
+        .changed();
+
+    changed |= ui
+        .add(egui::Slider::new(&mut head.theta_deg, 0.0..=360.0).suffix("°").text("Around"))
+        .on_hover_text("Where the head sits round the ring. 90° is the top.")
+        .changed();
+
+    let inner_r = app.design.inner_radius_mm();
+    let crest_r = app.design.reference_loop().crest_radius_mm;
+    let sh = app.design.shank;
+    // Read behind the head, wherever the head happens to sit.
+    let back = sh.head.theta_deg + 180.0;
+    let shank_mm = app.design.profile.width_mm * sh.signet_width_frac(back, inner_r, crest_r);
+    let corner = (crest_r + sh.head.rise_mm).hypot(sh.head.length_mm * 0.5) - crest_r;
+    hint(
+        ui,
+        format!(
+            "Face {:.1} x {:.1} mm on a {shank_mm:.1} mm shank. Width is the face across the \
+             band, so set it to the head. The table's corners stand {corner:.2} mm proud of the \
+             band where its middle stands {:.2} mm — that is what a plane does over a curve, and \
+             it is the chunk a signet reads as.",
+            sh.head.length_mm, app.design.profile.width_mm, sh.head.rise_mm,
+        ),
+    );
+
+    if ui
+        .button(format!("{} Square the head's sides", icon::SQUARE))
+        .on_hover_text(
+            "Drops the side draft and shrinks the edge fillet, which is what turns the head's \
+             flanks into faces square to the mould pull — the best surface on the ring for \
+             ornament.",
+        )
+        .clicked()
+    {
+        app.design.profile.flatten_sides();
+        changed = true;
+    }
+
+    changed
 }
 
 // --- Casting ---------------------------------------------------------------

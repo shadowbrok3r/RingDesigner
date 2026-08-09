@@ -245,7 +245,7 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
             let frac = spacing.theta[i];
             let theta = frac * 360.0;
             let (sin_t, cos_t) = theta.to_radians().sin_cos();
-            let m = design.shank.modulation(theta, reference.crest_radius_mm);
+            let m = design.shank.modulation(theta, inner_r, reference.crest_radius_mm);
             let loop_i = design.profile.sample_spaced(inner_r, n_prof, &m, field_v);
             let u = frac * ctx.circumference_mm;
 
@@ -547,7 +547,7 @@ mod tests {
             let frac = i as f64 / n_theta as f64;
             let theta = frac * 360.0;
             let (sin_t, cos_t) = theta.to_radians().sin_cos();
-            let m = d.shank.modulation(theta, reference.crest_radius_mm);
+            let m = d.shank.modulation(theta, inner_r, reference.crest_radius_mm);
             let loop_i = d.profile.sample_mod(inner_r, n_prof, &m);
             let u = frac * ctx.circumference_mm;
             for p in &loop_i.pts {
@@ -624,6 +624,154 @@ mod tests {
             y_hi - y_lo < 0.05,
             "table is {:.4} mm out of flat; a graver needs a true surface",
             y_hi - y_lo
+        );
+    }
+
+    /// Where a signet head's undercuts land, if it has any. The head is base
+    /// geometry now, so this reads the bare band with no layer on it at all.
+    ///
+    /// The head is a terrain and cannot undercut, so anything reported here is
+    /// the mesh talking. It is the crest-line phantom: the crest is tangent to
+    /// the pull, the shoulder morphs the section fast enough that a vertex's
+    /// `z` shifts between slices, and the skewed facet crosses zero. It goes
+    /// away with sweep steps and comes back with a coarser shoulder, which is
+    /// why [`crate::profile::HEAD_SHOULDER_DEG`] is 34 and not the 26 it
+    /// started at — the tables below are what picked it.
+    #[test]
+    fn scratch_signet_head_undercuts() {
+        use crate::profile::ShankKind;
+        let mut d = RingDesign::default();
+        d.shank.kind = ShankKind::Signet;
+        d.shank.amount = 0.72;
+        let out = build(
+            &d,
+            &AlphaLibrary::builtin(),
+            BuildParams { theta_steps: 512, profile_steps: 192, ..Default::default() },
+        );
+        let rep = crate::castability::analyze(&out.mesh, &d.draft, d.inner_radius_mm());
+        println!(
+            "signet head: {} undercut faces, {:.4}%, worst {:.2} deg",
+            rep.undercut,
+            rep.undercut_fraction() * 100.0,
+            rep.worst_draft_deg
+        );
+
+        for &(t, p) in &[(256usize, 192usize), (512, 192), (1024, 192), (2048, 192), (512, 384)] {
+            let o = build(
+                &d,
+                &AlphaLibrary::builtin(),
+                BuildParams { theta_steps: t, profile_steps: p, ..Default::default() },
+            );
+            let r = crate::castability::analyze(&o.mesh, &d.draft, d.inner_radius_mm());
+            println!(
+                "  {t}x{p}: {} faces, {:.5}%, worst {:.2} deg",
+                r.undercut,
+                r.undercut_fraction() * 100.0,
+                r.worst_draft_deg
+            );
+        }
+        println!("shoulder arc against the build presets:");
+        for sh in [20.0, 26.0, 34.0, 42.0, 55.0] {
+            let mut d2 = d.clone();
+            d2.shank.head.shoulder_deg = sh;
+            let mut line = format!("  {sh:>5.0} deg:");
+            for &(name, t, p) in BuildParams::PRESETS.iter().take(3) {
+                let o = build(
+                    &d2,
+                    &AlphaLibrary::builtin(),
+                    BuildParams { theta_steps: t, profile_steps: p, ..Default::default() },
+                );
+                let r = crate::castability::analyze(&o.mesh, &d2.draft, d2.inner_radius_mm());
+                line.push_str(&format!(
+                    "  {name} {:>2} faces {:.5}%",
+                    r.undercut,
+                    r.undercut_fraction() * 100.0
+                ));
+            }
+            println!("{line}");
+        }
+
+        // Every face shape, over the presets. Most are exactly clean. What is
+        // left is the crest-line phantom, and it is worst on an upright outline
+        // because the section it sweeps is no longer symmetric about its own
+        // crest, so the facets straddling it no longer cancel: a shield goes
+        // 0.011% at Draft to 0.0013% at Export, converging but not to zero at
+        // any resolution worth paying for. So what is asserted is that it stays
+        // tiny and stays *on the crest line*, which is what tells a phantom
+        // from a real undercut — the same check caught a genuine -19 degrees
+        // over 0.67% when an offset section let its crest ride down with it.
+        println!("every face outline, undercut faces / area:");
+        for &o in crate::field::SignetOutline::ALL {
+            let mut d2 = d.clone();
+            d2.shank.head.outline = o;
+            let width = d2.profile.width_mm;
+            d2.shank.head.fit_length_to(width);
+            let mut line = format!("  {:<10}", o.label());
+            for &(nm, t, pp) in BuildParams::PRESETS.iter().take(4) {
+                let out = build(
+                    &d2,
+                    &AlphaLibrary::builtin(),
+                    BuildParams { theta_steps: t, profile_steps: pp, ..Default::default() },
+                );
+                let rep = crate::castability::analyze(&out.mesh, &d2.draft, d2.inner_radius_mm());
+                line.push_str(&format!("  {nm} {:>2}/{:.4}%", rep.undercut, rep.undercut_fraction() * 100.0));
+                assert!(out.report.validation.watertight, "{o:?} at {nm} is not watertight");
+
+                assert!(
+                    rep.undercut_fraction() < 1e-3,
+                    "{o:?} at {nm} undercuts {:.4}% — past anything the crest line explains",
+                    rep.undercut_fraction() * 100.0
+                );
+                let ir = d2.inner_radius_mm();
+                for (i, f) in out.mesh.faces.iter().enumerate() {
+                    if rep.classes.get(i) != Some(&crate::FaceClass::Undercut) {
+                        continue;
+                    }
+                    let (Some(_), Some((a, b, c))) = (out.mesh.face_normal(f), out.mesh.triangle(f))
+                    else {
+                        continue;
+                    };
+                    let z = (a[2] + b[2] + c[2]) / 3.0;
+                    let rr = ((a[0] + b[0] + c[0]) / 3.0).hypot((a[1] + b[1] + c[1]) / 3.0);
+                    // A quarter of a millimetre, not a hair: the crest line is
+                    // not a line in a mesh, it is a band as wide as one profile
+                    // step, and at Draft that is 0.15 mm.
+                    assert!(
+                        z.abs() < 0.25 && rr > ir + 0.05,
+                        "{o:?} at {nm} undercuts at z {z:+.3}, r {rr:.3} — off the crest line, \
+                         so it is the geometry and not the facets"
+                    );
+                }
+            }
+            println!("{line}");
+        }
+
+        let inner_r = d.inner_radius_mm();
+        let mut worst: Vec<(f64, f64, f64, f64)> = Vec::new();
+        for f in &out.mesh.faces {
+            let (Some(n), Some((a, b, c))) = (out.mesh.face_normal(f), out.mesh.triangle(f)) else {
+                continue;
+            };
+            let z = (a[2] + b[2] + c[2]) / 3.0;
+            let r = ((a[0] + b[0] + c[0]) / 3.0).hypot((a[1] + b[1] + c[1]) / 3.0);
+            if r <= inner_r + 0.05 {
+                continue;
+            }
+            // Draft against a pull toward whichever half this face sits in.
+            let draft = (n[2] * z.signum()).asin().to_degrees();
+            if draft < -0.5 {
+                let theta = (a[1] + b[1] + c[1]).atan2(a[0] + b[0] + c[0]).to_degrees();
+                worst.push((draft, theta.rem_euclid(360.0), z, r));
+            }
+        }
+        worst.sort_by(|a, b| a.0.total_cmp(&b.0));
+        for &(draft, theta, z, r) in worst.iter().take(8) {
+            println!("  {draft:>7.2} deg at theta {theta:6.1}, z {z:+.3}, r {r:.3}");
+        }
+        assert!(
+            rep.undercut_fraction() < 1e-4,
+            "a bare signet head reports {:.4}% undercut at Fine resolution",
+            rep.undercut_fraction() * 100.0
         );
     }
 
