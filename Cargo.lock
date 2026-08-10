@@ -1724,6 +1724,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "minreq"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "659579df697b372ef9e36f02fcbb41f6d6f157dcec7db9c9618fa0f23cf0fc20"
+
+[[package]]
 name = "mio"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2644,8 +2650,11 @@ name = "ringdesign-mcp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "http-body-util",
+ "hyper",
  "hyper-util",
  "log",
+ "minreq",
  "parking_lot",
  "ringdesign-core",
  "rmcp",

@@ -15,3 +15,8 @@ log.workspace = true
 tokio.workspace = true
 parking_lot.workspace = true
 hyper-util.workspace = true
+hyper = "1.11.0"
+http-body-util = "0.1.4"
+
+[dev-dependencies]
+minreq = "3.0.0"

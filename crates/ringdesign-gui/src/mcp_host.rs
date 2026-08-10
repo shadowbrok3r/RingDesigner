@@ -19,8 +19,9 @@ pub struct McpHost {
     /// The design behind `last_seen`, serialized.
     last_json: Vec<u8>,
     /// Dropping this stops the listener.
-    #[allow(dead_code)]
     runtime: tokio::runtime::Runtime,
+    /// Where the phone-facing sync endpoint is bound, once started.
+    sync_addr: Option<SocketAddr>,
 }
 
 impl McpHost {
@@ -56,7 +57,39 @@ impl McpHost {
         });
 
         log::info!("MCP server listening on http://{addr}/");
-        Ok(Self { engine, addr, last_seen, last_json, runtime })
+        Ok(Self { engine, addr, last_seen, last_json, runtime, sync_addr: None })
+    }
+
+    /// Also serve the plain-HTTP sync endpoint the phone talks to.
+    ///
+    /// Loopback unless a tailnet address is found, and never off-loopback without a token: an open
+    /// port here lets anyone who can reach it replace the design you are looking at. Tailscale is
+    /// the right boundary — the tailnet is authenticated, the coffee-shop LAN is not — so this
+    /// binds the `100.64.0.0/10` address specifically rather than `0.0.0.0`.
+    pub fn start_sync(&mut self, token: &str, remote: bool) -> anyhow::Result<SocketAddr> {
+        let cfg = if remote {
+            let ip = ringdesign_mcp::sync::tailnet_addr()
+                .ok_or_else(|| anyhow::anyhow!("no tailnet address — is Tailscale up?"))?;
+            ringdesign_mcp::sync::Config::remote(ip, ringdesign_mcp::sync::DEFAULT_SYNC_PORT, token)?
+        } else {
+            ringdesign_mcp::sync::Config::local(ringdesign_mcp::sync::DEFAULT_SYNC_PORT)
+        };
+        let addr = cfg.addr;
+        // Probe first so a taken port is an error the UI can show, not a task that dies silently.
+        drop(std::net::TcpListener::bind(addr)?);
+
+        let served = self.engine.clone();
+        self.runtime.spawn(async move {
+            if let Err(e) = ringdesign_mcp::sync::serve(served, cfg, None).await {
+                log::error!("sync server stopped: {e}");
+            }
+        });
+        self.sync_addr = Some(addr);
+        Ok(addr)
+    }
+
+    pub fn sync_addr(&self) -> Option<SocketAddr> {
+        self.sync_addr
     }
 
     pub fn addr(&self) -> SocketAddr {

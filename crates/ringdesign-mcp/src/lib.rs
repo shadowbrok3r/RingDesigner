@@ -16,6 +16,7 @@ use rmcp::transport::streamable_http_server::session::local::LocalSessionManager
 
 pub mod prompts;
 pub mod resources;
+pub mod sync;
 pub mod tools;
 
 /// Called after any mutation so a host can repaint.
