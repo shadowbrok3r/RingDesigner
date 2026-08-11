@@ -455,6 +455,12 @@ pub enum Layer {
     Group(GroupLayer),
     /// A wire swept along a drawn path — scrolls, vines, wavy rails.
     Curve(crate::curve::CurveLayer),
+    /// Parallel reeds or grooves with exact wall geometry.
+    Flutes(FlutesLayer),
+    /// Free-placed motif stamps.
+    Decals(DecalLayer),
+    /// A row of identical seats — eternity stock.
+    SeatRun(SeatRunLayer),
 }
 
 /// Nesting deeper than this contributes nothing; the recursion is per sample
@@ -476,6 +482,9 @@ impl Layer {
             Layer::Milgrain(_) => "Milgrain",
             Layer::Group(_) => "Group",
             Layer::Curve(_) => "Curve",
+            Layer::Flutes(_) => "Flutes",
+            Layer::Decals(_) => "Decals",
+            Layer::SeatRun(_) => "Seat Run",
         }
     }
 
@@ -497,6 +506,9 @@ impl Layer {
                 g.stack.height_d(uv, ctx, lib, depth + 1)
             }
             Layer::Curve(l) => l.height(uv, ctx),
+            Layer::Flutes(l) => l.height(uv, ctx),
+            Layer::Decals(l) => l.height(uv, ctx, lib),
+            Layer::SeatRun(l) => l.height(uv, ctx),
         }
     }
 
@@ -555,6 +567,13 @@ impl Layer {
             }
             Layer::Group(g) => g.stack.feature_footprints(ctx),
             Layer::Curve(l) => l.feature_footprints(ctx),
+            Layer::Flutes(l) => vec![FeatureFootprint {
+                min_feature_mm: l.width_mm.max(0.1),
+                u_mm: None,
+                v_mm: (0.0, ctx.band_v_len_mm),
+            }],
+            Layer::Decals(l) => l.feature_footprints(ctx),
+            Layer::SeatRun(l) => l.feature_footprints(ctx),
         }
     }
 }
@@ -589,6 +608,9 @@ pub struct LayerEntry {
     /// other alpha; a missing name passes 1.0 rather than silencing the layer.
     #[serde(default)]
     pub mask: Option<String>,
+    /// Relief reshaping applied to the layer's output before opacity.
+    #[serde(default)]
+    pub remap: Remap,
     pub layer: Layer,
 }
 
@@ -606,6 +628,7 @@ impl LayerEntry {
             soft_mm: default_soft_mm(),
             window: Window::default(),
             mask: None,
+            remap: Remap::Off,
             layer,
         }
     }
@@ -656,7 +679,7 @@ impl LayerStack {
             if w <= 0.0 {
                 continue;
             }
-            let h = e.layer.height_d(uv, ctx, lib, depth) * e.opacity * w;
+            let h = e.remap.apply(e.layer.height_d(uv, ctx, lib, depth)) * e.opacity * w;
             acc = e.blend.apply(acc, h, e.soft_mm);
         }
         acc
@@ -700,6 +723,7 @@ impl LayerStack {
             for e in &stack.layers {
                 let tile = match &e.layer {
                     Layer::Tiling(t) => Some(t.alpha.as_str()),
+                    Layer::Decals(d) => Some(d.alpha.as_str()),
                     _ => None,
                 };
                 for name in tile.into_iter().chain(e.mask.as_deref()) {
@@ -815,6 +839,33 @@ impl BorderLayer {
 
 // --- Gem seat pad ----------------------------------------------------------
 
+/// What the cast stock for a stone looks like before the bench work.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SeatStyle {
+    /// A raised boss the jeweller drills and cuts a seat into.
+    #[default]
+    Boss,
+    /// An annular collar around a recessed pocket, burnished over the girdle
+    /// at the bench. The pocket is a cup, so it belongs on a side face; on
+    /// the crest its walls turn to ceilings.
+    Bezel,
+    /// A tall rounded mound for a flush ("gypsy") setting.
+    GypsyMound,
+}
+
+impl SeatStyle {
+    pub const ALL: &'static [SeatStyle] =
+        &[SeatStyle::Boss, SeatStyle::Bezel, SeatStyle::GypsyMound];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            SeatStyle::Boss => "Boss",
+            SeatStyle::Bezel => "Bezel collar",
+            SeatStyle::GypsyMound => "Gypsy mound",
+        }
+    }
+}
+
 /// A raised circular boss the bench jeweller cuts a seat into by hand. Domed
 /// so it releases from a ±Z pull; the skirt fairs it into the band.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -829,6 +880,36 @@ pub struct SeatPadLayer {
     pub crown: f64,
     /// Skirt width fairing the pad into the band, mm.
     pub blend_mm: f64,
+    #[serde(default)]
+    pub style: SeatStyle,
+    /// Bezel only: collar wall thickness, mm.
+    #[serde(default = "default_bezel_wall")]
+    pub bezel_wall_mm: f64,
+    /// Bezel only: pocket depth below the rim, mm.
+    #[serde(default = "default_recess")]
+    pub recess_mm: f64,
+    /// Drafted cone bumps on the seat circle — cast oversize, notched and
+    /// shaped at the bench, which is how prongs survive sand. 0 is none.
+    #[serde(default)]
+    pub prongs: u32,
+    /// Height a prong stands above the pad top, mm.
+    #[serde(default = "default_prong")]
+    pub prong_mm: f64,
+    /// The stone the pad was sized for, carried for the report and preview.
+    #[serde(default)]
+    pub gem: Option<crate::gem::Gem>,
+}
+
+fn default_bezel_wall() -> f64 {
+    0.5
+}
+
+fn default_recess() -> f64 {
+    0.4
+}
+
+fn default_prong() -> f64 {
+    0.9
 }
 
 impl Default for SeatPadLayer {
@@ -840,6 +921,12 @@ impl Default for SeatPadLayer {
             height_mm: 1.2,
             crown: 0.65,
             blend_mm: 0.8,
+            style: SeatStyle::Boss,
+            bezel_wall_mm: default_bezel_wall(),
+            recess_mm: default_recess(),
+            prongs: 0,
+            prong_mm: default_prong(),
+            gem: None,
         }
     }
 }
@@ -847,7 +934,26 @@ impl Default for SeatPadLayer {
 impl SeatPadLayer {
     /// Diameter of the largest stone this pad can reasonably seat, mm.
     pub fn suggested_stone_mm(&self) -> f64 {
-        (self.diameter_mm - 1.2).max(0.5)
+        match self.style {
+            SeatStyle::Bezel => (self.diameter_mm - 2.0 * self.bezel_wall_mm).max(0.5),
+            _ => (self.diameter_mm - 1.2).max(0.5),
+        }
+    }
+
+    /// Size the pad for a chosen stone instead of inferring the stone from
+    /// the pad — a bezel needs its walls around the girdle, a boss needs its
+    /// drilling allowance around the seat.
+    pub fn fit_stone(&mut self, gem: crate::gem::Gem) {
+        let w = gem.w_mm.max(0.5);
+        self.diameter_mm = match self.style {
+            SeatStyle::Bezel => w + 2.0 * self.bezel_wall_mm.max(0.2),
+            SeatStyle::Boss => w + 1.2,
+            SeatStyle::GypsyMound => w + 1.8,
+        };
+        if self.style == SeatStyle::GypsyMound {
+            self.crown = 1.0;
+        }
+        self.gem = Some(gem);
     }
 
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
@@ -857,20 +963,426 @@ impl SeatPadLayer {
         let du = wrap_delta(uv.u - u0, ctx.circumference_mm);
         let dv = uv.v - self.v_mm;
         let d = (du * du + dv * dv).sqrt();
-
-        let crown = self.crown.clamp(0.0, 1.0);
-        if d <= r {
-            let t = d / r;
-            let dome = (1.0 - t * t).max(0.0).sqrt();
-            let flat = 1.0 - smoothstep(0.82, 1.0, t);
-            self.height_mm * ((1.0 - crown) * flat + crown * dome)
-        } else if blend > 1e-9 && d <= r + blend {
-            // Only the flat-topped share has material left at the rim to fair.
-            let rim = self.height_mm * (1.0 - crown);
-            rim * (1.0 - smoothstep(0.0, 1.0, (d - r) / blend))
-        } else {
-            0.0
+        if d > r + blend + self.prong_mm {
+            return 0.0;
         }
+
+        let body = match self.style {
+            SeatStyle::Boss => {
+                let crown = self.crown.clamp(0.0, 1.0);
+                if d <= r {
+                    let t = d / r;
+                    let dome = (1.0 - t * t).max(0.0).sqrt();
+                    let flat = 1.0 - smoothstep(0.82, 1.0, t);
+                    self.height_mm * ((1.0 - crown) * flat + crown * dome)
+                } else {
+                    self.skirt(d, r, blend)
+                }
+            }
+            SeatStyle::GypsyMound => {
+                // A cosine mound over the whole reach: finite edge slope,
+                // flush look.
+                let reach = r + blend.max(0.3);
+                let t = (d / reach).clamp(0.0, 1.0);
+                self.height_mm * (0.5 + 0.5 * (std::f64::consts::PI * t).cos())
+            }
+            SeatStyle::Bezel => {
+                let wall = self.bezel_wall_mm.clamp(0.2, r);
+                let r_in = (r - wall).max(0.1);
+                let floor = (self.height_mm - self.recess_mm.max(0.0)).max(0.1);
+                // Pocket walls drafted over a quarter of the collar wall.
+                let soft = (wall * 0.35).max(0.08);
+                if d <= r {
+                    let rim = self.height_mm;
+                    rim + (floor - rim) * (1.0 - smoothstep(r_in - soft, r_in, d))
+                } else {
+                    self.skirt(d, r, blend)
+                }
+            }
+        };
+
+        let n = self.prongs.min(8);
+        if n == 0 {
+            return body;
+        }
+        // Drafted cone bumps on the seat circle, nearest-centre like milgrain.
+        let prong_r = (0.28 * r).clamp(0.35, 0.8);
+        let ring_r = (r - prong_r * 0.6).max(0.2);
+        let a0 = dv.atan2(du);
+        let step = std::f64::consts::TAU / n as f64;
+        let a_near = (a0 / step).round() * step;
+        let (px, py) = (ring_r * a_near.cos(), ring_r * a_near.sin());
+        let dp = ((du - px).powi(2) + (dv - py).powi(2)).sqrt();
+        let t = (dp / prong_r).clamp(0.0, 1.0);
+        let prong =
+            (self.height_mm + self.prong_mm) * (0.5 + 0.5 * (std::f64::consts::PI * t).cos());
+        body.max(prong)
+    }
+
+    /// The fairing outside the pad's rim shared by the flat-rimmed styles.
+    fn skirt(&self, d: f64, r: f64, blend: f64) -> f64 {
+        if blend <= 1e-9 || d > r + blend {
+            return 0.0;
+        }
+        let rim = match self.style {
+            SeatStyle::Boss => self.height_mm * (1.0 - self.crown.clamp(0.0, 1.0)),
+            _ => self.height_mm,
+        };
+        rim * (1.0 - smoothstep(0.0, 1.0, (d - r) / blend))
+    }
+}
+
+// --- Height remap ----------------------------------------------------------
+
+/// Reshapes a layer's relief profile after evaluation — the pro-CAD "relief
+/// curve": cushioned tops, chamfered take-offs, terraced steps. Applied before
+/// opacity and the window fade, so gating still fades the finished shape.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum Remap {
+    Off,
+    /// Monotone curve over the layer's output, normalized by `span_mm`.
+    Curve { curve: crate::profile::DropCurve, span_mm: f64 },
+    /// Flat treads of `span_mm / steps`, each riser spending `riser` of its
+    /// tread rising. A riser near zero is a wall; the editor floors it.
+    Terrace { steps: u32, span_mm: f64, riser: f64 },
+}
+
+impl Default for Remap {
+    fn default() -> Self {
+        Remap::Off
+    }
+}
+
+impl Remap {
+    pub fn apply(&self, h: f64) -> f64 {
+        if h <= 0.0 {
+            return h;
+        }
+        match *self {
+            Remap::Off => h,
+            Remap::Curve { curve, span_mm } => {
+                let span = span_mm.max(1e-6);
+                span * curve.eval((h / span).clamp(0.0, 1.0))
+            }
+            Remap::Terrace { steps, span_mm, riser } => {
+                let span = span_mm.max(1e-6);
+                let q = span / steps.clamp(1, 64) as f64;
+                let t = (h / q).min(steps as f64);
+                let cell = t.floor();
+                let r = riser.clamp(0.05, 1.0);
+                q * (cell + smoothstep(1.0 - r, 1.0, t - cell))
+            }
+        }
+    }
+
+    pub fn is_off(&self) -> bool {
+        matches!(self, Remap::Off)
+    }
+
+    /// Rounded top: the relief rises fast and eases into its full height.
+    pub fn cushion(span_mm: f64) -> Self {
+        let curve = crate::profile::DropCurve::from_points(&[
+            [0.0, 0.0],
+            [0.35, 0.62],
+            [0.72, 0.92],
+            [1.0, 1.0],
+        ]);
+        Remap::Curve { curve, span_mm }
+    }
+
+    /// Chamfered take-off: low detail is suppressed, then a straight rise.
+    pub fn chamfer(span_mm: f64) -> Self {
+        let curve = crate::profile::DropCurve::from_points(&[
+            [0.0, 0.0],
+            [0.28, 0.05],
+            [0.75, 0.7],
+            [1.0, 1.0],
+        ]);
+        Remap::Curve { curve, span_mm }
+    }
+}
+
+// --- Decals ----------------------------------------------------------------
+
+/// Instances beyond this are ignored; each is evaluated per sample.
+pub const MAX_DECALS: usize = 64;
+
+/// One free-placed stamp of the layer's alpha.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Decal {
+    /// Position around the ring, degrees.
+    pub theta_deg: f64,
+    /// Position across the band, mm.
+    pub v_mm: f64,
+    /// Footprint along the stamp's own width, mm; the height follows the
+    /// alpha's aspect.
+    pub size_mm: f64,
+    pub rotation_deg: f64,
+    pub height_mm: f64,
+    /// Mirror the stamp left-to-right.
+    pub flip: bool,
+}
+
+impl Default for Decal {
+    fn default() -> Self {
+        Self {
+            theta_deg: crate::profile::TOP_DEG,
+            v_mm: 0.0,
+            size_mm: 4.0,
+            rotation_deg: 0.0,
+            height_mm: 0.35,
+            flip: false,
+        }
+    }
+}
+
+/// Free-placed motif stamps — the compositions a lattice cannot express: one
+/// scroll per shoulder at different sizes, a scatter of stars, an off-axis
+/// crest. Instances overlap by max, and positions wrap with the ring.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DecalLayer {
+    /// Alpha sampled by every stamp.
+    pub alpha: String,
+    pub decals: Vec<Decal>,
+    /// Edge fade inside each stamp's border, mm, so no stamp ends in a wall.
+    pub feather_mm: f64,
+    pub invert: bool,
+}
+
+impl Default for DecalLayer {
+    fn default() -> Self {
+        Self {
+            alpha: String::new(),
+            decals: vec![Decal::default()],
+            feather_mm: 0.3,
+            invert: false,
+        }
+    }
+}
+
+impl DecalLayer {
+    pub fn height(&self, uv: Uv, ctx: &FieldContext, lib: &AlphaLibrary) -> f64 {
+        let Some(a) = lib.get(&self.alpha) else { return 0.0 };
+        if a.is_empty() || !uv.u.is_finite() || !uv.v.is_finite() {
+            return 0.0;
+        }
+        let aspect = a.height as f64 / a.width.max(1) as f64;
+        let mut h: f64 = 0.0;
+        for d in self.decals.iter().take(MAX_DECALS) {
+            let w = d.size_mm.max(1e-6);
+            let hh = w * aspect;
+            let du = wrap_delta(uv.u - ctx.u_of_theta(d.theta_deg), ctx.circumference_mm);
+            let dv = uv.v - d.v_mm;
+            // Quick reject on the rotation-proof bounding circle.
+            let reach = 0.5 * (w * w + hh * hh).sqrt();
+            if du * du + dv * dv > reach * reach {
+                continue;
+            }
+            let (sin, cos) = d.rotation_deg.to_radians().sin_cos();
+            let mut lx = du * cos + dv * sin;
+            let ly = -du * sin + dv * cos;
+            if d.flip {
+                lx = -lx;
+            }
+            let x = lx / w + 0.5;
+            let y = 0.5 - ly / hh;
+            if !(0.0..=1.0).contains(&x) || !(0.0..=1.0).contains(&y) {
+                continue;
+            }
+            let mut s = a.sample(x, y) as f64;
+            if self.invert {
+                s = 1.0 - s;
+            }
+            // Fade to nothing at the stamp's border.
+            let edge = (lx.abs() - 0.5 * w).abs().min((ly.abs() - 0.5 * hh).abs());
+            let feather = self.feather_mm.max(1e-6);
+            s *= (edge / feather).clamp(0.0, 1.0);
+            h = h.max(d.height_mm * s.clamp(0.0, 1.0));
+        }
+        h
+    }
+
+    pub fn feature_footprints(&self, ctx: &FieldContext) -> Vec<FeatureFootprint> {
+        self.decals
+            .iter()
+            .take(MAX_DECALS)
+            .map(|d| {
+                let u0 = ctx.u_of_theta(d.theta_deg);
+                let reach = d.size_mm;
+                FeatureFootprint {
+                    min_feature_mm: (d.size_mm * 0.15).max(0.15),
+                    u_mm: Some((u0 - reach, u0 + reach)),
+                    v_mm: (d.v_mm - reach, d.v_mm + reach),
+                }
+            })
+            .collect()
+    }
+}
+
+// --- Flutes ----------------------------------------------------------------
+
+/// Cross-profile of one flute. Round is a cosine dome, so a flute wall's
+/// angle is bounded by its width-to-depth ratio rather than going vertical.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FluteProfile {
+    Round,
+    Vee,
+    Square,
+}
+
+impl FluteProfile {
+    pub const ALL: &'static [FluteProfile] =
+        &[FluteProfile::Round, FluteProfile::Vee, FluteProfile::Square];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            FluteProfile::Round => "Round",
+            FluteProfile::Vee => "V-cut",
+            FluteProfile::Square => "Square",
+        }
+    }
+
+    fn shape(self, x: f64) -> f64 {
+        let x = x.abs().clamp(0.0, 1.0);
+        match self {
+            FluteProfile::Round => 0.5 + 0.5 * (std::f64::consts::PI * x).cos(),
+            FluteProfile::Vee => 1.0 - x,
+            FluteProfile::Square => 1.0 - smoothstep(0.55, 0.95, x),
+        }
+    }
+}
+
+/// Parallel flutes with exact wall geometry: reeding when blended `Max`,
+/// coin-edge grooves when blended `Carve`. The count is an integer so the
+/// pattern closes on itself.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct FlutesLayer {
+    pub count: u32,
+    pub profile: FluteProfile,
+    /// Width of one flute, mm; the rest of the cell stays bare band.
+    pub width_mm: f64,
+    pub height_mm: f64,
+    /// Cells of sideways drift across the band's full width — diagonal
+    /// reeding. Any value keeps the joint closed; only the count must be
+    /// an integer.
+    pub lean: f64,
+    /// Run the flutes around the ring instead of across it (melon lobes).
+    /// The count then spans the band and does not need to wrap.
+    pub along: bool,
+}
+
+impl Default for FlutesLayer {
+    fn default() -> Self {
+        Self {
+            count: 96,
+            profile: FluteProfile::Round,
+            width_mm: 0.5,
+            height_mm: 0.18,
+            lean: 0.0,
+            along: false,
+        }
+    }
+}
+
+impl FlutesLayer {
+    pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
+        let n = self.count.clamp(1, 1024) as f64;
+        let (circ, band) = (ctx.circumference_mm, ctx.band_v_len_mm);
+        if !(circ > 1e-9) || !(band > 1e-9) || !uv.u.is_finite() || !uv.v.is_finite() {
+            return 0.0;
+        }
+        let (phase, cell_mm) = if self.along {
+            (uv.v / band * n + self.lean * (uv.u / circ), band / n)
+        } else {
+            (uv.u / circ * n + self.lean * (uv.v / band), circ / n)
+        };
+        let t = phase - phase.floor();
+        let half = (self.width_mm.min(cell_mm).max(1e-6)) * 0.5;
+        let d = (t - 0.5) * cell_mm;
+        if d.abs() >= half {
+            return 0.0;
+        }
+        (self.height_mm * self.profile.shape(d / half)).max(0.0)
+    }
+}
+
+// --- Seat run ---------------------------------------------------------------
+
+/// A row of identical seats around the ring — eternity and half-eternity
+/// stock. The count is an integer so the row closes on itself; a half row is
+/// the same layer behind an angular window.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct SeatRunLayer {
+    /// The seat repeated at every station. Its own `theta_deg` is ignored.
+    pub seat: SeatPadLayer,
+    pub count: u32,
+    /// The stone each seat holds, for spacing and the report.
+    pub gem: crate::gem::Gem,
+    /// Metal left between neighbouring stones, mm.
+    pub bridge_mm: f64,
+}
+
+impl Default for SeatRunLayer {
+    fn default() -> Self {
+        // Gypsy mounds, not flat bosses: a row of flat-topped pads undercuts
+        // at its rims where they reach onto the dome flank — measured 8.6% at
+        // -51 degrees — while a cosine-mound row measures 0.000%. The bench
+        // drills the seats into the mounds either way.
+        let gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Round, 2.5);
+        let mut seat = SeatPadLayer {
+            style: SeatStyle::GypsyMound,
+            height_mm: 0.6,
+            crown: 1.0,
+            blend_mm: 0.5,
+            ..Default::default()
+        };
+        seat.fit_stone(gem);
+        Self { seat, count: 18, gem, bridge_mm: 0.4 }
+    }
+}
+
+impl SeatRunLayer {
+    /// Solve the count from the stone: fit the seat first, then take the most
+    /// stations of that seat plus the bridge that fit the ring.
+    pub fn solve_spacing(&mut self, ctx: &FieldContext) {
+        self.seat.fit_stone(self.gem);
+        let pitch = self.seat.diameter_mm.max(0.5) + self.bridge_mm.max(0.0);
+        self.count = ((ctx.circumference_mm / pitch).floor() as u32).clamp(3, 200);
+    }
+
+    /// Bridge actually left between neighbouring seats at the current count.
+    pub fn bridge_at(&self, ctx: &FieldContext) -> f64 {
+        let pitch = ctx.circumference_mm / self.count.max(1) as f64;
+        pitch - self.seat.diameter_mm
+    }
+
+    pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
+        let n = self.count.clamp(1, 200) as f64;
+        if !(ctx.circumference_mm > 1e-9) || !uv.u.is_finite() {
+            return 0.0;
+        }
+        let pitch_deg = 360.0 / n;
+        let theta = uv.u / ctx.circumference_mm * 360.0;
+        // Nearest station and its neighbours, so a generous skirt cannot
+        // clip at the cell boundary.
+        let k = (theta / pitch_deg).round();
+        let mut h: f64 = 0.0;
+        for dk in [-1.0, 0.0, 1.0] {
+            let mut s = self.seat;
+            s.theta_deg = (k + dk) * pitch_deg;
+            s.v_mm = self.seat.v_mm;
+            h = h.max(s.height(uv, ctx));
+        }
+        h
+    }
+
+    pub fn feature_footprints(&self, _ctx: &FieldContext) -> Vec<FeatureFootprint> {
+        let reach = self.seat.diameter_mm * 0.5 + self.seat.blend_mm;
+        vec![FeatureFootprint {
+            min_feature_mm: (self.seat.diameter_mm * 0.2).max(0.15),
+            u_mm: None,
+            v_mm: (self.seat.v_mm - reach, self.seat.v_mm + reach),
+        }]
     }
 }
 
@@ -1952,6 +2464,225 @@ mod tests {
     }
 
     #[test]
+    fn remap_reshapes_within_bounds_and_terraces_hold_flat() {
+        let span = 0.4;
+        for remap in [Remap::cushion(span), Remap::chamfer(span)] {
+            assert_eq!(remap.apply(0.0), 0.0);
+            assert!((remap.apply(span) - span).abs() < 1e-9, "full height maps to itself");
+            let mut prev = 0.0;
+            for i in 1..=64 {
+                let h = span * i as f64 / 64.0;
+                let out = remap.apply(h);
+                assert!((0.0..=span + 1e-9).contains(&out), "left the span: {out}");
+                assert!(out >= prev - 1e-9, "remap must stay monotone");
+                prev = out;
+            }
+        }
+
+        let t = Remap::Terrace { steps: 4, span_mm: 0.4, riser: 0.3 };
+        let q = 0.1;
+        // Mid-tread inputs sit exactly on the tread below.
+        assert!((t.apply(0.130) - q).abs() < 1e-9, "{}", t.apply(0.130));
+        assert!((t.apply(0.230) - 2.0 * q).abs() < 1e-9);
+        // The top of each tread has risen to the next.
+        assert!((t.apply(0.2) - 2.0 * q).abs() < 1e-9);
+        // Negative and zero pass through, so carving is unaffected.
+        assert_eq!(t.apply(-0.2), -0.2);
+    }
+
+    #[test]
+    fn an_eternity_run_closes_seamlessly_and_releases() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        let fc = d.field_context();
+        let mut run = SeatRunLayer::default();
+        run.seat.v_mm = fc.crest_v_mm;
+        run.solve_spacing(&fc);
+        assert!(run.count >= 8, "a size-7 band fits a real row: {}", run.count);
+        assert!(run.bridge_at(&fc) > 0.0, "stones must not touch");
+
+        for dv in [-1.0, 0.0, 1.0] {
+            let v = fc.crest_v_mm + dv;
+            let a = run.height(Uv { u: 0.0, v }, &fc);
+            let b = run.height(Uv { u: fc.circumference_mm - 1e-9, v }, &fc);
+            assert!((a - b).abs() < 1e-6, "joint mismatch at v {v}");
+        }
+
+        d.layers.layers.push(LayerEntry::new("eternity", Layer::SeatRun(run)));
+        let out = crate::mesh::build(
+            &d,
+            &lib,
+            crate::BuildParams { theta_steps: 384, profile_steps: 96, ..Default::default() },
+        );
+        assert!(out.report.validation.watertight, "{:?}", out.report.validation);
+        let cast = crate::castability::analyze(&out.mesh, &d.draft, d.inner_radius_mm());
+        assert!(
+            cast.undercut_fraction() < 0.001,
+            "a gypsy-mound row locks: {:.3}%",
+            cast.undercut_fraction() * 100.0
+        );
+    }
+
+    #[test]
+    fn seat_styles_shape_as_promised_and_release_where_they_belong() {
+        let c = ctx();
+        // Bezel: rim at full height, pocket floor recessed inside it.
+        let bezel = SeatPadLayer {
+            v_mm: 4.0,
+            style: SeatStyle::Bezel,
+            diameter_mm: 5.0,
+            height_mm: 1.0,
+            recess_mm: 0.4,
+            ..Default::default()
+        };
+        let u0 = c.u_of_theta(90.0);
+        let at = |l: &SeatPadLayer, du: f64| l.height(Uv { u: u0 + du, v: 4.0 }, &c);
+        let rim = at(&bezel, 2.2);
+        let pocket = at(&bezel, 0.0);
+        assert!((rim - 1.0).abs() < 1e-6, "rim carries full height: {rim}");
+        assert!((pocket - 0.6).abs() < 1e-6, "pocket floor recessed: {pocket}");
+
+        // Prongs stand above the pad; sample on the ring their apexes sit on.
+        let pronged = SeatPadLayer { v_mm: 4.0, prongs: 4, prong_mm: 0.8, ..Default::default() };
+        let prong_r = (0.28 * 2.5f64).clamp(0.35, 0.8);
+        let ring_r = 2.5 - prong_r * 0.6;
+        let mut peak = 0.0f64;
+        for i in 0..720 {
+            let a = i as f64 / 720.0 * std::f64::consts::TAU;
+            let (du, dv) = (ring_r * a.cos(), ring_r * a.sin());
+            peak = peak.max(pronged.height(Uv { u: u0 + du, v: 4.0 + dv }, &c));
+        }
+        assert!(
+            (peak - (pronged.height_mm + 0.8)).abs() < 0.05,
+            "a prong tip should top the pad: {peak}"
+        );
+
+        // Every style builds watertight; boss and mound release on a dome
+        // crown, and a bezel on a squared side face releases too.
+        let lib = crate::AlphaLibrary::builtin();
+        let params =
+            crate::BuildParams { theta_steps: 256, profile_steps: 96, ..Default::default() };
+        for style in [SeatStyle::Boss, SeatStyle::GypsyMound] {
+            let mut d = crate::RingDesign::default();
+            d.profile.apply_style(crate::ProfileStyle::LowDome);
+            let crest = d.field_context().crest_v_mm;
+            let pad = SeatPadLayer { v_mm: crest, style, ..Default::default() };
+            d.layers.layers.push(LayerEntry::new("pad", Layer::SeatPad(pad)));
+            let out = crate::mesh::build(&d, &lib, params);
+            assert!(out.report.validation.watertight, "{style:?}");
+            let cast = crate::castability::analyze(&out.mesh, &d.draft, d.inner_radius_mm());
+            assert!(
+                cast.undercut_fraction() < 0.004,
+                "{style:?} locks: {:.3}%",
+                cast.undercut_fraction() * 100.0
+            );
+        }
+
+        let mut d = crate::RingDesign::default();
+        d.profile.width_mm = 8.0;
+        d.profile.thickness_mm = 3.0;
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.flatten_sides();
+        let fc = d.field_context();
+        let (lo, hi) = fc.side_faces_std().expect("faces").wider().unwrap();
+        let pad = SeatPadLayer {
+            v_mm: 0.5 * (lo + hi),
+            style: SeatStyle::Bezel,
+            diameter_mm: (hi - lo) * 0.8,
+            height_mm: 0.8,
+            blend_mm: 0.4,
+            ..Default::default()
+        };
+        let mut entry = LayerEntry::new("bezel", Layer::SeatPad(pad));
+        // Held to the run, so the skirt cannot spill over the band edge.
+        entry.window.v_gate = VGate::SideFaces(SideFacePick::Wider);
+        d.layers.layers.push(entry);
+        let out = crate::mesh::build(&d, &lib, params);
+        assert!(out.report.validation.watertight);
+        let cast = crate::castability::analyze(&out.mesh, &d.draft, d.inner_radius_mm());
+        assert!(
+            cast.undercut_fraction() < 0.001,
+            "side-face bezel locks: {:.3}%",
+            cast.undercut_fraction() * 100.0
+        );
+    }
+
+    #[test]
+    fn a_decal_stamps_where_placed_and_nowhere_else() {
+        let c = ctx();
+        let mut lib = AlphaLibrary::default();
+        lib.insert(crate::Alpha::new("solid", 8, 8, vec![1.0; 64]));
+
+        let d = DecalLayer {
+            alpha: "solid".into(),
+            decals: vec![Decal { theta_deg: 90.0, v_mm: 4.0, size_mm: 4.0, ..Default::default() }],
+            feather_mm: 0.5,
+            invert: false,
+        };
+        let u0 = c.u_of_theta(90.0);
+        let centre = d.height(Uv { u: u0, v: 4.0 }, &c, &lib);
+        assert!((centre - 0.35).abs() < 1e-9, "full relief at the stamp centre: {centre}");
+        assert_eq!(d.height(Uv { u: u0 + 5.0, v: 4.0 }, &c, &lib), 0.0, "clear of the stamp");
+        let near_edge = d.height(Uv { u: u0 + 1.9, v: 4.0 }, &c, &lib);
+        assert!(near_edge > 0.0 && near_edge < 0.35 * 0.5, "feathered border: {near_edge}");
+
+        // A stamp near the joint reaches across it.
+        let wrapped = DecalLayer {
+            decals: vec![Decal { theta_deg: 1.0, ..d.decals[0] }],
+            ..d.clone()
+        };
+        let h = wrapped.height(Uv { u: c.circumference_mm - 0.5, v: 4.0 }, &c, &lib);
+        assert!(h > 0.0, "stamp did not wrap the joint");
+
+        // A missing alpha contributes nothing rather than panicking.
+        let missing = DecalLayer { alpha: "nope".into(), ..d };
+        assert_eq!(missing.height(Uv { u: u0, v: 4.0 }, &c, &lib), 0.0);
+    }
+
+    #[test]
+    fn flutes_peak_mid_cell_and_close_at_the_joint() {
+        let c = ctx();
+        let f = FlutesLayer { count: 60, ..Default::default() };
+        let cell = 1.0; // 60 mm circumference / 60
+        let mid = f.height(Uv { u: 0.5 * cell, v: 4.0 }, &c);
+        assert!((mid - f.height_mm).abs() < 1e-9, "cell centre carries full depth: {mid}");
+        assert_eq!(f.height(Uv { u: 0.02, v: 4.0 }, &c), 0.0, "bare band between flutes");
+        for v in [1.0, 4.0, 7.0] {
+            let a = f.height(Uv { u: 0.0, v }, &c);
+            let b = f.height(Uv { u: 60.0 - 1e-9, v }, &c);
+            assert!((a - b).abs() < 1e-6, "joint mismatch at v {v}");
+        }
+        // Lean shifts the phase across the band without opening the joint.
+        let leaned = FlutesLayer { lean: 2.5, ..f };
+        let a = leaned.height(Uv { u: 0.0, v: 2.0 }, &c);
+        let b = leaned.height(Uv { u: 60.0 - 1e-9, v: 2.0 }, &c);
+        assert!((a - b).abs() < 1e-6, "leaned joint mismatch");
+    }
+
+    #[test]
+    fn a_reeded_band_builds_watertight_without_undercuts() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.layers.layers.push(LayerEntry::new("reeding", Layer::Flutes(FlutesLayer::default())));
+        let out = crate::mesh::build(
+            &d,
+            &lib,
+            crate::BuildParams { theta_steps: 384, profile_steps: 96, ..Default::default() },
+        );
+        assert!(out.report.validation.watertight, "{:?}", out.report.validation);
+        let cast = crate::castability::analyze(&out.mesh, &d.draft, d.inner_radius_mm());
+        // Reed walls face around the ring, parallel to the pull: they drag,
+        // they do not lock.
+        assert!(
+            cast.undercut_fraction() < 0.002,
+            "reeding locked: {:.4}%",
+            cast.undercut_fraction() * 100.0
+        );
+    }
+
+    #[test]
     fn a_group_composites_inside_and_replace_cannot_leak_out() {
         let c = ctx();
         let lib = AlphaLibrary::default();
@@ -2332,7 +3063,7 @@ mod silhouette_tests {
     ///
     /// It reads on the low edge: the two lobes reach -1 at a third of the way
     /// out either side, and the notch between them holds that edge back to
-    /// -0.72 at the head's centre.
+    /// -0.79 at the head's centre.
     #[test]
     fn the_body_has_no_dimple() {
         let o = SignetOutline::Heart;

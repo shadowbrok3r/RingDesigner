@@ -121,6 +121,8 @@ pub struct RingDesignerApp {
     pub library_filter: String,
     /// Clip-and-tile window for harvesting a fragment out of an imported alpha.
     pub alpha_editor: AlphaEditor,
+    /// Inscriptions window, toggled from the library panel.
+    pub text_editor_open: bool,
     pub status: String,
     pub auto_rebuild: bool,
     /// Named undo timeline over the design.
@@ -156,6 +158,8 @@ impl RingDesignerApp {
             .and_then(|s| s.get_string(DESIGN_STORAGE_KEY))
             .and_then(|j| serde_json::from_str::<RingDesign>(&j).ok())
             .unwrap_or_default();
+        design.bake_drawn(&mut lib);
+        design.bake_texts(&mut lib);
 
         let workspace = cc
             .storage
@@ -191,6 +195,7 @@ impl RingDesignerApp {
             selected_layer: None,
             library_filter: String::new(),
             alpha_editor: AlphaEditor::default(),
+            text_editor_open: false,
             status: "Ready".into(),
             auto_rebuild: true,
             history: History::new(&design_for_history),

@@ -242,6 +242,69 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         .id_salt("profile_flange")
         .default_open(open)
         .show(ui, |ui| flange(app, ui));
+
+    ui.add_space(2.0);
+    let open = app.design.profile.morph.is_some();
+    egui::CollapsingHeader::new(format!("{} Morph toward the top", icon::ARROWS_LEFT_RIGHT))
+        .id_salt("profile_morph")
+        .default_open(open)
+        .show(ui, |ui| morph(app, ui));
+}
+
+/// The crown blends toward a second style around the top of the ring —
+/// D-shape at the palm easing to a flat crown under a setting.
+fn morph(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    use ringdesign_core::profile::ProfileMorph;
+    let mut changed = false;
+
+    let mut on = app.design.profile.morph.is_some();
+    if ui
+        .checkbox(&mut on, "Blend to a second crown at the top")
+        .on_hover_text(
+            "A blend of two monotone crowns is monotone, so the base surface \
+             stays castable at every angle in between.",
+        )
+        .changed()
+    {
+        app.design.profile.morph = on
+            .then(|| ProfileMorph::from_style(ProfileStyle::Flat, &app.design.profile));
+        changed = true;
+    }
+
+    // Remember which style seeded the target, for the combo label.
+    let style_id = ui.make_persistent_id("morph_style");
+    let profile_snapshot = app.design.profile;
+    if let Some(m) = &mut app.design.profile.morph {
+        let mut style: ProfileStyle =
+            ui.memory(|mem| mem.data.get_temp(style_id)).unwrap_or(ProfileStyle::Flat);
+        egui::ComboBox::from_id_salt("morph_target")
+            .selected_text(style.label())
+            .width(170.0)
+            .show_ui(ui, |ui| {
+                for &s in ProfileStyle::ALL {
+                    if s == ProfileStyle::Custom {
+                        continue;
+                    }
+                    if ui.selectable_value(&mut style, s, s.label()).clicked() {
+                        *m = ProfileMorph {
+                            focus: m.focus,
+                            ..ProfileMorph::from_style(s, &profile_snapshot)
+                        };
+                        changed = true;
+                    }
+                }
+            });
+        ui.memory_mut(|mem| mem.data.insert_temp(style_id, style));
+
+        changed |= ui
+            .add(egui::Slider::new(&mut m.focus, 0.5..=6.0).fixed_decimals(1).text("Focus"))
+            .on_hover_text("How tightly the second crown hugs the top of the ring")
+            .changed();
+    }
+
+    if changed {
+        app.mark_dirty();
+    }
 }
 
 /// The two faces square to the mould pull, and a control to square them up.
@@ -542,6 +605,13 @@ fn shank(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         )
         .changed();
 
+    if matches!(app.design.shank.kind, ShankKind::Wave | ShankKind::Twist) {
+        changed |= ui
+            .add(egui::Slider::new(&mut app.design.shank.waves, 1..=6).text("Waves"))
+            .on_hover_text("Waves per revolution. Integer, so the band closes on itself.")
+            .changed();
+    }
+
     if app.design.shank.kind == ShankKind::Signet {
         changed |= signet_head(app, ui);
     }
@@ -655,6 +725,19 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
                 .text("Table flat"),
         )
         .on_hover_text("1 is a true plane to engrave. Below that the head keeps the profile's crown.")
+        .changed();
+
+    changed |= ui
+        .add(
+            egui::Slider::new(&mut head.table_dome_mm, 0.0..=2.0)
+                .fixed_decimals(2)
+                .suffix(" mm")
+                .text("Cab dome"),
+        )
+        .on_hover_text(
+            "Dome standing on the table's centre — a cabochon or buff-top head. \
+             A domed table also has real draft everywhere a flat one has none.",
+        )
         .changed();
 
     changed |= ui

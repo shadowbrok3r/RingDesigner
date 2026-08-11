@@ -322,6 +322,90 @@ impl Alpha {
         Alpha::new(self.name.clone(), w, h, data)
     }
 
+    /// Morphological opening by a cone, so no wall in the baked relief exceeds
+    /// `max_wall_deg` at the given scale — the rolling-ball fairing the signet
+    /// body uses, applied in 2D to a texture. Peaks too thin to support at
+    /// that slope are removed rather than left as unmouldable cliffs.
+    ///
+    /// `mm_per_px` is the tile cell's pitch per texel and `relief_mm` the
+    /// layer height the values scale to; together they turn the angle into a
+    /// value-per-texel slope. Runs on a 3x3 tiling of the image so the result
+    /// stays seamless.
+    pub fn draft_limited(&self, max_wall_deg: f64, mm_per_px: (f64, f64), relief_mm: f64) -> Alpha {
+        let (w, h) = (self.width, self.height);
+        if self.is_empty() || relief_mm <= 1e-6 {
+            return self.clone();
+        }
+        let t = max_wall_deg.clamp(5.0, 89.0).to_radians().tan();
+        let ax = (t * mm_per_px.0.max(1e-9) / relief_mm) as f32;
+        let ay = (t * mm_per_px.1.max(1e-9) / relief_mm) as f32;
+        // A limit no gradient can exceed changes nothing.
+        if ax >= 1.0 && ay >= 1.0 {
+            return self.clone();
+        }
+        let ad = (ax * ax + ay * ay).sqrt();
+
+        // 3x3 tiled working copy, so slopes propagate across the seams.
+        let (bw, bh) = (w * 3, h * 3);
+        let mut buf = vec![0.0f32; bw * bh];
+        for j in 0..bh {
+            for i in 0..bw {
+                buf[j * bw + i] = self.data[(j % h) * w + (i % w)];
+            }
+        }
+
+        let chamfer = |buf: &mut [f32], erode: bool| {
+            let pick = |a: f32, b: f32| if erode { a.min(b) } else { a.max(b) };
+            let step = |base: f32, cost: f32| if erode { base + cost } else { base - cost };
+            for j in 0..bh {
+                for i in 0..bw {
+                    let mut v = buf[j * bw + i];
+                    if i > 0 {
+                        v = pick(v, step(buf[j * bw + i - 1], ax));
+                    }
+                    if j > 0 {
+                        v = pick(v, step(buf[(j - 1) * bw + i], ay));
+                        if i > 0 {
+                            v = pick(v, step(buf[(j - 1) * bw + i - 1], ad));
+                        }
+                        if i + 1 < bw {
+                            v = pick(v, step(buf[(j - 1) * bw + i + 1], ad));
+                        }
+                    }
+                    buf[j * bw + i] = v;
+                }
+            }
+            for j in (0..bh).rev() {
+                for i in (0..bw).rev() {
+                    let mut v = buf[j * bw + i];
+                    if i + 1 < bw {
+                        v = pick(v, step(buf[j * bw + i + 1], ax));
+                    }
+                    if j + 1 < bh {
+                        v = pick(v, step(buf[(j + 1) * bw + i], ay));
+                        if i + 1 < bw {
+                            v = pick(v, step(buf[(j + 1) * bw + i + 1], ad));
+                        }
+                        if i > 0 {
+                            v = pick(v, step(buf[(j + 1) * bw + i - 1], ad));
+                        }
+                    }
+                    buf[j * bw + i] = v;
+                }
+            }
+        };
+        chamfer(&mut buf, true);
+        chamfer(&mut buf, false);
+
+        let mut out = Vec::with_capacity(w * h);
+        for j in 0..h {
+            for i in 0..w {
+                out.push(buf[(j + h) * bw + i + w].clamp(0.0, 1.0));
+            }
+        }
+        Alpha::new(format!("{} drafted", self.name), w, h, out)
+    }
+
     /// Sample with the layer's contrast/bias/invert response curve applied.
     pub fn shaped(&self, raw: f32, contrast: f64, bias: f64, invert: bool) -> f64 {
         let mut t = raw as f64;
@@ -356,6 +440,12 @@ pub enum Procedural {
     Feather,
     Bark,
     Nugget,
+    Rosette,
+    Barleycorn,
+    Moire,
+    Starburst,
+    Florentine,
+    GuillocheWeave,
 }
 
 impl Procedural {
@@ -376,6 +466,12 @@ impl Procedural {
         Procedural::Feather,
         Procedural::Bark,
         Procedural::Nugget,
+        Procedural::Rosette,
+        Procedural::Barleycorn,
+        Procedural::Moire,
+        Procedural::Starburst,
+        Procedural::Florentine,
+        Procedural::GuillocheWeave,
     ];
 
     pub fn label(self) -> &'static str {
@@ -396,6 +492,12 @@ impl Procedural {
             Procedural::Feather => "Feather",
             Procedural::Bark => "Bark",
             Procedural::Nugget => "Nugget",
+            Procedural::Rosette => "Rosette",
+            Procedural::Barleycorn => "Barleycorn",
+            Procedural::Moire => "Moire",
+            Procedural::Starburst => "Starburst",
+            Procedural::Florentine => "Florentine",
+            Procedural::GuillocheWeave => "Guilloche",
         }
     }
 
@@ -425,6 +527,12 @@ impl Procedural {
                     Procedural::Feather => feather(x, y),
                     Procedural::Bark => bark(x, y),
                     Procedural::Nugget => nugget(x, y),
+                    Procedural::Rosette => rosette(x, y),
+                    Procedural::Barleycorn => barleycorn(x, y),
+                    Procedural::Moire => moire(x, y),
+                    Procedural::Starburst => starburst(x, y),
+                    Procedural::Florentine => florentine(x, y),
+                    Procedural::GuillocheWeave => guilloche_weave(x, y),
                 };
                 raw[j * n + i] = if v.is_finite() { v } else { 0.0 };
             }
@@ -806,6 +914,96 @@ fn nugget(x: f64, y: f64) -> f64 {
     0.60 * surface + 0.28 * molten * (0.45 + 0.55 * surface) + 0.12 * lump
 }
 
+// --- Engine turning --------------------------------------------------------
+
+/// Rose-engine medallion: concentric grooves wobbled by an angular lobe count,
+/// one rosette per tile meeting its neighbours at the seams.
+fn rosette(x: f64, y: f64) -> f64 {
+    let dx = wrap1(x - 0.5);
+    let dy = wrap1(y - 0.5);
+    let r = (dx * dx + dy * dy).sqrt();
+    let a = dy.atan2(dx);
+    let rings = 9.0;
+    let lobes = 12.0;
+    let groove = 0.5 + 0.5 * (TAU * rings * r + 1.7 * (lobes * a).sin()).cos();
+    let hub = 1.0 - smoothstep(0.02, 0.10, r);
+    groove.powf(1.3).max(hub)
+}
+
+/// Staggered rows of pointed grains.
+fn barleycorn(x: f64, y: f64) -> f64 {
+    let nx = 7.0;
+    let ny = 11.0;
+    let row = (y * ny).floor() as i64;
+    let sx = x * nx + 0.5 * row.rem_euclid(2) as f64;
+    let cx = (frac(sx) - 0.5) * 2.0;
+    let cy = (frac(y * ny) - 0.5) * 2.0;
+    // Pointed along the row: the x term rises slower near the centre and
+    // reaches 1 sooner at the tips than a circle would.
+    let d = cx.abs().powf(1.5) + (cy * 1.15).powi(2);
+    if d >= 1.0 { 0.0 } else { (1.0 - d).sqrt() }
+}
+
+/// Two integer gratings a few cycles apart; their product beats slowly.
+fn moire(x: f64, y: f64) -> f64 {
+    let g1 = (TAU * (14.0 * x + y)).sin();
+    let g2 = (TAU * (12.0 * x - y)).sin();
+    let beat = g1 * g2;
+    0.5 + 0.5 * beat
+}
+
+/// Rays from the tile centre, ridge-sharpened, over faint concentric rings.
+fn starburst(x: f64, y: f64) -> f64 {
+    let dx = wrap1(x - 0.5);
+    let dy = wrap1(y - 0.5);
+    let r = (dx * dx + dy * dy).sqrt();
+    let a = dy.atan2(dx);
+    let rays = 24.0;
+    let ray = (0.5 + 0.5 * (rays * a).cos()).powf(2.2);
+    let ring = 0.82 + 0.18 * (TAU * 15.0 * r).cos();
+    let hub = 1.0 - smoothstep(0.015, 0.06, r);
+    (ray * ring).max(hub)
+}
+
+/// Fine cross-hatch cut into a plateau, each family gently wobbled. The lines
+/// are narrow against their pitch, so the surface stays a plateau carrying
+/// engraving rather than a woven check.
+fn florentine(x: f64, y: f64) -> f64 {
+    let n = 24.0;
+    let wob = 0.04;
+    let g1 = (2.0 * frac(n * x + wob * (TAU * 3.0 * y).sin()) - 1.0).abs();
+    let g2 = (2.0 * frac(n * y + wob * (TAU * 3.0 * x).sin()) - 1.0).abs();
+    let cut1 = 1.0 - smoothstep(0.08, 0.22, g1);
+    let cut2 = 1.0 - smoothstep(0.08, 0.22, g2);
+    1.0 - 0.60 * cut1.max(0.55 * cut2)
+}
+
+/// Two sine cords per band, half a cycle apart, crossing in the lens-shaped
+/// cells of a woven watch-dial guilloche. Both families share every row, so
+/// the tile stays periodic in `y` at the band pitch.
+fn guilloche_weave(x: f64, y: f64) -> f64 {
+    let rows = 4.0;
+    let k = 4.0;
+    let amp = 0.58 / rows;
+    let half = 0.24 / rows;
+    let row = (y * rows).floor() as i64;
+    let mut h: f64 = 0.0;
+    for dj in -1i64..=1 {
+        let j = (row + dj) as f64;
+        for ph in [0.0, 0.5] {
+            let phase = TAU * (k * x + ph);
+            let cy = (j + 0.5) / rows + amp * phase.sin();
+            let d = (y - cy).abs() / half;
+            if d < 1.0 {
+                // The rising cord reads as the one on top.
+                let front = 0.5 + 0.5 * phase.cos();
+                h = h.max(dome(d) * (0.62 + 0.38 * front));
+            }
+        }
+    }
+    h
+}
+
 /// Named collection of alphas. Layers reference entries by name so a saved
 /// design survives the library being reordered.
 #[derive(Clone, Debug, Default)]
@@ -1024,6 +1222,39 @@ mod tests {
     }
 
     #[test]
+    fn draft_limiting_caps_every_wall_and_stays_seamless() {
+        // A hard-edged checker: vertical cliffs everywhere.
+        let n = 64usize;
+        let data: Vec<f32> = (0..n * n)
+            .map(|i| if ((i % n) / 16 + (i / n) / 16) % 2 == 0 { 1.0 } else { 0.0 })
+            .collect();
+        let a = Alpha::new("checker", n, n, data);
+
+        // 0.5 mm cell pitch per 16 texels, 0.5 mm relief, 55 degree walls.
+        let mm_per_px = (0.5 / 16.0, 0.5 / 16.0);
+        let relief = 0.5;
+        let b = a.draft_limited(55.0, mm_per_px, relief);
+        let slope_px = (55f64.to_radians().tan() * mm_per_px.0 / relief) as f32;
+
+        let at = |img: &Alpha, x: usize, y: usize| img.data[(y % n) * n + (x % n)];
+        let mut worst = 0.0f32;
+        for y in 0..n {
+            for x in 0..n {
+                // Wrapped neighbours, so the seam is checked too.
+                worst = worst.max((at(&b, x, y) - at(&b, x + 1, y)).abs());
+                worst = worst.max((at(&b, x, y) - at(&b, x, y + 1)).abs());
+                assert!(at(&b, x, y) <= at(&a, x, y) + 1e-6, "opening only removes");
+            }
+        }
+        assert!(
+            worst <= slope_px * 1.01,
+            "a wall survived the bake: step {worst} vs allowed {slope_px}"
+        );
+        let ink: f32 = b.data.iter().sum();
+        assert!(ink > 100.0, "the pattern should survive, not vanish: {ink}");
+    }
+
+    #[test]
     fn every_procedural_is_the_requested_size_and_spans_the_range() {
         for &p in Procedural::ALL {
             let a = p.generate(64);
@@ -1215,9 +1446,10 @@ mod tests {
             println!("{name:12} dx={mx:.3e} dy={my:.3e}");
         }
 
-        // Montage: each pattern tiled 2x2 at 128, laid out 4x4.
+        // Montage: each pattern tiled 2x2 at 128, four columns wide.
         let cell = 256usize;
-        let (cols, rows) = (4usize, 4usize);
+        let cols = 4usize;
+        let rows = Procedural::ALL.len().div_ceil(cols);
         let (mw, mh) = (cols * cell, rows * cell);
         let mut buf = vec![255u8; mw * mh];
         for (k, &p) in Procedural::ALL.iter().enumerate() {

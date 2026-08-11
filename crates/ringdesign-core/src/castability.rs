@@ -558,7 +558,7 @@ pub fn section_at_spaced(
     let inner_r = design.inner_radius_mm();
     let reference = design.reference_loop();
     let ctx = design.field_context();
-    let m = design.shank.modulation(theta_deg, inner_r, reference.crest_radius_mm);
+    let m = design.modulation_at(theta_deg, inner_r, reference.crest_radius_mm);
     // The same snap set the sweep uses, so the section matches the mesh.
     let loop_i = design.profile.sample_spaced(
         inner_r,
@@ -778,6 +778,7 @@ mod tests {
                 height_mm: 1.6,
                 crown: 0.0,
                 blend_mm: 0.0,
+                ..Default::default()
             }),
         ));
         d

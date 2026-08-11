@@ -293,6 +293,20 @@ impl DropCurve {
         self.sanitize();
     }
 
+    /// A curve through the given control points, sanitized once at the end.
+    /// Inserting one at a time pins a provisional end after every point, and
+    /// that pin later wins the dedup against a real point at the same `x`.
+    pub fn from_points(pts: &[[f64; 2]]) -> Self {
+        let mut c = Self::default();
+        for &[x, d] in pts.iter().take(MAX_DROP_POINTS) {
+            let n = c.len as usize;
+            c.points[n] = [x.clamp(0.0, 1.0), d.clamp(0.0, 1.0)];
+            c.len = (n + 1) as u8;
+        }
+        c.sanitize();
+        c
+    }
+
     /// Add a control point, ignored once the curve is full.
     pub fn insert(&mut self, x: f64, d: f64) {
         let n = self.len as usize;
@@ -441,6 +455,38 @@ pub struct BandProfile {
     /// points and the style is [`ProfileStyle::Custom`].
     #[serde(default)]
     pub drop_curve: DropCurve,
+    /// Second crown the profile morphs toward around the top of the ring.
+    #[serde(default)]
+    pub morph: Option<ProfileMorph>,
+}
+
+/// A target crown for per-angle profile morphing: D-shape at the palm easing
+/// to a flat top, dome to knife, whatever the two styles are. The blend of two
+/// monotone drops is monotone, so the base surface stays undercut-free at
+/// every angle in between.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ProfileMorph {
+    pub shape_a: f64,
+    pub shape_b: f64,
+    pub crown_mm: f64,
+    pub edge_round_mm: f64,
+    /// How tightly the morph hugs the top of the ring: 1 spreads over the
+    /// whole upper half, 6 holds it to the crown.
+    pub focus: f64,
+}
+
+impl ProfileMorph {
+    /// A morph target taken from a style's preset shape, sized to a profile.
+    pub fn from_style(style: ProfileStyle, profile: &BandProfile) -> Self {
+        let (a, b, crown_frac, edge_frac) = style.preset();
+        Self {
+            shape_a: a,
+            shape_b: b,
+            crown_mm: profile.thickness_mm * crown_frac,
+            edge_round_mm: profile.thickness_mm * edge_frac * 0.5,
+            focus: 2.0,
+        }
+    }
 }
 
 impl Default for BandProfile {
@@ -458,6 +504,7 @@ impl Default for BandProfile {
             side_draft_deg: 2.0,
             flange: Flange::default(),
             drop_curve: DropCurve::default(),
+            morph: None,
         };
         p.apply_style(ProfileStyle::HalfRound);
         p
@@ -501,6 +548,17 @@ impl BandProfile {
         (self.thickness_mm - self.effective_crown_mm()).max(MIN_EDGE_MM)
     }
 
+    /// How far toward the morph target the section at a ring angle sits, 0..1.
+    pub fn morph_weight(&self, theta_deg: f64) -> f64 {
+        match &self.morph {
+            None => 0.0,
+            Some(m) => {
+                let c = (theta_deg - TOP_DEG).to_radians().cos() * 0.5 + 0.5;
+                c.powf(m.focus.clamp(0.5, 8.0))
+            }
+        }
+    }
+
     /// Normalized drop from the crest, `x` in 0..1.
     ///
     /// Monotonically non-decreasing, and so undercut-free, whether it comes
@@ -510,9 +568,7 @@ impl BandProfile {
         if self.style == ProfileStyle::Custom && self.drop_curve.is_active() {
             return self.drop_curve.eval(x);
         }
-        let a = self.shape_a.max(0.05);
-        let b = self.shape_b.max(0.05);
-        (1.0 - (1.0 - x.powf(a)).max(0.0).powf(1.0 / b)).clamp(0.0, 1.0)
+        superellipse_drop(x, self.shape_a, self.shape_b)
     }
 
     /// Seed the hand-drawn crown from the exponents currently in force, so
@@ -583,11 +639,23 @@ impl BandProfile {
         let (b_lo, b_hi) = (b_c - hw, b_c + hw);
 
         let comfort = self.comfort_fit_mm.clamp(0.0, hw * 0.8);
+        // Morph the crown parameters toward the profile's target. A blend of
+        // two monotone drops is monotone, so castability survives the ride.
+        let mt = if self.morph.is_some() { m.drop_blend.clamp(0.0, 1.0) } else { 0.0 };
+        let mlerp = |a: f64, b: f64| a + (b - a) * mt;
+        let (crown_src, edge_src, morph_ab) = match (&self.morph, mt > 1e-9) {
+            (Some(mo), true) => (
+                mlerp(self.crown_mm, mo.crown_mm),
+                mlerp(self.edge_round_mm, mo.edge_round_mm),
+                Some((mo.shape_a, mo.shape_b)),
+            ),
+            _ => (self.crown_mm, self.edge_round_mm, None),
+        };
         // The comfort dome eats into the band from the inside, so the crown may
         // only take what it leaves. Without this the bore reaches past the outer
         // surface at the band edge and the cross-section folds over itself — a
         // 0.25 mm comfort fit does not fit inside a 0.2 mm edge.
-        let crown = (self.crown_mm * m.thickness_scale * m.crown_scale)
+        let crown = (crown_src * m.thickness_scale * m.crown_scale)
             .clamp(0.0, (thickness - comfort - MIN_EDGE_MM).max(0.0));
         let edge_t = (thickness - crown).max(MIN_EDGE_MM + comfort);
         let draft = self.side_draft_deg.clamp(-20.0, 30.0).to_radians();
@@ -640,14 +708,28 @@ impl BandProfile {
             Some(cap) => r.min(cap.max(inner_r + MIN_EDGE_MM)),
             None => r,
         };
+        let drop_at = |x: f64| -> f64 {
+            match morph_ab {
+                None => self.drop(x),
+                Some((a2, b2)) => mlerp(self.drop(x), superellipse_drop(x, a2, b2)),
+            }
+        };
+        // The flank skew is a power on the normalized distance: monotone in,
+        // monotone out, so a skewed flank is still a drop from a single crest.
+        let bias = m.flank_bias.clamp(-1.0, 1.0);
+        let gamma = |low: bool| {
+            let sign = if low { 1.0 } else { -1.0 };
+            (1.0 + 0.5 * bias * sign).clamp(0.45, 2.2)
+        };
         let r_at = |z: f64| -> f64 {
             let z = z.clamp(c_lo, c_hi);
-            let x = if z <= crest_z {
-                (crest_z - z) / (crest_z - c_lo).max(1e-9)
+            let (x, low) = if z <= crest_z {
+                ((crest_z - z) / (crest_z - c_lo).max(1e-9), true)
             } else {
-                (z - crest_z) / (c_hi - crest_z).max(1e-9)
+                ((z - crest_z) / (c_hi - crest_z).max(1e-9), false)
             };
-            cap_r(inner_r + thickness - crown * self.drop(x))
+            let x = if bias.abs() > 1e-9 { x.powf(gamma(low)) } else { x };
+            cap_r(inner_r + thickness - crown * drop_at(x))
         };
         let bore_r = |z: f64| -> f64 { inner_r + comfort * ((z - b_c) / hw.max(1e-9)).powi(2) };
 
@@ -741,17 +823,61 @@ impl BandProfile {
             }
         };
 
-        let er = self.edge_round_mm.clamp(0.0, thickness.min(c_span * 0.5) * 0.45);
+        let er = edge_src.clamp(0.0, thickness.min(c_span * 0.5) * 0.45);
         // Each end fillet is capped by the dome the flange leaves at that edge.
         let (er_b, er_t) = match &flange {
             Some(f) => (er.min((f.z_lo - c_lo) * 0.4), er.min((c_hi - f.z_hi) * 0.4)),
             None => (er, er),
         };
-        let mut surface: Vec<[f64; 2]> = Vec::with_capacity(outer.len() + 4 * DENSE + 4);
+
+        // The side wall follows the band's own draft; only the offset a head
+        // puts between the bore span and the crest span sweeps onto the face,
+        // across a C² take-off near the top. A straight wall carries every
+        // kink of the face's silhouette — a heart's dimple, a hexagon's
+        // corner — down its whole height at linearly fading strength, which
+        // reads as a crease line on the flank; the reference signets' flanks
+        // belong to the *body*, with the face a facet cut into the last
+        // fraction. Ordinary bands have no offset, so their wall stays the
+        // exact chord it always was.
+        let wall = |z_a: f64, delta: f64, own: f64, r0: f64, r1: f64, descending: bool| {
+            let mut own = own;
+            let mut extra = delta - own;
+            // Opposite signs could fold the wall back on itself; a folded
+            // wall is a ceiling. Fall back to the straight chord.
+            if own * extra < 0.0 {
+                own = delta;
+                extra = 0.0;
+            }
+            // Outward is away from the section's middle: -z on the low wall,
+            // +z on the high one.
+            let dir = if descending { 1.0 } else { -1.0 };
+            let bulge = (FLANK_BULGE * extra.abs()).min(0.6);
+            let pts: Vec<[f64; 2]> = (1..FLANK_STEPS)
+                .map(|i| {
+                    let t = i as f64 / FLANK_STEPS as f64;
+                    let bump = 0.5 * (1.0 - (std::f64::consts::TAU * t).cos());
+                    let z = z_a
+                        + own * t
+                        + extra * crate::field::smootherstep(FLANK_TAKEOFF, 1.0, t)
+                        + dir * bulge * bump;
+                    [r0 + (r1 - r0) * t, z]
+                })
+                .collect();
+            if descending { pts.into_iter().rev().collect() } else { pts }
+        };
+        let flank_b = wall(b_lo, c_lo - b_lo, side_inset, side_b_start[0], corner_b[0], false);
+        let flank_t = wall(b_hi, c_hi - b_hi, -side_inset, side_t_end[0], corner_t[0], true);
+
+        let mut surface: Vec<[f64; 2]> =
+            Vec::with_capacity(outer.len() + 2 * FLANK_STEPS + 4 * DENSE + 4);
         surface.push(side_b_start);
-        let (fb0, fb1) = push_fillet(&mut surface, side_b_start, corner_b, &outer, false, er_b);
+        surface.extend_from_slice(&flank_b);
+        let side_b_last = *surface.last().unwrap_or(&side_b_start);
+        let (fb0, fb1) = push_fillet(&mut surface, side_b_last, corner_b, &outer, false, er_b);
         surface.extend_from_slice(trim_outer(&outer, er_b, er_t));
-        let (ft0, ft1) = push_fillet(&mut surface, side_t_end, corner_t, &outer, true, er_t);
+        let side_t_first = *flank_t.first().unwrap_or(&side_t_end);
+        let (ft0, ft1) = push_fillet(&mut surface, side_t_first, corner_t, &outer, true, er_t);
+        surface.extend_from_slice(&flank_t);
         surface.push(side_t_end);
         dedup(&mut surface);
         feats.extend([fb0, fb1, ft0, ft1]);
@@ -873,8 +999,14 @@ pub enum ShankKind {
     Uniform,
     Tapered,
     ReverseTaper,
+    Pinched,
+    Bombe,
+    Saddle,
     Cathedral,
+    Wave,
+    Twist,
     EuroFlat,
+    FlatTop,
     Signet,
 }
 
@@ -883,8 +1015,14 @@ impl ShankKind {
         ShankKind::Uniform,
         ShankKind::Tapered,
         ShankKind::ReverseTaper,
+        ShankKind::Pinched,
+        ShankKind::Bombe,
+        ShankKind::Saddle,
         ShankKind::Cathedral,
+        ShankKind::Wave,
+        ShankKind::Twist,
         ShankKind::EuroFlat,
+        ShankKind::FlatTop,
         ShankKind::Signet,
     ];
 
@@ -893,8 +1031,14 @@ impl ShankKind {
             ShankKind::Uniform => "Uniform",
             ShankKind::Tapered => "Tapered",
             ShankKind::ReverseTaper => "Reverse Taper",
+            ShankKind::Pinched => "Pinched",
+            ShankKind::Bombe => "Bombé",
+            ShankKind::Saddle => "Saddle",
             ShankKind::Cathedral => "Cathedral",
+            ShankKind::Wave => "Wave",
+            ShankKind::Twist => "Twist",
             ShankKind::EuroFlat => "Euro (flat bottom)",
+            ShankKind::FlatTop => "Flat top",
             ShankKind::Signet => "Signet",
         }
     }
@@ -904,8 +1048,21 @@ impl ShankKind {
             ShankKind::Uniform => "Constant section all the way around.",
             ShankKind::Tapered => "Narrows toward the bottom of the finger.",
             ShankKind::ReverseTaper => "Narrows toward the top, widening at the palm.",
+            ShankKind::Pinched => "Waists in just below the top, so the crown reads set-off.",
+            ShankKind::Bombe => "Swells full and round at the top, slimming to the palm.",
+            ShankKind::Saddle => "Low, wide top hugging the finger, round through the palm.",
             ShankKind::Cathedral => "Shoulders swell toward the top of the ring.",
+            ShankKind::Wave => {
+                "The band's edges wave along the finger while the crest stays level — one \
+                 wave is the curved band that hugs a solitaire."
+            }
+            ShankKind::Twist => {
+                "Reads as a twisted band: the edges wave while the steep flank alternates \
+                 sides, so the light-line spirals — and everything still pulls. A true helix \
+                 locks in the sand."
+            }
             ShankKind::EuroFlat => "Flat chord across the bottom so the ring will not spin.",
+            ShankKind::FlatTop => "Flat chord faceted across the top of the ring.",
             ShankKind::Signet => {
                 "Narrow shank swelling into a broad, flat-topped head. The head is the band \
                  itself — the face outline is the band's own silhouette and the table is its \
@@ -952,6 +1109,11 @@ pub struct SignetHead {
     /// How flat the table is: 1 is a true plane, 0 keeps the profile's own
     /// crown so the head stays domed.
     pub table_flat: f64,
+    /// Dome standing on the table's centre, mm — a cabochon or buff-top head.
+    /// Besides the look, a domed table has real draft everywhere, where a
+    /// dead-flat one is the zero-draft plane behind the refined-build phantom.
+    #[serde(default)]
+    pub table_dome_mm: f64,
 }
 
 fn default_body_fair() -> f64 {
@@ -1060,6 +1222,7 @@ impl Default for SignetHead {
             swell_deg: None,
             body_fair: HEAD_BODY_FAIR,
             table_flat: 1.0,
+            table_dome_mm: 0.0,
         }
     }
 }
@@ -1109,14 +1272,26 @@ pub struct ShankStyle {
     /// Strength of the modulation, 0..1. On a signet this is how far the shank
     /// narrows behind the head.
     pub amount: f64,
+    /// Wave only: waves per revolution. Integer, so the band closes on itself.
+    #[serde(default = "default_waves")]
+    pub waves: u32,
     /// Signet only: the head the band swells into.
     #[serde(default)]
     pub head: SignetHead,
 }
 
+fn default_waves() -> u32 {
+    1
+}
+
 impl Default for ShankStyle {
     fn default() -> Self {
-        Self { kind: ShankKind::Uniform, amount: 0.5, head: SignetHead::default() }
+        Self {
+            kind: ShankKind::Uniform,
+            amount: 0.5,
+            waves: default_waves(),
+            head: SignetHead::default(),
+        }
     }
 }
 
@@ -1288,16 +1463,29 @@ impl ShankStyle {
         let face = face_at(end * xf);
 
         // --- Crest: on the table plane over the face, then the shoulder. ---
-        let r_plane = plane_r / d.min(face_edge).cos().max(1e-6);
+        // A parabolic cap rides on the plane solve: full at the face's centre,
+        // gone at its edge, so the edge break and shoulder are untouched.
+        let xr = (plane_r * d.min(face_edge).tan() / half_l).clamp(0.0, 1.0);
+        let cap = self.head.table_dome_mm.clamp(0.0, 3.0) * (1.0 - xr * xr);
+        let r_plane = plane_r / d.min(face_edge).cos().max(1e-6) + cap;
         let span = self.head.shoulder_deg.clamp(1.0, 150.0).to_radians();
         let s = ((d - face_edge).max(0.0) / span).clamp(0.0, 1.0);
         let h00 = (1.0 - s).powf(HEAD_SHOULDER_POW);
+        // The crest's *span* hands over with a flat start, unlike its height:
+        // `h00` leaves the rim already diving, which the reference's crest
+        // line does — but a span blend whose derivative jumps at the rim
+        // creases the flank along the face-end locus. Only the first quarter
+        // of the shoulder is reshaped; past it the span follows `h00`
+        // exactly, because holding the face's one-sided reach any longer
+        // measurably grows the upright-outline ceiling (0.113% against the
+        // 0.059% bound on a Draft heart with a full smootherstep handover).
+        let h_span = 1.0 - crate::field::smootherstep(0.0, 0.25, s) * (1.0 - h00);
 
         // The table cannot reach past the body it is cut into. `body_extent`
         // already contains the face, but the fillet against the swell rounds a
         // crossing *down* by up to its own radius, so the last word belongs
         // here — a crest outside the bore is an undercut by construction.
-        let crest = blend_span(draft_span(reach), draft_span(face), h00);
+        let crest = blend_span(draft_span(reach), draft_span(face), h_span);
         let crest = (crest.0.max(reach.0), crest.1.min(reach.1));
 
         HeadAt { x: end * x, reach, face: crest, on_head: h00, outer_r: r_shank + (r_plane - r_shank) * h00 }
@@ -1352,6 +1540,15 @@ pub struct ShankMod {
     pub crest_span: Option<(f64, f64)>,
     /// Hard radial cap, used by the Euro flat chord.
     pub outer_max_r: Option<f64>,
+    /// How far toward [`BandProfile::morph`]'s target this section sits, 0..1.
+    /// Filled by [`crate::RingDesign::modulation_at`], not by the shank kind,
+    /// so morphing composes with every kind.
+    pub drop_blend: f64,
+    /// Skews the crown's two flanks against each other, -1..1: positive
+    /// steepens the low-`z` flank and eases the high one. Applied as a power
+    /// on the normalized distance, so each flank stays a monotone drop and
+    /// the castability guarantee survives.
+    pub flank_bias: f64,
 }
 
 impl ShankMod {
@@ -1364,6 +1561,8 @@ impl ShankMod {
             z_center_frac: 0.0,
             crest_span: None,
             outer_max_r: None,
+            drop_blend: 0.0,
+            flank_bias: 0.0,
         }
     }
 }
@@ -1377,6 +1576,71 @@ impl ShankStyle {
         let d = ((theta_deg - TOP_DEG).to_radians().cos() * -0.5 + 0.5).clamp(0.0, 1.0);
         match self.kind {
             ShankKind::Uniform => ShankMod::identity(),
+            ShankKind::Pinched => {
+                // Waist concentrated just off the top, on both shoulders.
+                let p = (((theta_deg - TOP_DEG).to_radians().cos() * 0.5 + 0.5) as f64).powi(3);
+                ShankMod {
+                    width_scale: 1.0 - 0.35 * k * p,
+                    thickness_scale: 1.0 + 0.15 * k * p,
+                    ..ShankMod::identity()
+                }
+            }
+            ShankKind::Bombe => {
+                let s = (1.0 - d).powf(1.5);
+                ShankMod {
+                    width_scale: (1.0 + 0.50 * k * s) * (1.0 - 0.25 * k * d),
+                    thickness_scale: (1.0 + 0.35 * k * s) * (1.0 - 0.20 * k * d),
+                    crown_scale: 1.0 + 0.6 * k * s,
+                    ..ShankMod::identity()
+                }
+            }
+            ShankKind::Saddle => {
+                let p = (1.0 - d).powf(2.0);
+                ShankMod {
+                    width_scale: 1.0 + 0.45 * k * p,
+                    thickness_scale: 1.0 - 0.35 * k * p,
+                    ..ShankMod::identity()
+                }
+            }
+            ShankKind::Wave => {
+                // The section slides along the finger; the crest span is
+                // widened to the parting plane by construction, so the crest
+                // circle stays level while the edges wave. The swing is capped
+                // at 0.6 of the half-width: measured undercut converges to
+                // 0.008% there and to 0.05% at -7 degrees by 0.85, where the
+                // edge fillet starts leaning over the mould half beneath it.
+                let waves = self.waves.clamp(1, 8) as f64;
+                let phase = (theta_deg - TOP_DEG).to_radians() * waves;
+                ShankMod {
+                    z_center_frac: 0.6 * k * phase.sin(),
+                    ..ShankMod::identity()
+                }
+            }
+            ShankKind::Twist => {
+                // The wave's slide plus a phase-locked flank skew: the steep
+                // flank alternates sides as the edge crosses its mid-line, so
+                // the light-line spirals. Both flanks stay monotone drops.
+                // Capped where the measured undercut converges to phantom
+                // scale: 0.011% at half these strengths, 0.089% at -5.6
+                // degrees when the slide reaches 0.45 and the bias 0.8.
+                let waves = self.waves.clamp(1, 8) as f64;
+                let phase = (theta_deg - TOP_DEG).to_radians() * waves;
+                ShankMod {
+                    z_center_frac: 0.28 * k * phase.sin(),
+                    flank_bias: 0.45 * k * phase.cos(),
+                    ..ShankMod::identity()
+                }
+            }
+            ShankKind::FlatTop => {
+                let c = (theta_deg - TOP_DEG).to_radians().cos();
+                let flat_depth = 0.35 * k * base_outer_r.min(12.0) * 0.25;
+                let cap = if c > 0.05 {
+                    Some((base_outer_r - flat_depth) / c)
+                } else {
+                    None
+                };
+                ShankMod { outer_max_r: cap, ..ShankMod::identity() }
+            }
             ShankKind::Tapered => ShankMod {
                 width_scale: 1.0 - 0.45 * k * d,
                 thickness_scale: 1.0 - 0.30 * k * d,
@@ -1431,6 +1695,8 @@ impl ShankStyle {
                     outer_r: Some(a.outer_r),
                     z_center_frac: centre,
                     outer_max_r: None,
+                    drop_blend: 0.0,
+                    flank_bias: 0.0,
                 }
             }
         }
@@ -1438,6 +1704,13 @@ impl ShankStyle {
 }
 
 // --- Polyline helpers ------------------------------------------------------
+
+/// The superellipse drop law, monotone for any positive exponents.
+fn superellipse_drop(x: f64, a: f64, b: f64) -> f64 {
+    let a = a.max(0.05);
+    let b = b.max(0.05);
+    (1.0 - (1.0 - x.clamp(0.0, 1.0).powf(a)).max(0.0).powf(1.0 / b)).clamp(0.0, 1.0)
+}
 
 fn polyline_len(p: &[[f64; 2]]) -> f64 {
     p.windows(2).map(|w| dist(w[0], w[1])).sum()
@@ -1501,6 +1774,21 @@ struct FlangeBand {
 
 /// Points per quadratic Bezier corner.
 const ARC_STEPS: usize = 8;
+
+/// Vertices along each curved side wall.
+const FLANK_STEPS: usize = 14;
+
+/// Fraction of the wall's height where the head's offset starts sweeping
+/// from the body onto the face. Below it the flank is the body's; the face
+/// influence lives in the take-off, like a facet cut into the top of a form.
+const FLANK_TAKEOFF: f64 = 0.55;
+
+/// Outward mid-height bulge of a head's side wall, as a share of the head
+/// offset it carries. A straight wall beside a rounded swell reads as a
+/// dished panel with creased borders; the reference flanks are barrel-convex.
+/// Zero-slope at both ends, so the bore corner and the face edge keep their
+/// meeting angles, and zero wherever there is no head offset.
+const FLANK_BULGE: f64 = 0.55;
 
 /// Append a quadratic Bezier from `p0` to `p2` with `corner` as the control
 /// point, excluding `p0` itself.
@@ -1718,6 +2006,222 @@ fn finish_loop(mut pts: Vec<ProfileSample>, feature_v: Vec<f64>) -> ProfileLoop 
 
 #[cfg(test)]
 mod tests {
+
+    // --- Twist --------------------------------------------------------------
+
+    /// The twist reads as a spiral because the steep flank alternates sides;
+    /// it must actually alternate, and the band must still release.
+    #[test]
+    fn a_twist_band_alternates_its_steep_flank_and_releases() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(super::ProfileStyle::LowDome);
+        d.shank = super::ShankStyle {
+            kind: super::ShankKind::Twist,
+            amount: 1.0,
+            waves: 3,
+            ..Default::default()
+        };
+        let inner_r = d.inner_radius_mm();
+        let crest_r = d.reference_loop().crest_radius_mm;
+
+        // Radial drop of each flank a fixed way out from the crest; the
+        // steeper flank has dropped further.
+        let flank_drop = |theta: f64| {
+            let m = d.modulation_at(theta, inner_r, crest_r);
+            let l = d.profile.sample_spaced(inner_r, 128, &m, None, None);
+            let crest = l.crest_radius_mm;
+            let crest_z = l
+                .pts
+                .iter()
+                .filter(|p| p.surface)
+                .max_by(|a, b| a.r.total_cmp(&b.r))
+                .map(|p| p.z)
+                .unwrap_or(0.0);
+            let probe = |side: f64| {
+                let z = crest_z + side * 1.4;
+                l.pts
+                    .iter()
+                    .filter(|p| p.surface && (p.z - z).abs() < 0.25)
+                    .map(|p| p.r)
+                    .fold(0.0f64, f64::max)
+            };
+            (crest - probe(-1.0), crest - probe(1.0))
+        };
+        // Peak positive bias a quarter-wave apart from peak negative.
+        let (lo_a, hi_a) = flank_drop(TOP_DEG);
+        let (lo_b, hi_b) = flank_drop(TOP_DEG + 60.0);
+        assert!(
+            (lo_a - hi_a) * (lo_b - hi_b) < 0.0,
+            "the steep flank should swap sides: {lo_a:.3}/{hi_a:.3} vs {lo_b:.3}/{hi_b:.3}"
+        );
+
+        let out = crate::mesh::build(
+            &d,
+            &lib,
+            crate::BuildParams { theta_steps: 384, profile_steps: 128, ..Default::default() },
+        );
+        assert!(out.report.validation.watertight, "{:?}", out.report.validation);
+        let cast = crate::castability::analyze(&out.mesh, &d.draft, inner_r);
+        assert!(
+            cast.undercut_fraction() < 0.002 && cast.worst_draft_deg > -5.0,
+            "twist locks: {:.4}% at {:.1}",
+            cast.undercut_fraction() * 100.0,
+            cast.worst_draft_deg
+        );
+    }
+
+    // --- Cab dome -----------------------------------------------------------
+
+    /// A cabochon table stands proud at its centre, stays inside the plane at
+    /// the face's edge, and still releases.
+    #[test]
+    fn a_cab_dome_raises_the_table_centre_and_releases() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut flat = crate::RingDesign::default();
+        flat.profile.width_mm = 8.0;
+        flat.shank.apply_signet(8.0);
+        let mut cab = flat.clone();
+        cab.shank.head.table_dome_mm = 1.0;
+
+        let r_at_top = |d: &crate::RingDesign| {
+            let inner_r = d.inner_radius_mm();
+            let crest_r = d.reference_loop().crest_radius_mm;
+            d.shank.head_at(TOP_DEG, inner_r, crest_r).outer_r
+        };
+        // head_at on ShankStyle:
+        let flat_r = flat.shank.head_at(TOP_DEG, flat.inner_radius_mm(), flat.reference_loop().crest_radius_mm).outer_r;
+        let cab_r = r_at_top(&cab);
+        assert!(
+            (cab_r - flat_r - 1.0).abs() < 0.05,
+            "the dome should stand ~1 mm proud at centre: {flat_r:.3} -> {cab_r:.3}"
+        );
+
+        let out = crate::mesh::build(
+            &cab,
+            &lib,
+            crate::BuildParams { theta_steps: 256, profile_steps: 96, ..Default::default() },
+        );
+        assert!(out.report.validation.watertight, "{:?}", out.report.validation);
+        let cast = crate::castability::analyze(&out.mesh, &cab.draft, cab.inner_radius_mm());
+        assert!(
+            cast.undercut_fraction() < 0.001,
+            "cab head locks: {:.4}% at {:.1}",
+            cast.undercut_fraction() * 100.0,
+            cast.worst_draft_deg
+        );
+    }
+
+    // --- Profile morph ------------------------------------------------------
+
+    /// D-shape at the palm easing to a flat crown at the top: the section
+    /// really changes, the mesh still closes, and the blend of two monotone
+    /// drops keeps every angle castable.
+    #[test]
+    fn a_profile_morph_changes_the_top_and_stays_castable() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(super::ProfileStyle::DShape);
+        d.profile.morph =
+            Some(super::ProfileMorph::from_style(super::ProfileStyle::Flat, &d.profile));
+
+        let inner_r = d.inner_radius_mm();
+        let reference = d.reference_loop();
+        let crest_r = reference.crest_radius_mm;
+
+        // How far the dome has dropped 80% of the way to the band edge. At a
+        // given z the section has a dome point and a side-face point; the dome
+        // is the outer of the two.
+        let hw = d.profile.width_mm * 0.5;
+        let section_crown = |theta: f64| {
+            let m = d.modulation_at(theta, inner_r, crest_r);
+            let l = d.profile.sample_spaced(inner_r, 96, &m, None, None);
+            let crest = l.crest_radius_mm;
+            let dome = l
+                .pts
+                .iter()
+                .filter(|p| p.surface && (p.z.abs() - 0.8 * hw).abs() < 0.15)
+                .map(|p| p.r)
+                .fold(0.0f64, f64::max);
+            crest - dome
+        };
+        let top = section_crown(TOP_DEG);
+        let bottom = section_crown(TOP_DEG + 180.0);
+        assert!(
+            bottom - top > 0.2,
+            "the top should flatten: crown drop {top:.3} vs palm {bottom:.3}"
+        );
+
+        let out = crate::mesh::build(
+            &d,
+            &lib,
+            crate::BuildParams { theta_steps: 256, profile_steps: 96, ..Default::default() },
+        );
+        assert!(out.report.validation.watertight, "{:?}", out.report.validation);
+        let cast = crate::castability::analyze(&out.mesh, &d.draft, inner_r);
+        assert!(
+            cast.undercut_fraction() < 0.001,
+            "morphed band locks: {:.4}% at {:.1} deg",
+            cast.undercut_fraction() * 100.0,
+            cast.worst_draft_deg
+        );
+    }
+
+    // --- Wave shank ---------------------------------------------------------
+
+    /// The whole trick of the wave band: the bore span slides along the finger
+    /// while the crest span is widened to contain the parting plane, so the
+    /// crest circle stays level and every flank keeps its draft.
+    #[test]
+    fn a_wave_band_keeps_its_crest_level_and_releases() {
+        let lib = crate::AlphaLibrary::builtin();
+        for waves in [1u32, 2, 3] {
+            let mut d = crate::RingDesign::default();
+            d.profile.apply_style(super::ProfileStyle::LowDome);
+            d.shank = super::ShankStyle {
+                kind: super::ShankKind::Wave,
+                amount: 1.0,
+                waves,
+                ..Default::default()
+            };
+            let out = crate::mesh::build(
+                &d,
+                &lib,
+                crate::BuildParams { theta_steps: 256, profile_steps: 96, ..Default::default() },
+            );
+            assert!(out.report.validation.watertight, "{waves} waves: {:?}", out.report.validation);
+
+            // The crest of every slice sits on the parting plane.
+            let inner_r = d.inner_radius_mm();
+            let reference = d.reference_loop();
+            for i in 0..32 {
+                let theta = i as f64 / 32.0 * 360.0;
+                let m = d.shank.modulation(theta, inner_r, reference.crest_radius_mm);
+                let l = d.profile.sample_spaced(inner_r, 96, &m, None, None);
+                let crest_z = l
+                    .pts
+                    .iter()
+                    .filter(|p| p.surface)
+                    .max_by(|a, b| a.r.total_cmp(&b.r))
+                    .map(|p| p.z)
+                    .unwrap_or(f64::NAN);
+                assert!(
+                    crest_z.abs() < 0.12,
+                    "{waves} waves: crest rode to z {crest_z:.3} at theta {theta:.0}"
+                );
+            }
+
+            let cast = crate::castability::analyze(&out.mesh, &d.draft, inner_r);
+            // What is left at this sweep is the crest-line phantom: measured
+            // 0.040% at 384x144 falling to 0.006% at 768x256.
+            assert!(
+                cast.undercut_fraction() < 0.002 && cast.worst_draft_deg > -4.0,
+                "{waves} waves lock in the sand: {:.4}% at {:.1} deg",
+                cast.undercut_fraction() * 100.0,
+                cast.worst_draft_deg
+            );
+        }
+    }
 
     // --- Feature lines -----------------------------------------------------
 
@@ -2274,6 +2778,7 @@ mod tests {
         let sh = ShankStyle {
             kind: ShankKind::Signet,
             amount: (1.0 - 7.0 / 16.0) / (1.0 - SIGNET_MIN_SHANK_FRAC),
+            waves: 1,
             head: SignetHead {
                 outline: SignetOutline::Round,
                 length_mm: 14.7,
@@ -2493,11 +2998,14 @@ mod tests {
             let m = sym.modulation(TOP_DEG, BORE_R, CREST_R);
             assert!(m.z_center_frac.abs() < 1e-9, "{o:?} moved the band: {}", m.z_center_frac);
         }
+        // Signet and Wave are the two kinds whose whole point is moving the
+        // section along the finger; everything else must stay centred.
         for &kind in ShankKind::ALL {
             let s = ShankStyle { kind, amount: 1.0, ..Default::default() };
             let m = s.modulation(TOP_DEG + 40.0, BORE_R, CREST_R);
             assert!(
-                kind == ShankKind::Signet || m.z_center_frac == 0.0,
+                matches!(kind, ShankKind::Signet | ShankKind::Wave | ShankKind::Twist)
+                    || m.z_center_frac == 0.0,
                 "{kind:?} moved the band off centre"
             );
         }

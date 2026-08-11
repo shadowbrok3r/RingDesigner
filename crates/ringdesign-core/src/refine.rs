@@ -190,7 +190,7 @@ struct Sample {
 
 impl Column {
     fn build(design: &RingDesign, inner_r: f64, crest_r: f64, theta_deg: f64) -> Self {
-        let m = design.shank.modulation(theta_deg, inner_r, crest_r);
+        let m = design.modulation_at(theta_deg, inner_r, crest_r);
         let loop_ = design.profile.sample_mod(inner_r, COLUMN_STEPS, &m);
         let n = loop_.len();
         let mut cum = Vec::with_capacity(n + 1);

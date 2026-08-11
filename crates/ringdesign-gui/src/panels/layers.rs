@@ -2,9 +2,9 @@
 
 use egui_phosphor::regular as icon;
 use ringdesign_core::field::{
-    Blend, BorderLayer, BorderProfile, FieldContext, GroupLayer, Layer, MilgrainLayer,
-    SIDE_FACE_MIN_DRAFT_DEG, SeatPadLayer, SideFacePick, SignetLayer, SignetOutline, VGate,
-    Window,
+    Blend, BorderLayer, BorderProfile, DecalLayer, FieldContext, FluteProfile,
+    FlutesLayer, GroupLayer, Layer, MAX_DECALS, MilgrainLayer, Remap, SIDE_FACE_MIN_DRAFT_DEG, SeatRunLayer,
+    SeatPadLayer, SideFacePick, SignetLayer, SignetOutline, VGate, Window,
 };
 use ringdesign_core::curve::{CurveLayer, MAX_CURVE_POINTS, WireProfile};
 use ringdesign_core::tiling::TilingLayer;
@@ -110,6 +110,44 @@ fn add_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 ui.close();
             }
         });
+        ui.menu_button(format!("{} Flutes", icon::ROWS), |ui| {
+            if ui
+                .button("Reeded (raised)")
+                .on_hover_text("Coin-edge reeding standing off the band")
+                .clicked()
+            {
+                app.add_layer("Reeding", Layer::Flutes(FlutesLayer::default()));
+                ui.close();
+            }
+            if ui
+                .button("Fluted (carved)")
+                .on_hover_text("Grooves cut into the band — the entry blends with Carve")
+                .clicked()
+            {
+                app.add_layer("Flutes", Layer::Flutes(FlutesLayer::default()));
+                if let Some(e) = app.design.layers.layers.last_mut() {
+                    e.blend = Blend::Subtract;
+                }
+                ui.close();
+            }
+        });
+        if ui
+            .button(format!("{} Seat run", icon::CIRCLES_FOUR))
+            .on_hover_text("A row of identical stone seats — eternity stock. Window it for a half row.")
+            .clicked()
+        {
+            let ctx = app.design.field_context();
+            let mut run = SeatRunLayer::default();
+            run.seat.v_mm = ctx.crest_v_mm;
+            run.solve_spacing(&ctx);
+            app.add_layer("Eternity row", Layer::SeatRun(run));
+            ui.close();
+        }
+        if ui.button(format!("{} Decals", icon::STAMP)).clicked() {
+            let alpha = app.lib.names().first().cloned().unwrap_or_else(|| "Rope".to_string());
+            app.add_layer("Decals", Layer::Decals(DecalLayer { alpha, ..Default::default() }));
+            ui.close();
+        }
         if ui
             .button(format!("{} Group", icon::FOLDERS))
             .on_hover_text(
@@ -145,6 +183,9 @@ fn kind_icon(layer: &Layer) -> &'static str {
         Layer::Signet(_) => icon::SEAL,
         Layer::Group(_) => icon::FOLDERS,
         Layer::Curve(_) => icon::WAVE_SINE,
+        Layer::Flutes(_) => icon::ROWS,
+        Layer::Decals(_) => icon::STAMP,
+        Layer::SeatRun(_) => icon::CIRCLES_FOUR,
     }
 }
 
@@ -277,6 +318,7 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
 
     let mut shape_head = false;
     let mut group_edit: Option<GroupEdit> = None;
+    let mut bake_draft: Option<f64> = None;
     let entry = &mut app.design.layers.layers[i];
     let mut dirty = ui
         .scope(|ui| {
@@ -334,6 +376,86 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
                     .changed();
                 ui.end_row();
 
+                ui.label("Relief");
+                let remap_label = match &entry.remap {
+                    Remap::Off => "Plain",
+                    Remap::Curve { .. } => "Curved",
+                    Remap::Terrace { .. } => "Terraced",
+                };
+                egui::ComboBox::from_id_salt("layer_remap")
+                    .selected_text(remap_label)
+                    .width(150.0)
+                    .show_ui(ui, |ui| {
+                        if ui.selectable_label(entry.remap.is_off(), "Plain").clicked() {
+                            entry.remap = Remap::Off;
+                            c = true;
+                        }
+                        if ui.selectable_label(false, "Cushion").clicked() {
+                            entry.remap = Remap::cushion(0.35);
+                            c = true;
+                        }
+                        if ui.selectable_label(false, "Chamfer").clicked() {
+                            entry.remap = Remap::chamfer(0.35);
+                            c = true;
+                        }
+                        if ui
+                            .selectable_label(
+                                matches!(entry.remap, Remap::Terrace { .. }),
+                                "Terraced",
+                            )
+                            .clicked()
+                        {
+                            entry.remap =
+                                Remap::Terrace { steps: 4, span_mm: 0.35, riser: 0.35 };
+                            c = true;
+                        }
+                    })
+                    .response
+                    .on_hover_text(
+                        "Reshapes the relief profile: cushioned tops, chamfered take-offs, \
+                         or stepped terraces with drafted risers.",
+                    );
+                ui.end_row();
+
+                match &mut entry.remap {
+                    Remap::Off => {}
+                    Remap::Curve { span_mm, .. } => {
+                        ui.label("Over");
+                        c |= ui
+                            .add(
+                                egui::Slider::new(span_mm, 0.05..=2.0)
+                                    .suffix(" mm")
+                                    .fixed_decimals(2),
+                            )
+                            .on_hover_text("Relief height the curve is normalized over")
+                            .changed();
+                        ui.end_row();
+                    }
+                    Remap::Terrace { steps, span_mm, riser } => {
+                        ui.label("Steps");
+                        c |= ui.add(egui::Slider::new(steps, 2..=12)).changed();
+                        ui.end_row();
+                        ui.label("Over");
+                        c |= ui
+                            .add(
+                                egui::Slider::new(span_mm, 0.05..=2.0)
+                                    .suffix(" mm")
+                                    .fixed_decimals(2),
+                            )
+                            .changed();
+                        ui.end_row();
+                        ui.label("Riser");
+                        c |= ui
+                            .add(egui::Slider::new(riser, 0.15..=1.0).fixed_decimals(2))
+                            .on_hover_text(
+                                "Share of each tread spent rising. Low is crisper and \
+                                 steeper; the floor keeps the risers drafted.",
+                            )
+                            .changed();
+                        ui.end_row();
+                    }
+                }
+
                 ui.label("Mask");
                 let mask_label = entry.mask.as_deref().unwrap_or("None");
                 egui::ComboBox::from_id_salt("layer_mask")
@@ -361,17 +483,40 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
 
             ui.add_space(4.0);
             dirty |= match &mut entry.layer {
-                Layer::Tiling(t) => tiling(ui, t, &fctx, &names, thumb),
+                Layer::Tiling(t) => tiling(ui, t, &fctx, &names, thumb, &mut bake_draft),
                 Layer::Border(b) => border(ui, b, &fctx),
                 Layer::SeatPad(p) => seat_pad(ui, p, &fctx),
                 Layer::Milgrain(m) => milgrain(ui, m, &fctx),
                 Layer::Signet(s) => signet(ui, s, &fctx, &mut shape_head),
                 Layer::Group(g) => group(ui, g, &fctx, &names, &mut group_edit),
                 Layer::Curve(l) => curve_editor(ui, l, &fctx),
+                Layer::Flutes(f) => flutes(ui, f),
+                Layer::Decals(d) => decals(ui, d, &fctx, &names),
+                Layer::SeatRun(r) => seat_run(ui, r, &fctx),
             };
             dirty
         })
         .inner;
+    if let Some(deg) = bake_draft {
+        let baked = match &app.design.layers.layers[i].layer {
+            Layer::Tiling(t) => app.lib.get(&t.alpha).map(|a| {
+                let (cw, ch) = t.cell_size(&fctx);
+                let mm_per_px =
+                    (cw / a.width.max(1) as f64, ch / a.height.max(1) as f64);
+                a.draft_limited(deg, mm_per_px, t.height_mm.max(1e-6))
+            }),
+            _ => None,
+        };
+        if let Some(baked) = baked {
+            let name = baked.name.clone();
+            app.forget_thumbnail(&name);
+            app.library_mut().insert(baked);
+            if let Layer::Tiling(t) = &mut app.design.layers.layers[i].layer {
+                t.alpha = name;
+            }
+            dirty = true;
+        }
+    }
     if let Some(edit) = group_edit {
         match edit {
             GroupEdit::AdoptNext => {
@@ -422,6 +567,7 @@ fn tiling(
     fctx: &FieldContext,
     names: &[String],
     thumb: Option<egui::TextureId>,
+    bake_draft: &mut Option<f64>,
 ) -> bool {
     let mut c = false;
     let v_max = fctx.band_v_len_mm.max(0.5);
@@ -640,6 +786,31 @@ fn tiling(
     });
 
     ui.add_space(3.0);
+    ui.horizontal(|ui| {
+        let deg_id = egui::Id::new("draft_bake_deg");
+        let mut deg: f64 = ui.memory(|m| m.data.get_temp(deg_id)).unwrap_or(55.0);
+        if ui
+            .button(format!("{} Bake wall limit", icon::TRIANGLE))
+            .on_hover_text(
+                "Fair this alpha so no relief wall exceeds the angle at this cell size and \
+                 height — a hard-edged import becomes mouldable. Saves a new tile and \
+                 points the layer at it.",
+            )
+            .clicked()
+        {
+            *bake_draft = Some(deg);
+        }
+        ui.add(
+            egui::DragValue::new(&mut deg)
+                .range(15.0..=85.0)
+                .suffix("°")
+                .speed(1.0),
+        )
+        .on_hover_text("Steepest wall the baked relief may carry");
+        ui.memory_mut(|m| m.data.insert_temp(deg_id, deg));
+    });
+
+    ui.add_space(3.0);
     ui.label(
         egui::RichText::new(format!(
             "{} The {} tab drags cells and orientation directly.",
@@ -655,6 +826,172 @@ fn tiling(
 
 /// Limit a layer to part of the ring, so ornament can flank a signet head
 /// instead of running over it.
+fn decals(
+    ui: &mut egui::Ui,
+    d: &mut DecalLayer,
+    fctx: &FieldContext,
+    names: &[String],
+) -> bool {
+    let mut c = grid(ui, "decal_layer", |ui| {
+        let mut c = false;
+
+        ui.label("Alpha");
+        egui::ComboBox::from_id_salt("decal_alpha")
+            .selected_text(d.alpha.as_str())
+            .width(150.0)
+            .show_ui(ui, |ui| {
+                for name in names {
+                    c |= ui.selectable_value(&mut d.alpha, name.clone(), name).clicked();
+                }
+            });
+        ui.end_row();
+
+        ui.label("Feather");
+        c |= ui
+            .add(egui::Slider::new(&mut d.feather_mm, 0.0..=1.5).suffix(" mm").fixed_decimals(2))
+            .on_hover_text("Fade inside each stamp's border, so no stamp ends in a wall")
+            .changed();
+        ui.end_row();
+
+        ui.label("Invert");
+        c |= ui.checkbox(&mut d.invert, "").changed();
+        ui.end_row();
+
+        c
+    });
+
+    let v_max = fctx.band_v_len_mm.max(0.5);
+    let mut remove: Option<usize> = None;
+    for (i, stamp) in d.decals.iter_mut().enumerate() {
+        egui::CollapsingHeader::new(format!("Stamp {}", i + 1))
+            .id_salt(("decal", i))
+            .default_open(d_open(i))
+            .show(ui, |ui| {
+                c |= grid(ui, &format!("decal_grid_{i}"), |ui| {
+                    let mut c = false;
+                    ui.label("Around");
+                    c |= ui
+                        .add(egui::Slider::new(&mut stamp.theta_deg, 0.0..=360.0).suffix("°"))
+                        .changed();
+                    ui.end_row();
+                    ui.label("Across");
+                    c |= ui
+                        .add(egui::Slider::new(&mut stamp.v_mm, 0.0..=v_max).suffix(" mm"))
+                        .changed();
+                    ui.end_row();
+                    ui.label("Size");
+                    c |= ui
+                        .add(
+                            egui::Slider::new(&mut stamp.size_mm, 0.5..=15.0)
+                                .suffix(" mm")
+                                .fixed_decimals(1),
+                        )
+                        .changed();
+                    ui.end_row();
+                    ui.label("Rotation");
+                    c |= ui
+                        .add(
+                            egui::Slider::new(&mut stamp.rotation_deg, -180.0..=180.0)
+                                .suffix("°"),
+                        )
+                        .changed();
+                    ui.end_row();
+                    ui.label("Relief");
+                    c |= ui
+                        .add(
+                            egui::Slider::new(&mut stamp.height_mm, 0.05..=1.2)
+                                .suffix(" mm")
+                                .fixed_decimals(2),
+                        )
+                        .changed();
+                    ui.end_row();
+                    ui.label("Flip");
+                    ui.horizontal(|ui| {
+                        c |= ui.checkbox(&mut stamp.flip, "").changed();
+                        if ui.small_button(icon::TRASH).clicked() {
+                            remove = Some(i);
+                        }
+                    });
+                    ui.end_row();
+                    c
+                });
+            });
+    }
+    if let Some(i) = remove
+        && d.decals.len() > 1
+    {
+        d.decals.remove(i);
+        c = true;
+    }
+    if d.decals.len() < MAX_DECALS
+        && ui.button(format!("{} Add stamp", icon::PLUS)).clicked()
+    {
+        let mut stamp = d.decals.last().copied().unwrap_or_default();
+        stamp.theta_deg = (stamp.theta_deg + 30.0).rem_euclid(360.0);
+        d.decals.push(stamp);
+        c = true;
+    }
+    c
+}
+
+/// Only the first stamp starts open, so a long list stays scannable.
+fn d_open(i: usize) -> bool {
+    i == 0
+}
+
+fn flutes(ui: &mut egui::Ui, f: &mut FlutesLayer) -> bool {
+    grid(ui, "flutes_layer", |ui| {
+        let mut c = false;
+
+        ui.label("Count");
+        c |= ui
+            .add(egui::Slider::new(&mut f.count, 8..=512))
+            .on_hover_text("Flutes around the ring. Integer, so the pattern closes.")
+            .changed();
+        ui.end_row();
+
+        ui.label("Profile");
+        egui::ComboBox::from_id_salt("flute_profile")
+            .selected_text(f.profile.label())
+            .width(150.0)
+            .show_ui(ui, |ui| {
+                for &p in FluteProfile::ALL {
+                    c |= ui.selectable_value(&mut f.profile, p, p.label()).clicked();
+                }
+            });
+        ui.end_row();
+
+        ui.label("Width");
+        c |= ui
+            .add(egui::Slider::new(&mut f.width_mm, 0.1..=2.0).suffix(" mm").fixed_decimals(2))
+            .changed();
+        ui.end_row();
+
+        ui.label("Depth");
+        c |= ui
+            .add(egui::Slider::new(&mut f.height_mm, 0.03..=0.6).suffix(" mm").fixed_decimals(2))
+            .on_hover_text("Standing height when blended Max, cut depth when blended Carve")
+            .changed();
+        ui.end_row();
+
+        ui.label("Lean");
+        c |= ui
+            .add(egui::Slider::new(&mut f.lean, -6.0..=6.0).fixed_decimals(1))
+            .on_hover_text("Cells of sideways drift across the band — diagonal reeding")
+            .changed();
+        ui.end_row();
+
+        ui.label("Direction");
+        c |= ui
+            .checkbox(&mut f.along, "Along the ring (melon lobes)")
+            .on_hover_text("Run the flutes around the ring, spaced across the band")
+            .changed();
+        ui.end_row();
+
+        c
+    })
+}
+
 fn curve_editor(ui: &mut egui::Ui, l: &mut CurveLayer, fctx: &FieldContext) -> bool {
     let mut c = grid(ui, "curve_layer", |ui| {
         let mut c = false;
@@ -879,12 +1216,18 @@ fn group(
                 });
                 let mut dummy = false;
                 c |= match &mut ce.layer {
-                    Layer::Tiling(t) => tiling(ui, t, fctx, names, None),
+                    Layer::Tiling(t) => {
+                        let mut no_bake = None;
+                        tiling(ui, t, fctx, names, None, &mut no_bake)
+                    }
                     Layer::Border(b) => border(ui, b, fctx),
                     Layer::SeatPad(p) => seat_pad(ui, p, fctx),
                     Layer::Milgrain(m) => milgrain(ui, m, fctx),
                     Layer::Signet(s) => signet(ui, s, fctx, &mut dummy),
                     Layer::Curve(l) => curve_editor(ui, l, fctx),
+                    Layer::Flutes(f) => flutes(ui, f),
+                    Layer::Decals(d) => decals(ui, d, fctx, names),
+                    Layer::SeatRun(r) => seat_run(ui, r, fctx),
                     Layer::Group(_) => {
                         ui.label(
                             egui::RichText::new("Nested groups edit one level at a time.")
@@ -1240,10 +1583,224 @@ fn border(ui: &mut egui::Ui, b: &mut BorderLayer, fctx: &FieldContext) -> bool {
     c
 }
 
+fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> bool {
+    use ringdesign_core::gem::{Gem, GemCut};
+    let mut c = grid(ui, "seat_run_grid", |ui| {
+        let mut c = false;
+
+        ui.label("Stone");
+        ui.horizontal(|ui| {
+            let mut gem = r.gem;
+            let mut picked = false;
+            egui::ComboBox::from_id_salt("run_cut")
+                .selected_text(gem.cut.label())
+                .width(120.0)
+                .show_ui(ui, |ui| {
+                    for &cut in GemCut::ALL {
+                        if ui.selectable_label(gem.cut == cut, cut.label()).clicked() {
+                            gem = Gem::calibrated(cut, gem.w_mm);
+                            picked = true;
+                        }
+                    }
+                });
+            egui::ComboBox::from_id_salt("run_size")
+                .selected_text(format!("{:.1} mm", gem.w_mm))
+                .width(72.0)
+                .show_ui(ui, |ui| {
+                    for &w in gem.cut.calibrated_mm() {
+                        if ui
+                            .selectable_label((gem.w_mm - w).abs() < 0.01, format!("{w:.1} mm"))
+                            .clicked()
+                        {
+                            gem = Gem::calibrated(gem.cut, w);
+                            picked = true;
+                        }
+                    }
+                });
+            if picked {
+                r.gem = gem;
+                r.solve_spacing(fctx);
+                c = true;
+            }
+        });
+        ui.end_row();
+
+        ui.label("Count");
+        ui.horizontal(|ui| {
+            c |= ui.add(egui::Slider::new(&mut r.count, 3..=120)).changed();
+            if ui
+                .small_button("Solve")
+                .on_hover_text("Most stones of this size and bridge that fit the ring")
+                .clicked()
+            {
+                r.solve_spacing(fctx);
+                c = true;
+            }
+        });
+        ui.end_row();
+
+        ui.label("Bridge");
+        c |= ui
+            .add(
+                egui::DragValue::new(&mut r.bridge_mm)
+                    .speed(0.01)
+                    .range(0.1..=2.0)
+                    .suffix(" mm"),
+            )
+            .on_hover_text("Metal wanted between neighbouring stones when solving")
+            .changed();
+        ui.end_row();
+
+        ui.label("Across");
+        c |= ui
+            .add(
+                egui::DragValue::new(&mut r.seat.v_mm)
+                    .speed(0.02)
+                    .range(0.0..=fctx.band_v_len_mm.max(0.5))
+                    .suffix(" mm"),
+            )
+            .changed();
+        ui.end_row();
+
+        ui.label("Height");
+        c |= ui
+            .add(
+                egui::DragValue::new(&mut r.seat.height_mm)
+                    .speed(0.01)
+                    .range(0.0..=3.0)
+                    .suffix(" mm"),
+            )
+            .changed();
+        ui.end_row();
+
+        c
+    });
+
+    let bridge = r.bridge_at(fctx);
+    let total: f64 = r.gem.carats() * r.count as f64;
+    let colour = if bridge < 0.2 { theme::WARN } else { theme::TEXT_DIM };
+    ui.label(
+        egui::RichText::new(format!(
+            "{} {} stones • {:.2} ct total • {:.2} mm bridge",
+            icon::DIAMOND,
+            r.count,
+            total,
+            bridge
+        ))
+        .small()
+        .color(colour),
+    );
+    if bridge < 0.0 {
+        ui.label(
+            egui::RichText::new(format!("{} Seats overlap — fewer stones or smaller.", icon::WARNING))
+                .small()
+                .color(theme::BAD),
+        );
+    }
+    c |= false;
+    c
+}
+
 fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> bool {
+    use ringdesign_core::field::SeatStyle;
+    use ringdesign_core::gem::{Gem, GemCut};
     let v_max = fctx.band_v_len_mm.max(0.5);
     let c = grid(ui, "seat_pad_grid", |ui| {
         let mut c = false;
+
+        ui.label("Style");
+        egui::ComboBox::from_id_salt("seat_style")
+            .selected_text(p.style.label())
+            .width(150.0)
+            .show_ui(ui, |ui| {
+                for &st in SeatStyle::ALL {
+                    c |= ui.selectable_value(&mut p.style, st, st.label()).clicked();
+                }
+            });
+        ui.end_row();
+
+        ui.label("Stone");
+        ui.horizontal(|ui| {
+            let mut gem = p.gem.unwrap_or_default();
+            let mut picked = false;
+            egui::ComboBox::from_id_salt("seat_cut")
+                .selected_text(gem.cut.label())
+                .width(120.0)
+                .show_ui(ui, |ui| {
+                    for &cut in GemCut::ALL {
+                        if ui.selectable_label(gem.cut == cut, cut.label()).clicked() {
+                            gem = Gem::calibrated(cut, gem.w_mm);
+                            picked = true;
+                        }
+                    }
+                });
+            egui::ComboBox::from_id_salt("seat_size")
+                .selected_text(format!("{:.1} mm", gem.w_mm))
+                .width(72.0)
+                .show_ui(ui, |ui| {
+                    for &w in gem.cut.calibrated_mm() {
+                        if ui
+                            .selectable_label((gem.w_mm - w).abs() < 0.01, format!("{w:.1} mm"))
+                            .clicked()
+                        {
+                            gem = Gem::calibrated(gem.cut, w);
+                            picked = true;
+                        }
+                    }
+                });
+            if picked {
+                p.fit_stone(gem);
+                c = true;
+            }
+        });
+        ui.end_row();
+
+        if p.style == SeatStyle::Bezel {
+            ui.label("Wall");
+            c |= ui
+                .add(
+                    egui::DragValue::new(&mut p.bezel_wall_mm)
+                        .speed(0.01)
+                        .range(0.2..=1.5)
+                        .suffix(" mm"),
+                )
+                .on_hover_text("Collar thickness burnished over the girdle at the bench")
+                .changed();
+            ui.end_row();
+
+            ui.label("Recess");
+            c |= ui
+                .add(
+                    egui::DragValue::new(&mut p.recess_mm)
+                        .speed(0.01)
+                        .range(0.0..=2.0)
+                        .suffix(" mm"),
+                )
+                .on_hover_text("Pocket depth below the rim")
+                .changed();
+            ui.end_row();
+        }
+
+        ui.label("Prongs");
+        ui.horizontal(|ui| {
+            c |= ui
+                .add(egui::Slider::new(&mut p.prongs, 0..=8))
+                .on_hover_text(
+                    "Drafted cone stock on the seat circle, notched and shaped at the bench",
+                )
+                .changed();
+            if p.prongs > 0 {
+                c |= ui
+                    .add(
+                        egui::DragValue::new(&mut p.prong_mm)
+                            .speed(0.01)
+                            .range(0.2..=2.0)
+                            .suffix(" mm"),
+                    )
+                    .changed();
+            }
+        });
+        ui.end_row();
 
         ui.label("Around");
         c |= ui

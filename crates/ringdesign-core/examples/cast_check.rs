@@ -56,6 +56,7 @@ fn main() {
             height_mm: 2.5,
             crown: 0.0,
             blend_mm: 0.0,
+            ..Default::default()
         }),
     ));
     run("Straight-walled boss (should NOT release)", &boss, &lib);
@@ -72,6 +73,7 @@ fn main() {
             height_mm: 1.4,
             crown: 1.0,
             blend_mm: 0.8,
+            ..Default::default()
         }),
     ));
     run("Domed gem seat pad (should be castable)", &domed, &lib);

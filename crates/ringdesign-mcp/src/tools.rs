@@ -1073,8 +1073,17 @@ fn allowed_fields(layer: &Layer) -> &'static [&'static str] {
         // Groups carry only the common entry fields; edit their children by index.
         Layer::Group(_) => &[],
         Layer::Curve(_) => CURVE_FIELDS,
+        Layer::Flutes(_) => FLUTES_FIELDS,
+        Layer::Decals(_) => DECAL_FIELDS,
+        Layer::SeatRun(_) => SEAT_RUN_FIELDS,
     }
 }
+
+const SEAT_RUN_FIELDS: &[&str] = &["repeats_around", "v_mm", "height_mm"];
+
+const DECAL_FIELDS: &[&str] = &["alpha", "height_mm"];
+
+const FLUTES_FIELDS: &[&str] = &["repeats_around", "width_mm", "height_mm"];
 
 const CURVE_FIELDS: &[&str] = &["repeats_around", "width_mm", "height_mm"];
 
@@ -1747,6 +1756,28 @@ impl RingDesignServer {
                 put_u32(&mut l.repeats_around, p.repeats_around, "repeats_around", &mut applied);
                 put_f64(&mut l.width_mm, p.width_mm, "width_mm", &mut applied)?;
                 put_f64(&mut l.height_mm, p.height_mm, "height_mm", &mut applied)?;
+            }
+            Layer::Flutes(l) => {
+                put_u32(&mut l.count, p.repeats_around, "repeats_around", &mut applied);
+                put_f64(&mut l.width_mm, p.width_mm, "width_mm", &mut applied)?;
+                put_f64(&mut l.height_mm, p.height_mm, "height_mm", &mut applied)?;
+            }
+            Layer::Decals(l) => {
+                if let Some(alpha) = p.alpha {
+                    applied.push(format!("alpha={alpha}"));
+                    l.alpha = alpha;
+                }
+                if let Some(h) = p.height_mm {
+                    for s in &mut l.decals {
+                        s.height_mm = h;
+                    }
+                    applied.push(format!("height_mm={h}"));
+                }
+            }
+            Layer::SeatRun(l) => {
+                put_u32(&mut l.count, p.repeats_around, "repeats_around", &mut applied);
+                put_f64(&mut l.seat.v_mm, p.v_mm, "v_mm", &mut applied)?;
+                put_f64(&mut l.seat.height_mm, p.height_mm, "height_mm", &mut applied)?;
             }
         }
         let change = LayerChange {

@@ -66,8 +66,25 @@ lives; `ringdesign-gui` is eframe/egui.
 
 **The entire design is a scalar height field `h(u, v)` in mm over the swept
 band surface.** Tiled alphas, borders, milgrain, raised gem-seat pads, swept
-curve wires (`curve.rs`), and nested groups are all layers in that field. There
-is no CSG anywhere.
+curve wires (`curve.rs`), parametric flutes/reeding, free-placed decal stamps,
+and nested groups are all layers in that field. There is no CSG anywhere.
+Inscriptions (`text.rs`, two bundled OFL fonts) and hand-drawn strokes travel
+in the design as source data and rasterize into the alpha library on load; a
+per-layer `Remap` (curve or terrace) reshapes relief profiles, and
+`Alpha::draft_limited` bakes a cone opening so no wall in an imported texture
+exceeds a chosen angle at the layer's cell size.
+
+Shank kinds beyond the originals: Pinched, Bombé, Saddle, FlatTop, **Wave**
+(edges slide along the finger while the crest stays on the parting plane —
+swing capped at 0.6 of the half-width where the measured undercut converges to
+phantom scale) and **Twist** (Wave's slide plus a phase-locked flank-exponent
+skew, `ShankMod::flank_bias` — the light-line spirals while both flanks stay
+monotone drops; a true helix locks). `BandProfile::morph` blends the crown
+toward a second style around the top (`ShankMod::drop_blend`, filled by
+`RingDesign::modulation_at`, which every modulated-section consumer goes
+through), and `SignetHead::table_dome_mm` puts a cabochon cap on a signet
+table — which also retires the zero-draft plane behind the refined-build
+phantom on such heads.
 
 - `u` — arc distance around the ring at the crest radius. **Wraps** at the
   circumference.
@@ -341,18 +358,26 @@ structuring element is the whole thing:
   cliff where that met the shoulder. Both of those are visible.
 - A **rolling ball** — a paraboloid of radius `BODY_FAIR_R` — bridges a hollow
   with an arc of its own radius and leaves everything it cannot reach alone. A
-  heart's notch fairs from 0.276 of the half-width to 0.065 while its lobes, its
+  heart's notch fairs from 0.212 of the half-width to 0.071 while its lobes, its
   point and the head's plan size stay exactly put.
 
-`BODY_FAIR_R` is 0.55 half-lengths because the residual notch and the bluntness
-of the head's end pull against each other:
+`BODY_FAIR_R` is 0.75 half-lengths because the residual notch and the bluntness
+of the head's end pull against each other. Measured on the heart by
+`examples/fair_probe.rs`; the floor is not zero — with the ball taken to nothing
+the corner rounding alone leaves 0.12 of notch, and the outline's own rounded
+end leaves 0.74 of width, because width falls off a smooth end like a square
+root:
 
-| ball radius | 0.35 | 0.55 | 0.85 | 1.30 |
-| --- | --- | --- | --- | --- |
-| notch left of 0.276 | 0.080 | 0.065 | 0.051 | 0.039 |
-| body's width at the head's end | 0.83 | 0.93 | 1.29 | 1.52 |
+| ball radius | 0.35 | 0.55 | 0.75 | 1.00 | 1.30 |
+| --- | --- | --- | --- | --- | --- |
+| notch left of 0.212 | 0.098 | 0.083 | 0.071 | 0.060 | 0.051 |
+| body's width at the head's end | 1.11 | 1.24 | 1.33 | 1.42 | 1.54 |
 
-Past about 0.85 the head stops ending and starts being a slab.
+0.75 is the least radius that holds the notch near the 0.07 the original
+calibration picked; past it the ball keeps paying width for notch at the same
+rate until the head stops ending and starts being a slab. (An earlier table
+here read 0.55 off the pre-reference heart — the classic curve and the 1.12
+aspect moved every number, and the radius was re-tuned to keep the residual.)
 
 **The body must contain the face**, or the flank leans back over the mould half
 it sits in — the same undercut as any other, said where it can be proved instead
@@ -362,7 +387,37 @@ always one of the samples it minimises over. `the_body_contains_the_face_it_carr
 asserts it to within 1e-5, which is Catmull-Rom reconstruction noise where the
 two curves touch; `head_at` clamps the crest into the bore regardless.
 
-#### The table is read a little inside the face's end
+#### The flank belongs to the body; the face arrives only at the take-off
+
+A section's side wall used to be the straight chord from the bore span to the
+crest span, and a straight wall carries every kink of the face's silhouette —
+a heart's dimple, a hexagon's corner, the rim where the shoulder Hermite
+starts — down its whole height at linearly fading strength. On the mesh that
+is a crease line running from the table edge to the shank on every such
+feature. `sample_spaced` now decomposes the wall: the profile's **own** side
+draft stays linear (ordinary bands are geometrically unchanged), and only the
+**head's offset** between the two spans sweeps onto the face, across a C²
+`smootherstep(FLANK_TAKEOFF, 1, t)` in the wall's top fraction. Below the
+take-off the flank follows the faired body; the face reads as a facet cut
+into it, which is what the reference signets do — their heads are near-prisms
+with the face influence confined to the top. Opposite-signed own/extra parts
+fall back to the chord, because a folded wall is a ceiling.
+
+Two refinements from comparing against the reference meshes in
+`~/jewelry-scan/RING/Signets/` (heart/hexa/oval as STL+STEP+3MF):
+
+- **The wall is barrel-convex, not straight** (`FLANK_BULGE`, zero-slope at
+  both ends, scaled by the head offset and capped at 0.6 mm): a flat panel
+  beside the rounded swell reads as a *dished* triangle with creased borders,
+  where the references are inflated.
+- **The crest span's handover to the shoulder starts flat.** `h00 =
+  (1 - s)^2.4` leaves the rim already diving — correct for the crest *height*,
+  measured off the reference — but using it for the span blend put a
+  derivative jump at the face-end locus, a crease down the flank. The span now
+  follows `1 - smootherstep(0, 0.25, s)·(1 - h00)`: rim-flat, and exactly
+  `h00` past the first quarter of the shoulder — holding the face's one-sided
+  reach longer than that measurably grows the upright-outline ceiling
+  (0.113% against the 0.059% Draft-heart bound with a full smootherstep).
 
 At the end itself the outline is a *point*, so a table read there runs to nothing
 and wedges the section to a fin. `HEAD_TAKEOFF` holds the crest span at the

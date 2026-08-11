@@ -93,6 +93,7 @@ pub fn open_design(app: &mut RingDesignerApp) {
         Ok(d) => {
             d.unpack_embedded(app.library_mut());
             d.bake_drawn(app.library_mut());
+            d.bake_texts(app.library_mut());
             app.design = d;
             // A different file is a different session; the old timeline does
             // not describe it.

@@ -30,6 +30,7 @@ pub mod curve;
 pub mod drawn;
 pub mod engine;
 pub mod field;
+pub mod gem;
 pub mod library;
 pub mod mesh;
 pub mod metal;
@@ -37,6 +38,7 @@ pub mod profile;
 pub mod refine;
 pub mod sizing;
 pub mod stl;
+pub mod text;
 pub mod tiling;
 
 pub use alpha::{Alpha, AlphaLibrary};
@@ -68,6 +70,10 @@ pub struct RingDesign {
     /// design survives moving to a machine without them.
     #[serde(default)]
     pub embedded: Vec<EmbeddedAlpha>,
+    /// Inscriptions carried as text and rasterized into the library on load,
+    /// the same way drawn alphas travel as strokes.
+    #[serde(default)]
+    pub texts: Vec<text::TextAlpha>,
 }
 
 /// One imported alpha embedded in the design file.
@@ -90,6 +96,7 @@ impl Default for RingDesign {
             draft: DraftSettings::default(),
             drawn: Vec::new(),
             embedded: Vec::new(),
+            texts: Vec::new(),
         }
     }
 }
@@ -107,6 +114,16 @@ impl RingDesign {
         }
     }
 
+    /// Rasterize every inscription into `lib`, replacing same-named entries.
+    /// Call wherever [`bake_drawn`](Self::bake_drawn) is called.
+    pub fn bake_texts(&self, lib: &mut AlphaLibrary) {
+        for t in &self.texts {
+            if !t.is_empty() {
+                lib.insert(t.rasterize());
+            }
+        }
+    }
+
     /// Capture every referenced alpha that cannot be regenerated — not a
     /// builtin, not drawn — as embedded PNG data. Call on a save-time clone.
     pub fn embed_alphas(&mut self, lib: &AlphaLibrary) {
@@ -114,7 +131,8 @@ impl RingDesign {
         self.embedded.clear();
         for name in self.layers.referenced_alphas() {
             let regenerable = alpha::Procedural::ALL.iter().any(|p| p.label() == name)
-                || self.drawn.iter().any(|d| d.name == name);
+                || self.drawn.iter().any(|d| d.name == name)
+                || self.texts.iter().any(|t| t.name == name);
             if regenerable {
                 continue;
             }
@@ -151,6 +169,15 @@ impl RingDesign {
     /// Inner (finger-hole) radius in mm.
     pub fn inner_radius_mm(&self) -> f64 {
         self.size.inner_diameter_mm() * 0.5
+    }
+
+    /// Shank modulation plus the profile morph at a ring angle. Every
+    /// consumer of a modulated section goes through this, so the mesh, the
+    /// section view and refinement always agree.
+    pub fn modulation_at(&self, theta_deg: f64, inner_r: f64, crest_r: f64) -> profile::ShankMod {
+        let mut m = self.shank.modulation(theta_deg, inner_r, crest_r);
+        m.drop_blend = self.profile.morph_weight(theta_deg);
+        m
     }
 
     /// The reference cross-section used to parameterize the height field: the

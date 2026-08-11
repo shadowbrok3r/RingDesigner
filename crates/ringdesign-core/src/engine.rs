@@ -176,6 +176,7 @@ impl DesignEngine {
         let design = library::load_design(path)?;
         design.unpack_embedded(Arc::make_mut(&mut self.lib));
         design.bake_drawn(Arc::make_mut(&mut self.lib));
+        design.bake_texts(Arc::make_mut(&mut self.lib));
         self.set_design(design);
         Ok(())
     }

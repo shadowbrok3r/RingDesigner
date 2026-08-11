@@ -253,6 +253,7 @@ fn main() {
             height_mm: 0.9,
             crown: 0.35,
             blend_mm: 2.2,
+            ..Default::default()
         }),
     ));
     d.layers.layers.push(LayerEntry::new(

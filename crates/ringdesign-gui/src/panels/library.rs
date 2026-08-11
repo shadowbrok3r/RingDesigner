@@ -14,6 +14,7 @@ const SIZES: [usize; 3] = [128, 256, 512];
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     editor_window(app, ui);
+    text_window(app, ui);
 
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new(format!("{} Alphas", icon::IMAGES)).strong());
@@ -65,6 +66,104 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     }
     if let Some(name) = action.edited {
         app.alpha_editor.open(&name);
+    }
+}
+
+/// Inscriptions: text entries carried by the design, rasterized to tiles.
+fn text_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    use ringdesign_core::text::{TextAlpha, TextFont};
+    if !app.text_editor_open {
+        return;
+    }
+    let ctx = ui.ctx().clone();
+    let mut open = app.text_editor_open;
+    let mut rebake: Option<usize> = None;
+    let mut remove: Option<usize> = None;
+    egui::Window::new(format!("{} Inscriptions", icon::TEXT_AA))
+        .open(&mut open)
+        .default_width(320.0)
+        .show(&ctx, |ui| {
+            for (i, t) in app.design.texts.iter_mut().enumerate() {
+                ui.push_id(i, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Name");
+                        if ui
+                            .add(egui::TextEdit::singleline(&mut t.name).desired_width(110.0))
+                            .changed()
+                        {
+                            rebake = Some(i);
+                        }
+                        if ui.small_button(icon::TRASH).on_hover_text("Remove").clicked() {
+                            remove = Some(i);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Text");
+                        if ui
+                            .add(egui::TextEdit::singleline(&mut t.text).desired_width(170.0))
+                            .changed()
+                        {
+                            rebake = Some(i);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        egui::ComboBox::from_id_salt(("text_font", i))
+                            .selected_text(t.font.label())
+                            .width(170.0)
+                            .show_ui(ui, |ui| {
+                                for &f in TextFont::ALL {
+                                    if ui.selectable_value(&mut t.font, f, f.label()).clicked() {
+                                        rebake = Some(i);
+                                    }
+                                }
+                            });
+                        if ui
+                            .add(
+                                egui::Slider::new(&mut t.tracking, -0.1..=0.6)
+                                    .fixed_decimals(2)
+                                    .text("Track"),
+                            )
+                            .changed()
+                        {
+                            rebake = Some(i);
+                        }
+                    });
+                    ui.separator();
+                });
+            }
+            if ui.button(format!("{} Add inscription", icon::PLUS)).clicked() {
+                let n = app.design.texts.len() + 1;
+                app.design.texts.push(TextAlpha {
+                    name: format!("Text {n}"),
+                    ..Default::default()
+                });
+                rebake = Some(app.design.texts.len() - 1);
+            }
+            ui.label(
+                egui::RichText::new(
+                    "The rendered tile lands in the library under its name — use it in a \
+                     Tiling, Decal or mask like any other. Fonts are SIL OFL.",
+                )
+                .small()
+                .color(theme::TEXT_DIM),
+            );
+        });
+    app.text_editor_open = open;
+
+    if let Some(i) = remove {
+        let name = app.design.texts[i].name.clone();
+        app.design.texts.remove(i);
+        app.library_mut().remove(&name);
+        app.forget_thumbnail(&name);
+        app.mark_dirty();
+    } else if let Some(i) = rebake
+        && let Some(t) = app.design.texts.get(i).cloned()
+        && !t.is_empty()
+    {
+        let name = t.name.clone();
+        app.library_mut().insert(t.rasterize());
+        app.forget_thumbnail(&name);
+        app.mark_dirty();
     }
 }
 
@@ -121,6 +220,17 @@ fn source_row(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             .clicked()
         {
             app.alpha_editor.open(&selected);
+        }
+
+        if ui
+            .button(format!("{} Text…", icon::TEXT_AA))
+            .on_hover_text(
+                "Render a name, date or monogram to a tile. The text travels in the design \
+                 and re-renders on load.",
+            )
+            .clicked()
+        {
+            app.text_editor_open = !app.text_editor_open;
         }
     });
 

@@ -245,7 +245,7 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
             let frac = spacing.theta[i];
             let theta = frac * 360.0;
             let (sin_t, cos_t) = theta.to_radians().sin_cos();
-            let m = design.shank.modulation(theta, inner_r, reference.crest_radius_mm);
+            let m = design.modulation_at(theta, inner_r, reference.crest_radius_mm);
             let loop_i =
                 design.profile.sample_spaced(inner_r, n_prof, &m, field_v, Some(&reference.feature_v));
             let u = frac * ctx.circumference_mm;
@@ -513,7 +513,7 @@ mod tests {
         // Truth at theta = 0: the profile's own outward normal in the XZ plane.
         let inner_r = design.inner_radius_mm();
         let reference = design.reference_loop();
-        let m = design.shank.modulation(0.0, inner_r, reference.crest_radius_mm);
+        let m = design.modulation_at(0.0, inner_r, reference.crest_radius_mm);
         let loop0 =
             design.profile.sample_spaced(inner_r, n_prof, &m, None, Some(&reference.feature_v));
 
