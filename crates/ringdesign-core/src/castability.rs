@@ -581,6 +581,102 @@ pub struct Section {
 /// section view and the solid always agree. It probes the field to recover the
 /// build's sample spacing; a caller holding a [`Spacing`] already should use
 /// [`section_at_spaced`] and skip that.
+/// The parting line: where the two mould halves meet, one point per angle.
+///
+/// Per slice it is the widest point of the outer surface — the silhouette
+/// the sand parts on. Where a flat crest span straddles the plane (a signet
+/// keep strip), the point nearest the parting plane wins, so the line stays
+/// continuous instead of jumping between the strip's ends.
+pub fn parting_line(
+    design: &RingDesign,
+    lib: &AlphaLibrary,
+    theta_steps: usize,
+    profile_steps: usize,
+) -> Vec<[f64; 3]> {
+    let n = theta_steps.clamp(16, 4096);
+    (0..n)
+        .map(|k| {
+            let theta = k as f64 / n as f64 * 360.0;
+            let s = section_at(design, lib, theta, profile_steps.clamp(32, 1024));
+            let mut best: Option<&SectionPoint> = None;
+            let max_r = s
+                .points
+                .iter()
+                .filter(|p| p.surface)
+                .map(|p| p.r)
+                .fold(0.0f64, f64::max);
+            for p in s.points.iter().filter(|p| p.surface) {
+                if p.r > max_r - 0.02 {
+                    let closer = |q: &SectionPoint| {
+                        (p.z - s.parting_z_mm).abs() < (q.z - s.parting_z_mm).abs()
+                    };
+                    if best.map_or(true, closer) {
+                        best = Some(p);
+                    }
+                }
+            }
+            let (r, z) = best.map(|p| (p.r, p.z)).unwrap_or((max_r, s.parting_z_mm));
+            let (sin, cos) = theta.to_radians().sin_cos();
+            [r * cos, r * sin, z]
+        })
+        .collect()
+}
+
+/// Write the parting line as a printable SVG: the plan view the mould is cut
+/// from, and beneath it the line's height unrolled around the ring so a rise
+/// or fall off the plane is visible at a glance. Millimetre units.
+pub fn write_parting_svg(
+    path: impl AsRef<std::path::Path>,
+    line: &[[f64; 3]],
+    bore_radius_mm: f64,
+    name: &str,
+) -> anyhow::Result<usize> {
+    anyhow::ensure!(line.len() >= 3, "parting line needs at least 3 points");
+    let r_max = line.iter().map(|p| p[0].hypot(p[1])).fold(0.0f64, f64::max);
+    let z_min = line.iter().map(|p| p[2]).fold(f64::MAX, f64::min);
+    let z_max = line.iter().map(|p| p[2]).fold(f64::MIN, f64::max);
+    let pad = 4.0;
+    let plan = 2.0 * r_max;
+    let strip_h = (z_max - z_min).max(1.0) + 6.0;
+    let w = plan + 2.0 * pad;
+    let h = plan + strip_h + 3.0 * pad;
+
+    let mut s = String::with_capacity(line.len() * 24 + 1024);
+    s.push_str(&format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w}mm\" height=\"{h}mm\" \
+         viewBox=\"0 0 {w:.2} {h:.2}\">\n<title>{} parting line (mm)</title>\n",
+        name.replace('<', "").replace('>', "")
+    ));
+    let (cx, cy) = (pad + r_max, pad + r_max);
+    // Plan view: the line and the bore.
+    s.push_str("<path fill=\"none\" stroke=\"black\" stroke-width=\"0.25\" d=\"");
+    for (i, p) in line.iter().enumerate() {
+        let cmd = if i == 0 { 'M' } else { 'L' };
+        s.push_str(&format!("{cmd}{:.3},{:.3} ", cx + p[0], cy - p[1]));
+    }
+    s.push_str("Z\"/>\n");
+    s.push_str(&format!(
+        "<circle cx=\"{cx:.3}\" cy=\"{cy:.3}\" r=\"{bore_radius_mm:.3}\" fill=\"none\" \
+         stroke=\"black\" stroke-width=\"0.15\" stroke-dasharray=\"1,1\"/>\n"
+    ));
+    // Unrolled height: z against arc position, with the plane as a dashed rule.
+    let y0 = plan + 2.0 * pad + (z_max + 3.0);
+    s.push_str(&format!(
+        "<line x1=\"{pad:.2}\" y1=\"{:.3}\" x2=\"{:.2}\" y2=\"{:.3}\" stroke=\"black\" \
+         stroke-width=\"0.1\" stroke-dasharray=\"1,1\"/>\n",
+        y0, w - pad, y0
+    ));
+    s.push_str("<path fill=\"none\" stroke=\"black\" stroke-width=\"0.25\" d=\"");
+    for (i, p) in line.iter().chain(line.first()).enumerate() {
+        let x = pad + i as f64 / line.len() as f64 * (w - 2.0 * pad);
+        let cmd = if i == 0 { 'M' } else { 'L' };
+        s.push_str(&format!("{cmd}{:.3},{:.3} ", x, y0 - p[2]));
+    }
+    s.push_str("\"/>\n</svg>\n");
+    std::fs::write(path, s.as_bytes())?;
+    Ok(s.len())
+}
+
 pub fn section_at(
     design: &RingDesign,
     lib: &AlphaLibrary,
@@ -1220,6 +1316,35 @@ pub fn attribute_undercuts(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_parting_line_rides_the_widest_silhouette_and_the_svg_writes() {
+        use crate::alpha::AlphaLibrary;
+        let lib = AlphaLibrary::builtin();
+        let d = crate::RingDesign::default();
+        let line = super::parting_line(&d, &lib, 64, 96);
+        assert_eq!(line.len(), 64);
+        // A plain band's parting line is the crest circle on the plane.
+        let crest = d.reference_loop().crest_radius_mm;
+        for p in &line {
+            let r = p[0].hypot(p[1]);
+            assert!((r - crest).abs() < 0.05, "off the crest: r {r} vs {crest}");
+            assert!(p[2].abs() < 0.05, "off the plane: z {}", p[2]);
+        }
+
+        let dir = std::env::temp_dir().join("ringdesign-parting-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("parting.svg");
+        let bytes =
+            super::write_parting_svg(&path, &line, d.inner_radius_mm(), "test").unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(text.len(), bytes);
+        assert!(text.starts_with("<svg"));
+        assert!(text.contains("viewBox"));
+        assert!(text.matches("<path").count() == 2, "plan and unrolled paths");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+
     use super::*;
     use crate::field::{Layer, LayerEntry, SeatPadLayer};
     use crate::mesh::{BuildParams, BuildResult};

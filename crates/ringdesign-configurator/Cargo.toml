@@ -7,8 +7,14 @@ edition.workspace = true
 name = "build-a-ring"
 path = "src/main.rs"
 
+[features]
+default = ["parallel"]
+## Threads across the build; off for wasm, where the worker becomes the
+## remaining porting task (std::thread does not run in a browser).
+parallel = ["ringdesign-core/parallel"]
+
 [dependencies]
-ringdesign-core = { path = "../ringdesign-core" }
+ringdesign-core = { path = "../ringdesign-core", default-features = false }
 eframe.workspace = true
 egui.workspace = true
 serde.workspace = true

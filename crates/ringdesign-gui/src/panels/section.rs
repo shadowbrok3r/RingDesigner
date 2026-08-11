@@ -238,6 +238,24 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::
 
     let pts: Vec<Pos2> = section.points.iter().map(|p| map(p.r, p.z)).collect();
     let n = pts.len();
+
+    // The pinned comparison's slice, dashed behind the live one — cut from
+    // the pinned design at this angle, so it needs no stored build.
+    if let Some(pinned) = app.pinned.as_ref() {
+        let ghost = ringdesign_core::castability::section_at(
+            pinned,
+            &app.lib,
+            section.theta_deg,
+            160,
+        );
+        let gpts: Vec<Pos2> = ghost.points.iter().map(|p| map(p.r, p.z)).collect();
+        for k in 0..gpts.len() {
+            let (a, b) = (gpts[k], gpts[(k + 1) % gpts.len()]);
+            if k % 2 == 0 {
+                painter.line_segment([a, b], egui::Stroke::new(1.0, theme::TEXT_DIM));
+            }
+        }
+    }
     let opts = ui.memory_mut(|m| *m.data.get_temp_mut_or_default::<ViewOpts>(opts_id));
 
     if opts.fill && is_convex(&pts) {

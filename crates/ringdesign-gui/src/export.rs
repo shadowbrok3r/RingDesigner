@@ -166,6 +166,29 @@ pub fn export_glb(app: &mut RingDesignerApp) {
     }
 }
 
+/// Export the parting line as a printable SVG: plan view plus the line's
+/// height unrolled around the ring.
+pub fn export_parting(app: &mut RingDesignerApp) {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("SVG", &["svg"])
+        .set_directory(dir("exports"))
+        .set_file_name(format!("{}_parting.svg", slug(&app.design.name)))
+        .save_file()
+    else {
+        return;
+    };
+    let line = ringdesign_core::castability::parting_line(&app.design, &app.lib, 512, 192);
+    match ringdesign_core::castability::write_parting_svg(
+        &path,
+        &line,
+        app.design.inner_radius_mm(),
+        &app.design.name,
+    ) {
+        Ok(_) => app.set_status(format!("Wrote {}", path.display())),
+        Err(e) => app.set_status(format!("Parting line failed: {e}")),
+    }
+}
+
 pub fn export_spec(app: &mut RingDesignerApp) {
     let Some(path) = rfd::FileDialog::new()
         .add_filter("Casting sheet", &["html"])

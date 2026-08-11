@@ -49,6 +49,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -260,13 +261,14 @@ impl<'a> Lattice<'a> {
         }
         let (design, inner_r, crest_r, n_u) =
             (self.design, self.inner_r, self.crest_r, self.n_u);
-        let built: Vec<(u32, Column)> = missing
-            .into_par_iter()
-            .map(|i| {
-                let theta = i as f64 / n_u as f64 * 360.0;
-                (i, Column::build(design, inner_r, crest_r, theta))
-            })
-            .collect();
+        let build_one = |i: u32| {
+            let theta = i as f64 / n_u as f64 * 360.0;
+            (i, Column::build(design, inner_r, crest_r, theta))
+        };
+        #[cfg(feature = "parallel")]
+        let built: Vec<(u32, Column)> = missing.into_par_iter().map(build_one).collect();
+        #[cfg(not(feature = "parallel"))]
+        let built: Vec<(u32, Column)> = missing.into_iter().map(build_one).collect();
         self.columns.extend(built);
     }
 
@@ -601,9 +603,7 @@ pub fn build(
 
         // Split only the axis whose own sag or turn is over tolerance; the
         // centre and the plane twist belong to neither and split both.
-        let marked: HashMap<(u32, u32), (bool, bool)> = open
-            .par_iter()
-            .filter_map(|&((i, j), (lu, ls))| {
+        let judge = |&((i, j), (lu, ls)): &((u32, u32), Levels)| {
                 let (su, ss) = (span(lu, max_level), span(ls, max_level));
                 let ((sag_u, sag_s, sag_c), tilt) = facet_error(&lat, i, j, su, ss);
                 let mut in_u = sag_u > tol;
@@ -625,8 +625,13 @@ pub fn build(
                     }
                 }
                 (in_u || in_s).then_some(((i, j), (in_u, in_s)))
-            })
-            .collect();
+        };
+        #[cfg(feature = "parallel")]
+        let marked: HashMap<(u32, u32), (bool, bool)> =
+            open.par_iter().filter_map(judge).collect();
+        #[cfg(not(feature = "parallel"))]
+        let marked: HashMap<(u32, u32), (bool, bool)> =
+            open.iter().filter_map(judge).collect();
 
         if marked.is_empty() {
             break;
@@ -660,15 +665,26 @@ pub fn build(
     stats.deepest_level = leaves.values().map(|&(a, b)| a.max(b)).max().unwrap_or(0);
     stats.saturated_leaves =
         leaves.values().filter(|&&(lu, ls)| lu >= max_level && ls >= max_level).count();
-    stats.worst_error_mm = leaves
-        .par_iter()
-        .filter(|&(_, &(lu, ls))| lu < max_level || ls < max_level)
-        .map(|(&(i, j), &(lu, ls))| {
-            let ((a, b, c), _) =
-                facet_error(&lat, i, j, span(lu, max_level), span(ls, max_level));
-            a.max(b).max(c)
-        })
-        .reduce(|| 0.0, f64::max);
+    let leaf_err = |(&(i, j), &(lu, ls)): (&(u32, u32), &Levels)| {
+        let ((a, b, c), _) = facet_error(&lat, i, j, span(lu, max_level), span(ls, max_level));
+        a.max(b).max(c)
+    };
+    #[cfg(feature = "parallel")]
+    {
+        stats.worst_error_mm = leaves
+            .par_iter()
+            .filter(|&(_, &(lu, ls))| lu < max_level || ls < max_level)
+            .map(leaf_err)
+            .reduce(|| 0.0, f64::max);
+    }
+    #[cfg(not(feature = "parallel"))]
+    {
+        stats.worst_error_mm = leaves
+            .iter()
+            .filter(|&(_, &(lu, ls))| lu < max_level || ls < max_level)
+            .map(leaf_err)
+            .fold(0.0, f64::max);
+    }
 
     let mesh = triangulate(&lat, &leaves, max_level);
     let relief = relief_range(design, lib, &ctx);
@@ -703,17 +719,18 @@ pub fn grid_error_mm(
         columns: HashMap::new(),
     };
     lat.ensure(&(0..n_theta * 2).collect());
-    (0..n_theta)
-        .into_par_iter()
-        .map(|i| {
-            (0..n_prof)
-                .map(|j| {
-                    let ((a, b, c), _) = facet_error(&lat, i * 2, j * 2, 2, 2);
-                    a.max(b).max(c)
-                })
-                .fold(0.0, f64::max)
-        })
-        .reduce(|| 0.0, f64::max)
+    let row = |i: u32| {
+        (0..n_prof)
+            .map(|j| {
+                let ((a, b, c), _) = facet_error(&lat, i * 2, j * 2, 2, 2);
+                a.max(b).max(c)
+            })
+            .fold(0.0, f64::max)
+    };
+    #[cfg(feature = "parallel")]
+    return (0..n_theta).into_par_iter().map(row).reduce(|| 0.0, f64::max);
+    #[cfg(not(feature = "parallel"))]
+    (0..n_theta).map(row).fold(0.0, f64::max)
 }
 
 /// How badly a cell misrepresents the surface: per-axis sag
@@ -870,17 +887,19 @@ fn relief_range(design: &RingDesign, lib: &AlphaLibrary, ctx: &FieldContext) -> 
     if design.layers.is_empty() {
         return (0.0, 0.0);
     }
-    (0..256usize)
-        .into_par_iter()
-        .map(|i| {
-            let u = i as f64 / 256.0 * ctx.circumference_mm;
-            (0..192usize).fold((0.0f64, 0.0f64), |(hi, lo), j| {
-                let v = j as f64 / 191.0 * ctx.band_v_len_mm;
-                let h = design.layers.height(Uv { u, v }, ctx, lib);
-                if h.is_finite() { (hi.max(h), lo.min(h)) } else { (hi, lo) }
-            })
+    let col = |i: usize| {
+        let u = i as f64 / 256.0 * ctx.circumference_mm;
+        (0..192usize).fold((0.0f64, 0.0f64), |(hi, lo), j| {
+            let v = j as f64 / 191.0 * ctx.band_v_len_mm;
+            let h = design.layers.height(Uv { u, v }, ctx, lib);
+            if h.is_finite() { (hi.max(h), lo.min(h)) } else { (hi, lo) }
         })
-        .reduce(|| (0.0, 0.0), |a, b| (a.0.max(b.0), a.1.min(b.1)))
+    };
+    let join = |a: (f64, f64), b: (f64, f64)| (a.0.max(b.0), a.1.min(b.1));
+    #[cfg(feature = "parallel")]
+    return (0..256usize).into_par_iter().map(col).reduce(|| (0.0, 0.0), join);
+    #[cfg(not(feature = "parallel"))]
+    (0..256usize).map(col).fold((0.0, 0.0), join)
 }
 
 #[cfg(test)]

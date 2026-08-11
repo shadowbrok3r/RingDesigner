@@ -769,6 +769,17 @@ On top of that:
   dimensions, weight in every alloy with its pattern scale, the field
   verdict with notes and DFM findings, the stones table with bench warnings,
   provenance. Desktop File menu and the Android share sheet both emit it.
+- **The parting line** (`castability::parting_line`): the widest surface
+  point per slice — where the sand parts — exported as a printable SVG
+  (plan view plus the line's height unrolled, File > Parting line…).
+  `ShadeMode::Halves` paints cope blue and drag sand with the parting band
+  bright, from the object-space normal's axial share, on both apps.
+- **The comparison ghost**: the toolbar's Ghost checkbox pins the current
+  *design*; the viewport draws its mesh translucent (third VBO, `u_alpha`,
+  no depth writes) and the section view cuts the pinned design at the live
+  angle and dashes its outline — resolution-independent on both counts.
+- **Ctrl+K** opens the command palette (`panels::Command`, one enum arm per
+  action); Ctrl+S/O/N and Delete-layer ride the same dispatch.
 - **The viewport probe**: click the 3D view to ray-cast the built mesh
   (Möller–Trumbore over every face — a millisecond on a click, no BVH):
   readout of θ/v/relief/wall/class, and the topmost contributing layer
@@ -957,6 +968,17 @@ nothing, and the ring renders see-through — the far wall painting over the nea
 one. `main.rs` sets `depth_buffer: 24`, and `GpuMeshRenderer` queries
 `FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE` once and logs a warning at 0 bits, so this
 can never fail quietly again.
+
+## The `parallel` feature and the wasm door
+
+`ringdesign-core` puts rayon behind a default-on **`parallel`** feature;
+off, every fan-out runs serial through the same call sites (per-site `cfg`
+splits, no trait shims). `BuildClock` guards the one other wasm landmine —
+`Instant::now` panics in a browser. Both core and the configurator pass
+`cargo check --no-default-features --target wasm32-unknown-unknown`; what a
+live web build still needs is the configurator's `WebRunner` entry + trunk
+packaging and its `std::thread` workers made synchronous or moved to a web
+worker (a serial preview build is ~40 ms, so synchronous is viable).
 
 ## Running the tests
 

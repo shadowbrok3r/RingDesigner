@@ -29,6 +29,17 @@ const PREVIEW: BuildParams = BuildParams {
 /// Preview edge, px. Software-rastered, so modest and supersampled.
 const VIEW_PX: usize = 640;
 
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    // The crate compiles for wasm32 with `--no-default-features` (core runs
+    // serial), which keeps the browser door open. What a live web build
+    // still needs: an eframe `WebRunner` entry with its canvas + trunk
+    // packaging, and `spawn_worker`/`spawn_thumbs` replaced — std::thread
+    // does not run in a browser, so builds either go synchronous (a preview
+    // build is ~40 ms serial) or into a web worker.
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
     env_logger::init();
     let options = eframe::NativeOptions {

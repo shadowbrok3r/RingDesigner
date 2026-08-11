@@ -33,12 +33,15 @@ uniform mat3 u_normal_matrix;
 out vec3 v_normal;
 out vec3 v_color;
 out vec3 v_color2;
+out float v_obj_nz;
 
 void main() {
     gl_Position = u_mvp * vec4(a_position, 1.0);
     v_normal = u_normal_matrix * a_normal;
     v_color = a_color;
     v_color2 = a_color2;
+    // Object-space axial share of the normal: which mould half owns the face.
+    v_obj_nz = a_normal.z;
 }
 "#;
 
@@ -47,11 +50,13 @@ const FRAGMENT_SHADER: &str = r#"#version 330 core
 in vec3 v_normal;
 in vec3 v_color;
 in vec3 v_color2;
+in float v_obj_nz;
 
 uniform int u_mode;
 uniform vec3 u_light_dir;
 uniform vec3 u_base_color;
 uniform float u_ambient;
+uniform float u_alpha;
 
 out vec4 frag_color;
 
@@ -64,7 +69,13 @@ void main() {
     vec3 l = normalize(u_light_dir);
     vec3 color;
 
-    if (u_mode == 3) {
+    if (u_mode == 4) {
+        // Cope in cool blue, drag in warm sand, the parting band bright.
+        float lambert = max(dot(n, l), 0.0);
+        vec3 half_c = v_obj_nz > 0.0 ? vec3(0.42, 0.62, 0.82) : vec3(0.80, 0.62, 0.38);
+        float band = 1.0 - smoothstep(0.035, 0.09, abs(v_obj_nz));
+        color = mix(half_c, vec3(1.0, 0.92, 0.25), band) * (0.72 + 0.28 * lambert);
+    } else if (u_mode == 3) {
         float lambert = max(dot(n, l), 0.0);
         color = v_color2 * (0.74 + 0.26 * lambert);
     } else if (u_mode == 2) {
@@ -82,7 +93,7 @@ void main() {
               + HIGHLIGHT * spec;
     }
 
-    frag_color = vec4(color, 1.0);
+    frag_color = vec4(color, u_alpha);
 }
 "#;
 
@@ -105,6 +116,8 @@ struct GpuResources {
     vbo: glow::NativeBuffer,
     gem_vao: glow::NativeVertexArray,
     gem_vbo: glow::NativeBuffer,
+    ghost_vao: glow::NativeVertexArray,
+    ghost_vbo: glow::NativeBuffer,
 }
 
 pub struct GpuMeshRenderer {
@@ -113,6 +126,8 @@ pub struct GpuMeshRenderer {
     pending: Option<Vec<f32>>,
     gem_count: i32,
     gem_pending: Option<Vec<f32>>,
+    ghost_count: i32,
+    ghost_pending: Option<Vec<f32>>,
     depth_checked: bool,
 }
 
@@ -128,6 +143,8 @@ impl Default for GpuMeshRenderer {
             pending: None,
             gem_count: 0,
             gem_pending: None,
+            ghost_count: 0,
+            ghost_pending: None,
             depth_checked: false,
         }
     }
@@ -186,6 +203,34 @@ impl GpuMeshRenderer {
         self.gem_pending = Some(verts);
     }
 
+    /// Queue the pinned comparison mesh, in the same layout. Empty clears it.
+    pub fn prepare_ghost(&mut self, verts: Vec<f32>) {
+        self.ghost_pending = Some(verts);
+    }
+
+    /// Flatten a mesh into the interleaved layout with neutral colours — the
+    /// ghost pass supplies its own tint.
+    pub fn stage_plain(mesh: &ringdesign_core::Mesh) -> Vec<f32> {
+        let mut data = Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
+        'faces: for face in &mesh.faces {
+            let mut tri = [[0.0f32; FLOATS_PER_VERTEX]; 3];
+            for (k, &vi) in face.iter().enumerate() {
+                let Some(p) = mesh.vertices.get(vi as usize).filter(|p| p.is_finite()) else {
+                    continue 'faces;
+                };
+                let n = match mesh.normals.get(vi as usize) {
+                    Some(n) if n.is_finite() => *n,
+                    _ => ringdesign_core::Vec3(0.0, 0.0, 1.0),
+                };
+                tri[k] = [p.0, p.1, p.2, n.0, n.1, n.2, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+            }
+            for v in &tri {
+                data.extend_from_slice(v);
+            }
+        }
+        data
+    }
+
     /// Draw the mesh. Called from inside the paint callback.
     fn paint(
         &mut self,
@@ -213,6 +258,14 @@ impl GpuMeshRenderer {
                     as_u8_slice(&verts),
                     glow::STATIC_DRAW,
                 );
+                gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            }
+        }
+        if let Some(verts) = self.ghost_pending.take() {
+            self.ghost_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
+            unsafe {
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.ghost_vbo));
+                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
                 gl.bind_buffer(glow::ARRAY_BUFFER, None);
             }
         }
@@ -263,9 +316,37 @@ impl GpuMeshRenderer {
             gl.uniform_3_f32(loc.as_ref(), base_color[0], base_color[1], base_color[2]);
             let loc = gl.get_uniform_location(res.program, "u_ambient");
             gl.uniform_1_f32(loc.as_ref(), ambient);
+            let loc = gl.get_uniform_location(res.program, "u_alpha");
+            gl.uniform_1_f32(loc.as_ref(), 1.0);
 
             gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
             gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
+
+            // The pinned comparison ghost: last, translucent, no depth
+            // writes, so it reads as a spectre around the live metal.
+            if self.ghost_count > 0 {
+                gl.use_program(Some(res.program));
+                let loc = gl.get_uniform_location(res.program, "u_mode");
+                gl.uniform_1_i32(loc.as_ref(), 0);
+                let loc = gl.get_uniform_location(res.program, "u_base_color");
+                gl.uniform_3_f32(loc.as_ref(), 0.62, 0.72, 0.84);
+                let loc = gl.get_uniform_location(res.program, "u_alpha");
+                gl.uniform_1_f32(loc.as_ref(), 0.28);
+                gl.enable(glow::BLEND);
+                gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+                gl.depth_mask(false);
+                gl.bind_vertex_array(Some(res.ghost_vao));
+                gl.draw_arrays(glow::TRIANGLES, 0, self.ghost_count);
+                gl.depth_mask(true);
+                gl.disable(glow::BLEND);
+                gl.bind_vertex_array(Some(res.vao));
+                let loc = gl.get_uniform_location(res.program, "u_alpha");
+                gl.uniform_1_f32(loc.as_ref(), 1.0);
+                let loc = gl.get_uniform_location(res.program, "u_mode");
+                gl.uniform_1_i32(loc.as_ref(), mode);
+                let loc = gl.get_uniform_location(res.program, "u_base_color");
+                gl.uniform_3_f32(loc.as_ref(), base_color[0], base_color[1], base_color[2]);
+            }
 
             if wireframe {
                 gl.use_program(Some(res.wire_program));
@@ -348,9 +429,11 @@ impl GpuMeshRenderer {
         let vbo = unsafe { gl.create_buffer() }.expect("create VBO");
         let gem_vao = unsafe { gl.create_vertex_array() }.expect("create gem VAO");
         let gem_vbo = unsafe { gl.create_buffer() }.expect("create gem VBO");
+        let ghost_vao = unsafe { gl.create_vertex_array() }.expect("create ghost VAO");
+        let ghost_vbo = unsafe { gl.create_buffer() }.expect("create ghost VBO");
 
         unsafe {
-            for (vao, vbo) in [(vao, vbo), (gem_vao, gem_vbo)] {
+            for (vao, vbo) in [(vao, vbo), (gem_vao, gem_vbo), (ghost_vao, ghost_vbo)] {
                 gl.bind_vertex_array(Some(vao));
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
 
@@ -366,8 +449,16 @@ impl GpuMeshRenderer {
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
         }
 
-        self.resources =
-            Some(GpuResources { program, wire_program, vao, vbo, gem_vao, gem_vbo });
+        self.resources = Some(GpuResources {
+            program,
+            wire_program,
+            vao,
+            vbo,
+            gem_vao,
+            gem_vbo,
+            ghost_vao,
+            ghost_vbo,
+        });
     }
 
     pub fn destroy(&mut self, gl: &glow::Context) {
@@ -379,12 +470,16 @@ impl GpuMeshRenderer {
                 gl.delete_buffer(res.vbo);
                 gl.delete_vertex_array(res.gem_vao);
                 gl.delete_buffer(res.gem_vbo);
+                gl.delete_vertex_array(res.ghost_vao);
+                gl.delete_buffer(res.ghost_vbo);
             }
         }
         self.vertex_count = 0;
         self.pending = None;
         self.gem_count = 0;
         self.gem_pending = None;
+        self.ghost_count = 0;
+        self.ghost_pending = None;
     }
 }
 
@@ -474,18 +569,25 @@ pub enum ShadeMode {
     Metal,
     Draft,
     Wall,
+    Halves,
     Normals,
 }
 
 impl ShadeMode {
-    pub const ALL: &'static [ShadeMode] =
-        &[ShadeMode::Metal, ShadeMode::Draft, ShadeMode::Wall, ShadeMode::Normals];
+    pub const ALL: &'static [ShadeMode] = &[
+        ShadeMode::Metal,
+        ShadeMode::Draft,
+        ShadeMode::Wall,
+        ShadeMode::Halves,
+        ShadeMode::Normals,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
             ShadeMode::Metal => "Polished metal",
             ShadeMode::Draft => "Draft check",
             ShadeMode::Wall => "Wall thickness",
+            ShadeMode::Halves => "Cope / drag",
             ShadeMode::Normals => "Normals",
         }
     }
@@ -495,6 +597,7 @@ impl ShadeMode {
             ShadeMode::Metal => 0,
             ShadeMode::Draft => 1,
             ShadeMode::Wall => 3,
+            ShadeMode::Halves => 4,
             ShadeMode::Normals => 2,
         }
     }

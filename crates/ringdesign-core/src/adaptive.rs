@@ -35,6 +35,7 @@
 //! mapping in [`Density::finish_against`], resampling the cross-section as one
 //! closed loop so corners are never chopped, and probing the field once.
 
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 use crate::alpha::AlphaLibrary;
@@ -275,17 +276,18 @@ impl Spacing {
 
 /// Height field on a fixed grid, row-major in `u`.
 fn probe(design: &RingDesign, ctx: &FieldContext, lib: &AlphaLibrary) -> Vec<f64> {
-    (0..PROBE_U)
-        .into_par_iter()
-        .flat_map_iter(|i| {
-            let u = i as f64 / PROBE_U as f64 * ctx.circumference_mm;
-            (0..PROBE_V).map(move |j| {
-                let v = j as f64 / (PROBE_V - 1) as f64 * ctx.band_v_len_mm;
-                let h = design.layers.height(Uv { u, v }, ctx, lib);
-                if h.is_finite() { h } else { 0.0 }
-            })
+    let row = |i: usize| {
+        let u = i as f64 / PROBE_U as f64 * ctx.circumference_mm;
+        (0..PROBE_V).map(move |j| {
+            let v = j as f64 / (PROBE_V - 1) as f64 * ctx.band_v_len_mm;
+            let h = design.layers.height(Uv { u, v }, ctx, lib);
+            if h.is_finite() { h } else { 0.0 }
         })
-        .collect()
+    };
+    #[cfg(feature = "parallel")]
+    return (0..PROBE_U).into_par_iter().flat_map_iter(row).collect();
+    #[cfg(not(feature = "parallel"))]
+    (0..PROBE_U).flat_map(row).collect()
 }
 
 /// How fast the shank modulation changes the cross-section, in mm per bin.

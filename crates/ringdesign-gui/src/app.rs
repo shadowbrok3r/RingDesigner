@@ -146,8 +146,15 @@ pub struct RingDesignerApp {
     pub probe: Option<([f32; 3], String)>,
     /// Measurement pins from shift-clicks, world space. Two make a distance.
     pub pins: Vec<[f32; 3]>,
+    /// The pinned comparison: the design as it was when pinned. Its mesh
+    /// rides the viewport as a translucent ghost; the section view overlays
+    /// its outline dashed.
+    pub pinned: Option<ringdesign_core::RingDesign>,
     /// The auto-pavé dialog, open with its working spec.
     pub pave_open: bool,
+    /// The Ctrl+K command palette.
+    pub palette_open: bool,
+    pub palette_query: String,
     pub pave_spec: ringdesign_core::pave::PaveSpec,
     /// Index into [`viewport::FINISHES`].
     pub finish: usize,
@@ -239,7 +246,10 @@ impl RingDesignerApp {
             brush_erase: false,
             probe: None,
             pins: Vec::new(),
+            pinned: None,
             pave_open: false,
+            palette_open: false,
+            palette_query: String::new(),
             pave_spec: ringdesign_core::pave::PaveSpec::default(),
             show_grid: ws.show_grid,
             finish: ws.finish,
@@ -274,6 +284,23 @@ impl RingDesignerApp {
         };
         app.mark_dirty();
         app
+    }
+
+    /// Pin the current design as the comparison ghost, or clear it.
+    pub fn toggle_pin(&mut self) {
+        if self.pinned.take().is_some() {
+            if let Ok(mut r) = self.renderer.lock() {
+                r.prepare_ghost(Vec::new());
+            }
+            self.set_status("Comparison unpinned");
+            return;
+        }
+        let out = ringdesign_core::mesh::build(&self.design, &self.lib, self.preview_params);
+        if let Ok(mut r) = self.renderer.lock() {
+            r.prepare_ghost(crate::viewport::GpuMeshRenderer::stage_plain(&out.mesh));
+        }
+        self.pinned = Some(self.design.clone());
+        self.set_status("Pinned — the ghost holds this shape while you edit");
     }
 
     /// Record a design file at the head of the recents, newest first.

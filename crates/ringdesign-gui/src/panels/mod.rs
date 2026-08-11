@@ -249,20 +249,212 @@ fn shortcuts(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     const REDO: KeyboardShortcut =
         KeyboardShortcut::new(Modifiers::COMMAND.plus(Modifiers::SHIFT), Key::Z);
     const REDO_ALT: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Y);
+    const SAVE: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::S);
+    const OPEN: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::O);
+    const NEW: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::N);
+    const PALETTE: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::K);
 
     // Redo is checked first: its shortcut also matches undo's once the shift is
     // ignored, and consuming undo would swallow it.
-    let (redo, redo_alt, undo) = ui.input_mut(|i| {
+    let (redo, redo_alt, undo, save, open, new, palette, delete) = ui.input_mut(|i| {
         (
             i.consume_shortcut(&REDO),
             i.consume_shortcut(&REDO_ALT),
             i.consume_shortcut(&UNDO),
+            i.consume_shortcut(&SAVE),
+            i.consume_shortcut(&OPEN),
+            i.consume_shortcut(&NEW),
+            i.consume_shortcut(&PALETTE),
+            i.consume_key(Modifiers::NONE, Key::Delete),
         )
     });
     if redo || redo_alt {
         app.redo();
     } else if undo {
         app.undo();
+    }
+    if save {
+        Command::Save.run(app);
+    }
+    if open {
+        Command::Open.run(app);
+    }
+    if new {
+        Command::New.run(app);
+    }
+    if palette {
+        app.palette_open = !app.palette_open;
+        app.palette_query.clear();
+    }
+    // Delete only acts when a layer is selected and no text field has focus —
+    // egui routes Delete to text editing itself, but a consumed key here would
+    // otherwise still fire while typing in a field that ignored it.
+    if delete && !ui.ctx().memory(|m| m.focused().is_some()) {
+        Command::DeleteLayer.run(app);
+    }
+
+    command_palette(app, ui);
+}
+
+/// Everything the palette can do, one match away from the code that does it.
+#[derive(Clone, Copy, PartialEq)]
+enum Command {
+    New,
+    Open,
+    Save,
+    ExportStl,
+    ExportObj,
+    Export3mf,
+    ExportGlb,
+    RenderPng,
+    TurntableGif,
+    CastingSheet,
+    PartingLine,
+    ToggleGhost,
+    ToggleStones,
+    ToggleAsCast,
+    DeleteLayer,
+    Undo,
+    Redo,
+}
+
+impl Command {
+    const ALL: &'static [Command] = &[
+        Command::New,
+        Command::Open,
+        Command::Save,
+        Command::ExportStl,
+        Command::ExportObj,
+        Command::Export3mf,
+        Command::ExportGlb,
+        Command::RenderPng,
+        Command::TurntableGif,
+        Command::CastingSheet,
+        Command::PartingLine,
+        Command::ToggleGhost,
+        Command::ToggleStones,
+        Command::ToggleAsCast,
+        Command::DeleteLayer,
+        Command::Undo,
+        Command::Redo,
+    ];
+
+    fn label(self) -> &'static str {
+        match self {
+            Command::New => "New design",
+            Command::Open => "Open design…  (Ctrl+O)",
+            Command::Save => "Save design as…  (Ctrl+S)",
+            Command::ExportStl => "Export STL…",
+            Command::ExportObj => "Export OBJ…",
+            Command::Export3mf => "Export 3MF…",
+            Command::ExportGlb => "Export GLB…",
+            Command::RenderPng => "Render PNG…",
+            Command::TurntableGif => "Turntable GIF…",
+            Command::CastingSheet => "Casting sheet…",
+            Command::PartingLine => "Parting line SVG…",
+            Command::ToggleGhost => "Toggle comparison ghost",
+            Command::ToggleStones => "Toggle stone previews",
+            Command::ToggleAsCast => "Toggle as-cast softening",
+            Command::DeleteLayer => "Delete selected layer  (Del)",
+            Command::Undo => "Undo  (Ctrl+Z)",
+            Command::Redo => "Redo  (Ctrl+Shift+Z)",
+        }
+    }
+
+    fn run(self, app: &mut RingDesignerApp) {
+        match self {
+            Command::New => {
+                app.design = ringdesign_core::RingDesign::default();
+                app.history.reset(&app.design.clone());
+                app.selected_layer = None;
+                app.fit_pending = true;
+                app.mark_dirty();
+            }
+            Command::Open => export::open_design(app),
+            Command::Save => export::save_design(app),
+            Command::ExportStl => export::export_stl(app),
+            Command::ExportObj => export::export_obj(app),
+            Command::Export3mf => export::export_3mf(app),
+            Command::ExportGlb => export::export_glb(app),
+            Command::RenderPng => export::export_render(app),
+            Command::TurntableGif => export::export_turntable(app),
+            Command::CastingSheet => export::export_spec(app),
+            Command::PartingLine => export::export_parting(app),
+            Command::ToggleGhost => app.toggle_pin(),
+            Command::ToggleStones => {
+                app.show_gems = !app.show_gems;
+                app.mark_dirty();
+            }
+            Command::ToggleAsCast => {
+                app.as_cast = !app.as_cast;
+                app.mark_dirty();
+            }
+            Command::DeleteLayer => {
+                if let Some(i) = app.selected_layer
+                    && i < app.design.layers.layers.len()
+                {
+                    let name = app.design.layers.layers.remove(i).name;
+                    app.selected_layer = None;
+                    app.mark_dirty();
+                    app.set_status(format!("Deleted layer {name}"));
+                }
+            }
+            Command::Undo => app.undo(),
+            Command::Redo => app.redo(),
+        }
+    }
+}
+
+/// Ctrl+K: a centred filter-and-run list over every command.
+fn command_palette(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    if !app.palette_open {
+        return;
+    }
+    let ctx = ui.ctx().clone();
+    if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+        app.palette_open = false;
+        return;
+    }
+    let mut run: Option<Command> = None;
+    egui::Window::new("Command palette")
+        .title_bar(false)
+        .resizable(false)
+        .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 80.0))
+        .fixed_size(egui::vec2(360.0, 0.0))
+        .show(&ctx, |ui| {
+            let edit = ui.add(
+                egui::TextEdit::singleline(&mut app.palette_query)
+                    .hint_text("Type a command…")
+                    .desired_width(f32::INFINITY),
+            );
+            edit.request_focus();
+            let query = app.palette_query.to_lowercase();
+            let hits: Vec<Command> = Command::ALL
+                .iter()
+                .copied()
+                .filter(|c| c.label().to_lowercase().contains(&query))
+                .collect();
+            let go = ui.input(|i| i.key_pressed(egui::Key::Enter));
+            for (k, c) in hits.iter().enumerate() {
+                let first = k == 0;
+                let label = if first && !hits.is_empty() {
+                    egui::RichText::new(c.label()).strong()
+                } else {
+                    egui::RichText::new(c.label())
+                };
+                if ui.add(egui::Button::new(label).frame(false)).clicked()
+                    || (go && first)
+                {
+                    run = Some(*c);
+                }
+            }
+            if hits.is_empty() {
+                ui.label(egui::RichText::new("No matching command").weak());
+            }
+        });
+    if let Some(c) = run {
+        app.palette_open = false;
+        c.run(app);
     }
 }
 
@@ -425,6 +617,14 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 ui.close();
             }
             if ui
+                .button(format!("{} Parting line…", icon::WAVE_SINE))
+                .on_hover_text("The mould split as a printable SVG: plan view plus the line's height unrolled.")
+                .clicked()
+            {
+                export::export_parting(app);
+                ui.close();
+            }
+            if ui
                 .button(format!("{} Render PNG…", icon::CAMERA))
                 .on_hover_text("A polished still at export resolution, tinted to the chosen finish.")
                 .clicked()
@@ -502,6 +702,18 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
         ui.checkbox(&mut app.show_wireframe, "Wire");
         ui.checkbox(&mut app.show_grid, "Grid");
+        {
+            let mut pinned = app.pinned.is_some();
+            if ui
+                .checkbox(&mut pinned, "Ghost")
+                .on_hover_text(
+                    "Pin the current shape as a translucent ghost, then edit against it.                      The section view overlays its outline dashed.",
+                )
+                .changed()
+            {
+                app.toggle_pin();
+            }
+        }
         ui.checkbox(&mut app.show_gems, "Stones")
             .on_hover_text(
                 "Preview the stones in their seats. Render only — never in the mesh, never exported.",

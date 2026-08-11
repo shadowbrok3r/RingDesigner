@@ -4,6 +4,7 @@
 //! closes at 360° — so the result has torus topology and is watertight with no
 //! cap geometry and no special cases.
 
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +18,27 @@ use crate::RingDesign;
 
 /// Metal that must remain between a displaced surface and the bore, mm.
 pub const MIN_WALL_MM: f64 = 0.5;
+
+/// A build timer that survives wasm, where `Instant::now` panics outright.
+/// The browser build reports 0 ms; the number is telemetry, not geometry.
+#[derive(Clone, Copy)]
+pub(crate) struct BuildClock(#[cfg(not(target_arch = "wasm32"))] std::time::Instant);
+
+impl BuildClock {
+    pub(crate) fn start() -> Self {
+        Self(
+            #[cfg(not(target_arch = "wasm32"))]
+            std::time::Instant::now(),
+        )
+    }
+
+    pub(crate) fn ms(&self) -> u128 {
+        #[cfg(not(target_arch = "wasm32"))]
+        return self.0.elapsed().as_millis();
+        #[cfg(target_arch = "wasm32")]
+        0
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Vec3(pub f32, pub f32, pub f32);
@@ -270,7 +292,7 @@ pub struct BuildResult {
 
 /// Build the ring mesh from a design.
 pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> BuildResult {
-    let started = std::time::Instant::now();
+    let started = BuildClock::start();
     if let Some(rp) = params.refine {
         return build_refined(design, lib, params, rp, started);
     }
@@ -295,8 +317,11 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
     let field_v = params.adaptive.then_some(&spacing.v);
 
     // --- Sweep: one displaced cross-section per angular step. ---
-    let rings: Vec<RingSlice> = (0..n_theta)
-        .into_par_iter()
+    #[cfg(feature = "parallel")]
+    let theta_iter = (0..n_theta).into_par_iter();
+    #[cfg(not(feature = "parallel"))]
+    let theta_iter = 0..n_theta;
+    let rings: Vec<RingSlice> = theta_iter
         .map(|i| {
             let frac = spacing.theta[i];
             let theta = frac * 360.0;
@@ -388,7 +413,7 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
         max_relief_mm: max_relief,
         min_relief_mm: min_relief,
         metals: metal_table(volume),
-        build_ms: started.elapsed().as_millis(),
+        build_ms: started.ms(),
         refine: None,
         quality: mesh.quality(),
     };
@@ -403,7 +428,7 @@ fn build_refined(
     lib: &AlphaLibrary,
     params: BuildParams,
     rp: crate::refine::RefineParams,
-    started: std::time::Instant,
+    started: BuildClock,
 ) -> BuildResult {
     let out = crate::refine::build(design, lib, rp, params.min_wall_mm);
     let mesh = out.mesh;
@@ -427,7 +452,7 @@ fn build_refined(
         max_relief_mm: out.relief.0,
         min_relief_mm: out.relief.1,
         metals: metal_table(volume),
-        build_ms: started.elapsed().as_millis(),
+        build_ms: started.ms(),
         refine: Some(out.stats),
         quality: mesh.quality(),
     };
@@ -462,23 +487,24 @@ pub(crate) fn grid_normals(vertices: &[Vec3], n_theta: usize, n_prof: usize) -> 
         let v = vertices[(i % n_theta) * n_prof + (j % n_prof)];
         [v.0 as f64, v.1 as f64, v.2 as f64]
     };
-    (0..n_theta)
-        .into_par_iter()
-        .flat_map_iter(|i| {
-            (0..n_prof).map(move |j| {
-                let tu = sub(at(i + 1, j), at(i + n_theta - 1, j));
-                let ts = sub(at(i, j + 1), at(i, j + n_prof - 1));
-                // `e_theta x e_profile` points outward, matching the winding.
-                let n = cross(tu, ts);
-                let len = norm(n);
-                if len > 1e-12 {
-                    Vec3((n[0] / len) as f32, (n[1] / len) as f32, (n[2] / len) as f32)
-                } else {
-                    Vec3(0.0, 0.0, 1.0)
-                }
-            })
+    let row = |i: usize| {
+        (0..n_prof).map(move |j| {
+            let tu = sub(at(i + 1, j), at(i + n_theta - 1, j));
+            let ts = sub(at(i, j + 1), at(i, j + n_prof - 1));
+            // `e_theta x e_profile` points outward, matching the winding.
+            let n = cross(tu, ts);
+            let len = norm(n);
+            if len > 1e-12 {
+                Vec3((n[0] / len) as f32, (n[1] / len) as f32, (n[2] / len) as f32)
+            } else {
+                Vec3(0.0, 0.0, 1.0)
+            }
         })
-        .collect()
+    };
+    #[cfg(feature = "parallel")]
+    return (0..n_theta).into_par_iter().flat_map_iter(row).collect();
+    #[cfg(not(feature = "parallel"))]
+    (0..n_theta).flat_map(row).collect()
 }
 
 /// The stack's height through a small Gaussian — the as-cast preview. A
