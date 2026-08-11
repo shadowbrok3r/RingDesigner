@@ -136,6 +136,31 @@ impl Mesh {
             non_manifold_edges,
         }
     }
+
+    /// Worst-triangle statistics over every face.
+    pub fn quality(&self) -> MeshQuality {
+        let mut q = MeshQuality { min_angle_deg: 90.0, worst_aspect: 1.0, degenerate_faces: 0 };
+        for f in &self.faces {
+            let Some((a, b, c)) = self.triangle(f) else {
+                q.degenerate_faces += 1;
+                continue;
+            };
+            let (e0, e1, e2) = (norm(sub(b, a)), norm(sub(c, b)), norm(sub(a, c)));
+            let area = 0.5 * norm(cross(sub(b, a), sub(c, a)));
+            let longest = e0.max(e1).max(e2);
+            if area < 1e-10 || longest < 1e-9 {
+                q.degenerate_faces += 1;
+                continue;
+            }
+            // Height off the longest edge; aspect = longest / height.
+            q.worst_aspect = q.worst_aspect.max(longest / (2.0 * area / longest));
+            for (opp, u, w) in [(e1, e2, e0), (e2, e0, e1), (e0, e1, e2)] {
+                let cos = ((u * u + w * w - opp * opp) / (2.0 * u * w)).clamp(-1.0, 1.0);
+                q.min_angle_deg = q.min_angle_deg.min(cos.acos().to_degrees());
+            }
+        }
+        q
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize)]
@@ -145,6 +170,18 @@ pub struct Validation {
     pub vertex_count: usize,
     pub boundary_edges: usize,
     pub non_manifold_edges: usize,
+}
+
+/// Triangle-shape statistics: how far the worst facets are from equilateral.
+/// Slivers shade badly and slice badly downstream even when watertight.
+#[derive(Clone, Copy, Debug, Default, Serialize)]
+pub struct MeshQuality {
+    /// Smallest corner angle anywhere, degrees. 60 is equilateral.
+    pub min_angle_deg: f64,
+    /// Worst longest-edge to shortest-height ratio. 1.15 is equilateral.
+    pub worst_aspect: f64,
+    /// Faces with near-zero area.
+    pub degenerate_faces: usize,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -218,6 +255,7 @@ pub struct Report {
     pub build_ms: u128,
     /// What local refinement produced, when the build used it.
     pub refine: Option<crate::refine::RefineStats>,
+    pub quality: MeshQuality,
 }
 
 pub struct BuildResult {
@@ -352,6 +390,7 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
         metals: metal_table(volume),
         build_ms: started.elapsed().as_millis(),
         refine: None,
+        quality: mesh.quality(),
     };
 
     BuildResult { mesh, report, reference, spacing }
@@ -390,6 +429,7 @@ fn build_refined(
         metals: metal_table(volume),
         build_ms: started.elapsed().as_millis(),
         refine: Some(out.stats),
+        quality: mesh.quality(),
     };
 
     BuildResult {

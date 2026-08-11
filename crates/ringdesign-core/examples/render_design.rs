@@ -22,6 +22,7 @@ fn main() {
     d.unpack_embedded(&mut lib);
     d.bake_drawn(&mut lib);
     d.bake_texts(&mut lib);
+    d.bake_svgs(&mut lib);
 
     let params = BuildParams { theta_steps: 900, profile_steps: 256, ..Default::default() };
     let built = mesh::build(&d, &lib, params);

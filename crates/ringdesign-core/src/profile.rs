@@ -1393,7 +1393,7 @@ pub struct HeadAt {
     pub outer_r: f64,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ShankStyle {
     pub kind: ShankKind,
     /// Strength of the modulation, 0..1. On a signet this is how far the shank
@@ -1405,6 +1405,12 @@ pub struct ShankStyle {
     /// Signet only: the head the band swells into.
     #[serde(default)]
     pub head: SignetHead,
+    /// Further heads — a toi et moi carries two. Each is a full
+    /// [`SignetHead`]; the band is the union of all of them and the shank.
+    /// Faces work side by side; overlapping tables union by `smax` and read
+    /// as one wider head.
+    #[serde(default)]
+    pub extra_heads: Vec<SignetHead>,
 }
 
 fn default_waves() -> u32 {
@@ -1418,6 +1424,7 @@ impl Default for ShankStyle {
             amount: 0.5,
             waves: default_waves(),
             head: SignetHead::default(),
+            extra_heads: Vec::new(),
         }
     }
 }
@@ -1448,10 +1455,9 @@ impl ShankStyle {
     }
 
     /// The band's span at its bore, as `(low, high)` fractions of the head's
-    /// half-width.
+    /// half-width — the union of every head's reach and the shank strip.
     pub fn signet_span(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> (f64, f64) {
         let shank = self.signet_shank_frac(theta_deg);
-        let a = self.head_at(theta_deg, inner_r, base_outer_r);
         // A floor, not a blend. The swell already lands on the shank, so this
         // only catches an outline narrower across the band than the shank it
         // stands on — a heart's dimple against a barely-tapered band. A hard
@@ -1459,8 +1465,17 @@ impl ShankStyle {
         // swell's tail, past the crest span's 2% draft margin, and the crest
         // pokes through the body as a thin ceiling ring — measured 0.18% on a
         // Draft heart. Behind the head the floor is an exact tie and costs
-        // nothing.
-        (a.reach.0.min(-shank), a.reach.1.max(shank))
+        // nothing. Heads union by the same tie-exact fold the outline-vs-
+        // swell union uses, so two swells crossing between two heads fillet
+        // rather than crease.
+        let mut lo = -shank;
+        let mut hi = shank;
+        for h in self.all_heads() {
+            let a = self.head_at_for(h, theta_deg, inner_r, base_outer_r);
+            lo = smin(lo, a.reach.0, 0.04);
+            hi = smax(hi, a.reach.1, 0.04);
+        }
+        (lo.min(-shank), hi.max(shank))
     }
 
     /// Fraction of the band width the head leaves at a ring angle.
@@ -1478,9 +1493,16 @@ impl ShankStyle {
         1.0 - (1.0 - SIGNET_MIN_SHANK_FRAC) * k
     }
 
-    /// 0 beneath the head, 1 opposite it.
+    /// 0 beneath the nearest head, 1 opposite it.
     fn away_from_head(&self, theta_deg: f64) -> f64 {
-        (1.0 - (theta_deg - self.head.theta_deg).to_radians().cos()) * 0.5
+        self.all_heads()
+            .map(|h| (1.0 - (theta_deg - h.theta_deg).to_radians().cos()) * 0.5)
+            .fold(1.0, f64::min)
+    }
+
+    /// The primary head and every extra, in order.
+    pub fn all_heads(&self) -> impl Iterator<Item = &SignetHead> {
+        std::iter::once(&self.head).chain(self.extra_heads.iter())
     }
 
     /// Where a ring angle falls on the signet head: what the **body** spans
@@ -1517,16 +1539,27 @@ impl ShankStyle {
     /// already come down, which is exactly the broad thin shoulder of the
     /// reference.
     pub fn head_at(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> HeadAt {
+        self.head_at_for(&self.head, theta_deg, inner_r, base_outer_r)
+    }
+
+    /// [`head_at`](Self::head_at) for one specific head of a multi-head band.
+    pub fn head_at_for(
+        &self,
+        head: &SignetHead,
+        theta_deg: f64,
+        inner_r: f64,
+        base_outer_r: f64,
+    ) -> HeadAt {
         let k = self.amount.clamp(0.0, 1.0);
         let t0 = (base_outer_r - inner_r).max(0.05);
         let r_shank =
             inner_r + t0 * (1.0 - SIGNET_SHANK_THIN * k * self.away_from_head(theta_deg));
 
-        let plane_r = base_outer_r + self.head.rise_mm.max(0.0);
-        let half_l = (self.head.length_mm.max(0.5) * 0.5)
+        let plane_r = base_outer_r + head.rise_mm.max(0.0);
+        let half_l = (head.length_mm.max(0.5) * 0.5)
             .min(plane_r * HEAD_MAX_HALF_DEG.to_radians().tan());
         let signed =
-            crate::field::wrap_delta(theta_deg - self.head.theta_deg, 360.0).to_radians();
+            crate::field::wrap_delta(theta_deg - head.theta_deg, 360.0).to_radians();
         let d = signed.abs();
         let end = if signed < 0.0 { -1.0 } else { 1.0 };
         let face_edge = (half_l / plane_r).atan();
@@ -1540,15 +1573,15 @@ impl ShankStyle {
         // dilated and blurred, so it holds the head's proportions and none of
         // its detail — and contains the face, so the flank stays drafted.
         let x = (plane_r * d.min(face_edge).tan() / half_l).clamp(0.0, 1.0);
-        let k_fair = self.head.body_fair.clamp(0.0, 1.0);
-        let face_at = |s: f64| self.head.outline.extent(s);
+        let k_fair = head.body_fair.clamp(0.0, 1.0);
+        let face_at = |s: f64| head.outline.extent(s);
         let body_at =
-            |s: f64| blend_span(face_at(s), self.head.outline.body_extent(s), k_fair);
+            |s: f64| blend_span(face_at(s), head.outline.body_extent(s), k_fair);
         let body = body_at(end * x);
 
         // --- Swell: the head's span at its centre, faded to the shank. ---
         let shank = self.signet_shank_frac(theta_deg);
-        let arc = self.head.swell_arc_deg(face_edge.to_degrees());
+        let arc = head.swell_arc_deg(face_edge.to_degrees());
         let g = 1.0 - crate::field::smoothstep(0.0, 1.0, d.to_degrees() / arc);
         let swell = blend_span(body_at(0.0), (-shank, shank), 1.0 - g);
 
@@ -1604,8 +1637,8 @@ impl ShankStyle {
         // A parabolic cap rides on the plane solve: full at the face's centre,
         // gone at its edge, so the edge break and shoulder are untouched.
         let xr = (plane_r * d.min(face_edge).tan() / half_l).clamp(0.0, 1.0);
-        let cap = self.head.table_dome_mm.clamp(0.0, 3.0) * (1.0 - xr * xr);
-        let span = self.head.shoulder_deg.clamp(1.0, 150.0).to_radians();
+        let cap = head.table_dome_mm.clamp(0.0, 3.0) * (1.0 - xr * xr);
+        let span = head.shoulder_deg.clamp(1.0, 150.0).to_radians();
         let s_raw = (d - face_edge) / span;
         let s = s_raw.clamp(0.0, 1.0);
         let h00 = (1.0 - s).powf(HEAD_SHOULDER_POW);
@@ -1630,7 +1663,7 @@ impl ShankStyle {
         // straddled it. The reference's plate edge is rounded all the way
         // around, ends included. Tie-exact, so away from the corner both
         // curves are followed exactly.
-        let rim = self.head.rim_round_mm.clamp(0.0, 2.0);
+        let rim = head.rim_round_mm.clamp(0.0, 2.0);
         let climb = plane_r
             / d.min(HEAD_MAX_HALF_DEG.to_radians()).cos().max(1e-6)
             + cap;
@@ -1658,6 +1691,21 @@ fn draft_span(body: (f64, f64)) -> (f64, f64) {
 /// off-centre, and averaging its width would put its crest in the wrong place.
 fn blend_span(from: (f64, f64), to: (f64, f64), t: f64) -> (f64, f64) {
     (from.0 + (to.0 - from.0) * t, from.1 + (to.1 - from.1) * t)
+}
+
+/// The head that owns this angle: the strongest presence wins, and its face,
+/// crest span and take-off softness carry the section. Presences cross far
+/// from both faces, where every read has converged to the shank and the
+/// switch changes nothing.
+fn pick_dominant(reads: &[HeadAt]) -> HeadAt {
+    *reads
+        .iter()
+        .max_by(|a, b| {
+            (a.on_head, a.outer_r)
+                .partial_cmp(&(b.on_head, b.outer_r))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .expect("at least the primary head")
 }
 
 /// Per-angle modulation of the cross-section.
@@ -1861,7 +1909,15 @@ impl ShankStyle {
                 }
             }
             ShankKind::Signet => {
-                let a = self.head_at(theta_deg, inner_r, base_outer_r);
+                // Every head read here, then folded: the crest radius unions
+                // by tie-exact smax; span, centre and softness blend by each
+                // head's own presence, so far from all heads the shank wins
+                // and at a head that head does.
+                let reads: Vec<HeadAt> = self
+                    .all_heads()
+                    .map(|h| self.head_at_for(h, theta_deg, inner_r, base_outer_r))
+                    .collect();
+                let a = pick_dominant(&reads);
                 let band = self.signet_span(theta_deg, inner_r, base_outer_r);
                 let (w, centre) = ((band.1 - band.0) * 0.5, (band.1 + band.0) * 0.5);
                 // The table is the face's own outline, not the body's: the two
@@ -1873,21 +1929,29 @@ impl ShankStyle {
                 // dome, so a large value only ever means "more domed here".
                 let shank_crown = 1.0 + SIGNET_SHANK_ROUNDING * k * (1.0 - w);
                 let table_crown = 1.0 - self.head.table_flat.clamp(0.0, 1.0);
+                // The crest radius is the union of every head's — tie-exact,
+                // so between two heads neither fattens the other.
+                let mut outer_r = a.outer_r;
+                let mut on_head = a.on_head;
+                for r in &reads {
+                    outer_r = smax(outer_r, r.outer_r, 0.3);
+                    on_head = on_head.max(r.on_head);
+                }
                 ShankMod {
                     width_scale: w,
                     crest_span: Some(crest),
                     // Unused: `outer_r` sets the section's depth outright, so
                     // the crown stays a fraction of the profile's own.
                     thickness_scale: 1.0,
-                    crown_scale: shank_crown + (table_crown - shank_crown) * a.on_head,
-                    outer_r: Some(a.outer_r),
+                    crown_scale: shank_crown + (table_crown - shank_crown) * on_head,
+                    outer_r: Some(outer_r),
                     z_center_frac: centre,
                     outer_max_r: None,
                     drop_blend: 0.0,
                     flank_bias: 0.0,
                     // `on_head` kinks where the shoulder starts; smoothing it
                     // here keeps the wall-shape weight C² along the sweep.
-                    head: crate::field::smootherstep(0.0, 1.0, a.on_head),
+                    head: crate::field::smootherstep(0.0, 1.0, on_head),
                     head_rim_mm: self.head.rim_round_mm.clamp(0.0, 2.0),
                     side_groove_mm: 0.0,
                     straddle_soft: crate::field::smootherstep(0.55, 0.92, a.x.abs()),
@@ -2815,6 +2879,53 @@ mod tests {
 
     /// The table is a plane, not a slice of cylinder. Swept into world space,
     /// every crest point over the face has to land on one flat.
+    /// Two heads on one band: each face carries its own plate, the swells
+    /// union between them without a crease, and the whole ring still fields
+    /// clean — the toi et moi.
+    #[test]
+    fn two_heads_share_a_band_and_still_release() {
+        use crate::alpha::AlphaLibrary;
+        let mut d = crate::RingDesign::default();
+        d.shank.kind = ShankKind::Signet;
+        d.shank.amount = 0.75;
+        d.shank.head.outline = SignetOutline::Oval;
+        d.shank.head.theta_deg = TOP_DEG - 26.0;
+        d.shank.head.length_mm = 8.0;
+        let second = SignetHead {
+            outline: SignetOutline::Round,
+            theta_deg: TOP_DEG + 26.0,
+            length_mm: 6.5,
+            ..SignetHead::default()
+        };
+        d.shank.extra_heads.push(second);
+
+        let ir = d.inner_radius_mm();
+        let base = ir + d.profile.thickness_mm;
+        // Each head owns its own angle: width peaks at both, and the trough
+        // between them stays wider than the far shank — the swells union.
+        let w = |t: f64| d.shank.signet_width_frac(t, ir, base);
+        let (w1, w2) = (w(TOP_DEG - 26.0), w(TOP_DEG + 26.0));
+        let mid = w(TOP_DEG);
+        let back = w(TOP_DEG + 180.0);
+        assert!(w1 > 0.9 && w2 > 0.8, "faces not at full width: {w1:.2} {w2:.2}");
+        assert!(mid > back + 0.05, "no union between the heads: mid {mid:.2} back {back:.2}");
+
+        let lib = AlphaLibrary::builtin();
+        let out = crate::mesh::build(
+            &d,
+            &lib,
+            crate::BuildParams { theta_steps: 384, profile_steps: 144, ..Default::default() },
+        );
+        assert!(out.report.validation.watertight);
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 192, 128);
+        assert!(
+            f.undercut_fraction() < 2e-4,
+            "toi et moi undercuts {:.4}% worst {:.1}",
+            f.undercut_fraction() * 100.0,
+            f.worst_draft_deg
+        );
+    }
+
     /// The split's channel is real, and it costs nothing: the groove's floor
     /// faces along the pull and its walls stand radial, so the whole ring
     /// still fields clean.
@@ -3013,6 +3124,7 @@ mod tests {
             kind: ShankKind::Signet,
             amount: (1.0 - 7.0 / 16.0) / (1.0 - SIGNET_MIN_SHANK_FRAC),
             waves: 1,
+            extra_heads: Vec::new(),
             head: SignetHead {
                 outline: SignetOutline::Round,
                 length_mm: 14.7,

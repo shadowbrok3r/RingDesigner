@@ -82,6 +82,7 @@ fn main() {
         tracking: 0.05,
     });
     side.bake_texts(&mut lib);
+    side.bake_svgs(&mut lib);
     let ctx = side.field_context();
     let sf = ctx.side_faces_std().expect("squared sides").wider().unwrap();
     let mut vine = CurveLayer::preset_vine(&ctx);

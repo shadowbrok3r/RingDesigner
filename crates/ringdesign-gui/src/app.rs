@@ -41,6 +41,9 @@ pub struct Workspace {
     pub finish: usize,
     #[serde(default)]
     pub light: usize,
+    /// Design files opened or saved, newest first.
+    #[serde(default)]
+    pub recent: Vec<String>,
     pub layout: Layout,
     pub panes: Vec<Pane>,
     pub active_pane: usize,
@@ -71,6 +74,7 @@ impl Default for Workspace {
             as_cast: false,
             finish: 0,
             light: 0,
+            recent: Vec::new(),
             layout: Layout::Single,
             panes: Pane::defaults(),
             active_pane: 0,
@@ -91,6 +95,7 @@ impl RingDesignerApp {
             as_cast: self.as_cast,
             finish: self.finish,
             light: self.light,
+            recent: self.recent.clone(),
             layout: self.layout,
             panes: self.panes.clone(),
             active_pane: self.active_pane,
@@ -148,6 +153,8 @@ pub struct RingDesignerApp {
     pub finish: usize,
     /// Index into [`viewport::LIGHT_RIGS`].
     pub light: usize,
+    /// Design files opened or saved, newest first.
+    pub recent: Vec<String>,
 
     /// One per quadrant, whatever the layout currently shows.
     pub panes: Vec<Pane>,
@@ -201,6 +208,7 @@ impl RingDesignerApp {
             .unwrap_or_default();
         design.bake_drawn(&mut lib);
         design.bake_texts(&mut lib);
+        design.bake_svgs(&mut lib);
 
         let workspace = cc
             .storage
@@ -238,6 +246,7 @@ impl RingDesignerApp {
             show_grid: ws.show_grid,
             finish: ws.finish,
             light: ws.light,
+            recent: ws.recent,
             panes: ws.panes,
             layout: ws.layout,
             active_pane: ws.active_pane,
@@ -267,6 +276,14 @@ impl RingDesignerApp {
         };
         app.mark_dirty();
         app
+    }
+
+    /// Record a design file at the head of the recents, newest first.
+    pub fn push_recent(&mut self, path: &std::path::Path) {
+        let p = path.to_string_lossy().into_owned();
+        self.recent.retain(|r| r != &p);
+        self.recent.insert(0, p);
+        self.recent.truncate(10);
     }
 
     /// Queue a rebuild after the debounce window and publish the design to the

@@ -155,6 +155,30 @@ fn add_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             app.add_layer("Eternity row", Layer::SeatRun(run));
             ui.close();
         }
+        if ui
+            .button(format!("{} Channel set", icon::MINUS_SQUARE))
+            .on_hover_text(
+                "Two rails and a recessed channel on the wider side face — the one place \
+                 a channel's walls are parallel to the pull. Wants a thick squared band; \
+                 stones set at the bench.",
+            )
+            .clicked()
+        {
+            let gem = ringdesign_core::gem::Gem::calibrated(ringdesign_core::gem::GemCut::Round, 1.5);
+            match ringdesign_core::pave::channel_set(&app.design, gem, 0.6) {
+                Some(entry) => {
+                    let name = entry.name.clone();
+                    app.design.layers.layers.push(entry);
+                    app.selected_layer = Some(app.design.layers.layers.len() - 1);
+                    app.mark_dirty();
+                    app.set_status(format!("Added {name}"));
+                }
+                None => app.set_status(
+                    "No side face wide enough for stone + rails — square the sides and thicken the band (a 1.5 mm stone wants ~3 mm of face)",
+                ),
+            }
+            ui.close();
+        }
         if ui.button(format!("{} Decals", icon::STAMP)).clicked() {
             let alpha = app.lib.names().first().cloned().unwrap_or_else(|| "Rope".to_string());
             app.add_layer("Decals", Layer::Decals(DecalLayer { alpha, ..Default::default() }));

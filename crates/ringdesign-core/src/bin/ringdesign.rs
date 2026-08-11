@@ -35,7 +35,7 @@ const USAGE: &str = "usage:
 
 options:
   --sizes 5:9:0.5 | 6,7,8   sizes to run (default: the design's own)
-  --formats stl,obj,3mf     files per size (default: stl)
+  --formats stl,obj,3mf,glb,ply   files per size (default: stl)
   --shrink <metal>          cut patterns oversize for this metal's shrink
                             (sterling, bronze, 14k, ... — see the app's table)
   --out <dir>               output directory (default: beside the design)
@@ -51,6 +51,7 @@ fn run(args: &[String]) -> anyhow::Result<()> {
     design.unpack_embedded(&mut lib);
     design.bake_drawn(&mut lib);
     design.bake_texts(&mut lib);
+    design.bake_svgs(&mut lib);
 
     match cmd {
         "check" => check(&design, &lib),
@@ -116,7 +117,7 @@ fn export(
             "--formats" => {
                 formats = value()?.split(',').map(|s| s.trim().to_lowercase()).collect();
                 for f in &formats {
-                    if !matches!(f.as_str(), "stl" | "obj" | "3mf") {
+                    if !matches!(f.as_str(), "stl" | "obj" | "3mf" | "glb" | "ply") {
                         anyhow::bail!("unknown format {f:?} (stl, obj, 3mf)");
                     }
                 }
@@ -187,6 +188,8 @@ fn export(
             let bytes = match fmt.as_str() {
                 "stl" => stl::write_stl(&file, &mesh, &name)?,
                 "obj" => stl::write_obj(&file, &mesh, &name)?,
+                "glb" => ringdesign_core::gltf::write_glb(&file, &mesh, &name, ringdesign_core::render::GOLD)?,
+                "ply" => stl::write_ply(&file, &mesh, &name)?,
                 _ => threemf::write_3mf(&file, &mesh, &name, &d.size.display())?,
             };
             manifest.push_str(&format!(

@@ -498,14 +498,25 @@ fn dimensions(ui: &mut egui::Ui, report: &Report, size: &str) {
         ui.label(egui::RichText::new(glyph).color(color));
         ui.add(egui::Label::new(egui::RichText::new(text).color(color)).wrap());
     });
+    let q = &report.quality;
     ui.label(
         egui::RichText::new(format!(
-            "{} tris • {} verts",
-            v.triangle_count, v.vertex_count
+            "{} tris • {} verts • min angle {:.1}{} aspect {:.0}{}",
+            v.triangle_count,
+            v.vertex_count,
+            q.min_angle_deg,
+            "\u{00b0} •",
+            q.worst_aspect,
+            if q.degenerate_faces > 0 {
+                format!(" • {} degenerate", q.degenerate_faces)
+            } else {
+                String::new()
+            }
         ))
         .small()
         .color(theme::TEXT_DIM),
-    );
+    )
+    .on_hover_text("Worst triangle anywhere: corner angle (60 is equilateral) and longest-edge to height ratio. Slivers shade and slice badly even when watertight.");
 }
 
 // --- Metal weight ----------------------------------------------------------

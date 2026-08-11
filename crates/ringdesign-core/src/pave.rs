@@ -11,7 +11,8 @@
 //! the bench drills the seats into the mounds either way.
 
 use crate::field::{
-    GroupLayer, Layer, LayerEntry, LayerStack, SeatPadLayer, SeatStyle, SideFacePick,
+    Blend, BorderLayer, BorderProfile, GroupLayer, Layer, LayerEntry, LayerStack, SeatPadLayer,
+    SeatStyle, SideFacePick, VGate,
 };
 use crate::gem::Gem;
 use crate::RingDesign;
@@ -168,6 +169,58 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
     Some((entry, outcome))
 }
 
+/// Channel-set stock: two rails flanking a recessed channel, as one group
+/// gated to the wider side face.
+///
+/// The recess's walls stand on a face parallel to the mould pull, which is
+/// the one place a channel is castable — on the crown they lean back over
+/// the sand. Hence `None` when the profile has no side face, or the face is
+/// too narrow for the stone plus its rails. The bench cuts the seats into
+/// the channel's rails; the ring casts the stock.
+pub fn channel_set(design: &RingDesign, gem: Gem, recess_mm: f64) -> Option<LayerEntry> {
+    let ctx = design.field_context();
+    let (lo, hi) = ctx.side_faces_std()?.wider()?;
+    let stone = gem.w_mm.max(0.8);
+    let rail_w = (stone * 0.45).clamp(0.5, 1.2);
+    if hi - lo < stone + 2.0 * rail_w {
+        return None;
+    }
+    let vc = 0.5 * (lo + hi);
+    let offset = 0.5 * (stone + rail_w);
+    let recess = recess_mm.clamp(0.1, 1.0);
+    let rail = |v_mm: f64| BorderLayer {
+        v_mm,
+        width_mm: rail_w,
+        height_mm: 0.3,
+        profile: BorderProfile::Round,
+        mirror: false,
+        rope_twists: 0,
+    };
+    let mut stack = LayerStack::default();
+    stack.layers.push(LayerEntry::new("Low rail", Layer::Border(rail(vc - offset))));
+    stack.layers.push(LayerEntry::new("High rail", Layer::Border(rail(vc + offset))));
+    let mut channel = LayerEntry::new(
+        "Channel",
+        Layer::Border(BorderLayer {
+            v_mm: vc,
+            width_mm: stone,
+            height_mm: recess,
+            profile: BorderProfile::Flat,
+            mirror: false,
+            rope_twists: 0,
+        }),
+    );
+    channel.blend = Blend::Subtract;
+    stack.layers.push(channel);
+
+    let mut entry = LayerEntry::new(
+        format!("Channel set {}", gem.display()),
+        Layer::Group(GroupLayer { stack }),
+    );
+    entry.window.v_gate = VGate::SideFaces(SideFacePick::Wider);
+    Some(entry)
+}
+
 fn push_seat(
     seats: &mut Vec<SeatPadLayer>,
     proto: &SeatPadLayer,
@@ -272,5 +325,27 @@ mod tests {
         d.profile.apply_style(ProfileStyle::HalfRound);
         let spec = PaveSpec::default();
         assert!(fill(&d, &spec).is_none());
+    }
+
+    #[test]
+    fn a_channel_set_casts_on_a_side_face_and_refuses_a_dome() {
+        use crate::castability::{self, Verdict};
+        // A channel needs stone plus two rails of side face, so it is a
+        // thick-band feature: 1.5 mm stone + 0.675 rails wants ~2.9 mm.
+        let mut d = flat_design();
+        d.profile.thickness_mm = 4.0;
+        d.profile.flatten_sides();
+        let gem = Gem::calibrated(crate::gem::GemCut::Round, 1.5);
+        let entry = channel_set(&d, gem, 0.6).expect("thick squared band has a side face");
+        let Layer::Group(g) = &entry.layer else { panic!("not a group") };
+        assert_eq!(g.stack.layers.len(), 3);
+        d.layers.layers.push(entry);
+        let lib = crate::alpha::AlphaLibrary::builtin();
+        let field = castability::analyze_field(&d, &lib, &d.draft, 160, 96);
+        assert_ne!(field.verdict, Verdict::NotCastable, "{:?}", field.notes);
+
+        let mut dome = RingDesign::default();
+        dome.profile.apply_style(ProfileStyle::HalfRound);
+        assert!(channel_set(&dome, gem, 0.6).is_none());
     }
 }

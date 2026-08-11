@@ -34,7 +34,7 @@ rmcp = { version = "3.1.2", features = [
 ] }
 tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "sync", "net", "io-std", "time"] }
 hyper-util = { version = "0.1.20", features = ["tokio", "server-auto", "service"] }
-image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "bmp"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "bmp", "gif"] }
 
 eframe = { version = "0.36.0", default-features = false, features = [
     "persistence",

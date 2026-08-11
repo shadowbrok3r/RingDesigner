@@ -13,8 +13,7 @@ use ringdesign_core::gem::{Gem, GemCut};
 use ringdesign_core::RingDesign;
 
 #[cfg(test)]
-#[path = "../../ringdesign-core/examples/common/raster.rs"]
-mod raster;
+use ringdesign_core::render as raster;
 
 /// Diamond-ish preview tint; the shader's key light and specular do the rest.
 pub const GEM_TINT: [f32; 3] = [0.72, 0.82, 0.92];

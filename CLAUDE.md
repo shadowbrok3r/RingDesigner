@@ -68,8 +68,11 @@ lives; `ringdesign-gui` is eframe/egui.
 band surface.** Tiled alphas, borders, milgrain, raised gem-seat pads, swept
 curve wires (`curve.rs`), parametric flutes/reeding, free-placed decal stamps,
 and nested groups are all layers in that field. There is no CSG anywhere.
-Inscriptions (`text.rs`, two bundled OFL fonts) and hand-drawn strokes travel
-in the design as source data and rasterize into the alpha library on load; a
+Inscriptions (`text.rs`, two bundled OFL fonts), hand-drawn strokes and
+imported SVG art (`svg.rs`, resvg; ink coverage reads as height, `invert`
+flips, `<text>` elements deliberately unrendered) all travel in the design
+as source data and rasterize into the alpha library on load — `bake_drawn`
+/ `bake_texts` / `bake_svgs` are called as a trio at every load site. A
 per-layer `Remap` (curve or terrace) reshapes relief profiles, and
 `Alpha::draft_limited` bakes a cone opening so no wall in an imported texture
 exceeds a chosen angle at the layer's cell size.
@@ -744,6 +747,55 @@ On top of that:
   (Möller–Trumbore over every face — a millisecond on a click, no BVH):
   readout of θ/v/relief/wall/class, and the topmost contributing layer
   becomes the selection. Shift-click drops pins; two pins measure mm.
+- **Channel set** (`pave::channel_set`): two rails flanking a recessed
+  channel, one Group gated to the wider side face — the only place a
+  channel's walls stand parallel to the pull. It is honestly a *thick-band*
+  feature: stone + two rails need ~2.9 mm of face for a 1.5 mm stone, so
+  the generator returns `None` on a thin or domed band and the menu item
+  says what to change. Stones set at the bench, as always.
+
+### Exports beyond the mould
+
+STL/OBJ/3MF cut patterns; three more formats exist for everything around
+the pour, all hand-rolled in core with tests:
+
+- **GLB** (`gltf.rs`): two-chunk binary glTF, PBR metal tinted to the
+  chosen finish, coordinates ×0.001 because glTF's unit is the metre — the
+  one convention every viewer agrees on. For renders and web viewers, never
+  for casting.
+- **PLY** (`stl.rs::write_ply`): binary little-endian with normals, for
+  scan and measurement tools.
+- **Renders** (`render.rs`): the examples' software z-buffer rasterizer,
+  promoted to core so CLI, GUI, tests and any future configurator can draw
+  a ring without a GPU. `write_png` is one supersampled hero frame;
+  `write_turntable_gif` is a looping 36-frame spin. The GUI File menu has
+  both, tinted to the finish; `examples/template_shots.rs` renders the
+  whole template gallery for an eyeball pass.
+
+The CLI speaks all of them: `--formats stl,obj,3mf,glb,ply`.
+`Report.quality` (`Mesh::quality`) carries worst-triangle statistics — min
+corner angle, aspect, degenerate count — on the report panel and the sheet.
+
+### Templates are code, and the field verdict edits them
+
+`templates.rs` holds the File-menu gallery (and MCP `apply_template`): nine
+starters built from the same API the panels drive, so they cannot go stale
+against the format. Only builtin alphas, so they open identically on an
+empty machine. The test holds every one to `analyze_field` — and that test
+did real work the day it was written: showcase 5's rails-and-milgrain crest
+composition, blessed for months by the mesh analyzer, fields **5.8% at
+29°** — off-crest rails on a near-flat crown lean back on their crest-side
+flank exactly as the wire-layer table said. Beads *at* the crest line
+survive; rails beside it do not. The templates now carry the composition
+that passes.
+
+The other lesson with teeth: **builtin procedural tiles carry several
+pattern periods per tile** (Scales is 7×7 scallops, Greek Key a 3×3
+meander), so `repeats_for_square_cells` lands each *period* at a fraction
+of the cell — sub-detail-floor mush on a 2 mm side face. Templates carry
+hand-tuned counts with the per-tile period in a comment, and fine-lined
+alphas (Greek Key at 0.15 mm strokes) are simply not usable on narrow
+faces in sand.
 
 ## Stones are stock, not geometry to cast
 
@@ -793,6 +845,9 @@ or above the fold. For the same reason only Ring and Profile default open.
 
 File dialogs start in `library::default_design_dir()` and its `exports` sibling,
 created on demand, so everything the app writes lands in one predictable tree.
+`Workspace.recent` keeps the last ten opened/saved design paths (File >
+Recent, missing files disabled rather than hidden); File > New from template
+lists `templates::all()` with blurbs as hover text.
 
 ### Paint-on-band: pressure is millimetres, the ceiling is the draft
 

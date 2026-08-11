@@ -206,6 +206,16 @@ fn source_row(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             crate::export::import_alphas(app);
             app.mark_dirty();
         }
+        if ui
+            .button(format!("{} Import SVG…", icon::BEZIER_CURVE))
+            .on_hover_text(
+                "Vector art. Ink reads as height and the SVG text travels in the design, so it re-rasterizes losslessly on any machine.",
+            )
+            .clicked()
+        {
+            crate::export::import_svgs(app);
+            app.mark_dirty();
+        }
 
         let selected = current_alpha(app);
         let known = app.lib.get(&selected).is_some();

@@ -331,10 +331,49 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 app.mark_dirty();
                 ui.close();
             }
+            ui.menu_button(format!("{} New from template", icon::SPARKLE), |ui| {
+                for t in ringdesign_core::templates::all() {
+                    if ui.button(t.name).on_hover_text(t.blurb).clicked() {
+                        export::load_template(app, t);
+                        ui.close();
+                    }
+                }
+            });
             if ui.button(format!("{} Open…", icon::FOLDER_OPEN)).clicked() {
                 export::open_design(app);
                 ui.close();
             }
+            ui.menu_button(format!("{} Recent", icon::CLOCK), |ui| {
+                if app.recent.is_empty() {
+                    ui.weak("Nothing opened or saved yet");
+                }
+                let mut pick = None;
+                for r in &app.recent {
+                    let path = std::path::PathBuf::from(r);
+                    let name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| r.clone());
+                    let missing = !path.exists();
+                    let btn = ui.add_enabled(!missing, egui::Button::new(&name)).on_hover_text(r);
+                    if missing {
+                        btn.on_disabled_hover_text("File no longer exists");
+                    } else if btn.clicked() {
+                        pick = Some(path);
+                        ui.close();
+                    }
+                }
+                if let Some(path) = pick {
+                    export::open_design_path(app, &path);
+                }
+                if !app.recent.is_empty() {
+                    ui.separator();
+                    if ui.button("Clear list").clicked() {
+                        app.recent.clear();
+                        ui.close();
+                    }
+                }
+            });
             if ui.button(format!("{} Save As…", icon::FLOPPY_DISK)).clicked() {
                 export::save_design(app);
                 ui.close();
@@ -383,6 +422,30 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .clicked()
             {
                 export::export_spec(app);
+                ui.close();
+            }
+            if ui
+                .button(format!("{} Render PNG…", icon::CAMERA))
+                .on_hover_text("A polished still at export resolution, tinted to the chosen finish.")
+                .clicked()
+            {
+                export::export_render(app);
+                ui.close();
+            }
+            if ui
+                .button(format!("{} Turntable GIF…", icon::FILM_STRIP))
+                .on_hover_text("A looping 36-frame spin — takes a few seconds to build and draw.")
+                .clicked()
+            {
+                export::export_turntable(app);
+                ui.close();
+            }
+            if ui
+                .button(format!("{} Export GLB…", icon::EXPORT))
+                .on_hover_text("glTF binary with the alloy's PBR tint — for renders and web viewers.")
+                .clicked()
+            {
+                export::export_glb(app);
                 ui.close();
             }
             if ui

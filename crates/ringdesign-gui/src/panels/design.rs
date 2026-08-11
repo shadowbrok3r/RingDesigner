@@ -759,9 +759,77 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         .on_hover_text("Where the head sits round the ring. 90° is the top.")
         .changed();
 
+    // --- Toi et moi: a second head on the same band -------------------------
+    {
+        let extras = &mut app.design.shank.extra_heads;
+        let mut two = !extras.is_empty();
+        if ui
+            .checkbox(&mut two, "Second head (toi et moi)")
+            .on_hover_text(
+                "Two faces on one band. Each keeps its own plate; the swells union \
+                 between them with a fillet, never a crease.",
+            )
+            .changed()
+        {
+            if two {
+                let mut h = ringdesign_core::profile::SignetHead {
+                    outline: ringdesign_core::field::SignetOutline::Round,
+                    theta_deg: app.design.shank.head.theta_deg + 48.0,
+                    ..Default::default()
+                };
+                h.fit_length_to(app.design.profile.width_mm * 0.8);
+                extras.push(h);
+            } else {
+                extras.clear();
+            }
+            changed = true;
+        }
+        if let Some(h2) = app.design.shank.extra_heads.first_mut() {
+            ui.indent("second_head", |ui| {
+                let before = h2.outline;
+                egui::ComboBox::from_id_salt("second_head_outline")
+                    .selected_text(h2.outline.label())
+                    .show_ui(ui, |ui| {
+                        for &o in ringdesign_core::field::SignetOutline::ALL {
+                            changed |=
+                                ui.selectable_value(&mut h2.outline, o, o.label()).clicked();
+                        }
+                    });
+                if h2.outline != before {
+                    h2.fit_length_to(h2.length_mm / before.head_aspect().max(0.1));
+                }
+                changed |= ui
+                    .add(
+                        egui::Slider::new(&mut h2.length_mm, 3.0..=30.0)
+                            .fixed_decimals(1)
+                            .suffix(" mm")
+                            .text("Face length"),
+                    )
+                    .changed();
+                changed |= ui
+                    .add(
+                        egui::Slider::new(&mut h2.theta_deg, 0.0..=360.0)
+                            .suffix("°")
+                            .text("Around"),
+                    )
+                    .changed();
+                changed |= ui
+                    .add(
+                        egui::Slider::new(&mut h2.rise_mm, 0.0..=4.0)
+                            .fixed_decimals(2)
+                            .suffix(" mm")
+                            .text("Rise"),
+                    )
+                    .changed();
+            });
+        }
+    }
+    let head = &mut app.design.shank.head;
+    let _ = head;
+
     let inner_r = app.design.inner_radius_mm();
     let crest_r = app.design.reference_loop().crest_radius_mm;
-    let sh = app.design.shank;
+    let sh = app.design.shank.clone();
     // Read behind the head, wherever the head happens to sit.
     let back = sh.head.theta_deg + 180.0;
     let shank_mm = app.design.profile.width_mm * sh.signet_width_frac(back, inner_r, crest_r);

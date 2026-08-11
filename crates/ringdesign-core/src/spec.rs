@@ -163,13 +163,15 @@ pub fn html(
     h.push_str(&format!(
         r#"<h2>Build</h2>
 <table>
-<tr><th>Mesh</th><td>{} triangles, watertight: {}</td></tr>
+<tr><th>Mesh</th><td>{} triangles, watertight: {}; worst corner {:.1}&deg;, aspect {:.0}</td></tr>
 <tr><th>Provenance</th><td>{}</td></tr>
 </table>
 </body></html>
 "#,
         report.validation.triangle_count,
         report.validation.watertight,
+        report.quality.min_angle_deg,
+        report.quality.worst_aspect,
         esc(provenance),
     ));
     h

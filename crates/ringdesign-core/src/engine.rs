@@ -174,6 +174,12 @@ impl DesignEngine {
         stl::write_obj(path, &built.mesh, &name)
     }
 
+    pub fn export_glb(&mut self, path: impl AsRef<Path>) -> anyhow::Result<usize> {
+        let built = self.ensure_built();
+        let name = self.design.name.clone();
+        crate::gltf::write_glb(path, &built.mesh, &name, [0.86, 0.79, 0.55])
+    }
+
     pub fn export_3mf(&mut self, path: impl AsRef<Path>) -> anyhow::Result<usize> {
         let built = self.ensure_built();
         let name = self.design.name.clone();
@@ -190,6 +196,7 @@ impl DesignEngine {
         design.unpack_embedded(Arc::make_mut(&mut self.lib));
         design.bake_drawn(Arc::make_mut(&mut self.lib));
         design.bake_texts(Arc::make_mut(&mut self.lib));
+        design.bake_svgs(Arc::make_mut(&mut self.lib));
         self.set_design(design);
         Ok(())
     }

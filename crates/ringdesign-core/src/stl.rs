@@ -99,6 +99,45 @@ pub fn write_obj(path: impl AsRef<Path>, mesh: &Mesh, name: &str) -> anyhow::Res
     Ok(s.len())
 }
 
+/// Binary little-endian PLY: positions and normals per vertex, index lists
+/// per face. The format scan and measurement tools speak.
+pub fn write_ply(path: impl AsRef<Path>, mesh: &Mesh, name: &str) -> anyhow::Result<usize> {
+    let has_normals = mesh.normals.len() == mesh.vertices.len();
+    let mut header = format!(
+        "ply\nformat binary_little_endian 1.0\ncomment {}\nelement vertex {}\nproperty float x\nproperty float y\nproperty float z\n",
+        name.replace(['\n', '\r'], " "),
+        mesh.vertices.len()
+    );
+    if has_normals {
+        header.push_str("property float nx\nproperty float ny\nproperty float nz\n");
+    }
+    header.push_str(&format!(
+        "element face {}\nproperty list uchar uint vertex_indices\nend_header\n",
+        mesh.faces.len()
+    ));
+    let mut out = header.into_bytes();
+    out.reserve(mesh.vertices.len() * 24 + mesh.faces.len() * 13);
+    for (i, v) in mesh.vertices.iter().enumerate() {
+        for c in [v.0, v.1, v.2] {
+            out.extend_from_slice(&c.to_le_bytes());
+        }
+        if has_normals {
+            let n = mesh.normals[i];
+            for c in [n.0, n.1, n.2] {
+                out.extend_from_slice(&c.to_le_bytes());
+            }
+        }
+    }
+    for f in &mesh.faces {
+        out.push(3);
+        for &i in f.iter() {
+            out.extend_from_slice(&i.to_le_bytes());
+        }
+    }
+    std::fs::write(path, &out)?;
+    Ok(out.len())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -110,6 +149,28 @@ mod tests {
         let lib = crate::AlphaLibrary::builtin();
         let params = BuildParams { theta_steps: 96, profile_steps: 64, ..Default::default() };
         mesh::build(&design, &lib, params).mesh
+    }
+
+    #[test]
+    fn the_ply_header_and_byte_length_agree() {
+        let mesh = small_build();
+        let dir = std::env::temp_dir().join("ringdesign-ply-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("ring.ply");
+        let bytes = write_ply(&path, &mesh, "Test ring").unwrap();
+        let b = std::fs::read(&path).unwrap();
+        assert_eq!(b.len(), bytes);
+        let header_end = b.windows(11).position(|w| w == b"end_header\n").unwrap() + 11;
+        let header = std::str::from_utf8(&b[..header_end]).unwrap();
+        assert!(header.contains(&format!("element vertex {}", mesh.vertices.len())));
+        assert!(header.contains(&format!("element face {}", mesh.faces.len())));
+        assert!(header.contains("property float nx"));
+        assert_eq!(
+            b.len() - header_end,
+            mesh.vertices.len() * 24 + mesh.faces.len() * 13,
+            "body length disagrees with the counts"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// Parse a binary STL back into a welded mesh, asserting record layout.

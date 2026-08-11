@@ -32,6 +32,7 @@ pub mod drawn;
 pub mod engine;
 pub mod field;
 pub mod gem;
+pub mod gltf;
 pub mod library;
 pub mod mesh;
 pub mod metal;
@@ -39,10 +40,13 @@ pub mod paint;
 pub mod pave;
 pub mod profile;
 pub mod refine;
+pub mod render;
 pub mod sizing;
 pub mod spec;
 pub mod stl;
 pub mod stones;
+pub mod svg;
+pub mod templates;
 pub mod text;
 pub mod threemf;
 pub mod tiling;
@@ -80,6 +84,9 @@ pub struct RingDesign {
     /// the same way drawn alphas travel as strokes.
     #[serde(default)]
     pub texts: Vec<text::TextAlpha>,
+    /// Imported vector art carried as SVG text, rasterized on load.
+    #[serde(default)]
+    pub svgs: Vec<svg::SvgAlpha>,
 }
 
 /// One imported alpha embedded in the design file.
@@ -103,6 +110,7 @@ impl Default for RingDesign {
             drawn: Vec::new(),
             embedded: Vec::new(),
             texts: Vec::new(),
+            svgs: Vec::new(),
         }
     }
 }
@@ -126,6 +134,16 @@ impl RingDesign {
         for t in &self.texts {
             if !t.is_empty() {
                 lib.insert(t.rasterize());
+            }
+        }
+    }
+
+    /// Rasterize every imported SVG into `lib`, replacing same-named entries.
+    /// Call wherever [`bake_drawn`](Self::bake_drawn) is called.
+    pub fn bake_svgs(&self, lib: &mut AlphaLibrary) {
+        for s in &self.svgs {
+            if !s.is_empty() {
+                lib.insert(s.rasterize());
             }
         }
     }

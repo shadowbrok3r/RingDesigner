@@ -107,6 +107,65 @@ pub fn export_3mf(app: &mut RingDesignerApp) {
     }
 }
 
+pub fn export_render(app: &mut RingDesignerApp) {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("PNG image", &["png"])
+        .set_directory(dir("exports"))
+        .set_file_name(format!("{}.png", slug(&app.design.name)))
+        .save_file()
+    else {
+        return;
+    };
+    app.set_status("Building at export resolution…");
+    let out = app.build_for_export();
+    let tint = crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].rgb;
+    match ringdesign_core::render::write_png(&path, &out.mesh, 0.55, 1.12, 1600, tint) {
+        Ok(()) => app.set_status(format!("Wrote {}", path.display())),
+        Err(e) => app.set_status(format!("Render failed: {e}")),
+    }
+}
+
+pub fn export_turntable(app: &mut RingDesignerApp) {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("GIF animation", &["gif"])
+        .set_directory(dir("exports"))
+        .set_file_name(format!("{}.gif", slug(&app.design.name)))
+        .save_file()
+    else {
+        return;
+    };
+    app.set_status("Building and spinning 36 frames…");
+    let out = app.build_for_export();
+    let tint = crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].rgb;
+    match ringdesign_core::render::write_turntable_gif(&path, &out.mesh, 36, 640, tint) {
+        Ok(()) => app.set_status(format!("Wrote {}", path.display())),
+        Err(e) => app.set_status(format!("Turntable failed: {e}")),
+    }
+}
+
+pub fn export_glb(app: &mut RingDesignerApp) {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("glTF binary", &["glb"])
+        .set_directory(dir("exports"))
+        .set_file_name(format!("{}.glb", slug(&app.design.name)))
+        .save_file()
+    else {
+        return;
+    };
+    app.set_status("Building at export resolution…");
+    let out = app.build_for_export();
+    let (mesh, name) = pattern(app, &out.mesh);
+    let tint = crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].rgb;
+    match ringdesign_core::gltf::write_glb(&path, &mesh, &name, tint) {
+        Ok(bytes) => app.set_status(format!(
+            "Wrote {} • {:.1} MB • metres, as glTF wants",
+            path.display(),
+            bytes as f64 / 1048576.0
+        )),
+        Err(e) => app.set_status(format!("GLB export failed: {e}")),
+    }
+}
+
 pub fn export_spec(app: &mut RingDesignerApp) {
     let Some(path) = rfd::FileDialog::new()
         .add_filter("Casting sheet", &["html"])
@@ -157,7 +216,10 @@ pub fn save_design(app: &mut RingDesignerApp) {
         return;
     };
     match library::save_design_embedded(&path, &app.design, &app.lib) {
-        Ok(()) => app.set_status(format!("Saved {}", path.display())),
+        Ok(()) => {
+            app.push_recent(&path);
+            app.set_status(format!("Saved {}", path.display()));
+        }
         Err(e) => app.set_status(format!("Save failed: {e}")),
     }
 }
@@ -170,11 +232,17 @@ pub fn open_design(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    match library::load_design(&path) {
+    open_design_path(app, &path);
+}
+
+/// Load a design file directly — the Recent menu's entry point.
+pub fn open_design_path(app: &mut RingDesignerApp, path: &std::path::Path) {
+    match library::load_design(path) {
         Ok(d) => {
             d.unpack_embedded(app.library_mut());
             d.bake_drawn(app.library_mut());
             d.bake_texts(app.library_mut());
+            d.bake_svgs(app.library_mut());
             app.design = d;
             // A different file is a different session; the old timeline does
             // not describe it.
@@ -182,9 +250,57 @@ pub fn open_design(app: &mut RingDesignerApp) {
             app.selected_layer = None;
             app.fit_pending = true;
             app.mark_dirty();
+            app.push_recent(path);
             app.set_status(format!("Opened {}", path.display()));
         }
         Err(e) => app.set_status(format!("Open failed: {e}")),
+    }
+}
+
+/// Replace the design with a fresh template instance.
+pub fn load_template(app: &mut RingDesignerApp, t: &ringdesign_core::templates::Template) {
+    app.design = t.design();
+    app.history.reset(&app.design.clone());
+    app.selected_layer = None;
+    app.fit_pending = true;
+    app.mark_dirty();
+    app.set_status(format!("New design from template: {}", t.name));
+}
+
+/// Import SVG files: the text travels in the design, the raster in the library.
+pub fn import_svgs(app: &mut RingDesignerApp) {
+    let Some(paths) = rfd::FileDialog::new()
+        .add_filter("SVG", &["svg"])
+        .set_directory(library::default_alpha_dir())
+        .pick_files()
+    else {
+        return;
+    };
+    let mut loaded = 0usize;
+    for path in paths {
+        let name = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "svg".into());
+        match std::fs::read_to_string(&path) {
+            Ok(text) => {
+                let entry = ringdesign_core::svg::SvgAlpha { name: name.clone(), svg: text, invert: false };
+                let raster = entry.rasterize();
+                if raster.is_empty() {
+                    app.set_status(format!("{name}: not a renderable SVG"));
+                    continue;
+                }
+                // Re-importing under the same name replaces the old vector.
+                app.design.svgs.retain(|s| s.name != name);
+                app.design.svgs.push(entry);
+                app.library_mut().insert(raster);
+                loaded += 1;
+            }
+            Err(e) => app.set_status(format!("{name}: {e}")),
+        }
+    }
+    if loaded > 0 {
+        app.set_status(format!("Imported {loaded} SVG(s) — the vector text travels in the design"));
     }
 }
 

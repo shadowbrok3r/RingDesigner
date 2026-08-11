@@ -334,6 +334,12 @@ pub struct FileResult {
 // --- Parameters ------------------------------------------------------------
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
+pub struct TemplateParams {
+    /// Template name, case-insensitive. Omit to list what exists.
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
 pub struct SetRingParams {
     /// Design name, carried into exported OBJ files.
     pub name: Option<String>,
@@ -405,6 +411,13 @@ pub struct SetShankParams {
     pub head_rim_round_mm: Option<f64>,
     /// Signet only: where the head sits round the ring, degrees. 90 is the top.
     pub head_theta_deg: Option<f64>,
+    /// Signet only: outline of a second head — the toi et moi. Set to add or
+    /// change it; the string "none" removes it.
+    pub second_head_outline: Option<String>,
+    /// Signet only: the second head's face length around the ring, mm.
+    pub second_head_length_mm: Option<f64>,
+    /// Signet only: where the second head sits, degrees.
+    pub second_head_theta_deg: Option<f64>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -1462,6 +1475,29 @@ impl RingDesignServer {
         put_range(&mut h.table_flat, p.head_table_flat, "head_table_flat", 0.0, 1.0, &mut applied)?;
         put_range(&mut h.rim_round_mm, p.head_rim_round_mm, "head_rim_round_mm", 0.0, 2.0, &mut applied)?;
         put_range(&mut h.theta_deg, p.head_theta_deg, "head_theta_deg", 0.0, 360.0, &mut applied)?;
+        if let Some(o) = p.second_head_outline.as_deref() {
+            if o.eq_ignore_ascii_case("none") {
+                d.shank.extra_heads.clear();
+                applied.push("second_head=removed".into());
+            } else {
+                let outline = parse_signet_outline(o)?;
+                if d.shank.extra_heads.is_empty() {
+                    let primary_theta = d.shank.head.theta_deg;
+                    d.shank.extra_heads.push(ringdesign_core::profile::SignetHead {
+                        theta_deg: primary_theta + 48.0,
+                        ..Default::default()
+                    });
+                }
+                let h2 = &mut d.shank.extra_heads[0];
+                h2.outline = outline;
+                h2.fit_length_to(d.profile.width_mm * 0.8);
+                applied.push(format!("second_head_outline={outline:?}"));
+            }
+        }
+        if let Some(h2) = d.shank.extra_heads.first_mut() {
+            put_range(&mut h2.length_mm, p.second_head_length_mm, "second_head_length_mm", 2.0, 40.0, &mut applied)?;
+            put_range(&mut h2.theta_deg, p.second_head_theta_deg, "second_head_theta_deg", 0.0, 360.0, &mut applied)?;
+        }
         let change = DesignChange {
             generation: e.generation(),
             applied,
@@ -2138,6 +2174,23 @@ impl RingDesignServer {
     }
 
     #[tool(
+        description = "Write the current mesh as a glTF binary (.glb), building first if the design changed. `path` is optional and defaults to a temp file named after the design. One node, smooth normals, a PBR metal material; coordinates are scaled from millimetres to metres because glTF's units are metres — every viewer then shows a ring-sized ring. For casting use STL or 3MF; this one is for renders, web viewers and scene tools."
+    )]
+    async fn export_glb(
+        &self,
+        Parameters(p): Parameters<ExportParams>,
+    ) -> Result<Json<ExportResult>, ErrorData> {
+        let mut e = self.engine.lock();
+        let path = p.path.unwrap_or_else(|| default_export_path(&e.design().name, "glb"));
+        let bytes = e.export_glb(&path);
+        drop(e);
+        self.touch();
+        let bytes =
+            bytes.map_err(|err| ErrorData::internal_error(format!("write {path}: {err}"), None))?;
+        Ok(Json(ExportResult { path, bytes }))
+    }
+
+    #[tool(
         description = "Save the design to `path` as JSON: size, profile, shank, the whole layer stack, build resolution and casting settings. Alphas are referenced by name, not embedded, so a design file is small but needs the same library to rebuild identically. The conventional extension is .ring.json."
     )]
     async fn save_design(
@@ -2168,6 +2221,42 @@ impl RingDesignServer {
         self.touch();
         result.map_err(|err| ErrorData::internal_error(format!("load {}: {err}", p.path), None))?;
         Ok(Json(FileResult { path: p.path, generation, summary }))
+    }
+
+    #[tool(
+        description = "Start a fresh design from a curated template, replacing everything in the engine. Call with no name to list the templates with their blurbs. Every template references only builtin alphas and every part of it is an ordinary editable layer or shank setting afterwards."
+    )]
+    async fn apply_template(
+        &self,
+        Parameters(p): Parameters<TemplateParams>,
+    ) -> Result<Json<DesignChange>, ErrorData> {
+        let templates = ringdesign_core::templates::all();
+        let Some(name) = p.name else {
+            let list: Vec<String> =
+                templates.iter().map(|t| format!("{} — {}", t.name, t.blurb)).collect();
+            return Ok(Json(DesignChange {
+                generation: 0,
+                applied: list,
+                summary: "no template applied; call again with one of these names".into(),
+            }));
+        };
+        let Some(t) = templates.iter().find(|t| t.name.eq_ignore_ascii_case(&name)) else {
+            let names: Vec<&str> = templates.iter().map(|t| t.name).collect();
+            return Err(ErrorData::invalid_params(
+                format!("no template named {name:?}; the templates are {names:?}"),
+                None,
+            ));
+        };
+        let mut e = self.engine.lock();
+        *e.design_mut() = t.design();
+        let change = DesignChange {
+            generation: e.generation(),
+            applied: vec![format!("template={}", t.name)],
+            summary: one_line(e.design()),
+        };
+        drop(e);
+        self.touch();
+        Ok(Json(change))
     }
 }
 
@@ -2955,12 +3044,14 @@ mod tests {
             "export_stl",
             "export_obj",
             "export_3mf",
+            "export_glb",
             "save_design",
             "load_design",
+            "apply_template",
         ] {
             assert!(names.contains(&expected), "missing tool {expected}: {names:?}");
         }
-        assert_eq!(names.len(), 30, "{names:?}");
+        assert_eq!(names.len(), 32, "{names:?}");
         for t in &tools {
             let d = t.description.as_ref().unwrap_or_else(|| panic!("{} has no description", t.name));
             assert!(d.len() > 120, "{} has a thin description", t.name);
