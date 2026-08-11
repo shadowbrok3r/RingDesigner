@@ -113,7 +113,7 @@ fn walk(
                     crest_r,
                     parting_z,
                     seat,
-                    &[seat.theta_deg],
+                    &[(seat.theta_deg, seat.v_mm)],
                     format!("{prefix}{}", entry.name),
                 );
                 check.count = kept as u32;
@@ -125,9 +125,9 @@ fn walk(
             Layer::SeatRun(run) => {
                 let n = run.count.clamp(1, 200);
                 let pitch = 360.0 / n as f64;
-                let stations: Vec<f64> = (0..n)
-                    .map(|k| k as f64 * pitch)
-                    .filter(|&t| station_kept(entry, ctx, t, run.seat.v_mm))
+                let stations: Vec<(f64, f64)> = (0..n)
+                    .map(|k| (k as f64 * pitch, run.seat.v_mm))
+                    .filter(|&(t, v)| station_kept(entry, ctx, t, v))
                     .collect();
                 let mut seat = run.seat;
                 seat.fit_stone(run.gem);
@@ -159,12 +159,70 @@ fn walk(
                 out.push(check);
             }
             Layer::Group(g) => {
+                // A uniform seat group — a pavé fill — rolls up to one line:
+                // two hundred rows of "Seat 137" is not a report.
+                if let Some(stations) = uniform_seats(entry, &g.stack, ctx) {
+                    let Some(Layer::SeatPad(first)) = g
+                        .stack
+                        .layers
+                        .iter()
+                        .find(|e| e.enabled)
+                        .map(|e| &e.layer)
+                    else {
+                        continue;
+                    };
+                    let mut check = check_seat(
+                        design,
+                        ctx,
+                        inner_r,
+                        crest_r,
+                        parting_z,
+                        first,
+                        &stations,
+                        format!("{prefix}{}", entry.name),
+                    );
+                    check.count = stations.len() as u32;
+                    out.push(check);
+                    continue;
+                }
                 let path = format!("{prefix}{} / ", entry.name);
                 walk(design, ctx, inner_r, crest_r, parting_z, &g.stack, &path, out);
             }
             _ => {}
         }
     }
+}
+
+/// The `(theta, v)` stations of a group made only of identical seats —
+/// same stone, style and diameter — or `None` when it is any other group.
+fn uniform_seats(
+    entry: &LayerEntry,
+    stack: &LayerStack,
+    ctx: &FieldContext,
+) -> Option<Vec<(f64, f64)>> {
+    let mut proto: Option<&SeatPadLayer> = None;
+    let mut stations = Vec::new();
+    for e in &stack.layers {
+        if !e.enabled {
+            continue;
+        }
+        let Layer::SeatPad(s) = &e.layer else { return None };
+        match proto {
+            None => proto = Some(s),
+            Some(p) => {
+                let same = p.gem == s.gem
+                    && p.style == s.style
+                    && (p.diameter_mm - s.diameter_mm).abs() < 1e-9;
+                if !same {
+                    return None;
+                }
+            }
+        }
+        if station_kept(entry, ctx, s.theta_deg, s.v_mm) {
+            stations.push((s.theta_deg, s.v_mm));
+        }
+    }
+    (proto.is_some() && stations.len() > 1).then_some(stations)
 }
 
 /// Whether a station survives the entry's angular window.
@@ -184,7 +242,7 @@ fn check_seat(
     crest_r: f64,
     parting_z: f64,
     seat: &SeatPadLayer,
-    stations: &[f64],
+    stations: &[(f64, f64)],
     label: String,
 ) -> SeatCheck {
     let mut footing = SeatFooting::Crown(90.0);
@@ -193,9 +251,13 @@ fn check_seat(
     let mut clearance = f64::MAX;
     let mut depth = f64::MAX;
 
-    let probe: Vec<f64> = if stations.is_empty() { vec![seat.theta_deg] } else { stations.to_vec() };
-    for &theta in &probe {
-        let b = base_at(design, inner_r, crest_r, ctx, theta, seat.v_mm);
+    let probe: Vec<(f64, f64)> = if stations.is_empty() {
+        vec![(seat.theta_deg, seat.v_mm)]
+    } else {
+        stations.to_vec()
+    };
+    for &(theta, v_here) in &probe {
+        let b = base_at(design, inner_r, crest_r, ctx, theta, v_here);
         // Side-face-ness by the same measure the side-face walk uses: how far
         // the outward normal leans along the pull.
         let lean = b.nz.abs().asin().to_degrees();
@@ -206,8 +268,8 @@ fn check_seat(
         // Foot to the nearer band edge, in reference v like the layer itself.
         let foot = seat.diameter_mm * 0.5 + seat.blend_mm.max(0.0);
         clearance = clearance
-            .min(seat.v_mm - foot)
-            .min(ctx.band_v_len_mm - seat.v_mm - foot);
+            .min(v_here - foot)
+            .min(ctx.band_v_len_mm - v_here - foot);
 
         // Metal along the seat's normal: to the bore wall on the crown, across
         // the band on a side face — the drill goes where the normal points.
@@ -425,6 +487,26 @@ mod tests {
             "no culet warning: {:?}",
             r.seats[0].warnings
         );
+    }
+
+    #[test]
+    fn a_pave_group_rolls_up_to_one_line() {
+        let mut d = RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 8.0;
+        let spec = crate::pave::PaveSpec {
+            region: crate::pave::PaveRegion::VBand {
+                center_mm: d.field_context().crest_v_mm,
+                width_mm: 5.0,
+            },
+            ..Default::default()
+        };
+        let (entry, out) = crate::pave::fill(&d, &spec).unwrap();
+        d.layers.layers.push(entry);
+        let r = report(&d, 0.0).unwrap();
+        assert_eq!(r.seats.len(), 1, "a fill must not be a page of rows");
+        assert_eq!(r.seats[0].count as usize, out.seats);
+        assert_eq!(r.stone_count as usize, out.seats);
     }
 
     #[test]

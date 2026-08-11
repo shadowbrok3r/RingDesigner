@@ -720,6 +720,31 @@ On top of that:
   also the export-regression diff. `ringdesign check` prints the field
   verdict and the stones findings for one design.
 
+### Pavé is a generator, split is a modulation, the sheet is HTML
+
+- **Auto-pavé** (`pave.rs`): packs an arc × v-band (or a side-face run) with
+  gypsy seats — hex-staggered rows, full-ring rows wrap-exact with integer
+  counts, capped at 240 seats *with the refusal said out loud*. The output is
+  an ordinary Group of `SeatPadLayer`s: every seat stays editable, and the
+  stones report rolls a uniform seat group up to one line instead of two
+  hundred rows. Gypsy mounds because that is the measured-safe row on curved
+  ground.
+- **`ShankKind::Split`**: the castable read of a split shank. A real split —
+  two crests — is a valley no single parting plane clears; instead the band
+  flares 55% over a 110° arc while a channel is carved into *each side face*
+  (`ShankMod::side_groove_mm`, capped at 0.35 of the half-width). The
+  groove's floor faces along the pull and its walls stand radial, so the
+  whole ring fields 0.000% — side-face doctrine, applied to the shank
+  itself. Seen side-on, the ring reads as two diverging rails.
+- **The casting sheet** (`spec.rs`): one self-contained printable HTML page —
+  dimensions, weight in every alloy with its pattern scale, the field
+  verdict with notes and DFM findings, the stones table with bench warnings,
+  provenance. Desktop File menu and the Android share sheet both emit it.
+- **The viewport probe**: click the 3D view to ray-cast the built mesh
+  (Möller–Trumbore over every face — a millisecond on a click, no BVH):
+  readout of θ/v/relief/wall/class, and the topmost contributing layer
+  becomes the selection. Shift-click drops pins; two pins measure mm.
+
 ## Stones are stock, not geometry to cast
 
 Stones are set at the bench; the ring casts the *stock* for them — bosses,

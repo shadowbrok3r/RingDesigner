@@ -10,6 +10,7 @@ use egui_glow::glow;
 use glow::HasContext;
 
 use ringdesign_core::castability::{CastReport, FaceClass};
+use ringdesign_core::field::Uv;
 use ringdesign_core::mesh::{Mesh, Vec3};
 
 use crate::app::RingDesignerApp;
@@ -560,6 +561,12 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     let shade = app.panes[pane].shade;
     let proj = camera.projector(rect);
 
+    if response.clicked() {
+        if let Some(pos) = response.interact_pointer_pos() {
+            probe_click(app, camera, rect, pos, ui.input(|i| i.modifiers.shift));
+        }
+    }
+
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 0.0, theme::VIEWPORT_BG);
 
@@ -611,6 +618,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     }
 
     draw_legend(app, shade, &painter, rect);
+    draw_probe(app, &painter, &proj, rect);
 
     painter.text(
         rect.right_bottom() - egui::vec2(12.0, 9.0),
@@ -807,4 +815,206 @@ fn rgb_of(c: egui::Color32) -> [f32; 3] {
         c.g() as f32 / 255.0,
         c.b() as f32 / 255.0,
     ]
+}
+
+
+// --- Surface probe -----------------------------------------------------------
+
+/// Nearest triangle of the built mesh under the ray, by walking every face —
+/// on a click, not a hover, so 110k Möller-Trumbore tests are a millisecond
+/// well spent and no BVH earns its keep.
+fn raycast(mesh: &Mesh, origin: [f32; 3], dir: [f32; 3]) -> Option<(usize, [f32; 3], f32)> {
+    let o = [origin[0] as f64, origin[1] as f64, origin[2] as f64];
+    let d = [dir[0] as f64, dir[1] as f64, dir[2] as f64];
+    let mut best: Option<(usize, f64)> = None;
+    for (fi, f) in mesh.faces.iter().enumerate() {
+        let Some((a, b, c)) = mesh.triangle(f) else { continue };
+        let e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+        let e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+        let p = [
+            d[1] * e2[2] - d[2] * e2[1],
+            d[2] * e2[0] - d[0] * e2[2],
+            d[0] * e2[1] - d[1] * e2[0],
+        ];
+        let det = e1[0] * p[0] + e1[1] * p[1] + e1[2] * p[2];
+        if det.abs() < 1e-12 {
+            continue;
+        }
+        let inv = 1.0 / det;
+        let t_vec = [o[0] - a[0], o[1] - a[1], o[2] - a[2]];
+        let u = (t_vec[0] * p[0] + t_vec[1] * p[1] + t_vec[2] * p[2]) * inv;
+        if !(0.0..=1.0).contains(&u) {
+            continue;
+        }
+        let q = [
+            t_vec[1] * e1[2] - t_vec[2] * e1[1],
+            t_vec[2] * e1[0] - t_vec[0] * e1[2],
+            t_vec[0] * e1[1] - t_vec[1] * e1[0],
+        ];
+        let v = (d[0] * q[0] + d[1] * q[1] + d[2] * q[2]) * inv;
+        if v < 0.0 || u + v > 1.0 {
+            continue;
+        }
+        let t = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) * inv;
+        if t > 1e-6 && best.map_or(true, |(_, bt)| t < bt) {
+            best = Some((fi, t));
+        }
+    }
+    best.map(|(fi, t)| {
+        (
+            fi,
+            [
+                (o[0] + d[0] * t) as f32,
+                (o[1] + d[1] * t) as f32,
+                (o[2] + d[2] * t) as f32,
+            ],
+            t as f32,
+        )
+    })
+}
+
+fn probe_click(
+    app: &mut RingDesignerApp,
+    camera: crate::camera::OrbitCamera,
+    rect: egui::Rect,
+    pos: egui::Pos2,
+    shift: bool,
+) {
+    let Some(build) = app.build.clone() else { return };
+    let (origin, dir) = camera.ray(rect, pos);
+    let Some((fi, world, _)) = raycast(&build.mesh, origin, dir) else {
+        if !shift {
+            app.probe = None;
+        }
+        return;
+    };
+
+    if shift {
+        if app.pins.len() >= 2 {
+            app.pins.clear();
+        }
+        app.pins.push(world);
+        if app.pins.len() == 2 {
+            let (a, b) = (app.pins[0], app.pins[1]);
+            let d = ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2))
+                .sqrt();
+            app.set_status(format!("Pin to pin: {d:.2} mm"));
+        }
+        return;
+    }
+
+    // Where on the band the hit is, in the field's own coordinates.
+    let theta = (world[1] as f64).atan2(world[0] as f64).to_degrees().rem_euclid(360.0);
+    let r = (world[0] as f64).hypot(world[1] as f64);
+    let inner_r = app.design.inner_radius_mm();
+    let ctx = app.design.field_context();
+    let section = ringdesign_core::castability::section_at(&app.design, &app.lib, theta, 160);
+    let surface: Vec<_> = section.points.iter().filter(|p| p.surface).collect();
+    let mut v_mm = 0.0;
+    if surface.len() >= 2 {
+        let total: f64 = surface
+            .windows(2)
+            .map(|w| ((w[1].r - w[0].r).powi(2) + (w[1].z - w[0].z).powi(2)).sqrt())
+            .sum();
+        let mut acc = 0.0;
+        let mut best_d = f64::MAX;
+        let mut at = 0.0;
+        for w in surface.windows(2) {
+            let seg = ((w[1].r - w[0].r).powi(2) + (w[1].z - w[0].z).powi(2)).sqrt();
+            acc += seg;
+            let d = (w[1].r - r).powi(2) + (w[1].z - world[2] as f64).powi(2);
+            if d < best_d {
+                best_d = d;
+                at = acc;
+            }
+        }
+        v_mm = at / total.max(1e-9) * ctx.band_v_len_mm;
+    }
+
+    let uv = Uv { u: ctx.u_of_theta(theta), v: v_mm };
+    let h = app.design.layers.height(uv, &ctx, &app.lib);
+    let class = app
+        .cast
+        .as_ref()
+        .and_then(|c| c.classes.get(fi))
+        .map(|k| k.label())
+        .unwrap_or("—");
+
+    // The topmost layer with any say here becomes the selection.
+    let named: Option<(usize, String)>;
+    let mut found = None;
+    for (i, e) in app.design.layers.layers.iter().enumerate().rev() {
+        if !e.enabled {
+            continue;
+        }
+        let m = e.window.mask(uv, &ctx) * e.opacity.max(0.0);
+        if m <= 1e-4 {
+            continue;
+        }
+        if e.layer.height(uv, &ctx, &app.lib).abs() * m > 5e-3 {
+            found = Some((i, e.name.clone()));
+            break;
+        }
+    }
+    named = found;
+    if let Some((i, _)) = named {
+        app.selected_layer = Some(i);
+    }
+
+    let text = format!(
+        "{:.0}° • v {:.2} • relief {:+.2} mm • wall {:.2} mm • {}{}",
+        theta,
+        v_mm,
+        h,
+        r - inner_r,
+        class,
+        named.map(|(_, n)| format!(" • {n}")).unwrap_or_default()
+    );
+    app.set_status(text.clone());
+    app.probe = Some((world, text));
+}
+
+fn draw_probe(app: &RingDesignerApp, painter: &egui::Painter, proj: &Projector, rect: egui::Rect) {
+    if let Some((world, text)) = &app.probe {
+        let p = proj.at(*world);
+        if rect.contains(p) {
+            painter.circle_stroke(p, 5.0, egui::Stroke::new(1.6, theme::ACCENT));
+            painter.circle_filled(p, 1.6, theme::ACCENT);
+            let galley = painter.layout_no_wrap(
+                text.clone(),
+                egui::FontId::proportional(11.0),
+                theme::TEXT,
+            );
+            let at = egui::pos2(
+                (p.x + 10.0).min(rect.right() - galley.size().x - 6.0),
+                (p.y - 18.0).max(rect.top() + 4.0),
+            );
+            let bg = egui::Rect::from_min_size(at, galley.size()).expand2(egui::vec2(5.0, 3.0));
+            painter.rect_filled(bg, 3.0, theme::PANEL.gamma_multiply(0.9));
+            painter.galley(at, galley, theme::TEXT);
+        }
+    }
+    for pin in &app.pins {
+        let p = proj.at(*pin);
+        if rect.contains(p) {
+            painter.circle_stroke(p, 5.0, egui::Stroke::new(1.6, theme::WARN));
+            painter.circle_filled(p, 1.6, theme::WARN);
+        }
+    }
+    if app.pins.len() == 2 {
+        let (a, b) = (proj.at(app.pins[0]), proj.at(app.pins[1]));
+        painter.line_segment([a, b], egui::Stroke::new(1.2, theme::WARN));
+        let d = {
+            let (p, q) = (app.pins[0], app.pins[1]);
+            ((p[0] - q[0]).powi(2) + (p[1] - q[1]).powi(2) + (p[2] - q[2]).powi(2)).sqrt()
+        };
+        let mid = egui::pos2((a.x + b.x) * 0.5, (a.y + b.y) * 0.5 - 10.0);
+        painter.text(
+            mid,
+            egui::Align2::CENTER_BOTTOM,
+            format!("{d:.2} mm"),
+            egui::FontId::proportional(11.0),
+            theme::WARN,
+        );
+    }
 }

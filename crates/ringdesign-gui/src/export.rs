@@ -107,6 +107,46 @@ pub fn export_3mf(app: &mut RingDesignerApp) {
     }
 }
 
+pub fn export_spec(app: &mut RingDesignerApp) {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("Casting sheet", &["html"])
+        .set_directory(dir("exports"))
+        .set_file_name(format!("{}_sheet.html", slug(&app.design.name)))
+        .save_file()
+    else {
+        return;
+    };
+    app.set_status("Building at export resolution…");
+    let out = app.build_for_export();
+    let field = ringdesign_core::castability::attributed_field_report(
+        &app.design,
+        &app.lib,
+        &app.design.draft,
+        192,
+        128,
+    );
+    let stones = ringdesign_core::stones::report(&app.design, field.parting_z_mm);
+    let dfm = ringdesign_core::dfm::findings(&app.design);
+    let provenance = format!(
+        "RingDesigner {} • {} x {} sweep",
+        env!("CARGO_PKG_VERSION"),
+        app.export_params.theta_steps,
+        app.export_params.profile_steps
+    );
+    let page = ringdesign_core::spec::html(
+        &app.design,
+        &out.report,
+        &field,
+        stones.as_ref(),
+        &dfm,
+        &provenance,
+    );
+    match std::fs::write(&path, page) {
+        Ok(()) => app.set_status(format!("Wrote {}", path.display())),
+        Err(e) => app.set_status(format!("Sheet failed: {e}")),
+    }
+}
+
 pub fn save_design(app: &mut RingDesignerApp) {
     let Some(path) = rfd::FileDialog::new()
         .add_filter("Ring design", &["json"])

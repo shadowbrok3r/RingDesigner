@@ -137,6 +137,13 @@ pub struct RingDesignerApp {
     /// Feather, 0 hard to 1 soft.
     pub brush_soft: f32,
     pub brush_erase: bool,
+    /// Last probe click in the 3D view: world position and its readout.
+    pub probe: Option<([f32; 3], String)>,
+    /// Measurement pins from shift-clicks, world space. Two make a distance.
+    pub pins: Vec<[f32; 3]>,
+    /// The auto-pavé dialog, open with its working spec.
+    pub pave_open: bool,
+    pub pave_spec: ringdesign_core::pave::PaveSpec,
     /// Index into [`viewport::FINISHES`].
     pub finish: usize,
     /// Index into [`viewport::LIGHT_RIGS`].
@@ -224,6 +231,10 @@ impl RingDesignerApp {
             brush_depth: 0.6,
             brush_soft: 0.35,
             brush_erase: false,
+            probe: None,
+            pins: Vec::new(),
+            pave_open: false,
+            pave_spec: ringdesign_core::pave::PaveSpec::default(),
             show_grid: ws.show_grid,
             finish: ws.finish,
             light: ws.light,

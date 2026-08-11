@@ -375,6 +375,17 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 ui.close();
             }
             if ui
+                .button(format!("{} Casting sheet…", icon::FILE_TEXT))
+                .on_hover_text(
+                    "A printable HTML tech sheet: dimensions, weights, the field verdict and \
+                     its notes, stones, and DFM findings — everything the pour needs.",
+                )
+                .clicked()
+            {
+                export::export_spec(app);
+                ui.close();
+            }
+            if ui
                 .button(format!("{} Export 3MF…", icon::EXPORT))
                 .on_hover_text("Zip-packaged model that states its units — no mm/inch guessing downstream.")
                 .clicked()

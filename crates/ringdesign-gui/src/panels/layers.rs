@@ -30,6 +30,7 @@ enum GroupEdit {
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     ui.add_space(2.0);
     add_menu(app, ui);
+    pave_window(app, ui);
     ui.add_space(2.0);
 
     list(app, ui);
@@ -74,6 +75,17 @@ fn add_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
         if ui.button(format!("{} Gem Seat Pad", icon::DIAMOND)).clicked() {
             app.add_layer("Gem Seat Pad", Layer::SeatPad(SeatPadLayer::default()));
+            ui.close();
+        }
+        if ui
+            .button(format!("{} Auto pavé…", icon::SPARKLE))
+            .on_hover_text(
+                "Pack an arc with stone seats — editable pads in a group, rows wrap-exact \
+                 around the ring, gypsy mounds because those measure 0.000% on curved ground.",
+            )
+            .clicked()
+        {
+            app.pave_open = true;
             ui.close();
         }
         if ui.button(format!("{} Milgrain", icon::CIRCLES_THREE)).clicked() {
@@ -2138,4 +2150,147 @@ fn grid(ui: &mut egui::Ui, id: &str, add: impl FnOnce(&mut egui::Ui) -> bool) ->
         .spacing([8.0, 4.0])
         .show(ui, add)
         .inner
+}
+
+
+// --- Auto pavé ---------------------------------------------------------------
+
+fn pave_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    use ringdesign_core::gem::{Gem, GemCut};
+    use ringdesign_core::pave::{self, PaveRegion};
+
+    if !app.pave_open {
+        return;
+    }
+    let mut open = app.pave_open;
+    let mut generate = false;
+    egui::Window::new(format!("{} Auto pavé", icon::SPARKLE))
+        .open(&mut open)
+        .resizable(false)
+        .collapsible(false)
+        .show(ui.ctx(), |ui| {
+            let spec = &mut app.pave_spec;
+            ui.horizontal(|ui| {
+                ui.label("Stone");
+                let mut w = spec.gem.w_mm;
+                if ui
+                    .add(egui::Slider::new(&mut w, 0.8..=4.0).suffix(" mm").fixed_decimals(2))
+                    .changed()
+                {
+                    spec.gem = Gem::calibrated(GemCut::Round, w);
+                }
+                ui.label(
+                    egui::RichText::new(format!("{:.3} ct each", spec.gem.carats()))
+                        .small()
+                        .color(theme::TEXT_DIM),
+                );
+            });
+            ui.add(
+                egui::Slider::new(&mut spec.bridge_mm, 0.2..=1.2)
+                    .suffix(" mm")
+                    .fixed_decimals(2)
+                    .text("Bridge"),
+            );
+
+            let mut full = spec.span_deg >= 360.0;
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut full, "Full ring");
+                if full {
+                    spec.span_deg = 360.0;
+                } else {
+                    if spec.span_deg >= 360.0 {
+                        spec.span_deg = 120.0;
+                    }
+                    ui.add(egui::Slider::new(&mut spec.span_deg, 20.0..=300.0).suffix("°"));
+                    ui.add(
+                        egui::DragValue::new(&mut spec.theta_deg)
+                            .speed(1.0)
+                            .range(0.0..=360.0)
+                            .suffix("° at"),
+                    );
+                }
+            });
+
+            let mut on_side = matches!(spec.region, PaveRegion::SideFace(_));
+            ui.horizontal(|ui| {
+                ui.label("Region");
+                if ui.selectable_label(on_side, "Side face").clicked() {
+                    on_side = true;
+                }
+                if ui.selectable_label(!on_side, "Crown band").clicked() {
+                    on_side = false;
+                }
+            });
+            let ctx = app.design.field_context();
+            match (&mut spec.region, on_side) {
+                (r @ PaveRegion::VBand { .. }, true) => {
+                    *r = PaveRegion::SideFace(Default::default());
+                }
+                (r @ PaveRegion::SideFace(_), false) => {
+                    *r = PaveRegion::VBand {
+                        center_mm: ctx.crest_v_mm,
+                        width_mm: (ctx.band_v_len_mm * 0.3).max(2.0),
+                    };
+                }
+                _ => {}
+            }
+            if let PaveRegion::VBand { center_mm, width_mm } = &mut spec.region {
+                ui.add(
+                    egui::Slider::new(center_mm, 0.0..=ctx.band_v_len_mm)
+                        .suffix(" mm")
+                        .text("Centre v"),
+                );
+                ui.add(
+                    egui::Slider::new(width_mm, 1.0..=ctx.band_v_len_mm)
+                        .suffix(" mm")
+                        .text("Width"),
+                );
+            } else {
+                ui.label(
+                    egui::RichText::new(
+                        "The wider side face, resolved from the profile when generated.",
+                    )
+                    .small()
+                    .color(theme::TEXT_DIM),
+                );
+            }
+            ui.checkbox(&mut spec.stagger, "Stagger rows (hex packing)");
+
+            ui.add_space(4.0);
+            match pave::fill(&app.design, &app.pave_spec) {
+                Some((_, out)) => {
+                    ui.label(format!(
+                        "{} stones in {} rows • {:.2} ct total",
+                        out.seats,
+                        out.rows,
+                        app.pave_spec.gem.carats() * out.seats as f64
+                    ));
+                    if let Some(n) = &out.note {
+                        ui.label(egui::RichText::new(n).small().color(theme::WARN));
+                    }
+                    if ui.button(format!("{} Generate", icon::SPARKLE)).clicked() {
+                        generate = true;
+                    }
+                }
+                None => {
+                    ui.label(
+                        egui::RichText::new(
+                            "Nothing fits — no side face on this profile, or the stone is \
+                             wider than the region.",
+                        )
+                        .color(theme::WARN),
+                    );
+                }
+            }
+        });
+    if generate {
+        if let Some((entry, out)) = ringdesign_core::pave::fill(&app.design, &app.pave_spec) {
+            app.design.layers.layers.push(entry);
+            app.selected_layer = Some(app.design.layers.layers.len() - 1);
+            app.set_status(format!("Pavé: {} stones in {} rows", out.seats, out.rows));
+            app.mark_dirty();
+        }
+        open = false;
+    }
+    app.pave_open = open;
 }

@@ -901,18 +901,31 @@ impl BandProfile {
         // the straight chord of the band's own draft. `head` crossfades the
         // two blend weights; both are monotone in `z`, so the wall can never
         // fold back into a ceiling at any mix.
-        let wall = |z_a: f64, z_b: f64, r0: f64, r1: f64| -> Vec<[f64; 2]> {
+        // A split shank's channel: an inward excursion over the middle of the
+        // wall's radial run. The floor faces along the pull and the walls it
+        // raises stand radial, so on a side face it is castable the same way
+        // any side-face relief is. Capped so the two faces' grooves cannot
+        // meet in the middle of the band.
+        let groove_cap = ((hw * 0.35).min((thickness - comfort) * 0.9)).max(0.0);
+        let groove = ok(m.side_groove_mm).clamp(0.0, groove_cap);
+        let wall = |z_a: f64, z_b: f64, r0: f64, r1: f64, inward: f64| -> Vec<[f64; 2]> {
             (1..FLANK_STEPS)
                 .map(|i| {
                     let t = i as f64 / FLANK_STEPS as f64;
                     let s = crate::field::smootherstep(0.0, 1.0, t);
-                    [r0 + (r1 - r0) * t, z_a + (z_b - z_a) * (t + (s - t) * head_w)]
+                    let mut z = z_a + (z_b - z_a) * (t + (s - t) * head_w);
+                    if groove > 1e-9 {
+                        let gt = crate::field::smootherstep(0.22, 0.42, t)
+                            * (1.0 - crate::field::smootherstep(0.58, 0.78, t));
+                        z += inward * groove * gt;
+                    }
+                    [r0 + (r1 - r0) * t, z]
                 })
                 .collect()
         };
-        let flank_b = wall(b_lo, c_lo, side_b_start[0], corner_b[0]);
+        let flank_b = wall(b_lo, c_lo, side_b_start[0], corner_b[0], 1.0);
         let flank_t = {
-            let mut v = wall(b_hi, c_hi, side_t_end[0], corner_t[0]);
+            let mut v = wall(b_hi, c_hi, side_t_end[0], corner_t[0], -1.0);
             v.reverse();
             v
         };
@@ -1094,6 +1107,7 @@ pub enum ShankKind {
     Twist,
     EuroFlat,
     FlatTop,
+    Split,
     Signet,
 }
 
@@ -1110,6 +1124,7 @@ impl ShankKind {
         ShankKind::Twist,
         ShankKind::EuroFlat,
         ShankKind::FlatTop,
+        ShankKind::Split,
         ShankKind::Signet,
     ];
 
@@ -1126,6 +1141,7 @@ impl ShankKind {
             ShankKind::Twist => "Twist",
             ShankKind::EuroFlat => "Euro (flat bottom)",
             ShankKind::FlatTop => "Flat top",
+            ShankKind::Split => "Split shank",
             ShankKind::Signet => "Signet",
         }
     }
@@ -1138,6 +1154,10 @@ impl ShankKind {
             ShankKind::Pinched => "Waists in just below the top, so the crown reads set-off.",
             ShankKind::Bombe => "Swells full and round at the top, slimming to the palm.",
             ShankKind::Saddle => "Low, wide top hugging the finger, round through the palm.",
+            ShankKind::Split => "Flares wide over the top with a channel carved into each side \
+                                 face, so the shank reads as two diverging rails. A real split — \
+                                 two crests — cannot part from a two-part mould; the groove lives \
+                                 on the side faces, whose walls stay parallel to the pull.",
             ShankKind::Cathedral => "Shoulders swell toward the top of the ring.",
             ShankKind::Wave => {
                 "The band's edges wave along the finger while the crest stays level — one \
@@ -1687,6 +1707,10 @@ pub struct ShankMod {
     pub head: f64,
     /// Rounding between table and wall when `head` is 1, mm.
     pub head_rim_mm: f64,
+    /// Channel depth carved into each side face, mm — the split-shank read.
+    /// The groove's floor faces along the pull and its walls stand radial,
+    /// so it is castable wherever a side face is.
+    pub side_groove_mm: f64,
     /// How softly the crest span's parting-plane floor engages here, 0..1.
     /// Near a face's along-ring ends the outline's edge plunges through the
     /// floor at millimetres per degree and the crossfade needs a wide radius
@@ -1710,6 +1734,7 @@ impl ShankMod {
             flank_bias: 0.0,
             head: 0.0,
             head_rim_mm: 0.0,
+            side_groove_mm: 0.0,
             straddle_soft: 0.0,
         }
     }
@@ -1820,6 +1845,21 @@ impl ShankStyle {
                 };
                 ShankMod { outer_max_r: cap, ..ShankMod::identity() }
             }
+            ShankKind::Split => {
+                // The castable read of a split: the rails diverge because the
+                // band widens over the top, and the gap between them is a
+                // channel in each side face — walls parallel to the pull —
+                // rather than a second crest, which would be a valley no
+                // single parting plane clears.
+                let arc = 110.0;
+                let off = crate::field::wrap_delta(theta_deg - TOP_DEG, 360.0).abs();
+                let g = 1.0 - crate::field::smootherstep(0.0, arc * 0.5, off);
+                ShankMod {
+                    width_scale: 1.0 + 0.55 * k * g,
+                    side_groove_mm: 1.6 * k * g,
+                    ..ShankMod::identity()
+                }
+            }
             ShankKind::Signet => {
                 let a = self.head_at(theta_deg, inner_r, base_outer_r);
                 let band = self.signet_span(theta_deg, inner_r, base_outer_r);
@@ -1849,6 +1889,7 @@ impl ShankStyle {
                     // here keeps the wall-shape weight C² along the sweep.
                     head: crate::field::smootherstep(0.0, 1.0, a.on_head),
                     head_rim_mm: self.head.rim_round_mm.clamp(0.0, 2.0),
+                    side_groove_mm: 0.0,
                     straddle_soft: crate::field::smootherstep(0.55, 0.92, a.x.abs()),
                 }
             }
@@ -2774,6 +2815,55 @@ mod tests {
 
     /// The table is a plane, not a slice of cylinder. Swept into world space,
     /// every crest point over the face has to land on one flat.
+    /// The split's channel is real, and it costs nothing: the groove's floor
+    /// faces along the pull and its walls stand radial, so the whole ring
+    /// still fields clean.
+    #[test]
+    fn a_split_shank_grooves_its_side_faces_and_still_releases() {
+        use crate::alpha::AlphaLibrary;
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(ProfileStyle::Flat);
+        d.profile.width_mm = 7.0;
+        d.shank.kind = ShankKind::Split;
+        d.shank.amount = 0.8;
+
+        // The section at the top carries an inward excursion on both walls.
+        let ir = d.inner_radius_mm();
+        let base = ir + d.profile.thickness_mm;
+        let m = d.modulation_at(TOP_DEG, ir, base);
+        assert!(m.side_groove_mm > 0.8, "no groove at the top: {}", m.side_groove_mm);
+        let l = d.profile.sample_mod(ir, 256, &m);
+        let (mut z_min_at_mid_r, mut z_edge) = (f64::MAX, f64::MAX);
+        for p in l.pts.iter().filter(|p| p.surface && p.z < 0.0) {
+            let t = (p.r - ir) / d.profile.thickness_mm;
+            if (0.4..0.6).contains(&t) {
+                z_min_at_mid_r = z_min_at_mid_r.min(p.z.abs());
+            }
+            if t < 0.1 {
+                z_edge = z_edge.min(p.z.abs());
+            }
+        }
+        // Mid-wall sits measurably inboard of the wall's own base reach.
+        assert!(
+            z_min_at_mid_r < z_edge + 0.5,
+            "no channel: mid-wall |z| {z_min_at_mid_r:.2} vs edge {z_edge:.2}"
+        );
+
+        // Off the arc the section is the plain band again.
+        let m_back = d.modulation_at(TOP_DEG + 180.0, ir, base);
+        assert_eq!(m_back.side_groove_mm, 0.0);
+        assert!((m_back.width_scale - 1.0).abs() < 1e-9);
+
+        // And the whole thing fields castable — the groove is side-face relief.
+        let lib = AlphaLibrary::builtin();
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 192, 128);
+        assert_eq!(
+            f.undercut_area_mm2, 0.0,
+            "split shank undercuts: {:.4} mm2 worst {:.1}",
+            f.undercut_area_mm2, f.worst_draft_deg
+        );
+    }
+
     #[test]
     fn the_signet_table_is_a_true_plane() {
         let mut p = BandProfile::default();
