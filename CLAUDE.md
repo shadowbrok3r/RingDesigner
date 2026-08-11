@@ -77,12 +77,25 @@ per-layer `Remap` (curve or terrace) reshapes relief profiles, and
 `Alpha::draft_limited` bakes a cone opening so no wall in an imported texture
 exceeds a chosen angle at the layer's cell size.
 
+A tiling's `edge_mm` rebuilds height from the alpha's **signed distance
+field** (exact EDT, x-wrapped, derived by `bake_all` and never persisted):
+the bevel holds its width in mm at any tile size, to within half a texel.
+`Layer::Openwork` carves the mask's ink toward a floor over the bore —
+depth·nr of radial metal is what a normal carve spends, so the cap opens up
+exactly on side faces, the sanctioned home for deep carves; the crown
+version is caught by the field verdict, and the test pins both. A tiling's
+`warp` bends its rows along a guide point-list around the ring, purely in
+sampling space.
+
 Shank kinds beyond the originals: Pinched, Bombé, Saddle, FlatTop, **Wave**
 (edges slide along the finger while the crest stays on the parting plane —
 swing capped at 0.6 of the half-width where the measured undercut converges to
 phantom scale) and **Twist** (Wave's slide plus a phase-locked flank-exponent
 skew, `ShankMod::flank_bias` — the light-line spirals while both flanks stay
-monotone drops; a true helix locks). `BandProfile::morph` blends the crown
+monotone drops; a true helix locks). **Keyframes** hands the band
+over outright: authored width/thickness/crown stations blended by periodic
+Catmull-Rom, exact at the knots and C1 through the joint, `amount` as the
+master strength. `BandProfile::morph` blends the crown
 toward a second style around the top (`ShankMod::drop_blend`, filled by
 `RingDesign::modulation_at`, which every modulated-section consumer goes
 through), and `SignetHead::table_dome_mm` puts a cabochon cap on a signet
@@ -853,7 +866,13 @@ stones, detail, review) that writes a finished order folder — design file,
   customer's ring lives in UI state.
 - **It depends on core only.** The preview is `render.rs` drawn to an egui
   texture (half-res while dragging, supersampled at rest), so the crate has
-  no GL plumbing at all.
+  no GL plumbing at all. The style step renders its base cards the same
+  way, once, on a one-shot thread.
+
+A `prices.json` beside the designs folder (`{"Silver 925": 1.2}` per gram)
+puts a metal estimate on the metal step and the review; absent, weights
+show alone. Solitaires offer five cuts; the seat stock is the same gypsy
+mound either way.
 
 Curation is castability: every base is castable bare, and `reconcile()`
 strips what a base cannot carry — stones off signets, patterns and

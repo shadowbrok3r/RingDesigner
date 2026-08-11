@@ -18,7 +18,7 @@ use ringdesign_core::{ProfileStyle, RingDesign, RingSize, ShankKind};
 use serde::{Deserialize, Serialize};
 
 /// The band the customer starts from. Curated: every base is castable bare.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Base {
     Court,
     WideBand,
@@ -95,7 +95,7 @@ impl Base {
 pub enum Stone {
     None,
     /// One center stone on a gypsy mound with prong stock.
-    Solitaire { mm: f64 },
+    Solitaire { cut: GemCut, mm: f64 },
     /// A row of identical stones around the whole band.
     Eternity { mm: f64 },
 }
@@ -104,10 +104,26 @@ impl Stone {
     pub fn label(self) -> String {
         match self {
             Stone::None => "No stone".into(),
-            Stone::Solitaire { mm } => format!("Solitaire {mm:.1} mm"),
+            Stone::Solitaire { cut, mm } => format!("{} solitaire {mm:.1} mm", cut.label()),
             Stone::Eternity { mm } => format!("Eternity row {mm:.1} mm"),
         }
     }
+}
+
+/// Cuts the kiosk offers for a solitaire. All are set at the bench; the
+/// cast stock is the same gypsy mound with prongs either way.
+pub const SOLITAIRE_CUTS: &[GemCut] =
+    &[GemCut::Round, GemCut::Oval, GemCut::Cushion, GemCut::Princess, GemCut::Pear];
+
+/// Per-gram metal prices, read from `prices.json` beside the designs folder:
+/// `{"Silver 925": 1.2, "Gold 14k": 55.0}`. Absent file or metal means no
+/// price is shown — the sheet still carries weights either way.
+pub fn load_prices() -> std::collections::HashMap<String, f64> {
+    let path = ringdesign_core::library::default_design_dir().with_file_name("prices.json");
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_default()
 }
 
 /// Curated side-face patterns — bold builtins that hold up in sand at band
@@ -250,7 +266,7 @@ pub fn compose(cfg: &Config) -> RingDesign {
 
     match cfg.stone {
         Stone::None => {}
-        Stone::Solitaire { mm } => {
+        Stone::Solitaire { cut, mm } => {
             let mut seat = SeatPadLayer {
                 theta_deg: TOP_DEG,
                 v_mm: ctx.crest_v_mm,
@@ -261,7 +277,7 @@ pub fn compose(cfg: &Config) -> RingDesign {
                 prongs: 4,
                 ..Default::default()
             };
-            seat.fit_stone(Gem::calibrated(GemCut::Round, mm.clamp(2.0, 8.0)));
+            seat.fit_stone(Gem::calibrated(cut, mm.clamp(2.0, 8.0)));
             d.layers.layers.push(LayerEntry::new("Solitaire seat", Layer::SeatPad(seat)));
         }
         Stone::Eternity { mm } => {
@@ -363,7 +379,7 @@ mod tests {
             for engraved in [false, true] {
                 let mut cfg = Config {
                     base,
-                    stone: Stone::Solitaire { mm: 5.0 },
+                    stone: Stone::Solitaire { cut: GemCut::Round, mm: 5.0 },
                     pattern: Some(1),
                     milgrain: true,
                     engraving: if engraved { "Amor vincit".into() } else { String::new() },

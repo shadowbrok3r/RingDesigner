@@ -11,7 +11,7 @@ mod compose;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 
-use compose::{compose, Base, Config, Stone, PATTERNS};
+use compose::{compose, Base, Config, Stone, PATTERNS, SOLITAIRE_CUTS};
 use ringdesign_core::alpha::AlphaLibrary;
 use ringdesign_core::castability::{FieldReport, Verdict};
 use ringdesign_core::mesh::{BuildParams, Mesh};
@@ -123,6 +123,33 @@ fn spawn_worker(ctx: egui::Context) -> (Sender<Job>, Receiver<Frame>) {
     (jobs_tx, frames_rx)
 }
 
+/// One-shot worker: render every base once for the style step's cards.
+fn spawn_thumbs(ctx: egui::Context) -> Receiver<(Base, egui::ColorImage)> {
+    let (tx, rx) = channel();
+    std::thread::Builder::new()
+        .name("compose-thumbs".into())
+        .spawn(move || {
+            let lib = AlphaLibrary::builtin();
+            for &base in Base::ALL {
+                let cfg = Config { base, ..Config::default() };
+                let d = compose(&cfg);
+                let out = ringdesign_core::mesh::build(
+                    &d,
+                    &lib,
+                    BuildParams { theta_steps: 192, profile_steps: 80, ..Default::default() },
+                );
+                let edge = 108usize;
+                let rgb = render::render_ss(&out.mesh, 0.55, 1.12, edge, edge, 2, render::GOLD);
+                if tx.send((base, egui::ColorImage::from_rgb([edge, edge], &rgb))).is_err() {
+                    return;
+                }
+                ctx.request_repaint();
+            }
+        })
+        .expect("spawn thumbs");
+    rx
+}
+
 // --- The app -----------------------------------------------------------------
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -164,11 +191,15 @@ struct App {
     dragging: bool,
     saved_to: Option<String>,
     saving: bool,
+    thumbs_rx: Receiver<(Base, egui::ColorImage)>,
+    thumbs: std::collections::HashMap<Base, egui::TextureHandle>,
+    prices: std::collections::HashMap<String, f64>,
 }
 
 impl App {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let (jobs, frames) = spawn_worker(cc.egui_ctx.clone());
+        let thumbs_rx = spawn_thumbs(cc.egui_ctx.clone());
         let mut app = Self {
             cfg: Config::default(),
             step: Step::Base,
@@ -184,6 +215,9 @@ impl App {
             dragging: false,
             saved_to: None,
             saving: false,
+            thumbs_rx,
+            thumbs: std::collections::HashMap::new(),
+            prices: compose::load_prices(),
         };
         app.rebuild();
         app
@@ -266,6 +300,14 @@ impl App {
     }
 
     fn poll(&mut self, ctx: &egui::Context) {
+        while let Ok((base, img)) = self.thumbs_rx.try_recv() {
+            let tex = ctx.load_texture(
+                format!("thumb-{}", base.label()),
+                img,
+                egui::TextureOptions::LINEAR,
+            );
+            self.thumbs.insert(base, tex);
+        }
         while let Ok(f) = self.frames.try_recv() {
             if f.generation != self.generation {
                 continue;
@@ -325,13 +367,56 @@ impl App {
         let mut changed = false;
         for &b in Base::ALL {
             let selected = self.cfg.base == b;
-            let r = ui.add_sized(
-                [ui.available_width(), 44.0],
-                egui::Button::new(
-                    egui::RichText::new(format!("{}\n{}", b.label(), b.blurb())).size(13.0),
-                )
-                .selected(selected),
-            );
+            let r = ui
+                .push_id(b.label(), |ui| {
+                    let h = 64.0;
+                    let (rect, resp) = ui.allocate_exact_size(
+                        egui::vec2(ui.available_width(), h),
+                        egui::Sense::click(),
+                    );
+                    let bg = if selected {
+                        ui.visuals().selection.bg_fill
+                    } else if resp.hovered() {
+                        ui.visuals().widgets.hovered.bg_fill
+                    } else {
+                        ui.visuals().widgets.inactive.bg_fill
+                    };
+                    ui.painter().rect_filled(rect, 6.0, bg);
+                    let pad = 6.0;
+                    let img_side = h - 2.0 * pad;
+                    let img_rect = egui::Rect::from_min_size(
+                        rect.min + egui::vec2(pad, pad),
+                        egui::vec2(img_side, img_side),
+                    );
+                    if let Some(tex) = self.thumbs.get(&b) {
+                        ui.painter().image(
+                            tex.id(),
+                            img_rect,
+                            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                            egui::Color32::WHITE,
+                        );
+                    } else {
+                        ui.painter().rect_filled(img_rect, 4.0, egui::Color32::from_gray(30));
+                    }
+                    let text_at = egui::pos2(img_rect.right() + 10.0, rect.min.y + 12.0);
+                    ui.painter().text(
+                        text_at,
+                        egui::Align2::LEFT_TOP,
+                        b.label(),
+                        egui::FontId::proportional(15.0),
+                        ui.visuals().strong_text_color(),
+                    );
+                    ui.painter().text(
+                        text_at + egui::vec2(0.0, 22.0),
+                        egui::Align2::LEFT_TOP,
+                        b.blurb(),
+                        egui::FontId::proportional(11.5),
+                        ui.visuals().weak_text_color(),
+                    );
+                    resp
+                })
+                .inner;
+            ui.add_space(4.0);
             if r.clicked() && !selected {
                 self.cfg.base = b;
                 changed = true;
@@ -363,14 +448,26 @@ impl App {
                 .iter()
                 .find(|(n, _)| n == m.name)
                 .map(|(_, g)| *g);
-            let label = match g {
-                Some(g) => format!("{} — {:.1} g", m.name, g),
-                None => m.name.to_string(),
+            let price = g.and_then(|g| self.prices.get(m.name).map(|p| p * g));
+            let label = match (g, price) {
+                (Some(g), Some(p)) => format!("{} — {:.1} g · about ${:.0} in metal", m.name, g, p),
+                (Some(g), None) => format!("{} — {:.1} g", m.name, g),
+                _ => m.name.to_string(),
             };
             if ui.radio(self.cfg.metal == i, label).clicked() && self.cfg.metal != i {
                 self.cfg.metal = i;
                 changed = true;
             }
+        }
+        if self.prices.is_empty() {
+            ui.add_space(4.0);
+            ui.label(
+                egui::RichText::new(
+                    "Metal prices show here when a prices.json sits beside the designs                      folder: {\"Silver 925\": 1.2, \"Gold 14k\": 55.0} per gram.",
+                )
+                .small()
+                .color(egui::Color32::from_gray(120)),
+            );
         }
         if changed {
             self.rebuild();
@@ -390,28 +487,33 @@ impl App {
             self.cfg.stone = Stone::None;
             changed = true;
         }
-        let (is_sol, sol_mm) = match self.cfg.stone {
-            Stone::Solitaire { mm } => (true, mm),
-            _ => (false, 5.0),
+        let (is_sol, sol_cut, sol_mm) = match self.cfg.stone {
+            Stone::Solitaire { cut, mm } => (true, cut, mm),
+            _ => (false, ringdesign_core::gem::GemCut::Round, 5.0),
         };
         if ui.radio(is_sol, "Solitaire — one center stone").clicked() && !is_sol {
-            self.cfg.stone = Stone::Solitaire { mm: sol_mm };
+            self.cfg.stone = Stone::Solitaire { cut: sol_cut, mm: sol_mm };
             changed = true;
         }
         if is_sol {
             let mut mm = sol_mm;
+            ui.horizontal_wrapped(|ui| {
+                for &cut in SOLITAIRE_CUTS {
+                    if ui.selectable_label(sol_cut == cut, cut.label()).clicked() && sol_cut != cut
+                    {
+                        self.cfg.stone = Stone::Solitaire { cut, mm };
+                        changed = true;
+                    }
+                }
+            });
             if ui
                 .add(egui::Slider::new(&mut mm, 3.0..=8.0).step_by(0.5).text("stone mm"))
                 .changed()
             {
-                self.cfg.stone = Stone::Solitaire { mm };
+                self.cfg.stone = Stone::Solitaire { cut: sol_cut, mm };
                 changed = true;
             }
-            let ct = ringdesign_core::gem::Gem::calibrated(
-                ringdesign_core::gem::GemCut::Round,
-                mm,
-            )
-            .carats();
+            let ct = ringdesign_core::gem::Gem::calibrated(sol_cut, mm).carats();
             ui.label(egui::RichText::new(format!("about {ct:.2} ct")).small());
         }
         let (is_et, et_mm) = match self.cfg.stone {
@@ -526,7 +628,15 @@ impl App {
         ui.label(format!("Style: {}", self.cfg.base.label()));
         ui.label(format!("Size: US {:.2}", self.cfg.size));
         if let (Some(m), Some(g)) = (metal, grams) {
-            ui.label(format!("Metal: {} — about {:.1} g cast", m.name, g));
+            match self.prices.get(m.name) {
+                Some(p) => ui.label(format!(
+                    "Metal: {} — about {:.1} g cast, about ${:.0} in metal",
+                    m.name,
+                    g,
+                    p * g
+                )),
+                None => ui.label(format!("Metal: {} — about {:.1} g cast", m.name, g)),
+            };
         }
         ui.label(format!("Stones: {}", self.cfg.stone.label()));
         if let Some(p) = self.cfg.pattern.and_then(|i| PATTERNS.get(i)) {
