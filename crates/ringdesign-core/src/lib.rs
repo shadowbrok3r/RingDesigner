@@ -32,6 +32,7 @@ pub mod drawn;
 pub mod engine;
 pub mod field;
 pub mod gem;
+pub mod gems;
 pub mod gltf;
 pub mod library;
 pub mod mesh;
