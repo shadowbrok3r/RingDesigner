@@ -27,6 +27,7 @@ pub mod adaptive;
 pub mod alpha;
 pub mod castability;
 pub mod curve;
+pub mod dfm;
 pub mod drawn;
 pub mod engine;
 pub mod field;

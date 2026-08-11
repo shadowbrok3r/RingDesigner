@@ -25,10 +25,17 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let already_draft =
         app.panes[pane].shade == ShadeMode::Draft && app.panes[pane].kind == PaneKind::Solid;
     let mut want_draft = false;
+    let dfm = ringdesign_core::dfm::findings(&app.design);
     match app.cast.as_ref() {
         Some(cast) => {
-            want_draft =
-                castability(ui, cast, app.field.as_ref(), &app.design.draft, already_draft);
+            want_draft = castability(
+                ui,
+                cast,
+                app.field.as_ref(),
+                &app.design.draft,
+                &dfm,
+                already_draft,
+            );
         }
         None => placeholder(ui, app.is_building(), "No draft analysis yet"),
     }
@@ -81,6 +88,7 @@ fn castability(
     cast: &CastReport,
     field: Option<&ringdesign_core::castability::FieldReport>,
     draft: &DraftSettings,
+    dfm: &[ringdesign_core::dfm::DfmFinding],
     already_draft: bool,
 ) -> bool {
     match field {
@@ -197,6 +205,29 @@ fn castability(
     .on_hover_text("Most negative draft on the mesh. Below zero the face leans back under itself and locks in the sand.");
 
     notes(ui, &cast.notes);
+    if let Some(f) = field {
+        // The field's own findings: the noise-band line and any located,
+        // blamed undercut arcs.
+        for n in f.notes.iter().filter(|n| !n.starts_with("Field-sampled: the surface itself")) {
+            ui.horizontal_top(|ui| {
+                ui.label(egui::RichText::new("•").color(theme::ACCENT));
+                ui.add(egui::Label::new(egui::RichText::new(n)).wrap());
+            });
+        }
+    }
+    for f in dfm {
+        ui.horizontal_top(|ui| {
+            ui.label(egui::RichText::new(icon::WARNING).color(theme::WARN));
+            ui.add(
+                egui::Label::new(
+                    egui::RichText::new(format!("{}: {}", f.label, f.message))
+                        .small()
+                        .color(theme::WARN),
+                )
+                .wrap(),
+            );
+        });
+    }
 
     ui.add_space(6.0);
     let button = egui::Button::new(format!("{} Show draft colours", icon::PALETTE));

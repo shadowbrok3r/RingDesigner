@@ -32,6 +32,11 @@ pub struct Workspace {
     pub show_grid: bool,
     #[serde(default = "default_true")]
     pub show_gems: bool,
+    /// Index into `METALS` to cut exports oversize for, or none for nominal.
+    #[serde(default)]
+    pub shrink_metal: Option<usize>,
+    #[serde(default)]
+    pub as_cast: bool,
     #[serde(default)]
     pub finish: usize,
     #[serde(default)]
@@ -62,6 +67,8 @@ impl Default for Workspace {
             show_wireframe: false,
             show_grid: true,
             show_gems: true,
+            shrink_metal: None,
+            as_cast: false,
             finish: 0,
             light: 0,
             layout: Layout::Single,
@@ -80,6 +87,8 @@ impl RingDesignerApp {
             show_wireframe: self.show_wireframe,
             show_grid: self.show_grid,
             show_gems: self.show_gems,
+            shrink_metal: self.shrink_metal,
+            as_cast: self.as_cast,
             finish: self.finish,
             light: self.light,
             layout: self.layout,
@@ -115,6 +124,10 @@ pub struct RingDesignerApp {
     pub show_grid: bool,
     /// Stone previews in the viewport — render only, never in the mesh.
     pub show_gems: bool,
+    /// Export patterns oversize for this metal's shrink, or nominal.
+    pub shrink_metal: Option<usize>,
+    /// Soften the preview at the sand's detail radius — see the pour early.
+    pub as_cast: bool,
     /// Index into [`viewport::FINISHES`].
     pub finish: usize,
     /// Index into [`viewport::LIGHT_RIGS`].
@@ -195,6 +208,8 @@ impl RingDesignerApp {
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
             show_wireframe: ws.show_wireframe,
             show_gems: ws.show_gems,
+            shrink_metal: ws.shrink_metal,
+            as_cast: ws.as_cast,
             show_grid: ws.show_grid,
             finish: ws.finish,
             light: ws.light,
@@ -339,6 +354,12 @@ impl RingDesignerApp {
         self.generation += 1;
         self.in_flight = true;
         self.status = "Building…".into();
+        let mut params = params;
+        // As-cast: the preview mushes at the sand's own detail radius.
+        // Display only — exports build from their own params.
+        if self.as_cast {
+            params.soften_mm = self.design.draft.min_detail_mm;
+        }
         let job = Job {
             generation: self.generation,
             design: self.design.clone(),
@@ -565,8 +586,9 @@ impl Worker {
                         job.design.inner_radius_mm(),
                     );
                     // The verdict itself comes from the surface, at a fixed
-                    // sampling so it cannot wobble with preview quality.
-                    let field = castability::analyze_field(
+                    // sampling so it cannot wobble with preview quality; any
+                    // undercut arrives located and blamed.
+                    let field = castability::attributed_field_report(
                         &job.design,
                         &job.lib,
                         &job.design.draft,

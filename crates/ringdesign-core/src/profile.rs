@@ -2526,6 +2526,7 @@ mod tests {
             min_wall_mm: crate::mesh::MIN_WALL_MM,
             adaptive: false,
             refine: None,
+            soften_mm: 0.0,
         };
         d.profile.adopt_drop_curve(6);
         // A deliberately lumpy crown: a shelf, then a fast fall.
@@ -3389,7 +3390,7 @@ mod tests {
         let out = crate::mesh::build(
             &d,
             &crate::AlphaLibrary::builtin(),
-            crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true, refine: None },
+            crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true, refine: None, soften_mm: 0.0 },
         );
         let report = crate::castability::analyze(
             &out.mesh,
@@ -3465,7 +3466,7 @@ mod tests {
                 let out = crate::mesh::build(
                     &d,
                     &crate::AlphaLibrary::builtin(),
-                    crate::BuildParams { theta_steps: 128, profile_steps: steps, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true, refine: None },
+                    crate::BuildParams { theta_steps: 128, profile_steps: steps, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true, refine: None, soften_mm: 0.0 },
                 );
                 let rep = crate::castability::analyze(
                     &out.mesh,
@@ -3526,7 +3527,7 @@ mod tests {
                 let out = crate::mesh::build(
                     &d,
                     &crate::AlphaLibrary::builtin(),
-                    crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true, refine: None },
+                    crate::BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: true, refine: None, soften_mm: 0.0 },
                 );
                 assert!(
                     out.report.validation.watertight,

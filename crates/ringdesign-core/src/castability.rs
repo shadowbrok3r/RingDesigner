@@ -48,6 +48,15 @@ pub struct DraftSettings {
     pub auto_parting: bool,
     /// Thinnest section that will reliably fill, mm.
     pub min_section_mm: f64,
+    /// Smallest surface feature the sand reliably reproduces, mm. Beads,
+    /// cells and wires under this cast as mush; the per-layer DFM checks
+    /// read it.
+    #[serde(default = "default_min_detail")]
+    pub min_detail_mm: f64,
+}
+
+fn default_min_detail() -> f64 {
+    0.35
 }
 
 impl Default for DraftSettings {
@@ -57,7 +66,42 @@ impl Default for DraftSettings {
             min_draft_deg: 3.0,
             auto_parting: true,
             min_section_mm: 0.7,
+            min_detail_mm: default_min_detail(),
         }
+    }
+}
+
+/// The two sands this shop pours, as parameter presets.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SandProcess {
+    /// Fine Belgian clay-bonded sand: excellent detail, wants a touch more
+    /// draft and section than oil sand.
+    DelftClay,
+    /// Oil-bonded synthetic sand: slightly coarser detail floor, releases a
+    /// hair easier and fills a thinner section.
+    Petrobond,
+}
+
+impl SandProcess {
+    pub const ALL: &'static [SandProcess] = &[SandProcess::DelftClay, SandProcess::Petrobond];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            SandProcess::DelftClay => "Delft clay",
+            SandProcess::Petrobond => "Petrobond",
+        }
+    }
+
+    /// Write this sand's numbers into the settings, leaving the parting
+    /// plane fields alone.
+    pub fn apply(self, d: &mut DraftSettings) {
+        let (draft, section, detail) = match self {
+            SandProcess::DelftClay => (3.0, 0.8, 0.30),
+            SandProcess::Petrobond => (2.5, 0.6, 0.40),
+        };
+        d.min_draft_deg = draft;
+        d.min_section_mm = section;
+        d.min_detail_mm = detail;
     }
 }
 
@@ -973,6 +1017,207 @@ pub fn analyze_field(
     }
 }
 
+/// [`analyze_field`] with each undercut arc located and blamed in the notes.
+/// Attribution costs one light pass per enabled layer, so it only runs when
+/// there is undercut to explain.
+pub fn attributed_field_report(
+    design: &RingDesign,
+    lib: &AlphaLibrary,
+    settings: &DraftSettings,
+    theta_steps: usize,
+    profile_steps: usize,
+) -> FieldReport {
+    let mut f = analyze_field(design, lib, settings, theta_steps, profile_steps);
+    if f.undercut_area_mm2 > 0.0 {
+        for r in attribute_undercuts(design, lib, settings, f.parting_z_mm) {
+            f.notes.push(r.note());
+        }
+    }
+    f
+}
+
+// --- Undercut localization and attribution ----------------------------------
+
+/// One arc of undercut, located and, when a single layer explains it, named.
+#[derive(Clone, Debug, Serialize)]
+pub struct UndercutRegion {
+    pub theta_from_deg: f64,
+    pub theta_to_deg: f64,
+    /// Where across the band it sits, plainly.
+    pub across: String,
+    pub area_mm2: f64,
+    pub worst_draft_deg: f64,
+    /// Layer whose muting clears at least 80% of this region's area.
+    pub culprit: Option<String>,
+}
+
+impl UndercutRegion {
+    pub fn note(&self) -> String {
+        let place = format!(
+            "Undercut {:.0}–{:.0}° on the {}: {:.1} mm² leaning to {:.0}°",
+            self.theta_from_deg, self.theta_to_deg, self.across, self.area_mm2,
+            -self.worst_draft_deg
+        );
+        match &self.culprit {
+            Some(name) => format!("{place} — caused by \"{name}\"; muting it clears it."),
+            None => format!("{place} — no single layer explains it."),
+        }
+    }
+}
+
+/// Undercut samples of the field grid: `(theta_deg, v_norm, area, draft)`.
+fn field_undercuts(
+    design: &RingDesign,
+    lib: &AlphaLibrary,
+    min_draft: f64,
+    parting_z: f64,
+    t_n: usize,
+    p_n: usize,
+) -> Vec<(f64, f64, f64, f64)> {
+    let sections: Vec<Section> =
+        (0..t_n).map(|i| section_at_spaced(design, lib, i as f64 / t_n as f64 * 360.0, p_n, None)).collect();
+    let rows = sections[0].points.len();
+    if rows < 3 || sections.iter().any(|s| s.points.len() != rows) {
+        return Vec::new();
+    }
+    let pt = |i: usize, j: usize| -> [f64; 3] {
+        let s = &sections[i % t_n];
+        let p = &s.points[j % rows];
+        let (sin_t, cos_t) = s.theta_deg.to_radians().sin_cos();
+        [p.r * cos_t, p.r * sin_t, p.z]
+    };
+    let surface_rows: Vec<usize> = (0..rows).filter(|&j| sections[0].points[j].surface).collect();
+    let n_surf = surface_rows.len().max(1) as f64;
+    let mut out = Vec::new();
+    for i in 0..t_n {
+        for (k, &j) in surface_rows.iter().enumerate() {
+            let tu = sub(pt(i + 1, j), pt(i + t_n - 1, j));
+            let ts = sub(pt(i, j + 1), pt(i, j + rows - 1));
+            let x = cross(tu, ts);
+            let len = norm(x);
+            if !(len > 1e-12) {
+                continue;
+            }
+            let z = pt(i, j)[2];
+            if !z.is_finite() {
+                continue;
+            }
+            let nz = x[2] / len;
+            let draft = draft_angle([0.0, (1.0 - nz * nz).max(0.0).sqrt(), nz], z, parting_z);
+            if classify(draft, min_draft) == FaceClass::Undercut {
+                out.push((
+                    sections[i].theta_deg,
+                    k as f64 / (n_surf - 1.0).max(1.0),
+                    len * 0.25,
+                    draft,
+                ));
+            }
+        }
+    }
+    out
+}
+
+/// Cluster the undercut into theta arcs, then find each arc's culprit by
+/// muting one layer at a time and re-sampling.
+///
+/// The parting plane is held at the full design's, so every comparison is of
+/// the same mould. Costs one light field pass per enabled layer, and only
+/// runs when there is something to attribute.
+pub fn attribute_undercuts(
+    design: &RingDesign,
+    lib: &AlphaLibrary,
+    settings: &DraftSettings,
+    parting_z: f64,
+) -> Vec<UndercutRegion> {
+    const T: usize = 160;
+    const P: usize = 112;
+    let min_draft = settings.min_draft_deg.max(0.0);
+    let base = field_undercuts(design, lib, min_draft, parting_z, T, P);
+    if base.is_empty() {
+        return Vec::new();
+    }
+
+    // Arcs: samples sorted by theta, split at gaps over a few degrees.
+    let mut sorted = base.clone();
+    sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let gap = (360.0 / T as f64) * 2.5;
+    let mut regions: Vec<Vec<(f64, f64, f64, f64)>> = Vec::new();
+    for s in sorted {
+        match regions.last_mut() {
+            Some(r) if s.0 - r.last().unwrap().0 <= gap => r.push(s),
+            _ => regions.push(vec![s]),
+        }
+    }
+    // A region straddling the 0° joint is the first and last merged.
+    if regions.len() > 1 {
+        let wraps = {
+            let first = &regions[0];
+            let last = regions.last().unwrap();
+            first.first().unwrap().0 - 0.0 <= gap && 360.0 - last.last().unwrap().0 <= gap
+        };
+        if wraps {
+            let tail = regions.pop().unwrap();
+            regions[0].splice(0..0, tail);
+        }
+    }
+
+    // Which layer explains each region: mute one at a time.
+    let enabled: Vec<usize> = design
+        .layers
+        .layers
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| e.enabled)
+        .map(|(i, _)| i)
+        .collect();
+    let mut masked: Vec<(usize, Vec<(f64, f64, f64, f64)>)> = Vec::new();
+    for &i in &enabled {
+        let mut d = design.clone();
+        d.layers.layers[i].enabled = false;
+        masked.push((i, field_undercuts(&d, lib, min_draft, parting_z, T, P)));
+    }
+
+    regions
+        .into_iter()
+        .map(|r| {
+            let (t0, t1) = (r.first().unwrap().0, r.last().unwrap().0);
+            let within = |s: &(f64, f64, f64, f64)| {
+                if t0 <= t1 {
+                    s.0 >= t0 - 1e-9 && s.0 <= t1 + 1e-9
+                } else {
+                    s.0 >= t0 - 1e-9 || s.0 <= t1 + 1e-9
+                }
+            };
+            let area: f64 = r.iter().map(|s| s.2).sum();
+            let worst = r.iter().map(|s| s.3).fold(0.0f64, f64::min);
+            let v_mean: f64 = r.iter().map(|s| s.1 * s.2).sum::<f64>() / area.max(1e-12);
+            let across = match v_mean {
+                v if v < 0.30 => "low flank",
+                v if v < 0.45 => "lower shoulder",
+                v if v < 0.55 => "crest",
+                v if v < 0.70 => "upper shoulder",
+                _ => "high flank",
+            }
+            .to_string();
+            let culprit = masked
+                .iter()
+                .find(|(_, samples)| {
+                    let left: f64 = samples.iter().filter(|s| within(s)).map(|s| s.2).sum();
+                    left < area * 0.2
+                })
+                .map(|(i, _)| design.layers.layers[*i].name.clone());
+            UndercutRegion {
+                theta_from_deg: t0,
+                theta_to_deg: t1,
+                across,
+                area_mm2: area,
+                worst_draft_deg: worst,
+                culprit,
+            }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -980,7 +1225,7 @@ mod tests {
     use crate::mesh::{BuildParams, BuildResult};
     use crate::profile::TOP_DEG;
 
-    const STEPS: BuildParams = BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: 0.5, adaptive: true, refine: None };
+    const STEPS: BuildParams = BuildParams { theta_steps: 128, profile_steps: 96, min_wall_mm: 0.5, adaptive: true, refine: None, soften_mm: 0.0 };
 
     fn built(design: &RingDesign) -> BuildResult {
         crate::mesh::build(design, &AlphaLibrary::default(), STEPS)
@@ -1045,6 +1290,46 @@ mod tests {
         let a0 = reports[0].total_area_mm2;
         let a1 = reports[2].total_area_mm2;
         assert!((a0 - a1).abs() / a1 < 0.02, "area drifts: {a0:.1} vs {a1:.1}");
+    }
+
+    /// The attribution names the layer whose muting clears the arc, and says
+    /// where the arc is.
+    #[test]
+    fn an_undercut_region_is_located_and_blamed() {
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        d.profile.width_mm = 8.0;
+        let ctx = d.field_context();
+        let pad = SeatPadLayer {
+            theta_deg: TOP_DEG,
+            v_mm: ctx.band_v_len_mm * 0.30,
+            diameter_mm: 3.4,
+            height_mm: 0.9,
+            crown: 0.0,
+            blend_mm: 0.3,
+            ..Default::default()
+        };
+        d.layers.layers.push(LayerEntry::new("Flat boss", Layer::SeatPad(pad)));
+        // An innocent bystander that must not take the blame.
+        d.layers.layers.push(LayerEntry::new(
+            "Beads",
+            Layer::Milgrain(crate::field::MilgrainLayer::default()),
+        ));
+
+        let f = analyze_field(&d, &lib, &d.draft, 160, 112);
+        assert!(f.undercut_area_mm2 > 0.0, "fixture lost its undercut");
+        let regions = attribute_undercuts(&d, &lib, &d.draft, f.parting_z_mm);
+        assert!(!regions.is_empty());
+        let r = &regions[0];
+        assert_eq!(r.culprit.as_deref(), Some("Flat boss"), "{r:?}");
+        // The pad sits at the top of the ring on the lower half of the band.
+        let mid = 0.5 * (r.theta_from_deg + r.theta_to_deg);
+        assert!((mid - TOP_DEG).abs() < 25.0, "region at {mid:.0}°: {r:?}");
+        assert!(!r.note().is_empty());
+
+        // A clean design attributes nothing.
+        let clean = RingDesign::default();
+        assert!(attribute_undercuts(&clean, &lib, &clean.draft, 0.0).is_empty());
     }
 
     /// A real undercut — relief on the crown's flank — is reported by the
@@ -1114,7 +1399,7 @@ mod tests {
     #[test]
     fn relief_holds_on_a_squared_side_face_where_it_ruins_the_crest() {
         let lib = AlphaLibrary::builtin();
-        let steps = BuildParams { theta_steps: 384, profile_steps: 160, min_wall_mm: 0.5, adaptive: true, refine: None };
+        let steps = BuildParams { theta_steps: 384, profile_steps: 160, min_wall_mm: 0.5, adaptive: true, refine: None, soften_mm: 0.0 };
         let mut base = RingDesign::default();
         base.profile.apply_style(crate::ProfileStyle::Flat);
         base.profile.flatten_sides();

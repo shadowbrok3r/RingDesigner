@@ -202,6 +202,7 @@ fn list(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
     let mut action: Option<Action> = None;
     let mut dirty = false;
+    let dfm = ringdesign_core::dfm::findings(&app.design);
 
     for i in 0..n {
         let selected = app.selected_layer == Some(i);
@@ -245,6 +246,12 @@ fn list(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                             .sense(egui::Sense::click());
                         if ui.add(label).clicked() {
                             action = Some(Action::Select(i));
+                        }
+                        if let Some(f) = dfm.iter().find(|f| f.layer == i) {
+                            ui.label(
+                                egui::RichText::new(icon::WARNING).color(theme::WARN),
+                            )
+                            .on_hover_text(&f.message);
                         }
                     });
                     ui.allocate_ui_with_layout(egui::vec2(kind_w, row_h), left, |ui| {

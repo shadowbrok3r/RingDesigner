@@ -687,6 +687,39 @@ The pattern therefore follows the band as it tapers instead of sliding across
 it. `mesh::build` and `castability::section_at` must do this identically — if
 they diverge, the section view lies about the solid.
 
+## Manufacturing analysis speaks in the sand's numbers
+
+`DraftSettings` carries the sand itself: `min_draft_deg`, `min_section_mm`
+(the fill floor the field verdict checks), and `min_detail_mm` (the feature
+floor), with `SandProcess::{DelftClay, Petrobond}` presets writing all three.
+On top of that:
+
+- **Per-layer DFM** (`dfm.rs`): layers are analytic, so their finest feature
+  is a parameter, not a measurement — `feature_footprints` against
+  `min_detail_mm`, surfaced as warning badges on the layer rows, in the
+  report notes, and on MCP as `castability.dfm`.
+- **Undercut attribution** (`castability::attribute_undercuts`): undercut
+  arcs are clustered in theta off the field samples, then each enabled layer
+  is muted in turn at the *same parting plane* — the culprit is the layer
+  whose muting clears ≥80% of the arc. "Undercut 74–106° on the lower
+  shoulder: 2.1 mm² leaning to 18° — caused by "Flat boss"; muting it clears
+  it." Runs only when there is undercut to explain;
+  `attributed_field_report` is what the GUI worker and MCP call.
+- **As-cast preview** (`BuildParams::soften_mm`, toolbar "As-cast"): the
+  height field evaluated through a 9-tap Gaussian at the sand's detail
+  radius, so beads merge on screen the way they will in the pour. Preview
+  builds only — exports and the section view stay at true geometry.
+- **Patternmaker's shrink**: `Metal::shrink_pct` (silver 1.9%, golds ~1.3%),
+  `metal::pattern_scale` = `1/(1−s)`; the export menu's "Shrink for" combo
+  and the CLI's `--shrink` scale the mesh and *rename* the file as a pattern
+  so an oversize file can never be mistaken for nominal.
+- **The size-run CLI** (`src/bin/ringdesign.rs`): `ringdesign export
+  ring.json --sizes 5:9:0.5 --formats stl,3mf --shrink sterling` builds each
+  size, field-checks it, writes the files and a manifest CSV (verdict,
+  thinnest wall, volume per size) — one flask, one command; the manifest is
+  also the export-regression diff. `ringdesign check` prints the field
+  verdict and the stones findings for one design.
+
 ## Stones are stock, not geometry to cast
 
 Stones are set at the bench; the ring casts the *stock* for them — bosses,

@@ -340,6 +340,32 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 ui.close();
             }
             ui.separator();
+            ui.horizontal(|ui| {
+                ui.label("Shrink for");
+                let current = app
+                    .shrink_metal
+                    .and_then(|i| ringdesign_core::metal::METALS.get(i))
+                    .map(|m| format!("{} +{:.1}%", m.name, m.shrink_pct))
+                    .unwrap_or_else(|| "Nominal".into());
+                egui::ComboBox::from_id_salt("shrink_metal")
+                    .selected_text(current)
+                    .width(140.0)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut app.shrink_metal, None, "Nominal");
+                        for (i, m) in ringdesign_core::metal::METALS.iter().enumerate() {
+                            ui.selectable_value(
+                                &mut app.shrink_metal,
+                                Some(i),
+                                format!("{} +{:.1}%", m.name, m.shrink_pct),
+                            );
+                        }
+                    });
+            })
+            .response
+            .on_hover_text(
+                "Cut exported patterns oversize so the cast cools to nominal size. \
+                 The file is named as a pattern so it cannot be mistaken for nominal.",
+            );
             if ui.button(format!("{} Export STL…", icon::EXPORT)).clicked() {
                 export::export_stl(app);
                 ui.close();
@@ -406,6 +432,16 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             .on_hover_text(
                 "Preview the stones in their seats. Render only — never in the mesh, never exported.",
             );
+        if ui
+            .checkbox(&mut app.as_cast, "As-cast")
+            .on_hover_text(
+                "Soften the 3D preview at the sand's detail radius, so beads merge and fine \
+                 cells mush the way the pour will. Exports and the section view stay exact.",
+            )
+            .changed()
+        {
+            app.mark_dirty();
+        }
         egui::ComboBox::from_id_salt("metal_finish")
             .selected_text(crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].name)
             .width(104.0)

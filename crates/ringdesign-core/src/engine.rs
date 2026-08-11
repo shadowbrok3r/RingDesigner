@@ -145,9 +145,10 @@ impl DesignEngine {
         })
     }
 
-    /// The verdict read off the surface itself, independent of any build.
+    /// The verdict read off the surface itself, independent of any build —
+    /// with every undercut arc located and blamed in the notes.
     pub fn field_report(&self) -> castability::FieldReport {
-        castability::analyze_field(&self.design, &self.lib, &self.design.draft, 192, 128)
+        castability::attributed_field_report(&self.design, &self.lib, &self.design.draft, 192, 128)
     }
 
     pub fn mesh(&mut self) -> Arc<BuildResult> {

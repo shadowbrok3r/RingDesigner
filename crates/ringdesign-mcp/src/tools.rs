@@ -241,6 +241,9 @@ pub struct CastJson {
     /// The authoritative verdict, sampled off the surface itself rather than
     /// any mesh — build kind and resolution cannot put a phantom in it.
     pub field: FieldJson,
+    /// Per-layer design-for-manufacture findings: features finer than the
+    /// sand's min_detail_mm cast as mush. "LayerName: message" per finding.
+    pub dfm: Vec<String>,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -1014,6 +1017,7 @@ fn cast_json(
     generation: u64,
     stones: Option<StonesJson>,
     field: FieldJson,
+    dfm: Vec<String>,
 ) -> CastJson {
     CastJson {
         generation,
@@ -1033,6 +1037,7 @@ fn cast_json(
         notes: cast.notes.clone(),
         stones,
         field,
+        dfm,
     }
 }
 
@@ -2056,9 +2061,13 @@ impl RingDesignServer {
         let stones =
             ringdesign_core::stones::report(e.design(), cast.parting_z_mm).map(|r| stones_json(&r));
         let field = field_json(&e.field_report());
+        let dfm = ringdesign_core::dfm::findings(e.design())
+            .into_iter()
+            .map(|f| format!("{}: {}", f.label, f.message))
+            .collect();
         drop(e);
         self.touch();
-        Json(cast_json(&cast, min_draft, generation, stones, field))
+        Json(cast_json(&cast, min_draft, generation, stones, field, dfm))
     }
 
     #[tool(

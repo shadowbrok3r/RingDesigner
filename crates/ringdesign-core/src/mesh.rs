@@ -105,6 +105,17 @@ impl Mesh {
         (len > 1e-12).then(|| [n[0] / len, n[1] / len, n[2] / len])
     }
 
+    /// Uniformly scaled copy — the patternmaker's shrink allowance. Normals
+    /// are directions and survive a uniform scale unchanged.
+    pub fn scaled(&self, factor: f64) -> Mesh {
+        let f = factor as f32;
+        Mesh {
+            vertices: self.vertices.iter().map(|v| Vec3(v.0 * f, v.1 * f, v.2 * f)).collect(),
+            normals: self.normals.clone(),
+            faces: self.faces.clone(),
+        }
+    }
+
     /// Every edge of a closed mesh is shared by exactly two triangles.
     pub fn validate(&self) -> Validation {
         use std::collections::HashMap;
@@ -154,6 +165,12 @@ pub struct BuildParams {
     /// falls out of the tolerance rather than being chosen.
     #[serde(default)]
     pub refine: Option<RefineParams>,
+    /// As-cast preview: evaluate the height field through a Gaussian of this
+    /// radius, mm — the sand's own detail floor — so beads merge and fine
+    /// cells mush on screen the way they will in the pour. Display only;
+    /// exports and the section view stay at true geometry. Swept builds only.
+    #[serde(default)]
+    pub soften_mm: f64,
 }
 
 impl Default for BuildParams {
@@ -164,6 +181,7 @@ impl Default for BuildParams {
             min_wall_mm: MIN_WALL_MM,
             adaptive: false,
             refine: None,
+            soften_mm: 0.0,
         }
     }
 }
@@ -258,7 +276,7 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
                 let h = if p.surface && p.weight > 0.0 {
                     let v_norm = p.v_mm / loop_i.surface_len_mm.max(1e-9);
                     let uv = Uv { u, v: v_norm * ctx.band_v_len_mm };
-                    design.layers.height(uv, &ctx, lib) * p.weight
+                    soft_height(&design.layers, uv, &ctx, lib, params.soften_mm) * p.weight
                 } else {
                     0.0
                 };
@@ -423,6 +441,30 @@ pub(crate) fn grid_normals(vertices: &[Vec3], n_theta: usize, n_prof: usize) -> 
         .collect()
 }
 
+/// The stack's height through a small Gaussian — the as-cast preview. A
+/// separable 3-tap binomial at ±radius per axis: nine field reads, sigma
+/// about 0.7 of the sand's detail radius. Zero radius is the plain read.
+fn soft_height(
+    stack: &crate::field::LayerStack,
+    uv: Uv,
+    ctx: &crate::field::FieldContext,
+    lib: &AlphaLibrary,
+    radius_mm: f64,
+) -> f64 {
+    if radius_mm <= 1e-6 {
+        return stack.height(uv, ctx, lib);
+    }
+    const W: [f64; 3] = [0.25, 0.5, 0.25];
+    let offs = [-radius_mm, 0.0, radius_mm];
+    let mut acc = 0.0;
+    for (i, du) in offs.into_iter().enumerate() {
+        for (j, dv) in offs.into_iter().enumerate() {
+            acc += W[i] * W[j] * stack.height(Uv { u: uv.u + du, v: uv.v + dv }, ctx, lib);
+        }
+    }
+    acc
+}
+
 /// Area-weighted vertex normals: face normals are accumulated unnormalized, so
 /// larger triangles carry proportionally more weight.
 pub(crate) fn smooth_normals(vertices: &[Vec3], faces: &[[u32; 3]]) -> Vec<Vec3> {
@@ -483,7 +525,7 @@ mod tests {
         build(
             design,
             &AlphaLibrary::builtin(),
-            BuildParams { theta_steps: 96, profile_steps: 64, min_wall_mm: MIN_WALL_MM, adaptive: true, refine: None },
+            BuildParams { theta_steps: 96, profile_steps: 64, min_wall_mm: MIN_WALL_MM, adaptive: true, refine: None, soften_mm: 0.0 },
         )
     }
 
@@ -506,6 +548,7 @@ mod tests {
             min_wall_mm: MIN_WALL_MM,
             adaptive: false,
             refine: None,
+            soften_mm: 0.0,
         };
         let built = build(&design, &lib, params);
         let averaged = smooth_normals(&built.mesh.vertices, &built.mesh.faces);
@@ -713,6 +756,40 @@ mod tests {
         );
     }
 
+    /// The as-cast preview flattens what the sand cannot hold: beads soften,
+    /// relief peaks come down, and the mesh stays watertight. Zero radius is
+    /// bit-identical to the plain build.
+    #[test]
+    fn as_cast_softening_mushes_detail_and_keeps_the_torus() {
+        use crate::field::{Layer, LayerEntry, MilgrainLayer};
+        let mut d = RingDesign::default();
+        let mut m = MilgrainLayer::default();
+        m.bead_diameter_mm = 0.5;
+        d.layers.layers.push(LayerEntry::new("Beads", Layer::Milgrain(m)));
+
+        let params = BuildParams { theta_steps: 256, profile_steps: 96, ..Default::default() };
+        let sharp = build(&d, &AlphaLibrary::builtin(), params);
+        let soft = build(
+            &d,
+            &AlphaLibrary::builtin(),
+            BuildParams { soften_mm: 0.4, ..params },
+        );
+        assert!(soft.report.validation.watertight);
+        assert!(
+            soft.report.max_relief_mm < sharp.report.max_relief_mm * 0.9,
+            "softening left the beads standing: {:.3} vs {:.3}",
+            soft.report.max_relief_mm,
+            sharp.report.max_relief_mm
+        );
+        let zero = build(
+            &d,
+            &AlphaLibrary::builtin(),
+            BuildParams { soften_mm: 0.0, ..params },
+        );
+        assert_eq!(zero.mesh.vertices.len(), sharp.mesh.vertices.len());
+        assert_eq!(zero.report.max_relief_mm, sharp.report.max_relief_mm);
+    }
+
     /// Where a signet head's undercuts land, if it has any. The head is base
     /// geometry now, so this reads the bare band with no layer on it at all.
     ///
@@ -900,7 +977,7 @@ mod tests {
     }
 
     fn params(theta: usize, prof: usize, adaptive: bool) -> BuildParams {
-        BuildParams { theta_steps: theta, profile_steps: prof, min_wall_mm: MIN_WALL_MM, adaptive, refine: None }
+        BuildParams { theta_steps: theta, profile_steps: prof, min_wall_mm: MIN_WALL_MM, adaptive, refine: None, soften_mm: 0.0 }
     }
 
     #[test]

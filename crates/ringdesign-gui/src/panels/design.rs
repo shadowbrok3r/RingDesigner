@@ -799,6 +799,20 @@ fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let mut changed = false;
     let d = &mut app.design.draft;
 
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new("Sand").color(crate::theme::TEXT_DIM));
+        for p in ringdesign_core::castability::SandProcess::ALL {
+            if ui
+                .button(p.label())
+                .on_hover_text("Set min draft, section and detail to this sand's numbers.")
+                .clicked()
+            {
+                p.apply(d);
+                changed = true;
+            }
+        }
+    });
+
     changed |= ui
         .checkbox(&mut d.auto_parting, "Auto parting plane")
         .on_hover_text("Part the mould at the widest silhouette of the ring.")
@@ -836,6 +850,16 @@ fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         )
         .changed();
     hint(ui, "Thinnest section the metal will reliably fill.");
+
+    changed |= ui
+        .add(
+            egui::Slider::new(&mut d.min_detail_mm, 0.1..=1.0)
+                .fixed_decimals(2)
+                .suffix(" mm")
+                .text("Min detail"),
+        )
+        .changed();
+    hint(ui, "Smallest feature the sand reproduces; finer beads and cells cast as mush.");
 
     if changed {
         app.mark_dirty();

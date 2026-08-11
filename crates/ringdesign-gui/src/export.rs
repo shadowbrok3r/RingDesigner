@@ -2,9 +2,25 @@
 
 use std::path::PathBuf;
 
-use ringdesign_core::{library, stl, threemf};
+use ringdesign_core::{library, metal, stl, threemf};
 
 use crate::app::RingDesignerApp;
+
+/// The mesh to write and the name to stamp it with: scaled oversize by the
+/// chosen metal's shrink, and *named* as such — a scaled file mistaken for
+/// nominal is a ring that comes out a size small.
+fn pattern(
+    app: &RingDesignerApp,
+    mesh: &ringdesign_core::Mesh,
+) -> (ringdesign_core::Mesh, String) {
+    match app.shrink_metal.and_then(|i| metal::METALS.get(i)) {
+        Some(m) => (
+            mesh.scaled(metal::pattern_scale(m.shrink_pct)),
+            format!("{} [pattern +{:.1}% for {}]", app.design.name, m.shrink_pct, m.name),
+        ),
+        None => (mesh.clone(), app.design.name.clone()),
+    }
+}
 
 /// Directory a dialog opens in, created on demand so it is always there to
 /// browse. Everything the app writes lands under one predictable tree.
@@ -28,7 +44,8 @@ pub fn export_stl(app: &mut RingDesignerApp) {
     };
     app.set_status("Building at export resolution…");
     let out = app.build_for_export();
-    match stl::write_stl(&path, &out.mesh, &app.design.name) {
+    let (mesh, name) = pattern(app, &out.mesh);
+    match stl::write_stl(&path, &mesh, &name) {
         Ok(bytes) => {
             let v = out.report.validation;
             let warn = if v.watertight { "" } else { " • NOT watertight" };
@@ -54,8 +71,8 @@ pub fn export_obj(app: &mut RingDesignerApp) {
     };
     app.set_status("Building at export resolution…");
     let out = app.build_for_export();
-    let name = app.design.name.clone();
-    match stl::write_obj(&path, &out.mesh, &name) {
+    let (mesh, name) = pattern(app, &out.mesh);
+    match stl::write_obj(&path, &mesh, &name) {
         Ok(bytes) => app.set_status(format!(
             "Wrote {} • {} tris • {:.1} KB",
             path.display(),
@@ -78,7 +95,8 @@ pub fn export_3mf(app: &mut RingDesignerApp) {
     app.set_status("Building at export resolution…");
     let out = app.build_for_export();
     let size = app.design.size.display();
-    match threemf::write_3mf(&path, &out.mesh, &app.design.name, &size) {
+    let (mesh, name) = pattern(app, &out.mesh);
+    match threemf::write_3mf(&path, &mesh, &name, &size) {
         Ok(bytes) => app.set_status(format!(
             "Wrote {} • {} tris • {:.1} KB • units mm stated",
             path.display(),
