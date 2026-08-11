@@ -325,6 +325,47 @@ impl Alpha {
     /// Morphological opening by a cone, so no wall in the baked relief exceeds
     /// `max_wall_deg` at the given scale — the rolling-ball fairing the signet
     /// body uses, applied in 2D to a texture. Peaks too thin to support at
+    /// Signed Euclidean distance to the alpha's 0.5 crossing, in **pixels**,
+    /// positive inside the ink. Derived data for the mm-true edge mode: a
+    /// layer turns it into millimetres with its own cell scale, so the same
+    /// mask carries the same bevel at any tile size. Computed on a 3-wide
+    /// x-tiling so a seamless source stays seamless; never persisted — the
+    /// source alpha is, and this regenerates from it.
+    pub fn signed_distance_px(&self) -> Alpha {
+        let (w, h) = (self.width, self.height);
+        let name = sdf_name(&self.name);
+        if self.is_empty() {
+            return Alpha::new(name, 0, 0, Vec::new());
+        }
+        const FAR: f32 = 1e12;
+        let w3 = w * 3;
+        // Squared distance to the nearest inside pixel and nearest outside
+        // pixel; whichever side a pixel is on, one of the two is zero.
+        let mut to_ink = vec![FAR; w3 * h];
+        let mut to_ground = vec![FAR; w3 * h];
+        for y in 0..h {
+            for x3 in 0..w3 {
+                let v = self.data[y * w + x3 % w];
+                if v >= 0.5 {
+                    to_ink[y * w3 + x3] = 0.0;
+                } else {
+                    to_ground[y * w3 + x3] = 0.0;
+                }
+            }
+        }
+        for grid in [&mut to_ink, &mut to_ground] {
+            edt_squared(grid, w3, h);
+        }
+        let mut out = Vec::with_capacity(w * h);
+        for y in 0..h {
+            for x in 0..w {
+                let i = y * w3 + (x + w);
+                out.push(to_ground[i].sqrt() - to_ink[i].sqrt());
+            }
+        }
+        Alpha::new(name, w, h, out)
+    }
+
     /// that slope are removed rather than left as unmouldable cliffs.
     ///
     /// `mm_per_px` is the tile cell's pitch per texel and `relief_mm` the
@@ -418,6 +459,71 @@ impl Alpha {
             t = t.powf(c);
         }
         t.clamp(0.0, 1.0)
+    }
+}
+
+/// Library name a mask's derived signed-distance field lands under.
+pub fn sdf_name(name: &str) -> String {
+    format!("{name}##sdf")
+}
+
+/// In-place exact squared Euclidean distance transform (Felzenszwalb &
+/// Huttenlocher): a 1D lower-envelope pass down every column, then along
+/// every row.
+fn edt_squared(grid: &mut [f32], w: usize, h: usize) {
+    let n = w.max(h);
+    let mut f = vec![0.0f32; n];
+    let mut d = vec![0.0f32; n];
+    let mut v = vec![0usize; n];
+    let mut z = vec![0.0f32; n + 1];
+
+    let mut pass = |f: &[f32], d: &mut [f32], n: usize, v: &mut [usize], z: &mut [f32]| {
+        let mut k = 0usize;
+        v[0] = 0;
+        z[0] = f32::NEG_INFINITY;
+        z[1] = f32::INFINITY;
+        for q in 1..n {
+            loop {
+                let p = v[k];
+                let s = ((f[q] + (q * q) as f32) - (f[p] + (p * p) as f32))
+                    / (2.0 * (q as f32 - p as f32));
+                if s <= z[k] {
+                    if k == 0 {
+                        break;
+                    }
+                    k -= 1;
+                } else {
+                    k += 1;
+                    v[k] = q;
+                    z[k] = s;
+                    z[k + 1] = f32::INFINITY;
+                    break;
+                }
+            }
+        }
+        let mut k = 0usize;
+        for q in 0..n {
+            while z[k + 1] < q as f32 {
+                k += 1;
+            }
+            let p = v[k] as f32;
+            d[q] = (q as f32 - p) * (q as f32 - p) + f[p as usize];
+        }
+    };
+
+    for x in 0..w {
+        for y in 0..h {
+            f[y] = grid[y * w + x];
+        }
+        pass(&f, &mut d, h, &mut v, &mut z);
+        for y in 0..h {
+            grid[y * w + x] = d[y];
+        }
+    }
+    for y in 0..h {
+        f[..w].copy_from_slice(&grid[y * w..y * w + w]);
+        pass(&f, &mut d, w, &mut v, &mut z);
+        grid[y * w..y * w + w].copy_from_slice(&d[..w]);
     }
 }
 
@@ -1121,6 +1227,30 @@ impl AlphaLibrary {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_signed_distance_field_measures_a_disk() {
+        let (w, h, r) = (64usize, 64usize, 20.0f64);
+        let mut data = vec![0.0f32; w * h];
+        for y in 0..h {
+            for x in 0..w {
+                let d = ((x as f64 - 32.0).powi(2) + (y as f64 - 32.0).powi(2)).sqrt();
+                if d <= r {
+                    data[y * w + x] = 1.0;
+                }
+            }
+        }
+        let a = super::Alpha::new("disk", w, h, data);
+        let sdf = a.signed_distance_px();
+        assert_eq!(sdf.name, "disk##sdf");
+        let at = |x: usize, y: usize| sdf.data[y * w + x] as f64;
+        // Centre sits a radius inside; the corner sits well outside.
+        assert!((at(32, 32) - r).abs() < 1.6, "centre {}", at(32, 32));
+        assert!(at(2, 32) < -8.0, "far ground {}", at(2, 32));
+        // Distance changes one pixel per pixel along a radius.
+        let step = at(32 - 10, 32) - at(32 - 14, 32);
+        assert!((step - 4.0).abs() < 0.8, "gradient step {step}");
+    }
+
     use super::*;
 
     #[test]

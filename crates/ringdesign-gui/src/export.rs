@@ -240,9 +240,7 @@ pub fn open_design_path(app: &mut RingDesignerApp, path: &std::path::Path) {
     match library::load_design(path) {
         Ok(d) => {
             d.unpack_embedded(app.library_mut());
-            d.bake_drawn(app.library_mut());
-            d.bake_texts(app.library_mut());
-            d.bake_svgs(app.library_mut());
+            d.bake_all(app.library_mut());
             app.design = d;
             // A different file is a different session; the old timeline does
             // not describe it.

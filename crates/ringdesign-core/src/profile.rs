@@ -1109,6 +1109,8 @@ pub enum ShankKind {
     FlatTop,
     Split,
     Signet,
+    /// Authored stations interpolated smoothly around the ring.
+    Keyframes,
 }
 
 impl ShankKind {
@@ -1126,6 +1128,7 @@ impl ShankKind {
         ShankKind::FlatTop,
         ShankKind::Split,
         ShankKind::Signet,
+        ShankKind::Keyframes,
     ];
 
     pub fn label(self) -> &'static str {
@@ -1143,6 +1146,7 @@ impl ShankKind {
             ShankKind::FlatTop => "Flat top",
             ShankKind::Split => "Split shank",
             ShankKind::Signet => "Signet",
+            ShankKind::Keyframes => "Keyframes",
         }
     }
 
@@ -1158,6 +1162,8 @@ impl ShankKind {
                                  face, so the shank reads as two diverging rails. A real split — \
                                  two crests — cannot part from a two-part mould; the groove lives \
                                  on the side faces, whose walls stay parallel to the pull.",
+            ShankKind::Keyframes => "Your own stations around the ring — width, thickness and \
+                                     crown at each, blended smoothly and closing on itself.",
             ShankKind::Cathedral => "Shoulders swell toward the top of the ring.",
             ShankKind::Wave => {
                 "The band's edges wave along the finger while the crest stays level — one \
@@ -1411,10 +1417,31 @@ pub struct ShankStyle {
     /// as one wider head.
     #[serde(default)]
     pub extra_heads: Vec<SignetHead>,
+    /// Authored stations for [`ShankKind::Keyframes`], any order, capped at
+    /// 16. `amount` scales how far each pulls from the plain band.
+    #[serde(default)]
+    pub keys: Vec<ShankKey>,
 }
 
 fn default_waves() -> u32 {
     1
+}
+
+/// One authored station for [`ShankKind::Keyframes`].
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ShankKey {
+    /// Where round the ring, degrees. 90 is the top.
+    pub theta_deg: f64,
+    pub width_scale: f64,
+    pub thickness_scale: f64,
+    /// Crown rounding at this station; 1 is the profile's own.
+    pub crown_scale: f64,
+}
+
+impl Default for ShankKey {
+    fn default() -> Self {
+        Self { theta_deg: TOP_DEG, width_scale: 1.0, thickness_scale: 1.0, crown_scale: 1.0 }
+    }
 }
 
 impl Default for ShankStyle {
@@ -1425,6 +1452,7 @@ impl Default for ShankStyle {
             waves: default_waves(),
             head: SignetHead::default(),
             extra_heads: Vec::new(),
+            keys: Vec::new(),
         }
     }
 }
@@ -1797,6 +1825,68 @@ impl ShankStyle {
         let d = ((theta_deg - TOP_DEG).to_radians().cos() * -0.5 + 0.5).clamp(0.0, 1.0);
         match self.kind {
             ShankKind::Uniform => ShankMod::identity(),
+            ShankKind::Keyframes => {
+                let mut keys: Vec<ShankKey> = self
+                    .keys
+                    .iter()
+                    .take(16)
+                    .map(|s| ShankKey { theta_deg: s.theta_deg.rem_euclid(360.0), ..*s })
+                    .collect();
+                if keys.is_empty() {
+                    return ShankMod::identity();
+                }
+                keys.sort_by(|a, b| a.theta_deg.total_cmp(&b.theta_deg));
+                let read = |kk: &ShankKey| [kk.width_scale, kk.thickness_scale, kk.crown_scale];
+                let vals = if keys.len() == 1 {
+                    read(&keys[0])
+                } else {
+                    // Periodic Catmull-Rom: the segment containing theta,
+                    // with both neighbours wrapped round the joint.
+                    let n = keys.len();
+                    let t360 = theta_deg.rem_euclid(360.0);
+                    let i1 = match keys.iter().rposition(|kk| kk.theta_deg <= t360) {
+                        Some(i) => i,
+                        None => n - 1,
+                    };
+                    let i0 = (i1 + n - 1) % n;
+                    let i2 = (i1 + 1) % n;
+                    let i3 = (i1 + 2) % n;
+                    let a1 = keys[i1].theta_deg;
+                    let mut a2 = keys[i2].theta_deg;
+                    if a2 <= a1 {
+                        a2 += 360.0;
+                    }
+                    let mut t = t360;
+                    if t < a1 {
+                        t += 360.0;
+                    }
+                    let f = ((t - a1) / (a2 - a1).max(1e-9)).clamp(0.0, 1.0);
+                    let (p0, p1, p2, p3) =
+                        (read(&keys[i0]), read(&keys[i1]), read(&keys[i2]), read(&keys[i3]));
+                    let mut out = [0.0; 3];
+                    for c in 0..3 {
+                        let (v0, v1, v2, v3) = (p0[c], p1[c], p2[c], p3[c]);
+                        let f2 = f * f;
+                        let f3 = f2 * f;
+                        out[c] = 0.5
+                            * ((2.0 * v1)
+                                + (v2 - v0) * f
+                                + (2.0 * v0 - 5.0 * v1 + 4.0 * v2 - v3) * f2
+                                + (3.0 * v1 - v2 - 3.0 * v0 + v3) * f3);
+                    }
+                    out
+                };
+                // `amount` is the master strength, and Catmull-Rom can
+                // overshoot, so the result is pulled toward 1 then clamped
+                // to sane section scales.
+                let mix = |v: f64, lo: f64, hi: f64| (1.0 + (v - 1.0) * k).clamp(lo, hi);
+                ShankMod {
+                    width_scale: mix(vals[0], 0.3, 3.0),
+                    thickness_scale: mix(vals[1], 0.3, 3.0),
+                    crown_scale: mix(vals[2], 0.0, 2.5),
+                    ..ShankMod::identity()
+                }
+            }
             ShankKind::Pinched => {
                 // Waist concentrated just off the top, on both shoulders.
                 let p = (((theta_deg - TOP_DEG).to_radians().cos() * 0.5 + 0.5) as f64).powi(3);
@@ -3125,6 +3215,7 @@ mod tests {
             amount: (1.0 - 7.0 / 16.0) / (1.0 - SIGNET_MIN_SHANK_FRAC),
             waves: 1,
             extra_heads: Vec::new(),
+            keys: Vec::new(),
             head: SignetHead {
                 outline: SignetOutline::Round,
                 length_mm: 14.7,
@@ -3355,6 +3446,55 @@ mod tests {
                 "{kind:?} moved the band off centre"
             );
         }
+    }
+
+    #[test]
+    fn keyframes_interpolate_periodically_and_still_release() {
+        use crate::alpha::AlphaLibrary;
+        let mut d = crate::RingDesign::default();
+        d.shank.kind = ShankKind::Keyframes;
+        d.shank.amount = 1.0;
+        d.shank.keys = vec![
+            ShankKey { theta_deg: TOP_DEG, width_scale: 1.5, thickness_scale: 1.3, crown_scale: 1.0 },
+            ShankKey { theta_deg: TOP_DEG + 120.0, width_scale: 0.8, thickness_scale: 0.9, crown_scale: 1.2 },
+            ShankKey { theta_deg: TOP_DEG + 240.0, width_scale: 0.8, thickness_scale: 0.9, crown_scale: 0.6 },
+        ];
+        let ir = d.inner_radius_mm();
+        let cr = ir + d.profile.thickness_mm;
+
+        // Authored stations are hit exactly (a knot on the curve).
+        let m = d.shank.modulation(TOP_DEG, ir, cr);
+        assert!((m.width_scale - 1.5).abs() < 1e-9, "{}", m.width_scale);
+
+        // Continuous across the 0/360 joint: value and slope agree.
+        let a = d.shank.modulation(0.05, ir, cr).width_scale;
+        let b = d.shank.modulation(359.95, ir, cr).width_scale;
+        assert!((a - b).abs() < 2e-3, "joint tears: {a} vs {b}");
+        let da = d.shank.modulation(0.55, ir, cr).width_scale - a;
+        let db = b - d.shank.modulation(359.45, ir, cr).width_scale;
+        assert!((da - db).abs() < 2e-3, "joint kinks: {da} vs {db}");
+
+        // `amount` at zero is the plain band.
+        d.shank.amount = 0.0;
+        let m0 = d.shank.modulation(TOP_DEG, ir, cr);
+        assert!((m0.width_scale - 1.0).abs() < 1e-9);
+        d.shank.amount = 1.0;
+
+        // And an authored band still pulls from the sand.
+        let lib = AlphaLibrary::builtin();
+        let out = crate::mesh::build(
+            &d,
+            &lib,
+            crate::BuildParams { theta_steps: 192, profile_steps: 96, ..Default::default() },
+        );
+        assert!(out.report.validation.watertight);
+        let field = crate::castability::analyze_field(&d, &lib, &d.draft, 160, 96);
+        assert_ne!(
+            field.verdict,
+            crate::castability::Verdict::NotCastable,
+            "{:?}",
+            field.notes
+        );
     }
 
     /// A head has to be able to sit anywhere round the ring, including across

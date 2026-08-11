@@ -49,9 +49,7 @@ fn run(args: &[String]) -> anyhow::Result<()> {
     let design = load(design_path)?;
     let mut lib = AlphaLibrary::builtin();
     design.unpack_embedded(&mut lib);
-    design.bake_drawn(&mut lib);
-    design.bake_texts(&mut lib);
-    design.bake_svgs(&mut lib);
+    design.bake_all(&mut lib);
 
     match cmd {
         "check" => check(&design, &lib),

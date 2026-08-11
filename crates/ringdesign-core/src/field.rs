@@ -94,6 +94,9 @@ pub struct FieldContext {
     /// Base geometry across the cross-section. Empty when unknown, in which
     /// case a layer needing it falls back to riding the surface.
     pub surface: SurfaceProfile,
+    /// Radius of the finger hole, mm. 0 when unknown, which disables the
+    /// layers that carve relative to it.
+    pub bore_radius_mm: f64,
     /// Side-face runs at the standard threshold, found on first use. A gate
     /// reads this per sample, and the walk behind it is far too slow for that.
     pub side_faces_cache: std::sync::OnceLock<Option<SideFaces>>,
@@ -457,6 +460,8 @@ pub enum Layer {
     Curve(crate::curve::CurveLayer),
     /// Parallel reeds or grooves with exact wall geometry.
     Flutes(FlutesLayer),
+    /// Drafted excavation toward a floor over the bore — the pierced look.
+    Openwork(OpenworkLayer),
     /// Free-placed motif stamps.
     Decals(DecalLayer),
     /// A row of identical seats — eternity stock.
@@ -485,6 +490,7 @@ impl Layer {
             Layer::Flutes(_) => "Flutes",
             Layer::Decals(_) => "Decals",
             Layer::SeatRun(_) => "Seat Run",
+            Layer::Openwork(_) => "Openwork",
         }
     }
 
@@ -509,6 +515,7 @@ impl Layer {
             Layer::Flutes(l) => l.height(uv, ctx),
             Layer::Decals(l) => l.height(uv, ctx, lib),
             Layer::SeatRun(l) => l.height(uv, ctx),
+            Layer::Openwork(l) => l.height(uv, ctx, lib),
         }
     }
 
@@ -574,7 +581,53 @@ impl Layer {
             }],
             Layer::Decals(l) => l.feature_footprints(ctx),
             Layer::SeatRun(l) => l.feature_footprints(ctx),
+            Layer::Openwork(l) => l.tiling.feature_footprints_as_tiling(ctx),
         }
+    }
+}
+
+/// Pierced-look carving: the mask's ink is excavated toward a floor that
+/// keeps `keep_mm` of metal standing over the finger hole. Walls ramp over
+/// the inner tiling's `edge_mm` distance field so they carry the same
+/// drafted width at any tile size, and the floor approach is smoothstepped
+/// so neither end of the wall creases. The carve depth follows the local
+/// base thickness — deep under a crest, shallow at a thin edge — which is
+/// what makes the result read as piercing without ever piercing.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct OpenworkLayer {
+    /// Placement lattice and mask. Its `height_mm` is a 0..1 coverage scale
+    /// (leave it 1), and its `edge_mm` is the wall ramp; ink is depth.
+    pub tiling: TilingLayer,
+    /// Deepest carve along the normal, mm.
+    pub depth_mm: f64,
+    /// Metal left standing over the bore, mm.
+    pub keep_mm: f64,
+}
+
+impl OpenworkLayer {
+    pub fn height(&self, uv: Uv, ctx: &FieldContext, lib: &AlphaLibrary) -> f64 {
+        if ctx.bore_radius_mm <= 1e-9 || ctx.surface.is_empty() {
+            return 0.0;
+        }
+        let scale = self.tiling.height_mm;
+        if !(scale > 1e-9) {
+            return 0.0;
+        }
+        let cov = (self.tiling.height(uv, ctx, lib) / scale).clamp(0.0, 1.0);
+        if cov <= 0.0 {
+            return 0.0;
+        }
+        let Some((r, nr)) = ctx.surface.at(uv.v, ctx.band_v_len_mm) else {
+            return 0.0;
+        };
+        // A carve of depth D along the normal eats D·nr of radial metal, so
+        // the floor over the finger hole caps D at radial/nr. On a side face
+        // nr is ~0 and the cap opens up — the side-face doctrine's home for
+        // deep carves — leaving `depth_mm` as the only limit there.
+        let radial = (r - ctx.bore_radius_mm - self.keep_mm.max(0.2)).max(0.0);
+        let depth = self.depth_mm.clamp(0.0, 6.0).min(radial / nr.clamp(0.05, 1.0));
+        let s = cov * cov * (3.0 - 2.0 * cov);
+        -(s * depth)
     }
 }
 
@@ -2267,8 +2320,109 @@ mod tests {
             crest_v_mm: 4.0,
             crest_radius_mm: 9.5,
             surface: Default::default(),
+            bore_radius_mm: 8.5,
             side_faces_cache: Default::default(),
         }
+    }
+
+    /// The doctrine in two acts: a deep carve on a side face releases at any
+    /// depth, and the same carve turned onto the crown is caught by the
+    /// field verdict — which is why the preset gates to a side face.
+    #[test]
+    fn openwork_carves_deep_on_a_side_face_and_the_crown_is_caught() {
+        use crate::alpha::AlphaLibrary;
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 8.0;
+        d.profile.thickness_mm = 2.4;
+        d.profile.flatten_sides();
+        let fc = d.field_context();
+
+        let mut lib = AlphaLibrary::builtin();
+        // One large round window per tile: distance to the rim comfortably
+        // exceeds the wall ramp, so the full depth is reached.
+        let n = 128usize;
+        let mut mask = vec![0.0f32; n * n];
+        for y in 0..n {
+            for x in 0..n {
+                let dx = x as f64 / n as f64 - 0.5;
+                let dy = y as f64 / n as f64 - 0.5;
+                if (dx * dx + dy * dy).sqrt() < 0.36 {
+                    mask[y * n + x] = 1.0;
+                }
+            }
+        }
+        lib.insert(crate::alpha::Alpha::new("window", n, n, mask));
+        let mut t = crate::tiling::TilingLayer::default_for("window", &fc);
+        t.fit_to_side_faces(&fc, SIDE_FACE_MIN_DRAFT_DEG);
+        t.repeats_around = 9;
+        t.height_mm = 1.0;
+        t.edge_mm = 0.35;
+        t.feather_mm = 0.0;
+        t.continuous = false;
+        let o = OpenworkLayer { tiling: t, depth_mm: 1.2, keep_mm: 1.0 };
+        let mut e = LayerEntry::new("Openwork", Layer::Openwork(o));
+        // Carving must Add: the default Max would swallow a negative layer.
+        e.blend = Blend::Add;
+        e.window.v_gate = VGate::SideFaces(SideFacePick::Wider);
+        d.layers.layers.push(e);
+        d.bake_all(&mut lib);
+
+        // Full commanded depth on the gated face.
+        let (lo, hi) = fc.side_faces_std().and_then(|f| f.wider()).expect("side face");
+        let v = 0.5 * (lo + hi);
+        let mut deepest = 0.0f64;
+        for k in 0..2000 {
+            let u = k as f64 / 2000.0 * fc.circumference_mm;
+            deepest = deepest.min(d.layers.height(Uv { u, v }, &fc, &lib));
+        }
+        assert!(
+            (deepest + 1.2).abs() < 0.1,
+            "side-face carve missed its depth: {deepest}"
+        );
+
+        // Deep on a face parallel to the pull: still releases.
+        let out = crate::mesh::build(
+            &d,
+            &lib,
+            crate::BuildParams { theta_steps: 192, profile_steps: 96, ..Default::default() },
+        );
+        assert!(out.report.validation.watertight);
+        let field = crate::castability::analyze_field(&d, &lib, &d.draft, 160, 96);
+        assert_ne!(
+            field.verdict,
+            crate::castability::Verdict::NotCastable,
+            "{:?}",
+            field.notes
+        );
+
+        // Act two: the same carve across the crown locks in the sand, and
+        // the verdict says so — the floor cap over the bore still holds.
+        let Layer::Openwork(o) = &mut d.layers.layers[0].layer else { panic!() };
+        o.tiling.v_center_mm = fc.crest_v_mm;
+        o.tiling.v_span_mm = 4.5;
+        o.tiling.mirror_v = false;
+        o.depth_mm = 6.0;
+        d.layers.layers[0].window.v_gate = VGate::Off;
+        let v = fc.crest_v_mm;
+        let mut deepest = 0.0f64;
+        for k in 0..2000 {
+            let u = k as f64 / 2000.0 * fc.circumference_mm;
+            deepest = deepest.min(d.layers.height(Uv { u, v }, &fc, &lib));
+        }
+        let (r, _) = fc.surface.at(v, fc.band_v_len_mm).expect("surface");
+        let metal_left = (r - fc.bore_radius_mm) + deepest;
+        assert!(
+            metal_left > 0.97,
+            "floor broke through: {metal_left:.3} mm"
+        );
+        let field = crate::castability::analyze_field(&d, &lib, &d.draft, 160, 96);
+        assert_eq!(
+            field.verdict,
+            crate::castability::Verdict::NotCastable,
+            "a deep crown carve should be caught: {:?}",
+            field.notes
+        );
     }
 
     #[test]

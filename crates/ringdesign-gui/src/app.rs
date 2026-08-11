@@ -206,9 +206,7 @@ impl RingDesignerApp {
             .and_then(|s| s.get_string(DESIGN_STORAGE_KEY))
             .and_then(|j| serde_json::from_str::<RingDesign>(&j).ok())
             .unwrap_or_default();
-        design.bake_drawn(&mut lib);
-        design.bake_texts(&mut lib);
-        design.bake_svgs(&mut lib);
+        design.bake_all(&mut lib);
 
         let workspace = cc
             .storage

@@ -616,9 +616,67 @@ fn shank(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         changed |= signet_head(app, ui);
     }
 
+    if app.design.shank.kind == ShankKind::Keyframes {
+        changed |= shank_keys(app, ui);
+    }
+
     if changed {
         app.mark_dirty();
     }
+}
+
+/// Authored stations for the keyframed shank: a row per key, blended
+/// smoothly and periodically by the modulation.
+fn shank_keys(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
+    use ringdesign_core::profile::ShankKey;
+    let mut changed = false;
+    let keys = &mut app.design.shank.keys;
+    let mut remove: Option<usize> = None;
+    for (i, k) in keys.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            ui.push_id(i, |ui| {
+                changed |= ui
+                    .add(
+                        egui::DragValue::new(&mut k.theta_deg)
+                            .speed(0.5)
+                            .range(0.0..=360.0)
+                            .suffix(" deg"),
+                    )
+                    .on_hover_text("Where round the ring; 90 is the top")
+                    .changed();
+                changed |= ui
+                    .add(egui::DragValue::new(&mut k.width_scale).speed(0.01).range(0.3..=3.0).prefix("w "))
+                    .changed();
+                changed |= ui
+                    .add(egui::DragValue::new(&mut k.thickness_scale).speed(0.01).range(0.3..=3.0).prefix("t "))
+                    .changed();
+                changed |= ui
+                    .add(egui::DragValue::new(&mut k.crown_scale).speed(0.01).range(0.0..=2.5).prefix("c "))
+                    .changed();
+                if ui.small_button(icon::TRASH).clicked() {
+                    remove = Some(i);
+                }
+            });
+        });
+    }
+    if let Some(i) = remove {
+        keys.remove(i);
+        changed = true;
+    }
+    if keys.len() < 16 && ui.button(format!("{} Add station", icon::PLUS)).clicked() {
+        // New stations land on whichever preset angle is still free.
+        let presets = [90.0, 270.0, 0.0, 180.0, 45.0, 135.0, 225.0, 315.0];
+        let taken: Vec<f64> = keys.iter().map(|k| k.theta_deg).collect();
+        let theta = presets
+            .iter()
+            .copied()
+            .find(|p| taken.iter().all(|t| (t - p).abs() > 1.0))
+            .unwrap_or(90.0);
+        keys.push(ShankKey { theta_deg: theta, ..ShankKey::default() });
+        changed = true;
+    }
+    hint(ui, "Width, thickness and crown at each station, blended smoothly around the ring.");
+    changed
 }
 
 /// The head is the band, so it lives here with the rest of the base geometry.

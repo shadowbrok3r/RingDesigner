@@ -194,9 +194,7 @@ impl DesignEngine {
     pub fn load_design(&mut self, path: impl AsRef<Path>) -> anyhow::Result<()> {
         let design = library::load_design(path)?;
         design.unpack_embedded(Arc::make_mut(&mut self.lib));
-        design.bake_drawn(Arc::make_mut(&mut self.lib));
-        design.bake_texts(Arc::make_mut(&mut self.lib));
-        design.bake_svgs(Arc::make_mut(&mut self.lib));
+        design.bake_all(Arc::make_mut(&mut self.lib));
         self.set_design(design);
         Ok(())
     }

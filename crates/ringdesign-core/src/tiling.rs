@@ -32,6 +32,84 @@ impl TileCell {
     }
 }
 
+/// A smooth bend of the tiling's `v` toward a guide line drawn around the
+/// ring — the pattern flows along the curve instead of running level. The
+/// warp lives entirely in sampling space, so what it does to castability is
+/// exactly what the same pattern drawn at the bent position would do.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct WarpField {
+    /// Guide stations: `(u as 0..1 around the ring, v mm)`. Any order;
+    /// interpolated periodically, capped at 32.
+    pub points: Vec<[f64; 2]>,
+    /// How far rows bend to follow the guide, 0..1.
+    pub strength: f64,
+    /// Influence half-width across the band, mm.
+    pub falloff_mm: f64,
+}
+
+impl Default for WarpField {
+    fn default() -> Self {
+        Self { points: Vec::new(), strength: 1.0, falloff_mm: 3.0 }
+    }
+}
+
+impl WarpField {
+    /// The guide's `v` at a ring position, periodic Catmull-Rom.
+    pub fn guide_v(&self, u_frac: f64) -> Option<f64> {
+        let mut pts: Vec<[f64; 2]> = self
+            .points
+            .iter()
+            .take(32)
+            .map(|p| [p[0].rem_euclid(1.0), p[1]])
+            .collect();
+        match pts.len() {
+            0 => None,
+            1 => Some(pts[0][1]),
+            _ => {
+                pts.sort_by(|a, b| a[0].total_cmp(&b[0]));
+                let n = pts.len();
+                let x = u_frac.rem_euclid(1.0);
+                let i1 = pts.iter().rposition(|p| p[0] <= x).unwrap_or(n - 1);
+                let (i0, i2, i3) = ((i1 + n - 1) % n, (i1 + 1) % n, (i1 + 2) % n);
+                let x1 = pts[i1][0];
+                let mut x2 = pts[i2][0];
+                if x2 <= x1 {
+                    x2 += 1.0;
+                }
+                let mut xx = x;
+                if xx < x1 {
+                    xx += 1.0;
+                }
+                let f = ((xx - x1) / (x2 - x1).max(1e-9)).clamp(0.0, 1.0);
+                let (v0, v1, v2, v3) = (pts[i0][1], pts[i1][1], pts[i2][1], pts[i3][1]);
+                let (f2, f3) = (f * f, f * f * f);
+                Some(
+                    0.5 * ((2.0 * v1)
+                        + (v2 - v0) * f
+                        + (2.0 * v0 - 5.0 * v1 + 4.0 * v2 - v3) * f2
+                        + (3.0 * v1 - v2 - 3.0 * v0 + v3) * f3),
+                )
+            }
+        }
+    }
+
+    /// Warp a sample's `v`. Rows within the falloff of the guide bend to
+    /// follow its deviation from the guide's own mean line.
+    pub fn apply(&self, u_frac: f64, v: f64) -> f64 {
+        let Some(vg) = self.guide_v(u_frac) else { return v };
+        if self.points.len() < 2 {
+            return v;
+        }
+        let mean: f64 =
+            self.points.iter().take(32).map(|p| p[1]).sum::<f64>() / self.points.len().min(32) as f64;
+        let dv = vg - mean;
+        let fall = self.falloff_mm.max(1e-6);
+        let t = ((v - vg).abs() / fall).clamp(0.0, 1.0);
+        let f = 1.0 - t * t * (3.0 - 2.0 * t);
+        v - dv * self.strength.clamp(0.0, 1.0) * f
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TilingLayer {
     /// Name of the alpha in the [`AlphaLibrary`].
@@ -70,6 +148,14 @@ pub struct TilingLayer {
     /// layer covers both side faces.
     #[serde(default)]
     pub mirror_v: bool,
+    /// Millimetres of rise at the ink's edge, read off the alpha's distance
+    /// field: the bevel stays this wide at any tile size. 0 keeps the
+    /// classic brightness-is-height response.
+    #[serde(default)]
+    pub edge_mm: f64,
+    /// Bend the rows to follow a guide line drawn around the ring.
+    #[serde(default)]
+    pub warp: Option<WarpField>,
 }
 
 impl TilingLayer {
@@ -95,6 +181,8 @@ impl TilingLayer {
             feather_mm: 0.4,
             continuous: true,
             mirror_v: false,
+            edge_mm: 0.0,
+            warp: None,
         }
     }
 
@@ -150,6 +238,16 @@ impl TilingLayer {
         true
     }
 
+    /// This tiling's feature footprints, for a wrapper layer that reuses the
+    /// lattice (openwork). Same data [`crate::field::Layer::feature_footprints`]
+    /// derives for a plain tiling.
+    pub fn feature_footprints_as_tiling(
+        &self,
+        ctx: &FieldContext,
+    ) -> Vec<crate::field::FeatureFootprint> {
+        crate::field::Layer::Tiling(self.clone()).feature_footprints(ctx)
+    }
+
     /// Cell size in unrolled mm: `(u extent, v extent)`.
     pub fn cell_size(&self, ctx: &FieldContext) -> (f64, f64) {
         let cols = self.repeats_around.max(1) as f64;
@@ -176,6 +274,13 @@ impl TilingLayer {
     fn height_at(&self, uv: Uv, ctx: &FieldContext, lib: &AlphaLibrary) -> f64 {
         let Some(alpha) = lib.get(&self.alpha) else {
             return 0.0;
+        };
+        let uv = match &self.warp {
+            Some(w) if ctx.circumference_mm > 1e-9 => Uv {
+                u: uv.u,
+                v: w.apply(uv.u / ctx.circumference_mm, uv.v),
+            },
+            _ => uv,
         };
         let (lo, hi) = self.v_bounds();
         if !uv.u.is_finite() || !lo.is_finite() || !hi.is_finite() || !(uv.v >= lo && uv.v <= hi) {
@@ -225,8 +330,33 @@ impl TilingLayer {
         let sx = x * cos - y * sin + 0.5;
         let sy = x * sin + y * cos + 0.5;
 
-        let raw = if self.continuous { alpha.sample_wrapped(sx, sy) } else { alpha.sample(sx, sy) };
-        let mut h = alpha.shaped(raw, self.contrast, self.bias, self.invert) * self.height_mm;
+        let edge = fin(self.edge_mm).max(0.0);
+        let sdf = (edge > 1e-9)
+            .then(|| lib.get(&crate::alpha::sdf_name(&self.alpha)))
+            .flatten();
+        let mut h = match sdf {
+            Some(sdf) if !sdf.is_empty() => {
+                // mm-true edge: the distance field is in source pixels, and
+                // this layer's cell size says what a pixel is in mm.
+                let d_px = if self.continuous {
+                    sdf.sample_wrapped(sx, sy)
+                } else {
+                    sdf.sample(sx, sy)
+                } as f64;
+                let mm_per_px =
+                    0.5 * (cw / sdf.width.max(1) as f64 + ch / sdf.height.max(1) as f64);
+                let d_mm = d_px * mm_per_px * if self.invert { -1.0 } else { 1.0 };
+                (d_mm / edge).clamp(0.0, 1.0) * self.height_mm
+            }
+            _ => {
+                let raw = if self.continuous {
+                    alpha.sample_wrapped(sx, sy)
+                } else {
+                    alpha.sample(sx, sy)
+                };
+                alpha.shaped(raw, self.contrast, self.bias, self.invert) * self.height_mm
+            }
+        };
 
         let feather = fin(self.feather_mm);
         if feather > 1e-9 {
@@ -306,6 +436,123 @@ fn clip_v(v: f64, lo: f64, hi: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_warp_bends_rows_along_the_guide_and_wraps() {
+        use crate::alpha::AlphaLibrary;
+        use crate::field::Uv;
+
+        // A single bright horizontal stripe through the middle of the tile.
+        let n = 64usize;
+        let mut data = vec![0.0f32; n * n];
+        for y in n * 2 / 5..n * 3 / 5 {
+            for x in 0..n {
+                data[y * n + x] = 1.0;
+            }
+        }
+        let mut lib = AlphaLibrary::default();
+        lib.insert(crate::alpha::Alpha::new("stripe", n, n, data));
+
+        let d = crate::RingDesign::default();
+        let ctx = d.field_context();
+        let mut t = TilingLayer::default_for("stripe", &ctx);
+        t.rows = 1;
+        t.height_mm = 1.0;
+        t.feather_mm = 0.0;
+        t.continuous = false;
+        let v_mid = t.v_center_mm;
+        // A two-station sine: high at 0, low half way round.
+        t.warp = Some(WarpField {
+            points: vec![[0.0, v_mid + 1.0], [0.5, v_mid - 1.0]],
+            strength: 1.0,
+            falloff_mm: 50.0,
+        });
+
+        // Where the stripe sits: the height-weighted centroid across the
+        // band, immune to the stripe's flat top.
+        let peak_v = |u_frac: f64| -> f64 {
+            let u = u_frac * ctx.circumference_mm;
+            let (mut num, mut den) = (0.0, 0.0);
+            for k in 0..600 {
+                let v = k as f64 / 600.0 * ctx.band_v_len_mm;
+                let h = t.height(Uv { u, v }, &ctx, &lib);
+                num += v * h;
+                den += h;
+            }
+            num / den.max(1e-9)
+        };
+        let hi = peak_v(0.0);
+        let lo = peak_v(0.5);
+        assert!(hi - v_mid > 0.6, "stripe did not rise at the guide's high: {hi} vs {v_mid}");
+        assert!(v_mid - lo > 0.6, "stripe did not dip at the guide's low: {lo} vs {v_mid}");
+
+        // Continuous across the ring joint.
+        let a = peak_v(0.999);
+        let b = peak_v(0.001);
+        assert!((a - b).abs() < 0.15, "warp tears at the joint: {a} vs {b}");
+    }
+
+    #[test]
+    fn the_edge_bevel_is_the_same_millimetres_at_any_tile_size() {
+        use crate::alpha::AlphaLibrary;
+        use crate::field::Uv;
+
+        // A hard vertical edge: ink on the left half of the tile.
+        let n = 64usize;
+        let mut data = vec![0.0f32; n * n];
+        for y in 0..n {
+            for x in 0..n / 2 {
+                data[y * n + x] = 1.0;
+            }
+        }
+        let mask = crate::alpha::Alpha::new("edge-mask", n, n, data);
+        let mut lib = AlphaLibrary::default();
+        lib.insert(mask.signed_distance_px());
+        lib.insert(mask);
+
+        let d = crate::RingDesign::default();
+        let ctx = d.field_context();
+        let edge = 0.4;
+        let rise_of = |repeats: u32| -> f64 {
+            let mut t = TilingLayer::default_for("edge-mask", &ctx);
+            t.repeats_around = repeats;
+            t.rows = 1;
+            t.height_mm = 0.5;
+            t.continuous = false;
+            t.feather_mm = 0.0;
+            t.edge_mm = edge;
+            let v = t.v_center_mm;
+            let (cw, _) = t.cell_size(&ctx);
+            // The ink fills the left half-cell, so one descending ramp sits
+            // mid-cell: bracket it between the 95% and 5% crossings.
+            let (mut top, mut bottom) = (f64::NAN, f64::NAN);
+            let steps = 4000;
+            for k in 0..steps {
+                let u = k as f64 / steps as f64 * cw;
+                let h = t.height(Uv { u, v }, &ctx, &lib);
+                if h >= 0.475 {
+                    top = u;
+                }
+                if bottom.is_nan() && !top.is_nan() && h <= 0.025 {
+                    bottom = u;
+                }
+            }
+            bottom - top
+        };
+
+        let (a, b) = (rise_of(4), rise_of(12));
+        // Bilinear sampling widens the ramp by about half a texel, which is
+        // the raster SDF's honest precision floor — everything past that is
+        // the commanded bevel, not the tile size.
+        let px = |repeats: f64| ctx.circumference_mm / repeats / n as f64;
+        let want = edge * 0.9;
+        let (wa, wb) = (want + 0.5 * px(4.0), want + 0.5 * px(12.0));
+        assert!((a - wa).abs() < want * 0.25, "rise {a:.3} vs {wa:.3}");
+        assert!((b - wb).abs() < want * 0.25, "rise {b:.3} vs {wb:.3}");
+        // The whole point: the cells differ 3x, the bevels stay within a
+        // texel of each other in mm.
+        assert!((a - b).abs() < px(4.0), "bevels differ: {a:.3} vs {b:.3}");
+    }
+
     use super::*;
     use crate::alpha::{Alpha, Procedural};
 
@@ -316,6 +563,7 @@ mod tests {
             crest_v_mm: 4.0,
             crest_radius_mm: 9.549_296_585_513_72,
             surface: Default::default(),
+            bore_radius_mm: 8.5,
             side_faces_cache: Default::default(),
         }
     }
@@ -349,6 +597,8 @@ mod tests {
             feather_mm: 0.0,
             continuous: false,
             mirror_v: false,
+            edge_mm: 0.0,
+            warp: None,
         }
     }
 

@@ -156,6 +156,33 @@ fn add_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             ui.close();
         }
         if ui
+            .button(format!("{} Openwork", icon::EXCLUDE))
+            .on_hover_text(
+                "Carve the mask's ink toward a floor over the finger hole — the pierced                  look, with drafted walls. Lands on the wider side face.",
+            )
+            .clicked()
+        {
+            let ctx = app.design.field_context();
+            let mut t = ringdesign_core::tiling::TilingLayer::default_for("Beads", &ctx);
+            let on_side = t.fit_to_side_faces(&ctx, ringdesign_core::field::SIDE_FACE_MIN_DRAFT_DEG);
+            t.repeats_around = 9;
+            t.height_mm = 1.0;
+            t.edge_mm = 0.35;
+            t.feather_mm = 0.0;
+            if let Some(src) = app.lib.get("Beads").cloned() {
+                app.library_mut().insert(src.signed_distance_px());
+            }
+            let o = ringdesign_core::field::OpenworkLayer { tiling: t, depth_mm: 1.2, keep_mm: 0.8 };
+            app.add_layer("Openwork", Layer::Openwork(o));
+            if let Some(e) = app.design.layers.layers.last_mut() {
+                e.blend = ringdesign_core::field::Blend::Add;
+                if on_side {
+                    e.window.v_gate = VGate::SideFaces(SideFacePick::Wider);
+                }
+            }
+            ui.close();
+        }
+        if ui
             .button(format!("{} Channel set", icon::MINUS_SQUARE))
             .on_hover_text(
                 "Two rails and a recessed channel on the wider side face — the one place \
@@ -222,7 +249,69 @@ fn kind_icon(layer: &Layer) -> &'static str {
         Layer::Flutes(_) => icon::ROWS,
         Layer::Decals(_) => icon::STAMP,
         Layer::SeatRun(_) => icon::CIRCLES_FOUR,
+        Layer::Openwork(_) => icon::EXCLUDE,
     }
+}
+
+/// Editor for an openwork carve: the lattice controls are the tiling's own,
+/// plus the floor.
+fn openwork(
+    ui: &mut egui::Ui,
+    o: &mut ringdesign_core::field::OpenworkLayer,
+    fctx: &FieldContext,
+    names: &[String],
+) -> bool {
+    let mut c = false;
+    ui.label(
+        egui::RichText::new(
+            "Ink is carved toward a floor over the finger hole. Walls ramp over the              mask's crisp-edge distance, so give the lattice an Edge value.",
+        )
+        .small()
+        .color(theme::TEXT_DIM),
+    );
+    ui.add_space(2.0);
+    c |= grid(ui, "openwork_floor", |ui| {
+        let mut c = false;
+        ui.label("Depth");
+        c |= ui
+            .add(
+                egui::DragValue::new(&mut o.depth_mm)
+                    .speed(0.01)
+                    .range(0.1..=4.0)
+                    .suffix(" mm"),
+            )
+            .on_hover_text("Deepest carve along the surface normal. Deep is safe on a side face; the floor over the bore still caps it everywhere.")
+            .changed();
+        ui.end_row();
+
+        ui.label("Keep over bore");
+        c |= ui
+            .add(
+                egui::DragValue::new(&mut o.keep_mm)
+                    .speed(0.01)
+                    .range(0.3..=2.5)
+                    .suffix(" mm"),
+            )
+            .on_hover_text("Metal left standing under the deepest carve")
+            .changed();
+        ui.end_row();
+
+        ui.label("Wall ramp");
+        c |= ui
+            .add(
+                egui::DragValue::new(&mut o.tiling.edge_mm)
+                    .speed(0.01)
+                    .range(0.05..=1.5)
+                    .suffix(" mm"),
+            )
+            .on_hover_text("Width of the drafted wall from rim to floor, mm-true at any tile size")
+            .changed();
+        ui.end_row();
+        c
+    });
+    let mut no_bake = None;
+    c |= tiling(ui, &mut o.tiling, fctx, names, None, &mut no_bake);
+    c
 }
 
 fn list(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
@@ -536,10 +625,20 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
                 Layer::Flutes(f) => flutes(ui, f),
                 Layer::Decals(d) => decals(ui, d, &fctx, &names),
                 Layer::SeatRun(r) => seat_run(ui, r, &fctx),
+                Layer::Openwork(o) => openwork(ui, o, &fctx, &names),
             };
             dirty
         })
         .inner;
+    if dirty
+        && let Layer::Tiling(t) = &app.design.layers.layers[i].layer
+        && t.edge_mm > 1e-9
+        && let Some(src) = app.lib.get(&t.alpha).cloned()
+    {
+        // The crisp-edge mode reads the alpha's distance field; keep it
+        // derived the moment the control moves.
+        app.library_mut().insert(src.signed_distance_px());
+    }
     if let Some(deg) = bake_draft {
         let baked = match &app.design.layers.layers[i].layer {
             Layer::Tiling(t) => app.lib.get(&t.alpha).map(|a| {
@@ -812,6 +911,69 @@ fn tiling(
             .changed();
         ui.end_row();
 
+        ui.label("Flow");
+        ui.horizontal(|ui| {
+            let mut on = t.warp.is_some();
+            if ui
+                .checkbox(&mut on, "warp")
+                .on_hover_text(
+                    "Bend the rows to follow a wave drawn around the ring. The guide is a                      point list; this builds a sine, and MCP or a later editor can author                      any shape into it.",
+                )
+                .changed()
+            {
+                t.warp = on.then(|| sine_warp(t.v_center_mm, 1.2, 2));
+                c = true;
+            }
+            if let Some(w) = t.warp.as_mut() {
+                let amp_id = egui::Id::new("warp_amp");
+                let waves_id = egui::Id::new("warp_waves");
+                let mut amp: f64 = ui.memory(|m| m.data.get_temp(amp_id)).unwrap_or(1.2);
+                let mut waves: i32 = ui.memory(|m| m.data.get_temp(waves_id)).unwrap_or(2);
+                let a = ui
+                    .add(egui::DragValue::new(&mut amp).speed(0.02).range(0.1..=4.0).suffix(" mm"))
+                    .on_hover_text("Guide amplitude")
+                    .changed();
+                let b = ui
+                    .add(egui::DragValue::new(&mut waves).speed(0.1).range(1..=8))
+                    .on_hover_text("Waves per revolution")
+                    .changed();
+                if a || b {
+                    ui.memory_mut(|m| {
+                        m.data.insert_temp(amp_id, amp);
+                        m.data.insert_temp(waves_id, waves);
+                    });
+                    *w = sine_warp(t.v_center_mm, amp, waves.max(1) as usize);
+                    c = true;
+                }
+                c |= ui
+                    .add(
+                        egui::DragValue::new(&mut w.falloff_mm)
+                            .speed(0.05)
+                            .range(0.5..=12.0)
+                            .suffix(" mm"),
+                    )
+                    .on_hover_text("How far across the band the bend reaches")
+                    .changed();
+            }
+        });
+        ui.end_row();
+
+        ui.label("Crisp edge");
+        c |= ui
+            .add(
+                egui::DragValue::new(&mut t.edge_mm)
+                    .speed(0.01)
+                    .range(0.0..=1.5)
+                    .suffix(" mm"),
+            )
+            .on_hover_text(
+                "Rebuild height from the distance to the ink's edge: the bevel stays this \
+                 many mm wide at any tile size. 0 keeps brightness-as-height. Best on \
+                 masks with clean shapes; Remap still applies on top.",
+            )
+            .changed();
+        ui.end_row();
+
         ui.label("");
         ui.horizontal(|ui| {
             c |= ui
@@ -978,6 +1140,19 @@ fn decals(
 }
 
 /// Only the first stamp starts open, so a long list stays scannable.
+/// A sine guide with `waves` periods: peaks and troughs alternating around
+/// the ring, which Catmull-Rom rounds back into a smooth wave.
+fn sine_warp(v_center: f64, amp: f64, waves: usize) -> ringdesign_core::tiling::WarpField {
+    let n = (waves.clamp(1, 8)) * 2;
+    let points = (0..n)
+        .map(|k| {
+            let sign = if k % 2 == 0 { 1.0 } else { -1.0 };
+            [k as f64 / n as f64, v_center + sign * amp]
+        })
+        .collect();
+    ringdesign_core::tiling::WarpField { points, strength: 1.0, falloff_mm: 4.0 }
+}
+
 fn d_open(i: usize) -> bool {
     i == 0
 }
@@ -1271,6 +1446,7 @@ fn group(
                     Layer::Flutes(f) => flutes(ui, f),
                     Layer::Decals(d) => decals(ui, d, fctx, names),
                     Layer::SeatRun(r) => seat_run(ui, r, fctx),
+                    Layer::Openwork(o) => openwork(ui, o, fctx, names),
                     Layer::Group(_) => {
                         ui.label(
                             egui::RichText::new("Nested groups edit one level at a time.")

@@ -149,6 +149,42 @@ impl RingDesign {
         }
     }
 
+    /// Derive the signed-distance field of every alpha a tiling reads with
+    /// `edge_mm` set. Derived data: regenerable from the source, never saved.
+    pub fn bake_sdfs(&self, lib: &mut AlphaLibrary) {
+        fn walk(stack: &LayerStack, lib: &mut AlphaLibrary) {
+            for e in &stack.layers {
+                match &e.layer {
+                    field::Layer::Tiling(t) if t.edge_mm > 1e-9 => {
+                        // Recomputed every bake: the source may have been
+                        // redrawn, and only edge-enabled layers pay.
+                        if let Some(src) = lib.get(&t.alpha).cloned() {
+                            lib.insert(src.signed_distance_px());
+                        }
+                    }
+                    field::Layer::Openwork(o) if o.tiling.edge_mm > 1e-9 => {
+                        if let Some(src) = lib.get(&o.tiling.alpha).cloned() {
+                            lib.insert(src.signed_distance_px());
+                        }
+                    }
+                    field::Layer::Group(g) => walk(&g.stack, lib),
+                    _ => {}
+                }
+            }
+        }
+        walk(&self.layers, lib);
+    }
+
+    /// Every derived bake in order — strokes, inscriptions, SVG art, then
+    /// the distance fields that read the results. The one call every load
+    /// site makes; adding a bake means adding it here, not at six sites.
+    pub fn bake_all(&self, lib: &mut AlphaLibrary) {
+        self.bake_drawn(lib);
+        self.bake_texts(lib);
+        self.bake_svgs(lib);
+        self.bake_sdfs(lib);
+    }
+
     /// Capture every referenced alpha that cannot be regenerated — not a
     /// builtin, not drawn — as embedded PNG data. Call on a save-time clone.
     pub fn embed_alphas(&mut self, lib: &AlphaLibrary) {
@@ -226,6 +262,7 @@ impl RingDesign {
             crest_v_mm: loop_.crest_v_mm,
             crest_radius_mm: loop_.crest_radius_mm,
             surface: field::SurfaceProfile::from_loop(&loop_, 257),
+            bore_radius_mm: self.inner_radius_mm(),
             side_faces_cache: Default::default(),
         }
     }

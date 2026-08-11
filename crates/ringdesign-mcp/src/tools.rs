@@ -601,6 +601,8 @@ pub struct AddMilgrainParams {
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 pub struct UpdateLayerParams {
+    /// Openwork only: metal left standing over the bore, mm.
+    pub keep_mm: Option<f64>,
     /// Index in the stack, from list_layers.
     pub index: usize,
     /// Any layer: rename.
@@ -1191,8 +1193,11 @@ fn allowed_fields(layer: &Layer) -> &'static [&'static str] {
         Layer::Flutes(_) => FLUTES_FIELDS,
         Layer::Decals(_) => DECAL_FIELDS,
         Layer::SeatRun(_) => SEAT_RUN_FIELDS,
+        Layer::Openwork(_) => OPENWORK_FIELDS,
     }
 }
+
+const OPENWORK_FIELDS: &[&str] = &["alpha", "repeats_around", "v_center_mm", "v_span_mm", "keep_mm"];
 
 const SEAT_RUN_FIELDS: &[&str] = &["repeats_around", "v_mm", "height_mm"];
 
@@ -1821,6 +1826,16 @@ impl RingDesignServer {
         put_range(&mut entry.opacity, p.opacity, "opacity", 0.0, 8.0, &mut applied)?;
 
         match &mut entry.layer {
+            Layer::Openwork(o) => {
+                if let Some(alpha) = p.alpha {
+                    applied.push(format!("alpha={alpha}"));
+                    o.tiling.alpha = alpha;
+                }
+                put_u32(&mut o.tiling.repeats_around, p.repeats_around, "repeats_around", &mut applied);
+                put_f64(&mut o.tiling.v_center_mm, p.v_center_mm, "v_center_mm", &mut applied)?;
+                put_f64(&mut o.tiling.v_span_mm, p.v_span_mm, "v_span_mm", &mut applied)?;
+                put_f64(&mut o.keep_mm, p.keep_mm.or(p.height_mm), "keep_mm", &mut applied)?;
+            }
             Layer::Tiling(t) => {
                 if let Some(alpha) = p.alpha {
                     applied.push(format!("alpha={alpha}"));

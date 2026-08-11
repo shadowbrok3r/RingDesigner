@@ -340,6 +340,7 @@ mod tests {
             crest_v_mm: 4.0,
             crest_radius_mm: 9.5,
             surface: Default::default(),
+            bore_radius_mm: 8.5,
             side_faces_cache: Default::default(),
         }
     }
