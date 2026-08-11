@@ -2731,6 +2731,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ringdesign-configurator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "eframe",
+ "egui",
+ "env_logger",
+ "log",
+ "ringdesign-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ringdesign-core"
 version = "0.1.0"
 dependencies = [

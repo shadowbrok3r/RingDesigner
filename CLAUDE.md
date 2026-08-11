@@ -826,6 +826,33 @@ bezel collars, gypsy mounds, prong bumps. Three pieces keep that honest:
   `stones_land_on_their_seats` test writes a software-rasterized sheet for
   eyeballing placement.
 
+## The configurator is a second frontend, and it is core-only
+
+`crates/ringdesign-configurator` (binary **`build-a-ring`**) is the
+customer-facing kiosk: a five-step guided flow (style, size and metal,
+stones, detail, review) that writes a finished order folder — design file,
+`choices.json`, casting sheet, GLB, hero PNG, turntable GIF — under
+`designs/../orders/<customer>/`. Two decisions carry the weight:
+
+- **The whole order is `compose::Config`**, a small serde struct, and
+  `compose()` is a pure function from it to a `RingDesign`. A web frontend
+  or an order queue can carry the same struct verbatim; nothing about a
+  customer's ring lives in UI state.
+- **It depends on core only.** The preview is `render.rs` drawn to an egui
+  texture (half-res while dragging, supersampled at rest), so the crate has
+  no GL plumbing at all.
+
+Curation is castability: every base is castable bare, and `reconcile()`
+strips what a base cannot carry — stones off signets, patterns and
+lettering off domed bands, milgrain off Wave and Twist (**the crest wanders
+in `v` there**: the edges slide along the finger, so a fixed-v bead row
+lands on the dome flank and leans — measured 3% at 50°), and engraving
+displaces the pattern rather than stacking on it. Engraving is a single
+`Decal` stamp of a `TextAlpha`, sized to the side face, not a 1-repeat
+tiling — one tile spans the whole circumference, so a windowed tiling shows
+a stretched fragment. The test runs every base through both dresses
+(pattern-heavy and engraved) and holds each to the field verdict.
+
 ## GUI
 
 `app.rs` owns all state. Geometry-affecting edits call `app.mark_dirty()`; a

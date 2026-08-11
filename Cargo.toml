@@ -5,6 +5,7 @@ members = [
     "crates/ringdesign-gui",
     "crates/ringdesign-mcp",
     "crates/ringdesign-mcpd",
+    "crates/ringdesign-configurator",
 ]
 
 [workspace.package]
