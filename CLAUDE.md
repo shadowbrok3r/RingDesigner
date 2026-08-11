@@ -769,6 +769,24 @@ or above the fold. For the same reason only Ring and Profile default open.
 File dialogs start in `library::default_design_dir()` and its `exports` sibling,
 created on demand, so everything the app writes lands in one predictable tree.
 
+### Paint-on-band: pressure is millimetres, the ceiling is the draft
+
+`paint.rs` (core) is the brush both apps share: `bite()` resolves a press
+into millimetres of metal with the ceiling read from the *local base draft*
+— a squared side face takes the full measured 1.6 mm, a half-round's crest
+is honest only to 0.05 mm, smoothstepped between so there is no cliff for
+the pen to fall off. `ensure_band_layer` is the one file convention: strokes
+live in `design.drawn` under the name "band" (2048x320, seam-wrapped) and
+show through an ordinary one-cell `TilingLayer` at the 1.6 mm maximum — so a
+band painted on the phone opens on the desktop as the same layers, and vice
+versa. The desktop's unrolled pane has a Paint mode (floating brush bar:
+size, depth with a live mm readout, soft, erase, last-stroke undo; the
+cursor shows the local ceiling and warns when the ask exceeds it); the
+Android app is the pen-first version with real pressure and palm rejection.
+Bakes happen on stroke end, not per sample — `Arc::make_mut` deep-copies the
+library — and the unrolled field cache hashes the stroke tally, because a
+re-baked drawing keeps its name and size.
+
 ### The unrolled editor grips every layer
 
 Tiling keeps its lattice drag, scroll-for-repeats and band-edge handles; every

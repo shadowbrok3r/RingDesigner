@@ -128,6 +128,15 @@ pub struct RingDesignerApp {
     pub shrink_metal: Option<usize>,
     /// Soften the preview at the sand's detail radius — see the pour early.
     pub as_cast: bool,
+    /// The unrolled pane paints strokes instead of dragging layers.
+    pub band_paint: bool,
+    /// Brush radius as a fraction of the band's circumference.
+    pub brush_frac: f32,
+    /// Depth scale, 0..1 of the 1.6 mm ceiling.
+    pub brush_depth: f64,
+    /// Feather, 0 hard to 1 soft.
+    pub brush_soft: f32,
+    pub brush_erase: bool,
     /// Index into [`viewport::FINISHES`].
     pub finish: usize,
     /// Index into [`viewport::LIGHT_RIGS`].
@@ -210,6 +219,11 @@ impl RingDesignerApp {
             show_gems: ws.show_gems,
             shrink_metal: ws.shrink_metal,
             as_cast: ws.as_cast,
+            band_paint: false,
+            brush_frac: 0.012,
+            brush_depth: 0.6,
+            brush_soft: 0.35,
+            brush_erase: false,
             show_grid: ws.show_grid,
             finish: ws.finish,
             light: ws.light,

@@ -10,7 +10,9 @@ use std::hash::{Hash, Hasher};
 use egui_phosphor::regular as icon;
 
 use ringdesign_core::alpha::AlphaLibrary;
+use ringdesign_core::drawn::Stroke;
 use ringdesign_core::field::{FieldContext, Layer, LayerStack, Uv};
+use ringdesign_core::paint;
 use ringdesign_core::profile::ProfileLoop;
 use ringdesign_core::tiling::TilingLayer;
 
@@ -185,6 +187,12 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
     }
 
+    // --- Paint mode: the pointer is a brush, not a grab ----------------------
+
+    if app.band_paint {
+        paint_interaction(app, ui, &response, plot, &ctx);
+    }
+
     // --- Interaction ---------------------------------------------------------
 
     let knob_c = egui::pos2(plot.right() - 34.0, plot.bottom() - 34.0);
@@ -192,7 +200,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let grab_id = ui.id().with("unrolled_grab");
     let scroll_id = ui.id().with("unrolled_scroll");
 
-    if response.drag_started() {
+    if response.drag_started() && !app.band_paint {
         let p = response.interact_pointer_pos().unwrap_or(plot.center());
         // Nearest layer handle in reach; a knob or band-edge grab on the
         // selected tiling still wins over a stray line underneath it.
@@ -544,11 +552,44 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         theme::ACCENT,
     );
 
+    // --- Painted strokes and the brush cursor --------------------------------
+
+    if app.band_paint {
+        if let Some(d) = app.design.drawn.iter().find(|d| d.name == paint::BAND_ALPHA) {
+            draw_strokes(&painter, plot, d);
+        }
+        if let Some(p) = ui.input(|i| i.pointer.hover_pos()).filter(|p| plot.contains(*p)) {
+            let v_mm = v_of_y(p.y).clamp(0.0, ctx.band_v_len_mm);
+            let ceiling = paint::ceiling_mm(&ctx, v_mm);
+            let r_px = app.brush_frac * plot.width();
+            painter.circle_stroke(
+                p,
+                r_px.clamp(3.0, 200.0),
+                egui::Stroke::new(1.5, if app.brush_erase { theme::WARN } else { theme::ACCENT }),
+            );
+            let asked = paint::wanted_mm(1.0, app.brush_depth);
+            painter.text(
+                egui::pos2(p.x + r_px.clamp(3.0, 200.0) + 6.0, p.y),
+                egui::Align2::LEFT_CENTER,
+                if asked > ceiling + 1e-9 {
+                    format!("{ceiling:.2} mm max here")
+                } else {
+                    format!("{asked:.2} mm")
+                },
+                egui::FontId::proportional(10.0),
+                if asked > ceiling + 1e-9 { theme::WARN } else { theme::TEXT_DIM },
+            );
+        }
+    }
+
     // --- Handles on the other layer kinds ------------------------------------
     //
     // Read fresh from the stack, so a handle tracks its layer within the
     // frame that dragged it.
     for (i, entry) in app.design.layers.layers.iter().enumerate() {
+        if app.band_paint {
+            break;
+        }
         if !entry.enabled {
             continue;
         }
@@ -681,13 +722,17 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
     }
 
-    let hint = if tile.is_some() {
+    let hint = if app.band_paint {
+        "Drag to paint metal • depth is capped by the local draft • strokes land on the \"band\" layer"
+    } else if tile.is_some() {
         "Drag to shift the lattice • Scroll for repeats • Ctrl-scroll or the knob to rotate • Drag the band edges to resize"
     } else if !handles.is_empty() {
         "Drag a line, cross or rim to move that layer • grabbing one selects it"
     } else {
         "Add a layer in the Layers panel, then drag it into place here"
     };
+    paint_bar(app, ui, rect);
+
     painter.text(
         egui::pos2(rect.left() + PAD_L, rect.bottom() - 4.0),
         egui::Align2::LEFT_BOTTOM,
@@ -713,6 +758,13 @@ fn field_key(app: &RingDesignerApp, ctx: &FieldContext, w: usize, h: usize) -> u
         a.name.hash(&mut hasher);
         a.width.hash(&mut hasher);
         a.height.hash(&mut hasher);
+    }
+    // A re-baked drawing keeps its name and size; the stroke tally is what
+    // changes, and without it the field texture shows the previous stroke.
+    for d in &app.design.drawn {
+        d.name.hash(&mut hasher);
+        d.strokes.len().hash(&mut hasher);
+        d.strokes.iter().map(|s| s.points.len()).sum::<usize>().hash(&mut hasher);
     }
     w.hash(&mut hasher);
     h.hash(&mut hasher);
@@ -863,4 +915,177 @@ fn readout(painter: &egui::Painter, plot: egui::Rect, lines: &[(String, egui::Co
         let y = panel.top() + pad.y + i as f32 * line_h;
         painter.galley(egui::pos2(panel.left() + pad.x, y), galley, *color);
     }
+}
+
+
+// --- Paint-on-band -----------------------------------------------------------
+
+/// The brush: strokes into the design's "band" drawing, depth capped by the
+/// local draft exactly like the Android pen. Desktop pointers rarely report
+/// force, so a press is a full press and the depth slider is the hand.
+fn paint_interaction(
+    app: &mut RingDesignerApp,
+    ui: &mut egui::Ui,
+    response: &egui::Response,
+    plot: egui::Rect,
+    ctx: &FieldContext,
+) {
+    if response.drag_started() {
+        let idx = paint::ensure_band_layer(&mut app.design);
+        app.design.drawn[idx]
+            .strokes
+            .push(Stroke::new(app.brush_frac, app.brush_soft, app.brush_erase));
+    }
+    if response.dragged() {
+        let (Some(p), Some(d)) = (
+            response.interact_pointer_pos(),
+            app.design.drawn.iter_mut().find(|d| d.name == paint::BAND_ALPHA),
+        ) else {
+            return;
+        };
+        let force = ui.input(|i| {
+            i.events.iter().rev().find_map(|e| match e {
+                egui::Event::Touch { force, .. } => *force,
+                _ => None,
+            })
+        });
+        let pressure = force.unwrap_or(1.0);
+        let nx = ((p.x - plot.left()) / plot.width().max(1.0)).clamp(0.0, 1.0);
+        let ny = ((p.y - plot.top()) / plot.height().max(1.0)).clamp(0.0, 1.0);
+        let v_mm = ny as f64 * ctx.band_v_len_mm;
+        let b = paint::bite(ctx, v_mm, pressure, app.brush_depth);
+        if let Some(s) = d.strokes.last_mut() {
+            s.push(nx, ny, b.alpha_value());
+        }
+    }
+    if response.drag_stopped() {
+        let Some(pos) = app.design.drawn.iter().position(|d| d.name == paint::BAND_ALPHA) else {
+            return;
+        };
+        if app.design.drawn[pos].strokes.last().is_some_and(|s| s.is_empty()) {
+            app.design.drawn[pos].strokes.pop();
+            return;
+        }
+        bake_band(app);
+    }
+}
+
+/// Re-bake the band drawing into the shared library and refresh what shows it.
+/// On stroke end, not per sample: `Arc::make_mut` deep-copies the library.
+fn bake_band(app: &mut RingDesignerApp) {
+    let Some(d) = app.design.drawn.iter().find(|d| d.name == paint::BAND_ALPHA) else {
+        return;
+    };
+    let baked = d.rasterize();
+    std::sync::Arc::make_mut(&mut app.lib).insert(baked);
+    app.forget_thumbnail(paint::BAND_ALPHA);
+    app.mark_dirty();
+}
+
+/// Vector overlay of the strokes: the crisp version of what the coarse field
+/// texture shows underneath.
+fn draw_strokes(painter: &egui::Painter, plot: egui::Rect, d: &ringdesign_core::drawn::DrawnAlpha) {
+    for s in &d.strokes {
+        if s.points.len() < 2 {
+            continue;
+        }
+        let w = (s.radius * plot.width() * 2.0).clamp(1.0, 200.0);
+        let color = if s.erase {
+            theme::WARN.gamma_multiply(0.5)
+        } else {
+            theme::ACCENT.gamma_multiply(0.55)
+        };
+        let pts: Vec<egui::Pos2> = s
+            .points
+            .iter()
+            .map(|p| {
+                egui::pos2(
+                    plot.left() + p[0] * plot.width(),
+                    plot.top() + p[1] * plot.height(),
+                )
+            })
+            .collect();
+        painter.add(egui::Shape::line(pts, egui::Stroke::new(w, color)));
+    }
+}
+
+/// The floating brush bar: mode toggle always, controls while painting.
+fn paint_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui, rect: egui::Rect) {
+    egui::Area::new(ui.id().with("band_paint_bar"))
+        .fixed_pos(rect.left_top() + egui::vec2(8.0, 24.0))
+        .show(ui.ctx(), |ui| {
+            egui::Frame::NONE
+                .fill(theme::PANEL.gamma_multiply(0.92))
+                .corner_radius(5.0)
+                .inner_margin(egui::Margin::symmetric(7, 4))
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        let label = if app.band_paint {
+                            format!("{} Done", icon::CHECK)
+                        } else {
+                            format!("{} Paint", icon::PAINT_BRUSH)
+                        };
+                        if ui
+                            .button(label)
+                            .on_hover_text(
+                                "Paint metal straight onto the band. Pressure-aware on a pen; the \
+                                 depth slider is the hand on a mouse. Strokes travel in the design \
+                                 and open on the phone as the same layer.",
+                            )
+                            .clicked()
+                        {
+                            app.band_paint = !app.band_paint;
+                        }
+                        if app.band_paint {
+                            ui.label(egui::RichText::new("size").small().color(theme::TEXT_DIM));
+                            ui.add(
+                                egui::Slider::new(&mut app.brush_frac, 0.002..=0.06)
+                                    .show_value(false),
+                            );
+                            ui.label(egui::RichText::new("depth").small().color(theme::TEXT_DIM));
+                            ui.add(
+                                egui::Slider::new(&mut app.brush_depth, 0.05..=1.0)
+                                    .show_value(false),
+                            );
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "{:.2} mm",
+                                    paint::wanted_mm(1.0, app.brush_depth)
+                                ))
+                                .small(),
+                            );
+                            ui.label(egui::RichText::new("soft").small().color(theme::TEXT_DIM));
+                            ui.add(
+                                egui::Slider::new(&mut app.brush_soft, 0.0..=1.0).show_value(false),
+                            );
+                            ui.toggle_value(&mut app.brush_erase, format!("{}", icon::ERASER))
+                                .on_hover_text("Erase instead of adding");
+                            let has_strokes = app
+                                .design
+                                .drawn
+                                .iter()
+                                .find(|d| d.name == paint::BAND_ALPHA)
+                                .is_some_and(|d| !d.strokes.is_empty());
+                            if ui
+                                .add_enabled(
+                                    has_strokes,
+                                    egui::Button::new(format!("{}", icon::ARROW_COUNTER_CLOCKWISE)),
+                                )
+                                .on_hover_text("Undo the last stroke")
+                                .clicked()
+                            {
+                                if let Some(d) = app
+                                    .design
+                                    .drawn
+                                    .iter_mut()
+                                    .find(|d| d.name == paint::BAND_ALPHA)
+                                {
+                                    d.strokes.pop();
+                                }
+                                bake_band(app);
+                            }
+                        }
+                    });
+                });
+        });
 }

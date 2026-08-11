@@ -35,6 +35,7 @@ pub mod gem;
 pub mod library;
 pub mod mesh;
 pub mod metal;
+pub mod paint;
 pub mod profile;
 pub mod refine;
 pub mod sizing;
