@@ -299,69 +299,146 @@ impl<'a> Lattice<'a> {
     }
 }
 
-// --- Quadtree --------------------------------------------------------------
+// --- Anisotropic quadtree ---------------------------------------------------
+//
+// Every leaf carries a level **per axis** `(lu, ls)`, so a cell can be split
+// along the ring without paying across the band, and the other way round.
+// A milgrain row is fine across the bead and coarse along it; a border rail
+// is the reverse; an isotropic tree pays 4x wherever either happens.
+//
+// The lattice is laid out one level finer than the deepest split, so every
+// cell — including one already at max depth in an axis — still has a lattice
+// point at its edge midpoints and centre. Fans and hanging nodes then always
+// land on lattice points, which is the watertightness guarantee.
 
-/// Lattice units spanned by a cell at `level`.
-fn step(level: u32, max_level: u32) -> u32 {
-    1u32 << (max_level - level.min(max_level))
+/// Per-axis levels of one leaf.
+type Levels = (u32, u32);
+
+/// Lattice units a cell spans along an axis at `level`. The `+ 1` is the
+/// bonus lattice level that keeps midpoints on the lattice at full depth.
+fn span(level: u32, max_level: u32) -> u32 {
+    1u32 << (max_level + 1 - level.min(max_level))
 }
 
-/// Level of the leaf covering a lattice point, if the tree covers it.
-fn leaf_level(leaves: &HashMap<(u32, u32), u32>, x: u32, y: u32, max_level: u32) -> Option<u32> {
-    for lev in 0..=max_level {
-        let st = step(lev, max_level);
-        if leaves.get(&(x - x % st, y - y % st)) == Some(&lev) {
-            return Some(lev);
+/// The leaf covering a lattice point: its origin and per-axis levels.
+///
+/// Probes only the level pairs that exist in the tree, which a balanced tree
+/// keeps to a handful against the 49 combinations possible.
+fn leaf_at(
+    leaves: &HashMap<(u32, u32), Levels>,
+    pairs: &[Levels],
+    x: u32,
+    y: u32,
+    max_level: u32,
+) -> Option<((u32, u32), Levels)> {
+    for &(lu, ls) in pairs {
+        let (su, ss) = (span(lu, max_level), span(ls, max_level));
+        let key = (x - x % su, y - y % ss);
+        if leaves.get(&key) == Some(&(lu, ls)) {
+            return Some((key, (lu, ls)));
         }
     }
     None
 }
 
-/// Split every marked leaf into four.
-fn subdivide(leaves: &mut HashMap<(u32, u32), u32>, marked: &[(u32, u32)], max_level: u32) {
-    for &(i, j) in marked {
-        let Some(lev) = leaves.remove(&(i, j)) else { continue };
-        let half = step(lev, max_level) / 2;
-        for (di, dj) in [(0, 0), (half, 0), (0, half), (half, half)] {
-            leaves.insert((i + di, j + dj), lev + 1);
+/// The distinct level pairs present, for [`leaf_at`]'s probe list.
+fn level_pairs(leaves: &HashMap<(u32, u32), Levels>) -> Vec<Levels> {
+    let mut pairs: Vec<Levels> = Vec::new();
+    for &lv in leaves.values() {
+        if !pairs.contains(&lv) {
+            pairs.push(lv);
+        }
+    }
+    pairs
+}
+
+/// Split every marked leaf along the axes marked for it.
+fn subdivide(
+    leaves: &mut HashMap<(u32, u32), Levels>,
+    marked: &HashMap<(u32, u32), (bool, bool)>,
+    max_level: u32,
+) {
+    for (&(i, j), &(in_u, in_s)) in marked {
+        let Some((lu, ls)) = leaves.remove(&(i, j)) else { continue };
+        let in_u = in_u && lu < max_level;
+        let in_s = in_s && ls < max_level;
+        if !in_u && !in_s {
+            leaves.insert((i, j), (lu, ls));
+            continue;
+        }
+        let hu = span(lu, max_level) / 2;
+        let hs = span(ls, max_level) / 2;
+        let (nlu, nls) = (lu + in_u as u32, ls + in_s as u32);
+        match (in_u, in_s) {
+            (true, true) => {
+                for (di, dj) in [(0, 0), (hu, 0), (0, hs), (hu, hs)] {
+                    leaves.insert((i + di, j + dj), (nlu, nls));
+                }
+            }
+            (true, false) => {
+                leaves.insert((i, j), (nlu, nls));
+                leaves.insert((i + hu, j), (nlu, nls));
+            }
+            (false, true) => {
+                leaves.insert((i, j), (nlu, nls));
+                leaves.insert((i, j + hs), (nlu, nls));
+            }
+            (false, false) => unreachable!(),
         }
     }
 }
 
-/// Refine until no edge is shared by cells more than one level apart, so every
-/// edge carries at most one hanging node.
+/// How many children a marked set will add, for the leaf cap.
+fn split_cost(marked: &HashMap<(u32, u32), (bool, bool)>) -> usize {
+    marked
+        .values()
+        .map(|&(u, s)| match (u, s) {
+            (true, true) => 3,
+            (true, false) | (false, true) => 1,
+            _ => 0,
+        })
+        .sum()
+}
+
+/// Balance per axis: across a horizontal edge the `u` levels of the two
+/// sides may differ by at most one, and across a vertical edge the `s`
+/// levels — that is what keeps every edge down to one hanging node.
 ///
-/// Probed from the fine side. A coarse cell's edge may border two finer cells,
-/// and one probe at its midpoint sees only whichever of them owns that point;
-/// a fine cell's edge always has exactly one neighbour across it, so four
-/// probes settle it. Reading it the other way leaves a finer neighbour partway
-/// along a long edge undetected, and the crack that opens there is a boundary
-/// edge in the finished mesh.
-fn balance(leaves: &mut HashMap<(u32, u32), u32>, n_u: u32, n_s: u32, max_level: u32) {
-    for _ in 0..=max_level {
-        let mut marked: HashSet<(u32, u32)> = HashSet::new();
-        for (&(i, j), &lev) in leaves.iter() {
-            let st = step(lev, max_level);
-            let h = st / 2;
+/// Probed from the fine side, as before: a fine cell's edge has exactly one
+/// neighbour across it, so its own midpoint probe settles the edge.
+fn balance(leaves: &mut HashMap<(u32, u32), Levels>, n_u: u32, n_s: u32, max_level: u32) {
+    for _ in 0..=2 * max_level {
+        let pairs = level_pairs(leaves);
+        let mut marked: HashMap<(u32, u32), (bool, bool)> = HashMap::new();
+        for (&(i, j), &(lu, ls)) in leaves.iter() {
+            let (su, ss) = (span(lu, max_level), span(ls, max_level));
+            let (hu, hs) = (su / 2, ss / 2);
+            // (probe point, which axis the edge constrains, my level there)
             let probes = [
-                ((i + h) % n_u, (j + n_s - 1) % n_s),
-                ((i + st) % n_u, (j + h) % n_s),
-                ((i + h) % n_u, (j + st) % n_s),
-                ((i + n_u - 1) % n_u, (j + h) % n_s),
+                (((i + hu) % n_u, (j + n_s - 1) % n_s), false, lu),
+                (((i + hu) % n_u, (j + ss) % n_s), false, lu),
+                (((i + n_u - 1) % n_u, (j + hs) % n_s), true, ls),
+                (((i + su) % n_u, (j + hs) % n_s), true, ls),
             ];
-            for (x, y) in probes {
-                let Some(nl) = leaf_level(leaves, x, y, max_level) else { continue };
-                if lev > nl + 1 {
-                    let nst = step(nl, max_level);
-                    marked.insert((x - x % nst, y - y % nst));
+            for ((x, y), is_s, mine) in probes {
+                let Some((key, (nlu, nls))) = leaf_at(leaves, &pairs, x, y, max_level) else {
+                    continue;
+                };
+                let theirs = if is_s { nls } else { nlu };
+                if mine > theirs + 1 {
+                    let e = marked.entry(key).or_insert((false, false));
+                    if is_s {
+                        e.1 = true;
+                    } else {
+                        e.0 = true;
+                    }
                 }
             }
         }
         if marked.is_empty() {
             return;
         }
-        let batch: Vec<(u32, u32)> = marked.into_iter().collect();
-        subdivide(leaves, &batch, max_level);
+        subdivide(leaves, &marked, max_level);
     }
 }
 
@@ -408,17 +485,20 @@ pub fn build(
         inner_r,
         crest_r: reference.crest_radius_mm,
         min_wall: min_wall_mm.max(0.05),
-        n_u: base_u << max_level,
-        n_s: base_s << max_level,
+        // One level finer than the deepest split, so a cell at full depth in
+        // an axis still has lattice points at its midpoints and centre.
+        n_u: base_u << (max_level + 1),
+        n_s: base_s << (max_level + 1),
         columns: HashMap::new(),
     };
 
     // --- Refine ---
-    let base = step(0, max_level);
-    let mut leaves: HashMap<(u32, u32), u32> = HashMap::new();
+    let base_su = span(0, max_level);
+    let base_ss = span(0, max_level);
+    let mut leaves: HashMap<(u32, u32), Levels> = HashMap::new();
     for a in 0..base_u {
         for b in 0..base_s {
-            leaves.insert((a * base, b * base), 0);
+            leaves.insert((a * base_su, b * base_ss), (0, 0));
         }
     }
 
@@ -446,9 +526,10 @@ pub fn build(
             }
             l
         };
-        let target =
-            need(ctx.circumference_mm / base_u as f64).max(need(perimeter / base_s as f64));
-        if target == 0 {
+        // Per axis: a feature can be finer across the band than along it.
+        let target_u = need(ctx.circumference_mm / base_u as f64);
+        let target_s = need(perimeter / base_s as f64);
+        if target_u == 0 && target_s == 0 {
             continue;
         }
 
@@ -462,27 +543,27 @@ pub fn build(
             ((a - pad) * scale, (b + pad) * scale)
         });
 
-        for _ in 0..target {
-            let marked: Vec<(u32, u32)> = leaves
+        for _ in 0..target_u.max(target_s) {
+            let marked: HashMap<(u32, u32), (bool, bool)> = leaves
                 .iter()
-                .filter(|&(&(x, y), &lev)| {
-                    let st = step(lev, max_level);
-                    lev < target
-                        && (y + st) as f64 > s0
+                .filter_map(|(&(x, y), &(lu, ls))| {
+                    let (su, ss) = (span(lu, max_level), span(ls, max_level));
+                    let inside = (y + ss) as f64 > s0
                         && (y as f64) < s1
                         && match u_range {
                             None => true,
                             Some((a, b)) => {
-                                intersects_wrapped(x as f64, (x + st) as f64, a, b, lat.n_u as f64)
+                                intersects_wrapped(x as f64, (x + su) as f64, a, b, lat.n_u as f64)
                             }
-                        }
+                        };
+                    let axes = (inside && lu < target_u, inside && ls < target_s);
+                    (axes.0 || axes.1).then_some(((x, y), axes))
                 })
-                .map(|(&k, _)| k)
                 .collect();
             if marked.is_empty() {
                 break;
             }
-            if leaves.len() + 3 * marked.len() > MAX_LEAVES {
+            if leaves.len() + split_cost(&marked) > MAX_LEAVES {
                 log::warn!("layer seeding stopped at {} leaves by the cap", leaves.len());
                 stats.hit_cap = true;
                 break;
@@ -498,42 +579,59 @@ pub fn build(
     // Balancing subdivides too, so a pass can create cells the pass that made
     // them never examined. Run until nothing is marked rather than once per
     // level; depth is capped either way, so this terminates.
-    for _ in 0..2 * max_level + 4 {
-        let open: Vec<((u32, u32), u32)> = leaves
+    for _ in 0..4 * max_level + 8 {
+        let open: Vec<((u32, u32), Levels)> = leaves
             .iter()
-            .filter(|&(_, &lev)| lev < max_level)
+            .filter(|&(_, &(lu, ls))| lu < max_level || ls < max_level)
             .map(|(&k, &v)| (k, v))
             .collect();
         if open.is_empty() {
             break;
         }
 
-        // Corners, edge midpoints and centre of every candidate. At level
-        // `max_level` a midpoint would fall between lattice points, which is
-        // why only cells that can still split are probed.
         let mut want: HashSet<u32> = HashSet::new();
-        for &((i, _), lev) in &open {
-            let st = step(lev, max_level);
-            for d in [0, st / 2, st] {
+        for &((i, _), (lu, _)) in &open {
+            let su = span(lu, max_level);
+            for d in [0, su / 2, su] {
                 want.insert((i + d) % lat.n_u);
             }
         }
         lat.ensure(&want);
         stats.columns_built = lat.columns.len();
 
-        let marked: Vec<(u32, u32)> = open
+        // Split only the axis whose own sag or turn is over tolerance; the
+        // centre and the plane twist belong to neither and split both.
+        let marked: HashMap<(u32, u32), (bool, bool)> = open
             .par_iter()
-            .filter(|&&((i, j), lev)| {
-                let (sag, tilt) = facet_error(&lat, i, j, lev, max_level);
-                sag > tol || tilt > tilt_tol
+            .filter_map(|&((i, j), (lu, ls))| {
+                let (su, ss) = (span(lu, max_level), span(ls, max_level));
+                let ((sag_u, sag_s, sag_c), tilt) = facet_error(&lat, i, j, su, ss);
+                let mut in_u = sag_u > tol;
+                let mut in_s = sag_s > tol;
+                if !in_u && !in_s && (sag_c > tol || tilt > tilt_tol) {
+                    in_u = true;
+                    in_s = true;
+                }
+                in_u &= lu < max_level;
+                in_s &= ls < max_level;
+                // An axis at full depth hands its excess to the other, so a
+                // saturated direction cannot silently absorb the error.
+                if !in_u && !in_s {
+                    if sag_u > tol && ls < max_level {
+                        in_s = true;
+                    }
+                    if sag_s > tol && lu < max_level {
+                        in_u = true;
+                    }
+                }
+                (in_u || in_s).then_some(((i, j), (in_u, in_s)))
             })
-            .map(|&(k, _)| k)
             .collect();
 
         if marked.is_empty() {
             break;
         }
-        if leaves.len() + 3 * marked.len() > MAX_LEAVES {
+        if leaves.len() + split_cost(&marked) > MAX_LEAVES {
             log::warn!(
                 "refinement stopped at {} leaves: tolerance {tol} mm would need more than the \
                  {MAX_LEAVES} cap",
@@ -550,21 +648,26 @@ pub fn build(
 
     // --- Triangulate ---
     let mut want: HashSet<u32> = HashSet::new();
-    for (&(i, _), &lev) in leaves.iter() {
-        let st = step(lev, max_level);
-        for d in [0, st / 2, st] {
+    for (&(i, _), &(lu, _)) in leaves.iter() {
+        let su = span(lu, max_level);
+        for d in [0, su / 2, su] {
             want.insert((i + d) % lat.n_u);
         }
     }
     lat.ensure(&want);
     stats.columns_built = lat.columns.len();
     stats.leaves = leaves.len();
-    stats.deepest_level = leaves.values().copied().max().unwrap_or(0);
-    stats.saturated_leaves = leaves.values().filter(|&&lev| lev >= max_level).count();
+    stats.deepest_level = leaves.values().map(|&(a, b)| a.max(b)).max().unwrap_or(0);
+    stats.saturated_leaves =
+        leaves.values().filter(|&&(lu, ls)| lu >= max_level && ls >= max_level).count();
     stats.worst_error_mm = leaves
         .par_iter()
-        .filter(|&(_, &lev)| lev < max_level)
-        .map(|(&(i, j), &lev)| facet_error(&lat, i, j, lev, max_level).0)
+        .filter(|&(_, &(lu, ls))| lu < max_level || ls < max_level)
+        .map(|(&(i, j), &(lu, ls))| {
+            let ((a, b, c), _) =
+                facet_error(&lat, i, j, span(lu, max_level), span(ls, max_level));
+            a.max(b).max(c)
+        })
         .reduce(|| 0.0, f64::max);
 
     let mesh = triangulate(&lat, &leaves, max_level);
@@ -602,24 +705,37 @@ pub fn grid_error_mm(
     lat.ensure(&(0..n_theta * 2).collect());
     (0..n_theta)
         .into_par_iter()
-        .map(|i| (0..n_prof).map(|j| facet_error(&lat, i * 2, j * 2, 0, 1).0).fold(0.0, f64::max))
+        .map(|i| {
+            (0..n_prof)
+                .map(|j| {
+                    let ((a, b, c), _) = facet_error(&lat, i * 2, j * 2, 2, 2);
+                    a.max(b).max(c)
+                })
+                .fold(0.0, f64::max)
+        })
         .reduce(|| 0.0, f64::max)
 }
 
-/// How badly a cell would misrepresent the surface: `(sag mm, tilt degrees)`.
-///
-/// Sag is the worst distance from the flat facet to the surface, probed at the
-/// edge midpoints and the centre against the bilinear blend of the corners.
-/// Tilt is the slope error, which sag does not bound and draft analysis needs.
-fn facet_error(lat: &Lattice<'_>, i: u32, j: u32, lev: u32, max_level: u32) -> (f64, f64) {
-    let st = step(lev, max_level);
-    let (h, wu, ws) = (st / 2, lat.n_u, lat.n_s);
+/// How badly a cell misrepresents the surface: per-axis sag
+/// `(sag_u, sag_s, sag_centre)` in mm, and the facet's slope error in
+/// degrees. Sag along an axis is the deviation of that axis's edge
+/// midpoints from the flat facet and directs the split; the centre and the
+/// slope belong to neither axis alone and split both.
+#[allow(clippy::type_complexity)]
+fn facet_error(
+    lat: &Lattice<'_>,
+    i: u32,
+    j: u32,
+    su: u32,
+    ss: u32,
+) -> ((f64, f64, f64), f64) {
+    let (hu, hs, wu, ws) = (su / 2, ss / 2, lat.n_u, lat.n_s);
     let at = |di: u32, dj: u32| lat.point((i + di) % wu, (j + dj) % ws);
 
     let c00 = at(0, 0);
-    let c10 = at(st, 0);
-    let c11 = at(st, st);
-    let c01 = at(0, st);
+    let c10 = at(su, 0);
+    let c11 = at(su, ss);
+    let c01 = at(0, ss);
 
     let blend = |w: [f64; 4]| -> [f64; 3] {
         let mut o = [0.0; 3];
@@ -632,23 +748,18 @@ fn facet_error(lat: &Lattice<'_>, i: u32, j: u32, lev: u32, max_level: u32) -> (
         ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
     };
 
-    let (mb, mr, mt, ml, mid) = (at(h, 0), at(st, h), at(h, st), at(0, h), at(h, h));
-    let sag = [
-        (mb, [0.5, 0.5, 0.0, 0.0]),
-        (mr, [0.0, 0.5, 0.5, 0.0]),
-        (mt, [0.0, 0.0, 0.5, 0.5]),
-        (ml, [0.5, 0.0, 0.0, 0.5]),
-        (mid, [0.25; 4]),
-    ]
-    .into_iter()
-    .map(|(p, w)| dist(p, blend(w)))
-    .fold(0.0, f64::max);
+    let (mb, mr, mt, ml, mid) = (at(hu, 0), at(su, hs), at(hu, ss), at(0, hs), at(hu, hs));
+    let sag_u = dist(mb, blend([0.5, 0.5, 0.0, 0.0])).max(dist(mt, blend([0.0, 0.0, 0.5, 0.5])));
+    let sag_s = dist(mr, blend([0.0, 0.5, 0.5, 0.0])).max(dist(ml, blend([0.5, 0.0, 0.0, 0.5])));
+    let sag_c = dist(mid, blend([0.25; 4]));
 
-    // Slope error, from the angle between the cell's own plane and the finer
-    // one its edge midpoints span. Both are secants of the same patch, so the
-    // gap between them tracks how fast the surface is turning inside the cell.
-    let tilt = angle_between(cross(sub(c11, c00), sub(c01, c10)), cross(sub(mr, ml), sub(mt, mb)));
-    (sag, tilt)
+    // Slope error: the cell's own plane against the finer one its edge
+    // midpoints span. Both average across the cell, so at a crease they
+    // converge as the cell shrinks — a half-edge turn measure would read the
+    // crease's own angle at every scale and split without ever converging.
+    let tilt =
+        angle_between(cross(sub(c11, c00), sub(c01, c10)), cross(sub(mr, ml), sub(mt, mb)));
+    ((sag_u, sag_s, sag_c), tilt)
 }
 
 fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
@@ -676,12 +787,18 @@ fn angle_between(a: [f64; 3], b: [f64; 3]) -> f64 {
 }
 
 /// Fan each leaf through whatever hanging nodes its edges carry.
+///
+/// A horizontal edge hangs when the neighbour across it is finer in `u`, a
+/// vertical edge when finer in `s`; per-axis balance keeps it to one node
+/// per edge, and the bonus lattice level keeps every midpoint and centre on
+/// a lattice point even at full depth.
 fn triangulate(
     lat: &Lattice<'_>,
-    leaves: &HashMap<(u32, u32), u32>,
+    leaves: &HashMap<(u32, u32), Levels>,
     max_level: u32,
 ) -> Mesh {
     let (wu, ws) = (lat.n_u, lat.n_s);
+    let pairs = level_pairs(leaves);
     let mut index: HashMap<(u32, u32), u32> = HashMap::new();
     let mut vertices: Vec<Vec3> = Vec::new();
     let mut faces: Vec<[u32; 3]> = Vec::new();
@@ -699,24 +816,25 @@ fn triangulate(
         })
     };
 
-    for (&(i, j), &lev) in leaves.iter() {
-        let st = step(lev, max_level);
-        let h = st / 2;
+    for (&(i, j), &(lu, ls)) in leaves.iter() {
+        let (su, ss) = (span(lu, max_level), span(ls, max_level));
+        let (hu, hs) = (su / 2, ss / 2);
 
-        // A hanging node sits on an edge whose neighbour is one level finer.
-        let finer = |x: u32, y: u32| {
-            leaf_level(leaves, x % wu, y % ws, max_level).is_some_and(|l| l > lev)
+        let level_of = |x: u32, y: u32| -> Option<Levels> {
+            leaf_at(leaves, &pairs, x % wu, y % ws, max_level).map(|(_, lv)| lv)
         };
+        // Bottom, right, top, left — horizontal edges hang on the
+        // neighbour's `u` level, vertical edges on its `s` level.
         let hang = [
-            h > 0 && finer((i + h) % wu, (j + ws - 1) % ws),
-            h > 0 && finer((i + st) % wu, (j + h) % ws),
-            h > 0 && finer((i + h) % wu, (j + st) % ws),
-            h > 0 && finer((i + wu - 1) % wu, (j + h) % ws),
+            level_of((i + hu) % wu, (j + ws - 1) % ws).is_some_and(|(nlu, _)| nlu > lu),
+            level_of((i + su) % wu, (j + hs) % ws).is_some_and(|(_, nls)| nls > ls),
+            level_of((i + hu) % wu, (j + ss) % ws).is_some_and(|(nlu, _)| nlu > lu),
+            level_of((i + wu - 1) % wu, (j + hs) % ws).is_some_and(|(_, nls)| nls > ls),
         ];
 
         // Counter-clockwise in (u, s), matching the swept grid's winding.
-        let corners = [(0u32, 0u32), (st, 0), (st, st), (0, st)];
-        let mids = [(h, 0u32), (st, h), (h, st), (0u32, h)];
+        let corners = [(0u32, 0u32), (su, 0), (su, ss), (0, ss)];
+        let mids = [(hu, 0u32), (su, hs), (hu, ss), (0u32, hs)];
 
         if !hang.iter().any(|&x| x) {
             let v: Vec<u32> = corners
@@ -737,7 +855,7 @@ fn triangulate(
                 ring.push(vert(&mut index, &mut vertices, i + mx, j + my));
             }
         }
-        let c = vert(&mut index, &mut vertices, i + h, j + h);
+        let c = vert(&mut index, &mut vertices, i + hu, j + hs);
         for k in 0..ring.len() {
             faces.push([c, ring[k], ring[(k + 1) % ring.len()]]);
         }

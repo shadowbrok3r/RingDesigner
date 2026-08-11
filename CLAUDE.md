@@ -206,23 +206,36 @@ not — a 0.08 mm sag across a 0.2 mm cell is a 20° slope error. They pull agai
 each other, so the presets loosen the angle at the coarse end and tighten it
 toward export.
 
+The tree is **anisotropic**: every leaf carries a level per axis, sag is
+attributed per axis, and only the offending direction splits — a milgrain
+row pays across the bead without paying along it. The slope criterion stays
+the plane-vs-plane measure on purpose: a half-edge turn measure reads a
+crease's own angle at every scale, and the first draft of the split
+criterion used one — cells straddling every bead rim split to full depth
+without converging (239k leaves, 0.23 mm residual). The lattice runs one
+level finer than the deepest split so midpoints and centres stay lattice
+points even for one-axis slabs, which is what keeps the watertight
+guarantee. Balance is per axis: horizontal edges constrain the `u` levels,
+vertical edges the `s` levels, still probed from the fine side.
+
 Measured on a size-7 D-shape with a tiled alpha and milgrain, worst facet
-deviation via `refine::grid_error_mm`:
+deviation via `refine::grid_error_mm` (isotropic numbers in parentheses):
 
 | build | triangles | ms | worst error |
 | --- | --- | --- | --- |
 | swept 384x144 | 110,592 | 13 | 0.107 mm |
 | swept 512x192 | 196,608 | 26 | 0.075 mm |
 | swept 1536x448 | 1,376,256 | 277 | 0.045 mm |
-| refined, 0.08 mm / 20° | 136,668 | 421 | 0.080 mm |
-| refined, 0.04 mm / 14° | 212,892 | 328 | 0.040 mm |
-| refined, 0.02 mm / 9° | 406,848 | 633 | 0.020 mm |
+| refined, 0.08 mm / 20° | 87,264 (was 136,668) | 229 | 0.080 mm |
+| refined, 0.04 mm / 14° | 148,728 (was 212,892) | 449 | 0.040 mm |
+| refined, 0.02 mm / 9° | 276,768 (was 406,848) | 581 | 0.020 mm |
 
 The win is in how the cost *scales*, not at any one point. Halving a swept
 grid's error means halving the step in both directions, so it pays 4x the
 triangles every time — which is why 1.4M of them still only reach 0.045 mm.
-Refinement pays about 1.6-1.9x per halving, so it goes places the grid cannot
-afford at all. At loose tolerances the sweep is faster, being a trivial loop.
+Refinement pays about 1.7-2.0x per halving, so it goes places the grid cannot
+afford at all — and the per-axis splits buy a further ~30-36% off every row
+of the table at the same error. At loose tolerances the sweep is faster, being a trivial loop.
 **Sweep for the interactive preview, refine for export.**
 
 One caveat with teeth: `castability::analyze` reads face normals, and an
