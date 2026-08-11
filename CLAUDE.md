@@ -147,10 +147,15 @@ Three fidelity mechanisms sit on top of the sweep, all measured:
   crest, fillet tangencies and flange corners as `ProfileLoop::feature_v` and
   snaps the nearest sample onto each, so no facet chords across a slope
   discontinuity — the reported crest radius is exact rather than the chord's.
-  A sweep must snap every slice to the **reference** loop's fractions: each
-  slice's own features drift with the modulation, and rows snapping to
-  drifting targets tear the grid along theta (measured as a 0.013% phantom
-  undercut on a bare signet head).
+  A sweep must take everything about the row layout from the **reference**
+  loop, and the same one for every slice — the snap fractions *and* the
+  bore/surface row split. Slice-own features drift with the modulation, and
+  rows snapping to drifting targets tear the grid along theta (a 0.013%
+  phantom on a bare signet head); a per-slice rounded split steps by one
+  wherever the surface's share crosses a half-row, every surface row
+  renumbers, and the grid tears a vertical zipper (60–82° folds down a
+  signet's shoulder at exactly the stepping slices). `sample_spaced` takes
+  `Option<&ProfileLoop>` for this reason.
 - **Refinement is seeded by the layers.** `Layer::feature_footprints` names
   each layer's finest scale and where it lives; `refine::build` pre-splits
   those regions to half that scale before the error loop, so a bead or small
@@ -160,7 +165,11 @@ Three fidelity mechanisms sit on top of the sweep, all measured:
 
 Design files carry a `format_version` (migration ladder in `library.rs`) and
 embed every referenced non-regenerable alpha as 16-bit PNG on save, so a
-`.ring.json` survives moving machines.
+`.ring.json` survives moving machines. Export speaks STL, OBJ and 3MF —
+`threemf.rs` writes the package with a hand-rolled store-only zip (zeroed
+timestamps, deterministic bytes) so `unit="millimeter"` and the design's
+name and size travel with the mesh; no zip dependency was bought for a
+container three files big.
 
 ### Refined builds: a tolerance instead of a step count
 
@@ -221,7 +230,20 @@ and up to -15°. Under the 1% that reads as "will not release", but enough to
 move the verdict — and on a signet it does not fall with the tolerance, because
 the table is a *plane* at zero draft rather than a crest line, so a whole band
 of the surface has nothing to decide its sign but its own slope error.
-**Judge castability from a swept build.**
+
+**The verdict therefore comes from `castability::analyze_field`**, which
+samples the true surface on a `(theta, s)` grid — the same reference-snapped
+sections the mesh is built from — with central-difference normals. A smooth
+normal at the crest is exactly radial and on the table exactly radial, so the
+phantom cannot exist in it: measured on a bare heart signet, 0.006% at preview
+sampling falling with resolution against the refined mesh's non-converging
+0.10-0.18%, and exactly zero on every symmetric outline. It also sweeps the
+thinnest outer-to-bore wall over the finger hole into the verdict against
+`DraftSettings::min_section_mm` (thin sections fail to fill, they do not
+lock). The GUI banner, the MCP `castability` tool's `field` block and the
+worker all read it; `analyze` stays for painting faces in the viewport. The
+retired rule was "judge castability from a swept build" — nothing needs
+judging from any build now.
 
 `adaptive.rs` was the earlier attempt at the same goal by redistributing the
 same number of sample *lines*. It is kept, default off, and its module doc
@@ -325,7 +347,9 @@ What that measurement changed, all of it visible:
   running to the centre — so the outline had a spike for a point. Replaced with
   the classic `(x² + y² − 1)³ = x²y³`, solved per ray by bisection.
 - **`head_aspect(Heart)` was 0.95**, and the reference's plate is 18.53 mm round
-  the ring by 17.64 across: **1.12**. That alone was 30% of the missing area.
+  the ring by 17.64 across: **1.05** (an interim note here said 1.12, which its
+  own numbers contradict — 18.53/17.64 = 1.05, and the classic curve's natural
+  box is 1.02).
 - **`HEAD_FACE_DRAFT` was 0.09.** The reference's head is a **prism** — its
   section at the head is a clean rectangle from bore to table, so the table's
   outline *is* the body's. Now 0.02, a token draft rather than a look.
@@ -387,43 +411,72 @@ always one of the samples it minimises over. `the_body_contains_the_face_it_carr
 asserts it to within 1e-5, which is Catmull-Rom reconstruction noise where the
 two curves touch; `head_at` clamps the crest into the bore regardless.
 
-#### The flank belongs to the body; the face arrives only at the take-off
+#### The head has one edge, and it is the face outline
 
-A section's side wall used to be the straight chord from the bore span to the
-crest span, and a straight wall carries every kink of the face's silhouette —
-a heart's dimple, a hexagon's corner, the rim where the shoulder Hermite
-starts — down its whole height at linearly fading strength. On the mesh that
-is a crease line running from the table edge to the shank on every such
-feature. `sample_spaced` now decomposes the wall: the profile's **own** side
-draft stays linear (ordinary bands are geometrically unchanged), and only the
-**head's offset** between the two spans sweeps onto the face, across a C²
-`smootherstep(FLANK_TAKEOFF, 1, t)` in the wall's top fraction. Below the
-take-off the flank follows the faired body; the face reads as a facet cut
-into it, which is what the reference signets do — their heads are near-prisms
-with the face influence confined to the top. Opposite-signed own/extra parts
-fall back to the chord, because a folded wall is a ceiling.
+A dihedral census over the reference heart's mesh (`examples/edge_probe.rs`)
+settles what a signet's surface is: **0.0 mm of ≥15° creases anywhere except
+its bore edge break**. Even the plate's rim is filleted — the rounding reaches
+0.91 mm below the plane — and the only near-sharp features are the heart's
+point and its cleft, which are corners of the *outline in plan*, not creases
+in the surface. Everything else, walls included, is smooth and convex. The
+same census on our pre-rebuild mesh found 740 mm of hard edges at up to 123°,
+which is what all of the following removed (final state: the point, the cleft,
+and the rim itself, plus ~90° sampling folds at the two face-end closure
+stations that a refined build resolves).
 
-Two refinements from comparing against the reference meshes in
-`~/jewelry-scan/RING/Signets/` (heart/hexa/oval as STL+STEP+3MF):
+- **The wall is one convex C² curve** (`sample_spaced`'s `wall`): vertical
+  into the rim fillet so the plate holds the outline's shape, vertical again
+  into the bore corner, the whole bore-to-crest offset carried in the belly —
+  `w = t + (smootherstep(t) − t)·head`. `ShankMod::head` (smoothed `on_head`)
+  crossfades it with the band's straight drafted chord, so ordinary bands are
+  bit-identical, and both blend weights are monotone in `z`, so the wall can
+  never fold into a ceiling at any mix. A heart's cleft rides down it as a
+  smooth cove; the old take-off/bulge composite (and its cap's C⁰ kink in
+  theta) is gone.
+- **The rim is the head's own fillet**, `SignetHead::rim_round_mm` (default
+  0.6, the reference's ~0.6–0.9), blended in over `head` in place of the
+  band's edge fillet — how hard the one edge reads no longer depends on how
+  the shank's edges are broken. The parting-plane straddle `keep` grows by the
+  rim on-head, because the fillet takes its radius out of the span's ends: a
+  0.6 rim on a 0.28 straddle rounded the crest away from the plane and the
+  ceiling came back through the fillet at −54° over 0.18% of a Draft heart.
+- **Every clamp that engages mid-sweep is smooth, with a radius sized to the
+  plunge.** A hard `min` is a slope step in theta that sweeps a crease down
+  the wall at the locus where it bites. The straddle floor's radius follows
+  the station (`ShankMod::straddle_soft`): a heart's lobe boundary crosses the
+  floor at 0.86 mm/deg near the face's ends, so a small value-space radius
+  transits in under a degree (measured 100° grid folds at exactly the two
+  slices where it crossed) — while over the plate's middle a wide radius drags
+  boundaries that legitimately sit near the floor (it pulled the cleft half
+  shut). Biased up by the crossfade's worst undershoot of a true max, 0.087
+  of the radius. Where the floor holds the span past the outline's reach, the
+  forced run **rolls as one fillet** (0.85 of the run) instead of flat plus a
+  migrating corner.
+- **The crest line's own corner at the plate's theta-end is filleted too**
+  (`head_at`: tie-exact `smin(climb, dive, rim)` of the plane solve against
+  the shoulder fall): the unrounded peak was an 80° fold between the two
+  slices straddling it. The crest *span* now simply follows `h00` — the
+  quarter-shoulder hold this replaced propped a shelf beside the plate that
+  the reference does not have, and the crease it patched is gone at the
+  source.
+- **`HEAD_TAKEOFF` is 0**: the outline is read to its true end, which is what
+  closes a heart's lobes instead of chopping them; the straddle floor and the
+  roll do what the hold used to. The silhouette table inherits its neighbour
+  at stations the boundary scan misses (the tangent sliver at x = ±1) — a
+  zeroed end cell collapsed the span to a bogus centred point, a 4 mm yank
+  inside one table cell, 128° folds.
+- **`head_aspect(Heart)` is 1.05**: the reference plate is 18.53 mm round the
+  ring by 17.64 across, and 18.53/17.64 = 1.05 (an earlier note said 1.12 —
+  its own numbers disagree). The classic curve's natural box is 1.02. The
+  plate our build produces now matches the classic curve's per-station
+  extent table to ±0.02 of half-width over the whole face, and the classic
+  curve matches the reference plate to ~0.08.
 
-- **The wall is barrel-convex, not straight** (`FLANK_BULGE`, zero-slope at
-  both ends, scaled by the head offset and capped at 0.6 mm): a flat panel
-  beside the rounded swell reads as a *dished* triangle with creased borders,
-  where the references are inflated.
-- **The crest span's handover to the shoulder starts flat.** `h00 =
-  (1 - s)^2.4` leaves the rim already diving — correct for the crest *height*,
-  measured off the reference — but using it for the span blend put a
-  derivative jump at the face-end locus, a crease down the flank. The span now
-  follows `1 - smootherstep(0, 0.25, s)·(1 - h00)`: rim-flat, and exactly
-  `h00` past the first quarter of the shoulder — holding the face's one-sided
-  reach longer than that measurably grows the upright-outline ceiling
-  (0.113% against the 0.059% Draft-heart bound with a full smootherstep).
-
-At the end itself the outline is a *point*, so a table read there runs to nothing
-and wedges the section to a fin. `HEAD_TAKEOFF` holds the crest span at the
-station 5% inside, which costs the table the last twentieth of its length — spent
-on an edge break it wanted anyway. The **body** is read right out to the point;
-it is the swell under it that keeps the band wide there, not the outline.
+One casting tax remains, and it is honest: the reference's plate edge dips
+wholly below its ring's equator at the face's ends — that shape cannot part
+on a plane, so there our crest holds a `keep`-wide strip at z = 0 and the
+plate's last interval widens onto it, rolled. It is the two-part-sand price,
+kept as small as the fillet allows.
 
 #### A crease is a step in curvature, not in slope
 
@@ -567,26 +620,18 @@ Two consequences worth keeping in mind:
 - The table is a **dead-flat, zero-draft wall**. That is fine — it is blank and
   hand-engraved, and design goes on the head's flanks, which face the pull. But
   it means facet noise there has no draft to be measured against, so a refined
-  build reports a phantom bounded only by its own slope error. Judge a signet
-  from a swept build.
+  build's *mesh* reports a phantom bounded only by its own slope error. The
+  field-sampled verdict reads the plane's own normal and has no such term —
+  judge a signet from `analyze_field`, like everything else.
 
-A short shoulder makes that phantom worse, which is worth knowing before
-shortening one. The shoulder morphs the section faster than anything else in the
-model — dead-flat crest to a rounded wire — and if it morphs faster than the
-sweep samples, a vertex's `z` shifts between slices and the skewed facet at the
-crest crosses zero. Measured on a bare signet band, undercut faces reported:
-
-| shoulder | Draft 192x96 | Preview 384x144 | Fine 512x192 |
-| --- | --- | --- | --- |
-| 20° | 5 (0.020%) | 3 (0.004%) | 4 (0.003%) |
-| 26° | 1 (0.003%) | 1 (0.001%) | 2 (0.001%) |
-| 34° | 0 | 0 | 0 |
-| 42° | 0 | 0 | 0 |
-
-`HEAD_SHOULDER_DEG` was picked from that table before the reference was measured
-properly; at 43° it is comfortably past the knee and now comes from the object
-rather than from the mesh. `mesh::tests::scratch_signet_head_undercuts` is the
-table.
+A short shoulder used to make that phantom worse — dead-flat crest morphing
+to a rounded wire faster than the sweep samples put 5 undercut faces on a 20°
+shoulder at Draft. After the one-edge rebuild the bare head reports **0 faces
+at every preset and every shoulder arc down to 20°**: the rim fillet means the
+crest region is never flat-tangent over a band, so facet noise has real draft
+to be measured against. `HEAD_SHOULDER_DEG` stays 43° because it comes from
+the reference's own crest fall, not from the mesh.
+`mesh::tests::scratch_signet_head_undercuts` is the table.
 
 #### Outlines have to survive being turned into a silhouette
 
@@ -606,13 +651,15 @@ Three things it must get right, each of which was wrong once:
   sixth and the outline came out a lens.
 - **Stand the asymmetric ones up.** A shield lying on its side is not a shield.
 
-The phantom is worse on an upright outline than a symmetric one, and for a
-reason: the section it sweeps is no longer symmetric about its own crest, so the
-facets straddling the crest no longer cancel. A shield goes 0.011% at Draft to
-0.0013% at Export — converging, but not to zero at any resolution worth paying
-for. `mesh::tests::scratch_signet_head_undercuts` therefore asserts that what is
-reported stays tiny **and stays on the crest line**, which is what tells a
-phantom from a real undercut. That check is what caught the -19.4°.
+What phantom is left lives only on the upright outlines, and for a reason: the
+section they sweep is not symmetric about its own crest, so the facets
+straddling it do not cancel. After the one-edge rebuild every symmetric
+outline reports **0.0000% at every preset**; a shield goes 0.0149% at Draft to
+0.0024% at Export and a heart 0.0049% to similar — converging, but not to zero
+at any resolution worth paying for. `mesh::tests::scratch_signet_head_undercuts`
+therefore asserts that what is reported stays tiny **and stays on the crest
+line**, which is what tells a phantom from a real undercut. That check is what
+caught the -19.4°.
 
 `SignetLayer` still exists and is still a pad standing on the band. That is the
 right thing for a flat facet on an ordinary band and the wrong thing for a
@@ -640,6 +687,35 @@ The pattern therefore follows the band as it tapers instead of sliding across
 it. `mesh::build` and `castability::section_at` must do this identically — if
 they diverge, the section view lies about the solid.
 
+## Stones are stock, not geometry to cast
+
+Stones are set at the bench; the ring casts the *stock* for them — bosses,
+bezel collars, gypsy mounds, prong bumps. Three pieces keep that honest:
+
+- `gem.rs` — cuts, carat estimators (anchored at 6.5 mm round = 1 ct),
+  calibrated stock sizes, girdle/pavilion proportions.
+- `stones.rs` — the analytic bench-check report, surfaced in the report
+  panel's Stones section and on the MCP `castability` tool. Per seat: what
+  the base surface under it is (side face = castable by construction; a
+  crown reports its draft — and the warning keys on a *flat top's rim* on
+  low draft, because that is the measured 8.6% hazard, while a fully-domed
+  mound on the same base measures 0.000%), foot-to-band-edge clearance vs
+  `MIN_EDGE_MM`, metal available for the pavilion along the seat's normal
+  (to the bore wall on the crown, across the band on a side face) vs
+  `gem.pavilion_mm()` + `MIN_WALL_MM`, run bridges vs `MIN_EDGE_MM`, and
+  carat totals. Analytic — it reads the layers and the modulated bare
+  profile, never the mesh, so it costs nothing and cannot disagree with the
+  design.
+- `gems.rs` (GUI) — render-only faceted previews: one superellipse-plan
+  brilliant per stone-bearing station, positioned by evaluating the
+  *displaced* section under the seat, girdle settled into the pad so the
+  pavilion vanishes into metal and the crown stands proud. Flat facet
+  normals under the viewport key light do the sparkle; drawn as a second
+  buffer in the same GL program, toggled by the toolbar's Stones checkbox.
+  **Never in the `Mesh`, never exported** — `RD_GEM_SHEET=/dir` on the
+  `stones_land_on_their_seats` test writes a software-rasterized sheet for
+  eyeballing placement.
+
 ## GUI
 
 `app.rs` owns all state. Geometry-affecting edits call `app.mark_dirty()`; a
@@ -659,6 +735,16 @@ or above the fold. For the same reason only Ring and Profile default open.
 
 File dialogs start in `library::default_design_dir()` and its `exports` sibling,
 created on demand, so everything the app writes lands in one predictable tree.
+
+### The unrolled editor grips every layer
+
+Tiling keeps its lattice drag, scroll-for-repeats and band-edge handles; every
+other placeable layer now has a handle of its own — border, milgrain and seat
+runs as dashed v-lines, seat pads, decal stamps and signet-layer plates as
+centre crosses, a pad's rim as a draggable radius ring. Grabbing a handle
+selects its layer, v-drags snap to the side-face boundaries, and the shade
+modes include a wall-thickness heatmap (red under `min_section_mm`, baked as a
+second vertex colour so mode switches never re-upload).
 
 ### Tool panels are `egui_tiles` trees
 

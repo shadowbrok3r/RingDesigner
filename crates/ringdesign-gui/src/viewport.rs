@@ -16,25 +16,28 @@ use crate::app::RingDesignerApp;
 use crate::camera::Projector;
 use crate::theme;
 
-/// Floats per vertex: position(3), normal(3), colour(3).
-const FLOATS_PER_VERTEX: usize = 9;
+/// Floats per vertex: position(3), normal(3), draft colour(3), wall colour(3).
+const FLOATS_PER_VERTEX: usize = 12;
 
 const VERTEX_SHADER: &str = r#"#version 330 core
 
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec3 a_color;
+layout(location = 3) in vec3 a_color2;
 
 uniform mat4 u_mvp;
 uniform mat3 u_normal_matrix;
 
 out vec3 v_normal;
 out vec3 v_color;
+out vec3 v_color2;
 
 void main() {
     gl_Position = u_mvp * vec4(a_position, 1.0);
     v_normal = u_normal_matrix * a_normal;
     v_color = a_color;
+    v_color2 = a_color2;
 }
 "#;
 
@@ -42,6 +45,7 @@ const FRAGMENT_SHADER: &str = r#"#version 330 core
 
 in vec3 v_normal;
 in vec3 v_color;
+in vec3 v_color2;
 
 uniform int u_mode;
 uniform vec3 u_light_dir;
@@ -59,7 +63,10 @@ void main() {
     vec3 l = normalize(u_light_dir);
     vec3 color;
 
-    if (u_mode == 2) {
+    if (u_mode == 3) {
+        float lambert = max(dot(n, l), 0.0);
+        color = v_color2 * (0.74 + 0.26 * lambert);
+    } else if (u_mode == 2) {
         color = n * 0.5 + 0.5;
     } else if (u_mode == 1) {
         float lambert = max(dot(n, l), 0.0);
@@ -95,12 +102,16 @@ struct GpuResources {
     wire_program: glow::NativeProgram,
     vao: glow::NativeVertexArray,
     vbo: glow::NativeBuffer,
+    gem_vao: glow::NativeVertexArray,
+    gem_vbo: glow::NativeBuffer,
 }
 
 pub struct GpuMeshRenderer {
     resources: Option<GpuResources>,
     vertex_count: i32,
     pending: Option<Vec<f32>>,
+    gem_count: i32,
+    gem_pending: Option<Vec<f32>>,
     depth_checked: bool,
 }
 
@@ -110,13 +121,25 @@ unsafe impl Sync for GpuMeshRenderer {}
 
 impl Default for GpuMeshRenderer {
     fn default() -> Self {
-        Self { resources: None, vertex_count: 0, pending: None, depth_checked: false }
+        Self {
+            resources: None,
+            vertex_count: 0,
+            pending: None,
+            gem_count: 0,
+            gem_pending: None,
+            depth_checked: false,
+        }
     }
 }
 
 impl GpuMeshRenderer {
     /// Flatten the mesh into an interleaved vertex buffer awaiting upload.
-    pub fn prepare_upload(&mut self, mesh: &Mesh, cast: Option<&CastReport>) {
+    ///
+    /// `wall` is `(inner_radius_mm, min_section_mm)` for the wall-thickness
+    /// heatmap colours, baked alongside the draft-class colours so switching
+    /// shade modes never re-uploads.
+    pub fn prepare_upload(&mut self, mesh: &Mesh, cast: Option<&CastReport>, wall: (f64, f64)) {
+        let (inner_r, min_section) = wall;
         let mut data: Vec<f32> =
             Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
 
@@ -135,7 +158,18 @@ impl GpuMeshRenderer {
                     Some(n) if n.is_finite() => *n,
                     _ => Vec3(0.0, 0.0, 1.0),
                 };
-                tri[k] = [p.0, p.1, p.2, n.0, n.1, n.2, rgb[0], rgb[1], rgb[2]];
+                // Radial metal under this vertex; the bore itself (facing
+                // inward) is not a wall and sits out in neutral grey.
+                let r = (p.0 as f64).hypot(p.1 as f64);
+                let inward = (n.0 as f64 * p.0 as f64 + n.1 as f64 * p.1 as f64) < 0.0;
+                let w = if inward {
+                    WALL_NEUTRAL
+                } else {
+                    wall_color(r - inner_r, min_section)
+                };
+                tri[k] = [
+                    p.0, p.1, p.2, n.0, n.1, n.2, rgb[0], rgb[1], rgb[2], w[0], w[1], w[2],
+                ];
             }
             for v in &tri {
                 data.extend_from_slice(v);
@@ -143,6 +177,12 @@ impl GpuMeshRenderer {
         }
 
         self.pending = Some(data);
+    }
+
+    /// Queue the stone-preview triangles built by [`crate::gems`]. An empty
+    /// buffer clears them.
+    pub fn prepare_gems(&mut self, verts: Vec<f32>) {
+        self.gem_pending = Some(verts);
     }
 
     /// Draw the mesh. Called from inside the paint callback.
@@ -158,6 +198,7 @@ impl GpuMeshRenderer {
         ambient: f32,
         wireframe: bool,
         wire_color: [f32; 3],
+        show_gems: bool,
     ) {
         unsafe { self.ensure_resources(gl) };
         let Some(res) = self.resources else { return };
@@ -166,6 +207,18 @@ impl GpuMeshRenderer {
             self.vertex_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
             unsafe {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.vbo));
+                gl.buffer_data_u8_slice(
+                    glow::ARRAY_BUFFER,
+                    as_u8_slice(&verts),
+                    glow::STATIC_DRAW,
+                );
+                gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            }
+        }
+        if let Some(verts) = self.gem_pending.take() {
+            self.gem_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
+            unsafe {
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.gem_vbo));
                 gl.buffer_data_u8_slice(
                     glow::ARRAY_BUFFER,
                     as_u8_slice(&verts),
@@ -232,6 +285,24 @@ impl GpuMeshRenderer {
                 gl.disable(glow::BLEND);
             }
 
+            // Stones ride on top: same program in the metal-shaded mode with
+            // their own tint, flat facet normals doing the sparkle. Preview
+            // only — they are not in the mesh and never export.
+            if show_gems && self.gem_count > 0 {
+                gl.use_program(Some(res.program));
+                let loc = gl.get_uniform_location(res.program, "u_mode");
+                gl.uniform_1_i32(loc.as_ref(), 0);
+                let loc = gl.get_uniform_location(res.program, "u_base_color");
+                gl.uniform_3_f32(
+                    loc.as_ref(),
+                    crate::gems::GEM_TINT[0],
+                    crate::gems::GEM_TINT[1],
+                    crate::gems::GEM_TINT[2],
+                );
+                gl.bind_vertex_array(Some(res.gem_vao));
+                gl.draw_arrays(glow::TRIANGLES, 0, self.gem_count);
+            }
+
             gl.bind_vertex_array(None);
             gl.use_program(None);
             gl.disable(glow::DEPTH_TEST);
@@ -274,23 +345,28 @@ impl GpuMeshRenderer {
             unsafe { compile_program(gl, VERTEX_SHADER, WIREFRAME_FRAGMENT_SHADER) };
         let vao = unsafe { gl.create_vertex_array() }.expect("create VAO");
         let vbo = unsafe { gl.create_buffer() }.expect("create VBO");
+        let gem_vao = unsafe { gl.create_vertex_array() }.expect("create gem VAO");
+        let gem_vbo = unsafe { gl.create_buffer() }.expect("create gem VBO");
 
         unsafe {
-            gl.bind_vertex_array(Some(vao));
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+            for (vao, vbo) in [(vao, vbo), (gem_vao, gem_vbo)] {
+                gl.bind_vertex_array(Some(vao));
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
 
-            let f = std::mem::size_of::<f32>() as i32;
-            let stride = FLOATS_PER_VERTEX as i32 * f;
-            for (loc, offset) in [(0, 0), (1, 3 * f), (2, 6 * f)] {
-                gl.enable_vertex_attrib_array(loc);
-                gl.vertex_attrib_pointer_f32(loc, 3, glow::FLOAT, false, stride, offset);
+                let f = std::mem::size_of::<f32>() as i32;
+                let stride = FLOATS_PER_VERTEX as i32 * f;
+                for (loc, offset) in [(0, 0), (1, 3 * f), (2, 6 * f), (3, 9 * f)] {
+                    gl.enable_vertex_attrib_array(loc);
+                    gl.vertex_attrib_pointer_f32(loc, 3, glow::FLOAT, false, stride, offset);
+                }
             }
 
             gl.bind_vertex_array(None);
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
         }
 
-        self.resources = Some(GpuResources { program, wire_program, vao, vbo });
+        self.resources =
+            Some(GpuResources { program, wire_program, vao, vbo, gem_vao, gem_vbo });
     }
 
     pub fn destroy(&mut self, gl: &glow::Context) {
@@ -300,10 +376,14 @@ impl GpuMeshRenderer {
                 gl.delete_program(res.wire_program);
                 gl.delete_vertex_array(res.vao);
                 gl.delete_buffer(res.vbo);
+                gl.delete_vertex_array(res.gem_vao);
+                gl.delete_buffer(res.gem_vbo);
             }
         }
         self.vertex_count = 0;
         self.pending = None;
+        self.gem_count = 0;
+        self.gem_pending = None;
     }
 }
 
@@ -392,17 +472,19 @@ pub const LIGHT_RIGS: &[LightRig] = &[
 pub enum ShadeMode {
     Metal,
     Draft,
+    Wall,
     Normals,
 }
 
 impl ShadeMode {
     pub const ALL: &'static [ShadeMode] =
-        &[ShadeMode::Metal, ShadeMode::Draft, ShadeMode::Normals];
+        &[ShadeMode::Metal, ShadeMode::Draft, ShadeMode::Wall, ShadeMode::Normals];
 
     pub fn label(self) -> &'static str {
         match self {
             ShadeMode::Metal => "Polished metal",
             ShadeMode::Draft => "Draft check",
+            ShadeMode::Wall => "Wall thickness",
             ShadeMode::Normals => "Normals",
         }
     }
@@ -411,10 +493,40 @@ impl ShadeMode {
         match self {
             ShadeMode::Metal => 0,
             ShadeMode::Draft => 1,
+            ShadeMode::Wall => 3,
             ShadeMode::Normals => 2,
         }
     }
 }
+
+/// Wall-heatmap colour for a radial thickness, linear RGB.
+///
+/// Red at the minimum fill section and under, amber to twice it, then easing
+/// through green into a quiet blue-grey for comfortably thick metal.
+pub fn wall_color(thickness_mm: f64, min_section_mm: f64) -> [f32; 3] {
+    let m = min_section_mm.max(0.05);
+    let t = (thickness_mm / m).max(0.0);
+    let lerp3 = |a: [f32; 3], b: [f32; 3], k: f64| {
+        let k = k.clamp(0.0, 1.0) as f32;
+        [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]
+    };
+    const RED: [f32; 3] = [0.93, 0.27, 0.36];
+    const AMBER: [f32; 3] = [0.95, 0.76, 0.24];
+    const GREEN: [f32; 3] = [0.32, 0.78, 0.45];
+    const THICK: [f32; 3] = [0.36, 0.55, 0.72];
+    if t <= 1.0 {
+        RED
+    } else if t <= 2.0 {
+        lerp3(RED, AMBER, t - 1.0)
+    } else if t <= 3.5 {
+        lerp3(AMBER, GREEN, (t - 2.0) / 1.5)
+    } else {
+        lerp3(GREEN, THICK, (t - 3.5) / 2.5)
+    }
+}
+
+/// Bore and inward faces sit out of the heatmap in a neutral grey.
+pub const WALL_NEUTRAL: [f32; 3] = [0.42, 0.42, 0.45];
 
 // --- Viewport --------------------------------------------------------------
 
@@ -463,6 +575,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         let (light_dir, ambient) = (rig.dir, rig.ambient);
         let wireframe = app.show_wireframe;
         let wire_color = rgb_of(theme::TEXT_DIM);
+        let show_gems = app.show_gems;
         let renderer = app.renderer.clone();
 
         let callback = egui_glow::CallbackFn::new(move |info, glow_painter| {
@@ -478,6 +591,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                     ambient,
                     wireframe,
                     wire_color,
+                    show_gems,
                 );
             }
         });
@@ -593,6 +707,31 @@ fn draw_legend(
                     Some(theme::class_color(class)),
                     format!("{} • {}", class.label(), count),
                     theme::TEXT,
+                ));
+            }
+        }
+        (ShadeMode::Wall, _) => {
+            let m = app.design.draft.min_section_mm;
+            let swatch = |t: f64| {
+                let c = wall_color(t, m);
+                egui::Color32::from_rgb(
+                    (c[0] * 255.0) as u8,
+                    (c[1] * 255.0) as u8,
+                    (c[2] * 255.0) as u8,
+                )
+            };
+            rows.push((Some(swatch(m * 0.5)), format!("under {m:.1} mm — will not fill"), theme::TEXT));
+            rows.push((Some(swatch(m * 1.5)), format!("{m:.1}–{:.1} mm — thin", m * 2.0), theme::TEXT));
+            rows.push((Some(swatch(m * 2.7)), "comfortable".into(), theme::TEXT));
+            rows.push((Some(swatch(m * 6.5)), "heavy".into(), theme::TEXT));
+            if let Some(f) = app.field.as_ref() {
+                rows.push((
+                    None,
+                    format!(
+                        "thinnest {:.2} mm at {:.0}°",
+                        f.thinnest_wall_mm, f.thinnest_wall_theta_deg
+                    ),
+                    theme::TEXT_DIM,
                 ));
             }
         }

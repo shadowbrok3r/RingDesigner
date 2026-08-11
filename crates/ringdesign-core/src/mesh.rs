@@ -247,7 +247,7 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
             let (sin_t, cos_t) = theta.to_radians().sin_cos();
             let m = design.modulation_at(theta, inner_r, reference.crest_radius_mm);
             let loop_i =
-                design.profile.sample_spaced(inner_r, n_prof, &m, field_v, Some(&reference.feature_v));
+                design.profile.sample_spaced(inner_r, n_prof, &m, field_v, Some(&reference));
             let u = frac * ctx.circumference_mm;
 
             let mut verts = Vec::with_capacity(n_prof);
@@ -515,7 +515,7 @@ mod tests {
         let reference = design.reference_loop();
         let m = design.modulation_at(0.0, inner_r, reference.crest_radius_mm);
         let loop0 =
-            design.profile.sample_spaced(inner_r, n_prof, &m, None, Some(&reference.feature_v));
+            design.profile.sample_spaced(inner_r, n_prof, &m, None, Some(&reference));
 
         let angle_to = |v: Vec3, t: [f64; 3]| {
             let n = [v.0 as f64, v.1 as f64, v.2 as f64];

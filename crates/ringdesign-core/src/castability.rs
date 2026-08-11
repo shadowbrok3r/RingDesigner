@@ -30,6 +30,13 @@ const BORE_BINS: usize = 128;
 const PARTING_CANDIDATES: usize = 65;
 /// Share of the axial span skipped at each end when measuring wall thickness.
 const WALL_EDGE_MARGIN: f64 = 0.02;
+/// Field sampling's own noise band: undercut under this share of the surface
+/// AND shallower than [`FIELD_NOISE_DEG`] is central-difference aliasing at a
+/// fast-curving feature, not geometry — measured at 0.006% on an upright
+/// heart's face-end closure, falling with resolution.
+const FIELD_NOISE_FRACTION: f64 = 5e-4;
+/// Deepest lean the noise band may carry, degrees.
+const FIELD_NOISE_DEG: f64 = 2.5;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct DraftSettings {
@@ -559,13 +566,14 @@ pub fn section_at_spaced(
     let reference = design.reference_loop();
     let ctx = design.field_context();
     let m = design.modulation_at(theta_deg, inner_r, reference.crest_radius_mm);
-    // The same snap set the sweep uses, so the section matches the mesh.
+    // The same reference the sweep uses — snap set and row split both — so
+    // the section matches the mesh.
     let loop_i = design.profile.sample_spaced(
         inner_r,
         n,
         &m,
         spacing.map(|s| &s.v),
-        Some(&reference.feature_v),
+        Some(&reference),
     );
     if loop_i.len() < 3 {
         return Section { theta_deg, ..Default::default() };
@@ -702,6 +710,269 @@ fn thinnest_wall(points: &[SectionPoint], inner_r: f64, z_lo: f64, z_hi: f64) ->
     if min_surface_r < f64::MAX { min_surface_r - inner_r } else { 0.0 }
 }
 
+// --- Field-sampled verdict --------------------------------------------------
+
+/// Thinnest outer-to-bore metal over the middle of the bore's span, mm.
+///
+/// The bore's own radius is matched per height, so a comfort-fit dome is not
+/// mistaken for extra wall; the outer 15% of the span at each end is skipped,
+/// where the wall legitimately tapers into the band's edge.
+fn bore_span_wall(points: &[SectionPoint]) -> f64 {
+    const BINS: usize = 24;
+    const INSET: f64 = 0.15;
+    let bore: Vec<&SectionPoint> = points.iter().filter(|p| !p.surface).collect();
+    if bore.len() < 2 {
+        return 0.0;
+    }
+    let (b_lo, b_hi) = bore
+        .iter()
+        .fold((f64::MAX, f64::MIN), |a, p| (a.0.min(p.z), a.1.max(p.z)));
+    let span = b_hi - b_lo;
+    if !(span > 1e-6) {
+        return 0.0;
+    }
+    let (w_lo, w_hi) = (b_lo + span * INSET, b_hi - span * INSET);
+    let mut bore_r = [f64::MIN; BINS];
+    let at = |z: f64| {
+        (((z - w_lo) / (w_hi - w_lo) * (BINS - 1) as f64).round() as isize)
+            .clamp(0, BINS as isize - 1) as usize
+    };
+    for p in &bore {
+        if p.z >= w_lo && p.z <= w_hi {
+            bore_r[at(p.z)] = bore_r[at(p.z)].max(p.r);
+        }
+    }
+    let mut wall = f64::MAX;
+    for p in points.iter().filter(|p| p.surface) {
+        if p.z < w_lo || p.z > w_hi {
+            continue;
+        }
+        let b = bore_r[at(p.z)];
+        if b > f64::MIN {
+            wall = wall.min(p.r - b);
+        }
+    }
+    if wall == f64::MAX { 0.0 } else { wall.max(0.0) }
+}
+
+/// The castability verdict read off the *surface itself*, not off any one
+/// tessellation of it.
+#[derive(Clone, Debug, Serialize)]
+pub struct FieldReport {
+    pub verdict: Verdict,
+    /// Most negative draft found outside the bore, degrees.
+    pub worst_draft_deg: f64,
+    pub undercut_area_mm2: f64,
+    pub marginal_area_mm2: f64,
+    /// Outside the bore, parallel to the pull — crest line and zero-draft
+    /// walls.
+    pub vertical_area_mm2: f64,
+    pub total_area_mm2: f64,
+    pub parting_z_mm: f64,
+    /// Thinnest radial wall over the sweep, mm, and where it is.
+    pub thinnest_wall_mm: f64,
+    pub thinnest_wall_theta_deg: f64,
+    pub theta_samples: usize,
+    pub profile_samples: usize,
+    pub notes: Vec<String>,
+}
+
+impl FieldReport {
+    pub fn undercut_fraction(&self) -> f64 {
+        if self.total_area_mm2 > 0.0 { self.undercut_area_mm2 / self.total_area_mm2 } else { 0.0 }
+    }
+}
+
+/// Analyze the design by sampling the true surface on a `(theta, s)` grid with
+/// central-difference normals — the verdict a mesh build can only approximate.
+///
+/// A facet normal at the crest line, or on a signet's zero-draft table, has
+/// nothing to decide its sign but its own tessellation error, which is the
+/// crest-line phantom: a refined signet build reports 0.1-0.18% of spurious
+/// undercut however tight its tolerance. The smooth surface's own normal has
+/// no such noise — at the crest it is exactly radial — so this verdict is
+/// independent of build kind. Measured on a bare heart signet: a refined
+/// build's mesh reports 0.10-0.18% phantom undercut that does not fall with
+/// tolerance; the field reports 0.006% at preview sampling, falling with
+/// resolution, and exactly zero on every symmetric outline. "Judge
+/// castability from a swept build" retires.
+///
+/// The sweep reuses [`section_at_spaced`], which evaluates the same profile
+/// and height field the mesh build does, row-snapped to the same reference
+/// loop — so the samples are the mesh's own vertices at this resolution, only
+/// the normals differ. The thinnest radial wall over the sweep rides along,
+/// and a wall under [`DraftSettings::min_section_mm`] drops the verdict to
+/// marginal: thin sections do not lock, they fail to fill.
+pub fn analyze_field(
+    design: &RingDesign,
+    lib: &AlphaLibrary,
+    settings: &DraftSettings,
+    theta_steps: usize,
+    profile_steps: usize,
+) -> FieldReport {
+    let t_n = theta_steps.clamp(24, 2048);
+    let empty = FieldReport {
+        verdict: Verdict::Castable,
+        worst_draft_deg: 0.0,
+        undercut_area_mm2: 0.0,
+        marginal_area_mm2: 0.0,
+        vertical_area_mm2: 0.0,
+        total_area_mm2: 0.0,
+        parting_z_mm: 0.0,
+        thinnest_wall_mm: 0.0,
+        thinnest_wall_theta_deg: 0.0,
+        theta_samples: t_n,
+        profile_samples: profile_steps,
+        notes: Vec::new(),
+    };
+
+    let sections: Vec<Section> = (0..t_n)
+        .map(|i| {
+            section_at_spaced(design, lib, i as f64 / t_n as f64 * 360.0, profile_steps, None)
+        })
+        .collect();
+    let p_n = sections[0].points.len();
+    if p_n < 3 || sections.iter().any(|s| s.points.len() != p_n) {
+        return empty;
+    }
+
+    // The wall that must fill: outer surface to bore, measured over the
+    // middle of the bore's own span. `Section::min_wall_mm` reads to the
+    // band's tapered edges, which are thin by design — `MIN_EDGE_MM` exists —
+    // and a healthy plain band would flag at 0.66 mm.
+    let (mut thinnest, mut thinnest_at) = (f64::MAX, 0.0);
+    for s in &sections {
+        let w = bore_span_wall(&s.points);
+        if w > 0.0 && w < thinnest {
+            thinnest = w;
+            thinnest_at = s.theta_deg;
+        }
+    }
+    if thinnest == f64::MAX {
+        thinnest = 0.0;
+    }
+
+    // The grid in 3D. Both directions wrap: theta around the ring, `s` around
+    // the closed section loop.
+    let pt = |i: usize, j: usize| -> [f64; 3] {
+        let s = &sections[i % t_n];
+        let p = &s.points[j % p_n];
+        let (sin_t, cos_t) = s.theta_deg.to_radians().sin_cos();
+        [p.r * cos_t, p.r * sin_t, p.z]
+    };
+
+    // Per-sample outward normal and area weight from central differences —
+    // `e_theta x e_profile` points outward, exactly as the mesh winds.
+    let mut samples: Vec<(f64, f64, f64, bool)> = Vec::with_capacity(t_n * p_n);
+    let (mut z_lo, mut z_hi) = (f64::MAX, f64::MIN);
+    for i in 0..t_n {
+        for j in 0..p_n {
+            let tu = sub(pt(i + 1, j), pt(i + t_n - 1, j));
+            let ts = sub(pt(i, j + 1), pt(i, j + p_n - 1));
+            let x = cross(tu, ts);
+            let len = norm(x);
+            if !(len > 1e-12) {
+                continue;
+            }
+            let p = pt(i, j);
+            if !p[2].is_finite() {
+                continue;
+            }
+            z_lo = z_lo.min(p[2]);
+            z_hi = z_hi.max(p[2]);
+            // Central differences span two cells in each direction.
+            samples.push((x[2] / len, p[2], len * 0.25, !sections[i].points[j].surface));
+        }
+    }
+    if samples.is_empty() {
+        return empty;
+    }
+
+    let parting_z = if settings.auto_parting {
+        let outer: Vec<(f64, f64, f64)> =
+            samples.iter().filter(|s| !s.3).map(|&(nz, z, a, _)| (nz, z, a)).collect();
+        best_parting_z(&outer, z_lo, z_hi)
+    } else if settings.parting_z_mm.is_finite() {
+        settings.parting_z_mm
+    } else {
+        0.0
+    };
+
+    let min_draft = settings.min_draft_deg.max(0.0);
+    let mut total_area = 0.0;
+    let mut undercut_area = 0.0;
+    let mut marginal_area = 0.0;
+    let mut vertical_outer_area = 0.0;
+    let mut worst = f64::MAX;
+    for &(nz, z, area, bore) in &samples {
+        total_area += area;
+        if bore {
+            continue;
+        }
+        let draft = draft_angle([0.0, (1.0 - nz * nz).max(0.0).sqrt(), nz], z, parting_z);
+        worst = worst.min(draft);
+        match classify(draft, min_draft) {
+            FaceClass::Undercut => undercut_area += area,
+            FaceClass::Marginal => marginal_area += area,
+            FaceClass::Vertical => vertical_outer_area += area,
+            FaceClass::Good => {}
+        }
+    }
+    let worst_draft_deg = if worst == f64::MAX { 0.0 } else { worst };
+    let frac = |a: f64| if total_area > 0.0 { a / total_area } else { 0.0 };
+    let drag_frac = frac(marginal_area) + frac(vertical_outer_area);
+    let noise =
+        frac(undercut_area) < FIELD_NOISE_FRACTION && worst_draft_deg > -FIELD_NOISE_DEG;
+    let mut verdict = if frac(undercut_area) > NOT_CASTABLE_FRACTION {
+        Verdict::NotCastable
+    } else if (undercut_area > 0.0 && !noise) || drag_frac > DRAG_FRACTION {
+        Verdict::Marginal
+    } else {
+        Verdict::Castable
+    };
+
+    let mut notes = Vec::new();
+    if undercut_area > 0.0 && !noise {
+        notes.push(format!(
+            "Field-sampled: {:.2}% of the surface undercuts, worst {:.1} deg — the surface itself, not facet noise.",
+            frac(undercut_area) * 100.0,
+            -worst_draft_deg
+        ));
+    } else if undercut_area > 0.0 {
+        notes.push(format!(
+            "Field-sampled: clean but for {:.3}% at {:.1} deg, inside the sampling noise band of a fast-curving feature.",
+            frac(undercut_area) * 100.0,
+            -worst_draft_deg
+        ));
+    } else {
+        notes.push("Field-sampled: the surface itself carries no undercut at this parting.".into());
+    }
+    let min_section = settings.min_section_mm.max(0.0);
+    if thinnest > 0.0 && thinnest < min_section {
+        if verdict == Verdict::Castable {
+            verdict = Verdict::Marginal;
+        }
+        notes.push(format!(
+            "Thinnest wall {thinnest:.2} mm at {thinnest_at:.0} deg is under the {min_section:.1} mm a sand pour reliably fills."
+        ));
+    }
+
+    FieldReport {
+        verdict,
+        worst_draft_deg,
+        undercut_area_mm2: undercut_area,
+        marginal_area_mm2: marginal_area,
+        vertical_area_mm2: vertical_outer_area,
+        total_area_mm2: total_area,
+        parting_z_mm: parting_z,
+        thinnest_wall_mm: thinnest,
+        thinnest_wall_theta_deg: thinnest_at,
+        theta_samples: t_n,
+        profile_samples: p_n,
+        notes,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -713,6 +984,128 @@ mod tests {
 
     fn built(design: &RingDesign) -> BuildResult {
         crate::mesh::build(design, &AlphaLibrary::default(), STEPS)
+    }
+
+    /// The field verdict reads the surface, not a tessellation of it: the
+    /// signet's zero-draft table and crest line, which give every refined
+    /// build its phantom, sample exactly clean — and the answer is the same
+    /// at half and double resolution, which is the whole point.
+    #[test]
+    fn the_field_verdict_does_not_depend_on_resolution() {
+        use crate::profile::ShankKind;
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        d.shank.kind = ShankKind::Signet;
+        d.shank.amount = 0.72;
+        d.shank.head.outline = crate::field::SignetOutline::Heart;
+        d.shank.head.fit_length_to(d.profile.width_mm);
+
+        // A symmetric outline samples exactly clean at every resolution.
+        let mut oval = d.clone();
+        oval.shank.head.outline = crate::field::SignetOutline::Oval;
+        for (t, p) in [(128, 96), (384, 192)] {
+            let r = analyze_field(&oval, &lib, &oval.draft, t, p);
+            assert_eq!(
+                r.undercut_area_mm2, 0.0,
+                "oval head at {t}x{p}: {:.4} mm2, worst {:.2}",
+                r.undercut_area_mm2, r.worst_draft_deg
+            );
+        }
+
+        let mut reports = Vec::new();
+        // The upright heart's face-end closure has curvature even smooth
+        // differences alias, so the bound is honest rather than zero: two
+        // orders under the 0.10-0.18% a refined mesh reports as phantom,
+        // shrinking with resolution, never past the vertical-noise band.
+        for (t, p) in [(192, 128), (384, 192), (768, 256)] {
+            let r = analyze_field(&d, &lib, &d.draft, t, p);
+            assert!(
+                r.undercut_fraction() < 2e-4,
+                "heart at {t}x{p}: {:.4}% — past sampling noise",
+                r.undercut_fraction() * 100.0
+            );
+            assert!(r.worst_draft_deg > -2.5, "{t}x{p}: worst {:.2}", r.worst_draft_deg);
+            // A signet is "castable with care" at every resolution — its
+            // dead-flat table is a fifth of the surface at zero draft, which
+            // is the drag rule, the same one the mesh verdict applies.
+            assert_eq!(r.verdict, Verdict::Marginal, "{t}x{p}");
+            reports.push(r);
+        }
+        // A plain band has no such excuse and fields fully castable.
+        let plain = analyze_field(&RingDesign::default(), &lib, &d.draft, 128, 96);
+        assert_eq!(plain.verdict, Verdict::Castable);
+        assert_eq!(plain.undercut_area_mm2, 0.0);
+        assert!(
+            reports[2].undercut_area_mm2 <= reports[0].undercut_area_mm2 + 1e-9,
+            "not converging: {:.4} -> {:.4}",
+            reports[0].undercut_area_mm2,
+            reports[2].undercut_area_mm2
+        );
+        // Total area converges too: the samples are the surface, not a guess.
+        let a0 = reports[0].total_area_mm2;
+        let a1 = reports[2].total_area_mm2;
+        assert!((a0 - a1).abs() / a1 < 0.02, "area drifts: {a0:.1} vs {a1:.1}");
+    }
+
+    /// A real undercut — relief on the crown's flank — is reported by the
+    /// field at the same scale the mesh reports it: the field is phantom-free,
+    /// not undercut-blind.
+    #[test]
+    fn the_field_sees_real_undercuts_the_same_size_the_mesh_does() {
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        d.profile.width_mm = 8.0;
+        let ctx = d.field_context();
+        // A flat-topped boss reaching onto the dome flank: the measured
+        // eternity-row lesson, one pad of it.
+        let pad = SeatPadLayer {
+            theta_deg: TOP_DEG,
+            v_mm: ctx.band_v_len_mm * 0.30,
+            diameter_mm: 3.4,
+            height_mm: 0.9,
+            crown: 0.0,
+            blend_mm: 0.3,
+            ..Default::default()
+        };
+        d.layers.layers.push(LayerEntry::new("Boss", Layer::SeatPad(pad)));
+
+        let field = analyze_field(&d, &lib, &d.draft, 256, 160);
+        let out = crate::mesh::build(
+            &d,
+            &lib,
+            BuildParams { theta_steps: 256, profile_steps: 160, ..Default::default() },
+        );
+        let mesh_rep = analyze(&out.mesh, &d.draft, d.inner_radius_mm());
+
+        assert!(field.undercut_area_mm2 > 0.0, "field missed the rim undercut");
+        assert!(mesh_rep.undercut_area_mm2 > 0.0, "mesh missed the rim undercut");
+        let (f, m) = (field.undercut_fraction(), mesh_rep.undercut_fraction());
+        assert!(
+            f > m * 0.4 && f < m * 2.5,
+            "field {:.4}% vs mesh {:.4}% disagree past sampling",
+            f * 100.0,
+            m * 100.0
+        );
+    }
+
+    /// A band thinner than `min_section_mm` cannot fill, and the field sweep
+    /// carries the thinnest wall into the verdict — the number that was dead
+    /// in core until now.
+    #[test]
+    fn a_thin_band_drops_the_field_verdict_to_marginal() {
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        d.profile.thickness_mm = 0.6;
+        d.profile.crown_mm = 0.1;
+        let r = analyze_field(&d, &lib, &d.draft, 96, 64);
+        assert!(
+            r.thinnest_wall_mm > 0.0 && r.thinnest_wall_mm < d.draft.min_section_mm,
+            "thinnest {:.2} vs min {:.2}",
+            r.thinnest_wall_mm,
+            d.draft.min_section_mm
+        );
+        assert_eq!(r.verdict, Verdict::Marginal);
+        assert!(r.notes.iter().any(|n| n.contains("Thinnest wall")));
     }
 
     /// Relief on a face square to the pull moves along the pull, and the walls

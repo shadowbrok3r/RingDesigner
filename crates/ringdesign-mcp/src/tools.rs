@@ -236,6 +236,52 @@ pub struct CastJson {
     pub min_draft_deg: f64,
     /// Plain-language findings, verbatim.
     pub notes: Vec<String>,
+    /// Per-seat bench checks and carat totals, when the design carries seats.
+    pub stones: Option<StonesJson>,
+    /// The authoritative verdict, sampled off the surface itself rather than
+    /// any mesh — build kind and resolution cannot put a phantom in it.
+    pub field: FieldJson,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct FieldJson {
+    /// Castable, Marginal, or NotCastable — trust this one over the mesh's.
+    pub verdict: String,
+    pub verdict_label: String,
+    pub worst_draft_deg: f64,
+    pub undercut_fraction: f64,
+    /// Thinnest outer-to-bore metal over the finger hole, mm.
+    pub thinnest_wall_mm: f64,
+    pub thinnest_wall_theta_deg: f64,
+    pub notes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct StonesJson {
+    pub stone_count: u32,
+    pub total_carats: f64,
+    pub seats: Vec<SeatJson>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct SeatJson {
+    /// Layer name, prefixed by its group path.
+    pub label: String,
+    /// Boss, Bezel collar, or Gypsy mound.
+    pub style: String,
+    /// Stations this seat occupies after its window.
+    pub count: u32,
+    pub seat_diameter_mm: f64,
+    /// e.g. "2.5 mm Round brilliant (0.06 ct)"; absent when no stone is assigned.
+    pub stone: Option<String>,
+    /// "side face" (castable by construction) or "crown +12.3 deg".
+    pub sits_on: String,
+    pub edge_clearance_mm: f64,
+    /// Metal available for the pavilion along the seat's normal, mm.
+    pub depth_available_mm: f64,
+    /// Runs only: metal left between neighbouring stones, mm.
+    pub bridge_mm: Option<f64>,
+    pub warnings: Vec<String>,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -350,6 +396,10 @@ pub struct SetShankParams {
     /// Signet only: 1 makes the table a true plane to engrave; below that the
     /// head keeps the profile's own crown and stays domed.
     pub head_table_flat: Option<f64>,
+    /// Signet only: rounding between the table and the head's walls, mm — how
+    /// hard the face outline reads. The reference signets round theirs about
+    /// 0.6 mm; the outline is the one edge a signet has.
+    pub head_rim_round_mm: Option<f64>,
     /// Signet only: where the head sits round the ring, degrees. 90 is the top.
     pub head_theta_deg: Option<f64>,
 }
@@ -919,7 +969,52 @@ fn report_json(report: &Report, params: BuildParams, generation: u64) -> ReportJ
     }
 }
 
-fn cast_json(cast: &CastReport, min_draft_deg: f64, generation: u64) -> CastJson {
+fn stones_json(r: &ringdesign_core::stones::StonesReport) -> StonesJson {
+    use ringdesign_core::stones::SeatFooting;
+    StonesJson {
+        stone_count: r.stone_count,
+        total_carats: r.total_carats,
+        seats: r
+            .seats
+            .iter()
+            .map(|s| SeatJson {
+                label: s.label.clone(),
+                style: s.style.label().to_string(),
+                count: s.count,
+                seat_diameter_mm: s.seat_diameter_mm,
+                stone: s.gem.map(|g| g.display()),
+                sits_on: match s.footing {
+                    SeatFooting::SideFace => "side face".to_string(),
+                    SeatFooting::Crown(d) => format!("crown {d:+.1} deg"),
+                },
+                edge_clearance_mm: s.edge_clearance_mm,
+                depth_available_mm: s.depth_available_mm,
+                bridge_mm: s.bridge_mm,
+                warnings: s.warnings.clone(),
+            })
+            .collect(),
+    }
+}
+
+fn field_json(f: &ringdesign_core::castability::FieldReport) -> FieldJson {
+    FieldJson {
+        verdict: format!("{:?}", f.verdict),
+        verdict_label: f.verdict.label().to_string(),
+        worst_draft_deg: f.worst_draft_deg,
+        undercut_fraction: f.undercut_fraction(),
+        thinnest_wall_mm: f.thinnest_wall_mm,
+        thinnest_wall_theta_deg: f.thinnest_wall_theta_deg,
+        notes: f.notes.clone(),
+    }
+}
+
+fn cast_json(
+    cast: &CastReport,
+    min_draft_deg: f64,
+    generation: u64,
+    stones: Option<StonesJson>,
+    field: FieldJson,
+) -> CastJson {
     CastJson {
         generation,
         verdict: format!("{:?}", cast.verdict),
@@ -936,6 +1031,8 @@ fn cast_json(cast: &CastReport, min_draft_deg: f64, generation: u64) -> CastJson
         parting_z_mm: cast.parting_z_mm,
         min_draft_deg,
         notes: cast.notes.clone(),
+        stones,
+        field,
     }
 }
 
@@ -1358,6 +1455,7 @@ impl RingDesignServer {
         }
         put_range(&mut h.body_fair, p.head_body_fair, "head_body_fair", 0.0, 1.0, &mut applied)?;
         put_range(&mut h.table_flat, p.head_table_flat, "head_table_flat", 0.0, 1.0, &mut applied)?;
+        put_range(&mut h.rim_round_mm, p.head_rim_round_mm, "head_rim_round_mm", 0.0, 2.0, &mut applied)?;
         put_range(&mut h.theta_deg, p.head_theta_deg, "head_theta_deg", 0.0, 360.0, &mut applied)?;
         let change = DesignChange {
             generation: e.generation(),
@@ -1948,16 +2046,19 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Analyse the current mesh for a two-part sand mould that parts perpendicular to the finger axis and pulls in both directions, building first if the design changed. Returns the verdict (Castable, Marginal, or NotCastable), per-class face counts with their areas in mm2 (good draft, marginal, vertical wall, undercut), the undercut share of the total surface, the worst draft angle found in degrees (negative means a face leans back under itself and will lock in the sand), the parting height in mm, and the notes. Read the notes: they are plain language, returned verbatim, and they say what to cut and where to move it. A face is called marginal below the design's min_draft_deg, 3 degrees by default for Delft clay or petrobond. The finger hole is always reported as a vertical wall rather than an undercut, because it cores in the sand or is reamed at the bench."
+        description = "Analyse the current mesh for a two-part sand mould that parts perpendicular to the finger axis and pulls in both directions, building first if the design changed. Returns the verdict (Castable, Marginal, or NotCastable), per-class face counts with their areas in mm2 (good draft, marginal, vertical wall, undercut), the undercut share of the total surface, the worst draft angle found in degrees (negative means a face leans back under itself and will lock in the sand), the parting height in mm, and the notes. Read the notes: they are plain language, returned verbatim, and they say what to cut and where to move it. A face is called marginal below the design's min_draft_deg, 3 degrees by default for Delft clay or petrobond. The finger hole is always reported as a vertical wall rather than an undercut, because it cores in the sand or is reamed at the bench. When the design carries seat pads or seat runs, `stones` holds the bench checks: per seat, what the base surface under it is (a side face is castable by construction; a crown reports its draft), the metal from its foot to the band edge, the metal available for the stone's pavilion before the 0.5 mm minimum wall, the bridge between neighbouring stones in a run, and any warnings — plus the stone count and total carats. Stones themselves are never cast; the checks are about the stock the ring casts for the bench to set into. `field` is the authoritative verdict: it samples the true surface with smooth normals instead of reading mesh facets, so the crest-line and signet-table phantoms a refined mesh reports cannot appear in it, and it carries the thinnest outer-to-bore wall over the finger hole against min_section_mm — trust `field.verdict` when it and the mesh numbers disagree."
     )]
     async fn castability(&self) -> Json<CastJson> {
         let mut e = self.engine.lock();
         let cast = e.castability();
         let min_draft = e.design().draft.min_draft_deg;
         let generation = e.generation();
+        let stones =
+            ringdesign_core::stones::report(e.design(), cast.parting_z_mm).map(|r| stones_json(&r));
+        let field = field_json(&e.field_report());
         drop(e);
         self.touch();
-        Json(cast_json(&cast, min_draft, generation))
+        Json(cast_json(&cast, min_draft, generation, stones, field))
     }
 
     #[tool(
@@ -2003,6 +2104,23 @@ impl RingDesignServer {
         let mut e = self.engine.lock();
         let path = p.path.unwrap_or_else(|| default_export_path(&e.design().name, "obj"));
         let bytes = e.export_obj(&path);
+        drop(e);
+        self.touch();
+        let bytes =
+            bytes.map_err(|err| ErrorData::internal_error(format!("write {path}: {err}"), None))?;
+        Ok(Json(ExportResult { path, bytes }))
+    }
+
+    #[tool(
+        description = "Write the current mesh as a 3MF package, building first if the design changed. `path` is optional and defaults to a temp file named after the design. Returns the path and the byte count. 3MF is a zip with the model as XML that states unit=millimeter and carries the design name and ring size as metadata, so a slicer or CAD package opens it at the right scale without being told — use it over STL wherever the receiver understands it, because STL has no units at all."
+    )]
+    async fn export_3mf(
+        &self,
+        Parameters(p): Parameters<ExportParams>,
+    ) -> Result<Json<ExportResult>, ErrorData> {
+        let mut e = self.engine.lock();
+        let path = p.path.unwrap_or_else(|| default_export_path(&e.design().name, "3mf"));
+        let bytes = e.export_3mf(&path);
         drop(e);
         self.touch();
         let bytes =
@@ -2600,6 +2718,31 @@ mod tests {
         assert!((pad.v_mm - crest).abs() < 1e-9, "pad sat at {} not {crest}", pad.v_mm);
     }
 
+    #[tokio::test]
+    async fn castability_carries_the_stones_section_when_seats_exist() {
+        let s = server();
+        let bare = s.castability().await;
+        assert!(bare.0.stones.is_none(), "no seats yet");
+
+        s.add_seat_pad_layer(Parameters(AddSeatPadParams::default())).await.unwrap();
+        {
+            let mut e = s.engine.lock();
+            if let Layer::SeatPad(pad) = &mut e.design_mut().layers.layers[0].layer {
+                pad.fit_stone(ringdesign_core::gem::Gem::calibrated(
+                    ringdesign_core::gem::GemCut::Round,
+                    3.0,
+                ));
+            }
+        }
+        let cast = s.castability().await;
+        let stones = cast.0.stones.expect("stones section");
+        assert_eq!(stones.stone_count, 1);
+        assert!(stones.total_carats > 0.0);
+        assert_eq!(stones.seats.len(), 1);
+        assert!(stones.seats[0].stone.is_some());
+        assert!(stones.seats[0].depth_available_mm > 0.0);
+    }
+
     /// The signet head is base geometry, so setting it has to change the band
     /// itself — no layer involved — and picking an outline has to size the face
     /// to that shape rather than restretch the last one.
@@ -2802,12 +2945,13 @@ mod tests {
             "cross_section",
             "export_stl",
             "export_obj",
+            "export_3mf",
             "save_design",
             "load_design",
         ] {
             assert!(names.contains(&expected), "missing tool {expected}: {names:?}");
         }
-        assert_eq!(names.len(), 29, "{names:?}");
+        assert_eq!(names.len(), 30, "{names:?}");
         for t in &tools {
             let d = t.description.as_ref().unwrap_or_else(|| panic!("{} has no description", t.name));
             assert!(d.len() > 120, "{} has a thin description", t.name);

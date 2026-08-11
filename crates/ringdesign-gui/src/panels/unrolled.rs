@@ -44,7 +44,38 @@ enum Grab {
     VLow,
     VHigh,
     Rotate,
+    /// A handle on a non-tiling layer: rail and bead rows as v-lines, pads,
+    /// stamps and signet plates as centres, a pad's rim as its radius.
+    Other { layer: usize, handle: u8 },
 }
+
+/// Where a non-tiling layer can be grabbed on the canvas.
+enum HShape {
+    HLine(f32),
+    Point(egui::Pos2),
+    Ring(egui::Pos2, f32),
+}
+
+struct LHandle {
+    layer: usize,
+    handle: u8,
+    shape: HShape,
+}
+
+impl HShape {
+    fn dist(&self, p: egui::Pos2) -> f32 {
+        match self {
+            HShape::HLine(y) => (p.y - y).abs(),
+            HShape::Point(c) => (p - *c).length(),
+            HShape::Ring(c, r) => ((p - *c).length() - r).abs(),
+        }
+    }
+}
+
+/// Radius-drag handle ids start here; below are centres and v-lines.
+const H_RADIUS: u8 = 1;
+/// Decal instance k grabs as handle `H_DECAL + k`.
+const H_DECAL: u8 = 8;
 
 /// Rendered height field, kept until the layer stack or the canvas changes.
 #[derive(Clone)]
@@ -100,6 +131,60 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     });
     let mut changed = false;
 
+    // --- Handles for every other layer kind ---------------------------------
+    //
+    // Composing four or five layers by numeric entry is blind; these put a
+    // grip on each one where it lands. Every enabled layer is grabbable, and
+    // grabbing one selects it.
+    let mut handles: Vec<LHandle> = Vec::new();
+    for (i, entry) in app.design.layers.layers.iter().enumerate() {
+        if !entry.enabled {
+            continue;
+        }
+        let center = |theta: f64, v: f64| {
+            egui::pos2(x_of_u(ctx.u_of_theta(theta.rem_euclid(360.0))), y_of_v(v))
+        };
+        match &entry.layer {
+            Layer::Border(b) => {
+                handles.push(LHandle { layer: i, handle: 0, shape: HShape::HLine(y_of_v(b.v_mm)) });
+            }
+            Layer::Milgrain(m) => {
+                handles.push(LHandle { layer: i, handle: 0, shape: HShape::HLine(y_of_v(m.v_mm)) });
+            }
+            Layer::SeatRun(r) => {
+                handles
+                    .push(LHandle { layer: i, handle: 0, shape: HShape::HLine(y_of_v(r.seat.v_mm)) });
+            }
+            Layer::SeatPad(s) => {
+                let c = center(s.theta_deg, s.v_mm);
+                let r_px = (s.diameter_mm * 0.5 / mm_per_px_v.max(1e-9)) as f32;
+                handles.push(LHandle { layer: i, handle: 0, shape: HShape::Point(c) });
+                handles.push(LHandle {
+                    layer: i,
+                    handle: H_RADIUS,
+                    shape: HShape::Ring(c, r_px.max(8.0)),
+                });
+            }
+            Layer::Signet(sg) => {
+                handles.push(LHandle {
+                    layer: i,
+                    handle: 0,
+                    shape: HShape::Point(center(sg.theta_deg, sg.v_mm)),
+                });
+            }
+            Layer::Decals(d) => {
+                for (k, dec) in d.decals.iter().enumerate().take(120) {
+                    handles.push(LHandle {
+                        layer: i,
+                        handle: H_DECAL + k.min(200) as u8,
+                        shape: HShape::Point(center(dec.theta_deg, dec.v_mm)),
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+
     // --- Interaction ---------------------------------------------------------
 
     let knob_c = egui::pos2(plot.right() - 34.0, plot.bottom() - 34.0);
@@ -109,16 +194,26 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
     if response.drag_started() {
         let p = response.interact_pointer_pos().unwrap_or(plot.center());
-        let grab = if tile.is_none() {
-            Grab::None
-        } else if (p - knob_c).length() <= KNOB_R + 5.0 {
+        // Nearest layer handle in reach; a knob or band-edge grab on the
+        // selected tiling still wins over a stray line underneath it.
+        let nearest = handles
+            .iter()
+            .map(|h| (h, h.shape.dist(p)))
+            .filter(|(_, d)| *d <= HANDLE_GRAB_PX + 2.0)
+            .min_by(|a, b| a.1.total_cmp(&b.1));
+        let grab = if tile.is_some() && (p - knob_c).length() <= KNOB_R + 5.0 {
             Grab::Rotate
-        } else if (p.y - y_of_v(v_lo)).abs() <= HANDLE_GRAB_PX {
+        } else if tile.is_some() && (p.y - y_of_v(v_lo)).abs() <= HANDLE_GRAB_PX {
             Grab::VLow
-        } else if (p.y - y_of_v(v_hi)).abs() <= HANDLE_GRAB_PX {
+        } else if tile.is_some() && (p.y - y_of_v(v_hi)).abs() <= HANDLE_GRAB_PX {
             Grab::VHigh
-        } else {
+        } else if let Some((h, _)) = nearest {
+            app.selected_layer = Some(h.layer);
+            Grab::Other { layer: h.layer, handle: h.handle }
+        } else if tile.is_some() {
             Grab::Lattice
+        } else {
+            Grab::None
         };
         ui.memory_mut(|m| m.data.insert_temp(grab_id, grab));
     }
@@ -182,7 +277,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         }
                     }
                 }
-                Grab::None => {}
+                Grab::None | Grab::Other { .. } => {}
             }
         }
 
@@ -202,6 +297,74 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     changed = true;
                 }
                 ui.memory_mut(|m| m.data.insert_temp(scroll_id, acc));
+            }
+        }
+    }
+
+    // --- Dragging a non-tiling layer's handle --------------------------------
+
+    {
+        let grab = ui.memory(|m| m.data.get_temp::<Grab>(grab_id)).unwrap_or_default();
+        let pointer = ui.input(|i| i.pointer.interact_pos());
+        if let (Grab::Other { layer, handle }, true, Some(p)) =
+            (grab, response.dragged(), pointer)
+        {
+            let snap_targets: Vec<f64> = ctx
+                .side_faces_std()
+                .map(|sf| sf.low.into_iter().chain(sf.high).flat_map(|(a, b)| [a, b]).collect())
+                .unwrap_or_default();
+            let snap = |v: f64| {
+                snap_targets
+                    .iter()
+                    .copied()
+                    .filter(|s| (s - v).abs() <= SNAP_MM)
+                    .min_by(|a, b| (a - v).abs().total_cmp(&(b - v).abs()))
+                    .unwrap_or(v)
+            };
+            let v_at = |y: f32| snap(v_of_y(y)).clamp(0.0, ctx.band_v_len_mm);
+            let theta_at = |x: f32| {
+                ((x - plot.left()) as f64 / plot.width().max(1.0) as f64 * 360.0).rem_euclid(360.0)
+            };
+            let mut moved = true;
+            if let Some(e) = app.design.layers.layers.get_mut(layer) {
+                match (&mut e.layer, handle) {
+                    (Layer::Border(b), 0) => b.v_mm = v_at(p.y),
+                    (Layer::Milgrain(m), 0) => m.v_mm = v_at(p.y),
+                    (Layer::SeatRun(r), 0) => r.seat.v_mm = v_at(p.y),
+                    (Layer::SeatPad(s), 0) => {
+                        s.theta_deg = theta_at(p.x);
+                        s.v_mm = v_at(p.y);
+                    }
+                    (Layer::SeatPad(s), H_RADIUS) => {
+                        let c = egui::pos2(
+                            x_of_u(ctx.u_of_theta(s.theta_deg.rem_euclid(360.0))),
+                            y_of_v(s.v_mm),
+                        );
+                        let d = p - c;
+                        let mm = ((d.x as f64 * mm_per_px_u).powi(2)
+                            + (d.y as f64 * mm_per_px_v).powi(2))
+                        .sqrt();
+                        s.diameter_mm = (mm * 2.0).clamp(0.5, 20.0);
+                    }
+                    (Layer::Signet(sg), 0) => {
+                        sg.theta_deg = theta_at(p.x);
+                        sg.v_mm = v_at(p.y);
+                    }
+                    (Layer::Decals(dl), h) if h >= H_DECAL => {
+                        if let Some(dec) = dl.decals.get_mut((h - H_DECAL) as usize) {
+                            dec.theta_deg = theta_at(p.x);
+                            dec.v_mm = v_at(p.y);
+                        } else {
+                            moved = false;
+                        }
+                    }
+                    _ => moved = false,
+                }
+            } else {
+                moved = false;
+            }
+            if moved {
+                app.mark_dirty();
             }
         }
     }
@@ -381,6 +544,65 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         theme::ACCENT,
     );
 
+    // --- Handles on the other layer kinds ------------------------------------
+    //
+    // Read fresh from the stack, so a handle tracks its layer within the
+    // frame that dragged it.
+    for (i, entry) in app.design.layers.layers.iter().enumerate() {
+        if !entry.enabled {
+            continue;
+        }
+        let strong = Some(i) == app.selected_layer;
+        let col = if strong { theme::ACCENT } else { theme::TEXT_DIM.gamma_multiply(0.75) };
+        let stroke = egui::Stroke::new(if strong { 1.6 } else { 1.0 }, col);
+        let center = |theta: f64, v: f64| {
+            egui::pos2(x_of_u(ctx.u_of_theta(theta.rem_euclid(360.0))), y_of_v(v))
+        };
+        let vline = |painter: &egui::Painter, y: f32, label: &str| {
+            painter.extend(egui::Shape::dashed_line(
+                &[egui::pos2(plot.left(), y), egui::pos2(plot.right(), y)],
+                stroke,
+                5.0,
+                5.0,
+            ));
+            if strong {
+                painter.text(
+                    egui::pos2(plot.right() - 6.0, y - 3.0),
+                    egui::Align2::RIGHT_BOTTOM,
+                    label,
+                    egui::FontId::proportional(10.0),
+                    col,
+                );
+            }
+        };
+        let cross = |painter: &egui::Painter, c: egui::Pos2| {
+            for (a, b) in [
+                (egui::vec2(-6.0, 0.0), egui::vec2(6.0, 0.0)),
+                (egui::vec2(0.0, -6.0), egui::vec2(0.0, 6.0)),
+            ] {
+                painter.line_segment([c + a, c + b], stroke);
+            }
+        };
+        match &entry.layer {
+            Layer::Border(b) => vline(&painter, y_of_v(b.v_mm), "border"),
+            Layer::Milgrain(m) => vline(&painter, y_of_v(m.v_mm), "milgrain"),
+            Layer::SeatRun(r) => vline(&painter, y_of_v(r.seat.v_mm), "seat run"),
+            Layer::SeatPad(sp) => {
+                let c = center(sp.theta_deg, sp.v_mm);
+                cross(&painter, c);
+                let r_px = (sp.diameter_mm * 0.5 / mm_per_px_v.max(1e-9)) as f32;
+                painter.circle_stroke(c, r_px.max(8.0), stroke);
+            }
+            Layer::Signet(sg) => cross(&painter, center(sg.theta_deg, sg.v_mm)),
+            Layer::Decals(d) => {
+                for dec in d.decals.iter().take(120) {
+                    cross(&painter, center(dec.theta_deg, dec.v_mm));
+                }
+            }
+            _ => {}
+        }
+    }
+
     // --- Band edge handles and the rotation knob -----------------------------
 
     if let Some(t) = &tile {
@@ -461,8 +683,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
     let hint = if tile.is_some() {
         "Drag to shift the lattice • Scroll for repeats • Ctrl-scroll or the knob to rotate • Drag the band edges to resize"
+    } else if !handles.is_empty() {
+        "Drag a line, cross or rim to move that layer • grabbing one selects it"
     } else {
-        "Add a tiling layer in the Layers panel, then drag it into place here"
+        "Add a layer in the Layers panel, then drag it into place here"
     };
     painter.text(
         egui::pos2(rect.left() + PAD_L, rect.bottom() - 4.0),

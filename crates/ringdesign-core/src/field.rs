@@ -1689,7 +1689,9 @@ impl SignetOutline {
     pub fn head_aspect(self) -> f64 {
         match self {
             SignetOutline::Shield => 0.85,
-            SignetOutline::Heart => 1.12,
+            // The reference plate is 18.53 mm round the ring by 17.64 across,
+            // which is 1.05 — and the classic curve's own box is 1.02.
+            SignetOutline::Heart => 1.05,
             SignetOutline::Round => 1.0,
             SignetOutline::Octagon => 1.1,
             SignetOutline::Cushion => 1.2,
@@ -1923,6 +1925,7 @@ impl Silhouette {
         const BISECT: usize = 40;
         let mut lo = [0.0f64; SILHOUETTE_STEPS];
         let mut hi = [0.0f64; SILHOUETTE_STEPS];
+        let mut found = [false; SILHOUETTE_STEPS];
         for i in 0..SILHOUETTE_STEPS {
             let x = -1.0 + 2.0 * i as f64 / (SILHOUETTE_STEPS - 1) as f64;
             // `side` is which end we walk in from, so one pass does both.
@@ -1942,8 +1945,28 @@ impl Silhouette {
                         }
                     }
                     *slot = inside;
+                    found[i] = true;
                     break;
                 }
+            }
+        }
+        // A station the scan finds nothing at — the tangent sliver at x = ±1,
+        // where the interval is a point — must inherit its neighbour, not
+        // hold (0, 0): the zeroed cell collapses the span to a bogus centred
+        // point, and the sweep reads that as a 4 mm yank inside one table
+        // cell — measured as 128 degree grid folds at the face's end.
+        for i in 1..SILHOUETTE_STEPS {
+            if !found[i] && found[i - 1] {
+                lo[i] = lo[i - 1];
+                hi[i] = hi[i - 1];
+                found[i] = true;
+            }
+        }
+        for i in (0..SILHOUETTE_STEPS - 1).rev() {
+            if !found[i] && found[i + 1] {
+                lo[i] = lo[i + 1];
+                hi[i] = hi[i + 1];
+                found[i] = true;
             }
         }
         let (body_lo, body_hi) = (fair(&lo, -1.0), fair(&hi, 1.0));

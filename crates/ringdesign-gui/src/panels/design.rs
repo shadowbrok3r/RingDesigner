@@ -741,6 +741,20 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         .changed();
 
     changed |= ui
+        .add(
+            egui::Slider::new(&mut head.rim_round_mm, 0.0..=1.5)
+                .fixed_decimals(2)
+                .suffix(" mm")
+                .text("Rim round"),
+        )
+        .on_hover_text(
+            "Rounding between the table and the head's walls — how hard the face \
+             outline reads. The reference signets round theirs about 0.6 mm; the \
+             outline is the one edge a signet has.",
+        )
+        .changed();
+
+    changed |= ui
         .add(egui::Slider::new(&mut head.theta_deg, 0.0..=360.0).suffix("°").text("Around"))
         .on_hover_text("Where the head sits round the ring. 90° is the top.")
         .changed();

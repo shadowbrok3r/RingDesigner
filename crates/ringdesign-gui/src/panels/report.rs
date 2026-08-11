@@ -27,7 +27,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let mut want_draft = false;
     match app.cast.as_ref() {
         Some(cast) => {
-            want_draft = castability(ui, cast, &app.design.draft, already_draft);
+            want_draft =
+                castability(ui, cast, app.field.as_ref(), &app.design.draft, already_draft);
         }
         None => placeholder(ui, app.is_building(), "No draft analysis yet"),
     }
@@ -37,6 +38,14 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     }
 
     ui.add_space(8.0);
+
+    if let Some(stones) = app.stones.as_ref() {
+        let badge = if stones.any_warnings() { format!(" {}", icon::WARNING) } else { String::new() };
+        egui::CollapsingHeader::new(format!("{} Stones{badge}", icon::DIAMOND))
+            .default_open(true)
+            .show(ui, |ui| stones_section(ui, stones));
+        ui.add_space(8.0);
+    }
 
     match app.build.as_ref() {
         Some(build) => {
@@ -70,11 +79,44 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 fn castability(
     ui: &mut egui::Ui,
     cast: &CastReport,
+    field: Option<&ringdesign_core::castability::FieldReport>,
     draft: &DraftSettings,
     already_draft: bool,
 ) -> bool {
-    verdict_banner(ui, cast);
+    match field {
+        Some(f) => field_banner(ui, f),
+        None => verdict_banner(ui, cast),
+    }
     ui.add_space(6.0);
+
+    if let Some(f) = field {
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Thinnest wall").color(theme::TEXT_DIM));
+            let color = if f.thinnest_wall_mm < draft.min_section_mm {
+                theme::WARN
+            } else {
+                theme::GOOD
+            };
+            ui.add(
+                egui::Label::new(
+                    egui::RichText::new(format!("{:.2} mm", f.thinnest_wall_mm))
+                        .strong()
+                        .color(color),
+                )
+                .selectable(true),
+            );
+            ui.label(
+                egui::RichText::new(format!("at {:.0}° • min {:.1}", f.thinnest_wall_theta_deg, draft.min_section_mm))
+                    .small()
+                    .color(theme::TEXT_DIM),
+            );
+        })
+        .response
+        .on_hover_text(
+            "Outer surface to bore over the middle of the finger hole — the metal a pour must fill.",
+        );
+        ui.add_space(4.0);
+    }
 
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new("Parting plane").color(theme::TEXT_DIM));
@@ -170,6 +212,77 @@ fn castability(
         );
     }
     clicked
+}
+
+/// The banner from the field-sampled report: the verdict of the surface
+/// itself, so no build kind or resolution can put a phantom in it.
+fn field_banner(ui: &mut egui::Ui, f: &ringdesign_core::castability::FieldReport) {
+    let color = theme::verdict_color(f.verdict);
+    let glyph = match f.verdict {
+        Verdict::Castable => icon::CHECK_CIRCLE,
+        Verdict::Marginal => icon::WARNING,
+        Verdict::NotCastable => icon::X_CIRCLE,
+    };
+    let detail = match f.verdict {
+        Verdict::Castable => "The surface itself clears a two-part pull.".to_string(),
+        Verdict::Marginal => f
+            .notes
+            .iter()
+            .find(|n| n.contains("Thinnest wall"))
+            .cloned()
+            .unwrap_or_else(|| {
+                format!(
+                    "{:.1}% undercuts or drags on the surface itself.",
+                    (f.undercut_fraction()
+                        + (f.marginal_area_mm2 + f.vertical_area_mm2)
+                            / f.total_area_mm2.max(1e-9))
+                        * 100.0
+                )
+            }),
+        Verdict::NotCastable => format!(
+            "{:.1}% of the surface locks in, worst {:.1}°.",
+            f.undercut_fraction() * 100.0,
+            -f.worst_draft_deg
+        ),
+    };
+
+    egui::Frame::NONE
+        .fill(color.gamma_multiply(0.16))
+        .stroke(egui::Stroke::new(1.0, color.gamma_multiply(0.60)))
+        .corner_radius(6.0)
+        .inner_margin(egui::Margin::symmetric(10, 8))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(glyph).size(22.0).color(color));
+                ui.add_space(2.0);
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new(f.verdict.label())
+                                .size(15.0)
+                                .strong()
+                                .color(color),
+                        );
+                        ui.label(
+                            egui::RichText::new("field-sampled")
+                                .small()
+                                .color(theme::ACCENT_DIM),
+                        )
+                        .on_hover_text(format!(
+                            "Sampled off the surface itself at {}x{} — independent of the preview mesh, so facet noise cannot fake an undercut.",
+                            f.theta_samples, f.profile_samples
+                        ));
+                    });
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(detail).small().color(theme::TEXT_DIM),
+                        )
+                        .wrap(),
+                    );
+                });
+            });
+        });
 }
 
 fn verdict_banner(ui: &mut egui::Ui, cast: &CastReport) {
@@ -411,6 +524,62 @@ fn metals(ui: &mut egui::Ui, report: &Report) {
             .small()
             .color(theme::TEXT_DIM),
     );
+}
+
+// --- Stones ----------------------------------------------------------------
+
+fn stones_section(ui: &mut egui::Ui, stones: &ringdesign_core::stones::StonesReport) {
+    use ringdesign_core::stones::SeatFooting;
+
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(format!("{} stones", stones.stone_count)).strong());
+        ui.label(
+            egui::RichText::new(format!("{:.2} ct total", stones.total_carats))
+                .strong()
+                .color(theme::ACCENT),
+        );
+        ui.label(
+            egui::RichText::new("set at the bench — the ring casts the stock")
+                .small()
+                .color(theme::TEXT_DIM),
+        );
+    });
+    ui.add_space(4.0);
+
+    for seat in &stones.seats {
+        let stone = seat
+            .gem
+            .map(|g| g.display())
+            .unwrap_or_else(|| "no stone assigned".into());
+        let count = if seat.count > 1 { format!(" ×{}", seat.count) } else { String::new() };
+        ui.label(egui::RichText::new(format!("{}{count} — {stone}", seat.label)).strong());
+        egui::Grid::new(format!("stone_{}", seat.label))
+            .num_columns(2)
+            .min_col_width(96.0)
+            .spacing([8.0, 2.0])
+            .show(ui, |ui| {
+                let footing = match seat.footing {
+                    SeatFooting::SideFace => "side face — castable by construction".to_string(),
+                    SeatFooting::Crown(d) => format!("crown, {d:+.1}° base draft"),
+                };
+                row(ui, "Sits on", footing);
+                row(ui, "Seat", format!("{:.2} mm {}", seat.seat_diameter_mm, seat.style.label()));
+                row(ui, "Edge clearance", format!("{:.2} mm", seat.edge_clearance_mm));
+                row(ui, "Depth for pavilion", format!("{:.2} mm", seat.depth_available_mm));
+                if let Some(b) = seat.bridge_mm {
+                    row(ui, "Bridge", format!("{b:.2} mm"));
+                }
+            });
+        for w in &seat.warnings {
+            ui.horizontal_top(|ui| {
+                ui.label(egui::RichText::new(icon::WARNING).color(theme::WARN));
+                ui.add(
+                    egui::Label::new(egui::RichText::new(w).small().color(theme::WARN)).wrap(),
+                );
+            });
+        }
+        ui.add_space(4.0);
+    }
 }
 
 // --- Shared bits -----------------------------------------------------------

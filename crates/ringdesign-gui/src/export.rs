@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use ringdesign_core::{library, stl};
+use ringdesign_core::{library, stl, threemf};
 
 use crate::app::RingDesignerApp;
 
@@ -63,6 +63,29 @@ pub fn export_obj(app: &mut RingDesignerApp) {
             bytes as f64 / 1024.0
         )),
         Err(e) => app.set_status(format!("OBJ export failed: {e}")),
+    }
+}
+
+pub fn export_3mf(app: &mut RingDesignerApp) {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("3MF model", &["3mf"])
+        .set_directory(dir("exports"))
+        .set_file_name(format!("{}.3mf", slug(&app.design.name)))
+        .save_file()
+    else {
+        return;
+    };
+    app.set_status("Building at export resolution…");
+    let out = app.build_for_export();
+    let size = app.design.size.display();
+    match threemf::write_3mf(&path, &out.mesh, &app.design.name, &size) {
+        Ok(bytes) => app.set_status(format!(
+            "Wrote {} • {} tris • {:.1} KB • units mm stated",
+            path.display(),
+            out.report.validation.triangle_count,
+            bytes as f64 / 1024.0
+        )),
+        Err(e) => app.set_status(format!("3MF export failed: {e}")),
     }
 }
 

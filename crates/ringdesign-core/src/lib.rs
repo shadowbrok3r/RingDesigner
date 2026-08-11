@@ -38,7 +38,9 @@ pub mod profile;
 pub mod refine;
 pub mod sizing;
 pub mod stl;
+pub mod stones;
 pub mod text;
+pub mod threemf;
 pub mod tiling;
 
 pub use alpha::{Alpha, AlphaLibrary};

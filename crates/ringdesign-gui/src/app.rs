@@ -30,6 +30,8 @@ pub struct Workspace {
     pub export_params: BuildParams,
     pub show_wireframe: bool,
     pub show_grid: bool,
+    #[serde(default = "default_true")]
+    pub show_gems: bool,
     #[serde(default)]
     pub finish: usize,
     #[serde(default)]
@@ -38,6 +40,10 @@ pub struct Workspace {
     pub panes: Vec<Pane>,
     pub active_pane: usize,
     pub mcp_port: u16,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for Workspace {
@@ -55,6 +61,7 @@ impl Default for Workspace {
             },
             show_wireframe: false,
             show_grid: true,
+            show_gems: true,
             finish: 0,
             light: 0,
             layout: Layout::Single,
@@ -72,6 +79,7 @@ impl RingDesignerApp {
             export_params: self.export_params,
             show_wireframe: self.show_wireframe,
             show_grid: self.show_grid,
+            show_gems: self.show_gems,
             finish: self.finish,
             light: self.light,
             layout: self.layout,
@@ -94,6 +102,8 @@ pub struct RingDesignerApp {
 
     pub build: Option<Arc<BuildResult>>,
     pub cast: Option<CastReport>,
+    pub field: Option<ringdesign_core::castability::FieldReport>,
+    pub stones: Option<ringdesign_core::stones::StonesReport>,
 
     /// Resolution used for the interactive viewport.
     pub preview_params: BuildParams,
@@ -103,6 +113,8 @@ pub struct RingDesignerApp {
     pub renderer: Arc<Mutex<GpuMeshRenderer>>,
     pub show_wireframe: bool,
     pub show_grid: bool,
+    /// Stone previews in the viewport — render only, never in the mesh.
+    pub show_gems: bool,
     /// Index into [`viewport::FINISHES`].
     pub finish: usize,
     /// Index into [`viewport::LIGHT_RIGS`].
@@ -176,10 +188,13 @@ impl RingDesignerApp {
             lib: Arc::new(lib),
             build: None,
             cast: None,
+            field: None,
+            stones: None,
             preview_params: ws.preview_params,
             export_params: ws.export_params,
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
             show_wireframe: ws.show_wireframe,
+            show_gems: ws.show_gems,
             show_grid: ws.show_grid,
             finish: ws.finish,
             light: ws.light,
@@ -251,7 +266,7 @@ impl RingDesignerApp {
         }
 
         match self.worker.done.try_recv() {
-            Ok(done) => {
+            Ok(mut done) => {
                 self.in_flight = false;
                 if done.generation == self.generation {
                     let r = &done.result.report;
@@ -269,7 +284,12 @@ impl RingDesignerApp {
                         ),
                     };
                     if let Ok(mut r) = self.renderer.lock() {
-                        r.prepare_upload(&done.result.mesh, Some(&done.cast));
+                        r.prepare_upload(
+                            &done.result.mesh,
+                            Some(&done.cast),
+                            (self.design.inner_radius_mm(), self.design.draft.min_section_mm),
+                        );
+                        r.prepare_gems(std::mem::take(&mut done.gems));
                     }
                     // Fit only on the first build of a design; a rebuild that
                     // re-framed the view would stomp the user's own framing
@@ -283,6 +303,8 @@ impl RingDesignerApp {
                     }
                     self.build = Some(Arc::new(done.result));
                     self.cast = Some(done.cast);
+                    self.field = Some(done.field);
+                    self.stones = done.stones;
                     self.refresh_sections();
                     ctx.request_repaint();
                 }
@@ -514,6 +536,9 @@ struct Done {
     generation: u64,
     result: BuildResult,
     cast: CastReport,
+    field: ringdesign_core::castability::FieldReport,
+    stones: Option<ringdesign_core::stones::StonesReport>,
+    gems: Vec<f32>,
 }
 
 struct Worker {
@@ -539,7 +564,21 @@ impl Worker {
                         &job.design.draft,
                         job.design.inner_radius_mm(),
                     );
-                    if done_tx.send(Done { generation: job.generation, result, cast }).is_err() {
+                    // The verdict itself comes from the surface, at a fixed
+                    // sampling so it cannot wobble with preview quality.
+                    let field = castability::analyze_field(
+                        &job.design,
+                        &job.lib,
+                        &job.design.draft,
+                        192,
+                        128,
+                    );
+                    let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
+                    let gems = crate::gems::preview_vertices(&job.design, &job.lib);
+                    if done_tx
+                        .send(Done { generation: job.generation, result, cast, field, stones, gems })
+                        .is_err()
+                    {
                         break;
                     }
                 }

@@ -145,6 +145,11 @@ impl DesignEngine {
         })
     }
 
+    /// The verdict read off the surface itself, independent of any build.
+    pub fn field_report(&self) -> castability::FieldReport {
+        castability::analyze_field(&self.design, &self.lib, &self.design.draft, 192, 128)
+    }
+
     pub fn mesh(&mut self) -> Arc<BuildResult> {
         self.ensure_built()
     }
@@ -166,6 +171,13 @@ impl DesignEngine {
         let built = self.ensure_built();
         let name = self.design.name.clone();
         stl::write_obj(path, &built.mesh, &name)
+    }
+
+    pub fn export_3mf(&mut self, path: impl AsRef<Path>) -> anyhow::Result<usize> {
+        let built = self.ensure_built();
+        let name = self.design.name.clone();
+        let size = self.design.size.display();
+        crate::threemf::write_3mf(path, &built.mesh, &name, &size)
     }
 
     pub fn save_design(&self, path: impl AsRef<Path>) -> anyhow::Result<()> {

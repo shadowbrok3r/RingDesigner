@@ -348,6 +348,14 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 export::export_obj(app);
                 ui.close();
             }
+            if ui
+                .button(format!("{} Export 3MF…", icon::EXPORT))
+                .on_hover_text("Zip-packaged model that states its units — no mm/inch guessing downstream.")
+                .clicked()
+            {
+                export::export_3mf(app);
+                ui.close();
+            }
         });
 
         ui.menu_button(format!("{} Panels", icon::SIDEBAR), |ui| {
@@ -394,6 +402,10 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
         ui.checkbox(&mut app.show_wireframe, "Wire");
         ui.checkbox(&mut app.show_grid, "Grid");
+        ui.checkbox(&mut app.show_gems, "Stones")
+            .on_hover_text(
+                "Preview the stones in their seats. Render only — never in the mesh, never exported.",
+            );
         egui::ComboBox::from_id_salt("metal_finish")
             .selected_text(crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].name)
             .width(104.0)

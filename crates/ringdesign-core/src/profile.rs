@@ -603,18 +603,26 @@ impl BandProfile {
     /// evaluated against, so one density computed from the reference profile
     /// applies to every modulated cross-section.
     ///
-    /// `snap_v` overrides which feature fractions the sample rows snap onto.
-    /// A sweep must pass the reference loop's, and the same set to every
-    /// slice: each slice's own features drift with the modulation, and rows
-    /// snapping to drifting targets tear the grid along theta — measured as a
-    /// 0.013% phantom undercut on a bare signet head.
+    /// `reference` pins everything about the row layout that must not vary
+    /// per slice. A sweep must pass its reference loop, and the same one to
+    /// every slice, for two reasons with the same shape:
+    ///
+    /// - the **feature fractions** rows snap onto: each slice's own features
+    ///   drift with the modulation, and rows snapping to drifting targets
+    ///   tear the grid along theta — measured as a 0.013% phantom undercut
+    ///   on a bare signet head;
+    /// - the **bore/surface row split**: rounded per slice it steps by one
+    ///   wherever the surface's share of the loop crosses a half-row, every
+    ///   surface row renumbers, and the whole grid tears a vertical zipper —
+    ///   measured as 60-82 degree folds down a signet's shoulder at exactly
+    ///   the slices where the split stepped.
     pub fn sample_spaced(
         &self,
         inner_r: f64,
         n: usize,
         m: &ShankMod,
         field_v: Option<&Density>,
-        snap_v: Option<&[f64]>,
+        reference: Option<&ProfileLoop>,
     ) -> ProfileLoop {
         let n = n.clamp(MIN_PROFILE_STEPS, MAX_PROFILE_STEPS);
         let width = (self.width_mm * m.width_scale).max(0.4);
@@ -659,8 +667,13 @@ impl BandProfile {
             .clamp(0.0, (thickness - comfort - MIN_EDGE_MM).max(0.0));
         let edge_t = (thickness - crown).max(MIN_EDGE_MM + comfort);
         let draft = self.side_draft_deg.clamp(-20.0, 30.0).to_radians();
+        let head_w = m.head.clamp(0.0, 1.0);
         // Side faces slope inward over the edge thickness, narrowing the band.
-        let side_inset = (edge_t * draft.tan()).clamp(-hw * 0.4, hw * 0.4);
+        // Not under a head: the face span already carries the head's own
+        // draft, and the band's on top of it pulls the table in from the
+        // silhouette the outline drew. Sanitised because the smooth clamps
+        // below propagate a NaN where the hard ones used to swallow it.
+        let side_inset = ok((edge_t * draft.tan()).clamp(-hw * 0.4, hw * 0.4)) * (1.0 - head_w);
 
         // The crest is drafted in from whatever span it was handed, so a mod
         // that hands it the bore's own span behaves exactly as it always did.
@@ -669,10 +682,22 @@ impl BandProfile {
             None => (b_lo, b_hi),
         };
         let (t_lo, t_hi) = if t_lo < t_hi { (t_lo, t_hi) } else { (b_lo, b_hi) };
-        let keep = (hw * 0.075).max(0.05);
+        let keep0 = (hw * 0.075).max(0.05);
+        // The rim fillet takes its radius out of the crest span's ends, so
+        // the flat that must straddle the parting plane is measured past it:
+        // a 0.6 mm rim on a 0.28 mm straddle rounded the crest away from the
+        // plane, and the span-must-reach-the-plane ceiling came back through
+        // the fillet at -54 degrees over 0.18% of a Draft heart.
+        let keep = keep0 + m.head_rim_mm.clamp(0.0, 2.0) * head_w;
+        // The straddle clamps engage and release mid-sweep on an upright
+        // outline — a heart's lobe is a patch on one side of the band — and a
+        // hard clamp is a slope step in theta that sweeps a crease down the
+        // wall at the locus where it bites. Rounded, they cost a whisker of
+        // the held flat run and nothing else.
+        let kr = keep0 * 0.5;
         let t_mid = 0.5 * (t_lo + t_hi);
-        let c_lo = (t_lo + side_inset).min(t_mid - keep);
-        let c_hi = (t_hi - side_inset).max(t_mid + keep);
+        let c_lo = smin(t_lo + side_inset, t_mid - keep, kr);
+        let c_hi = smax(t_hi - side_inset, t_mid + keep, kr);
 
         // The crest sits where the mould parts, plus whatever bias was asked
         // for. A section pushed along the finger has to keep it there: let the
@@ -690,7 +715,23 @@ impl BandProfile {
         // sweep, which is what tells a real undercut from the crest-line
         // phantom. Widening costs the head's end a flat run of `keep`.
         let want = 0.5 * self.crest_bias.clamp(-1.0, 1.0) * (c_hi - c_lo);
-        let (c_lo, c_hi) = (c_lo.min(want - keep), c_hi.max(want + keep));
+        // The span edge can plunge through this floor at millimetres per
+        // degree — a heart's lobe boundary moves 0.86 mm/deg — and a
+        // crossfade with a small value-space radius transits in under a
+        // degree at that speed, which is still a kink at any sweep
+        // resolution: measured as 100 degree grid folds at exactly the two
+        // slices where the edge crossed the floor. So the radius follows the
+        // station: wide near a face's along-ring ends, where the plunge
+        // lives, and tight over the plate's middle, where a wide one drags
+        // boundaries that sit legitimately close to the floor — it pulled a
+        // heart's cleft half shut. Biased up by the crossfade's worst
+        // undershoot of a true max — 0.087 of the radius, at 0.4 radii of
+        // separation — so the crest still reaches the parting plane.
+        let r_w = kr + ((hw * 0.25).max(keep) - kr) * m.straddle_soft.clamp(0.0, 1.0);
+        let (c_lo, c_hi) = (
+            smin(c_lo, want - keep - 0.1 * r_w, r_w),
+            smax(c_hi, want + keep + 0.1 * r_w, r_w),
+        );
         let c_span = (c_hi - c_lo).max(1e-9);
         let margin = (keep / c_span).min(0.45);
         let base_crest_t = ((want - c_lo) / c_span).clamp(margin, 1.0 - margin);
@@ -823,61 +864,95 @@ impl BandProfile {
             }
         };
 
-        let er = edge_src.clamp(0.0, thickness.min(c_span * 0.5) * 0.45);
+        let cap = thickness.min(c_span * 0.5) * 0.45;
+        // Under a head the rim rounding is the head's own, not the band's
+        // edge fillet: the plate rim is the one edge a signet has, and how
+        // hard it reads should not depend on how the shank's edges are broken.
+        let er = (edge_src + (m.head_rim_mm - edge_src) * head_w).clamp(0.0, cap);
         // Each end fillet is capped by the dome the flange leaves at that edge.
         let (er_b, er_t) = match &flange {
             Some(f) => (er.min((f.z_lo - c_lo) * 0.4), er.min((c_hi - f.z_hi) * 0.4)),
             None => (er, er),
         };
-
-        // The side wall follows the band's own draft; only the offset a head
-        // puts between the bore span and the crest span sweeps onto the face,
-        // across a C² take-off near the top. A straight wall carries every
-        // kink of the face's silhouette — a heart's dimple, a hexagon's
-        // corner — down its whole height at linearly fading strength, which
-        // reads as a crease line on the flank; the reference signets' flanks
-        // belong to the *body*, with the face a facet cut into the last
-        // fraction. Ordinary bands have no offset, so their wall stays the
-        // exact chord it always was.
-        let wall = |z_a: f64, delta: f64, own: f64, r0: f64, r1: f64, descending: bool| {
-            let mut own = own;
-            let mut extra = delta - own;
-            // Opposite signs could fold the wall back on itself; a folded
-            // wall is a ceiling. Fall back to the straight chord.
-            if own * extra < 0.0 {
-                own = delta;
-                extra = 0.0;
+        // Where the straddle floor holds the span past the outline's own
+        // reach, the forced run rolls as one fillet instead of flat plus
+        // corner: without it the plate's end is a hard corner migrating
+        // across fixed sample rows, which tessellates as 130 degree folds at
+        // the face's end. The fillet takes at most 0.85 of the forced run,
+        // so the flat still reaches the outline everywhere, and it stops
+        // short of the parting plane: the crest has to reach that flat.
+        let roll = |er0: f64, w_f: f64, room: f64| {
+            if w_f <= 1e-9 {
+                er0
+            } else {
+                er0.max((0.85 * w_f).min(room.max(0.0))).min(cap)
             }
-            // Outward is away from the section's middle: -z on the low wall,
-            // +z on the high one.
-            let dir = if descending { 1.0 } else { -1.0 };
-            let bulge = (FLANK_BULGE * extra.abs()).min(0.6);
-            let pts: Vec<[f64; 2]> = (1..FLANK_STEPS)
+        };
+        let w_f_lo = (t_lo + side_inset - c_lo).max(0.0) * head_w;
+        let w_f_hi = (c_hi - (t_hi - side_inset)).max(0.0) * head_w;
+        let er_b = roll(er_b, w_f_lo, -c_lo * 0.9);
+        let er_t = roll(er_t, w_f_hi, c_hi * 0.9);
+
+        // A head's wall is one convex C² curve: vertical into the rim fillet
+        // so the plate holds the outline's own shape, vertical again into the
+        // bore corner, the whole bore-to-crest offset carried in the belly
+        // between — the inflated near-prism the reference heads are, with the
+        // heart's cleft riding down it as a smooth cove. Off the head it is
+        // the straight chord of the band's own draft. `head` crossfades the
+        // two blend weights; both are monotone in `z`, so the wall can never
+        // fold back into a ceiling at any mix.
+        let wall = |z_a: f64, z_b: f64, r0: f64, r1: f64| -> Vec<[f64; 2]> {
+            (1..FLANK_STEPS)
                 .map(|i| {
                     let t = i as f64 / FLANK_STEPS as f64;
-                    let bump = 0.5 * (1.0 - (std::f64::consts::TAU * t).cos());
-                    let z = z_a
-                        + own * t
-                        + extra * crate::field::smootherstep(FLANK_TAKEOFF, 1.0, t)
-                        + dir * bulge * bump;
-                    [r0 + (r1 - r0) * t, z]
+                    let s = crate::field::smootherstep(0.0, 1.0, t);
+                    [r0 + (r1 - r0) * t, z_a + (z_b - z_a) * (t + (s - t) * head_w)]
                 })
-                .collect();
-            if descending { pts.into_iter().rev().collect() } else { pts }
+                .collect()
         };
-        let flank_b = wall(b_lo, c_lo - b_lo, side_inset, side_b_start[0], corner_b[0], false);
-        let flank_t = wall(b_hi, c_hi - b_hi, -side_inset, side_t_end[0], corner_t[0], true);
+        let flank_b = wall(b_lo, c_lo, side_b_start[0], corner_b[0]);
+        let flank_t = {
+            let mut v = wall(b_hi, c_hi, side_t_end[0], corner_t[0]);
+            v.reverse();
+            v
+        };
+        // The fillet's wall-side tangency sits a full radius back along the
+        // wall, so the wall's last `er` of arc belongs to the fillet. On a
+        // straight wall the split point is exactly where the fillet's own
+        // back-off used to land, so ordinary bands are unchanged.
+        let split_at = |pts: &[[f64; 2]], corner: [f64; 2], er: f64, from_end: bool| {
+            let mut left = er.max(0.0);
+            let mut prev = corner;
+            let order: Vec<usize> =
+                if from_end { (0..pts.len()).rev().collect() } else { (0..pts.len()).collect() };
+            for k in order {
+                let p = pts[k];
+                let d = dist(prev, p);
+                if d >= left {
+                    let t = left / d.max(1e-12);
+                    let at = [prev[0] + (p[0] - prev[0]) * t, prev[1] + (p[1] - prev[1]) * t];
+                    return (if from_end { k + 1 } else { k }, at);
+                }
+                left -= d;
+                prev = p;
+            }
+            if from_end {
+                (0, *pts.first().unwrap_or(&corner))
+            } else {
+                (pts.len(), *pts.last().unwrap_or(&corner))
+            }
+        };
 
         let mut surface: Vec<[f64; 2]> =
             Vec::with_capacity(outer.len() + 2 * FLANK_STEPS + 4 * DENSE + 4);
         surface.push(side_b_start);
-        surface.extend_from_slice(&flank_b);
-        let side_b_last = *surface.last().unwrap_or(&side_b_start);
-        let (fb0, fb1) = push_fillet(&mut surface, side_b_last, corner_b, &outer, false, er_b);
+        let (kb, side_b_at) = split_at(&flank_b, corner_b, er_b, true);
+        surface.extend_from_slice(&flank_b[..kb]);
+        let (fb0, fb1) = push_fillet(&mut surface, side_b_at, corner_b, &outer, false, er_b);
         surface.extend_from_slice(trim_outer(&outer, er_b, er_t));
-        let side_t_first = *flank_t.first().unwrap_or(&side_t_end);
-        let (ft0, ft1) = push_fillet(&mut surface, side_t_first, corner_t, &outer, true, er_t);
-        surface.extend_from_slice(&flank_t);
+        let (kt, side_t_at) = split_at(&flank_t, corner_t, er_t, false);
+        let (ft0, ft1) = push_fillet(&mut surface, side_t_at, corner_t, &outer, true, er_t);
+        surface.extend_from_slice(&flank_t[kt..]);
         surface.push(side_t_end);
         dedup(&mut surface);
         feats.extend([fb0, fb1, ft0, ft1]);
@@ -893,11 +968,23 @@ impl BandProfile {
             // every feature so no facet chords across a slope discontinuity.
             None => {
                 let total = (len_b + len_s).max(1e-9);
-                let n_s = ((n as f64 * len_s / total).round() as usize).clamp(12, n - 12);
+                // The split comes from the reference loop when there is one:
+                // rounding it per slice renumbers every surface row at the
+                // slices where it steps, and the grid tears there.
+                let n_s = match reference {
+                    Some(rl) if !rl.pts.is_empty() => {
+                        let frac =
+                            (rl.pts.len() - rl.surface_start) as f64 / rl.pts.len() as f64;
+                        ((n as f64 * frac).round() as usize).clamp(12, n - 12)
+                    }
+                    _ => ((n as f64 * len_s / total).round() as usize).clamp(12, n - 12),
+                };
                 let even = |c: usize| (0..c).map(|i| i as f64 / c as f64).collect::<Vec<f64>>();
                 let bore_pts = resample_at(&bore, &even(n - n_s));
-                let surf_pts =
-                    resample_at(&surface, &snap_positions(n_s, snap_v.unwrap_or(&feature_v)));
+                let surf_pts = resample_at(
+                    &surface,
+                    &snap_positions(n_s, reference.map_or(&feature_v[..], |rl| &rl.feature_v)),
+                );
                 bore_pts
                     .into_iter()
                     .map(|p| ProfileSample::bare(p[0], p[1], false))
@@ -1114,10 +1201,20 @@ pub struct SignetHead {
     /// dead-flat one is the zero-draft plane behind the refined-build phantom.
     #[serde(default)]
     pub table_dome_mm: f64,
+    /// Rounding between the table and the head's walls, mm. The face outline
+    /// is the head's one real edge, and this is how hard it reads. Measured on
+    /// the reference heart: the rim's rounding reaches 0.9 mm below the plane,
+    /// and it is the only place on the whole head with any edge at all.
+    #[serde(default = "default_rim_round")]
+    pub rim_round_mm: f64,
 }
 
 fn default_body_fair() -> f64 {
     HEAD_BODY_FAIR
+}
+
+fn default_rim_round() -> f64 {
+    HEAD_RIM_ROUND
 }
 
 /// Extent of a signet face around the ring, mm.
@@ -1176,6 +1273,14 @@ pub const SIGNET_SHANK_THIN: f64 = 0.10;
 pub const HEAD_FACE_DRAFT: f64 = 0.02;
 /// Taper strength a fresh signet head starts at.
 pub const SIGNET_TAPER: f64 = 0.85;
+/// Default rounding between a head's table and its walls, mm.
+///
+/// The reference heart has **no sharp edges at all** outside its bore break —
+/// a dihedral census over its mesh finds 0.0 mm of >=15 degree creases
+/// anywhere else, with the rim's rounding reaching 0.9 mm below the plane.
+/// The face outline still reads as an edge because the fillet is small
+/// against the head; it is just never a corner.
+pub const HEAD_RIM_ROUND: f64 = 0.6;
 /// Fillet where the outline crosses the swell, as a share of the width the
 /// taper takes away. A bare crossing is a corner in the silhouette.
 pub const HEAD_SHANK_FILLET: f64 = 0.12;
@@ -1190,15 +1295,16 @@ pub const HEAD_EDGE_BREAK: f64 = 0.45;
 /// the whole swell instead leaves it too small where a straight-sided outline
 /// crosses — a rectangle steps 0.25 of full width per degree against 0.10.
 pub const HEAD_FILLET_ON: f64 = 0.12;
-/// How far inside its end the shoulder takes over from the face, as a share of
-/// the half-length.
+/// How far inside its end the face's outline read is held, as a share of the
+/// half-length.
 ///
-/// Read at the end itself the outline is a *point*, so a shoulder starting
-/// there starts from nothing and the band goes thin the instant the face stops
-/// — a plate stuck on a wire. Taking over a little inside gives the shoulder a
-/// real width and a real slope to carry out, and costs the table the last 5% of
-/// its length, which it spends on an edge break it wanted anyway.
-pub const HEAD_TAKEOFF: f64 = 0.05;
+/// Zero: the outline is read to its true end, which is what closes a heart's
+/// lobes instead of chopping them. The fin this hold once prevented — a table
+/// read at a point wedging the section to nothing — is prevented at the source
+/// now: the straddle floor keeps every crest span a real strip and the forced
+/// run rolls as one fillet. The approach to the hold is still smoothed
+/// ([`ShankStyle::head_at`]), so raising this again cannot kink the sweep.
+pub const HEAD_TAKEOFF: f64 = 0.0;
 
 // Tie-exact smooth maximum; the design rationale lives on its definition. Two
 // curves meeting tangentially — the outline and the swell — are a tie
@@ -1223,6 +1329,7 @@ impl Default for SignetHead {
             body_fair: HEAD_BODY_FAIR,
             table_flat: 1.0,
             table_dome_mm: 0.0,
+            rim_round_mm: HEAD_RIM_ROUND,
         }
     }
 }
@@ -1327,7 +1434,12 @@ impl ShankStyle {
         let a = self.head_at(theta_deg, inner_r, base_outer_r);
         // A floor, not a blend. The swell already lands on the shank, so this
         // only catches an outline narrower across the band than the shank it
-        // stands on — a heart's dimple against a barely-tapered band.
+        // stands on — a heart's dimple against a barely-tapered band. A hard
+        // floor, deliberately: a crossfaded one dips below `reach` near the
+        // swell's tail, past the crest span's 2% draft margin, and the crest
+        // pokes through the body as a thin ceiling ring — measured 0.18% on a
+        // Draft heart. Behind the head the floor is an exact tie and costs
+        // nothing.
         (a.reach.0.min(-shank), a.reach.1.max(shank))
     }
 
@@ -1457,9 +1569,15 @@ impl ShankStyle {
 
         // --- Table: the sharp outline, read a little inside the face's end. ---
         // At the end itself the outline is a *point*, so a table read there
-        // would run to nothing and wedge the section to a fin.
+        // would run to nothing and wedge the section to a fin. The hold is
+        // approached smoothly: a hard `min` freezes the read in one step, and
+        // that slope step swept a crease down the flank at the take-off
+        // locus. One-sided, so the approach stays monotone and the hold is
+        // exact past `take`.
         let take = (face_edge.tan() * (1.0 - HEAD_TAKEOFF)).atan();
-        let xf = (plane_r * d.min(take).tan() / half_l).clamp(0.0, 1.0);
+        let tw = take * 0.15;
+        let d_take = d + (take - d) * crate::field::smootherstep(take - tw, take, d);
+        let xf = (plane_r * d_take.tan() / half_l).clamp(0.0, 1.0);
         let face = face_at(end * xf);
 
         // --- Crest: on the table plane over the face, then the shoulder. ---
@@ -1467,19 +1585,16 @@ impl ShankStyle {
         // gone at its edge, so the edge break and shoulder are untouched.
         let xr = (plane_r * d.min(face_edge).tan() / half_l).clamp(0.0, 1.0);
         let cap = self.head.table_dome_mm.clamp(0.0, 3.0) * (1.0 - xr * xr);
-        let r_plane = plane_r / d.min(face_edge).cos().max(1e-6) + cap;
         let span = self.head.shoulder_deg.clamp(1.0, 150.0).to_radians();
-        let s = ((d - face_edge).max(0.0) / span).clamp(0.0, 1.0);
+        let s_raw = (d - face_edge) / span;
+        let s = s_raw.clamp(0.0, 1.0);
         let h00 = (1.0 - s).powf(HEAD_SHOULDER_POW);
-        // The crest's *span* hands over with a flat start, unlike its height:
-        // `h00` leaves the rim already diving, which the reference's crest
-        // line does — but a span blend whose derivative jumps at the rim
-        // creases the flank along the face-end locus. Only the first quarter
-        // of the shoulder is reshaped; past it the span follows `h00`
-        // exactly, because holding the face's one-sided reach any longer
-        // measurably grows the upright-outline ceiling (0.113% against the
-        // 0.059% bound on a Draft heart with a full smootherstep handover).
-        let h_span = 1.0 - crate::field::smootherstep(0.0, 0.25, s) * (1.0 - h00);
+        // The crest's *span* follows its height curve: the reference's head
+        // falls off its plate corner as one funnel, and a span held wider
+        // than the falling crest reads as a shelf beside the plate. The
+        // crease this hold once patched is gone at the source — the wall is
+        // one C² curve and the closure hands over in station space.
+        let h_span = h00;
 
         // The table cannot reach past the body it is cut into. `body_extent`
         // already contains the face, but the fillet against the swell rounds a
@@ -1488,7 +1603,22 @@ impl ShankStyle {
         let crest = blend_span(draft_span(reach), draft_span(face), h_span);
         let crest = (crest.0.max(reach.0), crest.1.min(reach.1));
 
-        HeadAt { x: end * x, reach, face: crest, on_head: h00, outer_r: r_shank + (r_plane - r_shank) * h00 }
+        // The crest line's corner at the plate's theta-end carries the same
+        // rim rounding the section gives the outline: the plane solve climbs
+        // at +0.19 mm/deg into the shoulder's -0.21 mm/deg dive, and the
+        // unrounded peak was an 80 degree fold between the two slices that
+        // straddled it. The reference's plate edge is rounded all the way
+        // around, ends included. Tie-exact, so away from the corner both
+        // curves are followed exactly.
+        let rim = self.head.rim_round_mm.clamp(0.0, 2.0);
+        let climb = plane_r
+            / d.min(HEAD_MAX_HALF_DEG.to_radians()).cos().max(1e-6)
+            + cap;
+        let dive_h = (1.0 - s_raw.max(-0.25)).max(0.0).powf(HEAD_SHOULDER_POW);
+        let dive = r_shank + (plane_r / face_edge.cos().max(1e-6) - r_shank) * dive_h;
+        let outer_r = smin(climb, dive, rim);
+
+        HeadAt { x: end * x, reach, face: crest, on_head: h00, outer_r }
     }
 }
 
@@ -1549,6 +1679,21 @@ pub struct ShankMod {
     /// on the normalized distance, so each flank stays a monotone drop and
     /// the castability guarantee survives.
     pub flank_bias: f64,
+    /// How much of a head this section is, 0..1. It reshapes the section's
+    /// walls from the band's straight drafted chord into the head's convex
+    /// wall, and swaps the edge fillet for [`SignetHead::rim_round_mm`]. C²
+    /// along the sweep — a weight with a slope step sweeps a crease line down
+    /// the whole wall.
+    pub head: f64,
+    /// Rounding between table and wall when `head` is 1, mm.
+    pub head_rim_mm: f64,
+    /// How softly the crest span's parting-plane floor engages here, 0..1.
+    /// Near a face's along-ring ends the outline's edge plunges through the
+    /// floor at millimetres per degree and the crossfade needs a wide radius
+    /// to span whole degrees; over the plate's middle the same radius drags
+    /// boundaries that sit legitimately close to the floor — it pulled a
+    /// heart's cleft half shut — so the width follows the station.
+    pub straddle_soft: f64,
 }
 
 impl ShankMod {
@@ -1563,6 +1708,9 @@ impl ShankMod {
             outer_max_r: None,
             drop_blend: 0.0,
             flank_bias: 0.0,
+            head: 0.0,
+            head_rim_mm: 0.0,
+            straddle_soft: 0.0,
         }
     }
 }
@@ -1697,6 +1845,11 @@ impl ShankStyle {
                     outer_max_r: None,
                     drop_blend: 0.0,
                     flank_bias: 0.0,
+                    // `on_head` kinks where the shoulder starts; smoothing it
+                    // here keeps the wall-shape weight C² along the sweep.
+                    head: crate::field::smootherstep(0.0, 1.0, a.on_head),
+                    head_rim_mm: self.head.rim_round_mm.clamp(0.0, 2.0),
+                    straddle_soft: crate::field::smootherstep(0.55, 0.92, a.x.abs()),
                 }
             }
         }
@@ -1776,19 +1929,7 @@ struct FlangeBand {
 const ARC_STEPS: usize = 8;
 
 /// Vertices along each curved side wall.
-const FLANK_STEPS: usize = 14;
-
-/// Fraction of the wall's height where the head's offset starts sweeping
-/// from the body onto the face. Below it the flank is the body's; the face
-/// influence lives in the take-off, like a facet cut into the top of a form.
-const FLANK_TAKEOFF: f64 = 0.55;
-
-/// Outward mid-height bulge of a head's side wall, as a share of the head
-/// offset it carries. A straight wall beside a rounded swell reads as a
-/// dished panel with creased borders; the reference flanks are barrel-convex.
-/// Zero-slope at both ends, so the bore corner and the face edge keep their
-/// meeting angles, and zero wherever there is no head offset.
-const FLANK_BULGE: f64 = 0.55;
+const FLANK_STEPS: usize = 18;
 
 /// Append a quadratic Bezier from `p0` to `p2` with `corner` as the control
 /// point, excluding `p0` itself.
@@ -2644,7 +2785,9 @@ mod tests {
         for i in 0..=720 {
             let theta = TOP_DEG - 40.0 + 80.0 * i as f64 / 720.0;
             let a = sh.head_at(theta, BORE_R, CREST_R);
-            if a.on_head < 1.0 {
+            // The middle of the plate: the last stretch of the face carries
+            // the rim's own rounding, like the reference's plate edge.
+            if a.on_head < 1.0 || a.x.abs() > 0.85 {
                 continue;
             }
             let m = sh.modulation(theta, BORE_R, CREST_R);
