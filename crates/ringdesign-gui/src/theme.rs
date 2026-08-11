@@ -45,9 +45,6 @@ pub const WARN: Color32 = Color32::from_rgb(242, 194, 61);
 pub const BAD: Color32 = Color32::from_rgb(237, 69, 92);
 pub const INFO: Color32 = Color32::from_rgb(92, 153, 235);
 
-/// Metal colour for the shaded viewport, linear RGB. This is the material, not
-/// chrome, so it stays gold.
-pub const METAL_RGB: [f32; 3] = [0.86, 0.70, 0.42];
 
 /// Load the icon font and apply the theme.
 pub fn install(ctx: &Context) {

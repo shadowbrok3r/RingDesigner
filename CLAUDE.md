@@ -65,8 +65,9 @@ lives; `ringdesign-gui` is eframe/egui.
 ### The one idea
 
 **The entire design is a scalar height field `h(u, v)` in mm over the swept
-band surface.** Tiled alphas, borders, milgrain, and raised gem-seat pads are
-all layers in that field. There is no CSG anywhere.
+band surface.** Tiled alphas, borders, milgrain, raised gem-seat pads, swept
+curve wires (`curve.rs`), and nested groups are all layers in that field. There
+is no CSG anywhere.
 
 - `u` — arc distance around the ring at the crest radius. **Wraps** at the
   circumference.
@@ -76,6 +77,22 @@ all layers in that field. There is no CSG anywhere.
 Because it is one function, tiling, the unrolled layout editor, draft analysis,
 and cross-sections are all just different ways of evaluating it. A tile drawn in
 the layout editor is exactly where the metal lands.
+
+Per-layer gating composes the same way: the angular `Window` carries an
+optional cross-band `VGate` (a `v` strip, or the side-face runs resolved at
+evaluation time), plus a painted alpha mask multiplied into the strength.
+`Blend::SmoothMax`/`SmoothMin` fillet crossings with the tie-exact `smax`
+crossfade the signet union proved out. A `Layer::Group` composites a nested
+stack first and is then blended, windowed and masked as one unit, so `Replace`
+inside a group cannot leak past it.
+
+A curve wire's headline placement is a **side face**: measured 0.000% undercut
+at 0.5 mm relief there, against 1.1% at −31° for a rail waving just 0.2 mm
+across the crown — a ridge undercuts on its crest-side flank wherever the
+dome's draft is shallower than the wire's own slope. The add-menu presets land
+on a side face automatically when the profile has one, and `WireProfile::Round`
+is a cosine dome rather than a circle because a circular section carries a
+vertical wall at its own edge.
 
 ### Pipeline
 
@@ -102,6 +119,31 @@ edges) but it is watertight by construction, not by repair.
 Face winding: for a CCW loop with tangent `(dr, dz)` the outward 2D normal is
 `(dz, −dr)`; sweeping in +θ makes `e_θ × e_profile` point outward, so triangles
 `(i,j)→(i+1,j)→(i+1,j+1)` are already wound correctly.
+
+Three fidelity mechanisms sit on top of the sweep, all measured:
+
+- **Vertex normals come from grid central differences** (`mesh::grid_normals`),
+  not facet averaging — the grid is the surface's own parameterization, so the
+  cross of the two tangents is the surface normal. Worst error on a plain band
+  at 96x64: 0.015° against 0.095° for area-weighted accumulation.
+- **A sample row lands on every profile feature.** `sample_spaced` records the
+  crest, fillet tangencies and flange corners as `ProfileLoop::feature_v` and
+  snaps the nearest sample onto each, so no facet chords across a slope
+  discontinuity — the reported crest radius is exact rather than the chord's.
+  A sweep must snap every slice to the **reference** loop's fractions: each
+  slice's own features drift with the modulation, and rows snapping to
+  drifting targets tear the grid along theta (measured as a 0.013% phantom
+  undercut on a bare signet head).
+- **Refinement is seeded by the layers.** `Layer::feature_footprints` names
+  each layer's finest scale and where it lives; `refine::build` pre-splits
+  those regions to half that scale before the error loop, so a bead or small
+  pad cannot slip between a cell's nine probes. `RefineStats::seeded_cells`
+  reports it, and `saturated_leaves` flags a depth-limited tree that would
+  otherwise report a worst error of 0.0.
+
+Design files carry a `format_version` (migration ladder in `library.rs`) and
+embed every referenced non-regenerable alpha as 16-bit PNG on save, so a
+`.ring.json` survives moving machines.
 
 ### Refined builds: a tolerance instead of a step count
 

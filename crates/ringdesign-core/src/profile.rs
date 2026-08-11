@@ -537,7 +537,7 @@ impl BandProfile {
     /// An enabled flange replaces the outer surface across its axial band with
     /// two flat faces and a rim, and its rim becomes the crest.
     pub fn sample_mod(&self, inner_r: f64, n: usize, m: &ShankMod) -> ProfileLoop {
-        self.sample_spaced(inner_r, n, m, None)
+        self.sample_spaced(inner_r, n, m, None, None)
     }
 
     /// Sample the cross-section, optionally placing the vertices by height
@@ -546,12 +546,19 @@ impl BandProfile {
     /// `field_v` is indexed by normalized `v`, which is what the layer stack is
     /// evaluated against, so one density computed from the reference profile
     /// applies to every modulated cross-section.
+    ///
+    /// `snap_v` overrides which feature fractions the sample rows snap onto.
+    /// A sweep must pass the reference loop's, and the same set to every
+    /// slice: each slice's own features drift with the modulation, and rows
+    /// snapping to drifting targets tear the grid along theta — measured as a
+    /// 0.013% phantom undercut on a bare signet head.
     pub fn sample_spaced(
         &self,
         inner_r: f64,
         n: usize,
         m: &ShankMod,
         field_v: Option<&Density>,
+        snap_v: Option<&[f64]>,
     ) -> ProfileLoop {
         let n = n.clamp(MIN_PROFILE_STEPS, MAX_PROFILE_STEPS);
         let width = (self.width_mm * m.width_scale).max(0.4);
@@ -687,6 +694,11 @@ impl BandProfile {
                 .collect()
         };
 
+        // Points where the section's slope is discontinuous; a sample row is
+        // snapped onto each so the facets meet at the feature instead of
+        // chording across it.
+        let mut feats: Vec<[f64; 2]> = vec![[r_at(crest_z), crest_z]];
+
         let outer: Vec<[f64; 2]> = match &flange {
             None => dome(c_lo, c_hi, ns),
             Some(f) => {
@@ -704,17 +716,23 @@ impl BandProfile {
                     let p0 = *d.last().unwrap_or(&corner_b);
                     o.extend(d);
                     push_arc(&mut o, p0, [r_at(f.z_lo), f.z_lo], [r_at(f.z_lo) + fr, f.z_lo]);
+                    feats.push(p0);
+                    feats.push([r_at(f.z_lo) + fr, f.z_lo]);
                 } else {
                     o.push(corner_b);
                 }
                 o.push([f.rim_r, f.z_lo]);
                 o.push([f.rim_r, f.z_hi]);
+                feats.push([f.rim_r, f.z_lo]);
+                feats.push([f.rim_r, f.z_hi]);
                 if hi_span > 1e-9 {
                     let fr = fillet(hi_span, f.rim_r - r_at(f.z_hi));
                     let d = dome(f.z_hi + fr, c_hi, steps(hi_span));
                     let p0 = [r_at(f.z_hi) + fr, f.z_hi];
                     o.push(p0);
                     push_arc(&mut o, p0, [r_at(f.z_hi), f.z_hi], d[0]);
+                    feats.push(p0);
+                    feats.push(d[0]);
                     o.extend(d.into_iter().skip(1));
                 } else {
                     o.push(corner_t);
@@ -731,11 +749,13 @@ impl BandProfile {
         };
         let mut surface: Vec<[f64; 2]> = Vec::with_capacity(outer.len() + 4 * DENSE + 4);
         surface.push(side_b_start);
-        push_fillet(&mut surface, side_b_start, corner_b, &outer, false, er_b);
+        let (fb0, fb1) = push_fillet(&mut surface, side_b_start, corner_b, &outer, false, er_b);
         surface.extend_from_slice(trim_outer(&outer, er_b, er_t));
-        push_fillet(&mut surface, side_t_end, corner_t, &outer, true, er_t);
+        let (ft0, ft1) = push_fillet(&mut surface, side_t_end, corner_t, &outer, true, er_t);
         surface.push(side_t_end);
         dedup(&mut surface);
+        feats.extend([fb0, fb1, ft0, ft1]);
+        let feature_v = project_fractions(&surface, &feats);
 
         // --- Place the vertex budget. ---
         let len_b = polyline_len(&bore);
@@ -743,13 +763,15 @@ impl BandProfile {
 
         let pts: Vec<ProfileSample> = match field_v {
             // Equal arc length: the budget goes by span length and the samples
-            // sit evenly along each.
+            // sit evenly along each, except that a sample is snapped onto
+            // every feature so no facet chords across a slope discontinuity.
             None => {
                 let total = (len_b + len_s).max(1e-9);
                 let n_s = ((n as f64 * len_s / total).round() as usize).clamp(12, n - 12);
                 let even = |c: usize| (0..c).map(|i| i as f64 / c as f64).collect::<Vec<f64>>();
                 let bore_pts = resample_at(&bore, &even(n - n_s));
-                let surf_pts = resample_at(&surface, &even(n_s));
+                let surf_pts =
+                    resample_at(&surface, &snap_positions(n_s, snap_v.unwrap_or(&feature_v)));
                 bore_pts
                     .into_iter()
                     .map(|p| ProfileSample::bare(p[0], p[1], false))
@@ -780,7 +802,7 @@ impl BandProfile {
             }
         };
 
-        finish_loop(pts)
+        finish_loop(pts, feature_v)
     }
 }
 
@@ -821,6 +843,10 @@ pub struct ProfileLoop {
     pub crest_radius_mm: f64,
     /// Index of the first displaceable vertex.
     pub surface_start: usize,
+    /// Normalized positions (0..1 along the surface span) of the section's
+    /// slope discontinuities: crest, fillet tangencies, flange corners. A
+    /// sample row sits on each, and refinement can split at them.
+    pub feature_v: Vec<f64>,
 }
 
 impl ProfileLoop {
@@ -1012,25 +1038,11 @@ pub const HEAD_FILLET_ON: f64 = 0.12;
 /// its length, which it spends on an edge break it wanted anyway.
 pub const HEAD_TAKEOFF: f64 = 0.05;
 
-/// Maximum of two values with the corner between them rounded off over `r`.
-///
-/// Outside the band the result is exactly `a.max(b)`, so whichever shape is
-/// clearly in front is followed as drawn; **on a tie it is exactly that value**,
-/// which a quadratic smooth-max is not. The usual `max + r·h²/4` rounds a
-/// crossing *outward*, and two curves that meet tangentially rather than
-/// crossing — the outline and the swell, which are the same span at the head
-/// and again past the outline's end — are a tie everywhere they touch. Rounding
-/// there pushed the head past full width and fattened the whole shank by 4%.
-///
-/// So this crossfades between the two over the band instead of adding to their
-/// maximum. C¹ at both ends because the weight leaves and arrives flat.
-fn smax(a: f64, b: f64, r: f64) -> f64 {
-    if r <= 1e-9 {
-        return a.max(b);
-    }
-    let w = crate::field::smoothstep(-1.0, 1.0, ((a - b) / r).clamp(-1.0, 1.0));
-    a * w + b * (1.0 - w)
-}
+// Tie-exact smooth maximum; the design rationale lives on its definition. Two
+// curves meeting tangentially — the outline and the swell — are a tie
+// everywhere they touch, and a quadratic smooth-max rounding that tie outward
+// once fattened the whole shank by 4%.
+use crate::field::smax;
 
 /// Minimum with the same rounded corner.
 fn smin(a: f64, b: f64, r: f64) -> f64 {
@@ -1506,6 +1518,8 @@ fn push_arc(out: &mut Vec<[f64; 2]>, p0: [f64; 2], corner: [f64; 2], p2: [f64; 2
 /// Append a quadratic Bezier blending the side face into the outer surface.
 /// The control point sits at the sharp corner, so the join is tangent
 /// continuous at both ends and stays inside the corner's convex hull.
+/// Returns the arc's two tangency points, or the sharp corner when there is
+/// no arc — the slope discontinuities a sample row should land on.
 fn push_fillet(
     out: &mut Vec<[f64; 2]>,
     side_end: [f64; 2],
@@ -1513,12 +1527,12 @@ fn push_fillet(
     outer: &[[f64; 2]],
     top: bool,
     er: f64,
-) {
+) -> ([f64; 2], [f64; 2]) {
     if er <= 1e-9 || outer.len() < 4 {
         if !top {
             out.push(corner);
         }
-        return;
+        return (corner, corner);
     }
     let total = polyline_len(outer);
     let er_o = er.min(total * 0.4);
@@ -1543,6 +1557,65 @@ fn push_fillet(
             m * m * p0[1] + 2.0 * m * t * corner[1] + t * t * p2[1],
         ]);
     }
+    (p0, p2)
+}
+
+/// Normalized arc position along `p` of the vertex nearest each feature
+/// point. Features further than 0.5 mm from the polyline are not on this
+/// span and are dropped.
+fn project_fractions(p: &[[f64; 2]], feats: &[[f64; 2]]) -> Vec<f64> {
+    if p.len() < 2 || feats.is_empty() {
+        return Vec::new();
+    }
+    let mut cum = Vec::with_capacity(p.len());
+    let mut acc = 0.0;
+    cum.push(0.0);
+    for w in p.windows(2) {
+        acc += dist(w[0], w[1]);
+        cum.push(acc);
+    }
+    let total = acc.max(1e-12);
+
+    let mut out: Vec<f64> = feats
+        .iter()
+        .filter_map(|f| {
+            let (mut best, mut best_d) = (0usize, f64::MAX);
+            for (i, q) in p.iter().enumerate() {
+                let d = dist(*q, *f);
+                if d < best_d {
+                    best_d = d;
+                    best = i;
+                }
+            }
+            (best_d < 0.5).then_some(cum[best] / total)
+        })
+        .collect();
+    out.sort_by(|a, b| a.total_cmp(b));
+    out.dedup_by(|a, b| (*a - *b).abs() < 1e-6);
+    out
+}
+
+/// Even arc positions with the nearest one moved onto each feature fraction.
+/// A feature moves its sample by at most half a step, so the sequence stays
+/// strictly monotone and the span's endpoints stay put.
+fn snap_positions(count: usize, feats: &[f64]) -> Vec<f64> {
+    let mut pos: Vec<f64> = (0..count).map(|i| i as f64 / count as f64).collect();
+    if count < 4 {
+        return pos;
+    }
+    for &f in feats {
+        let i = (f * count as f64).round() as usize;
+        if i == 0 || i + 1 >= count {
+            continue;
+        }
+        pos[i] = f;
+    }
+    for i in 1..count {
+        if pos[i] <= pos[i - 1] {
+            pos[i] = pos[i - 1] + 1e-9;
+        }
+    }
+    pos
 }
 
 /// Resample a polyline at normalized arc-length positions, which must be
@@ -1580,7 +1653,7 @@ fn resample_at(p: &[[f64; 2]], targets: &[f64]) -> Vec<[f64; 2]> {
 
 /// Compute normals, `v` coordinates, and displacement weights for a finished
 /// closed loop.
-fn finish_loop(mut pts: Vec<ProfileSample>) -> ProfileLoop {
+fn finish_loop(mut pts: Vec<ProfileSample>, feature_v: Vec<f64>) -> ProfileLoop {
     let n = pts.len();
     if n < 3 {
         return ProfileLoop::default();
@@ -1639,11 +1712,67 @@ fn finish_loop(mut pts: Vec<ProfileSample>) -> ProfileLoop {
         crest_v_mm: crest_v,
         crest_radius_mm: crest_r,
         surface_start,
+        feature_v,
     }
 }
 
 #[cfg(test)]
 mod tests {
+
+    // --- Feature lines -----------------------------------------------------
+
+    /// Before feature snapping, the crest sample sat wherever the even grid
+    /// left it, and the reported crest radius was the chord's, not the
+    /// surface's.
+    #[test]
+    fn a_sample_row_lands_exactly_on_the_crest() {
+        for &style in super::ProfileStyle::ALL {
+            if style == super::ProfileStyle::Custom {
+                continue;
+            }
+            let mut p = super::BandProfile::default();
+            p.apply_style(style);
+            let inner_r = 8.57;
+            // A coarse loop, where a missed crest costs the most.
+            let l = p.sample(inner_r, 48);
+            let expect = inner_r + p.thickness_mm;
+            assert!(
+                (l.crest_radius_mm - expect).abs() < 1e-6,
+                "{style:?}: crest sampled at {:.6}, surface peaks at {expect:.6}",
+                l.crest_radius_mm
+            );
+            assert!(!l.feature_v.is_empty(), "{style:?} records its crest");
+            for &f in &l.feature_v {
+                assert!((0.0..=1.0).contains(&f), "{style:?}: feature at {f}");
+            }
+        }
+    }
+
+    /// The flange rim is two sharp corners; a chord across either rounds the
+    /// rim the whole point of a flange is to keep square.
+    #[test]
+    fn flange_rim_corners_each_get_a_sample() {
+        let mut p = super::BandProfile::default();
+        p.flange.enabled = true;
+        p.flange.v_pos = 0.5;
+        p.flange.extent_mm = 0.8;
+        p.flange.thickness_mm = 0.6;
+        p.flange.edge_round_mm = 0.0;
+        let l = p.sample(8.57, 64);
+        let rim_r = l.crest_radius_mm;
+        let on_rim: Vec<f64> = l
+            .pts
+            .iter()
+            .filter(|q| q.surface && (q.r - rim_r).abs() < 1e-6)
+            .map(|q| q.z)
+            .collect();
+        let z_lo = on_rim.iter().cloned().fold(f64::MAX, f64::min);
+        let z_hi = on_rim.iter().cloned().fold(f64::MIN, f64::max);
+        assert!(
+            z_hi - z_lo > 0.5,
+            "both rim corners sampled at full radius: rim z {z_lo:.4}..{z_hi:.4}"
+        );
+    }
 
     // --- Drop curve --------------------------------------------------------
 

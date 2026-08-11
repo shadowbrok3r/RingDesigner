@@ -316,6 +316,7 @@ mod tests {
             crest_v_mm: 4.0,
             crest_radius_mm: 9.549_296_585_513_72,
             surface: Default::default(),
+            side_faces_cache: Default::default(),
         }
     }
 

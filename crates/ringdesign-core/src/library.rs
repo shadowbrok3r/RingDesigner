@@ -32,15 +32,68 @@ pub fn data_root() -> PathBuf {
 /// File extension for saved designs.
 pub const DESIGN_EXT: &str = "ring.json";
 
+/// Version stamped into saved design files; files without one are version 0.
+pub const FORMAT_VERSION: u32 = 1;
+
+const VERSION_KEY: &str = "format_version";
+
+/// `MIGRATIONS[n]` rewrites a version-`n` document in place to version `n + 1`.
+static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1];
+
+/// Version 0 predates the version field; the document already has v1's shape.
+fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
+
+/// Serialization wrapper that puts the version key ahead of the design fields.
+#[derive(serde::Serialize)]
+struct VersionedDesign<'a> {
+    format_version: u32,
+    #[serde(flatten)]
+    design: &'a RingDesign,
+}
+
 pub fn save_design(path: impl AsRef<Path>, design: &RingDesign) -> anyhow::Result<()> {
-    let json = serde_json::to_string_pretty(design)?;
+    let doc = VersionedDesign { format_version: FORMAT_VERSION, design };
+    let json = serde_json::to_string_pretty(&doc)?;
     std::fs::write(path, json)?;
     Ok(())
 }
 
+/// Save with every referenced, non-regenerable alpha embedded from `lib`.
+pub fn save_design_embedded(
+    path: impl AsRef<Path>,
+    design: &RingDesign,
+    lib: &crate::AlphaLibrary,
+) -> anyhow::Result<()> {
+    let mut design = design.clone();
+    design.embed_alphas(lib);
+    save_design(path, &design)
+}
+
 pub fn load_design(path: impl AsRef<Path>) -> anyhow::Result<RingDesign> {
     let text = std::fs::read_to_string(path)?;
-    Ok(serde_json::from_str(&text)?)
+    load_design_str(&text)
+}
+
+/// Parse a design document, migrating older versions up to [`FORMAT_VERSION`].
+pub fn load_design_str(text: &str) -> anyhow::Result<RingDesign> {
+    let mut doc: serde_json::Value = serde_json::from_str(text)?;
+    let version = doc
+        .get(VERSION_KEY)
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as u32;
+    if version > FORMAT_VERSION {
+        anyhow::bail!(
+            "design file is format version {version}, but this build reads up to {FORMAT_VERSION} \
+             — it was saved by a newer RingDesigner"
+        );
+    }
+    for step in &MIGRATIONS[version as usize..] {
+        step(&mut doc);
+    }
+    if let Some(obj) = doc.as_object_mut() {
+        obj.remove(VERSION_KEY);
+    }
+    Ok(serde_json::from_value(doc)?)
 }
 
 /// Alphas bundled with the source tree: `<workspace>/assets/alphas`.
@@ -78,4 +131,118 @@ pub fn default_alpha_dir() -> PathBuf {
 /// Designs directory, created on demand.
 pub fn default_design_dir() -> PathBuf {
     data_root().join("designs")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_file(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join("ringdesign_library_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        dir.join(name)
+    }
+
+    #[test]
+    fn every_version_has_a_migration_step() {
+        assert_eq!(MIGRATIONS.len(), FORMAT_VERSION as usize);
+    }
+
+    #[test]
+    fn save_stamps_the_current_version_first() {
+        let path = temp_file("stamped.ring.json");
+        save_design(&path, &RingDesign::default()).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            text.trim_start().starts_with("{\n  \"format_version\""),
+            "version key should lead the file: {}",
+            &text[..60.min(text.len())]
+        );
+        let doc: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(doc["format_version"], u64::from(FORMAT_VERSION));
+    }
+
+    #[test]
+    fn a_round_trip_preserves_the_design() {
+        let mut design = RingDesign::default();
+        design.name = "Round trip".into();
+        design.size = crate::RingSize(9.25);
+        let path = temp_file("roundtrip.ring.json");
+        save_design(&path, &design).unwrap();
+        let loaded = load_design(&path).unwrap();
+        assert_eq!(
+            serde_json::to_value(&design).unwrap(),
+            serde_json::to_value(&loaded).unwrap()
+        );
+    }
+
+    #[test]
+    fn a_v0_file_without_a_version_still_loads() {
+        // Files saved before the version field are exactly the bare struct.
+        let v0 = serde_json::to_string_pretty(&RingDesign::default()).unwrap();
+        assert!(!v0.contains(VERSION_KEY));
+        let loaded = load_design_str(&v0).unwrap();
+        assert_eq!(loaded.name, RingDesign::default().name);
+    }
+
+    #[test]
+    fn an_imported_alpha_travels_inside_the_design_file() {
+        use crate::field::{Layer, LayerEntry};
+        use crate::tiling::TilingLayer;
+
+        let mut design = RingDesign::default();
+        let ctx = design.field_context();
+        design.layers.layers.push(LayerEntry::new(
+            "custom tile",
+            Layer::Tiling(TilingLayer::default_for("my import", &ctx)),
+        ));
+
+        let mut lib = crate::AlphaLibrary::builtin();
+        let data: Vec<f32> = (0..16 * 16).map(|i| (i % 16) as f32 / 15.0).collect();
+        lib.insert(crate::Alpha::new("my import", 16, 16, data.clone()));
+
+        let path = temp_file("embedded.ring.json");
+        save_design_embedded(&path, &design, &lib).unwrap();
+
+        // A fresh machine has only the builtins.
+        let loaded = load_design(&path).unwrap();
+        assert_eq!(loaded.embedded.len(), 1, "one non-builtin alpha referenced");
+        let mut fresh = crate::AlphaLibrary::builtin();
+        loaded.unpack_embedded(&mut fresh);
+        let a = fresh.get("my import").expect("embedded alpha unpacked");
+        assert_eq!((a.width, a.height), (16, 16));
+        let worst = a
+            .data
+            .iter()
+            .zip(&data)
+            .map(|(x, y)| (x - y).abs())
+            .fold(0.0f32, f32::max);
+        assert!(worst < 1.0 / 65535.0 + 1e-6, "16-bit round trip, off by {worst}");
+    }
+
+    #[test]
+    fn builtins_are_not_embedded() {
+        use crate::field::{Layer, LayerEntry};
+        use crate::tiling::TilingLayer;
+
+        let mut design = RingDesign::default();
+        let ctx = design.field_context();
+        design.layers.layers.push(LayerEntry::new(
+            "rope",
+            Layer::Tiling(TilingLayer::default_for(
+                crate::alpha::Procedural::Rope.label(),
+                &ctx,
+            )),
+        ));
+        design.embed_alphas(&crate::AlphaLibrary::builtin());
+        assert!(design.embedded.is_empty());
+    }
+
+    #[test]
+    fn a_newer_version_is_refused_with_a_clear_error() {
+        let mut doc = serde_json::to_value(RingDesign::default()).unwrap();
+        doc["format_version"] = (FORMAT_VERSION + 1).into();
+        let err = load_design_str(&doc.to_string()).unwrap_err();
+        assert!(err.to_string().contains("newer RingDesigner"), "{err}");
+    }
 }

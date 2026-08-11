@@ -33,6 +33,9 @@ const MAX_REPEATS: i64 = 400;
 const KNOB_R: f32 = 15.0;
 const HANDLE_GRAB_PX: f32 = 6.0;
 
+/// Reach of the band-edge handles' snap onto a side-face boundary, mm.
+const SNAP_MM: f64 = 0.2;
+
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum Grab {
     #[default]
@@ -127,6 +130,21 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         let grab = ui.memory(|m| m.data.get_temp::<Grab>(grab_id)).unwrap_or_default();
         let pointer = ui.input(|i| i.pointer.interact_pos());
 
+        // Band-edge handles snap onto the side-face boundaries, so a drag
+        // lands the tiling exactly on the castable runs.
+        let snap_targets: Vec<f64> = ctx
+            .side_faces_std()
+            .map(|sf| sf.low.into_iter().chain(sf.high).flat_map(|(a, b)| [a, b]).collect())
+            .unwrap_or_default();
+        let snap = |v: f64| {
+            snap_targets
+                .iter()
+                .copied()
+                .filter(|s| (s - v).abs() <= SNAP_MM)
+                .min_by(|a, b| (a - v).abs().total_cmp(&(b - v).abs()))
+                .unwrap_or(v)
+        };
+
         if response.dragged() {
             match grab {
                 Grab::Lattice => {
@@ -143,14 +161,14 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 }
                 Grab::VLow => {
                     if let Some(p) = pointer {
-                        v_lo = v_of_y(p.y).clamp(-0.25 * ctx.band_v_len_mm, v_hi - 0.2);
+                        v_lo = snap(v_of_y(p.y)).clamp(-0.25 * ctx.band_v_len_mm, v_hi - 0.2);
                         set_band(t, v_lo, v_hi);
                         changed = true;
                     }
                 }
                 Grab::VHigh => {
                     if let Some(p) = pointer {
-                        v_hi = v_of_y(p.y).clamp(v_lo + 0.2, 1.25 * ctx.band_v_len_mm);
+                        v_hi = snap(v_of_y(p.y)).clamp(v_lo + 0.2, 1.25 * ctx.band_v_len_mm);
                         set_band(t, v_lo, v_hi);
                         changed = true;
                     }

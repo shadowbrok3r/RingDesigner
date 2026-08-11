@@ -28,7 +28,7 @@ pub fn export_stl(app: &mut RingDesignerApp) {
     };
     app.set_status("Building at export resolution…");
     let out = app.build_for_export();
-    match stl::write_stl(&path, &out.mesh) {
+    match stl::write_stl(&path, &out.mesh, &app.design.name) {
         Ok(bytes) => {
             let v = out.report.validation;
             let warn = if v.watertight { "" } else { " • NOT watertight" };
@@ -75,7 +75,7 @@ pub fn save_design(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    match library::save_design(&path, &app.design) {
+    match library::save_design_embedded(&path, &app.design, &app.lib) {
         Ok(()) => app.set_status(format!("Saved {}", path.display())),
         Err(e) => app.set_status(format!("Save failed: {e}")),
     }
@@ -91,11 +91,14 @@ pub fn open_design(app: &mut RingDesignerApp) {
     };
     match library::load_design(&path) {
         Ok(d) => {
+            d.unpack_embedded(app.library_mut());
+            d.bake_drawn(app.library_mut());
             app.design = d;
             // A different file is a different session; the old timeline does
             // not describe it.
             app.history.reset(&app.design.clone());
             app.selected_layer = None;
+            app.fit_pending = true;
             app.mark_dirty();
             app.set_status(format!("Opened {}", path.display()));
         }

@@ -20,6 +20,67 @@ use crate::viewport::GpuMeshRenderer;
 
 pub const DESIGN_STORAGE_KEY: &str = "ring_design";
 pub const DOCK_STORAGE_KEY: &str = "panel_dock";
+pub const WORKSPACE_STORAGE_KEY: &str = "workspace";
+
+/// Everything about the working environment that should survive a restart —
+/// the design and dock already do; this carries the rest.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct Workspace {
+    pub preview_params: BuildParams,
+    pub export_params: BuildParams,
+    pub show_wireframe: bool,
+    pub show_grid: bool,
+    #[serde(default)]
+    pub finish: usize,
+    #[serde(default)]
+    pub light: usize,
+    pub layout: Layout,
+    pub panes: Vec<Pane>,
+    pub active_pane: usize,
+    pub mcp_port: u16,
+}
+
+impl Default for Workspace {
+    fn default() -> Self {
+        Self {
+            preview_params: BuildParams {
+                theta_steps: 384,
+                profile_steps: 144,
+                ..Default::default()
+            },
+            export_params: BuildParams {
+                theta_steps: 1024,
+                profile_steps: 320,
+                ..Default::default()
+            },
+            show_wireframe: false,
+            show_grid: true,
+            finish: 0,
+            light: 0,
+            layout: Layout::Single,
+            panes: Pane::defaults(),
+            active_pane: 0,
+            mcp_port: ringdesign_mcp::DEFAULT_PORT,
+        }
+    }
+}
+
+impl RingDesignerApp {
+    pub fn workspace(&self) -> Workspace {
+        Workspace {
+            preview_params: self.preview_params,
+            export_params: self.export_params,
+            show_wireframe: self.show_wireframe,
+            show_grid: self.show_grid,
+            finish: self.finish,
+            light: self.light,
+            layout: self.layout,
+            panes: self.panes.clone(),
+            active_pane: self.active_pane,
+            mcp_port: self.mcp_port,
+        }
+    }
+}
 
 /// Quiet period after the last edit before a rebuild fires.
 const DEBOUNCE: Duration = Duration::from_millis(90);
@@ -42,12 +103,18 @@ pub struct RingDesignerApp {
     pub renderer: Arc<Mutex<GpuMeshRenderer>>,
     pub show_wireframe: bool,
     pub show_grid: bool,
+    /// Index into [`viewport::FINISHES`].
+    pub finish: usize,
+    /// Index into [`viewport::LIGHT_RIGS`].
+    pub light: usize,
 
     /// One per quadrant, whatever the layout currently shows.
     pub panes: Vec<Pane>,
     pub layout: Layout,
     /// Pane the toolbar's view controls act on.
     pub active_pane: usize,
+    /// Frame the next completed build. Set on new/open, never on rebuilds.
+    pub fit_pending: bool,
     /// Where each tool panel is docked, and how tall.
     pub dock: Dock,
     pub selected_layer: Option<usize>,
@@ -90,20 +157,32 @@ impl RingDesignerApp {
             .and_then(|j| serde_json::from_str::<RingDesign>(&j).ok())
             .unwrap_or_default();
 
+        let workspace = cc
+            .storage
+            .and_then(|s| s.get_string(WORKSPACE_STORAGE_KEY))
+            .and_then(|j| serde_json::from_str::<Workspace>(&j).ok());
+        // A restored workspace keeps its cameras; a fresh start frames the
+        // first build.
+        let fit_pending = workspace.is_none();
+        let ws = workspace.unwrap_or_default();
+
         let design_for_history = design.clone();
         let mut app = Self {
             design,
             lib: Arc::new(lib),
             build: None,
             cast: None,
-            preview_params: BuildParams { theta_steps: 384, profile_steps: 144, ..Default::default() },
-            export_params: BuildParams { theta_steps: 1024, profile_steps: 320, ..Default::default() },
+            preview_params: ws.preview_params,
+            export_params: ws.export_params,
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
-            show_wireframe: false,
-            show_grid: true,
-            panes: Pane::defaults(),
-            layout: Layout::Single,
-            active_pane: 0,
+            show_wireframe: ws.show_wireframe,
+            show_grid: ws.show_grid,
+            finish: ws.finish,
+            light: ws.light,
+            panes: ws.panes,
+            layout: ws.layout,
+            active_pane: ws.active_pane,
+            fit_pending,
             dock: cc
                 .storage
                 .and_then(|s| s.get_string(DOCK_STORAGE_KEY))
@@ -117,7 +196,7 @@ impl RingDesignerApp {
             history: History::new(&design_for_history),
 
             mcp: None,
-            mcp_port: ringdesign_mcp::DEFAULT_PORT,
+            mcp_port: ws.mcp_port,
             mcp_error: None,
             egui_ctx: cc.egui_ctx.clone(),
             thumbs: HashMap::new(),
@@ -187,9 +266,15 @@ impl RingDesignerApp {
                     if let Ok(mut r) = self.renderer.lock() {
                         r.prepare_upload(&done.result.mesh, Some(&done.cast));
                     }
-                    let bounds = done.result.mesh.bounds();
-                    for pane in &mut self.panes {
-                        pane.camera.fit(bounds);
+                    // Fit only on the first build of a design; a rebuild that
+                    // re-framed the view would stomp the user's own framing
+                    // on every edit.
+                    if self.fit_pending {
+                        self.fit_pending = false;
+                        let bounds = done.result.mesh.bounds();
+                        for pane in &mut self.panes {
+                            pane.camera.fit(bounds);
+                        }
                     }
                     self.build = Some(Arc::new(done.result));
                     self.cast = Some(done.cast);

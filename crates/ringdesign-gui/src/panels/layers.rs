@@ -2,9 +2,11 @@
 
 use egui_phosphor::regular as icon;
 use ringdesign_core::field::{
-    Blend, BorderLayer, BorderProfile, FieldContext, Layer, MilgrainLayer,
-    SIDE_FACE_MIN_DRAFT_DEG, SeatPadLayer, SignetLayer, SignetOutline, Window,
+    Blend, BorderLayer, BorderProfile, FieldContext, GroupLayer, Layer, MilgrainLayer,
+    SIDE_FACE_MIN_DRAFT_DEG, SeatPadLayer, SideFacePick, SignetLayer, SignetOutline, VGate,
+    Window,
 };
+use ringdesign_core::curve::{CurveLayer, MAX_CURVE_POINTS, WireProfile};
 use ringdesign_core::tiling::TilingLayer;
 
 use crate::app::RingDesignerApp;
@@ -17,6 +19,12 @@ enum Action {
     Move(usize, isize),
     Duplicate(usize),
     Delete(usize),
+}
+
+/// A group-editor button, applied after the entry borrow ends.
+enum GroupEdit {
+    AdoptNext,
+    MoveOut(usize),
 }
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
@@ -72,6 +80,47 @@ fn add_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             app.add_layer("Milgrain", Layer::Milgrain(MilgrainLayer::default()));
             ui.close();
         }
+        ui.menu_button(format!("{} Curve", icon::WAVE_SINE), |ui| {
+            let ctx = app.design.field_context();
+            // A wire lands on a side face when the profile has one: relief
+            // there pulls straight out; across the crown it undercuts on its
+            // crest-side flank.
+            let side = ctx.side_faces_std().and_then(|sf| sf.wider());
+            let mut place = |app: &mut RingDesignerApp, name: &str, mut l: CurveLayer| {
+                if let Some((lo, hi)) = side {
+                    l.retarget_v(0.5 * (lo + hi), (hi - lo) * 0.3);
+                    app.add_layer(name, Layer::Curve(l));
+                    if let Some(e) = app.design.layers.layers.last_mut() {
+                        e.window.v_gate = VGate::SideFaces(SideFacePick::Wider);
+                    }
+                } else {
+                    app.add_layer(name, Layer::Curve(l));
+                }
+            };
+            if ui.button("S-scroll").clicked() {
+                place(app, "S-scroll", CurveLayer::preset_scroll(&ctx));
+                ui.close();
+            }
+            if ui.button("Running vine").clicked() {
+                place(app, "Vine", CurveLayer::preset_vine(&ctx));
+                ui.close();
+            }
+            if ui.button("Wavy rail").clicked() {
+                place(app, "Wavy rail", CurveLayer::preset_wave_rail(&ctx));
+                ui.close();
+            }
+        });
+        if ui
+            .button(format!("{} Group", icon::FOLDERS))
+            .on_hover_text(
+                "A folder of layers composited together, then blended, windowed and masked \
+                 as one. Adopt layers into it from its editor.",
+            )
+            .clicked()
+        {
+            app.add_layer("Group", Layer::Group(GroupLayer::default()));
+            ui.close();
+        }
         if ui
             .button(format!("{} Table pad", icon::SEAL))
             .on_hover_text(
@@ -94,6 +143,8 @@ fn kind_icon(layer: &Layer) -> &'static str {
         Layer::SeatPad(_) => icon::DIAMOND,
         Layer::Milgrain(_) => icon::CIRCLES_THREE,
         Layer::Signet(_) => icon::SEAL,
+        Layer::Group(_) => icon::FOLDERS,
+        Layer::Curve(_) => icon::WAVE_SINE,
     }
 }
 
@@ -225,6 +276,7 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
         .and_then(|name| app.thumbnail(ui.ctx(), name));
 
     let mut shape_head = false;
+    let mut group_edit: Option<GroupEdit> = None;
     let entry = &mut app.design.layers.layers[i];
     let mut dirty = ui
         .scope(|ui| {
@@ -262,6 +314,19 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
                     );
                 ui.end_row();
 
+                if entry.blend.is_smooth() {
+                    ui.label("Fillet");
+                    c |= ui
+                        .add(
+                            egui::Slider::new(&mut entry.soft_mm, 0.0..=1.5)
+                                .suffix(" mm")
+                                .fixed_decimals(2),
+                        )
+                        .on_hover_text("Radius the crossing is melted over. 0 is a hard crease.")
+                        .changed();
+                    ui.end_row();
+                }
+
                 ui.label("Opacity");
                 c |= ui
                     .add(egui::Slider::new(&mut entry.opacity, 0.0..=1.0).fixed_decimals(2))
@@ -269,10 +334,30 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
                     .changed();
                 ui.end_row();
 
+                ui.label("Mask");
+                let mask_label = entry.mask.as_deref().unwrap_or("None");
+                egui::ComboBox::from_id_salt("layer_mask")
+                    .selected_text(mask_label)
+                    .width(150.0)
+                    .show_ui(ui, |ui| {
+                        c |= ui.selectable_value(&mut entry.mask, None, "None").clicked();
+                        for name in &names {
+                            c |= ui
+                                .selectable_value(&mut entry.mask, Some(name.clone()), name)
+                                .clicked();
+                        }
+                    })
+                    .response
+                    .on_hover_text(
+                        "Alpha multiplied into this layer's strength over the whole band — \
+                         paint or import where the ornament goes.",
+                    );
+                ui.end_row();
+
                 c
             });
 
-            dirty |= window_controls(ui, &mut entry.window);
+            dirty |= window_controls(ui, &mut entry.window, &fctx);
 
             ui.add_space(4.0);
             dirty |= match &mut entry.layer {
@@ -281,10 +366,34 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
                 Layer::SeatPad(p) => seat_pad(ui, p, &fctx),
                 Layer::Milgrain(m) => milgrain(ui, m, &fctx),
                 Layer::Signet(s) => signet(ui, s, &fctx, &mut shape_head),
+                Layer::Group(g) => group(ui, g, &fctx, &names, &mut group_edit),
+                Layer::Curve(l) => curve_editor(ui, l, &fctx),
             };
             dirty
         })
         .inner;
+    if let Some(edit) = group_edit {
+        match edit {
+            GroupEdit::AdoptNext => {
+                if i + 1 < app.design.layers.layers.len() {
+                    let child = app.design.layers.layers.remove(i + 1);
+                    if let Layer::Group(g) = &mut app.design.layers.layers[i].layer {
+                        g.stack.layers.push(child);
+                    }
+                }
+            }
+            GroupEdit::MoveOut(j) => {
+                let child = match &mut app.design.layers.layers[i].layer {
+                    Layer::Group(g) if j < g.stack.layers.len() => Some(g.stack.layers.remove(j)),
+                    _ => None,
+                };
+                if let Some(child) = child {
+                    app.design.layers.layers.insert(i + 1, child);
+                }
+            }
+        }
+        dirty = true;
+    }
     // Turn the pad into the band. The head carries the same outline, length and
     // stand-off, so the shape does not change — it stops being something
     // standing on the ring and becomes the ring.
@@ -546,8 +655,265 @@ fn tiling(
 
 /// Limit a layer to part of the ring, so ornament can flank a signet head
 /// instead of running over it.
-fn window_controls(ui: &mut egui::Ui, w: &mut Window) -> bool {
+fn curve_editor(ui: &mut egui::Ui, l: &mut CurveLayer, fctx: &FieldContext) -> bool {
+    let mut c = grid(ui, "curve_layer", |ui| {
+        let mut c = false;
+
+        ui.label("Around");
+        c |= ui
+            .add(egui::Slider::new(&mut l.repeats_around, 1..=64))
+            .on_hover_text("Instances of the drawn path around the ring. Integer, so it closes.")
+            .changed();
+        ui.end_row();
+
+        ui.label("Width");
+        c |= ui
+            .add(egui::Slider::new(&mut l.width_mm, 0.2..=3.0).suffix(" mm").fixed_decimals(2))
+            .changed();
+        ui.end_row();
+
+        ui.label("Height");
+        c |= ui
+            .add(egui::Slider::new(&mut l.height_mm, 0.05..=1.2).suffix(" mm").fixed_decimals(2))
+            .changed();
+        ui.end_row();
+
+        ui.label("Wire");
+        egui::ComboBox::from_id_salt("curve_profile")
+            .selected_text(l.profile.label())
+            .width(150.0)
+            .show_ui(ui, |ui| {
+                for &p in WireProfile::ALL {
+                    c |= ui.selectable_value(&mut l.profile, p, p.label()).clicked();
+                }
+            });
+        ui.end_row();
+
+        ui.label("Ends");
+        ui.horizontal(|ui| {
+            c |= ui
+                .checkbox(&mut l.closed, "Closed loop")
+                .on_hover_text("Join the last point back to the first — a rail with no ends")
+                .changed();
+            c |= ui
+                .checkbox(&mut l.mirror_v, "Mirror")
+                .on_hover_text("Also place a copy mirrored about the middle of the band")
+                .changed();
+        });
+        ui.end_row();
+
+        if !l.closed {
+            ui.label("Taper");
+            c |= ui
+                .add(egui::Slider::new(&mut l.taper, 0.0..=0.5).fixed_decimals(2))
+                .on_hover_text("Fraction of each end the wire thins out over — calligraphic ends")
+                .changed();
+            ui.end_row();
+        }
+
+        c
+    });
+
+    // --- Path canvas: one instance's cell, x across, v up. ---
+    ui.add_space(3.0);
+    let id = ui.make_persistent_id("curve_layer_drag");
+    let width = ui.available_width().clamp(160.0, 280.0);
+    let (response, painter) =
+        ui.allocate_painter(egui::vec2(width, 110.0), egui::Sense::click_and_drag());
+    let rect = response.rect;
+    painter.rect_filled(rect, 3.0, theme::BG);
+    let plot = rect.shrink(8.0);
+    let band = fctx.band_v_len_mm.max(1e-6);
+
+    let to_screen = |x: f64, v: f64| {
+        egui::pos2(
+            plot.left() + x as f32 * plot.width(),
+            plot.bottom() - (v / band) as f32 * plot.height(),
+        )
+    };
+    let to_path = |p: egui::Pos2| {
+        (
+            (((p.x - plot.left()) / plot.width().max(1.0)) as f64).clamp(0.0, 1.0),
+            ((plot.bottom() - p.y) / plot.height().max(1.0)).clamp(0.0, 1.0) as f64 * band,
+        )
+    };
+
+    for t in [0.0, 0.5, 1.0] {
+        let stroke = egui::Stroke::new(1.0, theme::GRID);
+        painter.line_segment([to_screen(t, 0.0), to_screen(t, band)], stroke);
+    }
+    // The crest line, so the drawing reads against the band.
+    let crest = to_screen(0.0, fctx.crest_v_mm).y;
+    painter.line_segment(
+        [egui::pos2(plot.left(), crest), egui::pos2(plot.right(), crest)],
+        egui::Stroke::new(1.0, theme::ACCENT_DIM.gamma_multiply(0.5)),
+    );
+
+    let nearest = |p: egui::Pos2, pts: &[[f64; 2]]| {
+        pts.iter()
+            .enumerate()
+            .map(|(i, q)| (i, to_screen(q[0], q[1]).distance(p)))
+            .filter(|(_, d)| *d <= GRAB_PX)
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(i, _)| i)
+    };
+
+    let mut drag: Option<usize> = ui.memory(|m| m.data.get_temp(id)).flatten();
+    if response.drag_started() {
+        drag = response.interact_pointer_pos().and_then(|p| nearest(p, &l.points));
+        ui.memory_mut(|m| m.data.insert_temp(id, drag));
+    }
+    if response.drag_stopped() {
+        ui.memory_mut(|m| m.data.insert_temp(id, Option::<usize>::None));
+    }
+    if response.dragged()
+        && let (Some(i), Some(p)) = (drag, response.interact_pointer_pos())
+        && i < l.points.len()
+    {
+        let (x, v) = to_path(p);
+        l.points[i] = [x, v];
+        c = true;
+    }
+    if response.double_clicked()
+        && l.points.len() < MAX_CURVE_POINTS
+        && let Some(p) = response.interact_pointer_pos()
+    {
+        let (x, v) = to_path(p);
+        // After the nearest existing point, so the path is not re-threaded.
+        let after = l
+            .points
+            .iter()
+            .enumerate()
+            .min_by(|a, b| {
+                let da = (a.1[0] - x).abs();
+                let db = (b.1[0] - x).abs();
+                da.total_cmp(&db)
+            })
+            .map(|(i, q)| if x >= q[0] { i + 1 } else { i })
+            .unwrap_or(l.points.len());
+        l.points.insert(after.min(l.points.len()), [x, v]);
+        c = true;
+    }
+    if response.secondary_clicked()
+        && l.points.len() > 2
+        && let Some(p) = response.interact_pointer_pos()
+        && let Some(i) = nearest(p, &l.points)
+    {
+        l.points.remove(i);
+        c = true;
+    }
+
+    let line: Vec<egui::Pos2> =
+        l.sample_path(16).into_iter().map(|q| to_screen(q[0], q[1])).collect();
+    if line.len() >= 2 {
+        painter.add(egui::Shape::line(line, egui::Stroke::new(1.6, theme::ACCENT)));
+    }
+    for q in &l.points {
+        painter.circle_filled(to_screen(q[0], q[1]), 3.2, theme::ACCENT);
+    }
+
+    response.on_hover_text(
+        "One instance of the path: left edge meets the previous copy, right edge the next. \
+         Drag points; double-click adds, right-click removes.",
+    );
+    c
+}
+
+const GRAB_PX: f32 = 9.0;
+
+fn group(
+    ui: &mut egui::Ui,
+    g: &mut GroupLayer,
+    fctx: &FieldContext,
+    names: &[String],
+    pending: &mut Option<GroupEdit>,
+) -> bool {
     let mut c = false;
+    if g.stack.layers.is_empty() {
+        ui.label(
+            egui::RichText::new("Empty group — adopt the layer below to start.")
+                .small()
+                .color(theme::TEXT_DIM),
+        );
+    }
+
+    let mut delete: Option<usize> = None;
+    for j in 0..g.stack.layers.len() {
+        let ce = &mut g.stack.layers[j];
+        ui.horizontal(|ui| {
+            c |= ui
+                .checkbox(&mut ce.enabled, "")
+                .on_hover_text("Include in the group's composite")
+                .changed();
+            ui.label(format!("{} {}", kind_icon(&ce.layer), ce.name));
+            if ui
+                .small_button(icon::SIGN_OUT)
+                .on_hover_text("Move out of the group, back into the stack")
+                .clicked()
+            {
+                *pending = Some(GroupEdit::MoveOut(j));
+            }
+            if ui.small_button(icon::TRASH).on_hover_text("Delete").clicked() {
+                delete = Some(j);
+            }
+        });
+        egui::CollapsingHeader::new("Edit")
+            .id_salt(("group_child", j))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Blend");
+                    egui::ComboBox::from_id_salt(("group_child_blend", j))
+                        .selected_text(ce.blend.label())
+                        .show_ui(ui, |ui| {
+                            for &b in Blend::ALL {
+                                c |= ui.selectable_value(&mut ce.blend, b, b.label()).clicked();
+                            }
+                        });
+                    ui.label("Opacity");
+                    c |= ui
+                        .add(
+                            egui::Slider::new(&mut ce.opacity, 0.0..=1.0)
+                                .fixed_decimals(2),
+                        )
+                        .changed();
+                });
+                let mut dummy = false;
+                c |= match &mut ce.layer {
+                    Layer::Tiling(t) => tiling(ui, t, fctx, names, None),
+                    Layer::Border(b) => border(ui, b, fctx),
+                    Layer::SeatPad(p) => seat_pad(ui, p, fctx),
+                    Layer::Milgrain(m) => milgrain(ui, m, fctx),
+                    Layer::Signet(s) => signet(ui, s, fctx, &mut dummy),
+                    Layer::Curve(l) => curve_editor(ui, l, fctx),
+                    Layer::Group(_) => {
+                        ui.label(
+                            egui::RichText::new("Nested groups edit one level at a time.")
+                                .small()
+                                .color(theme::TEXT_DIM),
+                        );
+                        false
+                    }
+                };
+            });
+    }
+    if let Some(j) = delete {
+        g.stack.layers.remove(j);
+        c = true;
+    }
+
+    ui.add_space(3.0);
+    if ui
+        .button(format!("{} Adopt the layer below", icon::DOWNLOAD_SIMPLE))
+        .on_hover_text("Move the next layer in the stack into this group")
+        .clicked()
+    {
+        *pending = Some(GroupEdit::AdoptNext);
+    }
+    c
+}
+
+fn window_controls(ui: &mut egui::Ui, w: &mut Window, fctx: &FieldContext) -> bool {
+    let mut c = v_gate_controls(ui, w, fctx);
     ui.add_space(3.0);
     ui.horizontal(|ui| {
         c |= ui
@@ -602,6 +968,125 @@ fn window_controls(ui: &mut egui::Ui, w: &mut Window) -> bool {
             .small()
             .color(theme::WARN),
         );
+    }
+    c
+}
+
+/// Cross-band gate: hold the layer to a `v` strip, or to the side faces.
+fn v_gate_controls(ui: &mut egui::Ui, w: &mut Window, fctx: &FieldContext) -> bool {
+    let mut c = false;
+    ui.add_space(3.0);
+    ui.horizontal(|ui| {
+        let mut on = !w.v_gate.is_off();
+        if ui
+            .checkbox(&mut on, "Limit across the band")
+            .on_hover_text("Confine this layer to a strip across the section")
+            .changed()
+        {
+            w.v_gate = if on {
+                VGate::Band {
+                    center_mm: fctx.crest_v_mm,
+                    span_mm: (fctx.band_v_len_mm * 0.4).max(0.5),
+                    fade_mm: 0.4,
+                }
+            } else {
+                VGate::Off
+            };
+            c = true;
+        }
+    });
+    let side_label = |p: SideFacePick| match p {
+        SideFacePick::Low => "Low edge",
+        SideFacePick::High => "High edge",
+        SideFacePick::Wider => "Wider face",
+        SideFacePick::Both => "Both faces",
+    };
+    match &mut w.v_gate {
+        VGate::Off => {}
+        VGate::Band { center_mm, span_mm, fade_mm } => {
+            c |= grid(ui, "layer_v_gate", |ui| {
+                let mut c = false;
+                let v_max = fctx.band_v_len_mm.max(0.5);
+
+                ui.label("Centre v");
+                c |= ui
+                    .add(egui::Slider::new(center_mm, 0.0..=v_max).suffix(" mm"))
+                    .changed();
+                ui.end_row();
+
+                ui.label("Span");
+                c |= ui.add(egui::Slider::new(span_mm, 0.0..=v_max).suffix(" mm")).changed();
+                ui.end_row();
+
+                ui.label("Fade");
+                c |= ui
+                    .add(egui::Slider::new(fade_mm, 0.0..=2.0).suffix(" mm"))
+                    .on_hover_text("A hard edge raises a wall the mould has to clear")
+                    .changed();
+                ui.end_row();
+
+                c
+            });
+        }
+        VGate::SideFaces(pick) => {
+            c |= grid(ui, "layer_v_gate_sf", |ui| {
+                let mut c = false;
+                ui.label("Faces");
+                egui::ComboBox::from_id_salt("v_gate_pick")
+                    .selected_text(side_label(*pick))
+                    .width(150.0)
+                    .show_ui(ui, |ui| {
+                        for p in [
+                            SideFacePick::Wider,
+                            SideFacePick::Low,
+                            SideFacePick::High,
+                            SideFacePick::Both,
+                        ] {
+                            c |= ui.selectable_value(pick, p, side_label(p)).clicked();
+                        }
+                    });
+                ui.end_row();
+                c
+            });
+        }
+    }
+    // Switch between the two gate kinds under one combo.
+    if let VGate::Band { .. } = w.v_gate {
+        ui.horizontal(|ui| {
+            if ui
+                .small_button("Snap to side faces")
+                .on_hover_text(
+                    "Track the faces square to the mould pull instead of a fixed strip. \
+                     Relief there pulls straight out, whatever the profile becomes.",
+                )
+                .clicked()
+            {
+                w.v_gate = VGate::SideFaces(SideFacePick::Wider);
+                c = true;
+            }
+        });
+    } else if let VGate::SideFaces(_) = w.v_gate {
+        if fctx.side_faces_std().is_none() {
+            ui.label(
+                egui::RichText::new(format!(
+                    "{} This profile has no side faces — the layer passes nothing. \
+                     Square the sides in Design ▸ Profile.",
+                    icon::WARNING
+                ))
+                .small()
+                .color(theme::WARN),
+            );
+        }
+        ui.horizontal(|ui| {
+            if ui.small_button("Use a fixed strip instead").clicked() {
+                w.v_gate = VGate::Band {
+                    center_mm: fctx.crest_v_mm,
+                    span_mm: (fctx.band_v_len_mm * 0.4).max(0.5),
+                    fade_mm: 0.4,
+                };
+                c = true;
+            }
+        });
     }
     c
 }

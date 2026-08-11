@@ -327,6 +327,7 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 app.design = ringdesign_core::RingDesign::default();
                 app.history.reset(&app.design.clone());
                 app.selected_layer = None;
+                app.fit_pending = true;
                 app.mark_dirty();
                 ui.close();
             }
@@ -393,6 +394,26 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
         ui.checkbox(&mut app.show_wireframe, "Wire");
         ui.checkbox(&mut app.show_grid, "Grid");
+        egui::ComboBox::from_id_salt("metal_finish")
+            .selected_text(crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].name)
+            .width(104.0)
+            .show_ui(ui, |ui| {
+                for (i, f) in crate::viewport::FINISHES.iter().enumerate() {
+                    ui.selectable_value(&mut app.finish, i, f.name);
+                }
+            })
+            .response
+            .on_hover_text("Metal colour in the viewport. Weight per alloy is in the report.");
+        egui::ComboBox::from_id_salt("light_rig")
+            .selected_text(crate::viewport::LIGHT_RIGS[app.light.min(crate::viewport::LIGHT_RIGS.len() - 1)].name)
+            .width(88.0)
+            .show_ui(ui, |ui| {
+                for (i, l) in crate::viewport::LIGHT_RIGS.iter().enumerate() {
+                    ui.selectable_value(&mut app.light, i, l.name);
+                }
+            })
+            .response
+            .on_hover_text("Key light for the polished-metal view");
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if app.is_building() {

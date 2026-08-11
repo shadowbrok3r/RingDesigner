@@ -1070,8 +1070,13 @@ fn allowed_fields(layer: &Layer) -> &'static [&'static str] {
         Layer::Border(_) => BORDER_FIELDS,
         Layer::SeatPad(_) => SEAT_PAD_FIELDS,
         Layer::Milgrain(_) => MILGRAIN_FIELDS,
+        // Groups carry only the common entry fields; edit their children by index.
+        Layer::Group(_) => &[],
+        Layer::Curve(_) => CURVE_FIELDS,
     }
 }
+
+const CURVE_FIELDS: &[&str] = &["repeats_around", "width_mm", "height_mm"];
 
 // --- Tools -----------------------------------------------------------------
 
@@ -1734,6 +1739,14 @@ impl RingDesignServer {
                 put_u32(&mut m.beads_around, p.beads_around, "beads_around", &mut applied);
                 put_f64(&mut m.height_mm, p.height_mm, "height_mm", &mut applied)?;
                 put_bool(&mut m.mirror, p.mirror, "mirror", &mut applied);
+            }
+            // A group has no per-kind fields; the common entry fields above
+            // (name, enabled, blend, opacity) already applied.
+            Layer::Group(_) => {}
+            Layer::Curve(l) => {
+                put_u32(&mut l.repeats_around, p.repeats_around, "repeats_around", &mut applied);
+                put_f64(&mut l.width_mm, p.width_mm, "width_mm", &mut applied)?;
+                put_f64(&mut l.height_mm, p.height_mm, "height_mm", &mut applied)?;
             }
         }
         let change = LayerChange {

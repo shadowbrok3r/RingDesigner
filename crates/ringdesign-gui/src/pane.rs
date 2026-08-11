@@ -13,7 +13,7 @@ use ringdesign_core::profile::TOP_DEG;
 use crate::camera::{OrbitCamera, StandardView};
 use crate::viewport::ShadeMode;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum PaneKind {
     Solid,
     Unrolled,
@@ -40,12 +40,14 @@ impl PaneKind {
     }
 }
 
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct Pane {
     pub kind: PaneKind,
     pub camera: OrbitCamera,
     pub shade: ShadeMode,
     pub section_theta_deg: f64,
     /// Slice at this pane's own angle, refreshed when the build lands.
+    #[serde(skip)]
     pub section: Option<Section>,
 }
 
@@ -80,7 +82,7 @@ impl Pane {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Layout {
     Single,
     SplitH,

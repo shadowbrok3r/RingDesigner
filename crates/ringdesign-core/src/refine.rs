@@ -101,7 +101,7 @@ impl Default for RefineParams {
             tolerance_mm: 0.02,
             normal_tolerance_deg: default_normal_tolerance(),
             base_cell_mm: 1.6,
-            max_level: 5,
+            max_level: MAX_LEVEL,
         }
     }
 }
@@ -143,8 +143,27 @@ pub struct RefineStats {
     /// Worst facet deviation left on any cell that could still have split, mm.
     /// Cells already at `max_level` are excluded — nothing could be done about
     /// them, and including them would report the depth limit as a failure to
-    /// converge.
+    /// converge. When `saturated_leaves` is nonzero this is not a convergence
+    /// claim: those cells were split for exceeding tolerance and never
+    /// re-measured.
     pub worst_error_mm: f64,
+    /// Cells at `max_level` — split for exceeding tolerance, too deep to probe
+    /// again. A tree where every leaf saturates would otherwise report a worst
+    /// error of 0.0.
+    pub saturated_leaves: usize,
+    /// Cells split by layer-footprint seeding before the error loop ran.
+    pub seeded_cells: usize,
+}
+
+/// Does `[x0, x1]` overlap `[lo, hi]` on a circle of period `n`? The range may
+/// extend past either end of the period.
+fn intersects_wrapped(x0: f64, x1: f64, lo: f64, hi: f64, n: f64) -> bool {
+    if hi - lo >= n {
+        return true;
+    }
+    let (lo, hi) = (lo.rem_euclid(n), hi.rem_euclid(n));
+    let hit = |a: f64, b: f64| x1 > a && x0 < b;
+    if lo <= hi { hit(lo, hi) } else { hit(0.0, hi) || hit(lo, n) }
 }
 
 // --- Cross-section cache ---------------------------------------------------
@@ -410,6 +429,72 @@ pub fn build(
         ..Default::default()
     };
 
+    // --- Seed: pre-split where a layer's detail is finer than a probe step ---
+    // `facet_error` probes nine points per cell, so a feature smaller than
+    // half a cell can sit between probes and never trigger a split. Splitting
+    // each footprint to half its feature scale first makes capture
+    // deterministic instead of probabilistic.
+    let bore_len = (perimeter - reference.surface_len_mm).max(0.0);
+    for fp in design.layers.feature_footprints(&ctx) {
+        let want = (fp.min_feature_mm * 0.5).max(1e-3);
+        let need = |edge0: f64| {
+            let mut l = 0u32;
+            let mut e = edge0;
+            while e > want && l < max_level {
+                e *= 0.5;
+                l += 1;
+            }
+            l
+        };
+        let target =
+            need(ctx.circumference_mm / base_u as f64).max(need(perimeter / base_s as f64));
+        if target == 0 {
+            continue;
+        }
+
+        // The v-to-s mapping comes from the reference loop; a modulated column
+        // shifts it a little, so the region is padded a millimetre.
+        let pad = 1.0;
+        let s0 = ((bore_len + fp.v_mm.0 - pad) / perimeter * lat.n_s as f64).max(0.0);
+        let s1 = ((bore_len + fp.v_mm.1 + pad) / perimeter * lat.n_s as f64).min(lat.n_s as f64);
+        let u_range = fp.u_mm.map(|(a, b)| {
+            let scale = lat.n_u as f64 / ctx.circumference_mm.max(1e-9);
+            ((a - pad) * scale, (b + pad) * scale)
+        });
+
+        for _ in 0..target {
+            let marked: Vec<(u32, u32)> = leaves
+                .iter()
+                .filter(|&(&(x, y), &lev)| {
+                    let st = step(lev, max_level);
+                    lev < target
+                        && (y + st) as f64 > s0
+                        && (y as f64) < s1
+                        && match u_range {
+                            None => true,
+                            Some((a, b)) => {
+                                intersects_wrapped(x as f64, (x + st) as f64, a, b, lat.n_u as f64)
+                            }
+                        }
+                })
+                .map(|(&k, _)| k)
+                .collect();
+            if marked.is_empty() {
+                break;
+            }
+            if leaves.len() + 3 * marked.len() > MAX_LEAVES {
+                log::warn!("layer seeding stopped at {} leaves by the cap", leaves.len());
+                stats.hit_cap = true;
+                break;
+            }
+            stats.seeded_cells += marked.len();
+            subdivide(&mut leaves, &marked, max_level);
+        }
+    }
+    if stats.seeded_cells > 0 {
+        balance(&mut leaves, lat.n_u, lat.n_s, max_level);
+    }
+
     // Balancing subdivides too, so a pass can create cells the pass that made
     // them never examined. Run until nothing is marked rather than once per
     // level; depth is capped either way, so this terminates.
@@ -475,6 +560,7 @@ pub fn build(
     stats.columns_built = lat.columns.len();
     stats.leaves = leaves.len();
     stats.deepest_level = leaves.values().copied().max().unwrap_or(0);
+    stats.saturated_leaves = leaves.values().filter(|&&lev| lev >= max_level).count();
     stats.worst_error_mm = leaves
         .par_iter()
         .filter(|&(_, &lev)| lev < max_level)
@@ -708,6 +794,71 @@ mod tests {
             normal_tolerance_deg: (tol * 250.0).clamp(5.0, 20.0),
             ..RefineParams::default()
         }
+    }
+
+    #[test]
+    fn presets_run_at_the_benchmarked_depth() {
+        for &(name, _, _) in RefineParams::PRESETS {
+            let p = RefineParams::preset(name).unwrap();
+            assert_eq!(p.max_level, MAX_LEVEL, "{name} preset depth");
+        }
+        assert_eq!(RefineParams::default().max_level, MAX_LEVEL);
+    }
+
+    #[test]
+    fn seeding_captures_a_feature_the_probes_would_miss() {
+        use crate::field::SeatPadLayer;
+        // A 1.2 mm pad on a 5 mm base cell: level-0 probes sit far enough
+        // apart to step over the pad entirely, so capture must not depend on
+        // one of them landing inside it.
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        let crest_v = d.field_context().crest_v_mm;
+        let pad = SeatPadLayer {
+            v_mm: crest_v,
+            diameter_mm: 1.2,
+            height_mm: 0.9,
+            blend_mm: 0.3,
+            crown: 0.0,
+            ..SeatPadLayer::default()
+        };
+        d.layers.layers.push(LayerEntry::new("pad", Layer::SeatPad(pad)));
+
+        let p = RefineParams {
+            base_cell_mm: 5.0,
+            tolerance_mm: 0.06,
+            normal_tolerance_deg: 20.0,
+            ..RefineParams::default()
+        };
+        let out = build(&d, &lib, p, 0.5);
+        assert!(out.stats.seeded_cells > 0, "{:?}", out.stats);
+        let crest_r = d.reference_loop().crest_radius_mm;
+        let max_r = out
+            .mesh
+            .vertices
+            .iter()
+            .map(|v| (v.0 as f64).hypot(v.1 as f64))
+            .fold(0.0, f64::max);
+        assert!(
+            max_r >= crest_r + 0.9 * 0.7,
+            "pad top missing from the mesh: max r {max_r:.3} vs crest {crest_r:.3}"
+        );
+        let v = out.mesh.validate();
+        assert!(v.watertight, "seeded tree still closes: {v:?}");
+    }
+
+    #[test]
+    fn a_depth_limited_tree_says_so() {
+        let lib = AlphaLibrary::builtin();
+        let d = ornamented(&lib);
+        let p = RefineParams { max_level: 1, ..params(0.005) };
+        let out = build(&d, &lib, p, 0.5);
+        assert!(
+            out.stats.saturated_leaves > 0,
+            "a shallow tree under a tight tolerance saturates: {:?}",
+            out.stats
+        );
+        assert!(!out.stats.hit_cap, "depth limit is not the leaf cap");
     }
 
     #[test]

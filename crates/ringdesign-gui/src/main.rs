@@ -30,6 +30,9 @@ impl eframe::App for RingDesignerApp {
         if let Ok(json) = serde_json::to_string(&self.dock) {
             storage.set_string(app::DOCK_STORAGE_KEY, json);
         }
+        if let Ok(json) = serde_json::to_string(&self.workspace()) {
+            storage.set_string(app::WORKSPACE_STORAGE_KEY, json);
+        }
     }
 
     fn on_exit(&mut self, gl: Option<&eframe::glow::Context>) {

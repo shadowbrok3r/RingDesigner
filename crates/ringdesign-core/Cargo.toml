@@ -13,3 +13,4 @@ log.workspace = true
 rayon.workspace = true
 image.workspace = true
 parking_lot.workspace = true
+base64 = "0.22"

@@ -171,6 +171,49 @@ impl Alpha {
         decode(reader, name.into())
     }
 
+    /// 16-bit grayscale PNG of the height data, for embedding in a design file.
+    pub fn to_png16(&self) -> anyhow::Result<Vec<u8>> {
+        anyhow::ensure!(!self.is_empty(), "{} is empty", self.name);
+        let mut img = image::ImageBuffer::<image::Luma<u16>, Vec<u16>>::new(
+            self.width as u32,
+            self.height as u32,
+        );
+        for (px, v) in img.pixels_mut().zip(&self.data) {
+            px.0[0] = (v.clamp(0.0, 1.0) * 65535.0).round() as u16;
+        }
+        let mut out = std::io::Cursor::new(Vec::new());
+        img.write_to(&mut out, image::ImageFormat::Png)?;
+        Ok(out.into_inner())
+    }
+
+    /// Decode a [`to_png16`](Self::to_png16) payload, keeping 16-bit precision.
+    ///
+    /// An oversized payload falls back to the standard import path and its
+    /// downscale, so a hostile design file cannot expand past the library caps.
+    pub fn from_png16(name: impl Into<String>, bytes: &[u8]) -> anyhow::Result<Alpha> {
+        let name = name.into();
+        let mut reader =
+            image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format()?;
+        let mut limits = image::Limits::default();
+        limits.max_image_width = Some(HARD_MAX_ALPHA_EDGE as u32);
+        limits.max_image_height = Some(HARD_MAX_ALPHA_EDGE as u32);
+        reader.limits(limits);
+        let decoded = reader.decode()?;
+        let (sw, sh) = (decoded.width(), decoded.height());
+        if sw == 0 || sh == 0 {
+            anyhow::bail!("{name} has zero extent");
+        }
+        if sw.max(sh) > MAX_ALPHA_EDGE as u32 {
+            let reader =
+                image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format()?;
+            return decode(reader, name);
+        }
+        let luma = decoded.into_luma16();
+        let (w, h) = (luma.width() as usize, luma.height() as usize);
+        let data = luma.into_raw().into_iter().map(|p| p as f32 / 65535.0).collect();
+        Ok(Alpha::new(name, w, h, data))
+    }
+
     /// RGBA8 preview downscaled to fit `max_edge`, as `(width, height, bytes)`.
     ///
     /// The library grid draws thumbnails at a few dozen pixels, so uploading a

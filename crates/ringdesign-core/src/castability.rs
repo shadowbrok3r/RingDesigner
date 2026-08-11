@@ -559,7 +559,14 @@ pub fn section_at_spaced(
     let reference = design.reference_loop();
     let ctx = design.field_context();
     let m = design.shank.modulation(theta_deg, inner_r, reference.crest_radius_mm);
-    let loop_i = design.profile.sample_spaced(inner_r, n, &m, spacing.map(|s| &s.v));
+    // The same snap set the sweep uses, so the section matches the mesh.
+    let loop_i = design.profile.sample_spaced(
+        inner_r,
+        n,
+        &m,
+        spacing.map(|s| &s.v),
+        Some(&reference.feature_v),
+    );
     if loop_i.len() < 3 {
         return Section { theta_deg, ..Default::default() };
     }

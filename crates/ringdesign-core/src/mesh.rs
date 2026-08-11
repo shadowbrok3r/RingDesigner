@@ -246,7 +246,8 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
             let theta = frac * 360.0;
             let (sin_t, cos_t) = theta.to_radians().sin_cos();
             let m = design.shank.modulation(theta, inner_r, reference.crest_radius_mm);
-            let loop_i = design.profile.sample_spaced(inner_r, n_prof, &m, field_v);
+            let loop_i =
+                design.profile.sample_spaced(inner_r, n_prof, &m, field_v, Some(&reference.feature_v));
             let u = frac * ctx.circumference_mm;
 
             let mut verts = Vec::with_capacity(n_prof);
@@ -309,7 +310,7 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
         }
     }
 
-    let normals = smooth_normals(&vertices, &faces);
+    let normals = grid_normals(&vertices, n_theta, p);
     let mesh = Mesh { vertices, normals, faces };
 
     let bounds = mesh.bounds().unwrap_or_default();
@@ -390,6 +391,38 @@ struct RingSlice {
     lo: f64,
 }
 
+/// Vertex normals from central differences on the swept torus grid.
+///
+/// The grid is the surface's own parameterization, so the cross of the two
+/// tangents is the surface normal directly — free of the facet-size bias that
+/// area-weighted accumulation carries at preview resolutions. Both directions
+/// wrap. Degenerate tangents (coincident neighbours under the min-wall clamp)
+/// fall back to the same `(0, 0, 1)` the accumulator used.
+pub(crate) fn grid_normals(vertices: &[Vec3], n_theta: usize, n_prof: usize) -> Vec<Vec3> {
+    debug_assert_eq!(vertices.len(), n_theta * n_prof);
+    let at = |i: usize, j: usize| {
+        let v = vertices[(i % n_theta) * n_prof + (j % n_prof)];
+        [v.0 as f64, v.1 as f64, v.2 as f64]
+    };
+    (0..n_theta)
+        .into_par_iter()
+        .flat_map_iter(|i| {
+            (0..n_prof).map(move |j| {
+                let tu = sub(at(i + 1, j), at(i + n_theta - 1, j));
+                let ts = sub(at(i, j + 1), at(i, j + n_prof - 1));
+                // `e_theta x e_profile` points outward, matching the winding.
+                let n = cross(tu, ts);
+                let len = norm(n);
+                if len > 1e-12 {
+                    Vec3((n[0] / len) as f32, (n[1] / len) as f32, (n[2] / len) as f32)
+                } else {
+                    Vec3(0.0, 0.0, 1.0)
+                }
+            })
+        })
+        .collect()
+}
+
 /// Area-weighted vertex normals: face normals are accumulated unnormalized, so
 /// larger triangles carry proportionally more weight.
 pub(crate) fn smooth_normals(vertices: &[Vec3], faces: &[[u32; 3]]) -> Vec<Vec3> {
@@ -460,6 +493,59 @@ mod tests {
         assert!(out.report.validation.watertight, "{:?}", out.report.validation);
         assert_eq!(out.report.validation.boundary_edges, 0);
         assert_eq!(out.report.validation.non_manifold_edges, 0);
+    }
+
+    #[test]
+    fn grid_normals_track_the_profile_normal_better_than_facet_averaging() {
+        let design = RingDesign::default();
+        let lib = AlphaLibrary::builtin();
+        let (n_theta, n_prof) = (96usize, 64usize);
+        let params = BuildParams {
+            theta_steps: n_theta,
+            profile_steps: n_prof,
+            min_wall_mm: MIN_WALL_MM,
+            adaptive: false,
+            refine: None,
+        };
+        let built = build(&design, &lib, params);
+        let averaged = smooth_normals(&built.mesh.vertices, &built.mesh.faces);
+
+        // Truth at theta = 0: the profile's own outward normal in the XZ plane.
+        let inner_r = design.inner_radius_mm();
+        let reference = design.reference_loop();
+        let m = design.shank.modulation(0.0, inner_r, reference.crest_radius_mm);
+        let loop0 =
+            design.profile.sample_spaced(inner_r, n_prof, &m, None, Some(&reference.feature_v));
+
+        let angle_to = |v: Vec3, t: [f64; 3]| {
+            let n = [v.0 as f64, v.1 as f64, v.2 as f64];
+            let dot = (n[0] * t[0] + n[1] * t[1] + n[2] * t[2]) / norm(t).max(1e-12);
+            dot.clamp(-1.0, 1.0).acos().to_degrees()
+        };
+
+        let mut worst_grid = 0.0f64;
+        let mut worst_avg = 0.0f64;
+        let mut compared = 0usize;
+        for j in 0..n_prof {
+            // Skip the bore and the corner transitions, where the true normal
+            // is discontinuous and both methods necessarily smear.
+            let window_surface = (0..5).all(|k| loop0.pts[(j + n_prof - 2 + k) % n_prof].surface);
+            if !window_surface {
+                continue;
+            }
+            let p = &loop0.pts[j];
+            let truth = [p.nr, 0.0, p.nz];
+            worst_grid = worst_grid.max(angle_to(built.mesh.normals[j], truth));
+            worst_avg = worst_avg.max(angle_to(averaged[j], truth));
+            compared += 1;
+        }
+        assert!(compared > n_prof / 3, "enough smooth-surface samples: {compared}");
+        println!("worst normal error: grid {worst_grid:.3} deg, averaged {worst_avg:.3} deg");
+        assert!(
+            worst_grid <= worst_avg + 1e-6,
+            "grid {worst_grid:.3} deg should not lose to averaging {worst_avg:.3} deg"
+        );
+        assert!(worst_grid < 0.1, "grid normals off by {worst_grid:.3} deg at 96x64");
     }
 
     #[test]

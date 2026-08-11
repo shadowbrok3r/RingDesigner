@@ -154,6 +154,8 @@ impl GpuMeshRenderer {
         normal_matrix: &[f32; 9],
         mode: i32,
         base_color: [f32; 3],
+        light_dir: [f32; 3],
+        ambient: f32,
         wireframe: bool,
         wire_color: [f32; 3],
     ) {
@@ -202,11 +204,11 @@ impl GpuMeshRenderer {
             let loc = gl.get_uniform_location(res.program, "u_mode");
             gl.uniform_1_i32(loc.as_ref(), mode);
             let loc = gl.get_uniform_location(res.program, "u_light_dir");
-            gl.uniform_3_f32(loc.as_ref(), -0.38, 0.46, 0.80);
+            gl.uniform_3_f32(loc.as_ref(), light_dir[0], light_dir[1], light_dir[2]);
             let loc = gl.get_uniform_location(res.program, "u_base_color");
             gl.uniform_3_f32(loc.as_ref(), base_color[0], base_color[1], base_color[2]);
             let loc = gl.get_uniform_location(res.program, "u_ambient");
-            gl.uniform_1_f32(loc.as_ref(), 0.20);
+            gl.uniform_1_f32(loc.as_ref(), ambient);
 
             gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
             gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
@@ -353,9 +355,40 @@ fn as_u8_slice<T: Copy>(data: &[T]) -> &[u8] {
     }
 }
 
+// --- Metal finishes and lighting -------------------------------------------
+
+/// Display color per alloy family. Rendering only; density stays in core.
+pub struct Finish {
+    pub name: &'static str,
+    pub rgb: [f32; 3],
+}
+
+pub const FINISHES: &[Finish] = &[
+    Finish { name: "Yellow gold", rgb: [0.86, 0.70, 0.42] },
+    Finish { name: "Rose gold", rgb: [0.84, 0.60, 0.49] },
+    Finish { name: "Silver", rgb: [0.79, 0.80, 0.81] },
+    Finish { name: "White gold", rgb: [0.83, 0.83, 0.80] },
+    Finish { name: "Platinum", rgb: [0.75, 0.76, 0.78] },
+    Finish { name: "Bronze", rgb: [0.72, 0.53, 0.35] },
+    Finish { name: "Brass", rgb: [0.80, 0.65, 0.36] },
+];
+
+/// A key-light direction with an ambient floor.
+pub struct LightRig {
+    pub name: &'static str,
+    pub dir: [f32; 3],
+    pub ambient: f32,
+}
+
+pub const LIGHT_RIGS: &[LightRig] = &[
+    LightRig { name: "Studio", dir: [-0.38, 0.46, 0.80], ambient: 0.20 },
+    LightRig { name: "Window", dir: [0.62, 0.25, 0.74], ambient: 0.28 },
+    LightRig { name: "Low sun", dir: [-0.75, -0.18, 0.64], ambient: 0.12 },
+];
+
 // --- Shading modes ---------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ShadeMode {
     Metal,
     Draft,
@@ -425,7 +458,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     if app.build.is_some() {
         let (mvp, normal_matrix) = camera.matrices(rect);
         let mode = shade.gl_mode();
-        let base_color = theme::METAL_RGB;
+        let base_color = FINISHES[app.finish.min(FINISHES.len() - 1)].rgb;
+        let rig = &LIGHT_RIGS[app.light.min(LIGHT_RIGS.len() - 1)];
+        let (light_dir, ambient) = (rig.dir, rig.ambient);
         let wireframe = app.show_wireframe;
         let wire_color = rgb_of(theme::TEXT_DIM);
         let renderer = app.renderer.clone();
@@ -439,6 +474,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                     &normal_matrix,
                     mode,
                     base_color,
+                    light_dir,
+                    ambient,
                     wireframe,
                     wire_color,
                 );

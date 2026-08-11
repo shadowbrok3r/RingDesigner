@@ -60,7 +60,7 @@ fn main() {
     for m in r.metals.iter().filter(|m| m.metal.contains("14k") || m.metal.contains("925")) {
         println!("  {:<14} {:.2} g  ({:.2} dwt)", m.metal, m.grams, m.dwt);
     }
-    let bytes = stl::write_stl(&out, &built.mesh).unwrap();
+    let bytes = stl::write_stl(&out, &built.mesh, &d.name).unwrap();
     println!("\nwrote {out} ({:.1} KB)", bytes as f64 / 1024.0);
     assert!(r.validation.watertight, "MESH IS NOT WATERTIGHT");
 }

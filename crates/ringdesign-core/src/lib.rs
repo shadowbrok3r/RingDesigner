@@ -26,6 +26,7 @@
 pub mod adaptive;
 pub mod alpha;
 pub mod castability;
+pub mod curve;
 pub mod drawn;
 pub mod engine;
 pub mod field;
@@ -63,6 +64,18 @@ pub struct RingDesign {
     /// into the library on load; layers reference them by name like any other alpha.
     #[serde(default)]
     pub drawn: Vec<DrawnAlpha>,
+    /// Imported alphas the layer stack references, carried as PNG data so the
+    /// design survives moving to a machine without them.
+    #[serde(default)]
+    pub embedded: Vec<EmbeddedAlpha>,
+}
+
+/// One imported alpha embedded in the design file.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EmbeddedAlpha {
+    pub name: String,
+    /// Base64 of a 16-bit grayscale PNG.
+    pub png: String,
 }
 
 impl Default for RingDesign {
@@ -76,6 +89,7 @@ impl Default for RingDesign {
             build: BuildParams::default(),
             draft: DraftSettings::default(),
             drawn: Vec::new(),
+            embedded: Vec::new(),
         }
     }
 }
@@ -89,6 +103,47 @@ impl RingDesign {
         for d in &self.drawn {
             if !d.is_empty() {
                 lib.insert(d.rasterize());
+            }
+        }
+    }
+
+    /// Capture every referenced alpha that cannot be regenerated — not a
+    /// builtin, not drawn — as embedded PNG data. Call on a save-time clone.
+    pub fn embed_alphas(&mut self, lib: &AlphaLibrary) {
+        use base64::Engine as _;
+        self.embedded.clear();
+        for name in self.layers.referenced_alphas() {
+            let regenerable = alpha::Procedural::ALL.iter().any(|p| p.label() == name)
+                || self.drawn.iter().any(|d| d.name == name);
+            if regenerable {
+                continue;
+            }
+            let Some(a) = lib.get(name) else { continue };
+            match a.to_png16() {
+                Ok(png) => self.embedded.push(EmbeddedAlpha {
+                    name: name.to_string(),
+                    png: base64::engine::general_purpose::STANDARD.encode(png),
+                }),
+                Err(e) => log::warn!("could not embed alpha {name}: {e}"),
+            }
+        }
+    }
+
+    /// Insert embedded alphas into `lib`. The local library wins on a name
+    /// collision, so a machine that has the original keeps using it.
+    pub fn unpack_embedded(&self, lib: &mut AlphaLibrary) {
+        use base64::Engine as _;
+        for e in &self.embedded {
+            if lib.get(&e.name).is_some() {
+                continue;
+            }
+            let decoded = base64::engine::general_purpose::STANDARD
+                .decode(&e.png)
+                .map_err(anyhow::Error::from)
+                .and_then(|bytes| Alpha::from_png16(&e.name, &bytes));
+            match decoded {
+                Ok(a) => lib.insert(a),
+                Err(err) => log::warn!("could not unpack embedded alpha {}: {err}", e.name),
             }
         }
     }
@@ -119,6 +174,7 @@ impl RingDesign {
             crest_v_mm: loop_.crest_v_mm,
             crest_radius_mm: loop_.crest_radius_mm,
             surface: field::SurfaceProfile::from_loop(&loop_, 257),
+            side_faces_cache: Default::default(),
         }
     }
 }

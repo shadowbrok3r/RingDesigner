@@ -158,7 +158,8 @@ impl DesignEngine {
 
     pub fn export_stl(&mut self, path: impl AsRef<Path>) -> anyhow::Result<usize> {
         let built = self.ensure_built();
-        stl::write_stl(path, &built.mesh)
+        let name = self.design.name.clone();
+        stl::write_stl(path, &built.mesh, &name)
     }
 
     pub fn export_obj(&mut self, path: impl AsRef<Path>) -> anyhow::Result<usize> {
@@ -168,11 +169,14 @@ impl DesignEngine {
     }
 
     pub fn save_design(&self, path: impl AsRef<Path>) -> anyhow::Result<()> {
-        library::save_design(path, &self.design)
+        library::save_design_embedded(path, &self.design, &self.lib)
     }
 
     pub fn load_design(&mut self, path: impl AsRef<Path>) -> anyhow::Result<()> {
-        self.set_design(library::load_design(path)?);
+        let design = library::load_design(path)?;
+        design.unpack_embedded(Arc::make_mut(&mut self.lib));
+        design.bake_drawn(Arc::make_mut(&mut self.lib));
+        self.set_design(design);
         Ok(())
     }
 

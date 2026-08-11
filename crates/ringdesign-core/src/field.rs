@@ -94,6 +94,9 @@ pub struct FieldContext {
     /// Base geometry across the cross-section. Empty when unknown, in which
     /// case a layer needing it falls back to riding the surface.
     pub surface: SurfaceProfile,
+    /// Side-face runs at the standard threshold, found on first use. A gate
+    /// reads this per sample, and the walk behind it is far too slow for that.
+    pub side_faces_cache: std::sync::OnceLock<Option<SideFaces>>,
 }
 
 /// Base draft a surface must clear to count as a side face, degrees.
@@ -153,6 +156,11 @@ impl SideFaces {
 }
 
 impl FieldContext {
+    /// [`side_faces`](Self::side_faces) at [`SIDE_FACE_MIN_DRAFT_DEG`], cached.
+    pub fn side_faces_std(&self) -> Option<SideFaces> {
+        *self.side_faces_cache.get_or_init(|| self.side_faces(SIDE_FACE_MIN_DRAFT_DEG))
+    }
+
     /// The run of `v` inward from each band edge whose base draft clears
     /// `min_deg` — the faces that pull straight out of the sand, and so the only
     /// ones that hold deep relief.
@@ -230,11 +238,22 @@ pub enum Blend {
     Min,
     Subtract,
     Replace,
+    /// Max with the crossing filleted over the entry's `soft_mm`.
+    SmoothMax,
+    /// Min with the same filleted crossing.
+    SmoothMin,
 }
 
 impl Blend {
-    pub const ALL: &'static [Blend] =
-        &[Blend::Add, Blend::Max, Blend::Min, Blend::Subtract, Blend::Replace];
+    pub const ALL: &'static [Blend] = &[
+        Blend::Add,
+        Blend::Max,
+        Blend::SmoothMax,
+        Blend::Min,
+        Blend::SmoothMin,
+        Blend::Subtract,
+        Blend::Replace,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -243,18 +262,40 @@ impl Blend {
             Blend::Min => "Min",
             Blend::Subtract => "Carve",
             Blend::Replace => "Replace",
+            Blend::SmoothMax => "Smooth max",
+            Blend::SmoothMin => "Smooth min",
         }
     }
 
-    pub fn apply(self, acc: f64, x: f64) -> f64 {
+    pub fn is_smooth(self) -> bool {
+        matches!(self, Blend::SmoothMax | Blend::SmoothMin)
+    }
+
+    /// `soft_mm` fillets the smooth modes' crossings; the rest ignore it.
+    pub fn apply(self, acc: f64, x: f64, soft_mm: f64) -> f64 {
         match self {
             Blend::Add => acc + x,
             Blend::Max => acc.max(x),
             Blend::Min => acc.min(x),
             Blend::Subtract => acc - x,
             Blend::Replace => x,
+            Blend::SmoothMax => smax(acc, x, soft_mm.max(0.0)),
+            Blend::SmoothMin => -smax(-acc, -x, soft_mm.max(0.0)),
         }
     }
+}
+
+/// The tie-exact smooth maximum [`profile`] proved out for the signet union:
+/// a crossfade over the band rather than an addition to the maximum, so it is
+/// exact when either side dominates, exact on a tie, and C¹ at both ends. The
+/// usual `max + r·h²/4` rounds a tie *outward*, which fattens whatever it
+/// touches.
+pub(crate) fn smax(a: f64, b: f64, r: f64) -> f64 {
+    if r <= 1e-9 {
+        return a.max(b);
+    }
+    let w = smoothstep(-1.0, 1.0, ((a - b) / r).clamp(-1.0, 1.0));
+    a * w + b * (1.0 - w)
 }
 
 /// Angular gate restricting a layer to part of the ring.
@@ -272,6 +313,74 @@ pub struct Window {
     pub fade_deg: f64,
     /// Keep the layer outside the span instead of inside.
     pub invert: bool,
+    /// Cross-band gate, multiplied into the angular mask. Works with the
+    /// angular window disabled, so a layer can be gated across the band alone.
+    #[serde(default)]
+    pub v_gate: VGate,
+}
+
+/// Falloff a side-face gate applies inward from each run boundary, mm.
+pub const SIDE_GATE_FADE_MM: f64 = 0.25;
+
+/// Cross-band gate: which strip of the section a layer covers.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub enum VGate {
+    /// The whole section.
+    #[default]
+    Off,
+    /// A band holding `span_mm` at full strength around `center_mm`, with
+    /// `fade_mm` shoulders beyond it.
+    Band { center_mm: f64, span_mm: f64, fade_mm: f64 },
+    /// The side-face runs the base profile guarantees castable, resolved at
+    /// evaluation time so the gate tracks profile edits.
+    SideFaces(SideFacePick),
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SideFacePick {
+    Low,
+    High,
+    #[default]
+    Wider,
+    Both,
+}
+
+impl VGate {
+    /// Strength at a `v` position, 0..1.
+    pub fn mask(&self, v: f64, ctx: &FieldContext) -> f64 {
+        match *self {
+            VGate::Off => 1.0,
+            VGate::Band { center_mm, span_mm, fade_mm } => {
+                let half = (span_mm * 0.5).max(0.0);
+                let fade = fade_mm.max(0.0);
+                let d = (v - center_mm).abs();
+                if fade <= 1e-9 {
+                    if d <= half { 1.0 } else { 0.0 }
+                } else {
+                    1.0 - smoothstep(half, half + fade, d)
+                }
+            }
+            VGate::SideFaces(pick) => {
+                let Some(sf) = ctx.side_faces_std() else { return 0.0 };
+                // Fades run inward, so the relief dies before leaving the run.
+                let run = |r: Option<(f64, f64)>| {
+                    let Some((lo, hi)) = r else { return 0.0 };
+                    let fade = SIDE_GATE_FADE_MM.min((hi - lo) * 0.25).max(1e-9);
+                    smoothstep(lo, lo + fade, v) * (1.0 - smoothstep(hi - fade, hi, v))
+                };
+                match pick {
+                    SideFacePick::Low => run(sf.low),
+                    SideFacePick::High => run(sf.high),
+                    SideFacePick::Wider => run(sf.wider()),
+                    SideFacePick::Both => run(sf.low).max(run(sf.high)),
+                }
+            }
+        }
+    }
+
+    pub fn is_off(&self) -> bool {
+        matches!(self, VGate::Off)
+    }
 }
 
 impl Default for Window {
@@ -282,6 +391,7 @@ impl Default for Window {
             span_deg: 90.0,
             fade_deg: 12.0,
             invert: false,
+            v_gate: VGate::Off,
         }
     }
 }
@@ -295,6 +405,7 @@ impl Window {
             span_deg,
             fade_deg: (span_deg * 0.2).clamp(2.0, 40.0),
             invert: false,
+            v_gate: VGate::Off,
         }
     }
 
@@ -310,22 +421,24 @@ impl Window {
 
     /// Strength at a surface point, 0..1. Always 1 when disabled.
     pub fn mask(&self, uv: Uv, ctx: &FieldContext) -> f64 {
-        if !self.enabled {
-            return 1.0;
-        }
-        let theta = ctx.theta_of_u(uv.u);
-        if !theta.is_finite() {
-            return 1.0;
-        }
-        let d = wrap_delta(theta - self.theta_deg, 360.0).abs();
-        let half = (self.span_deg.max(0.0) * 0.5).min(180.0);
-        let outer = self.outer_half_deg();
-        let m = if outer <= half {
-            if d <= half { 1.0 } else { 0.0 }
+        let am = if !self.enabled {
+            1.0
         } else {
-            1.0 - smoothstep(half, outer, d)
+            let theta = ctx.theta_of_u(uv.u);
+            if !theta.is_finite() {
+                return 1.0;
+            }
+            let d = wrap_delta(theta - self.theta_deg, 360.0).abs();
+            let half = (self.span_deg.max(0.0) * 0.5).min(180.0);
+            let outer = self.outer_half_deg();
+            let m = if outer <= half {
+                if d <= half { 1.0 } else { 0.0 }
+            } else {
+                1.0 - smoothstep(half, outer, d)
+            };
+            if self.invert { 1.0 - m } else { m }
         };
-        if self.invert { 1.0 - m } else { m }
+        if self.v_gate.is_off() { am } else { am * self.v_gate.mask(uv.v, ctx) }
     }
 }
 
@@ -336,6 +449,21 @@ pub enum Layer {
     Border(BorderLayer),
     SeatPad(SeatPadLayer),
     Milgrain(MilgrainLayer),
+    /// A nested stack composited to one height, then blended, windowed,
+    /// masked and opacity-scaled as a unit. `Replace` inside a group cannot
+    /// leak past it.
+    Group(GroupLayer),
+    /// A wire swept along a drawn path — scrolls, vines, wavy rails.
+    Curve(crate::curve::CurveLayer),
+}
+
+/// Nesting deeper than this contributes nothing; the recursion is per sample
+/// and a hostile file must not be able to overflow the stack with it.
+pub const MAX_GROUP_DEPTH: usize = 8;
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct GroupLayer {
+    pub stack: LayerStack,
 }
 
 impl Layer {
@@ -346,18 +474,101 @@ impl Layer {
             Layer::Border(_) => "Border",
             Layer::SeatPad(_) => "Gem Seat Pad",
             Layer::Milgrain(_) => "Milgrain",
+            Layer::Group(_) => "Group",
+            Layer::Curve(_) => "Curve",
         }
     }
 
     pub fn height(&self, uv: Uv, ctx: &FieldContext, lib: &AlphaLibrary) -> f64 {
+        self.height_d(uv, ctx, lib, 0)
+    }
+
+    fn height_d(&self, uv: Uv, ctx: &FieldContext, lib: &AlphaLibrary, depth: usize) -> f64 {
         match self {
             Layer::Tiling(l) => l.height(uv, ctx, lib),
             Layer::Signet(l) => l.height(uv, ctx),
             Layer::Border(l) => l.height(uv, ctx),
             Layer::SeatPad(l) => l.height(uv, ctx),
             Layer::Milgrain(l) => l.height(uv, ctx),
+            Layer::Group(g) => {
+                if depth >= MAX_GROUP_DEPTH {
+                    return 0.0;
+                }
+                g.stack.height_d(uv, ctx, lib, depth + 1)
+            }
+            Layer::Curve(l) => l.height(uv, ctx),
         }
     }
+
+    /// The layer's finest feature scale and where on the band it lives.
+    /// Refinement pre-splits these regions to half the feature scale, so an
+    /// error probe cannot step over the feature entirely.
+    pub fn feature_footprints(&self, ctx: &FieldContext) -> Vec<FeatureFootprint> {
+        let band = ctx.band_v_len_mm;
+        let mirrored = |v: (f64, f64)| (band - v.1, band - v.0);
+        match self {
+            Layer::Tiling(l) => {
+                let (cw, ch) = l.cell_size(ctx);
+                vec![FeatureFootprint {
+                    min_feature_mm: cw.min(ch).max(0.1),
+                    u_mm: None,
+                    v_mm: l.v_bounds(),
+                }]
+            }
+            Layer::Border(l) => {
+                let v = (l.v_mm - l.width_mm * 0.5, l.v_mm + l.width_mm * 0.5);
+                let f = |v| FeatureFootprint {
+                    min_feature_mm: l.width_mm.max(0.1),
+                    u_mm: None,
+                    v_mm: v,
+                };
+                if l.mirror { vec![f(v), f(mirrored(v))] } else { vec![f(v)] }
+            }
+            Layer::Milgrain(l) => {
+                let half = l.bead_diameter_mm * 0.5;
+                let v = (l.v_mm - half, l.v_mm + half);
+                let f = |v| FeatureFootprint {
+                    min_feature_mm: l.bead_diameter_mm.max(0.1),
+                    u_mm: None,
+                    v_mm: v,
+                };
+                if l.mirror { vec![f(v), f(mirrored(v))] } else { vec![f(v)] }
+            }
+            Layer::SeatPad(l) => {
+                let reach = l.diameter_mm * 0.5 + l.blend_mm.max(0.0);
+                let u0 = ctx.u_of_theta(l.theta_deg);
+                vec![FeatureFootprint {
+                    min_feature_mm: l.blend_mm.clamp(0.15, l.diameter_mm.max(0.15)),
+                    u_mm: Some((u0 - reach, u0 + reach)),
+                    v_mm: (l.v_mm - reach, l.v_mm + reach),
+                }]
+            }
+            Layer::Signet(l) => {
+                let reach = l.reach_mm();
+                let u0 = ctx.u_of_theta(l.theta_deg);
+                let half_w = l.width_mm * 0.5 + l.shoulder_mm;
+                vec![FeatureFootprint {
+                    min_feature_mm: l.shoulder_mm.max(0.15),
+                    u_mm: Some((u0 - reach, u0 + reach)),
+                    v_mm: (l.v_mm - half_w, l.v_mm + half_w),
+                }]
+            }
+            Layer::Group(g) => g.stack.feature_footprints(ctx),
+            Layer::Curve(l) => l.feature_footprints(ctx),
+        }
+    }
+}
+
+/// One region of the band carrying detail at a known scale, in unrolled mm.
+#[derive(Clone, Copy, Debug)]
+pub struct FeatureFootprint {
+    /// Smallest feature the layer produces here, mm.
+    pub min_feature_mm: f64,
+    /// Arc extent around the ring, mm at the crest radius; may extend past the
+    /// wrap. `None` covers the whole ring.
+    pub u_mm: Option<(f64, f64)>,
+    /// Extent across the band surface, mm.
+    pub v_mm: (f64, f64),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -367,10 +578,22 @@ pub struct LayerEntry {
     pub blend: Blend,
     /// Overall scale on this layer's output, 0..1+.
     pub opacity: f64,
+    /// Fillet radius for the smooth blend modes, mm.
+    #[serde(default = "default_soft_mm")]
+    pub soft_mm: f64,
     /// Angular gate. Disabled by default, so the layer runs the whole way round.
     #[serde(default)]
     pub window: Window,
+    /// Alpha multiplied into the mask, sampled over the whole unrolled band —
+    /// the freeform counterpart to the window. Painted or imported like any
+    /// other alpha; a missing name passes 1.0 rather than silencing the layer.
+    #[serde(default)]
+    pub mask: Option<String>,
     pub layer: Layer,
+}
+
+fn default_soft_mm() -> f64 {
+    0.3
 }
 
 impl LayerEntry {
@@ -380,9 +603,27 @@ impl LayerEntry {
             enabled: true,
             blend: Blend::Max,
             opacity: 1.0,
+            soft_mm: default_soft_mm(),
             window: Window::default(),
+            mask: None,
             layer,
         }
+    }
+
+    /// Mask strength at a point: window times painted mask.
+    pub fn mask_at(&self, uv: Uv, ctx: &FieldContext, lib: &AlphaLibrary) -> f64 {
+        let mut w = self.window.mask(uv, ctx);
+        if w <= 0.0 {
+            return w;
+        }
+        if let Some(name) = &self.mask
+            && let Some(a) = lib.get(name)
+        {
+            let x = uv.u / ctx.circumference_mm.max(1e-9);
+            let y = uv.v / ctx.band_v_len_mm.max(1e-9);
+            w *= a.sample_wrapped(x, y.clamp(0.0, 1.0)) as f64;
+        }
+        w
     }
 
     pub fn with_window(mut self, window: Window) -> Self {
@@ -400,6 +641,10 @@ impl LayerStack {
     /// Composite every enabled layer at a surface point. Returns mm of
     /// displacement along the outward normal.
     pub fn height(&self, uv: Uv, ctx: &FieldContext, lib: &AlphaLibrary) -> f64 {
+        self.height_d(uv, ctx, lib, 0)
+    }
+
+    fn height_d(&self, uv: Uv, ctx: &FieldContext, lib: &AlphaLibrary, depth: usize) -> f64 {
         let mut acc = 0.0;
         for e in &self.layers {
             if !e.enabled {
@@ -407,18 +652,69 @@ impl LayerStack {
             }
             // A gated-out layer takes no part in the blend at all, so Replace
             // outside its window cannot wipe the layers under it.
-            let w = e.window.mask(uv, ctx);
+            let w = e.mask_at(uv, ctx, lib);
             if w <= 0.0 {
                 continue;
             }
-            let h = e.layer.height(uv, ctx, lib) * e.opacity * w;
-            acc = e.blend.apply(acc, h);
+            let h = e.layer.height_d(uv, ctx, lib, depth) * e.opacity * w;
+            acc = e.blend.apply(acc, h, e.soft_mm);
         }
         acc
     }
 
     pub fn is_empty(&self) -> bool {
         self.layers.iter().all(|l| !l.enabled)
+    }
+
+    /// Where each enabled layer's finest detail lives, for refinement seeding.
+    /// Windows widen the arc by their fade; an inverted window covers the ring.
+    pub fn feature_footprints(&self, ctx: &FieldContext) -> Vec<FeatureFootprint> {
+        let mut out = Vec::new();
+        for e in &self.layers {
+            if !e.enabled || e.opacity <= 0.0 {
+                continue;
+            }
+            let u_mm = match (&e.window.enabled, e.window.invert) {
+                (true, false) => {
+                    let half = e.window.span_deg * 0.5 + e.window.fade_deg;
+                    let to_u = |deg: f64| deg / 360.0 * ctx.circumference_mm;
+                    Some((to_u(e.window.theta_deg - half), to_u(e.window.theta_deg + half)))
+                }
+                _ => None,
+            };
+            for mut f in e.layer.feature_footprints(ctx) {
+                f.u_mm = match (f.u_mm, u_mm) {
+                    (Some(a), _) => Some(a),
+                    (None, w) => w,
+                };
+                out.push(f);
+            }
+        }
+        out
+    }
+
+    /// Names of every alpha the stack samples, groups included, deduplicated,
+    /// order preserved.
+    pub fn referenced_alphas(&self) -> Vec<&str> {
+        fn collect<'s>(stack: &'s LayerStack, out: &mut Vec<&'s str>) {
+            for e in &stack.layers {
+                let tile = match &e.layer {
+                    Layer::Tiling(t) => Some(t.alpha.as_str()),
+                    _ => None,
+                };
+                for name in tile.into_iter().chain(e.mask.as_deref()) {
+                    if !out.contains(&name) {
+                        out.push(name);
+                    }
+                }
+                if let Layer::Group(g) = &e.layer {
+                    collect(&g.stack, out);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        collect(self, &mut out);
+        out
     }
 }
 
@@ -1436,6 +1732,7 @@ mod tests {
             crest_v_mm: 4.0,
             crest_radius_mm: 9.5,
             surface: Default::default(),
+            side_faces_cache: Default::default(),
         }
     }
 
@@ -1509,6 +1806,48 @@ mod tests {
         let high_start = faces.high.map_or(ctx.band_v_len_mm, |(s, _)| s);
         assert!(lo > low_end, "table starts at {lo:.2} mm, inside the side face ending {low_end:.2}");
         assert!(hi < high_start, "table ends at {hi:.2} mm, inside the side face from {high_start:.2}");
+    }
+
+    #[test]
+    fn a_v_band_gate_holds_inside_and_dies_past_the_fade() {
+        let c = ctx();
+        let mut w = Window::default();
+        w.v_gate = VGate::Band { center_mm: 4.0, span_mm: 2.0, fade_mm: 0.5 };
+        let at = |v: f64| w.mask(Uv { u: 0.0, v }, &c);
+        assert!((at(4.0) - 1.0).abs() < 1e-12);
+        assert!((at(4.9) - 1.0).abs() < 1e-12, "inside the held span");
+        assert_eq!(at(5.6), 0.0, "past the fade");
+        let mid = at(5.25);
+        assert!(mid > 0.0 && mid < 1.0, "fading at {mid}");
+        // The angular window is off, and the gate still applies.
+        assert!(!w.enabled);
+    }
+
+    #[test]
+    fn a_side_face_gate_tracks_the_profile() {
+        let mut d = crate::RingDesign::default();
+        d.profile.width_mm = 7.0;
+        d.profile.thickness_mm = 3.4;
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.flatten_sides();
+        let c = d.field_context();
+        let faces = c.side_faces_std().expect("squared sides have faces");
+        let (lo, hi) = faces.low.expect("low face present");
+
+        let mut w = Window::default();
+        w.v_gate = VGate::SideFaces(SideFacePick::Low);
+        let at = |v: f64| w.mask(Uv { u: 0.0, v }, &c);
+        assert!((at((lo + hi) * 0.5) - 1.0).abs() < 1e-9, "full in the run's middle");
+        assert_eq!(at(c.crest_v_mm), 0.0, "nothing on the crest");
+        assert_eq!(at(hi + 0.5), 0.0, "nothing past the run");
+
+        // A dome has no side faces, and the gate honestly passes nothing.
+        let dome = crate::RingDesign::default();
+        let mut dc = dome.field_context();
+        dc.side_faces_cache = Default::default();
+        if dc.side_faces_std().is_none() {
+            assert_eq!(w.v_gate.mask(dc.crest_v_mm, &dc), 0.0);
+        }
     }
 
     #[test]
@@ -1606,10 +1945,87 @@ mod tests {
 
     #[test]
     fn blend_modes_composite_in_order() {
-        assert_eq!(Blend::Add.apply(1.0, 2.0), 3.0);
-        assert_eq!(Blend::Max.apply(1.0, 2.0), 2.0);
-        assert_eq!(Blend::Subtract.apply(1.0, 2.0), -1.0);
-        assert_eq!(Blend::Replace.apply(1.0, 2.0), 2.0);
+        assert_eq!(Blend::Add.apply(1.0, 2.0, 0.0), 3.0);
+        assert_eq!(Blend::Max.apply(1.0, 2.0, 0.0), 2.0);
+        assert_eq!(Blend::Subtract.apply(1.0, 2.0, 0.0), -1.0);
+        assert_eq!(Blend::Replace.apply(1.0, 2.0, 0.0), 2.0);
+    }
+
+    #[test]
+    fn a_group_composites_inside_and_replace_cannot_leak_out() {
+        let c = ctx();
+        let lib = AlphaLibrary::default();
+        let base = LayerEntry::new(
+            "base pad",
+            Layer::SeatPad(SeatPadLayer { theta_deg: 270.0, v_mm: 4.0, ..Default::default() }),
+        );
+
+        // A group whose only child is a Replace border of height zero: inside
+        // the group it wipes the group's own composite, and the group then
+        // contributes nothing — the base pad underneath must survive.
+        let mut wipe = LayerEntry::new(
+            "wipe",
+            Layer::Border(BorderLayer { height_mm: 0.0, mirror: false, ..Default::default() }),
+        );
+        wipe.blend = Blend::Replace;
+        let mut grp = LayerEntry::new(
+            "group",
+            Layer::Group(GroupLayer { stack: LayerStack { layers: vec![wipe] } }),
+        );
+        grp.blend = Blend::Max;
+
+        let stack = LayerStack { layers: vec![base.clone(), grp] };
+        let u = c.u_of_theta(270.0);
+        let alone = LayerStack { layers: vec![base] }.height(Uv { u, v: 4.0 }, &c, &lib);
+        let with_group = stack.height(Uv { u, v: 4.0 }, &c, &lib);
+        assert!(alone > 0.0);
+        assert_eq!(with_group, alone, "the group's internal Replace stayed internal");
+    }
+
+    #[test]
+    fn a_painted_mask_scales_the_layer_and_a_missing_one_passes() {
+        let c = ctx();
+        let mut lib = AlphaLibrary::default();
+        // Left half of the band 0, right half 1.
+        let data: Vec<f32> =
+            (0..64 * 64).map(|i| if (i % 64) < 32 { 0.0 } else { 1.0 }).collect();
+        lib.insert(crate::Alpha::new("halves", 64, 64, data));
+
+        let mut e = LayerEntry::new(
+            "bordered",
+            Layer::Border(BorderLayer { mirror: false, v_mm: 4.0, ..Default::default() }),
+        );
+        let peak = |e: &LayerEntry, u: f64| {
+            let uv = Uv { u, v: 4.0 };
+            e.layer.height(uv, &c, &lib) * e.mask_at(uv, &c, &lib)
+        };
+        let bare = peak(&e, 45.0);
+        assert!(bare > 0.0);
+
+        e.mask = Some("halves".into());
+        assert_eq!(peak(&e, 15.0), 0.0, "masked-out arc");
+        assert!((peak(&e, 45.0) - bare).abs() < 1e-9, "masked-in arc unchanged");
+
+        e.mask = Some("no such alpha".into());
+        assert!((peak(&e, 15.0) - bare).abs() < 1e-9, "missing mask passes 1.0");
+    }
+
+    #[test]
+    fn smooth_max_is_exact_on_ties_and_dominance_and_never_overshoots() {
+        let r = 0.4;
+        for a in [-0.5, 0.0, 0.7, 1.3] {
+            assert_eq!(Blend::SmoothMax.apply(a, a, r), a, "tie at {a}");
+        }
+        assert_eq!(Blend::SmoothMax.apply(1.0, 0.2, r), 1.0, "clear dominance is exact");
+        assert_eq!(Blend::SmoothMin.apply(1.0, 0.2, r), 0.2);
+        for i in 0..100 {
+            let b = i as f64 * 0.02;
+            let m = Blend::SmoothMax.apply(1.0, b, r);
+            assert!(m <= 1.0f64.max(b) + 1e-12, "overshoot at b={b}: {m}");
+            assert!(m >= 1.0f64.min(b) - 1e-12, "undershoot at b={b}: {m}");
+        }
+        // Zero radius degenerates to the hard modes.
+        assert_eq!(Blend::SmoothMax.apply(1.0, 0.99, 0.0), 1.0);
     }
 
     fn signet() -> SignetLayer {

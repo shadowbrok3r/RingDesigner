@@ -241,7 +241,8 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::
     let opts = ui.memory_mut(|m| *m.data.get_temp_mut_or_default::<ViewOpts>(opts_id));
 
     if opts.fill && is_convex(&pts) {
-        let [mr, mg, mb] = theme::METAL_RGB;
+        let [mr, mg, mb] =
+            crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].rgb;
         let tint = Color32::from_rgba_unmultiplied(
             (mr * 255.0) as u8,
             (mg * 255.0) as u8,

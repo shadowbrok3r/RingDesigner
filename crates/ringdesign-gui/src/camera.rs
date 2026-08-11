@@ -42,7 +42,7 @@ impl StandardView {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct OrbitCamera {
     pub yaw: f32,
     pub pitch: f32,
