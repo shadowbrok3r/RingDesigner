@@ -6,8 +6,8 @@ use ringdesign_core::castability::{CastReport, DraftSettings, FaceClass, Verdict
 use ringdesign_core::mesh::Report;
 
 use crate::app::RingDesignerApp;
-use crate::theme;
 use crate::pane::PaneKind;
+use crate::theme;
 use crate::viewport::ShadeMode;
 
 const CLASSES: [FaceClass; 4] = [
@@ -47,7 +47,11 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     ui.add_space(8.0);
 
     if let Some(stones) = app.stones.as_ref() {
-        let badge = if stones.any_warnings() { format!(" {}", icon::WARNING) } else { String::new() };
+        let badge = if stones.any_warnings() {
+            format!(" {}", icon::WARNING)
+        } else {
+            String::new()
+        };
         egui::CollapsingHeader::new(format!("{} Stones{badge}", icon::DIAMOND))
             .default_open(true)
             .show(ui, |ui| stones_section(ui, stones));
@@ -63,7 +67,21 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .show(ui, |ui| dimensions(ui, report, &size));
             egui::CollapsingHeader::new(format!("{} Metal weight", icon::SCALES))
                 .default_open(true)
-                .show(ui, |ui| metals(ui, report));
+                .show(ui, |ui| metals_priced(ui, report, &app.prices));
+            if let Some((theta, m)) = app.hot_spot {
+                ui.add_space(2.0);
+                ui.label(
+                    egui::RichText::new(format!(
+                        "{} Freezes last at {theta:.0}° (section modulus {m:.2} mm)",
+                        icon::THERMOMETER_HOT
+                    ))
+                    .small()
+                    .color(theme::TEXT_DIM),
+                )
+                .on_hover_text(
+                    "Chvorinov: the slice with the most area per perimeter cools slowest —                      feed it with the gate or a riser, or shrinkage porosity collects there.",
+                );
+            }
             ui.add_space(4.0);
             ui.label(
                 egui::RichText::new(format!(
@@ -132,11 +150,17 @@ fn castability(
             egui::Label::new(egui::RichText::new(format!("{:+.2} mm", cast.parting_z_mm)).strong())
                 .selectable(true),
         );
-        let tag = if draft.auto_parting { "auto" } else { "set by hand" };
+        let tag = if draft.auto_parting {
+            "auto"
+        } else {
+            "set by hand"
+        };
         ui.label(egui::RichText::new(tag).small().color(theme::ACCENT_DIM));
     })
     .response
-    .on_hover_text("Height of the split between cope and drag; the mould pulls +Z above it and -Z below it.");
+    .on_hover_text(
+        "Height of the split between cope and drag; the mould pulls +Z above it and -Z below it.",
+    );
 
     let areas = class_areas(cast);
     ui.add_space(4.0);
@@ -208,7 +232,11 @@ fn castability(
     if let Some(f) = field {
         // The field's own findings: the noise-band line and any located,
         // blamed undercut arcs.
-        for n in f.notes.iter().filter(|n| !n.starts_with("Field-sampled: the surface itself")) {
+        for n in f
+            .notes
+            .iter()
+            .filter(|n| !n.starts_with("Field-sampled: the surface itself"))
+        {
             ui.horizontal_top(|ui| {
                 ui.label(egui::RichText::new("•").color(theme::ACCENT));
                 ui.add(egui::Label::new(egui::RichText::new(n)).wrap());
@@ -265,8 +293,7 @@ fn field_banner(ui: &mut egui::Ui, f: &ringdesign_core::castability::FieldReport
                 format!(
                     "{:.1}% undercuts or drags on the surface itself.",
                     (f.undercut_fraction()
-                        + (f.marginal_area_mm2 + f.vertical_area_mm2)
-                            / f.total_area_mm2.max(1e-9))
+                        + (f.marginal_area_mm2 + f.vertical_area_mm2) / f.total_area_mm2.max(1e-9))
                         * 100.0
                 )
             }),
@@ -373,7 +400,12 @@ fn class_areas(cast: &CastReport) -> [f64; 4] {
     } else {
         (0.0, 0.0)
     };
-    [good, cast.marginal_area_mm2, vertical, cast.undercut_area_mm2]
+    [
+        good,
+        cast.marginal_area_mm2,
+        vertical,
+        cast.undercut_area_mm2,
+    ]
 }
 
 fn class_bar(ui: &mut egui::Ui, cast: &CastReport, areas: &[f64; 4]) {
@@ -463,8 +495,16 @@ fn dimensions(ui: &mut egui::Ui, report: &Report, size: &str) {
         .spacing([8.0, 3.0])
         .show(ui, |ui| {
             row(ui, "Ring size", size.to_string());
-            row(ui, "Inside dia", format!("{:.2} mm", report.inner_diameter_mm));
-            row(ui, "Outside dia", format!("{:.2} mm", report.outer_diameter_mm));
+            row(
+                ui,
+                "Inside dia",
+                format!("{:.2} mm", report.inner_diameter_mm),
+            );
+            row(
+                ui,
+                "Outside dia",
+                format!("{:.2} mm", report.outer_diameter_mm),
+            );
             row(ui, "Band width", format!("{:.2} mm", report.band_width_mm));
             row(
                 ui,
@@ -474,8 +514,16 @@ fn dimensions(ui: &mut egui::Ui, report: &Report, size: &str) {
                     report.bounds_mm[0], report.bounds_mm[1], report.bounds_mm[2]
                 ),
             );
-            row(ui, "Highest relief", format!("{:+.3} mm", report.max_relief_mm));
-            row(ui, "Deepest cut", format!("{:+.3} mm", report.min_relief_mm));
+            row(
+                ui,
+                "Highest relief",
+                format!("{:+.3} mm", report.max_relief_mm),
+            );
+            row(
+                ui,
+                "Deepest cut",
+                format!("{:+.3} mm", report.min_relief_mm),
+            );
             row(ui, "Surface", format!("{:.1} mm2", report.surface_area_mm2));
             row(ui, "Volume", format!("{:.2} mm3", report.volume_mm3));
         });
@@ -521,9 +569,14 @@ fn dimensions(ui: &mut egui::Ui, report: &Report, size: &str) {
 
 // --- Metal weight ----------------------------------------------------------
 
-fn metals(ui: &mut egui::Ui, report: &Report) {
+fn metals_priced(
+    ui: &mut egui::Ui,
+    report: &Report,
+    prices: &std::collections::HashMap<String, f64>,
+) {
+    let cols = if prices.is_empty() { 3 } else { 4 };
     egui::Grid::new("metal_weights")
-        .num_columns(3)
+        .num_columns(cols)
         .striped(true)
         .min_col_width(56.0)
         .spacing([10.0, 3.0])
@@ -535,6 +588,11 @@ fn metals(ui: &mut egui::Ui, report: &Report) {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.label(egui::RichText::new("dwt").small().color(theme::TEXT_DIM));
             });
+            if !prices.is_empty() {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(egui::RichText::new("metal $").small().color(theme::TEXT_DIM));
+                });
+            }
             ui.end_row();
 
             for m in &report.metals {
@@ -557,6 +615,20 @@ fn metals(ui: &mut egui::Ui, report: &Report) {
                         .selectable(true),
                     );
                 });
+                if !prices.is_empty() {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        match prices.get(m.metal) {
+                            Some(p) => ui.add(
+                                egui::Label::new(
+                                    egui::RichText::new(format!("{:.0}", p * m.grams))
+                                        .monospace(),
+                                )
+                                .selectable(true),
+                            ),
+                            None => ui.label(egui::RichText::new("-").color(theme::TEXT_DIM)),
+                        };
+                    });
+                }
                 ui.end_row();
             }
         });
@@ -593,7 +665,11 @@ fn stones_section(ui: &mut egui::Ui, stones: &ringdesign_core::stones::StonesRep
             .gem
             .map(|g| g.display())
             .unwrap_or_else(|| "no stone assigned".into());
-        let count = if seat.count > 1 { format!(" ×{}", seat.count) } else { String::new() };
+        let count = if seat.count > 1 {
+            format!(" ×{}", seat.count)
+        } else {
+            String::new()
+        };
         ui.label(egui::RichText::new(format!("{}{count} — {stone}", seat.label)).strong());
         egui::Grid::new(format!("stone_{}", seat.label))
             .num_columns(2)
@@ -605,9 +681,21 @@ fn stones_section(ui: &mut egui::Ui, stones: &ringdesign_core::stones::StonesRep
                     SeatFooting::Crown(d) => format!("crown, {d:+.1}° base draft"),
                 };
                 row(ui, "Sits on", footing);
-                row(ui, "Seat", format!("{:.2} mm {}", seat.seat_diameter_mm, seat.style.label()));
-                row(ui, "Edge clearance", format!("{:.2} mm", seat.edge_clearance_mm));
-                row(ui, "Depth for pavilion", format!("{:.2} mm", seat.depth_available_mm));
+                row(
+                    ui,
+                    "Seat",
+                    format!("{:.2} mm {}", seat.seat_diameter_mm, seat.style.label()),
+                );
+                row(
+                    ui,
+                    "Edge clearance",
+                    format!("{:.2} mm", seat.edge_clearance_mm),
+                );
+                row(
+                    ui,
+                    "Depth for pavilion",
+                    format!("{:.2} mm", seat.depth_available_mm),
+                );
                 if let Some(b) = seat.bridge_mm {
                     row(ui, "Bridge", format!("{b:.2} mm"));
                 }
@@ -615,9 +703,7 @@ fn stones_section(ui: &mut egui::Ui, stones: &ringdesign_core::stones::StonesRep
         for w in &seat.warnings {
             ui.horizontal_top(|ui| {
                 ui.label(egui::RichText::new(icon::WARNING).color(theme::WARN));
-                ui.add(
-                    egui::Label::new(egui::RichText::new(w).small().color(theme::WARN)).wrap(),
-                );
+                ui.add(egui::Label::new(egui::RichText::new(w).small().color(theme::WARN)).wrap());
             });
         }
         ui.add_space(4.0);
@@ -642,8 +728,7 @@ fn row(ui: &mut egui::Ui, label: &str, value: String) {
 
 /// Fixed allocation so the swatch sits on the text centre line.
 fn swatch(ui: &mut egui::Ui, color: egui::Color32) {
-    let (response, painter) =
-        ui.allocate_painter(egui::Vec2::splat(9.0), egui::Sense::hover());
+    let (response, painter) = ui.allocate_painter(egui::Vec2::splat(9.0), egui::Sense::hover());
     painter.rect_filled(response.rect, 2.0, color);
 }
 
@@ -660,5 +745,9 @@ fn placeholder(ui: &mut egui::Ui, building: bool, what: &str) {
 }
 
 fn fraction(part: f64, total: f64) -> f64 {
-    if total > 0.0 { (part / total).clamp(0.0, 1.0) } else { 0.0 }
+    if total > 0.0 {
+        (part / total).clamp(0.0, 1.0)
+    } else {
+        0.0
+    }
 }

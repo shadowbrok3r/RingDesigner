@@ -57,7 +57,11 @@ fn dock_side(app: &mut RingDesignerApp, ui: &mut egui::Ui, side: Side) {
                 app.dock.tree_mut(side),
                 egui_tiles::Tree::empty(egui::Id::new(("dock_tmp", side.label()))),
             );
-            let mut behavior = ToolBehavior { app, side, moved: None };
+            let mut behavior = ToolBehavior {
+                app,
+                side,
+                moved: None,
+            };
             tree.ui(&mut behavior, ui);
             let moved = behavior.moved;
             *app.dock.tree_mut(side) = tree;
@@ -124,7 +128,11 @@ impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
         egui_tiles::UiResponse::None
     }
 
-    fn is_tab_closable(&self, _tiles: &egui_tiles::Tiles<ToolKind>, _id: egui_tiles::TileId) -> bool {
+    fn is_tab_closable(
+        &self,
+        _tiles: &egui_tiles::Tiles<ToolKind>,
+        _id: egui_tiles::TileId,
+    ) -> bool {
         true
     }
 
@@ -442,9 +450,7 @@ fn command_palette(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 } else {
                     egui::RichText::new(c.label())
                 };
-                if ui.add(egui::Button::new(label).frame(false)).clicked()
-                    || (go && first)
-                {
+                if ui.add(egui::Button::new(label).frame(false)).clicked() || (go && first) {
                     run = Some(*c);
                 }
             }
@@ -461,7 +467,11 @@ fn command_palette(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 /// Undo, redo, and the timeline they walk.
 fn history_controls(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let undo = egui::Button::new(icon::ARROW_ARC_LEFT);
-    let hint = app.history.undo_label().unwrap_or("nothing to undo").to_string();
+    let hint = app
+        .history
+        .undo_label()
+        .unwrap_or("nothing to undo")
+        .to_string();
     if ui
         .add_enabled(app.history.can_undo(), undo)
         .on_hover_text(format!("Undo {hint}  (Ctrl+Z)"))
@@ -471,7 +481,11 @@ fn history_controls(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     }
 
     let redo = egui::Button::new(icon::ARROW_ARC_RIGHT);
-    let hint = app.history.redo_label().unwrap_or("nothing to redo").to_string();
+    let hint = app
+        .history
+        .redo_label()
+        .unwrap_or("nothing to redo")
+        .to_string();
     if ui
         .add_enabled(app.history.can_redo(), redo)
         .on_hover_text(format!("Redo {hint}  (Ctrl+Shift+Z)"))
@@ -484,28 +498,30 @@ fn history_controls(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         let timeline = app.history.timeline();
         let present = app.history.present();
         ui.set_min_width(240.0);
-        egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
-            // Newest at the top, which is where the eye goes first.
-            for (i, (label, now)) in timeline.iter().enumerate().rev() {
-                let text = if i == 0 && present == 0 {
-                    egui::RichText::new(label.clone())
-                } else {
-                    egui::RichText::new(label.clone())
-                };
-                let text = if *now {
-                    text.color(theme::ACCENT)
-                } else if i > present {
-                    // Ahead of the present: still reachable, but undone.
-                    text.color(theme::TEXT_DIM)
-                } else {
-                    text
-                };
-                if ui.selectable_label(*now, text).clicked() {
-                    app.jump_history(i);
-                    ui.close();
+        egui::ScrollArea::vertical()
+            .max_height(320.0)
+            .show(ui, |ui| {
+                // Newest at the top, which is where the eye goes first.
+                for (i, (label, now)) in timeline.iter().enumerate().rev() {
+                    let text = if i == 0 && present == 0 {
+                        egui::RichText::new(label.clone())
+                    } else {
+                        egui::RichText::new(label.clone())
+                    };
+                    let text = if *now {
+                        text.color(theme::ACCENT)
+                    } else if i > present {
+                        // Ahead of the present: still reachable, but undone.
+                        text.color(theme::TEXT_DIM)
+                    } else {
+                        text
+                    };
+                    if ui.selectable_label(*now, text).clicked() {
+                        app.jump_history(i);
+                        ui.close();
+                    }
                 }
-            }
-        });
+            });
     })
     .response
     .on_hover_text("Step back to any point in the session");
@@ -614,6 +630,14 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .clicked()
             {
                 export::export_spec(app);
+                ui.close();
+            }
+            if ui
+                .button(format!("{} Cost JSON…", icon::COINS))
+                .on_hover_text("Volume and per-alloy weights for the cost calculator.")
+                .clicked()
+            {
+                export::export_cost_json(app);
                 ui.close();
             }
             if ui
@@ -778,7 +802,9 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 fn mcp_control(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     if let Some(addr) = app.mcp_addr() {
         if ui
-            .button(egui::RichText::new(format!("{} MCP", icon::PLUGS_CONNECTED)).color(theme::GOOD))
+            .button(
+                egui::RichText::new(format!("{} MCP", icon::PLUGS_CONNECTED)).color(theme::GOOD),
+            )
             .on_hover_text(format!("Serving http://{addr}/ — click to stop"))
             .clicked()
         {
@@ -829,9 +855,8 @@ pub fn quality_picker(ui: &mut egui::Ui, salt: &str, params: &mut BuildParams) -
                     .color(theme::TEXT_DIM),
             );
             for &(name, t, p) in BuildParams::PRESETS {
-                let at = params.refine.is_none()
-                    && params.theta_steps == t
-                    && params.profile_steps == p;
+                let at =
+                    params.refine.is_none() && params.theta_steps == t && params.profile_steps == p;
                 if ui
                     .selectable_label(at, format!("{name} • {}k tris", t * p * 2 / 1000))
                     .clicked()
@@ -852,7 +877,10 @@ pub fn quality_picker(ui: &mut egui::Ui, salt: &str, params: &mut BuildParams) -
             );
             for &(name, tol, tilt) in RefineParams::PRESETS {
                 let at = params.refine.is_some_and(|r| r.tolerance_mm == tol);
-                if ui.selectable_label(at, format!("{name} • {tol} mm")).clicked() {
+                if ui
+                    .selectable_label(at, format!("{name} • {tol} mm"))
+                    .clicked()
+                {
                     params.refine = Some(RefineParams {
                         tolerance_mm: tol,
                         normal_tolerance_deg: tilt,
@@ -873,7 +901,10 @@ pub fn quality_picker(ui: &mut egui::Ui, salt: &str, params: &mut BuildParams) -
 
 fn quality_label(params: &BuildParams) -> String {
     if let Some(r) = params.refine {
-        return match RefineParams::PRESETS.iter().find(|(_, t, _)| *t == r.tolerance_mm) {
+        return match RefineParams::PRESETS
+            .iter()
+            .find(|(_, t, _)| *t == r.tolerance_mm)
+        {
             Some((name, _, _)) => format!("{name} • {} mm", r.tolerance_mm),
             None => format!("{} mm", r.tolerance_mm),
         };

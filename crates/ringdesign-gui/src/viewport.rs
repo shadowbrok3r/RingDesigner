@@ -158,8 +158,7 @@ impl GpuMeshRenderer {
     /// shade modes never re-uploads.
     pub fn prepare_upload(&mut self, mesh: &Mesh, cast: Option<&CastReport>, wall: (f64, f64)) {
         let (inner_r, min_section) = wall;
-        let mut data: Vec<f32> =
-            Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
+        let mut data: Vec<f32> = Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
 
         'faces: for (i, face) in mesh.faces.iter().enumerate() {
             let rgb = match cast {
@@ -253,11 +252,7 @@ impl GpuMeshRenderer {
             self.vertex_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
             unsafe {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.vbo));
-                gl.buffer_data_u8_slice(
-                    glow::ARRAY_BUFFER,
-                    as_u8_slice(&verts),
-                    glow::STATIC_DRAW,
-                );
+                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
                 gl.bind_buffer(glow::ARRAY_BUFFER, None);
             }
         }
@@ -273,11 +268,7 @@ impl GpuMeshRenderer {
             self.gem_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
             unsafe {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.gem_vbo));
-                gl.buffer_data_u8_slice(
-                    glow::ARRAY_BUFFER,
-                    as_u8_slice(&verts),
-                    glow::STATIC_DRAW,
-                );
+                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
                 gl.bind_buffer(glow::ARRAY_BUFFER, None);
             }
         }
@@ -423,8 +414,7 @@ impl GpuMeshRenderer {
         }
 
         let program = unsafe { compile_program(gl, VERTEX_SHADER, FRAGMENT_SHADER) };
-        let wire_program =
-            unsafe { compile_program(gl, VERTEX_SHADER, WIREFRAME_FRAGMENT_SHADER) };
+        let wire_program = unsafe { compile_program(gl, VERTEX_SHADER, WIREFRAME_FRAGMENT_SHADER) };
         let vao = unsafe { gl.create_vertex_array() }.expect("create VAO");
         let vbo = unsafe { gl.create_buffer() }.expect("create VBO");
         let gem_vao = unsafe { gl.create_vertex_array() }.expect("create gem VAO");
@@ -501,7 +491,9 @@ unsafe fn compile_program(
             gl.compile_shader(shader);
         }
         if !unsafe { gl.get_shader_compile_status(shader) } {
-            panic!("{what} shader error: {}", unsafe { gl.get_shader_info_log(shader) });
+            panic!("{what} shader error: {}", unsafe {
+                gl.get_shader_info_log(shader)
+            });
         }
         unsafe { gl.attach_shader(program, shader) };
         shaders.push(shader);
@@ -509,7 +501,9 @@ unsafe fn compile_program(
 
     unsafe { gl.link_program(program) };
     if !unsafe { gl.get_program_link_status(program) } {
-        panic!("program link error: {}", unsafe { gl.get_program_info_log(program) });
+        panic!("program link error: {}", unsafe {
+            gl.get_program_info_log(program)
+        });
     }
 
     for shader in shaders {
@@ -523,12 +517,7 @@ unsafe fn compile_program(
 }
 
 fn as_u8_slice<T: Copy>(data: &[T]) -> &[u8] {
-    unsafe {
-        std::slice::from_raw_parts(
-            data.as_ptr() as *const u8,
-            std::mem::size_of_val(data),
-        )
-    }
+    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, std::mem::size_of_val(data)) }
 }
 
 // --- Metal finishes and lighting -------------------------------------------
@@ -540,13 +529,34 @@ pub struct Finish {
 }
 
 pub const FINISHES: &[Finish] = &[
-    Finish { name: "Yellow gold", rgb: [0.86, 0.70, 0.42] },
-    Finish { name: "Rose gold", rgb: [0.84, 0.60, 0.49] },
-    Finish { name: "Silver", rgb: [0.79, 0.80, 0.81] },
-    Finish { name: "White gold", rgb: [0.83, 0.83, 0.80] },
-    Finish { name: "Platinum", rgb: [0.75, 0.76, 0.78] },
-    Finish { name: "Bronze", rgb: [0.72, 0.53, 0.35] },
-    Finish { name: "Brass", rgb: [0.80, 0.65, 0.36] },
+    Finish {
+        name: "Yellow gold",
+        rgb: [0.86, 0.70, 0.42],
+    },
+    Finish {
+        name: "Rose gold",
+        rgb: [0.84, 0.60, 0.49],
+    },
+    Finish {
+        name: "Silver",
+        rgb: [0.79, 0.80, 0.81],
+    },
+    Finish {
+        name: "White gold",
+        rgb: [0.83, 0.83, 0.80],
+    },
+    Finish {
+        name: "Platinum",
+        rgb: [0.75, 0.76, 0.78],
+    },
+    Finish {
+        name: "Bronze",
+        rgb: [0.72, 0.53, 0.35],
+    },
+    Finish {
+        name: "Brass",
+        rgb: [0.80, 0.65, 0.36],
+    },
 ];
 
 /// A key-light direction with an ambient floor.
@@ -557,9 +567,21 @@ pub struct LightRig {
 }
 
 pub const LIGHT_RIGS: &[LightRig] = &[
-    LightRig { name: "Studio", dir: [-0.38, 0.46, 0.80], ambient: 0.20 },
-    LightRig { name: "Window", dir: [0.62, 0.25, 0.74], ambient: 0.28 },
-    LightRig { name: "Low sun", dir: [-0.75, -0.18, 0.64], ambient: 0.12 },
+    LightRig {
+        name: "Studio",
+        dir: [-0.38, 0.46, 0.80],
+        ambient: 0.20,
+    },
+    LightRig {
+        name: "Window",
+        dir: [0.62, 0.25, 0.74],
+        ambient: 0.28,
+    },
+    LightRig {
+        name: "Low sun",
+        dir: [-0.75, -0.18, 0.64],
+        ambient: 0.12,
+    },
 ];
 
 // --- Shading modes ---------------------------------------------------------
@@ -612,7 +634,11 @@ pub fn wall_color(thickness_mm: f64, min_section_mm: f64) -> [f32; 3] {
     let t = (thickness_mm / m).max(0.0);
     let lerp3 = |a: [f32; 3], b: [f32; 3], k: f64| {
         let k = k.clamp(0.0, 1.0) as f32;
-        [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]
+        [
+            a[0] + (b[0] - a[0]) * k,
+            a[1] + (b[1] - a[1]) * k,
+            a[2] + (b[2] - a[2]) * k,
+        ]
     };
     const RED: [f32; 3] = [0.93, 0.27, 0.36];
     const AMBER: [f32; 3] = [0.95, 0.76, 0.24];
@@ -642,9 +668,15 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     }
 
     let shift = ui.input(|i| i.modifiers.shift);
-    let scroll = if response.hovered() { ui.input(|i| i.smooth_scroll_delta.y) } else { 0.0 };
+    let scroll = if response.hovered() {
+        ui.input(|i| i.smooth_scroll_delta.y)
+    } else {
+        0.0
+    };
     {
-        let Some(cam) = app.panes.get_mut(pane).map(|p| &mut p.camera) else { return };
+        let Some(cam) = app.panes.get_mut(pane).map(|p| &mut p.camera) else {
+            return;
+        };
         if response.dragged_by(egui::PointerButton::Primary) {
             let delta = response.drag_delta();
             if shift {
@@ -705,7 +737,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                 );
             }
         });
-        painter.add(egui::PaintCallback { rect, callback: Arc::new(callback) });
+        painter.add(egui::PaintCallback {
+            rect,
+            callback: Arc::new(callback),
+        });
     } else {
         painter.text(
             rect.center(),
@@ -798,12 +833,7 @@ fn draw_axes(painter: &egui::Painter, proj: &Projector, rect: egui::Rect) {
 }
 
 /// Draft colour key in draft mode, otherwise the size and overall dimensions.
-fn draw_legend(
-    app: &RingDesignerApp,
-    shade: ShadeMode,
-    painter: &egui::Painter,
-    rect: egui::Rect,
-) {
+fn draw_legend(app: &RingDesignerApp, shade: ShadeMode, painter: &egui::Painter, rect: egui::Rect) {
     let mut rows: Vec<(Option<egui::Color32>, String, egui::Color32)> = Vec::new();
 
     match (shade, app.cast.as_ref()) {
@@ -831,8 +861,16 @@ fn draw_legend(
                     (c[2] * 255.0) as u8,
                 )
             };
-            rows.push((Some(swatch(m * 0.5)), format!("under {m:.1} mm — will not fill"), theme::TEXT));
-            rows.push((Some(swatch(m * 1.5)), format!("{m:.1}–{:.1} mm — thin", m * 2.0), theme::TEXT));
+            rows.push((
+                Some(swatch(m * 0.5)),
+                format!("under {m:.1} mm — will not fill"),
+                theme::TEXT,
+            ));
+            rows.push((
+                Some(swatch(m * 1.5)),
+                format!("{m:.1}–{:.1} mm — thin", m * 2.0),
+                theme::TEXT,
+            ));
             rows.push((Some(swatch(m * 2.7)), "comfortable".into(), theme::TEXT));
             rows.push((Some(swatch(m * 6.5)), "heavy".into(), theme::TEXT));
             if let Some(f) = app.field.as_ref() {
@@ -847,12 +885,17 @@ fn draw_legend(
             }
         }
         _ => {
-            let Some(build) = app.build.as_ref() else { return };
+            let Some(build) = app.build.as_ref() else {
+                return;
+            };
             let r = &build.report;
             rows.push((None, app.design.size.display(), theme::TEXT));
             rows.push((
                 None,
-                format!("{:.2} mm outside dia • {:.2} mm wide", r.outer_diameter_mm, r.band_width_mm),
+                format!(
+                    "{:.2} mm outside dia • {:.2} mm wide",
+                    r.outer_diameter_mm, r.band_width_mm
+                ),
                 theme::TEXT_DIM,
             ));
             rows.push((
@@ -877,7 +920,11 @@ fn draw_legend(
         .collect();
 
     let swatch = 9.0f32;
-    let text_x = if rows.iter().any(|(c, _, _)| c.is_some()) { swatch + 7.0 } else { 0.0 };
+    let text_x = if rows.iter().any(|(c, _, _)| c.is_some()) {
+        swatch + 7.0
+    } else {
+        0.0
+    };
     let line_h = 16.0f32;
     let pad = egui::vec2(9.0, 7.0);
     let width = galleys.iter().map(|g| g.size().x).fold(0.0, f32::max) + text_x;
@@ -920,7 +967,6 @@ fn rgb_of(c: egui::Color32) -> [f32; 3] {
     ]
 }
 
-
 // --- Surface probe -----------------------------------------------------------
 
 /// Nearest triangle of the built mesh under the ray, by walking every face —
@@ -931,7 +977,9 @@ fn raycast(mesh: &Mesh, origin: [f32; 3], dir: [f32; 3]) -> Option<(usize, [f32;
     let d = [dir[0] as f64, dir[1] as f64, dir[2] as f64];
     let mut best: Option<(usize, f64)> = None;
     for (fi, f) in mesh.faces.iter().enumerate() {
-        let Some((a, b, c)) = mesh.triangle(f) else { continue };
+        let Some((a, b, c)) = mesh.triangle(f) else {
+            continue;
+        };
         let e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
         let e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
         let p = [
@@ -983,7 +1031,9 @@ fn probe_click(
     pos: egui::Pos2,
     shift: bool,
 ) {
-    let Some(build) = app.build.clone() else { return };
+    let Some(build) = app.build.clone() else {
+        return;
+    };
     let (origin, dir) = camera.ray(rect, pos);
     let Some((fi, world, _)) = raycast(&build.mesh, origin, dir) else {
         if !shift {
@@ -999,15 +1049,17 @@ fn probe_click(
         app.pins.push(world);
         if app.pins.len() == 2 {
             let (a, b) = (app.pins[0], app.pins[1]);
-            let d = ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2))
-                .sqrt();
+            let d = ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt();
             app.set_status(format!("Pin to pin: {d:.2} mm"));
         }
         return;
     }
 
     // Where on the band the hit is, in the field's own coordinates.
-    let theta = (world[1] as f64).atan2(world[0] as f64).to_degrees().rem_euclid(360.0);
+    let theta = (world[1] as f64)
+        .atan2(world[0] as f64)
+        .to_degrees()
+        .rem_euclid(360.0);
     let r = (world[0] as f64).hypot(world[1] as f64);
     let inner_r = app.design.inner_radius_mm();
     let ctx = app.design.field_context();
@@ -1034,7 +1086,10 @@ fn probe_click(
         v_mm = at / total.max(1e-9) * ctx.band_v_len_mm;
     }
 
-    let uv = Uv { u: ctx.u_of_theta(theta), v: v_mm };
+    let uv = Uv {
+        u: ctx.u_of_theta(theta),
+        v: v_mm,
+    };
     let h = app.design.layers.height(uv, &ctx, &app.lib);
     let class = app
         .cast
@@ -1083,11 +1138,8 @@ fn draw_probe(app: &RingDesignerApp, painter: &egui::Painter, proj: &Projector, 
         if rect.contains(p) {
             painter.circle_stroke(p, 5.0, egui::Stroke::new(1.6, theme::ACCENT));
             painter.circle_filled(p, 1.6, theme::ACCENT);
-            let galley = painter.layout_no_wrap(
-                text.clone(),
-                egui::FontId::proportional(11.0),
-                theme::TEXT,
-            );
+            let galley =
+                painter.layout_no_wrap(text.clone(), egui::FontId::proportional(11.0), theme::TEXT);
             let at = egui::pos2(
                 (p.x + 10.0).min(rect.right() - galley.size().x - 6.0),
                 (p.y - 18.0).max(rect.top() + 4.0),

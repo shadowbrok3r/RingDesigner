@@ -4,11 +4,11 @@ mod alpha_editor;
 mod app;
 mod camera;
 mod dock;
-mod pane;
 mod export;
 mod gems;
 mod history;
 mod mcp_host;
+mod pane;
 mod panels;
 mod theme;
 mod viewport;
@@ -18,6 +18,7 @@ use app::RingDesignerApp;
 impl eframe::App for RingDesignerApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.tick(&ui.ctx().clone());
+        self.poll_export();
         panels::render(self, ui);
         if self.wants_repaint() {
             ui.ctx().request_repaint();

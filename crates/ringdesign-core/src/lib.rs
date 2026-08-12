@@ -88,6 +88,9 @@ pub struct RingDesign {
     /// Imported vector art carried as SVG text, rasterized on load.
     #[serde(default)]
     pub svgs: Vec<svg::SvgAlpha>,
+    /// Parameterized builtin generators, rasterized on load.
+    #[serde(default)]
+    pub recipes: Vec<alpha::ProcRecipe>,
 }
 
 /// One imported alpha embedded in the design file.
@@ -112,6 +115,7 @@ impl Default for RingDesign {
             embedded: Vec::new(),
             texts: Vec::new(),
             svgs: Vec::new(),
+            recipes: Vec::new(),
         }
     }
 }
@@ -175,13 +179,22 @@ impl RingDesign {
         walk(&self.layers, lib);
     }
 
-    /// Every derived bake in order — strokes, inscriptions, SVG art, then
-    /// the distance fields that read the results. The one call every load
-    /// site makes; adding a bake means adding it here, not at six sites.
+    /// Rasterize every parameterized generator recipe into `lib`.
+    pub fn bake_recipes(&self, lib: &mut AlphaLibrary) {
+        for r in &self.recipes {
+            lib.insert(r.rasterize(256));
+        }
+    }
+
+    /// Every derived bake in order — strokes, inscriptions, SVG art,
+    /// generator recipes, then the distance fields that read the results.
+    /// The one call every load site makes; adding a bake means adding it
+    /// here, not at six sites.
     pub fn bake_all(&self, lib: &mut AlphaLibrary) {
         self.bake_drawn(lib);
         self.bake_texts(lib);
         self.bake_svgs(lib);
+        self.bake_recipes(lib);
         self.bake_sdfs(lib);
     }
 

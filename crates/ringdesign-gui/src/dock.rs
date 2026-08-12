@@ -22,8 +22,12 @@ pub enum ToolKind {
 }
 
 impl ToolKind {
-    pub const ALL: &'static [ToolKind] =
-        &[ToolKind::Design, ToolKind::Layers, ToolKind::Report, ToolKind::Library];
+    pub const ALL: &'static [ToolKind] = &[
+        ToolKind::Design,
+        ToolKind::Layers,
+        ToolKind::Report,
+        ToolKind::Library,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {

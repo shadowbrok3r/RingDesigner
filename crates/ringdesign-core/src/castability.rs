@@ -581,6 +581,40 @@ pub struct Section {
 /// section view and the solid always agree. It probes the field to recover the
 /// build's sample spacing; a caller holding a [`Spacing`] already should use
 /// [`section_at_spaced`] and skip that.
+/// Chvorinov-style hot-spot scan: cross-section area over perimeter per
+/// slice, in mm. The slice with the largest modulus freezes last — where
+/// shrinkage porosity collects unless a gate or riser feeds it. A proxy,
+/// not a simulation: the real modulus is volumetric, but the ranking along
+/// the ring is what placement decisions need.
+pub fn modulus_scan(
+    design: &RingDesign,
+    lib: &AlphaLibrary,
+    bins: usize,
+) -> Vec<(f64, f64)> {
+    let n = bins.clamp(8, 720);
+    (0..n)
+        .map(|k| {
+            let theta = k as f64 / n as f64 * 360.0;
+            let s = section_at(design, lib, theta, 128);
+            let pts = &s.points;
+            let m = if pts.len() >= 3 {
+                let mut area = 0.0;
+                let mut per = 0.0;
+                for i in 0..pts.len() {
+                    let a = &pts[i];
+                    let b = &pts[(i + 1) % pts.len()];
+                    area += a.r * b.z - b.r * a.z;
+                    per += ((b.r - a.r).powi(2) + (b.z - a.z).powi(2)).sqrt();
+                }
+                (area * 0.5).abs() / per.max(1e-9)
+            } else {
+                0.0
+            };
+            (theta, m)
+        })
+        .collect()
+}
+
 /// The parting line: where the two mould halves meet, one point per angle.
 ///
 /// Per slice it is the widest point of the outer surface — the silhouette

@@ -65,7 +65,10 @@ impl Default for Pane {
 
 impl Pane {
     fn view(kind: PaneKind, view: StandardView) -> Self {
-        let mut p = Self { kind, ..Default::default() };
+        let mut p = Self {
+            kind,
+            ..Default::default()
+        };
         p.camera.set_view(view);
         p
     }
@@ -136,8 +139,14 @@ impl Layout {
             Layout::SplitV => vec![top, bottom],
             Layout::Quad => vec![
                 egui::Rect::from_min_max(rect.min, egui::pos2(cx - g, cy - g)),
-                egui::Rect::from_min_max(egui::pos2(cx + g, rect.min.y), egui::pos2(rect.max.x, cy - g)),
-                egui::Rect::from_min_max(egui::pos2(rect.min.x, cy + g), egui::pos2(cx - g, rect.max.y)),
+                egui::Rect::from_min_max(
+                    egui::pos2(cx + g, rect.min.y),
+                    egui::pos2(rect.max.x, cy - g),
+                ),
+                egui::Rect::from_min_max(
+                    egui::pos2(rect.min.x, cy + g),
+                    egui::pos2(cx - g, rect.max.y),
+                ),
                 egui::Rect::from_min_max(egui::pos2(cx + g, cy + g), rect.max),
             ],
         }
@@ -183,6 +192,9 @@ mod tests {
     fn the_default_panes_cover_a_quad_layout() {
         let p = Pane::defaults();
         assert_eq!(p.len(), Layout::Quad.count());
-        assert!(p.iter().any(|x| x.kind == PaneKind::Section), "no section pane");
+        assert!(
+            p.iter().any(|x| x.kind == PaneKind::Section),
+            "no section pane"
+        );
     }
 }

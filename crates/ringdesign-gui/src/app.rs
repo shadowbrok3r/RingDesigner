@@ -12,9 +12,9 @@ use ringdesign_core::mesh::{BuildParams, BuildResult};
 use ringdesign_core::{RingDesign, library};
 
 use crate::alpha_editor::AlphaEditor;
-use crate::mcp_host::McpHost;
 use crate::dock::Dock;
 use crate::history::History;
+use crate::mcp_host::McpHost;
 use crate::pane::{Layout, Pane, PaneKind};
 use crate::viewport::GpuMeshRenderer;
 
@@ -104,6 +104,16 @@ impl RingDesignerApp {
     }
 }
 
+/// Per-gram metal prices, read from `prices.json` beside the designs
+/// folder: `{"Silver 925": 1.2, "Gold 14k": 55.0}`.
+fn load_prices() -> std::collections::HashMap<String, f64> {
+    let path = library::default_design_dir().with_file_name("prices.json");
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_default()
+}
+
 /// Quiet period after the last edit before a rebuild fires.
 const DEBOUNCE: Duration = Duration::from_millis(90);
 
@@ -118,6 +128,8 @@ pub struct RingDesignerApp {
     pub cast: Option<CastReport>,
     pub field: Option<ringdesign_core::castability::FieldReport>,
     pub stones: Option<ringdesign_core::stones::StonesReport>,
+    /// Slowest-freezing slice, from the settled build's Chvorinov scan.
+    pub hot_spot: Option<(f64, f64)>,
 
     /// Resolution used for the interactive viewport.
     pub preview_params: BuildParams,
@@ -152,6 +164,11 @@ pub struct RingDesignerApp {
     pub pinned: Option<ringdesign_core::RingDesign>,
     /// The auto-pavé dialog, open with its working spec.
     pub pave_open: bool,
+    /// Per-gram metal prices from `prices.json` beside the designs folder;
+    /// empty when the file is absent. Weights always show either way.
+    pub prices: std::collections::HashMap<String, f64>,
+    /// A background export in flight: its completion message arrives here.
+    pub exporting: Option<std::sync::mpsc::Receiver<String>>,
     /// The Ctrl+K command palette.
     pub palette_open: bool,
     pub palette_query: String,
@@ -178,6 +195,8 @@ pub struct RingDesignerApp {
     pub alpha_editor: AlphaEditor,
     /// Inscriptions window, toggled from the library panel.
     pub text_editor_open: bool,
+    /// Parameterized-generator window, toggled from the library panel.
+    pub recipe_editor_open: bool,
     pub status: String,
     pub auto_rebuild: bool,
     /// Named undo timeline over the design.
@@ -232,6 +251,7 @@ impl RingDesignerApp {
             cast: None,
             field: None,
             stones: None,
+            hot_spot: None,
             preview_params: ws.preview_params,
             export_params: ws.export_params,
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
@@ -248,6 +268,8 @@ impl RingDesignerApp {
             pins: Vec::new(),
             pinned: None,
             pave_open: false,
+            prices: load_prices(),
+            exporting: None,
             palette_open: false,
             palette_query: String::new(),
             pave_spec: ringdesign_core::pave::PaveSpec::default(),
@@ -268,6 +290,7 @@ impl RingDesignerApp {
             library_filter: String::new(),
             alpha_editor: AlphaEditor::default(),
             text_editor_open: false,
+            recipe_editor_open: false,
             status: "Ready".into(),
             auto_rebuild: true,
             history: History::new(&design_for_history),
@@ -311,6 +334,24 @@ impl RingDesignerApp {
         self.recent.truncate(10);
     }
 
+    /// Reap a finished background export, if any.
+    pub fn poll_export(&mut self) {
+        let done = match self.exporting.as_ref() {
+            Some(rx) => match rx.try_recv() {
+                Ok(msg) => Some(msg),
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    Some("export thread died".into())
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => None,
+            },
+            None => None,
+        };
+        if let Some(msg) = done {
+            self.exporting = None;
+            self.set_status(msg);
+        }
+    }
+
     /// Queue a rebuild after the debounce window and publish the design to the
     /// MCP engine.
     pub fn mark_dirty(&mut self) {
@@ -340,7 +381,10 @@ impl RingDesignerApp {
     /// Poll the worker, fire debounced rebuilds, and refresh the section slice.
     pub fn tick(&mut self, ctx: &egui::Context) {
         if self.mcp.as_mut().is_some_and(|h| h.poll(&mut self.design)) {
-            if self.selected_layer.is_some_and(|i| i >= self.design.layers.layers.len()) {
+            if self
+                .selected_layer
+                .is_some_and(|i| i >= self.design.layers.layers.len())
+            {
                 self.selected_layer = None;
             }
             self.status = "Design edited over MCP".into();
@@ -355,10 +399,7 @@ impl RingDesignerApp {
                     self.status = match r.refine {
                         Some(s) => format!(
                             "{} tris • within {:.3} mm • {:.2} mm³ • {} ms",
-                            r.validation.triangle_count,
-                            s.worst_error_mm,
-                            r.volume_mm3,
-                            r.build_ms
+                            r.validation.triangle_count, s.worst_error_mm, r.volume_mm3, r.build_ms
                         ),
                         None => format!(
                             "{} tris • {:.2} mm³ • {} ms",
@@ -369,7 +410,10 @@ impl RingDesignerApp {
                         r.prepare_upload(
                             &done.result.mesh,
                             Some(&done.cast),
-                            (self.design.inner_radius_mm(), self.design.draft.min_section_mm),
+                            (
+                                self.design.inner_radius_mm(),
+                                self.design.draft.min_section_mm,
+                            ),
                         );
                         r.prepare_gems(std::mem::take(&mut done.gems));
                     }
@@ -387,6 +431,7 @@ impl RingDesignerApp {
                     self.cast = Some(done.cast);
                     self.field = Some(done.field);
                     self.stones = done.stones;
+                    self.hot_spot = done.hot_spot;
                     self.refresh_sections();
                     ctx.request_repaint();
                 }
@@ -454,7 +499,9 @@ impl RingDesignerApp {
     }
 
     pub fn refresh_section(&mut self, pane: usize) {
-        let Some(theta) = self.panes.get(pane).map(|p| p.section_theta_deg) else { return };
+        let Some(theta) = self.panes.get(pane).map(|p| p.section_theta_deg) else {
+            return;
+        };
         let steps = self.preview_params.profile_steps.max(128);
         let s = castability::section_at(&self.design, &self.lib, theta, steps);
         if let Some(p) = self.panes.get_mut(pane) {
@@ -498,7 +545,10 @@ impl RingDesignerApp {
     /// restore is not itself recorded as an edit.
     fn apply_history(&mut self, design: RingDesign, what: &str) {
         self.design = design;
-        if self.selected_layer.is_some_and(|i| i >= self.design.layers.layers.len()) {
+        if self
+            .selected_layer
+            .is_some_and(|i| i >= self.design.layers.layers.len())
+        {
             self.selected_layer = None;
         }
         self.status = format!("{what}: {}", self.history.undo_label().unwrap_or("start"));
@@ -522,6 +572,36 @@ impl RingDesignerApp {
             self.selected_layer = None;
             self.mark_dirty();
         }
+    }
+
+    /// Reorder by drag: lift `from` out and insert it at `to`.
+    pub fn move_layer_to(&mut self, from: usize, to: usize) {
+        let n = self.design.layers.layers.len();
+        if from >= n || to >= n || from == to {
+            return;
+        }
+        let e = self.design.layers.layers.remove(from);
+        self.design.layers.layers.insert(to, e);
+        self.selected_layer = Some(to);
+        self.mark_dirty();
+    }
+
+    /// Solo a layer — everything else mutes — or restore all when it is
+    /// already the only one enabled.
+    pub fn solo_layer(&mut self, i: usize) {
+        let layers = &mut self.design.layers.layers;
+        if i >= layers.len() {
+            return;
+        }
+        let already = layers
+            .iter()
+            .enumerate()
+            .all(|(j, e)| e.enabled == (j == i));
+        for (j, e) in layers.iter_mut().enumerate() {
+            e.enabled = already || j == i;
+        }
+        self.selected_layer = Some(i);
+        self.mark_dirty();
     }
 
     pub fn move_layer(&mut self, i: usize, delta: isize) {
@@ -563,11 +643,7 @@ impl RingDesignerApp {
             return None;
         }
         let image = egui::ColorImage::from_rgba_unmultiplied([tw, th], &bytes);
-        let handle = ctx.load_texture(
-            format!("alpha:{name}"),
-            image,
-            egui::TextureOptions::LINEAR,
-        );
+        let handle = ctx.load_texture(format!("alpha:{name}"), image, egui::TextureOptions::LINEAR);
         let id = handle.id();
         self.thumbs.insert(name.to_string(), handle);
         Some(id)
@@ -626,6 +702,8 @@ struct Done {
     cast: CastReport,
     field: ringdesign_core::castability::FieldReport,
     stones: Option<ringdesign_core::stones::StonesReport>,
+    /// Slowest-freezing slice: `(theta, modulus mm)` off the Chvorinov scan.
+    hot_spot: Option<(f64, f64)>,
     gems: Vec<f32>,
 }
 
@@ -663,9 +741,20 @@ impl Worker {
                         128,
                     );
                     let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
+                    let hot_spot = castability::modulus_scan(&job.design, &job.lib, 64)
+                        .into_iter()
+                        .max_by(|a, b| a.1.total_cmp(&b.1));
                     let gems = crate::gems::preview_vertices(&job.design, &job.lib);
                     if done_tx
-                        .send(Done { generation: job.generation, result, cast, field, stones, gems })
+                        .send(Done {
+                            generation: job.generation,
+                            result,
+                            cast,
+                            field,
+                            hot_spot,
+                            stones,
+                            gems,
+                        })
                         .is_err()
                     {
                         break;
@@ -673,6 +762,9 @@ impl Worker {
                 }
             })
             .expect("spawn build worker");
-        Self { jobs: jobs_tx, done: done_rx }
+        Self {
+            jobs: jobs_tx,
+            done: done_rx,
+        }
     }
 }

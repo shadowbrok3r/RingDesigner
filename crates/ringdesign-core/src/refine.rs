@@ -59,10 +59,19 @@ use crate::mesh::{Mesh, Vec3};
 use crate::profile::ProfileLoop;
 use crate::RingDesign;
 
-/// Vertices in each cached cross-section. Cells read it at arbitrary arc
-/// positions by interpolation, so this bounds that interpolation's error
-/// rather than the mesh's.
+/// Vertices in each cached cross-section at the default tolerance. Cells
+/// read the column at arbitrary arc positions by interpolation, so this
+/// bounds that interpolation's error rather than the mesh's — and it scales
+/// with the tolerance, or an Export-preset refinement would spend its
+/// budget measuring its own interpolant.
 const COLUMN_STEPS: usize = 256;
+
+/// Column resolution for a tolerance: square-root growth from the 0.02 mm
+/// baseline, clamped to sane bounds.
+fn column_steps(tolerance_mm: f64) -> usize {
+    let scale = (0.02 / tolerance_mm.max(1e-4)).sqrt();
+    ((COLUMN_STEPS as f64 * scale) as usize).clamp(192, 768)
+}
 
 /// Deepest subdivision below the base grid.
 pub const MAX_LEVEL: u32 = 6;
@@ -190,9 +199,9 @@ struct Sample {
 }
 
 impl Column {
-    fn build(design: &RingDesign, inner_r: f64, crest_r: f64, theta_deg: f64) -> Self {
+    fn build(design: &RingDesign, inner_r: f64, crest_r: f64, theta_deg: f64, steps: usize) -> Self {
         let m = design.modulation_at(theta_deg, inner_r, crest_r);
-        let loop_ = design.profile.sample_mod(inner_r, COLUMN_STEPS, &m);
+        let loop_ = design.profile.sample_mod(inner_r, steps, &m);
         let n = loop_.len();
         let mut cum = Vec::with_capacity(n + 1);
         let mut acc = 0.0;
@@ -248,6 +257,8 @@ struct Lattice<'a> {
     /// Lattice resolution: `base * 2^max_level` in each direction.
     n_u: u32,
     n_s: u32,
+    /// Vertices per cached cross-section, scaled with the tolerance.
+    column_steps: usize,
     columns: HashMap<u32, Column>,
 }
 
@@ -259,11 +270,11 @@ impl<'a> Lattice<'a> {
         if missing.is_empty() {
             return;
         }
-        let (design, inner_r, crest_r, n_u) =
-            (self.design, self.inner_r, self.crest_r, self.n_u);
+        let (design, inner_r, crest_r, n_u, steps) =
+            (self.design, self.inner_r, self.crest_r, self.n_u, self.column_steps);
         let build_one = |i: u32| {
             let theta = i as f64 / n_u as f64 * 360.0;
-            (i, Column::build(design, inner_r, crest_r, theta))
+            (i, Column::build(design, inner_r, crest_r, theta, steps))
         };
         #[cfg(feature = "parallel")]
         let built: Vec<(u32, Column)> = missing.into_par_iter().map(build_one).collect();
@@ -491,6 +502,7 @@ pub fn build(
         // an axis still has lattice points at its midpoints and centre.
         n_u: base_u << (max_level + 1),
         n_s: base_s << (max_level + 1),
+        column_steps: column_steps(params.tolerance_mm),
         columns: HashMap::new(),
     };
 
@@ -716,6 +728,7 @@ pub fn grid_error_mm(
         min_wall: min_wall_mm.max(0.05),
         n_u: n_theta * 2,
         n_s: n_prof * 2,
+        column_steps: COLUMN_STEPS,
         columns: HashMap::new(),
     };
     lat.ensure(&(0..n_theta * 2).collect());

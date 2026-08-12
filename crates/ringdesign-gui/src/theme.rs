@@ -45,7 +45,6 @@ pub const WARN: Color32 = Color32::from_rgb(242, 194, 61);
 pub const BAD: Color32 = Color32::from_rgb(237, 69, 92);
 pub const INFO: Color32 = Color32::from_rgb(92, 153, 235);
 
-
 /// Load the icon font and apply the theme.
 pub fn install(ctx: &Context) {
     let mut fonts = egui::FontDefinitions::default();
@@ -107,8 +106,14 @@ mod tests {
         // composite over a black panel to the same colour, so compare RGB only.
         let rgb = |c: Color32| [c.r(), c.g(), c.b()];
         let style: Style = serde_json::from_str(THEME_JSON).unwrap();
-        assert_eq!(rgb(style.visuals.widgets.active.bg_stroke.color), rgb(ACCENT));
-        assert_eq!(rgb(style.visuals.widgets.hovered.bg_stroke.color), rgb(ACCENT_DIM));
+        assert_eq!(
+            rgb(style.visuals.widgets.active.bg_stroke.color),
+            rgb(ACCENT)
+        );
+        assert_eq!(
+            rgb(style.visuals.widgets.hovered.bg_stroke.color),
+            rgb(ACCENT_DIM)
+        );
         assert_eq!(rgb(style.visuals.selection.stroke.color), rgb(SELECT));
         assert_eq!(rgb(style.visuals.window_stroke.color), rgb(HAIRLINE));
     }

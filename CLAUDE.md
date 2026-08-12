@@ -834,6 +834,26 @@ hand-tuned counts with the per-tile period in a comment, and fine-lined
 alphas (Greek Key at 0.15 mm strokes) are simply not usable on narrow
 faces in sand.
 
+### The workbench conveniences, and where they live
+
+Exports run **off the UI thread** — `export.rs::spawn_export` snapshots
+(design, lib, params, shrink) into an `ExportJob`, one at a time, reaped by
+`poll_export` into the status line. Layer rows drag-reorder (grip glyph,
+`dnd_drag_source`, drop inserts) and **alt-click on the enable box solos**.
+The unrolled canvas pans (right-drag) and zooms (Ctrl+scroll, pointer
+anchored, u wraps — the closures carry the view, so grips, paint and the
+field texture all follow); a selected layer's angular window shows draggable
+arc grips (centre, edges, fades). `ProcRecipe` gives the builtin generators
+knobs that cannot break seamlessness — integer repeats, quarter turns,
+value gamma — stored in the design and baked by `bake_all`. Seats carry an
+optional **bur dimple** (`dimple_mm`); tilings a **helix shear** and
+**k-fold kaleidoscope** in `u`. The worker's settled pass runs
+`castability::modulus_scan` (Chvorinov area/perimeter per slice) and the
+report names where the ring freezes last; `prices.json` beside the designs
+folder prices the metal table; File > Cost JSON writes the volume/weights
+interchange for the sibling calculator; the section view draws each seat's
+stone to scale, girdle on the pad and pavilion into the metal.
+
 ## Stones are stock, not geometry to cast
 
 Stones are set at the bench; the ring casts the *stock* for them — bosses,

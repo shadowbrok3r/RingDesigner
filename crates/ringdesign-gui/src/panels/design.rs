@@ -14,11 +14,21 @@ use crate::app::RingDesignerApp;
 use crate::theme;
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
-    section(ui, format!("{} Ring", icon::CIRCLE_NOTCH), true, |ui| ring(app, ui));
-    section(ui, format!("{} Profile", icon::CIRCLE_HALF), true, |ui| profile(app, ui));
-    section(ui, format!("{} Shank", icon::WAVE_SINE), false, |ui| shank(app, ui));
-    section(ui, format!("{} Casting", icon::HAMMER), false, |ui| casting(app, ui));
-    section(ui, format!("{} Mesh", icon::TRIANGLE), false, |ui| mesh(app, ui));
+    section(ui, format!("{} Ring", icon::CIRCLE_NOTCH), true, |ui| {
+        ring(app, ui)
+    });
+    section(ui, format!("{} Profile", icon::CIRCLE_HALF), true, |ui| {
+        profile(app, ui)
+    });
+    section(ui, format!("{} Shank", icon::WAVE_SINE), false, |ui| {
+        shank(app, ui)
+    });
+    section(ui, format!("{} Casting", icon::HAMMER), false, |ui| {
+        casting(app, ui)
+    });
+    section(ui, format!("{} Mesh", icon::TRIANGLE), false, |ui| {
+        mesh(app, ui)
+    });
 }
 
 fn section(ui: &mut egui::Ui, title: String, open: bool, add: impl FnOnce(&mut egui::Ui)) {
@@ -207,12 +217,15 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         app.mark_dirty();
     }
 
-
     let p = &app.design.profile;
     let clamped = p.crown_mm > p.effective_crown_mm() + 1e-9;
     let edge = p.edge_thickness_mm();
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Edge thickness").small().color(theme::TEXT_DIM));
+        ui.label(
+            RichText::new("Edge thickness")
+                .small()
+                .color(theme::TEXT_DIM),
+        );
         ui.label(
             RichText::new(format!("{edge:.2} mm"))
                 .small()
@@ -266,8 +279,8 @@ fn morph(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         )
         .changed()
     {
-        app.design.profile.morph = on
-            .then(|| ProfileMorph::from_style(ProfileStyle::Flat, &app.design.profile));
+        app.design.profile.morph =
+            on.then(|| ProfileMorph::from_style(ProfileStyle::Flat, &app.design.profile));
         changed = true;
     }
 
@@ -275,8 +288,9 @@ fn morph(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let style_id = ui.make_persistent_id("morph_style");
     let profile_snapshot = app.design.profile;
     if let Some(m) = &mut app.design.profile.morph {
-        let mut style: ProfileStyle =
-            ui.memory(|mem| mem.data.get_temp(style_id)).unwrap_or(ProfileStyle::Flat);
+        let mut style: ProfileStyle = ui
+            .memory(|mem| mem.data.get_temp(style_id))
+            .unwrap_or(ProfileStyle::Flat);
         egui::ComboBox::from_id_salt("morph_target")
             .selected_text(style.label())
             .width(170.0)
@@ -297,7 +311,11 @@ fn morph(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         ui.memory_mut(|mem| mem.data.insert_temp(style_id, style));
 
         changed |= ui
-            .add(egui::Slider::new(&mut m.focus, 0.5..=6.0).fixed_decimals(1).text("Focus"))
+            .add(
+                egui::Slider::new(&mut m.focus, 0.5..=6.0)
+                    .fixed_decimals(1)
+                    .text("Focus"),
+            )
             .on_hover_text("How tightly the second crown hugs the top of the ring")
             .changed();
     }
@@ -322,7 +340,10 @@ fn side_faces(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         let squared = app.design.profile.side_draft_deg == 0.0
             && app.design.profile.edge_round_mm <= SQUARED_SIDE_FILLET_MM;
         if ui
-            .add_enabled(!squared, egui::Button::new(format!("{} Square the sides", icon::SQUARE_HALF)))
+            .add_enabled(
+                !squared,
+                egui::Button::new(format!("{} Square the sides", icon::SQUARE_HALF)),
+            )
             .on_hover_text(
                 "Drop the side draft to zero and shrink the edge fillet, so the two side \
                  faces sit flat against the mould pull and can carry deep ornament.",
@@ -339,7 +360,11 @@ fn side_faces(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
                 theme::GOOD,
             ),
             Some(f) => (
-                format!("{:.2} mm and {:.2} mm — uneven", f.low_width(), f.high_width()),
+                format!(
+                    "{:.2} mm and {:.2} mm — uneven",
+                    f.low_width(),
+                    f.high_width()
+                ),
                 theme::WARN,
             ),
             None => ("none — all dome".to_string(), theme::WARN),
@@ -391,7 +416,9 @@ fn flange(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         let f = &mut app.design.profile.flange;
         changed |= ui
             .checkbox(&mut f.enabled, "Flat annular face")
-            .on_hover_text("A flat face square to the mould pull, the best surface on the ring for ornament.")
+            .on_hover_text(
+                "A flat face square to the mould pull, the best surface on the ring for ornament.",
+            )
             .changed();
 
         let enabled = f.enabled;
@@ -501,10 +528,9 @@ fn preview(app: &RingDesignerApp, ui: &mut egui::Ui) {
     }
 
     let (z_lo, z_hi) = loop_.z_range();
-    let (r_lo, r_hi) = loop_
-        .pts
-        .iter()
-        .fold((f64::MAX, f64::MIN), |(lo, hi), p| (lo.min(p.r), hi.max(p.r)));
+    let (r_lo, r_hi) = loop_.pts.iter().fold((f64::MAX, f64::MIN), |(lo, hi), p| {
+        (lo.min(p.r), hi.max(p.r))
+    });
     let span_z = (z_hi - z_lo).max(1e-6);
     let span_r = (r_hi - r_lo).max(1e-6);
 
@@ -645,13 +671,28 @@ fn shank_keys(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
                     .on_hover_text("Where round the ring; 90 is the top")
                     .changed();
                 changed |= ui
-                    .add(egui::DragValue::new(&mut k.width_scale).speed(0.01).range(0.3..=3.0).prefix("w "))
+                    .add(
+                        egui::DragValue::new(&mut k.width_scale)
+                            .speed(0.01)
+                            .range(0.3..=3.0)
+                            .prefix("w "),
+                    )
                     .changed();
                 changed |= ui
-                    .add(egui::DragValue::new(&mut k.thickness_scale).speed(0.01).range(0.3..=3.0).prefix("t "))
+                    .add(
+                        egui::DragValue::new(&mut k.thickness_scale)
+                            .speed(0.01)
+                            .range(0.3..=3.0)
+                            .prefix("t "),
+                    )
                     .changed();
                 changed |= ui
-                    .add(egui::DragValue::new(&mut k.crown_scale).speed(0.01).range(0.0..=2.5).prefix("c "))
+                    .add(
+                        egui::DragValue::new(&mut k.crown_scale)
+                            .speed(0.01)
+                            .range(0.0..=2.5)
+                            .prefix("c "),
+                    )
                     .changed();
                 if ui.small_button(icon::TRASH).clicked() {
                     remove = Some(i);
@@ -672,10 +713,16 @@ fn shank_keys(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
             .copied()
             .find(|p| taken.iter().all(|t| (t - p).abs() > 1.0))
             .unwrap_or(90.0);
-        keys.push(ShankKey { theta_deg: theta, ..ShankKey::default() });
+        keys.push(ShankKey {
+            theta_deg: theta,
+            ..ShankKey::default()
+        });
         changed = true;
     }
-    hint(ui, "Width, thickness and crown at each station, blended smoothly around the ring.");
+    hint(
+        ui,
+        "Width, thickness and crown at each station, blended smoothly around the ring.",
+    );
     changed
 }
 
@@ -695,7 +742,9 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
             .width(140.0)
             .show_ui(ui, |ui| {
                 for &o in SignetOutline::ALL {
-                    changed |= ui.selectable_value(&mut head.outline, o, o.label()).clicked();
+                    changed |= ui
+                        .selectable_value(&mut head.outline, o, o.label())
+                        .clicked();
                 }
             });
         // A new shape wants its own proportions; the length is right there to
@@ -753,7 +802,10 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         if ui
             .add_enabled(
                 !on,
-                egui::Slider::new(&mut deg, 20.0..=160.0).fixed_decimals(0).suffix("°").text("Swell"),
+                egui::Slider::new(&mut deg, 20.0..=160.0)
+                    .fixed_decimals(0)
+                    .suffix("°")
+                    .text("Swell"),
             )
             .on_hover_text(
                 "Arc the band's width takes to come back to the shank. This is what a signet \
@@ -782,7 +834,9 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
                 .fixed_decimals(2)
                 .text("Table flat"),
         )
-        .on_hover_text("1 is a true plane to engrave. Below that the head keeps the profile's crown.")
+        .on_hover_text(
+            "1 is a true plane to engrave. Below that the head keeps the profile's crown.",
+        )
         .changed();
 
     changed |= ui
@@ -813,7 +867,11 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         .changed();
 
     changed |= ui
-        .add(egui::Slider::new(&mut head.theta_deg, 0.0..=360.0).suffix("°").text("Around"))
+        .add(
+            egui::Slider::new(&mut head.theta_deg, 0.0..=360.0)
+                .suffix("°")
+                .text("Around"),
+        )
         .on_hover_text("Where the head sits round the ring. 90° is the top.")
         .changed();
 
@@ -849,8 +907,7 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
                     .selected_text(h2.outline.label())
                     .show_ui(ui, |ui| {
                         for &o in ringdesign_core::field::SignetOutline::ALL {
-                            changed |=
-                                ui.selectable_value(&mut h2.outline, o, o.label()).clicked();
+                            changed |= ui.selectable_value(&mut h2.outline, o, o.label()).clicked();
                         }
                     });
                 if h2.outline != before {
@@ -965,7 +1022,10 @@ fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .text("Min draft"),
         )
         .changed();
-    hint(ui, "3° is a normal minimum for sand; below it a wall drags on the way out.");
+    hint(
+        ui,
+        "3° is a normal minimum for sand; below it a wall drags on the way out.",
+    );
 
     changed |= ui
         .add(
@@ -985,7 +1045,10 @@ fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .text("Min detail"),
         )
         .changed();
-    hint(ui, "Smallest feature the sand reproduces; finer beads and cells cast as mush.");
+    hint(
+        ui,
+        "Smallest feature the sand reproduces; finer beads and cells cast as mush.",
+    );
 
     if changed {
         app.mark_dirty();
@@ -1035,37 +1098,37 @@ fn crown(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
 
 fn exponents(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
     let mut changed = false;
-        hint(ui, "Superellipse exponents of d(x) = 1 - (1 - x^a)^(1/b).");
-        egui::Grid::new("profile_shape")
-            .num_columns(2)
-            .spacing([8.0, 4.0])
-            .show(ui, |ui| {
-                let p = &mut app.design.profile;
+    hint(ui, "Superellipse exponents of d(x) = 1 - (1 - x^a)^(1/b).");
+    egui::Grid::new("profile_shape")
+        .num_columns(2)
+        .spacing([8.0, 4.0])
+        .show(ui, |ui| {
+            let p = &mut app.design.profile;
 
-                ui.label("Shape a");
-                changed |= ui
-                    .add(
-                        egui::DragValue::new(&mut p.shape_a)
-                            .speed(0.02)
-                            .range(0.25..=12.0)
-                            .fixed_decimals(2),
-                    )
-                    .on_hover_text("Higher flattens the crown and sharpens the falloff at the edges.")
-                    .changed();
-                ui.end_row();
+            ui.label("Shape a");
+            changed |= ui
+                .add(
+                    egui::DragValue::new(&mut p.shape_a)
+                        .speed(0.02)
+                        .range(0.25..=12.0)
+                        .fixed_decimals(2),
+                )
+                .on_hover_text("Higher flattens the crown and sharpens the falloff at the edges.")
+                .changed();
+            ui.end_row();
 
-                ui.label("Shape b");
-                changed |= ui
-                    .add(
-                        egui::DragValue::new(&mut p.shape_b)
-                            .speed(0.02)
-                            .range(0.25..=12.0)
-                            .fixed_decimals(2),
-                    )
-                    .on_hover_text("Higher fills the crest out.")
-                    .changed();
-                ui.end_row();
-            });
+            ui.label("Shape b");
+            changed |= ui
+                .add(
+                    egui::DragValue::new(&mut p.shape_b)
+                        .speed(0.02)
+                        .range(0.25..=12.0)
+                        .fixed_decimals(2),
+                )
+                .on_hover_text("Higher fills the crest out.")
+                .changed();
+            ui.end_row();
+        });
     changed
 }
 
@@ -1174,10 +1237,24 @@ fn curve_canvas(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
     }
 
     let label = |at: egui::Pos2, text: &str, align| {
-        painter.text(at, align, text, egui::FontId::proportional(9.0), theme::TEXT_DIM)
+        painter.text(
+            at,
+            align,
+            text,
+            egui::FontId::proportional(9.0),
+            theme::TEXT_DIM,
+        )
     };
-    label(rect.left_top() + egui::vec2(3.0, 1.0), "crest", egui::Align2::LEFT_TOP);
-    label(rect.right_bottom() - egui::vec2(3.0, 1.0), "edge", egui::Align2::RIGHT_BOTTOM);
+    label(
+        rect.left_top() + egui::vec2(3.0, 1.0),
+        "crest",
+        egui::Align2::LEFT_TOP,
+    );
+    label(
+        rect.right_bottom() - egui::vec2(3.0, 1.0),
+        "edge",
+        egui::Align2::RIGHT_BOTTOM,
+    );
 
     response.on_hover_text(
         "Drag a point to reshape the crown. Double-click to add one, right-click to remove.",
@@ -1233,7 +1310,10 @@ fn mesh(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 )
                 .changed()
             {
-                app.export_params.refine = Some(RefineParams { tolerance_mm: tol, ..r });
+                app.export_params.refine = Some(RefineParams {
+                    tolerance_mm: tol,
+                    ..r
+                });
             }
             hint(
                 ui,

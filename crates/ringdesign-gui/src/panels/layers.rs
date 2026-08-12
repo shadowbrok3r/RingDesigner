@@ -1,12 +1,12 @@
 //! The layer stack: add, reorder, and edit every decorative element.
 
 use egui_phosphor::regular as icon;
-use ringdesign_core::field::{
-    Blend, BorderLayer, BorderProfile, DecalLayer, FieldContext, FluteProfile,
-    FlutesLayer, GroupLayer, Layer, MAX_DECALS, MilgrainLayer, Remap, SIDE_FACE_MIN_DRAFT_DEG, SeatRunLayer,
-    SeatPadLayer, SideFacePick, SignetLayer, SignetOutline, VGate, Window,
-};
 use ringdesign_core::curve::{CurveLayer, MAX_CURVE_POINTS, WireProfile};
+use ringdesign_core::field::{
+    Blend, BorderLayer, BorderProfile, DecalLayer, FieldContext, FluteProfile, FlutesLayer,
+    GroupLayer, Layer, MAX_DECALS, MilgrainLayer, Remap, SIDE_FACE_MIN_DRAFT_DEG, SeatPadLayer,
+    SeatRunLayer, SideFacePick, SignetLayer, SignetOutline, VGate, Window,
+};
 use ringdesign_core::tiling::TilingLayer;
 
 use crate::app::RingDesignerApp;
@@ -17,6 +17,8 @@ use crate::theme;
 enum Action {
     Select(usize),
     Move(usize, isize),
+    MoveTo(usize, usize),
+    Solo(usize),
     Duplicate(usize),
     Delete(usize),
 }
@@ -35,7 +37,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
     list(app, ui);
 
-    let selected = app.selected_layer.filter(|&i| i < app.design.layers.layers.len());
+    let selected = app
+        .selected_layer
+        .filter(|&i| i < app.design.layers.layers.len());
     match selected {
         Some(i) => {
             ui.add_space(4.0);
@@ -336,7 +340,7 @@ fn list(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         } else {
             egui::Color32::TRANSPARENT
         };
-        egui::Frame::NONE
+        let row = egui::Frame::NONE
             .fill(fill)
             .inner_margin(egui::Margin::symmetric(4, 1))
             .corner_radius(3.0)
@@ -348,10 +352,26 @@ fn list(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     ui.spacing_mut().button_padding = egui::vec2(3.0, 2.0);
                     ui.spacing_mut().item_spacing.x = 3.0;
 
-                    dirty |= ui
+                    // Grip: drag a row anywhere in the stack.
+                    ui.dnd_drag_source(egui::Id::new(("layer-drag", i)), i, |ui| {
+                        ui.label(
+                            egui::RichText::new(icon::DOTS_SIX_VERTICAL).color(theme::TEXT_DIM),
+                        );
+                    })
+                    .response
+                    .on_hover_text("Drag to reorder");
+
+                    let solo = ui.input(|inp| inp.modifiers.alt);
+                    let check = ui
                         .checkbox(&mut e.enabled, "")
-                        .on_hover_text("Include this layer in the build")
-                        .changed();
+                        .on_hover_text("Include this layer in the build. Alt-click: solo.");
+                    if check.clicked() && solo {
+                        // The plain toggle already flipped; solo overrides it.
+                        e.enabled = !e.enabled;
+                        action = Some(Action::Solo(i));
+                    } else {
+                        dirty |= check.changed();
+                    }
 
                     let row_h = ui.spacing().interact_size.y;
                     let kind_w = 60.0;
@@ -373,10 +393,8 @@ fn list(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                             action = Some(Action::Select(i));
                         }
                         if let Some(f) = dfm.iter().find(|f| f.layer == i) {
-                            ui.label(
-                                egui::RichText::new(icon::WARNING).color(theme::WARN),
-                            )
-                            .on_hover_text(&f.message);
+                            ui.label(egui::RichText::new(icon::WARNING).color(theme::WARN))
+                                .on_hover_text(&f.message);
                         }
                     });
                     ui.allocate_ui_with_layout(egui::vec2(kind_w, row_h), left, |ui| {
@@ -421,11 +439,26 @@ fn list(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     }
                 });
             });
+        // A dragged row dropped on this one lands at this position.
+        let target = row.response;
+        if let Some(from) = target.dnd_release_payload::<usize>() {
+            if *from != i {
+                action = Some(Action::MoveTo(*from, i));
+            }
+        } else if target.dnd_hover_payload::<usize>().is_some() {
+            ui.painter().hline(
+                target.rect.x_range(),
+                target.rect.top(),
+                egui::Stroke::new(2.0, theme::ACCENT),
+            );
+        }
     }
 
     match action {
         Some(Action::Select(i)) => app.selected_layer = Some(i),
         Some(Action::Move(i, d)) => app.move_layer(i, d),
+        Some(Action::MoveTo(from, to)) => app.move_layer_to(from, to),
+        Some(Action::Solo(i)) => app.solo_layer(i),
         Some(Action::Duplicate(i)) => app.duplicate_layer(i),
         Some(Action::Delete(i)) => app.remove_layer(i),
         None => {}
@@ -479,7 +512,9 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
                     .width(150.0)
                     .show_ui(ui, |ui| {
                         for &b in Blend::ALL {
-                            c |= ui.selectable_value(&mut entry.blend, b, b.label()).clicked();
+                            c |= ui
+                                .selectable_value(&mut entry.blend, b, b.label())
+                                .clicked();
                         }
                     })
                     .response
@@ -537,8 +572,11 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
                             )
                             .clicked()
                         {
-                            entry.remap =
-                                Remap::Terrace { steps: 4, span_mm: 0.35, riser: 0.35 };
+                            entry.remap = Remap::Terrace {
+                                steps: 4,
+                                span_mm: 0.35,
+                                riser: 0.35,
+                            };
                             c = true;
                         }
                     })
@@ -563,7 +601,11 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
                             .changed();
                         ui.end_row();
                     }
-                    Remap::Terrace { steps, span_mm, riser } => {
+                    Remap::Terrace {
+                        steps,
+                        span_mm,
+                        riser,
+                    } => {
                         ui.label("Steps");
                         c |= ui.add(egui::Slider::new(steps, 2..=12)).changed();
                         ui.end_row();
@@ -643,8 +685,7 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
         let baked = match &app.design.layers.layers[i].layer {
             Layer::Tiling(t) => app.lib.get(&t.alpha).map(|a| {
                 let (cw, ch) = t.cell_size(&fctx);
-                let mm_per_px =
-                    (cw / a.width.max(1) as f64, ch / a.height.max(1) as f64);
+                let mm_per_px = (cw / a.width.max(1) as f64, ch / a.height.max(1) as f64);
                 a.draft_limited(deg, mm_per_px, t.height_mm.max(1e-6))
             }),
             _ => None,
@@ -744,7 +785,11 @@ fn tiling(
 
         ui.label("Around");
         c |= ui
-            .add(egui::DragValue::new(&mut t.repeats_around).speed(0.15).range(1..=400))
+            .add(
+                egui::DragValue::new(&mut t.repeats_around)
+                    .speed(0.15)
+                    .range(1..=400),
+            )
             .on_hover_text(
                 "Tiles around the circumference. A whole count is what makes the pattern \
                  close on itself with no seam at the joint.",
@@ -887,7 +932,11 @@ fn tiling(
 
         ui.label("Contrast");
         c |= ui
-            .add(egui::DragValue::new(&mut t.contrast).speed(0.01).range(0.1..=4.0))
+            .add(
+                egui::DragValue::new(&mut t.contrast)
+                    .speed(0.01)
+                    .range(0.1..=4.0),
+            )
             .on_hover_text("Gamma on the alpha. Above 1 deepens, below 1 flattens.")
             .changed();
         ui.end_row();
@@ -954,6 +1003,24 @@ fn tiling(
                     )
                     .on_hover_text("How far across the band the bend reaches")
                     .changed();
+            }
+        });
+        ui.end_row();
+
+        ui.label("Spiral / fold");
+        ui.horizontal(|ui| {
+            c |= ui
+                .add(egui::DragValue::new(&mut t.shear).speed(0.02).range(-4.0..=4.0))
+                .on_hover_text("Helix shear: cells of drift per band height — rows spiral. Always seamless.")
+                .changed();
+            let mut k = t.kfold as i32;
+            if ui
+                .add(egui::DragValue::new(&mut k).speed(0.1).range(0..=12).prefix("fold "))
+                .on_hover_text("Kaleidoscope: mirror the pattern into 1/k wedges of the ring. 0 is off.")
+                .changed()
+            {
+                t.kfold = k.max(0) as u32;
+                c = true;
             }
         });
         ui.end_row();
@@ -1031,12 +1098,7 @@ fn tiling(
 
 /// Limit a layer to part of the ring, so ornament can flank a signet head
 /// instead of running over it.
-fn decals(
-    ui: &mut egui::Ui,
-    d: &mut DecalLayer,
-    fctx: &FieldContext,
-    names: &[String],
-) -> bool {
+fn decals(ui: &mut egui::Ui, d: &mut DecalLayer, fctx: &FieldContext, names: &[String]) -> bool {
     let mut c = grid(ui, "decal_layer", |ui| {
         let mut c = false;
 
@@ -1046,14 +1108,20 @@ fn decals(
             .width(150.0)
             .show_ui(ui, |ui| {
                 for name in names {
-                    c |= ui.selectable_value(&mut d.alpha, name.clone(), name).clicked();
+                    c |= ui
+                        .selectable_value(&mut d.alpha, name.clone(), name)
+                        .clicked();
                 }
             });
         ui.end_row();
 
         ui.label("Feather");
         c |= ui
-            .add(egui::Slider::new(&mut d.feather_mm, 0.0..=1.5).suffix(" mm").fixed_decimals(2))
+            .add(
+                egui::Slider::new(&mut d.feather_mm, 0.0..=1.5)
+                    .suffix(" mm")
+                    .fixed_decimals(2),
+            )
             .on_hover_text("Fade inside each stamp's border, so no stamp ends in a wall")
             .changed();
         ui.end_row();
@@ -1095,10 +1163,7 @@ fn decals(
                     ui.end_row();
                     ui.label("Rotation");
                     c |= ui
-                        .add(
-                            egui::Slider::new(&mut stamp.rotation_deg, -180.0..=180.0)
-                                .suffix("°"),
-                        )
+                        .add(egui::Slider::new(&mut stamp.rotation_deg, -180.0..=180.0).suffix("°"))
                         .changed();
                     ui.end_row();
                     ui.label("Relief");
@@ -1128,9 +1193,7 @@ fn decals(
         d.decals.remove(i);
         c = true;
     }
-    if d.decals.len() < MAX_DECALS
-        && ui.button(format!("{} Add stamp", icon::PLUS)).clicked()
-    {
+    if d.decals.len() < MAX_DECALS && ui.button(format!("{} Add stamp", icon::PLUS)).clicked() {
         let mut stamp = d.decals.last().copied().unwrap_or_default();
         stamp.theta_deg = (stamp.theta_deg + 30.0).rem_euclid(360.0);
         d.decals.push(stamp);
@@ -1150,7 +1213,11 @@ fn sine_warp(v_center: f64, amp: f64, waves: usize) -> ringdesign_core::tiling::
             [k as f64 / n as f64, v_center + sign * amp]
         })
         .collect();
-    ringdesign_core::tiling::WarpField { points, strength: 1.0, falloff_mm: 4.0 }
+    ringdesign_core::tiling::WarpField {
+        points,
+        strength: 1.0,
+        falloff_mm: 4.0,
+    }
 }
 
 fn d_open(i: usize) -> bool {
@@ -1181,13 +1248,21 @@ fn flutes(ui: &mut egui::Ui, f: &mut FlutesLayer) -> bool {
 
         ui.label("Width");
         c |= ui
-            .add(egui::Slider::new(&mut f.width_mm, 0.1..=2.0).suffix(" mm").fixed_decimals(2))
+            .add(
+                egui::Slider::new(&mut f.width_mm, 0.1..=2.0)
+                    .suffix(" mm")
+                    .fixed_decimals(2),
+            )
             .changed();
         ui.end_row();
 
         ui.label("Depth");
         c |= ui
-            .add(egui::Slider::new(&mut f.height_mm, 0.03..=0.6).suffix(" mm").fixed_decimals(2))
+            .add(
+                egui::Slider::new(&mut f.height_mm, 0.03..=0.6)
+                    .suffix(" mm")
+                    .fixed_decimals(2),
+            )
             .on_hover_text("Standing height when blended Max, cut depth when blended Carve")
             .changed();
         ui.end_row();
@@ -1223,13 +1298,21 @@ fn curve_editor(ui: &mut egui::Ui, l: &mut CurveLayer, fctx: &FieldContext) -> b
 
         ui.label("Width");
         c |= ui
-            .add(egui::Slider::new(&mut l.width_mm, 0.2..=3.0).suffix(" mm").fixed_decimals(2))
+            .add(
+                egui::Slider::new(&mut l.width_mm, 0.2..=3.0)
+                    .suffix(" mm")
+                    .fixed_decimals(2),
+            )
             .changed();
         ui.end_row();
 
         ui.label("Height");
         c |= ui
-            .add(egui::Slider::new(&mut l.height_mm, 0.05..=1.2).suffix(" mm").fixed_decimals(2))
+            .add(
+                egui::Slider::new(&mut l.height_mm, 0.05..=1.2)
+                    .suffix(" mm")
+                    .fixed_decimals(2),
+            )
             .changed();
         ui.end_row();
 
@@ -1300,7 +1383,10 @@ fn curve_editor(ui: &mut egui::Ui, l: &mut CurveLayer, fctx: &FieldContext) -> b
     // The crest line, so the drawing reads against the band.
     let crest = to_screen(0.0, fctx.crest_v_mm).y;
     painter.line_segment(
-        [egui::pos2(plot.left(), crest), egui::pos2(plot.right(), crest)],
+        [
+            egui::pos2(plot.left(), crest),
+            egui::pos2(plot.right(), crest),
+        ],
         egui::Stroke::new(1.0, theme::ACCENT_DIM.gamma_multiply(0.5)),
     );
 
@@ -1315,7 +1401,9 @@ fn curve_editor(ui: &mut egui::Ui, l: &mut CurveLayer, fctx: &FieldContext) -> b
 
     let mut drag: Option<usize> = ui.memory(|m| m.data.get_temp(id)).flatten();
     if response.drag_started() {
-        drag = response.interact_pointer_pos().and_then(|p| nearest(p, &l.points));
+        drag = response
+            .interact_pointer_pos()
+            .and_then(|p| nearest(p, &l.points));
         ui.memory_mut(|m| m.data.insert_temp(id, drag));
     }
     if response.drag_stopped() {
@@ -1358,10 +1446,16 @@ fn curve_editor(ui: &mut egui::Ui, l: &mut CurveLayer, fctx: &FieldContext) -> b
         c = true;
     }
 
-    let line: Vec<egui::Pos2> =
-        l.sample_path(16).into_iter().map(|q| to_screen(q[0], q[1])).collect();
+    let line: Vec<egui::Pos2> = l
+        .sample_path(16)
+        .into_iter()
+        .map(|q| to_screen(q[0], q[1]))
+        .collect();
     if line.len() >= 2 {
-        painter.add(egui::Shape::line(line, egui::Stroke::new(1.6, theme::ACCENT)));
+        painter.add(egui::Shape::line(
+            line,
+            egui::Stroke::new(1.6, theme::ACCENT),
+        ));
     }
     for q in &l.points {
         painter.circle_filled(to_screen(q[0], q[1]), 3.2, theme::ACCENT);
@@ -1408,7 +1502,11 @@ fn group(
             {
                 *pending = Some(GroupEdit::MoveOut(j));
             }
-            if ui.small_button(icon::TRASH).on_hover_text("Delete").clicked() {
+            if ui
+                .small_button(icon::TRASH)
+                .on_hover_text("Delete")
+                .clicked()
+            {
                 delete = Some(j);
             }
         });
@@ -1426,10 +1524,7 @@ fn group(
                         });
                     ui.label("Opacity");
                     c |= ui
-                        .add(
-                            egui::Slider::new(&mut ce.opacity, 0.0..=1.0)
-                                .fixed_decimals(2),
-                        )
+                        .add(egui::Slider::new(&mut ce.opacity, 0.0..=1.0).fixed_decimals(2))
                         .changed();
                 });
                 let mut dummy = false;
@@ -1485,7 +1580,9 @@ fn window_controls(ui: &mut egui::Ui, w: &mut Window, fctx: &FieldContext) -> bo
         if w.enabled {
             c |= ui
                 .checkbox(&mut w.invert, "Outside")
-                .on_hover_text("Keep the layer everywhere but the arc — use it to clear a signet head")
+                .on_hover_text(
+                    "Keep the layer everywhere but the arc — use it to clear a signet head",
+                )
                 .changed();
         }
     });
@@ -1565,7 +1662,11 @@ fn v_gate_controls(ui: &mut egui::Ui, w: &mut Window, fctx: &FieldContext) -> bo
     };
     match &mut w.v_gate {
         VGate::Off => {}
-        VGate::Band { center_mm, span_mm, fade_mm } => {
+        VGate::Band {
+            center_mm,
+            span_mm,
+            fade_mm,
+        } => {
             c |= grid(ui, "layer_v_gate", |ui| {
                 let mut c = false;
                 let v_max = fctx.band_v_len_mm.max(0.5);
@@ -1577,7 +1678,9 @@ fn v_gate_controls(ui: &mut egui::Ui, w: &mut Window, fctx: &FieldContext) -> bo
                 ui.end_row();
 
                 ui.label("Span");
-                c |= ui.add(egui::Slider::new(span_mm, 0.0..=v_max).suffix(" mm")).changed();
+                c |= ui
+                    .add(egui::Slider::new(span_mm, 0.0..=v_max).suffix(" mm"))
+                    .changed();
                 ui.end_row();
 
                 ui.label("Fade");
@@ -1661,7 +1764,10 @@ fn side_face_fit(ui: &mut egui::Ui, t: &mut TilingLayer, fctx: &FieldContext) ->
     ui.horizontal(|ui| {
         let enabled = faces.is_some();
         if ui
-            .add_enabled(enabled, egui::Button::new(format!("{} Fit to sides", icon::ARROWS_OUT_LINE_VERTICAL)))
+            .add_enabled(
+                enabled,
+                egui::Button::new(format!("{} Fit to sides", icon::ARROWS_OUT_LINE_VERTICAL)),
+            )
             .on_hover_text(
                 "Sit the tiling on the band's side faces with square, unstretched cells. \
                  Relief there pulls straight out of the sand.",
@@ -1770,7 +1876,11 @@ fn border(ui: &mut egui::Ui, b: &mut BorderLayer, fctx: &FieldContext) -> bool {
         if b.profile == BorderProfile::Rope {
             ui.label("Twists");
             c |= ui
-                .add(egui::DragValue::new(&mut b.rope_twists).speed(0.3).range(1..=400))
+                .add(
+                    egui::DragValue::new(&mut b.rope_twists)
+                        .speed(0.3)
+                        .range(1..=400),
+                )
                 .on_hover_text("Twists per revolution. A whole count keeps the rope seamless.")
                 .changed();
             ui.end_row();
@@ -1897,7 +2007,11 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
 
     let bridge = r.bridge_at(fctx);
     let total: f64 = r.gem.carats() * r.count as f64;
-    let colour = if bridge < 0.2 { theme::WARN } else { theme::TEXT_DIM };
+    let colour = if bridge < 0.2 {
+        theme::WARN
+    } else {
+        theme::TEXT_DIM
+    };
     ui.label(
         egui::RichText::new(format!(
             "{} {} stones • {:.2} ct total • {:.2} mm bridge",
@@ -1911,9 +2025,12 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
     );
     if bridge < 0.0 {
         ui.label(
-            egui::RichText::new(format!("{} Seats overlap — fewer stones or smaller.", icon::WARNING))
-                .small()
-                .color(theme::BAD),
+            egui::RichText::new(format!(
+                "{} Seats overlap — fewer stones or smaller.",
+                icon::WARNING
+            ))
+            .small()
+            .color(theme::BAD),
         );
     }
     c |= false;
@@ -1999,6 +2116,18 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
                 .changed();
             ui.end_row();
         }
+
+        ui.label("Bur dimple");
+        c |= ui
+            .add(
+                egui::DragValue::new(&mut p.dimple_mm)
+                    .speed(0.01)
+                    .range(0.0..=3.0)
+                    .suffix(" mm"),
+            )
+            .on_hover_text("A shallow centre dimple cast into the seat, so the setting bur starts true. 0 is none.")
+            .changed();
+        ui.end_row();
 
         ui.label("Prongs");
         ui.horizontal(|ui| {
@@ -2146,7 +2275,11 @@ fn milgrain(ui: &mut egui::Ui, m: &mut MilgrainLayer, fctx: &FieldContext) -> bo
 
         ui.label("Count");
         c |= ui
-            .add(egui::DragValue::new(&mut m.beads_around).speed(0.5).range(3..=800))
+            .add(
+                egui::DragValue::new(&mut m.beads_around)
+                    .speed(0.5)
+                    .range(3..=800),
+            )
             .on_hover_text("Beads around the ring. A whole count closes the run on itself.")
             .changed();
         ui.end_row();
@@ -2352,7 +2485,6 @@ fn grid(ui: &mut egui::Ui, id: &str, add: impl FnOnce(&mut egui::Ui) -> bool) ->
         .inner
 }
 
-
 // --- Auto pavé ---------------------------------------------------------------
 
 fn pave_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
@@ -2374,7 +2506,11 @@ fn pave_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 ui.label("Stone");
                 let mut w = spec.gem.w_mm;
                 if ui
-                    .add(egui::Slider::new(&mut w, 0.8..=4.0).suffix(" mm").fixed_decimals(2))
+                    .add(
+                        egui::Slider::new(&mut w, 0.8..=4.0)
+                            .suffix(" mm")
+                            .fixed_decimals(2),
+                    )
                     .changed()
                 {
                     spec.gem = Gem::calibrated(GemCut::Round, w);
@@ -2434,7 +2570,11 @@ fn pave_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 }
                 _ => {}
             }
-            if let PaveRegion::VBand { center_mm, width_mm } = &mut spec.region {
+            if let PaveRegion::VBand {
+                center_mm,
+                width_mm,
+            } = &mut spec.region
+            {
                 ui.add(
                     egui::Slider::new(center_mm, 0.0..=ctx.band_v_len_mm)
                         .suffix(" mm")

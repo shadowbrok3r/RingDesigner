@@ -15,8 +15,12 @@ const CLASSES: [FaceClass; 4] = [
 ];
 
 /// Ring angles worth a one-click jump, degrees.
-const QUICK_ANGLES: [(&str, f64); 4] =
-    [("Top", 90.0), ("Side", 0.0), ("Bottom", 270.0), ("Shoulder", 45.0)];
+const QUICK_ANGLES: [(&str, f64); 4] = [
+    ("Top", 90.0),
+    ("Side", 0.0),
+    ("Bottom", 270.0),
+    ("Shoulder", 45.0),
+];
 
 /// Canvas toggles, held in egui temp memory rather than on the app.
 #[derive(Clone, Copy)]
@@ -27,7 +31,10 @@ struct ViewOpts {
 
 impl Default for ViewOpts {
     fn default() -> Self {
-        Self { ticks: true, fill: true }
+        Self {
+            ticks: true,
+            fill: true,
+        }
     }
 }
 
@@ -65,11 +72,19 @@ fn controls(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: 
     let width = ui.available_width();
     ui.horizontal(|ui| {
         let mut theta = app.panes[pane].section_theta_deg;
-        let slider_w = if width < MEDIUM_CONTROLS_MM { width - 24.0 } else { 210.0 };
+        let slider_w = if width < MEDIUM_CONTROLS_MM {
+            width - 24.0
+        } else {
+            210.0
+        };
         let slider = ui.add_sized(
             [slider_w.max(90.0), ui.spacing().interact_size.y],
             egui::Slider::new(&mut theta, 0.0..=360.0)
-                .text(if width < MEDIUM_CONTROLS_MM { "" } else { "Ring angle" })
+                .text(if width < MEDIUM_CONTROLS_MM {
+                    ""
+                } else {
+                    "Ring angle"
+                })
                 .suffix("°")
                 .fixed_decimals(1),
         );
@@ -136,7 +151,11 @@ fn controls(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: 
 
 fn readout(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     let Some(s) = app.panes[pane].section.as_ref() else {
-        ui.label(RichText::new("No measurements").small().color(theme::TEXT_DIM));
+        ui.label(
+            RichText::new("No measurements")
+                .small()
+                .color(theme::TEXT_DIM),
+        );
         return;
     };
 
@@ -167,14 +186,23 @@ fn readout(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             ui,
             "Undercuts",
             &format!("{}", s.undercut_count),
-            if s.undercut_count > 0 { theme::BAD } else { theme::GOOD },
+            if s.undercut_count > 0 {
+                theme::BAD
+            } else {
+                theme::GOOD
+            },
         );
         ui.separator();
         field(ui, "Thickness", &format!("{thickness:.2} mm"), theme::TEXT);
         field(ui, "Width", &format!("{width:.2} mm"), theme::TEXT);
         ui.separator();
         field(ui, "Bore r", &format!("{:.2} mm", s.min_r), theme::TEXT_DIM);
-        field(ui, "Outer r", &format!("{:.2} mm", s.max_r), theme::TEXT_DIM);
+        field(
+            ui,
+            "Outer r",
+            &format!("{:.2} mm", s.max_r),
+            theme::TEXT_DIM,
+        );
         field(
             ui,
             "z range",
@@ -239,15 +267,91 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::
     let pts: Vec<Pos2> = section.points.iter().map(|p| map(p.r, p.z)).collect();
     let n = pts.len();
 
+    // Stone silhouettes: any seat whose arc covers this slice gets its
+    // stone drawn to scale — girdle on the pad, pavilion into the metal —
+    // so depth against the bore is visible where it matters.
+    {
+        let surface: Vec<&ringdesign_core::castability::SectionPoint> =
+            section.points.iter().filter(|p| p.surface).collect();
+        let total: f64 = surface
+            .windows(2)
+            .map(|w| ((w[1].r - w[0].r).powi(2) + (w[1].z - w[0].z).powi(2)).sqrt())
+            .sum();
+        let at_v = |v_mm: f64| -> Option<(f64, f64, f64, f64)> {
+            if surface.len() < 2 || total <= 1e-9 {
+                return None;
+            }
+            let ctx = app.design.field_context();
+            let target = v_mm / ctx.band_v_len_mm.max(1e-9) * total;
+            let mut acc = 0.0;
+            for w in surface.windows(2) {
+                let seg = ((w[1].r - w[0].r).powi(2) + (w[1].z - w[0].z).powi(2)).sqrt();
+                if acc + seg >= target {
+                    let f = ((target - acc) / seg.max(1e-12)).clamp(0.0, 1.0);
+                    let r = w[0].r + (w[1].r - w[0].r) * f;
+                    let z = w[0].z + (w[1].z - w[0].z) * f;
+                    let nr = w[0].nr + (w[1].nr - w[0].nr) * f;
+                    let nz = w[0].nz + (w[1].nz - w[0].nz) * f;
+                    return Some((r, z, nr, nz));
+                }
+                acc += seg;
+            }
+            None
+        };
+        let mut draw_stone = |seat: &ringdesign_core::field::SeatPadLayer| {
+            let Some((r, z, nr, nz)) = at_v(seat.v_mm) else { return };
+            let gem = seat
+                .gem
+                .unwrap_or_else(|| ringdesign_core::gem::Gem::calibrated(
+                    ringdesign_core::gem::GemCut::Round,
+                    seat.suggested_stone_mm(),
+                ));
+            let half = gem.w_mm * 0.5;
+            let depth = gem.pavilion_mm();
+            let len = (nr * nr + nz * nz).sqrt().max(1e-9);
+            let (nr, nz) = (nr / len, nz / len);
+            let (tr, tz) = (-nz, nr);
+            // Girdle sits on the pad top; pavilion dives along the normal.
+            let top = (r + nr * seat.height_mm, z + nz * seat.height_mm);
+            let ga = map(top.0 + tr * half, top.1 + tz * half);
+            let gb = map(top.0 - tr * half, top.1 - tz * half);
+            let culet = map(top.0 - nr * depth, top.1 - nz * depth);
+            let stroke = egui::Stroke::new(1.2, theme::ACCENT_DIM);
+            painter.line_segment([ga, gb], stroke);
+            painter.line_segment([ga, culet], stroke);
+            painter.line_segment([gb, culet], stroke);
+        };
+        for e in app.design.layers.layers.iter().filter(|e| e.enabled) {
+            match &e.layer {
+                ringdesign_core::field::Layer::SeatPad(p) => {
+                    let arc = (p.diameter_mm * 0.5 + p.blend_mm)
+                        / (section.max_r.max(1e-9))
+                        * 180.0
+                        / std::f64::consts::PI;
+                    let d = ringdesign_core::field::wrap_delta(
+                        section.theta_deg - p.theta_deg,
+                        360.0,
+                    )
+                    .abs();
+                    if d <= arc.max(2.0) {
+                        draw_stone(p);
+                    }
+                }
+                ringdesign_core::field::Layer::SeatRun(run) => {
+                    // A run has a seat at every station; the slice always
+                    // sits within half a pitch of one.
+                    draw_stone(&run.seat);
+                }
+                _ => {}
+            }
+        }
+    }
+
     // The pinned comparison's slice, dashed behind the live one — cut from
     // the pinned design at this angle, so it needs no stored build.
     if let Some(pinned) = app.pinned.as_ref() {
-        let ghost = ringdesign_core::castability::section_at(
-            pinned,
-            &app.lib,
-            section.theta_deg,
-            160,
-        );
+        let ghost =
+            ringdesign_core::castability::section_at(pinned, &app.lib, section.theta_deg, 160);
         let gpts: Vec<Pos2> = ghost.points.iter().map(|p| map(p.r, p.z)).collect();
         for k in 0..gpts.len() {
             let (a, b) = (gpts[k], gpts[(k + 1) % gpts.len()]);
@@ -270,7 +374,13 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::
         painter.add(egui::Shape::convex_polygon(pts.clone(), tint, Stroke::NONE));
     }
 
-    draw_axis(&painter, rect, section, map(0.0, z_mid).x, map(section.min_r, z_mid).x);
+    draw_axis(
+        &painter,
+        rect,
+        section,
+        map(0.0, z_mid).x,
+        map(section.min_r, z_mid).x,
+    );
     draw_parting(&painter, rect, section, map(r_mid, section.parting_z_mm).y);
 
     if opts.ticks {
@@ -301,7 +411,10 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::
     painter.text(
         rect.right_bottom() - vec2(12.0, 9.0),
         Align2::RIGHT_BOTTOM,
-        format!("Slice at {:.1}° • hover a wall for its draft", section.theta_deg),
+        format!(
+            "Slice at {:.1}° • hover a wall for its draft",
+            section.theta_deg
+        ),
         FontId::proportional(11.0),
         theme::TEXT_DIM,
     );
@@ -334,9 +447,13 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::
                     .color(theme::TEXT_DIM),
             );
             ui.label(
-                RichText::new(if p.surface { "Displaceable surface" } else { "Bore wall" })
-                    .small()
-                    .color(theme::TEXT_DIM),
+                RichText::new(if p.surface {
+                    "Displaceable surface"
+                } else {
+                    "Bore wall"
+                })
+                .small()
+                .color(theme::TEXT_DIM),
             );
             if p.class == FaceClass::Undercut {
                 ui.label(RichText::new("Locks in the sand").small().color(theme::BAD));
@@ -445,7 +562,11 @@ fn draw_undercuts(painter: &egui::Painter, section: &Section, pts: &[Pos2]) {
         }
         let p = &section.points[mid];
         let dir = normal_dir(p).unwrap_or(vec2(1.0, 0.0));
-        let align = if dir.x >= 0.0 { Align2::LEFT_CENTER } else { Align2::RIGHT_CENTER };
+        let align = if dir.x >= 0.0 {
+            Align2::LEFT_CENTER
+        } else {
+            Align2::RIGHT_CENTER
+        };
         painter.text(
             pts[mid] + dir * 14.0,
             align,

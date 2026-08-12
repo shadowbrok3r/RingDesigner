@@ -194,8 +194,8 @@ fn fit_size(a: &Alpha, size: usize) -> (usize, usize) {
 fn refresh(ed: &mut AlphaEditor, ctx: &egui::Context, src: &Alpha) {
     if ed.source_tex.as_ref().is_none_or(|(n, _)| n != &ed.source) {
         let prev = ed.source_tex.take().map(|(_, t)| t);
-        ed.source_tex =
-            texture(ctx, "alpha_editor:source", src, SOURCE_EDGE, prev).map(|t| (ed.source.clone(), t));
+        ed.source_tex = texture(ctx, "alpha_editor:source", src, SOURCE_EDGE, prev)
+            .map(|t| (ed.source.clone(), t));
     }
 
     let key = (ed.source.clone(), (src.width, src.height), ed.ops.clone());
@@ -206,7 +206,12 @@ fn refresh(ed: &mut AlphaEditor, ctx: &egui::Context, src: &Alpha) {
     let seam = alpha.seam_error();
     let prev = ed.derived.take().map(|d| d.tex);
     if let Some(tex) = texture(ctx, "alpha_editor:result", &alpha, RESULT_EDGE, prev) {
-        ed.derived = Some(Derived { key, alpha, seam, tex });
+        ed.derived = Some(Derived {
+            key,
+            alpha,
+            seam,
+            tex,
+        });
     }
 }
 
@@ -299,9 +304,11 @@ fn source_column(ed: &mut AlphaEditor, ui: &mut egui::Ui, src: &Alpha, view: f32
         .color(theme::TEXT_DIM),
     );
     ui.label(
-        egui::RichText::new("Drag inside to move, a corner or side to resize, outside to draw a new box.")
-            .small()
-            .color(theme::TEXT_DIM),
+        egui::RichText::new(
+            "Drag inside to move, a corner or side to resize, outside to draw a new box.",
+        )
+        .small()
+        .color(theme::TEXT_DIM),
     );
 }
 
@@ -337,7 +344,11 @@ fn crop_canvas(ed: &mut AlphaEditor, ui: &mut egui::Ui, src: &Alpha, view: f32) 
         )
     };
 
-    let resp = ui.interact(img, egui::Id::new("alpha_editor_crop"), egui::Sense::click_and_drag());
+    let resp = ui.interact(
+        img,
+        egui::Id::new("alpha_editor_crop"),
+        egui::Sense::click_and_drag(),
+    );
     let cr = to_screen(&ed.ops.crop.normalized());
 
     if resp.drag_started() {
@@ -346,7 +357,12 @@ fn crop_canvas(ed: &mut AlphaEditor, ui: &mut egui::Ui, src: &Alpha, view: f32) 
         ed.restore = ed.ops.crop;
         if ed.grab == Grab::Draw {
             let (x, y) = to_norm(p);
-            ed.ops.crop = CropRect { x0: x, y0: y, x1: x, y1: y };
+            ed.ops.crop = CropRect {
+                x0: x,
+                y0: y,
+                x1: x,
+                y1: y,
+            };
         }
     }
     if resp.dragged() {
@@ -360,7 +376,12 @@ fn crop_canvas(ed: &mut AlphaEditor, ui: &mut egui::Ui, src: &Alpha, view: f32) 
                 let (w, h) = (r.width(), r.height());
                 let x0 = (r.x0 + dx).clamp(0.0, (1.0 - w).max(0.0));
                 let y0 = (r.y0 + dy).clamp(0.0, (1.0 - h).max(0.0));
-                ed.ops.crop = CropRect { x0, y0, x1: x0 + w, y1: y0 + h };
+                ed.ops.crop = CropRect {
+                    x0,
+                    y0,
+                    x1: x0 + w,
+                    y1: y0 + h,
+                };
             }
             Grab::Edge(gx, gy) => {
                 let mut r = ed.ops.crop.normalized();
@@ -386,12 +407,20 @@ fn crop_canvas(ed: &mut AlphaEditor, ui: &mut egui::Ui, src: &Alpha, view: f32) 
     }
     if resp.drag_stopped() {
         let r = ed.ops.crop.normalized();
-        ed.ops.crop = if r.width() < MIN_CROP || r.height() < MIN_CROP { ed.restore } else { r };
+        ed.ops.crop = if r.width() < MIN_CROP || r.height() < MIN_CROP {
+            ed.restore
+        } else {
+            r
+        };
         ed.grab = Grab::None;
     }
 
     if let Some(p) = resp.hover_pos() {
-        let g = if resp.dragged() { ed.grab } else { pick_grab(p, cr) };
+        let g = if resp.dragged() {
+            ed.grab
+        } else {
+            pick_grab(p, cr)
+        };
         ui.ctx().set_cursor_icon(grab_cursor(g));
     }
 
@@ -400,8 +429,14 @@ fn crop_canvas(ed: &mut AlphaEditor, ui: &mut egui::Ui, src: &Alpha, view: f32) 
     for r in [
         egui::Rect::from_min_max(img.min, egui::pos2(img.right(), cr.top())),
         egui::Rect::from_min_max(egui::pos2(img.left(), cr.bottom()), img.max),
-        egui::Rect::from_min_max(egui::pos2(img.left(), cr.top()), egui::pos2(cr.left(), cr.bottom())),
-        egui::Rect::from_min_max(egui::pos2(cr.right(), cr.top()), egui::pos2(img.right(), cr.bottom())),
+        egui::Rect::from_min_max(
+            egui::pos2(img.left(), cr.top()),
+            egui::pos2(cr.left(), cr.bottom()),
+        ),
+        egui::Rect::from_min_max(
+            egui::pos2(cr.right(), cr.top()),
+            egui::pos2(img.right(), cr.bottom()),
+        ),
     ] {
         if r.is_positive() {
             painter.rect_filled(r, 0.0, dim);
@@ -413,8 +448,17 @@ fn crop_canvas(ed: &mut AlphaEditor, ui: &mut egui::Ui, src: &Alpha, view: f32) 
         egui::Stroke::new(1.4, theme::ACCENT),
         egui::StrokeKind::Middle,
     );
-    for c in [cr.left_top(), cr.right_top(), cr.left_bottom(), cr.right_bottom()] {
-        painter.rect_filled(egui::Rect::from_center_size(c, egui::vec2(7.0, 7.0)), 1.0, theme::ACCENT);
+    for c in [
+        cr.left_top(),
+        cr.right_top(),
+        cr.left_bottom(),
+        cr.right_bottom(),
+    ] {
+        painter.rect_filled(
+            egui::Rect::from_center_size(c, egui::vec2(7.0, 7.0)),
+            1.0,
+            theme::ACCENT,
+        );
     }
 }
 
@@ -487,19 +531,36 @@ fn ops_column(ed: &mut AlphaEditor, ui: &mut egui::Ui) {
     ui.add_space(5.0);
     ui.horizontal(|ui| {
         ui.label("Levels");
-        ui.add(egui::DragValue::new(&mut ed.ops.lo).speed(0.004).range(0.0..=0.95).prefix("lo "));
-        ui.add(egui::DragValue::new(&mut ed.ops.hi).speed(0.004).range(0.05..=1.0).prefix("hi "));
+        ui.add(
+            egui::DragValue::new(&mut ed.ops.lo)
+                .speed(0.004)
+                .range(0.0..=0.95)
+                .prefix("lo "),
+        );
+        ui.add(
+            egui::DragValue::new(&mut ed.ops.hi)
+                .speed(0.004)
+                .range(0.05..=1.0)
+                .prefix("hi "),
+        );
     });
     if ed.ops.hi <= ed.ops.lo {
         ed.ops.lo = (ed.ops.hi - 0.01).max(0.0);
     }
-    ui.add(egui::Slider::new(&mut ed.ops.gamma, 0.25..=4.0).logarithmic(true).text("Gamma"));
+    ui.add(
+        egui::Slider::new(&mut ed.ops.gamma, 0.25..=4.0)
+            .logarithmic(true)
+            .text("Gamma"),
+    );
 
     ui.add_space(5.0);
     ui.horizontal(|ui| {
         ui.label("Output");
         for s in SIZES {
-            if ui.selectable_label(ed.ops.size == s, format!("{s}")).clicked() {
+            if ui
+                .selectable_label(ed.ops.size == s, format!("{s}"))
+                .clicked()
+            {
                 ed.ops.size = s;
             }
         }
@@ -627,7 +688,10 @@ fn tiled_preview(
             egui::Stroke::new(1.5, across),
         );
         painter.line_segment(
-            [egui::pos2(x, area.bottom() - tick), egui::pos2(x, area.bottom())],
+            [
+                egui::pos2(x, area.bottom() - tick),
+                egui::pos2(x, area.bottom()),
+            ],
             egui::Stroke::new(1.5, across),
         );
         painter.line_segment(
@@ -637,11 +701,17 @@ fn tiled_preview(
     }
     let y = area.top() + ch;
     painter.line_segment(
-        [egui::pos2(area.left(), y), egui::pos2(area.left() + tick, y)],
+        [
+            egui::pos2(area.left(), y),
+            egui::pos2(area.left() + tick, y),
+        ],
         egui::Stroke::new(1.5, down),
     );
     painter.line_segment(
-        [egui::pos2(area.right() - tick, y), egui::pos2(area.right(), y)],
+        [
+            egui::pos2(area.right() - tick, y),
+            egui::pos2(area.right(), y),
+        ],
         egui::Stroke::new(1.5, down),
     );
     painter.line_segment(
@@ -690,8 +760,8 @@ fn footer(ed: &mut AlphaEditor, ui: &mut egui::Ui, lib: &AlphaLibrary) -> Option
             if ui.button("Cancel").clicked() {
                 ed.open = false;
             }
-            let ready = !trimmed.is_empty()
-                && ed.derived.as_ref().is_some_and(|d| !d.alpha.is_empty());
+            let ready =
+                !trimmed.is_empty() && ed.derived.as_ref().is_some_and(|d| !d.alpha.is_empty());
             if ui
                 .add_enabled(
                     ready,
@@ -700,7 +770,10 @@ fn footer(ed: &mut AlphaEditor, ui: &mut egui::Ui, lib: &AlphaLibrary) -> Option
                 .on_disabled_hover_text("Give the clip a name first")
                 .clicked()
             {
-                saved = ed.derived.as_ref().map(|d| d.alpha.renamed(trimmed.as_str()));
+                saved = ed
+                    .derived
+                    .as_ref()
+                    .map(|d| d.alpha.renamed(trimmed.as_str()));
             }
         });
     });
@@ -725,7 +798,15 @@ mod tests {
     #[test]
     fn mirroring_across_kills_the_horizontal_seam() {
         let src = blob();
-        let ops = Ops { crop: CropRect { x0: 0.1, y0: 0.2, x1: 0.6, y1: 0.8 }, ..Ops::default() };
+        let ops = Ops {
+            crop: CropRect {
+                x0: 0.1,
+                y0: 0.2,
+                x1: 0.6,
+                y1: 0.8,
+            },
+            ..Ops::default()
+        };
         let out = derive(&src, &ops);
         assert!(out.seam_error().0 < 1e-9, "{:?}", out.seam_error());
         assert!(out.width.max(out.height) <= ops.size);
@@ -735,7 +816,10 @@ mod tests {
     fn output_keeps_its_aspect_and_the_longest_edge() {
         let a = Alpha::new("t", 40, 10, vec![0.5; 400]);
         assert_eq!(fit_size(&a, 128), (128, 32));
-        assert_eq!(fit_size(&Alpha::new("t", 10, 40, vec![0.5; 400]), 256), (64, 256));
+        assert_eq!(
+            fit_size(&Alpha::new("t", 10, 40, vec![0.5; 400]), 256),
+            (64, 256)
+        );
     }
 
     #[test]
@@ -746,7 +830,10 @@ mod tests {
         assert_eq!(pick_grab(egui::pos2(90.0, 50.0), cr), Grab::Edge(1, 0));
         assert_eq!(pick_grab(egui::pos2(50.0, 90.0), cr), Grab::Edge(0, 1));
         assert_eq!(pick_grab(egui::pos2(300.0, 300.0), cr), Grab::Draw);
-        assert_eq!(grab_cursor(Grab::Edge(-1, -1)), egui::CursorIcon::ResizeNwSe);
+        assert_eq!(
+            grab_cursor(Grab::Edge(-1, -1)),
+            egui::CursorIcon::ResizeNwSe
+        );
         assert_eq!(grab_cursor(Grab::Edge(1, -1)), egui::CursorIcon::ResizeNeSw);
     }
 
@@ -761,17 +848,92 @@ mod tests {
         );
 
         let variants: [(&str, Ops); 11] = [
-            ("crop", Ops { crop: CropRect { x0: 0.1, y0: 0.0, x1: 1.0, y1: 1.0 }, ..base.clone() }),
-            ("trim", Ops { trim: !base.trim, ..base.clone() }),
-            ("rotate", Ops { rotate: base.rotate + 1, ..base.clone() }),
-            ("flip_h", Ops { flip_h: !base.flip_h, ..base.clone() }),
-            ("flip_v", Ops { flip_v: !base.flip_v, ..base.clone() }),
-            ("mirror", Ops { mirror: Some(Axis::Vertical), ..base.clone() }),
-            ("mirror=None", Ops { mirror: None, ..base.clone() }),
-            ("fade", Ops { fade: 0.25, ..base.clone() }),
-            ("levels", Ops { lo: 0.1, hi: 0.9, gamma: 1.4, ..base.clone() }),
-            ("size", Ops { size: 512, ..base.clone() }),
-            ("all", Ops { trim: true, rotate: 2, size: 128, ..base.clone() }),
+            (
+                "crop",
+                Ops {
+                    crop: CropRect {
+                        x0: 0.1,
+                        y0: 0.0,
+                        x1: 1.0,
+                        y1: 1.0,
+                    },
+                    ..base.clone()
+                },
+            ),
+            (
+                "trim",
+                Ops {
+                    trim: !base.trim,
+                    ..base.clone()
+                },
+            ),
+            (
+                "rotate",
+                Ops {
+                    rotate: base.rotate + 1,
+                    ..base.clone()
+                },
+            ),
+            (
+                "flip_h",
+                Ops {
+                    flip_h: !base.flip_h,
+                    ..base.clone()
+                },
+            ),
+            (
+                "flip_v",
+                Ops {
+                    flip_v: !base.flip_v,
+                    ..base.clone()
+                },
+            ),
+            (
+                "mirror",
+                Ops {
+                    mirror: Some(Axis::Vertical),
+                    ..base.clone()
+                },
+            ),
+            (
+                "mirror=None",
+                Ops {
+                    mirror: None,
+                    ..base.clone()
+                },
+            ),
+            (
+                "fade",
+                Ops {
+                    fade: 0.25,
+                    ..base.clone()
+                },
+            ),
+            (
+                "levels",
+                Ops {
+                    lo: 0.1,
+                    hi: 0.9,
+                    gamma: 1.4,
+                    ..base.clone()
+                },
+            ),
+            (
+                "size",
+                Ops {
+                    size: 512,
+                    ..base.clone()
+                },
+            ),
+            (
+                "all",
+                Ops {
+                    trim: true,
+                    rotate: 2,
+                    size: 128,
+                    ..base.clone()
+                },
+            ),
         ];
         // A shaded patch off-centre in both axes, on a dead border: asymmetric
         // enough that a flip shows, bordered enough that a trim shows.

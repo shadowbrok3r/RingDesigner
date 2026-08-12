@@ -57,7 +57,14 @@ impl McpHost {
         });
 
         log::info!("MCP server listening on http://{addr}/");
-        Ok(Self { engine, addr, last_seen, last_json, runtime, sync_addr: None })
+        Ok(Self {
+            engine,
+            addr,
+            last_seen,
+            last_json,
+            runtime,
+            sync_addr: None,
+        })
     }
 
     /// Also serve the plain-HTTP sync endpoint the phone talks to.
@@ -70,7 +77,11 @@ impl McpHost {
         let cfg = if remote {
             let ip = ringdesign_mcp::sync::tailnet_addr()
                 .ok_or_else(|| anyhow::anyhow!("no tailnet address — is Tailscale up?"))?;
-            ringdesign_mcp::sync::Config::remote(ip, ringdesign_mcp::sync::DEFAULT_SYNC_PORT, token)?
+            ringdesign_mcp::sync::Config::remote(
+                ip,
+                ringdesign_mcp::sync::DEFAULT_SYNC_PORT,
+                token,
+            )?
         } else {
             ringdesign_mcp::sync::Config::local(ringdesign_mcp::sync::DEFAULT_SYNC_PORT)
         };
@@ -149,7 +160,10 @@ mod tests {
         design.name = "Local".into();
         host.push(&design);
         assert_eq!(host.engine.lock().design().name, "Local");
-        assert!(!host.poll(&mut design), "a local push read back as an agent edit");
+        assert!(
+            !host.poll(&mut design),
+            "a local push read back as an agent edit"
+        );
     }
 
     #[test]
@@ -165,12 +179,21 @@ mod tests {
                 ..Default::default()
             };
         }
-        assert!(host.poll(&mut design), "the resolution change went unnoticed");
+        assert!(
+            host.poll(&mut design),
+            "the resolution change went unnoticed"
+        );
 
         let g = host.engine.lock().generation();
         host.engine.lock().build(None);
-        assert!(host.engine.lock().generation() > g, "build did not advance the generation");
-        assert!(!host.poll(&mut design), "a read-only agent build read back as a design edit");
+        assert!(
+            host.engine.lock().generation() > g,
+            "build did not advance the generation"
+        );
+        assert!(
+            !host.poll(&mut design),
+            "a read-only agent build read back as a design edit"
+        );
     }
 
     #[test]

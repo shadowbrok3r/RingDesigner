@@ -645,6 +645,95 @@ impl Procedural {
         }
         Alpha::new(self.label(), n, n, rescale01(&raw))
     }
+
+    /// Sample the pattern function at unit coordinates, for [`ProcRecipe`].
+    fn at(self, x: f64, y: f64) -> f64 {
+        match self {
+            Procedural::Rope => rope(x, y),
+            Procedural::Braid => braid(x, y),
+            Procedural::Basketweave => basketweave(x, y),
+            Procedural::Chevron => chevron(x, y),
+            Procedural::Herringbone => herringbone(x, y),
+            Procedural::Scales => scales(x, y),
+            Procedural::GreekKey => greek_key(x, y),
+            Procedural::CelticKnot => celtic_knot(x, y),
+            Procedural::Floral => floral(x, y),
+            Procedural::Hammered => hammered(x, y),
+            Procedural::Waves => waves(x, y),
+            Procedural::Diamonds => diamonds(x, y),
+            Procedural::Beads => beads(x, y),
+            Procedural::Feather => feather(x, y),
+            Procedural::Bark => bark(x, y),
+            Procedural::Nugget => nugget(x, y),
+            Procedural::Rosette => rosette(x, y),
+            Procedural::Barleycorn => barleycorn(x, y),
+            Procedural::Moire => moire(x, y),
+            Procedural::Starburst => starburst(x, y),
+            Procedural::Florentine => florentine(x, y),
+            Procedural::GuillocheWeave => guilloche_weave(x, y),
+        }
+    }
+}
+
+/// A builtin generator with knobs, carried in the design and re-baked on
+/// load like drawn strokes and inscriptions. Every knob preserves the
+/// pattern's seamlessness by construction: repeats are integer periods,
+/// turns are quarter turns, and gamma/invert act on the value alone.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ProcRecipe {
+    /// Library name the raster lands under.
+    pub name: String,
+    pub kind: Procedural,
+    /// Pattern periods per tile, 1..6.
+    pub repeats: u32,
+    /// Quarter turns, 0..3.
+    pub quarter_turns: u32,
+    /// Gamma on the value. Above 1 deepens, below 1 flattens.
+    pub gamma: f64,
+    pub invert: bool,
+}
+
+impl Default for ProcRecipe {
+    fn default() -> Self {
+        Self {
+            name: "Recipe".into(),
+            kind: Procedural::Waves,
+            repeats: 1,
+            quarter_turns: 0,
+            gamma: 1.0,
+            invert: false,
+        }
+    }
+}
+
+impl ProcRecipe {
+    pub fn rasterize(&self, size: usize) -> Alpha {
+        let n = size.clamp(16, 1024);
+        let reps = self.repeats.clamp(1, 6) as f64;
+        let turns = self.quarter_turns % 4;
+        let g = self.gamma.clamp(0.3, 3.0);
+        let mut raw = vec![0.0f64; n * n];
+        let inv = 1.0 / n as f64;
+        for j in 0..n {
+            for i in 0..n {
+                let (mut x, mut y) = (i as f64 * inv, j as f64 * inv);
+                for _ in 0..turns {
+                    (x, y) = (y, 1.0 - x);
+                }
+                let v = self.kind.at(frac(x * reps), frac(y * reps));
+                raw[j * n + i] = if v.is_finite() { v } else { 0.0 };
+            }
+        }
+        let mut data = rescale01(&raw);
+        for v in &mut data {
+            let mut t = (*v as f64).clamp(0.0, 1.0).powf(g);
+            if self.invert {
+                t = 1.0 - t;
+            }
+            *v = t as f32;
+        }
+        Alpha::new(self.name.clone(), n, n, data)
+    }
 }
 
 // --- Pattern helpers -------------------------------------------------------
@@ -1227,6 +1316,49 @@ impl AlphaLibrary {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_recipe_stays_seamless_under_every_knob() {
+        let r = super::ProcRecipe {
+            name: "test".into(),
+            kind: super::Procedural::Waves,
+            repeats: 3,
+            quarter_turns: 1,
+            gamma: 1.8,
+            invert: true,
+        };
+        let a = r.rasterize(128);
+        let n = a.width;
+        // Seamless means the step across the tile boundary is no bigger than
+        // the pattern's own steepest interior step — the seam pair is just
+        // another adjacent pair of the periodic function.
+        let mut interior = 0.0f32;
+        for j in 0..n {
+            for i in 0..n - 1 {
+                interior = interior.max((a.data[j * n + i + 1] - a.data[j * n + i]).abs());
+            }
+        }
+        for j in 0..n {
+            let d = (a.data[j * n] - a.data[j * n + n - 1]).abs();
+            assert!(d <= interior * 1.5 + 1e-3, "x seam tears at row {j}: {d} vs {interior}");
+        }
+        for i in 0..n {
+            let d = (a.data[i] - a.data[(n - 1) * n + i]).abs();
+            assert!(d <= interior * 1.5 + 1e-3, "y seam tears at col {i}: {d} vs {interior}");
+        }
+        // The knobs do something: a plain bake differs.
+        let plain = super::ProcRecipe {
+            repeats: 1,
+            quarter_turns: 0,
+            gamma: 1.0,
+            invert: false,
+            ..r.clone()
+        }
+        .rasterize(128);
+        let diff: f32 =
+            a.data.iter().zip(&plain.data).map(|(x, y)| (x - y).abs()).sum::<f32>() / (n * n) as f32;
+        assert!(diff > 0.05, "knobs changed nothing: {diff}");
+    }
+
     #[test]
     fn the_signed_distance_field_measures_a_disk() {
         let (w, h, r) = (64usize, 64usize, 20.0f64);

@@ -951,6 +951,10 @@ pub struct SeatPadLayer {
     /// The stone the pad was sized for, carried for the report and preview.
     #[serde(default)]
     pub gem: Option<crate::gem::Gem>,
+    /// Centre dimple diameter, mm — a cast guide for the setting bur, so
+    /// the drill starts where the seat means it to. 0 is none.
+    #[serde(default)]
+    pub dimple_mm: f64,
 }
 
 fn default_bezel_wall() -> f64 {
@@ -980,6 +984,7 @@ impl Default for SeatPadLayer {
             prongs: 0,
             prong_mm: default_prong(),
             gem: None,
+            dimple_mm: 0.0,
         }
     }
 }
@@ -1052,6 +1057,18 @@ impl SeatPadLayer {
                     self.skirt(d, r, blend)
                 }
             }
+        };
+
+        // The bur guide: a shallow centre dimple so the drill starts true.
+        // Carved from the body, capped so it cannot punch through the pad.
+        let body = match self.dimple_mm.clamp(0.0, self.diameter_mm) {
+            dim if dim > 0.05 => {
+                let dr = dim * 0.5;
+                let t = (d / dr).clamp(0.0, 1.0);
+                let depth = (0.18f64).min(self.height_mm * 0.4);
+                body - depth * (0.5 + 0.5 * (std::f64::consts::PI * t).cos())
+            }
+            _ => body,
         };
 
         let n = self.prongs.min(8);

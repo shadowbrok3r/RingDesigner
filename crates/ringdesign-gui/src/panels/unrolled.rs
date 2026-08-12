@@ -38,6 +38,24 @@ const HANDLE_GRAB_PX: f32 = 6.0;
 /// Reach of the band-edge handles' snap onto a side-face boundary, mm.
 const SNAP_MM: f64 = 0.2;
 
+/// The pan/zoom window onto the unrolled band, in band mm.
+#[derive(Clone, Copy, PartialEq)]
+struct UnrolledView {
+    zoom: f32,
+    u0: f64,
+    v0: f64,
+}
+
+impl Default for UnrolledView {
+    fn default() -> Self {
+        Self {
+            zoom: 1.0,
+            u0: 0.0,
+            v0: 0.0,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum Grab {
     #[default]
@@ -48,7 +66,10 @@ enum Grab {
     Rotate,
     /// A handle on a non-tiling layer: rail and bead rows as v-lines, pads,
     /// stamps and signet plates as centres, a pad's rim as its radius.
-    Other { layer: usize, handle: u8 },
+    Other {
+        layer: usize,
+        handle: u8,
+    },
 }
 
 /// Where a non-tiling layer can be grabbed on the canvas.
@@ -78,6 +99,12 @@ impl HShape {
 const H_RADIUS: u8 = 1;
 /// Decal instance k grabs as handle `H_DECAL + k`.
 const H_DECAL: u8 = 8;
+/// The selected layer's angular window: centre, both edges, both fades.
+const H_WIN_C: u8 = 230;
+const H_WIN_A: u8 = 231;
+const H_WIN_B: u8 = 232;
+const H_WIN_FA: u8 = 233;
+const H_WIN_FB: u8 = 234;
 
 /// Rendered height field, kept until the layer stack or the canvas changes.
 #[derive(Clone)]
@@ -114,23 +141,94 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         rect.min + egui::vec2(PAD_L, PAD_T),
         rect.max - egui::vec2(PAD_R, PAD_B),
     );
-    let x_of_u = |u: f64| plot.left() + (u / ctx.circumference_mm) as f32 * plot.width();
-    let y_of_v = |v: f64| plot.top() + (v / ctx.band_v_len_mm) as f32 * plot.height();
-    let v_of_y = |y: f32| (y - plot.top()) as f64 / plot.height().max(1.0) as f64 * ctx.band_v_len_mm;
-    let mm_per_px_u = ctx.circumference_mm / plot.width().max(1.0) as f64;
-    let mm_per_px_v = ctx.band_v_len_mm / plot.height().max(1.0) as f64;
+
+    // --- Pan/zoom: a window (u0, v0, spans) onto the band -------------------
+    //
+    // Everything keeps drawing through the same closures; zoom only changes
+    // what they map, and the painter's clip does the cropping. `u` wraps —
+    // the window can straddle the ring joint.
+    let view_id = ui.id().with("unrolled_view");
+    let mut view = ui
+        .memory(|m| m.data.get_temp::<UnrolledView>(view_id))
+        .unwrap_or_default();
+    let circ = ctx.circumference_mm;
+    let band = ctx.band_v_len_mm;
+    view.zoom = view.zoom.clamp(1.0, 12.0);
+    let u_span = circ / view.zoom as f64;
+    let v_span = band / view.zoom as f64;
+    view.v0 = view.v0.clamp(0.0, band - v_span);
+    view.u0 = view.u0.rem_euclid(circ);
+    let (u0, v0) = (view.u0, view.v0);
+
+    let hover = response.hover_pos();
+    if let Some(p) = hover {
+        let scroll = ui.input(|i| i.smooth_scroll_delta.y);
+        if scroll.abs() > 0.1 && ui.input(|i| i.modifiers.command || i.modifiers.ctrl) {
+            // Anchor the mm under the pointer while zooming.
+            let fx = ((p.x - plot.left()) / plot.width().max(1.0)).clamp(0.0, 1.0) as f64;
+            let fy = ((p.y - plot.top()) / plot.height().max(1.0)).clamp(0.0, 1.0) as f64;
+            let anchor_u = (u0 + fx * u_span).rem_euclid(circ);
+            let anchor_v = v0 + fy * v_span;
+            view.zoom = (view.zoom * (1.0 + scroll * 0.002)).clamp(1.0, 12.0);
+            let nu = circ / view.zoom as f64;
+            let nv = band / view.zoom as f64;
+            view.u0 = (anchor_u - fx * nu).rem_euclid(circ);
+            view.v0 = (anchor_v - fy * nv).clamp(0.0, band - nv);
+        }
+    }
+    if response.dragged_by(egui::PointerButton::Secondary) {
+        let d = response.drag_delta();
+        view.u0 = (view.u0 - d.x as f64 * u_span / plot.width().max(1.0) as f64).rem_euclid(circ);
+        view.v0 = (view.v0 - d.y as f64 * v_span / plot.height().max(1.0) as f64)
+            .clamp(0.0, band - v_span);
+    }
+    ui.memory_mut(|m| m.data.insert_temp(view_id, view));
+    let (u0, v0) = (view.u0, view.v0);
+    let u_span = circ / view.zoom as f64;
+    let v_span = band / view.zoom as f64;
+    let full_w = plot.width() * view.zoom;
+    let full_h = plot.height() * view.zoom;
+
+    let x_of_u = |u: f64| plot.left() + ((u - u0).rem_euclid(circ) / circ) as f32 * full_w;
+    let y_of_v = |v: f64| plot.top() + ((v - v0) / band) as f32 * full_h;
+    let v_of_y = |y: f32| (y - plot.top()) as f64 / full_h.max(1.0) as f64 * band + v0;
+    let mm_per_px_u = u_span / plot.width().max(1.0) as f64;
+    let mm_per_px_v = v_span / plot.height().max(1.0) as f64;
+
+    if view.zoom > 1.001 {
+        let chip = egui::Rect::from_min_size(
+            egui::pos2(plot.right() - 52.0, plot.top() + 4.0),
+            egui::vec2(48.0, 18.0),
+        );
+        let r = ui.interact(chip, ui.id().with("unrolled_fit"), egui::Sense::click());
+        painter.rect_filled(chip, 4.0, theme::PANEL.gamma_multiply(0.9));
+        painter.text(
+            chip.center(),
+            egui::Align2::CENTER_CENTER,
+            format!("{:.0}% ✖", view.zoom * 100.0),
+            egui::FontId::proportional(10.0),
+            if r.hovered() {
+                theme::ACCENT
+            } else {
+                theme::TEXT_DIM
+            },
+        );
+        if r.clicked() {
+            ui.memory_mut(|m| m.data.insert_temp(view_id, UnrolledView::default()));
+        }
+        r.on_hover_text("Ctrl+scroll zooms, right-drag pans. Click to fit.");
+    }
 
     // --- The selected tiling layer, worked on as a clone ---------------------
 
     let selected = app
         .selected_layer
         .filter(|&i| i < app.design.layers.layers.len());
-    let mut tile: Option<TilingLayer> = selected.and_then(|i| {
-        match &app.design.layers.layers[i].layer {
+    let mut tile: Option<TilingLayer> =
+        selected.and_then(|i| match &app.design.layers.layers[i].layer {
             Layer::Tiling(t) => Some(t.clone()),
             _ => None,
-        }
-    });
+        });
     let mut changed = false;
 
     // --- Handles for every other layer kind ---------------------------------
@@ -148,19 +246,34 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         };
         match &entry.layer {
             Layer::Border(b) => {
-                handles.push(LHandle { layer: i, handle: 0, shape: HShape::HLine(y_of_v(b.v_mm)) });
+                handles.push(LHandle {
+                    layer: i,
+                    handle: 0,
+                    shape: HShape::HLine(y_of_v(b.v_mm)),
+                });
             }
             Layer::Milgrain(m) => {
-                handles.push(LHandle { layer: i, handle: 0, shape: HShape::HLine(y_of_v(m.v_mm)) });
+                handles.push(LHandle {
+                    layer: i,
+                    handle: 0,
+                    shape: HShape::HLine(y_of_v(m.v_mm)),
+                });
             }
             Layer::SeatRun(r) => {
-                handles
-                    .push(LHandle { layer: i, handle: 0, shape: HShape::HLine(y_of_v(r.seat.v_mm)) });
+                handles.push(LHandle {
+                    layer: i,
+                    handle: 0,
+                    shape: HShape::HLine(y_of_v(r.seat.v_mm)),
+                });
             }
             Layer::SeatPad(s) => {
                 let c = center(s.theta_deg, s.v_mm);
                 let r_px = (s.diameter_mm * 0.5 / mm_per_px_v.max(1e-9)) as f32;
-                handles.push(LHandle { layer: i, handle: 0, shape: HShape::Point(c) });
+                handles.push(LHandle {
+                    layer: i,
+                    handle: 0,
+                    shape: HShape::Point(c),
+                });
                 handles.push(LHandle {
                     layer: i,
                     handle: H_RADIUS,
@@ -187,10 +300,90 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
     }
 
+    // The selected layer's angular window, as grips on a strip above the
+    // band: centre moves it, the squares resize the span, the diamonds pull
+    // the fades. Only when the window is on — a full-ring layer has nothing
+    // to grab.
+    if let Some(i) = selected
+        && app
+            .design
+            .layers
+            .layers
+            .get(i)
+            .is_some_and(|e| e.window.enabled)
+    {
+        let w = &app.design.layers.layers[i].window;
+        let y = plot.top() + 14.0;
+        let half = w.span_deg.max(0.0) * 0.5;
+        let (a, b) = (w.theta_deg - half, w.theta_deg + half);
+        let arc = |from: f64, to: f64, stroke: egui::Stroke| {
+            let steps = 48;
+            for k in 0..steps {
+                let t0 = from + (to - from) * k as f64 / steps as f64;
+                let t1 = from + (to - from) * (k + 1) as f64 / steps as f64;
+                let p0 = egui::pos2(x_of_u(ctx.u_of_theta(t0.rem_euclid(360.0))), y);
+                let p1 = egui::pos2(x_of_u(ctx.u_of_theta(t1.rem_euclid(360.0))), y);
+                if (p1.x - p0.x).abs() < plot.width() * 0.5 {
+                    painter.line_segment([p0, p1], stroke);
+                }
+            }
+        };
+        let tone = if w.invert { theme::WARN } else { theme::ACCENT };
+        arc(a, b, egui::Stroke::new(3.0, tone.gamma_multiply(0.55)));
+        arc(
+            a - w.fade_deg,
+            a,
+            egui::Stroke::new(1.5, tone.gamma_multiply(0.3)),
+        );
+        arc(
+            b,
+            b + w.fade_deg,
+            egui::Stroke::new(1.5, tone.gamma_multiply(0.3)),
+        );
+
+        let at = |deg: f64| egui::pos2(x_of_u(ctx.u_of_theta(deg.rem_euclid(360.0))), y);
+        let centre = at(w.theta_deg);
+        painter.circle_filled(centre, 5.0, tone);
+        for (deg, h) in [(a, H_WIN_A), (b, H_WIN_B)] {
+            let p = at(deg);
+            painter.rect_filled(
+                egui::Rect::from_center_size(p, egui::vec2(7.0, 7.0)),
+                1.0,
+                tone,
+            );
+            handles.push(LHandle {
+                layer: i,
+                handle: h,
+                shape: HShape::Point(p),
+            });
+        }
+        for (deg, h) in [(a - w.fade_deg, H_WIN_FA), (b + w.fade_deg, H_WIN_FB)] {
+            let p = at(deg);
+            painter.circle_stroke(p, 3.5, egui::Stroke::new(1.5, tone));
+            handles.push(LHandle {
+                layer: i,
+                handle: h,
+                shape: HShape::Point(p),
+            });
+        }
+        handles.push(LHandle {
+            layer: i,
+            handle: H_WIN_C,
+            shape: HShape::Point(centre),
+        });
+    }
+
     // --- Paint mode: the pointer is a brush, not a grab ----------------------
 
+    let sheet_for_paint = egui::Rect::from_min_size(
+        egui::pos2(
+            plot.left() - (u0 / circ) as f32 * full_w,
+            plot.top() - (v0 / band) as f32 * full_h,
+        ),
+        egui::vec2(full_w, full_h),
+    );
     if app.band_paint {
-        paint_interaction(app, ui, &response, plot, &ctx);
+        paint_interaction(app, ui, &response, sheet_for_paint, &ctx);
     }
 
     // --- Interaction ---------------------------------------------------------
@@ -217,7 +410,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             Grab::VHigh
         } else if let Some((h, _)) = nearest {
             app.selected_layer = Some(h.layer);
-            Grab::Other { layer: h.layer, handle: h.handle }
+            Grab::Other {
+                layer: h.layer,
+                handle: h.handle,
+            }
         } else if tile.is_some() {
             Grab::Lattice
         } else {
@@ -230,14 +426,22 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     }
 
     if let Some(t) = &mut tile {
-        let grab = ui.memory(|m| m.data.get_temp::<Grab>(grab_id)).unwrap_or_default();
+        let grab = ui
+            .memory(|m| m.data.get_temp::<Grab>(grab_id))
+            .unwrap_or_default();
         let pointer = ui.input(|i| i.pointer.interact_pos());
 
         // Band-edge handles snap onto the side-face boundaries, so a drag
         // lands the tiling exactly on the castable runs.
         let snap_targets: Vec<f64> = ctx
             .side_faces_std()
-            .map(|sf| sf.low.into_iter().chain(sf.high).flat_map(|(a, b)| [a, b]).collect())
+            .map(|sf| {
+                sf.low
+                    .into_iter()
+                    .chain(sf.high)
+                    .flat_map(|(a, b)| [a, b])
+                    .collect()
+            })
             .unwrap_or_default();
         let snap = |v: f64| {
             snap_targets
@@ -295,8 +499,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 t.rotation_deg = wrap_deg(t.rotation_deg + (zoom - 1.0) as f64 * 240.0);
                 changed = true;
             } else if scroll != 0.0 {
-                let mut acc =
-                    ui.memory(|m| m.data.get_temp::<f32>(scroll_id)).unwrap_or(0.0) + scroll;
+                let mut acc = ui
+                    .memory(|m| m.data.get_temp::<f32>(scroll_id))
+                    .unwrap_or(0.0)
+                    + scroll;
                 let steps = (acc / SCROLL_STEP).trunc() as i64;
                 if steps != 0 {
                     acc -= steps as f32 * SCROLL_STEP;
@@ -312,14 +518,21 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     // --- Dragging a non-tiling layer's handle --------------------------------
 
     {
-        let grab = ui.memory(|m| m.data.get_temp::<Grab>(grab_id)).unwrap_or_default();
+        let grab = ui
+            .memory(|m| m.data.get_temp::<Grab>(grab_id))
+            .unwrap_or_default();
         let pointer = ui.input(|i| i.pointer.interact_pos());
-        if let (Grab::Other { layer, handle }, true, Some(p)) =
-            (grab, response.dragged(), pointer)
+        if let (Grab::Other { layer, handle }, true, Some(p)) = (grab, response.dragged(), pointer)
         {
             let snap_targets: Vec<f64> = ctx
                 .side_faces_std()
-                .map(|sf| sf.low.into_iter().chain(sf.high).flat_map(|(a, b)| [a, b]).collect())
+                .map(|sf| {
+                    sf.low
+                        .into_iter()
+                        .chain(sf.high)
+                        .flat_map(|(a, b)| [a, b])
+                        .collect()
+                })
                 .unwrap_or_default();
             let snap = |v: f64| {
                 snap_targets
@@ -331,42 +544,78 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             };
             let v_at = |y: f32| snap(v_of_y(y)).clamp(0.0, ctx.band_v_len_mm);
             let theta_at = |x: f32| {
-                ((x - plot.left()) as f64 / plot.width().max(1.0) as f64 * 360.0).rem_euclid(360.0)
+                let u = (x - plot.left()) as f64 / full_w.max(1.0) as f64 * circ + u0;
+                ctx.theta_of_u(u.rem_euclid(circ))
             };
             let mut moved = true;
             if let Some(e) = app.design.layers.layers.get_mut(layer) {
-                match (&mut e.layer, handle) {
-                    (Layer::Border(b), 0) => b.v_mm = v_at(p.y),
-                    (Layer::Milgrain(m), 0) => m.v_mm = v_at(p.y),
-                    (Layer::SeatRun(r), 0) => r.seat.v_mm = v_at(p.y),
-                    (Layer::SeatPad(s), 0) => {
-                        s.theta_deg = theta_at(p.x);
-                        s.v_mm = v_at(p.y);
-                    }
-                    (Layer::SeatPad(s), H_RADIUS) => {
-                        let c = egui::pos2(
-                            x_of_u(ctx.u_of_theta(s.theta_deg.rem_euclid(360.0))),
-                            y_of_v(s.v_mm),
-                        );
-                        let d = p - c;
-                        let mm = ((d.x as f64 * mm_per_px_u).powi(2)
-                            + (d.y as f64 * mm_per_px_v).powi(2))
-                        .sqrt();
-                        s.diameter_mm = (mm * 2.0).clamp(0.5, 20.0);
-                    }
-                    (Layer::Signet(sg), 0) => {
-                        sg.theta_deg = theta_at(p.x);
-                        sg.v_mm = v_at(p.y);
-                    }
-                    (Layer::Decals(dl), h) if h >= H_DECAL => {
-                        if let Some(dec) = dl.decals.get_mut((h - H_DECAL) as usize) {
-                            dec.theta_deg = theta_at(p.x);
-                            dec.v_mm = v_at(p.y);
-                        } else {
-                            moved = false;
+                if handle >= H_WIN_C {
+                    let theta = theta_at(p.x);
+                    let w = &mut e.window;
+                    match handle {
+                        H_WIN_C => w.theta_deg = theta,
+                        H_WIN_A | H_WIN_B => {
+                            // The dragged edge lands at the pointer; the far
+                            // edge stays put.
+                            let half = w.span_deg.max(0.0) * 0.5;
+                            let (far, dir) = if handle == H_WIN_A {
+                                (w.theta_deg + half, -1.0)
+                            } else {
+                                (w.theta_deg - half, 1.0)
+                            };
+                            let span = ringdesign_core::field::wrap_delta(far - theta, 360.0)
+                                .abs()
+                                .clamp(2.0, 358.0);
+                            w.theta_deg = (far + dir * span * 0.5).rem_euclid(360.0);
+                            w.span_deg = span;
                         }
+                        H_WIN_FA | H_WIN_FB => {
+                            let half = w.span_deg.max(0.0) * 0.5;
+                            let edge = if handle == H_WIN_FA {
+                                w.theta_deg - half
+                            } else {
+                                w.theta_deg + half
+                            };
+                            w.fade_deg = ringdesign_core::field::wrap_delta(theta - edge, 360.0)
+                                .abs()
+                                .clamp(0.0, 60.0);
+                        }
+                        _ => moved = false,
                     }
-                    _ => moved = false,
+                } else {
+                    match (&mut e.layer, handle) {
+                        (Layer::Border(b), 0) => b.v_mm = v_at(p.y),
+                        (Layer::Milgrain(m), 0) => m.v_mm = v_at(p.y),
+                        (Layer::SeatRun(r), 0) => r.seat.v_mm = v_at(p.y),
+                        (Layer::SeatPad(s), 0) => {
+                            s.theta_deg = theta_at(p.x);
+                            s.v_mm = v_at(p.y);
+                        }
+                        (Layer::SeatPad(s), H_RADIUS) => {
+                            let c = egui::pos2(
+                                x_of_u(ctx.u_of_theta(s.theta_deg.rem_euclid(360.0))),
+                                y_of_v(s.v_mm),
+                            );
+                            let d = p - c;
+                            let mm = ((d.x as f64 * mm_per_px_u).powi(2)
+                                + (d.y as f64 * mm_per_px_v).powi(2))
+                            .sqrt();
+                            s.diameter_mm = (mm * 2.0).clamp(0.5, 20.0);
+                        }
+                        (Layer::Signet(sg), 0) => {
+                            sg.theta_deg = theta_at(p.x);
+                            sg.v_mm = v_at(p.y);
+                        }
+                        (Layer::Decals(dl), h) if h >= H_DECAL => {
+                            if let Some(dec) = dl.decals.get_mut((h - H_DECAL) as usize) {
+                                dec.theta_deg = theta_at(p.x);
+                                dec.v_mm = v_at(p.y);
+                            } else {
+                                moved = false;
+                            }
+                        }
+                        _ => moved = false,
+                    }
                 }
             } else {
                 moved = false;
@@ -379,7 +628,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
     // Write the edited clone back into the stack.
     if changed && let (Some(i), Some(t)) = (selected, tile.as_ref()) {
-        if let Some(Layer::Tiling(dst)) = app.design.layers.layers.get_mut(i).map(|e| &mut e.layer) {
+        if let Some(Layer::Tiling(dst)) = app.design.layers.layers.get_mut(i).map(|e| &mut e.layer)
+        {
             *dst = t.clone();
         }
         app.mark_dirty();
@@ -408,7 +658,25 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     };
 
     let uv_full = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
-    painter.image(cache.tex.id(), plot, uv_full, egui::Color32::WHITE);
+    // The cache covers the whole band; the view shows a window of it. The
+    // texture is drawn as the full virtual sheet (the painter clips), twice
+    // when the window straddles the ring joint.
+    let sheet = egui::Rect::from_min_size(
+        egui::pos2(
+            plot.left() - (u0 / circ) as f32 * full_w,
+            plot.top() - (v0 / band) as f32 * full_h,
+        ),
+        egui::vec2(full_w, full_h),
+    );
+    painter.image(cache.tex.id(), sheet, uv_full, egui::Color32::WHITE);
+    if view.zoom > 1.001 {
+        painter.image(
+            cache.tex.id(),
+            sheet.translate(egui::vec2(full_w, 0.0)),
+            uv_full,
+            egui::Color32::WHITE,
+        );
+    }
 
     // --- Castability zones ---------------------------------------------------
 
@@ -417,9 +685,12 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         egui::pos2(plot.left(), y_of_v(crest_lo)),
         egui::pos2(plot.right(), y_of_v(crest_hi)),
     );
-    let side_lo = egui::Rect::from_min_max(plot.left_top(), egui::pos2(plot.right(), y_of_v(crest_lo)));
-    let side_hi =
-        egui::Rect::from_min_max(egui::pos2(plot.left(), y_of_v(crest_hi)), plot.right_bottom());
+    let side_lo =
+        egui::Rect::from_min_max(plot.left_top(), egui::pos2(plot.right(), y_of_v(crest_lo)));
+    let side_hi = egui::Rect::from_min_max(
+        egui::pos2(plot.left(), y_of_v(crest_hi)),
+        plot.right_bottom(),
+    );
 
     painter.rect_filled(side_lo, 0.0, theme::GOOD.gamma_multiply(0.07));
     painter.rect_filled(side_hi, 0.0, theme::GOOD.gamma_multiply(0.07));
@@ -466,9 +737,16 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 egui::Stroke::new(1.0, theme::GRID.gamma_multiply(0.55)),
             );
         }
-        let label = if top { format!("{deg} top") } else { deg.to_string() };
+        let label = if top {
+            format!("{deg} top")
+        } else {
+            deg.to_string()
+        };
         painter.text(
-            egui::pos2(x.clamp(rect.left() + 12.0, rect.right() - 12.0), plot.top() - 7.0),
+            egui::pos2(
+                x.clamp(rect.left() + 12.0, rect.right() - 12.0),
+                plot.top() - 7.0,
+            ),
             egui::Align2::CENTER_BOTTOM,
             label,
             small.clone(),
@@ -555,17 +833,39 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     // --- Painted strokes and the brush cursor --------------------------------
 
     if app.band_paint {
-        if let Some(d) = app.design.drawn.iter().find(|d| d.name == paint::BAND_ALPHA) {
-            draw_strokes(&painter, plot, d);
+        if let Some(d) = app
+            .design
+            .drawn
+            .iter()
+            .find(|d| d.name == paint::BAND_ALPHA)
+        {
+            draw_strokes(&painter, sheet_for_paint, d);
+            if view.zoom > 1.001 {
+                draw_strokes(
+                    &painter,
+                    sheet_for_paint.translate(egui::vec2(full_w, 0.0)),
+                    d,
+                );
+            }
         }
-        if let Some(p) = ui.input(|i| i.pointer.hover_pos()).filter(|p| plot.contains(*p)) {
+        if let Some(p) = ui
+            .input(|i| i.pointer.hover_pos())
+            .filter(|p| plot.contains(*p))
+        {
             let v_mm = v_of_y(p.y).clamp(0.0, ctx.band_v_len_mm);
             let ceiling = paint::ceiling_mm(&ctx, v_mm);
             let r_px = app.brush_frac * plot.width();
             painter.circle_stroke(
                 p,
                 r_px.clamp(3.0, 200.0),
-                egui::Stroke::new(1.5, if app.brush_erase { theme::WARN } else { theme::ACCENT }),
+                egui::Stroke::new(
+                    1.5,
+                    if app.brush_erase {
+                        theme::WARN
+                    } else {
+                        theme::ACCENT
+                    },
+                ),
             );
             let asked = paint::wanted_mm(1.0, app.brush_depth);
             painter.text(
@@ -577,7 +877,11 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     format!("{asked:.2} mm")
                 },
                 egui::FontId::proportional(10.0),
-                if asked > ceiling + 1e-9 { theme::WARN } else { theme::TEXT_DIM },
+                if asked > ceiling + 1e-9 {
+                    theme::WARN
+                } else {
+                    theme::TEXT_DIM
+                },
             );
         }
     }
@@ -594,7 +898,11 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             continue;
         }
         let strong = Some(i) == app.selected_layer;
-        let col = if strong { theme::ACCENT } else { theme::TEXT_DIM.gamma_multiply(0.75) };
+        let col = if strong {
+            theme::ACCENT
+        } else {
+            theme::TEXT_DIM.gamma_multiply(0.75)
+        };
         let stroke = egui::Stroke::new(if strong { 1.6 } else { 1.0 }, col);
         let center = |theta: f64, v: f64| {
             egui::pos2(x_of_u(ctx.u_of_theta(theta.rem_euclid(360.0))), y_of_v(v))
@@ -718,7 +1026,11 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .anchor_size(plot.center(), galley.size())
                 .expand2(egui::vec2(10.0, 6.0));
             painter.rect_filled(box_rect, 4.0, theme::PANEL.gamma_multiply(0.82));
-            painter.galley(box_rect.shrink2(egui::vec2(10.0, 6.0)).min, galley, theme::TEXT_DIM);
+            painter.galley(
+                box_rect.shrink2(egui::vec2(10.0, 6.0)).min,
+                galley,
+                theme::TEXT_DIM,
+            );
         }
     }
 
@@ -764,7 +1076,11 @@ fn field_key(app: &RingDesignerApp, ctx: &FieldContext, w: usize, h: usize) -> u
     for d in &app.design.drawn {
         d.name.hash(&mut hasher);
         d.strokes.len().hash(&mut hasher);
-        d.strokes.iter().map(|s| s.points.len()).sum::<usize>().hash(&mut hasher);
+        d.strokes
+            .iter()
+            .map(|s| s.points.len())
+            .sum::<usize>()
+            .hash(&mut hasher);
     }
     w.hash(&mut hasher);
     h.hash(&mut hasher);
@@ -850,9 +1166,18 @@ fn corner_uvs(rot_deg: f64, mirror_u: bool, mirror_v: bool) -> [egui::Pos2; 4] {
 
 fn push_quad(mesh: &mut egui::Mesh, r: egui::Rect, uvs: [egui::Pos2; 4], tint: egui::Color32) {
     let base = mesh.vertices.len() as u32;
-    let corners = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom()];
+    let corners = [
+        r.left_top(),
+        r.right_top(),
+        r.right_bottom(),
+        r.left_bottom(),
+    ];
     for (pos, uv) in corners.into_iter().zip(uvs) {
-        mesh.vertices.push(egui::epaint::Vertex { pos, uv, color: tint });
+        mesh.vertices.push(egui::epaint::Vertex {
+            pos,
+            uv,
+            color: tint,
+        });
     }
     mesh.add_triangle(base, base + 1, base + 2);
     mesh.add_triangle(base, base + 2, base + 3);
@@ -917,7 +1242,6 @@ fn readout(painter: &egui::Painter, plot: egui::Rect, lines: &[(String, egui::Co
     }
 }
 
-
 // --- Paint-on-band -----------------------------------------------------------
 
 /// The brush: strokes into the design's "band" drawing, depth capped by the
@@ -932,14 +1256,19 @@ fn paint_interaction(
 ) {
     if response.drag_started() {
         let idx = paint::ensure_band_layer(&mut app.design);
-        app.design.drawn[idx]
-            .strokes
-            .push(Stroke::new(app.brush_frac, app.brush_soft, app.brush_erase));
+        app.design.drawn[idx].strokes.push(Stroke::new(
+            app.brush_frac,
+            app.brush_soft,
+            app.brush_erase,
+        ));
     }
     if response.dragged() {
         let (Some(p), Some(d)) = (
             response.interact_pointer_pos(),
-            app.design.drawn.iter_mut().find(|d| d.name == paint::BAND_ALPHA),
+            app.design
+                .drawn
+                .iter_mut()
+                .find(|d| d.name == paint::BAND_ALPHA),
         ) else {
             return;
         };
@@ -950,7 +1279,7 @@ fn paint_interaction(
             })
         });
         let pressure = force.unwrap_or(1.0);
-        let nx = ((p.x - plot.left()) / plot.width().max(1.0)).clamp(0.0, 1.0);
+        let nx = ((p.x - plot.left()) / plot.width().max(1.0)).rem_euclid(1.0);
         let ny = ((p.y - plot.top()) / plot.height().max(1.0)).clamp(0.0, 1.0);
         let v_mm = ny as f64 * ctx.band_v_len_mm;
         let b = paint::bite(ctx, v_mm, pressure, app.brush_depth);
@@ -959,10 +1288,19 @@ fn paint_interaction(
         }
     }
     if response.drag_stopped() {
-        let Some(pos) = app.design.drawn.iter().position(|d| d.name == paint::BAND_ALPHA) else {
+        let Some(pos) = app
+            .design
+            .drawn
+            .iter()
+            .position(|d| d.name == paint::BAND_ALPHA)
+        else {
             return;
         };
-        if app.design.drawn[pos].strokes.last().is_some_and(|s| s.is_empty()) {
+        if app.design.drawn[pos]
+            .strokes
+            .last()
+            .is_some_and(|s| s.is_empty())
+        {
             app.design.drawn[pos].strokes.pop();
             return;
         }
@@ -973,7 +1311,12 @@ fn paint_interaction(
 /// Re-bake the band drawing into the shared library and refresh what shows it.
 /// On stroke end, not per sample: `Arc::make_mut` deep-copies the library.
 fn bake_band(app: &mut RingDesignerApp) {
-    let Some(d) = app.design.drawn.iter().find(|d| d.name == paint::BAND_ALPHA) else {
+    let Some(d) = app
+        .design
+        .drawn
+        .iter()
+        .find(|d| d.name == paint::BAND_ALPHA)
+    else {
         return;
     };
     let baked = d.rasterize();

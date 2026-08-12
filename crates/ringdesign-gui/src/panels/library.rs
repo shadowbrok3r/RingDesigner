@@ -15,11 +15,14 @@ const SIZES: [usize; 3] = [128, 256, 512];
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     editor_window(app, ui);
     text_window(app, ui);
+    recipe_window(app, ui);
 
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new(format!("{} Alphas", icon::IMAGES)).strong());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.label(egui::RichText::new(format!("{} tiles", app.lib.len())).color(theme::TEXT_DIM));
+            ui.label(
+                egui::RichText::new(format!("{} tiles", app.lib.len())).color(theme::TEXT_DIM),
+            );
         });
     });
     ui.add_space(2.0);
@@ -93,7 +96,11 @@ fn text_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         {
                             rebake = Some(i);
                         }
-                        if ui.small_button(icon::TRASH).on_hover_text("Remove").clicked() {
+                        if ui
+                            .small_button(icon::TRASH)
+                            .on_hover_text("Remove")
+                            .clicked()
+                        {
                             remove = Some(i);
                         }
                     });
@@ -131,7 +138,10 @@ fn text_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     ui.separator();
                 });
             }
-            if ui.button(format!("{} Add inscription", icon::PLUS)).clicked() {
+            if ui
+                .button(format!("{} Add inscription", icon::PLUS))
+                .clicked()
+            {
                 let n = app.design.texts.len() + 1;
                 app.design.texts.push(TextAlpha {
                     name: format!("Text {n}"),
@@ -162,6 +172,116 @@ fn text_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     {
         let name = t.name.clone();
         app.library_mut().insert(t.rasterize());
+        app.forget_thumbnail(&name);
+        app.mark_dirty();
+    }
+}
+
+/// Parameterized generators: recipes travel in the design and re-bake on
+/// load, like inscriptions. Every knob keeps the tile seamless — integer
+/// repeats, quarter turns, value-only gamma.
+fn recipe_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    use ringdesign_core::alpha::ProcRecipe;
+    if !app.recipe_editor_open {
+        return;
+    }
+    let ctx = ui.ctx().clone();
+    let mut open = app.recipe_editor_open;
+    let mut rebake: Option<usize> = None;
+    let mut remove: Option<usize> = None;
+    egui::Window::new(format!("{} Pattern recipes", icon::SLIDERS))
+        .open(&mut open)
+        .default_width(330.0)
+        .show(&ctx, |ui| {
+            for (i, r) in app.design.recipes.iter_mut().enumerate() {
+                ui.push_id(i, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Name");
+                        if ui
+                            .add(egui::TextEdit::singleline(&mut r.name).desired_width(110.0))
+                            .changed()
+                        {
+                            rebake = Some(i);
+                        }
+                        egui::ComboBox::from_id_salt(("recipe_kind", i))
+                            .selected_text(r.kind.label())
+                            .width(120.0)
+                            .show_ui(ui, |ui| {
+                                for &k in Procedural::ALL {
+                                    if ui.selectable_value(&mut r.kind, k, k.label()).clicked() {
+                                        rebake = Some(i);
+                                    }
+                                }
+                            });
+                        if ui.small_button(icon::TRASH).on_hover_text("Remove").clicked() {
+                            remove = Some(i);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        let mut reps = r.repeats as i32;
+                        if ui
+                            .add(egui::Slider::new(&mut reps, 1..=6).text("Repeats"))
+                            .changed()
+                        {
+                            r.repeats = reps.max(1) as u32;
+                            rebake = Some(i);
+                        }
+                        if ui
+                            .button(format!("{} Turn", icon::ARROW_CLOCKWISE))
+                            .on_hover_text("Quarter turn")
+                            .clicked()
+                        {
+                            r.quarter_turns = (r.quarter_turns + 1) % 4;
+                            rebake = Some(i);
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        if ui
+                            .add(
+                                egui::Slider::new(&mut r.gamma, 0.3..=3.0)
+                                    .fixed_decimals(2)
+                                    .text("Gamma"),
+                            )
+                            .changed()
+                        {
+                            rebake = Some(i);
+                        }
+                        if ui.checkbox(&mut r.invert, "Invert").changed() {
+                            rebake = Some(i);
+                        }
+                    });
+                    ui.separator();
+                });
+            }
+            if ui.button(format!("{} Add recipe", icon::PLUS)).clicked() {
+                let n = app.design.recipes.len() + 1;
+                app.design.recipes.push(ProcRecipe {
+                    name: format!("Recipe {n}"),
+                    ..Default::default()
+                });
+                rebake = Some(app.design.recipes.len() - 1);
+            }
+            ui.label(
+                egui::RichText::new(
+                    "The tile lands in the library under its name and travels in the design.                      Every knob keeps it seamless: repeats are whole periods, turns are quarter                      turns.",
+                )
+                .small()
+                .color(theme::TEXT_DIM),
+            );
+        });
+    app.recipe_editor_open = open;
+
+    if let Some(i) = remove {
+        let name = app.design.recipes[i].name.clone();
+        app.design.recipes.remove(i);
+        app.library_mut().remove(&name);
+        app.forget_thumbnail(&name);
+        app.mark_dirty();
+    } else if let Some(i) = rebake
+        && let Some(r) = app.design.recipes.get(i).cloned()
+    {
+        let name = r.name.clone();
+        app.library_mut().insert(r.rasterize(256));
         app.forget_thumbnail(&name);
         app.mark_dirty();
     }
@@ -242,6 +362,15 @@ fn source_row(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         {
             app.text_editor_open = !app.text_editor_open;
         }
+        if ui
+            .button(format!("{} Recipes…", icon::SLIDERS))
+            .on_hover_text(
+                "Builtin generators with knobs — repeats, quarter turns, gamma.                  Recipes travel in the design and re-bake on load.",
+            )
+            .clicked()
+        {
+            app.recipe_editor_open = !app.recipe_editor_open;
+        }
     });
 
     ui.horizontal(|ui| {
@@ -321,7 +450,8 @@ fn grid(
     current: &str,
 ) -> GridAction {
     let spacing = ui.spacing().item_spacing.x;
-    let cols = (((ui.available_width() + spacing) / (THUMB + spacing)).floor() as usize).clamp(1, 8);
+    let cols =
+        (((ui.available_width() + spacing) / (THUMB + spacing)).floor() as usize).clamp(1, 8);
 
     let mut action = GridAction::default();
     for row in names.chunks(cols) {
@@ -353,7 +483,11 @@ struct TileHit {
 
 fn tile(app: &mut RingDesignerApp, ui: &mut egui::Ui, name: &str, selected: bool) -> TileHit {
     let tex = app.thumbnail(ui.ctx(), name);
-    let dims = app.lib.get(name).map(|a| (a.width, a.height)).unwrap_or((0, 0));
+    let dims = app
+        .lib
+        .get(name)
+        .map(|a| (a.width, a.height))
+        .unwrap_or((0, 0));
     let mut hit = TileHit::default();
 
     ui.allocate_ui_with_layout(
@@ -392,12 +526,8 @@ fn tile(app: &mut RingDesignerApp, ui: &mut egui::Ui, name: &str, selected: bool
                 None
             };
             if let Some(s) = stroke {
-                ui.painter().rect_stroke(
-                    resp.rect.expand(1.0),
-                    4.0,
-                    s,
-                    egui::StrokeKind::Outside,
-                );
+                ui.painter()
+                    .rect_stroke(resp.rect.expand(1.0), 4.0, s, egui::StrokeKind::Outside);
             }
 
             let resp = resp.on_hover_ui(|ui| {
@@ -408,7 +538,10 @@ fn tile(app: &mut RingDesignerApp, ui: &mut egui::Ui, name: &str, selected: bool
                 );
             });
             resp.context_menu(|ui| {
-                if ui.button(format!("{} Edit / clip…", icon::SCISSORS)).clicked() {
+                if ui
+                    .button(format!("{} Edit / clip…", icon::SCISSORS))
+                    .clicked()
+                {
                     hit.edit = true;
                     ui.close();
                 }
@@ -418,7 +551,11 @@ fn tile(app: &mut RingDesignerApp, ui: &mut egui::Ui, name: &str, selected: bool
                 }
             });
 
-            let color = if selected { theme::ACCENT } else { theme::TEXT_DIM };
+            let color = if selected {
+                theme::ACCENT
+            } else {
+                theme::TEXT_DIM
+            };
             ui.add(egui::Label::new(egui::RichText::new(name).small().color(color)).truncate());
         },
     );
@@ -430,7 +567,8 @@ fn tile(app: &mut RingDesignerApp, ui: &mut egui::Ui, name: &str, selected: bool
 fn apply_click(app: &mut RingDesignerApp, target: Option<usize>, name: String) {
     match target {
         Some(i) => {
-            if let Some(Layer::Tiling(t)) = app.design.layers.layers.get_mut(i).map(|e| &mut e.layer)
+            if let Some(Layer::Tiling(t)) =
+                app.design.layers.layers.get_mut(i).map(|e| &mut e.layer)
             {
                 t.alpha = name.clone();
                 app.mark_dirty();

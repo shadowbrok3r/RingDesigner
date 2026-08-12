@@ -153,9 +153,7 @@ impl OrbitCamera {
         let mvp = mat4_mul(&proj, &view);
         // View rotation is orthonormal, so it is its own normal matrix.
         let normal = [
-            view[0], view[1], view[2],
-            view[4], view[5], view[6],
-            view[8], view[9], view[10],
+            view[0], view[1], view[2], view[4], view[5], view[6], view[8], view[9], view[10],
         ];
         (mvp, normal)
     }
@@ -196,7 +194,11 @@ impl OrbitCamera {
     /// projects over a hundred, and every one would rebuild the matrices.
     pub fn projector(&self, rect: egui::Rect) -> Projector {
         let (mvp, _) = self.matrices(rect);
-        Projector { mvp, centre: rect.center(), half: rect.size() * 0.5 }
+        Projector {
+            mvp,
+            centre: rect.center(),
+            half: rect.size() * 0.5,
+        }
     }
 }
 
@@ -213,7 +215,10 @@ impl Projector {
         let m = &self.mvp;
         let x = m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12];
         let y = m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13];
-        egui::pos2(self.centre.x + x * self.half.x, self.centre.y - y * self.half.y)
+        egui::pos2(
+            self.centre.x + x * self.half.x,
+            self.centre.y - y * self.half.y,
+        )
     }
 }
 
@@ -222,20 +227,44 @@ fn look_at(eye: [f32; 3], target: [f32; 3], up: [f32; 3]) -> [f32; 16] {
     let s = normalize(cross(f, up));
     let u = cross(s, f);
     [
-        s[0], u[0], -f[0], 0.0,
-        s[1], u[1], -f[1], 0.0,
-        s[2], u[2], -f[2], 0.0,
-        -dot(s, eye), -dot(u, eye), dot(f, eye), 1.0,
+        s[0],
+        u[0],
+        -f[0],
+        0.0,
+        s[1],
+        u[1],
+        -f[1],
+        0.0,
+        s[2],
+        u[2],
+        -f[2],
+        0.0,
+        -dot(s, eye),
+        -dot(u, eye),
+        dot(f, eye),
+        1.0,
     ]
 }
 
 fn ortho(l: f32, r: f32, b: f32, t: f32, n: f32, f: f32) -> [f32; 16] {
     let (rl, tb, fnn) = ((r - l).max(1e-6), (t - b).max(1e-6), (f - n).max(1e-6));
     [
-        2.0 / rl, 0.0, 0.0, 0.0,
-        0.0, 2.0 / tb, 0.0, 0.0,
-        0.0, 0.0, -2.0 / fnn, 0.0,
-        -(r + l) / rl, -(t + b) / tb, -(f + n) / fnn, 1.0,
+        2.0 / rl,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.0 / tb,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -2.0 / fnn,
+        0.0,
+        -(r + l) / rl,
+        -(t + b) / tb,
+        -(f + n) / fnn,
+        1.0,
     ]
 }
 
@@ -272,7 +301,11 @@ fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
 
 fn normalize(a: [f32; 3]) -> [f32; 3] {
     let len = dot(a, a).sqrt();
-    if len > 1e-9 { [a[0] / len, a[1] / len, a[2] / len] } else { [0.0, 0.0, 1.0] }
+    if len > 1e-9 {
+        [a[0] / len, a[1] / len, a[2] / len]
+    } else {
+        [0.0, 0.0, 1.0]
+    }
 }
 
 #[cfg(test)]

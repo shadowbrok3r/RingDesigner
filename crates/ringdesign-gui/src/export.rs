@@ -6,20 +6,67 @@ use ringdesign_core::{library, metal, stl, threemf};
 
 use crate::app::RingDesignerApp;
 
-/// The mesh to write and the name to stamp it with: scaled oversize by the
-/// chosen metal's shrink, and *named* as such — a scaled file mistaken for
-/// nominal is a ring that comes out a size small.
-fn pattern(
-    app: &RingDesignerApp,
-    mesh: &ringdesign_core::Mesh,
-) -> (ringdesign_core::Mesh, String) {
-    match app.shrink_metal.and_then(|i| metal::METALS.get(i)) {
-        Some(m) => (
-            mesh.scaled(metal::pattern_scale(m.shrink_pct)),
-            format!("{} [pattern +{:.1}% for {}]", app.design.name, m.shrink_pct, m.name),
-        ),
-        None => (mesh.clone(), app.design.name.clone()),
+/// Everything an export job needs, snapshotted so the build and the write
+/// can run off the UI thread while the app keeps painting.
+struct ExportJob {
+    design: ringdesign_core::RingDesign,
+    lib: std::sync::Arc<ringdesign_core::AlphaLibrary>,
+    params: ringdesign_core::BuildParams,
+    shrink: Option<usize>,
+}
+
+impl ExportJob {
+    fn snapshot(app: &RingDesignerApp) -> Self {
+        Self {
+            design: app.design.clone(),
+            lib: app.lib.clone(),
+            params: app.export_params,
+            shrink: app.shrink_metal,
+        }
     }
+
+    fn build(&self) -> ringdesign_core::BuildResult {
+        ringdesign_core::mesh::build(&self.design, &self.lib, self.params)
+    }
+
+    /// The mesh to write and the name to stamp it with: scaled oversize by
+    /// the chosen metal's shrink, and *named* as such — a scaled file
+    /// mistaken for nominal is a ring that comes out a size small.
+    fn pattern(&self, mesh: &ringdesign_core::Mesh) -> (ringdesign_core::Mesh, String) {
+        match self.shrink.and_then(|i| metal::METALS.get(i)) {
+            Some(m) => (
+                mesh.scaled(metal::pattern_scale(m.shrink_pct)),
+                format!(
+                    "{} [pattern +{:.1}% for {}]",
+                    self.design.name, m.shrink_pct, m.name
+                ),
+            ),
+            None => (mesh.clone(), self.design.name.clone()),
+        }
+    }
+}
+
+/// Run an export off the UI thread; the app's status line reports the
+/// result when `poll_export` reaps it. One at a time — a second request
+/// while one runs is refused with a message rather than queued silently.
+fn spawn_export(
+    app: &mut RingDesignerApp,
+    label: &str,
+    job: impl FnOnce() -> String + Send + 'static,
+) {
+    if app.exporting.is_some() {
+        app.set_status("An export is already running — one at a time");
+        return;
+    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::Builder::new()
+        .name("export".into())
+        .spawn(move || {
+            let _ = tx.send(job());
+        })
+        .expect("spawn export thread");
+    app.exporting = Some(rx);
+    app.set_status(format!("{label} — building in the background…"));
 }
 
 /// Directory a dialog opens in, created on demand so it is always there to
@@ -42,22 +89,28 @@ pub fn export_stl(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    app.set_status("Building at export resolution…");
-    let out = app.build_for_export();
-    let (mesh, name) = pattern(app, &out.mesh);
-    match stl::write_stl(&path, &mesh, &name) {
-        Ok(bytes) => {
-            let v = out.report.validation;
-            let warn = if v.watertight { "" } else { " • NOT watertight" };
-            app.set_status(format!(
-                "Wrote {} • {} tris • {:.1} KB{warn}",
-                path.display(),
-                v.triangle_count,
-                bytes as f64 / 1024.0
-            ));
+    let job = ExportJob::snapshot(app);
+    spawn_export(app, "STL", move || {
+        let out = job.build();
+        let (mesh, name) = job.pattern(&out.mesh);
+        match stl::write_stl(&path, &mesh, &name) {
+            Ok(bytes) => {
+                let v = out.report.validation;
+                let warn = if v.watertight {
+                    ""
+                } else {
+                    " • NOT watertight"
+                };
+                format!(
+                    "Wrote {} • {} tris • {:.1} KB{warn}",
+                    path.display(),
+                    v.triangle_count,
+                    bytes as f64 / 1024.0
+                )
+            }
+            Err(e) => format!("STL export failed: {e}"),
         }
-        Err(e) => app.set_status(format!("STL export failed: {e}")),
-    }
+    });
 }
 
 pub fn export_obj(app: &mut RingDesignerApp) {
@@ -69,18 +122,20 @@ pub fn export_obj(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    app.set_status("Building at export resolution…");
-    let out = app.build_for_export();
-    let (mesh, name) = pattern(app, &out.mesh);
-    match stl::write_obj(&path, &mesh, &name) {
-        Ok(bytes) => app.set_status(format!(
-            "Wrote {} • {} tris • {:.1} KB",
-            path.display(),
-            out.report.validation.triangle_count,
-            bytes as f64 / 1024.0
-        )),
-        Err(e) => app.set_status(format!("OBJ export failed: {e}")),
-    }
+    let job = ExportJob::snapshot(app);
+    spawn_export(app, "OBJ", move || {
+        let out = job.build();
+        let (mesh, name) = job.pattern(&out.mesh);
+        match stl::write_obj(&path, &mesh, &name) {
+            Ok(bytes) => format!(
+                "Wrote {} • {} tris • {:.1} KB",
+                path.display(),
+                out.report.validation.triangle_count,
+                bytes as f64 / 1024.0
+            ),
+            Err(e) => format!("OBJ export failed: {e}"),
+        }
+    });
 }
 
 pub fn export_3mf(app: &mut RingDesignerApp) {
@@ -92,19 +147,21 @@ pub fn export_3mf(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    app.set_status("Building at export resolution…");
-    let out = app.build_for_export();
-    let size = app.design.size.display();
-    let (mesh, name) = pattern(app, &out.mesh);
-    match threemf::write_3mf(&path, &mesh, &name, &size) {
-        Ok(bytes) => app.set_status(format!(
-            "Wrote {} • {} tris • {:.1} KB • units mm stated",
-            path.display(),
-            out.report.validation.triangle_count,
-            bytes as f64 / 1024.0
-        )),
-        Err(e) => app.set_status(format!("3MF export failed: {e}")),
-    }
+    let job = ExportJob::snapshot(app);
+    spawn_export(app, "3MF", move || {
+        let out = job.build();
+        let size = job.design.size.display();
+        let (mesh, name) = job.pattern(&out.mesh);
+        match threemf::write_3mf(&path, &mesh, &name, &size) {
+            Ok(bytes) => format!(
+                "Wrote {} • {} tris • {:.1} KB • units mm stated",
+                path.display(),
+                out.report.validation.triangle_count,
+                bytes as f64 / 1024.0
+            ),
+            Err(e) => format!("3MF export failed: {e}"),
+        }
+    });
 }
 
 pub fn export_render(app: &mut RingDesignerApp) {
@@ -116,13 +173,15 @@ pub fn export_render(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    app.set_status("Building at export resolution…");
-    let out = app.build_for_export();
+    let job = ExportJob::snapshot(app);
     let tint = crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].rgb;
-    match ringdesign_core::render::write_png(&path, &out.mesh, 0.55, 1.12, 1600, tint) {
-        Ok(()) => app.set_status(format!("Wrote {}", path.display())),
-        Err(e) => app.set_status(format!("Render failed: {e}")),
-    }
+    spawn_export(app, "Render", move || {
+        let out = job.build();
+        match ringdesign_core::render::write_png(&path, &out.mesh, 0.55, 1.12, 1600, tint) {
+            Ok(()) => format!("Wrote {}", path.display()),
+            Err(e) => format!("Render failed: {e}"),
+        }
+    });
 }
 
 pub fn export_turntable(app: &mut RingDesignerApp) {
@@ -134,13 +193,15 @@ pub fn export_turntable(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    app.set_status("Building and spinning 36 frames…");
-    let out = app.build_for_export();
+    let job = ExportJob::snapshot(app);
     let tint = crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].rgb;
-    match ringdesign_core::render::write_turntable_gif(&path, &out.mesh, 36, 640, tint) {
-        Ok(()) => app.set_status(format!("Wrote {}", path.display())),
-        Err(e) => app.set_status(format!("Turntable failed: {e}")),
-    }
+    spawn_export(app, "Turntable", move || {
+        let out = job.build();
+        match ringdesign_core::render::write_turntable_gif(&path, &out.mesh, 36, 640, tint) {
+            Ok(()) => format!("Wrote {}", path.display()),
+            Err(e) => format!("Turntable failed: {e}"),
+        }
+    });
 }
 
 pub fn export_glb(app: &mut RingDesignerApp) {
@@ -152,18 +213,20 @@ pub fn export_glb(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    app.set_status("Building at export resolution…");
-    let out = app.build_for_export();
-    let (mesh, name) = pattern(app, &out.mesh);
+    let job = ExportJob::snapshot(app);
     let tint = crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].rgb;
-    match ringdesign_core::gltf::write_glb(&path, &mesh, &name, tint) {
-        Ok(bytes) => app.set_status(format!(
-            "Wrote {} • {:.1} MB • metres, as glTF wants",
-            path.display(),
-            bytes as f64 / 1048576.0
-        )),
-        Err(e) => app.set_status(format!("GLB export failed: {e}")),
-    }
+    spawn_export(app, "GLB", move || {
+        let out = job.build();
+        let (mesh, name) = job.pattern(&out.mesh);
+        match ringdesign_core::gltf::write_glb(&path, &mesh, &name, tint) {
+            Ok(bytes) => format!(
+                "Wrote {} • {:.1} MB • metres, as glTF wants",
+                path.display(),
+                bytes as f64 / 1048576.0
+            ),
+            Err(e) => format!("GLB export failed: {e}"),
+        }
+    });
 }
 
 /// Export the parting line as a printable SVG: plan view plus the line's
@@ -198,35 +261,71 @@ pub fn export_spec(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    app.set_status("Building at export resolution…");
-    let out = app.build_for_export();
-    let field = ringdesign_core::castability::attributed_field_report(
-        &app.design,
-        &app.lib,
-        &app.design.draft,
-        192,
-        128,
-    );
-    let stones = ringdesign_core::stones::report(&app.design, field.parting_z_mm);
-    let dfm = ringdesign_core::dfm::findings(&app.design);
-    let provenance = format!(
-        "RingDesigner {} • {} x {} sweep",
-        env!("CARGO_PKG_VERSION"),
-        app.export_params.theta_steps,
-        app.export_params.profile_steps
-    );
-    let page = ringdesign_core::spec::html(
-        &app.design,
-        &out.report,
-        &field,
-        stones.as_ref(),
-        &dfm,
-        &provenance,
-    );
-    match std::fs::write(&path, page) {
-        Ok(()) => app.set_status(format!("Wrote {}", path.display())),
-        Err(e) => app.set_status(format!("Sheet failed: {e}")),
-    }
+    let job = ExportJob::snapshot(app);
+    spawn_export(app, "Casting sheet", move || {
+        let out = job.build();
+        let field = ringdesign_core::castability::attributed_field_report(
+            &job.design,
+            &job.lib,
+            &job.design.draft,
+            192,
+            128,
+        );
+        let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
+        let dfm = ringdesign_core::dfm::findings(&job.design);
+        let provenance = format!(
+            "RingDesigner {} • {} x {} sweep",
+            env!("CARGO_PKG_VERSION"),
+            job.params.theta_steps,
+            job.params.profile_steps
+        );
+        let page = ringdesign_core::spec::html(
+            &job.design,
+            &out.report,
+            &field,
+            stones.as_ref(),
+            &dfm,
+            &provenance,
+        );
+        match std::fs::write(&path, page) {
+            Ok(()) => format!("Wrote {}", path.display()),
+            Err(e) => format!("Sheet failed: {e}"),
+        }
+    });
+}
+
+/// Volume-and-weights JSON for the sibling cost calculator: one small file
+/// any pricing tool can read without knowing ring formats.
+pub fn export_cost_json(app: &mut RingDesignerApp) {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("JSON", &["json"])
+        .set_directory(dir("exports"))
+        .set_file_name(format!("{}_cost.json", slug(&app.design.name)))
+        .save_file()
+    else {
+        return;
+    };
+    let job = ExportJob::snapshot(app);
+    spawn_export(app, "Cost JSON", move || {
+        let out = job.build();
+        let metals: Vec<serde_json::Value> = out
+            .report
+            .metals
+            .iter()
+            .map(|m| serde_json::json!({ "metal": m.metal, "grams": m.grams, "dwt": m.dwt }))
+            .collect();
+        let doc = serde_json::json!({
+            "name": job.design.name,
+            "size_us": job.design.size.0,
+            "volume_mm3": out.report.volume_mm3,
+            "surface_mm2": out.report.surface_area_mm2,
+            "metals": metals,
+        });
+        match std::fs::write(&path, serde_json::to_string_pretty(&doc).unwrap_or_default()) {
+            Ok(()) => format!("Wrote {}", path.display()),
+            Err(e) => format!("Cost JSON failed: {e}"),
+        }
+    });
 }
 
 pub fn save_design(app: &mut RingDesignerApp) {
@@ -305,7 +404,11 @@ pub fn import_svgs(app: &mut RingDesignerApp) {
             .unwrap_or_else(|| "svg".into());
         match std::fs::read_to_string(&path) {
             Ok(text) => {
-                let entry = ringdesign_core::svg::SvgAlpha { name: name.clone(), svg: text, invert: false };
+                let entry = ringdesign_core::svg::SvgAlpha {
+                    name: name.clone(),
+                    svg: text,
+                    invert: false,
+                };
                 let raster = entry.rasterize();
                 if raster.is_empty() {
                     app.set_status(format!("{name}: not a renderable SVG"));
@@ -321,7 +424,9 @@ pub fn import_svgs(app: &mut RingDesignerApp) {
         }
     }
     if loaded > 0 {
-        app.set_status(format!("Imported {loaded} SVG(s) — the vector text travels in the design"));
+        app.set_status(format!(
+            "Imported {loaded} SVG(s) — the vector text travels in the design"
+        ));
     }
 }
 
@@ -359,7 +464,13 @@ pub fn import_alphas(app: &mut RingDesignerApp) {
 fn slug(name: &str) -> String {
     let s: String = name
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
         .collect();
     let s = s.trim_matches('_').to_string();
     if s.is_empty() { "ring".into() } else { s }

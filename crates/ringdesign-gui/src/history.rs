@@ -59,7 +59,12 @@ pub struct History {
 
 impl History {
     pub fn new(design: &RingDesign) -> Self {
-        Self { past: Vec::new(), future: Vec::new(), baseline: design.clone(), touched: None }
+        Self {
+            past: Vec::new(),
+            future: Vec::new(),
+            baseline: design.clone(),
+            touched: None,
+        }
     }
 
     /// Note that the design may have changed. Cheap; the comparison happens
@@ -89,7 +94,10 @@ impl History {
     /// that wants the history settled before it acts.
     pub fn commit(&mut self, design: &RingDesign) -> Option<String> {
         let label = describe(&self.baseline, design)?;
-        self.past.push(Snapshot { label: label.clone(), design: self.baseline.clone() });
+        self.past.push(Snapshot {
+            label: label.clone(),
+            design: self.baseline.clone(),
+        });
         if self.past.len() > MAX_ENTRIES {
             self.past.remove(0);
         }
@@ -117,7 +125,10 @@ impl History {
 
     pub fn undo(&mut self) -> Option<RingDesign> {
         let s = self.past.pop()?;
-        self.future.push(Snapshot { label: s.label, design: self.baseline.clone() });
+        self.future.push(Snapshot {
+            label: s.label,
+            design: self.baseline.clone(),
+        });
         self.baseline = s.design;
         self.touched = None;
         Some(self.baseline.clone())
@@ -125,7 +136,10 @@ impl History {
 
     pub fn redo(&mut self) -> Option<RingDesign> {
         let s = self.future.pop()?;
-        self.past.push(Snapshot { label: s.label, design: self.baseline.clone() });
+        self.past.push(Snapshot {
+            label: s.label,
+            design: self.baseline.clone(),
+        });
         self.baseline = s.design;
         self.touched = None;
         Some(self.baseline.clone())
@@ -173,7 +187,10 @@ impl History {
 /// Name the first field that moved between two designs, or `None` when nothing
 /// did.
 fn describe(old: &RingDesign, new: &RingDesign) -> Option<String> {
-    let (a, b) = (serde_json::to_value(old).ok()?, serde_json::to_value(new).ok()?);
+    let (a, b) = (
+        serde_json::to_value(old).ok()?,
+        serde_json::to_value(new).ok()?,
+    );
     if a == b {
         return None;
     }
@@ -202,15 +219,16 @@ fn first_difference(
             let ordered = HEADLINE_KEYS
                 .iter()
                 .filter_map(|k| x.get_key_value(*k))
-                .chain(x.iter().filter(|(k, _)| !HEADLINE_KEYS.contains(&k.as_str())));
+                .chain(
+                    x.iter()
+                        .filter(|(k, _)| !HEADLINE_KEYS.contains(&k.as_str())),
+                );
             for (k, va) in ordered {
                 let vb = y.get(k)?;
                 if va != vb {
                     path.push(k.clone());
-                    return first_difference(va, vb, path, depth + 1).or(Some((
-                        va.clone(),
-                        vb.clone(),
-                    )));
+                    return first_difference(va, vb, path, depth + 1)
+                        .or(Some((va.clone(), vb.clone())));
                 }
             }
             None
@@ -224,10 +242,8 @@ fn first_difference(
             for (i, (va, vb)) in x.iter().zip(y).enumerate() {
                 if va != vb {
                     path.push(format!("#{}", i + 1));
-                    return first_difference(va, vb, path, depth + 1).or(Some((
-                        va.clone(),
-                        vb.clone(),
-                    )));
+                    return first_difference(va, vb, path, depth + 1)
+                        .or(Some((va.clone(), vb.clone())));
                 }
             }
             None
@@ -244,7 +260,11 @@ fn phrase(path: &[String], from: &Value, to: &Value) -> String {
     // A layer count moving is an add or a remove, whatever field it surfaced on.
     if section == "layers" && from.is_u64() && to.is_u64() {
         let (a, b) = (from.as_u64().unwrap_or(0), to.as_u64().unwrap_or(0));
-        return if b > a { "Added a layer".into() } else { "Removed a layer".into() };
+        return if b > a {
+            "Added a layer".into()
+        } else {
+            "Removed a layer".into()
+        };
     }
 
     let name = pretty(leaf);
@@ -262,7 +282,11 @@ fn phrase(path: &[String], from: &Value, to: &Value) -> String {
     // Where the path went through a layer index, say which one.
     let index = path.iter().find(|p| p.starts_with('#')).cloned();
     let head = match (scope, index) {
-        ("Layer", Some(i)) => format!("Layer {} {}", i.trim_start_matches('#'), name.to_lowercase()),
+        ("Layer", Some(i)) => format!(
+            "Layer {} {}",
+            i.trim_start_matches('#'),
+            name.to_lowercase()
+        ),
         ("", _) => name,
         // A newtype like `size` has no field under it, so the leaf *is* the
         // section and repeating it reads as "Size size".
@@ -335,7 +359,10 @@ mod tests {
         b.profile.width_mm = 6.5;
         let label = describe(&a, &b).expect("a change should be named");
         assert!(label.contains("Profile"), "{label}");
-        assert!(!label.contains("Profile profile"), "the section is doubled: {label}");
+        assert!(
+            !label.contains("Profile profile"),
+            "the section is doubled: {label}"
+        );
         assert!(label.contains("width"), "{label}");
         assert!(label.contains("6.50 mm"), "{label}");
     }
@@ -359,9 +386,10 @@ mod tests {
     fn adding_and_removing_a_layer_read_as_such() {
         let a = design();
         let mut b = a.clone();
-        b.layers
-            .layers
-            .push(LayerEntry::new("Milgrain", Layer::Milgrain(MilgrainLayer::default())));
+        b.layers.layers.push(LayerEntry::new(
+            "Milgrain",
+            Layer::Milgrain(MilgrainLayer::default()),
+        ));
         assert_eq!(describe(&a, &b).as_deref(), Some("Added a layer"));
         assert_eq!(describe(&b, &a).as_deref(), Some("Removed a layer"));
     }
@@ -370,9 +398,10 @@ mod tests {
     fn an_edit_inside_a_layer_says_which_one() {
         let mut a = design();
         for n in ["one", "two"] {
-            a.layers
-                .layers
-                .push(LayerEntry::new(n, Layer::Milgrain(MilgrainLayer::default())));
+            a.layers.layers.push(LayerEntry::new(
+                n,
+                Layer::Milgrain(MilgrainLayer::default()),
+            ));
         }
         let mut b = a.clone();
         b.layers.layers[1].opacity = 0.4;
@@ -403,7 +432,10 @@ mod tests {
 
         let back = h.undo().expect("undo");
         assert_eq!(back.profile.thickness_mm, 2.0);
-        assert_eq!(back.profile.width_mm, 7.0, "undo took back more than one edit");
+        assert_eq!(
+            back.profile.width_mm, 7.0,
+            "undo took back more than one edit"
+        );
 
         let back = h.undo().expect("undo");
         assert_eq!(back.profile.width_mm, 6.0);

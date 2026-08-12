@@ -156,6 +156,15 @@ pub struct TilingLayer {
     /// Bend the rows to follow a guide line drawn around the ring.
     #[serde(default)]
     pub warp: Option<WarpField>,
+    /// Helix shear: cells of `u` shift per band height, so rows spiral.
+    /// Any value stays seamless — `u` wraps continuously.
+    #[serde(default)]
+    pub shear: f64,
+    /// k-fold mirror symmetry around the ring: the pattern is folded into
+    /// `1/k` of the circumference and mirrored, kaleidoscope-fashion. 0 or
+    /// 1 is off.
+    #[serde(default)]
+    pub kfold: u32,
 }
 
 impl TilingLayer {
@@ -183,6 +192,8 @@ impl TilingLayer {
             mirror_v: false,
             edge_mm: 0.0,
             warp: None,
+            shear: 0.0,
+            kfold: 0,
         }
     }
 
@@ -281,6 +292,22 @@ impl TilingLayer {
                 v: w.apply(uv.u / ctx.circumference_mm, uv.v),
             },
             _ => uv,
+        };
+        // Kaleidoscope fold, then the helix shear, both in u alone.
+        let uv = {
+            let mut u = uv.u;
+            let circ = ctx.circumference_mm;
+            if self.kfold >= 2 && circ > 1e-9 {
+                let wedge = circ / self.kfold as f64;
+                let t = u.rem_euclid(2.0 * wedge);
+                u = if t <= wedge { t } else { 2.0 * wedge - t };
+            }
+            if self.shear.abs() > 1e-9 {
+                let (cw, _) = self.cell_size(ctx);
+                let frac = (uv.v / ctx.band_v_len_mm.max(1e-9)).clamp(0.0, 1.0);
+                u += self.shear * frac * cw;
+            }
+            Uv { u, v: uv.v }
         };
         let (lo, hi) = self.v_bounds();
         if !uv.u.is_finite() || !lo.is_finite() || !hi.is_finite() || !(uv.v >= lo && uv.v <= hi) {
@@ -599,6 +626,8 @@ mod tests {
             mirror_v: false,
             edge_mm: 0.0,
             warp: None,
+            shear: 0.0,
+            kfold: 0,
         }
     }
 
