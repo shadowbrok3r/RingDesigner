@@ -241,6 +241,7 @@ fn main() {
     d.shank.head.outline = SignetOutline::Cross;
     d.shank.head.fit_length_to(8.0);
     d.shank.head.rise_mm = 0.45;
+    d.shank.head.dome = 1.0;
     let ctx = d.field_context();
     let du_deg = (2.6 / ctx.crest_radius_mm).to_degrees();
     for (label, su) in [("Spot A", -1.0), ("Spot centre", 0.0), ("Spot B", 1.0)] {
@@ -251,8 +252,9 @@ fn main() {
     }
     finish(&dir, "d-cross-band", "plus-faced head on a wide band, three-gem column", PLATINUM, GIF, d, &mut lib);
 
-    // --- E. Luxer: the diamond-face signet. ----------------------------------
-    let d = signet(SignetOutline::Diamond, 13.0, 2.0);
+    // --- E. Luxer: the diamond-face signet, cut from a dome. -----------------
+    let mut d = signet(SignetOutline::Diamond, 13.0, 2.0);
+    d.shank.head.dome = 1.0;
     finish(&dir, "e-luxer-diamond", "diamond face, blank for the engraver", YELLOW, GIF, d, &mut lib);
 
     // --- F. MSB: hexagon face, four gems spread evenly. ----------------------
@@ -260,6 +262,7 @@ fn main() {
     // plane a table mound locks by its own slope, so the spread runs the
     // one axis the sand holds.
     let mut d = signet(SignetOutline::Hexagon, 14.0, 2.4);
+    d.shank.head.dome = 1.0;
     let ctx = d.field_context();
     let pitch_deg = (2.4 / ctx.crest_radius_mm).to_degrees();
     for i in 0..4u32 {

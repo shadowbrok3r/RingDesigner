@@ -182,6 +182,7 @@ fn main() {
     // A buff-top round signet — the cap gives the table real draft everywhere,
     // where a flat table is a zero-draft plane.
     let mut d = signet(SignetOutline::Round, 13.0, 2.0);
+    d.shank.head.dome = 1.0;
     d.shank.head.table_dome_mm = 1.4;
     finish(&dir, "01-cabochon-signet", "round head under a cabochon dome", YELLOW, GIF, d, &mut lib);
 

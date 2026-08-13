@@ -863,6 +863,50 @@ mod tests {
     /// the mesh talking. It is the crest-line phantom: the crest is tangent to
     /// the pull, the shoulder morphs the section fast enough that a vertex's
     /// `z` shifts between slices, and the skewed facet crosses zero. It goes
+    /// The cut-dome head: every section is a crowned dome sliced by the
+    /// table cap, so it must field clean on every outline — and its plan
+    /// must never waist, because killing the outline-shaped pinch is the
+    /// construction's whole point.
+    #[test]
+    fn cut_dome_heads_field_clean_and_never_pinch() {
+        let lib = AlphaLibrary::default();
+        for &o in crate::field::SignetOutline::ALL {
+            let mut d = RingDesign::default();
+            d.profile.apply_style(crate::ProfileStyle::Flat);
+            d.profile.width_mm = 13.0;
+            d.profile.thickness_mm = 2.0;
+            d.profile.flatten_sides();
+            d.shank.apply_signet(13.0);
+            d.shank.head.outline = o;
+            d.shank.head.fit_length_to(13.0);
+            d.shank.head.dome = 1.0;
+            let field = crate::castability::analyze_field(&d, &lib, &d.draft, 160, 96);
+            assert!(
+                field.undercut_fraction() < 0.002,
+                "{o:?}: dome head fields {:.3}% undercut, worst {:.1} deg",
+                field.undercut_fraction() * 100.0,
+                field.worst_draft_deg,
+            );
+            let inner = d.inner_radius_mm();
+            let base_outer = inner + d.profile.thickness_mm;
+            let widths: Vec<f64> = (0..=80)
+                .map(|i| {
+                    let th = crate::profile::TOP_DEG - 40.0 + i as f64;
+                    d.modulation_at(th, inner, base_outer).width_scale
+                })
+                .collect();
+            for w in widths.windows(3) {
+                assert!(
+                    w[1] >= w[0].min(w[2]) - 1e-3,
+                    "{o:?}: plan waists to {:.4} between {:.4} and {:.4}",
+                    w[1],
+                    w[0],
+                    w[2]
+                );
+            }
+        }
+    }
+
     /// away with sweep steps and comes back with a coarser shoulder, which is
     /// why [`crate::profile::HEAD_SHOULDER_DEG`] is 34 and not the 26 it
     /// started at — the tables below are what picked it.

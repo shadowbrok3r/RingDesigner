@@ -663,8 +663,12 @@ impl BandProfile {
         // only take what it leaves. Without this the bore reaches past the outer
         // surface at the band edge and the cross-section folds over itself — a
         // 0.25 mm comfort fit does not fit inside a 0.2 mm edge.
-        let crown = (crown_src * m.thickness_scale * m.crown_scale)
-            .clamp(0.0, (thickness - comfort - MIN_EDGE_MM).max(0.0));
+        let crown_cap = (thickness - comfort - MIN_EDGE_MM).max(0.0);
+        let crown = (crown_src * m.thickness_scale * m.crown_scale).clamp(0.0, crown_cap);
+        let crown = match m.crown_min_mm {
+            Some(c) => crown.max(ok(c).clamp(0.0, crown_cap)),
+            None => crown,
+        };
         let edge_t = (thickness - crown).max(MIN_EDGE_MM + comfort);
         let draft = self.side_draft_deg.clamp(-20.0, 30.0).to_radians();
         let head_w = m.head.clamp(0.0, 1.0);
@@ -745,15 +749,23 @@ impl BandProfile {
         };
         let crest_z = c_lo + c_span * crest_t;
 
-        let cap_r = |r: f64| match m.outer_max_r {
-            Some(cap) => r.min(cap.max(inner_r + MIN_EDGE_MM)),
+        let facet_rim = ok(m.facet_rim_mm).clamp(0.0, 2.0);
+        let cap_r = move |r: f64| match m.outer_max_r {
+            Some(cap) => {
+                let cap = cap.max(inner_r + MIN_EDGE_MM);
+                // The cut-dome arris rounds by the head's own rim radius; a
+                // zero radius is the hard cut every other cap wants.
+                if facet_rim > 1e-6 { smin(r, cap, facet_rim) } else { r.min(cap) }
+            }
             None => r,
         };
+        let dome_w = m.dome_drop.clamp(0.0, 1.0);
         let drop_at = |x: f64| -> f64 {
-            match morph_ab {
+            let base = match morph_ab {
                 None => self.drop(x),
                 Some((a2, b2)) => mlerp(self.drop(x), superellipse_drop(x, a2, b2)),
-            }
+            };
+            base + (superellipse_drop(x, 2.0, 2.0) - base) * dome_w
         };
         // The flank skew is a power on the normalized distance: monotone in,
         // monotone out, so a skewed flank is still a drop from a single crest.
@@ -762,6 +774,24 @@ impl BandProfile {
             let sign = if low { 1.0 } else { -1.0 };
             (1.0 + 0.5 * bias * sign).clamp(0.45, 2.2)
         };
+        // The cut-dome facet: raise the dome so the radial cap slices it open
+        // to the asked half-width — the face outline emerges as the level
+        // curve where the plane meets the dome, and every section stays a
+        // single-plateau monotone drop.
+        let e_facet = match (m.facet_half > 1e-6, m.outer_max_r.is_some()) {
+            (true, true) => {
+                let w = ok(m.facet_half * half_w).max(0.0);
+                let hi = (c_hi - crest_z).max(1e-6);
+                let lo = (crest_z - c_lo).max(1e-6);
+                let x = (0.5 * (w / hi + w / lo)).clamp(0.0, 1.0);
+                crown * drop_at(x)
+            }
+            _ => 0.0,
+        };
+        // The facet raise moves the whole outer curve out by `e_facet`, so the
+        // corner the wall and edge fillet build to must move with it — a
+        // corner left at the unraised radius tips the fillet past vertical.
+        let edge_t = (thickness + e_facet - crown).max(MIN_EDGE_MM + comfort);
         let r_at = |z: f64| -> f64 {
             let z = z.clamp(c_lo, c_hi);
             let (x, low) = if z <= crest_z {
@@ -770,7 +800,7 @@ impl BandProfile {
                 ((z - crest_z) / (c_hi - crest_z).max(1e-9), false)
             };
             let x = if bias.abs() > 1e-9 { x.powf(gamma(low)) } else { x };
-            cap_r(inner_r + thickness - crown * drop_at(x))
+            cap_r(inner_r + thickness + e_facet - crown * drop_at(x))
         };
         let bore_r = |z: f64| -> f64 { inner_r + comfort * ((z - b_c) / hw.max(1e-9)).powi(2) };
 
@@ -1233,6 +1263,16 @@ pub struct SignetHead {
     /// and it is the only place on the whole head with any edge at all.
     #[serde(default = "default_rim_round")]
     pub rim_round_mm: f64,
+    /// 0 keeps the reference construction — the band's plan follows the faired
+    /// outline and the wall stands as an inflated prism. 1 cuts the face from
+    /// a swollen dome instead: the plan ignores the outline entirely, every
+    /// section keeps its own crown, and the facet is a radius cap at the table
+    /// plane — the outline emerges as the curve where the plane meets the
+    /// dome. Each section is then a single-plateau monotone drop, so the cut
+    /// releases by construction and the outline's corners never pinch the
+    /// flank.
+    #[serde(default)]
+    pub dome: f64,
 }
 
 fn default_body_fair() -> f64 {
@@ -1297,6 +1337,18 @@ pub const SIGNET_SHANK_THIN: f64 = 0.10;
 /// those flanks are the surface a two-part mould has to slide off, so drafting
 /// them is worth more than the look.
 pub const HEAD_FACE_DRAFT: f64 = 0.02;
+
+/// Crown depth of a cut-dome head, as a share of the head's thickness. The
+/// facet cap needs a dome worth slicing: at a band's own shallow crown the
+/// cut bites microns and the facet edge turns to a wavy smear.
+pub const HEAD_DOME_CROWN: f64 = 0.5;
+
+/// How far the cut-dome facet inscribes inside the dome's own span. The
+/// reference blank carries a 14.7 mm table on a 16.0 mm body — 0.92 — and a
+/// facet allowed to reach the band edge exits through the corner instead of
+/// the dome: measured -7.7 degrees where a diamond's widest vertex met the
+/// edge fillet.
+pub const HEAD_DOME_INSET: f64 = 0.90;
 /// Taper strength a fresh signet head starts at.
 pub const SIGNET_TAPER: f64 = 0.85;
 /// Default rounding between a head's table and its walls, mm.
@@ -1356,6 +1408,7 @@ impl Default for SignetHead {
             table_flat: 1.0,
             table_dome_mm: 0.0,
             rim_round_mm: HEAD_RIM_ROUND,
+            dome: 0.0,
         }
     }
 }
@@ -1395,6 +1448,11 @@ pub struct HeadAt {
     pub face: (f64, f64),
     /// 1 anywhere on the table, falling to 0 where the shank is plain again.
     pub on_head: f64,
+    /// Facet half-width across the band for the cut-dome construction, in the
+    /// same half-width fractions as `face`, already closed at the face ends.
+    pub facet_half: f64,
+    /// The table plane's radius at this angle — the cut-dome's radial cap.
+    pub cap_r: f64,
     /// Radius the crest reaches here, mm.
     pub outer_r: f64,
 }
@@ -1602,9 +1660,14 @@ impl ShankStyle {
         // its detail — and contains the face, so the flank stays drafted.
         let x = (plane_r * d.min(face_edge).tan() / half_l).clamp(0.0, 1.0);
         let k_fair = head.body_fair.clamp(0.0, 1.0);
+        let dome_k = head.dome.clamp(0.0, 1.0);
         let face_at = |s: f64| head.outline.extent(s);
-        let body_at =
-            |s: f64| blend_span(face_at(s), head.outline.body_extent(s), k_fair);
+        // A cut dome's plan owes the outline nothing: the body widens toward
+        // the outline's full bounding box and the swell alone shapes it.
+        let body_at = |s: f64| {
+            let b = blend_span(face_at(s), head.outline.body_extent(s), k_fair);
+            blend_span(b, (-1.0, 1.0), dome_k)
+        };
         let body = body_at(end * x);
 
         // --- Swell: the head's span at its centre, faded to the shank. ---
@@ -1692,14 +1755,30 @@ impl ShankStyle {
         // around, ends included. Tie-exact, so away from the corner both
         // curves are followed exactly.
         let rim = head.rim_round_mm.clamp(0.0, 2.0);
-        let climb = plane_r
-            / d.min(HEAD_MAX_HALF_DEG.to_radians()).cos().max(1e-6)
-            + cap;
+        let plane_track = plane_r / d.min(HEAD_MAX_HALF_DEG.to_radians()).cos().max(1e-6);
+        let climb = plane_track + cap;
         let dive_h = (1.0 - s_raw.max(-0.25)).max(0.0).powf(HEAD_SHOULDER_POW);
         let dive = r_shank + (plane_r / face_edge.cos().max(1e-6) - r_shank) * dive_h;
         let outer_r = smin(climb, dive, rim);
 
-        HeadAt { x: end * x, reach, face: crest, on_head: h00, outer_r }
+        // The cut-dome facet closes with the same fade that hands the plan to
+        // the swell, so the dome's kiss with the plane ends exactly at the
+        // face's end and never steps. Inscribed inside the dome's span so the
+        // cut always exits through dome, never through the band's corner.
+        let facet_half = 0.5 * (face.1 - face.0).max(0.0) * fade * HEAD_DOME_INSET;
+
+        HeadAt {
+            x: end * x,
+            reach,
+            face: crest,
+            on_head: h00,
+            facet_half,
+            // The cab cap rides the cut: a buff-top's "facet" is the domed
+            // table itself, and a cap left at the bare plane slices the cab
+            // off and leaves a step where the two disagree.
+            cap_r: plane_track + cap,
+            outer_r,
+        }
     }
 }
 
@@ -1787,6 +1866,20 @@ pub struct ShankMod {
     /// The groove's floor faces along the pull and its walls stand radial,
     /// so it is castable wherever a side face is.
     pub side_groove_mm: f64,
+    /// Cut-dome facet half-width in unmodulated half-width units; 0 is none.
+    /// With `outer_max_r` set, the section raises its dome so the cap slices
+    /// it open to exactly this half-width.
+    pub facet_half: f64,
+    /// Rounding of the facet's cut edge, mm — the arris where the cap meets
+    /// the dome. 0 leaves the cut sharp.
+    pub facet_rim_mm: f64,
+    /// Floor on the section's crown depth, mm. The cut-dome head sets it to a
+    /// share of its own thickness: a band's shallow crown leaves the facet
+    /// cap slicing microns and the cut edge turns to mush.
+    pub crown_min_mm: Option<f64>,
+    /// Blend of the crown's drop law toward a circular quadrant, 0..1 — the
+    /// cut-dome head wants a round dome, not the band's plateaued drop.
+    pub dome_drop: f64,
     /// How softly the crest span's parting-plane floor engages here, 0..1.
     /// Near a face's along-ring ends the outline's edge plunges through the
     /// floor at millimetres per degree and the crossfade needs a wide radius
@@ -1811,6 +1904,10 @@ impl ShankMod {
             head: 0.0,
             head_rim_mm: 0.0,
             side_groove_mm: 0.0,
+            facet_half: 0.0,
+            facet_rim_mm: 0.0,
+            crown_min_mm: None,
+            dome_drop: 0.0,
             straddle_soft: 0.0,
         }
     }
@@ -2010,22 +2107,37 @@ impl ShankStyle {
                 let a = pick_dominant(&reads);
                 let band = self.signet_span(theta_deg, inner_r, base_outer_r);
                 let (w, centre) = ((band.1 - band.0) * 0.5, (band.1 + band.0) * 0.5);
+                let dome_k = self.head.dome.clamp(0.0, 1.0);
                 // The table is the face's own outline, not the body's: the two
                 // are different extents, and that difference is the head's
-                // drafted flank.
-                let crest = a.face;
+                // drafted flank. The cut dome hands the crown the whole span
+                // instead: its facet is exactly the level curve where the
+                // plane meets the dome. Exactly — a cap masked to a smaller
+                // region leaves a recessed flat beside proud dome, and that
+                // pocket locks in the sand (measured -89 degrees at a heart's
+                // cleft), which is why a cleft cannot be cut from above and a
+                // heart keeps the prism construction.
+                let crest = blend_span(a.face, band, dome_k);
                 // The shank rounds off toward a wire as it narrows, so a flat
                 // head sits on a round shank. The crown clamp caps it at a full
                 // dome, so a large value only ever means "more domed here".
                 let shank_crown = 1.0 + SIGNET_SHANK_ROUNDING * k * (1.0 - w);
                 let table_crown = 1.0 - self.head.table_flat.clamp(0.0, 1.0);
+                // The cut dome keeps the section fully crowned: flattening is
+                // the cap's job there, and a flattened crown would leave the
+                // cap nothing to slice.
+                let table_crown = table_crown + (1.0 - table_crown) * dome_k;
                 // The crest radius is the union of every head's — tie-exact,
                 // so between two heads neither fattens the other.
                 let mut outer_r = a.outer_r;
                 let mut on_head = a.on_head;
+                let mut cap_r = a.cap_r;
+                let mut facet_half = a.facet_half;
                 for r in &reads {
                     outer_r = smax(outer_r, r.outer_r, 0.3);
                     on_head = on_head.max(r.on_head);
+                    cap_r = smax(cap_r, r.cap_r, 0.3);
+                    facet_half = facet_half.max(r.facet_half);
                 }
                 ShankMod {
                     width_scale: w,
@@ -2036,14 +2148,30 @@ impl ShankStyle {
                     crown_scale: shank_crown + (table_crown - shank_crown) * on_head,
                     outer_r: Some(outer_r),
                     z_center_frac: centre,
-                    outer_max_r: None,
+                    outer_max_r: (dome_k > 1e-6).then_some(cap_r),
                     drop_blend: 0.0,
                     flank_bias: 0.0,
                     // `on_head` kinks where the shoulder starts; smoothing it
                     // here keeps the wall-shape weight C² along the sweep.
-                    head: crate::field::smootherstep(0.0, 1.0, on_head),
+                    // The cut dome's wall is the band's own chord, so the
+                    // prism reshaping fades out with `dome`.
+                    head: crate::field::smootherstep(0.0, 1.0, on_head) * (1.0 - dome_k),
                     head_rim_mm: self.head.rim_round_mm.clamp(0.0, 2.0),
                     side_groove_mm: 0.0,
+                    facet_half: facet_half * dome_k,
+                    // A hard arris, deliberately: the smooth-min crossfade
+                    // raises a lip before the plateau (its documented 8.7%-of-
+                    // radius overshoot), measured as a -3 degree ring around
+                    // the facet. min() of a monotone fall and a constant is
+                    // monotone, so the sharp cut is the castable one — and the
+                    // crisp edge is what a cut face looks like.
+                    facet_rim_mm: 0.0,
+                    crown_min_mm: (dome_k > 1e-6).then(|| {
+                        HEAD_DOME_CROWN * (outer_r - inner_r).max(0.3)
+                            * dome_k
+                            * crate::field::smootherstep(0.0, 1.0, on_head)
+                    }),
+                    dome_drop: dome_k * crate::field::smootherstep(0.0, 1.0, on_head),
                     straddle_soft: crate::field::smootherstep(0.55, 0.92, a.x.abs()),
                 }
             }

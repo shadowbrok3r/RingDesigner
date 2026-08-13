@@ -662,6 +662,38 @@ to be measured against. `HEAD_SHOULDER_DEG` stays 43° because it comes from
 the reference's own crest fall, not from the mesh.
 `mesh::tests::scratch_signet_head_undercuts` is the table.
 
+#### The cut dome is the other construction
+
+`SignetHead::dome` (0..1) swaps the reference prism for the buff look: per
+section the surface is **min(dome, plane)** — the band keeps a full crown
+over the head (floored at `HEAD_DOME_CROWN` = 0.5 of the head's thickness,
+drop law blended to a circular quadrant) and the facet is a radial cap at
+the table plane, raised per angle just enough that the cut opens to the
+outline's width. The plan ignores the outline entirely (the swell alone
+shapes a lens — `cut_dome_heads_field_clean_and_never_pinch` asserts no
+waist), the wall is the band's own chord (`head` weight fades with `dome`),
+and every section is a single-plateau monotone drop, so the whole family
+fields 0.000% by construction. Hard-won specifics:
+
+- The facet inscribes at `HEAD_DOME_INSET` = 0.90 of the dome's span (the
+  reference's 14.7 mm table on a 16.0 mm body): allowed to reach the band
+  edge it exits through the corner at −7.7°.
+- The arris is a **hard min**, deliberately: the smooth-min crossfade's
+  documented 8.7%-of-radius overshoot raises a lip that measured a −3° ring
+  around the facet. min() of a monotone fall and a constant is monotone.
+- The `e_facet` raise moves the outer curve, so `edge_t` (the corner the
+  wall and edge fillet build to) moves with it.
+- The cab cap rides the facet cap (`HeadAt::cap_r = plane + cab`), or a
+  buff-top's dome gets sliced off at the bare plane (−80°).
+- **The facet is exactly the level curve — it cannot be masked smaller.**
+  A cap restricted to the outline's own interval leaves a recessed flat
+  beside proud dome, and that pocket locks: measured −89° at a heart's
+  cleft. Concave-in-section features (a heart's cleft) are therefore
+  impossible in this construction — physically, not as a code limit — so
+  hearts and shields keep the prism; convex-per-section outlines (diamond,
+  round, cushion, hexagon, cross — the plan may still be non-convex along
+  the ring) are where the dome shines.
+
 #### Outlines have to survive being turned into a silhouette
 
 `SignetOutline::half_extent` is a cached table per outline, built by scanning

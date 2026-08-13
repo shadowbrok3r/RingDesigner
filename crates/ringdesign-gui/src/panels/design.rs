@@ -841,6 +841,21 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
 
     changed |= ui
         .add(
+            egui::Slider::new(&mut head.dome, 0.0..=1.0)
+                .fixed_decimals(2)
+                .text("Cut dome"),
+        )
+        .on_hover_text(
+            "1 cuts the face from a swollen dome: the band's plan ignores the \
+             outline, the flank rounds as one dome, and the facet is where the \
+             table plane slices it — no pinched corners, no prism walls. The \
+             facet is exactly that cut, so concave outlines (heart, shield) \
+             soften; keep those at 0.",
+        )
+        .changed();
+
+    changed |= ui
+        .add(
             egui::Slider::new(&mut head.table_dome_mm, 0.0..=2.0)
                 .fixed_decimals(2)
                 .suffix(" mm")
