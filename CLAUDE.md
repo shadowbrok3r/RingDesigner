@@ -834,6 +834,28 @@ hand-tuned counts with the per-tile period in a comment, and fine-lined
 alphas (Greek Key at 0.15 mm strokes) are simply not usable on narrow
 faces in sand.
 
+### The showcase is the measured tour
+
+`examples/showcase.rs` builds thirteen finished designs — signets and bands,
+one or two feature families each — field-checks every one (the run refuses a
+NotCastable ring), prints DFM findings and stone warnings, renders hero/face
+shots plus turntable GIFs, and saves `designs/showcase/*.ring.json` so each
+opens in the app. Lessons it measured, kept in its comments:
+
+- A bead row rides **the crest line only**: straddling the parting plane it
+  splits between cope and drag; the same row 1.9 mm off-crest locks at −37°
+  over 4.8% — the off-crest-rails lesson, in bead form.
+- Pit textures lock near the crest by their own slope (a full-crown hammer
+  peen fields 2.7% at −9°); peen the *flanks* and keep a polished crest
+  ribbon. Melon lobes along the ring are the two-flange valley: 8.2%/−22°.
+- The guilloche generators carry 7–24 periods per tile — under the sand's
+  floor at any tile size a band face holds. A one-circle SVG mask (one
+  porthole per cell) is the pierced look that survives.
+- **The (u, v) chart reads true from −Z.** A text stamp on the high side
+  face casts mirrored unless `Decal::flip` is set; the configurator's
+  `compose()` and the showcase both derive it from the face the stamp landed
+  on, because `wider()`'s tie on a symmetric band breaks on float noise.
+
 ### The workbench conveniences, and where they live
 
 Exports run **off the UI thread** — `export.rs::spawn_export` snapshots

@@ -343,13 +343,18 @@ pub fn compose(cfg: &Config) -> RingDesign {
         let mut layer = DecalLayer::default();
         layer.alpha = "Engraving".into();
         layer.feather_mm = 0.25;
+        // The (u, v) chart reads true from -Z, so a stamp on the high face
+        // must mirror or the cast letters read backwards. Which face is the
+        // wider one comes down to float noise on a symmetric band, so it is
+        // read, never assumed.
+        let low_face = 0.5 * (lo + hi) < ctx.crest_v_mm;
         layer.decals = vec![Decal {
             theta_deg: TOP_DEG + 180.0,
             v_mm: 0.5 * (lo + hi),
             size_mm: size,
             rotation_deg: 0.0,
             height_mm: 0.35,
-            flip: false,
+            flip: !low_face,
         }];
         let mut e = LayerEntry::new("Engraving", Layer::Decals(layer));
         e.window.v_gate = VGate::SideFaces(
@@ -405,6 +410,32 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The (u, v) chart reads true from -Z: an engraving stamp mirrors
+    /// exactly when it sits on the high face, or its cast letters read
+    /// backwards on the finished ring.
+    #[test]
+    fn engraving_reads_true_from_the_face_it_sits_on() {
+        let mut cfg = Config {
+            base: Base::WideBand,
+            engraving: "Amor vincit".into(),
+            ..Config::default()
+        };
+        cfg.reconcile();
+        let d = compose(&cfg);
+        let ctx = d.field_context();
+        let e = d
+            .layers
+            .layers
+            .iter()
+            .find(|e| e.name == "Engraving")
+            .expect("a wide band carries its engraving");
+        let ringdesign_core::field::Layer::Decals(dl) = &e.layer else {
+            panic!("engraving is a decal stamp")
+        };
+        let dec = &dl.decals[0];
+        assert_eq!(dec.flip, !(dec.v_mm < ctx.crest_v_mm));
     }
 
     #[test]
