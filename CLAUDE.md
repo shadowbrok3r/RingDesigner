@@ -856,6 +856,15 @@ opens in the app. Lessons it measured, kept in its comments:
   `compose()` and the showcase both derive it from the face the stamp landed
   on, because `wider()`'s tie on a symmetric band breaks on float noise.
 
+`examples/commissions.rs` is the same discipline applied to client sketches
+(half-wrap patterned crescents, a gem-set cross band, the Diamond and Cross
+`SignetOutline`s added for them). Its own measured lessons: a gem column
+must run **along the parting plane** — a table mound straddling it splits
+between cope and drag, while the same mound 2.3 mm off it locks at −9°;
+a bur dimple locks even at the crest (a pit's walls are a dome's inverse);
+and gypsy-skirted seats at column pitch merge into one ridge, so spot
+mounds carry `gem + 0.9` diameters instead of full seat stock.
+
 ### The workbench conveniences, and where they live
 
 Exports run **off the UI thread** — `export.rs::spawn_export` snapshots

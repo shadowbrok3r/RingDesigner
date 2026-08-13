@@ -1523,6 +1523,10 @@ pub enum SignetOutline {
     Shield,
     Octagon,
     Marquise,
+    /// A rhombus standing on one corner — four gently convex sides.
+    Diamond,
+    /// A plus of two rounded bars — the plaque a gem column sits on.
+    Cross,
 }
 
 /// Steps in a polar boundary table. One per 0.5 degree.
@@ -1703,6 +1707,8 @@ impl SignetOutline {
         SignetOutline::Marquise,
         SignetOutline::Shield,
         SignetOutline::Heart,
+        SignetOutline::Diamond,
+        SignetOutline::Cross,
     ];
 
     pub fn label(self) -> &'static str {
@@ -1716,6 +1722,8 @@ impl SignetOutline {
             SignetOutline::Shield => "Shield",
             SignetOutline::Octagon => "Octagon",
             SignetOutline::Marquise => "Marquise",
+            SignetOutline::Diamond => "Diamond",
+            SignetOutline::Cross => "Cross",
         }
     }
 
@@ -1732,6 +1740,10 @@ impl SignetOutline {
             SignetOutline::Heart => 2.6,
             SignetOutline::Shield => 3.2,
             SignetOutline::Octagon => 5.0,
+            // Exponent 1 is a straight-sided rhombus; a touch above bulges
+            // the sides and takes the worst off the corners.
+            SignetOutline::Diamond => 1.15,
+            SignetOutline::Cross => 2.0,
         }
     }
 
@@ -1769,6 +1781,8 @@ impl SignetOutline {
             SignetOutline::Hexagon => 1.3,
             SignetOutline::Oval => 1.35,
             SignetOutline::Marquise => 1.9,
+            SignetOutline::Diamond => 1.1,
+            SignetOutline::Cross => 1.0,
         }
     }
 
@@ -1802,6 +1816,16 @@ impl SignetOutline {
             // Three slabs 60 degrees apart, scaled to the extents: flat sides,
             // points at the length ends.
             SignetOutline::Hexagon => y.abs().max(x.abs() + 0.5 * y.abs()),
+            // Union of two rounded bars: the plus is inside where either bar
+            // is, so its distance is the smaller of the two.
+            SignetOutline::Cross => {
+                let w = 0.38;
+                let n = 6.0f64;
+                let bar = |long: f64, short: f64| {
+                    (long.abs().powf(n) + (short.abs() / w).powf(n)).powf(1.0 / n)
+                };
+                bar(x, y).min(bar(y, x))
+            }
             // A pointed ellipse: two arcs meeting at the length ends.
             SignetOutline::Marquise => {
                 let n = 1.4f64;
@@ -2085,8 +2109,8 @@ impl Silhouette {
 /// once: a design uses one outline and building the other eight would be work
 /// nothing asked for.
 fn silhouette(o: SignetOutline) -> &'static Silhouette {
-    static T: [std::sync::OnceLock<Silhouette>; 9] =
-        [const { std::sync::OnceLock::new() }; 9];
+    static T: [std::sync::OnceLock<Silhouette>; 11] =
+        [const { std::sync::OnceLock::new() }; 11];
     T[o.index()].get_or_init(|| Silhouette::build(o))
 }
 
