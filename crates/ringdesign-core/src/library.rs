@@ -133,6 +133,13 @@ pub fn default_design_dir() -> PathBuf {
     data_root().join("designs")
 }
 
+/// Where the user's true gem meshes live — one `<cut>.obj` per faceted
+/// cut, consumed by the render-only previews in [`crate::gems`]. The app
+/// ships none of its own: absent files fall back to procedural stones.
+pub fn gem_mesh_dir() -> PathBuf {
+    data_root().join("gems")
+}
+
 /// Where saved cross-section profiles live — the user's own profile
 /// library, sibling to the designs. One `<name>.profile.json` per shape,
 /// applied by [`crate::BandProfile::apply_shape`] so a profile is a

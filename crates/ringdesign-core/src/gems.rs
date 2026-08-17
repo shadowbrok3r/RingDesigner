@@ -153,7 +153,160 @@ fn place(
 /// The faceted solid in the stone's own frame: x along the length, y across,
 /// z up the crown. Girdle at z = 0, table above, culet below. Flat facets —
 /// the sparkle is per-face normals under the viewport's key light.
+type Tri = ([f64; 3], [f64; 3], [f64; 3]);
+
+/// True faceted meshes, loaded once per cut from
+/// [`crate::library::gem_mesh_dir`] when the user has installed them
+/// (`<cut>.obj`, unit-normalized at load: girdle at z = 0, unit extents per
+/// axis, x along the ring). Absent files fall back to the procedural
+/// brilliant below — the app ships no gem geometry of its own.
+fn true_facets(cut: GemCut) -> Option<&'static [Tri]> {
+    use std::collections::HashMap;
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<HashMap<GemCut, Vec<Tri>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| {
+        let dir = crate::library::gem_mesh_dir();
+        let mut map = HashMap::new();
+        for &cut in GemCut::ALL {
+            let file = match cut {
+                GemCut::Round => "brilliant",
+                GemCut::Oval => "oval",
+                GemCut::Cushion => "cushion",
+                GemCut::Princess => "princess",
+                GemCut::Emerald => "emerald",
+                GemCut::Baguette => "baguette",
+                GemCut::Pear => "pear",
+                GemCut::Marquise => "marquise",
+                GemCut::Trillion => "trillion",
+                GemCut::Heart => "heart",
+                GemCut::Radiant => "radiant",
+                GemCut::Asscher => "asscher",
+                GemCut::Hexagon => "hexagonal",
+                GemCut::HalfMoon => "half-moon",
+            };
+            if let Some(tris) = load_gem_obj(&dir.join(format!("{file}.obj"))) {
+                map.insert(cut, tris);
+            }
+        }
+        map
+    });
+    cache.get(&cut).map(|v| v.as_slice())
+}
+
+/// Parse a gem OBJ (v + tri/quad f lines) and normalize it: per-axis unit
+/// extents about the centre, the girdle (widest slab) at z = 0, and the
+/// source's width axis swapped onto `y` so `x` runs along the ring like the
+/// procedural facets. Returns `None` on anything unreadable.
+fn load_gem_obj(path: &std::path::Path) -> Option<Vec<Tri>> {
+    let text = std::fs::read_to_string(path).ok()?;
+    let mut verts: Vec<[f64; 3]> = Vec::new();
+    let mut faces: Vec<Vec<usize>> = Vec::new();
+    for line in text.lines() {
+        let mut it = line.split_whitespace();
+        match it.next() {
+            Some("v") => {
+                let x: f64 = it.next()?.parse().ok()?;
+                let y: f64 = it.next()?.parse().ok()?;
+                let z: f64 = it.next()?.parse().ok()?;
+                // Source frame: X across the band (width), Y along it.
+                verts.push([y, x, z]);
+            }
+            Some("f") => {
+                let idx: Vec<usize> = it
+                    .filter_map(|t| t.split('/').next()?.parse::<usize>().ok())
+                    .map(|i| i - 1)
+                    .collect();
+                if idx.len() >= 3 {
+                    faces.push(idx);
+                }
+            }
+            _ => {}
+        }
+    }
+    if verts.len() < 4 || faces.is_empty() {
+        return None;
+    }
+    let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
+    for v in &verts {
+        for a in 0..3 {
+            lo[a] = lo[a].min(v[a]);
+            hi[a] = hi[a].max(v[a]);
+        }
+    }
+    // The girdle: the z whose slab spans the widest across the band.
+    let ext_z = (hi[2] - lo[2]).max(1e-9);
+    let mut girdle_z = 0.0;
+    let mut widest = 0.0;
+    for i in 0..=40 {
+        let zc = lo[2] + ext_z * i as f64 / 40.0;
+        let (mut a, mut b) = (f64::MAX, f64::MIN);
+        for v in &verts {
+            if (v[2] - zc).abs() < ext_z * 0.05 {
+                a = a.min(v[1]);
+                b = b.max(v[1]);
+            }
+        }
+        if b > a && b - a > widest {
+            widest = b - a;
+            girdle_z = zc;
+        }
+    }
+    // Snap off the scan grid onto the geometry: the girdle is the mean z of
+    // the winning slab's own vertices, not the nearest grid station.
+    {
+        let slab: Vec<f64> = verts
+            .iter()
+            .filter(|v| (v[2] - girdle_z).abs() < ext_z * 0.05)
+            .map(|v| v[2])
+            .collect();
+        if !slab.is_empty() {
+            girdle_z = slab.iter().sum::<f64>() / slab.len() as f64;
+        }
+    }
+    let c = [0.5 * (lo[0] + hi[0]), 0.5 * (lo[1] + hi[1]), girdle_z];
+    let e = [
+        (hi[0] - lo[0]).max(1e-9),
+        (hi[1] - lo[1]).max(1e-9),
+        ext_z,
+    ];
+    let n = |v: [f64; 3]| [(v[0] - c[0]) / e[0], (v[1] - c[1]) / e[1], (v[2] - c[2]) / e[2]];
+    let mut tris = Vec::with_capacity(faces.len() * 2);
+    for f in &faces {
+        if f.iter().any(|&i| i >= verts.len()) {
+            continue;
+        }
+        for k in 1..f.len() - 1 {
+            tris.push((n(verts[f[0]]), n(verts[f[k]]), n(verts[f[k + 1]])));
+        }
+    }
+    if tris.is_empty() {
+        return None;
+    }
+    // The preview winds outward; a source wound the other way flips here,
+    // decided by the closed solid's signed volume rather than trusted.
+    let vol: f64 = tris
+        .iter()
+        .map(|(a, b, c)| {
+            a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0])
+                + a[2] * (b[0] * c[1] - b[1] * c[0])
+        })
+        .sum();
+    if vol < 0.0 {
+        for t in &mut tris {
+            std::mem::swap(&mut t.1, &mut t.2);
+        }
+    }
+    Some(tris)
+}
+
 fn facets(gem: Gem) -> Vec<([f64; 3], [f64; 3], [f64; 3])> {
+    if let Some(unit) = true_facets(gem.cut) {
+        // Unit mesh scaled to the stone: length along the ring, width across
+        // it, its own crown/pavilion split preserved inside `depth_mm`.
+        let (l, w, d) = (gem.l_mm, gem.w_mm, gem.depth_mm());
+        let s = |p: [f64; 3]| [p[0] * l, p[1] * w, p[2] * d];
+        return unit.iter().map(|&(a, b, c)| (s(a), s(b), s(c))).collect();
+    }
     let (hw, hl) = (gem.w_mm * 0.5, gem.l_mm * 0.5);
     let depth = gem.depth_mm();
     let crown = depth * 0.35;
@@ -237,6 +390,59 @@ mod tests {
     /// With `RD_GEM_SHEET=/some/dir`, renders the ring with the preview
     /// stones merged in, using the same software rasterizer the examples use
     /// — the eyeball check for position, scale and orientation.
+    /// The OBJ loader normalizes a mesh to the preview's frame: unit
+    /// extents, girdle (widest slab) at z = 0, width axis swapped onto y.
+    #[test]
+    fn a_gem_obj_normalizes_to_the_preview_frame() {
+        let dir = std::env::temp_dir().join("ringdesign-gem-obj-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("t.obj");
+        // A lozenge: wide slab at z = 1 (the girdle), apexes above and below,
+        // long in source-X (width axis), short in source-Y.
+        std::fs::write(
+            &path,
+            "v 2 0 1
+v -2 0 1
+v 0 1 1
+v 0 -1 1
+v 0 0 3
+v 0 0 0
+             f 1 3 5
+f 3 2 5
+f 2 4 5
+f 4 1 5
+f 3 1 6
+f 2 3 6
+f 4 2 6
+f 1 4 6
+",
+        )
+        .unwrap();
+        let tris = load_gem_obj(&path).expect("parses");
+        assert_eq!(tris.len(), 8);
+        let mut lo = [f64::MAX; 3];
+        let mut hi = [f64::MIN; 3];
+        let mut girdle_pts = 0;
+        for (a, b, c) in &tris {
+            for p in [a, b, c] {
+                for k in 0..3 {
+                    lo[k] = lo[k].min(p[k]);
+                    hi[k] = hi[k].max(p[k]);
+                }
+                if p[2].abs() < 1e-9 && p[1].abs() > 0.4 {
+                    girdle_pts += 1;
+                }
+            }
+        }
+        for k in 0..3 {
+            assert!((hi[k] - lo[k] - 1.0).abs() < 1e-9, "axis {k} unit extent");
+        }
+        // Source X (span 4) was the long axis; after the swap it is y.
+        assert!(girdle_pts > 0, "widest slab sits at z = 0 on the y axis");
+        assert!(hi[2] > 0.6, "the taller apex is above the girdle");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn stones_land_on_their_seats() {
         let lib = AlphaLibrary::builtin();
