@@ -160,9 +160,13 @@ fn facets(gem: Gem) -> Vec<([f64; 3], [f64; 3], [f64; 3])> {
     let pav = depth * 0.65;
     // Girdle plan as a superellipse: 2 is round, higher squares the corners.
     let exp = match gem.cut {
-        GemCut::Round | GemCut::Oval | GemCut::Pear => 2.0,
-        GemCut::Cushion | GemCut::Trillion => 3.2,
-        GemCut::Princess | GemCut::Emerald | GemCut::Baguette => 6.0,
+        GemCut::Round | GemCut::Oval | GemCut::Pear | GemCut::Heart => 2.0,
+        GemCut::Cushion | GemCut::Trillion | GemCut::Hexagon | GemCut::HalfMoon => 3.2,
+        GemCut::Princess
+        | GemCut::Emerald
+        | GemCut::Baguette
+        | GemCut::Radiant
+        | GemCut::Asscher => 6.0,
         GemCut::Marquise => 1.5,
     };
     const SEG: usize = 16;

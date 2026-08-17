@@ -18,6 +18,11 @@ pub enum GemCut {
     Pear,
     Marquise,
     Trillion,
+    Heart,
+    Radiant,
+    Asscher,
+    Hexagon,
+    HalfMoon,
 }
 
 impl GemCut {
@@ -31,6 +36,11 @@ impl GemCut {
         GemCut::Pear,
         GemCut::Marquise,
         GemCut::Trillion,
+        GemCut::Heart,
+        GemCut::Radiant,
+        GemCut::Asscher,
+        GemCut::Hexagon,
+        GemCut::HalfMoon,
     ];
 
     pub fn label(self) -> &'static str {
@@ -44,40 +54,70 @@ impl GemCut {
             GemCut::Pear => "Pear",
             GemCut::Marquise => "Marquise",
             GemCut::Trillion => "Trillion",
+            GemCut::Heart => "Heart",
+            GemCut::Radiant => "Radiant",
+            GemCut::Asscher => "Asscher",
+            GemCut::Hexagon => "Hexagon",
+            GemCut::HalfMoon => "Half moon",
         }
     }
 
     /// Length over width of the standard proportion.
+    ///
+    /// Cross-checked against the CrossGems proportion switches (their Y is
+    /// this ratio; PostLoad/CrossGems-Proportion.md): Oval and Pear adopt
+    /// their 1.6, Emerald their 1.5, Hexagon their 2/sqrt(3). Marquise stays
+    /// 2.0 and Baguette 2.0 — the trade's own classic makes — where their UI
+    /// defaults say 1.7 and 1.6.
     pub fn aspect(self) -> f64 {
         match self {
-            GemCut::Round | GemCut::Cushion | GemCut::Princess | GemCut::Trillion => 1.0,
-            GemCut::Oval => 1.4,
-            GemCut::Emerald => 1.4,
+            GemCut::Round
+            | GemCut::Cushion
+            | GemCut::Princess
+            | GemCut::Trillion
+            | GemCut::Heart
+            | GemCut::Radiant
+            | GemCut::Asscher => 1.0,
+            GemCut::Oval => 1.6,
+            GemCut::Emerald => 1.5,
             GemCut::Baguette => 2.0,
-            GemCut::Pear => 1.5,
+            GemCut::Pear => 1.6,
             GemCut::Marquise => 2.0,
+            GemCut::Hexagon => 1.154,
+            GemCut::HalfMoon => 1.7,
         }
     }
 
     /// Total depth as a share of the width, table to culet, standard make.
+    ///
+    /// Same cross-check: Round 0.62 (the classic 61.5% total depth),
+    /// Cushion 0.62, Princess 0.78 (a deep square), Emerald 0.60, Radiant
+    /// 0.65, Octagon-family 0.6 all match the CrossGems switches. Trillion
+    /// stays 0.40 — trillions are cut shallow (32–44%) and their 0.53 is an
+    /// outlier — and Half Moon uses the trade's ~0.65 of width.
     pub fn depth_frac(self) -> f64 {
         match self {
-            GemCut::Round => 0.61,
+            GemCut::Round => 0.62,
             GemCut::Oval => 0.60,
-            GemCut::Cushion => 0.65,
-            GemCut::Princess => 0.72,
-            GemCut::Emerald => 0.65,
+            GemCut::Cushion => 0.62,
+            GemCut::Princess => 0.78,
+            GemCut::Emerald => 0.60,
             GemCut::Baguette => 0.55,
             GemCut::Pear => 0.60,
             GemCut::Marquise => 0.60,
             GemCut::Trillion => 0.40,
+            GemCut::Heart => 0.60,
+            GemCut::Radiant => 0.65,
+            GemCut::Asscher => 0.62,
+            GemCut::Hexagon => 0.60,
+            GemCut::HalfMoon => 0.65,
         }
     }
 
     /// Carats of a diamond-density stone at `w x l` mm and standard depth.
     ///
     /// The classic estimator family: length x width x depth (mm) x a
-    /// per-shape packing factor — a 6.5 mm round at 61% depth is 1.02 ct.
+    /// per-shape packing factor — a 6.5 mm round at 62% depth is 1.04 ct.
     pub fn carats(self, w_mm: f64, l_mm: f64) -> f64 {
         let factor = match self {
             GemCut::Round => 0.0061,
@@ -89,6 +129,11 @@ impl GemCut {
             GemCut::Pear => 0.00600,
             GemCut::Marquise => 0.00580,
             GemCut::Trillion => 0.0057,
+            GemCut::Heart => 0.0059,
+            GemCut::Radiant => 0.0081,
+            GemCut::Asscher => 0.0080,
+            GemCut::Hexagon => 0.0065,
+            GemCut::HalfMoon => 0.0057,
         };
         let depth_mm = w_mm * self.depth_frac();
         (w_mm * l_mm * depth_mm * factor).max(0.0)
@@ -102,6 +147,7 @@ impl GemCut {
                 6.0, 6.5, 7.0, 8.0,
             ],
             GemCut::Baguette => &[1.5, 2.0, 2.5, 3.0],
+            GemCut::HalfMoon => &[3.0, 4.0, 5.0, 6.0],
             _ => &[3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
         }
     }
@@ -176,6 +222,33 @@ mod tests {
 
         // A princess of the same width outweighs a round: corners carry mass.
         assert!(GemCut::Princess.carats(5.0, 5.0) > GemCut::Round.carats(5.0, 5.0));
+    }
+
+    /// The proportions cross-checked against the CrossGems switches
+    /// (PostLoad/CrossGems-Proportion.md): where we adopt, we match; where
+    /// the trade disagrees with their UI defaults, we hold the trade's line.
+    #[test]
+    fn the_proportion_cross_check_holds() {
+        assert_eq!(GemCut::Round.depth_frac(), 0.62, "classic 61.5% total depth");
+        assert_eq!(GemCut::Princess.depth_frac(), 0.78, "a princess is deep");
+        assert_eq!(GemCut::Oval.aspect(), 1.6);
+        assert_eq!(GemCut::Pear.aspect(), 1.6);
+        assert_eq!(GemCut::Emerald.aspect(), 1.5);
+        assert!((GemCut::Hexagon.aspect() - 2.0 / 3.0f64.sqrt()).abs() < 1e-3);
+        // Held against their defaults on purpose:
+        assert_eq!(GemCut::Marquise.aspect(), 2.0, "the classic marquise make");
+        assert_eq!(GemCut::Trillion.depth_frac(), 0.40, "trillions are shallow");
+        // Every new cut carries a full row.
+        for &cut in &[
+            GemCut::Heart,
+            GemCut::Radiant,
+            GemCut::Asscher,
+            GemCut::Hexagon,
+            GemCut::HalfMoon,
+        ] {
+            assert!(cut.carats(4.0, 4.0 * cut.aspect()) > 0.0);
+            assert!(!cut.label().is_empty());
+        }
     }
 
     #[test]
