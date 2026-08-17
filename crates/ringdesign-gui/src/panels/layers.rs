@@ -1502,6 +1502,37 @@ fn group(
     pending: &mut Option<GroupEdit>,
 ) -> bool {
     let mut c = false;
+    if let Some(r) = &mut g.recipe {
+        let mut bake = false;
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new(format!("{} Live {}", icon::LIGHTNING, r.kind_label()))
+                    .small()
+                    .color(theme::ACCENT),
+            );
+            if ui
+                .small_button("Bake")
+                .on_hover_text(
+                    "Detach the generator: the layers below become hand-owned and stop \
+                     following the recipe and the band.",
+                )
+                .clicked()
+            {
+                bake = true;
+            }
+        });
+        c |= recipe_ui(ui, r, fctx);
+        ui.label(
+            egui::RichText::new("Generated — edits above re-solve the stack; bake to hand-edit.")
+                .small()
+                .color(theme::TEXT_DIM),
+        );
+        if bake {
+            g.recipe = None;
+            c = true;
+        }
+        ui.separator();
+    }
     if g.stack.layers.is_empty() {
         ui.label(
             egui::RichText::new("Empty group — adopt the layer below to start.")
@@ -1932,6 +1963,164 @@ fn border(ui: &mut egui::Ui, b: &mut BorderLayer, fctx: &FieldContext) -> bool {
             .small()
             .color(theme::WARN),
         );
+    }
+    c
+}
+
+/// Cut + calibrated-size pickers for one stone, shared by the recipe panels.
+fn gem_picker(ui: &mut egui::Ui, id: &str, gem: &mut ringdesign_core::gem::Gem) -> bool {
+    use ringdesign_core::gem::{Gem, GemCut};
+    let mut c = false;
+    ui.horizontal(|ui| {
+        egui::ComboBox::from_id_salt(format!("{id}_cut"))
+            .selected_text(gem.cut.label())
+            .width(110.0)
+            .show_ui(ui, |ui| {
+                for &cut in GemCut::ALL {
+                    if ui.selectable_label(gem.cut == cut, cut.label()).clicked() {
+                        *gem = Gem::calibrated(cut, gem.w_mm);
+                        c = true;
+                    }
+                }
+            });
+        egui::ComboBox::from_id_salt(format!("{id}_size"))
+            .selected_text(format!("{:.1} mm", gem.w_mm))
+            .width(70.0)
+            .show_ui(ui, |ui| {
+                for &w in gem.cut.calibrated_mm() {
+                    if ui
+                        .selectable_label((gem.w_mm - w).abs() < 0.01, format!("{w:.1} mm"))
+                        .clicked()
+                    {
+                        *gem = Gem::calibrated(gem.cut, w);
+                        c = true;
+                    }
+                }
+            });
+    });
+    c
+}
+
+/// The live generator's own controls — the CrossGems panel, in this idiom:
+/// every change here re-solves the group's stack through `mark_dirty`.
+fn recipe_ui(ui: &mut egui::Ui, r: &mut ringdesign_core::pave::GenRecipe, fctx: &FieldContext) -> bool {
+    use ringdesign_core::field::SeatStyle;
+    use ringdesign_core::pave::{GenRecipe, PaveRegion};
+    let mut c = false;
+    match r {
+        GenRecipe::Pave(spec) => {
+            c |= gem_picker(ui, "recipe_pave_gem", &mut spec.gem);
+            c |= ui
+                .add(
+                    egui::Slider::new(&mut spec.bridge_mm, 0.1..=1.5)
+                        .fixed_decimals(2)
+                        .suffix(" mm")
+                        .text("Bridge"),
+                )
+                .changed();
+            c |= ui
+                .add(egui::Slider::new(&mut spec.span_deg, 20.0..=360.0).suffix("°").text("Span"))
+                .changed();
+            if spec.span_deg < 359.0 {
+                c |= ui
+                    .add(
+                        egui::Slider::new(&mut spec.theta_deg, 0.0..=360.0)
+                            .suffix("°")
+                            .text("Centre"),
+                    )
+                    .changed();
+            }
+            ui.horizontal(|ui| {
+                c |= ui.checkbox(&mut spec.stagger, "Hex stagger").changed();
+                for (style, label) in [
+                    (SeatStyle::GypsyMound, "Mounds"),
+                    (SeatStyle::Boss, "Bosses"),
+                    (SeatStyle::Bezel, "Bezels"),
+                ] {
+                    if ui.selectable_label(spec.style == style, label).clicked() {
+                        spec.style = style;
+                        c = true;
+                    }
+                }
+            });
+            let on_face = matches!(spec.region, PaveRegion::SideFace(_));
+            ui.horizontal(|ui| {
+                if ui.selectable_label(on_face, "Side face").clicked() && !on_face {
+                    spec.region = PaveRegion::SideFace(SideFacePick::Wider);
+                    c = true;
+                }
+                if ui.selectable_label(!on_face, "Crown band").clicked() && on_face {
+                    spec.region =
+                        PaveRegion::VBand { center_mm: fctx.crest_v_mm, width_mm: 4.0 };
+                    c = true;
+                }
+            });
+            if let PaveRegion::VBand { center_mm, width_mm } = &mut spec.region {
+                c |= ui
+                    .add(
+                        egui::Slider::new(width_mm, 1.0..=fctx.band_v_len_mm.max(2.0))
+                            .fixed_decimals(1)
+                            .suffix(" mm")
+                            .text("Band width"),
+                    )
+                    .changed();
+                c |= ui
+                    .add(
+                        egui::Slider::new(center_mm, 0.0..=fctx.band_v_len_mm.max(0.5))
+                            .fixed_decimals(1)
+                            .suffix(" mm")
+                            .text("Band centre"),
+                    )
+                    .changed();
+            }
+        }
+        GenRecipe::Halo(spec) => {
+            ui.label(egui::RichText::new("Centre").small().color(theme::TEXT_DIM));
+            c |= gem_picker(ui, "recipe_halo_center", &mut spec.center);
+            ui.label(egui::RichText::new("Melee").small().color(theme::TEXT_DIM));
+            c |= gem_picker(ui, "recipe_halo_accent", &mut spec.accent);
+            c |= ui
+                .add(
+                    egui::Slider::new(&mut spec.gap_mm, 0.0..=1.5)
+                        .fixed_decimals(2)
+                        .suffix(" mm")
+                        .text("Gap"),
+                )
+                .changed();
+            c |= ui
+                .add(
+                    egui::Slider::new(&mut spec.bridge_mm, 0.0..=1.0)
+                        .fixed_decimals(2)
+                        .suffix(" mm")
+                        .text("Bridge"),
+                )
+                .changed();
+            c |= ui
+                .add(
+                    egui::Slider::new(&mut spec.count, 0..=24)
+                        .text("Accents")
+                        .custom_formatter(|v, _| {
+                            if v < 3.0 { "auto".into() } else { format!("{v:.0}") }
+                        }),
+                )
+                .changed();
+            c |= ui
+                .add(
+                    egui::Slider::new(&mut spec.theta_deg, 0.0..=360.0).suffix("°").text("At"),
+                )
+                .changed();
+        }
+        GenRecipe::Channel(spec) => {
+            c |= gem_picker(ui, "recipe_channel_gem", &mut spec.gem);
+            c |= ui
+                .add(
+                    egui::Slider::new(&mut spec.recess_mm, 0.1..=1.0)
+                        .fixed_decimals(2)
+                        .suffix(" mm")
+                        .text("Recess"),
+                )
+                .changed();
+        }
     }
     c
 }

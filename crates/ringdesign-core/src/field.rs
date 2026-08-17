@@ -475,6 +475,13 @@ pub const MAX_GROUP_DEPTH: usize = 8;
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct GroupLayer {
     pub stack: LayerStack,
+    /// The generator recipe this group was made by, when it is *live*: the
+    /// editors re-run the generator against the current band whenever the
+    /// recipe or the profile changes, and the stack below is its output.
+    /// `None` is a plain (or baked) group — the stack is hand-owned. Builds
+    /// and analysis never read this: the stored stack is what a file means.
+    #[serde(default)]
+    pub recipe: Option<crate::pave::GenRecipe>,
 }
 
 impl Layer {
@@ -2970,7 +2977,10 @@ mod tests {
         wipe.blend = Blend::Replace;
         let mut grp = LayerEntry::new(
             "group",
-            Layer::Group(GroupLayer { stack: LayerStack { layers: vec![wipe] } }),
+            Layer::Group(GroupLayer {
+                stack: LayerStack { layers: vec![wipe] },
+                recipe: None,
+            }),
         );
         grp.blend = Blend::Max;
 

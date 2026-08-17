@@ -790,6 +790,23 @@ pins both directions. On top of that:
   also the export-regression diff. `ringdesign check` prints the field
   verdict and the stones findings for one design.
 
+### Generators are live until baked
+
+The CrossGems lesson, in this model's idiom: a generated group carries the
+`GenRecipe` that made it (`GroupLayer::recipe` — Pavé, Halo or Channel
+spec, serde'd into the design file). While the recipe is present the group
+is **live**: `pave::regenerate_live` re-runs every live generator and
+replaces its stack in place, and the GUI calls it from `mark_dirty`, so
+editing the recipe *or the band under it* re-solves the layout — change the
+band width and a pavé re-packs. The entry's own window/blend/mask stay the
+user's. A recipe that no longer fits keeps its old stack and says so.
+**Bake** clears the recipe and the layers become hand-owned. Builds and
+analysis never regenerate — a design file renders exactly as saved, and the
+recipe is editable provenance, not a build input.
+`live_groups_regenerate_with_the_band_and_bake_detaches` pins the
+lifecycle. The eternity `SeatRun` needs none of this: it is already a
+parametric layer.
+
 ### Pavé is a generator, split is a modulation, the sheet is HTML
 
 - **Auto-pavé** (`pave.rs`): packs an arc × v-band (or a side-face run) with

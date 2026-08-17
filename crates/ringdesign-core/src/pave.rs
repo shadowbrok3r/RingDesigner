@@ -22,7 +22,7 @@ use crate::RingDesign;
 pub const MAX_SEATS: usize = 240;
 
 /// Where across the band the fill goes.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum PaveRegion {
     /// A band of `v`, centred at `center_mm`, `width_mm` across.
     VBand { center_mm: f64, width_mm: f64 },
@@ -30,7 +30,7 @@ pub enum PaveRegion {
     SideFace(SideFacePick),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaveSpec {
     pub gem: Gem,
     /// Metal left between neighbouring girdles, mm.
@@ -164,7 +164,7 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
     }
     let entry = LayerEntry::new(
         format!("Pavé {} ({})", spec.gem.display(), outcome.seats),
-        Layer::Group(GroupLayer { stack }),
+        Layer::Group(GroupLayer { stack, recipe: Some(GenRecipe::Pave(spec.clone())) }),
     );
     Some((entry, outcome))
 }
@@ -215,7 +215,10 @@ pub fn channel_set(design: &RingDesign, gem: Gem, recess_mm: f64) -> Option<Laye
 
     let mut entry = LayerEntry::new(
         format!("Channel set {}", gem.display()),
-        Layer::Group(GroupLayer { stack }),
+        Layer::Group(GroupLayer {
+            stack,
+            recipe: Some(GenRecipe::Channel(ChannelSpec { gem, recess_mm: recess })),
+        }),
     );
     entry.window.v_gate = VGate::SideFaces(SideFacePick::Wider);
     Some(entry)
@@ -236,7 +239,7 @@ pub fn channel_set(design: &RingDesign, gem: Gem, recess_mm: f64) -> Option<Laye
 ///
 /// The one proud stone is the centre, on the crest, where a mound straddles
 /// the parting plane and releases.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct HaloSpec {
     pub center: Gem,
     pub accent: Gem,
@@ -359,9 +362,93 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
 
     let entry = LayerEntry::new(
         format!("Halo {} + {}x {}", spec.center.display(), n, spec.accent.display()),
-        Layer::Group(GroupLayer { stack }),
+        Layer::Group(GroupLayer { stack, recipe: Some(GenRecipe::Halo(spec.clone())) }),
     );
     Some((entry, n))
+}
+
+/// Channel-set parameters, so a channel group can stay live like the rest.
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ChannelSpec {
+    pub gem: Gem,
+    pub recess_mm: f64,
+}
+
+/// The generator a live [`GroupLayer`] was made by — the CrossGems lesson,
+/// in this model's idiom: a group is either *live* (this recipe owns its
+/// stack, and editors re-run it when the recipe or the band changes) or
+/// *baked* (recipe removed, layers hand-owned). Builds never regenerate;
+/// the stored stack is what a file means.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum GenRecipe {
+    Pave(PaveSpec),
+    Halo(HaloSpec),
+    Channel(ChannelSpec),
+}
+
+impl GenRecipe {
+    pub fn kind_label(&self) -> &'static str {
+        match self {
+            GenRecipe::Pave(_) => "Pavé",
+            GenRecipe::Halo(_) => "Halo",
+            GenRecipe::Channel(_) => "Channel set",
+        }
+    }
+
+    /// Run the generator this recipe names against the current band.
+    pub fn generate(&self, design: &RingDesign) -> Option<LayerEntry> {
+        match self {
+            GenRecipe::Pave(spec) => fill(design, spec).map(|(e, _)| e),
+            GenRecipe::Halo(spec) => halo(design, spec).map(|(e, _)| e),
+            GenRecipe::Channel(spec) => channel_set(design, spec.gem, spec.recess_mm),
+        }
+    }
+}
+
+/// Re-run every live generator group against the current band, replacing
+/// each one's stack and generated name in place. The entry's own window,
+/// blend, mask and opacity are the user's and stay put. A recipe that no
+/// longer fits keeps its old stack and says so in the returned notes —
+/// non-destructive, like every refusal in this app.
+///
+/// Editors call this after any change that moves the ground under a
+/// generator: the recipe itself, the profile, the shank, the process.
+/// Builds and analysis never do — a design file renders as saved.
+pub fn regenerate_live(design: &mut RingDesign) -> Vec<String> {
+    let live: Vec<(usize, GenRecipe)> = design
+        .layers
+        .layers
+        .iter()
+        .enumerate()
+        .filter_map(|(i, e)| match &e.layer {
+            Layer::Group(g) => g.recipe.clone().map(|r| (i, r)),
+            _ => None,
+        })
+        .collect();
+    let mut notes = Vec::new();
+    for (i, recipe) in live {
+        match recipe.generate(design) {
+            Some(fresh) => {
+                let Layer::Group(fresh_group) = fresh.layer else { continue };
+                let name = fresh.name;
+                if let Some(entry) = design.layers.layers.get_mut(i) {
+                    if let Layer::Group(g) = &mut entry.layer {
+                        g.stack = fresh_group.stack;
+                        entry.name = name;
+                    }
+                }
+            }
+            None => {
+                if let Some(entry) = design.layers.layers.get(i) {
+                    notes.push(format!(
+                        "{} no longer fits this band — kept as generated",
+                        entry.name
+                    ));
+                }
+            }
+        }
+    }
+    notes
 }
 
 fn push_seat(
@@ -511,6 +598,73 @@ mod tests {
         narrow.profile.apply_style(ProfileStyle::LowDome);
         narrow.profile.width_mm = 3.0;
         assert!(halo(&narrow, &spec).is_none());
+    }
+
+    /// The live-group lifecycle: a generated group carries its recipe, the
+    /// regenerate pass re-solves it when the band changes, a recipe that no
+    /// longer fits refuses non-destructively, baking detaches it, and the
+    /// recipe survives the file round-trip.
+    #[test]
+    fn live_groups_regenerate_with_the_band_and_bake_detaches() {
+        let mut d = flat_design();
+        let spec = PaveSpec {
+            gem: Gem::calibrated(crate::gem::GemCut::Round, 1.2),
+            region: PaveRegion::VBand {
+                center_mm: d.field_context().crest_v_mm,
+                width_mm: 5.0,
+            },
+            ..Default::default()
+        };
+        let (entry, out) = fill(&d, &spec).expect("fits");
+        let Layer::Group(g) = &entry.layer else { panic!() };
+        assert!(matches!(g.recipe, Some(GenRecipe::Pave(_))), "generated groups are live");
+        d.layers.layers.push(entry);
+        let before = out.seats;
+
+        // Editing the stored recipe — the editor's flow — re-packs the group.
+        d.profile.width_mm = 12.0;
+        let crest = d.field_context().crest_v_mm;
+        let Layer::Group(g) = &mut d.layers.layers[0].layer else { panic!() };
+        let Some(GenRecipe::Pave(sp)) = &mut g.recipe else { panic!() };
+        sp.region = PaveRegion::VBand { center_mm: crest, width_mm: 8.0 };
+        let notes = regenerate_live(&mut d);
+        assert!(notes.is_empty(), "{notes:?}");
+        let Layer::Group(g) = &d.layers.layers[0].layer else { panic!() };
+        assert!(
+            g.stack.layers.len() > before,
+            "{} seats after widening the region, was {before}",
+            g.stack.layers.len()
+        );
+
+        // The recipe survives the file round-trip.
+        let dir = std::env::temp_dir().join("ringdesign-live-group-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("live.ring.json");
+        crate::library::save_design(&path, &d).unwrap();
+        let back = crate::library::load_design(&path).unwrap();
+        let Layer::Group(g2) = &back.layers.layers[0].layer else { panic!() };
+        assert!(matches!(g2.recipe, Some(GenRecipe::Pave(_))), "recipe lost in the file");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        // A region the recipe no longer fits: the note says so, the stack stays.
+        let kept = g.stack.layers.len();
+        let Layer::Group(g) = &mut d.layers.layers[0].layer else { panic!() };
+        let Some(GenRecipe::Pave(sp)) = &mut g.recipe else { panic!() };
+        sp.region = PaveRegion::VBand { center_mm: 2.0, width_mm: 0.8 };
+        let notes = regenerate_live(&mut d);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("no longer fits"));
+        let Layer::Group(g) = &d.layers.layers[0].layer else { panic!() };
+        assert_eq!(g.stack.layers.len(), kept, "refusal must not destroy the stack");
+
+        // Baked: the recipe is gone and regeneration leaves the layers alone.
+        let Layer::Group(g) = &mut d.layers.layers[0].layer else { panic!() };
+        g.recipe = None;
+        let fingerprint = g.stack.layers.len();
+        let notes = regenerate_live(&mut d);
+        assert!(notes.is_empty());
+        let Layer::Group(g) = &d.layers.layers[0].layer else { panic!() };
+        assert_eq!(g.stack.layers.len(), fingerprint, "a baked group is hand-owned");
     }
 
     /// The process mode: the same proud-accent halo that locks in sand is

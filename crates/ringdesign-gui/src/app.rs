@@ -355,6 +355,19 @@ impl RingDesignerApp {
     /// Queue a rebuild after the debounce window and publish the design to the
     /// MCP engine.
     pub fn mark_dirty(&mut self) {
+        // Live generator groups own their stacks: any edit that moves the
+        // ground under one — the profile, the shank, the process, or the
+        // recipe itself — re-solves it here, at edit time. Builds never
+        // regenerate; a design file renders as saved. A recipe that no
+        // longer fits refuses non-destructively and says so.
+        let has_live = self.design.layers.layers.iter().any(|e| {
+            matches!(&e.layer, ringdesign_core::Layer::Group(g) if g.recipe.is_some())
+        });
+        if has_live {
+            for note in ringdesign_core::pave::regenerate_live(&mut self.design) {
+                self.set_status(note);
+            }
+        }
         self.dirty_at = Some(Instant::now());
         // Only notes that something moved; the snapshot waits for the edit to
         // settle, so one slider drag is one history entry.
