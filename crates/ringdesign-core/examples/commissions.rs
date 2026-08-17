@@ -274,6 +274,28 @@ fn main() {
     }
     finish(&dir, "f-msb-hexagon", "hexagon face, four gems spread evenly", WHITE, HERO, d, &mut lib);
 
+    // --- G. Halo: a centre stone in a bead-set melee ring. -------------------
+    // The signature CrossGems cluster, cast the way a halo is actually made:
+    // a clean domed plate carrying the centre seat, the melee ring riding it
+    // as bench-set markers. A ring of proud accent mounds is the two-flange
+    // valley (measured 1.4% at -33 deg); the plate is the stock the setter
+    // beads the melee into.
+    let mut d = RingDesign::default();
+    d.profile.apply_style(ProfileStyle::LowDome);
+    d.profile.width_mm = 11.0;
+    d.profile.thickness_mm = 2.4;
+    let spec = ringdesign_core::pave::HaloSpec {
+        center: Gem::calibrated(GemCut::Round, 4.5),
+        accent: Gem::calibrated(GemCut::Round, 1.0),
+        gap_mm: 0.3,
+        bridge_mm: 0.25,
+        ..Default::default()
+    };
+    let (entry, n) = ringdesign_core::pave::halo(&d, &spec).expect("halo fits an 11 mm band");
+    println!("{:<22}   halo: {} accents round the centre", "", n);
+    d.layers.layers.push(entry);
+    finish(&dir, "g-halo-cluster", "centre stone in a bead-set melee halo", WHITE, GIF, d, &mut lib);
+
     println!(
         "renders in {dir}, designs in {}",
         library::default_design_dir().join("commissions").display()

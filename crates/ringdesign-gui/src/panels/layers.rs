@@ -210,6 +210,30 @@ fn add_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             }
             ui.close();
         }
+        if ui
+            .button(format!("{} Halo", icon::CIRCLE))
+            .on_hover_text(
+                "A centre stone on a domed plate ringed by bead-set melee. Casts as a \
+                 clean plate — the melee ring rides it as bench-set markers, because a \
+                 ring of proud mounds is the two-flange valley. Wants a wide band.",
+            )
+            .clicked()
+        {
+            let spec = ringdesign_core::pave::HaloSpec::default();
+            match ringdesign_core::pave::halo(&app.design, &spec) {
+                Some((entry, n)) => {
+                    let name = entry.name.clone();
+                    app.design.layers.layers.push(entry);
+                    app.selected_layer = Some(app.design.layers.layers.len() - 1);
+                    app.mark_dirty();
+                    app.set_status(format!("Added {name} ({n} accents)"));
+                }
+                None => app.set_status(
+                    "The plate does not fit this band — widen it (a 5 mm centre with a melee ring wants a band ~11 mm wide)",
+                ),
+            }
+            ui.close();
+        }
         if ui.button(format!("{} Decals", icon::STAMP)).clicked() {
             let alpha = app.lib.names().first().cloned().unwrap_or_else(|| "Rope".to_string());
             app.add_layer("Decals", Layer::Decals(DecalLayer { alpha, ..Default::default() }));

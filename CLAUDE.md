@@ -822,6 +822,15 @@ On top of that:
   feature: stone + two rails need ~2.9 mm of face for a 1.5 mm stone, so
   the generator returns `None` on a thin or domed band and the menu item
   says what to change. Stones set at the bench, as always.
+- **Halo** (`pave::halo`): a centre stone on a domed plate ringed by melee.
+  A ring of *proud* accent mounds does not cast — each sits off the crest
+  and makes a two-flange valley with the centre (measured 1.4% at −33°) —
+  so the halo casts as a **clean gypsy plate** (one gentle dome, 0.000%)
+  with the centre seat on the crest, and the accent ring rides the plate as
+  **zero-height markers**: the report counts them and the gem preview stands
+  each stone on the plate, but they raise no proud geometry. The setter
+  drills and beads the melee into the cast dome, which is how a cast halo is
+  actually made. `HaloSpec` sizes the plate from centre + gap + melee ring.
 
 ### Exports beyond the mould
 

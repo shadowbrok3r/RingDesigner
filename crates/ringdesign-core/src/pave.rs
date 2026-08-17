@@ -221,6 +221,138 @@ pub fn channel_set(design: &RingDesign, gem: Gem, recess_mm: f64) -> Option<Laye
     Some(entry)
 }
 
+/// A halo: a centre stone on a domed plate, ringed by bead-set accents.
+///
+/// The construction is what a cast halo actually is, and what the field
+/// verdict forces. A ring of *proud* accent mounds does not cast: each melee
+/// mound sits off the crest and forms a two-flange valley with the centre —
+/// measured 1.4% undercut at −33° — the same wall a signet's cleft or a
+/// two-flange shank raises. So the halo casts as a **clean gypsy plate**
+/// (one gentle dome, 0.000%) carrying the centre seat, and the accent ring
+/// rides the plate as **bench-set markers** (zero-height seats): the report
+/// counts them, the gem preview stands each stone on the plate surface, and
+/// the setter drills and beads them into the cast dome — which is how fine
+/// halo melee is set regardless of process.
+///
+/// The one proud stone is the centre, on the crest, where a mound straddles
+/// the parting plane and releases.
+#[derive(Clone, Debug)]
+pub struct HaloSpec {
+    pub center: Gem,
+    pub accent: Gem,
+    pub theta_deg: f64,
+    /// Across the band; `None` sits it on the crest, the one place a proud
+    /// centre mound releases.
+    pub v_mm: Option<f64>,
+    /// Metal between the centre girdle and the accent ring, mm.
+    pub gap_mm: f64,
+    /// Metal between neighbouring accents, mm.
+    pub bridge_mm: f64,
+    /// Accents in the ring; 0 solves the count from the halo circle.
+    pub count: u32,
+}
+
+impl Default for HaloSpec {
+    fn default() -> Self {
+        Self {
+            center: Gem::calibrated(crate::gem::GemCut::Round, 5.0),
+            accent: Gem::calibrated(crate::gem::GemCut::Round, 1.1),
+            theta_deg: crate::profile::TOP_DEG,
+            v_mm: None,
+            gap_mm: 0.3,
+            bridge_mm: 0.25,
+            count: 0,
+        }
+    }
+}
+
+/// Build the halo group. `None` when the plate will not fit across the band.
+pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
+    let ctx = design.field_context();
+    let v_center = spec.v_mm.unwrap_or(ctx.crest_v_mm);
+
+    let mut center = SeatPadLayer {
+        style: SeatStyle::GypsyMound,
+        height_mm: 0.9,
+        crown: 1.0,
+        blend_mm: 2.0,
+        ..Default::default()
+    };
+    center.fit_stone(spec.center);
+    // Melee footprint for the accent markers: a tight ring the bench drills.
+    let acc_dia = spec.accent.w_mm.max(0.5) + 0.7;
+
+    let r_halo = center.diameter_mm * 0.5 + spec.gap_mm.max(0.0) + acc_dia * 0.5;
+    if r_halo <= 1e-3 {
+        return None;
+    }
+    // The domed plate carries the whole cluster; it must fit the band with a
+    // gentle skirt to the crown.
+    let plate_dia = 2.0 * (r_halo + acc_dia * 0.5) + 1.6;
+    let reach = plate_dia * 0.5;
+    if v_center - reach < 0.0 || v_center + reach > ctx.band_v_len_mm {
+        return None;
+    }
+
+    let circ = std::f64::consts::TAU * r_halo;
+    let pitch = acc_dia + spec.bridge_mm.max(0.0);
+    let n = if spec.count >= 3 {
+        spec.count
+    } else {
+        ((circ / pitch).floor() as u32).max(6)
+    };
+
+    let mut stack = LayerStack::default();
+    // The plate: one gentle dome, the clean stock the melee is cut into.
+    let plate = SeatPadLayer {
+        theta_deg: spec.theta_deg.rem_euclid(360.0),
+        v_mm: v_center,
+        diameter_mm: plate_dia,
+        height_mm: 0.6,
+        crown: 1.0,
+        blend_mm: plate_dia * 0.3,
+        style: SeatStyle::GypsyMound,
+        ..Default::default()
+    };
+    stack.layers.push(LayerEntry::new("Plate", Layer::SeatPad(plate)));
+
+    let mut cs = center;
+    cs.theta_deg = spec.theta_deg.rem_euclid(360.0);
+    cs.v_mm = v_center;
+    // The centre rides proud of the plate; its own skirt fairs into the dome.
+    cs.height_mm = 0.9;
+    stack.layers.push(LayerEntry::new("Centre", Layer::SeatPad(cs)));
+
+    let crest_r = ctx.crest_radius_mm.max(1e-6);
+    for k in 0..n {
+        let a = k as f64 / n as f64 * std::f64::consts::TAU;
+        // The halo is a few mm across, so its own circle is locally flat in
+        // (arc-u, v): the u offset becomes an angle at the crest radius.
+        let dtheta = (r_halo * a.cos()) / crest_r * 180.0 / std::f64::consts::PI;
+        // A zero-height marker: it carries the stone for the report and the
+        // preview but raises no proud geometry, because a proud accent ring
+        // is the undercut. The plate is the stock; the bench cuts the seat.
+        let s = SeatPadLayer {
+            theta_deg: (spec.theta_deg + dtheta).rem_euclid(360.0),
+            v_mm: v_center + r_halo * a.sin(),
+            diameter_mm: acc_dia,
+            height_mm: 0.0,
+            crown: 1.0,
+            blend_mm: 0.2,
+            style: SeatStyle::GypsyMound,
+            gem: Some(spec.accent),
+            ..Default::default()
+        };
+        stack.layers.push(LayerEntry::new(format!("Accent {}", k + 1), Layer::SeatPad(s)));
+    }
+
+    let entry = LayerEntry::new(
+        format!("Halo {} + {}x {}", spec.center.display(), n, spec.accent.display()),
+        Layer::Group(GroupLayer { stack }),
+    );
+    Some((entry, n))
+}
+
 fn push_seat(
     seats: &mut Vec<SeatPadLayer>,
     proto: &SeatPadLayer,
@@ -325,6 +457,49 @@ mod tests {
         d.profile.apply_style(ProfileStyle::HalfRound);
         let spec = PaveSpec::default();
         assert!(fill(&d, &spec).is_none());
+    }
+
+    #[test]
+    fn a_halo_casts_on_the_crown_and_stays_editable() {
+        use crate::castability::{self, Verdict};
+        let mut d = RingDesign::default();
+        d.profile.apply_style(ProfileStyle::LowDome);
+        d.profile.width_mm = 9.0;
+        d.profile.thickness_mm = 2.4;
+        let spec = HaloSpec {
+            center: Gem::calibrated(crate::gem::GemCut::Round, 4.0),
+            accent: Gem::calibrated(crate::gem::GemCut::Round, 1.0),
+            ..Default::default()
+        };
+        let (entry, n) = halo(&d, &spec).expect("halo fits a 9 mm band");
+        assert!(n >= 6, "solved {n} accents");
+        let Layer::Group(g) = &entry.layer else { panic!("not a group") };
+        assert_eq!(g.stack.layers.len(), n as usize + 2, "plate, centre, then the ring");
+        // The accents are bench-set markers: they carry a stone but raise no
+        // proud geometry, because a proud accent ring is the undercut.
+        for e in g.stack.layers.iter().filter(|e| e.name.starts_with("Accent")) {
+            let Layer::SeatPad(s) = &e.layer else { panic!() };
+            assert_eq!(s.height_mm, 0.0, "accent must be a flat marker");
+            assert!(s.gem.is_some(), "marker still carries its stone");
+        }
+
+        d.layers.layers.push(entry);
+        let lib = crate::alpha::AlphaLibrary::builtin();
+        let field = castability::analyze_field(&d, &lib, &d.draft, 220, 128);
+        assert_ne!(
+            field.verdict,
+            Verdict::NotCastable,
+            "halo of mounds must release on the crown: {:.3}% at {:.1} deg, {:?}",
+            field.undercut_fraction() * 100.0,
+            field.worst_draft_deg,
+            field.notes,
+        );
+
+        // A halo too wide for the band refuses rather than running off the edge.
+        let mut narrow = RingDesign::default();
+        narrow.profile.apply_style(ProfileStyle::LowDome);
+        narrow.profile.width_mm = 3.0;
+        assert!(halo(&narrow, &spec).is_none());
     }
 
     #[test]
