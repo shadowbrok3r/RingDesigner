@@ -801,6 +801,19 @@ The GUI's profile panel draws every entry — preset and saved — as its own
 little section (`profile_row`), and a name-plus-Save row files the current
 shape. The CrossGems factory-profile-folder idea, minus the factory.
 
+`PostLoad/tools/cluster_curves.py` decodes their master preset library
+(the Profile_Curves cluster: 23 unit-box sections whose true index → name
+mapping is the C# script input's Source order — the containers' own
+nicknames disagree with the published selector list in places) into the
+manifest `examples/import_profiles.rs` consumes. 16 of the 23 import
+under their true names (`CG Round` … `CG Tapered Smooth`, stepped Triple/
+Second Floor silhouettes included); the 7 skips are honest — flat crowns
+our squared presets already are, and multi-crest valleys a single-crest
+band cannot be. Imported sections, like every profile asset, live only in
+the user dir. `examples/profile_gallery.rs` renders the whole saved
+library on one band as a contact sheet — the Saved picker at a glance and
+the roundtrip check in one image.
+
 ### Generators are live until baked
 
 The CrossGems lesson, in this model's idiom: a generated group carries the
@@ -833,6 +846,17 @@ parametric layer.
   poles. Seats scale whole (footprint, stand-off, skirt) so a graded row
   is still a row of self-similar mounds, and the report sums the graded
   carats via `SeatCheck::carats_override` instead of count x largest.
+- **Shared prongs**: `SeatRunLayer::shared_prong_mm` stands one post pair
+  at each boundary between neighbouring stones — the CrossGems Prongs_Row
+  rule (pair each gem with its shift-by-one neighbour, prong the boundary,
+  cull only an open row's wrap pair) read into the height field, where a
+  full-ring run keeps every boundary and the window handles open arcs.
+  Posts grade with their stones. **Lost-wax stock**: proud posts flank the
+  column off the parting plane and lean under a two-part pull — measured
+  2.8–3.0% at −62° on a low dome, converging (`examples/prong_probe.rs`) —
+  so in sand the report says "cast flush and bead-set or judge for lost
+  wax", the field verdict enforces it, and the sheet prints the claw stock
+  (pairs, post Ø, proud mm) for the setter either way.
 - **`ShankKind::Split`**: the castable read of a split shank. A real split —
   two crests — is a valley no single parting plane clears; instead the band
   flares 55% over a 110° arc while a channel is carved into *each side face*

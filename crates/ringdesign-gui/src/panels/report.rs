@@ -699,6 +699,13 @@ fn stones_section(ui: &mut egui::Ui, stones: &ringdesign_core::stones::StonesRep
                 if let Some(b) = seat.bridge_mm {
                     row(ui, "Bridge", format!("{b:.2} mm"));
                 }
+                if let Some((pairs, dia, proud)) = seat.shared_prongs {
+                    row(
+                        ui,
+                        "Shared prongs",
+                        format!("{pairs} pairs, {dia:.2} mm posts, {proud:.2} mm proud"),
+                    );
+                }
             });
         for w in &seat.warnings {
             ui.horizontal_top(|ui| {

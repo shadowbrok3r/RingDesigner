@@ -149,6 +149,12 @@ pub fn html(
                 seat.edge_clearance_mm,
                 seat.depth_available_mm,
             ));
+            if let Some((pairs, dia, proud)) = seat.shared_prongs {
+                h.push_str(&format!(
+                    "<tr><td></td><td colspan=\"4\">shared prongs: {pairs} pairs, \
+                     &Oslash;{dia:.2} mm posts, {proud:.2} mm proud</td></tr>"
+                ));
+            }
             for w in &seat.warnings {
                 h.push_str(&format!(
                     "<tr><td></td><td colspan=\"4\" class=\"warn\">{}</td></tr>",

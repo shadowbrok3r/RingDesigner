@@ -50,6 +50,8 @@ pub struct SeatCheck {
     /// Graduated runs only: the summed graded carats, which count times the
     /// largest stone would overstate.
     pub carats_override: Option<f64>,
+    /// Shared-prong runs only: (pairs, post diameter mm, proud mm).
+    pub shared_prongs: Option<(u32, f64, f64)>,
     pub warnings: Vec<String>,
 }
 
@@ -169,6 +171,29 @@ fn walk(
                 }
                 if check.count == 0 {
                     check.warnings.push("window keeps no stations — not on the ring".into());
+                }
+                if run.shared_prong_mm > 1e-9 {
+                    check.shared_prongs = Some((
+                        check.count,
+                        run.prong_r_mm() * 2.0,
+                        run.shared_prong_mm,
+                    ));
+                    let sand = design.draft.process == crate::castability::CastProcess::SandTwoPart;
+                    if sand && matches!(check.footing, SeatFooting::Crown(_)) {
+                        check.warnings.push(format!(
+                            "shared prongs {:.2} mm proud flank the stone column off the \
+                             parting plane — posts on a crown lean under a two-part pull. \
+                             Cast flush (0 mm) and bead-set, or judge for lost wax",
+                            run.shared_prong_mm
+                        ));
+                    }
+                    let floor = design.draft.min_detail_mm;
+                    if run.prong_r_mm() * 2.0 < floor {
+                        check.warnings.push(format!(
+                            "post Ø{:.2} mm is under the process detail floor ({floor} mm)",
+                            run.prong_r_mm() * 2.0
+                        ));
+                    }
                 }
                 out.push(check);
             }
@@ -344,6 +369,7 @@ fn check_seat(
         depth_available_mm: if depth == f64::MAX { 0.0 } else { depth },
         bridge_mm: None,
         carats_override: None,
+        shared_prongs: None,
         warnings,
     }
 }
@@ -455,6 +481,92 @@ mod tests {
         let lib = crate::alpha::AlphaLibrary::builtin();
         let f = castability::analyze_field(&d, &lib, &d.draft, 220, 128);
         assert_ne!(f.verdict, Verdict::NotCastable, "{:?}", f.notes);
+    }
+
+    /// Shared prongs: one post pair per boundary between neighbouring
+    /// stones — the CrossGems Prongs_Row rule (pair each gem with its
+    /// shift-by-one neighbour, prong the boundary, cull only when a row is
+    /// open) read into the height field, where a full-ring run keeps every
+    /// boundary and the window handles open arcs. Proud posts flank the
+    /// column off the parting plane, so they are lost-wax stock: in sand
+    /// the report says so and the field sees the lean (measured 2.8–3.0%
+    /// at −62° on a low dome, converging — `examples/prong_probe.rs`);
+    /// under lost wax the same design is Castable with the pull stats in
+    /// the notes.
+    #[test]
+    fn shared_prongs_are_lost_wax_stock_and_the_report_says_so() {
+        use crate::castability::{self, CastProcess, Verdict};
+        use crate::field::Uv;
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 4.6;
+        d.profile.thickness_mm = 2.5;
+        let ctx = d.field_context();
+        let mut run = SeatRunLayer::default();
+        run.gem = Gem::calibrated(GemCut::Round, 2.2);
+        run.seat.v_mm = ctx.crest_v_mm;
+        run.solve_spacing(&ctx);
+        run.shared_prong_mm = 0.9;
+        let n = run.count;
+
+        // Posts stand at the boundaries, not at the stations.
+        let pitch = ctx.circumference_mm / n as f64;
+        let off = run.prong_off_mm();
+        let seat_only = {
+            let mut r0 = run;
+            r0.shared_prong_mm = 0.0;
+            r0
+        };
+        let boundary = Uv { u: pitch * 0.5, v: ctx.crest_v_mm + off };
+        let station = Uv { u: 0.0, v: ctx.crest_v_mm + off };
+        assert!(
+            run.height(boundary, &ctx) > seat_only.height(boundary, &ctx) + 0.5,
+            "post proud at the boundary"
+        );
+        assert!(run.height(station, &ctx) < run.height(boundary, &ctx));
+
+        // Graduation scales the posts with their stones.
+        let mut graded = run;
+        graded.taper = 0.5;
+        let far = Uv {
+            u: ctx.circumference_mm * 0.75 + pitch * 0.5,
+            v: ctx.crest_v_mm + off * graded.scale_at(271.0),
+        };
+        let near = run.height(boundary, &ctx);
+        assert!(graded.height(far, &ctx) < near * 0.75, "far post grades down");
+
+        d.layers.layers.push(LayerEntry::new("Shared", Layer::SeatRun(run)));
+
+        // Sand: prong info on the report line, and the honest warning.
+        let r = report(&d, 0.0).unwrap();
+        let s = &r.seats[0];
+        let (pairs, dia, proud) = s.shared_prongs.expect("prong info");
+        assert_eq!(pairs, n);
+        assert!(dia > 0.5 && (proud - 0.9).abs() < 1e-12);
+        assert!(
+            s.warnings.iter().any(|w| w.contains("lost wax")),
+            "sand warns: {:?}",
+            s.warnings
+        );
+        let lib = crate::alpha::AlphaLibrary::builtin();
+        let sand = castability::analyze_field(&d, &lib, &d.draft, 256, 144);
+        assert!(
+            sand.undercut_fraction() > 5e-4,
+            "posts lean in sand: {:.4}% at {:.0}°",
+            sand.undercut_fraction() * 100.0,
+            sand.worst_draft_deg
+        );
+
+        // Lost wax: no warning, and the verdict carries them.
+        d.draft.process = CastProcess::LostWax;
+        let r = report(&d, 0.0).unwrap();
+        assert!(
+            !r.seats[0].warnings.iter().any(|w| w.contains("lost wax")),
+            "{:?}",
+            r.seats[0].warnings
+        );
+        let lw = castability::analyze_field(&d, &lib, &d.draft, 256, 144);
+        assert_eq!(lw.verdict, Verdict::Castable, "{:?}", lw.notes);
     }
 
     #[test]

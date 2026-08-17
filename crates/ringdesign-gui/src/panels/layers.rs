@@ -2240,6 +2240,22 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
             ui.end_row();
         }
 
+        ui.label("Shared prongs");
+        c |= ui
+            .add(
+                egui::DragValue::new(&mut r.shared_prong_mm)
+                    .speed(0.01)
+                    .range(0.0..=1.5)
+                    .suffix(" mm"),
+            )
+            .on_hover_text(
+                "Post pairs at each boundary between stones, cut for both at \
+                 once. Proud posts are lost-wax stock; for a two-part sand \
+                 pull keep 0 and bead-set from the cast surface.",
+            )
+            .changed();
+        ui.end_row();
+
         c
     });
 

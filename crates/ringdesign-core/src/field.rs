@@ -1406,6 +1406,18 @@ pub struct SeatRunLayer {
     /// Where the largest stone sits, degrees. 90 is the top of the ring.
     #[serde(default = "default_taper_theta")]
     pub taper_theta_deg: f64,
+    /// Shared-prong posts: one pair at each boundary between neighbouring
+    /// stones, straddling the stone column, cut for both stones at once.
+    /// Height proud of the seat stock, mm; 0 = none. Posts follow the
+    /// graduation like their stones. A full-ring run keeps every boundary;
+    /// an arc window fades boundary posts with everything else.
+    ///
+    /// Lost-wax stock: proud posts flank the column off the parting plane
+    /// and lean under a two-part pull — measured 2.8–3.0% at −62°,
+    /// converging, on a low dome (`examples/prong_probe.rs`). In sand keep
+    /// 0 and bead-set from the cast surface.
+    #[serde(default)]
+    pub shared_prong_mm: f64,
 }
 
 fn default_taper_theta() -> f64 {
@@ -1434,6 +1446,7 @@ impl Default for SeatRunLayer {
             bridge_mm: 0.4,
             taper: 0.0,
             taper_theta_deg: default_taper_theta(),
+            shared_prong_mm: 0.0,
         }
     }
 }
@@ -1474,6 +1487,17 @@ impl SeatRunLayer {
         g
     }
 
+    /// Shared-prong post radius at full scale, mm.
+    pub fn prong_r_mm(&self) -> f64 {
+        (self.gem.w_mm * 0.16).clamp(0.3, 0.9)
+    }
+
+    /// The posts' offset from the stone column, mm: post centres ride the
+    /// girdle edge so the cut claw overhangs both stones.
+    pub fn prong_off_mm(&self) -> f64 {
+        self.gem.w_mm * 0.5 + self.prong_r_mm() * 0.35
+    }
+
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
         let n = self.count.clamp(1, 200) as f64;
         if !(ctx.circumference_mm > 1e-9) || !uv.u.is_finite() {
@@ -1501,16 +1525,44 @@ impl SeatRunLayer {
             }
             h = h.max(s.height(uv, ctx));
         }
+        if self.shared_prong_mm > 1e-9 {
+            // One post pair per boundary between stations, at the midpoints.
+            let kb = ((theta - 0.5 * pitch_deg) / pitch_deg).round();
+            for dk in [-1.0, 0.0, 1.0] {
+                let theta_b = (kb + dk + 0.5) * pitch_deg;
+                let scale = self.scale_at(theta_b);
+                let r_post = self.prong_r_mm() * scale;
+                let off = self.prong_off_mm() * scale;
+                let amp = (self.seat.height_mm + self.shared_prong_mm) * scale;
+                let du = wrap_delta(uv.u - ctx.u_of_theta(theta_b), ctx.circumference_mm);
+                for side in [-1.0, 1.0] {
+                    let dv = uv.v - (self.seat.v_mm + side * off);
+                    let d = (du * du + dv * dv).sqrt();
+                    let t = (d / r_post.max(1e-6)).clamp(0.0, 1.0);
+                    h = h.max(amp * (0.5 + 0.5 * (std::f64::consts::PI * t).cos()));
+                }
+            }
+        }
         h
     }
 
     pub fn feature_footprints(&self, _ctx: &FieldContext) -> Vec<FeatureFootprint> {
         let reach = self.seat.diameter_mm * 0.5 + self.seat.blend_mm;
-        vec![FeatureFootprint {
+        let mut out = vec![FeatureFootprint {
             min_feature_mm: (self.seat.diameter_mm * 0.2).max(0.15),
             u_mm: None,
             v_mm: (self.seat.v_mm - reach, self.seat.v_mm + reach),
-        }]
+        }];
+        if self.shared_prong_mm > 1e-9 {
+            let r = self.prong_r_mm();
+            let off = self.prong_off_mm();
+            out.push(FeatureFootprint {
+                min_feature_mm: r,
+                u_mm: None,
+                v_mm: (self.seat.v_mm - off - r, self.seat.v_mm + off + r),
+            });
+        }
+        out
     }
 }
 
