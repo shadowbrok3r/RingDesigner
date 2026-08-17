@@ -284,6 +284,8 @@ pub struct SeatJson {
     pub depth_available_mm: f64,
     /// Runs only: metal left between neighbouring stones, mm.
     pub bridge_mm: Option<f64>,
+    /// Shared-prong runs only: e.g. "15 pairs, 0.70 mm posts, 0.90 mm proud".
+    pub shared_prongs: Option<String>,
     pub warnings: Vec<String>,
 }
 
@@ -1008,6 +1010,9 @@ fn stones_json(r: &ringdesign_core::stones::StonesReport) -> StonesJson {
                 edge_clearance_mm: s.edge_clearance_mm,
                 depth_available_mm: s.depth_available_mm,
                 bridge_mm: s.bridge_mm,
+                shared_prongs: s.shared_prongs.map(|(pairs, dia, proud)| {
+                    format!("{pairs} pairs, {dia:.2} mm posts, {proud:.2} mm proud")
+                }),
                 warnings: s.warnings.clone(),
             })
             .collect(),
