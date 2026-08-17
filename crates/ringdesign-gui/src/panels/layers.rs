@@ -2026,6 +2026,31 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
             .changed();
         ui.end_row();
 
+        ui.label("Graduate");
+        c |= ui
+            .add(egui::Slider::new(&mut r.taper, 0.0..=0.85).fixed_decimals(2))
+            .on_hover_text(
+                "Stones shrink toward the far side of the ring — 0.4 is the classic \
+                 graduated eternity. Seats scale with their stones and the report \
+                 sums the graded carats.",
+            )
+            .changed();
+        ui.end_row();
+
+        if r.taper > 0.0 {
+            ui.label("Largest at");
+            c |= ui
+                .add(
+                    egui::DragValue::new(&mut r.taper_theta_deg)
+                        .speed(1.0)
+                        .range(0.0..=360.0)
+                        .suffix("°"),
+                )
+                .on_hover_text("Ring angle of the largest stone; 90° is the top.")
+                .changed();
+            ui.end_row();
+        }
+
         c
     });
 

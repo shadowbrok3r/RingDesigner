@@ -753,7 +753,16 @@ they diverge, the section view lies about the solid.
 `DraftSettings` carries the sand itself: `min_draft_deg`, `min_section_mm`
 (the fill floor the field verdict checks), and `min_detail_mm` (the feature
 floor), with `SandProcess::{DelftClay, Petrobond}` presets writing all three.
-On top of that:
+`DraftSettings::process` picks the **casting process the verdict judges
+against**: `CastProcess::SandTwoPart` (default, the app's home ground) or
+`CastProcess::LostWax`. The geometry model is identical either way — under
+lost wax the pull statistics are still measured and reported (with an
+explicit "cannot move to sand as-is" note when undercut exists) but never
+gate; only fill and detail do, at investment floors (0.5 mm section,
+0.15 mm detail). Generators read the process and switch construction:
+`pave::halo` builds the sand plate-and-markers form or the classic proud
+melee ring. `lost_wax_frees_the_halo_and_the_verdict_says_which_is_which`
+pins both directions. On top of that:
 
 - **Per-layer DFM** (`dfm.rs`): layers are analytic, so their finest feature
   is a parameter, not a measurement — `feature_footprints` against
@@ -790,6 +799,12 @@ On top of that:
   stones report rolls a uniform seat group up to one line instead of two
   hundred rows. Gypsy mounds because that is the measured-safe row on curved
   ground.
+- **Graduated runs**: `SeatRunLayer::taper` (0..0.85) shrinks the stones
+  toward the far side of the ring — cosine in angular distance from
+  `taper_theta_deg`, so a full-ring run stays seamless and C1 at both
+  poles. Seats scale whole (footprint, stand-off, skirt) so a graded row
+  is still a row of self-similar mounds, and the report sums the graded
+  carats via `SeatCheck::carats_override` instead of count x largest.
 - **`ShankKind::Split`**: the castable read of a split shank. A real split —
   two crests — is a valley no single parting plane clears; instead the band
   flares 55% over a 110° arc while a channel is carved into *each side face*

@@ -267,8 +267,15 @@ impl Default for HaloSpec {
 }
 
 /// Build the halo group. `None` when the plate will not fit across the band.
+///
+/// Under [`CastProcess::LostWax`](crate::castability::CastProcess) the halo
+/// takes its classic form instead — the centre mound ringed by *proud*
+/// accent mounds, no plate — because the investment burns out of the
+/// two-flange valleys a sand pull cannot clear.
 pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
     let ctx = design.field_context();
+    let lost_wax =
+        design.draft.process == crate::castability::CastProcess::LostWax;
     let v_center = spec.v_mm.unwrap_or(ctx.crest_v_mm);
 
     let mut center = SeatPadLayer {
@@ -287,9 +294,10 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
         return None;
     }
     // The domed plate carries the whole cluster; it must fit the band with a
-    // gentle skirt to the crown.
+    // gentle skirt to the crown. The lost-wax form has no plate, so only the
+    // accent ring itself must fit.
     let plate_dia = 2.0 * (r_halo + acc_dia * 0.5) + 1.6;
-    let reach = plate_dia * 0.5;
+    let reach = if lost_wax { r_halo + acc_dia * 0.5 + 0.3 } else { plate_dia * 0.5 };
     if v_center - reach < 0.0 || v_center + reach > ctx.band_v_len_mm {
         return None;
     }
@@ -303,18 +311,20 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
     };
 
     let mut stack = LayerStack::default();
-    // The plate: one gentle dome, the clean stock the melee is cut into.
-    let plate = SeatPadLayer {
-        theta_deg: spec.theta_deg.rem_euclid(360.0),
-        v_mm: v_center,
-        diameter_mm: plate_dia,
-        height_mm: 0.6,
-        crown: 1.0,
-        blend_mm: plate_dia * 0.3,
-        style: SeatStyle::GypsyMound,
-        ..Default::default()
-    };
-    stack.layers.push(LayerEntry::new("Plate", Layer::SeatPad(plate)));
+    if !lost_wax {
+        // The plate: one gentle dome, the clean stock the melee is cut into.
+        let plate = SeatPadLayer {
+            theta_deg: spec.theta_deg.rem_euclid(360.0),
+            v_mm: v_center,
+            diameter_mm: plate_dia,
+            height_mm: 0.6,
+            crown: 1.0,
+            blend_mm: plate_dia * 0.3,
+            style: SeatStyle::GypsyMound,
+            ..Default::default()
+        };
+        stack.layers.push(LayerEntry::new("Plate", Layer::SeatPad(plate)));
+    }
 
     let mut cs = center;
     cs.theta_deg = spec.theta_deg.rem_euclid(360.0);
@@ -329,16 +339,17 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
         // The halo is a few mm across, so its own circle is locally flat in
         // (arc-u, v): the u offset becomes an angle at the crest radius.
         let dtheta = (r_halo * a.cos()) / crest_r * 180.0 / std::f64::consts::PI;
-        // A zero-height marker: it carries the stone for the report and the
-        // preview but raises no proud geometry, because a proud accent ring
-        // is the undercut. The plate is the stock; the bench cuts the seat.
+        // Sand: a zero-height marker — it carries the stone for the report
+        // and the preview but raises no proud geometry, because a proud
+        // accent ring is the undercut; the plate is the stock and the bench
+        // cuts the seat. Lost wax: the classic proud melee mound.
         let s = SeatPadLayer {
             theta_deg: (spec.theta_deg + dtheta).rem_euclid(360.0),
             v_mm: v_center + r_halo * a.sin(),
             diameter_mm: acc_dia,
-            height_mm: 0.0,
+            height_mm: if lost_wax { 0.5 } else { 0.0 },
             crown: 1.0,
-            blend_mm: 0.2,
+            blend_mm: if lost_wax { 0.3 } else { 0.2 },
             style: SeatStyle::GypsyMound,
             gem: Some(spec.accent),
             ..Default::default()
@@ -500,6 +511,52 @@ mod tests {
         narrow.profile.apply_style(ProfileStyle::LowDome);
         narrow.profile.width_mm = 3.0;
         assert!(halo(&narrow, &spec).is_none());
+    }
+
+    /// The process mode: the same proud-accent halo that locks in sand is
+    /// the classic lost-wax cluster, and the verdict knows the difference.
+    #[test]
+    fn lost_wax_frees_the_halo_and_the_verdict_says_which_is_which() {
+        use crate::castability::{self, CastProcess, Verdict};
+        let mut d = RingDesign::default();
+        d.profile.apply_style(ProfileStyle::LowDome);
+        d.profile.width_mm = 11.0;
+        d.profile.thickness_mm = 2.4;
+        let spec = HaloSpec::default();
+        let lib = crate::alpha::AlphaLibrary::builtin();
+
+        // Sand: plate + zero-height markers, no proud accents.
+        let (entry, _) = halo(&d, &spec).unwrap();
+        let Layer::Group(g) = &entry.layer else { panic!() };
+        assert!(g.stack.layers.iter().any(|e| e.name == "Plate"));
+
+        // Lost wax: the classic proud ring, no plate — and the same design
+        // that would lock in sand fields Castable with the honest note.
+        d.draft.process = CastProcess::LostWax;
+        let (entry, n) = halo(&d, &spec).unwrap();
+        let Layer::Group(g) = &entry.layer else { panic!() };
+        assert!(!g.stack.layers.iter().any(|e| e.name == "Plate"));
+        let proud = g
+            .stack
+            .layers
+            .iter()
+            .filter(|e| matches!(&e.layer, Layer::SeatPad(s) if s.height_mm > 0.0))
+            .count();
+        assert_eq!(proud, n as usize + 1, "centre plus every accent stands proud");
+
+        d.layers.layers.push(entry);
+        let f = castability::analyze_field(&d, &lib, &d.draft, 220, 128);
+        assert_eq!(f.verdict, Verdict::Castable, "{:?}", f.notes);
+        assert!(
+            f.undercut_area_mm2 > 0.0,
+            "the pull statistics still report the sand-hostile geometry"
+        );
+        assert!(f.notes.iter().any(|n| n.contains("cannot move to sand")), "{:?}", f.notes);
+
+        // Back in sand mode the same proud design is refused.
+        d.draft.process = CastProcess::SandTwoPart;
+        let f = castability::analyze_field(&d, &lib, &d.draft, 220, 128);
+        assert_ne!(f.verdict, Verdict::Castable);
     }
 
     #[test]

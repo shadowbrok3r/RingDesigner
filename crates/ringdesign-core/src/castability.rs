@@ -53,6 +53,47 @@ pub struct DraftSettings {
     /// read it.
     #[serde(default = "default_min_detail")]
     pub min_detail_mm: f64,
+    /// Which casting process the verdict judges against. Two-part sand is
+    /// the app's home ground; lost wax frees the design from the pull —
+    /// undercuts become information, and only fill and detail still gate.
+    #[serde(default)]
+    pub process: CastProcess,
+}
+
+/// The casting process a design is judged for.
+///
+/// The geometry model is identical either way — one height field over one
+/// swept band. What changes is the verdict: a two-part sand mould must pull
+/// in ±Z, so undercuts and drag decide castability; an investment burns out
+/// of any closed surface, so under lost wax the pull statistics are reported
+/// but never gate, and the verdict rides on fill (thinnest wall) alone.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CastProcess {
+    #[default]
+    SandTwoPart,
+    LostWax,
+}
+
+impl CastProcess {
+    pub const ALL: &'static [CastProcess] = &[CastProcess::SandTwoPart, CastProcess::LostWax];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            CastProcess::SandTwoPart => "Sand (two-part)",
+            CastProcess::LostWax => "Lost wax",
+        }
+    }
+
+    /// Write the process's fill and detail floors into the settings.
+    /// Investment holds far finer detail than any sand and fills a thinner
+    /// section; the sand numbers come from [`SandProcess::apply`].
+    pub fn apply(self, d: &mut DraftSettings) {
+        d.process = self;
+        if self == CastProcess::LostWax {
+            d.min_section_mm = 0.5;
+            d.min_detail_mm = 0.15;
+        }
+    }
 }
 
 fn default_min_detail() -> f64 {
@@ -67,6 +108,7 @@ impl Default for DraftSettings {
             auto_parting: true,
             min_section_mm: 0.7,
             min_detail_mm: default_min_detail(),
+            process: CastProcess::default(),
         }
     }
 }
@@ -1097,7 +1139,12 @@ pub fn analyze_field(
     let drag_frac = frac(marginal_area) + frac(vertical_outer_area);
     let noise =
         frac(undercut_area) < FIELD_NOISE_FRACTION && worst_draft_deg > -FIELD_NOISE_DEG;
-    let mut verdict = if frac(undercut_area) > NOT_CASTABLE_FRACTION {
+    let lost_wax = settings.process == CastProcess::LostWax;
+    // Under lost wax the investment burns out of any closed surface: the
+    // pull statistics are still measured and reported, but never gate.
+    let mut verdict = if lost_wax {
+        Verdict::Castable
+    } else if frac(undercut_area) > NOT_CASTABLE_FRACTION {
         Verdict::NotCastable
     } else if (undercut_area > 0.0 && !noise) || drag_frac > DRAG_FRACTION {
         Verdict::Marginal
@@ -1106,7 +1153,19 @@ pub fn analyze_field(
     };
 
     let mut notes = Vec::new();
-    if undercut_area > 0.0 && !noise {
+    if lost_wax {
+        if undercut_area > 0.0 {
+            notes.push(format!(
+                "Lost wax: {:.2}% of the surface would undercut a two-part pull (worst {:.1} deg) — fine for investment, but this pattern cannot move to sand as-is.",
+                frac(undercut_area) * 100.0,
+                -worst_draft_deg
+            ));
+        } else {
+            notes.push(
+                "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.".into(),
+            );
+        }
+    } else if undercut_area > 0.0 && !noise {
         notes.push(format!(
             "Field-sampled: {:.2}% of the surface undercuts, worst {:.1} deg — the surface itself, not facet noise.",
             frac(undercut_area) * 100.0,
@@ -1126,8 +1185,9 @@ pub fn analyze_field(
         if verdict == Verdict::Castable {
             verdict = Verdict::Marginal;
         }
+        let medium = if lost_wax { "an investment pour" } else { "a sand pour" };
         notes.push(format!(
-            "Thinnest wall {thinnest:.2} mm at {thinnest_at:.0} deg is under the {min_section:.1} mm a sand pour reliably fills."
+            "Thinnest wall {thinnest:.2} mm at {thinnest_at:.0} deg is under the {min_section:.1} mm {medium} reliably fills."
         ));
     }
 

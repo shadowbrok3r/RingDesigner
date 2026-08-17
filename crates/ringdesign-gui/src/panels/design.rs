@@ -95,10 +95,11 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .selected_text(app.design.profile.style.label())
                 .width(combo_w)
                 .show_ui(ui, |ui| {
+                    // Each entry shows the section it means — picking a
+                    // cross-section is a visual act, not a vocabulary test.
                     for &style in ProfileStyle::ALL {
                         let selected = app.design.profile.style == style;
-                        if ui
-                            .selectable_label(selected, style.label())
+                        if style_row(ui, style, selected)
                             .on_hover_text(style.casting_note())
                             .clicked()
                         {
@@ -517,6 +518,60 @@ fn flange(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 }
 
 /// Cross-section plotted with the finger axis horizontal and the crest up.
+/// One row of the profile picker: the style's own section drawn small, then
+/// its name. A row is one click target.
+fn style_row(ui: &mut egui::Ui, style: ProfileStyle, selected: bool) -> egui::Response {
+    let desired = egui::vec2(ui.available_width().max(150.0), 30.0);
+    let (response, painter) = ui.allocate_painter(desired, egui::Sense::click());
+    let rect = response.rect;
+    let bg = if selected {
+        theme::ACCENT.gamma_multiply(0.28)
+    } else if response.hovered() {
+        theme::ACCENT.gamma_multiply(0.12)
+    } else {
+        theme::BG.gamma_multiply(0.0)
+    };
+    painter.rect_filled(rect, 3.0, bg);
+
+    let thumb = egui::Rect::from_min_size(rect.min + egui::vec2(4.0, 3.0), egui::vec2(48.0, 24.0));
+    let mut p = ringdesign_core::BandProfile::default();
+    p.apply_style(style);
+    p.width_mm = 4.0;
+    p.thickness_mm = 2.0;
+    let loop_ = p.sample(8.55, 96);
+    if !loop_.is_empty() {
+        let (z_lo, z_hi) = loop_.z_range();
+        let (r_lo, r_hi) = loop_
+            .pts
+            .iter()
+            .fold((f64::MAX, f64::MIN), |(lo, hi), q| (lo.min(q.r), hi.max(q.r)));
+        let scale = ((thumb.width() as f64 - 4.0) / (z_hi - z_lo).max(1e-6))
+            .min((thumb.height() as f64 - 4.0) / (r_hi - r_lo).max(1e-6));
+        let (zm, rm) = (0.5 * (z_lo + z_hi), 0.5 * (r_lo + r_hi));
+        let c = thumb.center();
+        let pts: Vec<egui::Pos2> = loop_
+            .pts
+            .iter()
+            .map(|q| {
+                egui::pos2(c.x + ((q.z - zm) * scale) as f32, c.y - ((q.r - rm) * scale) as f32)
+            })
+            .collect();
+        painter.add(egui::Shape::closed_line(
+            pts,
+            egui::Stroke::new(1.0, if selected { theme::ACCENT } else { theme::ACCENT_DIM }),
+        ));
+    }
+
+    painter.text(
+        egui::pos2(thumb.right() + 8.0, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        style.label(),
+        egui::FontId::proportional(13.0),
+        if selected { theme::TEXT } else { theme::TEXT_DIM },
+    );
+    response
+}
+
 fn preview(app: &RingDesignerApp, ui: &mut egui::Ui) {
     let (response, painter) = ui.allocate_painter(egui::vec2(120.0, 90.0), egui::Sense::hover());
     let rect = response.rect;
@@ -994,22 +1049,50 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
 // --- Casting ---------------------------------------------------------------
 
 fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    use ringdesign_core::castability::CastProcess;
     let mut changed = false;
     let d = &mut app.design.draft;
 
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new("Sand").color(crate::theme::TEXT_DIM));
-        for p in ringdesign_core::castability::SandProcess::ALL {
+        ui.label(egui::RichText::new("Process").color(crate::theme::TEXT_DIM));
+        for &p in CastProcess::ALL {
             if ui
-                .button(p.label())
-                .on_hover_text("Set min draft, section and detail to this sand's numbers.")
+                .selectable_label(d.process == p, p.label())
+                .on_hover_text(match p {
+                    CastProcess::SandTwoPart => {
+                        "Two-part sand: the verdict enforces the +/-Z pull — undercuts \
+                         and drag gate castability."
+                    }
+                    CastProcess::LostWax => {
+                        "Lost wax: the investment burns out of any surface, so the pull \
+                         statistics report but never gate. Fill and detail still do. \
+                         Generators switch to their free-form variants."
+                    }
+                })
                 .clicked()
+                && d.process != p
             {
                 p.apply(d);
                 changed = true;
             }
         }
     });
+
+    if d.process == CastProcess::SandTwoPart {
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Sand").color(crate::theme::TEXT_DIM));
+            for p in ringdesign_core::castability::SandProcess::ALL {
+                if ui
+                    .button(p.label())
+                    .on_hover_text("Set min draft, section and detail to this sand's numbers.")
+                    .clicked()
+                {
+                    p.apply(d);
+                    changed = true;
+                }
+            }
+        });
+    }
 
     changed |= ui
         .checkbox(&mut d.auto_parting, "Auto parting plane")

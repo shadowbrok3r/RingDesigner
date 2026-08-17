@@ -1390,6 +1390,19 @@ pub struct SeatRunLayer {
     pub gem: crate::gem::Gem,
     /// Metal left between neighbouring stones, mm.
     pub bridge_mm: f64,
+    /// Graduation: how far the stones shrink toward the far side of the
+    /// ring, 0..0.85 of the full size. 0 keeps every station identical;
+    /// 0.4 reads as the classic graduated eternity. Seats scale with their
+    /// stones, and the report carries the graded sizes.
+    #[serde(default)]
+    pub taper: f64,
+    /// Where the largest stone sits, degrees. 90 is the top of the ring.
+    #[serde(default = "default_taper_theta")]
+    pub taper_theta_deg: f64,
+}
+
+fn default_taper_theta() -> f64 {
+    crate::profile::TOP_DEG
 }
 
 impl Default for SeatRunLayer {
@@ -1407,7 +1420,14 @@ impl Default for SeatRunLayer {
             ..Default::default()
         };
         seat.fit_stone(gem);
-        Self { seat, count: 18, gem, bridge_mm: 0.4 }
+        Self {
+            seat,
+            count: 18,
+            gem,
+            bridge_mm: 0.4,
+            taper: 0.0,
+            taper_theta_deg: default_taper_theta(),
+        }
     }
 }
 
@@ -1426,6 +1446,27 @@ impl SeatRunLayer {
         pitch - self.seat.diameter_mm
     }
 
+    /// Size factor at a ring angle: 1 at [`taper_theta_deg`](Self::taper_theta_deg),
+    /// falling smoothly to `1 - taper` at the far side. Cosine in the angular
+    /// distance, so a full-ring run stays seamless and C1 at both poles.
+    pub fn scale_at(&self, theta_deg: f64) -> f64 {
+        let t = self.taper.clamp(0.0, 0.85);
+        if t <= 0.0 {
+            return 1.0;
+        }
+        let d = wrap_delta(theta_deg - self.taper_theta_deg, 360.0).abs() / 180.0;
+        1.0 - t * 0.5 * (1.0 - (std::f64::consts::PI * d).cos())
+    }
+
+    /// The gem at one station, graded. What the report and preview read.
+    pub fn gem_at(&self, theta_deg: f64) -> crate::gem::Gem {
+        let k = self.scale_at(theta_deg);
+        let mut g = self.gem;
+        g.w_mm *= k;
+        g.l_mm *= k;
+        g
+    }
+
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
         let n = self.count.clamp(1, 200) as f64;
         if !(ctx.circumference_mm > 1e-9) || !uv.u.is_finite() {
@@ -1441,6 +1482,16 @@ impl SeatRunLayer {
             let mut s = self.seat;
             s.theta_deg = (k + dk) * pitch_deg;
             s.v_mm = self.seat.v_mm;
+            // Graduation scales the whole seat with its stone — footprint,
+            // stand-off and skirt together, so a graded run stays a row of
+            // self-similar mounds and the castability story is unchanged.
+            let scale = self.scale_at(s.theta_deg);
+            if scale < 1.0 {
+                s.diameter_mm *= scale;
+                s.height_mm *= scale;
+                s.blend_mm *= scale;
+                s.dimple_mm *= scale;
+            }
             h = h.max(s.height(uv, ctx));
         }
         h

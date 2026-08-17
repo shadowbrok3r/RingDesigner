@@ -47,11 +47,17 @@ pub struct SeatCheck {
     pub depth_available_mm: f64,
     /// Runs only: metal left between neighbouring seats, mm.
     pub bridge_mm: Option<f64>,
+    /// Graduated runs only: the summed graded carats, which count times the
+    /// largest stone would overstate.
+    pub carats_override: Option<f64>,
     pub warnings: Vec<String>,
 }
 
 impl SeatCheck {
     pub fn carats(&self) -> f64 {
+        if let Some(c) = self.carats_override {
+            return c;
+        }
         self.gem.map_or(0.0, |g| g.carats() * self.count as f64)
     }
 }
@@ -142,6 +148,14 @@ fn walk(
                     format!("{prefix}{}", entry.name),
                 );
                 check.count = stations.len() as u32;
+                // A graduated run's carats sum the graded stones, not count
+                // times the largest; the check's headline gem stays the
+                // largest, which is the one the pavilion depth must clear.
+                if run.taper > 0.0 {
+                    check.carats_override = Some(
+                        stations.iter().map(|&(t, _)| run.gem_at(t).carats()).sum(),
+                    );
+                }
                 let bridge = run.bridge_at(ctx);
                 check.bridge_mm = Some(bridge);
                 if bridge < MIN_EDGE_MM {
@@ -329,6 +343,7 @@ fn check_seat(
         edge_clearance_mm: if clearance == f64::MAX { 0.0 } else { clearance },
         depth_available_mm: if depth == f64::MAX { 0.0 } else { depth },
         bridge_mm: None,
+        carats_override: None,
         warnings,
     }
 }
@@ -402,6 +417,44 @@ mod tests {
         run.solve_spacing(&ctx);
         d.layers.layers.push(LayerEntry::new("Eternity", Layer::SeatRun(run)));
         d
+    }
+
+    /// A graduated run: the field tapers the seats with their stones, the
+    /// carats sum the graded sizes, and the row still fields clean — a
+    /// graded mound is still a mound.
+    #[test]
+    fn a_graduated_run_grades_sizes_carats_and_still_casts() {
+        use crate::castability::{self, Verdict};
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 4.6;
+        d.profile.thickness_mm = 2.5;
+        let ctx = d.field_context();
+        let mut run = SeatRunLayer::default();
+        run.gem = Gem::calibrated(GemCut::Round, 2.2);
+        run.seat.v_mm = ctx.crest_v_mm;
+        run.taper = 0.45;
+        run.solve_spacing(&ctx);
+        let n = run.count;
+
+        // Largest at the top, smallest opposite, seamless scale.
+        assert!((run.scale_at(90.0) - 1.0).abs() < 1e-12);
+        assert!((run.scale_at(270.0) - 0.55).abs() < 1e-9);
+        assert!((run.scale_at(269.9) - run.scale_at(270.1)).abs() < 1e-3);
+
+        let graded: f64 = (0..n)
+            .map(|k| run.gem_at(k as f64 * 360.0 / n as f64).carats())
+            .sum();
+        let flat = run.gem.carats() * n as f64;
+        assert!(graded < flat * 0.85, "graded {graded:.3} vs flat {flat:.3}");
+
+        d.layers.layers.push(LayerEntry::new("Graded", Layer::SeatRun(run)));
+        let r = report(&d, 0.0).unwrap();
+        assert!((r.total_carats - graded).abs() < 1e-9, "report carries graded carats");
+
+        let lib = crate::alpha::AlphaLibrary::builtin();
+        let f = castability::analyze_field(&d, &lib, &d.draft, 220, 128);
+        assert_ne!(f.verdict, Verdict::NotCastable, "{:?}", f.notes);
     }
 
     #[test]
