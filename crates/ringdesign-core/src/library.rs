@@ -133,9 +133,108 @@ pub fn default_design_dir() -> PathBuf {
     data_root().join("designs")
 }
 
+/// Where saved cross-section profiles live — the user's own profile
+/// library, sibling to the designs. One `<name>.profile.json` per shape,
+/// applied by [`crate::BandProfile::apply_shape`] so a profile is a
+/// section, never a size.
+pub fn profile_dir() -> PathBuf {
+    data_root().join("profiles")
+}
+
+/// Save the profile's shape under a name. The name becomes the file stem;
+/// anything path-hostile is flattened to `_`.
+pub fn save_profile(name: &str, profile: &crate::BandProfile) -> anyhow::Result<PathBuf> {
+    save_profile_in(&profile_dir(), name, profile)
+}
+
+/// [`save_profile`] into an explicit directory.
+pub fn save_profile_in(
+    dir: &Path,
+    name: &str,
+    profile: &crate::BandProfile,
+) -> anyhow::Result<PathBuf> {
+    let stem: String = name
+        .trim()
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' { c } else { '_' })
+        .collect();
+    if stem.is_empty() {
+        anyhow::bail!("a profile needs a name");
+    }
+    std::fs::create_dir_all(dir)?;
+    let path = dir.join(format!("{stem}.profile.json"));
+    let text = serde_json::to_string_pretty(profile)?;
+    std::fs::write(&path, text)?;
+    Ok(path)
+}
+
+/// Every saved profile, by name, sorted. Unreadable files are skipped —
+/// one bad import must not hide the rest of the library.
+pub fn list_profiles() -> Vec<(String, crate::BandProfile)> {
+    list_profiles_in(&profile_dir())
+}
+
+/// [`list_profiles`] from an explicit directory.
+pub fn list_profiles_in(dir: &Path) -> Vec<(String, crate::BandProfile)> {
+    let mut out = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return out;
+    };
+    for e in entries.flatten() {
+        let path = e.path();
+        let Some(name) = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .and_then(|n| n.strip_suffix(".profile.json"))
+        else {
+            continue;
+        };
+        let Ok(text) = std::fs::read_to_string(&path) else { continue };
+        let Ok(profile) = serde_json::from_str::<crate::BandProfile>(&text) else { continue };
+        out.push((name.to_string(), profile));
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_saved_profile_is_a_shape_never_a_size() {
+        let dir = std::env::temp_dir().join("ringdesign-profile-lib-test");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let mut knife = crate::BandProfile::default();
+        knife.apply_style(crate::ProfileStyle::KnifeEdge);
+        knife.width_mm = 3.0;
+        knife.thickness_mm = 1.5;
+        save_profile_in(&dir, "My knife", &knife).unwrap();
+        let mut dome = crate::BandProfile::default();
+        dome.apply_style(crate::ProfileStyle::HalfRound);
+        save_profile_in(&dir, "Big dome", &dome).unwrap();
+        assert!(save_profile_in(&dir, "   ", &dome).is_err(), "a blank name refuses");
+
+        let listed = list_profiles_in(&dir);
+        assert_eq!(
+            listed.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(),
+            vec!["Big dome", "My knife"],
+            "sorted by name"
+        );
+
+        // Applying keeps the band's own size: the profile is a section.
+        let mut band = crate::BandProfile::default();
+        band.width_mm = 6.0;
+        band.thickness_mm = 2.6;
+        let saved = &listed.iter().find(|(n, _)| n == "My knife").unwrap().1;
+        band.apply_shape(saved);
+        assert_eq!(band.style, crate::ProfileStyle::KnifeEdge);
+        assert_eq!(band.width_mm, 6.0);
+        assert_eq!(band.thickness_mm, 2.6);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     fn temp_file(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join("ringdesign_library_test");

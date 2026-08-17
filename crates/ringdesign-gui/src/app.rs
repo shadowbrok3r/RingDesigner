@@ -173,6 +173,10 @@ pub struct RingDesignerApp {
     pub palette_open: bool,
     pub palette_query: String,
     pub pave_spec: ringdesign_core::pave::PaveSpec,
+    /// The user's saved cross-sections, loaded from `library::profile_dir()`.
+    pub saved_profiles: Vec<(String, ringdesign_core::BandProfile)>,
+    /// Name for the next "Save profile" — the box beside the button.
+    pub profile_save_name: String,
     /// Index into [`viewport::FINISHES`].
     pub finish: usize,
     /// Index into [`viewport::LIGHT_RIGS`].
@@ -273,6 +277,8 @@ impl RingDesignerApp {
             palette_open: false,
             palette_query: String::new(),
             pave_spec: ringdesign_core::pave::PaveSpec::default(),
+            saved_profiles: ringdesign_core::library::list_profiles(),
+            profile_save_name: String::new(),
             show_grid: ws.show_grid,
             finish: ws.finish,
             light: ws.light,

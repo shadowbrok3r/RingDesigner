@@ -109,6 +109,54 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     }
                 });
             hint(ui, app.design.profile.style.casting_note());
+
+            // The user's own profile library — sections saved by name, the
+            // CrossGems factory-folder idea. Applying one keeps this band's
+            // width and thickness: a profile is a shape, never a size.
+            if !app.saved_profiles.is_empty() {
+                let combo_w = (ui.available_width() - 6.0).clamp(96.0, 150.0);
+                egui::ComboBox::from_id_salt("saved_profile")
+                    .selected_text("Saved…")
+                    .width(combo_w)
+                    .show_ui(ui, |ui| {
+                        let mut apply: Option<ringdesign_core::BandProfile> = None;
+                        for (name, p) in &app.saved_profiles {
+                            if profile_row(ui, name, p, false).clicked() {
+                                apply = Some(p.clone());
+                            }
+                        }
+                        if let Some(p) = apply {
+                            app.design.profile.apply_shape(&p);
+                            app.mark_dirty();
+                        }
+                    });
+            }
+            ui.horizontal(|ui| {
+                let edit = egui::TextEdit::singleline(&mut app.profile_save_name)
+                    .hint_text("name")
+                    .desired_width(84.0);
+                ui.add(edit);
+                if ui
+                    .small_button("Save")
+                    .on_hover_text("Save this cross-section to the profile library")
+                    .clicked()
+                {
+                    match ringdesign_core::library::save_profile(
+                        &app.profile_save_name,
+                        &app.design.profile,
+                    ) {
+                        Ok(_) => {
+                            app.saved_profiles = ringdesign_core::library::list_profiles();
+                            app.set_status(format!(
+                                "Saved profile \"{}\"",
+                                app.profile_save_name.trim()
+                            ));
+                            app.profile_save_name.clear();
+                        }
+                        Err(e) => app.set_status(format!("Profile not saved: {e}")),
+                    }
+                }
+            });
         });
     });
 
@@ -521,6 +569,19 @@ fn flange(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 /// One row of the profile picker: the style's own section drawn small, then
 /// its name. A row is one click target.
 fn style_row(ui: &mut egui::Ui, style: ProfileStyle, selected: bool) -> egui::Response {
+    let mut p = ringdesign_core::BandProfile::default();
+    p.apply_style(style);
+    profile_row(ui, style.label(), &p, selected)
+}
+
+/// A picker row for any profile — preset or saved: its section drawn small
+/// at a normalized size, then the name.
+fn profile_row(
+    ui: &mut egui::Ui,
+    label: &str,
+    profile: &ringdesign_core::BandProfile,
+    selected: bool,
+) -> egui::Response {
     let desired = egui::vec2(ui.available_width().max(150.0), 30.0);
     let (response, painter) = ui.allocate_painter(desired, egui::Sense::click());
     let rect = response.rect;
@@ -534,8 +595,7 @@ fn style_row(ui: &mut egui::Ui, style: ProfileStyle, selected: bool) -> egui::Re
     painter.rect_filled(rect, 3.0, bg);
 
     let thumb = egui::Rect::from_min_size(rect.min + egui::vec2(4.0, 3.0), egui::vec2(48.0, 24.0));
-    let mut p = ringdesign_core::BandProfile::default();
-    p.apply_style(style);
+    let mut p = profile.clone();
     p.width_mm = 4.0;
     p.thickness_mm = 2.0;
     let loop_ = p.sample(8.55, 96);
@@ -565,7 +625,7 @@ fn style_row(ui: &mut egui::Ui, style: ProfileStyle, selected: bool) -> egui::Re
     painter.text(
         egui::pos2(thumb.right() + 8.0, rect.center().y),
         egui::Align2::LEFT_CENTER,
-        style.label(),
+        label,
         egui::FontId::proportional(13.0),
         if selected { theme::TEXT } else { theme::TEXT_DIM },
     );

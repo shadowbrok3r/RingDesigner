@@ -460,6 +460,19 @@ pub struct BandProfile {
     pub morph: Option<ProfileMorph>,
 }
 
+impl BandProfile {
+    /// Take another profile's *shape* — crown, exponents, bias, fillets,
+    /// comfort, draft, flange, drawn curve, morph — while keeping this
+    /// band's own width and thickness. A saved profile is a cross-section,
+    /// not a size: applying "Knife" to a 6 mm band gives a 6 mm knife.
+    pub fn apply_shape(&mut self, shape: &BandProfile) {
+        let (w, t) = (self.width_mm, self.thickness_mm);
+        *self = shape.clone();
+        self.width_mm = w;
+        self.thickness_mm = t;
+    }
+}
+
 /// A target crown for per-angle profile morphing: D-shape at the palm easing
 /// to a flat top, dome to knife, whatever the two styles are. The blend of two
 /// monotone drops is monotone, so the base surface stays undercut-free at

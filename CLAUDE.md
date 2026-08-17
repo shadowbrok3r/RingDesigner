@@ -790,6 +790,17 @@ pins both directions. On top of that:
   also the export-regression diff. `ringdesign check` prints the field
   verdict and the stones findings for one design.
 
+### The profile library is user-extensible
+
+`library::profile_dir()` (designs sibling `profiles/`) holds saved
+cross-sections, one `<name>.profile.json` each. `save_profile` /
+`list_profiles` (+ `_in` variants for tests) round-trip the full
+`BandProfile`; `BandProfile::apply_shape` applies one while keeping the
+band's own width and thickness — **a profile is a section, never a size**.
+The GUI's profile panel draws every entry — preset and saved — as its own
+little section (`profile_row`), and a name-plus-Save row files the current
+shape. The CrossGems factory-profile-folder idea, minus the factory.
+
 ### Generators are live until baked
 
 The CrossGems lesson, in this model's idiom: a generated group carries the
