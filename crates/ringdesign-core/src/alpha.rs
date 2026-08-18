@@ -554,6 +554,10 @@ pub enum Procedural {
     GuillocheWeave,
     Voronoi,
     Trellis,
+    Honeycomb,
+    Pyramids,
+    Argyle,
+    Lattice,
 }
 
 impl Procedural {
@@ -582,6 +586,10 @@ impl Procedural {
         Procedural::GuillocheWeave,
         Procedural::Voronoi,
         Procedural::Trellis,
+        Procedural::Honeycomb,
+        Procedural::Pyramids,
+        Procedural::Argyle,
+        Procedural::Lattice,
     ];
 
     pub fn label(self) -> &'static str {
@@ -610,6 +618,10 @@ impl Procedural {
             Procedural::GuillocheWeave => "Guilloche",
             Procedural::Voronoi => "Voronoi",
             Procedural::Trellis => "Trellis",
+            Procedural::Honeycomb => "Honeycomb",
+            Procedural::Pyramids => "Pyramids",
+            Procedural::Argyle => "Argyle",
+            Procedural::Lattice => "Lattice",
         }
     }
 
@@ -647,6 +659,10 @@ impl Procedural {
                     Procedural::GuillocheWeave => guilloche_weave(x, y),
                     Procedural::Voronoi => voronoi(x, y),
                     Procedural::Trellis => trellis(x, y),
+                    Procedural::Honeycomb => honeycomb(x, y),
+                    Procedural::Pyramids => pyramids(x, y),
+                    Procedural::Argyle => argyle(x, y),
+                    Procedural::Lattice => lattice(x, y),
                 };
                 raw[j * n + i] = if v.is_finite() { v } else { 0.0 };
             }
@@ -681,6 +697,10 @@ impl Procedural {
             Procedural::GuillocheWeave => guilloche_weave(x, y),
             Procedural::Voronoi => voronoi(x, y),
             Procedural::Trellis => trellis(x, y),
+            Procedural::Honeycomb => honeycomb(x, y),
+            Procedural::Pyramids => pyramids(x, y),
+            Procedural::Argyle => argyle(x, y),
+            Procedural::Lattice => lattice(x, y),
         }
     }
 }
@@ -1172,6 +1192,78 @@ fn trellis(x: f64, y: f64) -> f64 {
     let a = wire((x + y) * k);
     let b = wire((x - y) * k);
     a.max(b)
+}
+
+/// Regular comb: raised hexagonal cell walls over recessed cells, from a
+/// staggered lattice of sites (even rows and columns so the half-cell
+/// stagger wraps). Walls sit where the two nearest sites tie, so the ridge
+/// network is the honeycomb. Side-face feature.
+fn honeycomb(x: f64, y: f64) -> f64 {
+    let (cols, rows) = (4i64, 4i64);
+    let (fx, fy) = (x * cols as f64, y * rows as f64);
+    let (bx, by) = (fx.floor() as i64, fy.floor() as i64);
+    let (mut f1, mut f2) = (f64::MAX, f64::MAX);
+    for dj in -1..=1 {
+        for di in -1..=1 {
+            let (ci, cj) = (bx + di, by + dj);
+            let stagger = 0.5 * (cj.rem_euclid(2) as f64);
+            let d = ((fx - (ci as f64 + 0.5 + stagger)).powi(2)
+                + ((fy - (cj as f64 + 0.5)) * 1.15).powi(2))
+            .sqrt();
+            if d < f1 {
+                f2 = f1;
+                f1 = d;
+            } else if d < f2 {
+                f2 = d;
+            }
+        }
+    }
+    1.0 - smoothstep(0.0, 0.24, f2 - f1)
+}
+
+/// A grid of four-sided pyramid studs — a crisp faceted hobnail. The
+/// Chebyshev ramp gives straight facets meeting at a point; seamless in both
+/// axes, each stud a convex mound.
+fn pyramids(x: f64, y: f64) -> f64 {
+    let k = 5.0;
+    let fx = frac(x * k);
+    let fy = frac(y * k);
+    (1.0 - (2.0 * fx - 1.0).abs().max((2.0 * fy - 1.0).abs())).max(0.0)
+}
+
+/// Argyle: a thin round-wire diamond lattice on the bias with a raised dot in
+/// each diamond. Integer diagonal periods, so it tiles; ridges and dots are
+/// round-profiled, castable on a side face.
+fn argyle(x: f64, y: f64) -> f64 {
+    let k = 4.0;
+    let hw = 0.13;
+    let ridge = |p: f64| {
+        let d = wrap1(p).abs();
+        if d < hw {
+            0.8 * dome(d / hw)
+        } else {
+            0.0
+        }
+    };
+    let lines = ridge((x + y) * k).max(ridge((x - y) * k));
+    let (da, db) = (wrap1((x + y) * k - 0.5), wrap1((x - y) * k - 0.5));
+    let dist = (da * da + db * db).sqrt();
+    let dr = 0.22;
+    let dot = if dist < dr { dome(dist / dr) } else { 0.0 };
+    lines.max(dot)
+}
+
+/// An orthogonal open grille: flat-topped bars along the grid lines over
+/// recessed square wells. Distinct from the diagonal round-wire Trellis;
+/// bars stand square to the pull on a side face, the wells are recesses.
+fn lattice(x: f64, y: f64) -> f64 {
+    let k = 4.0;
+    let hw = 0.28;
+    let bar = |p: f64| {
+        let d = wrap1(p).abs();
+        1.0 - smoothstep(hw * 0.55, hw, d)
+    };
+    bar(x * k).max(bar(y * k))
 }
 
 // --- Engine turning --------------------------------------------------------
