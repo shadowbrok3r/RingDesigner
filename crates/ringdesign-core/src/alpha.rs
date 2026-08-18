@@ -552,6 +552,8 @@ pub enum Procedural {
     Starburst,
     Florentine,
     GuillocheWeave,
+    Voronoi,
+    Trellis,
 }
 
 impl Procedural {
@@ -578,6 +580,8 @@ impl Procedural {
         Procedural::Starburst,
         Procedural::Florentine,
         Procedural::GuillocheWeave,
+        Procedural::Voronoi,
+        Procedural::Trellis,
     ];
 
     pub fn label(self) -> &'static str {
@@ -604,6 +608,8 @@ impl Procedural {
             Procedural::Starburst => "Starburst",
             Procedural::Florentine => "Florentine",
             Procedural::GuillocheWeave => "Guilloche",
+            Procedural::Voronoi => "Voronoi",
+            Procedural::Trellis => "Trellis",
         }
     }
 
@@ -639,6 +645,8 @@ impl Procedural {
                     Procedural::Starburst => starburst(x, y),
                     Procedural::Florentine => florentine(x, y),
                     Procedural::GuillocheWeave => guilloche_weave(x, y),
+                    Procedural::Voronoi => voronoi(x, y),
+                    Procedural::Trellis => trellis(x, y),
                 };
                 raw[j * n + i] = if v.is_finite() { v } else { 0.0 };
             }
@@ -671,6 +679,8 @@ impl Procedural {
             Procedural::Starburst => starburst(x, y),
             Procedural::Florentine => florentine(x, y),
             Procedural::GuillocheWeave => guilloche_weave(x, y),
+            Procedural::Voronoi => voronoi(x, y),
+            Procedural::Trellis => trellis(x, y),
         }
     }
 }
@@ -1109,6 +1119,61 @@ fn nugget(x: f64, y: f64) -> f64 {
     0.60 * surface + 0.28 * molten * (0.45 + 0.55 * surface) + 0.12 * lump
 }
 
+/// Cellular relief: a jittered site per lattice cell, cells raised as domes
+/// and their shared boundaries recessed to a groove — the castable read of
+/// CrossGems' Auto_Voronoi (3x3 sites per tile). Seamless because the site
+/// hash wraps at the lattice period, so the F1/F2 field is periodic in both
+/// axes. Cell interiors face the pull and the grooves are recesses, so on a
+/// side face the whole field releases.
+fn voronoi(x: f64, y: f64) -> f64 {
+    let k: i64 = 3;
+    let (fx, fy) = (x * k as f64, y * k as f64);
+    let (bx, by) = (fx.floor() as i64, fy.floor() as i64);
+    let (mut f1, mut f2) = (f64::MAX, f64::MAX);
+    for dj in -1..=1 {
+        for di in -1..=1 {
+            let (ci, cj) = (bx + di, by + dj);
+            // Site jittered inside its cell; the hash wraps at k so the tile
+            // repeats. Kept off the cell walls (0.15..0.85) so no two sites
+            // collide across a seam.
+            let sx = ci as f64 + 0.15 + 0.70 * hash01(ci.rem_euclid(k), cj.rem_euclid(k), 5501);
+            let sy = cj as f64 + 0.15 + 0.70 * hash01(ci.rem_euclid(k), cj.rem_euclid(k), 5507);
+            let d = ((fx - sx).powi(2) + (fy - sy).powi(2)).sqrt();
+            if d < f1 {
+                f2 = f1;
+                f1 = d;
+            } else if d < f2 {
+                f2 = d;
+            }
+        }
+    }
+    // Boundary bevel from the F2-F1 gap; a gentle per-cell dome inside it.
+    let wall = smoothstep(0.0, 0.16, f2 - f1);
+    let mound = 0.55 + 0.45 * dome((f1 * 1.4).min(1.0));
+    wall * mound
+}
+
+/// An open diagonal lattice of round wires — two families crossing at right
+/// angles on the bias, the castable read of the Wire_Pattern inlay (4 wires
+/// each way per tile). Round cross-sections (no vertical wall at a wire's own
+/// edge), raised over recessed gaps, so a side face releases; the families
+/// merge at the crossings into one grille.
+fn trellis(x: f64, y: f64) -> f64 {
+    let k = 4.0;
+    let hw = 0.22;
+    let wire = |phase: f64| {
+        let d = wrap1(phase).abs();
+        if d < hw {
+            dome(d / hw)
+        } else {
+            0.0
+        }
+    };
+    let a = wire((x + y) * k);
+    let b = wire((x - y) * k);
+    a.max(b)
+}
+
 // --- Engine turning --------------------------------------------------------
 
 /// Rose-engine medallion: concentric grooves wobbled by an angular lobe count,
@@ -1357,6 +1422,33 @@ mod tests {
         let diff: f32 =
             a.data.iter().zip(&plain.data).map(|(x, y)| (x - y).abs()).sum::<f32>() / (n * n) as f32;
         assert!(diff > 0.05, "knobs changed nothing: {diff}");
+    }
+
+    /// Every builtin pattern must tile seamlessly — the seam step no larger
+    /// than the pattern's own steepest interior step. Voronoi and Trellis
+    /// join by construction (site hash wraps at the lattice period; the wire
+    /// phases are integer-period), but the whole family is pinned here.
+    #[test]
+    fn every_pattern_tiles_seamlessly() {
+        let n = 128usize;
+        for &p in super::Procedural::ALL {
+            let a = p.generate(n);
+            let mut interior = 0.0f32;
+            for j in 0..n {
+                for i in 0..n - 1 {
+                    interior = interior.max((a.data[j * n + i + 1] - a.data[j * n + i]).abs());
+                }
+            }
+            let tol = interior * 1.5 + 1e-3;
+            for j in 0..n {
+                let d = (a.data[j * n] - a.data[j * n + n - 1]).abs();
+                assert!(d <= tol, "{} x seam at row {j}: {d} vs interior {interior}", p.label());
+            }
+            for i in 0..n {
+                let d = (a.data[i] - a.data[(n - 1) * n + i]).abs();
+                assert!(d <= tol, "{} y seam at col {i}: {d} vs interior {interior}", p.label());
+            }
+        }
     }
 
     #[test]

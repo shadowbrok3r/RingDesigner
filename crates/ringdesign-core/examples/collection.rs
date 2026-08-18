@@ -59,7 +59,9 @@ fn squared(width: f64, thickness: f64) -> RingDesign {
 }
 
 /// A tiling fit to both side faces of a squared band, at a chosen relief.
-fn side_pattern(d: &RingDesign, alpha: &str, height: f64, edge: f64) -> TilingLayer {
+/// `repeat_scale` multiplies the square-cell count: below 1 makes bolder
+/// cells (a coarse voronoi), above 1 finer.
+fn side_pattern(d: &RingDesign, alpha: &str, height: f64, edge: f64, repeat_scale: f64) -> TilingLayer {
     let ctx = d.field_context();
     let mut t = TilingLayer::default_for(alpha, &ctx);
     t.height_mm = height;
@@ -67,7 +69,7 @@ fn side_pattern(d: &RingDesign, alpha: &str, height: f64, edge: f64) -> TilingLa
     if !t.fit_to_side_faces(&ctx, SIDE_FACE_MIN_DRAFT_DEG) {
         panic!("{alpha}: no side face to carry it");
     }
-    t.repeats_around = t.repeats_for_square_cells(&ctx);
+    t.repeats_around = ((t.repeats_for_square_cells(&ctx) as f64 * repeat_scale).round() as u32).max(1);
     t.edge_mm = edge;
     t.mirror_v = true;
     t
@@ -194,7 +196,7 @@ fn main() {
         let d = squared(6.0, 2.6);
         let low = wider_is_low(&d);
         let mut d = d;
-        d.layers.layers.push(LayerEntry::new("Filigree", Layer::Tiling(side_pattern(&d, "pattern-24", 0.35, 0.3))));
+        d.layers.layers.push(LayerEntry::new("Filigree", Layer::Tiling(side_pattern(&d, "pattern-24", 0.35, 0.3, 1.0))));
         finish(&dir, "04-filigree-band", "a Pattern scroll motif tiled on the side faces", YELLOW, face_of(low), d, &mut lib);
     } else {
         println!("04-filigree-band          skipped: pattern-24 not in the alpha library\n");
@@ -205,7 +207,7 @@ fn main() {
         let d = squared(6.5, 2.6);
         let low = wider_is_low(&d);
         let mut d = d;
-        d.layers.layers.push(LayerEntry::new("Weave", Layer::Tiling(side_pattern(&d, "pattern-16", 0.32, 0.3))));
+        d.layers.layers.push(LayerEntry::new("Weave", Layer::Tiling(side_pattern(&d, "pattern-16", 0.32, 0.3, 1.0))));
         finish(&dir, "05-woven-band", "a Pattern weave tiled on the side faces", ROSE, face_of(low), d, &mut lib);
     } else {
         println!("05-woven-band             skipped: pattern-16 not in the alpha library\n");
@@ -266,6 +268,26 @@ fn main() {
     } else {
         println!("08-halo                   skipped: halo did not fit this band\n");
     }
+
+    // --- 09. Voronoi band: the new cellular generator. -----------------------
+    // Auto_Voronoi read into the height field: a builtin procedural alpha,
+    // cells raised as domes with recessed boundaries, on the side faces where
+    // relief along the pull releases. Coarse cells (repeat_scale 0.6) so each
+    // sits well above the sand's detail floor.
+    let d = squared(6.0, 2.6);
+    let low = wider_is_low(&d);
+    let mut d = d;
+    d.layers.layers.push(LayerEntry::new("Voronoi", Layer::Tiling(side_pattern(&d, "Voronoi", 0.3, 0.2, 0.6))));
+    finish(&dir, "09-voronoi-band", "the new Voronoi generator, coarse cells on the side faces", ROSE, face_of(low), d, &mut lib);
+
+    // --- 10. Trellis band: the new wire-lattice generator. -------------------
+    // Wire_Pattern read into the height field: an open diagonal grille of
+    // round wires, raised over recessed gaps, on the side faces.
+    let d = squared(6.0, 2.6);
+    let low = wider_is_low(&d);
+    let mut d = d;
+    d.layers.layers.push(LayerEntry::new("Trellis", Layer::Tiling(side_pattern(&d, "Trellis", 0.3, 0.25, 0.85))));
+    finish(&dir, "10-trellis-band", "the new Trellis wire-lattice on the side faces", WHITE, face_of(low), d, &mut lib);
 
     println!("renders in {dir}, designs in {}", library::default_design_dir().join("collection").display());
 }
