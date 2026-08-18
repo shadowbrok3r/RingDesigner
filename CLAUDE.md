@@ -936,11 +936,16 @@ that passes.
 
 The other lesson with teeth: **builtin procedural tiles carry several
 pattern periods per tile** (Scales is 7×7 scallops, Greek Key a 3×3
-meander), so `repeats_for_square_cells` lands each *period* at a fraction
-of the cell — sub-detail-floor mush on a 2 mm side face. Templates carry
-hand-tuned counts with the per-tile period in a comment, and fine-lined
-alphas (Greek Key at 0.15 mm strokes) are simply not usable on narrow
-faces in sand.
+meander, `Voronoi` 3×3 sites, `Trellis` 4 wires each way), so
+`repeats_for_square_cells` lands each *period* at a fraction of the cell —
+sub-detail-floor mush on a 2 mm side face. Templates carry hand-tuned
+counts with the per-tile period in a comment, and fine-lined alphas (Greek
+Key at 0.15 mm strokes) are simply not usable on narrow faces in sand.
+`every_pattern_tiles_seamlessly` pins the whole family's seam step against
+its own interior step; `Voronoi` (cellular relief, from Auto_Voronoi) and
+`Trellis` (a round-wire lattice, from Wire_Pattern) are the castable reads
+of the CrossGems decoration clusters, both side-face features by
+construction.
 
 ### The showcase is the measured tour
 
