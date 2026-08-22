@@ -95,7 +95,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 - [x] **M2.5 Sinks, verdict gate, modes** (M, #16). Output, verdict, gate, build, refine, stones, DFM,
   sheet, exports, render, save; SandRing refuses `NotCastable` on file-writing sinks; Free adds
   solid nodes and the mesh verifier.
-- [ ] **M2.6 Files, ladder, clusters, presets** (M, #17). `*.graph.json`, `*.cluster.json`,
+- [x] **M2.6 Files, ladder, clusters, presets** (M, #17). `*.graph.json`, `*.cluster.json`,
   `*.preset.json` with a migration ladder like the design's; cluster nodes with exposed
   parameters; presets as parameter sets; user-dir resolution.
 - [ ] **M2.7 Design field, template graphs, golden tests** (M, #18). `RingDesign.graph`; every

@@ -46,6 +46,8 @@ pub enum Targets {
     Design,
     /// One node and everything above it.
     Node(NodeId),
+    /// These nodes and everything above them.
+    Nodes(Vec<NodeId>),
     /// Every node without side effects.
     AllPure,
     /// Every node, side effects included.
@@ -156,6 +158,21 @@ impl Evaluator {
     /// Evaluate `targets` of `g`. `lib_epoch` changes whenever the alpha
     /// library's contents do, so nodes that read it re-run.
     pub fn evaluate(&mut self, g: &Graph, reg: &Registry, lib: &AlphaLibrary, lib_epoch: u64, targets: Targets) -> EvalReport {
+        self.evaluate_injected(g, reg, lib, lib_epoch, targets, &BTreeMap::new())
+    }
+
+    /// [`Evaluator::evaluate`] with values pushed straight onto inputs —
+    /// how a cluster's pins reach the nodes inside it, handles included.
+    /// An injected input overrides its wire and its literal.
+    pub fn evaluate_injected(
+        &mut self,
+        g: &Graph,
+        reg: &Registry,
+        lib: &AlphaLibrary,
+        lib_epoch: u64,
+        targets: Targets,
+        injected: &BTreeMap<(NodeId, String), Value>,
+    ) -> EvalReport {
         let mut report = EvalReport::default();
         report.errors = g.validate(Some(reg));
         if !report.errors.is_empty() {
@@ -191,6 +208,14 @@ impl Evaluator {
                 w.out.hash(&mut h);
                 sigs.get(&w.from).copied().unwrap_or(0).hash(&mut h);
             }
+            for ((nid, pin), v) in injected {
+                if *nid == id {
+                    pin.hash(&mut h);
+                    v.summary().hash(&mut h);
+                    // A handle's identity, not its summary, is what moves.
+                    (v as *const Value as usize).hash(&mut h);
+                }
+            }
             sigs.insert(id, h.finish());
         }
 
@@ -204,7 +229,7 @@ impl Evaluator {
             let spec = reg.get(&node.kind).expect("validated");
             let sig = sigs[&id];
             if spec.side_effect && !run_side_effects {
-                let outputs: BTreeMap<String, Value> = spec.pins_for(node).1.into_iter().map(|p| (p.name, Value::Null)).collect();
+                let outputs: BTreeMap<String, Value> = spec.pins_for(node, reg).1.into_iter().map(|p| (p.name, Value::Null)).collect();
                 report.values.insert(id, outputs);
                 report.status.insert(id, NodeStatus { skipped: true, ..Default::default() });
                 continue;
@@ -218,7 +243,7 @@ impl Evaluator {
                     }
                 }
             }
-            let (outputs, status) = run_node(g, spec, node, &report.values, lib, lib_epoch, run_side_effects);
+            let (outputs, status) = run_node(g, reg, spec, node, &report.values, lib, lib_epoch, run_side_effects, self.depth, injected);
             report.values.insert(id, outputs.clone());
             report.status.insert(id, status.clone());
             if !spec.side_effect {
@@ -241,6 +266,7 @@ impl Evaluator {
             Targets::Everything => order.iter().copied().collect(),
             Targets::AllPure => order.iter().copied().filter(pure).collect(),
             Targets::Node(id) => closure(vec![*id]),
+            Targets::Nodes(ids) => closure(ids.clone()),
             Targets::Design => {
                 let sinks: Vec<NodeId> = g.nodes.iter().filter(|n| n.kind == OUTPUT_KIND).map(|n| n.id).collect();
                 if sinks.is_empty() { order.iter().copied().filter(pure).collect() } else { closure(sinks) }
@@ -271,18 +297,22 @@ struct Resolved {
     failed: Vec<bool>,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_node(
     g: &Graph,
+    reg: &Registry,
     spec: &NodeSpec,
     node: &crate::graph::Node,
     values: &BTreeMap<NodeId, BTreeMap<String, Value>>,
     lib: &AlphaLibrary,
-    _lib_epoch: u64,
+    lib_epoch: u64,
     run_side_effects: bool,
+    depth: usize,
+    injected: &BTreeMap<(NodeId, String), Value>,
 ) -> (BTreeMap<String, Value>, NodeStatus) {
     let start = tick();
     let mut status = NodeStatus::default();
-    let (in_pins, out_pins) = spec.pins_for(node);
+    let (in_pins, out_pins) = spec.pins_for(node, reg);
     let record = |status: &mut NodeStatus, item: usize, msg: String| {
         status.error_count += 1;
         if status.errors.len() < MAX_RECORDED_ERRORS {
@@ -292,11 +322,14 @@ fn run_node(
 
     let mut resolved: BTreeMap<String, Resolved> = BTreeMap::new();
     for pin in &in_pins {
-        let raw: Value = match g.wire_into(node.id, &pin.name) {
-            Some(w) => values.get(&w.from).and_then(|o| o.get(&w.out)).cloned().unwrap_or(Value::Null),
-            None => match node.inputs.get(&pin.name) {
-                Some(lit) => Value::from(lit.clone()),
-                None => pin.default.clone().map(Value::from).unwrap_or(Value::Null),
+        let raw: Value = match injected.get(&(node.id, pin.name.clone())) {
+            Some(v) => v.clone(),
+            None => match g.wire_into(node.id, &pin.name) {
+                Some(w) => values.get(&w.from).and_then(|o| o.get(&w.out)).cloned().unwrap_or(Value::Null),
+                None => match node.inputs.get(&pin.name) {
+                    Some(lit) => Value::from(lit.clone()),
+                    None => pin.default.clone().map(Value::from).unwrap_or(Value::Null),
+                },
             },
         };
         let (mut items, is_list) = match raw {
@@ -341,8 +374,10 @@ fn run_node(
     status.items = n;
 
     let mut columns: BTreeMap<String, Vec<Value>> = out_pins.iter().map(|p| (p.name.clone(), Vec::with_capacity(n))).collect();
-    let mut ctx = EvalCtx::new(lib, g.mode);
+    let mut ctx = EvalCtx::new(lib, reg, g.mode);
     ctx.run_side_effects = run_side_effects;
+    ctx.depth = depth;
+    ctx.lib_epoch = lib_epoch;
     ctx.items = n;
     for t in 0..n {
         ctx.item = t;

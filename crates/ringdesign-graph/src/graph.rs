@@ -85,6 +85,17 @@ pub struct Exposed {
     pub doc: String,
 }
 
+/// An output promoted to the graph's own — what a cluster hands out when
+/// it is used as a node.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExposedOut {
+    pub node: NodeId,
+    pub out: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub doc: String,
+}
+
 /// The document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Graph {
@@ -97,6 +108,8 @@ pub struct Graph {
     pub wires: Vec<Wire>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exposed: Vec<Exposed>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub outputs: Vec<ExposedOut>,
     /// The next id to hand out; never decremented.
     #[serde(default)]
     pub next_id: u64,
@@ -168,7 +181,7 @@ pub trait PinLookup {
 
 impl Graph {
     pub fn new(name: impl Into<String>, mode: Mode) -> Self {
-        Self { name: name.into(), mode, nodes: Vec::new(), wires: Vec::new(), exposed: Vec::new(), next_id: 1 }
+        Self { name: name.into(), mode, nodes: Vec::new(), wires: Vec::new(), exposed: Vec::new(), outputs: Vec::new(), next_id: 1 }
     }
 
     pub fn node(&self, id: NodeId) -> Option<&Node> {
@@ -210,6 +223,7 @@ impl Graph {
         let node = self.nodes.remove(i);
         self.wires.retain(|w| w.from != id && w.to != id);
         self.exposed.retain(|e| e.node != id);
+        self.outputs.retain(|e| e.node != id);
         Ok(node)
     }
 
@@ -321,6 +335,28 @@ impl Graph {
         Some(self.exposed.remove(i))
     }
 
+    /// Promote an output to the graph's own under `name`.
+    pub fn expose_output(&mut self, node: NodeId, out: impl Into<String>, name: impl Into<String>) -> Result<(), GraphError> {
+        if !self.contains(node) {
+            return Err(GraphError::at(node, "no such node"));
+        }
+        let (out, name) = (out.into(), name.into());
+        if let Some(e) = self.outputs.iter().find(|e| e.name == name) {
+            if e.node != node || e.out != out {
+                return Err(GraphError::at(node, format!("{name:?} is already an output from {}.{}", e.node, e.out)));
+            }
+            return Ok(());
+        }
+        self.outputs.retain(|e| !(e.node == node && e.out == out));
+        self.outputs.push(ExposedOut { node, out, name, doc: String::new() });
+        Ok(())
+    }
+
+    pub fn unexpose_output(&mut self, name: &str) -> Option<ExposedOut> {
+        let i = self.outputs.iter().position(|e| e.name == name)?;
+        Some(self.outputs.remove(i))
+    }
+
     /// Nodes in an order every wire runs forward, or the node a cycle
     /// passes through. Ties break by id, so the order is deterministic.
     pub fn topo(&self) -> Result<Vec<NodeId>, GraphError> {
@@ -425,6 +461,11 @@ impl Graph {
                 errs.push(GraphError::global(format!("exposed {:?} names a node that does not exist ({})", e.name, e.node)));
             }
         }
+        for e in &self.outputs {
+            if !ids.contains(&e.node) {
+                errs.push(GraphError::global(format!("output {:?} names a node that does not exist ({})", e.name, e.node)));
+            }
+        }
         if let Err(e) = self.topo() {
             errs.push(e);
         }
@@ -475,6 +516,13 @@ impl Graph {
                 if let Some(Some(p)) = pins.get(&e.node) {
                     if p.input(&e.input).is_none() {
                         errs.push(GraphError::at(e.node, format!("exposed {:?} names no input {:?}", e.name, e.input)));
+                    }
+                }
+            }
+            for e in &self.outputs {
+                if let Some(Some(p)) = pins.get(&e.node) {
+                    if p.output(&e.out).is_none() {
+                        errs.push(GraphError::at(e.node, format!("output {:?} names no output {:?}", e.name, e.out)));
                     }
                 }
             }
