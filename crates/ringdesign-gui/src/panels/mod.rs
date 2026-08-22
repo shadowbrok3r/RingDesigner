@@ -1,7 +1,9 @@
 //! Window layout and the top-level chrome.
 
 pub mod design;
+pub mod graph;
 pub mod layers;
+pub mod node;
 pub mod library;
 pub mod report;
 pub mod section;
@@ -124,6 +126,7 @@ impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
                 ToolKind::Layers => layers::ui(self.app, ui),
                 ToolKind::Report => report::ui(self.app, ui),
                 ToolKind::Library => library::ui(self.app, ui),
+                ToolKind::Node => node::ui(self.app, ui),
             });
         egui_tiles::UiResponse::None
     }
@@ -185,6 +188,7 @@ fn panes(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 PaneKind::Solid => viewport::ui(app, ui, i),
                 PaneKind::Unrolled => unrolled::ui(app, ui),
                 PaneKind::Section => section::ui(app, ui, i),
+                PaneKind::Graph => graph::ui(app, ui, i),
             });
 
         // Only worth marking which pane is active when there is a choice.
@@ -298,7 +302,13 @@ fn shortcuts(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     // egui routes Delete to text editing itself, but a consumed key here would
     // otherwise still fire while typing in a field that ignored it.
     if delete && !ui.ctx().memory(|m| m.focused().is_some()) {
-        Command::DeleteLayer.run(app);
+        // The Delete key acts on what the active pane shows.
+        let graph_pane = app.panes.get(app.active_pane).is_some_and(|p| p.kind == PaneKind::Graph);
+        if graph_pane && app.selected_node.is_some() {
+            Command::DeleteNode.run(app);
+        } else {
+            Command::DeleteLayer.run(app);
+        }
     }
 
     command_palette(app, ui);
@@ -324,6 +334,11 @@ enum Command {
     DeleteLayer,
     Undo,
     Redo,
+    ConvertToGraph,
+    BakeGraph,
+    ShowGraphPane,
+    ArrangeGraph,
+    DeleteNode,
 }
 
 impl Command {
@@ -345,6 +360,11 @@ impl Command {
         Command::DeleteLayer,
         Command::Undo,
         Command::Redo,
+        Command::ConvertToGraph,
+        Command::BakeGraph,
+        Command::ShowGraphPane,
+        Command::ArrangeGraph,
+        Command::DeleteNode,
     ];
 
     fn label(self) -> &'static str {
@@ -366,6 +386,11 @@ impl Command {
             Command::DeleteLayer => "Delete selected layer  (Del)",
             Command::Undo => "Undo  (Ctrl+Z)",
             Command::Redo => "Redo  (Ctrl+Shift+Z)",
+            Command::ConvertToGraph => "Convert design to graph",
+            Command::BakeGraph => "Bake graph into the design",
+            Command::ShowGraphPane => "Show graph pane",
+            Command::ArrangeGraph => "Arrange graph nodes",
+            Command::DeleteNode => "Delete selected node  (Del)",
         }
     }
 
@@ -409,6 +434,11 @@ impl Command {
             }
             Command::Undo => app.undo(),
             Command::Redo => app.redo(),
+            Command::ConvertToGraph => app.convert_to_graph(),
+            Command::BakeGraph => app.bake_graph(),
+            Command::ShowGraphPane => app.show_graph_pane(),
+            Command::ArrangeGraph => app.arrange_graph(),
+            Command::DeleteNode => app.delete_selected_node(),
         }
     }
 }

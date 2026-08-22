@@ -18,16 +18,18 @@ pub enum PaneKind {
     Solid,
     Unrolled,
     Section,
+    Graph,
 }
 
 impl PaneKind {
-    pub const ALL: &'static [PaneKind] = &[PaneKind::Solid, PaneKind::Unrolled, PaneKind::Section];
+    pub const ALL: &'static [PaneKind] = &[PaneKind::Solid, PaneKind::Unrolled, PaneKind::Section, PaneKind::Graph];
 
     pub fn label(self) -> &'static str {
         match self {
             PaneKind::Solid => "Ring",
             PaneKind::Unrolled => "Tile Layout",
             PaneKind::Section => "Cross Section",
+            PaneKind::Graph => "Graph",
         }
     }
 
@@ -36,6 +38,7 @@ impl PaneKind {
             PaneKind::Solid => icon::CIRCLE_NOTCH,
             PaneKind::Unrolled => icon::GRID_FOUR,
             PaneKind::Section => icon::CHART_LINE,
+            PaneKind::Graph => icon::GRAPH,
         }
     }
 }
