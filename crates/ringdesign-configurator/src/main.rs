@@ -4,9 +4,17 @@
 //! software rasterizer, so this binary carries no GL plumbing and the same
 //! crate could later target a browser. Choices live in [`compose::Config`],
 //! small serializable data; the finished order lands as a folder holding the
-//! design file, the order JSON, the casting sheet, a GLB and a turntable.
+//! design file, the order JSON, the casting sheet, a GLB and a turntable — or,
+//! in the browser, as one zip download of the same files.
+//!
+//! Web build: `trunk serve` in this crate's directory (`index.html` carries
+//! the `--no-default-features` flag, so core runs serial). There is no
+//! thread in a browser, so the build worker and the thumbnail renders run on
+//! the UI thread, pumped from `poll` — a preview build is ~40 ms serial.
 
 mod compose;
+#[cfg(target_arch = "wasm32")]
+mod web;
 
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
@@ -31,12 +39,22 @@ const VIEW_PX: usize = 640;
 
 #[cfg(target_arch = "wasm32")]
 fn main() {
-    // The crate compiles for wasm32 with `--no-default-features` (core runs
-    // serial), which keeps the browser door open. What a live web build
-    // still needs: an eframe `WebRunner` entry with its canvas + trunk
-    // packaging, and `spawn_worker`/`spawn_thumbs` replaced — std::thread
-    // does not run in a browser, so builds either go synchronous (a preview
-    // build is ~40 ms serial) or into a web worker.
+    use wasm_bindgen::JsCast as _;
+    eframe::WebLogger::init(log::LevelFilter::Info).ok();
+    wasm_bindgen_futures::spawn_local(async {
+        let document = web_sys::window().and_then(|w| w.document()).expect("no document");
+        let canvas = document
+            .get_element_by_id("build_a_ring")
+            .expect("no canvas #build_a_ring")
+            .dyn_into::<web_sys::HtmlCanvasElement>()
+            .expect("#build_a_ring is not a canvas");
+        let started = eframe::WebRunner::new()
+            .start(canvas, eframe::WebOptions::default(), Box::new(|cc| Ok(Box::new(App::new(cc)))))
+            .await;
+        if let Err(e) = started {
+            log::error!("build-a-ring failed to start: {e:?}");
+        }
+    });
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -75,90 +93,254 @@ struct Frame {
     volume_mm3: f64,
 }
 
-fn spawn_worker(ctx: egui::Context) -> (Sender<Job>, Receiver<Frame>) {
-    let (jobs_tx, jobs_rx) = channel::<Job>();
-    let (frames_tx, frames_rx) = channel::<Frame>();
-    std::thread::Builder::new()
-        .name("compose-build".into())
-        .spawn(move || {
-            let mut lib = AlphaLibrary::builtin();
-            let mut mesh: Option<Arc<Mesh>> = None;
-            let mut field: Option<FieldReport> = None;
-            let mut grams: Vec<(String, f64)> = Vec::new();
-            let mut volume = 0.0;
-            while let Ok(mut job) = jobs_rx.recv() {
-                while let Ok(newer) = jobs_rx.try_recv() {
-                    // Keep the newest, but never drop a design change for a
-                    // camera-only frame.
-                    if job.design.is_some() && newer.design.is_none() {
-                        job = Job { design: job.design, ..newer };
-                    } else {
-                        job = newer;
-                    }
-                }
-                if let Some(d) = job.design.take() {
-                    d.bake_texts(&mut lib);
-                    let out = ringdesign_core::mesh::build(&d, &lib, PREVIEW);
-                    volume = out.report.volume_mm3;
-                    grams = out
-                        .report
-                        .metals
-                        .iter()
-                        .map(|m| (m.metal.to_string(), m.grams))
-                        .collect();
-                    field = Some(ringdesign_core::castability::analyze_field(
-                        &d, &lib, &d.draft, 144, 96,
-                    ));
-                    mesh = Some(Arc::new(out.mesh));
-                }
-                let Some(m) = mesh.as_ref() else { continue };
-                let (edge, ss) = if job.fine { (VIEW_PX, 3) } else { (VIEW_PX / 2, 1) };
-                let rgb = render::render_ss(m, job.yaw, job.pitch, edge, edge, ss, render::GOLD);
-                let image = egui::ColorImage::from_rgb([edge, edge], &rgb);
-                if frames_tx
-                    .send(Frame {
-                        generation: job.generation,
-                        image,
-                        field: field.clone(),
-                        grams: grams.clone(),
-                        volume_mm3: volume,
-                    })
-                    .is_err()
-                {
-                    break;
-                }
-                ctx.request_repaint();
-            }
-        })
-        .expect("spawn worker");
-    (jobs_tx, frames_rx)
+/// The build-and-render state one job advances; the same body runs on a
+/// thread natively and inline on the UI thread in the browser.
+struct Worker {
+    lib: AlphaLibrary,
+    mesh: Option<Arc<Mesh>>,
+    field: Option<FieldReport>,
+    grams: Vec<(String, f64)>,
+    volume: f64,
 }
 
-/// One-shot worker: render every base once for the style step's cards.
-fn spawn_thumbs(ctx: egui::Context) -> Receiver<(Base, egui::ColorImage)> {
-    let (tx, rx) = channel();
-    std::thread::Builder::new()
-        .name("compose-thumbs".into())
-        .spawn(move || {
-            let lib = AlphaLibrary::builtin();
-            for &base in Base::ALL {
-                let cfg = Config { base, ..Config::default() };
-                let d = compose(&cfg);
-                let out = ringdesign_core::mesh::build(
-                    &d,
-                    &lib,
-                    BuildParams { theta_steps: 192, profile_steps: 80, ..Default::default() },
-                );
-                let edge = 108usize;
-                let rgb = render::render_ss(&out.mesh, 0.55, 1.12, edge, edge, 2, render::GOLD);
-                if tx.send((base, egui::ColorImage::from_rgb([edge, edge], &rgb))).is_err() {
-                    return;
-                }
-                ctx.request_repaint();
+impl Worker {
+    fn new() -> Self {
+        Self { lib: AlphaLibrary::builtin(), mesh: None, field: None, grams: Vec::new(), volume: 0.0 }
+    }
+
+    /// Keeps the newest pending job, never dropping a design change for a
+    /// camera-only frame.
+    fn coalesce(mut job: Job, rx: &Receiver<Job>) -> Job {
+        while let Ok(newer) = rx.try_recv() {
+            if job.design.is_some() && newer.design.is_none() {
+                job = Job { design: job.design, ..newer };
+            } else {
+                job = newer;
             }
+        }
+        job
+    }
+
+    fn run(&mut self, mut job: Job) -> Option<Frame> {
+        if let Some(d) = job.design.take() {
+            d.bake_texts(&mut self.lib);
+            let out = ringdesign_core::mesh::build(&d, &self.lib, PREVIEW);
+            self.volume = out.report.volume_mm3;
+            self.grams = out.report.metals.iter().map(|m| (m.metal.to_string(), m.grams)).collect();
+            self.field =
+                Some(ringdesign_core::castability::analyze_field(&d, &self.lib, &d.draft, 144, 96));
+            self.mesh = Some(Arc::new(out.mesh));
+        }
+        let m = self.mesh.as_ref()?;
+        let (edge, ss) = if job.fine { (VIEW_PX, 3) } else { (VIEW_PX / 2, 1) };
+        let rgb = render::render_ss(m, job.yaw, job.pitch, edge, edge, ss, render::GOLD);
+        Some(Frame {
+            generation: job.generation,
+            image: egui::ColorImage::from_rgb([edge, edge], &rgb),
+            field: self.field.clone(),
+            grams: self.grams.clone(),
+            volume_mm3: self.volume,
         })
-        .expect("spawn thumbs");
-    rx
+    }
+}
+
+/// Jobs in, frames out: a thread natively, `pump` on the UI thread in the
+/// browser.
+struct Engine {
+    jobs: Sender<Job>,
+    frames: Receiver<Frame>,
+    #[cfg(target_arch = "wasm32")]
+    inline: (Receiver<Job>, Sender<Frame>, Worker),
+}
+
+impl Engine {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn new(ctx: egui::Context) -> Self {
+        let (jobs_tx, jobs_rx) = channel::<Job>();
+        let (frames_tx, frames_rx) = channel::<Frame>();
+        std::thread::Builder::new()
+            .name("compose-build".into())
+            .spawn(move || {
+                let mut worker = Worker::new();
+                while let Ok(job) = jobs_rx.recv() {
+                    let job = Worker::coalesce(job, &jobs_rx);
+                    if let Some(frame) = worker.run(job) {
+                        if frames_tx.send(frame).is_err() {
+                            break;
+                        }
+                        ctx.request_repaint();
+                    }
+                }
+            })
+            .expect("spawn worker");
+        Self { jobs: jobs_tx, frames: frames_rx }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn new(_ctx: egui::Context) -> Self {
+        let (jobs_tx, jobs_rx) = channel::<Job>();
+        let (frames_tx, frames_rx) = channel::<Frame>();
+        Self { jobs: jobs_tx, frames: frames_rx, inline: (jobs_rx, frames_tx, Worker::new()) }
+    }
+
+    fn send(&self, job: Job) {
+        let _ = self.jobs.send(job);
+    }
+
+    /// Runs the pending jobs here where there is no worker thread.
+    fn pump(&mut self) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let (rx, tx, worker) = &mut self.inline;
+            while let Ok(job) = rx.try_recv() {
+                let job = Worker::coalesce(job, rx);
+                if let Some(frame) = worker.run(job) {
+                    let _ = tx.send(frame);
+                }
+            }
+        }
+    }
+}
+
+/// One base rendered for the style step's cards.
+fn thumb(base: Base, lib: &AlphaLibrary) -> egui::ColorImage {
+    let cfg = Config { base, ..Config::default() };
+    let d = compose(&cfg);
+    let out = ringdesign_core::mesh::build(
+        &d,
+        lib,
+        BuildParams { theta_steps: 192, profile_steps: 80, ..Default::default() },
+    );
+    let edge = 108usize;
+    let rgb = render::render_ss(&out.mesh, 0.55, 1.12, edge, edge, 2, render::GOLD);
+    egui::ColorImage::from_rgb([edge, edge], &rgb)
+}
+
+/// Every base's card, once: a one-shot thread natively, one base per frame
+/// in the browser.
+struct Thumbs {
+    rx: Receiver<(Base, egui::ColorImage)>,
+    #[cfg(target_arch = "wasm32")]
+    inline: (Vec<Base>, Sender<(Base, egui::ColorImage)>, AlphaLibrary),
+}
+
+impl Thumbs {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn new(ctx: egui::Context) -> Self {
+        let (tx, rx) = channel();
+        std::thread::Builder::new()
+            .name("compose-thumbs".into())
+            .spawn(move || {
+                let lib = AlphaLibrary::builtin();
+                for &base in Base::ALL {
+                    if tx.send((base, thumb(base, &lib))).is_err() {
+                        return;
+                    }
+                    ctx.request_repaint();
+                }
+            })
+            .expect("spawn thumbs");
+        Self { rx }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn new(_ctx: egui::Context) -> Self {
+        let (tx, rx) = channel();
+        let mut pending = Base::ALL.to_vec();
+        pending.reverse();
+        Self { rx, inline: (pending, tx, AlphaLibrary::builtin()) }
+    }
+
+    /// One more card where the thumbs run inline, asking for another frame
+    /// while any remain.
+    #[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))]
+    fn pump(&mut self, ctx: &egui::Context) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let (pending, tx, lib) = &mut self.inline;
+            if let Some(base) = pending.pop() {
+                let _ = tx.send((base, thumb(base, lib)));
+                if !pending.is_empty() {
+                    ctx.request_repaint();
+                }
+            }
+        }
+    }
+}
+
+/// How an order is built: the full pass the app writes, or a small one for
+/// tests.
+struct OrderParams {
+    build: BuildParams,
+    hero_px: usize,
+    gif_frames: usize,
+    gif_px: usize,
+}
+
+impl OrderParams {
+    const FULL: OrderParams = OrderParams {
+        build: BuildParams { theta_steps: 768, profile_steps: 256, min_wall_mm: 0.5, adaptive: false, refine: None, soften_mm: 0.0 },
+        hero_px: 1280,
+        gif_frames: 36,
+        gif_px: 480,
+    };
+}
+
+/// The order's files — design, choices, sheet, GLB, hero, turntable — as
+/// name and bytes.
+fn order_files(cfg: &Config, p: &OrderParams) -> anyhow::Result<Vec<(&'static str, Vec<u8>)>> {
+    let mut lib = AlphaLibrary::builtin();
+    let d = compose(cfg);
+    d.bake_texts(&mut lib);
+    let out = ringdesign_core::mesh::build(&d, &lib, p.build);
+    let field = ringdesign_core::castability::attributed_field_report(&d, &lib, &d.draft, 192, 128);
+    let stones = ringdesign_core::stones::report(&d, field.parting_z_mm);
+    let dfm = ringdesign_core::dfm::findings(&d);
+    let sheet = ringdesign_core::spec::html(
+        &d,
+        &out.report,
+        &field,
+        stones.as_ref(),
+        &dfm,
+        concat!("Build-a-Ring ", env!("CARGO_PKG_VERSION")),
+    );
+    Ok(vec![
+        ("design.ring.json", library::design_json(&d)?.into_bytes()),
+        ("choices.json", serde_json::to_string_pretty(cfg)?.into_bytes()),
+        ("casting_sheet.html", sheet.into_bytes()),
+        ("ring.glb", ringdesign_core::gltf::to_glb(&out.mesh, &d.name, render::GOLD)),
+        ("hero.png", render::png_bytes(&out.mesh, 0.55, 1.12, p.hero_px, render::GOLD)?),
+        ("turntable.gif", render::turntable_gif_bytes(&out.mesh, p.gif_frames, p.gif_px, render::GOLD)?),
+    ])
+}
+
+/// The customer's name as a folder or file name.
+fn order_slug(cfg: &Config) -> String {
+    let base = if cfg.customer.trim().is_empty() { "order" } else { cfg.customer.trim() };
+    base.chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
+        .collect()
+}
+
+/// Writes the order into one folder named for the customer.
+#[cfg(not(target_arch = "wasm32"))]
+fn deliver_order(slug: &str, files: Vec<(&'static str, Vec<u8>)>) -> anyhow::Result<String> {
+    let dir = library::default_design_dir().with_file_name("orders").join(slug);
+    std::fs::create_dir_all(&dir)?;
+    for (name, bytes) in files {
+        std::fs::write(dir.join(name), bytes)?;
+    }
+    Ok(dir.display().to_string())
+}
+
+/// Hands the order to the browser as one zip download.
+#[cfg(target_arch = "wasm32")]
+fn deliver_order(slug: &str, files: Vec<(&'static str, Vec<u8>)>) -> anyhow::Result<String> {
+    use ringdesign_core::threemf::{zip_store, Entry};
+    let entries: Vec<Entry> = files.into_iter().map(|(n, data)| Entry { name: n.to_string(), data }).collect();
+    let name = format!("order-{slug}.zip");
+    web::download(&name, "application/zip", &zip_store(&entries))?;
+    Ok(format!("your downloads, as {name}"))
 }
 
 // --- The app -----------------------------------------------------------------
@@ -190,8 +372,7 @@ impl Step {
 struct App {
     cfg: Config,
     step: Step,
-    jobs: Sender<Job>,
-    frames: Receiver<Frame>,
+    engine: Engine,
     generation: u64,
     view: Option<egui::TextureHandle>,
     field: Option<FieldReport>,
@@ -202,20 +383,17 @@ struct App {
     dragging: bool,
     saved_to: Option<String>,
     saving: bool,
-    thumbs_rx: Receiver<(Base, egui::ColorImage)>,
+    thumb_jobs: Thumbs,
     thumbs: std::collections::HashMap<Base, egui::TextureHandle>,
     prices: std::collections::HashMap<String, f64>,
 }
 
 impl App {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let (jobs, frames) = spawn_worker(cc.egui_ctx.clone());
-        let thumbs_rx = spawn_thumbs(cc.egui_ctx.clone());
         let mut app = Self {
             cfg: Config::default(),
             step: Step::Base,
-            jobs,
-            frames,
+            engine: Engine::new(cc.egui_ctx.clone()),
             generation: 0,
             view: None,
             field: None,
@@ -226,7 +404,7 @@ impl App {
             dragging: false,
             saved_to: None,
             saving: false,
-            thumbs_rx,
+            thumb_jobs: Thumbs::new(cc.egui_ctx.clone()),
             thumbs: std::collections::HashMap::new(),
             prices: compose::load_prices(),
         };
@@ -238,7 +416,7 @@ impl App {
         self.cfg.reconcile();
         self.generation += 1;
         self.saved_to = None;
-        let _ = self.jobs.send(Job {
+        self.engine.send(Job {
             generation: self.generation,
             design: Some(compose(&self.cfg)),
             yaw: self.yaw,
@@ -249,7 +427,7 @@ impl App {
 
     fn rerender(&mut self, fine: bool) {
         self.generation += 1;
-        let _ = self.jobs.send(Job {
+        self.engine.send(Job {
             generation: self.generation,
             design: None,
             yaw: self.yaw,
@@ -258,51 +436,12 @@ impl App {
         });
     }
 
-    /// Write the whole order — design, choices, sheet, GLB, turntable — into
-    /// one folder named for the customer.
+    /// The whole order — design, choices, sheet, GLB, hero, turntable —
+    /// into one folder named for the customer, or one zip in the browser.
     fn save_order(&mut self) {
         self.saving = true;
-        let cfg = self.cfg.clone();
-        let slug: String = {
-            let base = if cfg.customer.trim().is_empty() { "order" } else { cfg.customer.trim() };
-            base.chars()
-                .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
-                .collect()
-        };
-        let dir = library::default_design_dir().with_file_name("orders").join(&slug);
-        let result = (|| -> anyhow::Result<String> {
-            std::fs::create_dir_all(&dir)?;
-            let mut lib = AlphaLibrary::builtin();
-            let d = compose(&cfg);
-            d.bake_texts(&mut lib);
-
-            library::save_design(dir.join("design.ring.json"), &d)?;
-            std::fs::write(dir.join("choices.json"), serde_json::to_string_pretty(&cfg)?)?;
-
-            let out = ringdesign_core::mesh::build(
-                &d,
-                &lib,
-                BuildParams { theta_steps: 768, profile_steps: 256, ..Default::default() },
-            );
-            let field = ringdesign_core::castability::attributed_field_report(
-                &d, &lib, &d.draft, 192, 128,
-            );
-            let stones = ringdesign_core::stones::report(&d, field.parting_z_mm);
-            let dfm = ringdesign_core::dfm::findings(&d);
-            let sheet = ringdesign_core::spec::html(
-                &d,
-                &out.report,
-                &field,
-                stones.as_ref(),
-                &dfm,
-                concat!("Build-a-Ring ", env!("CARGO_PKG_VERSION")),
-            );
-            std::fs::write(dir.join("casting_sheet.html"), sheet)?;
-            ringdesign_core::gltf::write_glb(dir.join("ring.glb"), &out.mesh, &d.name, render::GOLD)?;
-            render::write_png(dir.join("hero.png"), &out.mesh, 0.55, 1.12, 1280, render::GOLD)?;
-            render::write_turntable_gif(dir.join("turntable.gif"), &out.mesh, 36, 480, render::GOLD)?;
-            Ok(dir.display().to_string())
-        })();
+        let slug = order_slug(&self.cfg);
+        let result = order_files(&self.cfg, &OrderParams::FULL).and_then(|files| deliver_order(&slug, files));
         self.saving = false;
         self.saved_to = Some(match result {
             Ok(p) => format!("Saved to {p}"),
@@ -311,7 +450,9 @@ impl App {
     }
 
     fn poll(&mut self, ctx: &egui::Context) {
-        while let Ok((base, img)) = self.thumbs_rx.try_recv() {
+        self.engine.pump();
+        self.thumb_jobs.pump(ctx);
+        while let Ok((base, img)) = self.thumb_jobs.rx.try_recv() {
             let tex = ctx.load_texture(
                 format!("thumb-{}", base.label()),
                 img,
@@ -319,7 +460,7 @@ impl App {
             );
             self.thumbs.insert(base, tex);
         }
-        while let Ok(f) = self.frames.try_recv() {
+        while let Ok(f) = self.engine.frames.try_recv() {
             if f.generation != self.generation {
                 continue;
             }
@@ -744,5 +885,37 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ui, |ui| {
             ui.vertical_centered(|ui| self.preview(ui));
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_order_is_six_files_and_a_slug() {
+        let cfg = Config { customer: "Ada Lovelace!".into(), ..Config::default() };
+        assert_eq!(order_slug(&cfg), "ada_lovelace_");
+        assert_eq!(order_slug(&Config::default()), "order");
+        let small = OrderParams {
+            build: BuildParams { theta_steps: 96, profile_steps: 48, ..Default::default() },
+            hero_px: 64,
+            gif_frames: 4,
+            gif_px: 32,
+        };
+        let files = order_files(&cfg, &small).unwrap();
+        let names: Vec<&str> = files.iter().map(|(n, _)| *n).collect();
+        assert_eq!(
+            names,
+            ["design.ring.json", "choices.json", "casting_sheet.html", "ring.glb", "hero.png", "turntable.gif"]
+        );
+        assert!(files.iter().all(|(_, b)| !b.is_empty()));
+        assert_eq!(&files[3].1[..4], b"glTF");
+        assert_eq!(&files[4].1[..4], b"\x89PNG");
+        assert_eq!(&files[5].1[..6], b"GIF89a");
+        let design = ringdesign_core::library::load_design_str(std::str::from_utf8(&files[0].1).unwrap()).unwrap();
+        assert_eq!(serde_json::to_value(&design).unwrap(), serde_json::to_value(compose(&cfg)).unwrap());
+        let back: Config = serde_json::from_slice(&files[1].1).unwrap();
+        assert_eq!(back.customer, "Ada Lovelace!");
     }
 }

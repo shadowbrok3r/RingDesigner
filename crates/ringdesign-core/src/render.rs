@@ -134,6 +134,14 @@ pub fn write_png_parts(
     Ok(())
 }
 
+/// One antialiased hero frame as PNG bytes.
+pub fn png_bytes(m: &Mesh, yaw: f64, pitch: f64, edge: usize, tint: [f32; 3]) -> anyhow::Result<Vec<u8>> {
+    let img = render_ss(m, yaw, pitch, edge, edge, 3, tint);
+    let mut out = std::io::Cursor::new(Vec::new());
+    image::write_buffer_with_format(&mut out, &img, edge as u32, edge as u32, image::ColorType::Rgb8, image::ImageFormat::Png)?;
+    Ok(out.into_inner())
+}
+
 /// One antialiased hero frame to a PNG.
 pub fn write_png(
     path: impl AsRef<Path>,
@@ -143,9 +151,15 @@ pub fn write_png(
     edge: usize,
     tint: [f32; 3],
 ) -> anyhow::Result<()> {
-    let img = render_ss(m, yaw, pitch, edge, edge, 3, tint);
-    image::save_buffer(path, &img, edge as u32, edge as u32, image::ColorType::Rgb8)?;
+    std::fs::write(path, png_bytes(m, yaw, pitch, edge, tint)?)?;
     Ok(())
+}
+
+/// A looping turntable GIF as bytes: `frames` yaw steps around one revolution.
+pub fn turntable_gif_bytes(m: &Mesh, frames: usize, edge: usize, tint: [f32; 3]) -> anyhow::Result<Vec<u8>> {
+    let mut out = Vec::new();
+    encode_turntable(&mut out, m, frames, edge, tint)?;
+    Ok(out)
 }
 
 /// A looping turntable GIF: `frames` yaw steps around one revolution.
@@ -156,12 +170,15 @@ pub fn write_turntable_gif(
     edge: usize,
     tint: [f32; 3],
 ) -> anyhow::Result<()> {
+    encode_turntable(std::fs::File::create(path)?, m, frames, edge, tint)
+}
+
+fn encode_turntable<W: std::io::Write>(w: W, m: &Mesh, frames: usize, edge: usize, tint: [f32; 3]) -> anyhow::Result<()> {
     use image::codecs::gif::{GifEncoder, Repeat};
     use image::{Delay, Frame, RgbaImage};
 
     let frames = frames.clamp(4, 120);
-    let file = std::fs::File::create(path)?;
-    let mut enc = GifEncoder::new_with_speed(file, 10);
+    let mut enc = GifEncoder::new_with_speed(w, 10);
     enc.set_repeat(Repeat::Infinite)?;
     for k in 0..frames {
         let yaw = k as f64 / frames as f64 * std::f64::consts::TAU;
@@ -170,12 +187,7 @@ pub fn write_turntable_gif(
         for (i, p) in rgba.pixels_mut().enumerate() {
             *p = image::Rgba([rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2], 255]);
         }
-        enc.encode_frame(Frame::from_parts(
-            rgba,
-            0,
-            0,
-            Delay::from_numer_denom_ms(70, 1),
-        ))?;
+        enc.encode_frame(Frame::from_parts(rgba, 0, 0, Delay::from_numer_denom_ms(70, 1)))?;
     }
     Ok(())
 }
@@ -376,5 +388,28 @@ mod tests {
         write_png(&png, &out.mesh, 0.55, 1.12, 96, GOLD).unwrap();
         assert!(std::fs::metadata(&png).unwrap().len() > 500);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod byte_tests {
+    use super::*;
+
+    #[test]
+    fn the_byte_writers_match_the_file_writers() {
+        let d = crate::RingDesign::default();
+        let lib = crate::AlphaLibrary::builtin();
+        let out = crate::mesh::build(&d, &lib, crate::mesh::BuildParams { theta_steps: 48, profile_steps: 24, ..Default::default() });
+        let png = png_bytes(&out.mesh, 0.5, 1.1, 32, GOLD).unwrap();
+        assert_eq!(&png[..4], b"\x89PNG");
+        let gif = turntable_gif_bytes(&out.mesh, 4, 24, GOLD).unwrap();
+        assert_eq!(&gif[..6], b"GIF89a");
+        let dir = std::env::temp_dir().join(format!("rd-render-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        write_png(dir.join("h.png"), &out.mesh, 0.5, 1.1, 32, GOLD).unwrap();
+        write_turntable_gif(dir.join("t.gif"), &out.mesh, 4, 24, GOLD).unwrap();
+        assert_eq!(std::fs::read(dir.join("h.png")).unwrap(), png);
+        assert_eq!(std::fs::read(dir.join("t.gif")).unwrap(), gif);
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

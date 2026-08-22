@@ -5,3 +5,5 @@ assets/
 # Harvest tooling and its venv: useful to keep near the code, never tracked.
 /tools/harvest/
 /tools/venv/
+/crates/ringdesign-configurator/dist/
+/.claude/launch.json
