@@ -495,7 +495,8 @@ impl Graph {
                                     let from = lit.kind();
                                     let ok = pin.kind.accepts(from)
                                         || (from == ValueKind::List && pin.access == Access::List)
-                                        || from == ValueKind::List;
+                                        || from == ValueKind::List
+                                        || lit.as_expr().is_some();
                                     if !ok {
                                         errs.push(GraphError::at(n.id, format!("input {name:?} takes {}, not {}", pin.kind.label(), from.label())));
                                     }

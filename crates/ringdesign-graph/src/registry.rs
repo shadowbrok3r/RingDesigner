@@ -166,6 +166,8 @@ pub struct EvalCtx<'a> {
     pub depth: usize,
     /// The alpha library's epoch, for nested evaluations.
     pub lib_epoch: u64,
+    /// The expression engine, handed down to nested evaluations.
+    pub exprs: Option<Arc<dyn crate::eval::ExprEvaluator>>,
     /// Whether sinks that write files or spawn work may do so this run.
     pub run_side_effects: bool,
     /// Which item of an implicit list this run is, and how many there are.
@@ -177,7 +179,7 @@ pub struct EvalCtx<'a> {
 
 impl<'a> EvalCtx<'a> {
     pub fn new(lib: &'a AlphaLibrary, reg: &'a Registry, mode: Mode) -> Self {
-        Self { lib, reg, mode, depth: 0, lib_epoch: 0, run_side_effects: false, item: 0, items: 1, warnings: Vec::new() }
+        Self { lib, reg, mode, depth: 0, lib_epoch: 0, exprs: None, run_side_effects: false, item: 0, items: 1, warnings: Vec::new() }
     }
 
     pub fn warn(&mut self, message: impl Into<String>) {

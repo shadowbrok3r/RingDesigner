@@ -93,6 +93,7 @@ fn run(ctx: &mut EvalCtx<'_>, node: &Node, i: &Inputs) -> Result<Outputs, NodeEr
     }
     let mut ev = Evaluator::new();
     ev.depth = ctx.depth + 1;
+    ev.exprs = ctx.exprs.clone();
     let report = ev.evaluate_injected(&inner, ctx.reg, ctx.lib, ctx.lib_epoch, Targets::Nodes(targets), &injected);
     if let Some(e) = report.errors.first() {
         return Err(NodeError::new(format!("inside {:?}: {e}", inner.name)));

@@ -313,7 +313,7 @@ impl RingDesignerApp {
             status: "Ready".into(),
             auto_rebuild: true,
             history: History::new(&design_for_history),
-            graph_reg: Arc::new(Registry::builtin()),
+            graph_reg: Arc::new(ringdesign_script::registry()),
             graph_ed: None,
             graph_json: None,
             graph_errors: Vec::new(),
@@ -916,8 +916,8 @@ impl Worker {
         std::thread::Builder::new()
             .name("ring-build".into())
             .spawn(move || {
-                let reg = Registry::builtin();
-                let mut evaluator = Evaluator::new();
+                let reg = ringdesign_script::registry();
+                let mut evaluator = Evaluator::with_exprs(ringdesign_script::engine());
                 while let Ok(mut job) = jobs_rx.recv() {
                     // Skip stale work: only the newest queued job matters.
                     while let Ok(newer) = jobs_rx.try_recv() {

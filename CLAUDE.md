@@ -1520,6 +1520,20 @@ What the runtime settled while being built, each pinned by a test:
   the golden test holds each file to its builder and each evaluation to the
   code template **byte for byte**. Regenerate with
   `RD_WRITE_TEMPLATE_GRAPHS=1 cargo test -p ringdesign-graph write_template_graphs`.
+- **Scripts compute and nothing else** (`crates/ringdesign-script`): one
+  sandboxed rhai engine per process — operation, call-depth, expression-
+  depth, array, map and string caps, `eval` disabled, no module resolver —
+  and `loop {}` halts with "Too many operations" (pinned). The graph crate
+  defines the `ExprEvaluator` hook and `Literal::Expr` (`{"expr": …}` in a
+  file, the one tagged literal shape); the script crate implements it.
+  An expression pin runs per item with the node's other inputs in scope
+  plus `i`/`n`; a `script` node declares its pins in header comments
+  (`// in: a: Number = 1.0, b: List<Number>` / `// out: h: Number`), reads
+  inputs as variables and leaves outputs as variables, and header errors
+  name their line. A literal left on a pin the header no longer names
+  stays a pin, so the graph still validates and the node reports the
+  header itself. `ringdesign_script::registry()` is the builtin library
+  plus the script node; the GUI and its worker use it.
 - **The lift is exact by construction** (`lift.rs`, `Graph::from_design`):
   it wires the nodes a person would, evaluates them, diffs the result
   against the design field by field, and carries whatever the nodes cannot

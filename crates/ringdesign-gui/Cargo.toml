@@ -19,6 +19,7 @@ egui-phosphor.workspace = true
 egui_tiles.workspace = true
 ringdesign-graph = { path = "../ringdesign-graph" }
 ringdesign-graph-ui = { path = "../ringdesign-graph-ui" }
+ringdesign-script = { path = "../ringdesign-script" }
 rfd.workspace = true
 nalgebra.workspace = true
 serde.workspace = true
