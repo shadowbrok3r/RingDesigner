@@ -146,11 +146,11 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 
 ## M7 — Free mode: `ringdesign-solid` (Manifold) and the mandrel merge (XL) — epic #23
 
-- [ ] **M7.1 Kernel crate** (L). Manifold behind `kernel-manifold` (off by default; the default
+- [ ] **M7.1 Kernel crate** (L, #65). Manifold behind `kernel-manifold` (off by default; the default
   build has no C++); `Solid`, frames, tubes, `Parts{add,cut}`, mesh conversion + validation.
-- [ ] **M7.2 Free-mode nodes** (L). Primitives, extrude/revolve, from-design, booleans, frames on
+- [ ] **M7.2 Free-mode nodes** (L, #66). Primitives, extrude/revolve, from-design, booleans, frames on
   the ring, tubes, mesh import, the mesh verifier, mesh export.
-- [ ] **M7.3 mandrel merge** (M). The vine semi-mount as a cluster; carat calibration
+- [ ] **M7.3 mandrel merge** (M, #67). The vine semi-mount as a cluster; carat calibration
   reconciled; its MCP retired in favour of `graph_*`.
 
 ## M8 — Phone and web parity (L, later) — epic #24
