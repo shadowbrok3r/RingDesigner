@@ -41,6 +41,8 @@ pub struct StructNode<T> {
     out: String,
     wrap: fn(T) -> Value,
     unwrap: fn(&Value) -> Option<T>,
+    default_base: fn() -> T,
+    prepare: Option<FinishFn<T>>,
     finish: Option<FinishFn<T>>,
 }
 
@@ -51,7 +53,7 @@ where
     /// `out` is the output pin's name; `wrap` and `unwrap` move `T` in and
     /// out of a [`Value`].
     pub fn new(spec: NodeSpec, out: impl Into<String>, wrap: fn(T) -> Value, unwrap: fn(&Value) -> Option<T>) -> Self {
-        Self { spec, fields: Vec::new(), hidden: Vec::new(), base: None, out: out.into(), wrap, unwrap, finish: None }
+        Self { spec, fields: Vec::new(), hidden: Vec::new(), base: None, out: out.into(), wrap, unwrap, default_base: T::default, prepare: None, finish: None }
     }
 
     /// An optional input of the struct's own kind to start from.
@@ -81,8 +83,29 @@ where
         self
     }
 
+    /// What the node starts from when no base is wired: `T::default()`
+    /// unless told otherwise (a new signet head is the lofted one).
+    pub fn default_base(mut self, f: fn() -> T) -> Self {
+        self.default_base = f;
+        self
+    }
+
+    /// Runs on the base before the field pins are written, so a pin the
+    /// hook reads (a style preset) cannot clobber pins set explicitly.
+    pub fn prepare(mut self, f: FinishFn<T>) -> Self {
+        self.prepare = Some(f);
+        self
+    }
+
     pub fn finish(mut self, f: FinishFn<T>) -> Self {
         self.finish = Some(f);
+        self
+    }
+
+    /// An input that is not a field: read by the hooks, ignored by the
+    /// patch and the coverage check.
+    pub fn extra(mut self, pin: PinSpec) -> Self {
+        self.spec = self.spec.input(pin.optional());
         self
     }
 
@@ -131,19 +154,22 @@ where
         let base = self.base.clone();
         let out = self.out.clone();
         let key = self.spec.key.clone();
-        let (wrap, unwrap, finish) = (self.wrap, self.unwrap, self.finish);
+        let (wrap, unwrap, prepare, finish, default_base) = (self.wrap, self.unwrap, self.prepare, self.finish, self.default_base);
         self.spec.eval(move |ctx, _node, inputs| {
             let mut value: T = match &base {
                 Some((pin, kind)) => {
                     let v = inputs.get(pin);
                     if v.is_null() {
-                        T::default()
+                        default_base()
                     } else {
                         unwrap(v).ok_or_else(|| NodeError::input(pin, format!("expected {}, got {}", kind.label(), v.kind().label())))?
                     }
                 }
-                None => T::default(),
+                None => default_base(),
             };
+            if let Some(f) = prepare {
+                f(&mut value, inputs, ctx)?;
+            }
             let mut json = serde_json::to_value(&value).map_err(|e| NodeError::new(format!("{key}: {e}")))?;
             let mut touched = false;
             for f in fields.iter() {
