@@ -123,7 +123,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   declared pins, diagnostics in the editor.
 - [x] **M4.2 MCP `graph_*` tools** (M, #48). New/load/save/describe/list nodes/add/remove/connect/
   set/expose/clusters/presets/evaluate/from_design, plus graph resources.
-- [ ] **M4.3 CLI crate** (S, #49). `ringdesign graph eval|check|describe`; the binary moves to its own
+- [x] **M4.3 CLI crate** (S, #49). `ringdesign graph eval|check|describe`; the binary moves to its own
   crate.
 
 ## M5 — Idioms, clusters, polish (M) — epic #21

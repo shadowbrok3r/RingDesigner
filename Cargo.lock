@@ -2866,6 +2866,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ringdesign-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ringdesign-core",
+ "ringdesign-graph",
+ "ringdesign-script",
+ "serde_json",
+]
+
+[[package]]
 name = "ringdesign-configurator"
 version = "0.1.0"
 dependencies = [
