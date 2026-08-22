@@ -66,7 +66,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 
 - [x] **M1.1 Skeleton** (S, #6). Workspace member, `parallel` forwarded to core, wasm check passes,
   doctrine section in CLAUDE.md.
-- [ ] **M1.2 Value** (M, #7). Closed `Value` enum with `Arc` domain handles (Design, Profile, Shank,
+- [x] **M1.2 Value** (M, #7). Closed `Value` enum with `Arc` domain handles (Design, Profile, Shank,
   Head, Outline, Gem, Window, Remap, Layer, Entry, Stack, Recipe, AlphaSource/AlphaRef, Build,
   Field, Stones, Mesh, Solid, Path, Json) + serde `Literal`; `ValueKind::accepts` + `coerce`, the
   coercion table pinned by a test.
