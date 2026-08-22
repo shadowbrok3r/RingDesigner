@@ -91,6 +91,11 @@ pub struct RingDesign {
     /// Parameterized builtin generators, rasterized on load.
     #[serde(default)]
     pub recipes: Vec<alpha::ProcRecipe>,
+    /// The graph this design was evaluated from, carried as provenance the
+    /// way a generated group carries its recipe: live until baked, opaque
+    /// here (`ringdesign-graph` reads it), absent on a hand-made design.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub graph: Option<serde_json::Value>,
 }
 
 /// One imported alpha embedded in the design file.
@@ -116,6 +121,7 @@ impl Default for RingDesign {
             texts: Vec::new(),
             svgs: Vec::new(),
             recipes: Vec::new(),
+            graph: None,
         }
     }
 }

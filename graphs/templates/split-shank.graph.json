@@ -1,0 +1,80 @@
+{
+  "format_version": 1,
+  "name": "Split shank",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.profile",
+      "inputs": {
+        "flatten_sides": true,
+        "style": "Flat",
+        "thickness_mm": 2.0,
+        "width_mm": 5.5
+      },
+      "pos": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "shank",
+      "inputs": {
+        "amount": 0.85,
+        "kind": "Split"
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Split shank"
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "sink.output",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "profile",
+      "to": 3,
+      "input": "profile"
+    },
+    {
+      "from": 2,
+      "out": "shank",
+      "to": 3,
+      "input": "shank"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 4,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 2,
+      "input": "amount",
+      "name": "Flare"
+    }
+  ],
+  "next_id": 5
+}

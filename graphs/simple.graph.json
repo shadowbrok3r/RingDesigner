@@ -1,0 +1,138 @@
+{
+  "format_version": 1,
+  "name": "Simple ring",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.profile",
+      "inputs": {
+        "style": "LowDome",
+        "thickness_mm": 1.8,
+        "width_mm": 6.0
+      },
+      "pos": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "shank",
+      "inputs": {
+        "amount": 0.5,
+        "kind": "Uniform"
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Simple ring",
+        "size": 7.0
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "stack",
+      "pos": [
+        0.0,
+        300.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "design.assemble",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "sink.output",
+      "pos": [
+        720.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "profile",
+      "to": 3,
+      "input": "profile"
+    },
+    {
+      "from": 2,
+      "out": "shank",
+      "to": 3,
+      "input": "shank"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 5,
+      "input": "design"
+    },
+    {
+      "from": 4,
+      "out": "stack",
+      "to": 5,
+      "input": "stack"
+    },
+    {
+      "from": 5,
+      "out": "design",
+      "to": 6,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 3,
+      "input": "size",
+      "name": "Size"
+    },
+    {
+      "node": 1,
+      "input": "style",
+      "name": "Section"
+    },
+    {
+      "node": 1,
+      "input": "width_mm",
+      "name": "Width"
+    },
+    {
+      "node": 1,
+      "input": "thickness_mm",
+      "name": "Thickness"
+    },
+    {
+      "node": 2,
+      "input": "kind",
+      "name": "Shank"
+    },
+    {
+      "node": 2,
+      "input": "amount",
+      "name": "Shank amount"
+    },
+    {
+      "node": 3,
+      "input": "name",
+      "name": "Name"
+    }
+  ],
+  "next_id": 7
+}

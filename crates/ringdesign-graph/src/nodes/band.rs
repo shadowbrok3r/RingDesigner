@@ -80,7 +80,7 @@ fn profile_node() -> NodeSpec {
         },
     )
     .base("profile", ValueKind::Profile, "Start from this section; the default band otherwise.")
-    .extra(PinSpec::select("style", enum_names(ProfileStyle::ALL)).doc("Section family: sets the drop law, crown and edge before the pins below."))
+    .field(PinSpec::select("style", enum_names(ProfileStyle::ALL)).doc("Section family: sets the drop law, crown and edge before the pins below."))
     .field(PinSpec::item("width_mm", ValueKind::Number).widget(Widget::Mm { min: 1.0, max: 25.0 }).doc("Width along the finger, mm."))
     .field(PinSpec::item("thickness_mm", ValueKind::Number).widget(Widget::Mm { min: 0.6, max: 8.0 }).doc("Bore to crest, mm."))
     .field(PinSpec::item("crown_mm", ValueKind::Number).widget(Widget::Mm { min: 0.0, max: 6.0 }).doc("How much of the thickness is the dome, mm."))
@@ -91,7 +91,7 @@ fn profile_node() -> NodeSpec {
     .field(PinSpec::item("comfort_fit_mm", ValueKind::Number).widget(Widget::Mm { min: 0.0, max: 1.0 }).doc("Comfort-fit bore widening at the edges, mm."))
     .field(PinSpec::item("side_draft_deg", ValueKind::Number).widget(Widget::Slider { min: 0.0, max: 30.0 }).doc("Side face draft, degrees."))
     .extra(PinSpec::item("flatten_sides", ValueKind::Bool).widget(Widget::Checkbox).doc("Square the side faces for ornament: zero side draft, small edge fillet."))
-    .hidden(&["style", "flange", "drop_curve", "morph"])
+    .hidden(&["flange", "drop_curve", "morph"])
     .prepare(profile_prepare)
     .finish(profile_finish)
     .build()

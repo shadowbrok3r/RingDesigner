@@ -1484,6 +1484,49 @@ The crate forwards `parallel` to the core and passes the wasm check; the
 editor (`ringdesign-graph-ui`), scripting (`ringdesign-script`), the Python
 module and the solid kernel land as their milestones do (`docs/ROADMAP.md`).
 
+What the runtime settled while being built, each pinned by a test:
+
+- **A struct is a node as a patch over its base** (`nodes/structs.rs`,
+  `StructNode`): unset pins leave the base's fields alone, so a modifier
+  after a node of the same kind is safe; enum pins carry serde names;
+  `coverage()` holds every node to its struct's serialized keys, which is
+  how a field added to the core cannot go unnoticed (it caught `theta_deg`
+  declared on the wrong struct the first day). `prepare` hooks run before
+  the patch (`apply_style` cannot clobber an explicit crown), `finish`
+  hooks after (`fit_length_to`).
+- **Generators emit live groups**: `gen.pave/halo/channel` call `fill`,
+  `halo` and `channel_set`, which stamp the recipe; the evaluator never
+  regenerates. A drawn plan through `outline.custom` gets the lobed-plan
+  dome suggestion because `CustomOutline::from_points` now sizes `fair_r`
+  from the hull defect on every import path, not only in the exporter.
+- **SandRing file sinks are judged first** (`nodes/sink.rs`): `sink.export`
+  and `sink.save_design` take the field report (wired, or computed from the
+  wired design); an unjudged ring is refused as unjudged, a `NotCastable`
+  ring with the notes, and nothing is written. Side-effect nodes run only
+  under `Targets::Everything` and are never cached. `sink.mesh_verdict`
+  (face normals) is Free-only — the field is the verdict in SandRing.
+- **A cluster carries its graph in its params** (`nodes/cluster.rs`), so a
+  design embedding its graph stays whole off-machine; pins come from the
+  cluster's exposed inputs (typed from the inner spec) and outputs; the
+  node's values are *injected* onto the inner pins — handles included, not
+  just literals — one depth down under the outer mode, so a Free-only node
+  is refused through a cluster in a SandRing graph. Any inner failure fails
+  the item: a `Null` must not become a default downstream.
+- **`RingDesign::graph`** is the design's provenance (no ladder bump — an
+  absent key reads `None`, an older build ignores it). Graph, cluster and
+  preset files have their own ladder in `file.rs`, one step per version.
+- **The nine templates are committed graphs** (`graphs/templates/*.graph.json`,
+  bundled by `include_str!`) generated from builders in `templates.rs`;
+  the golden test holds each file to its builder and each evaluation to the
+  code template **byte for byte**. Regenerate with
+  `RD_WRITE_TEMPLATE_GRAPHS=1 cargo test -p ringdesign-graph write_template_graphs`.
+- **The lift is exact by construction** (`lift.rs`, `Graph::from_design`):
+  it wires the nodes a person would, evaluates them, diffs the result
+  against the design field by field, and carries whatever the nodes cannot
+  express (a flange, a tiling warp, the draft settings) as `design.set`
+  patches — so "Convert to graph" never loses a field, and the test that
+  every template lifts back byte-for-byte also caps the patches at four.
+
 ## GUI
 
 `app.rs` owns all state. Geometry-affecting edits call `app.mark_dirty()`; a

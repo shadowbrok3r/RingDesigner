@@ -98,7 +98,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 - [x] **M2.6 Files, ladder, clusters, presets** (M, #17). `*.graph.json`, `*.cluster.json`,
   `*.preset.json` with a migration ladder like the design's; cluster nodes with exposed
   parameters; presets as parameter sets; user-dir resolution.
-- [ ] **M2.7 Design field, template graphs, golden tests** (M, #18). `RingDesign.graph`; every
+- [x] **M2.7 Design field, template graphs, golden tests** (M, #18). `RingDesign.graph`; every
   template re-expressed as a committed graph whose evaluation equals the code template
   byte-for-byte and fields castable; `Graph::from_design` round-trips every template.
 

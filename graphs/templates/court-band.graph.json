@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "name": "Court band",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.profile",
+      "inputs": {
+        "style": "LowDome",
+        "thickness_mm": 2.0,
+        "width_mm": 4.0
+      },
+      "pos": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Court band"
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "sink.output",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "profile",
+      "to": 2,
+      "input": "profile"
+    },
+    {
+      "from": 2,
+      "out": "design",
+      "to": 3,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 1,
+      "input": "width_mm",
+      "name": "Width"
+    },
+    {
+      "node": 1,
+      "input": "thickness_mm",
+      "name": "Thickness"
+    },
+    {
+      "node": 1,
+      "input": "style",
+      "name": "Section"
+    }
+  ],
+  "next_id": 4
+}
