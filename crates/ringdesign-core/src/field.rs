@@ -1074,7 +1074,11 @@ fn default_bezel_wall() -> f64 {
 }
 
 fn default_recess() -> f64 {
-    0.4
+    // Calibrated against the 16 CrossGems factory bezel presets, whose
+    // "Stone Seat Depth" — the same quantity, where the girdle ledge sits
+    // below the rim — runs 0.525-0.6125 mm. 0.5 is their low end; a cast
+    // pocket the bench opens wants no more.
+    0.5
 }
 
 fn default_prong() -> f64 {
