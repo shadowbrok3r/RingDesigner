@@ -137,11 +137,11 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 
 ## M6 — Python: `ringdesign-py` (M) — epic #22
 
-- [ ] **M6.1 Crate** (S). `cdylib` via pyo3 0.29 + maturin, abi3; workspace build stays green
+- [ ] **M6.1 Crate** (S, #59). `cdylib` via pyo3 0.29 + maturin, abi3; workspace build stays green
   without Python headers.
-- [ ] **M6.2 API** (M). Numpy-free `Design`/`Build`/`Library`/`Graph` wrappers with JSON-pointer
+- [ ] **M6.2 API** (M, #60). Numpy-free `Design`/`Build`/`Library`/`Graph` wrappers with JSON-pointer
   get/set as the escape hatch; builds release the GIL.
-- [ ] **M6.3 Tests + notes** (S). pytest smoke; the deviation/crease probes become module-backed
+- [ ] **M6.3 Tests + notes** (S, #61). pytest smoke; the deviation/crease probes become module-backed
   scripts.
 
 ## M7 — Free mode: `ringdesign-solid` (Manifold) and the mandrel merge (XL) — epic #23
