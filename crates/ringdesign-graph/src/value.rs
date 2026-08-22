@@ -400,6 +400,31 @@ impl Value {
         })
     }
 
+    /// The JSON form of any serializable value, handles included; `None`
+    /// for meshes, reports and solids.
+    pub fn to_json_any(&self) -> Option<serde_json::Value> {
+        if let Some(j) = self.to_json() {
+            return Some(j);
+        }
+        match self {
+            Value::Design(d) => serde_json::to_value(&**d).ok(),
+            Value::Profile(p) => serde_json::to_value(p).ok(),
+            Value::Shank(s) => serde_json::to_value(&**s).ok(),
+            Value::Head(h) => serde_json::to_value(h).ok(),
+            Value::Outline(o) => serde_json::to_value(&**o).ok(),
+            Value::Gem(g) => serde_json::to_value(g).ok(),
+            Value::Window(w) => serde_json::to_value(w).ok(),
+            Value::Remap(r) => serde_json::to_value(r).ok(),
+            Value::Layer(l) => serde_json::to_value(&**l).ok(),
+            Value::Entry(e) => serde_json::to_value(&**e).ok(),
+            Value::Stack(s) => serde_json::to_value(&**s).ok(),
+            Value::Recipe(r) => serde_json::to_value(&**r).ok(),
+            Value::AlphaSource(a) => serde_json::to_value(&**a).ok(),
+            Value::Build(b) => serde_json::to_value(b).ok(),
+            _ => None,
+        }
+    }
+
     /// One line for badges, logs and error messages.
     pub fn summary(&self) -> String {
         match self {
