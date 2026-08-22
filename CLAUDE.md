@@ -1603,6 +1603,29 @@ The editor's palette lists the graph's own mode. The GUI and the CLI
 carry a `kernel` feature forwarding to it
 (`cargo run -p ringdesign-gui --features kernel`).
 
+**The mandrel merge.** The sibling `../mandrel` crate's vine semi-mount —
+a round band wire, a bypass vine over the top, a marquise centre with
+flanking marquises on stems, round buds on tendrils, four leaves,
+thirteen stones — is `kernel::vine_ring(&VineOptions)` (its `catmull_rom`
+alongside), ported with its own frame construction kept verbatim so the
+geometry is identical. `VineOptions` keeps the two knobs the construction
+reads (`inner_dia_mm` 16.5, `vine_radius_mm` 0.9); mandrel's amplitude
+and lobe fields were never read by its build and were not carried. The
+node is `solid.vine_semimount` (solid, stone count, carats, stone list),
+and the bundled **Vine semi-mount** cluster
+(`graphs/clusters/vine-semi-mount.cluster.json`, listed only under the
+kernel feature so a build without it never offers a cluster it cannot
+run) wires it through `solid.mesh` and `sink.mesh_verdict` with the
+inner diameter and vine radius exposed. Lost wax, not sand: the verdict
+is the mesh verifier's, reported as what it is. Carats were reconciled
+the other way — core `gem.rs` now carries mandrel's pear (0.00527) and
+marquise (0.00565) factors, which were calibrated against an external
+stone report, where the old figures were the textbook's; the rest
+already agreed. Mandrel's own MCP (`generate`, `get_options`,
+`set_options`, `export_stl`) is retired: the same work is
+`graph_add_node` on the cluster, `graph_set_input` on its exposed pins,
+`graph_evaluate`, and a `sink.export` in Free mode.
+
 ## Python: `crates/ringdesign-py`
 
 The core and the graph runtime as a Python module (`import ringdesign`),

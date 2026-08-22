@@ -4,6 +4,7 @@
 
 use manifold3d::{CrossSection, JoinType, Manifold};
 use nalgebra::{Matrix3, Rotation3, Vector3};
+use ringdesign_core::gem::GemCut;
 use ringdesign_core::mesh::{Mesh, Vec3};
 
 pub use manifold3d;
@@ -237,6 +238,143 @@ pub fn leaf(length: f64, width: f64, thickness: f64) -> Solid {
     blade
 }
 
+/// A Catmull-Rom curve through `points`, `samples_per_seg` steps per span,
+/// ends clamped.
+pub fn catmull_rom(points: &[V3], samples_per_seg: usize) -> Vec<V3> {
+    if points.len() < 2 {
+        return points.to_vec();
+    }
+    let n = points.len();
+    let get = |i: isize| -> V3 { points[i.clamp(0, n as isize - 1) as usize] };
+    let mut out = Vec::with_capacity((n - 1) * samples_per_seg + 1);
+    for i in 0..n - 1 {
+        let (p0, p1, p2, p3) = (get(i as isize - 1), get(i as isize), get(i as isize + 1), get(i as isize + 2));
+        let steps = if i == n - 2 { samples_per_seg + 1 } else { samples_per_seg };
+        for s in 0..steps {
+            let t = s as f64 / samples_per_seg as f64;
+            let (t2, t3) = (t * t, t * t * t);
+            out.push((p1 * 2.0 + (p2 - p0) * t + (p0 * 2.0 - p1 * 5.0 + p2 * 4.0 - p3) * t2 + (p1 * 3.0 - p0 - p2 * 3.0 + p3) * t3) * 0.5);
+        }
+    }
+    out
+}
+
+/// The vine semi-mount's knobs: the sibling mandrel crate's `RingOptions`,
+/// kept to the two its construction reads.
+#[derive(Clone, Copy, Debug)]
+pub struct VineOptions {
+    pub inner_dia_mm: f64,
+    pub vine_radius_mm: f64,
+}
+
+impl Default for VineOptions {
+    fn default() -> Self {
+        Self { inner_dia_mm: 16.5, vine_radius_mm: 0.9 }
+    }
+}
+
+/// A stone the vine carries: cut, length, width.
+pub type VineStone = (GemCut, f64, f64);
+
+/// The vine semi-mount: a round band wire with a bypass vine over the
+/// top, a marquise centre with flanking marquises on stems, round buds on
+/// tendrils and four leaves — mandrel's `build_vine_ring`, geometry kept
+/// as it was. Returns the solid and the stones its settings hold.
+pub fn vine_ring(opts: &VineOptions) -> (Solid, Vec<VineStone>) {
+    let r_in = opts.inner_dia_mm * 0.5;
+    let r_center = r_in + opts.vine_radius_mm;
+    let r_out = r_center + opts.vine_radius_mm;
+    let radial = |deg: f64| -> V3 {
+        let t = deg.to_radians();
+        v3(t.cos(), t.sin(), 0.0)
+    };
+    let tangent = |deg: f64| -> V3 {
+        let t = deg.to_radians();
+        v3(-t.sin(), t.cos(), 0.0)
+    };
+    let pol = |rad: f64, deg: f64, z: f64| radial(deg) * rad + v3(0.0, 0.0, z);
+    // mandrel's frame: z tilted from radial toward the tangent, x along the finger.
+    let frame = |theta: f64, axial: f64, extra: f64, tilt_deg: f64, roll_deg: f64| -> Frame {
+        let u = radial(theta);
+        let tang = tangent(theta);
+        let axis = v3(0.0, 0.0, 1.0);
+        let tilt = tilt_deg.to_radians();
+        Frame::new(u * (r_out + extra) + axis * axial, u * tilt.cos() + tang * tilt.sin(), axis).rolled(roll_deg)
+    };
+    #[derive(Default)]
+    struct Asm {
+        add: Vec<Solid>,
+        cut: Vec<Solid>,
+        stones: Vec<VineStone>,
+    }
+    impl Asm {
+        fn setting(&mut self, f: &Frame, parts: Parts, stone: VineStone) {
+            self.add.extend(parts.add.iter().map(|s| f.place(s)));
+            self.cut.extend(parts.cut.iter().map(|s| f.place(s)));
+            self.stones.push(stone);
+        }
+    }
+    let mut asm = Asm::default();
+    let embed = -opts.vine_radius_mm;
+    let band: Vec<V3> = (0..=220).map(|i| radial(360.0 * (i as f64 / 220.0)) * r_center).collect();
+    asm.add.push(tube(&band, opts.vine_radius_mm * 1.05, SEG));
+    let r = r_center;
+    let bypass = [
+        v3(r * 0.50, r * 1.00, 2.7),
+        v3(r * 0.90, r * 0.45, 1.8),
+        pol(r, 352.0, 0.5),
+        pol(r, 300.0, 0.1),
+        pol(r, 270.0, 0.0),
+        pol(r, 240.0, 0.1),
+        pol(r, 188.0, 0.5),
+        v3(-r * 0.90, r * 0.45, 1.8),
+        v3(-r * 0.50, r * 1.00, 3.1),
+    ];
+    asm.add.push(tube(&catmull_rom(&bypass, 28), opts.vine_radius_mm * 0.85, SEG));
+    let collar: Vec<V3> = (0..=48).map(|i| radial(52.0 + 76.0 * (i as f64 / 48.0)) * r_center).collect();
+    asm.add.push(tube(&collar, opts.vine_radius_mm * 1.1, SEG));
+    let collar_pt = |theta: f64| radial(theta) * r_center;
+    let stem = |a: V3, b: V3, rr: f64| tube(&[a, b], rr, SEG);
+    let f_cm = frame(90.0, 0.0, embed, 0.0, 0.0);
+    asm.setting(&f_cm, marquise_setting(8.0, 4.0, 3.2, true), (GemCut::Marquise, 8.0, 4.0));
+    let girdle_z = 3.2 - 0.55;
+    for theta in [76.0, 104.0] {
+        let f = frame(theta, 0.0, embed, 6.0, 90.0);
+        asm.setting(&f, marquise_setting(5.0, 2.4, 2.6, false), (GemCut::Marquise, 5.0, 2.4));
+    }
+    for (theta, axial) in [(81.0, 2.6), (99.0, -2.6)] {
+        let f = frame(theta, axial, embed, 10.0, 52.0);
+        asm.add.push(stem(f.origin, collar_pt(theta), 0.42));
+        asm.setting(&f, marquise_setting(5.2, 2.5, 2.6, false), (GemCut::Marquise, 5.2, 2.5));
+    }
+    for (axial, sign) in [(4.3, 1.0), (-4.3, -1.0)] {
+        let f = frame(90.0, axial, 1.0, 0.0, 0.0);
+        let tip = f_cm.point(v3(4.0 * sign, 0.0, girdle_z));
+        asm.add.push(stem(f.origin, tip, 0.45));
+        asm.setting(&f, round_setting(1.7, 1.4), (GemCut::Round, 1.7, 1.7));
+    }
+    let buds: [(f64, f64, f64, f64); 6] = [(70.0, 3.6, 1.6, 1.5), (110.0, -3.6, 1.6, 1.5), (64.0, 1.0, 2.2, 1.2), (116.0, -1.0, 2.2, 1.2), (84.0, 5.4, 1.4, 1.0), (96.0, -5.4, 1.4, 1.0)];
+    for (theta, axial, extra, dia) in buds {
+        let f = frame(theta, axial, extra, 14.0_f64.copysign(axial), 0.0);
+        let anchor = radial(theta) * r_center;
+        let mid = (anchor + f.origin) * 0.5 + radial(theta) * 1.4;
+        asm.add.push(tube(&catmull_rom(&[anchor, mid, f.origin], 18), 0.45, SEG));
+        asm.setting(&f, round_setting(dia, 1.2), (GemCut::Round, dia, dia));
+    }
+    let leaves: [(f64, f64, f64); 4] = [(58.0, 2.4, 24.0), (122.0, -2.4, 24.0), (68.0, -1.6, 18.0), (112.0, 1.6, 18.0)];
+    for (theta, axial, tilt) in leaves {
+        let base = frame(theta, axial, embed * 0.4, tilt, 0.0);
+        let lf = Frame::new(base.origin, base.z, tangent(theta));
+        asm.add.push(stem(base.origin, collar_pt(theta), 0.4));
+        asm.add.push(lf.place(&leaf(4.2, 1.8, 0.95)));
+    }
+    let mut body = union_all(&asm.add);
+    for c in &asm.cut {
+        body = body.difference(c);
+    }
+    (body, asm.stones)
+}
+
 /// A Manifold as the core's mesh, with area-weighted vertex normals.
 pub fn to_mesh(solid: &Solid) -> Mesh {
     let (props, n_props, tris) = solid.to_mesh_f32();
@@ -292,6 +430,18 @@ mod tests {
         assert!(report.vertical > 0, "the walls read as vertical");
         assert!(report.classes.iter().any(|c| *c == FaceClass::Vertical));
         assert!(report.verdict != castability::Verdict::NotCastable);
+    }
+
+    #[test]
+    fn the_vine_semi_mount_builds_with_its_thirteen_stones() {
+        let (solid, stones) = vine_ring(&VineOptions::default());
+        assert!(!solid.is_empty());
+        assert!(to_mesh(&solid).validate().watertight);
+        assert_eq!(stones.len(), 13, "a centre, four flanking marquises, two rounds, six buds");
+        assert_eq!(stones.iter().filter(|s| s.0 == GemCut::Marquise).count(), 5);
+        let carats: f64 = stones.iter().map(|&(c, l, w)| c.carats(w, l)).sum();
+        assert!(carats > 0.5 && carats < 3.0, "{carats}");
+        assert!(solid.volume() > 100.0);
     }
 
     #[test]
