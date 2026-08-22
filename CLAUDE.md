@@ -1757,10 +1757,38 @@ can never fail quietly again.
 off, every fan-out runs serial through the same call sites (per-site `cfg`
 splits, no trait shims). `BuildClock` guards the one other wasm landmine —
 `Instant::now` panics in a browser. Both core and the configurator pass
-`cargo check --no-default-features --target wasm32-unknown-unknown`; what a
-live web build still needs is the configurator's `WebRunner` entry + trunk
-packaging and its `std::thread` workers made synchronous or moved to a web
-worker (a serial preview build is ~40 ms, so synchronous is viable).
+`cargo check --no-default-features --target wasm32-unknown-unknown`.
+
+**The configurator runs in the browser.** `trunk serve` in
+`crates/ringdesign-configurator` (its `index.html` carries
+`data-cargo-no-default-features`, so core runs serial; `Trunk.toml` builds
+release on port 8787) starts `build-a-ring` through an eframe `WebRunner`
+on the `#build_a_ring` canvas, glow on WebGL2. Three things had to change,
+none of them in `compose`:
+
+- **There is no thread in a browser**, so the job body is a `Worker` whose
+  `run` is the same function on both targets: natively `Engine::new` wraps
+  it in the `compose-build` thread, on wasm `Engine::pump` runs the pending
+  jobs on the UI thread from `poll`, with the same coalescing (the newest
+  job wins, a design change is never dropped for a camera frame). A
+  preview build is ~40 ms serial, which the frame absorbs. The style
+  cards (`Thumbs`) render one base per frame and ask for another frame
+  while any remain, instead of a one-shot thread.
+- **An order is bytes before it is files.** `order_files` builds the six
+  documents in memory — `library::design_json`, `gltf::to_glb`,
+  `render::png_bytes`, `render::turntable_gif_bytes` — and
+  `deliver_order` writes the folder natively or hands the browser one
+  `order-<slug>.zip` through `threemf::zip_store` (the 3MF writer's
+  store-only zip, now public with `threemf::Entry`) and a Blob download
+  link (`web.rs`). The file writers in core are the byte writers plus a
+  `std::fs::write`, pinned equal by a test.
+- The workspace egui's `rayon` feature stays on: rayon-core 1.13 falls
+  back to the calling thread where it cannot spawn, so the browser build
+  needs no feature surgery. `prices.json` is simply absent on the web, and
+  the metal step says so.
+
+`.claude/launch.json` (ignored) carries a `build-a-ring-web` entry for the
+in-app browser preview.
 
 ## Running the tests
 

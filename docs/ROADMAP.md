@@ -159,7 +159,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   lock); graphs arrive by the design sync and evaluate locally.
 - [ ] **M8.2 Mobile leftovers** (M). Intent filters, durable mirror, export worker, the full
   phone-shaped port.
-- [ ] **M8.3 Web configurator** (M). `build-a-ring` on wasm; `compose::Config` reused verbatim.
+- [x] **M8.3 Web configurator** (M, #71). `build-a-ring` on wasm; `compose::Config` reused verbatim.
 
 ## M9 — Backlog (parking lot) — epic #25
 

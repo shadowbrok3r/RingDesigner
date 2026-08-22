@@ -53,10 +53,14 @@ struct VersionedDesign<'a> {
     design: &'a RingDesign,
 }
 
-pub fn save_design(path: impl AsRef<Path>, design: &RingDesign) -> anyhow::Result<()> {
+/// The design document as versioned JSON text.
+pub fn design_json(design: &RingDesign) -> anyhow::Result<String> {
     let doc = VersionedDesign { format_version: FORMAT_VERSION, design };
-    let json = serde_json::to_string_pretty(&doc)?;
-    std::fs::write(path, json)?;
+    Ok(serde_json::to_string_pretty(&doc)?)
+}
+
+pub fn save_design(path: impl AsRef<Path>, design: &RingDesign) -> anyhow::Result<()> {
+    std::fs::write(path, design_json(design)?)?;
     Ok(())
 }
 

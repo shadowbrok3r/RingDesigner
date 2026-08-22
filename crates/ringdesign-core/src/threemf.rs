@@ -11,9 +11,10 @@ use std::path::Path;
 use crate::mesh::Mesh;
 
 /// One entry queued for the package.
-struct Entry {
-    name: &'static str,
-    data: Vec<u8>,
+/// One stored file in a package.
+pub struct Entry {
+    pub name: String,
+    pub data: Vec<u8>,
 }
 
 /// CRC-32 (IEEE), the zip checksum.
@@ -34,7 +35,8 @@ fn crc32(data: &[u8]) -> u32 {
 }
 
 /// Store-only zip: local headers, central directory, end record.
-fn zip_store(entries: &[Entry]) -> Vec<u8> {
+/// A store-only zip of `entries`, zeroed timestamps, deterministic bytes.
+pub fn zip_store(entries: &[Entry]) -> Vec<u8> {
     let mut out = Vec::new();
     let mut central = Vec::new();
     let mut offsets = Vec::with_capacity(entries.len());
@@ -155,14 +157,14 @@ pub fn to_3mf(mesh: &Mesh, name: &str, size_label: &str) -> Vec<u8> {
 
     let entries = [
         Entry {
-            name: "[Content_Types].xml",
+            name: "[Content_Types].xml".into(),
             data: b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">\n <Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>\n <Default Extension=\"model\" ContentType=\"application/vnd.ms-package.3dmanufacturing-3dmodel+xml\"/>\n</Types>\n".to_vec(),
         },
         Entry {
-            name: "_rels/.rels",
+            name: "_rels/.rels".into(),
             data: b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">\n <Relationship Target=\"/3D/3dmodel.model\" Id=\"rel0\" Type=\"http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel\"/>\n</Relationships>\n".to_vec(),
         },
-        Entry { name: "3D/3dmodel.model", data: model.into_bytes() },
+        Entry { name: "3D/3dmodel.model".into(), data: model.into_bytes() },
     ];
     zip_store(&entries)
 }
@@ -248,6 +250,18 @@ mod tests {
         let (_, a) = ring_bytes();
         let (_, b) = ring_bytes();
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn a_store_zip_of_named_entries_reads_back() {
+        let entries = vec![
+            Entry { name: "a/one.txt".into(), data: b"one".to_vec() },
+            Entry { name: "two.bin".into(), data: vec![0, 1, 2, 255] },
+        ];
+        let files = read_store_zip(&zip_store(&entries));
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0], ("a/one.txt".to_string(), b"one".to_vec()));
+        assert_eq!(files[1], ("two.bin".to_string(), vec![0, 1, 2, 255]));
     }
 
     #[test]
