@@ -141,7 +141,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   without Python headers.
 - [x] **M6.2 API** (M, #60). Numpy-free `Design`/`Build`/`Library`/`Graph` wrappers with JSON-pointer
   get/set as the escape hatch; builds release the GIL.
-- [ ] **M6.3 Tests + notes** (S, #61). pytest smoke; the deviation/crease probes become module-backed
+- [x] **M6.3 Tests + notes** (S, #61). pytest smoke; the deviation/crease probes become module-backed
   scripts.
 
 ## M7 — Free mode: `ringdesign-solid` (Manifold) and the mandrel merge (XL) — epic #23
