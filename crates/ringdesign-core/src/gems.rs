@@ -8,7 +8,7 @@
 
 use crate::alpha::AlphaLibrary;
 use crate::castability::section_at;
-use crate::field::{FieldContext, Layer, LayerEntry, LayerStack, Uv};
+use crate::field::FieldContext;
 use crate::gem::{Gem, GemCut};
 use crate::RingDesign;
 
@@ -23,7 +23,9 @@ pub const GEM_TINT: [f32; 3] = [0.72, 0.82, 0.92];
 pub fn preview_vertices(design: &RingDesign, lib: &AlphaLibrary) -> Vec<f32> {
     let ctx = design.field_context();
     let mut out = Vec::new();
-    walk(design, lib, &ctx, &design.layers, &mut out);
+    for st in crate::setstone::set_stones(design) {
+        place(design, lib, &ctx, st.theta_deg, st.v_mm, st.gem, &st.seat, &mut out);
+    }
     out
 }
 
@@ -55,48 +57,6 @@ pub fn preview_mesh(design: &RingDesign, lib: &AlphaLibrary) -> Option<crate::me
         m.faces.push([i, i + 1, i + 2]);
     }
     Some(m)
-}
-
-fn walk(
-    design: &RingDesign,
-    lib: &AlphaLibrary,
-    ctx: &FieldContext,
-    stack: &LayerStack,
-    out: &mut Vec<f32>,
-) {
-    for entry in &stack.layers {
-        if !entry.enabled {
-            continue;
-        }
-        match &entry.layer {
-            Layer::SeatPad(seat) => {
-                if let Some(gem) = seat.gem {
-                    if kept(entry, ctx, seat.theta_deg, seat.v_mm) {
-                        place(design, lib, ctx, seat.theta_deg, seat.v_mm, gem, seat, out);
-                    }
-                }
-            }
-            Layer::SeatRun(run) => {
-                let n = run.count.clamp(1, 200);
-                let mut seat = run.seat;
-                seat.fit_stone(run.gem);
-                for k in 0..n {
-                    let theta = run.theta_of_station(k as f64, ctx);
-                    if kept(entry, ctx, theta, seat.v_mm) {
-                        // Graded runs draw the stone they actually carry.
-                        place(design, lib, ctx, theta, seat.v_mm, run.gem_at(theta), &seat, out);
-                    }
-                }
-            }
-            Layer::Group(g) => walk(design, lib, ctx, &g.stack, out),
-            _ => {}
-        }
-    }
-}
-
-fn kept(entry: &LayerEntry, ctx: &FieldContext, theta_deg: f64, v_mm: f64) -> bool {
-    let uv = Uv { u: ctx.u_of_theta(theta_deg.rem_euclid(360.0)), v: v_mm };
-    entry.window.mask(uv, ctx) > 0.5
 }
 
 /// One stone: find the displaced surface under the seat, build a frame on it,
@@ -449,6 +409,7 @@ fn normalize(v: [f64; 3]) -> [f64; 3] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::field::Layer;
     use crate::field::{SeatPadLayer, SeatRunLayer};
     use crate::LayerEntry;
 

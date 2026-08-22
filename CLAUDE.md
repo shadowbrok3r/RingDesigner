@@ -1297,6 +1297,25 @@ bezel collars, gypsy mounds, prong bumps. Three pieces keep that honest:
   `stones_land_on_their_seats` test writes a software-rasterized sheet for
   eyeballing placement.
 
+### One record per stone
+
+`setstone.rs` is where a stone *is*. `set_stones(design)` walks the stack
+once — pads carrying a gem, every kept station of a run at the size the
+grade gives it and on a seat scaled with it, pavé seats and halo markers
+inside groups, windows honoured, disabled entries skipped — and returns a
+`SetStone` per stone: label path, source, `theta`/`v`, the gem, and the
+seat as that stone meets it. The report's crowding census, the gem preview
+(`gems::preview_vertices`) and the section view all read that list and
+nothing else, so they cannot disagree about where a stone is. Before it,
+the report and the preview each walked the layers themselves and the
+section view knew only pads and runs — a pavé group's stones and a halo's
+melee never appeared in a section. `stones_near` is the section view's
+filter: every stone whose seat reaches the slice. The per-layer
+`SeatCheck`s (pavilion room, edge clearance, bridges, prongs) still come
+from the report's own walk, because they are properties of a seat *layer*
+rather than of a stone; `every_consumer_counts_the_same_stones` pins the
+report's count and carats to the record's.
+
 ### A seat is the stone's plan, not a circle round it
 
 `SeatPadLayer` carries `elong` (long over short, `diameter_mm` staying the
