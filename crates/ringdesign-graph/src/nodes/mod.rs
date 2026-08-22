@@ -16,6 +16,7 @@ pub mod layer;
 pub mod list;
 pub mod math;
 pub mod shank;
+pub mod sink;
 pub mod source;
 pub mod structs;
 pub mod text;
@@ -33,6 +34,7 @@ pub fn register_all(reg: &mut Registry) {
     assembly::register(reg);
     generator::register(reg);
     alpha::register(reg);
+    sink::register(reg);
 }
 
 #[cfg(test)]

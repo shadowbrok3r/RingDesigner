@@ -202,14 +202,8 @@ mod tests {
         g.connect(alphas, "out", asm, "alphas").unwrap();
         g.set_input(asm, "name", Literal::Text("Posy".into())).unwrap();
         let out = g.add(crate::eval::OUTPUT_KIND).unwrap();
-        let reg = Registry::builtin();
+        let reg2 = Registry::builtin();
         let lib = AlphaLibrary::builtin();
-        // The sink is registered by M2.5; until then a test spec stands in.
-        let mut reg2 = Registry::empty();
-        for key in reg.keys() {
-            reg2.register(reg.get(key).unwrap().clone()).unwrap();
-        }
-        reg2.register(NodeSpec::new(crate::eval::OUTPUT_KIND, "Output", Category::Sink).input(PinSpec::item(crate::eval::OUTPUT_DESIGN_PIN, ValueKind::Design))).unwrap();
         g.connect(asm, "design", out, crate::eval::OUTPUT_DESIGN_PIN).unwrap();
         let res = evaluate_design(&mut Evaluator::new(), &g, &reg2, &lib, 0).unwrap();
         assert_eq!(res.design.name, "Posy");
