@@ -236,9 +236,8 @@ fn walk(
             }
             Layer::SeatRun(run) => {
                 let n = run.count.clamp(1, 200);
-                let pitch = 360.0 / n as f64;
                 let stations: Vec<(f64, f64)> = (0..n)
-                    .map(|k| (k as f64 * pitch, run.seat.v_mm))
+                    .map(|k| (run.theta_of_station(k as f64, ctx), run.seat.v_mm))
                     .filter(|&(t, v)| station_kept(entry, ctx, t, v))
                     .collect();
                 let mut seat = run.seat;
@@ -302,9 +301,12 @@ fn walk(
                 // Every station a run keeps is a stone in its own right;
                 // the census reads them against everything else on the band.
                 for &(t, v) in &stations {
+                    // The field scales the whole seat with its stone, so the
+                    // stand-off the girdle rides scales too.
                     let graded = run.gem_at(t);
+                    let scale = run.scale_at(t);
                     let mut seat = run.seat;
-                    seat.fit_stone(graded);
+                    seat.height_mm *= scale;
                     acc.station(&check.label, &seat, graded, t, v);
                 }
                 acc.seats.push(check);
@@ -939,8 +941,9 @@ mod tests {
         assert!((run.scale_at(270.0) - 0.55).abs() < 1e-9);
         assert!((run.scale_at(269.9) - run.scale_at(270.1)).abs() < 1e-3);
 
+        let ctx = d.field_context();
         let graded: f64 = (0..n)
-            .map(|k| run.gem_at(k as f64 * 360.0 / n as f64).carats())
+            .map(|k| run.gem_at(run.theta_of_station(k as f64, &ctx)).carats())
             .sum();
         let flat = run.gem.carats() * n as f64;
         assert!(graded < flat * 0.85, "graded {graded:.3} vs flat {flat:.3}");
@@ -996,12 +999,15 @@ mod tests {
         );
         assert!(run.height(station, &ctx) < run.height(boundary, &ctx));
 
-        // Graduation scales the posts with their stones.
+        // Graduation scales the posts with their stones. The far boundary
+        // is wherever the station warp now puts it, not at a uniform pitch.
         let mut graded = run;
         graded.taper = 0.5;
+        let half = graded.count as f64 * 0.5;
+        let theta_far = graded.theta_of_station(half.floor() + 0.5, &ctx);
         let far = Uv {
-            u: ctx.circumference_mm * 0.75 + pitch * 0.5,
-            v: ctx.crest_v_mm + off * graded.scale_at(271.0),
+            u: ctx.u_of_theta(theta_far.rem_euclid(360.0)),
+            v: ctx.crest_v_mm + off * graded.scale_at(theta_far),
         };
         let near = run.height(boundary, &ctx);
         assert!(graded.height(far, &ctx) < near * 0.75, "far post grades down");

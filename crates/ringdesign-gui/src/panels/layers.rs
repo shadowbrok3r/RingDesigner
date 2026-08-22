@@ -2307,14 +2307,22 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
         ui.end_row();
 
         ui.label("Graduate");
-        c |= ui
+        // The station count depends on the taper now: stations are spaced to
+        // hold the bridge constant, so a graded row fits more of its smaller
+        // stones than the full-size count would allow.
+        if ui
             .add(egui::Slider::new(&mut r.taper, 0.0..=0.85).fixed_decimals(2))
             .on_hover_text(
                 "Stones shrink toward the far side of the ring — 0.4 is the classic \
-                 graduated eternity. Seats scale with their stones and the report \
+                 graduated eternity. Seats scale with their stones, the stations \
+                 close up to hold the same bridge between them, and the report \
                  sums the graded carats.",
             )
-            .changed();
+            .changed()
+        {
+            r.solve_spacing(fctx);
+            c = true;
+        }
         ui.end_row();
 
         if r.taper > 0.0 {
@@ -2351,7 +2359,11 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
     });
 
     let bridge = r.bridge_at(fctx);
-    let total: f64 = r.gem.carats() * r.count as f64;
+    // Graded, count times the largest stone overstates the row — sum what
+    // each station actually carries, the way the report does.
+    let total: f64 = (0..r.count)
+        .map(|k| r.gem_at(r.theta_of_station(k as f64, fctx)).carats())
+        .sum();
     let colour = if bridge < 0.2 {
         theme::WARN
     } else {

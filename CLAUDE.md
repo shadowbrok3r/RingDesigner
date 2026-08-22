@@ -876,6 +876,32 @@ emits one line per distinct seat.
   poles. Seats scale whole (footprint, stand-off, skirt) so a graded row
   is still a row of self-similar mounds, and the report sums the graded
   carats via `SeatCheck::carats_override` instead of count x largest.
+
+  **The stations move too.** They used to sit at a uniform `k·360/n` while
+  the seats shrank under them, so the metal between neighbours grew with
+  every step: measured 0.42 mm at the large pole against 3.05 mm at the
+  small one on a taper-0.85 row — a **7.29x** spread down what is meant to
+  read as one continuous line (`examples/graded_probe.rs`). Holding the
+  *bridge* constant instead makes `R dΔ = span·scale(Δ) + bridge`, and
+  `scale_at` is exactly a raised cosine in Δ, so this is
+  `R dΔ = A + B cos Δ` — which integrates in closed form by the
+  eccentric-anomaly substitution. `eccentric_warp(x, c) = 2 atan(c tan(x/2))`
+  in its branch-safe `atan2` form, `c = sqrt((span(1−t)+bridge)/(span+bridge))`,
+  stations at uniform warped angle. No solver, no iteration.
+
+  Three properties fall out, and all three are load-bearing: at `taper = 0`
+  the warp is **the identity**, so every ungraded row is bit-identical and
+  no design migrates; φ is a monotone reparameterization of the circle onto
+  itself, so an integer count still closes exactly at `u`'s wrap; and the
+  count the law wants is the circumference over the **geometric mean** of
+  the two pole pitches, `∫dΔ/(A + B cos Δ) = 2π/√(A²−B²)` and `A²−B²` is
+  their product. Measured after: 1.18x at taper 0.85. `bridge_at` inverts
+  the same identity — the positive root of `b² + b·span(2−t) + span²(1−t) =
+  (C/n)²` — so what the report says is what the row holds, within 3%.
+  `theta_of_station` / `station_of_theta` are the one lattice; the field,
+  the stones report and the gem preview all go through them, because three
+  copies of a station formula is exactly the divergence this file warns
+  about elsewhere.
 - **Shared prongs**: `SeatRunLayer::shared_prong_mm` stands one post pair
   at each boundary between neighbouring stones — the Prongs_Row
   rule (pair each gem with its shift-by-one neighbour, prong the boundary,

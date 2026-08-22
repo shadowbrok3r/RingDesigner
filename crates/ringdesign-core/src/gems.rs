@@ -51,7 +51,7 @@ fn walk(
                 let mut seat = run.seat;
                 seat.fit_stone(run.gem);
                 for k in 0..n {
-                    let theta = k as f64 * 360.0 / n as f64;
+                    let theta = run.theta_of_station(k as f64, ctx);
                     if kept(entry, ctx, theta, seat.v_mm) {
                         // Graded runs draw the stone they actually carry.
                         place(design, lib, ctx, theta, seat.v_mm, run.gem_at(theta), &seat, out);

@@ -1099,6 +1099,18 @@ impl Default for SeatPadLayer {
     }
 }
 
+/// `2 atan(c tan(x/2))`, in the branch-safe form — exactly `±π` at `x = ±π`
+/// with no clamp and no case split.
+///
+/// The eccentric-anomaly substitution: a monotone, odd reparameterization of
+/// the circle onto itself, the identity at `c = 1`, and the closed-form
+/// integral of `dΔ / (A + B cos Δ)`.
+fn eccentric_warp(x: f64, c: f64) -> f64 {
+    let (sin, cos) = x.sin_cos();
+    let (a, b) = (2.0 * c * sin, (1.0 + cos) - c * c * (1.0 - cos));
+    a.atan2(b)
+}
+
 /// The radius of a superellipse with semi-axes `ra`, `rb` and exponent `n`,
 /// in the direction of `(a, b)` — the same plan a girdle and the stock cut
 /// for it both read, so a seat and the stone in it are never two shapes.
@@ -1712,9 +1724,74 @@ impl SeatRunLayer {
         // the row's radius exactly as the pitch does, so only the bridge is
         // an absolute. Keeps `bridge_at` at the asked-for figure, which is
         // the invariant the two have to share.
+        //
+        // Graded, the pitch is not one number — it runs from `span + bridge`
+        // at the large pole to `span(1-t) + bridge` at the small one — and
+        // the count the constant-bridge law asks for is the circumference
+        // over their **geometric** mean.
         let k = ctx.arc_scale(self.seat.v_mm);
-        let pitch = self.seat_span_mm().max(0.5) * k + self.bridge_mm.max(0.0);
-        self.count = ((ctx.circumference_mm * k / pitch).floor() as u32).clamp(3, 200);
+        let (near, far) = self.pitch_poles(k);
+        self.count = ((ctx.circumference_mm * k / (near * far).sqrt()).floor() as u32)
+            .clamp(3, 200);
+    }
+
+    /// The pitch the constant-bridge law wants at each pole, mm of metal:
+    /// at the largest stone, then at the smallest.
+    fn pitch_poles(&self, k: f64) -> (f64, f64) {
+        let span = self.seat_span_mm().max(0.5) * k;
+        let bridge = self.bridge_mm.max(0.0);
+        let t = self.taper.clamp(0.0, 0.85);
+        ((span + bridge).max(1e-6), (span * (1.0 - t) + bridge).max(1e-6))
+    }
+
+    /// The station-spacing warp's own constant: 1 for an ungraded row.
+    fn spacing_c(&self, k: f64) -> f64 {
+        let (near, far) = self.pitch_poles(k);
+        (far / near).sqrt()
+    }
+
+    /// The ring angle station `k` stands at, degrees.
+    ///
+    /// Stations are evenly spaced in a warped angle, not in theta. A graded
+    /// row's seats shrink toward the far pole, so a uniform angular pitch
+    /// leaves the metal between them growing with every step — measured
+    /// 0.44 mm at the large pole against 3.20 mm at the small one on a
+    /// taper-0.85 row, a sevenfold spread down what is meant to read as one
+    /// continuous line of stones.
+    ///
+    /// Holding the *bridge* constant instead makes `R dΔ = span·scale(Δ) +
+    /// bridge`, and `scale_at` is exactly a raised cosine in Δ, so this is
+    /// `R dΔ = A + B cos Δ` — which integrates in closed form by the
+    /// eccentric-anomaly substitution. No solver, no iteration, and at
+    /// `taper = 0` the warp is the identity, so every ungraded row is
+    /// bit-identical.
+    pub fn theta_of_station(&self, k: f64, ctx: &FieldContext) -> f64 {
+        let n = self.count.clamp(1, 200) as f64;
+        if self.taper <= 0.0 {
+            return k * 360.0 / n;
+        }
+        let c = self.spacing_c(ctx.arc_scale(self.seat.v_mm));
+        let phi = self.station_phase(c) + k * std::f64::consts::TAU / n;
+        self.taper_theta_deg + eccentric_warp(phi, 1.0 / c.max(1e-9)).to_degrees()
+    }
+
+    /// The (fractional) station standing at a ring angle — the inverse of
+    /// [`theta_of_station`](Self::theta_of_station).
+    pub fn station_of_theta(&self, theta_deg: f64, ctx: &FieldContext) -> f64 {
+        let n = self.count.clamp(1, 200) as f64;
+        if self.taper <= 0.0 {
+            return theta_deg / 360.0 * n;
+        }
+        let c = self.spacing_c(ctx.arc_scale(self.seat.v_mm));
+        let d = wrap_delta(theta_deg - self.taper_theta_deg, 360.0).to_radians();
+        (eccentric_warp(d, c) - self.station_phase(c)) / std::f64::consts::TAU * n
+    }
+
+    /// Where station 0 sits in the warped angle. Anchored so that ungrading
+    /// a row puts its stations back at `k · 360/n` exactly, rather than
+    /// sliding the whole lattice onto the taper's centre.
+    fn station_phase(&self, c: f64) -> f64 {
+        eccentric_warp(wrap_delta(-self.taper_theta_deg, 360.0).to_radians(), c)
     }
 
     /// The seat's own reach along the ring, mm — its full width for a round
@@ -1729,9 +1806,21 @@ impl SeatRunLayer {
     /// The pitch and the seat's span both scale by the row's own
     /// [`arc_scale`](FieldContext::arc_scale), so the chart figure times `k`
     /// is the real one exactly — one multiply, not an approximation.
+    ///
+    /// Graded, the bridge is a constant the station warp holds, and the
+    /// count the ring rounded to decides what constant: it is the positive
+    /// root of `b² + b·span(2−t) + span²(1−t) = (C/n)²`, which is the same
+    /// geometric-mean identity `solve_spacing` runs forward.
     pub fn bridge_at(&self, ctx: &FieldContext) -> f64 {
-        let pitch = ctx.circumference_mm / self.count.max(1) as f64;
-        (pitch - self.seat_span_mm()) * ctx.arc_scale(self.seat.v_mm)
+        let k = ctx.arc_scale(self.seat.v_mm);
+        let pitch = ctx.circumference_mm * k / self.count.max(1) as f64;
+        let span = self.seat_span_mm().max(0.5) * k;
+        let t = self.taper.clamp(0.0, 0.85);
+        if t <= 0.0 {
+            return pitch - span;
+        }
+        let (b, c) = (span * (2.0 - t), span * span * (1.0 - t) - pitch * pitch);
+        0.5 * (-b + (b * b - 4.0 * c).max(0.0).sqrt())
     }
 
     /// Size factor at a ring angle: 1 at [`taper_theta_deg`](Self::taper_theta_deg),
@@ -1767,19 +1856,18 @@ impl SeatRunLayer {
     }
 
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
-        let n = self.count.clamp(1, 200) as f64;
         if !(ctx.circumference_mm > 1e-9) || !uv.u.is_finite() {
             return 0.0;
         }
-        let pitch_deg = 360.0 / n;
         let theta = uv.u / ctx.circumference_mm * 360.0;
         // Nearest station and its neighbours, so a generous skirt cannot
-        // clip at the cell boundary.
-        let k = (theta / pitch_deg).round();
+        // clip at the cell boundary. Stations are evenly spaced in the
+        // warped angle, which is the identity unless the row is graded.
+        let k = self.station_of_theta(theta, ctx).round();
         let mut h: f64 = 0.0;
         for dk in [-1.0, 0.0, 1.0] {
             let mut s = self.seat;
-            s.theta_deg = (k + dk) * pitch_deg;
+            s.theta_deg = self.theta_of_station(k + dk, ctx);
             s.v_mm = self.seat.v_mm;
             // Graduation scales the whole seat with its stone — footprint,
             // stand-off and skirt together, so a graded run stays a row of
@@ -1795,9 +1883,9 @@ impl SeatRunLayer {
         }
         if self.shared_prong_mm > 1e-9 {
             // One post pair per boundary between stations, at the midpoints.
-            let kb = ((theta - 0.5 * pitch_deg) / pitch_deg).round();
+            let kb = (self.station_of_theta(theta, ctx) - 0.5).round();
             for dk in [-1.0, 0.0, 1.0] {
-                let theta_b = (kb + dk + 0.5) * pitch_deg;
+                let theta_b = self.theta_of_station(kb + dk + 0.5, ctx);
                 let scale = self.scale_at(theta_b);
                 let r_post = self.prong_r_mm() * scale;
                 let off = self.prong_off_mm() * scale;
@@ -3084,6 +3172,118 @@ mod tests {
         assert!((t.apply(0.2) - 2.0 * q).abs() < 1e-9);
         // Negative and zero pass through, so carving is unaffected.
         assert_eq!(t.apply(-0.2), -0.2);
+    }
+
+    /// A graduated row's seats shrink but its stations did not move, so the
+    /// metal between them grew with every step — 0.42 mm at the large pole
+    /// against 3.05 mm at the small one, a sevenfold spread down what is
+    /// meant to read as one continuous line of stones. Holding the bridge
+    /// constant instead is a closed-form warp, and the identity when the row
+    /// is not graded.
+    #[test]
+    fn a_graduated_run_holds_its_bridge_constant() {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        let c = d.field_context();
+
+        let build = |taper: f64| {
+            let mut r = SeatRunLayer::default();
+            r.gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Round, 1.5);
+            r.seat.v_mm = c.crest_v_mm;
+            r.bridge_mm = 0.4;
+            r.taper = taper;
+            r.solve_spacing(&c);
+            r
+        };
+        // The seat scales whole, as the field scales it.
+        let bridges = |r: &SeatRunLayer, warped: bool| -> Vec<f64> {
+            let n = r.count as usize;
+            let radius = c.crest_radius_mm * c.arc_scale(r.seat.v_mm);
+            let at = |k: f64| {
+                if warped { r.theta_of_station(k, &c) } else { k * 360.0 / n as f64 }
+            };
+            (0..n)
+                .map(|k| {
+                    let (a, b) = (at(k as f64), at(k as f64 + 1.0));
+                    let half = |t: f64| r.seat_span_mm() * 0.5 * r.scale_at(t);
+                    wrap_delta(b - a, 360.0).abs().to_radians() * radius - half(a) - half(b)
+                })
+                .collect()
+        };
+        let spread = |v: &[f64]| {
+            let lo = v.iter().cloned().fold(f64::MAX, f64::min);
+            let hi = v.iter().cloned().fold(0.0f64, f64::max);
+            (lo, hi / lo)
+        };
+
+        // Ungraded: the warp is the identity, station for station.
+        let plain = build(0.0);
+        for k in 0..plain.count {
+            let want = k as f64 * 360.0 / plain.count as f64;
+            assert!((plain.theta_of_station(k as f64, &c) - want).abs() < 1e-12);
+            assert!((plain.station_of_theta(want, &c) - k as f64).abs() < 1e-12);
+        }
+        assert!((spread(&bridges(&plain, true)).1 - 1.0).abs() < 1e-9);
+
+        for taper in [0.4, 0.85] {
+            let r = build(taper);
+            let (lo, ratio) = spread(&bridges(&r, true));
+            assert!(ratio < 1.25, "taper {taper}: bridges still run {ratio:.2}x");
+            assert!(lo > 0.3, "and none of them is a feather: {lo:.3} mm");
+
+            // The lattice this replaces, so the test cannot rot into a
+            // tautology: uniform stations on the count the old law solved.
+            let mut old = r;
+            old.taper = 0.0;
+            old.solve_spacing(&c);
+            old.taper = taper;
+            assert!(
+                spread(&bridges(&old, false)).1 > 2.0,
+                "taper {taper}: the uniform lattice was fine after all?"
+            );
+
+            // What the report says is what the row holds.
+            let said = r.bridge_at(&c);
+            assert!((said - lo).abs() / lo < 0.08, "reports {said:.3}, holds {lo:.3}");
+
+            // Every step advances round the ring — the sequence wraps once
+            // and only once — and the warp inverts.
+            let mut total = 0.0;
+            for k in 0..r.count {
+                let t = r.theta_of_station(k as f64, &c);
+                let next = r.theta_of_station(k as f64 + 1.0, &c);
+                let step = wrap_delta(next - t, 360.0);
+                assert!(step > 0.0, "stations must advance: {step} at {k}");
+                total += step;
+                assert!(
+                    (wrap_delta(
+                        r.theta_of_station(r.station_of_theta(t, &c).round(), &c) - t,
+                        360.0
+                    ))
+                    .abs()
+                        < 1e-9,
+                    "the warp must invert at {t}"
+                );
+            }
+            assert!((total - 360.0).abs() < 1e-9, "one turn, exactly: {total}");
+            let close = r.theta_of_station(r.count as f64, &c);
+            assert!(
+                wrap_delta(close - r.theta_of_station(0.0, &c), 360.0).abs() < 1e-9,
+                "the row closes on itself: {close}"
+            );
+            assert!(r.count >= 3);
+        }
+
+        // And it still releases.
+        let mut d2 = d.clone();
+        d2.layers.layers.push(LayerEntry::new("Graded", Layer::SeatRun(build(0.85))));
+        let lib = crate::AlphaLibrary::builtin();
+        let v = crate::castability::analyze_field(&d2, &lib, &d2.draft, 256, 128);
+        assert!(
+            v.undercut_fraction() < 0.001,
+            "a graded row locks: {:.4}%",
+            v.undercut_fraction() * 100.0
+        );
     }
 
     /// `u` is arc at the crest radius, so it is the true metal only on the
