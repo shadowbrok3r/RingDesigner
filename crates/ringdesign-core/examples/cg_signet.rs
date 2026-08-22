@@ -93,6 +93,12 @@ fn main() -> anyhow::Result<()> {
     d.shank.head.length_mm = table_w;
     d.shank.head.rise_mm = (height - side_t).max(0.0);
     d.shank.head.rim_round_mm = 0.3;
+    // The presets' smooth table: an apex loft this high over the table.
+    d.shank.head.table_dome_mm = if params["Smotth Table"].as_bool() == Some(true) {
+        num(&params, "Smotth Table Height", 0.5)
+    } else {
+        0.0
+    };
     d.shank.head.dome = 0.0;
     d.shank.head.loft = loft;
     d.shank.head.loft_frontal_mm = frontal;

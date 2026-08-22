@@ -1054,14 +1054,17 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
 
     changed |= ui
         .add(
-            egui::Slider::new(&mut head.table_dome_mm, 0.0..=2.0)
+            egui::Slider::new(&mut head.table_dome_mm, 0.0..=3.0)
                 .fixed_decimals(2)
                 .suffix(" mm")
                 .text("Cab dome"),
         )
         .on_hover_text(
-            "Dome standing on the table's centre — a cabochon or buff-top head. \
-             A domed table also has real draft everywhere a flat one has none.",
+            "Dome standing on the table's centre. On a prism or cut-dome head a \
+             parabolic cab; on a lofted head the factory presets' smooth table — the \
+             loft starts at an apex this high and passes a 0.6-scaled outline at that \
+             height, so a lobed plan reads as a lobed dome. A domed table also has \
+             real draft everywhere a flat one has none.",
         )
         .changed();
 

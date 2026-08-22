@@ -40,7 +40,7 @@ Order: M0.1 → M0.2 → M0.3 → M0.4 → M0.0.
   circular smoothing, as the exporter already does). Never raise `OUTLINE_STEPS` (serialized).
   Tests: a symmetric superellipse reads `|lo+hi| < 1e-3` at x ∈ {0.9, 0.95, 0.98, 1.0};
   `symmetrize` removes a drawn tilt; the existing outline tests stay green.
-- [ ] **M0.3 Smooth-table apex loft** (L, #3). The reference construction's domed table: the loft
+- [x] **M0.3 Smooth-table apex loft** (L, #3). The reference construction's domed table: the loft
   starts at an apex point `h` above the table centre and passes a 0.6-scaled outline at that
   height before the outline at the plane; the flat table and its rim row are gone. Knob: reuse
   `table_dome_mm` (cab on prism/dome heads, apex height on lofted heads; no serde change).

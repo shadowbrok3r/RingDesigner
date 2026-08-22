@@ -780,7 +780,16 @@ impl BandProfile {
                 Some((a2, b2)) => mlerp(self.drop(x), superellipse_drop(x, a2, b2)),
             };
             let d = base + (superellipse_drop(x, 2.0, 2.0) - base) * dome_w;
-            d + (superellipse_drop(x, 2.0, 1.0) - d) * ridge_w
+            let ridge = match m.ridge_table {
+                Some(tab) => {
+                    let f = x.clamp(0.0, 1.0) * (RIDGE_TABLE - 1) as f64;
+                    let i = (f.floor() as usize).min(RIDGE_TABLE - 2);
+                    let u = f - i as f64;
+                    ok(tab[i] + (tab[i + 1] - tab[i]) * u)
+                }
+                None => superellipse_drop(x, 2.0, 1.0),
+            };
+            d + (ridge - d) * ridge_w
         };
         // The flank skew is a power on the normalized distance: monotone in,
         // monotone out, so a skewed flank is still a drop from a single crest.
@@ -1550,6 +1559,8 @@ pub struct HeadAt {
     /// A lofted head's rounded ridge past the table: how far the crest
     /// stands over the chord `face` spans, mm. Zero on the table.
     pub ridge_crown: f64,
+    /// That ridge's own drop law over the chord, from the loft.
+    pub ridge_table: Option<[f64; RIDGE_TABLE]>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -2007,7 +2018,7 @@ impl ShankStyle {
         // The loft's tail converges on the shank only at the equator itself,
         // so the last few degrees hand over by a fade rather than a cut.
         let loft_w = loft_k * (1.0 - crate::field::smootherstep(89.2, 89.5, d.to_degrees()));
-        let (reach, crest, outer_r, wall, ridge_crown) = if loft_w > 1e-6 {
+        let (reach, crest, outer_r, wall, ridge_crown, ridge_table) = if loft_w > 1e-6 {
             let side_r = inner_r + t0 * (1.0 - thin * 0.5);
             let tent = self.tent_for(head, inner_r, base_outer_r, band, side_r, shank);
             match tent.at(signed, inner_r) {
@@ -2021,15 +2032,16 @@ impl ShankStyle {
                     (
                         blend_span(reach, frac(t.reach), loft_w),
                         blend_span(crest, frac(t.face), loft_w),
-                        outer_r + (t.crest_r + cap - outer_r) * loft_w,
+                        outer_r + (t.crest_r - outer_r) * loft_w,
                         Some(w),
                         t.crown * loft_w,
+                        t.ridge,
                     )
                 }
-                None => (reach, crest, outer_r, None, 0.0),
+                None => (reach, crest, outer_r, None, 0.0, None),
             }
         } else {
-            (reach, crest, outer_r, None, 0.0)
+            (reach, crest, outer_r, None, 0.0, None)
         };
 
         HeadAt {
@@ -2046,6 +2058,7 @@ impl ShankStyle {
             wall,
             wall_mix: loft_w,
             ridge_crown,
+            ridge_table,
         }
     }
 
@@ -2067,7 +2080,9 @@ impl ShankStyle {
         let half_w = (band.width_mm * 0.5).max(0.2);
         let frontal = head.loft_frontal_mm.clamp(0.0, 20.0);
         let lateral = head.loft_lateral_mm.clamp(0.0, 20.0);
+        let cap_mm = head.table_dome_mm.clamp(0.0, 3.0);
         let mut h = std::collections::hash_map::DefaultHasher::new();
+        cap_mm.to_bits().hash(&mut h);
         for v in [
             half_l,
             half_w,
@@ -2132,6 +2147,7 @@ impl ShankStyle {
                 frontal,
                 lateral,
                 &hull,
+                cap_mm,
             )
         })
     }
@@ -2246,10 +2262,13 @@ pub struct ShankMod {
     pub wall: Option<WallShape>,
     /// How far the walls follow that profile, 0..1.
     pub wall_mix: f64,
-    /// Blend of the crown's drop law toward a parabola, 0..1: a lofted
-    /// head's ridge, whose top is parabolic, so the crown meets the wall
-    /// tangent-continuously at the chord the crown spans.
+    /// Blend of the crown's drop law toward the ridge's own, 0..1: a lofted
+    /// head's ridge read off the loft (`ridge_table`), or a parabola when no
+    /// table came with it, so the crown meets the wall where the loft does.
     pub ridge_drop: f64,
+    /// The ridge's own drop law, depth shares at evenly spaced shares of
+    /// the chord's half-width, from the loft.
+    pub ridge_table: Option<[f64; RIDGE_TABLE]>,
 }
 
 impl ShankMod {
@@ -2275,6 +2294,7 @@ impl ShankMod {
             wall: None,
             wall_mix: 0.0,
             ridge_drop: 0.0,
+            ridge_table: None,
         }
     }
 }
@@ -2589,6 +2609,7 @@ impl ShankStyle {
                     },
                     dome_drop: dome_k * crate::field::smootherstep(0.0, 1.0, on_head),
                     ridge_drop: a.wall_mix * crate::field::smoothstep(0.0, 0.05, a.ridge_crown),
+                    ridge_table: a.ridge_table,
                     straddle_soft: crate::field::smootherstep(0.55, 0.92, a.x.abs()),
                     wall: a.wall,
                     wall_mix: a.wall_mix,
@@ -2628,6 +2649,13 @@ pub const LOFT_RIM_INSET: f64 = 0.98;
 pub const LOFT_GROW_MM: f64 = 2.0;
 /// Share of the bore-to-ridge run below a ridge at which its chord is read.
 const LOFT_RIDGE_STEP: f64 = 0.12;
+/// The smooth table's second row: the outline scaled about its centroid, at
+/// the apex's height — what makes a lobed plan read as a lobed dome.
+const LOFT_CAP_INSET: f64 = 0.6;
+/// Most control rows a loft carries: five for the flat table, six under a cap.
+const LOFT_MAX_ROWS: usize = 8;
+/// Samples in a ridge's own drop law, from the apex out to the chord's end.
+pub const RIDGE_TABLE: usize = 9;
 
 /// A head wall's across-band profile at one ring angle: finger offsets from
 /// the bore edge at [`WALL_TABLE`] radii between the bore and the corner the
@@ -2653,45 +2681,61 @@ struct TentAt {
     /// How far the ridge stands above the chord `face` spans, mm: the
     /// rounded top of a section past the table. Zero on the table.
     crown: f64,
+    /// The ridge's own drop law over the chord: the loft's depth below the
+    /// apex at evenly spaced shares of the chord's half-width, as shares of
+    /// `crown`. A cap's rounded plateau and a shoulder's ridge differ here,
+    /// and a parabola is right for neither.
+    ridge: Option<[f64; RIDGE_TABLE]>,
 }
 
 /// The five control rows of a lofted head in the head's plan frame: `x`
 /// along the ring from the head's centre, `y` across the band, both mm,
 /// each row at its own height over the ring's centre along the head axis.
 struct Tent {
-    rows: [Vec<[f64; 2]>; 5],
-    z: [f64; 5],
-    knots: [f64; 9],
+    rows: Vec<Vec<[f64; 2]>>,
+    z: Vec<f64>,
+    knots: Vec<f64>,
+    /// Height of the table plane — the outline row — over the ring's centre.
+    plane: f64,
+    /// The table is a smooth cap: the loft starts at an apex over the plane
+    /// and there is no flat face at all.
+    cap: bool,
 }
 
-/// Cubic B-spline basis over `knots` at `v`, for five control rows.
-fn loft_basis(v: f64, knots: &[f64; 9]) -> [f64; 5] {
+/// Cubic B-spline basis over a clamped `knots` vector at `v`, one weight per
+/// control row (`knots.len() - 4` of them, at most [`LOFT_MAX_ROWS`]).
+fn loft_basis(v: f64, knots: &[f64]) -> [f64; LOFT_MAX_ROWS] {
+    let n = knots.len() - 4;
+    let mut out = [0.0; LOFT_MAX_ROWS];
     let v = v.clamp(0.0, 1.0);
     if v >= 1.0 {
-        return [0.0, 0.0, 0.0, 0.0, 1.0];
+        out[n - 1] = 1.0;
+        return out;
     }
-    let mut n = [0.0; 8];
-    for i in 0..8 {
-        n[i] = if knots[i] <= v && v < knots[i + 1] { 1.0 } else { 0.0 };
+    let m = knots.len() - 1;
+    let mut b = [0.0; LOFT_MAX_ROWS + 3];
+    for i in 0..m {
+        b[i] = if knots[i] <= v && v < knots[i + 1] { 1.0 } else { 0.0 };
     }
     for p in 1..=3 {
-        let mut next = [0.0; 8];
-        for i in 0..(8 - p) {
+        let mut next = [0.0; LOFT_MAX_ROWS + 3];
+        for i in 0..(m - p) {
             let a = if knots[i + p] > knots[i] {
-                (v - knots[i]) / (knots[i + p] - knots[i]) * n[i]
+                (v - knots[i]) / (knots[i + p] - knots[i]) * b[i]
             } else {
                 0.0
             };
-            let b = if knots[i + p + 1] > knots[i + 1] {
-                (knots[i + p + 1] - v) / (knots[i + p + 1] - knots[i + 1]) * n[i + 1]
+            let c = if knots[i + p + 1] > knots[i + 1] {
+                (knots[i + p + 1] - v) / (knots[i + p + 1] - knots[i + 1]) * b[i + 1]
             } else {
                 0.0
             };
-            next[i] = a + b;
+            next[i] = a + c;
         }
-        n = next;
+        b = next;
     }
-    [n[0], n[1], n[2], n[3], n[4]]
+    out[..n].copy_from_slice(&b[..n]);
+    out
 }
 
 /// A closed polygon resampled to [`LOFT_U`] points by arc length, counter-
@@ -2804,6 +2848,7 @@ impl Tent {
         frontal: f64,
         lateral: f64,
         hull: &[[f64; 2]],
+        cap_mm: f64,
     ) -> Self {
         // The table outline as a polygon: the extent table read at stations
         // along the ring, the low edge out and the high edge back.
@@ -2828,30 +2873,56 @@ impl Tent {
         let rim = resample_row(&scale_about(&poly, c, LOFT_RIM_INSET, LOFT_RIM_INSET));
         let body = resample_row(&scale_about(&poly, c, grow_x, grow_y));
         let hull = resample_row(hull);
-        let z = [plane, plane, plane - LOFT_BODY_DROP_MM, LOFT_EQUATOR_LIFT_MM, 0.0];
-        let rows = [rim, table, body, hull.clone(), hull];
-        // Chord-length knots: the one interior knot averages the rows' own
-        // parameters, as a cubic fitted through five rows is.
-        let mut gaps = [0.0; 4];
-        for k in 0..4 {
+        // A smooth table lofts from an apex point `cap_mm` over the plane,
+        // through the outline scaled about its centroid at that height, to
+        // the outline at the plane — no rim row and no flat face. The apex
+        // row is the point repeated, which the chord-length gaps take as the
+        // mean radius of the row it leads to.
+        let cap = cap_mm > 1e-6;
+        let (rows, z): (Vec<Vec<[f64; 2]>>, Vec<f64>) = if cap {
+            let apex = vec![c; LOFT_U];
+            let inner = resample_row(&scale_about(&poly, c, LOFT_CAP_INSET, LOFT_CAP_INSET));
+            (
+                vec![apex, inner, table, body, hull.clone(), hull],
+                vec![plane + cap_mm, plane + cap_mm, plane, plane - LOFT_BODY_DROP_MM, LOFT_EQUATOR_LIFT_MM, 0.0],
+            )
+        } else {
+            (
+                vec![rim, table, body, hull.clone(), hull],
+                vec![plane, plane, plane - LOFT_BODY_DROP_MM, LOFT_EQUATOR_LIFT_MM, 0.0],
+            )
+        };
+        // Chord-length knots: each interior knot averages three of the rows'
+        // own parameters, as a clamped cubic fitted through them is.
+        let n = rows.len();
+        let mut u = vec![0.0; n];
+        let mut total = 0.0;
+        for k in 0..n - 1 {
             let dz = z[k + 1] - z[k];
-            gaps[k] = (0..LOFT_U)
+            let gap = (0..LOFT_U)
                 .map(|j| (dist(rows[k][j], rows[k + 1][j]).powi(2) + dz * dz).sqrt())
                 .sum::<f64>()
                 / LOFT_U as f64;
+            total += gap;
+            u[k + 1] = total;
         }
-        let total: f64 = gaps.iter().sum::<f64>().max(1e-9);
-        let mut u = [0.0; 5];
-        for k in 0..4 {
-            u[k + 1] = u[k] + gaps[k] / total;
+        let total = total.max(1e-9);
+        for x in u.iter_mut() {
+            *x /= total;
         }
-        let knot = ((u[1] + u[2] + u[3]) / 3.0).clamp(0.05, 0.95);
-        Tent { rows, z, knots: [0.0, 0.0, 0.0, 0.0, knot, 1.0, 1.0, 1.0, 1.0] }
+        let mut knots = vec![0.0; 4];
+        for j in 1..=(n - 4) {
+            let k = ((u[j] + u[j + 1] + u[j + 2]) / 3.0).clamp(0.05, 0.95);
+            let prev = knots[knots.len() - 1];
+            knots.push(k.max(prev + 1e-3));
+        }
+        knots.extend([1.0, 1.0, 1.0, 1.0]);
+        Tent { rows, z, knots, plane, cap }
     }
 
     fn z_at(&self, v: f64) -> f64 {
         let n = loft_basis(v, &self.knots);
-        (0..5).map(|k| n[k] * self.z[k]).sum()
+        (0..self.z.len()).map(|k| n[k] * self.z[k]).sum()
     }
 
     /// Loft parameter at height `z`: the heights are monotone, so bisection.
@@ -2859,7 +2930,7 @@ impl Tent {
         if z >= self.z[0] {
             return 0.0;
         }
-        if z <= self.z[4] {
+        if z <= self.z[self.z.len() - 1] {
             return 1.0;
         }
         let (mut lo, mut hi) = (0.0, 1.0);
@@ -2879,7 +2950,7 @@ impl Tent {
         out.clear();
         for j in 0..LOFT_U {
             let mut p = [0.0, 0.0];
-            for k in 0..5 {
+            for k in 0..self.rows.len() {
                 p[0] += n[k] * self.rows[k][j][0];
                 p[1] += n[k] * self.rows[k][j][1];
             }
@@ -2911,11 +2982,13 @@ impl Tent {
         }
         let tan = s / c;
         let mut row = Vec::with_capacity(LOFT_U);
-        // The crest. Under the table — the inset row, the plane the flat
-        // face fills — it is the plane itself. Past it, the first row down
-        // the loft that the ray at this angle enters: the rim's roll first,
-        // then the shoulder's ridge.
-        let table_face = Self::y_extent(&self.rows[0], self.z[0] * tan);
+        // The crest. Under a flat table — the inset row, the plane the flat
+        // face fills — it is the plane itself. Past it, and everywhere under
+        // a cap, it is the first row down the loft that the ray at this
+        // angle enters: the cap or the rim's roll first, then the
+        // shoulder's ridge.
+        let table_face =
+            if self.cap { None } else { Self::y_extent(&self.rows[0], self.plane * tan) };
         let inside = |v: f64, row: &mut Vec<[f64; 2]>| -> bool {
             self.row_at(v, row);
             Self::y_extent(row, self.z_at(v) * tan).is_some()
@@ -2948,11 +3021,13 @@ impl Tent {
         // handed on as the section's crown: a parabolic top over the chord,
         // which is the loft's own rounded ridge to within a tenth. The
         // chord sits a share of the bore-to-ridge drop below the ridge,
-        // never deeper than the ridge sits below the table plane, so the
-        // crown grows from nothing at the table's end instead of stepping.
+        // never deeper than the ridge stands off the table plane — under a
+        // cap that is the cap's own height here, past the rim the ridge's
+        // fall — so the crown grows from nothing at the rim instead of
+        // stepping, from either side.
         let depth = match table_face {
             Some(_) => 0.0,
-            None => (LOFT_RIDGE_STEP * (z_crest - z_bore)).min(self.z[0] - z_crest).max(0.0),
+            None => (LOFT_RIDGE_STEP * (z_crest - z_bore)).min((z_crest - self.plane).abs()).max(0.0),
         };
         let v_face = if depth > 1e-9 { self.v_at_z(z_crest - depth) } else { v_crest };
         let face = match table_face {
@@ -2963,6 +3038,37 @@ impl Tent {
             }
         };
         let crown = depth / c;
+        // The top between the apex and the chord, read off the loft: the
+        // half-extent at evenly spaced depths, inverted onto evenly spaced
+        // shares of the chord so the section's drop law is the loft's own.
+        let ridge = (depth > 1e-9).then(|| {
+            let w = (0.5 * (face.1 - face.0)).max(1e-6);
+            let mid = 0.5 * (face.0 + face.1);
+            let mut pairs: Vec<(f64, f64)> = Vec::with_capacity(RIDGE_TABLE + 1);
+            pairs.push((0.0, 0.0));
+            for k in 1..=RIDGE_TABLE {
+                let dk = depth * k as f64 / RIDGE_TABLE as f64;
+                let zk = z_crest - dk;
+                self.row_at(self.v_at_z(zk), &mut row);
+                let half = match Self::y_extent(&row, zk * tan) {
+                    Some((lo, hi)) => (0.5 * ((hi - mid).abs() + (mid - lo).abs()) / w).clamp(0.0, 1.0),
+                    None => 0.0,
+                };
+                let last = pairs.last().map_or(0.0, |p| p.0);
+                pairs.push((half.max(last), dk / depth));
+            }
+            let mut tab = [0.0; RIDGE_TABLE];
+            for (j, slot) in tab.iter_mut().enumerate() {
+                let x = j as f64 / (RIDGE_TABLE - 1) as f64;
+                let k = pairs.partition_point(|p| p.0 < x).clamp(1, pairs.len() - 1);
+                let (a, b) = (pairs[k - 1], pairs[k]);
+                let u = if b.0 > a.0 { ((x - a.0) / (b.0 - a.0)).clamp(0.0, 1.0) } else { 1.0 };
+                *slot = (a.1 + (b.1 - a.1) * u).clamp(0.0, 1.0);
+            }
+            tab[0] = 0.0;
+            tab[RIDGE_TABLE - 1] = 1.0;
+            tab
+        });
         self.row_at(v_bore, &mut row);
         let reach = Self::y_extent(&row, inner_r * s)?;
         // The wall, bore edge to the chord's corner — the radius the crown
@@ -3008,7 +3114,7 @@ impl Tent {
         }
         wall.r[0] = 0.0;
         wall.r[WALL_TABLE - 1] = 1.0;
-        Some(TentAt { crest_r, face, reach, wall, crown })
+        Some(TentAt { crest_r, face, reach, wall, crown, ridge })
     }
 }
 
@@ -3823,6 +3929,38 @@ mod tests {
         assert!((e.outer_r - s.outer_r).abs() < 0.1, "{} vs {}", e.outer_r, s.outer_r);
         assert!(((e.reach.1 - e.reach.0) - (s.reach.1 - s.reach.0)).abs() < 0.05);
         // Every section a single-valued width over its radius: the verdict.
+        let lib = crate::AlphaLibrary::default();
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 256, 128);
+        assert!(f.undercut_fraction() < 5e-4, "{}% at {}", f.undercut_fraction() * 100.0, f.worst_draft_deg);
+        assert!(f.thinnest_wall_mm > 1.0, "thinnest wall {}", f.thinnest_wall_mm);
+    }
+
+    #[test]
+    fn a_smooth_table_is_an_apex_loft_and_still_pulls() {
+        let flat = lofted_cushion();
+        let mut d = lofted_cushion();
+        d.shank.head.table_dome_mm = 0.5;
+        let ir = d.inner_radius_mm();
+        let cr = ir + d.profile.thickness_mm;
+        let at = |d: &crate::RingDesign, off: f64| d.shank.head_at(TOP_DEG + off, ir, cr, &d.profile);
+        let plane = cr + d.shank.head.rise_mm;
+        // The crest at the centre is the apex, the cap's height over the plane.
+        let a0 = at(&d, 0.0);
+        assert!((a0.outer_r - (plane + 0.5)).abs() < 0.05, "apex {}", a0.outer_r);
+        assert!(a0.ridge_crown > 0.35 && a0.ridge_crown < 0.6, "crown {}", a0.ridge_crown);
+        // The chord under the apex is nearly the whole table, not a point.
+        let f0 = at(&flat, 0.0);
+        let span = |a: &HeadAt| a.face.1 - a.face.0;
+        assert!(span(&a0) > 0.6 * span(&f0), "chord {} vs flat {}", span(&a0), span(&f0));
+        // Off the centre the crest only ever comes down: the cap, the rim,
+        // the shoulder, one monotone fall in height.
+        let mut last = f64::MAX;
+        for k in 0..=89 {
+            let h = at(&d, k as f64).outer_r * (k as f64).to_radians().cos();
+            assert!(h <= last + 1e-3, "crest height rises at {k} deg: {h} > {last}");
+            last = h;
+        }
+        // A domed table has real draft everywhere, and still pulls.
         let lib = crate::AlphaLibrary::default();
         let f = crate::castability::analyze_field(&d, &lib, &d.draft, 256, 128);
         assert!(f.undercut_fraction() < 5e-4, "{}% at {}", f.undercut_fraction() * 100.0, f.worst_draft_deg);

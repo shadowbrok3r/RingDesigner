@@ -781,11 +781,46 @@ Five defects on the way, each seen in a render and pinned by a number:
   1e-6 spike that smoothing spread into a dip; it takes slack now, and a
   missed ray inherits its neighbours.
 
-Not mapped: the presets' "Smooth Table" (a loft from an apex point
-through a 0.6-scaled outline — a lobed dome on a clover or a star);
-`table_dome_mm` is a single cab. `examples/cg_signet.rs` rebuilds any
-decoded preset from its `params.json` and `curves.json` and prints the
-crest/width table in the cached mesh's frame.
+**The smooth table is the same loft from an apex.** `table_dome_mm` on a
+lofted head (0–3 mm, the "Cab dome" slider and MCP `head_table_dome_mm`) is
+the apex height: the flat table's rim row is dropped and the loft runs
+through six rows — an apex point `cap` above the table's centre, the
+outline scaled to 0.6 about its centroid at that same height, the outline
+at the plane, the body, and the two hull rows. Because the apex and the
+0.6 row share a height the cap is a rounded **plateau**, not a point, and
+the lobes of a clover or a star read as relief in the dome. Every angle
+takes the ridge path: the crest is where the ray first enters the loft
+(`(plane + cap) / cos` at the centre), the chord is read `LOFT_RIDGE_STEP`
+of the bore-to-crest run below it, capped at the crest's own stand-off
+from the plane so the law is continuous at the rim and a flat table is
+untouched.
+
+**The section's crown law is the loft's own**, not a parabola.
+`TentAt::ridge` samples the loft's half-extent at evenly spaced depths
+between the apex and the chord and inverts that onto `RIDGE_TABLE` shares
+of the chord; `ShankMod::ridge_table` carries it and `sample_spaced` blends
+toward it by `ridge_drop`. The parabola came first and rebuilt the head to
+0.08 mm mean while drawing a pointed ridge along the dome — a highlight
+line the factory mesh does not have, visible in a render and absent from
+every section dump, because a plateau against a parabola is a difference
+in curvature, not in slope. Measured against the cached meshes
+(`tools/harvest/deviation.py`): the 2.7 mm cap rebuilds at 0.127 mm mean
+on the head and 0.152 on the shoulder, p90 0.18 / 0.38 (the parabola's
+shoulder p90 was 0.73); the 1.5 mm cap at 0.086 / 0.060. Both carry a
+uniform +0.055 mm — our size-7 bore is 8.65 mm to the reference's 8.6 —
+and the across-band top profiles match to a few hundredths once that is
+taken out. With the cap off, the flat preset is unchanged at 0.047.
+
+Every section is still a single-plateau monotone drop and a domed cap has
+real draft everywhere, so the family fields 0.0000% by the same
+construction as the prism. What it cannot do is a concave feature *within*
+a section: a lobe reads in the chord's width and the crest line, never as
+a hollow across the band. `a_smooth_table_is_an_apex_loft_and_still_pulls`
+pins the apex height, the crest falling monotonically off the centre, the
+chord opening past the flat table's, the verdict and the wall.
+`examples/cg_signet.rs` rebuilds any decoded preset from its `params.json`
+and `curves.json` — the smooth-table flags map onto `table_dome_mm` — and
+prints the crest/width table in the cached mesh's frame.
 
 #### Imported plans are outlines too
 
