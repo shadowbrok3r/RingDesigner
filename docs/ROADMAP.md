@@ -173,7 +173,9 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   clean on the crest and on a side face.
 - [x] Bezel realism following the girdle (S–M, #81): the collar's height from the stone's crown, a
   bearing ledge with a dished floor, the section view's girdle at the stand-off.
-- Gallery/hollow underside (M–L); the bypass read as a `ShankKind` (M).
+- [x] The bypass read as a `ShankKind` (M, #83): two explicit arms with rounded tips, the section
+  their union, the crest on the parting plane, Split's side-face seam.
+- Gallery/hollow underside (M–L).
 - Shelf: stone spacing map SVG; march instances along a guide path; blue-noise scatter
   generator; mm-true mask morphology; alpha granulometry; nesting-depth stepped relief; honest
   rope rail; `stones::probe_seat`; pearl stock; flat-edged seat plans.

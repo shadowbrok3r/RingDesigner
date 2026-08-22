@@ -1137,6 +1137,24 @@ emits one line per distinct seat.
   groove's floor faces along the pull and its walls stand radial, so the
   whole ring fields 0.000% — side-face doctrine, applied to the shank
   itself. Seen side-on, the ring reads as two diverging rails.
+- **`ShankKind::Bypass`**: the castable read of a bypass, and the first
+  draft of it was wrong in a way only a render showed. A bypass is two
+  arms passing each other over the top; what says "bypass" is the **plan
+  outline** — each arm's rounded tip ending past the top while the other
+  continues beneath it. The first draft slid the section ±z through a
+  symmetric widening and rendered as a broad wave. The construction now
+  is two explicit arms (`bypass_arm`), each the band's own width, sliding
+  to ±`BYPASS_OFFSET` (0.45 of the half-width, under Wave's 0.6 cap) over
+  the 100°→30° before the top and ending in a rounded tip
+  (`BYPASS_TIP_DEG` 35°, rounded over 30°); the section at any angle is
+  the **union** of the arms present (`bypass_span`), so the tips show as
+  steps in the outline, with the re-entrant corner a real bypass has
+  where a tip meets the other arm. The crest rides the parting plane by
+  Wave's mechanism, and the seam between the arms is Split's side-face
+  channel (1.0 mm at the crossing) — a seam along the crest would be the
+  valley no parting plane clears. Measured 0.0085% at −0.8° on a low
+  dome, 0.0000% on a flat band; `examples/bypass_probe.rs` prints the
+  table and renders hero, top and side views.
 - **The casting sheet** (`spec.rs`): one self-contained printable HTML page —
   dimensions, weight in every alloy with its pattern scale, the field
   verdict with notes and DFM findings, the stones table with bench warnings,
