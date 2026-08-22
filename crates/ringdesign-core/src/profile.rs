@@ -1950,8 +1950,22 @@ impl ShankStyle {
                 let vals = if keys.len() == 1 {
                     read(&keys[0])
                 } else {
-                    // Periodic Catmull-Rom: the segment containing theta,
-                    // with both neighbours wrapped round the joint.
+                    // Periodic Catmull-Rom over the segment containing
+                    // theta, with both neighbours wrapped round the joint —
+                    // and parameterized by the **knot angles**, not by knot
+                    // index.
+                    //
+                    // Uniform-parameter Catmull-Rom estimates its tangents as
+                    // `(v2 - v0) / 2` whatever the spacing, so unevenly
+                    // spaced stations overshoot: authored at 20/90/160/270
+                    // with a largest width of 1.00, it reached **1.26** at
+                    // 75 degrees and hit the 0.30 clamp floor at 255. The
+                    // clamp then turns the overshoot into a *step*, and a
+                    // step in width between neighbouring slices sweeps a
+                    // radial wall down the band — plainly visible as a sheet
+                    // across the ring. Scaling each tangent by its own
+                    // interval is the standard fix and reduces to the uniform
+                    // form exactly when the stations are evenly spaced.
                     let n = keys.len();
                     let t360 = theta_deg.rem_euclid(360.0);
                     let i1 = match keys.iter().rposition(|kk| kk.theta_deg <= t360) {
@@ -1966,23 +1980,34 @@ impl ShankStyle {
                     if a2 <= a1 {
                         a2 += 360.0;
                     }
+                    let mut a0 = keys[i0].theta_deg;
+                    if a0 >= a1 {
+                        a0 -= 360.0;
+                    }
+                    let mut a3 = keys[i3].theta_deg;
+                    while a3 <= a2 {
+                        a3 += 360.0;
+                    }
                     let mut t = t360;
                     if t < a1 {
                         t += 360.0;
                     }
-                    let f = ((t - a1) / (a2 - a1).max(1e-9)).clamp(0.0, 1.0);
+                    let d = (a2 - a1).max(1e-9);
+                    let f = ((t - a1) / d).clamp(0.0, 1.0);
                     let (p0, p1, p2, p3) =
                         (read(&keys[i0]), read(&keys[i1]), read(&keys[i2]), read(&keys[i3]));
                     let mut out = [0.0; 3];
                     for c in 0..3 {
                         let (v0, v1, v2, v3) = (p0[c], p1[c], p2[c], p3[c]);
-                        let f2 = f * f;
-                        let f3 = f2 * f;
-                        out[c] = 0.5
-                            * ((2.0 * v1)
-                                + (v2 - v0) * f
-                                + (2.0 * v0 - 5.0 * v1 + 4.0 * v2 - v3) * f2
-                                + (3.0 * v1 - v2 - 3.0 * v0 + v3) * f3);
+                        // Tangents in value-per-degree, scaled to this
+                        // segment's own span.
+                        let m1 = (v2 - v0) / (a2 - a0).max(1e-9) * d;
+                        let m2 = (v3 - v1) / (a3 - a1).max(1e-9) * d;
+                        let (f2, f3) = (f * f, f * f * f);
+                        out[c] = v1 * (2.0 * f3 - 3.0 * f2 + 1.0)
+                            + m1 * (f3 - 2.0 * f2 + f)
+                            + v2 * (-2.0 * f3 + 3.0 * f2)
+                            + m2 * (f3 - f2);
                     }
                     out
                 };
@@ -3587,6 +3612,65 @@ mod tests {
                 "{kind:?} moved the band off centre"
             );
         }
+    }
+
+    /// Stations are rarely evenly spaced, and uniform-parameter Catmull-Rom
+    /// does not care — it estimates every tangent as `(v2 - v0) / 2`. On the
+    /// 20/90/160/270 layout a halo shank wants, that overshot a largest key
+    /// of 1.00 to 1.26 and drove the far side into the 0.30 clamp floor;
+    /// the clamp turned the overshoot into a step, and a step in width
+    /// between neighbouring slices sweeps a radial wall down the band. It
+    /// was plainly visible as a sheet across the ring, which is how it was
+    /// found.
+    #[test]
+    fn unevenly_spaced_keyframes_do_not_overshoot_their_own_stations() {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 11.0;
+        d.profile.thickness_mm = 3.2;
+        d.shank.kind = ShankKind::Keyframes;
+        d.shank.amount = 1.0;
+        let w = [1.0, 0.72, 0.42, 0.72];
+        d.shank.keys = vec![
+            ShankKey { theta_deg: TOP_DEG, width_scale: w[0], thickness_scale: 1.0, crown_scale: 1.0 },
+            ShankKey { theta_deg: TOP_DEG + 70.0, width_scale: w[1], thickness_scale: 0.92, crown_scale: 1.0 },
+            ShankKey { theta_deg: TOP_DEG + 180.0, width_scale: w[2], thickness_scale: 0.82, crown_scale: 1.0 },
+            ShankKey { theta_deg: TOP_DEG + 290.0, width_scale: w[3], thickness_scale: 0.92, crown_scale: 1.0 },
+        ];
+        let ir = d.inner_radius_mm();
+        let cr = ir + d.profile.thickness_mm;
+        let at = |t: f64| d.shank.modulation(t, ir, cr).width_scale;
+
+        let (lo, hi) = (0.42, 1.0);
+        let mut worst_hi = 0.0f64;
+        let mut worst_step = 0.0f64;
+        let mut prev = at(0.0);
+        for i in 1..=3600 {
+            let t = i as f64 * 0.1;
+            let v = at(t);
+            worst_hi = worst_hi.max(v);
+            worst_step = worst_step.max((v - prev).abs());
+            assert!(v >= lo - 0.02, "under its own stations at {t}: {v}");
+            prev = v;
+        }
+        assert!(worst_hi <= hi + 0.02, "overshoots its own stations: {worst_hi:.3}");
+        // Continuity is the property the sail broke: no step anywhere.
+        assert!(worst_step < 0.01, "a step of {worst_step:.4} per 0.1 deg is a wall");
+
+        // Still exact at every authored station.
+        for (k, want) in d.shank.keys.iter().zip(w) {
+            let got = at(k.theta_deg);
+            assert!((got - want).abs() < 1e-9, "knot {:.0}: {got} vs {want}", k.theta_deg);
+        }
+
+        // And the band it sweeps is clean.
+        let lib = crate::alpha::AlphaLibrary::builtin();
+        let v = crate::castability::analyze_field(&d, &lib, &d.draft, 256, 128);
+        assert!(
+            v.undercut_fraction() < 1e-4,
+            "a keyframed shank locks: {:.4}%",
+            v.undercut_fraction() * 100.0
+        );
     }
 
     #[test]

@@ -973,6 +973,16 @@ the pour, all hand-rolled in core with tests:
   both, tinted to the finish; `examples/template_shots.rs` renders the
   whole template gallery for an eyeball pass.
 
+  A frame is a list of **`Part`s**, framed on the first, because a finished
+  piece is metal *and* stones and the stones are never in the `Mesh`.
+  `gems::preview_mesh` is the same stones the viewport draws, as a plain
+  mesh — a soup of loose triangles, emphatically not something to export.
+  Metal shades from the mesh's own vertex normals (`Part::smooth`); flat
+  facet shading put a visible contour on every ring of triangles, worst
+  where the surface is nearly flat and the normals alternate, which is the
+  skirt around a seat. A stone keeps flat facets, because there the facets
+  are the point.
+
 The CLI speaks all of them: `--formats stl,obj,3mf,glb,ply`.
 `Report.quality` (`Mesh::quality`) carries worst-triangle statistics — min
 corner angle, aspect, degenerate count — on the report panel and the sheet.

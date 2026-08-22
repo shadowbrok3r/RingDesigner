@@ -590,6 +590,12 @@ impl Layer {
                 if l.mirror { vec![f(v), f(mirrored(v))] } else { vec![f(v)] }
             }
             Layer::SeatPad(l) => {
+                // A marker pad — the sand halo's melee — carries a stone for
+                // the report and the preview but raises no metal, so it has
+                // no feature for the detail floor or the refiner to find.
+                if l.height_mm.abs() <= 1e-9 {
+                    return Vec::new();
+                }
                 let (hu, hv) = l.half_extents_mm();
                 let skirt = l.blend_mm.max(0.0);
                 let u0 = ctx.u_of_theta(l.theta_deg);

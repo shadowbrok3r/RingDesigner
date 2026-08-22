@@ -15,6 +15,7 @@ use crate::field::{
     SeatStyle, SideFacePick, VGate,
 };
 use crate::gem::Gem;
+use crate::profile::MIN_EDGE_MM;
 use crate::RingDesign;
 
 /// Hard cap on generated seats: past this a flask is a bead blanket, and the
@@ -47,9 +48,26 @@ pub struct PaveSpec {
     /// stone along the ring; 90 stands it across the band.
     #[serde(default)]
     pub rot_deg: f64,
+    /// Skirt fairing each seat into the band, mm. It is also the seat's
+    /// finest feature, so it is what the sand's detail floor judges.
+    #[serde(default = "default_pave_blend")]
+    pub blend_mm: f64,
+    /// Bezel only: how deep the pocket sits below the collar's rim, mm —
+    /// and so how far the girdle drops. A pocket deeper than the stone's
+    /// crown is a collar with nothing showing in it.
+    #[serde(default = "default_pave_recess")]
+    pub recess_mm: f64,
     /// Seats the user owns, and the room the packer must leave them.
     #[serde(default)]
     pub pinned: Vec<PinnedSeat>,
+}
+
+fn default_pave_blend() -> f64 {
+    0.4
+}
+
+fn default_pave_recess() -> f64 {
+    0.4
 }
 
 /// A place in the fill the packer does not decide.
@@ -97,6 +115,8 @@ impl Default for PaveSpec {
             stagger: true,
             style: SeatStyle::GypsyMound,
             rot_deg: 0.0,
+            blend_mm: default_pave_blend(),
+            recess_mm: default_pave_recess(),
             pinned: Vec::new(),
         }
     }
@@ -124,7 +144,8 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
         style: spec.style,
         height_mm: 0.6,
         crown: 1.0,
-        blend_mm: 0.4,
+        blend_mm: spec.blend_mm.max(0.0),
+        recess_mm: spec.recess_mm.max(0.0),
         ..Default::default()
     };
     proto.fit_stone(spec.gem);
@@ -437,7 +458,7 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
     // gentle skirt to the crown. The lost-wax form has no plate, so only the
     // accent ring itself must fit.
     let (pa, pb) = (ha + acc_dia * 0.5 + 0.8, hb + acc_dia * 0.5 + 0.8);
-    let plate = SeatPadLayer {
+    let mut plate = SeatPadLayer {
         theta_deg: spec.theta_deg.rem_euclid(360.0),
         v_mm: v_center,
         diameter_mm: pb * 2.0,
@@ -449,6 +470,11 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
         style: SeatStyle::GypsyMound,
         ..Default::default()
     };
+    // The plate fairs into whatever room the band leaves it. A skirt run off
+    // the band edge is a feather edge, and the plate is the one part of the
+    // cluster whose size is not the customer's choice.
+    let room = v_center.min(ctx.band_v_len_mm - v_center) - plate.half_extents_mm().1;
+    plate.blend_mm = plate.blend_mm.min((room - MIN_EDGE_MM).max(0.0));
     let reach = if lost_wax {
         crate::field::plan_half_extents_mm(ha, hb, 2.0, spec.rot_deg).1 + acc_dia * 0.5 + 0.3
     } else {

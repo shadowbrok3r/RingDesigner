@@ -27,6 +27,36 @@ pub fn preview_vertices(design: &RingDesign, lib: &AlphaLibrary) -> Vec<f32> {
     out
 }
 
+/// The same stones as a plain [`Mesh`], for the software renderer.
+///
+/// `None` when the design carries no stones. It is a soup of loose triangles
+/// — every stone is its own closed solid but they share no vertices and are
+/// not welded to each other or to the band — which is all a z-buffer needs
+/// and is emphatically **not** something to export. Stones are never cast.
+pub fn preview_mesh(design: &RingDesign, lib: &AlphaLibrary) -> Option<crate::mesh::Mesh> {
+    let v = preview_vertices(design, lib);
+    if v.is_empty() {
+        return None;
+    }
+    const STRIDE: usize = 12;
+    let n = v.len() / STRIDE;
+    let mut m = crate::mesh::Mesh {
+        vertices: Vec::with_capacity(n),
+        normals: Vec::with_capacity(n),
+        faces: Vec::with_capacity(n / 3),
+    };
+    for i in 0..n {
+        let b = i * STRIDE;
+        m.vertices.push(crate::mesh::Vec3(v[b], v[b + 1], v[b + 2]));
+        m.normals.push(crate::mesh::Vec3(v[b + 3], v[b + 4], v[b + 5]));
+    }
+    for t in 0..n / 3 {
+        let i = (t * 3) as u32;
+        m.faces.push([i, i + 1, i + 2]);
+    }
+    Some(m)
+}
+
 fn walk(
     design: &RingDesign,
     lib: &AlphaLibrary,
@@ -307,8 +337,11 @@ fn load_gem_obj(path: &std::path::Path) -> Option<Vec<Tri>> {
 /// seat under it is cut to. Faceted like everything else in the preview so
 /// the key light still reads its curvature, just at a finer step.
 fn cabochon(gem: Gem) -> Vec<([f64; 3], [f64; 3], [f64; 3])> {
-    const SEG: usize = 24;
-    const RINGS: usize = 6;
+    // A cabochon is polished smooth, so its facets are an artefact of the
+    // preview rather than the point of it — tessellate finely enough that
+    // the flat shading reads as a dome.
+    const SEG: usize = 48;
+    const RINGS: usize = 14;
     let (hl, hw) = (gem.l_mm * 0.5, gem.w_mm * 0.5);
     let h = gem.depth_mm();
     let n = gem.cut.plan_pow();
