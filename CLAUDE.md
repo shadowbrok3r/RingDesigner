@@ -1565,6 +1565,22 @@ What the runtime settled while being built, each pinned by a test:
   patches — so "Convert to graph" never loses a field, and the test that
   every template lifts back byte-for-byte also caps the patches at four.
 
+## Python: `crates/ringdesign-py`
+
+The core and the graph runtime as a Python module (`import ringdesign`),
+built by maturin into `tools/venv` (`VIRTUAL_ENV=$PWD/tools/venv
+tools/venv/bin/maturin develop --release -m crates/ringdesign-py/Cargo.toml`),
+abi3 for Python 3.12+ so the workspace build needs no Python headers.
+Numpy-free on purpose: geometry crosses as tuples, reports as dicts
+(serde → Python). `Design` (templates, files, JSON pointers, builds with
+the GIL released, the field verdict, sections, stones, the modulus scan,
+renders), `Build` (geometry, report, weights, pattern shrink, the five
+exports), `Graph` (load/template/lift, exposed parameters by name, edits,
+evaluate with the script engine attached), `Library`, `node_specs()`.
+`crates/ringdesign-py/tests/test_smoke.py` holds every template's lift to
+the design through Python and a from-scratch Court band to the template;
+`tools/harvest/py_build.py` feeds the mesh probes from the module.
+
 ## GUI
 
 `app.rs` owns all state. Geometry-affecting edits call `app.mark_dirty()`; a
