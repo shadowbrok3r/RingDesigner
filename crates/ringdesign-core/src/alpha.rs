@@ -477,7 +477,7 @@ fn edt_squared(grid: &mut [f32], w: usize, h: usize) {
     let mut v = vec![0usize; n];
     let mut z = vec![0.0f32; n + 1];
 
-    let mut pass = |f: &[f32], d: &mut [f32], n: usize, v: &mut [usize], z: &mut [f32]| {
+    let pass = |f: &[f32], d: &mut [f32], n: usize, v: &mut [usize], z: &mut [f32]| {
         let mut k = 0usize;
         v[0] = 0;
         z[0] = f32::NEG_INFINITY;

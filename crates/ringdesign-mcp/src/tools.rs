@@ -399,6 +399,8 @@ pub struct SetProfileParams {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 pub struct SetShankParams {
     /// Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet.
+    /// Switching to Signet applies the signet defaults first (taper, face
+    /// fitted to the band, lofted body); explicit parameters still win.
     pub kind: Option<String>,
     /// Strength of the modulation, 0 to 1. On Signet this is how far the shank
     /// narrows: 1 takes it to 16% of the head width.
@@ -1554,7 +1556,12 @@ impl RingDesignServer {
             None => None,
         };
         if let Some(kind) = kind {
+            let was = d.shank.kind;
             d.shank.kind = kind;
+            if kind == ringdesign_core::profile::ShankKind::Signet && was != kind {
+                let width = d.profile.width_mm;
+                d.shank.apply_signet(width);
+            }
             applied.push(format!("kind={kind:?}"));
         }
         put_range(&mut d.shank.amount, p.amount, "amount", 0.0, 1.0, &mut applied)?;
@@ -1607,7 +1614,7 @@ impl RingDesignServer {
                     let primary_theta = d.shank.head.theta_deg;
                     d.shank.extra_heads.push(ringdesign_core::profile::SignetHead {
                         theta_deg: primary_theta + 48.0,
-                        ..Default::default()
+                        ..ringdesign_core::profile::SignetHead::lofted()
                     });
                 }
                 let h2 = &mut d.shank.extra_heads[0];
@@ -3005,6 +3012,7 @@ mod tests {
         let d = e.design();
         assert!(d.layers.layers.is_empty(), "the head should not be a layer");
         assert_eq!(d.shank.kind, ShankKind::Signet);
+        assert_eq!(d.shank.head.loft, 1.0, "switching to a signet lofts the body");
         assert_eq!(d.shank.head.outline, SignetOutline::Cushion);
         let want = d.profile.width_mm * SignetOutline::Cushion.head_aspect();
         assert!(

@@ -1009,7 +1009,7 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
              outline, the flank rounds as one dome, and the facet is where the \
              table plane slices it — no pinched corners, no prism walls. The \
              facet is exactly that cut, so concave outlines (heart, shield) \
-             soften; keep those at 0.",
+             soften; keep those at 0. Takes precedence over the lofted body.",
         )
         .changed();
 
@@ -1107,7 +1107,7 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
                 let mut h = ringdesign_core::profile::SignetHead {
                     outline: ringdesign_core::field::SignetOutline::Round,
                     theta_deg: app.design.shank.head.theta_deg + 48.0,
-                    ..Default::default()
+                    ..ringdesign_core::profile::SignetHead::lofted()
                 };
                 h.fit_length_to(app.design.profile.width_mm * 0.8);
                 extras.push(h);

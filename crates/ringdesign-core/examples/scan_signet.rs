@@ -267,6 +267,7 @@ fn ours(bore_r: f64, head_w: f64, thick: f64, outline: ringdesign_core::field::S
     d.profile.flatten_sides();
     d.shank.kind = ShankKind::Signet;
     d.shank.apply_signet(head_w);
+    d.shank.head.loft = 0.0; // The prism is the subject.
     d.shank.head.outline = outline;
     d.shank.head.fit_length_to(head_w);
     d

@@ -4392,6 +4392,7 @@ mod silhouette_tests {
         d.profile.thickness_mm = 2.2;
         d.profile.flatten_sides();
         d.shank.apply_signet(8.0);
+        d.shank.head.loft = 0.0; // The prism and the cut dome are what this tests.
         let o = d.shank.adopt_outline(co.clone());
         d.shank.head.outline = o;
         d.shank.head.length_mm = (8.0 * d.shank.outline_aspect(o)).clamp(2.0, 40.0);

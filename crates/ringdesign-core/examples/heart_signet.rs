@@ -49,6 +49,7 @@ fn signet(outline: SignetOutline, head_w: f64) -> RingDesign {
     d.profile.side_draft_deg = env("RD_DRAFT", 0.0);
     d.shank.kind = ShankKind::Signet;
     d.shank.apply_signet(head_w);
+    d.shank.head.loft = 0.0; // The prism is the subject.
     d.shank.head.outline = outline;
     d.shank.head.rise_mm = env("RD_RISE", 0.3);
     d.shank.head.fit_length_to(head_w);

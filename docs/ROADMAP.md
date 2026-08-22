@@ -49,10 +49,11 @@ Order: M0.1 → M0.2 → M0.3 → M0.4 → M0.0.
   `cg_signet` maps the preset flags. Test: crest at the centre = plane + cap, crest height
   non-increasing off the centre, field verdict clean, thinnest wall > 1 mm. Accept: the two
   domed factory presets rebuild within 0.15 mm mean at the head; the flat one is unchanged.
-- [ ] **M0.4 Loft as the default for new signets** (S + render review, #4). `apply_signet` sets
+- [x] **M0.4 Loft as the default for new signets** (S + render review, #4). `apply_signet` sets
   `loft = 1.0` (every "new signet" path funnels through it); `SignetHead::lofted()` for extra
   heads; `Default`/serde default untouched so existing files keep the prism. MCP `set_shank`
-  applies it when switching to Signet; "Cut dome" slider enabled only while `loft < 1`; templates
+  applies it when switching to Signet; the cut dome takes precedence over the loft
+  (`SignetHead::mix`), so `suggest_dome` keeps its authority for lobed plans; templates
   and configurator bases go lofted unless their verdict test says otherwise; examples that are
   *about* the prism or the cut dome pin `loft = 0.0`. Test: a new signet is lofted and fields
   clean; a head JSON without `loft` still deserializes to 0.

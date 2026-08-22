@@ -1511,6 +1511,19 @@ impl Default for SignetHead {
 }
 
 impl SignetHead {
+    /// The default head on the lofted body: what a new signet gets.
+    pub fn lofted() -> Self {
+        Self { loft: 1.0, ..Self::default() }
+    }
+
+    /// The effective `(loft, dome)` strengths: the cut dome takes precedence,
+    /// so a deeply lobed plan sent onto the dome by `suggest_dome` lands
+    /// there whether or not the head is lofted.
+    pub fn mix(&self) -> (f64, f64) {
+        let dome = self.dome.clamp(0.0, 1.0);
+        (self.loft.clamp(0.0, 1.0) * (1.0 - dome), dome)
+    }
+
     /// The arc the width takes to come back to the shank, given the head's own
     /// half-angle. Set outright if asked, and otherwise scaled with the head.
     pub fn swell_arc_deg(&self, face_half_deg: f64) -> f64 {
@@ -1612,7 +1625,7 @@ fn prominent_maxima(r: &[f32]) -> usize {
         }
         // Prominence: how far the radius falls on the shallower side before
         // rising past this peak again.
-        let mut drop = |dir: isize| {
+        let drop = |dir: isize| {
             let mut lowest = v;
             for k in 1..n as isize {
                 let w = at(i + dir * k);
@@ -1736,11 +1749,13 @@ impl ShankStyle {
     }
 
     /// Switch to a signet and give the head proportions that read as one,
-    /// rather than leaving it on whatever the last style used.
+    /// rather than leaving it on whatever the last style used. A new signet
+    /// is lofted; a head read from a file without `loft` stays the prism.
     pub fn apply_signet(&mut self, band_width_mm: f64) {
         self.kind = ShankKind::Signet;
         self.amount = SIGNET_TAPER;
         self.head.fit_length_to(band_width_mm);
+        self.head.loft = 1.0;
     }
 
     /// Share of the head width left at a ring angle, and where that width sits
@@ -1878,7 +1893,8 @@ impl ShankStyle {
         let k = self.amount.clamp(0.0, 1.0);
         let t0 = (base_outer_r - inner_r).max(0.05);
         // A lofted head's shank keeps its thickness all the way round.
-        let thin = SIGNET_SHANK_THIN * k * (1.0 - head.loft.clamp(0.0, 1.0));
+        let (loft_k, dome_k) = head.mix();
+        let thin = SIGNET_SHANK_THIN * k * (1.0 - loft_k);
         let r_shank = inner_r + t0 * (1.0 - thin * self.away_from_head(theta_deg));
 
         let plane_r = base_outer_r + head.rise_mm.max(0.0);
@@ -1900,8 +1916,6 @@ impl ShankStyle {
         // its detail — and contains the face, so the flank stays drafted.
         let x = (plane_r * d.min(face_edge).tan() / half_l).clamp(0.0, 1.0);
         let k_fair = head.body_fair.clamp(0.0, 1.0);
-        let loft_k = head.loft.clamp(0.0, 1.0);
-        let dome_k = head.dome.clamp(0.0, 1.0) * (1.0 - loft_k);
         let face_at = |s: f64| self.outline_extent(head.outline, s);
         // A cut dome's plan owes the outline nothing: the body widens toward
         // the outline's full bounding box and the swell alone shapes it.
@@ -2524,8 +2538,7 @@ impl ShankStyle {
                 let a = pick_dominant(&reads);
                 let span = self.signet_span(theta_deg, inner_r, base_outer_r, band);
                 let (w, centre) = ((span.1 - span.0) * 0.5, (span.1 + span.0) * 0.5);
-                let dome_k =
-                    self.head.dome.clamp(0.0, 1.0) * (1.0 - self.head.loft.clamp(0.0, 1.0));
+                let (loft_k, dome_k) = self.head.mix();
                 // The table is the face's own outline, not the body's: the two
                 // are different extents, and that difference is the head's
                 // drafted flank. The cut dome hands the crown the whole span
@@ -2542,7 +2555,7 @@ impl ShankStyle {
                 // The lofted head's shank stays the band's own flat-topped
                 // section all the way round, as the factory presets' do.
                 let shank_crown = 1.0
-                    + SIGNET_SHANK_ROUNDING * k * (1.0 - w) * (1.0 - self.head.loft.clamp(0.0, 1.0));
+                    + SIGNET_SHANK_ROUNDING * k * (1.0 - w) * (1.0 - loft_k);
                 let table_crown = 1.0 - self.head.table_flat.clamp(0.0, 1.0);
                 // The cut dome keeps the section fully crowned: flattening is
                 // the cap's job there, and a flattened crown would leave the
@@ -3886,6 +3899,43 @@ mod tests {
 
     /// The lofted head: a size-7 cushion signet with CrossGems' own numbers
     /// (20 x 20 table standing 3.5 mm over the bore on a 6 x 1.75 shank).
+    #[test]
+    fn a_new_signet_is_lofted_and_fields_clean() {
+        assert_eq!(SignetHead::default().loft, 0.0, "the serde default keeps old files on the prism");
+        assert_eq!(SignetHead::lofted().loft, 1.0);
+        let mut v = serde_json::to_value(SignetHead::lofted()).unwrap();
+        v.as_object_mut().unwrap().remove("loft");
+        let h: SignetHead = serde_json::from_value(v).unwrap();
+        assert_eq!(h.loft, 0.0, "a head without `loft` deserializes to the prism");
+
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(ProfileStyle::Flat);
+        d.profile.width_mm = 12.0;
+        d.profile.thickness_mm = 1.8;
+        d.profile.flatten_sides();
+        d.shank.apply_signet(12.0);
+        assert_eq!(d.shank.kind, ShankKind::Signet);
+        assert_eq!(d.shank.head.loft, 1.0, "a new signet is lofted");
+        let lib = crate::AlphaLibrary::default();
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 160, 96);
+        assert!(
+            f.undercut_fraction() < 5e-4,
+            "a new signet fields {:.4}% at {:.1} deg",
+            f.undercut_fraction() * 100.0,
+            f.worst_draft_deg
+        );
+
+        // The cut dome takes precedence: a lobed plan sent there by
+        // `suggest_dome` is the dome, not the loft.
+        let ir = d.inner_radius_mm();
+        let cr = ir + d.profile.thickness_mm;
+        let m = d.modulation_at(TOP_DEG, ir, cr);
+        assert!(m.wall_mix > 0.99 && m.dome_drop < 1e-9, "lofted: wall {} dome {}", m.wall_mix, m.dome_drop);
+        d.shank.head.dome = 1.0;
+        let m = d.modulation_at(TOP_DEG, ir, cr);
+        assert!(m.dome_drop > 0.99 && m.wall_mix < 1e-9, "domed: wall {} dome {}", m.wall_mix, m.dome_drop);
+    }
+
     fn lofted_cushion() -> crate::RingDesign {
         let mut d = crate::RingDesign::default();
         d.size = crate::RingSize::new(7.0);

@@ -102,7 +102,7 @@ fn add_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             // there pulls straight out; across the crown it undercuts on its
             // crest-side flank.
             let side = ctx.side_faces_std().and_then(|sf| sf.wider());
-            let mut place = |app: &mut RingDesignerApp, name: &str, mut l: CurveLayer| {
+            let place = |app: &mut RingDesignerApp, name: &str, mut l: CurveLayer| {
                 if let Some((lo, hi)) = side {
                     l.retarget_v(0.5 * (lo + hi), (hi - lo) * 0.3);
                     app.add_layer(name, Layer::Curve(l));

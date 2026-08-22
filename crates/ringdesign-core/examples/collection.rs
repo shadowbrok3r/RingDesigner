@@ -303,8 +303,9 @@ fn main() {
             d.shank.head.outline = o;
             d.shank.head.length_mm =
                 (9.0 * d.shank.outline_aspect(o)).clamp(2.0, 40.0);
-            // Four deep lobes corrugate a prism's flank; on the cut dome the
-            // body is one smooth lens and the clover reads in the arris.
+            // Four deep lobes corrugate a prism's flank, and a loft's too on a
+            // band this thin; on the cut dome the body is one smooth lens and
+            // the clover reads in the arris. The dome wins over the loft.
             d.shank.head.dome = d.shank.suggest_dome(o);
             finish(
                 &dir,

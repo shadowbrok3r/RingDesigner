@@ -822,6 +822,26 @@ chord opening past the flat table's, the verdict and the wall.
 and `curves.json` — the smooth-table flags map onto `table_dome_mm` — and
 prints the crest/width table in the cached mesh's frame.
 
+**New signets are lofted, and the cut dome wins.** `apply_signet` sets
+`loft = 1.0`, and every "new signet" path funnels through it — the GUI
+kind switch, "Make this the band", MCP `set_shank` on switching to Signet,
+the templates, the configurator bases, `SignetHead::lofted()` for extra
+heads — while `Default` and the serde default stay 0, so a design file
+without `loft` keeps the prism it was saved with. The two strengths
+compose through `SignetHead::mix()`: `dome` takes precedence and the loft
+runs at `loft · (1 − dome)`. That order was decided by a render. The CG
+Clover on a 9 × 2.6 band went lofted and came out corrugated exactly like
+the prism, because the loft's body row sits 3 mm under the table — below
+the bore of a thin head — so the whole visible flank is inside the blend
+from the lobed table row. Fairing that row with the rolling ball did not
+help the thin case and cost the factory presets (the 2.7 mm cap's head
+went 0.127 → 0.223 mm: the recipe really does carry the lobes down the
+flank), so the loft stays faithful and `suggest_dome` keeps its authority —
+a deeply lobed plan goes onto the cut dome whether or not the head is
+lofted. Examples whose subject is the prism pin `loft = 0.0`; the cut-dome
+ones need no pin. `a_new_signet_is_lofted_and_fields_clean` pins the
+default, the serde fallback, the verdict, and the precedence.
+
 #### Imported plans are outlines too
 
 `SignetOutline::Custom(u8)` indexes `ShankStyle::custom_outlines` — a
