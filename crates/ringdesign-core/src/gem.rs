@@ -65,7 +65,7 @@ impl GemCut {
     /// Length over width of the standard proportion.
     ///
     /// Cross-checked against the CrossGems proportion switches (their Y is
-    /// this ratio; PostLoad/CrossGems-Proportion.md): Oval and Pear adopt
+    /// this ratio; tools/harvest/reports/CrossGems-Proportion.md): Oval and Pear adopt
     /// their 1.6, Emerald their 1.5, Hexagon their 2/sqrt(3). Marquise stays
     /// 2.0 and Baguette 2.0 — the trade's own classic makes — where their UI
     /// defaults say 1.7 and 1.6.
@@ -320,7 +320,7 @@ mod tests {
     }
 
     /// The proportions cross-checked against the CrossGems switches
-    /// (PostLoad/CrossGems-Proportion.md): where we adopt, we match; where
+    /// (tools/harvest/reports/CrossGems-Proportion.md): where we adopt, we match; where
     /// the trade disagrees with their UI defaults, we hold the trade's line.
     #[test]
     fn the_proportion_cross_check_holds() {

@@ -3,7 +3,7 @@
 //!
 //! cg_signet <decoded preset dir> <out prefix> [--loft 0..1] [--size 7]
 //!
-//! Reads the params.json and curves.json that cgpreset.py dump-all writes,
+//! Reads the params.json and curves.json that tools/harvest/cgpreset.py dump-all writes,
 //! builds the same ring (band = table length across, shank from the side
 //! width, thickness = side thickness + 0.25 as the presets cast it), writes
 //! <prefix>.png, <prefix>.obj and <prefix>.ring.json, and prints crest

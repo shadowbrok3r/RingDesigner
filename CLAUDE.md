@@ -698,7 +698,7 @@ fields 0.000% by construction. Hard-won specifics:
 
 `SignetHead::loft` (0..1, default 0) builds the head the way CrossGems'
 `Signet_Ring` cluster does, decoded from its wiring
-(`PostLoad/tools/cluster_recipe.py`; the GH chunk parser's type table had
+(`tools/harvest/cluster_recipe.py`; the GH chunk parser's type table had
 been guessed — points are 50–52, intervals 60–61, line/bbox/plane 70–72 —
 and a full parse of the `.doc` to its last byte is what settled it). Their
 head is **two surfaces joined at the ring's equator**: below it, the side
@@ -747,7 +747,7 @@ wider than the bore span, which the prism forbids. It is not an undercut:
 every section is a single-valued width over its radius, so each wall
 faces its own mould half, and `analyze_field` says 0.0000% on five
 rebuilt presets. Measured against the cached meshes, exact point-to-
-surface (`scratchpad` `deviation.py`): head 0.04–0.05 mm mean, shoulder
+surface (`tools/harvest/deviation.py`): head 0.04–0.05 mm mean, shoulder
 0.07–0.11, shank 0.07–0.11 — the bore is 8.65 against their 8.6, which is
 half of it. A dihedral census leaves the shoulder at ≤ 12° between
 facets; the only ≥ 45° edges left are the table rim's own corner and the
@@ -822,7 +822,7 @@ star): containment to 1e-5, field-clean, and a JSON round-trip that must
 not carry the derived table. The library half lives in
 `library::outline_dir()` (`<name>.outline.json`); applying one **copies**
 it into the design. 19 factory signet plans decoded from the CrossGems
-presets (`PostLoad/tools/outline_export.py`) ship there as user assets —
+presets (`tools/harvest/outline_export.py`) ship there as user assets —
 clover, rosette, star, butterfly, escutcheon and the rest — every one
 fielding 0.000% on a bare head.
 
@@ -933,7 +933,7 @@ The GUI's profile panel draws every entry — preset and saved — as its own
 little section (`profile_row`), and a name-plus-Save row files the current
 shape. 
 
-`PostLoad/tools/cluster_curves.py` decodes their master preset library
+`tools/harvest/cluster_curves.py` decodes their master preset library
 (the Profile_Curves cluster: 23 unit-box sections whose true index → name
 mapping is the C# script input's Source order — the containers' own
 nicknames disagree with the published selector list in places) into the
@@ -1513,3 +1513,8 @@ footprints stay aligned with `height`.
 - `../jewelry_cost_calculator` — the egui_glow viewport in `src/ui/gpu_mesh.rs`
   is the reference this app's renderer was ported from. Also has ring sizing and
   STL/OBJ loading.
+
+- `tools/harvest/` (gitignored) — the CrossGems decode tools, their reports and the
+  mesh-comparison probes (`deviation.py`, `dihedral.py`, `measure_cg.py`); venv at
+  `tools/venv` (`requirements.txt` beside the scripts). The archive itself — decompiled
+  sources, the 122 decoded clusters, resources — stays in `../PostLoad/PostLoad`.

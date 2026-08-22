@@ -291,7 +291,7 @@ fn main() {
 
     // --- 11. Clover signet: an imported factory plan as the head. ------------
     // One of the 19 table plans decoded straight out of the CrossGems signet
-    // presets (tools/outline_export.py), adopted into the design as a polar
+    // presets (tools/harvest/outline_export.py), adopted into the design as a polar
     // table — the same rolling-ball fairing and containment guarantee as
     // every builtin outline. Skipped politely on a machine without the
     // outline library.

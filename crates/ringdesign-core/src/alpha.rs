@@ -1910,8 +1910,9 @@ mod tests {
                 }
             }
         }
-        let dir = "/tmp/claude-1000/-home-shadowbroker-Documents-Rust-JewelryProjects/a9d6461b-31cd-46f3-99bd-0157189bce46/scratchpad";
-        let _ = std::fs::create_dir_all(dir);
+        // Only with `RD_ALPHA_SHEET=/some/dir`: the montage is for eyeballing, not asserting.
+        let Ok(dir) = std::env::var("RD_ALPHA_SHEET") else { return };
+        let _ = std::fs::create_dir_all(&dir);
         image::save_buffer(
             format!("{dir}/alphas.png"),
             &buf,

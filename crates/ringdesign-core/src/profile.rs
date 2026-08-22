@@ -2610,7 +2610,7 @@ impl ShankStyle {
 // the table's rim to the shank is one sheet. Read per ring angle it gives
 // the section's crest radius, crest span, bore span and the wall's own
 // profile between them. Decoded from the cluster's wiring and re-executed
-// (PostLoad/tools/signet_tent.py) against the ring meshes cached in the
+// (tools/harvest/signet_tent.py) against the ring meshes cached in the
 // factory presets: crest 12.10/12.10 mm at the centre, 15.58/15.59 at the
 // table's corner, widths within a tenth everywhere.
 
