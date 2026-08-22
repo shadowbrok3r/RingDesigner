@@ -223,13 +223,20 @@ fn first_difference(
                     x.iter()
                         .filter(|(k, _)| !HEADLINE_KEYS.contains(&k.as_str())),
                 );
+            // A key on one side only is a change too (an optional field
+            // appearing or going), not a reason to give up on the name.
+            let null = Value::Null;
             for (k, va) in ordered {
-                let vb = y.get(k)?;
+                let vb = y.get(k).unwrap_or(&null);
                 if va != vb {
                     path.push(k.clone());
                     return first_difference(va, vb, path, depth + 1)
                         .or(Some((va.clone(), vb.clone())));
                 }
+            }
+            if let Some((k, vb)) = y.iter().find(|(k, _)| !x.contains_key(*k)) {
+                path.push(k.clone());
+                return Some((Value::Null, vb.clone()));
             }
             None
         }
@@ -256,6 +263,15 @@ fn first_difference(
 fn phrase(path: &[String], from: &Value, to: &Value) -> String {
     let section = path.first().map(String::as_str).unwrap_or("");
     let leaf = path.last().map(String::as_str).unwrap_or("");
+
+    // A graph is a document of its own; its nodes are not fields to name.
+    if section == "graph" {
+        return match (from.is_null(), to.is_null()) {
+            (true, false) => "Converted to graph".into(),
+            (false, true) => "Baked the graph".into(),
+            _ => "Graph edited".into(),
+        };
+    }
 
     // A layer count moving is an add or a remove, whatever field it surfaced on.
     if section == "layers" && from.is_u64() && to.is_u64() {
@@ -347,6 +363,18 @@ fn show(v: &Value, unit: &str) -> Option<String> {
 mod tests {
     use super::*;
     use ringdesign_core::field::{Layer, LayerEntry, MilgrainLayer};
+
+    #[test]
+    fn a_graph_is_named_as_a_document_not_as_fields() {
+        let a = design();
+        let mut b = a.clone();
+        b.graph = Some(serde_json::json!({"name": "g", "nodes": [{"id": 1, "kind": "number"}]}));
+        assert_eq!(describe(&a, &b).as_deref(), Some("Converted to graph"));
+        let mut c = b.clone();
+        c.graph = Some(serde_json::json!({"name": "g", "nodes": [{"id": 1, "kind": "int"}]}));
+        assert_eq!(describe(&b, &c).as_deref(), Some("Graph edited"));
+        assert_eq!(describe(&b, &a).as_deref(), Some("Baked the graph"));
+    }
 
     fn design() -> RingDesign {
         RingDesign::default()

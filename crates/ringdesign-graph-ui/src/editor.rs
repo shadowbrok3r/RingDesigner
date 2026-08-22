@@ -279,7 +279,7 @@ impl Editor {
     }
 
     /// Insert a node of `kind` at a view position; it gets its id on the
-    /// next extraction.
+    /// next extraction (or [`Editor::commit`]).
     pub fn insert(&mut self, kind: &str, pos: [f32; 2], reg: &Registry) -> bool {
         let Some(spec) = reg.get(kind) else { return false };
         self.snarl.insert_node(egui::pos2(pos[0], pos[1]), NodeCard::new_of(spec, reg));
@@ -292,7 +292,83 @@ impl Editor {
         if self.selected == Some(id) {
             self.selected = None;
         }
+        self.commit();
         true
+    }
+
+    /// Extract the view now and adopt any change; true if the graph moved.
+    pub fn commit(&mut self) -> bool {
+        let extracted = extract_graph(&self.snarl, &self.graph);
+        if extracted == self.graph {
+            return false;
+        }
+        self.graph = extracted;
+        self.revision += 1;
+        self.ids = IdMap::default();
+        for (sid, card) in self.snarl.nodes_ids_mut() {
+            if let Some(gid) = card.graph_id() {
+                self.ids.to_snarl.insert(gid, sid);
+                self.ids.to_graph.insert(sid, gid);
+            }
+        }
+        self.assign_fresh_ids();
+        true
+    }
+
+    pub fn card(&self, id: NodeId) -> Option<&NodeCard> {
+        self.ids.to_snarl.get(&id).and_then(|sid| self.snarl.get_node(*sid))
+    }
+
+    pub fn node(&self, id: NodeId) -> Option<&Node> {
+        self.graph.node(id)
+    }
+
+    /// Set (or clear) a literal on a node's input, through the view so the
+    /// card and the graph agree.
+    pub fn set_input(&mut self, id: NodeId, input: &str, value: Option<Literal>) -> bool {
+        let Some(&sid) = self.ids.to_snarl.get(&id) else { return false };
+        if let Some(card) = self.snarl.get_node_mut(sid) {
+            match value {
+                Some(v) => {
+                    card.inputs.insert(input.to_string(), v);
+                }
+                None => {
+                    card.inputs.remove(input);
+                }
+            }
+        }
+        self.commit()
+    }
+
+    pub fn set_label(&mut self, id: NodeId, label: Option<String>) -> bool {
+        let Some(&sid) = self.ids.to_snarl.get(&id) else { return false };
+        if let Some(card) = self.snarl.get_node_mut(sid) {
+            card.label = label.clone().filter(|l| !l.trim().is_empty());
+            card.title = card.label.clone().unwrap_or_else(|| card.kind.clone());
+        }
+        self.commit()
+    }
+
+    /// Promote an input to the graph's parameter panel.
+    pub fn expose(&mut self, id: NodeId, input: &str, name: &str) -> Result<(), GraphError> {
+        self.graph.expose(id, input, name)?;
+        self.revision += 1;
+        Ok(())
+    }
+
+    pub fn unexpose(&mut self, name: &str) -> bool {
+        let hit = self.graph.unexpose(name).is_some();
+        if hit {
+            self.revision += 1;
+        }
+        hit
+    }
+
+    /// Lay the nodes out by depth, as the template files are.
+    pub fn arrange(&mut self, reg: &Registry) {
+        let mut g = self.graph.clone();
+        ringdesign_graph::templates::arrange(&mut g);
+        self.set_graph(g, reg);
     }
 }
 

@@ -1,6 +1,6 @@
 //! Application state and the background rebuild pipeline.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -10,6 +10,10 @@ use ringdesign_core::castability::{self, CastReport};
 use ringdesign_core::field::{Layer, LayerEntry};
 use ringdesign_core::mesh::{BuildParams, BuildResult};
 use ringdesign_core::{RingDesign, library};
+use ringdesign_graph::eval::{Evaluator, evaluate_design};
+use ringdesign_graph::graph::{Graph, GraphError, NodeId as GraphNodeId};
+use ringdesign_graph::registry::Registry;
+use ringdesign_graph_ui::Editor;
 
 use crate::alpha_editor::AlphaEditor;
 use crate::dock::Dock;
@@ -205,6 +209,15 @@ pub struct RingDesignerApp {
     pub auto_rebuild: bool,
     /// Named undo timeline over the design.
     pub history: History,
+    /// The node library, built once; the worker builds its own.
+    pub graph_reg: Arc<Registry>,
+    /// The editor over `design.graph`, present while the design is graph-driven.
+    pub graph_ed: Option<Editor>,
+    /// `design.graph` as last synced into the editor.
+    pub graph_json: Option<serde_json::Value>,
+    /// Graph-level errors from the last evaluation, when nothing ran.
+    pub graph_errors: Vec<String>,
+    pub selected_node: Option<GraphNodeId>,
 
     /// Embedded MCP server, `None` until the user starts it.
     pub mcp: Option<McpHost>,
@@ -300,6 +313,11 @@ impl RingDesignerApp {
             status: "Ready".into(),
             auto_rebuild: true,
             history: History::new(&design_for_history),
+            graph_reg: Arc::new(Registry::builtin()),
+            graph_ed: None,
+            graph_json: None,
+            graph_errors: Vec::new(),
+            selected_node: None,
 
             mcp: None,
             mcp_port: ws.mcp_port,
@@ -369,7 +387,9 @@ impl RingDesignerApp {
         let has_live = self.design.layers.layers.iter().any(|e| {
             matches!(&e.layer, ringdesign_core::Layer::Group(g) if g.recipe.is_some())
         });
-        if has_live {
+        // A graph-driven design is re-evaluated whole on the worker; its
+        // generators are nodes there, so nothing regenerates here.
+        if has_live && self.design.graph.is_none() {
             for note in ringdesign_core::pave::regenerate_live(&mut self.design) {
                 self.set_status(note);
             }
@@ -399,6 +419,7 @@ impl RingDesignerApp {
 
     /// Poll the worker, fire debounced rebuilds, and refresh the section slice.
     pub fn tick(&mut self, ctx: &egui::Context) {
+        self.sync_graph();
         if self.mcp.as_mut().is_some_and(|h| h.poll(&mut self.design)) {
             if self
                 .selected_layer
@@ -451,6 +472,23 @@ impl RingDesignerApp {
                     self.field = Some(done.field);
                     self.stones = done.stones;
                     self.hot_spot = done.hot_spot;
+                    if let Some(gd) = done.graph {
+                        if gd.ok {
+                            // The evaluated design, under whatever the graph
+                            // has become since the job was queued.
+                            let graph = self.design.graph.take();
+                            self.design = gd.design;
+                            self.design.graph = graph;
+                        }
+                        self.graph_errors = gd.errors.iter().map(ToString::to_string).collect();
+                        if let Some(ed) = &mut self.graph_ed {
+                            ed.set_values(&gd.values);
+                            ed.set_diagnostics(&gd.errors, &gd.notes);
+                        }
+                        if !gd.ok {
+                            self.status = format!("Graph: {}", self.graph_errors.join("; "));
+                        }
+                    }
                     self.refresh_sections();
                     ctx.request_repaint();
                 }
@@ -496,6 +534,7 @@ impl RingDesignerApp {
             design: self.design.clone(),
             lib: self.lib.clone(),
             params,
+            graph: self.design.graph.as_ref().and_then(|j| serde_json::from_value::<Graph>(j.clone()).ok()),
         };
         if self.worker.jobs.send(job).is_err() {
             self.in_flight = false;
@@ -706,6 +745,114 @@ impl RingDesignerApp {
     }
 }
 
+// --- The graph behind the design ------------------------------------------
+
+impl RingDesignerApp {
+    /// Whether the design is driven by a graph right now.
+    pub fn graph_driven(&self) -> bool {
+        self.design.graph.is_some()
+    }
+
+    /// Keep the editor in step with `design.graph`, whichever side moved:
+    /// history, MCP, a file, a template — anything that replaces the design
+    /// replaces the graph the editor shows.
+    pub fn sync_graph(&mut self) {
+        if self.design.graph == self.graph_json {
+            return;
+        }
+        self.graph_json = self.design.graph.clone();
+        let parsed = self.design.graph.as_ref().and_then(|j| serde_json::from_value::<Graph>(j.clone()).ok());
+        match parsed {
+            Some(g) => match &mut self.graph_ed {
+                Some(ed) => ed.set_graph(g, &self.graph_reg),
+                None => self.graph_ed = Some(Editor::new(g, &self.graph_reg)),
+            },
+            None => {
+                self.graph_ed = None;
+                self.selected_node = None;
+            }
+        }
+        if let (Some(ed), Some(sel)) = (&self.graph_ed, self.selected_node) {
+            if ed.node(sel).is_none() {
+                self.selected_node = None;
+            }
+        }
+    }
+
+    /// The editor moved the graph: write it into the design and rebuild.
+    pub fn graph_changed(&mut self) {
+        let Some(ed) = &self.graph_ed else { return };
+        let json = serde_json::to_value(ed.graph()).ok();
+        self.design.graph = json.clone();
+        self.graph_json = json;
+        self.mark_dirty();
+    }
+
+    /// Lift the design into a graph that evaluates back to it exactly, and
+    /// show it.
+    pub fn convert_to_graph(&mut self) {
+        match ringdesign_graph::lift::from_design(&self.design, &self.graph_reg, &self.lib) {
+            Ok(g) => {
+                self.design.graph = serde_json::to_value(&g).ok();
+                self.sync_graph();
+                self.show_graph_pane();
+                self.set_status("Converted to a graph — the panels follow it now");
+                self.mark_dirty();
+            }
+            Err(e) => self.set_status(format!("Could not convert: {e}")),
+        }
+    }
+
+    /// Open a starter or template graph as the design's graph.
+    pub fn open_graph(&mut self, g: Graph) {
+        self.design.graph = serde_json::to_value(&g).ok();
+        self.sync_graph();
+        self.show_graph_pane();
+        self.mark_dirty();
+    }
+
+    /// Drop the graph; the design stays exactly as last evaluated.
+    pub fn bake_graph(&mut self) {
+        if self.design.graph.take().is_some() {
+            self.graph_json = None;
+            self.graph_ed = None;
+            self.selected_node = None;
+            self.graph_errors.clear();
+            self.set_status("Baked: the graph is gone and the design is yours to edit");
+            self.mark_dirty();
+        }
+    }
+
+    /// Make a graph pane the active one, turning the active pane into one
+    /// if none shows the graph.
+    pub fn show_graph_pane(&mut self) {
+        if let Some(i) = self.panes.iter().position(|p| p.kind == PaneKind::Graph) {
+            self.active_pane = i;
+            return;
+        }
+        if let Some(p) = self.panes.get_mut(self.active_pane) {
+            p.kind = PaneKind::Graph;
+        }
+    }
+
+    pub fn arrange_graph(&mut self) {
+        let reg = self.graph_reg.clone();
+        if let Some(ed) = &mut self.graph_ed {
+            ed.arrange(&reg);
+        }
+        self.graph_changed();
+    }
+
+    pub fn delete_selected_node(&mut self) {
+        let Some(id) = self.selected_node.take() else { return };
+        if let Some(ed) = &mut self.graph_ed {
+            if ed.remove(id) {
+                self.graph_changed();
+            }
+        }
+    }
+}
+
 // --- Background build worker -----------------------------------------------
 
 struct Job {
@@ -713,6 +860,19 @@ struct Job {
     design: RingDesign,
     lib: Arc<AlphaLibrary>,
     params: BuildParams,
+    /// The design's graph, evaluated before the build when present.
+    graph: Option<Graph>,
+}
+
+/// What evaluating a job's graph produced.
+pub struct GraphDone {
+    pub design: RingDesign,
+    pub values: BTreeMap<GraphNodeId, BTreeMap<String, String>>,
+    pub notes: BTreeMap<GraphNodeId, Vec<String>>,
+    pub errors: Vec<GraphError>,
+    /// The design above is the evaluation's; false means the last good
+    /// design was built instead.
+    pub ok: bool,
 }
 
 struct Done {
@@ -724,6 +884,7 @@ struct Done {
     /// Slowest-freezing slice: `(theta, modulus mm)` off the Chvorinov scan.
     hot_spot: Option<(f64, f64)>,
     gems: Vec<f32>,
+    graph: Option<GraphDone>,
 }
 
 struct Worker {
@@ -738,10 +899,48 @@ impl Worker {
         std::thread::Builder::new()
             .name("ring-build".into())
             .spawn(move || {
+                let reg = Registry::builtin();
+                let mut evaluator = Evaluator::new();
                 while let Ok(mut job) = jobs_rx.recv() {
                     // Skip stale work: only the newest queued job matters.
                     while let Ok(newer) = jobs_rx.try_recv() {
                         job = newer;
+                    }
+                    // A graph-driven design is evaluated first; the library's
+                    // identity is its epoch, so a replaced library re-runs it.
+                    let mut graph_done = None;
+                    let mut field_from_graph = None;
+                    if let Some(g) = &job.graph {
+                        let epoch = Arc::as_ptr(&job.lib) as usize as u64;
+                        match evaluate_design(&mut evaluator, g, &reg, &job.lib, epoch) {
+                            Ok(out) => {
+                                let mut d = (*out.design).clone();
+                                d.graph = job.design.graph.clone();
+                                let values = out
+                                    .report
+                                    .values
+                                    .iter()
+                                    .map(|(id, outs)| (*id, outs.iter().map(|(k, v)| (k.clone(), v.summary())).collect()))
+                                    .collect();
+                                let notes = out
+                                    .report
+                                    .status
+                                    .iter()
+                                    .filter(|(_, s)| !s.errors.is_empty() || !s.warnings.is_empty())
+                                    .map(|(id, s)| {
+                                        let mut lines: Vec<String> = s.errors.iter().map(|(i, m)| if s.items > 1 { format!("item {i}: {m}") } else { m.clone() }).collect();
+                                        lines.extend(s.warnings.iter().cloned());
+                                        (*id, lines)
+                                    })
+                                    .collect();
+                                graph_done = Some(GraphDone { design: d.clone(), values, notes, errors: Vec::new(), ok: true });
+                                field_from_graph = Some(out.field);
+                                job.design = d;
+                            }
+                            Err(e) => {
+                                graph_done = Some(GraphDone { design: job.design.clone(), values: BTreeMap::new(), notes: BTreeMap::new(), errors: vec![e], ok: false });
+                            }
+                        }
                     }
                     let result = ringdesign_core::mesh::build(&job.design, &job.lib, job.params);
                     let cast = castability::analyze(
@@ -752,13 +951,10 @@ impl Worker {
                     // The verdict itself comes from the surface, at a fixed
                     // sampling so it cannot wobble with preview quality; any
                     // undercut arrives located and blamed.
-                    let field = castability::attributed_field_report(
-                        &job.design,
-                        &job.lib,
-                        &job.design.draft,
-                        192,
-                        128,
-                    );
+                    let field = match field_from_graph {
+                        Some(f) => f,
+                        None => castability::attributed_field_report(&job.design, &job.lib, &job.design.draft, 192, 128),
+                    };
                     let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
                     let hot_spot = castability::modulus_scan(&job.design, &job.lib, 64)
                         .into_iter()
@@ -773,6 +969,7 @@ impl Worker {
                             hot_spot,
                             stones,
                             gems,
+                            graph: graph_done,
                         })
                         .is_err()
                     {

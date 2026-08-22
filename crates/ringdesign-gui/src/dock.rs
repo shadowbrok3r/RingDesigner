@@ -19,6 +19,7 @@ pub enum ToolKind {
     Layers,
     Report,
     Library,
+    Node,
 }
 
 impl ToolKind {
@@ -27,6 +28,7 @@ impl ToolKind {
         ToolKind::Layers,
         ToolKind::Report,
         ToolKind::Library,
+        ToolKind::Node,
     ];
 
     pub fn label(self) -> &'static str {
@@ -35,6 +37,7 @@ impl ToolKind {
             ToolKind::Layers => "Layers",
             ToolKind::Report => "Report",
             ToolKind::Library => "Tiles",
+            ToolKind::Node => "Node",
         }
     }
 
@@ -44,6 +47,7 @@ impl ToolKind {
             ToolKind::Layers => icon::STACK,
             ToolKind::Report => icon::CLIPBOARD_TEXT,
             ToolKind::Library => icon::GRID_FOUR,
+            ToolKind::Node => icon::SLIDERS_HORIZONTAL,
         }
     }
 }
