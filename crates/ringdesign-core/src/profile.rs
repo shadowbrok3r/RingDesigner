@@ -1213,6 +1213,8 @@ pub enum ShankKind {
     EuroFlat,
     FlatTop,
     Split,
+    /// The two arms pass each other over the top.
+    Bypass,
     Signet,
     /// Authored stations interpolated smoothly around the ring.
     Keyframes,
@@ -1232,6 +1234,7 @@ impl ShankKind {
         ShankKind::EuroFlat,
         ShankKind::FlatTop,
         ShankKind::Split,
+        ShankKind::Bypass,
         ShankKind::Signet,
         ShankKind::Keyframes,
     ];
@@ -1250,6 +1253,7 @@ impl ShankKind {
             ShankKind::EuroFlat => "Euro (flat bottom)",
             ShankKind::FlatTop => "Flat top",
             ShankKind::Split => "Split shank",
+            ShankKind::Bypass => "Bypass",
             ShankKind::Signet => "Signet",
             ShankKind::Keyframes => "Keyframes",
         }
@@ -1267,6 +1271,11 @@ impl ShankKind {
                                  face, so the shank reads as two diverging rails. A real split — \
                                  two crests — cannot part from a two-part mould; the groove lives \
                                  on the side faces, whose walls stay parallel to the pull.",
+            ShankKind::Bypass => "The two arms of the shank slide past each other over the top: \
+                                  one rides up the finger, the other down, and the band widens to \
+                                  carry both where they cross. One crest the whole way, held on the \
+                                  parting plane, with the arms told apart by a channel in each side \
+                                  face — a seam along the crest would be a valley no mould parts.",
             ShankKind::Keyframes => "Your own stations around the ring — width, thickness and \
                                      crown at each, blended smoothly and closing on itself.",
             ShankKind::Cathedral => "Shoulders swell toward the top of the ring.",
@@ -2200,6 +2209,53 @@ fn pick_dominant(reads: &[HeadAt]) -> HeadAt {
         .expect("at least the primary head")
 }
 
+/// How far each bypass arm slides off the mid-plane at the crossing, as a
+/// fraction of the half-width. Under Wave's measured 0.6 cap.
+pub const BYPASS_OFFSET: f64 = 0.45;
+/// Where an arm's tip ends, degrees past the top.
+pub const BYPASS_TIP_DEG: f64 = 35.0;
+/// The arc over which an arm rounds off to its tip, degrees.
+pub const BYPASS_TIP_LEN_DEG: f64 = 30.0;
+/// The arc before the top over which an arm slides out from the mid-plane:
+/// from this far out to `BYPASS_SLIDE_END_DEG` before the top.
+pub const BYPASS_SLIDE_ARC_DEG: f64 = 100.0;
+pub const BYPASS_SLIDE_END_DEG: f64 = 30.0;
+/// Channel depth in each side face at the crossing, mm — Split's read of
+/// the seam.
+pub const BYPASS_GROOVE_MM: f64 = 1.0;
+
+/// One bypass arm read at `off` degrees from the top, as `(centre, half
+/// width)` in half-width units, or `None` past its tip. The arm runs in
+/// from the negative side, slides out to `+BYPASS_OFFSET` and ends in a
+/// rounded tip past the top; the other arm is this one mirrored.
+fn bypass_arm(off: f64, k: f64) -> Option<(f64, f64)> {
+    if off >= BYPASS_TIP_DEG {
+        return None;
+    }
+    let centre = BYPASS_OFFSET * k
+        * crate::field::smootherstep(-BYPASS_SLIDE_ARC_DEG, -BYPASS_SLIDE_END_DEG, off);
+    let into_tip = ((off - (BYPASS_TIP_DEG - BYPASS_TIP_LEN_DEG)) / BYPASS_TIP_LEN_DEG).clamp(0.0, 1.0);
+    let half = (1.0 - into_tip * into_tip).max(0.0).sqrt();
+    Some((centre, half))
+}
+
+/// The bypass section's span at `off` degrees from the top, `(lo, hi)` in
+/// half-width units: the union of the arms present there.
+pub fn bypass_span(off: f64, k: f64) -> (f64, f64) {
+    let a = bypass_arm(off, k);
+    let b = bypass_arm(-off, k).map(|(c, h)| (-c, h));
+    let (mut lo, mut hi) = (f64::MAX, f64::MIN);
+    for (c, h) in [a, b].into_iter().flatten() {
+        lo = lo.min(c - h);
+        hi = hi.max(c + h);
+    }
+    if lo > hi {
+        (-1.0, 1.0)
+    } else {
+        (lo, hi)
+    }
+}
+
 /// Per-angle modulation of the cross-section.
 #[derive(Clone, Copy, Debug)]
 pub struct ShankMod {
@@ -2523,6 +2579,27 @@ impl ShankStyle {
                 ShankMod {
                     width_scale: 1.0 + 0.55 * k * g,
                     side_groove_mm: 1.6 * k * g,
+                    ..ShankMod::identity()
+                }
+            }
+            ShankKind::Bypass => {
+                // The castable read of a bypass: two arms, each the band's
+                // own width, sliding to either side of the mid-plane as they
+                // near the top and each ending in a rounded tip past it. The
+                // section at any angle is the union of whatever arms are
+                // present, so the tips show as steps in the plan outline; the
+                // crest span is widened to the parting plane exactly as Wave's
+                // is, so the crest circle stays level and every flank keeps
+                // its draft. A channel in each side face marks the seam, as
+                // Split's does: the seam itself, along the crest, would be the
+                // valley no single parting plane clears.
+                let off = crate::field::wrap_delta(theta_deg - TOP_DEG, 360.0);
+                let (lo, hi) = bypass_span(off, k);
+                let both = 1.0 - crate::field::smootherstep(0.0, BYPASS_TIP_DEG, off.abs());
+                ShankMod {
+                    width_scale: (hi - lo) * 0.5,
+                    z_center_frac: (hi + lo) * 0.5,
+                    side_groove_mm: BYPASS_GROOVE_MM * k * both,
                     ..ShankMod::identity()
                 }
             }
@@ -4235,6 +4312,48 @@ mod tests {
         );
     }
 
+    /// A bypass slides one arm up the finger and the other down, widens to
+    /// carry both at the top, keeps one level crest the whole way and
+    /// fields clean — Wave's slide on Split's read.
+    #[test]
+    fn a_bypass_shank_slides_its_arms_past_each_other_and_releases() {
+        use crate::alpha::AlphaLibrary;
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(ProfileStyle::LowDome);
+        d.profile.width_mm = 5.0;
+        d.shank.kind = ShankKind::Bypass;
+        d.shank.amount = 1.0;
+        let ir = d.inner_radius_mm();
+        let base = ir + d.profile.thickness_mm;
+        let at = |t: f64| d.modulation_at(t, ir, base);
+        let (before, top, after, back) = (at(TOP_DEG - 40.0), at(TOP_DEG), at(TOP_DEG + 40.0), at(TOP_DEG + 180.0));
+        assert!(before.z_center_frac > 0.3, "the arm coming in rides up: {}", before.z_center_frac);
+        assert!(after.z_center_frac < -0.3, "the arm going out rides down: {}", after.z_center_frac);
+        assert!(top.z_center_frac.abs() < 1e-9 && top.width_scale > 1.3, "the crossing is the union of both arms: {:?}", (top.z_center_frac, top.width_scale));
+        assert!(top.side_groove_mm > 0.8, "the seam is a side-face channel: {}", top.side_groove_mm);
+        assert!((back.width_scale - 1.0).abs() < 1e-9 && back.z_center_frac.abs() < 1e-9 && back.side_groove_mm == 0.0, "plain band at the palm");
+        // The tip shows: the high edge steps down from the ending arm to the
+        // continuing one over the tip's arc.
+        let edge = |off: f64| super::bypass_span(off, 1.0).1;
+        assert!(edge(0.0) > 1.4 && edge(25.0) < edge(0.0) - 0.2 && (edge(40.0) - 0.55).abs() < 0.05, "{:?}", (edge(0.0), edge(25.0), edge(40.0)));
+
+        // One level crest the whole way round.
+        let reference = d.reference_loop();
+        for i in 0..48 {
+            let theta = i as f64 / 48.0 * 360.0;
+            let m = d.shank.modulation(theta, ir, reference.crest_radius_mm, &d.profile);
+            let l = d.profile.sample_spaced(ir, 96, &m, None, None);
+            let crest_z = l.pts.iter().filter(|p| p.surface).max_by(|a, b| a.r.total_cmp(&b.r)).map(|p| p.z).unwrap_or(f64::NAN);
+            assert!(crest_z.abs() < 0.12, "crest rode to z {crest_z:.3} at theta {theta:.0}");
+        }
+
+        let lib = AlphaLibrary::builtin();
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 256, 128);
+        assert!(f.undercut_fraction() < 5e-4, "a bypass locks: {:.4}%", f.undercut_fraction() * 100.0);
+        let out = crate::mesh::build(&d, &lib, crate::BuildParams { theta_steps: 256, profile_steps: 96, ..Default::default() });
+        assert!(out.report.validation.watertight);
+    }
+
     /// The split's channel is real, and it costs nothing: the groove's floor
     /// faces along the pull and its walls stand radial, so the whole ring
     /// still fields clean.
@@ -4655,13 +4774,14 @@ mod tests {
             let m = sym.modulation(TOP_DEG, BORE_R, CREST_R, &band());
             assert!(m.z_center_frac.abs() < 1e-9, "{o:?} moved the band: {}", m.z_center_frac);
         }
-        // Signet and Wave are the two kinds whose whole point is moving the
-        // section along the finger; everything else must stay centred.
+        // Signet, Wave, Twist and Bypass are the kinds whose whole point is
+        // moving the section along the finger; everything else must stay
+        // centred.
         for &kind in ShankKind::ALL {
             let s = ShankStyle { kind, amount: 1.0, ..Default::default() };
             let m = s.modulation(TOP_DEG + 40.0, BORE_R, CREST_R, &band());
             assert!(
-                matches!(kind, ShankKind::Signet | ShankKind::Wave | ShankKind::Twist)
+                matches!(kind, ShankKind::Signet | ShankKind::Wave | ShankKind::Twist | ShankKind::Bypass)
                     || m.z_center_frac == 0.0,
                 "{kind:?} moved the band off centre"
             );
