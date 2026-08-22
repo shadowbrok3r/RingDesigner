@@ -47,6 +47,43 @@ pub struct PaveSpec {
     /// stone along the ring; 90 stands it across the band.
     #[serde(default)]
     pub rot_deg: f64,
+    /// Seats the user owns, and the room the packer must leave them.
+    #[serde(default)]
+    pub pinned: Vec<PinnedSeat>,
+}
+
+/// A place in the fill the packer does not decide.
+///
+/// A pin and a deletion are the same thing said twice — *the packer may not
+/// place here* — so they are one mechanism, and a pin merely also emits a
+/// seat. Stated as a **region**, never as the identity of a station: a
+/// generated station is recomputed from scratch every time the band moves,
+/// so matching a stored one by position would quietly cull a neighbour
+/// instead the moment the pitch changed.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PinnedSeat {
+    /// Position around the ring, degrees. 90 is the top.
+    pub theta_deg: f64,
+    /// Position across the band, mm of `v`.
+    pub v_mm: f64,
+    /// The seat to place here. `None` is a hole: the packer keeps clear and
+    /// nothing is placed.
+    pub seat: Option<SeatPadLayer>,
+    /// How much room the packer must leave, mm. 0 takes the seat's own
+    /// reach, which is what a pinned seat wants; a hole needs its own.
+    #[serde(default)]
+    pub clear_mm: f64,
+}
+
+impl PinnedSeat {
+    /// The room this pin claims, mm — along the ring, then across the band.
+    fn reach_mm(&self) -> (f64, f64) {
+        match (&self.seat, self.clear_mm) {
+            (_, c) if c > 0.0 => (c, c),
+            (Some(s), _) => s.half_extents_mm(),
+            (None, _) => (0.0, 0.0),
+        }
+    }
 }
 
 impl Default for PaveSpec {
@@ -60,6 +97,7 @@ impl Default for PaveSpec {
             stagger: true,
             style: SeatStyle::GypsyMound,
             rot_deg: 0.0,
+            pinned: Vec::new(),
         }
     }
 }
@@ -69,7 +107,9 @@ impl Default for PaveSpec {
 pub struct PaveOutcome {
     pub seats: usize,
     pub rows: usize,
-    /// Seats the cap or the region refused, if any — said, not silent.
+    /// How many of the seats are the user's own rather than the packer's.
+    pub pinned: usize,
+    /// Seats the cap, the region or a pin refused — said, not silent.
     pub note: Option<String>,
 }
 
@@ -161,19 +201,42 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
             }
         }
     }
+    // The user's own seats and holes claim their ground; the packer yields.
+    let before = seats.len();
+    seats.retain(|s| !blocked(spec, &ctx, s));
+    let yielded = before - seats.len();
+    let mut pinned = 0usize;
+    for p in &spec.pinned {
+        if let Some(seat) = &p.seat {
+            push_seat(&mut seats, seat, p.theta_deg, p.v_mm, &mut refused);
+            pinned += 1;
+        }
+    }
     if seats.is_empty() {
         return None;
     }
 
-    let note = (refused > 0)
-        .then(|| format!("{refused} seats past the {MAX_SEATS}-seat cap were dropped"));
-    let outcome = PaveOutcome { seats: seats.len(), rows, note };
+    let mut notes = Vec::new();
+    if refused > 0 {
+        notes.push(format!("{refused} seats past the {MAX_SEATS}-seat cap were dropped"));
+    }
+    if yielded > 0 {
+        notes.push(format!("{yielded} yielded to {} pinned", spec.pinned.len()));
+    }
+    let note = (!notes.is_empty()).then(|| notes.join("; "));
+    let outcome = PaveOutcome { seats: seats.len(), rows, pinned, note };
 
     let mut stack = LayerStack::default();
+    // Pins keep their own numbering so the layer list does not renumber them
+    // when the packer re-solves around them.
+    let generated = seats.len() - pinned;
     for (i, s) in seats.into_iter().enumerate() {
-        stack
-            .layers
-            .push(LayerEntry::new(format!("Seat {}", i + 1), Layer::SeatPad(s)));
+        let name = if i < generated {
+            format!("Seat {}", i + 1)
+        } else {
+            format!("Pinned {}", i - generated + 1)
+        };
+        stack.layers.push(LayerEntry::new(name, Layer::SeatPad(s)));
     }
     let entry = LayerEntry::new(
         format!("Pavé {} ({})", spec.gem.display(), outcome.seats),
@@ -542,6 +605,28 @@ fn push_seat(
     seats.push(s);
 }
 
+/// Whether a pin claims this station. Measured in the chart, ellipse against
+/// ellipse, with the spec's own bridge between them — the same metal the
+/// packer leaves between two of its own seats.
+fn blocked(spec: &PaveSpec, ctx: &crate::field::FieldContext, seat: &SeatPadLayer) -> bool {
+    if spec.pinned.is_empty() {
+        return false;
+    }
+    let (hu, hv) = seat.half_extents_mm();
+    let bridge = spec.bridge_mm.max(0.0);
+    spec.pinned.iter().any(|p| {
+        let (pu, pv) = p.reach_mm();
+        let (ru, rv) = (hu + pu + bridge, hv + pv + bridge);
+        if !(ru > 0.0 && rv > 0.0) {
+            return false;
+        }
+        let du = crate::field::wrap_delta(seat.theta_deg - p.theta_deg, 360.0).to_radians()
+            * ctx.crest_radius_mm;
+        let dv = seat.v_mm - p.v_mm;
+        (du / ru).powi(2) + (dv / rv).powi(2) < 1.0
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -678,6 +763,154 @@ mod tests {
     /// regenerate pass re-solves it when the band changes, a recipe that no
     /// longer fits refuses non-destructively, baking detaches it, and the
     /// recipe survives the file round-trip.
+    /// A pin is the user's ground, and the packer yields to it. The whole
+    /// point is that a hand edit inside a live group used to be destroyed by
+    /// the next regeneration — the panel offered a seat editor and a delete
+    /// button whose every change `g.stack = fresh.stack` wiped on the same
+    /// frame.
+    #[test]
+    fn pinned_seats_survive_regeneration_and_the_packer_yields_to_them() {
+        let mut d = flat_design();
+        let crest = d.field_context().crest_v_mm;
+        let base = PaveSpec {
+            gem: Gem::calibrated(crate::gem::GemCut::Round, 1.2),
+            region: PaveRegion::VBand { center_mm: crest, width_mm: 5.0 },
+            stagger: false,
+            ..Default::default()
+        };
+        let (entry, plain) = fill(&d, &base).expect("fits");
+        let Layer::Group(g) = &entry.layer else { panic!() };
+        let step = {
+            // The lattice the packer laid down, for the seamlessness check.
+            let mut ts: Vec<f64> = g
+                .stack
+                .layers
+                .iter()
+                .filter_map(|e| match &e.layer {
+                    Layer::SeatPad(s) if (s.v_mm - crest).abs() < 1e-9 => Some(s.theta_deg),
+                    _ => None,
+                })
+                .collect();
+            ts.sort_by(f64::total_cmp);
+            assert!(ts.len() > 8, "a real row: {}", ts.len());
+            360.0 / ts.len() as f64
+        };
+
+        // One pin deliberately off the lattice, and one hole.
+        let mut held = SeatPadLayer {
+            style: SeatStyle::GypsyMound,
+            height_mm: 0.6,
+            crown: 1.0,
+            blend_mm: 0.4,
+            ..Default::default()
+        };
+        held.fit_stone(Gem::calibrated(crate::gem::GemCut::Round, 2.0));
+        let pin_theta = 0.37 * step;
+        let hole_theta = 180.0;
+        let spec = PaveSpec {
+            pinned: vec![
+                PinnedSeat {
+                    theta_deg: pin_theta,
+                    v_mm: crest,
+                    seat: Some(held),
+                    clear_mm: 0.0,
+                },
+                PinnedSeat {
+                    theta_deg: hole_theta,
+                    v_mm: crest,
+                    seat: None,
+                    clear_mm: 2.0,
+                },
+            ],
+            ..base.clone()
+        };
+        let (entry, out) = fill(&d, &spec).expect("fits");
+        assert_eq!(out.pinned, 1);
+        assert!(out.note.as_deref().is_some_and(|n| n.contains("yielded")), "{:?}", out.note);
+        assert!(out.seats < plain.seats, "the pin and the hole cost stations");
+        d.layers.layers.push(entry);
+
+        let seats = |d: &RingDesign| -> Vec<SeatPadLayer> {
+            let Layer::Group(g) = &d.layers.layers[0].layer else { panic!() };
+            g.stack
+                .layers
+                .iter()
+                .filter_map(|e| match &e.layer {
+                    Layer::SeatPad(s) => Some(*s),
+                    _ => None,
+                })
+                .collect()
+        };
+
+        let found = |d: &RingDesign, theta: f64| {
+            seats(d).into_iter().find(|s| (s.theta_deg - theta).abs() < 1e-9)
+        };
+        // Pinned means pinned: exactly where it was put, not near it.
+        let held_now = found(&d, pin_theta).expect("the pin is on the ring");
+        assert_eq!(held_now.gem, held.gem, "and it is the user's stone");
+
+        // The hole is empty, and nothing the packer placed crowds the pin.
+        for s in seats(&d) {
+            let dh = crate::field::wrap_delta(s.theta_deg - hole_theta, 360.0).abs();
+            assert!(dh > 1e-6 || s.v_mm != crest, "a seat landed in the hole");
+        }
+        let r = crate::stones::report(&d, 0.0).expect("stones");
+        assert!(
+            r.closest.as_ref().is_some_and(|c| c.gap_mm > 0.0),
+            "the packer left the pin room: {:?}",
+            r.closest
+        );
+
+        // Regenerating with a different band re-packs around the pin, and
+        // the pin does not move.
+        d.profile.width_mm = 12.0;
+        let notes = regenerate_live(&mut d);
+        assert!(notes.is_empty(), "{notes:?}");
+        let after = found(&d, pin_theta).expect("the pin survived the band change");
+        assert_eq!(after.gem, held.gem);
+        assert!((after.v_mm - crest).abs() < 1e-9, "and it did not drift");
+
+        // Every seat the packer still owns sits on an integer lattice — the
+        // seamlessness guarantee, and what would break if this ever reached
+        // for a relaxation solver instead of yielding.
+        let mut ts: Vec<f64> = seats(&d)
+            .iter()
+            .filter(|s| s.gem != held.gem)
+            .map(|s| s.theta_deg)
+            .collect();
+        ts.sort_by(f64::total_cmp);
+        let n = (360.0 / (ts[1] - ts[0])).round();
+        for t in &ts {
+            let off = (t / (360.0 / n)).fract();
+            assert!(off < 1e-6 || off > 1.0 - 1e-6, "{t} is off the lattice of {n}");
+        }
+
+        // The report rolls the fill up by seat shape rather than printing a
+        // row per station, and a pin with its own stone is its own shape.
+        assert_eq!(r.seats.len(), 2, "{:?}", r.seats.iter().map(|s| &s.label).collect::<Vec<_>>());
+
+        // Pins survive the file, and a design written before them still loads.
+        let dir = std::env::temp_dir().join("ringdesign-pin-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("pinned.ring.json");
+        crate::library::save_design(&path, &d).unwrap();
+        let back = crate::library::load_design(&path).unwrap();
+        let Layer::Group(g) = &back.layers.layers[0].layer else { panic!() };
+        let Some(GenRecipe::Pave(sp)) = &g.recipe else { panic!() };
+        assert_eq!(sp.pinned.len(), 2, "pins lost in the file");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let old = serde_json::to_string(&base).unwrap();
+        assert!(!old.is_empty());
+        let bare: PaveSpec =
+            serde_json::from_str(&old.replace(",\"pinned\":[]", "")).expect("a file with no pins");
+        assert!(bare.pinned.is_empty());
+
+        let lib = crate::AlphaLibrary::builtin();
+        let v = crate::castability::analyze_field(&d, &lib, &d.draft, 192, 96);
+        assert!(v.verdict != crate::castability::Verdict::NotCastable, "{:?}", v.verdict);
+    }
+
     #[test]
     fn live_groups_regenerate_with_the_band_and_bake_detaches() {
         let mut d = flat_design();

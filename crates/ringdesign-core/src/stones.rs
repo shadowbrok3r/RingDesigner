@@ -310,35 +310,30 @@ fn walk(
                 acc.seats.push(check);
             }
             Layer::Group(g) => {
-                // A uniform seat group — a pavé fill — rolls up to one line:
-                // two hundred rows of "Seat 137" is not a report.
-                if let Some(stations) = uniform_seats(entry, &g.stack, ctx) {
-                    let Some(Layer::SeatPad(first)) = g
-                        .stack
-                        .layers
-                        .iter()
-                        .find(|e| e.enabled)
-                        .map(|e| &e.layer)
-                    else {
-                        continue;
-                    };
-                    let mut check = check_seat(
-                        design,
-                        ctx,
-                        inner_r,
-                        crest_r,
-                        parting_z,
-                        first,
-                        &stations,
-                        format!("{prefix}{}", entry.name),
-                    );
-                    check.count = stations.len() as u32;
-                    if let Some(gem) = first.gem {
-                        for &(t, v) in &stations {
-                            acc.station(&check.label, first, gem, t, v);
+                // A seat group — a pavé fill — rolls up to one line per seat
+                // shape: two hundred rows of "Seat 137" is not a report.
+                if let Some(shapes) = seats_by_shape(entry, &g.stack, ctx) {
+                    let many = shapes.len() > 1;
+                    for (k, (seat, stations)) in shapes.iter().enumerate() {
+                        if stations.is_empty() {
+                            continue;
                         }
+                        let label = if many {
+                            format!("{prefix}{} ({})", entry.name, k + 1)
+                        } else {
+                            format!("{prefix}{}", entry.name)
+                        };
+                        let mut check = check_seat(
+                            design, ctx, inner_r, crest_r, parting_z, seat, stations, label,
+                        );
+                        check.count = stations.len() as u32;
+                        if let Some(gem) = seat.gem {
+                            for &(t, v) in stations {
+                                acc.station(&check.label, seat, gem, t, v);
+                            }
+                        }
+                        acc.seats.push(check);
                     }
-                    acc.seats.push(check);
                     continue;
                 }
                 let path = format!("{prefix}{} / ", entry.name);
@@ -518,38 +513,47 @@ fn axial(p: [f64; 3], n: [f64; 3], d: f64) -> [f64; 3] {
     [p[0] - n[0] * d, p[1] - n[1] * d, p[2] - n[2] * d]
 }
 
-/// The `(theta, v)` stations of a group made only of identical seats —
-/// same stone, style and diameter — or `None` when it is any other group.
-fn uniform_seats(
+/// A group of seats, rolled up by shape: one entry per distinct seat, with
+/// the `(theta, v)` stations it stands at. `None` when the group holds
+/// anything that is not a seat.
+///
+/// By shape and not by one prototype, because a pinned seat carrying a
+/// different stone is the ordinary case now — demanding a single prototype
+/// would collapse the rollup and print two hundred rows of "Seat 137",
+/// which is not a report.
+fn seats_by_shape<'a>(
     entry: &LayerEntry,
-    stack: &LayerStack,
+    stack: &'a LayerStack,
     ctx: &FieldContext,
-) -> Option<Vec<(f64, f64)>> {
-    let mut proto: Option<&SeatPadLayer> = None;
-    let mut stations = Vec::new();
+) -> Option<Vec<(&'a SeatPadLayer, Vec<(f64, f64)>)>> {
+    let mut out: Vec<(&SeatPadLayer, Vec<(f64, f64)>)> = Vec::new();
     for e in &stack.layers {
         if !e.enabled {
             continue;
         }
         let Layer::SeatPad(s) = &e.layer else { return None };
-        match proto {
-            None => proto = Some(s),
-            Some(p) => {
-                let same = p.gem == s.gem
-                    && p.style == s.style
-                    && (p.diameter_mm - s.diameter_mm).abs() < 1e-9
-                    && (p.elong - s.elong).abs() < 1e-9
-                    && (p.rot_deg - s.rot_deg).abs() < 1e-9;
-                if !same {
-                    return None;
-                }
+        let same = |p: &SeatPadLayer| {
+            p.gem == s.gem
+                && p.style == s.style
+                && (p.diameter_mm - s.diameter_mm).abs() < 1e-9
+                && (p.elong - s.elong).abs() < 1e-9
+                && (p.rot_deg - s.rot_deg).abs() < 1e-9
+                && (p.height_mm - s.height_mm).abs() < 1e-9
+        };
+        let slot = match out.iter().position(|(p, _)| same(p)) {
+            Some(k) => k,
+            None => {
+                out.push((s, Vec::new()));
+                out.len() - 1
             }
-        }
+        };
         if station_kept(entry, ctx, s.theta_deg, s.v_mm) {
-            stations.push((s.theta_deg, s.v_mm));
+            out[slot].1.push((s.theta_deg, s.v_mm));
         }
     }
-    (proto.is_some() && stations.len() > 1).then_some(stations)
+    // A single seat is an ordinary pad, not a group worth rolling up.
+    let stations: usize = out.iter().map(|(_, v)| v.len()).sum();
+    (stations > 1).then_some(out)
 }
 
 /// Whether a station survives the entry's angular window.

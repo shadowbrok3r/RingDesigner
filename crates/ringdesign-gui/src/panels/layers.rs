@@ -1494,6 +1494,18 @@ fn curve_editor(ui: &mut egui::Ui, l: &mut CurveLayer, fctx: &FieldContext) -> b
 
 const GRAB_PX: f32 = 9.0;
 
+/// The recipe pin a live pavé's child stands on, if it is one of the user's.
+fn pinned_seat(g: &GroupLayer, j: usize) -> Option<usize> {
+    use ringdesign_core::pave::GenRecipe;
+    let Some(GenRecipe::Pave(spec)) = &g.recipe else { return None };
+    let Some(Layer::SeatPad(s)) = g.stack.layers.get(j).map(|e| &e.layer) else { return None };
+    spec.pinned.iter().position(|p| {
+        p.seat.is_some()
+            && ringdesign_core::field::wrap_delta(p.theta_deg - s.theta_deg, 360.0).abs() < 1e-9
+            && (p.v_mm - s.v_mm).abs() < 1e-9
+    })
+}
+
 fn group(
     ui: &mut egui::Ui,
     g: &mut GroupLayer,
@@ -1501,6 +1513,7 @@ fn group(
     names: &[String],
     pending: &mut Option<GroupEdit>,
 ) -> bool {
+    use ringdesign_core::pave::{GenRecipe, PinnedSeat};
     let mut c = false;
     if let Some(r) = &mut g.recipe {
         let mut bake = false;
@@ -1523,9 +1536,11 @@ fn group(
         });
         c |= recipe_ui(ui, r, fctx);
         ui.label(
-            egui::RichText::new("Generated — edits above re-solve the stack; bake to hand-edit.")
-                .small()
-                .color(theme::TEXT_DIM),
+            egui::RichText::new(
+                "Generated — edits above re-solve the stack. Pin a seat to make it yours:                  the packer then leaves it room instead of replacing it.",
+            )
+            .small()
+            .color(theme::TEXT_DIM),
         );
         if bake {
             g.recipe = None;
@@ -1541,28 +1556,61 @@ fn group(
         );
     }
 
+    // A live pavé owns its stack, so an edit to a child would be wiped by
+    // the next regeneration. Pin the child into the recipe instead, and it
+    // becomes the user's: the packer yields to it and it survives.
+    let live_pave = matches!(&g.recipe, Some(GenRecipe::Pave(_)));
+    let mut pin: Option<usize> = None;
+    let mut hole: Option<usize> = None;
+
     let mut delete: Option<usize> = None;
     for j in 0..g.stack.layers.len() {
+        let pinned = live_pave && pinned_seat(g, j).is_some();
         let ce = &mut g.stack.layers[j];
         ui.horizontal(|ui| {
             c |= ui
                 .checkbox(&mut ce.enabled, "")
                 .on_hover_text("Include in the group's composite")
                 .changed();
-            ui.label(format!("{} {}", kind_icon(&ce.layer), ce.name));
-            if ui
-                .small_button(icon::SIGN_OUT)
-                .on_hover_text("Move out of the group, back into the stack")
-                .clicked()
+            let name = if pinned {
+                format!("{} {} {}", icon::PUSH_PIN, kind_icon(&ce.layer), ce.name)
+            } else {
+                format!("{} {}", kind_icon(&ce.layer), ce.name)
+            };
+            ui.label(name);
+            if !live_pave
+                && ui
+                    .small_button(icon::SIGN_OUT)
+                    .on_hover_text("Move out of the group, back into the stack")
+                    .clicked()
             {
                 *pending = Some(GroupEdit::MoveOut(j));
             }
+            if live_pave && !pinned && matches!(ce.layer, Layer::SeatPad(_)) {
+                if ui
+                    .small_button(icon::PUSH_PIN)
+                    .on_hover_text(
+                        "Make this seat yours: it stops being regenerated, and the                          packer leaves it room",
+                    )
+                    .clicked()
+                {
+                    pin = Some(j);
+                }
+            }
             if ui
                 .small_button(icon::TRASH)
-                .on_hover_text("Delete")
+                .on_hover_text(if live_pave {
+                    "Cut a hole here — the packer keeps clear of it"
+                } else {
+                    "Delete"
+                })
                 .clicked()
             {
-                delete = Some(j);
+                if live_pave {
+                    hole = Some(j);
+                } else {
+                    delete = Some(j);
+                }
             }
         });
         egui::CollapsingHeader::new("Edit")
@@ -1582,8 +1630,19 @@ fn group(
                         .add(egui::Slider::new(&mut ce.opacity, 0.0..=1.0).fixed_decimals(2))
                         .changed();
                 });
+                if live_pave && !pinned {
+                    ui.label(
+                        egui::RichText::new(
+                            "The packer owns this seat — changes here are replaced when it                              re-solves. Pin it first.",
+                        )
+                        .small()
+                        .color(theme::TEXT_DIM),
+                    );
+                }
                 let mut dummy = false;
-                c |= match &mut ce.layer {
+                let editable = !live_pave || pinned;
+                c |= ui
+                    .add_enabled_ui(editable, |ui| match &mut ce.layer {
                     Layer::Tiling(t) => {
                         let mut no_bake = None;
                         tiling(ui, t, fctx, names, None, &mut no_bake)
@@ -1605,12 +1664,34 @@ fn group(
                         );
                         false
                     }
-                };
+                    })
+                    .inner;
             });
     }
     if let Some(j) = delete {
         g.stack.layers.remove(j);
         c = true;
+    }
+    // A pin lifts the seat out of the packer's hands and into the recipe; a
+    // hole is the same claim with nothing placed in it. Either way the write
+    // goes to the recipe, which is what survives the next regeneration.
+    if let Some(j) = pin.or(hole) {
+        let placed = pin.is_some();
+        let seat = match g.stack.layers.get(j).map(|e| &e.layer) {
+            Some(Layer::SeatPad(s)) => Some(*s),
+            _ => None,
+        };
+        if let (Some(seat), Some(GenRecipe::Pave(spec))) = (seat, g.recipe.as_mut()) {
+            spec.pinned.push(PinnedSeat {
+                theta_deg: seat.theta_deg,
+                v_mm: seat.v_mm,
+                seat: placed.then_some(seat),
+                // A hole has no seat to take its reach from, so it keeps the
+                // one the seat it replaced had.
+                clear_mm: if placed { 0.0 } else { seat.half_extents_mm().0 },
+            });
+            c = true;
+        }
     }
 
     ui.add_space(3.0);

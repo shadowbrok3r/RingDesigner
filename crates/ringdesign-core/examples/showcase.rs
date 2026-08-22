@@ -320,6 +320,7 @@ fn main() {
         stagger: true,
         style: SeatStyle::Bezel,
         rot_deg: 0.0,
+        pinned: Vec::new(),
     };
     let (mut entry, outcome) = pave::fill(&d, &spec).expect("pave should fit this face");
     println!("{:<24}   pave: {} seats in {} rows", "", outcome.seats, outcome.rows);

@@ -831,6 +831,36 @@ recipe is editable provenance, not a build input.
 lifecycle. The eternity `SeatRun` needs none of this: it is already a
 parametric layer.
 
+**Pins are the third state, and they existed as a bug first.** The layer
+panel offered a seat editor and a delete button on the children of a live
+group, and `g.stack = fresh.stack` destroyed every such edit on the same
+frame — silently, because the panel then redrew the regenerated seat.
+`PaveSpec::pinned` is the fix: a `PinnedSeat` is data *in the recipe*, so it
+survives by construction.
+
+A pin and a deletion are the same claim said twice — *the packer may not
+place here* — so they are one mechanism, and a pin merely also emits a seat
+(`seat: None` is a hole). Stated as a **region**, never as the identity of a
+station: generated stations are recomputed from scratch every time the band
+moves, so matching a stored one by position would quietly cull a neighbour
+instead the moment the pitch changed. `blocked()` tests ellipse against
+ellipse in the chart with the spec's own `bridge_mm` between them, so an
+elongated pin claims the ground its plan actually covers.
+
+What must not be taken from CrossGems here is their **solver**. Their
+`CgPhysicalSystem` relaxes free positions (`step = MoveSum / (WeightSum +
+Mass)`, velocity damped 0.99); `fill()` is a closed-form lattice, and its
+`n = floor(circumference / pitch)` with `step = 360/n` *is* the seamlessness
+guarantee. Take the lock semantics, leave the relaxation — and
+`pinned_seats_survive_regeneration_and_the_packer_yields_to_them` asserts
+every unpinned seat still lands on the integer lattice, which is the
+assertion that would catch anyone reaching for it.
+
+One knock-on: `stones.rs` rolled a fill up to one line by demanding a single
+prototype, so one pin carrying a different stone would have collapsed the
+rollup into two hundred rows. `seats_by_shape` groups by shape instead and
+emits one line per distinct seat.
+
 ### Pavé is a generator, split is a modulation, the sheet is HTML
 
 - **Auto-pavé** (`pave.rs`): packs an arc × v-band (or a side-face run) with
