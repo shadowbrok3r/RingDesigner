@@ -394,6 +394,16 @@ impl Graph {
         }
     }
 
+    /// The `entry` nodes in evaluation order — the order the lift builds a
+    /// stack in, so the k-th one is the node behind the k-th layer of a
+    /// lifted design (a best effort on a hand-wired graph).
+    pub fn entry_nodes(&self) -> Vec<NodeId> {
+        match self.topo() {
+            Ok(order) => order.into_iter().filter(|id| self.node(*id).is_some_and(|n| n.kind == "entry")).collect(),
+            Err(_) => Vec::new(),
+        }
+    }
+
     /// Every node this one depends on, nearest first.
     pub fn upstream(&self, id: NodeId) -> Vec<NodeId> {
         let mut seen = BTreeSet::new();
