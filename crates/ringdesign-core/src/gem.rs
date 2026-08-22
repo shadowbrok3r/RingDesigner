@@ -126,8 +126,11 @@ impl GemCut {
             GemCut::Princess => 0.0083,
             GemCut::Emerald => 0.0080,
             GemCut::Baguette => 0.00700,
-            GemCut::Pear => 0.00600,
-            GemCut::Marquise => 0.00580,
+            // Pear and marquise carry the sibling mandrel crate's factors,
+            // calibrated against a MatrixGold stone report; the rest are
+            // the trade's textbook figures.
+            GemCut::Pear => 0.00527,
+            GemCut::Marquise => 0.00565,
             GemCut::Trillion => 0.0057,
             GemCut::Heart => 0.0059,
             GemCut::Radiant => 0.0081,

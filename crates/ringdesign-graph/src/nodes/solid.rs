@@ -241,6 +241,17 @@ fn import(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeErro
     Ok(Outputs::one("solid", wrap(s)))
 }
 
+fn vine(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
+    let opts = kernel::VineOptions { inner_dia_mm: positive(i, "inner_diameter_mm")?, vine_radius_mm: positive(i, "vine_radius_mm")? };
+    let (solid, stones) = kernel::vine_ring(&opts);
+    let total: f64 = stones.iter().map(|&(c, l, w)| c.carats(w, l)).sum();
+    let list: Vec<Value> = stones
+        .iter()
+        .map(|&(c, l, w)| Value::Json(Arc::new(serde_json::json!({"cut": format!("{c:?}"), "length_mm": l, "width_mm": w, "carats": c.carats(w, l)}))))
+        .collect();
+    Ok(Outputs::one("solid", wrap(solid)).with("stone_count", stones.len() as i64).with("total_carats", total).with("stones", list))
+}
+
 fn mesh(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
     let s = solid_of(i, "solid")?;
     let m = kernel::to_mesh(&s);
@@ -367,6 +378,15 @@ pub fn register(reg: &mut Registry) {
             .doc("An OBJ or STL file as a solid; it must be watertight.")
             .input(PinSpec::item("path", ValueKind::Text).default("").widget(Widget::TextLine).doc("The file."))
             .output(PinSpec::item("solid", ValueKind::Solid).doc("The solid.")).eval(import),
+        NodeSpec::new("solid.vine_semimount", "Vine semi-mount", Category::Solid).free_only()
+            .doc("The sibling mandrel crate's vine semi-mount, built whole: a round band wire, a bypass vine over the top, a marquise centre with flanking marquises on stems, round buds on tendrils, four leaves — thirteen stones. Lost wax, not sand.")
+            .input(PinSpec::item("inner_diameter_mm", ValueKind::Number).default(16.5).widget(Widget::Mm { min: 10.0, max: 30.0 }).doc("Bore diameter, mm."))
+            .input(PinSpec::item("vine_radius_mm", ValueKind::Number).default(0.9).widget(Widget::Mm { min: 0.3, max: 3.0 }).doc("The band wire's radius, mm; the vines scale with it."))
+            .output(PinSpec::item("solid", ValueKind::Solid).doc("The semi-mount."))
+            .output(PinSpec::item("stone_count", ValueKind::Int).doc("Stones its settings hold."))
+            .output(PinSpec::item("total_carats", ValueKind::Number).doc("Estimated carats, all stones."))
+            .output(PinSpec::list("stones", ValueKind::Json).doc("Each stone: cut, length, width, carats."))
+            .eval(vine),
         NodeSpec::new("solid.mesh", "Solid as mesh", Category::Solid).free_only()
             .doc("A solid's surface as a mesh, for sink.mesh_verdict, sink.export and sink.render.")
             .input(PinSpec::item("solid", ValueKind::Solid).doc("The solid."))
@@ -447,6 +467,18 @@ mod tests {
         g.mode = Mode::SandRing;
         let errs = g.validate(Some(&reg));
         assert!(errs.iter().any(|e| e.message.contains("does not run in SandRing")), "{errs:?}");
+
+        // The vine semi-mount as the bundled cluster, evaluated under Free mode.
+        let cluster = crate::templates::build_vine_cluster();
+        assert!(cluster.validate(Some(&reg)).is_empty(), "{:?}", cluster.validate(Some(&reg)));
+        let mut g = Graph::new("vine", Mode::Free);
+        let n = crate::nodes::cluster::add_cluster(&mut g, &cluster).unwrap();
+        g.set_input(n, "Inner diameter", Literal::Number(17.35)).unwrap();
+        let r = Evaluator::new().evaluate(&g, &reg, &lib, 0, Targets::AllPure);
+        assert!(!r.any_failed(), "{:?}", r.notes(&g));
+        assert_eq!(r.value(n, "stone_count"), Some(&Value::Int(13)));
+        assert!(matches!(r.value(n, "verdict"), Some(Value::Text(_))));
+        assert!(r.value(n, "volume_mm3").unwrap().as_number().unwrap() > 100.0);
 
         // Primitives, booleans and a revolve agree with the kernel.
         let mut g = Graph::new("prims", Mode::Free);

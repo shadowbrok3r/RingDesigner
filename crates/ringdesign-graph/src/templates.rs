@@ -45,8 +45,15 @@ bundled! {
 pub static SIMPLE: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/simple.graph.json"));
 
 /// Bundled clusters: graphs with exposed inputs and outputs, usable as
-/// one node. A user-dir cluster of the same name wins.
+/// one node. A user-dir cluster of the same name wins. The vine needs the
+/// kernel, so a build without it does not list a cluster it cannot run.
+#[cfg(not(feature = "kernel-manifold"))]
 pub static BUNDLED_CLUSTERS: &[(&str, &str)] = &[("Signet", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/clusters/signet.cluster.json")))];
+#[cfg(feature = "kernel-manifold")]
+pub static BUNDLED_CLUSTERS: &[(&str, &str)] = &[
+    ("Signet", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/clusters/signet.cluster.json"))),
+    ("Vine semi-mount", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/clusters/vine-semi-mount.cluster.json"))),
+];
 
 /// Bundled presets for the bundled clusters.
 pub static BUNDLED_PRESETS: &[(&str, &str)] = &[
@@ -67,6 +74,43 @@ pub fn bundled_presets() -> Vec<crate::file::Preset> {
 /// are exposed; the design, head, shank and profile come out.
 pub fn build_signet_cluster() -> Graph {
     signet_cluster().expect("the signet cluster wires")
+}
+
+/// The vine semi-mount as a Free-mode cluster: mandrel's ring options in,
+/// the solid, its mesh, the mesh verdict and the stones out.
+pub fn build_vine_cluster() -> Graph {
+    vine_cluster().expect("the vine cluster wires")
+}
+
+fn vine_cluster() -> Result<Graph, GraphError> {
+    let mut g = Graph::new("Vine semi-mount", Mode::Free);
+    let dia = g.add("number")?;
+    set(&mut g, dia, &[("value", n(16.5))])?;
+    g.node_mut(dia).expect("added").label = Some("Inner diameter".into());
+    let vine = g.add("solid.vine_semimount")?;
+    g.connect(dia, "out", vine, "inner_diameter_mm")?;
+    let fit = g.add("band.size.fit")?;
+    g.connect(dia, "out", fit, "inner_diameter_mm")?;
+    let d = g.add("design.new")?;
+    set(&mut g, d, &[("name", t("Vine semi-mount"))])?;
+    g.connect(fit, "size", d, "size")?;
+    let mesh = g.add("solid.mesh")?;
+    g.connect(vine, "solid", mesh, "solid")?;
+    let verdict = g.add("sink.mesh_verdict")?;
+    g.connect(mesh, "mesh", verdict, "mesh")?;
+    g.connect(d, "design", verdict, "design")?;
+    g.expose(dia, "value", "Inner diameter")?;
+    g.expose(vine, "vine_radius_mm", "Vine radius")?;
+    g.expose_output(vine, "solid", "solid")?;
+    g.expose_output(mesh, "mesh", "mesh")?;
+    g.expose_output(mesh, "volume_mm3", "volume_mm3")?;
+    g.expose_output(vine, "stone_count", "stone_count")?;
+    g.expose_output(vine, "total_carats", "total_carats")?;
+    g.expose_output(vine, "stones", "stones")?;
+    g.expose_output(verdict, "verdict", "verdict")?;
+    g.expose_output(verdict, "undercut_pct", "undercut_pct")?;
+    arrange(&mut g);
+    Ok(g)
 }
 
 /// The presets the bundled files come from.
@@ -480,6 +524,7 @@ mod tests {
         std::fs::create_dir_all(dir.join("clusters")).unwrap();
         std::fs::create_dir_all(dir.join("presets")).unwrap();
         std::fs::write(dir.join("clusters/signet.cluster.json"), crate::file::graph_to_string(&build_signet_cluster()).unwrap()).unwrap();
+        std::fs::write(dir.join("clusters/vine-semi-mount.cluster.json"), crate::file::graph_to_string(&build_vine_cluster()).unwrap()).unwrap();
         for p in build_presets() {
             std::fs::write(dir.join("presets").join(format!("{}.preset.json", crate::file::slug(&p.name))), crate::file::preset_to_string(&p).unwrap()).unwrap();
         }
@@ -491,8 +536,11 @@ mod tests {
         let reg = Registry::builtin();
         let lib = AlphaLibrary::builtin();
         let clusters = bundled_clusters();
-        assert_eq!(clusters.len(), 1);
+        assert!(!clusters.is_empty());
         assert_eq!(clusters[0], build_signet_cluster(), "the committed cluster has drifted from its builder");
+        if let Some(v) = clusters.iter().find(|c| c.name == "Vine semi-mount") {
+            assert_eq!(*v, build_vine_cluster(), "the committed vine cluster has drifted from its builder");
+        }
         assert!(clusters[0].validate(Some(&reg)).is_empty(), "{:?}", clusters[0].validate(Some(&reg)));
         let presets = bundled_presets();
         assert_eq!(presets.len(), 2);
