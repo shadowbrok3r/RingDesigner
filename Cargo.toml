@@ -7,7 +7,10 @@ members = [
     "crates/ringdesign-mcpd",
     "crates/ringdesign-configurator",
     "crates/ringdesign-graph",
+    "crates/ringdesign-graph-ui",
 ]
+# Vendored forks are reached through [patch.crates-io], not built as members.
+exclude = ["patches/egui-snarl", "patches/egui-scale"]
 
 [workspace.package]
 edition = "2024"
@@ -18,6 +21,7 @@ license = "MIT OR Apache-2.0"
 ringdesign-core = { path = "crates/ringdesign-core" }
 ringdesign-mcp = { path = "crates/ringdesign-mcp" }
 ringdesign-graph = { path = "crates/ringdesign-graph" }
+ringdesign-graph-ui = { path = "crates/ringdesign-graph-ui" }
 
 nalgebra = "0.35"
 serde = { version = "1.0.229", features = ["derive"] }
@@ -50,12 +54,16 @@ egui = { version = "0.36.0", features = ["rayon", "serde"] }
 egui_glow = "0.36.0"
 egui-phosphor = "0.12.0"
 egui_tiles = "0.17.0"
+egui-snarl = { version = "0.11.0", features = ["serde"] }
 rfd = "0.17.2"
 env_logger = "0.11.11"
 
 # Upstream egui-phosphor still pins egui 0.35; this fork tracks 0.36.
+# egui-snarl and egui-scale likewise, vendored under patches/ (see patches/README.md).
 [patch.crates-io]
 egui-phosphor = { git = "https://github.com/shadowbrok3r/egui-phosphor", branch = "egui-036" }
+egui-snarl = { path = "patches/egui-snarl" }
+egui-scale = { path = "patches/egui-scale" }
 
 [profile.dev]
 opt-level = 1
