@@ -1070,6 +1070,21 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
 
     changed |= ui
         .add(
+            egui::Slider::new(&mut head.hollow_mm, 0.0..=4.0)
+                .fixed_decimals(2)
+                .suffix(" mm")
+                .text("Hollow"),
+        )
+        .on_hover_text(
+            "A scoop from the finger hole up into the head's belly, fading out over the \
+             shoulder: lightens a heavy head. The bore is a vertical wall at any radius, \
+             so it costs nothing at the pull; the wall it leaves is what the verdict \
+             measures.",
+        )
+        .changed();
+
+    changed |= ui
+        .add(
             egui::Slider::new(&mut head.rim_round_mm, 0.0..=1.5)
                 .fixed_decimals(2)
                 .suffix(" mm")

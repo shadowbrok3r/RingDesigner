@@ -175,7 +175,8 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   bearing ledge with a dished floor, the section view's girdle at the stand-off.
 - [x] The bypass read as a `ShankKind` (M, #83): two explicit arms with rounded tips, the section
   their union, the crest on the parting plane, Split's side-face seam.
-- Gallery/hollow underside (M–L).
+- [x] Gallery/hollow underside (M–L, #85): `SignetHead::hollow_mm`, a scoop from the finger hole
+  into the head's belly carried as `ShankMod::bore_lift_mm`; the bore is a vertical wall at any radius.
 - Shelf: stone spacing map SVG; march instances along a guide path; blue-noise scatter
   generator; mm-true mask morphology; alpha granulometry; nesting-depth stepped relief; honest
   rope rail; `stones::probe_seat`; pearl stock; flat-edged seat plans.

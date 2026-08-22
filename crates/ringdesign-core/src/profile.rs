@@ -826,7 +826,10 @@ impl BandProfile {
             let x = if bias.abs() > 1e-9 { x.powf(gamma(low)) } else { x };
             cap_r(inner_r + thickness + e_facet - crown * drop_at(x))
         };
-        let bore_r = |z: f64| -> f64 { inner_r + comfort * ((z - b_c) / hw.max(1e-9)).powi(2) };
+        // The hollow lifts the whole bore chord; capped so the side wall
+        // still has an edge to rise to.
+        let lift = ok(m.bore_lift_mm).clamp(0.0, (edge_t - comfort - MIN_EDGE_MM).max(0.0));
+        let bore_r = |z: f64| -> f64 { inner_r + lift + comfort * ((z - b_c) / hw.max(1e-9)).powi(2) };
 
         // --- Flange band, clamped to sit inside the outer profile. ---
         let flange = self.flange.enabled.then(|| {
@@ -1341,6 +1344,13 @@ pub struct SignetHead {
     /// dead-flat one is the zero-draft plane behind the refined-build phantom.
     #[serde(default)]
     pub table_dome_mm: f64,
+    /// Hollow under the head, mm: a scoop from the finger hole up into the
+    /// head's belly, full under the face and fading with the head's own
+    /// presence over the shoulder. Lightens a heavy head. The bore is a
+    /// vertical wall at any radius, so it costs nothing at the pull; the
+    /// wall it leaves is what the verdict measures.
+    #[serde(default)]
+    pub hollow_mm: f64,
     /// Rounding between the table and the head's walls, mm. The face outline
     /// is the head's one real edge, and this is how hard it reads. Measured on
     /// the reference heart: the rim's rounding reaches 0.9 mm below the plane,
@@ -1510,6 +1520,7 @@ impl Default for SignetHead {
             body_fair: HEAD_BODY_FAIR,
             table_flat: 1.0,
             table_dome_mm: 0.0,
+            hollow_mm: 0.0,
             rim_round_mm: HEAD_RIM_ROUND,
             dome: 0.0,
             loft: 0.0,
@@ -2307,6 +2318,11 @@ pub struct ShankMod {
     /// The groove's floor faces along the pull and its walls stand radial,
     /// so it is castable wherever a side face is.
     pub side_groove_mm: f64,
+    /// Extra bore radius here, mm — the hollow under a head, a scoop from
+    /// the finger hole up into the head's belly. The bore is a vertical
+    /// wall whichever radius it takes, so the scoop costs nothing at the
+    /// pull; the wall it leaves is what the field verdict measures.
+    pub bore_lift_mm: f64,
     /// Cut-dome facet half-width in unmodulated half-width units; 0 is none.
     /// With `outer_max_r` set, the section raises its dome so the cap slices
     /// it open to exactly this half-width.
@@ -2356,6 +2372,7 @@ impl ShankMod {
             head: 0.0,
             head_rim_mm: 0.0,
             side_groove_mm: 0.0,
+            bore_lift_mm: 0.0,
             facet_half: 0.0,
             facet_rim_mm: 0.0,
             crown_min_mm: None,
@@ -2701,6 +2718,9 @@ impl ShankStyle {
                     ridge_drop: a.wall_mix * crate::field::smoothstep(0.0, 0.05, a.ridge_crown),
                     ridge_table: a.ridge_table,
                     straddle_soft: crate::field::smootherstep(0.55, 0.92, a.x.abs()),
+                    // The hollow follows the dominant head's own presence.
+                    bore_lift_mm: self.head.hollow_mm.clamp(0.0, 4.0)
+                        * crate::field::smootherstep(0.0, 1.0, a.on_head),
                     wall: a.wall,
                     wall_mix: a.wall_mix,
                 }
@@ -5309,5 +5329,56 @@ mod tests {
         let (rep, watertight) = flanged_report(0.5);
         assert!(watertight);
         assert_eq!(rep.undercut, 0, "{:?}", rep.notes);
+    }
+}
+
+#[cfg(test)]
+mod hollow_tests {
+    use super::*;
+
+    #[test]
+    fn a_hollow_under_the_head_scoops_the_bore_and_still_fields_clean() {
+        let mut v = serde_json::to_value(SignetHead::default()).unwrap();
+        v.as_object_mut().unwrap().remove("hollow_mm");
+        assert_eq!(serde_json::from_value::<SignetHead>(v).unwrap().hollow_mm, 0.0);
+
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(ProfileStyle::Flat);
+        d.profile.width_mm = 12.0;
+        d.profile.thickness_mm = 1.8;
+        d.profile.flatten_sides();
+        d.shank.apply_signet(12.0);
+        let lib = crate::AlphaLibrary::default();
+        let params = crate::BuildParams { theta_steps: 192, profile_steps: 96, ..Default::default() };
+        let solid = crate::mesh::build(&d, &lib, params);
+        let ir = d.inner_radius_mm();
+        let cr = ir + d.profile.thickness_mm;
+        let section = |d: &crate::RingDesign, t: f64| d.profile.sample_mod(ir, 192, &d.modulation_at(t, ir, cr));
+        let bore_of = |l: &ProfileLoop| l.pts.iter().filter(|p| !p.surface).map(|p| p.r).fold(f64::MAX, f64::min);
+        let crest_of = |l: &ProfileLoop| l.pts.iter().filter(|p| p.surface).map(|p| p.r).fold(f64::MIN, f64::max);
+        let before = section(&d, TOP_DEG);
+
+        d.shank.head.hollow_mm = 0.6;
+        let top = section(&d, TOP_DEG);
+        assert!((bore_of(&top) - (ir + 0.6)).abs() < 0.02, "under the face the bore lifts by the hollow: {}", bore_of(&top) - ir);
+        assert!((crest_of(&top) - crest_of(&before)).abs() < 1e-9, "the outside is untouched");
+        assert!((bore_of(&section(&d, TOP_DEG + 180.0)) - ir).abs() < 1e-6, "the palm keeps its bore");
+        // A 12 mm face spans about ±35°; somewhere on the shoulder past it
+        // the scoop is partway out, and by 120° it is gone.
+        let lifts: Vec<f64> = (30..=120).step_by(5).map(|off| bore_of(&section(&d, TOP_DEG + off as f64)) - ir).collect();
+        assert!(lifts.iter().any(|&l| l > 0.05 && l < 0.55), "the scoop fades over the shoulder: {lifts:?}");
+        assert!(lifts.last().unwrap().abs() < 1e-6, "gone by 120 degrees: {lifts:?}");
+        assert!(lifts.windows(2).all(|w| w[1] <= w[0] + 1e-4), "and it only falls: {lifts:?}");
+
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 160, 96);
+        assert!(f.undercut_fraction() < 5e-4, "{:.4}% at {:.1} deg", f.undercut_fraction() * 100.0, f.worst_draft_deg);
+        let hollow = crate::mesh::build(&d, &lib, params);
+        assert!(hollow.report.validation.watertight);
+        assert!(hollow.report.volume_mm3 < solid.report.volume_mm3 - 1.0, "lighter: {} vs {}", hollow.report.volume_mm3, solid.report.volume_mm3);
+
+        // The lift is capped so the side wall still has an edge to rise to.
+        d.shank.head.hollow_mm = 4.0;
+        let deep = section(&d, TOP_DEG);
+        assert!(bore_of(&deep) < crest_of(&deep) - MIN_EDGE_MM, "a wall survives the deepest scoop");
     }
 }

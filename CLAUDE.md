@@ -348,6 +348,27 @@ every shoulder from 10° to 40°. A band that widens *and* rises toward the top 
 single-valued in Z over `(r, theta)`, so it is a terrain and releases by
 construction — the same guarantee as the superellipse drop, not a tuning result.
 
+#### The hollow under the head
+
+`SignetHead::hollow_mm` (0–4, default 0; GUI "Hollow", MCP
+`head_hollow_mm`, graph `hollow_mm`) scoops the head's belly out from the
+finger hole: `ShankStyle::modulation` carries it as
+`ShankMod::bore_lift_mm`, the dominant head's own `on_head` presence
+smoothed over the shoulder, and `sample_spaced` adds it to the bore
+closure — the whole bore chord lifts and the side walls rise from the
+lifted corner, capped so an edge of `MIN_EDGE_MM` always survives above
+the comfort dome. Nothing outside moves: the crest is absolute on a head
+and the outer surface is built from `inner_r`, so the scoop only removes
+metal. It is castable for the reason the bore is reported as a vertical
+wall and never an undercut: the pull is along Z and a bore surface's
+normal is radial at any radius, so the verdict reads the scoop's roof
+and its fading ends as vertical wall and only the **wall it leaves**
+changes, which `thinnest_wall_mm` measures per slice. Measured on a
+12 mm lofted signet with a 0.6 mm hollow: bore lifted 0.600 under the
+face, palm bore nominal, the lift falling monotonically to zero across
+the shoulder, field clean, and the ring lighter. A toi et moi's second
+head follows the primary's setting.
+
 #### Three bought signets, measured
 
 `/home/shadowbroker/jewelry-scan/RING/Signets/` holds a heart, a hexagon and an
