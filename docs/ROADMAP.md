@@ -92,7 +92,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   (window/blend/opacity/soft/mask/remap), windows and remaps.
 - [x] **M2.4 Assembly, generators, alphas** (M, #15). Stack and assemble; pavé/halo/channel nodes
   emitting live groups (the evaluator never regenerates); procedural/text/SVG/drawn alphas.
-- [ ] **M2.5 Sinks, verdict gate, modes** (M, #16). Output, verdict, gate, build, refine, stones, DFM,
+- [x] **M2.5 Sinks, verdict gate, modes** (M, #16). Output, verdict, gate, build, refine, stones, DFM,
   sheet, exports, render, save; SandRing refuses `NotCastable` on file-writing sinks; Free adds
   solid nodes and the mesh verifier.
 - [ ] **M2.6 Files, ladder, clusters, presets** (M, #17). `*.graph.json`, `*.cluster.json`,
