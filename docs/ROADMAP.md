@@ -128,11 +128,11 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 
 ## M5 — Idioms, clusters, polish (M) — epic #21
 
-- [ ] **M5.1 List idiom nodes** (M). Weave, entwine, cull, partition, gate, polar array (integer
+- [ ] **M5.1 List idiom nodes** (M, #53). Weave, entwine, cull, partition, gate, polar array (integer
   lattice — never a relaxation), format, json, if.
-- [ ] **M5.2 First hosted cluster** (M). The signet construction as a user-dir cluster whose
+- [ ] **M5.2 First hosted cluster** (M, #54). The signet construction as a user-dir cluster whose
   preset evaluates to the lofted head.
-- [ ] **M5.3 Editor polish** (M). Live value badges, subgraph navigation and collapse, arrange,
+- [ ] **M5.3 Editor polish** (M, #55). Live value badges, subgraph navigation and collapse, arrange,
   fit, minimap.
 
 ## M6 — Python: `ringdesign-py` (M) — epic #22
