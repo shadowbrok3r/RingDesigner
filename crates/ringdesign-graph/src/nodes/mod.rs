@@ -10,6 +10,7 @@ use crate::registry::Registry;
 pub mod list;
 pub mod math;
 pub mod source;
+pub mod structs;
 pub mod text;
 
 /// Register every builtin node kind.
@@ -45,7 +46,7 @@ mod tests {
             }
             for p in &spec.inputs {
                 let scalar = matches!(p.kind, ValueKind::Number | ValueKind::Int | ValueKind::Bool | ValueKind::Text);
-                if scalar && p.access == Access::Item {
+                if scalar && p.access == Access::Item && !p.optional {
                     assert!(p.default.is_some(), "{key}.{} has no default", p.name);
                 }
             }

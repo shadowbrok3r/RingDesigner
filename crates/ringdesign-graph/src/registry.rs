@@ -8,6 +8,7 @@
 //! everything else has them fixed.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use ringdesign_core::AlphaLibrary;
 
@@ -86,11 +87,14 @@ pub struct PinSpec {
     /// What the pin reads when nothing is wired and no literal is set.
     pub default: Option<Literal>,
     pub widget: Widget,
+    /// `Null` is an answer: the node treats an unset pin as "leave as is"
+    /// rather than failing on it.
+    pub optional: bool,
 }
 
 impl PinSpec {
     pub fn item(name: impl Into<String>, kind: ValueKind) -> Self {
-        Self { name: name.into(), kind, access: Access::Item, doc: String::new(), default: None, widget: Widget::Auto }
+        Self { name: name.into(), kind, access: Access::Item, doc: String::new(), default: None, widget: Widget::Auto, optional: false }
     }
 
     pub fn list(name: impl Into<String>, kind: ValueKind) -> Self {
@@ -110,6 +114,16 @@ impl PinSpec {
     pub fn widget(mut self, widget: Widget) -> Self {
         self.widget = widget;
         self
+    }
+
+    pub fn optional(mut self) -> Self {
+        self.optional = true;
+        self
+    }
+
+    /// A text pin restricted to these names: an enum field.
+    pub fn select(name: impl Into<String>, names: Vec<String>) -> Self {
+        Self::item(name, ValueKind::Text).widget(Widget::Select(names))
     }
 
     pub fn info(&self) -> PinInfo {
@@ -270,8 +284,9 @@ impl From<anyhow::Error> for NodeError {
     }
 }
 
-/// Evaluate one item of a node.
-pub type EvalFn = fn(&mut EvalCtx<'_>, &Node, &Inputs) -> Result<Outputs, NodeError>;
+/// Evaluate one item of a node. A closure, so an adapter built over a
+/// table (a struct's fields, a script's pins) can carry it.
+pub type EvalFn = Arc<dyn Fn(&mut EvalCtx<'_>, &Node, &Inputs) -> Result<Outputs, NodeError> + Send + Sync>;
 /// Pins for one instance, read from its params.
 pub type ResolveFn = fn(&NodeSpec, &Node) -> (Vec<PinSpec>, Vec<PinSpec>);
 /// Rewrite a node saved under an older graph format version.
@@ -321,7 +336,7 @@ impl NodeSpec {
             outputs: Vec::new(),
             doc: String::new(),
             side_effect: false,
-            eval: eval_nothing,
+            eval: Arc::new(eval_nothing),
             resolve: None,
             migrate: None,
         }
@@ -356,8 +371,8 @@ impl NodeSpec {
         self
     }
 
-    pub fn eval(mut self, f: EvalFn) -> Self {
-        self.eval = f;
+    pub fn eval(mut self, f: impl Fn(&mut EvalCtx<'_>, &Node, &Inputs) -> Result<Outputs, NodeError> + Send + Sync + 'static) -> Self {
+        self.eval = Arc::new(f);
         self
     }
 
