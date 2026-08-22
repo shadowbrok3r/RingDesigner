@@ -104,16 +104,16 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 
 ## M3 — The editor: `ringdesign-graph-ui` and desktop integration (L) — epic #19
 
-- [ ] **M3.1 Vendoring** (S). The egui-0.36 `egui-snarl` + `egui-scale` under `patches/` with
+- [x] **M3.1 Vendoring** (S, #39). The egui-0.36 `egui-snarl` + `egui-scale` under `patches/` with
   root `[patch.crates-io]` entries; exactly one egui in the tree; a diff guard against the sibling
   copy.
-- [ ] **M3.2 Editor core** (L). Snarl payload `NodeCard`, `build_snarl`/`extract_graph` (truth
+- [ ] **M3.2 Editor core** (L, #40). Snarl payload `NodeCard`, `build_snarl`/`extract_graph` (truth
   = the graph), pin widgets by value kind, type-checked wiring, category palette, node menu,
   diagnostics on the node frame.
-- [ ] **M3.3 Desktop integration** (M). `PaneKind::Graph` + a node-inspector dock tool; graph
+- [ ] **M3.3 Desktop integration** (M, #41). `PaneKind::Graph` + a node-inspector dock tool; graph
   state on the app with a sync rule against `design.graph`; evaluation on the build worker;
   history labels; palette commands.
-- [ ] **M3.4 Simple ↔ graph bridge** (M). Convert to graph, live banner with panels disabled
+- [ ] **M3.4 Simple ↔ graph bridge** (M, #42). Convert to graph, live banner with panels disabled
   while driven, Bake, "Edit in graph".
 
 ## M4 — Scripting, MCP and CLI (L) — epic #20
