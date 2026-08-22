@@ -210,6 +210,7 @@ fn walk(
                     .collect();
                 let mut seat = run.seat;
                 seat.fit_stone(run.gem);
+                let seat = run.turned(seat);
                 let mut check = check_seat(
                     design,
                     ctx,

@@ -103,6 +103,7 @@ fn walk(ctx: &FieldContext, stack: &LayerStack, prefix: &str, out: &mut Vec<SetS
                 let n = run.count.clamp(1, 200);
                 let mut fitted = run.seat;
                 fitted.fit_stone(run.gem);
+                let fitted = run.turned(fitted);
                 for k in 0..n {
                     let theta = run.theta_of_station(k as f64, ctx);
                     if !kept(entry, ctx, theta, fitted.v_mm) {
