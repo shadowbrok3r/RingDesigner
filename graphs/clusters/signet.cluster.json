@@ -1,0 +1,239 @@
+{
+  "format_version": 1,
+  "name": "Signet",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "number",
+      "inputs": {
+        "value": 12.0
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Width"
+    },
+    {
+      "id": 2,
+      "kind": "number",
+      "inputs": {
+        "value": 1.8
+      },
+      "pos": [
+        0.0,
+        150.0
+      ],
+      "label": "Thickness"
+    },
+    {
+      "id": 3,
+      "kind": "text",
+      "inputs": {
+        "value": "Oval"
+      },
+      "pos": [
+        0.0,
+        300.0
+      ],
+      "label": "Outline"
+    },
+    {
+      "id": 4,
+      "kind": "text",
+      "inputs": {
+        "value": "Signet"
+      },
+      "pos": [
+        0.0,
+        450.0
+      ],
+      "label": "Name"
+    },
+    {
+      "id": 5,
+      "kind": "band.profile",
+      "inputs": {
+        "flatten_sides": true,
+        "style": "Flat"
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "head",
+      "pos": [
+        240.0,
+        150.0
+      ]
+    },
+    {
+      "id": 7,
+      "kind": "shank",
+      "inputs": {
+        "amount": 0.85,
+        "kind": "Signet"
+      },
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 8,
+      "kind": "design.new",
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 9,
+      "kind": "sink.output",
+      "pos": [
+        960.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "out",
+      "to": 5,
+      "input": "width_mm"
+    },
+    {
+      "from": 2,
+      "out": "out",
+      "to": 5,
+      "input": "thickness_mm"
+    },
+    {
+      "from": 3,
+      "out": "out",
+      "to": 6,
+      "input": "outline"
+    },
+    {
+      "from": 1,
+      "out": "out",
+      "to": 6,
+      "input": "fit_to_width_mm"
+    },
+    {
+      "from": 6,
+      "out": "head",
+      "to": 7,
+      "input": "head"
+    },
+    {
+      "from": 4,
+      "out": "out",
+      "to": 8,
+      "input": "name"
+    },
+    {
+      "from": 5,
+      "out": "profile",
+      "to": 8,
+      "input": "profile"
+    },
+    {
+      "from": 7,
+      "out": "shank",
+      "to": 8,
+      "input": "shank"
+    },
+    {
+      "from": 8,
+      "out": "design",
+      "to": 9,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 1,
+      "input": "value",
+      "name": "Width"
+    },
+    {
+      "node": 2,
+      "input": "value",
+      "name": "Thickness"
+    },
+    {
+      "node": 3,
+      "input": "value",
+      "name": "Outline"
+    },
+    {
+      "node": 4,
+      "input": "value",
+      "name": "Name"
+    },
+    {
+      "node": 8,
+      "input": "size",
+      "name": "Size"
+    },
+    {
+      "node": 6,
+      "input": "rise_mm",
+      "name": "Rise"
+    },
+    {
+      "node": 6,
+      "input": "shoulder_deg",
+      "name": "Shoulder"
+    },
+    {
+      "node": 6,
+      "input": "rim_round_mm",
+      "name": "Rim"
+    },
+    {
+      "node": 6,
+      "input": "loft",
+      "name": "Loft"
+    },
+    {
+      "node": 6,
+      "input": "table_dome_mm",
+      "name": "Cap"
+    },
+    {
+      "node": 7,
+      "input": "amount",
+      "name": "Taper"
+    }
+  ],
+  "outputs": [
+    {
+      "node": 8,
+      "out": "design",
+      "name": "design"
+    },
+    {
+      "node": 6,
+      "out": "head",
+      "name": "head"
+    },
+    {
+      "node": 7,
+      "out": "shank",
+      "name": "shank"
+    },
+    {
+      "node": 5,
+      "out": "profile",
+      "name": "profile"
+    }
+  ],
+  "next_id": 10
+}

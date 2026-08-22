@@ -44,6 +44,100 @@ bundled! {
 /// an empty stack and the output, with the design panel's knobs exposed.
 pub static SIMPLE: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/simple.graph.json"));
 
+/// Bundled clusters: graphs with exposed inputs and outputs, usable as
+/// one node. A user-dir cluster of the same name wins.
+pub static BUNDLED_CLUSTERS: &[(&str, &str)] = &[("Signet", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/clusters/signet.cluster.json")))];
+
+/// Bundled presets for the bundled clusters.
+pub static BUNDLED_PRESETS: &[(&str, &str)] = &[
+    ("Heart signet", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/presets/heart-signet.preset.json"))),
+    ("Cushion signet", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/presets/cushion-signet.preset.json"))),
+];
+
+pub fn bundled_clusters() -> Vec<Graph> {
+    BUNDLED_CLUSTERS.iter().filter_map(|(_, json)| crate::file::load_graph_str(json, None).ok()).collect()
+}
+
+pub fn bundled_presets() -> Vec<crate::file::Preset> {
+    BUNDLED_PRESETS.iter().filter_map(|(_, json)| crate::file::load_preset_str(json).ok()).collect()
+}
+
+/// The signet construction as a cluster: one Width reaches the section,
+/// the face fit and the shank; the head's own knobs and the shank's taper
+/// are exposed; the design, head, shank and profile come out.
+pub fn build_signet_cluster() -> Graph {
+    signet_cluster().expect("the signet cluster wires")
+}
+
+/// The presets the bundled files come from.
+pub fn build_presets() -> Vec<crate::file::Preset> {
+    use crate::file::Preset;
+    let preset = |name: &str, width: f64, thickness: f64, outline: &str| Preset {
+        name: name.into(),
+        cluster: "Signet".into(),
+        values: [
+            ("Name".to_string(), Literal::Text(name.into())),
+            ("Width".to_string(), Literal::Number(width)),
+            ("Thickness".to_string(), Literal::Number(thickness)),
+            ("Outline".to_string(), Literal::Text(outline.into())),
+        ]
+        .into_iter()
+        .collect(),
+        doc: format!("A {outline} head on a {width} × {thickness} mm squared band, lofted."),
+    };
+    vec![preset("Heart signet", 15.5, 1.6, "Heart"), preset("Cushion signet", 14.5, 2.2, "Cushion")]
+}
+
+fn signet_cluster() -> Result<Graph, GraphError> {
+    use ringdesign_core::profile::SIGNET_TAPER;
+    let mut g = Graph::new("Signet", Mode::SandRing);
+    let width = g.add("number")?;
+    set(&mut g, width, &[("value", n(12.0))])?;
+    g.node_mut(width).expect("added").label = Some("Width".into());
+    let thickness = g.add("number")?;
+    set(&mut g, thickness, &[("value", n(1.8))])?;
+    g.node_mut(thickness).expect("added").label = Some("Thickness".into());
+    let outline = g.add("text")?;
+    set(&mut g, outline, &[("value", t("Oval"))])?;
+    g.node_mut(outline).expect("added").label = Some("Outline".into());
+    let name = g.add("text")?;
+    set(&mut g, name, &[("value", t("Signet"))])?;
+    g.node_mut(name).expect("added").label = Some("Name".into());
+    let p = g.add("band.profile")?;
+    set(&mut g, p, &[("style", t("Flat")), ("flatten_sides", b(true))])?;
+    g.connect(width, "out", p, "width_mm")?;
+    g.connect(thickness, "out", p, "thickness_mm")?;
+    let h = g.add("head")?;
+    g.connect(outline, "out", h, "outline")?;
+    g.connect(width, "out", h, "fit_to_width_mm")?;
+    let s = g.add("shank")?;
+    set(&mut g, s, &[("kind", t("Signet")), ("amount", n(SIGNET_TAPER))])?;
+    g.connect(h, "head", s, "head")?;
+    let d = g.add("design.new")?;
+    g.connect(name, "out", d, "name")?;
+    g.connect(p, "profile", d, "profile")?;
+    g.connect(s, "shank", d, "shank")?;
+    let out = g.add(OUTPUT_KIND)?;
+    g.connect(d, "design", out, OUTPUT_DESIGN_PIN)?;
+    g.expose(width, "value", "Width")?;
+    g.expose(thickness, "value", "Thickness")?;
+    g.expose(outline, "value", "Outline")?;
+    g.expose(name, "value", "Name")?;
+    g.expose(d, "size", "Size")?;
+    g.expose(h, "rise_mm", "Rise")?;
+    g.expose(h, "shoulder_deg", "Shoulder")?;
+    g.expose(h, "rim_round_mm", "Rim")?;
+    g.expose(h, "loft", "Loft")?;
+    g.expose(h, "table_dome_mm", "Cap")?;
+    g.expose(s, "amount", "Taper")?;
+    g.expose_output(d, "design", "design")?;
+    g.expose_output(h, "head", "head")?;
+    g.expose_output(s, "shank", "shank")?;
+    g.expose_output(p, "profile", "profile")?;
+    arrange(&mut g);
+    Ok(g)
+}
+
 /// Every bundled template graph, parsed.
 pub fn all() -> Vec<(&'static str, Graph)> {
     BUNDLED.iter().map(|t| (t.name, crate::file::load_graph_str(t.json, None).expect("bundled graph parses"))).collect()
@@ -383,6 +477,45 @@ mod tests {
         let mut s = build_simple();
         arrange(&mut s);
         std::fs::write(dir.join("simple.graph.json"), crate::file::graph_to_string(&s).unwrap()).unwrap();
+        std::fs::create_dir_all(dir.join("clusters")).unwrap();
+        std::fs::create_dir_all(dir.join("presets")).unwrap();
+        std::fs::write(dir.join("clusters/signet.cluster.json"), crate::file::graph_to_string(&build_signet_cluster()).unwrap()).unwrap();
+        for p in build_presets() {
+            std::fs::write(dir.join("presets").join(format!("{}.preset.json", crate::file::slug(&p.name))), crate::file::preset_to_string(&p).unwrap()).unwrap();
+        }
+    }
+
+    /// The signet cluster with a preset is the code template, byte for byte.
+    #[test]
+    fn the_signet_cluster_under_a_preset_is_the_template_byte_for_byte() {
+        let reg = Registry::builtin();
+        let lib = AlphaLibrary::builtin();
+        let clusters = bundled_clusters();
+        assert_eq!(clusters.len(), 1);
+        assert_eq!(clusters[0], build_signet_cluster(), "the committed cluster has drifted from its builder");
+        assert!(clusters[0].validate(Some(&reg)).is_empty(), "{:?}", clusters[0].validate(Some(&reg)));
+        let presets = bundled_presets();
+        assert_eq!(presets.len(), 2);
+        assert_eq!(presets, build_presets());
+        for preset in &presets {
+            let mut g = Graph::new("outer", Mode::SandRing);
+            let n = crate::nodes::cluster::add_cluster(&mut g, &clusters[0]).unwrap();
+            let unknown = preset.apply(g.node_mut(n).unwrap(), &reg);
+            assert!(unknown.is_empty(), "{unknown:?}");
+            let out = g.add(OUTPUT_KIND).unwrap();
+            g.connect(n, "design", out, OUTPUT_DESIGN_PIN).unwrap();
+            let res = evaluate_design(&mut Evaluator::new(), &g, &reg, &lib, 0).unwrap_or_else(|e| panic!("{}: {e}", preset.name));
+            assert!(res.notes.is_empty(), "{}: {:?}", preset.name, res.notes);
+            assert_ne!(res.field.verdict, Verdict::NotCastable, "{}", preset.name);
+            if let Some(t) = ringdesign_core::templates::all().iter().find(|t| t.name == preset.name) {
+                let got = serde_json::to_string(&*res.design).unwrap();
+                let want = serde_json::to_string(&t.design()).unwrap();
+                assert_eq!(got, want, "{}: the cluster's design differs from the code template", preset.name);
+            }
+        }
+        // The file layer sees bundled clusters and presets, user ones first.
+        assert!(crate::file::load_cluster("Signet", Some(&reg)).is_some());
+        assert!(crate::file::list_presets().iter().any(|p| p.name == "Heart signet"));
     }
 
     #[test]

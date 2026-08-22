@@ -130,7 +130,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 
 - [x] **M5.1 List idiom nodes** (M, #53). Weave, entwine, cull, partition, gate, polar array (integer
   lattice — never a relaxation), format, json, if.
-- [ ] **M5.2 First hosted cluster** (M, #54). The signet construction as a user-dir cluster whose
+- [x] **M5.2 First hosted cluster** (M, #54). The signet construction as a user-dir cluster whose
   preset evaluates to the lofted head.
 - [ ] **M5.3 Editor polish** (M, #55). Live value badges, subgraph navigation and collapse, arrange,
   fit, minimap.
