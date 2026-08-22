@@ -67,6 +67,14 @@ pub fn list() -> ListResourcesResult {
                  under itself and locks in the sand), the parting height, and the notes. The \
                  per-triangle class array is omitted — call cross_section to locate an undercut.",
             ),
+        Resource::new("ring://graph", "graph")
+            .with_title("The design's graph")
+            .with_description("The dataflow graph behind the current design as JSON (null when the design is hand-made); the graph_* tools edit it and graph_evaluate runs it.")
+            .with_mime_type("application/json"),
+        Resource::new("ring://graph/nodes", "graph nodes")
+            .with_title("Node library")
+            .with_description("Every node kind the graph runtime knows, with pins, kinds, defaults and docs.")
+            .with_mime_type("application/json"),
         Resource::new("ring://alphas", "alphas")
             .with_title("Alpha library index")
             .with_mime_type(JSON_MIME)
@@ -117,6 +125,8 @@ impl RingDesignServer {
             "report" => self.report_value()?,
             "castability" => self.castability_value(),
             "alphas" => self.alphas_value(),
+            "graph" => self.graph_value(),
+            "graph/nodes" => self.node_kinds_value(),
             _ => {
                 if let Some(name) = rest.strip_prefix("alpha/") {
                     self.alpha_value(&percent_decode(name), uri)?

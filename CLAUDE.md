@@ -1534,6 +1534,15 @@ What the runtime settled while being built, each pinned by a test:
   stays a pin, so the graph still validates and the node reports the
   header itself. `ringdesign_script::registry()` is the builtin library
   plus the script node; the GUI and its worker use it.
+- **MCP edits the same graph the GUI shows** (`ringdesign-mcp/src/graph_tools.rs`):
+  the `graph_*` tools read `design.graph` off the shared engine, edit it
+  and store it back through `set_design`, whose generation bump is what a
+  GUI sharing the engine polls — there is no second graph host.
+  `graph_evaluate` runs one evaluator with the script engine attached and
+  makes the engine's design what the graph produced (graph kept);
+  `ring://graph` and `ring://graph/nodes` are the resources. The two tool
+  routers combine with `+` in the handler; the Court band built by tools
+  alone evaluates to the code template byte for byte (pinned).
 - **The lift is exact by construction** (`lift.rs`, `Graph::from_design`):
   it wires the nodes a person would, evaluates them, diffs the result
   against the design field by field, and carries whatever the nodes cannot

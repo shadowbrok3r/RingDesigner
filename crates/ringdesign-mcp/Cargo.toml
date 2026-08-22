@@ -6,6 +6,8 @@ license.workspace = true
 
 [dependencies]
 ringdesign-core.workspace = true
+ringdesign-graph.workspace = true
+ringdesign-script.workspace = true
 rmcp.workspace = true
 schemars.workspace = true
 serde.workspace = true

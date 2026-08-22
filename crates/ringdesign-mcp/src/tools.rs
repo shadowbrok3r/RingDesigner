@@ -1316,7 +1316,7 @@ const CURVE_FIELDS: &[&str] = &["repeats_around", "width_mm", "height_mm"];
 
 // --- Tools -----------------------------------------------------------------
 
-#[tool_router]
+#[tool_router(vis = "pub(crate)")]
 impl RingDesignServer {
     #[tool(
         description = "Return the complete RingDesign as JSON (name, size, profile, shank, every layer, build resolution, casting settings) plus the engine generation counter. Use describe_ring first for a readable overview; use this when you need exact stored values or want to diff before and after an edit. The generation increments on every mutation, including edits made in a GUI sharing this engine."
@@ -2462,7 +2462,7 @@ fn push_layer(
     }
 }
 
-#[tool_handler]
+#[tool_handler(router = (Self::tool_router() + Self::graph_router()))]
 impl ServerHandler for RingDesignServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(
