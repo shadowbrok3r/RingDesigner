@@ -33,7 +33,7 @@ Order: M0.1 → M0.2 → M0.3 → M0.4 → M0.0.
 - [x] **M0.1 Harvest tools into the repo, gitignored** (S, #1). `tools/harvest/` + `tools/venv/`
   (recreated), `requirements.txt`, `README.md`; references in CLAUDE.md, core and examples
   updated; no scratchpad paths left in the tree.
-- [ ] **M0.2 Custom-outline asymmetry** (S + S-M, #2). Imported plans can read fuller on one side at
+- [x] **M0.2 Custom-outline asymmetry** (S + S-M, #2). Imported plans can read fuller on one side at
   their ends — the source curve's own tilt, not the raycast (measured symmetric to 1e-4 on a
   symmetric superellipse). Add opt-in `CustomOutline::symmetrize(across_band, along_ring)`
   (mirror-average the polar table), and importer parity in `from_points` (arc-length densify +

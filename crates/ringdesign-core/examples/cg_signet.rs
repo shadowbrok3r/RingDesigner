@@ -1,7 +1,7 @@
 //! A CrossGems signet preset rebuilt with the lofted head, for a
 //! side-by-side with the ring mesh the preset caches.
 //!
-//! cg_signet <decoded preset dir> <out prefix> [--loft 0..1] [--size 7]
+//! cg_signet <decoded preset dir> <out prefix> [--loft 0..1] [--size 7] [--builtin cushion|round|oval] [--symmetric xy|x|y]
 //!
 //! Reads the params.json and curves.json that tools/harvest/cgpreset.py dump-all writes,
 //! builds the same ring (band = table length across, shank from the side
@@ -29,12 +29,16 @@ fn main() -> anyhow::Result<()> {
     let prefix = &args[2];
     let (mut loft, mut size) = (1.0f64, 7.0f64);
     let mut builtin: Option<String> = None;
+    let mut symmetric: Option<String> = None;
     let mut i = 3;
     while i + 1 < args.len() {
         match args[i].as_str() {
             "--loft" => loft = args[i + 1].parse()?,
             "--size" => size = args[i + 1].parse()?,
             "--builtin" => builtin = Some(args[i + 1].clone()),
+            // `xy`, `x` or `y`: fold the imported plan symmetric about the
+            // band axis (x) and/or the ring axis (y).
+            "--symmetric" => symmetric = Some(args[i + 1].clone()),
             _ => {}
         }
         i += 2;
@@ -74,8 +78,11 @@ fn main() -> anyhow::Result<()> {
     d.shank.apply_signet(table_l);
     let shank_frac = (side_w / table_l).clamp(SIGNET_MIN_SHANK_FRAC, 1.0);
     d.shank.amount = ((1.0 - shank_frac) / (1.0 - SIGNET_MIN_SHANK_FRAC)).clamp(0.0, 1.0);
-    let outline = CustomOutline::from_points("CG table", &pts)
+    let mut outline = CustomOutline::from_points("CG table", &pts)
         .ok_or_else(|| anyhow::anyhow!("the table curve does not make an outline"))?;
+    if let Some(s) = &symmetric {
+        outline.symmetrize(s.contains('y'), s.contains('x'));
+    }
     let o = match builtin.as_deref() {
         Some("cushion") => ringdesign_core::field::SignetOutline::Cushion,
         Some("round") => ringdesign_core::field::SignetOutline::Round,

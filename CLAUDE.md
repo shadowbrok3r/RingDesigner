@@ -769,9 +769,17 @@ Five defects on the way, each seen in a render and pinned by a number:
 - **The 0.98 row is the table, not the outline.** Reading the flat from
   the outline row left a 0.18 mm fin of plane standing at its tip.
 - Hand-drawn factory curves are not symmetric: the 001 cushion is 0.1
-  fuller on +y at its ends, and the crest held on the parting plane then
-  puts a curvature step at the ridge's apex. A builtin outline reads
-  clean; it is the curve, not the construction.
+  fuller on +y at its ends (its +x tip sits 0.008 of the half-length
+  further out on one side, and a near-vertical end turns that into 0.107
+  in y), and the crest held on the parting plane then puts a curvature
+  step at the ridge's apex. A builtin outline reads clean; it is the
+  curve, not the construction. `CustomOutline::symmetrize` folds a table
+  symmetric — opt-in, a heart is asymmetric by design — and the importer
+  now densifies by arc length and smooths circularly like the exporter
+  always did. The raycast itself had a gap: a ray through a vertex can
+  round a hair outside both adjacent segments and find nothing, leaving a
+  1e-6 spike that smoothing spread into a dip; it takes slack now, and a
+  missed ray inherits its neighbours.
 
 Not mapped: the presets' "Smooth Table" (a loft from an apex point
 through a 0.6-scaled outline — a lobed dome on a clover or a star);
