@@ -129,8 +129,15 @@ pub fn list_clusters_in(dir: &Path, reg: Option<&Registry>) -> Vec<Graph> {
     list_in(dir, CLUSTER_EXT, reg)
 }
 
+/// The user's clusters, then the bundled ones a user file does not shadow.
 pub fn list_clusters(reg: Option<&Registry>) -> Vec<Graph> {
-    list_clusters_in(&cluster_dir(), reg)
+    let mut out = list_clusters_in(&cluster_dir(), reg);
+    for c in crate::templates::bundled_clusters() {
+        if !out.iter().any(|u| u.name == c.name) {
+            out.push(c);
+        }
+    }
+    out
 }
 
 pub fn load_cluster_in(dir: &Path, name: &str, reg: Option<&Registry>) -> Option<Graph> {
@@ -142,7 +149,7 @@ pub fn load_cluster_in(dir: &Path, name: &str, reg: Option<&Registry>) -> Option
 }
 
 pub fn load_cluster(name: &str, reg: Option<&Registry>) -> Option<Graph> {
-    load_cluster_in(&cluster_dir(), name, reg)
+    load_cluster_in(&cluster_dir(), name, reg).or_else(|| crate::templates::bundled_clusters().into_iter().find(|c| c.name == name))
 }
 
 pub fn save_graph_in(dir: &Path, g: &Graph) -> anyhow::Result<PathBuf> {
@@ -227,8 +234,15 @@ pub fn list_presets_in(dir: &Path) -> Vec<Preset> {
     out
 }
 
+/// The user's presets, then the bundled ones a user file does not shadow.
 pub fn list_presets() -> Vec<Preset> {
-    list_presets_in(&preset_dir())
+    let mut out = list_presets_in(&preset_dir());
+    for p in crate::templates::bundled_presets() {
+        if !out.iter().any(|u| u.name == p.name) {
+            out.push(p);
+        }
+    }
+    out
 }
 
 #[cfg(test)]

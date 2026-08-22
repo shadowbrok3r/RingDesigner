@@ -1549,6 +1549,15 @@ What the runtime settled while being built, each pinned by a test:
   `ring://graph` and `ring://graph/nodes` are the resources. The two tool
   routers combine with `+` in the handler; the Court band built by tools
   alone evaluates to the code template byte for byte (pinned).
+- **The first hosted cluster is the signet** (`graphs/clusters/signet.cluster.json`,
+  built by `templates::build_signet_cluster` from our own nodes — one
+  exposed Width fans out to the section, the face fit and the shank;
+  Rise, Shoulder, Rim, Loft, Cap, Taper, Outline, Name, Size are the
+  panel; design, head, shank and profile come out). Bundled presets
+  (`graphs/presets/*.preset.json`) set it, and the "Heart signet" preset
+  evaluates to the code template **byte for byte** (pinned). The file
+  layer lists user-dir clusters and presets first and the bundled ones
+  behind them, so a user file of the same name shadows a bundled one.
 - **The lift is exact by construction** (`lift.rs`, `Graph::from_design`):
   it wires the nodes a person would, evaluates them, diffs the result
   against the design field by field, and carries whatever the nodes cannot

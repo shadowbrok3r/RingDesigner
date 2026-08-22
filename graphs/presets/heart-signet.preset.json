@@ -1,0 +1,12 @@
+{
+  "format_version": 1,
+  "name": "Heart signet",
+  "cluster": "Signet",
+  "values": {
+    "Name": "Heart signet",
+    "Outline": "Heart",
+    "Thickness": 1.6,
+    "Width": 15.5
+  },
+  "doc": "A Heart head on a 15.5 × 1.6 mm squared band, lofted."
+}

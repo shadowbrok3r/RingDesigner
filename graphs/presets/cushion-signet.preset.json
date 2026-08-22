@@ -1,0 +1,12 @@
+{
+  "format_version": 1,
+  "name": "Cushion signet",
+  "cluster": "Signet",
+  "values": {
+    "Name": "Cushion signet",
+    "Outline": "Cushion",
+    "Thickness": 2.2,
+    "Width": 14.5
+  },
+  "doc": "A Cushion head on a 14.5 × 2.2 mm squared band, lofted."
+}
