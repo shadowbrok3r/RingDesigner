@@ -303,6 +303,9 @@ fn main() {
             d.shank.head.outline = o;
             d.shank.head.length_mm =
                 (9.0 * d.shank.outline_aspect(o)).clamp(2.0, 40.0);
+            // Four deep lobes corrugate a prism's flank; on the cut dome the
+            // body is one smooth lens and the clover reads in the arris.
+            d.shank.head.dome = d.shank.suggest_dome(o);
             finish(
                 &dir,
                 "11-clover-signet",

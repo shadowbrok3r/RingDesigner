@@ -901,9 +901,13 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         }
         // A new shape wants its own proportions; the length is right there to
         // override if the ring wants a long cushion rather than a square one.
+        // Deeply lobed imports also default onto the cut dome, where the
+        // lobes read in the arris instead of corrugating the flank — the
+        // slider below overrides it either way.
         if shank.head.outline != before {
             let aspect = shank.outline_aspect(shank.head.outline);
             shank.head.length_mm = (band_width.max(1.0) * aspect).clamp(2.0, 40.0);
+            shank.head.dome = shank.suggest_dome(shank.head.outline);
             changed = true;
         }
     });

@@ -1551,6 +1551,8 @@ impl RingDesignServer {
                 let width = d.profile.width_mm;
                 d.shank.head.length_mm = (width.max(1.0) * aspect).clamp(2.0, 40.0);
             }
+            // A deeply lobed import reads best on the cut dome.
+            d.shank.head.dome = d.shank.suggest_dome(outline);
             applied.push(format!("head_outline={outline:?}"));
         }
         let h = &mut d.shank.head;

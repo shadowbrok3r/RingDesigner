@@ -2495,7 +2495,7 @@ fn blur(src: &[f64; SILHOUETTE_STEPS], rad: isize) -> [f64; SILHOUETTE_STEPS] {
 ///
 /// `sign` is 1 for the reach toward the high band edge and -1 for the low one,
 /// so one pass does both: the low edge fairs by taking minima.
-fn fair(src: &[f64; SILHOUETTE_STEPS], sign: f64) -> [f64; SILHOUETTE_STEPS] {
+fn fair(src: &[f64; SILHOUETTE_STEPS], sign: f64, fair_r: f64) -> [f64; SILHOUETTE_STEPS] {
     let n = SILHOUETTE_STEPS as isize;
     // `x` spans 2 over n-1 steps, so a radius in stations is half that in cells.
     let cells = |r: f64| ((r * 0.5 * (n - 1) as f64) as isize).max(1);
@@ -2504,7 +2504,7 @@ fn fair(src: &[f64; SILHOUETTE_STEPS], sign: f64) -> [f64; SILHOUETTE_STEPS] {
         *x *= sign;
     }
 
-    let closed = roll(&roll(&v, BODY_FAIR_R, true), BODY_FAIR_R, false);
+    let closed = roll(&roll(&v, fair_r, true), fair_r, false);
     let round_r = cells(BODY_ROUND_X);
     let mut out = blur(&sweep(&closed, round_r, true), round_r);
     for x in out.iter_mut() {
@@ -2524,13 +2524,20 @@ impl Silhouette {
     /// band's width, and a step in width is a step in slope, which is a facet
     /// you can see running round the head.
     fn build(o: SignetOutline) -> Self {
-        Self::build_from(&|x, y| o.distance_norm(x, y))
+        Self::build_from(&|x, y| o.distance_norm(x, y), BODY_FAIR_R)
     }
 
     /// The same scan over any normalized distance — 1 on the outline — which
     /// is what lets an imported table build its silhouette through the exact
     /// machinery the builtins are held to.
-    fn build_from(dist: &dyn Fn(f64, f64) -> f64) -> Self {
+    ///
+    /// `fair_r` is the rolling ball's radius. [`BODY_FAIR_R`] is calibrated
+    /// on the heart's two gentle lobes; a deeply lobed import — a clover, a
+    /// rosette — wants a bigger ball, so its notches bridge flat and the
+    /// lobed detail lives at the table's rim instead of riding the whole
+    /// flank as ripples. Closing is extensive at any radius, so containment
+    /// is not a function of the choice.
+    fn build_from(dist: &dyn Fn(f64, f64) -> f64, fair_r: f64) -> Self {
         const SCAN: usize = 256;
         const BISECT: usize = 40;
         let mut lo = [0.0f64; SILHOUETTE_STEPS];
@@ -2579,7 +2586,8 @@ impl Silhouette {
                 found[i] = true;
             }
         }
-        let (body_lo, body_hi) = (fair(&lo, -1.0), fair(&hi, 1.0));
+        let r = fair_r.clamp(0.1, 4.0);
+        let (body_lo, body_hi) = (fair(&lo, -1.0, r), fair(&hi, 1.0, r));
         Self { lo, hi, body_lo, body_hi }
     }
 
@@ -2652,8 +2660,18 @@ pub struct CustomOutline {
     /// Source bounding box, length round the ring over width across the band
     /// — what [`crate::profile::SignetHead::fit_length_to`] wants to know.
     pub aspect: f64,
+    /// Rolling-ball radius the body fairs this plan's hollows with, in
+    /// stations. [`BODY_FAIR_R`] suits gently lobed shapes; importers raise
+    /// it for deeply lobed ones so the flank stays one smooth surface and
+    /// the lobes read only at the table's rim.
+    #[serde(default = "default_fair_r")]
+    pub fair_r: f64,
     #[serde(skip)]
     cache: std::sync::OnceLock<Silhouette>,
+}
+
+fn default_fair_r() -> f64 {
+    BODY_FAIR_R
 }
 
 impl std::fmt::Debug for CustomOutline {
@@ -2671,6 +2689,7 @@ impl Clone for CustomOutline {
             name: self.name.clone(),
             r: self.r.clone(),
             aspect: self.aspect,
+            fair_r: self.fair_r,
             cache: self.cache.clone(),
         }
     }
@@ -2678,7 +2697,10 @@ impl Clone for CustomOutline {
 
 impl PartialEq for CustomOutline {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.r == other.r && self.aspect == other.aspect
+        self.name == other.name
+            && self.r == other.r
+            && self.aspect == other.aspect
+            && self.fair_r == other.fair_r
     }
 }
 
@@ -2706,6 +2728,7 @@ impl CustomOutline {
             name: name.into(),
             r: table.r.iter().map(|&v| v as f32).collect(),
             aspect: (w / h).clamp(0.05, 20.0),
+            fair_r: default_fair_r(),
             cache: std::sync::OnceLock::new(),
         })
     }
@@ -2723,7 +2746,7 @@ impl CustomOutline {
             let table = self.table();
             // The shape's own +y reads across the band toward the low edge,
             // the way a crest stands up the finger — the upright convention.
-            Silhouette::build_from(&|x, y| table.distance(x, -y))
+            Silhouette::build_from(&|x, y| table.distance(x, -y), self.fair_r)
         })
     }
 
@@ -4247,6 +4270,23 @@ mod silhouette_tests {
             let (a1, b1) = back.shank.outline_extent(o, x);
             assert!((a0 - a1).abs() < 1e-12 && (b0 - b1).abs() < 1e-12, "rebuilt table differs at {x}");
         }
+
+        // A deeply lobed plan defaults onto the cut dome — the body is one
+        // smooth lens and the lobes read in the arris — and it fields clean
+        // there too.
+        let mut lobed = co.clone();
+        lobed.fair_r = 2.0;
+        let mut d2 = d.clone();
+        let o2 = d2.shank.adopt_outline(lobed);
+        d2.shank.head.outline = o2;
+        assert_eq!(d2.shank.suggest_dome(o2), 1.0, "a clipped star is lobed");
+        d2.shank.head.dome = 1.0;
+        let v3 = crate::castability::analyze_field(&d2, &lib, &d2.draft, 192, 96);
+        assert!(
+            v3.undercut_fraction() < 5e-4,
+            "the domed custom head locks: {:.4}%",
+            v3.undercut_fraction() * 100.0
+        );
 
         // And a design with no registry entry falls back instead of panicking.
         let mut bare = crate::RingDesign::default();

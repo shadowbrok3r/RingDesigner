@@ -710,7 +710,28 @@ degrades instead of panicking, and `Custom` stays out of
 Any closed polyline comes in through `CustomOutline::from_points`, which
 runs the same recentre-fit-and-raycast the builtin polar tables use and
 then the same rolling-ball fairing — so the containment guarantee is
-inherited, not re-proven per shape. `a_drawn_outline_makes_a_head_that
+inherited, not re-proven per shape.
+
+**The fairing ball is per-import** (`CustomOutline::fair_r`, default the
+calibrated `BODY_FAIR_R` 0.75), because 0.75 is tuned on a heart's two
+gentle lobes and a four-lobe clover corrugates a flank it only smooths.
+The importer sizes it from the plan's convex-hull area defect; closing is
+extensive at any radius, so containment is not a function of the choice.
+And the table's *quality* matters as much as the machinery: 256
+uniform-parameter curve samples left chord kinks that swept ripple bands
+down every wall (clover max second difference 0.0121; 0.0044 after
+arc-length densify + a 0.75° circular Gaussian — the residual is the
+notches' own curvature).
+
+**Deeply lobed plans default onto the cut dome** via
+`ShankStyle::suggest_dome`: ≥4 prominent radius maxima plus real hull
+defect (`fair_r > 0.9`) is the lobed signature — a square's four corners
+have the maxima but no defect, a shield or heart has the defect but only
+three maxima, so both keep the prism and its doctrine-approved single
+cove. On a prism a clover's notches ride the whole flank as corrugation;
+on the dome the body is one smooth lens and the lobes read in the arris,
+which is the two-smooth-surfaces read a signet wants. The GUI picker and
+MCP apply the suggestion on outline change; the dome slider overrides it. `a_drawn_outline_makes_a_head_that
 _pulls` pins it with a deliberately hostile plan (an asymmetric clipped
 star): containment to 1e-5, field-clean, and a JSON round-trip that must
 not carry the derived table. The library half lives in

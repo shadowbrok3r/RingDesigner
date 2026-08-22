@@ -1503,6 +1503,40 @@ fn default_waves() -> u32 {
     1
 }
 
+/// Circular local maxima of a boundary-radius table with prominence over
+/// 0.02 of the unit box — the lobe count of a plan.
+fn prominent_maxima(r: &[f32]) -> usize {
+    let n = r.len();
+    if n < 8 {
+        return 0;
+    }
+    let at = |i: isize| r[i.rem_euclid(n as isize) as usize] as f64;
+    let mut count = 0;
+    for i in 0..n as isize {
+        let v = at(i);
+        if at(i - 1) >= v || at(i + 1) > v {
+            continue;
+        }
+        // Prominence: how far the radius falls on the shallower side before
+        // rising past this peak again.
+        let mut drop = |dir: isize| {
+            let mut lowest = v;
+            for k in 1..n as isize {
+                let w = at(i + dir * k);
+                if w > v {
+                    break;
+                }
+                lowest = lowest.min(w);
+            }
+            v - lowest
+        };
+        if drop(1).min(drop(-1)) > 0.02 {
+            count += 1;
+        }
+    }
+    count
+}
+
 /// One authored station for [`ShankKind::Keyframes`].
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ShankKey {
@@ -1567,6 +1601,28 @@ impl ShankStyle {
         match self.custom_outline(o) {
             Some(c) => c.aspect.clamp(0.05, 20.0),
             None => o.head_aspect(),
+        }
+    }
+
+    /// The cut-dome share a plan reads best at: 0 for the builtins and for
+    /// gently shaped imports — the prism carries their outline cleanly, a
+    /// heart's cleft riding the wall as one smooth cove — and 1 for deeply
+    /// lobed imports, whose four-plus coves corrugate a prism's flank. On
+    /// the dome the body is one smooth lens and the lobes read in the
+    /// arris, which is the castable read of a clover or a star. The
+    /// importer's `fair_r` already measures exactly this (it grows with the
+    /// plan's hull defect), so it is the signal.
+    pub fn suggest_dome(&self, o: SignetOutline) -> f64 {
+        match self.custom_outline(o) {
+            Some(c) if c.fair_r > 1.2 => 1.0,
+            // Many shallow lobes corrugate a prism just as surely as few
+            // deep ones — a six-lobe rosette ripples at a hull defect a
+            // heraldic shield's single notch exceeds. Four or more prominent
+            // radius maxima with any real concavity is the lobed signature;
+            // a square's four corners have the maxima but no defect, a
+            // shield or heart has the defect but only three maxima.
+            Some(c) if c.fair_r > 0.9 && prominent_maxima(&c.r) >= 4 => 1.0,
+            _ => 0.0,
         }
     }
 
