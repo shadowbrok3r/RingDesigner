@@ -264,6 +264,26 @@ pub struct StonesJson {
     pub stone_count: u32,
     pub total_carats: f64,
     pub seats: Vec<SeatJson>,
+    /// Pairs of stones — from any layers, not just neighbours in one run —
+    /// with less than 0.3 mm of metal between them, worst first.
+    pub crowding: Vec<StonePairJson>,
+    /// How many such pairs there are, including any past the listed few.
+    pub tight_pairs: usize,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct StonePairJson {
+    /// The two seats' labels and where they sit, degrees around the ring.
+    pub a: String,
+    pub b: String,
+    pub a_theta_deg: f64,
+    pub b_theta_deg: f64,
+    /// Metal between the two girdles, mm. Negative means they overlap.
+    pub gap_mm: f64,
+    /// The same gap at the shallower culet, where the ring's own curvature
+    /// has closed the arc in — the number that decides whether the bridge
+    /// fills.
+    pub gap_deep_mm: f64,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -379,6 +399,8 @@ pub struct SetProfileParams {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 pub struct SetShankParams {
     /// Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet.
+    /// Switching to Signet applies the signet defaults first (taper, face
+    /// fitted to the band, lofted body); explicit parameters still win.
     pub kind: Option<String>,
     /// Strength of the modulation, 0 to 1. On Signet this is how far the shank
     /// narrows: 1 takes it to 16% of the head width.
@@ -411,6 +433,24 @@ pub struct SetShankParams {
     /// hard the face outline reads. The reference signets round theirs about
     /// 0.6 mm; the outline is the one edge a signet has.
     pub head_rim_round_mm: Option<f64>,
+    /// Signet only: dome standing on the table's centre, mm (0 to 3). A
+    /// parabolic cab on a prism or cut-dome head; on a lofted head the
+    /// factory presets' smooth table — the loft starts at an apex this high
+    /// and passes a 0.6-scaled outline at that height, so a lobed plan
+    /// reads as a lobed dome.
+    pub head_table_dome_mm: Option<f64>,
+    /// Signet only: share of the lofted construction, 0 to 1. 1 builds the
+    /// head the way the factory presets do — one loose loft from the table's
+    /// rim through a body outline 3 mm under it down to the ring's equator
+    /// silhouette, so the flank bulges a few tenths under the table and curls
+    /// back toward the finger and the shoulder is one smooth sheet. 0 keeps
+    /// the reference prism and its swell.
+    pub head_loft: Option<f64>,
+    /// Lofted heads only: how much wider than the table the body outline is
+    /// along the ring, mm (default 2).
+    pub head_loft_frontal_mm: Option<f64>,
+    /// Lofted heads only: the same growth across the band, mm (default 2).
+    pub head_loft_lateral_mm: Option<f64>,
     /// Signet only: where the head sits round the ring, degrees. 90 is the top.
     pub head_theta_deg: Option<f64>,
     /// Signet only: outline of a second head — the toi et moi. Set to add or
@@ -544,7 +584,19 @@ pub struct AddSeatPadParams {
     pub theta_deg: Option<f64>,
     /// Position across the band, mm of `v`.
     pub v_mm: Option<f64>,
+    /// The pad's short axis, mm — its diameter when round.
     pub diameter_mm: Option<f64>,
+    /// The pad's long axis over its short one, 1 = round. An oval, marquise
+    /// or baguette seat should carry its stone's own aspect so the stock
+    /// matches the girdle instead of a circle drawn round its length.
+    pub elong: Option<f64>,
+    /// Turn the pad about its own normal, degrees. 0 lays the long axis
+    /// along the ring; 90 stands it across the band.
+    pub rot_deg: Option<f64>,
+    /// How far the girdle sits below the pad's top, mm — how deep the stone
+    /// is set. Omit to take the style's own: a bezel's pocket floor, a
+    /// whisker into a drilled pad, flush on a cabochon's bed.
+    pub set_depth_mm: Option<f64>,
     /// Peak displacement, mm.
     pub height_mm: Option<f64>,
     /// 0 is a flat-topped boss, 1 a full dome.
@@ -657,6 +709,10 @@ pub struct UpdateLayerParams {
     pub continuous: Option<bool>,
     /// Border, gem seat pad, signet, and milgrain: position across the band, mm of `v`.
     pub v_mm: Option<f64>,
+    /// Gem seat pad only: long axis over short, 1 = round.
+    pub elong: Option<f64>,
+    /// Gem seat pad only: turn about the seat normal, degrees.
+    pub rot_deg: Option<f64>,
     /// Border and milgrain: repeat on the other side of the band.
     pub mirror: Option<bool>,
     /// Border and signet: extent across the band, mm.
@@ -821,12 +877,42 @@ fn parse_signet_outline(s: &str) -> Result<SignetOutline, ErrorData> {
         .copied()
         .find(|v| norm(&format!("{v:?}")) == key || norm(v.label()) == key)
         .ok_or_else(|| {
-            let all: Vec<String> = SignetOutline::ALL.iter().map(|v| format!("{v:?}")).collect();
+            let mut all: Vec<String> =
+                SignetOutline::ALL.iter().map(|v| format!("{v:?}")).collect();
+            all.extend(
+                ringdesign_core::library::list_outlines().into_iter().map(|c| c.name),
+            );
             ErrorData::invalid_params(
                 format!("unknown signet outline {s:?}; expected one of {}", all.join(", ")),
                 None,
             )
         })
+}
+
+/// [`parse_signet_outline`], with the design in hand: a name that is not a
+/// builtin resolves against the design's own imported plans, then the
+/// outline library — adopting a library hit into the design, so the file
+/// stays self-contained.
+fn resolve_signet_outline(
+    d: &mut ringdesign_core::RingDesign,
+    s: &str,
+) -> Result<SignetOutline, ErrorData> {
+    if let Ok(o) = parse_signet_outline(s) {
+        return Ok(o);
+    }
+    let key = norm(s);
+    if let Some(i) =
+        d.shank.custom_outlines.iter().position(|c| norm(&c.name) == key)
+    {
+        return Ok(SignetOutline::Custom(i.min(u8::MAX as usize) as u8));
+    }
+    if let Some(c) = ringdesign_core::library::list_outlines()
+        .into_iter()
+        .find(|c| norm(&c.name) == key)
+    {
+        return Ok(d.shank.adopt_outline(c));
+    }
+    parse_signet_outline(s)
 }
 
 fn unknown_alpha(name: &str, lib: &AlphaLibrary) -> ErrorData {
@@ -1016,6 +1102,19 @@ fn stones_json(r: &ringdesign_core::stones::StonesReport) -> StonesJson {
                 warnings: s.warnings.clone(),
             })
             .collect(),
+        crowding: r
+            .crowding
+            .iter()
+            .map(|p| StonePairJson {
+                a: p.a.clone(),
+                b: p.b.clone(),
+                a_theta_deg: p.a_theta_deg,
+                b_theta_deg: p.b_theta_deg,
+                gap_mm: p.gap_mm,
+                gap_deep_mm: p.gap_deep_mm,
+            })
+            .collect(),
+        tight_pairs: r.tight_pairs,
     }
 }
 
@@ -1111,7 +1210,7 @@ fn default_export_path(name: &str, ext: &str) -> String {
 
 /// Names of the kind-specific `update_layer` fields the call actually set.
 fn kind_specific_present(p: &UpdateLayerParams) -> Vec<&'static str> {
-    let flags: [(&'static str, bool); 34] = [
+    let flags: [(&'static str, bool); 36] = [
         ("alpha", p.alpha.is_some()),
         ("repeats_around", p.repeats_around.is_some()),
         ("rows", p.rows.is_some()),
@@ -1138,6 +1237,8 @@ fn kind_specific_present(p: &UpdateLayerParams) -> Vec<&'static str> {
         ("rope_twists", p.rope_twists.is_some()),
         ("theta_deg", p.theta_deg.is_some()),
         ("diameter_mm", p.diameter_mm.is_some()),
+        ("elong", p.elong.is_some()),
+        ("rot_deg", p.rot_deg.is_some()),
         ("crown", p.crown.is_some()),
         ("blend_mm", p.blend_mm.is_some()),
         ("bead_diameter_mm", p.bead_diameter_mm.is_some()),
@@ -1172,7 +1273,8 @@ const TILING_FIELDS: &[&str] = &[
     "continuous",
 ];
 const BORDER_FIELDS: &[&str] = &["v_mm", "width_mm", "profile", "mirror", "rope_twists"];
-const SEAT_PAD_FIELDS: &[&str] = &["theta_deg", "v_mm", "diameter_mm", "crown", "blend_mm"];
+const SEAT_PAD_FIELDS: &[&str] =
+    &["theta_deg", "v_mm", "diameter_mm", "elong", "rot_deg", "crown", "blend_mm"];
 const MILGRAIN_FIELDS: &[&str] = &["v_mm", "bead_diameter_mm", "beads_around", "mirror"];
 const SIGNET_FIELDS: &[&str] = &[
     "theta_deg",
@@ -1439,30 +1541,43 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Set the shank style and how hard it modulates. `kind` is Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet (see list_shank_styles); `amount` is 0 to 1, where 0 is no modulation. The shank scales the cross-section per ring angle — a tapered shank at amount 1 loses 45% of its width at the bottom of the finger. It does not move the height field: layers stay parameterized against the unmodulated cross-section, so a pattern narrows with the band instead of running off it. Signet is different in kind: it makes a head out of the band itself rather than adding anything to it. head_outline is the plan silhouette the band's width follows, head_length_mm the extent of the face around the ring (its extent across the band is the profile's width_mm, so set that to the head), head_rise_mm how far the table stands above the crest, head_shoulder_deg the arc the crest takes to fall back to the shank, head_swell_deg the much longer arc the band's *width* takes to come back to the shank, head_body_fair how far the body under the table rounds away from the face's outline, and head_table_flat 1 for a true plane to engrave. Two of those are easy to get wrong. The swell is the thing a signet reads as from the side and it is not the face: measured on a real 14.7 mm signet the face runs out at 31 degrees off the top while the body keeps widening to 75, so leave head_swell_deg near its 75 default unless you want a stubbier or longer sweep. And the face is a facet cut across a wider body, not a shape extruded down to the finger: at head_body_fair 0 a heart's dimple runs the whole depth of the ring and its lobes leave a crease down each flank, so leave it at 1 unless a prism is what you want. Do not add a signet table layer on top of this — the table is already the band's own crest. Castability: measured 0.000% undercut on every outline, because a band that widens and rises toward the top is single-valued in Z over (r, theta) and so releases by construction. The flat table is a vertical wall with respect to a +/-Z pull, which is fine — it is blank and hand-engraved, and design goes on the head's flanks, which face the pull."
+        description = "Set the shank style and how hard it modulates. `kind` is Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet (see list_shank_styles); `amount` is 0 to 1, where 0 is no modulation. The shank scales the cross-section per ring angle — a tapered shank at amount 1 loses 45% of its width at the bottom of the finger. It does not move the height field: layers stay parameterized against the unmodulated cross-section, so a pattern narrows with the band instead of running off it. Signet is different in kind: it makes a head out of the band itself rather than adding anything to it. head_outline is the plan silhouette the band's width follows, head_length_mm the extent of the face around the ring (its extent across the band is the profile's width_mm, so set that to the head), head_rise_mm how far the table stands above the crest, head_shoulder_deg the arc the crest takes to fall back to the shank, head_swell_deg the much longer arc the band's *width* takes to come back to the shank, head_body_fair how far the body under the table rounds away from the face's outline, and head_table_flat 1 for a true plane to engrave. Two of those are easy to get wrong. The swell is the thing a signet reads as from the side and it is not the face: measured on a real 14.7 mm signet the face runs out at 31 degrees off the top while the body keeps widening to 75, so leave head_swell_deg near its 75 default unless you want a stubbier or longer sweep. And the face is a facet cut across a wider body, not a shape extruded down to the finger: at head_body_fair 0 a heart's dimple runs the whole depth of the ring and its lobes leave a crease down each flank, so leave it at 1 unless a prism is what you want. Do not add a signet table layer on top of this — the table is already the band's own crest. Castability: measured 0.000% undercut on every outline, because a band that widens and rises toward the top is single-valued in Z over (r, theta) and so releases by construction. The flat table is a vertical wall with respect to a +/-Z pull, which is fine — it is blank and hand-engraved, and design goes on the head's flanks, which face the pull. head_loft 1 swaps the prism for the factory-preset construction (one loose loft from the table's rim to the ring's equator, flank curling under the table, one smooth shoulder); it still fields 0.000% because every section stays a single-valued width over its radius. head_table_dome_mm on a lofted head is the smooth table: the loft starts at an apex that high over the table's centre, so a lobed plan reads as a lobed dome."
     )]
     async fn set_shank(
         &self,
         Parameters(p): Parameters<SetShankParams>,
     ) -> Result<Json<DesignChange>, ErrorData> {
         let kind = p.kind.as_deref().map(parse_shank_kind).transpose()?;
-        let outline = p.head_outline.as_deref().map(parse_signet_outline).transpose()?;
         let mut applied = Vec::new();
         let mut e = self.engine.lock();
         let d = e.design_mut();
+        let outline = match p.head_outline.as_deref() {
+            Some(o) => Some(resolve_signet_outline(d, o)?),
+            None => None,
+        };
         if let Some(kind) = kind {
+            let was = d.shank.kind;
             d.shank.kind = kind;
+            if kind == ringdesign_core::profile::ShankKind::Signet && was != kind {
+                let width = d.profile.width_mm;
+                d.shank.apply_signet(width);
+            }
             applied.push(format!("kind={kind:?}"));
         }
         put_range(&mut d.shank.amount, p.amount, "amount", 0.0, 1.0, &mut applied)?;
         if let Some(outline) = outline {
             d.shank.head.outline = outline;
             // Sized to the shape unless the call says otherwise, so an outline
-            // arrives as that shape rather than the last one restretched.
+            // arrives as that shape rather than the last one restretched. The
+            // aspect resolves through the registry, so an imported plan sizes
+            // by its own box.
             if p.head_length_mm.is_none() {
+                let aspect = d.shank.outline_aspect(outline);
                 let width = d.profile.width_mm;
-                d.shank.head.fit_length_to(width);
+                d.shank.head.length_mm = (width.max(1.0) * aspect).clamp(2.0, 40.0);
             }
+            // A deeply lobed import reads best on the cut dome.
+            d.shank.head.dome = d.shank.suggest_dome(outline);
             applied.push(format!("head_outline={outline:?}"));
         }
         let h = &mut d.shank.head;
@@ -1484,18 +1599,22 @@ impl RingDesignServer {
         put_range(&mut h.body_fair, p.head_body_fair, "head_body_fair", 0.0, 1.0, &mut applied)?;
         put_range(&mut h.table_flat, p.head_table_flat, "head_table_flat", 0.0, 1.0, &mut applied)?;
         put_range(&mut h.rim_round_mm, p.head_rim_round_mm, "head_rim_round_mm", 0.0, 2.0, &mut applied)?;
+        put_range(&mut h.table_dome_mm, p.head_table_dome_mm, "head_table_dome_mm", 0.0, 3.0, &mut applied)?;
+        put_range(&mut h.loft, p.head_loft, "head_loft", 0.0, 1.0, &mut applied)?;
+        put_range(&mut h.loft_frontal_mm, p.head_loft_frontal_mm, "head_loft_frontal_mm", 0.0, 20.0, &mut applied)?;
+        put_range(&mut h.loft_lateral_mm, p.head_loft_lateral_mm, "head_loft_lateral_mm", 0.0, 20.0, &mut applied)?;
         put_range(&mut h.theta_deg, p.head_theta_deg, "head_theta_deg", 0.0, 360.0, &mut applied)?;
         if let Some(o) = p.second_head_outline.as_deref() {
             if o.eq_ignore_ascii_case("none") {
                 d.shank.extra_heads.clear();
                 applied.push("second_head=removed".into());
             } else {
-                let outline = parse_signet_outline(o)?;
+                let outline = resolve_signet_outline(d, o)?;
                 if d.shank.extra_heads.is_empty() {
                     let primary_theta = d.shank.head.theta_deg;
                     d.shank.extra_heads.push(ringdesign_core::profile::SignetHead {
                         theta_deg: primary_theta + 48.0,
-                        ..Default::default()
+                        ..ringdesign_core::profile::SignetHead::lofted()
                     });
                 }
                 let h2 = &mut d.shank.extra_heads[0];
@@ -1650,7 +1769,7 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Add a raised circular boss for a bench jeweller to cut a stone seat into. theta_deg positions it around the ring (90 degrees is the top), v_mm across the band in mm of v, diameter_mm and height_mm size it. `crown` runs 0 for a flat-topped boss to 1 for a full dome; blend_mm is the skirt that fairs a flat-topped pad back into the band. Castability: a flat-topped pad has straight walls that undercut from every angle — keep crown at or near 1 unless you want a boss you will file to shape by hand, and put the pad on the crest so both halves of the mould pull away from it. The pad seats a stone roughly diameter_mm - 1.2 across. Defaults: at the top of the ring, 5 mm across, 1.2 mm tall, crown 0.65, 0.8 mm skirt."
+        description = "Add a raised circular boss for a bench jeweller to cut a stone seat into. theta_deg positions it around the ring (90 degrees is the top), v_mm across the band in mm of v, diameter_mm and height_mm size it. `crown` runs 0 for a flat-topped boss to 1 for a full dome; blend_mm is the skirt that fairs a flat-topped pad back into the band. Castability: a flat-topped pad has straight walls that undercut from every angle — keep crown at or near 1 unless you want a boss you will file to shape by hand, and put the pad on the crest so both halves of the mould pull away from it. The pad seats a stone roughly diameter_mm - 1.2 across. For an elongated stone set `elong` to its length over its width so the stock follows the girdle instead of a circle drawn round its length, and `rot_deg` to turn it — 0 lays it along the ring, 90 across the band. Defaults: at the top of the ring, 5 mm across, 1.2 mm tall, crown 0.65, 0.8 mm skirt."
     )]
     async fn add_seat_pad_layer(
         &self,
@@ -1662,6 +1781,12 @@ impl RingDesignServer {
         put_f64(&mut s.theta_deg, p.theta_deg, "theta_deg", &mut applied)?;
         put_f64(&mut s.v_mm, p.v_mm, "v_mm", &mut applied)?;
         put_f64(&mut s.diameter_mm, p.diameter_mm, "diameter_mm", &mut applied)?;
+        put_range(&mut s.elong, p.elong, "elong", 1.0, 8.0, &mut applied)?;
+        put_f64(&mut s.rot_deg, p.rot_deg, "rot_deg", &mut applied)?;
+        if let Some(d) = p.set_depth_mm {
+            s.set_depth_mm = Some(d);
+            applied.push(format!("set_depth_mm={d}"));
+        }
         put_f64(&mut s.height_mm, p.height_mm, "height_mm", &mut applied)?;
         put_range(&mut s.crown, p.crown, "crown", 0.0, 1.0, &mut applied)?;
         put_f64(&mut s.blend_mm, p.blend_mm, "blend_mm", &mut applied)?;
@@ -1883,6 +2008,8 @@ impl RingDesignServer {
                 put_f64(&mut s.theta_deg, p.theta_deg, "theta_deg", &mut applied)?;
                 put_f64(&mut s.v_mm, p.v_mm, "v_mm", &mut applied)?;
                 put_f64(&mut s.diameter_mm, p.diameter_mm, "diameter_mm", &mut applied)?;
+                put_range(&mut s.elong, p.elong, "elong", 1.0, 8.0, &mut applied)?;
+                put_f64(&mut s.rot_deg, p.rot_deg, "rot_deg", &mut applied)?;
                 put_f64(&mut s.height_mm, p.height_mm, "height_mm", &mut applied)?;
                 put_range(&mut s.crown, p.crown, "crown", 0.0, 1.0, &mut applied)?;
                 put_f64(&mut s.blend_mm, p.blend_mm, "blend_mm", &mut applied)?;
@@ -2885,6 +3012,7 @@ mod tests {
         let d = e.design();
         assert!(d.layers.layers.is_empty(), "the head should not be a layer");
         assert_eq!(d.shank.kind, ShankKind::Signet);
+        assert_eq!(d.shank.head.loft, 1.0, "switching to a signet lofts the body");
         assert_eq!(d.shank.head.outline, SignetOutline::Cushion);
         let want = d.profile.width_mm * SignetOutline::Cushion.head_aspect();
         assert!(
@@ -2895,11 +3023,11 @@ mod tests {
 
         // The band really is wider and deeper at the head than behind it.
         let (inner_r, crest_r) = (d.inner_radius_mm(), d.reference_loop().crest_radius_mm);
-        let head = d.shank.head_at(d.shank.head.theta_deg, inner_r, crest_r);
-        let back = d.shank.head_at(d.shank.head.theta_deg + 180.0, inner_r, crest_r);
+        let head = d.shank.head_at(d.shank.head.theta_deg, inner_r, crest_r, &d.profile);
+        let back = d.shank.head_at(d.shank.head.theta_deg + 180.0, inner_r, crest_r, &d.profile);
         assert!(head.outer_r > back.outer_r + 0.9, "{:?} vs {:?}", head.outer_r, back.outer_r);
         assert!(
-            d.shank.signet_width_frac(d.shank.head.theta_deg + 180.0, inner_r, crest_r) < 0.3
+            d.shank.signet_width_frac(d.shank.head.theta_deg + 180.0, inner_r, crest_r, &d.profile) < 0.3
         );
     }
 

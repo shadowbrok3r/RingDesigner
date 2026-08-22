@@ -773,12 +773,23 @@ impl BandProfile {
             None => r,
         };
         let dome_w = m.dome_drop.clamp(0.0, 1.0);
+        let ridge_w = ok(m.ridge_drop).clamp(0.0, 1.0);
         let drop_at = |x: f64| -> f64 {
             let base = match morph_ab {
                 None => self.drop(x),
                 Some((a2, b2)) => mlerp(self.drop(x), superellipse_drop(x, a2, b2)),
             };
-            base + (superellipse_drop(x, 2.0, 2.0) - base) * dome_w
+            let d = base + (superellipse_drop(x, 2.0, 2.0) - base) * dome_w;
+            let ridge = match m.ridge_table {
+                Some(tab) => {
+                    let f = x.clamp(0.0, 1.0) * (RIDGE_TABLE - 1) as f64;
+                    let i = (f.floor() as usize).min(RIDGE_TABLE - 2);
+                    let u = f - i as f64;
+                    ok(tab[i] + (tab[i + 1] - tab[i]) * u)
+                }
+                None => superellipse_drop(x, 2.0, 1.0),
+            };
+            d + (ridge - d) * ridge_w
         };
         // The flank skew is a power on the normalized distance: monotone in,
         // monotone out, so a skewed flank is still a drop from a single crest.
@@ -951,12 +962,63 @@ impl BandProfile {
         // meet in the middle of the band.
         let groove_cap = ((hw * 0.35).min((thickness - comfort) * 0.9)).max(0.0);
         let groove = ok(m.side_groove_mm).clamp(0.0, groove_cap);
+        // A lofted head hands each wall its own profile: finger offsets from
+        // the bore edge at evenly spaced radii, read at this radius and
+        // pinned to the corner so the fillet lands where it always did.
+        let wall_mix = ok(m.wall_mix).clamp(0.0, 1.0);
+        // The table's radii are not evenly spaced, so each read finds its
+        // span; the table is dense enough along the wall for chords.
+        let table_at = |tab: &WallShape, low: bool, r: f64| -> f64 {
+            let f = ((r - inner_r) / edge_t.max(1e-9)).clamp(0.0, 1.0);
+            let vals = if low { &tab.lo } else { &tab.hi };
+            let k = tab.r.partition_point(|&x| x < f).clamp(1, WALL_TABLE - 1);
+            let (ra, rb) = (tab.r[k - 1], tab.r[k]);
+            let u = if rb > ra { ((f - ra) / (rb - ra)).clamp(0.0, 1.0) } else { 1.0 };
+            ok((vals[k - 1] + (vals[k] - vals[k - 1]) * u) * half_w)
+        };
         let wall = |z_a: f64, z_b: f64, r0: f64, r1: f64, inward: f64| -> Vec<[f64; 2]> {
-            (1..FLANK_STEPS)
-                .map(|i| {
-                    let t = i as f64 / FLANK_STEPS as f64;
+            let tab = m.wall;
+            let low = inward > 0.0;
+            let end = tab.map(|t| table_at(&t, low, r1)).unwrap_or(0.0);
+            let lofted_at = |t: f64| -> f64 {
+                let r = r0 + (r1 - r0) * t;
+                z_a + tab.map(|tb| table_at(&tb, low, r)).unwrap_or(0.0) + (z_b - z_a - end) * t
+            };
+            // A lofted wall is a curve rather than a chord, so its vertices
+            // go by arc length along it rather than by radius: the steep
+            // run under the ridge gets its share.
+            let ts: Vec<f64> = if tab.is_some() && wall_mix > 1e-9 {
+                const FINE: usize = 96;
+                let mut cum = Vec::with_capacity(FINE + 1);
+                let mut acc = 0.0;
+                cum.push(0.0);
+                let mut prev = [r0, lofted_at(0.0)];
+                for k in 1..=FINE {
+                    let t = k as f64 / FINE as f64;
+                    let p = [r0 + (r1 - r0) * t, lofted_at(t)];
+                    acc += dist(prev, p);
+                    cum.push(acc);
+                    prev = p;
+                }
+                let total = acc.max(1e-12);
+                (1..FLANK_STEPS)
+                    .map(|i| {
+                        let want = total * i as f64 / FLANK_STEPS as f64;
+                        let k = cum.partition_point(|&c| c < want).clamp(1, FINE);
+                        let seg = (cum[k] - cum[k - 1]).max(1e-12);
+                        ((k - 1) as f64 + (want - cum[k - 1]) / seg) / FINE as f64
+                    })
+                    .collect()
+            } else {
+                (1..FLANK_STEPS).map(|i| i as f64 / FLANK_STEPS as f64).collect()
+            };
+            ts.into_iter()
+                .map(|t| {
                     let s = crate::field::smootherstep(0.0, 1.0, t);
                     let mut z = z_a + (z_b - z_a) * (t + (s - t) * head_w);
+                    if tab.is_some() && wall_mix > 1e-9 {
+                        z += (lofted_at(t) - z) * wall_mix;
+                    }
                     if groove > 1e-9 {
                         let gt = crate::field::smootherstep(0.22, 0.42, t)
                             * (1.0 - crate::field::smootherstep(0.58, 0.78, t));
@@ -1286,6 +1348,25 @@ pub struct SignetHead {
     /// flank.
     #[serde(default)]
     pub dome: f64,
+    /// Share of the lofted construction, 0..1: the head as CrossGems builds
+    /// it, one loose cubic loft from the table's rim through a grown body
+    /// outline down to the ring's equator silhouette. The flank bulges a
+    /// few tenths under the table and curls back under toward the finger,
+    /// and the shoulder is one smooth sheet to the shank. 0 keeps the
+    /// reference prism and its swell.
+    #[serde(default)]
+    pub loft: f64,
+    /// Lofted heads only: how much wider than the table the body outline
+    /// is along the ring, mm, three millimetres under the table.
+    #[serde(default = "default_loft_grow")]
+    pub loft_frontal_mm: f64,
+    /// Lofted heads only: the same growth across the band, mm.
+    #[serde(default = "default_loft_grow")]
+    pub loft_lateral_mm: f64,
+}
+
+fn default_loft_grow() -> f64 {
+    LOFT_GROW_MM
 }
 
 fn default_body_fair() -> f64 {
@@ -1422,11 +1503,27 @@ impl Default for SignetHead {
             table_dome_mm: 0.0,
             rim_round_mm: HEAD_RIM_ROUND,
             dome: 0.0,
+            loft: 0.0,
+            loft_frontal_mm: LOFT_GROW_MM,
+            loft_lateral_mm: LOFT_GROW_MM,
         }
     }
 }
 
 impl SignetHead {
+    /// The default head on the lofted body: what a new signet gets.
+    pub fn lofted() -> Self {
+        Self { loft: 1.0, ..Self::default() }
+    }
+
+    /// The effective `(loft, dome)` strengths: the cut dome takes precedence,
+    /// so a deeply lobed plan sent onto the dome by `suggest_dome` lands
+    /// there whether or not the head is lofted.
+    pub fn mix(&self) -> (f64, f64) {
+        let dome = self.dome.clamp(0.0, 1.0);
+        (self.loft.clamp(0.0, 1.0) * (1.0 - dome), dome)
+    }
+
     /// The arc the width takes to come back to the shank, given the head's own
     /// half-angle. Set outright if asked, and otherwise scaled with the head.
     pub fn swell_arc_deg(&self, face_half_deg: f64) -> f64 {
@@ -1468,6 +1565,15 @@ pub struct HeadAt {
     pub cap_r: f64,
     /// Radius the crest reaches here, mm.
     pub outer_r: f64,
+    /// A lofted head's own wall profile between the bore and the crest.
+    pub wall: Option<WallShape>,
+    /// How far the section follows `wall` over the band's own wall, 0..1.
+    pub wall_mix: f64,
+    /// A lofted head's rounded ridge past the table: how far the crest
+    /// stands over the chord `face` spans, mm. Zero on the table.
+    pub ridge_crown: f64,
+    /// That ridge's own drop law over the chord, from the loft.
+    pub ridge_table: Option<[f64; RIDGE_TABLE]>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1492,10 +1598,49 @@ pub struct ShankStyle {
     /// 16. `amount` scales how far each pulls from the plain band.
     #[serde(default)]
     pub keys: Vec<ShankKey>,
+    /// Imported signet plans, indexed by [`SignetOutline::Custom`]. In the
+    /// design and not a global library, so a file with a custom head renders
+    /// identically on any machine.
+    #[serde(default)]
+    pub custom_outlines: Vec<crate::field::CustomOutline>,
 }
 
 fn default_waves() -> u32 {
     1
+}
+
+/// Circular local maxima of a boundary-radius table with prominence over
+/// 0.02 of the unit box — the lobe count of a plan.
+fn prominent_maxima(r: &[f32]) -> usize {
+    let n = r.len();
+    if n < 8 {
+        return 0;
+    }
+    let at = |i: isize| r[i.rem_euclid(n as isize) as usize] as f64;
+    let mut count = 0;
+    for i in 0..n as isize {
+        let v = at(i);
+        if at(i - 1) >= v || at(i + 1) > v {
+            continue;
+        }
+        // Prominence: how far the radius falls on the shallower side before
+        // rising past this peak again.
+        let drop = |dir: isize| {
+            let mut lowest = v;
+            for k in 1..n as isize {
+                let w = at(i + dir * k);
+                if w > v {
+                    break;
+                }
+                lowest = lowest.min(w);
+            }
+            v - lowest
+        };
+        if drop(1).min(drop(-1)) > 0.02 {
+            count += 1;
+        }
+    }
+    count
 }
 
 /// One authored station for [`ShankKind::Keyframes`].
@@ -1521,6 +1666,7 @@ impl Default for ShankStyle {
             kind: ShankKind::Uniform,
             amount: 0.5,
             waves: default_waves(),
+            custom_outlines: Vec::new(),
             head: SignetHead::default(),
             extra_heads: Vec::new(),
             keys: Vec::new(),
@@ -1529,12 +1675,87 @@ impl Default for ShankStyle {
 }
 
 impl ShankStyle {
+    /// The imported plan a [`SignetOutline::Custom`] names, if it is on this
+    /// design.
+    pub fn custom_outline(&self, o: SignetOutline) -> Option<&crate::field::CustomOutline> {
+        match o {
+            SignetOutline::Custom(i) => self.custom_outlines.get(i as usize),
+            _ => None,
+        }
+    }
+
+    /// [`SignetOutline::extent`], with `Custom` resolved against this
+    /// design's own registry — the one reader the head construction uses.
+    pub fn outline_extent(&self, o: SignetOutline, x: f64) -> (f64, f64) {
+        match self.custom_outline(o) {
+            Some(c) => c.extent_at(x),
+            None => o.extent(x),
+        }
+    }
+
+    /// [`SignetOutline::body_extent`], resolved the same way.
+    pub fn outline_body_extent(&self, o: SignetOutline, x: f64) -> (f64, f64) {
+        match self.custom_outline(o) {
+            Some(c) => c.body_extent_at(x),
+            None => o.body_extent(x),
+        }
+    }
+
+    /// [`SignetOutline::head_aspect`], with `Custom` reading the imported
+    /// shape's own box ratio.
+    pub fn outline_aspect(&self, o: SignetOutline) -> f64 {
+        match self.custom_outline(o) {
+            Some(c) => c.aspect.clamp(0.05, 20.0),
+            None => o.head_aspect(),
+        }
+    }
+
+    /// The cut-dome share a plan reads best at: 0 for the builtins and for
+    /// gently shaped imports — the prism carries their outline cleanly, a
+    /// heart's cleft riding the wall as one smooth cove — and 1 for deeply
+    /// lobed imports, whose four-plus coves corrugate a prism's flank. On
+    /// the dome the body is one smooth lens and the lobes read in the
+    /// arris, which is the castable read of a clover or a star. The
+    /// importer's `fair_r` already measures exactly this (it grows with the
+    /// plan's hull defect), so it is the signal.
+    pub fn suggest_dome(&self, o: SignetOutline) -> f64 {
+        match self.custom_outline(o) {
+            Some(c) if c.fair_r > 1.2 => 1.0,
+            // Many shallow lobes corrugate a prism just as surely as few
+            // deep ones — a six-lobe rosette ripples at a hull defect a
+            // heraldic shield's single notch exceeds. Four or more prominent
+            // radius maxima with any real concavity is the lobed signature;
+            // a square's four corners have the maxima but no defect, a
+            // shield or heart has the defect but only three maxima.
+            Some(c) if c.fair_r > 0.9 && prominent_maxima(&c.r) >= 4 => 1.0,
+            _ => 0.0,
+        }
+    }
+
+    /// Adopt an imported plan and aim a head at it: appends to the registry
+    /// (reusing a same-named entry) and returns the variant to set.
+    pub fn adopt_outline(&mut self, outline: crate::field::CustomOutline) -> SignetOutline {
+        let i = match self.custom_outlines.iter().position(|c| c.name == outline.name) {
+            Some(i) => {
+                self.custom_outlines[i] = outline;
+                i
+            }
+            None => {
+                self.custom_outlines.push(outline);
+                self.custom_outlines.len() - 1
+            }
+        };
+        SignetOutline::Custom(i.min(u8::MAX as usize) as u8)
+    }
+
     /// Switch to a signet and give the head proportions that read as one,
-    /// rather than leaving it on whatever the last style used.
+    /// rather than leaving it on whatever the last style used. A new signet
+    /// is lofted; a head read from a file without `loft` stays the prism.
     pub fn apply_signet(&mut self, band_width_mm: f64) {
         self.kind = ShankKind::Signet;
         self.amount = SIGNET_TAPER;
         self.head.fit_length_to(band_width_mm);
+        self.head.loft = 1.0;
     }
 
     /// Share of the head width left at a ring angle, and where that width sits
@@ -1548,14 +1769,26 @@ impl ShankStyle {
     /// give.
     ///
     /// Returns `(width_frac, centre_frac)`, both against the unmodulated width.
-    pub fn signet_band(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> (f64, f64) {
-        let (lo, hi) = self.signet_span(theta_deg, inner_r, base_outer_r);
+    pub fn signet_band(
+        &self,
+        theta_deg: f64,
+        inner_r: f64,
+        base_outer_r: f64,
+        band: &BandProfile,
+    ) -> (f64, f64) {
+        let (lo, hi) = self.signet_span(theta_deg, inner_r, base_outer_r, band);
         ((hi - lo) * 0.5, (hi + lo) * 0.5)
     }
 
     /// The band's span at its bore, as `(low, high)` fractions of the head's
     /// half-width — the union of every head's reach and the shank strip.
-    pub fn signet_span(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> (f64, f64) {
+    pub fn signet_span(
+        &self,
+        theta_deg: f64,
+        inner_r: f64,
+        base_outer_r: f64,
+        band: &BandProfile,
+    ) -> (f64, f64) {
         let shank = self.signet_shank_frac(theta_deg);
         // A floor, not a blend. The swell already lands on the shank, so this
         // only catches an outline narrower across the band than the shank it
@@ -1570,7 +1803,7 @@ impl ShankStyle {
         let mut lo = -shank;
         let mut hi = shank;
         for h in self.all_heads() {
-            let a = self.head_at_for(h, theta_deg, inner_r, base_outer_r);
+            let a = self.head_at_for(h, theta_deg, inner_r, base_outer_r, band);
             lo = smin(lo, a.reach.0, 0.04);
             hi = smax(hi, a.reach.1, 0.04);
         }
@@ -1578,8 +1811,14 @@ impl ShankStyle {
     }
 
     /// Fraction of the band width the head leaves at a ring angle.
-    pub fn signet_width_frac(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> f64 {
-        self.signet_band(theta_deg, inner_r, base_outer_r).0
+    pub fn signet_width_frac(
+        &self,
+        theta_deg: f64,
+        inner_r: f64,
+        base_outer_r: f64,
+        band: &BandProfile,
+    ) -> f64 {
+        self.signet_band(theta_deg, inner_r, base_outer_r, band).0
     }
 
     /// Half-width of the shank strip, against the head's own.
@@ -1637,8 +1876,8 @@ impl ShankStyle {
     /// the whole swell — the width goes on widening under a crest that has
     /// already come down, which is exactly the broad thin shoulder of the
     /// reference.
-    pub fn head_at(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> HeadAt {
-        self.head_at_for(&self.head, theta_deg, inner_r, base_outer_r)
+    pub fn head_at(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64, band: &BandProfile) -> HeadAt {
+        self.head_at_for(&self.head, theta_deg, inner_r, base_outer_r, band)
     }
 
     /// [`head_at`](Self::head_at) for one specific head of a multi-head band.
@@ -1648,11 +1887,15 @@ impl ShankStyle {
         theta_deg: f64,
         inner_r: f64,
         base_outer_r: f64,
+        band: &BandProfile,
     ) -> HeadAt {
+        let half_w_mm = band.width_mm * 0.5;
         let k = self.amount.clamp(0.0, 1.0);
         let t0 = (base_outer_r - inner_r).max(0.05);
-        let r_shank =
-            inner_r + t0 * (1.0 - SIGNET_SHANK_THIN * k * self.away_from_head(theta_deg));
+        // A lofted head's shank keeps its thickness all the way round.
+        let (loft_k, dome_k) = head.mix();
+        let thin = SIGNET_SHANK_THIN * k * (1.0 - loft_k);
+        let r_shank = inner_r + t0 * (1.0 - thin * self.away_from_head(theta_deg));
 
         let plane_r = base_outer_r + head.rise_mm.max(0.0);
         let half_l = (head.length_mm.max(0.5) * 0.5)
@@ -1673,12 +1916,11 @@ impl ShankStyle {
         // its detail — and contains the face, so the flank stays drafted.
         let x = (plane_r * d.min(face_edge).tan() / half_l).clamp(0.0, 1.0);
         let k_fair = head.body_fair.clamp(0.0, 1.0);
-        let dome_k = head.dome.clamp(0.0, 1.0);
-        let face_at = |s: f64| head.outline.extent(s);
+        let face_at = |s: f64| self.outline_extent(head.outline, s);
         // A cut dome's plan owes the outline nothing: the body widens toward
         // the outline's full bounding box and the swell alone shapes it.
         let body_at = |s: f64| {
-            let b = blend_span(face_at(s), head.outline.body_extent(s), k_fair);
+            let b = blend_span(face_at(s), self.outline_body_extent(head.outline, s), k_fair);
             blend_span(b, (-1.0, 1.0), dome_k)
         };
         let body = body_at(end * x);
@@ -1780,6 +2022,42 @@ impl ShankStyle {
         // cut always exits through dome, never through the band's corner.
         let facet_half = 0.5 * (face.1 - face.0).max(0.0) * fade * HEAD_DOME_INSET;
 
+        // --- The lofted head, blended in by `loft`. ---
+        // Read from the loft, the crest may reach past the bore span: the
+        // flank curls under the table toward the finger. That is not a
+        // ceiling — every section stays a single-valued width over its
+        // radius, so each wall faces its own mould half — and the field
+        // verdict is what says so. The union with the shank and every
+        // other head goes on as before, on the blended spans.
+        // The loft's tail converges on the shank only at the equator itself,
+        // so the last few degrees hand over by a fade rather than a cut.
+        let loft_w = loft_k * (1.0 - crate::field::smootherstep(89.2, 89.5, d.to_degrees()));
+        let (reach, crest, outer_r, wall, ridge_crown, ridge_table) = if loft_w > 1e-6 {
+            let side_r = inner_r + t0 * (1.0 - thin * 0.5);
+            let tent = self.tent_for(head, inner_r, base_outer_r, band, side_r, shank);
+            match tent.at(signed, inner_r) {
+                Some(t) => {
+                    let hw = half_w_mm.max(1e-6);
+                    let frac = |(a, b): (f64, f64)| (a / hw, b / hw);
+                    let mut w = t.wall;
+                    for v in w.lo.iter_mut().chain(w.hi.iter_mut()) {
+                        *v /= hw;
+                    }
+                    (
+                        blend_span(reach, frac(t.reach), loft_w),
+                        blend_span(crest, frac(t.face), loft_w),
+                        outer_r + (t.crest_r - outer_r) * loft_w,
+                        Some(w),
+                        t.crown * loft_w,
+                        t.ridge,
+                    )
+                }
+                None => (reach, crest, outer_r, None, 0.0, None),
+            }
+        } else {
+            (reach, crest, outer_r, None, 0.0, None)
+        };
+
         HeadAt {
             x: end * x,
             reach,
@@ -1791,7 +2069,101 @@ impl ShankStyle {
             // off and leaves a step where the two disagree.
             cap_r: plane_track + cap,
             outer_r,
+            wall,
+            wall_mix: loft_w,
+            ridge_crown,
+            ridge_table,
         }
+    }
+
+    /// The lofted head's control rows for one head, built once per shape
+    /// and kept while nothing about it changes.
+    fn tent_for(
+        &self,
+        head: &SignetHead,
+        inner_r: f64,
+        base_outer_r: f64,
+        band: &BandProfile,
+        side_r: f64,
+        shank: f64,
+    ) -> std::sync::Arc<Tent> {
+        use std::hash::{Hash, Hasher};
+        let plane = base_outer_r + head.rise_mm.max(0.0);
+        let half_l = (head.length_mm.max(0.5) * 0.5)
+            .min(plane * HEAD_MAX_HALF_DEG.to_radians().tan());
+        let half_w = (band.width_mm * 0.5).max(0.2);
+        let frontal = head.loft_frontal_mm.clamp(0.0, 20.0);
+        let lateral = head.loft_lateral_mm.clamp(0.0, 20.0);
+        let cap_mm = head.table_dome_mm.clamp(0.0, 3.0);
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        cap_mm.to_bits().hash(&mut h);
+        for v in [
+            half_l,
+            half_w,
+            plane,
+            frontal,
+            lateral,
+            side_r,
+            shank,
+            inner_r,
+            band.thickness_mm,
+            band.crown_mm,
+            band.shape_a,
+            band.shape_b,
+            band.edge_round_mm,
+            band.comfort_fit_mm,
+            band.side_draft_deg,
+            band.crest_bias,
+        ] {
+            v.to_bits().hash(&mut h);
+        }
+        std::mem::discriminant(&band.style).hash(&mut h);
+        band.flange.enabled.hash(&mut h);
+        std::mem::discriminant(&head.outline).hash(&mut h);
+        if let SignetOutline::Custom(i) = head.outline {
+            i.hash(&mut h);
+        }
+        if let Some(c) = self.custom_outline(head.outline) {
+            c.name.hash(&mut h);
+            c.fair_r.to_bits().hash(&mut h);
+            for r in &c.r {
+                r.to_bits().hash(&mut h);
+            }
+        }
+        tent_cached(h.finish(), || {
+            // The equator silhouette is the band's own section at the shank's
+            // width and the side's radius, seen along the head axis: its
+            // outer radius at each finger position, mirrored. The loft's
+            // last rows are therefore exactly what the shank sweeps, and the
+            // two meet at the equator by construction.
+            let hull = {
+                let m = ShankMod {
+                    width_scale: shank.max(SIGNET_MIN_SHANK_FRAC),
+                    outer_r: Some(side_r),
+                    ..ShankMod::identity()
+                };
+                let l = band.sample_mod(inner_r, 96, &m);
+                // The outer surface, low edge over the crest to the high
+                // edge, is the silhouette's right half as it stands.
+                let right: Vec<[f64; 2]> = l.pts[l.surface_start.min(l.pts.len())..]
+                    .iter()
+                    .map(|p| [p.r, p.z])
+                    .collect();
+                let mut poly = right.clone();
+                poly.extend(right.iter().rev().map(|p| [-p[0], p[1]]));
+                poly
+            };
+            Tent::build(
+                &|s| self.outline_extent(head.outline, s),
+                half_l,
+                half_w,
+                plane,
+                frontal,
+                lateral,
+                &hull,
+                cap_mm,
+            )
+        })
     }
 }
 
@@ -1900,6 +2272,17 @@ pub struct ShankMod {
     /// boundaries that sit legitimately close to the floor — it pulled a
     /// heart's cleft half shut — so the width follows the station.
     pub straddle_soft: f64,
+    /// A lofted head's own wall profile. `None` is the band's own wall.
+    pub wall: Option<WallShape>,
+    /// How far the walls follow that profile, 0..1.
+    pub wall_mix: f64,
+    /// Blend of the crown's drop law toward the ridge's own, 0..1: a lofted
+    /// head's ridge read off the loft (`ridge_table`), or a parabola when no
+    /// table came with it, so the crown meets the wall where the loft does.
+    pub ridge_drop: f64,
+    /// The ridge's own drop law, depth shares at evenly spaced shares of
+    /// the chord's half-width, from the loft.
+    pub ridge_table: Option<[f64; RIDGE_TABLE]>,
 }
 
 impl ShankMod {
@@ -1922,6 +2305,10 @@ impl ShankMod {
             crown_min_mm: None,
             dome_drop: 0.0,
             straddle_soft: 0.0,
+            wall: None,
+            wall_mix: 0.0,
+            ridge_drop: 0.0,
+            ridge_table: None,
         }
     }
 }
@@ -1929,7 +2316,13 @@ impl ShankMod {
 impl ShankStyle {
     /// Modulation at a ring angle. `base_outer_r` is the unmodulated crest
     /// radius, used to position the Euro chord and the signet's table plane.
-    pub fn modulation(&self, theta_deg: f64, inner_r: f64, base_outer_r: f64) -> ShankMod {
+    pub fn modulation(
+        &self,
+        theta_deg: f64,
+        inner_r: f64,
+        base_outer_r: f64,
+        band: &BandProfile,
+    ) -> ShankMod {
         let k = self.amount.clamp(0.0, 1.0);
         // 0 at the top of the ring, 1 at the bottom of the shank.
         let d = ((theta_deg - TOP_DEG).to_radians().cos() * -0.5 + 0.5).clamp(0.0, 1.0);
@@ -1950,8 +2343,22 @@ impl ShankStyle {
                 let vals = if keys.len() == 1 {
                     read(&keys[0])
                 } else {
-                    // Periodic Catmull-Rom: the segment containing theta,
-                    // with both neighbours wrapped round the joint.
+                    // Periodic Catmull-Rom over the segment containing
+                    // theta, with both neighbours wrapped round the joint —
+                    // and parameterized by the **knot angles**, not by knot
+                    // index.
+                    //
+                    // Uniform-parameter Catmull-Rom estimates its tangents as
+                    // `(v2 - v0) / 2` whatever the spacing, so unevenly
+                    // spaced stations overshoot: authored at 20/90/160/270
+                    // with a largest width of 1.00, it reached **1.26** at
+                    // 75 degrees and hit the 0.30 clamp floor at 255. The
+                    // clamp then turns the overshoot into a *step*, and a
+                    // step in width between neighbouring slices sweeps a
+                    // radial wall down the band — plainly visible as a sheet
+                    // across the ring. Scaling each tangent by its own
+                    // interval is the standard fix and reduces to the uniform
+                    // form exactly when the stations are evenly spaced.
                     let n = keys.len();
                     let t360 = theta_deg.rem_euclid(360.0);
                     let i1 = match keys.iter().rposition(|kk| kk.theta_deg <= t360) {
@@ -1966,23 +2373,34 @@ impl ShankStyle {
                     if a2 <= a1 {
                         a2 += 360.0;
                     }
+                    let mut a0 = keys[i0].theta_deg;
+                    if a0 >= a1 {
+                        a0 -= 360.0;
+                    }
+                    let mut a3 = keys[i3].theta_deg;
+                    while a3 <= a2 {
+                        a3 += 360.0;
+                    }
                     let mut t = t360;
                     if t < a1 {
                         t += 360.0;
                     }
-                    let f = ((t - a1) / (a2 - a1).max(1e-9)).clamp(0.0, 1.0);
+                    let d = (a2 - a1).max(1e-9);
+                    let f = ((t - a1) / d).clamp(0.0, 1.0);
                     let (p0, p1, p2, p3) =
                         (read(&keys[i0]), read(&keys[i1]), read(&keys[i2]), read(&keys[i3]));
                     let mut out = [0.0; 3];
                     for c in 0..3 {
                         let (v0, v1, v2, v3) = (p0[c], p1[c], p2[c], p3[c]);
-                        let f2 = f * f;
-                        let f3 = f2 * f;
-                        out[c] = 0.5
-                            * ((2.0 * v1)
-                                + (v2 - v0) * f
-                                + (2.0 * v0 - 5.0 * v1 + 4.0 * v2 - v3) * f2
-                                + (3.0 * v1 - v2 - 3.0 * v0 + v3) * f3);
+                        // Tangents in value-per-degree, scaled to this
+                        // segment's own span.
+                        let m1 = (v2 - v0) / (a2 - a0).max(1e-9) * d;
+                        let m2 = (v3 - v1) / (a3 - a1).max(1e-9) * d;
+                        let (f2, f3) = (f * f, f * f * f);
+                        out[c] = v1 * (2.0 * f3 - 3.0 * f2 + 1.0)
+                            + m1 * (f3 - 2.0 * f2 + f)
+                            + v2 * (-2.0 * f3 + 3.0 * f2)
+                            + m2 * (f3 - f2);
                     }
                     out
                 };
@@ -2115,12 +2533,12 @@ impl ShankStyle {
                 // and at a head that head does.
                 let reads: Vec<HeadAt> = self
                     .all_heads()
-                    .map(|h| self.head_at_for(h, theta_deg, inner_r, base_outer_r))
+                    .map(|h| self.head_at_for(h, theta_deg, inner_r, base_outer_r, band))
                     .collect();
                 let a = pick_dominant(&reads);
-                let band = self.signet_span(theta_deg, inner_r, base_outer_r);
-                let (w, centre) = ((band.1 - band.0) * 0.5, (band.1 + band.0) * 0.5);
-                let dome_k = self.head.dome.clamp(0.0, 1.0);
+                let span = self.signet_span(theta_deg, inner_r, base_outer_r, band);
+                let (w, centre) = ((span.1 - span.0) * 0.5, (span.1 + span.0) * 0.5);
+                let (loft_k, dome_k) = self.head.mix();
                 // The table is the face's own outline, not the body's: the two
                 // are different extents, and that difference is the head's
                 // drafted flank. The cut dome hands the crown the whole span
@@ -2130,11 +2548,14 @@ impl ShankStyle {
                 // pocket locks in the sand (measured -89 degrees at a heart's
                 // cleft), which is why a cleft cannot be cut from above and a
                 // heart keeps the prism construction.
-                let crest = blend_span(a.face, band, dome_k);
+                let crest = blend_span(a.face, span, dome_k);
                 // The shank rounds off toward a wire as it narrows, so a flat
                 // head sits on a round shank. The crown clamp caps it at a full
                 // dome, so a large value only ever means "more domed here".
-                let shank_crown = 1.0 + SIGNET_SHANK_ROUNDING * k * (1.0 - w);
+                // The lofted head's shank stays the band's own flat-topped
+                // section all the way round, as the factory presets' do.
+                let shank_crown = 1.0
+                    + SIGNET_SHANK_ROUNDING * k * (1.0 - w) * (1.0 - loft_k);
                 let table_crown = 1.0 - self.head.table_flat.clamp(0.0, 1.0);
                 // The cut dome keeps the section fully crowned: flattening is
                 // the cap's job there, and a flattened crown would leave the
@@ -2158,7 +2579,11 @@ impl ShankStyle {
                     // Unused: `outer_r` sets the section's depth outright, so
                     // the crown stays a fraction of the profile's own.
                     thickness_scale: 1.0,
-                    crown_scale: shank_crown + (table_crown - shank_crown) * on_head,
+                    // A lofted section carries the loft's own ridge as its
+                    // crown and nothing of the band's; the band's returns as
+                    // the loft fades into the shank.
+                    crown_scale: (shank_crown + (table_crown - shank_crown) * on_head)
+                        * (1.0 - a.wall_mix),
                     outer_r: Some(outer_r),
                     z_center_frac: centre,
                     outer_max_r: (dome_k > 1e-6).then_some(cap_r),
@@ -2169,7 +2594,11 @@ impl ShankStyle {
                     // The cut dome's wall is the band's own chord, so the
                     // prism reshaping fades out with `dome`.
                     head: crate::field::smootherstep(0.0, 1.0, on_head) * (1.0 - dome_k),
-                    head_rim_mm: self.head.rim_round_mm.clamp(0.0, 2.0),
+                    // Past the table a lofted head's ridge is its own rounding;
+                    // the rim fillet belongs to the table's edge and fades out
+                    // as the ridge crown takes over.
+                    head_rim_mm: self.head.rim_round_mm.clamp(0.0, 2.0)
+                        * (1.0 - crate::field::smoothstep(0.0, 0.3, a.ridge_crown) * a.wall_mix),
                     side_groove_mm: 0.0,
                     facet_half: facet_half * dome_k,
                     // A hard arris, deliberately: the smooth-min crossfade
@@ -2179,16 +2608,526 @@ impl ShankStyle {
                     // monotone, so the sharp cut is the castable one — and the
                     // crisp edge is what a cut face looks like.
                     facet_rim_mm: 0.0,
-                    crown_min_mm: (dome_k > 1e-6).then(|| {
-                        HEAD_DOME_CROWN * (outer_r - inner_r).max(0.3)
-                            * dome_k
-                            * crate::field::smootherstep(0.0, 1.0, on_head)
-                    }),
+                    crown_min_mm: {
+                        let dome = (dome_k > 1e-6).then(|| {
+                            HEAD_DOME_CROWN * (outer_r - inner_r).max(0.3)
+                                * dome_k
+                                * crate::field::smootherstep(0.0, 1.0, on_head)
+                        });
+                        let ridge = (a.ridge_crown > 1e-6).then_some(a.ridge_crown);
+                        match (dome, ridge) {
+                            (Some(x), Some(y)) => Some(x.max(y)),
+                            (x, y) => x.or(y),
+                        }
+                    },
                     dome_drop: dome_k * crate::field::smootherstep(0.0, 1.0, on_head),
+                    ridge_drop: a.wall_mix * crate::field::smoothstep(0.0, 0.05, a.ridge_crown),
+                    ridge_table: a.ridge_table,
                     straddle_soft: crate::field::smootherstep(0.55, 0.92, a.x.abs()),
+                    wall: a.wall,
+                    wall_mix: a.wall_mix,
                 }
             }
         }
+    }
+}
+
+// --- The lofted head -------------------------------------------------------
+//
+// CrossGems' Signet_Ring builds a head as one loose cubic B-spline loft
+// through five closed plan curves at fixed heights over the ring's centre:
+// the table outline at 0.98, the outline, the outline grown by the frontal
+// and lateral distances three millimetres under the table, and the ring's
+// equator silhouette at +3 and at 0. The curves are the surface's control
+// rows, not sections it passes through, so the grown outline shows as a
+// bulge of a few tenths rather than a shelf, and the whole shoulder from
+// the table's rim to the shank is one sheet. Read per ring angle it gives
+// the section's crest radius, crest span, bore span and the wall's own
+// profile between them. Decoded from the cluster's wiring and re-executed
+// (tools/harvest/signet_tent.py) against the ring meshes cached in the
+// factory presets: crest 12.10/12.10 mm at the centre, 15.58/15.59 at the
+// table's corner, widths within a tenth everywhere.
+
+/// Samples round each loft row.
+const LOFT_U: usize = 256;
+/// Radii in a wall-shape table, evenly spaced from the bore to the crest.
+pub const WALL_TABLE: usize = 40;
+/// Depth of the grown body outline below the table plane, mm.
+pub const LOFT_BODY_DROP_MM: f64 = 3.0;
+/// Height of the upper silhouette row over the equator plane, mm.
+pub const LOFT_EQUATOR_LIFT_MM: f64 = 3.0;
+/// The flat table's share of the outline; the rim rolls over the rest.
+pub const LOFT_RIM_INSET: f64 = 0.98;
+/// Default growth of the body outline under the table, mm in each axis.
+pub const LOFT_GROW_MM: f64 = 2.0;
+/// Share of the bore-to-ridge run below a ridge at which its chord is read.
+const LOFT_RIDGE_STEP: f64 = 0.12;
+/// The smooth table's second row: the outline scaled about its centroid, at
+/// the apex's height — what makes a lobed plan read as a lobed dome.
+const LOFT_CAP_INSET: f64 = 0.6;
+/// Most control rows a loft carries: five for the flat table, six under a cap.
+const LOFT_MAX_ROWS: usize = 8;
+/// Samples in a ridge's own drop law, from the apex out to the chord's end.
+pub const RIDGE_TABLE: usize = 9;
+
+/// A head wall's across-band profile at one ring angle: finger offsets from
+/// the bore edge at [`WALL_TABLE`] radii between the bore and the corner the
+/// crown stands on, in half-width fractions. The radii sit at equal arc
+/// length along the wall rather than at equal spacing — the rim's ledge
+/// under a table is a tenth of a millimetre deep and millimetres wide, and
+/// evenly spaced radii chord straight across it — and are kept as fractions
+/// of the bore-to-corner run in `r`. `lo` runs toward negative `z` and `hi`
+/// toward positive, like the spans.
+#[derive(Clone, Copy, Debug)]
+pub struct WallShape {
+    pub r: [f64; WALL_TABLE],
+    pub lo: [f64; WALL_TABLE],
+    pub hi: [f64; WALL_TABLE],
+}
+
+/// One angle's read of a lofted head, all in mm.
+struct TentAt {
+    crest_r: f64,
+    face: (f64, f64),
+    reach: (f64, f64),
+    wall: WallShape,
+    /// How far the ridge stands above the chord `face` spans, mm: the
+    /// rounded top of a section past the table. Zero on the table.
+    crown: f64,
+    /// The ridge's own drop law over the chord: the loft's depth below the
+    /// apex at evenly spaced shares of the chord's half-width, as shares of
+    /// `crown`. A cap's rounded plateau and a shoulder's ridge differ here,
+    /// and a parabola is right for neither.
+    ridge: Option<[f64; RIDGE_TABLE]>,
+}
+
+/// The five control rows of a lofted head in the head's plan frame: `x`
+/// along the ring from the head's centre, `y` across the band, both mm,
+/// each row at its own height over the ring's centre along the head axis.
+struct Tent {
+    rows: Vec<Vec<[f64; 2]>>,
+    z: Vec<f64>,
+    knots: Vec<f64>,
+    /// Height of the table plane — the outline row — over the ring's centre.
+    plane: f64,
+    /// The table is a smooth cap: the loft starts at an apex over the plane
+    /// and there is no flat face at all.
+    cap: bool,
+}
+
+/// Cubic B-spline basis over a clamped `knots` vector at `v`, one weight per
+/// control row (`knots.len() - 4` of them, at most [`LOFT_MAX_ROWS`]).
+fn loft_basis(v: f64, knots: &[f64]) -> [f64; LOFT_MAX_ROWS] {
+    let n = knots.len() - 4;
+    let mut out = [0.0; LOFT_MAX_ROWS];
+    let v = v.clamp(0.0, 1.0);
+    if v >= 1.0 {
+        out[n - 1] = 1.0;
+        return out;
+    }
+    let m = knots.len() - 1;
+    let mut b = [0.0; LOFT_MAX_ROWS + 3];
+    for i in 0..m {
+        b[i] = if knots[i] <= v && v < knots[i + 1] { 1.0 } else { 0.0 };
+    }
+    for p in 1..=3 {
+        let mut next = [0.0; LOFT_MAX_ROWS + 3];
+        for i in 0..(m - p) {
+            let a = if knots[i + p] > knots[i] {
+                (v - knots[i]) / (knots[i + p] - knots[i]) * b[i]
+            } else {
+                0.0
+            };
+            let c = if knots[i + p + 1] > knots[i + 1] {
+                (knots[i + p + 1] - v) / (knots[i + p + 1] - knots[i + 1]) * b[i + 1]
+            } else {
+                0.0
+            };
+            next[i] = a + c;
+        }
+        b = next;
+    }
+    out[..n].copy_from_slice(&b[..n]);
+    out
+}
+
+/// A closed polygon resampled to [`LOFT_U`] points by arc length, counter-
+/// clockwise from where it crosses the negative `y` axis — the seam every
+/// row is given, which is what makes the rows correspond.
+fn resample_row(poly: &[[f64; 2]]) -> Vec<[f64; 2]> {
+    let n = poly.len();
+    if n < 3 {
+        return vec![[0.0, 0.0]; LOFT_U];
+    }
+    let mut p: Vec<[f64; 2]> = poly.to_vec();
+    let area: f64 = (0..n)
+        .map(|i| {
+            let (a, b) = (p[i], p[(i + 1) % n]);
+            a[0] * b[1] - b[0] * a[1]
+        })
+        .sum();
+    if area < 0.0 {
+        p.reverse();
+    }
+    let mut best: Option<(f64, usize, f64)> = None;
+    for i in 0..n {
+        let (a, b) = (p[i], p[(i + 1) % n]);
+        if (a[0] <= 0.0 && b[0] > 0.0) || (b[0] <= 0.0 && a[0] > 0.0) {
+            let t = if (b[0] - a[0]).abs() > 1e-12 { -a[0] / (b[0] - a[0]) } else { 0.0 };
+            let y = a[1] + (b[1] - a[1]) * t;
+            if best.is_none_or(|(by, _, _)| y < by) {
+                best = Some((y, i, t));
+            }
+        }
+    }
+    let (start, k0) = match best {
+        Some((y, i, _)) => ([0.0, y], i),
+        None => (p[0], 0),
+    };
+    let mut q: Vec<[f64; 2]> = Vec::with_capacity(n + 1);
+    q.push(start);
+    for j in 1..=n {
+        q.push(p[(k0 + j) % n]);
+    }
+    let m = q.len();
+    let mut cum = Vec::with_capacity(m + 1);
+    let mut acc = 0.0;
+    cum.push(0.0);
+    for i in 0..m {
+        acc += dist(q[i], q[(i + 1) % m]);
+        cum.push(acc);
+    }
+    let total = acc.max(1e-12);
+    let mut out = Vec::with_capacity(LOFT_U);
+    let mut e = 0usize;
+    for j in 0..LOFT_U {
+        let s = total * j as f64 / LOFT_U as f64;
+        while e + 1 < m && cum[e + 1] < s {
+            e += 1;
+        }
+        let (a, b) = (q[e], q[(e + 1) % m]);
+        let len = (cum[e + 1] - cum[e]).max(1e-12);
+        let u = ((s - cum[e]) / len).clamp(0.0, 1.0);
+        out.push([a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]);
+    }
+    out
+}
+
+/// The polygon's area centroid.
+fn centroid(p: &[[f64; 2]]) -> [f64; 2] {
+    let n = p.len();
+    let (mut a2, mut cx, mut cy) = (0.0, 0.0, 0.0);
+    for i in 0..n {
+        let (u, w) = (p[i], p[(i + 1) % n]);
+        let c = u[0] * w[1] - w[0] * u[1];
+        a2 += c;
+        cx += (u[0] + w[0]) * c;
+        cy += (u[1] + w[1]) * c;
+    }
+    if a2.abs() < 1e-12 {
+        return [0.0, 0.0];
+    }
+    [cx / (3.0 * a2), cy / (3.0 * a2)]
+}
+
+fn scale_about(p: &[[f64; 2]], c: [f64; 2], sx: f64, sy: f64) -> Vec<[f64; 2]> {
+    p.iter().map(|q| [c[0] + (q[0] - c[0]) * sx, c[1] + (q[1] - c[1]) * sy]).collect()
+}
+
+/// Lofts are rebuilt only when something about them changes: the last few
+/// are kept by a hash of everything that shapes them.
+fn tent_cached(key: u64, build: impl FnOnce() -> Tent) -> std::sync::Arc<Tent> {
+    static CACHE: std::sync::Mutex<Vec<(u64, std::sync::Arc<Tent>)>> =
+        std::sync::Mutex::new(Vec::new());
+    let mut c = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, t)) = c.iter().find(|(k, _)| *k == key) {
+        return t.clone();
+    }
+    let t = std::sync::Arc::new(build());
+    if c.len() >= 8 {
+        c.remove(0);
+    }
+    c.push((key, t.clone()));
+    t
+}
+
+impl Tent {
+    #[allow(clippy::too_many_arguments)]
+    fn build(
+        extent: &dyn Fn(f64) -> (f64, f64),
+        half_l: f64,
+        half_w: f64,
+        plane: f64,
+        frontal: f64,
+        lateral: f64,
+        hull: &[[f64; 2]],
+        cap_mm: f64,
+    ) -> Self {
+        // The table outline as a polygon: the extent table read at stations
+        // along the ring, the low edge out and the high edge back.
+        const STEPS: usize = 192;
+        let mut poly = Vec::with_capacity(2 * STEPS + 2);
+        for k in 0..=STEPS {
+            let s = -1.0 + 2.0 * k as f64 / STEPS as f64;
+            poly.push([s * half_l, extent(s).0 * half_w]);
+        }
+        for k in (0..=STEPS).rev() {
+            let s = -1.0 + 2.0 * k as f64 / STEPS as f64;
+            poly.push([s * half_l, extent(s).1 * half_w]);
+        }
+        let c = centroid(&poly);
+        let (ymin, ymax) = poly
+            .iter()
+            .fold((f64::MAX, f64::MIN), |(lo, hi), p| (lo.min(p[1]), hi.max(p[1])));
+        let box_y = (ymax - ymin).max(1e-6);
+        let grow_x = (2.0 * half_l + frontal) / (2.0 * half_l).max(1e-6);
+        let grow_y = (box_y + lateral) / box_y;
+        let table = resample_row(&poly);
+        let rim = resample_row(&scale_about(&poly, c, LOFT_RIM_INSET, LOFT_RIM_INSET));
+        let body = resample_row(&scale_about(&poly, c, grow_x, grow_y));
+        let hull = resample_row(hull);
+        // A smooth table lofts from an apex point `cap_mm` over the plane,
+        // through the outline scaled about its centroid at that height, to
+        // the outline at the plane — no rim row and no flat face. The apex
+        // row is the point repeated, which the chord-length gaps take as the
+        // mean radius of the row it leads to.
+        let cap = cap_mm > 1e-6;
+        let (rows, z): (Vec<Vec<[f64; 2]>>, Vec<f64>) = if cap {
+            let apex = vec![c; LOFT_U];
+            let inner = resample_row(&scale_about(&poly, c, LOFT_CAP_INSET, LOFT_CAP_INSET));
+            (
+                vec![apex, inner, table, body, hull.clone(), hull],
+                vec![plane + cap_mm, plane + cap_mm, plane, plane - LOFT_BODY_DROP_MM, LOFT_EQUATOR_LIFT_MM, 0.0],
+            )
+        } else {
+            (
+                vec![rim, table, body, hull.clone(), hull],
+                vec![plane, plane, plane - LOFT_BODY_DROP_MM, LOFT_EQUATOR_LIFT_MM, 0.0],
+            )
+        };
+        // Chord-length knots: each interior knot averages three of the rows'
+        // own parameters, as a clamped cubic fitted through them is.
+        let n = rows.len();
+        let mut u = vec![0.0; n];
+        let mut total = 0.0;
+        for k in 0..n - 1 {
+            let dz = z[k + 1] - z[k];
+            let gap = (0..LOFT_U)
+                .map(|j| (dist(rows[k][j], rows[k + 1][j]).powi(2) + dz * dz).sqrt())
+                .sum::<f64>()
+                / LOFT_U as f64;
+            total += gap;
+            u[k + 1] = total;
+        }
+        let total = total.max(1e-9);
+        for x in u.iter_mut() {
+            *x /= total;
+        }
+        let mut knots = vec![0.0; 4];
+        for j in 1..=(n - 4) {
+            let k = ((u[j] + u[j + 1] + u[j + 2]) / 3.0).clamp(0.05, 0.95);
+            let prev = knots[knots.len() - 1];
+            knots.push(k.max(prev + 1e-3));
+        }
+        knots.extend([1.0, 1.0, 1.0, 1.0]);
+        Tent { rows, z, knots, plane, cap }
+    }
+
+    fn z_at(&self, v: f64) -> f64 {
+        let n = loft_basis(v, &self.knots);
+        (0..self.z.len()).map(|k| n[k] * self.z[k]).sum()
+    }
+
+    /// Loft parameter at height `z`: the heights are monotone, so bisection.
+    fn v_at_z(&self, z: f64) -> f64 {
+        if z >= self.z[0] {
+            return 0.0;
+        }
+        if z <= self.z[self.z.len() - 1] {
+            return 1.0;
+        }
+        let (mut lo, mut hi) = (0.0, 1.0);
+        for _ in 0..40 {
+            let mid = 0.5 * (lo + hi);
+            if self.z_at(mid) > z {
+                lo = mid
+            } else {
+                hi = mid
+            }
+        }
+        0.5 * (lo + hi)
+    }
+
+    fn row_at(&self, v: f64, out: &mut Vec<[f64; 2]>) {
+        let n = loft_basis(v, &self.knots);
+        out.clear();
+        for j in 0..LOFT_U {
+            let mut p = [0.0, 0.0];
+            for k in 0..self.rows.len() {
+                p[0] += n[k] * self.rows[k][j][0];
+                p[1] += n[k] * self.rows[k][j][1];
+            }
+            out.push(p);
+        }
+    }
+
+    /// Across-band extent of a closed row at the along-ring position `x`.
+    fn y_extent(row: &[[f64; 2]], x: f64) -> Option<(f64, f64)> {
+        let n = row.len();
+        let (mut lo, mut hi) = (f64::MAX, f64::MIN);
+        for i in 0..n {
+            let (a, b) = (row[i], row[(i + 1) % n]);
+            if (a[0] <= x && x < b[0]) || (b[0] <= x && x < a[0]) {
+                let y = a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]);
+                lo = lo.min(y);
+                hi = hi.max(y);
+            }
+        }
+        (lo <= hi).then_some((lo, hi))
+    }
+
+    /// The section the loft gives at `theta` radians off the head's centre,
+    /// or `None` past the equator, where the shank is its own.
+    fn at(&self, theta: f64, inner_r: f64) -> Option<TentAt> {
+        let (s, c) = theta.sin_cos();
+        if c < 0.008 {
+            return None;
+        }
+        let tan = s / c;
+        let mut row = Vec::with_capacity(LOFT_U);
+        // The crest. Under a flat table — the inset row, the plane the flat
+        // face fills — it is the plane itself. Past it, and everywhere under
+        // a cap, it is the first row down the loft that the ray at this
+        // angle enters: the cap or the rim's roll first, then the
+        // shoulder's ridge.
+        let table_face =
+            if self.cap { None } else { Self::y_extent(&self.rows[0], self.plane * tan) };
+        let inside = |v: f64, row: &mut Vec<[f64; 2]>| -> bool {
+            self.row_at(v, row);
+            Self::y_extent(row, self.z_at(v) * tan).is_some()
+        };
+        let v_crest = if table_face.is_some() {
+            0.0
+        } else {
+            let (mut lo, mut hi) = (0.0, 1.0);
+            for _ in 0..30 {
+                let mid = 0.5 * (lo + hi);
+                if inside(mid, &mut row) {
+                    hi = mid
+                } else {
+                    lo = mid
+                }
+            }
+            hi
+        };
+        let z_crest = self.z_at(v_crest);
+        let crest_r = z_crest / c;
+        let z_bore = inner_r * c;
+        if z_bore >= z_crest {
+            return None;
+        }
+        let v_bore = self.v_at_z(z_bore);
+        // Past the table the ray enters the loft at a ridge — the row's
+        // extreme vertex, a point sitting wherever that vertex happens to —
+        // so the face is read a step down the wall, where it is a chord
+        // centred on the ridge, and the ridge's height over that chord is
+        // handed on as the section's crown: a parabolic top over the chord,
+        // which is the loft's own rounded ridge to within a tenth. The
+        // chord sits a share of the bore-to-ridge drop below the ridge,
+        // never deeper than the ridge stands off the table plane — under a
+        // cap that is the cap's own height here, past the rim the ridge's
+        // fall — so the crown grows from nothing at the rim instead of
+        // stepping, from either side.
+        let depth = match table_face {
+            Some(_) => 0.0,
+            None => (LOFT_RIDGE_STEP * (z_crest - z_bore)).min((z_crest - self.plane).abs()).max(0.0),
+        };
+        let v_face = if depth > 1e-9 { self.v_at_z(z_crest - depth) } else { v_crest };
+        let face = match table_face {
+            Some(f) => f,
+            None => {
+                self.row_at(v_face, &mut row);
+                Self::y_extent(&row, self.z_at(v_face) * tan)?
+            }
+        };
+        let crown = depth / c;
+        // The top between the apex and the chord, read off the loft: the
+        // half-extent at evenly spaced depths, inverted onto evenly spaced
+        // shares of the chord so the section's drop law is the loft's own.
+        let ridge = (depth > 1e-9).then(|| {
+            let w = (0.5 * (face.1 - face.0)).max(1e-6);
+            let mid = 0.5 * (face.0 + face.1);
+            let mut pairs: Vec<(f64, f64)> = Vec::with_capacity(RIDGE_TABLE + 1);
+            pairs.push((0.0, 0.0));
+            for k in 1..=RIDGE_TABLE {
+                let dk = depth * k as f64 / RIDGE_TABLE as f64;
+                let zk = z_crest - dk;
+                self.row_at(self.v_at_z(zk), &mut row);
+                let half = match Self::y_extent(&row, zk * tan) {
+                    Some((lo, hi)) => (0.5 * ((hi - mid).abs() + (mid - lo).abs()) / w).clamp(0.0, 1.0),
+                    None => 0.0,
+                };
+                let last = pairs.last().map_or(0.0, |p| p.0);
+                pairs.push((half.max(last), dk / depth));
+            }
+            let mut tab = [0.0; RIDGE_TABLE];
+            for (j, slot) in tab.iter_mut().enumerate() {
+                let x = j as f64 / (RIDGE_TABLE - 1) as f64;
+                let k = pairs.partition_point(|p| p.0 < x).clamp(1, pairs.len() - 1);
+                let (a, b) = (pairs[k - 1], pairs[k]);
+                let u = if b.0 > a.0 { ((x - a.0) / (b.0 - a.0)).clamp(0.0, 1.0) } else { 1.0 };
+                *slot = (a.1 + (b.1 - a.1) * u).clamp(0.0, 1.0);
+            }
+            tab[0] = 0.0;
+            tab[RIDGE_TABLE - 1] = 1.0;
+            tab
+        });
+        self.row_at(v_bore, &mut row);
+        let reach = Self::y_extent(&row, inner_r * s)?;
+        // The wall, bore edge to the chord's corner — the radius the crown
+        // stands on, so the table's last entry is the face itself exactly
+        // where the section builds its corner. Traced finely down the loft
+        // first, then tabulated at equal arc length along the high edge.
+        let chord_r = crest_r - crown;
+        const FINE: usize = 96;
+        let mut trace: Vec<[f64; 3]> = Vec::with_capacity(FINE + 1);
+        for k in 0..=FINE {
+            let v = v_face + (v_bore - v_face) * k as f64 / FINE as f64;
+            let (lo, hi) = if k == 0 {
+                face
+            } else if k == FINE {
+                reach
+            } else {
+                self.row_at(v, &mut row);
+                Self::y_extent(&row, self.z_at(v) * tan).unwrap_or(reach)
+            };
+            trace.push([self.z_at(v) / c, lo, hi]);
+        }
+        trace.reverse();
+        let mut cum = Vec::with_capacity(FINE + 1);
+        let mut acc = 0.0;
+        cum.push(0.0);
+        for w in trace.windows(2) {
+            acc += (w[1][0] - w[0][0]).hypot(w[1][2] - w[0][2]);
+            cum.push(acc);
+        }
+        let total = acc.max(1e-12);
+        let run = (chord_r - inner_r).max(1e-9);
+        let mut wall = WallShape { r: [0.0; WALL_TABLE], lo: [0.0; WALL_TABLE], hi: [0.0; WALL_TABLE] };
+        for k in 0..WALL_TABLE {
+            let want = total * k as f64 / (WALL_TABLE - 1) as f64;
+            let j = cum.partition_point(|&x| x < want).clamp(1, FINE);
+            let seg = (cum[j] - cum[j - 1]).max(1e-12);
+            let u = ((want - cum[j - 1]) / seg).clamp(0.0, 1.0);
+            let (a, b) = (trace[j - 1], trace[j]);
+            let p = [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+            wall.r[k] = ((p[0] - inner_r) / run).clamp(0.0, 1.0);
+            wall.lo[k] = p[1] - reach.0;
+            wall.hi[k] = p[2] - reach.1;
+        }
+        wall.r[0] = 0.0;
+        wall.r[WALL_TABLE - 1] = 1.0;
+        Some(TentAt { crest_r, face, reach, wall, crown, ridge })
     }
 }
 
@@ -2564,10 +3503,10 @@ mod tests {
         let r_at_top = |d: &crate::RingDesign| {
             let inner_r = d.inner_radius_mm();
             let crest_r = d.reference_loop().crest_radius_mm;
-            d.shank.head_at(TOP_DEG, inner_r, crest_r).outer_r
+            d.shank.head_at(TOP_DEG, inner_r, crest_r, &d.profile).outer_r
         };
         // head_at on ShankStyle:
-        let flat_r = flat.shank.head_at(TOP_DEG, flat.inner_radius_mm(), flat.reference_loop().crest_radius_mm).outer_r;
+        let flat_r = flat.shank.head_at(TOP_DEG, flat.inner_radius_mm(), flat.reference_loop().crest_radius_mm, &flat.profile).outer_r;
         let cab_r = r_at_top(&cab);
         assert!(
             (cab_r - flat_r - 1.0).abs() < 0.05,
@@ -2673,7 +3612,7 @@ mod tests {
             let reference = d.reference_loop();
             for i in 0..32 {
                 let theta = i as f64 / 32.0 * 360.0;
-                let m = d.shank.modulation(theta, inner_r, reference.crest_radius_mm);
+                let m = d.shank.modulation(theta, inner_r, reference.crest_radius_mm, &d.profile);
                 let l = d.profile.sample_spaced(inner_r, 96, &m, None, None);
                 let crest_z = l
                     .pts
@@ -2953,6 +3892,145 @@ mod tests {
     /// A size-7 band: bore radius and unmodulated crest radius.
     const BORE_R: f64 = 8.65;
     const CREST_R: f64 = 10.65;
+    /// The default band the constants above describe: a 6 x 2 half-round.
+    fn band() -> BandProfile {
+        BandProfile::default()
+    }
+
+    /// The lofted head: a size-7 cushion signet with CrossGems' own numbers
+    /// (20 x 20 table standing 3.5 mm over the bore on a 6 x 1.75 shank).
+    #[test]
+    fn a_new_signet_is_lofted_and_fields_clean() {
+        assert_eq!(SignetHead::default().loft, 0.0, "the serde default keeps old files on the prism");
+        assert_eq!(SignetHead::lofted().loft, 1.0);
+        let mut v = serde_json::to_value(SignetHead::lofted()).unwrap();
+        v.as_object_mut().unwrap().remove("loft");
+        let h: SignetHead = serde_json::from_value(v).unwrap();
+        assert_eq!(h.loft, 0.0, "a head without `loft` deserializes to the prism");
+
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(ProfileStyle::Flat);
+        d.profile.width_mm = 12.0;
+        d.profile.thickness_mm = 1.8;
+        d.profile.flatten_sides();
+        d.shank.apply_signet(12.0);
+        assert_eq!(d.shank.kind, ShankKind::Signet);
+        assert_eq!(d.shank.head.loft, 1.0, "a new signet is lofted");
+        let lib = crate::AlphaLibrary::default();
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 160, 96);
+        assert!(
+            f.undercut_fraction() < 5e-4,
+            "a new signet fields {:.4}% at {:.1} deg",
+            f.undercut_fraction() * 100.0,
+            f.worst_draft_deg
+        );
+
+        // The cut dome takes precedence: a lobed plan sent there by
+        // `suggest_dome` is the dome, not the loft.
+        let ir = d.inner_radius_mm();
+        let cr = ir + d.profile.thickness_mm;
+        let m = d.modulation_at(TOP_DEG, ir, cr);
+        assert!(m.wall_mix > 0.99 && m.dome_drop < 1e-9, "lofted: wall {} dome {}", m.wall_mix, m.dome_drop);
+        d.shank.head.dome = 1.0;
+        let m = d.modulation_at(TOP_DEG, ir, cr);
+        assert!(m.dome_drop > 0.99 && m.wall_mix < 1e-9, "domed: wall {} dome {}", m.wall_mix, m.dome_drop);
+    }
+
+    fn lofted_cushion() -> crate::RingDesign {
+        let mut d = crate::RingDesign::default();
+        d.size = crate::RingSize::new(7.0);
+        // The presets' shank section is the top of a tall ellipse: a
+        // 1.49 mm dome on a 1.75 mm band.
+        d.profile.apply_style(ProfileStyle::HalfRound);
+        d.profile.width_mm = 20.0;
+        d.profile.thickness_mm = 1.75;
+        d.profile.crown_mm = 1.49;
+        d.profile.edge_round_mm = 0.05;
+        d.shank.apply_signet(20.0);
+        d.shank.amount = (1.0 - 0.3) / (1.0 - SIGNET_MIN_SHANK_FRAC);
+        d.shank.head.outline = SignetOutline::Cushion;
+        d.shank.head.length_mm = 20.0;
+        d.shank.head.rise_mm = 3.5 - 1.75;
+        d.shank.head.rim_round_mm = 0.3;
+        d.shank.head.loft = 1.0;
+        d
+    }
+
+    #[test]
+    fn a_lofted_head_follows_the_factory_recipe_and_still_pulls() {
+        let d = lofted_cushion();
+        let ir = d.inner_radius_mm();
+        let cr = ir + d.profile.thickness_mm;
+        let at = |off: f64| d.shank.head_at(TOP_DEG + off, ir, cr, &d.profile);
+        // The table plane at the centre, its corner the furthest point.
+        let plane = cr + d.shank.head.rise_mm;
+        assert!((at(0.0).outer_r - plane).abs() < 0.05, "{}", at(0.0).outer_r);
+        let corner = (0..60).map(|k| at(k as f64).outer_r).fold(0.0, f64::max);
+        assert!((corner - plane.hypot(10.0)).abs() < 0.4, "corner {corner}");
+        // Under the table the flank curls back toward the finger: the crest
+        // is wider than the bore span, which the prism forbids.
+        let a0 = at(0.0);
+        let crest_w = a0.face.1 - a0.face.0;
+        let bore_w = a0.reach.1 - a0.reach.0;
+        assert!(crest_w > bore_w + 0.08, "crest {crest_w} bore {bore_w}");
+        assert!(a0.wall.is_some() && a0.wall_mix == 1.0);
+        // At the equator the loft hands over to the shank without a step.
+        let (e, s) = (at(89.0), at(91.0));
+        assert!((e.outer_r - s.outer_r).abs() < 0.1, "{} vs {}", e.outer_r, s.outer_r);
+        assert!(((e.reach.1 - e.reach.0) - (s.reach.1 - s.reach.0)).abs() < 0.05);
+        // Every section a single-valued width over its radius: the verdict.
+        let lib = crate::AlphaLibrary::default();
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 256, 128);
+        assert!(f.undercut_fraction() < 5e-4, "{}% at {}", f.undercut_fraction() * 100.0, f.worst_draft_deg);
+        assert!(f.thinnest_wall_mm > 1.0, "thinnest wall {}", f.thinnest_wall_mm);
+    }
+
+    #[test]
+    fn a_smooth_table_is_an_apex_loft_and_still_pulls() {
+        let flat = lofted_cushion();
+        let mut d = lofted_cushion();
+        d.shank.head.table_dome_mm = 0.5;
+        let ir = d.inner_radius_mm();
+        let cr = ir + d.profile.thickness_mm;
+        let at = |d: &crate::RingDesign, off: f64| d.shank.head_at(TOP_DEG + off, ir, cr, &d.profile);
+        let plane = cr + d.shank.head.rise_mm;
+        // The crest at the centre is the apex, the cap's height over the plane.
+        let a0 = at(&d, 0.0);
+        assert!((a0.outer_r - (plane + 0.5)).abs() < 0.05, "apex {}", a0.outer_r);
+        assert!(a0.ridge_crown > 0.35 && a0.ridge_crown < 0.6, "crown {}", a0.ridge_crown);
+        // The chord under the apex is nearly the whole table, not a point.
+        let f0 = at(&flat, 0.0);
+        let span = |a: &HeadAt| a.face.1 - a.face.0;
+        assert!(span(&a0) > 0.6 * span(&f0), "chord {} vs flat {}", span(&a0), span(&f0));
+        // Off the centre the crest only ever comes down: the cap, the rim,
+        // the shoulder, one monotone fall in height.
+        let mut last = f64::MAX;
+        for k in 0..=89 {
+            let h = at(&d, k as f64).outer_r * (k as f64).to_radians().cos();
+            assert!(h <= last + 1e-3, "crest height rises at {k} deg: {h} > {last}");
+            last = h;
+        }
+        // A domed table has real draft everywhere, and still pulls.
+        let lib = crate::AlphaLibrary::default();
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 256, 128);
+        assert!(f.undercut_fraction() < 5e-4, "{}% at {}", f.undercut_fraction() * 100.0, f.worst_draft_deg);
+        assert!(f.thinnest_wall_mm > 1.0, "thinnest wall {}", f.thinnest_wall_mm);
+    }
+
+    #[test]
+    fn loft_zero_leaves_the_prism_untouched() {
+        let mut d = lofted_cushion();
+        d.shank.head.loft = 0.0;
+        let ir = d.inner_radius_mm();
+        let cr = ir + d.profile.thickness_mm;
+        for off in [0.0, 20.0, 45.0, 80.0] {
+            let a = d.shank.head_at(TOP_DEG + off, ir, cr, &d.profile);
+            assert!(a.wall.is_none() && a.wall_mix == 0.0);
+            assert!(a.face.0 >= a.reach.0 - 1e-9 && a.face.1 <= a.reach.1 + 1e-9);
+            let m = d.shank.modulation(TOP_DEG + off, ir, cr, &d.profile);
+            assert!(m.wall.is_none());
+        }
+    }
 
     fn signet_shank() -> ShankStyle {
         ShankStyle { kind: ShankKind::Signet, amount: 0.85, ..Default::default() }
@@ -2961,7 +4039,7 @@ mod tests {
     #[test]
     fn a_signet_shank_is_widest_at_the_top_and_narrowest_at_the_bottom() {
         let sh = signet_shank();
-        let w = |t: f64| sh.signet_width_frac(t, BORE_R, CREST_R);
+        let w = |t: f64| sh.signet_width_frac(t, BORE_R, CREST_R, &band());
         let top = w(TOP_DEG);
         let bottom = w(TOP_DEG + 180.0);
         assert!((top - 1.0).abs() < 1e-12, "the head is not full width: {top}");
@@ -3001,7 +4079,7 @@ mod tests {
         ];
         let at = TOP_DEG + 20.0;
         let table = |o: SignetOutline| {
-            let a = head(o).head_at(at, BORE_R, CREST_R);
+            let a = head(o).head_at(at, BORE_R, CREST_R, &band());
             a.face.1 - a.face.0
         };
         let got: Vec<f64> = styles.iter().map(|&o| table(o)).collect();
@@ -3015,9 +4093,9 @@ mod tests {
         // Every one still reaches full width at the top and shank width behind.
         for &o in &styles {
             let sh = head(o);
-            let top = sh.signet_width_frac(TOP_DEG, BORE_R, CREST_R);
+            let top = sh.signet_width_frac(TOP_DEG, BORE_R, CREST_R, &band());
             assert!((top - 1.0).abs() < 1e-9, "{o:?} is not full width at the top: {top}");
-            assert!(sh.signet_width_frac(TOP_DEG + 180.0, BORE_R, CREST_R) < 0.30, "{o:?}");
+            assert!(sh.signet_width_frac(TOP_DEG + 180.0, BORE_R, CREST_R, &band()) < 0.30, "{o:?}");
         }
     }
 
@@ -3028,7 +4106,7 @@ mod tests {
     #[test]
     fn the_head_taper_joins_the_shank_without_a_crease() {
         let sh = signet_shank();
-        let w = |t: f64| sh.signet_width_frac(TOP_DEG + t, BORE_R, CREST_R);
+        let w = |t: f64| sh.signet_width_frac(TOP_DEG + t, BORE_R, CREST_R, &band());
         let half = (sh.head.length_mm * 0.5 / (CREST_R + sh.head.rise_mm)).atan().to_degrees();
 
         // Flat at the top of the head: the face does not come to a peak there.
@@ -3070,8 +4148,8 @@ mod tests {
         p.width_mm = 12.0;
         p.thickness_mm = 2.0;
         let sh = signet_shank();
-        let head = sh.modulation(TOP_DEG, BORE_R, CREST_R);
-        let back = sh.modulation(TOP_DEG + 180.0, BORE_R, CREST_R);
+        let head = sh.modulation(TOP_DEG, BORE_R, CREST_R, &band());
+        let back = sh.modulation(TOP_DEG + 180.0, BORE_R, CREST_R, &band());
         // The head flattens whatever the profile is: a signet's table does not
         // inherit the shank's dome.
         assert!(head.crown_scale.abs() < 1e-12, "the head kept a crown: {}", head.crown_scale);
@@ -3094,7 +4172,7 @@ mod tests {
         p.thickness_mm = 2.0;
         let sh = signet_shank();
         let at = |t: f64| {
-            let m = sh.modulation(t, BORE_R, CREST_R);
+            let m = sh.modulation(t, BORE_R, CREST_R, &band());
             let l = p.sample_mod(BORE_R, 256, &m);
             let (lo, hi) = l.z_range();
             (l.crest_radius_mm - BORE_R, hi - lo)
@@ -3134,7 +4212,7 @@ mod tests {
         let base = ir + d.profile.thickness_mm;
         // Each head owns its own angle: width peaks at both, and the trough
         // between them stays wider than the far shank — the swells union.
-        let w = |t: f64| d.shank.signet_width_frac(t, ir, base);
+        let w = |t: f64| d.shank.signet_width_frac(t, ir, base, &d.profile);
         let (w1, w2) = (w(TOP_DEG - 26.0), w(TOP_DEG + 26.0));
         let mid = w(TOP_DEG);
         let back = w(TOP_DEG + 180.0);
@@ -3217,13 +4295,13 @@ mod tests {
         let (mut lo, mut hi) = (f64::MAX, f64::MIN);
         for i in 0..=720 {
             let theta = TOP_DEG - 40.0 + 80.0 * i as f64 / 720.0;
-            let a = sh.head_at(theta, BORE_R, CREST_R);
+            let a = sh.head_at(theta, BORE_R, CREST_R, &band());
             // The middle of the plate: the last stretch of the face carries
             // the rim's own rounding, like the reference's plate edge.
             if a.on_head < 1.0 || a.x.abs() > 0.85 {
                 continue;
             }
-            let m = sh.modulation(theta, BORE_R, CREST_R);
+            let m = sh.modulation(theta, BORE_R, CREST_R, &band());
             let l = p.sample_mod(BORE_R, 256, &m);
             let y = l.crest_radius_mm * theta.to_radians().sin();
             lo = lo.min(y);
@@ -3256,7 +4334,7 @@ mod tests {
         let edge = (hd.length_mm * 0.5 / (CREST_R + hd.rise_mm)).atan().to_degrees();
 
         let sh = signet_shank();
-        let h = |past: f64| sh.head_at(TOP_DEG + edge + past, BORE_R, CREST_R).on_head;
+        let h = |past: f64| sh.head_at(TOP_DEG + edge + past, BORE_R, CREST_R, &band()).on_head;
         let tenth = h(hd.shoulder_deg * 0.1);
         println!("{:.3} of the crest left a tenth of the way down the shoulder", tenth);
         assert!(
@@ -3275,7 +4353,7 @@ mod tests {
                 head: SignetHead { outline: o, ..SignetHead::default() },
                 ..signet_shank()
             };
-            let at = |d: f64| sh.signet_width_frac(TOP_DEG + d, BORE_R, CREST_R);
+            let at = |d: f64| sh.signet_width_frac(TOP_DEG + d, BORE_R, CREST_R, &band());
             let mut d = edge;
             let arc = hd.swell_arc_deg(edge);
             while d < arc - 4.0 {
@@ -3293,12 +4371,12 @@ mod tests {
         // it was never asked for.
         let sh = signet_shank();
         let past = hd.swell_arc_deg(edge) + 6.0;
-        let a = sh.head_at(TOP_DEG + past, BORE_R, CREST_R);
+        let a = sh.head_at(TOP_DEG + past, BORE_R, CREST_R, &band());
         let strip = sh.signet_shank_frac(TOP_DEG + past);
         assert_eq!(a.on_head, 0.0, "the crest never lands");
         assert_eq!(a.reach, (-strip, strip), "the swell never lands on the shank");
         assert!(
-            (sh.signet_width_frac(TOP_DEG + past, BORE_R, CREST_R) - strip).abs() < 1e-9,
+            (sh.signet_width_frac(TOP_DEG + past, BORE_R, CREST_R, &band()) - strip).abs() < 1e-9,
             "the band is not the bare shank past the swell"
         );
     }
@@ -3312,7 +4390,7 @@ mod tests {
     #[test]
     fn the_shank_is_flat() {
         let sh = signet_shank();
-        let at = |d: f64| sh.signet_width_frac(TOP_DEG + d, BORE_R, CREST_R);
+        let at = |d: f64| sh.signet_width_frac(TOP_DEG + d, BORE_R, CREST_R, &band());
         let shank = at(180.0);
         for d in [90.0, 120.0, 150.0, 180.0, 210.0, 270.0] {
             assert!(
@@ -3357,6 +4435,7 @@ mod tests {
             waves: 1,
             extra_heads: Vec::new(),
             keys: Vec::new(),
+            custom_outlines: Vec::new(),
             head: SignetHead {
                 outline: SignetOutline::Round,
                 length_mm: 14.7,
@@ -3364,12 +4443,12 @@ mod tests {
                 ..SignetHead::default()
             },
         };
-        let raw = |d: f64| sh.signet_width_frac(TOP_DEG + d, inner_r, crest_r);
+        let raw = |d: f64| sh.signet_width_frac(TOP_DEG + d, inner_r, crest_r, &band());
         let (head, shank) = (raw(0.0), raw(180.0));
         // Both normalized to their own head and shank, so what is compared is
         // the shape of the curve and not two rings' proportions.
         let w = |d: f64| (raw(d) - shank) / (head - shank);
-        let r = |d: f64| sh.head_at(TOP_DEG + d, inner_r, crest_r).outer_r;
+        let r = |d: f64| sh.head_at(TOP_DEG + d, inner_r, crest_r, &band()).outer_r;
         let (peak, base) = (13.88, 11.65);
         let h = |d: f64| (r(d) - crest_r) / (peak - crest_r);
 
@@ -3442,7 +4521,7 @@ mod tests {
                 head: SignetHead { outline: o, body_fair: fair, ..SignetHead::default() },
                 ..signet_shank()
             };
-            let reach = |t: f64| sh.head_at(TOP_DEG + t, BORE_R, CREST_R).reach;
+            let reach = |t: f64| sh.head_at(TOP_DEG + t, BORE_R, CREST_R, &band()).reach;
             const H: f64 = 0.02;
             let (mut worst, mut at) = (0.0f64, 0.0);
             let mut t = H;
@@ -3502,7 +4581,7 @@ mod tests {
             };
             for i in 0..=3600 {
                 let t = i as f64 * 0.1;
-                let a = sh.head_at(TOP_DEG + t, BORE_R, CREST_R);
+                let a = sh.head_at(TOP_DEG + t, BORE_R, CREST_R, &band());
                 assert!(
                     a.face.0 >= a.reach.0 - 1e-12 && a.face.1 <= a.reach.1 + 1e-12,
                     "{o:?} at {t:.1} deg: table {:?} reaches past body {:?}",
@@ -3526,7 +4605,7 @@ mod tests {
             ..signet_shank()
         };
         let centre = |t: f64| {
-            let m = sh.modulation(t, BORE_R, CREST_R);
+            let m = sh.modulation(t, BORE_R, CREST_R, &band());
             let l = p.sample_mod(BORE_R, 256, &m);
             let (lo, hi) = l.z_range();
             (lo + hi) * 0.5
@@ -3553,7 +4632,7 @@ mod tests {
         // holds. Measured on a shield, 0.29 mm at the bore against 0.47 at the
         // crest.
         let table = |t: f64| {
-            let a = sh.head_at(t, BORE_R, CREST_R);
+            let a = sh.head_at(t, BORE_R, CREST_R, &band());
             (a.face.0 + a.face.1) * 0.5 * p.width_mm * 0.5
         };
         let crest = pick(&table);
@@ -3573,20 +4652,79 @@ mod tests {
                 head: SignetHead { outline: o, ..SignetHead::default() },
                 ..signet_shank()
             };
-            let m = sym.modulation(TOP_DEG, BORE_R, CREST_R);
+            let m = sym.modulation(TOP_DEG, BORE_R, CREST_R, &band());
             assert!(m.z_center_frac.abs() < 1e-9, "{o:?} moved the band: {}", m.z_center_frac);
         }
         // Signet and Wave are the two kinds whose whole point is moving the
         // section along the finger; everything else must stay centred.
         for &kind in ShankKind::ALL {
             let s = ShankStyle { kind, amount: 1.0, ..Default::default() };
-            let m = s.modulation(TOP_DEG + 40.0, BORE_R, CREST_R);
+            let m = s.modulation(TOP_DEG + 40.0, BORE_R, CREST_R, &band());
             assert!(
                 matches!(kind, ShankKind::Signet | ShankKind::Wave | ShankKind::Twist)
                     || m.z_center_frac == 0.0,
                 "{kind:?} moved the band off centre"
             );
         }
+    }
+
+    /// Stations are rarely evenly spaced, and uniform-parameter Catmull-Rom
+    /// does not care — it estimates every tangent as `(v2 - v0) / 2`. On the
+    /// 20/90/160/270 layout a halo shank wants, that overshot a largest key
+    /// of 1.00 to 1.26 and drove the far side into the 0.30 clamp floor;
+    /// the clamp turned the overshoot into a step, and a step in width
+    /// between neighbouring slices sweeps a radial wall down the band. It
+    /// was plainly visible as a sheet across the ring, which is how it was
+    /// found.
+    #[test]
+    fn unevenly_spaced_keyframes_do_not_overshoot_their_own_stations() {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 11.0;
+        d.profile.thickness_mm = 3.2;
+        d.shank.kind = ShankKind::Keyframes;
+        d.shank.amount = 1.0;
+        let w = [1.0, 0.72, 0.42, 0.72];
+        d.shank.keys = vec![
+            ShankKey { theta_deg: TOP_DEG, width_scale: w[0], thickness_scale: 1.0, crown_scale: 1.0 },
+            ShankKey { theta_deg: TOP_DEG + 70.0, width_scale: w[1], thickness_scale: 0.92, crown_scale: 1.0 },
+            ShankKey { theta_deg: TOP_DEG + 180.0, width_scale: w[2], thickness_scale: 0.82, crown_scale: 1.0 },
+            ShankKey { theta_deg: TOP_DEG + 290.0, width_scale: w[3], thickness_scale: 0.92, crown_scale: 1.0 },
+        ];
+        let ir = d.inner_radius_mm();
+        let cr = ir + d.profile.thickness_mm;
+        let at = |t: f64| d.shank.modulation(t, ir, cr, &d.profile).width_scale;
+
+        let (lo, hi) = (0.42, 1.0);
+        let mut worst_hi = 0.0f64;
+        let mut worst_step = 0.0f64;
+        let mut prev = at(0.0);
+        for i in 1..=3600 {
+            let t = i as f64 * 0.1;
+            let v = at(t);
+            worst_hi = worst_hi.max(v);
+            worst_step = worst_step.max((v - prev).abs());
+            assert!(v >= lo - 0.02, "under its own stations at {t}: {v}");
+            prev = v;
+        }
+        assert!(worst_hi <= hi + 0.02, "overshoots its own stations: {worst_hi:.3}");
+        // Continuity is the property the sail broke: no step anywhere.
+        assert!(worst_step < 0.01, "a step of {worst_step:.4} per 0.1 deg is a wall");
+
+        // Still exact at every authored station.
+        for (k, want) in d.shank.keys.iter().zip(w) {
+            let got = at(k.theta_deg);
+            assert!((got - want).abs() < 1e-9, "knot {:.0}: {got} vs {want}", k.theta_deg);
+        }
+
+        // And the band it sweeps is clean.
+        let lib = crate::alpha::AlphaLibrary::builtin();
+        let v = crate::castability::analyze_field(&d, &lib, &d.draft, 256, 128);
+        assert!(
+            v.undercut_fraction() < 1e-4,
+            "a keyframed shank locks: {:.4}%",
+            v.undercut_fraction() * 100.0
+        );
     }
 
     #[test]
@@ -3604,20 +4742,20 @@ mod tests {
         let cr = ir + d.profile.thickness_mm;
 
         // Authored stations are hit exactly (a knot on the curve).
-        let m = d.shank.modulation(TOP_DEG, ir, cr);
+        let m = d.shank.modulation(TOP_DEG, ir, cr, &d.profile);
         assert!((m.width_scale - 1.5).abs() < 1e-9, "{}", m.width_scale);
 
         // Continuous across the 0/360 joint: value and slope agree.
-        let a = d.shank.modulation(0.05, ir, cr).width_scale;
-        let b = d.shank.modulation(359.95, ir, cr).width_scale;
+        let a = d.shank.modulation(0.05, ir, cr, &d.profile).width_scale;
+        let b = d.shank.modulation(359.95, ir, cr, &d.profile).width_scale;
         assert!((a - b).abs() < 2e-3, "joint tears: {a} vs {b}");
-        let da = d.shank.modulation(0.55, ir, cr).width_scale - a;
-        let db = b - d.shank.modulation(359.45, ir, cr).width_scale;
+        let da = d.shank.modulation(0.55, ir, cr, &d.profile).width_scale - a;
+        let db = b - d.shank.modulation(359.45, ir, cr, &d.profile).width_scale;
         assert!((da - db).abs() < 2e-3, "joint kinks: {da} vs {db}");
 
         // `amount` at zero is the plain band.
         d.shank.amount = 0.0;
-        let m0 = d.shank.modulation(TOP_DEG, ir, cr);
+        let m0 = d.shank.modulation(TOP_DEG, ir, cr, &d.profile);
         assert!((m0.width_scale - 1.0).abs() < 1e-9);
         d.shank.amount = 1.0;
 
@@ -3646,7 +4784,7 @@ mod tests {
             head: SignetHead { theta_deg: 0.0, ..SignetHead::default() },
             ..signet_shank()
         };
-        let w = |t: f64| sh.signet_width_frac(t, BORE_R, CREST_R);
+        let w = |t: f64| sh.signet_width_frac(t, BORE_R, CREST_R, &band());
         assert!((w(0.0) - 1.0).abs() < 1e-9, "the head is not full width at its centre");
         for d in [2.0, 6.0, 12.0, 20.0] {
             let (a, b) = (w(d), w(360.0 - d));

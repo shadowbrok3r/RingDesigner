@@ -196,11 +196,9 @@ impl CurveLayer {
     pub fn feature_footprints(&self, ctx: &FieldContext) -> Vec<FeatureFootprint> {
         let (lo, hi) = self.v_extent();
         let half = self.width_mm * 0.5;
-        let f = |v: (f64, f64)| FeatureFootprint {
-            min_feature_mm: self.width_mm.max(0.1),
-            u_mm: None,
-            v_mm: v,
-        };
+        // A wire's width is measured across its own path, so it is the same
+        // number whichever way the path runs.
+        let f = |v: (f64, f64)| FeatureFootprint::round(self.width_mm.max(0.1), None, v);
         let v = (lo - half, hi + half);
         if self.mirror_v {
             let m = (ctx.band_v_len_mm - v.1, ctx.band_v_len_mm - v.0);

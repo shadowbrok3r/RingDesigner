@@ -477,7 +477,7 @@ fn edt_squared(grid: &mut [f32], w: usize, h: usize) {
     let mut v = vec![0usize; n];
     let mut z = vec![0.0f32; n + 1];
 
-    let mut pass = |f: &[f32], d: &mut [f32], n: usize, v: &mut [usize], z: &mut [f32]| {
+    let pass = |f: &[f32], d: &mut [f32], n: usize, v: &mut [usize], z: &mut [f32]| {
         let mut k = 0usize;
         v[0] = 0;
         z[0] = f32::NEG_INFINITY;
@@ -1910,8 +1910,9 @@ mod tests {
                 }
             }
         }
-        let dir = "/tmp/claude-1000/-home-shadowbroker-Documents-Rust-JewelryProjects/a9d6461b-31cd-46f3-99bd-0157189bce46/scratchpad";
-        let _ = std::fs::create_dir_all(dir);
+        // Only with `RD_ALPHA_SHEET=/some/dir`: the montage is for eyeballing, not asserting.
+        let Ok(dir) = std::env::var("RD_ALPHA_SHEET") else { return };
+        let _ = std::fs::create_dir_all(&dir);
         image::save_buffer(
             format!("{dir}/alphas.png"),
             &buf,

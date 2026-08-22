@@ -126,6 +126,7 @@ fn main() {
     // pocket at the re-entrant corners); symmetric, so it fields clean.
     let mut d = squared(13.0, 2.4);
     d.shank.apply_signet(13.0);
+    d.shank.head.loft = 0.0; // The prism is the subject.
     d.shank.head.outline = SignetOutline::Cross;
     d.shank.head.fit_length_to(13.0);
     finish(&dir, "04-cross-signet", "a cross tablet, prism-built for its re-entrant corners", WHITE, HERO, d, &mut lib);

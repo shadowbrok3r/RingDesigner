@@ -102,7 +102,7 @@ fn add_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             // there pulls straight out; across the crown it undercuts on its
             // crest-side flank.
             let side = ctx.side_faces_std().and_then(|sf| sf.wider());
-            let mut place = |app: &mut RingDesignerApp, name: &str, mut l: CurveLayer| {
+            let place = |app: &mut RingDesignerApp, name: &str, mut l: CurveLayer| {
                 if let Some((lo, hi)) = side {
                     l.retarget_v(0.5 * (lo + hi), (hi - lo) * 0.3);
                     app.add_layer(name, Layer::Curve(l));
@@ -1494,6 +1494,18 @@ fn curve_editor(ui: &mut egui::Ui, l: &mut CurveLayer, fctx: &FieldContext) -> b
 
 const GRAB_PX: f32 = 9.0;
 
+/// The recipe pin a live pavé's child stands on, if it is one of the user's.
+fn pinned_seat(g: &GroupLayer, j: usize) -> Option<usize> {
+    use ringdesign_core::pave::GenRecipe;
+    let Some(GenRecipe::Pave(spec)) = &g.recipe else { return None };
+    let Some(Layer::SeatPad(s)) = g.stack.layers.get(j).map(|e| &e.layer) else { return None };
+    spec.pinned.iter().position(|p| {
+        p.seat.is_some()
+            && ringdesign_core::field::wrap_delta(p.theta_deg - s.theta_deg, 360.0).abs() < 1e-9
+            && (p.v_mm - s.v_mm).abs() < 1e-9
+    })
+}
+
 fn group(
     ui: &mut egui::Ui,
     g: &mut GroupLayer,
@@ -1501,6 +1513,7 @@ fn group(
     names: &[String],
     pending: &mut Option<GroupEdit>,
 ) -> bool {
+    use ringdesign_core::pave::{GenRecipe, PinnedSeat};
     let mut c = false;
     if let Some(r) = &mut g.recipe {
         let mut bake = false;
@@ -1523,9 +1536,11 @@ fn group(
         });
         c |= recipe_ui(ui, r, fctx);
         ui.label(
-            egui::RichText::new("Generated — edits above re-solve the stack; bake to hand-edit.")
-                .small()
-                .color(theme::TEXT_DIM),
+            egui::RichText::new(
+                "Generated — edits above re-solve the stack. Pin a seat to make it yours:                  the packer then leaves it room instead of replacing it.",
+            )
+            .small()
+            .color(theme::TEXT_DIM),
         );
         if bake {
             g.recipe = None;
@@ -1541,28 +1556,61 @@ fn group(
         );
     }
 
+    // A live pavé owns its stack, so an edit to a child would be wiped by
+    // the next regeneration. Pin the child into the recipe instead, and it
+    // becomes the user's: the packer yields to it and it survives.
+    let live_pave = matches!(&g.recipe, Some(GenRecipe::Pave(_)));
+    let mut pin: Option<usize> = None;
+    let mut hole: Option<usize> = None;
+
     let mut delete: Option<usize> = None;
     for j in 0..g.stack.layers.len() {
+        let pinned = live_pave && pinned_seat(g, j).is_some();
         let ce = &mut g.stack.layers[j];
         ui.horizontal(|ui| {
             c |= ui
                 .checkbox(&mut ce.enabled, "")
                 .on_hover_text("Include in the group's composite")
                 .changed();
-            ui.label(format!("{} {}", kind_icon(&ce.layer), ce.name));
-            if ui
-                .small_button(icon::SIGN_OUT)
-                .on_hover_text("Move out of the group, back into the stack")
-                .clicked()
+            let name = if pinned {
+                format!("{} {} {}", icon::PUSH_PIN, kind_icon(&ce.layer), ce.name)
+            } else {
+                format!("{} {}", kind_icon(&ce.layer), ce.name)
+            };
+            ui.label(name);
+            if !live_pave
+                && ui
+                    .small_button(icon::SIGN_OUT)
+                    .on_hover_text("Move out of the group, back into the stack")
+                    .clicked()
             {
                 *pending = Some(GroupEdit::MoveOut(j));
             }
+            if live_pave && !pinned && matches!(ce.layer, Layer::SeatPad(_)) {
+                if ui
+                    .small_button(icon::PUSH_PIN)
+                    .on_hover_text(
+                        "Make this seat yours: it stops being regenerated, and the                          packer leaves it room",
+                    )
+                    .clicked()
+                {
+                    pin = Some(j);
+                }
+            }
             if ui
                 .small_button(icon::TRASH)
-                .on_hover_text("Delete")
+                .on_hover_text(if live_pave {
+                    "Cut a hole here — the packer keeps clear of it"
+                } else {
+                    "Delete"
+                })
                 .clicked()
             {
-                delete = Some(j);
+                if live_pave {
+                    hole = Some(j);
+                } else {
+                    delete = Some(j);
+                }
             }
         });
         egui::CollapsingHeader::new("Edit")
@@ -1582,8 +1630,19 @@ fn group(
                         .add(egui::Slider::new(&mut ce.opacity, 0.0..=1.0).fixed_decimals(2))
                         .changed();
                 });
+                if live_pave && !pinned {
+                    ui.label(
+                        egui::RichText::new(
+                            "The packer owns this seat — changes here are replaced when it                              re-solves. Pin it first.",
+                        )
+                        .small()
+                        .color(theme::TEXT_DIM),
+                    );
+                }
                 let mut dummy = false;
-                c |= match &mut ce.layer {
+                let editable = !live_pave || pinned;
+                c |= ui
+                    .add_enabled_ui(editable, |ui| match &mut ce.layer {
                     Layer::Tiling(t) => {
                         let mut no_bake = None;
                         tiling(ui, t, fctx, names, None, &mut no_bake)
@@ -1605,12 +1664,34 @@ fn group(
                         );
                         false
                     }
-                };
+                    })
+                    .inner;
             });
     }
     if let Some(j) = delete {
         g.stack.layers.remove(j);
         c = true;
+    }
+    // A pin lifts the seat out of the packer's hands and into the recipe; a
+    // hole is the same claim with nothing placed in it. Either way the write
+    // goes to the recipe, which is what survives the next regeneration.
+    if let Some(j) = pin.or(hole) {
+        let placed = pin.is_some();
+        let seat = match g.stack.layers.get(j).map(|e| &e.layer) {
+            Some(Layer::SeatPad(s)) => Some(*s),
+            _ => None,
+        };
+        if let (Some(seat), Some(GenRecipe::Pave(spec))) = (seat, g.recipe.as_mut()) {
+            spec.pinned.push(PinnedSeat {
+                theta_deg: seat.theta_deg,
+                v_mm: seat.v_mm,
+                seat: placed.then_some(seat),
+                // A hole has no seat to take its reach from, so it keeps the
+                // one the seat it replaced had.
+                clear_mm: if placed { 0.0 } else { seat.half_extents_mm().0 },
+            });
+            c = true;
+        }
     }
 
     ui.add_space(3.0);
@@ -1969,8 +2050,13 @@ fn border(ui: &mut egui::Ui, b: &mut BorderLayer, fctx: &FieldContext) -> bool {
 
 /// Cut + calibrated-size pickers for one stone, shared by the recipe panels.
 fn gem_picker(ui: &mut egui::Ui, id: &str, gem: &mut ringdesign_core::gem::Gem) -> bool {
-    use ringdesign_core::gem::{Gem, GemCut};
+    use ringdesign_core::gem::{Gem, GemCut, GemForm};
     let mut c = false;
+    // One builder for both makes, so a cut or size change keeps the form.
+    let build = |form: GemForm, cut: GemCut, w: f64| match form {
+        GemForm::Faceted => Gem::calibrated(cut, w),
+        GemForm::Cabochon => Gem::cabochon(cut, w),
+    };
     ui.horizontal(|ui| {
         egui::ComboBox::from_id_salt(format!("{id}_cut"))
             .selected_text(gem.cut.label())
@@ -1978,7 +2064,7 @@ fn gem_picker(ui: &mut egui::Ui, id: &str, gem: &mut ringdesign_core::gem::Gem) 
             .show_ui(ui, |ui| {
                 for &cut in GemCut::ALL {
                     if ui.selectable_label(gem.cut == cut, cut.label()).clicked() {
-                        *gem = Gem::calibrated(cut, gem.w_mm);
+                        *gem = build(gem.form, cut, gem.w_mm);
                         c = true;
                     }
                 }
@@ -1992,12 +2078,28 @@ fn gem_picker(ui: &mut egui::Ui, id: &str, gem: &mut ringdesign_core::gem::Gem) 
                         .selectable_label((gem.w_mm - w).abs() < 0.01, format!("{w:.1} mm"))
                         .clicked()
                     {
-                        *gem = Gem::calibrated(gem.cut, w);
+                        *gem = build(gem.form, gem.cut, w);
                         c = true;
                     }
                 }
             });
-    });
+        egui::ComboBox::from_id_salt(format!("{id}_form"))
+            .selected_text(gem.form.label())
+            .width(90.0)
+            .show_ui(ui, |ui| {
+                for &form in GemForm::ALL {
+                    if ui.selectable_label(gem.form == form, form.label()).clicked() {
+                        *gem = build(form, gem.cut, gem.w_mm);
+                        c = true;
+                    }
+                }
+            });
+    })
+    .response
+    .on_hover_text(
+        "A cabochon is flat-backed: it wants a bed, not a hole, which is the \
+         easiest stone a cast band can carry",
+    );
     c
 }
 
@@ -2126,46 +2228,35 @@ fn recipe_ui(ui: &mut egui::Ui, r: &mut ringdesign_core::pave::GenRecipe, fctx: 
 }
 
 fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> bool {
-    use ringdesign_core::gem::{Gem, GemCut};
     let mut c = grid(ui, "seat_run_grid", |ui| {
         let mut c = false;
 
         ui.label("Stone");
-        ui.horizontal(|ui| {
-            let mut gem = r.gem;
-            let mut picked = false;
-            egui::ComboBox::from_id_salt("run_cut")
-                .selected_text(gem.cut.label())
-                .width(120.0)
-                .show_ui(ui, |ui| {
-                    for &cut in GemCut::ALL {
-                        if ui.selectable_label(gem.cut == cut, cut.label()).clicked() {
-                            gem = Gem::calibrated(cut, gem.w_mm);
-                            picked = true;
-                        }
-                    }
-                });
-            egui::ComboBox::from_id_salt("run_size")
-                .selected_text(format!("{:.1} mm", gem.w_mm))
-                .width(72.0)
-                .show_ui(ui, |ui| {
-                    for &w in gem.cut.calibrated_mm() {
-                        if ui
-                            .selectable_label((gem.w_mm - w).abs() < 0.01, format!("{w:.1} mm"))
-                            .clicked()
-                        {
-                            gem = Gem::calibrated(gem.cut, w);
-                            picked = true;
-                        }
-                    }
-                });
-            if picked {
-                r.gem = gem;
+        if gem_picker(ui, "run_gem", &mut r.gem) {
+            r.solve_spacing(fctx);
+            c = true;
+        }
+        ui.end_row();
+
+        if r.seat.elong > 1.0 + 1e-6 {
+            ui.label("Turn");
+            if ui
+                .add(
+                    egui::DragValue::new(&mut r.seat.rot_deg)
+                        .speed(1.0)
+                        .range(-180.0..=180.0)
+                        .suffix("°"),
+                )
+                .on_hover_text(
+                    "0 lays each stone along the ring, 90 across the band.                      The row re-packs to the reach it actually has.",
+                )
+                .changed()
+            {
                 r.solve_spacing(fctx);
                 c = true;
             }
-        });
-        ui.end_row();
+            ui.end_row();
+        }
 
         ui.label("Count");
         ui.horizontal(|ui| {
@@ -2216,14 +2307,22 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
         ui.end_row();
 
         ui.label("Graduate");
-        c |= ui
+        // The station count depends on the taper now: stations are spaced to
+        // hold the bridge constant, so a graded row fits more of its smaller
+        // stones than the full-size count would allow.
+        if ui
             .add(egui::Slider::new(&mut r.taper, 0.0..=0.85).fixed_decimals(2))
             .on_hover_text(
                 "Stones shrink toward the far side of the ring — 0.4 is the classic \
-                 graduated eternity. Seats scale with their stones and the report \
+                 graduated eternity. Seats scale with their stones, the stations \
+                 close up to hold the same bridge between them, and the report \
                  sums the graded carats.",
             )
-            .changed();
+            .changed()
+        {
+            r.solve_spacing(fctx);
+            c = true;
+        }
         ui.end_row();
 
         if r.taper > 0.0 {
@@ -2260,7 +2359,11 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
     });
 
     let bridge = r.bridge_at(fctx);
-    let total: f64 = r.gem.carats() * r.count as f64;
+    // Graded, count times the largest stone overstates the row — sum what
+    // each station actually carries, the way the report does.
+    let total: f64 = (0..r.count)
+        .map(|k| r.gem_at(r.theta_of_station(k as f64, fctx)).carats())
+        .sum();
     let colour = if bridge < 0.2 {
         theme::WARN
     } else {
@@ -2293,7 +2396,6 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
 
 fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> bool {
     use ringdesign_core::field::SeatStyle;
-    use ringdesign_core::gem::{Gem, GemCut};
     let v_max = fctx.band_v_len_mm.max(0.5);
     let c = grid(ui, "seat_pad_grid", |ui| {
         let mut c = false;
@@ -2310,39 +2412,11 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
         ui.end_row();
 
         ui.label("Stone");
-        ui.horizontal(|ui| {
-            let mut gem = p.gem.unwrap_or_default();
-            let mut picked = false;
-            egui::ComboBox::from_id_salt("seat_cut")
-                .selected_text(gem.cut.label())
-                .width(120.0)
-                .show_ui(ui, |ui| {
-                    for &cut in GemCut::ALL {
-                        if ui.selectable_label(gem.cut == cut, cut.label()).clicked() {
-                            gem = Gem::calibrated(cut, gem.w_mm);
-                            picked = true;
-                        }
-                    }
-                });
-            egui::ComboBox::from_id_salt("seat_size")
-                .selected_text(format!("{:.1} mm", gem.w_mm))
-                .width(72.0)
-                .show_ui(ui, |ui| {
-                    for &w in gem.cut.calibrated_mm() {
-                        if ui
-                            .selectable_label((gem.w_mm - w).abs() < 0.01, format!("{w:.1} mm"))
-                            .clicked()
-                        {
-                            gem = Gem::calibrated(gem.cut, w);
-                            picked = true;
-                        }
-                    }
-                });
-            if picked {
-                p.fit_stone(gem);
-                c = true;
-            }
-        });
+        let mut gem = p.gem.unwrap_or_default();
+        if gem_picker(ui, "seat_gem", &mut gem) {
+            p.fit_stone(gem);
+            c = true;
+        }
         ui.end_row();
 
         if p.style == SeatStyle::Bezel {
@@ -2426,7 +2500,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .changed();
         ui.end_row();
 
-        ui.label("Diameter");
+        ui.label("Width");
         c |= ui
             .add(
                 egui::DragValue::new(&mut p.diameter_mm)
@@ -2434,8 +2508,40 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
                     .range(0.5..=20.0)
                     .suffix(" mm"),
             )
+            .on_hover_text("The pad's short axis, and its diameter when round")
             .changed();
         ui.end_row();
+
+        ui.label("Length");
+        let mut len = p.diameter_mm * p.elong.max(1.0);
+        if ui
+            .add(
+                egui::DragValue::new(&mut len)
+                    .speed(0.02)
+                    .range(p.diameter_mm..=24.0)
+                    .suffix(" mm"),
+            )
+            .on_hover_text("The pad's long axis. Equal to the width for a round stone.")
+            .changed()
+        {
+            p.elong = (len / p.diameter_mm.max(1e-6)).max(1.0);
+            c = true;
+        }
+        ui.end_row();
+
+        if p.elong > 1.0 + 1e-6 {
+            ui.label("Turn");
+            c |= ui
+                .add(
+                    egui::DragValue::new(&mut p.rot_deg)
+                        .speed(1.0)
+                        .range(-180.0..=180.0)
+                        .suffix("°"),
+                )
+                .on_hover_text("0 lays the stone along the ring, 90 across the band")
+                .changed();
+            ui.end_row();
+        }
 
         ui.label("Height");
         c |= ui
@@ -2468,15 +2574,62 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .changed();
         ui.end_row();
 
+        ui.label("Set depth");
+        ui.horizontal(|ui| {
+            let gem = p.gem.unwrap_or_default();
+            let auto = p.set_depth_mm.is_none();
+            let mut on = !auto;
+            if ui
+                .checkbox(&mut on, "")
+                .on_hover_text("Off takes the style's own: a bezel's pocket floor, a whisker                                 into a drilled pad, flush on a cabochon's bed")
+                .changed()
+            {
+                p.set_depth_mm = on.then(|| p.girdle_drop_mm(gem));
+                c = true;
+            }
+            match &mut p.set_depth_mm {
+                Some(d) => {
+                    c |= ui
+                        .add(
+                            egui::DragValue::new(d)
+                                .speed(0.01)
+                                .range(0.0..=p.height_mm.max(0.01))
+                                .suffix(" mm"),
+                        )
+                        .on_hover_text("How far the girdle sits below the pad's top")
+                        .changed();
+                }
+                None => {
+                    ui.label(
+                        egui::RichText::new(format!("{:.2} mm", p.girdle_drop_mm(gem)))
+                            .small()
+                            .color(theme::TEXT_DIM),
+                    );
+                }
+            }
+        });
+        ui.end_row();
+
         c
     });
 
     ui.label(
-        egui::RichText::new(format!(
-            "{} Seats a stone up to {:.2} mm",
-            icon::DIAMOND,
-            p.suggested_stone_mm()
-        ))
+        egui::RichText::new(if p.elong > 1.0 + 1e-6 {
+            let (hu, hv) = p.half_extents_mm();
+            format!(
+                "{} Seats a stone up to {:.2} mm, reaching {:.2} mm round the ring                  and {:.2} mm across the band",
+                icon::DIAMOND,
+                p.suggested_stone_mm(),
+                hu * 2.0,
+                hv * 2.0
+            )
+        } else {
+            format!(
+                "{} Seats a stone up to {:.2} mm",
+                icon::DIAMOND,
+                p.suggested_stone_mm()
+            )
+        })
         .small()
         .color(theme::INFO),
     );

@@ -56,7 +56,7 @@ pub use alpha::{Alpha, AlphaLibrary};
 pub use castability::{CastReport, DraftSettings, FaceClass, Section};
 pub use drawn::{DrawnAlpha, Stroke};
 pub use engine::{DesignEngine, SharedEngine};
-pub use field::{Blend, FieldContext, Layer, LayerEntry, LayerStack, SideFaces, Uv, Window};
+pub use field::{Blend, CustomOutline, FieldContext, Layer, LayerEntry, LayerStack, SideFaces, Uv, Window};
 pub use mesh::{BuildParams, BuildResult, Mesh, Report, Vec3, build};
 pub use profile::{BandProfile, ProfileLoop, ProfileSample, ProfileStyle, ShankKind, ShankStyle};
 pub use sizing::RingSize;
@@ -249,7 +249,7 @@ impl RingDesign {
     /// consumer of a modulated section goes through this, so the mesh, the
     /// section view and refinement always agree.
     pub fn modulation_at(&self, theta_deg: f64, inner_r: f64, crest_r: f64) -> profile::ShankMod {
-        let mut m = self.shank.modulation(theta_deg, inner_r, crest_r);
+        let mut m = self.shank.modulation(theta_deg, inner_r, crest_r, &self.profile);
         m.drop_blend = self.profile.morph_weight(theta_deg);
         m
     }

@@ -306,7 +306,7 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::
                     ringdesign_core::gem::GemCut::Round,
                     seat.suggested_stone_mm(),
                 ));
-            let half = gem.w_mm * 0.5;
+            let half = seat.stone_half_v_mm(gem);
             let depth = gem.pavilion_mm();
             let len = (nr * nr + nz * nz).sqrt().max(1e-9);
             let (nr, nz) = (nr / len, nz / len);
@@ -324,7 +324,9 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::
         for e in app.design.layers.layers.iter().filter(|e| e.enabled) {
             match &e.layer {
                 ringdesign_core::field::Layer::SeatPad(p) => {
-                    let arc = (p.diameter_mm * 0.5 + p.blend_mm)
+                    // How far the pad reaches round the ring, which is its
+                    // length when an elongated stone lies along the band.
+                    let arc = (p.half_extents_mm().0 + p.blend_mm)
                         / (section.max_r.max(1e-9))
                         * 180.0
                         / std::f64::consts::PI;

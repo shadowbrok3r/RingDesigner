@@ -289,5 +289,37 @@ fn main() {
     d.layers.layers.push(LayerEntry::new("Trellis", Layer::Tiling(side_pattern(&d, "Trellis", 0.3, 0.25, 0.85))));
     finish(&dir, "10-trellis-band", "the new Trellis wire-lattice on the side faces", WHITE, face_of(low), d, &mut lib);
 
+    // --- 11. Clover signet: an imported factory plan as the head. ------------
+    // One of the 19 table plans decoded straight out of the CrossGems signet
+    // presets (tools/harvest/outline_export.py), adopted into the design as a polar
+    // table — the same rolling-ball fairing and containment guarantee as
+    // every builtin outline. Skipped politely on a machine without the
+    // outline library.
+    match library::list_outlines().into_iter().find(|c| c.name == "CG Clover") {
+        Some(clover) => {
+            let mut d = squared(9.0, 2.6);
+            d.shank.apply_signet(9.0);
+            let o = d.shank.adopt_outline(clover);
+            d.shank.head.outline = o;
+            d.shank.head.length_mm =
+                (9.0 * d.shank.outline_aspect(o)).clamp(2.0, 40.0);
+            // Four deep lobes corrugate a prism's flank, and a loft's too on a
+            // band this thin; on the cut dome the body is one smooth lens and
+            // the clover reads in the arris. The dome wins over the loft.
+            d.shank.head.dome = d.shank.suggest_dome(o);
+            finish(
+                &dir,
+                "11-clover-signet",
+                "a clover face imported from the factory presets",
+                YELLOW,
+                HERO,
+                d,
+                &mut lib,
+            );
+        }
+        None => println!("11-clover-signet     skipped: no CG Clover in the outline library
+"),
+    }
+
     println!("renders in {dir}, designs in {}", library::default_design_dir().join("collection").display());
 }

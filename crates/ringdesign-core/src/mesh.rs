@@ -742,7 +742,7 @@ mod tests {
             let frac = i as f64 / n_theta as f64;
             let theta = frac * 360.0;
             let (sin_t, cos_t) = theta.to_radians().sin_cos();
-            let m = d.shank.modulation(theta, inner_r, reference.crest_radius_mm);
+            let m = d.shank.modulation(theta, inner_r, reference.crest_radius_mm, &d.profile);
             let loop_i = d.profile.sample_mod(inner_r, n_prof, &m);
             let u = frac * ctx.circumference_mm;
             for p in &loop_i.pts {

@@ -8,7 +8,7 @@
 
 use crate::alpha::AlphaLibrary;
 use crate::castability::section_at;
-use crate::field::{FieldContext, Layer, LayerEntry, LayerStack, SeatStyle, Uv};
+use crate::field::{FieldContext, Layer, LayerEntry, LayerStack, Uv};
 use crate::gem::{Gem, GemCut};
 use crate::RingDesign;
 
@@ -27,6 +27,36 @@ pub fn preview_vertices(design: &RingDesign, lib: &AlphaLibrary) -> Vec<f32> {
     out
 }
 
+/// The same stones as a plain [`Mesh`], for the software renderer.
+///
+/// `None` when the design carries no stones. It is a soup of loose triangles
+/// — every stone is its own closed solid but they share no vertices and are
+/// not welded to each other or to the band — which is all a z-buffer needs
+/// and is emphatically **not** something to export. Stones are never cast.
+pub fn preview_mesh(design: &RingDesign, lib: &AlphaLibrary) -> Option<crate::mesh::Mesh> {
+    let v = preview_vertices(design, lib);
+    if v.is_empty() {
+        return None;
+    }
+    const STRIDE: usize = 12;
+    let n = v.len() / STRIDE;
+    let mut m = crate::mesh::Mesh {
+        vertices: Vec::with_capacity(n),
+        normals: Vec::with_capacity(n),
+        faces: Vec::with_capacity(n / 3),
+    };
+    for i in 0..n {
+        let b = i * STRIDE;
+        m.vertices.push(crate::mesh::Vec3(v[b], v[b + 1], v[b + 2]));
+        m.normals.push(crate::mesh::Vec3(v[b + 3], v[b + 4], v[b + 5]));
+    }
+    for t in 0..n / 3 {
+        let i = (t * 3) as u32;
+        m.faces.push([i, i + 1, i + 2]);
+    }
+    Some(m)
+}
+
 fn walk(
     design: &RingDesign,
     lib: &AlphaLibrary,
@@ -42,7 +72,7 @@ fn walk(
             Layer::SeatPad(seat) => {
                 if let Some(gem) = seat.gem {
                     if kept(entry, ctx, seat.theta_deg, seat.v_mm) {
-                        place(design, lib, ctx, seat.theta_deg, seat.v_mm, gem, seat.style, out);
+                        place(design, lib, ctx, seat.theta_deg, seat.v_mm, gem, seat, out);
                     }
                 }
             }
@@ -51,9 +81,10 @@ fn walk(
                 let mut seat = run.seat;
                 seat.fit_stone(run.gem);
                 for k in 0..n {
-                    let theta = k as f64 * 360.0 / n as f64;
+                    let theta = run.theta_of_station(k as f64, ctx);
                     if kept(entry, ctx, theta, seat.v_mm) {
-                        place(design, lib, ctx, theta, seat.v_mm, run.gem, seat.style, out);
+                        // Graded runs draw the stone they actually carry.
+                        place(design, lib, ctx, theta, seat.v_mm, run.gem_at(theta), &seat, out);
                     }
                 }
             }
@@ -77,7 +108,7 @@ fn place(
     theta_deg: f64,
     v_mm: f64,
     gem: Gem,
-    style: SeatStyle,
+    seat: &crate::field::SeatPadLayer,
     out: &mut Vec<f32>,
 ) {
     let section = section_at(design, lib, theta_deg, 160);
@@ -102,19 +133,22 @@ fn place(
     let (sin_t, cos_t) = theta_deg.to_radians().sin_cos();
     let pos = [best.r * cos_t, best.r * sin_t, best.z];
     let n = normalize([best.nr * cos_t, best.nr * sin_t, best.nz]);
-    // Around-ring tangent, squared against the normal; the stone's length
-    // runs along the ring like the seats are spaced.
+    // Around-ring tangent, squared against the normal, then turned by the
+    // seat: the stone lies the way the stock cut for it does.
     let ring = [-sin_t, cos_t, 0.0];
-    let t = normalize(reject(ring, n));
+    let along = normalize(reject(ring, n));
+    let across = cross(n, along);
+    let (rs, rc) = seat.rot_deg.to_radians().sin_cos();
+    let t = [
+        along[0] * rc + across[0] * rs,
+        along[1] * rc + across[1] * rs,
+        along[2] * rc + across[2] * rs,
+    ];
     let b = cross(n, t);
 
-    // The girdle settles into the seat: below the rim of a bezel's pocket,
-    // a whisker into a drilled pad — the pavilion disappears into the metal
-    // and the crown stands proud, which is what a set stone looks like.
-    let settle = match style {
-        SeatStyle::Bezel => 0.35 * gem.depth_mm(),
-        _ => 0.22 * gem.depth_mm(),
-    };
+    // The girdle settles into the seat by the depth the seat is set to —
+    // the same number the pavilion check credits as metal under the stone.
+    let settle = seat.girdle_drop_mm(gem);
     let centre = [
         pos[0] - n[0] * settle,
         pos[1] - n[1] * settle,
@@ -299,7 +333,47 @@ fn load_gem_obj(path: &std::path::Path) -> Option<Vec<Tri>> {
     Some(tris)
 }
 
+/// A cabochon: one dome on a flat back, its plan the same superellipse the
+/// seat under it is cut to. Faceted like everything else in the preview so
+/// the key light still reads its curvature, just at a finer step.
+fn cabochon(gem: Gem) -> Vec<([f64; 3], [f64; 3], [f64; 3])> {
+    // A cabochon is polished smooth, so its facets are an artefact of the
+    // preview rather than the point of it — tessellate finely enough that
+    // the flat shading reads as a dome.
+    const SEG: usize = 48;
+    const RINGS: usize = 14;
+    let (hl, hw) = (gem.l_mm * 0.5, gem.w_mm * 0.5);
+    let h = gem.depth_mm();
+    let n = gem.cut.plan_pow();
+    let at = |ring: usize, i: usize| -> [f64; 3] {
+        // A quarter-ellipse in section: full plan at the girdle, the apex at
+        // the top, so the profile leaves the back at a right angle.
+        let t = ring as f64 / RINGS as f64;
+        let (scale, z) = (((1.0 - t * t).max(0.0)).sqrt(), h * t);
+        let a = (i as f64 + 0.5) / SEG as f64 * std::f64::consts::TAU;
+        let (sn, cs) = a.sin_cos();
+        let m = (cs.abs().powf(n) + sn.abs().powf(n)).powf(-1.0 / n);
+        [cs * m * hl * scale, sn * m * hw * scale, z]
+    };
+    let mut tris = Vec::with_capacity(SEG * (RINGS * 2 + 1));
+    let back = [0.0, 0.0, 0.0];
+    for i in 0..SEG {
+        let j = (i + 1) % SEG;
+        // The flat back, so the stone reads solid from below.
+        tris.push((at(0, j), at(0, i), back));
+        for r in 0..RINGS - 1 {
+            tris.push((at(r, i), at(r, j), at(r + 1, j)));
+            tris.push((at(r, i), at(r + 1, j), at(r + 1, i)));
+        }
+        tris.push((at(RINGS - 1, i), at(RINGS - 1, j), [0.0, 0.0, h]));
+    }
+    tris
+}
+
 fn facets(gem: Gem) -> Vec<([f64; 3], [f64; 3], [f64; 3])> {
+    if gem.form == crate::gem::GemForm::Cabochon {
+        return cabochon(gem);
+    }
     if let Some(unit) = true_facets(gem.cut) {
         // Unit mesh scaled to the stone: length along the ring, width across
         // it, its own crown/pavilion split preserved inside `depth_mm`.
@@ -311,17 +385,8 @@ fn facets(gem: Gem) -> Vec<([f64; 3], [f64; 3], [f64; 3])> {
     let depth = gem.depth_mm();
     let crown = depth * 0.35;
     let pav = depth * 0.65;
-    // Girdle plan as a superellipse: 2 is round, higher squares the corners.
-    let exp = match gem.cut {
-        GemCut::Round | GemCut::Oval | GemCut::Pear | GemCut::Heart => 2.0,
-        GemCut::Cushion | GemCut::Trillion | GemCut::Hexagon | GemCut::HalfMoon => 3.2,
-        GemCut::Princess
-        | GemCut::Emerald
-        | GemCut::Baguette
-        | GemCut::Radiant
-        | GemCut::Asscher => 6.0,
-        GemCut::Marquise => 1.5,
-    };
+    // The same girdle plan the seat stock is cut to.
+    let exp = gem.cut.plan_pow();
     const SEG: usize = 16;
     let ring = |scale: f64, z: f64| -> Vec<[f64; 3]> {
         (0..SEG)

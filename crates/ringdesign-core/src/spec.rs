@@ -9,6 +9,7 @@
 use crate::castability::{FieldReport, Verdict};
 use crate::dfm::DfmFinding;
 use crate::mesh::Report;
+use crate::profile::MIN_EDGE_MM;
 use crate::stones::{SeatFooting, StonesReport};
 use crate::RingDesign;
 
@@ -163,6 +164,37 @@ pub fn html(
             }
         }
         h.push_str("</table>");
+
+        // Stone against stone, across every layer — the metal the setter
+        // has to leave, at the girdle and again at the culet where the
+        // ring's own curvature has closed the arc in.
+        if !s.crowding.is_empty() {
+            h.push_str(&format!(
+                "<h3>Spacing</h3><div>{} pair{} under {:.2} mm.</div>                 <table><tr><th>Pair</th><th>At</th><th>At the girdle</th><th>At the culet</th></tr>",
+                s.tight_pairs,
+                if s.tight_pairs == 1 { "" } else { "s" },
+                crate::stones::CROWD_TIGHT_MM
+            ));
+            for p in &s.crowding {
+                let cls = if p.worst_mm() < MIN_EDGE_MM { " class=\"warn\"" } else { "" };
+                h.push_str(&format!(
+                    "<tr{cls}><td>{} &middot; {}</td><td>{:.0}&deg; / {:.0}&deg;</td>                     <td>{:.2} mm</td><td>{:.2} mm</td></tr>",
+                    esc(&p.a),
+                    esc(&p.b),
+                    p.a_theta_deg,
+                    p.b_theta_deg,
+                    p.gap_mm,
+                    p.gap_deep_mm,
+                ));
+            }
+            if s.tight_pairs > s.crowding.len() {
+                h.push_str(&format!(
+                    "<tr><td colspan=\"4\">and {} more</td></tr>",
+                    s.tight_pairs - s.crowding.len()
+                ));
+            }
+            h.push_str("</table>");
+        }
     }
 
     // --- Provenance ---------------------------------------------------------

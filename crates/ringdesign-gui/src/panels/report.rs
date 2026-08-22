@@ -715,6 +715,61 @@ fn stones_section(ui: &mut egui::Ui, stones: &ringdesign_core::stones::StonesRep
         }
         ui.add_space(4.0);
     }
+
+    if stones.crowding.is_empty() {
+        return;
+    }
+    ui.separator();
+    ui.label(
+        egui::RichText::new(format!(
+            "{} tight pair{}",
+            stones.tight_pairs,
+            if stones.tight_pairs == 1 { "" } else { "s" }
+        ))
+        .strong(),
+    );
+    ui.label(
+        egui::RichText::new(
+            "stone against stone, across every layer — the culet column is the one              that decides, because the ring's curvature closes the arc under the girdle",
+        )
+        .small()
+        .color(theme::TEXT_DIM),
+    );
+    egui::Grid::new("stone_crowding")
+        .num_columns(3)
+        .min_col_width(96.0)
+        .spacing([8.0, 2.0])
+        .show(ui, |ui| {
+            for p in &stones.crowding {
+                let bad = p.worst_mm() < ringdesign_core::profile::MIN_EDGE_MM;
+                let col = if bad { theme::WARN } else { theme::TEXT_DIM };
+                ui.label(
+                    egui::RichText::new(format!(
+                        "{} · {}  ({:.0}°/{:.0}°)",
+                        p.a, p.b, p.a_theta_deg, p.b_theta_deg
+                    ))
+                    .small(),
+                );
+                ui.label(egui::RichText::new(format!("{:.2} mm girdle", p.gap_mm)).small());
+                ui.label(
+                    egui::RichText::new(format!("{:.2} mm culet", p.gap_deep_mm))
+                        .small()
+                        .color(col),
+                );
+                ui.end_row();
+            }
+        });
+    if stones.tight_pairs > stones.crowding.len() {
+        ui.label(
+            egui::RichText::new(format!(
+                "and {} more",
+                stones.tight_pairs - stones.crowding.len()
+            ))
+            .small()
+            .color(theme::TEXT_DIM),
+        );
+    }
+    ui.add_space(4.0);
 }
 
 // --- Shared bits -----------------------------------------------------------

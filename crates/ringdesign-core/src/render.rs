@@ -12,6 +12,38 @@ use crate::FaceClass;
 /// Polished gold, the default tint.
 pub const GOLD: [f32; 3] = [0.87, 0.71, 0.43];
 
+/// One thing in the frame: a mesh, its colour, and whether it reads as a
+/// stone rather than as metal.
+///
+/// A ring and the stones set into it are two solids that share no vertices —
+/// the stones are never in the `Mesh` and never exported — so a picture of a
+/// finished piece is a picture of both, framed on the metal.
+pub struct Part<'a> {
+    pub mesh: &'a Mesh,
+    pub tint: [f32; 3],
+    /// Harder specular and a brighter body: a faceted stone under the key
+    /// light, against metal's broader sheen.
+    pub gem: bool,
+    /// Shade from the mesh's own vertex normals rather than facet by facet.
+    ///
+    /// The band is a smooth surface finely tessellated, so flat shading puts
+    /// a visible contour on every ring of triangles — worst exactly where
+    /// the surface is nearly flat and the facet normals alternate, which is
+    /// the skirt around a seat. A stone is the opposite: its facets are the
+    /// point, and interpolating across them would sand the sparkle off.
+    pub smooth: bool,
+}
+
+impl<'a> Part<'a> {
+    pub fn metal(mesh: &'a Mesh, tint: [f32; 3]) -> Self {
+        Self { mesh, tint, gem: false, smooth: true }
+    }
+
+    pub fn stone(mesh: &'a Mesh) -> Self {
+        Self { mesh, tint: crate::gems::GEM_TINT, gem: true, smooth: false }
+    }
+}
+
 /// Gold-shaded render at the given orientation. RGB, row-major.
 pub fn render(m: &Mesh, yaw: f64, pitch: f64, w: usize, h: usize) -> Vec<u8> {
     draw(m, yaw, pitch, w, h, None, GOLD)
@@ -50,6 +82,11 @@ pub fn render_ss(
     if ss == 1 {
         return big;
     }
+    downsample(&big, w, h, ss)
+}
+
+/// The box filter that is the whole of the antialiasing.
+fn downsample(big: &[u8], w: usize, h: usize, ss: usize) -> Vec<u8> {
     let mut out = vec![0u8; w * h * 3];
     for y in 0..h {
         for x in 0..w {
@@ -65,6 +102,36 @@ pub fn render_ss(
         }
     }
     out
+}
+
+/// Supersampled render of several parts, framed on the first.
+pub fn render_parts_ss(
+    parts: &[Part],
+    yaw: f64,
+    pitch: f64,
+    w: usize,
+    h: usize,
+    ss: usize,
+) -> Vec<u8> {
+    let ss = ss.max(1);
+    let big = draw_parts(parts, yaw, pitch, w * ss, h * ss, None);
+    if ss == 1 {
+        return big;
+    }
+    downsample(&big, w, h, ss)
+}
+
+/// One antialiased hero frame of several parts to a PNG.
+pub fn write_png_parts(
+    path: impl AsRef<Path>,
+    parts: &[Part],
+    yaw: f64,
+    pitch: f64,
+    edge: usize,
+) -> anyhow::Result<()> {
+    let img = render_parts_ss(parts, yaw, pitch, edge, edge, 3);
+    image::save_buffer(path, &img, edge as u32, edge as u32, image::ColorType::Rgb8)?;
+    Ok(())
 }
 
 /// One antialiased hero frame to a PNG.
@@ -122,7 +189,23 @@ fn draw(
     classes: Option<&[FaceClass]>,
     tint: [f32; 3],
 ) -> Vec<u8> {
-    let Some((min, max)) = m.bounds() else {
+    draw_parts(&[Part { mesh: m, tint, gem: false, smooth: classes.is_none() }], yaw, pitch, w, h, classes)
+}
+
+/// Several parts into one frame, depth-sorted against each other and framed
+/// on the first — the metal, so adding stones cannot move the ring.
+fn draw_parts(
+    parts: &[Part],
+    yaw: f64,
+    pitch: f64,
+    w: usize,
+    h: usize,
+    classes: Option<&[FaceClass]>,
+) -> Vec<u8> {
+    let Some(first) = parts.first() else {
+        return vec![18u8; w * h * 3];
+    };
+    let Some((min, max)) = first.mesh.bounds() else {
         return vec![18u8; w * h * 3];
     };
     let c = [
@@ -135,12 +218,12 @@ fn draw(
 
     let (sy, cy) = yaw.sin_cos();
     let (sp, cp) = pitch.sin_cos();
-    let xf = |p: [f64; 3]| -> [f64; 3] {
-        let (x, y, z) = (p[0] - c[0], p[1] - c[1], p[2] - c[2]);
-        let (x1, y1) = (x * cy - y * sy, x * sy + y * cy);
-        let (y2, z2) = (y1 * cp - z * sp, y1 * sp + z * cp);
+    let rot = |p: [f64; 3]| -> [f64; 3] {
+        let (x1, y1) = (p[0] * cy - p[1] * sy, p[0] * sy + p[1] * cy);
+        let (y2, z2) = (y1 * cp - p[2] * sp, y1 * sp + p[2] * cp);
         [x1, y2, z2]
     };
+    let xf = |p: [f64; 3]| -> [f64; 3] { rot([p[0] - c[0], p[1] - c[1], p[2] - c[2]]) };
 
     let mut depth = vec![f64::NEG_INFINITY; w * h];
     let mut img = vec![18u8; w * h * 3];
@@ -150,7 +233,12 @@ fn draw(
         [l[0] / n, l[1] / n, l[2] / n]
     };
 
-    for (fi, f) in m.faces.iter().enumerate() {
+    for (part, f, fi) in parts
+        .iter()
+        .flat_map(|p| p.mesh.faces.iter().enumerate().map(move |(i, f)| (p, f, i)))
+    {
+        let m = part.mesh;
+        let tint = part.tint;
         let Some((a, b, cc)) = m.triangle(f) else { continue };
         let (ta, tb, tc) = (xf(a), xf(b), xf(cc));
         let n = {
@@ -177,20 +265,46 @@ fn draw(
         if area.abs() < 1e-9 {
             continue;
         }
-        let diff = (n[0] * light[0] + n[1] * light[1] + n[2] * light[2]).max(0.0);
-        let spec = diff.powf(28.0);
-        let shade = 0.16 + 0.72 * diff;
         let base = match classes {
-            Some(cs) => cs.get(fi).map(|c| c.rgb()).unwrap_or(tint),
-            None => tint,
+            Some(cs) if !part.gem => cs.get(fi).map(|c| c.rgb()).unwrap_or(tint),
+            _ => tint,
         };
-        let lit = if classes.is_some() { 0.35 + 0.65 * diff } else { shade };
-        let hl = if classes.is_some() { 0.0 } else { spec * 0.85 };
-        let col = [
-            ((base[0] as f64 * lit + hl) * 255.0).min(255.0) as u8,
-            ((base[1] as f64 * lit + hl) * 255.0).min(255.0) as u8,
-            ((base[2] as f64 * lit + hl) * 255.0).min(255.0) as u8,
-        ];
+        let flat = classes.is_some() && !part.gem;
+        // The mesh's own vertex normals, rotated into view. Only meaningful
+        // when the mesh actually carries them.
+        let smooth = part.smooth
+            && m.normals.len() == m.vertices.len()
+            && f.iter().all(|&i| (i as usize) < m.normals.len());
+        let vn = smooth.then(|| {
+            let g = |i: u32| {
+                let nv = m.normals[i as usize];
+                rot([nv.0 as f64, nv.1 as f64, nv.2 as f64])
+            };
+            [g(f[0]), g(f[1]), g(f[2])]
+        });
+        // Flat shading, for the facet case and as the fallback.
+        let shade_of = |nn: [f64; 3]| -> [u8; 3] {
+            let d = (nn[0] * light[0] + nn[1] * light[1] + nn[2] * light[2]).max(0.0);
+            // A stone's facets are flat and small, so a tight specular over
+            // a bright body is what reads as sparkle; metal wants the broad
+            // sheen.
+            let spec = d.powf(if part.gem { 90.0 } else { 28.0 });
+            let body = if part.gem { 0.34 + 0.60 * d } else { 0.16 + 0.72 * d };
+            let lit = if flat { 0.35 + 0.65 * d } else { body };
+            let hl = if flat {
+                0.0
+            } else if part.gem {
+                spec * 1.25
+            } else {
+                spec * 0.85
+            };
+            [
+                ((base[0] as f64 * lit + hl) * 255.0).min(255.0) as u8,
+                ((base[1] as f64 * lit + hl) * 255.0).min(255.0) as u8,
+                ((base[2] as f64 * lit + hl) * 255.0).min(255.0) as u8,
+            ]
+        };
+        let col = shade_of(n);
         for y in miny..=maxy {
             for x in minx..=maxx {
                 let (fx, fy) = (x as f64 + 0.5, y as f64 + 0.5);
@@ -203,9 +317,29 @@ fn draw(
                 let i = y * w + x;
                 if z > depth[i] {
                     depth[i] = z;
-                    img[i * 3] = col[0];
-                    img[i * 3 + 1] = col[1];
-                    img[i * 3 + 2] = col[2];
+                    // Same weights the depth uses: a = 1 - w0 - w1, b = w1,
+                    // c = w0.
+                    let px = match &vn {
+                        Some([na, nb, nc]) => {
+                            let wa = 1.0 - w0 - w1;
+                            let mut v = [
+                                na[0] * wa + nb[0] * w1 + nc[0] * w0,
+                                na[1] * wa + nb[1] * w1 + nc[1] * w0,
+                                na[2] * wa + nb[2] * w1 + nc[2] * w0,
+                            ];
+                            let l = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+                            if l > 1e-9 {
+                                v = [v[0] / l, v[1] / l, v[2] / l];
+                                shade_of(v)
+                            } else {
+                                col
+                            }
+                        }
+                        None => col,
+                    };
+                    img[i * 3] = px[0];
+                    img[i * 3 + 1] = px[1];
+                    img[i * 3 + 2] = px[2];
                 }
             }
         }

@@ -102,6 +102,42 @@ pub struct FieldContext {
     pub side_faces_cache: std::sync::OnceLock<Option<SideFaces>>,
 }
 
+impl FieldContext {
+    /// Real arc per unit of `u` at this `v` — `r(v) / r_crest`, in `(0, 1]`.
+    ///
+    /// `u` is arc distance **at the crest radius**, so it overstates the
+    /// metal anywhere the surface sits further in. That is not a rounding
+    /// error: a squared band's side face runs at 0.80–0.83 of the crest
+    /// radius, so a bridge the chart calls 0.55 mm is 0.45 mm of metal —
+    /// optimistic, on exactly the surfaces the doctrine sends all ornament
+    /// to. On the crest it is exactly 1, so nothing on the parting plane
+    /// moves.
+    ///
+    /// This corrects what is *reported* and the integer counts generators
+    /// solve, never `h(u, v)` itself: the chart stays one clean
+    /// reparameterization of theta, and no saved design changes shape.
+    pub fn arc_scale(&self, v_mm: f64) -> f64 {
+        if !(self.crest_radius_mm > 1e-9) {
+            return 1.0;
+        }
+        match self.surface.at(v_mm, self.band_v_len_mm) {
+            Some((r, _)) if r > 1e-9 => (r / self.crest_radius_mm).clamp(1e-6, 1.0),
+            _ => 1.0,
+        }
+    }
+
+    /// The least [`arc_scale`](Self::arc_scale) over a `v` range — the
+    /// conservative read for a feature whose footprint spans the section,
+    /// where no single number is the metric.
+    pub fn arc_scale_min(&self, v_lo: f64, v_hi: f64) -> f64 {
+        let (lo, hi) = if v_lo <= v_hi { (v_lo, v_hi) } else { (v_hi, v_lo) };
+        let steps = 8;
+        (0..=steps)
+            .map(|i| self.arc_scale(lo + (hi - lo) * i as f64 / steps as f64))
+            .fold(1.0f64, f64::min)
+    }
+}
+
 /// Base draft a surface must clear to count as a side face, degrees.
 pub const SIDE_FACE_MIN_DRAFT_DEG: f64 = 80.0;
 
@@ -536,56 +572,56 @@ impl Layer {
             Layer::Tiling(l) => {
                 let (cw, ch) = l.cell_size(ctx);
                 vec![FeatureFootprint {
-                    min_feature_mm: cw.min(ch).max(0.1),
+                    feature_u_mm: cw.max(0.1),
+                    feature_v_mm: ch.max(0.1),
                     u_mm: None,
                     v_mm: l.v_bounds(),
                 }]
             }
             Layer::Border(l) => {
                 let v = (l.v_mm - l.width_mm * 0.5, l.v_mm + l.width_mm * 0.5);
-                let f = |v| FeatureFootprint {
-                    min_feature_mm: l.width_mm.max(0.1),
-                    u_mm: None,
-                    v_mm: v,
-                };
+                let f = |v| FeatureFootprint::across(l.width_mm.max(0.1), None, v);
                 if l.mirror { vec![f(v), f(mirrored(v))] } else { vec![f(v)] }
             }
             Layer::Milgrain(l) => {
                 let half = l.bead_diameter_mm * 0.5;
                 let v = (l.v_mm - half, l.v_mm + half);
-                let f = |v| FeatureFootprint {
-                    min_feature_mm: l.bead_diameter_mm.max(0.1),
-                    u_mm: None,
-                    v_mm: v,
-                };
+                let f = |v| FeatureFootprint::round(l.bead_diameter_mm.max(0.1), None, v);
                 if l.mirror { vec![f(v), f(mirrored(v))] } else { vec![f(v)] }
             }
             Layer::SeatPad(l) => {
-                let reach = l.diameter_mm * 0.5 + l.blend_mm.max(0.0);
+                // A marker pad — the sand halo's melee — carries a stone for
+                // the report and the preview but raises no metal, so it has
+                // no feature for the detail floor or the refiner to find.
+                if l.height_mm.abs() <= 1e-9 {
+                    return Vec::new();
+                }
+                let (hu, hv) = l.half_extents_mm();
+                let skirt = l.blend_mm.max(0.0);
                 let u0 = ctx.u_of_theta(l.theta_deg);
-                vec![FeatureFootprint {
-                    min_feature_mm: l.blend_mm.clamp(0.15, l.diameter_mm.max(0.15)),
-                    u_mm: Some((u0 - reach, u0 + reach)),
-                    v_mm: (l.v_mm - reach, l.v_mm + reach),
-                }]
+                vec![FeatureFootprint::round(
+                    l.blend_mm.clamp(0.15, l.diameter_mm.max(0.15)),
+                    Some((u0 - hu - skirt, u0 + hu + skirt)),
+                    (l.v_mm - hv - skirt, l.v_mm + hv + skirt),
+                )]
             }
             Layer::Signet(l) => {
                 let reach = l.reach_mm();
                 let u0 = ctx.u_of_theta(l.theta_deg);
                 let half_w = l.width_mm * 0.5 + l.shoulder_mm;
-                vec![FeatureFootprint {
-                    min_feature_mm: l.shoulder_mm.max(0.15),
-                    u_mm: Some((u0 - reach, u0 + reach)),
-                    v_mm: (l.v_mm - half_w, l.v_mm + half_w),
-                }]
+                vec![FeatureFootprint::round(
+                    l.shoulder_mm.max(0.15),
+                    Some((u0 - reach, u0 + reach)),
+                    (l.v_mm - half_w, l.v_mm + half_w),
+                )]
             }
             Layer::Group(g) => g.stack.feature_footprints(ctx),
             Layer::Curve(l) => l.feature_footprints(ctx),
-            Layer::Flutes(l) => vec![FeatureFootprint {
-                min_feature_mm: l.width_mm.max(0.1),
-                u_mm: None,
-                v_mm: (0.0, ctx.band_v_len_mm),
-            }],
+            Layer::Flutes(l) => vec![FeatureFootprint::across(
+                l.width_mm.max(0.1),
+                None,
+                (0.0, ctx.band_v_len_mm),
+            )],
             Layer::Decals(l) => l.feature_footprints(ctx),
             Layer::SeatRun(l) => l.feature_footprints(ctx),
             Layer::Openwork(l) => l.tiling.feature_footprints_as_tiling(ctx),
@@ -639,15 +675,52 @@ impl OpenworkLayer {
 }
 
 /// One region of the band carrying detail at a known scale, in unrolled mm.
+///
+/// The two axes are kept apart because they are not the same measure. `v` is
+/// arc length on the section itself, so a width across the band is true as it
+/// stands; `u` is arc length **at the crest radius**, so a feature running
+/// around the ring is shorter in metal wherever the surface sits inside that
+/// — 0.80–0.83 of it on a squared band's side faces. Refinement wants the
+/// chart figure, because the mesh grid lives in the chart; the sand's detail
+/// floor wants the metal one.
 #[derive(Clone, Copy, Debug)]
 pub struct FeatureFootprint {
-    /// Smallest feature the layer produces here, mm.
-    pub min_feature_mm: f64,
+    /// Smallest feature measured around the ring, mm of chart `u`. Infinite
+    /// when nothing about the layer is fine along `u` — a rail, a bead line.
+    pub feature_u_mm: f64,
+    /// Smallest feature measured across the section, mm. Infinite when
+    /// nothing about the layer is fine across `v`.
+    pub feature_v_mm: f64,
     /// Arc extent around the ring, mm at the crest radius; may extend past the
     /// wrap. `None` covers the whole ring.
     pub u_mm: Option<(f64, f64)>,
     /// Extent across the band surface, mm.
     pub v_mm: (f64, f64),
+}
+
+impl FeatureFootprint {
+    /// A feature the same size both ways — a bead, a stamp, a pad's skirt.
+    pub fn round(mm: f64, u_mm: Option<(f64, f64)>, v_mm: (f64, f64)) -> Self {
+        Self { feature_u_mm: mm, feature_v_mm: mm, u_mm, v_mm }
+    }
+
+    /// A feature measured only across the section — a rail, a flute, a
+    /// milgrain line: it runs the whole way round, so `u` does not limit it.
+    pub fn across(mm: f64, u_mm: Option<(f64, f64)>, v_mm: (f64, f64)) -> Self {
+        Self { feature_u_mm: f64::INFINITY, feature_v_mm: mm, u_mm, v_mm }
+    }
+
+    /// The finest feature in the chart, mm — what refinement seeds on.
+    pub fn min_feature_mm(&self) -> f64 {
+        self.feature_u_mm.min(self.feature_v_mm)
+    }
+
+    /// The finest feature in **metal**, mm — what the sand's detail floor
+    /// judges, with the `u` side taken at the footprint's own arc scale.
+    pub fn metal_feature_mm(&self, ctx: &FieldContext) -> f64 {
+        let k = ctx.arc_scale_min(self.v_mm.0, self.v_mm.1);
+        (self.feature_u_mm * k).min(self.feature_v_mm)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -962,6 +1035,38 @@ pub struct SeatPadLayer {
     /// the drill starts where the seat means it to. 0 is none.
     #[serde(default)]
     pub dimple_mm: f64,
+    /// Long axis over short, 1 = round. `diameter_mm` stays the short axis,
+    /// so an oval, marquise, emerald or baguette seat carries the stock its
+    /// own girdle needs instead of a circle drawn round its length.
+    #[serde(default = "default_elong")]
+    pub elong: f64,
+    /// Rotation of the long axis about the seat normal, degrees. 0 lays it
+    /// along the ring; 90 lays it across the band.
+    #[serde(default)]
+    pub rot_deg: f64,
+    /// Superellipse exponent of the rim in plan: 2 is an ellipse, 6 a
+    /// rounded rectangle for the step cuts, 1.5 the pointed ends of a
+    /// marquise. Read from the stone by [`fit_stone`](Self::fit_stone).
+    /// Floored at 1, which keeps the plan convex.
+    #[serde(default = "default_plan_pow")]
+    pub plan_pow: f64,
+    /// How far the girdle sits below the pad's top, mm — how deep the stone
+    /// is set. `None` takes the style's own: a bezel's pocket floor, a
+    /// whisker into a drilled pad, flush on a cabochon's bed.
+    ///
+    /// One number for a thing the model used to hold in two places that
+    /// disagreed: the preview sank a stone by a fraction of its depth while
+    /// the report credited the whole pad height as metal under it.
+    #[serde(default)]
+    pub set_depth_mm: Option<f64>,
+}
+
+fn default_elong() -> f64 {
+    1.0
+}
+
+fn default_plan_pow() -> f64 {
+    2.0
 }
 
 fn default_bezel_wall() -> f64 {
@@ -969,7 +1074,11 @@ fn default_bezel_wall() -> f64 {
 }
 
 fn default_recess() -> f64 {
-    0.4
+    // Calibrated against the 16 CrossGems factory bezel presets, whose
+    // "Stone Seat Depth" — the same quantity, where the girdle ledge sits
+    // below the rim — runs 0.525-0.6125 mm. 0.5 is their low end; a cast
+    // pocket the bench opens wants no more.
+    0.5
 }
 
 fn default_prong() -> f64 {
@@ -992,8 +1101,76 @@ impl Default for SeatPadLayer {
             prong_mm: default_prong(),
             gem: None,
             dimple_mm: 0.0,
+            elong: default_elong(),
+            rot_deg: 0.0,
+            plan_pow: default_plan_pow(),
+            set_depth_mm: None,
         }
     }
+}
+
+/// `2 atan(c tan(x/2))`, in the branch-safe form — exactly `±π` at `x = ±π`
+/// with no clamp and no case split.
+///
+/// The eccentric-anomaly substitution: a monotone, odd reparameterization of
+/// the circle onto itself, the identity at `c = 1`, and the closed-form
+/// integral of `dΔ / (A + B cos Δ)`.
+fn eccentric_warp(x: f64, c: f64) -> f64 {
+    let (sin, cos) = x.sin_cos();
+    let (a, b) = (2.0 * c * sin, (1.0 + cos) - c * c * (1.0 - cos));
+    a.atan2(b)
+}
+
+/// The radius of a superellipse with semi-axes `ra`, `rb` and exponent `n`,
+/// in the direction of `(a, b)` — the same plan a girdle and the stock cut
+/// for it both read, so a seat and the stone in it are never two shapes.
+///
+/// `n` is floored at 1, which keeps the outline convex: convex means
+/// star-shaped about the centre, which is what makes a mound built on it a
+/// monotone drop in every direction and so castable wherever a round one is.
+pub fn superellipse_radius_mm(a: f64, b: f64, ra: f64, rb: f64, n: f64) -> f64 {
+    let (ra, rb) = (ra.max(1e-9), rb.max(1e-9));
+    let n = n.max(1.0);
+    if ra <= rb * (1.0 + 1e-12) && (n - 2.0).abs() < 1e-12 {
+        return rb;
+    }
+    let d = (a * a + b * b).sqrt();
+    if d <= 1e-12 {
+        return rb;
+    }
+    let t = ((a / ra).abs().powf(n) + (b / rb).abs().powf(n)).powf(1.0 / n);
+    d / t.max(1e-12)
+}
+
+/// Half-extents of a superellipse plan along `u` and across `v`, mm, after
+/// turning it by `rot_deg` in the chart.
+///
+/// Exact at any bearing: a superellipse is the unit ball of a weighted
+/// `p`-norm, so its support function is the dual `q`-norm with
+/// `1/p + 1/q = 1`. At `p = 2` that is the familiar ellipse formula; as `p`
+/// grows the dual runs to `q = 1` and the answer becomes the rotated
+/// rectangle's, which is what a step cut wants.
+pub fn plan_half_extents_mm(ra: f64, rb: f64, n: f64, rot_deg: f64) -> (f64, f64) {
+    if rot_deg == 0.0 {
+        return (ra, rb);
+    }
+    let (sin, cos) = rot_deg.to_radians().sin_cos();
+    let (ca, sa) = (cos.abs(), sin.abs());
+    let n = n.max(1.0);
+    if n <= 1.0 + 1e-9 {
+        // The dual of the diamond is the box: the extent is whichever
+        // vertex reaches furthest.
+        return ((ra * ca).max(rb * sa), (ra * sa).max(rb * ca));
+    }
+    let q = n / (n - 1.0);
+    let dual = |x: f64, y: f64| (x.powf(q) + y.powf(q)).powf(1.0 / q);
+    (dual(ra * ca, rb * sa), dual(ra * sa, rb * ca))
+}
+
+/// The stone's own half-extents in the chart, mm — its girdle plan turned
+/// by the seat that holds it.
+pub fn gem_half_extents_mm(gem: crate::gem::Gem, rot_deg: f64) -> (f64, f64) {
+    plan_half_extents_mm(gem.l_mm * 0.5, gem.w_mm * 0.5, gem.cut.plan_pow(), rot_deg)
 }
 
 impl SeatPadLayer {
@@ -1005,32 +1182,125 @@ impl SeatPadLayer {
         }
     }
 
+    /// Stock allowance around the girdle, mm — the metal the bench cuts away.
+    fn stock_mm(&self) -> f64 {
+        match self.style {
+            SeatStyle::Bezel => 2.0 * self.bezel_wall_mm.max(0.2),
+            SeatStyle::Boss => 1.2,
+            SeatStyle::GypsyMound => 1.8,
+        }
+    }
+
     /// Size the pad for a chosen stone instead of inferring the stone from
     /// the pad — a bezel needs its walls around the girdle, a boss needs its
     /// drilling allowance around the seat.
+    ///
+    /// The allowance is a constant width all round, so an elongated stone's
+    /// pad is *less* elongated than the stone: `(l + stock) / (w + stock)`.
     pub fn fit_stone(&mut self, gem: crate::gem::Gem) {
         let w = gem.w_mm.max(0.5);
-        self.diameter_mm = match self.style {
-            SeatStyle::Bezel => w + 2.0 * self.bezel_wall_mm.max(0.2),
-            SeatStyle::Boss => w + 1.2,
-            SeatStyle::GypsyMound => w + 1.8,
-        };
+        let l = gem.l_mm.max(w);
+        let stock = self.stock_mm();
+        self.diameter_mm = w + stock;
+        self.elong = (l + stock) / (w + stock);
+        self.plan_pow = gem.cut.plan_pow();
         if self.style == SeatStyle::GypsyMound {
             self.crown = 1.0;
         }
         self.gem = Some(gem);
     }
 
+    /// Semi-axes of the pad's rim, mm: along its long axis, then across it.
+    pub fn semi_axes_mm(&self) -> (f64, f64) {
+        let rb = (self.diameter_mm * 0.5).max(1e-6);
+        (rb * self.elong.max(1.0), rb)
+    }
+
+    /// A sample's offset in the pad's own frame: along the long axis, then
+    /// across it.
+    fn pad_frame(&self, du: f64, dv: f64) -> (f64, f64) {
+        if self.rot_deg == 0.0 {
+            return (du, dv);
+        }
+        let (sin, cos) = self.rot_deg.to_radians().sin_cos();
+        (du * cos + dv * sin, -du * sin + dv * cos)
+    }
+
+    /// Rim radius in the direction of a pad-frame offset, mm — the plan
+    /// outline's own radius along that ray, and a constant for a round pad.
+    fn rim_mm(&self, a: f64, b: f64) -> f64 {
+        let (ra, rb) = self.semi_axes_mm();
+        superellipse_radius_mm(a, b, ra, rb, self.plan_pow)
+    }
+
+    /// The furthest the rim reaches from the seat centre, mm. A bound, and
+    /// exact for the ellipse family: a plan squarer than an ellipse pushes
+    /// its corners past the long semi-axis, out to the box diagonal.
+    fn plan_reach_mm(&self) -> f64 {
+        let (ra, rb) = self.semi_axes_mm();
+        if self.plan_pow <= 2.0 + 1e-12 {
+            ra
+        } else {
+            (ra * ra + rb * rb).sqrt()
+        }
+    }
+
+    /// Half-extents of the rim along `u` and across `v`, mm — what the band
+    /// edge, the bridge between neighbours and the refiner all measure
+    /// against.
+    pub fn half_extents_mm(&self) -> (f64, f64) {
+        let (ra, rb) = self.semi_axes_mm();
+        plan_half_extents_mm(ra, rb, self.plan_pow, self.rot_deg)
+    }
+
+    /// The stone's own half-reach across the band, mm — its width when it
+    /// lies along the ring, its length when the seat turns it across.
+    pub fn stone_half_v_mm(&self, gem: crate::gem::Gem) -> f64 {
+        gem_half_extents_mm(gem, self.rot_deg).1
+    }
+
+    /// How far the girdle sits below the pad's top, mm. The one number the
+    /// preview, the pavilion check and the spacing census all read, so the
+    /// stone they each mean is the same stone.
+    pub fn girdle_drop_mm(&self, gem: crate::gem::Gem) -> f64 {
+        let d = self.set_depth_mm.unwrap_or(match (gem.form, self.style) {
+            // A cabochon is flat-backed: it rests on the surface it is given.
+            (crate::gem::GemForm::Cabochon, _) => 0.0,
+            // A bezel's pocket floor is where the girdle lands, by
+            // construction — the collar is then burnished over it.
+            (_, SeatStyle::Bezel) => self.recess_mm.max(0.0),
+            // A drilled pad takes the stone a whisker in, so the pavilion
+            // disappears into metal and the crown stands proud.
+            _ => 0.22 * gem.depth_mm(),
+        });
+        d.clamp(0.0, self.height_mm.max(0.0))
+    }
+
+    /// Height of the girdle over the bare band, mm — the pad's own stand-off
+    /// less how deep the stone is set into it.
+    pub fn stand_off_mm(&self, gem: crate::gem::Gem) -> f64 {
+        (self.height_mm - self.girdle_drop_mm(gem)).max(0.0)
+    }
+
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
-        let r = (self.diameter_mm * 0.5).max(1e-6);
         let blend = self.blend_mm.max(0.0);
         let u0 = ctx.u_of_theta(self.theta_deg);
         let du = wrap_delta(uv.u - u0, ctx.circumference_mm);
         let dv = uv.v - self.v_mm;
         let d = (du * du + dv * dv).sqrt();
-        if d > r + blend + self.prong_mm {
+        let (_, rb) = self.semi_axes_mm();
+        let skirt = if self.style == SeatStyle::GypsyMound { blend.max(0.3) } else { blend };
+        let prong_pad =
+            if self.prongs > 0 { (0.28 * rb).clamp(0.35, 0.8) * 0.4 } else { 0.0 };
+        if d > self.plan_reach_mm() + skirt + prong_pad {
             return 0.0;
         }
+        // The rim radius along this ray. Every law below is the same
+        // one-dimensional drop it always was, read at `d / r`, so an
+        // elongated pad is monotone from its centre in every direction
+        // exactly as a round one is.
+        let (a, b) = self.pad_frame(du, dv);
+        let r = self.rim_mm(a, b);
 
         let body = match self.style {
             SeatStyle::Boss => {
@@ -1082,17 +1352,21 @@ impl SeatPadLayer {
         if n == 0 {
             return body;
         }
-        // Drafted cone bumps on the seat circle, nearest-centre like milgrain.
-        let prong_r = (0.28 * r).clamp(0.35, 0.8);
-        let ring_r = (r - prong_r * 0.6).max(0.2);
-        let a0 = dv.atan2(du);
+        // Drafted cone bumps standing just inside the rim, evenly spaced
+        // round it — on the plan outline itself, so a turned or elongated
+        // seat carries its claws where its girdle is.
+        let prong_r = (0.28 * rb).clamp(0.35, 0.8);
         let step = std::f64::consts::TAU / n as f64;
-        let a_near = (a0 / step).round() * step;
-        let (px, py) = (ring_r * a_near.cos(), ring_r * a_near.sin());
-        let dp = ((du - px).powi(2) + (dv - py).powi(2)).sqrt();
-        let t = (dp / prong_r).clamp(0.0, 1.0);
-        let prong =
-            (self.height_mm + self.prong_mm) * (0.5 + 0.5 * (std::f64::consts::PI * t).cos());
+        let mut prong: f64 = 0.0;
+        for k in 0..n {
+            let (sin, cos) = (k as f64 * step).sin_cos();
+            let seat_r = (self.rim_mm(cos, sin) - prong_r * 0.6).max(0.2);
+            let dp = ((a - seat_r * cos).powi(2) + (b - seat_r * sin).powi(2)).sqrt();
+            let t = (dp / prong_r).clamp(0.0, 1.0);
+            prong = prong.max(
+                (self.height_mm + self.prong_mm) * (0.5 + 0.5 * (std::f64::consts::PI * t).cos()),
+            );
+        }
         body.max(prong)
     }
 
@@ -1286,11 +1560,11 @@ impl DecalLayer {
             .map(|d| {
                 let u0 = ctx.u_of_theta(d.theta_deg);
                 let reach = d.size_mm;
-                FeatureFootprint {
-                    min_feature_mm: (d.size_mm * 0.15).max(0.15),
-                    u_mm: Some((u0 - reach, u0 + reach)),
-                    v_mm: (d.v_mm - reach, d.v_mm + reach),
-                }
+                FeatureFootprint::round(
+                    (d.size_mm * 0.15).max(0.15),
+                    Some((u0 - reach, u0 + reach)),
+                    (d.v_mm - reach, d.v_mm + reach),
+                )
             })
             .collect()
     }
@@ -1456,14 +1730,107 @@ impl SeatRunLayer {
     /// stations of that seat plus the bridge that fit the ring.
     pub fn solve_spacing(&mut self, ctx: &FieldContext) {
         self.seat.fit_stone(self.gem);
-        let pitch = self.seat.diameter_mm.max(0.5) + self.bridge_mm.max(0.0);
-        self.count = ((ctx.circumference_mm / pitch).floor() as u32).clamp(3, 200);
+        // Solved in metal, not in chart arc: the seat's own span shrinks with
+        // the row's radius exactly as the pitch does, so only the bridge is
+        // an absolute. Keeps `bridge_at` at the asked-for figure, which is
+        // the invariant the two have to share.
+        //
+        // Graded, the pitch is not one number — it runs from `span + bridge`
+        // at the large pole to `span(1-t) + bridge` at the small one — and
+        // the count the constant-bridge law asks for is the circumference
+        // over their **geometric** mean.
+        let k = ctx.arc_scale(self.seat.v_mm);
+        let (near, far) = self.pitch_poles(k);
+        self.count = ((ctx.circumference_mm * k / (near * far).sqrt()).floor() as u32)
+            .clamp(3, 200);
     }
 
-    /// Bridge actually left between neighbouring seats at the current count.
+    /// The pitch the constant-bridge law wants at each pole, mm of metal:
+    /// at the largest stone, then at the smallest.
+    fn pitch_poles(&self, k: f64) -> (f64, f64) {
+        let span = self.seat_span_mm().max(0.5) * k;
+        let bridge = self.bridge_mm.max(0.0);
+        let t = self.taper.clamp(0.0, 0.85);
+        ((span + bridge).max(1e-6), (span * (1.0 - t) + bridge).max(1e-6))
+    }
+
+    /// The station-spacing warp's own constant: 1 for an ungraded row.
+    fn spacing_c(&self, k: f64) -> f64 {
+        let (near, far) = self.pitch_poles(k);
+        (far / near).sqrt()
+    }
+
+    /// The ring angle station `k` stands at, degrees.
+    ///
+    /// Stations are evenly spaced in a warped angle, not in theta. A graded
+    /// row's seats shrink toward the far pole, so a uniform angular pitch
+    /// leaves the metal between them growing with every step — measured
+    /// 0.44 mm at the large pole against 3.20 mm at the small one on a
+    /// taper-0.85 row, a sevenfold spread down what is meant to read as one
+    /// continuous line of stones.
+    ///
+    /// Holding the *bridge* constant instead makes `R dΔ = span·scale(Δ) +
+    /// bridge`, and `scale_at` is exactly a raised cosine in Δ, so this is
+    /// `R dΔ = A + B cos Δ` — which integrates in closed form by the
+    /// eccentric-anomaly substitution. No solver, no iteration, and at
+    /// `taper = 0` the warp is the identity, so every ungraded row is
+    /// bit-identical.
+    pub fn theta_of_station(&self, k: f64, ctx: &FieldContext) -> f64 {
+        let n = self.count.clamp(1, 200) as f64;
+        if self.taper <= 0.0 {
+            return k * 360.0 / n;
+        }
+        let c = self.spacing_c(ctx.arc_scale(self.seat.v_mm));
+        let phi = self.station_phase(c) + k * std::f64::consts::TAU / n;
+        self.taper_theta_deg + eccentric_warp(phi, 1.0 / c.max(1e-9)).to_degrees()
+    }
+
+    /// The (fractional) station standing at a ring angle — the inverse of
+    /// [`theta_of_station`](Self::theta_of_station).
+    pub fn station_of_theta(&self, theta_deg: f64, ctx: &FieldContext) -> f64 {
+        let n = self.count.clamp(1, 200) as f64;
+        if self.taper <= 0.0 {
+            return theta_deg / 360.0 * n;
+        }
+        let c = self.spacing_c(ctx.arc_scale(self.seat.v_mm));
+        let d = wrap_delta(theta_deg - self.taper_theta_deg, 360.0).to_radians();
+        (eccentric_warp(d, c) - self.station_phase(c)) / std::f64::consts::TAU * n
+    }
+
+    /// Where station 0 sits in the warped angle. Anchored so that ungrading
+    /// a row puts its stations back at `k · 360/n` exactly, rather than
+    /// sliding the whole lattice onto the taper's centre.
+    fn station_phase(&self, c: f64) -> f64 {
+        eccentric_warp(wrap_delta(-self.taper_theta_deg, 360.0).to_radians(), c)
+    }
+
+    /// The seat's own reach along the ring, mm — its full width for a round
+    /// seat, its rotated ellipse's `u` extent for an elongated one. A row of
+    /// baguettes laid along the band packs by their length, not their width.
+    pub fn seat_span_mm(&self) -> f64 {
+        self.seat.half_extents_mm().0 * 2.0
+    }
+
+    /// Bridge actually left between neighbouring seats, mm of metal.
+    ///
+    /// The pitch and the seat's span both scale by the row's own
+    /// [`arc_scale`](FieldContext::arc_scale), so the chart figure times `k`
+    /// is the real one exactly — one multiply, not an approximation.
+    ///
+    /// Graded, the bridge is a constant the station warp holds, and the
+    /// count the ring rounded to decides what constant: it is the positive
+    /// root of `b² + b·span(2−t) + span²(1−t) = (C/n)²`, which is the same
+    /// geometric-mean identity `solve_spacing` runs forward.
     pub fn bridge_at(&self, ctx: &FieldContext) -> f64 {
-        let pitch = ctx.circumference_mm / self.count.max(1) as f64;
-        pitch - self.seat.diameter_mm
+        let k = ctx.arc_scale(self.seat.v_mm);
+        let pitch = ctx.circumference_mm * k / self.count.max(1) as f64;
+        let span = self.seat_span_mm().max(0.5) * k;
+        let t = self.taper.clamp(0.0, 0.85);
+        if t <= 0.0 {
+            return pitch - span;
+        }
+        let (b, c) = (span * (2.0 - t), span * span * (1.0 - t) - pitch * pitch);
+        0.5 * (-b + (b * b - 4.0 * c).max(0.0).sqrt())
     }
 
     /// Size factor at a ring angle: 1 at [`taper_theta_deg`](Self::taper_theta_deg),
@@ -1495,23 +1862,22 @@ impl SeatRunLayer {
     /// The posts' offset from the stone column, mm: post centres ride the
     /// girdle edge so the cut claw overhangs both stones.
     pub fn prong_off_mm(&self) -> f64 {
-        self.gem.w_mm * 0.5 + self.prong_r_mm() * 0.35
+        self.seat.stone_half_v_mm(self.gem) + self.prong_r_mm() * 0.35
     }
 
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
-        let n = self.count.clamp(1, 200) as f64;
         if !(ctx.circumference_mm > 1e-9) || !uv.u.is_finite() {
             return 0.0;
         }
-        let pitch_deg = 360.0 / n;
         let theta = uv.u / ctx.circumference_mm * 360.0;
         // Nearest station and its neighbours, so a generous skirt cannot
-        // clip at the cell boundary.
-        let k = (theta / pitch_deg).round();
+        // clip at the cell boundary. Stations are evenly spaced in the
+        // warped angle, which is the identity unless the row is graded.
+        let k = self.station_of_theta(theta, ctx).round();
         let mut h: f64 = 0.0;
         for dk in [-1.0, 0.0, 1.0] {
             let mut s = self.seat;
-            s.theta_deg = (k + dk) * pitch_deg;
+            s.theta_deg = self.theta_of_station(k + dk, ctx);
             s.v_mm = self.seat.v_mm;
             // Graduation scales the whole seat with its stone — footprint,
             // stand-off and skirt together, so a graded run stays a row of
@@ -1527,9 +1893,9 @@ impl SeatRunLayer {
         }
         if self.shared_prong_mm > 1e-9 {
             // One post pair per boundary between stations, at the midpoints.
-            let kb = ((theta - 0.5 * pitch_deg) / pitch_deg).round();
+            let kb = (self.station_of_theta(theta, ctx) - 0.5).round();
             for dk in [-1.0, 0.0, 1.0] {
-                let theta_b = (kb + dk + 0.5) * pitch_deg;
+                let theta_b = self.theta_of_station(kb + dk + 0.5, ctx);
                 let scale = self.scale_at(theta_b);
                 let r_post = self.prong_r_mm() * scale;
                 let off = self.prong_off_mm() * scale;
@@ -1547,20 +1913,20 @@ impl SeatRunLayer {
     }
 
     pub fn feature_footprints(&self, _ctx: &FieldContext) -> Vec<FeatureFootprint> {
-        let reach = self.seat.diameter_mm * 0.5 + self.seat.blend_mm;
-        let mut out = vec![FeatureFootprint {
-            min_feature_mm: (self.seat.diameter_mm * 0.2).max(0.15),
-            u_mm: None,
-            v_mm: (self.seat.v_mm - reach, self.seat.v_mm + reach),
-        }];
+        let reach = self.seat.half_extents_mm().1 + self.seat.blend_mm;
+        let mut out = vec![FeatureFootprint::round(
+            (self.seat.diameter_mm * 0.2).max(0.15),
+            None,
+            (self.seat.v_mm - reach, self.seat.v_mm + reach),
+        )];
         if self.shared_prong_mm > 1e-9 {
             let r = self.prong_r_mm();
             let off = self.prong_off_mm();
-            out.push(FeatureFootprint {
-                min_feature_mm: r,
-                u_mm: None,
-                v_mm: (self.seat.v_mm - off - r, self.seat.v_mm + off + r),
-            });
+            out.push(FeatureFootprint::round(
+                r,
+                None,
+                (self.seat.v_mm - off - r, self.seat.v_mm + off + r),
+            ));
         }
         out
     }
@@ -1637,10 +2003,59 @@ pub enum SignetOutline {
     Diamond,
     /// A plus of two rounded bars — the plaque a gem column sits on.
     Cross,
+    /// An imported plan, indexing [`crate::profile::ShankStyle::custom_outlines`].
+    ///
+    /// The geometry path resolves it through
+    /// [`ShankStyle::outline_extent`](crate::profile::ShankStyle::outline_extent),
+    /// which owns the registry; the bare methods on the enum itself fall back
+    /// to [`SignetOutline::Oval`] so nothing can panic without one. Not in
+    /// [`SignetOutline::ALL`], so every picker and sweep over the builtins is
+    /// unchanged.
+    Custom(u8),
 }
 
 /// Steps in a polar boundary table. One per 0.5 degree.
 const OUTLINE_STEPS: usize = 720;
+/// Points an imported boundary is resampled to, near-uniform in arc length.
+const OUTLINE_DENSIFY: usize = 4096;
+/// Circular Gaussian over the imported table, in table steps: kills chord
+/// noise and rounds a true square corner by under 0.004 of the radius.
+const OUTLINE_SMOOTH_SIGMA: f64 = 1.5;
+
+/// Split every chord of a closed polyline so it is near-uniform in arc length.
+fn densify_closed(pts: &[[f64; 2]], target: usize) -> Vec<[f64; 2]> {
+    let n = pts.len();
+    let len = |a: [f64; 2], b: [f64; 2]| (b[0] - a[0]).hypot(b[1] - a[1]);
+    let per: f64 = (0..n).map(|i| len(pts[i], pts[(i + 1) % n])).sum();
+    let step = (per / target.max(1) as f64).max(1e-12);
+    let mut out = Vec::with_capacity(target + n);
+    for i in 0..n {
+        let (a, b) = (pts[i], pts[(i + 1) % n]);
+        let m = ((len(a, b) / step) as usize).clamp(1, target);
+        for k in 0..m {
+            let t = k as f64 / m as f64;
+            out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+        }
+    }
+    out
+}
+
+/// Gaussian along a polar table, wrapping.
+fn smooth_circular(r: &mut [f64; OUTLINE_STEPS], sigma: f64) {
+    let rad = ((3.0 * sigma) as usize).max(1);
+    let w: Vec<f64> = (0..=2 * rad)
+        .map(|k| (-0.5 * ((k as f64 - rad as f64) / sigma).powi(2)).exp())
+        .collect();
+    let tot: f64 = w.iter().sum();
+    let src = *r;
+    for i in 0..OUTLINE_STEPS {
+        let mut acc = 0.0;
+        for (j, wj) in w.iter().enumerate() {
+            acc += wj * src[(i + OUTLINE_STEPS + j - rad) % OUTLINE_STEPS];
+        }
+        r[i] = acc / tot;
+    }
+}
 
 /// Boundary radius per direction, normalized so the outline fits the extents.
 ///
@@ -1677,9 +2092,16 @@ impl PolarOutline {
                 [v * a.cos(), v * a.sin()]
             })
             .collect();
+        Self::from_boundary(&raw)
+    }
+
+    /// The same recentre-fit-raycast, from a closed boundary polyline given
+    /// as points — the door an imported outline comes in through.
+    fn from_boundary(raw: &[[f64; 2]]) -> Self {
+        let step = std::f64::consts::TAU / OUTLINE_STEPS as f64;
         let mut lo = [f64::MAX; 2];
         let mut hi = [f64::MIN; 2];
-        for p in &raw {
+        for p in raw {
             for k in 0..2 {
                 lo[k] = lo[k].min(p[k]);
                 hi[k] = hi[k].max(p[k]);
@@ -1699,12 +2121,13 @@ impl PolarOutline {
         // Furthest crossing per direction, not the first: that is the
         // silhouette, which is what a band's width can follow even where the
         // shape is hollow behind it.
+        let n = b.len();
         let mut r = [1e-6f64; OUTLINE_STEPS];
         for (i, slot) in r.iter_mut().enumerate() {
             let a = i as f64 * step;
             let (sin_a, cos_a) = a.sin_cos();
-            for k in 0..OUTLINE_STEPS {
-                let (p, q) = (b[k], b[(k + 1) % OUTLINE_STEPS]);
+            for k in 0..n {
+                let (p, q) = (b[k], b[(k + 1) % n]);
                 let (ex, ey) = (q[0] - p[0], q[1] - p[1]);
                 // Ray x segment: the ray's own cross product vanishes on it.
                 let den = cos_a * ey - sin_a * ex;
@@ -1712,12 +2135,34 @@ impl PolarOutline {
                     continue;
                 }
                 let t = (sin_a * p[0] - cos_a * p[1]) / den;
-                if !(0.0..=1.0).contains(&t) {
+                // A ray through a vertex lands at t = 1 on one segment and
+                // t = 0 on the next, and rounding can put it a hair outside
+                // both: the ray then finds nothing and the table keeps a
+                // 1e-6 spike that smoothing spreads into a dip. The slack
+                // counts a vertex hit on both segments; the max is the same.
+                if !(-1e-9..=1.0 + 1e-9).contains(&t) {
                     continue;
                 }
                 let hit = (p[0] + t * ex) * cos_a + (p[1] + t * ey) * sin_a;
                 if hit > *slot {
                     *slot = hit;
+                }
+            }
+        }
+        // Any ray still without a crossing takes its nearest found neighbour.
+        let found: Vec<bool> = r.iter().map(|&v| v > 1e-5).collect();
+        if found.iter().any(|&f| f) && !found.iter().all(|&f| f) {
+            let src = r;
+            for i in 0..OUTLINE_STEPS {
+                if found[i] {
+                    continue;
+                }
+                for d in 1..OUTLINE_STEPS {
+                    let (a, b) = ((i + d) % OUTLINE_STEPS, (i + OUTLINE_STEPS - d) % OUTLINE_STEPS);
+                    if found[a] || found[b] {
+                        r[i] = if found[a] && found[b] { 0.5 * (src[a] + src[b]) } else if found[a] { src[a] } else { src[b] };
+                        break;
+                    }
                 }
             }
         }
@@ -1834,6 +2279,7 @@ impl SignetOutline {
             SignetOutline::Marquise => "Marquise",
             SignetOutline::Diamond => "Diamond",
             SignetOutline::Cross => "Cross",
+            SignetOutline::Custom(_) => "Custom",
         }
     }
 
@@ -1854,6 +2300,9 @@ impl SignetOutline {
             // the sides and takes the worst off the corners.
             SignetOutline::Diamond => 1.15,
             SignetOutline::Cross => 2.0,
+            // Resolved through the registry on the geometry path; this is
+            // the same ellipse fallback as `extent`.
+            SignetOutline::Custom(_) => 2.0,
         }
     }
 
@@ -1893,6 +2342,9 @@ impl SignetOutline {
             SignetOutline::Marquise => 1.9,
             SignetOutline::Diamond => 1.1,
             SignetOutline::Cross => 1.0,
+            // The registry carries the imported shape's own box ratio;
+            // resolve through `ShankStyle::outline_aspect`.
+            SignetOutline::Custom(_) => 1.0,
         }
     }
 
@@ -1961,7 +2413,15 @@ impl SignetOutline {
     /// per angle, so what it can follow is the outline's furthest reach either
     /// way, not where the shape happens to be hollow at that station.
     pub fn extent(self, x: f64) -> (f64, f64) {
-        silhouette(self).at(x)
+        silhouette(self.builtin_or_oval()).at(x)
+    }
+
+    /// The variant the static caches can serve. `Custom` has no slot there —
+    /// its table lives on the design — so bare access reads the oval instead
+    /// of panicking; the geometry path resolves customs through
+    /// [`ShankStyle::outline_extent`](crate::profile::ShankStyle::outline_extent).
+    fn builtin_or_oval(self) -> SignetOutline {
+        if matches!(self, SignetOutline::Custom(_)) { SignetOutline::Oval } else { self }
     }
 
     /// The **body's** reach at the same station: the face's own, faired out so
@@ -1976,7 +2436,7 @@ impl SignetOutline {
     /// Contains [`SignetOutline::extent`] everywhere, which is what keeps the
     /// flank drafted rather than leaning back under the table.
     pub fn body_extent(self, x: f64) -> (f64, f64) {
-        silhouette(self).body_at(x)
+        silhouette(self.builtin_or_oval()).body_at(x)
     }
 
     /// Width the outline leaves across the band, as a fraction of the head's
@@ -2006,6 +2466,7 @@ const BODY_ROUND_X: f64 = 0.06;
 
 /// The outline's reach across the band, per station around the ring — the sharp
 /// face, and the faired body the face is a facet of.
+#[derive(Clone)]
 struct Silhouette {
     lo: [f64; SILHOUETTE_STEPS],
     hi: [f64; SILHOUETTE_STEPS],
@@ -2096,7 +2557,7 @@ fn blur(src: &[f64; SILHOUETTE_STEPS], rad: isize) -> [f64; SILHOUETTE_STEPS] {
 ///
 /// `sign` is 1 for the reach toward the high band edge and -1 for the low one,
 /// so one pass does both: the low edge fairs by taking minima.
-fn fair(src: &[f64; SILHOUETTE_STEPS], sign: f64) -> [f64; SILHOUETTE_STEPS] {
+fn fair(src: &[f64; SILHOUETTE_STEPS], sign: f64, fair_r: f64) -> [f64; SILHOUETTE_STEPS] {
     let n = SILHOUETTE_STEPS as isize;
     // `x` spans 2 over n-1 steps, so a radius in stations is half that in cells.
     let cells = |r: f64| ((r * 0.5 * (n - 1) as f64) as isize).max(1);
@@ -2105,7 +2566,7 @@ fn fair(src: &[f64; SILHOUETTE_STEPS], sign: f64) -> [f64; SILHOUETTE_STEPS] {
         *x *= sign;
     }
 
-    let closed = roll(&roll(&v, BODY_FAIR_R, true), BODY_FAIR_R, false);
+    let closed = roll(&roll(&v, fair_r, true), fair_r, false);
     let round_r = cells(BODY_ROUND_X);
     let mut out = blur(&sweep(&closed, round_r, true), round_r);
     for x in out.iter_mut() {
@@ -2125,6 +2586,20 @@ impl Silhouette {
     /// band's width, and a step in width is a step in slope, which is a facet
     /// you can see running round the head.
     fn build(o: SignetOutline) -> Self {
+        Self::build_from(&|x, y| o.distance_norm(x, y), BODY_FAIR_R)
+    }
+
+    /// The same scan over any normalized distance — 1 on the outline — which
+    /// is what lets an imported table build its silhouette through the exact
+    /// machinery the builtins are held to.
+    ///
+    /// `fair_r` is the rolling ball's radius. [`BODY_FAIR_R`] is calibrated
+    /// on the heart's two gentle lobes; a deeply lobed import — a clover, a
+    /// rosette — wants a bigger ball, so its notches bridge flat and the
+    /// lobed detail lives at the table's rim instead of riding the whole
+    /// flank as ripples. Closing is extensive at any radius, so containment
+    /// is not a function of the choice.
+    fn build_from(dist: &dyn Fn(f64, f64) -> f64, fair_r: f64) -> Self {
         const SCAN: usize = 256;
         const BISECT: usize = 40;
         let mut lo = [0.0f64; SILHOUETTE_STEPS];
@@ -2136,13 +2611,13 @@ impl Silhouette {
             for (side, slot) in [(1.0f64, &mut hi[i]), (-1.0, &mut lo[i])] {
                 for j in 0..=SCAN {
                     let y = side * (1.0 - j as f64 / SCAN as f64);
-                    if o.distance_norm(x, y) > 1.0 {
+                    if dist(x, y) > 1.0 {
                         continue;
                     }
                     let (mut inside, mut outside) = (y, y + side / SCAN as f64);
                     for _ in 0..BISECT {
                         let mid = 0.5 * (inside + outside);
-                        if o.distance_norm(x, mid) <= 1.0 {
+                        if dist(x, mid) <= 1.0 {
                             inside = mid;
                         } else {
                             outside = mid;
@@ -2173,7 +2648,8 @@ impl Silhouette {
                 found[i] = true;
             }
         }
-        let (body_lo, body_hi) = (fair(&lo, -1.0), fair(&hi, 1.0));
+        let r = fair_r.clamp(0.1, 4.0);
+        let (body_lo, body_hi) = (fair(&lo, -1.0, r), fair(&hi, 1.0, r));
         Self { lo, hi, body_lo, body_hi }
     }
 
@@ -2222,6 +2698,165 @@ fn silhouette(o: SignetOutline) -> &'static Silhouette {
     static T: [std::sync::OnceLock<Silhouette>; 11] =
         [const { std::sync::OnceLock::new() }; 11];
     T[o.index()].get_or_init(|| Silhouette::build(o))
+}
+
+/// An imported signet plan: a polar boundary table, carried in the design.
+///
+/// The table is the **source of truth** — 720 radii normalized to the unit
+/// box, ~3 KB in the file — so a design with a custom head renders
+/// identically on any machine with no asset or rasterizer in the loop.
+/// Importers (a decoded factory curve, a traced SVG) produce the table once;
+/// the derived silhouette is rebuilt on first use and never persisted, the
+/// same way the tiling SDFs are.
+///
+/// [`SignetOutline::Custom`] indexes
+/// [`ShankStyle::custom_outlines`](crate::profile::ShankStyle::custom_outlines),
+/// and the head construction resolves it there. Everything downstream — the
+/// rolling-ball body fairing, containment, the crest-span clamps — is the
+/// same code the builtin outlines run, so the castability story is unchanged.
+#[derive(Serialize, Deserialize)]
+pub struct CustomOutline {
+    pub name: String,
+    /// Boundary radius per [`OUTLINE_STEPS`] direction, unit-box normalized.
+    pub r: Vec<f32>,
+    /// Source bounding box, length round the ring over width across the band
+    /// — what [`crate::profile::SignetHead::fit_length_to`] wants to know.
+    pub aspect: f64,
+    /// Rolling-ball radius the body fairs this plan's hollows with, in
+    /// stations. [`BODY_FAIR_R`] suits gently lobed shapes; importers raise
+    /// it for deeply lobed ones so the flank stays one smooth surface and
+    /// the lobes read only at the table's rim.
+    #[serde(default = "default_fair_r")]
+    pub fair_r: f64,
+    #[serde(skip)]
+    cache: std::sync::OnceLock<Silhouette>,
+}
+
+fn default_fair_r() -> f64 {
+    BODY_FAIR_R
+}
+
+impl std::fmt::Debug for CustomOutline {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CustomOutline")
+            .field("name", &self.name)
+            .field("aspect", &self.aspect)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Clone for CustomOutline {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            r: self.r.clone(),
+            aspect: self.aspect,
+            fair_r: self.fair_r,
+            cache: self.cache.clone(),
+        }
+    }
+}
+
+impl PartialEq for CustomOutline {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.r == other.r
+            && self.aspect == other.aspect
+            && self.fair_r == other.fair_r
+    }
+}
+
+impl CustomOutline {
+    /// Build from a closed boundary polyline in the shape's own frame,
+    /// `x` along the ring and `y` across the band toward the low edge.
+    /// `None` when the boundary is degenerate.
+    pub fn from_points(name: impl Into<String>, pts: &[[f64; 2]]) -> Option<Self> {
+        if pts.len() < 8 {
+            return None;
+        }
+        let (mut lo, mut hi) = ([f64::MAX; 2], [f64::MIN; 2]);
+        for p in pts {
+            for k in 0..2 {
+                lo[k] = lo[k].min(p[k]);
+                hi[k] = hi[k].max(p[k]);
+            }
+        }
+        let (w, h) = (hi[0] - lo[0], hi[1] - lo[1]);
+        if !(w > 1e-9 && h > 1e-9) {
+            return None;
+        }
+        // Uniform-parameter curve samples cluster at dense knot regions and
+        // leave long chords elsewhere; a long chord is a curvature step in
+        // the polar table, and a curvature step sweeps a ripple band down a
+        // head's wall. Near-uniform arc length, then a circular Gaussian:
+        // measured on a four-lobe plan, max second difference 0.0121 at 256
+        // uniform samples, 0.0004 after.
+        let dense = densify_closed(pts, OUTLINE_DENSIFY);
+        let mut table = PolarOutline::from_boundary(&dense);
+        smooth_circular(&mut table.r, OUTLINE_SMOOTH_SIGMA);
+        Some(Self {
+            name: name.into(),
+            r: table.r.iter().map(|&v| v as f32).collect(),
+            aspect: (w / h).clamp(0.05, 20.0),
+            fair_r: default_fair_r(),
+            cache: std::sync::OnceLock::new(),
+        })
+    }
+
+    fn table(&self) -> PolarOutline {
+        let mut r = [1e-6f64; OUTLINE_STEPS];
+        for (slot, &v) in r.iter_mut().zip(self.r.iter()) {
+            *slot = (v as f64).max(1e-6);
+        }
+        PolarOutline { r }
+    }
+
+    /// Mirror-average the table so the plan is symmetric: `across_band`
+    /// folds it about the ring axis (y → −y), `along_ring` about the band
+    /// axis (x → −x). Opt-in — a heart or a shield is asymmetric by design.
+    /// For a curve drawn a hair off: a factory cushion sits 0.008 of its
+    /// half-length fuller on one side at its tip, which on a lofted head
+    /// stands the ridge's apex 0.6 mm off the parting plane.
+    pub fn symmetrize(&mut self, across_band: bool, along_ring: bool) {
+        let n = self.r.len();
+        if n == 0 {
+            return;
+        }
+        if across_band {
+            let src = self.r.clone();
+            for i in 0..n {
+                self.r[i] = 0.5 * (src[i] + src[(n - i) % n]);
+            }
+        }
+        if along_ring {
+            let src = self.r.clone();
+            let half = n / 2;
+            for i in 0..n {
+                self.r[i] = 0.5 * (src[i] + src[(half + n - i) % n]);
+            }
+        }
+        self.cache = std::sync::OnceLock::new();
+    }
+
+    fn silhouette(&self) -> &Silhouette {
+        self.cache.get_or_init(|| {
+            let table = self.table();
+            // The shape's own +y reads across the band toward the low edge,
+            // the way a crest stands up the finger — the upright convention.
+            Silhouette::build_from(&|x, y| table.distance(x, -y), self.fair_r)
+        })
+    }
+
+    /// The face's reach across the band at a station, like
+    /// [`SignetOutline::extent`].
+    pub fn extent_at(&self, x: f64) -> (f64, f64) {
+        self.silhouette().at(x)
+    }
+
+    /// The faired body's reach, like [`SignetOutline::body_extent`].
+    pub fn body_extent_at(&self, x: f64) -> (f64, f64) {
+        self.silhouette().body_at(x)
+    }
 }
 
 /// A raised flat table pad standing on the band, faired into it.
@@ -2818,6 +3453,177 @@ mod tests {
         assert_eq!(t.apply(-0.2), -0.2);
     }
 
+    /// A graduated row's seats shrink but its stations did not move, so the
+    /// metal between them grew with every step — 0.42 mm at the large pole
+    /// against 3.05 mm at the small one, a sevenfold spread down what is
+    /// meant to read as one continuous line of stones. Holding the bridge
+    /// constant instead is a closed-form warp, and the identity when the row
+    /// is not graded.
+    #[test]
+    fn a_graduated_run_holds_its_bridge_constant() {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        let c = d.field_context();
+
+        let build = |taper: f64| {
+            let mut r = SeatRunLayer::default();
+            r.gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Round, 1.5);
+            r.seat.v_mm = c.crest_v_mm;
+            r.bridge_mm = 0.4;
+            r.taper = taper;
+            r.solve_spacing(&c);
+            r
+        };
+        // The seat scales whole, as the field scales it.
+        let bridges = |r: &SeatRunLayer, warped: bool| -> Vec<f64> {
+            let n = r.count as usize;
+            let radius = c.crest_radius_mm * c.arc_scale(r.seat.v_mm);
+            let at = |k: f64| {
+                if warped { r.theta_of_station(k, &c) } else { k * 360.0 / n as f64 }
+            };
+            (0..n)
+                .map(|k| {
+                    let (a, b) = (at(k as f64), at(k as f64 + 1.0));
+                    let half = |t: f64| r.seat_span_mm() * 0.5 * r.scale_at(t);
+                    wrap_delta(b - a, 360.0).abs().to_radians() * radius - half(a) - half(b)
+                })
+                .collect()
+        };
+        let spread = |v: &[f64]| {
+            let lo = v.iter().cloned().fold(f64::MAX, f64::min);
+            let hi = v.iter().cloned().fold(0.0f64, f64::max);
+            (lo, hi / lo)
+        };
+
+        // Ungraded: the warp is the identity, station for station.
+        let plain = build(0.0);
+        for k in 0..plain.count {
+            let want = k as f64 * 360.0 / plain.count as f64;
+            assert!((plain.theta_of_station(k as f64, &c) - want).abs() < 1e-12);
+            assert!((plain.station_of_theta(want, &c) - k as f64).abs() < 1e-12);
+        }
+        assert!((spread(&bridges(&plain, true)).1 - 1.0).abs() < 1e-9);
+
+        for taper in [0.4, 0.85] {
+            let r = build(taper);
+            let (lo, ratio) = spread(&bridges(&r, true));
+            assert!(ratio < 1.25, "taper {taper}: bridges still run {ratio:.2}x");
+            assert!(lo > 0.3, "and none of them is a feather: {lo:.3} mm");
+
+            // The lattice this replaces, so the test cannot rot into a
+            // tautology: uniform stations on the count the old law solved.
+            let mut old = r;
+            old.taper = 0.0;
+            old.solve_spacing(&c);
+            old.taper = taper;
+            assert!(
+                spread(&bridges(&old, false)).1 > 2.0,
+                "taper {taper}: the uniform lattice was fine after all?"
+            );
+
+            // What the report says is what the row holds.
+            let said = r.bridge_at(&c);
+            assert!((said - lo).abs() / lo < 0.08, "reports {said:.3}, holds {lo:.3}");
+
+            // Every step advances round the ring — the sequence wraps once
+            // and only once — and the warp inverts.
+            let mut total = 0.0;
+            for k in 0..r.count {
+                let t = r.theta_of_station(k as f64, &c);
+                let next = r.theta_of_station(k as f64 + 1.0, &c);
+                let step = wrap_delta(next - t, 360.0);
+                assert!(step > 0.0, "stations must advance: {step} at {k}");
+                total += step;
+                assert!(
+                    (wrap_delta(
+                        r.theta_of_station(r.station_of_theta(t, &c).round(), &c) - t,
+                        360.0
+                    ))
+                    .abs()
+                        < 1e-9,
+                    "the warp must invert at {t}"
+                );
+            }
+            assert!((total - 360.0).abs() < 1e-9, "one turn, exactly: {total}");
+            let close = r.theta_of_station(r.count as f64, &c);
+            assert!(
+                wrap_delta(close - r.theta_of_station(0.0, &c), 360.0).abs() < 1e-9,
+                "the row closes on itself: {close}"
+            );
+            assert!(r.count >= 3);
+        }
+
+        // And it still releases.
+        let mut d2 = d.clone();
+        d2.layers.layers.push(LayerEntry::new("Graded", Layer::SeatRun(build(0.85))));
+        let lib = crate::AlphaLibrary::builtin();
+        let v = crate::castability::analyze_field(&d2, &lib, &d2.draft, 256, 128);
+        assert!(
+            v.undercut_fraction() < 0.001,
+            "a graded row locks: {:.4}%",
+            v.undercut_fraction() * 100.0
+        );
+    }
+
+    /// `u` is arc at the crest radius, so it is the true metal only on the
+    /// crest. Everything a run reports on a side face was 17–20% optimistic,
+    /// in the unsafe direction, on exactly the surfaces the doctrine sends
+    /// all ornament to.
+    #[test]
+    fn the_bridge_a_run_reports_is_metal_not_arc() {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 7.0;
+        d.profile.thickness_mm = 5.0;
+        let c = d.field_context();
+        let face = c.side_faces_std().and_then(|sf| sf.wider()).expect("a squared band has one");
+        let v_face = 0.5 * (face.0 + face.1);
+
+        // On the crest the chart is the metal — to the sampled profile's own
+        // resolution, which is where the last nanometre goes.
+        assert!((c.arc_scale(c.crest_v_mm) - 1.0).abs() < 1e-6);
+        let k = c.arc_scale(v_face);
+        assert!(k < 0.85, "a squared band's side face runs well inside the crest: {k:.4}");
+
+        let run = |v: f64| {
+            let mut r = SeatRunLayer::default();
+            r.gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Round, 1.6);
+            r.seat.v_mm = v;
+            r.bridge_mm = 0.4;
+            r.solve_spacing(&c);
+            r
+        };
+
+        // The chart figure, and the metal it really is.
+        let on_face = run(v_face);
+        let chart = c.circumference_mm / on_face.count as f64 - on_face.seat_span_mm();
+        let metal = on_face.bridge_at(&c);
+        assert!((metal - chart * k).abs() < 1e-9, "{metal} vs {chart} x {k}");
+        assert!(chart - metal > 0.08, "the correction is worth saying: {:.3} mm", chart - metal);
+
+        // And solve_spacing never lands *under* the bridge it was asked for,
+        // in metal — the invariant the two have to share, or the report
+        // starts warning about spacing it just solved. The slack above it is
+        // the floor to a whole station, which is one pitch spread over the
+        // ring.
+        for v in [v_face, c.crest_v_mm] {
+            let r = run(v);
+            let got = r.bridge_at(&c);
+            let pitch = c.circumference_mm * c.arc_scale(v) / r.count as f64;
+            let slack = pitch * pitch / (c.circumference_mm * c.arc_scale(v));
+            assert!(
+                got >= r.bridge_mm - 1e-9 && got <= r.bridge_mm + slack,
+                "asked {:.2} mm, got {got:.3} at v {v:.2} (slack {slack:.3})",
+                r.bridge_mm
+            );
+        }
+
+        // A crest run is untouched: the whole correction is 1 there.
+        let crest = run(c.crest_v_mm);
+        let chart_crest = c.circumference_mm / crest.count as f64 - crest.seat_span_mm();
+        assert!((crest.bridge_at(&c) - chart_crest).abs() < 1e-6);
+    }
+
     #[test]
     fn an_eternity_run_closes_seamlessly_and_releases() {
         let lib = crate::AlphaLibrary::builtin();
@@ -2849,6 +3655,108 @@ mod tests {
             cast.undercut_fraction() < 0.001,
             "a gypsy-mound row locks: {:.3}%",
             cast.undercut_fraction() * 100.0
+        );
+    }
+
+    /// A stone is not a circle, and its stock should not be either. The pad
+    /// carries the girdle's own plan — its aspect, its superellipse exponent
+    /// and its bearing — and every measurement downstream reads the real
+    /// footprint rather than a diameter.
+    #[test]
+    fn an_elongated_seat_carries_its_stone_and_not_a_circle_round_it() {
+        let c = ctx();
+        let gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Marquise, 3.0);
+        assert!((gem.l_mm - 6.0).abs() < 1e-9, "a 3 mm marquise is 6 mm long");
+
+        let mut pad = SeatPadLayer { v_mm: 4.0, style: SeatStyle::Boss, ..Default::default() };
+        pad.fit_stone(gem);
+        // The stock allowance is a constant width all round, so the pad is
+        // less elongated than the stone it holds — but it still contains it.
+        let (ra, rb) = pad.semi_axes_mm();
+        assert!(ra * 2.0 >= gem.l_mm, "pad {:.2} mm long for a {:.2} mm stone", ra * 2.0, gem.l_mm);
+        assert!(rb * 2.0 >= gem.w_mm, "pad {:.2} mm wide for a {:.2} mm stone", rb * 2.0, gem.w_mm);
+        assert!(pad.elong > 1.4 && pad.elong < gem.l_mm / gem.w_mm, "elong {}", pad.elong);
+        assert_eq!(pad.plan_pow, crate::gem::GemCut::Marquise.plan_pow());
+
+        // A round pad is exactly what it always was.
+        let round = SeatPadLayer { v_mm: 4.0, ..Default::default() };
+        assert_eq!(round.half_extents_mm().0, round.diameter_mm * 0.5);
+        assert_eq!(round.half_extents_mm().1, round.diameter_mm * 0.5);
+
+        let u0 = c.u_of_theta(pad.theta_deg);
+        let at = |l: &SeatPadLayer, du: f64, dv: f64| {
+            l.height(Uv { u: u0 + du, v: 4.0 + dv }, &c)
+        };
+        // Metal reaches down the length and stops across the width.
+        assert!(at(&pad, ra - 0.3, 0.0) > 0.0, "no stock at the stone's point");
+        assert!(at(&pad, 0.0, rb + 0.05 + pad.blend_mm) <= 1e-9, "stock past the girdle's side");
+
+        // Turning the seat turns its reach with it, exactly.
+        let mut across = pad;
+        across.rot_deg = 90.0;
+        let (hu, hv) = across.half_extents_mm();
+        assert!((hu - rb).abs() < 1e-9 && (hv - ra).abs() < 1e-9, "turned extents {hu} {hv}");
+        assert!(at(&across, 0.0, ra - 0.3) > 0.0, "the length should now run across the band");
+
+        // The extent formula is the outline's own support function: check it
+        // against the sampled plan at a handful of bearings, every exponent.
+        for &n in &[1.5, 2.0, 3.2, 6.0] {
+            for &rot in &[0.0, 17.0, 45.0, 90.0, 123.0] {
+                let mut l = pad;
+                l.plan_pow = n;
+                l.rot_deg = rot;
+                let (ra, rb) = l.semi_axes_mm();
+                let (mut mu, mut mv) = (0.0f64, 0.0f64);
+                for i in 0..2048 {
+                    let t = i as f64 / 2048.0 * std::f64::consts::TAU;
+                    let (sn, cs) = t.sin_cos();
+                    // A point on the plan outline, in the pad's own frame.
+                    let (a, b) = (
+                        ra * cs.abs().powf(2.0 / n) * cs.signum(),
+                        rb * sn.abs().powf(2.0 / n) * sn.signum(),
+                    );
+                    let (s2, c2) = rot.to_radians().sin_cos();
+                    mu = mu.max((a * c2 - b * s2).abs());
+                    mv = mv.max((a * s2 + b * c2).abs());
+                }
+                let (hu, hv) = l.half_extents_mm();
+                assert!((hu - mu).abs() < 5e-3, "n {n} rot {rot}: u {hu} vs sampled {mu}");
+                assert!((hv - mv).abs() < 5e-3, "n {n} rot {rot}: v {hv} vs sampled {mv}");
+            }
+        }
+    }
+
+    /// The whole point of the plan being convex: a mound built on it is
+    /// still a monotone drop from a single crest in every direction, so an
+    /// elongated seat releases exactly where a round one does.
+    #[test]
+    fn an_elongated_gypsy_row_still_releases() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        let fc = d.field_context();
+        let mut run = SeatRunLayer::default();
+        run.gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Emerald, 1.8);
+        run.seat.v_mm = fc.crest_v_mm;
+        run.solve_spacing(&fc);
+        // A row of step cuts packs by its length, so it holds fewer stones
+        // than the same width of rounds would.
+        assert!(run.seat.elong > 1.2, "the seat took the stone's aspect");
+        assert!(run.bridge_at(&fc) > 0.0, "stones must not touch");
+
+        for dv in [-0.8, 0.0, 0.8] {
+            let v = fc.crest_v_mm + dv;
+            let a = run.height(Uv { u: 0.0, v }, &fc);
+            let b = run.height(Uv { u: fc.circumference_mm - 1e-9, v }, &fc);
+            assert!((a - b).abs() < 1e-6, "joint mismatch at v {v}");
+        }
+
+        d.layers.layers.push(LayerEntry::new("eternity", Layer::SeatRun(run)));
+        let v = crate::castability::analyze_field(&d, &lib, &d.draft, 192, 96);
+        assert!(
+            v.undercut_fraction() < 0.001,
+            "an elongated gypsy row locks: {:.3}%",
+            v.undercut_fraction() * 100.0
         );
     }
 
@@ -3387,6 +4295,153 @@ mod silhouette_tests {
                 worst.1
             );
         }
+    }
+
+    /// An imported plan runs the same machinery the builtins are held to, so
+    /// it gets the same guarantees: the faired body contains the face it
+    /// carries, the head releases from the sand, and the table survives the
+    /// file round-trip without its derived silhouette.
+    ///
+    /// The outline here is deliberately hostile: a five-pointed star with one
+    /// lobe clipped, so it is asymmetric, concave at every notch, and not
+    /// star-shaped from its own centroid.
+    /// A superellipse |x|^4 + |y|^4 = 1 as a closed polygon, optionally tilted
+    /// at its +x tip the way a factory cushion is.
+    fn superellipse_points(tilt: f64) -> Vec<[f64; 2]> {
+        (0..256)
+            .map(|k| {
+                let a = k as f64 / 256.0 * std::f64::consts::TAU;
+                let (s, c) = a.sin_cos();
+                let r = 1.0 / (c.abs().powi(4) + s.abs().powi(4)).powf(0.25);
+                let (x, y) = (r * c, r * s);
+                if x > 0.0 { [x * (1.0 + tilt * y), y] } else { [x, y] }
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_symmetric_plan_reads_symmetric() {
+        let poly = superellipse_points(0.0);
+        let o = CustomOutline::from_points("sq4", &poly).unwrap();
+        for x in [0.9, 0.95, 0.98, 1.0] {
+            let (lo, hi) = o.extent_at(x);
+            assert!((lo + hi).abs() < 1e-3, "face at {x}: {lo} {hi}");
+            let (lo, hi) = o.body_extent_at(x);
+            assert!((lo + hi).abs() < 1e-3, "body at {x}: {lo} {hi}");
+        }
+        // The same shape reversed or turned half round gives the same table.
+        let rev: Vec<[f64; 2]> = poly.iter().rev().copied().collect();
+        let rot: Vec<[f64; 2]> = poly.iter().map(|p| [-p[0], -p[1]]).collect();
+        let o2 = CustomOutline::from_points("rev", &rev).unwrap();
+        let o3 = CustomOutline::from_points("rot", &rot).unwrap();
+        for i in 0..o.r.len() {
+            assert!((o.r[i] - o2.r[i]).abs() < 1e-6, "reversed differs at {i}: {} vs {}", o.r[i], o2.r[i]);
+            assert!((o.r[i] - o3.r[i]).abs() < 1e-6, "rotated differs at {i}: {} vs {}", o.r[i], o3.r[i]);
+        }
+    }
+
+    #[test]
+    fn symmetrize_removes_a_drawn_tilt() {
+        let mut o = CustomOutline::from_points("tilt", &superellipse_points(0.015)).unwrap();
+        let (lo, hi) = o.extent_at(0.98);
+        assert!((lo + hi).abs() > 0.05, "the tilt should read: {lo} {hi}");
+        o.symmetrize(true, false);
+        let (lo, hi) = o.extent_at(0.98);
+        assert!((lo + hi).abs() < 1e-3, "{lo} {hi}");
+        // Folding along the ring too leaves a symmetric shape symmetric.
+        o.symmetrize(true, true);
+        let (lo, hi) = o.extent_at(0.9);
+        assert!((lo + hi).abs() < 1e-3, "{lo} {hi}");
+    }
+
+    #[test]
+    fn a_drawn_outline_makes_a_head_that_pulls() {
+        // The hostile plan, as a closed polyline.
+        let pts: Vec<[f64; 2]> = (0..720)
+            .map(|i| {
+                let a = i as f64 / 720.0 * std::f64::consts::TAU;
+                let five = 0.62 + 0.38 * (5.0 * a).cos();
+                // One lobe clipped: flatten the reach on a 70 degree window.
+                let clip = 1.0 - 0.55 * crate::field::smoothstep(0.0, 1.0,
+                    1.0 - (wrap_delta(a.to_degrees() - 36.0, 360.0).abs() / 35.0).min(1.0));
+                let r = five * clip;
+                [r * a.cos(), r * a.sin()]
+            })
+            .collect();
+        let co = CustomOutline::from_points("Clipped star", &pts).expect("a real boundary");
+        assert!(co.aspect > 0.1 && co.aspect < 10.0);
+
+        // Containment: the same assertion the builtins are pinned by.
+        let mut worst = (0.0f64, 0.0);
+        for i in 0..=2000 {
+            let x = -1.0 + 2.0 * i as f64 / 2000.0;
+            let (fl, fh) = co.extent_at(x);
+            let (bl, bh) = co.body_extent_at(x);
+            let out = (bl - fl).max(fh - bh);
+            if out > worst.0 {
+                worst = (out, x);
+            }
+        }
+        assert!(worst.0 < 1e-5, "the face reaches {:.3e} past its body at x {:.3}", worst.0, worst.1);
+
+        // On a head: castable, and what little is reported sits on the crest
+        // line — the phantom-vs-real discriminator.
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 8.0;
+        d.profile.thickness_mm = 2.2;
+        d.profile.flatten_sides();
+        d.shank.apply_signet(8.0);
+        d.shank.head.loft = 0.0; // The prism and the cut dome are what this tests.
+        let o = d.shank.adopt_outline(co.clone());
+        d.shank.head.outline = o;
+        d.shank.head.length_mm = (8.0 * d.shank.outline_aspect(o)).clamp(2.0, 40.0);
+        let lib = crate::AlphaLibrary::builtin();
+        let v = crate::castability::analyze_field(&d, &lib, &d.draft, 288, 144);
+        assert_ne!(v.verdict, crate::castability::Verdict::NotCastable, "{:?}", v.notes);
+        assert!(
+            v.undercut_fraction() < 5e-4,
+            "a custom head locks: {:.4}%",
+            v.undercut_fraction() * 100.0
+        );
+
+        // Round-trip: the table survives, the derived silhouette does not.
+        let json = serde_json::to_string(&d).unwrap();
+        assert!(!json.contains("cache"), "the derived table must not persist");
+        let back: crate::RingDesign = serde_json::from_str(&json).unwrap();
+        let c2 = back.shank.custom_outline(o).expect("the registry travels");
+        assert_eq!(c2.r, d.shank.custom_outline(o).unwrap().r);
+        for i in 0..=64 {
+            let x = -1.0 + 2.0 * i as f64 / 64.0;
+            let (a0, b0) = d.shank.outline_extent(o, x);
+            let (a1, b1) = back.shank.outline_extent(o, x);
+            assert!((a0 - a1).abs() < 1e-12 && (b0 - b1).abs() < 1e-12, "rebuilt table differs at {x}");
+        }
+
+        // A deeply lobed plan defaults onto the cut dome — the body is one
+        // smooth lens and the lobes read in the arris — and it fields clean
+        // there too.
+        let mut lobed = co.clone();
+        lobed.fair_r = 2.0;
+        let mut d2 = d.clone();
+        let o2 = d2.shank.adopt_outline(lobed);
+        d2.shank.head.outline = o2;
+        assert_eq!(d2.shank.suggest_dome(o2), 1.0, "a clipped star is lobed");
+        d2.shank.head.dome = 1.0;
+        let v3 = crate::castability::analyze_field(&d2, &lib, &d2.draft, 192, 96);
+        assert!(
+            v3.undercut_fraction() < 5e-4,
+            "the domed custom head locks: {:.4}%",
+            v3.undercut_fraction() * 100.0
+        );
+
+        // And a design with no registry entry falls back instead of panicking.
+        let mut bare = crate::RingDesign::default();
+        bare.shank.apply_signet(6.0);
+        bare.shank.head.outline = SignetOutline::Custom(7);
+        let _ = bare.shank.outline_extent(SignetOutline::Custom(7), 0.3);
+        let v2 = crate::castability::analyze_field(&bare, &lib, &bare.draft, 96, 48);
+        assert_ne!(v2.verdict, crate::castability::Verdict::NotCastable);
     }
 
     /// A heart's dimple belongs to the **face**. Carried down to the finger it

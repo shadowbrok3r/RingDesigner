@@ -197,7 +197,7 @@ static TEMPLATES: [Template; 9] = [
                 outline: SignetOutline::Heart,
                 theta_deg: TOP_DEG + 26.0,
                 length_mm: 6.5,
-                ..SignetHead::default()
+                ..SignetHead::lofted()
             });
             d
         },

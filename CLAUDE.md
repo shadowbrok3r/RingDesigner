@@ -694,6 +694,201 @@ fields 0.000% by construction. Hard-won specifics:
   round, cushion, hexagon, cross — the plan may still be non-convex along
   the ring) are where the dome shines.
 
+#### The lofted head is the factory construction
+
+`SignetHead::loft` (0..1, default 0) builds the head the way CrossGems'
+`Signet_Ring` cluster does, decoded from its wiring
+(`tools/harvest/cluster_recipe.py`; the GH chunk parser's type table had
+been guessed — points are 50–52, intervals 60–61, line/bbox/plane 70–72 —
+and a full parse of the `.doc` to its last byte is what settled it). Their
+head is **two surfaces joined at the ring's equator**: below it, the side
+and bottom sections swept round the bottom half; above it, one *loose*
+cubic B-spline loft — the curves are the surface's control rows, not
+sections it passes through — through five closed plan curves at fixed
+heights over the ring's centre: the table outline at 0.98, the outline,
+the outline grown by the frontal/lateral distances 3 mm under the table,
+and the ring's equator silhouette at +3 and at 0. That one sheet is the
+"rest of the ring is smooth" read. The flat table fills the 0.98 row; the
+band between 0.98 and the outline is the rim's roll, and it is a *ledge* a
+tenth deep and millimetres wide, not a fillet.
+
+**Every factory preset carries its finished ring as a cached mesh** (the
+`Rings`/`Metal`/`Settings`/`Cutters` blocks after the parameters —
+`cgpreset.py dump-all` unpacks all 448 into `assets/decoded/presets/`,
+869 meshes with a gallery `index.html`; `obj_render --cg` draws them in
+our frame). The recipe re-executed numerically (`tools/signet_tent.py`)
+against preset 001's cached ring: crest 12.10/12.10 mm at the centre,
+15.58/15.59 at the table's corner, widths within a tenth everywhere. The
+same meshes fixed two things the recipe alone did not say: the shank is
+cast **T + 0.25** thick, and its section is the top of a tall ellipse —
+the unit profile curve stretched 4:1.33 — **3.0 × 1.49 mm on a 6 × 1.75
+band**, crown 0.745·(T + 0.5). Not flat-topped; forcing it flat put the
+shank 0.35 mm off.
+
+`Tent` in `profile.rs` holds the five rows — resampled by arc length from
+the −y seam, which is the correspondence the whole shoulder hangs on; the
+knot averages the rows' own chord parameters — and reads, per ring angle:
+the crest (the plane under the 0.98 row, else the first row down the loft
+the ray enters), the bore span, the face as a chord 12% of the bore-to-
+ridge drop below the ridge (never deeper than the ridge sits below the
+plane, so the crown grows from nothing at the table's end), the ridge's
+height over that chord as a **parabolic** crown — the loft's top is
+parabolic, so the crown meets the wall tangent-continuously — and the
+wall as a table of finger offsets (`WallShape`, `WALL_TABLE` 40) at equal
+**arc length** between the bore edge and the chord's corner, radii stored.
+The equator row is the band's own section silhouette at the shank's width
+and the side's radius, so the loft's last rows *are* what the shank
+sweeps and the two meet at the equator by a switch, not a fade. The
+modulation API takes `&BandProfile` for this (`modulation`, `head_at`,
+`signet_span`…): the loft needs the band in millimetres.
+
+The flank **curls under** the table toward the finger — the crest span is
+wider than the bore span, which the prism forbids. It is not an undercut:
+every section is a single-valued width over its radius, so each wall
+faces its own mould half, and `analyze_field` says 0.0000% on five
+rebuilt presets. Measured against the cached meshes, exact point-to-
+surface (`tools/harvest/deviation.py`): head 0.04–0.05 mm mean, shoulder
+0.07–0.11, shank 0.07–0.11 — the bore is 8.65 against their 8.6, which is
+half of it. A dihedral census leaves the shoulder at ≤ 12° between
+facets; the only ≥ 45° edges left are the table rim's own corner and the
+bore edges, which the reference mesh has too.
+
+Five defects on the way, each seen in a render and pinned by a number:
+
+- **A parameter blend between two descriptions of the same curve is
+  lossy.** Fading the loft's chord-and-wall form into the band's crown-
+  and-chord form over 82–89° cut a 0.15 mm groove at 86°. Make the
+  forms coincide (the equator row *is* the band's section) and switch.
+- **A wall table pinned to the chord's value at the crest's radius** put
+  the value 0.1 mm too far out and the end-correction smeared 0.4 mm
+  down the wall: 82° folds at the table's end. The table ends at the
+  corner the crown stands on.
+- **Evenly spaced radii chord across the rim's ledge** — 0.18 mm deep,
+  3 mm wide at a cushion's end — and the chord swings between slices.
+  Sample by arc length along the wall.
+- **The 0.98 row is the table, not the outline.** Reading the flat from
+  the outline row left a 0.18 mm fin of plane standing at its tip.
+- Hand-drawn factory curves are not symmetric: the 001 cushion is 0.1
+  fuller on +y at its ends (its +x tip sits 0.008 of the half-length
+  further out on one side, and a near-vertical end turns that into 0.107
+  in y), and the crest held on the parting plane then puts a curvature
+  step at the ridge's apex. A builtin outline reads clean; it is the
+  curve, not the construction. `CustomOutline::symmetrize` folds a table
+  symmetric — opt-in, a heart is asymmetric by design — and the importer
+  now densifies by arc length and smooths circularly like the exporter
+  always did. The raycast itself had a gap: a ray through a vertex can
+  round a hair outside both adjacent segments and find nothing, leaving a
+  1e-6 spike that smoothing spread into a dip; it takes slack now, and a
+  missed ray inherits its neighbours.
+
+**The smooth table is the same loft from an apex.** `table_dome_mm` on a
+lofted head (0–3 mm, the "Cab dome" slider and MCP `head_table_dome_mm`) is
+the apex height: the flat table's rim row is dropped and the loft runs
+through six rows — an apex point `cap` above the table's centre, the
+outline scaled to 0.6 about its centroid at that same height, the outline
+at the plane, the body, and the two hull rows. Because the apex and the
+0.6 row share a height the cap is a rounded **plateau**, not a point, and
+the lobes of a clover or a star read as relief in the dome. Every angle
+takes the ridge path: the crest is where the ray first enters the loft
+(`(plane + cap) / cos` at the centre), the chord is read `LOFT_RIDGE_STEP`
+of the bore-to-crest run below it, capped at the crest's own stand-off
+from the plane so the law is continuous at the rim and a flat table is
+untouched.
+
+**The section's crown law is the loft's own**, not a parabola.
+`TentAt::ridge` samples the loft's half-extent at evenly spaced depths
+between the apex and the chord and inverts that onto `RIDGE_TABLE` shares
+of the chord; `ShankMod::ridge_table` carries it and `sample_spaced` blends
+toward it by `ridge_drop`. The parabola came first and rebuilt the head to
+0.08 mm mean while drawing a pointed ridge along the dome — a highlight
+line the factory mesh does not have, visible in a render and absent from
+every section dump, because a plateau against a parabola is a difference
+in curvature, not in slope. Measured against the cached meshes
+(`tools/harvest/deviation.py`): the 2.7 mm cap rebuilds at 0.127 mm mean
+on the head and 0.152 on the shoulder, p90 0.18 / 0.38 (the parabola's
+shoulder p90 was 0.73); the 1.5 mm cap at 0.086 / 0.060. Both carry a
+uniform +0.055 mm — our size-7 bore is 8.65 mm to the reference's 8.6 —
+and the across-band top profiles match to a few hundredths once that is
+taken out. With the cap off, the flat preset is unchanged at 0.047.
+
+Every section is still a single-plateau monotone drop and a domed cap has
+real draft everywhere, so the family fields 0.0000% by the same
+construction as the prism. What it cannot do is a concave feature *within*
+a section: a lobe reads in the chord's width and the crest line, never as
+a hollow across the band. `a_smooth_table_is_an_apex_loft_and_still_pulls`
+pins the apex height, the crest falling monotonically off the centre, the
+chord opening past the flat table's, the verdict and the wall.
+`examples/cg_signet.rs` rebuilds any decoded preset from its `params.json`
+and `curves.json` — the smooth-table flags map onto `table_dome_mm` — and
+prints the crest/width table in the cached mesh's frame.
+
+**New signets are lofted, and the cut dome wins.** `apply_signet` sets
+`loft = 1.0`, and every "new signet" path funnels through it — the GUI
+kind switch, "Make this the band", MCP `set_shank` on switching to Signet,
+the templates, the configurator bases, `SignetHead::lofted()` for extra
+heads — while `Default` and the serde default stay 0, so a design file
+without `loft` keeps the prism it was saved with. The two strengths
+compose through `SignetHead::mix()`: `dome` takes precedence and the loft
+runs at `loft · (1 − dome)`. That order was decided by a render. The CG
+Clover on a 9 × 2.6 band went lofted and came out corrugated exactly like
+the prism, because the loft's body row sits 3 mm under the table — below
+the bore of a thin head — so the whole visible flank is inside the blend
+from the lobed table row. Fairing that row with the rolling ball did not
+help the thin case and cost the factory presets (the 2.7 mm cap's head
+went 0.127 → 0.223 mm: the recipe really does carry the lobes down the
+flank), so the loft stays faithful and `suggest_dome` keeps its authority —
+a deeply lobed plan goes onto the cut dome whether or not the head is
+lofted. Examples whose subject is the prism pin `loft = 0.0`; the cut-dome
+ones need no pin. `a_new_signet_is_lofted_and_fields_clean` pins the
+default, the serde fallback, the verdict, and the precedence.
+
+#### Imported plans are outlines too
+
+`SignetOutline::Custom(u8)` indexes `ShankStyle::custom_outlines` — a
+`CustomOutline` is a 720-entry polar boundary table (~3 KB), carried **in
+the design file**, so a custom head renders identically on any machine
+with no asset in the loop. The table is the source of truth; the derived
+silhouette rebuilds on first use like the tiling SDFs. The head
+construction resolves through `ShankStyle::outline_extent` /
+`outline_body_extent` / `outline_aspect` (the registry owners); the bare
+enum methods fall back to Oval so a design missing its registry entry
+degrades instead of panicking, and `Custom` stays out of
+`SignetOutline::ALL` so every builtin picker and sweep is untouched.
+
+Any closed polyline comes in through `CustomOutline::from_points`, which
+runs the same recentre-fit-and-raycast the builtin polar tables use and
+then the same rolling-ball fairing — so the containment guarantee is
+inherited, not re-proven per shape.
+
+**The fairing ball is per-import** (`CustomOutline::fair_r`, default the
+calibrated `BODY_FAIR_R` 0.75), because 0.75 is tuned on a heart's two
+gentle lobes and a four-lobe clover corrugates a flank it only smooths.
+The importer sizes it from the plan's convex-hull area defect; closing is
+extensive at any radius, so containment is not a function of the choice.
+And the table's *quality* matters as much as the machinery: 256
+uniform-parameter curve samples left chord kinks that swept ripple bands
+down every wall (clover max second difference 0.0121; 0.0044 after
+arc-length densify + a 0.75° circular Gaussian — the residual is the
+notches' own curvature).
+
+**Deeply lobed plans default onto the cut dome** via
+`ShankStyle::suggest_dome`: ≥4 prominent radius maxima plus real hull
+defect (`fair_r > 0.9`) is the lobed signature — a square's four corners
+have the maxima but no defect, a shield or heart has the defect but only
+three maxima, so both keep the prism and its doctrine-approved single
+cove. On a prism a clover's notches ride the whole flank as corrugation;
+on the dome the body is one smooth lens and the lobes read in the arris,
+which is the two-smooth-surfaces read a signet wants. The GUI picker and
+MCP apply the suggestion on outline change; the dome slider overrides it. `a_drawn_outline_makes_a_head_that
+_pulls` pins it with a deliberately hostile plan (an asymmetric clipped
+star): containment to 1e-5, field-clean, and a JSON round-trip that must
+not carry the derived table. The library half lives in
+`library::outline_dir()` (`<name>.outline.json`); applying one **copies**
+it into the design. 19 factory signet plans decoded from the CrossGems
+presets (`tools/harvest/outline_export.py`) ship there as user assets —
+clover, rosette, star, butterfly, escutcheon and the rest — every one
+fielding 0.000% on a bare head.
+
 #### Outlines have to survive being turned into a silhouette
 
 `SignetOutline::half_extent` is a cached table per outline, built by scanning
@@ -799,9 +994,9 @@ cross-sections, one `<name>.profile.json` each. `save_profile` /
 band's own width and thickness — **a profile is a section, never a size**.
 The GUI's profile panel draws every entry — preset and saved — as its own
 little section (`profile_row`), and a name-plus-Save row files the current
-shape. The CrossGems factory-profile-folder idea, minus the factory.
+shape. 
 
-`PostLoad/tools/cluster_curves.py` decodes their master preset library
+`tools/harvest/cluster_curves.py` decodes their master preset library
 (the Profile_Curves cluster: 23 unit-box sections whose true index → name
 mapping is the C# script input's Source order — the containers' own
 nicknames disagree with the published selector list in places) into the
@@ -816,7 +1011,7 @@ the roundtrip check in one image.
 
 ### Generators are live until baked
 
-The CrossGems lesson, in this model's idiom: a generated group carries the
+The lesson, in this model's idiom: a generated group carries the
 `GenRecipe` that made it (`GroupLayer::recipe` — Pavé, Halo or Channel
 spec, serde'd into the design file). While the recipe is present the group
 is **live**: `pave::regenerate_live` re-runs every live generator and
@@ -830,6 +1025,36 @@ recipe is editable provenance, not a build input.
 `live_groups_regenerate_with_the_band_and_bake_detaches` pins the
 lifecycle. The eternity `SeatRun` needs none of this: it is already a
 parametric layer.
+
+**Pins are the third state, and they existed as a bug first.** The layer
+panel offered a seat editor and a delete button on the children of a live
+group, and `g.stack = fresh.stack` destroyed every such edit on the same
+frame — silently, because the panel then redrew the regenerated seat.
+`PaveSpec::pinned` is the fix: a `PinnedSeat` is data *in the recipe*, so it
+survives by construction.
+
+A pin and a deletion are the same claim said twice — *the packer may not
+place here* — so they are one mechanism, and a pin merely also emits a seat
+(`seat: None` is a hole). Stated as a **region**, never as the identity of a
+station: generated stations are recomputed from scratch every time the band
+moves, so matching a stored one by position would quietly cull a neighbour
+instead the moment the pitch changed. `blocked()` tests ellipse against
+ellipse in the chart with the spec's own `bridge_mm` between them, so an
+elongated pin claims the ground its plan actually covers.
+
+What must not be taken from CrossGems here is their **solver**. Their
+`CgPhysicalSystem` relaxes free positions (`step = MoveSum / (WeightSum +
+Mass)`, velocity damped 0.99); `fill()` is a closed-form lattice, and its
+`n = floor(circumference / pitch)` with `step = 360/n` *is* the seamlessness
+guarantee. Take the lock semantics, leave the relaxation — and
+`pinned_seats_survive_regeneration_and_the_packer_yields_to_them` asserts
+every unpinned seat still lands on the integer lattice, which is the
+assertion that would catch anyone reaching for it.
+
+One knock-on: `stones.rs` rolled a fill up to one line by demanding a single
+prototype, so one pin carrying a different stone would have collapsed the
+rollup into two hundred rows. `seats_by_shape` groups by shape instead and
+emits one line per distinct seat.
 
 ### Pavé is a generator, split is a modulation, the sheet is HTML
 
@@ -846,8 +1071,34 @@ parametric layer.
   poles. Seats scale whole (footprint, stand-off, skirt) so a graded row
   is still a row of self-similar mounds, and the report sums the graded
   carats via `SeatCheck::carats_override` instead of count x largest.
+
+  **The stations move too.** They used to sit at a uniform `k·360/n` while
+  the seats shrank under them, so the metal between neighbours grew with
+  every step: measured 0.42 mm at the large pole against 3.05 mm at the
+  small one on a taper-0.85 row — a **7.29x** spread down what is meant to
+  read as one continuous line (`examples/graded_probe.rs`). Holding the
+  *bridge* constant instead makes `R dΔ = span·scale(Δ) + bridge`, and
+  `scale_at` is exactly a raised cosine in Δ, so this is
+  `R dΔ = A + B cos Δ` — which integrates in closed form by the
+  eccentric-anomaly substitution. `eccentric_warp(x, c) = 2 atan(c tan(x/2))`
+  in its branch-safe `atan2` form, `c = sqrt((span(1−t)+bridge)/(span+bridge))`,
+  stations at uniform warped angle. No solver, no iteration.
+
+  Three properties fall out, and all three are load-bearing: at `taper = 0`
+  the warp is **the identity**, so every ungraded row is bit-identical and
+  no design migrates; φ is a monotone reparameterization of the circle onto
+  itself, so an integer count still closes exactly at `u`'s wrap; and the
+  count the law wants is the circumference over the **geometric mean** of
+  the two pole pitches, `∫dΔ/(A + B cos Δ) = 2π/√(A²−B²)` and `A²−B²` is
+  their product. Measured after: 1.18x at taper 0.85. `bridge_at` inverts
+  the same identity — the positive root of `b² + b·span(2−t) + span²(1−t) =
+  (C/n)²` — so what the report says is what the row holds, within 3%.
+  `theta_of_station` / `station_of_theta` are the one lattice; the field,
+  the stones report and the gem preview all go through them, because three
+  copies of a station formula is exactly the divergence this file warns
+  about elsewhere.
 - **Shared prongs**: `SeatRunLayer::shared_prong_mm` stands one post pair
-  at each boundary between neighbouring stones — the CrossGems Prongs_Row
+  at each boundary between neighbouring stones — the Prongs_Row
   rule (pair each gem with its shift-by-one neighbour, prong the boundary,
   cull only an open row's wrap pair) read into the height field, where a
   full-ring run keeps every boundary and the window handles open arcs.
@@ -917,6 +1168,16 @@ the pour, all hand-rolled in core with tests:
   both, tinted to the finish; `examples/template_shots.rs` renders the
   whole template gallery for an eyeball pass.
 
+  A frame is a list of **`Part`s**, framed on the first, because a finished
+  piece is metal *and* stones and the stones are never in the `Mesh`.
+  `gems::preview_mesh` is the same stones the viewport draws, as a plain
+  mesh — a soup of loose triangles, emphatically not something to export.
+  Metal shades from the mesh's own vertex normals (`Part::smooth`); flat
+  facet shading put a visible contour on every ring of triangles, worst
+  where the surface is nearly flat and the normals alternate, which is the
+  skirt around a seat. A stone keeps flat facets, because there the facets
+  are the point.
+
 The CLI speaks all of them: `--formats stl,obj,3mf,glb,ply`.
 `Report.quality` (`Mesh::quality`) carries worst-triangle statistics — min
 corner angle, aspect, degenerate count — on the report panel and the sheet.
@@ -944,7 +1205,7 @@ Key at 0.15 mm strokes) are simply not usable on narrow faces in sand.
 `every_pattern_tiles_seamlessly` pins the whole family's seam step against
 its own interior step; `Voronoi` (cellular relief, from Auto_Voronoi) and
 `Trellis` (a round-wire lattice, from Wire_Pattern) are the castable reads
-of the CrossGems decoration clusters, both side-face features by
+of the decoration clusters, both side-face features by
 construction.
 
 ### The showcase is the measured tour
@@ -1014,9 +1275,9 @@ bezel collars, gypsy mounds, prong bumps. Three pieces keep that honest:
   `MIN_EDGE_MM`, metal available for the pavilion along the seat's normal
   (to the bore wall on the crown, across the band on a side face) vs
   `gem.pavilion_mm()` + `MIN_WALL_MM`, run bridges vs `MIN_EDGE_MM`, and
-  carat totals. Analytic — it reads the layers and the modulated bare
-  profile, never the mesh, so it costs nothing and cannot disagree with the
-  design.
+  carat totals — plus the pairwise crowding census below. Analytic — it
+  reads the layers and the modulated bare profile, never the mesh, so it
+  costs nothing and cannot disagree with the design.
 - `gems.rs` (GUI) — render-only faceted previews: one superellipse-plan
   brilliant per stone-bearing station, positioned by evaluating the
   *displaced* section under the seat, girdle settled into the pad so the
@@ -1026,6 +1287,132 @@ bezel collars, gypsy mounds, prong bumps. Three pieces keep that honest:
   **Never in the `Mesh`, never exported** — `RD_GEM_SHEET=/dir` on the
   `stones_land_on_their_seats` test writes a software-rasterized sheet for
   eyeballing placement.
+
+### A seat is the stone's plan, not a circle round it
+
+`SeatPadLayer` carries `elong` (long over short, `diameter_mm` staying the
+short axis), `rot_deg` (bearing in the chart) and `plan_pow` (the
+superellipse exponent), and `fit_stone` fills all three from the gem. A
+marquise used to get a round boss sized off its *width*, so the stone
+overhung its own stock by 0.6 mm at each end.
+
+- The rim is `field::superellipse_radius_mm` along the sample's own ray, and
+  every drop law then reads `d / r` exactly as it did. The skirt stays a
+  **millimetre width** in every direction, because it is measured from the
+  rim outward rather than as a fraction of the radius — normalizing instead
+  would thin an authored 0.5 mm blend to 0.25 mm at a marquise's point,
+  straight through `MIN_EDGE_MM`.
+- `plan_pow` is floored at 1, which keeps the plan **convex**. Convex is
+  star-shaped about the centre, so a mound on it is still a monotone drop
+  from a single crest and releases wherever a round one does — measured
+  0.000% on an emerald-cut eternity. A re-entrant plan (a heart's cleft)
+  would put two skirts face to face, which is the two-flange valley the
+  showcase measured at 8.2%/−22°; that is why the family stops at convex.
+- `plan_half_extents_mm` is exact at any bearing: a superellipse is the unit
+  ball of a weighted `p`-norm, so its support function is the dual `q`-norm
+  with `1/p + 1/q = 1`. `p = 2` gives the ellipse formula; `p → ∞` gives the
+  rotated rectangle's, which is what a step cut wants. The band edge, the
+  run pitch, the pavé packer, the refiner's footprints, the section view and
+  the unrolled outline all read it, so nothing measures a diameter any more.
+- One plan table, `GemCut::plan_pow()`, is read by both the stock and the
+  viewport preview — the exponents used to live privately in `gems.rs`, so
+  the drawn stone and the metal cut for it were two different shapes.
+- The halo follows suit: its ring is the centre's own outline grown by the
+  gap, with accents placed at **equal arc length** round it, so an oval
+  centre gets an oval halo instead of a circle drawn round its length.
+
+### Cabochons are flat-backed, and refusing them was a bug
+
+`GemForm::{Faceted, Cabochon}` (their gem-info `ObjectType`, `0 = Gem,
+1 = Cabochon`). A cabochon has no pavilion: `pavilion_mm` returns
+`BED_CLEARANCE_MM` (0.1) rather than 0.65 of depth. Reading the faceted
+figure refused a 6 mm cab on a 1.6 mm band — it demanded 2.42 mm of metal
+under a stone that needs none, which is the single easiest stone a cast band
+can carry. Its plan is fatter too (`CABOCHON_MAX_ASPECT` 1.25 as a ceiling
+reproduces their whole cabochon table, where the faceted marquise and pear
+run 1.7 and 1.6), its dome is a medium 0.45 of width, its weight is half an
+ellipsoid at 0.0176 ct/mm³, and it sits *on* its bed in the preview instead
+of burying a pavilion it does not have.
+
+### How deep the stone sits is one number
+
+`SeatPadLayer::set_depth_mm` (`Option`, `None` = the style's own) is how far
+the girdle sits below the pad's top, and `girdle_drop_mm` / `stand_off_mm`
+are what everything reads. It replaces two constants that disagreed:
+`gems.rs` sank the drawn stone by 0.22 of its depth (0.35 for a bezel) while
+`stones.rs` credited the *whole* pad height as metal under it — so the report
+claimed 0.41 mm more room than the preview showed, and a bezel's two figures
+were unrelated numbers. The derived defaults are the physical ones: a
+bezel's girdle lands on its pocket floor, a drilled pad takes the stone a
+whisker in, a cabochon rests flush on its bed.
+
+### `u` is arc at the crest, and metal is not
+
+`u` is arc distance **at the crest radius**, so it is the true metal only on
+the crest. Everything else sits inside that radius: measured by
+`examples/metric_probe.rs`, the wider side face runs at
+
+| profile | HalfRound 6x3 | LowDome 6x3 | Flat 6x3 | Flat 7x5 | Beveled 6x2 |
+| --- | --- | --- | --- | --- | --- |
+| `k = r(v)/r_crest` | 0.813 | 0.833 | 0.849 | 0.796 | 0.859 |
+
+so a bridge the chart called 0.55 mm was 0.44 mm of metal — 17–20%
+optimistic, in the unsafe direction, on exactly the surfaces the doctrine
+sends all ornament to. `FieldContext::arc_scale(v)` is that scalar and
+`arc_scale_min(lo, hi)` the conservative read over a span.
+
+What it corrects is **reported numbers and the integer counts generators
+solve**, never `h(u, v)`: the chart stays one clean reparameterization of
+theta, no saved design changes shape, and every 0.000% guarantee is
+bit-identical. Concretely — `SeatRunLayer::bridge_at` (the pitch and the
+seat's span both scale by `k`, so the chart figure times `k` is the real one
+*exactly*, one multiply); `solve_spacing`, which keeps the invariant that
+what it solves is what `bridge_at` then reports; `pave::fill`, where each
+row reads its own radius, so different rows legitimately get different
+integer counts — a hex pavé on an annulus physically does; and
+`pave::halo`, whose accents were placed at `off_u / r_crest` and so landed
+at only `k` of the radius they were asked for, squashing the ring along the
+ring by a fifth under a comment already promising an even one.
+
+`FeatureFootprint` splits into `feature_u_mm` and `feature_v_mm` for the
+same reason, because they are not the same measure: `v` is arc length on the
+section itself and true as it stands. `min_feature_mm()` is the chart figure
+refinement seeds on; `metal_feature_mm(ctx)` is what `dfm.rs` judges against
+the sand's detail floor.
+
+### Stone against stone: the pairwise census
+
+A run's `bridge_mm` only knows its own neighbours, so a pad beside a run,
+two runs at different `v`, or a halo's melee against its centre went
+unchecked. `stones::report` now walks every station in the design — pads,
+runs (graded, at the size each station actually carries) and pavé groups —
+and measures each pair in 3D from the girdle frames the modulated bare
+profile gives, girdle plan against girdle plan via the same support
+function. Analytic, like the rest of the module.
+
+Two numbers per pair, and the second is the finding. **The ring's own
+curvature closes the arc under the girdle**: pitch `p` at crest radius `r`
+is only `p (r − t) / r` at depth `t`, and a straight-walled pavilion keeps
+its full width the whole way down. `examples/crowd_probe.rs` measures it,
+and `loss = p · pavilion / r` to within a hundredth:
+
+| cut (2.5 mm on a size-7 low dome) | girdle | culet | loss |
+| --- | --- | --- | --- |
+| Round brilliant | 2.507 | 2.058 | 0.448 |
+| Princess | 2.507 | 1.943 | 0.564 |
+| Emerald | 2.589 | 2.040 | 0.549 |
+| Trillion | 2.507 | 2.217 | 0.289 |
+
+A 16-stone row of 2.5 mm emeralds clears at 0.640 mm and is at **0.259 mm**
+at the culet — under the 0.3 mm sand floor, and nearly twice `MIN_EDGE_MM`
+of metal the girdle bridge never sees. This is a **fill** rule, not a draft
+one: a thin bridge does not lock the mould, it comes out of the flask as two
+stones sharing a hole, so it is said in the `min_section_mm` voice. The
+culet column holds each girdle's full width all the way down — the truth for
+a step cut, pessimistic for a brilliant, and step cuts are the population
+that gets set tight. `StonesReport::closest` always carries the tightest
+pair whether or not it is a finding; `crowding` lists at most 12, because a
+240-seat pavé is not a list.
 
 ## The configurator is a second frontend, and it is core-only
 
@@ -1059,6 +1446,40 @@ displaces the pattern rather than stacking on it. Engraving is a single
 tiling — one tile spans the whole circumference, so a windowed tiling shows
 a stretched fragment. The test runs every base through both dresses
 (pattern-heavy and engraved) and holds each to the field verdict.
+
+## The graph is provenance one level above `GroupLayer::recipe`
+
+`crates/ringdesign-graph` is a core-only dataflow runtime: nodes are the
+core's own calls, wires carry their values, and evaluating a graph *is*
+building the design through the same API every panel and MCP tool uses.
+It is what `compose::Config` already is for the configurator — a pure
+function to a `RingDesign` — made editable. The rules, fixed before the
+first node and recorded in the crate's lib doc:
+
+- **Implicit lists.** A pin fed `N` items runs its node `N` times with
+  longest-list matching (shorter lists repeat their last item); an empty
+  list in is an empty list out; a failed item is a `Null` with an
+  attributed error and its siblings continue; a nested list passes whole.
+- **A closed `Value` enum with `Arc` domain handles**, never a JSON tree
+  and never reflection. Coercions are one table, pinned by a test.
+- **Stable identity, serde truth.** `NodeId` is a `u64` handed out once —
+  never a list position. The serde `Graph` is the truth; every editor is a
+  view rebuilt from it, and `pos` is the only view data persisted.
+- **Native evaluation** with a recipe-signature cache so one edit re-runs
+  one chain; scripts run only at expression pins and script nodes.
+- **Mode is a property of the graph.** `SandRing` evaluates to the design
+  *with* its field verdict, and file-writing sinks refuse `NotCastable`;
+  `Free` adds the solid kernel and the mesh verifier.
+- **Generators emit live groups and the evaluator never regenerates** —
+  the graph is provenance the way a `GenRecipe` is, one level up. A design
+  carries its graph (`RingDesign::graph`, live until baked); standalone
+  graph, cluster and preset files carry their own version ladder.
+- **Caps on everything a literal can size**: `MAX_LIST_ITEMS`, `MAX_NODES`,
+  `MAX_CLUSTER_DEPTH` — the 67 GB lesson, applied before the first list.
+
+The crate forwards `parallel` to the core and passes the wasm check; the
+editor (`ringdesign-graph-ui`), scripting (`ringdesign-script`), the Python
+module and the solid kernel land as their milestones do (`docs/ROADMAP.md`).
 
 ## GUI
 
@@ -1189,3 +1610,8 @@ footprints stay aligned with `height`.
 - `../jewelry_cost_calculator` — the egui_glow viewport in `src/ui/gpu_mesh.rs`
   is the reference this app's renderer was ported from. Also has ring sizing and
   STL/OBJ loading.
+
+- `tools/harvest/` (gitignored) — the CrossGems decode tools, their reports and the
+  mesh-comparison probes (`deviation.py`, `dihedral.py`, `measure_cg.py`); venv at
+  `tools/venv` (`requirements.txt` beside the scripts). The archive itself — decompiled
+  sources, the 122 decoded clusters, resources — stays in `../PostLoad/PostLoad`.

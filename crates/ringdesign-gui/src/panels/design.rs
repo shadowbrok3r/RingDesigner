@@ -847,27 +847,71 @@ fn shank_keys(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
 fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
     let mut changed = false;
     let band_width = app.design.profile.width_mm;
-    let head = &mut app.design.shank.head;
+    let shank = &mut app.design.shank;
 
     ui.horizontal(|ui| {
         ui.label("Face");
-        let before = head.outline;
+        let before = shank.head.outline;
+        // A custom face shows its imported name, not the bare "Custom".
+        let shown = shank
+            .custom_outline(before)
+            .map(|c| c.name.clone())
+            .unwrap_or_else(|| before.label().to_string());
+        let mut adopt: Option<ringdesign_core::CustomOutline> = None;
         egui::ComboBox::from_id_salt("signet_outline")
-            .selected_text(head.outline.label())
+            .selected_text(shown)
             .width(140.0)
             .show_ui(ui, |ui| {
                 for &o in SignetOutline::ALL {
                     changed |= ui
-                        .selectable_value(&mut head.outline, o, o.label())
+                        .selectable_value(&mut shank.head.outline, o, o.label())
                         .clicked();
                 }
+                // Plans already on this design, then the import library.
+                for (i, c) in shank.custom_outlines.iter().enumerate() {
+                    let o = SignetOutline::Custom(i as u8);
+                    changed |= ui
+                        .selectable_value(&mut shank.head.outline, o, &c.name)
+                        .clicked();
+                }
+                let on_design: Vec<String> =
+                    shank.custom_outlines.iter().map(|c| c.name.clone()).collect();
+                let library: Vec<_> = ringdesign_core::library::list_outlines()
+                    .into_iter()
+                    .filter(|c| !on_design.contains(&c.name))
+                    .collect();
+                if !library.is_empty() {
+                    ui.separator();
+                    ui.label(
+                        egui::RichText::new("From the outline library")
+                            .small()
+                            .color(theme::TEXT_DIM),
+                    );
+                    for c in library {
+                        if ui.selectable_label(false, &c.name).clicked() {
+                            adopt = Some(c);
+                        }
+                    }
+                }
             });
+        if let Some(c) = adopt {
+            // Copied into the design, so the file stays self-contained.
+            shank.head.outline = shank.adopt_outline(c);
+            changed = true;
+        }
         // A new shape wants its own proportions; the length is right there to
         // override if the ring wants a long cushion rather than a square one.
-        if head.outline != before {
-            head.fit_length_to(band_width);
+        // Deeply lobed imports also default onto the cut dome, where the
+        // lobes read in the arris instead of corrugating the flank — the
+        // slider below overrides it either way.
+        if shank.head.outline != before {
+            let aspect = shank.outline_aspect(shank.head.outline);
+            shank.head.length_mm = (band_width.max(1.0) * aspect).clamp(2.0, 40.0);
+            shank.head.dome = shank.suggest_dome(shank.head.outline);
+            changed = true;
         }
     });
+    let head = &mut app.design.shank.head;
 
     changed |= ui
         .add(
@@ -965,20 +1009,62 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
              outline, the flank rounds as one dome, and the facet is where the \
              table plane slices it — no pinched corners, no prism walls. The \
              facet is exactly that cut, so concave outlines (heart, shield) \
-             soften; keep those at 0.",
+             soften; keep those at 0. Takes precedence over the lofted body.",
         )
         .changed();
 
     changed |= ui
         .add(
-            egui::Slider::new(&mut head.table_dome_mm, 0.0..=2.0)
+            egui::Slider::new(&mut head.loft, 0.0..=1.0)
+                .fixed_decimals(2)
+                .text("Lofted body"),
+        )
+        .on_hover_text(
+            "1 builds the head the way the factory presets do: one loose loft from the \
+             table's rim, through a body outline three millimetres under it, down to the \
+             ring's equator silhouette. The flank bulges a few tenths under the table and \
+             curls back toward the finger, and the shoulder is one smooth sheet to the \
+             shank. 0 keeps the reference prism and its swell.",
+        )
+        .changed();
+    if head.loft > 0.0 {
+        changed |= ui
+            .add(
+                egui::Slider::new(&mut head.loft_frontal_mm, 0.0..=8.0)
+                    .fixed_decimals(1)
+                    .suffix(" mm")
+                    .text("Body growth along"),
+            )
+            .on_hover_text(
+                "How much wider than the table the body outline is along the ring, 3 mm \
+                 under the table. A control row of the loft, so it shows as a bulge of a \
+                 few tenths rather than a shelf.",
+            )
+            .changed();
+        changed |= ui
+            .add(
+                egui::Slider::new(&mut head.loft_lateral_mm, 0.0..=8.0)
+                    .fixed_decimals(1)
+                    .suffix(" mm")
+                    .text("Body growth across"),
+            )
+            .on_hover_text("The same growth across the band.")
+            .changed();
+    }
+
+    changed |= ui
+        .add(
+            egui::Slider::new(&mut head.table_dome_mm, 0.0..=3.0)
                 .fixed_decimals(2)
                 .suffix(" mm")
                 .text("Cab dome"),
         )
         .on_hover_text(
-            "Dome standing on the table's centre — a cabochon or buff-top head. \
-             A domed table also has real draft everywhere a flat one has none.",
+            "Dome standing on the table's centre. On a prism or cut-dome head a \
+             parabolic cab; on a lofted head the factory presets' smooth table — the \
+             loft starts at an apex this high and passes a 0.6-scaled outline at that \
+             height, so a lobed plan reads as a lobed dome. A domed table also has \
+             real draft everywhere a flat one has none.",
         )
         .changed();
 
@@ -1021,7 +1107,7 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
                 let mut h = ringdesign_core::profile::SignetHead {
                     outline: ringdesign_core::field::SignetOutline::Round,
                     theta_deg: app.design.shank.head.theta_deg + 48.0,
-                    ..Default::default()
+                    ..ringdesign_core::profile::SignetHead::lofted()
                 };
                 h.fit_length_to(app.design.profile.width_mm * 0.8);
                 extras.push(h);
@@ -1077,7 +1163,7 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
     let sh = app.design.shank.clone();
     // Read behind the head, wherever the head happens to sit.
     let back = sh.head.theta_deg + 180.0;
-    let shank_mm = app.design.profile.width_mm * sh.signet_width_frac(back, inner_r, crest_r);
+    let shank_mm = app.design.profile.width_mm * sh.signet_width_frac(back, inner_r, crest_r, &app.design.profile);
     let corner = (crest_r + sh.head.rise_mm).hypot(sh.head.length_mm * 0.5) - crest_r;
     hint(
         ui,

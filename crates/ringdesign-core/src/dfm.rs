@@ -33,7 +33,7 @@ pub fn findings(design: &RingDesign) -> Vec<DfmFinding> {
             .layer
             .feature_footprints(&ctx)
             .iter()
-            .map(|f| f.min_feature_mm)
+            .map(|f| f.metal_feature_mm(&ctx))
             .fold(f64::MAX, f64::min);
         if finest == f64::MAX || finest >= min {
             continue;

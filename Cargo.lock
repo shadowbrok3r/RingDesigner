@@ -2762,6 +2762,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ringdesign-graph"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "ringdesign-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ringdesign-gui"
 version = "0.1.0"
 dependencies = [

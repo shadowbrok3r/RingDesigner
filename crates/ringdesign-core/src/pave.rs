@@ -15,6 +15,7 @@ use crate::field::{
     SeatStyle, SideFacePick, VGate,
 };
 use crate::gem::Gem;
+use crate::profile::MIN_EDGE_MM;
 use crate::RingDesign;
 
 /// Hard cap on generated seats: past this a flask is a bead blanket, and the
@@ -43,6 +44,64 @@ pub struct PaveSpec {
     /// Offset alternate rows by half a pitch — hexagonal packing.
     pub stagger: bool,
     pub style: SeatStyle,
+    /// Turn every seat about its own normal, degrees. 0 lays an elongated
+    /// stone along the ring; 90 stands it across the band.
+    #[serde(default)]
+    pub rot_deg: f64,
+    /// Skirt fairing each seat into the band, mm. It is also the seat's
+    /// finest feature, so it is what the sand's detail floor judges.
+    #[serde(default = "default_pave_blend")]
+    pub blend_mm: f64,
+    /// Bezel only: how deep the pocket sits below the collar's rim, mm —
+    /// and so how far the girdle drops. A pocket deeper than the stone's
+    /// crown is a collar with nothing showing in it.
+    #[serde(default = "default_pave_recess")]
+    pub recess_mm: f64,
+    /// Seats the user owns, and the room the packer must leave them.
+    #[serde(default)]
+    pub pinned: Vec<PinnedSeat>,
+}
+
+fn default_pave_blend() -> f64 {
+    0.4
+}
+
+fn default_pave_recess() -> f64 {
+    0.4
+}
+
+/// A place in the fill the packer does not decide.
+///
+/// A pin and a deletion are the same thing said twice — *the packer may not
+/// place here* — so they are one mechanism, and a pin merely also emits a
+/// seat. Stated as a **region**, never as the identity of a station: a
+/// generated station is recomputed from scratch every time the band moves,
+/// so matching a stored one by position would quietly cull a neighbour
+/// instead the moment the pitch changed.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PinnedSeat {
+    /// Position around the ring, degrees. 90 is the top.
+    pub theta_deg: f64,
+    /// Position across the band, mm of `v`.
+    pub v_mm: f64,
+    /// The seat to place here. `None` is a hole: the packer keeps clear and
+    /// nothing is placed.
+    pub seat: Option<SeatPadLayer>,
+    /// How much room the packer must leave, mm. 0 takes the seat's own
+    /// reach, which is what a pinned seat wants; a hole needs its own.
+    #[serde(default)]
+    pub clear_mm: f64,
+}
+
+impl PinnedSeat {
+    /// The room this pin claims, mm — along the ring, then across the band.
+    fn reach_mm(&self) -> (f64, f64) {
+        match (&self.seat, self.clear_mm) {
+            (_, c) if c > 0.0 => (c, c),
+            (Some(s), _) => s.half_extents_mm(),
+            (None, _) => (0.0, 0.0),
+        }
+    }
 }
 
 impl Default for PaveSpec {
@@ -55,6 +114,10 @@ impl Default for PaveSpec {
             region: PaveRegion::SideFace(SideFacePick::Wider),
             stagger: true,
             style: SeatStyle::GypsyMound,
+            rot_deg: 0.0,
+            blend_mm: default_pave_blend(),
+            recess_mm: default_pave_recess(),
+            pinned: Vec::new(),
         }
     }
 }
@@ -64,7 +127,9 @@ impl Default for PaveSpec {
 pub struct PaveOutcome {
     pub seats: usize,
     pub rows: usize,
-    /// Seats the cap or the region refused, if any — said, not silent.
+    /// How many of the seats are the user's own rather than the packer's.
+    pub pinned: usize,
+    /// Seats the cap, the region or a pin refused — said, not silent.
     pub note: Option<String>,
 }
 
@@ -79,12 +144,19 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
         style: spec.style,
         height_mm: 0.6,
         crown: 1.0,
-        blend_mm: 0.4,
+        blend_mm: spec.blend_mm.max(0.0),
+        recess_mm: spec.recess_mm.max(0.0),
         ..Default::default()
     };
     proto.fit_stone(spec.gem);
-    let pitch = proto.diameter_mm + spec.bridge_mm.max(0.0);
-    if !(pitch > 0.2) {
+    proto.rot_deg = spec.rot_deg;
+    // Pack by the seat's own reach: an elongated stone spends its length
+    // along the ring and its width across it, so the two axes pitch apart.
+    let (span_u, span_v) = {
+        let (hu, hv) = proto.half_extents_mm();
+        (hu * 2.0, hv * 2.0)
+    };
+    if !(span_u + spec.bridge_mm.max(0.0) > 0.2) {
         return None;
     }
 
@@ -103,15 +175,16 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
     };
     let v_lo = v_lo.max(0.0);
     let v_hi = v_hi.min(ctx.band_v_len_mm);
-    if v_hi - v_lo < proto.diameter_mm {
+    if v_hi - v_lo < span_v {
         return None;
     }
 
     // Rows across the band at hex spacing, centred in the region.
-    let row_gap = if spec.stagger { pitch * 0.866 } else { pitch };
-    let usable = v_hi - v_lo - proto.diameter_mm;
+    let v_pitch = span_v + spec.bridge_mm.max(0.0);
+    let row_gap = if spec.stagger { v_pitch * 0.866 } else { v_pitch };
+    let usable = v_hi - v_lo - span_v;
     let rows = (usable / row_gap).floor() as usize + 1;
-    let v0 = v_lo + proto.diameter_mm * 0.5 + (usable - (rows - 1) as f64 * row_gap) * 0.5;
+    let v0 = v_lo + span_v * 0.5 + (usable - (rows - 1) as f64 * row_gap) * 0.5;
 
     let full = spec.span_deg >= 360.0 - 1e-9;
     let mut seats: Vec<SeatPadLayer> = Vec::new();
@@ -119,10 +192,20 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
     for r in 0..rows {
         let v = v0 + r as f64 * row_gap;
         let stagger = spec.stagger && r % 2 == 1;
+        // The row's own radius, not the crest's: a side face runs at 0.80
+        // of it, so a chart pitch of 2.0 mm is 1.6 mm of metal. Both the
+        // seat's span and the circumference scale by it, so only the bridge
+        // is an absolute.
+        let k = ctx.arc_scale(v);
+        let r_row = ctx.crest_radius_mm * k;
+        let pitch = span_u * k + spec.bridge_mm.max(0.0);
+        if !(pitch > 0.2) {
+            continue;
+        }
         if full {
             // Wrap-exact: an integer count around the ring, alternate rows
             // rotated half a step.
-            let n = (ctx.circumference_mm / pitch).floor() as usize;
+            let n = (ctx.circumference_mm * k / pitch).floor() as usize;
             if n < 3 {
                 continue;
             }
@@ -132,14 +215,13 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
                 push_seat(&mut seats, &proto, theta, v, &mut refused);
             }
         } else {
-            // A centred run along the arc. Arc length is measured at the
-            // crest radius, same as `u`.
-            let arc_mm = spec.span_deg.to_radians() * ctx.crest_radius_mm;
+            // A centred run along the arc, measured at the row's own radius.
+            let arc_mm = spec.span_deg.to_radians() * r_row;
             let n = (arc_mm / pitch).floor() as usize;
             if n == 0 {
                 continue;
             }
-            let step_deg = pitch / ctx.crest_radius_mm.max(1e-9) * 180.0 / std::f64::consts::PI;
+            let step_deg = pitch / r_row.max(1e-9) * 180.0 / std::f64::consts::PI;
             let offset = if stagger { 0.5 } else { 0.0 };
             let base = spec.theta_deg - (n as f64 - 1.0 + 2.0 * offset) * 0.5 * step_deg;
             for k in 0..n {
@@ -148,19 +230,42 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
             }
         }
     }
+    // The user's own seats and holes claim their ground; the packer yields.
+    let before = seats.len();
+    seats.retain(|s| !blocked(spec, &ctx, s));
+    let yielded = before - seats.len();
+    let mut pinned = 0usize;
+    for p in &spec.pinned {
+        if let Some(seat) = &p.seat {
+            push_seat(&mut seats, seat, p.theta_deg, p.v_mm, &mut refused);
+            pinned += 1;
+        }
+    }
     if seats.is_empty() {
         return None;
     }
 
-    let note = (refused > 0)
-        .then(|| format!("{refused} seats past the {MAX_SEATS}-seat cap were dropped"));
-    let outcome = PaveOutcome { seats: seats.len(), rows, note };
+    let mut notes = Vec::new();
+    if refused > 0 {
+        notes.push(format!("{refused} seats past the {MAX_SEATS}-seat cap were dropped"));
+    }
+    if yielded > 0 {
+        notes.push(format!("{yielded} yielded to {} pinned", spec.pinned.len()));
+    }
+    let note = (!notes.is_empty()).then(|| notes.join("; "));
+    let outcome = PaveOutcome { seats: seats.len(), rows, pinned, note };
 
     let mut stack = LayerStack::default();
+    // Pins keep their own numbering so the layer list does not renumber them
+    // when the packer re-solves around them.
+    let generated = seats.len() - pinned;
     for (i, s) in seats.into_iter().enumerate() {
-        stack
-            .layers
-            .push(LayerEntry::new(format!("Seat {}", i + 1), Layer::SeatPad(s)));
+        let name = if i < generated {
+            format!("Seat {}", i + 1)
+        } else {
+            format!("Pinned {}", i - generated + 1)
+        };
+        stack.layers.push(LayerEntry::new(name, Layer::SeatPad(s)));
     }
     let entry = LayerEntry::new(
         format!("Pavé {} ({})", spec.gem.display(), outcome.seats),
@@ -251,8 +356,55 @@ pub struct HaloSpec {
     pub gap_mm: f64,
     /// Metal between neighbouring accents, mm.
     pub bridge_mm: f64,
-    /// Accents in the ring; 0 solves the count from the halo circle.
+    /// Accents in the ring; 0 solves the count from the halo outline.
     pub count: u32,
+    /// Turn the centre stone and its halo about the seat normal, degrees.
+    /// 0 lays an elongated centre along the ring.
+    #[serde(default)]
+    pub rot_deg: f64,
+}
+
+/// The halo outline, sampled so accents land at equal arc length round it.
+/// A circle when the centre stone is round, which is the common case and
+/// costs the same.
+struct HaloRing {
+    /// Cumulative arc length at each sample, first 0 and last the perimeter.
+    arc: Vec<f64>,
+    pts: Vec<(f64, f64)>,
+    perimeter_mm: f64,
+}
+
+impl HaloRing {
+    const STEPS: usize = 256;
+
+    fn new(ra: f64, rb: f64, rot_deg: f64) -> Self {
+        let (sin, cos) = rot_deg.to_radians().sin_cos();
+        let pts: Vec<(f64, f64)> = (0..=Self::STEPS)
+            .map(|i| {
+                let t = i as f64 / Self::STEPS as f64 * std::f64::consts::TAU;
+                let (a, b) = (ra * t.cos(), rb * t.sin());
+                (a * cos - b * sin, a * sin + b * cos)
+            })
+            .collect();
+        let mut arc = Vec::with_capacity(pts.len());
+        let mut acc = 0.0;
+        arc.push(0.0);
+        for w in pts.windows(2) {
+            acc += ((w[1].0 - w[0].0).powi(2) + (w[1].1 - w[0].1).powi(2)).sqrt();
+            arc.push(acc);
+        }
+        Self { arc, pts, perimeter_mm: acc }
+    }
+
+    /// The point at `frac` of the way round by arc length.
+    fn at(&self, frac: f64) -> (f64, f64) {
+        let target = frac.rem_euclid(1.0) * self.perimeter_mm;
+        let i = self.arc.partition_point(|&a| a < target).clamp(1, self.pts.len() - 1);
+        let (a0, a1) = (self.arc[i - 1], self.arc[i]);
+        let t = if a1 > a0 { (target - a0) / (a1 - a0) } else { 0.0 };
+        let (p0, p1) = (self.pts[i - 1], self.pts[i]);
+        (p0.0 + (p1.0 - p0.0) * t, p0.1 + (p1.1 - p0.1) * t)
+    }
 }
 
 impl Default for HaloSpec {
@@ -265,6 +417,7 @@ impl Default for HaloSpec {
             gap_mm: 0.3,
             bridge_mm: 0.25,
             count: 0,
+            rot_deg: 0.0,
         }
     }
 }
@@ -289,43 +442,59 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
         ..Default::default()
     };
     center.fit_stone(spec.center);
+    center.rot_deg = spec.rot_deg;
     // Melee footprint for the accent markers: a tight ring the bench drills.
     let acc_dia = spec.accent.w_mm.max(0.5) + 0.7;
 
-    let r_halo = center.diameter_mm * 0.5 + spec.gap_mm.max(0.0) + acc_dia * 0.5;
-    if r_halo <= 1e-3 {
+    // The halo follows the centre's own outline, so an oval stone gets an
+    // oval halo rather than a circle drawn round its length.
+    let (ca, cb) = center.semi_axes_mm();
+    let grow = spec.gap_mm.max(0.0) + acc_dia * 0.5;
+    let (ha, hb) = (ca + grow, cb + grow);
+    if hb <= 1e-3 {
         return None;
     }
     // The domed plate carries the whole cluster; it must fit the band with a
     // gentle skirt to the crown. The lost-wax form has no plate, so only the
     // accent ring itself must fit.
-    let plate_dia = 2.0 * (r_halo + acc_dia * 0.5) + 1.6;
-    let reach = if lost_wax { r_halo + acc_dia * 0.5 + 0.3 } else { plate_dia * 0.5 };
+    let (pa, pb) = (ha + acc_dia * 0.5 + 0.8, hb + acc_dia * 0.5 + 0.8);
+    let mut plate = SeatPadLayer {
+        theta_deg: spec.theta_deg.rem_euclid(360.0),
+        v_mm: v_center,
+        diameter_mm: pb * 2.0,
+        elong: pa / pb,
+        rot_deg: spec.rot_deg,
+        height_mm: 0.6,
+        crown: 1.0,
+        blend_mm: pb * 0.6,
+        style: SeatStyle::GypsyMound,
+        ..Default::default()
+    };
+    // The plate fairs into whatever room the band leaves it. A skirt run off
+    // the band edge is a feather edge, and the plate is the one part of the
+    // cluster whose size is not the customer's choice.
+    let room = v_center.min(ctx.band_v_len_mm - v_center) - plate.half_extents_mm().1;
+    plate.blend_mm = plate.blend_mm.min((room - MIN_EDGE_MM).max(0.0));
+    let reach = if lost_wax {
+        crate::field::plan_half_extents_mm(ha, hb, 2.0, spec.rot_deg).1 + acc_dia * 0.5 + 0.3
+    } else {
+        plate.half_extents_mm().1
+    };
     if v_center - reach < 0.0 || v_center + reach > ctx.band_v_len_mm {
         return None;
     }
 
-    let circ = std::f64::consts::TAU * r_halo;
+    let ring = HaloRing::new(ha, hb, spec.rot_deg);
     let pitch = acc_dia + spec.bridge_mm.max(0.0);
     let n = if spec.count >= 3 {
         spec.count
     } else {
-        ((circ / pitch).floor() as u32).max(6)
+        ((ring.perimeter_mm / pitch).floor() as u32).max(6)
     };
 
     let mut stack = LayerStack::default();
     if !lost_wax {
         // The plate: one gentle dome, the clean stock the melee is cut into.
-        let plate = SeatPadLayer {
-            theta_deg: spec.theta_deg.rem_euclid(360.0),
-            v_mm: v_center,
-            diameter_mm: plate_dia,
-            height_mm: 0.6,
-            crown: 1.0,
-            blend_mm: plate_dia * 0.3,
-            style: SeatStyle::GypsyMound,
-            ..Default::default()
-        };
         stack.layers.push(LayerEntry::new("Plate", Layer::SeatPad(plate)));
     }
 
@@ -336,19 +505,23 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
     cs.height_mm = 0.9;
     stack.layers.push(LayerEntry::new("Centre", Layer::SeatPad(cs)));
 
-    let crest_r = ctx.crest_radius_mm.max(1e-6);
+    let crest_r = (ctx.crest_radius_mm * ctx.arc_scale(v_center)).max(1e-6);
     for k in 0..n {
-        let a = k as f64 / n as f64 * std::f64::consts::TAU;
-        // The halo is a few mm across, so its own circle is locally flat in
-        // (arc-u, v): the u offset becomes an angle at the crest radius.
-        let dtheta = (r_halo * a.cos()) / crest_r * 180.0 / std::f64::consts::PI;
+        // Equally spaced by arc length round the halo, so the bridges
+        // between accents are even on an oval as they are on a round.
+        let (off_u, off_v) = ring.at(k as f64 / n as f64);
+        // The halo is a few mm across, so its own outline is locally flat in
+        // (arc-u, v): the u offset becomes an angle at the plate's own
+        // radius, which is what makes the ring round in metal rather than
+        // in chart arc.
+        let dtheta = off_u / crest_r * 180.0 / std::f64::consts::PI;
         // Sand: a zero-height marker — it carries the stone for the report
         // and the preview but raises no proud geometry, because a proud
         // accent ring is the undercut; the plate is the stock and the bench
         // cuts the seat. Lost wax: the classic proud melee mound.
         let s = SeatPadLayer {
             theta_deg: (spec.theta_deg + dtheta).rem_euclid(360.0),
-            v_mm: v_center + r_halo * a.sin(),
+            v_mm: v_center + off_v,
             diameter_mm: acc_dia,
             height_mm: if lost_wax { 0.5 } else { 0.0 },
             crown: 1.0,
@@ -466,6 +639,28 @@ fn push_seat(
     s.theta_deg = theta_deg.rem_euclid(360.0);
     s.v_mm = v_mm;
     seats.push(s);
+}
+
+/// Whether a pin claims this station. Measured in the chart, ellipse against
+/// ellipse, with the spec's own bridge between them — the same metal the
+/// packer leaves between two of its own seats.
+fn blocked(spec: &PaveSpec, ctx: &crate::field::FieldContext, seat: &SeatPadLayer) -> bool {
+    if spec.pinned.is_empty() {
+        return false;
+    }
+    let (hu, hv) = seat.half_extents_mm();
+    let bridge = spec.bridge_mm.max(0.0);
+    spec.pinned.iter().any(|p| {
+        let (pu, pv) = p.reach_mm();
+        let (ru, rv) = (hu + pu + bridge, hv + pv + bridge);
+        if !(ru > 0.0 && rv > 0.0) {
+            return false;
+        }
+        let du = crate::field::wrap_delta(seat.theta_deg - p.theta_deg, 360.0).to_radians()
+            * ctx.crest_radius_mm;
+        let dv = seat.v_mm - p.v_mm;
+        (du / ru).powi(2) + (dv / rv).powi(2) < 1.0
+    })
 }
 
 #[cfg(test)]
@@ -604,6 +799,300 @@ mod tests {
     /// regenerate pass re-solves it when the band changes, a recipe that no
     /// longer fits refuses non-destructively, baking detaches it, and the
     /// recipe survives the file round-trip.
+    /// A halo drawn round in the chart is squashed in metal: the accent at
+    /// the ring's own `u` extreme lands at only `k` of the radius it was
+    /// asked for, because the chart's `u` is arc at the crest and the plate
+    /// is not. A fifth of the halo's reach, on a band whose flank runs at
+    /// 0.8 of the crest radius.
+    #[test]
+    fn the_halo_ring_reaches_its_own_radius_in_metal() {
+        let mut d = flat_design();
+        d.profile.apply_style(crate::ProfileStyle::HalfRound);
+        d.profile.width_mm = 12.0;
+        d.profile.thickness_mm = 6.0;
+        let ctx = d.field_context();
+        // Well down the flank, where the chart and the metal part company.
+        let v_center = 4.7;
+        let k = ctx.arc_scale(v_center);
+        assert!(k < 0.94, "the plate sits inside the crest radius: {k:.4}");
+
+        let spec = HaloSpec {
+            center: Gem::calibrated(crate::gem::GemCut::Round, 2.0),
+            accent: Gem::calibrated(crate::gem::GemCut::Round, 0.9),
+            v_mm: Some(v_center),
+            ..Default::default()
+        };
+        let (entry, n) = halo(&d, &spec).expect("fits the band");
+        assert!(n >= 6);
+        let Layer::Group(g) = &entry.layer else { panic!() };
+        let accents: Vec<&SeatPadLayer> = g
+            .stack
+            .layers
+            .iter()
+            .filter(|e| e.name.starts_with("Accent"))
+            .filter_map(|e| match &e.layer {
+                Layer::SeatPad(s) => Some(s),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(accents.len(), n as usize);
+
+        // The halo's own radius: the centre's reach plus the gap and half an
+        // accent, which is what the generator built the ring from.
+        let mut centre = SeatPadLayer { style: SeatStyle::GypsyMound, ..Default::default() };
+        centre.fit_stone(spec.center);
+        let want = centre.semi_axes_mm().1 + spec.gap_mm + (spec.accent.w_mm + 0.7) * 0.5;
+
+        // The first accent sits at the ring's `u` extreme — pure arc, no `v`
+        // — so its metal reach is exactly the number the fix is about.
+        let a0 = accents[0];
+        assert!((a0.v_mm - v_center).abs() < 1e-6, "the first accent is on the centre line");
+        let reach = crate::field::wrap_delta(a0.theta_deg - spec.theta_deg, 360.0).to_radians()
+            * ctx.crest_radius_mm
+            * ctx.arc_scale(a0.v_mm);
+        assert!(
+            (reach - want).abs() / want < 0.02,
+            "the accent reaches {reach:.3} mm of metal, wants {want:.3} (chart arc would \
+             have left {:.3})",
+            want * k
+        );
+
+        // And rounder in metal than the chart circle it replaces. Only an
+        // A/B: a section this curved varies its own radius across the halo's
+        // `v` span, so no placement in the chart is a perfect metal circle —
+        // the claim is that reading the plate's radius beats reading the
+        // crest's, not that either is exact.
+        let out_of_round = |scale: f64| {
+            let radii: Vec<f64> = accents
+                .iter()
+                .map(|a| {
+                    let du = crate::field::wrap_delta(a.theta_deg - spec.theta_deg, 360.0)
+                        .to_radians()
+                        * ctx.crest_radius_mm
+                        * ctx.arc_scale(a.v_mm)
+                        * scale;
+                    let dv = a.v_mm - v_center;
+                    (du * du + dv * dv).sqrt()
+                })
+                .collect();
+            let lo = radii.iter().cloned().fold(f64::MAX, f64::min);
+            let hi = radii.iter().cloned().fold(0.0f64, f64::max);
+            hi / lo
+        };
+        let now = out_of_round(1.0);
+        let before = out_of_round(k);
+        assert!(
+            now < before,
+            "{:.1}% out of round now against {:.1}% reading the crest",
+            (now - 1.0) * 100.0,
+            (before - 1.0) * 100.0
+        );
+
+        d.layers.layers.push(entry);
+        let lib = crate::AlphaLibrary::builtin();
+        let v = crate::castability::analyze_field(&d, &lib, &d.draft, 192, 96);
+        assert!(v.verdict != crate::castability::Verdict::NotCastable, "{:?}", v.verdict);
+    }
+
+    /// A full-ring fill steps by the same metal on every row it lays down,
+    /// and each row still closes on its own integer count.
+    #[test]
+    fn a_full_ring_row_steps_in_real_millimetres() {
+        let mut d = flat_design();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 14.0;
+        d.profile.thickness_mm = 6.0;
+        let ctx = d.field_context();
+        let spec = PaveSpec {
+            gem: Gem::calibrated(crate::gem::GemCut::Round, 0.8),
+            bridge_mm: 0.35,
+            region: PaveRegion::VBand { center_mm: ctx.crest_v_mm - 3.0, width_mm: 11.0 },
+            stagger: false,
+            ..Default::default()
+        };
+        let (entry, out) = fill(&d, &spec).expect("fits");
+        assert!(out.rows >= 3, "several rows, so their radii differ: {}", out.rows);
+        let Layer::Group(g) = &entry.layer else { panic!() };
+
+        let mut rows: Vec<(f64, usize)> = Vec::new();
+        for e in &g.stack.layers {
+            let Layer::SeatPad(s) = &e.layer else { continue };
+            match rows.iter_mut().find(|(v, _)| (*v - s.v_mm).abs() < 1e-9) {
+                Some((_, n)) => *n += 1,
+                None => rows.push((s.v_mm, 1)),
+            }
+        }
+        assert!(rows.len() >= 3);
+
+        let mut proto = SeatPadLayer { style: spec.style, blend_mm: 0.4, ..Default::default() };
+        proto.fit_stone(spec.gem);
+        let span_u = proto.half_extents_mm().0 * 2.0;
+
+        let ks: Vec<f64> = rows.iter().map(|(v, _)| ctx.arc_scale(*v)).collect();
+        let spread = ks.iter().cloned().fold(0.0f64, f64::max)
+            - ks.iter().cloned().fold(f64::MAX, f64::min);
+        assert!(spread > 0.03, "the rows straddle a real radius change: {spread:.4}");
+
+        for (v, n) in &rows {
+            let k = ctx.arc_scale(*v);
+            let step = ctx.circumference_mm * k / *n as f64;
+            let want = span_u * k + spec.bridge_mm;
+            assert!(
+                (step - want).abs() / want < 0.05,
+                "row at v {v:.2} (k {k:.3}): steps {step:.3} mm of metal, wants {want:.3}"
+            );
+            assert!(*n >= 3, "an integer count that closes the ring: {n}");
+        }
+    }
+
+    /// A pin is the user's ground, and the packer yields to it. The whole
+    /// point is that a hand edit inside a live group used to be destroyed by
+    /// the next regeneration — the panel offered a seat editor and a delete
+    /// button whose every change `g.stack = fresh.stack` wiped on the same
+    /// frame.
+    #[test]
+    fn pinned_seats_survive_regeneration_and_the_packer_yields_to_them() {
+        let mut d = flat_design();
+        let crest = d.field_context().crest_v_mm;
+        let base = PaveSpec {
+            gem: Gem::calibrated(crate::gem::GemCut::Round, 1.2),
+            region: PaveRegion::VBand { center_mm: crest, width_mm: 5.0 },
+            stagger: false,
+            ..Default::default()
+        };
+        let (entry, plain) = fill(&d, &base).expect("fits");
+        let Layer::Group(g) = &entry.layer else { panic!() };
+        let step = {
+            // The lattice the packer laid down, for the seamlessness check.
+            let mut ts: Vec<f64> = g
+                .stack
+                .layers
+                .iter()
+                .filter_map(|e| match &e.layer {
+                    Layer::SeatPad(s) if (s.v_mm - crest).abs() < 1e-9 => Some(s.theta_deg),
+                    _ => None,
+                })
+                .collect();
+            ts.sort_by(f64::total_cmp);
+            assert!(ts.len() > 8, "a real row: {}", ts.len());
+            360.0 / ts.len() as f64
+        };
+
+        // One pin deliberately off the lattice, and one hole.
+        let mut held = SeatPadLayer {
+            style: SeatStyle::GypsyMound,
+            height_mm: 0.6,
+            crown: 1.0,
+            blend_mm: 0.4,
+            ..Default::default()
+        };
+        held.fit_stone(Gem::calibrated(crate::gem::GemCut::Round, 2.0));
+        let pin_theta = 0.37 * step;
+        let hole_theta = 180.0;
+        let spec = PaveSpec {
+            pinned: vec![
+                PinnedSeat {
+                    theta_deg: pin_theta,
+                    v_mm: crest,
+                    seat: Some(held),
+                    clear_mm: 0.0,
+                },
+                PinnedSeat {
+                    theta_deg: hole_theta,
+                    v_mm: crest,
+                    seat: None,
+                    clear_mm: 2.0,
+                },
+            ],
+            ..base.clone()
+        };
+        let (entry, out) = fill(&d, &spec).expect("fits");
+        assert_eq!(out.pinned, 1);
+        assert!(out.note.as_deref().is_some_and(|n| n.contains("yielded")), "{:?}", out.note);
+        assert!(out.seats < plain.seats, "the pin and the hole cost stations");
+        d.layers.layers.push(entry);
+
+        let seats = |d: &RingDesign| -> Vec<SeatPadLayer> {
+            let Layer::Group(g) = &d.layers.layers[0].layer else { panic!() };
+            g.stack
+                .layers
+                .iter()
+                .filter_map(|e| match &e.layer {
+                    Layer::SeatPad(s) => Some(*s),
+                    _ => None,
+                })
+                .collect()
+        };
+
+        let found = |d: &RingDesign, theta: f64| {
+            seats(d).into_iter().find(|s| (s.theta_deg - theta).abs() < 1e-9)
+        };
+        // Pinned means pinned: exactly where it was put, not near it.
+        let held_now = found(&d, pin_theta).expect("the pin is on the ring");
+        assert_eq!(held_now.gem, held.gem, "and it is the user's stone");
+
+        // The hole is empty, and nothing the packer placed crowds the pin.
+        for s in seats(&d) {
+            let dh = crate::field::wrap_delta(s.theta_deg - hole_theta, 360.0).abs();
+            assert!(dh > 1e-6 || s.v_mm != crest, "a seat landed in the hole");
+        }
+        let r = crate::stones::report(&d, 0.0).expect("stones");
+        assert!(
+            r.closest.as_ref().is_some_and(|c| c.gap_mm > 0.0),
+            "the packer left the pin room: {:?}",
+            r.closest
+        );
+
+        // Regenerating with a different band re-packs around the pin, and
+        // the pin does not move.
+        d.profile.width_mm = 12.0;
+        let notes = regenerate_live(&mut d);
+        assert!(notes.is_empty(), "{notes:?}");
+        let after = found(&d, pin_theta).expect("the pin survived the band change");
+        assert_eq!(after.gem, held.gem);
+        assert!((after.v_mm - crest).abs() < 1e-9, "and it did not drift");
+
+        // Every seat the packer still owns sits on an integer lattice — the
+        // seamlessness guarantee, and what would break if this ever reached
+        // for a relaxation solver instead of yielding.
+        let mut ts: Vec<f64> = seats(&d)
+            .iter()
+            .filter(|s| s.gem != held.gem)
+            .map(|s| s.theta_deg)
+            .collect();
+        ts.sort_by(f64::total_cmp);
+        let n = (360.0 / (ts[1] - ts[0])).round();
+        for t in &ts {
+            let off = (t / (360.0 / n)).fract();
+            assert!(off < 1e-6 || off > 1.0 - 1e-6, "{t} is off the lattice of {n}");
+        }
+
+        // The report rolls the fill up by seat shape rather than printing a
+        // row per station, and a pin with its own stone is its own shape.
+        assert_eq!(r.seats.len(), 2, "{:?}", r.seats.iter().map(|s| &s.label).collect::<Vec<_>>());
+
+        // Pins survive the file, and a design written before them still loads.
+        let dir = std::env::temp_dir().join("ringdesign-pin-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("pinned.ring.json");
+        crate::library::save_design(&path, &d).unwrap();
+        let back = crate::library::load_design(&path).unwrap();
+        let Layer::Group(g) = &back.layers.layers[0].layer else { panic!() };
+        let Some(GenRecipe::Pave(sp)) = &g.recipe else { panic!() };
+        assert_eq!(sp.pinned.len(), 2, "pins lost in the file");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let old = serde_json::to_string(&base).unwrap();
+        assert!(!old.is_empty());
+        let bare: PaveSpec =
+            serde_json::from_str(&old.replace(",\"pinned\":[]", "")).expect("a file with no pins");
+        assert!(bare.pinned.is_empty());
+
+        let lib = crate::AlphaLibrary::builtin();
+        let v = crate::castability::analyze_field(&d, &lib, &d.draft, 192, 96);
+        assert!(v.verdict != crate::castability::Verdict::NotCastable, "{:?}", v.verdict);
+    }
+
     #[test]
     fn live_groups_regenerate_with_the_band_and_bake_detaches() {
         let mut d = flat_design();
