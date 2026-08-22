@@ -11,6 +11,7 @@ members = [
     "crates/ringdesign-script",
     "crates/ringdesign-cli",
     "crates/ringdesign-py",
+    "crates/ringdesign-solid",
 ]
 # Vendored forks are reached through [patch.crates-io], not built as members.
 exclude = ["patches/egui-snarl", "patches/egui-scale"]
@@ -26,6 +27,7 @@ ringdesign-mcp = { path = "crates/ringdesign-mcp" }
 ringdesign-graph = { path = "crates/ringdesign-graph" }
 ringdesign-graph-ui = { path = "crates/ringdesign-graph-ui" }
 ringdesign-script = { path = "crates/ringdesign-script" }
+ringdesign-solid = { path = "crates/ringdesign-solid" }
 rhai = { version = "1.25", features = ["sync", "serde"] }
 
 nalgebra = "0.35"

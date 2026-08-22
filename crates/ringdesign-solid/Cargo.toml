@@ -1,0 +1,18 @@
+[package]
+name = "ringdesign-solid"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+description = "Free-mode solids for RingDesigner: mesh CSG on Manifold, behind a feature"
+
+[features]
+default = []
+## The Manifold kernel (C++ via cmake on first build). Off, the crate is the
+## trait and the conversions only, and the workspace build stays pure Rust.
+manifold = ["dep:manifold3d"]
+
+[dependencies]
+ringdesign-core.workspace = true
+nalgebra.workspace = true
+anyhow.workspace = true
+manifold3d = { version = "0.4", optional = true, default-features = false }

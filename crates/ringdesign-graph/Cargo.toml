@@ -10,9 +10,14 @@ default = ["parallel"]
 ## Forwarded to the core: threads across builds the graph's sinks run. Off
 ## for wasm, where the whole crate stays pure Rust.
 parallel = ["ringdesign-core/parallel"]
+## The Free-mode solid kernel (Manifold, C++ via cmake on first build).
+## Off by default so the default build has no C++; Value::Solid exists
+## either way through the SolidHandle trait.
+kernel-manifold = ["dep:ringdesign-solid", "ringdesign-solid/manifold"]
 
 [dependencies]
 ringdesign-core = { path = "../ringdesign-core", default-features = false }
+ringdesign-solid = { path = "../ringdesign-solid", optional = true }
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true

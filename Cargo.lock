@@ -434,6 +434,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmake"
+version = "0.1.58"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "codespan-reporting"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1878,6 +1887,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 
 [[package]]
+name = "manifold-csg"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6e802a0d90cbb6fe43a8eafdd1c5df1862768cb85fdbc6965b0436449a0bdb6"
+dependencies = [
+ "log",
+ "manifold-csg-sys",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "manifold-csg-sys"
+version = "3.5.104"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e64dddec38e7f930b9a311adc289519aa2ad864c823082f9de3428d6fac6cb5"
+dependencies = [
+ "cmake",
+]
+
+[[package]]
+name = "manifold3d"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4dfb6934c42dd4a672200c1f47070273ffd17d7b662779d690dec1a900f99f76"
+dependencies = [
+ "manifold-csg",
+]
+
+[[package]]
 name = "matrixmultiply"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2977,6 +3015,7 @@ dependencies = [
  "anyhow",
  "log",
  "ringdesign-core",
+ "ringdesign-solid",
  "serde",
  "serde_json",
 ]
@@ -3076,6 +3115,16 @@ dependencies = [
  "ringdesign-core",
  "ringdesign-graph",
  "serde_json",
+]
+
+[[package]]
+name = "ringdesign-solid"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "manifold3d",
+ "nalgebra",
+ "ringdesign-core",
 ]
 
 [[package]]
