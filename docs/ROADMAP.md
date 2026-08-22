@@ -70,7 +70,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   Head, Outline, Gem, Window, Remap, Layer, Entry, Stack, Recipe, AlphaSource/AlphaRef, Build,
   Field, Stones, Mesh, Solid, Path, Json) + serde `Literal`; `ValueKind::accepts` + `coerce`, the
   coercion table pinned by a test.
-- [ ] **M1.3 Graph** (M, #8). Stable `NodeId(u64)`, `Node { kind, params, inputs, pos }`, `Wire`,
+- [x] **M1.3 Graph** (M, #8). Stable `NodeId(u64)`, `Node { kind, params, inputs, pos }`, `Wire`,
   `Exposed`, `Mode { SandRing, Free }`; `add/remove/connect/set_param/set_input/validate/topo`.
 - [ ] **M1.4 Registry** (M, #9). `PinSpec`/`NodeSpec`/`Category`/`Registry`, instance-resolved pins
   for script and cluster nodes.
