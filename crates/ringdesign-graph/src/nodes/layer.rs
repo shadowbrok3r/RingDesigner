@@ -104,7 +104,7 @@ fn tiling_fit(ctx: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, No
     let fc = ctx_of(i, "design")?;
     let alpha = i.text("alpha")?.to_string();
     if ctx.lib.get(&alpha).is_none() {
-        return Err(NodeError::input("alpha", format!("no alpha named {alpha:?} in the library")));
+        ctx.warn(format!("no alpha named {alpha:?} in the library now; a source assembled into the design bakes one on load"));
     }
     let mut t = TilingLayer::default_for(alpha, &fc);
     if i.bool("side_faces")? {
@@ -639,7 +639,7 @@ mod tests {
         assert!(r.status[&t2].warnings.iter().any(|w| w.contains("no side face")), "{:?}", r.status[&t2]);
         g.set_input(t2, "alpha", Literal::Text("NoSuchAlpha".into())).unwrap();
         let r = run(&g);
-        assert!(r.status[&t2].errors[0].1.contains("no alpha named"));
+        assert!(r.status[&t2].warnings.iter().any(|w| w.contains("no alpha named")), "{:?}", r.status[&t2]);
     }
 
     #[test]

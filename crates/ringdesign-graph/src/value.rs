@@ -197,10 +197,12 @@ impl ValueKind {
 
     /// Whether a value of kind `from` may be wired into a pin of this kind,
     /// directly or through [`ValueKind::coerce`]. `Null` is accepted
-    /// everywhere: it is the per-item failure marker and must flow.
+    /// everywhere: it is the per-item failure marker and must flow. An
+    /// `Any` output (a list utility's) is wirable anywhere; each item is
+    /// checked when it arrives.
     pub fn accepts(self, from: ValueKind) -> bool {
         use ValueKind::*;
-        if self == Any || from == Null || self == from {
+        if self == Any || from == Null || from == Any || self == from {
             return true;
         }
         matches!(
