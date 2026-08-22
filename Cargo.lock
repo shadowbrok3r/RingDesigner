@@ -2957,6 +2957,8 @@ dependencies = [
  "minreq",
  "parking_lot",
  "ringdesign-core",
+ "ringdesign-graph",
+ "ringdesign-script",
  "rmcp",
  "schemars",
  "serde",

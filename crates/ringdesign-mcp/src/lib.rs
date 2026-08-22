@@ -14,6 +14,7 @@ use rmcp::transport::StreamableHttpService;
 use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 
+pub mod graph_tools;
 pub mod prompts;
 pub mod resources;
 pub mod sync;
