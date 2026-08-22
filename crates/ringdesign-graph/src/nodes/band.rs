@@ -72,6 +72,7 @@ fn profile_node() -> NodeSpec {
         NodeSpec::new("band.profile", "Band profile", Category::Band)
             .doc("The band's cross-section: a style preset, then any field set explicitly. Unset pins keep the base's values."),
         "profile",
+        BandProfile::default,
         Value::Profile,
         |v| match v {
             Value::Profile(p) => Some(*p),

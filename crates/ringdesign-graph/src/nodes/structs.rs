@@ -48,12 +48,13 @@ pub struct StructNode<T> {
 
 impl<T> StructNode<T>
 where
-    T: Serialize + DeserializeOwned + Default + Clone + Send + Sync + 'static,
+    T: Serialize + DeserializeOwned + Clone + Send + Sync + 'static,
 {
     /// `out` is the output pin's name; `wrap` and `unwrap` move `T` in and
-    /// out of a [`Value`].
-    pub fn new(spec: NodeSpec, out: impl Into<String>, wrap: fn(T) -> Value, unwrap: fn(&Value) -> Option<T>) -> Self {
-        Self { spec, fields: Vec::new(), hidden: Vec::new(), base: None, out: out.into(), wrap, unwrap, default_base: T::default, prepare: None, finish: None }
+    /// out of a [`Value`]; `base` is what the node starts from when no base
+    /// pin is wired (`T::default`, or a new signet's lofted head).
+    pub fn new(spec: NodeSpec, out: impl Into<String>, base: fn() -> T, wrap: fn(T) -> Value, unwrap: fn(&Value) -> Option<T>) -> Self {
+        Self { spec, fields: Vec::new(), hidden: Vec::new(), base: None, out: out.into(), wrap, unwrap, default_base: base, prepare: None, finish: None }
     }
 
     /// An optional input of the struct's own kind to start from.
@@ -83,13 +84,6 @@ where
         self
     }
 
-    /// What the node starts from when no base is wired: `T::default()`
-    /// unless told otherwise (a new signet head is the lofted one).
-    pub fn default_base(mut self, f: fn() -> T) -> Self {
-        self.default_base = f;
-        self
-    }
-
     /// Runs on the base before the field pins are written, so a pin the
     /// hook reads (a style preset) cannot clobber pins set explicitly.
     pub fn prepare(mut self, f: FinishFn<T>) -> Self {
@@ -109,10 +103,10 @@ where
         self
     }
 
-    /// Every serialized field of `T::default()` is a pin or hidden, and
-    /// every pin or hidden name is a field.
+    /// Every serialized field of the base is a pin or hidden, and every
+    /// pin or hidden name is a field.
     pub fn coverage(&self) -> Result<(), String> {
-        let json = serde_json::to_value(T::default()).map_err(|e| format!("{}: {e}", self.spec.key))?;
+        let json = serde_json::to_value((self.default_base)()).map_err(|e| format!("{}: {e}", self.spec.key))?;
         let Some(obj) = json.as_object() else { return Err(format!("{}: the struct does not serialize as an object", self.spec.key)) };
         let keys: BTreeSet<&str> = obj.keys().map(String::as_str).collect();
         let mut named: BTreeSet<&str> = self.hidden.iter().map(String::as_str).collect();
@@ -162,7 +156,7 @@ where
                     if v.is_null() {
                         default_base()
                     } else {
-                        unwrap(v).ok_or_else(|| NodeError::input(pin, format!("expected {}, got {}", kind.label(), v.kind().label())))?
+                        unwrap(v).ok_or_else(|| NodeError::input(pin, format!("expected {}, got {}", kind.label(), v.summary())))?
                     }
                 }
                 None => default_base(),
@@ -192,7 +186,7 @@ where
     }
 
     fn out_kind(&self) -> ValueKind {
-        (self.wrap)(T::default()).kind()
+        (self.wrap)((self.default_base)()).kind()
     }
 }
 
@@ -215,6 +209,7 @@ mod tests {
         StructNode::new(
             NodeSpec::new("test.profile", "Profile", Category::Band).doc("A band section."),
             "profile",
+            BandProfile::default,
             Value::Profile,
             |v| match v {
                 Value::Profile(p) => Some(*p),
@@ -248,6 +243,7 @@ mod tests {
         StructNode::new(
             NodeSpec::new("test.shank", "Shank", Category::Shank).doc("A shank."),
             "shank",
+            ShankStyle::default,
             |s| Value::Shank(Arc::new(s)),
             |v| match v {
                 Value::Shank(s) => Some((**s).clone()),
@@ -350,6 +346,7 @@ mod tests {
         let missing = StructNode::<BandProfile>::new(
             NodeSpec::new("test.thin", "Thin", Category::Band),
             "profile",
+            BandProfile::default,
             Value::Profile,
             |_| None,
         )
@@ -360,7 +357,7 @@ mod tests {
         assert!(missing.contains("\"thickness_mm\"") && missing.contains("no pin"), "{missing}");
         assert!(missing.contains("\"bogus\"") && missing.contains("not fields"), "{missing}");
         // A pin on a nested path counts its first segment.
-        let nested = StructNode::<ShankStyle>::new(NodeSpec::new("test.n", "N", Category::Shank), "shank", |s| Value::Shank(Arc::new(s)), |_| None)
+        let nested = StructNode::<ShankStyle>::new(NodeSpec::new("test.n", "N", Category::Shank), "shank", ShankStyle::default, |s| Value::Shank(Arc::new(s)), |_| None)
             .field_at(PinSpec::item("head_length", ValueKind::Number), "/head/length_mm");
         let err = nested.coverage().unwrap_err();
         assert!(!err.contains("\"head\""), "head is covered by the nested pin: {err}");

@@ -38,6 +38,7 @@ fn shank_node() -> NodeSpec {
         NodeSpec::new("shank", "Shank", Category::Shank)
             .doc("How the band changes round the ring: a kind, its strength, and the head it carries when it is a signet."),
         "shank",
+        ShankStyle::default,
         shank_value,
         unwrap_shank,
     )
@@ -71,6 +72,7 @@ fn head_node() -> NodeSpec {
     StructNode::new(
         NodeSpec::new("head", "Signet head", Category::Shank).doc("A signet head: outline, size, stand-off and construction (prism, cut dome, or the lofted body)."),
         "head",
+        SignetHead::lofted,
         Value::Head,
         |v| match v {
             Value::Head(h) => Some(*h),
@@ -78,7 +80,6 @@ fn head_node() -> NodeSpec {
         },
     )
     .base("head", ValueKind::Head, "Start from this head; the lofted oval otherwise.")
-    .default_base(SignetHead::lofted)
     .field(PinSpec::select("outline", enum_names(SignetOutline::ALL)).doc("The face's plan, one of the builtins."))
     .field(PinSpec::item("theta_deg", ValueKind::Number).widget(Widget::Angle).doc("Where the head sits; 90° is the top."))
     .field(PinSpec::item("length_mm", ValueKind::Number).widget(Widget::Mm { min: 2.0, max: 40.0 }).doc("The face's length along the ring, mm."))
