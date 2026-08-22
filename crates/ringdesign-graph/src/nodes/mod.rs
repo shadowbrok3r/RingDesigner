@@ -8,6 +8,8 @@
 use crate::registry::Registry;
 
 pub mod band;
+pub mod gem;
+pub mod layer;
 pub mod list;
 pub mod math;
 pub mod shank;
@@ -23,6 +25,8 @@ pub fn register_all(reg: &mut Registry) {
     text::register(reg);
     band::register(reg);
     shank::register(reg);
+    gem::register(reg);
+    layer::register(reg);
 }
 
 #[cfg(test)]
@@ -42,7 +46,7 @@ mod tests {
             let spec = reg.get(key).unwrap();
             assert!(!spec.doc.is_empty(), "{key} has no doc");
             assert!(!spec.label.is_empty(), "{key} has no label");
-            assert!(key.contains('.') || matches!(key, "number" | "int" | "bool" | "text" | "series" | "range" | "shank" | "head"), "{key} is not family.name");
+            assert!(key.contains('.') || matches!(key, "number" | "int" | "bool" | "text" | "series" | "range" | "shank" | "head" | "gem" | "entry" | "window"), "{key} is not family.name");
             // Inputs and outputs are separate namespaces: a wire names one of each.
             for pins in [&spec.inputs, &spec.outputs] {
                 let mut seen = BTreeSet::new();

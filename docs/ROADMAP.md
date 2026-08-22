@@ -88,7 +88,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 - [x] **M2.1 `struct_node!`** (M, #12). Existing serde structs become nodes with one line per pin;
   enum pins by serde name; a coverage test so a new core field cannot be forgotten.
 - [x] **M2.2 Band/shank/head/outline nodes** (M, #13).
-- [ ] **M2.3 Layer nodes** (M, #14). One per `Layer` variant, the fitters, the `entry` wrapper
+- [x] **M2.3 Layer nodes** (M, #14). One per `Layer` variant, the fitters, the `entry` wrapper
   (window/blend/opacity/soft/mask/remap), windows and remaps.
 - [ ] **M2.4 Assembly, generators, alphas** (M, #15). Stack and assemble; pavé/halo/channel nodes
   emitting live groups (the evaluator never regenerates); procedural/text/SVG/drawn alphas.

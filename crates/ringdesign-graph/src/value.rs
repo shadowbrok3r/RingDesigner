@@ -291,7 +291,7 @@ fn fmt_number(x: f64) -> String {
 }
 
 /// A short name for a layer, used when one is wrapped into an entry.
-fn layer_label(l: &Layer) -> &'static str {
+pub fn layer_label(l: &Layer) -> &'static str {
     match l {
         Layer::Tiling(_) => "Tiling",
         Layer::Border(_) => "Border",
