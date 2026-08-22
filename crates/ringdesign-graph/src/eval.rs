@@ -23,8 +23,8 @@ use ringdesign_core::{AlphaLibrary, RingDesign};
 
 use crate::MAX_LIST_ITEMS;
 use crate::graph::{Access, Graph, GraphError, NodeId};
-use crate::registry::{EvalCtx, Inputs, NodeSpec, Registry};
-use crate::value::{Value, ValueKind};
+use crate::registry::{EvalCtx, Inputs, NodeSpec, PinSpec, Registry};
+use crate::value::{Literal, Value, ValueKind};
 
 /// The kind of the node whose `design` input is what a SandRing graph is
 /// for. Registered by the sink library; named here so the evaluator can
@@ -37,6 +37,21 @@ pub const MAX_RECORDED_ERRORS: usize = 16;
 /// Sampling the field verdict reads at: the GUI worker's numbers.
 pub const FIELD_THETA_STEPS: usize = 192;
 pub const FIELD_PROFILE_STEPS: usize = 128;
+
+/// What an expression on a pin sees: the node's other inputs by name,
+/// and where in the implicit list it is.
+#[derive(Clone, Debug, Default)]
+pub struct ExprScope {
+    pub siblings: BTreeMap<String, Value>,
+    pub item: usize,
+    pub items: usize,
+}
+
+/// Runs `{"expr": …}` pins. The graph crate only defines the hook; the
+/// script crate implements it, so the runtime stays free of any language.
+pub trait ExprEvaluator: Send + Sync {
+    fn eval_expr(&self, code: &str, scope: &ExprScope) -> Result<Value, String>;
+}
 
 /// Which nodes an evaluation runs.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -139,11 +154,17 @@ pub struct Evaluator {
     cache: HashMap<NodeId, CacheEntry>,
     /// How deep in clusters this evaluator runs; the root is 0.
     pub depth: usize,
+    /// Runs expression pins; without one they fail with a clear line.
+    pub exprs: Option<Arc<dyn ExprEvaluator>>,
 }
 
 impl Evaluator {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_exprs(exprs: Arc<dyn ExprEvaluator>) -> Self {
+        Self { exprs: Some(exprs), ..Self::default() }
     }
 
     /// Forget every cached output.
@@ -243,7 +264,7 @@ impl Evaluator {
                     }
                 }
             }
-            let (outputs, status) = run_node(g, reg, spec, node, &report.values, lib, lib_epoch, run_side_effects, self.depth, injected);
+            let (outputs, status) = run_node(g, reg, spec, node, &report.values, lib, lib_epoch, run_side_effects, self.depth, injected, self.exprs.as_ref());
             report.values.insert(id, outputs.clone());
             report.status.insert(id, status.clone());
             if !spec.side_effect {
@@ -309,10 +330,13 @@ fn run_node(
     run_side_effects: bool,
     depth: usize,
     injected: &BTreeMap<(NodeId, String), Value>,
+    exprs: Option<&Arc<dyn ExprEvaluator>>,
 ) -> (BTreeMap<String, Value>, NodeStatus) {
     let start = tick();
     let mut status = NodeStatus::default();
     let (in_pins, out_pins) = spec.pins_for(node, reg);
+    // Expression pins run per item once the other inputs are in scope.
+    let mut expr_pins: Vec<(PinSpec, String)> = Vec::new();
     let record = |status: &mut NodeStatus, item: usize, msg: String| {
         status.error_count += 1;
         if status.errors.len() < MAX_RECORDED_ERRORS {
@@ -322,6 +346,12 @@ fn run_node(
 
     let mut resolved: BTreeMap<String, Resolved> = BTreeMap::new();
     for pin in &in_pins {
+        if injected.get(&(node.id, pin.name.clone())).is_none() && g.wire_into(node.id, &pin.name).is_none() {
+            if let Some(code) = node.inputs.get(&pin.name).and_then(Literal::as_expr) {
+                expr_pins.push((pin.clone(), code.to_string()));
+                continue;
+            }
+        }
         let raw: Value = match injected.get(&(node.id, pin.name.clone())) {
             Some(v) => v.clone(),
             None => match g.wire_into(node.id, &pin.name) {
@@ -378,6 +408,7 @@ fn run_node(
     ctx.run_side_effects = run_side_effects;
     ctx.depth = depth;
     ctx.lib_epoch = lib_epoch;
+    ctx.exprs = exprs.cloned();
     ctx.items = n;
     for t in 0..n {
         ctx.item = t;
@@ -395,6 +426,28 @@ fn run_node(
                 Access::List => Value::List(r.items.clone()),
             };
             inputs.values.insert(name.clone(), v);
+        }
+        let mut expr_failed = false;
+        for (pin, code) in &expr_pins {
+            let result = match exprs {
+                Some(ev) => ev.eval_expr(code, &ExprScope { siblings: inputs.values.clone(), item: t, items: n }),
+                None => Err("no expression engine is attached to this evaluation".to_string()),
+            };
+            match result.and_then(|v| pin.kind.coerce(v).map_err(|e| e.to_string())) {
+                Ok(v) => {
+                    inputs.values.insert(pin.name.clone(), v);
+                }
+                Err(e) => {
+                    record(&mut status, t, format!("{}: expression: {e}", pin.name));
+                    expr_failed = true;
+                }
+            }
+        }
+        if expr_failed {
+            for p in &out_pins {
+                columns.get_mut(&p.name).expect("declared").push(Value::Null);
+            }
+            continue;
         }
         match (spec.eval)(&mut ctx, node, &inputs) {
             Ok(outs) => {

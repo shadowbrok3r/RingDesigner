@@ -8,6 +8,15 @@ use ringdesign_graph::value::{Literal, ValueKind};
 /// the literal changed.
 pub fn pin_widget(ui: &mut Ui, pin: &PinSpec, literal: &mut Option<Literal>) -> bool {
     let effective = literal.clone().or_else(|| pin.default.clone());
+    if let Some(Literal::Expr(e)) = &effective {
+        let mut code = e.expr.clone();
+        ui.label(egui::RichText::new("=").monospace().strong());
+        if ui.add_sized([140.0, 18.0], egui::TextEdit::singleline(&mut code).font(egui::TextStyle::Monospace)).changed() {
+            *literal = Some(Literal::expr(code));
+            return true;
+        }
+        return false;
+    }
     if let Some(Literal::List(items)) = &effective {
         ui.weak(format!("list ×{}", items.len()));
         return false;

@@ -118,12 +118,12 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 
 ## M4 — Scripting, MCP and CLI (L) — epic #20
 
-- [ ] **M4.1 `ringdesign-script` (rhai)** (L). Sandboxed engine with size/operation caps,
+- [x] **M4.1 `ringdesign-script` (rhai)** (L, #47). Sandboxed engine with size/operation caps,
   `Value ⇄ Dynamic`, a small math/list/domain API, Expr pins evaluated per item, Script nodes with
   declared pins, diagnostics in the editor.
-- [ ] **M4.2 MCP `graph_*` tools** (M). New/load/save/describe/list nodes/add/remove/connect/
+- [ ] **M4.2 MCP `graph_*` tools** (M, #48). New/load/save/describe/list nodes/add/remove/connect/
   set/expose/clusters/presets/evaluate/from_design, plus graph resources.
-- [ ] **M4.3 CLI crate** (S). `ringdesign graph eval|check|describe`; the binary moves to its own
+- [ ] **M4.3 CLI crate** (S, #49). `ringdesign graph eval|check|describe`; the binary moves to its own
   crate.
 
 ## M5 — Idioms, clusters, polish (M) — epic #21

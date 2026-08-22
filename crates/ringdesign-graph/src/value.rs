@@ -615,9 +615,17 @@ impl<T: Into<Value>> From<Vec<T>> for Value {
     }
 }
 
+/// An expression on a pin, evaluated per item with the node's other
+/// inputs in scope: `{"expr": "width_mm / 3"}` in a file.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExprLit {
+    pub expr: String,
+}
+
 /// What an unwired pin holds in a graph file: the literal subset of
 /// [`Value`]. Untagged, so a file reads `6.0`, `12`, `"Oval"`, `true`,
-/// `[1, 2, 3]` or an object as what they look like.
+/// `[1, 2, 3]` or an object as what they look like; an expression is the
+/// one tagged shape, `{"expr": …}`, tried before a plain object.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Literal {
@@ -627,6 +635,7 @@ pub enum Literal {
     Number(f64),
     Text(String),
     List(Vec<Literal>),
+    Expr(ExprLit),
     Json(serde_json::Value),
 }
 
@@ -654,7 +663,21 @@ impl Literal {
             Literal::Number(_) => ValueKind::Number,
             Literal::Text(_) => ValueKind::Text,
             Literal::List(_) => ValueKind::List,
+            // An expression's kind is known only once it runs.
+            Literal::Expr(_) => ValueKind::Any,
             Literal::Json(_) => ValueKind::Json,
+        }
+    }
+
+    /// An expression literal.
+    pub fn expr(code: impl Into<String>) -> Self {
+        Literal::Expr(ExprLit { expr: code.into() })
+    }
+
+    pub fn as_expr(&self) -> Option<&str> {
+        match self {
+            Literal::Expr(e) => Some(&e.expr),
+            _ => None,
         }
     }
 }
@@ -668,6 +691,9 @@ impl From<Literal> for Value {
             Literal::Number(x) => Value::Number(x),
             Literal::Text(s) => Value::Text(s),
             Literal::List(items) => Value::List(items.into_iter().map(Value::from).collect()),
+            // Unevaluated, an expression is nothing; the evaluator runs it
+            // before it ever gets here.
+            Literal::Expr(_) => Value::Null,
             Literal::Json(j) => Value::Json(Arc::new(j)),
         }
     }
@@ -760,6 +786,7 @@ mod tests {
             ("\"Oval\"", Literal::Text("Oval".into())),
             ("[1,2.5,\"x\"]", Literal::List(vec![Literal::Int(1), Literal::Number(2.5), Literal::Text("x".into())])),
             ("{\"a\":1}", Literal::Json(serde_json::json!({"a": 1}))),
+            ("{\"expr\":\"w / 2\"}", Literal::expr("w / 2")),
         ];
         for (text, want) in cases {
             let got: Literal = serde_json::from_str(text).unwrap();
@@ -767,6 +794,9 @@ mod tests {
             let back = serde_json::to_string(&got).unwrap();
             let again: Literal = serde_json::from_str(&back).unwrap();
             assert_eq!(again, want, "{text} via {back}");
+            if got.as_expr().is_some() {
+                continue;
+            }
             let v = Value::from(got.clone());
             assert_eq!(Literal::of(&v), Some(want), "{text} through Value");
         }

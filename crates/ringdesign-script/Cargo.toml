@@ -1,0 +1,13 @@
+[package]
+name = "ringdesign-script"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+description = "Sandboxed rhai for ringdesign-graph: expression pins and script nodes"
+
+[dependencies]
+ringdesign-core = { path = "../ringdesign-core", default-features = false }
+ringdesign-graph = { path = "../ringdesign-graph", default-features = false }
+rhai.workspace = true
+serde_json.workspace = true
+log.workspace = true
