@@ -1375,6 +1375,25 @@ run 1.7 and 1.6), its dome is a medium 0.45 of width, its weight is half an
 ellipsoid at 0.0176 ct/mm³, and it sits *on* its bed in the preview instead
 of burying a pavilion it does not have.
 
+### The bezel stands on its stone
+
+A bezel's collar has no height of its own. `fit_stone` derives it — the
+recess the girdle sits down, plus `bezel_lip` (default 0.3) of the stone's
+crown height (`Gem::crown_mm`: the third of the depth a faceted stone
+keeps above its girdle, the whole dome for a cabochon) — so a 4 mm round
+at a 0.5 mm recess gets a 0.76 mm collar and a 6 mm cab a taller one,
+which is what a burnished bezel is: metal pushed a little way up the
+crown. The pocket floor is a bearing ledge `bezel_bearing_mm` (0.3) wide
+inside the wall, and inside the ledge the floor dishes toward the
+pavilion as a paraboloid — steepening toward its ledge, never below 0.1
+mm of pad — only when the seat carries a stone, so a stone-less bezel is
+the flat cup it was. The plan already followed the girdle: the pocket is
+the stone's own superellipse inset by the wall. Measured clean on a 7×5
+side face with its stone; the crown warning is unchanged. The section
+view now draws the girdle at `stand_off_mm`, where the preview and the
+report have always put it — it drew it at the pad's top, which the one
+stone record made visible.
+
 ### How deep the stone sits is one number
 
 `SeatPadLayer::set_depth_mm` (`Option`, `None` = the style's own) is how far

@@ -1021,6 +1021,14 @@ pub struct SeatPadLayer {
     /// Bezel only: pocket depth below the rim, mm.
     #[serde(default = "default_recess")]
     pub recess_mm: f64,
+    /// Bezel only: how far up the stone's crown the collar stands, as a
+    /// fraction of the crown height; `fit_stone` derives the height from it.
+    #[serde(default = "default_bezel_lip")]
+    pub bezel_lip: f64,
+    /// Bezel only: the ledge the girdle rests on inside the wall, mm; the
+    /// floor inside it dishes toward the pavilion.
+    #[serde(default = "default_bezel_bearing")]
+    pub bezel_bearing_mm: f64,
     /// Drafted cone bumps on the seat circle — cast oversize, notched and
     /// shaped at the bench, which is how prongs survive sand. 0 is none.
     #[serde(default)]
@@ -1081,6 +1089,14 @@ fn default_recess() -> f64 {
     0.5
 }
 
+fn default_bezel_lip() -> f64 {
+    0.3
+}
+
+fn default_bezel_bearing() -> f64 {
+    0.3
+}
+
 fn default_prong() -> f64 {
     0.9
 }
@@ -1097,6 +1113,8 @@ impl Default for SeatPadLayer {
             style: SeatStyle::Boss,
             bezel_wall_mm: default_bezel_wall(),
             recess_mm: default_recess(),
+            bezel_lip: default_bezel_lip(),
+            bezel_bearing_mm: default_bezel_bearing(),
             prongs: 0,
             prong_mm: default_prong(),
             gem: None,
@@ -1206,6 +1224,11 @@ impl SeatPadLayer {
         self.plan_pow = gem.cut.plan_pow();
         if self.style == SeatStyle::GypsyMound {
             self.crown = 1.0;
+        }
+        // A bezel stands on its stone: the girdle on the bearing a recess
+        // down, the collar a lip up the crown over it.
+        if self.style == SeatStyle::Bezel {
+            self.height_mm = (self.recess_mm.max(0.0) + self.bezel_lip.clamp(0.0, 1.0) * gem.crown_mm()).max(0.2);
         }
         self.gem = Some(gem);
     }
@@ -1329,7 +1352,24 @@ impl SeatPadLayer {
                 let soft = (wall * 0.35).max(0.08);
                 if d <= r {
                     let rim = self.height_mm;
-                    rim + (floor - rim) * (1.0 - smoothstep(r_in - soft, r_in, d))
+                    // The girdle's bearing is a flat ledge inside the wall;
+                    // inside it the floor dishes toward the pavilion, a
+                    // paraboloid so the dish steepens toward its ledge.
+                    let bearing = self.bezel_bearing_mm.clamp(0.0, r_in);
+                    let dish_r = r_in - bearing;
+                    let relief = self
+                        .gem
+                        .map(|g| g.pavilion_mm())
+                        .unwrap_or(0.0)
+                        .min(floor - 0.1)
+                        .max(0.0);
+                    let floor_at = if dish_r > 1e-6 && d < dish_r {
+                        let t = d / dish_r;
+                        floor - relief * (1.0 - t * t)
+                    } else {
+                        floor
+                    };
+                    rim + (floor_at - rim) * (1.0 - smoothstep(r_in - soft, r_in, d))
                 } else {
                     self.skirt(d, r, blend)
                 }
@@ -4650,5 +4690,96 @@ mod tilt_tests {
         v.as_object_mut().unwrap().remove("tilt_deg");
         let run: SeatRunLayer = serde_json::from_value(v).unwrap();
         assert_eq!(run.tilt_deg, 0.0);
+    }
+}
+
+#[cfg(test)]
+mod bezel_tests {
+    use super::*;
+    use crate::gem::{Gem, GemCut};
+    use crate::{LayerEntry, RingDesign};
+
+    fn bezel(gem: Gem) -> SeatPadLayer {
+        let mut s = SeatPadLayer { style: SeatStyle::Bezel, recess_mm: 0.5, ..Default::default() };
+        s.fit_stone(gem);
+        s
+    }
+
+    #[test]
+    fn a_fitted_bezel_stands_a_lip_up_the_crown() {
+        let gem = Gem::calibrated(GemCut::Round, 4.0);
+        let s = bezel(gem);
+        let crown = gem.crown_mm();
+        assert!((crown - 0.35 * 0.62 * 4.0).abs() < 1e-9);
+        assert!((s.height_mm - (0.5 + 0.3 * crown)).abs() < 1e-9, "{}", s.height_mm);
+        assert!((s.girdle_drop_mm(gem) - 0.5).abs() < 1e-12, "the girdle lands on the bearing");
+        assert!((s.stand_off_mm(gem) - 0.3 * crown).abs() < 1e-9, "the lip is what stands over the girdle");
+        let cab = Gem::cabochon(GemCut::Oval, 6.0);
+        let c = bezel(cab);
+        assert!((c.height_mm - (0.5 + 0.3 * cab.depth_mm())).abs() < 1e-9, "a cabochon's crown is its dome");
+        let mut boss = SeatPadLayer::default();
+        let before = boss.height_mm;
+        boss.fit_stone(gem);
+        assert_eq!(boss.height_mm, before, "a boss keeps its own height");
+    }
+
+    #[test]
+    fn the_pocket_floor_dishes_toward_the_pavilion_inside_a_bearing() {
+        let gem = Gem::calibrated(GemCut::Round, 4.0);
+        let s = bezel(gem);
+        let mut ctx = FieldContext::default();
+        ctx.circumference_mm = 60.0;
+        ctx.band_v_len_mm = 8.0;
+        let u0 = ctx.u_of_theta(s.theta_deg);
+        let h = |d: f64| s.height(Uv { u: u0 + d, v: s.v_mm }, &ctx);
+        let r = s.semi_axes_mm().1;
+        let r_in = r - s.bezel_wall_mm;
+        let floor = s.height_mm - s.recess_mm;
+        // The ledge's inner end: the pocket wall's draft takes its outer 0.175 mm.
+        assert!((h(r_in - s.bezel_bearing_mm + 0.02) - floor).abs() < 1e-6, "the bearing is flat at the floor");
+        assert!(h(0.0) < floor - 0.05, "the centre dishes below the bearing: {} vs {floor}", h(0.0));
+        assert!((h(r - 0.01) - s.height_mm).abs() < 0.05, "the rim stands at the collar height");
+        let mut last = h(0.0);
+        let mut d = 0.0;
+        while d < r {
+            let now = h(d);
+            assert!(now >= last - 1e-9, "a pocket rises monotonically to its rim: {now} < {last} at {d}");
+            last = now;
+            d += 0.01;
+        }
+        let mut bare = s;
+        bare.gem = None;
+        assert!((bare.height(Uv { u: u0, v: s.v_mm }, &ctx) - floor).abs() < 1e-6, "no stone, no dish");
+    }
+
+    #[test]
+    fn a_bezel_with_its_stone_on_a_side_face_still_pulls() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        d.profile.width_mm = 7.0;
+        d.profile.thickness_mm = 5.0;
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.flatten_sides();
+        let ctx = d.field_context();
+        let sf = ctx.side_faces_std().expect("side faces");
+        let face = sf.low.or(sf.high).unwrap();
+        let mut s = bezel(Gem::calibrated(GemCut::Round, 3.0));
+        s.theta_deg = 90.0;
+        s.v_mm = 0.5 * (face.0 + face.1);
+        d.layers.layers.push(LayerEntry::new("Bezel", Layer::SeatPad(s)));
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 192, 128);
+        assert!(f.undercut_fraction() < 5e-4, "{}", f.undercut_fraction());
+        let report = crate::stones::report(&d, f.parting_z_mm).unwrap();
+        assert!(report.seats[0].warnings.iter().all(|w| !w.contains("bezel")), "{:?}", report.seats[0].warnings);
+    }
+
+    #[test]
+    fn a_bezel_saved_before_the_lip_reads_the_defaults() {
+        let mut v = serde_json::to_value(SeatPadLayer::default()).unwrap();
+        let o = v.as_object_mut().unwrap();
+        o.remove("bezel_lip");
+        o.remove("bezel_bearing_mm");
+        let s: SeatPadLayer = serde_json::from_value(v).unwrap();
+        assert_eq!((s.bezel_lip, s.bezel_bearing_mm), (0.3, 0.3));
     }
 }

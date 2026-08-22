@@ -272,6 +272,16 @@ impl Gem {
         }
     }
 
+    /// Height of the crown above the girdle, mm — the whole dome for a
+    /// cabochon, the third of the depth a faceted stone keeps above its
+    /// girdle.
+    pub fn crown_mm(&self) -> f64 {
+        match self.form {
+            GemForm::Faceted => self.depth_mm() - self.pavilion_mm(),
+            GemForm::Cabochon => self.depth_mm(),
+        }
+    }
+
     /// Depth of the pavilion below the girdle, mm — what a seat must swallow.
     /// The crown above the girdle is roughly a third of the depth.
     ///

@@ -305,8 +305,10 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::
             let len = (nr * nr + nz * nz).sqrt().max(1e-9);
             let (nr, nz) = (nr / len, nz / len);
             let (tr, tz) = (-nz, nr);
-            // Girdle sits on the pad top; pavilion dives along the normal.
-            let top = (r + nr * seat.height_mm, z + nz * seat.height_mm);
+            // Girdle at the seat's stand-off — the same settle the preview
+            // and the report use — with the pavilion diving along the normal.
+            let lift = seat.stand_off_mm(gem);
+            let top = (r + nr * lift, z + nz * lift);
             let ga = map(top.0 + tr * half, top.1 + tz * half);
             let gb = map(top.0 - tr * half, top.1 - tz * half);
             let culet = map(top.0 - nr * depth, top.1 - nz * depth);
