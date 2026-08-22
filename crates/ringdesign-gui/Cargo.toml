@@ -8,6 +8,11 @@ license.workspace = true
 name = "ringdesigner"
 path = "src/main.rs"
 
+[features]
+default = []
+## Free mode's solid kernel (Manifold, C++ via cmake on first build).
+kernel = ["ringdesign-graph/kernel-manifold", "ringdesign-script/kernel"]
+
 [dependencies]
 ringdesign-core.workspace = true
 ringdesign-mcp.workspace = true

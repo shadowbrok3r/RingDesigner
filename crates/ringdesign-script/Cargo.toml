@@ -5,6 +5,10 @@ version.workspace = true
 license.workspace = true
 description = "Sandboxed rhai for ringdesign-graph: expression pins and script nodes"
 
+[features]
+default = []
+kernel = ["ringdesign-graph/kernel-manifold"]
+
 [dependencies]
 ringdesign-core = { path = "../ringdesign-core", default-features = false }
 ringdesign-graph = { path = "../ringdesign-graph", default-features = false }

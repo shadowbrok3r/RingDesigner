@@ -9,6 +9,10 @@ description = "The ringdesign command line: size runs, checks, and graph evaluat
 name = "ringdesign"
 path = "src/main.rs"
 
+[features]
+default = []
+kernel = ["ringdesign-graph/kernel-manifold", "ringdesign-script/kernel"]
+
 [dependencies]
 ringdesign-core.workspace = true
 ringdesign-graph.workspace = true

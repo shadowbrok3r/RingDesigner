@@ -1586,6 +1586,23 @@ the Free-mode verdict — faces, not the field, because a solid has no
 chart. Everything here is lost-wax territory unless the field says
 otherwise; the SandRing verdict never reads a solid.
 
+The nodes (`ringdesign-graph/src/nodes/solid.rs`, behind
+`kernel-manifold`, all Free-mode only so a SandRing graph refuses them
+at validation): `solid.cylinder/sphere/box/extrude/revolve`,
+`solid.from_design` (the watertight sweep taken into the kernel),
+`solid.union/difference/intersect/union_all`, `translate/rotate/scale`,
+`frame.on_ring` (a frame on the band at an angle, `z` out of the metal,
+tilt and roll) with `solid.place`, `solid.tube`, `solid.setting`
+(marquise or round), `solid.leaf`, `solid.import` (the solid crate's OBJ
+and STL readers, welded; refused unless watertight) and `solid.mesh`,
+which is how a solid reaches `sink.mesh_verdict`, `sink.export` and
+`sink.render`. Pinned: a semi-mount — the Court band as a solid, a round
+setting placed by `frame.on_ring`, unioned — exports as STL and imports
+back within 0.1% of its volume; a revolved section matches π·(R²−r²)·h.
+The editor's palette lists the graph's own mode. The GUI and the CLI
+carry a `kernel` feature forwarding to it
+(`cargo run -p ringdesign-gui --features kernel`).
+
 ## Python: `crates/ringdesign-py`
 
 The core and the graph runtime as a Python module (`import ringdesign`),

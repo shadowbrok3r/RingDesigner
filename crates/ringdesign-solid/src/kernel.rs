@@ -245,27 +245,7 @@ pub fn to_mesh(solid: &Solid) -> Mesh {
     }
     let vertices: Vec<Vec3> = props.chunks_exact(n_props).map(|p| Vec3(p[0], p[1], p[2])).collect();
     let faces: Vec<[u32; 3]> = tris.chunks_exact(3).map(|t| [t[0], t[1], t[2]]).collect();
-    let mut acc = vec![[0.0f32; 3]; vertices.len()];
-    for f in &faces {
-        let [a, b, c] = [vertices[f[0] as usize], vertices[f[1] as usize], vertices[f[2] as usize]];
-        let u = [b.0 - a.0, b.1 - a.1, b.2 - a.2];
-        let v = [c.0 - a.0, c.1 - a.1, c.2 - a.2];
-        let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
-        for i in f {
-            let s = &mut acc[*i as usize];
-            s[0] += n[0];
-            s[1] += n[1];
-            s[2] += n[2];
-        }
-    }
-    let normals = acc
-        .into_iter()
-        .map(|n| {
-            let l = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
-            if l > 1e-12 { Vec3(n[0] / l, n[1] / l, n[2] / l) } else { Vec3(0.0, 0.0, 1.0) }
-        })
-        .collect();
-    Mesh { vertices, normals, faces }
+    crate::mesh_from(vertices, faces)
 }
 
 /// The core's mesh as a Manifold, or why Manifold would not take it.
