@@ -301,6 +301,10 @@ fn run_node(
         };
         let (mut items, is_list) = match raw {
             Value::List(v) => (v, true),
+            // A JSON array on a list pin is a list of JSON items.
+            Value::Json(j) if pin.access == Access::List && j.is_array() => {
+                (j.as_array().map(|a| a.iter().cloned().map(|x| Value::Json(Arc::new(x))).collect()).unwrap_or_default(), true)
+            }
             Value::Null if pin.access == Access::List => (Vec::new(), true),
             other => (vec![other], false),
         };
