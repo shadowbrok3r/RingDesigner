@@ -799,7 +799,7 @@ cross-sections, one `<name>.profile.json` each. `save_profile` /
 band's own width and thickness — **a profile is a section, never a size**.
 The GUI's profile panel draws every entry — preset and saved — as its own
 little section (`profile_row`), and a name-plus-Save row files the current
-shape. The CrossGems factory-profile-folder idea, minus the factory.
+shape. 
 
 `PostLoad/tools/cluster_curves.py` decodes their master preset library
 (the Profile_Curves cluster: 23 unit-box sections whose true index → name
@@ -816,7 +816,7 @@ the roundtrip check in one image.
 
 ### Generators are live until baked
 
-The CrossGems lesson, in this model's idiom: a generated group carries the
+The lesson, in this model's idiom: a generated group carries the
 `GenRecipe` that made it (`GroupLayer::recipe` — Pavé, Halo or Channel
 spec, serde'd into the design file). While the recipe is present the group
 is **live**: `pave::regenerate_live` re-runs every live generator and
@@ -847,7 +847,7 @@ parametric layer.
   is still a row of self-similar mounds, and the report sums the graded
   carats via `SeatCheck::carats_override` instead of count x largest.
 - **Shared prongs**: `SeatRunLayer::shared_prong_mm` stands one post pair
-  at each boundary between neighbouring stones — the CrossGems Prongs_Row
+  at each boundary between neighbouring stones — the Prongs_Row
   rule (pair each gem with its shift-by-one neighbour, prong the boundary,
   cull only an open row's wrap pair) read into the height field, where a
   full-ring run keeps every boundary and the window handles open arcs.
@@ -944,7 +944,7 @@ Key at 0.15 mm strokes) are simply not usable on narrow faces in sand.
 `every_pattern_tiles_seamlessly` pins the whole family's seam step against
 its own interior step; `Voronoi` (cellular relief, from Auto_Voronoi) and
 `Trellis` (a round-wire lattice, from Wire_Pattern) are the castable reads
-of the CrossGems decoration clusters, both side-face features by
+of the decoration clusters, both side-face features by
 construction.
 
 ### The showcase is the measured tour
@@ -1014,9 +1014,9 @@ bezel collars, gypsy mounds, prong bumps. Three pieces keep that honest:
   `MIN_EDGE_MM`, metal available for the pavilion along the seat's normal
   (to the bore wall on the crown, across the band on a side face) vs
   `gem.pavilion_mm()` + `MIN_WALL_MM`, run bridges vs `MIN_EDGE_MM`, and
-  carat totals. Analytic — it reads the layers and the modulated bare
-  profile, never the mesh, so it costs nothing and cannot disagree with the
-  design.
+  carat totals — plus the pairwise crowding census below. Analytic — it
+  reads the layers and the modulated bare profile, never the mesh, so it
+  costs nothing and cannot disagree with the design.
 - `gems.rs` (GUI) — render-only faceted previews: one superellipse-plan
   brilliant per stone-bearing station, positioned by evaluating the
   *displaced* section under the seat, girdle settled into the pad so the
@@ -1026,6 +1026,86 @@ bezel collars, gypsy mounds, prong bumps. Three pieces keep that honest:
   **Never in the `Mesh`, never exported** — `RD_GEM_SHEET=/dir` on the
   `stones_land_on_their_seats` test writes a software-rasterized sheet for
   eyeballing placement.
+
+### A seat is the stone's plan, not a circle round it
+
+`SeatPadLayer` carries `elong` (long over short, `diameter_mm` staying the
+short axis), `rot_deg` (bearing in the chart) and `plan_pow` (the
+superellipse exponent), and `fit_stone` fills all three from the gem. A
+marquise used to get a round boss sized off its *width*, so the stone
+overhung its own stock by 0.6 mm at each end.
+
+- The rim is `field::superellipse_radius_mm` along the sample's own ray, and
+  every drop law then reads `d / r` exactly as it did. The skirt stays a
+  **millimetre width** in every direction, because it is measured from the
+  rim outward rather than as a fraction of the radius — normalizing instead
+  would thin an authored 0.5 mm blend to 0.25 mm at a marquise's point,
+  straight through `MIN_EDGE_MM`.
+- `plan_pow` is floored at 1, which keeps the plan **convex**. Convex is
+  star-shaped about the centre, so a mound on it is still a monotone drop
+  from a single crest and releases wherever a round one does — measured
+  0.000% on an emerald-cut eternity. A re-entrant plan (a heart's cleft)
+  would put two skirts face to face, which is the two-flange valley the
+  showcase measured at 8.2%/−22°; that is why the family stops at convex.
+- `plan_half_extents_mm` is exact at any bearing: a superellipse is the unit
+  ball of a weighted `p`-norm, so its support function is the dual `q`-norm
+  with `1/p + 1/q = 1`. `p = 2` gives the ellipse formula; `p → ∞` gives the
+  rotated rectangle's, which is what a step cut wants. The band edge, the
+  run pitch, the pavé packer, the refiner's footprints, the section view and
+  the unrolled outline all read it, so nothing measures a diameter any more.
+- One plan table, `GemCut::plan_pow()`, is read by both the stock and the
+  viewport preview — the exponents used to live privately in `gems.rs`, so
+  the drawn stone and the metal cut for it were two different shapes.
+- The halo follows suit: its ring is the centre's own outline grown by the
+  gap, with accents placed at **equal arc length** round it, so an oval
+  centre gets an oval halo instead of a circle drawn round its length.
+
+### Cabochons are flat-backed, and refusing them was a bug
+
+`GemForm::{Faceted, Cabochon}` (their gem-info `ObjectType`, `0 = Gem,
+1 = Cabochon`). A cabochon has no pavilion: `pavilion_mm` returns
+`BED_CLEARANCE_MM` (0.1) rather than 0.65 of depth. Reading the faceted
+figure refused a 6 mm cab on a 1.6 mm band — it demanded 2.42 mm of metal
+under a stone that needs none, which is the single easiest stone a cast band
+can carry. Its plan is fatter too (`CABOCHON_MAX_ASPECT` 1.25 as a ceiling
+reproduces their whole cabochon table, where the faceted marquise and pear
+run 1.7 and 1.6), its dome is a medium 0.45 of width, its weight is half an
+ellipsoid at 0.0176 ct/mm³, and it sits *on* its bed in the preview instead
+of burying a pavilion it does not have.
+
+### Stone against stone: the pairwise census
+
+A run's `bridge_mm` only knows its own neighbours, so a pad beside a run,
+two runs at different `v`, or a halo's melee against its centre went
+unchecked. `stones::report` now walks every station in the design — pads,
+runs (graded, at the size each station actually carries) and pavé groups —
+and measures each pair in 3D from the girdle frames the modulated bare
+profile gives, girdle plan against girdle plan via the same support
+function. Analytic, like the rest of the module.
+
+Two numbers per pair, and the second is the finding. **The ring's own
+curvature closes the arc under the girdle**: pitch `p` at crest radius `r`
+is only `p (r − t) / r` at depth `t`, and a straight-walled pavilion keeps
+its full width the whole way down. `examples/crowd_probe.rs` measures it,
+and `loss = p · pavilion / r` to within a hundredth:
+
+| cut (2.5 mm on a size-7 low dome) | girdle | culet | loss |
+| --- | --- | --- | --- |
+| Round brilliant | 2.507 | 2.058 | 0.448 |
+| Princess | 2.507 | 1.943 | 0.564 |
+| Emerald | 2.589 | 2.040 | 0.549 |
+| Trillion | 2.507 | 2.217 | 0.289 |
+
+A 16-stone row of 2.5 mm emeralds clears at 0.640 mm and is at **0.259 mm**
+at the culet — under the 0.3 mm sand floor, and nearly twice `MIN_EDGE_MM`
+of metal the girdle bridge never sees. This is a **fill** rule, not a draft
+one: a thin bridge does not lock the mould, it comes out of the flask as two
+stones sharing a hole, so it is said in the `min_section_mm` voice. The
+culet column holds each girdle's full width all the way down — the truth for
+a step cut, pessimistic for a brilliant, and step cuts are the population
+that gets set tight. `StonesReport::closest` always carries the tightest
+pair whether or not it is a finding; `crowding` lists at most 12, because a
+240-seat pavé is not a list.
 
 ## The configurator is a second frontend, and it is core-only
 

@@ -139,6 +139,28 @@ impl GemCut {
         (w_mm * l_mm * depth_mm * factor).max(0.0)
     }
 
+    /// Superellipse exponent of the girdle in plan: 2 is an ellipse, higher
+    /// squares the corners toward a rectangle, lower points the ends.
+    ///
+    /// One table, read by both the seat stock in [`crate::field::SeatPadLayer`]
+    /// and the viewport's faceted preview, so the drawn stone and the metal
+    /// cut for it are the same outline. Every value is at least 1, which
+    /// keeps the plan convex — and a convex plan is star-shaped about the
+    /// seat centre, which is what lets a mound built on it stay a monotone
+    /// drop from a single crest.
+    pub fn plan_pow(self) -> f64 {
+        match self {
+            GemCut::Round | GemCut::Oval | GemCut::Pear | GemCut::Heart => 2.0,
+            GemCut::Cushion | GemCut::Trillion | GemCut::Hexagon | GemCut::HalfMoon => 3.2,
+            GemCut::Princess
+            | GemCut::Emerald
+            | GemCut::Baguette
+            | GemCut::Radiant
+            | GemCut::Asscher => 6.0,
+            GemCut::Marquise => 1.5,
+        }
+    }
+
     /// Calibrated stock widths, mm — the sizes a supplier actually stocks.
     pub fn calibrated_mm(self) -> &'static [f64] {
         match self {
@@ -153,7 +175,47 @@ impl GemCut {
     }
 }
 
-/// One stone: a cut at a physical size.
+/// How the stone is made below its girdle — which is what decides how much
+/// metal a seat has to swallow.
+///
+/// From the CrossGems gem-info `ObjectType` key (`0 = Gem, 1 = Cabochon`)
+/// and their separate `Cabochons.GetProportion` table: a cabochon is a
+/// different stone from a faceted one of the same footprint, not a finish
+/// on it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GemForm {
+    /// Crown, girdle and a pavilion diving to a culet.
+    #[default]
+    Faceted,
+    /// A domed cabochon on a flat back. Nothing below the girdle, so it
+    /// wants a bed rather than a hole — the easiest stone a cast band can
+    /// carry, and the one a gypsy setting was invented for.
+    Cabochon,
+}
+
+impl GemForm {
+    pub const ALL: &'static [GemForm] = &[GemForm::Faceted, GemForm::Cabochon];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            GemForm::Faceted => "Faceted",
+            GemForm::Cabochon => "Cabochon",
+        }
+    }
+}
+
+/// A cabochon's plan is fatter than the faceted make of the same name: their
+/// cabochon Marquise and Pear are both 1.25 where the faceted cuts run 1.7
+/// and 1.6. Read as a ceiling, which reproduces their whole table.
+const CABOCHON_MAX_ASPECT: f64 = 1.25;
+
+/// A medium dome, as a share of the width — the common make, and shallower
+/// than a faceted stone of the same footprint because there is no pavilion
+/// under it. (Their table's 0.6 is height over *length*, which on their
+/// elongated cabs reads as a high dome; this is the trade's ordinary one.)
+const CABOCHON_DOME_FRAC: f64 = 0.45;
+
+/// One stone: a cut at a physical size, in one of the two makes.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Gem {
     pub cut: GemCut,
@@ -161,6 +223,8 @@ pub struct Gem {
     pub w_mm: f64,
     /// Length along the ring, mm. Equal to width for the square cuts.
     pub l_mm: f64,
+    #[serde(default)]
+    pub form: GemForm,
 }
 
 impl Default for Gem {
@@ -172,38 +236,69 @@ impl Default for Gem {
 impl Gem {
     /// A stone of standard proportions at a stock width.
     pub fn calibrated(cut: GemCut, w_mm: f64) -> Self {
-        Self { cut, w_mm, l_mm: w_mm * cut.aspect() }
+        Self { cut, w_mm, l_mm: w_mm * cut.aspect(), form: GemForm::Faceted }
+    }
+
+    /// A cabochon of the same cut, at its own fatter proportions.
+    pub fn cabochon(cut: GemCut, w_mm: f64) -> Self {
+        Self {
+            cut,
+            w_mm,
+            l_mm: w_mm * cut.aspect().min(CABOCHON_MAX_ASPECT),
+            form: GemForm::Cabochon,
+        }
     }
 
     pub fn carats(&self) -> f64 {
-        self.cut.carats(self.w_mm, self.l_mm)
+        match self.form {
+            GemForm::Faceted => self.cut.carats(self.w_mm, self.l_mm),
+            // Half an ellipsoid at diamond density: volume (pi/6)·L·W·H mm³,
+            // and a carat is 0.2 g of a 3.52 g/cm³ stone, so 0.0176 ct/mm³.
+            GemForm::Cabochon => {
+                let v = std::f64::consts::PI / 6.0 * self.l_mm * self.w_mm * self.depth_mm();
+                (v * 0.0176).max(0.0)
+            }
+        }
     }
 
-    /// Depth from table to culet, mm.
+    /// Depth from table to culet, mm — the dome's own height for a cabochon.
     pub fn depth_mm(&self) -> f64 {
-        self.w_mm * self.cut.depth_frac()
+        match self.form {
+            GemForm::Faceted => self.w_mm * self.cut.depth_frac(),
+            GemForm::Cabochon => self.w_mm * CABOCHON_DOME_FRAC,
+        }
     }
 
     /// Depth of the pavilion below the girdle, mm — what a seat must swallow.
     /// The crown above the girdle is roughly a third of the depth.
+    ///
+    /// A cabochon has no pavilion: it is flat-backed, so all it asks of the
+    /// metal is a bed to sit flat on. Reading the faceted 0.65 of depth
+    /// there refused a 6 mm cab on a 2 mm band — it wanted 2.42 mm of metal
+    /// under a stone that needs none.
     pub fn pavilion_mm(&self) -> f64 {
-        self.depth_mm() * 0.65
+        match self.form {
+            GemForm::Faceted => self.depth_mm() * 0.65,
+            GemForm::Cabochon => BED_CLEARANCE_MM,
+        }
     }
 
     pub fn display(&self) -> String {
+        let name = match self.form {
+            GemForm::Faceted => self.cut.label().to_string(),
+            GemForm::Cabochon => format!("{} cabochon", self.cut.label()),
+        };
         if (self.l_mm - self.w_mm).abs() < 0.05 {
-            format!("{:.1} mm {} ({:.2} ct)", self.w_mm, self.cut.label(), self.carats())
+            format!("{:.1} mm {} ({:.2} ct)", self.w_mm, name, self.carats())
         } else {
-            format!(
-                "{:.1}x{:.1} mm {} ({:.2} ct)",
-                self.l_mm,
-                self.w_mm,
-                self.cut.label(),
-                self.carats()
-            )
+            format!("{:.1}x{:.1} mm {} ({:.2} ct)", self.l_mm, self.w_mm, name, self.carats())
         }
     }
 }
+
+/// Metal a flat-backed stone still wants under it, mm — the setter's bed,
+/// not a pavilion.
+pub const BED_CLEARANCE_MM: f64 = 0.1;
 
 #[cfg(test)]
 mod tests {

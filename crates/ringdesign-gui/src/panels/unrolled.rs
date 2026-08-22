@@ -939,8 +939,28 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             Layer::SeatPad(sp) => {
                 let c = center(sp.theta_deg, sp.v_mm);
                 cross(&painter, c);
-                let r_px = (sp.diameter_mm * 0.5 / mm_per_px_v.max(1e-9)) as f32;
-                painter.circle_stroke(c, r_px.max(8.0), stroke);
+                // The pad's own plan, not a circle: the outline drawn here is
+                // the metal the seat actually raises.
+                let pts: Vec<egui::Pos2> = (0..=64)
+                    .map(|k| {
+                        let t = k as f64 / 64.0 * std::f64::consts::TAU;
+                        let (sn, cs) = t.sin_cos();
+                        let r = ringdesign_core::field::superellipse_radius_mm(
+                            cs,
+                            sn,
+                            sp.diameter_mm * 0.5 * sp.elong.max(1.0),
+                            sp.diameter_mm * 0.5,
+                            sp.plan_pow,
+                        );
+                        let (a, b) = (r * cs, r * sn);
+                        let (s2, c2) = sp.rot_deg.to_radians().sin_cos();
+                        egui::pos2(
+                            c.x + ((a * c2 - b * s2) / mm_per_px_u.max(1e-9)) as f32,
+                            c.y + ((a * s2 + b * c2) / mm_per_px_v.max(1e-9)) as f32,
+                        )
+                    })
+                    .collect();
+                painter.add(egui::Shape::closed_line(pts, stroke));
             }
             Layer::Signet(sg) => cross(&painter, center(sg.theta_deg, sg.v_mm)),
             Layer::Decals(d) => {

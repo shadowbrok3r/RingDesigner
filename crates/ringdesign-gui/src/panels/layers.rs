@@ -1969,8 +1969,13 @@ fn border(ui: &mut egui::Ui, b: &mut BorderLayer, fctx: &FieldContext) -> bool {
 
 /// Cut + calibrated-size pickers for one stone, shared by the recipe panels.
 fn gem_picker(ui: &mut egui::Ui, id: &str, gem: &mut ringdesign_core::gem::Gem) -> bool {
-    use ringdesign_core::gem::{Gem, GemCut};
+    use ringdesign_core::gem::{Gem, GemCut, GemForm};
     let mut c = false;
+    // One builder for both makes, so a cut or size change keeps the form.
+    let build = |form: GemForm, cut: GemCut, w: f64| match form {
+        GemForm::Faceted => Gem::calibrated(cut, w),
+        GemForm::Cabochon => Gem::cabochon(cut, w),
+    };
     ui.horizontal(|ui| {
         egui::ComboBox::from_id_salt(format!("{id}_cut"))
             .selected_text(gem.cut.label())
@@ -1978,7 +1983,7 @@ fn gem_picker(ui: &mut egui::Ui, id: &str, gem: &mut ringdesign_core::gem::Gem) 
             .show_ui(ui, |ui| {
                 for &cut in GemCut::ALL {
                     if ui.selectable_label(gem.cut == cut, cut.label()).clicked() {
-                        *gem = Gem::calibrated(cut, gem.w_mm);
+                        *gem = build(gem.form, cut, gem.w_mm);
                         c = true;
                     }
                 }
@@ -1992,12 +1997,28 @@ fn gem_picker(ui: &mut egui::Ui, id: &str, gem: &mut ringdesign_core::gem::Gem) 
                         .selectable_label((gem.w_mm - w).abs() < 0.01, format!("{w:.1} mm"))
                         .clicked()
                     {
-                        *gem = Gem::calibrated(gem.cut, w);
+                        *gem = build(gem.form, gem.cut, w);
                         c = true;
                     }
                 }
             });
-    });
+        egui::ComboBox::from_id_salt(format!("{id}_form"))
+            .selected_text(gem.form.label())
+            .width(90.0)
+            .show_ui(ui, |ui| {
+                for &form in GemForm::ALL {
+                    if ui.selectable_label(gem.form == form, form.label()).clicked() {
+                        *gem = build(form, gem.cut, gem.w_mm);
+                        c = true;
+                    }
+                }
+            });
+    })
+    .response
+    .on_hover_text(
+        "A cabochon is flat-backed: it wants a bed, not a hole, which is the \
+         easiest stone a cast band can carry",
+    );
     c
 }
 
@@ -2126,46 +2147,35 @@ fn recipe_ui(ui: &mut egui::Ui, r: &mut ringdesign_core::pave::GenRecipe, fctx: 
 }
 
 fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> bool {
-    use ringdesign_core::gem::{Gem, GemCut};
     let mut c = grid(ui, "seat_run_grid", |ui| {
         let mut c = false;
 
         ui.label("Stone");
-        ui.horizontal(|ui| {
-            let mut gem = r.gem;
-            let mut picked = false;
-            egui::ComboBox::from_id_salt("run_cut")
-                .selected_text(gem.cut.label())
-                .width(120.0)
-                .show_ui(ui, |ui| {
-                    for &cut in GemCut::ALL {
-                        if ui.selectable_label(gem.cut == cut, cut.label()).clicked() {
-                            gem = Gem::calibrated(cut, gem.w_mm);
-                            picked = true;
-                        }
-                    }
-                });
-            egui::ComboBox::from_id_salt("run_size")
-                .selected_text(format!("{:.1} mm", gem.w_mm))
-                .width(72.0)
-                .show_ui(ui, |ui| {
-                    for &w in gem.cut.calibrated_mm() {
-                        if ui
-                            .selectable_label((gem.w_mm - w).abs() < 0.01, format!("{w:.1} mm"))
-                            .clicked()
-                        {
-                            gem = Gem::calibrated(gem.cut, w);
-                            picked = true;
-                        }
-                    }
-                });
-            if picked {
-                r.gem = gem;
+        if gem_picker(ui, "run_gem", &mut r.gem) {
+            r.solve_spacing(fctx);
+            c = true;
+        }
+        ui.end_row();
+
+        if r.seat.elong > 1.0 + 1e-6 {
+            ui.label("Turn");
+            if ui
+                .add(
+                    egui::DragValue::new(&mut r.seat.rot_deg)
+                        .speed(1.0)
+                        .range(-180.0..=180.0)
+                        .suffix("°"),
+                )
+                .on_hover_text(
+                    "0 lays each stone along the ring, 90 across the band.                      The row re-packs to the reach it actually has.",
+                )
+                .changed()
+            {
                 r.solve_spacing(fctx);
                 c = true;
             }
-        });
-        ui.end_row();
+            ui.end_row();
+        }
 
         ui.label("Count");
         ui.horizontal(|ui| {
@@ -2293,7 +2303,6 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
 
 fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> bool {
     use ringdesign_core::field::SeatStyle;
-    use ringdesign_core::gem::{Gem, GemCut};
     let v_max = fctx.band_v_len_mm.max(0.5);
     let c = grid(ui, "seat_pad_grid", |ui| {
         let mut c = false;
@@ -2310,39 +2319,11 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
         ui.end_row();
 
         ui.label("Stone");
-        ui.horizontal(|ui| {
-            let mut gem = p.gem.unwrap_or_default();
-            let mut picked = false;
-            egui::ComboBox::from_id_salt("seat_cut")
-                .selected_text(gem.cut.label())
-                .width(120.0)
-                .show_ui(ui, |ui| {
-                    for &cut in GemCut::ALL {
-                        if ui.selectable_label(gem.cut == cut, cut.label()).clicked() {
-                            gem = Gem::calibrated(cut, gem.w_mm);
-                            picked = true;
-                        }
-                    }
-                });
-            egui::ComboBox::from_id_salt("seat_size")
-                .selected_text(format!("{:.1} mm", gem.w_mm))
-                .width(72.0)
-                .show_ui(ui, |ui| {
-                    for &w in gem.cut.calibrated_mm() {
-                        if ui
-                            .selectable_label((gem.w_mm - w).abs() < 0.01, format!("{w:.1} mm"))
-                            .clicked()
-                        {
-                            gem = Gem::calibrated(gem.cut, w);
-                            picked = true;
-                        }
-                    }
-                });
-            if picked {
-                p.fit_stone(gem);
-                c = true;
-            }
-        });
+        let mut gem = p.gem.unwrap_or_default();
+        if gem_picker(ui, "seat_gem", &mut gem) {
+            p.fit_stone(gem);
+            c = true;
+        }
         ui.end_row();
 
         if p.style == SeatStyle::Bezel {
@@ -2426,7 +2407,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .changed();
         ui.end_row();
 
-        ui.label("Diameter");
+        ui.label("Width");
         c |= ui
             .add(
                 egui::DragValue::new(&mut p.diameter_mm)
@@ -2434,8 +2415,40 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
                     .range(0.5..=20.0)
                     .suffix(" mm"),
             )
+            .on_hover_text("The pad's short axis, and its diameter when round")
             .changed();
         ui.end_row();
+
+        ui.label("Length");
+        let mut len = p.diameter_mm * p.elong.max(1.0);
+        if ui
+            .add(
+                egui::DragValue::new(&mut len)
+                    .speed(0.02)
+                    .range(p.diameter_mm..=24.0)
+                    .suffix(" mm"),
+            )
+            .on_hover_text("The pad's long axis. Equal to the width for a round stone.")
+            .changed()
+        {
+            p.elong = (len / p.diameter_mm.max(1e-6)).max(1.0);
+            c = true;
+        }
+        ui.end_row();
+
+        if p.elong > 1.0 + 1e-6 {
+            ui.label("Turn");
+            c |= ui
+                .add(
+                    egui::DragValue::new(&mut p.rot_deg)
+                        .speed(1.0)
+                        .range(-180.0..=180.0)
+                        .suffix("°"),
+                )
+                .on_hover_text("0 lays the stone along the ring, 90 across the band")
+                .changed();
+            ui.end_row();
+        }
 
         ui.label("Height");
         c |= ui
@@ -2472,11 +2485,22 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
     });
 
     ui.label(
-        egui::RichText::new(format!(
-            "{} Seats a stone up to {:.2} mm",
-            icon::DIAMOND,
-            p.suggested_stone_mm()
-        ))
+        egui::RichText::new(if p.elong > 1.0 + 1e-6 {
+            let (hu, hv) = p.half_extents_mm();
+            format!(
+                "{} Seats a stone up to {:.2} mm, reaching {:.2} mm round the ring                  and {:.2} mm across the band",
+                icon::DIAMOND,
+                p.suggested_stone_mm(),
+                hu * 2.0,
+                hv * 2.0
+            )
+        } else {
+            format!(
+                "{} Seats a stone up to {:.2} mm",
+                icon::DIAMOND,
+                p.suggested_stone_mm()
+            )
+        })
         .small()
         .color(theme::INFO),
     );

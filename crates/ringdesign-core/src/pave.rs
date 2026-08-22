@@ -43,6 +43,10 @@ pub struct PaveSpec {
     /// Offset alternate rows by half a pitch — hexagonal packing.
     pub stagger: bool,
     pub style: SeatStyle,
+    /// Turn every seat about its own normal, degrees. 0 lays an elongated
+    /// stone along the ring; 90 stands it across the band.
+    #[serde(default)]
+    pub rot_deg: f64,
 }
 
 impl Default for PaveSpec {
@@ -55,6 +59,7 @@ impl Default for PaveSpec {
             region: PaveRegion::SideFace(SideFacePick::Wider),
             stagger: true,
             style: SeatStyle::GypsyMound,
+            rot_deg: 0.0,
         }
     }
 }
@@ -83,7 +88,14 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
         ..Default::default()
     };
     proto.fit_stone(spec.gem);
-    let pitch = proto.diameter_mm + spec.bridge_mm.max(0.0);
+    proto.rot_deg = spec.rot_deg;
+    // Pack by the seat's own reach: an elongated stone spends its length
+    // along the ring and its width across it, so the two axes pitch apart.
+    let (span_u, span_v) = {
+        let (hu, hv) = proto.half_extents_mm();
+        (hu * 2.0, hv * 2.0)
+    };
+    let pitch = span_u + spec.bridge_mm.max(0.0);
     if !(pitch > 0.2) {
         return None;
     }
@@ -103,15 +115,16 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
     };
     let v_lo = v_lo.max(0.0);
     let v_hi = v_hi.min(ctx.band_v_len_mm);
-    if v_hi - v_lo < proto.diameter_mm {
+    if v_hi - v_lo < span_v {
         return None;
     }
 
     // Rows across the band at hex spacing, centred in the region.
-    let row_gap = if spec.stagger { pitch * 0.866 } else { pitch };
-    let usable = v_hi - v_lo - proto.diameter_mm;
+    let v_pitch = span_v + spec.bridge_mm.max(0.0);
+    let row_gap = if spec.stagger { v_pitch * 0.866 } else { v_pitch };
+    let usable = v_hi - v_lo - span_v;
     let rows = (usable / row_gap).floor() as usize + 1;
-    let v0 = v_lo + proto.diameter_mm * 0.5 + (usable - (rows - 1) as f64 * row_gap) * 0.5;
+    let v0 = v_lo + span_v * 0.5 + (usable - (rows - 1) as f64 * row_gap) * 0.5;
 
     let full = spec.span_deg >= 360.0 - 1e-9;
     let mut seats: Vec<SeatPadLayer> = Vec::new();
@@ -251,8 +264,55 @@ pub struct HaloSpec {
     pub gap_mm: f64,
     /// Metal between neighbouring accents, mm.
     pub bridge_mm: f64,
-    /// Accents in the ring; 0 solves the count from the halo circle.
+    /// Accents in the ring; 0 solves the count from the halo outline.
     pub count: u32,
+    /// Turn the centre stone and its halo about the seat normal, degrees.
+    /// 0 lays an elongated centre along the ring.
+    #[serde(default)]
+    pub rot_deg: f64,
+}
+
+/// The halo outline, sampled so accents land at equal arc length round it.
+/// A circle when the centre stone is round, which is the common case and
+/// costs the same.
+struct HaloRing {
+    /// Cumulative arc length at each sample, first 0 and last the perimeter.
+    arc: Vec<f64>,
+    pts: Vec<(f64, f64)>,
+    perimeter_mm: f64,
+}
+
+impl HaloRing {
+    const STEPS: usize = 256;
+
+    fn new(ra: f64, rb: f64, rot_deg: f64) -> Self {
+        let (sin, cos) = rot_deg.to_radians().sin_cos();
+        let pts: Vec<(f64, f64)> = (0..=Self::STEPS)
+            .map(|i| {
+                let t = i as f64 / Self::STEPS as f64 * std::f64::consts::TAU;
+                let (a, b) = (ra * t.cos(), rb * t.sin());
+                (a * cos - b * sin, a * sin + b * cos)
+            })
+            .collect();
+        let mut arc = Vec::with_capacity(pts.len());
+        let mut acc = 0.0;
+        arc.push(0.0);
+        for w in pts.windows(2) {
+            acc += ((w[1].0 - w[0].0).powi(2) + (w[1].1 - w[0].1).powi(2)).sqrt();
+            arc.push(acc);
+        }
+        Self { arc, pts, perimeter_mm: acc }
+    }
+
+    /// The point at `frac` of the way round by arc length.
+    fn at(&self, frac: f64) -> (f64, f64) {
+        let target = frac.rem_euclid(1.0) * self.perimeter_mm;
+        let i = self.arc.partition_point(|&a| a < target).clamp(1, self.pts.len() - 1);
+        let (a0, a1) = (self.arc[i - 1], self.arc[i]);
+        let t = if a1 > a0 { (target - a0) / (a1 - a0) } else { 0.0 };
+        let (p0, p1) = (self.pts[i - 1], self.pts[i]);
+        (p0.0 + (p1.0 - p0.0) * t, p0.1 + (p1.1 - p0.1) * t)
+    }
 }
 
 impl Default for HaloSpec {
@@ -265,6 +325,7 @@ impl Default for HaloSpec {
             gap_mm: 0.3,
             bridge_mm: 0.25,
             count: 0,
+            rot_deg: 0.0,
         }
     }
 }
@@ -289,43 +350,54 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
         ..Default::default()
     };
     center.fit_stone(spec.center);
+    center.rot_deg = spec.rot_deg;
     // Melee footprint for the accent markers: a tight ring the bench drills.
     let acc_dia = spec.accent.w_mm.max(0.5) + 0.7;
 
-    let r_halo = center.diameter_mm * 0.5 + spec.gap_mm.max(0.0) + acc_dia * 0.5;
-    if r_halo <= 1e-3 {
+    // The halo follows the centre's own outline, so an oval stone gets an
+    // oval halo rather than a circle drawn round its length.
+    let (ca, cb) = center.semi_axes_mm();
+    let grow = spec.gap_mm.max(0.0) + acc_dia * 0.5;
+    let (ha, hb) = (ca + grow, cb + grow);
+    if hb <= 1e-3 {
         return None;
     }
     // The domed plate carries the whole cluster; it must fit the band with a
     // gentle skirt to the crown. The lost-wax form has no plate, so only the
     // accent ring itself must fit.
-    let plate_dia = 2.0 * (r_halo + acc_dia * 0.5) + 1.6;
-    let reach = if lost_wax { r_halo + acc_dia * 0.5 + 0.3 } else { plate_dia * 0.5 };
+    let (pa, pb) = (ha + acc_dia * 0.5 + 0.8, hb + acc_dia * 0.5 + 0.8);
+    let plate = SeatPadLayer {
+        theta_deg: spec.theta_deg.rem_euclid(360.0),
+        v_mm: v_center,
+        diameter_mm: pb * 2.0,
+        elong: pa / pb,
+        rot_deg: spec.rot_deg,
+        height_mm: 0.6,
+        crown: 1.0,
+        blend_mm: pb * 0.6,
+        style: SeatStyle::GypsyMound,
+        ..Default::default()
+    };
+    let reach = if lost_wax {
+        crate::field::plan_half_extents_mm(ha, hb, 2.0, spec.rot_deg).1 + acc_dia * 0.5 + 0.3
+    } else {
+        plate.half_extents_mm().1
+    };
     if v_center - reach < 0.0 || v_center + reach > ctx.band_v_len_mm {
         return None;
     }
 
-    let circ = std::f64::consts::TAU * r_halo;
+    let ring = HaloRing::new(ha, hb, spec.rot_deg);
     let pitch = acc_dia + spec.bridge_mm.max(0.0);
     let n = if spec.count >= 3 {
         spec.count
     } else {
-        ((circ / pitch).floor() as u32).max(6)
+        ((ring.perimeter_mm / pitch).floor() as u32).max(6)
     };
 
     let mut stack = LayerStack::default();
     if !lost_wax {
         // The plate: one gentle dome, the clean stock the melee is cut into.
-        let plate = SeatPadLayer {
-            theta_deg: spec.theta_deg.rem_euclid(360.0),
-            v_mm: v_center,
-            diameter_mm: plate_dia,
-            height_mm: 0.6,
-            crown: 1.0,
-            blend_mm: plate_dia * 0.3,
-            style: SeatStyle::GypsyMound,
-            ..Default::default()
-        };
         stack.layers.push(LayerEntry::new("Plate", Layer::SeatPad(plate)));
     }
 
@@ -338,17 +410,19 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
 
     let crest_r = ctx.crest_radius_mm.max(1e-6);
     for k in 0..n {
-        let a = k as f64 / n as f64 * std::f64::consts::TAU;
-        // The halo is a few mm across, so its own circle is locally flat in
+        // Equally spaced by arc length round the halo, so the bridges
+        // between accents are even on an oval as they are on a round.
+        let (off_u, off_v) = ring.at(k as f64 / n as f64);
+        // The halo is a few mm across, so its own outline is locally flat in
         // (arc-u, v): the u offset becomes an angle at the crest radius.
-        let dtheta = (r_halo * a.cos()) / crest_r * 180.0 / std::f64::consts::PI;
+        let dtheta = off_u / crest_r * 180.0 / std::f64::consts::PI;
         // Sand: a zero-height marker — it carries the stone for the report
         // and the preview but raises no proud geometry, because a proud
         // accent ring is the undercut; the plate is the stock and the bench
         // cuts the seat. Lost wax: the classic proud melee mound.
         let s = SeatPadLayer {
             theta_deg: (spec.theta_deg + dtheta).rem_euclid(360.0),
-            v_mm: v_center + r_halo * a.sin(),
+            v_mm: v_center + off_v,
             diameter_mm: acc_dia,
             height_mm: if lost_wax { 0.5 } else { 0.0 },
             crown: 1.0,

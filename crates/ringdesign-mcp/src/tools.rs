@@ -264,6 +264,26 @@ pub struct StonesJson {
     pub stone_count: u32,
     pub total_carats: f64,
     pub seats: Vec<SeatJson>,
+    /// Pairs of stones — from any layers, not just neighbours in one run —
+    /// with less than 0.3 mm of metal between them, worst first.
+    pub crowding: Vec<StonePairJson>,
+    /// How many such pairs there are, including any past the listed few.
+    pub tight_pairs: usize,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct StonePairJson {
+    /// The two seats' labels and where they sit, degrees around the ring.
+    pub a: String,
+    pub b: String,
+    pub a_theta_deg: f64,
+    pub b_theta_deg: f64,
+    /// Metal between the two girdles, mm. Negative means they overlap.
+    pub gap_mm: f64,
+    /// The same gap at the shallower culet, where the ring's own curvature
+    /// has closed the arc in — the number that decides whether the bridge
+    /// fills.
+    pub gap_deep_mm: f64,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -544,7 +564,15 @@ pub struct AddSeatPadParams {
     pub theta_deg: Option<f64>,
     /// Position across the band, mm of `v`.
     pub v_mm: Option<f64>,
+    /// The pad's short axis, mm — its diameter when round.
     pub diameter_mm: Option<f64>,
+    /// The pad's long axis over its short one, 1 = round. An oval, marquise
+    /// or baguette seat should carry its stone's own aspect so the stock
+    /// matches the girdle instead of a circle drawn round its length.
+    pub elong: Option<f64>,
+    /// Turn the pad about its own normal, degrees. 0 lays the long axis
+    /// along the ring; 90 stands it across the band.
+    pub rot_deg: Option<f64>,
     /// Peak displacement, mm.
     pub height_mm: Option<f64>,
     /// 0 is a flat-topped boss, 1 a full dome.
@@ -657,6 +685,10 @@ pub struct UpdateLayerParams {
     pub continuous: Option<bool>,
     /// Border, gem seat pad, signet, and milgrain: position across the band, mm of `v`.
     pub v_mm: Option<f64>,
+    /// Gem seat pad only: long axis over short, 1 = round.
+    pub elong: Option<f64>,
+    /// Gem seat pad only: turn about the seat normal, degrees.
+    pub rot_deg: Option<f64>,
     /// Border and milgrain: repeat on the other side of the band.
     pub mirror: Option<bool>,
     /// Border and signet: extent across the band, mm.
@@ -1016,6 +1048,19 @@ fn stones_json(r: &ringdesign_core::stones::StonesReport) -> StonesJson {
                 warnings: s.warnings.clone(),
             })
             .collect(),
+        crowding: r
+            .crowding
+            .iter()
+            .map(|p| StonePairJson {
+                a: p.a.clone(),
+                b: p.b.clone(),
+                a_theta_deg: p.a_theta_deg,
+                b_theta_deg: p.b_theta_deg,
+                gap_mm: p.gap_mm,
+                gap_deep_mm: p.gap_deep_mm,
+            })
+            .collect(),
+        tight_pairs: r.tight_pairs,
     }
 }
 
@@ -1111,7 +1156,7 @@ fn default_export_path(name: &str, ext: &str) -> String {
 
 /// Names of the kind-specific `update_layer` fields the call actually set.
 fn kind_specific_present(p: &UpdateLayerParams) -> Vec<&'static str> {
-    let flags: [(&'static str, bool); 34] = [
+    let flags: [(&'static str, bool); 36] = [
         ("alpha", p.alpha.is_some()),
         ("repeats_around", p.repeats_around.is_some()),
         ("rows", p.rows.is_some()),
@@ -1138,6 +1183,8 @@ fn kind_specific_present(p: &UpdateLayerParams) -> Vec<&'static str> {
         ("rope_twists", p.rope_twists.is_some()),
         ("theta_deg", p.theta_deg.is_some()),
         ("diameter_mm", p.diameter_mm.is_some()),
+        ("elong", p.elong.is_some()),
+        ("rot_deg", p.rot_deg.is_some()),
         ("crown", p.crown.is_some()),
         ("blend_mm", p.blend_mm.is_some()),
         ("bead_diameter_mm", p.bead_diameter_mm.is_some()),
@@ -1172,7 +1219,8 @@ const TILING_FIELDS: &[&str] = &[
     "continuous",
 ];
 const BORDER_FIELDS: &[&str] = &["v_mm", "width_mm", "profile", "mirror", "rope_twists"];
-const SEAT_PAD_FIELDS: &[&str] = &["theta_deg", "v_mm", "diameter_mm", "crown", "blend_mm"];
+const SEAT_PAD_FIELDS: &[&str] =
+    &["theta_deg", "v_mm", "diameter_mm", "elong", "rot_deg", "crown", "blend_mm"];
 const MILGRAIN_FIELDS: &[&str] = &["v_mm", "bead_diameter_mm", "beads_around", "mirror"];
 const SIGNET_FIELDS: &[&str] = &[
     "theta_deg",
@@ -1650,7 +1698,7 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Add a raised circular boss for a bench jeweller to cut a stone seat into. theta_deg positions it around the ring (90 degrees is the top), v_mm across the band in mm of v, diameter_mm and height_mm size it. `crown` runs 0 for a flat-topped boss to 1 for a full dome; blend_mm is the skirt that fairs a flat-topped pad back into the band. Castability: a flat-topped pad has straight walls that undercut from every angle — keep crown at or near 1 unless you want a boss you will file to shape by hand, and put the pad on the crest so both halves of the mould pull away from it. The pad seats a stone roughly diameter_mm - 1.2 across. Defaults: at the top of the ring, 5 mm across, 1.2 mm tall, crown 0.65, 0.8 mm skirt."
+        description = "Add a raised circular boss for a bench jeweller to cut a stone seat into. theta_deg positions it around the ring (90 degrees is the top), v_mm across the band in mm of v, diameter_mm and height_mm size it. `crown` runs 0 for a flat-topped boss to 1 for a full dome; blend_mm is the skirt that fairs a flat-topped pad back into the band. Castability: a flat-topped pad has straight walls that undercut from every angle — keep crown at or near 1 unless you want a boss you will file to shape by hand, and put the pad on the crest so both halves of the mould pull away from it. The pad seats a stone roughly diameter_mm - 1.2 across. For an elongated stone set `elong` to its length over its width so the stock follows the girdle instead of a circle drawn round its length, and `rot_deg` to turn it — 0 lays it along the ring, 90 across the band. Defaults: at the top of the ring, 5 mm across, 1.2 mm tall, crown 0.65, 0.8 mm skirt."
     )]
     async fn add_seat_pad_layer(
         &self,
@@ -1662,6 +1710,8 @@ impl RingDesignServer {
         put_f64(&mut s.theta_deg, p.theta_deg, "theta_deg", &mut applied)?;
         put_f64(&mut s.v_mm, p.v_mm, "v_mm", &mut applied)?;
         put_f64(&mut s.diameter_mm, p.diameter_mm, "diameter_mm", &mut applied)?;
+        put_range(&mut s.elong, p.elong, "elong", 1.0, 8.0, &mut applied)?;
+        put_f64(&mut s.rot_deg, p.rot_deg, "rot_deg", &mut applied)?;
         put_f64(&mut s.height_mm, p.height_mm, "height_mm", &mut applied)?;
         put_range(&mut s.crown, p.crown, "crown", 0.0, 1.0, &mut applied)?;
         put_f64(&mut s.blend_mm, p.blend_mm, "blend_mm", &mut applied)?;
@@ -1883,6 +1933,8 @@ impl RingDesignServer {
                 put_f64(&mut s.theta_deg, p.theta_deg, "theta_deg", &mut applied)?;
                 put_f64(&mut s.v_mm, p.v_mm, "v_mm", &mut applied)?;
                 put_f64(&mut s.diameter_mm, p.diameter_mm, "diameter_mm", &mut applied)?;
+                put_range(&mut s.elong, p.elong, "elong", 1.0, 8.0, &mut applied)?;
+                put_f64(&mut s.rot_deg, p.rot_deg, "rot_deg", &mut applied)?;
                 put_f64(&mut s.height_mm, p.height_mm, "height_mm", &mut applied)?;
                 put_range(&mut s.crown, p.crown, "crown", 0.0, 1.0, &mut applied)?;
                 put_f64(&mut s.blend_mm, p.blend_mm, "blend_mm", &mut applied)?;

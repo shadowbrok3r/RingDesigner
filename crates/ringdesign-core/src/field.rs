@@ -561,12 +561,13 @@ impl Layer {
                 if l.mirror { vec![f(v), f(mirrored(v))] } else { vec![f(v)] }
             }
             Layer::SeatPad(l) => {
-                let reach = l.diameter_mm * 0.5 + l.blend_mm.max(0.0);
+                let (hu, hv) = l.half_extents_mm();
+                let skirt = l.blend_mm.max(0.0);
                 let u0 = ctx.u_of_theta(l.theta_deg);
                 vec![FeatureFootprint {
                     min_feature_mm: l.blend_mm.clamp(0.15, l.diameter_mm.max(0.15)),
-                    u_mm: Some((u0 - reach, u0 + reach)),
-                    v_mm: (l.v_mm - reach, l.v_mm + reach),
+                    u_mm: Some((u0 - hu - skirt, u0 + hu + skirt)),
+                    v_mm: (l.v_mm - hv - skirt, l.v_mm + hv + skirt),
                 }]
             }
             Layer::Signet(l) => {
@@ -962,6 +963,29 @@ pub struct SeatPadLayer {
     /// the drill starts where the seat means it to. 0 is none.
     #[serde(default)]
     pub dimple_mm: f64,
+    /// Long axis over short, 1 = round. `diameter_mm` stays the short axis,
+    /// so an oval, marquise, emerald or baguette seat carries the stock its
+    /// own girdle needs instead of a circle drawn round its length.
+    #[serde(default = "default_elong")]
+    pub elong: f64,
+    /// Rotation of the long axis about the seat normal, degrees. 0 lays it
+    /// along the ring; 90 lays it across the band.
+    #[serde(default)]
+    pub rot_deg: f64,
+    /// Superellipse exponent of the rim in plan: 2 is an ellipse, 6 a
+    /// rounded rectangle for the step cuts, 1.5 the pointed ends of a
+    /// marquise. Read from the stone by [`fit_stone`](Self::fit_stone).
+    /// Floored at 1, which keeps the plan convex.
+    #[serde(default = "default_plan_pow")]
+    pub plan_pow: f64,
+}
+
+fn default_elong() -> f64 {
+    1.0
+}
+
+fn default_plan_pow() -> f64 {
+    2.0
 }
 
 fn default_bezel_wall() -> f64 {
@@ -992,8 +1016,63 @@ impl Default for SeatPadLayer {
             prong_mm: default_prong(),
             gem: None,
             dimple_mm: 0.0,
+            elong: default_elong(),
+            rot_deg: 0.0,
+            plan_pow: default_plan_pow(),
         }
     }
+}
+
+/// The radius of a superellipse with semi-axes `ra`, `rb` and exponent `n`,
+/// in the direction of `(a, b)` — the same plan a girdle and the stock cut
+/// for it both read, so a seat and the stone in it are never two shapes.
+///
+/// `n` is floored at 1, which keeps the outline convex: convex means
+/// star-shaped about the centre, which is what makes a mound built on it a
+/// monotone drop in every direction and so castable wherever a round one is.
+pub fn superellipse_radius_mm(a: f64, b: f64, ra: f64, rb: f64, n: f64) -> f64 {
+    let (ra, rb) = (ra.max(1e-9), rb.max(1e-9));
+    let n = n.max(1.0);
+    if ra <= rb * (1.0 + 1e-12) && (n - 2.0).abs() < 1e-12 {
+        return rb;
+    }
+    let d = (a * a + b * b).sqrt();
+    if d <= 1e-12 {
+        return rb;
+    }
+    let t = ((a / ra).abs().powf(n) + (b / rb).abs().powf(n)).powf(1.0 / n);
+    d / t.max(1e-12)
+}
+
+/// Half-extents of a superellipse plan along `u` and across `v`, mm, after
+/// turning it by `rot_deg` in the chart.
+///
+/// Exact at any bearing: a superellipse is the unit ball of a weighted
+/// `p`-norm, so its support function is the dual `q`-norm with
+/// `1/p + 1/q = 1`. At `p = 2` that is the familiar ellipse formula; as `p`
+/// grows the dual runs to `q = 1` and the answer becomes the rotated
+/// rectangle's, which is what a step cut wants.
+pub fn plan_half_extents_mm(ra: f64, rb: f64, n: f64, rot_deg: f64) -> (f64, f64) {
+    if rot_deg == 0.0 {
+        return (ra, rb);
+    }
+    let (sin, cos) = rot_deg.to_radians().sin_cos();
+    let (ca, sa) = (cos.abs(), sin.abs());
+    let n = n.max(1.0);
+    if n <= 1.0 + 1e-9 {
+        // The dual of the diamond is the box: the extent is whichever
+        // vertex reaches furthest.
+        return ((ra * ca).max(rb * sa), (ra * sa).max(rb * ca));
+    }
+    let q = n / (n - 1.0);
+    let dual = |x: f64, y: f64| (x.powf(q) + y.powf(q)).powf(1.0 / q);
+    (dual(ra * ca, rb * sa), dual(ra * sa, rb * ca))
+}
+
+/// The stone's own half-extents in the chart, mm — its girdle plan turned
+/// by the seat that holds it.
+pub fn gem_half_extents_mm(gem: crate::gem::Gem, rot_deg: f64) -> (f64, f64) {
+    plan_half_extents_mm(gem.l_mm * 0.5, gem.w_mm * 0.5, gem.cut.plan_pow(), rot_deg)
 }
 
 impl SeatPadLayer {
@@ -1005,32 +1084,102 @@ impl SeatPadLayer {
         }
     }
 
+    /// Stock allowance around the girdle, mm — the metal the bench cuts away.
+    fn stock_mm(&self) -> f64 {
+        match self.style {
+            SeatStyle::Bezel => 2.0 * self.bezel_wall_mm.max(0.2),
+            SeatStyle::Boss => 1.2,
+            SeatStyle::GypsyMound => 1.8,
+        }
+    }
+
     /// Size the pad for a chosen stone instead of inferring the stone from
     /// the pad — a bezel needs its walls around the girdle, a boss needs its
     /// drilling allowance around the seat.
+    ///
+    /// The allowance is a constant width all round, so an elongated stone's
+    /// pad is *less* elongated than the stone: `(l + stock) / (w + stock)`.
     pub fn fit_stone(&mut self, gem: crate::gem::Gem) {
         let w = gem.w_mm.max(0.5);
-        self.diameter_mm = match self.style {
-            SeatStyle::Bezel => w + 2.0 * self.bezel_wall_mm.max(0.2),
-            SeatStyle::Boss => w + 1.2,
-            SeatStyle::GypsyMound => w + 1.8,
-        };
+        let l = gem.l_mm.max(w);
+        let stock = self.stock_mm();
+        self.diameter_mm = w + stock;
+        self.elong = (l + stock) / (w + stock);
+        self.plan_pow = gem.cut.plan_pow();
         if self.style == SeatStyle::GypsyMound {
             self.crown = 1.0;
         }
         self.gem = Some(gem);
     }
 
+    /// Semi-axes of the pad's rim, mm: along its long axis, then across it.
+    pub fn semi_axes_mm(&self) -> (f64, f64) {
+        let rb = (self.diameter_mm * 0.5).max(1e-6);
+        (rb * self.elong.max(1.0), rb)
+    }
+
+    /// A sample's offset in the pad's own frame: along the long axis, then
+    /// across it.
+    fn pad_frame(&self, du: f64, dv: f64) -> (f64, f64) {
+        if self.rot_deg == 0.0 {
+            return (du, dv);
+        }
+        let (sin, cos) = self.rot_deg.to_radians().sin_cos();
+        (du * cos + dv * sin, -du * sin + dv * cos)
+    }
+
+    /// Rim radius in the direction of a pad-frame offset, mm — the plan
+    /// outline's own radius along that ray, and a constant for a round pad.
+    fn rim_mm(&self, a: f64, b: f64) -> f64 {
+        let (ra, rb) = self.semi_axes_mm();
+        superellipse_radius_mm(a, b, ra, rb, self.plan_pow)
+    }
+
+    /// The furthest the rim reaches from the seat centre, mm. A bound, and
+    /// exact for the ellipse family: a plan squarer than an ellipse pushes
+    /// its corners past the long semi-axis, out to the box diagonal.
+    fn plan_reach_mm(&self) -> f64 {
+        let (ra, rb) = self.semi_axes_mm();
+        if self.plan_pow <= 2.0 + 1e-12 {
+            ra
+        } else {
+            (ra * ra + rb * rb).sqrt()
+        }
+    }
+
+    /// Half-extents of the rim along `u` and across `v`, mm — what the band
+    /// edge, the bridge between neighbours and the refiner all measure
+    /// against.
+    pub fn half_extents_mm(&self) -> (f64, f64) {
+        let (ra, rb) = self.semi_axes_mm();
+        plan_half_extents_mm(ra, rb, self.plan_pow, self.rot_deg)
+    }
+
+    /// The stone's own half-reach across the band, mm — its width when it
+    /// lies along the ring, its length when the seat turns it across.
+    pub fn stone_half_v_mm(&self, gem: crate::gem::Gem) -> f64 {
+        gem_half_extents_mm(gem, self.rot_deg).1
+    }
+
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
-        let r = (self.diameter_mm * 0.5).max(1e-6);
         let blend = self.blend_mm.max(0.0);
         let u0 = ctx.u_of_theta(self.theta_deg);
         let du = wrap_delta(uv.u - u0, ctx.circumference_mm);
         let dv = uv.v - self.v_mm;
         let d = (du * du + dv * dv).sqrt();
-        if d > r + blend + self.prong_mm {
+        let (_, rb) = self.semi_axes_mm();
+        let skirt = if self.style == SeatStyle::GypsyMound { blend.max(0.3) } else { blend };
+        let prong_pad =
+            if self.prongs > 0 { (0.28 * rb).clamp(0.35, 0.8) * 0.4 } else { 0.0 };
+        if d > self.plan_reach_mm() + skirt + prong_pad {
             return 0.0;
         }
+        // The rim radius along this ray. Every law below is the same
+        // one-dimensional drop it always was, read at `d / r`, so an
+        // elongated pad is monotone from its centre in every direction
+        // exactly as a round one is.
+        let (a, b) = self.pad_frame(du, dv);
+        let r = self.rim_mm(a, b);
 
         let body = match self.style {
             SeatStyle::Boss => {
@@ -1082,17 +1231,21 @@ impl SeatPadLayer {
         if n == 0 {
             return body;
         }
-        // Drafted cone bumps on the seat circle, nearest-centre like milgrain.
-        let prong_r = (0.28 * r).clamp(0.35, 0.8);
-        let ring_r = (r - prong_r * 0.6).max(0.2);
-        let a0 = dv.atan2(du);
+        // Drafted cone bumps standing just inside the rim, evenly spaced
+        // round it — on the plan outline itself, so a turned or elongated
+        // seat carries its claws where its girdle is.
+        let prong_r = (0.28 * rb).clamp(0.35, 0.8);
         let step = std::f64::consts::TAU / n as f64;
-        let a_near = (a0 / step).round() * step;
-        let (px, py) = (ring_r * a_near.cos(), ring_r * a_near.sin());
-        let dp = ((du - px).powi(2) + (dv - py).powi(2)).sqrt();
-        let t = (dp / prong_r).clamp(0.0, 1.0);
-        let prong =
-            (self.height_mm + self.prong_mm) * (0.5 + 0.5 * (std::f64::consts::PI * t).cos());
+        let mut prong: f64 = 0.0;
+        for k in 0..n {
+            let (sin, cos) = (k as f64 * step).sin_cos();
+            let seat_r = (self.rim_mm(cos, sin) - prong_r * 0.6).max(0.2);
+            let dp = ((a - seat_r * cos).powi(2) + (b - seat_r * sin).powi(2)).sqrt();
+            let t = (dp / prong_r).clamp(0.0, 1.0);
+            prong = prong.max(
+                (self.height_mm + self.prong_mm) * (0.5 + 0.5 * (std::f64::consts::PI * t).cos()),
+            );
+        }
         body.max(prong)
     }
 
@@ -1456,14 +1609,21 @@ impl SeatRunLayer {
     /// stations of that seat plus the bridge that fit the ring.
     pub fn solve_spacing(&mut self, ctx: &FieldContext) {
         self.seat.fit_stone(self.gem);
-        let pitch = self.seat.diameter_mm.max(0.5) + self.bridge_mm.max(0.0);
+        let pitch = self.seat_span_mm().max(0.5) + self.bridge_mm.max(0.0);
         self.count = ((ctx.circumference_mm / pitch).floor() as u32).clamp(3, 200);
+    }
+
+    /// The seat's own reach along the ring, mm — its full width for a round
+    /// seat, its rotated ellipse's `u` extent for an elongated one. A row of
+    /// baguettes laid along the band packs by their length, not their width.
+    pub fn seat_span_mm(&self) -> f64 {
+        self.seat.half_extents_mm().0 * 2.0
     }
 
     /// Bridge actually left between neighbouring seats at the current count.
     pub fn bridge_at(&self, ctx: &FieldContext) -> f64 {
         let pitch = ctx.circumference_mm / self.count.max(1) as f64;
-        pitch - self.seat.diameter_mm
+        pitch - self.seat_span_mm()
     }
 
     /// Size factor at a ring angle: 1 at [`taper_theta_deg`](Self::taper_theta_deg),
@@ -1495,7 +1655,7 @@ impl SeatRunLayer {
     /// The posts' offset from the stone column, mm: post centres ride the
     /// girdle edge so the cut claw overhangs both stones.
     pub fn prong_off_mm(&self) -> f64 {
-        self.gem.w_mm * 0.5 + self.prong_r_mm() * 0.35
+        self.seat.stone_half_v_mm(self.gem) + self.prong_r_mm() * 0.35
     }
 
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
@@ -1547,7 +1707,7 @@ impl SeatRunLayer {
     }
 
     pub fn feature_footprints(&self, _ctx: &FieldContext) -> Vec<FeatureFootprint> {
-        let reach = self.seat.diameter_mm * 0.5 + self.seat.blend_mm;
+        let reach = self.seat.half_extents_mm().1 + self.seat.blend_mm;
         let mut out = vec![FeatureFootprint {
             min_feature_mm: (self.seat.diameter_mm * 0.2).max(0.15),
             u_mm: None,
@@ -2849,6 +3009,108 @@ mod tests {
             cast.undercut_fraction() < 0.001,
             "a gypsy-mound row locks: {:.3}%",
             cast.undercut_fraction() * 100.0
+        );
+    }
+
+    /// A stone is not a circle, and its stock should not be either. The pad
+    /// carries the girdle's own plan — its aspect, its superellipse exponent
+    /// and its bearing — and every measurement downstream reads the real
+    /// footprint rather than a diameter.
+    #[test]
+    fn an_elongated_seat_carries_its_stone_and_not_a_circle_round_it() {
+        let c = ctx();
+        let gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Marquise, 3.0);
+        assert!((gem.l_mm - 6.0).abs() < 1e-9, "a 3 mm marquise is 6 mm long");
+
+        let mut pad = SeatPadLayer { v_mm: 4.0, style: SeatStyle::Boss, ..Default::default() };
+        pad.fit_stone(gem);
+        // The stock allowance is a constant width all round, so the pad is
+        // less elongated than the stone it holds — but it still contains it.
+        let (ra, rb) = pad.semi_axes_mm();
+        assert!(ra * 2.0 >= gem.l_mm, "pad {:.2} mm long for a {:.2} mm stone", ra * 2.0, gem.l_mm);
+        assert!(rb * 2.0 >= gem.w_mm, "pad {:.2} mm wide for a {:.2} mm stone", rb * 2.0, gem.w_mm);
+        assert!(pad.elong > 1.4 && pad.elong < gem.l_mm / gem.w_mm, "elong {}", pad.elong);
+        assert_eq!(pad.plan_pow, crate::gem::GemCut::Marquise.plan_pow());
+
+        // A round pad is exactly what it always was.
+        let round = SeatPadLayer { v_mm: 4.0, ..Default::default() };
+        assert_eq!(round.half_extents_mm().0, round.diameter_mm * 0.5);
+        assert_eq!(round.half_extents_mm().1, round.diameter_mm * 0.5);
+
+        let u0 = c.u_of_theta(pad.theta_deg);
+        let at = |l: &SeatPadLayer, du: f64, dv: f64| {
+            l.height(Uv { u: u0 + du, v: 4.0 + dv }, &c)
+        };
+        // Metal reaches down the length and stops across the width.
+        assert!(at(&pad, ra - 0.3, 0.0) > 0.0, "no stock at the stone's point");
+        assert!(at(&pad, 0.0, rb + 0.05 + pad.blend_mm) <= 1e-9, "stock past the girdle's side");
+
+        // Turning the seat turns its reach with it, exactly.
+        let mut across = pad;
+        across.rot_deg = 90.0;
+        let (hu, hv) = across.half_extents_mm();
+        assert!((hu - rb).abs() < 1e-9 && (hv - ra).abs() < 1e-9, "turned extents {hu} {hv}");
+        assert!(at(&across, 0.0, ra - 0.3) > 0.0, "the length should now run across the band");
+
+        // The extent formula is the outline's own support function: check it
+        // against the sampled plan at a handful of bearings, every exponent.
+        for &n in &[1.5, 2.0, 3.2, 6.0] {
+            for &rot in &[0.0, 17.0, 45.0, 90.0, 123.0] {
+                let mut l = pad;
+                l.plan_pow = n;
+                l.rot_deg = rot;
+                let (ra, rb) = l.semi_axes_mm();
+                let (mut mu, mut mv) = (0.0f64, 0.0f64);
+                for i in 0..2048 {
+                    let t = i as f64 / 2048.0 * std::f64::consts::TAU;
+                    let (sn, cs) = t.sin_cos();
+                    // A point on the plan outline, in the pad's own frame.
+                    let (a, b) = (
+                        ra * cs.abs().powf(2.0 / n) * cs.signum(),
+                        rb * sn.abs().powf(2.0 / n) * sn.signum(),
+                    );
+                    let (s2, c2) = rot.to_radians().sin_cos();
+                    mu = mu.max((a * c2 - b * s2).abs());
+                    mv = mv.max((a * s2 + b * c2).abs());
+                }
+                let (hu, hv) = l.half_extents_mm();
+                assert!((hu - mu).abs() < 5e-3, "n {n} rot {rot}: u {hu} vs sampled {mu}");
+                assert!((hv - mv).abs() < 5e-3, "n {n} rot {rot}: v {hv} vs sampled {mv}");
+            }
+        }
+    }
+
+    /// The whole point of the plan being convex: a mound built on it is
+    /// still a monotone drop from a single crest in every direction, so an
+    /// elongated seat releases exactly where a round one does.
+    #[test]
+    fn an_elongated_gypsy_row_still_releases() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        let fc = d.field_context();
+        let mut run = SeatRunLayer::default();
+        run.gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Emerald, 1.8);
+        run.seat.v_mm = fc.crest_v_mm;
+        run.solve_spacing(&fc);
+        // A row of step cuts packs by its length, so it holds fewer stones
+        // than the same width of rounds would.
+        assert!(run.seat.elong > 1.2, "the seat took the stone's aspect");
+        assert!(run.bridge_at(&fc) > 0.0, "stones must not touch");
+
+        for dv in [-0.8, 0.0, 0.8] {
+            let v = fc.crest_v_mm + dv;
+            let a = run.height(Uv { u: 0.0, v }, &fc);
+            let b = run.height(Uv { u: fc.circumference_mm - 1e-9, v }, &fc);
+            assert!((a - b).abs() < 1e-6, "joint mismatch at v {v}");
+        }
+
+        d.layers.layers.push(LayerEntry::new("eternity", Layer::SeatRun(run)));
+        let v = crate::castability::analyze_field(&d, &lib, &d.draft, 192, 96);
+        assert!(
+            v.undercut_fraction() < 0.001,
+            "an elongated gypsy row locks: {:.3}%",
+            v.undercut_fraction() * 100.0
         );
     }
 
