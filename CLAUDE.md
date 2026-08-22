@@ -1117,6 +1117,19 @@ emits one line per distinct seat.
   so in sand the report says "cast flush and bead-set or judge for lost
   wax", the field verdict enforces it, and the sheet prints the claw stock
   (pairs, post Ø, proud mm) for the setter either way.
+- **Tilted runs**: `SeatRunLayer::tilt_deg` turns every stone of a row in
+  plan on top of the seat's own bearing — 45 sets a square stone on the
+  diagonal, which is what the factory eternity's boolean "Tilt Gems" means,
+  and it composes with the graduation. One helper, `turned`, is the only
+  way the row reads its seat's plan — span, height, footprints, prong
+  offset, the stone record and the report's check all go through it — so
+  the row re-packs to the reach it actually has and `bridge_at` still says
+  what the solver asked for. A princess plan is a rounded square
+  (`plan_pow` ≈ 4), so its diagonal support grows 1.19×, not the box's
+  1.41×. A turned convex plan is still one monotone mound: measured clean
+  on the crest line and on a 7×5 side face. On the default 2 mm band the
+  same 2.5 mm row spills over both edges of a 1.7 mm face at 3.0% — that
+  is the stone being too big for the face, not the tilt.
 - **`ShankKind::Split`**: the castable read of a split shank. A real split —
   two crests — is a valley no single parting plane clears; instead the band
   flares 55% over a 110° arc while a channel is carved into *each side face*

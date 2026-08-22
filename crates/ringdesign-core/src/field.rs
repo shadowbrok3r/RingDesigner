@@ -1692,6 +1692,12 @@ pub struct SeatRunLayer {
     /// 0 and bead-set from the cast surface.
     #[serde(default)]
     pub shared_prong_mm: f64,
+    /// Every stone turned in plan by this bearing, degrees, on top of the
+    /// seat's own: 45 sets a square stone on the diagonal. A turned convex
+    /// plan is still one monotone mound, so the row pulls wherever it did;
+    /// it re-packs to the reach it has.
+    #[serde(default)]
+    pub tilt_deg: f64,
 }
 
 fn default_taper_theta() -> f64 {
@@ -1721,11 +1727,18 @@ impl Default for SeatRunLayer {
             taper: 0.0,
             taper_theta_deg: default_taper_theta(),
             shared_prong_mm: 0.0,
+            tilt_deg: 0.0,
         }
     }
 }
 
 impl SeatRunLayer {
+    /// A seat as the row sets it: turned by the tilt.
+    pub fn turned(&self, mut seat: SeatPadLayer) -> SeatPadLayer {
+        seat.rot_deg += self.tilt_deg;
+        seat
+    }
+
     /// Solve the count from the stone: fit the seat first, then take the most
     /// stations of that seat plus the bridge that fit the ring.
     pub fn solve_spacing(&mut self, ctx: &FieldContext) {
@@ -1808,7 +1821,7 @@ impl SeatRunLayer {
     /// seat, its rotated ellipse's `u` extent for an elongated one. A row of
     /// baguettes laid along the band packs by their length, not their width.
     pub fn seat_span_mm(&self) -> f64 {
-        self.seat.half_extents_mm().0 * 2.0
+        self.turned(self.seat).half_extents_mm().0 * 2.0
     }
 
     /// Bridge actually left between neighbouring seats, mm of metal.
@@ -1862,7 +1875,7 @@ impl SeatRunLayer {
     /// The posts' offset from the stone column, mm: post centres ride the
     /// girdle edge so the cut claw overhangs both stones.
     pub fn prong_off_mm(&self) -> f64 {
-        self.seat.stone_half_v_mm(self.gem) + self.prong_r_mm() * 0.35
+        self.turned(self.seat).stone_half_v_mm(self.gem) + self.prong_r_mm() * 0.35
     }
 
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
@@ -1876,7 +1889,7 @@ impl SeatRunLayer {
         let k = self.station_of_theta(theta, ctx).round();
         let mut h: f64 = 0.0;
         for dk in [-1.0, 0.0, 1.0] {
-            let mut s = self.seat;
+            let mut s = self.turned(self.seat);
             s.theta_deg = self.theta_of_station(k + dk, ctx);
             s.v_mm = self.seat.v_mm;
             // Graduation scales the whole seat with its stone — footprint,
@@ -1913,7 +1926,7 @@ impl SeatRunLayer {
     }
 
     pub fn feature_footprints(&self, _ctx: &FieldContext) -> Vec<FeatureFootprint> {
-        let reach = self.seat.half_extents_mm().1 + self.seat.blend_mm;
+        let reach = self.turned(self.seat).half_extents_mm().1 + self.seat.blend_mm;
         let mut out = vec![FeatureFootprint::round(
             (self.seat.diameter_mm * 0.2).max(0.15),
             None,
@@ -4561,5 +4574,81 @@ mod silhouette_tests {
             worst = worst.max(run);
         }
         assert!(worst < 8, "the body's low edge holds one value over {worst} stations");
+    }
+}
+
+#[cfg(test)]
+mod tilt_tests {
+    use super::*;
+    use crate::gem::{Gem, GemCut};
+    use crate::{LayerEntry, RingDesign};
+
+    fn princess_row(d: &RingDesign, v_mm: f64, tilt: f64) -> SeatRunLayer {
+        let ctx = d.field_context();
+        let mut run = SeatRunLayer::default();
+        run.gem = Gem::calibrated(GemCut::Princess, 2.5);
+        run.seat.v_mm = v_mm;
+        run.tilt_deg = tilt;
+        run.solve_spacing(&ctx);
+        run
+    }
+
+    #[test]
+    fn a_tilted_run_turns_every_stone_and_repacks_to_its_reach() {
+        let mut d = RingDesign::default();
+        let ctx = d.field_context();
+        let straight = princess_row(&d, ctx.crest_v_mm, 0.0);
+        let tilted = princess_row(&d, ctx.crest_v_mm, 45.0);
+        assert!(tilted.count < straight.count, "a square on the diagonal spans more of the ring: {} vs {}", tilted.count, straight.count);
+        // A princess plan is a rounded square: its diagonal support is 1.19x, not the box's 1.41x.
+        assert!(tilted.seat_span_mm() > straight.seat_span_mm() * 1.1);
+        assert!(tilted.turned(tilted.seat).half_extents_mm().1 > straight.seat.half_extents_mm().1, "the reach across the band grows too");
+        assert!(tilted.bridge_at(&ctx) >= tilted.bridge_mm - 1e-6, "the row holds at least the bridge it solved for");
+        assert!(tilted.bridge_at(&ctx) < tilted.bridge_mm + 0.6);
+        // The mound's peak is the seat's height whichever way it is turned.
+        for run in [&straight, &tilted] {
+            let uv = Uv { u: ctx.u_of_theta(run.theta_of_station(0.0, &ctx)), v: run.seat.v_mm };
+            assert!((run.height(uv, &ctx) - run.seat.height_mm).abs() < 1e-6);
+        }
+        d.layers.layers.push(LayerEntry::new("Row", Layer::SeatRun(tilted)));
+        let stones = crate::setstone::set_stones(&d);
+        assert_eq!(stones.len() as u32, tilted.count);
+        assert!(stones.iter().all(|s| (s.seat.rot_deg - (tilted.seat.rot_deg + 45.0)).abs() < 1e-9));
+        let report = crate::stones::report(&d, 0.0).unwrap();
+        assert!((report.seats[0].bridge_mm.unwrap() - tilted.bridge_at(&ctx)).abs() < 1e-9, "the report says what the row holds");
+    }
+
+    #[test]
+    fn a_tilted_row_on_the_crest_and_on_a_side_face_still_pulls() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut crest = RingDesign::default();
+        let ctx = crest.field_context();
+        let run = princess_row(&crest, ctx.crest_v_mm, 45.0);
+        crest.layers.layers.push(LayerEntry::new("Row", Layer::SeatRun(run)));
+        let f = crate::castability::analyze_field(&crest, &lib, &crest.draft, 192, 128);
+        assert!(f.undercut_fraction() < 5e-4, "crest: {}", f.undercut_fraction());
+
+        // A face wide enough to hold the row: the 7x5 squared band of the
+        // arc-scale table, 4 mm of face against the turned stone's 2 mm reach.
+        let mut side = RingDesign::default();
+        side.profile.width_mm = 7.0;
+        side.profile.thickness_mm = 5.0;
+        side.profile.apply_style(crate::ProfileStyle::Flat);
+        side.profile.flatten_sides();
+        let ctx = side.field_context();
+        let sf = ctx.side_faces_std().expect("a squared band has side faces");
+        let face = sf.low.or(sf.high).expect("a side run");
+        let run = princess_row(&side, 0.5 * (face.0 + face.1), 45.0);
+        side.layers.layers.push(LayerEntry::new("Row", Layer::SeatRun(run)));
+        let f = crate::castability::analyze_field(&side, &lib, &side.draft, 192, 128);
+        assert!(f.undercut_fraction() < 5e-4, "side face: {}", f.undercut_fraction());
+    }
+
+    #[test]
+    fn a_run_saved_without_a_tilt_reads_zero() {
+        let mut v = serde_json::to_value(SeatRunLayer::default()).unwrap();
+        v.as_object_mut().unwrap().remove("tilt_deg");
+        let run: SeatRunLayer = serde_json::from_value(v).unwrap();
+        assert_eq!(run.tilt_deg, 0.0);
     }
 }

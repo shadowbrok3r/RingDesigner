@@ -223,6 +223,7 @@ fn seatrun_node() -> NodeSpec {
     .field(PinSpec::item("taper", ValueKind::Number).widget(Widget::Slider { min: 0.0, max: 0.85 }).doc("Graduation toward the far side, 0..0.85."))
     .field(PinSpec::item("taper_theta_deg", ValueKind::Number).widget(Widget::Angle).doc("Where the largest stone sits."))
     .field(PinSpec::item("shared_prong_mm", ValueKind::Number).doc("Shared prong post diameter, mm; 0 for none."))
+    .field(PinSpec::item("tilt_deg", ValueKind::Number).widget(Widget::Angle).doc("Every stone turned in plan, degrees; 45 sets a square on the diagonal."))
     .hidden(&["seat"])
     .prepare(seatrun_seat)
     .build()

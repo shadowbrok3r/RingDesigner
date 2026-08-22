@@ -2258,6 +2258,25 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
             ui.end_row();
         }
 
+        ui.label("Tilt");
+        if ui
+            .add(
+                egui::DragValue::new(&mut r.tilt_deg)
+                    .speed(1.0)
+                    .range(-90.0..=90.0)
+                    .suffix("°"),
+            )
+            .on_hover_text(
+                "Every stone turned in plan: 45 sets a square stone on the diagonal. \
+                 The row re-packs to the reach it has.",
+            )
+            .changed()
+        {
+            r.solve_spacing(fctx);
+            c = true;
+        }
+        ui.end_row();
+
         ui.label("Count");
         ui.horizontal(|ui| {
             c |= ui.add(egui::Slider::new(&mut r.count, 3..=120)).changed();
