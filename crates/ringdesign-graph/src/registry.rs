@@ -160,7 +160,12 @@ impl From<String> for Literal {
 /// What one evaluation of a node sees besides its inputs.
 pub struct EvalCtx<'a> {
     pub lib: &'a AlphaLibrary,
+    pub reg: &'a Registry,
     pub mode: Mode,
+    /// How deep in clusters this evaluation runs; the root is 0.
+    pub depth: usize,
+    /// The alpha library's epoch, for nested evaluations.
+    pub lib_epoch: u64,
     /// Whether sinks that write files or spawn work may do so this run.
     pub run_side_effects: bool,
     /// Which item of an implicit list this run is, and how many there are.
@@ -171,8 +176,8 @@ pub struct EvalCtx<'a> {
 }
 
 impl<'a> EvalCtx<'a> {
-    pub fn new(lib: &'a AlphaLibrary, mode: Mode) -> Self {
-        Self { lib, mode, run_side_effects: false, item: 0, items: 1, warnings: Vec::new() }
+    pub fn new(lib: &'a AlphaLibrary, reg: &'a Registry, mode: Mode) -> Self {
+        Self { lib, reg, mode, depth: 0, lib_epoch: 0, run_side_effects: false, item: 0, items: 1, warnings: Vec::new() }
     }
 
     pub fn warn(&mut self, message: impl Into<String>) {
@@ -287,8 +292,9 @@ impl From<anyhow::Error> for NodeError {
 /// Evaluate one item of a node. A closure, so an adapter built over a
 /// table (a struct's fields, a script's pins) can carry it.
 pub type EvalFn = Arc<dyn Fn(&mut EvalCtx<'_>, &Node, &Inputs) -> Result<Outputs, NodeError> + Send + Sync>;
-/// Pins for one instance, read from its params.
-pub type ResolveFn = fn(&NodeSpec, &Node) -> (Vec<PinSpec>, Vec<PinSpec>);
+/// Pins for one instance, read from its params (and, for a cluster, the
+/// registry that types the nodes inside it).
+pub type ResolveFn = fn(&NodeSpec, &Node, &Registry) -> (Vec<PinSpec>, Vec<PinSpec>);
 /// Rewrite a node saved under an older graph format version.
 pub type MigrateFn = fn(&mut Node, u32);
 
@@ -388,9 +394,9 @@ impl NodeSpec {
 
     /// The pins this instance has: the static ones, or what `resolve`
     /// reads from the node's params.
-    pub fn pins_for(&self, node: &Node) -> (Vec<PinSpec>, Vec<PinSpec>) {
+    pub fn pins_for(&self, node: &Node, reg: &Registry) -> (Vec<PinSpec>, Vec<PinSpec>) {
         match self.resolve {
-            Some(f) => f(self, node),
+            Some(f) => f(self, node, reg),
             None => (self.inputs.clone(), self.outputs.clone()),
         }
     }
@@ -456,14 +462,14 @@ impl Registry {
 
     /// The resolved pins of a node, or `None` for an unknown kind.
     pub fn node_pins(&self, node: &Node) -> Option<(Vec<PinSpec>, Vec<PinSpec>)> {
-        self.get(&node.kind).map(|s| s.pins_for(node))
+        self.get(&node.kind).map(|s| s.pins_for(node, self))
     }
 }
 
 impl PinLookup for Registry {
     fn pins(&self, node: &Node) -> Option<NodePins> {
         let spec = self.get(&node.kind)?;
-        let (inputs, outputs) = spec.pins_for(node);
+        let (inputs, outputs) = spec.pins_for(node, self);
         Some(NodePins {
             inputs: inputs.iter().map(PinSpec::info).collect(),
             outputs: outputs.iter().map(PinSpec::info).collect(),
@@ -486,7 +492,7 @@ mod tests {
     }
 
     /// A script-like node: pins named in params.
-    fn script_pins(_: &NodeSpec, node: &Node) -> (Vec<PinSpec>, Vec<PinSpec>) {
+    fn script_pins(_: &NodeSpec, node: &Node, _: &Registry) -> (Vec<PinSpec>, Vec<PinSpec>) {
         let names = |key: &str| -> Vec<PinSpec> {
             node.params
                 .get(key)
@@ -565,7 +571,7 @@ mod tests {
     fn eval_functions_read_inputs_and_attribute_errors() {
         let reg = specs();
         let lib = AlphaLibrary::default();
-        let mut ctx = EvalCtx::new(&lib, Mode::SandRing);
+        let mut ctx = EvalCtx::new(&lib, &reg, Mode::SandRing);
         let node = Node { id: crate::graph::NodeId(1), kind: "math.add".into(), params: serde_json::Value::Null, inputs: Default::default(), pos: [0.0; 2], label: None };
         let mut inputs = Inputs::default();
         inputs.values.insert("a".into(), Value::Number(1.5));

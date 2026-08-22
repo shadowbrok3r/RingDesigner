@@ -36,6 +36,7 @@
 //! [`eval`], then the node library under [`nodes`].
 
 pub mod eval;
+pub mod file;
 pub mod graph;
 pub mod nodes;
 pub mod registry;
