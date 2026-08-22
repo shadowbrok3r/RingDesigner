@@ -14,5 +14,6 @@ ringdesign-core.workspace = true
 ringdesign-graph.workspace = true
 ringdesign-script.workspace = true
 pyo3 = { version = "0.29", features = ["extension-module", "abi3-py312"] }
+serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true

@@ -3063,6 +3063,7 @@ dependencies = [
  "ringdesign-core",
  "ringdesign-graph",
  "ringdesign-script",
+ "serde",
  "serde_json",
 ]
 
