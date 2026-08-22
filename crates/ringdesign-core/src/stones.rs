@@ -664,13 +664,14 @@ fn check_seat(
     }
 }
 
-/// Height the girdle sits above the base surface: the pad top for a drilled
-/// seat, the pocket floor for a bezel.
+/// Height the girdle sits above the base surface, mm — the pad's stand-off
+/// less how deep the stone is set into it. A seat with no stone assigned is
+/// judged on the one it says it could hold.
 fn stand_off(seat: &SeatPadLayer) -> f64 {
-    match seat.style {
-        SeatStyle::Bezel => (seat.height_mm - seat.recess_mm).max(0.0),
-        _ => seat.height_mm.max(0.0),
-    }
+    let gem = seat.gem.unwrap_or_else(|| {
+        crate::gem::Gem::calibrated(crate::gem::GemCut::Round, seat.suggested_stone_mm())
+    });
+    seat.stand_off_mm(gem)
 }
 
 struct BasePoint {
@@ -733,6 +734,48 @@ mod tests {
         run.solve_spacing(&ctx);
         d.layers.layers.push(LayerEntry::new("Eternity", Layer::SeatRun(run)));
         d
+    }
+
+    /// How deep a stone is set was two numbers that disagreed: the preview
+    /// sank the girdle by a fraction of the stone's depth while the report
+    /// credited the whole pad height as metal under it. One authored number
+    /// now, and both read it.
+    #[test]
+    fn how_deep_the_stone_sits_is_one_number() {
+        use crate::field::{SeatPadLayer, SeatStyle};
+
+        let gem = Gem::calibrated(GemCut::Round, 3.0);
+        let mut boss = SeatPadLayer { style: SeatStyle::Boss, height_mm: 1.2, ..Default::default() };
+        boss.fit_stone(gem);
+        // A drilled pad takes the stone a whisker in; the report credits the
+        // pad height less that, not the whole of it.
+        let drop = boss.girdle_drop_mm(gem);
+        assert!(drop > 0.0 && drop < boss.height_mm, "{drop}");
+        assert!((boss.stand_off_mm(gem) - (boss.height_mm - drop)).abs() < 1e-12);
+        assert!((stand_off(&boss) - boss.stand_off_mm(gem)).abs() < 1e-12);
+
+        // A bezel's girdle lands on its pocket floor, by construction.
+        let mut bezel = SeatPadLayer {
+            style: SeatStyle::Bezel,
+            height_mm: 1.2,
+            recess_mm: 0.4,
+            ..Default::default()
+        };
+        bezel.fit_stone(gem);
+        assert!((bezel.girdle_drop_mm(gem) - 0.4).abs() < 1e-12);
+
+        // A cabochon rests on its bed.
+        let cab = Gem::cabochon(GemCut::Round, 3.0);
+        let mut bed = SeatPadLayer { style: SeatStyle::GypsyMound, ..Default::default() };
+        bed.fit_stone(cab);
+        assert_eq!(bed.girdle_drop_mm(cab), 0.0);
+
+        // Authored outright, and never past the pad's own top.
+        let mut set = boss;
+        set.set_depth_mm = Some(5.0);
+        assert!((set.girdle_drop_mm(gem) - set.height_mm).abs() < 1e-12);
+        set.set_depth_mm = Some(-1.0);
+        assert_eq!(set.girdle_drop_mm(gem), 0.0);
     }
 
     /// A cabochon is flat-backed, so a seat owes it a bed and not a hole.
@@ -821,8 +864,11 @@ mod tests {
         let hit = r.crowding.first().expect("two stones 1.2 mm apart are a pair");
         assert_eq!(r.tight_pairs, 1);
         assert!(hit.gap_mm < 0.0, "these two overlap: {:.3} mm", hit.gap_mm);
-        // Chord at the girdle radius, less both stones' half-widths.
-        let girdle_r = ctx.crest_radius_mm + 1.2;
+        // Chord at the girdle radius, less both stones' half-widths. The
+        // girdle rides the pad's stand-off, which is its height less how
+        // deep the stone is set into it.
+        let seat = pad(90.0);
+        let girdle_r = ctx.crest_radius_mm + seat.stand_off_mm(seat.gem.unwrap());
         let want = 2.0 * girdle_r * 3.0f64.to_radians().sin() - 3.0;
         assert!((hit.gap_mm - want).abs() < 0.02, "{:.3} vs {want:.3}", hit.gap_mm);
         assert!(r.crowding_note().is_some());

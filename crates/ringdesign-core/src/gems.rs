@@ -8,7 +8,7 @@
 
 use crate::alpha::AlphaLibrary;
 use crate::castability::section_at;
-use crate::field::{FieldContext, Layer, LayerEntry, LayerStack, SeatStyle, Uv};
+use crate::field::{FieldContext, Layer, LayerEntry, LayerStack, Uv};
 use crate::gem::{Gem, GemCut};
 use crate::RingDesign;
 
@@ -116,15 +116,9 @@ fn place(
     ];
     let b = cross(n, t);
 
-    // The girdle settles into the seat: below the rim of a bezel's pocket,
-    // a whisker into a drilled pad — the pavilion disappears into the metal
-    // and the crown stands proud, which is what a set stone looks like. A
-    // flat-backed cabochon has nothing to bury, so it sits on its bed.
-    let settle = match (gem.form, seat.style) {
-        (crate::gem::GemForm::Cabochon, _) => 0.0,
-        (_, SeatStyle::Bezel) => 0.35 * gem.depth_mm(),
-        _ => 0.22 * gem.depth_mm(),
-    };
+    // The girdle settles into the seat by the depth the seat is set to —
+    // the same number the pavilion check credits as metal under the stone.
+    let settle = seat.girdle_drop_mm(gem);
     let centre = [
         pos[0] - n[0] * settle,
         pos[1] - n[1] * settle,

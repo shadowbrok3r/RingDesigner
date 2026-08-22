@@ -978,6 +978,15 @@ pub struct SeatPadLayer {
     /// Floored at 1, which keeps the plan convex.
     #[serde(default = "default_plan_pow")]
     pub plan_pow: f64,
+    /// How far the girdle sits below the pad's top, mm — how deep the stone
+    /// is set. `None` takes the style's own: a bezel's pocket floor, a
+    /// whisker into a drilled pad, flush on a cabochon's bed.
+    ///
+    /// One number for a thing the model used to hold in two places that
+    /// disagreed: the preview sank a stone by a fraction of its depth while
+    /// the report credited the whole pad height as metal under it.
+    #[serde(default)]
+    pub set_depth_mm: Option<f64>,
 }
 
 fn default_elong() -> f64 {
@@ -1019,6 +1028,7 @@ impl Default for SeatPadLayer {
             elong: default_elong(),
             rot_deg: 0.0,
             plan_pow: default_plan_pow(),
+            set_depth_mm: None,
         }
     }
 }
@@ -1159,6 +1169,29 @@ impl SeatPadLayer {
     /// lies along the ring, its length when the seat turns it across.
     pub fn stone_half_v_mm(&self, gem: crate::gem::Gem) -> f64 {
         gem_half_extents_mm(gem, self.rot_deg).1
+    }
+
+    /// How far the girdle sits below the pad's top, mm. The one number the
+    /// preview, the pavilion check and the spacing census all read, so the
+    /// stone they each mean is the same stone.
+    pub fn girdle_drop_mm(&self, gem: crate::gem::Gem) -> f64 {
+        let d = self.set_depth_mm.unwrap_or(match (gem.form, self.style) {
+            // A cabochon is flat-backed: it rests on the surface it is given.
+            (crate::gem::GemForm::Cabochon, _) => 0.0,
+            // A bezel's pocket floor is where the girdle lands, by
+            // construction — the collar is then burnished over it.
+            (_, SeatStyle::Bezel) => self.recess_mm.max(0.0),
+            // A drilled pad takes the stone a whisker in, so the pavilion
+            // disappears into metal and the crown stands proud.
+            _ => 0.22 * gem.depth_mm(),
+        });
+        d.clamp(0.0, self.height_mm.max(0.0))
+    }
+
+    /// Height of the girdle over the bare band, mm — the pad's own stand-off
+    /// less how deep the stone is set into it.
+    pub fn stand_off_mm(&self, gem: crate::gem::Gem) -> f64 {
+        (self.height_mm - self.girdle_drop_mm(gem)).max(0.0)
     }
 
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {

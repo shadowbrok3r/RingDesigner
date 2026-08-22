@@ -2481,6 +2481,42 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .changed();
         ui.end_row();
 
+        ui.label("Set depth");
+        ui.horizontal(|ui| {
+            let gem = p.gem.unwrap_or_default();
+            let auto = p.set_depth_mm.is_none();
+            let mut on = !auto;
+            if ui
+                .checkbox(&mut on, "")
+                .on_hover_text("Off takes the style's own: a bezel's pocket floor, a whisker                                 into a drilled pad, flush on a cabochon's bed")
+                .changed()
+            {
+                p.set_depth_mm = on.then(|| p.girdle_drop_mm(gem));
+                c = true;
+            }
+            match &mut p.set_depth_mm {
+                Some(d) => {
+                    c |= ui
+                        .add(
+                            egui::DragValue::new(d)
+                                .speed(0.01)
+                                .range(0.0..=p.height_mm.max(0.01))
+                                .suffix(" mm"),
+                        )
+                        .on_hover_text("How far the girdle sits below the pad's top")
+                        .changed();
+                }
+                None => {
+                    ui.label(
+                        egui::RichText::new(format!("{:.2} mm", p.girdle_drop_mm(gem)))
+                            .small()
+                            .color(theme::TEXT_DIM),
+                    );
+                }
+            }
+        });
+        ui.end_row();
+
         c
     });
 

@@ -1073,6 +1073,18 @@ run 1.7 and 1.6), its dome is a medium 0.45 of width, its weight is half an
 ellipsoid at 0.0176 ct/mm³, and it sits *on* its bed in the preview instead
 of burying a pavilion it does not have.
 
+### How deep the stone sits is one number
+
+`SeatPadLayer::set_depth_mm` (`Option`, `None` = the style's own) is how far
+the girdle sits below the pad's top, and `girdle_drop_mm` / `stand_off_mm`
+are what everything reads. It replaces two constants that disagreed:
+`gems.rs` sank the drawn stone by 0.22 of its depth (0.35 for a bezel) while
+`stones.rs` credited the *whole* pad height as metal under it — so the report
+claimed 0.41 mm more room than the preview showed, and a bezel's two figures
+were unrelated numbers. The derived defaults are the physical ones: a
+bezel's girdle lands on its pocket floor, a drilled pad takes the stone a
+whisker in, a cabochon rests flush on its bed.
+
 ### Stone against stone: the pairwise census
 
 A run's `bridge_mm` only knows its own neighbours, so a pad beside a run,

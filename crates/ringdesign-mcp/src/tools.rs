@@ -573,6 +573,10 @@ pub struct AddSeatPadParams {
     /// Turn the pad about its own normal, degrees. 0 lays the long axis
     /// along the ring; 90 stands it across the band.
     pub rot_deg: Option<f64>,
+    /// How far the girdle sits below the pad's top, mm — how deep the stone
+    /// is set. Omit to take the style's own: a bezel's pocket floor, a
+    /// whisker into a drilled pad, flush on a cabochon's bed.
+    pub set_depth_mm: Option<f64>,
     /// Peak displacement, mm.
     pub height_mm: Option<f64>,
     /// 0 is a flat-topped boss, 1 a full dome.
@@ -1712,6 +1716,10 @@ impl RingDesignServer {
         put_f64(&mut s.diameter_mm, p.diameter_mm, "diameter_mm", &mut applied)?;
         put_range(&mut s.elong, p.elong, "elong", 1.0, 8.0, &mut applied)?;
         put_f64(&mut s.rot_deg, p.rot_deg, "rot_deg", &mut applied)?;
+        if let Some(d) = p.set_depth_mm {
+            s.set_depth_mm = Some(d);
+            applied.push(format!("set_depth_mm={d}"));
+        }
         put_f64(&mut s.height_mm, p.height_mm, "height_mm", &mut applied)?;
         put_range(&mut s.crown, p.crown, "crown", 0.0, 1.0, &mut applied)?;
         put_f64(&mut s.blend_mm, p.blend_mm, "blend_mm", &mut applied)?;
