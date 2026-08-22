@@ -7,8 +7,10 @@
 
 use crate::registry::Registry;
 
+pub mod band;
 pub mod list;
 pub mod math;
+pub mod shank;
 pub mod source;
 pub mod structs;
 pub mod text;
@@ -19,6 +21,8 @@ pub fn register_all(reg: &mut Registry) {
     math::register(reg);
     list::register(reg);
     text::register(reg);
+    band::register(reg);
+    shank::register(reg);
 }
 
 #[cfg(test)]
@@ -38,11 +42,14 @@ mod tests {
             let spec = reg.get(key).unwrap();
             assert!(!spec.doc.is_empty(), "{key} has no doc");
             assert!(!spec.label.is_empty(), "{key} has no label");
-            assert!(key.contains('.') || matches!(key, "number" | "int" | "bool" | "text" | "series" | "range"), "{key} is not family.name");
-            let mut seen = BTreeSet::new();
-            for p in spec.inputs.iter().chain(&spec.outputs) {
-                assert!(seen.insert(&p.name), "{key} names pin {:?} twice", p.name);
-                assert!(!p.doc.is_empty(), "{key}.{} has no doc", p.name);
+            assert!(key.contains('.') || matches!(key, "number" | "int" | "bool" | "text" | "series" | "range" | "shank" | "head"), "{key} is not family.name");
+            // Inputs and outputs are separate namespaces: a wire names one of each.
+            for pins in [&spec.inputs, &spec.outputs] {
+                let mut seen = BTreeSet::new();
+                for p in pins {
+                    assert!(seen.insert(&p.name), "{key} names pin {:?} twice", p.name);
+                    assert!(!p.doc.is_empty(), "{key}.{} has no doc", p.name);
+                }
             }
             for p in &spec.inputs {
                 let scalar = matches!(p.kind, ValueKind::Number | ValueKind::Int | ValueKind::Bool | ValueKind::Text);

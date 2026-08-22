@@ -2745,6 +2745,62 @@ impl std::fmt::Debug for CustomOutline {
     }
 }
 
+/// `1 − area / hull area`: how deeply lobed a closed plan is. A circle or a
+/// square is ~0, a four-leaf clover ~0.2.
+pub fn hull_defect(pts: &[[f64; 2]]) -> f64 {
+    fn cross(o: [f64; 2], a: [f64; 2], b: [f64; 2]) -> f64 {
+        (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    }
+    fn area(poly: &[[f64; 2]]) -> f64 {
+        let n = poly.len();
+        if n < 3 {
+            return 0.0;
+        }
+        (0..n)
+            .map(|i| {
+                let (p, q) = (poly[i], poly[(i + 1) % n]);
+                p[0] * q[1] - q[0] * p[1]
+            })
+            .sum::<f64>()
+            .abs()
+            * 0.5
+    }
+    let mut p: Vec<[f64; 2]> = pts.to_vec();
+    p.sort_by(|a, b| a[0].total_cmp(&b[0]).then(a[1].total_cmp(&b[1])));
+    p.dedup();
+    if p.len() < 3 {
+        return 0.0;
+    }
+    let mut lo: Vec<[f64; 2]> = Vec::new();
+    for &q in &p {
+        while lo.len() >= 2 && cross(lo[lo.len() - 2], lo[lo.len() - 1], q) <= 0.0 {
+            lo.pop();
+        }
+        lo.push(q);
+    }
+    let mut up: Vec<[f64; 2]> = Vec::new();
+    for &q in p.iter().rev() {
+        while up.len() >= 2 && cross(up[up.len() - 2], up[up.len() - 1], q) <= 0.0 {
+            up.pop();
+        }
+        up.push(q);
+    }
+    lo.pop();
+    up.pop();
+    lo.extend(up);
+    let hull = area(&lo);
+    if hull < 1e-12 { 0.0 } else { (1.0 - area(pts) / hull).max(0.0) }
+}
+
+/// The fairing ball for a plan this lobed: the calibrated default for a
+/// convex plan, rising to 2.5 half-lengths at a 15% hull defect, so a
+/// clover's notches bridge flat in the body and the lobes read at the
+/// table's rim instead of rippling the whole flank.
+pub fn fair_r_for(defect: f64) -> f64 {
+    let t = ((defect - 0.02) / 0.13).clamp(0.0, 1.0);
+    default_fair_r() + t * 1.75
+}
+
 impl Clone for CustomOutline {
     fn clone(&self) -> Self {
         Self {
@@ -2798,7 +2854,7 @@ impl CustomOutline {
             name: name.into(),
             r: table.r.iter().map(|&v| v as f32).collect(),
             aspect: (w / h).clamp(0.05, 20.0),
-            fair_r: default_fair_r(),
+            fair_r: fair_r_for(hull_defect(&dense)),
             cache: std::sync::OnceLock::new(),
         })
     }
@@ -4354,6 +4410,32 @@ mod silhouette_tests {
         assert!((lo + hi).abs() < 1e-3, "{lo} {hi}");
     }
 
+    /// The import sizes the fairing ball from the plan's own hull defect,
+    /// as the exporter does, so a drawn clover goes onto the cut dome
+    /// without anyone setting a number.
+    #[test]
+    fn fair_r_follows_the_hull_defect() {
+        let ring = |f: &dyn Fn(f64) -> f64| -> Vec<[f64; 2]> {
+            (0..360).map(|k| { let t = (k as f64).to_radians(); let r = f(t); [r * t.cos(), r * t.sin()] }).collect()
+        };
+        let circle = ring(&|_| 1.0);
+        assert!(hull_defect(&circle) < 0.01);
+        assert!((fair_r_for(hull_defect(&circle)) - default_fair_r()).abs() < 1e-9, "a convex plan keeps the default");
+        let square: Vec<[f64; 2]> = vec![[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]];
+        assert!(hull_defect(&square) < 1e-9);
+        let clover = ring(&|t| 0.62 + 0.38 * (4.0 * t).cos());
+        let d = hull_defect(&clover);
+        assert!(d > 0.15, "four deep lobes: defect {d}");
+        assert_eq!(fair_r_for(d), default_fair_r() + 1.75);
+        let o = CustomOutline::from_points("Clover", &clover).unwrap();
+        assert!(o.fair_r > 1.2, "{}", o.fair_r);
+        let mut shank = crate::profile::ShankStyle::default();
+        let v = shank.adopt_outline(o);
+        assert_eq!(shank.suggest_dome(v), 1.0);
+        let oval = CustomOutline::from_points("Oval", &ring(&|t| 1.0 / (t.cos().powi(2) + (1.4 * t.sin()).powi(2)).sqrt())).unwrap();
+        assert!((oval.fair_r - default_fair_r()).abs() < 1e-9);
+    }
+
     #[test]
     fn a_drawn_outline_makes_a_head_that_pulls() {
         // The hostile plan, as a closed polyline.
@@ -4422,6 +4504,7 @@ mod silhouette_tests {
         // smooth lens and the lobes read in the arris — and it fields clean
         // there too.
         let mut lobed = co.clone();
+        assert!(lobed.fair_r > 1.2, "a clipped star's hull defect sizes its own ball: {}", lobed.fair_r);
         lobed.fair_r = 2.0;
         let mut d2 = d.clone();
         let o2 = d2.shank.adopt_outline(lobed);

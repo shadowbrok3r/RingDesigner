@@ -863,8 +863,11 @@ inherited, not re-proven per shape.
 **The fairing ball is per-import** (`CustomOutline::fair_r`, default the
 calibrated `BODY_FAIR_R` 0.75), because 0.75 is tuned on a heart's two
 gentle lobes and a four-lobe clover corrugates a flank it only smooths.
-The importer sizes it from the plan's convex-hull area defect; closing is
-extensive at any radius, so containment is not a function of the choice.
+`CustomOutline::from_points` sizes it from the plan's convex-hull area
+defect (`hull_defect` → `fair_r_for`: the default for a convex plan,
+rising to 2.5 at a 15% defect — the exporter's own rule, so the GUI, MCP
+and graph imports agree with it); closing is extensive at any radius, so
+containment is not a function of the choice.
 And the table's *quality* matters as much as the machinery: 256
 uniform-parameter curve samples left chord kinks that swept ripple bands
 down every wall (clover max second difference 0.0121; 0.0044 after
