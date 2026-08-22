@@ -19,6 +19,8 @@ pub mod list;
 pub mod math;
 pub mod shank;
 pub mod sink;
+#[cfg(feature = "kernel-manifold")]
+pub mod solid;
 pub mod source;
 pub mod structs;
 pub mod text;
@@ -39,6 +41,8 @@ pub fn register_all(reg: &mut Registry) {
     sink::register(reg);
     cluster::register(reg);
     idiom::register(reg);
+    #[cfg(feature = "kernel-manifold")]
+    solid::register(reg);
 }
 
 #[cfg(test)]

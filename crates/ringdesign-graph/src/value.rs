@@ -35,6 +35,8 @@ pub trait SolidHandle: Send + Sync {
     fn describe(&self) -> String;
     /// The solid's surface as a core mesh, if the kernel can produce one.
     fn to_mesh(&self) -> Option<Mesh>;
+    /// For the kernel crate to get its own type back.
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// An alpha as source data: what the design file carries and the library

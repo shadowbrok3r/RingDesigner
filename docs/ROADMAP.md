@@ -148,7 +148,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 
 - [x] **M7.1 Kernel crate** (L, #65). Manifold behind `kernel-manifold` (off by default; the default
   build has no C++); `Solid`, frames, tubes, `Parts{add,cut}`, mesh conversion + validation.
-- [ ] **M7.2 Free-mode nodes** (L, #66). Primitives, extrude/revolve, from-design, booleans, frames on
+- [x] **M7.2 Free-mode nodes** (L, #66). Primitives, extrude/revolve, from-design, booleans, frames on
   the ring, tubes, mesh import, the mesh verifier, mesh export.
 - [ ] **M7.3 mandrel merge** (M, #67). The vine semi-mount as a cluster; carat calibration
   reconciled; its MCP retired in favour of `graph_*`.

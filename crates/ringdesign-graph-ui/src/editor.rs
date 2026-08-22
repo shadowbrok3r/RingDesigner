@@ -294,6 +294,7 @@ impl Editor {
             viewport_center: viewport.center(),
             seen_transform: None,
             collapse_request: None,
+            mode: self.graph.mode,
         };
         self.snarl.show(&mut viewer, &self.style, id_salt, ui);
         let clicked = viewer.clicked;
@@ -456,6 +457,7 @@ struct Viewer<'a> {
     viewport_center: egui::Pos2,
     seen_transform: Option<egui::emath::TSTransform>,
     collapse_request: Option<SnarlId>,
+    mode: ringdesign_graph::graph::Mode,
 }
 
 /// The footprint a node is assumed to take when fitting or mapping.
@@ -650,8 +652,7 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
         ui.set_min_width(220.0);
         ui.label(RichText::new("Add node").small().weak());
         ui.add(egui::TextEdit::singleline(&mut self.search).hint_text("search…"));
-        let mode = ringdesign_graph::graph::Mode::SandRing;
-        let specs = self.reg.list(mode);
+        let specs = self.reg.list(self.mode);
         let needle = self.search.trim().to_lowercase();
         if !needle.is_empty() {
             egui::ScrollArea::vertical().max_height(260.0).show(ui, |ui| {
@@ -755,7 +756,7 @@ mod tests {
 
         // Text -> Number is refused by the viewer; Number -> Number replaces.
         let (mut snarl, ids) = build_snarl(&g, &reg);
-        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport_center: egui::Pos2::ZERO, seen_transform: None, collapse_request: None };
+        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport_center: egui::Pos2::ZERO, seen_transform: None, collapse_request: None, mode: Mode::SandRing };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
         viewer.connect(&text_out, &add_b, &mut snarl);
