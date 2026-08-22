@@ -74,11 +74,18 @@ struct Piece {
     slug: &'static str,
     title: &'static str,
     blurb: &'static str,
-    tint: [f32; 3],
-    /// Hero attitude; 1.12 is the catalogue three-quarter.
-    pitch: f64,
-    /// Look down the finger at the -Z face instead of the +Z one.
-    flip: bool,
+    /// What this piece is here to show.
+    feature: &'static str,
+    /// Band size, as built.
+    size: String,
+    metal: &'static str,
+    verdict: String,
+    undercut_pct: f64,
+    thinnest_wall_mm: f64,
+    stones: u32,
+    carats: f64,
+    /// Girdle and culet gap of the closest pair, mm.
+    closest: Option<(f64, f64)>,
     notes: Vec<String>,
 }
 
@@ -98,15 +105,19 @@ fn main() {
     pieces.push(melee_band(&dir, &mut lib));
 
     write_index(&dir, &pieces);
+    write_json(&dir, &pieces);
     println!("\n{} pieces -> {dir}/index.html", pieces.len());
 }
 
 /// Field-check, render, save. The gallery refuses to ship an uncastable ring.
+#[allow(clippy::too_many_arguments)]
 fn finish(
     dir: &str,
     slug: &'static str,
     title: &'static str,
+    feature: &'static str,
     blurb: &'static str,
+    metal: &'static str,
     tint: [f32; 3],
     pitch: f64,
     flip: bool,
@@ -118,6 +129,9 @@ fn finish(
     let mut notes = Vec::new();
 
     let field = castability::analyze_field(&d, lib, &d.draft, 288, 144);
+    let mut stones_n = 0u32;
+    let mut carats = 0.0;
+    let mut closest = None;
     println!("{slug:<22} {blurb}");
     println!(
         "{:<22} {}: {:.4}% undercut, worst {:+.1} deg, thinnest wall {:.2} mm",
@@ -141,6 +155,9 @@ fn finish(
         notes.push(format!("DFM: {}", f.message));
     }
     if let Some(s) = stones::report(&d, field.parting_z_mm) {
+        stones_n = s.stone_count;
+        carats = s.total_carats;
+        closest = s.closest.as_ref().map(|c| (c.gap_mm, c.gap_deep_mm));
         println!("{:<22}   stones: {} • {:.2} ct", "", s.stone_count, s.total_carats);
         notes.push(format!("{} stones, {:.2} ct total", s.stone_count, s.total_carats));
         if let Some(c) = &s.closest {
@@ -201,7 +218,26 @@ fn finish(
     std::fs::create_dir_all(&designs).unwrap();
     library::save_design(designs.join(format!("{slug}.ring.json")), &d).unwrap();
     println!();
-    Piece { slug, title, blurb, tint, pitch, flip, notes }
+    Piece {
+        slug,
+        title,
+        blurb,
+        feature,
+        size: format!(
+            "{} · {:.1} x {:.1} mm",
+            d.size.display(),
+            d.profile.width_mm,
+            d.profile.thickness_mm
+        ),
+        metal,
+        verdict: field.verdict.label().to_string(),
+        undercut_pct: field.undercut_fraction() * 100.0,
+        thinnest_wall_mm: field.thinnest_wall_mm,
+        stones: stones_n,
+        carats,
+        closest,
+        notes,
+    }
 }
 
 /// A square crop of an RGB buffer, given as fractions of the edge.
@@ -215,6 +251,43 @@ fn crop(path: &str, img: &[u8], edge: usize, x: f64, y: f64, size: f64) {
         out[r * s * 3..(r + 1) * s * 3].copy_from_slice(&img[src..src + s * 3]);
     }
     image::save_buffer(path, &out, s as u32, s as u32, image::ColorType::Rgb8).unwrap();
+}
+
+/// The pieces as data, so a page or a sheet can be built from the run
+/// rather than transcribed off its console.
+fn write_json(dir: &str, pieces: &[Piece]) {
+    let esc = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
+    let mut out = String::from("[\n");
+    for (i, p) in pieces.iter().enumerate() {
+        let closest = match p.closest {
+            Some((g, c)) => format!("[{g:.3},{c:.3}]"),
+            None => "null".into(),
+        };
+        let notes: Vec<String> =
+            p.notes.iter().map(|n| format!("\"{}\"", esc(n))).collect();
+        out.push_str(&format!(
+            "  {{\"slug\":\"{}\",\"title\":\"{}\",\"feature\":\"{}\",\"blurb\":\"{}\",\
+             \"size\":\"{}\",\"metal\":\"{}\",\"verdict\":\"{}\",\"undercut_pct\":{:.4},\
+             \"thinnest_wall_mm\":{:.2},\"stones\":{},\"carats\":{:.2},\"closest\":{},\
+             \"notes\":[{}]}}{}\n",
+            p.slug,
+            esc(p.title),
+            esc(p.feature),
+            esc(p.blurb),
+            esc(&p.size),
+            p.metal,
+            esc(&p.verdict),
+            p.undercut_pct,
+            p.thinnest_wall_mm,
+            p.stones,
+            p.carats,
+            closest,
+            notes.join(","),
+            if i + 1 == pieces.len() { "" } else { "," }
+        ));
+    }
+    out.push_str("]\n");
+    std::fs::write(format!("{dir}/gallery.json"), out).unwrap();
 }
 
 fn write_index(dir: &str, pieces: &[Piece]) {
@@ -243,7 +316,6 @@ fn write_index(dir: &str, pieces: &[Piece]) {
             h.push_str(&format!("<li>{}</li>", n.replace('<', "&lt;")));
         }
         h.push_str("</ul></div></div>");
-        let _ = (p.tint, p.pitch, p.flip);
     }
     std::fs::write(format!("{dir}/index.html"), h).unwrap();
 }
@@ -275,9 +347,11 @@ fn marquise_eternity(dir: &str, lib: &mut AlphaLibrary) -> Piece {
         dir,
         "01-marquise-eternity",
         "Marquise eternity",
+        "Seat plan",
         "A full ring of marquise stones lying along the band. The seat carries the girdle's \
          own pointed plan, so the stock reaches the stone's tips instead of a circle drawn \
          round its length.",
+        "White gold",
         WHITE,
         1.12,
         false,
@@ -306,9 +380,11 @@ fn emerald_graduated(dir: &str, lib: &mut AlphaLibrary) -> Piece {
         dir,
         "02-emerald-graduated",
         "Graduated emerald band",
+        "Graduated spacing",
         "Step cuts falling away from the top. The stations close up as the stones shrink so \
          the metal between them stays the same all the way round — and the report measures \
          that metal again at the culet, where the ring's own curvature has closed the arc in.",
+        "18k yellow",
         YELLOW,
         1.12,
         false,
@@ -350,9 +426,11 @@ fn cabochon_gypsy(dir: &str, lib: &mut AlphaLibrary) -> Piece {
         dir,
         "03-cabochon-gypsy",
         "Gypsy-set oval cabochon",
+        "Stone form",
         "A 5 mm flat-backed oval, gypsy set flush into the crown. The model used to refuse \
          this stone outright — it read a faceted pavilion and asked for millimetres of metal \
          under a cabochon that needs a bed and nothing more.",
+        "Rose gold",
         ROSE,
         1.12,
         false,
@@ -408,10 +486,12 @@ fn oval_halo(dir: &str, lib: &mut AlphaLibrary) -> Piece {
         dir,
         "04-oval-halo",
         "Oval halo",
+        "Halo outline",
         "An oval centre on a gentle plate, ringed by melee, on a shank that widens under \
          the head and falls away behind. The halo is the centre stone's own outline grown by \
          the gap, with its accents spaced at equal arc length round it — an oval halo, not a \
          circle drawn round an oval.",
+        "Platinum",
         PLATINUM,
         1.12,
         false,
@@ -474,9 +554,11 @@ fn pinned_pave(dir: &str, lib: &mut AlphaLibrary) -> Piece {
         dir,
         "05-pinned-pave",
         "Pinned pavé",
+        "Pinned seats",
         "A side-face pavé with one seat the packer does not own: a larger stone pinned at the \
          top, and a clear span cut opposite for an engraved date. Change the band and the row \
          re-packs around both.",
+        "White gold",
         WHITE,
         1.12,
         low,
@@ -504,9 +586,11 @@ fn baguette_channel(dir: &str, lib: &mut AlphaLibrary) -> Piece {
         dir,
         "06-baguette-channel",
         "Turned baguette band",
+        "Seat rotation",
         "Baguettes stood across the band instead of along it. The seat turns with the stone, \
          so the row re-packs to the reach it actually has and the report measures the band \
          edge against the stone's length rather than its width.",
+        "18k yellow",
         YELLOW,
         1.12,
         false,
@@ -545,9 +629,11 @@ fn trilogy(dir: &str, lib: &mut AlphaLibrary) -> Piece {
         dir,
         "07-trilogy",
         "Oval and pear trilogy",
+        "Spacing census",
         "Three stones from three layers that know nothing about each other. The pairwise \
          census measures the metal between them anyway — at the girdle and again at the \
          culet, where the arc has closed in.",
+        "Rose gold",
         ROSE,
         1.12,
         false,
@@ -583,9 +669,11 @@ fn melee_band(dir: &str, lib: &mut AlphaLibrary) -> Piece {
         dir,
         "08-melee-band",
         "Side-face melee band",
+        "Arc metric",
         "The plain case, and the one the arc metric changed. A side face sits at 0.85 of the \
          crest radius, so the row is packed by the metal it really has rather than by the \
          chart's arc — the count and the bridge are both honest now.",
+        "Platinum",
         PLATINUM,
         1.12,
         low,
