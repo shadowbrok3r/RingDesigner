@@ -1774,6 +1774,16 @@ Lock toggle (`Editor::editable`). Verify with `cargo test -p
 ringdesigner_android` on the host and `cargo ndk -t arm64-v8a check -p
 ringdesigner_android` from the crate dir with `ANDROID_NDK_HOME` set.
 
+The phone's exports (`export.rs`) run one thread per job — STL, 3MF, GLB,
+sheet, render, turntable — and open the share sheet from `poll_exports`
+when the file lands, so an export is never coalesced away behind a
+preview build, the guarantee the desktop's `export.rs` also makes. "Save a
+copy to Downloads" is the durable mirror: `HostExt::save_to_gallery`
+inserts a non-media file into MediaStore Downloads, which survives an
+uninstall where app storage does not. Opening a `.ring.json` from another
+app is still not possible — the framework has no incoming-intent plumbing,
+and an intent filter the app then ignores would be worse than none.
+
 ## The `parallel` feature and the wasm door
 
 `ringdesign-core` puts rayon behind a default-on **`parallel`** feature;

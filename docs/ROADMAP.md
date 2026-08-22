@@ -158,8 +158,11 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 - [x] **M8.1 Android graph tab** (M, #73). Touch mechanics (drag classification, long-press menus,
   lock); graphs arrive by the design sync and evaluate locally. Shipped in the EguiMobile
   workspace as ringdesigner-android 0.9.0.
-- [ ] **M8.2 Mobile leftovers** (M). Intent filters, durable mirror, export worker, the full
-  phone-shaped port.
+- [x] **M8.2a Export worker and a durable copy** (S, #75). Exports on their own threads, never
+  dropped behind a preview build; the design file copied to Downloads through MediaStore.
+- [ ] **M8.2b Intent filters and the phone-shaped port** (M). Opening a design file from another
+  app needs incoming-intent plumbing in the shared egui-android crate (Java + JNI, none exists)
+  and a device to test; the layer stack editor, section view and report stay desktop-only for now.
 - [x] **M8.3 Web configurator** (M, #71). `build-a-ring` on wasm; `compose::Config` reused verbatim.
 
 ## M9 — Backlog (parking lot) — epic #25
