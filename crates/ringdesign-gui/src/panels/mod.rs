@@ -121,12 +121,20 @@ impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
         egui::ScrollArea::vertical()
             .id_salt(("tool", tool.label()))
             .auto_shrink([false, false])
-            .show(ui, |ui| match tool {
-                ToolKind::Design => design::ui(self.app, ui),
-                ToolKind::Layers => layers::ui(self.app, ui),
-                ToolKind::Report => report::ui(self.app, ui),
-                ToolKind::Library => library::ui(self.app, ui),
-                ToolKind::Node => node::ui(self.app, ui),
+            .show(ui, |ui| {
+                // While a graph drives the design these panels only show;
+                // the graph is where edits go.
+                let driven = self.app.graph_driven() && matches!(tool, ToolKind::Design | ToolKind::Layers | ToolKind::Library);
+                if driven {
+                    driven_banner(self.app, ui, tool);
+                }
+                ui.add_enabled_ui(!driven, |ui| match tool {
+                    ToolKind::Design => design::ui(self.app, ui),
+                    ToolKind::Layers => layers::ui(self.app, ui),
+                    ToolKind::Report => report::ui(self.app, ui),
+                    ToolKind::Library => library::ui(self.app, ui),
+                    ToolKind::Node => node::ui(self.app, ui),
+                });
             });
         egui_tiles::UiResponse::None
     }
@@ -339,6 +347,39 @@ enum Command {
     ShowGraphPane,
     ArrangeGraph,
     DeleteNode,
+}
+
+/// The strip over a panel whose design is driven by a graph.
+fn driven_banner(app: &mut RingDesignerApp, ui: &mut egui::Ui, tool: ToolKind) {
+    egui::Frame::NONE
+        .fill(theme::PANEL)
+        .stroke(egui::Stroke::new(1.0, theme::ACCENT_DIM))
+        .inner_margin(egui::Margin::symmetric(8, 6))
+        .corner_radius(4.0)
+        .show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.colored_label(theme::ACCENT, format!("{} Driven by the graph", icon::GRAPH));
+                ui.weak("— edit the graph, or bake it to edit here.");
+                if ui.small_button(format!("{} Edit graph", icon::GRAPH)).clicked() {
+                    app.show_graph_pane();
+                }
+                if ui.small_button(format!("{} Bake", icon::FIRE)).on_hover_text("Drop the graph; keep the design as last evaluated").clicked() {
+                    app.bake_graph();
+                }
+            });
+            if tool == ToolKind::Layers && !app.design.layers.layers.is_empty() {
+                ui.horizontal_wrapped(|ui| {
+                    ui.weak("Edit in graph:");
+                    let names: Vec<String> = app.design.layers.layers.iter().map(|e| e.name.clone()).collect();
+                    for (k, name) in names.iter().enumerate() {
+                        if ui.small_button(name).on_hover_text("Find the node that produced this layer").clicked() {
+                            app.edit_in_graph(k);
+                        }
+                    }
+                });
+            }
+        });
+    ui.add_space(4.0);
 }
 
 impl Command {

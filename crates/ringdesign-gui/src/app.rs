@@ -843,6 +843,23 @@ impl RingDesignerApp {
         self.graph_changed();
     }
 
+    /// Jump to the node that produced the k-th layer of the stack.
+    pub fn edit_in_graph(&mut self, layer: usize) {
+        let Some(ed) = &mut self.graph_ed else { return };
+        let entries = ed.graph().entry_nodes();
+        match entries.get(layer).copied() {
+            Some(id) => {
+                ed.focus(id);
+                self.selected_node = Some(id);
+                self.show_graph_pane();
+                if !self.dock.is_open(crate::dock::ToolKind::Node) {
+                    self.dock.open_on(crate::dock::ToolKind::Node, crate::dock::Side::Right);
+                }
+            }
+            None => self.set_status("No entry node for that layer; the graph builds its stack another way"),
+        }
+    }
+
     pub fn delete_selected_node(&mut self) {
         let Some(id) = self.selected_node.take() else { return };
         if let Some(ed) = &mut self.graph_ed {

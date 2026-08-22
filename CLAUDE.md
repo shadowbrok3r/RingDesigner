@@ -1550,6 +1550,35 @@ created on demand, so everything the app writes lands in one predictable tree.
 Recent, missing files disabled rather than hidden); File > New from template
 lists `templates::all()` with blurbs as hover text.
 
+### The graph pane, the node tool, and the bridge
+
+A design with `graph` set is **driven**: `app.sync_graph` rebuilds the
+`ringdesign_graph_ui::Editor` whenever `design.graph` differs from what the
+editor last saw (history, MCP, a file, Convert, Bake), and
+`app.graph_changed` writes the editor's graph back and marks dirty. The
+build worker evaluates the graph before it builds (a persistent
+`Evaluator`; the library's `Arc` identity is its epoch), builds the
+evaluated design, reuses the evaluation's field report, and returns
+per-node values and notes; `tick` splices the evaluated design in *under
+whatever the graph has become since*, so an edit made during a build is
+never clobbered. `mark_dirty` skips `regenerate_live` on a driven design —
+its generators are nodes on the worker.
+
+`PaneKind::Graph` is the editor (arrange, bake, the empty state offering
+Convert / the simple graph / the template graphs); `ToolKind::Node` is
+the inspector (pins with widgets or the wire feeding them, expose and
+withdraw, output values, params, diagnostics). While driven, the Design,
+Layers and Tiles tools show a banner and their bodies are disabled —
+the graph is where edits go — and the Layers banner lists the stack's
+entries as **Edit in graph** buttons: `Graph::entry_nodes` (the `entry`
+nodes in evaluation order, the lift's stack order) finds the producing
+node, the editor centres on it through snarl's `current_transform`, and
+the Node tool opens. Bake drops the graph and the design stays exactly as
+last evaluated. The Delete key acts on the active pane: a selected node
+in a Graph pane, otherwise the selected layer. History names a graph
+change as a document — converted, edited, baked — which is why
+`first_difference` treats a key present on one side only as a change.
+
 ### Paint-on-band: pressure is millimetres, the ceiling is the draft
 
 `paint.rs` (core) is the brush both apps share: `bite()` resolves a press

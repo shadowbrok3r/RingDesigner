@@ -113,7 +113,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 - [x] **M3.3 Desktop integration** (M, #41). `PaneKind::Graph` + a node-inspector dock tool; graph
   state on the app with a sync rule against `design.graph`; evaluation on the build worker;
   history labels; palette commands.
-- [ ] **M3.4 Simple ↔ graph bridge** (M, #42). Convert to graph, live banner with panels disabled
+- [x] **M3.4 Simple ↔ graph bridge** (M, #42). Convert to graph, live banner with panels disabled
   while driven, Bake, "Edit in graph".
 
 ## M4 — Scripting, MCP and CLI (L) — epic #20

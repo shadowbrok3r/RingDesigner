@@ -173,12 +173,14 @@ pub struct Editor {
     pub selected: Option<NodeId>,
     pub editable: bool,
     style: SnarlStyle,
+    /// A node to centre the view on at the next frame.
+    pending_focus: Option<NodeId>,
 }
 
 impl Editor {
     pub fn new(graph: Graph, reg: &Registry) -> Self {
         let (snarl, ids) = build_snarl(&graph, reg);
-        Self { graph, snarl, ids, revision: 0, selected: None, editable: true, style: SnarlStyle::new() }
+        Self { graph, snarl, ids, revision: 0, selected: None, editable: true, style: SnarlStyle::new(), pending_focus: None }
     }
 
     pub fn graph(&self) -> &Graph {
@@ -232,9 +234,27 @@ impl Editor {
         }
     }
 
+    /// Centre the view on a node at the next frame, and select it.
+    pub fn focus(&mut self, id: NodeId) {
+        if self.graph.contains(id) {
+            self.pending_focus = Some(id);
+            self.selected = Some(id);
+        }
+    }
+
     /// Draw the editor and extract any change.
     pub fn show(&mut self, reg: &Registry, ui: &mut Ui, id_salt: &str) -> EditorResponse {
-        let mut viewer = Viewer { reg, editable: self.editable, clicked: None, refused: None, search: String::new(), ids: &self.ids };
+        let focus = self.pending_focus.take().and_then(|id| self.ids.to_snarl.get(&id).copied());
+        let mut viewer = Viewer {
+            reg,
+            editable: self.editable,
+            clicked: None,
+            refused: None,
+            search: String::new(),
+            ids: &self.ids,
+            focus,
+            viewport_center: ui.available_rect_before_wrap().center(),
+        };
         self.snarl.show(&mut viewer, &self.style, id_salt, ui);
         let clicked = viewer.clicked;
         let refused = viewer.refused.take();
@@ -379,6 +399,8 @@ struct Viewer<'a> {
     refused: Option<String>,
     search: String,
     ids: &'a IdMap,
+    focus: Option<SnarlId>,
+    viewport_center: egui::Pos2,
 }
 
 fn pin_info(pin: &PinSpec) -> PinInfo {
@@ -452,6 +474,18 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     fn show_on_hover_popup(&mut self, node: SnarlId, _inputs: &[InPin], _outputs: &[OutPin], ui: &mut Ui, snarl: &mut Snarl<NodeCard>) {
         for d in &snarl[node].diag {
             ui.colored_label(Color32::from_rgb(220, 90, 90), d);
+        }
+    }
+
+    fn current_transform(&mut self, to_global: &mut egui::emath::TSTransform, snarl: &mut Snarl<NodeCard>) {
+        if let Some(sid) = self.focus.take() {
+            if let Some(info) = snarl.get_node_info(sid) {
+                // The node's top-left, pushed a little so the header sits
+                // near the centre rather than the corner.
+                let anchor = info.pos + egui::vec2(110.0, 40.0);
+                let scale = to_global.scaling.max(0.1);
+                to_global.translation = self.viewport_center.to_vec2() - anchor.to_vec2() * scale;
+            }
         }
     }
 
@@ -609,7 +643,7 @@ mod tests {
 
         // Text -> Number is refused by the viewer; Number -> Number replaces.
         let (mut snarl, ids) = build_snarl(&g, &reg);
-        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids };
+        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, viewport_center: egui::Pos2::ZERO };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
         viewer.connect(&text_out, &add_b, &mut snarl);
@@ -645,6 +679,28 @@ mod tests {
         assert!(ed.remove(p));
         let extracted = extract_graph(ed.snarl(), ed.graph());
         assert!(extracted.nodes.is_empty() && extracted.exposed.is_empty());
+    }
+
+    #[test]
+    fn focus_selects_and_is_consumed_by_a_frame() {
+        let reg = Registry::builtin();
+        let g = ringdesign_graph::templates::graph("Braided band").unwrap();
+        let entries = g.entry_nodes();
+        assert_eq!(entries.len(), 2, "two layers, two entry nodes, in stack order");
+        assert!(g.node(entries[0]).unwrap().inputs.get("name") == Some(&Literal::Text("Braid".into())));
+        let mut ed = Editor::new(g, &reg);
+        ed.focus(entries[1]);
+        assert_eq!(ed.selected, Some(entries[1]));
+        assert!(ed.pending_focus.is_some());
+        let mut harness = egui_kittest::Harness::new_ui(|ui| {
+            ed.show(&reg, ui, "focus-editor");
+        });
+        harness.set_size(egui::vec2(900.0, 600.0));
+        harness.run();
+        drop(harness);
+        assert!(ed.pending_focus.is_none(), "one frame consumes the focus");
+        ed.focus(NodeId(999));
+        assert!(ed.pending_focus.is_none(), "an unknown node is ignored");
     }
 
     #[test]
