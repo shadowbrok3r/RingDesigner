@@ -171,8 +171,9 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   `setstone::SetStone`, enumerated once, read by the census, the preview and the section view.
 - [x] Graduated tilted stones on a run (S–M, gated on a field check, #79): `SeatRunLayer::tilt_deg`,
   clean on the crest and on a side face.
-- Bezel realism following the girdle (S–M); gallery/hollow underside (M–L); the bypass read as a
-  `ShankKind` (M).
+- [x] Bezel realism following the girdle (S–M, #81): the collar's height from the stone's crown, a
+  bearing ledge with a dished floor, the section view's girdle at the stand-off.
+- Gallery/hollow underside (M–L); the bypass read as a `ShankKind` (M).
 - Shelf: stone spacing map SVG; march instances along a guide path; blue-noise scatter
   generator; mm-true mask morphology; alpha granulometry; nesting-depth stepped relief; honest
   rope rail; `stones::probe_seat`; pearl stock; flat-edged seat plans.

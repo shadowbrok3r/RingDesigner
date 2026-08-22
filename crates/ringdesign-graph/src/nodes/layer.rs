@@ -172,6 +172,8 @@ fn seat_node() -> NodeSpec {
     .field(PinSpec::select("style", enum_names(SeatStyle::ALL)).doc("Boss, bezel or gypsy mound."))
     .field(PinSpec::item("bezel_wall_mm", ValueKind::Number).doc("Bezel wall, mm."))
     .field(PinSpec::item("recess_mm", ValueKind::Number).doc("Bezel recess, mm."))
+    .field(PinSpec::item("bezel_lip", ValueKind::Number).widget(Widget::Slider { min: 0.0, max: 0.8 }).doc("How far up the crown the collar stands, fraction; fit derives the height."))
+    .field(PinSpec::item("bezel_bearing_mm", ValueKind::Number).doc("The girdle's ledge inside the wall, mm."))
     .field(PinSpec::item("prongs", ValueKind::Int).doc("Prong bumps; 0 for none."))
     .field(PinSpec::item("prong_mm", ValueKind::Number).doc("Prong diameter, mm."))
     .field(PinSpec::item("gem", ValueKind::Gem).doc("The stone this seat carries."))

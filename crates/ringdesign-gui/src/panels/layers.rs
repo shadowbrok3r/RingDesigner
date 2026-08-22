@@ -2462,6 +2462,25 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
                 .on_hover_text("Pocket depth below the rim")
                 .changed();
             ui.end_row();
+
+            ui.label("Lip");
+            c |= ui
+                .add(egui::Slider::new(&mut p.bezel_lip, 0.0..=0.8).step_by(0.05))
+                .on_hover_text("How far up the stone's crown the collar stands; Fit derives the height from it")
+                .changed();
+            ui.end_row();
+
+            ui.label("Bearing");
+            c |= ui
+                .add(
+                    egui::DragValue::new(&mut p.bezel_bearing_mm)
+                        .speed(0.01)
+                        .range(0.1..=0.8)
+                        .suffix(" mm"),
+                )
+                .on_hover_text("The ledge the girdle rests on inside the wall; the floor dishes toward the pavilion inside it")
+                .changed();
+            ui.end_row();
         }
 
         ui.label("Bur dimple");
