@@ -38,8 +38,10 @@
 pub mod eval;
 pub mod file;
 pub mod graph;
+pub mod lift;
 pub mod nodes;
 pub mod registry;
+pub mod templates;
 pub mod value;
 
 /// Most items one pin accepts; a longer list is truncated with a warning.

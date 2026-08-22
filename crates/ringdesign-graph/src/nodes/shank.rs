@@ -47,6 +47,8 @@ fn shank_node() -> NodeSpec {
     .field(PinSpec::item("amount", ValueKind::Number).widget(Widget::Slider { min: 0.0, max: 1.0 }).doc("The modulation's strength, 0..1."))
     .field(PinSpec::item("waves", ValueKind::Int).doc("Waves round the ring for Wave and Twist; an integer, so the joint closes."))
     .field(PinSpec::item("head", ValueKind::Head).doc("The signet head."))
+    .field_at(PinSpec::item("head_theta_deg", ValueKind::Number).widget(Widget::Angle).doc("Where the head sits; 90° is the top."), "/head/theta_deg")
+    .field_at(PinSpec::item("head_length_mm", ValueKind::Number).widget(Widget::Mm { min: 2.0, max: 40.0 }).doc("The face's length along the ring, mm."), "/head/length_mm")
     .hidden(&["extra_heads", "keys", "custom_outlines"])
     .build()
 }

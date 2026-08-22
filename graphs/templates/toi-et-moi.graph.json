@@ -1,0 +1,132 @@
+{
+  "format_version": 1,
+  "name": "Toi et moi",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.profile",
+      "inputs": {
+        "flatten_sides": true,
+        "style": "Flat",
+        "thickness_mm": 1.8,
+        "width_mm": 12.0
+      },
+      "pos": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "shank.signet",
+      "inputs": {
+        "band_width_mm": 12.0,
+        "outline": "Oval"
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "shank",
+      "inputs": {
+        "amount": 0.75,
+        "head_length_mm": 8.0,
+        "head_theta_deg": 64.0
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "head",
+      "inputs": {
+        "length_mm": 6.5,
+        "outline": "Heart",
+        "theta_deg": 116.0
+      },
+      "pos": [
+        0.0,
+        300.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "shank.add_head",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Toi et moi"
+      },
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 7,
+      "kind": "sink.output",
+      "pos": [
+        960.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 2,
+      "out": "shank",
+      "to": 3,
+      "input": "shank"
+    },
+    {
+      "from": 3,
+      "out": "shank",
+      "to": 5,
+      "input": "shank"
+    },
+    {
+      "from": 4,
+      "out": "head",
+      "to": 5,
+      "input": "head"
+    },
+    {
+      "from": 1,
+      "out": "profile",
+      "to": 6,
+      "input": "profile"
+    },
+    {
+      "from": 5,
+      "out": "shank",
+      "to": 6,
+      "input": "shank"
+    },
+    {
+      "from": 6,
+      "out": "design",
+      "to": 7,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 4,
+      "input": "outline",
+      "name": "Second head"
+    }
+  ],
+  "next_id": 8
+}

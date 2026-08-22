@@ -1,0 +1,80 @@
+{
+  "format_version": 1,
+  "name": "Wishbone wave",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.profile",
+      "inputs": {
+        "style": "DShape",
+        "thickness_mm": 1.9,
+        "width_mm": 3.6
+      },
+      "pos": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "shank",
+      "inputs": {
+        "amount": 0.7,
+        "kind": "Wave",
+        "waves": 1
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Wishbone wave"
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "sink.output",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "profile",
+      "to": 3,
+      "input": "profile"
+    },
+    {
+      "from": 2,
+      "out": "shank",
+      "to": 3,
+      "input": "shank"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 4,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 2,
+      "input": "amount",
+      "name": "Swing"
+    }
+  ],
+  "next_id": 5
+}

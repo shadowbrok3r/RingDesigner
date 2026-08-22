@@ -1,0 +1,220 @@
+{
+  "format_version": 1,
+  "name": "Cathedral solitaire stock",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.profile",
+      "inputs": {
+        "style": "DShape",
+        "thickness_mm": 2.2,
+        "width_mm": 4.0
+      },
+      "pos": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "shank",
+      "inputs": {
+        "amount": 0.8,
+        "kind": "Cathedral"
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Cathedral solitaire stock"
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "design.info",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "math.mul",
+      "inputs": {
+        "b": 0.5
+      },
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "layer.seat",
+      "inputs": {
+        "blend_mm": 2.2,
+        "crown": 0.35,
+        "height_mm": 0.9,
+        "prongs": 4,
+        "style": "GypsyMound",
+        "theta_deg": 90.0
+      },
+      "pos": [
+        960.0,
+        0.0
+      ]
+    },
+    {
+      "id": 7,
+      "kind": "gem.calibrated",
+      "inputs": {
+        "cut": "Round",
+        "w_mm": 5.0
+      },
+      "pos": [
+        0.0,
+        300.0
+      ]
+    },
+    {
+      "id": 8,
+      "kind": "layer.seat.fit",
+      "pos": [
+        1200.0,
+        0.0
+      ]
+    },
+    {
+      "id": 9,
+      "kind": "entry",
+      "inputs": {
+        "name": "Solitaire seat"
+      },
+      "pos": [
+        1440.0,
+        0.0
+      ]
+    },
+    {
+      "id": 10,
+      "kind": "stack",
+      "pos": [
+        1680.0,
+        0.0
+      ]
+    },
+    {
+      "id": 11,
+      "kind": "design.assemble",
+      "pos": [
+        1920.0,
+        0.0
+      ]
+    },
+    {
+      "id": 12,
+      "kind": "sink.output",
+      "pos": [
+        2160.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "profile",
+      "to": 3,
+      "input": "profile"
+    },
+    {
+      "from": 2,
+      "out": "shank",
+      "to": 3,
+      "input": "shank"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 4,
+      "input": "design"
+    },
+    {
+      "from": 4,
+      "out": "band_v_len_mm",
+      "to": 5,
+      "input": "a"
+    },
+    {
+      "from": 5,
+      "out": "out",
+      "to": 6,
+      "input": "v_mm"
+    },
+    {
+      "from": 6,
+      "out": "layer",
+      "to": 8,
+      "input": "layer"
+    },
+    {
+      "from": 7,
+      "out": "gem",
+      "to": 8,
+      "input": "gem"
+    },
+    {
+      "from": 8,
+      "out": "layer",
+      "to": 9,
+      "input": "layer"
+    },
+    {
+      "from": 9,
+      "out": "entry",
+      "to": 10,
+      "input": "entries"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 11,
+      "input": "design"
+    },
+    {
+      "from": 10,
+      "out": "stack",
+      "to": 11,
+      "input": "stack"
+    },
+    {
+      "from": 11,
+      "out": "design",
+      "to": 12,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 7,
+      "input": "w_mm",
+      "name": "Stone"
+    },
+    {
+      "node": 7,
+      "input": "cut",
+      "name": "Cut"
+    }
+  ],
+  "next_id": 13
+}

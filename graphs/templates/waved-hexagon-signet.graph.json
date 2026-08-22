@@ -1,0 +1,173 @@
+{
+  "format_version": 1,
+  "name": "Waved hexagon signet",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.profile",
+      "inputs": {
+        "flatten_sides": true,
+        "style": "Flat",
+        "thickness_mm": 2.6,
+        "width_mm": 14.0
+      },
+      "pos": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "shank.signet",
+      "inputs": {
+        "band_width_mm": 14.0,
+        "outline": "Hexagon"
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Waved hexagon signet"
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "layer.tiling.fit",
+      "inputs": {
+        "alpha": "Waves"
+      },
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "layer.tiling",
+      "inputs": {
+        "contrast": 1.15,
+        "height_mm": 0.3,
+        "repeats_around": 6,
+        "rows": 1
+      },
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "entry",
+      "inputs": {
+        "name": "Waves"
+      },
+      "pos": [
+        960.0,
+        0.0
+      ]
+    },
+    {
+      "id": 7,
+      "kind": "stack",
+      "pos": [
+        1200.0,
+        0.0
+      ]
+    },
+    {
+      "id": 8,
+      "kind": "design.assemble",
+      "pos": [
+        1440.0,
+        0.0
+      ]
+    },
+    {
+      "id": 9,
+      "kind": "sink.output",
+      "pos": [
+        1680.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "profile",
+      "to": 3,
+      "input": "profile"
+    },
+    {
+      "from": 2,
+      "out": "shank",
+      "to": 3,
+      "input": "shank"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 4,
+      "input": "design"
+    },
+    {
+      "from": 4,
+      "out": "layer",
+      "to": 5,
+      "input": "layer"
+    },
+    {
+      "from": 5,
+      "out": "layer",
+      "to": 6,
+      "input": "layer"
+    },
+    {
+      "from": 6,
+      "out": "entry",
+      "to": 7,
+      "input": "entries"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 8,
+      "input": "design"
+    },
+    {
+      "from": 7,
+      "out": "stack",
+      "to": 8,
+      "input": "stack"
+    },
+    {
+      "from": 8,
+      "out": "design",
+      "to": 9,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 5,
+      "input": "repeats_around",
+      "name": "Waves around"
+    },
+    {
+      "node": 5,
+      "input": "height_mm",
+      "name": "Relief"
+    }
+  ],
+  "next_id": 10
+}

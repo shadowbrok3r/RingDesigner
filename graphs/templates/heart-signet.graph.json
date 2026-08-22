@@ -1,0 +1,80 @@
+{
+  "format_version": 1,
+  "name": "Heart signet",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.profile",
+      "inputs": {
+        "flatten_sides": true,
+        "style": "Flat",
+        "thickness_mm": 1.6,
+        "width_mm": 15.5
+      },
+      "pos": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "shank.signet",
+      "inputs": {
+        "band_width_mm": 15.5,
+        "outline": "Heart"
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Heart signet"
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "sink.output",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "profile",
+      "to": 3,
+      "input": "profile"
+    },
+    {
+      "from": 2,
+      "out": "shank",
+      "to": 3,
+      "input": "shank"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 4,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 2,
+      "input": "outline",
+      "name": "Outline"
+    }
+  ],
+  "next_id": 5
+}

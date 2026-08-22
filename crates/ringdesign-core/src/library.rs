@@ -31,6 +31,8 @@ pub fn data_root() -> PathBuf {
 
 /// File extension for saved designs.
 pub const DESIGN_EXT: &str = "ring.json";
+/// `RingDesign::graph` joined the file without a version bump: an absent
+/// field reads as `None`, and an older build ignores the key.
 
 /// Version stamped into saved design files; files without one are version 0.
 pub const FORMAT_VERSION: u32 = 1;
