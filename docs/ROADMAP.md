@@ -78,7 +78,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   attributed errors; nested lists pass whole; caps on list items, nodes and cluster depth;
   recipe-signature cache so one edit re-runs one chain; `Targets`; side-effect nodes only on
   demand; `evaluate_design` returns the design **with** its field report.
-- [ ] **M1.6 Source + util nodes** (S, #11). Numbers, series/range, math, basic list ops.
+- [x] **M1.6 Source + util nodes** (S, #11). Numbers, series/range, math, basic list ops.
 - Accept: `[1,2,3]+[10] → [11,12,13]`; empty in → empty out; a failed item does not abort its
   siblings; cache hits after one edit equal the chain length; cycles and fan-in refused; an
   oversize series clamps and warns.
