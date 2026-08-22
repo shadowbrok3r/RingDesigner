@@ -9,7 +9,12 @@
 //! ```text
 //! ringdesign export ring.json --sizes 5:9:0.5 --formats stl,3mf --shrink sterling
 //! ringdesign check ring.json
+//! ringdesign graph eval court.graph.json --set Width=6 --out court.ring.json
 //! ```
+//!
+//! The graph commands evaluate a `.graph.json` the way the app does — the
+//! same registry, the script engine attached — so a graph is a design
+//! file that can be parameterized from the shell.
 
 use std::path::{Path, PathBuf};
 
@@ -17,7 +22,11 @@ use ringdesign_core::alpha::AlphaLibrary;
 use ringdesign_core::castability::analyze_field;
 use ringdesign_core::mesh::build;
 use ringdesign_core::sizing::RingSize;
-use ringdesign_core::{library, metal, stl, stones, threemf, RingDesign};
+use ringdesign_core::{RingDesign, library, metal, stl, stones, threemf};
+use ringdesign_graph::eval::{Evaluator, Targets, evaluate_design};
+use ringdesign_graph::file;
+use ringdesign_graph::graph::Graph;
+use ringdesign_graph::value::Literal;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -32,6 +41,9 @@ fn main() {
 const USAGE: &str = "usage:
   ringdesign export <design.json> [options]
   ringdesign check  <design.json>
+  ringdesign graph eval     <graph.json> [--set Name=value]* [--preset name] [--out design.ring.json] [--run-sinks]
+  ringdesign graph check    <graph.json> [--set Name=value]*
+  ringdesign graph describe <graph.json>
 
 options:
   --sizes 5:9:0.5 | 6,7,8   sizes to run (default: the design's own)
@@ -42,6 +54,9 @@ options:
   --steps 1024x320          sweep resolution (default: the design's build)";
 
 fn run(args: &[String]) -> anyhow::Result<()> {
+    if args.first().map(String::as_str) == Some("graph") {
+        return graph::run(&args[1..]);
+    }
     let (cmd, design_path) = match args {
         [c, p, ..] => (c.as_str(), p.as_str()),
         _ => anyhow::bail!("expected a command and a design file"),
@@ -116,7 +131,7 @@ fn export(
                 formats = value()?.split(',').map(|s| s.trim().to_lowercase()).collect();
                 for f in &formats {
                     if !matches!(f.as_str(), "stl" | "obj" | "3mf" | "glb" | "ply") {
-                        anyhow::bail!("unknown format {f:?} (stl, obj, 3mf)");
+                        anyhow::bail!("unknown format {f:?} (stl, obj, 3mf, glb, ply)");
                     }
                 }
             }
@@ -273,5 +288,136 @@ mod tests {
     fn slugs_are_filename_safe() {
         assert_eq!(slug("My Heart / Signet!"), "my-heart-signet");
         assert_eq!(slug("***"), "ring");
+    }
+}
+
+/// `ringdesign graph …`: a graph file evaluated like the app does it.
+mod graph {
+    use super::*;
+
+    pub fn run(args: &[String]) -> anyhow::Result<()> {
+        let (sub, path) = match args {
+            [s, p, ..] => (s.as_str(), p.as_str()),
+            _ => anyhow::bail!("expected `graph eval|check|describe <graph.json>`"),
+        };
+        let reg = ringdesign_script::registry();
+        let mut g = file::load_graph(path, Some(&reg)).map_err(|e| anyhow::anyhow!("{path}: {e:#}"))?;
+        let mut out: Option<PathBuf> = None;
+        let mut run_sinks = false;
+        let mut rest = args[2..].iter();
+        while let Some(flag) = rest.next() {
+            match flag.as_str() {
+                "--set" => {
+                    let kv = rest.next().ok_or_else(|| anyhow::anyhow!("--set needs Name=value"))?;
+                    let (name, value) = kv.split_once('=').ok_or_else(|| anyhow::anyhow!("--set {kv:?}: expected Name=value"))?;
+                    set_exposed(&mut g, name.trim(), value.trim())?;
+                }
+                "--preset" => {
+                    let name = rest.next().ok_or_else(|| anyhow::anyhow!("--preset needs a name"))?;
+                    let preset = file::list_presets().into_iter().find(|p| &p.name == name).ok_or_else(|| anyhow::anyhow!("no preset {name:?} in {}", file::preset_dir().display()))?;
+                    for (k, v) in &preset.values {
+                        set_exposed_literal(&mut g, k, v.clone())?;
+                    }
+                }
+                "--out" => out = Some(PathBuf::from(rest.next().ok_or_else(|| anyhow::anyhow!("--out needs a path"))?)),
+                "--run-sinks" => run_sinks = true,
+                other => anyhow::bail!("unknown option {other:?}"),
+            }
+        }
+        let errors = g.validate(Some(&reg));
+        match sub {
+            "describe" => {
+                println!("{} ({:?}, {} nodes, {} wires)", g.name, g.mode, g.nodes.len(), g.wires.len());
+                for n in &g.nodes {
+                    let (ins, outs) = reg.node_pins(n).unwrap_or_default();
+                    let lits: Vec<String> = n.inputs.iter().map(|(k, v)| format!("{k}={}", serde_json::to_string(v).unwrap_or_default())).collect();
+                    println!(
+                        "  {:>4}  {:<24} {:<18} in: {}  out: {}{}",
+                        n.id,
+                        n.kind,
+                        n.label.clone().unwrap_or_default(),
+                        ins.iter().map(|p| p.name.as_str()).collect::<Vec<_>>().join(","),
+                        outs.iter().map(|p| p.name.as_str()).collect::<Vec<_>>().join(","),
+                        if lits.is_empty() { String::new() } else { format!("  [{}]", lits.join(" ")) }
+                    );
+                }
+                for w in &g.wires {
+                    println!("  {}.{} -> {}.{}", w.from, w.out, w.to, w.input);
+                }
+                for e in &g.exposed {
+                    println!("  exposed {} = {}.{}", e.name, e.node, e.input);
+                }
+                for e in &errors {
+                    println!("  error: {e}");
+                }
+                Ok(())
+            }
+            "eval" | "check" => {
+                if !errors.is_empty() {
+                    for e in &errors {
+                        eprintln!("error: {e}");
+                    }
+                    anyhow::bail!("the graph does not validate");
+                }
+                let mut lib = AlphaLibrary::builtin();
+                if let Err(e) = lib.load_dir(library::user_alpha_dir()) {
+                    eprintln!("note: user alphas not loaded: {e}");
+                }
+                let mut ev = Evaluator::with_exprs(ringdesign_script::engine());
+                let result = evaluate_design(&mut ev, &g, &reg, &lib, 0).map_err(|e| anyhow::anyhow!("{e}"))?;
+                for n in &result.notes {
+                    eprintln!("note: {n}");
+                }
+                let f = &result.field;
+                println!(
+                    "{}: {}: {:.4}% undercut, worst {:+.1} deg, thinnest wall {:.2} mm",
+                    result.design.name,
+                    f.verdict.label(),
+                    f.undercut_fraction() * 100.0,
+                    f.worst_draft_deg,
+                    f.thinnest_wall_mm
+                );
+                for n in &f.notes {
+                    println!("  {n}");
+                }
+                if sub == "check" {
+                    return Ok(());
+                }
+                if run_sinks {
+                    let report = ev.evaluate(&g, &reg, &lib, 0, Targets::Everything);
+                    for line in report.notes(&g) {
+                        eprintln!("sink: {line}");
+                    }
+                    println!("ran {} nodes with side effects", report.ran().len());
+                }
+                if let Some(path) = out {
+                    let mut d = (*result.design).clone();
+                    d.graph = Some(serde_json::to_value(&g)?);
+                    let mut baked = lib.clone();
+                    d.bake_all(&mut baked);
+                    library::save_design_embedded(&path, &d, &baked)?;
+                    println!("wrote {}", path.display());
+                }
+                Ok(())
+            }
+            other => anyhow::bail!("unknown graph command {other:?} (eval, check, describe)"),
+        }
+    }
+
+    /// `--set Name=value`: the value parses as a literal (JSON), else as text.
+    fn set_exposed(g: &mut Graph, name: &str, value: &str) -> anyhow::Result<()> {
+        let lit: Literal = serde_json::from_str(value).unwrap_or_else(|_| Literal::Text(value.to_string()));
+        set_exposed_literal(g, name, lit)
+    }
+
+    fn set_exposed_literal(g: &mut Graph, name: &str, lit: Literal) -> anyhow::Result<()> {
+        let e = g
+            .exposed
+            .iter()
+            .find(|e| e.name == name)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("{name:?} is not an exposed parameter; the graph exposes {:?}", g.exposed.iter().map(|e| e.name.as_str()).collect::<Vec<_>>()))?;
+        g.set_input(e.node, e.input, lit).map_err(|er| anyhow::anyhow!("{er}"))?;
+        Ok(())
     }
 }

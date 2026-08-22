@@ -981,12 +981,18 @@ pins both directions. On top of that:
   `metal::pattern_scale` = `1/(1−s)`; the export menu's "Shrink for" combo
   and the CLI's `--shrink` scale the mesh and *rename* the file as a pattern
   so an oversize file can never be mistaken for nominal.
-- **The size-run CLI** (`src/bin/ringdesign.rs`): `ringdesign export
+- **The size-run CLI** (`crates/ringdesign-cli`): `ringdesign export
   ring.json --sizes 5:9:0.5 --formats stl,3mf --shrink sterling` builds each
   size, field-checks it, writes the files and a manifest CSV (verdict,
   thinnest wall, volume per size) — one flask, one command; the manifest is
   also the export-regression diff. `ringdesign check` prints the field
-  verdict and the stones findings for one design.
+  verdict and the stones findings for one design. `ringdesign graph
+  eval|check|describe <graph.json>` evaluates a graph file the way the
+  app does (same registry, script engine attached): `--set Name=value`
+  sets an exposed parameter, `--preset` a saved preset's values,
+  `--out` writes the evaluated design with its graph embedded, and
+  `--run-sinks` runs the side-effect sinks afterwards. The binary lives in
+  its own crate because the core cannot depend on the graph.
 
 ### The profile library is user-extensible
 

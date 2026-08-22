@@ -1,0 +1,17 @@
+[package]
+name = "ringdesign-cli"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+description = "The ringdesign command line: size runs, checks, and graph evaluation"
+
+[[bin]]
+name = "ringdesign"
+path = "src/main.rs"
+
+[dependencies]
+ringdesign-core.workspace = true
+ringdesign-graph.workspace = true
+ringdesign-script.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true
