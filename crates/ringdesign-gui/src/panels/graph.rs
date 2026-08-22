@@ -17,6 +17,15 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                 if ui.button(format!("{} Arrange", icon::ARROWS_OUT_LINE_HORIZONTAL)).on_hover_text("Lay the nodes out by depth").clicked() {
                     app.arrange_graph();
                 }
+                if ui.button(format!("{} Fit", icon::ARROWS_IN)).on_hover_text("Fit the whole graph in view").clicked() {
+                    if let Some(ed) = app.graph_ed.as_mut() {
+                        ed.fit();
+                    }
+                }
+                let selection = app.graph_ed.as_ref().map(|ed| ed.selected_nodes(ui.ctx())).unwrap_or_default();
+                if ui.add_enabled(!selection.is_empty(), egui::Button::new(format!("{} Collapse {}", icon::PACKAGE, selection.len()))).on_hover_text("Fold the selected nodes into one cluster node").clicked() {
+                    app.collapse_nodes(&selection);
+                }
                 if ui.button(format!("{} Bake", icon::FIRE)).on_hover_text("Drop the graph; keep the design as last evaluated").clicked() {
                     app.bake_graph();
                     return;

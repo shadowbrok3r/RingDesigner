@@ -175,12 +175,19 @@ pub struct Editor {
     style: SnarlStyle,
     /// A node to centre the view on at the next frame.
     pending_focus: Option<NodeId>,
+    /// Fit every node into the view at the next frame.
+    pending_fit: bool,
+    /// The view's transform as of the last frame, for the minimap.
+    transform: Option<egui::emath::TSTransform>,
+    /// The persistent id the snarl was last shown under, for selection.
+    snarl_id: Option<egui::Id>,
+    pub show_minimap: bool,
 }
 
 impl Editor {
     pub fn new(graph: Graph, reg: &Registry) -> Self {
         let (snarl, ids) = build_snarl(&graph, reg);
-        Self { graph, snarl, ids, revision: 0, selected: None, editable: true, style: SnarlStyle::new(), pending_focus: None }
+        Self { graph, snarl, ids, revision: 0, selected: None, editable: true, style: SnarlStyle::new(), pending_focus: None, pending_fit: false, transform: None, snarl_id: None, show_minimap: true }
     }
 
     pub fn graph(&self) -> &Graph {
@@ -242,9 +249,39 @@ impl Editor {
         }
     }
 
+    /// Fit the whole graph into the view at the next frame.
+    pub fn fit(&mut self) {
+        self.pending_fit = true;
+    }
+
+    /// The nodes the view has selected (rubber-band or click), as graph ids.
+    pub fn selected_nodes(&self, ctx: &egui::Context) -> Vec<NodeId> {
+        let Some(id) = self.snarl_id else { return Vec::new() };
+        egui_snarl::ui::get_selected_nodes(id, ctx).into_iter().filter_map(|sid| self.ids.to_graph.get(&sid).copied()).collect()
+    }
+
+    /// Fold nodes into a cluster node and rebuild the view.
+    pub fn collapse(&mut self, ids: &[NodeId], name: &str, reg: &Registry) -> Result<NodeId, GraphError> {
+        let mut g = self.graph.clone();
+        let cid = g.collapse(ids, name)?;
+        self.set_graph(g, reg);
+        self.selected = Some(cid);
+        Ok(cid)
+    }
+
+    /// Fold a node and everything feeding it into a cluster.
+    pub fn collapse_upstream(&mut self, id: NodeId, name: &str, reg: &Registry) -> Result<NodeId, GraphError> {
+        let mut ids = self.graph.upstream(id);
+        ids.push(id);
+        self.collapse(&ids, name, reg)
+    }
+
     /// Draw the editor and extract any change.
     pub fn show(&mut self, reg: &Registry, ui: &mut Ui, id_salt: &str) -> EditorResponse {
         let focus = self.pending_focus.take().and_then(|id| self.ids.to_snarl.get(&id).copied());
+        let viewport = ui.available_rect_before_wrap();
+        let fit = std::mem::take(&mut self.pending_fit).then_some(viewport);
+        self.snarl_id = Some(ui.make_persistent_id(id_salt));
         let mut viewer = Viewer {
             reg,
             editable: self.editable,
@@ -253,11 +290,26 @@ impl Editor {
             search: String::new(),
             ids: &self.ids,
             focus,
-            viewport_center: ui.available_rect_before_wrap().center(),
+            fit,
+            viewport_center: viewport.center(),
+            seen_transform: None,
+            collapse_request: None,
         };
         self.snarl.show(&mut viewer, &self.style, id_salt, ui);
         let clicked = viewer.clicked;
         let refused = viewer.refused.take();
+        let collapse_request = viewer.collapse_request.take();
+        self.transform = viewer.seen_transform.or(self.transform);
+        if self.show_minimap {
+            self.paint_minimap(ui, viewport);
+        }
+        if let Some(sid) = collapse_request {
+            if let Some(gid) = self.ids.to_graph.get(&sid).copied() {
+                let name = format!("Cluster {}", self.graph.nodes.iter().filter(|n| n.kind == "cluster").count() + 1);
+                let _ = self.collapse_upstream(gid, &name, reg);
+                return EditorResponse { changed: true, selected: self.selected, refused: None };
+            }
+        }
         let mut resp = EditorResponse { refused, ..Default::default() };
         if let Some(sid) = clicked {
             self.selected = self.ids.to_graph.get(&sid).copied();
@@ -400,7 +452,54 @@ struct Viewer<'a> {
     search: String,
     ids: &'a IdMap,
     focus: Option<SnarlId>,
+    fit: Option<egui::Rect>,
     viewport_center: egui::Pos2,
+    seen_transform: Option<egui::emath::TSTransform>,
+    collapse_request: Option<SnarlId>,
+}
+
+/// The footprint a node is assumed to take when fitting or mapping.
+const NODE_SIZE: egui::Vec2 = egui::vec2(220.0, 140.0);
+
+fn node_bounds(snarl: &Snarl<NodeCard>) -> Option<egui::Rect> {
+    let mut rect: Option<egui::Rect> = None;
+    for (_, pos, _) in snarl.nodes_pos_ids() {
+        let r = egui::Rect::from_min_size(pos, NODE_SIZE);
+        rect = Some(rect.map_or(r, |b| b.union(r)));
+    }
+    rect
+}
+
+impl Editor {
+    /// A small map of every node and the current view, in the corner.
+    fn paint_minimap(&self, ui: &Ui, viewport: egui::Rect) {
+        let Some(bounds) = node_bounds(&self.snarl) else { return };
+        if self.snarl.node_ids().count() < 2 {
+            return;
+        }
+        let map = egui::Rect::from_min_size(viewport.right_top() + egui::vec2(-172.0, 12.0), egui::vec2(160.0, 100.0));
+        let painter = ui.painter().with_clip_rect(viewport);
+        painter.rect_filled(map, 4.0, Color32::from_black_alpha(170));
+        painter.rect_stroke(map, 4.0, egui::Stroke::new(1.0, Color32::from_gray(90)), egui::StrokeKind::Inside);
+        let pad = bounds.expand(80.0);
+        let to_map = |p: egui::Pos2| -> egui::Pos2 {
+            let u = ((p.x - pad.min.x) / pad.width().max(1.0)).clamp(0.0, 1.0);
+            let v = ((p.y - pad.min.y) / pad.height().max(1.0)).clamp(0.0, 1.0);
+            map.min + egui::vec2(u * map.width(), v * map.height())
+        };
+        for (sid, pos, card) in self.snarl.nodes_pos_ids() {
+            let c = to_map(pos + NODE_SIZE * 0.5);
+            let selected = self.ids.to_graph.get(&sid).is_some_and(|g| self.selected == Some(*g));
+            let color = if !card.diag.is_empty() { Color32::from_rgb(220, 70, 70) } else if selected { Color32::from_rgb(255, 215, 120) } else { Color32::from_gray(200) };
+            painter.circle_filled(c, if selected { 3.5 } else { 2.5 }, color);
+        }
+        if let Some(t) = self.transform {
+            let inv = t.inverse();
+            let view = egui::Rect::from_min_max(inv * viewport.min, inv * viewport.max);
+            let r = egui::Rect::from_min_max(to_map(view.min), to_map(view.max));
+            painter.rect_stroke(r, 2.0, egui::Stroke::new(1.0, Color32::from_rgb(120, 190, 255)), egui::StrokeKind::Inside);
+        }
+    }
 }
 
 fn pin_info(pin: &PinSpec) -> PinInfo {
@@ -478,6 +577,14 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     }
 
     fn current_transform(&mut self, to_global: &mut egui::emath::TSTransform, snarl: &mut Snarl<NodeCard>) {
+        if let Some(viewport) = self.fit.take() {
+            if let Some(bounds) = node_bounds(snarl) {
+                let pad = bounds.expand(40.0);
+                let scale = (viewport.width() / pad.width().max(1.0)).min(viewport.height() / pad.height().max(1.0)).clamp(0.15, 1.5);
+                to_global.scaling = scale;
+                to_global.translation = viewport.center().to_vec2() - pad.center().to_vec2() * scale;
+            }
+        }
         if let Some(sid) = self.focus.take() {
             if let Some(info) = snarl.get_node_info(sid) {
                 // The node's top-left, pushed a little so the header sits
@@ -487,6 +594,7 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
                 to_global.translation = self.viewport_center.to_vec2() - anchor.to_vec2() * scale;
             }
         }
+        self.seen_transform = Some(*to_global);
     }
 
     fn final_node_rect(&mut self, node: SnarlId, rect: egui::Rect, ui: &mut Ui, _snarl: &mut Snarl<NodeCard>) {
@@ -604,6 +712,10 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
             }
             ui.close();
         }
+        if ui.button("Collapse with upstream into a cluster").on_hover_text("This node and everything feeding it become one cluster node").clicked() {
+            self.collapse_request = Some(node);
+            ui.close();
+        }
     }
 }
 
@@ -643,7 +755,7 @@ mod tests {
 
         // Text -> Number is refused by the viewer; Number -> Number replaces.
         let (mut snarl, ids) = build_snarl(&g, &reg);
-        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, viewport_center: egui::Pos2::ZERO };
+        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport_center: egui::Pos2::ZERO, seen_transform: None, collapse_request: None };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
         viewer.connect(&text_out, &add_b, &mut snarl);
@@ -701,6 +813,28 @@ mod tests {
         assert!(ed.pending_focus.is_none(), "one frame consumes the focus");
         ed.focus(NodeId(999));
         assert!(ed.pending_focus.is_none(), "an unknown node is ignored");
+
+        // Fit is consumed by a frame too, and leaves a transform the minimap reads.
+        ed.fit();
+        let mut harness = egui_kittest::Harness::new_ui(|ui| {
+            ed.show(&reg, ui, "focus-editor");
+        });
+        harness.set_size(egui::vec2(900.0, 600.0));
+        harness.run();
+        drop(harness);
+        assert!(!ed.pending_fit);
+        assert!(ed.transform.is_some());
+        assert!(ed.snarl_id.is_some());
+
+        // Collapsing a layer's entry with its upstream leaves the graph evaluable.
+        let g = ringdesign_graph::templates::graph("Braided band").unwrap();
+        let mut ed = Editor::new(g, &reg);
+        let entry = ed.graph().entry_nodes()[1];
+        let cid = ed.collapse_upstream(entry, "Milgrain cluster", &reg).unwrap();
+        assert!(ed.graph().validate(Some(&reg)).is_empty(), "{:?}", ed.graph().validate(Some(&reg)));
+        assert_eq!(ed.selected, Some(cid));
+        let out = ringdesign_graph::eval::evaluate_design(&mut ringdesign_graph::eval::Evaluator::new(), ed.graph(), &reg, &ringdesign_core::AlphaLibrary::builtin(), 0).unwrap();
+        assert_eq!(out.design.layers.layers.len(), 2, "both layers still arrive: {:?}", out.notes);
     }
 
     #[test]

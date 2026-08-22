@@ -394,6 +394,105 @@ impl Graph {
         }
     }
 
+    /// Fold `ids` into one cluster node: the subset becomes a cluster graph
+    /// (ids kept), wires crossing its boundary become the cluster's exposed
+    /// inputs and outputs and are rewired through the new node, and any of
+    /// the parent's exposures on the folded nodes stay exposed through it.
+    /// Returns the cluster node's id.
+    pub fn collapse(&mut self, ids: &[NodeId], name: &str) -> Result<NodeId, GraphError> {
+        let set: BTreeSet<NodeId> = ids.iter().copied().collect();
+        if set.is_empty() {
+            return Err(GraphError::global("nothing to collapse"));
+        }
+        for id in &set {
+            if !self.contains(*id) {
+                return Err(GraphError::at(*id, "no such node"));
+            }
+        }
+        let mut inner = Graph::new(name, self.mode);
+        inner.next_id = self.next_id;
+        inner.nodes = self.nodes.iter().filter(|n| set.contains(&n.id)).cloned().collect();
+        inner.wires = self.wires.iter().filter(|w| set.contains(&w.from) && set.contains(&w.to)).cloned().collect();
+        fn fresh(base: &str, used: &mut BTreeSet<String>) -> String {
+            let mut n = base.to_string();
+            let mut k = 2;
+            while !used.insert(n.clone()) {
+                n = format!("{base} {k}");
+                k += 1;
+            }
+            n
+        }
+        let (mut used_in, mut used_out) = (BTreeSet::new(), BTreeSet::new());
+        let mut into: Vec<(Wire, String)> = Vec::new();
+        let mut out_of: Vec<(Wire, String)> = Vec::new();
+        let mut in_names: BTreeMap<(NodeId, String), String> = BTreeMap::new();
+        let mut out_names: BTreeMap<(NodeId, String), String> = BTreeMap::new();
+        for w in &self.wires {
+            if !set.contains(&w.from) && set.contains(&w.to) {
+                let key = (w.to, w.input.clone());
+                let pin = match in_names.get(&key) {
+                    Some(n) => n.clone(),
+                    None => {
+                        let n = fresh(&w.input, &mut used_in);
+                        inner.expose(w.to, &w.input, &n)?;
+                        in_names.insert(key, n.clone());
+                        n
+                    }
+                };
+                into.push((w.clone(), pin));
+            } else if set.contains(&w.from) && !set.contains(&w.to) {
+                let key = (w.from, w.out.clone());
+                let pin = match out_names.get(&key) {
+                    Some(n) => n.clone(),
+                    None => {
+                        let n = fresh(&w.out, &mut used_out);
+                        inner.expose_output(w.from, &w.out, &n)?;
+                        out_names.insert(key, n.clone());
+                        n
+                    }
+                };
+                out_of.push((w.clone(), pin));
+            }
+        }
+        // The parent's own exposures on folded nodes stay reachable.
+        let mut carried: Vec<(String, String)> = Vec::new();
+        for e in self.exposed.iter().filter(|e| set.contains(&e.node)) {
+            let key = (e.node, e.input.clone());
+            let pin = match in_names.get(&key) {
+                Some(n) => n.clone(),
+                None => {
+                    let n = fresh(&e.name, &mut used_in);
+                    inner.expose(e.node, &e.input, &n)?;
+                    in_names.insert(key, n.clone());
+                    n
+                }
+            };
+            carried.push((pin, e.name.clone()));
+        }
+        let centroid = {
+            let pts: Vec<[f32; 2]> = self.nodes.iter().filter(|n| set.contains(&n.id)).map(|n| n.pos).collect();
+            let k = pts.len().max(1) as f32;
+            [pts.iter().map(|p| p[0]).sum::<f32>() / k, pts.iter().map(|p| p[1]).sum::<f32>() / k]
+        };
+        for id in &set {
+            self.remove(*id)?;
+        }
+        let cid = crate::nodes::cluster::add_cluster(self, &inner)?;
+        if let Some(node) = self.node_mut(cid) {
+            node.pos = centroid;
+        }
+        for (w, pin) in into {
+            self.connect(w.from, w.out, cid, pin)?;
+        }
+        for (w, pin) in out_of {
+            self.connect(cid, pin, w.to, w.input)?;
+        }
+        for (pin, name) in carried {
+            self.expose(cid, pin, name)?;
+        }
+        Ok(cid)
+    }
+
     /// The `entry` nodes in evaluation order — the order the lift builds a
     /// stack in, so the k-th one is the node behind the k-th layer of a
     /// lifted design (a best effort on a hand-wired graph).
@@ -761,6 +860,48 @@ mod tests {
         g.remove(a).unwrap();
         assert!(g.exposed.is_empty());
         assert!(g.unexpose("W").is_none());
+    }
+
+    #[test]
+    fn a_collapse_keeps_the_graph_evaluating_the_same() {
+        use crate::eval::{Evaluator, Targets};
+        use crate::registry::Registry;
+        use crate::value::{Literal, Value};
+        use ringdesign_core::AlphaLibrary;
+        let reg = Registry::builtin();
+        let lib = AlphaLibrary::default();
+        let mut g = Graph::default();
+        let n = g.add("number").unwrap();
+        g.set_input(n, "value", Literal::Number(2.0)).unwrap();
+        let add = g.add("math.add").unwrap();
+        g.set_input(add, "b", Literal::Number(3.0)).unwrap();
+        let mul = g.add("math.mul").unwrap();
+        g.set_input(mul, "b", Literal::Number(4.0)).unwrap();
+        let neg = g.add("math.neg").unwrap();
+        g.connect(n, "out", add, "a").unwrap();
+        g.connect(add, "out", mul, "a").unwrap();
+        g.connect(mul, "out", neg, "x").unwrap();
+        g.expose(mul, "b", "Factor").unwrap();
+        let before = Evaluator::new().evaluate(&g, &reg, &lib, 0, Targets::AllPure);
+        assert_eq!(before.value(neg, "out"), Some(&Value::Number(-20.0)));
+        let cid = g.collapse(&[add, mul], "Middle").unwrap();
+        assert_eq!(g.nodes.len(), 3, "number, the cluster, neg");
+        assert!(g.validate(Some(&reg)).is_empty(), "{:?}", g.validate(Some(&reg)));
+        let inner = crate::nodes::cluster::embedded(g.node(cid).unwrap()).unwrap();
+        assert_eq!(inner.nodes.len(), 2);
+        assert_eq!(inner.exposed.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(), vec!["a", "Factor"]);
+        assert_eq!(inner.outputs.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(), vec!["out"]);
+        assert_eq!(g.exposed.len(), 1, "the parent's exposure rides on the cluster");
+        assert_eq!((g.exposed[0].node, g.exposed[0].input.as_str(), g.exposed[0].name.as_str()), (cid, "Factor", "Factor"));
+        let after = Evaluator::new().evaluate(&g, &reg, &lib, 0, Targets::AllPure);
+        assert!(!after.any_failed(), "{:?}", after.notes(&g));
+        assert_eq!(after.value(neg, "out"), Some(&Value::Number(-20.0)));
+        // The carried exposure still works through the cluster.
+        g.set_input(cid, "Factor", Literal::Number(10.0)).unwrap();
+        let again = Evaluator::new().evaluate(&g, &reg, &lib, 0, Targets::AllPure);
+        assert_eq!(again.value(neg, "out"), Some(&Value::Number(-50.0)));
+        assert!(g.collapse(&[], "x").is_err());
+        assert!(g.collapse(&[NodeId(99)], "x").is_err());
     }
 
     #[test]

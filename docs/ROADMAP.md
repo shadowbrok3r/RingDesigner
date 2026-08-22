@@ -132,7 +132,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   lattice — never a relaxation), format, json, if.
 - [x] **M5.2 First hosted cluster** (M, #54). The signet construction as a user-dir cluster whose
   preset evaluates to the lofted head.
-- [ ] **M5.3 Editor polish** (M, #55). Live value badges, subgraph navigation and collapse, arrange,
+- [x] **M5.3 Editor polish** (M, #55). Live value badges, subgraph navigation and collapse, arrange,
   fit, minimap.
 
 ## M6 — Python: `ringdesign-py` (M) — epic #22

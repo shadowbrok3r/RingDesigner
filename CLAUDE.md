@@ -1613,7 +1613,14 @@ nodes in evaluation order, the lift's stack order) finds the producing
 node, the editor centres on it through snarl's `current_transform`, and
 the Node tool opens. Bake drops the graph and the design stays exactly as
 last evaluated. The Delete key acts on the active pane: a selected node
-in a Graph pane, otherwise the selected layer. History names a graph
+in a Graph pane, otherwise the selected layer. **Collapse** folds the
+view's selection (or a node with its upstream, from the node menu) into
+one cluster node: `Graph::collapse` keeps the folded nodes' ids inside,
+turns every boundary wire into an exposed input or output and rewires
+through the new node, and carries the parent's own exposures on folded
+nodes onto it — the graph evaluates the same before and after (pinned).
+Fit and the minimap read the view transform snarl hands to
+`current_transform` each frame. History names a graph
 change as a document — converted, edited, baked — which is why
 `first_difference` treats a key present on one side only as a change.
 

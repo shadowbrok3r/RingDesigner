@@ -860,6 +860,20 @@ impl RingDesignerApp {
         }
     }
 
+    /// Fold these nodes into a cluster node.
+    pub fn collapse_nodes(&mut self, ids: &[GraphNodeId]) {
+        let reg = self.graph_reg.clone();
+        let Some(ed) = &mut self.graph_ed else { return };
+        let name = format!("Cluster {}", ed.graph().nodes.iter().filter(|n| n.kind == "cluster").count() + 1);
+        match ed.collapse(ids, &name, &reg) {
+            Ok(cid) => {
+                self.selected_node = Some(cid);
+                self.graph_changed();
+            }
+            Err(e) => self.set_status(format!("Could not collapse: {e}")),
+        }
+    }
+
     pub fn delete_selected_node(&mut self) {
         let Some(id) = self.selected_node.take() else { return };
         if let Some(ed) = &mut self.graph_ed {
