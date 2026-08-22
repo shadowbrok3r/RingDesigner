@@ -2003,6 +2003,15 @@ pub enum SignetOutline {
     Diamond,
     /// A plus of two rounded bars — the plaque a gem column sits on.
     Cross,
+    /// An imported plan, indexing [`crate::profile::ShankStyle::custom_outlines`].
+    ///
+    /// The geometry path resolves it through
+    /// [`ShankStyle::outline_extent`](crate::profile::ShankStyle::outline_extent),
+    /// which owns the registry; the bare methods on the enum itself fall back
+    /// to [`SignetOutline::Oval`] so nothing can panic without one. Not in
+    /// [`SignetOutline::ALL`], so every picker and sweep over the builtins is
+    /// unchanged.
+    Custom(u8),
 }
 
 /// Steps in a polar boundary table. One per 0.5 degree.
@@ -2043,9 +2052,16 @@ impl PolarOutline {
                 [v * a.cos(), v * a.sin()]
             })
             .collect();
+        Self::from_boundary(&raw)
+    }
+
+    /// The same recentre-fit-raycast, from a closed boundary polyline given
+    /// as points — the door an imported outline comes in through.
+    fn from_boundary(raw: &[[f64; 2]]) -> Self {
+        let step = std::f64::consts::TAU / OUTLINE_STEPS as f64;
         let mut lo = [f64::MAX; 2];
         let mut hi = [f64::MIN; 2];
-        for p in &raw {
+        for p in raw {
             for k in 0..2 {
                 lo[k] = lo[k].min(p[k]);
                 hi[k] = hi[k].max(p[k]);
@@ -2065,12 +2081,13 @@ impl PolarOutline {
         // Furthest crossing per direction, not the first: that is the
         // silhouette, which is what a band's width can follow even where the
         // shape is hollow behind it.
+        let n = b.len();
         let mut r = [1e-6f64; OUTLINE_STEPS];
         for (i, slot) in r.iter_mut().enumerate() {
             let a = i as f64 * step;
             let (sin_a, cos_a) = a.sin_cos();
-            for k in 0..OUTLINE_STEPS {
-                let (p, q) = (b[k], b[(k + 1) % OUTLINE_STEPS]);
+            for k in 0..n {
+                let (p, q) = (b[k], b[(k + 1) % n]);
                 let (ex, ey) = (q[0] - p[0], q[1] - p[1]);
                 // Ray x segment: the ray's own cross product vanishes on it.
                 let den = cos_a * ey - sin_a * ex;
@@ -2200,6 +2217,7 @@ impl SignetOutline {
             SignetOutline::Marquise => "Marquise",
             SignetOutline::Diamond => "Diamond",
             SignetOutline::Cross => "Cross",
+            SignetOutline::Custom(_) => "Custom",
         }
     }
 
@@ -2220,6 +2238,9 @@ impl SignetOutline {
             // the sides and takes the worst off the corners.
             SignetOutline::Diamond => 1.15,
             SignetOutline::Cross => 2.0,
+            // Resolved through the registry on the geometry path; this is
+            // the same ellipse fallback as `extent`.
+            SignetOutline::Custom(_) => 2.0,
         }
     }
 
@@ -2259,6 +2280,9 @@ impl SignetOutline {
             SignetOutline::Marquise => 1.9,
             SignetOutline::Diamond => 1.1,
             SignetOutline::Cross => 1.0,
+            // The registry carries the imported shape's own box ratio;
+            // resolve through `ShankStyle::outline_aspect`.
+            SignetOutline::Custom(_) => 1.0,
         }
     }
 
@@ -2327,7 +2351,15 @@ impl SignetOutline {
     /// per angle, so what it can follow is the outline's furthest reach either
     /// way, not where the shape happens to be hollow at that station.
     pub fn extent(self, x: f64) -> (f64, f64) {
-        silhouette(self).at(x)
+        silhouette(self.builtin_or_oval()).at(x)
+    }
+
+    /// The variant the static caches can serve. `Custom` has no slot there —
+    /// its table lives on the design — so bare access reads the oval instead
+    /// of panicking; the geometry path resolves customs through
+    /// [`ShankStyle::outline_extent`](crate::profile::ShankStyle::outline_extent).
+    fn builtin_or_oval(self) -> SignetOutline {
+        if matches!(self, SignetOutline::Custom(_)) { SignetOutline::Oval } else { self }
     }
 
     /// The **body's** reach at the same station: the face's own, faired out so
@@ -2342,7 +2374,7 @@ impl SignetOutline {
     /// Contains [`SignetOutline::extent`] everywhere, which is what keeps the
     /// flank drafted rather than leaning back under the table.
     pub fn body_extent(self, x: f64) -> (f64, f64) {
-        silhouette(self).body_at(x)
+        silhouette(self.builtin_or_oval()).body_at(x)
     }
 
     /// Width the outline leaves across the band, as a fraction of the head's
@@ -2372,6 +2404,7 @@ const BODY_ROUND_X: f64 = 0.06;
 
 /// The outline's reach across the band, per station around the ring — the sharp
 /// face, and the faired body the face is a facet of.
+#[derive(Clone)]
 struct Silhouette {
     lo: [f64; SILHOUETTE_STEPS],
     hi: [f64; SILHOUETTE_STEPS],
@@ -2491,6 +2524,13 @@ impl Silhouette {
     /// band's width, and a step in width is a step in slope, which is a facet
     /// you can see running round the head.
     fn build(o: SignetOutline) -> Self {
+        Self::build_from(&|x, y| o.distance_norm(x, y))
+    }
+
+    /// The same scan over any normalized distance — 1 on the outline — which
+    /// is what lets an imported table build its silhouette through the exact
+    /// machinery the builtins are held to.
+    fn build_from(dist: &dyn Fn(f64, f64) -> f64) -> Self {
         const SCAN: usize = 256;
         const BISECT: usize = 40;
         let mut lo = [0.0f64; SILHOUETTE_STEPS];
@@ -2502,13 +2542,13 @@ impl Silhouette {
             for (side, slot) in [(1.0f64, &mut hi[i]), (-1.0, &mut lo[i])] {
                 for j in 0..=SCAN {
                     let y = side * (1.0 - j as f64 / SCAN as f64);
-                    if o.distance_norm(x, y) > 1.0 {
+                    if dist(x, y) > 1.0 {
                         continue;
                     }
                     let (mut inside, mut outside) = (y, y + side / SCAN as f64);
                     for _ in 0..BISECT {
                         let mid = 0.5 * (inside + outside);
-                        if o.distance_norm(x, mid) <= 1.0 {
+                        if dist(x, mid) <= 1.0 {
                             inside = mid;
                         } else {
                             outside = mid;
@@ -2588,6 +2628,115 @@ fn silhouette(o: SignetOutline) -> &'static Silhouette {
     static T: [std::sync::OnceLock<Silhouette>; 11] =
         [const { std::sync::OnceLock::new() }; 11];
     T[o.index()].get_or_init(|| Silhouette::build(o))
+}
+
+/// An imported signet plan: a polar boundary table, carried in the design.
+///
+/// The table is the **source of truth** — 720 radii normalized to the unit
+/// box, ~3 KB in the file — so a design with a custom head renders
+/// identically on any machine with no asset or rasterizer in the loop.
+/// Importers (a decoded factory curve, a traced SVG) produce the table once;
+/// the derived silhouette is rebuilt on first use and never persisted, the
+/// same way the tiling SDFs are.
+///
+/// [`SignetOutline::Custom`] indexes
+/// [`ShankStyle::custom_outlines`](crate::profile::ShankStyle::custom_outlines),
+/// and the head construction resolves it there. Everything downstream — the
+/// rolling-ball body fairing, containment, the crest-span clamps — is the
+/// same code the builtin outlines run, so the castability story is unchanged.
+#[derive(Serialize, Deserialize)]
+pub struct CustomOutline {
+    pub name: String,
+    /// Boundary radius per [`OUTLINE_STEPS`] direction, unit-box normalized.
+    pub r: Vec<f32>,
+    /// Source bounding box, length round the ring over width across the band
+    /// — what [`crate::profile::SignetHead::fit_length_to`] wants to know.
+    pub aspect: f64,
+    #[serde(skip)]
+    cache: std::sync::OnceLock<Silhouette>,
+}
+
+impl std::fmt::Debug for CustomOutline {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CustomOutline")
+            .field("name", &self.name)
+            .field("aspect", &self.aspect)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Clone for CustomOutline {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            r: self.r.clone(),
+            aspect: self.aspect,
+            cache: self.cache.clone(),
+        }
+    }
+}
+
+impl PartialEq for CustomOutline {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.r == other.r && self.aspect == other.aspect
+    }
+}
+
+impl CustomOutline {
+    /// Build from a closed boundary polyline in the shape's own frame,
+    /// `x` along the ring and `y` across the band toward the low edge.
+    /// `None` when the boundary is degenerate.
+    pub fn from_points(name: impl Into<String>, pts: &[[f64; 2]]) -> Option<Self> {
+        if pts.len() < 8 {
+            return None;
+        }
+        let (mut lo, mut hi) = ([f64::MAX; 2], [f64::MIN; 2]);
+        for p in pts {
+            for k in 0..2 {
+                lo[k] = lo[k].min(p[k]);
+                hi[k] = hi[k].max(p[k]);
+            }
+        }
+        let (w, h) = (hi[0] - lo[0], hi[1] - lo[1]);
+        if !(w > 1e-9 && h > 1e-9) {
+            return None;
+        }
+        let table = PolarOutline::from_boundary(pts);
+        Some(Self {
+            name: name.into(),
+            r: table.r.iter().map(|&v| v as f32).collect(),
+            aspect: (w / h).clamp(0.05, 20.0),
+            cache: std::sync::OnceLock::new(),
+        })
+    }
+
+    fn table(&self) -> PolarOutline {
+        let mut r = [1e-6f64; OUTLINE_STEPS];
+        for (slot, &v) in r.iter_mut().zip(self.r.iter()) {
+            *slot = (v as f64).max(1e-6);
+        }
+        PolarOutline { r }
+    }
+
+    fn silhouette(&self) -> &Silhouette {
+        self.cache.get_or_init(|| {
+            let table = self.table();
+            // The shape's own +y reads across the band toward the low edge,
+            // the way a crest stands up the finger — the upright convention.
+            Silhouette::build_from(&|x, y| table.distance(x, -y))
+        })
+    }
+
+    /// The face's reach across the band at a station, like
+    /// [`SignetOutline::extent`].
+    pub fn extent_at(&self, x: f64) -> (f64, f64) {
+        self.silhouette().at(x)
+    }
+
+    /// The faired body's reach, like [`SignetOutline::body_extent`].
+    pub fn body_extent_at(&self, x: f64) -> (f64, f64) {
+        self.silhouette().body_at(x)
+    }
 }
 
 /// A raised flat table pad standing on the band, faired into it.
@@ -4026,6 +4175,86 @@ mod silhouette_tests {
                 worst.1
             );
         }
+    }
+
+    /// An imported plan runs the same machinery the builtins are held to, so
+    /// it gets the same guarantees: the faired body contains the face it
+    /// carries, the head releases from the sand, and the table survives the
+    /// file round-trip without its derived silhouette.
+    ///
+    /// The outline here is deliberately hostile: a five-pointed star with one
+    /// lobe clipped, so it is asymmetric, concave at every notch, and not
+    /// star-shaped from its own centroid.
+    #[test]
+    fn a_drawn_outline_makes_a_head_that_pulls() {
+        // The hostile plan, as a closed polyline.
+        let pts: Vec<[f64; 2]> = (0..720)
+            .map(|i| {
+                let a = i as f64 / 720.0 * std::f64::consts::TAU;
+                let five = 0.62 + 0.38 * (5.0 * a).cos();
+                // One lobe clipped: flatten the reach on a 70 degree window.
+                let clip = 1.0 - 0.55 * crate::field::smoothstep(0.0, 1.0,
+                    1.0 - (wrap_delta(a.to_degrees() - 36.0, 360.0).abs() / 35.0).min(1.0));
+                let r = five * clip;
+                [r * a.cos(), r * a.sin()]
+            })
+            .collect();
+        let co = CustomOutline::from_points("Clipped star", &pts).expect("a real boundary");
+        assert!(co.aspect > 0.1 && co.aspect < 10.0);
+
+        // Containment: the same assertion the builtins are pinned by.
+        let mut worst = (0.0f64, 0.0);
+        for i in 0..=2000 {
+            let x = -1.0 + 2.0 * i as f64 / 2000.0;
+            let (fl, fh) = co.extent_at(x);
+            let (bl, bh) = co.body_extent_at(x);
+            let out = (bl - fl).max(fh - bh);
+            if out > worst.0 {
+                worst = (out, x);
+            }
+        }
+        assert!(worst.0 < 1e-5, "the face reaches {:.3e} past its body at x {:.3}", worst.0, worst.1);
+
+        // On a head: castable, and what little is reported sits on the crest
+        // line — the phantom-vs-real discriminator.
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 8.0;
+        d.profile.thickness_mm = 2.2;
+        d.profile.flatten_sides();
+        d.shank.apply_signet(8.0);
+        let o = d.shank.adopt_outline(co.clone());
+        d.shank.head.outline = o;
+        d.shank.head.length_mm = (8.0 * d.shank.outline_aspect(o)).clamp(2.0, 40.0);
+        let lib = crate::AlphaLibrary::builtin();
+        let v = crate::castability::analyze_field(&d, &lib, &d.draft, 288, 144);
+        assert_ne!(v.verdict, crate::castability::Verdict::NotCastable, "{:?}", v.notes);
+        assert!(
+            v.undercut_fraction() < 5e-4,
+            "a custom head locks: {:.4}%",
+            v.undercut_fraction() * 100.0
+        );
+
+        // Round-trip: the table survives, the derived silhouette does not.
+        let json = serde_json::to_string(&d).unwrap();
+        assert!(!json.contains("cache"), "the derived table must not persist");
+        let back: crate::RingDesign = serde_json::from_str(&json).unwrap();
+        let c2 = back.shank.custom_outline(o).expect("the registry travels");
+        assert_eq!(c2.r, d.shank.custom_outline(o).unwrap().r);
+        for i in 0..=64 {
+            let x = -1.0 + 2.0 * i as f64 / 64.0;
+            let (a0, b0) = d.shank.outline_extent(o, x);
+            let (a1, b1) = back.shank.outline_extent(o, x);
+            assert!((a0 - a1).abs() < 1e-12 && (b0 - b1).abs() < 1e-12, "rebuilt table differs at {x}");
+        }
+
+        // And a design with no registry entry falls back instead of panicking.
+        let mut bare = crate::RingDesign::default();
+        bare.shank.apply_signet(6.0);
+        bare.shank.head.outline = SignetOutline::Custom(7);
+        let _ = bare.shank.outline_extent(SignetOutline::Custom(7), 0.3);
+        let v2 = crate::castability::analyze_field(&bare, &lib, &bare.draft, 96, 48);
+        assert_ne!(v2.verdict, crate::castability::Verdict::NotCastable);
     }
 
     /// A heart's dimple belongs to the **face**. Carried down to the finger it

@@ -847,27 +847,67 @@ fn shank_keys(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
 fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
     let mut changed = false;
     let band_width = app.design.profile.width_mm;
-    let head = &mut app.design.shank.head;
+    let shank = &mut app.design.shank;
 
     ui.horizontal(|ui| {
         ui.label("Face");
-        let before = head.outline;
+        let before = shank.head.outline;
+        // A custom face shows its imported name, not the bare "Custom".
+        let shown = shank
+            .custom_outline(before)
+            .map(|c| c.name.clone())
+            .unwrap_or_else(|| before.label().to_string());
+        let mut adopt: Option<ringdesign_core::CustomOutline> = None;
         egui::ComboBox::from_id_salt("signet_outline")
-            .selected_text(head.outline.label())
+            .selected_text(shown)
             .width(140.0)
             .show_ui(ui, |ui| {
                 for &o in SignetOutline::ALL {
                     changed |= ui
-                        .selectable_value(&mut head.outline, o, o.label())
+                        .selectable_value(&mut shank.head.outline, o, o.label())
                         .clicked();
                 }
+                // Plans already on this design, then the import library.
+                for (i, c) in shank.custom_outlines.iter().enumerate() {
+                    let o = SignetOutline::Custom(i as u8);
+                    changed |= ui
+                        .selectable_value(&mut shank.head.outline, o, &c.name)
+                        .clicked();
+                }
+                let on_design: Vec<String> =
+                    shank.custom_outlines.iter().map(|c| c.name.clone()).collect();
+                let library: Vec<_> = ringdesign_core::library::list_outlines()
+                    .into_iter()
+                    .filter(|c| !on_design.contains(&c.name))
+                    .collect();
+                if !library.is_empty() {
+                    ui.separator();
+                    ui.label(
+                        egui::RichText::new("From the outline library")
+                            .small()
+                            .color(theme::TEXT_DIM),
+                    );
+                    for c in library {
+                        if ui.selectable_label(false, &c.name).clicked() {
+                            adopt = Some(c);
+                        }
+                    }
+                }
             });
+        if let Some(c) = adopt {
+            // Copied into the design, so the file stays self-contained.
+            shank.head.outline = shank.adopt_outline(c);
+            changed = true;
+        }
         // A new shape wants its own proportions; the length is right there to
         // override if the ring wants a long cushion rather than a square one.
-        if head.outline != before {
-            head.fit_length_to(band_width);
+        if shank.head.outline != before {
+            let aspect = shank.outline_aspect(shank.head.outline);
+            shank.head.length_mm = (band_width.max(1.0) * aspect).clamp(2.0, 40.0);
+            changed = true;
         }
     });
+    let head = &mut app.design.shank.head;
 
     changed |= ui
         .add(

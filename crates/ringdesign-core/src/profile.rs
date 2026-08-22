@@ -1492,6 +1492,11 @@ pub struct ShankStyle {
     /// 16. `amount` scales how far each pulls from the plain band.
     #[serde(default)]
     pub keys: Vec<ShankKey>,
+    /// Imported signet plans, indexed by [`SignetOutline::Custom`]. In the
+    /// design and not a global library, so a file with a custom head renders
+    /// identically on any machine.
+    #[serde(default)]
+    pub custom_outlines: Vec<crate::field::CustomOutline>,
 }
 
 fn default_waves() -> u32 {
@@ -1521,6 +1526,7 @@ impl Default for ShankStyle {
             kind: ShankKind::Uniform,
             amount: 0.5,
             waves: default_waves(),
+            custom_outlines: Vec::new(),
             head: SignetHead::default(),
             extra_heads: Vec::new(),
             keys: Vec::new(),
@@ -1529,6 +1535,57 @@ impl Default for ShankStyle {
 }
 
 impl ShankStyle {
+    /// The imported plan a [`SignetOutline::Custom`] names, if it is on this
+    /// design.
+    pub fn custom_outline(&self, o: SignetOutline) -> Option<&crate::field::CustomOutline> {
+        match o {
+            SignetOutline::Custom(i) => self.custom_outlines.get(i as usize),
+            _ => None,
+        }
+    }
+
+    /// [`SignetOutline::extent`], with `Custom` resolved against this
+    /// design's own registry — the one reader the head construction uses.
+    pub fn outline_extent(&self, o: SignetOutline, x: f64) -> (f64, f64) {
+        match self.custom_outline(o) {
+            Some(c) => c.extent_at(x),
+            None => o.extent(x),
+        }
+    }
+
+    /// [`SignetOutline::body_extent`], resolved the same way.
+    pub fn outline_body_extent(&self, o: SignetOutline, x: f64) -> (f64, f64) {
+        match self.custom_outline(o) {
+            Some(c) => c.body_extent_at(x),
+            None => o.body_extent(x),
+        }
+    }
+
+    /// [`SignetOutline::head_aspect`], with `Custom` reading the imported
+    /// shape's own box ratio.
+    pub fn outline_aspect(&self, o: SignetOutline) -> f64 {
+        match self.custom_outline(o) {
+            Some(c) => c.aspect.clamp(0.05, 20.0),
+            None => o.head_aspect(),
+        }
+    }
+
+    /// Adopt an imported plan and aim a head at it: appends to the registry
+    /// (reusing a same-named entry) and returns the variant to set.
+    pub fn adopt_outline(&mut self, outline: crate::field::CustomOutline) -> SignetOutline {
+        let i = match self.custom_outlines.iter().position(|c| c.name == outline.name) {
+            Some(i) => {
+                self.custom_outlines[i] = outline;
+                i
+            }
+            None => {
+                self.custom_outlines.push(outline);
+                self.custom_outlines.len() - 1
+            }
+        };
+        SignetOutline::Custom(i.min(u8::MAX as usize) as u8)
+    }
+
     /// Switch to a signet and give the head proportions that read as one,
     /// rather than leaving it on whatever the last style used.
     pub fn apply_signet(&mut self, band_width_mm: f64) {
@@ -1674,11 +1731,11 @@ impl ShankStyle {
         let x = (plane_r * d.min(face_edge).tan() / half_l).clamp(0.0, 1.0);
         let k_fair = head.body_fair.clamp(0.0, 1.0);
         let dome_k = head.dome.clamp(0.0, 1.0);
-        let face_at = |s: f64| head.outline.extent(s);
+        let face_at = |s: f64| self.outline_extent(head.outline, s);
         // A cut dome's plan owes the outline nothing: the body widens toward
         // the outline's full bounding box and the swell alone shapes it.
         let body_at = |s: f64| {
-            let b = blend_span(face_at(s), head.outline.body_extent(s), k_fair);
+            let b = blend_span(face_at(s), self.outline_body_extent(head.outline, s), k_fair);
             blend_span(b, (-1.0, 1.0), dome_k)
         };
         let body = body_at(end * x);
@@ -3382,6 +3439,7 @@ mod tests {
             waves: 1,
             extra_heads: Vec::new(),
             keys: Vec::new(),
+            custom_outlines: Vec::new(),
             head: SignetHead {
                 outline: SignetOutline::Round,
                 length_mm: 14.7,

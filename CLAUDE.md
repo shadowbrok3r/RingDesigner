@@ -694,6 +694,32 @@ fields 0.000% by construction. Hard-won specifics:
   round, cushion, hexagon, cross — the plan may still be non-convex along
   the ring) are where the dome shines.
 
+#### Imported plans are outlines too
+
+`SignetOutline::Custom(u8)` indexes `ShankStyle::custom_outlines` — a
+`CustomOutline` is a 720-entry polar boundary table (~3 KB), carried **in
+the design file**, so a custom head renders identically on any machine
+with no asset in the loop. The table is the source of truth; the derived
+silhouette rebuilds on first use like the tiling SDFs. The head
+construction resolves through `ShankStyle::outline_extent` /
+`outline_body_extent` / `outline_aspect` (the registry owners); the bare
+enum methods fall back to Oval so a design missing its registry entry
+degrades instead of panicking, and `Custom` stays out of
+`SignetOutline::ALL` so every builtin picker and sweep is untouched.
+
+Any closed polyline comes in through `CustomOutline::from_points`, which
+runs the same recentre-fit-and-raycast the builtin polar tables use and
+then the same rolling-ball fairing — so the containment guarantee is
+inherited, not re-proven per shape. `a_drawn_outline_makes_a_head_that
+_pulls` pins it with a deliberately hostile plan (an asymmetric clipped
+star): containment to 1e-5, field-clean, and a JSON round-trip that must
+not carry the derived table. The library half lives in
+`library::outline_dir()` (`<name>.outline.json`); applying one **copies**
+it into the design. 19 factory signet plans decoded from the CrossGems
+presets (`PostLoad/tools/outline_export.py`) ship there as user assets —
+clover, rosette, star, butterfly, escutcheon and the rest — every one
+fielding 0.000% on a bare head.
+
 #### Outlines have to survive being turned into a silhouette
 
 `SignetOutline::half_extent` is a cached table per outline, built by scanning

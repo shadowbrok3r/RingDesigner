@@ -56,7 +56,7 @@ pub use alpha::{Alpha, AlphaLibrary};
 pub use castability::{CastReport, DraftSettings, FaceClass, Section};
 pub use drawn::{DrawnAlpha, Stroke};
 pub use engine::{DesignEngine, SharedEngine};
-pub use field::{Blend, FieldContext, Layer, LayerEntry, LayerStack, SideFaces, Uv, Window};
+pub use field::{Blend, CustomOutline, FieldContext, Layer, LayerEntry, LayerStack, SideFaces, Uv, Window};
 pub use mesh::{BuildParams, BuildResult, Mesh, Report, Vec3, build};
 pub use profile::{BandProfile, ProfileLoop, ProfileSample, ProfileStyle, ShankKind, ShankStyle};
 pub use sizing::RingSize;

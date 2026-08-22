@@ -148,6 +148,58 @@ pub fn profile_dir() -> PathBuf {
     data_root().join("profiles")
 }
 
+/// Imported signet plans live beside the profiles, one
+/// `<name>.outline.json` each — a serialized [`crate::CustomOutline`].
+/// Library entries are import stock: applying one copies it into the
+/// design, so the file stays self-contained.
+pub fn outline_dir() -> PathBuf {
+    data_root().join("outlines")
+}
+
+/// Every saved signet plan, sorted by name.
+pub fn list_outlines() -> Vec<crate::CustomOutline> {
+    list_outlines_in(&outline_dir())
+}
+
+/// [`list_outlines`] from an explicit directory.
+pub fn list_outlines_in(dir: &Path) -> Vec<crate::CustomOutline> {
+    let mut out: Vec<crate::CustomOutline> = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return out;
+    };
+    for e in entries.flatten() {
+        let path = e.path();
+        if !path.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.ends_with(".outline.json"))
+        {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(&path) else { continue };
+        let Ok(o) = serde_json::from_str::<crate::CustomOutline>(&text) else { continue };
+        if o.r.len() == 720 && o.r.iter().all(|v| v.is_finite() && *v > 0.0) {
+            out.push(o);
+        }
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+/// Save a signet plan into the library, named by its own `name`.
+pub fn save_outline_in(dir: &Path, outline: &crate::CustomOutline) -> anyhow::Result<PathBuf> {
+    let stem: String = outline
+        .name
+        .trim()
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' { c } else { '_' })
+        .collect();
+    if stem.is_empty() {
+        anyhow::bail!("an outline needs a name");
+    }
+    std::fs::create_dir_all(dir)?;
+    let path = dir.join(format!("{stem}.outline.json"));
+    std::fs::write(&path, serde_json::to_string(outline)?)?;
+    Ok(path)
+}
+
 /// Save the profile's shape under a name. The name becomes the file stem;
 /// anything path-hostile is flattened to `_`.
 pub fn save_profile(name: &str, profile: &crate::BandProfile) -> anyhow::Result<PathBuf> {

@@ -857,12 +857,42 @@ fn parse_signet_outline(s: &str) -> Result<SignetOutline, ErrorData> {
         .copied()
         .find(|v| norm(&format!("{v:?}")) == key || norm(v.label()) == key)
         .ok_or_else(|| {
-            let all: Vec<String> = SignetOutline::ALL.iter().map(|v| format!("{v:?}")).collect();
+            let mut all: Vec<String> =
+                SignetOutline::ALL.iter().map(|v| format!("{v:?}")).collect();
+            all.extend(
+                ringdesign_core::library::list_outlines().into_iter().map(|c| c.name),
+            );
             ErrorData::invalid_params(
                 format!("unknown signet outline {s:?}; expected one of {}", all.join(", ")),
                 None,
             )
         })
+}
+
+/// [`parse_signet_outline`], with the design in hand: a name that is not a
+/// builtin resolves against the design's own imported plans, then the
+/// outline library — adopting a library hit into the design, so the file
+/// stays self-contained.
+fn resolve_signet_outline(
+    d: &mut ringdesign_core::RingDesign,
+    s: &str,
+) -> Result<SignetOutline, ErrorData> {
+    if let Ok(o) = parse_signet_outline(s) {
+        return Ok(o);
+    }
+    let key = norm(s);
+    if let Some(i) =
+        d.shank.custom_outlines.iter().position(|c| norm(&c.name) == key)
+    {
+        return Ok(SignetOutline::Custom(i.min(u8::MAX as usize) as u8));
+    }
+    if let Some(c) = ringdesign_core::library::list_outlines()
+        .into_iter()
+        .find(|c| norm(&c.name) == key)
+    {
+        return Ok(d.shank.adopt_outline(c));
+    }
+    parse_signet_outline(s)
 }
 
 fn unknown_alpha(name: &str, lib: &AlphaLibrary) -> ErrorData {
@@ -1498,10 +1528,13 @@ impl RingDesignServer {
         Parameters(p): Parameters<SetShankParams>,
     ) -> Result<Json<DesignChange>, ErrorData> {
         let kind = p.kind.as_deref().map(parse_shank_kind).transpose()?;
-        let outline = p.head_outline.as_deref().map(parse_signet_outline).transpose()?;
         let mut applied = Vec::new();
         let mut e = self.engine.lock();
         let d = e.design_mut();
+        let outline = match p.head_outline.as_deref() {
+            Some(o) => Some(resolve_signet_outline(d, o)?),
+            None => None,
+        };
         if let Some(kind) = kind {
             d.shank.kind = kind;
             applied.push(format!("kind={kind:?}"));
@@ -1510,10 +1543,13 @@ impl RingDesignServer {
         if let Some(outline) = outline {
             d.shank.head.outline = outline;
             // Sized to the shape unless the call says otherwise, so an outline
-            // arrives as that shape rather than the last one restretched.
+            // arrives as that shape rather than the last one restretched. The
+            // aspect resolves through the registry, so an imported plan sizes
+            // by its own box.
             if p.head_length_mm.is_none() {
+                let aspect = d.shank.outline_aspect(outline);
                 let width = d.profile.width_mm;
-                d.shank.head.fit_length_to(width);
+                d.shank.head.length_mm = (width.max(1.0) * aspect).clamp(2.0, 40.0);
             }
             applied.push(format!("head_outline={outline:?}"));
         }
@@ -1542,7 +1578,7 @@ impl RingDesignServer {
                 d.shank.extra_heads.clear();
                 applied.push("second_head=removed".into());
             } else {
-                let outline = parse_signet_outline(o)?;
+                let outline = resolve_signet_outline(d, o)?;
                 if d.shank.extra_heads.is_empty() {
                     let primary_theta = d.shank.head.theta_deg;
                     d.shank.extra_heads.push(ringdesign_core::profile::SignetHead {
