@@ -1115,6 +1115,40 @@ were unrelated numbers. The derived defaults are the physical ones: a
 bezel's girdle lands on its pocket floor, a drilled pad takes the stone a
 whisker in, a cabochon rests flush on its bed.
 
+### `u` is arc at the crest, and metal is not
+
+`u` is arc distance **at the crest radius**, so it is the true metal only on
+the crest. Everything else sits inside that radius: measured by
+`examples/metric_probe.rs`, the wider side face runs at
+
+| profile | HalfRound 6x3 | LowDome 6x3 | Flat 6x3 | Flat 7x5 | Beveled 6x2 |
+| --- | --- | --- | --- | --- | --- |
+| `k = r(v)/r_crest` | 0.813 | 0.833 | 0.849 | 0.796 | 0.859 |
+
+so a bridge the chart called 0.55 mm was 0.44 mm of metal — 17–20%
+optimistic, in the unsafe direction, on exactly the surfaces the doctrine
+sends all ornament to. `FieldContext::arc_scale(v)` is that scalar and
+`arc_scale_min(lo, hi)` the conservative read over a span.
+
+What it corrects is **reported numbers and the integer counts generators
+solve**, never `h(u, v)`: the chart stays one clean reparameterization of
+theta, no saved design changes shape, and every 0.000% guarantee is
+bit-identical. Concretely — `SeatRunLayer::bridge_at` (the pitch and the
+seat's span both scale by `k`, so the chart figure times `k` is the real one
+*exactly*, one multiply); `solve_spacing`, which keeps the invariant that
+what it solves is what `bridge_at` then reports; `pave::fill`, where each
+row reads its own radius, so different rows legitimately get different
+integer counts — a hex pavé on an annulus physically does; and
+`pave::halo`, whose accents were placed at `off_u / r_crest` and so landed
+at only `k` of the radius they were asked for, squashing the ring along the
+ring by a fifth under a comment already promising an even one.
+
+`FeatureFootprint` splits into `feature_u_mm` and `feature_v_mm` for the
+same reason, because they are not the same measure: `v` is arc length on the
+section itself and true as it stands. `min_feature_mm()` is the chart figure
+refinement seeds on; `metal_feature_mm(ctx)` is what `dfm.rs` judges against
+the sand's detail floor.
+
 ### Stone against stone: the pairwise census
 
 A run's `bridge_mm` only knows its own neighbours, so a pad beside a run,

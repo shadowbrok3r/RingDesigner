@@ -530,7 +530,7 @@ pub fn build(
     // deterministic instead of probabilistic.
     let bore_len = (perimeter - reference.surface_len_mm).max(0.0);
     for fp in design.layers.feature_footprints(&ctx) {
-        let want = (fp.min_feature_mm * 0.5).max(1e-3);
+        let want = (fp.min_feature_mm() * 0.5).max(1e-3);
         let need = |edge0: f64| {
             let mut l = 0u32;
             let mut e = edge0;

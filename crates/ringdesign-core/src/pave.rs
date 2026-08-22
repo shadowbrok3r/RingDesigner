@@ -135,8 +135,7 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
         let (hu, hv) = proto.half_extents_mm();
         (hu * 2.0, hv * 2.0)
     };
-    let pitch = span_u + spec.bridge_mm.max(0.0);
-    if !(pitch > 0.2) {
+    if !(span_u + spec.bridge_mm.max(0.0) > 0.2) {
         return None;
     }
 
@@ -172,10 +171,20 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
     for r in 0..rows {
         let v = v0 + r as f64 * row_gap;
         let stagger = spec.stagger && r % 2 == 1;
+        // The row's own radius, not the crest's: a side face runs at 0.80
+        // of it, so a chart pitch of 2.0 mm is 1.6 mm of metal. Both the
+        // seat's span and the circumference scale by it, so only the bridge
+        // is an absolute.
+        let k = ctx.arc_scale(v);
+        let r_row = ctx.crest_radius_mm * k;
+        let pitch = span_u * k + spec.bridge_mm.max(0.0);
+        if !(pitch > 0.2) {
+            continue;
+        }
         if full {
             // Wrap-exact: an integer count around the ring, alternate rows
             // rotated half a step.
-            let n = (ctx.circumference_mm / pitch).floor() as usize;
+            let n = (ctx.circumference_mm * k / pitch).floor() as usize;
             if n < 3 {
                 continue;
             }
@@ -185,14 +194,13 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
                 push_seat(&mut seats, &proto, theta, v, &mut refused);
             }
         } else {
-            // A centred run along the arc. Arc length is measured at the
-            // crest radius, same as `u`.
-            let arc_mm = spec.span_deg.to_radians() * ctx.crest_radius_mm;
+            // A centred run along the arc, measured at the row's own radius.
+            let arc_mm = spec.span_deg.to_radians() * r_row;
             let n = (arc_mm / pitch).floor() as usize;
             if n == 0 {
                 continue;
             }
-            let step_deg = pitch / ctx.crest_radius_mm.max(1e-9) * 180.0 / std::f64::consts::PI;
+            let step_deg = pitch / r_row.max(1e-9) * 180.0 / std::f64::consts::PI;
             let offset = if stagger { 0.5 } else { 0.0 };
             let base = spec.theta_deg - (n as f64 - 1.0 + 2.0 * offset) * 0.5 * step_deg;
             for k in 0..n {
@@ -471,13 +479,15 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
     cs.height_mm = 0.9;
     stack.layers.push(LayerEntry::new("Centre", Layer::SeatPad(cs)));
 
-    let crest_r = ctx.crest_radius_mm.max(1e-6);
+    let crest_r = (ctx.crest_radius_mm * ctx.arc_scale(v_center)).max(1e-6);
     for k in 0..n {
         // Equally spaced by arc length round the halo, so the bridges
         // between accents are even on an oval as they are on a round.
         let (off_u, off_v) = ring.at(k as f64 / n as f64);
         // The halo is a few mm across, so its own outline is locally flat in
-        // (arc-u, v): the u offset becomes an angle at the crest radius.
+        // (arc-u, v): the u offset becomes an angle at the plate's own
+        // radius, which is what makes the ring round in metal rather than
+        // in chart arc.
         let dtheta = off_u / crest_r * 180.0 / std::f64::consts::PI;
         // Sand: a zero-height marker — it carries the stone for the report
         // and the preview but raises no proud geometry, because a proud
@@ -763,6 +773,152 @@ mod tests {
     /// regenerate pass re-solves it when the band changes, a recipe that no
     /// longer fits refuses non-destructively, baking detaches it, and the
     /// recipe survives the file round-trip.
+    /// A halo drawn round in the chart is squashed in metal: the accent at
+    /// the ring's own `u` extreme lands at only `k` of the radius it was
+    /// asked for, because the chart's `u` is arc at the crest and the plate
+    /// is not. A fifth of the halo's reach, on a band whose flank runs at
+    /// 0.8 of the crest radius.
+    #[test]
+    fn the_halo_ring_reaches_its_own_radius_in_metal() {
+        let mut d = flat_design();
+        d.profile.apply_style(crate::ProfileStyle::HalfRound);
+        d.profile.width_mm = 12.0;
+        d.profile.thickness_mm = 6.0;
+        let ctx = d.field_context();
+        // Well down the flank, where the chart and the metal part company.
+        let v_center = 4.7;
+        let k = ctx.arc_scale(v_center);
+        assert!(k < 0.94, "the plate sits inside the crest radius: {k:.4}");
+
+        let spec = HaloSpec {
+            center: Gem::calibrated(crate::gem::GemCut::Round, 2.0),
+            accent: Gem::calibrated(crate::gem::GemCut::Round, 0.9),
+            v_mm: Some(v_center),
+            ..Default::default()
+        };
+        let (entry, n) = halo(&d, &spec).expect("fits the band");
+        assert!(n >= 6);
+        let Layer::Group(g) = &entry.layer else { panic!() };
+        let accents: Vec<&SeatPadLayer> = g
+            .stack
+            .layers
+            .iter()
+            .filter(|e| e.name.starts_with("Accent"))
+            .filter_map(|e| match &e.layer {
+                Layer::SeatPad(s) => Some(s),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(accents.len(), n as usize);
+
+        // The halo's own radius: the centre's reach plus the gap and half an
+        // accent, which is what the generator built the ring from.
+        let mut centre = SeatPadLayer { style: SeatStyle::GypsyMound, ..Default::default() };
+        centre.fit_stone(spec.center);
+        let want = centre.semi_axes_mm().1 + spec.gap_mm + (spec.accent.w_mm + 0.7) * 0.5;
+
+        // The first accent sits at the ring's `u` extreme — pure arc, no `v`
+        // — so its metal reach is exactly the number the fix is about.
+        let a0 = accents[0];
+        assert!((a0.v_mm - v_center).abs() < 1e-6, "the first accent is on the centre line");
+        let reach = crate::field::wrap_delta(a0.theta_deg - spec.theta_deg, 360.0).to_radians()
+            * ctx.crest_radius_mm
+            * ctx.arc_scale(a0.v_mm);
+        assert!(
+            (reach - want).abs() / want < 0.02,
+            "the accent reaches {reach:.3} mm of metal, wants {want:.3} (chart arc would \
+             have left {:.3})",
+            want * k
+        );
+
+        // And rounder in metal than the chart circle it replaces. Only an
+        // A/B: a section this curved varies its own radius across the halo's
+        // `v` span, so no placement in the chart is a perfect metal circle —
+        // the claim is that reading the plate's radius beats reading the
+        // crest's, not that either is exact.
+        let out_of_round = |scale: f64| {
+            let radii: Vec<f64> = accents
+                .iter()
+                .map(|a| {
+                    let du = crate::field::wrap_delta(a.theta_deg - spec.theta_deg, 360.0)
+                        .to_radians()
+                        * ctx.crest_radius_mm
+                        * ctx.arc_scale(a.v_mm)
+                        * scale;
+                    let dv = a.v_mm - v_center;
+                    (du * du + dv * dv).sqrt()
+                })
+                .collect();
+            let lo = radii.iter().cloned().fold(f64::MAX, f64::min);
+            let hi = radii.iter().cloned().fold(0.0f64, f64::max);
+            hi / lo
+        };
+        let now = out_of_round(1.0);
+        let before = out_of_round(k);
+        assert!(
+            now < before,
+            "{:.1}% out of round now against {:.1}% reading the crest",
+            (now - 1.0) * 100.0,
+            (before - 1.0) * 100.0
+        );
+
+        d.layers.layers.push(entry);
+        let lib = crate::AlphaLibrary::builtin();
+        let v = crate::castability::analyze_field(&d, &lib, &d.draft, 192, 96);
+        assert!(v.verdict != crate::castability::Verdict::NotCastable, "{:?}", v.verdict);
+    }
+
+    /// A full-ring fill steps by the same metal on every row it lays down,
+    /// and each row still closes on its own integer count.
+    #[test]
+    fn a_full_ring_row_steps_in_real_millimetres() {
+        let mut d = flat_design();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 14.0;
+        d.profile.thickness_mm = 6.0;
+        let ctx = d.field_context();
+        let spec = PaveSpec {
+            gem: Gem::calibrated(crate::gem::GemCut::Round, 0.8),
+            bridge_mm: 0.35,
+            region: PaveRegion::VBand { center_mm: ctx.crest_v_mm - 3.0, width_mm: 11.0 },
+            stagger: false,
+            ..Default::default()
+        };
+        let (entry, out) = fill(&d, &spec).expect("fits");
+        assert!(out.rows >= 3, "several rows, so their radii differ: {}", out.rows);
+        let Layer::Group(g) = &entry.layer else { panic!() };
+
+        let mut rows: Vec<(f64, usize)> = Vec::new();
+        for e in &g.stack.layers {
+            let Layer::SeatPad(s) = &e.layer else { continue };
+            match rows.iter_mut().find(|(v, _)| (*v - s.v_mm).abs() < 1e-9) {
+                Some((_, n)) => *n += 1,
+                None => rows.push((s.v_mm, 1)),
+            }
+        }
+        assert!(rows.len() >= 3);
+
+        let mut proto = SeatPadLayer { style: spec.style, blend_mm: 0.4, ..Default::default() };
+        proto.fit_stone(spec.gem);
+        let span_u = proto.half_extents_mm().0 * 2.0;
+
+        let ks: Vec<f64> = rows.iter().map(|(v, _)| ctx.arc_scale(*v)).collect();
+        let spread = ks.iter().cloned().fold(0.0f64, f64::max)
+            - ks.iter().cloned().fold(f64::MAX, f64::min);
+        assert!(spread > 0.03, "the rows straddle a real radius change: {spread:.4}");
+
+        for (v, n) in &rows {
+            let k = ctx.arc_scale(*v);
+            let step = ctx.circumference_mm * k / *n as f64;
+            let want = span_u * k + spec.bridge_mm;
+            assert!(
+                (step - want).abs() / want < 0.05,
+                "row at v {v:.2} (k {k:.3}): steps {step:.3} mm of metal, wants {want:.3}"
+            );
+            assert!(*n >= 3, "an integer count that closes the ring: {n}");
+        }
+    }
+
     /// A pin is the user's ground, and the packer yields to it. The whole
     /// point is that a hand edit inside a live group used to be destroyed by
     /// the next regeneration — the panel offered a seat editor and a delete

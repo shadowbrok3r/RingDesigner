@@ -102,6 +102,42 @@ pub struct FieldContext {
     pub side_faces_cache: std::sync::OnceLock<Option<SideFaces>>,
 }
 
+impl FieldContext {
+    /// Real arc per unit of `u` at this `v` — `r(v) / r_crest`, in `(0, 1]`.
+    ///
+    /// `u` is arc distance **at the crest radius**, so it overstates the
+    /// metal anywhere the surface sits further in. That is not a rounding
+    /// error: a squared band's side face runs at 0.80–0.83 of the crest
+    /// radius, so a bridge the chart calls 0.55 mm is 0.45 mm of metal —
+    /// optimistic, on exactly the surfaces the doctrine sends all ornament
+    /// to. On the crest it is exactly 1, so nothing on the parting plane
+    /// moves.
+    ///
+    /// This corrects what is *reported* and the integer counts generators
+    /// solve, never `h(u, v)` itself: the chart stays one clean
+    /// reparameterization of theta, and no saved design changes shape.
+    pub fn arc_scale(&self, v_mm: f64) -> f64 {
+        if !(self.crest_radius_mm > 1e-9) {
+            return 1.0;
+        }
+        match self.surface.at(v_mm, self.band_v_len_mm) {
+            Some((r, _)) if r > 1e-9 => (r / self.crest_radius_mm).clamp(1e-6, 1.0),
+            _ => 1.0,
+        }
+    }
+
+    /// The least [`arc_scale`](Self::arc_scale) over a `v` range — the
+    /// conservative read for a feature whose footprint spans the section,
+    /// where no single number is the metric.
+    pub fn arc_scale_min(&self, v_lo: f64, v_hi: f64) -> f64 {
+        let (lo, hi) = if v_lo <= v_hi { (v_lo, v_hi) } else { (v_hi, v_lo) };
+        let steps = 8;
+        (0..=steps)
+            .map(|i| self.arc_scale(lo + (hi - lo) * i as f64 / steps as f64))
+            .fold(1.0f64, f64::min)
+    }
+}
+
 /// Base draft a surface must clear to count as a side face, degrees.
 pub const SIDE_FACE_MIN_DRAFT_DEG: f64 = 80.0;
 
@@ -536,57 +572,50 @@ impl Layer {
             Layer::Tiling(l) => {
                 let (cw, ch) = l.cell_size(ctx);
                 vec![FeatureFootprint {
-                    min_feature_mm: cw.min(ch).max(0.1),
+                    feature_u_mm: cw.max(0.1),
+                    feature_v_mm: ch.max(0.1),
                     u_mm: None,
                     v_mm: l.v_bounds(),
                 }]
             }
             Layer::Border(l) => {
                 let v = (l.v_mm - l.width_mm * 0.5, l.v_mm + l.width_mm * 0.5);
-                let f = |v| FeatureFootprint {
-                    min_feature_mm: l.width_mm.max(0.1),
-                    u_mm: None,
-                    v_mm: v,
-                };
+                let f = |v| FeatureFootprint::across(l.width_mm.max(0.1), None, v);
                 if l.mirror { vec![f(v), f(mirrored(v))] } else { vec![f(v)] }
             }
             Layer::Milgrain(l) => {
                 let half = l.bead_diameter_mm * 0.5;
                 let v = (l.v_mm - half, l.v_mm + half);
-                let f = |v| FeatureFootprint {
-                    min_feature_mm: l.bead_diameter_mm.max(0.1),
-                    u_mm: None,
-                    v_mm: v,
-                };
+                let f = |v| FeatureFootprint::round(l.bead_diameter_mm.max(0.1), None, v);
                 if l.mirror { vec![f(v), f(mirrored(v))] } else { vec![f(v)] }
             }
             Layer::SeatPad(l) => {
                 let (hu, hv) = l.half_extents_mm();
                 let skirt = l.blend_mm.max(0.0);
                 let u0 = ctx.u_of_theta(l.theta_deg);
-                vec![FeatureFootprint {
-                    min_feature_mm: l.blend_mm.clamp(0.15, l.diameter_mm.max(0.15)),
-                    u_mm: Some((u0 - hu - skirt, u0 + hu + skirt)),
-                    v_mm: (l.v_mm - hv - skirt, l.v_mm + hv + skirt),
-                }]
+                vec![FeatureFootprint::round(
+                    l.blend_mm.clamp(0.15, l.diameter_mm.max(0.15)),
+                    Some((u0 - hu - skirt, u0 + hu + skirt)),
+                    (l.v_mm - hv - skirt, l.v_mm + hv + skirt),
+                )]
             }
             Layer::Signet(l) => {
                 let reach = l.reach_mm();
                 let u0 = ctx.u_of_theta(l.theta_deg);
                 let half_w = l.width_mm * 0.5 + l.shoulder_mm;
-                vec![FeatureFootprint {
-                    min_feature_mm: l.shoulder_mm.max(0.15),
-                    u_mm: Some((u0 - reach, u0 + reach)),
-                    v_mm: (l.v_mm - half_w, l.v_mm + half_w),
-                }]
+                vec![FeatureFootprint::round(
+                    l.shoulder_mm.max(0.15),
+                    Some((u0 - reach, u0 + reach)),
+                    (l.v_mm - half_w, l.v_mm + half_w),
+                )]
             }
             Layer::Group(g) => g.stack.feature_footprints(ctx),
             Layer::Curve(l) => l.feature_footprints(ctx),
-            Layer::Flutes(l) => vec![FeatureFootprint {
-                min_feature_mm: l.width_mm.max(0.1),
-                u_mm: None,
-                v_mm: (0.0, ctx.band_v_len_mm),
-            }],
+            Layer::Flutes(l) => vec![FeatureFootprint::across(
+                l.width_mm.max(0.1),
+                None,
+                (0.0, ctx.band_v_len_mm),
+            )],
             Layer::Decals(l) => l.feature_footprints(ctx),
             Layer::SeatRun(l) => l.feature_footprints(ctx),
             Layer::Openwork(l) => l.tiling.feature_footprints_as_tiling(ctx),
@@ -640,15 +669,52 @@ impl OpenworkLayer {
 }
 
 /// One region of the band carrying detail at a known scale, in unrolled mm.
+///
+/// The two axes are kept apart because they are not the same measure. `v` is
+/// arc length on the section itself, so a width across the band is true as it
+/// stands; `u` is arc length **at the crest radius**, so a feature running
+/// around the ring is shorter in metal wherever the surface sits inside that
+/// — 0.80–0.83 of it on a squared band's side faces. Refinement wants the
+/// chart figure, because the mesh grid lives in the chart; the sand's detail
+/// floor wants the metal one.
 #[derive(Clone, Copy, Debug)]
 pub struct FeatureFootprint {
-    /// Smallest feature the layer produces here, mm.
-    pub min_feature_mm: f64,
+    /// Smallest feature measured around the ring, mm of chart `u`. Infinite
+    /// when nothing about the layer is fine along `u` — a rail, a bead line.
+    pub feature_u_mm: f64,
+    /// Smallest feature measured across the section, mm. Infinite when
+    /// nothing about the layer is fine across `v`.
+    pub feature_v_mm: f64,
     /// Arc extent around the ring, mm at the crest radius; may extend past the
     /// wrap. `None` covers the whole ring.
     pub u_mm: Option<(f64, f64)>,
     /// Extent across the band surface, mm.
     pub v_mm: (f64, f64),
+}
+
+impl FeatureFootprint {
+    /// A feature the same size both ways — a bead, a stamp, a pad's skirt.
+    pub fn round(mm: f64, u_mm: Option<(f64, f64)>, v_mm: (f64, f64)) -> Self {
+        Self { feature_u_mm: mm, feature_v_mm: mm, u_mm, v_mm }
+    }
+
+    /// A feature measured only across the section — a rail, a flute, a
+    /// milgrain line: it runs the whole way round, so `u` does not limit it.
+    pub fn across(mm: f64, u_mm: Option<(f64, f64)>, v_mm: (f64, f64)) -> Self {
+        Self { feature_u_mm: f64::INFINITY, feature_v_mm: mm, u_mm, v_mm }
+    }
+
+    /// The finest feature in the chart, mm — what refinement seeds on.
+    pub fn min_feature_mm(&self) -> f64 {
+        self.feature_u_mm.min(self.feature_v_mm)
+    }
+
+    /// The finest feature in **metal**, mm — what the sand's detail floor
+    /// judges, with the `u` side taken at the footprint's own arc scale.
+    pub fn metal_feature_mm(&self, ctx: &FieldContext) -> f64 {
+        let k = ctx.arc_scale_min(self.v_mm.0, self.v_mm.1);
+        (self.feature_u_mm * k).min(self.feature_v_mm)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1472,11 +1538,11 @@ impl DecalLayer {
             .map(|d| {
                 let u0 = ctx.u_of_theta(d.theta_deg);
                 let reach = d.size_mm;
-                FeatureFootprint {
-                    min_feature_mm: (d.size_mm * 0.15).max(0.15),
-                    u_mm: Some((u0 - reach, u0 + reach)),
-                    v_mm: (d.v_mm - reach, d.v_mm + reach),
-                }
+                FeatureFootprint::round(
+                    (d.size_mm * 0.15).max(0.15),
+                    Some((u0 - reach, u0 + reach)),
+                    (d.v_mm - reach, d.v_mm + reach),
+                )
             })
             .collect()
     }
@@ -1642,8 +1708,13 @@ impl SeatRunLayer {
     /// stations of that seat plus the bridge that fit the ring.
     pub fn solve_spacing(&mut self, ctx: &FieldContext) {
         self.seat.fit_stone(self.gem);
-        let pitch = self.seat_span_mm().max(0.5) + self.bridge_mm.max(0.0);
-        self.count = ((ctx.circumference_mm / pitch).floor() as u32).clamp(3, 200);
+        // Solved in metal, not in chart arc: the seat's own span shrinks with
+        // the row's radius exactly as the pitch does, so only the bridge is
+        // an absolute. Keeps `bridge_at` at the asked-for figure, which is
+        // the invariant the two have to share.
+        let k = ctx.arc_scale(self.seat.v_mm);
+        let pitch = self.seat_span_mm().max(0.5) * k + self.bridge_mm.max(0.0);
+        self.count = ((ctx.circumference_mm * k / pitch).floor() as u32).clamp(3, 200);
     }
 
     /// The seat's own reach along the ring, mm — its full width for a round
@@ -1653,10 +1724,14 @@ impl SeatRunLayer {
         self.seat.half_extents_mm().0 * 2.0
     }
 
-    /// Bridge actually left between neighbouring seats at the current count.
+    /// Bridge actually left between neighbouring seats, mm of metal.
+    ///
+    /// The pitch and the seat's span both scale by the row's own
+    /// [`arc_scale`](FieldContext::arc_scale), so the chart figure times `k`
+    /// is the real one exactly — one multiply, not an approximation.
     pub fn bridge_at(&self, ctx: &FieldContext) -> f64 {
         let pitch = ctx.circumference_mm / self.count.max(1) as f64;
-        pitch - self.seat_span_mm()
+        (pitch - self.seat_span_mm()) * ctx.arc_scale(self.seat.v_mm)
     }
 
     /// Size factor at a ring angle: 1 at [`taper_theta_deg`](Self::taper_theta_deg),
@@ -1741,19 +1816,19 @@ impl SeatRunLayer {
 
     pub fn feature_footprints(&self, _ctx: &FieldContext) -> Vec<FeatureFootprint> {
         let reach = self.seat.half_extents_mm().1 + self.seat.blend_mm;
-        let mut out = vec![FeatureFootprint {
-            min_feature_mm: (self.seat.diameter_mm * 0.2).max(0.15),
-            u_mm: None,
-            v_mm: (self.seat.v_mm - reach, self.seat.v_mm + reach),
-        }];
+        let mut out = vec![FeatureFootprint::round(
+            (self.seat.diameter_mm * 0.2).max(0.15),
+            None,
+            (self.seat.v_mm - reach, self.seat.v_mm + reach),
+        )];
         if self.shared_prong_mm > 1e-9 {
             let r = self.prong_r_mm();
             let off = self.prong_off_mm();
-            out.push(FeatureFootprint {
-                min_feature_mm: r,
-                u_mm: None,
-                v_mm: (self.seat.v_mm - off - r, self.seat.v_mm + off + r),
-            });
+            out.push(FeatureFootprint::round(
+                r,
+                None,
+                (self.seat.v_mm - off - r, self.seat.v_mm + off + r),
+            ));
         }
         out
     }
@@ -3009,6 +3084,65 @@ mod tests {
         assert!((t.apply(0.2) - 2.0 * q).abs() < 1e-9);
         // Negative and zero pass through, so carving is unaffected.
         assert_eq!(t.apply(-0.2), -0.2);
+    }
+
+    /// `u` is arc at the crest radius, so it is the true metal only on the
+    /// crest. Everything a run reports on a side face was 17–20% optimistic,
+    /// in the unsafe direction, on exactly the surfaces the doctrine sends
+    /// all ornament to.
+    #[test]
+    fn the_bridge_a_run_reports_is_metal_not_arc() {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 7.0;
+        d.profile.thickness_mm = 5.0;
+        let c = d.field_context();
+        let face = c.side_faces_std().and_then(|sf| sf.wider()).expect("a squared band has one");
+        let v_face = 0.5 * (face.0 + face.1);
+
+        // On the crest the chart is the metal — to the sampled profile's own
+        // resolution, which is where the last nanometre goes.
+        assert!((c.arc_scale(c.crest_v_mm) - 1.0).abs() < 1e-6);
+        let k = c.arc_scale(v_face);
+        assert!(k < 0.85, "a squared band's side face runs well inside the crest: {k:.4}");
+
+        let run = |v: f64| {
+            let mut r = SeatRunLayer::default();
+            r.gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Round, 1.6);
+            r.seat.v_mm = v;
+            r.bridge_mm = 0.4;
+            r.solve_spacing(&c);
+            r
+        };
+
+        // The chart figure, and the metal it really is.
+        let on_face = run(v_face);
+        let chart = c.circumference_mm / on_face.count as f64 - on_face.seat_span_mm();
+        let metal = on_face.bridge_at(&c);
+        assert!((metal - chart * k).abs() < 1e-9, "{metal} vs {chart} x {k}");
+        assert!(chart - metal > 0.08, "the correction is worth saying: {:.3} mm", chart - metal);
+
+        // And solve_spacing never lands *under* the bridge it was asked for,
+        // in metal — the invariant the two have to share, or the report
+        // starts warning about spacing it just solved. The slack above it is
+        // the floor to a whole station, which is one pitch spread over the
+        // ring.
+        for v in [v_face, c.crest_v_mm] {
+            let r = run(v);
+            let got = r.bridge_at(&c);
+            let pitch = c.circumference_mm * c.arc_scale(v) / r.count as f64;
+            let slack = pitch * pitch / (c.circumference_mm * c.arc_scale(v));
+            assert!(
+                got >= r.bridge_mm - 1e-9 && got <= r.bridge_mm + slack,
+                "asked {:.2} mm, got {got:.3} at v {v:.2} (slack {slack:.3})",
+                r.bridge_mm
+            );
+        }
+
+        // A crest run is untouched: the whole correction is 1 there.
+        let crest = run(c.crest_v_mm);
+        let chart_crest = c.circumference_mm / crest.count as f64 - crest.seat_span_mm();
+        assert!((crest.bridge_at(&c) - chart_crest).abs() < 1e-6);
     }
 
     #[test]
