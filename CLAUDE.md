@@ -1751,6 +1751,29 @@ one. `main.rs` sets `depth_buffer: 24`, and `GpuMeshRenderer` queries
 `FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE` once and logs a warning at 0 bits, so this
 can never fail quietly again.
 
+## The phone has the graph too
+
+`~/Documents/Rust/Mobile/EguiMobile/examples/ringdesigner-android` (0.9.0)
+carries a Graph tab on the same three crates the desktop uses —
+`ringdesign-graph`, `ringdesign-graph-ui`, `ringdesign-script` — through
+that workspace's own `egui-snarl` patch, which is byte-identical to
+`patches/egui-snarl` here and must stay so. Its `graph.rs` is the whole
+bridge: `GraphState` keeps an `Editor` in step with `design.graph` (the
+same sync rule as `sync_graph` — whichever side moved, a pulled design
+included), writes the editor back, converts, opens templates, bakes and
+locks; `GraphRunner` is the worker's evaluator, built once, and the build
+worker evaluates a design's graph before every build exactly as the
+desktop worker does, handing back values, notes and the field verdict the
+evaluation already paid for. The editing tabs show a driven banner with
+Bake while a graph is in charge, for the same reason the desktop panels
+do. There is no gesture layer: snarl pans and zooms through egui's
+`register_pan_and_zoom` (one-finger drag, pinch), and egui reports a long
+touch as `secondary_clicked`, which is what opens snarl's node and
+background menus — so the touch work the plan budgeted for came down to a
+Lock toggle (`Editor::editable`). Verify with `cargo test -p
+ringdesigner_android` on the host and `cargo ndk -t arm64-v8a check -p
+ringdesigner_android` from the crate dir with `ANDROID_NDK_HOME` set.
+
 ## The `parallel` feature and the wasm door
 
 `ringdesign-core` puts rayon behind a default-on **`parallel`** feature;
