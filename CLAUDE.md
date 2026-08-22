@@ -1447,6 +1447,40 @@ tiling — one tile spans the whole circumference, so a windowed tiling shows
 a stretched fragment. The test runs every base through both dresses
 (pattern-heavy and engraved) and holds each to the field verdict.
 
+## The graph is provenance one level above `GroupLayer::recipe`
+
+`crates/ringdesign-graph` is a core-only dataflow runtime: nodes are the
+core's own calls, wires carry their values, and evaluating a graph *is*
+building the design through the same API every panel and MCP tool uses.
+It is what `compose::Config` already is for the configurator — a pure
+function to a `RingDesign` — made editable. The rules, fixed before the
+first node and recorded in the crate's lib doc:
+
+- **Implicit lists.** A pin fed `N` items runs its node `N` times with
+  longest-list matching (shorter lists repeat their last item); an empty
+  list in is an empty list out; a failed item is a `Null` with an
+  attributed error and its siblings continue; a nested list passes whole.
+- **A closed `Value` enum with `Arc` domain handles**, never a JSON tree
+  and never reflection. Coercions are one table, pinned by a test.
+- **Stable identity, serde truth.** `NodeId` is a `u64` handed out once —
+  never a list position. The serde `Graph` is the truth; every editor is a
+  view rebuilt from it, and `pos` is the only view data persisted.
+- **Native evaluation** with a recipe-signature cache so one edit re-runs
+  one chain; scripts run only at expression pins and script nodes.
+- **Mode is a property of the graph.** `SandRing` evaluates to the design
+  *with* its field verdict, and file-writing sinks refuse `NotCastable`;
+  `Free` adds the solid kernel and the mesh verifier.
+- **Generators emit live groups and the evaluator never regenerates** —
+  the graph is provenance the way a `GenRecipe` is, one level up. A design
+  carries its graph (`RingDesign::graph`, live until baked); standalone
+  graph, cluster and preset files carry their own version ladder.
+- **Caps on everything a literal can size**: `MAX_LIST_ITEMS`, `MAX_NODES`,
+  `MAX_CLUSTER_DEPTH` — the 67 GB lesson, applied before the first list.
+
+The crate forwards `parallel` to the core and passes the wasm check; the
+editor (`ringdesign-graph-ui`), scripting (`ringdesign-script`), the Python
+module and the solid kernel land as their milestones do (`docs/ROADMAP.md`).
+
 ## GUI
 
 `app.rs` owns all state. Geometry-affecting edits call `app.mark_dirty()`; a

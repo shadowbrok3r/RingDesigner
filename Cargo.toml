@@ -6,6 +6,7 @@ members = [
     "crates/ringdesign-mcp",
     "crates/ringdesign-mcpd",
     "crates/ringdesign-configurator",
+    "crates/ringdesign-graph",
 ]
 
 [workspace.package]
@@ -16,6 +17,7 @@ license = "MIT OR Apache-2.0"
 [workspace.dependencies]
 ringdesign-core = { path = "crates/ringdesign-core" }
 ringdesign-mcp = { path = "crates/ringdesign-mcp" }
+ringdesign-graph = { path = "crates/ringdesign-graph" }
 
 nalgebra = "0.35"
 serde = { version = "1.0.229", features = ["derive"] }

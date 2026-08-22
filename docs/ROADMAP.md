@@ -64,7 +64,7 @@ Order: M0.1 → M0.2 → M0.3 → M0.4 → M0.0.
 
 A core-only crate that evaluates a graph to a `RingDesign` with implicit-list semantics.
 
-- [ ] **M1.1 Skeleton** (S, #6). Workspace member, `parallel` forwarded to core, wasm check passes,
+- [x] **M1.1 Skeleton** (S, #6). Workspace member, `parallel` forwarded to core, wasm check passes,
   doctrine section in CLAUDE.md.
 - [ ] **M1.2 Value** (M, #7). Closed `Value` enum with `Arc` domain handles (Design, Profile, Shank,
   Head, Outline, Gem, Window, Remap, Layer, Entry, Stack, Recipe, AlphaSource/AlphaRef, Build,
