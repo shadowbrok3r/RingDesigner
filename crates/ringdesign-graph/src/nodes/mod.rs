@@ -13,6 +13,7 @@ pub mod band;
 pub mod cluster;
 pub mod gem;
 pub mod generator;
+pub mod idiom;
 pub mod layer;
 pub mod list;
 pub mod math;
@@ -37,6 +38,7 @@ pub fn register_all(reg: &mut Registry) {
     alpha::register(reg);
     sink::register(reg);
     cluster::register(reg);
+    idiom::register(reg);
 }
 
 #[cfg(test)]
