@@ -90,7 +90,7 @@ fn main() {
     let round = signet(SignetOutline::Round, 14.7);
     let (inner_r, crest_r) = (round.inner_radius_mm(), round.reference_loop().crest_radius_mm);
     let at = |d: &RingDesign, deg: f64| {
-        d.shank.signet_width_frac(TOP_DEG + deg, d.inner_radius_mm(), crest_r)
+        d.shank.signet_width_frac(TOP_DEG + deg, d.inner_radius_mm(), crest_r, &d.profile)
     };
     let (head, shank) = (at(&round, 0.0), at(&round, 90.0));
     println!("swell against BlankSignet.obj  (bore {inner_r:.2}, crest {crest_r:.2})");
@@ -112,7 +112,7 @@ fn main() {
     for &o in SignetOutline::ALL {
         let d = signet(o, 13.0);
         let cr = d.reference_loop().crest_radius_mm;
-        let w = |t: f64| d.shank.signet_width_frac(TOP_DEG + t, d.inner_radius_mm(), cr);
+        let w = |t: f64| d.shank.signet_width_frac(TOP_DEG + t, d.inner_radius_mm(), cr, &d.profile);
         const STEP: f64 = 0.05;
         let slope = |t: f64| (w(t + STEP) - w(t)) / STEP;
         let (mut worst, mut at) = (0.0f64, 0.0);

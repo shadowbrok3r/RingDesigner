@@ -431,6 +431,18 @@ pub struct SetShankParams {
     /// hard the face outline reads. The reference signets round theirs about
     /// 0.6 mm; the outline is the one edge a signet has.
     pub head_rim_round_mm: Option<f64>,
+    /// Signet only: share of the lofted construction, 0 to 1. 1 builds the
+    /// head the way the factory presets do — one loose loft from the table's
+    /// rim through a body outline 3 mm under it down to the ring's equator
+    /// silhouette, so the flank bulges a few tenths under the table and curls
+    /// back toward the finger and the shoulder is one smooth sheet. 0 keeps
+    /// the reference prism and its swell.
+    pub head_loft: Option<f64>,
+    /// Lofted heads only: how much wider than the table the body outline is
+    /// along the ring, mm (default 2).
+    pub head_loft_frontal_mm: Option<f64>,
+    /// Lofted heads only: the same growth across the band, mm (default 2).
+    pub head_loft_lateral_mm: Option<f64>,
     /// Signet only: where the head sits round the ring, degrees. 90 is the top.
     pub head_theta_deg: Option<f64>,
     /// Signet only: outline of a second head — the toi et moi. Set to add or
@@ -1521,7 +1533,7 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Set the shank style and how hard it modulates. `kind` is Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet (see list_shank_styles); `amount` is 0 to 1, where 0 is no modulation. The shank scales the cross-section per ring angle — a tapered shank at amount 1 loses 45% of its width at the bottom of the finger. It does not move the height field: layers stay parameterized against the unmodulated cross-section, so a pattern narrows with the band instead of running off it. Signet is different in kind: it makes a head out of the band itself rather than adding anything to it. head_outline is the plan silhouette the band's width follows, head_length_mm the extent of the face around the ring (its extent across the band is the profile's width_mm, so set that to the head), head_rise_mm how far the table stands above the crest, head_shoulder_deg the arc the crest takes to fall back to the shank, head_swell_deg the much longer arc the band's *width* takes to come back to the shank, head_body_fair how far the body under the table rounds away from the face's outline, and head_table_flat 1 for a true plane to engrave. Two of those are easy to get wrong. The swell is the thing a signet reads as from the side and it is not the face: measured on a real 14.7 mm signet the face runs out at 31 degrees off the top while the body keeps widening to 75, so leave head_swell_deg near its 75 default unless you want a stubbier or longer sweep. And the face is a facet cut across a wider body, not a shape extruded down to the finger: at head_body_fair 0 a heart's dimple runs the whole depth of the ring and its lobes leave a crease down each flank, so leave it at 1 unless a prism is what you want. Do not add a signet table layer on top of this — the table is already the band's own crest. Castability: measured 0.000% undercut on every outline, because a band that widens and rises toward the top is single-valued in Z over (r, theta) and so releases by construction. The flat table is a vertical wall with respect to a +/-Z pull, which is fine — it is blank and hand-engraved, and design goes on the head's flanks, which face the pull."
+        description = "Set the shank style and how hard it modulates. `kind` is Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet (see list_shank_styles); `amount` is 0 to 1, where 0 is no modulation. The shank scales the cross-section per ring angle — a tapered shank at amount 1 loses 45% of its width at the bottom of the finger. It does not move the height field: layers stay parameterized against the unmodulated cross-section, so a pattern narrows with the band instead of running off it. Signet is different in kind: it makes a head out of the band itself rather than adding anything to it. head_outline is the plan silhouette the band's width follows, head_length_mm the extent of the face around the ring (its extent across the band is the profile's width_mm, so set that to the head), head_rise_mm how far the table stands above the crest, head_shoulder_deg the arc the crest takes to fall back to the shank, head_swell_deg the much longer arc the band's *width* takes to come back to the shank, head_body_fair how far the body under the table rounds away from the face's outline, and head_table_flat 1 for a true plane to engrave. Two of those are easy to get wrong. The swell is the thing a signet reads as from the side and it is not the face: measured on a real 14.7 mm signet the face runs out at 31 degrees off the top while the body keeps widening to 75, so leave head_swell_deg near its 75 default unless you want a stubbier or longer sweep. And the face is a facet cut across a wider body, not a shape extruded down to the finger: at head_body_fair 0 a heart's dimple runs the whole depth of the ring and its lobes leave a crease down each flank, so leave it at 1 unless a prism is what you want. Do not add a signet table layer on top of this — the table is already the band's own crest. Castability: measured 0.000% undercut on every outline, because a band that widens and rises toward the top is single-valued in Z over (r, theta) and so releases by construction. The flat table is a vertical wall with respect to a +/-Z pull, which is fine — it is blank and hand-engraved, and design goes on the head's flanks, which face the pull. head_loft 1 swaps the prism for the factory-preset construction (one loose loft from the table's rim to the ring's equator, flank curling under the table, one smooth shoulder); it still fields 0.000% because every section stays a single-valued width over its radius."
     )]
     async fn set_shank(
         &self,
@@ -1574,6 +1586,9 @@ impl RingDesignServer {
         put_range(&mut h.body_fair, p.head_body_fair, "head_body_fair", 0.0, 1.0, &mut applied)?;
         put_range(&mut h.table_flat, p.head_table_flat, "head_table_flat", 0.0, 1.0, &mut applied)?;
         put_range(&mut h.rim_round_mm, p.head_rim_round_mm, "head_rim_round_mm", 0.0, 2.0, &mut applied)?;
+        put_range(&mut h.loft, p.head_loft, "head_loft", 0.0, 1.0, &mut applied)?;
+        put_range(&mut h.loft_frontal_mm, p.head_loft_frontal_mm, "head_loft_frontal_mm", 0.0, 20.0, &mut applied)?;
+        put_range(&mut h.loft_lateral_mm, p.head_loft_lateral_mm, "head_loft_lateral_mm", 0.0, 20.0, &mut applied)?;
         put_range(&mut h.theta_deg, p.head_theta_deg, "head_theta_deg", 0.0, 360.0, &mut applied)?;
         if let Some(o) = p.second_head_outline.as_deref() {
             if o.eq_ignore_ascii_case("none") {
@@ -2993,11 +3008,11 @@ mod tests {
 
         // The band really is wider and deeper at the head than behind it.
         let (inner_r, crest_r) = (d.inner_radius_mm(), d.reference_loop().crest_radius_mm);
-        let head = d.shank.head_at(d.shank.head.theta_deg, inner_r, crest_r);
-        let back = d.shank.head_at(d.shank.head.theta_deg + 180.0, inner_r, crest_r);
+        let head = d.shank.head_at(d.shank.head.theta_deg, inner_r, crest_r, &d.profile);
+        let back = d.shank.head_at(d.shank.head.theta_deg + 180.0, inner_r, crest_r, &d.profile);
         assert!(head.outer_r > back.outer_r + 0.9, "{:?} vs {:?}", head.outer_r, back.outer_r);
         assert!(
-            d.shank.signet_width_frac(d.shank.head.theta_deg + 180.0, inner_r, crest_r) < 0.3
+            d.shank.signet_width_frac(d.shank.head.theta_deg + 180.0, inner_r, crest_r, &d.profile) < 0.3
         );
     }
 

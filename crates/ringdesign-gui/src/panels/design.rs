@@ -1015,6 +1015,45 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
 
     changed |= ui
         .add(
+            egui::Slider::new(&mut head.loft, 0.0..=1.0)
+                .fixed_decimals(2)
+                .text("Lofted body"),
+        )
+        .on_hover_text(
+            "1 builds the head the way the factory presets do: one loose loft from the \
+             table's rim, through a body outline three millimetres under it, down to the \
+             ring's equator silhouette. The flank bulges a few tenths under the table and \
+             curls back toward the finger, and the shoulder is one smooth sheet to the \
+             shank. 0 keeps the reference prism and its swell.",
+        )
+        .changed();
+    if head.loft > 0.0 {
+        changed |= ui
+            .add(
+                egui::Slider::new(&mut head.loft_frontal_mm, 0.0..=8.0)
+                    .fixed_decimals(1)
+                    .suffix(" mm")
+                    .text("Body growth along"),
+            )
+            .on_hover_text(
+                "How much wider than the table the body outline is along the ring, 3 mm \
+                 under the table. A control row of the loft, so it shows as a bulge of a \
+                 few tenths rather than a shelf.",
+            )
+            .changed();
+        changed |= ui
+            .add(
+                egui::Slider::new(&mut head.loft_lateral_mm, 0.0..=8.0)
+                    .fixed_decimals(1)
+                    .suffix(" mm")
+                    .text("Body growth across"),
+            )
+            .on_hover_text("The same growth across the band.")
+            .changed();
+    }
+
+    changed |= ui
+        .add(
             egui::Slider::new(&mut head.table_dome_mm, 0.0..=2.0)
                 .fixed_decimals(2)
                 .suffix(" mm")
@@ -1121,7 +1160,7 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
     let sh = app.design.shank.clone();
     // Read behind the head, wherever the head happens to sit.
     let back = sh.head.theta_deg + 180.0;
-    let shank_mm = app.design.profile.width_mm * sh.signet_width_frac(back, inner_r, crest_r);
+    let shank_mm = app.design.profile.width_mm * sh.signet_width_frac(back, inner_r, crest_r, &app.design.profile);
     let corner = (crest_r + sh.head.rise_mm).hypot(sh.head.length_mm * 0.5) - crest_r;
     hint(
         ui,

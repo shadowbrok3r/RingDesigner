@@ -249,7 +249,7 @@ impl RingDesign {
     /// consumer of a modulated section goes through this, so the mesh, the
     /// section view and refinement always agree.
     pub fn modulation_at(&self, theta_deg: f64, inner_r: f64, crest_r: f64) -> profile::ShankMod {
-        let mut m = self.shank.modulation(theta_deg, inner_r, crest_r);
+        let mut m = self.shank.modulation(theta_deg, inner_r, crest_r, &self.profile);
         m.drop_blend = self.profile.morph_weight(theta_deg);
         m
     }

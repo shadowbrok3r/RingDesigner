@@ -79,7 +79,7 @@ fn main() {
     for amount in [0.0, 0.3, 0.5, 0.7, 0.85, 1.0] {
         let d = signet(SignetOutline::Oval, 12.0, amount, 0.8);
         let crest_r = d.reference_loop().crest_radius_mm;
-        let frac = d.shank.signet_width_frac(270.0, inner_r, crest_r);
+        let frac = d.shank.signet_width_frac(270.0, inner_r, crest_r, &d.profile);
         report(&format!("amount {amount:.2}"), &d, &lib);
         println!("                 shank {:.2} mm ({:.0}% of head)", 12.0 * frac, frac * 100.0);
     }

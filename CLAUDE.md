@@ -694,6 +694,91 @@ fields 0.000% by construction. Hard-won specifics:
   round, cushion, hexagon, cross — the plan may still be non-convex along
   the ring) are where the dome shines.
 
+#### The lofted head is the factory construction
+
+`SignetHead::loft` (0..1, default 0) builds the head the way CrossGems'
+`Signet_Ring` cluster does, decoded from its wiring
+(`PostLoad/tools/cluster_recipe.py`; the GH chunk parser's type table had
+been guessed — points are 50–52, intervals 60–61, line/bbox/plane 70–72 —
+and a full parse of the `.doc` to its last byte is what settled it). Their
+head is **two surfaces joined at the ring's equator**: below it, the side
+and bottom sections swept round the bottom half; above it, one *loose*
+cubic B-spline loft — the curves are the surface's control rows, not
+sections it passes through — through five closed plan curves at fixed
+heights over the ring's centre: the table outline at 0.98, the outline,
+the outline grown by the frontal/lateral distances 3 mm under the table,
+and the ring's equator silhouette at +3 and at 0. That one sheet is the
+"rest of the ring is smooth" read. The flat table fills the 0.98 row; the
+band between 0.98 and the outline is the rim's roll, and it is a *ledge* a
+tenth deep and millimetres wide, not a fillet.
+
+**Every factory preset carries its finished ring as a cached mesh** (the
+`Rings`/`Metal`/`Settings`/`Cutters` blocks after the parameters —
+`cgpreset.py dump-all` unpacks all 448 into `assets/decoded/presets/`,
+869 meshes with a gallery `index.html`; `obj_render --cg` draws them in
+our frame). The recipe re-executed numerically (`tools/signet_tent.py`)
+against preset 001's cached ring: crest 12.10/12.10 mm at the centre,
+15.58/15.59 at the table's corner, widths within a tenth everywhere. The
+same meshes fixed two things the recipe alone did not say: the shank is
+cast **T + 0.25** thick, and its section is the top of a tall ellipse —
+the unit profile curve stretched 4:1.33 — **3.0 × 1.49 mm on a 6 × 1.75
+band**, crown 0.745·(T + 0.5). Not flat-topped; forcing it flat put the
+shank 0.35 mm off.
+
+`Tent` in `profile.rs` holds the five rows — resampled by arc length from
+the −y seam, which is the correspondence the whole shoulder hangs on; the
+knot averages the rows' own chord parameters — and reads, per ring angle:
+the crest (the plane under the 0.98 row, else the first row down the loft
+the ray enters), the bore span, the face as a chord 12% of the bore-to-
+ridge drop below the ridge (never deeper than the ridge sits below the
+plane, so the crown grows from nothing at the table's end), the ridge's
+height over that chord as a **parabolic** crown — the loft's top is
+parabolic, so the crown meets the wall tangent-continuously — and the
+wall as a table of finger offsets (`WallShape`, `WALL_TABLE` 40) at equal
+**arc length** between the bore edge and the chord's corner, radii stored.
+The equator row is the band's own section silhouette at the shank's width
+and the side's radius, so the loft's last rows *are* what the shank
+sweeps and the two meet at the equator by a switch, not a fade. The
+modulation API takes `&BandProfile` for this (`modulation`, `head_at`,
+`signet_span`…): the loft needs the band in millimetres.
+
+The flank **curls under** the table toward the finger — the crest span is
+wider than the bore span, which the prism forbids. It is not an undercut:
+every section is a single-valued width over its radius, so each wall
+faces its own mould half, and `analyze_field` says 0.0000% on five
+rebuilt presets. Measured against the cached meshes, exact point-to-
+surface (`scratchpad` `deviation.py`): head 0.04–0.05 mm mean, shoulder
+0.07–0.11, shank 0.07–0.11 — the bore is 8.65 against their 8.6, which is
+half of it. A dihedral census leaves the shoulder at ≤ 12° between
+facets; the only ≥ 45° edges left are the table rim's own corner and the
+bore edges, which the reference mesh has too.
+
+Five defects on the way, each seen in a render and pinned by a number:
+
+- **A parameter blend between two descriptions of the same curve is
+  lossy.** Fading the loft's chord-and-wall form into the band's crown-
+  and-chord form over 82–89° cut a 0.15 mm groove at 86°. Make the
+  forms coincide (the equator row *is* the band's section) and switch.
+- **A wall table pinned to the chord's value at the crest's radius** put
+  the value 0.1 mm too far out and the end-correction smeared 0.4 mm
+  down the wall: 82° folds at the table's end. The table ends at the
+  corner the crown stands on.
+- **Evenly spaced radii chord across the rim's ledge** — 0.18 mm deep,
+  3 mm wide at a cushion's end — and the chord swings between slices.
+  Sample by arc length along the wall.
+- **The 0.98 row is the table, not the outline.** Reading the flat from
+  the outline row left a 0.18 mm fin of plane standing at its tip.
+- Hand-drawn factory curves are not symmetric: the 001 cushion is 0.1
+  fuller on +y at its ends, and the crest held on the parting plane then
+  puts a curvature step at the ridge's apex. A builtin outline reads
+  clean; it is the curve, not the construction.
+
+Not mapped: the presets' "Smooth Table" (a loft from an apex point
+through a 0.6-scaled outline — a lobed dome on a clover or a star);
+`table_dome_mm` is a single cab. `examples/cg_signet.rs` rebuilds any
+decoded preset from its `params.json` and `curves.json` and prints the
+crest/width table in the cached mesh's frame.
+
 #### Imported plans are outlines too
 
 `SignetOutline::Custom(u8)` indexes `ShankStyle::custom_outlines` — a
