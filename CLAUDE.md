@@ -1565,6 +1565,27 @@ What the runtime settled while being built, each pinned by a test:
   patches — so "Convert to graph" never loses a field, and the test that
   every template lifts back byte-for-byte also caps the patches at four.
 
+## Free mode: `crates/ringdesign-solid` and the Manifold kernel
+
+Mesh CSG for everything the height field cannot be — settings, vines,
+anything off the band — on Manifold (`manifold3d` 0.4), **behind a
+feature**: `ringdesign-solid/manifold` (and the graph crate's
+`kernel-manifold`, which enables it) pulls the C++ through cmake on first
+build (~30 s here, a git clone of Manifold's source); off, the crate is
+`kernel_available() == false` and the default workspace build has no C++.
+`kernel.rs` is the sibling `mandrel` crate's construction set ported —
+cylinder/cone/sphere/cube, the marquise lens, rails, `union_all`,
+`Frame` (`on_ring` puts one on the band at an angle, `z` out of the
+metal), `segment`/`tube`, `Parts { add, cut }` with the marquise and
+round settings and the leaf — plus `to_mesh` (a Manifold as the core's
+`Mesh` with area-weighted normals) and `from_mesh` (a watertight core
+mesh as a Manifold, refused if it is not one). Measured and pinned: two
+cylinders union watertight and round-trip; a tube ring reads as
+**vertical walls, zero undercut** under `castability::analyze`, which is
+the Free-mode verdict — faces, not the field, because a solid has no
+chart. Everything here is lost-wax territory unless the field says
+otherwise; the SandRing verdict never reads a solid.
+
 ## Python: `crates/ringdesign-py`
 
 The core and the graph runtime as a Python module (`import ringdesign`),
