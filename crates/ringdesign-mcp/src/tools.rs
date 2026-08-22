@@ -439,6 +439,11 @@ pub struct SetShankParams {
     /// and passes a 0.6-scaled outline at that height, so a lobed plan
     /// reads as a lobed dome.
     pub head_table_dome_mm: Option<f64>,
+    /// Signet only: hollow under the head, mm (0 to 4) — a scoop from the
+    /// finger hole up into the head's belly, fading over the shoulder. The
+    /// bore is a vertical wall at any radius, so it costs nothing at the
+    /// pull; the wall it leaves is what the verdict measures.
+    pub head_hollow_mm: Option<f64>,
     /// Signet only: share of the lofted construction, 0 to 1. 1 builds the
     /// head the way the factory presets do — one loose loft from the table's
     /// rim through a body outline 3 mm under it down to the ring's equator
@@ -1600,6 +1605,7 @@ impl RingDesignServer {
         put_range(&mut h.table_flat, p.head_table_flat, "head_table_flat", 0.0, 1.0, &mut applied)?;
         put_range(&mut h.rim_round_mm, p.head_rim_round_mm, "head_rim_round_mm", 0.0, 2.0, &mut applied)?;
         put_range(&mut h.table_dome_mm, p.head_table_dome_mm, "head_table_dome_mm", 0.0, 3.0, &mut applied)?;
+        put_range(&mut h.hollow_mm, p.head_hollow_mm, "head_hollow_mm", 0.0, 4.0, &mut applied)?;
         put_range(&mut h.loft, p.head_loft, "head_loft", 0.0, 1.0, &mut applied)?;
         put_range(&mut h.loft_frontal_mm, p.head_loft_frontal_mm, "head_loft_frontal_mm", 0.0, 20.0, &mut applied)?;
         put_range(&mut h.loft_lateral_mm, p.head_loft_lateral_mm, "head_loft_lateral_mm", 0.0, 20.0, &mut applied)?;
