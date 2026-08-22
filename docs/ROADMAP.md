@@ -107,7 +107,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 - [x] **M3.1 Vendoring** (S, #39). The egui-0.36 `egui-snarl` + `egui-scale` under `patches/` with
   root `[patch.crates-io]` entries; exactly one egui in the tree; a diff guard against the sibling
   copy.
-- [ ] **M3.2 Editor core** (L, #40). Snarl payload `NodeCard`, `build_snarl`/`extract_graph` (truth
+- [x] **M3.2 Editor core** (L, #40). Snarl payload `NodeCard`, `build_snarl`/`extract_graph` (truth
   = the graph), pin widgets by value kind, type-checked wiring, category palette, node menu,
   diagnostics on the node frame.
 - [ ] **M3.3 Desktop integration** (M, #41). `PaneKind::Graph` + a node-inspector dock tool; graph
