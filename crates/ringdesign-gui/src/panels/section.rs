@@ -298,14 +298,8 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::
             }
             None
         };
-        let mut draw_stone = |seat: &ringdesign_core::field::SeatPadLayer| {
+        let draw_stone = |seat: &ringdesign_core::field::SeatPadLayer, gem: ringdesign_core::gem::Gem| {
             let Some((r, z, nr, nz)) = at_v(seat.v_mm) else { return };
-            let gem = seat
-                .gem
-                .unwrap_or_else(|| ringdesign_core::gem::Gem::calibrated(
-                    ringdesign_core::gem::GemCut::Round,
-                    seat.suggested_stone_mm(),
-                ));
             let half = seat.stone_half_v_mm(gem);
             let depth = gem.pavilion_mm();
             let len = (nr * nr + nz * nz).sqrt().max(1e-9);
@@ -321,31 +315,12 @@ fn canvas(app: &RingDesignerApp, ui: &mut egui::Ui, pane: usize, opts_id: egui::
             painter.line_segment([ga, culet], stroke);
             painter.line_segment([gb, culet], stroke);
         };
-        for e in app.design.layers.layers.iter().filter(|e| e.enabled) {
-            match &e.layer {
-                ringdesign_core::field::Layer::SeatPad(p) => {
-                    // How far the pad reaches round the ring, which is its
-                    // length when an elongated stone lies along the band.
-                    let arc = (p.half_extents_mm().0 + p.blend_mm)
-                        / (section.max_r.max(1e-9))
-                        * 180.0
-                        / std::f64::consts::PI;
-                    let d = ringdesign_core::field::wrap_delta(
-                        section.theta_deg - p.theta_deg,
-                        360.0,
-                    )
-                    .abs();
-                    if d <= arc.max(2.0) {
-                        draw_stone(p);
-                    }
-                }
-                ringdesign_core::field::Layer::SeatRun(run) => {
-                    // A run has a seat at every station; the slice always
-                    // sits within half a pitch of one.
-                    draw_stone(&run.seat);
-                }
-                _ => {}
-            }
+        // Every stone the design sets — pads, run stations, pavé seats, halo
+        // markers — whose seat reaches this slice.
+        let stones = ringdesign_core::setstone::set_stones(&app.design);
+        let fctx = app.design.field_context();
+        for st in ringdesign_core::setstone::stones_near(&stones, &fctx, section.theta_deg, 2.0) {
+            draw_stone(&st.seat, st.gem);
         }
     }
 

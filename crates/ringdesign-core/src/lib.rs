@@ -42,6 +42,7 @@ pub mod pave;
 pub mod profile;
 pub mod refine;
 pub mod render;
+pub mod setstone;
 pub mod sizing;
 pub mod spec;
 pub mod stl;

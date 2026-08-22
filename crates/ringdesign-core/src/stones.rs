@@ -8,12 +8,13 @@
 
 use crate::castability::draft_angle;
 use crate::field::{
-    FieldContext, Layer, LayerEntry, LayerStack, SeatPadLayer, SeatStyle, Uv,
+    FieldContext, Layer, LayerEntry, LayerStack, SeatPadLayer, SeatStyle,
     SIDE_FACE_MIN_DRAFT_DEG,
 };
 use crate::gem::Gem;
 use crate::mesh::MIN_WALL_MM;
 use crate::profile::MIN_EDGE_MM;
+use crate::setstone::SetStone;
 use crate::RingDesign;
 
 /// What the base surface under a seat is, castability-wise.
@@ -148,10 +149,13 @@ pub fn report(design: &RingDesign, parting_z_mm: f64) -> Option<StonesReport> {
 
     let mut acc = Acc::default();
     walk(design, &ctx, inner_r, crest_r, parting_z_mm, &design.layers, "", &mut acc);
-    let Acc { seats, stations } = acc;
+    let Acc { seats } = acc;
     if seats.is_empty() {
         return None;
     }
+    // Every stone in its own right, from the one record every consumer
+    // reads; the census measures them against each other.
+    let stations = crate::setstone::set_stones(design);
     let stone_count = seats.iter().filter(|s| s.gem.is_some()).map(|s| s.count).sum();
     let total_carats = seats.iter().map(|s| s.carats()).sum();
     let (crowding, tight_pairs, closest) =
@@ -159,42 +163,9 @@ pub fn report(design: &RingDesign, parting_z_mm: f64) -> Option<StonesReport> {
     Some(StonesReport { seats, stone_count, total_carats, crowding, tight_pairs, closest })
 }
 
-/// One stone, wherever it came from — the unit the pairwise census works in.
-struct Station {
-    label: String,
-    theta_deg: f64,
-    v_mm: f64,
-    gem: crate::gem::Gem,
-    /// Height of the girdle over the bare band, mm.
-    stand_off: f64,
-    /// Bearing of the stone's long axis in the chart, degrees.
-    rot_deg: f64,
-}
-
 #[derive(Default)]
 struct Acc {
     seats: Vec<SeatCheck>,
-    stations: Vec<Station>,
-}
-
-impl Acc {
-    fn station(
-        &mut self,
-        label: &str,
-        seat: &SeatPadLayer,
-        gem: crate::gem::Gem,
-        theta_deg: f64,
-        v_mm: f64,
-    ) {
-        self.stations.push(Station {
-            label: label.to_string(),
-            theta_deg,
-            v_mm,
-            gem,
-            stand_off: stand_off(seat),
-            rot_deg: seat.rot_deg,
-        });
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -228,9 +199,6 @@ fn walk(
                 check.count = kept as u32;
                 if !kept {
                     check.warnings.push("gated out by its own window — not on the ring".into());
-                }
-                if let (true, Some(gem)) = (kept, seat.gem) {
-                    acc.station(&check.label, seat, gem, seat.theta_deg, seat.v_mm);
                 }
                 acc.seats.push(check);
             }
@@ -298,17 +266,6 @@ fn walk(
                         ));
                     }
                 }
-                // Every station a run keeps is a stone in its own right;
-                // the census reads them against everything else on the band.
-                for &(t, v) in &stations {
-                    // The field scales the whole seat with its stone, so the
-                    // stand-off the girdle rides scales too.
-                    let graded = run.gem_at(t);
-                    let scale = run.scale_at(t);
-                    let mut seat = run.seat;
-                    seat.height_mm *= scale;
-                    acc.station(&check.label, &seat, graded, t, v);
-                }
                 acc.seats.push(check);
             }
             Layer::Group(g) => {
@@ -329,11 +286,6 @@ fn walk(
                             design, ctx, inner_r, crest_r, parting_z, seat, stations, label,
                         );
                         check.count = stations.len() as u32;
-                        if let Some(gem) = seat.gem {
-                            for &(t, v) in stations {
-                                acc.station(&check.label, seat, gem, t, v);
-                            }
-                        }
                         acc.seats.push(check);
                     }
                     continue;
@@ -367,7 +319,7 @@ fn crowding(
     ctx: &FieldContext,
     inner_r: f64,
     crest_r: f64,
-    stations: &[Station],
+    stations: &[SetStone],
 ) -> (Vec<StonePair>, usize, Option<StonePair>) {
     if stations.len() < 2 {
         return (Vec::new(), 0, None);
@@ -455,20 +407,20 @@ fn frame_at(
     ctx: &FieldContext,
     inner_r: f64,
     crest_r: f64,
-    st: &Station,
+    st: &SetStone,
 ) -> Frame {
     let b = base_at(design, inner_r, crest_r, ctx, st.theta_deg, st.v_mm);
     let (sin, cos) = st.theta_deg.to_radians().sin_cos();
     let normal = [b.nr * cos, b.nr * sin, b.nz];
     let girdle = [
-        b.r * cos + normal[0] * st.stand_off,
-        b.r * sin + normal[1] * st.stand_off,
-        b.z + normal[2] * st.stand_off,
+        b.r * cos + normal[0] * st.stand_off_mm(),
+        b.r * sin + normal[1] * st.stand_off_mm(),
+        b.z + normal[2] * st.stand_off_mm(),
     ];
     // The band's own two tangents: along the ring, and across the section.
     let t = [-sin, cos, 0.0];
     let across = [-b.nz * cos, -b.nz * sin, b.nr];
-    let (rs, rc) = st.rot_deg.to_radians().sin_cos();
+    let (rs, rc) = st.rot_deg().to_radians().sin_cos();
     let long = [
         t[0] * rc + across[0] * rs,
         t[1] * rc + across[1] * rs,
@@ -560,8 +512,7 @@ fn seats_by_shape<'a>(
 
 /// Whether a station survives the entry's angular window.
 fn station_kept(entry: &LayerEntry, ctx: &FieldContext, theta_deg: f64, v_mm: f64) -> bool {
-    let uv = Uv { u: ctx.u_of_theta(theta_deg.rem_euclid(360.0)), v: v_mm };
-    entry.window.mask(uv, ctx) > 0.5
+    crate::setstone::kept(entry, ctx, theta_deg, v_mm)
 }
 
 /// The checks for one seat shape at a set of stations; every measured number
@@ -673,6 +624,8 @@ fn check_seat(
 /// Height the girdle sits above the base surface, mm — the pad's stand-off
 /// less how deep the stone is set into it. A seat with no stone assigned is
 /// judged on the one it says it could hold.
+/// Height of the girdle over the bare band for the seat's own stone, or a
+/// round suggested by its size when it carries none.
 fn stand_off(seat: &SeatPadLayer) -> f64 {
     let gem = seat.gem.unwrap_or_else(|| {
         crate::gem::Gem::calibrated(crate::gem::GemCut::Round, seat.suggested_stone_mm())
