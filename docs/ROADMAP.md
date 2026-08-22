@@ -155,8 +155,9 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 
 ## M8 — Phone and web parity (L, later) — epic #24
 
-- [ ] **M8.1 Android graph tab** (M). Touch mechanics (drag classification, long-press menus,
-  lock); graphs arrive by the design sync and evaluate locally.
+- [x] **M8.1 Android graph tab** (M, #73). Touch mechanics (drag classification, long-press menus,
+  lock); graphs arrive by the design sync and evaluate locally. Shipped in the EguiMobile
+  workspace as ringdesigner-android 0.9.0.
 - [ ] **M8.2 Mobile leftovers** (M). Intent filters, durable mirror, export worker, the full
   phone-shaped port.
 - [x] **M8.3 Web configurator** (M, #71). `build-a-ring` on wasm; `compose::Config` reused verbatim.
