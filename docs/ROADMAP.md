@@ -74,7 +74,7 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   `Exposed`, `Mode { SandRing, Free }`; `add/remove/connect/set_param/set_input/validate/topo`.
 - [x] **M1.4 Registry** (M, #9). `PinSpec`/`NodeSpec`/`Category`/`Registry`, instance-resolved pins
   for script and cluster nodes.
-- [ ] **M1.5 Evaluator** (L, #10). Longest-list matching with last-item repeat; per-item `Null` with
+- [x] **M1.5 Evaluator** (L, #10). Longest-list matching with last-item repeat; per-item `Null` with
   attributed errors; nested lists pass whole; caps on list items, nodes and cluster depth;
   recipe-signature cache so one edit re-runs one chain; `Targets`; side-effect nodes only on
   demand; `evaluate_design` returns the design **with** its field report.
