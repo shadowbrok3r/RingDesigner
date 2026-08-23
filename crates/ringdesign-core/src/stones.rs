@@ -299,6 +299,21 @@ fn walk(
     }
 }
 
+/// Every stone the design sets with its girdle frame, in the order the
+/// record lists them.
+pub fn stone_frames(design: &RingDesign) -> Vec<(SetStone, StoneFrame)> {
+    let ctx = design.field_context();
+    let inner_r = design.inner_radius_mm();
+    let crest_r = ctx.crest_radius_mm;
+    crate::setstone::set_stones(design)
+        .into_iter()
+        .map(|st| {
+            let f = frame_at(design, &ctx, inner_r, crest_r, &st);
+            (st, f)
+        })
+        .collect()
+}
+
 /// Every stone against every other, in millimetres of real metal.
 ///
 /// The per-layer bridge only knows about a run's own neighbours, so a pad
@@ -325,7 +340,7 @@ fn crowding(
     if stations.len() < 2 {
         return (Vec::new(), 0, None);
     }
-    let frames: Vec<Frame> = stations
+    let frames: Vec<StoneFrame> = stations
         .iter()
         .map(|st| frame_at(design, ctx, inner_r, crest_r, st))
         .collect();
@@ -377,20 +392,23 @@ fn crowding(
 
 /// A stone standing on the band: where its girdle is, which way it faces,
 /// and the plan it presents in every direction.
-struct Frame {
-    girdle: [f64; 3],
-    normal: [f64; 3],
+/// A stone's girdle in space: where the census measures it and where the
+/// map draws it.
+#[derive(Clone, Debug)]
+pub struct StoneFrame {
+    pub girdle: [f64; 3],
+    pub normal: [f64; 3],
     /// The stone's long axis and its short one, in world space.
-    long: [f64; 3],
-    short: [f64; 3],
-    semi: (f64, f64),
-    plan_pow: f64,
+    pub long: [f64; 3],
+    pub short: [f64; 3],
+    pub semi: (f64, f64),
+    pub plan_pow: f64,
     /// The furthest the girdle reaches from its centre, mm.
-    reach: f64,
-    pavilion: f64,
+    pub reach: f64,
+    pub pavilion: f64,
 }
 
-impl Frame {
+impl StoneFrame {
     /// The girdle's own radius toward `d`, mm.
     fn plan_r(&self, d: [f64; 3]) -> f64 {
         crate::field::superellipse_radius_mm(
@@ -409,7 +427,7 @@ fn frame_at(
     inner_r: f64,
     crest_r: f64,
     st: &SetStone,
-) -> Frame {
+) -> StoneFrame {
     let b = base_at(design, inner_r, crest_r, ctx, st.theta_deg, st.v_mm);
     let (sin, cos) = st.theta_deg.to_radians().sin_cos();
     let normal = [b.nr * cos, b.nr * sin, b.nz];
@@ -435,7 +453,7 @@ fn frame_at(
     let semi = (st.gem.l_mm * 0.5, st.gem.w_mm * 0.5);
     let n = st.gem.cut.plan_pow();
     let reach = if n <= 2.0 { semi.0 } else { (semi.0 * semi.0 + semi.1 * semi.1).sqrt() };
-    Frame {
+    StoneFrame {
         girdle,
         normal,
         long,

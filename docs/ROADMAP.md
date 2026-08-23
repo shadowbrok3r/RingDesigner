@@ -179,9 +179,11 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
   into the head's belly carried as `ShankMod::bore_lift_mm`; the bore is a vertical wall at any radius.
 - [x] Alpha granulometry (#90): `Alpha::min_feature_px` and `dfm::findings_in` — the measured
   finest stroke and gap of a texture at the layer's cell scale, against the sand floor.
-- Shelf: stone spacing map SVG; march instances along a guide path; blue-noise scatter
-  generator; mm-true mask morphology; nesting-depth stepped relief; honest rope rail;
-  `stones::probe_seat`; pearl stock; flat-edged seat plans.
+- [x] Stone spacing map SVG (#92): `stonemap::write_stone_map_svg` — plan and unrolled chart at 2:1
+  with every stone to scale and the census's tight gaps; File menu, MCP, CLI `stonemap`, phone Share.
+- Shelf: march instances along a guide path; blue-noise scatter generator; mm-true mask
+  morphology; nesting-depth stepped relief; honest rope rail; `stones::probe_seat`; pearl stock;
+  flat-edged seat plans.
 - [x] The graph editor in the comfyui-android look (#87): `ringdesign_graph_ui::style`, shared by the
   desktop pane and the phone tab.
 - Niceties: gate & sprue advisor; DPI true-scale; reference-mesh import + deviation report as a
