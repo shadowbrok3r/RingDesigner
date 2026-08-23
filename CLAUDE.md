@@ -986,7 +986,22 @@ pins both directions. On top of that:
 - **Per-layer DFM** (`dfm.rs`): layers are analytic, so their finest feature
   is a parameter, not a measurement — `feature_footprints` against
   `min_detail_mm`, surfaced as warning badges on the layer rows, in the
-  report notes, and on MCP as `castability.dfm`.
+  report notes, and on MCP as `castability.dfm`. A texture is the
+  exception: a tiling's cell pitch says nothing about the strokes inside
+  it, so `findings_in(design, lib)` — what every app surface calls — also
+  reads each tiling's and openwork's mask by **granulometry**
+  (`Alpha::min_feature_px`: the opening diameter at which a tenth of the
+  ink, and of the gaps, disappears, bisected over the radius on the
+  distance field, 3×3-tiled so a seamless mask reads seamless, cached by
+  content) at the layer's own mm-per-texel, after the layer's
+  contrast/bias/invert shaping. Greek Key on 2.7 mm cells passes the
+  pitch check and measures 0.06 mm strokes — that is the finding. Run on
+  the shipped templates (`dfm::measured_tests::the_templates_measured`,
+  `--nocapture`) it names three: Waves at 0.10 mm strokes on the waved
+  hexagon signet's 11.8 × 1.8 mm cells, Chevron at 0.07 mm gaps on the
+  shouldered cushion's shoulders, Braid at 0.04 mm gaps on the braided
+  band — all castable by the field, all casting softer than drawn, which
+  is what the chip now says instead of nothing.
 - **Undercut attribution** (`castability::attribute_undercuts`): undercut
   arcs are clustered in theta off the field samples, then each enabled layer
   is muted in turn at the *same parting plane* — the culprit is the layer

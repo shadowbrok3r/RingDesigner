@@ -2250,7 +2250,7 @@ impl RingDesignServer {
         let stones =
             ringdesign_core::stones::report(e.design(), cast.parting_z_mm).map(|r| stones_json(&r));
         let field = field_json(&e.field_report());
-        let dfm = ringdesign_core::dfm::findings(e.design())
+        let dfm = ringdesign_core::dfm::findings_in(e.design(), e.library())
             .into_iter()
             .map(|f| format!("{}: {}", f.label, f.message))
             .collect();

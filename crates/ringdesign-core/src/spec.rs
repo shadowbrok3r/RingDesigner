@@ -233,7 +233,7 @@ mod tests {
         );
         let field = crate::castability::analyze_field(&d, &lib, &d.draft, 96, 64);
         let stones = crate::stones::report(&d, field.parting_z_mm);
-        let dfm = crate::dfm::findings(&d);
+        let dfm = crate::dfm::findings_in(&d, &lib);
         let page = html(&d, &out.report, &field, stones.as_ref(), &dfm, "test build");
 
         assert!(page.contains("Logan's &lt;Heart&gt; &amp; Band"));

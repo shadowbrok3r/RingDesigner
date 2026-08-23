@@ -295,7 +295,7 @@ fn order_files(cfg: &Config, p: &OrderParams) -> anyhow::Result<Vec<(&'static st
     let out = ringdesign_core::mesh::build(&d, &lib, p.build);
     let field = ringdesign_core::castability::attributed_field_report(&d, &lib, &d.draft, 192, 128);
     let stones = ringdesign_core::stones::report(&d, field.parting_z_mm);
-    let dfm = ringdesign_core::dfm::findings(&d);
+    let dfm = ringdesign_core::dfm::findings_in(&d, &lib);
     let sheet = ringdesign_core::spec::html(
         &d,
         &out.report,
