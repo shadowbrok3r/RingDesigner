@@ -10,6 +10,7 @@
 //! tree. [`editor`] is filled in by M3.2.
 
 pub mod editor;
+pub mod style;
 pub mod widgets;
 
 pub use editor::{Editor, EditorResponse, NodeCard, build_snarl, extract_graph};

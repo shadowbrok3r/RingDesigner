@@ -6,16 +6,16 @@
 //! from what went in, the graph is updated and the revision moves. Nodes
 //! added in the view carry no id until extraction hands them a fresh one.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use egui::{Color32, RichText, Ui};
-use egui_snarl::ui::{PinInfo, SnarlStyle, SnarlViewer};
+use egui_snarl::ui::{BackgroundPattern, PinInfo, SnarlStyle, SnarlViewer};
 use egui_snarl::{InPin, InPinId, NodeId as SnarlId, OutPin, OutPinId, Snarl};
 use ringdesign_graph::graph::{Access, Graph, GraphError, Node, NodeId, Wire};
 use ringdesign_graph::registry::{Category, NodeSpec, PinSpec, Registry};
 use ringdesign_graph::value::{Literal, ValueKind};
 
-use crate::widgets::{kind_color, pin_widget};
+use crate::widgets::pin_widget;
 
 /// A node as the view holds it: the graph's data plus the pins resolved
 /// from the registry, so drawing needs no registry at all.
@@ -182,12 +182,48 @@ pub struct Editor {
     /// The persistent id the snarl was last shown under, for selection.
     snarl_id: Option<egui::Id>,
     pub show_minimap: bool,
+    /// Every node's drawn size, by graph id so a rebuilt snarl keeps them.
+    sizes: HashMap<NodeId, egui::Vec2>,
+    /// The sizes the last arrange laid out from, and how many correction
+    /// passes it may still take: snarl's first frame measures a node before
+    /// its widgets have settled, so a layout is re-run while the measures
+    /// it used disagree with the current ones.
+    arranged_sizes: HashMap<NodeId, egui::Vec2>,
+    refine_left: u8,
+    /// The editor moved nodes itself this frame; reported as a change.
+    layout_changed: bool,
 }
 
 impl Editor {
     pub fn new(graph: Graph, reg: &Registry) -> Self {
         let (snarl, ids) = build_snarl(&graph, reg);
-        Self { graph, snarl, ids, revision: 0, selected: None, editable: true, style: SnarlStyle::new(), pending_focus: None, pending_fit: false, transform: None, snarl_id: None, show_minimap: true }
+        Self {
+            graph,
+            snarl,
+            ids,
+            revision: 0,
+            selected: None,
+            editable: true,
+            style: crate::style::snarl_style(),
+            pending_focus: None,
+            pending_fit: false,
+            transform: None,
+            snarl_id: None,
+            show_minimap: true,
+            sizes: HashMap::new(),
+            arranged_sizes: HashMap::new(),
+            refine_left: 0,
+            layout_changed: false,
+        }
+    }
+
+    /// A node's drawn size, or the nominal footprint before it has been drawn.
+    fn size_of(&self, sid: SnarlId) -> egui::Vec2 {
+        self.ids.to_graph.get(&sid).and_then(|g| self.sizes.get(g)).copied().unwrap_or(NODE_SIZE)
+    }
+
+    fn all_measured(&self) -> bool {
+        self.graph.nodes.iter().all(|n| self.sizes.contains_key(&n.id))
     }
 
     pub fn graph(&self) -> &Graph {
@@ -295,12 +331,29 @@ impl Editor {
             seen_transform: None,
             collapse_request: None,
             mode: self.graph.mode,
+            selected: self.selected.and_then(|g| self.ids.to_snarl.get(&g).copied()),
+            sizes: &mut self.sizes,
         };
-        self.snarl.show(&mut viewer, &self.style, id_salt, ui);
+        // That app's visuals on everything inside the editor, and nothing outside it.
+        ui.scope(|ui| {
+            crate::style::apply_visuals(ui.style_mut());
+            self.snarl.show(&mut viewer, &self.style, id_salt, ui);
+        });
         let clicked = viewer.clicked;
         let refused = viewer.refused.take();
         let collapse_request = viewer.collapse_request.take();
         self.transform = viewer.seen_transform.or(self.transform);
+        // The first arrange ran on nominal sizes; once every node has been
+        // drawn once, lay them out again from what they really measure.
+        if self.refine_left > 0 && self.all_measured() {
+            if sizes_agree(&self.arranged_sizes, &self.sizes) {
+                self.refine_left = 0;
+            } else {
+                self.refine_left -= 1;
+                self.lay_out(reg);
+                self.layout_changed = true;
+            }
+        }
         if self.show_minimap {
             self.paint_minimap(ui, viewport);
         }
@@ -311,7 +364,7 @@ impl Editor {
                 return EditorResponse { changed: true, selected: self.selected, refused: None };
             }
         }
-        let mut resp = EditorResponse { refused, ..Default::default() };
+        let mut resp = EditorResponse { refused, changed: std::mem::take(&mut self.layout_changed), ..Default::default() };
         if let Some(sid) = clicked {
             self.selected = self.ids.to_graph.get(&sid).copied();
         }
@@ -437,12 +490,78 @@ impl Editor {
         hit
     }
 
-    /// Lay the nodes out by depth, as the template files are.
+    /// Lay the nodes out by depth from their measured sizes — columns by
+    /// longest path, nodes stacked within a column, columns centred across
+    /// the flow — so nothing overlaps. Nodes not yet drawn take the nominal
+    /// footprint and a second pass follows once they have been.
     pub fn arrange(&mut self, reg: &Registry) {
-        let mut g = self.graph.clone();
-        ringdesign_graph::templates::arrange(&mut g);
-        self.set_graph(g, reg);
+        self.refine_left = 3;
+        self.lay_out(reg);
     }
+
+    fn lay_out(&mut self, reg: &Registry) {
+        const FLOW_GAP: f32 = 60.0;
+        const CROSS_GAP: f32 = 24.0;
+        let Ok(order) = self.graph.topo() else { return };
+        let mut depth: BTreeMap<NodeId, usize> = BTreeMap::new();
+        for id in &order {
+            let d = self.graph.wires_into(*id).filter_map(|w| depth.get(&w.from)).max().map(|m| m + 1).unwrap_or(0);
+            depth.insert(*id, d);
+        }
+        let deepest = depth.values().copied().max().unwrap_or(0);
+        let mut columns: Vec<Vec<NodeId>> = vec![Vec::new(); deepest + 1];
+        for id in &order {
+            columns[depth[id]].push(*id);
+        }
+        // Each column ordered by where its feeders sit, so wires run across.
+        let mut row: BTreeMap<NodeId, f32> = BTreeMap::new();
+        for column in columns.iter_mut() {
+            let mut keyed: Vec<(NodeId, f32)> = column
+                .iter()
+                .enumerate()
+                .map(|(i, id)| {
+                    let feeders: Vec<f32> = self.graph.wires_into(*id).filter_map(|w| row.get(&w.from).copied()).collect();
+                    let key = if feeders.is_empty() { i as f32 } else { feeders.iter().sum::<f32>() / feeders.len() as f32 };
+                    (*id, key)
+                })
+                .collect();
+            keyed.sort_by(|a, b| a.1.total_cmp(&b.1));
+            *column = keyed.iter().map(|(id, _)| *id).collect();
+            for (i, id) in column.iter().enumerate() {
+                row.insert(*id, i as f32);
+            }
+        }
+        let size = |id: NodeId| self.sizes.get(&id).copied().unwrap_or(NODE_SIZE);
+        let mut x = 0.0f32;
+        let mut pos: BTreeMap<NodeId, [f32; 2]> = BTreeMap::new();
+        for column in &columns {
+            if column.is_empty() {
+                continue;
+            }
+            let total: f32 = column.iter().map(|id| size(*id).y + CROSS_GAP).sum::<f32>() - CROSS_GAP;
+            let mut y = -total / 2.0;
+            for id in column {
+                pos.insert(*id, [x, y]);
+                y += size(*id).y + CROSS_GAP;
+            }
+            x += column.iter().map(|id| size(*id).x).fold(1.0f32, f32::max) + FLOW_GAP;
+        }
+        let mut g = self.graph.clone();
+        for n in g.nodes.iter_mut() {
+            if let Some(p) = pos.get(&n.id) {
+                n.pos = [p[0].round(), p[1].round()];
+            }
+        }
+        self.arranged_sizes = self.sizes.clone();
+        self.set_graph(g, reg);
+        self.pending_fit = true;
+    }
+}
+
+/// Two measure snapshots describe the same canvas: same nodes, none moved
+/// by more than a unit.
+fn sizes_agree(a: &HashMap<NodeId, egui::Vec2>, b: &HashMap<NodeId, egui::Vec2>) -> bool {
+    a.len() == b.len() && a.iter().all(|(id, s)| b.get(id).is_some_and(|p| (*s - *p).abs().max_elem() <= 1.0))
 }
 
 struct Viewer<'a> {
@@ -458,59 +577,68 @@ struct Viewer<'a> {
     seen_transform: Option<egui::emath::TSTransform>,
     collapse_request: Option<SnarlId>,
     mode: ringdesign_graph::graph::Mode,
+    /// The chosen node, for its rim.
+    selected: Option<SnarlId>,
+    /// Measured node sizes, filled as nodes are drawn.
+    sizes: &'a mut HashMap<NodeId, egui::Vec2>,
 }
 
-/// The footprint a node is assumed to take when fitting or mapping.
+/// The footprint a node is assumed to take before it has been drawn.
 const NODE_SIZE: egui::Vec2 = egui::vec2(220.0, 140.0);
 
-fn node_bounds(snarl: &Snarl<NodeCard>) -> Option<egui::Rect> {
+/// Every node's rect from its measured size, in graph space.
+fn node_bounds(snarl: &Snarl<NodeCard>, sizes: &HashMap<NodeId, egui::Vec2>, ids: &IdMap) -> Option<egui::Rect> {
     let mut rect: Option<egui::Rect> = None;
-    for (_, pos, _) in snarl.nodes_pos_ids() {
-        let r = egui::Rect::from_min_size(pos, NODE_SIZE);
+    for (sid, pos, _) in snarl.nodes_pos_ids() {
+        let size = ids.to_graph.get(&sid).and_then(|g| sizes.get(g)).copied().unwrap_or(NODE_SIZE);
+        let r = egui::Rect::from_min_size(pos, size);
         rect = Some(rect.map_or(r, |b| b.union(r)));
     }
     rect
 }
 
 impl Editor {
-    /// A small map of every node and the current view, in the corner.
+    /// A small map of every node and the current view, in the top-left
+    /// corner as that app keeps it.
     fn paint_minimap(&self, ui: &Ui, viewport: egui::Rect) {
-        let Some(bounds) = node_bounds(&self.snarl) else { return };
-        if self.snarl.node_ids().count() < 2 {
+        let Some(bounds) = node_bounds(&self.snarl, &self.sizes, &self.ids) else { return };
+        if self.snarl.node_ids().count() < 2 || !viewport.is_finite() || viewport.width() < 160.0 || viewport.height() < 160.0 {
             return;
         }
-        let map = egui::Rect::from_min_size(viewport.right_top() + egui::vec2(-172.0, 12.0), egui::vec2(160.0, 100.0));
+        let pad = bounds.expand(60.0);
+        let w = (viewport.width() * 0.30).clamp(96.0, 200.0);
+        let h = (w * (pad.height() / pad.width().max(1.0)).clamp(0.35, 1.4)).clamp(60.0, 200.0);
+        let map = egui::Rect::from_min_size(viewport.left_top() + egui::vec2(10.0, 10.0), egui::vec2(w, h));
         let painter = ui.painter().with_clip_rect(viewport);
         painter.rect_filled(map, 4.0, Color32::from_black_alpha(170));
-        painter.rect_stroke(map, 4.0, egui::Stroke::new(1.0, Color32::from_gray(90)), egui::StrokeKind::Inside);
-        let pad = bounds.expand(80.0);
-        let to_map = |p: egui::Pos2| -> egui::Pos2 {
-            let u = ((p.x - pad.min.x) / pad.width().max(1.0)).clamp(0.0, 1.0);
-            let v = ((p.y - pad.min.y) / pad.height().max(1.0)).clamp(0.0, 1.0);
-            map.min + egui::vec2(u * map.width(), v * map.height())
-        };
+        let scale = (map.size() / pad.size()).min_elem();
+        let tf = egui::emath::TSTransform::new(map.center().to_vec2() - pad.center().to_vec2() * scale, scale);
         for (sid, pos, card) in self.snarl.nodes_pos_ids() {
-            let c = to_map(pos + NODE_SIZE * 0.5);
+            let mut m = tf * egui::Rect::from_min_size(pos, self.size_of(sid));
+            if m.width() < 2.0 || m.height() < 2.0 {
+                m = egui::Rect::from_center_size(m.center(), m.size().max(egui::vec2(2.0, 2.0)));
+            }
             let selected = self.ids.to_graph.get(&sid).is_some_and(|g| self.selected == Some(*g));
-            let color = if !card.diag.is_empty() { Color32::from_rgb(220, 70, 70) } else if selected { Color32::from_rgb(255, 215, 120) } else { Color32::from_gray(200) };
-            painter.circle_filled(c, if selected { 3.5 } else { 2.5 }, color);
+            let color = if !card.diag.is_empty() {
+                crate::style::ERROR
+            } else if selected {
+                Color32::from_rgb(110, 170, 255)
+            } else {
+                Color32::from_gray(150)
+            };
+            painter.rect_filled(m.intersect(map), 1.0, color);
         }
         if let Some(t) = self.transform {
             let inv = t.inverse();
             let view = egui::Rect::from_min_max(inv * viewport.min, inv * viewport.max);
-            let r = egui::Rect::from_min_max(to_map(view.min), to_map(view.max));
-            painter.rect_stroke(r, 2.0, egui::Stroke::new(1.0, Color32::from_rgb(120, 190, 255)), egui::StrokeKind::Inside);
+            painter.rect_stroke((tf * view).intersect(map), 0.0, egui::Stroke::new(1.0, Color32::WHITE), egui::StrokeKind::Inside);
         }
+        painter.rect_stroke(map, 4.0, egui::Stroke::new(1.0, Color32::from_gray(90)), egui::StrokeKind::Inside);
     }
 }
 
 fn pin_info(pin: &PinSpec) -> PinInfo {
-    let color = kind_color(pin.kind);
-    let info = match pin.access {
-        Access::Item => PinInfo::circle(),
-        Access::List => PinInfo::square(),
-    };
-    info.with_fill(color).with_stroke(egui::Stroke::new(1.0, color.gamma_multiply(0.6)))
+    crate::style::pin_info(pin.kind, pin.access)
 }
 
 impl SnarlViewer<NodeCard> for Viewer<'_> {
@@ -519,11 +647,13 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     }
 
     fn node_frame(&mut self, default: egui::Frame, node: SnarlId, _inputs: &[InPin], _outputs: &[OutPin], snarl: &Snarl<NodeCard>) -> egui::Frame {
-        match snarl.get_node(node) {
-            Some(c) if !c.diag.is_empty() => default.stroke(egui::Stroke::new(2.0, Color32::from_rgb(220, 70, 70))),
-            Some(c) if self.ids.to_graph.get(&node).is_some_and(|g| c.graph_id() == Some(*g)) => default,
-            _ => default,
-        }
+        let trouble = snarl.get_node(node).is_some_and(|c| !c.diag.is_empty());
+        crate::style::node_frame(default, self.selected == Some(node), trouble)
+    }
+
+    fn draw_background(&mut self, _background: Option<&BackgroundPattern>, viewport: &egui::Rect, _snarl_style: &SnarlStyle, _style: &egui::Style, painter: &egui::Painter, _snarl: &Snarl<NodeCard>) {
+        let scale = self.seen_transform.map(|t| t.scaling).unwrap_or(1.0);
+        crate::style::paint_canvas(painter, *viewport, scale);
     }
 
     fn inputs(&mut self, node: &NodeCard) -> usize {
@@ -537,8 +667,9 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     fn show_input(&mut self, pin: &InPin, ui: &mut Ui, snarl: &mut Snarl<NodeCard>) -> impl egui_snarl::ui::SnarlPin + 'static {
         let card = &mut snarl[pin.id.node];
         let Some(spec) = card.pins_in.get(pin.id.input).cloned() else { return PinInfo::circle() };
+        ui.set_max_width(crate::style::NODE_FIELD_W);
         ui.horizontal(|ui| {
-            ui.label(RichText::new(&spec.name).small().color(kind_color(spec.kind))).on_hover_text(format!("{}\n{}", spec.kind.label(), spec.doc));
+            ui.label(RichText::new(&spec.name).color(crate::style::INK)).on_hover_text(format!("{}\n{}", spec.kind.label(), spec.doc));
             if pin.remotes.is_empty() && self.editable {
                 let mut lit = card.inputs.get(&spec.name).cloned();
                 if pin_widget(ui, &spec, &mut lit) {
@@ -561,9 +692,9 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
         let Some(spec) = card.pins_out.get(pin.id.output).cloned() else { return PinInfo::circle() };
         ui.horizontal(|ui| {
             if let Some(v) = card.values.get(&spec.name) {
-                ui.weak(RichText::new(v).small());
+                ui.label(RichText::new(v).small().color(crate::style::INK_DIM));
             }
-            ui.label(RichText::new(&spec.name).small().color(kind_color(spec.kind))).on_hover_text(format!("{}\n{}", spec.kind.label(), spec.doc));
+            ui.label(RichText::new(&spec.name).color(crate::style::INK)).on_hover_text(format!("{}\n{}", spec.kind.label(), spec.doc));
         });
         pin_info(&spec)
     }
@@ -574,15 +705,15 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
 
     fn show_on_hover_popup(&mut self, node: SnarlId, _inputs: &[InPin], _outputs: &[OutPin], ui: &mut Ui, snarl: &mut Snarl<NodeCard>) {
         for d in &snarl[node].diag {
-            ui.colored_label(Color32::from_rgb(220, 90, 90), d);
+            ui.colored_label(crate::style::ERROR, d);
         }
     }
 
     fn current_transform(&mut self, to_global: &mut egui::emath::TSTransform, snarl: &mut Snarl<NodeCard>) {
         if let Some(viewport) = self.fit.take() {
-            if let Some(bounds) = node_bounds(snarl) {
+            if let Some(bounds) = node_bounds(snarl, self.sizes, self.ids) {
                 let pad = bounds.expand(40.0);
-                let scale = (viewport.width() / pad.width().max(1.0)).min(viewport.height() / pad.height().max(1.0)).clamp(0.15, 1.5);
+                let scale = (viewport.width() / pad.width().max(1.0)).min(viewport.height() / pad.height().max(1.0)).clamp(crate::style::MIN_SCALE, crate::style::MAX_SCALE);
                 to_global.scaling = scale;
                 to_global.translation = viewport.center().to_vec2() - pad.center().to_vec2() * scale;
             }
@@ -600,6 +731,10 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     }
 
     fn final_node_rect(&mut self, node: SnarlId, rect: egui::Rect, ui: &mut Ui, _snarl: &mut Snarl<NodeCard>) {
+        if let Some(gid) = self.ids.to_graph.get(&node) {
+            // Clamped so one pathological measure cannot throw the layout.
+            self.sizes.insert(*gid, rect.size().min(egui::vec2(1600.0, 3000.0)));
+        }
         let clicked = ui.input(|i| i.pointer.primary_clicked() && i.pointer.interact_pos().is_some_and(|p| rect.contains(p)));
         if clicked {
             self.clicked = Some(node);
@@ -756,7 +891,7 @@ mod tests {
 
         // Text -> Number is refused by the viewer; Number -> Number replaces.
         let (mut snarl, ids) = build_snarl(&g, &reg);
-        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport_center: egui::Pos2::ZERO, seen_transform: None, collapse_request: None, mode: Mode::SandRing };
+        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport_center: egui::Pos2::ZERO, seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new() };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
         viewer.connect(&text_out, &add_b, &mut snarl);
@@ -852,5 +987,34 @@ mod tests {
         for want in ["Band profile", "Shank", "New design", "Output"] {
             assert!(harness.query_by_label(want).is_some(), "{want} not drawn");
         }
+    }
+}
+
+#[cfg(all(test, feature = "shot"))]
+mod shot {
+    /// `RD_GRAPH_SHOT=/some/dir cargo test -p ringdesign-graph-ui --features shot shot_the_editor`
+    /// renders the editor over the Court band's graph through wgpu and
+    /// writes `graph.png` there, for an eyeball pass on the look.
+    #[test]
+    fn shot_the_editor() {
+        let Some(dir) = std::env::var_os("RD_GRAPH_SHOT") else { return };
+        let reg = ringdesign_graph::registry::Registry::builtin();
+        let (_, g) = ringdesign_graph::templates::all().into_iter().next().expect("a template graph");
+        let mut ed = super::Editor::new(g, &reg);
+        ed.arrange(&reg);
+        ed.fit();
+        ed.selected = ed.graph().nodes.get(2).map(|n| n.id);
+        let mut harness = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(1280.0, 800.0))
+            .with_pixels_per_point(1.0)
+            .wgpu()
+            .build_ui(|ui| {
+                ed.show(&reg, ui, "shot");
+            });
+        harness.run_steps(8);
+        let img = harness.render().expect("wgpu renders offscreen");
+        let path = std::path::Path::new(&dir).join("graph.png");
+        img.save(&path).expect("png");
+        eprintln!("wrote {}", path.display());
     }
 }

@@ -5,6 +5,11 @@ version.workspace = true
 license.workspace = true
 description = "The node editor for ringdesign-graph, on egui-snarl"
 
+[features]
+## Renders the editor offscreen through wgpu for the screenshot test;
+## off by default so the workspace build never pulls wgpu.
+shot = ["egui_kittest/wgpu", "egui_kittest/snapshot"]
+
 [dependencies]
 ringdesign-core = { path = "../ringdesign-core", default-features = false }
 ringdesign-graph = { path = "../ringdesign-graph", default-features = false }

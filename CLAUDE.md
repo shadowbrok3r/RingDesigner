@@ -1791,6 +1791,40 @@ Fit and the minimap read the view transform snarl hands to
 change as a document — converted, edited, baked — which is why
 `first_difference` treats a key present on one side only as a change.
 
+### The editor looks like the comfyui-android graph
+
+`ringdesign_graph_ui::style` is that app's graph view, number for number,
+and both the desktop pane and the phone tab draw through it: an AMOLED
+canvas (`CANVAS`) lit by three pools of colour — violet, aqua, pink —
+anchored to the visible rect so the light does not slide as you pan, a
+dot grid in graph units (spacing 28, coarsened by powers of two when
+zoomed out, dim teal), glass nodes (`NODE_FILL` at alpha 190, corner 8)
+under a white hairline rim that turns hot pink when chosen and the error
+colour when the node carries diagnostics, axis-aligned wires with 8 px
+corners at 2.6 px, 15 px pins standing 3 px outside the body, inputs
+stacked above outputs (`NodeLayout::sandwich`). Pins keep their kind's
+hue at the palette's muted saturation and value; labels are plain ink.
+`apply_visuals` installs that app's egui visuals — black page, glass
+panes, aqua hover, pink press and selection — inside the editor's `scope`
+only, so the app around it keeps its own theme. `NODE_FIELD_W` caps a
+field row at 260 graph units because a width taken from
+`available_width` feeds back into the node size it is derived from and
+ratchets the node wider every frame. The frosted-glass blur behind each
+node is the one thing not carried: it is the phone's `backdrop-blur`
+grab pass, which the desktop's glow window has no equivalent for; the
+translucent fill over the lit canvas is what remains of it. Header-only
+dragging (body drags pan) is the other comfyui mechanic still to port.
+Arrange lays nodes out by depth from their **measured** sizes
+(`final_node_rect`, keyed by graph id so a rebuilt snarl keeps them) with
+that app's gaps, and re-runs while the measures it used disagree with the
+current ones, three passes at most — snarl's first frame measures a node
+before its widgets settle (the Court band's profile node read 125 wide on
+frame one and 253 on frame two), and a layout from those numbers overlaps.
+`RD_GRAPH_SHOT=/dir cargo test -p ringdesign-graph-ui --features shot shot_the_editor`
+renders the editor through wgpu offscreen to `graph.png` for an eyeball
+pass; the `shot` feature keeps wgpu out of every other build, because it
+unifies `egui/bytemuck` into the whole UI stack and costs a full rebuild.
+
 ### Paint-on-band: pressure is millimetres, the ceiling is the draft
 
 `paint.rs` (core) is the brush both apps share: `bite()` resolves a press
