@@ -1314,6 +1314,24 @@ opens in the app. Lessons it measured, kept in its comments:
   `compose()` and the showcase both derive it from the face the stamp landed
   on, because `wider()`'s tie on a symmetric band breaks on float noise.
 
+`examples/collection3.rs` is the same tour over one day's additions — a
+bypass solitaire, a diagonal princess band, a hollowed clover signet, a
+cabochon cigar band, a graded prong eternity judged for lost wax — each
+rendered with its stones, given its sheet and setter's map, and saved to
+`designs/collection3/`. What it measured, all of it from the verdicts
+rather than the renders: **a stone is sized to its face, not to its
+band** — a gypsy seat carries 1.8 mm of stock round its stone and a
+turned square reaches 1.19× further, so 2.5 mm princesses overhung a
+5 mm band's face by a millimetre (bosses carry 1.2 mm; 1.8 mm stones on
+a 5.5 mm band leave a quarter millimetre either side), and a 5 mm cab's
+bezel overhung a 4.5 mm band's face by 1.5 mm and leaned to −68° where a
+7.5 mm cigar band gives a 4 mm cab a 6.4 mm face; **a bypass crossing
+needs room under a stone** — on a 4.5 mm band the mound's skirt left a
+wedge against the crossing's edge that the wall sweep read as 0.67 mm,
+clean at 5.0; and **a seat's skirt is its finest DFM feature**, read at
+the chart's 0.85 metal scale, so a 0.4 mm skirt measures 0.34 against a
+0.35 floor. The hollow takes 11% out of a 12 mm clover signet.
+
 `examples/commissions.rs` is the same discipline applied to client sketches
 (half-wrap patterned crescents, a gem-set cross band, the Diamond and Cross
 `SignetOutline`s added for them). Its own measured lessons: a gem column
