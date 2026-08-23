@@ -1195,6 +1195,14 @@ emits one line per distinct seat.
   dimensions, weight in every alloy with its pattern scale, the field
   verdict with notes and DFM findings, the stones table with bench warnings,
   provenance. Desktop File menu and the Android share sheet both emit it.
+- **The stone map** (`stonemap.rs`): the setter's sheet — every stone the
+  design sets drawn to scale at 2:1, in plan (each girdle projected onto
+  the ring's plane from the census's own `StoneFrame`) and on the band
+  unrolled (each plan at its chart bearing), labelled with its size, with
+  the census's tight pairs drawn in red between the stones and the gap
+  that decides written on the line. File > Stone map…, MCP
+  `export_stone_map`, CLI `--formats stonemap`, the phone's Share menu.
+  Refuses a design that sets no stones.
 - **The parting line** (`castability::parting_line`): the widest surface
   point per slice — where the sand parts — exported as a printable SVG
   (plan view plus the line's height unrolled, File > Parting line…).

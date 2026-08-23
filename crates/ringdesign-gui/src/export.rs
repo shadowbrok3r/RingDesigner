@@ -252,6 +252,25 @@ pub fn export_parting(app: &mut RingDesignerApp) {
     }
 }
 
+/// Export the stone spacing map: every stone to scale, plan and unrolled,
+/// with the census's tight gaps drawn.
+pub fn export_stone_map(app: &mut RingDesignerApp) {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("SVG", &["svg"])
+        .set_directory(dir("exports"))
+        .set_file_name(format!("{}_stones.svg", slug(&app.design.name)))
+        .save_file()
+    else {
+        return;
+    };
+    let parting = app.field.as_ref().map(|f| f.parting_z_mm).unwrap_or(0.0);
+    let report = ringdesign_core::stones::report(&app.design, parting);
+    match ringdesign_core::stonemap::write_stone_map_svg(&path, &app.design, report.as_ref()) {
+        Ok(_) => app.set_status(format!("Wrote {}", path.display())),
+        Err(e) => app.set_status(format!("Stone map failed: {e}")),
+    }
+}
+
 pub fn export_spec(app: &mut RingDesignerApp) {
     let Some(path) = rfd::FileDialog::new()
         .add_filter("Casting sheet", &["html"])

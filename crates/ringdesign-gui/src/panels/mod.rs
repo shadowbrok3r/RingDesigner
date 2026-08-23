@@ -336,6 +336,7 @@ enum Command {
     TurntableGif,
     CastingSheet,
     PartingLine,
+    StoneMap,
     ToggleGhost,
     ToggleStones,
     ToggleAsCast,
@@ -395,6 +396,7 @@ impl Command {
         Command::TurntableGif,
         Command::CastingSheet,
         Command::PartingLine,
+        Command::StoneMap,
         Command::ToggleGhost,
         Command::ToggleStones,
         Command::ToggleAsCast,
@@ -421,6 +423,7 @@ impl Command {
             Command::TurntableGif => "Turntable GIF…",
             Command::CastingSheet => "Casting sheet…",
             Command::PartingLine => "Parting line SVG…",
+            Command::StoneMap => "Stone map SVG…",
             Command::ToggleGhost => "Toggle comparison ghost",
             Command::ToggleStones => "Toggle stone previews",
             Command::ToggleAsCast => "Toggle as-cast softening",
@@ -454,6 +457,7 @@ impl Command {
             Command::TurntableGif => export::export_turntable(app),
             Command::CastingSheet => export::export_spec(app),
             Command::PartingLine => export::export_parting(app),
+            Command::StoneMap => export::export_stone_map(app),
             Command::ToggleGhost => app.toggle_pin(),
             Command::ToggleStones => {
                 app.show_gems = !app.show_gems;
@@ -717,6 +721,14 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .clicked()
             {
                 export::export_parting(app);
+                ui.close();
+            }
+            if ui
+                .button(format!("{} Stone map…", icon::DIAMOND))
+                .on_hover_text("Every stone to scale, plan and unrolled, with the tight gaps drawn: the setter's map.")
+                .clicked()
+            {
+                export::export_stone_map(app);
                 ui.close();
             }
             if ui

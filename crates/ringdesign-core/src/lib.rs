@@ -46,6 +46,7 @@ pub mod setstone;
 pub mod sizing;
 pub mod spec;
 pub mod stl;
+pub mod stonemap;
 pub mod stones;
 pub mod svg;
 pub mod templates;

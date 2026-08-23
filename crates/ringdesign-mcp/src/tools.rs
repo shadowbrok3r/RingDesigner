@@ -2344,6 +2344,24 @@ impl RingDesignServer {
     }
 
     #[tool(
+        description = "Write the stone spacing map as a printable SVG: every stone the design sets to scale — plan view and the band unrolled, drawn 2:1 — with each stone's label and size and the census's tight gaps drawn in red between the pairs the setter has to watch. `path` is optional and defaults to a temp file named after the design. Fails when the design sets no stones."
+    )]
+    async fn export_stone_map(
+        &self,
+        Parameters(p): Parameters<ExportParams>,
+    ) -> Result<Json<ExportResult>, ErrorData> {
+        let mut e = self.engine.lock();
+        let path = p.path.unwrap_or_else(|| default_export_path(&e.design().name, "stones.svg"));
+        let field = e.field_report();
+        let report = ringdesign_core::stones::report(e.design(), field.parting_z_mm);
+        let bytes = ringdesign_core::stonemap::write_stone_map_svg(&path, e.design(), report.as_ref());
+        drop(e);
+        let bytes =
+            bytes.map_err(|err| ErrorData::internal_error(format!("write {path}: {err}"), None))?;
+        Ok(Json(ExportResult { path, bytes }))
+    }
+
+    #[tool(
         description = "Save the design to `path` as JSON: size, profile, shank, the whole layer stack, build resolution and casting settings. Alphas are referenced by name, not embedded, so a design file is small but needs the same library to rebuild identically. The conventional extension is .ring.json."
     )]
     async fn save_design(
@@ -3199,13 +3217,14 @@ mod tests {
             "export_obj",
             "export_3mf",
             "export_glb",
+            "export_stone_map",
             "save_design",
             "load_design",
             "apply_template",
         ] {
             assert!(names.contains(&expected), "missing tool {expected}: {names:?}");
         }
-        assert_eq!(names.len(), 32, "{names:?}");
+        assert_eq!(names.len(), 33, "{names:?}");
         for t in &tools {
             let d = t.description.as_ref().unwrap_or_else(|| panic!("{} has no description", t.name));
             assert!(d.len() > 120, "{} has a thin description", t.name);
