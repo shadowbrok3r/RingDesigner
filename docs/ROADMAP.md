@@ -180,6 +180,8 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 - Shelf: stone spacing map SVG; march instances along a guide path; blue-noise scatter
   generator; mm-true mask morphology; alpha granulometry; nesting-depth stepped relief; honest
   rope rail; `stones::probe_seat`; pearl stock; flat-edged seat plans.
+- [x] The graph editor in the comfyui-android look (#87): `ringdesign_graph_ui::style`, shared by the
+  desktop pane and the phone tab.
 - Niceties: gate & sprue advisor; DPI true-scale; reference-mesh import + deviation report as a
   core feature (the exact point-to-triangle measure and the crease census, today script-only);
   comparison views beyond the ghost.
