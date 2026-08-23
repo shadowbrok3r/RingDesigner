@@ -192,6 +192,47 @@ pub struct Editor {
     refine_left: u8,
     /// The editor moved nodes itself this frame; reported as a change.
     layout_changed: bool,
+    /// Where the current drag began, held for the whole drag.
+    drag_kind: DragKind,
+}
+
+/// Where a canvas press landed — decides whether a drag moves a node, pans,
+/// or wires. A drag that starts on a node's body pans and the node stays
+/// put, so a finger that misses a pin scrolls the view instead of dragging
+/// the node around; only the title bar moves a node.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DragKind {
+    None,
+    /// On a node's title bar: the node moves.
+    Header,
+    /// On a node below its title: the view pans, the node's move is vetoed.
+    Body,
+    /// Empty canvas or a pin: left to snarl.
+    Canvas,
+}
+
+/// Graph-space height of a node's title bar, for header-only dragging.
+const NODE_HEADER_H: f32 = 30.0;
+/// snarl's node frame margin: a node's stored position is its content
+/// origin, the drawn frame starts this far above-left.
+const FRAME_MARGIN: f32 = 6.0;
+
+/// Which region a graph-space point falls on, over the drawn node frames.
+/// Any header wins over any body, so a title-bar grab can always move a
+/// node where nodes overlap.
+pub fn classify_point(gp: egui::Pos2, frames: impl IntoIterator<Item = egui::Rect>) -> DragKind {
+    let mut on_body = false;
+    for frame in frames {
+        if !frame.contains(gp) {
+            continue;
+        }
+        let header = egui::Rect::from_min_size(frame.min, egui::vec2(frame.width(), NODE_HEADER_H.min(frame.height())));
+        if header.contains(gp) {
+            return DragKind::Header;
+        }
+        on_body = true;
+    }
+    if on_body { DragKind::Body } else { DragKind::Canvas }
 }
 
 impl Editor {
@@ -214,6 +255,45 @@ impl Editor {
             arranged_sizes: HashMap::new(),
             refine_left: 0,
             layout_changed: false,
+            drag_kind: DragKind::None,
+        }
+    }
+
+    /// The drawn frames of every node, in graph space.
+    fn node_frames(&self) -> Vec<egui::Rect> {
+        self.snarl
+            .nodes_pos_ids()
+            .map(|(sid, pos, _)| egui::Rect::from_min_size(pos - egui::vec2(FRAME_MARGIN, FRAME_MARGIN), self.size_of(sid)))
+            .collect()
+    }
+
+    /// Classifies a press this frame and returns `(pan, veto)`: the screen
+    /// delta to pan by, and whether every node move this frame is undone.
+    /// A body drag pans; a locked editor pans on any node drag and vetoes
+    /// every move; header, canvas and pin drags are left to snarl.
+    fn drag_gate(&mut self, ctx: &egui::Context, viewport: egui::Rect) -> (egui::Vec2, bool) {
+        let (pressed, down, origin, delta, zooming) = ctx.input(|i| {
+            (i.pointer.any_pressed(), i.pointer.any_down(), i.pointer.press_origin(), i.pointer.delta(), (i.zoom_delta() - 1.0).abs() > f32::EPSILON || i.multi_touch().is_some())
+        });
+        if pressed {
+            self.drag_kind = match (origin, self.transform) {
+                (Some(p), Some(t)) if viewport.contains(p) && ctx.layer_id_at(p).is_none_or(|l| l.order == egui::Order::Background) => {
+                    classify_point(t.inverse() * p, self.node_frames())
+                }
+                _ => DragKind::None,
+            };
+        }
+        if !down {
+            self.drag_kind = DragKind::None;
+        }
+        // During a pinch the primary pointer still reports a delta; adding a
+        // pan on top of the zoom drifts the view.
+        let d = if delta.is_finite() && !zooming { delta } else { egui::Vec2::ZERO };
+        match (self.editable, self.drag_kind) {
+            (false, DragKind::Header | DragKind::Body) => (d, true),
+            (false, _) => (egui::Vec2::ZERO, true),
+            (true, DragKind::Body) => (d, true),
+            (true, _) => (egui::Vec2::ZERO, false),
         }
     }
 
@@ -318,6 +398,11 @@ impl Editor {
         let viewport = ui.available_rect_before_wrap();
         let fit = std::mem::take(&mut self.pending_fit).then_some(viewport);
         self.snarl_id = Some(ui.make_persistent_id(id_salt));
+        // Header-only dragging: a body drag pans, and any node move that did
+        // not start on a title bar is undone from this snapshot after the
+        // frame — the same mechanism a locked editor freezes every node with.
+        let (pan, veto) = self.drag_gate(ui.ctx(), viewport);
+        let saved: Option<Vec<(SnarlId, egui::Pos2)>> = veto.then(|| self.snarl.nodes_pos_ids().map(|(id, pos, _)| (id, pos)).collect());
         let mut viewer = Viewer {
             reg,
             editable: self.editable,
@@ -333,12 +418,20 @@ impl Editor {
             mode: self.graph.mode,
             selected: self.selected.and_then(|g| self.ids.to_snarl.get(&g).copied()),
             sizes: &mut self.sizes,
+            pan,
         };
         // That app's visuals on everything inside the editor, and nothing outside it.
         ui.scope(|ui| {
             crate::style::apply_visuals(ui.style_mut());
             self.snarl.show(&mut viewer, &self.style, id_salt, ui);
         });
+        if let Some(saved) = saved {
+            for (id, pos) in saved {
+                if let Some(info) = self.snarl.get_node_info_mut(id) {
+                    info.pos = pos;
+                }
+            }
+        }
         let clicked = viewer.clicked;
         let refused = viewer.refused.take();
         let collapse_request = viewer.collapse_request.take();
@@ -581,6 +674,8 @@ struct Viewer<'a> {
     selected: Option<SnarlId>,
     /// Measured node sizes, filled as nodes are drawn.
     sizes: &'a mut HashMap<NodeId, egui::Vec2>,
+    /// Screen delta to pan the view by this frame.
+    pan: egui::Vec2,
 }
 
 /// The footprint a node is assumed to take before it has been drawn.
@@ -726,6 +821,9 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
                 let scale = to_global.scaling.max(0.1);
                 to_global.translation = self.viewport_center.to_vec2() - anchor.to_vec2() * scale;
             }
+        }
+        if self.pan != egui::Vec2::ZERO {
+            to_global.translation += self.pan;
         }
         self.seen_transform = Some(*to_global);
     }
@@ -891,7 +989,7 @@ mod tests {
 
         // Text -> Number is refused by the viewer; Number -> Number replaces.
         let (mut snarl, ids) = build_snarl(&g, &reg);
-        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport_center: egui::Pos2::ZERO, seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new() };
+        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport_center: egui::Pos2::ZERO, seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), pan: egui::Vec2::ZERO };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
         viewer.connect(&text_out, &add_b, &mut snarl);
@@ -1016,5 +1114,23 @@ mod shot {
         let path = std::path::Path::new(&dir).join("graph.png");
         img.save(&path).expect("png");
         eprintln!("wrote {}", path.display());
+    }
+}
+
+#[cfg(test)]
+mod drag_tests {
+    use super::*;
+
+    #[test]
+    fn a_press_is_classified_by_where_it_lands() {
+        let a = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(200.0, 120.0));
+        let b = egui::Rect::from_min_size(egui::pos2(150.0, 100.0), egui::vec2(200.0, 120.0));
+        let frames = || [a, b];
+        assert_eq!(classify_point(egui::pos2(20.0, 10.0), frames()), DragKind::Header);
+        assert_eq!(classify_point(egui::pos2(20.0, 80.0), frames()), DragKind::Body);
+        assert_eq!(classify_point(egui::pos2(400.0, 400.0), frames()), DragKind::Canvas);
+        // Where a's body overlaps b's header, the header wins.
+        assert_eq!(classify_point(egui::pos2(160.0, 110.0), frames()), DragKind::Header);
+        assert_eq!(classify_point(egui::pos2(5.0, 5.0), std::iter::empty()), DragKind::Canvas);
     }
 }
