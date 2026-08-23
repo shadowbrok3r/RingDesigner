@@ -211,9 +211,10 @@ fn castability_stones(d: &RingDesign, parting: f64) -> StonesReport {
     ringdesign_core::stones::report(d, parting).unwrap_or_default()
 }
 
-fn dfm_findings(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
+fn dfm_findings(ctx: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
     let d = design_of(i, "design")?;
-    let f = dfm::findings(&d);
+    let lib = baked(&d, ctx.lib);
+    let f = dfm::findings_in(&d, &lib);
     let items: Vec<Value> = f
         .iter()
         .map(|x| Value::Json(Arc::new(serde_json::json!({"layer": x.layer, "label": x.label, "message": x.message}))))
@@ -240,7 +241,7 @@ fn sheet(ctx: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeErr
         Value::Stones(s) => Some((**s).clone()),
         _ => ringdesign_core::stones::report(&d, field.parting_z_mm),
     };
-    let findings = dfm::findings(&d);
+    let findings = dfm::findings_in(&d, &lib);
     let html = spec::html(&d, &report, &field, stones.as_ref(), &findings, i.text("provenance")?);
     Ok(Outputs::one("html", html))
 }

@@ -462,6 +462,93 @@ impl Alpha {
     }
 }
 
+impl Alpha {
+    /// The finest features in the mask, in pixels, as `(ink, gap)`: the
+    /// diameter of the smallest strokes and of the smallest gaps between
+    /// them, each read as the opening diameter at which a tenth of that
+    /// phase's area disappears — granulometry on the distance field,
+    /// bisected over the radius, on a 3x3 tiling so a seamless mask reads
+    /// seamless. `None` for an empty or single-phase mask. Cached by content.
+    pub fn min_feature_px(&self) -> Option<(f64, f64)> {
+        use std::collections::HashMap;
+        use std::hash::{Hash, Hasher};
+        use std::sync::{Mutex, OnceLock};
+        static CACHE: OnceLock<Mutex<HashMap<u64, Option<(f64, f64)>>>> = OnceLock::new();
+        if self.is_empty() {
+            return None;
+        }
+        let mut h = std::hash::DefaultHasher::new();
+        (self.width, self.height).hash(&mut h);
+        for v in &self.data {
+            v.to_bits().hash(&mut h);
+        }
+        let key = h.finish();
+        let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+        if let Some(hit) = cache.lock().ok().and_then(|c| c.get(&key).copied()) {
+            return hit;
+        }
+        let got = self.measure_features();
+        if let Ok(mut c) = cache.lock() {
+            if c.len() > 512 {
+                c.clear();
+            }
+            c.insert(key, got);
+        }
+        got
+    }
+
+    fn measure_features(&self) -> Option<(f64, f64)> {
+        const LOST: f64 = 0.10;
+        let (w, h) = (self.width, self.height);
+        let (bw, bh) = (w * 3, h * 3);
+        let ink: Vec<bool> = (0..bw * bh).map(|i| self.data[(i / bw % h) * w + (i % bw % w)] >= 0.5).collect();
+        let n_ink = ink.iter().filter(|&&b| b).count();
+        if n_ink == 0 || n_ink == ink.len() {
+            return None;
+        }
+        let dist_to = |set: &[bool]| -> Vec<f32> {
+            let mut g: Vec<f32> = set.iter().map(|&b| if b { 0.0 } else { 1e12 }).collect();
+            edt_squared(&mut g, bw, bh);
+            g.iter_mut().for_each(|v| *v = v.sqrt());
+            g
+        };
+        let ground: Vec<bool> = ink.iter().map(|&b| !b).collect();
+        let d_ink = dist_to(&ground);
+        let d_ground = dist_to(&ink);
+        // Share of a phase (centre tile) that an opening by disc radius r removes.
+        let loss = |phase: &[bool], d: &[f32], r: f32| -> f64 {
+            let eroded: Vec<bool> = d.iter().map(|&v| v >= r).collect();
+            let back = dist_to(&eroded);
+            let (mut lost, mut all) = (0usize, 0usize);
+            for y in h..2 * h {
+                for x in w..2 * w {
+                    let i = y * bw + x;
+                    if phase[i] {
+                        all += 1;
+                        if back[i] > r {
+                            lost += 1;
+                        }
+                    }
+                }
+            }
+            if all == 0 { 1.0 } else { lost as f64 / all as f64 }
+        };
+        let feature = |phase: &[bool], d: &[f32]| -> f64 {
+            let r_max = (w.min(h) as f32) * 0.5;
+            if loss(phase, d, r_max) < LOST {
+                return 2.0 * r_max as f64;
+            }
+            let (mut lo, mut hi) = (0.0f32, r_max);
+            while hi - lo > 0.25 {
+                let mid = 0.5 * (lo + hi);
+                if loss(phase, d, mid) >= LOST { hi = mid } else { lo = mid }
+            }
+            2.0 * hi as f64
+        };
+        Some((feature(&ink, &d_ink), feature(&ground, &d_ground)))
+    }
+}
+
 /// Library name a mask's derived signed-distance field lands under.
 pub fn sdf_name(name: &str) -> String {
     format!("{name}##sdf")
@@ -2786,3 +2873,22 @@ impl Alpha {
 
 }
 
+#[cfg(test)]
+mod feature_tests {
+    use super::*;
+
+    #[test]
+    fn stripes_measure_their_own_width_and_gap() {
+        let n = 64;
+        let data: Vec<f32> = (0..n * n).map(|i| if (i % n) % 16 < 4 { 1.0 } else { 0.0 }).collect();
+        let a = Alpha::new("stripes", n, n, data);
+        let (ink, gap) = a.min_feature_px().unwrap();
+        assert!((ink - 4.0).abs() <= 1.0, "ink {ink}");
+        assert!((gap - 12.0).abs() <= 2.0, "gap {gap}");
+        let blank = Alpha::new("blank", 8, 8, vec![0.0; 64]);
+        assert!(blank.min_feature_px().is_none());
+        let disc: Vec<f32> = (0..n * n).map(|i| { let (x, y) = ((i % n) as f64 - 32.0, (i / n) as f64 - 32.0); if x * x + y * y < 100.0 { 1.0 } else { 0.0 } }).collect();
+        let (ink, _) = Alpha::new("disc", n, n, disc).min_feature_px().unwrap();
+        assert!((ink - 20.0).abs() <= 2.0, "a 20 px disc: {ink}");
+    }
+}
