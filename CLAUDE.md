@@ -1813,7 +1813,14 @@ ratchets the node wider every frame. The frosted-glass blur behind each
 node is the one thing not carried: it is the phone's `backdrop-blur`
 grab pass, which the desktop's glow window has no equivalent for; the
 translucent fill over the lit canvas is what remains of it. Header-only
-dragging (body drags pan) is the other comfyui mechanic still to port.
+dragging is that app's too: `Editor::drag_gate` classifies a press by
+where it lands on the drawn node frames (`classify_point` — any header
+wins over any body, so a title-bar grab always moves a node where nodes
+overlap), a body drag pans the view through `current_transform` while
+the node's own move is undone from a position snapshot after the frame,
+and a locked editor (`editable = false`) pans on any node drag and vetoes
+every move — so a finger that misses a pin scrolls the view instead of
+dragging the node around.
 Arrange lays nodes out by depth from their **measured** sizes
 (`final_node_rect`, keyed by graph id so a rebuilt snarl keeps them) with
 that app's gaps, and re-runs while the measures it used disagree with the
