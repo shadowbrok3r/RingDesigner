@@ -137,7 +137,8 @@ mod acceptance {
         assert_eq!(list_of(r.value(one, "out")), vec![0.0]);
         assert_eq!(list_of(r.value(big, "out")).len(), MAX_LIST_ITEMS);
         assert!(r.status[&big].warnings[0].contains("clamped"));
-        assert!(r.status[&neg].errors[0].1.contains("negative"));
+        assert!(list_of(r.value(neg, "out")).is_empty(), "a negative count generates nothing");
+        assert!(r.status[&neg].warnings[0].contains("negative"));
     }
 
     #[test]

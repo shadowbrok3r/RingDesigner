@@ -25,7 +25,8 @@ fn text(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError>
 fn capped_count(ctx: &mut EvalCtx<'_>, i: &Inputs, pin: &str) -> Result<usize, NodeError> {
     let n = i.int(pin)?;
     if n < 0 {
-        return Err(NodeError::input(pin, format!("{n} is negative")));
+        ctx.warn(format!("{pin} {n} is negative: nothing generated"));
+        return Ok(0);
     }
     let n = n as usize;
     if n > MAX_LIST_ITEMS {
@@ -85,7 +86,7 @@ pub fn register(reg: &mut Registry) {
             .output(PinSpec::list("out", ValueKind::Number).doc("The numbers."))
             .eval(series),
         NodeSpec::new("range", "Range", Category::Source)
-            .doc("Count evenly spaced numbers from a start to an end, both included.")
+            .doc("Count evenly spaced numbers from a start to an end, both included. Grasshopper's Range counts steps, one fewer.")
             .input(PinSpec::item("start", ValueKind::Number).default(0.0).doc("The first number."))
             .input(PinSpec::item("end", ValueKind::Number).default(1.0).doc("The last number."))
             .input(PinSpec::item("count", ValueKind::Int).default(10i64).doc("How many; capped at the list limit. One gives the start alone."))

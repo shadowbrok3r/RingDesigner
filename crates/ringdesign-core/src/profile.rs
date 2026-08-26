@@ -2985,9 +2985,7 @@ impl Tent {
         let hull = resample_row(hull);
         // A smooth table lofts from an apex point `cap_mm` over the plane,
         // through the outline scaled about its centroid at that height, to
-        // the outline at the plane — no rim row and no flat face. The apex
-        // row is the point repeated, which the chord-length gaps take as the
-        // mean radius of the row it leads to.
+        // the outline at the plane: no rim row and no flat face.
         let cap = cap_mm > 1e-6;
         let (rows, z): (Vec<Vec<[f64; 2]>>, Vec<f64>) = if cap {
             let apex = vec![c; LOFT_U];
@@ -3002,29 +3000,11 @@ impl Tent {
                 vec![plane, plane, plane - LOFT_BODY_DROP_MM, LOFT_EQUATOR_LIFT_MM, 0.0],
             )
         };
-        // Chord-length knots: each interior knot averages three of the rows'
-        // own parameters, as a clamped cubic fitted through them is.
+        // Uniform clamped cubic knots, as Rhino's loose loft.
         let n = rows.len();
-        let mut u = vec![0.0; n];
-        let mut total = 0.0;
-        for k in 0..n - 1 {
-            let dz = z[k + 1] - z[k];
-            let gap = (0..LOFT_U)
-                .map(|j| (dist(rows[k][j], rows[k + 1][j]).powi(2) + dz * dz).sqrt())
-                .sum::<f64>()
-                / LOFT_U as f64;
-            total += gap;
-            u[k + 1] = total;
-        }
-        let total = total.max(1e-9);
-        for x in u.iter_mut() {
-            *x /= total;
-        }
         let mut knots = vec![0.0; 4];
         for j in 1..=(n - 4) {
-            let k = ((u[j] + u[j + 1] + u[j + 2]) / 3.0).clamp(0.05, 0.95);
-            let prev = knots[knots.len() - 1];
-            knots.push(k.max(prev + 1e-3));
+            knots.push(j as f64 / (n - 3) as f64);
         }
         knots.extend([1.0, 1.0, 1.0, 1.0]);
         Tent { rows, z, knots, plane, cap }
@@ -5330,6 +5310,26 @@ mod tests {
         assert!(watertight);
         assert_eq!(rep.undercut, 0, "{:?}", rep.notes);
     }
+    #[test]
+    fn the_loft_knots_are_uniform() {
+        // A round table 20 across over a rectangular equator silhouette.
+        let circle = |s: f64| -> (f64, f64) {
+            let h = (1.0 - s * s).max(0.0).sqrt();
+            (-h, h)
+        };
+        let hull = [[-10.75, -3.0], [10.75, -3.0], [10.75, 3.0], [-10.75, 3.0]];
+        let flat = Tent::build(&circle, 10.0, 10.0, 12.5, 2.0, 2.0, &hull, 0.0);
+        assert_eq!(flat.knots, vec![0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0]);
+        // At its one interior knot a clamped uniform cubic reads (P1 + 2 P2 + P3) / 4.
+        assert!((flat.z_at(0.5) - (12.5 + 2.0 * 9.5 + 3.0) / 4.0).abs() < 1e-9, "{}", flat.z_at(0.5));
+        let mut row = Vec::new();
+        flat.row_at(0.5, &mut row);
+        // The seam sample: the table at -10, the body at -11, the hull at -3.
+        assert!(row[0][0].abs() < 1e-6 && (row[0][1] - (-10.0 - 2.0 * 11.0 - 3.0) / 4.0).abs() < 1e-3, "{:?}", row[0]);
+        let capped = Tent::build(&circle, 10.0, 10.0, 12.5, 2.0, 2.0, &hull, 1.5);
+        let thirds = [0.0, 0.0, 0.0, 0.0, 1.0 / 3.0, 2.0 / 3.0, 1.0, 1.0, 1.0, 1.0];
+        assert!(capped.knots.len() == thirds.len() && capped.knots.iter().zip(&thirds).all(|(a, b)| (a - b).abs() < 1e-12), "{:?}", capped.knots);
+    }
 }
 
 #[cfg(test)]
@@ -5381,4 +5381,5 @@ mod hollow_tests {
         let deep = section(&d, TOP_DEG);
         assert!(bore_of(&deep) < crest_of(&deep) - MIN_EDGE_MM, "a wall survives the deepest scoop");
     }
+
 }

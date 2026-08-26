@@ -100,15 +100,15 @@ fn cull_nth(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeEr
 fn partition(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
     let items = i.list("items");
     let sizes = ints(i, "size")?;
-    if sizes.is_empty() || sizes.iter().any(|s| *s < 1) {
-        return Err(NodeError::input("size", "sizes must be positive"));
+    if sizes.is_empty() || sizes.iter().any(|s| *s < 0) || sizes.iter().all(|s| *s == 0) {
+        return Err(NodeError::input("size", "sizes must be non-negative, at least one of them positive"));
     }
-    // The size list repeats: {2, 3} partitions as 2, 3, 2, 3 …; the last
-    // chunk keeps whatever is left.
+    // The size list repeats: {2, 3} partitions as 2, 3, 2, 3 …; a zero is
+    // an empty chunk; the last chunk keeps whatever is left.
     let mut out = Vec::new();
     let mut at = 0usize;
     let mut k = 0usize;
-    while at < items.len() {
+    while at < items.len() && out.len() < MAX_LIST_ITEMS {
         let size = sizes[k % sizes.len()] as usize;
         let end = (at + size).min(items.len());
         out.push(Value::List(items[at..end].to_vec()));
@@ -427,9 +427,13 @@ mod tests {
         let cn = node(&mut g, "list.cull_nth", &[("items", texts(&["a", "b", "c", "d", "e", "f", "g"])), ("n", Literal::Int(2))]);
         let p1 = node(&mut g, "list.partition", &[("items", ints(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])), ("size", ints(&[3]))]);
         let p2 = node(&mut g, "list.partition", &[("items", ints(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])), ("size", ints(&[2, 3]))]);
+        let p3 = node(&mut g, "list.partition", &[("items", ints(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])), ("size", ints(&[3, 2, 0]))]);
+        let p0 = node(&mut g, "list.partition", &[("items", ints(&[0, 1, 2])), ("size", ints(&[0]))]);
         let d = node(&mut g, "list.dispatch", &[("items", texts(&["a", "b", "c", "d"])), ("pattern", bools(&[true, false]))]);
         let r = run(&g);
-        assert!(!r.any_failed() || r.status[&ci_strict].failed(), "{:?}", r.notes(&g));
+        for (id, st) in &r.status {
+            assert!(!st.failed() || *id == ci_strict || *id == p0, "{:?}", r.notes(&g));
+        }
         assert_eq!(as_texts(r.value(w, "out")), ["a", "x", "y", "b", "z", "c", "d", "e", "f"]);
         assert_eq!(as_texts(r.value(w2, "out")), ["a", "x", "b", "c"], "an exhausted stream's slots are skipped");
         match r.value(e, "out") {
@@ -447,6 +451,8 @@ mod tests {
         let chunks = |v: Option<&Value>| -> Vec<usize> { match v { Some(Value::List(c)) => c.iter().map(|x| x.as_list().map_or(0, |l| l.len())).collect(), _ => vec![] } };
         assert_eq!(chunks(r.value(p1, "out")), [3, 3, 3, 1]);
         assert_eq!(chunks(r.value(p2, "out")), [2, 3, 2, 3]);
+        assert_eq!(chunks(r.value(p3, "out")), [3, 2, 0, 3, 2], "a zero size is an empty chunk, as Grasshopper measured");
+        assert!(r.status[&p0].failed(), "all-zero sizes never advance");
         assert_eq!(as_texts(r.value(d, "a")), ["a", "c"]);
         assert_eq!(as_texts(r.value(d, "b")), ["b", "d"]);
     }
