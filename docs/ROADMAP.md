@@ -49,6 +49,9 @@ Order: M0.1 → M0.2 → M0.3 → M0.4 → M0.0.
   `cg_signet` maps the preset flags. Test: crest at the centre = plane + cap, crest height
   non-increasing off the centre, field verdict clean, thinnest wall > 1 mm. Accept: the two
   domed factory presets rebuild within 0.15 mm mean at the head; the flat one is unchanged.
+  Brief 01 (2026-08-26): the factory loft is a loose `CreateFromLoft` = a clamped cubic blend of
+  the row curves on **uniform** knots; ours moved from chord-length knots (0.053 mm mean off the
+  001 surface) to uniform (0.034; 005 head vs cached mesh 0.088 → 0.045).
 - [x] **M0.4 Loft as the default for new signets** (S + render review, #4). `apply_signet` sets
   `loft = 1.0` (every "new signet" path funnels through it); `SignetHead::lofted()` for extra
   heads; `Default`/serde default untouched so existing files keep the prism. MCP `set_shank`
@@ -130,6 +133,9 @@ A core-only crate that evaluates a graph to a `RingDesign` with implicit-list se
 
 - [x] **M5.1 List idiom nodes** (M, #53). Weave, entwine, cull, partition, gate, polar array (integer
   lattice — never a relaxation), format, json, if.
+  Brief 02 (Rhino 8.34, 2026-08-26) re-pinned: negative Series count → empty + warning; Partition
+  size 0 → empty chunk. Polar Array's partial-arc law and the Weave/Cull/List Item cases came back
+  unusable (panels read inputs) — re-run list in `SharedVM/answers/followup-brief02.txt`.
 - [x] **M5.2 First hosted cluster** (M, #54). The signet construction as a user-dir cluster whose
   preset evaluates to the lofted head.
 - [x] **M5.3 Editor polish** (M, #55). Live value badges, subgraph navigation and collapse, arrange,

@@ -747,8 +747,8 @@ band**, crown 0.745·(T + 0.5). Not flat-topped; forcing it flat put the
 shank 0.35 mm off.
 
 `Tent` in `profile.rs` holds the five rows — resampled by arc length from
-the −y seam, which is the correspondence the whole shoulder hangs on; the
-knot averages the rows' own chord parameters — and reads, per ring angle:
+the −y seam, which is the correspondence the whole shoulder hangs on, and
+blended by a clamped cubic on **uniform** knots — and reads, per ring angle:
 the crest (the plane under the 0.98 row, else the first row down the loft
 the ray enters), the bore span, the face as a chord 12% of the bore-to-
 ridge drop below the ridge (never deeper than the ridge sits below the
@@ -801,6 +801,29 @@ Five defects on the way, each seen in a render and pinned by a number:
   round a hair outside both adjacent segments and find nothing, leaving a
   1e-6 spike that smoothing spread into a dip; it takes slack now, and a
   missed ray inherits its neighbours.
+
+**The loft, measured against the loft itself.** The Rhino side baked the
+head loft of presets 001, 005 and 016 as `.3dm` (rows and surface, in
+`batch6-8/from-rhino/brief01-loft/`), and a loose `Brep.CreateFromLoft` is
+exactly `S(u, v) = Σ Nᵢ(u)·rowᵢ(v)`: a clamped cubic across the rows on a
+**uniform** knot vector (one interior knot at the middle of the domain on
+every preset, however the rows are spaced), the rows paired by their own
+parameter from their own seam. A Python replica on that rule reproduces
+the 001 surface to 0.0000 mm; our chord-length-averaged knot (0.35) put
+the sheet 0.053 mm off on average and 0.32 at worst, uniform knots take
+that to 0.034 on 001 and to 0.017 / 0.003 on 005 / 016. Against the
+cached meshes the capped 005 head went 0.088 → 0.045 mm mean (p90 0.178 →
+0.064), 016 0.081 → 0.074, 001 unchanged. `the_loft_knots_are_uniform`
+pins the knots and the analytic (P₁ + 2P₂ + P₃)/4 read at the middle. What
+is left on 001 is the factory's own seam: its hand-drawn cushion starts
+2.4 mm off the −y axis and the equator rows are re-seamed to match, so
+the flank is twisted by a hundredth of the perimeter against our
+symmetric pairing — the 0.1 asymmetry `symmetrize` exists for, seen from
+the other side. The −y seam stays. Two more facts off the same files: the
+bore through the head is a four-row loft that dips **0.245 mm** inward at
+its middle (their comfort fit), and the row set of a Smooth-Table preset
+in that capture was still the flat five, so the apex loft remains pinned
+by the cached meshes alone.
 
 **The smooth table is the same loft from an apex.** `table_dome_mm` on a
 lofted head (0–3 mm, the "Cab dome" slider and MCP `head_table_dome_mm`) is
@@ -1695,6 +1718,16 @@ What the runtime settled while being built, each pinned by a test:
   express (a flange, a tiling warp, the draft settings) as `design.set`
   patches — so "Convert to graph" never loses a field, and the test that
   every template lifts back byte-for-byte also caps the patches at four.
+- **The list idioms follow Grasshopper where it was measured**
+  (`batch6-8/from-rhino/brief02-lists/`, Rhino 8.34): longest-list
+  matching repeats the last item; a negative Series count generates
+  nothing and warns rather than failing; Partition's size list cycles, a
+  zero size is an empty chunk, and the last chunk keeps what is left.
+  Polar Array only pinned that item 0 is the original and the step is
+  `angle / count` for a sweep past a full turn; the partial-arc law, and
+  Weave, Cull, List Item, Shift, Reverse and Sort, came back with panels
+  reading the inputs, so those keep their documented semantics (the
+  re-run list is in `SharedVM/answers/followup-brief02.txt`).
 
 ## Free mode: `crates/ringdesign-solid` and the Manifold kernel
 
