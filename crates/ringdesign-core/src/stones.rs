@@ -568,13 +568,14 @@ fn check_seat(
         let radial = [b.nr * theta.to_radians().cos(), b.nr * theta.to_radians().sin(), b.nz];
         worst_draft = worst_draft.min(draft_angle(radial, b.z, parting_z));
 
-        // Foot to the nearer band edge, in reference v like the layer itself.
+        // Foot to the nearer band edge, on the section as modulated at this
+        // station: a widened top carries a seat the reference band could not.
         // An elongated seat reaches across the band by its own `v` extent,
         // which is its length when the stone is turned to face the edges.
         let foot = seat.half_extents_mm().1 + seat.blend_mm.max(0.0);
         clearance = clearance
-            .min(v_here - foot)
-            .min(ctx.band_v_len_mm - v_here - foot);
+            .min(b.along - foot)
+            .min(b.surface_len - b.along - foot);
 
         // Metal along the seat's normal: to the bore wall on the crown, across
         // the band on a side face — the drill goes where the normal points.
@@ -659,6 +660,10 @@ struct BasePoint {
     nz: f64,
     /// Band width at this station, mm.
     width: f64,
+    /// Arc from the low band edge to this point along the station's own
+    /// section, and that section's whole surface arc, mm.
+    along: f64,
+    surface_len: f64,
 }
 
 /// The bare band under a point, from the modulated profile — the same
@@ -692,8 +697,8 @@ fn base_at(
         }
     }
     match best {
-        Some(p) => BasePoint { r: p.r, z: p.z, nr: p.nr, nz: p.nz, width: (hi - lo).max(0.0) },
-        None => BasePoint { r: inner_r, z: 0.0, nr: 1.0, nz: 0.0, width: 0.0 },
+        Some(p) => BasePoint { r: p.r, z: p.z, nr: p.nr, nz: p.nz, width: (hi - lo).max(0.0), along: target, surface_len: l.surface_len_mm },
+        None => BasePoint { r: inner_r, z: 0.0, nr: 1.0, nz: 0.0, width: 0.0, along: v_mm, surface_len: ctx.band_v_len_mm },
     }
 }
 

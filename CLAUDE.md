@@ -1397,7 +1397,10 @@ bezel collars, gypsy mounds, prong bumps. Three pieces keep that honest:
   crown reports its draft — and the warning keys on a *flat top's rim* on
   low draft, because that is the measured 8.6% hazard, while a fully-domed
   mound on the same base measures 0.000%), foot-to-band-edge clearance vs
-  `MIN_EDGE_MM`, metal available for the pavilion along the seat's normal
+  `MIN_EDGE_MM` — measured along the section **as modulated at that
+  station**, so a keyframed or signet top carries the seat its reference
+  band could not (read off the reference width it refused a 4 mm princess
+  on a 3 mm band widened to 7) — metal available for the pavilion along the seat's normal
   (to the bore wall on the crown, across the band on a side face) vs
   `gem.pavilion_mm()` + `MIN_WALL_MM`, run bridges vs `MIN_EDGE_MM`, and
   carat totals — plus the pairwise crowding census below. Analytic — it
@@ -1446,6 +1449,9 @@ overhung its own stock by 0.6 mm at each end.
   rim outward rather than as a fraction of the radius — normalizing instead
   would thin an authored 0.5 mm blend to 0.25 mm at a marquise's point,
   straight through `MIN_EDGE_MM`.
+- Prong bumps stand on the plan outline, on its axes for a round plan and
+  at its **corners** once `plan_pow` passes 2.5 — a princess is claw-set at
+  its corners, and the claws land where the girdle is.
 - `plan_pow` is floored at 1, which keeps the plan **convex**. Convex is
   star-shaped about the centre, so a mound on it is still a monotone drop
   from a single crest and releases wherever a round one does — measured
