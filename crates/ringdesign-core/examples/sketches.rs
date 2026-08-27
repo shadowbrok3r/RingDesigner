@@ -70,7 +70,10 @@ fn finish(dir: &str, slug: &str, blurb: &str, tint: [f32; 3], mut d: RingDesign,
     render::write_png_parts(format!("{dir}/{slug}-hero.png"), &parts, 0.55, 1.05, 900).unwrap();
     render::write_png_parts(format!("{dir}/{slug}-top.png"), &parts, 0.0, 1.55, 700).unwrap();
     render::write_png_parts(format!("{dir}/{slug}-side.png"), &parts, 1.5708, 0.0, 700).unwrap();
-    ringdesign_core::stl::write_obj(format!("{dir}/{slug}.obj"), &out.mesh, &d.name).unwrap();
+    // The comparison mesh: dense enough to measure against, light enough to
+    // measure with.
+    let probe = mesh::build(&d, lib, BuildParams { theta_steps: 640, profile_steps: 160, ..Default::default() });
+    ringdesign_core::stl::write_obj(format!("{dir}/{slug}.obj"), &probe.mesh, &d.name).unwrap();
     let sheet = ringdesign_core::spec::html(&d, &out.report, &field, report.as_ref(), &dfm, "sketches");
     std::fs::write(format!("{dir}/{slug}-sheet.html"), sheet).unwrap();
     if report.is_some() {
@@ -103,7 +106,7 @@ fn main() {
     d.shank.amount = ((1.0 - shank_frac) / (1.0 - SIGNET_MIN_SHANK_FRAC)).clamp(0.0, 1.0);
     d.shank.head.outline = SignetOutline::Heart;
     d.shank.head.length_mm = 11.4;
-    d.shank.head.rise_mm = 3.0 - 1.5;
+    d.shank.head.rise_mm = 3.0 - 1.75;
     d.shank.head.rim_round_mm = 0.3;
     d.shank.head.table_dome_mm = 0.0;
     d.shank.head.loft_frontal_mm = 2.0;
