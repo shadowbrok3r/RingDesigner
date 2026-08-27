@@ -1397,9 +1397,11 @@ impl SeatPadLayer {
         // seat carries its claws where its girdle is.
         let prong_r = (0.28 * rb).clamp(0.35, 0.8);
         let step = std::f64::consts::TAU / n as f64;
+        // A square plan is claimed at its corners, a round one on its axes.
+        let phase = if self.plan_pow > 2.5 { 0.5 * step } else { 0.0 };
         let mut prong: f64 = 0.0;
         for k in 0..n {
-            let (sin, cos) = (k as f64 * step).sin_cos();
+            let (sin, cos) = (k as f64 * step + phase).sin_cos();
             let seat_r = (self.rim_mm(cos, sin) - prong_r * 0.6).max(0.2);
             let dp = ((a - seat_r * cos).powi(2) + (b - seat_r * sin).powi(2)).sqrt();
             let t = (dp / prong_r).clamp(0.0, 1.0);

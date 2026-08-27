@@ -1,6 +1,6 @@
 //! Render an OBJ mesh with the core software renderer.
 //!
-//! Single file:  obj_render <in.obj> <out.png> [--yaw DEG] [--pitch DEG] [--edge PX] [--cg] [--gif out.gif]
+//! Single file:  obj_render <in.obj> <out.png> [--yaw DEG] [--pitch DEG] [--edge PX] [--cg] [--gif out.gif] [--stones gems.obj]
 //! Batch:        obj_render --dir <root> [--cg] [--edge PX] [--force]
 //!
 //! `--cg` maps a CrossGems mesh (ring in XZ, finger axis Y, head at +Z)
@@ -22,6 +22,7 @@ struct Opts {
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let mut o = Opts { yaw: 0.55, pitch: 1.05, edge: 640, cg: false, gif: None, force: false };
+    let mut stones: Option<String> = None;
     let mut positional = Vec::new();
     let mut dir: Option<String> = None;
     let mut i = 1;
@@ -34,6 +35,7 @@ fn main() -> anyhow::Result<()> {
             "--force" => { o.force = true; i += 1; }
             "--gif" => { o.gif = Some(args[i + 1].clone()); i += 2; }
             "--dir" => { dir = Some(args[i + 1].clone()); i += 2; }
+            "--stones" => { stones = Some(args[i + 1].clone()); i += 2; }
             other => { positional.push(other.to_string()); i += 1; }
         }
     }
@@ -58,7 +60,13 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(2);
     }
     let mesh = read_obj(Path::new(&positional[0]), o.cg)?;
-    render::write_png(&positional[1], &mesh, o.yaw, o.pitch, o.edge, render::GOLD)?;
+    // A second mesh drawn as stones, for a ring exported with its gems.
+    let gems = stones.map(|p| read_obj(Path::new(&p), o.cg)).transpose()?;
+    let mut parts = vec![render::Part::metal(&mesh, render::GOLD)];
+    if let Some(g) = &gems {
+        parts.push(render::Part::stone(g));
+    }
+    render::write_png_parts(&positional[1], &parts, o.yaw, o.pitch, o.edge)?;
     if let Some(g) = o.gif {
         render::write_turntable_gif(g, &mesh, 36, 360, render::GOLD)?;
     }
