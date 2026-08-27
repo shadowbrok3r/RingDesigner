@@ -38,6 +38,63 @@ pub fn findings_in(design: &RingDesign, lib: &crate::AlphaLibrary) -> Vec<DfmFin
             }
         }
     }
+    // A stamp is a texture too: its footprint guesses 15% of the stamp,
+    // but the alpha can be measured at each stamp's own mm per texel, and
+    // the measurement replaces the guess either way.
+    for (i, entry) in design.layers.layers.iter().enumerate() {
+        let Layer::Decals(dl) = &entry.layer else { continue };
+        if !entry.enabled {
+            continue;
+        }
+        let Some(alpha) = lib.get(&dl.alpha) else { continue };
+        // The chart's v is the section's arc normalized, so on a station
+        // thicker than the reference a stamp stands taller than it is wide
+        // by that ratio: measure the alpha stretched the same way, and the
+        // metal's own features come out, squashed art included.
+        let inner_r = design.inner_radius_mm();
+        let crest_r = inner_r + design.profile.thickness_mm;
+        let mut finest_of: Option<(&str, f64)> = None;
+        for d in dl.decals.iter().take(crate::field::MAX_DECALS) {
+            let m = design.modulation_at(d.theta_deg, inner_r, crest_r);
+            let k = design.profile.sample_mod(inner_r, 96, &m).surface_len_mm / ctx.band_v_len_mm.max(1e-9);
+            let k = if k.is_finite() { k.clamp(0.25, 8.0) } else { 1.0 };
+            let (w, h) = (alpha.width.max(1), alpha.height.max(1));
+            let hs = ((h as f64 * k).round() as usize).clamp(1, 4096);
+            let stretched = if hs == h {
+                alpha.clone()
+            } else {
+                let mut data = Vec::with_capacity(w * hs);
+                for row in 0..hs {
+                    let src = ((row as f64 + 0.5) / hs as f64 * h as f64) as usize;
+                    data.extend_from_slice(&alpha.data[src.min(h - 1) * w..src.min(h - 1) * w + w]);
+                }
+                crate::alpha::Alpha::new(format!("{} x{k:.2}", alpha.name), w, hs, data)
+            };
+            let Some((ink_px, gap_px)) = stretched.min_feature_px() else { continue };
+            let scale = d.size_mm / w as f64 * ctx.arc_scale(d.v_mm);
+            if !(scale.is_finite() && scale > 0.0) {
+                continue;
+            }
+            let (ink, gap) = (ink_px * scale, gap_px * scale);
+            let (what, f) = if ink <= gap { ("strokes", ink) } else { ("gaps", gap) };
+            if finest_of.is_none_or(|(_, best)| f < best) {
+                finest_of = Some((what, f));
+            }
+        }
+        let Some((what, finest)) = finest_of else { continue };
+        out.retain(|f| f.layer != i);
+        if finest < min {
+            let smallest = dl.decals.iter().map(|d| d.size_mm).fold(f64::MAX, f64::min);
+            out.push(DfmFinding {
+                layer: i,
+                label: entry.name.clone(),
+                message: format!(
+                    "the {} stamp's finest {what} measure {finest:.2} mm at its smallest, {smallest:.1} mm, against the sand's {min:.2} mm floor — they will cast as mush. Enlarge the stamp, bolden the art, or accept the softness.",
+                    dl.alpha
+                ),
+            });
+        }
+    }
     for (i, entry) in design.layers.layers.iter().enumerate() {
         if !entry.enabled || out.iter().any(|f| f.layer == i) {
             continue;
@@ -187,6 +244,47 @@ mod measured_tests {
         assert!(measured[0].message.contains("Greek Key"), "{}", measured[0].message);
         d.draft.min_detail_mm = 0.0;
         assert!(findings_in(&d, &lib).is_empty(), "no floor, no finding");
+    }
+
+    /// A stamp is measured at its own mm per texel, on the section as
+    /// modulated at its station: a bold hook passes where the 15% guess
+    /// said mush, and the same art at half the size fails.
+    #[test]
+    fn a_stamp_is_measured_not_guessed() {
+        let hook: String = {
+            let pts: Vec<String> = (0..=120)
+                .map(|i| {
+                    let t = i as f64 / 120.0;
+                    let a = t * std::f64::consts::TAU;
+                    let r = 6.0 + 40.0 * t;
+                    format!("{:.1} {:.1}", 50.0 + r * a.cos(), 50.0 + r * a.sin())
+                })
+                .collect();
+            format!(
+                r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M{}" fill="none" stroke="#000" stroke-width="20" stroke-linecap="round"/></svg>"##,
+                pts.join(" L")
+            )
+        };
+        let mut lib = crate::AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        d.profile.width_mm = 6.0;
+        d.profile.thickness_mm = 2.0;
+        d.profile.flatten_sides();
+        d.svgs.push(crate::svg::SvgAlpha { name: "Hook".into(), svg: hook, invert: false });
+        d.bake_all(&mut lib);
+        let ctx = d.field_context();
+        let stamp = |size: f64| crate::field::DecalLayer {
+            alpha: "Hook".into(),
+            decals: vec![crate::field::Decal { theta_deg: crate::profile::TOP_DEG, v_mm: ctx.crest_v_mm, size_mm: size, ..Default::default() }],
+            ..Default::default()
+        };
+        d.layers.layers.push(LayerEntry::new("Bold", Layer::Decals(stamp(2.25))));
+        assert!(!findings(&d).is_empty(), "the 15% guess calls a 2.25 mm stamp mush");
+        assert!(findings_in(&d, &lib).is_empty(), "measured, a 0.45 mm stroke and gap pass: {:?}", findings_in(&d, &lib));
+        d.layers.layers[0].layer = Layer::Decals(stamp(1.0));
+        let f = findings_in(&d, &lib);
+        assert_eq!(f.len(), 1, "{f:?}");
+        assert!(f[0].message.contains("measure") && f[0].message.contains("Hook"), "{}", f[0].message);
     }
 
     /// What the measure says about the shipped templates, printed under
