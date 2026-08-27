@@ -12,7 +12,7 @@ use ringdesign_core::gem::{Gem, GemCut};
 use ringdesign_core::mesh::{self, BuildParams};
 use ringdesign_core::profile::{ShankKey, ShankKind, SIGNET_MIN_SHANK_FRAC, TOP_DEG};
 use ringdesign_core::render::{self, Part};
-use ringdesign_core::{gems, library, stonemap, stones, ProfileStyle, RingDesign, RingSize};
+use ringdesign_core::{gems, library, stonemap, stones, CustomOutline, ProfileStyle, RingDesign, RingSize};
 
 const YELLOW: [f32; 3] = [0.86, 0.70, 0.42];
 const WHITE: [f32; 3] = [0.83, 0.83, 0.80];
@@ -70,6 +70,7 @@ fn finish(dir: &str, slug: &str, blurb: &str, tint: [f32; 3], mut d: RingDesign,
     render::write_png_parts(format!("{dir}/{slug}-hero.png"), &parts, 0.55, 1.05, 900).unwrap();
     render::write_png_parts(format!("{dir}/{slug}-top.png"), &parts, 0.0, 1.55, 700).unwrap();
     render::write_png_parts(format!("{dir}/{slug}-side.png"), &parts, 1.5708, 0.0, 700).unwrap();
+    render::write_png_parts(format!("{dir}/{slug}-pattern.png"), &parts[..1], 0.55, 1.05, 900).unwrap();
     // The comparison mesh: dense enough to measure against, light enough to
     // measure with.
     let probe = mesh::build(&d, lib, BuildParams { theta_steps: 640, profile_steps: 160, ..Default::default() });
@@ -85,11 +86,22 @@ fn finish(dir: &str, slug: &str, blurb: &str, tint: [f32; 3], mut d: RingDesign,
     println!();
 }
 
+/// A tuning knob read from the environment, for probing a design.
+fn knob(name: &str, default: f64) -> f64 {
+    std::env::var(name).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+}
+
+/// `SKETCHES=A,N` runs only the named designs.
+fn want(key: &str) -> bool {
+    std::env::var("SKETCHES").map(|v| v.split(',').any(|k| k.trim() == key)).unwrap_or(true)
+}
+
 fn main() {
     let dir = std::env::args().nth(1).unwrap_or_else(|| "/tmp".into());
     std::fs::create_dir_all(&dir).unwrap();
     let mut lib = AlphaLibrary::builtin();
 
+    if want("A") {
     // --- A. Heart signet: the same numbers as CrossGems' Signet Ring ------
     // (Table Length 12 across the finger, Width 11.4 along the ring, Table
     // Height 3.0 over the bore, sides 4.5 x 1.5, Frontal/Lateral 2), through
@@ -112,6 +124,9 @@ fn main() {
     d.shank.head.loft_frontal_mm = 2.0;
     d.shank.head.loft_lateral_mm = 2.0;
     finish(&dir, "A-heart-signet", "lofted heart signet, 12 x 11.4 plate, flat table", YELLOW, d, &mut lib);
+    }
+
+    if want("B") {
 
     // --- B. Half-eternity: 2 mm rounds over 200 degrees --------------------
     // CrossGems packs them 0.2 mm apart for shared prongs or a channel; in
@@ -130,6 +145,9 @@ fn main() {
     entry.window = Window::around(TOP_DEG, 200.0);
     d.layers.layers.push(entry);
     finish(&dir, "B-half-eternity", "2 mm rounds over 200 degrees on a 3.8 x 2.2 band", WHITE, d, &mut lib);
+    }
+
+    if want("C") {
 
     // --- C. Princess solitaire: a 4 mm stone on a 3 x 2 band ---------------
     // A prong head stands above the band and is lost-wax stock: here the
@@ -154,4 +172,67 @@ fn main() {
     seat.fit_stone(Gem::calibrated(GemCut::Princess, 4.0));
     d.layers.layers.push(LayerEntry::new("Princess", Layer::SeatPad(seat)));
     finish(&dir, "C-princess-solitaire", "4 mm princess in a four-prong boss on a widened 3 x 2 band", WHITE, d, &mut lib);
+    }
+
+    if want("N") {
+
+    // --- N. Nocturnal Symmetry, the sand pattern ---------------------------
+    // The sketch's elongated hexagon, 22 x 10 with 90-degree points, pulled
+    // in to its own millgrain line (1.2 mm inside the rim): 18.6 x 7.6, the
+    // long axis along the band like a signet. Flat table, no bezels — the
+    // four 2.5 mm amethysts are set at the bench, so the pattern carries a
+    // cast dot where each goes and the report carries the stones. The dots
+    // ride the crest line: off it, on a zero-draft table, a dot's near flank
+    // leans back (measured 14 deg with the face across the band).
+    let hw = 5.0 - 1.2;
+    let ay = 11.0 - 1.2 * std::f64::consts::SQRT_2;
+    let cy = ay - hw;
+    let corners = [[-cy, -hw], [-ay, 0.0], [-cy, hw], [cy, hw], [ay, 0.0], [cy, -hw]];
+    // Twelve stations an edge: the importer wants a polyline, not six corners.
+    let pts: Vec<[f64; 2]> = (0..6)
+        .flat_map(|i| {
+            let (a, b) = (corners[i], corners[(i + 1) % 6]);
+            (0..12).map(move |k| {
+                let t = k as f64 / 12.0;
+                [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
+            })
+        })
+        .collect();
+    let outline = CustomOutline::from_points("Nocturnal bead line", &pts).expect("a hexagon makes an outline");
+    let (along, across) = (2.0 * ay, 2.0 * hw);
+    let mut d = RingDesign::default();
+    d.size = RingSize::new(7.0);
+    d.profile.apply_style(ProfileStyle::HalfRound);
+    d.profile.width_mm = across;
+    d.profile.thickness_mm = 1.85;
+    d.profile.crown_mm = 1.56;
+    d.profile.edge_round_mm = 0.05;
+    d.shank.apply_signet(across);
+    let shank_frac = (4.5 / across).clamp(SIGNET_MIN_SHANK_FRAC, 1.0);
+    d.shank.amount = ((1.0 - shank_frac) / (1.0 - SIGNET_MIN_SHANK_FRAC)).clamp(0.0, 1.0);
+    let o = d.shank.adopt_outline(outline);
+    d.shank.head.outline = o;
+    d.shank.head.length_mm = along;
+    d.shank.head.rise_mm = 3.0 - 1.85;
+    d.shank.head.table_dome_mm = 0.0;
+    d.shank.head.dome = 0.0;
+    d.shank.head.loft = knob("NOCT_LOFT", 1.0);
+    d.shank.head.rim_round_mm = knob("NOCT_RIM", 0.3);
+    d.shank.head.loft_frontal_mm = 2.0;
+    d.shank.head.loft_lateral_mm = 2.0;
+    let ctx = d.field_context();
+    let plane_r = d.inner_radius_mm() + d.profile.thickness_mm + d.shank.head.rise_mm;
+    for (i, dx) in [-6.6, -2.2, 2.2, 6.6].iter().enumerate() {
+        // A 1 mm dot, 0.2 proud, at the ring angle its station on the table
+        // plane projects to. Its skirt is the finest feature and reads
+        // 0.38 mm at the chart's metal scale, over the 0.35 mm floor.
+        let theta = TOP_DEG + (dx / plane_r).atan().to_degrees();
+        let mut seat = SeatPadLayer { theta_deg: theta, v_mm: ctx.crest_v_mm, style: SeatStyle::Boss, height_mm: knob("NOCT_DOT_H", 0.2), crown: 1.0, blend_mm: 0.45, ..Default::default() };
+        seat.fit_stone(Gem::calibrated(GemCut::Round, 2.5));
+        seat.diameter_mm = 1.0;
+        seat.elong = 1.0;
+        d.layers.layers.push(LayerEntry::new(&format!("Amethyst {}", i + 1), Layer::SeatPad(seat)));
+    }
+    finish(&dir, "N-nocturnal-face", "18.6 x 7.6 hexagon face along the band, flat, four cast dots for 2.5 mm amethysts", WHITE, d, &mut lib);
+    }
 }
