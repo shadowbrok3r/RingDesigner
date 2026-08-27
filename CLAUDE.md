@@ -1018,7 +1018,13 @@ pins both directions. On top of that:
   distance field, 3×3-tiled so a seamless mask reads seamless, cached by
   content) at the layer's own mm-per-texel, after the layer's
   contrast/bias/invert shaping. Greek Key on 2.7 mm cells passes the
-  pitch check and measures 0.06 mm strokes — that is the finding. Run on
+  pitch check and measures 0.06 mm strokes — that is the finding. A
+  **stamp** is measured the same way at its own mm per texel, with the
+  alpha stretched by the section's own arc ratio at the stamp's station
+  first — the chart's `v` is that arc normalized, so on a lobe three
+  times the reference thickness a stamp stands that much taller than it
+  is wide — and the measurement replaces the footprint's 15%-of-size
+  guess, which called a 2.25 mm hook with a 0.45 mm stroke mush. Run on
   the shipped templates (`dfm::measured_tests::the_templates_measured`,
   `--nocapture`) it names three: Waves at 0.10 mm strokes on the waved
   hexagon signet's 11.8 × 1.8 mm cells, Chevron at 0.07 mm gaps on the
@@ -1354,6 +1360,24 @@ wedge against the crossing's edge that the wall sweep read as 0.67 mm,
 clean at 5.0; and **a seat's skirt is its finest DFM feature**, read at
 the chart's 0.85 metal scale, so a 0.4 mm skirt measures 0.34 against a
 0.35 floor. The hollow takes 11% out of a 12 mm clover signet.
+
+`examples/sketches.rs` is the same discipline on pencil sketches, built
+here and through CrossGems' own components for the side-by-side
+(`SKETCHES=A,N` runs only the named designs; `NOCT_*`, `BOLT_*`, `CLOUD_*`
+knobs probe one). What it measured: a **cast dot on a signet's table must
+ride the parting line** — a 0.2 mm dot 2 mm off it on the zero-draft
+table leaned 14° on its near flank, on the crest line it is clean; a
+plate wide across the band curls the loft's flank under it and the wall
+over the hole thinned to 0.62 mm where along the band it holds 1.30; a
+**collar across the whole outer surface** (a flat curve wire from bore
+edge to bore edge, eight round the ring on a beveled band) fields 0.000%
+— its flanks face round the ring, parallel to the pull; and a **cloud is
+a keyframed band** — five lobes lifting the crest and widening the plan
+with dips between, every section still one dome — whose curls go on the
+lobes' side faces as stamps, each drawn squashed by its lobe's own
+stretch (2.9 / 2.5 / 1.7) so it comes out round, centred and sized from
+the face the modulated section actually has (3.6 / 3.0 / 1.9 mm tall):
+raised onto the crown they leaned 12–19°, fitted to the face 0.007%.
 
 `examples/commissions.rs` is the same discipline applied to client sketches
 (half-wrap patterned crescents, a gem-set cross band, the Diamond and Cross
