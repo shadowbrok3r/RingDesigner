@@ -335,35 +335,22 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
             let mut hi = 0.0f64;
             let mut lo = 0.0f64;
 
+            let disp = Displacer {
+                stack: &design.layers,
+                ctx: &ctx,
+                lib,
+                soften_mm: params.soften_mm,
+                inner_r,
+                min_wall,
+            };
             for p in &loop_i.pts {
-                let h = if p.surface && p.weight > 0.0 {
-                    let v_norm = p.v_mm / loop_i.surface_len_mm.max(1e-9);
-                    let uv = Uv { u, v: v_norm * ctx.band_v_len_mm };
-                    let h = soft_height(&design.layers, uv, &ctx, lib, params.soften_mm) * p.weight;
-                    // The other three consumers of this displacement already
-                    // do this; this is the one whose output is exported, and
-                    // a non-finite height here reaches the STL as NaN
-                    // coordinates in a file a caster hands to a slicer.
-                    if h.is_finite() { h } else { 0.0 }
-                } else {
-                    0.0
-                };
-                hi = hi.max(h);
-                lo = lo.min(h);
-
-                let mut r = p.r + h * p.nr;
-                let z = p.z + h * p.nz;
-                // Never eat into the finger hole. Floored at the base profile
-                // where that already sits inside the wall — the side faces meet
-                // the bore at the comfort radius, and a bare floor would push
-                // their inner corner outward on a ring carrying no relief.
-                if p.surface {
-                    r = r.max((inner_r + min_wall).min(p.r));
-                }
+                let d = disp.at(p, loop_i.surface_len_mm, u);
+                hi = hi.max(d.h);
+                lo = lo.min(d.h);
                 verts.push(Vec3(
-                    (r * cos_t) as f32,
-                    (r * sin_t) as f32,
-                    z as f32,
+                    (d.r * cos_t) as f32,
+                    (d.r * sin_t) as f32,
+                    d.z as f32,
                 ));
             }
             RingSlice { verts, hi, lo }
@@ -515,6 +502,64 @@ pub(crate) fn grid_normals(vertices: &[Vec3], n_theta: usize, n_prof: usize) -> 
 /// The stack's height through a small Gaussian — the as-cast preview. A
 /// separable 3-tap binomial at ±radius per axis: nine field reads, sigma
 /// about 0.7 of the sand's detail radius. Zero radius is the plain read.
+/// The one place a sampled profile point is displaced by the height field.
+///
+/// `mesh::build`, `refine::point` and `castability::section_at` each carried
+/// their own copy of this — the surface gate, the `v` mapping, the weight, the
+/// finite guard, the move along the normal and the min-wall clamp — with
+/// comments at two of them saying "exactly as `mesh::build` does" and "or the
+/// two disagree about the same design". They are the doctrine's own "three
+/// copies of a station formula", and one of the three had drifted: the swept
+/// build was missing the finite guard the other two had.
+///
+/// Soften is the only real difference and it is not one: `soft_height` returns
+/// `stack.height` unchanged at a radius of zero, which is what the section and
+/// the refiner pass.
+pub(crate) struct Displacer<'a> {
+    pub stack: &'a crate::field::LayerStack,
+    pub ctx: &'a crate::field::FieldContext,
+    pub lib: &'a AlphaLibrary,
+    /// As-cast preview blur radius, mm. Zero is true geometry.
+    pub soften_mm: f64,
+    pub inner_r: f64,
+    pub min_wall: f64,
+}
+
+/// A displaced profile point: where it lands, and how far it moved.
+pub(crate) struct Displaced {
+    pub r: f64,
+    pub z: f64,
+    pub h: f64,
+}
+
+impl Displacer<'_> {
+    pub fn at(
+        &self,
+        p: &crate::profile::ProfileSample,
+        surface_len_mm: f64,
+        u: f64,
+    ) -> Displaced {
+        let h = if p.surface && p.weight > 0.0 {
+            let v = p.v_mm / surface_len_mm.max(1e-9) * self.ctx.band_v_len_mm;
+            let h = soft_height(self.stack, Uv { u, v }, self.ctx, self.lib, self.soften_mm)
+                * p.weight;
+            if h.is_finite() { h } else { 0.0 }
+        } else {
+            0.0
+        };
+        let mut r = p.r + h * p.nr;
+        let z = p.z + h * p.nz;
+        // Never eat into the finger hole. Floored at the base profile where
+        // that already sits inside the wall — the side faces meet the bore at
+        // the comfort radius, and a bare floor would push their inner corner
+        // outward on a ring carrying no relief.
+        if p.surface {
+            r = r.max((self.inner_r + self.min_wall).min(p.r));
+        }
+        Displaced { r, z, h }
+    }
+}
+
 fn soft_height(
     stack: &crate::field::LayerStack,
     uv: Uv,
@@ -589,6 +634,65 @@ pub(crate) fn norm(a: [f64; 3]) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    /// The refactor's whole point: three call sites that each carried a copy
+    /// of this, two of them with a comment promising they matched the third,
+    /// and one of them — the swept build, whose output is exported — missing
+    /// the finite guard the other two had.
+    ///
+    /// Pinned by walking a design with real relief and asserting the swept
+    /// build's vertices and the section's points land on the same ring.
+    #[test]
+    fn the_sweep_and_the_section_displace_identically() {
+        use crate::field::{BorderLayer, BorderProfile, Layer, LayerEntry};
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crate::RingDesign::default();
+        let ctx = d.field_context();
+        d.layers.layers.push(LayerEntry::new(
+            "rail",
+            Layer::Border(BorderLayer {
+                v_mm: ctx.band_v_len_mm * 0.5,
+                width_mm: 1.0,
+                height_mm: 0.4,
+                profile: BorderProfile::Round,
+                mirror: false,
+                rope_twists: 0,
+            }),
+        ));
+
+        let n_prof = 96;
+        let out = super::build(
+            &d,
+            &lib,
+            super::BuildParams { theta_steps: 64, profile_steps: n_prof, ..Default::default() },
+        );
+
+        // The section at theta 0 is the sweep's own first slice.
+        let sec = crate::castability::section_at(&d, &lib, 0.0, n_prof);
+        let ring: Vec<(f64, f64)> = out
+            .mesh
+            .vertices
+            .iter()
+            .take(n_prof)
+            .map(|v| ((v.0 as f64).hypot(v.1 as f64), v.2 as f64))
+            .collect();
+        assert_eq!(ring.len(), sec.points.len(), "same row length");
+
+        let mut worst = 0.0f64;
+        for (i, ((r, z), p)) in ring.iter().zip(&sec.points).enumerate() {
+            let d_r = (r - p.r).abs();
+            let d_z = (z - p.z).abs();
+            worst = worst.max(d_r).max(d_z);
+            assert!(
+                d_r < 2e-3 && d_z < 2e-3,
+                "row {i} disagrees: sweep ({r:.5}, {z:.5}) vs section ({:.5}, {:.5})",
+                p.r,
+                p.z
+            );
+        }
+        // f32 vertices are the only reason this is not exact.
+        assert!(worst < 2e-3, "worst disagreement {worst:.6} mm");
+    }
+
     use super::*;
     use crate::profile::TOP_DEG;
 
