@@ -93,6 +93,7 @@ fn head_node() -> NodeSpec {
     .field(PinSpec::item("table_dome_mm", ValueKind::Number).widget(Widget::Mm { min: 0.0, max: 3.0 }).doc("A cabochon cap on the table; on a lofted head, the apex height of the smooth table."))
     .field(PinSpec::item("hollow_mm", ValueKind::Number).widget(Widget::Mm { min: 0.0, max: 4.0 }).doc("A scoop from the finger hole up into the head's belly, mm; lightens a heavy head."))
     .field(PinSpec::item("rim_round_mm", ValueKind::Number).widget(Widget::Mm { min: 0.0, max: 2.0 }).doc("The table rim's fillet, mm."))
+    .field(PinSpec::item("crest_round_mm", ValueKind::Number).widget(Widget::Mm { min: 0.0, max: 3.0 }).doc("Fillet on the crest's corner where the plate's climb meets the shoulder's dive — the loft's answer to the prism's smin(climb, dive, rim). 0 keeps the factory rebuilds bit-identical."))
     .field(PinSpec::item("dome", ValueKind::Number).widget(Widget::Slider { min: 0.0, max: 1.0 }).doc("The cut-dome construction; takes precedence over the loft."))
     .field(PinSpec::item("loft", ValueKind::Number).widget(Widget::Slider { min: 0.0, max: 1.0 }).doc("The lofted body; 1 for a new signet."))
     .field(PinSpec::item("loft_frontal_mm", ValueKind::Number).widget(Widget::Mm { min: 0.0, max: 20.0 }).doc("Body growth along the ring under the table, mm."))
