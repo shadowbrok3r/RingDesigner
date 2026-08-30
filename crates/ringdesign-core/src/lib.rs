@@ -26,6 +26,7 @@
 pub mod adaptive;
 pub mod alpha;
 pub mod castability;
+pub mod contour;
 pub mod curve;
 pub mod dfm;
 pub mod drawn;
@@ -33,6 +34,7 @@ pub mod engine;
 pub mod field;
 pub mod gem;
 pub mod gems;
+pub mod history;
 pub mod gltf;
 pub mod library;
 pub mod mesh;

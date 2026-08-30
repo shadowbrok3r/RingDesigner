@@ -17,7 +17,7 @@ use ringdesign_graph_ui::Editor;
 
 use crate::alpha_editor::AlphaEditor;
 use crate::dock::Dock;
-use crate::history::History;
+use ringdesign_core::history::History;
 use crate::mcp_host::McpHost;
 use crate::pane::{Layout, Pane, PaneKind};
 use crate::viewport::GpuMeshRenderer;
