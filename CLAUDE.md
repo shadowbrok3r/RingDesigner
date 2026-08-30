@@ -562,12 +562,19 @@ crest in the wrong place — measured at 1.44% undercut on a shield before this,
 0.011% after. It also subsumes the old crest-levelling: the crest sits at the
 parting plane by construction rather than by a correction term.
 
-`HEAD_FACE_DRAFT` uses it to draft the head's flanks by 9%, so the table is a
-slightly smaller copy of the outline that carries it — which is what the
-reference does (16.0 mm body, 14.7 mm table) and what a two-part mould wants of
-the one surface it has to slide off. Proportional, not a distance: insetting by
-a distance drafts a narrow station to nothing and leaves a fin standing off the
-end of the head, which a heart does first.
+`HEAD_FACE_DRAFT` uses it to draft the head's flanks by **2%**, so the table is
+a slightly smaller copy of the outline that carries it — a token draft rather
+than a look, which is what a two-part mould wants of the one surface it has to
+slide off. Proportional, not a distance: insetting by a distance drafts a
+narrow station to nothing and leaves a fin standing off the end of the head,
+which a heart does first.
+
+The reference's own 16.0 mm body under a 14.7 mm table is an 8% inset, and that
+is **not** this constant: the body is wider than the face because
+`SignetOutline::body_extent` fairs the face's hollows out with the rolling
+ball, not because the flanks are drafted. Conflating the two is what put 0.09
+here originally — see the measurement table above, which records the correction
+to 0.02.
 
 #### The shank is flat, and the swell is what makes it read
 
@@ -978,8 +985,10 @@ automatically, because `u` wraps at the circumference. That is why
 `BorderLayer::rope_twists` are all `u32`. Do not make them floats.
 
 Alphas must also tile seamlessly in themselves — `Procedural::generate` builds
-every pattern from functions periodic in both axes, and `Alpha::make_seamless`
-cross-fades imported images.
+every pattern from functions periodic in both axes. An **imported** image is
+used as drawn, seam and all: `Alpha::make_seamless` exists and is tested and
+nothing calls it, which is a gap rather than a mechanism — it becomes an
+`alpha.transform` op in M16.
 
 ### Stability under shank modulation
 
