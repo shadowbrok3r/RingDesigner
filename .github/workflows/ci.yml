@@ -1,0 +1,62 @@
+# There was none. 474 tests, a wasm target, a serial/parallel feature split and
+# an optional C++ kernel, and nothing ran any of it but a person remembering to.
+#
+# Scope is deliberately the three things docs/ROADMAP.md already names as the
+# verification for every milestone: the workspace builds, the workspace tests,
+# and the wasm door stays open. The kernel feature is not built here — it pulls
+# a cmake toolchain and a Manifold source clone, which is minutes of CI for a
+# feature that is off by default.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  # A failure should say what broke, not unwind through every frame.
+  RUST_BACKTRACE: 1
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: System deps for eframe
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev \
+            libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
+      - name: Build the workspace
+        run: cargo build --workspace --all-targets --locked
+      - name: Test the workspace
+        run: cargo test --workspace --locked
+
+  wasm:
+    name: the wasm door
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasm
+      # Core runs serial with `parallel` off, and BuildClock guards the one
+      # other landmine: Instant::now panics in a browser.
+      - name: Core, serial, wasm
+        run: cargo check -p ringdesign-core --no-default-features --target wasm32-unknown-unknown --locked
+      - name: The configurator, wasm
+        run: cargo check -p ringdesign-configurator --no-default-features --target wasm32-unknown-unknown --locked

@@ -296,6 +296,15 @@ fn order_files(cfg: &Config, p: &OrderParams) -> anyhow::Result<Vec<(&'static st
     let field = ringdesign_core::castability::attributed_field_report(&d, &lib, &d.draft, 192, 128);
     let stones = ringdesign_core::stones::report(&d, field.parting_z_mm);
     let dfm = ringdesign_core::dfm::findings_in(&d, &lib);
+    // The graph's file-writing sinks refuse a NotCastable ring and say why.
+    // This wrote the folder regardless, so the kiosk and the graph had two
+    // policies on the same question — and the shop found out at the flask.
+    if field.verdict == ringdesign_core::castability::Verdict::NotCastable {
+        anyhow::bail!(
+            "this ring will not release from a two-part sand mould, so there is nothing to send to the bench: {}",
+            field.notes.join(" ")
+        );
+    }
     let sheet = ringdesign_core::spec::html(
         &d,
         &out.report,

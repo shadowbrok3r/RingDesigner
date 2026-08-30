@@ -166,13 +166,22 @@ fn export(
     let scale = shrink.map(|m| (m, metal::pattern_scale(m.shrink_pct)));
     let slug = slug(&base.name);
     let mut manifest = String::from(
-        "size,file,format,bytes,triangles,watertight,verdict,undercut_pct,thinnest_wall_mm,volume_mm3\n",
+        "size,file,format,bytes,triangles,watertight,verdict,undercut_pct,thinnest_wall_mm,volume_mm3,dfm_findings,stone_warnings\n",
     );
 
     for &size in &sizes {
         let mut d = base.clone();
         d.size = RingSize(size);
         let f = analyze_field(&d, lib, &d.draft, 192, 128);
+        // The run used to gate on the field verdict alone. Both of the other
+        // checks move with the size: circumference grows 20% from a 5 to a 9,
+        // so a tiling's cell pitch changes and a run's stone bridges close.
+        let dfm = ringdesign_core::dfm::findings_in(&d, lib);
+        let stones_at = stones::report(&d, f.parting_z_mm);
+        let stone_warnings: usize = stones_at
+            .as_ref()
+            .map(|s| s.seats.iter().map(|c| c.warnings.len()).sum())
+            .unwrap_or(0);
         let built = build(&d, lib, params);
         let v = built.report.validation;
         let (mesh, name) = match scale {
@@ -183,12 +192,28 @@ fn export(
             None => (built.mesh.clone(), d.name.clone()),
         };
         println!(
-            "size {:>4}  {}  {} tris{}",
+            "size {:>4}  {}  {} tris{}{}{}",
             d.size.display(),
             f.verdict.label(),
             v.triangle_count,
-            if v.watertight { "" } else { "  NOT WATERTIGHT" }
+            if v.watertight { "" } else { "  NOT WATERTIGHT" },
+            if dfm.is_empty() { String::new() } else { format!("  {} DFM", dfm.len()) },
+            if stone_warnings == 0 {
+                String::new()
+            } else {
+                format!("  {stone_warnings} stone")
+            }
         );
+        for finding in &dfm {
+            println!("        {}: {}", finding.label, finding.message);
+        }
+        if let Some(s) = &stones_at {
+            for seat in &s.seats {
+                for w in &seat.warnings {
+                    println!("        {}: {w}", seat.label);
+                }
+            }
+        }
 
         for fmt in &formats {
             let tag = match scale {
@@ -204,8 +229,7 @@ fn export(
             };
             let bytes = match fmt.as_str() {
                 "stonemap" => {
-                    let stones = stones::report(&d, f.parting_z_mm);
-                    ringdesign_core::stonemap::write_stone_map_svg(&file, &d, stones.as_ref())?
+                    ringdesign_core::stonemap::write_stone_map_svg(&file, &d, stones_at.as_ref())?
                 }
                 "stl" => stl::write_stl(&file, &mesh, &name)?,
                 "obj" => stl::write_obj(&file, &mesh, &name)?,
@@ -214,7 +238,7 @@ fn export(
                 _ => threemf::write_3mf(&file, &mesh, &name, &d.size.display())?,
             };
             manifest.push_str(&format!(
-                "{},{},{},{},{},{},{:?},{:.4},{:.2},{:.2}\n",
+                "{},{},{},{},{},{},{:?},{:.4},{:.2},{:.2},{},{}\n",
                 d.size.display(),
                 file.file_name().unwrap_or_default().to_string_lossy(),
                 fmt,
@@ -224,7 +248,9 @@ fn export(
                 f.verdict,
                 f.undercut_fraction() * 100.0,
                 f.thinnest_wall_mm,
-                built.report.volume_mm3
+                built.report.volume_mm3,
+                dfm.len(),
+                stone_warnings
             ));
         }
     }
