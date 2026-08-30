@@ -1461,10 +1461,27 @@ impl AlphaLibrary {
         lib
     }
 
+    /// Most entries a library will hold.
+    ///
+    /// `drawn`, `texts`, `svgs` and `recipes` are `Vec`s read straight out of
+    /// a design file, and every one of them rasterizes into here on load. The
+    /// per-alpha size is already capped; the *count* was not, so a file with
+    /// ten thousand one-glyph inscriptions was a memory bomb with no loop to
+    /// blame. The 67 GB lesson, applied to the other door.
+    pub const MAX_ENTRIES: usize = 4096;
+
     pub fn insert(&mut self, alpha: Alpha) {
         match self.index.get(&alpha.name).copied() {
             Some(i) => self.entries[i] = alpha,
             None => {
+                if self.entries.len() >= Self::MAX_ENTRIES {
+                    log::warn!(
+                        "alpha library is full at {} entries; dropping {:?}",
+                        Self::MAX_ENTRIES,
+                        alpha.name
+                    );
+                    return;
+                }
                 self.index.insert(alpha.name.clone(), self.entries.len());
                 self.entries.push(alpha);
             }
