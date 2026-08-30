@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use ringdesign_core::castability::Verdict;
 use ringdesign_core::{library, metal, stl, threemf};
 
 use crate::app::RingDesignerApp;
@@ -13,6 +14,10 @@ struct ExportJob {
     lib: std::sync::Arc<ringdesign_core::AlphaLibrary>,
     params: ringdesign_core::BuildParams,
     shrink: Option<usize>,
+    /// The last settled field verdict. Snapshotted rather than recomputed:
+    /// the worker already pays for it on every settled build, and an export
+    /// that silently re-judged could disagree with the banner on screen.
+    verdict: Option<Verdict>,
 }
 
 impl ExportJob {
@@ -22,7 +27,38 @@ impl ExportJob {
             lib: app.lib.clone(),
             params: app.export_params,
             shrink: app.shrink_metal,
+            verdict: app.field.as_ref().map(|f| f.verdict),
         }
+    }
+
+    /// What the caster needs told before they cut a flask, appended to every
+    /// success line. The export used to build, write, and report the byte
+    /// count — so a `NotCastable` ring and a refinement that never reached its
+    /// tolerance both left the app looking like a clean export.
+    fn caveats(&self, out: &ringdesign_core::BuildResult) -> String {
+        let mut w: Vec<String> = Vec::new();
+        match self.verdict {
+            Some(Verdict::NotCastable) => {
+                w.push("the field verdict says this will NOT release".into())
+            }
+            Some(Verdict::Marginal) => w.push("the field verdict is marginal".into()),
+            Some(Verdict::Castable) => {}
+            None => w.push("not yet judged".into()),
+        }
+        if let Some(r) = &out.report.refine {
+            if r.hit_cap {
+                w.push("refinement hit its leaf cap, so the tolerance was not reached".into());
+            } else if r.saturated_leaves > 0 {
+                w.push(format!(
+                    "{} leaves hit the depth limit — the worst-error figure is a floor, not a bound",
+                    r.saturated_leaves
+                ));
+            }
+        }
+        if !out.report.validation.watertight {
+            w.push("NOT watertight".into());
+        }
+        if w.is_empty() { String::new() } else { format!(" • {}", w.join(" • ")) }
     }
 
     fn build(&self) -> ringdesign_core::BuildResult {
@@ -95,16 +131,11 @@ pub fn export_stl(app: &mut RingDesignerApp) {
         let (mesh, name) = job.pattern(&out.mesh);
         match stl::write_stl(&path, &mesh, &name) {
             Ok(bytes) => {
-                let v = out.report.validation;
-                let warn = if v.watertight {
-                    ""
-                } else {
-                    " • NOT watertight"
-                };
+                let warn = job.caveats(&out);
                 format!(
                     "Wrote {} • {} tris • {:.1} KB{warn}",
                     path.display(),
-                    v.triangle_count,
+                    out.report.validation.triangle_count,
                     bytes as f64 / 1024.0
                 )
             }
@@ -128,10 +159,11 @@ pub fn export_obj(app: &mut RingDesignerApp) {
         let (mesh, name) = job.pattern(&out.mesh);
         match stl::write_obj(&path, &mesh, &name) {
             Ok(bytes) => format!(
-                "Wrote {} • {} tris • {:.1} KB",
+                "Wrote {} • {} tris • {:.1} KB{}",
                 path.display(),
                 out.report.validation.triangle_count,
-                bytes as f64 / 1024.0
+                bytes as f64 / 1024.0,
+                job.caveats(&out)
             ),
             Err(e) => format!("OBJ export failed: {e}"),
         }
@@ -154,10 +186,11 @@ pub fn export_3mf(app: &mut RingDesignerApp) {
         let (mesh, name) = job.pattern(&out.mesh);
         match threemf::write_3mf(&path, &mesh, &name, &size) {
             Ok(bytes) => format!(
-                "Wrote {} • {} tris • {:.1} KB • units mm stated",
+                "Wrote {} • {} tris • {:.1} KB • units mm stated{}",
                 path.display(),
                 out.report.validation.triangle_count,
-                bytes as f64 / 1024.0
+                bytes as f64 / 1024.0,
+                job.caveats(&out)
             ),
             Err(e) => format!("3MF export failed: {e}"),
         }
@@ -220,9 +253,10 @@ pub fn export_glb(app: &mut RingDesignerApp) {
         let (mesh, name) = job.pattern(&out.mesh);
         match ringdesign_core::gltf::write_glb(&path, &mesh, &name, tint) {
             Ok(bytes) => format!(
-                "Wrote {} • {:.1} MB • metres, as glTF wants",
+                "Wrote {} • {:.1} MB • metres, as glTF wants{}",
                 path.display(),
-                bytes as f64 / 1048576.0
+                bytes as f64 / 1048576.0,
+                job.caveats(&out)
             ),
             Err(e) => format!("GLB export failed: {e}"),
         }

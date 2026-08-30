@@ -51,7 +51,7 @@ options:
   --shrink <metal>          cut patterns oversize for this metal's shrink
                             (sterling, bronze, 14k, ... — see the app's table)
   --out <dir>               output directory (default: beside the design)
-  --steps 1024x320          sweep resolution (default: the design's build)";
+  --steps 1024x320          sweep resolution; overrides a saved refine tolerance";
 
 fn run(args: &[String]) -> anyhow::Result<()> {
     if args.first().map(String::as_str) == Some("graph") {
@@ -150,6 +150,15 @@ fn export(
                     .ok_or_else(|| anyhow::anyhow!("--steps wants THETAxPROFILE, e.g. 1024x320"))?;
                 params.theta_steps = t.trim().parse()?;
                 params.profile_steps = p.trim().parse()?;
+                // A refine tolerance short-circuits the sweep in `mesh::build`,
+                // so a design carrying one swallowed this flag whole and wrote
+                // a file at a resolution nobody asked for. Naming a sweep
+                // resolution is asking for the sweep.
+                if params.refine.take().is_some() {
+                    eprintln!(
+                        "note: --steps asks for a swept build, so the design's refine tolerance is ignored for this run"
+                    );
+                }
             }
             other => anyhow::bail!("unknown option {other:?}"),
         }
