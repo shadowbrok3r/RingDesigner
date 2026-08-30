@@ -1382,6 +1382,19 @@ pub struct SignetHead {
     /// Lofted heads only: the same growth across the band, mm.
     #[serde(default = "default_loft_grow")]
     pub loft_lateral_mm: f64,
+    /// Radius, mm, rounding the crest's corner at the table's theta-end on a
+    /// lofted head. 0 leaves the corner as the loft draws it.
+    ///
+    /// Inside the table the crest is the plane solve and *climbs* as
+    /// `plane / cos`; past the table's end it is the loft's own fall and
+    /// *dives*. The slope flips sign at that station, which is a corner in
+    /// the silhouette and reads as a hard ridge down the head's flank —
+    /// measured on a 13 mm cushion as a curvature step of 0.0353 per deg^2
+    /// against 0.0004 either side. The prism construction rounds the same
+    /// pair with `smin(climb, dive, rim)`; this is that fillet for the loft.
+    /// Left at 0 by default so the factory rebuilds stay bit-identical.
+    #[serde(default)]
+    pub crest_round_mm: f64,
 }
 
 fn default_loft_grow() -> f64 {
@@ -1526,6 +1539,7 @@ impl Default for SignetHead {
             loft: 0.0,
             loft_frontal_mm: LOFT_GROW_MM,
             loft_lateral_mm: LOFT_GROW_MM,
+            crest_round_mm: 0.0,
         }
     }
 }
@@ -2115,8 +2129,12 @@ impl ShankStyle {
         let frontal = head.loft_frontal_mm.clamp(0.0, 20.0);
         let lateral = head.loft_lateral_mm.clamp(0.0, 20.0);
         let cap_mm = head.table_dome_mm.clamp(0.0, 3.0);
+        let crest_round = head.crest_round_mm.clamp(0.0, 3.0);
         let mut h = std::collections::hash_map::DefaultHasher::new();
         cap_mm.to_bits().hash(&mut h);
+        // Anything the tent is built from has to be in its key, or the cache
+        // hands back a tent built for a different head.
+        crest_round.to_bits().hash(&mut h);
         for v in [
             half_l,
             half_w,
@@ -2182,6 +2200,7 @@ impl ShankStyle {
                 lateral,
                 &hull,
                 cap_mm,
+                crest_round,
             )
         })
     }
@@ -2810,6 +2829,9 @@ struct Tent {
     /// The table is a smooth cap: the loft starts at an apex over the plane
     /// and there is no flat face at all.
     cap: bool,
+    /// [`SignetHead::crest_round_mm`], the fillet on the crest's corner at
+    /// the table's theta-end.
+    crest_round: f64,
 }
 
 /// Cubic B-spline basis over a clamped `knots` vector at `v`, one weight per
@@ -2959,6 +2981,7 @@ impl Tent {
         lateral: f64,
         hull: &[[f64; 2]],
         cap_mm: f64,
+        crest_round: f64,
     ) -> Self {
         // The table outline as a polygon: the extent table read at stations
         // along the ring, the low edge out and the high edge back.
@@ -2994,6 +3017,28 @@ impl Tent {
                 vec![apex, inner, table, body, hull.clone(), hull],
                 vec![plane + cap_mm, plane + cap_mm, plane, plane - LOFT_BODY_DROP_MM, LOFT_EQUATOR_LIFT_MM, 0.0],
             )
+        } else if crest_round > 1e-6 {
+            // The factory row set puts `rim` and `table` both at the plane, so
+            // the table's rim is a flat ledge and the surface leaves it
+            // straight into the three-millimetre plunge to `body`. The crest
+            // is then constant at `plane` under the table and falling hard
+            // past it — a corner, and the ridge it draws down the head's end.
+            // A roll row just outside the outline and a little under the plane
+            // gives that edge a radius. Only built when asked, so the factory
+            // rebuilds keep the five rows they were decoded from.
+            let g = 1.0 + crest_round / (2.0 * half_l).max(1e-6);
+            let roll = resample_row(&scale_about(&poly, c, g, g));
+            (
+                vec![rim, table, roll, body, hull.clone(), hull],
+                vec![
+                    plane,
+                    plane,
+                    plane - crest_round * 0.5,
+                    plane - LOFT_BODY_DROP_MM,
+                    LOFT_EQUATOR_LIFT_MM,
+                    0.0,
+                ],
+            )
         } else {
             (
                 vec![rim, table, body, hull.clone(), hull],
@@ -3007,7 +3052,7 @@ impl Tent {
             knots.push(j as f64 / (n - 3) as f64);
         }
         knots.extend([1.0, 1.0, 1.0, 1.0]);
-        Tent { rows, z, knots, plane, cap }
+        Tent { rows, z, knots, plane, cap, crest_round }
     }
 
     fn z_at(&self, v: f64) -> f64 {
@@ -3083,13 +3128,14 @@ impl Tent {
             self.row_at(v, row);
             Self::y_extent(row, self.z_at(v) * tan).is_some()
         };
-        let v_crest = if table_face.is_some() {
-            0.0
-        } else {
+        // Under the flat table the ray meets `rows[0]` and the bisection
+        // converges on v = 0, so the fast path and the search agree; it is
+        // only worth skipping when the corner is not being rounded.
+        let bisect = |row: &mut Vec<[f64; 2]>| {
             let (mut lo, mut hi) = (0.0, 1.0);
             for _ in 0..30 {
                 let mid = 0.5 * (lo + hi);
-                if inside(mid, &mut row) {
+                if inside(mid, row) {
                     hi = mid
                 } else {
                     lo = mid
@@ -3097,8 +3143,22 @@ impl Tent {
             }
             hi
         };
+        let round = self.crest_round;
+        let v_crest = if table_face.is_some() && round <= 0.0 { 0.0 } else { bisect(&mut row) };
         let z_crest = self.z_at(v_crest);
-        let crest_r = z_crest / c;
+        // The crest's corner at the table's theta-end. Inside the table the
+        // crest is the plane solve and climbs as `plane / cos`; past the end
+        // it is the loft's own fall and dives. The slope flips sign there,
+        // which is a corner in the silhouette and reads as a ridge down the
+        // flank. The two branches are equal by construction under the table —
+        // a tie, not a crossing — so a tie-exact `smin` leaves the table and
+        // the shoulder exactly as drawn and rounds only the corner between
+        // them. This is the prism's `smin(climb, dive, rim)`, for the loft.
+        let crest_r = if round > 0.0 && !self.cap {
+            smin(self.plane / c, z_crest / c, round)
+        } else {
+            z_crest / c
+        };
         let z_bore = inner_r * c;
         if z_bore >= z_crest {
             return None;
@@ -5310,6 +5370,62 @@ mod tests {
         assert!(watertight);
         assert_eq!(rep.undercut, 0, "{:?}", rep.notes);
     }
+    /// The lofted head's crest is the table plane under the table — constant —
+    /// and the loft's own fall past it, so its slope flips sign at the table's
+    /// theta-end. That corner is the ridge that reads down the head's flank.
+    /// `crest_round_mm` gives the rim a radius by lofting through a roll row
+    /// just outside and under the outline; at 0 the factory five rows are
+    /// built unchanged, which is what keeps the preset rebuilds honest.
+    #[test]
+    fn the_lofted_crest_corner_rounds_when_asked() {
+        let lib = crate::AlphaLibrary::builtin();
+        let build = |round: f64| {
+            let mut d = crate::RingDesign::default();
+            d.profile.apply_style(crate::ProfileStyle::Flat);
+            d.profile.width_mm = 13.0;
+            d.profile.thickness_mm = 2.9;
+            d.profile.flatten_sides();
+            d.shank.apply_signet(13.0);
+            d.shank.head.outline = crate::field::SignetOutline::Cushion;
+            d.shank.head.fit_length_to(13.0);
+            d.shank.head.crest_round_mm = round;
+            d
+        };
+        // Worst second difference of the crest radius in theta: a corner shows
+        // as a spike against its neighbours, which is what the eye reads.
+        let worst = |d: &crate::RingDesign| {
+            let ir = d.inner_radius_mm();
+            let cr = ir + d.profile.thickness_mm;
+            let step = 0.25;
+            let r: Vec<f64> = (0..=360)
+                .map(|i| {
+                    let t = TOP_DEG + i as f64 * step;
+                    d.shank.modulation(t, ir, cr, &d.profile).outer_r.unwrap_or(cr)
+                })
+                .collect();
+            (1..r.len() - 1)
+                .map(|i| (r[i + 1] - 2.0 * r[i] + r[i - 1]).abs())
+                .fold(0.0f64, f64::max)
+        };
+
+        let bare = build(0.0);
+        let rounded = build(1.0);
+        let (a, b) = (worst(&bare), worst(&rounded));
+        assert!(b < a * 0.5, "rounding must at least halve the corner: {a:.6} -> {b:.6}");
+
+        // Default off, and absent from an older file, so nothing already saved
+        // and nothing rebuilt from a factory preset moves.
+        assert_eq!(SignetHead::default().crest_round_mm, 0.0);
+        let mut j = serde_json::to_value(SignetHead::default()).unwrap();
+        j.as_object_mut().unwrap().remove("crest_round_mm").expect("field is serialized");
+        let older: SignetHead = serde_json::from_value(j).unwrap();
+        assert_eq!(older.crest_round_mm, 0.0);
+
+        // And the rounded head still pulls.
+        let f = crate::castability::analyze_field(&rounded, &lib, &rounded.draft, 256, 128);
+        assert!(f.undercut_fraction() < 5e-4, "{:.4}%", f.undercut_fraction() * 100.0);
+    }
+
     #[test]
     fn the_loft_knots_are_uniform() {
         // A round table 20 across over a rectangular equator silhouette.
@@ -5318,7 +5434,7 @@ mod tests {
             (-h, h)
         };
         let hull = [[-10.75, -3.0], [10.75, -3.0], [10.75, 3.0], [-10.75, 3.0]];
-        let flat = Tent::build(&circle, 10.0, 10.0, 12.5, 2.0, 2.0, &hull, 0.0);
+        let flat = Tent::build(&circle, 10.0, 10.0, 12.5, 2.0, 2.0, &hull, 0.0, 0.0);
         assert_eq!(flat.knots, vec![0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0]);
         // At its one interior knot a clamped uniform cubic reads (P1 + 2 P2 + P3) / 4.
         assert!((flat.z_at(0.5) - (12.5 + 2.0 * 9.5 + 3.0) / 4.0).abs() < 1e-9, "{}", flat.z_at(0.5));
@@ -5326,7 +5442,7 @@ mod tests {
         flat.row_at(0.5, &mut row);
         // The seam sample: the table at -10, the body at -11, the hull at -3.
         assert!(row[0][0].abs() < 1e-6 && (row[0][1] - (-10.0 - 2.0 * 11.0 - 3.0) / 4.0).abs() < 1e-3, "{:?}", row[0]);
-        let capped = Tent::build(&circle, 10.0, 10.0, 12.5, 2.0, 2.0, &hull, 1.5);
+        let capped = Tent::build(&circle, 10.0, 10.0, 12.5, 2.0, 2.0, &hull, 1.5, 0.0);
         let thirds = [0.0, 0.0, 0.0, 0.0, 1.0 / 3.0, 2.0 / 3.0, 1.0, 1.0, 1.0, 1.0];
         assert!(capped.knots.len() == thirds.len() && capped.knots.iter().zip(&thirds).all(|(a, b)| (a - b).abs() < 1e-12), "{:?}", capped.knots);
     }
