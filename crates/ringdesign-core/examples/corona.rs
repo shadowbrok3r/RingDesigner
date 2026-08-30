@@ -59,6 +59,11 @@ fn main() {
     // deg off the top against 0.0004 either side, which is the ridge you see
     // down the flank. Growing the loft's body rows spreads the hand-over: 2 mm
     // gives 0.0353, 6 mm gives 0.0217.
+    // The lofted crest is constant under the table and falls past it, so its
+    // slope flips sign at the table's end and draws a ridge down the flank.
+    // A millimetre of rim roll takes that corner from 0.0353 per deg^2 to
+    // 0.0108 — under the prism's own 0.0125.
+    d.shank.head.crest_round_mm = knob("CREST_ROUND", 1.0);
     d.shank.head.loft_frontal_mm = knob("LOFT_F", 2.0);
     d.shank.head.loft_lateral_mm = knob("LOFT_L", 2.0);
 
