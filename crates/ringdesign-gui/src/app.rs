@@ -384,6 +384,15 @@ impl RingDesignerApp {
     /// Queue a rebuild after the debounce window and publish the design to the
     /// MCP engine.
     pub fn mark_dirty(&mut self) {
+        // A layer that reads a distance field and has not got one falls back
+        // to brightness-as-height without a word, so turning "Crisp edge" on
+        // looked like it did nothing. The check is a map lookup per
+        // edge-enabled layer; the bake — which deep-copies the library
+        // through `Arc::make_mut` — only runs when one is actually absent.
+        if self.design.sdfs_missing(&self.lib) {
+            let design = self.design.clone();
+            design.bake_sdfs(self.library_mut());
+        }
         // Live generator groups own their stacks: any edit that moves the
         // ground under one — the profile, the shank, the process, or the
         // recipe itself — re-solves it here, at edit time. Builds never

@@ -182,7 +182,18 @@ pub fn export_3mf(app: &mut RingDesignerApp) {
     let job = ExportJob::snapshot(app);
     spawn_export(app, "3MF", move || {
         let out = job.build();
-        let size = job.design.size.display();
+        // The mesh in this file is scaled for the metal's shrink, bore and
+        // all, so stamping it with the nominal size is the one mistake the
+        // filename convention exists to prevent. Say which it is.
+        let size = match job.shrink.and_then(|i| metal::METALS.get(i)) {
+            Some(m) => format!(
+                "{} pattern, cut +{:.1}% for {}",
+                job.design.size.display(),
+                m.shrink_pct,
+                m.name
+            ),
+            None => job.design.size.display(),
+        };
         let (mesh, name) = job.pattern(&out.mesh);
         match threemf::write_3mf(&path, &mesh, &name, &size) {
             Ok(bytes) => format!(

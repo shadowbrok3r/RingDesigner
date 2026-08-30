@@ -266,6 +266,10 @@ pub struct Report {
     pub surface_area_mm2: f64,
     /// Overall size (x, y, z) in mm.
     pub bounds_mm: [f64; 3],
+    /// Measured off the built mesh — twice the smallest radius any vertex
+    /// reaches — not the nominal size echoed back. The two differ whenever
+    /// anything moves the bore: a comfort dome, a hollowed head's bore lift,
+    /// or the min-wall clamp pushing a displaced point outward.
     pub inner_diameter_mm: f64,
     pub outer_diameter_mm: f64,
     pub band_width_mm: f64,
@@ -291,6 +295,23 @@ pub struct BuildResult {
 }
 
 /// Build the ring mesh from a design.
+/// Twice the smallest radius any vertex reaches — the finger hole as built.
+///
+/// `Report::inner_diameter_mm` used to be `design.size.inner_diameter_mm()`,
+/// the nominal figure echoed straight back, so it agreed with itself no matter
+/// what the geometry did. A comfort dome, a hollowed head's bore lift and the
+/// min-wall clamp all move the bore; a jeweller reading the report wants the
+/// hole they will get.
+fn measured_bore_diameter_mm(mesh: &Mesh, nominal: f64) -> f64 {
+    let min_r = mesh
+        .vertices
+        .iter()
+        .filter(|v| v.0.is_finite() && v.1.is_finite())
+        .map(|v| (v.0 as f64).hypot(v.1 as f64))
+        .fold(f64::MAX, f64::min);
+    if min_r.is_finite() && min_r > 0.0 { 2.0 * min_r } else { nominal }
+}
+
 pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> BuildResult {
     let started = BuildClock::start();
     if let Some(rp) = params.refine {
@@ -399,7 +420,7 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
         volume_mm3: volume,
         surface_area_mm2: mesh.surface_area_mm2(),
         bounds_mm,
-        inner_diameter_mm: design.size.inner_diameter_mm(),
+        inner_diameter_mm: measured_bore_diameter_mm(&mesh, design.size.inner_diameter_mm()),
         outer_diameter_mm: bounds_mm[0].max(bounds_mm[1]),
         band_width_mm: bounds_mm[2],
         max_relief_mm: max_relief,
@@ -438,7 +459,7 @@ fn build_refined(
         volume_mm3: volume,
         surface_area_mm2: mesh.surface_area_mm2(),
         bounds_mm,
-        inner_diameter_mm: design.size.inner_diameter_mm(),
+        inner_diameter_mm: measured_bore_diameter_mm(&mesh, design.size.inner_diameter_mm()),
         outer_diameter_mm: bounds_mm[0].max(bounds_mm[1]),
         band_width_mm: bounds_mm[2],
         max_relief_mm: out.relief.0,
@@ -691,6 +712,35 @@ mod tests {
         }
         // f32 vertices are the only reason this is not exact.
         assert!(worst < 2e-3, "worst disagreement {worst:.6} mm");
+    }
+
+    /// The report's inside diameter was `design.size.inner_diameter_mm()` —
+    /// the nominal figure echoed straight back, which agreed with itself
+    /// whatever the geometry did. It is measured off the built mesh now, so a
+    /// change that ate into the finger hole would show up in the one number a
+    /// customer checks.
+    #[test]
+    fn the_inside_diameter_is_measured_not_declared() {
+        let lib = crate::AlphaLibrary::builtin();
+        let d = crate::RingDesign::default();
+        let out = super::build(
+            &d,
+            &lib,
+            super::BuildParams { theta_steps: 192, profile_steps: 96, ..Default::default() },
+        );
+        let nominal = d.size.inner_diameter_mm();
+        assert!(
+            (out.report.inner_diameter_mm - nominal).abs() < 1e-6,
+            "a plain band's bore is its nominal size: {:.4} vs {nominal:.4}",
+            out.report.inner_diameter_mm
+        );
+        // And it really is a measurement: scale the mesh and it follows,
+        // where the declared figure would not have moved.
+        let scaled = out.mesh.scaled(1.05);
+        assert!(
+            (super::measured_bore_diameter_mm(&scaled, nominal) - nominal * 1.05).abs() < 1e-4,
+            "the measure follows the metal"
+        );
     }
 
     use super::*;

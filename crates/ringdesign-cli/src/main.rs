@@ -244,7 +244,21 @@ fn export(
                 "obj" => stl::write_obj(&file, &mesh, &name)?,
                 "glb" => ringdesign_core::gltf::write_glb(&file, &mesh, &name, ringdesign_core::render::GOLD)?,
                 "ply" => stl::write_ply(&file, &mesh, &name)?,
-                _ => threemf::write_3mf(&file, &mesh, &name, &d.size.display())?,
+                _ => {
+                    // The mesh is scaled for shrink, bore and all — an
+                    // oversize file stamped with the nominal size is a ring
+                    // that comes out a size small.
+                    let label = match scale {
+                        Some((m, _)) => format!(
+                            "{} pattern, cut +{:.1}% for {}",
+                            d.size.display(),
+                            m.shrink_pct,
+                            m.name
+                        ),
+                        None => d.size.display(),
+                    };
+                    threemf::write_3mf(&file, &mesh, &name, &label)?
+                }
             };
             manifest.push_str(&format!(
                 "{},{},{},{},{},{},{:?},{:.4},{:.2},{:.2},{},{}\n",

@@ -187,6 +187,30 @@ impl RingDesign {
         walk(&self.layers, lib);
     }
 
+    /// Whether any layer reading a distance field is missing one.
+    ///
+    /// `TilingLayer::height` falls back to brightness-as-height when the
+    /// `##sdf` entry is absent, silently — so turning "Crisp edge" on in the
+    /// editor produced a layer that looked like the old one and nobody could
+    /// say why. Cheap: a walk of the stack and a map lookup per edge-enabled
+    /// layer, so an editor can ask on every edit and only pay for the bake
+    /// when the answer is yes.
+    pub fn sdfs_missing(&self, lib: &AlphaLibrary) -> bool {
+        fn walk(stack: &LayerStack, lib: &AlphaLibrary) -> bool {
+            stack.layers.iter().any(|e| match &e.layer {
+                field::Layer::Tiling(t) if t.edge_mm > 1e-9 => {
+                    lib.get(&crate::alpha::sdf_name(&t.alpha)).is_none()
+                }
+                field::Layer::Openwork(o) if o.tiling.edge_mm > 1e-9 => {
+                    lib.get(&crate::alpha::sdf_name(&o.tiling.alpha)).is_none()
+                }
+                field::Layer::Group(g) => walk(&g.stack, lib),
+                _ => false,
+            })
+        }
+        walk(&self.layers, lib)
+    }
+
     /// Rasterize every parameterized generator recipe into `lib`.
     pub fn bake_recipes(&self, lib: &mut AlphaLibrary) {
         for r in &self.recipes {
@@ -359,5 +383,35 @@ mod losing_work_tests {
             "A's own art, not the one already in the library: {}",
             got.data[0]
         );
+    }
+}
+
+#[cfg(test)]
+mod design_tests {
+    use super::*;
+
+    /// Turning `edge_mm` on made a layer read a distance field that nothing
+    /// had baked, and `TilingLayer::height` falls back to brightness-as-height
+    /// without saying so — the crisp edge simply did not appear. The editor
+    /// needs a cheap way to ask, so the bake can run only when one is absent.
+    #[test]
+    fn a_layer_that_wants_a_distance_field_says_when_it_has_none() {
+        let mut lib = crate::AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        let ctx = d.field_context();
+        let mut t = crate::tiling::TilingLayer::default_for("Beads", &ctx);
+        t.edge_mm = 0.0;
+        d.layers
+            .layers
+            .push(crate::LayerEntry::new("beads", crate::Layer::Tiling(t)));
+        assert!(!d.sdfs_missing(&lib), "a layer with no crisp edge wants nothing");
+
+        // The edit a user makes in the panel.
+        if let crate::Layer::Tiling(t) = &mut d.layers.layers[0].layer {
+            t.edge_mm = 0.35;
+        }
+        assert!(d.sdfs_missing(&lib), "now it wants one and has none");
+        d.bake_sdfs(&mut lib);
+        assert!(!d.sdfs_missing(&lib), "and the bake satisfies it");
     }
 }
