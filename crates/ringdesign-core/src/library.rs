@@ -60,7 +60,41 @@ pub fn design_json(design: &RingDesign) -> anyhow::Result<String> {
 }
 
 pub fn save_design(path: impl AsRef<Path>, design: &RingDesign) -> anyhow::Result<()> {
-    std::fs::write(path, design_json(design)?)?;
+    write_atomic(path, design_json(design)?.as_bytes())
+}
+
+/// Write a file without a window in which it is half a file.
+///
+/// A design carrying embedded 16-bit PNGs and hand-drawn strokes is a large
+/// single write, and `fs::write` truncates before it writes: interrupt it —
+/// full disk, power, a panic in the middle — and the design is gone, not
+/// stale. Write a sibling temp, fsync it, keep the previous file as `.bak`,
+/// then rename. Rename is atomic on every filesystem this runs on, so the
+/// path either names the old file or the new one and never a truncated one.
+pub fn write_atomic(path: impl AsRef<Path>, bytes: &[u8]) -> anyhow::Result<()> {
+    use std::io::Write;
+    let path = path.as_ref();
+    let dir = path.parent().unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(dir)?;
+    let tmp = path.with_extension(format!(
+        "{}.tmp",
+        path.extension().and_then(|e| e.to_str()).unwrap_or("part")
+    ));
+    {
+        let mut f = std::fs::File::create(&tmp)?;
+        f.write_all(bytes)?;
+        f.sync_all()?;
+    }
+    // One generation back, so a bad save is recoverable by renaming a file.
+    if path.exists() {
+        let _ = std::fs::rename(path, path.with_extension(format!(
+            "{}.bak",
+            path.extension().and_then(|e| e.to_str()).unwrap_or("old")
+        )));
+    }
+    std::fs::rename(&tmp, path).inspect_err(|_| {
+        let _ = std::fs::remove_file(&tmp);
+    })?;
     Ok(())
 }
 
@@ -202,7 +236,7 @@ pub fn save_outline_in(dir: &Path, outline: &crate::CustomOutline) -> anyhow::Re
     }
     std::fs::create_dir_all(dir)?;
     let path = dir.join(format!("{stem}.outline.json"));
-    std::fs::write(&path, serde_json::to_string(outline)?)?;
+    write_atomic(&path, serde_json::to_string(outline)?.as_bytes())?;
     Ok(path)
 }
 
@@ -229,7 +263,7 @@ pub fn save_profile_in(
     std::fs::create_dir_all(dir)?;
     let path = dir.join(format!("{stem}.profile.json"));
     let text = serde_json::to_string_pretty(profile)?;
-    std::fs::write(&path, text)?;
+    write_atomic(&path, text.as_bytes())?;
     Ok(path)
 }
 

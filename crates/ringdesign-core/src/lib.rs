@@ -234,9 +234,13 @@ impl RingDesign {
     pub fn unpack_embedded(&self, lib: &mut AlphaLibrary) {
         use base64::Engine as _;
         for e in &self.embedded {
-            if lib.get(&e.name).is_some() {
-                continue;
-            }
+            // A design's own embedded copy is authoritative *for that
+            // design*, and the library accumulates for the whole session.
+            // Skipping a name already present meant that opening a second
+            // design carrying its own "band" or "sketch" silently rendered
+            // the first one's art. `embed_alphas` never embeds anything
+            // regenerable — no procedural builtin, no stroke, no inscription —
+            // so replacing here cannot clobber one of those.
             let decoded = base64::engine::general_purpose::STANDARD
                 .decode(&e.png)
                 .map_err(anyhow::Error::from)
@@ -286,5 +290,74 @@ impl RingDesign {
             bore_radius_mm: self.inner_radius_mm(),
             side_faces_cache: Default::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod losing_work_tests {
+    use super::*;
+
+    /// `fs::write` truncates before it writes, so an interrupted save of a
+    /// design carrying embedded PNGs left nothing at all where a stale file
+    /// would have been fine. The write is atomic now, and it keeps one
+    /// generation back.
+    #[test]
+    fn a_save_is_atomic_and_leaves_a_backup() {
+        let dir = std::env::temp_dir().join("ringdesign-atomic-test");
+        let _ = std::fs::remove_dir_all(&dir);
+        let path = dir.join("ring.ring.json");
+
+        let mut first = RingDesign::default();
+        first.name = "first".into();
+        library::save_design(&path, &first).unwrap();
+        assert!(path.exists());
+        assert!(!path.with_extension("json.bak").exists(), "nothing to back up yet");
+
+        let mut second = RingDesign::default();
+        second.name = "second".into();
+        library::save_design(&path, &second).unwrap();
+
+        let now = std::fs::read_to_string(&path).unwrap();
+        assert!(now.contains("second"));
+        let bak = std::fs::read_to_string(path.with_extension("json.bak")).unwrap();
+        assert!(bak.contains("first"), "the previous save is recoverable");
+        // No temp left behind.
+        assert!(!path.with_extension("json.tmp").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The library accumulates for a whole session, and `unpack_embedded`
+    /// skipped any name already present — so opening a second design that
+    /// carries its own alpha under a name the first one used rendered the
+    /// first one's art, silently.
+    #[test]
+    fn a_second_design_brings_its_own_art() {
+        let mut lib = AlphaLibrary::builtin();
+        let art = |name: &str, v: f32| {
+            crate::alpha::Alpha::new(name.to_string(), 4, 4, vec![v; 16])
+        };
+
+        let mut a = RingDesign::default();
+        lib.insert(art("shared", 0.25));
+        a.layers.layers.push(LayerEntry::new(
+            "t",
+            Layer::Tiling(crate::tiling::TilingLayer::default_for("shared", &a.field_context())),
+        ));
+        a.embed_alphas(&lib);
+        assert_eq!(a.embedded.len(), 1, "the design carries its own copy");
+
+        // A different design, same name, different art.
+        let mut b = a.clone();
+        lib.insert(art("shared", 0.75));
+        b.embed_alphas(&lib);
+
+        // Open A again into the session's library, which still holds B's.
+        a.unpack_embedded(&mut lib);
+        let got = lib.get("shared").expect("present");
+        assert!(
+            (got.data[0] - 0.25).abs() < 1e-3,
+            "A's own art, not the one already in the library: {}",
+            got.data[0]
+        );
     }
 }

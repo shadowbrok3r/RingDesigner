@@ -249,6 +249,11 @@ impl RingDesignerApp {
             .and_then(|s| s.get_string(DESIGN_STORAGE_KEY))
             .and_then(|j| serde_json::from_str::<RingDesign>(&j).ok())
             .unwrap_or_default();
+        // `open_design_path` unpacks first and bakes second. This path only
+        // baked, so a design restored by restarting the app came back without
+        // the embedded art it was saved with — the strokes and imported masks
+        // simply were not in the library any more.
+        design.unpack_embedded(&mut lib);
         design.bake_all(&mut lib);
 
         let workspace = cc
@@ -432,7 +437,16 @@ impl RingDesignerApp {
         }
 
         match self.worker.done.try_recv() {
-            Ok(mut done) => {
+            Ok(WorkerMsg::Failed { generation, message }) => {
+                self.in_flight = false;
+                if generation == self.generation {
+                    self.set_status(format!(
+                        "Build failed: {message}. The design is unchanged — the last good \
+                         geometry is still on screen."
+                    ));
+                }
+            }
+            Ok(WorkerMsg::Done(mut done)) => {
                 self.in_flight = false;
                 if done.generation == self.generation {
                     let r = &done.result.report;
@@ -603,6 +617,12 @@ impl RingDesignerApp {
     /// restore is not itself recorded as an edit.
     fn apply_history(&mut self, design: RingDesign, what: &str) {
         self.design = design;
+        // Strokes, inscriptions and SVG art travel in the design as source
+        // data and live in the shared library as rasters. Restoring the one
+        // without re-deriving the other left painted metal on the band after
+        // Ctrl+Z, because the old raster was still what the layers read.
+        let restored = self.design.clone();
+        restored.bake_all(self.library_mut());
         if self
             .selected_layer
             .is_some_and(|i| i >= self.design.layers.layers.len())
@@ -918,15 +938,27 @@ struct Done {
     graph: Option<GraphDone>,
 }
 
+/// What comes back from the build thread.
+///
+/// The loop used to be unguarded, so a panic anywhere in `mesh::build`,
+/// `attribute_undercuts`, `stones::report` or the gem preview killed the
+/// thread; `jobs_tx.send` then failed for the rest of the session and the app
+/// simply stopped rebuilding, with no error and no way back short of a
+/// restart. A panic is now one failed build.
+enum WorkerMsg {
+    Done(Box<Done>),
+    Failed { generation: u64, message: String },
+}
+
 struct Worker {
     jobs: Sender<Job>,
-    done: Receiver<Done>,
+    done: Receiver<WorkerMsg>,
 }
 
 impl Worker {
     fn spawn() -> Self {
         let (jobs_tx, jobs_rx) = channel::<Job>();
-        let (done_tx, done_rx) = channel::<Done>();
+        let (done_tx, done_rx) = channel::<WorkerMsg>();
         std::thread::Builder::new()
             .name("ring-build".into())
             .spawn(move || {
@@ -937,63 +969,68 @@ impl Worker {
                     while let Ok(newer) = jobs_rx.try_recv() {
                         job = newer;
                     }
-                    // A graph-driven design is evaluated first; the library's
-                    // identity is its epoch, so a replaced library re-runs it.
-                    let mut graph_done = None;
-                    let mut field_from_graph = None;
-                    if let Some(g) = &job.graph {
-                        let epoch = Arc::as_ptr(&job.lib) as usize as u64;
-                        match evaluate_design(&mut evaluator, g, &reg, &job.lib, epoch) {
-                            Ok(out) => {
-                                let mut d = (*out.design).clone();
-                                d.graph = job.design.graph.clone();
-                                let values = out
-                                    .report
-                                    .values
-                                    .iter()
-                                    .map(|(id, outs)| (*id, outs.iter().map(|(k, v)| (k.clone(), v.summary())).collect()))
-                                    .collect();
-                                let notes = out
-                                    .report
-                                    .status
-                                    .iter()
-                                    .filter(|(_, s)| !s.errors.is_empty() || !s.warnings.is_empty())
-                                    .map(|(id, s)| {
-                                        let mut lines: Vec<String> = s.errors.iter().map(|(i, m)| if s.items > 1 { format!("item {i}: {m}") } else { m.clone() }).collect();
-                                        lines.extend(s.warnings.iter().cloned());
-                                        (*id, lines)
-                                    })
-                                    .collect();
-                                graph_done = Some(GraphDone { design: d.clone(), values, notes, errors: Vec::new(), ok: true });
-                                field_from_graph = Some(out.field);
-                                job.design = d;
-                            }
-                            Err(e) => {
-                                graph_done = Some(GraphDone { design: job.design.clone(), values: BTreeMap::new(), notes: BTreeMap::new(), errors: vec![e], ok: false });
+                    let generation = job.generation;
+                    // One panic used to end the session's rebuilding: the
+                    // thread died, `jobs_tx.send` failed from then on, and
+                    // the app went quietly read-only. Now it is one failed
+                    // build with a message.
+                    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        // A graph-driven design is evaluated first; the library's
+                        // identity is its epoch, so a replaced library re-runs it.
+                        let mut graph_done = None;
+                        let mut field_from_graph = None;
+                        if let Some(g) = &job.graph {
+                            let epoch = Arc::as_ptr(&job.lib) as usize as u64;
+                            match evaluate_design(&mut evaluator, g, &reg, &job.lib, epoch) {
+                                Ok(out) => {
+                                    let mut d = (*out.design).clone();
+                                    d.graph = job.design.graph.clone();
+                                    let values = out
+                                        .report
+                                        .values
+                                        .iter()
+                                        .map(|(id, outs)| (*id, outs.iter().map(|(k, v)| (k.clone(), v.summary())).collect()))
+                                        .collect();
+                                    let notes = out
+                                        .report
+                                        .status
+                                        .iter()
+                                        .filter(|(_, s)| !s.errors.is_empty() || !s.warnings.is_empty())
+                                        .map(|(id, s)| {
+                                            let mut lines: Vec<String> = s.errors.iter().map(|(i, m)| if s.items > 1 { format!("item {i}: {m}") } else { m.clone() }).collect();
+                                            lines.extend(s.warnings.iter().cloned());
+                                            (*id, lines)
+                                        })
+                                        .collect();
+                                    graph_done = Some(GraphDone { design: d.clone(), values, notes, errors: Vec::new(), ok: true });
+                                    field_from_graph = Some(out.field);
+                                    job.design = d;
+                                }
+                                Err(e) => {
+                                    graph_done = Some(GraphDone { design: job.design.clone(), values: BTreeMap::new(), notes: BTreeMap::new(), errors: vec![e], ok: false });
+                                }
                             }
                         }
-                    }
-                    let result = ringdesign_core::mesh::build(&job.design, &job.lib, job.params);
-                    let cast = castability::analyze(
-                        &result.mesh,
-                        &job.design.draft,
-                        job.design.inner_radius_mm(),
-                    );
-                    // The verdict itself comes from the surface, at a fixed
-                    // sampling so it cannot wobble with preview quality; any
-                    // undercut arrives located and blamed.
-                    let field = match field_from_graph {
-                        Some(f) => f,
-                        None => castability::attributed_field_report(&job.design, &job.lib, &job.design.draft, 192, 128),
-                    };
-                    let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
-                    let hot_spot = castability::modulus_scan(&job.design, &job.lib, 64)
-                        .into_iter()
-                        .max_by(|a, b| a.1.total_cmp(&b.1));
-                    let gems = crate::gems::preview_vertices(&job.design, &job.lib);
-                    if done_tx
-                        .send(Done {
-                            generation: job.generation,
+                        let result = ringdesign_core::mesh::build(&job.design, &job.lib, job.params);
+                        let cast = castability::analyze(
+                            &result.mesh,
+                            &job.design.draft,
+                            job.design.inner_radius_mm(),
+                        );
+                        // The verdict itself comes from the surface, at a fixed
+                        // sampling so it cannot wobble with preview quality; any
+                        // undercut arrives located and blamed.
+                        let field = match field_from_graph {
+                            Some(f) => f,
+                            None => castability::attributed_field_report(&job.design, &job.lib, &job.design.draft, 192, 128),
+                        };
+                        let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
+                        let hot_spot = castability::modulus_scan(&job.design, &job.lib, 64)
+                            .into_iter()
+                            .max_by(|a, b| a.1.total_cmp(&b.1));
+                        let gems = crate::gems::preview_vertices(&job.design, &job.lib);
+        Done {
+                            generation,
                             result,
                             cast,
                             field,
@@ -1001,9 +1038,20 @@ impl Worker {
                             stones,
                             gems,
                             graph: graph_done,
-                        })
-                        .is_err()
-                    {
+                        }
+                    }));
+                    let msg = match outcome {
+                        Ok(done) => WorkerMsg::Done(Box::new(done)),
+                        Err(p) => WorkerMsg::Failed {
+                            generation,
+                            message: p
+                                .downcast_ref::<&str>()
+                                .map(|s| s.to_string())
+                                .or_else(|| p.downcast_ref::<String>().cloned())
+                                .unwrap_or_else(|| "panicked".into()),
+                        },
+                    };
+                    if done_tx.send(msg).is_err() {
                         break;
                     }
                 }
