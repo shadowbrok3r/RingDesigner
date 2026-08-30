@@ -102,17 +102,24 @@ pub fn findings_in(design: &RingDesign, lib: &crate::AlphaLibrary) -> Vec<DfmFin
         let mut ts = Vec::new();
         let one = crate::field::LayerStack { layers: vec![entry.clone()] };
         tilings(&one, &mut ts);
+        let (ratio, at_deg) = worst_arc_ratio(design, entry, &ctx);
         for t in ts {
-            let Some((finest, what)) = tiling_finest_mm(t, lib, &ctx) else { continue };
+            let Some((finest, what)) = tiling_finest_mm_at(t, lib, &ctx, ratio) else { continue };
             let (cw, ch) = t.cell_size(&ctx);
+            let ch = ch * ratio;
             if finest >= min {
                 continue;
             }
+            let where_ = if ratio < 0.98 {
+                format!(" at its tightest station, {at_deg:.0}°,")
+            } else {
+                String::new()
+            };
             out.push(DfmFinding {
                 layer: i,
                 label: entry.name.clone(),
                 message: format!(
-                    "the {} texture's finest {what} measure {finest:.2} mm on {cw:.1} x {ch:.1} mm cells against the sand's {min:.2} mm floor — they will cast as mush. Coarsen the pattern, use fewer repeats, or accept the softness.",
+                    "the {} texture's finest {what}{where_} measure {finest:.2} mm on {cw:.1} x {ch:.1} mm cells against the sand's {min:.2} mm floor — they will cast as mush. Coarsen the pattern, use fewer repeats, or accept the softness.",
                     t.alpha
                 ),
             });
@@ -384,12 +391,67 @@ pub fn tiling_finest_mm(
     lib: &crate::alpha::AlphaLibrary,
     ctx: &crate::field::FieldContext,
 ) -> Option<(f64, &'static str)> {
+    tiling_finest_mm_at(t, lib, ctx, 1.0)
+}
+
+/// [`tiling_finest_mm`] with the cell's height taken at `v_scale` of the
+/// reference section's arc.
+///
+/// The chart's `v` is the section's own arc normalized, so a layer's cell is
+/// only the reference height where the band is the reference thickness. A
+/// shoulder that narrows to two thirds of it carries cells two thirds as tall,
+/// and the mask's strokes with them — which the measurement missed entirely
+/// while it read the reference context alone. A *decal* already did this per
+/// station; a tiling covers an arc, so what matters is the tightest station
+/// in it.
+pub fn tiling_finest_mm_at(
+    t: &crate::tiling::TilingLayer,
+    lib: &crate::alpha::AlphaLibrary,
+    ctx: &crate::field::FieldContext,
+    v_scale: f64,
+) -> Option<(f64, &'static str)> {
     let (ink_px, gap_px) = tiling_feature_px(t, lib)?;
     let alpha = lib.get(&t.alpha)?;
     let (cw, ch) = t.cell_size(ctx);
+    let ch = ch * v_scale.clamp(0.05, 8.0);
     let scale = (cw / alpha.width.max(1) as f64).min(ch / alpha.height.max(1) as f64);
     let (ink, gap) = (ink_px * scale, gap_px * scale);
     Some(if ink <= gap { (ink, "strokes") } else { (gap, "gaps") })
+}
+
+/// The tightest section a layer's window covers, as a ratio of the reference
+/// section's arc, and the angle it is at.
+///
+/// A modulated band is not one section: `sample_mod`'s `surface_len_mm` moves
+/// with the shank, and every layer measured against the reference alone was
+/// judged on a band it does not sit on everywhere.
+fn worst_arc_ratio(
+    design: &RingDesign,
+    entry: &crate::field::LayerEntry,
+    ctx: &crate::field::FieldContext,
+) -> (f64, f64) {
+    const STATIONS: usize = 72;
+    let inner_r = design.inner_radius_mm();
+    let crest_r = inner_r + design.profile.thickness_mm;
+    let reference = ctx.band_v_len_mm.max(1e-9);
+    let mut worst = (1.0f64, 0.0f64);
+    for k in 0..STATIONS {
+        let theta = k as f64 / STATIONS as f64 * 360.0;
+        // The layer's own gate, read through the mask it actually uses: a
+        // station the window keeps out cannot be the one that fails.
+        let u = theta / 360.0 * ctx.circumference_mm;
+        let uv = crate::field::Uv { u, v: ctx.band_v_len_mm * 0.5 };
+        if entry.window.enabled && entry.window.mask(uv, ctx) <= 1e-6 {
+            continue;
+        }
+        let m = design.modulation_at(theta, inner_r, crest_r);
+        let len = design.profile.sample_mod(inner_r, 96, &m).surface_len_mm;
+        let ratio = len / reference;
+        if ratio.is_finite() && ratio < worst.0 {
+            worst = (ratio, theta);
+        }
+    }
+    worst
 }
 
 /// The mask's finest ink and gap in texels, after the layer's own shaping.
@@ -452,4 +514,77 @@ pub fn fit_to_floor(
     }
     t.repeats_around = (n as i64).clamp(1, 4096) as u32;
     FloorFit::Repeats(t.repeats_around)
+}
+
+#[cfg(test)]
+mod flute_tests {
+    use crate::field::{FlutesLayer, FluteProfile, Layer, LayerEntry};
+    use crate::RingDesign;
+
+    /// `FeatureFootprint::across` sets `feature_u_mm = INFINITY`, and
+    /// `metal_feature_mm` scales only the `u` side by the arc ratio — so a
+    /// flute filed as `across` was reported at its chart width, never at the
+    /// metal width. `u` is arc at the crest radius and everything else sits
+    /// inside it: on a squared band the side face runs at ~0.85 of that, so
+    /// the figure was 15-20% optimistic, in the unsafe direction, on the
+    /// surface the doctrine sends all ornament to.
+    #[test]
+    fn a_flute_is_measured_around_the_ring_and_at_its_metal_width() {
+        let mut d = RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 6.0;
+        d.profile.thickness_mm = 3.0;
+        d.profile.flatten_sides();
+        let ctx = d.field_context();
+
+        let flutes = FlutesLayer {
+            count: 30,
+            profile: FluteProfile::Round,
+            width_mm: 1.2,
+            height_mm: 0.3,
+            ..Default::default()
+        };
+        let entry = LayerEntry::new("reeding", Layer::Flutes(flutes));
+        let fp = entry.layer.feature_footprints(&ctx);
+        assert_eq!(fp.len(), 1);
+
+        // Narrow around the ring, unlimited across the band — the other way
+        // round from a rail or a milgrain line.
+        assert!(fp[0].feature_u_mm.is_finite(), "a flute is narrow in u");
+        assert!(fp[0].feature_v_mm.is_infinite(), "and runs the band in v");
+
+        // And the arc correction now actually reaches it.
+        let chart = fp[0].min_feature_mm();
+        let metal = fp[0].metal_feature_mm(&ctx);
+        assert!(
+            metal < chart * 0.999,
+            "metal {metal:.4} must be under the chart figure {chart:.4}"
+        );
+    }
+
+    /// A dense reeding fails on the bare band between two cuts long before it
+    /// fails on the cut, and only the cut was ever measured.
+    #[test]
+    fn the_land_between_flutes_is_a_feature_too() {
+        let d = RingDesign::default();
+        let ctx = d.field_context();
+        let pitch = ctx.circumference_mm / 60.0;
+        // Cuts wide enough that the land between them is the finer of the two.
+        let width = pitch * 0.85;
+        let flutes = FlutesLayer {
+            count: 60,
+            profile: FluteProfile::Round,
+            width_mm: width,
+            height_mm: 0.25,
+            ..Default::default()
+        };
+        let entry = LayerEntry::new("dense", Layer::Flutes(flutes));
+        let fp = entry.layer.feature_footprints(&ctx);
+        let land = pitch - width;
+        assert!(
+            (fp[0].feature_u_mm - land).abs() < 1e-6,
+            "the land ({land:.4}) is finer than the cut ({width:.4}) and must be what is reported, got {:.4}",
+            fp[0].feature_u_mm
+        );
+    }
 }

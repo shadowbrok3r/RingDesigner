@@ -1062,11 +1062,31 @@ pins both directions. On top of that:
   is wide — and the measurement replaces the footprint's 15%-of-size
   guess, which called a 2.25 mm hook with a 0.45 mm stroke mush. Run on
   the shipped templates (`dfm::measured_tests::the_templates_measured`,
-  `--nocapture`) it names three: Waves at 0.10 mm strokes on the waved
-  hexagon signet's 11.8 × 1.8 mm cells, Chevron at 0.07 mm gaps on the
-  shouldered cushion's shoulders, Braid at 0.04 mm gaps on the braided
-  band — all castable by the field, all casting softer than drawn, which
-  is what the chip now says instead of nothing.
+  `--nocapture`) it names three: Waves at 0.04 mm strokes on the waved
+  hexagon signet's 11.8 × 0.8 mm cells, Chevron at 0.03 mm gaps on the
+  shouldered cushion's 7.6 × 0.6 mm shoulders, Braid at 0.04 mm gaps on
+  the braided band — all castable by the field, all casting softer than
+  drawn, which is what the chip now says instead of nothing.
+
+  **A tiling is measured at the tightest station its window covers**, not
+  against the reference section. The chart's `v` is the section's own arc
+  normalized, so a cell is the reference height only where the band is the
+  reference thickness; a shoulder that narrows to a third of it carries
+  cells a third as tall, and the mask's strokes with them. Reading the
+  reference context alone under-reported both signets by about 2.5x — the
+  two figures above moved from 0.10 and 0.07 when `worst_arc_ratio` was
+  added, and the finding now names the angle (185° on both). A *decal* had
+  always done this per station; a tiling covers an arc, so what matters is
+  the worst one in it.
+
+  A **flute** is measured *around* the ring, not across the band. It was
+  filed as a `FeatureFootprint::across` — whose own doc named a flute —
+  which sets `feature_u_mm` to infinity, and `metal_feature_mm` scales only
+  the `u` side by the arc ratio. So reeding was the one ornament that
+  evaded the arc-scale correction entirely, reported 15-20% coarser than
+  the metal it becomes. `FeatureFootprint::along` is the right shape, and
+  the **land** between two flutes counts as well as the cut: a dense
+  reeding fails on its land first, and only the cut was ever measured.
 - **Undercut attribution** (`castability::attribute_undercuts`): undercut
   arcs are clustered in theta off the field samples, then each enabled layer
   is muted in turn at the *same parting plane* — the culprit is the layer

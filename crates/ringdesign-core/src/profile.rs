@@ -2229,13 +2229,24 @@ fn blend_span(from: (f64, f64), to: (f64, f64), t: f64) -> (f64, f64) {
 /// from both faces, where every read has converged to the shank and the
 /// switch changes nothing.
 fn pick_dominant(reads: &[HeadAt]) -> HeadAt {
-    *reads
+    reads[dominant_index(reads)]
+}
+
+/// Which head owns this angle. Separate from [`pick_dominant`] because the
+/// *construction* has to come from the same head as the section does: a toi et
+/// moi can carry a lofted oval beside a cut-dome clover, and reading
+/// `self.head.mix()` built the second head's whole arc with the first head's
+/// construction — a dome where a loft was asked for, or the reverse.
+fn dominant_index(reads: &[HeadAt]) -> usize {
+    reads
         .iter()
-        .max_by(|a, b| {
+        .enumerate()
+        .max_by(|(_, a), (_, b)| {
             (a.on_head, a.outer_r)
                 .partial_cmp(&(b.on_head, b.outer_r))
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
+        .map(|(i, _)| i)
         .expect("at least the primary head")
 }
 
@@ -2648,10 +2659,19 @@ impl ShankStyle {
                     .all_heads()
                     .map(|h| self.head_at_for(h, theta_deg, inner_r, base_outer_r, band))
                     .collect();
-                let a = pick_dominant(&reads);
+                let dominant = dominant_index(&reads);
+                let a = reads[dominant];
                 let span = self.signet_span(theta_deg, inner_r, base_outer_r, band);
                 let (w, centre) = ((span.1 - span.0) * 0.5, (span.1 + span.0) * 0.5);
-                let (loft_k, dome_k) = self.head.mix();
+                // The construction comes from the head that owns this angle,
+                // not from the primary. Presences cross far from both faces,
+                // where every read has converged to the shank, so the switch
+                // is as invisible as the section switch above it.
+                let (loft_k, dome_k) = self
+                    .all_heads()
+                    .nth(dominant)
+                    .unwrap_or(&self.head)
+                    .mix();
                 // The table is the face's own outline, not the body's: the two
                 // are different extents, and that difference is the head's
                 // drafted flank. The cut dome hands the crown the whole span
@@ -2665,8 +2685,21 @@ impl ShankStyle {
                 // The shank rounds off toward a wire as it narrows, so a flat
                 // head sits on a round shank. The crown clamp caps it at a full
                 // dome, so a large value only ever means "more domed here".
-                // The lofted head's shank stays the band's own flat-topped
-                // section all the way round, as the factory presets' do.
+                //
+                // A lofted head's shank keeps the band's own section instead,
+                // unrounded — `crown_scale` comes out exactly 1.0, measured by
+                // `probe_signet_shank_crown`. That is deliberate: the factory
+                // shank is the top of a tall ellipse, 3.0 x 1.49 mm on a
+                // 6 x 1.75 band, and the preset builder puts that shape in the
+                // *profile*, so adding rounding here would round it twice.
+                //
+                // It does mean the shank is only as domed as the band it came
+                // from, and `apply_signet` does not set one — so a signet built
+                // on a squared band (which `templates::signet` does on purpose,
+                // for the side faces) gets a squared shank. That is a choice,
+                // not the flat-topped factory section an earlier version of
+                // this comment claimed: CLAUDE.md measured that one and found
+                // "not flat-topped; forcing it flat put the shank 0.35 mm off".
                 let shank_crown = 1.0
                     + SIGNET_SHANK_ROUNDING * k * (1.0 - w) * (1.0 - loft_k);
                 let table_crown = 1.0 - self.head.table_flat.clamp(0.0, 1.0);
@@ -5498,4 +5531,135 @@ mod hollow_tests {
         assert!(bore_of(&deep) < crest_of(&deep) - MIN_EDGE_MM, "a wall survives the deepest scoop");
     }
 
+}
+
+#[cfg(test)]
+mod signet_shank_probe {
+    use super::*;
+
+    /// What a new signet's shank section actually is, at the palm.
+    ///
+    /// A probe, in the house sense: it asserts the one invariant worth holding
+    /// and prints the rest for a person to read. The invariant is that a
+    /// lofted head leaves the band's own section alone — `crown_scale` is
+    /// exactly 1 — because the factory's tall-ellipse shank lives in the
+    /// profile, and rounding it here would round it twice.
+    #[test]
+    fn probe_signet_shank_crown() {
+        for (name, style, flatten) in [
+            ("default HalfRound", crate::ProfileStyle::HalfRound, false),
+            ("squared Flat (what templates::signet uses)", crate::ProfileStyle::Flat, true),
+        ] {
+            let mut d = crate::RingDesign::default();
+            d.profile.apply_style(style);
+            d.profile.width_mm = 9.0;
+            d.profile.thickness_mm = 2.6;
+            if flatten {
+                d.profile.flatten_sides();
+            }
+            let before = d.profile.crown_mm;
+            d.shank.apply_signet(d.profile.width_mm);
+            let inner_r = d.inner_radius_mm();
+            let crest_r = inner_r + d.profile.thickness_mm;
+            // 270 deg is the palm, the far side from the head.
+            let m = d.shank.modulation(270.0, inner_r, crest_r, &d.profile);
+            let loop_ = d.profile.sample_mod(inner_r, 96, &m);
+            let z: Vec<f64> = loop_.pts.iter().filter(|p| p.surface).map(|p| p.z).collect();
+            let r: Vec<f64> = loop_.pts.iter().filter(|p| p.surface).map(|p| p.r).collect();
+            let (zmin, zmax) = (z.iter().cloned().fold(f64::MAX, f64::min), z.iter().cloned().fold(f64::MIN, f64::max));
+            let rmax = r.iter().cloned().fold(f64::MIN, f64::max);
+            // Crown = how far the crest stands over the section's edges.
+            let edge_r = r.first().copied().unwrap_or(0.0).max(r.last().copied().unwrap_or(0.0));
+            println!(
+                "{name:44} crown_mm {before:.3} -> crown_scale {:.3}  section z {zmin:.2}..{zmax:.2}  crest r {rmax:.3}  edge r {edge_r:.3}  rise {:.3}",
+                m.crown_scale,
+                rmax - edge_r
+            );
+            assert!(
+                (m.crown_scale - 1.0).abs() < 1e-9,
+                "{name}: a lofted head must leave the band's crown alone, got {:.6}",
+                m.crown_scale
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod toi_et_moi_tests {
+    use super::*;
+    use crate::field::SignetOutline;
+
+    /// A toi et moi is two heads on one band, and they need not be the same
+    /// construction — a lofted oval beside a cut-dome clover is exactly the
+    /// case `suggest_dome` exists to produce. The section switched to whichever
+    /// head owned the angle and then read the *primary's* construction weights
+    /// for it, so the second head was built as a copy of the first's kind.
+    #[test]
+    fn each_head_is_built_with_its_own_construction() {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 9.0;
+        d.profile.thickness_mm = 2.6;
+        d.profile.flatten_sides();
+        d.shank.apply_signet(d.profile.width_mm);
+
+        // Primary: a lofted oval at the top. Second: a cut dome, a quarter turn away.
+        d.shank.head.outline = SignetOutline::Oval;
+        d.shank.head.loft = 1.0;
+        d.shank.head.dome = 0.0;
+        d.shank.head.theta_deg = TOP_DEG;
+
+        let mut second = SignetHead::lofted();
+        second.outline = SignetOutline::Round;
+        second.loft = 0.0;
+        second.dome = 1.0;
+        second.theta_deg = TOP_DEG + 90.0;
+        second.length_mm = d.shank.head.length_mm;
+        d.shank.extra_heads.push(second);
+
+        let inner_r = d.inner_radius_mm();
+        let crest_r = inner_r + d.profile.thickness_mm;
+        let at = |deg: f64| d.shank.modulation(deg, inner_r, crest_r, &d.profile);
+
+        // Over the primary the cut dome's cap must be absent; over the second
+        // it must be present. `outer_max_r` is set only when dome_k > 0.
+        let over_primary = at(TOP_DEG);
+        let over_second = at(TOP_DEG + 90.0);
+        assert!(
+            over_primary.outer_max_r.is_none(),
+            "the lofted head must not be given the other head's dome cap"
+        );
+        assert!(
+            over_second.outer_max_r.is_some(),
+            "the cut-dome head must get its own cap, not the primary's loft"
+        );
+    }
+
+    /// And the whole thing still pulls, which is the only reason the switch is
+    /// allowed to exist.
+    #[test]
+    fn a_mixed_construction_toi_et_moi_still_fields_clean() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 9.0;
+        d.profile.thickness_mm = 2.6;
+        d.profile.flatten_sides();
+        d.shank.apply_signet(d.profile.width_mm);
+        d.shank.head.theta_deg = TOP_DEG - 28.0;
+        let mut second = SignetHead::lofted();
+        second.loft = 0.0;
+        second.dome = 1.0;
+        second.outline = SignetOutline::Round;
+        second.theta_deg = TOP_DEG + 28.0;
+        d.shank.extra_heads.push(second);
+
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 256, 128);
+        assert_ne!(
+            f.verdict,
+            crate::castability::Verdict::NotCastable,
+            "{:?}",
+            f.notes
+        );
+    }
 }

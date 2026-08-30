@@ -621,11 +621,20 @@ impl Layer {
             }
             Layer::Group(g) => g.stack.feature_footprints(ctx),
             Layer::Curve(l) => l.feature_footprints(ctx),
-            Layer::Flutes(l) => vec![FeatureFootprint::across(
-                l.width_mm.max(0.1),
-                None,
-                (0.0, ctx.band_v_len_mm),
-            )],
+            Layer::Flutes(l) => {
+                // Two features, not one: the flute and the land between two
+                // of them. A dense reeding fails on its land long before its
+                // cut, and only the cut was ever measured.
+                let width = l.width_mm.max(0.0);
+                let pitch = ctx.circumference_mm / l.count.max(1) as f64;
+                let land = (pitch - width).max(0.0);
+                let finest = if land > 0.0 { width.min(land) } else { width };
+                vec![FeatureFootprint::along(
+                    finest.max(0.1),
+                    None,
+                    (0.0, ctx.band_v_len_mm),
+                )]
+            }
             Layer::Decals(l) => l.feature_footprints(ctx),
             Layer::SeatRun(l) => l.feature_footprints(ctx),
             Layer::Openwork(l) => l.tiling.feature_footprints_as_tiling(ctx),
@@ -708,10 +717,30 @@ impl FeatureFootprint {
         Self { feature_u_mm: mm, feature_v_mm: mm, u_mm, v_mm }
     }
 
-    /// A feature measured only across the section — a rail, a flute, a
-    /// milgrain line: it runs the whole way round, so `u` does not limit it.
+    /// A feature measured only across the section — a rail or a milgrain
+    /// line: it runs the whole way round, so `u` does not limit it.
+    ///
+    /// Not a flute. A flute is `count` of them *around* the ring, each narrow
+    /// in `u` and running the full band in `v` — that is [`along`], and
+    /// calling it `across` cost reeding the arc-scale correction entirely.
+    ///
+    /// [`along`]: FeatureFootprint::along
     pub fn across(mm: f64, u_mm: Option<(f64, f64)>, v_mm: (f64, f64)) -> Self {
         Self { feature_u_mm: f64::INFINITY, feature_v_mm: mm, u_mm, v_mm }
+    }
+
+    /// A feature measured only around the ring — a flute, a reed, a cut that
+    /// runs the full width of the band and repeats along it.
+    ///
+    /// `u` is arc at the crest radius, and everything else sits inside that,
+    /// so this is the direction [`metal_feature_mm`] has to scale. A footprint
+    /// that puts a flute's width on the `v` side reports it at face value,
+    /// which is 15-20% optimistic on exactly the surfaces the doctrine sends
+    /// ornament to.
+    ///
+    /// [`metal_feature_mm`]: FeatureFootprint::metal_feature_mm
+    pub fn along(mm: f64, u_mm: Option<(f64, f64)>, v_mm: (f64, f64)) -> Self {
+        Self { feature_u_mm: mm, feature_v_mm: f64::INFINITY, u_mm, v_mm }
     }
 
     /// The finest feature in the chart, mm — what refinement seeds on.
