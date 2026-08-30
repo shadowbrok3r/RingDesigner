@@ -559,8 +559,11 @@ impl Alpha {
 }
 
 /// Library name a mask's derived signed-distance field lands under.
+/// Suffix marking a derived distance field.
+pub const SDF_SUFFIX: &str = "##sdf";
+
 pub fn sdf_name(name: &str) -> String {
-    format!("{name}##sdf")
+    format!("{name}{SDF_SUFFIX}")
 }
 
 /// In-place exact squared Euclidean distance transform (Felzenszwalb &
@@ -1458,6 +1461,15 @@ fn guilloche_weave(x: f64, y: f64) -> f64 {
 pub struct AlphaLibrary {
     entries: Vec<Alpha>,
     index: HashMap<String, usize>,
+    /// Distance fields, keyed by the alpha they were derived from.
+    ///
+    /// `TilingLayer::height` needs one per sample when `edge_mm` is set, and
+    /// it used to reach it through `sdf_name(&self.alpha)` — a `format!`, so a
+    /// heap allocation and a free per sample, in the innermost loop of every
+    /// bevelled tiling. The field is evaluated at least five times per settled
+    /// build (the mesh, the attributed field report, the modulus scan, the
+    /// section view, the stones report), so the multiplier is real.
+    sdf_index: HashMap<String, usize>,
 }
 
 impl AlphaLibrary {
@@ -1480,6 +1492,22 @@ impl AlphaLibrary {
     pub const MAX_ENTRIES: usize = 4096;
 
     pub fn insert(&mut self, alpha: Alpha) {
+        // Keep the derived-field index in step, so the hot path is one lookup
+        // on the base name with nothing allocated.
+        if let Some(base) = alpha.name.strip_suffix(SDF_SUFFIX) {
+            let base = base.to_string();
+            match self.index.get(&alpha.name).copied() {
+                Some(i) => {
+                    self.entries[i] = alpha;
+                    return;
+                }
+                None => {
+                    if self.entries.len() < Self::MAX_ENTRIES {
+                        self.sdf_index.insert(base, self.entries.len());
+                    }
+                }
+            }
+        }
         match self.index.get(&alpha.name).copied() {
             Some(i) => self.entries[i] = alpha,
             None => {
@@ -1513,6 +1541,14 @@ impl AlphaLibrary {
 
     pub fn get(&self, name: &str) -> Option<&Alpha> {
         self.index.get(name).and_then(|&i| self.entries.get(i))
+    }
+
+    /// The distance field derived from `base`, without building its name.
+    ///
+    /// `get(&sdf_name(base))` allocates a `String` per call, and the caller is
+    /// `TilingLayer::height` — once per sample.
+    pub fn sdf_of(&self, base: &str) -> Option<&Alpha> {
+        self.sdf_index.get(base).and_then(|&i| self.entries.get(i))
     }
 
     pub fn get_index(&self, i: usize) -> Option<&Alpha> {
@@ -2925,5 +2961,36 @@ mod feature_tests {
         let disc: Vec<f32> = (0..n * n).map(|i| { let (x, y) = ((i % n) as f64 - 32.0, (i / n) as f64 - 32.0); if x * x + y * y < 100.0 { 1.0 } else { 0.0 } }).collect();
         let (ink, _) = Alpha::new("disc", n, n, disc).min_feature_px().unwrap();
         assert!((ink - 20.0).abs() <= 2.0, "a 20 px disc: {ink}");
+    }
+}
+
+#[cfg(test)]
+mod sdf_index_tests {
+    use super::*;
+
+    /// `TilingLayer::height` reached its distance field through
+    /// `get(&sdf_name(base))` — a `format!` per sample, in the innermost loop
+    /// of every bevelled tiling, five field evaluations deep per settled
+    /// build. The index has to stay in step with `insert`, including when an
+    /// alpha is re-baked under the same name.
+    #[test]
+    fn the_sdf_index_finds_what_insert_put_there() {
+        let mut lib = AlphaLibrary::builtin();
+        let src = Alpha::new("probe".to_string(), 8, 8, vec![0.0; 64]);
+        lib.insert(src.clone());
+        assert!(lib.sdf_of("probe").is_none(), "nothing derived yet");
+
+        lib.insert(src.signed_distance_px());
+        let by_index = lib.sdf_of("probe").expect("derived field found");
+        let by_name = lib.get(&sdf_name("probe")).expect("and found the old way");
+        assert_eq!(by_index.name, by_name.name);
+        assert_eq!(by_index.data, by_name.data);
+
+        // Re-baking under the same name replaces rather than duplicating, and
+        // the index still points at it.
+        let redrawn = Alpha::new("probe".to_string(), 8, 8, vec![1.0; 64]);
+        lib.insert(redrawn.signed_distance_px());
+        let again = lib.sdf_of("probe").expect("still found after a re-bake");
+        assert_eq!(again.data, lib.get(&sdf_name("probe")).unwrap().data);
     }
 }

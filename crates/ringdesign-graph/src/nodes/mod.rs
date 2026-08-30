@@ -52,6 +52,33 @@ mod tests {
     use crate::value::ValueKind;
     use std::collections::BTreeSet;
 
+    /// Every real node covers its struct.
+    ///
+    /// CLAUDE.md credits the `struct_node!` guard with making it so "a field
+    /// added to the core cannot go unnoticed", and the guard was a
+    /// `debug_assert!` inside `StructNode::build` — compiled out in release,
+    /// and never walked by any test. `coverage_names_what_a_node_forgot_or_invented`
+    /// checks the *helper* against two synthetic nodes and passed the whole
+    /// time `head` was missing `crest_round_mm`; what actually caught that was
+    /// the registry panicking inside an unrelated test.
+    ///
+    /// This is the assertion that should have caught it: build the real
+    /// registry and read the failures back by name.
+    #[test]
+    fn every_node_covers_its_struct() {
+        let log = crate::nodes::structs::coverage_failures();
+        log.lock().expect("coverage log").clear();
+        let reg = Registry::builtin();
+        assert!(reg.len() >= 40, "the registry built: {} kinds", reg.len());
+        let failures = log.lock().expect("coverage log").clone();
+        assert!(
+            failures.is_empty(),
+            "{} node(s) do not cover their struct:\n  {}",
+            failures.len(),
+            failures.join("\n  ")
+        );
+    }
+
     /// The table is consistent: every spec documented, pins uniquely named,
     /// every scalar item input given a default so an unwired node still runs.
     #[test]

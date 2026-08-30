@@ -46,6 +46,15 @@ pub struct StructNode<T> {
     finish: Option<FinishFn<T>>,
 }
 
+/// Every coverage failure seen while building node specs this process.
+///
+/// A `Vec` behind a `Mutex` rather than a counter, because what a test needs
+/// is the message: which node, and which field it forgot or invented.
+pub fn coverage_failures() -> &'static std::sync::Mutex<Vec<String>> {
+    static LOG: std::sync::OnceLock<std::sync::Mutex<Vec<String>>> = std::sync::OnceLock::new();
+    LOG.get_or_init(Default::default)
+}
+
 impl<T> StructNode<T>
 where
     T: Serialize + DeserializeOwned + Clone + Send + Sync + 'static,
@@ -130,9 +139,26 @@ where
         }
     }
 
-    /// The node spec. In debug builds the coverage check must pass.
+    /// The node spec.
+    ///
+    /// The coverage check runs here, and it is the only place it runs — the
+    /// registry stores `NodeSpec`s, so by the time anything can walk it the
+    /// `StructNode` is gone. It used to be a bare `debug_assert!`, which meant
+    /// two things: a release build compiled it out entirely and registered a
+    /// node with a missing pin *silently*, leaving the field unreachable from
+    /// the graph with nothing said; and the test named for it,
+    /// `coverage_names_what_a_node_forgot_or_invented`, only ever exercised
+    /// the helper on synthetic nodes, so it passed happily while a real one
+    /// was broken. That is how `crest_round_mm` got in.
+    ///
+    /// Now every failure is recorded where a test can find it, whatever the
+    /// build profile, and the debug assertion stays as the fast local signal.
     pub fn build(mut self) -> NodeSpec {
-        debug_assert!(self.coverage().is_ok(), "{}", self.coverage().unwrap_err());
+        if let Err(e) = self.coverage() {
+            coverage_failures().lock().expect("coverage log").push(e.clone());
+            debug_assert!(false, "{e}");
+            log::error!("{e}");
+        }
         // A modifier must not overwrite its base with pin defaults.
         if self.base.is_some() {
             let fields: BTreeSet<&str> = self.fields.iter().map(|f| f.pin.as_str()).collect();

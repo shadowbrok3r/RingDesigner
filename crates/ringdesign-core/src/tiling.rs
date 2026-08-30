@@ -358,9 +358,7 @@ impl TilingLayer {
         let sy = x * sin + y * cos + 0.5;
 
         let edge = fin(self.edge_mm).max(0.0);
-        let sdf = (edge > 1e-9)
-            .then(|| lib.get(&crate::alpha::sdf_name(&self.alpha)))
-            .flatten();
+        let sdf = (edge > 1e-9).then(|| lib.sdf_of(&self.alpha)).flatten();
         let mut h = match sdf {
             Some(sdf) if !sdf.is_empty() => {
                 // mm-true edge: the distance field is in source pixels, and
