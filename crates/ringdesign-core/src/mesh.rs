@@ -339,7 +339,12 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
                 let h = if p.surface && p.weight > 0.0 {
                     let v_norm = p.v_mm / loop_i.surface_len_mm.max(1e-9);
                     let uv = Uv { u, v: v_norm * ctx.band_v_len_mm };
-                    soft_height(&design.layers, uv, &ctx, lib, params.soften_mm) * p.weight
+                    let h = soft_height(&design.layers, uv, &ctx, lib, params.soften_mm) * p.weight;
+                    // The other three consumers of this displacement already
+                    // do this; this is the one whose output is exported, and
+                    // a non-finite height here reaches the STL as NaN
+                    // coordinates in a file a caster hands to a slicer.
+                    if h.is_finite() { h } else { 0.0 }
                 } else {
                     0.0
                 };

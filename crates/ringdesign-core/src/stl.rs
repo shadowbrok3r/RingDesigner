@@ -20,10 +20,21 @@ fn binary_header(name: &str) -> [u8; 80] {
 
 /// Faces whose three indices are all in range; a partial facet would corrupt
 /// the fixed 50-byte record stream.
+/// Faces whose three vertices all exist and are all finite.
+///
+/// STL, OBJ and PLY all write coordinates verbatim, so a non-finite vertex
+/// leaves the app as `nan` in a file a caster feeds to a slicer. 3MF and GLB
+/// have always dropped such faces; this is what brings the other three into
+/// line, and it is the last line of defence behind the guards in `mesh::build`,
+/// `refine::point` and `castability::section_at`.
 fn whole_faces<'a>(mesh: &'a Mesh) -> impl Iterator<Item = &'a [u32; 3]> {
-    mesh.faces
-        .iter()
-        .filter(|f| f.iter().all(|&i| (i as usize) < mesh.vertices.len()))
+    mesh.faces.iter().filter(|f| {
+        f.iter().all(|&i| {
+            mesh.vertices
+                .get(i as usize)
+                .is_some_and(|v| v.0.is_finite() && v.1.is_finite() && v.2.is_finite())
+        })
+    })
 }
 
 /// Serialize to binary STL with per-facet normals.
@@ -75,19 +86,29 @@ pub fn write_stl(path: impl AsRef<Path>, mesh: &Mesh, name: &str) -> anyhow::Res
     Ok(bytes.len())
 }
 
+/// A vertex list writes positionally, so a non-finite one cannot simply be
+/// dropped without renumbering every face. 3MF's rule is the one that works:
+/// write it as the origin and drop the faces that touch it, which keeps the
+/// indices stable and keeps `nan` out of the file.
+fn finite_or_origin(v: crate::mesh::Vec3) -> crate::mesh::Vec3 {
+    if v.is_finite() { v } else { crate::mesh::Vec3(0.0, 0.0, 0.0) }
+}
+
 /// Write an OBJ with smooth vertex normals, returning the byte count.
 pub fn write_obj(path: impl AsRef<Path>, mesh: &Mesh, name: &str) -> anyhow::Result<usize> {
     use std::fmt::Write;
     let mut s = String::with_capacity(mesh.vertices.len() * 40 + mesh.faces.len() * 30);
     let _ = writeln!(s, "o {name}");
     for v in &mesh.vertices {
+        let v = finite_or_origin(*v);
         let _ = writeln!(s, "v {} {} {}", v.0, v.1, v.2);
     }
     for n in &mesh.normals {
+        let n = finite_or_origin(*n);
         let _ = writeln!(s, "vn {} {} {}", n.0, n.1, n.2);
     }
     let has_normals = mesh.normals.len() == mesh.vertices.len();
-    for f in &mesh.faces {
+    for f in whole_faces(mesh) {
         let (a, b, c) = (f[0] + 1, f[1] + 1, f[2] + 1);
         if has_normals {
             let _ = writeln!(s, "f {a}//{a} {b}//{b} {c}//{c}");
@@ -111,24 +132,27 @@ pub fn write_ply(path: impl AsRef<Path>, mesh: &Mesh, name: &str) -> anyhow::Res
     if has_normals {
         header.push_str("property float nx\nproperty float ny\nproperty float nz\n");
     }
+    // The count is in the header, so the kept faces have to be known first.
+    let faces: Vec<&[u32; 3]> = whole_faces(mesh).collect();
     header.push_str(&format!(
         "element face {}\nproperty list uchar uint vertex_indices\nend_header\n",
-        mesh.faces.len()
+        faces.len()
     ));
     let mut out = header.into_bytes();
-    out.reserve(mesh.vertices.len() * 24 + mesh.faces.len() * 13);
+    out.reserve(mesh.vertices.len() * 24 + faces.len() * 13);
     for (i, v) in mesh.vertices.iter().enumerate() {
+        let v = finite_or_origin(*v);
         for c in [v.0, v.1, v.2] {
             out.extend_from_slice(&c.to_le_bytes());
         }
         if has_normals {
-            let n = mesh.normals[i];
+            let n = finite_or_origin(mesh.normals[i]);
             for c in [n.0, n.1, n.2] {
                 out.extend_from_slice(&c.to_le_bytes());
             }
         }
     }
-    for f in &mesh.faces {
+    for f in faces {
         out.push(3);
         for &i in f.iter() {
             out.extend_from_slice(&i.to_le_bytes());
@@ -143,6 +167,129 @@ mod tests {
     use super::*;
     use crate::mesh::{self, BuildParams, Vec3};
     use std::collections::HashMap;
+
+
+    /// A design file is data, and `opacity` and `height_mm` are unbounded
+    /// `f64`s read straight out of it. Two ways they reach a writer:
+    /// a NaN opacity makes the height itself NaN, and a merely enormous
+    /// height is a perfectly finite `f64` that overflows on the way to `f32`.
+    /// The first is caught in `mesh::build`, the second only at the writer —
+    /// so both are checked here, on every format that writes coordinates
+    /// verbatim.
+    #[test]
+    fn no_export_carries_a_non_finite_coordinate() {
+        use crate::field::{BorderLayer, BorderProfile, Layer, LayerEntry};
+
+        let hostile = |opacity: f64, height_mm: f64| {
+            let mut d = crate::RingDesign::default();
+            let mut e = LayerEntry::new(
+                "hostile",
+                Layer::Border(BorderLayer {
+                    v_mm: d.field_context().band_v_len_mm * 0.5,
+                    width_mm: 0.8,
+                    height_mm,
+                    profile: BorderProfile::Round,
+                    mirror: false,
+                    rope_twists: 0,
+                }),
+            );
+            e.opacity = opacity;
+            d.layers.layers.push(e);
+            let lib = crate::AlphaLibrary::builtin();
+            let params = BuildParams { theta_steps: 64, profile_steps: 48, ..Default::default() };
+            mesh::build(&d, &lib, params).mesh
+        };
+
+        let dir = std::env::temp_dir().join("ringdesign-finite-test");
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // `mesh::build` zeroes a non-finite height, so a NaN opacity produces a
+        // clean mesh; an overflowing height is finite as an `f64` and only goes
+        // bad in the cast to `f32`, so that one must reach the writers dirty or
+        // this test is checking nothing.
+        let overflow = hostile(1.0, 1e308);
+        assert!(
+            overflow.vertices.iter().any(|v| !v.is_finite()),
+            "the overflow case must actually put a non-finite vertex in the mesh"
+        );
+        assert!(
+            hostile(f64::NAN, 0.4).vertices.iter().all(|v| v.is_finite()),
+            "a NaN height is caught in mesh::build, before any writer sees it"
+        );
+
+        for (label, m) in [
+            ("nan opacity", hostile(f64::NAN, 0.4)),
+            ("overflowing height", overflow),
+            ("infinite opacity", hostile(f64::INFINITY, 0.4)),
+        ] {
+            // Binary STL: 84-byte header, then 50 bytes per facet, of which
+            // the first 48 are twelve f32s. Every one must be finite.
+            let stl = to_stl_binary(&m, "hostile");
+            let count = u32::from_le_bytes(stl[80..84].try_into().unwrap()) as usize;
+            assert!(count > 0, "{label}: the whole mesh was dropped");
+            for f in 0..count {
+                let base = 84 + f * 50;
+                for k in 0..12 {
+                    let o = base + k * 4;
+                    let c = f32::from_le_bytes(stl[o..o + 4].try_into().unwrap());
+                    assert!(c.is_finite(), "{label}: STL facet {f} coord {k} is {c}");
+                }
+            }
+
+            let obj = dir.join("h.obj");
+            write_obj(&obj, &m, "hostile").unwrap();
+            let text = std::fs::read_to_string(&obj).unwrap();
+            assert!(
+                !text.contains("NaN") && !text.contains("nan") && !text.contains("inf"),
+                "{label}: OBJ carries a non-finite coordinate"
+            );
+            assert!(text.contains("\nf "), "{label}: OBJ kept no faces at all");
+
+            // ASCII STL goes through the same face filter.
+            let ascii = to_stl_ascii(&m, "hostile");
+            assert!(
+                !ascii.contains("NaN") && !ascii.contains("nan") && !ascii.contains("inf"),
+                "{label}: ASCII STL carries a non-finite coordinate"
+            );
+
+            // PLY declares its face count in the header, so the header and the
+            // body have to agree after filtering.
+            let ply = dir.join("h.ply");
+            write_ply(&ply, &m, "hostile").unwrap();
+            let bytes = std::fs::read(&ply).unwrap();
+            let end = b"end_header\n";
+            let at = bytes
+                .windows(end.len())
+                .position(|w| w == end)
+                .expect("a header end")
+                + end.len();
+            let header = String::from_utf8_lossy(&bytes[..at]).to_string();
+            let nv: usize = header
+                .lines()
+                .find_map(|l| l.strip_prefix("element vertex "))
+                .unwrap()
+                .parse()
+                .unwrap();
+            let nf: usize = header
+                .lines()
+                .find_map(|l| l.strip_prefix("element face "))
+                .unwrap()
+                .parse()
+                .unwrap();
+            let stride = if m.normals.len() == m.vertices.len() { 24 } else { 12 };
+            assert_eq!(
+                bytes.len(),
+                at + nv * stride + nf * 13,
+                "{label}: PLY header face count disagrees with the body"
+            );
+            for i in 0..nv * (stride / 4) {
+                let o = at + i * 4;
+                let c = f32::from_le_bytes(bytes[o..o + 4].try_into().unwrap());
+                assert!(c.is_finite(), "{label}: PLY value {i} is {c}");
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     fn small_build() -> Mesh {
         let design = crate::RingDesign::default();
