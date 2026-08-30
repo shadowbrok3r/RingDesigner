@@ -233,6 +233,9 @@ mod tests {
                 t.name,
                 field.notes
             );
+            // Which verdict, which volume and which wall each of these
+            // actually measures is pinned in tests/golden/corpus.json. This
+            // assertion is the floor; that table is the net.
         }
     }
 }
