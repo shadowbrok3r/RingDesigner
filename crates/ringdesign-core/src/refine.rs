@@ -188,15 +188,12 @@ struct Column {
 }
 
 /// A cross-section read at one arc position.
-struct Sample {
-    r: f64,
-    z: f64,
-    nr: f64,
-    nz: f64,
-    v_mm: f64,
-    surface: bool,
-    weight: f64,
-}
+/// A point on the section, interpolated between two profile samples.
+///
+/// This was a private mirror of [`ProfileSample`] with the same seven fields —
+/// a fourth copy of the same idea — which is what kept `point()` from sharing
+/// `mesh::Displacer` with the sweep and the section.
+use crate::profile::ProfileSample as Sample;
 
 impl Column {
     fn build(design: &RingDesign, inner_r: f64, crest_r: f64, theta_deg: f64, steps: usize) -> Self {
@@ -293,20 +290,16 @@ impl<'a> Lattice<'a> {
         let p = col.at(j as f64 / self.n_s as f64);
         let frac = i as f64 / self.n_u as f64;
 
-        let h = if p.surface && p.weight > 0.0 {
-            let v = p.v_mm / col.loop_.surface_len_mm.max(1e-9) * self.ctx.band_v_len_mm;
-            let uv = Uv { u: frac * self.ctx.circumference_mm, v };
-            let h = self.design.layers.height(uv, self.ctx, self.lib) * p.weight;
-            if h.is_finite() { h } else { 0.0 }
-        } else {
-            0.0
-        };
-
-        let mut r = p.r + h * p.nr;
-        let z = p.z + h * p.nz;
-        if p.surface {
-            r = r.max((self.inner_r + self.min_wall).min(p.r));
+        let d = crate::mesh::Displacer {
+            stack: &self.design.layers,
+            ctx: self.ctx,
+            lib: self.lib,
+            soften_mm: 0.0,
+            inner_r: self.inner_r,
+            min_wall: self.min_wall,
         }
+        .at(&p, col.loop_.surface_len_mm, frac * self.ctx.circumference_mm);
+        let (r, z) = (d.r, d.z);
         let (sin_t, cos_t) = (frac * 360.0).to_radians().sin_cos();
         [r * cos_t, r * sin_t, z]
     }

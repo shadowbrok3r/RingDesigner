@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::adaptive::Spacing;
 use crate::alpha::AlphaLibrary;
-use crate::field::Uv;
 use crate::mesh::{Mesh, cross, norm, sub};
 use crate::RingDesign;
 
@@ -840,26 +839,24 @@ pub fn section_at_spaced(
     let min_wall = design.build.min_wall_mm.max(0.05);
     let surface_len = loop_i.surface_len_mm.max(1e-9);
 
-    // --- Displace, exactly as mesh::build does for one angular step. ---
+    // --- Displace, through the same function mesh::build uses. ---
     let mut points: Vec<SectionPoint> = Vec::with_capacity(loop_i.len());
+    let displacer = crate::mesh::Displacer {
+        stack: &design.layers,
+        ctx: &ctx,
+        lib,
+        soften_mm: 0.0,
+        inner_r,
+        min_wall,
+    };
     for p in &loop_i.pts {
-        let mut h = if p.surface && p.weight > 0.0 {
-            let v = p.v_mm / surface_len * ctx.band_v_len_mm;
-            design.layers.height(Uv { u, v }, &ctx, lib) * p.weight
-        } else {
-            0.0
-        };
-        if !h.is_finite() {
-            h = 0.0;
-        }
-        let mut r = p.r + h * p.nr;
-        let z = p.z + h * p.nz;
-        // Identical to the clamp in `mesh::build`, including the base-profile
-        // floor, or the section reports a shape the solid does not have.
-        if p.surface {
-            r = r.max((inner_r + min_wall).min(p.r));
-        }
-        points.push(SectionPoint { r, z, surface: p.surface, ..Default::default() });
+        let d = displacer.at(p, surface_len, u);
+        points.push(SectionPoint {
+            r: d.r,
+            z: d.z,
+            surface: p.surface,
+            ..Default::default()
+        });
     }
 
     // --- Normals of the displaced loop; the profile's own no longer apply. ---
