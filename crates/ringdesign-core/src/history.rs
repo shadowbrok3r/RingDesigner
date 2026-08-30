@@ -18,15 +18,41 @@
 //!
 //! A slider drag fires `mark_dirty()` on every frame it moves. Committing each
 //! one would bury the history, so a snapshot is only taken once the design has
-//! been *still* for [`SETTLE`] — the drag lands as the single entry it reads as.
+//! been *still* for 400 ms — the drag lands as the single entry it reads as.
 
-use std::time::{Duration, Instant};
-
-use ringdesign_core::RingDesign;
+use crate::RingDesign;
 use serde_json::Value;
 
-/// How long the design must sit unchanged before the edit is committed.
-const SETTLE: Duration = Duration::from_millis(400);
+/// How long the design must sit unchanged before the edit is committed, ms.
+/// Unused on wasm, where there is no clock to compare against.
+#[cfg(not(target_arch = "wasm32"))]
+const SETTLE_MS: u128 = 400;
+
+/// When an edit was last touched, wasm included.
+///
+/// `Instant::now` panics in a browser, so the clock is `cfg`'d out there the
+/// same way [`crate::mesh`]'s `BuildClock` is. With no clock every touch reads
+/// as already settled: an edit that cannot be timed is committed rather than
+/// held, because the failure that loses work is worse than the one that keeps
+/// too many entries.
+#[derive(Clone, Copy)]
+struct Touched(#[cfg(not(target_arch = "wasm32"))] std::time::Instant);
+
+impl Touched {
+    fn now() -> Self {
+        Self(
+            #[cfg(not(target_arch = "wasm32"))]
+            std::time::Instant::now(),
+        )
+    }
+
+    fn settled(&self) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        return self.0.elapsed().as_millis() >= SETTLE_MS;
+        #[cfg(target_arch = "wasm32")]
+        true
+    }
+}
 
 /// Entries kept before the oldest is dropped.
 const MAX_ENTRIES: usize = 200;
@@ -54,7 +80,7 @@ pub struct History {
     /// The last committed state, and what undo compares against.
     baseline: RingDesign,
     /// When the design last changed, while an edit is still settling.
-    touched: Option<Instant>,
+    touched: Option<Touched>,
 }
 
 impl History {
@@ -70,7 +96,7 @@ impl History {
     /// Note that the design may have changed. Cheap; the comparison happens
     /// once the edit settles.
     pub fn touch(&mut self) {
-        self.touched = Some(Instant::now());
+        self.touched = Some(Touched::now());
     }
 
     /// Forget everything and start from this design — a new or opened file.
@@ -81,18 +107,40 @@ impl History {
         self.touched = None;
     }
 
+    /// Whether an edit is waiting on the settle window.
+    ///
+    /// A caller that only draws on demand — the phone, which stops rendering
+    /// when nothing moves — needs this to know it must ask for one more frame,
+    /// or the pending edit sits uncommitted until something unrelated redraws.
+    pub fn is_pending(&self) -> bool {
+        self.touched.is_some()
+    }
+
+    /// How long the settle window is, for a caller scheduling that frame.
+    pub const fn settle_ms(&self) -> u64 {
+        #[cfg(not(target_arch = "wasm32"))]
+        return SETTLE_MS as u64;
+        #[cfg(target_arch = "wasm32")]
+        0
+    }
+
     /// Commit the pending edit if it has settled. Returns the label recorded.
     pub fn commit_if_settled(&mut self, design: &RingDesign) -> Option<String> {
-        if !self.touched.is_some_and(|t| t.elapsed() >= SETTLE) {
+        if !self.touched.is_some_and(|t| t.settled()) {
             return None;
         }
-        self.touched = None;
         self.commit(design)
     }
 
     /// Commit now, whatever the timer says — for a save, an export, or anything
     /// that wants the history settled before it acts.
+    ///
+    /// Clears the pending touch either way, including when the design turns out
+    /// not to have moved: after this there is nothing outstanding, which is what
+    /// [`is_pending`](Self::is_pending) reports and what a caller that only
+    /// draws on demand schedules its next frame from.
     pub fn commit(&mut self, design: &RingDesign) -> Option<String> {
+        self.touched = None;
         let label = describe(&self.baseline, design)?;
         self.past.push(Snapshot {
             label: label.clone(),
@@ -362,7 +410,7 @@ fn show(v: &Value, unit: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ringdesign_core::field::{Layer, LayerEntry, MilgrainLayer};
+    use crate::field::{Layer, LayerEntry, MilgrainLayer};
 
     #[test]
     fn a_graph_is_named_as_a_document_not_as_fields() {
@@ -399,7 +447,7 @@ mod tests {
     fn a_newtype_field_does_not_repeat_its_own_name() {
         let a = design();
         let mut b = a.clone();
-        b.size = ringdesign_core::RingSize(9.0);
+        b.size = crate::RingSize(9.0);
         let label = describe(&a, &b).expect("named");
         assert!(!label.to_lowercase().contains("size size"), "{label}");
         assert!(label.contains('9'), "{label}");
@@ -422,6 +470,50 @@ mod tests {
         assert_eq!(describe(&b, &a).as_deref(), Some("Removed a layer"));
     }
 
+    /// The phone's "Clear layers" is one tap with no confirmation, and its
+    /// autosave writes the result to disk 90 ms later. Undo is the only thing
+    /// standing between a mistap and a lost stack, so pin it here rather than
+    /// in a panel that cannot be tested off-device.
+    #[test]
+    fn undoing_a_cleared_stack_brings_every_layer_back() {
+        let mut d = design();
+        for n in ["one", "two", "three"] {
+            d.layers
+                .layers
+                .push(LayerEntry::new(n, Layer::Milgrain(MilgrainLayer::default())));
+        }
+        let mut h = History::new(&d);
+
+        d.layers.layers.clear();
+        h.touch();
+        assert!(h.commit(&d).is_some(), "clearing the stack is a step");
+
+        let back = h.undo().expect("undo is available");
+        assert_eq!(back.layers.layers.len(), 3, "every layer came back");
+        let names: Vec<&str> = back.layers.layers.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, ["one", "two", "three"], "and in their own order");
+
+        // And forward again, so a mistaken undo is not itself a trap.
+        let again = h.redo().expect("redo is available");
+        assert!(again.layers.layers.is_empty());
+    }
+
+    /// `is_pending` is what a caller that only draws on demand schedules its
+    /// next frame from; if it lied, the last edit of a session would never
+    /// commit and undo would not reach it.
+    #[test]
+    fn a_touch_is_pending_until_it_commits() {
+        let d = design();
+        let mut h = History::new(&d);
+        assert!(!h.is_pending(), "nothing touched yet");
+        h.touch();
+        assert!(h.is_pending());
+        let mut edited = d.clone();
+        edited.profile.width_mm += 1.0;
+        h.commit(&edited);
+        assert!(!h.is_pending(), "committing clears the pending touch");
+    }
+
     #[test]
     fn an_edit_inside_a_layer_says_which_one() {
         let mut a = design();
@@ -441,7 +533,7 @@ mod tests {
     fn an_enum_change_names_the_variant() {
         let a = design();
         let mut b = a.clone();
-        b.profile.apply_style(ringdesign_core::ProfileStyle::Flat);
+        b.profile.apply_style(crate::ProfileStyle::Flat);
         let label = describe(&a, &b).expect("named");
         assert!(label.contains("Flat"), "{label}");
     }
