@@ -279,6 +279,15 @@ impl Alpha {
 
     /// Cross-fade opposite edges so adjacent tiles butt without a visible seam.
     /// `blend` is the fraction of the image blended, 0..0.5.
+    /// Cross-fade the opposite edges of a tile into each other so an imported
+    /// image tiles without a seam.
+    ///
+    /// **Nothing in the app calls this.** CLAUDE.md named it as the mechanism
+    /// imports go through and it never was one; an imported image is used as
+    /// drawn, seam and all. It is kept because it is correct and tested, and
+    /// because the alpha-operator work (M16) wants it as one of the ops in
+    /// `alpha.transform`, where it belongs — a per-alpha choice rather than
+    /// something done silently to everything that comes in.
     pub fn make_seamless(&self, blend: f64) -> Alpha {
         if self.is_empty() || self.data.len() != self.width * self.height {
             return self.clone();

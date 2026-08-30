@@ -1361,10 +1361,15 @@ pub fn attribute_undercuts(
         .map(|(i, _)| i)
         .collect();
     let mut masked: Vec<(usize, Vec<(f64, f64, f64, f64)>)> = Vec::new();
+    // One clone, toggled in place. It used to be a clone of the whole
+    // `RingDesign` per enabled layer — base64 embedded PNGs, drawn strokes,
+    // inscriptions, SVG art, the graph and all — to change a single bool, on
+    // every settled build that carries undercut to explain.
+    let mut probe = design.clone();
     for &i in &enabled {
-        let mut d = design.clone();
-        d.layers.layers[i].enabled = false;
-        masked.push((i, field_undercuts(&d, lib, min_draft, parting_z, T, P)));
+        probe.layers.layers[i].enabled = false;
+        masked.push((i, field_undercuts(&probe, lib, min_draft, parting_z, T, P)));
+        probe.layers.layers[i].enabled = true;
     }
 
     regions
