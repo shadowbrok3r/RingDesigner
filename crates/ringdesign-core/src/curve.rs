@@ -137,6 +137,21 @@ impl CurveLayer {
         }
     }
 
+    /// Land the wire on the band's wider side face, at `fill` of that face's
+    /// width, and report whether there was one.
+    ///
+    /// This is the placement the doctrine requires and it was being spelled
+    /// out at every call site: a wire crossing the crown undercuts on its
+    /// crest-side flank wherever the dome's draft is shallower than the wire's
+    /// own slope, while the same wire on a side face measures 0.000%. A
+    /// profile with no side face returns `false` and is left alone — keep the
+    /// wire shallow there, or square the band's sides first.
+    pub fn land_on_side_face(&mut self, ctx: &FieldContext, fill: f64) -> bool {
+        let Some((lo, hi)) = ctx.side_faces_std().and_then(|sf| sf.wider()) else { return false };
+        self.retarget_v(0.5 * (lo + hi), (hi - lo) * 0.5 * fill.clamp(0.0, 1.0));
+        true
+    }
+
     /// Move the drawn points to a new `v` centre and amplitude, keeping the
     /// shape. This is how a preset lands on a side face: a wire crossing the
     /// crown undercuts on its crest-side flank wherever the dome's draft is
@@ -422,7 +437,7 @@ mod tests {
         let mut vine = CurveLayer::preset_vine(&fc);
         vine.height_mm = 0.5;
         vine.taper = 0.0;
-        vine.retarget_v(0.5 * (lo + hi), (hi - lo) * 0.3);
+        assert!(vine.land_on_side_face(&fc, 0.6), "a squared band has a side face");
         let mut entry = crate::LayerEntry::new("side vine", crate::Layer::Curve(vine));
         entry.window.v_gate =
             crate::field::VGate::SideFaces(crate::field::SideFacePick::Wider);

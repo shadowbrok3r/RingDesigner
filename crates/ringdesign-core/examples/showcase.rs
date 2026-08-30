@@ -270,7 +270,7 @@ fn main() {
     let ctx = d.field_context();
     let (lo, hi) = ctx.side_faces_std().and_then(|f| f.wider()).unwrap();
     let mut vine = CurveLayer::preset_vine(&ctx);
-    vine.retarget_v(0.5 * (lo + hi), (hi - lo) * 0.26);
+    vine.land_on_side_face(&ctx, 0.52);
     vine.width_mm = 0.6;
     vine.height_mm = 0.32;
     vine.repeats_around = 10;

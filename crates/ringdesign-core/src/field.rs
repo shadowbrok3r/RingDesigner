@@ -141,6 +141,10 @@ impl FieldContext {
 /// Base draft a surface must clear to count as a side face, degrees.
 pub const SIDE_FACE_MIN_DRAFT_DEG: f64 = 80.0;
 
+/// The most [`FlutesLayer::lean`] a two-part sand mould clears, measured.
+/// See the table on that field.
+pub const SAND_MAX_LEAN: f64 = 0.1;
+
 /// Narrowest side face worth putting ornament on, mm. A dome leaves a sliver
 /// of near-square metal at the bore edge where the crown clamp bottoms out on
 /// MIN_EDGE_MM; that is geometry, not a surface to decorate.
@@ -1658,6 +1662,21 @@ pub struct FlutesLayer {
     /// Cells of sideways drift across the band's full width — diagonal
     /// reeding. Any value keeps the joint closed; only the count must be
     /// an integer.
+    ///
+    /// **Lean costs draft, monotonically.** A straight flute's walls face
+    /// purely around the ring, square to the pull; leaning one turns part of
+    /// each wall to face across the band, and on a dome the downhill flank
+    /// then leans back. Measured on a 7 x 2.6 mm low dome, 30 flutes 1.2 mm
+    /// wide and 0.3 mm high:
+    ///
+    /// | lean | 0.0 | 0.1 | 0.2 | 0.4 | 0.8 | 1.5 |
+    /// | --- | --- | --- | --- | --- | --- | --- |
+    /// | undercut | 0.000% | 0.000% | 0.370% | 0.995% | 2.31% | 4.60% |
+    /// | worst | +0.5° | -0.5° | -1.4° | -3.3° | -6.9° | -13.1° |
+    ///
+    /// So [`SAND_MAX_LEAN`] is the limit for a two-part mould, and a
+    /// herringbone or basket woven from crossed diagonal reeding is not a
+    /// sand shape at all — it is lost-wax work.
     pub lean: f64,
     /// Run the flutes around the ring instead of across it (melon lobes).
     /// The count then spans the band and does not need to wrap.
