@@ -990,6 +990,33 @@ The pattern therefore follows the band as it tapers instead of sliding across
 it. `mesh::build` and `castability::section_at` must do this identically — if
 they diverge, the section view lies about the solid.
 
+## Two things the model does not yet know
+
+Recorded here because they are doctrine-level, not tickets: a reader of this file will otherwise
+assume both are handled, since everything around them is. The 2026-08-30 audit
+(`docs/AUDIT-2026-08-30.md`, roadmap M10-M24) established them, and both are still open.
+
+**The verdict is radial and cannot see the axial web.** `thinnest_wall` walks bore points and
+interpolates the surface at the same `z`; `bore_span_wall` bins by `z` and subtracts bore radius
+from surface radius. Both measure outward from the finger hole. Nothing measures metal *across* the
+band — which is exactly where this file sends every deep carve. `OpenworkLayer::height` says so
+itself: the carve eats `depth * nr` of radial metal, so on a side face where `nr` is ~0 the cap
+opens up and `depth_mm` is the only limit left. A 1.8 mm band carved 0.8 mm from each face leaves a
+0.2 mm web and reports a healthy wall. Four independent audit dimensions found this, and it is a
+**fill** rule, not a draft one: a thin web does not lock the mould, it comes out of the flask as two
+halves. Until `min_local_thickness_mm` exists on `FieldReport` (M11.1), do not trust a wall figure
+on a design carrying opposing side-face relief.
+
+**The model has one stage where the trade has two.** Every entry in the `LayerStack` is cast
+geometry, judged by `analyze_field` against the sand's 0.30-0.40 mm detail floor. That is correct
+for cast relief and it is why the showcase records that the guilloche generators carry 7-24 periods
+per tile and fall under the floor at any tile size a band holds. But in the trade the fine work is
+not cast: bright-cut, wriggle, ramshorn scroll, Florentine line, true rose-engine guilloche, inside
+lettering and a signet's seal are cut into the cast blank afterwards, with a graver or a machine.
+There is no way to say "this line is cut at the bench", so such a feature is either refused as
+NotCastable or measured as mush. `LayerEntry::stage` (M14) is the fix, and it is the prerequisite
+for intaglio, monograms, crests, hallmarks and everything on the bore.
+
 ## Manufacturing analysis speaks in the sand's numbers
 
 `DraftSettings` carries the sand itself: `min_draft_deg`, `min_section_mm`
