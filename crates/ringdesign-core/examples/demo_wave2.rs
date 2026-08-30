@@ -87,7 +87,7 @@ fn main() {
     let mut vine = CurveLayer::preset_vine(&ctx);
     vine.height_mm = 0.45;
     vine.mirror_v = true;
-    vine.retarget_v(0.5 * (sf.0 + sf.1), (sf.1 - sf.0) * 0.3);
+    vine.land_on_side_face(&ctx, 0.6);
     let mut entry = LayerEntry::new("vine", Layer::Curve(vine));
     entry.window.v_gate = VGate::SideFaces(SideFacePick::Both);
     entry.window.enabled = true;
