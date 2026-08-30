@@ -35,7 +35,70 @@ pub const DESIGN_EXT: &str = "ring.json";
 /// field reads as `None`, and an older build ignores the key.
 
 /// Version stamped into saved design files; files without one are version 0.
+///
+/// **A bump means a shape change, not a field addition.** `RingDesign::graph`,
+/// `DraftSettings::process` and `DraftSettings::sand` all joined the file
+/// without one, and correctly: each is `#[serde(default)]`, so an older file
+/// reads as the default and an older build ignores the key. There is nothing
+/// for a migration step to do, and `MIGRATIONS.len() == FORMAT_VERSION` is
+/// asserted — a bump with an empty migration would be a lie about what
+/// changed. Bump when a key is renamed, removed, or reinterpreted.
 pub const FORMAT_VERSION: u32 = 1;
+
+/// Version stamped into saved profile and outline files.
+///
+/// The design has had a ladder since the beginning; these two had nothing —
+/// no version, and a reader that skipped anything it could not parse without
+/// a word, so a file from a newer build simply stopped appearing in the
+/// picker. Same envelope as the design's: a flattened key that an older build
+/// ignores, absent meaning version 0.
+pub const ASSET_FORMAT_VERSION: u32 = 1;
+
+/// Serialization wrapper that puts the version key ahead of an asset's fields.
+#[derive(serde::Serialize)]
+struct VersionedAsset<'a, T: serde::Serialize> {
+    format_version: u32,
+    #[serde(flatten)]
+    asset: &'a T,
+}
+
+/// An asset document as versioned JSON text.
+fn asset_json<T: serde::Serialize>(asset: &T, pretty: bool) -> anyhow::Result<String> {
+    let doc = VersionedAsset { format_version: ASSET_FORMAT_VERSION, asset };
+    Ok(if pretty {
+        serde_json::to_string_pretty(&doc)?
+    } else {
+        serde_json::to_string(&doc)?
+    })
+}
+
+/// Parse an asset document, refusing one from a future build out loud.
+///
+/// The version key is flattened alongside the asset's own fields, so serde
+/// reads the asset itself whether or not the key is there.
+fn asset_from_str<T: serde::de::DeserializeOwned>(
+    text: &str,
+    path: &Path,
+) -> Option<T> {
+    let version = serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .and_then(|v| v.get(VERSION_KEY).and_then(|v| v.as_u64()))
+        .unwrap_or(0) as u32;
+    if version > ASSET_FORMAT_VERSION {
+        log::warn!(
+            "{}: format version {version}, but this build reads up to {ASSET_FORMAT_VERSION} — skipping",
+            path.display()
+        );
+        return None;
+    }
+    match serde_json::from_str::<T>(text) {
+        Ok(a) => Some(a),
+        Err(e) => {
+            log::warn!("{}: could not read ({e}) — skipping", path.display());
+            None
+        }
+    }
+}
 
 const VERSION_KEY: &str = "format_version";
 
@@ -213,8 +276,11 @@ pub fn list_outlines_in(dir: &Path) -> Vec<crate::CustomOutline> {
         {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else { continue };
-        let Ok(o) = serde_json::from_str::<crate::CustomOutline>(&text) else { continue };
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            log::warn!("{}: could not be read — skipping", path.display());
+            continue;
+        };
+        let Some(o) = asset_from_str::<crate::CustomOutline>(&text, &path) else { continue };
         if o.r.len() == 720 && o.r.iter().all(|v| v.is_finite() && *v > 0.0) {
             out.push(o);
         }
@@ -236,7 +302,7 @@ pub fn save_outline_in(dir: &Path, outline: &crate::CustomOutline) -> anyhow::Re
     }
     std::fs::create_dir_all(dir)?;
     let path = dir.join(format!("{stem}.outline.json"));
-    write_atomic(&path, serde_json::to_string(outline)?.as_bytes())?;
+    write_atomic(&path, asset_json(outline, false)?.as_bytes())?;
     Ok(path)
 }
 
@@ -262,8 +328,7 @@ pub fn save_profile_in(
     }
     std::fs::create_dir_all(dir)?;
     let path = dir.join(format!("{stem}.profile.json"));
-    let text = serde_json::to_string_pretty(profile)?;
-    write_atomic(&path, text.as_bytes())?;
+    write_atomic(&path, asset_json(profile, true)?.as_bytes())?;
     Ok(path)
 }
 
@@ -288,8 +353,11 @@ pub fn list_profiles_in(dir: &Path) -> Vec<(String, crate::BandProfile)> {
         else {
             continue;
         };
-        let Ok(text) = std::fs::read_to_string(&path) else { continue };
-        let Ok(profile) = serde_json::from_str::<crate::BandProfile>(&text) else { continue };
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            log::warn!("{}: could not be read — skipping", path.display());
+            continue;
+        };
+        let Some(profile) = asset_from_str::<crate::BandProfile>(&text, &path) else { continue };
         out.push((name.to_string(), profile));
     }
     out.sort_by(|a, b| a.0.cmp(&b.0));
@@ -442,5 +510,71 @@ mod tests {
         doc["format_version"] = (FORMAT_VERSION + 1).into();
         let err = load_design_str(&doc.to_string()).unwrap_err();
         assert!(err.to_string().contains("newer RingDesigner"), "{err}");
+    }
+}
+
+#[cfg(test)]
+mod asset_version_tests {
+    use super::*;
+
+    /// The design has had a version ladder since the beginning. Profiles and
+    /// outlines had none, and a reader that skipped whatever it could not
+    /// parse without a word — so a file from a newer build did not fail, it
+    /// just stopped appearing in the picker.
+    #[test]
+    fn a_saved_profile_carries_its_version_and_still_reads_one_without() {
+        let dir = std::env::temp_dir().join("ringdesign-asset-version");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let mut p = crate::BandProfile::default();
+        p.width_mm = 5.5;
+        let path = save_profile_in(&dir, "probe", &p).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        let doc: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(doc[VERSION_KEY], u64::from(ASSET_FORMAT_VERSION));
+
+        let back = list_profiles_in(&dir);
+        assert_eq!(back.len(), 1);
+        assert!((back[0].1.width_mm - 5.5).abs() < 1e-9);
+
+        // A file written before the key existed is version 0 and still loads.
+        let mut bare = doc.clone();
+        bare.as_object_mut().unwrap().remove(VERSION_KEY);
+        std::fs::write(dir.join("bare.profile.json"), serde_json::to_string(&bare).unwrap())
+            .unwrap();
+        assert_eq!(list_profiles_in(&dir).len(), 2, "an unversioned file still reads");
+
+        // One from a future build is refused rather than silently dropped as
+        // unparseable — same rule the design ladder applies.
+        let mut future = doc.clone();
+        future[VERSION_KEY] = (ASSET_FORMAT_VERSION + 1).into();
+        std::fs::write(dir.join("future.profile.json"), serde_json::to_string(&future).unwrap())
+            .unwrap();
+        assert_eq!(list_profiles_in(&dir).len(), 2, "a future file is skipped, not adopted");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The same envelope on the other library, which is the one that carries a
+    /// 720-entry polar table a user drew.
+    #[test]
+    fn a_saved_outline_carries_its_version() {
+        let dir = std::env::temp_dir().join("ringdesign-outline-version");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let pts: Vec<[f64; 2]> = (0..64)
+            .map(|i| {
+                let t = i as f64 / 64.0 * std::f64::consts::TAU;
+                [t.cos() * 1.2, t.sin()]
+            })
+            .collect();
+        let o = crate::CustomOutline::from_points("probe", &pts).expect("a closed plan");
+        let path = save_outline_in(&dir, &o).unwrap();
+        let doc: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(doc[VERSION_KEY], u64::from(ASSET_FORMAT_VERSION));
+        assert_eq!(list_outlines_in(&dir).len(), 1);
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
