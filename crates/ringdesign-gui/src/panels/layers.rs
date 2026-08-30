@@ -61,7 +61,14 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
 fn add_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     ui.menu_button(format!("{} Add layer", icon::PLUS), |ui| {
-        if ui.button(format!("{} Tiling", icon::GRID_FOUR)).clicked() {
+        if ui
+            .button(format!("{} Tiling", icon::GRID_FOUR))
+            .on_hover_text(
+                "A repeating mask over the band. Lands on the wider side face, where \
+                 relief cannot undercut.",
+            )
+            .clicked()
+        {
             let ctx = app.design.field_context();
             let alpha = app
                 .lib
@@ -69,8 +76,29 @@ fn add_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .first()
                 .cloned()
                 .unwrap_or_else(|| "Rope".to_string());
-            let layer = Layer::Tiling(TilingLayer::default_for(alpha.clone(), &ctx));
-            app.add_layer(alpha, layer);
+            // Every other ornament in this menu lands itself on a side face —
+            // Curve retargets, Openwork fits — and Tiling did not, so the
+            // first thing a new user adds went onto the crest of the default
+            // half-round, where CLAUDE.md measures 0.30 mm of relief at 1.77%
+            // undercut. Same three lines the Openwork arm already uses.
+            let mut t = TilingLayer::default_for(alpha.clone(), &ctx);
+            let on_side =
+                t.fit_to_side_faces(&ctx, ringdesign_core::field::SIDE_FACE_MIN_DRAFT_DEG);
+            app.add_layer(alpha, Layer::Tiling(t));
+            if on_side {
+                if let Some(e) = app.design.layers.layers.last_mut() {
+                    e.window.v_gate = ringdesign_core::field::VGate::SideFaces(
+                        ringdesign_core::field::SideFacePick::Wider,
+                    );
+                }
+                app.mark_dirty();
+            } else {
+                app.set_status(
+                    "This profile has no side face to put a pattern on — its crown eats the \
+                     whole thickness. Square the sides on the Design tab, or keep the relief \
+                     under 0.15 mm.",
+                );
+            }
             ui.close();
         }
         if ui.button(format!("{} Border", icon::LINE_SEGMENTS)).clicked() {
@@ -288,6 +316,7 @@ fn openwork(
     o: &mut ringdesign_core::field::OpenworkLayer,
     fctx: &FieldContext,
     names: &[String],
+    square_sides: &mut bool,
 ) -> bool {
     let mut c = false;
     ui.label(
@@ -338,7 +367,7 @@ fn openwork(
         c
     });
     let mut no_bake = None;
-    c |= tiling(ui, &mut o.tiling, fctx, names, None, &mut no_bake);
+    c |= tiling(ui, &mut o.tiling, fctx, names, None, &mut no_bake, square_sides);
     c
 }
 
@@ -508,6 +537,7 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
     let mut shape_head = false;
     let mut group_edit: Option<GroupEdit> = None;
     let mut bake_draft: Option<f64> = None;
+    let mut square_sides = false;
     let entry = &mut app.design.layers.layers[i];
     let mut dirty = ui
         .scope(|ui| {
@@ -681,17 +711,21 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
 
             ui.add_space(4.0);
             dirty |= match &mut entry.layer {
-                Layer::Tiling(t) => tiling(ui, t, &fctx, &names, thumb, &mut bake_draft),
+                Layer::Tiling(t) => {
+                    tiling(ui, t, &fctx, &names, thumb, &mut bake_draft, &mut square_sides)
+                }
                 Layer::Border(b) => border(ui, b, &fctx),
                 Layer::SeatPad(p) => seat_pad(ui, p, &fctx),
                 Layer::Milgrain(m) => milgrain(ui, m, &fctx),
                 Layer::Signet(s) => signet(ui, s, &fctx, &mut shape_head),
-                Layer::Group(g) => group(ui, g, &fctx, &names, &mut group_edit),
+                Layer::Group(g) => {
+                    group(ui, g, &fctx, &names, &mut group_edit, &mut square_sides)
+                }
                 Layer::Curve(l) => curve_editor(ui, l, &fctx),
                 Layer::Flutes(f) => flutes(ui, f),
                 Layer::Decals(d) => decals(ui, d, &fctx, &names),
                 Layer::SeatRun(r) => seat_run(ui, r, &fctx),
-                Layer::Openwork(o) => openwork(ui, o, &fctx, &names),
+                Layer::Openwork(o) => openwork(ui, o, &fctx, &names, &mut square_sides),
             };
             dirty
         })
@@ -704,6 +738,16 @@ fn editor(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
         // The crisp-edge mode reads the alpha's distance field; keep it
         // derived the moment the control moves.
         app.library_mut().insert(src.signed_distance_px());
+    }
+    // The tiling editor names the remedy for "no side face" and now offers it
+    // where it is named. Only the caller can reach the profile.
+    if square_sides {
+        app.design.profile.flatten_sides();
+        app.set_status(
+            "Squared the band's sides — side draft to zero, edge fillet shrunk. Width and \
+             thickness are unchanged.",
+        );
+        app.mark_dirty();
     }
     if let Some(deg) = bake_draft {
         let baked = match &app.design.layers.layers[i].layer {
@@ -775,6 +819,9 @@ fn tiling(
     names: &[String],
     thumb: Option<egui::TextureId>,
     bake_draft: &mut Option<f64>,
+    // Set when the user asks to square the band's sides: `tiling` cannot reach
+    // the profile and its caller can, the same shape as `bake_draft`.
+    square_sides: &mut bool,
 ) -> bool {
     let mut c = false;
     let v_max = fctx.band_v_len_mm.max(0.5);
@@ -801,7 +848,11 @@ fn tiling(
     });
 
     ui.add_space(3.0);
-    c |= side_face_fit(ui, t, fctx);
+    let (fit_changed, square_sides_clicked) = side_face_fit(ui, t, fctx);
+    c |= fit_changed;
+    if square_sides_clicked {
+        *square_sides = true;
+    }
 
     ui.add_space(3.0);
     c |= grid(ui, "tiling_lattice", |ui| {
@@ -1512,6 +1563,7 @@ fn group(
     fctx: &FieldContext,
     names: &[String],
     pending: &mut Option<GroupEdit>,
+    group_square_sides: &mut bool,
 ) -> bool {
     use ringdesign_core::pave::{GenRecipe, PinnedSeat};
     let mut c = false;
@@ -1645,7 +1697,7 @@ fn group(
                     .add_enabled_ui(editable, |ui| match &mut ce.layer {
                     Layer::Tiling(t) => {
                         let mut no_bake = None;
-                        tiling(ui, t, fctx, names, None, &mut no_bake)
+                        tiling(ui, t, fctx, names, None, &mut no_bake, group_square_sides)
                     }
                     Layer::Border(b) => border(ui, b, fctx),
                     Layer::SeatPad(p) => seat_pad(ui, p, fctx),
@@ -1655,7 +1707,7 @@ fn group(
                     Layer::Flutes(f) => flutes(ui, f),
                     Layer::Decals(d) => decals(ui, d, fctx, names),
                     Layer::SeatRun(r) => seat_run(ui, r, fctx),
-                    Layer::Openwork(o) => openwork(ui, o, fctx, names),
+                    Layer::Openwork(o) => openwork(ui, o, fctx, names, group_square_sides),
                     Layer::Group(_) => {
                         ui.label(
                             egui::RichText::new("Nested groups edit one level at a time.")
@@ -1894,8 +1946,16 @@ fn v_gate_controls(ui: &mut egui::Ui, w: &mut Window, fctx: &FieldContext) -> bo
 
 /// Snap the tiling onto the faces square to the mould pull, which are the only
 /// ones that hold relief deeper than a few tenths.
-fn side_face_fit(ui: &mut egui::Ui, t: &mut TilingLayer, fctx: &FieldContext) -> bool {
+/// Returns `(changed, square_the_sides)` — the second is the user asking for
+/// `BandProfile::flatten_sides`, which this function cannot reach and its
+/// caller can.
+fn side_face_fit(
+    ui: &mut egui::Ui,
+    t: &mut TilingLayer,
+    fctx: &FieldContext,
+) -> (bool, bool) {
     let mut c = false;
+    let mut square = false;
     let faces = fctx.side_faces(SIDE_FACE_MIN_DRAFT_DEG);
     ui.horizontal(|ui| {
         let enabled = faces.is_some();
@@ -1909,12 +1969,26 @@ fn side_face_fit(ui: &mut egui::Ui, t: &mut TilingLayer, fctx: &FieldContext) ->
                  Relief there pulls straight out of the sand.",
             )
             .on_disabled_hover_text(
-                "This profile has no face square to the mould pull. Square the sides on the \
-                 Design tab, or add an edge flange.",
+                "This profile has no face square to the mould pull. Square the sides — the \
+                 button beside this one — or add an edge flange.",
             )
             .clicked()
         {
             c |= t.fit_to_side_faces(fctx, SIDE_FACE_MIN_DRAFT_DEG);
+        }
+        // The disabled hover used to send the user to the Design tab to do
+        // this by hand. The fix belongs where the problem is named.
+        if !enabled
+            && ui
+                .button(format!("{} Square the sides", icon::SQUARE_HALF))
+                .on_hover_text(
+                    "Drop the side draft to zero and shrink the edge fillet, which is what \
+                     turns a nearly-square face into a square one. The band keeps its width \
+                     and thickness.",
+                )
+                .clicked()
+        {
+            square = true;
         }
         if ui
             .button(format!("{} Square cells", icon::SQUARE))
@@ -1953,7 +2027,7 @@ fn side_face_fit(ui: &mut egui::Ui, t: &mut TilingLayer, fctx: &FieldContext) ->
         ),
     };
     ui.label(egui::RichText::new(msg).small().color(colour));
-    c
+    (c, square)
 }
 
 fn border(ui: &mut egui::Ui, b: &mut BorderLayer, fctx: &FieldContext) -> bool {

@@ -1233,6 +1233,21 @@ pub fn analyze_field(
             frac(vertical_outer_area) * 100.0
         ));
     }
+    // The builder floors the radial wall at `BuildParams::min_wall_mm` — a
+    // constant, 0.5 by default — while the verdict judges the same geometry
+    // against `min_section_mm`, which is 0.7 by default and 0.8 under Delft
+    // clay. Nothing connects the two, so the builder can manufacture a wall
+    // the chosen sand cannot fill and the verdict only catches it after the
+    // fact. Deriving one from the other would silently move metal the moment
+    // a user switched sand, so the clamp stays where it is and says when it
+    // was what produced the thinnest wall.
+    let clamp = design.build.min_wall_mm.max(0.05);
+    if thinnest > 0.0 && (thinnest - clamp).abs() < 1e-3 && clamp < settings.min_section_mm {
+        notes.push(format!(
+            "The wall at {thinnest_at:.0} deg is sitting on the build's {clamp:.2} mm floor, under the {:.2} mm this sand fills — that metal was clamped, not designed. Raise the clamp or cut the relief that drove it there.",
+            settings.min_section_mm
+        ));
+    }
     let min_section = settings.min_section_mm.max(0.0);
     if thinnest > 0.0 && thinnest < min_section {
         if verdict == Verdict::Castable {
