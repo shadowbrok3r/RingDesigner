@@ -1004,7 +1004,16 @@ fn quality_label(params: &BuildParams) -> String {
 fn status_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     ui.add_space(2.0);
     ui.horizontal(|ui| {
-        let (glyph, color) = match app.cast.as_ref().map(|c| c.verdict) {
+        // The field-sampled verdict, not the mesh analyzer's. A refined build
+        // reports a phantom on the crest line that does not fall with the
+        // tolerance, so the chip used to disagree with the banner six inches
+        // above it on exactly the designs that most need a clear answer.
+        let verdict = app
+            .field
+            .as_ref()
+            .map(|f| f.verdict)
+            .or_else(|| app.cast.as_ref().map(|c| c.verdict));
+        let (glyph, color) = match verdict {
             Some(v) => (
                 match v {
                     ringdesign_core::castability::Verdict::Castable => icon::CHECK_CIRCLE,
@@ -1014,11 +1023,12 @@ fn status_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             ),
             None => (icon::CIRCLE_DASHED, theme::TEXT_DIM),
         };
-        if let Some(c) = app.cast.as_ref() {
-            ui.label(egui::RichText::new(format!("{glyph} {}", c.verdict.label())).color(color));
-        } else {
-            ui.label(egui::RichText::new(format!("{glyph} —")).color(color));
-        }
+        match verdict {
+            Some(v) => {
+                ui.label(egui::RichText::new(format!("{glyph} {}", v.label())).color(color))
+            }
+            None => ui.label(egui::RichText::new(format!("{glyph} —")).color(color)),
+        };
 
         ui.separator();
         ui.label(egui::RichText::new(&app.status).color(theme::TEXT_DIM));

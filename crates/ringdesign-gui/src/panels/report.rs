@@ -146,8 +146,9 @@ fn castability(
 
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new("Parting plane").color(theme::TEXT_DIM));
+        let parting = field.map_or(cast.parting_z_mm, |f| f.parting_z_mm);
         ui.add(
-            egui::Label::new(egui::RichText::new(format!("{:+.2} mm", cast.parting_z_mm)).strong())
+            egui::Label::new(egui::RichText::new(format!("{parting:+.2} mm")).strong())
                 .selectable(true),
         );
         let tag = if draft.auto_parting {
@@ -162,8 +163,101 @@ fn castability(
         "Height of the split between cope and drag; the mould pulls +Z above it and -Z below it.",
     );
 
-    let areas = class_areas(cast);
     ui.add_space(4.0);
+    // The verdict's own numbers. `cast` is the mesh face analyzer, kept for
+    // painting the viewport: on a signet every swept build reports 0.000%
+    // while refined builds report 0.10-0.18% at up to -15 deg, and it does not
+    // fall with the tolerance. Quoting it here put a figure under the field
+    // banner that the banner disagreed with.
+    if let Some(f) = field {
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Worst draft").color(theme::TEXT_DIM));
+            ui.add(
+                egui::Label::new(
+                    egui::RichText::new(format!("{:+.1}°", f.worst_draft_deg))
+                        .strong()
+                        .color(draft_color(f.worst_draft_deg, draft.min_draft_deg)),
+                )
+                .selectable(true),
+            );
+            ui.label(
+                egui::RichText::new(format!(
+                    "min {:.1}° • {:.3}% undercuts",
+                    draft.min_draft_deg,
+                    f.undercut_fraction() * 100.0
+                ))
+                .small()
+                .color(theme::TEXT_DIM),
+            );
+        })
+        .response
+        .on_hover_text(
+            "Read off the surface itself on a (theta, s) grid, not off any one tessellation of it \
+             — so no build kind or resolution can put a phantom in it.",
+        );
+        ui.add_space(4.0);
+    }
+
+    if let Some(f) = field {
+        for n in f
+            .notes
+            .iter()
+            .filter(|n| !n.starts_with("Field-sampled: the surface itself"))
+        {
+            ui.horizontal_top(|ui| {
+                ui.label(egui::RichText::new("•").color(theme::ACCENT));
+                ui.add(egui::Label::new(egui::RichText::new(n)).wrap());
+            });
+        }
+    }
+    for f in dfm {
+        ui.horizontal_top(|ui| {
+            ui.label(egui::RichText::new(icon::WARNING).color(theme::WARN));
+            ui.add(
+                egui::Label::new(
+                    egui::RichText::new(format!("{}: {}", f.label, f.message))
+                        .small()
+                        .color(theme::WARN),
+                )
+                .wrap(),
+            );
+        });
+    }
+
+    ui.add_space(6.0);
+    let census_open = field.is_none();
+    egui::CollapsingHeader::new(format!("{} Face census — this build's mesh", icon::TRIANGLE))
+        .default_open(census_open)
+        .show(ui, |ui| face_census(ui, cast, draft, field.is_some()));
+
+    clicked_draft_button(ui, already_draft)
+}
+
+/// The mesh face analyzer's own numbers, boxed off from the verdict.
+///
+/// It is what paints the Draft view, so it earns a place; it is not what
+/// decides anything, so it does not get the headline. Both facts are said on
+/// screen rather than left to be inferred.
+fn face_census(
+    ui: &mut egui::Ui,
+    cast: &CastReport,
+    draft: &DraftSettings,
+    field_present: bool,
+) {
+    if field_present {
+        ui.label(
+            egui::RichText::new(
+                "Face normals of the mesh that is drawn, and the source of the draft colours. \
+                 An irregular mesh reports a small phantom along the crest line that does not \
+                 fall with the tolerance, so the verdict above is sampled from the surface \
+                 instead.",
+            )
+            .small()
+            .color(theme::TEXT_DIM),
+        );
+        ui.add_space(4.0);
+    }
+    let areas = class_areas(cast);
     class_bar(ui, cast, &areas);
     ui.add_space(3.0);
 
@@ -210,7 +304,7 @@ fn castability(
 
     ui.add_space(5.0);
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new("Worst draft").color(theme::TEXT_DIM));
+        ui.label(egui::RichText::new("Worst face").color(theme::TEXT_DIM));
         ui.add(
             egui::Label::new(
                 egui::RichText::new(format!("{:+.1}°", cast.worst_draft_deg))
@@ -226,37 +320,13 @@ fn castability(
         );
     })
     .response
-    .on_hover_text("Most negative draft on the mesh. Below zero the face leans back under itself and locks in the sand.");
+    .on_hover_text("Most negative draft on this tessellation. Below zero the face leans back under itself.");
 
     notes(ui, &cast.notes);
-    if let Some(f) = field {
-        // The field's own findings: the noise-band line and any located,
-        // blamed undercut arcs.
-        for n in f
-            .notes
-            .iter()
-            .filter(|n| !n.starts_with("Field-sampled: the surface itself"))
-        {
-            ui.horizontal_top(|ui| {
-                ui.label(egui::RichText::new("•").color(theme::ACCENT));
-                ui.add(egui::Label::new(egui::RichText::new(n)).wrap());
-            });
-        }
-    }
-    for f in dfm {
-        ui.horizontal_top(|ui| {
-            ui.label(egui::RichText::new(icon::WARNING).color(theme::WARN));
-            ui.add(
-                egui::Label::new(
-                    egui::RichText::new(format!("{}: {}", f.label, f.message))
-                        .small()
-                        .color(theme::WARN),
-                )
-                .wrap(),
-            );
-        });
-    }
+}
 
+/// The button that turns the draft colours on, and whether it was pressed.
+fn clicked_draft_button(ui: &mut egui::Ui, already_draft: bool) -> bool {
     ui.add_space(6.0);
     let button = egui::Button::new(format!("{} Show draft colours", icon::PALETTE));
     let clicked = ui

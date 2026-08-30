@@ -1890,17 +1890,47 @@ mod tests {
         assert_eq!(rep.undercut_fraction(), 0.0);
         assert_eq!(rep.verdict, Verdict::Castable, "{:?}", rep.notes);
         assert!((2..=6).contains(&rep.notes.len()), "{:?}", rep.notes);
+        // The verdict is the field's. A guarantee pinned only by the retired
+        // face analyzer is pinned by the measure the doctrine says not to
+        // judge from.
+        let lib = crate::alpha::AlphaLibrary::builtin();
+        let f = analyze_field(&d, &lib, &d.draft, 192, 96);
+        assert_eq!(f.verdict, Verdict::Castable, "{:?}", f.notes);
+        assert_eq!(f.undercut_area_mm2, 0.0, "{:?}", f.notes);
     }
 
+    /// The superellipse drop is monotone from a single crest for any `a, b > 0`,
+    /// so no base profile can undercut a ±Z pull. That is a construction
+    /// guarantee, and it is checked here on the surface itself as well as on
+    /// one tessellation of it.
     #[test]
     fn every_profile_style_is_free_of_undercuts() {
+        let lib = crate::alpha::AlphaLibrary::builtin();
         for &style in crate::profile::ProfileStyle::ALL {
             let mut d = RingDesign::default();
             d.profile.apply_style(style);
             let out = built(&d);
             let rep = analyze(&out.mesh, &d.draft, d.inner_radius_mm());
             assert_eq!(rep.undercut, 0, "{:?} undercuts: {:?}", style, rep.notes);
+            let f = analyze_field(&d, &lib, &d.draft, 192, 96);
+            assert_eq!(
+                f.undercut_area_mm2, 0.0,
+                "{:?} undercuts the field too: {:?}",
+                style, f.notes
+            );
         }
+    }
+
+    /// The other half of the same claim: the field must *find* a real
+    /// undercut, or its silence on every profile above means nothing.
+    #[test]
+    fn the_field_refuses_a_straight_walled_boss() {
+        let d = undercutting_design();
+        let lib = crate::alpha::AlphaLibrary::builtin();
+        let f = analyze_field(&d, &lib, &d.draft, 256, 128);
+        assert!(f.undercut_area_mm2 > 0.0, "the field missed it: {:?}", f.notes);
+        assert!(f.worst_draft_deg < -10.0, "worst draft {}", f.worst_draft_deg);
+        assert_ne!(f.verdict, Verdict::Castable, "{:?}", f.notes);
     }
 
     #[test]
