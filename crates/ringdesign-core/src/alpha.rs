@@ -2519,7 +2519,9 @@ mod tests {
             );
         }
 
-        let dir = std::path::Path::new(env!("HOME")).join(".local/share/ringdesigner/alphas");
+        // `library::alpha_dir()` at run time, not `env!("HOME")` at compile
+        // time — that baked one developer's home directory into the binary.
+        let dirs = crate::library::alpha_dirs();
         let picks = [
             "ornament-a-01.png",
             "ornament-a-02.png",
@@ -2528,11 +2530,10 @@ mod tests {
             "crack-01.png",
             "crack-07.png",
         ];
-        println!("== imported alphas from {} ==", dir.display());
+        println!("== imported alphas from {dirs:?} ==");
         let mut real = 0;
         for name in picks {
-            let path = dir.join(name);
-            let Ok(a) = Alpha::load(&path) else {
+            let Some(a) = dirs.iter().find_map(|d| Alpha::load(d.join(name)).ok()) else {
                 println!("{name:28} MISSING");
                 continue;
             };
@@ -2557,7 +2558,15 @@ mod tests {
         }
         println!("real alphas measured: {real}");
         println!("WORST seam_error after mirror_tile(Both): {worst_after:.3e}");
-        assert!(real >= 3, "fewer than three real alphas were measured");
+        // The imported half of this probe reads the *user's* alpha directory,
+        // which exists on the machine that harvested those files and nowhere
+        // else. Asserting on it made the suite pass or fail on what happened
+        // to be in one person's home directory — which is exactly what CI
+        // found the first time it ran. Measure them when they are there, say
+        // so when they are not, and gate only on what is reproducible.
+        if real == 0 {
+            println!("no imported alphas on this machine — builtins only");
+        }
         assert!(worst_after < 1e-9, "mirror_tile left a seam: {worst_after}");
     }
 
