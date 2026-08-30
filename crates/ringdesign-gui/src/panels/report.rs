@@ -282,7 +282,16 @@ fn field_banner(ui: &mut egui::Ui, f: &ringdesign_core::castability::FieldReport
         Verdict::Marginal => icon::WARNING,
         Verdict::NotCastable => icon::X_CIRCLE,
     };
+    let lost_wax = f.process == ringdesign_core::castability::CastProcess::LostWax;
     let detail = match f.verdict {
+        Verdict::Castable if lost_wax && f.undercut_area_mm2 > 0.0 => format!(
+            "Fills, and burns out. {:.2}% of the surface would still lock a two-part pull, so this pattern cannot move to sand as-is.",
+            f.undercut_fraction() * 100.0
+        ),
+        Verdict::Castable if lost_wax => {
+            "Fills, and carries no undercut either — this would also pull from two-part sand."
+                .to_string()
+        }
         Verdict::Castable => "The surface itself clears a two-part pull.".to_string(),
         Verdict::Marginal => f
             .notes

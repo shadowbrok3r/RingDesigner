@@ -49,8 +49,13 @@ pub struct DraftSettings {
     /// Thinnest section that will reliably fill, mm.
     pub min_section_mm: f64,
     /// Smallest surface feature the sand reliably reproduces, mm. Beads,
-    /// cells and wires under this cast as mush; the per-layer DFM checks
-    /// read it.
+    /// cells and wires under this cast as mush.
+    ///
+    /// **Read by [`crate::dfm`], never by the verdict.** A feature under this
+    /// floor casts soft; it does not stop the mould opening or the metal
+    /// filling, so it is a finding on the layer that carries it and not a
+    /// term in [`analyze_field`]. Anything that tells a user detail *gates*
+    /// is wrong.
     #[serde(default = "default_min_detail")]
     pub min_detail_mm: f64,
     /// Which casting process the verdict judges against. Two-part sand is
@@ -58,6 +63,15 @@ pub struct DraftSettings {
     /// undercuts become information, and only fill and detail still gate.
     #[serde(default)]
     pub process: CastProcess,
+    /// The sand this design is judged for, once one has been named.
+    ///
+    /// `None` is the app's own floors rather than a shop's measured sand, and
+    /// is what a design saved before this field carried. It exists because
+    /// [`CastProcess::apply`] has to have something to restore: the floors
+    /// are overwritten on the way into lost wax, and without a record of what
+    /// they were, coming back leaves an investment verdict on a sand pour.
+    #[serde(default)]
+    pub sand: Option<SandProcess>,
 }
 
 /// The casting process a design is judged for.
@@ -84,14 +98,31 @@ impl CastProcess {
         }
     }
 
-    /// Write the process's fill and detail floors into the settings.
+    /// Write the process's draft, fill and detail floors into the settings.
+    ///
     /// Investment holds far finer detail than any sand and fills a thinner
-    /// section; the sand numbers come from [`SandProcess::apply`].
+    /// section. Going the other way restores the sand's own numbers — the
+    /// named sand in [`DraftSettings::sand`], or this type's defaults when no
+    /// sand has been named — so the round trip is the identity. It was not,
+    /// once: the investment floors were written on the way in and nothing on
+    /// the way back, so a design returned to sand kept a 0.5 mm fill floor
+    /// and a 0.15 mm detail floor and still read Castable.
     pub fn apply(self, d: &mut DraftSettings) {
         d.process = self;
-        if self == CastProcess::LostWax {
-            d.min_section_mm = 0.5;
-            d.min_detail_mm = 0.15;
+        match self {
+            CastProcess::LostWax => {
+                d.min_section_mm = 0.5;
+                d.min_detail_mm = 0.15;
+            }
+            CastProcess::SandTwoPart => match d.sand {
+                Some(sand) => sand.apply(d),
+                None => {
+                    let def = DraftSettings::default();
+                    d.min_draft_deg = def.min_draft_deg;
+                    d.min_section_mm = def.min_section_mm;
+                    d.min_detail_mm = def.min_detail_mm;
+                }
+            },
         }
     }
 }
@@ -109,12 +140,13 @@ impl Default for DraftSettings {
             min_section_mm: 0.7,
             min_detail_mm: default_min_detail(),
             process: CastProcess::default(),
+            sand: None,
         }
     }
 }
 
 /// The two sands this shop pours, as parameter presets.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SandProcess {
     /// Fine Belgian clay-bonded sand: excellent detail, wants a touch more
     /// draft and section than oil sand.
@@ -135,7 +167,7 @@ impl SandProcess {
     }
 
     /// Write this sand's numbers into the settings, leaving the parting
-    /// plane fields alone.
+    /// plane fields alone, and record which sand they came from.
     pub fn apply(self, d: &mut DraftSettings) {
         let (draft, section, detail) = match self {
             SandProcess::DelftClay => (3.0, 0.8, 0.30),
@@ -144,6 +176,7 @@ impl SandProcess {
         d.min_draft_deg = draft;
         d.min_section_mm = section;
         d.min_detail_mm = detail;
+        d.sand = Some(self);
     }
 }
 
@@ -516,6 +549,15 @@ pub fn analyze(mesh: &Mesh, settings: &DraftSettings, bore_radius_mm: f64) -> Ca
     };
 
     let mut notes = Vec::new();
+    // This is the face analyzer, kept for painting the viewport. It measures a
+    // ±Z pull whatever the process is, because that is the only question a
+    // face normal can answer — so under lost wax it has to say what it is
+    // reporting rather than assert a mould that is not being made.
+    if settings.process == CastProcess::LostWax {
+        notes.push(
+            "Lost wax: the numbers below measure a two-part sand pull, which is not the process this design is judged for. They say whether it *could* move to sand, nothing more.".into(),
+        );
+    }
     notes.push(format!(
         "Parting plane at z = {parting_z:+.2} mm{}: the cope pulls +Z off everything above it, the drag -Z off everything below.",
         if settings.auto_parting { ", chosen automatically" } else { "" }
@@ -976,6 +1018,11 @@ fn bore_span_wall(points: &[SectionPoint]) -> f64 {
 #[derive(Clone, Debug, Serialize)]
 pub struct FieldReport {
     pub verdict: Verdict,
+    /// The process this verdict was reached under. Carried because the
+    /// pull statistics mean different things either side of it: under lost
+    /// wax they are measured and reported and never gate, so a `Castable`
+    /// field report does *not* mean the surface clears a two-part pull.
+    pub process: CastProcess,
     /// Most negative draft found outside the bore, degrees.
     pub worst_draft_deg: f64,
     pub undercut_area_mm2: f64,
@@ -1029,6 +1076,7 @@ pub fn analyze_field(
     let t_n = theta_steps.clamp(24, 2048);
     let empty = FieldReport {
         verdict: Verdict::Castable,
+        process: settings.process,
         worst_draft_deg: 0.0,
         undercut_area_mm2: 0.0,
         marginal_area_mm2: 0.0,
@@ -1180,6 +1228,14 @@ pub fn analyze_field(
     } else {
         notes.push("Field-sampled: the surface itself carries no undercut at this parting.".into());
     }
+    if !lost_wax && drag_frac > DRAG_FRACTION {
+        notes.push(format!(
+            "{:.1}% of the surface carries less than {min_draft:.1} deg of draft or stands parallel to the pull ({:.1}% marginal, {:.1}% vertical). It releases, but it drags on the sand and will want a longer rap. Raise the crown or square the sides to steepen it.",
+            drag_frac * 100.0,
+            frac(marginal_area) * 100.0,
+            frac(vertical_outer_area) * 100.0
+        ));
+    }
     let min_section = settings.min_section_mm.max(0.0);
     if thinnest > 0.0 && thinnest < min_section {
         if verdict == Verdict::Castable {
@@ -1193,6 +1249,7 @@ pub fn analyze_field(
 
     FieldReport {
         verdict,
+        process: settings.process,
         worst_draft_deg,
         undercut_area_mm2: undercut_area,
         marginal_area_mm2: marginal_area,
@@ -1438,6 +1495,110 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+
+
+    /// The floors are overwritten on the way into lost wax, so leaving it has
+    /// to put them back or a sand pour is judged against investment numbers
+    /// and reads Castable while it short-pours. Both directions, both with a
+    /// named sand and without one.
+    #[test]
+    fn the_process_round_trip_is_the_identity() {
+        let mut d = DraftSettings::default();
+        let before = (d.min_draft_deg, d.min_section_mm, d.min_detail_mm);
+        CastProcess::LostWax.apply(&mut d);
+        assert_eq!((d.min_section_mm, d.min_detail_mm), (0.5, 0.15), "investment floors");
+        assert_eq!(d.process, CastProcess::LostWax);
+        CastProcess::SandTwoPart.apply(&mut d);
+        assert_eq!(
+            (d.min_draft_deg, d.min_section_mm, d.min_detail_mm),
+            before,
+            "an unnamed sand comes back to the app's own floors"
+        );
+        assert_eq!(d.process, CastProcess::SandTwoPart);
+
+        // With a sand named, it is that sand's numbers that come back — not
+        // the defaults, which are a different pair (0.7 / 0.35 against 0.6 / 0.40).
+        let mut d = DraftSettings::default();
+        SandProcess::Petrobond.apply(&mut d);
+        assert_eq!(d.sand, Some(SandProcess::Petrobond));
+        let sand = (d.min_draft_deg, d.min_section_mm, d.min_detail_mm);
+        assert_ne!(sand, before, "Petrobond is not the default");
+        CastProcess::LostWax.apply(&mut d);
+        CastProcess::SandTwoPart.apply(&mut d);
+        assert_eq!((d.min_draft_deg, d.min_section_mm, d.min_detail_mm), sand);
+        assert_eq!(d.sand, Some(SandProcess::Petrobond), "the sand survives the trip");
+    }
+
+    /// A design file written before `sand` existed must still load, and must
+    /// load as "no sand named" rather than as some default sand whose floors
+    /// are not the ones it was saved with.
+    #[test]
+    fn draft_settings_without_a_sand_still_load() {
+        let json = r#"{"parting_z_mm":0.0,"min_draft_deg":3.0,"auto_parting":true,
+                       "min_section_mm":0.7}"#;
+        let d: DraftSettings = serde_json::from_str(json).expect("an older file loads");
+        assert_eq!(d.sand, None);
+        assert_eq!(d.process, CastProcess::SandTwoPart);
+        assert_eq!(d.min_detail_mm, default_min_detail());
+        let round: DraftSettings =
+            serde_json::from_str(&serde_json::to_string(&d).unwrap()).unwrap();
+        assert_eq!(round.sand, None);
+    }
+
+    /// Under lost wax the verdict is Castable whatever the pull says, so the
+    /// report has to carry the process — otherwise every consumer renders
+    /// "clears a two-part pull" over a ring that does not.
+    #[test]
+    fn a_lost_wax_report_says_which_process_it_judged() {
+        use crate::alpha::AlphaLibrary;
+        let lib = AlphaLibrary::builtin();
+        let mut d = crate::RingDesign::default();
+        CastProcess::LostWax.apply(&mut d.draft);
+        let f = analyze_field(&d, &lib, &d.draft, 96, 48);
+        assert_eq!(f.process, CastProcess::LostWax);
+        assert!(
+            f.notes.iter().any(|n| n.starts_with("Lost wax:")),
+            "the notes name the process: {:?}",
+            f.notes
+        );
+        // And a sand judgement of the same ring carries the other one.
+        let mut sand = crate::RingDesign::default();
+        CastProcess::SandTwoPart.apply(&mut sand.draft);
+        assert_eq!(analyze_field(&sand, &lib, &sand.draft, 96, 48).process, CastProcess::SandTwoPart);
+    }
+
+    /// Drag alone can drop the verdict to Marginal. It used to do so in
+    /// silence, directly under a note saying the surface carries no undercut,
+    /// which reads as a bug in the app rather than a property of the ring.
+    #[test]
+    fn drag_explains_itself() {
+        use crate::alpha::AlphaLibrary;
+        let lib = AlphaLibrary::builtin();
+        // A squared band is nearly all wall parallel to the pull: it releases,
+        // and it drags.
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 6.0;
+        d.profile.thickness_mm = 2.0;
+        d.profile.flatten_sides();
+        let f = analyze_field(&d, &lib, &d.draft, 192, 96);
+        let dragging = (f.marginal_area_mm2 + f.vertical_area_mm2) / f.total_area_mm2.max(1e-9);
+        if dragging > DRAG_FRACTION {
+            assert!(
+                f.notes.iter().any(|n| n.contains("drags on the sand")),
+                "a dragging ring says so: {:?}",
+                f.notes
+            );
+        }
+        // Whatever this particular band measures, the note and the verdict
+        // must agree with each other.
+        if f.verdict == Verdict::Marginal {
+            assert!(
+                f.notes.len() > 1,
+                "Marginal is never reported with nothing but the clean-surface note"
+            );
+        }
+    }
 
     use super::*;
     use crate::field::{Layer, LayerEntry, SeatPadLayer};
