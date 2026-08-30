@@ -850,6 +850,10 @@ fn draw_legend(app: &RingDesignerApp, shade: ShadeMode, painter: &egui::Painter,
                     theme::TEXT,
                 ));
             }
+            // These are this build's faces, which is the right thing to paint
+            // and the wrong thing to judge from: an irregular mesh reports a
+            // phantom along the crest line that does not fall with resolution.
+            rows.push((None, "mesh faces — the verdict is field-sampled".into(), theme::TEXT_DIM));
         }
         (ShadeMode::Wall, _) => {
             let m = app.design.draft.min_section_mm;
