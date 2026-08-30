@@ -1222,12 +1222,14 @@ fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .on_hover_text(match p {
                     CastProcess::SandTwoPart => {
                         "Two-part sand: the verdict enforces the +/-Z pull — undercuts \
-                         and drag gate castability."
+                         and drag gate castability, and so does the fill floor. Detail \
+                         is measured per layer and reported, never gated."
                     }
                     CastProcess::LostWax => {
                         "Lost wax: the investment burns out of any surface, so the pull \
-                         statistics report but never gate. Fill and detail still do. \
-                         Generators switch to their free-form variants."
+                         statistics report but never gate. Only fill still gates — detail \
+                         is reported per layer either way. Generators switch to their \
+                         free-form variants. Switching back restores the sand's floors."
                     }
                 })
                 .clicked()
@@ -1244,8 +1246,11 @@ fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             ui.label(egui::RichText::new("Sand").color(crate::theme::TEXT_DIM));
             for p in ringdesign_core::castability::SandProcess::ALL {
                 if ui
-                    .button(p.label())
-                    .on_hover_text("Set min draft, section and detail to this sand's numbers.")
+                    .selectable_label(d.sand == Some(*p), p.label())
+                    .on_hover_text(
+                        "Set min draft, section and detail to this sand's numbers, and \
+                         record it on the design so leaving lost wax comes back to them.",
+                    )
                     .clicked()
                 {
                     p.apply(d);
@@ -1294,7 +1299,7 @@ fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .text("Min section"),
         )
         .changed();
-    hint(ui, "Thinnest section the metal will reliably fill.");
+    hint(ui, "Thinnest section the metal will reliably fill. This one gates the verdict.");
 
     changed |= ui
         .add(
@@ -1306,7 +1311,8 @@ fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         .changed();
     hint(
         ui,
-        "Smallest feature the sand reproduces; finer beads and cells cast as mush.",
+        "Smallest feature the sand reproduces; finer beads and cells cast as mush. \
+         Reported per layer as a DFM finding — it never gates the verdict.",
     );
 
     if changed {
