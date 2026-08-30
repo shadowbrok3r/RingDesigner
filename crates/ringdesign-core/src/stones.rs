@@ -109,6 +109,10 @@ pub struct StonesReport {
     /// The closest two stones in the design whether or not they are tight —
     /// the headline number, and the one a probe or a banner wants.
     pub closest: Option<StonePair>,
+    /// The fill floor these numbers were judged against, mm — the design's
+    /// own `min_section_mm`. Carried so the sheet and the setter's map quote
+    /// the same figure the census used, instead of each printing a constant.
+    pub fill_floor_mm: f64,
 }
 
 impl StonesReport {
@@ -116,10 +120,20 @@ impl StonesReport {
         self.seats.iter().any(|s| !s.warnings.is_empty()) || self.tight_pairs > 0
     }
 
+    /// Metal below which the sand will not fill at all, mm.
+    pub fn will_not_fill_mm(&self) -> f64 {
+        self.fill_floor_mm
+    }
+
+    /// Metal the pour fills but the bench should know about, mm.
+    pub fn tight_mm(&self) -> f64 {
+        self.fill_floor_mm * TIGHT_MULTIPLE
+    }
+
     /// The one line the sheet and the banner want.
     pub fn crowding_note(&self) -> Option<String> {
         let worst = self.crowding.first()?;
-        (worst.worst_mm() < CROWD_TIGHT_MM).then(|| {
+        (worst.worst_mm() < self.tight_mm()).then(|| {
             format!(
                 "{} tight pair{}: {} and {} leave {:.2} mm at the girdle, {:.2} mm at depth",
                 self.tight_pairs,
@@ -133,9 +147,16 @@ impl StonesReport {
     }
 }
 
-/// Metal between two stones the sand still fills, mm. Under this the report
-/// says so; under [`MIN_EDGE_MM`] it will not fill at all.
-pub const CROWD_TIGHT_MM: f64 = 0.3;
+/// How far above the fill floor a bridge is still worth remarking on.
+///
+/// The census used to judge stone-to-stone metal against a hardcoded 0.3 mm
+/// and the run bridge against [`MIN_EDGE_MM`], neither of which has anything
+/// to do with the sand the ring is cast in — Delft clay's own floor is 0.8 mm
+/// and Petrobond's 0.6. So a 0.35 mm bridge was reported as merely "tight"
+/// when the sand physically cannot fill it, which is the unsafe direction on
+/// a check whose own doctrine says it is *said in the `min_section_mm`
+/// voice*. Both thresholds now come off the design's floor.
+pub const TIGHT_MULTIPLE: f64 = 1.5;
 
 /// Every seat in the design, checked. `None` when the stack carries no seats.
 ///
@@ -160,7 +181,15 @@ pub fn report(design: &RingDesign, parting_z_mm: f64) -> Option<StonesReport> {
     let total_carats = seats.iter().map(|s| s.carats()).sum();
     let (crowding, tight_pairs, closest) =
         crowding(design, &ctx, inner_r, crest_r, &stations);
-    Some(StonesReport { seats, stone_count, total_carats, crowding, tight_pairs, closest })
+    Some(StonesReport {
+        seats,
+        stone_count,
+        total_carats,
+        crowding,
+        tight_pairs,
+        closest,
+        fill_floor_mm: design.draft.min_section_mm.max(0.0),
+    })
 }
 
 #[derive(Default)]
@@ -179,6 +208,7 @@ fn walk(
     prefix: &str,
     acc: &mut Acc,
 ) {
+    let fill_floor = design.draft.min_section_mm.max(0.0);
     for entry in &stack.layers {
         if !entry.enabled {
             continue;
@@ -232,14 +262,15 @@ fn walk(
                 }
                 let bridge = run.bridge_at(ctx);
                 check.bridge_mm = Some(bridge);
-                if bridge < MIN_EDGE_MM {
+                if bridge < fill_floor {
                     check.warnings.push(format!(
-                        "bridge {bridge:.2} mm between stones will not fill (min {MIN_EDGE_MM} mm)"
+                        "bridge {bridge:.2} mm between stones will not fill (this sand fills {fill_floor:.2} mm)"
                     ));
-                } else if bridge < 0.3 {
-                    check
-                        .warnings
-                        .push(format!("bridge {bridge:.2} mm is tight for sand — 0.3 mm is safer"));
+                } else if bridge < fill_floor * TIGHT_MULTIPLE {
+                    check.warnings.push(format!(
+                        "bridge {bridge:.2} mm is tight — {:.2} mm is safer in this sand",
+                        fill_floor * TIGHT_MULTIPLE
+                    ));
                 }
                 if check.count == 0 {
                     check.warnings.push("window keeps no stations — not on the ring".into());
@@ -345,6 +376,9 @@ fn crowding(
         .map(|st| frame_at(design, ctx, inner_r, crest_r, st))
         .collect();
 
+    // Both thresholds come off the sand the design is judged for, not off a
+    // constant: Delft fills 0.8 mm and Petrobond 0.6, and the default is 0.7.
+    let tight_floor = design.draft.min_section_mm.max(0.0) * TIGHT_MULTIPLE;
     let mut pairs: Vec<StonePair> = Vec::new();
     let mut tight = 0usize;
     let mut closest: Option<StonePair> = None;
@@ -357,7 +391,7 @@ fn crowding(
             // anything further apart than a stone is not a neighbour.
             let floor = dist - fa.reach - fb.reach;
             if floor > closest.as_ref().map_or(f64::MAX, |c| c.worst_mm())
-                && floor > CROWD_TIGHT_MM
+                && floor > tight_floor
             {
                 continue;
             }
@@ -378,7 +412,7 @@ fn crowding(
             if closest.as_ref().is_none_or(|c| pair.worst_mm() < c.worst_mm()) {
                 closest = Some(pair.clone());
             }
-            if pair.worst_mm() >= CROWD_TIGHT_MM {
+            if pair.worst_mm() >= tight_floor {
                 continue;
             }
             tight += 1;
@@ -704,6 +738,51 @@ fn base_at(
 
 #[cfg(test)]
 mod tests {
+    /// The census is a *fill* rule — a thin bridge does not lock the mould, it
+    /// comes out of the flask as two stones sharing a hole — so it has to move
+    /// with the sand. It used to be a hardcoded 0.3 mm, which is under every
+    /// sand this shop pours and so reported "tight" where the metal will not
+    /// go at all.
+    #[test]
+    fn the_census_moves_with_the_sand() {
+        use crate::castability::SandProcess;
+        use crate::field::{Layer, LayerEntry, SeatRunLayer};
+        use crate::gem::{Gem, GemCut};
+
+        let build = |sand: SandProcess| {
+            let mut d = crate::RingDesign::default();
+            d.profile.apply_style(crate::ProfileStyle::LowDome);
+            sand.apply(&mut d.draft);
+            let ctx = d.field_context();
+            let mut run = SeatRunLayer::default();
+            run.gem = Gem::calibrated(GemCut::Emerald, 2.5);
+            run.seat.v_mm = ctx.crest_v_mm;
+            run.count = 16;
+            run.seat.fit_stone(run.gem);
+            d.layers.layers.push(LayerEntry::new("Step row", Layer::SeatRun(run)));
+            super::report(&d, 0.0).unwrap()
+        };
+
+        let coarse = build(SandProcess::Petrobond);
+        let fine = build(SandProcess::DelftClay);
+        assert_eq!(coarse.fill_floor_mm, 0.6);
+        assert_eq!(fine.fill_floor_mm, 0.8);
+        // Identical geometry, different sand: the finer sand's higher fill
+        // floor has to make the same row read tighter, not the same.
+        assert!(
+            fine.tight_pairs >= coarse.tight_pairs,
+            "Delft ({} pairs at a {:.2} mm floor) cannot be more forgiving than \
+             Petrobond ({} at {:.2})",
+            fine.tight_pairs,
+            fine.fill_floor_mm,
+            coarse.tight_pairs,
+            coarse.fill_floor_mm
+        );
+        assert!(fine.tight_mm() > coarse.tight_mm());
+        // And the sheet's heading and the census must quote one number.
+        assert_eq!(fine.tight_mm(), fine.fill_floor_mm * super::TIGHT_MULTIPLE);
+    }
+
     use super::*;
     use crate::field::{Blend, SeatRunLayer, VGate, Window};
     use crate::gem::{Gem, GemCut};
@@ -871,8 +950,14 @@ mod tests {
         d.layers.layers.push(LayerEntry::new("Step row", Layer::SeatRun(run)));
         let r = report(&d, 0.0).unwrap();
         let hit = r.crowding.first().expect("the row is tight at depth");
-        assert!(hit.gap_mm > CROWD_TIGHT_MM, "clears at the girdle: {:.3}", hit.gap_mm);
-        assert!(hit.gap_deep_mm < CROWD_TIGHT_MM, "and not at depth: {:.3}", hit.gap_deep_mm);
+        // The subject here is the arc loss, not the threshold: the ring's own
+        // curvature closes the gap between the girdle and the culet, and the
+        // culet is the one that decides. Measured on this row, 0.51 mm at the
+        // girdle against 0.26 at depth — and against a real sand floor of
+        // 0.70 mm *both* are tight, which is the whole point of judging them
+        // against the process instead of against 0.3.
+        assert!(hit.gap_mm > hit.gap_deep_mm, "the arc closes: {:.3} -> {:.3}", hit.gap_mm, hit.gap_deep_mm);
+        assert!(hit.gap_deep_mm < r.will_not_fill_mm(), "at depth: {:.3}", hit.gap_deep_mm);
         let pitch = ctx.circumference_mm / 16.0;
         let loss = pitch * run.gem.pavilion_mm() / ctx.crest_radius_mm;
         assert!(
@@ -1034,10 +1119,15 @@ mod tests {
         let per = Gem::calibrated(GemCut::Round, 2.0).carats();
         assert!((r.total_carats - per * s.count as f64).abs() < 1e-9);
         assert!(s.bridge_mm.unwrap() > 0.0);
-        // A gypsy run over the crest of a plain band sits fine.
+        // The one warning it does carry is the truth this check was blind to
+        // while the threshold was a hardcoded 0.3 mm: `SeatRunLayer::default()`
+        // asks for a 0.4 mm bridge, and no sand this shop pours fills that —
+        // Delft is 0.8, Petrobond 0.6, the default 0.7. The default row is
+        // asking for metal the process cannot give it.
+        assert_eq!(s.warnings.len(), 1, "{:?}", s.warnings);
         assert!(
-            s.warnings.is_empty(),
-            "unexpected warnings: {:?}",
+            s.warnings[0].contains("will not fill"),
+            "the default bridge is under the sand's floor: {:?}",
             s.warnings
         );
     }

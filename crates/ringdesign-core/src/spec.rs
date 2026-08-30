@@ -9,7 +9,6 @@
 use crate::castability::{FieldReport, Verdict};
 use crate::dfm::DfmFinding;
 use crate::mesh::Report;
-use crate::profile::MIN_EDGE_MM;
 use crate::stones::{SeatFooting, StonesReport};
 use crate::RingDesign;
 
@@ -173,10 +172,10 @@ pub fn html(
                 "<h3>Spacing</h3><div>{} pair{} under {:.2} mm.</div>                 <table><tr><th>Pair</th><th>At</th><th>At the girdle</th><th>At the culet</th></tr>",
                 s.tight_pairs,
                 if s.tight_pairs == 1 { "" } else { "s" },
-                crate::stones::CROWD_TIGHT_MM
+                s.tight_mm()
             ));
             for p in &s.crowding {
-                let cls = if p.worst_mm() < MIN_EDGE_MM { " class=\"warn\"" } else { "" };
+                let cls = if p.worst_mm() < s.will_not_fill_mm() { " class=\"warn\"" } else { "" };
                 h.push_str(&format!(
                     "<tr{cls}><td>{} &middot; {}</td><td>{:.0}&deg; / {:.0}&deg;</td>                     <td>{:.2} mm</td><td>{:.2} mm</td></tr>",
                     esc(&p.a),

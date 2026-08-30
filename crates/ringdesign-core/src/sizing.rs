@@ -47,12 +47,14 @@ impl RingSize {
         Self::from_circumference_mm(diameter * std::f64::consts::PI)
     }
 
+    /// `US 7`, `US 7.25`, `US 7.5` — never `US 7.`, which is what trimming
+    /// the zeros off `{:.2}` gives for a size that is a whisker off an
+    /// integer. A size arriving from a file or an interpolation is rarely
+    /// exactly 7.0, so `fract() == 0.0` is not the test it looks like.
     pub fn display(&self) -> String {
-        if self.0.fract() == 0.0 {
-            format!("US {}", self.0 as i32)
-        } else {
-            format!("US {:.2}", self.0).trim_end_matches('0').to_string()
-        }
+        let s = format!("US {:.2}", self.0);
+        let s = s.trim_end_matches('0');
+        s.strip_suffix('.').unwrap_or(s).to_string()
     }
 
     /// Sizes from 3 to 15 in half-size steps.
