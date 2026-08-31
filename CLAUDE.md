@@ -1605,9 +1605,37 @@ ring by a fifth under a comment already promising an even one.
 
 `FeatureFootprint` splits into `feature_u_mm` and `feature_v_mm` for the
 same reason, because they are not the same measure: `v` is arc length on the
-section itself and true as it stands. `min_feature_mm()` is the chart figure
+**reference** section — true as it stands there, and off by the station's
+stretch wherever the shank modulates. `min_feature_mm()` is the chart figure
 refinement seeds on; `metal_feature_mm(ctx)` is what `dfm.rs` judges against
 the sand's detail floor.
+
+The cross-band direction has the same lie at modulated stations, and its own
+scalar: the chart's `v` is the section's arc **normalized**, so one chart mm
+is `k = surface_len(θ) / band_v_len` of metal — ~1.7 mid-wall on a lofted
+signet head, 1.43 on a keyframed lobe at width ×1.5, under 1 in a waist.
+`FieldContext::station_stretch(θ)` is that ratio: one table per band
+shape, built by `field_context` through a tent-style cache keyed on the
+serialized profile and shank (a field added to either can never serve a
+stale table), `None` — exactly 1 — on an unmodulated band. It is the number
+the decal measurement, the seat report and the serpentarium probes each
+derived on their own before it existed. What reads it: `stones.rs` measures
+a seat's foot-to-edge clearance in the station's own mm (the section arcs it
+compares against always were metal, so the old figure mixed frames — a boss
+mid-wall on a lofted head reported a chart `-0.65` for a metal overshoot
+`k` times it), and a pad's footprint carries `v_stretch`, so a skirt on a
+waist measures finer than the chart says — the direction the chart was
+unsafe. Geometry is gated exactly as for `u`: `h(u, v)` never moves on its
+own, and every saved design is bit-identical. The one deliberate exception
+is **`SeatPadLayer::metal_true`** (serde default off; GUI "True size", MCP
+and graph `metal_true`): a flagged pad reads its offsets in metal mm at its
+own station and casts as drawn — measured on that keyframed lobe
+(k = 1.425), a 3.0 mm drawn reach cast 4.28 mm chart-drawn and 3.0 mm
+flagged, with the clearance figure agreeing to 0.02 mm either way. A run
+clears the flag at `turned`, its one seat gate: rows station and solve in
+the chart, and a flagged prototype must not split the solver from the
+metal. `a_pad_on_a_stretched_lobe_is_judged_in_metal_mm` pins all three
+reads.
 
 ### Stone against stone: the pairwise census
 

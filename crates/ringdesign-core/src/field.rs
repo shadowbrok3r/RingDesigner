@@ -100,6 +100,11 @@ pub struct FieldContext {
     /// Side-face runs at the standard threshold, found on first use. A gate
     /// reads this per sample, and the walk behind it is far too slow for that.
     pub side_faces_cache: std::sync::OnceLock<Option<SideFaces>>,
+    /// Section stretch per ring angle — metal mm per chart mm across the
+    /// band — one entry per `360 / len` degrees from 0°. `None` on an
+    /// unmodulated band, where the stretch is exactly 1 everywhere.
+    /// [`RingDesign::field_context`](crate::RingDesign::field_context) fills it.
+    pub stretch: Option<std::sync::Arc<Vec<f32>>>,
 }
 
 impl FieldContext {
@@ -124,6 +129,30 @@ impl FieldContext {
             Some((r, _)) if r > 1e-9 => (r / self.crest_radius_mm).clamp(1e-6, 1.0),
             _ => 1.0,
         }
+    }
+
+    /// Metal mm per chart mm **across** the band at a ring angle — the
+    /// modulated section's surface arc over the reference's, the `v`-side
+    /// counterpart of [`arc_scale`](Self::arc_scale). Exactly 1 on an
+    /// unmodulated band; ~1.7 mid-wall on a lofted signet head, under 1 in
+    /// a keyframed waist. A chart millimetre across a stretched station is
+    /// this many millimetres of metal.
+    ///
+    /// Like `arc_scale` this corrects what is *reported* — plus the one
+    /// deliberate exception, a [`SeatPadLayer`] whose `metal_true` is set,
+    /// which divides its drawn extents by it so they cast as drawn.
+    pub fn station_stretch(&self, theta_deg: f64) -> f64 {
+        let Some(t) = &self.stretch else { return 1.0 };
+        let n = t.len();
+        if n == 0 {
+            return 1.0;
+        }
+        let x = theta_deg.rem_euclid(360.0) / 360.0 * n as f64;
+        let i = (x.floor() as usize).min(n - 1);
+        let f = x - i as f64;
+        let (a, b) = (t[i] as f64, t[(i + 1) % n] as f64);
+        let k = a + (b - a) * f;
+        if k.is_finite() { k.clamp(0.25, 8.0) } else { 1.0 }
     }
 
     /// The least [`arc_scale`](Self::arc_scale) over a `v` range — the
@@ -580,6 +609,7 @@ impl Layer {
                     feature_v_mm: ch.max(0.1),
                     u_mm: None,
                     v_mm: l.v_bounds(),
+                    v_stretch: 1.0,
                 }]
             }
             Layer::Border(l) => {
@@ -600,14 +630,20 @@ impl Layer {
                 if l.height_mm.abs() <= 1e-9 {
                     return Vec::new();
                 }
-                let (hu, hv) = l.half_extents_mm();
-                let skirt = l.blend_mm.max(0.0);
+                let (ku, kv) = l.station_scale(ctx);
+                let (ru, rv) = l.chart_reach_mm(ctx);
                 let u0 = ctx.u_of_theta(l.theta_deg);
-                vec![FeatureFootprint::round(
-                    l.blend_mm.clamp(0.15, l.diameter_mm.max(0.15)),
-                    Some((u0 - hu - skirt, u0 + hu + skirt)),
-                    (l.v_mm - hv - skirt, l.v_mm + hv + skirt),
-                )]
+                let f = l.blend_mm.clamp(0.15, l.diameter_mm.max(0.15));
+                // A metal-true skirt spans less chart than it draws.
+                let (fu, fv) =
+                    if l.metal_true { (f / ku.max(1e-6), f / kv.max(1e-6)) } else { (f, f) };
+                vec![FeatureFootprint {
+                    feature_u_mm: fu,
+                    feature_v_mm: fv,
+                    u_mm: Some((u0 - ru, u0 + ru)),
+                    v_mm: (l.v_mm - rv, l.v_mm + rv),
+                    v_stretch: kv,
+                }]
             }
             Layer::Signet(l) => {
                 let reach = l.reach_mm();
@@ -681,12 +717,13 @@ impl OpenworkLayer {
 /// One region of the band carrying detail at a known scale, in unrolled mm.
 ///
 /// The two axes are kept apart because they are not the same measure. `v` is
-/// arc length on the section itself, so a width across the band is true as it
-/// stands; `u` is arc length **at the crest radius**, so a feature running
-/// around the ring is shorter in metal wherever the surface sits inside that
-/// — 0.80–0.83 of it on a squared band's side faces. Refinement wants the
-/// chart figure, because the mesh grid lives in the chart; the sand's detail
-/// floor wants the metal one.
+/// arc length on the **reference** section — true as it stands there, and
+/// off by the station's stretch wherever the shank modulates; `u` is arc
+/// length **at the crest radius**, so a feature running around the ring is
+/// shorter in metal wherever the surface sits inside that — 0.80–0.83 of it
+/// on a squared band's side faces. Refinement wants the chart figure,
+/// because the mesh grid lives in the chart; the sand's detail floor wants
+/// the metal one.
 #[derive(Clone, Copy, Debug)]
 pub struct FeatureFootprint {
     /// Smallest feature measured around the ring, mm of chart `u`. Infinite
@@ -700,18 +737,22 @@ pub struct FeatureFootprint {
     pub u_mm: Option<(f64, f64)>,
     /// Extent across the band surface, mm.
     pub v_mm: (f64, f64),
+    /// Metal mm per chart mm across `v` at this footprint's own station —
+    /// [`FieldContext::station_stretch`] where the feature stands. 1 for a
+    /// layer that has not resolved its station; a seat pad fills it.
+    pub v_stretch: f64,
 }
 
 impl FeatureFootprint {
     /// A feature the same size both ways — a bead, a stamp, a pad's skirt.
     pub fn round(mm: f64, u_mm: Option<(f64, f64)>, v_mm: (f64, f64)) -> Self {
-        Self { feature_u_mm: mm, feature_v_mm: mm, u_mm, v_mm }
+        Self { feature_u_mm: mm, feature_v_mm: mm, u_mm, v_mm, v_stretch: 1.0 }
     }
 
     /// A feature measured only across the section — a rail, a flute, a
     /// milgrain line: it runs the whole way round, so `u` does not limit it.
     pub fn across(mm: f64, u_mm: Option<(f64, f64)>, v_mm: (f64, f64)) -> Self {
-        Self { feature_u_mm: f64::INFINITY, feature_v_mm: mm, u_mm, v_mm }
+        Self { feature_u_mm: f64::INFINITY, feature_v_mm: mm, u_mm, v_mm, v_stretch: 1.0 }
     }
 
     /// The finest feature in the chart, mm — what refinement seeds on.
@@ -720,10 +761,11 @@ impl FeatureFootprint {
     }
 
     /// The finest feature in **metal**, mm — what the sand's detail floor
-    /// judges, with the `u` side taken at the footprint's own arc scale.
+    /// judges: the `u` side at the footprint's own arc scale, the `v` side
+    /// at its station's stretch.
     pub fn metal_feature_mm(&self, ctx: &FieldContext) -> f64 {
         let k = ctx.arc_scale_min(self.v_mm.0, self.v_mm.1);
-        (self.feature_u_mm * k).min(self.feature_v_mm)
+        (self.feature_u_mm * k).min(self.feature_v_mm * self.v_stretch)
     }
 }
 
@@ -1071,6 +1113,16 @@ pub struct SeatPadLayer {
     /// the report credited the whole pad height as metal under it.
     #[serde(default)]
     pub set_depth_mm: Option<f64>,
+    /// The drawn sizes are metal mm at the pad's own station rather than
+    /// chart mm. The chart's `v` is arc normalized, so on a stretched
+    /// section — a signet head's wall, a keyframed lobe — a chart
+    /// millimetre is more than one of metal, and a pad drawn there casts
+    /// bigger than its numbers: measured, a 1.5 mm boss mid-wall on a
+    /// lofted head cast 2.6 mm tall. Set, the evaluation reads its offsets
+    /// at the station's own scale and the drawn sizes are the cast ones.
+    /// Off by default, so saved designs keep the read they were built on.
+    #[serde(default)]
+    pub metal_true: bool,
 }
 
 fn default_elong() -> f64 {
@@ -1127,6 +1179,7 @@ impl Default for SeatPadLayer {
             rot_deg: 0.0,
             plan_pow: default_plan_pow(),
             set_depth_mm: None,
+            metal_true: false,
         }
     }
 }
@@ -1280,6 +1333,38 @@ impl SeatPadLayer {
         plan_half_extents_mm(ra, rb, self.plan_pow, self.rot_deg)
     }
 
+    /// Metal mm per chart mm at the pad's own station: `u` by the reference
+    /// arc scale at the pad's `v`, `v` by the modulated section's stretch —
+    /// the same pair the decal measurement reads.
+    pub fn station_scale(&self, ctx: &FieldContext) -> (f64, f64) {
+        (ctx.arc_scale(self.v_mm), ctx.station_stretch(self.theta_deg))
+    }
+
+    /// Rim-plus-skirt half-extents in chart mm — what shares the chart with
+    /// the pad reads: the refiner's footprint, the unrolled outline, a slice
+    /// filter's reach. The drawn figures for a chart-drawn pad; a
+    /// `metal_true` pad occupies less chart than it draws, by the station's
+    /// own scale.
+    pub fn chart_reach_mm(&self, ctx: &FieldContext) -> (f64, f64) {
+        let (hu, hv) = self.half_extents_mm();
+        let s = self.blend_mm.max(0.0);
+        if self.metal_true {
+            let (ku, kv) = self.station_scale(ctx);
+            ((hu + s) / ku.max(1e-6), (hv + s) / kv.max(1e-6))
+        } else {
+            (hu + s, hv + s)
+        }
+    }
+
+    /// Rim-plus-skirt half-reach across the band in **metal** mm at a
+    /// station — what the band edge and the sand see. Takes the station
+    /// because a grouped seat is probed at each of its stations, not only
+    /// at the prototype's own angle.
+    pub fn metal_foot_v_mm(&self, ctx: &FieldContext, theta_deg: f64) -> f64 {
+        let half = self.half_extents_mm().1 + self.blend_mm.max(0.0);
+        if self.metal_true { half } else { half * ctx.station_stretch(theta_deg) }
+    }
+
     /// The stone's own half-reach across the band, mm — its width when it
     /// lies along the ring, its length when the seat turns it across.
     pub fn stone_half_v_mm(&self, gem: crate::gem::Gem) -> f64 {
@@ -1314,6 +1399,13 @@ impl SeatPadLayer {
         let u0 = ctx.u_of_theta(self.theta_deg);
         let du = wrap_delta(uv.u - u0, ctx.circumference_mm);
         let dv = uv.v - self.v_mm;
+        // Metal-true: offsets in metal mm at the pad's own station.
+        let (du, dv) = if self.metal_true {
+            let (ku, kv) = self.station_scale(ctx);
+            (du * ku, dv * kv)
+        } else {
+            (du, dv)
+        };
         let d = (du * du + dv * dv).sqrt();
         let (_, rb) = self.semi_axes_mm();
         let skirt = if self.style == SeatStyle::GypsyMound { blend.max(0.3) } else { blend };
@@ -1794,9 +1886,13 @@ impl Default for SeatRunLayer {
 }
 
 impl SeatRunLayer {
-    /// A seat as the row sets it: turned by the tilt.
+    /// A seat as the row sets it: turned by the tilt. `metal_true` is
+    /// cleared here — the row stations and solves its seat in the chart,
+    /// and this is the one gate every consumer reads it through, so a
+    /// flagged prototype cannot make the solver and the metal disagree.
     pub fn turned(&self, mut seat: SeatPadLayer) -> SeatPadLayer {
         seat.rot_deg += self.tilt_deg;
+        seat.metal_true = false;
         seat
     }
 
@@ -3238,7 +3334,21 @@ mod tests {
             surface: Default::default(),
             bore_radius_mm: 8.5,
             side_faces_cache: Default::default(),
+            stretch: None,
         }
+    }
+
+    /// A design saved before `metal_true` existed reads back chart-drawn,
+    /// and an unmodulated band carries no stretch table at all — its
+    /// stretch is exactly 1 everywhere, not a table of ones.
+    #[test]
+    fn the_chart_read_is_the_serde_default() {
+        let json = r#"{"theta_deg":90.0,"v_mm":2.0,"diameter_mm":3.0,"height_mm":1.0,"crown":0.5,"blend_mm":0.4}"#;
+        let pad: SeatPadLayer = serde_json::from_str(json).expect("an old pad still loads");
+        assert!(!pad.metal_true);
+        let c = crate::RingDesign::default().field_context();
+        assert!(c.stretch.is_none());
+        assert_eq!(c.station_stretch(123.4), 1.0);
     }
 
     /// The doctrine in two acts: a deep carve on a side face releases at any

@@ -606,7 +606,8 @@ fn check_seat(
         // station: a widened top carries a seat the reference band could not.
         // An elongated seat reaches across the band by its own `v` extent,
         // which is its length when the stone is turned to face the edges.
-        let foot = seat.half_extents_mm().1 + seat.blend_mm.max(0.0);
+        // The section arcs are metal mm, so the foot reads metal mm too.
+        let foot = seat.metal_foot_v_mm(ctx, theta);
         clearance = clearance
             .min(b.along - foot)
             .min(b.surface_len - b.along - foot);
@@ -738,6 +739,122 @@ fn base_at(
 
 #[cfg(test)]
 mod tests {
+    /// The chart's `v` is arc normalized, so a pad on a keyframed lobe casts
+    /// the station's stretch times its drawn size, and the report used to
+    /// read its foot in chart mm — measured on a lofted head, a 1.5 mm boss
+    /// mid-wall cast 2.6 mm tall while the clearance printed a chart figure.
+    /// A metal-true pad casts as drawn; either way the clearance and the DFM
+    /// footprint now speak metal mm.
+    #[test]
+    fn a_pad_on_a_stretched_lobe_is_judged_in_metal_mm() {
+        use crate::field::{Layer, LayerEntry, Uv};
+        use crate::profile::{ShankKey, ShankKind};
+
+        let build = |metal_true: bool| {
+            let mut d = crate::RingDesign::default();
+            d.profile.apply_style(crate::ProfileStyle::Flat);
+            d.profile.width_mm = 6.0;
+            d.profile.thickness_mm = 2.0;
+            d.shank.kind = ShankKind::Keyframes;
+            d.shank.amount = 1.0;
+            d.shank.keys = vec![
+                ShankKey { theta_deg: 90.0, width_scale: 1.5, thickness_scale: 1.2, crown_scale: 1.0 },
+                ShankKey { theta_deg: 270.0, width_scale: 1.0, thickness_scale: 1.0, crown_scale: 1.0 },
+            ];
+            let ctx = d.field_context();
+            let mut pad = SeatPadLayer::default();
+            pad.theta_deg = 90.0;
+            pad.v_mm = ctx.crest_v_mm;
+            pad.diameter_mm = 2.0;
+            pad.height_mm = 0.8;
+            pad.blend_mm = 0.5;
+            pad.metal_true = metal_true;
+            d.layers.layers.push(LayerEntry::new("Boss", Layer::SeatPad(pad)));
+            d
+        };
+
+        let d = build(true);
+        let ctx = d.field_context();
+        let inner = d.inner_radius_mm();
+        let m = d.modulation_at(90.0, inner, inner + d.profile.thickness_mm);
+        let k_true = d.profile.sample_mod(inner, 512, &m).surface_len_mm / ctx.band_v_len_mm;
+        assert!(k_true > 1.3, "the lobe stretches the section: {k_true}");
+        let k = ctx.station_stretch(90.0);
+        assert!(
+            (k - k_true).abs() < 0.02 * k_true,
+            "the table reads the true stretch: {k} against {k_true}"
+        );
+
+        // Physical reach across the band: the chart span the pad raises,
+        // read back in the lobe's own millimetres.
+        let lib = crate::AlphaLibrary::builtin();
+        let span_mm = |d: &crate::RingDesign| {
+            let ctx = d.field_context();
+            let u0 = ctx.u_of_theta(90.0);
+            let (mut lo, mut hi) = (f64::MAX, f64::MIN);
+            for i in 0..=4096 {
+                let v = ctx.band_v_len_mm * i as f64 / 4096.0;
+                if d.layers.height(Uv { u: u0, v }, &ctx, &lib) > 1e-4 {
+                    lo = lo.min(v);
+                    hi = hi.max(v);
+                }
+            }
+            (hi - lo) * k_true
+        };
+        let drawn = 2.0 + 2.0 * 0.5;
+        let true_span = span_mm(&d);
+        assert!(
+            (true_span - drawn).abs() < 0.1,
+            "a metal-true pad casts its drawn reach: {true_span:.3} against {drawn}"
+        );
+        let chart = build(false);
+        let chart_span = span_mm(&chart);
+        assert!(
+            (chart_span - drawn * k_true).abs() < 0.1,
+            "a chart-drawn pad casts the stretch times its numbers: {chart_span:.3} against {:.3}",
+            drawn * k_true
+        );
+
+        // The clearance figure is metal mm for both: the modulated section's
+        // own arc to the edge, less the foot's reach in the same millimetres.
+        let len = d.profile.sample_mod(inner, 192, &m).surface_len_mm;
+        let along = ctx.crest_v_mm / ctx.band_v_len_mm * len;
+        let near = along.min(len - along);
+        let clearance =
+            |d: &crate::RingDesign| super::report(d, 0.0).unwrap().seats[0].edge_clearance_mm;
+        let c_true = clearance(&d);
+        let c_chart = clearance(&chart);
+        assert!(
+            (c_true - (near - 1.5)).abs() < 0.02,
+            "a metal-true foot reaches its drawn 1.5 mm: {c_true:.3} against {:.3}",
+            near - 1.5
+        );
+        assert!(
+            (c_chart - (near - 1.5 * k)).abs() < 0.02,
+            "a chart foot reaches k times further: {c_chart:.3} against {:.3}",
+            near - 1.5 * k
+        );
+        assert!(c_chart < c_true - 0.5, "the two reads differ by the stretch");
+
+        // The footprint carries the station's stretch, so the detail floor
+        // judges the skirt in metal — and a waist, where the chart overstates
+        // the metal, raises a finding the chart figure alone never would.
+        assert!((d.layers.layers[0].layer.feature_footprints(&ctx)[0].v_stretch - k).abs() < 1e-9);
+        let mut waist = build(false);
+        waist.shank.keys[0].width_scale = 0.55;
+        waist.shank.keys[0].thickness_scale = 0.8;
+        waist.draft.min_detail_mm = 0.4;
+        if let Layer::SeatPad(p) = &mut waist.layers.layers[0].layer {
+            p.blend_mm = 0.45;
+        }
+        let wctx = waist.field_context();
+        assert!(wctx.station_stretch(90.0) < 0.85, "the waist compresses: {}", wctx.station_stretch(90.0));
+        let f = waist.layers.layers[0].layer.feature_footprints(&wctx)[0];
+        assert!(f.min_feature_mm() >= waist.draft.min_detail_mm, "the chart figure passes the floor");
+        assert!(f.metal_feature_mm(&wctx) < waist.draft.min_detail_mm, "the metal figure does not");
+        assert!(!crate::dfm::findings(&waist).is_empty(), "and the finding says so");
+    }
+
     /// The census is a *fill* rule — a thin bridge does not lock the mould, it
     /// comes out of the flask as two stones sharing a hole — so it has to move
     /// with the sand. It used to be a hardcoded 0.3 mm, which is under every

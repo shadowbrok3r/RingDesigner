@@ -268,7 +268,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             }
             Layer::SeatPad(s) => {
                 let c = center(s.theta_deg, s.v_mm);
-                let r_px = (s.diameter_mm * 0.5 / mm_per_px_v.max(1e-9)) as f32;
+                let kv = if s.metal_true { s.station_scale(&ctx).1.max(1e-6) } else { 1.0 };
+                let r_px = (s.diameter_mm * 0.5 / kv / mm_per_px_v.max(1e-9)) as f32;
                 handles.push(LHandle {
                     layer: i,
                     handle: 0,
@@ -597,8 +598,11 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                                 y_of_v(s.v_mm),
                             );
                             let d = p - c;
-                            let mm = ((d.x as f64 * mm_per_px_u).powi(2)
-                                + (d.y as f64 * mm_per_px_v).powi(2))
+                            // Metal-true: chart offsets scaled to metal mm.
+                            let (ku, kv) =
+                                if s.metal_true { s.station_scale(&ctx) } else { (1.0, 1.0) };
+                            let mm = ((d.x as f64 * mm_per_px_u * ku).powi(2)
+                                + (d.y as f64 * mm_per_px_v * kv).powi(2))
                             .sqrt();
                             s.diameter_mm = (mm * 2.0).clamp(0.5, 20.0);
                         }
@@ -939,6 +943,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             Layer::SeatPad(sp) => {
                 let c = center(sp.theta_deg, sp.v_mm);
                 cross(&painter, c);
+                // Metal-true: the plan maps into the chart by the station's scale.
+                let (ku, kv) = if sp.metal_true { sp.station_scale(&ctx) } else { (1.0, 1.0) };
                 // The pad's own plan, not a circle: the outline drawn here is
                 // the metal the seat actually raises.
                 let pts: Vec<egui::Pos2> = (0..=64)
@@ -954,9 +960,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         );
                         let (a, b) = (r * cs, r * sn);
                         let (s2, c2) = sp.rot_deg.to_radians().sin_cos();
+                        let (uo, vo) = ((a * c2 - b * s2) / ku.max(1e-6), (a * s2 + b * c2) / kv.max(1e-6));
                         egui::pos2(
-                            c.x + ((a * c2 - b * s2) / mm_per_px_u.max(1e-9)) as f32,
-                            c.y + ((a * s2 + b * c2) / mm_per_px_v.max(1e-9)) as f32,
+                            c.x + (uo / mm_per_px_u.max(1e-9)) as f32,
+                            c.y + (vo / mm_per_px_v.max(1e-9)) as f32,
                         )
                     })
                     .collect();
