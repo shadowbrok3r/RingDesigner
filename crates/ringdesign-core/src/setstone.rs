@@ -41,7 +41,7 @@ impl SetStone {
 
     /// How far the seat reaches round the ring at the crest radius, degrees.
     pub fn reach_deg(&self, ctx: &FieldContext) -> f64 {
-        (self.seat.half_extents_mm().0 + self.seat.blend_mm) / ctx.crest_radius_mm.max(1e-9) * 180.0
+        self.seat.chart_reach_mm(ctx).0 / ctx.crest_radius_mm.max(1e-9) * 180.0
             / std::f64::consts::PI
     }
 

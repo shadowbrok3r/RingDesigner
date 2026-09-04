@@ -315,8 +315,67 @@ impl RingDesign {
             surface: field::SurfaceProfile::from_loop(&loop_, 257),
             bore_radius_mm: self.inner_radius_mm(),
             side_faces_cache: Default::default(),
+            stretch: self.station_stretch_table(),
         }
     }
+
+    /// [`FieldContext::station_stretch`]'s table: metal mm per chart mm
+    /// across the band, one entry per degree — each station's surface arc
+    /// over the reference's, both sampled at the same count so an identity
+    /// station reads exactly 1. `None` when nothing modulates the band.
+    ///
+    /// One computation for a ratio the decal measurement, the seat report
+    /// and the serpentarium probes each derived on their own — the
+    /// divergence this file warns about elsewhere. Cached like the signet
+    /// tents; the key is the serialized profile and shank, so a field added
+    /// to either can never serve a stale table.
+    fn station_stretch_table(&self) -> Option<std::sync::Arc<Vec<f32>>> {
+        if self.shank.kind == ShankKind::Uniform && self.profile.morph.is_none() {
+            return None;
+        }
+        const STATIONS: usize = 360;
+        const SECTION_STEPS: usize = 192;
+        let inner = self.inner_radius_mm();
+        let crest = inner + self.profile.thickness_mm;
+        let build = || {
+            let ref_len = self.profile.sample(inner, SECTION_STEPS).surface_len_mm.max(1e-9);
+            (0..STATIONS)
+                .map(|i| {
+                    let theta = i as f64 * 360.0 / STATIONS as f64;
+                    let m = self.modulation_at(theta, inner, crest);
+                    let len = self.profile.sample_mod(inner, SECTION_STEPS, &m).surface_len_mm;
+                    (len / ref_len) as f32
+                })
+                .collect()
+        };
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        match serde_json::to_vec(&(&self.profile, &self.shank)) {
+            Ok(bytes) => bytes.hash(&mut h),
+            // A profile that cannot serialize cannot key the cache; build
+            // uncached rather than serve someone else's table.
+            Err(_) => return Some(std::sync::Arc::new(build())),
+        }
+        inner.to_bits().hash(&mut h);
+        Some(stretch_cached(h.finish(), build))
+    }
+}
+
+/// Stretch tables are rebuilt only when something about the band changes:
+/// the last few are kept by a hash of everything that shapes them.
+fn stretch_cached(key: u64, build: impl FnOnce() -> Vec<f32>) -> std::sync::Arc<Vec<f32>> {
+    static CACHE: std::sync::Mutex<Vec<(u64, std::sync::Arc<Vec<f32>>)>> =
+        std::sync::Mutex::new(Vec::new());
+    let mut c = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, t)) = c.iter().find(|(k, _)| *k == key) {
+        return t.clone();
+    }
+    let t = std::sync::Arc::new(build());
+    if c.len() >= 8 {
+        c.remove(0);
+    }
+    c.push((key, t.clone()));
+    t
 }
 
 #[cfg(test)]

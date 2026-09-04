@@ -608,6 +608,10 @@ pub struct AddSeatPadParams {
     pub crown: Option<f64>,
     /// Skirt fairing the pad into the band, mm.
     pub blend_mm: Option<f64>,
+    /// Sizes are metal mm at the pad's own station, so a pad on a stretched
+    /// section (signet wall, keyframed lobe) casts as drawn instead of the
+    /// station's stretch times bigger.
+    pub metal_true: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -734,6 +738,10 @@ pub struct UpdateLayerParams {
     pub crown: Option<f64>,
     /// Gem seat pad only: skirt fairing the pad into the band, mm.
     pub blend_mm: Option<f64>,
+    /// Gem seat pad only: sizes are metal mm at the pad's own station, so a
+    /// pad on a stretched section (signet wall, keyframed lobe) casts as
+    /// drawn instead of the station's stretch times bigger.
+    pub metal_true: Option<bool>,
     /// Milgrain only.
     pub bead_diameter_mm: Option<f64>,
     /// Milgrain only: beads around the circumference.
@@ -1279,7 +1287,7 @@ const TILING_FIELDS: &[&str] = &[
 ];
 const BORDER_FIELDS: &[&str] = &["v_mm", "width_mm", "profile", "mirror", "rope_twists"];
 const SEAT_PAD_FIELDS: &[&str] =
-    &["theta_deg", "v_mm", "diameter_mm", "elong", "rot_deg", "crown", "blend_mm"];
+    &["theta_deg", "v_mm", "diameter_mm", "elong", "rot_deg", "crown", "blend_mm", "metal_true"];
 const MILGRAIN_FIELDS: &[&str] = &["v_mm", "bead_diameter_mm", "beads_around", "mirror"];
 const SIGNET_FIELDS: &[&str] = &[
     "theta_deg",
@@ -1796,6 +1804,7 @@ impl RingDesignServer {
         put_f64(&mut s.height_mm, p.height_mm, "height_mm", &mut applied)?;
         put_range(&mut s.crown, p.crown, "crown", 0.0, 1.0, &mut applied)?;
         put_f64(&mut s.blend_mm, p.blend_mm, "blend_mm", &mut applied)?;
+        put_bool(&mut s.metal_true, p.metal_true, "metal_true", &mut applied);
 
         let name = p.name.unwrap_or_else(|| "Gem seat".to_string());
         let mut entry = LayerEntry::new(name, Layer::SeatPad(s));
@@ -2019,6 +2028,7 @@ impl RingDesignServer {
                 put_f64(&mut s.height_mm, p.height_mm, "height_mm", &mut applied)?;
                 put_range(&mut s.crown, p.crown, "crown", 0.0, 1.0, &mut applied)?;
                 put_f64(&mut s.blend_mm, p.blend_mm, "blend_mm", &mut applied)?;
+                put_bool(&mut s.metal_true, p.metal_true, "metal_true", &mut applied);
             }
             Layer::Signet(s) => {
                 put_f64(&mut s.theta_deg, p.theta_deg, "theta_deg", &mut applied)?;

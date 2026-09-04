@@ -2612,6 +2612,28 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .changed();
         ui.end_row();
 
+        ui.label("True size");
+        ui.horizontal(|ui| {
+            c |= ui
+                .checkbox(&mut p.metal_true, "Metal mm at its station")
+                .on_hover_text(
+                    "The chart's v is arc normalized, so on a stretched section — a signet \
+                     head's wall, a keyframed lobe — a drawn millimetre casts bigger than \
+                     itself. Checked, the sizes are metal mm at the pad's own station and \
+                     the pad casts as drawn.",
+                )
+                .changed();
+            let k = fctx.station_stretch(p.theta_deg);
+            if (k - 1.0).abs() > 0.02 {
+                ui.label(
+                    egui::RichText::new(format!("{k:.2}x here"))
+                        .small()
+                        .color(theme::TEXT_DIM),
+                );
+            }
+        });
+        ui.end_row();
+
         ui.label("Width");
         c |= ui
             .add(

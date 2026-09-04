@@ -12,6 +12,8 @@ members = [
     "crates/ringdesign-cli",
     "crates/ringdesign-py",
     "crates/ringdesign-solid",
+    # The phone app; builds on egui-mobile from the EguiMobile repo as a git dependency.
+    "crates/ringdesigner-android",
 ]
 # Vendored forks are reached through [patch.crates-io], not built as members.
 exclude = ["patches/egui-snarl", "patches/egui-scale"]
@@ -71,6 +73,10 @@ env_logger = "0.11.11"
 egui-phosphor = { git = "https://github.com/shadowbrok3r/egui-phosphor", branch = "egui-036" }
 egui-snarl = { path = "patches/egui-snarl" }
 egui-scale = { path = "patches/egui-scale" }
+# For crates/ringdesigner-android: winit's implicit-only IME hides break egui-android's EditText
+# bridge, and the framework repo's fork skips them. A git dependency never brings its own root
+# [patch] table along, so the app's workspace has to carry it.
+android-activity = { git = "https://github.com/shadowbrok3r/ios-egui" }
 
 [profile.dev]
 opt-level = 1

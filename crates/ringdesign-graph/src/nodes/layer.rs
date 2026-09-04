@@ -182,6 +182,7 @@ fn seat_node() -> NodeSpec {
     .field(PinSpec::item("rot_deg", ValueKind::Number).doc("Bearing in the chart, degrees."))
     .field(PinSpec::item("plan_pow", ValueKind::Number).doc("Superellipse exponent of the plan; 2 is an ellipse."))
     .field(PinSpec::item("set_depth_mm", ValueKind::Number).doc("Girdle depth below the pad's top, mm; the style's own if unset."))
+    .field(PinSpec::item("metal_true", ValueKind::Bool).doc("Sizes are metal mm at the pad's own station, not chart mm — on a stretched section (signet wall, keyframed lobe) the pad then casts as drawn."))
     .build()
 }
 
