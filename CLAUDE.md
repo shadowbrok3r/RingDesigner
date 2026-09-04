@@ -2052,11 +2052,12 @@ can never fail quietly again.
 
 ## The phone has the graph too
 
-`~/Documents/Rust/Mobile/EguiMobile/examples/ringdesigner-android` (0.9.0)
-carries a Graph tab on the same three crates the desktop uses —
-`ringdesign-graph`, `ringdesign-graph-ui`, `ringdesign-script` — through
-that workspace's own `egui-snarl` patch, which is byte-identical to
-`patches/egui-snarl` here and must stay so. Its `graph.rs` is the whole
+`crates/ringdesigner-android` (moved in from the EguiMobile workspace on
+2026-09-04, history included) carries a Graph tab on the same three crates
+the desktop uses — `ringdesign-graph`, `ringdesign-graph-ui`,
+`ringdesign-script` — through this root's `egui-snarl` patch (still
+byte-identical to EguiMobile's copy, which the wirelab plugin uses). Its
+`graph.rs` is the whole
 bridge: `GraphState` keeps an `Editor` in step with `design.graph` (the
 same sync rule as `sync_graph` — whichever side moved, a pulled design
 included), writes the editor back, converts, opens templates, bakes and
@@ -2072,6 +2073,27 @@ background menus — so the touch work the plan budgeted for came down to a
 Lock toggle (`Editor::editable`). Verify with `cargo test -p
 ringdesigner_android` on the host and `cargo ndk -t arm64-v8a check -p
 ringdesigner_android` from the crate dir with `ANDROID_NDK_HOME` set.
+
+The crate builds on `egui-mobile` from <https://github.com/shadowbrok3r/ios-egui>
+(checked out at `~/Documents/Rust/Mobile/EguiMobile`) as a **git dependency**,
+pinned in `Cargo.lock`: `cargo update -p egui-mobile` moves the pin, and the
+root `[patch.crates-io]` carries that repo's `android-activity` fork, which a
+git dependency does not inherit. `crates/ringdesigner-android/java` is a copy of
+the framework's Java bridge that `cargo egui-mobile build`/`run` re-syncs from
+the resolved egui-android — edit it in EguiMobile, never here. The wrapper is
+installed from that checkout (`cargo install --path crates/cargo-egui-mobile`;
+its `ANDROID_SETUP.md` covers the SDK/NDK/JDK). Build from the crate dir:
+`cargo egui-mobile build -a --release` lands
+`target/release/apk/ringdesigner_android.apk` at this root. To ship: bump
+`version` in the crate's `Cargo.toml` first — the phone only installs a strictly
+greater versionCode, `(1<<24)|(major<<16)|(minor<<8)|patch` — add the
+`CHANGELOG.md` entry, then `AS_URL=… AS_KEY=…
+crates/ringdesigner-android/scripts/publish-appstore.sh --no-changelog
+ringdesigner-android crates/ringdesigner-android "what changed"`. The signing
+key is `~/.android/debug.keystore`, shared across machines; a different key
+makes every update fail `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. The `local-npu`
+feature compiles, but the manifest declares no `runtime_libs`, so an APK built
+with it ships without the QNN `.so` files the feature dlopens.
 
 The phone's exports (`export.rs`) run one thread per job — STL, 3MF, GLB,
 sheet, render, turntable — and open the share sheet from `poll_exports`

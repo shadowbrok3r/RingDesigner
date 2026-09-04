@@ -1,7 +1,10 @@
 [package]
 name = "ringdesigner_android"
+# Its own, not the workspace's: the Android versionCode derives from it as
+# (1<<24)|(major<<16)|(minor<<8)|patch, and the phone only installs a strictly greater one.
 version = "0.10.0"
-edition = "2024"
+edition.workspace = true
+license.workspace = true
 publish = false
 
 # rlib as well as cdylib so the pure modules stay host-testable with `cargo test`.
@@ -12,42 +15,46 @@ crate-type = ["cdylib", "rlib"]
 default = []
 # On-device Qualcomm HTP NPU: CLIP for library search, SD 1.5 for pattern generation.
 # Off by default and nothing in a default build links a `local-*` crate — the QNN runtime libs are
-# gitignored and staged by scripts/qnn-stage-libs.sh, so a half-enabled build would ship an APK
-# whose NPU features fail with nothing readable on screen.
+# proprietary and staged per machine (EguiMobile's scripts/qnn-stage-libs.sh), so a half-enabled
+# build would ship an APK whose NPU features fail with nothing readable on screen.
 # Build with `cargo ndk ... --features local-npu`.
 local-npu = ["dep:local-clip", "dep:local-sd"]
 
 [dependencies]
-egui-mobile = { path = "../../crates/egui-mobile" }
-egui = "0.36"
+# The Android framework: https://github.com/shadowbrok3r/ios-egui (checked out at
+# ~/Documents/Rust/Mobile/EguiMobile). It, the local-* model crates and backdrop-blur-egui come
+# from that one git source; the root [patch.crates-io] repins its android-activity fork, which a
+# git dependency does not bring along.
+egui-mobile = { git = "https://github.com/shadowbrok3r/ios-egui" }
+egui.workspace = true
 # Direct, not via egui-mobile, which does not re-export it. Must be the same 0.36 egui_glow the
 # runtime uses: two copies in the graph make the paint callback's downcast fail, and the only
 # symptom is a blank viewport and one `Unsupported render callback` warning.
-egui_glow = "0.36"
-log = "0.4"
+egui_glow.workspace = true
+log.workspace = true
 # Prefs are a plain serde struct; core already pulls serde in, this makes the derive reachable.
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde.workspace = true
+serde_json.workspace = true
 # Plain HTTP to the desktop over Tailscale; no TLS on purpose, the tailnet is the boundary.
 minreq = "3"
 # On-device models, behind `local-npu`. Their device paths compile on the host and only fail at
 # runtime without an NPU, so they need no target gate — the feature is the gate.
-local-clip = { path = "../../crates/local-clip", optional = true }
-local-sd = { path = "../../crates/local-sd", optional = true }
-# The geometry, unchanged. Lives in another workspace; cargo resolves its own
-# `.workspace = true` inheritance from its own root, so a plain path dep is enough.
-ringdesign-core = { path = "../../../../JewelryProjects/RingDesigner/crates/ringdesign-core" }
-# The recipe graph: runtime, the snarl editor (through this workspace's own
-# egui-snarl patch, byte-identical to RingDesigner's), and the rhai nodes.
-ringdesign-graph = { path = "../../../../JewelryProjects/RingDesigner/crates/ringdesign-graph" }
-ringdesign-graph-ui = { path = "../../../../JewelryProjects/RingDesigner/crates/ringdesign-graph-ui" }
-ringdesign-script = { path = "../../../../JewelryProjects/RingDesigner/crates/ringdesign-script" }
+local-clip = { git = "https://github.com/shadowbrok3r/ios-egui", optional = true }
+local-sd = { git = "https://github.com/shadowbrok3r/ios-egui", optional = true }
+# The geometry, unchanged.
+ringdesign-core.workspace = true
+# The recipe graph: runtime, the snarl editor (on the root's egui-snarl patch), and the rhai nodes.
+ringdesign-graph.workspace = true
+ringdesign-graph-ui.workspace = true
+ringdesign-script.workspace = true
 
 # cargo-apk2 reads this to generate the APK manifest.
 [package.metadata.android]
 package = "com.kingsofalchemy.ringdesigner"
-java_sources = "../../crates/egui-android/java"
-# Launcher icon mipmaps, rendered from icon/ic_launcher.svg by scripts/render-icons.sh.
+# egui-android's Java bridge: a copy of the framework's crates/egui-android/java, re-synced from
+# the resolved egui-android by every `cargo egui-mobile build`/`run` — edit it there, not here.
+java_sources = "java"
+# Launcher icon mipmaps, rendered from icon/ic_launcher.svg by this crate's scripts/render-icons.sh.
 resources = "res"
 
 [package.metadata.android.sdk]
@@ -98,4 +105,5 @@ name = "android.permission.VIBRATE"
 
 
 [target.'cfg(target_os = "android")'.dependencies]
-backdrop-blur-egui = { path = "../../patches/backdrop-blur/crates/backdrop-blur-egui", default-features = false, features = ["grab-pass"] }
+# The framework repo's egui-0.36 fork of backdrop-blur (its patches/backdrop-blur); glow only.
+backdrop-blur-egui = { git = "https://github.com/shadowbrok3r/ios-egui", default-features = false, features = ["grab-pass"] }
