@@ -1,5 +1,100 @@
 # Changelog
 
+## 0.16.0 — 2026-09-16
+
+- Rounded signet cap/shoulder transitions now change the actual surface, so the
+  smoother shape also reaches exported meshes. Continuous fillet sampling avoids
+  stepped highlights at profile joins.
+- Cut-dome shoulders use a continuous taper with a fixed side-wall join, removing
+  the inflated cheek shelf while preserving the face perimeter.
+- Surface → Path draws raised wires or engraved curves directly on the ring.
+  Drag control points, enter exact positions, repeat and mirror the path, and
+  reopen its editable layer. Changes apply as one undoable operation.
+- Stamp adds circular/partial-arc copies and mirrored sides in one editable layer.
+- Shape → Measure reads point-to-point distance and X/Y/Z spans on the viewport mesh.
+- Includes the studio preview, mesh detail and material controls from 0.15.0.
+
+## 0.15.0 — Studio preview candidate
+
+- **See fine ornament.** Detailed preview now settles at 655k triangles. View →
+  Mesh detail adds a 1.38M-triangle Showcase option and a Fast option. Edits use
+  a lightweight mesh until the gesture ends; the selected quality is remembered.
+- **Reflective jewelry materials.** Shared desktop/Android studio reflections,
+  colored metal reflectance, highlight compression and separate stone shading.
+  View → Metal & polish offers seven alloys and Polished, Satin and Rough finishes.
+- **Edit wide borders.** Border controls cover the width of the actual band,
+  including the broad cushion used in the sand-signet construction guide.
+- **Frame close-ups with a tap.** Zoom in/out buttons are available in View →
+  Zoom and the floating Camera & display tools, alongside the existing gestures.
+
+## 0.14.0 — 2026-09-12
+
+- **Choose your viewport space.** Drag the inspector's grip to resize it, or
+  hide it while working on the ring. Portrait and landscape sizes are remembered.
+- **Move tools beside the model.** A floating tool rail starts on the left.
+  Its contextual palettes follow Shape, Surface, Stones and Casting, with layer
+  selection, paint/stamps, sections, spacing and mould tools. Drag their headers
+  to move them; More groups the remaining commands into submenus.
+- **More room for jewelry.** Compact buttons and navigation reduce chrome; the
+  old viewport action strip moves into the floating rail. Reset workspace layout
+  restores the default positions.
+- **Scroll without changing numbers.** Numeric fields now open typed entry on
+  tap and leave swipes to scrolling, including slider values, Workshop and graph
+  controls. Slider bars and dimensions on the ring remain draggable.
+
+## 0.13.0 — 2026-09-10
+
+- **Paint and stamp on the ring.** Surface mode adds pressure-aware engraving,
+  raised strokes and library alpha placement, with millimetre cursors and Undo.
+  Artwork stays editable in the existing drawing and layer tools.
+- **Drag sections.** Shape mode adds a movable cut plane, filled sections that
+  retain the finger opening, and local wall-chord measurements.
+- **See stone spacing.** Stones mode shows girdle and pavilion envelopes that
+  respond to the requested gap and existing stone edits.
+- **Watch mould withdrawal.** Casting mode builds the prepared pattern and
+  animates sampled cavity surfaces along its configured pull. Obstruction markers
+  and the investment-pattern label explain the study.
+- Fine-detail analysis runs in a separate worker, keeping large painted
+  designs responsive while their checks finish.
+- Shared controls fit narrow inspectors and keep focused fields above the
+  keyboard. The same four tools are available in the desktop viewport.
+
+## 0.12.0 — 2026-09-10
+
+- **The ring stays visible.** One compact inspector replaces stacked sheets,
+  sits beside the viewport in landscape, and scrolls within the phone's bounds.
+  Navigation and menus fit narrow screens and respect Android's safe area.
+- **Select what you are editing.** Shape, Surface, Stones and Casting modes
+  give taps a clear purpose. Pick an ornament or stone on the model, inspect
+  overlapping layers, or temporarily isolate an ornament without changing the design.
+- **Visual dimensions.** Drag handles for the opening, width, thickness and
+  signet dimensions. Primary controls explain their effect and accept exact values;
+  focused fields remain visible when the keyboard opens.
+- **See the change.** Continuous parameter edits rebuild previews while the camera
+  stays steady. Hold Before to compare, or use the always-accessible Undo and Redo.
+  Signets open facing the camera, with direct face and angled views available.
+- **Casting feedback.** Pull/parting guides, draft and radial-wall colours, legends
+  and pending-check labels connect the preview to the existing mould Workshop.
+- **Existing tools stay close.** Pattern browsing and band/tile drawing share space
+  with a live ring preview. CAD, recipe graphs, exports and history remain in Tools.
+
+## 0.11.0 — 2026-09-10
+
+- **Workshop on the phone.** Edit casting recipes, mould pull and parting,
+  pattern stock, components and manufacturing stages from the new Workshop tab.
+- **CAD design tools.** Build and edit parametric rings and signets, constrain
+  sketches, inspect sections and measurements, and resize designs with a preview,
+  Apply/Cancel and undo.
+- **Casting checks and repairs.** Inspect release obstructions, draft and detail
+  findings for sand and investment casting; preview supported repairs before
+  applying them. Production exports enforce the casting checks, with a separate
+  diagnostic export for designs that need work.
+- **Portable workshop files.** Import designs and export CAD and manufacturing
+  packages with source artwork and reports. Longer workshop jobs run in the
+  background so editing stays responsive.
+- **Accurate gemstone previews.** Relief and textures no longer move or tilt a
+  stone away from the seat used by the setting report.
+
 ## 0.10.0
 
 - **On-device models, behind a flag.** Built with `--features local-npu` and a

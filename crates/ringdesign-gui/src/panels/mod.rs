@@ -1,6 +1,8 @@
 //! Window layout and the top-level chrome.
 
 pub mod design;
+pub mod casting;
+pub mod cad;
 pub mod graph;
 pub mod layers;
 pub mod node;
@@ -29,8 +31,41 @@ pub fn render(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     egui::Panel::top(egui::Id::new("toolbar")).show(ui, |ui| toolbar(app, ui));
     egui::Panel::bottom(egui::Id::new("status")).show(ui, |ui| status_bar(app, ui));
 
-    for &side in Side::ALL {
-        dock_side(app, ui, side);
+    if app.construction.open {
+        egui::Panel::left(egui::Id::new("construction-guide")).exact_size(350.).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.strong("Construction guide");
+                if ui.small_button("Close").clicked() { app.construction.open=false; }
+            });
+            let before=app.design.clone();
+            let event=app.construction.ui(ui,&mut app.design);
+            if event.changed {
+                app.history.commit(&before);
+                app.history.commit(&app.design);
+                let d=app.design.clone();
+                let lib=app.library_mut();
+                d.unpack_embedded(lib);
+                d.bake_all(lib);
+                app.selected_layer=None;
+                app.fit_pending=true;
+                app.show_grid=false;
+                app.finish=0;
+                app.mark_dirty();
+            }
+            if let Some(view)=event.view {
+                use ringdesign_workbench::construction::View;
+                for pane in &mut app.panes {
+                    pane.camera.yaw=app.design.shank.head.theta_deg.to_radians() as f32;
+                    pane.camera.pitch=match view { View::Seal=>0., View::ThreeQuarter=>-0.72, View::Cheek=>-1.30, View::Bore=>-std::f32::consts::FRAC_PI_2+0.001 };
+                    if matches!(view,View::ThreeQuarter) { pane.camera.yaw-=0.48; }
+                    pane.camera.pan=[0.;2];
+                    pane.camera.zoom=1.23;
+                    pane.shade=viewport::ShadeMode::Metal;
+                }
+            }
+        });
+    } else {
+        for &side in Side::ALL { dock_side(app, ui, side); }
     }
 
     egui::CentralPanel::default()
@@ -197,6 +232,8 @@ fn panes(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 PaneKind::Unrolled => unrolled::ui(app, ui),
                 PaneKind::Section => section::ui(app, ui, i),
                 PaneKind::Graph => graph::ui(app, ui, i),
+                PaneKind::Casting => casting::ui(app, ui),
+                PaneKind::Cad => cad::ui(app, ui),
             });
 
         // Only worth marking which pane is active when there is a choice.
@@ -239,6 +276,18 @@ fn pane_head(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
         }
 
         ui.separator();
+        if app.design.shank.kind == ringdesign_core::ShankKind::Signet {
+            for (label, angled) in [("Seal", false), ("Signet 3/4", true)] {
+                if ui.small_button(label).clicked() {
+                    let cam = &mut app.panes[i].camera;
+                    cam.yaw = app.design.shank.head.theta_deg.to_radians() as f32
+                        - if angled { std::f32::consts::FRAC_PI_8 } else { 0. };
+                    cam.pitch = if angled { -0.55 } else { 0. };
+                    cam.pan = [0.; 2];
+                    app.active_pane = i;
+                }
+            }
+        }
         for &v in StandardView::ALL {
             if ui.small_button(v.label()).clicked() {
                 app.panes[i].camera.set_view(v);
@@ -604,7 +653,12 @@ fn history_controls(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
 fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     ui.add_space(3.0);
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
+        if ui.button("Construction guide").clicked() { app.construction.open=!app.construction.open; }
+        if ui.button(format!("{} Casting",icon::SHIELD_CHECK)).on_hover_text("Recipe, mold release, repair preview, and pattern package").clicked() {
+            app.focus(PaneKind::Casting);
+        }
+        if ui.button(format!("{} CAD",icon::RULER)).on_hover_text("Sketches, editable features, solids, and components").clicked() {app.focus(PaneKind::Cad);}
         ui.menu_button(format!("{} File", icon::FOLDER_OPEN), |ui| {
             if ui.button(format!("{} New", icon::FILE_PLUS)).clicked() {
                 app.design = ringdesign_core::RingDesign::default();
@@ -835,6 +889,36 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         {
             app.mark_dirty();
         }
+        });
+    ui.horizontal_wrapped(|ui| {
+            if app.is_building() {
+                ui.add(egui::Spinner::new().size(14.0));
+            }
+            if ui
+                .button(format!("{} Rebuild", icon::ARROWS_CLOCKWISE))
+                .on_hover_text("Rebuild the mesh now")
+                .clicked()
+            {
+                app.rebuild_now();
+            }
+            ui.checkbox(&mut app.auto_rebuild, "Auto");
+
+            if quality_picker(ui, "quality", &mut app.preview_params) {
+                app.mark_dirty();
+            }
+            ui.label(egui::RichText::new("Preview").color(theme::TEXT_DIM));
+            egui::ComboBox::from_id_salt("surface-polish")
+                .selected_text(ringdesign_core::render::POLISHES[app.polish.min(2)].0)
+                .width(85.0)
+                .show_ui(ui, |ui| {
+                    for (i, (name, _)) in ringdesign_core::render::POLISHES.iter().enumerate() {
+                        ui.selectable_value(&mut app.polish, i, *name);
+                    }
+                });
+
+            ui.separator();
+            mcp_control(app, ui);
+            ui.separator();
         egui::ComboBox::from_id_salt("metal_finish")
             .selected_text(crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].name)
             .width(104.0)
@@ -856,27 +940,6 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             .response
             .on_hover_text("Key light for the polished-metal view");
 
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if app.is_building() {
-                ui.add(egui::Spinner::new().size(14.0));
-            }
-            if ui
-                .button(format!("{} Rebuild", icon::ARROWS_CLOCKWISE))
-                .on_hover_text("Rebuild the mesh now")
-                .clicked()
-            {
-                app.rebuild_now();
-            }
-            ui.checkbox(&mut app.auto_rebuild, "Auto");
-
-            if quality_picker(ui, "quality", &mut app.preview_params) {
-                app.mark_dirty();
-            }
-            ui.label(egui::RichText::new("Preview").color(theme::TEXT_DIM));
-
-            ui.separator();
-            mcp_control(app, ui);
-        });
     });
     ui.add_space(3.0);
 }
@@ -1008,6 +1071,11 @@ fn status_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         // reports a phantom on the crest line that does not fall with the
         // tolerance, so the chip used to disagree with the banner six inches
         // above it on exactly the designs that most need a clear answer.
+        if casting::active(app) {casting::status_chip(app,ui);}
+        else if app.panes.get(app.active_pane).is_some_and(|p|p.kind==PaneKind::Cad) {ui.weak("CAD candidate; see feature inspection");}
+        else if !app.is_current() {ui.weak("Geometry report pending or unavailable");}
+        else if app.design.cad.is_some() {ui.weak("CAD components — use Casting for release inspection");}
+        else {
         let verdict = app
             .field
             .as_ref()
@@ -1029,6 +1097,7 @@ fn status_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             }
             None => ui.label(egui::RichText::new(format!("{glyph} —")).color(color)),
         };
+        }
 
         ui.separator();
         ui.label(egui::RichText::new(&app.status).color(theme::TEXT_DIM));

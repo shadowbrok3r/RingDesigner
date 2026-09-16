@@ -1,0 +1,13 @@
+{
+  "name": "Investment casting starting recipe / Gold 14k",
+  "process": "LostWax",
+  "sand": null,
+  "alloy": "Gold 14k",
+  "shrink_pct": 1.3,
+  "min_draft_deg": 0.0,
+  "min_section_mm": 0.8,
+  "min_detail_mm": 0.2,
+  "min_sand_web_mm": 0.6,
+  "sand_margin_mm": 5.0,
+  "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mold, and measured trials."
+}

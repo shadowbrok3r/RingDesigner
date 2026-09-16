@@ -14,16 +14,15 @@ use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 use std::sync::{Arc, Mutex};
 
 use egui_mobile::egui;
+use ringdesign_core::RingDesign;
 use ringdesign_core::alpha::AlphaLibrary;
 use ringdesign_core::castability::{self, CastReport, FieldReport};
 use ringdesign_core::mesh::{BuildParams, Vec3};
-use ringdesign_core::RingDesign;
 
 use crate::camera::OrbitCamera;
 use crate::viewport::{GpuMeshRenderer, ShadeMode, paint_callback};
 
-/// Measured on an S26 Ultra: 34 ms build + 14 ms analyze at 384x144. The desktop's own Preview
-/// resolution is interactive on the phone, so there is no scrub tier.
+/// Lightweight mesh while editing. Settled previews use the selected detail tier.
 pub const PREVIEW: BuildParams = BuildParams {
     theta_steps: 384,
     profile_steps: 144,
@@ -32,7 +31,7 @@ pub const PREVIEW: BuildParams = BuildParams {
     refine: None,
     soften_mm: 0.0,
 };
-/// 655k triangles, 226 ms end to end on device. The ceiling — 1536x448 is a 149 MB vertex buffer.
+/// 655k triangles; also the default settled viewport quality.
 pub const EXPORT: BuildParams = BuildParams {
     theta_steps: 1024,
     profile_steps: 320,
@@ -42,15 +41,61 @@ pub const EXPORT: BuildParams = BuildParams {
     soften_mm: 0.0,
 };
 
-/// The viewport's polished-metal tint, reused by every shared render.
+/// The expanded triangle buffer at showcase quality is approximately 189 MiB.
+pub const SHOWCASE: BuildParams = BuildParams {
+    theta_steps: 1536,
+    profile_steps: 448,
+    ..EXPORT
+};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PreviewQuality {
+    Fast,
+    #[default]
+    Detailed,
+    Showcase,
+}
+
+impl PreviewQuality {
+    pub const ALL: [Self; 3] = [Self::Fast, Self::Detailed, Self::Showcase];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Fast => "Fast · 111k",
+            Self::Detailed => "Detailed · 655k",
+            Self::Showcase => "Showcase · 1.38M",
+        }
+    }
+
+    pub fn params(self, settled: bool) -> BuildParams {
+        if !settled { return PREVIEW; }
+        match self {
+            Self::Fast => PREVIEW,
+            Self::Detailed => EXPORT,
+            Self::Showcase => SHOWCASE,
+        }
+    }
+}
+
+/// Legacy software-export tint. The GPU viewport uses linear metal reflectance.
 pub const METAL_TINT: [f32; 3] = [0.86, 0.80, 0.62];
+
+pub struct ViewResponse {
+    pub response: egui::Response,
+    pub rect: egui::Rect,
+    pub probe: Option<([f32; 3], [f32; 3])>,
+}
 
 pub struct RingPane {
     pub camera: OrbitCamera,
     pub shade: ShadeMode,
     pub wireframe: bool,
+    pub finish: usize,
+    pub polish: usize,
     /// Render at true physical size using the panel's real pixel density.
     pub actual_size: bool,
+    pub clip_plane: [f32; 4],
 }
 
 impl Default for RingPane {
@@ -59,7 +104,10 @@ impl Default for RingPane {
             camera: OrbitCamera::default(),
             shade: ShadeMode::default(),
             wireframe: false,
+            finish: 0,
+            polish: 0,
             actual_size: false,
+            clip_plane: [0.0; 4],
         }
     }
 }
@@ -72,14 +120,20 @@ impl RingPane {
         ui: &mut egui::Ui,
         renderer: &Arc<Mutex<GpuMeshRenderer>>,
         px_per_mm: Option<f32>,
-    ) -> (bool, Option<([f32; 3], [f32; 3])>) {
+        lock_orbit: bool,
+    ) -> ViewResponse {
         let (rect, response) =
             ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
         if !ui.is_rect_visible(rect) {
-            return (false, None);
+            return ViewResponse {
+                response,
+                rect,
+                probe: None,
+            };
         }
 
-        ui.painter().rect_filled(rect, 0.0, egui::Color32::from_rgb(18, 18, 20));
+        ui.painter()
+            .rect_filled(rect, 0.0, egui::Color32::from_rgb(18, 18, 20));
 
         if let Ok(r) = renderer.lock() {
             if let Some(err) = r.failed.as_ref() {
@@ -90,7 +144,11 @@ impl RingPane {
                     egui::FontId::monospace(12.0),
                     egui::Color32::from_rgb(240, 120, 120),
                 );
-                return (false, None);
+                return ViewResponse {
+                    response,
+                    rect,
+                    probe: None,
+                };
             }
             if !r.has_mesh() {
                 ui.painter().text(
@@ -100,11 +158,18 @@ impl RingPane {
                     egui::FontId::proportional(14.0),
                     egui::Color32::GRAY,
                 );
-                return (false, None);
+                return ViewResponse {
+                    response,
+                    rect,
+                    probe: None,
+                };
             }
         }
 
-        let moved = self.handle_touch(ui, &response, rect);
+        let moved = !lock_orbit && self.handle_touch(ui, &response, rect);
+        if moved {
+            ui.ctx().request_repaint();
+        }
         let probe_ray = response
             .long_touched()
             .then(|| response.interact_pointer_pos())
@@ -116,7 +181,7 @@ impl RingPane {
         if let (true, Some(ppmm)) = (self.actual_size, px_per_mm) {
             let ppp = ui.ctx().pixels_per_point();
             let pt_per_mm = ppmm / ppp;
-            let half_mm = rect.height() * 0.5 / pt_per_mm;
+            let half_mm = rect.width().min(rect.height()) * 0.5 / pt_per_mm;
             self.camera.set_half_extent(half_mm);
         }
 
@@ -128,20 +193,21 @@ impl RingPane {
             mvp,
             normal_matrix,
             self.shade,
-            METAL_TINT,
+            ringdesign_core::render::METAL_FINISHES[self.finish.min(6)].1,
+            ringdesign_core::render::POLISHES[self.polish.min(2)].1,
             self.wireframe,
             [0.10, 0.10, 0.12],
+            self.clip_plane,
         );
-        (moved, probe_ray)
+        ViewResponse {
+            response,
+            rect,
+            probe: probe_ray,
+        }
     }
 
     /// One finger orbits, two pinch-zoom and pan. Returns whether anything changed.
-    fn handle_touch(
-        &mut self,
-        ui: &egui::Ui,
-        response: &egui::Response,
-        rect: egui::Rect,
-    ) -> bool {
+    fn handle_touch(&mut self, ui: &egui::Ui, response: &egui::Response, rect: egui::Rect) -> bool {
         let multi = ui.input(|i| i.multi_touch());
         if let Some(mt) = multi {
             // A second finger takes the gesture from the orbit outright, so a pinch never also
@@ -150,7 +216,7 @@ impl RingPane {
                 self.camera.zoom_by_factor(mt.zoom_delta);
             }
             if mt.translation_delta != egui::Vec2::ZERO {
-                self.camera.pan_by(mt.translation_delta, rect.height());
+                self.camera.pan_by(mt.translation_delta, rect);
             }
             return true;
         }
@@ -198,17 +264,39 @@ struct Job {
     params: BuildParams,
     analyze: bool,
     gems: bool,
+    view_layer: Option<usize>,
 }
 
 pub struct Worker {
     jobs: Sender<Job>,
     pub done: Receiver<Done>,
+    detail_done: Receiver<(u64, Vec<ringdesign_core::dfm::DfmFinding>)>,
 }
 
 impl Worker {
     pub fn spawn(ctx: egui::Context) -> Self {
         let (jobs_tx, jobs_rx) = channel::<Job>();
         let (done_tx, done_rx) = channel::<Done>();
+        // Fine-detail measurement of a large painted alpha can take seconds.
+        // It must block neither input nor the next geometry preview.
+        let (detail_tx, detail_rx) = channel::<(u64, RingDesign, Arc<AlphaLibrary>)>();
+        let (detail_done_tx, detail_done_rx) = channel();
+        let detail_ctx = ctx.clone();
+        std::thread::Builder::new()
+            .name("ring-detail".into())
+            .spawn(move || {
+                while let Ok(mut job) = detail_rx.recv() {
+                    while let Ok(newer) = detail_rx.try_recv() {
+                        job = newer;
+                    }
+                    let findings = ringdesign_core::dfm::findings_in(&job.1, &job.2);
+                    if detail_done_tx.send((job.0, findings)).is_err() {
+                        break;
+                    }
+                    detail_ctx.request_repaint();
+                }
+            })
+            .expect("spawn detail worker");
         std::thread::Builder::new()
             .name("ring-build".into())
             .spawn(move || {
@@ -227,6 +315,10 @@ impl Worker {
                         }
                     }
                     let field_from_graph = graph.as_mut().and_then(|g| g.field.take());
+                    if job.analyze {
+                        let _ =
+                            detail_tx.send((job.generation, job.design.clone(), job.lib.clone()));
+                    }
                     let out = ringdesign_core::mesh::build(&job.design, &job.lib, job.params);
                     let cast = job.analyze.then(|| {
                         castability::analyze(
@@ -246,13 +338,40 @@ impl Worker {
                             )
                         })
                     });
+                    let report = out.report.clone();
+                    let view_layer = job
+                        .view_layer
+                        .filter(|&i| i < job.design.layers.layers.len());
+                    let visible = if let Some(index) = view_layer {
+                        let mut design = job.design.clone();
+                        for (i, entry) in design.layers.layers.iter_mut().enumerate() {
+                            entry.enabled &= i == index;
+                        }
+                        std::borrow::Cow::Owned(design)
+                    } else {
+                        std::borrow::Cow::Borrowed(&job.design)
+                    };
+                    // Isolation is a rendering operation. All reports above use
+                    // the complete source; exports never receive this copy.
+                    let out = if view_layer.is_some() {
+                        ringdesign_core::mesh::build(&visible, &job.lib, job.params)
+                    } else {
+                        out
+                    };
                     let verts = GpuMeshRenderer::stage(
                         &out.mesh,
-                        cast.as_ref(),
-                        (job.design.inner_radius_mm(), job.design.draft.min_section_mm),
+                        if view_layer.is_some() {
+                            None
+                        } else {
+                            cast.as_ref()
+                        },
+                        (
+                            job.design.inner_radius_mm(),
+                            job.design.draft.min_section_mm,
+                        ),
                     );
                     let gems = if job.gems {
-                        ringdesign_core::gems::preview_vertices(&job.design, &job.lib)
+                        ringdesign_core::gems::preview_vertices(&visible, &job.lib)
                     } else {
                         Vec::new()
                     };
@@ -263,10 +382,10 @@ impl Worker {
                         gems,
                         bounds: mesh.bounds(),
                         mesh: mesh.clone(),
-                        triangles: out.report.validation.triangle_count,
-                        volume_mm3: out.report.volume_mm3,
-                        build_ms: out.report.build_ms,
-                        report: out.report.clone(),
+                        triangles: report.validation.triangle_count,
+                        volume_mm3: report.volume_mm3,
+                        build_ms: report.build_ms,
+                        report,
                         cast,
                         field,
                         graph,
@@ -278,7 +397,11 @@ impl Worker {
                 }
             })
             .expect("spawn build worker");
-        Self { jobs: jobs_tx, done: done_rx }
+        Self {
+            jobs: jobs_tx,
+            done: done_rx,
+            detail_done: detail_done_rx,
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -290,6 +413,7 @@ impl Worker {
         params: BuildParams,
         analyze: bool,
         gems: bool,
+        view_layer: Option<usize>,
     ) -> bool {
         self.jobs
             .send(Job {
@@ -299,6 +423,7 @@ impl Worker {
                 params,
                 analyze,
                 gems,
+                view_layer,
             })
             .is_ok()
     }
@@ -308,6 +433,9 @@ impl Worker {
             Ok(d) => Some(d),
             Err(TryRecvError::Empty | TryRecvError::Disconnected) => None,
         }
+    }
+    pub fn poll_detail(&self) -> Option<(u64, Vec<ringdesign_core::dfm::DfmFinding>)> {
+        self.detail_done.try_recv().ok()
     }
 }
 
@@ -327,7 +455,10 @@ mod tests {
         // 48 bytes a vertex, three a triangle. Only PREVIEW is ever staged —
         // exports build inline and write files without touching the GPU.
         let bytes = PREVIEW.triangle_estimate() * 3 * 48;
-        assert!(bytes < 80 * 1024 * 1024, "{bytes} bytes is too much to re-upload");
+        assert!(
+            bytes < 80 * 1024 * 1024,
+            "{bytes} bytes is too much to re-upload"
+        );
     }
 
     #[test]

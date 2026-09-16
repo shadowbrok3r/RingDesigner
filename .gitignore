@@ -1,6 +1,27 @@
 /target
 batch6-8/
 assets/
+!crates/ringdesign-core/assets/
+crates/ringdesign-core/assets/*
+!crates/ringdesign-core/assets/aster.ring.json
+!crates/ringdesign-core/assets/aster-atelier.ring.json
+__pycache__/
+*.pyc
+
+# Large reproducible exports and recordings stay in the local showcase.
+/showcase/**/*.stl
+/showcase/**/*.3mf
+/showcase/**/*.mp4
+/showcase/**/*.webm
+/showcase/**/*.gif
+/showcase/**/*.step
+/showcase/**/*.glb
+/showcase/**/*.zip
+/showcase/**/*.bak
+/showcase/**/review/
+/showcase/**/reels/
+/showcase/**/highlights/
+/showcase/**/pattern-package/
 
 # Harvest tooling and its venv: useful to keep near the code, never tracked.
 /tools/harvest/

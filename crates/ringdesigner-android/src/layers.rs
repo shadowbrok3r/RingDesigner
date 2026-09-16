@@ -20,8 +20,8 @@
 //! so their off-by-one behaviour is host-testable.
 
 use egui_mobile::egui;
-use ringdesign_core::field::{Blend, LayerStack, SideFacePick, VGate, Window};
 use ringdesign_core::field::FieldContext;
+use ringdesign_core::field::{Blend, LayerStack, SideFacePick, VGate, Window};
 
 /// Move the entry at `i` by `delta`, keeping the selection on it.
 pub fn move_layer(stack: &mut LayerStack, sel: &mut Option<usize>, i: usize, delta: isize) -> bool {
@@ -36,7 +36,12 @@ pub fn move_layer(stack: &mut LayerStack, sel: &mut Option<usize>, i: usize, del
 }
 
 /// Lift `from` out and insert it at `to` — what the Top and Bottom buttons do.
-pub fn move_layer_to(stack: &mut LayerStack, sel: &mut Option<usize>, from: usize, to: usize) -> bool {
+pub fn move_layer_to(
+    stack: &mut LayerStack,
+    sel: &mut Option<usize>,
+    from: usize,
+    to: usize,
+) -> bool {
     let n = stack.layers.len();
     if from >= n || to >= n || from == to {
         return false;
@@ -53,7 +58,11 @@ pub fn solo_layer(stack: &mut LayerStack, sel: &mut Option<usize>, i: usize) -> 
     if i >= stack.layers.len() {
         return false;
     }
-    let already = stack.layers.iter().enumerate().all(|(j, e)| e.enabled == (j == i));
+    let already = stack
+        .layers
+        .iter()
+        .enumerate()
+        .all(|(j, e)| e.enabled == (j == i));
     for (j, e) in stack.layers.iter_mut().enumerate() {
         e.enabled = already || j == i;
     }
@@ -62,7 +71,9 @@ pub fn solo_layer(stack: &mut LayerStack, sel: &mut Option<usize>, i: usize) -> 
 }
 
 pub fn duplicate_layer(stack: &mut LayerStack, sel: &mut Option<usize>, i: usize) -> bool {
-    let Some(e) = stack.layers.get(i).cloned() else { return false };
+    let Some(e) = stack.layers.get(i).cloned() else {
+        return false;
+    };
     let mut copy = e;
     copy.name = format!("{} copy", copy.name);
     stack.layers.insert(i + 1, copy);
@@ -86,7 +97,9 @@ pub fn add_layer(
     name: impl Into<String>,
     layer: ringdesign_core::field::Layer,
 ) {
-    stack.layers.push(ringdesign_core::field::LayerEntry::new(name, layer));
+    stack
+        .layers
+        .push(ringdesign_core::field::LayerEntry::new(name, layer));
     *sel = Some(stack.layers.len() - 1);
 }
 
@@ -139,15 +152,30 @@ pub fn add_menu(
 
     crate::theme::up_menu(ui, "Add layer", |ui| {
         if ui.button("Border").clicked() {
-            add_layer(&mut design.layers, sel, "Border", Layer::Border(BorderLayer::default()));
+            add_layer(
+                &mut design.layers,
+                sel,
+                "Border",
+                Layer::Border(BorderLayer::default()),
+            );
             note = Some("border added".into());
         }
         if ui.button("Milgrain").clicked() {
-            add_layer(&mut design.layers, sel, "Milgrain", Layer::Milgrain(MilgrainLayer::default()));
+            add_layer(
+                &mut design.layers,
+                sel,
+                "Milgrain",
+                Layer::Milgrain(MilgrainLayer::default()),
+            );
             note = Some("milgrain added".into());
         }
         if ui.button("Gem seat pad").clicked() {
-            add_layer(&mut design.layers, sel, "Gem Seat Pad", Layer::SeatPad(SeatPadLayer::default()));
+            add_layer(
+                &mut design.layers,
+                sel,
+                "Gem Seat Pad",
+                Layer::SeatPad(SeatPadLayer::default()),
+            );
             note = Some("seat pad added".into());
         }
         if ui
@@ -261,7 +289,14 @@ pub fn sheet(
             } else {
                 egui::RichText::new(format!("{name}  ·  {kind}")).weak()
             };
-            if ui.add(crate::theme::selectable(picked, title)).clicked() {
+            let width = ui.available_width();
+            if ui
+                .add_sized(
+                    [width, 44.0],
+                    crate::theme::selectable(picked, title).truncate(),
+                )
+                .clicked()
+            {
                 *sel = if picked { None } else { Some(i) };
             }
         });
@@ -292,8 +327,8 @@ pub fn sheet(
                 act = Some(Act::MoveTo(i, stack.layers.len() - 1));
             }
             if ui
-                .small_button("Solo")
-                .on_hover_text("Mute every other layer, or bring them all back")
+                .small_button("Only this")
+                .on_hover_text("Changes the design: disable other layers, or enable all. Use Surface → Isolate for a temporary preview.")
                 .clicked()
             {
                 act = Some(Act::Solo(i));
@@ -380,7 +415,7 @@ enum Act {
 /// v-gate's side-face setting is what puts relief on the two faces square to
 /// the mould pull — the ground measured at 0.000% undercut at every relief the
 /// band can carry.
-fn window_controls(ui: &mut egui::Ui, id: usize, w: &mut Window, ctx: &FieldContext) -> bool {
+pub fn window_controls(ui: &mut egui::Ui, id: usize, w: &mut Window, ctx: &FieldContext) -> bool {
     let mut c = false;
     let v_max = ctx.band_v_len_mm.max(0.5);
 
@@ -401,10 +436,20 @@ fn window_controls(ui: &mut egui::Ui, id: usize, w: &mut Window, ctx: &FieldCont
     });
     match &mut w.v_gate {
         VGate::Off => {}
-        VGate::Band { center_mm, span_mm, fade_mm } => {
-            c |= ui.add(egui::Slider::new(center_mm, 0.0..=v_max).text("centre v mm")).changed();
-            c |= ui.add(egui::Slider::new(span_mm, 0.0..=v_max).text("span mm")).changed();
-            c |= ui.add(egui::Slider::new(fade_mm, 0.0..=2.0).text("fade mm")).changed();
+        VGate::Band {
+            center_mm,
+            span_mm,
+            fade_mm,
+        } => {
+            c |= ui
+                .add(egui::Slider::new(center_mm, 0.0..=v_max).text("centre v mm"))
+                .changed();
+            c |= ui
+                .add(egui::Slider::new(span_mm, 0.0..=v_max).text("span mm"))
+                .changed();
+            c |= ui
+                .add(egui::Slider::new(fade_mm, 0.0..=2.0).text("fade mm"))
+                .changed();
             if ui
                 .small_button("Snap to side faces")
                 .on_hover_text(
@@ -474,16 +519,20 @@ fn window_controls(ui: &mut egui::Ui, id: usize, w: &mut Window, ctx: &FieldCont
         }
     });
     if w.enabled {
-        c |= ui.add(egui::Slider::new(&mut w.theta_deg, 0.0..=360.0).text("centre deg")).changed();
-        c |= ui.add(egui::Slider::new(&mut w.span_deg, 0.0..=360.0).text("span deg")).changed();
-        c |= ui.add(egui::Slider::new(&mut w.fade_deg, 0.0..=90.0).text("fade deg")).changed();
+        c |= ui
+            .add(egui::Slider::new(&mut w.theta_deg, 0.0..=360.0).text("centre deg"))
+            .changed();
+        c |= ui
+            .add(egui::Slider::new(&mut w.span_deg, 0.0..=360.0).text("span deg"))
+            .changed();
+        c |= ui
+            .add(egui::Slider::new(&mut w.fade_deg, 0.0..=90.0).text("fade deg"))
+            .changed();
         if w.fade_deg < 1.0 && w.span_deg > 0.0 {
             ui.label(
-                egui::RichText::new(
-                    "No fade leaves a vertical wall at each end of the arc.",
-                )
-                .small()
-                .color(egui::Color32::from_rgb(220, 170, 90)),
+                egui::RichText::new("No fade leaves a vertical wall at each end of the arc.")
+                    .small()
+                    .color(egui::Color32::from_rgb(220, 170, 90)),
             );
         }
     }
@@ -525,7 +574,10 @@ mod tests {
         let mut sel = Some(0);
         assert!(!move_layer(&mut s, &mut sel, 0, -1));
         assert!(!move_layer(&mut s, &mut sel, 2, 1));
-        assert!(!move_layer(&mut s, &mut sel, 9, 1), "an out-of-range index is refused");
+        assert!(
+            !move_layer(&mut s, &mut sel, 9, 1),
+            "an out-of-range index is refused"
+        );
         assert_eq!(names(&s), ["L0", "L1", "L2"]);
     }
 
@@ -574,7 +626,11 @@ mod tests {
         let mut sel = None;
         assert!(duplicate_layer(&mut s, &mut sel, 0));
         assert_eq!(names(&s), ["L0", "L0 copy", "L1"]);
-        assert_eq!(sel, Some(1), "and is selected, so the next edit lands on it");
+        assert_eq!(
+            sel,
+            Some(1),
+            "and is selected, so the next edit lands on it"
+        );
     }
 
     #[test]
@@ -603,7 +659,10 @@ mod add_tests {
         d.profile.width_mm = 6.0;
         d.profile.flatten_sides();
         let ctx = d.field_context();
-        assert!(ctx.side_faces_std().and_then(|s| s.wider()).is_some(), "test needs a side face");
+        assert!(
+            ctx.side_faces_std().and_then(|s| s.wider()).is_some(),
+            "test needs a side face"
+        );
 
         let mut sel = None;
         let where_ = place_curve(

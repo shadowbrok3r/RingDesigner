@@ -12,6 +12,22 @@ use crate::FaceClass;
 /// Polished gold, the default tint.
 pub const GOLD: [f32; 3] = [0.87, 0.71, 0.43];
 
+/// Real-time studio material shared by the native desktop and Android viewports.
+pub const STUDIO_GLSL: &str = include_str!("studio.glsl");
+
+/// Linear normal-incidence reflectance approximations for viewport alloy previews.
+pub const METAL_FINISHES: &[(&str, [f32; 3])] = &[
+    ("Yellow gold", [1.0, 0.766, 0.336]),
+    ("Rose gold", [0.97, 0.55, 0.43]),
+    ("Silver", [0.95, 0.93, 0.88]),
+    ("White gold", [0.86, 0.84, 0.77]),
+    ("Platinum", [0.67, 0.64, 0.59]),
+    ("Bronze", [0.75, 0.46, 0.24]),
+    ("Brass", [0.91, 0.68, 0.32]),
+];
+
+pub const POLISHES: &[(&str, f32)] = &[("Polished", 0.14), ("Satin", 0.38), ("Rough", 0.66)];
+
 /// One thing in the frame: a mesh, its colour, and whether it reads as a
 /// stone rather than as metal.
 ///

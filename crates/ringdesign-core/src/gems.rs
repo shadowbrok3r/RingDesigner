@@ -3,12 +3,10 @@
 //! Stones are never in the `Mesh` and never exported — sand casts the stock
 //! and the bench sets the stones. This builds their triangles on the CPU each
 //! rebuild, one faceted brilliant per stone-bearing seat station, positioned
-//! by evaluating the displaced surface exactly where the seat is, and hands
+//! by sharing the setting report’s base-surface frames, and hands
 //! the viewport an interleaved buffer in the ring's own vertex layout.
 
 use crate::alpha::AlphaLibrary;
-use crate::castability::section_at;
-use crate::field::FieldContext;
 use crate::gem::{Gem, GemCut};
 use crate::RingDesign;
 
@@ -20,11 +18,10 @@ pub const GEM_TINT: [f32; 3] = [0.72, 0.82, 0.92];
 
 /// Interleaved `position(3) normal(3) color(3) color2(3)` triangles for every
 /// stone, matching the ring buffer's layout.
-pub fn preview_vertices(design: &RingDesign, lib: &AlphaLibrary) -> Vec<f32> {
-    let ctx = design.field_context();
+pub fn preview_vertices(design: &RingDesign, _lib: &AlphaLibrary) -> Vec<f32> {
     let mut out = Vec::new();
-    for st in crate::setstone::set_stones(design) {
-        place(design, lib, &ctx, st.theta_deg, st.v_mm, st.gem, &st.seat, &mut out);
+    for (st, frame) in crate::stones::stone_frames(design) {
+        place(st.gem, &frame, &mut out);
     }
     out
 }
@@ -59,61 +56,10 @@ pub fn preview_mesh(design: &RingDesign, lib: &AlphaLibrary) -> Option<crate::me
     Some(m)
 }
 
-/// One stone: find the displaced surface under the seat, build a frame on it,
-/// and append the faceted mesh with the girdle settled into the seat.
-fn place(
-    design: &RingDesign,
-    lib: &AlphaLibrary,
-    ctx: &FieldContext,
-    theta_deg: f64,
-    v_mm: f64,
-    gem: Gem,
-    seat: &crate::field::SeatPadLayer,
-    out: &mut Vec<f32>,
-) {
-    let section = section_at(design, lib, theta_deg, 160);
-    let surface: Vec<_> = section.points.iter().filter(|p| p.surface).collect();
-    if surface.len() < 2 {
-        return;
-    }
-    // `v` along the section's own surface, matched to the seat's reference v
-    // the same normalized way the layer itself is evaluated.
-    let total: f64 = surface.windows(2).map(|w| seg(w[0].r, w[0].z, w[1].r, w[1].z)).sum();
-    let target = (v_mm / ctx.band_v_len_mm.max(1e-9)).clamp(0.0, 1.0) * total;
-    let mut acc = 0.0;
-    let mut best = surface[0];
-    for w in surface.windows(2) {
-        acc += seg(w[0].r, w[0].z, w[1].r, w[1].z);
-        best = w[1];
-        if acc >= target {
-            break;
-        }
-    }
-
-    let (sin_t, cos_t) = theta_deg.to_radians().sin_cos();
-    let pos = [best.r * cos_t, best.r * sin_t, best.z];
-    let n = normalize([best.nr * cos_t, best.nr * sin_t, best.nz]);
-    // Around-ring tangent, squared against the normal, then turned by the
-    // seat: the stone lies the way the stock cut for it does.
-    let ring = [-sin_t, cos_t, 0.0];
-    let along = normalize(reject(ring, n));
-    let across = cross(n, along);
-    let (rs, rc) = seat.rot_deg.to_radians().sin_cos();
-    let t = [
-        along[0] * rc + across[0] * rs,
-        along[1] * rc + across[1] * rs,
-        along[2] * rc + across[2] * rs,
-    ];
-    let b = cross(n, t);
-
-    // The girdle settles into the seat by the depth the seat is set to —
-    // the same number the pavilion check credits as metal under the stone.
-    let settle = seat.girdle_drop_mm(gem);
-    let centre = [
-        pos[0] - n[0] * settle,
-        pos[1] - n[1] * settle,
-        pos[2] - n[2] * settle,
-    ];
+/// The seat defines its bearing on the bare profile. Relief must not change
+/// that chart coordinate or rotate a stone onto a bezel's pocket wall.
+fn place(gem: Gem, frame: &crate::stones::StoneFrame, out: &mut Vec<f32>) {
+    let (centre, n, t, b) = (frame.girdle, frame.normal, frame.long, frame.short);
 
     for (p0, p1, p2) in facets(gem) {
         let world = |p: [f64; 3]| -> [f64; 3] {
@@ -380,10 +326,6 @@ fn facets(gem: Gem) -> Vec<([f64; 3], [f64; 3], [f64; 3])> {
     tris
 }
 
-fn seg(r0: f64, z0: f64, r1: f64, z1: f64) -> f64 {
-    ((r1 - r0).powi(2) + (z1 - z0).powi(2)).sqrt()
-}
-
 fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
@@ -394,11 +336,6 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
         a[2] * b[0] - a[0] * b[2],
         a[0] * b[1] - a[1] * b[0],
     ]
-}
-
-fn reject(v: [f64; 3], n: [f64; 3]) -> [f64; 3] {
-    let d = v[0] * n[0] + v[1] * n[1] + v[2] * n[2];
-    [v[0] - n[0] * d, v[1] - n[1] * d, v[2] - n[2] * d]
 }
 
 fn normalize(v: [f64; 3]) -> [f64; 3] {
@@ -467,6 +404,36 @@ f 1 4 6
         assert!(girdle_pts > 0, "widest slab sits at z = 0 on the y axis");
         assert!(hi[2] > 0.6, "the taller apex is above the girdle");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn asymmetric_relief_does_not_move_or_tilt_a_bezel_stone() {
+        use crate::field::{BorderLayer, SeatStyle};
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        d.profile.width_mm = 12.0;
+        d.shank.apply_signet(12.0);
+        let ctx = d.field_context();
+        let mut seat = SeatPadLayer {
+            theta_deg: 90.0,
+            v_mm: ctx.crest_v_mm,
+            style: SeatStyle::Bezel,
+            metal_true: true,
+            ..Default::default()
+        };
+        seat.fit_stone(Gem::calibrated(GemCut::Round, 2.3));
+        d.layers.layers.push(LayerEntry::new("Bezel", Layer::SeatPad(seat)));
+        let before = preview_vertices(&d, &lib);
+        // An ornament on one side changes displaced arc length, but has no
+        // overlap with the seat. The old walk shifted and tilted the gem.
+        d.layers.layers.push(LayerEntry::new("One-sided relief", Layer::Border(BorderLayer {
+            v_mm: ctx.crest_v_mm - 3.0,
+            width_mm: 1.0,
+            height_mm: 1.5,
+            mirror: false,
+            ..Default::default()
+        })));
+        assert_eq!(before, preview_vertices(&d, &lib));
     }
 
     #[test]

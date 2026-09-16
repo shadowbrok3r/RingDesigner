@@ -44,6 +44,8 @@ pub struct Workspace {
     #[serde(default)]
     pub finish: usize,
     #[serde(default)]
+    pub polish: usize,
+    #[serde(default)]
     pub light: usize,
     /// Design files opened or saved, newest first.
     #[serde(default)]
@@ -77,6 +79,7 @@ impl Default for Workspace {
             shrink_metal: None,
             as_cast: false,
             finish: 0,
+            polish: 0,
             light: 0,
             recent: Vec::new(),
             layout: Layout::Single,
@@ -98,6 +101,7 @@ impl RingDesignerApp {
             shrink_metal: self.shrink_metal,
             as_cast: self.as_cast,
             finish: self.finish,
+            polish: self.polish,
             light: self.light,
             recent: self.recent.clone(),
             layout: self.layout,
@@ -126,6 +130,11 @@ const THUMB_TEXTURE_EDGE: usize = 128;
 
 pub struct RingDesignerApp {
     pub design: RingDesign,
+    pub visual: ringdesign_workbench::visual::Visual,
+    pub construction: ringdesign_workbench::construction::Guide,
+    pub mould_renderer: Arc<Mutex<GpuMeshRenderer>>,
+    pub mould_serial: u64,
+    pub mould_camera: Option<(usize,crate::camera::OrbitCamera)>,
     pub lib: Arc<AlphaLibrary>,
 
     pub build: Option<Arc<BuildResult>>,
@@ -134,6 +143,8 @@ pub struct RingDesignerApp {
     pub stones: Option<ringdesign_core::stones::StonesReport>,
     /// Slowest-freezing slice, from the settled build's Chvorinov scan.
     pub hot_spot: Option<(f64, f64)>,
+    pub casting: crate::panels::casting::CastingState,
+    pub cad: crate::panels::cad::CadState,
 
     /// Resolution used for the interactive viewport.
     pub preview_params: BuildParams,
@@ -183,6 +194,7 @@ pub struct RingDesignerApp {
     pub profile_save_name: String,
     /// Index into [`viewport::FINISHES`].
     pub finish: usize,
+    pub polish: usize,
     /// Index into [`viewport::LIGHT_RIGS`].
     pub light: usize,
     /// Design files opened or saved, newest first.
@@ -230,6 +242,7 @@ pub struct RingDesignerApp {
     worker: Worker,
     dirty_at: Option<Instant>,
     in_flight: bool,
+    last_build_valid: bool,
     generation: u64,
 }
 
@@ -268,12 +281,19 @@ impl RingDesignerApp {
         let design_for_history = design.clone();
         let mut app = Self {
             design,
+            visual: Default::default(),
+            construction: Default::default(),
+            mould_renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
+            mould_serial: 0,
+            mould_camera: None,
             lib: Arc::new(lib),
             build: None,
             cast: None,
             field: None,
             stones: None,
             hot_spot: None,
+            casting: Default::default(),
+            cad: Default::default(),
             preview_params: ws.preview_params,
             export_params: ws.export_params,
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
@@ -299,6 +319,7 @@ impl RingDesignerApp {
             profile_save_name: String::new(),
             show_grid: ws.show_grid,
             finish: ws.finish,
+            polish: ws.polish,
             light: ws.light,
             recent: ws.recent,
             panes: ws.panes,
@@ -332,6 +353,7 @@ impl RingDesignerApp {
             worker: Worker::spawn(),
             dirty_at: None,
             in_flight: false,
+            last_build_valid: false,
             generation: 0,
         };
         app.mark_dirty();
@@ -384,6 +406,7 @@ impl RingDesignerApp {
     /// Queue a rebuild after the debounce window and publish the design to the
     /// MCP engine.
     pub fn mark_dirty(&mut self) {
+        self.visual.invalidate();
         // A layer that reads a distance field and has not got one falls back
         // to brightness-as-height without a word, so turning "Crisp edge" on
         // looked like it did nothing. The check is a map lookup per
@@ -419,6 +442,7 @@ impl RingDesignerApp {
 
     /// Queue a rebuild without pushing the design back to the MCP engine.
     fn queue_rebuild(&mut self) {
+        self.visual.invalidate();
         self.dirty_at = Some(Instant::now());
         self.history.touch();
     }
@@ -426,6 +450,8 @@ impl RingDesignerApp {
     pub fn is_building(&self) -> bool {
         self.in_flight
     }
+
+    pub fn is_current(&self) -> bool { self.last_build_valid && !self.in_flight && self.dirty_at.is_none() }
 
     pub fn wants_repaint(&self) -> bool {
         self.in_flight || (self.auto_rebuild && self.dirty_at.is_some())
@@ -449,6 +475,7 @@ impl RingDesignerApp {
             Ok(WorkerMsg::Failed { generation, message }) => {
                 self.in_flight = false;
                 if generation == self.generation {
+                    self.last_build_valid = false;
                     self.set_status(format!(
                         "Build failed: {message}. The design is unchanged — the last good \
                          geometry is still on screen."
@@ -457,7 +484,8 @@ impl RingDesignerApp {
             }
             Ok(WorkerMsg::Done(mut done)) => {
                 self.in_flight = false;
-                if done.generation == self.generation {
+                if done.generation == self.generation && self.dirty_at.is_none() {
+                    self.last_build_valid = done.graph.as_ref().is_none_or(|g|g.ok);
                     let r = &done.result.report;
                     self.status = match r.refine {
                         Some(s) => format!(
@@ -470,6 +498,8 @@ impl RingDesignerApp {
                         ),
                     };
                     if let Ok(mut r) = self.renderer.lock() {
+                        let cad=done.graph.as_ref().map_or(self.design.cad.is_some(),|g|g.design.cad.is_some());
+                        if cad {r.prepare_cad(&done.result.mesh);} else {
                         r.prepare_upload(
                             &done.result.mesh,
                             Some(&done.cast),
@@ -478,6 +508,7 @@ impl RingDesignerApp {
                                 self.design.draft.min_section_mm,
                             ),
                         );
+                        }
                         r.prepare_gems(std::mem::take(&mut done.gems));
                     }
                     // Fit only on the first build of a design; a rebuild that
@@ -491,6 +522,7 @@ impl RingDesignerApp {
                         }
                     }
                     self.build = Some(Arc::new(done.result));
+                    self.visual.mesh_changed();
                     self.cast = Some(done.cast);
                     self.field = Some(done.field);
                     self.stones = done.stones;
@@ -631,6 +663,7 @@ impl RingDesignerApp {
         // without re-deriving the other left painted metal on the band after
         // Ctrl+Z, because the old raster was still what the layers read.
         let restored = self.design.clone();
+        restored.unpack_embedded(self.library_mut());
         restored.bake_all(self.library_mut());
         if self
             .selected_layer
@@ -994,6 +1027,8 @@ impl Worker {
                                 Ok(out) => {
                                     let mut d = (*out.design).clone();
                                     d.graph = job.design.graph.clone();
+                                    d.manufacturing = job.design.manufacturing.clone();
+                                    d.casting_trials = job.design.casting_trials.clone();
                                     let values = out
                                         .report
                                         .values

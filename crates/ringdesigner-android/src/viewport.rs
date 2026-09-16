@@ -14,7 +14,7 @@
 //!   the `140` the in-tree backdrop-blur precedent uses, because all three attributes here are
 //!   declared `layout(location = N)`, which needs GL 3.3. `precision highp float` is mandatory
 //!   rather than stylistic: GLSL ES 3.00 defines no default float precision for fragment shaders,
-//!   and the `pow(..., 58.0)` specular term needs `highp` regardless.
+//!   and the narrow studio reflections need `highp` regardless.
 //! - **Shader failure is recoverable.** The desktop panicked, which on a device is a process kill
 //!   with the message only in logcat.
 
@@ -44,6 +44,8 @@ out vec3 v_color;
 out vec3 v_wall;
 out vec3 v_bary;
 out float v_obj_nz;
+out vec3 v_world;
+out float v_cavity;
 
 void main() {
     gl_Position = u_mvp * vec4(a_position, 1.0);
@@ -51,6 +53,9 @@ void main() {
     v_color = a_color;
     v_wall = a_wall;
     v_obj_nz = a_normal.z;
+    v_world = a_position;
+    // Approximate bore occlusion; assessment colours do not use it.
+    v_cavity = smoothstep(0.0, 0.55, -dot(a_normal.xy, normalize(a_position.xy + vec2(0.000001))));
     // Non-indexed triangles, so the corner index is the vertex index mod 3 and the
     // barycentric coordinate costs nothing to carry.
     int corner = gl_VertexID % 3;
@@ -64,6 +69,9 @@ in vec3 v_color;
 in vec3 v_wall;
 in vec3 v_bary;
 in float v_obj_nz;
+in vec3 v_world;
+in float v_cavity;
+uniform vec4 u_clip_plane;
 
 uniform int u_mode;
 uniform vec3 u_light_dir;
@@ -74,16 +82,18 @@ uniform float u_wire_px;
 
 out vec4 frag_color;
 
-const vec3 FILL_DIR = vec3(-0.52, -0.38, 0.42);
-const vec3 HIGHLIGHT = vec3(1.0, 0.96, 0.88);
+// STUDIO_MATERIAL
 
 void main() {
+    if (dot(vec4(v_world, 1.0), u_clip_plane) > 0.00001) discard;
     vec3 n = normalize(v_normal);
     vec3 eye = vec3(0.0, 0.0, 1.0);
     vec3 l = normalize(u_light_dir);
     vec3 color;
 
-    if (u_mode == 4) {
+    if (u_mode == 5) {
+        color = studio_gem(n, u_base_color, l, u_ambient);
+    } else if (u_mode == 4) {
         float lambert = max(dot(n, l), 0.0);
         vec3 half_c = v_obj_nz > 0.0 ? vec3(0.42, 0.62, 0.82) : vec3(0.80, 0.62, 0.38);
         float band = 1.0 - smoothstep(0.035, 0.09, abs(v_obj_nz));
@@ -97,13 +107,7 @@ void main() {
         float lambert = max(dot(n, l), 0.0);
         color = v_color * (0.74 + 0.26 * lambert);
     } else {
-        float key = pow(dot(n, l) * 0.5 + 0.5, 1.7);
-        float fill = max(dot(n, normalize(FILL_DIR)), 0.0) * 0.22;
-        vec3 h = normalize(l + eye);
-        float spec = pow(max(dot(n, h), 0.0), 58.0) * 0.85;
-        float rim = pow(1.0 - max(dot(n, eye), 0.0), 3.5) * 0.30;
-        color = u_base_color * (u_ambient + (1.0 - u_ambient) * key + fill + rim)
-              + HIGHLIGHT * spec;
+        color = studio_metal(n, u_base_color, l, u_ambient, v_cavity);
     }
 
     if (u_wire_px > 0.0) {
@@ -138,8 +142,10 @@ struct Uniforms {
     light_dir: Option<glow::NativeUniformLocation>,
     base_color: Option<glow::NativeUniformLocation>,
     ambient: Option<glow::NativeUniformLocation>,
+    roughness: Option<glow::NativeUniformLocation>,
     wire_color: Option<glow::NativeUniformLocation>,
     wire_px: Option<glow::NativeUniformLocation>,
+    clip_plane: Option<glow::NativeUniformLocation>,
 }
 
 struct GpuResources {
@@ -234,8 +240,10 @@ impl GpuMeshRenderer {
         normal_matrix: &[f32; 9],
         mode: i32,
         base_color: [f32; 3],
+        roughness: f32,
         wireframe: bool,
         wire_color: [f32; 3],
+        clip_plane: [f32; 4],
     ) {
         self.ensure_resources(gl);
         self.warn_if_no_depth_buffer(gl);
@@ -286,15 +294,17 @@ impl GpuMeshRenderer {
             gl.uniform_3_f32(u.light_dir.as_ref(), -0.38, 0.46, 0.80);
             gl.uniform_3_f32(u.base_color.as_ref(), base_color[0], base_color[1], base_color[2]);
             gl.uniform_1_f32(u.ambient.as_ref(), 0.20);
+            gl.uniform_1_f32(u.roughness.as_ref(), roughness);
             gl.uniform_3_f32(u.wire_color.as_ref(), wire_color[0], wire_color[1], wire_color[2]);
             gl.uniform_1_f32(u.wire_px.as_ref(), if wireframe { WIRE_PX } else { 0.0 });
+            gl.uniform_4_f32_slice(u.clip_plane.as_ref(), &clip_plane);
 
             gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
 
-            // Stones ride in a second buffer with the same program: metal
+            // Stones ride in a second buffer with the same program: dielectric
             // shading, their own tint, whatever the ring's mode is.
             if self.gem_count > 0 {
-                gl.uniform_1_i32(u.mode.as_ref(), 0);
+                gl.uniform_1_i32(u.mode.as_ref(), 5);
                 gl.uniform_3_f32(
                     u.base_color.as_ref(),
                     ringdesign_core::gems::GEM_TINT[0],
@@ -363,7 +373,7 @@ impl GpuMeshRenderer {
         let program = match compile_program(
             gl,
             &format!("{header}{VERTEX_BODY}"),
-            &format!("{header}{FRAGMENT_BODY}"),
+            &format!("{header}{}", FRAGMENT_BODY.replace("// STUDIO_MATERIAL", ringdesign_core::render::STUDIO_GLSL)),
         ) {
             Ok(p) => p,
             Err(e) => {
@@ -391,8 +401,10 @@ impl GpuMeshRenderer {
                 light_dir: gl.get_uniform_location(program, "u_light_dir"),
                 base_color: gl.get_uniform_location(program, "u_base_color"),
                 ambient: gl.get_uniform_location(program, "u_ambient"),
+                roughness: gl.get_uniform_location(program, "u_roughness"),
                 wire_color: gl.get_uniform_location(program, "u_wire_color"),
                 wire_px: gl.get_uniform_location(program, "u_wire_px"),
+                clip_plane: gl.get_uniform_location(program, "u_clip_plane"),
             }
         };
 
@@ -549,8 +561,10 @@ pub fn paint_callback(
     normal_matrix: [f32; 9],
     shade: ShadeMode,
     base_color: [f32; 3],
+    roughness: f32,
     wireframe: bool,
     wire_color: [f32; 3],
+    clip_plane: [f32; 4],
 ) {
     let cb = egui_glow::CallbackFn::new(move |info, painter| {
         if let Ok(mut r) = renderer.lock() {
@@ -561,8 +575,10 @@ pub fn paint_callback(
                 &normal_matrix,
                 shade.code(),
                 base_color,
+                roughness,
                 wireframe,
                 wire_color,
+                clip_plane,
             );
         }
     });

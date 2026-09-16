@@ -33,8 +33,16 @@ pub struct Prefs {
     /// and lives in the viewport, which has no business knowing about serde.
     pub shade: usize,
     pub wireframe: bool,
+    pub preview_quality: crate::ring::PreviewQuality,
+    pub finish: usize,
+    pub polish: usize,
     pub as_cast: bool,
     pub show_gems: bool,
+    pub editor_mode: usize,
+    pub editor_guides: bool,
+    pub editor_inspector: bool,
+    pub editor_debug_layout: bool,
+    pub workspace: Workspace,
     /// Index into `ringdesign_core::metal::METALS`; `None` is nominal.
     pub shrink_metal: Option<usize>,
     pub pattern_repeats: u32,
@@ -54,8 +62,16 @@ impl Default for Prefs {
             stylus_only: false,
             shade: 0,
             wireframe: false,
+            preview_quality: Default::default(),
+            finish: 0,
+            polish: 0,
             as_cast: false,
             show_gems: true,
+            editor_mode: 0,
+            editor_guides: true,
+            editor_inspector: true,
+            editor_debug_layout: false,
+            workspace: Workspace::default(),
             shrink_metal: None,
             pattern_repeats: 24,
             pattern_height_mm: 0.35,
@@ -86,6 +102,7 @@ impl Prefs {
     /// whose value is outside its range, and a stale `shade` index would panic
     /// the shader lookup.
     pub fn sanitize(&mut self, shade_modes: usize, metals: usize) {
+        self.workspace.sanitize();
         self.brush_frac = self.brush_frac.clamp(0.002, 0.08);
         self.brush_depth = self.brush_depth.clamp(0.05, 1.0);
         self.pattern_repeats = self.pattern_repeats.clamp(1, 200);
@@ -97,6 +114,49 @@ impl Prefs {
             self.shrink_metal = None;
         }
         self.recent.truncate(MAX_RECENT);
+    }
+}
+
+/// Normalized workspace geometry survives screen size and keyboard changes.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Workspace {
+    /// Portrait height and landscape width as fractions of the available editor.
+    pub inspector_fraction: [f32; 2],
+    pub rail_position: Option<[f32; 2]>,
+    pub palette_position: Option<[f32; 2]>,
+    pub rail_collapsed: bool,
+}
+
+impl Default for Workspace {
+    fn default() -> Self {
+        Self {
+            inspector_fraction: [0.32, 0.36],
+            rail_position: None,
+            palette_position: None,
+            rail_collapsed: false,
+        }
+    }
+}
+
+impl Workspace {
+    pub fn sanitize(&mut self) {
+        for (i, fraction) in self.inspector_fraction.iter_mut().enumerate() {
+            *fraction = if fraction.is_finite() {
+                fraction.clamp(0.08, 0.75)
+            } else {
+                Self::default().inspector_fraction[i]
+            };
+        }
+        for position in [&mut self.rail_position, &mut self.palette_position] {
+            if let Some(point) = position {
+                if point.iter().all(|v| v.is_finite()) {
+                    *point = point.map(|v| v.clamp(0.0, 1.0));
+                } else {
+                    *position = None;
+                }
+            }
+        }
     }
 }
 
@@ -149,7 +209,11 @@ mod tests {
         let _ = std::fs::remove_file(dir.join(FILE));
         assert_eq!(load(&dir), Prefs::default());
         std::fs::write(dir.join(FILE), "{ not json").expect("write");
-        assert_eq!(load(&dir), Prefs::default(), "corrupt must not stop the app starting");
+        assert_eq!(
+            load(&dir),
+            Prefs::default(),
+            "corrupt must not stop the app starting"
+        );
     }
 
     #[test]
@@ -160,7 +224,11 @@ mod tests {
         }
         assert_eq!(p.recent, ["c", "b", "a"]);
         p.push_recent("a");
-        assert_eq!(p.recent, ["a", "c", "b"], "reopening moves it to the front, not a second copy");
+        assert_eq!(
+            p.recent,
+            ["a", "c", "b"],
+            "reopening moves it to the front, not a second copy"
+        );
         p.forget_recent("c");
         assert_eq!(p.recent, ["a", "b"]);
     }
@@ -172,7 +240,11 @@ mod tests {
             p.push_recent(&format!("f{i}"));
         }
         assert_eq!(p.recent.len(), MAX_RECENT);
-        assert_eq!(p.recent[0], format!("f{}", MAX_RECENT + 4), "newest survives");
+        assert_eq!(
+            p.recent[0],
+            format!("f{}", MAX_RECENT + 4),
+            "newest survives"
+        );
     }
 
     /// Every sanitized field feeds a slider or an index, and egui panics on a
@@ -191,7 +263,10 @@ mod tests {
         assert!((0.05..=1.0).contains(&p.brush_depth));
         assert!((1..=200).contains(&p.pattern_repeats));
         assert!((0.02..=1.6).contains(&p.pattern_height_mm));
-        assert_eq!(p.shade, 0, "a stale shade index would panic the shader lookup");
+        assert_eq!(
+            p.shade, 0,
+            "a stale shade index would panic the shader lookup"
+        );
         assert_eq!(p.shrink_metal, None);
     }
 

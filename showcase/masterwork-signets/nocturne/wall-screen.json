@@ -1,0 +1,13 @@
+{
+  "sampled_min_mm": 0.5170153434496856,
+  "point": [
+    4.693688074747722,
+    -7.968316396077474,
+    3.0553619066874185
+  ],
+  "rays": 384,
+  "unresolved": 0,
+  "below_limit": 59,
+  "limit_mm": 0.8,
+  "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection"
+}

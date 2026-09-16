@@ -1,0 +1,245 @@
+{
+  "bench_layers": [],
+  "cast_ring_grams": 9.977239816423754,
+  "design": "Aster — cushion seal",
+  "detail_findings": [],
+  "diagnostic_only": false,
+  "estimated_channel_grams": 2.7717450410989155,
+  "estimated_charge_grams": 12.74898485752267,
+  "feeding_proxy": [
+    112.5,
+    1.496552634907961
+  ],
+  "format_version": 1,
+  "geometry": {
+    "bounds_mm": [
+      23.481731414794922,
+      24.531089782714844,
+      10.703363418579102
+    ],
+    "surface_area_mm2": 1031.7823249042733,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 393216,
+      "vertex_count": 196608,
+      "watertight": true
+    },
+    "volume_mm3": 1020.1019042815483
+  },
+  "limits": [
+    "Release is sampled; features between rays can be missed",
+    "Sand-slot widths are a screening check, not a sand-strength model",
+    "Radial wall is not the minimum thickness in every direction",
+    "Channel volumes overlap at junctions and omit melt/handling losses",
+    "Separately cored geometry needs a core and assembly plan"
+  ],
+  "nominal_bore_mm": 18.2,
+  "nominal_size": "US 8.11",
+  "pattern_fingerprint": "adbd204e9cfac89b",
+  "pattern_scale": 1.019367991845056,
+  "radial_wall_limit_mm": 0.8,
+  "radial_wall_mm": 1.2799562007991003,
+  "release": {
+    "bounds": [
+      [
+        -11.740865707397461,
+        -11.656473159790039,
+        -5.351681709289551
+      ],
+      [
+        11.740865707397461,
+        12.874617576599121,
+        5.351681709289551
+      ]
+    ],
+    "cell_mm": [
+      0.09992226133955286,
+      0.09971988104223235
+    ],
+    "fits_flask": true,
+    "frame": {
+      "x": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "y": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "z": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "grid": [
+      235,
+      246
+    ],
+    "low_draft_area_mm2": 305.3149930114455,
+    "notes": [
+      "305.31 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
+    "obstructions": [],
+    "occupied_rays": 19592,
+    "parting_mm": 0.0,
+    "sand_findings": [],
+    "status": "Review",
+    "suggested_parting_mm": 0.0,
+    "tolerance_mm": 0.02,
+    "unresolved_rays": 0,
+    "worst_draft_deg": 0.0
+  },
+  "sampled_local_wall": null,
+  "setup": {
+    "auto_parting": true,
+    "axial_stock_mm": 0.0,
+    "bench_notes": "Cast as one solid cushion signet. Part on the broad Z=0 plane; lift along +Z. Preserve the bore's sand island. The preliminary gate feeds the heavier head; verify feeding with the caster. Remove the gate and seam, lightly polish the rim and shoulders, and satin the seal face. Optional initials are cut at the bench after casting; none are represented in the pattern.",
+    "bore": "Molded",
+    "bore_stock_mm": 0.0,
+    "channels": [
+      {
+        "diameter_mm": 3.5,
+        "end": [
+          0.0,
+          22.0,
+          0.0
+        ],
+        "kind": "Gate",
+        "start": [
+          0.0,
+          12.3,
+          0.0
+        ]
+      },
+      {
+        "diameter_mm": 5.5,
+        "end": [
+          0.0,
+          30.0,
+          0.0
+        ],
+        "kind": "Sprue",
+        "start": [
+          0.0,
+          22.0,
+          0.0
+        ]
+      }
+    ],
+    "component": null,
+    "flask": {
+      "cope_mm": 20.0,
+      "drag_mm": 20.0,
+      "length_mm": 70.0,
+      "width_mm": 70.0
+    },
+    "parting_mm": 0.0,
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "radial_stock_mm": 0.0,
+    "recipe": {
+      "alloy": "Silver 925",
+      "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mold, and measured trials.",
+      "min_detail_mm": 0.3,
+      "min_draft_deg": 3.0,
+      "min_sand_web_mm": 0.6,
+      "min_section_mm": 0.8,
+      "name": "Delft clay starting recipe / Silver 925",
+      "process": "SandTwoPart",
+      "sand": "DelftClay",
+      "sand_margin_mm": 5.0,
+      "shrink_pct": 1.9
+    },
+    "sample_pitch_mm": 0.1,
+    "tolerance_mm": 0.02
+  },
+  "source_build": {
+    "band_width_mm": 10.5,
+    "bounds_mm": [
+      23.035579681396484,
+      24.065000534057617,
+      10.5
+    ],
+    "build_ms": 85,
+    "inner_diameter_mm": 18.19999912020255,
+    "max_relief_mm": 0.0,
+    "metals": [
+      {
+        "dwt": 6.41551417584529,
+        "grams": 9.977239816423754,
+        "metal": "Silver 925"
+      },
+      {
+        "dwt": 5.4494715007180075,
+        "grams": 8.474875519742186,
+        "metal": "Bronze"
+      },
+      {
+        "dwt": 5.294656969447609,
+        "grams": 8.2341120106586,
+        "metal": "Brass"
+      },
+      {
+        "dwt": 7.152431344692385,
+        "grams": 11.12327411966162,
+        "metal": "Gold 10k"
+      },
+      {
+        "dwt": 8.093703694816403,
+        "grams": 12.587116254889814,
+        "metal": "Gold 14k"
+      },
+      {
+        "dwt": 9.648041588771198,
+        "grams": 15.004381886089005,
+        "metal": "Gold 18k"
+      },
+      {
+        "dwt": 11.022794626452333,
+        "grams": 17.14236184675124,
+        "metal": "Gold 22k"
+      },
+      {
+        "dwt": 11.964066976576351,
+        "grams": 18.606203981979434,
+        "metal": "Gold 24k"
+      },
+      {
+        "dwt": 7.431097500979101,
+        "grams": 11.556648436012072,
+        "metal": "Palladium 950"
+      },
+      {
+        "dwt": 13.283086783000142,
+        "grams": 20.657509079371575,
+        "metal": "Platinum 950"
+      }
+    ],
+    "min_relief_mm": 0.0,
+    "outer_diameter_mm": 24.065000534057617,
+    "quality": {
+      "degenerate_faces": 0,
+      "min_angle_deg": 16.331804152662777,
+      "worst_aspect": 4.00533613673121
+    },
+    "refine": null,
+    "surface_area_mm2": 992.9471858666244,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 393216,
+      "vertex_count": 196608,
+      "watertight": true
+    },
+    "volume_mm3": 963.0540363343392
+  },
+  "units": "millimeter"
+}

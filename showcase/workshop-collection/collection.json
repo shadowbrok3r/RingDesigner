@@ -1,0 +1,166 @@
+[
+  {
+    "alloy": "Silver 925",
+    "bench": "Cast as one solid cushion signet. Part on the broad Z=0 plane; lift along +Z. Preserve the bore's sand island. The preliminary gate feeds the heavier head; verify feeding with the caster. Remove the gate and seam, lightly polish the rim and shoulders, and satin the seal face. Optional initials are cut at the bench after casting; none are represented in the pattern.",
+    "best_sand_orientation": {
+      "blocked_area_mm2": -0.0,
+      "fits_flask": true,
+      "low_draft_area_mm2": 305.3149930114455,
+      "obstructions": 0,
+      "parting_mm": 0.0,
+      "pull": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "status": "Review"
+    },
+    "bore_mm": 18.2,
+    "grams": 9.977239816423754,
+    "local_wall": null,
+    "low_draft_area_mm2": 305.3149930114455,
+    "mesh": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 393216,
+      "vertex_count": 196608,
+      "watertight": true
+    },
+    "name": "Aster — cushion seal",
+    "obstructions": 0,
+    "process": "SandTwoPart",
+    "radial_wall_mm": 1.2799562007991003,
+    "release": "Review",
+    "slug": "aster",
+    "volume_mm3": 963.0540363343392
+  },
+  {
+    "alloy": "Silver 925",
+    "bench": "Cast in one piece, pulling along +Z with a central parting plane. Broad straight reeds avoid diagonal hooks and fine sand fins. Gate at the palm. Remove the parting seam, retain a satin finish in the valleys, and polish the rounded reed crests. No stone setting or assembly is required.",
+    "best_sand_orientation": {
+      "blocked_area_mm2": -0.0,
+      "fits_flask": true,
+      "low_draft_area_mm2": 314.91710107499006,
+      "obstructions": 0,
+      "parting_mm": 0.0,
+      "pull": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "status": "Review"
+    },
+    "bore_mm": 18.2,
+    "grams": 8.299613004494164,
+    "local_wall": null,
+    "low_draft_area_mm2": 314.91710107499006,
+    "mesh": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 393216,
+      "vertex_count": 196608,
+      "watertight": true
+    },
+    "name": "Tide — twelve reeds",
+    "obstructions": 0,
+    "process": "SandTwoPart",
+    "radial_wall_mm": 1.875204214485036,
+    "release": "Review",
+    "slug": "tide",
+    "volume_mm3": 801.1209463797455
+  },
+  {
+    "alloy": "Gold 14k",
+    "bench": "Investment cast the pierced head and shank separately. Keep the underside open for investment removal; inspect the 1.3 mm seal roof and gallery rails. Feed each part using a caster-designed tree. Fit the head feet to the shank, solder or laser join, and inspect both joints. Ease shank edges by hand, polish the octagonal rim, and satin the seal. The nominal assembly overlaps at fitting stock; use the separate component pattern files for manufacture.",
+    "best_sand_orientation": {
+      "blocked_area_mm2": 20.668902039648252,
+      "fits_flask": true,
+      "low_draft_area_mm2": 259.3364584074141,
+      "obstructions": 2,
+      "parting_mm": 12.044072329998016,
+      "pull": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "status": "Blocked"
+    },
+    "bore_mm": 18.2,
+    "grams": 15.058624790949573,
+    "local_wall": {
+      "below_limit": 0,
+      "limit_mm": 0.8,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "point": [
+        0.9666666984558105,
+        9.0,
+        -3.800000031789144
+      ],
+      "rays": 212,
+      "sampled_min_mm": 1.1999988555908203,
+      "unresolved": 0
+    },
+    "low_draft_area_mm2": 35.722746561114036,
+    "mesh": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 1236,
+      "vertex_count": 616,
+      "watertight": true
+    },
+    "name": "Lantern — pierced octagonal signet",
+    "obstructions": 2,
+    "process": "LostWax",
+    "radial_wall_mm": null,
+    "release": "NotApplicable",
+    "slug": "lantern",
+    "volume_mm3": 1152.1518585271288
+  },
+  {
+    "alloy": "Gold 14k",
+    "bench": "Investment cast the continuous half-turn ribbon. The changing section traps a rigid sand mold in a straight pull. Feed at the thick palm segment; preserve the twist when removing the sprue. Smooth and polish the uninterrupted ribbon, ease the bore edge, and verify the minimum measured bore after finishing. No separate overlapping bands or hidden assembly joints.",
+    "best_sand_orientation": {
+      "blocked_area_mm2": 30.471048865823402,
+      "fits_flask": true,
+      "low_draft_area_mm2": 129.1726854956763,
+      "obstructions": 118,
+      "parting_mm": 0.0,
+      "pull": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "status": "Blocked"
+    },
+    "bore_mm": 18.2,
+    "grams": 7.437578217712028,
+    "local_wall": {
+      "below_limit": 0,
+      "limit_mm": 0.8,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "point": [
+        9.42793337504069,
+        8.498292922973633,
+        -1.3815638224283855
+      ],
+      "rays": 384,
+      "sampled_min_mm": 1.9925128330650657,
+      "unresolved": 0
+    },
+    "low_draft_area_mm2": 115.4906991324065,
+    "mesh": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 196608,
+      "vertex_count": 98304,
+      "watertight": true
+    },
+    "name": "Aureole — half-turn ribbon",
+    "obstructions": 118,
+    "process": "LostWax",
+    "radial_wall_mm": null,
+    "release": "NotApplicable",
+    "slug": "aureole",
+    "volume_mm3": 569.0572469557787
+  }
+]

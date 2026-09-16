@@ -30,6 +30,7 @@ pub mod viewport;
 pub mod frost;
 pub mod graph;
 pub mod export;
+pub mod editor;
 
 #[cfg(target_os = "android")]
 mod app;

@@ -11,6 +11,7 @@ pub mod alpha;
 pub mod assembly;
 pub mod band;
 pub mod cluster;
+pub mod cad;
 pub mod gem;
 pub mod generator;
 pub mod idiom;
@@ -40,6 +41,7 @@ pub fn register_all(reg: &mut Registry) {
     alpha::register(reg);
     sink::register(reg);
     cluster::register(reg);
+    cad::register(reg);
     idiom::register(reg);
     #[cfg(feature = "kernel-manifold")]
     solid::register(reg);

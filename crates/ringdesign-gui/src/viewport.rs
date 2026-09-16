@@ -34,6 +34,8 @@ out vec3 v_normal;
 out vec3 v_color;
 out vec3 v_color2;
 out float v_obj_nz;
+out vec3 v_world;
+out float v_cavity;
 
 void main() {
     gl_Position = u_mvp * vec4(a_position, 1.0);
@@ -42,6 +44,9 @@ void main() {
     v_color2 = a_color2;
     // Object-space axial share of the normal: which mould half owns the face.
     v_obj_nz = a_normal.z;
+    v_world = a_position;
+    // Approximate bore occlusion; assessment colours do not use it.
+    v_cavity = smoothstep(0.0, 0.55, -dot(a_normal.xy, normalize(a_position.xy + vec2(0.000001))));
 }
 "#;
 
@@ -51,6 +56,9 @@ in vec3 v_normal;
 in vec3 v_color;
 in vec3 v_color2;
 in float v_obj_nz;
+in vec3 v_world;
+in float v_cavity;
+uniform vec4 u_clip_plane;
 
 uniform int u_mode;
 uniform vec3 u_light_dir;
@@ -60,16 +68,18 @@ uniform float u_alpha;
 
 out vec4 frag_color;
 
-const vec3 FILL_DIR = vec3(-0.52, -0.38, 0.42);
-const vec3 HIGHLIGHT = vec3(1.0, 0.96, 0.88);
+// STUDIO_MATERIAL
 
 void main() {
+    if (dot(vec4(v_world, 1.0), u_clip_plane) > 0.00001) discard;
     vec3 n = normalize(v_normal);
     vec3 eye = vec3(0.0, 0.0, 1.0);
     vec3 l = normalize(u_light_dir);
     vec3 color;
 
-    if (u_mode == 4) {
+    if (u_mode == 5) {
+        color = studio_gem(n, u_base_color, l, u_ambient);
+    } else if (u_mode == 4) {
         // Cope in cool blue, drag in warm sand, the parting band bright.
         float lambert = max(dot(n, l), 0.0);
         vec3 half_c = v_obj_nz > 0.0 ? vec3(0.42, 0.62, 0.82) : vec3(0.80, 0.62, 0.38);
@@ -84,13 +94,7 @@ void main() {
         float lambert = max(dot(n, l), 0.0);
         color = v_color * (0.74 + 0.26 * lambert);
     } else {
-        float key = pow(dot(n, l) * 0.5 + 0.5, 1.7);
-        float fill = max(dot(n, normalize(FILL_DIR)), 0.0) * 0.22;
-        vec3 h = normalize(l + eye);
-        float spec = pow(max(dot(n, h), 0.0), 58.0) * 0.85;
-        float rim = pow(1.0 - max(dot(n, eye), 0.0), 3.5) * 0.30;
-        color = u_base_color * (u_ambient + (1.0 - u_ambient) * key + fill + rim)
-              + HIGHLIGHT * spec;
+        color = studio_metal(n, u_base_color, l, u_ambient, v_cavity);
     }
 
     frag_color = vec4(color, u_alpha);
@@ -100,10 +104,14 @@ void main() {
 const WIREFRAME_FRAGMENT_SHADER: &str = r#"#version 330 core
 
 uniform vec3 u_wire_color;
+in vec3 v_world;
+in float v_cavity;
+uniform vec4 u_clip_plane;
 
 out vec4 frag_color;
 
 void main() {
+    if (dot(vec4(v_world, 1.0), u_clip_plane) > 0.00001) discard;
     frag_color = vec4(u_wire_color, 0.55);
 }
 "#;
@@ -196,6 +204,38 @@ impl GpuMeshRenderer {
         self.pending = Some(data);
     }
 
+    /// Preserve sharp CAD corners while keeping smooth analytic faces smooth.
+    pub fn prepare_cad(&mut self, mesh: &Mesh) {
+        let mut display = Mesh::default();
+        for face in &mesh.faces {
+            let Some(normal) = mesh.face_normal(face) else {
+                continue;
+            };
+            let first = display.vertices.len() as u32;
+            for &id in face {
+                let Some(p) = mesh.vertices.get(id as usize) else {
+                    continue;
+                };
+                let smooth = mesh.normals.get(id as usize).copied().unwrap_or(Vec3(
+                    normal[0] as f32,
+                    normal[1] as f32,
+                    normal[2] as f32,
+                ));
+                let dot = smooth.0 as f64 * normal[0]
+                    + smooth.1 as f64 * normal[1]
+                    + smooth.2 as f64 * normal[2];
+                display.vertices.push(*p);
+                display.normals.push(if dot > 0.94 {
+                    smooth
+                } else {
+                    Vec3(normal[0] as f32, normal[1] as f32, normal[2] as f32)
+                });
+            }
+            display.faces.push([first, first + 1, first + 2]);
+        }
+        self.prepare_upload(&display, None, (0.0, 0.0));
+    }
+
     /// Queue the stone-preview triangles built by [`crate::gems`]. An empty
     /// buffer clears them.
     pub fn prepare_gems(&mut self, verts: Vec<f32>) {
@@ -239,11 +279,13 @@ impl GpuMeshRenderer {
         normal_matrix: &[f32; 9],
         mode: i32,
         base_color: [f32; 3],
+        roughness: f32,
         light_dir: [f32; 3],
         ambient: f32,
         wireframe: bool,
         wire_color: [f32; 3],
         show_gems: bool,
+        clip_plane: [f32; 4],
     ) {
         unsafe { self.ensure_resources(gl) };
         let Some(res) = self.resources else { return };
@@ -282,7 +324,13 @@ impl GpuMeshRenderer {
         unsafe {
             let vp = info.viewport_in_pixels();
             gl.viewport(vp.left_px, vp.from_bottom_px, vp.width_px, vp.height_px);
-            gl.scissor(vp.left_px, vp.from_bottom_px, vp.width_px, vp.height_px);
+            let clip = info.clip_rect_in_pixels();
+            gl.scissor(
+                clip.left_px,
+                clip.from_bottom_px,
+                clip.width_px,
+                clip.height_px,
+            );
 
             gl.enable(glow::DEPTH_TEST);
             gl.depth_mask(true);
@@ -307,8 +355,12 @@ impl GpuMeshRenderer {
             gl.uniform_3_f32(loc.as_ref(), base_color[0], base_color[1], base_color[2]);
             let loc = gl.get_uniform_location(res.program, "u_ambient");
             gl.uniform_1_f32(loc.as_ref(), ambient);
+            let loc = gl.get_uniform_location(res.program, "u_roughness");
+            gl.uniform_1_f32(loc.as_ref(), roughness);
             let loc = gl.get_uniform_location(res.program, "u_alpha");
             gl.uniform_1_f32(loc.as_ref(), 1.0);
+            let loc = gl.get_uniform_location(res.program, "u_clip_plane");
+            gl.uniform_4_f32_slice(loc.as_ref(), &clip_plane);
 
             gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
             gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
@@ -344,6 +396,8 @@ impl GpuMeshRenderer {
                 let loc = gl.get_uniform_location(res.wire_program, "u_mvp");
                 gl.uniform_matrix_4_f32_slice(loc.as_ref(), false, mvp);
                 let loc = gl.get_uniform_location(res.wire_program, "u_wire_color");
+                let clip_loc = gl.get_uniform_location(res.wire_program, "u_clip_plane");
+                gl.uniform_4_f32_slice(clip_loc.as_ref(), &clip_plane);
                 gl.uniform_3_f32(loc.as_ref(), wire_color[0], wire_color[1], wire_color[2]);
 
                 gl.enable(glow::BLEND);
@@ -358,13 +412,13 @@ impl GpuMeshRenderer {
                 gl.disable(glow::BLEND);
             }
 
-            // Stones ride on top: same program in the metal-shaded mode with
+            // Stones ride on top: same program in the dielectric mode with
             // their own tint, flat facet normals doing the sparkle. Preview
             // only — they are not in the mesh and never export.
             if show_gems && self.gem_count > 0 {
                 gl.use_program(Some(res.program));
                 let loc = gl.get_uniform_location(res.program, "u_mode");
-                gl.uniform_1_i32(loc.as_ref(), 0);
+                gl.uniform_1_i32(loc.as_ref(), 5);
                 let loc = gl.get_uniform_location(res.program, "u_base_color");
                 gl.uniform_3_f32(
                     loc.as_ref(),
@@ -413,7 +467,7 @@ impl GpuMeshRenderer {
             return;
         }
 
-        let program = unsafe { compile_program(gl, VERTEX_SHADER, FRAGMENT_SHADER) };
+        let program = unsafe { compile_program(gl, VERTEX_SHADER, &FRAGMENT_SHADER.replace("// STUDIO_MATERIAL", ringdesign_core::render::STUDIO_GLSL)) };
         let wire_program = unsafe { compile_program(gl, VERTEX_SHADER, WIREFRAME_FRAGMENT_SHADER) };
         let vao = unsafe { gl.create_vertex_array() }.expect("create VAO");
         let vbo = unsafe { gl.create_buffer() }.expect("create VBO");
@@ -661,6 +715,77 @@ pub const WALL_NEUTRAL: [f32; 3] = [0.42, 0.42, 0.45];
 // --- Viewport --------------------------------------------------------------
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
+    use ringdesign_workbench::visual::{Pointer, Tool};
+    let active = pane == app.active_pane;
+    if active {
+        app.visual.poll();
+        egui::Panel::top(egui::Id::new(("direct-viewport-tools", pane))).show(ui, |ui| {
+            app.visual.chooser(ui, &Tool::ALL);
+        });
+        if app.visual.tool != Tool::Select {
+            egui::Panel::right(egui::Id::new(("direct-viewport-inspector", pane)))
+                .exact_size(248.0)
+                .show(ui, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        app.visual.controls(ui, &app.design, &app.lib);
+                        if let Some(layer) = app.visual.apply_controls(&mut app.design) {
+                            app.selected_layer = Some(layer);
+                            app.mark_dirty();
+                        }
+                        if app.visual.tool == Tool::Clearance
+                            && app.visual.stone_controls(ui, &mut app.design)
+                        {
+                            app.mark_dirty();
+                        }
+                    });
+                });
+        }
+    }
+    let mould_active = active && app.visual.tool == Tool::Mould && app.visual.study.is_some();
+    if let Some((previous, camera)) = app.mould_camera {
+        if app.visual.tool != Tool::Mould
+            || app.visual.study.is_none()
+            || previous != app.active_pane
+        {
+            if let Some(p) = app.panes.get_mut(previous) {
+                p.camera = camera;
+            }
+            app.mould_camera = None;
+        }
+    }
+    if mould_active {
+        if let Some(study) = &app.visual.study {
+            if app.mould_serial != app.visual.study_serial {
+                if let Ok(mut renderer) = app.mould_renderer.lock() {
+                    renderer.prepare_upload(
+                        &study.pattern,
+                        None,
+                        (
+                            app.design.inner_radius_mm() * study.scale,
+                            app.design.draft.min_section_mm,
+                        ),
+                    );
+                    renderer.prepare_gems(Vec::new());
+                }
+                app.mould_serial = app.visual.study_serial;
+            }
+            if app.mould_camera.is_none() {
+                app.mould_camera = Some((pane, app.panes[pane].camera));
+                app.panes[pane].camera.zoom = 1.0;
+                let bounds = study.pattern.bounds().map(|(a, b)| {
+                    let p = study.report.frame.z.map(|v| v.abs() as f32 * 16.0);
+                    (
+                        Vec3(a.0 - p[0], a.1 - p[1], a.2 - p[2]),
+                        Vec3(b.0 + p[0], b.1 + p[1], b.2 + p[2]),
+                    )
+                });
+                app.panes[pane].camera.fit(bounds);
+            }
+        }
+    }
+    if app.visual.wants_repaint() {
+        ui.ctx().request_repaint();
+    }
     let (rect, response) =
         ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
     if !ui.is_rect_visible(rect) {
@@ -668,6 +793,18 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     }
 
     let shift = ui.input(|i| i.modifiers.shift);
+    let navigating = shift || ui.input(|i| i.pointer.middle_down());
+    let projector = app.panes[pane].camera.projector(rect);
+    let blocked = active
+        && app.build.as_ref().is_some_and(|b| {
+            app.visual.blocks_orbit(
+                ui.input(|i| i.pointer.press_origin().or(i.pointer.interact_pos())),
+                rect,
+                &b.mesh,
+                |p| projector.at(p.map(|v| v as f32)),
+                navigating,
+            )
+        });
     let scroll = if response.hovered() {
         ui.input(|i| i.smooth_scroll_delta.y)
     } else {
@@ -677,26 +814,30 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         let Some(cam) = app.panes.get_mut(pane).map(|p| &mut p.camera) else {
             return;
         };
-        if response.dragged_by(egui::PointerButton::Primary) {
+        if response.dragged_by(egui::PointerButton::Primary) && !blocked {
             let delta = response.drag_delta();
             if shift {
-                cam.pan_by(delta, rect.height());
+                cam.pan_by(delta, rect);
             } else {
                 cam.orbit(delta);
             }
         }
         if response.dragged_by(egui::PointerButton::Middle) {
-            cam.pan_by(response.drag_delta(), rect.height());
+            cam.pan_by(response.drag_delta(), rect);
         }
         if scroll != 0.0 {
             cam.zoom_by(scroll);
         }
     }
     let camera = app.panes[pane].camera;
-    let shade = app.panes[pane].shade;
+    let shade = if mould_active {
+        ShadeMode::Metal
+    } else {
+        app.panes[pane].shade
+    };
     let proj = camera.projector(rect);
 
-    if response.clicked() {
+    if response.clicked() && (!active || app.visual.tool == Tool::Select) {
         if let Some(pos) = response.interact_pointer_pos() {
             probe_click(app, camera, rect, pos, ui.input(|i| i.modifiers.shift));
         }
@@ -712,13 +853,19 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     if app.build.is_some() {
         let (mvp, normal_matrix) = camera.matrices(rect);
         let mode = shade.gl_mode();
-        let base_color = FINISHES[app.finish.min(FINISHES.len() - 1)].rgb;
+        let base_color = ringdesign_core::render::METAL_FINISHES[app.finish.min(FINISHES.len() - 1)].1;
+        let roughness = ringdesign_core::render::POLISHES[app.polish.min(2)].1;
         let rig = &LIGHT_RIGS[app.light.min(LIGHT_RIGS.len() - 1)];
         let (light_dir, ambient) = (rig.dir, rig.ambient);
         let wireframe = app.show_wireframe;
         let wire_color = rgb_of(theme::TEXT_DIM);
         let show_gems = app.show_gems;
-        let renderer = app.renderer.clone();
+        let renderer = if mould_active {
+            app.mould_renderer.clone()
+        } else {
+            app.renderer.clone()
+        };
+        let clip_plane = if active { app.visual.clip() } else { [0.0; 4] };
 
         let callback = egui_glow::CallbackFn::new(move |info, glow_painter| {
             if let Ok(mut r) = renderer.lock() {
@@ -729,11 +876,13 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                     &normal_matrix,
                     mode,
                     base_color,
+                    roughness,
                     light_dir,
                     ambient,
                     wireframe,
                     wire_color,
                     show_gems,
+                    clip_plane,
                 );
             }
         });
@@ -757,6 +906,36 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
 
     draw_legend(app, shade, &painter, rect);
     draw_probe(app, &painter, &proj, rect);
+    if active {
+        if let Some(build) = app.build.clone() {
+            let camera = app.panes[pane].camera;
+            let proj = camera.projector(rect);
+            let edit = app.visual.draw(
+                ui,
+                rect,
+                &response,
+                &mut app.design,
+                &app.lib,
+                &build.mesh,
+                |p| proj.at(p.map(|v| v as f32)),
+                |p| camera.ray(rect, p),
+                Pointer {
+                    navigating,
+                    ..Default::default()
+                },
+            );
+            if let Some(index) = edit.drawing {
+                let alpha = app.design.drawn[index].rasterize();
+                app.library_mut().insert(alpha);
+            }
+            if let Some(layer) = edit.layer {
+                app.selected_layer = Some(layer);
+            }
+            if edit.changed() {
+                app.mark_dirty();
+            }
+        }
+    }
 
     painter.text(
         rect.right_bottom() - egui::vec2(12.0, 9.0),
@@ -765,6 +944,60 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         egui::FontId::proportional(11.0),
         theme::TEXT_DIM,
     );
+}
+
+/// Independent CAD candidate renderer: edits can be inspected without changing
+/// the committed ring or its shared viewport buffers.
+pub fn candidate_view(
+    ui: &mut egui::Ui,
+    renderer: Arc<std::sync::Mutex<GpuMeshRenderer>>,
+    camera: &mut crate::camera::OrbitCamera,
+) -> (egui::Rect, egui::Response) {
+    let available = ui
+        .available_rect_before_wrap()
+        .intersect(ui.clip_rect())
+        .size()
+        .max(egui::vec2(1.0, 1.0));
+    let (rect, response) = ui.allocate_exact_size(available, egui::Sense::click_and_drag());
+    if response.dragged() {
+        let delta = ui.input(|i| i.pointer.delta());
+        if ui.input(|i| i.modifiers.shift) {
+            camera.pan_by(delta, rect);
+        } else {
+            camera.orbit(delta);
+        }
+    }
+    if response.hovered() {
+        camera.zoom_by(ui.input(|i| i.smooth_scroll_delta.y));
+    }
+    let (mvp, normal) = camera.matrices(rect);
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, 0.0, theme::VIEWPORT_BG);
+    let callback = egui_glow::CallbackFn::new(move |info, glow_painter| {
+        if let Ok(mut r) = renderer.lock() {
+            r.paint(
+                glow_painter.gl(),
+                info,
+                &mvp,
+                &normal,
+                0,
+                [0.72, 0.76, 0.85],
+                0.38,
+                [0.4, 0.7, 0.8],
+                0.3,
+                false,
+                [0.3, 0.3, 0.3],
+                true,
+                [0.0; 4],
+            );
+        }
+    });
+    painter.add(egui::PaintCallback {
+        rect,
+        callback: Arc::new(callback),
+    });
+    draw_axes(&painter, &camera.projector(rect), rect);
+    (rect, response)
 }
 
 /// Ground grid on the sand plane, under the ring.
@@ -853,7 +1086,11 @@ fn draw_legend(app: &RingDesignerApp, shade: ShadeMode, painter: &egui::Painter,
             // These are this build's faces, which is the right thing to paint
             // and the wrong thing to judge from: an irregular mesh reports a
             // phantom along the crest line that does not fall with resolution.
-            rows.push((None, "mesh faces — the verdict is field-sampled".into(), theme::TEXT_DIM));
+            rows.push((
+                None,
+                "mesh faces — the verdict is field-sampled".into(),
+                theme::TEXT_DIM,
+            ));
         }
         (ShadeMode::Wall, _) => {
             let m = app.design.draft.min_section_mm;

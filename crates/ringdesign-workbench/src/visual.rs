@@ -1,0 +1,591 @@
+//! Direct viewport tools: shared controls, cached inspection, and source edits.
+mod canvas;
+mod path;
+pub use canvas::{Edit, Pointer};
+use ringdesign_core::{
+    AlphaLibrary, RingDesign,
+    interaction::{
+        clearance::Envelope,
+        mould::Study,
+        paint::{Brush, Gesture},
+        section::{Cut, Plane},
+    },
+};
+use std::sync::{Arc, mpsc};
+
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub enum Tool {
+    #[default]
+    Select,
+    Paint,
+    Stamp,
+    Section,
+    Clearance,
+    Mould,
+    Path,
+    Measure,
+}
+impl Tool {
+    pub const ALL: [Self; 8] = [
+        Self::Select,
+        Self::Paint,
+        Self::Stamp,
+        Self::Section,
+        Self::Clearance,
+        Self::Mould,
+        Self::Path,
+        Self::Measure,
+    ];
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Select => "Select",
+            Self::Paint => "Paint 3D",
+            Self::Stamp => "Stamp",
+            Self::Section => "Section",
+            Self::Clearance => "Clearance",
+            Self::Mould => "Mould opening",
+            Self::Path => "Surface path",
+            Self::Measure => "Measure",
+        }
+    }
+}
+
+pub struct Visual {
+    pub tool: Tool,
+    pub path: path::PathTool,
+    pub arrangement: ringdesign_core::interaction::surface::Arrangement,
+    pub(super) measure: Vec<[f64; 3]>,
+    pub brush: Brush,
+    pub plane: Plane,
+    pub gap_mm: f64,
+    pub stylus_only: bool,
+    pub gesture: Gesture,
+    pub cursor: Option<ringdesign_core::interaction::picking::Hit>,
+    pub selected_stone: Option<usize>,
+    pub study: Option<Arc<Study>>,
+    pub study_serial: u64,
+    pub opening_mm: f64,
+    pub playing: bool,
+    pub show_upper: bool,
+    pub show_lower: bool,
+    pub message: String,
+    pub busy: bool,
+    receiver: Option<mpsc::Receiver<Result<Study, String>>>,
+    pub(super) cut: Cut,
+    pub(super) cap: Vec<[[f64; 3]; 3]>,
+    pub(super) cut_key: Option<(usize, u64)>,
+    pub(super) wall: Option<[[f64; 3]; 2]>,
+    pub(super) envelopes: Vec<Envelope>,
+    pub(super) crowding: Option<ringdesign_core::stones::StonesReport>,
+    pub(super) clearance_gap: Option<u64>,
+    pub(super) phase: f64,
+    pub(super) section_dragging: bool,
+    pub(super) section_grab: Option<(egui::Pos2, f64)>,
+    search: String,
+}
+impl Default for Visual {
+    fn default() -> Self {
+        Self {
+            tool: Tool::Select,
+            path: Default::default(),
+            arrangement: Default::default(),
+            measure: Vec::new(),
+            brush: Brush::default(),
+            plane: Plane::default(),
+            gap_mm: 0.4,
+            stylus_only: false,
+            gesture: Gesture::default(),
+            cursor: None,
+            selected_stone: None,
+            study: None,
+            study_serial: 0,
+            opening_mm: 7.0,
+            playing: false,
+            show_upper: true,
+            show_lower: true,
+            message: String::new(),
+            busy: false,
+            receiver: None,
+            cut: Cut::default(),
+            cap: Vec::new(),
+            cut_key: None,
+            wall: None,
+            envelopes: Vec::new(),
+            crowding: None,
+            clearance_gap: None,
+            phase: 0.0,
+            section_dragging: false,
+            section_grab: None,
+            search: String::new(),
+        }
+    }
+}
+impl Visual {
+    pub fn select(&mut self, tool: Tool) {
+        if tool != self.tool {
+            self.path.stop_drag();
+            self.section_dragging = false;
+            self.section_grab = None;
+            self.gesture = Gesture::default();
+            self.cursor = None;
+            if tool == Tool::Stamp && self.brush.diameter_mm < 1.5 {
+                self.brush.diameter_mm = 2.8;
+            }
+            if tool == Tool::Paint && self.brush.diameter_mm > 1.5 {
+                self.brush.diameter_mm = 0.65;
+            }
+            if tool != Tool::Mould {
+                self.playing = false;
+            }
+        }
+        self.tool = tool;
+    }
+    /// A real source edit invalidates inspection; a camera or tool change does not.
+    pub fn invalidate(&mut self) {
+        self.path.invalidate();
+        self.measure.clear();
+        self.study = None;
+        self.receiver = None;
+        self.busy = false;
+        self.playing = false;
+        self.cut_key = None;
+        self.wall = None;
+        self.clearance_gap = None;
+        self.cursor = None;
+    }
+    pub fn mesh_changed(&mut self) {
+        self.cut_key = None;
+        self.wall = None;
+    }
+    pub fn clip(&self) -> [f32; 4] {
+        if self.tool == Tool::Section {
+            self.plane.uniform()
+        } else {
+            [0.0; 4]
+        }
+    }
+    pub fn is_painting(&self) -> bool {
+        matches!(self.tool, Tool::Paint | Tool::Stamp | Tool::Path)
+    }
+    pub fn wants_repaint(&self) -> bool {
+        self.busy || self.playing
+    }
+    pub fn poll(&mut self) -> bool {
+        let Some(rx) = &self.receiver else {
+            return false;
+        };
+        match rx.try_recv() {
+            Ok(result) => {
+                self.receiver = None;
+                self.busy = false;
+                match result {
+                    Ok(study) => {
+                        self.message =
+                            format!("{} obstruction regions", study.report.obstructions.len());
+                        self.study = Some(Arc::new(study));
+                        self.study_serial += 1;
+                        true
+                    }
+                    Err(error) => {
+                        self.message = error;
+                        false
+                    }
+                }
+            }
+            Err(mpsc::TryRecvError::Disconnected) => {
+                self.receiver = None;
+                self.busy = false;
+                self.message = "The mould study stopped; build it again.".into();
+                false
+            }
+            Err(mpsc::TryRecvError::Empty) => false,
+        }
+    }
+    fn build_mould(&mut self, d: &RingDesign, lib: &AlphaLibrary) {
+        if self.busy {
+            return;
+        }
+        self.message = "Preparing the pattern and sampling its cavities…".into();
+        self.busy = true;
+        self.playing = false;
+        let d = d.clone();
+        let lib = lib.clone();
+        let (tx, rx) = mpsc::channel();
+        self.receiver = Some(rx);
+        #[cfg(not(target_arch = "wasm32"))]
+        std::thread::spawn(move || {
+            let result =
+                ringdesign_core::interaction::mould::build(&d, &lib).map_err(|e| e.to_string());
+            let _ = tx.send(result);
+        });
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = tx.send(
+                ringdesign_core::interaction::mould::build(&d, &lib).map_err(|e| e.to_string()),
+            );
+        }
+    }
+    pub fn chooser(&mut self, ui: &mut egui::Ui, choices: &[Tool]) {
+        ui.horizontal_wrapped(|ui| {
+            for &tool in choices {
+                if ui
+                    .selectable_label(self.tool == tool, tool.label())
+                    .clicked()
+                {
+                    self.select(tool);
+                }
+            }
+        });
+    }
+    pub fn controls(&mut self, ui: &mut egui::Ui, d: &RingDesign, lib: &AlphaLibrary) {
+        match self.tool {
+            Tool::Path => self.path.controls(ui,d),
+            Tool::Measure => {
+                ui.label("Tap two points on the ring to measure their straight-line distance. Tap again to start a new measurement.");
+                if let [a,b]=self.measure.as_slice() {
+                    ui.colored_label(egui::Color32::from_rgb(43,226,214),format!("Distance {:.3} mm",ringdesign_core::interaction::section::distance(*a,*b)));
+                    ui.small(format!("X {:.3}   Y {:.3}   Z {:.3} mm",(b[0]-a[0]).abs(),(b[1]-a[1]).abs(),(b[2]-a[2]).abs()));
+                }
+                if ui.button("Clear measurement").clicked() {self.measure.clear();}
+                ui.small("Measures the displayed mesh; not surface arc length or minimum wall thickness.");
+            }
+            Tool::Select => {}
+            Tool::Paint | Tool::Stamp => {
+                if d.graph.is_some() || d.cad.is_some() {
+                    ui.label("Use an editable procedural ring for surface artwork.");
+                    return;
+                }
+                ui.horizontal_wrapped(|ui| {
+                    if ui.selectable_label(!self.brush.engrave, "Raise").clicked() {
+                        self.brush.engrave = false;
+                    }
+                    if ui.selectable_label(self.brush.engrave, "Engrave").clicked() {
+                        self.brush.engrave = true;
+                    }
+                    ui.checkbox(&mut self.stylus_only, "Pen only");
+                });
+                value(
+                    ui,
+                    "Footprint",
+                    &mut self.brush.diameter_mm,
+                    0.1..=12.0,
+                    " mm",
+                );
+                value(ui, "Depth", &mut self.brush.depth_mm, 0.01..=1.6, " mm");
+                if self.tool == Tool::Stamp {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label("Copies");ui.add(egui::DragValue::new(&mut self.arrangement.count).range(1..=ringdesign_core::interaction::surface::MAX_STAMP_COPIES));
+                        ui.checkbox(&mut self.arrangement.mirror,"Mirror sides");
+                    });
+                    if self.arrangement.count>1 {value(ui,"Around ring",&mut self.arrangement.span_deg,1.0..=360.0,"°");}
+                    value(
+                        ui,
+                        "Rotation",
+                        &mut self.brush.rotation_deg,
+                        -180.0..=180.0,
+                        "°",
+                    );
+                    let search = ui.add(
+                        egui::TextEdit::singleline(&mut self.search)
+                            .id(ui.id().with("viewport-alpha-search"))
+                            .hint_text("Find an alpha")
+                            .desired_width(ui.available_width()),
+                    );
+                    if search.has_focus() {
+                        search.scroll_to_me(Some(egui::Align::Center));
+                    }
+                    if self.brush.stamp.is_empty() {
+                        self.brush.stamp = lib.names().into_iter().next().unwrap_or_default();
+                    }
+                    let w = (ui.available_width() - 18.0).max(90.0);
+                    egui::ComboBox::from_id_salt("surface-stamp-alpha")
+                        .selected_text(&self.brush.stamp)
+                        .width(w)
+                        .height(190.0)
+                        .truncate()
+                        .show_ui(ui, |ui| {
+                            ui.set_max_width(w);
+                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+                            let filter = self.search.to_lowercase();
+                            for a in lib
+                                .iter()
+                                .filter(|a| a.name.to_lowercase().contains(&filter))
+                                .take(180)
+                            {
+                                ui.selectable_value(&mut self.brush.stamp, a.name.clone(), &a.name);
+                            }
+                        });
+                    ui.label("Tap the ring to place an editable alpha. Select restores orbit.");
+                } else {
+                    ui.label(if cfg!(target_os="android") {"Draw on the ring. Lift to build the relief; Select restores orbit. Two fingers navigate."}else{"Draw on the ring. Lift to build the relief; Select restores orbit. Shift-drag pans; the wheel zooms."});
+                }
+                if d.draft.process == ringdesign_core::castability::CastProcess::SandTwoPart {
+                    ui.small(
+                        "Sand mode limits brush depth using the local profile's draft allowance.",
+                    );
+                }
+            }
+            Tool::Section => {
+                ui.horizontal_wrapped(|ui| {
+                    for (axis, label) in ["X", "Y", "Z"].into_iter().enumerate() {
+                        if ui
+                            .selectable_label(self.plane.axis == axis, label)
+                            .clicked()
+                        {
+                            self.plane.axis = axis;
+                            self.plane.offset = 0.0;
+                            self.cut_key = None;
+                            self.wall = None;
+                        }
+                    }
+                    ui.checkbox(&mut self.plane.flip, "Other half");
+                });
+                value(
+                    ui,
+                    "Cut offset",
+                    &mut self.plane.offset,
+                    -60.0..=60.0,
+                    " mm",
+                );
+                ui.small("Drag the aqua handle. Tap a cut edge to measure a local wall chord.");
+                if let Some([a, b]) = self.wall {
+                    ui.colored_label(
+                        egui::Color32::from_rgb(43, 226, 214),
+                        format!(
+                            "Section wall {:.2} mm",
+                            ringdesign_core::interaction::section::distance(a, b)
+                        ),
+                    );
+                }
+                ui.small(format!(
+                    "Cut boundary {:.2} mm · mesh measurement",
+                    self.cut.length_mm
+                ));
+            }
+            Tool::Clearance => {
+                value(ui, "Requested gap", &mut self.gap_mm, 0.0..=3.0, " mm");
+                self.refresh_clearance(d);
+                if let Some(r) = &self.crowding {
+                    if let Some(pair) = &r.closest {
+                        ui.label(format!(
+                            "Closest: {:.2} mm girdle / {:.2} mm at depth",
+                            pair.gap_mm, pair.gap_deep_mm
+                        ));
+                    }
+                    ui.small(format!(
+                        "{} stones · {} pairs below the recipe's bench threshold",
+                        r.stone_count, r.tight_pairs
+                    ));
+                } else {
+                    ui.label("Add a stone setting to show its envelope.");
+                }
+                ui.small("Each envelope reserves half the gap. Pavilion outlines are conservative; report values use the stone census.");
+            }
+            Tool::Mould => {
+                if ui
+                    .add_enabled(
+                        !self.busy,
+                        egui::Button::new(if self.study.is_some() {
+                            "Rebuild mould study"
+                        } else {
+                            "Build mould study"
+                        }),
+                    )
+                    .clicked()
+                {
+                    self.build_mould(d, lib);
+                }
+                if !self.message.is_empty() {
+                    ui.label(&self.message);
+                }
+                if let Some(study) = self.study.clone() {
+                    ui.horizontal_wrapped(|ui| {
+                        if ui
+                            .button(if self.playing {
+                                "Pause"
+                            } else {
+                                "Play opening"
+                            })
+                            .clicked()
+                        {
+                            self.playing = !self.playing;
+                        }
+                        ui.checkbox(&mut self.show_upper, "Upper");
+                        ui.checkbox(&mut self.show_lower, "Lower");
+                    });
+                    ui.label(format!("Opening {:.2} mm per half", self.opening_mm));
+                    ui.spacing_mut().slider_width = (ui.available_width() - 8.0).max(60.0);
+                    if ui
+                        .add(egui::Slider::new(&mut self.opening_mm, 0.0..=16.0).show_value(false))
+                        .changed()
+                    {
+                        self.playing = false;
+                    }
+                    let r = &study.report;
+                    ui.small(format!(
+                        "Prepared pattern ×{:.4} · pull [{:.2}, {:.2}, {:.2}]",
+                        study.scale, r.frame.z[0], r.frame.z[1], r.frame.z[2]
+                    ));
+                    ui.small(format!(
+                        "Parting {:.2} mm · {} × {} samples",
+                        r.parting_mm, r.grid[0], r.grid[1]
+                    ));
+                    if study.investment {
+                        ui.colored_label(egui::Color32::from_rgb(239,179,104),"Investment pattern: this pull study illustrates geometry; the mould is expendable.");
+                    }
+                    ui.small("Translucent sampled cavity surfaces. Red markers locate trapped regions; review repairs in Workshop.");
+                }
+            }
+        }
+    }
+    pub fn apply_controls(&mut self, d: &mut RingDesign) -> Option<usize> {
+        if self.tool == Tool::Path { self.path.apply_pending(d) } else { None }
+    }
+    fn refresh_clearance(&mut self, d: &RingDesign) {
+        if self.clearance_gap != Some(self.gap_mm.to_bits()) {
+            self.envelopes = ringdesign_core::interaction::clearance::envelopes(d, self.gap_mm);
+            self.crowding = ringdesign_core::stones::report(d, d.draft.parting_z_mm);
+            self.clearance_gap = Some(self.gap_mm.to_bits());
+        }
+    }
+    pub fn stone_controls(&mut self, ui: &mut egui::Ui, d: &mut RingDesign) -> bool {
+        use ringdesign_core::{field::Layer, interaction::picking};
+        let Some(index) = self.selected_stone else {
+            ui.small("Tap an envelope to edit its stone.");
+            return false;
+        };
+        let paths = picking::stone_paths(d);
+        let Some(path) = paths.get(index) else {
+            return false;
+        };
+        if d.graph.is_some() {
+            ui.small("Bake the recipe graph before individual stone edits.");
+            return false;
+        }
+        if picking::live_ancestor(&d.layers, path).is_some() {
+            ui.small("This stone belongs to a live group; edit that group's recipe in Layers.");
+            return false;
+        }
+        let max_v = d.field_context().band_v_len_mm;
+        let Some(entry) = picking::entry_mut(&mut d.layers, path) else {
+            return false;
+        };
+        ui.separator();
+        ui.label(&entry.name);
+        let Layer::SeatPad(seat) = &mut entry.layer else {
+            ui.small("This is a repeated setting. Edit its shared run in Layers.");
+            return false;
+        };
+        let Some(mut gem) = seat.gem else {
+            return false;
+        };
+        let mut width = gem.w_mm;
+        let mut angle = seat.theta_deg;
+        let mut across = seat.v_mm;
+        value(ui, "Stone width", &mut width, 0.5..=18.0, " mm");
+        value(ui, "Around ring", &mut angle, 0.0..=360.0, "°");
+        value(ui, "Across band", &mut across, 0.0..=max_v, " mm");
+        let changed = width != gem.w_mm || angle != seat.theta_deg || across != seat.v_mm;
+        if changed {
+            gem.l_mm *= width / gem.w_mm.max(0.01);
+            gem.w_mm = width;
+            seat.fit_stone(gem);
+            seat.theta_deg = angle;
+            seat.v_mm = across;
+        }
+        changed
+    }
+}
+fn value(
+    ui: &mut egui::Ui,
+    label: &str,
+    v: &mut f64,
+    range: std::ops::RangeInclusive<f64>,
+    suffix: &str,
+) {
+    ui.scope_builder(
+        egui::UiBuilder::new().id(ui.id().with(("viewport-value", label))),
+        |ui| {
+            ui.horizontal(|ui| {
+                let width = ui.available_width();
+                ui.add_sized(
+                    [(width - 104.0).max(60.0), 34.0],
+                    egui::Label::new(label).truncate(),
+                );
+                let response = ui.add_sized(
+                    [94.0, 34.0],
+                    egui::DragValue::new(v)
+                        .range(range)
+                        .clamp_existing_to_range(false)
+                        .speed(0.02)
+                        .fixed_decimals(2)
+                        .suffix(suffix),
+                );
+                if response.has_focus() {
+                    response.scroll_to_me(Some(egui::Align::Center));
+                }
+            });
+        },
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn every_viewport_inspector_fits_a_phone_and_preserves_source() {
+        let mut d = RingDesign::default();
+        d.profile.width_mm = 25.0;
+        let mut lib = AlphaLibrary::builtin();
+        lib.insert(ringdesign_core::Alpha::new(
+            "A very long imported ornament name for a portable workshop alpha",
+            8,
+            8,
+            vec![1.0; 64],
+        ));
+        let study = Arc::new(ringdesign_core::interaction::mould::build(&d, &lib).unwrap());
+        let source = serde_json::to_vec(&d).unwrap();
+        for width in [248.0, 280.0, 320.0, 411.0] {
+            for tool in Tool::ALL {
+                let ctx = egui::Context::default();
+                ctx.style_mut_of(egui::Theme::Dark, |s| {
+                    s.spacing.interact_size = egui::vec2(40.0, 40.0)
+                });
+                ctx.style_mut_of(egui::Theme::Light, |s| {
+                    s.spacing.interact_size = egui::vec2(40.0, 40.0)
+                });
+                let mut v = Visual::default();
+                v.tool = tool;
+                v.study = Some(study.clone());
+                v.brush.stamp =
+                    "A very long imported ornament name for a portable workshop alpha".into();
+                let mut right = 0.0;
+                for _ in 0..2 {
+                    let mut output = ctx.run_ui(
+                        egui::RawInput {
+                            screen_rect: Some(egui::Rect::from_min_size(
+                                egui::Pos2::ZERO,
+                                egui::vec2(width, 800.0),
+                            )),
+                            ..Default::default()
+                        },
+                        |root| {
+                            egui::CentralPanel::default().show(root, |ui| {
+                                egui::ScrollArea::vertical().show(ui, |ui| {
+                                    v.controls(ui, &d, &lib);
+                                    right = ui.min_rect().right();
+                                });
+                            });
+                        },
+                    );
+                    output.textures_delta.clear();
+                }
+                assert!(
+                    right <= width + 0.1,
+                    "{tool:?} overflows {width}: right={right}"
+                );
+                assert_eq!(serde_json::to_vec(&d).unwrap(), source);
+            }
+        }
+    }
+}

@@ -28,6 +28,9 @@ use ringdesign_graph::file;
 use ringdesign_graph::graph::Graph;
 use ringdesign_graph::value::Literal;
 
+mod casting;
+mod cad;
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if let Err(e) = run(&args) {
@@ -39,6 +42,17 @@ fn main() {
 }
 
 const USAGE: &str = "usage:
+  ringdesign cad example <twisted-band|two-part-signet|solitaire|inlay-band|gallery> --out <design.ring.json>
+  ringdesign cad check <design.ring.json>
+  ringdesign cad export <design.ring.json> --out <new-directory>
+  ringdesign cad step <design.ring.json> --out <model.step>
+  ringdesign cad resize <design.ring.json> --bores 17.3,18.1,19.0 --out <new-directory>
+  ringdesign cad profile-import <profile.svg|profile.dxf> --out <sketch.json>
+  ringdesign cad profile-export <sketch.json> --out <profile.svg|profile.dxf>
+  ringdesign cad calibrate <design.ring.json> [--out <dataset.csv|dataset.json>]
+  ringdesign casting check <design.json> [--recipe recipe.json] [--pull x,y,z] [--parting mm] [--pitch mm] [--json]
+  ringdesign casting export <design.json> --out <new-directory> [--recipe recipe.json] [--diagnostic]
+  ringdesign casting repair <design.json> --repair half|side|bench|square|parting [--layer index] --out <new-design.json>
   ringdesign export <design.json> [options]
   ringdesign check  <design.json>
   ringdesign graph eval     <graph.json> [--set Name=value]* [--preset name] [--out design.ring.json] [--run-sinks]
@@ -54,6 +68,10 @@ options:
   --steps 1024x320          sweep resolution; overrides a saved refine tolerance";
 
 fn run(args: &[String]) -> anyhow::Result<()> {
+    if args.first().map(String::as_str)==Some("cad") {return cad::run(&args[1..]);}
+    if args.first().map(String::as_str) == Some("casting") {
+        return casting::run(&args[1..]);
+    }
     if args.first().map(String::as_str) == Some("graph") {
         return graph::run(&args[1..]);
     }
@@ -74,7 +92,15 @@ fn run(args: &[String]) -> anyhow::Result<()> {
 }
 
 fn load(path: &str) -> anyhow::Result<RingDesign> {
-    library::load_design(path).map_err(|e| anyhow::anyhow!("{path}: {e}"))
+    let source=library::load_design(path).map_err(|e| anyhow::anyhow!("{path}: {e}"))?;
+    if let Some(json)=&source.graph {
+        let g=serde_json::from_value(json.clone())?;
+        let mut lib=AlphaLibrary::builtin();source.unpack_embedded(&mut lib);source.bake_all(&mut lib);
+        let mut ev=Evaluator::with_exprs(ringdesign_script::engine());
+        let out=evaluate_design(&mut ev,&g,&ringdesign_script::registry(),&lib,0)?;
+        let mut d=(*out.design).clone();d.graph=source.graph;d.manufacturing=source.manufacturing;d.casting_trials=source.casting_trials;
+        Ok(d)
+    } else {Ok(source)}
 }
 
 /// The field verdict and the stones checks, printed plainly.

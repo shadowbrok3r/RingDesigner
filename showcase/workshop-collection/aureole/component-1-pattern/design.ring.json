@@ -1,0 +1,310 @@
+{
+  "format_version": 2,
+  "name": "Aureole — half-turn ribbon",
+  "size": 8.10862207660166,
+  "profile": {
+    "style": "LowDome",
+    "width_mm": 4.6,
+    "thickness_mm": 2.2,
+    "crown_mm": 0.8,
+    "shape_a": 2.0,
+    "shape_b": 1.0,
+    "crest_bias": 0.0,
+    "edge_round_mm": 0.22,
+    "comfort_fit_mm": 0.15,
+    "side_draft_deg": 3.5,
+    "flange": {
+      "enabled": false,
+      "v_pos": 0.0,
+      "extent_mm": 1.2,
+      "thickness_mm": 0.8,
+      "edge_round_mm": 0.15
+    },
+    "drop_curve": {
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "len": 0,
+      "monotone": true
+    },
+    "morph": null
+  },
+  "shank": {
+    "kind": "Uniform",
+    "amount": 0.5,
+    "waves": 1,
+    "head": {
+      "outline": "Oval",
+      "theta_deg": 90.0,
+      "length_mm": 12.0,
+      "rise_mm": 0.3,
+      "shoulder_deg": 43.0,
+      "swell_deg": null,
+      "body_fair": 1.0,
+      "table_flat": 1.0,
+      "table_dome_mm": 0.0,
+      "hollow_mm": 0.0,
+      "rim_round_mm": 0.6,
+      "dome": 0.0,
+      "loft": 0.0,
+      "loft_frontal_mm": 2.0,
+      "loft_lateral_mm": 2.0,
+      "crest_round_mm": 0.0
+    },
+    "extra_heads": [],
+    "keys": [],
+    "custom_outlines": []
+  },
+  "layers": {
+    "layers": []
+  },
+  "build": {
+    "theta_steps": 768,
+    "profile_steps": 256,
+    "min_wall_mm": 0.5,
+    "adaptive": false,
+    "refine": null,
+    "soften_mm": 0.0
+  },
+  "draft": {
+    "parting_z_mm": 0.0,
+    "min_draft_deg": 3.0,
+    "auto_parting": true,
+    "min_section_mm": 0.7,
+    "min_detail_mm": 0.35,
+    "process": "LostWax",
+    "sand": null
+  },
+  "manufacturing": {
+    "component": 1,
+    "recipe": {
+      "name": "Investment casting starting recipe / Gold 14k",
+      "process": "LostWax",
+      "sand": null,
+      "alloy": "Gold 14k",
+      "shrink_pct": 1.3,
+      "min_draft_deg": 0.0,
+      "min_section_mm": 0.8,
+      "min_detail_mm": 0.2,
+      "min_sand_web_mm": 0.6,
+      "sand_margin_mm": 5.0,
+      "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mold, and measured trials."
+    },
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "parting_mm": 0.0,
+    "auto_parting": true,
+    "bore": "Molded",
+    "flask": {
+      "width_mm": 70.0,
+      "length_mm": 70.0,
+      "cope_mm": 20.0,
+      "drag_mm": 20.0
+    },
+    "radial_stock_mm": 0.0,
+    "axial_stock_mm": 0.0,
+    "bore_stock_mm": 0.0,
+    "sample_pitch_mm": 0.1,
+    "tolerance_mm": 0.02,
+    "channels": [
+      {
+        "kind": "Gate",
+        "start": [
+          0.0,
+          -11.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          -22.0,
+          0.0
+        ],
+        "diameter_mm": 3.2
+      },
+      {
+        "kind": "Sprue",
+        "start": [
+          0.0,
+          -22.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          -30.0,
+          0.0
+        ],
+        "diameter_mm": 5.0
+      }
+    ],
+    "bench_notes": "Investment cast the continuous half-turn ribbon. The changing section traps a rigid sand mold in a straight pull. Feed at the thick palm segment; preserve the twist when removing the sprue. Smooth and polish the uninterrupted ribbon, ease the bore edge, and verify the minimum measured bore after finishing. No separate overlapping bands or hidden assembly joints."
+  },
+  "cad": {
+    "features": [
+      {
+        "id": 1,
+        "name": "Continuous half-turn ribbon",
+        "enabled": true,
+        "operation": {
+          "TwistedRing": {
+            "major_mm": 11.399999999999999,
+            "radial_mm": 2.2,
+            "axial_mm": 4.6,
+            "turns": 0.5
+          }
+        },
+        "component": {
+          "role": "Shank",
+          "material": "Gold 14k",
+          "manufacturing": {
+            "component": null,
+            "recipe": {
+              "name": "Investment casting starting recipe / Gold 14k",
+              "process": "LostWax",
+              "sand": null,
+              "alloy": "Gold 14k",
+              "shrink_pct": 1.3,
+              "min_draft_deg": 0.0,
+              "min_section_mm": 0.8,
+              "min_detail_mm": 0.2,
+              "min_sand_web_mm": 0.6,
+              "sand_margin_mm": 5.0,
+              "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mold, and measured trials."
+            },
+            "pull": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "parting_mm": 0.0,
+            "auto_parting": true,
+            "bore": "Molded",
+            "flask": {
+              "width_mm": 70.0,
+              "length_mm": 70.0,
+              "cope_mm": 20.0,
+              "drag_mm": 20.0
+            },
+            "radial_stock_mm": 0.0,
+            "axial_stock_mm": 0.0,
+            "bore_stock_mm": 0.0,
+            "sample_pitch_mm": 0.1,
+            "tolerance_mm": 0.02,
+            "channels": [
+              {
+                "kind": "Gate",
+                "start": [
+                  0.0,
+                  -11.0,
+                  0.0
+                ],
+                "end": [
+                  0.0,
+                  -22.0,
+                  0.0
+                ],
+                "diameter_mm": 3.2
+              },
+              {
+                "kind": "Sprue",
+                "start": [
+                  0.0,
+                  -22.0,
+                  0.0
+                ],
+                "end": [
+                  0.0,
+                  -30.0,
+                  0.0
+                ],
+                "diameter_mm": 5.0
+              }
+            ],
+            "bench_notes": ""
+          },
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "ring_anchor_deg": null,
+          "anchor_height_mm": 0.0
+        }
+      }
+    ],
+    "outputs": [
+      1
+    ],
+    "joints": [],
+    "through": null
+  },
+  "drawn": [],
+  "embedded": [],
+  "texts": [],
+  "svgs": [],
+  "recipes": []
+}

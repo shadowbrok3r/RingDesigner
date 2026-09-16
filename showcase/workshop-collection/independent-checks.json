@@ -1,0 +1,36 @@
+[
+  {
+    "name": "aster",
+    "stl_triangles": 393216,
+    "pattern_fingerprint": "adbd204e9cfac89b",
+    "threemf_valid": true
+  },
+  {
+    "name": "tide",
+    "stl_triangles": 393216,
+    "pattern_fingerprint": "eabf51db2ac8923b",
+    "threemf_valid": true
+  },
+  {
+    "name": "lantern",
+    "stl_triangles": 212,
+    "pattern_fingerprint": "ca6cda2112f0657d",
+    "threemf_valid": true,
+    "step_valid": true,
+    "solids": 2,
+    "step_volume_mm3": 1152.4983337941874,
+    "mesh_relative_error": 0.0003006297335962098,
+    "fitting_stock_overlap_mm3": 24.749266655838987,
+    "fitting_stock_grams": 0.32347291519181554
+  },
+  {
+    "name": "aureole",
+    "stl_triangles": 196608,
+    "pattern_fingerprint": "00f773909ba2b502",
+    "threemf_valid": true,
+    "step_valid": true,
+    "solids": 1,
+    "step_volume_mm3": 569.0572469259976,
+    "mesh_relative_error": 5.233423666380608e-11
+  }
+]

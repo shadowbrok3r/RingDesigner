@@ -1,0 +1,80 @@
+[
+  {
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "parting_mm": 0.0013968944549560547,
+    "status": "Review",
+    "obstructions": 0,
+    "blocked_area_mm2": -0.0,
+    "low_draft_area_mm2": 599.6931468301558,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      0.0,
+      0.0,
+      -1.0
+    ],
+    "parting_mm": -0.0013968944549560547,
+    "status": "Review",
+    "obstructions": 0,
+    "blocked_area_mm2": -0.0,
+    "low_draft_area_mm2": 599.6931468301558,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "parting_mm": 0.0,
+    "status": "Blocked",
+    "obstructions": 88,
+    "blocked_area_mm2": 270.1954279210441,
+    "low_draft_area_mm2": 634.7098614237112,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      -1.0,
+      0.0,
+      0.0
+    ],
+    "parting_mm": 0.0,
+    "status": "Blocked",
+    "obstructions": 88,
+    "blocked_area_mm2": 270.1954279210441,
+    "low_draft_area_mm2": 634.7098614237112,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "parting_mm": 9.10943779349327,
+    "status": "Blocked",
+    "obstructions": 83,
+    "blocked_area_mm2": 202.476688627772,
+    "low_draft_area_mm2": 578.5823491844708,
+    "fits_flask": false
+  },
+  {
+    "pull": [
+      0.0,
+      -1.0,
+      0.0
+    ],
+    "parting_mm": -9.10943779349327,
+    "status": "Blocked",
+    "obstructions": 83,
+    "blocked_area_mm2": 202.476688627772,
+    "low_draft_area_mm2": 578.5823491844708,
+    "fits_flask": false
+  }
+]

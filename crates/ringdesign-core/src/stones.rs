@@ -395,12 +395,9 @@ fn crowding(
             {
                 continue;
             }
-            let gap = dist - fa.plan_r(d) - fb.plan_r(neg(d));
+            let [gap, gap_deep] = fa.clearance_to(fb);
             // At the shallower culet both stones still have metal beside
             // them; past it only one of them does.
-            let deep = fa.pavilion.min(fb.pavilion);
-            let dd = sub(axial(fb.girdle, fb.normal, deep), axial(fa.girdle, fa.normal, deep));
-            let gap_deep = norm(dd) - fa.plan_r(dd) - fb.plan_r(neg(dd));
             let pair = StonePair {
                 a: stations[i].label.clone(),
                 b: stations[j].label.clone(),
@@ -443,6 +440,14 @@ pub struct StoneFrame {
 }
 
 impl StoneFrame {
+    /// The same girdle/depth approximation used by the report and viewport.
+    pub fn clearance_to(&self, other: &Self) -> [f64; 2] {
+        let d = sub(other.girdle, self.girdle);
+        let gap = norm(d) - self.plan_r(d) - other.plan_r(neg(d));
+        let deep = self.pavilion.min(other.pavilion);
+        let dd = sub(axial(other.girdle, other.normal, deep), axial(self.girdle, self.normal, deep));
+        [gap, norm(dd) - self.plan_r(dd) - other.plan_r(neg(dd))]
+    }
     /// The girdle's own radius toward `d`, mm.
     fn plan_r(&self, d: [f64; 3]) -> f64 {
         crate::field::superellipse_radius_mm(

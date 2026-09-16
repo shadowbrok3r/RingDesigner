@@ -107,10 +107,18 @@ pub fn apply(ctx: &egui::Context) {
     v.window_stroke = Stroke::new(1.2, RIM_BRIGHT);
     v.window_corner_radius = CornerRadius::same(8);
     v.menu_corner_radius = CornerRadius::same(8);
-    v.window_shadow =
-        egui::epaint::Shadow { offset: [0, 2], blur: 12, spread: 2, color: glass(0, 0, 0, 200) };
-    v.popup_shadow =
-        egui::epaint::Shadow { offset: [0, 2], blur: 10, spread: 1, color: glass(0, 0, 0, 170) };
+    v.window_shadow = egui::epaint::Shadow {
+        offset: [0, 2],
+        blur: 12,
+        spread: 2,
+        color: glass(0, 0, 0, 200),
+    };
+    v.popup_shadow = egui::epaint::Shadow {
+        offset: [0, 2],
+        blur: 10,
+        spread: 1,
+        color: glass(0, 0, 0, 170),
+    };
 
     v.override_text_color = Some(INK);
     v.hyperlink_color = AQUA;
@@ -127,11 +135,20 @@ pub fn apply(ctx: &egui::Context) {
     ctx.set_visuals(v);
 
     ctx.all_styles_mut(|s| {
-        s.spacing.item_spacing = egui::vec2(6.0, 6.0);
-        s.spacing.button_padding = egui::vec2(10.0, 7.0);
-        s.spacing.interact_size.y = 34.0;
+        s.text_styles
+            .insert(egui::TextStyle::Body, egui::FontId::proportional(13.0));
+        s.text_styles
+            .insert(egui::TextStyle::Button, egui::FontId::proportional(12.0));
+        s.text_styles
+            .insert(egui::TextStyle::Small, egui::FontId::proportional(11.0));
+        s.text_styles
+            .insert(egui::TextStyle::Heading, egui::FontId::proportional(16.0));
+        s.spacing.item_spacing = egui::vec2(4.0, 4.0);
+        s.spacing.button_padding = egui::vec2(6.0, 4.0);
+        s.spacing.interact_size.y = 30.0;
+        s.interaction.drag_value_dragging = false;
         let mut scroll = egui::style::ScrollStyle::solid();
-        scroll.bar_width = 14.0;
+        scroll.bar_width = 10.0;
         scroll.handle_min_length = 28.0;
         scroll.bar_inner_margin = 2.0;
         s.spacing.scroll = scroll;
@@ -222,14 +239,14 @@ pub fn scroll_vertical() -> egui::ScrollArea {
 // --- Menus -------------------------------------------------------------------
 
 /// Tap height for a menu row — a framed 40px target rather than egui's 18px text line.
-pub const MENU_ROW_H: f32 = 40.0;
+pub const MENU_ROW_H: f32 = 32.0;
 
 /// Give a menu's rows a framed, touch-sized look: egui's `menu_style` strips the rest-state fill
 /// and every accent rim and squashes `button_padding` to 2×0, so an entry otherwise reads as bare
 /// text on an 18px line. Call once at the top of a popup body; children inherit it.
 pub fn menu_row_style(ui: &mut egui::Ui) {
     let s = ui.style_mut();
-    s.spacing.button_padding = egui::vec2(10.0, 8.0);
+    s.spacing.button_padding = egui::vec2(6.0, 4.0);
     s.spacing.interact_size.y = MENU_ROW_H;
     s.spacing.item_spacing.y = 4.0;
     widget_palette(&mut s.visuals.widgets);
@@ -260,7 +277,7 @@ pub fn up_menu<R>(
 /// How tall a menu opened from `anchor` may grow: the room actually available on the side it opens
 /// toward, less a small margin.
 pub fn menu_height_cap(ctx: &egui::Context, anchor: egui::Rect, align: egui::RectAlign) -> f32 {
-    let screen = ctx.content_rect();
+    let screen = content_bounds(ctx);
     let down = anchor.bottom().max(screen.top());
     let below = screen.bottom() - down;
     let above = anchor.top().min(screen.bottom()) - screen.top();
@@ -278,7 +295,18 @@ pub fn menu_height_cap(ctx: &egui::Context, anchor: egui::Rect, align: egui::Rec
 /// How wide a popup may grow. egui clips a popup's painting at `content_rect` but never shrinks
 /// it, so a row wider than the screen cuts the menu off at the right edge instead of wrapping.
 pub fn menu_width_cap(ctx: &egui::Context) -> f32 {
-    (ctx.content_rect().width() - 24.0).max(160.0)
+    (content_bounds(ctx).width() - 24.0).max(80.0)
+}
+
+/// egui-mobile applies Android insets to its root Ui. Popups are separate Areas
+/// and need the same bounds explicitly, including the keyboard's visible area.
+pub fn set_content_bounds(ctx: &egui::Context, rect: egui::Rect) {
+    ctx.data_mut(|d| d.insert_temp(egui::Id::new("mobile-safe-content"), rect));
+}
+
+fn content_bounds(ctx: &egui::Context) -> egui::Rect {
+    ctx.data(|d| d.get_temp(egui::Id::new("mobile-safe-content")))
+        .unwrap_or_else(|| ctx.content_rect())
 }
 
 /// A menu button whose popup is bounded to the screen on both axes.
@@ -300,7 +328,7 @@ pub fn menu_popup<R>(
     let config = MenuConfig::default().close_behavior(close_behavior);
     let cap = menu_height_cap(ui.ctx(), response.rect, align);
     let width_cap = menu_width_cap(ui.ctx());
-    egui::Popup::menu(&response)
+    let popup = egui::Popup::menu(&response)
         .align(align)
         .align_alternatives(alternatives)
         .gap(4.0)
@@ -309,7 +337,25 @@ pub fn menu_popup<R>(
         .info(
             egui::UiStackInfo::new(egui::UiKind::Menu)
                 .with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
-        )
+        );
+    let safe = content_bounds(ui.ctx()).shrink(4.0);
+    let size = popup
+        .get_expected_size()
+        .unwrap_or(egui::vec2(width_cap, cap + 16.0));
+    let size = egui::vec2(size.x.min(width_cap), size.y.min(cap + 16.0));
+    let desired = align.align_rect(&response.rect, size, 4.0).min;
+    let position = egui::pos2(
+        desired
+            .x
+            .clamp(safe.left(), (safe.right() - size.x).max(safe.left())),
+        desired
+            .y
+            .clamp(safe.top(), (safe.bottom() - size.y).max(safe.top())),
+    );
+    popup
+        .at_position(position)
+        .align(egui::RectAlign::BOTTOM_START)
+        .align_alternatives(&[])
         .show(|ui| {
             // egui sizes a popup's Area on a one-off sizing pass seeded from
             // `spacing.default_area_size`, and that becomes the Ui's `max_rect` forever after.
@@ -342,7 +388,13 @@ mod tests {
     /// An opaque fill inside a frosted pane punches a matte hole through the glass.
     #[test]
     fn floating_surfaces_stay_translucent_so_the_blur_reads_through() {
-        for fill in [fill_rest(), fill_weak(), fill_hover(), fill_active(), card().fill] {
+        for fill in [
+            fill_rest(),
+            fill_weak(),
+            fill_hover(),
+            fill_active(),
+            card().fill,
+        ] {
             assert!(fill.a() < 255, "{fill:?} is opaque");
         }
     }
@@ -351,7 +403,10 @@ mod tests {
     #[test]
     fn surfaces_carry_the_violet_cast() {
         for fill in [fill_rest(), fill_weak(), card().fill] {
-            assert!(fill.b() > fill.r() && fill.r() > fill.g(), "{fill:?} lost the cast");
+            assert!(
+                fill.b() > fill.r() && fill.r() > fill.g(),
+                "{fill:?} lost the cast"
+            );
         }
     }
 }

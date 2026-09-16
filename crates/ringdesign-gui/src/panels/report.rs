@@ -19,7 +19,26 @@ const CLASSES: [FaceClass; 4] = [
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     ui.add_space(6.0);
-    heading(ui, icon::SHIELD_CHECK, "Sand cast check");
+    if app.panes.get(app.active_pane).is_some_and(|p|p.kind==PaneKind::Cad) {crate::panels::cad::report_panel(app,ui);return;}
+    if crate::panels::casting::active(app) {
+        crate::panels::casting::report_panel(app,ui);
+        return;
+    }
+    if !app.is_current() {
+        ui.weak(if app.is_building() {"Design changed — rebuilding the report…"} else {&app.status});
+        return;
+    }
+    if app.design.cad.is_some() {
+        ui.strong("CAD solid dimensions");
+        if let Some(build)=&app.build {ui.label(format!("{:.2} × {:.2} × {:.2} mm",build.report.bounds_mm[0],build.report.bounds_mm[1],build.report.bounds_mm[2]));ui.label(format!("{:.2} mm³",build.report.volume_mm3));ui.label(format!("{} triangles; closed: {}",build.report.validation.triangle_count,build.report.validation.watertight));}
+        ui.weak("Inspect each component with its manufacturing recipe. General solids do not have a procedural band wall report.");
+        if ui.button("Inspect casting component").clicked() {app.focus(PaneKind::Casting);}
+        return;
+    }
+    heading(ui, icon::SHIELD_CHECK, match app.design.draft.process {
+        ringdesign_core::castability::CastProcess::SandTwoPart => "Sand cast check",
+        ringdesign_core::castability::CastProcess::LostWax => "Investment cast check",
+    });
 
     let pane = app.active_pane.min(app.panes.len() - 1);
     let already_draft =

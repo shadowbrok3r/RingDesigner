@@ -1,0 +1,533 @@
+{
+  "layers": [
+    {
+      "name": "Fine satin ground / bench finish",
+      "enabled": true,
+      "bench_only": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Tiling": {
+          "alpha": "Satin ground",
+          "repeats_around": 12,
+          "rows": 1,
+          "v_center_mm": 0.8872948540249026,
+          "v_span_mm": 1.6431386185646346,
+          "rotation_deg": 0.0,
+          "offset_u": 0.0,
+          "offset_v": 0.0,
+          "height_mm": 0.035,
+          "gap_mm": 0.0,
+          "stagger": 0.0,
+          "mirror_alternate_u": false,
+          "mirror_alternate_v": false,
+          "contrast": 1.0,
+          "bias": 0.0,
+          "invert": false,
+          "feather_mm": 0.19717663422775614,
+          "continuous": true,
+          "mirror_v": true,
+          "edge_mm": 0.0,
+          "warp": null,
+          "shear": 0.0,
+          "kfold": 0
+        }
+      }
+    },
+    {
+      "name": "Warped sunseed tessellation / shoulder mask",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": true,
+        "theta_deg": 270.0,
+        "span_deg": 80.0,
+        "fade_deg": 16.0,
+        "invert": true,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": "Shoulder mask",
+      "remap": {
+        "Curve": {
+          "curve": {
+            "points": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.35,
+                0.62
+              ],
+              [
+                0.72,
+                0.92
+              ],
+              [
+                1.0,
+                1.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ]
+            ],
+            "len": 4,
+            "monotone": true
+          },
+          "span_mm": 0.17
+        }
+      },
+      "layer": {
+        "Tiling": {
+          "alpha": "Sunseed tile",
+          "repeats_around": 20,
+          "rows": 1,
+          "v_center_mm": 0.8872948540249026,
+          "v_span_mm": 1.6431386185646346,
+          "rotation_deg": 0.0,
+          "offset_u": 0.0,
+          "offset_v": 0.0,
+          "height_mm": 0.17,
+          "gap_mm": 0.0,
+          "stagger": 0.0,
+          "mirror_alternate_u": false,
+          "mirror_alternate_v": false,
+          "contrast": 1.0,
+          "bias": 0.0,
+          "invert": false,
+          "feather_mm": 0.19717663422775614,
+          "continuous": true,
+          "mirror_v": true,
+          "edge_mm": 0.22,
+          "warp": {
+            "points": [
+              [
+                0.0,
+                0.8872948540249026
+              ],
+              [
+                0.08333333333333333,
+                0.9912179024790352
+              ],
+              [
+                0.16666666666666666,
+                0.9912179024790353
+              ],
+              [
+                0.25,
+                0.8872948540249026
+              ],
+              [
+                0.3333333333333333,
+                0.78337180557077
+              ],
+              [
+                0.4166666666666667,
+                0.78337180557077
+              ],
+              [
+                0.5,
+                0.8872948540249026
+              ],
+              [
+                0.5833333333333334,
+                0.9912179024790353
+              ],
+              [
+                0.6666666666666666,
+                0.9912179024790353
+              ],
+              [
+                0.75,
+                0.8872948540249026
+              ],
+              [
+                0.8333333333333334,
+                0.7833718055707699
+              ],
+              [
+                0.9166666666666666,
+                0.7833718055707699
+              ]
+            ],
+            "strength": 0.6,
+            "falloff_mm": 1.6431386185646346
+          },
+          "shear": 0.0,
+          "kfold": 0
+        }
+      }
+    },
+    {
+      "name": "Inner polished cheek rail",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Border": {
+          "v_mm": 0.3286277237129269,
+          "width_mm": 0.36,
+          "height_mm": 0.16,
+          "profile": "Round",
+          "mirror": true,
+          "rope_twists": 48
+        }
+      }
+    },
+    {
+      "name": "Outer polished cheek rail",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Border": {
+          "v_mm": 1.4623933705225247,
+          "width_mm": 0.36,
+          "height_mm": 0.16,
+          "profile": "Round",
+          "mirror": true,
+          "rope_twists": 48
+        }
+      }
+    },
+    {
+      "name": "Pearl edging",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": true,
+        "theta_deg": 90.0,
+        "span_deg": 80.0,
+        "fade_deg": 14.0,
+        "invert": true,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Milgrain": {
+          "v_mm": 0.6079612888689149,
+          "bead_diameter_mm": 0.56,
+          "beads_around": 76,
+          "height_mm": 0.17,
+          "mirror": true
+        }
+      }
+    },
+    {
+      "name": "Paired palmette cheek seals",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Decals": {
+          "alpha": "Palmette cheeks",
+          "decals": [
+            {
+              "theta_deg": 90.0,
+              "v_mm": 2.05,
+              "size_mm": 7.5,
+              "rotation_deg": 0.0,
+              "height_mm": 0.36,
+              "flip": false
+            },
+            {
+              "theta_deg": 90.0,
+              "v_mm": 14.775739454101856,
+              "size_mm": 7.5,
+              "rotation_deg": 0.0,
+              "height_mm": 0.36,
+              "flip": true
+            }
+          ],
+          "feather_mm": 0.15,
+          "invert": false
+        }
+      }
+    },
+    {
+      "name": "Woven vine shoulder wires",
+      "enabled": true,
+      "blend": "SmoothMax",
+      "opacity": 1.0,
+      "soft_mm": 0.1,
+      "window": {
+        "enabled": true,
+        "theta_deg": 90.0,
+        "span_deg": 105.0,
+        "fade_deg": 15.0,
+        "invert": true,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Curve": {
+          "points": [
+            [
+              0.0,
+              0.8872948540249026
+            ],
+            [
+              0.25,
+              1.2159225777378295
+            ],
+            [
+              0.5,
+              0.8872948540249026
+            ],
+            [
+              0.75,
+              0.5586671303119757
+            ],
+            [
+              1.0,
+              0.8872948540249026
+            ]
+          ],
+          "repeats_around": 8,
+          "closed": false,
+          "width_mm": 0.48,
+          "height_mm": 0.18,
+          "profile": "Round",
+          "taper": 0.0,
+          "mirror_v": true
+        }
+      }
+    },
+    {
+      "name": "Axial palm reeds",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": true,
+        "theta_deg": 270.0,
+        "span_deg": 100.0,
+        "fade_deg": 15.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Flutes": {
+          "count": 38,
+          "profile": "Round",
+          "width_mm": 0.7,
+          "height_mm": 0.15,
+          "lean": 0.0,
+          "along": false
+        }
+      }
+    },
+    {
+      "name": "Winged sun / axial withdrawal stock",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Decals": {
+          "alpha": "Solar rays with withdrawal stock",
+          "decals": [
+            {
+              "theta_deg": 90.0,
+              "v_mm": 8.441681342745248,
+              "size_mm": 9.4,
+              "rotation_deg": 0.0,
+              "height_mm": 0.24,
+              "flip": false
+            }
+          ],
+          "feather_mm": 0.15,
+          "invert": false
+        }
+      }
+    },
+    {
+      "name": "Burnished solar disc",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "SeatPad": {
+          "theta_deg": 90.0,
+          "v_mm": 8.441681342745248,
+          "diameter_mm": 3.3,
+          "height_mm": 0.64,
+          "crown": 0.65,
+          "blend_mm": 0.45,
+          "style": "GypsyMound",
+          "bezel_wall_mm": 0.5,
+          "recess_mm": 0.5,
+          "bezel_lip": 0.3,
+          "bezel_bearing_mm": 0.3,
+          "prongs": 0,
+          "prong_mm": 0.9,
+          "gem": null,
+          "dimple_mm": 0.0,
+          "elong": 1.0,
+          "rot_deg": 0.0,
+          "plan_pow": 2.0,
+          "set_depth_mm": null,
+          "metal_true": true
+        }
+      }
+    },
+    {
+      "name": "Broad axial shoulder fans",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": true,
+        "theta_deg": 90.0,
+        "span_deg": 72.0,
+        "fade_deg": 12.0,
+        "invert": true,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Flutes": {
+          "count": 30,
+          "profile": "Round",
+          "width_mm": 1.25,
+          "height_mm": 0.22,
+          "lean": 0.0,
+          "along": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "file": "Aster-Atelier-hero.png",
+    "source_frame": "renders/native/hero.png",
+    "capture": "Native desktop OpenGL viewport; cursor outside the viewport; crop only",
+    "crop_xywh": [
+      580,
+      110,
+      800,
+      810
+    ],
+    "sha256": "99108e40693c7f647952e8356d235bf08371d793ab5f53f5c67b548323e4eb5d"
+  },
+  {
+    "file": "Aster-Atelier-seal.png",
+    "source_frame": "renders/native/seal.png",
+    "capture": "Native desktop OpenGL viewport; cursor outside the viewport; crop only",
+    "crop_xywh": [
+      510,
+      260,
+      930,
+      530
+    ],
+    "sha256": "86c63f0612bfb09d21f246bdaef9660a9ff6a23cfdbef102f835e19af0b08a92"
+  },
+  {
+    "file": "Aster-Atelier-cheek.png",
+    "source_frame": "renders/native/cheek.png",
+    "capture": "Native desktop OpenGL viewport; cursor outside the viewport; crop only",
+    "crop_xywh": [
+      580,
+      110,
+      800,
+      810
+    ],
+    "sha256": "ac55b02c98bb708b016da1ff1bbadf7a1c191fcc7a1298b891f5ef898d38c3d8"
+  }
+]

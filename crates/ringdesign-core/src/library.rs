@@ -31,19 +31,21 @@ pub fn data_root() -> PathBuf {
 
 /// File extension for saved designs.
 pub const DESIGN_EXT: &str = "ring.json";
-/// `RingDesign::graph` joined the file without a version bump: an absent
-/// field reads as `None`, and an older build ignores the key.
-
 /// Version stamped into saved design files; files without one are version 0.
-pub const FORMAT_VERSION: u32 = 1;
+pub const FORMAT_VERSION: u32 = 2;
 
 const VERSION_KEY: &str = "format_version";
 
 /// `MIGRATIONS[n]` rewrites a version-`n` document in place to version `n + 1`.
-static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1];
+static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1, migrate_v1_to_v2];
 
 /// Version 0 predates the version field; the document already has v1's shape.
 fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
+
+/// CAD and manufacturing fields have serde defaults, so older designs need
+/// no data rewrite. The version bump prevents an older app from ignoring a
+/// CAD assembly and silently treating its cached band parameters as the ring.
+fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
 
 /// Serialization wrapper that puts the version key ahead of the design fields.
 #[derive(serde::Serialize)]
@@ -117,11 +119,11 @@ pub fn load_design(path: impl AsRef<Path>) -> anyhow::Result<RingDesign> {
 /// Parse a design document, migrating older versions up to [`FORMAT_VERSION`].
 pub fn load_design_str(text: &str) -> anyhow::Result<RingDesign> {
     let mut doc: serde_json::Value = serde_json::from_str(text)?;
-    let version = doc
-        .get(VERSION_KEY)
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as u32;
-    if version > FORMAT_VERSION {
+    let version = match doc.get(VERSION_KEY) {
+        Some(v) => v.as_u64().ok_or_else(|| anyhow::anyhow!("Invalid design format version"))?,
+        None => 0,
+    };
+    if version > u64::from(FORMAT_VERSION) {
         anyhow::bail!(
             "design file is format version {version}, but this build reads up to {FORMAT_VERSION} \
              — it was saved by a newer RingDesigner"
@@ -381,6 +383,12 @@ mod tests {
         assert!(!v0.contains(VERSION_KEY));
         let loaded = load_design_str(&v0).unwrap();
         assert_eq!(loaded.name, RingDesign::default().name);
+        let mut v1: serde_json::Value = serde_json::from_str(&v0).unwrap();
+        v1[VERSION_KEY] = 1.into();
+        v1["name"] = "Legacy workshop ring".into();
+        let loaded = load_design_str(&v1.to_string()).unwrap();
+        assert_eq!(loaded.name, "Legacy workshop ring");
+        assert!(loaded.cad.is_none() && loaded.manufacturing.is_none());
     }
 
     #[test]
@@ -439,8 +447,14 @@ mod tests {
     #[test]
     fn a_newer_version_is_refused_with_a_clear_error() {
         let mut doc = serde_json::to_value(RingDesign::default()).unwrap();
-        doc["format_version"] = (FORMAT_VERSION + 1).into();
-        let err = load_design_str(&doc.to_string()).unwrap_err();
-        assert!(err.to_string().contains("newer RingDesigner"), "{err}");
+        for version in [u64::from(FORMAT_VERSION) + 1, 1u64 << 32] {
+            doc["format_version"] = version.into();
+            let err = load_design_str(&doc.to_string()).unwrap_err();
+            assert!(err.to_string().contains("newer RingDesigner"), "{err}");
+        }
+        for version in [serde_json::json!(-1), serde_json::json!(1.5), serde_json::json!("2")] {
+            doc["format_version"] = version;
+            assert!(load_design_str(&doc.to_string()).is_err());
+        }
     }
 }

@@ -37,6 +37,10 @@ pub mod gems;
 pub mod history;
 pub mod gltf;
 pub mod library;
+pub mod manufacturing;
+pub mod sketch;
+pub mod cad;
+pub mod resize;
 pub mod mesh;
 pub mod metal;
 pub mod paint;
@@ -52,9 +56,11 @@ pub mod stonemap;
 pub mod stones;
 pub mod svg;
 pub mod templates;
+pub mod construction;
 pub mod text;
 pub mod threemf;
 pub mod tiling;
+pub mod interaction;
 
 pub use alpha::{Alpha, AlphaLibrary};
 pub use castability::{CastReport, DraftSettings, FaceClass, Section};
@@ -77,6 +83,13 @@ pub struct RingDesign {
     pub layers: LayerStack,
     pub build: BuildParams,
     pub draft: DraftSettings,
+    /// Optional workshop setup; absent in designs created before the casting workspace.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manufacturing: Option<manufacturing::Setup>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cad: Option<cad::Document>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub casting_trials: Vec<manufacturing::trials::Trial>,
     /// Alphas drawn by hand, carried as strokes so the design stays self-contained. Rasterized
     /// into the library on load; layers reference them by name like any other alpha.
     #[serde(default)]
@@ -120,6 +133,9 @@ impl Default for RingDesign {
             layers: LayerStack::default(),
             build: BuildParams::default(),
             draft: DraftSettings::default(),
+            manufacturing: None,
+            cad: None,
+            casting_trials: Vec::new(),
             drawn: Vec::new(),
             embedded: Vec::new(),
             texts: Vec::new(),

@@ -1,6 +1,6 @@
 //! Build-a-Ring: the customer-facing configurator.
 //!
-//! A guided flow over `ringdesign-core` and nothing else — the preview is the
+//! A guided flow over `ringdesign-core`, plus the shared Workshop — the guided preview is the
 //! software rasterizer, so this binary carries no GL plumbing and the same
 //! crate could later target a browser. Choices live in [`compose::Config`],
 //! small serializable data; the finished order lands as a folder holding the
@@ -11,6 +11,7 @@
 //! the `--no-default-features` flag, so core runs serial). There is no
 //! thread in a browser, so the build worker and the thumbnail renders run on
 //! the UI thread, pumped from `poll` — a preview build is ~40 ms serial.
+//! Workshop CAD, release analysis, and packages use a dedicated browser worker.
 
 mod compose;
 #[cfg(target_arch = "wasm32")]
@@ -379,6 +380,11 @@ impl Step {
 }
 
 struct App {
+    workshop_imports: (Sender<Result<String, String>>, Receiver<Result<String, String>>),
+    workshop: ringdesign_workbench::Workshop,
+    workshop_lib: AlphaLibrary,
+    workshop_design: Option<ringdesign_core::RingDesign>,
+    workshop_open: bool,
     cfg: Config,
     step: Step,
     engine: Engine,
@@ -400,6 +406,11 @@ struct App {
 impl App {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let mut app = Self {
+            workshop_imports: channel(),
+            workshop: Default::default(),
+            workshop_lib: AlphaLibrary::builtin(),
+            workshop_design: cc.storage.and_then(|s| s.get_string("workshop-design")).and_then(|s| library::load_design_str(&s).ok()),
+            workshop_open: false,
             cfg: Config::default(),
             step: Step::Base,
             engine: Engine::new(cc.egui_ctx.clone()),
@@ -848,14 +859,57 @@ impl App {
 }
 
 impl eframe::App for App {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        if let Some(d) = &self.workshop_design {
+            if let Ok(json) = library::design_json(d) { storage.set_string("workshop-design", json); }
+        }
+    }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        if self.workshop_open {
+            egui::Panel::top(egui::Id::new("workshop-header")).show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    if ui.add_sized([120.0,44.0], egui::Button::new("Guided design")).clicked() { self.workshop_open = false; }
+                    ui.weak("Casting and CAD");
+                    #[cfg(target_arch = "wasm32")]
+                    if ui.add_sized([120.0,44.0], egui::Button::new("Import project")).clicked() {
+                        if let Err(e) = web::pick_project(self.workshop_imports.0.clone(), ctx.clone()) { self.workshop.message = e.to_string(); }
+                    }
+                });
+            });
+            egui::CentralPanel::default().show(ui, |ui| {
+                let d = self.workshop_design.get_or_insert_with(|| compose(&self.cfg));
+                let events = self.workshop.show(ui, d, &self.workshop_lib);
+                while let Ok(imported) = self.workshop_imports.1.try_recv() {
+                    match imported { Ok(text) => self.workshop.import(&text), Err(e) => self.workshop.message = e }
+                }
+                for file in events.files {
+                    match deliver_workshop(&file) {
+                        Ok(message) => self.workshop.message = message,
+                        Err(e) => self.workshop.message = format!("Export delivery failed: {e}"),
+                    }
+                }
+                let dropped = ui.input(|i| i.raw.dropped_files.clone());
+                for file in dropped {
+                    let tx = self.workshop_imports.0.clone();
+                    #[cfg(target_arch = "wasm32")]
+                    { let ctx = ctx.clone(); wasm_bindgen_futures::spawn_local(async move {
+                        let text = file.bytes_async().await.and_then(|b| String::from_utf8(b).map_err(|e| e.to_string()));
+                        let _ = tx.send(text); ctx.request_repaint();
+                    }); }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    { let _ = tx.send(file.bytes().and_then(|b| String::from_utf8(b).map_err(|e| e.to_string()))); ui.ctx().request_repaint(); }
+                }
+            });
+            return;
+        }
         self.poll(&ctx);
 
         egui::Panel::top(egui::Id::new("steps")).show(ui, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 ui.heading("Build a Ring");
+                if ui.add_sized([100.0,44.0], egui::Button::new("Workshop")).clicked() { self.workshop_open = true; }
                 ui.separator();
                 for &s in Step::ALL {
                     if ui.selectable_label(self.step == s, s.label()).clicked() {
@@ -927,4 +981,19 @@ mod tests {
         let back: Config = serde_json::from_slice(&files[1].1).unwrap();
         assert_eq!(back.customer, "Ada Lovelace!");
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn deliver_workshop(file: &ringdesign_workbench::job::Artifact) -> anyhow::Result<String> {
+    web::download(&file.name, &file.mime, &file.bytes)?;
+    Ok(format!("Downloaded {}", file.name))
+}
+#[cfg(not(target_arch = "wasm32"))]
+fn deliver_workshop(file: &ringdesign_workbench::job::Artifact) -> anyhow::Result<String> {
+    let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_nanos();
+    let dir = std::path::Path::new("workshop-exports");
+    std::fs::create_dir_all(dir)?;
+    let path = dir.join(format!("{nonce}-{}", file.name));
+    library::write_atomic(&path, &file.bytes)?;
+    Ok(format!("Saved {}", path.display()))
 }

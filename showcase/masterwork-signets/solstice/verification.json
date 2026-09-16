@@ -1,0 +1,16 @@
+[
+  {
+    "empty_library": true,
+    "nominal_identical": true,
+    "parent": "solstice",
+    "pattern_identical": true,
+    "source": "design.ring.json"
+  },
+  {
+    "empty_library": true,
+    "nominal_identical": true,
+    "parent": "pattern-package",
+    "pattern_identical": true,
+    "source": "design.ring.json"
+  }
+]

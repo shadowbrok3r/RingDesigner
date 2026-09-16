@@ -1,0 +1,49 @@
+{
+  "count": 3,
+  "diamond_equivalent_carats": 0.07154409399999999,
+  "note": "Green colour is the intended emerald finish study; carats use the app's diamond-density estimate. Choose actual stones before cutting bearings.",
+  "seats": [
+    {
+      "available_depth_mm": 3.869729999999999,
+      "count": 1,
+      "edge_clearance_mm": 8.147291054492168,
+      "gem": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 2.3,
+        "w_mm": 2.3
+      },
+      "label": "Emerald dew / central bezel stock",
+      "warnings": [
+        "bezel pocket on the crown — its walls turn to ceilings; move it to a side face"
+      ]
+    },
+    {
+      "available_depth_mm": 2.7044522637326027,
+      "count": 1,
+      "edge_clearance_mm": 3.2683387464245635,
+      "gem": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 1.5,
+        "w_mm": 1.5
+      },
+      "label": "Shoulder emerald / 25 degrees",
+      "warnings": []
+    },
+    {
+      "available_depth_mm": 2.7044522637326027,
+      "count": 1,
+      "edge_clearance_mm": 3.2683387464245635,
+      "gem": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 1.5,
+        "w_mm": 1.5
+      },
+      "label": "Shoulder emerald / 155 degrees",
+      "warnings": []
+    }
+  ],
+  "tight_pairs": 0
+}

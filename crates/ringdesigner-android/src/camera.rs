@@ -23,9 +23,9 @@ impl StandardView {
 
     pub fn label(self) -> &'static str {
         match self {
-            StandardView::Face => "Face",
-            StandardView::Edge => "Edge",
-            StandardView::Profile => "Profile",
+            StandardView::Face => "Through opening",
+            StandardView::Edge => "Band side",
+            StandardView::Profile => "Band profile",
             StandardView::Iso => "3/4",
         }
     }
@@ -114,7 +114,7 @@ impl OrbitCamera {
         }
     }
 
-    /// Set the zoom so the view volume is `half_mm` tall in millimetres. The projection is
+    /// Set the shorter view dimension to `half_mm` in millimetres. The projection is
     /// orthographic and already in mm, so true physical scale is this one value.
     pub fn set_half_extent(&mut self, half_mm: f32) {
         if half_mm > 1e-6 {
@@ -122,13 +122,13 @@ impl OrbitCamera {
         }
     }
 
-    pub fn pan_by(&mut self, delta: egui::Vec2, rect_height: f32) {
-        let scale = self.half_extent() * 2.0 / rect_height.max(1.0);
+    pub fn pan_by(&mut self, delta: egui::Vec2, rect: egui::Rect) {
+        let scale = self.half_extent() * 2.0 / rect.width().min(rect.height()).max(1.0);
         self.pan[0] -= delta.x * scale;
         self.pan[1] += delta.y * scale;
     }
 
-    /// Half-height of the orthographic view volume, in mm.
+    /// Half-extent along the shorter viewport dimension, in mm.
     pub fn half_extent(&self) -> f32 {
         self.radius * 1.15 / self.zoom.max(1e-3)
     }
@@ -151,7 +151,7 @@ impl OrbitCamera {
         let x_ndc = (pos.x - centre.x) / half.x.max(1.0);
         let y_ndc = -(pos.y - centre.y) / half.y.max(1.0);
         let aspect = (rect.width() / rect.height().max(1.0)).max(1e-3);
-        let hh = self.half_extent();
+        let hh = self.half_extent() / aspect.min(1.0);
         let vx = self.pan[0] + x_ndc * hh * aspect;
         let vy = self.pan[1] + y_ndc * hh;
 
@@ -185,7 +185,7 @@ impl OrbitCamera {
         let view = look_at(eye, self.target, up);
 
         let aspect = (rect.width() / rect.height().max(1.0)).max(1e-3);
-        let hh = self.half_extent();
+        let hh = self.half_extent() / aspect.min(1.0);
         let hw = hh * aspect;
         let far = self.radius * 12.0;
         let proj = ortho(
@@ -200,9 +200,7 @@ impl OrbitCamera {
         let mvp = mat4_mul(&proj, &view);
         // View rotation is orthonormal, so it is its own normal matrix.
         let normal = [
-            view[0], view[1], view[2],
-            view[4], view[5], view[6],
-            view[8], view[9], view[10],
+            view[0], view[1], view[2], view[4], view[5], view[6], view[8], view[9], view[10],
         ];
         (mvp, normal)
     }
@@ -213,7 +211,11 @@ impl OrbitCamera {
     /// projects over a hundred, and every one would rebuild the matrices.
     pub fn projector(&self, rect: egui::Rect) -> Projector {
         let (mvp, _) = self.matrices(rect);
-        Projector { mvp, centre: rect.center(), half: rect.size() * 0.5 }
+        Projector {
+            mvp,
+            centre: rect.center(),
+            half: rect.size() * 0.5,
+        }
     }
 }
 
@@ -230,7 +232,10 @@ impl Projector {
         let m = &self.mvp;
         let x = m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12];
         let y = m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13];
-        egui::pos2(self.centre.x + x * self.half.x, self.centre.y - y * self.half.y)
+        egui::pos2(
+            self.centre.x + x * self.half.x,
+            self.centre.y - y * self.half.y,
+        )
     }
 }
 
@@ -239,20 +244,44 @@ fn look_at(eye: [f32; 3], target: [f32; 3], up: [f32; 3]) -> [f32; 16] {
     let s = normalize(cross(f, up));
     let u = cross(s, f);
     [
-        s[0], u[0], -f[0], 0.0,
-        s[1], u[1], -f[1], 0.0,
-        s[2], u[2], -f[2], 0.0,
-        -dot(s, eye), -dot(u, eye), dot(f, eye), 1.0,
+        s[0],
+        u[0],
+        -f[0],
+        0.0,
+        s[1],
+        u[1],
+        -f[1],
+        0.0,
+        s[2],
+        u[2],
+        -f[2],
+        0.0,
+        -dot(s, eye),
+        -dot(u, eye),
+        dot(f, eye),
+        1.0,
     ]
 }
 
 fn ortho(l: f32, r: f32, b: f32, t: f32, n: f32, f: f32) -> [f32; 16] {
     let (rl, tb, fnn) = ((r - l).max(1e-6), (t - b).max(1e-6), (f - n).max(1e-6));
     [
-        2.0 / rl, 0.0, 0.0, 0.0,
-        0.0, 2.0 / tb, 0.0, 0.0,
-        0.0, 0.0, -2.0 / fnn, 0.0,
-        -(r + l) / rl, -(t + b) / tb, -(f + n) / fnn, 1.0,
+        2.0 / rl,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.0 / tb,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -2.0 / fnn,
+        0.0,
+        -(r + l) / rl,
+        -(t + b) / tb,
+        -(f + n) / fnn,
+        1.0,
     ]
 }
 
@@ -289,7 +318,11 @@ fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
 
 fn normalize(a: [f32; 3]) -> [f32; 3] {
     let len = dot(a, a).sqrt();
-    if len > 1e-9 { [a[0] / len, a[1] / len, a[2] / len] } else { [0.0, 0.0, 1.0] }
+    if len > 1e-9 {
+        [a[0] / len, a[1] / len, a[2] / len]
+    } else {
+        [0.0, 0.0, 1.0]
+    }
 }
 
 #[cfg(test)]
@@ -315,6 +348,37 @@ mod tests {
         assert!((cam.target[0] - 1.0).abs() < 1e-6);
         assert!((cam.target[1] + 1.0).abs() < 1e-6);
         assert!((cam.target[2] - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn portrait_fit_picking_and_pan_use_the_same_scale() {
+        let mut cam = OrbitCamera::default();
+        cam.fit(Some((Vec3(-12., -10., -7.), Vec3(12., 15., 7.))));
+        for size in [egui::vec2(411., 740.), egui::vec2(411., 390.), egui::vec2(740., 270.)] {
+            let rect = egui::Rect::from_min_size(egui::pos2(0., 60.), size);
+            cam.zoom = 1.;
+            cam.pan = [0.; 2];
+            for x in [-12., 12.] {
+                for y in [-10., 15.] {
+                    for z in [-7., 7.] {
+                        assert!(rect.contains(cam.projector(rect).at([x,y,z])));
+                    }
+                }
+            }
+            let point = [3., 2., 1.];
+            let screen = cam.projector(rect).at(point);
+            let (origin, direction) = cam.ray(rect, screen);
+            let error = cross(sub(point, origin), direction);
+            assert!(dot(error, error) < 1e-6);
+            let delta = egui::vec2(16., -23.);
+            cam.pan_by(delta, rect);
+            assert!((cam.projector(rect).at(point) - screen - delta).length() < 0.001);
+            cam.pan = [0.; 2];
+            cam.set_view(StandardView::Face);
+            cam.set_half_extent(size.x.min(size.y) * 0.5 / 4.);
+            let p = cam.projector(rect);
+            assert!(((p.at([1.,0.,0.]) - p.at([0.,0.,0.])).length() - 4.).abs() < 0.001);
+        }
     }
 
     #[test]

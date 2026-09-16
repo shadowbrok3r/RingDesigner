@@ -1,0 +1,245 @@
+{
+  "bench_layers": [],
+  "cast_ring_grams": 8.299613004494164,
+  "design": "Tide — twelve reeds",
+  "detail_findings": [],
+  "diagnostic_only": false,
+  "estimated_channel_grams": 2.4016029090256077,
+  "estimated_charge_grams": 10.701215913519771,
+  "feeding_proxy": [
+    315.0,
+    0.8677574294983541
+  ],
+  "format_version": 1,
+  "geometry": {
+    "bounds_mm": [
+      22.93577766418457,
+      22.93577766418457,
+      6.7686028480529785
+    ],
+    "surface_area_mm2": 1024.9681084055735,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 393216,
+      "vertex_count": 196608,
+      "watertight": true
+    },
+    "volume_mm3": 848.5764723856236
+  },
+  "limits": [
+    "Release is sampled; features between rays can be missed",
+    "Sand-slot widths are a screening check, not a sand-strength model",
+    "Radial wall is not the minimum thickness in every direction",
+    "Channel volumes overlap at junctions and omit melt/handling losses",
+    "Separately cored geometry needs a core and assembly plan"
+  ],
+  "nominal_bore_mm": 18.2,
+  "nominal_size": "US 8.11",
+  "pattern_fingerprint": "eabf51db2ac8923b",
+  "pattern_scale": 1.019367991845056,
+  "radial_wall_limit_mm": 0.8,
+  "radial_wall_mm": 1.875204214485036,
+  "release": {
+    "bounds": [
+      [
+        -11.467888832092285,
+        -11.467888832092285,
+        -3.3843014240264893
+      ],
+      [
+        11.467888832092285,
+        11.467888832092285,
+        3.3843014240264893
+      ]
+    ],
+    "cell_mm": [
+      0.09972077245297639,
+      0.09972077245297639
+    ],
+    "fits_flask": true,
+    "frame": {
+      "x": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "y": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "z": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "grid": [
+      230,
+      230
+    ],
+    "low_draft_area_mm2": 314.91710107499006,
+    "notes": [
+      "314.92 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
+    "obstructions": [],
+    "occupied_rays": 14828,
+    "parting_mm": 0.0,
+    "sand_findings": [],
+    "status": "Review",
+    "suggested_parting_mm": 0.0,
+    "tolerance_mm": 0.02,
+    "unresolved_rays": 0,
+    "worst_draft_deg": 0.0
+  },
+  "sampled_local_wall": null,
+  "setup": {
+    "auto_parting": true,
+    "axial_stock_mm": 0.0,
+    "bench_notes": "Cast in one piece, pulling along +Z with a central parting plane. Broad straight reeds avoid diagonal hooks and fine sand fins. Gate at the palm. Remove the parting seam, retain a satin finish in the valleys, and polish the rounded reed crests. No stone setting or assembly is required.",
+    "bore": "Molded",
+    "bore_stock_mm": 0.0,
+    "channels": [
+      {
+        "diameter_mm": 3.2,
+        "end": [
+          0.0,
+          -22.0,
+          0.0
+        ],
+        "kind": "Gate",
+        "start": [
+          0.0,
+          -11.0,
+          0.0
+        ]
+      },
+      {
+        "diameter_mm": 5.0,
+        "end": [
+          0.0,
+          -30.0,
+          0.0
+        ],
+        "kind": "Sprue",
+        "start": [
+          0.0,
+          -22.0,
+          0.0
+        ]
+      }
+    ],
+    "component": null,
+    "flask": {
+      "cope_mm": 20.0,
+      "drag_mm": 20.0,
+      "length_mm": 70.0,
+      "width_mm": 70.0
+    },
+    "parting_mm": 0.0,
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "radial_stock_mm": 0.0,
+    "recipe": {
+      "alloy": "Silver 925",
+      "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mold, and measured trials.",
+      "min_detail_mm": 0.3,
+      "min_draft_deg": 3.0,
+      "min_sand_web_mm": 0.6,
+      "min_section_mm": 0.8,
+      "name": "Delft clay starting recipe / Silver 925",
+      "process": "SandTwoPart",
+      "sand": "DelftClay",
+      "sand_margin_mm": 5.0,
+      "shrink_pct": 1.9
+    },
+    "sample_pitch_mm": 0.1,
+    "tolerance_mm": 0.02
+  },
+  "source_build": {
+    "band_width_mm": 6.639999866485596,
+    "bounds_mm": [
+      22.5,
+      22.5,
+      6.639999866485596
+    ],
+    "build_ms": 68,
+    "inner_diameter_mm": 18.19999912020255,
+    "max_relief_mm": 0.22,
+    "metals": [
+      {
+        "dwt": 5.336775086503617,
+        "grams": 8.299613004494162,
+        "metal": "Silver 925"
+      },
+      {
+        "dwt": 4.533168027145931,
+        "grams": 7.049864328141761,
+        "metal": "Bronze"
+      },
+      {
+        "dwt": 4.404384844556557,
+        "grams": 6.8495840915468245,
+        "metal": "Brass"
+      },
+      {
+        "dwt": 5.949783035629034,
+        "grams": 9.252946930686061,
+        "metal": "Gold 10k"
+      },
+      {
+        "dwt": 6.732784785772422,
+        "grams": 10.470650769183274,
+        "metal": "Gold 14k"
+      },
+      {
+        "dwt": 8.025767938969727,
+        "grams": 12.481464344596436,
+        "metal": "Gold 18k"
+      },
+      {
+        "dwt": 9.16936260036336,
+        "grams": 14.259952845559472,
+        "metal": "Gold 22k"
+      },
+      {
+        "dwt": 9.952364350506747,
+        "grams": 15.477656684056683,
+        "metal": "Gold 24k"
+      },
+      {
+        "dwt": 6.181592764289905,
+        "grams": 9.613451356556947,
+        "metal": "Palladium 950"
+      },
+      {
+        "dwt": 11.049597066168205,
+        "grams": 17.184044299845542,
+        "metal": "Platinum 950"
+      }
+    ],
+    "min_relief_mm": 0.0,
+    "outer_diameter_mm": 22.5,
+    "quality": {
+      "degenerate_faces": 0,
+      "min_angle_deg": 23.833932370963065,
+      "worst_aspect": 2.7109247579804
+    },
+    "refine": null,
+    "surface_area_mm2": 986.3894584291393,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 393216,
+      "vertex_count": 196608,
+      "watertight": true
+    },
+    "volume_mm3": 801.1209463797455
+  },
+  "units": "millimeter"
+}

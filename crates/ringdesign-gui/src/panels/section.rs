@@ -39,6 +39,14 @@ impl Default for ViewOpts {
 }
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
+    if app.design.cad.is_some() {
+        ui.label("Inspect actual CAD geometry in CAD → Section.");
+        if ui.button("Open CAD sections").clicked() {
+            app.cad.open_section();
+            app.focus(crate::pane::PaneKind::Cad);
+        }
+        return;
+    }
     let opts_id = egui::Id::new(("section_view_opts", pane));
 
     egui::Panel::top(egui::Id::new(("section_controls", pane)))

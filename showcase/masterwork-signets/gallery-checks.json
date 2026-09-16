@@ -1,0 +1,123 @@
+{
+  "views": [
+    {
+      "ring": "solstice",
+      "view": "hero",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "solstice",
+      "view": "seal",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "solstice",
+      "view": "cheek",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "solstice",
+      "view": "palm",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "solstice",
+      "view": "reverse",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "solstice",
+      "view": "structure",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "solstice",
+      "view": "pattern",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "solstice",
+      "view": "turntable",
+      "width": 520,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "nocturne",
+      "view": "hero",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "nocturne",
+      "view": "seal",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "nocturne",
+      "view": "cheek",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "nocturne",
+      "view": "palm",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "nocturne",
+      "view": "reverse",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "nocturne",
+      "view": "structure",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "nocturne",
+      "view": "pattern",
+      "width": 1400,
+      "pressed": "true",
+      "selected": 1
+    },
+    {
+      "ring": "nocturne",
+      "view": "turntable",
+      "width": 520,
+      "pressed": "true",
+      "selected": 1
+    }
+  ],
+  "local_links": 35,
+  "layout": {
+    "viewport": 390,
+    "document": 390,
+    "smallestButton": 44
+  },
+  "errors": []
+}

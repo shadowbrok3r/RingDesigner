@@ -410,6 +410,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
+name = "cadkernel"
+version = "0.1.0"
+source = "git+https://github.com/HakanSeven12/cadkernel.git?rev=920ff591028ab4ba13648b920d9d333ec3b7d44b#920ff591028ab4ba13648b920d9d333ec3b7d44b"
+dependencies = [
+ "cavalier_contours",
+ "rustc-hash 2.1.3",
+ "spade",
+]
+
+[[package]]
 name = "calloop"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -528,6 +538,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dec551ab6e7578819132c713a93c022a05d60159dc86e7a7050223577484c55a"
 dependencies = [
  "rustversion",
+]
+
+[[package]]
+name = "cavalier_contours"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31cab9e73a5a3533d3d6fb36818e8735dd033e080fa70a63d90846c8183708c9"
+dependencies = [
+ "num-traits",
+ "static_aabb2d_index",
 ]
 
 [[package]]
@@ -1106,8 +1126,6 @@ dependencies = [
 [[package]]
 name = "egui"
 version = "0.36.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8e70d4e8e8896ba5becb0bc1c8c06d203cb44ff16a93d7a619a5e565500085d"
 dependencies = [
  "accesskit",
  "ahash",
@@ -1847,9 +1865,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "899def5c37c4fd7b2664648c28120ecec138e4d395b459e5ca34f9cce2dd77fd"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi 5.3.0",
  "wasip2",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -4009,6 +4029,7 @@ checksum = "dd4dd0f8c36625202a4ba553c416c19b719947cd2a31d1bda06126e4a5727daf"
 dependencies = [
  "ahash",
  "bitflags 2.13.1",
+ "getrandom 0.3.4",
  "no-std-compat",
  "num-traits",
  "once_cell",
@@ -4053,6 +4074,7 @@ dependencies = [
  "js-sys",
  "log",
  "ringdesign-core",
+ "ringdesign-workbench",
  "serde",
  "serde_json",
  "wasm-bindgen",
@@ -4066,6 +4088,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "cadkernel",
  "fontdue",
  "image",
  "log",
@@ -4073,8 +4096,10 @@ dependencies = [
  "parking_lot",
  "rayon",
  "resvg",
+ "roxmltree",
  "serde",
  "serde_json",
+ "svgtypes",
 ]
 
 [[package]]
@@ -4122,6 +4147,7 @@ dependencies = [
  "ringdesign-graph-ui",
  "ringdesign-mcp",
  "ringdesign-script",
+ "ringdesign-workbench",
  "serde",
  "serde_json",
  "tokio",
@@ -4197,8 +4223,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ringdesign-workbench"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "egui",
+ "js-sys",
+ "ringdesign-core",
+ "ringdesign-graph",
+ "ringdesign-script",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "ringdesigner_android"
-version = "0.10.0"
+version = "0.16.0"
 dependencies = [
  "backdrop-blur-egui",
  "egui",
@@ -4212,6 +4254,7 @@ dependencies = [
  "ringdesign-graph",
  "ringdesign-graph-ui",
  "ringdesign-script",
+ "ringdesign-workbench",
  "serde",
  "serde_json",
 ]
@@ -4259,6 +4302,12 @@ dependencies = [
  "serde_json",
  "syn 3.0.3",
 ]
+
+[[package]]
+name = "robust"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e27ee8bb91ca0adcf0ecb116293afa12d393f9c2b9b9cd54d33e8078fe19839"
 
 [[package]]
 name = "ron"
@@ -4698,6 +4747,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "spade"
+version = "2.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9699399fd9349b00b184f5635b074f9ec93afffef30c853f8c875b32c0f8c7fa"
+dependencies = [
+ "hashbrown 0.16.1",
+ "num-traits",
+ "robust",
+ "smallvec",
+]
+
+[[package]]
 name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4751,6 +4812,15 @@ name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
+
+[[package]]
+name = "static_aabb2d_index"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a753368e4dd146a347d0ea692f0f8a37df18df7eee5659d36dd75eb287c6454"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "static_assertions"

@@ -1,0 +1,22 @@
+{
+  "nocturne": {
+    "drawings": 1,
+    "name": "Nocturne — night garden signet",
+    "procedural_sources": 2,
+    "stones": 3,
+    "svg_sources": 8,
+    "text_sources": 1,
+    "top_level_layers": 19,
+    "total_layer_entries": 22
+  },
+  "thalassa": {
+    "drawings": 1,
+    "name": "Thalassa — tidal reliquary signet",
+    "procedural_sources": 2,
+    "stones": 7,
+    "svg_sources": 5,
+    "text_sources": 1,
+    "top_level_layers": 24,
+    "total_layer_entries": 27
+  }
+}

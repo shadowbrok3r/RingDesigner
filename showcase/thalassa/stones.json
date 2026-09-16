@@ -1,0 +1,20 @@
+{
+  "closest": {
+    "a": "Central oval sea-glass bezel",
+    "b": "South pearl setting",
+    "depth_gap_mm": 2.891828823522215,
+    "girdle_gap_mm": 2.891828823522215
+  },
+  "seat_checks": [
+    "SeatCheck { label: \"Central oval sea-glass bezel\", style: Bezel, count: 1, seat_diameter_mm: 4.08, gem: Some(Gem { cut: Oval, w_mm: 3.4, l_mm: 5.44, form: Faceted }), footing: Crown(0.0), edge_clearance_mm: 8.049521190823834, depth_available_mm: 4.164200000000001, bridge_mm: None, carats_override: None, shared_prongs: None, warnings: [\"bezel pocket on the crown — its walls turn to ceilings; move it to a side face\"] }",
+    "SeatCheck { label: \"East pearl setting\", style: Bezel, count: 1, seat_diameter_mm: 1.98, gem: Some(Gem { cut: Round, w_mm: 1.3, l_mm: 1.3, form: Faceted }), footing: Crown(0.0), edge_clearance_mm: 8.681870244695897, depth_available_mm: 5.461848563881495, bridge_mm: None, carats_override: None, shared_prongs: None, warnings: [\"bezel pocket on the crown — its walls turn to ceilings; move it to a side face\"] }",
+    "SeatCheck { label: \"West pearl setting\", style: Bezel, count: 1, seat_diameter_mm: 1.98, gem: Some(Gem { cut: Round, w_mm: 1.3, l_mm: 1.3, form: Faceted }), footing: Crown(0.0), edge_clearance_mm: 8.681870244695897, depth_available_mm: 5.461848563881495, bridge_mm: None, carats_override: None, shared_prongs: None, warnings: [\"bezel pocket on the crown — its walls turn to ceilings; move it to a side face\"] }",
+    "SeatCheck { label: \"North pearl setting\", style: GypsyMound, count: 1, seat_diameter_mm: 3.05, gem: Some(Gem { cut: Round, w_mm: 1.25, l_mm: 1.25, form: Faceted }), footing: Crown(-0.0), edge_clearance_mm: 3.303626978008631, depth_available_mm: 4.979500000000001, bridge_mm: None, carats_override: None, shared_prongs: None, warnings: [] }",
+    "SeatCheck { label: \"South pearl setting\", style: GypsyMound, count: 1, seat_diameter_mm: 3.05, gem: Some(Gem { cut: Round, w_mm: 1.25, l_mm: 1.25, form: Faceted }), footing: Crown(0.0), edge_clearance_mm: 3.3036269780085465, depth_available_mm: 4.979500000000001, bridge_mm: None, carats_override: None, shared_prongs: None, warnings: [] }",
+    "SeatCheck { label: \"Port shoulder stone\", style: GypsyMound, count: 1, seat_diameter_mm: 3.2, gem: Some(Gem { cut: Round, w_mm: 1.4, l_mm: 1.4, form: Faceted }), footing: Crown(0.0), edge_clearance_mm: 3.551935985281286, depth_available_mm: 3.556119533655015, bridge_mm: None, carats_override: None, shared_prongs: None, warnings: [] }",
+    "SeatCheck { label: \"Starboard shoulder stone\", style: GypsyMound, count: 1, seat_diameter_mm: 3.2, gem: Some(Gem { cut: Round, w_mm: 1.4, l_mm: 1.4, form: Faceted }), footing: Crown(0.0), edge_clearance_mm: 3.551935985281286, depth_available_mm: 3.556119533655015, bridge_mm: None, carats_override: None, shared_prongs: None, warnings: [] }"
+  ],
+  "stone_count": 7,
+  "tight_pairs": 0,
+  "total_carats": 0.28608456950000005
+}

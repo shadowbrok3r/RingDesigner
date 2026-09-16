@@ -89,15 +89,20 @@ fn design_get(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, Node
     Ok(Outputs::one("value", v))
 }
 
-fn design_set(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
+fn design_set(_: &mut EvalCtx<'_>, n: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
     let d = design_of(i, "design")?;
     let pointer = i.text("pointer")?;
     if pointer.is_empty() {
         return Err(NodeError::input("pointer", "set needs a field pointer such as /profile/width_mm"));
     }
-    let value = i.get("value").to_json_any().ok_or_else(|| NodeError::input("value", format!("{} has no JSON form", i.get("value").summary())))?;
+    let value = n.params.get("json_value").cloned().or_else(||i.get("value").to_json_any()).ok_or_else(|| NodeError::input("value", format!("{} has no JSON form", i.get("value").summary())))?;
     let mut json = serde_json::to_value(&d).map_err(|e| NodeError::new(e.to_string()))?;
-    if json.pointer(pointer).is_none() {
+    // These optional source fields are omitted by serde when empty. They are
+    // still legitimate graph parameters; unknown paths remain errors.
+    let optional = matches!(pointer, "/cad" | "/manufacturing" | "/casting_trials")
+        || (pointer.ends_with("/bench_only")
+            && json.pointer(pointer.trim_end_matches("/bench_only")).is_some_and(|v|v.get("layer").is_some()));
+    if json.pointer(pointer).is_none() && !optional {
         return Err(NodeError::input("pointer", format!("a design has nothing at {pointer:?}")));
     }
     set_pointer(&mut json, pointer, value).map_err(|m| NodeError::input("pointer", m))?;
@@ -145,7 +150,7 @@ pub fn register(reg: &mut Registry) {
             .doc("Write any existing field of the design by JSON pointer — the escape hatch for what has no node yet.")
             .input(PinSpec::item("design", ValueKind::Design).doc("The design."))
             .input(PinSpec::item("pointer", ValueKind::Text).default("").widget(Widget::TextLine).doc("An RFC 6901 pointer to an existing field."))
-            .input(PinSpec::item("value", ValueKind::Any).doc("The new value."))
+            .input(PinSpec::item("value", ValueKind::Any).optional().doc("The new value; explicit JSON arrays/null can be stored in node.params.json_value to avoid list broadcasting."))
             .output(PinSpec::item("design", ValueKind::Design).doc("The changed design."))
             .eval(design_set),
         NodeSpec::new("design.info", "Design info", Category::Assembly)

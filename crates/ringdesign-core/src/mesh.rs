@@ -313,6 +313,23 @@ fn measured_bore_diameter_mm(mesh: &Mesh, nominal: f64) -> f64 {
 }
 
 pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> BuildResult {
+    try_build(design, lib, params).unwrap_or_else(|e| panic!("{e:#}"))
+}
+
+/// Fallible entry for document-driven geometry. Legacy callers keep `build`;
+/// interactive workers catch its failure and retain the last successful mesh.
+pub fn try_build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::Result<BuildResult> {
+    if design.cad.is_none() {return Ok(build_band(design,lib,params));}
+    let started=BuildClock::start();
+    let evaluated=crate::cad::evaluate(design,lib,params)?;
+    let mesh=crate::cad::combined(&evaluated,false);
+    anyhow::ensure!(!mesh.faces.is_empty(),"The design contains only reference components");
+    let (lo,hi)=mesh.bounds().unwrap();let bounds_mm=[(hi.0-lo.0) as f64,(hi.1-lo.1) as f64,(hi.2-lo.2) as f64];let volume=mesh.volume_mm3();
+    let report=Report {validation:mesh.validate(),volume_mm3:volume,surface_area_mm2:mesh.surface_area_mm2(),bounds_mm,inner_diameter_mm:measured_bore_diameter_mm(&mesh,design.size.inner_diameter_mm()),outer_diameter_mm:bounds_mm[0].max(bounds_mm[1]),band_width_mm:bounds_mm[2],max_relief_mm:0.0,min_relief_mm:0.0,metals:metal_table(volume),build_ms:started.ms(),refine:None,quality:mesh.quality()};
+    Ok(BuildResult {mesh,report,reference:design.reference_loop(),spacing:Spacing::uniform(params.theta_steps.clamp(24,4096))})
+}
+
+pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> BuildResult {
     let started = BuildClock::start();
     if let Some(rp) = params.refine {
         return build_refined(design, lib, params, rp, started);
@@ -744,6 +761,63 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn atelier_shoulders_are_fair_without_a_shelf() {
+        let mut d = crate::construction::source().clone();
+        d.layers.layers.clear();
+        let built = build(
+            &d,
+            &AlphaLibrary::default(),
+            BuildParams {
+                theta_steps: 720,
+                profile_steps: 320,
+                ..Default::default()
+            },
+        );
+        assert!(built.mesh.validate().watertight);
+        let table_plane = d.inner_radius_mm() + d.profile.thickness_mm + d.shank.head.rise_mm;
+        let mut worst = 0.0_f64;
+        for theta in 0..720 {
+            for row in 0..320 {
+                let p = built.mesh.vertices[theta * 320 + row];
+                let q = built.mesh.vertices[((theta + 1) % 720) * 320 + row];
+                // The reference hexagon keeps its angle at the face perimeter.
+                // Inspect the body below the table, not that deliberate edge.
+                if (p.1 as f64).max(q.1 as f64) >= table_plane {
+                    continue;
+                }
+                let a = built.mesh.normals[theta * 320 + row];
+                let b = built.mesh.normals[((theta + 1) % 720) * 320 + row];
+                let dot = a.0 as f64 * b.0 as f64 + a.1 as f64 * b.1 as f64 + a.2 as f64 * b.2 as f64;
+                worst = worst.max(dot.clamp(-1.0, 1.0).acos().to_degrees());
+            }
+        }
+        // The old shoulder changed 17.86 degrees per half-degree slice below
+        // the table. The fair body stays under ten without blurring the face.
+        assert!(worst < 10.0, "shoulder normal jump {worst:.3} degrees");
+        let widths: Vec<f64> = built
+            .mesh
+            .vertices
+            .chunks(320)
+            .map(|section| {
+                let (lo, hi) = section
+                    .iter()
+                    .fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), p| {
+                        (lo.min(p.2 as f64), hi.max(p.2 as f64))
+                    });
+                hi - lo
+            })
+            .collect();
+        let curvature = widths
+            .windows(3)
+            .map(|w| (w[2] - 2.0 * w[1] + w[0]).abs())
+            .fold(0.0_f64, f64::max);
+        // The bounding-box shelf was 0.01268 mm; one taper is 0.00239 mm.
+        assert!(curvature < 0.004, "shoulder width has a shelf: {curvature}");
+        assert!((built.report.inner_diameter_mm - 18.2).abs() < 0.02);
+    }
+
     use crate::profile::TOP_DEG;
 
     fn draft_build(design: &RingDesign) -> BuildResult {

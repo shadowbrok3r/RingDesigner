@@ -773,6 +773,9 @@ impl FeatureFootprint {
 pub struct LayerEntry {
     pub name: String,
     pub enabled: bool,
+    /// Visible in the finished design; omitted when preparing a casting pattern.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bench_only: bool,
     pub blend: Blend,
     /// Overall scale on this layer's output, 0..1+.
     pub opacity: f64,
@@ -802,6 +805,7 @@ impl LayerEntry {
         Self {
             name: name.into(),
             enabled: true,
+            bench_only: false,
             blend: Blend::Max,
             opacity: 1.0,
             soft_mm: default_soft_mm(),

@@ -1087,6 +1087,10 @@ pub fn analyze_field(
         notes: Vec::new(),
     };
 
+    if design.cad.is_some() {
+        return FieldReport {verdict:Verdict::Marginal,notes:vec!["CAD solids require mesh-space manufacturing inspection; band-field measurements do not apply".into()],..empty};
+    }
+
     let sections: Vec<Section> = (0..t_n)
         .map(|i| {
             section_at_spaced(design, lib, i as f64 / t_n as f64 * 360.0, profile_steps, None)

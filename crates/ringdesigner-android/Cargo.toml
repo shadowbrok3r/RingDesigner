@@ -2,7 +2,7 @@
 name = "ringdesigner_android"
 # Its own, not the workspace's: the Android versionCode derives from it as
 # (1<<24)|(major<<16)|(minor<<8)|patch, and the phone only installs a strictly greater one.
-version = "0.10.0"
+version = "0.16.0"
 edition.workspace = true
 license.workspace = true
 publish = false
@@ -43,6 +43,7 @@ local-clip = { git = "https://github.com/shadowbrok3r/ios-egui", optional = true
 local-sd = { git = "https://github.com/shadowbrok3r/ios-egui", optional = true }
 # The geometry, unchanged.
 ringdesign-core.workspace = true
+ringdesign-workbench = { path = "../ringdesign-workbench" }
 # The recipe graph: runtime, the snarl editor (on the root's egui-snarl patch), and the rhai nodes.
 ringdesign-graph.workspace = true
 ringdesign-graph-ui.workspace = true
@@ -76,7 +77,7 @@ has_code = true
 # reports as present, but has no home-screen entry.
 [[package.metadata.android.application.activity]]
 name = "com.github.egui_mobile.EguiNativeActivity"
-config_changes = "orientation|keyboardHidden|screenSize|screenLayout|density"
+config_changes = "orientation|keyboard|keyboardHidden|navigation|screenSize|smallestScreenSize|screenLayout|density|uiMode"
 window_soft_input_mode = "adjustResize"
 [[package.metadata.android.application.activity.meta_data]]
 name = "android.app.lib_name"

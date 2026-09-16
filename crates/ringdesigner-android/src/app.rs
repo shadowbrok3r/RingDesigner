@@ -1,11 +1,6 @@
-//! The Android shell: a bottom tab bar over the panes, plus the debounced rebuild.
-//!
-//! There is no dock and no pane grid — those are mouse-and-monitor affordances. Tabs, because at
-//! ~411 x 890 points there is room for exactly one thing at a time.
-//!
-//! Autosave is not optional here. `EguiApp` has no `save` hook, `on_pause` never fires on Android,
-//! and nothing replaces the desktop's eframe-storage path, so without a write on the dirty debounce
-//! the design is gone the moment the OS reaps the process.
+//! Android visual editor: a persistent ring viewport, one contextual inspector,
+//! touch selection modes and background previews. Settled edits are autosaved;
+//! Android pause also flushes the current design and preferences.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -22,14 +17,18 @@ use ringdesign_core::drawn::DrawnAlpha;
 use ringdesign_core::field::{Layer, LayerEntry};
 use ringdesign_core::tiling::TilingLayer;
 
+mod studio;
+mod floating;
+
 use crate::bench;
 use crate::canvas::{self, CanvasInput, Domain, View};
+use crate::editor::{Editor, Mode, Sheet};
 use crate::export::{self, ExportDone, ExportKind};
 use crate::graph::GraphDone;
 use crate::library as liblib;
 use crate::paint;
-use crate::util::{slug, sync_base};
 use crate::ring::{self, RingPane, Worker};
+use crate::util::{slug, sync_base};
 use crate::viewport::{GpuMeshRenderer, ShadeMode};
 
 /// Quiet period after the last edit before a full rebuild fires. 90 ms, unchanged from the desktop:
@@ -50,6 +49,7 @@ const TILE_EDGE: u32 = 512;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Tab {
+    Workshop,
     Ring,
     Band,
     Tile,
@@ -60,31 +60,19 @@ enum Tab {
 }
 
 impl Tab {
-    /// `(tab, emoji, label)` — a labelled button when the label is non-empty,
-    /// a square icon button when it is.
-    const BAR: &'static [(Tab, &'static str, &'static str)] = &[
-        (Tab::Ring, "", "Ring"),
-        (Tab::Band, "", "Band"),
-        (Tab::Tile, "", "Tile"),
-        (Tab::Graph, "\u{1F517}", ""),
-        (Tab::Alphas, "\u{1F3A8}", ""),
-        (Tab::Files, "\u{1F4C1}", ""),
-        (Tab::Bench, "\u{26A1}", ""),
-    ];
-
     fn label(self) -> &'static str {
         match self {
+            Tab::Workshop => "Workshop",
             Tab::Ring => "Ring",
             Tab::Band => "Band",
             Tab::Tile => "Tile",
             Tab::Graph => "Graph",
-            Tab::Alphas => "Alphas",
+            Tab::Alphas => "Patterns",
             Tab::Files => "Files",
             Tab::Bench => "Bench",
         }
     }
 }
-
 
 /// Name of the layer a library alpha lands on, so picking a second one replaces the first rather
 /// than stacking two textures nobody asked for.
@@ -104,11 +92,32 @@ struct Brush {
 
 impl Default for Brush {
     fn default() -> Self {
-        Self { frac: 0.012, soft: 0.5, depth: 1.0, erase: false, stylus_only: false }
+        Self {
+            frac: 0.012,
+            soft: 0.5,
+            depth: 1.0,
+            erase: false,
+            stylus_only: false,
+        }
     }
 }
 
 pub struct RingApp {
+    editor: Editor,
+    visual: ringdesign_workbench::visual::Visual,
+    construction: ringdesign_workbench::construction::Guide,
+    preview_quality: ring::PreviewQuality,
+    mould_renderer: Arc<Mutex<GpuMeshRenderer>>,
+    mould_serial: u64,
+    mould_camera: Option<crate::camera::OrbitCamera>,
+    before_renderer: Option<Arc<Mutex<GpuMeshRenderer>>>,
+    can_compare: bool,
+    preview_gems: Vec<f32>,
+    fit_next: bool,
+    preview_in_flight: bool,
+    live_requested: bool,
+    last_preview_at: Instant,
+    workshop: ringdesign_workbench::Workshop,
     design: RingDesign,
     lib: Arc<AlphaLibrary>,
     renderer: Arc<Mutex<GpuMeshRenderer>>,
@@ -120,29 +129,26 @@ pub struct RingApp {
     field: Option<ringdesign_core::castability::FieldReport>,
     stones: Option<ringdesign_core::stones::StonesReport>,
     dfm: Vec<ringdesign_core::dfm::DfmFinding>,
+    dfm_pending: bool,
+    dfm_generation: u64,
     /// The settled preview mesh, kept for the tap probe's raycast.
     preview_mesh: Option<std::sync::Arc<ringdesign_core::mesh::Mesh>>,
     /// Last long-press readout, shown as a chip until dismissed.
     probe_info: Option<String>,
     show_gems: bool,
     /// The design editor rides a collapsible bottom sheet over the live view.
-    design_open: bool,
     /// The DFM findings ride a second one, opened by tapping their chip.
-    dfm_open: bool,
     /// Whole-design snapshots with a name read out of the diff. Shared with the
     /// desktop, so a step reads the same on both.
     history: ringdesign_core::history::History,
     /// The timeline sheet, opened by a long press on Undo.
-    timeline_open: bool,
     /// The layer stack rides its own sheet, opened from the nav bar beside Design.
-    layers_open: bool,
     /// Row the stack sheet has open, if any.
     selected_layer: Option<usize>,
     /// The stone the generators place, and where.
     stone: crate::stones::Pick,
     /// The settled build's own report, and whether its sheet is open.
     report: Option<ringdesign_core::mesh::Report>,
-    report_open: bool,
     /// Everything remembered between launches that is not the design itself.
     prefs: crate::prefs::Prefs,
     /// Design awaiting a delete confirmation, and one being renamed.
@@ -234,6 +240,21 @@ struct BenchState {
 impl RingApp {
     pub fn new(_cc: &CreateContext) -> Self {
         Self {
+            editor: Editor::default(),
+            construction: Default::default(),
+            preview_quality: Default::default(),
+            visual: Default::default(),
+            mould_renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
+            mould_serial: 0,
+            mould_camera: None,
+            before_renderer: None,
+            can_compare: false,
+            preview_gems: Vec::new(),
+            fit_next: true,
+            preview_in_flight: false,
+            live_requested: false,
+            last_preview_at: Instant::now(),
+            workshop: Default::default(),
             design: RingDesign::default(),
             lib: Arc::new(AlphaLibrary::builtin()),
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
@@ -244,18 +265,15 @@ impl RingApp {
             field: None,
             stones: None,
             dfm: Vec::new(),
+            dfm_pending: false,
+            dfm_generation: 0,
             preview_mesh: None,
             probe_info: None,
             show_gems: true,
-            design_open: false,
-            dfm_open: false,
             history: ringdesign_core::history::History::new(&RingDesign::default()),
-            timeline_open: false,
-            layers_open: false,
             selected_layer: None,
             stone: crate::stones::Pick::default(),
             report: None,
-            report_open: false,
             prefs: crate::prefs::Prefs::default(),
             confirm_delete: None,
             renaming: None,
@@ -308,6 +326,25 @@ impl RingApp {
     }
 
     fn mark_dirty(&mut self) {
+        self.dfm.clear();
+        self.dfm_pending = true;
+        self.dfm_generation = 0;
+        self.visual.invalidate();
+        self.capture_before();
+        self.probe_info = None;
+        if let Some(Layer::Tiling(t)) = self
+            .design
+            .layers
+            .layers
+            .iter()
+            .find(|e| e.name == PATTERN_LAYER)
+            .map(|e| &e.layer)
+        {
+            self.pattern_repeats = t.repeats_around;
+            self.pattern_height_mm = t.height_mm;
+        }
+        self.editor.check_pending = true;
+        self.live_requested = true;
         self.dirty_at = Some(Instant::now());
         // Every editor funnels through here, so this is the one place a step
         // has to be noticed. The label comes out of the diff later — no call
@@ -318,8 +355,17 @@ impl RingApp {
     /// Take a design from somewhere other than an edit — a file, a paste, a
     /// pull, a template — and start the history over from it.
     fn adopt(&mut self, design: RingDesign) {
+        self.fit_next = true;
+        self.can_compare = false;
+        self.editor.hold_before = false;
         self.design = design;
+        self.editor.reset_selection();
+        self.probe_info = None;
+        if self.design.shank.kind == ringdesign_core::ShankKind::Signet {
+            self.frame_head(true);
+        }
         let lib = Arc::make_mut(&mut self.lib);
+        self.design.unpack_embedded(lib);
         self.design.bake_all(lib);
         self.thumbs.clear();
         self.picked_alpha = None;
@@ -332,8 +378,19 @@ impl RingApp {
     /// Put a design the history handed back on screen without recording it as a
     /// fresh edit — `touch` here would make undo its own undoable step.
     fn apply_history(&mut self, design: RingDesign, what: &str) {
+        self.dfm.clear();
+        self.dfm_pending = true;
+        self.dfm_generation = 0;
+        self.visual.invalidate();
+        self.can_compare = false;
+        self.editor.hold_before = false;
+        self.probe_info = None;
+        self.editor.check_pending = true;
+        self.live_requested = true;
         self.design = design;
+        self.editor.reset_selection();
         let lib = Arc::make_mut(&mut self.lib);
+        self.design.unpack_embedded(lib);
         self.design.bake_all(lib);
         self.thumbs.clear();
         self.selected_layer = None;
@@ -353,8 +410,16 @@ impl RingApp {
         self.brush.stylus_only = p.stylus_only;
         self.pane.shade = ShadeMode::ALL[p.shade];
         self.pane.wireframe = p.wireframe;
+        self.preview_quality = p.preview_quality;
+        self.pane.finish = p.finish.min(ringdesign_core::render::METAL_FINISHES.len() - 1);
+        self.pane.polish = p.polish.min(ringdesign_core::render::POLISHES.len() - 1);
         self.as_cast = p.as_cast;
         self.show_gems = p.show_gems;
+        self.editor.mode = Mode::ALL.get(p.editor_mode).copied().unwrap_or_default();
+        self.editor.guides = p.editor_guides;
+        self.editor.sheet = p.editor_inspector.then_some(Sheet::Edit);
+        self.editor.workspace = p.workspace.clone();
+        self.editor.debug_layout = p.editor_debug_layout;
         self.shrink_metal = p.shrink_metal;
         self.pattern_repeats = p.pattern_repeats;
         self.pattern_height_mm = p.pattern_height_mm;
@@ -365,18 +430,30 @@ impl RingApp {
     /// Rides the same debounce as the autosave: an edit is one write of both,
     /// and neither happens per frame.
     fn save_prefs(&mut self) {
-        let Some(root) = self.data_root.clone() else { return };
+        let Some(root) = self.data_root.clone() else {
+            return;
+        };
         self.prefs.sync_host = self.sync_host.clone();
         self.prefs.sync_token = self.sync_token.clone();
         self.prefs.brush_frac = self.brush.frac;
         self.prefs.brush_depth = self.brush.depth;
         self.prefs.brush_erase = self.brush.erase;
         self.prefs.stylus_only = self.brush.stylus_only;
-        self.prefs.shade =
-            ShadeMode::ALL.iter().position(|m| *m == self.pane.shade).unwrap_or(0);
+        self.prefs.shade = ShadeMode::ALL
+            .iter()
+            .position(|m| *m == self.pane.shade)
+            .unwrap_or(0);
         self.prefs.wireframe = self.pane.wireframe;
+        self.prefs.preview_quality = self.preview_quality;
+        self.prefs.finish = self.pane.finish;
+        self.prefs.polish = self.pane.polish;
         self.prefs.as_cast = self.as_cast;
         self.prefs.show_gems = self.show_gems;
+        self.prefs.editor_mode = self.editor.mode as usize;
+        self.prefs.editor_guides = self.editor.guides;
+        self.prefs.editor_inspector = self.editor.sheet.is_some();
+        self.prefs.workspace = self.editor.workspace.clone();
+        self.prefs.editor_debug_layout = self.editor.debug_layout;
         self.prefs.shrink_metal = self.shrink_metal;
         self.prefs.pattern_repeats = self.pattern_repeats;
         self.prefs.pattern_height_mm = self.pattern_height_mm;
@@ -388,14 +465,18 @@ impl RingApp {
     /// Look for model packs under the app's own models folder and the shared
     /// one the sibling app uses, so a pack downloaded once serves both.
     fn rescan_packs(&mut self) {
-        let Some(root) = self.data_root.as_ref() else { return };
+        let Some(root) = self.data_root.as_ref() else {
+            return;
+        };
         let mine = root.join("models");
         let shared = std::path::PathBuf::from("/storage/emulated/0/ComfyUI");
         self.packs = crate::npu::scan_many(&[mine.as_path(), shared.as_path()]);
     }
 
     fn autosave(&self) {
-        let Some(root) = self.data_root.as_ref() else { return };
+        let Some(root) = self.data_root.as_ref() else {
+            return;
+        };
         let path = root.join(AUTOSAVE);
         if let Err(e) = library::save_design(&path, &self.design) {
             log::warn!("autosave {}: {e}", path.display());
@@ -404,13 +485,31 @@ impl RingApp {
 
     /// Dispatch a rebuild. `analyze` is only worth its ~30% once the edit has settled.
     fn dispatch(&mut self, analyze: bool) {
-        let Some(worker) = self.worker.as_ref() else { return };
+        let Some(worker) = self.worker.as_ref() else {
+            return;
+        };
         self.generation += 1;
-        let mut params = ring::PREVIEW;
+        if analyze {
+            self.dfm_generation = self.generation;
+            self.dfm_pending = true;
+        }
+        self.preview_in_flight = true;
+        self.live_requested = false;
+        self.last_preview_at = Instant::now();
+        let mut params = self.preview_quality.params(analyze);
         if self.as_cast {
             params.soften_mm = self.design.draft.min_detail_mm;
         }
-        if !worker.dispatch(self.generation, &self.design, &self.lib, params, analyze, self.show_gems) {
+        let view_layer = self.editor.isolate.then_some(self.selected_layer).flatten();
+        if !worker.dispatch(
+            self.generation,
+            &self.design,
+            &self.lib,
+            params,
+            analyze,
+            self.show_gems,
+            view_layer,
+        ) {
             self.status = "build worker stopped".into();
         }
     }
@@ -423,17 +522,40 @@ impl RingApp {
                 }
                 if let Some(g) = done.graph {
                     if g.ok {
-                        self.design = g.design;
+                        let mut next = g.design;
+                        next.name = self.design.name.clone();
+                        next.manufacturing = self.design.manufacturing.clone();
+                        next.casting_trials = self.design.casting_trials.clone();
+                        self.design = next;
                     }
-                    self.graph.apply(&GraphDone { design: RingDesign::default(), ..g });
+                    self.graph.apply(&GraphDone {
+                        design: RingDesign::default(),
+                        ..g
+                    });
                 }
-                self.pane.camera.fit(done.bounds);
+                self.preview_in_flight = false;
+                if self.fit_next || self.preview_mesh.is_none() {
+                    self.pane.camera.fit(done.bounds);
+                    self.fit_next = false;
+                }
+                self.preview_gems = done.gems.clone();
+                if let Some(hit) = &self.editor.selection {
+                    self.editor.selection = crate::editor::picking::hit(
+                        &self.design,
+                        &self.lib,
+                        &done.mesh,
+                        hit.ray.0,
+                        hit.ray.1,
+                    );
+                }
                 if let Ok(mut r) = self.renderer.lock() {
                     r.set_pending(done.verts);
                     r.set_pending_gems(done.gems);
                 }
                 self.preview_mesh = Some(done.mesh);
+                self.visual.mesh_changed();
                 if let Some(cast) = done.cast {
+                    self.editor.check_pending = self.dirty_at.is_some();
                     let verdict = done
                         .field
                         .as_ref()
@@ -447,11 +569,9 @@ impl RingApp {
                         verdict.label()
                     );
                     self.cast = Some(cast);
-                    self.stones = done
-                        .field
-                        .as_ref()
-                        .and_then(|f| ringdesign_core::stones::report(&self.design, f.parting_z_mm));
-                    self.dfm = ringdesign_core::dfm::findings_in(&self.design, &self.lib);
+                    self.stones = done.field.as_ref().and_then(|f| {
+                        ringdesign_core::stones::report(&self.design, f.parting_z_mm)
+                    });
                     self.field = done.field;
                     self.report = Some(done.report);
                     // A downgrade is news; an upgrade is not. Verdict is ordered
@@ -462,17 +582,25 @@ impl RingApp {
                         ringdesign_core::castability::Verdict::Marginal => 1,
                         ringdesign_core::castability::Verdict::NotCastable => 2,
                     };
-                    if let (Some(was), Some(now)) = (self.last_verdict, self.field.as_ref().map(|f| f.verdict)) {
+                    if let (Some(was), Some(now)) =
+                        (self.last_verdict, self.field.as_ref().map(|f| f.verdict))
+                    {
                         if rank(now) > rank(was) {
                             self.verdict_fell = true;
                         }
                     }
                     self.last_verdict = self.field.as_ref().map(|f| f.verdict);
                 } else {
-                    self.status =
-                        format!("{} tris · {} ms", done.triangles, done.build_ms);
+                    self.status = format!("{} tris · {} ms", done.triangles, done.build_ms);
                 }
                 ctx.request_repaint();
+            }
+            while let Some((generation, findings)) = worker.poll_detail() {
+                if generation == self.dfm_generation {
+                    self.dfm = findings;
+                    self.dfm_pending = false;
+                    ctx.request_repaint();
+                }
             }
         }
 
@@ -490,168 +618,28 @@ impl RingApp {
 
         if let Some(at) = self.dirty_at {
             let waited = at.elapsed();
-            if waited >= DEBOUNCE {
+            if waited >= DEBOUNCE && !self.preview_in_flight
+                && !ctx.input(|i| i.pointer.any_down()) {
                 self.dirty_at = None;
                 self.dispatch(true);
                 self.autosave();
                 self.save_prefs();
             } else {
-                // The debounce only fires from `tick`, and egui draws nothing unless something asks
-                // it to — without this the settled build waits for the next unrelated frame, which
-                // on an idle screen never comes.
-                ctx.request_repaint_after(DEBOUNCE - waited);
+                if !self.preview_in_flight
+                    && self.live_requested
+                    && self.last_preview_at.elapsed() >= Duration::from_millis(50)
+                {
+                    self.dispatch(false);
+                }
+                ctx.request_repaint_after(Duration::from_millis(16));
             }
         }
     }
 
-    fn ring_tab(&mut self, ui: &mut egui::Ui) {
-        egui::Panel::top(egui::Id::new("ring_tools")).show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                for mode in ShadeMode::ALL {
-                    let sel = self.pane.shade == *mode;
-                    if ui.add(crate::theme::selectable(sel, mode.label())).clicked() {
-                        self.pane.shade = *mode;
-                    }
-                }
-                ui.separator();
-                self.undo_row(ui);
-                ui.separator();
-                ui.toggle_value(&mut self.pane.wireframe, "Wire");
-                if ui
-                    .toggle_value(&mut self.show_gems, "Stones")
-                    .on_hover_text("Preview stones on their seats — display only, never cast.")
-                    .changed()
-                {
-                    self.mark_dirty();
-                }
-                if ui
-                    .toggle_value(&mut self.as_cast, "As-cast")
-                    .on_hover_text("Soften the preview at the sand's detail radius — the pour, early.")
-                    .changed()
-                {
-                    self.mark_dirty();
-                }
-                if let Some(f) = self.field.as_ref() {
-                    ui.separator();
-                    let (tint, text) = field_chip(f, self.design.draft.process);
-                    ui.colored_label(tint, text).on_hover_text(f.notes.join("\n"));
-                    if let Some(s) = self.stones.as_ref() {
-                        let warns: Vec<&str> = s
-                            .seats
-                            .iter()
-                            .flat_map(|seat| seat.warnings.iter().map(String::as_str))
-                            .collect();
-                        let tint = if warns.is_empty() {
-                            egui::Color32::from_rgb(150, 190, 150)
-                        } else {
-                            egui::Color32::from_rgb(220, 170, 90)
-                        };
-                        ui.colored_label(
-                            tint,
-                            format!("{} stones · {:.2} ct", s.stone_count, s.total_carats),
-                        )
-                        .on_hover_text(if warns.is_empty() {
-                            "Every seat checks out at the bench.".to_string()
-                        } else {
-                            warns.join("\n")
-                        });
-                    }
-                    // Tappable, not a tooltip: a hover text is a press-and-hold
-                    // on glass, and these are the messages that say what the
-                    // sand will not hold.
-                    if !self.dfm.is_empty() {
-                        let label = egui::RichText::new(format!("DFM {}", self.dfm.len()))
-                            .color(egui::Color32::from_rgb(220, 170, 90));
-                        if ui.add(crate::theme::selectable(self.dfm_open, label)).clicked() {
-                            self.dfm_open = !self.dfm_open;
-                        }
-                    }
-                } else if let Some(cast) = self.cast.as_ref() {
-                    ui.separator();
-                    let (tint, text) = verdict_chip(cast);
-                    ui.colored_label(tint, text);
-                }
-                // Beside the chips rather than in the nav bar, which is already
-                // full at three labelled tabs, Design and four icon squares.
-                ui.separator();
-                let n = self.design.layers.layers.len();
-                if ui
-                    .add(crate::theme::selectable(self.layers_open, format!("Layers {n}")))
-                    .on_hover_text("List, mute, reorder and window the stack")
-                    .clicked()
-                {
-                    self.layers_open = !self.layers_open;
-                }
-                if ui
-                    .add(crate::theme::selectable(self.report_open, "Report"))
-                    .on_hover_text("Dimensions, weight in every alloy, and the seats")
-                    .clicked()
-                {
-                    self.report_open = !self.report_open;
-                }
-                if self.px_per_mm.is_some() {
-                    ui.toggle_value(&mut self.pane.actual_size, "1:1");
-                }
-            });
-            if self.pane.shade == ShadeMode::Wall {
-                ui.horizontal_wrapped(|ui| {
-                    let min = self.design.draft.min_section_mm;
-                    let chip = |ui: &mut egui::Ui, rgb: [f32; 3], label: String| {
-                        let c = egui::Color32::from_rgb(
-                            (rgb[0] * 255.0) as u8,
-                            (rgb[1] * 255.0) as u8,
-                            (rgb[2] * 255.0) as u8,
-                        );
-                        ui.colored_label(c, label);
-                    };
-                    use crate::viewport::{wall_color, WALL_NEUTRAL};
-                    chip(ui, wall_color(min * 0.5, min), format!("< {min:.1} mm won't fill"));
-                    chip(ui, wall_color(min * 1.5, min), format!("to {:.1}", min * 2.0));
-                    chip(ui, wall_color(min * 2.7, min), "healthy".into());
-                    chip(ui, wall_color(min * 6.0, min), "heavy".into());
-                    chip(ui, WALL_NEUTRAL, "bore".into());
-                });
-            }
-            ui.horizontal_wrapped(|ui| {
-                crate::theme::up_menu(ui, "\u{1F4D0} View", |ui| {
-                    for view in crate::camera::StandardView::ALL {
-                        if ui.button(view.label()).clicked() {
-                            self.pane.camera.set_view(*view);
-                            self.pane.actual_size = false;
-                        }
-                    }
-                    ui.separator();
-                    if ui.button("Reset camera").clicked() {
-                        self.pane.camera.reset();
-                        self.pane.actual_size = false;
-                    }
-                });
-            });
-        });
-
-        if let Some(text) = self.probe_info.clone() {
-            egui::Panel::top(egui::Id::new("probe_info")).show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(text).small());
-                    if ui.small_button("x").clicked() {
-                        self.probe_info = None;
-                    }
-                });
-            });
-        }
-        egui::CentralPanel::default().show(ui, |ui| {
-            let (moved, ray) = self.pane.ui(ui, &self.renderer, self.px_per_mm);
-            if moved {
-                ui.ctx().request_repaint();
-            }
-            if let Some((origin, dir)) = ray {
-                self.probe(origin, dir);
-            }
-        });
+    fn ring_tab(&mut self, ui: &mut egui::Ui, host: &Host) {
+        self.visual_ring(ui, host);
     }
 
-    /// Long-press readout: where on the band the touch landed, what stands
-    /// there, and how much metal is under it.
     /// Undo and redo, each naming the step it would take back.
     ///
     /// The label comes out of the diff between snapshots, so it says "Half
@@ -675,7 +663,7 @@ impl RingApp {
         // The timeline is a long press, the way the alpha grid and the 3D probe
         // already are — there is no room for a third button here.
         if r.long_touched() && self.history.present() > 0 {
-            self.timeline_open = !self.timeline_open;
+            self.editor.toggle(Sheet::Timeline);
         }
 
         let r = ui.add_enabled(redo.is_some(), egui::Button::new("Redo"));
@@ -696,20 +684,24 @@ impl RingApp {
         ui.horizontal_wrapped(|ui| {
             ui.label(egui::RichText::new("history").small().weak());
             if ui.small_button("close").clicked() {
-                self.timeline_open = false;
+                self.editor.sheet = None;
             }
         });
         ui.separator();
         let mut jump: Option<usize> = None;
         for (i, (label, is_present)) in self.history.timeline().into_iter().enumerate() {
-            if ui.add(crate::theme::selectable(is_present, label.clone())).clicked() && !is_present {
+            if ui
+                .add(crate::theme::selectable(is_present, label.clone()))
+                .clicked()
+                && !is_present
+            {
                 jump = Some(i);
             }
         }
         if let Some(i) = jump {
             if let Some(d) = self.history.jump_to(i) {
                 self.apply_history(d, "jumped");
-                self.timeline_open = false;
+                self.editor.sheet = None;
             }
         }
     }
@@ -761,8 +753,7 @@ impl RingApp {
                         match crate::sketch::to_drop_curve(&self.sketch) {
                             Ok(c) => {
                                 self.design.profile.drop_curve = c;
-                                self.design.profile.style =
-                                    ringdesign_core::ProfileStyle::Custom;
+                                self.design.profile.style = ringdesign_core::ProfileStyle::Custom;
                                 self.mark_dirty();
                                 if self.sketch.allow_undercut {
                                     "section adopted — undercut allowed, the verdict will say"
@@ -815,144 +806,26 @@ impl RingApp {
         }
     }
 
-    fn probe(&mut self, origin: [f32; 3], dir: [f32; 3]) {
-        use ringdesign_core::field::Uv;
-        let Some(mesh) = self.preview_mesh.clone() else { return };
-        let Some((fi, world)) = raycast(&mesh, origin, dir) else {
-            self.probe_info = None;
+    fn probe(&mut self, origin: [f32; 3], direction: [f32; 3]) {
+        let Some(mesh) = &self.preview_mesh else {
             return;
         };
-        let theta = (world[1] as f64).atan2(world[0] as f64).to_degrees().rem_euclid(360.0);
-        let r = (world[0] as f64).hypot(world[1] as f64);
-        let inner_r = self.design.inner_radius_mm();
-        let ctx = self.design.field_context();
-        let section = ringdesign_core::castability::section_at(&self.design, &self.lib, theta, 160);
-        let surface: Vec<_> = section.points.iter().filter(|p| p.surface).collect();
-        let mut v_mm = 0.0;
-        if surface.len() >= 2 {
-            let total: f64 = surface
-                .windows(2)
-                .map(|w| ((w[1].r - w[0].r).powi(2) + (w[1].z - w[0].z).powi(2)).sqrt())
-                .sum();
-            let mut acc = 0.0;
-            let mut best_d = f64::MAX;
-            let mut at = 0.0;
-            for w in surface.windows(2) {
-                let seg = ((w[1].r - w[0].r).powi(2) + (w[1].z - w[0].z).powi(2)).sqrt();
-                acc += seg;
-                let d = (w[1].r - r).powi(2) + (w[1].z - world[2] as f64).powi(2);
-                if d < best_d {
-                    best_d = d;
-                    at = acc;
-                }
-            }
-            v_mm = at / total.max(1e-9) * ctx.band_v_len_mm;
+        if let Some(hit) =
+            crate::editor::picking::hit(&self.design, &self.lib, mesh, origin, direction)
+        {
+            self.probe_info = Some(format!(
+                "Picked surface: {:.1}° around · radial metal {:.2} mm · relief {:+.2} mm",
+                hit.theta_deg, hit.radial_wall_mm, hit.relief_mm
+            ));
+            self.editor.selection = Some(hit);
+            self.editor.sheet = Some(Sheet::Edit);
         }
-        let uv = Uv { u: ctx.u_of_theta(theta), v: v_mm };
-        let h = self.design.layers.height(uv, &ctx, &self.lib);
-        let class = self
-            .cast
-            .as_ref()
-            .and_then(|c| c.classes.get(fi))
-            .map(|k| k.label())
-            .unwrap_or("-");
-        let mut named = None;
-        for e in self.design.layers.layers.iter().rev() {
-            if !e.enabled {
-                continue;
-            }
-            let m = e.window.mask(uv, &ctx) * e.opacity.max(0.0);
-            if m <= 1e-4 {
-                continue;
-            }
-            if e.layer.height(uv, &ctx, &self.lib).abs() * m > 5e-3 {
-                named = Some(e.name.clone());
-                break;
-            }
-        }
-        self.probe_info = Some(format!(
-            "{:.0} deg · v {:.2} · relief {:+.2} mm · wall {:.2} mm · {}{}",
-            theta,
-            v_mm,
-            h,
-            r - inner_r,
-            class,
-            named.map(|n| format!(" · {n}")).unwrap_or_default()
-        ));
     }
 
-    /// Labelled tabs and the Design-sheet toggle split the width; the rarer
-    /// tabs collapse to icon squares so nothing ever runs off the edge.
     fn nav_bar(&mut self, ui: &mut egui::Ui, host: &Host) {
-        const ROW_H: f32 = 40.0;
-        const ICON_BTN: f32 = 44.0;
-        const ICON_GAP: f32 = 2.0;
-        let labeled_n =
-            Tab::BAR.iter().filter(|(_, _, l)| !l.is_empty()).count() as f32 + 1.0;
-        let icon_n = Tab::BAR.iter().filter(|(_, _, l)| l.is_empty()).count() as f32;
-        let icon_cluster_w = icon_n * ICON_BTN + (icon_n - 1.0).max(0.0) * ICON_GAP;
-
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 6.0;
-            let labeled_w = ((ui.available_width() - icon_cluster_w - 6.0 * labeled_n)
-                / labeled_n)
-                .max(58.0);
-
-            for (tab, _, label) in Tab::BAR.iter().filter(|(_, _, l)| !l.is_empty()) {
-                let selected = self.tab == *tab;
-                let text = egui::RichText::new(*label).size(13.0);
-                if crate::theme::selectable_label(
-                    ui,
-                    selected,
-                    [labeled_w, ROW_H],
-                    text,
-                )
-                .clicked()
-                    && !selected
-                {
-                    self.tab = *tab;
-                    host.haptic(Haptic::Light);
-                }
-            }
-
-            // The Design sheet's toggle lives with the tabs but is not one:
-            // it slides the editor up over whatever tab is showing.
-            let text = egui::RichText::new("Design").size(13.0);
-            if crate::theme::selectable_label(ui, self.design_open, [labeled_w, ROW_H], text)
-                .on_hover_text("Slide the design controls over the live ring")
-                .clicked()
-            {
-                self.design_open = !self.design_open;
-                if self.design_open {
-                    self.tab = Tab::Ring;
-                }
-                host.haptic(Haptic::Light);
-            }
-
-            ui.scope(|ui| {
-                ui.spacing_mut().item_spacing.x = ICON_GAP;
-                ui.spacing_mut().button_padding = egui::vec2(0.0, 0.0);
-                for (tab, icon, _) in Tab::BAR.iter().filter(|(_, _, l)| l.is_empty()) {
-                    let selected = self.tab == *tab;
-                    let resp = crate::theme::selectable_label(
-                        ui,
-                        selected,
-                        [ICON_BTN, ROW_H],
-                        egui::RichText::new(*icon).size(18.0),
-                    )
-                    .on_hover_text(tab.label());
-                    if resp.clicked() && !selected {
-                        self.tab = *tab;
-                        host.haptic(Haptic::Light);
-                    }
-                }
-            });
-        });
+        self.mode_bar(ui, host);
     }
 
-    /// The whole design editor: size, profile, shank, head, and the stock
-    /// generators. Every control writes straight into the design and marks
-    /// dirty, so the Ring tab shows the result on the next settled build.
     fn design_tab(&mut self, ui: &mut egui::Ui) {
         use ringdesign_core::field::SignetOutline;
         use ringdesign_core::profile::TOP_DEG;
@@ -1374,9 +1247,10 @@ impl RingApp {
         d.wrap_y = wrap_y;
         self.design.drawn.push(d);
 
-        if !self.design.layers.layers.iter().any(|e| matches!(&e.layer,
-            Layer::Tiling(t) if t.alpha == name))
-        {
+        if !self.design.layers.layers.iter().any(|e| {
+            matches!(&e.layer,
+            Layer::Tiling(t) if t.alpha == name)
+        }) {
             let ctx = self.design.field_context();
             let mut t = TilingLayer::default_for(name.to_string(), &ctx);
             t.repeats_around = repeats.max(1);
@@ -1390,7 +1264,10 @@ impl RingApp {
                 t.v_center_mm = ctx.band_v_len_mm * 0.5;
                 t.v_span_mm = ctx.band_v_len_mm;
             }
-            self.design.layers.layers.push(LayerEntry::new(name.to_string(), Layer::Tiling(t)));
+            self.design
+                .layers
+                .layers
+                .push(LayerEntry::new(name.to_string(), Layer::Tiling(t)));
             self.mark_dirty();
         }
         self.design.drawn.len() - 1
@@ -1400,7 +1277,9 @@ impl RingApp {
     /// so this is done on stroke end rather than per sample — painting is a continuous stream of
     /// edits against a continuously rebuilding preview, which is the pathological case for it.
     fn bake(&mut self, index: usize) {
-        let Some(d) = self.design.drawn.get(index) else { return };
+        let Some(d) = self.design.drawn.get(index) else {
+            return;
+        };
         if d.is_empty() {
             return;
         }
@@ -1421,9 +1300,11 @@ impl RingApp {
             .show(ui, |ui| {
                 ui.label(egui::RichText::new("Driven by the graph").strong());
                 ui.label(
-                    egui::RichText::new("Edit the nodes in the Graph tab, or bake the graph to edit here.")
-                        .small()
-                        .color(crate::theme::INK_DIM),
+                    egui::RichText::new(
+                        "Edit the nodes in the Graph tab, or bake the graph to edit here.",
+                    )
+                    .small()
+                    .color(crate::theme::INK_DIM),
                 );
                 ui.horizontal(|ui| {
                     if ui.button("Open graph").clicked() {
@@ -1446,9 +1327,11 @@ impl RingApp {
             ui.vertical_centered(|ui| {
                 ui.label(egui::RichText::new("No graph behind this design yet").size(16.0));
                 ui.label(
-                    egui::RichText::new("Turn the design into nodes you can rewire, or start from a graph.")
-                        .small()
-                        .color(crate::theme::INK_DIM),
+                    egui::RichText::new(
+                        "Turn the design into nodes you can rewire, or start from a graph.",
+                    )
+                    .small()
+                    .color(crate::theme::INK_DIM),
                 );
                 ui.add_space(12.0);
                 if ui.button("Convert this design to a graph").clicked() {
@@ -1488,7 +1371,12 @@ impl RingApp {
             Bake,
         }
         let mut act = None;
-        let nodes = self.graph.ed.as_ref().map(|e| e.graph().nodes.len()).unwrap_or(0);
+        let nodes = self
+            .graph
+            .ed
+            .as_ref()
+            .map(|e| e.graph().nodes.len())
+            .unwrap_or(0);
         ui.horizontal_wrapped(|ui| {
             if ui.button("Arrange").clicked() {
                 act = Some(Act::Arrange);
@@ -1497,13 +1385,20 @@ impl RingApp {
                 act = Some(Act::Fit);
             }
             let locked = self.graph.locked;
-            if ui.selectable_label(locked, if locked { "Locked" } else { "Lock" }).clicked() {
+            if ui
+                .selectable_label(locked, if locked { "Locked" } else { "Lock" })
+                .clicked()
+            {
                 act = Some(Act::Lock(!locked));
             }
             if ui.button("Bake").clicked() {
                 act = Some(Act::Bake);
             }
-            ui.label(egui::RichText::new(format!("{nodes} nodes")).small().color(crate::theme::INK_DIM));
+            ui.label(
+                egui::RichText::new(format!("{nodes} nodes"))
+                    .small()
+                    .color(crate::theme::INK_DIM),
+            );
         });
         if !self.graph.errors.is_empty() {
             ui.label(
@@ -1541,12 +1436,16 @@ impl RingApp {
             None => {}
         }
         ui.label(
-            egui::RichText::new("drag to pan · pinch to zoom · long-press for menus · drag pins to wire")
-                .small()
-                .color(crate::theme::INK_DIM),
+            egui::RichText::new(
+                "drag to pan · pinch to zoom · long-press for menus · drag pins to wire",
+            )
+            .small()
+            .color(crate::theme::INK_DIM),
         );
         let reg = self.graph.reg.clone();
-        let Some(mut ed) = self.graph.ed.take() else { return };
+        let Some(mut ed) = self.graph.ed.take() else {
+            return;
+        };
         let resp = egui::Frame::new()
             .fill(egui::Color32::from_rgb(18, 18, 20))
             .corner_radius(8.0)
@@ -1581,12 +1480,20 @@ impl RingApp {
         let index = self.ensure_drawing(name, w, h, wrap_y, repeats);
 
         egui::Panel::top(egui::Id::new(("brush", name))).show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.label("brush");
-                ui.add(egui::Slider::new(&mut self.brush.frac, 0.002..=0.08).show_value(false));
-                ui.label("depth");
-                ui.add(egui::Slider::new(&mut self.brush.depth, 0.05..=1.0).show_value(false));
-                ui.label(format!("{:.2} mm", paint::wanted_mm(1.0, self.brush.depth)));
+            ui.columns(2, |columns| {
+                columns[0].label("Brush width");
+                columns[0].spacing_mut().slider_width =
+                    (columns[0].available_width() - 4.0).max(40.0);
+                columns[0]
+                    .add(egui::Slider::new(&mut self.brush.frac, 0.002..=0.08).show_value(false));
+                columns[1].label(format!(
+                    "Relief {:.2} mm",
+                    paint::wanted_mm(1.0, self.brush.depth)
+                ));
+                columns[1].spacing_mut().slider_width =
+                    (columns[1].available_width() - 4.0).max(40.0);
+                columns[1]
+                    .add(egui::Slider::new(&mut self.brush.depth, 0.05..=1.0).show_value(false));
             });
             ui.horizontal_wrapped(|ui| {
                 ui.toggle_value(&mut self.brush.erase, "Carve");
@@ -1611,7 +1518,11 @@ impl RingApp {
                 }
                 if domain == Domain::Tile
                     && ui
-                        .add(egui::Slider::new(&mut self.tile_repeats, 1..=120).text("around"))
+                        .add(
+                            egui::DragValue::new(&mut self.tile_repeats)
+                                .range(1..=120)
+                                .suffix(" copies"),
+                        )
                         .changed()
                 {
                     self.set_repeats(TILE_ALPHA, self.tile_repeats);
@@ -1623,7 +1534,9 @@ impl RingApp {
         egui::CentralPanel::default().show(ui, |ui| {
             // Taken out so the canvas can hold `&mut DrawnAlpha` while the rest of the design is
             // still borrowed for the height field underneath it.
-            let Some(slot) = self.design.drawn.get_mut(index) else { return };
+            let Some(slot) = self.design.drawn.get_mut(index) else {
+                return;
+            };
             let mut drawing = std::mem::take(slot);
             let ctx = self.design.field_context();
             let view = match domain {
@@ -1714,12 +1627,22 @@ impl RingApp {
     /// Put a library alpha on the band as an ordinary tiling layer, replacing whatever was there.
     fn apply_alpha(&mut self, name: &str) {
         let ctx = self.design.field_context();
-        let existing = self.design.layers.layers.iter_mut().find(|e| e.name == PATTERN_LAYER);
+        self.selected_layer = self
+            .design
+            .layers
+            .layers
+            .iter()
+            .position(|e| e.name == PATTERN_LAYER);
+        self.editor.active_field = "Relief height".into();
+        let existing = self
+            .design
+            .layers
+            .layers
+            .iter_mut()
+            .find(|e| e.name == PATTERN_LAYER);
         if let Some(entry) = existing {
             if let Layer::Tiling(t) = &mut entry.layer {
                 t.alpha = name.to_string();
-                t.repeats_around = self.pattern_repeats.max(1);
-                t.height_mm = self.pattern_height_mm;
                 self.picked_alpha = Some(name.to_string());
                 self.mark_dirty();
                 return;
@@ -1736,19 +1659,8 @@ impl RingApp {
             .layers
             .layers
             .push(LayerEntry::new(PATTERN_LAYER.to_string(), Layer::Tiling(t)));
+        self.selected_layer = Some(self.design.layers.layers.len() - 1);
         self.picked_alpha = Some(name.to_string());
-        self.mark_dirty();
-    }
-
-    fn update_pattern_layer(&mut self) {
-        for e in &mut self.design.layers.layers {
-            if e.name == PATTERN_LAYER {
-                if let Layer::Tiling(t) = &mut e.layer {
-                    t.repeats_around = self.pattern_repeats.max(1);
-                    t.height_mm = self.pattern_height_mm;
-                }
-            }
-        }
         self.mark_dirty();
     }
 
@@ -1771,10 +1683,8 @@ impl RingApp {
                 _ => None,
             });
         let t = existing.unwrap_or_else(|| {
-            let mut t = TilingLayer::default_for(
-                self.picked_alpha.clone().unwrap_or_default(),
-                &ctx,
-            );
+            let mut t =
+                TilingLayer::default_for(self.picked_alpha.clone().unwrap_or_default(), &ctx);
             t.fit_to_side_faces(&ctx, ringdesign_core::field::SIDE_FACE_MIN_DRAFT_DEG);
             t
         });
@@ -1791,7 +1701,7 @@ impl RingApp {
     /// The findings sheet: every DFM message as text, and a one-tap fit for the
     /// tilings whose repeat count is the thing that is wrong.
     fn dfm_sheet(&mut self, ui: &mut egui::Ui) {
-        use ringdesign_core::dfm::{fit_to_floor, FloorFit};
+        use ringdesign_core::dfm::{FloorFit, fit_to_floor};
 
         let floor = self.design.draft.min_detail_mm;
         ui.horizontal_wrapped(|ui| {
@@ -1801,7 +1711,7 @@ impl RingApp {
                     .weak(),
             );
             if ui.small_button("close").clicked() {
-                self.dfm_open = false;
+                self.editor.sheet = None;
             }
         });
         ui.separator();
@@ -1820,7 +1730,9 @@ impl RingApp {
                 .is_some_and(|e| first_tiling(&e.layer).is_some())
                 && ui
                     .button("Fit to the floor")
-                    .on_hover_text("Set the repeats to the most this pattern can carry and still cast")
+                    .on_hover_text(
+                        "Set the repeats to the most this pattern can carry and still cast",
+                    )
                     .clicked()
             {
                 fit = Some(f.layer);
@@ -1831,9 +1743,13 @@ impl RingApp {
         let Some(i) = fit else { return };
         let ctx = self.design.field_context();
         let lib = std::sync::Arc::clone(&self.lib);
-        let Some(entry) = self.design.layers.layers.get_mut(i) else { return };
+        let Some(entry) = self.design.layers.layers.get_mut(i) else {
+            return;
+        };
         let name = entry.name.clone();
-        let Some(t) = first_tiling_mut(&mut entry.layer) else { return };
+        let Some(t) = first_tiling_mut(&mut entry.layer) else {
+            return;
+        };
         self.status = match fit_to_floor(t, &lib, &ctx, floor) {
             FloorFit::Repeats(n) => {
                 self.mark_dirty();
@@ -1897,7 +1813,9 @@ impl RingApp {
     /// Take a finished generation and put it in the library, with the sand's
     /// verdict on it.
     fn poll_generate(&mut self, host: &Host) {
-        let Some(rx) = self.gen_job.as_ref() else { return };
+        let Some(rx) = self.gen_job.as_ref() else {
+            return;
+        };
         let Ok(done) = rx.try_recv() else { return };
         self.gen_job = None;
         match done {
@@ -1940,11 +1858,15 @@ impl RingApp {
         let Some(pack) = crate::npu::first(&self.packs, crate::npu::Kind::Clip).cloned() else {
             return;
         };
-        let Some(lib_dir) = self.native_lib_dir.clone() else { return };
+        let Some(lib_dir) = self.native_lib_dir.clone() else {
+            return;
+        };
         let dir = std::path::PathBuf::from(lib_dir);
         let mut done = 0usize;
         for name in self.lib.names() {
-            let Some(a) = self.lib.get(&name) else { continue };
+            let Some(a) = self.lib.get(&name) else {
+                continue;
+            };
             let hash = crate::similar::content_hash(a);
             if self.embeddings.get(&name, hash).is_some() {
                 continue;
@@ -1975,8 +1897,12 @@ impl RingApp {
             self.status = "index that alpha first — Index library".into();
             return;
         };
-        let ranked: Vec<String> =
-            self.embeddings.rank(&q, Some(name)).into_iter().map(|(n, _)| n).collect();
+        let ranked: Vec<String> = self
+            .embeddings
+            .rank(&q, Some(name))
+            .into_iter()
+            .map(|(n, _)| n)
+            .collect();
         self.status = format!("{} like {name}", ranked.len());
         self.similar_to = Some((name.to_string(), ranked));
     }
@@ -1986,91 +1912,98 @@ impl RingApp {
             return;
         }
         egui::Panel::top(egui::Id::new("alpha_tools")).show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.label("find");
-                ui.add(egui::TextEdit::singleline(&mut self.alpha_filter).desired_width(110.0));
-                if ui.button("x").clicked() {
+            ui.horizontal(|ui| {
+                let width = (ui.available_width() - 48.0).max(60.0);
+                let search = ui.add_sized(
+                    [width, 40.0],
+                    egui::TextEdit::singleline(&mut self.alpha_filter).hint_text("Find a pattern"),
+                );
+                crate::editor::layout::record(ui, "patterns/search", search.rect);
+                if ui.add_sized([40.0, 40.0], egui::Button::new("×")).clicked() {
                     self.alpha_filter.clear();
                 }
             });
-            ui.horizontal_wrapped(|ui| {
-                let mut changed = false;
-                changed |= ui
-                    .add(egui::Slider::new(&mut self.pattern_repeats, 1..=200).text("around"))
-                    .changed();
-                changed |= ui
-                    .add(
-                        egui::Slider::new(&mut self.pattern_height_mm, 0.02..=1.6)
-                            .text("mm")
-                            .logarithmic(true),
-                    )
-                    .changed();
-                if changed {
-                    self.update_pattern_layer();
-                }
-            });
-            ui.horizontal_wrapped(|ui| {
-                ui.label(egui::RichText::new("regenerate at").weak());
-                for size in [128usize, 256, 512] {
-                    if ui.selectable_label(self.builtin_size == size, size.to_string()).clicked()
-                        && self.builtin_size != size
-                    {
-                        self.builtin_size = size;
-                        liblib::regenerate_builtins(Arc::make_mut(&mut self.lib), size);
-                        // The design's own drawings are not procedural; put them back on top.
-                        let lib = Arc::make_mut(&mut self.lib);
-                        self.design.bake_all(lib);
-                        self.thumbs.clear();
+            if self.picked_alpha.is_some() && ui.button("Edit relief & placement").clicked() {
+                self.tab = Tab::Ring;
+                self.editor.select_mode(Mode::Surface);
+                self.editor.active_field = "Relief height".into();
+            }
+            ui.collapsing("Library options", |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(egui::RichText::new("regenerate at").weak());
+                    for size in [128usize, 256, 512] {
+                        if ui
+                            .selectable_label(self.builtin_size == size, size.to_string())
+                            .clicked()
+                            && self.builtin_size != size
+                        {
+                            self.builtin_size = size;
+                            liblib::regenerate_builtins(Arc::make_mut(&mut self.lib), size);
+                            // The design's own drawings are not procedural; put them back on top.
+                            let lib = Arc::make_mut(&mut self.lib);
+                            self.design.bake_all(lib);
+                            self.thumbs.clear();
+                            self.mark_dirty();
+                            host.haptic(Haptic::Light);
+                        }
+                    }
+                    // Only when a pack is actually present: an offer the app cannot
+                    // honour is worse than no offer.
+                    if crate::npu::first(&self.packs, crate::npu::Kind::Sd15).is_some() {
+                        ui.separator();
+                        ui.label(egui::RichText::new("describe").small().weak());
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.prompt)
+                                .hint_text("a woven basket texture")
+                                .desired_width(150.0),
+                        );
+                        let busy = self.gen_job.is_some();
+                        if ui
+                            .add_enabled(
+                                !busy && !self.prompt.trim().is_empty(),
+                                egui::Button::new("Generate"),
+                            )
+                            .on_hover_text(
+                                "Make a seamless tile on the NPU, then measure it against the sand",
+                            )
+                            .clicked()
+                        {
+                            self.start_generate(ui.ctx());
+                        }
+                        if busy {
+                            ui.spinner();
+                            ui.ctx().request_repaint_after(Duration::from_millis(250));
+                        }
+                    }
+                    if crate::npu::first(&self.packs, crate::npu::Kind::Clip).is_some() {
+                        if ui
+                            .button("Index library")
+                            .on_hover_text(
+                                "Embed every pattern once so \"more like this\" is instant",
+                            )
+                            .clicked()
+                        {
+                            self.embed_library();
+                        }
+                        if self.similar_to.is_some() && ui.button("Show all").clicked() {
+                            self.similar_to = None;
+                        }
+                    }
+                    if ui.button("From photo").clicked() {
+                        self.picker_open = !self.picker_open;
+                        if self.picker_open && self.photos.is_empty() {
+                            self.photos = host.list_device_media(false, 60);
+                        }
+                    }
+                    if self.picked_alpha.is_some() && ui.button("Remove").clicked() {
+                        self.design
+                            .layers
+                            .layers
+                            .retain(|e| e.name != PATTERN_LAYER);
+                        self.picked_alpha = None;
                         self.mark_dirty();
-                        host.haptic(Haptic::Light);
                     }
-                }
-                // Only when a pack is actually present: an offer the app cannot
-            // honour is worse than no offer.
-            if crate::npu::first(&self.packs, crate::npu::Kind::Sd15).is_some() {
-                ui.separator();
-                ui.label(egui::RichText::new("describe").small().weak());
-                ui.add(
-                    egui::TextEdit::singleline(&mut self.prompt)
-                        .hint_text("a woven basket texture")
-                        .desired_width(150.0),
-                );
-                let busy = self.gen_job.is_some();
-                if ui
-                    .add_enabled(!busy && !self.prompt.trim().is_empty(), egui::Button::new("Generate"))
-                    .on_hover_text("Make a seamless tile on the NPU, then measure it against the sand")
-                    .clicked()
-                {
-                    self.start_generate(ui.ctx());
-                }
-                if busy {
-                    ui.spinner();
-                    ui.ctx().request_repaint_after(Duration::from_millis(250));
-                }
-            }
-            if crate::npu::first(&self.packs, crate::npu::Kind::Clip).is_some() {
-                if ui
-                    .button("Index library")
-                    .on_hover_text("Embed every pattern once so \"more like this\" is instant")
-                    .clicked()
-                {
-                    self.embed_library();
-                }
-                if self.similar_to.is_some() && ui.button("Show all").clicked() {
-                    self.similar_to = None;
-                }
-            }
-            if ui.button("From photo").clicked() {
-                    self.picker_open = !self.picker_open;
-                    if self.picker_open && self.photos.is_empty() {
-                        self.photos = host.list_device_media(false, 60);
-                    }
-                }
-                if self.picked_alpha.is_some() && ui.button("Remove").clicked() {
-                    self.design.layers.layers.retain(|e| e.name != PATTERN_LAYER);
-                    self.picked_alpha = None;
-                    self.mark_dirty();
-                }
+                });
             });
         });
 
@@ -2162,45 +2095,50 @@ impl RingApp {
         let mut chosen: Option<(i64, String)> = None;
 
         egui::ScrollArea::vertical().show(ui, |ui| {
-            egui::Grid::new("photo_grid").num_columns(cols).show(ui, |ui| {
-                for (i, (id, name)) in self.photos.clone().into_iter().enumerate() {
-                    let tex = self.photo_thumbs.get(&id).cloned().or_else(|| {
-                        let (w, h, rgba) = host.load_device_thumbnail(false, id, 192)?;
-                        if w == 0 || h == 0 {
-                            return None;
+            egui::Grid::new("photo_grid")
+                .num_columns(cols)
+                .show(ui, |ui| {
+                    for (i, (id, name)) in self.photos.clone().into_iter().enumerate() {
+                        let tex = self.photo_thumbs.get(&id).cloned().or_else(|| {
+                            let (w, h, rgba) = host.load_device_thumbnail(false, id, 192)?;
+                            if w == 0 || h == 0 {
+                                return None;
+                            }
+                            let img = egui::ColorImage::from_rgba_unmultiplied(
+                                [w as usize, h as usize],
+                                &rgba,
+                            );
+                            let t = ui.ctx().load_texture(
+                                format!("photo:{id}"),
+                                img,
+                                egui::TextureOptions::LINEAR,
+                            );
+                            self.photo_thumbs.insert(id, t.clone());
+                            Some(t)
+                        });
+                        let (rect, resp) =
+                            ui.allocate_exact_size(egui::vec2(cell, cell), egui::Sense::click());
+                        let p = ui.painter_at(rect);
+                        p.rect_filled(rect.shrink(2.0), 3.0, egui::Color32::from_rgb(26, 27, 31));
+                        if let Some(t) = tex {
+                            p.image(
+                                t.id(),
+                                rect.shrink(2.0),
+                                egui::Rect::from_min_max(
+                                    egui::pos2(0.0, 0.0),
+                                    egui::pos2(1.0, 1.0),
+                                ),
+                                egui::Color32::WHITE,
+                            );
                         }
-                        let img = egui::ColorImage::from_rgba_unmultiplied(
-                            [w as usize, h as usize],
-                            &rgba,
-                        );
-                        let t = ui.ctx().load_texture(
-                            format!("photo:{id}"),
-                            img,
-                            egui::TextureOptions::LINEAR,
-                        );
-                        self.photo_thumbs.insert(id, t.clone());
-                        Some(t)
-                    });
-                    let (rect, resp) =
-                        ui.allocate_exact_size(egui::vec2(cell, cell), egui::Sense::click());
-                    let p = ui.painter_at(rect);
-                    p.rect_filled(rect.shrink(2.0), 3.0, egui::Color32::from_rgb(26, 27, 31));
-                    if let Some(t) = tex {
-                        p.image(
-                            t.id(),
-                            rect.shrink(2.0),
-                            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                            egui::Color32::WHITE,
-                        );
+                        if resp.clicked() {
+                            chosen = Some((id, name.clone()));
+                        }
+                        if (i + 1) % cols == 0 {
+                            ui.end_row();
+                        }
                     }
-                    if resp.clicked() {
-                        chosen = Some((id, name.clone()));
-                    }
-                    if (i + 1) % cols == 0 {
-                        ui.end_row();
-                    }
-                }
-            });
+                });
         });
 
         if let Some((id, name)) = chosen {
@@ -2215,7 +2153,11 @@ impl RingApp {
             host.haptic(Haptic::Error);
             return;
         };
-        let stem = display.rsplit_once('.').map(|(a, _)| a).unwrap_or(display).to_string();
+        let stem = display
+            .rsplit_once('.')
+            .map(|(a, _)| a)
+            .unwrap_or(display)
+            .to_string();
         match ringdesign_core::alpha::Alpha::from_bytes(stem.clone(), &bytes) {
             Ok(alpha) => {
                 // Persist the source so the library still has it next launch; the design references
@@ -2235,6 +2177,50 @@ impl RingApp {
             Err(e) => {
                 self.status = format!("import failed: {e}");
                 host.haptic(Haptic::Error);
+            }
+        }
+    }
+
+    fn workshop_tab(&mut self, ui: &mut egui::Ui, host: &Host) {
+        let before = self.design.clone();
+        let events = self.workshop.show(ui, &mut self.design, &self.lib);
+        if events.changed {
+            self.history.commit(&before);
+            self.history.commit(&self.design);
+            self.generation += 1; // Reject an old graph worker result immediately.
+            self.design.unpack_embedded(Arc::make_mut(&mut self.lib));
+            self.design.bake_all(Arc::make_mut(&mut self.lib));
+            self.graph.sync(&self.design);
+            self.dirty_at = Some(Instant::now());
+            self.autosave();
+        }
+        for file in events.files {
+            let Some(root) = &self.data_root else {
+                self.workshop.message = "No writable app directory".into();
+                continue;
+            };
+            let result = (|| -> Result<std::path::PathBuf, String> {
+                let dir = root.join("exports");
+                std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+                let nonce = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_err(|e| e.to_string())?
+                    .as_nanos();
+                let path = dir.join(format!("{nonce}-{}", file.name));
+                ringdesign_core::library::write_atomic(&path, &file.bytes)
+                    .map_err(|e| e.to_string())?;
+                Ok(path)
+            })();
+            match result {
+                Ok(path) => {
+                    host.share_media(
+                        path.to_string_lossy().into_owned(),
+                        file.name.clone(),
+                        file.mime.clone(),
+                    );
+                    self.workshop.message = format!("{} ready to share", file.name);
+                }
+                Err(e) => self.workshop.message = format!("Export delivery failed: {e}"),
             }
         }
     }
@@ -2271,8 +2257,10 @@ impl RingApp {
                     // let the second tap through.
                     if path.exists() && self.overwrite_warned.as_ref() != Some(&path) {
                         self.overwrite_warned = Some(path.clone());
-                        self.status =
-                            format!("{} already exists — Save again to replace it", self.design.name);
+                        self.status = format!(
+                            "{} already exists — Save again to replace it",
+                            self.design.name
+                        );
                         host.haptic(Haptic::Warning);
                     } else {
                         self.overwrite_warned = None;
@@ -2296,7 +2284,11 @@ impl RingApp {
                     let path = designs.join(&name);
                     let _ = std::fs::create_dir_all(&designs);
                     self.status = match library::save_design(&path, &self.design) {
-                        Ok(()) => match host.save_to_gallery(path.to_string_lossy().into_owned(), name, "application/json") {
+                        Ok(()) => match host.save_to_gallery(
+                            path.to_string_lossy().into_owned(),
+                            name,
+                            "application/json",
+                        ) {
                             Some(folder) => format!("copy saved to {folder}"),
                             None => "could not write to Downloads".into(),
                         },
@@ -2360,7 +2352,9 @@ impl RingApp {
                 }
                 if ui
                     .button("Stone map")
-                    .on_hover_text("Every stone to scale with the tight gaps drawn: the setter's map")
+                    .on_hover_text(
+                        "Every stone to scale with the tight gaps drawn: the setter's map",
+                    )
                     .clicked()
                 {
                     self.export(ExportKind::StoneMap, &exports, ui.ctx());
@@ -2401,7 +2395,11 @@ impl RingApp {
         if !self.exports.is_empty() {
             ui.horizontal(|ui| {
                 ui.spinner();
-                ui.label(egui::RichText::new(format!("exporting {}…", self.exports.len())).small().weak());
+                ui.label(
+                    egui::RichText::new(format!("exporting {}…", self.exports.len()))
+                        .small()
+                        .weak(),
+                );
             });
             ui.ctx().request_repaint_after(Duration::from_millis(200));
         }
@@ -2465,7 +2463,11 @@ impl RingApp {
                 .filter_map(|r| files.iter().find(|f| f.path.to_string_lossy() == *r))
                 .collect();
             let mut order: Vec<&crate::util::DesignFile> = recent.clone();
-            order.extend(files.iter().filter(|f| !recent.iter().any(|r| r.path == f.path)));
+            order.extend(
+                files
+                    .iter()
+                    .filter(|f| !recent.iter().any(|r| r.path == f.path)),
+            );
 
             let recent_n = recent.len();
             for (i, f) in order.into_iter().enumerate() {
@@ -2491,8 +2493,13 @@ impl RingApp {
             );
             for p in &self.packs {
                 ui.label(
-                    egui::RichText::new(format!("{} · {} — {}", p.kind.label(), p.name, p.kind.buys()))
-                        .small(),
+                    egui::RichText::new(format!(
+                        "{} · {} — {}",
+                        p.kind.label(),
+                        p.name,
+                        p.kind.buys()
+                    ))
+                    .small(),
                 );
             }
             if ui.small_button("Rescan").clicked() {
@@ -2521,7 +2528,9 @@ impl RingApp {
 
         if self.renaming.as_ref().is_some_and(|(p, _)| *p == f.path) {
             ui.horizontal_wrapped(|ui| {
-                let Some((_, draft)) = self.renaming.as_mut() else { return };
+                let Some((_, draft)) = self.renaming.as_mut() else {
+                    return;
+                };
                 ui.add(egui::TextEdit::singleline(draft).desired_width(140.0));
                 let draft = draft.clone();
                 let target = crate::util::design_path(
@@ -2529,7 +2538,13 @@ impl RingApp {
                     &draft,
                 );
                 let clash = target != f.path && target.exists();
-                if ui.add_enabled(!draft.trim().is_empty() && !clash, egui::Button::new("Save")).clicked() {
+                if ui
+                    .add_enabled(
+                        !draft.trim().is_empty() && !clash,
+                        egui::Button::new("Save"),
+                    )
+                    .clicked()
+                {
                     self.status = match std::fs::rename(&f.path, &target) {
                         Ok(()) => {
                             self.prefs.forget_recent(&key);
@@ -2613,7 +2628,11 @@ impl RingApp {
         let token = self.sync_token.trim().to_string();
         let body = push.then(|| serde_json::to_vec(&self.design).unwrap_or_default());
         let (tx, rx) = std::sync::mpsc::channel();
-        self.status = if push { "pushing…".into() } else { "pulling…".into() };
+        self.status = if push {
+            "pushing…".into()
+        } else {
+            "pulling…".into()
+        };
         std::thread::Builder::new()
             .name("ring-sync".into())
             .spawn(move || {
@@ -2631,7 +2650,11 @@ impl RingApp {
                         Ok(r) => SyncResult::Failed(format!(
                             "push failed ({}): {}",
                             r.status_code,
-                            r.as_str().unwrap_or("").chars().take(90).collect::<String>()
+                            r.as_str()
+                                .unwrap_or("")
+                                .chars()
+                                .take(90)
+                                .collect::<String>()
                         )),
                         Err(e) => SyncResult::Failed(format!("push failed: {e}")),
                     },
@@ -2659,7 +2682,9 @@ impl RingApp {
     }
 
     fn poll_sync(&mut self, host: &Host) {
-        let Some(rx) = self.sync_job.as_ref() else { return };
+        let Some(rx) = self.sync_job.as_ref() else {
+            return;
+        };
         let Ok(result) = rx.try_recv() else { return };
         self.sync_job = None;
         match result {
@@ -2690,7 +2715,11 @@ impl RingApp {
         use ringdesign_core::metal;
         // The preview mesh for the spin: 36 software-rastered frames of the
         // export mesh is seconds of spinner for no visible gain at 480 px.
-        let params = if kind == ExportKind::Turntable { ring::PREVIEW } else { ring::EXPORT };
+        let params = if kind == ExportKind::Turntable {
+            ring::PREVIEW
+        } else {
+            ring::EXPORT
+        };
         let shrink = match kind {
             ExportKind::Stl | ExportKind::ThreeMf => self
                 .shrink_metal
@@ -2723,7 +2752,11 @@ impl RingApp {
         });
         for done in landed {
             if done.ok {
-                host.share_media(done.path.to_string_lossy().into_owned(), done.name, done.kind.mime());
+                host.share_media(
+                    done.path.to_string_lossy().into_owned(),
+                    done.name,
+                    done.kind.mime(),
+                );
                 self.status = format!("{} · shared", done.status);
                 host.haptic(Haptic::Success);
             } else {
@@ -2763,7 +2796,10 @@ impl RingApp {
         if busy {
             ui.horizontal(|ui| {
                 ui.spinner();
-                let secs = self.bench.started.map_or(0.0, |t| t.elapsed().as_secs_f64());
+                let secs = self
+                    .bench
+                    .started
+                    .map_or(0.0, |t| t.elapsed().as_secs_f64());
                 ui.label(format!("building… {secs:.0}s"));
             });
             ui.ctx().request_repaint_after(Duration::from_millis(250));
@@ -2806,7 +2842,8 @@ impl EguiApp for RingApp {
                 log::info!("restored {}", AUTOSAVE);
             }
             self.prefs = crate::prefs::load(&root);
-            self.prefs.sanitize(ShadeMode::ALL.len(), ringdesign_core::metal::METALS.len());
+            self.prefs
+                .sanitize(ShadeMode::ALL.len(), ringdesign_core::metal::METALS.len());
             self.apply_prefs();
             self.data_root = Some(root);
             self.rescan_packs();
@@ -2823,9 +2860,14 @@ impl EguiApp for RingApp {
         // Strokes are the source of truth; the raster is derived, so bake before the first build.
         {
             let lib = Arc::make_mut(&mut self.lib);
+            self.design.unpack_embedded(lib);
             self.design.bake_all(lib);
         }
         self.worker = Some(Worker::spawn(ctx.clone()));
+        self.history.reset(&self.design);
+        if self.design.shank.kind == ringdesign_core::ShankKind::Signet {
+            self.frame_head(true);
+        }
         self.mark_dirty();
         // One immediate draft build so there is something on screen before the debounce elapses.
         self.dispatch(false);
@@ -2838,7 +2880,7 @@ impl EguiApp for RingApp {
     /// process without warning. Commit the pending history step too, so undo
     /// still reaches that edit on the next launch.
     fn on_pause(&mut self, _host: &Host) {
-        self.dirty_at = None;
+        // Keep a queued check alive so it can finish when the app resumes.
         self.history.commit(&self.design);
         self.autosave();
         self.save_prefs();
@@ -2859,174 +2901,14 @@ impl EguiApp for RingApp {
         self.poll_exports(host);
         self.poll_generate(host);
 
-        // Order is load-bearing: ambience lights the page, then the frost
-        // grabs what is already in the framebuffer, then chrome paints on top.
-        crate::theme::ambience(ui.ctx());
-        crate::frost::frost_chrome(ui);
-
-        // Chrome collapses while typing (focus leads the keyboard slide-in
-        // and the inset trails slide-out; the union avoids flicker).
-        let kb_editing = host.keyboard_height() > 1.0 || ui.ctx().text_edit_focused();
-        let mut chrome: Option<egui::Rect> = None;
-        let mut grow = |r: egui::Rect| {
-            chrome = Some(match chrome {
-                Some(c) => c.union(r),
-                None => r,
-            })
-        };
-
-        let mut nav_open = !kb_editing;
-        let bar = egui::Panel::bottom(egui::Id::new("tabs"))
-            .frame(crate::theme::bar())
-            .drag_to_open(false)
-            .show_collapsible(ui, &mut nav_open, |ui| {
-                self.nav_bar(ui, host);
-            });
-        if let Some(bar) = &bar {
-            grow(bar.response.rect);
+        self.studio_ui(ui, host);
+        if let Some(delay) = self.editor.reflow.next_frame(
+            ui.ctx().input(|i| i.time),
+            ui.ctx().content_rect(),
+            host.keyboard_height(),
+        ) {
+            ui.ctx().request_repaint_after(delay);
         }
-
-        let line = match (self.tab, self.readout.as_ref()) {
-            (Tab::Band | Tab::Tile, Some(r)) => r.clone(),
-            _ => self.status.clone(),
-        };
-        let status = egui::Panel::bottom(egui::Id::new("status"))
-            .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(8, 3)))
-            .show(ui, |ui| {
-                ui.label(
-                    egui::RichText::new(line).small().color(crate::theme::INK_DIM),
-                );
-            });
-        grow(status.response.rect);
-
-        // The design sheet slides up over the live ring, so every slider is
-        // seen on the mesh without leaving the view.
-        let mut sheet_open = self.design_open && !kb_editing;
-        let sheet = egui::Panel::bottom(egui::Id::new("design-sheet"))
-            .frame(crate::theme::bar())
-            .drag_to_open(false)
-            .show_collapsible(ui, &mut sheet_open, |ui| {
-                let cap = ui.ctx().content_rect().height() * 0.44;
-                crate::theme::scroll_vertical().max_height(cap).show(ui, |ui| {
-                    self.design_tab(ui);
-                });
-            });
-        if let Some(sheet) = &sheet {
-            grow(sheet.response.rect);
-        }
-
-        // The findings sit above the design sheet, and close themselves when the
-        // build that raised them comes back clean.
-        if self.dfm.is_empty() {
-            self.dfm_open = false;
-        }
-        let mut dfm_open = self.dfm_open && !kb_editing;
-        let dfm = egui::Panel::bottom(egui::Id::new("dfm-sheet"))
-            .frame(crate::theme::bar())
-            .drag_to_open(false)
-            .show_collapsible(ui, &mut dfm_open, |ui| {
-                let cap = ui.ctx().content_rect().height() * 0.44;
-                crate::theme::scroll_vertical().max_height(cap).show(ui, |ui| {
-                    self.dfm_sheet(ui);
-                });
-            });
-        if let Some(dfm) = &dfm {
-            grow(dfm.response.rect);
-        }
-
-        let mut layers_open = self.layers_open && !kb_editing;
-        let layers = egui::Panel::bottom(egui::Id::new("layers-sheet"))
-            .frame(crate::theme::bar())
-            .drag_to_open(false)
-            .show_collapsible(ui, &mut layers_open, |ui| {
-                let cap = ui.ctx().content_rect().height() * 0.5;
-                crate::theme::scroll_vertical().max_height(cap).show(ui, |ui| {
-                    if let Some(note) = crate::layers::add_menu(
-                        ui,
-                        &mut self.design,
-                        &mut self.selected_layer,
-                    ) {
-                        self.status = note;
-                        self.mark_dirty();
-                    }
-                    let ctx = self.design.field_context();
-                    let dirty = crate::layers::sheet(
-                        ui,
-                        &mut self.design.layers,
-                        &ctx,
-                        &self.dfm,
-                        &mut self.selected_layer,
-                    );
-                    if dirty {
-                        self.mark_dirty();
-                    }
-                });
-            });
-        if let Some(layers) = &layers {
-            grow(layers.response.rect);
-        }
-
-        let mut report_open = self.report_open && !kb_editing;
-        let report = egui::Panel::bottom(egui::Id::new("report-sheet"))
-            .frame(crate::theme::bar())
-            .drag_to_open(false)
-            .show_collapsible(ui, &mut report_open, |ui| {
-                let cap = ui.ctx().content_rect().height() * 0.5;
-                crate::theme::scroll_vertical().max_height(cap).show(ui, |ui| {
-                    let size = self.design.size.display();
-                    let mut close = false;
-                    crate::report::sheet(
-                        ui,
-                        self.report.as_ref(),
-                        self.stones.as_ref(),
-                        &size,
-                        &mut close,
-                    );
-                    if close {
-                        self.report_open = false;
-                    }
-                });
-            });
-        if let Some(report) = &report {
-            grow(report.response.rect);
-        }
-
-        let mut timeline_open = self.timeline_open && !kb_editing;
-        let timeline = egui::Panel::bottom(egui::Id::new("timeline-sheet"))
-            .frame(crate::theme::bar())
-            .drag_to_open(false)
-            .show_collapsible(ui, &mut timeline_open, |ui| {
-                let cap = ui.ctx().content_rect().height() * 0.44;
-                crate::theme::scroll_vertical().max_height(cap).show(ui, |ui| {
-                    self.timeline_sheet(ui);
-                });
-            });
-        if let Some(timeline) = &timeline {
-            grow(timeline.response.rect);
-        }
-
-        if let Some(chrome) = chrome {
-            crate::frost::remember(ui.ctx(), chrome);
-        }
-
-        egui::CentralPanel::default()
-            .frame(egui::Frame::central_panel(ui.style()).inner_margin(6))
-            .show(ui, |ui| {
-                // The sketch pad takes the whole pane while it is open: a
-                // boundary is drawn against the guides, not over a live mesh.
-                if self.sketch_mode.is_some() {
-                    self.sketch_pad(ui, host);
-                    return;
-                }
-                match self.tab {
-                Tab::Ring => self.ring_tab(ui),
-                Tab::Band => self.paint_tab(ui, host, Domain::Band),
-                Tab::Tile => self.paint_tab(ui, host, Domain::Tile),
-                Tab::Graph => self.graph_tab(ui, host),
-                Tab::Alphas => self.alphas_tab(ui, host),
-                Tab::Files => self.files_tab(ui, host),
-                Tab::Bench => self.bench_tab(ui, host),
-            }});
     }
 }
 
@@ -3040,7 +2922,12 @@ fn first_tiling(layer: &Layer) -> Option<&TilingLayer> {
     match layer {
         Layer::Tiling(t) => Some(t),
         Layer::Openwork(o) => Some(&o.tiling),
-        Layer::Group(g) => g.stack.layers.iter().filter(|e| e.enabled).find_map(|e| first_tiling(&e.layer)),
+        Layer::Group(g) => g
+            .stack
+            .layers
+            .iter()
+            .filter(|e| e.enabled)
+            .find_map(|e| first_tiling(&e.layer)),
         _ => None,
     }
 }
@@ -3049,9 +2936,12 @@ fn first_tiling_mut(layer: &mut Layer) -> Option<&mut TilingLayer> {
     match layer {
         Layer::Tiling(t) => Some(t),
         Layer::Openwork(o) => Some(&mut o.tiling),
-        Layer::Group(g) => {
-            g.stack.layers.iter_mut().filter(|e| e.enabled).find_map(|e| first_tiling_mut(&mut e.layer))
-        }
+        Layer::Group(g) => g
+            .stack
+            .layers
+            .iter_mut()
+            .filter(|e| e.enabled)
+            .find_map(|e| first_tiling_mut(&mut e.layer)),
         _ => None,
     }
 }
@@ -3063,69 +2953,7 @@ enum SyncResult {
     Failed(String),
 }
 
-/// Nearest triangle of the mesh under the ray — every face tested on a tap,
-/// which is a millisecond at preview resolution and needs no BVH.
-fn raycast(
-    mesh: &ringdesign_core::mesh::Mesh,
-    origin: [f32; 3],
-    dir: [f32; 3],
-) -> Option<(usize, [f32; 3])> {
-    let o = [origin[0] as f64, origin[1] as f64, origin[2] as f64];
-    let d = [dir[0] as f64, dir[1] as f64, dir[2] as f64];
-    let mut best: Option<(usize, f64)> = None;
-    for (fi, f) in mesh.faces.iter().enumerate() {
-        let Some((a, b, c)) = mesh.triangle(f) else { continue };
-        let e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-        let e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
-        let p = [
-            d[1] * e2[2] - d[2] * e2[1],
-            d[2] * e2[0] - d[0] * e2[2],
-            d[0] * e2[1] - d[1] * e2[0],
-        ];
-        let det = e1[0] * p[0] + e1[1] * p[1] + e1[2] * p[2];
-        if det.abs() < 1e-12 {
-            continue;
-        }
-        let inv = 1.0 / det;
-        let t_vec = [o[0] - a[0], o[1] - a[1], o[2] - a[2]];
-        let u = (t_vec[0] * p[0] + t_vec[1] * p[1] + t_vec[2] * p[2]) * inv;
-        if !(0.0..=1.0).contains(&u) {
-            continue;
-        }
-        let q = [
-            t_vec[1] * e1[2] - t_vec[2] * e1[1],
-            t_vec[2] * e1[0] - t_vec[0] * e1[2],
-            t_vec[0] * e1[1] - t_vec[1] * e1[0],
-        ];
-        let v = (d[0] * q[0] + d[1] * q[1] + d[2] * q[2]) * inv;
-        if v < 0.0 || u + v > 1.0 {
-            continue;
-        }
-        let t = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) * inv;
-        if t > 1e-6 && best.map_or(true, |(_, bt)| t < bt) {
-            best = Some((fi, t));
-        }
-    }
-    best.map(|(fi, t)| {
-        (
-            fi,
-            [
-                (o[0] + d[0] * t) as f32,
-                (o[1] + d[1] * t) as f32,
-                (o[2] + d[2] * t) as f32,
-            ],
-        )
-    })
-}
-
-/// Verdict colour and text for the toolbar chip. The undercut fraction is the number that decides
-/// it, so it is shown rather than the label alone.
-/// The verdict chip, and the process that produced it.
-///
-/// Under lost wax the undercut percentage is measured and reported but never
-/// gates, so a chip reading "Castable · 3.10%" is true and unreadable without
-/// the process beside it. `FieldReport` does not carry the process, so it is
-/// passed in from the design that was judged.
+/// The axial field verdict and the manufacturing process it checks.
 fn field_chip(
     f: &ringdesign_core::castability::FieldReport,
     process: ringdesign_core::castability::CastProcess,
@@ -3140,27 +2968,12 @@ fn field_chip(
     (
         tint,
         format!(
-            "{} · {how} · {:.2}% · wall {:.2} mm",
+            "{} · {how} · {:.2}% undercut · radial wall {:.2} mm",
             f.verdict.label(),
             f.undercut_fraction() * 100.0,
             f.thinnest_wall_mm
         ),
     )
-}
-
-fn verdict_chip(cast: &CastReport) -> (egui::Color32, String) {
-    use ringdesign_core::castability::Verdict;
-    let tint = match cast.verdict {
-        Verdict::Castable => egui::Color32::from_rgb(82, 199, 115),
-        Verdict::Marginal => egui::Color32::from_rgb(242, 194, 61),
-        Verdict::NotCastable => egui::Color32::from_rgb(237, 69, 92),
-    };
-    let pct = if cast.total_area_mm2 > 0.0 {
-        cast.undercut_area_mm2 / cast.total_area_mm2 * 100.0
-    } else {
-        0.0
-    };
-    (tint, format!("{} · {pct:.2}% undercut", cast.verdict.label()))
 }
 
 /// Physical pixels per millimetre, for true-scale rendering.
@@ -3176,4 +2989,3 @@ fn device_px_per_mm(host: &Host) -> Option<f32> {
     let dpi = (x + y) * 0.5;
     (dpi.is_finite() && dpi > 40.0).then(|| dpi / 25.4)
 }
-

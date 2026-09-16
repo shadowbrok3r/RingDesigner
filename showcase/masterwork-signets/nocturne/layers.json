@@ -1,0 +1,995 @@
+{
+  "layers": [
+    {
+      "name": "Fine satin ground / bench finish",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Tiling": {
+          "alpha": "Satin ground",
+          "repeats_around": 12,
+          "rows": 1,
+          "v_center_mm": 0.672767630081883,
+          "v_span_mm": 1.2109817341473894,
+          "rotation_deg": 0.0,
+          "offset_u": 0.0,
+          "offset_v": 0.0,
+          "height_mm": 0.06,
+          "gap_mm": 0.0,
+          "stagger": 0.0,
+          "mirror_alternate_u": false,
+          "mirror_alternate_v": false,
+          "contrast": 1.0,
+          "bias": 0.0,
+          "invert": false,
+          "feather_mm": 0.1453178080976867,
+          "continuous": true,
+          "mirror_v": true,
+          "edge_mm": 0.0,
+          "warp": null,
+          "shear": 0.0,
+          "kfold": 0
+        }
+      }
+    },
+    {
+      "name": "Warped guilloche / shoulder mask",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": true,
+        "theta_deg": 270.0,
+        "span_deg": 80.0,
+        "fade_deg": 16.0,
+        "invert": true,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": "Shoulder mask",
+      "remap": {
+        "Curve": {
+          "curve": {
+            "points": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.35,
+                0.62
+              ],
+              [
+                0.72,
+                0.92
+              ],
+              [
+                1.0,
+                1.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0
+              ]
+            ],
+            "len": 4,
+            "monotone": true
+          },
+          "span_mm": 0.23
+        }
+      },
+      "layer": {
+        "Tiling": {
+          "alpha": "Engine turned waves",
+          "repeats_around": 16,
+          "rows": 1,
+          "v_center_mm": 0.672767630081883,
+          "v_span_mm": 1.2109817341473894,
+          "rotation_deg": 0.0,
+          "offset_u": 0.0,
+          "offset_v": 0.0,
+          "height_mm": 0.23,
+          "gap_mm": 0.0,
+          "stagger": 0.0,
+          "mirror_alternate_u": false,
+          "mirror_alternate_v": false,
+          "contrast": 1.0,
+          "bias": 0.0,
+          "invert": false,
+          "feather_mm": 0.1453178080976867,
+          "continuous": true,
+          "mirror_v": true,
+          "edge_mm": 0.1,
+          "warp": {
+            "points": [
+              [
+                0.0,
+                0.672767630081883
+              ],
+              [
+                0.08333333333333333,
+                0.7766906785360156
+              ],
+              [
+                0.16666666666666666,
+                0.7766906785360157
+              ],
+              [
+                0.25,
+                0.672767630081883
+              ],
+              [
+                0.3333333333333333,
+                0.5688445816277504
+              ],
+              [
+                0.4166666666666667,
+                0.5688445816277504
+              ],
+              [
+                0.5,
+                0.672767630081883
+              ],
+              [
+                0.5833333333333334,
+                0.7766906785360157
+              ],
+              [
+                0.6666666666666666,
+                0.7766906785360157
+              ],
+              [
+                0.75,
+                0.672767630081883
+              ],
+              [
+                0.8333333333333334,
+                0.5688445816277503
+              ],
+              [
+                0.9166666666666666,
+                0.5688445816277503
+              ]
+            ],
+            "strength": 0.6,
+            "falloff_mm": 1.2109817341473894
+          },
+          "shear": 0.0,
+          "kfold": 0
+        }
+      }
+    },
+    {
+      "name": "Inner polished cheek rail",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Border": {
+          "v_mm": 0.2610338404717706,
+          "width_mm": 0.25,
+          "height_mm": 0.16,
+          "profile": "Round",
+          "mirror": true,
+          "rope_twists": 48
+        }
+      }
+    },
+    {
+      "name": "Outer polished cheek rail",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Border": {
+          "v_mm": 1.0966112370334693,
+          "width_mm": 0.25,
+          "height_mm": 0.16,
+          "profile": "Round",
+          "mirror": true,
+          "rope_twists": 48
+        }
+      }
+    },
+    {
+      "name": "Pearl edging",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": true,
+        "theta_deg": 90.0,
+        "span_deg": 80.0,
+        "fade_deg": 14.0,
+        "invert": true,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Milgrain": {
+          "v_mm": 0.46690073527682685,
+          "bead_diameter_mm": 0.38,
+          "beads_around": 108,
+          "height_mm": 0.18,
+          "mirror": true
+        }
+      }
+    },
+    {
+      "name": "Paired palmette cheek seals",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Decals": {
+          "alpha": "Palmette cheeks",
+          "decals": [
+            {
+              "theta_deg": 90.0,
+              "v_mm": 1.2,
+              "size_mm": 7.5,
+              "rotation_deg": 0.0,
+              "height_mm": 0.28,
+              "flip": false
+            },
+            {
+              "theta_deg": 90.0,
+              "v_mm": 16.022851330096206,
+              "size_mm": 7.5,
+              "rotation_deg": 0.0,
+              "height_mm": 0.28,
+              "flip": true
+            }
+          ],
+          "feather_mm": 0.15,
+          "invert": false
+        }
+      }
+    },
+    {
+      "name": "Woven vine shoulder wires",
+      "enabled": true,
+      "blend": "SmoothMax",
+      "opacity": 1.0,
+      "soft_mm": 0.1,
+      "window": {
+        "enabled": true,
+        "theta_deg": 90.0,
+        "span_deg": 105.0,
+        "fade_deg": 15.0,
+        "invert": true,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Curve": {
+          "points": [
+            [
+              0.0,
+              0.672767630081883
+            ],
+            [
+              0.25,
+              0.9149639769113609
+            ],
+            [
+              0.5,
+              0.672767630081883
+            ],
+            [
+              0.75,
+              0.4305712832524052
+            ],
+            [
+              1.0,
+              0.672767630081883
+            ]
+          ],
+          "repeats_around": 8,
+          "closed": false,
+          "width_mm": 0.3,
+          "height_mm": 0.24,
+          "profile": "Round",
+          "taper": 0.0,
+          "mirror_v": true
+        }
+      }
+    },
+    {
+      "name": "Axial palm reeds",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": true,
+        "theta_deg": 270.0,
+        "span_deg": 100.0,
+        "fade_deg": 15.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Flutes": {
+          "count": 38,
+          "profile": "Round",
+          "width_mm": 0.7,
+          "height_mm": 0.15,
+          "lean": 0.0,
+          "along": false
+        }
+      }
+    },
+    {
+      "name": "Botanical seal / editable group",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Group": {
+          "stack": {
+            "layers": [
+              {
+                "name": "Octagonal double frame",
+                "enabled": true,
+                "blend": "Max",
+                "opacity": 1.0,
+                "soft_mm": 0.3,
+                "window": {
+                  "enabled": false,
+                  "theta_deg": 90.0,
+                  "span_deg": 90.0,
+                  "fade_deg": 12.0,
+                  "invert": false,
+                  "v_gate": "Off"
+                },
+                "mask": null,
+                "remap": "Off",
+                "layer": {
+                  "Decals": {
+                    "alpha": "Seal frame",
+                    "decals": [
+                      {
+                        "theta_deg": 90.0,
+                        "v_mm": 8.64174842009372,
+                        "size_mm": 9.8,
+                        "rotation_deg": 0.0,
+                        "height_mm": 0.2,
+                        "flip": false
+                      }
+                    ],
+                    "feather_mm": 0.15,
+                    "invert": false
+                  }
+                }
+              },
+              {
+                "name": "Pearled seal perimeter",
+                "enabled": true,
+                "blend": "Max",
+                "opacity": 1.0,
+                "soft_mm": 0.3,
+                "window": {
+                  "enabled": false,
+                  "theta_deg": 90.0,
+                  "span_deg": 90.0,
+                  "fade_deg": 12.0,
+                  "invert": false,
+                  "v_gate": "Off"
+                },
+                "mask": null,
+                "remap": "Off",
+                "layer": {
+                  "Decals": {
+                    "alpha": "Seal pearls",
+                    "decals": [
+                      {
+                        "theta_deg": 90.0,
+                        "v_mm": 8.64174842009372,
+                        "size_mm": 8.8,
+                        "rotation_deg": 0.0,
+                        "height_mm": 0.18,
+                        "flip": false
+                      }
+                    ],
+                    "feather_mm": 0.15,
+                    "invert": false
+                  }
+                }
+              },
+              {
+                "name": "Eight-petal night flower",
+                "enabled": true,
+                "blend": "Max",
+                "opacity": 1.0,
+                "soft_mm": 0.3,
+                "window": {
+                  "enabled": false,
+                  "theta_deg": 90.0,
+                  "span_deg": 90.0,
+                  "fade_deg": 12.0,
+                  "invert": false,
+                  "v_gate": "Off"
+                },
+                "mask": null,
+                "remap": "Off",
+                "layer": {
+                  "Decals": {
+                    "alpha": "Night bloom",
+                    "decals": [
+                      {
+                        "theta_deg": 90.0,
+                        "v_mm": 8.64174842009372,
+                        "size_mm": 7.8,
+                        "rotation_deg": 0.0,
+                        "height_mm": 0.24,
+                        "flip": false
+                      }
+                    ],
+                    "feather_mm": 0.15,
+                    "invert": false
+                  }
+                }
+              }
+            ]
+          },
+          "recipe": null
+        }
+      }
+    },
+    {
+      "name": "Sculpted acanthus shoulder",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Decals": {
+          "alpha": "Palmette",
+          "decals": [
+            {
+              "theta_deg": 43.0,
+              "v_mm": 8.64174842009372,
+              "size_mm": 5.8,
+              "rotation_deg": -90.0,
+              "height_mm": 0.32,
+              "flip": false
+            }
+          ],
+          "feather_mm": 0.15,
+          "invert": false
+        }
+      }
+    },
+    {
+      "name": "Sculpted acanthus shoulder",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Decals": {
+          "alpha": "Palmette",
+          "decals": [
+            {
+              "theta_deg": 137.0,
+              "v_mm": 8.64174842009372,
+              "size_mm": 5.8,
+              "rotation_deg": 90.0,
+              "height_mm": 0.32,
+              "flip": true
+            }
+          ],
+          "feather_mm": 0.15,
+          "invert": false
+        }
+      }
+    },
+    {
+      "name": "Emerald dew / central bezel stock",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "SeatPad": {
+          "theta_deg": 90.0,
+          "v_mm": 8.64174842009372,
+          "diameter_mm": 2.94,
+          "height_mm": 0.62973,
+          "crown": 0.65,
+          "blend_mm": 0.28,
+          "style": "Bezel",
+          "bezel_wall_mm": 0.32,
+          "recess_mm": 0.48,
+          "bezel_lip": 0.3,
+          "bezel_bearing_mm": 0.3,
+          "prongs": 0,
+          "prong_mm": 0.9,
+          "gem": {
+            "cut": "Round",
+            "w_mm": 2.3,
+            "l_mm": 2.3,
+            "form": "Faceted"
+          },
+          "dimple_mm": 0.0,
+          "elong": 1.0,
+          "rot_deg": 0.0,
+          "plan_pow": 2.0,
+          "set_depth_mm": null,
+          "metal_true": true
+        }
+      }
+    },
+    {
+      "name": "Shoulder emerald / 25 degrees",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "SeatPad": {
+          "theta_deg": 25.0,
+          "v_mm": 8.64174842009372,
+          "diameter_mm": 3.3,
+          "height_mm": 0.5,
+          "crown": 1.0,
+          "blend_mm": 0.38,
+          "style": "GypsyMound",
+          "bezel_wall_mm": 0.5,
+          "recess_mm": 0.5,
+          "bezel_lip": 0.3,
+          "bezel_bearing_mm": 0.3,
+          "prongs": 0,
+          "prong_mm": 0.9,
+          "gem": {
+            "cut": "Round",
+            "w_mm": 1.5,
+            "l_mm": 1.5,
+            "form": "Faceted"
+          },
+          "dimple_mm": 0.25,
+          "elong": 1.0,
+          "rot_deg": 0.0,
+          "plan_pow": 2.0,
+          "set_depth_mm": null,
+          "metal_true": true
+        }
+      }
+    },
+    {
+      "name": "Shoulder emerald / 155 degrees",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "SeatPad": {
+          "theta_deg": 155.0,
+          "v_mm": 8.64174842009372,
+          "diameter_mm": 3.3,
+          "height_mm": 0.5,
+          "crown": 1.0,
+          "blend_mm": 0.38,
+          "style": "GypsyMound",
+          "bezel_wall_mm": 0.5,
+          "recess_mm": 0.5,
+          "bezel_lip": 0.3,
+          "bezel_bearing_mm": 0.3,
+          "prongs": 0,
+          "prong_mm": 0.9,
+          "gem": {
+            "cut": "Round",
+            "w_mm": 1.5,
+            "l_mm": 1.5,
+            "form": "Faceted"
+          },
+          "dimple_mm": 0.25,
+          "elong": 1.0,
+          "rot_deg": 0.0,
+          "plan_pow": 2.0,
+          "set_depth_mm": null,
+          "metal_true": true
+        }
+      }
+    },
+    {
+      "name": "Four drawn evening stars",
+      "enabled": true,
+      "blend": "Max",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Decals": {
+          "alpha": "Drawn evening star",
+          "decals": [
+            {
+              "theta_deg": 76.0,
+              "v_mm": 5.741748420093719,
+              "size_mm": 0.95,
+              "rotation_deg": 0.0,
+              "height_mm": 0.15,
+              "flip": false
+            },
+            {
+              "theta_deg": 76.0,
+              "v_mm": 11.54174842009372,
+              "size_mm": 0.95,
+              "rotation_deg": 0.0,
+              "height_mm": 0.15,
+              "flip": false
+            },
+            {
+              "theta_deg": 104.0,
+              "v_mm": 5.741748420093719,
+              "size_mm": 0.95,
+              "rotation_deg": 0.0,
+              "height_mm": 0.15,
+              "flip": false
+            },
+            {
+              "theta_deg": 104.0,
+              "v_mm": 11.54174842009372,
+              "size_mm": 0.95,
+              "rotation_deg": 0.0,
+              "height_mm": 0.15,
+              "flip": false
+            }
+          ],
+          "feather_mm": 0.15,
+          "invert": false
+        }
+      }
+    },
+    {
+      "name": "Fine guilloche seal ground",
+      "enabled": true,
+      "blend": "Subtract",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": true,
+        "theta_deg": 90.0,
+        "span_deg": 38.0,
+        "fade_deg": 6.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": "Engraving resist",
+      "remap": "Off",
+      "layer": {
+        "Tiling": {
+          "alpha": "Engine turned waves",
+          "repeats_around": 18,
+          "rows": 2,
+          "v_center_mm": 8.64174842009372,
+          "v_span_mm": 6.4,
+          "rotation_deg": 0.0,
+          "offset_u": 0.0,
+          "offset_v": 0.0,
+          "height_mm": 0.035,
+          "gap_mm": 0.0,
+          "stagger": 0.0,
+          "mirror_alternate_u": false,
+          "mirror_alternate_v": false,
+          "contrast": 1.0,
+          "bias": 0.0,
+          "invert": false,
+          "feather_mm": 0.4,
+          "continuous": true,
+          "mirror_v": false,
+          "edge_mm": 0.0,
+          "warp": null,
+          "shear": 0.0,
+          "kfold": 0
+        }
+      }
+    },
+    {
+      "name": "Recessed botanical gallery / retained floor",
+      "enabled": true,
+      "blend": "Add",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": true,
+        "theta_deg": 90.0,
+        "span_deg": 100.0,
+        "fade_deg": 12.0,
+        "invert": true,
+        "v_gate": {
+          "SideFaces": "Both"
+        }
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Openwork": {
+          "tiling": {
+            "alpha": "Palmette",
+            "repeats_around": 18,
+            "rows": 1,
+            "v_center_mm": 0.672767630081883,
+            "v_span_mm": 1.2109817341473894,
+            "rotation_deg": 0.0,
+            "offset_u": 0.0,
+            "offset_v": 0.0,
+            "height_mm": 1.0,
+            "gap_mm": 0.0,
+            "stagger": 0.0,
+            "mirror_alternate_u": false,
+            "mirror_alternate_v": false,
+            "contrast": 1.0,
+            "bias": 0.0,
+            "invert": false,
+            "feather_mm": 0.1453178080976867,
+            "continuous": true,
+            "mirror_v": true,
+            "edge_mm": 0.18,
+            "warp": null,
+            "shear": 0.0,
+            "kfold": 0
+          },
+          "depth_mm": 0.9,
+          "keep_mm": 1.15
+        }
+      }
+    },
+    {
+      "name": "Engraved guilloche shoulder ground",
+      "enabled": true,
+      "blend": "Subtract",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": true,
+        "theta_deg": 90.0,
+        "span_deg": 78.0,
+        "fade_deg": 12.0,
+        "invert": true,
+        "v_gate": "Off"
+      },
+      "mask": "Engraving resist",
+      "remap": "Off",
+      "layer": {
+        "Tiling": {
+          "alpha": "Engine turned waves",
+          "repeats_around": 18,
+          "rows": 2,
+          "v_center_mm": 8.64174842009372,
+          "v_span_mm": 8.5,
+          "rotation_deg": 0.0,
+          "offset_u": 0.0,
+          "offset_v": 0.0,
+          "height_mm": 0.065,
+          "gap_mm": 0.0,
+          "stagger": 0.0,
+          "mirror_alternate_u": false,
+          "mirror_alternate_v": false,
+          "contrast": 1.0,
+          "bias": 0.0,
+          "invert": false,
+          "feather_mm": 0.65,
+          "continuous": true,
+          "mirror_v": false,
+          "edge_mm": 0.0,
+          "warp": null,
+          "shear": 0.3,
+          "kfold": 0
+        }
+      }
+    },
+    {
+      "name": "Palm inscription / bench engraving",
+      "enabled": true,
+      "bench_only": true,
+      "blend": "Subtract",
+      "opacity": 1.0,
+      "soft_mm": 0.3,
+      "window": {
+        "enabled": false,
+        "theta_deg": 90.0,
+        "span_deg": 90.0,
+        "fade_deg": 12.0,
+        "invert": false,
+        "v_gate": "Off"
+      },
+      "mask": null,
+      "remap": "Off",
+      "layer": {
+        "Decals": {
+          "alpha": "Nocturne signature",
+          "decals": [
+            {
+              "theta_deg": 270.0,
+              "v_mm": 8.64174842009372,
+              "size_mm": 9.5,
+              "rotation_deg": 0.0,
+              "height_mm": 0.12,
+              "flip": false
+            }
+          ],
+          "feather_mm": 0.15,
+          "invert": false
+        }
+      }
+    }
+  ]
+}

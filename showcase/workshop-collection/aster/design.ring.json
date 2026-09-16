@@ -1,0 +1,212 @@
+{
+  "format_version": 2,
+  "name": "Aster — cushion seal",
+  "size": 8.10862207660166,
+  "profile": {
+    "style": "LowDome",
+    "width_mm": 10.5,
+    "thickness_mm": 2.5,
+    "crown_mm": 0.8,
+    "shape_a": 2.0,
+    "shape_b": 1.0,
+    "crest_bias": 0.0,
+    "edge_round_mm": 0.22,
+    "comfort_fit_mm": 0.15,
+    "side_draft_deg": 3.5,
+    "flange": {
+      "enabled": false,
+      "v_pos": 0.0,
+      "extent_mm": 1.2,
+      "thickness_mm": 0.8,
+      "edge_round_mm": 0.15
+    },
+    "drop_curve": {
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "len": 0,
+      "monotone": true
+    },
+    "morph": null
+  },
+  "shank": {
+    "kind": "Signet",
+    "amount": 0.66,
+    "waves": 1,
+    "head": {
+      "outline": "Cushion",
+      "theta_deg": 90.0,
+      "length_mm": 12.5,
+      "rise_mm": 0.95,
+      "shoulder_deg": 46.0,
+      "swell_deg": 74.0,
+      "body_fair": 1.0,
+      "table_flat": 1.0,
+      "table_dome_mm": 0.08,
+      "hollow_mm": 0.0,
+      "rim_round_mm": 0.55,
+      "dome": 1.0,
+      "loft": 1.0,
+      "loft_frontal_mm": 2.0,
+      "loft_lateral_mm": 2.0,
+      "crest_round_mm": 0.0
+    },
+    "extra_heads": [],
+    "keys": [],
+    "custom_outlines": []
+  },
+  "layers": {
+    "layers": []
+  },
+  "build": {
+    "theta_steps": 768,
+    "profile_steps": 256,
+    "min_wall_mm": 0.5,
+    "adaptive": false,
+    "refine": null,
+    "soften_mm": 0.0
+  },
+  "draft": {
+    "parting_z_mm": 0.0,
+    "min_draft_deg": 3.0,
+    "auto_parting": true,
+    "min_section_mm": 0.7,
+    "min_detail_mm": 0.35,
+    "process": "SandTwoPart",
+    "sand": null
+  },
+  "manufacturing": {
+    "component": null,
+    "recipe": {
+      "name": "Delft clay starting recipe / Silver 925",
+      "process": "SandTwoPart",
+      "sand": "DelftClay",
+      "alloy": "Silver 925",
+      "shrink_pct": 1.9,
+      "min_draft_deg": 3.0,
+      "min_section_mm": 0.8,
+      "min_detail_mm": 0.3,
+      "min_sand_web_mm": 0.6,
+      "sand_margin_mm": 5.0,
+      "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mold, and measured trials."
+    },
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "parting_mm": 0.0,
+    "auto_parting": true,
+    "bore": "Molded",
+    "flask": {
+      "width_mm": 70.0,
+      "length_mm": 70.0,
+      "cope_mm": 20.0,
+      "drag_mm": 20.0
+    },
+    "radial_stock_mm": 0.0,
+    "axial_stock_mm": 0.0,
+    "bore_stock_mm": 0.0,
+    "sample_pitch_mm": 0.1,
+    "tolerance_mm": 0.02,
+    "channels": [
+      {
+        "kind": "Gate",
+        "start": [
+          0.0,
+          12.3,
+          0.0
+        ],
+        "end": [
+          0.0,
+          22.0,
+          0.0
+        ],
+        "diameter_mm": 3.5
+      },
+      {
+        "kind": "Sprue",
+        "start": [
+          0.0,
+          22.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          30.0,
+          0.0
+        ],
+        "diameter_mm": 5.5
+      }
+    ],
+    "bench_notes": "Cast as one solid cushion signet. Part on the broad Z=0 plane; lift along +Z. Preserve the bore's sand island. The preliminary gate feeds the heavier head; verify feeding with the caster. Remove the gate and seam, lightly polish the rim and shoulders, and satin the seal face. Optional initials are cut at the bench after casting; none are represented in the pattern."
+  },
+  "drawn": [],
+  "embedded": [],
+  "texts": [],
+  "svgs": [],
+  "recipes": []
+}
