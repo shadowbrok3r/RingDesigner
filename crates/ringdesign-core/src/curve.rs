@@ -355,6 +355,7 @@ mod tests {
             surface: Default::default(),
             bore_radius_mm: 8.5,
             side_faces_cache: Default::default(),
+            stretch: None,
         }
     }
 

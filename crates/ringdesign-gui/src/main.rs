@@ -41,6 +41,9 @@ impl eframe::App for RingDesignerApp {
             if let Ok(mut r) = self.renderer.lock() {
                 r.destroy(gl);
             }
+            if let Ok(mut r) = self.mould_renderer.lock() {
+                r.destroy(gl);
+            }
         }
     }
 }
@@ -63,7 +66,20 @@ fn main() -> eframe::Result<()> {
         },
         Box::new(|cc| {
             theme::install(&cc.egui_ctx);
-            Ok(Box::new(RingDesignerApp::new(cc)))
+            let mut app=RingDesignerApp::new(cc);
+            let args:Vec<String>=std::env::args().collect();
+            if let Some(path)=args.windows(2).find(|pair|pair[0]=="--open").map(|pair|&pair[1]) {
+                export::open_design_path(&mut app,std::path::Path::new(path));
+                if app.design.shank.kind==ringdesign_core::ShankKind::Signet {
+                    for pane in &mut app.panes {
+                        pane.camera.yaw=app.design.shank.head.theta_deg.to_radians() as f32-std::f32::consts::FRAC_PI_8;
+                        pane.camera.pitch=-0.55;
+                    }
+                }
+            }
+            if std::env::args().any(|a|a=="--casting") { app.focus(pane::PaneKind::Casting); }
+            if std::env::args().any(|a|a=="--cad") { app.focus(pane::PaneKind::Cad); }
+            Ok(Box::new(app))
         }),
     )
 }

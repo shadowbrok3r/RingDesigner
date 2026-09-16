@@ -29,6 +29,31 @@ const SECTION_POINT_CAP: usize = 120;
 /// Default rows returned by `list_alphas`.
 const ALPHA_LIMIT_DEFAULT: u32 = 100;
 
+#[derive(Debug,Default,Deserialize,JsonSchema)]
+pub struct ManufacturingParams {
+    /// Optional complete manufacturing Setup; omitted uses the saved setup.
+    pub setup:Option<serde_json::Value>,
+    /// One metal CAD component; omit for a procedural or single-component ring.
+    pub component:Option<u64>,
+}
+#[derive(Debug,Deserialize,JsonSchema)]
+pub struct ManufacturingPackageParams {
+    /// New package directory; existing destinations are never overwritten.
+    pub path:String,
+    pub setup:Option<serde_json::Value>,
+    pub component:Option<u64>,
+    /// Explicitly label an obstructed pattern for diagnosis, not production.
+    pub diagnostic:Option<bool>,
+}
+fn resolved_inspection_source(mut d:RingDesign,lib:&AlphaLibrary)->anyhow::Result<RingDesign> {
+    if let Some(value)=&d.graph {
+        let graph: ringdesign_graph::graph::Graph=serde_json::from_value(value.clone())?;
+        let mut evaluator=ringdesign_graph::eval::Evaluator::with_exprs(ringdesign_script::engine());
+        let evaluated=ringdesign_graph::eval::evaluate_design(&mut evaluator,&graph,&ringdesign_script::registry(),lib,0)?;
+        let mut next=(*evaluated.design).clone();next.graph=d.graph.take();next.manufacturing=d.manufacturing;next.casting_trials=d.casting_trials;d=next;
+    }Ok(d)
+}
+
 /// Largest `limit` `list_alphas` will honour.
 const ALPHA_LIMIT_MAX: u32 = 500;
 
@@ -608,6 +633,10 @@ pub struct AddSeatPadParams {
     pub crown: Option<f64>,
     /// Skirt fairing the pad into the band, mm.
     pub blend_mm: Option<f64>,
+    /// Sizes are metal mm at the pad's own station, so a pad on a stretched
+    /// section (signet wall, keyframed lobe) casts as drawn instead of the
+    /// station's stretch times bigger.
+    pub metal_true: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -734,6 +763,10 @@ pub struct UpdateLayerParams {
     pub crown: Option<f64>,
     /// Gem seat pad only: skirt fairing the pad into the band, mm.
     pub blend_mm: Option<f64>,
+    /// Gem seat pad only: sizes are metal mm at the pad's own station, so a
+    /// pad on a stretched section (signet wall, keyframed lobe) casts as
+    /// drawn instead of the station's stretch times bigger.
+    pub metal_true: Option<bool>,
     /// Milgrain only.
     pub bead_diameter_mm: Option<f64>,
     /// Milgrain only: beads around the circumference.
@@ -1279,7 +1312,7 @@ const TILING_FIELDS: &[&str] = &[
 ];
 const BORDER_FIELDS: &[&str] = &["v_mm", "width_mm", "profile", "mirror", "rope_twists"];
 const SEAT_PAD_FIELDS: &[&str] =
-    &["theta_deg", "v_mm", "diameter_mm", "elong", "rot_deg", "crown", "blend_mm"];
+    &["theta_deg", "v_mm", "diameter_mm", "elong", "rot_deg", "crown", "blend_mm", "metal_true"];
 const MILGRAIN_FIELDS: &[&str] = &["v_mm", "bead_diameter_mm", "beads_around", "mirror"];
 const SIGNET_FIELDS: &[&str] = &[
     "theta_deg",
@@ -1323,6 +1356,36 @@ const CURVE_FIELDS: &[&str] = &["repeats_around", "width_mm", "height_mm"];
 
 #[tool_router(vis = "pub(crate)")]
 impl RingDesignServer {
+    #[tool(description="Inspect the actual compensated pattern for arbitrary-direction two-part mold release, individual obstructions, draft, narrow sand, flask fit, and sampled wall thickness. Resolves the attached graph and uses the same manufacturing implementation as the Casting workspace and CLI. Reports include snapshot generation and pattern identity; sampled checks are not a physical mold-release guarantee.")]
+    async fn manufacturing_check(&self,Parameters(p):Parameters<ManufacturingParams>)->Result<Json<serde_json::Value>,ErrorData> {
+        let (design,lib,generation)={let e=self.engine.lock();(e.design().clone(),e.library_arc(),e.generation())};
+        let result=tokio::task::spawn_blocking(move||->anyhow::Result<_>{
+            let d=resolved_inspection_source(design,&lib)?;
+            let mut setup=if let Some(value)=p.setup {serde_json::from_value(value)?} else {d.manufacturing.clone().unwrap_or_else(||ringdesign_core::manufacturing::Setup::from_design(&d))};
+            if p.component.is_some() {setup.component=p.component;}
+            let i=ringdesign_core::manufacturing::inspect(&d,&lib,&setup,d.build)?;
+            let mut report=ringdesign_core::manufacturing::package::report(&d,&setup,&i,true);report["generation"]=generation.into();Ok(report)
+        }).await.map_err(|e|ErrorData::internal_error(format!("Manufacturing worker: {e}"),None))?.map_err(|e|ErrorData::invalid_params(format!("{e:#}"),None))?;
+        Ok(Json(result))
+    }
+    #[tool(description="Export a new manufacturing package with compensated STL/3MF, identifiable report, recipe, mold layout, and printable workshop sheet. Resolves source graph. Invalid geometry is refused; obstructed production patterns are refused unless diagnostic=true explicitly requests labeled diagnostic files. Existing directories are never overwritten.")]
+    async fn manufacturing_export(&self,Parameters(p):Parameters<ManufacturingPackageParams>)->Result<Json<serde_json::Value>,ErrorData> {
+        let (design,lib)={let e=self.engine.lock();(e.design().clone(),e.library_arc())};
+        let result=tokio::task::spawn_blocking(move||->anyhow::Result<_>{
+            let d=resolved_inspection_source(design,&lib)?;
+            let mut setup=if let Some(value)=p.setup {serde_json::from_value(value)?} else {d.manufacturing.clone().unwrap_or_else(||ringdesign_core::manufacturing::Setup::from_design(&d))};
+            if p.component.is_some() {setup.component=p.component;}
+            let report=ringdesign_core::manufacturing::package::export(std::path::Path::new(&p.path),&d,&lib,&setup,d.build,p.diagnostic.unwrap_or(false))?;
+            Ok(serde_json::json!({"path":p.path,"report":report}))
+        }).await.map_err(|e|ErrorData::internal_error(format!("Manufacturing export worker: {e}"),None))?.map_err(|e|ErrorData::invalid_params(format!("{e:#}"),None))?;
+        Ok(Json(result))
+    }
+    #[tool(description="Inspect evaluated CAD components, materials, dimensions, volume, reference stones, source features, assembly joints and interference. Resolves the source graph. Use manufacturing_check for mold release and pattern preparation.")]
+    async fn inspect_cad(&self)->Result<Json<serde_json::Value>,ErrorData> {
+        let (design,lib)={let e=self.engine.lock();(e.design().clone(),e.library_arc())};
+        let result=tokio::task::spawn_blocking(move||->anyhow::Result<_>{let d=resolved_inspection_source(design,&lib)?;let evaluated=ringdesign_core::cad::evaluate(&d,&lib,d.build)?;Ok(ringdesign_core::cad::assembly::manifest(&d,&evaluated))}).await.map_err(|e|ErrorData::internal_error(format!("CAD worker: {e}"),None))?.map_err(|e|ErrorData::invalid_params(format!("{e:#}"),None))?;
+        Ok(Json(result))
+    }
     #[tool(
         description = "Return the complete RingDesign as JSON (name, size, profile, shank, every layer, build resolution, casting settings) plus the engine generation counter. Use describe_ring first for a readable overview; use this when you need exact stored values or want to diff before and after an edit. The generation increments on every mutation, including edits made in a GUI sharing this engine."
     )]
@@ -1796,6 +1859,7 @@ impl RingDesignServer {
         put_f64(&mut s.height_mm, p.height_mm, "height_mm", &mut applied)?;
         put_range(&mut s.crown, p.crown, "crown", 0.0, 1.0, &mut applied)?;
         put_f64(&mut s.blend_mm, p.blend_mm, "blend_mm", &mut applied)?;
+        put_bool(&mut s.metal_true, p.metal_true, "metal_true", &mut applied);
 
         let name = p.name.unwrap_or_else(|| "Gem seat".to_string());
         let mut entry = LayerEntry::new(name, Layer::SeatPad(s));
@@ -2019,6 +2083,7 @@ impl RingDesignServer {
                 put_f64(&mut s.height_mm, p.height_mm, "height_mm", &mut applied)?;
                 put_range(&mut s.crown, p.crown, "crown", 0.0, 1.0, &mut applied)?;
                 put_f64(&mut s.blend_mm, p.blend_mm, "blend_mm", &mut applied)?;
+                put_bool(&mut s.metal_true, p.metal_true, "metal_true", &mut applied);
             }
             Layer::Signet(s) => {
                 put_f64(&mut s.theta_deg, p.theta_deg, "theta_deg", &mut applied)?;
@@ -2240,7 +2305,7 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Analyse the current mesh for a two-part sand mould that parts perpendicular to the finger axis and pulls in both directions, building first if the design changed. Returns the verdict (Castable, Marginal, or NotCastable), per-class face counts with their areas in mm2 (good draft, marginal, vertical wall, undercut), the undercut share of the total surface, the worst draft angle found in degrees (negative means a face leans back under itself and will lock in the sand), the parting height in mm, and the notes. Read the notes: they are plain language, returned verbatim, and they say what to cut and where to move it. A face is called marginal below the design's min_draft_deg, 3 degrees by default for Delft clay or petrobond. The finger hole is always reported as a vertical wall rather than an undercut, because it cores in the sand or is reamed at the bench. When the design carries seat pads or seat runs, `stones` holds the bench checks: per seat, what the base surface under it is (a side face is castable by construction; a crown reports its draft), the metal from its foot to the band edge, the metal available for the stone's pavilion before the 0.5 mm minimum wall, the bridge between neighbouring stones in a run, and any warnings — plus the stone count and total carats. Stones themselves are never cast; the checks are about the stock the ring casts for the bench to set into. `field` is the authoritative verdict: it samples the true surface with smooth normals instead of reading mesh facets, so the crest-line and signet-table phantoms a refined mesh reports cannot appear in it, and it carries the thinnest outer-to-bore wall over the finger hole against min_section_mm — trust `field.verdict` when it and the mesh numbers disagree."
+        description = "Legacy procedural-band draft and radial-wall inspection, with stone stock and ornament findings. These field checks assume a swept ring and a Z-axis parting plane. Use manufacturing_check for actual two-half withdrawal, arbitrary pull directions, bore interference, CAD components, flask fit and compensated patterns."
     )]
     async fn castability(&self) -> Json<CastJson> {
         let mut e = self.engine.lock();
@@ -2594,6 +2659,19 @@ mod tests {
 
     fn server() -> RingDesignServer {
         RingDesignServer::new(engine())
+    }
+
+    #[tokio::test]
+    async fn manufacturing_tool_resolves_graph_and_reports_the_same_pattern_as_core() {
+        let s=server();let mut d=RingDesign::default();
+        let mut g=ringdesign_graph::nodes::cad::start(&d).unwrap();
+        ringdesign_graph::nodes::cad::append_resize(&mut g,18.123,&Default::default()).unwrap();d.graph=Some(serde_json::to_value(g).unwrap());
+        d.build=BuildParams {theta_steps:64,profile_steps:64,refine:None,..Default::default()};s.engine.lock().set_design(d.clone());
+        let generation=s.engine.lock().generation();let report=s.manufacturing_check(Parameters(Default::default())).await.unwrap().0;
+        assert!((report["nominal_bore_mm"].as_f64().unwrap()-18.123).abs()<1e-9);assert_eq!(generation,s.engine.lock().generation());
+        let lib=s.engine.lock().library_arc();let d=resolved_inspection_source(d,&lib).unwrap();let setup=ringdesign_core::manufacturing::Setup::from_design(&d);
+        let i=ringdesign_core::manufacturing::inspect(&d,&lib,&setup,d.build).unwrap();let expected=ringdesign_core::manufacturing::package::report(&d,&setup,&i,true);
+        assert_eq!(report["pattern_fingerprint"],expected["pattern_fingerprint"]);
     }
 
     /// `Json` is not Debug, so `unwrap_err` does not apply.
@@ -3190,6 +3268,9 @@ mod tests {
         let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
         for expected in [
             "get_design",
+            "manufacturing_check",
+            "manufacturing_export",
+            "inspect_cad",
             "describe_ring",
             "list_profile_styles",
             "list_shank_styles",
@@ -3224,7 +3305,7 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing tool {expected}: {names:?}");
         }
-        assert_eq!(names.len(), 33, "{names:?}");
+        assert_eq!(names.len(), 36, "{names:?}");
         for t in &tools {
             let d = t.description.as_ref().unwrap_or_else(|| panic!("{} has no description", t.name));
             assert!(d.len() > 120, "{} has a thin description", t.name);

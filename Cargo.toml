@@ -6,15 +6,18 @@ members = [
     "crates/ringdesign-mcp",
     "crates/ringdesign-mcpd",
     "crates/ringdesign-configurator",
+    "crates/ringdesign-workbench",
     "crates/ringdesign-graph",
     "crates/ringdesign-graph-ui",
     "crates/ringdesign-script",
     "crates/ringdesign-cli",
     "crates/ringdesign-py",
     "crates/ringdesign-solid",
+    # The phone app; builds on egui-mobile from the EguiMobile repo as a git dependency.
+    "crates/ringdesigner-android",
 ]
 # Vendored forks are reached through [patch.crates-io], not built as members.
-exclude = ["patches/egui-snarl", "patches/egui-scale"]
+exclude = ["patches/egui-snarl", "patches/egui-scale", "patches/egui"]
 
 [workspace.package]
 edition = "2024"
@@ -68,9 +71,14 @@ env_logger = "0.11.11"
 # Upstream egui-phosphor still pins egui 0.35; this fork tracks 0.36.
 # egui-snarl and egui-scale likewise, vendored under patches/ (see patches/README.md).
 [patch.crates-io]
+egui = { path = "patches/egui" }
 egui-phosphor = { git = "https://github.com/shadowbrok3r/egui-phosphor", branch = "egui-036" }
 egui-snarl = { path = "patches/egui-snarl" }
 egui-scale = { path = "patches/egui-scale" }
+# For crates/ringdesigner-android: winit's implicit-only IME hides break egui-android's EditText
+# bridge, and the framework repo's fork skips them. A git dependency never brings its own root
+# [patch] table along, so the app's workspace has to carry it.
+android-activity = { git = "https://github.com/shadowbrok3r/ios-egui" }
 
 [profile.dev]
 opt-level = 1

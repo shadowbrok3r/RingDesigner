@@ -111,9 +111,8 @@ fn xml_escape(s: &str) -> String {
 
 /// Trailing-zero-trimmed coordinate, micron precision.
 fn coord(v: f32) -> String {
-    let s = format!("{:.3}", v);
-    let t = s.trim_end_matches('0').trim_end_matches('.');
-    if t.is_empty() || t == "-" { "0".into() } else { t.to_string() }
+    // Shortest round-trippable decimal preserves the analyzed mesh exactly.
+    if v == 0.0 { "0".into() } else { v.to_string() }
 }
 
 /// The 3MF package bytes for a mesh. Faces touching a missing or non-finite

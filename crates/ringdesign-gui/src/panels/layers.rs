@@ -334,7 +334,7 @@ fn openwork(
             .add(
                 egui::DragValue::new(&mut o.depth_mm)
                     .speed(0.01)
-                    .range(0.1..=4.0)
+                    .clamp_existing_to_range(false).range(0.1..=4.0)
                     .suffix(" mm"),
             )
             .on_hover_text("Deepest carve along the surface normal. Deep is safe on a side face; the floor over the bore still caps it everywhere.")
@@ -346,7 +346,7 @@ fn openwork(
             .add(
                 egui::DragValue::new(&mut o.keep_mm)
                     .speed(0.01)
-                    .range(0.3..=2.5)
+                    .clamp_existing_to_range(false).range(0.3..=2.5)
                     .suffix(" mm"),
             )
             .on_hover_text("Metal left standing under the deepest carve")
@@ -358,7 +358,7 @@ fn openwork(
             .add(
                 egui::DragValue::new(&mut o.tiling.edge_mm)
                     .speed(0.01)
-                    .range(0.05..=1.5)
+                    .clamp_existing_to_range(false).range(0.05..=1.5)
                     .suffix(" mm"),
             )
             .on_hover_text("Width of the drafted wall from rim to floor, mm-true at any tile size")
@@ -863,7 +863,7 @@ fn tiling(
             .add(
                 egui::DragValue::new(&mut t.repeats_around)
                     .speed(0.15)
-                    .range(1..=400),
+                    .clamp_existing_to_range(false).range(1..=400),
             )
             .on_hover_text(
                 "Tiles around the circumference. A whole count is what makes the pattern \
@@ -874,7 +874,7 @@ fn tiling(
 
         ui.label("Rows");
         c |= ui
-            .add(egui::DragValue::new(&mut t.rows).speed(0.05).range(1..=32))
+            .add(egui::DragValue::new(&mut t.rows).speed(0.05).clamp_existing_to_range(false).range(1..=32))
             .on_hover_text("Tile rows stacked across the band")
             .changed();
         ui.end_row();
@@ -884,7 +884,7 @@ fn tiling(
             .add(
                 egui::DragValue::new(&mut t.v_center_mm)
                     .speed(0.02)
-                    .range((-0.25 * v_max)..=(1.25 * v_max))
+                    .clamp_existing_to_range(false).range((-0.25 * v_max)..=(1.25 * v_max))
                     .suffix(" mm"),
             )
             .on_hover_text(format!(
@@ -900,7 +900,7 @@ fn tiling(
             .add(
                 egui::DragValue::new(&mut t.v_span_mm)
                     .speed(0.02)
-                    .range(0.05..=(1.5 * v_max))
+                    .clamp_existing_to_range(false).range(0.05..=(1.5 * v_max))
                     .suffix(" mm"),
             )
             .on_hover_text("How far across the section the tiling reaches")
@@ -920,7 +920,7 @@ fn tiling(
                 .add(
                     egui::DragValue::new(&mut t.offset_u)
                         .speed(0.004)
-                        .range(0.0..=1.0)
+                        .clamp_existing_to_range(false).range(0.0..=1.0)
                         .prefix("u ")
                         .fixed_decimals(3),
                 )
@@ -930,7 +930,7 @@ fn tiling(
                 .add(
                     egui::DragValue::new(&mut t.offset_v)
                         .speed(0.004)
-                        .range(0.0..=1.0)
+                        .clamp_existing_to_range(false).range(0.0..=1.0)
                         .prefix("v ")
                         .fixed_decimals(3),
                 )
@@ -944,7 +944,7 @@ fn tiling(
             .add(
                 egui::DragValue::new(&mut t.height_mm)
                     .speed(0.005)
-                    .range(0.0..=2.0)
+                    .clamp_existing_to_range(false).range(0.0..=2.0)
                     .suffix(" mm"),
             )
             .on_hover_text("Metal raised where the alpha is white")
@@ -956,7 +956,7 @@ fn tiling(
             .add(
                 egui::DragValue::new(&mut t.gap_mm)
                     .speed(0.01)
-                    .range(0.0..=5.0)
+                    .clamp_existing_to_range(false).range(0.0..=5.0)
                     .suffix(" mm"),
             )
             .on_hover_text("Flat land left between neighbouring tiles")
@@ -1010,7 +1010,7 @@ fn tiling(
             .add(
                 egui::DragValue::new(&mut t.contrast)
                     .speed(0.01)
-                    .range(0.1..=4.0),
+                    .clamp_existing_to_range(false).range(0.1..=4.0),
             )
             .on_hover_text("Gamma on the alpha. Above 1 deepens, below 1 flattens.")
             .changed();
@@ -1028,7 +1028,7 @@ fn tiling(
             .add(
                 egui::DragValue::new(&mut t.feather_mm)
                     .speed(0.01)
-                    .range(0.0..=3.0)
+                    .clamp_existing_to_range(false).range(0.0..=3.0)
                     .suffix(" mm"),
             )
             .on_hover_text("Fades the tiling out over this distance at the band edges")
@@ -1054,11 +1054,11 @@ fn tiling(
                 let mut amp: f64 = ui.memory(|m| m.data.get_temp(amp_id)).unwrap_or(1.2);
                 let mut waves: i32 = ui.memory(|m| m.data.get_temp(waves_id)).unwrap_or(2);
                 let a = ui
-                    .add(egui::DragValue::new(&mut amp).speed(0.02).range(0.1..=4.0).suffix(" mm"))
+                    .add(egui::DragValue::new(&mut amp).speed(0.02).clamp_existing_to_range(false).range(0.1..=4.0).suffix(" mm"))
                     .on_hover_text("Guide amplitude")
                     .changed();
                 let b = ui
-                    .add(egui::DragValue::new(&mut waves).speed(0.1).range(1..=8))
+                    .add(egui::DragValue::new(&mut waves).speed(0.1).clamp_existing_to_range(false).range(1..=8))
                     .on_hover_text("Waves per revolution")
                     .changed();
                 if a || b {
@@ -1073,7 +1073,7 @@ fn tiling(
                     .add(
                         egui::DragValue::new(&mut w.falloff_mm)
                             .speed(0.05)
-                            .range(0.5..=12.0)
+                            .clamp_existing_to_range(false).range(0.5..=12.0)
                             .suffix(" mm"),
                     )
                     .on_hover_text("How far across the band the bend reaches")
@@ -1085,12 +1085,12 @@ fn tiling(
         ui.label("Spiral / fold");
         ui.horizontal(|ui| {
             c |= ui
-                .add(egui::DragValue::new(&mut t.shear).speed(0.02).range(-4.0..=4.0))
+                .add(egui::DragValue::new(&mut t.shear).speed(0.02).clamp_existing_to_range(false).range(-4.0..=4.0))
                 .on_hover_text("Helix shear: cells of drift per band height — rows spiral. Always seamless.")
                 .changed();
             let mut k = t.kfold as i32;
             if ui
-                .add(egui::DragValue::new(&mut k).speed(0.1).range(0..=12).prefix("fold "))
+                .add(egui::DragValue::new(&mut k).speed(0.1).clamp_existing_to_range(false).range(0..=12).prefix("fold "))
                 .on_hover_text("Kaleidoscope: mirror the pattern into 1/k wedges of the ring. 0 is off.")
                 .changed()
             {
@@ -1105,7 +1105,7 @@ fn tiling(
             .add(
                 egui::DragValue::new(&mut t.edge_mm)
                     .speed(0.01)
-                    .range(0.0..=1.5)
+                    .clamp_existing_to_range(false).range(0.0..=1.5)
                     .suffix(" mm"),
             )
             .on_hover_text(
@@ -1149,7 +1149,7 @@ fn tiling(
         }
         ui.add(
             egui::DragValue::new(&mut deg)
-                .range(15.0..=85.0)
+                .clamp_existing_to_range(false).range(15.0..=85.0)
                 .suffix("°")
                 .speed(1.0),
         )
@@ -2040,7 +2040,7 @@ fn border(ui: &mut egui::Ui, b: &mut BorderLayer, fctx: &FieldContext) -> bool {
             .add(
                 egui::DragValue::new(&mut b.v_mm)
                     .speed(0.02)
-                    .range(0.0..=v_max)
+                    .clamp_existing_to_range(false).range(0.0..=v_max)
                     .suffix(" mm"),
             )
             .on_hover_text(format!(
@@ -2055,7 +2055,7 @@ fn border(ui: &mut egui::Ui, b: &mut BorderLayer, fctx: &FieldContext) -> bool {
             .add(
                 egui::DragValue::new(&mut b.width_mm)
                     .speed(0.01)
-                    .range(0.05..=6.0)
+                    .clamp_existing_to_range(false).range(0.05..=v_max.max(6.0))
                     .suffix(" mm"),
             )
             .changed();
@@ -2066,7 +2066,7 @@ fn border(ui: &mut egui::Ui, b: &mut BorderLayer, fctx: &FieldContext) -> bool {
             .add(
                 egui::DragValue::new(&mut b.height_mm)
                     .speed(0.005)
-                    .range(0.0..=2.0)
+                    .clamp_existing_to_range(false).range(0.0..=2.0)
                     .suffix(" mm"),
             )
             .changed();
@@ -2089,7 +2089,7 @@ fn border(ui: &mut egui::Ui, b: &mut BorderLayer, fctx: &FieldContext) -> bool {
                 .add(
                     egui::DragValue::new(&mut b.rope_twists)
                         .speed(0.3)
-                        .range(1..=400),
+                        .clamp_existing_to_range(false).range(1..=400),
                 )
                 .on_hover_text("Twists per revolution. A whole count keeps the rope seamless.")
                 .changed();
@@ -2318,7 +2318,7 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
                 .add(
                     egui::DragValue::new(&mut r.seat.rot_deg)
                         .speed(1.0)
-                        .range(-180.0..=180.0)
+                        .clamp_existing_to_range(false).range(-180.0..=180.0)
                         .suffix("°"),
                 )
                 .on_hover_text(
@@ -2337,7 +2337,7 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
             .add(
                 egui::DragValue::new(&mut r.tilt_deg)
                     .speed(1.0)
-                    .range(-90.0..=90.0)
+                    .clamp_existing_to_range(false).range(-90.0..=90.0)
                     .suffix("°"),
             )
             .on_hover_text(
@@ -2370,7 +2370,7 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
             .add(
                 egui::DragValue::new(&mut r.bridge_mm)
                     .speed(0.01)
-                    .range(0.1..=2.0)
+                    .clamp_existing_to_range(false).range(0.1..=2.0)
                     .suffix(" mm"),
             )
             .on_hover_text("Metal wanted between neighbouring stones when solving")
@@ -2382,7 +2382,7 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
             .add(
                 egui::DragValue::new(&mut r.seat.v_mm)
                     .speed(0.02)
-                    .range(0.0..=fctx.band_v_len_mm.max(0.5))
+                    .clamp_existing_to_range(false).range(0.0..=fctx.band_v_len_mm.max(0.5))
                     .suffix(" mm"),
             )
             .changed();
@@ -2393,7 +2393,7 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
             .add(
                 egui::DragValue::new(&mut r.seat.height_mm)
                     .speed(0.01)
-                    .range(0.0..=3.0)
+                    .clamp_existing_to_range(false).range(0.0..=3.0)
                     .suffix(" mm"),
             )
             .changed();
@@ -2424,7 +2424,7 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
                 .add(
                     egui::DragValue::new(&mut r.taper_theta_deg)
                         .speed(1.0)
-                        .range(0.0..=360.0)
+                        .clamp_existing_to_range(false).range(0.0..=360.0)
                         .suffix("°"),
                 )
                 .on_hover_text("Ring angle of the largest stone; 90° is the top.")
@@ -2437,7 +2437,7 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
             .add(
                 egui::DragValue::new(&mut r.shared_prong_mm)
                     .speed(0.01)
-                    .range(0.0..=1.5)
+                    .clamp_existing_to_range(false).range(0.0..=1.5)
                     .suffix(" mm"),
             )
             .on_hover_text(
@@ -2518,7 +2518,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
                 .add(
                     egui::DragValue::new(&mut p.bezel_wall_mm)
                         .speed(0.01)
-                        .range(0.2..=1.5)
+                        .clamp_existing_to_range(false).range(0.2..=1.5)
                         .suffix(" mm"),
                 )
                 .on_hover_text("Collar thickness burnished over the girdle at the bench")
@@ -2530,7 +2530,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
                 .add(
                     egui::DragValue::new(&mut p.recess_mm)
                         .speed(0.01)
-                        .range(0.0..=2.0)
+                        .clamp_existing_to_range(false).range(0.0..=2.0)
                         .suffix(" mm"),
                 )
                 .on_hover_text("Pocket depth below the rim")
@@ -2549,7 +2549,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
                 .add(
                     egui::DragValue::new(&mut p.bezel_bearing_mm)
                         .speed(0.01)
-                        .range(0.1..=0.8)
+                        .clamp_existing_to_range(false).range(0.1..=0.8)
                         .suffix(" mm"),
                 )
                 .on_hover_text("The ledge the girdle rests on inside the wall; the floor dishes toward the pavilion inside it")
@@ -2562,7 +2562,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .add(
                 egui::DragValue::new(&mut p.dimple_mm)
                     .speed(0.01)
-                    .range(0.0..=3.0)
+                    .clamp_existing_to_range(false).range(0.0..=3.0)
                     .suffix(" mm"),
             )
             .on_hover_text("A shallow centre dimple cast into the seat, so the setting bur starts true. 0 is none.")
@@ -2582,7 +2582,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
                     .add(
                         egui::DragValue::new(&mut p.prong_mm)
                             .speed(0.01)
-                            .range(0.2..=2.0)
+                            .clamp_existing_to_range(false).range(0.2..=2.0)
                             .suffix(" mm"),
                     )
                     .changed();
@@ -2602,7 +2602,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .add(
                 egui::DragValue::new(&mut p.v_mm)
                     .speed(0.02)
-                    .range(0.0..=v_max)
+                    .clamp_existing_to_range(false).range(0.0..=v_max)
                     .suffix(" mm"),
             )
             .on_hover_text(format!(
@@ -2612,12 +2612,34 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .changed();
         ui.end_row();
 
+        ui.label("True size");
+        ui.horizontal(|ui| {
+            c |= ui
+                .checkbox(&mut p.metal_true, "Metal mm at its station")
+                .on_hover_text(
+                    "The chart's v is arc normalized, so on a stretched section — a signet \
+                     head's wall, a keyframed lobe — a drawn millimetre casts bigger than \
+                     itself. Checked, the sizes are metal mm at the pad's own station and \
+                     the pad casts as drawn.",
+                )
+                .changed();
+            let k = fctx.station_stretch(p.theta_deg);
+            if (k - 1.0).abs() > 0.02 {
+                ui.label(
+                    egui::RichText::new(format!("{k:.2}x here"))
+                        .small()
+                        .color(theme::TEXT_DIM),
+                );
+            }
+        });
+        ui.end_row();
+
         ui.label("Width");
         c |= ui
             .add(
                 egui::DragValue::new(&mut p.diameter_mm)
                     .speed(0.02)
-                    .range(0.5..=20.0)
+                    .clamp_existing_to_range(false).range(0.5..=20.0)
                     .suffix(" mm"),
             )
             .on_hover_text("The pad's short axis, and its diameter when round")
@@ -2630,7 +2652,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .add(
                 egui::DragValue::new(&mut len)
                     .speed(0.02)
-                    .range(p.diameter_mm..=24.0)
+                    .clamp_existing_to_range(false).range(p.diameter_mm..=24.0)
                     .suffix(" mm"),
             )
             .on_hover_text("The pad's long axis. Equal to the width for a round stone.")
@@ -2647,7 +2669,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
                 .add(
                     egui::DragValue::new(&mut p.rot_deg)
                         .speed(1.0)
-                        .range(-180.0..=180.0)
+                        .clamp_existing_to_range(false).range(-180.0..=180.0)
                         .suffix("°"),
                 )
                 .on_hover_text("0 lays the stone along the ring, 90 across the band")
@@ -2660,7 +2682,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .add(
                 egui::DragValue::new(&mut p.height_mm)
                     .speed(0.01)
-                    .range(0.0..=5.0)
+                    .clamp_existing_to_range(false).range(0.0..=5.0)
                     .suffix(" mm"),
             )
             .on_hover_text("Stock proud of the band for cutting the seat into")
@@ -2679,7 +2701,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .add(
                 egui::DragValue::new(&mut p.blend_mm)
                     .speed(0.01)
-                    .range(0.0..=4.0)
+                    .clamp_existing_to_range(false).range(0.0..=4.0)
                     .suffix(" mm"),
             )
             .on_hover_text("Skirt fairing the pad down into the band")
@@ -2705,7 +2727,7 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
                         .add(
                             egui::DragValue::new(d)
                                 .speed(0.01)
-                                .range(0.0..=p.height_mm.max(0.01))
+                                .clamp_existing_to_range(false).range(0.0..=p.height_mm.max(0.01))
                                 .suffix(" mm"),
                         )
                         .on_hover_text("How far the girdle sits below the pad's top")
@@ -2771,7 +2793,7 @@ fn milgrain(ui: &mut egui::Ui, m: &mut MilgrainLayer, fctx: &FieldContext) -> bo
             .add(
                 egui::DragValue::new(&mut m.v_mm)
                     .speed(0.02)
-                    .range(0.0..=v_max)
+                    .clamp_existing_to_range(false).range(0.0..=v_max)
                     .suffix(" mm"),
             )
             .on_hover_text(format!(
@@ -2786,7 +2808,7 @@ fn milgrain(ui: &mut egui::Ui, m: &mut MilgrainLayer, fctx: &FieldContext) -> bo
             .add(
                 egui::DragValue::new(&mut m.bead_diameter_mm)
                     .speed(0.005)
-                    .range(0.05..=2.0)
+                    .clamp_existing_to_range(false).range(0.05..=2.0)
                     .suffix(" mm"),
             )
             .changed();
@@ -2797,7 +2819,7 @@ fn milgrain(ui: &mut egui::Ui, m: &mut MilgrainLayer, fctx: &FieldContext) -> bo
             .add(
                 egui::DragValue::new(&mut m.beads_around)
                     .speed(0.5)
-                    .range(3..=800),
+                    .clamp_existing_to_range(false).range(3..=800),
             )
             .on_hover_text("Beads around the ring. A whole count closes the run on itself.")
             .changed();
@@ -2808,7 +2830,7 @@ fn milgrain(ui: &mut egui::Ui, m: &mut MilgrainLayer, fctx: &FieldContext) -> bo
             .add(
                 egui::DragValue::new(&mut m.height_mm)
                     .speed(0.005)
-                    .range(0.0..=1.5)
+                    .clamp_existing_to_range(false).range(0.0..=1.5)
                     .suffix(" mm"),
             )
             .changed();
@@ -2864,7 +2886,7 @@ fn signet(
             .add(
                 egui::DragValue::new(&mut s.v_mm)
                     .speed(0.02)
-                    .range(0.0..=v_max)
+                    .clamp_existing_to_range(false).range(0.0..=v_max)
                     .suffix(" mm"),
             )
             .on_hover_text(format!(
@@ -2890,7 +2912,7 @@ fn signet(
             .add(
                 egui::DragValue::new(&mut s.length_mm)
                     .speed(0.05)
-                    .range(1.0..=40.0)
+                    .clamp_existing_to_range(false).range(1.0..=40.0)
                     .suffix(" mm"),
             )
             .on_hover_text("Extent around the ring")
@@ -2902,7 +2924,7 @@ fn signet(
             .add(
                 egui::DragValue::new(&mut s.width_mm)
                     .speed(0.05)
-                    .range(1.0..=40.0)
+                    .clamp_existing_to_range(false).range(1.0..=40.0)
                     .suffix(" mm"),
             )
             .on_hover_text("Extent across the band")
@@ -2914,7 +2936,7 @@ fn signet(
             .add(
                 egui::DragValue::new(&mut s.height_mm)
                     .speed(0.02)
-                    .range(0.0..=8.0)
+                    .clamp_existing_to_range(false).range(0.0..=8.0)
                     .suffix(" mm"),
             )
             .on_hover_text("Table above the band")
@@ -2933,7 +2955,7 @@ fn signet(
             .add(
                 egui::DragValue::new(&mut s.shoulder_mm)
                     .speed(0.02)
-                    .range(0.0..=8.0)
+                    .clamp_existing_to_range(false).range(0.0..=8.0)
                     .suffix(" mm"),
             )
             .on_hover_text("Fairing from the table down into the band")
@@ -3004,6 +3026,32 @@ fn grid(ui: &mut egui::Ui, id: &str, add: impl FnOnce(&mut egui::Ui) -> bool) ->
         .inner
 }
 
+#[cfg(test)]
+mod imported_border_tests {
+    #[test]
+    fn viewing_a_wide_casting_border_preserves_its_geometry() {
+        let design = ringdesign_core::construction::source();
+        let entry = design.layers.layers.iter()
+            .find(|e| e.name == "Axial cushion / positive draft").unwrap();
+        let ringdesign_core::field::Layer::Border(mut border) = entry.layer else { panic!("border fixture") };
+        assert!(border.width_mm > 6.0);
+        let before = serde_json::to_value(border).unwrap();
+        let context = egui::Context::default();
+        for _ in 0..2 {
+            let mut output = context.run_ui(egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400.0, 600.0))),
+                ..Default::default()
+            }, |root| {
+                egui::CentralPanel::default().show(root, |ui| {
+                    assert!(!super::border(ui, &mut border, &design.field_context()));
+                });
+            });
+            output.textures_delta.clear();
+        }
+        assert_eq!(before, serde_json::to_value(border).unwrap());
+    }
+}
+
 // --- Auto pavé ---------------------------------------------------------------
 
 fn pave_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
@@ -3060,7 +3108,7 @@ fn pave_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     ui.add(
                         egui::DragValue::new(&mut spec.theta_deg)
                             .speed(1.0)
-                            .range(0.0..=360.0)
+                            .clamp_existing_to_range(false).range(0.0..=360.0)
                             .suffix("° at"),
                     );
                 }

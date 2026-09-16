@@ -1,0 +1,64 @@
+[
+  {
+    "alloy": "Silver 925",
+    "bench": "One-piece cast pattern; Z=0 parting, opposed Z withdrawal, preserve the bore island. Solar stock, lotus relief, ribs, vines and beading are included in the pattern. Only the fine satin microtexture is deferred to the bench. Remove gate and seam, polish raised ornament and burnish the solar disc; keep recessed ground satin or lightly oxidized. Review low-draft regions and run a physical pull trial. Gate layout is preliminary.",
+    "bench_layers": [
+      "Fine satin ground / bench finish"
+    ],
+    "bore_mm": 18.2,
+    "cast_grams": 20.403423692253604,
+    "detail_findings": [],
+    "grams": 20.407613095465155,
+    "layers": 11,
+    "mesh": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 2457600,
+      "vertex_count": 1228800,
+      "watertight": true
+    },
+    "name": "Solstice — solar palmette signet",
+    "obstructions": 0,
+    "process": "SandTwoPart",
+    "radial_wall_mm": 2.8436378231207886,
+    "release": "Review",
+    "slug": "solstice",
+    "volume_mm3": 1969.8468238865983
+  },
+  {
+    "alloy": "Gold 14k",
+    "bench": "One-piece investment-cast metal body. Fine botanical relief, gallery recesses, beadwork and proud setting stock require a sacrificial pattern. Stones shown are separate references, never cast metal. Drill/bur bearings and pavilion clearance to actual stones, preserve floor stock, set at the bench, polish rails and leaf edges while retaining the textured ground. Gate layout is preliminary.",
+    "bench_layers": [
+      "Palm inscription / bench engraving"
+    ],
+    "bore_mm": 18.2,
+    "cast_grams": 22.726295464937554,
+    "detail_findings": [
+      "Paired palmette cheek seals: the Palmette cheeks stamp's finest strokes measure 0.08 mm at its smallest, 7.5 mm, against the sand's 0.18 mm floor — they will cast as mush. Enlarge the stamp, bolden the art, or accept the softness.",
+      "Sculpted acanthus shoulder: the Palmette stamp's finest strokes measure 0.17 mm at its smallest, 5.8 mm, against the sand's 0.18 mm floor — they will cast as mush. Enlarge the stamp, bolden the art, or accept the softness.",
+      "Sculpted acanthus shoulder: the Palmette stamp's finest strokes measure 0.17 mm at its smallest, 5.8 mm, against the sand's 0.18 mm floor — they will cast as mush. Enlarge the stamp, bolden the art, or accept the softness.",
+      "Four drawn evening stars: the Drawn evening star stamp's finest strokes measure 0.06 mm at its smallest, 0.9 mm, against the sand's 0.18 mm floor — they will cast as mush. Enlarge the stamp, bolden the art, or accept the softness.",
+      "Fine satin ground / bench finish: the Satin ground texture's finest strokes measure 0.06 mm on 6.2 x 1.2 mm cells against the sand's 0.18 mm floor — they will cast as mush. Coarsen the pattern, use fewer repeats, or accept the softness.",
+      "Warped guilloche / shoulder mask: the Engine turned waves texture's finest gaps measure 0.03 mm on 4.7 x 1.2 mm cells against the sand's 0.18 mm floor — they will cast as mush. Coarsen the pattern, use fewer repeats, or accept the softness.",
+      "Fine guilloche seal ground: the Engine turned waves texture's finest gaps measure 0.08 mm on 4.2 x 3.2 mm cells against the sand's 0.18 mm floor — they will cast as mush. Coarsen the pattern, use fewer repeats, or accept the softness.",
+      "Recessed botanical gallery / retained floor: the Palmette texture's finest strokes measure 0.04 mm on 4.2 x 1.2 mm cells against the sand's 0.18 mm floor — they will cast as mush. Coarsen the pattern, use fewer repeats, or accept the softness.",
+      "Engraved guilloche shoulder ground: the Engine turned waves texture's finest gaps measure 0.11 mm on 4.2 x 4.2 mm cells against the sand's 0.18 mm floor — they will cast as mush. Coarsen the pattern, use fewer repeats, or accept the softness."
+    ],
+    "grams": 22.724745749107086,
+    "layers": 19,
+    "mesh": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 2457600,
+      "vertex_count": 1228800,
+      "watertight": true
+    },
+    "name": "Nocturne — night garden signet",
+    "obstructions": 348,
+    "process": "LostWax",
+    "radial_wall_mm": 2.409454445989276,
+    "release": "NotApplicable",
+    "slug": "nocturne",
+    "volume_mm3": 1738.6951606049797
+  }
+]

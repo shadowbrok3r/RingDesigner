@@ -1,0 +1,75 @@
+[
+  {
+    "ring": "solstice",
+    "files": [
+      {
+        "file": "nominal.stl",
+        "triangles": 2457600,
+        "sha256": "eeccc7e1882ad9ea3d1083cf8819ba63711dc1f4be504f88bc27337ad687a948",
+        "watertight": true,
+        "consistent_winding": true,
+        "solids": 1,
+        "euler_number": 0,
+        "volume_mm3": 1969.8468238864823,
+        "relative_volume_error": 5.88678130044918e-14,
+        "measured_bore_mm": 18.199999080175115
+      },
+      {
+        "file": "pattern-package/pattern.stl",
+        "triangles": 2457600,
+        "sha256": "066df101b6b83fe4748b45e278043ef22a9ecb35d18dcc043b23c1b2ea31968f",
+        "watertight": true,
+        "consistent_winding": true,
+        "solids": 1,
+        "euler_number": 0,
+        "volume_mm3": 2086.1051493157624,
+        "relative_volume_error": 2.986445198693752e-14,
+        "measured_bore_mm": 18.552494829116736
+      }
+    ],
+    "fine_release_cell_mm": [
+      0.07499016466594878,
+      0.07483125616002965
+    ],
+    "threemf_valid": true,
+    "delivered_zip_identical": true,
+    "empty_library_source_checks": 2,
+    "threemf_payload_crc_preserved": true,
+    "compressed_delivery_rechecked": true
+  },
+  {
+    "ring": "nocturne",
+    "files": [
+      {
+        "file": "nominal.stl",
+        "triangles": 2457600,
+        "sha256": "12b8d01a1c72ec54a73d8121dff2d65c2fef22cba918af24ac127a9185b13f68",
+        "watertight": true,
+        "consistent_winding": true,
+        "solids": 1,
+        "euler_number": 0,
+        "volume_mm3": 1738.695160604703,
+        "relative_volume_error": 1.5915024627901463e-13,
+        "measured_bore_mm": 18.199999080175115
+      },
+      {
+        "file": "pattern-package/pattern.stl",
+        "triangles": 2457600,
+        "sha256": "5c0f2d770f75dae1435427cc2a056fb4bc09d07f1d09374e63644cca503cbde0",
+        "watertight": true,
+        "consistent_winding": true,
+        "solids": 1,
+        "euler_number": 0,
+        "volume_mm3": 1808.4294244571017,
+        "relative_volume_error": 1.2786732221809341e-13,
+        "measured_bore_mm": 18.439713984577367
+      }
+    ],
+    "stone_count": 3,
+    "threemf_valid": true,
+    "delivered_zip_identical": true,
+    "empty_library_source_checks": 2,
+    "threemf_payload_crc_preserved": true,
+    "compressed_delivery_rechecked": true
+  }
+]

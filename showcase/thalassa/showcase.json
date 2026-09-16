@@ -1,0 +1,31 @@
+{
+  "design": "design.ring.json",
+  "stl": "nominal-ring.stl",
+  "census": {
+    "nocturne": {
+      "drawings": 1,
+      "name": "Nocturne \u2014 night garden signet",
+      "procedural_sources": 2,
+      "stones": 3,
+      "svg_sources": 8,
+      "text_sources": 1,
+      "top_level_layers": 19,
+      "total_layer_entries": 22
+    },
+    "thalassa": {
+      "drawings": 1,
+      "name": "Thalassa \u2014 tidal reliquary signet",
+      "procedural_sources": 2,
+      "stones": 7,
+      "svg_sources": 5,
+      "text_sources": 1,
+      "top_level_layers": 24,
+      "total_layer_entries": 27
+    }
+  },
+  "reels": {
+    "android": "131.000000",
+    "desktop": "139.266667"
+  },
+  "review": "../../docs/VIEWPORT-TOOLS-REVIEW.md"
+}

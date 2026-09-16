@@ -1,0 +1,49 @@
+{
+  "release_pitches_mm": [
+    [
+      0.0998096006462373,
+      0.09990547772111563
+    ],
+    [
+      0.07485720048467796,
+      0.0754494493206342
+    ]
+  ],
+  "meshes": [
+    {
+      "file": "nominal.stl",
+      "triangles": 2457600,
+      "solids": 1,
+      "watertight": true,
+      "consistent_winding": true,
+      "bore_mm": 18.199999080175115,
+      "volume_mm3": 2175.294502642424,
+      "sha256": "87b6786e2d561173ab9741e06453e83940c23d506182baf23a76bc13016266d1"
+    },
+    {
+      "file": "pattern-package/pattern.stl",
+      "triangles": 2457600,
+      "solids": 1,
+      "watertight": true,
+      "consistent_winding": true,
+      "bore_mm": 18.477155023155785,
+      "volume_mm3": 2276.1942672980617,
+      "sha256": "92aa1ad1704c14f435d4ea5dbe590aadb2cb50d4fa0bb5da574906da3e97bb1b"
+    }
+  ],
+  "threemf_valid": true,
+  "app_sources": [
+    {
+      "platform": "desktop",
+      "parameters_identical": true,
+      "layer_count": 12,
+      "sha256": "77ac7a7c5f372d37352027ff6799828611e0f00d44bf173458828c0095eb5538"
+    },
+    {
+      "platform": "android",
+      "parameters_identical": true,
+      "layer_count": 12,
+      "sha256": "421d42eeec8dee20edf1dc79c5d33825ebea7d1817c6f6b51a296387940b804f"
+    }
+  ]
+}

@@ -679,7 +679,7 @@ impl BandProfile {
         let crown_cap = (thickness - comfort - MIN_EDGE_MM).max(0.0);
         let crown = (crown_src * m.thickness_scale * m.crown_scale).clamp(0.0, crown_cap);
         let crown = match m.crown_min_mm {
-            Some(c) => crown.max(ok(c).clamp(0.0, crown_cap)),
+            Some(c) => (-monotone_cap(-crown, -ok(c).clamp(0.0, crown_cap), 0.12)).min(crown_cap),
             None => crown,
         };
         let edge_t = (thickness - crown).max(MIN_EDGE_MM + comfort);
@@ -768,7 +768,7 @@ impl BandProfile {
                 let cap = cap.max(inner_r + MIN_EDGE_MM);
                 // The cut-dome arris rounds by the head's own rim radius; a
                 // zero radius is the hard cut every other cap wants.
-                if facet_rim > 1e-6 { smin(r, cap, facet_rim) } else { r.min(cap) }
+                monotone_cap(r, cap, facet_rim)
             }
             None => r,
         };
@@ -798,24 +798,24 @@ impl BandProfile {
             let sign = if low { 1.0 } else { -1.0 };
             (1.0 + 0.5 * bias * sign).clamp(0.45, 2.2)
         };
-        // The cut-dome facet: raise the dome so the radial cap slices it open
-        // to the asked half-width — the face outline emerges as the level
-        // curve where the plane meets the dome, and every section stays a
-        // single-plateau monotone drop.
+        // Raise the dome's apex and increase its drop by the same amount:
+        // lift * (1 - drop) = crown * drop at the requested facet width.
+        // This holds the side-wall corner fixed while the cap cuts the face,
+        // and preserves the section's single-plateau monotone drop.
         let e_facet = match (m.facet_half > 1e-6, m.outer_max_r.is_some()) {
             (true, true) => {
                 let w = ok(m.facet_half * half_w).max(0.0);
                 let hi = (c_hi - crest_z).max(1e-6);
                 let lo = (crest_z - c_lo).max(1e-6);
                 let x = (0.5 * (w / hi + w / lo)).clamp(0.0, 1.0);
-                crown * drop_at(x)
+                let drop = drop_at(x).clamp(0.0, 0.99);
+                crown * drop / (1.0 - drop)
             }
             _ => 0.0,
         };
-        // The facet raise moves the whole outer curve out by `e_facet`, so the
-        // corner the wall and edge fillet build to must move with it — a
-        // corner left at the unraised radius tips the fillet past vertical.
-        let edge_t = (thickness + e_facet - crown).max(MIN_EDGE_MM + comfort);
+        // Hold the wall-side corner fixed. Lifting the entire section to cut
+        // the facet inflated the cheek into a shelf beneath the face.
+        let edge_t = (thickness - crown).max(MIN_EDGE_MM + comfort);
         let r_at = |z: f64| -> f64 {
             let z = z.clamp(c_lo, c_hi);
             let (x, low) = if z <= crest_z {
@@ -824,7 +824,7 @@ impl BandProfile {
                 ((z - crest_z) / (c_hi - crest_z).max(1e-9), false)
             };
             let x = if bias.abs() > 1e-9 { x.powf(gamma(low)) } else { x };
-            cap_r(inner_r + thickness + e_facet - crown * drop_at(x))
+            cap_r(inner_r + thickness + e_facet - (crown + e_facet) * drop_at(x))
         };
         // The hollow lifts the whole bore chord; capped so the side wall
         // still has an edge to rise to.
@@ -1070,7 +1070,7 @@ impl BandProfile {
         let (kb, side_b_at) = split_at(&flank_b, corner_b, er_b, true);
         surface.extend_from_slice(&flank_b[..kb]);
         let (fb0, fb1) = push_fillet(&mut surface, side_b_at, corner_b, &outer, false, er_b);
-        surface.extend_from_slice(trim_outer(&outer, er_b, er_t));
+        surface.extend(trim_outer(&outer, er_b, er_t));
         let (kt, side_t_at) = split_at(&flank_t, corner_t, er_t, false);
         let (ft0, ft1) = push_fillet(&mut surface, side_t_at, corner_t, &outer, true, er_t);
         surface.extend_from_slice(&flank_t[kt..]);
@@ -1519,6 +1519,71 @@ use crate::field::smax;
 /// Minimum with the same rounded corner.
 fn smin(a: f64, b: f64, r: f64) -> f64 {
     -smax(-a, -b, r)
+}
+
+/// Rounded minimum with nonnegative partial derivatives. Unlike the tie-exact
+/// union, it cannot turn a monotone section into an undercut beside the cap.
+/// Rounding removes material only in a radius-wide neighbourhood of the join.
+fn monotone_cap(surface: f64, cap: f64, radius: f64) -> f64 {
+    if radius <= 1e-9 {
+        return surface.min(cap);
+    }
+    let h = (1.0 - (surface - cap).abs() / radius).max(0.0);
+    surface.min(cap) - radius * h * h * 0.25
+}
+
+#[cfg(test)]
+#[test]
+fn rounded_cap_cannot_introduce_a_reverse_slope() {
+    for radius in [0.0, 0.05, 0.55, 2.0] {
+        let mut previous = f64::NEG_INFINITY;
+        for i in 0..4001 {
+            let surface = 8.0 + i as f64 * 0.001;
+            let value = monotone_cap(surface, 10.0, radius);
+            assert!(
+                value + 1e-12 >= previous,
+                "reverse slope at {surface}, radius {radius}"
+            );
+            assert!(value <= surface.min(10.0) + 1e-12, "rounding adds a lip");
+            previous = value;
+        }
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn widening_a_cut_face_does_not_inflate_its_side_wall() {
+    let profile = BandProfile {
+        width_mm: 12.0,
+        thickness_mm: 3.0,
+        crown_mm: 1.5,
+        edge_round_mm: 0.0,
+        comfort_fit_mm: 0.0,
+        side_draft_deg: 0.0,
+        ..Default::default()
+    };
+    let wall_top = |facet_half| {
+        let section = profile.sample_mod(
+            10.0,
+            1024,
+            &ShankMod {
+                outer_r: Some(13.0),
+                outer_max_r: Some(13.0),
+                facet_half,
+                dome_drop: 1.0,
+                ..ShankMod::identity()
+            },
+        );
+        section
+            .pts
+            .iter()
+            .filter(|p| p.surface && p.z.abs() > 6.0 - 1e-9)
+            .map(|p| p.r)
+            .fold(0.0_f64, f64::max)
+    };
+    let (narrow, wide) = (wall_top(0.2), wall_top(0.75));
+    assert!((narrow - wide).abs() < 0.003,
+        "forming the face must not raise a shelf on the cheek: {narrow} -> {wide}");
 }
 
 impl Default for SignetHead {
@@ -1999,6 +2064,9 @@ impl ShankStyle {
             * fade
             * crate::field::smoothstep(0.0, HEAD_FILLET_ON, d.to_degrees() / arc);
         let reach = (smin(faired.0, swell.0, r), smax(faired.1, swell.1, r));
+        // A cut dome needs one continuous shoulder sweep. Carrying the face's
+        // full bounding box down the body makes a shelf before the taper.
+        let reach = blend_span(reach, swell, dome_k);
 
         // --- Table: the sharp outline, read a little inside the face's end. ---
         // At the end itself the outline is a *point*, so a table read there
@@ -2017,7 +2085,13 @@ impl ShankStyle {
         // A parabolic cap rides on the plane solve: full at the face's centre,
         // gone at its edge, so the edge break and shoulder are untouched.
         let xr = (plane_r * d.min(face_edge).tan() / half_l).clamp(0.0, 1.0);
-        let cap = head.table_dome_mm.clamp(0.0, 3.0) * (1.0 - xr * xr);
+        // Keep the cap's parabola, then land tangent to zero over its last
+        // tenth. A clamped parabola changes slope abruptly at the shoulder.
+        let cap_drop = if xr <= 0.9 { 1.0 - xr * xr } else {
+            let t = (xr - 0.9) / 0.1;
+            (2.0*t.powi(3)-3.0*t*t+1.0)*0.19 + (t.powi(3)-2.0*t*t+t)*(-0.18)
+        };
+        let cap = head.table_dome_mm.clamp(0.0, 3.0) * cap_drop;
         let span = head.shoulder_deg.clamp(1.0, 150.0).to_radians();
         let s_raw = (d - face_edge) / span;
         let s = s_raw.clamp(0.0, 1.0);
@@ -2036,19 +2110,19 @@ impl ShankStyle {
         let crest = blend_span(draft_span(reach), draft_span(face), h_span);
         let crest = (crest.0.max(reach.0), crest.1.min(reach.1));
 
-        // The crest line's corner at the plate's theta-end carries the same
-        // rim rounding the section gives the outline: the plane solve climbs
-        // at +0.19 mm/deg into the shoulder's -0.21 mm/deg dive, and the
-        // unrounded peak was an 80 degree fold between the two slices that
-        // straddled it. The reference's plate edge is rounded all the way
-        // around, ends included. Tie-exact, so away from the corner both
-        // curves are followed exactly.
+        // The crest line's corner at the plate's theta-end carries the rim
+        // rounding as well. The prism keeps its reference construction; a
+        // cut dome uses a monotone blend to avoid a second shoulder ridge.
         let rim = head.rim_round_mm.clamp(0.0, 2.0);
         let plane_track = plane_r / d.min(HEAD_MAX_HALF_DEG.to_radians()).cos().max(1e-6);
         let climb = plane_track + cap;
         let dive_h = (1.0 - s_raw.max(-0.25)).max(0.0).powf(HEAD_SHOULDER_POW);
         let dive = r_shank + (plane_r / face_edge.cos().max(1e-6) - r_shank) * dive_h;
-        let outer_r = smin(climb, dive, rim);
+        // Blend the two tracks with nonnegative weights. The tie-exact
+        // minimum can turn back near the crossing and makes a secondary
+        // shoulder ridge under reflective lighting.
+        let prism_r = smin(climb, dive, rim);
+        let outer_r = prism_r + (monotone_cap(climb, dive, rim * 4.0) - prism_r) * dome_k;
 
         // The cut-dome facet closes with the same fade that hands the plan to
         // the swell, so the dome's kiss with the plane ends exactly at the
@@ -2728,7 +2802,10 @@ impl ShankStyle {
                     // A lofted section carries the loft's own ridge as its
                     // crown and nothing of the band's; the band's returns as
                     // the loft fades into the shank.
-                    crown_scale: (shank_crown + (table_crown - shank_crown) * on_head)
+                    crown_scale: (shank_crown + (table_crown - shank_crown) * {
+                        let t = ((1.0 - on_head) / 0.15).clamp(0.0, 1.0);
+                        if on_head > 0.85 { 1.0 - 0.15*(2.0*t*t-t.powi(3)) } else { on_head }
+                    })
                         * (1.0 - a.wall_mix),
                     outer_r: Some(outer_r),
                     z_center_frac: centre,
@@ -2747,13 +2824,11 @@ impl ShankStyle {
                         * (1.0 - crate::field::smoothstep(0.0, 0.3, a.ridge_crown) * a.wall_mix),
                     side_groove_mm: 0.0,
                     facet_half: facet_half * dome_k,
-                    // A hard arris, deliberately: the smooth-min crossfade
-                    // raises a lip before the plateau (its documented 8.7%-of-
-                    // radius overshoot), measured as a -3 degree ring around
-                    // the facet. min() of a monotone fall and a constant is
-                    // monotone, so the sharp cut is the castable one — and the
-                    // crisp edge is what a cut face looks like.
-                    facet_rim_mm: 0.0,
+                    // Use a monotone minimum here. The tie-exact crossfade
+                    // used elsewhere overshoots and creates an undercut lip;
+                    // replacing it with a hard min left a visible crease on
+                    // every cut-dome head, even at export resolution.
+                    facet_rim_mm: self.head.rim_round_mm.clamp(0.0, 2.0) * dome_k,
                     crown_min_mm: {
                         let dome = (dome_k > 1e-6).then(|| {
                             HEAD_DOME_CROWN * (outer_r - inner_r).max(0.3)
@@ -3323,44 +3398,33 @@ fn dedup(p: &mut Vec<[f64; 2]>) {
 }
 
 /// Trim the arc length each end fillet takes over off the outer curve.
-fn trim_outer(outer: &[[f64; 2]], er_lo: f64, er_hi: f64) -> &[[f64; 2]] {
-    if outer.len() < 4 || (er_lo <= 1e-9 && er_hi <= 1e-9) {
-        return outer;
-    }
+fn trim_outer(outer: &[[f64; 2]], er_lo: f64, er_hi: f64) -> Vec<[f64; 2]> {
+    if outer.len() < 4 { return outer.to_vec(); }
     let total = polyline_len(outer);
-    let lo = if er_lo > 1e-9 {
-        advance_index(outer, er_lo.min(total * 0.4), false)
-    } else {
-        0
-    };
-    let hi = if er_hi > 1e-9 {
-        advance_index(outer, er_hi.min(total * 0.4), true)
-    } else {
-        outer.len() - 1
-    };
-    if lo >= hi { outer } else { &outer[lo..=hi] }
+    let (lo, p0) = at_arc(outer, er_lo.min(total * 0.4).max(0.0), false);
+    let (hi, p1) = at_arc(outer, er_hi.min(total * 0.4).max(0.0), true);
+    let mut result = vec![p0];
+    if lo < hi { result.extend_from_slice(&outer[lo + 1..=hi]); }
+    result.push(p1);
+    result
 }
 
-/// Index reached by walking `d` of arc length in from one end.
-fn advance_index(p: &[[f64; 2]], d: f64, from_end: bool) -> usize {
+/// Exact position within a polyline segment. Snapping to a vertex quantizes
+/// fillet tangencies as the section changes around a signet, leaving stripes
+/// even when the final sweep has millions of triangles.
+fn at_arc(p: &[[f64; 2]], distance: f64, from_end: bool) -> (usize, [f64; 2]) {
+    let target = if from_end { polyline_len(p) - distance } else { distance }.max(0.0);
     let mut acc = 0.0;
-    if from_end {
-        for i in (1..p.len()).rev() {
-            acc += dist(p[i], p[i - 1]);
-            if acc >= d {
-                return i - 1;
-            }
+    for i in 0..p.len() - 1 {
+        let len = dist(p[i], p[i + 1]);
+        if acc + len >= target {
+            let t = ((target - acc) / len.max(1e-12)).clamp(0.0, 1.0);
+            return (i, [p[i][0] + t * (p[i + 1][0] - p[i][0]),
+                        p[i][1] + t * (p[i + 1][1] - p[i][1])]);
         }
-        0
-    } else {
-        for i in 1..p.len() {
-            acc += dist(p[i - 1], p[i]);
-            if acc >= d {
-                return i;
-            }
-        }
-        p.len() - 1
+        acc += len;
     }
+    (p.len() - 2, p[p.len() - 1])
 }
 
 /// The flange's axial band and rim radius, after clamping.
@@ -3371,10 +3435,10 @@ struct FlangeBand {
 }
 
 /// Points per quadratic Bezier corner.
-const ARC_STEPS: usize = 8;
+const ARC_STEPS: usize = 64;
 
 /// Vertices along each curved side wall.
-const FLANK_STEPS: usize = 18;
+const FLANK_STEPS: usize = 128;
 
 /// Append a quadratic Bezier from `p0` to `p2` with `corner` as the control
 /// point, excluding `p0` itself.
@@ -3410,18 +3474,11 @@ fn push_fillet(
     }
     let total = polyline_len(outer);
     let er_o = er.min(total * 0.4);
-    let idx = advance_index(outer, er_o, top);
-    let on_outer = outer[idx];
+    let (_, on_outer) = at_arc(outer, er_o, top);
 
-    // Back off along the side face by the same amount.
-    let side_len = dist(side_end, corner);
-    let t = (er.min(side_len * 0.9) / side_len.max(1e-9)).clamp(0.0, 1.0);
-    let on_side = [
-        corner[0] + (side_end[0] - corner[0]) * t,
-        corner[1] + (side_end[1] - corner[1]) * t,
-    ];
-
-    let steps = 10;
+    // The caller already trimmed the curved wall to this tangency.
+    let on_side = side_end;
+    let steps = ARC_STEPS;
     let (p0, p2) = if top { (on_outer, on_side) } else { (on_side, on_outer) };
     for i in 0..=steps {
         let t = i as f64 / steps as f64;

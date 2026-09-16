@@ -58,12 +58,13 @@ fn ring(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let changed = ui
         .add(
             egui::Slider::new(&mut size, 3.0..=15.0)
+                .clamping(egui::SliderClamping::Never)
                 .step_by(0.25)
                 .fixed_decimals(2)
                 .text("Size"),
         )
         .changed();
-    if changed {
+    if changed && ui.is_enabled() {
         app.design.size = RingSize::new(size);
         app.mark_dirty();
     }

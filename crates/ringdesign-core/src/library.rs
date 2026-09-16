@@ -31,19 +31,14 @@ pub fn data_root() -> PathBuf {
 
 /// File extension for saved designs.
 pub const DESIGN_EXT: &str = "ring.json";
-/// `RingDesign::graph` joined the file without a version bump: an absent
-/// field reads as `None`, and an older build ignores the key.
-
 /// Version stamped into saved design files; files without one are version 0.
 ///
-/// **A bump means a shape change, not a field addition.** `RingDesign::graph`,
-/// `DraftSettings::process` and `DraftSettings::sand` all joined the file
-/// without one, and correctly: each is `#[serde(default)]`, so an older file
-/// reads as the default and an older build ignores the key. There is nothing
-/// for a migration step to do, and `MIGRATIONS.len() == FORMAT_VERSION` is
-/// asserted — a bump with an empty migration would be a lie about what
-/// changed. Bump when a key is renamed, removed, or reinterpreted.
-pub const FORMAT_VERSION: u32 = 1;
+/// Additive fields with compatible defaults do not require a bump. Version 2
+/// changes what defines the solid: a CAD assembly can replace the cached band.
+/// Older apps must refuse it instead of opening that cache as the whole design.
+/// Version 1 documents already have defaults for the new fields, so their
+/// migration changes no values. Every version still has a migration step.
+pub const FORMAT_VERSION: u32 = 2;
 
 /// Version stamped into saved profile and outline files.
 ///
@@ -80,18 +75,31 @@ fn asset_from_str<T: serde::de::DeserializeOwned>(
     text: &str,
     path: &Path,
 ) -> Option<T> {
-    let version = serde_json::from_str::<serde_json::Value>(text)
-        .ok()
-        .and_then(|v| v.get(VERSION_KEY).and_then(|v| v.as_u64()))
-        .unwrap_or(0) as u32;
-    if version > ASSET_FORMAT_VERSION {
+    let doc = match serde_json::from_str::<serde_json::Value>(text) {
+        Ok(doc) => doc,
+        Err(e) => {
+            log::warn!("{}: could not read ({e}) — skipping", path.display());
+            return None;
+        }
+    };
+    let version = match doc.get(VERSION_KEY) {
+        None => 0,
+        Some(value) => match value.as_u64() {
+            Some(version) => version,
+            None => {
+                log::warn!("{}: invalid asset format version — skipping", path.display());
+                return None;
+            }
+        },
+    };
+    if version > u64::from(ASSET_FORMAT_VERSION) {
         log::warn!(
             "{}: format version {version}, but this build reads up to {ASSET_FORMAT_VERSION} — skipping",
             path.display()
         );
         return None;
     }
-    match serde_json::from_str::<T>(text) {
+    match serde_json::from_value::<T>(doc) {
         Ok(a) => Some(a),
         Err(e) => {
             log::warn!("{}: could not read ({e}) — skipping", path.display());
@@ -103,10 +111,15 @@ fn asset_from_str<T: serde::de::DeserializeOwned>(
 const VERSION_KEY: &str = "format_version";
 
 /// `MIGRATIONS[n]` rewrites a version-`n` document in place to version `n + 1`.
-static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1];
+static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1, migrate_v1_to_v2];
 
 /// Version 0 predates the version field; the document already has v1's shape.
 fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
+
+/// CAD and manufacturing fields have serde defaults, so older designs need
+/// no data rewrite. The version bump prevents an older app from ignoring a
+/// CAD assembly and silently treating its cached band parameters as the ring.
+fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
 
 /// Serialization wrapper that puts the version key ahead of the design fields.
 #[derive(serde::Serialize)]
@@ -180,11 +193,11 @@ pub fn load_design(path: impl AsRef<Path>) -> anyhow::Result<RingDesign> {
 /// Parse a design document, migrating older versions up to [`FORMAT_VERSION`].
 pub fn load_design_str(text: &str) -> anyhow::Result<RingDesign> {
     let mut doc: serde_json::Value = serde_json::from_str(text)?;
-    let version = doc
-        .get(VERSION_KEY)
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as u32;
-    if version > FORMAT_VERSION {
+    let version = match doc.get(VERSION_KEY) {
+        Some(v) => v.as_u64().ok_or_else(|| anyhow::anyhow!("Invalid design format version"))?,
+        None => 0,
+    };
+    if version > u64::from(FORMAT_VERSION) {
         anyhow::bail!(
             "design file is format version {version}, but this build reads up to {FORMAT_VERSION} \
              — it was saved by a newer RingDesigner"
@@ -449,6 +462,12 @@ mod tests {
         assert!(!v0.contains(VERSION_KEY));
         let loaded = load_design_str(&v0).unwrap();
         assert_eq!(loaded.name, RingDesign::default().name);
+        let mut v1: serde_json::Value = serde_json::from_str(&v0).unwrap();
+        v1[VERSION_KEY] = 1.into();
+        v1["name"] = "Legacy workshop ring".into();
+        let loaded = load_design_str(&v1.to_string()).unwrap();
+        assert_eq!(loaded.name, "Legacy workshop ring");
+        assert!(loaded.cad.is_none() && loaded.manufacturing.is_none());
     }
 
     #[test]
@@ -507,9 +526,15 @@ mod tests {
     #[test]
     fn a_newer_version_is_refused_with_a_clear_error() {
         let mut doc = serde_json::to_value(RingDesign::default()).unwrap();
-        doc["format_version"] = (FORMAT_VERSION + 1).into();
-        let err = load_design_str(&doc.to_string()).unwrap_err();
-        assert!(err.to_string().contains("newer RingDesigner"), "{err}");
+        for version in [u64::from(FORMAT_VERSION) + 1, 1u64 << 32] {
+            doc["format_version"] = version.into();
+            let err = load_design_str(&doc.to_string()).unwrap_err();
+            assert!(err.to_string().contains("newer RingDesigner"), "{err}");
+        }
+        for version in [serde_json::json!(-1), serde_json::json!(1.5), serde_json::json!("2")] {
+            doc["format_version"] = version;
+            assert!(load_design_str(&doc.to_string()).is_err());
+        }
     }
 }
 
@@ -547,10 +572,18 @@ mod asset_version_tests {
         // One from a future build is refused rather than silently dropped as
         // unparseable — same rule the design ladder applies.
         let mut future = doc.clone();
-        future[VERSION_KEY] = (ASSET_FORMAT_VERSION + 1).into();
-        std::fs::write(dir.join("future.profile.json"), serde_json::to_string(&future).unwrap())
-            .unwrap();
-        assert_eq!(list_profiles_in(&dir).len(), 2, "a future file is skipped, not adopted");
+        for version in [
+            serde_json::json!(ASSET_FORMAT_VERSION + 1),
+            serde_json::json!(1u64 << 32),
+            serde_json::json!(-1),
+            serde_json::json!(1.5),
+            serde_json::json!("1"),
+        ] {
+            future[VERSION_KEY] = version;
+            std::fs::write(dir.join("future.profile.json"), serde_json::to_string(&future).unwrap())
+                .unwrap();
+            assert_eq!(list_profiles_in(&dir).len(), 2, "a future or invalid version is skipped");
+        }
 
         let _ = std::fs::remove_dir_all(&dir);
     }

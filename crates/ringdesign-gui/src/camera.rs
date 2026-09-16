@@ -105,13 +105,13 @@ impl OrbitCamera {
         self.zoom = (self.zoom * (1.0 + scroll * 0.0015)).clamp(0.15, 24.0);
     }
 
-    pub fn pan_by(&mut self, delta: egui::Vec2, rect_height: f32) {
-        let scale = self.half_extent() * 2.0 / rect_height.max(1.0);
+    pub fn pan_by(&mut self, delta: egui::Vec2, rect: egui::Rect) {
+        let scale = self.half_extent() * 2.0 / rect.width().min(rect.height()).max(1.0);
         self.pan[0] -= delta.x * scale;
         self.pan[1] += delta.y * scale;
     }
 
-    /// Half-height of the orthographic view volume, in mm.
+    /// Half-extent along the shorter viewport dimension, in mm.
     pub fn half_extent(&self) -> f32 {
         self.radius * 1.15 / self.zoom.max(1e-3)
     }
@@ -138,7 +138,7 @@ impl OrbitCamera {
         let view = look_at(eye, self.target, up);
 
         let aspect = (rect.width() / rect.height().max(1.0)).max(1e-3);
-        let hh = self.half_extent();
+        let hh = self.half_extent() / aspect.min(1.0);
         let hw = hh * aspect;
         let far = self.radius * 12.0;
         let proj = ortho(
@@ -176,7 +176,7 @@ impl OrbitCamera {
         let x_ndc = (pos.x - centre.x) / half.x.max(1.0);
         let y_ndc = -(pos.y - centre.y) / half.y.max(1.0);
         let aspect = (rect.width() / rect.height().max(1.0)).max(1e-3);
-        let hh = self.half_extent();
+        let hh = self.half_extent() / aspect.min(1.0);
         let vx = self.pan[0] + x_ndc * hh * aspect;
         let vy = self.pan[1] + y_ndc * hh;
 
@@ -331,6 +331,40 @@ mod tests {
         assert!((cam.target[0] - 1.0).abs() < 1e-6);
         assert!((cam.target[1] + 1.0).abs() < 1e-6);
         assert!((cam.target[2] - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn fitted_model_stays_visible_in_narrow_and_wide_panes() {
+        let mut cam = OrbitCamera::default();
+        cam.fit(Some((Vec3(-12.0, -9.0, -7.0), Vec3(15.0, 10.0, 8.0))));
+        for size in [egui::vec2(220.0, 850.0), egui::vec2(850.0, 220.0)] {
+            let rect = egui::Rect::from_min_size(egui::pos2(335.0, 70.0), size);
+            for view in StandardView::ALL {
+                cam.set_view(*view);
+                for x in [-12.0, 15.0] {
+                    for y in [-9.0, 10.0] {
+                        for z in [-7.0, 8.0] {
+                            assert!(rect.contains(cam.projector(rect).at([x, y, z])));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn picking_and_panning_match_the_projection_in_narrow_panes() {
+        let mut cam = OrbitCamera::default();
+        let rect = egui::Rect::from_min_size(egui::pos2(335.0, 70.0), egui::vec2(220.0, 850.0));
+        let point = [3.0, -2.0, 1.5];
+        let screen = cam.projector(rect).at(point);
+        let (origin, direction) = cam.ray(rect, screen);
+        let error = cross(sub(point, origin), direction);
+        assert!(dot(error, error) < 1e-7);
+        let delta = egui::vec2(16.0, -23.0);
+        cam.pan_by(delta, rect);
+        let after = cam.projector(rect).at(point);
+        assert!((after - screen - delta).length() < 1e-3);
     }
 
     #[test]

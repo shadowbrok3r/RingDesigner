@@ -7,6 +7,10 @@ edition.workspace = true
 name = "build-a-ring"
 path = "src/main.rs"
 
+[[bin]]
+name = "workshop-worker"
+path = "src/workshop_worker.rs"
+
 [features]
 default = ["parallel"]
 ## Threads across the build; off for wasm, where the worker becomes the
@@ -15,6 +19,7 @@ parallel = ["ringdesign-core/parallel"]
 
 [dependencies]
 ringdesign-core = { path = "../ringdesign-core", default-features = false }
+ringdesign-workbench = { path = "../ringdesign-workbench" }
 eframe.workspace = true
 egui.workspace = true
 serde.workspace = true
@@ -37,4 +42,10 @@ web-sys = { version = "0.3", features = [
     "HtmlElement",
     "HtmlAnchorElement",
     "HtmlCanvasElement",
+    "DedicatedWorkerGlobalScope",
+    "MessageEvent",
+    "HtmlInputElement",
+    "FileList",
+    "File",
+    "Event",
 ] }

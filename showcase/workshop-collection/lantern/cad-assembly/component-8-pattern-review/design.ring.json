@@ -1,0 +1,755 @@
+{
+  "format_version": 2,
+  "name": "Lantern — pierced octagonal signet",
+  "size": 8.10862207660166,
+  "profile": {
+    "style": "LowDome",
+    "width_mm": 8.0,
+    "thickness_mm": 2.0,
+    "crown_mm": 0.8,
+    "shape_a": 2.0,
+    "shape_b": 1.0,
+    "crest_bias": 0.0,
+    "edge_round_mm": 0.22,
+    "comfort_fit_mm": 0.15,
+    "side_draft_deg": 3.5,
+    "flange": {
+      "enabled": false,
+      "v_pos": 0.0,
+      "extent_mm": 1.2,
+      "thickness_mm": 0.8,
+      "edge_round_mm": 0.15
+    },
+    "drop_curve": {
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "len": 0,
+      "monotone": true
+    },
+    "morph": null
+  },
+  "shank": {
+    "kind": "Uniform",
+    "amount": 0.5,
+    "waves": 1,
+    "head": {
+      "outline": "Oval",
+      "theta_deg": 90.0,
+      "length_mm": 12.0,
+      "rise_mm": 0.3,
+      "shoulder_deg": 43.0,
+      "swell_deg": null,
+      "body_fair": 1.0,
+      "table_flat": 1.0,
+      "table_dome_mm": 0.0,
+      "hollow_mm": 0.0,
+      "rim_round_mm": 0.6,
+      "dome": 0.0,
+      "loft": 0.0,
+      "loft_frontal_mm": 2.0,
+      "loft_lateral_mm": 2.0,
+      "crest_round_mm": 0.0
+    },
+    "extra_heads": [],
+    "keys": [],
+    "custom_outlines": []
+  },
+  "layers": {
+    "layers": []
+  },
+  "build": {
+    "theta_steps": 768,
+    "profile_steps": 256,
+    "min_wall_mm": 0.5,
+    "adaptive": false,
+    "refine": null,
+    "soften_mm": 0.0
+  },
+  "draft": {
+    "parting_z_mm": 0.0,
+    "min_draft_deg": 3.0,
+    "auto_parting": true,
+    "min_section_mm": 0.7,
+    "min_detail_mm": 0.35,
+    "process": "LostWax",
+    "sand": null
+  },
+  "manufacturing": {
+    "component": 8,
+    "recipe": {
+      "name": "Investment casting starting recipe / Gold 14k",
+      "process": "LostWax",
+      "sand": null,
+      "alloy": "Gold 14k",
+      "shrink_pct": 1.3,
+      "min_draft_deg": 0.0,
+      "min_section_mm": 0.8,
+      "min_detail_mm": 0.2,
+      "min_sand_web_mm": 0.6,
+      "sand_margin_mm": 5.0,
+      "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mold, and measured trials."
+    },
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "parting_mm": 0.0,
+    "auto_parting": true,
+    "bore": "Molded",
+    "flask": {
+      "width_mm": 70.0,
+      "length_mm": 70.0,
+      "cope_mm": 20.0,
+      "drag_mm": 20.0
+    },
+    "radial_stock_mm": 0.0,
+    "axial_stock_mm": 0.0,
+    "bore_stock_mm": 0.0,
+    "sample_pitch_mm": 0.1,
+    "tolerance_mm": 0.02,
+    "channels": [
+      {
+        "kind": "Gate",
+        "start": [
+          0.0,
+          -11.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          -22.0,
+          0.0
+        ],
+        "diameter_mm": 3.2
+      },
+      {
+        "kind": "Sprue",
+        "start": [
+          0.0,
+          -22.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          -30.0,
+          0.0
+        ],
+        "diameter_mm": 5.0
+      }
+    ],
+    "bench_notes": ""
+  },
+  "cad": {
+    "features": [
+      {
+        "id": 1,
+        "name": "Analytic gallery shank",
+        "enabled": true,
+        "operation": {
+          "Revolve": {
+            "sketch": {
+              "name": "Gallery shank section",
+              "plane": {
+                "origin": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "x": [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                "y": [
+                  0.0,
+                  0.0,
+                  1.0
+                ]
+              },
+              "points": [
+                {
+                  "id": 1,
+                  "xy": [
+                    9.1,
+                    -3.4
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 2,
+                  "xy": [
+                    11.1,
+                    -3.4
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 3,
+                  "xy": [
+                    11.1,
+                    3.4
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 4,
+                  "xy": [
+                    9.1,
+                    3.4
+                  ],
+                  "fixed": false
+                }
+              ],
+              "entities": [
+                {
+                  "id": 5,
+                  "construction": false,
+                  "geometry": {
+                    "Polyline": {
+                      "points": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "closed": true
+                    }
+                  }
+                }
+              ],
+              "constraints": [],
+              "next_id": 6,
+              "grid_mm": 0.5
+            },
+            "pivot": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axis": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "degrees": 360.0
+          }
+        },
+        "component": {
+          "role": "Shank",
+          "material": "Gold 14k",
+          "manufacturing": {
+            "component": 1,
+            "recipe": {
+              "name": "Investment casting starting recipe / Gold 14k",
+              "process": "LostWax",
+              "sand": null,
+              "alloy": "Gold 14k",
+              "shrink_pct": 1.3,
+              "min_draft_deg": 0.0,
+              "min_section_mm": 0.8,
+              "min_detail_mm": 0.2,
+              "min_sand_web_mm": 0.6,
+              "sand_margin_mm": 5.0,
+              "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mold, and measured trials."
+            },
+            "pull": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "parting_mm": 0.0,
+            "auto_parting": true,
+            "bore": "Molded",
+            "flask": {
+              "width_mm": 70.0,
+              "length_mm": 70.0,
+              "cope_mm": 20.0,
+              "drag_mm": 20.0
+            },
+            "radial_stock_mm": 0.0,
+            "axial_stock_mm": 0.0,
+            "bore_stock_mm": 0.0,
+            "sample_pitch_mm": 0.1,
+            "tolerance_mm": 0.02,
+            "channels": [
+              {
+                "kind": "Gate",
+                "start": [
+                  0.0,
+                  -11.0,
+                  0.0
+                ],
+                "end": [
+                  0.0,
+                  -22.0,
+                  0.0
+                ],
+                "diameter_mm": 3.2
+              },
+              {
+                "kind": "Sprue",
+                "start": [
+                  0.0,
+                  -22.0,
+                  0.0
+                ],
+                "end": [
+                  0.0,
+                  -30.0,
+                  0.0
+                ],
+                "diameter_mm": 5.0
+              }
+            ],
+            "bench_notes": ""
+          },
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "ring_anchor_deg": null,
+          "anchor_height_mm": 0.0
+        }
+      },
+      {
+        "id": 2,
+        "name": "Octagonal seal stock",
+        "enabled": true,
+        "operation": {
+          "Extrude": {
+            "sketch": {
+              "name": "Octagonal seal outline",
+              "plane": {
+                "origin": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "x": [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                "y": [
+                  0.0,
+                  1.0,
+                  0.0
+                ]
+              },
+              "points": [
+                {
+                  "id": 1,
+                  "xy": [
+                    -3.0,
+                    -6.0
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 2,
+                  "xy": [
+                    3.0,
+                    -6.0
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 3,
+                  "xy": [
+                    5.0,
+                    -4.0
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 4,
+                  "xy": [
+                    5.0,
+                    4.0
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 5,
+                  "xy": [
+                    3.0,
+                    6.0
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 6,
+                  "xy": [
+                    -3.0,
+                    6.0
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 7,
+                  "xy": [
+                    -5.0,
+                    4.0
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 8,
+                  "xy": [
+                    -5.0,
+                    -4.0
+                  ],
+                  "fixed": false
+                }
+              ],
+              "entities": [
+                {
+                  "id": 9,
+                  "construction": false,
+                  "geometry": {
+                    "Polyline": {
+                      "points": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8
+                      ],
+                      "closed": true
+                    }
+                  }
+                }
+              ],
+              "constraints": [],
+              "next_id": 10,
+              "grid_mm": 0.5
+            },
+            "height_mm": 4.2,
+            "draft_deg": 0.0
+          }
+        },
+        "component": {
+          "role": "Head",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "ring_anchor_deg": null,
+          "anchor_height_mm": 0.0
+        }
+      },
+      {
+        "id": 3,
+        "name": "Gallery pocket tool",
+        "enabled": true,
+        "operation": {
+          "Box": {
+            "size": [
+              6.4,
+              8.4,
+              5.8
+            ]
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "ring_anchor_deg": null,
+          "anchor_height_mm": 0.0
+        }
+      },
+      {
+        "id": 4,
+        "name": "Open gallery beneath seal",
+        "enabled": true,
+        "operation": {
+          "Boolean": {
+            "a": 2,
+            "b": 3,
+            "kind": "Subtract"
+          }
+        },
+        "component": {
+          "role": "Head",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "ring_anchor_deg": null,
+          "anchor_height_mm": 0.0
+        }
+      },
+      {
+        "id": 5,
+        "name": "Side window tool",
+        "enabled": true,
+        "operation": {
+          "Box": {
+            "size": [
+              14.0,
+              5.8,
+              1.2
+            ]
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "ring_anchor_deg": null,
+          "anchor_height_mm": 0.0
+        }
+      },
+      {
+        "id": 6,
+        "name": "Raise window above gallery feet",
+        "enabled": true,
+        "operation": {
+          "Transform": {
+            "source": 5,
+            "translation": [
+              0.0,
+              0.0,
+              1.8
+            ],
+            "rotation_deg": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "ring_anchor_deg": null,
+          "anchor_height_mm": 0.0
+        }
+      },
+      {
+        "id": 7,
+        "name": "Pierced side galleries",
+        "enabled": true,
+        "operation": {
+          "Boolean": {
+            "a": 4,
+            "b": 6,
+            "kind": "Subtract"
+          }
+        },
+        "component": {
+          "role": "Head",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "ring_anchor_deg": null,
+          "anchor_height_mm": 0.0
+        }
+      },
+      {
+        "id": 8,
+        "name": "Place seal over the shoulders",
+        "enabled": true,
+        "operation": {
+          "Transform": {
+            "source": 7,
+            "translation": [
+              0.0,
+              9.0,
+              0.0
+            ],
+            "rotation_deg": [
+              0.0,
+              90.0,
+              90.0
+            ]
+          }
+        },
+        "component": {
+          "role": "Head",
+          "material": "Gold 14k",
+          "manufacturing": {
+            "component": 8,
+            "recipe": {
+              "name": "Investment casting starting recipe / Gold 14k",
+              "process": "LostWax",
+              "sand": null,
+              "alloy": "Gold 14k",
+              "shrink_pct": 1.3,
+              "min_draft_deg": 0.0,
+              "min_section_mm": 0.8,
+              "min_detail_mm": 0.2,
+              "min_sand_web_mm": 0.6,
+              "sand_margin_mm": 5.0,
+              "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mold, and measured trials."
+            },
+            "pull": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "parting_mm": 0.0,
+            "auto_parting": true,
+            "bore": "Molded",
+            "flask": {
+              "width_mm": 70.0,
+              "length_mm": 70.0,
+              "cope_mm": 20.0,
+              "drag_mm": 20.0
+            },
+            "radial_stock_mm": 0.0,
+            "axial_stock_mm": 0.0,
+            "bore_stock_mm": 0.0,
+            "sample_pitch_mm": 0.1,
+            "tolerance_mm": 0.02,
+            "channels": [
+              {
+                "kind": "Gate",
+                "start": [
+                  0.0,
+                  -11.0,
+                  0.0
+                ],
+                "end": [
+                  0.0,
+                  -22.0,
+                  0.0
+                ],
+                "diameter_mm": 3.2
+              },
+              {
+                "kind": "Sprue",
+                "start": [
+                  0.0,
+                  -22.0,
+                  0.0
+                ],
+                "end": [
+                  0.0,
+                  -30.0,
+                  0.0
+                ],
+                "diameter_mm": 5.0
+              }
+            ],
+            "bench_notes": ""
+          },
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "Cast the head separately. Its feet carry fitting stock where they meet the shank; file to full contact and solder or laser join. Do not print the overlapping nominal assembly as one manufacturing solid.",
+          "ring_anchor_deg": null,
+          "anchor_height_mm": 0.0
+        }
+      }
+    ],
+    "outputs": [
+      1,
+      8
+    ],
+    "joints": [
+      {
+        "a": 1,
+        "b": 8,
+        "clearance_mm": 0.0,
+        "method": "Fit and solder / laser join",
+        "notes": "Head feet intentionally overlap the shank as fitting stock. Remove only enough material to seat the head evenly; inspect both contact patches before joining."
+      }
+    ],
+    "through": null
+  },
+  "drawn": [],
+  "embedded": [],
+  "texts": [],
+  "svgs": [],
+  "recipes": []
+}

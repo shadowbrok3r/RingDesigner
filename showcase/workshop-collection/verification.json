@@ -1,0 +1,50 @@
+[
+  {
+    "finer_pitch_mm": [
+      0.07478258412355071,
+      0.07478991078167427
+    ],
+    "fits_flask": true,
+    "obstructions": 0,
+    "ring": "aster",
+    "source_packages_rebuilt": 1,
+    "status": "Review",
+    "unresolved_rays": 0
+  },
+  {
+    "finer_pitch_mm": [
+      0.07495352177838095,
+      0.07495352177838095
+    ],
+    "fits_flask": true,
+    "obstructions": 0,
+    "ring": "tide",
+    "source_packages_rebuilt": 1,
+    "status": "Review",
+    "unresolved_rays": 0
+  },
+  {
+    "finer_pitch_mm": [
+      0.07458929050188123,
+      0.07465471301162452
+    ],
+    "fits_flask": true,
+    "obstructions": 2,
+    "ring": "lantern",
+    "source_packages_rebuilt": 5,
+    "status": "NotApplicable",
+    "unresolved_rays": 0
+  },
+  {
+    "finer_pitch_mm": [
+      0.07498611838130628,
+      0.07479685245279494
+    ],
+    "fits_flask": true,
+    "obstructions": 118,
+    "ring": "aureole",
+    "source_packages_rebuilt": 3,
+    "status": "NotApplicable",
+    "unresolved_rays": 0
+  }
+]

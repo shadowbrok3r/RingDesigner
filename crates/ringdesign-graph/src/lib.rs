@@ -43,6 +43,7 @@ pub mod nodes;
 pub mod registry;
 pub mod templates;
 pub mod value;
+pub mod variants;
 
 /// Most items one pin accepts; a longer list is truncated with a warning.
 pub const MAX_LIST_ITEMS: usize = 4096;

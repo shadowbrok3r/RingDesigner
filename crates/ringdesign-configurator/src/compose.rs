@@ -83,11 +83,12 @@ impl Base {
         !matches!(self, Base::SignetOval | Base::SignetHeart)
     }
 
-    /// Whether the crest stays at one `v` all the way round. Wave and Twist
-    /// slide their edges along the finger, so a fixed-v bead row lands on
-    /// the dome flank and leans — measured 3% at 50° before this gate.
+    /// Whether the crest stays at one `v` all the way round. Wave, Twist,
+    /// and the asymmetric heart head move it across the section. A fixed-v
+    /// bead row then lands on the flank and undercuts the mould (1.29% of
+    /// the heart's surface at 37.6° with the accurately sampled fillets).
     pub fn crest_is_stationary(self) -> bool {
-        !matches!(self, Base::Wave | Base::Twist)
+        !matches!(self, Base::Wave | Base::Twist | Base::SignetHeart)
     }
 }
 

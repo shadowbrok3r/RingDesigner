@@ -1,0 +1,354 @@
+{
+  "bench_layers": [],
+  "cast_ring_grams": 28.394367982055677,
+  "design": "Aster - botanical sand signet",
+  "detail_findings": [],
+  "diagnostic_only": false,
+  "estimated_channel_grams": 3.6489708960899683,
+  "estimated_charge_grams": 32.04333887814565,
+  "feeding_proxy": [
+    106.875,
+    2.224167049580047
+  ],
+  "format_version": 1,
+  "geometry": {
+    "bounds_mm": [
+      25.094375610351562,
+      29.064027786254883,
+      13.322771072387695
+    ],
+    "surface_area_mm2": 1571.3696535273316,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 2457600,
+      "vertex_count": 1228800,
+      "watertight": true
+    },
+    "volume_mm3": 2273.253569970949
+  },
+  "limits": [
+    "Release is sampled; features between rays can be missed",
+    "Sand-slot widths are a screening check, not a sand-strength model",
+    "Radial wall is not the minimum thickness in every direction",
+    "Channel volumes overlap at junctions and omit melt/handling losses",
+    "Separately cored geometry needs a core and assembly plan"
+  ],
+  "nominal_bore_mm": 18.2,
+  "nominal_size": "US 8.11",
+  "pattern_fingerprint": "dbeeb83e495b1200",
+  "pattern_scale": 1.015228426395939,
+  "radial_wall_limit_mm": 0.8,
+  "radial_wall_mm": 2.8436378231207886,
+  "release": {
+    "bounds": [
+      [
+        -12.547187805175781,
+        -12.49624252319336,
+        -6.659994125366211
+      ],
+      [
+        12.547187805175781,
+        16.567785263061523,
+        6.662776470184326
+      ]
+    ],
+    "cell_mm": [
+      0.0999775920731138,
+      0.09987638414520578
+    ],
+    "fits_flask": true,
+    "frame": {
+      "x": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "y": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "z": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "grid": [
+      251,
+      291
+    ],
+    "low_draft_area_mm2": 461.39712936621567,
+    "notes": [
+      "461.40 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
+    "obstructions": [],
+    "occupied_rays": 30615,
+    "parting_mm": 0.0013911724090576172,
+    "sand_findings": [
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          -3.6991709067052105,
+          -11.747169642104316,
+          0.0013911724090576172
+        ],
+        "width_mm": 0.2999327762193414
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          3.6991709067052114,
+          -11.747169642104316,
+          0.0013911724090576172
+        ],
+        "width_mm": 0.2999327762193414
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          -4.598969235363235,
+          -11.447540489668699,
+          0.0013911724090576172
+        ],
+        "width_mm": 0.2999327762193414
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          4.598969235363233,
+          -11.447540489668699,
+          0.0013911724090576172
+        ],
+        "width_mm": 0.2999327762193414
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          -11.997311048773655,
+          3.3341643638217566,
+          0.0013911724090576172
+        ],
+        "width_mm": 0.29962915243561733
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          11.997311048773655,
+          3.3341643638217566,
+          0.0013911724090576172
+        ],
+        "width_mm": 0.29962915243561733
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          8.898005694507129,
+          4.233051821128609,
+          3.332083821296692
+        ],
+        "width_mm": 0.1999551841462276
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          -9.097960878653355,
+          4.732433741854636,
+          3.332083821296692
+        ],
+        "width_mm": 0.0999775920731138
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          -9.397893654872696,
+          6.130703119887518,
+          3.332083821296692
+        ],
+        "width_mm": 0.4993819207260289
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          9.397893654872698,
+          6.130703119887518,
+          3.332083821296692
+        ],
+        "width_mm": 0.4993819207260289
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          -8.798028102434014,
+          4.133175436983401,
+          -3.3293014764785767
+        ],
+        "width_mm": 0.0999775920731138
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          9.197938470726468,
+          4.932186510145049,
+          -3.3293014764785767
+        ],
+        "width_mm": 0.09987638414520578
+      }
+    ],
+    "status": "Review",
+    "suggested_parting_mm": 0.0013911724090576172,
+    "tolerance_mm": 0.02,
+    "unresolved_rays": 0,
+    "worst_draft_deg": -0.00016095931821132598
+  },
+  "sampled_local_wall": null,
+  "setup": {
+    "auto_parting": true,
+    "axial_stock_mm": 0.0,
+    "bench_notes": "Solid 14k gold signet. Two-part Delft clay pattern with Z=0 parting and opposed Z withdrawal. All visible ornament is included in the cast pattern. Cut the gate, dress the seam and polish the raised relief; retain a satin ground. No stones or deep gallery pockets. Review low-draft regions and confirm release and fill in a physical shop trial. Gate layout and alloy shrink allowance are preliminary.",
+    "bore": "Molded",
+    "bore_stock_mm": 0.0,
+    "channels": [
+      {
+        "diameter_mm": 3.8,
+        "end": [
+          0.0,
+          23.0,
+          0.0
+        ],
+        "kind": "Gate",
+        "start": [
+          0.0,
+          14.0,
+          0.0
+        ]
+      },
+      {
+        "diameter_mm": 5.5,
+        "end": [
+          0.0,
+          31.0,
+          0.0
+        ],
+        "kind": "Sprue",
+        "start": [
+          0.0,
+          23.0,
+          0.0
+        ]
+      }
+    ],
+    "component": null,
+    "flask": {
+      "cope_mm": 20.0,
+      "drag_mm": 20.0,
+      "length_mm": 70.0,
+      "width_mm": 70.0
+    },
+    "parting_mm": 0.0,
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "radial_stock_mm": 0.0,
+    "recipe": {
+      "alloy": "Gold 14k",
+      "calibration_note": "Starting alloy shrink allowance; confirm with a measured shop trial.",
+      "min_detail_mm": 0.3,
+      "min_draft_deg": 3.0,
+      "min_sand_web_mm": 0.6,
+      "min_section_mm": 0.8,
+      "name": "Aster / Delft clay / 14k gold",
+      "process": "SandTwoPart",
+      "sand": "DelftClay",
+      "sand_margin_mm": 5.0,
+      "shrink_pct": 1.5
+    },
+    "sample_pitch_mm": 0.1,
+    "tolerance_mm": 0.02
+  },
+  "source_build": {
+    "band_width_mm": 13.122929573059082,
+    "bounds_mm": [
+      24.717960357666016,
+      28.628068923950195,
+      13.122929573059082
+    ],
+    "build_ms": 1031,
+    "inner_diameter_mm": 18.199999080175115,
+    "max_relief_mm": 1.5198238755316296,
+    "metals": [
+      {
+        "dwt": 14.472295847134882,
+        "grams": 22.506935906204806,
+        "metal": "Silver 925"
+      },
+      {
+        "dwt": 12.293069831543145,
+        "grams": 19.117860615309105,
+        "metal": "Bronze"
+      },
+      {
+        "dwt": 11.943834893147033,
+        "grams": 18.57473957510146,
+        "metal": "Brass"
+      },
+      {
+        "dwt": 16.134654153900378,
+        "grams": 25.0921920575932,
+        "metal": "Gold 10k"
+      },
+      {
+        "dwt": 18.258002579348737,
+        "grams": 28.39436798205568,
+        "metal": "Gold 14k"
+      },
+      {
+        "dwt": 21.764321360845702,
+        "grams": 33.84730322574043,
+        "metal": "Gold 18k"
+      },
+      {
+        "dwt": 24.865527613803177,
+        "grams": 38.67021806278432,
+        "metal": "Gold 22k"
+      },
+      {
+        "dwt": 26.98887603925154,
+        "grams": 41.972393987246804,
+        "metal": "Gold 24k"
+      },
+      {
+        "dwt": 16.763277043013378,
+        "grams": 26.069809929966958,
+        "metal": "Palladium 950"
+      },
+      {
+        "dwt": 29.964357714386413,
+        "grams": 46.59978524981594,
+        "metal": "Platinum 950"
+      }
+    ],
+    "min_relief_mm": 0.0,
+    "outer_diameter_mm": 28.628068923950195,
+    "quality": {
+      "degenerate_faces": 0,
+      "min_angle_deg": 2.79909475956564,
+      "worst_aspect": 25.63363584838005
+    },
+    "refine": null,
+    "surface_area_mm2": 1524.5822289360171,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 2457600,
+      "vertex_count": 1228800,
+      "watertight": true
+    },
+    "volume_mm3": 2172.4841608305796
+  },
+  "units": "millimeter"
+}

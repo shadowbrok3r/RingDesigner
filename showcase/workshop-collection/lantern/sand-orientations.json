@@ -1,0 +1,80 @@
+[
+  {
+    "pull": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "parting_mm": 12.044072329998016,
+    "status": "Blocked",
+    "obstructions": 2,
+    "blocked_area_mm2": 20.668902039648252,
+    "low_draft_area_mm2": 259.3364584074141,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      0.0,
+      -1.0,
+      0.0
+    ],
+    "parting_mm": -12.044072329998016,
+    "status": "Blocked",
+    "obstructions": 2,
+    "blocked_area_mm2": 20.668902039648252,
+    "low_draft_area_mm2": 259.3364584074141,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "parting_mm": 0.0,
+    "status": "Blocked",
+    "obstructions": 2,
+    "blocked_area_mm2": 36.01626300870419,
+    "low_draft_area_mm2": 407.23936463532664,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      0.0,
+      0.0,
+      -1.0
+    ],
+    "parting_mm": 0.0,
+    "status": "Blocked",
+    "obstructions": 2,
+    "blocked_area_mm2": 36.01626300870419,
+    "low_draft_area_mm2": 407.23936463532664,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "parting_mm": 0.0,
+    "status": "Blocked",
+    "obstructions": 2,
+    "blocked_area_mm2": 48.126879376362666,
+    "low_draft_area_mm2": 410.19573235752614,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      -1.0,
+      0.0,
+      0.0
+    ],
+    "parting_mm": 0.0,
+    "status": "Blocked",
+    "obstructions": 2,
+    "blocked_area_mm2": 48.126879376362666,
+    "low_draft_area_mm2": 410.19573235752614,
+    "fits_flask": true
+  }
+]

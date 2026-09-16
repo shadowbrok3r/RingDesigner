@@ -1,0 +1,80 @@
+[
+  {
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "parting_mm": -0.002786874771118164,
+    "status": "Blocked",
+    "obstructions": 348,
+    "blocked_area_mm2": 18.362213921000706,
+    "low_draft_area_mm2": 155.43119932105313,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      0.0,
+      0.0,
+      -1.0
+    ],
+    "parting_mm": 0.002786874771118164,
+    "status": "Blocked",
+    "obstructions": 348,
+    "blocked_area_mm2": 18.362213921000706,
+    "low_draft_area_mm2": 155.43119932105313,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "parting_mm": 0.0,
+    "status": "Blocked",
+    "obstructions": 156,
+    "blocked_area_mm2": 303.78235891502857,
+    "low_draft_area_mm2": 651.0093594346587,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      -1.0,
+      0.0,
+      0.0
+    ],
+    "parting_mm": 0.0,
+    "status": "Blocked",
+    "obstructions": 156,
+    "blocked_area_mm2": 303.78235891502857,
+    "low_draft_area_mm2": 651.0093594346587,
+    "fits_flask": true
+  },
+  {
+    "pull": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "parting_mm": 9.638083904981613,
+    "status": "Blocked",
+    "obstructions": 150,
+    "blocked_area_mm2": 191.99804958547165,
+    "low_draft_area_mm2": 482.90716980579896,
+    "fits_flask": false
+  },
+  {
+    "pull": [
+      0.0,
+      -1.0,
+      0.0
+    ],
+    "parting_mm": -9.638083904981613,
+    "status": "Blocked",
+    "obstructions": 150,
+    "blocked_area_mm2": 191.99804958547165,
+    "low_draft_area_mm2": 482.90716980579896,
+    "fits_flask": false
+  }
+]
