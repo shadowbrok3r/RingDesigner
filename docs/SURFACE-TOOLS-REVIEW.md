@@ -38,6 +38,10 @@ sampling at both 0.10 and 0.075 mm found zero obstructions and zero unresolved
 cells. Its overall manufacturing status remains **Review**, including low-draft
 bore/slot surfaces; this is not a physical casting trial.
 
+Current renders: [hero](images/surface-tools/aster-hero.png),
+[seal](images/surface-tools/aster-seal.png),
+[cheek](images/surface-tools/aster-cheek.png).
+
 ## Tools on both apps
 
 - **Surface path:** tap points, drag numbered handles, or enter ring angles and
@@ -83,6 +87,24 @@ bore/slot surfaces; this is not a physical casting trial.
   measures 6.950 mm with XYZ spans. Its saved source remains unchanged and its
   process log contains no panic/fatal exception/ANR. The final Linux release
   also opens Aster successfully; the wasm core/configurator check passes.
+- After merging, both APKs and the desktop release were rebuilt from `397b350`.
+  The bare and ornamented Aster vertex/normal CSVs match the reviewed geometry
+  byte for byte. Android's install, cold start, Path controls, 6.950 mm
+  measurement and source-preservation checks passed again on that build.
+
+## Published release
+
+Android **0.16.0**, version code **16781312**, was published to the
+[app store](https://appstore.shadowbroker.app) on 2026-09-16. The update feed,
+changelog and downloaded ARM64 APK were verified. The download is 13,669,247
+bytes with SHA-256
+`2848be70f4fb5f944ad3952a93c7d5fd38e606cbda6eb88e2c9d40b9426b7c94`;
+its signing certificate matches the previous release.
+
+Taildrop confirmed seven images sent to the S26: hero, seal, cheek, bare
+shoulder before/after, and the final Android/desktop viewport captures.
+`target/releases/ringdesigner-android-0.16.0/release.json` records the source
+commit, store verification, checks and transfer receipt.
 
 Release artifacts and verification receipts are under
 `target/releases/ringdesigner-android-0.16.0/` and

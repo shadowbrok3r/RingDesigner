@@ -1,7 +1,10 @@
 # Aster Atelier — botanical sand signet
 
-Separate native Android and desktop recordings build the same editable signet
-from a blank band, then demonstrate layer controls and opposed-pull mould opening.
+These September 12 native Android and desktop recordings build the same editable
+signet from a blank band, then demonstrate layer controls and opposed-pull mould
+opening. Their measurements and images below predate the 0.16 shoulder revision;
+see the [current surface review](../../docs/SURFACE-TOOLS-REVIEW.md) for its
+corrected renders, measurements and release verification.
 
 | Delivery | File | Duration / dimensions |
 | --- | --- | --- |
@@ -88,6 +91,8 @@ reviewed. Both complete MP4s passed frame-by-frame decoding. Details and hashes:
 OpenGL viewport and retain its analytic studio lighting; no synthetic ring images
 were inserted. The root-level software-rendered PNGs are earlier geometry previews.
 
-The construction regression and native builds passed. These recordings use
-[local review builds](review/build-artifacts.json); the Atelier recipe and 0.15
-rendering changes have not been published to the Android app store.
+The construction regression and native builds passed. These recordings retain
+their [local review builds](review/build-artifacts.json). Android 0.16.0,
+including the Atelier recipe, studio rendering, revised shoulder geometry and
+new viewport tools, was published to the [app store](https://appstore.shadowbroker.app)
+on 2026-09-16.
