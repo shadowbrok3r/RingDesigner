@@ -6,10 +6,13 @@ use crate::editor::{
 };
 use ringdesign_workbench::visual::Tool;
 
-fn button(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
-    let r = ui.add_sized(
-        [ui.available_width(), 32.0],
-        egui::Button::new(label).selected(selected).truncate(),
+fn button(ui: &mut egui::Ui, label: &str, selected: bool) -> ringdesign_workbench::icons::Action {
+    let r = ringdesign_workbench::icons::button(
+        ui,
+        ringdesign_workbench::icons::Icon::for_label(label),
+        label,
+        selected,
+        egui::vec2(ui.available_width(), 26.0),
     );
     editor::layout::record(ui, format!("floating/{label}"), r.rect);
     r
@@ -36,7 +39,7 @@ impl RingApp {
         if self.tab != Tab::Ring || viewport.width() < 160.0 || viewport.height() < 64.0 {
             return;
         }
-        let bounds = viewport.shrink(4.0);
+        let bounds = crate::theme::content_bounds(ctx).shrink(4.0);
         let collapsed = self.editor.workspace.rail_collapsed;
         let mut rail_position = self.editor.workspace.rail_position;
         let rail = workspace::floating(
@@ -49,10 +52,10 @@ impl RingApp {
                 if collapsed {
                     42.0
                 } else {
-                    bounds.height().min(405.0)
+                    bounds.height().min(350.0)
                 },
             ),
-            egui::vec2(0.0, 8.0),
+            (viewport.min - bounds.min + egui::vec2(0.0, 8.0)).max(egui::Vec2::ZERO),
             &mut rail_position,
             Some(if collapsed { "+" } else { "−" }),
             |ui| {
@@ -67,7 +70,12 @@ impl RingApp {
                 }
                 let tools: &[(Tool, &str)] = match self.editor.mode {
                     Mode::Shape => &[(Tool::Section, "Section"), (Tool::Measure, "Measure")],
-                    Mode::Surface => &[(Tool::Paint, "Paint"), (Tool::Stamp, "Stamp"), (Tool::Path, "Path")],
+                    Mode::Surface => &[
+                        (Tool::Paint, "Paint"),
+                        (Tool::Stamp, "Stamp"),
+                        (Tool::Path, "Path"),
+                        (Tool::Transform, "Move"),
+                    ],
                     Mode::Stones => &[(Tool::Clearance, "Spacing")],
                     Mode::Casting => &[(Tool::Mould, "Mould")],
                 };
@@ -88,21 +96,28 @@ impl RingApp {
                     self.toggle_palette(Palette::More);
                 }
                 ui.separator();
-                let before = ui
-                    .add_enabled_ui(self.can_compare && self.visual.tool != Tool::Mould, |ui| {
-                        button(ui, "Before", false)
-                    })
-                    .inner;
-                self.editor.hold_before = before.is_pointer_button_down_on();
-                if button(ui, "Guides", self.editor.guides).clicked() {
-                    self.editor.guides = !self.editor.guides;
-                    self.save_prefs();
-                }
+                ui.horizontal(|ui| {
+                    use ringdesign_workbench::icons::{self, Icon};
+                    let before = ui
+                        .add_enabled_ui(self.can_compare && self.visual.tool != Tool::Mould, |ui| {
+                            icons::compact(ui, Icon::Before, false)
+                        })
+                        .inner;
+                    editor::layout::record(ui, "floating/Before", before.rect);
+                    self.editor.hold_before = before.is_pointer_button_down_on();
+                    let guides = icons::compact(ui, Icon::Guides, self.editor.guides);
+                    editor::layout::record(ui, "floating/Guides", guides.rect);
+                    if guides.clicked() {
+                        self.editor.guides = !self.editor.guides;
+                        self.save_prefs();
+                    }
+                });
                 if button(ui, "Panel", self.editor.sheet.is_some()).clicked() {
                     if self.editor.sheet.is_some() {
                         self.editor.sheet = None;
                     } else {
                         self.editor.sheet = Some(Sheet::Edit);
+                        self.editor.workspace.inspector_fraction = [0.32, 0.36];
                     }
                     self.save_prefs();
                 }
@@ -139,7 +154,7 @@ impl RingApp {
             bounds.height().min(if palette == Palette::Properties {
                 300.0
             } else {
-                380.0
+                265.0
             }),
         );
         let panel = workspace::floating(
@@ -270,6 +285,9 @@ impl RingApp {
     }
 
     fn floating_more(&mut self, ui: &mut egui::Ui, host: &Host) {
+        if button(ui, "Jewelry workflow", false).clicked() {
+            self.editor.palette = Some(Palette::Details(Sheet::Workflow));
+        }
         ui.collapsing("Shape & construction", |ui| {
             for (part, label) in [
                 (editor::ShapePart::Band, "Band & fit"),
@@ -295,6 +313,7 @@ impl RingApp {
                 (Tool::Paint, "Paint on ring"),
                 (Tool::Stamp, "Place an alpha"),
                 (Tool::Path, "Draw a surface path"),
+                (Tool::Transform, "Move ornament"),
             ] {
                 if button(ui, label, false).clicked() {
                     self.choose_mode(Mode::Surface);

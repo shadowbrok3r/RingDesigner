@@ -52,7 +52,12 @@ pub fn install(ctx: &Context) {
     ctx.set_fonts(fonts);
 
     ctx.set_theme(egui::ThemePreference::Dark);
-    let style = load_style();
+    let mut style = load_style();
+    style.interaction.tooltip_delay = 0.7;
+    style.interaction.tooltip_grace_time = 0.0;
+    style.spacing.button_padding = egui::vec2(4.0, 2.0);
+    // Floating controls and hints must stay readable over other text and metal.
+    style.visuals.window_fill = Color32::from_rgb(22, 20, 29);
     ctx.set_style_of(Theme::Dark, style.clone());
     ctx.set_style_of(Theme::Light, style);
 }

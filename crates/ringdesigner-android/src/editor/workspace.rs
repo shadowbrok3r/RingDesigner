@@ -64,7 +64,7 @@ pub fn splitter(
 ) -> bool {
     let id = egui::Id::new(("inspector-resize", landscape));
     let (rect, response) = ui.allocate_exact_size(
-        egui::vec2(ui.available_width(), 16.0),
+        egui::vec2(ui.available_width(), 24.0),
         egui::Sense::click_and_drag(),
     );
     super::layout::record(ui, "inspector/resize", rect);
@@ -171,7 +171,11 @@ pub fn floating<R>(
 ) -> Floating<R> {
     let id = egui::Id::new(key);
     let size = size.min(bounds.size()).max(egui::vec2(1.0, 1.0));
-    let at = position(bounds, size, *saved_position, default_offset);
+    let measured = ctx
+        .data(|d| d.get_temp::<egui::Vec2>(id.with("measured")))
+        .unwrap_or(size)
+        .min(size);
+    let at = position(bounds, measured, *saved_position, default_offset);
     let mut moved = false;
     let mut close = false;
     let mut dragging = false;
@@ -190,8 +194,8 @@ pub fn floating<R>(
             // submenu/parameter grow again, while the scroll area enforces the cap.
             ui.set_max_height(size.y);
             ui.spacing_mut().item_spacing = egui::vec2(4.0, 3.0);
-            ui.spacing_mut().button_padding = egui::vec2(4.0, 3.0);
-            ui.spacing_mut().interact_size.y = 30.0;
+            ui.spacing_mut().button_padding = egui::vec2(4.0, 2.0);
+            ui.spacing_mut().interact_size.y = 26.0;
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
             let frame = egui::Frame::new()
                 .fill(egui::Color32::from_rgba_unmultiplied(20, 20, 25, 248))
@@ -202,7 +206,7 @@ pub fn floating<R>(
                     ui.set_width((size.x - 12.0).max(1.0));
                     ui.horizontal(|ui| {
                         let w =
-                            (ui.available_width() - if close_button { 28.0 } else { 0.0 }).max(1.0);
+                            (ui.available_width() - if close_button { 34.0 } else { 0.0 }).max(1.0);
                         let (grip, drag) =
                             ui.allocate_exact_size(egui::vec2(w, 25.0), egui::Sense::drag());
                         super::layout::record(ui, format!("{key}/grip"), grip);
@@ -252,7 +256,7 @@ pub fn floating<R>(
                             ) {
                                 *saved_position = Some(normalized(
                                     bounds,
-                                    size,
+                                    measured,
                                     grab.initial + (pointer - grab.pointer),
                                 ));
                                 ui.ctx().request_repaint();
@@ -263,10 +267,12 @@ pub fn floating<R>(
                             ui.data_mut(|d| d.remove::<Grab>(id));
                         }
                         if close_button {
-                            let r = ui.add_sized(
-                                [24.0, 25.0],
-                                egui::Button::new(close_label.unwrap_or("×")),
-                            );
+                            let icon = match close_label {
+                                Some("+") => ringdesign_workbench::icons::Icon::Expand,
+                                Some("−") => ringdesign_workbench::icons::Icon::Collapse,
+                                _ => ringdesign_workbench::icons::Icon::Close,
+                            };
+                            let r = ringdesign_workbench::icons::compact(ui, icon, false);
                             super::layout::record(ui, format!("{key}/close"), r.rect);
                             close = r.clicked();
                         }
@@ -282,6 +288,7 @@ pub fn floating<R>(
             super::layout::record(ui, key, frame.response.rect);
             frame.inner
         });
+    ctx.data_mut(|d| d.insert_temp(id.with("measured"), response.response.rect.size()));
     Floating {
         inner: response.inner,
         rect: response.response.rect,

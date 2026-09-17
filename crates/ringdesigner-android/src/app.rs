@@ -17,8 +17,8 @@ use ringdesign_core::drawn::DrawnAlpha;
 use ringdesign_core::field::{Layer, LayerEntry};
 use ringdesign_core::tiling::TilingLayer;
 
-mod studio;
 mod floating;
+mod studio;
 
 use crate::bench;
 use crate::canvas::{self, CanvasInput, Domain, View};
@@ -141,7 +141,7 @@ pub struct RingApp {
     /// Whole-design snapshots with a name read out of the diff. Shared with the
     /// desktop, so a step reads the same on both.
     history: ringdesign_core::history::History,
-    /// The timeline sheet, opened by a long press on Undo.
+    /// The timeline sheet, available in More → Inspect & export.
     /// The layer stack rides its own sheet, opened from the nav bar beside Design.
     /// Row the stack sheet has open, if any.
     selected_layer: Option<usize>,
@@ -411,7 +411,9 @@ impl RingApp {
         self.pane.shade = ShadeMode::ALL[p.shade];
         self.pane.wireframe = p.wireframe;
         self.preview_quality = p.preview_quality;
-        self.pane.finish = p.finish.min(ringdesign_core::render::METAL_FINISHES.len() - 1);
+        self.pane.finish = p
+            .finish
+            .min(ringdesign_core::render::METAL_FINISHES.len() - 1);
         self.pane.polish = p.polish.min(ringdesign_core::render::POLISHES.len() - 1);
         self.as_cast = p.as_cast;
         self.show_gems = p.show_gems;
@@ -618,8 +620,8 @@ impl RingApp {
 
         if let Some(at) = self.dirty_at {
             let waited = at.elapsed();
-            if waited >= DEBOUNCE && !self.preview_in_flight
-                && !ctx.input(|i| i.pointer.any_down()) {
+            if waited >= DEBOUNCE && !self.preview_in_flight && !ctx.input(|i| i.pointer.any_down())
+            {
                 self.dirty_at = None;
                 self.dispatch(true);
                 self.autosave();
@@ -647,30 +649,54 @@ impl RingApp {
     /// edit that needs taking back is usually a mistap nobody saw, is most of
     /// the value.
     fn undo_row(&mut self, ui: &mut egui::Ui) {
+        let pending = self.history.is_pending();
         let undo = self.history.undo_label().map(str::to_owned);
         let redo = self.history.redo_label().map(str::to_owned);
-
-        let r = ui.add_enabled(undo.is_some(), egui::Button::new("Undo"));
-        if let Some(l) = &undo {
-            r.clone().on_hover_text(format!("Undo {l}"));
+        // egui hit-tests against the previous frame. Keep these targets alive
+        // when batched touch events follow an edit before the header repaints;
+        // unavailable actions retain a muted appearance and safely do nothing.
+        let history_button = |ui: &mut egui::Ui, icon, available: bool| {
+            ui.scope(|ui| {
+                if !available {
+                    ui.visuals_mut().override_text_color = Some(ui.visuals().weak_text_color());
+                }
+                ringdesign_workbench::icons::compact(ui, icon, false)
+            })
+            .inner
+        };
+        let r = history_button(
+            ui,
+            ringdesign_workbench::icons::Icon::Undo,
+            pending || undo.is_some(),
+        );
+        crate::editor::layout::record(ui, "header/Undo", r.rect);
+        if pending {
+            r.response.clone().on_hover_text("Undo latest change");
+        } else if let Some(l) = &undo {
+            r.response.clone().on_hover_text(format!("Undo {l}"));
         }
         if r.clicked() {
+            // An immediate tap must undo the edit still in the 400 ms settle
+            // window, rather than doing nothing or undoing an older snapshot.
+            self.history.commit(&self.design);
+            let undo = self.history.undo_label().map(str::to_owned);
             if let Some(d) = self.history.undo() {
                 let what = undo.unwrap_or_else(|| "undone".into());
                 self.apply_history(d, &format!("undid {what}"));
             }
         }
-        // The timeline is a long press, the way the alpha grid and the 3D probe
-        // already are — there is no room for a third button here.
-        if r.long_touched() && self.history.present() > 0 {
-            self.editor.toggle(Sheet::Timeline);
-        }
-
-        let r = ui.add_enabled(redo.is_some(), egui::Button::new("Redo"));
+        let r = history_button(
+            ui,
+            ringdesign_workbench::icons::Icon::Redo,
+            !pending && redo.is_some(),
+        );
+        crate::editor::layout::record(ui, "header/Redo", r.rect);
         if let Some(l) = &redo {
-            r.clone().on_hover_text(format!("Redo {l}"));
+            r.response.clone().on_hover_text(format!("Redo {l}"));
         }
         if r.clicked() {
+            // A fresh edit invalidates the old redo branch, even during settle.
+            self.history.commit(&self.design);
             if let Some(d) = self.history.redo() {
                 let what = redo.unwrap_or_else(|| "redone".into());
                 self.apply_history(d, &format!("redid {what}"));
@@ -678,8 +704,7 @@ impl RingApp {
         }
     }
 
-    /// Every committed step, newest last, with the present marked — a long press
-    /// on Undo opens it and a tap jumps.
+    /// Every committed step, newest last, with the present marked; a tap jumps.
     fn timeline_sheet(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_wrapped(|ui| {
             ui.label(egui::RichText::new("history").small().weak());
@@ -2889,6 +2914,11 @@ impl EguiApp for RingApp {
 
     fn update(&mut self, ui: &mut egui::Ui, host: &Host) {
         self.probe = host.stylus_probe();
+        // Some winit backends drop hover-only events. Wake the input hook even
+        // when the pen first approaches an otherwise idle inspector.
+        #[cfg(target_os = "android")]
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_millis(200));
         self.poll_sync(host);
         self.tick(ui.ctx());
         if std::mem::take(&mut self.verdict_fell) {
@@ -2901,7 +2931,24 @@ impl EguiApp for RingApp {
         self.poll_exports(host);
         self.poll_generate(host);
 
+        let history_state = (
+            self.history.is_pending(),
+            self.history.can_undo(),
+            self.history.can_redo(),
+        );
         self.studio_ui(ui, host);
+        if history_state
+            != (
+                self.history.is_pending(),
+                self.history.can_undo(),
+                self.history.can_redo(),
+            )
+        {
+            // The header precedes the editor. Refresh its enabled hit targets
+            // now, rather than dropping the next tap on a formerly disabled
+            // Undo/Redo while the on-demand renderer waits for its next tick.
+            ui.ctx().request_repaint();
+        }
         if let Some(delay) = self.editor.reflow.next_frame(
             ui.ctx().input(|i| i.time),
             ui.ctx().content_rect(),

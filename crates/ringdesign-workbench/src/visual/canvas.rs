@@ -38,6 +38,47 @@ impl Edit {
     }
 }
 
+/// egui turns a stationary touch into a secondary click and releases its drag
+/// owner. Placement must keep its original contact until the finger lifts.
+#[derive(Default)]
+pub(super) struct StampContact {
+    active: bool,
+}
+impl StampContact {
+    fn update(
+        &mut self,
+        ui: &egui::Ui,
+        response: &egui::Response,
+        enabled: bool,
+    ) -> (Option<Pos2>, bool) {
+        let (down, pressed, released, escape, pos) = ui.input(|i| {
+            (
+                i.pointer.primary_down(),
+                i.pointer.button_pressed(egui::PointerButton::Primary),
+                i.pointer.button_released(egui::PointerButton::Primary),
+                i.key_pressed(egui::Key::Escape),
+                i.pointer.interact_pos(),
+            )
+        });
+        if !enabled || escape || (!down && !released) {
+            self.active = false;
+        }
+        if pressed {
+            self.active = enabled && (response.is_pointer_button_down_on() || response.clicked());
+        }
+        let position = if self.active {
+            pos
+        } else {
+            response.hover_pos().or(response.interact_pointer_pos())
+        };
+        let place = enabled && ((self.active && released) || response.clicked());
+        if released {
+            self.active = false;
+        }
+        (position, place)
+    }
+}
+
 impl Visual {
     fn handle_world(&self, mesh: &Mesh) -> [f64; 3] {
         let (lo, hi) = mesh.bounds().unwrap_or_default();
@@ -63,7 +104,8 @@ impl Visual {
         let Some(pos) = pos.filter(|p| rect.contains(*p)) else {
             return false;
         };
-        self.is_painting() || self.tool == Tool::Measure
+        self.is_painting()
+            || self.tool == Tool::Measure
             || (self.tool == Tool::Section
                 && (self.section_dragging || pos.distance(project(self.handle_world(mesh))) < 24.0))
     }
@@ -83,33 +125,61 @@ impl Visual {
         let mut edit = Edit::default();
         let painter = ui.painter_at(rect);
         match self.tool {
-            Tool::Path => { edit.layer=self.path.draw(ui,rect,response,d,lib,mesh,project,ray,pointer); }
+            Tool::Transform => self
+                .transform
+                .draw(ui, rect, response, d, lib, mesh, project, ray, pointer),
+            Tool::Path => {
+                edit.layer = self
+                    .path
+                    .draw(ui, rect, response, d, lib, mesh, project, ray, pointer);
+            }
             Tool::Measure => {
                 if pointer.accepted && !pointer.navigating && response.clicked() {
-                    if let Some(pos)=response.interact_pointer_pos().filter(|p|rect.contains(*p)) {
-                        let (origin,dir)=ray(pos);
-                        if let Some((_,world))=picking::raycast(mesh,origin,dir) {
-                            if self.measure.len()==2 {self.measure.clear();}
+                    if let Some(pos) = response
+                        .interact_pointer_pos()
+                        .filter(|p| rect.contains(*p))
+                    {
+                        let (origin, dir) = ray(pos);
+                        if let Some((_, world)) = picking::raycast(mesh, origin, dir) {
+                            if self.measure.len() == 2 {
+                                self.measure.clear();
+                            }
                             self.measure.push(world.map(f64::from));
                         }
                     }
                 }
-                for p in &self.measure {painter.circle_filled(project(*p),5.0,AQUA);}
-                if let [a,b]=self.measure.as_slice() {
-                    let a2=project(*a);let b2=project(*b);
-                    painter.line_segment([a2,b2],Stroke::new(2.0,AMBER));
-                    tag(&painter,rect,a2.lerp(b2,0.5),&format!("{:.3} mm",section::distance(*a,*b)),AMBER);
+                for p in &self.measure {
+                    painter.circle_filled(project(*p), 5.0, AQUA);
+                }
+                if let [a, b] = self.measure.as_slice() {
+                    let a2 = project(*a);
+                    let b2 = project(*b);
+                    painter.line_segment([a2, b2], Stroke::new(2.0, AMBER));
+                    tag(
+                        &painter,
+                        rect,
+                        a2.lerp(b2, 0.5),
+                        &format!("{:.3} mm", section::distance(*a, *b)),
+                        AMBER,
+                    );
                 }
             }
             Tool::Paint | Tool::Stamp => {
                 if pointer.navigating {
                     self.gesture = Default::default();
+                    self.stamp_contact = Default::default();
                     return edit;
                 }
-                let position = response
-                    .hover_pos()
-                    .or(response.interact_pointer_pos())
-                    .filter(|p| rect.contains(*p));
+                let editable = d.graph.is_none() && d.cad.is_none() && pointer.accepted;
+                let (position, place_stamp) = if self.tool == Tool::Stamp {
+                    self.stamp_contact.update(ui, response, editable)
+                } else {
+                    (
+                        response.hover_pos().or(response.interact_pointer_pos()),
+                        false,
+                    )
+                };
+                let position = position.filter(|p| rect.contains(*p));
                 if let Some(pos) = position {
                     let (origin, dir) = ray(pos);
                     self.cursor = picking::hit(d, lib, mesh, origin, dir)
@@ -117,7 +187,6 @@ impl Visual {
                 } else {
                     self.cursor = None;
                 }
-                let editable = d.graph.is_none() && d.cad.is_none() && pointer.accepted;
                 if self.tool == Tool::Paint
                     && editable
                     && (response.is_pointer_button_down_on() || response.clicked())
@@ -132,10 +201,37 @@ impl Visual {
                 if self.tool == Tool::Paint && ui.input(|i| i.pointer.any_released()) {
                     edit.drawing = self.gesture.commit(d, &self.brush);
                 }
-                if self.tool == Tool::Stamp && editable && response.clicked() {
+                if self.tool == Tool::Stamp && place_stamp {
                     if let Some(hit) = &self.cursor {
-                        edit.layer =
-                            ringdesign_core::interaction::paint::stamp_pattern(d, lib, &self.brush, hit, self.arrangement);
+                        edit.layer = ringdesign_core::interaction::paint::stamp_pattern(
+                            d,
+                            lib,
+                            &self.brush,
+                            hit,
+                            self.arrangement,
+                        );
+                    }
+                }
+                if self.tool == Tool::Stamp {
+                    if let Some(hit) = &self.cursor {
+                        let decal = ringdesign_core::field::Decal {
+                            theta_deg: hit.theta_deg,
+                            v_mm: hit.v_mm,
+                            size_mm: self.brush.diameter_mm,
+                            rotation_deg: self.brush.rotation_deg,
+                            ..Default::default()
+                        };
+                        crate::artwork::preview(
+                            ui,
+                            rect,
+                            d,
+                            lib,
+                            &self.brush.stamp,
+                            &decal,
+                            (self.brush.diameter_mm * 0.06).clamp(0.05, 0.4),
+                            false,
+                            &project,
+                        );
                     }
                 }
                 if let Some(hit) = &self.cursor {
@@ -457,6 +553,71 @@ fn tag(painter: &egui::Painter, rect: Rect, position: Pos2, text: &str, color: C
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stamp_contact_survives_long_touch_and_commits_only_on_release() {
+        let ctx = egui::Context::default();
+        let mut contact = StampContact::default();
+        let pos = egui::pos2(80.0, 90.0);
+        let mut saw_long_touch = false;
+        let mut commits = 0;
+        // These are the device-observed phases: press, stationary preview,
+        // Android/egui's long-touch conversion, then lift without a drag.
+        for (frame, time) in [0.0, 0.1, 0.3, 1.0, 1.5, 2.0, 2.1].into_iter().enumerate() {
+            let mut events = Vec::new();
+            if frame == 1 || frame == 5 {
+                let pressed = frame == 1;
+                events.push(egui::Event::PointerMoved(pos));
+                events.push(egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: Default::default(),
+                });
+                events.push(egui::Event::Touch {
+                    device_id: egui::TouchDeviceId(0),
+                    id: egui::TouchId(1),
+                    phase: if pressed {
+                        egui::TouchPhase::Start
+                    } else {
+                        egui::TouchPhase::End
+                    },
+                    pos,
+                    force: None,
+                });
+            }
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(300.0, 400.0))),
+                    time: Some(time),
+                    events,
+                    ..Default::default()
+                },
+                |root| {
+                    egui::CentralPanel::default().show(root, |ui| {
+                        let (_, response) = ui.allocate_exact_size(
+                            ui.available_size(),
+                            egui::Sense::click_and_drag(),
+                        );
+                        saw_long_touch |= response.long_touched();
+                        let (preview, place) = contact.update(ui, &response, true);
+                        if (1..=5).contains(&frame) {
+                            assert_eq!(preview, Some(pos), "preview lost on frame {frame}");
+                        }
+                        assert_eq!(place, frame == 5, "unexpected commit on frame {frame}");
+                        commits += usize::from(place);
+                    });
+                },
+            );
+            output.textures_delta.clear();
+        }
+        assert!(
+            saw_long_touch,
+            "test must exercise egui's context-gesture conversion"
+        );
+        assert_eq!(commits, 1);
+        assert!(!contact.active);
+    }
 
     #[test]
     fn section_drag_ignores_motion_before_press_and_keeps_its_anchor() {

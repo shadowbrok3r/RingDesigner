@@ -4229,6 +4229,7 @@ dependencies = [
  "anyhow",
  "egui",
  "js-sys",
+ "resvg",
  "ringdesign-core",
  "ringdesign-graph",
  "ringdesign-script",
@@ -4240,8 +4241,9 @@ dependencies = [
 
 [[package]]
 name = "ringdesigner_android"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
+ "android-activity",
  "backdrop-blur-egui",
  "egui",
  "egui-mobile",
