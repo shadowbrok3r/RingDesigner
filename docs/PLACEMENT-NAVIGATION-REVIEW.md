@@ -62,3 +62,12 @@ Device tests used the Android 16 x86_64 emulator. Physical S26 touch, S-Pen and
 Samsung GPU behaviour still need a hardware run. The loupe enlarges the existing
 surface overlay; it does not predict the final relief height or replace casting
 checks. Geometry changes from 0.16 remain included without further modification.
+
+## Release receipt
+
+Published Android 0.18.0 (versionCode `16781824`) to
+[the private app store](https://appstore.shadowbroker.app). The store feed,
+changelog and downloaded APK match the verified ARM64 package, SHA256
+`223f22358ce9a70ac269f28d144dedb408f90bee04b1ce515258160c01039223`.
+The existing signer is unchanged. Source merge: `43ff2de` on `master`.
+Five review images were delivered to Logan's S26 Ultra by Tailscale file copy.
