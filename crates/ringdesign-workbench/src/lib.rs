@@ -2,6 +2,9 @@
 pub mod artwork;
 pub mod construction;
 pub mod icons;
+pub mod navigation;
+#[cfg(feature = "glow")]
+pub mod loupe;
 pub mod job;
 mod ui;
 pub mod visual;

@@ -15,7 +15,7 @@ kernel = ["ringdesign-graph/kernel-manifold", "ringdesign-script/kernel"]
 
 [dependencies]
 ringdesign-core.workspace = true
-ringdesign-workbench = { path = "../ringdesign-workbench" }
+ringdesign-workbench = { path = "../ringdesign-workbench", features = ["glow"] }
 ringdesign-mcp.workspace = true
 tokio.workspace = true
 eframe.workspace = true

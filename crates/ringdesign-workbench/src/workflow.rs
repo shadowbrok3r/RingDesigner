@@ -70,6 +70,6 @@ pub fn show(ui: &mut egui::Ui) -> Option<Action> {
         });
     }
     ui.separator();
-    ui.small(if cfg!(target_os="android") {"One finger uses the selected tool. Two fingers move the view. Select restores one-finger orbit. Drag a toolbox by its title anywhere in the app. The top Panel icon restores a hidden or small inspector."}else{"Select drags the view; Shift-drag pans and the wheel zooms. Drag tool windows by their title to keep the ring clear."});
+    ui.small(if cfg!(target_os="android") {"Touch the ring to edit; drag empty space to orbit. Lock the view to pan instead. Two fingers pan and zoom. Drag a toolbox by its title anywhere in the app. The top Panel icon restores a hidden or small inspector."}else{"Drag empty space to orbit; Shift-drag pans and the wheel zooms. Lock the angle with the small ring navigator. Drag tool windows by their title to keep the ring clear."});
     action
 }

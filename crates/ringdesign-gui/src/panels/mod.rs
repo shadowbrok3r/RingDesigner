@@ -636,22 +636,18 @@ fn command_palette(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 /// Undo, redo, and the timeline they walk.
 fn history_controls(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     use ringdesign_workbench::icons::{self, Icon};
-    if ui
-        .add_enabled_ui(app.history.can_undo(), |ui| {
-            icons::compact(ui, Icon::Undo, false)
-        })
-        .inner
-        .clicked()
-    {
+    // Keep the targets available while a just-finished gesture is entering
+    // history. egui hit-tests against the preceding frame.
+    let button = |ui: &mut egui::Ui, icon, available: bool| {
+        ui.scope(|ui| {
+            if !available { ui.visuals_mut().override_text_color = Some(ui.visuals().weak_text_color()); }
+            icons::compact(ui, icon, false)
+        }).inner
+    };
+    if button(ui, Icon::Undo, app.history.can_undo() || app.history.is_pending()).clicked() {
         app.undo();
     }
-    if ui
-        .add_enabled_ui(app.history.can_redo(), |ui| {
-            icons::compact(ui, Icon::Redo, false)
-        })
-        .inner
-        .clicked()
-    {
+    if button(ui, Icon::Redo, app.history.can_redo()).clicked() {
         app.redo();
     }
 

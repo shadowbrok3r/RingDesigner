@@ -405,6 +405,8 @@ impl RingApp {
             });
             data["workspace"] = serde_json::json!(self.editor.workspace);
             data["palette"] = serde_json::json!(format!("{:?}", self.editor.palette));
+            data["navigation"] = serde_json::to_value(self.pane.navigation).unwrap_or_default();
+            data["visual"] = serde_json::json!({"tool":format!("{:?}",self.visual.tool),"path_points":self.visual.path.curve.points.len(),"navigating":self.visual.navigating()});
             data["camera"] = serde_json::json!({"yaw":self.pane.camera.yaw,"pitch":self.pane.camera.pitch,"zoom":self.pane.camera.zoom,"pan":self.pane.camera.pan});
             let text = data.to_string();
             if text != self.editor.last_layout {
@@ -832,26 +834,35 @@ impl RingApp {
         }
         let rect = ui.available_rect_before_wrap();
         self.floating_tools(ui.ctx(), rect, host);
+        let nav = ringdesign_workbench::navigation::show(
+            ui, rect, ui.id().with("phone-view"), &mut self.pane.navigation,
+            [self.pane.camera.yaw, self.pane.camera.pitch], self.design.shank.head.theta_deg as f32,
+        );
+        for (name, r) in &nav.controls { editor::layout::record(ui, format!("navigator/{name}"), *r); }
+        if let Some(action) = nav.action {
+            let angles = action.angles(self.pane.camera.yaw, self.pane.camera.pitch, self.design.shank.head.theta_deg as f32);
+            self.pane.camera.yaw = angles[0]; self.pane.camera.pitch = angles[1];
+            self.pane.camera.pan = [0.0; 2];
+            ui.ctx().request_repaint();
+        }
+        if nav.changed { self.save_prefs(); }
         let pointer = ui.input(|i| i.pointer.press_origin().or(i.pointer.interact_pos()));
-        let navigating = ui.input(|i| i.multi_touch().is_some_and(|m| m.num_touches >= 2))
+        let explicit_navigation = ui.input(|i| i.multi_touch().is_some_and(|m| m.num_touches >= 2))
             || crate::paint::barrel(self.probe.buttons).is_some();
-        let projector = self.pane.camera.projector(rect);
-        let visual_blocked = self.preview_mesh.as_ref().is_some_and(|mesh| {
-            self.visual.blocks_orbit(
-                pointer,
-                rect,
-                mesh,
-                |p| projector.at(p.map(|v| v as f32)),
-                navigating,
-            )
-        });
         let floating_blocked = self.editor.floating_dragging
-            || pointer.is_some_and(|p| self.editor.floating_rects.iter().any(|r| r.contains(p)))
+            || pointer.is_some_and(|p| nav.rect.contains(p) || self.editor.floating_rects.iter().any(|r| r.contains(p)))
             || pointer.is_some_and(|p| {
-                ui.ctx()
-                    .layer_id_at(p)
-                    .is_some_and(|layer| layer != ui.layer_id())
+                ui.ctx().layer_id_at(p).is_some_and(|layer| layer != ui.layer_id())
             });
+        let accepted = crate::paint::accepts(crate::paint::Tool::from_code(self.probe.tool), self.visual.stylus_only);
+        let camera = self.pane.camera;
+        let projector = camera.projector(rect);
+        let visual_blocked = self.preview_mesh.as_ref().is_some_and(|mesh| {
+            self.visual.route_pointer(ui, rect, mesh,
+                |p| projector.at(p.map(|v| v as f32)), |p| camera.ray(rect, p),
+                explicit_navigation, accepted && !floating_blocked)
+        });
+        let navigating = explicit_navigation || self.visual.navigating();
         let blocked = floating_blocked
             || visual_blocked
             || (self.visual.tool == VisualTool::Select
@@ -1018,6 +1029,13 @@ impl RingApp {
                     self.history.commit(&self.design);
                     ui.ctx().request_repaint();
                 }
+            }
+        }
+        if self.pane.navigation.magnifier && !floating_blocked && !navigating && !self.editor.hold_before {
+            if let Some(contact) = self.visual.placement_contact(ui, view.rect) {
+                let mut obstacles = self.editor.floating_rects.clone(); obstacles.push(nav.rect);
+                let lens = ringdesign_workbench::loupe::show(ui, view.rect, contact, &obstacles);
+                editor::layout::record(ui, "viewport/magnifier", lens);
             }
         }
         let state = if self.editor.hold_before {
