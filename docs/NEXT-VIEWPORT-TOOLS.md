@@ -3,7 +3,7 @@
 Reviewed against the working source on 2026-09-16. Older roadmap checkboxes do
 not account for the CAD, manufacturing and shared mobile workbench additions.
 
-## Available in 0.16
+## Available in 0.17
 
 Desktop and Android share paint, stamps, editable surface paths, circular and
 mirrored stamp arrays, mesh distance measurement, section cuts, clearance
@@ -15,16 +15,22 @@ The CAD workspace already has sketches, constraints, sweeps, lofts, booleans,
 supported edge fillets/chamfers, component placement and dimension grips. The
 main opportunity is making these operations easier to perform on the ring.
 
+0.17 adds individual ornament handles: pick an existing stamp (including manual
+nested groups), move it on the surface, rotate or resize it, then Apply once.
+Copy and Mirror create another instance in the same masked layer. Generated
+groups remain owned by their recipes. A thumbnail browser and surface-conforming
+alpha overlay make placement visible before release. The shared SVG controls,
+hold/hover help and five-stage Guide connect these tools to a practical workflow.
+
 ## Next useful increments
 
 | Priority | Tool | Concrete completion criteria |
 | --- | --- | --- |
-| 1 | Ornament transform handles | Pick a decal, drag it across the surface, rotate/scale with handles, duplicate and mirror it; retain masks, nested layer identity and one Undo per gesture on both apps. |
-| 2 | Settings along a drawn path | Place calibrated stones at measured gaps along a surface curve; show clearance and taper before committing an editable generator. |
-| 3 | Direct sweep/loft construction | Pick profiles and rails in the viewport, see a solid preview, edit sections in place, and expose the same flow in touch controls. |
-| 4 | Surface quality inspection | Zebra reflections plus crease/curvature overlays to distinguish intended arrises, tight blends and sampling defects; connect a selected join to its radius control. |
-| 5 | Sketch and component manipulation | Multi-selection, box selection, constrained move/rotate/scale, object snaps and symmetry planes; avoid opening JSON for advanced features. |
-| 6 | Bore and file workflows | Incoming Android design-file intents; inside engraving/bench placement and axial-web thickness checks with clear manufacturing stages. |
+| 1 | Settings along a drawn path | Place calibrated stones at measured gaps along a surface curve; show clearance and taper before committing an editable generator. |
+| 2 | Direct sweep/loft construction | Pick profiles and rails in the viewport, see a solid preview, edit sections in place, and expose the same flow in touch controls. |
+| 3 | Surface quality inspection | Zebra reflections plus crease/curvature overlays to distinguish intended arrises, tight blends and sampling defects; connect a selected join to its radius control. |
+| 4 | Sketch and component manipulation | Multi-selection, box selection, constrained move/rotate/scale, object snaps and symmetry planes; avoid opening JSON for advanced features. |
+| 5 | Bore and file workflows | Incoming Android design-file intents; inside engraving/bench placement and axial-web thickness checks with clear manufacturing stages. |
 
 The new Measure tool reports a straight chord on the displayed mesh, not an
 exact geodesic or global minimum wall. Curves are still surface relief, not

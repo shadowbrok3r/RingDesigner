@@ -1,6 +1,7 @@
 //! Direct viewport tools: shared controls, cached inspection, and source edits.
 mod canvas;
 mod path;
+mod transform;
 pub use canvas::{Edit, Pointer};
 use ringdesign_core::{
     AlphaLibrary, RingDesign,
@@ -24,9 +25,10 @@ pub enum Tool {
     Mould,
     Path,
     Measure,
+    Transform,
 }
 impl Tool {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Select,
         Self::Paint,
         Self::Stamp,
@@ -35,9 +37,25 @@ impl Tool {
         Self::Mould,
         Self::Path,
         Self::Measure,
+        Self::Transform,
     ];
+    pub fn icon(self) -> crate::icons::Icon {
+        use crate::icons::Icon;
+        match self {
+            Self::Transform => Icon::Transform,
+            Self::Select => Icon::Select,
+            Self::Paint => Icon::Paint,
+            Self::Stamp => Icon::Stamp,
+            Self::Path => Icon::Path,
+            Self::Section => Icon::Section,
+            Self::Measure => Icon::Measure,
+            Self::Clearance => Icon::Spacing,
+            Self::Mould => Icon::Mould,
+        }
+    }
     pub fn label(self) -> &'static str {
         match self {
+            Self::Transform => "Move ornament",
             Self::Select => "Select",
             Self::Paint => "Paint 3D",
             Self::Stamp => "Stamp",
@@ -53,6 +71,7 @@ impl Tool {
 pub struct Visual {
     pub tool: Tool,
     pub path: path::PathTool,
+    pub transform: transform::TransformTool,
     pub arrangement: ringdesign_core::interaction::surface::Arrangement,
     pub(super) measure: Vec<[f64; 3]>,
     pub brush: Brush,
@@ -60,6 +79,7 @@ pub struct Visual {
     pub gap_mm: f64,
     pub stylus_only: bool,
     pub gesture: Gesture,
+    stamp_contact: canvas::StampContact,
     pub cursor: Option<ringdesign_core::interaction::picking::Hit>,
     pub selected_stone: Option<usize>,
     pub study: Option<Arc<Study>>,
@@ -81,13 +101,13 @@ pub struct Visual {
     pub(super) phase: f64,
     pub(super) section_dragging: bool,
     pub(super) section_grab: Option<(egui::Pos2, f64)>,
-    search: String,
 }
 impl Default for Visual {
     fn default() -> Self {
         Self {
             tool: Tool::Select,
             path: Default::default(),
+            transform: Default::default(),
             arrangement: Default::default(),
             measure: Vec::new(),
             brush: Brush::default(),
@@ -95,6 +115,7 @@ impl Default for Visual {
             gap_mm: 0.4,
             stylus_only: false,
             gesture: Gesture::default(),
+            stamp_contact: Default::default(),
             cursor: None,
             selected_stone: None,
             study: None,
@@ -116,7 +137,6 @@ impl Default for Visual {
             phase: 0.0,
             section_dragging: false,
             section_grab: None,
-            search: String::new(),
         }
     }
 }
@@ -124,9 +144,11 @@ impl Visual {
     pub fn select(&mut self, tool: Tool) {
         if tool != self.tool {
             self.path.stop_drag();
+            self.transform.stop_drag();
             self.section_dragging = false;
             self.section_grab = None;
             self.gesture = Gesture::default();
+            self.stamp_contact = Default::default();
             self.cursor = None;
             if tool == Tool::Stamp && self.brush.diameter_mm < 1.5 {
                 self.brush.diameter_mm = 2.8;
@@ -142,6 +164,7 @@ impl Visual {
     }
     /// A real source edit invalidates inspection; a camera or tool change does not.
     pub fn invalidate(&mut self) {
+        self.stamp_contact = Default::default();
         self.path.invalidate();
         self.measure.clear();
         self.study = None;
@@ -165,7 +188,10 @@ impl Visual {
         }
     }
     pub fn is_painting(&self) -> bool {
-        matches!(self.tool, Tool::Paint | Tool::Stamp | Tool::Path)
+        matches!(
+            self.tool,
+            Tool::Paint | Tool::Stamp | Tool::Path | Tool::Transform
+        )
     }
     pub fn wants_repaint(&self) -> bool {
         self.busy || self.playing
@@ -228,9 +254,14 @@ impl Visual {
     pub fn chooser(&mut self, ui: &mut egui::Ui, choices: &[Tool]) {
         ui.horizontal_wrapped(|ui| {
             for &tool in choices {
-                if ui
-                    .selectable_label(self.tool == tool, tool.label())
-                    .clicked()
+                if crate::icons::button(
+                    ui,
+                    tool.icon(),
+                    tool.label(),
+                    self.tool == tool,
+                    egui::vec2(0.0, 26.0),
+                )
+                .clicked()
                 {
                     self.select(tool);
                 }
@@ -239,14 +270,28 @@ impl Visual {
     }
     pub fn controls(&mut self, ui: &mut egui::Ui, d: &RingDesign, lib: &AlphaLibrary) {
         match self.tool {
-            Tool::Path => self.path.controls(ui,d),
+            Tool::Transform => self.transform.controls(ui, d),
+            Tool::Path => self.path.controls(ui, d),
             Tool::Measure => {
                 ui.label("Tap two points on the ring to measure their straight-line distance. Tap again to start a new measurement.");
-                if let [a,b]=self.measure.as_slice() {
-                    ui.colored_label(egui::Color32::from_rgb(43,226,214),format!("Distance {:.3} mm",ringdesign_core::interaction::section::distance(*a,*b)));
-                    ui.small(format!("X {:.3}   Y {:.3}   Z {:.3} mm",(b[0]-a[0]).abs(),(b[1]-a[1]).abs(),(b[2]-a[2]).abs()));
+                if let [a, b] = self.measure.as_slice() {
+                    ui.colored_label(
+                        egui::Color32::from_rgb(43, 226, 214),
+                        format!(
+                            "Distance {:.3} mm",
+                            ringdesign_core::interaction::section::distance(*a, *b)
+                        ),
+                    );
+                    ui.small(format!(
+                        "X {:.3}   Y {:.3}   Z {:.3} mm",
+                        (b[0] - a[0]).abs(),
+                        (b[1] - a[1]).abs(),
+                        (b[2] - a[2]).abs()
+                    ));
                 }
-                if ui.button("Clear measurement").clicked() {self.measure.clear();}
+                if ui.button("Clear measurement").clicked() {
+                    self.measure.clear();
+                }
                 ui.small("Measures the displayed mesh; not surface arc length or minimum wall thickness.");
             }
             Tool::Select => {}
@@ -274,10 +319,22 @@ impl Visual {
                 value(ui, "Depth", &mut self.brush.depth_mm, 0.01..=1.6, " mm");
                 if self.tool == Tool::Stamp {
                     ui.horizontal_wrapped(|ui| {
-                        ui.label("Copies");ui.add(egui::DragValue::new(&mut self.arrangement.count).range(1..=ringdesign_core::interaction::surface::MAX_STAMP_COPIES));
-                        ui.checkbox(&mut self.arrangement.mirror,"Mirror sides");
+                        ui.label("Copies");
+                        ui.add(
+                            egui::DragValue::new(&mut self.arrangement.count)
+                                .range(1..=ringdesign_core::interaction::surface::MAX_STAMP_COPIES),
+                        );
+                        ui.checkbox(&mut self.arrangement.mirror, "Mirror sides");
                     });
-                    if self.arrangement.count>1 {value(ui,"Around ring",&mut self.arrangement.span_deg,1.0..=360.0,"°");}
+                    if self.arrangement.count > 1 {
+                        value(
+                            ui,
+                            "Around ring",
+                            &mut self.arrangement.span_deg,
+                            1.0..=360.0,
+                            "°",
+                        );
+                    }
                     value(
                         ui,
                         "Rotation",
@@ -285,37 +342,11 @@ impl Visual {
                         -180.0..=180.0,
                         "°",
                     );
-                    let search = ui.add(
-                        egui::TextEdit::singleline(&mut self.search)
-                            .id(ui.id().with("viewport-alpha-search"))
-                            .hint_text("Find an alpha")
-                            .desired_width(ui.available_width()),
-                    );
-                    if search.has_focus() {
-                        search.scroll_to_me(Some(egui::Align::Center));
-                    }
                     if self.brush.stamp.is_empty() {
                         self.brush.stamp = lib.names().into_iter().next().unwrap_or_default();
                     }
-                    let w = (ui.available_width() - 18.0).max(90.0);
-                    egui::ComboBox::from_id_salt("surface-stamp-alpha")
-                        .selected_text(&self.brush.stamp)
-                        .width(w)
-                        .height(190.0)
-                        .truncate()
-                        .show_ui(ui, |ui| {
-                            ui.set_max_width(w);
-                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
-                            let filter = self.search.to_lowercase();
-                            for a in lib
-                                .iter()
-                                .filter(|a| a.name.to_lowercase().contains(&filter))
-                                .take(180)
-                            {
-                                ui.selectable_value(&mut self.brush.stamp, a.name.clone(), &a.name);
-                            }
-                        });
-                    ui.label("Tap the ring to place an editable alpha. Select restores orbit.");
+                    crate::artwork::picker(ui, "surface-stamp-alpha", &mut self.brush.stamp, lib);
+                    ui.label("Hover the pen to preview. Touch and slide to position; release to place. Move ornament edits it later.");
                 } else {
                     ui.label(if cfg!(target_os="android") {"Draw on the ring. Lift to build the relief; Select restores orbit. Two fingers navigate."}else{"Draw on the ring. Lift to build the relief; Select restores orbit. Shift-drag pans; the wheel zooms."});
                 }
@@ -439,7 +470,11 @@ impl Visual {
         }
     }
     pub fn apply_controls(&mut self, d: &mut RingDesign) -> Option<usize> {
-        if self.tool == Tool::Path { self.path.apply_pending(d) } else { None }
+        match self.tool {
+            Tool::Path => self.path.apply_pending(d),
+            Tool::Transform => self.transform.apply_pending(d),
+            _ => None,
+        }
     }
     fn refresh_clearance(&mut self, d: &RingDesign) {
         if self.clearance_gap != Some(self.gap_mm.to_bits()) {
@@ -587,5 +622,46 @@ mod tests {
                 assert_eq!(serde_json::to_vec(&d).unwrap(), source);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod compact_tests {
+    use super::*;
+    #[test]
+    fn labeled_icon_toolbar_wraps_buttons_instead_of_individual_letters() {
+        let ctx = egui::Context::default();
+        let mut visual = Visual::default();
+        let mut height = 0.0;
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(280.0, 640.0),
+                )),
+                ..Default::default()
+            },
+            |root| {
+                egui::CentralPanel::default().show(root, |ui| {
+                    let top = ui.cursor().top();
+                    visual.chooser(
+                        ui,
+                        &[
+                            Tool::Select,
+                            Tool::Paint,
+                            Tool::Stamp,
+                            Tool::Path,
+                            Tool::Transform,
+                        ],
+                    );
+                    height = ui.cursor().top() - top;
+                });
+            },
+        );
+        output.textures_delta.clear();
+        assert!(
+            height < 125.0,
+            "tool buttons wrapped into vertical text: {height}"
+        );
     }
 }

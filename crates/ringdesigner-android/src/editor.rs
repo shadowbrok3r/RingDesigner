@@ -3,6 +3,7 @@
 pub mod controls;
 pub mod layout;
 pub mod overlay;
+pub mod pen;
 pub mod picking;
 pub mod workspace;
 
@@ -49,6 +50,7 @@ pub enum Sheet {
     Timeline,
     Advanced,
     Construction,
+    Workflow,
 }
 
 impl Sheet {
@@ -61,6 +63,7 @@ impl Sheet {
             Self::Timeline => "Edit history",
             Self::Advanced => "All design controls",
             Self::Construction => "Construction guide",
+            Self::Workflow => "Jewelry workflow",
         }
     }
 }

@@ -467,7 +467,14 @@ impl GpuMeshRenderer {
             return;
         }
 
-        let program = unsafe { compile_program(gl, VERTEX_SHADER, &FRAGMENT_SHADER.replace("// STUDIO_MATERIAL", ringdesign_core::render::STUDIO_GLSL)) };
+        let program = unsafe {
+            compile_program(
+                gl,
+                VERTEX_SHADER,
+                &FRAGMENT_SHADER
+                    .replace("// STUDIO_MATERIAL", ringdesign_core::render::STUDIO_GLSL),
+            )
+        };
         let wire_program = unsafe { compile_program(gl, VERTEX_SHADER, WIREFRAME_FRAGMENT_SHADER) };
         let vao = unsafe { gl.create_vertex_array() }.expect("create VAO");
         let vbo = unsafe { gl.create_buffer() }.expect("create VBO");
@@ -723,22 +730,34 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             app.visual.chooser(ui, &Tool::ALL);
         });
         if app.visual.tool != Tool::Select {
-            egui::Panel::right(egui::Id::new(("direct-viewport-inspector", pane)))
-                .exact_size(248.0)
-                .show(ui, |ui| {
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        app.visual.controls(ui, &app.design, &app.lib);
-                        if let Some(layer) = app.visual.apply_controls(&mut app.design) {
-                            app.selected_layer = Some(layer);
-                            app.mark_dirty();
-                        }
-                        if app.visual.tool == Tool::Clearance
-                            && app.visual.stone_controls(ui, &mut app.design)
-                        {
-                            app.mark_dirty();
-                        }
-                    });
+            let mut open = true;
+            egui::Window::new(app.visual.tool.label())
+                .frame(egui::Frame::window(ui.style()).fill(egui::Color32::from_rgb(22, 20, 29)))
+                .id(egui::Id::new("direct-viewport-inspector"))
+                .open(&mut open)
+                .default_width(240.0)
+                .default_pos(ui.max_rect().right_top() - egui::vec2(255.0, -40.0))
+                .constrain_to(ui.ctx().content_rect())
+                .resizable(true)
+                .show(ui.ctx(), |ui| {
+                    egui::ScrollArea::vertical()
+                        .max_height(460.0)
+                        .show(ui, |ui| {
+                            app.visual.controls(ui, &app.design, &app.lib);
+                            if let Some(layer) = app.visual.apply_controls(&mut app.design) {
+                                app.selected_layer = Some(layer);
+                                app.mark_dirty();
+                            }
+                            if app.visual.tool == Tool::Clearance
+                                && app.visual.stone_controls(ui, &mut app.design)
+                            {
+                                app.mark_dirty();
+                            }
+                        });
                 });
+            if !open {
+                app.visual.select(Tool::Select);
+            }
         }
     }
     let mould_active = active && app.visual.tool == Tool::Mould && app.visual.study.is_some();
@@ -853,7 +872,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     if app.build.is_some() {
         let (mvp, normal_matrix) = camera.matrices(rect);
         let mode = shade.gl_mode();
-        let base_color = ringdesign_core::render::METAL_FINISHES[app.finish.min(FINISHES.len() - 1)].1;
+        let base_color =
+            ringdesign_core::render::METAL_FINISHES[app.finish.min(FINISHES.len() - 1)].1;
         let roughness = ringdesign_core::render::POLISHES[app.polish.min(2)].1;
         let rig = &LIGHT_RIGS[app.light.min(LIGHT_RIGS.len() - 1)];
         let (light_dir, ambient) = (rig.dir, rig.ambient);

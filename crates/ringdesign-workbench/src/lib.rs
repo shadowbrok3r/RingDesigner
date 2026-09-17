@@ -1,9 +1,12 @@
 //! Touch-friendly workshop shared by the configurator and Android.
-pub mod job;
-pub mod visual;
+pub mod artwork;
 pub mod construction;
+pub mod icons;
+pub mod job;
 mod ui;
+pub mod visual;
 mod worker;
+pub mod workflow;
 use job::{Action, Artifact, Done, Job, Output, Stage, View};
 use ringdesign_core::{AlphaLibrary, RingDesign, manufacturing as mf};
 

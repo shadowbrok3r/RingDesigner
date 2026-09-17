@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.17.0 — 2026-09-16
+
+- Shared Atelier SVG icons, compact Undo/Redo and tool controls, with finger-hold and 0.7-second hover hints.
+- Real alpha thumbnails, searchable pattern grid and surface-conforming artwork preview before placement.
+- Move ornament: pick, move, rotate, resize, duplicate and mirror existing stamps, including manual nested groups; preserve masks and Undo.
+- Float palettes across the full app; restore a minimized inspector from its Expand button or the always-visible Panel icon.
+- Five-stage jewelry Guide: fit, shape, decorate, set stones, inspect and export.
+- Pen hover reaches the entire UI; steady hover samples no longer restart the tooltip timer.
+- Stationary stamp previews survive long presses and place once on release; immediate Undo includes edits still waiting for the history debounce.
+
 ## 0.16.0 — 2026-09-16
 
 - Rounded signet cap/shoulder transitions now change the actual surface, so the

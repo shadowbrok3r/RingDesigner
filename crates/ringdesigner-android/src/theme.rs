@@ -96,6 +96,7 @@ fn widget_palette(w: &mut egui::style::Widgets) {
 }
 
 pub fn apply(ctx: &egui::Context) {
+    ctx.add_plugin(crate::editor::pen::PenHover::default());
     let mut v = egui::Visuals::dark();
 
     // Not fully opaque: `ambience` paints below every panel and a solid page would hide it.
@@ -144,8 +145,10 @@ pub fn apply(ctx: &egui::Context) {
         s.text_styles
             .insert(egui::TextStyle::Heading, egui::FontId::proportional(16.0));
         s.spacing.item_spacing = egui::vec2(4.0, 4.0);
-        s.spacing.button_padding = egui::vec2(6.0, 4.0);
-        s.spacing.interact_size.y = 30.0;
+        s.spacing.button_padding = egui::vec2(4.0, 2.0);
+        s.spacing.interact_size.y = 26.0;
+        s.interaction.tooltip_delay = 0.7;
+        s.interaction.tooltip_grace_time = 0.0;
         s.interaction.drag_value_dragging = false;
         let mut scroll = egui::style::ScrollStyle::solid();
         scroll.bar_width = 10.0;
@@ -304,7 +307,7 @@ pub fn set_content_bounds(ctx: &egui::Context, rect: egui::Rect) {
     ctx.data_mut(|d| d.insert_temp(egui::Id::new("mobile-safe-content"), rect));
 }
 
-fn content_bounds(ctx: &egui::Context) -> egui::Rect {
+pub fn content_bounds(ctx: &egui::Context) -> egui::Rect {
     ctx.data(|d| d.get_temp(egui::Id::new("mobile-safe-content")))
         .unwrap_or_else(|| ctx.content_rect())
 }
@@ -320,15 +323,26 @@ pub fn menu_popup<R>(
     content: impl FnOnce(&mut egui::Ui) -> R,
 ) -> egui::Response {
     use egui::containers::menu::MenuConfig;
-    let response = if let Some(size) = min_size {
-        ui.add_sized(size, egui::Button::new(label.into()))
-    } else {
-        ui.add(egui::Button::new(label.into()))
-    };
+    let label = label.into();
+    let name = label.text().to_owned();
+    let action = ringdesign_workbench::icons::button(
+        ui,
+        ringdesign_workbench::icons::Icon::for_label(&name),
+        if name == "View" { "" } else { &name },
+        false,
+        min_size.unwrap_or(egui::vec2(0.0, 26.0)),
+    );
+    let clicked = action.clicked();
+    let response = action.response;
     let config = MenuConfig::default().close_behavior(close_behavior);
     let cap = menu_height_cap(ui.ctx(), response.rect, align);
     let width_cap = menu_width_cap(ui.ctx());
     let popup = egui::Popup::menu(&response)
+        .open_memory(if clicked {
+            Some(egui::SetOpenCommand::Toggle)
+        } else {
+            None
+        })
         .align(align)
         .align_alternatives(alternatives)
         .gap(4.0)

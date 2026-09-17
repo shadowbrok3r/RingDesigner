@@ -1,6 +1,9 @@
 /target
 batch6-8/
 assets/
+!crates/ringdesign-workbench/assets/
+!crates/ringdesign-workbench/assets/icons/
+!crates/ringdesign-workbench/assets/icons/*.svg
 !crates/ringdesign-core/assets/
 crates/ringdesign-core/assets/*
 !crates/ringdesign-core/assets/aster.ring.json

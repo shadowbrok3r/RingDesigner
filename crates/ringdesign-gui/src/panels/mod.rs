@@ -1,12 +1,12 @@
 //! Window layout and the top-level chrome.
 
-pub mod design;
-pub mod casting;
 pub mod cad;
+pub mod casting;
+pub mod design;
 pub mod graph;
 pub mod layers;
-pub mod node;
 pub mod library;
+pub mod node;
 pub mod report;
 pub mod section;
 pub mod unrolled;
@@ -28,44 +28,58 @@ const GUTTER: f32 = 3.0;
 
 pub fn render(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     shortcuts(app, ui);
+    workflow_window(app, ui.ctx());
     egui::Panel::top(egui::Id::new("toolbar")).show(ui, |ui| toolbar(app, ui));
     egui::Panel::bottom(egui::Id::new("status")).show(ui, |ui| status_bar(app, ui));
 
     if app.construction.open {
-        egui::Panel::left(egui::Id::new("construction-guide")).exact_size(350.).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.strong("Construction guide");
-                if ui.small_button("Close").clicked() { app.construction.open=false; }
-            });
-            let before=app.design.clone();
-            let event=app.construction.ui(ui,&mut app.design);
-            if event.changed {
-                app.history.commit(&before);
-                app.history.commit(&app.design);
-                let d=app.design.clone();
-                let lib=app.library_mut();
-                d.unpack_embedded(lib);
-                d.bake_all(lib);
-                app.selected_layer=None;
-                app.fit_pending=true;
-                app.show_grid=false;
-                app.finish=0;
-                app.mark_dirty();
-            }
-            if let Some(view)=event.view {
-                use ringdesign_workbench::construction::View;
-                for pane in &mut app.panes {
-                    pane.camera.yaw=app.design.shank.head.theta_deg.to_radians() as f32;
-                    pane.camera.pitch=match view { View::Seal=>0., View::ThreeQuarter=>-0.72, View::Cheek=>-1.30, View::Bore=>-std::f32::consts::FRAC_PI_2+0.001 };
-                    if matches!(view,View::ThreeQuarter) { pane.camera.yaw-=0.48; }
-                    pane.camera.pan=[0.;2];
-                    pane.camera.zoom=1.23;
-                    pane.shade=viewport::ShadeMode::Metal;
+        egui::Panel::left(egui::Id::new("construction-guide"))
+            .exact_size(350.)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.strong("Construction guide");
+                    if ui.small_button("Close").clicked() {
+                        app.construction.open = false;
+                    }
+                });
+                let before = app.design.clone();
+                let event = app.construction.ui(ui, &mut app.design);
+                if event.changed {
+                    app.history.commit(&before);
+                    app.history.commit(&app.design);
+                    let d = app.design.clone();
+                    let lib = app.library_mut();
+                    d.unpack_embedded(lib);
+                    d.bake_all(lib);
+                    app.selected_layer = None;
+                    app.fit_pending = true;
+                    app.show_grid = false;
+                    app.finish = 0;
+                    app.mark_dirty();
                 }
-            }
-        });
+                if let Some(view) = event.view {
+                    use ringdesign_workbench::construction::View;
+                    for pane in &mut app.panes {
+                        pane.camera.yaw = app.design.shank.head.theta_deg.to_radians() as f32;
+                        pane.camera.pitch = match view {
+                            View::Seal => 0.,
+                            View::ThreeQuarter => -0.72,
+                            View::Cheek => -1.30,
+                            View::Bore => -std::f32::consts::FRAC_PI_2 + 0.001,
+                        };
+                        if matches!(view, View::ThreeQuarter) {
+                            pane.camera.yaw -= 0.48;
+                        }
+                        pane.camera.pan = [0.; 2];
+                        pane.camera.zoom = 1.23;
+                        pane.shade = viewport::ShadeMode::Metal;
+                    }
+                }
+            });
     } else {
-        for &side in Side::ALL { dock_side(app, ui, side); }
+        for &side in Side::ALL {
+            dock_side(app, ui, side);
+        }
     }
 
     egui::CentralPanel::default()
@@ -159,7 +173,11 @@ impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
             .show(ui, |ui| {
                 // While a graph drives the design these panels only show;
                 // the graph is where edits go.
-                let driven = self.app.graph_driven() && matches!(tool, ToolKind::Design | ToolKind::Layers | ToolKind::Library);
+                let driven = self.app.graph_driven()
+                    && matches!(
+                        tool,
+                        ToolKind::Design | ToolKind::Layers | ToolKind::Library
+                    );
                 if driven {
                     driven_banner(self.app, ui, tool);
                 }
@@ -281,7 +299,11 @@ fn pane_head(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
                 if ui.small_button(label).clicked() {
                     let cam = &mut app.panes[i].camera;
                     cam.yaw = app.design.shank.head.theta_deg.to_radians() as f32
-                        - if angled { std::f32::consts::FRAC_PI_8 } else { 0. };
+                        - if angled {
+                            std::f32::consts::FRAC_PI_8
+                        } else {
+                            0.
+                        };
                     cam.pitch = if angled { -0.55 } else { 0. };
                     cam.pan = [0.; 2];
                     app.active_pane = i;
@@ -360,7 +382,10 @@ fn shortcuts(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     // otherwise still fire while typing in a field that ignored it.
     if delete && !ui.ctx().memory(|m| m.focused().is_some()) {
         // The Delete key acts on what the active pane shows.
-        let graph_pane = app.panes.get(app.active_pane).is_some_and(|p| p.kind == PaneKind::Graph);
+        let graph_pane = app
+            .panes
+            .get(app.active_pane)
+            .is_some_and(|p| p.kind == PaneKind::Graph);
         if graph_pane && app.selected_node.is_some() {
             Command::DeleteNode.run(app);
         } else {
@@ -408,21 +433,41 @@ fn driven_banner(app: &mut RingDesignerApp, ui: &mut egui::Ui, tool: ToolKind) {
         .corner_radius(4.0)
         .show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.colored_label(theme::ACCENT, format!("{} Driven by the graph", icon::GRAPH));
+                ui.colored_label(
+                    theme::ACCENT,
+                    format!("{} Driven by the graph", icon::GRAPH),
+                );
                 ui.weak("— edit the graph, or bake it to edit here.");
-                if ui.small_button(format!("{} Edit graph", icon::GRAPH)).clicked() {
+                if ui
+                    .small_button(format!("{} Edit graph", icon::GRAPH))
+                    .clicked()
+                {
                     app.show_graph_pane();
                 }
-                if ui.small_button(format!("{} Bake", icon::FIRE)).on_hover_text("Drop the graph; keep the design as last evaluated").clicked() {
+                if ui
+                    .small_button(format!("{} Bake", icon::FIRE))
+                    .on_hover_text("Drop the graph; keep the design as last evaluated")
+                    .clicked()
+                {
                     app.bake_graph();
                 }
             });
             if tool == ToolKind::Layers && !app.design.layers.layers.is_empty() {
                 ui.horizontal_wrapped(|ui| {
                     ui.weak("Edit in graph:");
-                    let names: Vec<String> = app.design.layers.layers.iter().map(|e| e.name.clone()).collect();
+                    let names: Vec<String> = app
+                        .design
+                        .layers
+                        .layers
+                        .iter()
+                        .map(|e| e.name.clone())
+                        .collect();
                     for (k, name) in names.iter().enumerate() {
-                        if ui.small_button(name).on_hover_text("Find the node that produced this layer").clicked() {
+                        if ui
+                            .small_button(name)
+                            .on_hover_text("Find the node that produced this layer")
+                            .clicked()
+                        {
                             app.edit_in_graph(k);
                         }
                     }
@@ -590,29 +635,21 @@ fn command_palette(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
 /// Undo, redo, and the timeline they walk.
 fn history_controls(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
-    let undo = egui::Button::new(icon::ARROW_ARC_LEFT);
-    let hint = app
-        .history
-        .undo_label()
-        .unwrap_or("nothing to undo")
-        .to_string();
+    use ringdesign_workbench::icons::{self, Icon};
     if ui
-        .add_enabled(app.history.can_undo(), undo)
-        .on_hover_text(format!("Undo {hint}  (Ctrl+Z)"))
+        .add_enabled_ui(app.history.can_undo(), |ui| {
+            icons::compact(ui, Icon::Undo, false)
+        })
+        .inner
         .clicked()
     {
         app.undo();
     }
-
-    let redo = egui::Button::new(icon::ARROW_ARC_RIGHT);
-    let hint = app
-        .history
-        .redo_label()
-        .unwrap_or("nothing to redo")
-        .to_string();
     if ui
-        .add_enabled(app.history.can_redo(), redo)
-        .on_hover_text(format!("Redo {hint}  (Ctrl+Shift+Z)"))
+        .add_enabled_ui(app.history.can_redo(), |ui| {
+            icons::compact(ui, Icon::Redo, false)
+        })
+        .inner
         .clicked()
     {
         app.redo();
@@ -654,7 +691,9 @@ fn history_controls(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     ui.add_space(3.0);
     ui.horizontal_wrapped(|ui| {
-        if ui.button("Construction guide").clicked() { app.construction.open=!app.construction.open; }
+        use ringdesign_workbench::icons::{self,Icon};
+        if icons::button(ui,Icon::Guide,"Guide",false,egui::vec2(0.0,26.0)).clicked(){ui.data_mut(|d|d.insert_temp(egui::Id::new("workflow-open"),true));}
+        if icons::button(ui,Icon::Shape,"Construction",false,egui::vec2(0.0,26.0)).clicked() { app.construction.open=!app.construction.open; }
         if ui.button(format!("{} Casting",icon::SHIELD_CHECK)).on_hover_text("Recipe, mold release, repair preview, and pattern package").clicked() {
             app.focus(PaneKind::Casting);
         }
@@ -891,36 +930,38 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
         });
     ui.horizontal_wrapped(|ui| {
-            if app.is_building() {
-                ui.add(egui::Spinner::new().size(14.0));
-            }
-            if ui
-                .button(format!("{} Rebuild", icon::ARROWS_CLOCKWISE))
-                .on_hover_text("Rebuild the mesh now")
-                .clicked()
-            {
-                app.rebuild_now();
-            }
-            ui.checkbox(&mut app.auto_rebuild, "Auto");
+        if app.is_building() {
+            ui.add(egui::Spinner::new().size(14.0));
+        }
+        if ui
+            .button(format!("{} Rebuild", icon::ARROWS_CLOCKWISE))
+            .on_hover_text("Rebuild the mesh now")
+            .clicked()
+        {
+            app.rebuild_now();
+        }
+        ui.checkbox(&mut app.auto_rebuild, "Auto");
 
-            if quality_picker(ui, "quality", &mut app.preview_params) {
-                app.mark_dirty();
-            }
-            ui.label(egui::RichText::new("Preview").color(theme::TEXT_DIM));
-            egui::ComboBox::from_id_salt("surface-polish")
-                .selected_text(ringdesign_core::render::POLISHES[app.polish.min(2)].0)
-                .width(85.0)
-                .show_ui(ui, |ui| {
-                    for (i, (name, _)) in ringdesign_core::render::POLISHES.iter().enumerate() {
-                        ui.selectable_value(&mut app.polish, i, *name);
-                    }
-                });
+        if quality_picker(ui, "quality", &mut app.preview_params) {
+            app.mark_dirty();
+        }
+        ui.label(egui::RichText::new("Preview").color(theme::TEXT_DIM));
+        egui::ComboBox::from_id_salt("surface-polish")
+            .selected_text(ringdesign_core::render::POLISHES[app.polish.min(2)].0)
+            .width(85.0)
+            .show_ui(ui, |ui| {
+                for (i, (name, _)) in ringdesign_core::render::POLISHES.iter().enumerate() {
+                    ui.selectable_value(&mut app.polish, i, *name);
+                }
+            });
 
-            ui.separator();
-            mcp_control(app, ui);
-            ui.separator();
+        ui.separator();
+        mcp_control(app, ui);
+        ui.separator();
         egui::ComboBox::from_id_salt("metal_finish")
-            .selected_text(crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].name)
+            .selected_text(
+                crate::viewport::FINISHES[app.finish.min(crate::viewport::FINISHES.len() - 1)].name,
+            )
             .width(104.0)
             .show_ui(ui, |ui| {
                 for (i, f) in crate::viewport::FINISHES.iter().enumerate() {
@@ -930,7 +971,10 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             .response
             .on_hover_text("Metal colour in the viewport. Weight per alloy is in the report.");
         egui::ComboBox::from_id_salt("light_rig")
-            .selected_text(crate::viewport::LIGHT_RIGS[app.light.min(crate::viewport::LIGHT_RIGS.len() - 1)].name)
+            .selected_text(
+                crate::viewport::LIGHT_RIGS[app.light.min(crate::viewport::LIGHT_RIGS.len() - 1)]
+                    .name,
+            )
             .width(88.0)
             .show_ui(ui, |ui| {
                 for (i, l) in crate::viewport::LIGHT_RIGS.iter().enumerate() {
@@ -939,7 +983,6 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             })
             .response
             .on_hover_text("Key light for the polished-metal view");
-
     });
     ui.add_space(3.0);
 }
@@ -1071,32 +1114,40 @@ fn status_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         // reports a phantom on the crest line that does not fall with the
         // tolerance, so the chip used to disagree with the banner six inches
         // above it on exactly the designs that most need a clear answer.
-        if casting::active(app) {casting::status_chip(app,ui);}
-        else if app.panes.get(app.active_pane).is_some_and(|p|p.kind==PaneKind::Cad) {ui.weak("CAD candidate; see feature inspection");}
-        else if !app.is_current() {ui.weak("Geometry report pending or unavailable");}
-        else if app.design.cad.is_some() {ui.weak("CAD components — use Casting for release inspection");}
-        else {
-        let verdict = app
-            .field
-            .as_ref()
-            .map(|f| f.verdict)
-            .or_else(|| app.cast.as_ref().map(|c| c.verdict));
-        let (glyph, color) = match verdict {
-            Some(v) => (
-                match v {
-                    ringdesign_core::castability::Verdict::Castable => icon::CHECK_CIRCLE,
-                    _ => icon::WARNING,
-                },
-                theme::verdict_color(v),
-            ),
-            None => (icon::CIRCLE_DASHED, theme::TEXT_DIM),
-        };
-        match verdict {
-            Some(v) => {
-                ui.label(egui::RichText::new(format!("{glyph} {}", v.label())).color(color))
-            }
-            None => ui.label(egui::RichText::new(format!("{glyph} —")).color(color)),
-        };
+        if casting::active(app) {
+            casting::status_chip(app, ui);
+        } else if app
+            .panes
+            .get(app.active_pane)
+            .is_some_and(|p| p.kind == PaneKind::Cad)
+        {
+            ui.weak("CAD candidate; see feature inspection");
+        } else if !app.is_current() {
+            ui.weak("Geometry report pending or unavailable");
+        } else if app.design.cad.is_some() {
+            ui.weak("CAD components — use Casting for release inspection");
+        } else {
+            let verdict = app
+                .field
+                .as_ref()
+                .map(|f| f.verdict)
+                .or_else(|| app.cast.as_ref().map(|c| c.verdict));
+            let (glyph, color) = match verdict {
+                Some(v) => (
+                    match v {
+                        ringdesign_core::castability::Verdict::Castable => icon::CHECK_CIRCLE,
+                        _ => icon::WARNING,
+                    },
+                    theme::verdict_color(v),
+                ),
+                None => (icon::CIRCLE_DASHED, theme::TEXT_DIM),
+            };
+            match verdict {
+                Some(v) => {
+                    ui.label(egui::RichText::new(format!("{glyph} {}", v.label())).color(color))
+                }
+                None => ui.label(egui::RichText::new(format!("{glyph} —")).color(color)),
+            };
         }
 
         ui.separator();
@@ -1123,4 +1174,69 @@ fn status_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         });
     });
     ui.add_space(2.0);
+}
+
+fn workflow_window(app: &mut RingDesignerApp, ctx: &egui::Context) {
+    let id = egui::Id::new("workflow-open");
+    let mut open = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
+    let mut action = None;
+    egui::Window::new("Jewelry workflow")
+        .frame(egui::Frame::window(&ctx.global_style()).fill(egui::Color32::from_rgb(22, 20, 29)))
+        .default_height(600.0)
+        .default_pos(egui::pos2(350.0, 140.0))
+        .open(&mut open)
+        .default_width(325.0)
+        .resizable(true)
+        .show(ctx, |ui| {
+            egui::ScrollArea::vertical()
+                .max_height(580.0)
+                .show(ui, |ui| action = ringdesign_workbench::workflow::show(ui));
+        });
+    if let Some(action) = action {
+        use ringdesign_workbench::{visual::Tool, workflow::Action};
+        match action {
+            Action::Fit | Action::Shape => {
+                app.dock.open_on(ToolKind::Design, Side::Left);
+                app.construction.open = false;
+            }
+            Action::Tool(tool) => {
+                app.panes[app.active_pane].kind = PaneKind::Solid;
+                app.visual.select(tool);
+            }
+            Action::Stones => {
+                app.dock.open_on(ToolKind::Layers, Side::Right);
+                app.visual.select(Tool::Clearance);
+            }
+            Action::Checks => app.panes[app.active_pane].kind = PaneKind::Casting,
+            Action::Export => {
+                ctx.data_mut(|d| d.insert_temp(egui::Id::new("guided-export"), true));
+            }
+        }
+        open = false;
+    }
+    ctx.data_mut(|d| d.insert_temp(id, open));
+    let id = egui::Id::new("guided-export");
+    let mut open = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
+    egui::Window::new("Save & export")
+        .frame(egui::Frame::window(&ctx.global_style()).fill(egui::Color32::from_rgb(22, 20, 29)))
+        .open(&mut open)
+        .resizable(false)
+        .show(ctx, |ui| {
+            use ringdesign_workbench::icons::{self, Icon};
+            ui.label("Save the editable design, then export a mesh for your next step.");
+            for (icon, label, action) in [
+                (
+                    Icon::Save,
+                    "Save design",
+                    export::save_design as fn(&mut RingDesignerApp),
+                ),
+                (Icon::Export, "Export STL", export::export_stl),
+                (Icon::Export, "Export 3MF", export::export_3mf),
+            ] {
+                if icons::button(ui, icon, label, false, egui::vec2(0.0, 28.0)).clicked() {
+                    action(app);
+                }
+            }
+        });
+    ctx.data_mut(|d| d.insert_temp(id, open));
 }
