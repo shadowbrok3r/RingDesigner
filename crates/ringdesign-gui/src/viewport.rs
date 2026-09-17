@@ -735,8 +735,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                 .frame(egui::Frame::window(ui.style()).fill(egui::Color32::from_rgb(22, 20, 29)))
                 .id(egui::Id::new("direct-viewport-inspector"))
                 .open(&mut open)
-                .default_width(240.0)
-                .default_pos(ui.max_rect().right_top() - egui::vec2(255.0, -40.0))
+                .default_width(180.0).min_width(150.0)
+                .default_pos(ui.max_rect().right_top() - egui::vec2(315.0, -180.0))
                 .constrain_to(ui.ctx().content_rect())
                 .resizable(true)
                 .show(ui.ctx(), |ui| {
@@ -747,6 +747,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                             if let Some(layer) = app.visual.apply_controls(&mut app.design) {
                                 app.selected_layer = Some(layer);
                                 app.mark_dirty();
+                                app.history.commit(&app.design);
                             }
                             if app.visual.tool == Tool::Clearance
                                 && app.visual.stone_controls(ui, &mut app.design)
@@ -811,19 +812,28 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         return;
     }
 
+    let head = app.design.shank.head.theta_deg as f32;
+    let camera = app.panes[pane].camera;
+    let nav = ringdesign_workbench::navigation::show(ui, rect, ui.id().with(("desktop-view", pane)),
+        &mut app.panes[pane].navigation, [camera.yaw, camera.pitch], head);
+    if let Some(action) = nav.action {
+        let angles = action.angles(camera.yaw, camera.pitch, head);
+        app.panes[pane].camera.yaw = angles[0]; app.panes[pane].camera.pitch = angles[1];
+        app.panes[pane].camera.pan = [0.0; 2];
+    }
     let shift = ui.input(|i| i.modifiers.shift);
-    let navigating = shift || ui.input(|i| i.pointer.middle_down());
-    let projector = app.panes[pane].camera.projector(rect);
-    let blocked = active
-        && app.build.as_ref().is_some_and(|b| {
-            app.visual.blocks_orbit(
-                ui.input(|i| i.pointer.press_origin().or(i.pointer.interact_pos())),
-                rect,
-                &b.mesh,
-                |p| projector.at(p.map(|v| v as f32)),
-                navigating,
-            )
-        });
+    let explicit_navigation = shift || ui.input(|i| i.pointer.middle_down() || i.multi_touch().is_some_and(|m| m.num_touches >= 2));
+    let camera = app.panes[pane].camera;
+    let projector = camera.projector(rect);
+    let floating_blocked = ui.input(|i| i.pointer.press_origin().or(i.pointer.interact_pos())).is_some_and(|p| {
+        nav.rect.contains(p) || ui.ctx().layer_id_at(p).is_some_and(|layer| layer != ui.layer_id())
+    });
+    let blocked = active && app.build.as_ref().is_some_and(|b| {
+        app.visual.route_pointer(ui, rect, &b.mesh, |p| projector.at(p.map(|v| v as f32)),
+            |p| camera.ray(rect, p), explicit_navigation, !floating_blocked)
+    });
+    let navigating = explicit_navigation || app.visual.navigating();
+    let locked = app.panes[pane].navigation.locked;
     let scroll = if response.hovered() {
         ui.input(|i| i.smooth_scroll_delta.y)
     } else {
@@ -833,9 +843,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         let Some(cam) = app.panes.get_mut(pane).map(|p| &mut p.camera) else {
             return;
         };
-        if response.dragged_by(egui::PointerButton::Primary) && !blocked {
+        if response.dragged_by(egui::PointerButton::Primary) && !blocked && !floating_blocked {
             let delta = response.drag_delta();
-            if shift {
+            if shift || locked {
                 cam.pan_by(delta, rect);
             } else {
                 cam.orbit(delta);
@@ -926,7 +936,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
 
     draw_legend(app, shade, &painter, rect);
     draw_probe(app, &painter, &proj, rect);
-    if active {
+    if active && !floating_blocked {
         if let Some(build) = app.build.clone() {
             let camera = app.panes[pane].camera;
             let proj = camera.projector(rect);
@@ -953,14 +963,21 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             }
             if edit.changed() {
                 app.mark_dirty();
+                app.history.commit(&app.design);
+                ui.ctx().request_repaint();
             }
         }
     }
 
+    if active && app.panes[pane].navigation.magnifier && !floating_blocked && !navigating {
+        if let Some(contact) = app.visual.placement_contact(ui, rect) {
+            ringdesign_workbench::loupe::show(ui, rect, contact, &[nav.rect]);
+        }
+    }
     painter.text(
         rect.right_bottom() - egui::vec2(12.0, 9.0),
         egui::Align2::RIGHT_BOTTOM,
-        "Drag to orbit • Shift-drag to pan • Scroll to zoom",
+        if locked { "View locked • Drag empty space to pan • Scroll to zoom" } else { "Drag empty space to orbit • Shift-drag to pan • Scroll to zoom" },
         egui::FontId::proportional(11.0),
         theme::TEXT_DIM,
     );

@@ -15,6 +15,7 @@ pub struct PathTool {
     target: Option<usize>,
     source: Option<u64>,
     dragging: bool,
+    contact: super::canvas::StampContact,
     apply: bool,
     cached: Option<String>,
     handles: Vec<[f64; 3]>,
@@ -64,6 +65,7 @@ impl Default for PathTool {
             target: None,
             source: None,
             dragging: false,
+            contact: Default::default(),
             apply: false,
             cached: None,
             handles: vec![],
@@ -73,11 +75,17 @@ impl Default for PathTool {
     }
 }
 impl PathTool {
+    pub(super) fn hit_handle(&self, pos: Pos2, project: impl Fn([f64; 3]) -> Pos2) -> bool {
+        self.handles
+            .iter()
+            .any(|p| pos.distance(project(*p)) < 24.0)
+    }
     pub fn invalidate(&mut self) {
         self.cached = None;
     }
     pub fn stop_drag(&mut self) {
         self.dragging = false;
+        self.contact = Default::default();
     }
     pub fn apply_pending(&mut self, d: &mut RingDesign) -> Option<usize> {
         if !std::mem::take(&mut self.apply) {
@@ -138,26 +146,9 @@ impl PathTool {
                     }
                 }
             });
-        ui.horizontal_wrapped(|ui| {
-            ui.selectable_value(&mut self.engrave, false, "Raise");
-            ui.selectable_value(&mut self.engrave, true, "Engrave");
-        });
+        super::relief_direction(ui, &mut self.engrave);
         value(ui, "Width", &mut self.curve.width_mm, 0.1..=6.0, " mm");
         value(ui, "Depth", &mut self.curve.height_mm, 0.01..=1.6, " mm");
-        let old_repeats = self.curve.repeats_around.max(1);
-        ui.horizontal_wrapped(|ui| {
-            ui.label("Copies");
-            ui.add(
-                egui::DragValue::new(&mut self.curve.repeats_around)
-                    .range(1..=surface::MAX_REPEATS),
-            );
-            ui.checkbox(&mut self.curve.mirror_v, "Mirror sides");
-        });
-        if old_repeats != self.curve.repeats_around {
-            for p in &mut self.curve.points {
-                p[0] *= self.curve.repeats_around as f64 / old_repeats as f64;
-            }
-        }
         egui::ComboBox::from_id_salt("path-cross-section")
             .selected_text(self.curve.profile.label())
             .width(width)
@@ -167,59 +158,89 @@ impl PathTool {
                     ui.selectable_value(&mut self.curve.profile, p, p.label());
                 }
             });
-        value(ui, "End taper", &mut self.curve.taper, 0.0..=0.5, "");
-        ui.checkbox(&mut self.snap, "Snap to 5° / 0.25 mm");
-        ui.checkbox(&mut self.curve.closed, "Join around repeat");
-        if let Some(i) = self.selected.filter(|i| *i < self.curve.points.len()) {
-            let p = &mut self.curve.points[i];
-            let mut angle = p[0] * 360.0 / self.curve.repeats_around as f64;
-            value(ui, "Point angle", &mut angle, -360.0..=720.0, "°");
-            p[0] = angle / 360.0 * self.curve.repeats_around as f64;
-            value(
-                ui,
-                "Across band",
-                &mut p[1],
-                0.0..=d.field_context().band_v_len_mm,
-                " mm",
-            );
-        }
-        ui.horizontal_wrapped(|ui| {
+        ui.vertical(|ui| {
+            use crate::icons::{self, Icon};
+            let enabled = self.curve.points.len() >= 2;
             if ui
-                .add_enabled(
-                    !self.curve.points.is_empty(),
-                    egui::Button::new("Remove point"),
-                )
-                .clicked()
-            {
-                let i = self
-                    .selected
-                    .unwrap_or(self.curve.points.len() - 1)
-                    .min(self.curve.points.len() - 1);
-                self.curve.points.remove(i);
-                self.selected = None;
-            }
-            if ui.button("Clear draft").clicked() {
-                *self = Self::default();
-            }
-            if ui
-                .add_enabled(
-                    self.curve.points.len() >= 2,
-                    egui::Button::new(if self.target.is_some() {
-                        "Apply path"
-                    } else {
-                        "Add path"
-                    }),
-                )
+                .add_enabled_ui(enabled, |ui| {
+                    icons::button(
+                        ui,
+                        Icon::Check,
+                        if self.target.is_some() {
+                            "Apply path"
+                        } else {
+                            "Add path"
+                        },
+                        false,
+                        egui::vec2(ui.available_width(), 28.0),
+                    )
+                })
+                .inner
                 .clicked()
             {
                 self.apply = true;
             }
+            ui.horizontal(|ui| {
+                if ui
+                    .add_enabled_ui(!self.curve.points.is_empty(), |ui| {
+                        icons::compact(ui, Icon::Delete, false)
+                    })
+                    .inner
+                    .clicked()
+                {
+                    let i = self
+                        .selected
+                        .unwrap_or(self.curve.points.len() - 1)
+                        .min(self.curve.points.len() - 1);
+                    self.curve.points.remove(i);
+                    self.selected = None;
+                    self.cached = None;
+                }
+                if icons::button(ui, Icon::Reset, "Clear", false, egui::vec2(0.0, 28.0)).clicked() {
+                    *self = Self::default();
+                }
+                ui.small(format!("{}/64", self.curve.points.len()));
+            });
         });
-        ui.label("Tap points on the ring; drag a point to reshape. Select lets you orbit. Apply keeps one editable layer.");
+        if let Some(i) = self.selected.filter(|i| *i < self.curve.points.len()) {
+            ui.collapsing(format!("Point {} position", i + 1), |ui| {
+                let p = &mut self.curve.points[i];
+                let mut angle = p[0] * 360.0 / self.curve.repeats_around as f64;
+                value(ui, "Point angle", &mut angle, -360.0..=720.0, "°");
+                p[0] = angle / 360.0 * self.curve.repeats_around as f64;
+                value(
+                    ui,
+                    "Across band",
+                    &mut p[1],
+                    0.0..=d.field_context().band_v_len_mm,
+                    " mm",
+                );
+            });
+        }
+        ui.collapsing("Repeat & shape", |ui| {
+            let old_repeats = self.curve.repeats_around.max(1);
+            ui.horizontal(|ui| {
+                ui.label("Copies");
+                ui.add(
+                    egui::DragValue::new(&mut self.curve.repeats_around)
+                        .range(1..=surface::MAX_REPEATS),
+                );
+            });
+            if old_repeats != self.curve.repeats_around {
+                for p in &mut self.curve.points {
+                    p[0] *= self.curve.repeats_around as f64 / old_repeats as f64;
+                }
+            }
+            ui.checkbox(&mut self.curve.mirror_v, "Mirror sides");
+            value(ui, "End taper", &mut self.curve.taper, 0.0..=0.5, "");
+            ui.checkbox(&mut self.curve.closed, "Close path");
+        });
+        ui.checkbox(&mut self.snap, "Snap points")
+            .on_hover_text("Snap around the ring to 5° and across the band to 0.25 mm.");
+        ui.small("Tap points; drag to reshape. Apply to keep. Empty space turns the view.");
         if d.draft.process == ringdesign_core::castability::CastProcess::SandTwoPart {
             ui.small("Keep raised paths shallow on the crown. Check casting after applying.");
         }
-        ui.small(format!("{} / 64 points", self.curve.points.len()));
         if !self.message.is_empty() {
             ui.colored_label(Color32::from_rgb(239, 179, 104), &self.message);
         }
@@ -285,7 +306,7 @@ impl PathTool {
         pointer: super::Pointer,
     ) -> Option<usize> {
         if pointer.navigating {
-            self.dragging = false;
+            self.stop_drag();
             return None;
         }
         if d.graph.is_some() || d.cad.is_some() {
@@ -295,10 +316,8 @@ impl PathTool {
             return Some(index);
         }
         self.refresh(d, lib);
-        let pos = response
-            .interact_pointer_pos()
-            .or(response.hover_pos())
-            .filter(|p| rect.contains(*p));
+        let (pos, place) = self.contact.update(ui, response, pointer.accepted);
+        let pos = pos.filter(|p| rect.contains(*p));
         if pointer.accepted {
             if let Some(pos) = pos {
                 let closest = self
@@ -319,9 +338,9 @@ impl PathTool {
                         .map(|(i, _)| i);
                     self.dragging = self.selected.is_some();
                 }
-                if response.clicked() && closest.is_some() {
+                if place && closest.is_some() && !self.dragging {
                     self.selected = closest;
-                } else if (response.clicked() || (response.dragged() && self.dragging))
+                } else if (place || (response.dragged() && self.dragging))
                     && self.curve.points.len() <= 64
                 {
                     let (origin, dir) = ray(pos);
@@ -366,6 +385,24 @@ impl PathTool {
             self.dragging = false;
         }
         let painter = ui.painter_at(rect);
+        // A prospective point follows the contact before release, including in
+        // the placement loupe. The draft itself changes only through the path tool.
+        if pointer.accepted && !self.dragging {
+            if let Some(pos) = pos {
+                let (o, v) = ray(pos);
+                if let Some(hit) =
+                    picking::hit(d, lib, mesh, o, v).filter(|h| h.radial_wall_mm >= 0.05)
+                {
+                    let mut chart = [hit.theta_deg / 360.0, hit.v_mm];
+                    if self.snap {
+                        chart[0] = (chart[0] * 72.0).round() / 72.0;
+                        chart[1] = (chart[1] * 4.0).round() / 4.0;
+                    }
+                    let landing = project(surface::points(d, lib, &[chart])[0]);
+                    painter.circle_stroke(landing, 6.0, Stroke::new(1.5, super::canvas::AQUA));
+                }
+            }
+        }
         for line in &self.lines {
             for pair in line.windows(2) {
                 painter.line_segment(

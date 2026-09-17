@@ -50,6 +50,12 @@ pub enum Icon {
     Search,
     Before,
     Settings,
+    Locked,
+    Unlocked,
+    Magnifier,
+    TurnLeft,
+    TurnRight,
+    Opposite,
     Delete,
 }
 impl Icon {
@@ -102,6 +108,12 @@ impl Icon {
         Self::Search,
         Self::Before,
         Self::Settings,
+        Self::Locked,
+        Self::Unlocked,
+        Self::Magnifier,
+        Self::TurnLeft,
+        Self::TurnRight,
+        Self::Opposite,
         Self::Delete,
     ];
     pub fn svg(self) -> &'static str {
@@ -154,6 +166,12 @@ impl Icon {
             Self::Search => include_str!("../assets/icons/search.svg"),
             Self::Before => include_str!("../assets/icons/before.svg"),
             Self::Settings => include_str!("../assets/icons/settings.svg"),
+            Self::Locked => include_str!("../assets/icons/locked.svg"),
+            Self::Unlocked => include_str!("../assets/icons/unlocked.svg"),
+            Self::Magnifier => include_str!("../assets/icons/magnifier.svg"),
+            Self::TurnLeft => include_str!("../assets/icons/turn-left.svg"),
+            Self::TurnRight => include_str!("../assets/icons/turn-right.svg"),
+            Self::Opposite => include_str!("../assets/icons/opposite.svg"),
             Self::Delete => include_str!("../assets/icons/delete.svg"),
         }
     }
@@ -301,6 +319,30 @@ impl Icon {
     pub fn hint(self) -> (&'static str, &'static str, &'static str, &'static str) {
         use Icon::*;
         match self {
+            Locked | Unlocked => (
+                "Lock view angle",
+                "Keep the ring facing the same way while you edit.",
+                "Tap to lock or unlock. Drag empty space to pan when locked; two fingers still pan and zoom.",
+                "The ring navigator can still change the view deliberately.",
+            ),
+            Magnifier => (
+                "Placement magnifier",
+                "Show a live 2.5× close-up above your contact.",
+                "Touch or drag on the ring with Stamp, Path, Paint or Move. Tap this icon to hide or show the lens.",
+                "The crosshair marks the actual contact; the image includes the surface overlay.",
+            ),
+            TurnLeft | TurnRight => (
+                "Quarter turn",
+                "Turn the camera around the ring by 90°.",
+                "Tap an arrow. Use Views for 90° tilts.",
+                "Works while the view is locked, without changing the design.",
+            ),
+            Opposite => (
+                "Opposite side",
+                "Look from the opposite side of the ring.",
+                "Tap to flip the view by 180°. Tap again to return.",
+                "Use to compare shoulders or decorate the reverse.",
+            ),
             Undo => (
                 "Undo",
                 "Take back the latest design change.",
@@ -341,7 +383,7 @@ impl Icon {
                 "Select / orbit",
                 "Pick a detail or turn the ring to inspect it.",
                 "Tap to select. Drag empty space to orbit; two fingers pan and zoom.",
-                "Return here when a drawing tool is capturing your gestures.",
+                "Empty-space drags also navigate while a drawing tool is selected.",
             ),
             Paint => (
                 "Paint relief",

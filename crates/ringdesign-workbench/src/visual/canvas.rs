@@ -45,7 +45,7 @@ pub(super) struct StampContact {
     active: bool,
 }
 impl StampContact {
-    fn update(
+    pub(super) fn update(
         &mut self,
         ui: &egui::Ui,
         response: &egui::Response,
@@ -79,6 +79,32 @@ impl StampContact {
     }
 }
 
+/// Decide once, at contact-down. Camera movement must not turn a background
+/// drag into an edit when the ring later moves beneath the finger.
+#[derive(Default)]
+pub(super) struct Contact(Option<bool>);
+impl Contact {
+    fn route(
+        &mut self,
+        pressed: bool,
+        down: bool,
+        released: bool,
+        navigate: bool,
+        hit: impl FnOnce() -> bool,
+    ) -> bool {
+        if !down && !released {
+            self.0 = None;
+        }
+        if pressed {
+            self.0 = Some(!navigate && hit());
+        }
+        if navigate && (down || released) {
+            self.0 = Some(false);
+        }
+        self.0 == Some(true)
+    }
+}
+
 impl Visual {
     fn handle_world(&self, mesh: &Mesh) -> [f64; 3] {
         let (lo, hi) = mesh.bounds().unwrap_or_default();
@@ -104,10 +130,66 @@ impl Visual {
         let Some(pos) = pos.filter(|p| rect.contains(*p)) else {
             return false;
         };
-        self.is_painting()
-            || self.tool == Tool::Measure
-            || (self.tool == Tool::Section
-                && (self.section_dragging || pos.distance(project(self.handle_world(mesh))) < 24.0))
+        self.tool == Tool::Section
+            && (self.section_dragging || pos.distance(project(self.handle_world(mesh))) < 24.0)
+    }
+
+    /// Route a press to a visible tool handle / mesh, or to camera navigation.
+    /// Explicit two-finger, middle-button and pen-barrel navigation cancels edits
+    /// until release, even when the extra finger/button is lifted first.
+    #[allow(clippy::too_many_arguments)]
+    pub fn route_pointer(
+        &mut self,
+        ui: &egui::Ui,
+        rect: Rect,
+        mesh: &Mesh,
+        project: impl Fn([f64; 3]) -> Pos2,
+        ray: impl Fn(Pos2) -> ([f32; 3], [f32; 3]),
+        navigating: bool,
+        accepted: bool,
+    ) -> bool {
+        let (pressed, down, released, pos) = ui.input(|i| {
+            (
+                i.pointer.button_pressed(egui::PointerButton::Primary),
+                i.pointer.primary_down(),
+                i.pointer.button_released(egui::PointerButton::Primary),
+                i.pointer.press_origin().or(i.pointer.interact_pos()),
+            )
+        });
+        let mut contact = std::mem::take(&mut self.contact);
+        let blocked = contact.route(pressed, down, released, navigating || !accepted, || {
+            let Some(pos) = pos.filter(|p| rect.contains(*p)) else {
+                return false;
+            };
+            self.blocks_orbit(Some(pos), rect, mesh, &project, false)
+                || (self.tool == Tool::Path && self.path.hit_handle(pos, &project))
+                || (self.tool == Tool::Transform && self.transform.hit_handle(pos, &project))
+                || ((self.is_painting() || self.tool == Tool::Measure) && {
+                    let (o, v) = ray(pos);
+                    picking::raycast(mesh, o, v).is_some()
+                })
+        });
+        self.contact = contact;
+        blocked
+    }
+
+    pub fn navigating(&self) -> bool {
+        self.contact.0 == Some(false)
+    }
+
+    /// A loupe follows an editing contact only; hover and camera drags leave the
+    /// viewport unobstructed. The caller samples after all overlays are painted.
+    pub fn placement_contact(&self, ui: &egui::Ui, rect: Rect) -> Option<Pos2> {
+        if !self.is_painting() || self.contact.0 != Some(true) {
+            return None;
+        }
+        ui.input(|i| {
+            i.pointer
+                .primary_down()
+                .then(|| i.pointer.interact_pos())
+                .flatten()
+        })
+        .filter(|p| rect.contains(*p))
     }
     #[allow(clippy::too_many_arguments)]
     pub fn draw(
@@ -552,6 +634,31 @@ fn tag(painter: &egui::Painter, rect: Rect, position: Pos2, text: &str, color: C
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn contact_owner_survives_crossing_mesh_and_release() {
+        let mut c = super::Contact::default();
+        assert!(!c.route(true, true, false, false, || false));
+        assert!(!c.route(false, true, false, false, || panic!(
+            "must not repick after camera moves"
+        )));
+        assert!(!c.route(false, false, true, false, || true));
+        assert!(!c.route(false, false, false, false, || true));
+        assert_eq!(c.0, None);
+        assert!(c.route(true, true, false, false, || true));
+        assert!(c.route(false, true, false, false, || false));
+        assert!(c.route(false, false, true, false, || false));
+    }
+    #[test]
+    fn explicit_navigation_cancels_edit_until_last_finger_lifts() {
+        let mut c = super::Contact::default();
+        assert!(c.route(true, true, false, false, || true));
+        assert!(!c.route(false, true, false, true, || true));
+        assert!(!c.route(false, true, false, false, || true));
+        assert!(!c.route(false, false, true, false, || true));
+        c.route(false, false, false, false, || false);
+        assert!(c.route(true, true, false, false, || true));
+    }
+
     use super::*;
 
     #[test]

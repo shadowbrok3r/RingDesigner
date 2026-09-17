@@ -89,6 +89,7 @@ pub struct ViewResponse {
 
 pub struct RingPane {
     pub camera: OrbitCamera,
+    pub navigation: ringdesign_workbench::navigation::Settings,
     pub shade: ShadeMode,
     pub wireframe: bool,
     pub finish: usize,
@@ -102,6 +103,7 @@ impl Default for RingPane {
     fn default() -> Self {
         Self {
             camera: OrbitCamera::default(),
+            navigation: Default::default(),
             shade: ShadeMode::default(),
             wireframe: false,
             finish: 0,
@@ -221,7 +223,11 @@ impl RingPane {
             return true;
         }
         if response.dragged() {
-            self.camera.orbit(response.drag_delta());
+            if self.navigation.locked {
+                self.camera.pan_by(response.drag_delta(), rect);
+            } else {
+                self.camera.orbit(response.drag_delta());
+            }
             return true;
         }
         false

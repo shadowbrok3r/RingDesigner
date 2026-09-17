@@ -410,6 +410,7 @@ impl RingApp {
         self.brush.stylus_only = p.stylus_only;
         self.pane.shade = ShadeMode::ALL[p.shade];
         self.pane.wireframe = p.wireframe;
+        self.pane.navigation = p.navigation;
         self.preview_quality = p.preview_quality;
         self.pane.finish = p
             .finish
@@ -446,6 +447,7 @@ impl RingApp {
             .position(|m| *m == self.pane.shade)
             .unwrap_or(0);
         self.prefs.wireframe = self.pane.wireframe;
+        self.prefs.navigation = self.pane.navigation;
         self.prefs.preview_quality = self.preview_quality;
         self.prefs.finish = self.pane.finish;
         self.prefs.polish = self.pane.polish;

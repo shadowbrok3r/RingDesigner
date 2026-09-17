@@ -150,9 +150,11 @@ impl RingApp {
         };
         let mut palette_position = self.editor.workspace.palette_position;
         let size = egui::vec2(
-            (bounds.width() - 100.0).clamp(200.0, 250.0),
+            if palette == Palette::Properties && self.visual.is_painting() {
+                (bounds.width() - 100.0).clamp(150.0, 180.0)
+            } else { (bounds.width() - 100.0).clamp(200.0, 250.0) },
             bounds.height().min(if palette == Palette::Properties {
-                300.0
+                360.0
             } else {
                 265.0
             }),

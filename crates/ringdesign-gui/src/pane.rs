@@ -53,6 +53,8 @@ impl PaneKind {
 pub struct Pane {
     pub kind: PaneKind,
     pub camera: OrbitCamera,
+    #[serde(default)]
+    pub navigation: ringdesign_workbench::navigation::Settings,
     pub shade: ShadeMode,
     pub section_theta_deg: f64,
     /// Slice at this pane's own angle, refreshed when the build lands.
@@ -65,6 +67,7 @@ impl Default for Pane {
         Self {
             kind: PaneKind::Solid,
             camera: OrbitCamera::default(),
+            navigation: Default::default(),
             shade: ShadeMode::Metal,
             section_theta_deg: TOP_DEG,
             section: None,

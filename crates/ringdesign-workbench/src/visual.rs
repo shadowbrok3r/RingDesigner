@@ -80,6 +80,7 @@ pub struct Visual {
     pub stylus_only: bool,
     pub gesture: Gesture,
     stamp_contact: canvas::StampContact,
+    contact: canvas::Contact,
     pub cursor: Option<ringdesign_core::interaction::picking::Hit>,
     pub selected_stone: Option<usize>,
     pub study: Option<Arc<Study>>,
@@ -116,6 +117,7 @@ impl Default for Visual {
             stylus_only: false,
             gesture: Gesture::default(),
             stamp_contact: Default::default(),
+            contact: Default::default(),
             cursor: None,
             selected_stone: None,
             study: None,
@@ -149,6 +151,7 @@ impl Visual {
             self.section_grab = None;
             self.gesture = Gesture::default();
             self.stamp_contact = Default::default();
+            self.contact = Default::default();
             self.cursor = None;
             if tool == Tool::Stamp && self.brush.diameter_mm < 1.5 {
                 self.brush.diameter_mm = 2.8;
@@ -300,41 +303,16 @@ impl Visual {
                     ui.label("Use an editable procedural ring for surface artwork.");
                     return;
                 }
-                ui.horizontal_wrapped(|ui| {
-                    if ui.selectable_label(!self.brush.engrave, "Raise").clicked() {
-                        self.brush.engrave = false;
+                if self.tool == Tool::Stamp {
+                    if self.brush.stamp.is_empty() {
+                        self.brush.stamp = lib.names().into_iter().next().unwrap_or_default();
                     }
-                    if ui.selectable_label(self.brush.engrave, "Engrave").clicked() {
-                        self.brush.engrave = true;
-                    }
-                    ui.checkbox(&mut self.stylus_only, "Pen only");
-                });
-                value(
-                    ui,
-                    "Footprint",
-                    &mut self.brush.diameter_mm,
-                    0.1..=12.0,
-                    " mm",
-                );
+                    crate::artwork::picker(ui, "surface-stamp-alpha", &mut self.brush.stamp, lib);
+                }
+                relief_direction(ui, &mut self.brush.engrave);
+                value(ui, "Size", &mut self.brush.diameter_mm, 0.1..=12.0, " mm");
                 value(ui, "Depth", &mut self.brush.depth_mm, 0.01..=1.6, " mm");
                 if self.tool == Tool::Stamp {
-                    ui.horizontal_wrapped(|ui| {
-                        ui.label("Copies");
-                        ui.add(
-                            egui::DragValue::new(&mut self.arrangement.count)
-                                .range(1..=ringdesign_core::interaction::surface::MAX_STAMP_COPIES),
-                        );
-                        ui.checkbox(&mut self.arrangement.mirror, "Mirror sides");
-                    });
-                    if self.arrangement.count > 1 {
-                        value(
-                            ui,
-                            "Around ring",
-                            &mut self.arrangement.span_deg,
-                            1.0..=360.0,
-                            "°",
-                        );
-                    }
                     value(
                         ui,
                         "Rotation",
@@ -342,18 +320,32 @@ impl Visual {
                         -180.0..=180.0,
                         "°",
                     );
-                    if self.brush.stamp.is_empty() {
-                        self.brush.stamp = lib.names().into_iter().next().unwrap_or_default();
-                    }
-                    crate::artwork::picker(ui, "surface-stamp-alpha", &mut self.brush.stamp, lib);
-                    ui.label("Hover the pen to preview. Touch and slide to position; release to place. Move ornament edits it later.");
+                    ui.collapsing("Repeat & input", |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("Copies");
+                            ui.add(egui::DragValue::new(&mut self.arrangement.count).range(
+                                1..=ringdesign_core::interaction::surface::MAX_STAMP_COPIES,
+                            ));
+                        });
+                        ui.checkbox(&mut self.arrangement.mirror, "Mirror sides");
+                        if self.arrangement.count > 1 {
+                            value(
+                                ui,
+                                "Spread",
+                                &mut self.arrangement.span_deg,
+                                1.0..=360.0,
+                                "°",
+                            );
+                        }
+                        ui.checkbox(&mut self.stylus_only, "Pen only");
+                    });
+                    ui.small("Slide on the ring; lift to stamp. Empty space turns the view.");
                 } else {
-                    ui.label(if cfg!(target_os="android") {"Draw on the ring. Lift to build the relief; Select restores orbit. Two fingers navigate."}else{"Draw on the ring. Lift to build the relief; Select restores orbit. Shift-drag pans; the wheel zooms."});
+                    ui.checkbox(&mut self.stylus_only, "Pen only");
+                    ui.small("Draw on the ring; lift to build. Empty space turns the view.");
                 }
                 if d.draft.process == ringdesign_core::castability::CastProcess::SandTwoPart {
-                    ui.small(
-                        "Sand mode limits brush depth using the local profile's draft allowance.",
-                    );
+                    ui.small("Depth follows the local sand-casting limit.");
                 }
             }
             Tool::Section => {
@@ -531,6 +523,20 @@ impl Visual {
         changed
     }
 }
+fn relief_direction(ui: &mut egui::Ui, engrave: &mut bool) {
+    ui.horizontal(|ui| {
+        for (icon, label, value) in [
+            (crate::icons::Icon::Raise, "Raise", false),
+            (crate::icons::Icon::Engrave, "Cut", true),
+        ] {
+            if crate::icons::button(ui, icon, label, *engrave == value, egui::vec2(0.0, 28.0))
+                .clicked()
+            {
+                *engrave = value;
+            }
+        }
+    });
+}
 fn value(
     ui: &mut egui::Ui,
     label: &str,
@@ -544,11 +550,12 @@ fn value(
             ui.horizontal(|ui| {
                 let width = ui.available_width();
                 ui.add_sized(
-                    [(width - 104.0).max(60.0), 34.0],
+                    [(width - 88.0).max(44.0), 28.0],
                     egui::Label::new(label).truncate(),
-                );
+                )
+                .on_hover_text(label);
                 let response = ui.add_sized(
-                    [94.0, 34.0],
+                    [80.0, 28.0],
                     egui::DragValue::new(v)
                         .range(range)
                         .clamp_existing_to_range(false)
@@ -580,8 +587,9 @@ mod tests {
         ));
         let study = Arc::new(ringdesign_core::interaction::mould::build(&d, &lib).unwrap());
         let source = serde_json::to_vec(&d).unwrap();
-        for width in [248.0, 280.0, 320.0, 411.0] {
+        for width in [168.0, 180.0, 248.0, 280.0, 320.0, 411.0] {
             for tool in Tool::ALL {
+                if width < 248.0 && !matches!(tool, Tool::Paint | Tool::Stamp | Tool::Path | Tool::Transform) { continue; }
                 let ctx = egui::Context::default();
                 ctx.style_mut_of(egui::Theme::Dark, |s| {
                     s.spacing.interact_size = egui::vec2(40.0, 40.0)

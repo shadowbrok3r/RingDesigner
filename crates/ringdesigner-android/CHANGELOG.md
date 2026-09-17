@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.18.0 — 2026-09-16
+
+- Live 2.5× placement magnifier above the finger for Stamp, Path, Paint and Move; samples the actual mesh and surface overlay. Toggle it in the ring navigator.
+- Tap the small ring for face, shoulder, underside and opening views. Quarter-turn arrows, opposite-side flip and 90° tilts keep placement accessible from every side.
+- Optional view lock: empty-space dragging pans without rotating; two fingers still pan/zoom and deliberate view buttons still work.
+- Empty-space drags orbit with editing tools selected. Each contact keeps its initial editing or navigation role until release, including when crossing the mesh.
+- Narrow, vertical 180-point editing palettes; Path Apply stays above repeat options and exact point positions expand when needed.
+- Held Path contacts retain their preview and place one draft point on release.
+
 ## 0.17.0 — 2026-09-16
 
 - Shared Atelier SVG icons, compact Undo/Redo and tool controls, with finger-hold and 0.7-second hover hints.

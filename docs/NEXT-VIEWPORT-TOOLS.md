@@ -3,7 +3,7 @@
 Reviewed against the working source on 2026-09-16. Older roadmap checkboxes do
 not account for the CAD, manufacturing and shared mobile workbench additions.
 
-## Available in 0.17
+## Available in 0.18
 
 Desktop and Android share paint, stamps, editable surface paths, circular and
 mirrored stamp arrays, mesh distance measurement, section cuts, clearance
@@ -21,6 +21,11 @@ Copy and Mirror create another instance in the same masked layer. Generated
 groups remain owned by their recipes. A thumbnail browser and surface-conforming
 alpha overlay make placement visible before release. The shared SVG controls,
 hold/hover help and five-stage Guide connect these tools to a practical workflow.
+
+0.18 adds the live placement loupe, ring-relative orientation navigator, quarter
+turns and flips, optional angle lock, and empty-space navigation within drawing
+tools. Compact vertical palettes keep Apply visible while advanced settings
+expand on demand. See [placement and navigation review](PLACEMENT-NAVIGATION-REVIEW.md).
 
 ## Next useful increments
 

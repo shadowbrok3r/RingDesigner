@@ -17,9 +17,22 @@ pub struct TransformTool {
     source: Option<u64>,
     pending: Option<Operation>,
     drag: Option<(usize, Pos2, Decal)>,
+    centre: Option<[f64; 3]>,
     pub message: String,
 }
 impl TransformTool {
+    pub(super) fn hit_handle(&self, pos: Pos2, project: impl Fn([f64; 3]) -> Pos2) -> bool {
+        self.centre.is_some_and(|p| {
+            let centre = project(p);
+            [
+                egui::Vec2::ZERO,
+                egui::vec2(0.0, -50.0),
+                egui::vec2(50.0, 0.0),
+            ]
+            .iter()
+            .any(|offset| pos.distance(centre + *offset) < 24.0)
+        })
+    }
     pub fn stop_drag(&mut self) {
         self.drag = None;
     }
@@ -162,6 +175,7 @@ impl TransformTool {
                 );
                 let centre =
                     surface::points(d, lib, &[[self.draft.theta_deg / 360.0, self.draft.v_mm]])[0];
+                self.centre = Some(centre);
                 let centre = project(centre);
                 // Fixed screen offsets keep all grips usable even for tiny stamps.
                 let handles = [

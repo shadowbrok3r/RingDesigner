@@ -637,12 +637,14 @@ impl RingDesignerApp {
     // --- History -----------------------------------------------------------
 
     pub fn undo(&mut self) {
+        self.history.commit(&self.design);
         if let Some(d) = self.history.undo() {
             self.apply_history(d, "Undo");
         }
     }
 
     pub fn redo(&mut self) {
+        self.history.commit(&self.design);
         if let Some(d) = self.history.redo() {
             self.apply_history(d, "Redo");
         }
