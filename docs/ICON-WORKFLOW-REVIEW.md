@@ -83,3 +83,16 @@ stable tap targets across frames so rapid touch input is not lost.
 The shoulder geometry and manufacturing review from
 [0.16](SURFACE-TOOLS-REVIEW.md) remains applicable. The next modelling increments
 are [stone settings along paths, direct sweeps/lofts and surface inspection](NEXT-VIEWPORT-TOOLS.md).
+
+## Published release
+
+Android **0.17.0**, version code **16781568**, was published to the
+[app store](https://appstore.shadowbroker.app) on 2026-09-16 from the source
+merged in `9f66336`. The update feed, release entry and downloaded ARM64 APK
+match the reviewed package: 13,747,071 bytes, SHA-256
+`fff3cb8b9f488f9635cf675b8807092eeba33a977074c6aad3d594caaabf489b`.
+The signing certificate matches 0.16.0.
+
+Taildrop confirmed all eight review PNGs sent to the S26. Build artifacts and
+receipts are in `target/releases/ringdesigner-android-0.17.0/`; the desktop
+release is in `target/releases/ringdesigner-desktop-0.17.0/`.
