@@ -647,6 +647,21 @@ pub fn stones(
                         }
                     }
                 });
+            // The pre-made part the seat carries: resolved into the ring by boolean, sized to the stone.
+            egui::ComboBox::from_id_salt("setting-solid")
+                .selected_text(seat.solid.label())
+                .width(ui.available_width().min(150.0))
+                .show_ui(ui, |ui| {
+                    for &kind in ringdesign_core::setting::SolidKind::ALL {
+                        changed |= ui.selectable_value(&mut seat.solid, kind, kind.label()).changed();
+                    }
+                });
+            if !seat.solid.is_none() {
+                changed |= ui
+                    .checkbox(&mut seat.through, "Drill through")
+                    .on_hover_text("Carries the seat's pilot through to the finger, where the seat faces out from the bore.")
+                    .changed();
+            }
         };
         if compact {
             ui.collapsing("Stone & setting", setting_options);

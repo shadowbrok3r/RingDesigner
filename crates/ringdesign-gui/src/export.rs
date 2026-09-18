@@ -65,6 +65,12 @@ impl ExportJob {
         ringdesign_core::mesh::build(&self.design, &self.lib, self.params)
     }
 
+    /// What a mould is made from: under sand, made settings are left out and each seat carries its
+    /// drill mark. Mesh files are patterns; renders and GLB are the finished ring.
+    fn build_pattern(&self) -> ringdesign_core::BuildResult {
+        ringdesign_core::mesh::try_build_pattern(&self.design, &self.lib, self.params).unwrap_or_else(|_| self.build())
+    }
+
     /// The mesh to write and the name to stamp it with: scaled oversize by
     /// the chosen metal's shrink, and *named* as such — a scaled file
     /// mistaken for nominal is a ring that comes out a size small.
@@ -127,7 +133,7 @@ pub fn export_stl(app: &mut RingDesignerApp) {
     };
     let job = ExportJob::snapshot(app);
     spawn_export(app, "STL", move || {
-        let out = job.build();
+        let out = job.build_pattern();
         let (mesh, name) = job.pattern(&out.mesh);
         match stl::write_stl(&path, &mesh, &name) {
             Ok(bytes) => {
@@ -155,7 +161,7 @@ pub fn export_obj(app: &mut RingDesignerApp) {
     };
     let job = ExportJob::snapshot(app);
     spawn_export(app, "OBJ", move || {
-        let out = job.build();
+        let out = job.build_pattern();
         let (mesh, name) = job.pattern(&out.mesh);
         match stl::write_obj(&path, &mesh, &name) {
             Ok(bytes) => format!(
@@ -181,7 +187,7 @@ pub fn export_3mf(app: &mut RingDesignerApp) {
     };
     let job = ExportJob::snapshot(app);
     spawn_export(app, "3MF", move || {
-        let out = job.build();
+        let out = job.build_pattern();
         // The mesh in this file is scaled for the metal's shrink, bore and
         // all, so stamping it with the nominal size is the one mistake the
         // filename convention exists to prevent. Say which it is.

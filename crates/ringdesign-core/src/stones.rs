@@ -812,8 +812,24 @@ mod tests {
             }
             (hi - lo) * k_true
         };
+        // Round the ring the chart is arc at the *reference* crest, and this
+        // lobe's crest stands further out: the same pad must cast as long as
+        // it is wide, not stretched by the ratio of the two radii.
+        let crest_true = d.profile.sample_mod(inner, 512, &m).crest_radius_mm / ctx.crest_radius_mm;
+        assert!(crest_true > 1.02 && (ctx.crest_scale(90.0) - crest_true).abs() < 0.01 * crest_true, "{} against {crest_true}", ctx.crest_scale(90.0));
+        let along_mm = |d: &crate::RingDesign| {
+            let ctx = d.field_context();
+            let (u0, v0) = (ctx.u_of_theta(90.0), ctx.crest_v_mm);
+            let reach = (0..=4000).map(|i| i as f64 * 0.001).filter(|du| d.layers.height(Uv { u: u0 + du, v: v0 }, &ctx, &lib) > 1e-4).last().unwrap_or(0.0);
+            2.0 * reach * crest_true
+        };
+
         let drawn = 2.0 + 2.0 * 0.5;
         let true_span = span_mm(&d);
+        let true_along = along_mm(&d);
+        assert!((true_along - drawn).abs() < 0.1, "and the same reach round the ring: {true_along:.3} against {drawn}");
+        let chart_along = along_mm(&build(false));
+        assert!((chart_along - drawn * crest_true).abs() < 0.1, "where a chart-drawn pad runs long by the crest's own ratio: {chart_along:.3} against {:.3}", drawn * crest_true);
         assert!(
             (true_span - drawn).abs() < 0.1,
             "a metal-true pad casts its drawn reach: {true_span:.3} against {drawn}"

@@ -884,7 +884,7 @@ fn triangulate(
     }
 
     let normals = crate::mesh::smooth_normals(&vertices, &faces);
-    Mesh { vertices, normals, faces }
+    Mesh { vertices, normals, faces, ..Default::default() }
 }
 
 /// Peak and deepest displacement the layer stack applies, mm.

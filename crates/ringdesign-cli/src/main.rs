@@ -227,7 +227,10 @@ fn export(
             .as_ref()
             .map(|s| s.seats.iter().map(|c| c.warnings.len()).sum())
             .unwrap_or(0);
-        let built = try_build(&d, lib, params)?;
+        // Mesh files are patterns — under sand, made settings left out and a drill mark on every seat;
+        // GLB is the finished ring, and only built when asked for and different.
+        let built = ringdesign_core::mesh::try_build_pattern(&d, lib, params)?;
+        let finished = if formats.iter().any(|f| f == "glb") && ringdesign_core::setting::any(&d) { Some(try_build(&d, lib, params)?.mesh) } else { None };
         let v = built.report.validation;
         let (mesh, name) = match scale {
             Some((m, k)) => (
@@ -278,7 +281,7 @@ fn export(
                 }
                 "stl" => stl::write_stl(&file, &mesh, &name)?,
                 "obj" => stl::write_obj(&file, &mesh, &name)?,
-                "glb" => ringdesign_core::gltf::write_glb(&file, &mesh, &name, ringdesign_core::render::GOLD)?,
+                "glb" => ringdesign_core::gltf::write_glb(&file, finished.as_ref().unwrap_or(&mesh), &name, ringdesign_core::render::GOLD)?,
                 "ply" => stl::write_ply(&file, &mesh, &name)?,
                 _ => {
                     // The mesh is scaled for shrink, bore and all — an

@@ -44,6 +44,7 @@ pub fn preview_mesh(design: &RingDesign, lib: &AlphaLibrary) -> Option<crate::me
         vertices: Vec::with_capacity(n),
         normals: Vec::with_capacity(n),
         faces: Vec::with_capacity(n / 3),
+        ..Default::default()
     };
     for i in 0..n {
         let b = i * STRIDE;

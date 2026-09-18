@@ -351,7 +351,7 @@ mod tests {
             }
             faces.push(tri);
         }
-        Mesh { vertices, normals: Vec::new(), faces }
+        Mesh { vertices, normals: Vec::new(), faces, ..Default::default() }
     }
 
     #[test]

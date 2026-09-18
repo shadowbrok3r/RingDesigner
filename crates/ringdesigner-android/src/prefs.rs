@@ -39,6 +39,10 @@ pub struct Prefs {
     pub polish: usize,
     pub as_cast: bool,
     pub show_gems: bool,
+    /// Resolve made settings into the preview as they are edited.
+    pub live_cuts: bool,
+    /// Draw the seats' cutters over the ring as a ghost.
+    pub show_cutters: bool,
     pub editor_mode: usize,
     pub editor_guides: bool,
     pub editor_inspector: bool,
@@ -69,6 +73,8 @@ impl Default for Prefs {
             polish: 0,
             as_cast: false,
             show_gems: true,
+            live_cuts: true,
+            show_cutters: false,
             editor_mode: 0,
             editor_guides: true,
             editor_inspector: true,

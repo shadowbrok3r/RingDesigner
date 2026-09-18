@@ -1496,6 +1496,138 @@ bezel collars, gypsy mounds, prong bumps. Three pieces keep that honest:
   `stones_land_on_their_seats` test writes a software-rasterized sheet for
   eyeballing placement.
 
+### A seat can carry a made part, resolved by boolean
+
+A seat in the height field is a bump: it cannot overhang, cannot open a
+hole, and stretches with the chart it is drawn in — prongs came out as
+drafted cones and a "bezel" as a ring-shaped ridge. `SeatPadLayer::solid`
+(`setting::SolidKind`: `Flush`, `Bead`, `Prong`, `Bezel`; GUI and phone
+"Made setting", MCP and graph `solid`, plus `through`) gives a seat a
+**pre-made solid** instead, built once per stone in the stone's own frame
+(`setting.rs`: girdle plane at z = 0, x along the length, z up the table)
+and cached, then placed by the census's own `StoneFrame` and resolved into
+the built mesh by `csg`. The pad stays the stock under it, and runs, pavé
+and halos carry the field through their seats.
+
+- **The bur** (`setting::bur`): top to bottom a bright-cut bevel at the
+  surface (0.07 of the width), a lip left over the girdle, the girdle wall,
+  a bearing cone at the pavilion's own angle to 0.52 of the plan, and a
+  pilot — blind, or `through` to open air past the bore where the seat
+  faces out from it. The surface height it bevels from is the *whole*
+  field's at the seat centre, not the pad's, so a seat sunk in a plate
+  bevels at the plate.
+- **The collet** (`setting::collet`): one closed section swept round the
+  girdle outline — tapered wall, bearing ledge at the pavilion's slope, a
+  lip leaning 0.8 of the crown's own inset — plus a relief cut that clears
+  the pavilion through the band under it.
+- **The claw head** (`setting::claw_head`): per claw a straight leaning
+  wire, *one* bend of radius 0.8 of the wire, then a straight run lying an
+  eighth of the wire outside the crown's facet to a domed tip; base and
+  gallery rails threading the claws' axes; all joined by `csg::union_all`
+  and then **notched by the stone itself** (`envelope(gem, 0.02)`
+  subtracted), which is what flattens each claw onto its facet and cuts
+  the girdle's bite. The envelope is the stone as `gems.rs` draws it, so
+  the seat fits the stone the viewport shows.
+- **Beads** are centres and radii, not solids, until every seat is placed:
+  `apply` merges any two within 1.4 radii in ring space, so neighbours share
+  the beads between them (pinned by volume: three stones gain less than
+  three lone ones by more than a bead).
+
+Two rules that cost a failure each: **a swept tube folds through itself
+wherever its rings tilt more than they stand apart** — a claw whose bend
+was tighter than its wire, and later a 24° kink where a spline met the
+bend, each left 19-40 self-crossings and the notch then failed with "two
+cuts cross inside a face"; the path is straight, arc, straight, with the
+arc's radius over the wire's, and `csg::self_crossings` asserts every part
+at zero. And **an inward offset along the plan's normal folds wherever it
+outruns the outline's own radius**, which at a marquise's point is zero:
+`sweep` reads a negative offset as a scale instead — exact across the
+stone's width, wider toward its ends, which is how a marquise's collet is
+made anyway.
+
+`apply` joins every head first and cuts every seat after, so a
+neighbour's bead never fills a seat already cut; a part that will not
+resolve is left out and named in `BuildResult::solids.notes`, never
+half-applied. The mesh comes back with `origin` (each vertex's band index
+as swept, or `SOLID_VERTEX + stone`), which is how the node highlight
+compares two differently-cut meshes and lights a seat's head with its
+layer, and with `corner_normals` — a sparse per-face table, so a solid
+keeps its creases (38°) while the band shades from its own grid normals;
+both viewports' staging and `render.rs` read it through
+`Mesh::face_normals`. Measured: a claw solitaire resolves in 27-42 ms, 13
+bead-set melee in 190 ms at preview and 745 ms on 640k faces, Oriel's 37
+stones in 4.3 s on 1.38M; every result is watertight, and a drilled ring's
+Euler characteristic is −2 (pinned).
+
+What the verdict does with them: nothing, and it says so.
+`attributed_field_report` counts the seats cut with the bur ("after the
+pour, and so not judged here") and the made heads — cast in place under
+lost wax, soldered on after a sand pour — and `manufacturing::prepare`
+leaves bench cuts out of every pattern and heads out of a sand one.
+
+Two defects found on the way, both older than the solids:
+
+- **A skirted boss had a moat.** The top rolled off to zero at its rim
+  (`1 − smoothstep(0.82, 1, t)`, from the first commit, for pads with no
+  skirt) and the skirt, added later, started back up at `height·(1−crown)`:
+  0.22 → 0.00 → 0.27 mm across the rim. With a skirt the flat top now runs
+  to the rim and the skirt takes it down.
+- **`metal_true` was only true across the band.** `u` is arc at the
+  *reference* crest radius, and `arc_scale` reads the reference section
+  and clamps at 1 — but a signet's table stands ~15% further out than the
+  reference crest, so a round seat there cast 15% long and gaped at both
+  sides of its stone. `FieldContext::crest_scale(θ)` (the modulated
+  section's crest radius over the reference's, built beside the stretch
+  table) now multiplies into `SeatPadLayer::station_scale`'s `u` side;
+  the lobe test pins the reach round the ring as well as across it.
+
+### Shown finished, exported as the pattern
+
+Under sand a made setting is never poured: a seat is cut after the pour and
+a head is soldered on. `castability::pattern_parts` is the one rule for what
+a pattern is — bench-only layers off, and under `SandTwoPart` every seat's
+solid left out by `setting::pattern_seat`, which holds the stock where the
+finished seat needs it and adds **`SeatPadLayer::mark_mm`**, a raised
+drill-start dot (0.4 of the stone, 0.6-1.0 mm, a quarter as high as wide).
+Raised on purpose: a pit's far wall faces back into its own mould half and
+locks — the commissions measured it — while a dot on the parting line pulls,
+and the bur takes it away with the seat. The live verdict judges that
+pattern and says so; `mesh::try_build_pattern` builds it; STL, OBJ, 3MF and
+PLY exports on both apps, the CLI and `manufacturing::prepare` write it,
+while renders, GLB and the viewport show the finished ring. Lost wax casts
+cuts and heads in place, so there the design is its own pattern.
+
+Both viewports carry two toggles for the solids (`ring::Cuts` on the phone,
+`live_cuts`/`show_cutters` on the desktop): **Live cuts** builds
+`setting::without_solids` when off — the cast stock alone, and the faster
+build — and **Show cutters** stages `setting::ghost_vertices`, every seat's
+placed cutters, drawn blended with the depth test *off*, because a tool
+sits inside the metal it removes and a depth test hides exactly what was
+asked for. The phone's ghost is rim-weighted (`u_mode == 6`: alpha by
+`1 − |n.z|`), so a cutter reads as its outline.
+
+### Booleans are exact in topology and approximate only in position
+
+`csg.rs` is a pure-Rust mesh boolean (`robust` + `spade`, both already in
+the lock through cadkernel), so it runs on the phone and in wasm where
+Manifold cannot. Whether an edge crosses a face is decided by `orient3d`
+alone; each crossing is **one vertex keyed by the edge and face that make
+it**, shared by both meshes, so the result is closed by construction, not
+by welding. A cut face is retriangulated by a constrained Delaunay in its
+own plane, with the border chains as constraints and the slivers a point
+a hair inside its edge leaves dropped by bookkeeping (all three vertices
+on one border chain). Inside/outside is a flood fill seeded by exact
+labels — the ends of every crossed edge, by the first and last face they
+cross — that **flips on crossing a cut**, so a loop lying inside a single
+face needs no seed of its own. The work is local: only faces whose boxes
+meet the tool's are touched, and the cut region is checked to close on
+itself and onto the faces left alone before anything is returned. Any
+coincidence the predicates report is `Snag::Degenerate`, and `combine`
+retries with the tool nudged by 1e-7 mm, eight times. `OpenCADStudio`'s
+kernel is the same `cadkernel` the core's `cad.rs` already drives; its
+B-rep boolean is the wrong tool for a 1.4M-facet band, which is why this
+exists.
+
 ### One record per stone
 
 `setstone.rs` is where a stone *is*. `set_stones(design)` walks the stack
@@ -2198,6 +2330,26 @@ and the head, `yaw' = 2·head − yaw`: left shoulder to right, a
 three-quarter view to its twin, and face-on it is the same view. The half
 turn stays in the Views menu as Opposite side.
 
+**Roll is the third angle, and the only way to stand a ring on its head.**
+Yaw turns about the finger axis and pitch stops at the poles, so with up
+pinned to the finger axis no drag ever showed the ring inverted. Both
+cameras carry `roll` (a turn about the view axis: `OrbitCamera::up` turns
+the base up-vector, `focus::view_axes(yaw, pitch, roll)` is the same frame
+for the cube and the aim) and `focus::Pose` eases it the short way round.
+`Action::Roll(quarters)` is the cube's Upside down button and the Views
+menu's quarter turns; `Action::Twist(radians)` is free and does not
+recentre. `Action::apply` takes and returns the whole pose: a named view
+is upright again, a mirror mirrors the roll, and a drag is rotated into the
+camera's own axes first (`dx' = dx cos r + dy sin r`, `dy' = dy cos r −
+dx sin r` — the *inverse* of the roll; the first draft had the other sign,
+which agrees at 180° and nowhere else, and a quarter-roll test pins it) so
+the surface follows the finger at any roll. On the phone two fingers twist
+it (`ring::Twist`): egui's `rotation_delta` is positive clockwise and so is
+a positive roll on screen, so it adds directly; nothing turns until the
+fingers have turned 0.14 rad about each other, because a pinch is never
+straight, and letting go within 0.26 rad of a quarter turn eases onto it —
+two comfortable twists stand the ring upside down exactly.
+
 ## The verdict judges the pour, not the bench
 
 `castability::attributed_field_report` sets aside every enabled
@@ -2253,6 +2405,75 @@ the way, all on a 15 mm lofted signet:
   `station_stretch` and flags the pads `metal_true`.
 - A showcase template must lift without a patch by stack index, which a
   live group's recipe needs: Oriel's pavé groups are baked.
+
+Both now stand on made settings (`solid`): Oriel's cabochon in a collet on
+one flat plate with 18 bead-set melee round it and bead-set pavé on the
+shoulders — the plate is a gemless flat-topped pad, and each melee's own
+stock is the plate's height so its girdle reads off the same top — and
+Palisade's emerald cut and rounds flush set with pilots through. Oriel's
+head went 13 → 14 mm so the plate's skirt lands on the table and not on
+its rolled rim.
+
+## One theme per ring, on the factory's signets
+
+Logan's standing preference, set on 2026-09-18: a signet starts from a
+decoded factory preset (`bases/signets/*.ringbase.json`, packaged from
+`assets/decoded/presets/Signet Ring/` by `tools/audit_preset_bases.py` and
+`tools/package_signet_bases.py`) because those have the hard angles where
+the walls meet the face; and a design commits to **one theme face to palm**
+— Palisade was retired for being "random elements placed in various spots".
+All twenty presets are bundled now: 013 welded to a closed solid but for
+one triangle its exporter dropped, and `cap_single_triangles` closes a hole
+exactly one face big without adding or moving a vertex.
+
+`examples/stock_masterworks.rs` holds the two rings that came of it,
+**Saurian** (013, one stone) and **Zenith** (017, three), and the method:
+each ring is *one* height map painted from the stock's own 3D samples
+(`Atlas`, `Skin::spot`), so distances are metal millimetres and regions
+hand over inside one skin. What the sand taught, all measured:
+
+- **On a signet's face, anything proud off the parting line is an
+  undercut.** The face has almost no draft, so a bump's near flank faces
+  back across the parting plane. The stock's sand envelope
+  (`imported_base/pull.rs`) makes every section's radius monotone toward
+  the parting line by *filling*: a field of beads came back as ridges run
+  to the centre line. The painter's `draft_clamp` is the same rule applied
+  the other way — walking out from the parting line, relief may rise only
+  as fast as the stock's own draft allows, and what breaks it is cut back —
+  so the envelope stays on as the guarantee and has nothing left to fill.
+- The castable reptile form is therefore the **pointed scute**: a plate the
+  width of the band whose free edge is a chevron with its point on the
+  parting line, leading. Its wall faces round the ring and *away* from the
+  parting line; turn the chevron round and the same wall faces back and
+  locks. Free shapes — small round overlapping scales — go on the cheeks,
+  where relief moves along the pull.
+- A sky's fine detail belongs to the graver. Zenith casts what casts — the
+  belt's three mounds on the parting line, a crescent, the moon's phases as
+  discs centred on it, star trails on the cheeks — and leaves Orion's stars,
+  the lines between them and the Pleiades as a `bench_only` layer. For that
+  to show, `pull::build` now envelopes only the cast stack and lays
+  bench-only relief on the supported surface afterwards; before, the
+  support filled every engraved line.
+- With the envelope *off* the mesh-space release analysis reports dozens of
+  single-sample (0.01 mm²) obstructions, some on bare palm: the envelope
+  path is also what makes the stock itself sample clean. Both rings read 0
+  obstructions and 0 unresolved with it on.
+
+## Reels are played by the app, not by a finger
+
+Tools → **Play build reel** (`reel.rs`, host-tested; the driver is
+`App::advance_reel`) replays the open design's construction on the real UI
+for a screen recorder: bare stock, each enabled top-level layer switching on
+in stack order under its own name (`built_to`, with the graph set aside so
+it cannot put the layers back), then the cutters ghosted, the seats cut, the
+stones set, a full turn and a flip. Each step waits for its build to land
+and its camera turn to arrive before its hold starts, so a slow device
+changes the reel's length and never what it shows. Views are the cameras'
+own angles — yaw about the finger from the head, pitch toward the finger's
+axis, so the face is `[head, 0]`; the first cut used the software
+renderer's convention and looked down the bore. Record with
+`adb shell screenrecord`; a tap on the ring stops it and restores the view
+options and the design.
 
 ## The phone has the graph too
 

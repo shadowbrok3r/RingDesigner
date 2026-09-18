@@ -198,6 +198,7 @@ mod tests {
             ],
             faces: vec![[0, 1, 2]],
             normals: vec![],
+            ..Default::default()
         };
         let c = cut(
             &m,
@@ -233,6 +234,7 @@ mod tests {
             ],
             faces: vec![[0, 1, 2], [1, 0, 3]],
             normals: vec![],
+            ..Default::default()
         };
         let c = cut(
             &m,
@@ -255,6 +257,7 @@ mod tests {
             ],
             faces: vec![[0, 1, 2]],
             normals: vec![],
+            ..Default::default()
         };
         assert!(cut(&mesh, Plane::default()).segments.is_empty());
     }

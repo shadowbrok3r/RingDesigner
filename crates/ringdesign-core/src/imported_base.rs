@@ -443,6 +443,7 @@ impl Source {
             vertices,
             normals,
             faces: self.faces.clone(),
+            ..Default::default()
         }
     }
 }
@@ -1044,6 +1045,7 @@ pub fn build(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<
         report,
         reference: d.reference_loop(),
         spacing: crate::adaptive::Spacing::uniform(params.theta_steps.clamp(24, 4096)),
+        solids: Default::default(),
     })
 }
 
@@ -1057,7 +1059,7 @@ impl Preset {
     }
 }
 macro_rules! presets {($($id:literal => $name:literal),* $(,)?)=>{pub static PRESETS:&[Preset]=&[$(Preset{name:$name,json:include_str!(concat!("../../../bases/signets/",$id,".ringbase.json"))}),*];};}
-presets! {"001"=>"001 · Cushion", "002"=>"002 · Signet", "003"=>"003 · Signet", "004"=>"004 · Signet", "005"=>"005 · Signet", "006"=>"006 · Square", "007"=>"007 · Signet", "008"=>"008 · Signet", "009"=>"009 · Signet", "010"=>"010 · Signet", "011"=>"011 · Signet", "012"=>"012 · Signet", "014"=>"014 · Signet", "015"=>"015 · Signet", "016"=>"016 · Signet", "017"=>"017 · Signet", "018"=>"018 · Signet", "019"=>"019 · Signet", "020"=>"020 · Signet"}
+presets! {"001"=>"001 · Cushion", "002"=>"002 · Signet", "003"=>"003 · Signet", "004"=>"004 · Signet", "005"=>"005 · Signet", "006"=>"006 · Square", "007"=>"007 · Signet", "008"=>"008 · Signet", "009"=>"009 · Signet", "010"=>"010 · Signet", "011"=>"011 · Signet", "012"=>"012 · Signet", "013"=>"013 · Signet", "014"=>"014 · Signet", "015"=>"015 · Signet", "016"=>"016 · Signet", "017"=>"017 · Signet", "018"=>"018 · Signet", "019"=>"019 · Signet", "020"=>"020 · Signet"}
 
 #[cfg(test)]
 mod tests {

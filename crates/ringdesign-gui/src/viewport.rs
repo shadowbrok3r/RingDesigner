@@ -139,6 +139,8 @@ struct GpuResources {
     gem_vbo: glow::NativeBuffer,
     ghost_vao: glow::NativeVertexArray,
     ghost_vbo: glow::NativeBuffer,
+    cutter_vao: glow::NativeVertexArray,
+    cutter_vbo: glow::NativeBuffer,
     /// One float a staged vertex: how far the chosen node reaches it.
     focus_vbo: glow::NativeBuffer,
 }
@@ -151,6 +153,8 @@ pub struct GpuMeshRenderer {
     gem_pending: Option<Vec<f32>>,
     ghost_count: i32,
     ghost_pending: Option<Vec<f32>>,
+    cutter_count: i32,
+    cutter_pending: Option<Vec<f32>>,
     /// A focus channel awaiting upload; `Some(empty)` clears it.
     focus_pending: Option<Vec<f32>>,
     /// The uploaded channel covers the uploaded mesh vertex for vertex.
@@ -172,6 +176,8 @@ impl Default for GpuMeshRenderer {
             gem_pending: None,
             ghost_count: 0,
             ghost_pending: None,
+            cutter_count: 0,
+            cutter_pending: None,
             focus_pending: None,
             focus_live: false,
             depth_checked: false,
@@ -189,7 +195,10 @@ impl GpuMeshRenderer {
         let (inner_r, min_section) = wall;
         let mut data: Vec<f32> = Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
 
+        let mut hard = 0;
         'faces: for (i, face) in mesh.faces.iter().enumerate() {
+            // A solid's faces keep their creases; the band shades from its own vertex normals.
+            let corners = mesh.face_normals(i, &mut hard);
             let rgb = match cast {
                 Some(c) => c.classes.get(i).map_or([1.0; 3], |k| k.rgb()),
                 None => [1.0; 3],
@@ -200,10 +209,7 @@ impl GpuMeshRenderer {
                 let Some(p) = mesh.vertices.get(vi as usize).filter(|p| p.is_finite()) else {
                     continue 'faces;
                 };
-                let n = match mesh.normals.get(vi as usize) {
-                    Some(n) if n.is_finite() => *n,
-                    _ => Vec3(0.0, 0.0, 1.0),
-                };
+                let n = corners[k];
                 // Radial metal under this vertex; the bore itself (facing
                 // inward) is not a wall and sits out in neutral grey.
                 let r = (p.0 as f64).hypot(p.1 as f64);
@@ -282,6 +288,11 @@ impl GpuMeshRenderer {
     }
 
     /// Queue the pinned comparison mesh, in the same layout. Empty clears it.
+    /// The seats' cutters, drawn through the metal; empty clears them.
+    pub fn prepare_cutters(&mut self, verts: Vec<f32>) {
+        self.cutter_pending = Some(verts);
+    }
+
     pub fn prepare_ghost(&mut self, verts: Vec<f32>) {
         self.ghost_pending = Some(verts);
     }
@@ -348,6 +359,14 @@ impl GpuMeshRenderer {
                     gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&weights), glow::STATIC_DRAW);
                     gl.bind_buffer(glow::ARRAY_BUFFER, None);
                 }
+            }
+        }
+        if let Some(verts) = self.cutter_pending.take() {
+            self.cutter_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
+            unsafe {
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.cutter_vbo));
+                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
+                gl.bind_buffer(glow::ARRAY_BUFFER, None);
             }
         }
         if let Some(verts) = self.ghost_pending.take() {
@@ -428,6 +447,29 @@ impl GpuMeshRenderer {
             gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
             gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
             gl.uniform_4_f32_slice(focus_loc.as_ref(), &[0.0; 4]);
+
+            // The cutters: through the metal, since a tool sits inside what it removes.
+            if self.cutter_count > 0 {
+                gl.use_program(Some(res.program));
+                let loc = gl.get_uniform_location(res.program, "u_mode");
+                gl.uniform_1_i32(loc.as_ref(), 0);
+                let loc = gl.get_uniform_location(res.program, "u_base_color");
+                gl.uniform_3_f32(loc.as_ref(), 1.0, 0.34, 0.62);
+                let loc = gl.get_uniform_location(res.program, "u_alpha");
+                gl.uniform_1_f32(loc.as_ref(), 0.34);
+                gl.enable(glow::BLEND);
+                gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+                gl.depth_mask(false);
+                gl.disable(glow::DEPTH_TEST);
+                gl.bind_vertex_array(Some(res.cutter_vao));
+                gl.draw_arrays(glow::TRIANGLES, 0, self.cutter_count);
+                gl.enable(glow::DEPTH_TEST);
+                gl.depth_mask(true);
+                gl.disable(glow::BLEND);
+                gl.bind_vertex_array(Some(res.vao));
+                let loc = gl.get_uniform_location(res.program, "u_alpha");
+                gl.uniform_1_f32(loc.as_ref(), 1.0);
+            }
 
             // The pinned comparison ghost: last, translucent, no depth
             // writes, so it reads as a spectre around the live metal.
@@ -546,10 +588,12 @@ impl GpuMeshRenderer {
         let gem_vbo = unsafe { gl.create_buffer() }.expect("create gem VBO");
         let ghost_vao = unsafe { gl.create_vertex_array() }.expect("create ghost VAO");
         let ghost_vbo = unsafe { gl.create_buffer() }.expect("create ghost VBO");
+        let cutter_vao = unsafe { gl.create_vertex_array() }.expect("create cutter VAO");
+        let cutter_vbo = unsafe { gl.create_buffer() }.expect("create cutter VBO");
         let focus_vbo = unsafe { gl.create_buffer() }.expect("create focus VBO");
 
         unsafe {
-            for (vao, vbo) in [(vao, vbo), (gem_vao, gem_vbo), (ghost_vao, ghost_vbo)] {
+            for (vao, vbo) in [(vao, vbo), (gem_vao, gem_vbo), (ghost_vao, ghost_vbo), (cutter_vao, cutter_vbo)] {
                 gl.bind_vertex_array(Some(vao));
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
 
@@ -580,6 +624,8 @@ impl GpuMeshRenderer {
             gem_vbo,
             ghost_vao,
             ghost_vbo,
+            cutter_vao,
+            cutter_vbo,
             focus_vbo,
         });
     }
@@ -595,6 +641,8 @@ impl GpuMeshRenderer {
                 gl.delete_buffer(res.gem_vbo);
                 gl.delete_vertex_array(res.ghost_vao);
                 gl.delete_buffer(res.ghost_vbo);
+                gl.delete_vertex_array(res.cutter_vao);
+                gl.delete_buffer(res.cutter_vbo);
                 gl.delete_buffer(res.focus_vbo);
             }
         }
@@ -606,6 +654,8 @@ impl GpuMeshRenderer {
         self.gem_pending = None;
         self.ghost_count = 0;
         self.ghost_pending = None;
+        self.cutter_count = 0;
+        self.cutter_pending = None;
     }
 }
 
@@ -890,17 +940,18 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     let head = app.design.shank.head.theta_deg as f32;
     let camera = app.panes[pane].camera;
     let nav = ringdesign_workbench::navigation::show(ui, rect, ui.id().with(("desktop-view", pane)),
-        &mut app.panes[pane].navigation, [camera.yaw, camera.pitch], head);
+        &mut app.panes[pane].navigation, [camera.yaw, camera.pitch, camera.roll], head);
     if let Some(action) = nav.action {
-        let angles = action.angles(camera.yaw, camera.pitch, head);
+        let angles = action.apply([camera.yaw, camera.pitch, camera.roll], head);
         if action.recentres() {
             // A view from the cube eases in, as a chosen node's does.
             let from = camera.pose();
-            app.panes[pane].turn = Some(ringdesign_workbench::focus::Turn::new(from, ringdesign_workbench::focus::Pose { yaw: angles[0], pitch: angles[1], pan: [0.0; 2], ..from }));
+            app.panes[pane].turn = Some(ringdesign_workbench::focus::Turn::new(from, ringdesign_workbench::focus::Pose { yaw: angles[0], pitch: angles[1], roll: angles[2], pan: [0.0; 2], ..from }));
         } else {
             app.panes[pane].turn = None;
             app.panes[pane].camera.yaw = angles[0];
             app.panes[pane].camera.pitch = angles[1];
+            app.panes[pane].camera.roll = angles[2];
         }
     }
     if let Some(turn) = app.panes[pane].turn {

@@ -19,6 +19,8 @@ pub enum StoneSource {
 pub struct SetStone {
     /// The entry's path, `"Halo / Centre"` for a nested layer.
     pub label: String,
+    /// The same path as indices: the top-level entry, then each group's own.
+    pub path: Vec<usize>,
     pub source: StoneSource,
     pub theta_deg: f64,
     pub v_mm: f64,
@@ -61,7 +63,7 @@ pub fn kept(entry: &LayerEntry, ctx: &FieldContext, theta_deg: f64, v_mm: f64) -
 pub fn set_stones(design: &RingDesign) -> Vec<SetStone> {
     let ctx = design.field_context();
     let mut out = Vec::new();
-    walk(&ctx, &design.layers, "", &mut out);
+    walk(&ctx, &design.layers, "", &mut Vec::new(), &mut out);
     out
 }
 
@@ -79,17 +81,19 @@ pub fn stones_near<'a>(
         .collect()
 }
 
-fn walk(ctx: &FieldContext, stack: &LayerStack, prefix: &str, out: &mut Vec<SetStone>) {
-    for entry in &stack.layers {
+fn walk(ctx: &FieldContext, stack: &LayerStack, prefix: &str, path: &mut Vec<usize>, out: &mut Vec<SetStone>) {
+    for (index, entry) in stack.layers.iter().enumerate() {
         if !entry.enabled {
             continue;
         }
+        path.push(index);
         match &entry.layer {
             Layer::SeatPad(seat) => {
                 if let Some(gem) = seat.gem {
                     if kept(entry, ctx, seat.theta_deg, seat.v_mm) {
                         out.push(SetStone {
                             label: format!("{prefix}{}", entry.name),
+                            path: path.clone(),
                             source: StoneSource::Pad,
                             theta_deg: seat.theta_deg,
                             v_mm: seat.v_mm,
@@ -114,6 +118,7 @@ fn walk(ctx: &FieldContext, stack: &LayerStack, prefix: &str, out: &mut Vec<SetS
                     seat.height_mm *= run.scale_at(theta);
                     out.push(SetStone {
                         label: format!("{prefix}{}", entry.name),
+                        path: path.clone(),
                         source: StoneSource::Run { station: k },
                         theta_deg: theta,
                         v_mm: fitted.v_mm,
@@ -122,9 +127,10 @@ fn walk(ctx: &FieldContext, stack: &LayerStack, prefix: &str, out: &mut Vec<SetS
                     });
                 }
             }
-            Layer::Group(g) => walk(ctx, &g.stack, &format!("{prefix}{} / ", entry.name), out),
+            Layer::Group(g) => walk(ctx, &g.stack, &format!("{prefix}{} / ", entry.name), path, out),
             _ => {}
         }
+        path.pop();
     }
 }
 

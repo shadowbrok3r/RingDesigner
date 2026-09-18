@@ -183,6 +183,9 @@ fn seat_node() -> NodeSpec {
     .field(PinSpec::item("plan_pow", ValueKind::Number).doc("Superellipse exponent of the plan; 2 is an ellipse."))
     .field(PinSpec::item("set_depth_mm", ValueKind::Number).doc("Girdle depth below the pad's top, mm; the style's own if unset."))
     .field(PinSpec::item("metal_true", ValueKind::Bool).doc("Sizes are metal mm at the pad's own station, not chart mm — on a stretched section (signet wall, keyframed lobe) the pad then casts as drawn."))
+    .field(PinSpec::select("solid", enum_names(ringdesign_core::setting::SolidKind::ALL)).doc("The pre-made solid the seat carries: a flush cut, a bead set, a claw head or a collet, placed on the built ring and resolved by boolean."))
+    .field(PinSpec::item("through", ValueKind::Bool).doc("Drill the solid's pilot through to the finger."))
+    .field(PinSpec::item("mark_mm", ValueKind::Number).doc("Raised drill-start dot at the seat's centre, diameter mm; a sand pattern gets one for every seat cut at the bench."))
     .build()
 }
 

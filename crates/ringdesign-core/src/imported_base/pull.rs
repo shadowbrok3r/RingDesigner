@@ -20,6 +20,13 @@ pub(super) fn build(
     let half = no / 2;
     let ctx = d.field_context();
     let native = ctx.imported_surface.as_ref().unwrap();
+    // What is poured and what the bench cuts afterwards. The envelope is the sand's: it supports the
+    // cast relief, and would close every line a graver is still to cut, so the bench's work is laid on
+    // the supported surface rather than under it.
+    let (mut cast, mut bench) = (d.layers.clone(), d.layers.clone());
+    let any_bench = d.layers.layers.iter().any(|e| e.enabled && e.bench_only);
+    for e in &mut cast.layers { e.enabled &= !e.bench_only; }
+    for e in &mut bench.layers { e.enabled &= e.bench_only; }
     #[cfg(feature = "parallel")]
     use rayon::prelude::*;
     #[cfg(feature = "parallel")]
@@ -45,6 +52,7 @@ pub(super) fn build(
         }
         let middle = (left + right) * 0.5;
         let mut outer = Vec::with_capacity(no + 1);
+        let mut bench_r: Vec<f64> = Vec::with_capacity(no + 1);
         let mut rest = Vec::with_capacity(np);
         let mut hi = 0_f64;
         let mut lo = 0_f64;
@@ -65,7 +73,7 @@ pub(super) fn build(
                 0.
             } else {
                 crate::mesh::soft_height(
-                    &d.layers,
+                    &cast,
                     crate::Uv {
                         u: ctx.u_of_theta(theta),
                         v: f * ctx.band_v_len_mm,
@@ -76,6 +84,12 @@ pub(super) fn build(
                 ) * weight
             };
             let h = if h.is_finite() { h } else { 0. };
+            let cut = if any_bench && r >= d.inner_radius_mm() + 0.15 {
+                crate::mesh::soft_height(&bench, crate::Uv { u: ctx.u_of_theta(theta), v: f * ctx.band_v_len_mm }, &ctx, lib, params.soften_mm) * weight
+            } else {
+                0.
+            };
+            bench_r.push(if cut.is_finite() { cut * (frame.normal[0] * cos + frame.normal[1] * sin) } else { 0. });
             hi = hi.max(h);
             lo = lo.min(h);
             let nr = frame.normal[0] * cos + frame.normal[1] * sin;
@@ -115,6 +129,14 @@ pub(super) fn build(
             added <= 1.0,
             "Sand withdrawal support would add more than 1 mm; reduce relief or choose different stock"
         );
+        let floor = d.inner_radius_mm() + params.min_wall_mm.max(0.05);
+        for (p, cut) in outer.iter_mut().zip(&bench_r) {
+            if *cut != 0. {
+                hi = hi.max(*cut);
+                lo = lo.min(*cut);
+                p[0] = (p[0] + cut).max(floor.min(p[0]));
+            }
+        }
         // A calibrated, mildly relieved bore meets the exact stock rim. Its
         // radius grows away from the parting plane, avoiding imported polygon
         // noise that can trap a thin collar of sand at nominal finger size.

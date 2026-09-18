@@ -52,6 +52,9 @@ pub struct OrbitCamera {
     pub pan: [f32; 2],
     /// Radius of the fitted bounding sphere, mm.
     radius: f32,
+    /// Turn about the view axis, radians: what lets the ring be seen upside down.
+    #[serde(default)]
+    pub roll: f32,
 }
 
 impl Default for OrbitCamera {
@@ -64,6 +67,7 @@ impl Default for OrbitCamera {
             target: [0.0; 3],
             pan: [0.0; 2],
             radius: 12.0,
+            roll: 0.0,
         }
     }
 }
@@ -90,12 +94,13 @@ impl OrbitCamera {
 
     /// The pose as the shared focus and navigator maths hold it.
     pub fn pose(&self) -> ringdesign_workbench::focus::Pose {
-        ringdesign_workbench::focus::Pose { yaw: self.yaw, pitch: self.pitch, zoom: self.zoom, pan: self.pan }
+        ringdesign_workbench::focus::Pose { yaw: self.yaw, pitch: self.pitch, roll: self.roll, zoom: self.zoom, pan: self.pan }
     }
 
     pub fn set_pose(&mut self, pose: ringdesign_workbench::focus::Pose) {
         self.yaw = pose.yaw;
         self.pitch = pose.pitch;
+        self.roll = pose.roll;
         self.zoom = pose.zoom.clamp(0.15, 24.0);
         self.pan = pose.pan;
     }
@@ -110,10 +115,14 @@ impl OrbitCamera {
         self.yaw = yaw;
         self.pitch = pitch;
         self.pan = [0.0, 0.0];
+        self.roll = 0.0;
     }
 
     pub fn orbit(&mut self, delta: egui::Vec2) {
         use std::f32::consts::FRAC_PI_2;
+        // A drag is in screen axes; rolled, those are not the camera's own.
+        let (sin, cos) = self.roll.sin_cos();
+        let delta = egui::vec2(delta.x * cos + delta.y * sin, delta.y * cos - delta.x * sin);
         self.yaw -= delta.x * 0.008;
         self.pitch = (self.pitch + delta.y * 0.008).clamp(-FRAC_PI_2 + 0.001, FRAC_PI_2 - 0.001);
     }
@@ -133,6 +142,24 @@ impl OrbitCamera {
         self.radius * 1.15 / self.zoom.max(1e-3)
     }
 
+    /// Screen up in world space: the finger axis (or, looking down it, the
+    /// way out to the head), turned about the view axis by the roll.
+    fn up(&self) -> [f32; 3] {
+        let base = if self.pitch.abs() > std::f32::consts::FRAC_PI_2 - 0.02 {
+            [-self.yaw.cos(), -self.yaw.sin(), 0.0]
+        } else {
+            [0.0, 0.0, 1.0]
+        };
+        if self.roll == 0.0 {
+            return base;
+        }
+        let f = normalize(sub(self.target, self.eye()));
+        let s = normalize(cross(f, base));
+        let u = cross(s, f);
+        let (sin, cos) = self.roll.sin_cos();
+        [u[0] * cos - s[0] * sin, u[1] * cos - s[1] * sin, u[2] * cos - s[2] * sin]
+    }
+
     fn eye(&self) -> [f32; 3] {
         let d = self.radius * 4.0;
         let (sp, cp) = self.pitch.sin_cos();
@@ -147,11 +174,7 @@ impl OrbitCamera {
     /// `(mvp, normal_matrix)` for the given viewport rect.
     pub fn matrices(&self, rect: egui::Rect) -> ([f32; 16], [f32; 9]) {
         let eye = self.eye();
-        let up = if self.pitch.abs() > std::f32::consts::FRAC_PI_2 - 0.02 {
-            [-self.yaw.cos(), -self.yaw.sin(), 0.0]
-        } else {
-            [0.0, 0.0, 1.0]
-        };
+        let up = self.up();
         let view = look_at(eye, self.target, up);
 
         let aspect = (rect.width() / rect.height().max(1.0)).max(1e-3);
@@ -179,11 +202,7 @@ impl OrbitCamera {
     /// Origin sits on the eye plane, direction is the view forward.
     pub fn ray(&self, rect: egui::Rect, pos: egui::Pos2) -> ([f32; 3], [f32; 3]) {
         let eye = self.eye();
-        let up = if self.pitch.abs() > std::f32::consts::FRAC_PI_2 - 0.02 {
-            [-self.yaw.cos(), -self.yaw.sin(), 0.0]
-        } else {
-            [0.0, 0.0, 1.0]
-        };
+        let up = self.up();
         let f = normalize(sub(self.target, eye));
         let s = normalize(cross(f, up));
         let u = cross(s, f);
@@ -395,6 +414,29 @@ mod tests {
             cam.zoom_by(-1000.0);
         }
         assert!(cam.zoom >= 0.15);
+    }
+
+    #[test]
+    fn a_rolled_camera_stands_the_ring_on_its_head_and_still_picks_true() {
+        let mut cam = OrbitCamera::default();
+        cam.fit(Some((Vec3(-11., -11., -4.), Vec3(11., 14., 4.))));
+        cam.set_view(StandardView::Face);
+        let r = rect();
+        let head = [0.0, 12.0, 0.0];
+        let upright = cam.projector(r).at(head);
+        cam.roll = std::f32::consts::PI;
+        let flipped = cam.projector(r).at(head);
+        let c = r.center();
+        assert!(((upright - c) + (flipped - c)).length() < 0.01, "a half roll is a point reflection of the screen: {upright:?} {flipped:?}");
+        let (o, d) = cam.ray(r, flipped);
+        let t = (0..3).map(|k| (head[k] - o[k]) * d[k]).sum::<f32>();
+        let miss = (0..3).map(|k| (o[k] + d[k] * t - head[k]).powi(2)).sum::<f32>().sqrt();
+        assert!(miss < 0.01, "{miss}");
+        let yaw = cam.yaw;
+        cam.orbit(egui::vec2(20.0, 0.0));
+        assert!(cam.yaw > yaw);
+        cam.set_view(StandardView::Face);
+        assert_eq!(cam.roll, 0.0);
     }
 
     #[test]

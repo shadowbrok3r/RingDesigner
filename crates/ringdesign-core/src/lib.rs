@@ -28,6 +28,7 @@ pub mod imported_base;
 pub mod alpha;
 pub mod castability;
 pub mod contour;
+pub mod csg;
 pub mod curve;
 pub mod dfm;
 pub mod drawn;
@@ -50,6 +51,7 @@ pub mod profile;
 pub mod refine;
 pub mod render;
 pub mod setstone;
+pub mod setting;
 pub mod sizing;
 pub mod spec;
 pub mod stl;
@@ -355,6 +357,7 @@ impl RingDesign {
             }
             collect(&self.layers,surface,loop_.surface_len_mm.max(1e-9),&mut imported_seats,0);
         }
+        let tables = self.station_tables();
         FieldContext {
             circumference_mm: std::f64::consts::TAU * loop_.crest_radius_mm,
             band_v_len_mm: loop_.surface_len_mm,
@@ -363,7 +366,8 @@ impl RingDesign {
             surface: field::SurfaceProfile::from_loop(&loop_, 257),
             bore_radius_mm: self.inner_radius_mm(),
             side_faces_cache: Default::default(),
-            stretch: self.station_stretch_table(),
+            stretch: tables.as_ref().map(|t| t.0.clone()),
+            crest_scale: tables.map(|t| t.1),
             imported_surface,
             imported_seats,
         }
@@ -379,7 +383,7 @@ impl RingDesign {
     /// divergence this file warns about elsewhere. Cached like the signet
     /// tents; the key is the serialized profile and shank, so a field added
     /// to either can never serve a stale table.
-    fn station_stretch_table(&self) -> Option<std::sync::Arc<Vec<f32>>> {
+    fn station_tables(&self) -> Option<StationTables> {
         if self.imported_base.is_none() && self.shank.kind == ShankKind::Uniform && self.profile.morph.is_none() {
             return None;
         }
@@ -387,16 +391,22 @@ impl RingDesign {
         const SECTION_STEPS: usize = 192;
         let inner = self.inner_radius_mm();
         let crest = inner + self.profile.thickness_mm;
+        // Two tables in one: the section's stretch, then its crest radius over the reference's.
         let build = || {
-            let ref_len = if self.imported_base.is_some() { self.reference_loop().surface_len_mm } else { self.profile.sample(inner, SECTION_STEPS).surface_len_mm }.max(1e-9);
-            (0..STATIONS)
+            let reference = if self.imported_base.is_some() { self.reference_loop() } else { self.profile.sample(inner, SECTION_STEPS) };
+            let (ref_len, ref_crest) = (reference.surface_len_mm.max(1e-9), reference.crest_radius_mm.max(1e-9));
+            let rows: Vec<(f32, f32)> = (0..STATIONS)
                 .map(|i| {
                     let theta = i as f64 * 360.0 / STATIONS as f64;
                     let m = self.modulation_at(theta, inner, crest);
-                    let len = if let Some(b) = &self.imported_base { b.section(self, theta, SECTION_STEPS).map(|s|s.surface_len_mm).unwrap_or(ref_len) } else { self.profile.sample_mod(inner, SECTION_STEPS, &m).surface_len_mm };
-                    (len / ref_len) as f32
+                    if let Some(b) = &self.imported_base {
+                        return ((b.section(self, theta, SECTION_STEPS).map(|s| s.surface_len_mm).unwrap_or(ref_len) / ref_len) as f32, 1.0);
+                    }
+                    let section = self.profile.sample_mod(inner, SECTION_STEPS, &m);
+                    ((section.surface_len_mm / ref_len) as f32, (section.crest_radius_mm / ref_crest) as f32)
                 })
-                .collect()
+                .collect();
+            (rows.iter().map(|r| r.0).collect(), rows.iter().map(|r| r.1).collect())
         };
         use std::hash::{Hash, Hasher};
         let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -404,7 +414,10 @@ impl RingDesign {
             Ok(bytes) => bytes.hash(&mut h),
             // A profile that cannot serialize cannot key the cache; build
             // uncached rather than serve someone else's table.
-            Err(_) => return Some(std::sync::Arc::new(build())),
+            Err(_) => {
+                let (stretch, crest) = build();
+                return Some((std::sync::Arc::new(stretch), std::sync::Arc::new(crest)));
+            }
         }
         if let Some(b)=&self.imported_base { b.source.fingerprint().hash(&mut h);
             serde_json::to_vec(&b.chart).unwrap_or_default().hash(&mut h); }
@@ -413,16 +426,19 @@ impl RingDesign {
     }
 }
 
+/// Per ring angle: the section's stretch, and its crest radius over the reference's.
+type StationTables = (std::sync::Arc<Vec<f32>>, std::sync::Arc<Vec<f32>>);
+
 /// Stretch tables are rebuilt only when something about the band changes:
 /// the last few are kept by a hash of everything that shapes them.
-fn stretch_cached(key: u64, build: impl FnOnce() -> Vec<f32>) -> std::sync::Arc<Vec<f32>> {
-    static CACHE: std::sync::Mutex<Vec<(u64, std::sync::Arc<Vec<f32>>)>> =
-        std::sync::Mutex::new(Vec::new());
+fn stretch_cached(key: u64, build: impl FnOnce() -> (Vec<f32>, Vec<f32>)) -> StationTables {
+    static CACHE: std::sync::Mutex<Vec<(u64, StationTables)>> = std::sync::Mutex::new(Vec::new());
     let mut c = CACHE.lock().unwrap_or_else(|e| e.into_inner());
     if let Some((_, t)) = c.iter().find(|(k, _)| *k == key) {
         return t.clone();
     }
-    let t = std::sync::Arc::new(build());
+    let (stretch, crest) = build();
+    let t = (std::sync::Arc::new(stretch), std::sync::Arc::new(crest));
     if c.len() >= 8 {
         c.remove(0);
     }

@@ -239,14 +239,17 @@
         "dimple_mm": 0.0,
         "elong": 1.0,
         "height_mm": 0.58,
+        "mark_mm": 0.0,
         "metal_true": true,
         "plan_pow": 2.0,
         "prong_mm": 0.9,
         "prongs": 0,
         "recess_mm": 0.5,
         "rot_deg": 0.0,
+        "solid": "None",
         "style": "GypsyMound",
         "theta_deg": 90.0,
+        "through": false,
         "v_mm": 14.324284527183426
       },
       "pos": [

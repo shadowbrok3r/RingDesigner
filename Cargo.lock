@@ -4096,9 +4096,11 @@ dependencies = [
  "parking_lot",
  "rayon",
  "resvg",
+ "robust",
  "roxmltree",
  "serde",
  "serde_json",
+ "spade",
  "svgtypes",
 ]
 
@@ -4242,7 +4244,7 @@ dependencies = [
 
 [[package]]
 name = "ringdesigner_android"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "android-activity",
  "backdrop-blur-egui",
