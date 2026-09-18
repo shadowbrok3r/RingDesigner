@@ -369,7 +369,7 @@ pub fn try_build_pattern(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
 /// Place every seat's pre-made solid on the built band and resolve it, then measure what is left.
 fn resolve_solids(design: &RingDesign, lib: &AlphaLibrary, built: &mut BuildResult) {
     let applied = crate::setting::apply(design, lib, &mut built.mesh);
-    if applied.resolved == 0 && applied.notes.is_empty() {
+    if applied.resolved == 0 && applied.stamped == 0 && applied.notes.is_empty() {
         return;
     }
     let mesh = &built.mesh;

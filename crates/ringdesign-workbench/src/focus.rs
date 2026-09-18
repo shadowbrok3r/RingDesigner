@@ -359,7 +359,8 @@ fn unit(a: [f32; 3]) -> [f32; 3] {
 /// turned about the view axis by `roll`.
 pub fn view_axes(yaw: f32, pitch: f32, roll: f32) -> ([f32; 3], [f32; 3]) {
     let d = [pitch.cos() * yaw.cos(), pitch.cos() * yaw.sin(), pitch.sin()];
-    let up = if pitch.abs() > std::f32::consts::FRAC_PI_2 - 0.02 { [-yaw.cos(), -yaw.sin(), 0.0] } else { [0.0, 0.0, 1.0] };
+    // The way the eye moves as it tilts, as the cameras have it: continuous over the poles.
+    let up = [-pitch.sin() * yaw.cos(), -pitch.sin() * yaw.sin(), pitch.cos()];
     let f = [-d[0], -d[1], -d[2]];
     let s = unit(cross(f, up));
     let u = cross(s, f);
@@ -392,7 +393,7 @@ pub fn ease(from: Pose, to: Pose, t: f32) -> Pose {
     let lerp = |a: f32, b: f32| a + (b - a) * e;
     let short = |a: f32, b: f32| (b - a + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
     let turn = short(from.yaw, to.yaw);
-    Pose { yaw: from.yaw + turn * e, pitch: lerp(from.pitch, to.pitch), roll: from.roll + short(from.roll, to.roll) * e, zoom: lerp(from.zoom, to.zoom), pan: [lerp(from.pan[0], to.pan[0]), lerp(from.pan[1], to.pan[1])] }
+    Pose { yaw: from.yaw + turn * e, pitch: from.pitch + short(from.pitch, to.pitch) * e, roll: from.roll + short(from.roll, to.roll) * e, zoom: lerp(from.zoom, to.zoom), pan: [lerp(from.pan[0], to.pan[0]), lerp(from.pan[1], to.pan[1])] }
 }
 
 /// A camera turn under way.

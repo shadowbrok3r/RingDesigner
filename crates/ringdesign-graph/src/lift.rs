@@ -416,7 +416,13 @@ pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result
         g.connect(last, "design", set, "design")?;
         g.node_mut(set).expect("added").label = Some(format!("Preserve {pointer}"));
         g.set_input(set, "pointer", Literal::Text(pointer))?;
-        g.set_input(set, "value", Literal::Json(value))?;
+        // An array on a pin is an implicit list, and a node fed one runs once per item: a design's 32
+        // stamps came out as 32 designs. The node holds arrays and nulls in its params whole.
+        if value.is_array() || value.is_null() {
+            g.node_mut(set).expect("added").params = serde_json::json!({ "json_value": value });
+        } else {
+            g.set_input(set, "value", Literal::Json(value))?;
+        }
         last = set;
     }
     let out = g.add(OUTPUT_KIND)?;

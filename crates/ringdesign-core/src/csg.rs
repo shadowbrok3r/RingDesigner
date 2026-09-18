@@ -197,6 +197,152 @@ pub fn union_all(parts: &[Solid]) -> Result<Solid, Snag> {
     Ok(out)
 }
 
+/// Collapses every edge shorter than `eps` and flips away every face thinner than it. Exact topology keeps
+/// a crossing that lands a hair from a vertex as a vertex of its own, and in f32 the face between the two
+/// is a line or a point. Returns how many faces went; the solid is left as it was if the result would
+/// not close.
+pub fn clean(s: &mut Solid, eps: f64) -> usize {
+    let before = s.open_edges();
+    let mut faces = s.f.clone();
+    let mut alive = vec![true; faces.len()];
+    let mut around: Vec<Vec<u32>> = vec![Vec::new(); s.v.len()];
+    for (i, f) in faces.iter().enumerate() {
+        for &v in f {
+            around[v as usize].push(i as u32);
+        }
+    }
+    let mut removed = 0;
+    for _ in 0..6 {
+        let mut changed = false;
+        for fi in 0..faces.len() {
+            if !alive[fi] {
+                continue;
+            }
+            let f = faces[fi];
+            let p = f.map(|k| s.v[k as usize]);
+            let len2: [f64; 3] = std::array::from_fn(|k| { let d = sub(p[(k + 1) % 3], p[k]); dot(d, d) });
+            let short = (0..3).min_by(|a, b| len2[*a].total_cmp(&len2[*b])).unwrap_or(0);
+            if len2[short] < eps * eps {
+                if collapse(&mut faces, &mut alive, &mut around, &s.v, f[short], f[(short + 1) % 3], eps) {
+                    removed += 2;
+                    changed = true;
+                }
+                continue;
+            }
+            let long = (0..3).max_by(|a, b| len2[*a].total_cmp(&len2[*b])).unwrap_or(0);
+            let twice_area = dot(cross(sub(p[1], p[0]), sub(p[2], p[0])), cross(sub(p[1], p[0]), sub(p[2], p[0]))).sqrt();
+            if twice_area >= eps * len2[long].sqrt() {
+                continue;
+            }
+            if flip(&mut faces, &mut alive, &mut around, &s.v, fi, long, eps) {
+                changed = true;
+                continue;
+            }
+            // Too near a corner for the neighbour's halves to have any width: merge the corner in instead.
+            let near = if len2[(long + 1) % 3] < len2[(long + 2) % 3] { (long + 1) % 3 } else { (long + 2) % 3 };
+            if len2[near] < 100.0 * eps * eps && collapse(&mut faces, &mut alive, &mut around, &s.v, f[near], f[(near + 1) % 3], eps) {
+                removed += 2;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    if removed == 0 && faces == s.f {
+        return 0;
+    }
+    let kept: Vec<[u32; 3]> = faces.into_iter().zip(alive).filter_map(|(f, a)| a.then_some(f)).collect();
+    let old = std::mem::replace(&mut s.f, kept);
+    let after = s.open_edges();
+    if after.0 > before.0 || after.1 > before.1 {
+        s.f = old;
+        return 0;
+    }
+    removed
+}
+
+fn twice_area_of(v: &[P3], f: [u32; 3]) -> P3 {
+    let [a, b, c] = f.map(|k| v[k as usize]);
+    cross(sub(b, a), sub(c, a))
+}
+
+/// Merge the far end of edge `a b` into the lower-numbered one, dropping the two faces on the edge.
+/// Refused where the ends share a neighbour off the edge, which would pinch the surface, or where a
+/// face round the moved end would turn over.
+fn collapse(faces: &mut [[u32; 3]], alive: &mut [bool], around: &mut [Vec<u32>], v: &[P3], a: u32, b: u32, eps: f64) -> bool {
+    let (keep, gone) = (a.min(b), a.max(b));
+    let live = |x: u32| -> Vec<u32> { around[x as usize].iter().copied().filter(|g| alive[*g as usize]).collect() };
+    let (at_keep, at_gone) = (live(keep), live(gone));
+    let shared: Vec<u32> = at_gone.iter().copied().filter(|g| faces[*g as usize].contains(&keep)).collect();
+    if shared.len() != 2 {
+        return false;
+    }
+    let ring = |fs: &[u32]| -> HashSet<u32> { fs.iter().flat_map(|g| faces[*g as usize]).filter(|x| *x != keep && *x != gone).collect() };
+    let apexes: HashSet<u32> = ring(&shared);
+    if apexes.len() != 2 || ring(&at_keep).intersection(&ring(&at_gone)).any(|x| !apexes.contains(x)) {
+        return false;
+    }
+    for g in at_gone.iter().filter(|g| !shared.contains(g)) {
+        let f = faces[*g as usize];
+        let old = twice_area_of(v, f);
+        let [p, q, r] = f.map(|k| v[k as usize]);
+        let longest = dot(sub(q, p), sub(q, p)).max(dot(sub(r, q), sub(r, q))).max(dot(sub(p, r), sub(p, r))).sqrt();
+        // A sliver has no side to keep.
+        if dot(old, old).sqrt() < eps * longest {
+            continue;
+        }
+        if dot(old, twice_area_of(v, f.map(|k| if k == gone { keep } else { k }))) <= 0.0 {
+            return false;
+        }
+    }
+    for g in &shared {
+        alive[*g as usize] = false;
+    }
+    for g in at_gone.iter().filter(|g| !shared.contains(g)) {
+        for k in faces[*g as usize].iter_mut() {
+            if *k == gone {
+                *k = keep;
+            }
+        }
+        around[keep as usize].push(*g);
+    }
+    around[gone as usize].clear();
+    true
+}
+
+/// Turn the long edge of a face whose third corner lies on it: the corner then splits the neighbour
+/// across that edge instead of standing on it as a face of no width.
+fn flip(faces: &mut [[u32; 3]], alive: &mut [bool], around: &mut [Vec<u32>], v: &[P3], fi: usize, long: usize, eps: f64) -> bool {
+    let f = faces[fi];
+    let (b, c, a) = (f[long], f[(long + 1) % 3], f[(long + 2) % 3]);
+    let Some(&g) = around[c as usize].iter().find(|g| {
+        let h = faces[**g as usize];
+        alive[**g as usize] && **g as usize != fi && (0..3).any(|k| h[k] == c && h[(k + 1) % 3] == b)
+    }) else {
+        return false;
+    };
+    let Some(&d) = faces[g as usize].iter().find(|x| **x != b && **x != c) else { return false };
+    if d == a || around[a as usize].iter().any(|h| alive[*h as usize] && faces[*h as usize].contains(&d)) {
+        return false;
+    }
+    let before = twice_area_of(v, faces[g as usize]);
+    let (one, two) = ([a, b, d], [a, d, c]);
+    let (n1, n2) = (twice_area_of(v, one), twice_area_of(v, two));
+    let edge = |x: u32, y: u32| { let e = sub(v[y as usize], v[x as usize]); dot(e, e).sqrt() };
+    // Both halves must face as the neighbour did and have a width of their own.
+    if dot(n1, before) <= 0.0 || dot(n2, before) <= 0.0 || dot(n1, n1).sqrt() < eps * edge(b, d) || dot(n2, n2).sqrt() < eps * edge(d, c) {
+        return false;
+    }
+    faces[fi] = one;
+    faces[g as usize] = two;
+    around[c as usize].retain(|h| *h as usize != fi);
+    around[d as usize].push(fi as u32);
+    around[b as usize].retain(|h| *h != g);
+    around[a as usize].push(g);
+    true
+}
+
 type Edge = (u32, u32);
 fn key(a: u32, b: u32) -> Edge { if a < b { (a, b) } else { (b, a) } }
 
@@ -753,6 +899,47 @@ mod tests {
         let far = sphere([9.0, 0.0, 0.0], 0.5, 8, 10);
         assert_eq!(combine(&shell, &far, Op::Subtract).unwrap().f.len(), shell.f.len());
         assert_eq!(combine(&shell, &far, Op::Union).unwrap().f.len(), shell.f.len() + far.f.len());
+    }
+
+    #[test]
+    fn slivers_collapse_and_caps_flip_without_opening_the_solid() {
+        let ball = sphere([0.0; 3], 1.0, 12, 16);
+        let area = |s: &Solid| s.f.iter().map(|f| dot(twice_area_of(&s.v, *f), twice_area_of(&s.v, *f)).sqrt() * 0.5).fold(f64::MAX, f64::min);
+        // Split a face's edge `k` at `t` of its length; the far side is split too, or carries a face of no width.
+        fn split(s: &mut Solid, fi: usize, k: usize, t: f64, cap: bool) {
+            let f = s.f[fi];
+            let (x, y, z) = (f[k], f[(k + 1) % 3], f[(k + 2) % 3]);
+            let m = s.v.len() as u32;
+            s.v.push(add(s.v[x as usize], scale(sub(s.v[y as usize], s.v[x as usize]), t)));
+            s.f[fi] = [x, m, z];
+            s.f.push([m, y, z]);
+            if cap {
+                s.f.push([x, y, m]);
+                return;
+            }
+            let g = s.f.iter().position(|h| (0..3).any(|j| h[j] == y && h[(j + 1) % 3] == x)).unwrap();
+            let j = (0..3).find(|j| s.f[g][*j] == y).unwrap();
+            let w = s.f[g][(j + 2) % 3];
+            s.f[g] = [y, m, w];
+            s.f.push([m, x, w]);
+        }
+        let mut hair = ball.clone();
+        // A vertex a hair from a corner: two faces with an edge of nothing.
+        split(&mut hair, 20, 0, 1e-8, false);
+        // A vertex halfway along an edge that the far side still runs straight past: a cap.
+        split(&mut hair, 60, 1, 0.5, true);
+        closed(&hair);
+        assert!(area(&hair) < 1e-9);
+        let volume = hair.volume();
+        clean(&mut hair, 2e-5);
+        hair.compact();
+        closed(&hair);
+        assert!(area(&hair) > 1e-6, "{}", area(&hair));
+        assert!((hair.volume() - volume).abs() < 1e-9);
+        // Nothing to clean leaves the solid as it was.
+        let mut same = ball.clone();
+        assert_eq!(clean(&mut same, 2e-5), 0);
+        assert_eq!(same.f, ball.f);
     }
 
     #[test]

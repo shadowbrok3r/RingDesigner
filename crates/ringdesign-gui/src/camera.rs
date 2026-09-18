@@ -119,12 +119,15 @@ impl OrbitCamera {
     }
 
     pub fn orbit(&mut self, delta: egui::Vec2) {
-        use std::f32::consts::FRAC_PI_2;
+        use std::f32::consts::{PI, TAU};
         // A drag is in screen axes; rolled, those are not the camera's own.
         let (sin, cos) = self.roll.sin_cos();
         let delta = egui::vec2(delta.x * cos + delta.y * sin, delta.y * cos - delta.x * sin);
-        self.yaw -= delta.x * 0.008;
-        self.pitch = (self.pitch + delta.y * 0.008).clamp(-FRAC_PI_2 + 0.001, FRAC_PI_2 - 0.001);
+        // Tumbling runs on over the poles. Past one the camera is upside down, and a turn about the
+        // finger axis moves the surface the other way across the screen, so the turn does too.
+        let over = if self.pitch.cos() < 0.0 { -1.0 } else { 1.0 };
+        self.yaw -= delta.x * 0.008 * over;
+        self.pitch = (self.pitch + delta.y * 0.008 + PI).rem_euclid(TAU) - PI;
     }
 
     pub fn zoom_by(&mut self, scroll: f32) {
@@ -145,11 +148,11 @@ impl OrbitCamera {
     /// Screen up in world space: the finger axis (or, looking down it, the
     /// way out to the head), turned about the view axis by the roll.
     fn up(&self) -> [f32; 3] {
-        let base = if self.pitch.abs() > std::f32::consts::FRAC_PI_2 - 0.02 {
-            [-self.yaw.cos(), -self.yaw.sin(), 0.0]
-        } else {
-            [0.0, 0.0, 1.0]
-        };
+        // The way the eye moves as it tilts: the finger axis at any tilt short of a pole, out to the head
+        // at one, and on past it continuously — so a tumble never flips.
+        let (sp, cp) = self.pitch.sin_cos();
+        let (sy, cy) = self.yaw.sin_cos();
+        let base = [-sp * cy, -sp * sy, cp];
         if self.roll == 0.0 {
             return base;
         }
@@ -440,16 +443,36 @@ mod tests {
     }
 
     #[test]
-    fn pitch_never_flips_past_the_pole() {
+    fn a_drag_tumbles_on_over_the_poles_without_a_flip() {
+        // Rotating the face away runs on past the back view instead of turning the ring over: the head
+        // moves a little for a little drag the whole way round, and a full turn comes back to the start.
         let mut cam = OrbitCamera::default();
-        for _ in 0..400 {
-            cam.orbit(egui::vec2(0.0, 100.0));
+        cam.fit(Some((Vec3(-11., -11., -4.), Vec3(11., 14., 4.))));
+        cam.set_view(StandardView::Edge);
+        let r = rect();
+        let head = [0.0, 12.0, 0.0];
+        let start = cam.projector(r).at(head);
+        let mut last = start;
+        let step = 4.0;
+        let steps = (std::f32::consts::TAU / (step * 0.008)).round() as usize;
+        let mut rose = false;
+        for _ in 0..steps {
+            cam.orbit(egui::vec2(0.0, step));
+            let now = cam.projector(r).at(head);
+            assert!((now - last).length() < 20.0, "the head jumped from {last:?} to {now:?} at pitch {}", cam.pitch);
+            rose |= now.y < start.y - 50.0;
+            last = now;
         }
-        assert!(cam.pitch < std::f32::consts::FRAC_PI_2);
-        for _ in 0..800 {
-            cam.orbit(egui::vec2(0.0, -100.0));
-        }
-        assert!(cam.pitch > -std::f32::consts::FRAC_PI_2);
+        assert!(rose, "the head went over the top");
+        assert!((last - start).length() < 2.0, "a whole turn is home again: {last:?} against {start:?}");
+        // Upside down, a sideways drag still carries the surface under the finger.
+        let mut up = OrbitCamera::default();
+        up.fit(Some((Vec3(-11., -11., -4.), Vec3(11., 14., 4.))));
+        up.set_view(StandardView::Edge);
+        up.orbit(egui::vec2(0.0, std::f32::consts::PI / 0.008));
+        let before = up.projector(r).at(head);
+        up.orbit(egui::vec2(10.0, 0.0));
+        assert!(up.projector(r).at(head).x > before.x, "the head follows a drag to the right");
     }
 
     #[test]

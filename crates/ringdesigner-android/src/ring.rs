@@ -267,7 +267,7 @@ impl RingPane {
 
     /// One finger orbits, two pinch-zoom and pan. Returns whether anything changed.
     fn handle_touch(&mut self, ui: &egui::Ui, response: &egui::Response, rect: egui::Rect) -> bool {
-        let multi = ui.input(|i| i.multi_touch());
+        let multi = pinch_in(ui, rect);
         if let Some(mt) = multi {
             // A second finger takes the gesture from the orbit outright, so a pinch never also
             // spins the ring.
@@ -295,6 +295,70 @@ impl RingPane {
         }
         settling
     }
+}
+
+/// Two fingers whose gesture began on `rect`, and on nothing drawn over it. egui reports one pinch for
+/// the whole screen, so read raw a pinch on the graph sheet zoomed and rolled the ring as well.
+pub fn pinch_in(ui: &egui::Ui, rect: egui::Rect) -> Option<egui::MultiTouchInfo> {
+    // Counted before anything else: the frame the fingers land is the one with no gesture yet.
+    let at = first_finger(ui)?;
+    let mt = ui.input(|i| i.multi_touch())?;
+    let mine = rect.contains(at) && ui.ctx().layer_id_at(at).is_none_or(|l| l == ui.layer_id());
+    mine.then_some(mt)
+}
+
+/// Where the finger that began the gesture in hand came down. Not egui's `start_pos`: that is the
+/// pointer as of the frame before, so two fingers landing in one frame are placed where the last
+/// gesture was.
+fn first_finger(ui: &egui::Ui) -> Option<egui::Pos2> {
+    #[derive(Clone, Default)]
+    struct Fingers {
+        down: Vec<egui::TouchId>,
+        first: Option<egui::Pos2>,
+        pass: Option<u64>,
+    }
+    let pass = ui.ctx().cumulative_pass_nr();
+    let (events, touching): (Vec<(egui::TouchId, egui::TouchPhase, egui::Pos2)>, bool) = ui.input(|i| {
+        let events = i
+            .events
+            .iter()
+            .filter_map(|e| match e {
+                egui::Event::Touch { id, phase, pos, .. } => Some((*id, *phase, *pos)),
+                _ => None,
+            })
+            .collect();
+        (events, i.any_touches())
+    });
+    ui.ctx().data_mut(|d| {
+        let f = d.get_temp_mut_or_default::<Fingers>(egui::Id::new("ringdesigner-fingers"));
+        // Every pane asks each pass; the pass's touches are counted once.
+        if f.pass != Some(pass) {
+            // A pass nobody asked about may have lifted or landed fingers: what is down is unknown, and
+            // a gesture the tracker did not see begin belongs to no one.
+            if f.pass.is_none_or(|p| p + 1 != pass) {
+                f.down.clear();
+                f.first = None;
+            }
+            f.pass = Some(pass);
+            for (id, phase, pos) in events {
+                match phase {
+                    egui::TouchPhase::Start => {
+                        if f.down.is_empty() {
+                            f.first = Some(pos);
+                        }
+                        f.down.push(id);
+                    }
+                    egui::TouchPhase::End | egui::TouchPhase::Cancel => f.down.retain(|t| *t != id),
+                    egui::TouchPhase::Move => {}
+                }
+            }
+            // egui knows when every finger is up; a pass nobody asked about cannot leave one down here.
+            if !touching {
+                f.down.clear();
+            }
+        }
+        f.first
+    })
 }
 
 // --- Background rebuild ------------------------------------------------------
@@ -582,6 +646,38 @@ mod tests {
         for _ in 0..16 { free.advance(&mut roll, Some(0.05)); }
         let left = roll;
         assert!(!free.advance(&mut roll, None) && roll == left && left > 0.5, "{left}");
+    }
+
+    #[test]
+    fn a_pinch_belongs_to_the_pane_it_started_on() {
+        let ctx = egui::Context::default();
+        let pane = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(400.0, 300.0));
+        let touch = |id: u64, phase: egui::TouchPhase, pos: egui::Pos2| egui::Event::Touch { device_id: egui::TouchDeviceId(1), id: egui::TouchId(id), phase, pos, force: None };
+        let mut seen = Vec::new();
+        for (start, apart) in [(egui::pos2(200.0, 150.0), 40.0), (egui::pos2(200.0, 600.0), 40.0)] {
+            // As egui-winit reports two fingers: the pointer follows the first, and a gesture only starts
+            // where there is a pointer.
+            let press = |pressed| egui::Event::PointerButton { pos: start, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+            // Both fingers in one frame, the case egui's own start position gets wrong.
+            let mut frames = vec![vec![touch(0, egui::TouchPhase::Start, start), egui::Event::PointerMoved(start), press(true), touch(1, egui::TouchPhase::Start, start + egui::vec2(apart, 0.0))]];
+            frames.push(Vec::new());
+            for k in 1..=3 {
+                frames.push(vec![touch(1, egui::TouchPhase::Move, start + egui::vec2(apart * (1.0 + 0.4 * k as f32), 0.0))]);
+            }
+            let mut got = None;
+            for events in frames {
+                let input = egui::RawInput { events, screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400.0, 800.0))), ..Default::default() };
+                let mut out = ctx.run_ui(input, |ui| {
+                    // egui may run a frame's closure twice; keep the largest zoom any pass saw.
+                    if let Some(mt) = pinch_in(ui, pane) { got = Some(got.unwrap_or(1.0f32).max(mt.zoom_delta)); }
+                });
+                out.textures_delta.clear();
+            }
+            ctx.run_ui(egui::RawInput { events: vec![touch(0, egui::TouchPhase::End, start), touch(1, egui::TouchPhase::End, start), press(false), egui::Event::PointerGone], ..Default::default() }, |_| {}).textures_delta.clear();
+            seen.push(got);
+        }
+        assert!(seen[0].is_some_and(|z| z > 1.0), "a pinch on the ring zooms it: {:?}", seen[0]);
+        assert_eq!(seen[1], None, "a pinch on the sheet below leaves the ring alone");
     }
 
     #[test]

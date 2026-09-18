@@ -177,6 +177,10 @@ pub struct Editor {
     pending_focus: Option<NodeId>,
     /// Fit every node into the view at the next frame.
     pending_fit: bool,
+    /// The press in hand had two fingers down at some point. egui drives its pointer from the first
+    /// finger alone, so lifting a pinch whose first finger barely moved reads as a tap — which chose
+    /// whatever node was under it, and two quick pinches read as the double click that fits the graph.
+    pinched: bool,
     /// The view's transform as of the last frame, for the minimap.
     transform: Option<egui::emath::TSTransform>,
     /// The persistent id the snarl was last shown under, for selection.
@@ -264,6 +268,7 @@ impl Editor {
             style: crate::style::snarl_style(),
             pending_focus: None,
             pending_fit: false,
+            pinched: false,
             transform: None,
             snarl_id: None,
             show_minimap: true,
@@ -293,6 +298,12 @@ impl Editor {
         let (pressed, down, origin, delta, zooming) = ctx.input(|i| {
             (i.pointer.any_pressed(), i.pointer.any_down(), i.pointer.press_origin(), i.pointer.delta(), (i.zoom_delta() - 1.0).abs() > f32::EPSILON || i.multi_touch().is_some())
         });
+        if pressed {
+            self.pinched = false;
+        }
+        if ctx.input(|i| i.multi_touch().is_some()) {
+            self.pinched = true;
+        }
         if pressed {
             self.drag_kind = match (origin, self.transform) {
                 (Some(p), Some(t)) if viewport.contains(p) && ctx.layer_id_at(p).is_none_or(|l| l.order == egui::Order::Background) => {
@@ -485,7 +496,11 @@ impl Editor {
             selected: self.selected.and_then(|g| self.ids.to_snarl.get(&g).copied()),
             sizes: &mut self.sizes,
             pan,
+            pinched: self.pinched,
         };
+        // A double tap is not a way to ask for the whole graph on a touch screen: two quick pinches make
+        // one. The Fit button does it there; a mouse keeps snarl's double click.
+        self.style.centering = Some(!self.pinched && !ui.input(|i| i.has_touch_screen()));
         // That app's visuals on everything inside the editor, and nothing outside it.
         ui.scope(|ui| {
             crate::style::apply_visuals(ui.style_mut());
@@ -714,6 +729,7 @@ impl Editor {
     pub fn arrange(&mut self, reg: &Registry) {
         self.refine_left = 3;
         self.lay_out(reg);
+        self.pending_fit = true;
     }
 
     fn lay_out(&mut self, reg: &Registry) {
@@ -745,19 +761,22 @@ impl Editor {
         }
         self.arranged_sizes = self.sizes.clone();
         self.set_graph(g, reg);
-        self.pending_fit = true;
     }
 }
 
+/// Below this a node cannot be read, and choosing one zooms in to it.
+const FOCUS_MIN_SCALE: f32 = 0.45;
+
 /// The view that puts `frame` (graph space) in front of the reader: wide
-/// enough to read, the title in sight. A zoom already in the readable band
-/// is kept, so stepping through nodes does not fight a chosen zoom; a tall
-/// node is pinned by its title rather than centred on rows off screen.
+/// enough to read, the title in sight. Any readable zoom the node fits at is
+/// kept — never zoomed out from — so stepping through nodes does not fight a
+/// chosen zoom; a tall node is pinned by its title rather than centred on
+/// rows off screen.
 pub fn focus_transform(viewport: egui::Rect, frame: egui::Rect, current: f32) -> (f32, egui::Vec2) {
     const PAD: f32 = 28.0;
     let fit_w = (viewport.width() - 2.0 * PAD).max(60.0) / frame.width().max(1.0);
-    let readable = fit_w.clamp(0.45, 1.0);
-    let scale = if (0.45..=1.25).contains(&current) && frame.width() * current <= viewport.width() - PAD { current } else { readable };
+    let readable = fit_w.clamp(FOCUS_MIN_SCALE, 1.0);
+    let scale = if current >= FOCUS_MIN_SCALE && frame.width() * current <= viewport.width() - PAD { current } else { readable };
     let x = viewport.center().x - frame.center().x * scale;
     let y = if frame.height() * scale + 2.0 * PAD <= viewport.height() { viewport.center().y - frame.center().y * scale } else { viewport.top() + PAD - frame.top() * scale };
     (scale, egui::vec2(x, y))
@@ -826,6 +845,8 @@ fn sizes_agree(a: &HashMap<NodeId, egui::Vec2>, b: &HashMap<NodeId, egui::Vec2>)
 
 struct Viewer<'a> {
     reg: &'a Registry,
+    /// The gesture in hand had two fingers: nothing it does is a tap.
+    pinched: bool,
     editable: bool,
     clicked: Option<SnarlId>,
     refused: Option<String>,
@@ -984,9 +1005,14 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
             if let Some(info) = snarl.get_node_info(sid) {
                 let size = self.ids.to_graph.get(&sid).and_then(|g| self.sizes.get(g)).copied().unwrap_or(NODE_SIZE);
                 let frame = egui::Rect::from_min_size(info.pos - egui::vec2(FRAME_MARGIN, FRAME_MARGIN), size);
-                let (scale, translation) = focus_transform(self.viewport, frame, to_global.scaling);
-                to_global.scaling = scale;
-                to_global.translation = translation;
+                // A node already on screen at a readable zoom is chosen where it is: the view is the
+                // reader's, and moving it under their finger is what read as the graph zooming out.
+                let shown = *to_global * frame;
+                if !(to_global.scaling >= FOCUS_MIN_SCALE && self.viewport.shrink(8.0).contains_rect(shown)) {
+                    let (scale, translation) = focus_transform(self.viewport, frame, to_global.scaling);
+                    to_global.scaling = scale;
+                    to_global.translation = translation;
+                }
             }
         }
         if self.pan != egui::Vec2::ZERO {
@@ -1004,7 +1030,7 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
         // only agree at the identity view. Unmapped, a tap anywhere — on the
         // host's own buttons too — chose whichever node's graph rect happened
         // to hold that screen position.
-        let tap = ui.input(|i| if i.pointer.primary_clicked() { i.pointer.interact_pos() } else { None });
+        let tap = ui.input(|i| if i.pointer.primary_clicked() && !self.pinched { i.pointer.interact_pos() } else { None });
         if let (Some(p), Some(t)) = (tap, self.seen_transform) {
             let on_canvas = self.viewport.contains(p) && ui.ctx().layer_id_at(p).is_none_or(|l| l.order == egui::Order::Background);
             if on_canvas && rect.contains(t.inverse() * p) {
@@ -1163,7 +1189,7 @@ mod tests {
 
         // Text -> Number is refused by the viewer; Number -> Number replaces.
         let (mut snarl, ids) = build_snarl(&g, &reg);
-        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0)), seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), pan: egui::Vec2::ZERO };
+        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0)), seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), pan: egui::Vec2::ZERO , pinched: false };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
         viewer.connect(&text_out, &add_b, &mut snarl);
@@ -1487,6 +1513,38 @@ mod layout_tests {
         };
         tap(&mut harness, decoy);
         assert_eq!(harness.state().selected, None, "empty canvas chooses nothing");
+
+        // A pinch whose first finger stays put, lifted on the node, as egui-winit reports it: the pointer
+        // follows the first finger, so its release is a click — and it must not choose anything, or move
+        // the view it just zoomed.
+        let touch = |id: u64, phase: egui::TouchPhase, pos: egui::Pos2| egui::Event::Touch { device_id: egui::TouchDeviceId(1), id: egui::TouchId(id), phase, pos, force: None };
+        let other = b_on_screen + egui::vec2(90.0, 40.0);
+        harness.input_mut().events.extend([
+            touch(0, egui::TouchPhase::Start, b_on_screen),
+            egui::Event::PointerMoved(b_on_screen),
+            egui::Event::PointerButton { pos: b_on_screen, button: egui::PointerButton::Primary, pressed: true, modifiers: Default::default() },
+            touch(1, egui::TouchPhase::Start, other),
+        ]);
+        harness.step();
+        // One move: kittest steps a quarter second, and a click is a release inside 0.8 s of its press.
+        harness.input_mut().events.push(touch(1, egui::TouchPhase::Move, other + egui::vec2(36.0, 24.0)));
+        harness.step();
+        let zoomed = harness.state().transform.unwrap();
+        assert!(zoomed.scaling > t.scaling * 1.05, "the pinch zoomed in");
+        assert!(harness.state().ids.to_snarl.get(&b).and_then(|sid| harness.state().snarl.get_node_info(*sid)).is_some_and(|info| {
+            egui::Rect::from_min_size(info.pos, harness.state().sizes.get(&b).copied().unwrap_or(NODE_SIZE)).contains(zoomed.inverse() * b_on_screen)
+        }), "the first finger is still on the node, so its release would choose it");
+        let zoomed = zoomed.scaling;
+        harness.input_mut().events.extend([
+            touch(1, egui::TouchPhase::End, other + egui::vec2(36.0, 24.0)),
+            touch(0, egui::TouchPhase::End, b_on_screen),
+            egui::Event::PointerButton { pos: b_on_screen, button: egui::PointerButton::Primary, pressed: false, modifiers: Default::default() },
+            egui::Event::PointerGone,
+        ]);
+        harness.run();
+        assert_eq!(harness.state().selected, None, "a pinch is not a tap");
+        assert_eq!(harness.state().transform.unwrap().scaling, zoomed, "and lifting it leaves the zoom where it was");
+
         tap(&mut harness, b_on_screen);
         assert_eq!(harness.state().selected, Some(b));
     }
@@ -1516,6 +1574,9 @@ mod layout_tests {
         assert!((on_screen - view.center()).length() < 0.5, "{on_screen:?}");
         let (scale, _) = focus_transform(view, node, 0.06);
         assert!((0.45..=1.0).contains(&scale), "{scale}");
+        // Zoomed in past the old 1.25 cap on a node that still fits: the zoom is the reader's.
+        let small = egui::Rect::from_min_size(egui::pos2(1000.0, 500.0), egui::vec2(120.0, 60.0));
+        assert_eq!(focus_transform(view, small, 2.2).0, 2.2);
         let tall = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(280.0, 900.0));
         let (scale, t) = focus_transform(view, tall, 1.0);
         let top = tall.top() * scale + t.y;

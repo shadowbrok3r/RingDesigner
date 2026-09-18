@@ -98,25 +98,20 @@ pub enum Action {
 }
 impl Action {
     pub fn angles(self, yaw: f32, pitch: f32, head_degrees: f32) -> [f32; 2] {
-        let [mut yaw, mut pitch] = match self {
+        let [yaw, mut pitch] = match self {
             Self::View(v) => v.angles(head_degrees),
             Self::Turn(quarter) => [yaw + quarter * FRAC_PI_2, pitch],
             Self::Tilt(quarter) => [yaw, pitch + quarter * FRAC_PI_2],
             Self::Mirror => [2.0 * head_degrees.to_radians() - yaw, pitch],
             Self::Opposite => [yaw + PI, -pitch],
             Self::Look(angles) => angles,
-            Self::Orbit(d) => [yaw - d.x * 0.012, (pitch + d.y * 0.012).clamp(-FRAC_PI_2 + 0.001, FRAC_PI_2 - 0.001)],
+            // Past a pole a turn about the finger crosses the screen the other way, and so does the drag.
+            Self::Orbit(d) => [yaw - d.x * 0.012 * if pitch.cos() < 0.0 { -1.0 } else { 1.0 }, pitch + d.y * 0.012],
             Self::Roll(_) | Self::Twist(_) => [yaw, pitch],
         };
+        // The tilt runs the whole circle. Folding a tilt past the pole back as a half turn of yaw names the
+        // same eye point with the view upside down — the flip at the back view.
         pitch = (pitch + PI).rem_euclid(TAU) - PI;
-        if pitch > FRAC_PI_2 {
-            pitch = PI - pitch;
-            yaw += PI;
-        }
-        if pitch < -FRAC_PI_2 {
-            pitch = -PI - pitch;
-            yaw += PI;
-        }
         [(yaw + PI).rem_euclid(TAU) - PI, pitch]
     }
 
@@ -617,8 +612,11 @@ mod tests {
         let a = Action::Orbit(egui::vec2(10.0, -5.0)).angles(0.2, 0.1, 90.0);
         assert!(a[0] < 0.2 && a[1] < 0.1);
         assert!(!Action::Orbit(egui::Vec2::ZERO).recentres() && Action::Mirror.recentres());
-        let pole = Action::Orbit(egui::vec2(0.0, 900.0)).angles(0.2, 0.1, 90.0);
-        assert!(pole[1] < FRAC_PI_2 && (pole[0] - 0.2).abs() < 1e-5, "a drag stops at the pole rather than rolling over it");
+        // A drag runs on over the pole rather than stopping at it or turning the view over.
+        let over = Action::Orbit(egui::vec2(0.0, 150.0)).angles(0.2, 0.1, 90.0);
+        assert!(over[1] > FRAC_PI_2 && (over[0] - 0.2).abs() < 1e-5, "{over:?}");
+        let back = Action::Orbit(egui::vec2(10.0, 0.0)).angles(over[0], over[1], 90.0);
+        assert!(back[0] > over[0], "upside down, the same drag turns the other way round the finger");
     }
     #[test]
     fn loupe_stays_visible_and_clear_of_contact_and_tools() {

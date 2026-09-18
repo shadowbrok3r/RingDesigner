@@ -1402,6 +1402,27 @@ impl<'a> Skin<'a> {
             outer: smoothstep(0.12, 0.40, radial) * (1.0 - smoothstep(0.45, 0.72, s.n[2].abs())),
         }
     }
+    /// The chart point on the parting line `arc` mm round from the head's centre, signed by shoulder.
+    fn on_crest(&self, arc: f64) -> (f64, f64) {
+        let mut best = (f64::MAX, 0.0, 0.0);
+        for x in 0..AW {
+            let Some(s) = (1..AH - 1).map(|y| self.a.samples[y * AW + x]).min_by(|p, q| p.p[2].abs().total_cmp(&q.p[2].abs())) else { continue };
+            let miss = (self.spot(s).arc - arc).abs();
+            if miss < best.0 { best = (miss, s.theta, s.v); }
+        }
+        (best.1, best.2)
+    }
+    /// The chart point on one of the head's walls nearest a place given about the finger: `rho` out from
+    /// its axis, `phi` radians round from the head's centre, on the `side` of the parting line asked for.
+    fn on_cheek(&self, rho: f64, phi: f64, side: f64) -> Option<(f64, f64)> {
+        let (x, y) = (rho * phi.sin(), rho * phi.cos());
+        self.a.samples.iter()
+            .filter(|s| s.p[2] * side > 0.0 && self.a.cheek(**s) > 0.9)
+            .map(|s| ((s.p[0] - x).hypot(s.p[1] - y), s))
+            .filter(|(d, _)| *d < 0.12)
+            .min_by(|a, b| a.0.total_cmp(&b.0))
+            .map(|(_, s)| (s.theta, s.v))
+    }
     /// The nearest sample on the face to a point of it, as the chart's own `(theta, v)`.
     fn on_face(&self, x: f64, z: f64) -> (f64, f64) {
         let best = self
@@ -1590,7 +1611,7 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
         flush_seat(&mut d, &skin, "Flush stone on the spine", 0.0, 0.0, Gem::calibrated(GemCut::Round, 2.8), 0.50);
     } else {
         setup.recipe.alloy = "Silver 925".into();
-        setup.bench_notes = "Imported-stock master, the night sky from face to palm: Orion on the face with his belt as the three stones, the moon's phases down each shoulder, star trails on the cheeks, far stars thinning to a polished palm. Z=0 parting, opposed Z withdrawal; the belt lies on the parting line. Stones are flush set at the bench: drill on the three raised marks, cut each seat to its measured stone, burnish. The figure's lines are cut with a graver after casting.".into();
+        setup.bench_notes = "Imported-stock master, the night sky from face to palm: Orion on the face with his belt as the three stones, the moon's phases struck down each shoulder, star trails on the cheeks, far stars thinning to a polished palm. The full, gibbous and half moons are cast as they are; each crescent is cast as its half moon and cut back to the terminator at the bench, and each new moon is cast a disc and milled to leave its rim. Z=0 parting, opposed Z withdrawal; the belt lies on the parting line. Stones are flush set at the bench: drill on the three raised marks, cut each seat to its measured stone, burnish. The figure's lines are cut with a graver after casting.".into();
         // Orion, belt along the ring on the parting line, the figure across the band. (x along the ring, z across.)
         let belt = [(-2.9, 0.0, 2.0), (0.0, 0.0, 2.2), (2.9, 0.0, 1.8)];
         let stars: [(f64, f64, f64); 9] = [
@@ -1598,42 +1619,83 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
             (-0.35, -1.55, 0.36), (-0.15, -2.3, 0.40), (0.1, -3.05, 0.34), (0.0, 0.0, 0.0),
         ];
         let pleiades = [(6.2, 3.1, 0.40), (6.75, 2.55, 0.34), (5.75, 2.45, 0.36), (6.45, 1.95, 0.32), (5.95, 3.55, 0.30), (6.95, 3.35, 0.30)];
-        let phases = [0.0, 0.27, 0.5, 0.76, 1.0];
-        const RELIEF: f64 = 0.46;
+        use ringdesign_core::setting::{Stamp, crescent_cutter, moon_outline};
         let start = a.length * 0.5 + 2.6;
-        let mut alpha = a.alpha("Night sky", |s| {
-            let at = skin.spot(s);
-            let (x, z) = (s.p[0], s.p[2]);
-            // The crescent, west of the hunter and on the parting line: a disc less a disc.
-            let (mx, mr) = (-5.9, 1.9);
-            let lit = dome((x - mx).hypot(z), mr) * smoothstep(0.0, 0.25, (x - mx - 1.05).hypot(z) - 1.62) * (1.0 - smoothstep(0.62 * mr, 0.74 * mr, z.abs()));
-            let face = a.face(s) * lit;
-            // The moon down each shoulder, full by the head to new by the palm; waxing on one, waning on
-            // the other. Each disc sits on the parting line, its dark side a low plate.
-            let mut moon: f64 = 0.0;
-            for (k, dark) in phases.iter().enumerate() {
+        let ctx = d.field_context();
+        const RELIEF: f64 = 0.34;
+        const HORN: f64 = 0.86;
+        let stamp = |name: String, at: (f64, f64), rot: f64, outline: Vec<[f64; 2]>| Stamp {
+            name, theta_deg: at.0, v_mm: at.1, rot_deg: rot, outline, height_mm: RELIEF, sink_mm: 0.3, draft_deg: 4.0, cut: false, bench: false, along_pull: false,
+        };
+        let circle = |r: f64| -> Vec<[f64; 2]> { (0..56).map(|i| { let t = TAU * i as f64 / 56.0; [r * t.cos(), r * t.sin()] }).collect() };
+        // A moon the sand can cast is one whose every wall faces away from the parting line or round the
+        // ring: the full, the gibbous and the half. A crescent's inner edge faces back across the parting
+        // line wherever it is put, so it is cast as the half moon and the bench cuts it to the crescent;
+        // the new moon is cast a disc and the bench leaves its rim.
+        let mut moons: Vec<Stamp> = Vec::new();
+        let mut phase = |name: &str, at: (f64, f64), rot: f64, r: f64, k: usize, moons: &mut Vec<Stamp>| match k {
+            0 => moons.push(stamp(format!("{name}: full moon"), at, rot, moon_outline(r, 1.0, HORN))),
+            1 => moons.push(stamp(format!("{name}: gibbous moon"), at, rot, moon_outline(r, 0.76, HORN))),
+            2 => moons.push(stamp(format!("{name}: half moon"), at, rot, moon_outline(r, 0.5, HORN))),
+            3 => {
+                moons.push(stamp(format!("{name}: crescent, cast as the half"), at, rot, moon_outline(r, 0.5, HORN)));
+                moons.push(Stamp { height_mm: RELIEF + 0.3, sink_mm: -0.02, draft_deg: 0.0, cut: true, bench: true, ..stamp(format!("{name}: crescent, cut at the bench"), at, rot, crescent_cutter(r, 0.27, HORN, 0.22)) });
+            }
+            _ => {
+                moons.push(stamp(format!("{name}: new moon, cast as a disc"), at, rot, circle(r)));
+                moons.push(Stamp { height_mm: RELIEF + 0.3, sink_mm: -0.02, draft_deg: 0.0, cut: true, bench: true, ..stamp(format!("{name}: new moon, its rim left by the bench"), at, rot, circle(r - 0.36)) });
+            }
+        };
+        for (side, shoulder) in [(1.0, "Waning"), (-1.0, "Waxing")] {
+            for k in 0..5 {
                 let r = 1.75 - 0.2 * k as f64;
                 let centre = start + (0..k).map(|q| 2.0 * (1.75 - 0.2 * q as f64) + 0.75).sum::<f64>();
-                let (dl, dz) = (at.arc.abs() - centre, z);
-                let d0 = dl.hypot(dz);
-                if d0 > r + 0.05 { continue; }
-                let limb = (r * r - dz * dz).max(0.0).sqrt();
-                // Horns are blunted where a lune thins below what the sand holds.
-                let lit = smoothstep(-0.12, 0.12, -dl - (2.0 * dark - 1.0) * limb) * (1.0 - smoothstep(0.60 * r, 0.74 * r, dz.abs()) * smoothstep(0.4, 0.6, *dark));
-                moon = moon.max((0.34 + 0.66 * lit) * dome(d0, r));
+                // The lit side faces the head on both shoulders.
+                phase(shoulder, skin.on_crest(side * centre), if side > 0.0 { 0.0 } else { 180.0 }, r, k, &mut moons);
             }
-            let moon = at.outer * moon.min(1.0);
-            // Star trails on the cheeks: arcs about the finger, as a long exposure draws them about the pole.
-            let rho = s.p[0].hypot(s.p[1]);
-            let ring = (rho - a.bore - 0.9) / 1.8;
-            let lane = ring.floor() as i64;
-            let dash = ((s.p[0].atan2(s.p[1]) * rho + 40.0 + 9.0 * hash(lane, 11)) / (5.5 + 5.0 * hash(lane, 5))).fract().abs();
-            let trail = smoothstep(0.0, 0.14, 0.27 - (ring - lane as f64 - 0.5).abs()) * smoothstep(0.0, 0.05, dash - 0.16) * smoothstep(0.0, 0.05, 1.0 - dash);
-            face.max(moon).max(a.cheek(s) * trail * 0.75)
-        });
-        draft_clamp(&a, &mut alpha, RELIEF);
-        portable(&mut lib, alpha);
-        d.layers.layers.push(skin_layer(&d, "Night sky", RELIEF));
+        }
+        // The crescent beside the hunter, its limb away from him.
+        phase("Beside the hunter", skin.on_face(-5.9, 0.0), 180.0, 1.9, 3, &mut moons);
+        // Star trails on the head's walls: arcs about the finger, as a long exposure draws them about the
+        // pole, each a tapered stroke. Relief there moves along the pull, so any shape casts.
+        let mut trails = 0;
+        for side in [1.0, -1.0] {
+            for (lane, out) in [1.7, 2.65, 3.55].into_iter().enumerate() {
+                let rho = a.bore + out;
+                let open: Vec<f64> = (-70..=70).map(|deg| (deg as f64).to_radians()).filter(|phi| skin.on_cheek(rho, *phi, side).is_some()).collect();
+                let (Some(lo), Some(hi)) = (open.first().copied(), open.last().copied()) else { continue };
+                let (lo, hi) = (lo + 0.07, hi - 0.07);
+                let cuts = [0.0, 0.34 + 0.05 * lane as f64, 0.62 - 0.04 * lane as f64, 1.0];
+                for w in cuts.windows(2) {
+                    let (p0, p1) = (lo + (hi - lo) * w[0] + 0.035, lo + (hi - lo) * w[1] - 0.035);
+                    if (p1 - p0) * rho < 1.6 { continue; }
+                    let Some(at) = skin.on_cheek(rho, 0.5 * (p0 + p1), side) else { continue };
+                    let mut mark = stamp(format!("Star trail {}", trails + 1), at, 0.0, Vec::new());
+                    mark.height_mm = 0.3;
+                    mark.draft_deg = 0.0;
+                    // A head's wall leans; the trail stands along the pull so neither edge tucks under it.
+                    mark.along_pull = true;
+                    mark.sink_mm = 0.5;
+                    let frame = mark.frame(&d, &ctx);
+                    let steps = 28;
+                    // Tapered to 0.36 mm at the ends, over Delft clay's 0.30 mm detail floor.
+                    let half = |t: f64| 0.30 * (std::f64::consts::PI * t).sin().max(0.0).powf(0.55).max(0.6);
+                    let local = |r: f64, phi: f64| {
+                        let q = [r * phi.sin() - frame.origin[0], r * phi.cos() - frame.origin[1], 0.0];
+                        [q[0] * frame.x[0] + q[1] * frame.x[1], q[0] * frame.y[0] + q[1] * frame.y[1]]
+                    };
+                    let mut outline: Vec<[f64; 2]> = (0..=steps).map(|i| { let t = i as f64 / steps as f64; local(rho + half(t), p0 + (p1 - p0) * t) }).collect();
+                    outline.extend((0..=steps).rev().map(|i| { let t = i as f64 / steps as f64; local(rho - half(t), p0 + (p1 - p0) * t) }));
+                    let area: f64 = (0..outline.len()).map(|i| { let (p, q) = (outline[i], outline[(i + 1) % outline.len()]); p[0] * q[1] - q[0] * p[1] }).sum();
+                    if area < 0.0 { outline.reverse(); }
+                    mark.outline = outline;
+                    moons.push(mark);
+                    trails += 1;
+                }
+            }
+        }
+        println!("  stamps: {} ({} star trails)", moons.len(), trails);
+        d.stamps = moons;
         // The rest of the sky is the graver's and the drill's, after the pour: the hunter's stars and the
         // lines between them, the Pleiades, and far stars thinning down the shank to a polished palm.
         // A pit or a bump off the parting line would lock in the sand; cut at the bench it costs nothing.
@@ -1701,8 +1763,8 @@ fn write(out: &Path, slug: &str, draft: bool) -> Result<()> {
     for f in ringdesign_core::dfm::findings_in(&d, &lib) {
         println!("  dfm: {}: {}", f.label, f.message);
     }
-    if built.solids.resolved > 0 || !built.solids.notes.is_empty() {
-        println!("  made settings: {} resolved in {} ms {:?}", built.solids.resolved, built.solids.ms, built.solids.notes);
+    if built.solids.resolved + built.solids.stamped > 0 || !built.solids.notes.is_empty() {
+        println!("  made settings: {} resolved, {} stamps, in {} ms {:?}", built.solids.resolved, built.solids.stamped, built.solids.ms, built.solids.notes);
     }
     ringdesign_core::library::save_design_embedded(out.join("design.ring.json"), &d, &lib)?;
     let saved = ringdesign_core::library::load_design(out.join("design.ring.json"))?;

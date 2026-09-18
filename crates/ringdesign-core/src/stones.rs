@@ -460,6 +460,29 @@ impl StoneFrame {
     }
 }
 
+/// The bare surface at a chart point: where it is, which way it faces, and its two tangents — round the
+/// ring and across the section. What a seat's frame is built from, for anything else that stands there.
+pub(crate) fn surface_frame(design: &RingDesign, ctx: &FieldContext, theta_deg: f64, v_mm: f64) -> ([f64; 3], [f64; 3], [f64; 3], [f64; 3]) {
+    let inner_r = design.inner_radius_mm();
+    let b = base_at(design, inner_r, ctx.crest_radius_mm, ctx, theta_deg, v_mm);
+    let (sin, cos) = theta_deg.to_radians().sin_cos();
+    let mut normal = [b.nr * cos, b.nr * sin, b.nz];
+    let mut point = [b.r * cos, b.r * sin, b.z];
+    let mut t = [-sin, cos, 0.0];
+    let mut across = [-b.nz * cos, -b.nz * sin, b.nr];
+    if let Some(base) = &design.imported_base {
+        if let Ok((p, n)) = base.point_normal(design, theta_deg, v_mm) {
+            normal = n;
+            point = p;
+            let projected: [f64; 3] = std::array::from_fn(|i| t[i] - n[i] * dot(t, n));
+            let len = norm(projected).max(1e-9);
+            t = projected.map(|x| x / len);
+            across = crate::mesh::cross(n, t);
+        }
+    }
+    (point, normal, t, across)
+}
+
 fn frame_at(
     design: &RingDesign,
     ctx: &FieldContext,

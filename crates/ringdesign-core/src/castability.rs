@@ -1360,12 +1360,17 @@ pub fn pattern_parts(design: &RingDesign) -> (std::borrow::Cow<'_, RingDesign>, 
             }
         }
     }
-    if !any(&design.layers, sand) {
+    if !any(&design.layers, sand) && !design.stamps.iter().any(|s| s.bench) {
         return (std::borrow::Cow::Borrowed(design), Vec::new(), Vec::new());
     }
     let mut pattern = design.clone();
     let (mut layers, mut seats) = (Vec::new(), Vec::new());
     omit(&mut pattern.layers, "", sand, &mut layers, &mut seats);
+    // A stamp made at the bench is never poured, whatever the process; a cast one is part of the pattern.
+    pattern.stamps.retain(|s| {
+        if s.bench { layers.push(s.name.clone()); }
+        !s.bench
+    });
     (std::borrow::Cow::Owned(pattern), layers, seats)
 }
 

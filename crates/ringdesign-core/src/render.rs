@@ -48,16 +48,107 @@ pub struct Part<'a> {
     /// the skirt around a seat. A stone is the opposite: its facets are the
     /// point, and interpolating across them would sand the sparkle off.
     pub smooth: bool,
+    /// Shade as the viewports do: reflected studio softboxes through the metal's own coloured Fresnel
+    /// reflectance, or a dielectric over a tinted body for a stone — [`STUDIO_GLSL`], in Rust. Off, the
+    /// plain key light the diagnostic renders use.
+    pub studio: bool,
+    /// Surface roughness for the studio material; [`POLISHES`] names the usual three.
+    pub roughness: f64,
 }
 
 impl<'a> Part<'a> {
+    /// Metal under the studio. `tint` is the alloy's reflectance; [`GOLD`] reads as yellow gold's.
     pub fn metal(mesh: &'a Mesh, tint: [f32; 3]) -> Self {
-        Self { mesh, tint, gem: false, smooth: true }
+        let tint = if tint == GOLD { METAL_FINISHES[0].1 } else { tint };
+        Self { mesh, tint, gem: false, smooth: true, studio: true, roughness: POLISHES[0].1 as f64 }
     }
 
     pub fn stone(mesh: &'a Mesh) -> Self {
-        Self { mesh, tint: crate::gems::GEM_TINT, gem: true, smooth: false }
+        Self { mesh, tint: crate::gems::GEM_TINT, gem: true, smooth: false, studio: true, roughness: 0.06 }
     }
+}
+
+// --- The studio, as the viewports' shader has it -------------------------------------------------
+
+type V3 = [f64; 3];
+fn v_dot(a: V3, b: V3) -> f64 { a[0] * b[0] + a[1] * b[1] + a[2] * b[2] }
+fn v_cross(a: V3, b: V3) -> V3 { [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]] }
+fn v_unit(a: V3) -> V3 {
+    let l = v_dot(a, a).sqrt();
+    if l > 1e-12 { [a[0] / l, a[1] / l, a[2] / l] } else { [0.0, 0.0, 1.0] }
+}
+fn sstep(lo: f64, hi: f64, x: f64) -> f64 {
+    let t = ((x - lo) / (hi - lo)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+fn studio_card(ray: V3, centre: V3, extent: [f64; 2], blur: f64) -> f64 {
+    let axis = v_unit(centre);
+    let right = v_unit(v_cross([0.0, 1.0, 0.0], axis));
+    let up = v_cross(axis, right);
+    let facing = v_dot(ray, axis);
+    let uv = [v_dot(ray, right) / facing.max(0.001), v_dot(ray, up) / facing.max(0.001)];
+    let edge = [uv[0].abs() - extent[0], uv[1].abs() - extent[1]];
+    let distance = edge[0].max(0.0).hypot(edge[1].max(0.0)) + edge[0].max(edge[1]).min(0.0);
+    let q = [uv[0] / extent[0], uv[1] / extent[1]];
+    let diffuser = (-0.55 * (q[0] * q[0] + q[1] * q[1])).exp();
+    (1.0 - sstep(-blur, blur, distance)) * diffuser * sstep(0.0, 0.15, facing)
+}
+
+fn studio_environment(ray: V3, roughness: f64, key: V3, ambient: f64) -> V3 {
+    let blur = 0.14 + roughness * roughness * 1.8;
+    let ceiling = sstep(-0.45, 0.95, ray[1]);
+    let mut room: V3 = std::array::from_fn(|k| [0.035, 0.04, 0.05][k] + ([0.38, 0.39, 0.42][k] - [0.035, 0.04, 0.05][k]) * ceiling);
+    let glow = ray[2].max(0.0).powi(3);
+    let gain = (ambient / 0.20).clamp(0.5, 2.0);
+    for k in 0..3 {
+        room[k] = (room[k] + [0.16, 0.15, 0.13][k] * glow) * gain;
+    }
+    // A broad overhead box, a tall strip, a cool rim and a warm floor bounce, as the shader lays them.
+    for (colour, centre, extent) in [
+        ([3.6, 3.45, 3.15], key, [0.48, 0.85]),
+        ([2.5, 2.65, 2.9], [0.9, 0.2, 0.4], [0.13, 1.35]),
+        ([1.6, 1.7, 1.85], [-0.5, 0.7, -0.8], [0.9, 0.26]),
+        ([0.65, 0.58, 0.46], [0.2, -0.8, 0.55], [1.3, 0.22]),
+    ] {
+        let c = studio_card(ray, centre, extent, blur);
+        for k in 0..3 { room[k] += colour[k] * c; }
+    }
+    let wide = roughness * roughness * 0.55;
+    std::array::from_fn(|k| room[k] + ([0.62, 0.64, 0.68][k] - room[k]) * wide)
+}
+
+/// Reinhard, then the sRGB curve: the shader's display transform.
+fn studio_display(linear: V3) -> [u8; 3] {
+    std::array::from_fn(|k| {
+        let m = (linear[k].max(0.0)) / (1.0 + linear[k].max(0.0));
+        let e = if m < 0.0031308 { 12.92 * m } else { 1.055 * m.powf(1.0 / 2.4) - 0.055 };
+        (e.clamp(0.0, 1.0) * 255.0).round() as u8
+    })
+}
+
+const STUDIO_KEY: V3 = [-0.38, 0.46, 0.80];
+const STUDIO_AMBIENT: f64 = 0.20;
+
+fn studio_reflect(n: V3) -> V3 {
+    // reflect((0, 0, -1), n)
+    let d = -n[2];
+    [-2.0 * d * n[0], -2.0 * d * n[1], -1.0 - 2.0 * d * n[2]]
+}
+
+fn studio_metal(n: V3, f0: [f32; 3], roughness: f64) -> [u8; 3] {
+    let nv = n[2].clamp(0.0, 1.0);
+    let env = studio_environment(studio_reflect(n), roughness, STUDIO_KEY, STUDIO_AMBIENT);
+    let rim = (1.0 - nv).powi(5);
+    studio_display(std::array::from_fn(|k| env[k] * (f0[k] as f64 + (1.0 - f0[k] as f64) * rim)))
+}
+
+fn studio_gem(n: V3, tint: [f32; 3]) -> [u8; 3] {
+    let nv = n[2].clamp(0.0, 1.0);
+    let fresnel = 0.055 + 0.945 * (1.0 - nv).powi(5);
+    let env = studio_environment(studio_reflect(n), 0.06, STUDIO_KEY, STUDIO_AMBIENT);
+    let body = 0.12 + 0.65 * v_dot(n, v_unit(STUDIO_KEY)).max(0.0);
+    studio_display(std::array::from_fn(|k| tint[k] as f64 * body * (1.0 - fresnel) + env[k] * fresnel))
 }
 
 /// Gold-shaded render at the given orientation. RGB, row-major.
@@ -217,7 +308,8 @@ fn draw(
     classes: Option<&[FaceClass]>,
     tint: [f32; 3],
 ) -> Vec<u8> {
-    draw_parts(&[Part { mesh: m, tint, gem: false, smooth: classes.is_none() }], yaw, pitch, w, h, classes)
+    let part = Part { smooth: classes.is_none(), studio: classes.is_none(), ..Part::metal(m, tint) };
+    draw_parts(&[part], yaw, pitch, w, h, classes)
 }
 
 /// Several parts into one frame, depth-sorted against each other and framed
@@ -314,6 +406,9 @@ fn draw_parts(
         });
         // Flat shading, for the facet case and as the fallback.
         let shade_of = |nn: [f64; 3]| -> [u8; 3] {
+            if part.studio && !flat {
+                return if part.gem { studio_gem(nn, tint) } else { studio_metal(nn, tint, part.roughness) };
+            }
             let d = (nn[0] * light[0] + nn[1] * light[1] + nn[2] * light[2]).max(0.0);
             // A stone's facets are flat and small, so a tight specular over
             // a bright body is what reads as sparkle; metal wants the broad

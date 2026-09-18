@@ -953,7 +953,7 @@ impl RingApp {
         }
         if nav.changed { self.save_prefs(); }
         let pointer = ui.input(|i| i.pointer.press_origin().or(i.pointer.interact_pos()));
-        let explicit_navigation = ui.input(|i| i.multi_touch().is_some_and(|m| m.num_touches >= 2))
+        let explicit_navigation = crate::ring::pinch_in(ui, rect).is_some_and(|m| m.num_touches >= 2)
             || crate::paint::barrel(self.probe.buttons).is_some();
         let floating_blocked = self.editor.floating_dragging
             || pointer.is_some_and(|p| nav.rect.contains(p) || self.editor.floating_rects.iter().any(|r| r.contains(p)))
