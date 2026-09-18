@@ -893,6 +893,7 @@
         "dimple_mm": 0.0,
         "elong": 1.0,
         "height_mm": 0.3,
+        "mark_mm": 0.0,
         "metal_true": true,
         "plan_pow": 2.0,
         "prong_mm": 0.9,

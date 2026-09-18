@@ -179,7 +179,7 @@ pub fn show(ui: &mut egui::Ui, input: CanvasInput<'_>) -> CanvasOutput {
     painter.rect_filled(rect, 0.0, egui::Color32::from_rgb(18, 18, 20));
 
     // --- Gesture: two fingers move the view, one draws --------------------------------------
-    let multi = ui.input(|i| i.multi_touch());
+    let multi = crate::ring::pinch_in(ui, rect);
     if let Some(mt) = multi {
         let focus = to_norm(rect, view, mt.center_pos);
         let translate = egui::vec2(

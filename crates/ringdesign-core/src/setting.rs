@@ -491,11 +491,342 @@ pub fn parts(gem: Gem, kind: SolidKind, fit: Fit) -> Result<Arc<Parts>, Snag> {
     Ok(out)
 }
 
+/// An outline extruded off the built surface and joined to it, or cut from it: a struck stamp. Its top
+/// follows the surface it stands on at one height, its walls stand along the surface's own normal at
+/// its centre, and its silhouette is as crisp as its polygon — which no height field holds, because a
+/// wall there is one cell wide and steps with the grid wherever it runs across it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Stamp {
+    pub name: String,
+    /// Where it stands, in the chart every layer uses: degrees round the ring, mm across the section.
+    pub theta_deg: f64,
+    pub v_mm: f64,
+    /// Turn of the outline's x axis from the ring's tangent, degrees.
+    #[serde(default)]
+    pub rot_deg: f64,
+    /// Closed outline in mm in the stamp's own plane, counter-clockwise seen from outside the metal.
+    pub outline: Vec<[f64; 2]>,
+    /// How far its top stands over the surface, mm. For a cut, how far over it the cutter starts.
+    pub height_mm: f64,
+    /// How far under the surface it reaches, mm. For a cut, its depth.
+    pub sink_mm: f64,
+    /// Walls lean out toward the surface by this much, degrees. Ignored by a cut.
+    #[serde(default)]
+    pub draft_deg: f64,
+    /// Taken away rather than joined on.
+    #[serde(default)]
+    pub cut: bool,
+    /// Made at the bench after the pour: in the finished ring, never in the pattern.
+    #[serde(default)]
+    pub bench: bool,
+    /// Stand its walls along the mould's pull — the finger's axis — rather than along the surface's own
+    /// normal. On a head's wall the two differ by the wall's lean, and a stamp struck square to a leaning
+    /// wall tucks one edge under it: measured 0.35 mm on a factory signet's cheek.
+    #[serde(default)]
+    pub along_pull: bool,
+}
+
+/// The most outline points a stamp may carry.
+pub const MAX_STAMP_POINTS: usize = 512;
+
+impl Stamp {
+    /// Where the stamp stands: its origin on the bare surface, `z` out of the metal, `x` its outline's own.
+    pub fn frame(&self, design: &crate::RingDesign, ctx: &crate::FieldContext) -> csg::Frame {
+        let (point, mut normal, mut along, mut across) = crate::stones::surface_frame(design, ctx, self.theta_deg, self.v_mm);
+        if self.along_pull && normal[2].abs() > 0.25 {
+            normal = [0.0, 0.0, normal[2].signum()];
+            let flat = [along[0], along[1], 0.0];
+            let l = flat[0].hypot(flat[1]).max(1e-9);
+            along = [flat[0] / l, flat[1] / l, 0.0];
+            across = [-normal[2] * along[1], normal[2] * along[0], 0.0];
+        }
+        let (sin, cos) = self.rot_deg.to_radians().sin_cos();
+        let mut x: [f64; 3] = std::array::from_fn(|k| along[k] * cos + across[k] * sin);
+        let mut y: [f64; 3] = std::array::from_fn(|k| across[k] * cos - along[k] * sin);
+        // Across the parting line the walls must stand square to the pull. A crest's normal on real stock
+        // tips a few degrees off horizontal, and a wall along it crosses the parting plane by its length
+        // times the tip: 0.05 mm of undercut beside a moon on the factory signet 017.
+        let height = |p: &[f64; 2]| point[2] + p[0] * x[2] + p[1] * y[2];
+        let straddles = self.outline.iter().any(|p| height(p) < 0.0) && self.outline.iter().any(|p| height(p) > 0.0);
+        if !self.along_pull && straddles && normal[0].hypot(normal[1]) > 0.5 {
+            let l = normal[0].hypot(normal[1]);
+            normal = [normal[0] / l, normal[1] / l, 0.0];
+            let d = x[0] * normal[0] + x[1] * normal[1];
+            let flat = [x[0] - normal[0] * d, x[1] - normal[1] * d, x[2]];
+            let m = (flat[0] * flat[0] + flat[1] * flat[1] + flat[2] * flat[2]).sqrt().max(1e-12);
+            x = flat.map(|v| v / m);
+            y = [normal[1] * x[2] - normal[2] * x[1], normal[2] * x[0] - normal[0] * x[2], normal[0] * x[1] - normal[1] * x[0]];
+        }
+        csg::Frame { origin: point, x, y, z: normal }
+    }
+
+    /// The outline as a plain prism, unprojected: enough for a ghost.
+    fn prism(&self) -> Option<Solid> {
+        let n = self.outline.len();
+        if !(3..=MAX_STAMP_POINTS).contains(&n) { return None; }
+        let cap = cap_faces(&self.outline, 10.0, &[])?;
+        let flat: Vec<f64> = vec![0.0; cap.0.len()];
+        Some(self.assemble(&cap.0, &cap.1, &flat))
+    }
+
+    /// Closed solid from cap points, their triangles and the surface height under each.
+    fn assemble(&self, points: &[[f64; 2]], tris: &[[u32; 3]], surface: &[f64]) -> Solid {
+        let n = self.outline.len();
+        let count = points.len() as u32;
+        let lean = if self.cut { 0.0 } else { (self.height_mm + self.sink_mm).max(0.0) * self.draft_deg.clamp(0.0, 30.0).to_radians().tan() };
+        let mut out = Solid::default();
+        for (p, z) in points.iter().zip(surface) { out.v.push([p[0], p[1], z + self.height_mm]); }
+        for (i, (p, z)) in points.iter().zip(surface).enumerate() {
+            let mut q = *p;
+            if i < n && lean > 0.0 {
+                // Out along the corner's own bisector, mitred, so a drafted wall stays a plane.
+                let (a, b) = (self.outline[(i + n - 1) % n], self.outline[(i + 1) % n]);
+                let e0 = unit2([p[0] - a[0], p[1] - a[1]]);
+                let e1 = unit2([b[0] - p[0], b[1] - p[1]]);
+                let m = [e0[1] + e1[1], -(e0[0] + e1[0])];
+                let l = (m[0] * m[0] + m[1] * m[1]).sqrt();
+                if l > 1e-9 {
+                    let k = (2.0 / l).min(2.5) * lean / l;
+                    q = [p[0] + m[0] * k, p[1] + m[1] * k];
+                }
+            }
+            out.v.push([q[0], q[1], z - self.sink_mm]);
+        }
+        for t in tris {
+            out.f.push(*t);
+            out.f.push([t[0] + count, t[2] + count, t[1] + count]);
+        }
+        for i in 0..n as u32 {
+            let j = (i + 1) % n as u32;
+            out.f.push([i, i + count, j + count]);
+            out.f.push([i, j + count, j]);
+        }
+        out
+    }
+
+    /// The stamp standing on the band: every cap point dropped onto the mesh beneath it.
+    fn solid(&self, frame: &csg::Frame, band: &Solid) -> Result<Solid, String> {
+        // A bench stamp never meets the sand. Split, its edges would lie on its blank's own split, and the
+        // two solids meeting edge on edge leave zero-length slivers in the join.
+        if self.bench {
+            return self.stand(frame, band, &[]);
+        }
+        // No wall may straddle the parting plane: a facet that does faces the wrong mould half over part
+        // of its length, by half its own turn — 0.035 mm of undercut on an eighty-sided moon. So the
+        // outline gets a corner wherever it crosses.
+        // The split and the chord sit a tenth of a micron over it: exactly on it, the stamp's walls and the
+        // band's own parting loop are coplanar, and the boolean cannot decide which crosses which.
+        const OVER: f64 = 1e-4;
+        let height = |p: [f64; 2]| frame.origin[2] + p[0] * frame.x[2] + p[1] * frame.y[2] - OVER;
+        let mut split = Vec::with_capacity(self.outline.len() + 4);
+        let mut on_line = Vec::new();
+        for i in 0..self.outline.len() {
+            let (a, b) = (self.outline[i], self.outline[(i + 1) % self.outline.len()]);
+            split.push(a);
+            let (za, zb) = (height(a), height(b));
+            if za.abs() <= 1e-6 {
+                on_line.push(split.len() - 1);
+            } else if za * zb < 0.0 && zb.abs() > 1e-6 {
+                let t = za / (za - zb);
+                split.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+                on_line.push(split.len() - 1);
+            }
+        }
+        // And no facet of the top may straddle it either, or its lower part faces the wrong mould half:
+        // a chord along the parting line, between the points where the outline crosses it, held as an edge.
+        let along = [-frame.y[2], frame.x[2]];
+        on_line.sort_by(|a, b| (split[*a][0] * along[0] + split[*a][1] * along[1]).total_cmp(&(split[*b][0] * along[0] + split[*b][1] * along[1])));
+        let chords: Vec<(usize, usize)> = on_line.windows(2).map(|w| (w[0], w[1])).filter(|(a, b)| {
+            let (p, q) = (split[*a], split[*b]);
+            (p[0] - q[0]).hypot(p[1] - q[1]) > 1e-6 && inside_polygon(&split, [0.5 * (p[0] + q[0]), 0.5 * (p[1] + q[1])])
+        }).collect();
+        let this = Stamp { outline: split, ..self.clone() };
+        this.stand(frame, band, &chords)
+    }
+
+    fn stand(&self, frame: &csg::Frame, band: &Solid, chords: &[(usize, usize)]) -> Result<Solid, String> {
+        let n = self.outline.len();
+        if !(3..=MAX_STAMP_POINTS).contains(&n) { return Err(format!("needs 3 to {MAX_STAMP_POINTS} outline points")); }
+        let area: f64 = (0..n).map(|i| { let (a, b) = (self.outline[i], self.outline[(i + 1) % n]); a[0] * b[1] - b[0] * a[1] }).sum();
+        if area <= 1e-6 { return Err("its outline must run counter-clockwise and enclose something".into()); }
+        let reach = self.outline.iter().map(|p| p[0].hypot(p[1])).fold(0.0, f64::max) + 1.0;
+        let near: Vec<[P3; 3]> = band.f.iter().filter_map(|f| {
+            let t = f.map(|k| band.v[k as usize]);
+            t.iter().any(|q| (0..3).map(|k| (q[k] - frame.origin[k]).powi(2)).sum::<f64>() < reach * reach).then_some(t)
+        }).collect();
+        let (points, tris) = cap_faces(&self.outline, (reach / 14.0).clamp(0.12, 0.35), chords).ok_or("its outline will not triangulate")?;
+        const ABOVE: f64 = 8.0;
+        let down = [-frame.z[0], -frame.z[1], -frame.z[2]];
+        let mut surface = Vec::with_capacity(points.len());
+        for p in &points {
+            let hit = first_hit(&near, frame.point([p[0], p[1], ABOVE]), down).ok_or("it runs off the edge of the surface it stands on")?;
+            surface.push(ABOVE - hit);
+        }
+        Ok(self.assemble(&points, &tris, &surface).placed(frame))
+    }
+}
+
+/// The lit face of a moon as an outline: the limb a half circle on the `-x` side, the terminator the
+/// half ellipse it really is — bulging to `+x` for a gibbous moon, straight at the half, curving back
+/// inside the limb for a crescent. `lit` runs 0 (new) to 1 (full). A crescent's horns come to nothing,
+/// which no metal holds, so they are squared off where the lune is still `horn` of the radius tall.
+pub fn moon_outline(radius: f64, lit: f64, horn: f64) -> Vec<[f64; 2]> {
+    let k = 2.0 * lit.clamp(0.02, 1.0) - 1.0;
+    let top = if k < 0.0 { horn.clamp(0.3, 1.0) } else { 1.0 };
+    let reach = top.asin();
+    let steps = 40;
+    let mut out: Vec<[f64; 2]> = (0..=steps).map(|i| {
+        let a = PI - reach + 2.0 * reach * i as f64 / steps as f64;
+        [radius * a.cos(), radius * a.sin()]
+    }).collect();
+    for i in 0..=steps {
+        let y = radius * top * (2.0 * i as f64 / steps as f64 - 1.0);
+        let p = [k * (radius * radius - y * y).max(0.0).sqrt(), y];
+        if out.iter().all(|q| (q[0] - p[0]).hypot(q[1] - p[1]) > 1e-6) { out.push(p); }
+    }
+    out
+}
+
+/// What the bench takes from a half moon cast as a blank to leave the crescent of [`moon_outline`]:
+/// everything inside the terminator and beyond the squared horns, with a margin past the blank's own
+/// walls so no two faces coincide.
+pub fn crescent_cutter(radius: f64, lit: f64, horn: f64, margin: f64) -> Vec<[f64; 2]> {
+    let k = 2.0 * lit.clamp(0.02, 0.49) - 1.0;
+    let top = horn.clamp(0.3, 1.0) * radius;
+    let far = radius + margin;
+    let mut out = vec![[margin, -far], [margin, far], [-far, far], [-far, top]];
+    let steps = 40;
+    for i in 0..=steps {
+        let y = top * (1.0 - 2.0 * i as f64 / steps as f64);
+        out.push([k * (radius * radius - y * y).max(0.0).sqrt(), y]);
+    }
+    out.extend([[-far, -top], [-far, -far]]);
+    out
+}
+
+fn unit2(v: [f64; 2]) -> [f64; 2] {
+    let l = v[0].hypot(v[1]).max(1e-12);
+    [v[0] / l, v[1] / l]
+}
+
+fn inside_polygon(poly: &[[f64; 2]], p: [f64; 2]) -> bool {
+    let mut inside = false;
+    let n = poly.len();
+    for i in 0..n {
+        let (a, b) = (poly[i], poly[(i + 1) % n]);
+        if (a[1] > p[1]) != (b[1] > p[1]) && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0] {
+            inside = !inside;
+        }
+    }
+    inside
+}
+
+/// A polygon's cap: its own points first and in order, then a grid of inner points `pitch` apart so the
+/// cap can follow a curved surface, triangulated with the outline held as edges.
+fn cap_faces(outline: &[[f64; 2]], pitch: f64, chords: &[(usize, usize)]) -> Option<(Vec<[f64; 2]>, Vec<[u32; 3]>)> {
+    use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
+    let n = outline.len();
+    let mut cdt = ConstrainedDelaunayTriangulation::<Point2<f64>>::new();
+    let mut points: Vec<[f64; 2]> = Vec::new();
+    let mut index = std::collections::HashMap::new();
+    let mut handles = Vec::with_capacity(n);
+    for p in outline {
+        let h = cdt.insert(Point2::new(p[0], p[1])).ok()?;
+        if index.insert(h, points.len() as u32).is_some() { return None; }
+        points.push(*p);
+        handles.push(h);
+    }
+    for i in 0..n {
+        let (a, b) = (handles[i], handles[(i + 1) % n]);
+        if !cdt.can_add_constraint(a, b) { return None; }
+        cdt.add_constraint(a, b);
+    }
+    // Chords are held as edges too, but are not the outline: crossing one is still inside. Each carries
+    // points at the cap's pitch, or its top would run straight across the dome it spans and sag under it.
+    let mut chord_edges = std::collections::HashSet::new();
+    for (a, b) in chords {
+        let (pa, pb) = (outline[*a], outline[*b]);
+        let steps = (((pb[0] - pa[0]).hypot(pb[1] - pa[1]) / pitch).ceil() as usize).max(1);
+        let mut run = vec![handles[*a]];
+        for k in 1..steps {
+            let t = k as f64 / steps as f64;
+            let q = [pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t];
+            let h = cdt.insert(Point2::new(q[0], q[1])).ok()?;
+            if let std::collections::hash_map::Entry::Vacant(v) = index.entry(h) {
+                v.insert(points.len() as u32);
+                points.push(q);
+            }
+            run.push(h);
+        }
+        run.push(handles[*b]);
+        for w in run.windows(2) {
+            if w[0] == w[1] || !cdt.can_add_constraint(w[0], w[1]) { return None; }
+            cdt.add_constraint(w[0], w[1]);
+            chord_edges.insert((w[0].min(w[1]), w[0].max(w[1])));
+        }
+    }
+    let (lo, hi) = outline.iter().fold(([f64::MAX; 2], [f64::MIN; 2]), |(lo, hi), p| ([lo[0].min(p[0]), lo[1].min(p[1])], [hi[0].max(p[0]), hi[1].max(p[1])]));
+    let segments: Vec<([f64; 2], [f64; 2])> = (0..n).map(|i| (outline[i], outline[(i + 1) % n])).chain(chords.iter().map(|(a, b)| (outline[*a], outline[*b]))).collect();
+    let clear = |p: [f64; 2]| segments.iter().all(|&(a, b)| {
+        let (ex, ey) = (b[0] - a[0], b[1] - a[1]);
+        let t = (((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / (ex * ex + ey * ey).max(1e-18)).clamp(0.0, 1.0);
+        (p[0] - a[0] - ex * t).hypot(p[1] - a[1] - ey * t) > pitch * 0.45
+    });
+    let (mut y, mut row) = (lo[1] + pitch * 0.5, 0);
+    while y < hi[1] && points.len() < 6000 {
+        let mut x = lo[0] + pitch * if row % 2 == 0 { 0.5 } else { 1.0 };
+        while x < hi[0] {
+            if inside_polygon(outline, [x, y]) && clear([x, y]) {
+                let h = cdt.insert(Point2::new(x, y)).ok()?;
+                index.entry(h).or_insert_with(|| { points.push([x, y]); points.len() as u32 - 1 });
+            }
+            x += pitch;
+        }
+        y += pitch * 0.866;
+        row += 1;
+    }
+    // Inside is read off the outline itself: a face against a hull edge the outline does not own is
+    // outside, and crossing any outline edge flips it. A centroid test cannot be trusted here — a point
+    // split onto a chord lands a hair inside it, and the sliver between them has its centroid on the line.
+    let mut inside = std::collections::HashMap::new();
+    let mut queue = std::collections::VecDeque::new();
+    for e in cdt.convex_hull() {
+        if let Some(f) = e.face().as_inner().or_else(|| e.rev().face().as_inner()) {
+            if let std::collections::hash_map::Entry::Vacant(v) = inside.entry(f.fix()) {
+                v.insert(cdt.is_constraint_edge(e.as_undirected().fix()));
+                queue.push_back(f.fix());
+            }
+        }
+    }
+    while let Some(f) = queue.pop_front() {
+        let here = inside[&f];
+        for e in cdt.face(f).adjacent_edges() {
+            let Some(next) = e.rev().face().as_inner() else { continue };
+            let [a, b] = e.vertices().map(|v| v.fix());
+            let outline_edge = cdt.is_constraint_edge(e.as_undirected().fix()) && !chord_edges.contains(&(a.min(b), a.max(b)));
+            if let std::collections::hash_map::Entry::Vacant(v) = inside.entry(next.fix()) {
+                v.insert(if outline_edge { !here } else { here });
+                queue.push_back(next.fix());
+            }
+        }
+    }
+    let mut tris = Vec::new();
+    for face in cdt.inner_faces() {
+        if inside.get(&face.fix()).copied().unwrap_or(false) {
+            let v = face.vertices();
+            tris.push([index[&v[0].fix()], index[&v[1].fix()], index[&v[2].fix()]]);
+        }
+    }
+    (!tris.is_empty()).then_some((points, tris))
+}
+
 /// Every seat's cutters as they stand on the ring, for a ghost drawn over the live result: a soup of
 /// triangles in the viewports' interleaved layout (position, normal, two colours), like the stones'.
 pub fn ghost_vertices(design: &crate::RingDesign, lib: &crate::AlphaLibrary) -> Vec<f32> {
     let mut out = Vec::new();
-    for (part, _) in placed_parts(design, lib, false) {
+    let ctx = design.field_context();
+    let cutters = design.stamps.iter().filter(|s| s.cut).filter_map(|s| Some((s.prism()?.placed(&s.frame(design, &ctx)), 0usize)));
+    for (part, _) in placed_parts(design, lib, false).into_iter().chain(cutters) {
         for f in &part.f {
             let [a, b, c] = f.map(|i| part.v[i as usize]);
             let (e1, e2) = ([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
@@ -529,6 +860,7 @@ pub fn without_solids(design: &crate::RingDesign) -> crate::RingDesign {
     }
     let mut d = design.clone();
     strip(&mut d.layers);
+    d.stamps.clear();
     d
 }
 
@@ -579,6 +911,8 @@ pub fn pattern_seat(seat: &mut crate::field::SeatPadLayer) -> bool {
 pub struct Applied {
     /// Stones whose solid was placed and resolved.
     pub resolved: usize,
+    /// Stamps joined on or cut away.
+    pub stamped: usize,
     /// Faces the solids account for.
     pub faces: usize,
     pub ms: u128,
@@ -590,7 +924,7 @@ pub struct Applied {
 
 /// Whether any enabled seat in the design carries a solid.
 pub fn any(design: &crate::RingDesign) -> bool {
-    crate::setstone::set_stones(design).iter().any(|s| !s.seat.solid.is_none())
+    !design.stamps.is_empty() || crate::setstone::set_stones(design).iter().any(|s| !s.seat.solid.is_none())
 }
 
 /// Place every seat's solid on the built band and resolve it: every head first, then every cut, so a
@@ -598,7 +932,7 @@ pub fn any(design: &crate::RingDesign) -> bool {
 pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut crate::Mesh) -> Applied {
     let mut out = Applied::default();
     let stones: Vec<_> = crate::stones::stone_frames(design).into_iter().filter(|(s, _)| !s.seat.solid.is_none()).collect();
-    if stones.is_empty() || mesh.faces.is_empty() {
+    if (stones.is_empty() && design.stamps.is_empty()) || mesh.faces.is_empty() {
         return out;
     }
     let clock = crate::mesh::BuildClock::start();
@@ -658,7 +992,22 @@ pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut c
             Err(e) => out.notes.push(format!("{}: a bead could not be raised ({e})", stones[*i].0.label)),
         }
     }
+    // Stamps stand on the band as it was swept, so each is made against it before anything is joined.
+    let stamps: Vec<(usize, Solid)> = design.stamps.iter().enumerate().filter_map(|(k, s)| match s.solid(&s.frame(design, &ctx), &solid) {
+        Ok(made) => Some((k, made)),
+        Err(why) => { out.notes.push(format!("{}: {why}", s.name)); None }
+    }).collect();
     for (op, pick) in [(Op::Union, 0usize), (Op::Subtract, 1)] {
+        for (k, made) in stamps.iter().filter(|(k, _)| design.stamps[*k].cut == (pick == 1)) {
+            match csg::combine(&solid, made, op) {
+                Ok(next) => {
+                    solid = next;
+                    spans.push((solid.v.len(), (stones.len() + k) as u32));
+                    out.stamped += 1;
+                }
+                Err(e) => out.notes.push(format!("{}: could not be {} ({e})", design.stamps[*k].name, if pick == 0 { "joined to the band" } else { "cut" })),
+            }
+        }
         for (i, p, frame, label) in &placed {
             for part in if pick == 0 { &p.add } else { &p.cut } {
                 match csg::combine(&solid, &part.placed(frame), op) {
@@ -704,7 +1053,10 @@ fn first_hit(faces: &[[P3; 3]], origin: P3, dir: P3) -> Option<f64> {
         let q = cross(s, e1);
         let v = dot(dir, q) / det;
         let t = dot(e2, q) / det;
-        if u >= 0.0 && v >= 0.0 && u + v <= 1.0 && t > 0.0 && best.is_none_or(|b| t < b) {
+        // A hair of slack: a ray along the parting plane runs exactly through the band's own edge loop there,
+        // and rounding can put it a hair outside both faces that share the edge.
+        const SLACK: f64 = 1e-9;
+        if u >= -SLACK && v >= -SLACK && u + v <= 1.0 + SLACK && t > 0.0 && best.is_none_or(|b| t < b) {
             best = Some(t);
         }
     }
@@ -715,6 +1067,8 @@ fn first_hit(faces: &[[P3; 3]], origin: P3, dir: P3) -> Option<f64> {
 /// touched gets corner normals that hold a crease wherever its neighbours turn more than `CREASE_DEG`.
 fn into_mesh(mut solid: Solid, band_normals: &[crate::Vec3], origin: Vec<u32>) -> crate::Mesh {
     const CREASE_DEG: f64 = 38.0;
+    // Twenty nanometres: a face with no edge and no height under it keeps an area f32 can still hold.
+    csg::clean(&mut solid, 2e-5);
     let map = solid.compact();
     let mut from = vec![u32::MAX; solid.v.len()];
     for (old, new) in map.iter().enumerate() {
@@ -941,6 +1295,104 @@ mod tests {
     }
 
     #[test]
+    fn a_cap_keeps_what_its_outline_holds_even_where_a_point_sits_a_hair_inside_a_chord() {
+        // A circle with a point split onto a chord exactly as the parting-plane split computes it,
+        // `a + (b - a) t`: rounding leaves it off the chord by 1e-17. The centroid test this replaced
+        // kept the sliver between them — the waxing moons' non-manifold caps.
+        let mut outline: Vec<[f64; 2]> = (0..40).map(|i| { let t = TAU * i as f64 / 40.0; [1.6 * t.cos(), 1.6 * t.sin()] }).collect();
+        outline[24] = [-1.294427190999916, -0.9404564036679569];
+        outline[25] = [-1.1313708498984762, -1.131370849898476];
+        outline.insert(25, [-1.2658173660885563, -0.9739542047519781]);
+        let (points, tris) = cap_faces(&outline, 0.3, &[]).unwrap();
+        let area = |o: &[[f64; 2]]| 0.5 * (0..o.len()).map(|i| o[i][0] * o[(i + 1) % o.len()][1] - o[(i + 1) % o.len()][0] * o[i][1]).sum::<f64>();
+        let covered: f64 = tris.iter().map(|t| area(&t.map(|i| points[i as usize]))).sum();
+        assert!((covered - area(&outline)).abs() < 1e-9, "{covered} against {}", area(&outline));
+        let mut uses = std::collections::HashMap::new();
+        for t in &tris { for k in 0..3 { *uses.entry((t[k], t[(k + 1) % 3])).or_insert(0) += 1; } }
+        assert!(uses.values().all(|n| *n == 1), "a directed edge is used twice");
+        // The cap's boundary is the outline, edge for edge and the right way round.
+        let n = outline.len() as u32;
+        let boundary: std::collections::HashSet<(u32, u32)> = uses.keys().copied().filter(|(a, b)| !uses.contains_key(&(*b, *a))).collect();
+        let want: std::collections::HashSet<(u32, u32)> = (0..n).map(|i| (i, (i + 1) % n)).collect();
+        assert_eq!(boundary, want);
+        let stamp = Stamp { name: "Dent".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline, height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false };
+        assert_eq!(stamp.prism().unwrap().open_edges(), (0, 0));
+    }
+
+    #[test]
+    fn a_stamp_is_a_crisp_conforming_solid_and_the_bench_keeps_its_own_out_of_the_pattern() {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 7.0;
+        d.profile.thickness_mm = 2.2;
+        let v = d.field_context().crest_v_mm;
+        let lib = crate::AlphaLibrary::builtin();
+        let params = crate::BuildParams { theta_steps: 384, profile_steps: 128, ..Default::default() };
+        let bare = crate::mesh::try_build(&d, &lib, params).unwrap();
+        // Every phase is a closed, counter-clockwise outline, and the lit share is the area's.
+        let full = moon_outline(1.6, 1.0, 0.85);
+        let area = |o: &[[f64; 2]]| 0.5 * (0..o.len()).map(|i| o[i][0] * o[(i + 1) % o.len()][1] - o[(i + 1) % o.len()][0] * o[i][1]).sum::<f64>();
+        assert!((area(&full) - PI * 1.6 * 1.6).abs() < 0.05, "{}", area(&full));
+        assert!((area(&moon_outline(1.6, 0.5, 0.85)) - 0.5 * PI * 2.56).abs() < 0.03);
+        assert!(area(&moon_outline(1.6, 0.25, 0.85)) > 0.0 && area(&crescent_cutter(1.6, 0.25, 0.85, 0.2)) > 0.0);
+        // A half moon cast as a blank, and the bench's cut that leaves the crescent.
+        let blank = Stamp { name: "Half moon".into(), theta_deg: 60.0, v_mm: v, rot_deg: 0.0, outline: moon_outline(1.6, 0.5, 0.85), height_mm: 0.45, sink_mm: 0.35, draft_deg: 0.0, cut: false, bench: false, along_pull: false };
+        let cut = Stamp { name: "Crescent cut".into(), outline: crescent_cutter(1.6, 0.25, 0.85, 0.2), height_mm: 0.8, sink_mm: -0.02, cut: true, bench: true, ..blank.clone() };
+        d.stamps = vec![blank, cut];
+        let finished = crate::mesh::try_build(&d, &lib, params).unwrap();
+        assert!(finished.solids.notes.is_empty(), "{:?}", finished.solids.notes);
+        assert_eq!(finished.solids.stamped, 2);
+        assert!(finished.report.validation.watertight, "{:?}", finished.report.validation);
+        // The cut and its blank share a frame across the parting line, and the join leaves no sliver there.
+        assert_eq!(finished.report.quality.degenerate_faces, 0);
+        // Across the parting line only walls of what is poured may cross it: a sloped facet of the top
+        // straddling z = 0 faces the wrong mould half on one side, which the chord along the line prevents
+        // — and the chord's own points keep the top on the dome, or it runs straight under the arc and the
+        // facets beside it tip.
+        let pattern = crate::mesh::try_build_pattern(&d, &lib, params).unwrap();
+        assert_eq!(pattern.report.quality.degenerate_faces, 0);
+        let m = &pattern.mesh;
+        for f in m.faces.iter().filter(|f| f.iter().any(|v| m.origin[*v as usize] >= crate::mesh::SOLID_VERTEX)) {
+            let [a, b, c] = f.map(|v| m.vertices[v as usize]);
+            let (lo, hi) = (a.2.min(b.2).min(c.2), a.2.max(b.2).max(c.2));
+            if lo < -1e-3 && hi > 1e-3 {
+                let n = crate::mesh::cross([(b.0 - a.0) as f64, (b.1 - a.1) as f64, (b.2 - a.2) as f64], [(c.0 - a.0) as f64, (c.1 - a.1) as f64, (c.2 - a.2) as f64]);
+                let l = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+                assert!(n[2].abs() < 1e-3 * l, "a sloped facet crosses the parting line: z {lo}..{hi}, normal z {}", n[2] / l);
+            }
+        }
+        // The same design builds the same mesh, vertex for vertex: a saved file has to reopen as it was.
+        let again = crate::mesh::try_build(&d, &lib, params).unwrap();
+        assert!(again.mesh.vertices == finished.mesh.vertices && again.mesh.faces == finished.mesh.faces, "a rebuild moved geometry");
+        assert!(pattern.report.validation.watertight && pattern.solids.stamped == 1);
+        let (half, crescent) = (pattern.report.volume_mm3 - bare.report.volume_mm3, finished.report.volume_mm3 - bare.report.volume_mm3);
+        // The top follows the dome at one height, so the volume is the outline's area times it.
+        let want = area(&moon_outline(1.6, 0.5, 0.85)) * 0.45;
+        assert!((half - want).abs() < 0.12 * want, "a conforming half moon: {half} against {want}");
+        let lune = area(&moon_outline(1.6, 0.25, 0.85)) * 0.45;
+        assert!((crescent - lune).abs() < 0.2 * lune + 0.05, "the bench leaves the crescent: {crescent} against {lune}");
+        // Switched off for a faster preview, the band is as it was swept.
+        assert_eq!(crate::mesh::try_build(&without_solids(&d), &lib, params).unwrap().mesh.faces.len(), bare.mesh.faces.len());
+        assert!(!ghost_vertices(&d, &lib).is_empty(), "and the cutter can be ghosted");
+        // And what is poured pulls: no face of the cast stamp above the parting line faces down, nor one
+        // below it up. (The bench's cut is a pocket, and is never poured.) Slivers along the seam are
+        // lines with rounding for a normal; nothing that small holds sand.
+        let cast = &pattern.mesh;
+        for f in cast.faces.iter().filter(|f| f.iter().any(|v| cast.origin[*v as usize] >= crate::mesh::SOLID_VERTEX)) {
+            let [a, b, c] = f.map(|v| cast.vertices[v as usize]);
+            let n = crate::mesh::cross([(b.0 - a.0) as f64, (b.1 - a.1) as f64, (b.2 - a.2) as f64], [(c.0 - a.0) as f64, (c.1 - a.1) as f64, (c.2 - a.2) as f64]);
+            let mid = (a.2 + b.2 + c.2) as f64 / 3.0;
+            let area = 0.5 * (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+            // A wall stands along the pull: its normal is level to within the mesh's f32 rounding, either way.
+            assert!(area < 1e-5 || mid.abs() < 1e-3 || mid.signum() * n[2] / (2.0 * area) >= -1e-3, "a cast stamp face tips into its own mould half at z {mid}, area {area:.2e}");
+        }
+        // One that runs off the band is refused by name and nothing is half made.
+        d.stamps[0].outline = moon_outline(9.0, 1.0, 0.85);
+        let off = crate::mesh::try_build(&d, &lib, params).unwrap();
+        assert!(off.solids.notes.iter().any(|n| n.contains("Half moon")) && off.report.validation.watertight, "{:?}", off.solids.notes);
+    }
+
+    #[test]
     fn a_head_is_made_once() {
         let gem = Gem::calibrated(GemCut::Round, 4.0);
         let fit = Fit { surface_z: -2.0, through_mm: None, prongs: 4 };
@@ -950,4 +1402,5 @@ mod tests {
         assert!(a.cut.is_empty() && a.add.len() == 1);
     }
 }
+
 

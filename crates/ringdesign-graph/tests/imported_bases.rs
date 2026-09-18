@@ -60,7 +60,7 @@ fn imported_templates_travel_resize_keep_stones_and_export_their_mesh() {
         };
         let built = try_build(&reloaded, out.baked_library.as_deref().unwrap(), params).unwrap();
         assert!(built.report.validation.watertight && built.report.max_relief_mm > 0.0);
-        assert_eq!(built.report.quality.degenerate_faces, 0);
+        assert_eq!(built.report.quality.degenerate_faces, 0, "{}", t.slug);
         let bytes = ringdesign_core::stl::to_stl_binary(&built.mesh, &d.name);
         let count = u32::from_le_bytes(bytes[80..84].try_into().unwrap()) as usize;
         assert_eq!(count, built.mesh.faces.len());
@@ -156,8 +156,11 @@ fn stock_masterworks_match_their_sources_with_native_maps_and_casting_modes() {
             let unexpected: Vec<_> = inspection.details.iter().filter(|d| !(one_skin && d.contains("texture's finest"))).collect();
             assert!(unexpected.is_empty(), "{slug}: {unexpected:?}");
             // Fill is a question for what is poured: a flush seat's lip is cut thin at the bench on purpose.
+            // A joined stamp only adds metal, and its strokes are the detail floor's, which the findings read.
+            let mut body = project.clone();
+            body.stamps.retain(|s| s.cut);
             let wall_mesh = ringdesign_core::mesh::try_build_pattern(
-                &project,
+                &body,
                 &lib,
                 BuildParams {
                     theta_steps: 256,

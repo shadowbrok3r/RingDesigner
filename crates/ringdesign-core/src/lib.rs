@@ -118,6 +118,10 @@ pub struct RingDesign {
     /// here (`ringdesign-graph` reads it), absent on a hand-made design.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub graph: Option<serde_json::Value>,
+    /// Outlines extruded off the built surface and joined to it, or cut from it, by boolean: relief
+    /// with true walls and a crisp silhouette, which the height field cannot hold at any resolution.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stamps: Vec<setting::Stamp>,
 }
 
 /// One imported alpha embedded in the design file.
@@ -148,6 +152,7 @@ impl Default for RingDesign {
             svgs: Vec::new(),
             recipes: Vec::new(),
             graph: None,
+            stamps: Vec::new(),
         }
     }
 }

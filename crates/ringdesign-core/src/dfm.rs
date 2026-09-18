@@ -9,9 +9,12 @@
 use crate::field::Layer;
 use crate::RingDesign;
 
+/// [`DfmFinding::layer`] of a finding about one of the design's stamps, which are not layers.
+pub const STAMP: usize = usize::MAX;
+
 #[derive(Clone, Debug)]
 pub struct DfmFinding {
-    /// Index of the top-level layer entry the finding belongs to.
+    /// Index of the top-level layer entry the finding belongs to, or [`STAMP`].
     pub layer: usize,
     pub label: String,
     pub message: String,
@@ -174,7 +177,72 @@ pub fn findings(design: &RingDesign) -> Vec<DfmFinding> {
             ),
         });
     }
+    // A stamp cut at the bench is not poured either.
+    for s in design.stamps.iter().filter(|s| !s.bench) {
+        let Some(finest) = stamp_finest_mm(&s.outline, min) else { continue };
+        if finest < min {
+            out.push(DfmFinding {
+                layer: STAMP,
+                label: s.name.clone(),
+                message: format!(
+                    "the stamp's finest strokes measure {finest:.2} mm against the sand's {min:.2} mm floor — \
+                     they will cast as mush. Bolden the outline or accept the softness."
+                ),
+            });
+        }
+    }
     out
+}
+
+/// Finest stroke of a stamp's outline in mm: its plan rasterized fine enough for `floor` and read by the
+/// granulometry a texture's mask is, so a pointed tip costs nothing and a thin arm is found. `None` for an
+/// outline that encloses nothing.
+pub fn stamp_finest_mm(outline: &[[f64; 2]], floor: f64) -> Option<f64> {
+    let n = outline.len();
+    if n < 3 || !(floor > 0.0) {
+        return None;
+    }
+    let (mut lo, mut hi) = ([f64::MAX; 2], [f64::MIN; 2]);
+    for p in outline {
+        for k in 0..2 {
+            lo[k] = lo[k].min(p[k]);
+            hi[k] = hi[k].max(p[k]);
+        }
+    }
+    let extent = (hi[0] - lo[0]).max(hi[1] - lo[1]);
+    if !(extent.is_finite() && extent > 0.0) {
+        return None;
+    }
+    // Six texels to the floor, and no side much past five hundred.
+    let px = (floor / 6.0).max(extent / 480.0);
+    const MARGIN: usize = 4;
+    let w = ((hi[0] - lo[0]) / px).ceil() as usize + 2 * MARGIN;
+    let h = ((hi[1] - lo[1]) / px).ceil() as usize + 2 * MARGIN;
+    let mut data = vec![0.0f32; w * h];
+    let mut xs = Vec::new();
+    for row in 0..h {
+        let y = lo[1] + (row as f64 + 0.5 - MARGIN as f64) * px;
+        xs.clear();
+        for i in 0..n {
+            let (a, b) = (outline[i], outline[(i + 1) % n]);
+            if (a[1] > y) != (b[1] > y) {
+                xs.push(a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0]));
+            }
+        }
+        xs.sort_by(f64::total_cmp);
+        for span in xs.chunks_exact(2) {
+            let from = ((span[0] - lo[0]) / px + MARGIN as f64 - 0.5).ceil().max(0.0) as usize;
+            let to = ((span[1] - lo[0]) / px + MARGIN as f64 - 0.5).floor();
+            if to < 0.0 {
+                continue;
+            }
+            for col in from..=(to as usize).min(w - 1) {
+                data[row * w + col] = 1.0;
+            }
+        }
+    }
+    let (ink, _) = crate::alpha::Alpha::new("stamp", w, h, data).min_feature_px()?;
+    Some(ink * px)
 }
 
 #[cfg(test)]
@@ -182,6 +250,34 @@ mod tests {
     use super::*;
     use crate::field::{Layer, LayerEntry, MilgrainLayer};
     use crate::tiling::TilingLayer;
+
+    /// A stamp's plan is its metal: a thin arm is found, a pointed tip is not held against it, and one cut
+    /// at the bench is not the sand's to judge.
+    #[test]
+    fn a_stamp_is_judged_by_its_strokes() {
+        let bar = |w: f64| vec![[-1.5, -w / 2.0], [1.5, -w / 2.0], [1.5, w / 2.0], [-1.5, w / 2.0]];
+        for w in [0.2, 0.5] {
+            let got = stamp_finest_mm(&bar(w), 0.3).unwrap();
+            assert!((got - w).abs() < 0.06, "a {w} mm bar measures {got}");
+        }
+        // Five arms that come to points, each far wider than the floor where it leaves the body.
+        let star: Vec<[f64; 2]> = (0..10).map(|i| {
+            let r = if i % 2 == 0 { 1.5 } else { 0.8 };
+            let a = std::f64::consts::PI * i as f64 / 5.0;
+            [r * a.cos(), r * a.sin()]
+        }).collect();
+        assert!(stamp_finest_mm(&star, 0.3).unwrap() > 0.4);
+        let mut d = RingDesign::default();
+        d.draft.min_detail_mm = 0.3;
+        let hairline = crate::setting::Stamp {
+            name: "Hairline".into(), theta_deg: 90.0, v_mm: 1.0, rot_deg: 0.0, outline: bar(0.2), height_mm: 0.3,
+            sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false,
+        };
+        d.stamps = vec![hairline.clone(), crate::setting::Stamp { name: "Graver line".into(), bench: true, ..hairline }];
+        let f = findings(&d);
+        assert!(f.iter().any(|f| f.layer == STAMP && f.label == "Hairline"), "{f:?}");
+        assert!(!f.iter().any(|f| f.label == "Graver line"));
+    }
 
     /// The solver is the checker read backwards: fitting to the sand's own
     /// floor must silence the finding it was derived from, and one repeat more

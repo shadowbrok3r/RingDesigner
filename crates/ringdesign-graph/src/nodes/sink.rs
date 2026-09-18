@@ -221,7 +221,10 @@ fn dfm_findings(ctx: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, 
     let f = dfm::findings_in(&d, &lib);
     let items: Vec<Value> = f
         .iter()
-        .map(|x| Value::Json(Arc::new(serde_json::json!({"layer": x.layer, "label": x.label, "message": x.message}))))
+        .map(|x| {
+            let layer = (x.layer != dfm::STAMP).then_some(x.layer);
+            Value::Json(Arc::new(serde_json::json!({"layer": layer, "label": x.label, "message": x.message})))
+        })
         .collect();
     let summary = if f.is_empty() { "no DFM findings".to_string() } else { f.iter().map(|x| format!("{}: {}", x.label, x.message)).collect::<Vec<_>>().join("\n") };
     Ok(Outputs::one("findings", items).with("count", f.len() as i64).with("summary", summary))

@@ -1333,7 +1333,13 @@ the pour, all hand-rolled in core with tests:
 - **Renders** (`render.rs`): the examples' software z-buffer rasterizer,
   promoted to core so CLI, GUI, tests and any future configurator can draw
   a ring without a GPU. `write_png` is one supersampled hero frame;
-  `write_turntable_gif` is a looping 36-frame spin. The GUI File menu has
+  `write_turntable_gif` is a looping 36-frame spin. `Part::metal` and
+  `Part::stone` shade with **the viewports' own studio** — `studio.glsl`
+  ported line for line (`studio_card`, `studio_environment`, Fresnel
+  through the alloy's reflectance, Reinhard then sRGB), normals
+  interpolated per pixel — so a still is the material the app shows;
+  [`GOLD`] maps to yellow gold's reflectance, and the class-coloured
+  diagnostic renders keep the plain key light. The GUI File menu has
   both, tinted to the finish; `examples/template_shots.rs` renders the
   whole template gallery for an eyeball pass.
 
@@ -1606,6 +1612,73 @@ sits inside the metal it removes and a depth test hides exactly what was
 asked for. The phone's ghost is rim-weighted (`u_mode == 6`: alpha by
 `1 − |n.z|`), so a cutter reads as its outline.
 
+### A stamp is an outline struck onto the surface
+
+`RingDesign::stamps` (`setting::Stamp`) is relief the height field cannot
+hold: a closed outline in millimetres, placed at a chart point like any
+layer, extruded and resolved by `csg` with the seats' solids — joined on, or
+with `cut` taken away, and with `bench` kept out of every pattern. A wall in
+the field is one cell wide and steps with the grid wherever it runs across
+it; a stamp's silhouette is its polygon. It came from Zenith's moons, painted
+first and cut back by the draft rule until they "look like arrows".
+
+- **The top conforms.** Every cap point (`cap_faces`: the outline plus an
+  inner grid, constrained Delaunay) is dropped onto the band mesh along the
+  stamp's axis and lifted by `height_mm`, so a disc on a domed shoulder is a
+  dome the same height everywhere, not a coin perched on it. Pinned by
+  volume: a half moon on a low dome is its area times its height to 12%.
+- **`along_pull` stands the walls along the finger's axis** instead of the
+  surface's normal. A factory signet's cheek leans, and star trails struck
+  square to it tucked their lower edge under by up to 0.35 mm — 234
+  obstructions, 3.96 mm². Along the pull: none.
+- **No wall straddles the parting plane.** A facet of a round stamp that
+  crosses `z = 0` faces the wrong mould half over part of its length, by
+  half its own turn: one 0.035 mm obstruction on an eighty-sided moon.
+  `Stamp::solid` gives the outline a corner wherever it crosses — and that
+  split point, `a + (b − a)t`, lands up to 1e-17 off its chord. The cap's
+  triangles were chosen by testing each centroid against the outline, and
+  the sliver between the chord and a point a hair inside it has its
+  centroid *on* the line: kept or dropped by rounding, it left two waxing
+  moons with non-manifold caps ("open 2, repeated 4") that no amount of
+  nudging the boolean could fix. `cap_faces` now floods from the hull —
+  a face against a hull edge the outline does not own is outside, crossing
+  any outline edge flips — which is exact; the regression test carries a
+  split found by searching with the old code's own arithmetic, and fails
+  on it.
+- **A crescent cannot be cast raised, wherever it is put.** Its inner edge
+  is concave, so part of that wall always faces back across the parting
+  line; filled by the sand's rule it becomes the half moon. So
+  `moon_outline(radius, lit, horn)` — limb a half circle, terminator the
+  half ellipse it really is, horns squared where the lune is still `horn`
+  of the radius tall — casts the full, the gibbous and the half as they
+  are, and a crescent is the half moon plus `crescent_cutter`, a bench cut
+  whose floor stops 0.02 mm over the surface (a coincident floor is a
+  degenerate boolean; a film twenty microns thick is not seen) and whose
+  walls stand a margin past the blank's so no two faces coincide. A new
+  moon is a disc and a bench cut that leaves its rim.
+- **A bench stamp is not split on the parting plane.** It never meets the
+  sand, and it shares its blank's levelled frame, so its split landed on
+  the blank's own: the two solids met edge on edge along `z = OVER` and
+  left zero-length slivers in the join, 17 degenerate faces on a resized
+  Zenith.
+- **A stamp's strokes are judged by the detail floor, not the wall.** A
+  wall stood along the pull faces round the ring, so a thickness ray from
+  it crosses the stroke rather than the band: Zenith's star trails read
+  0.19 mm "walls" that were their own tapered ends. `dfm::findings` rasterizes
+  each poured stamp's outline and reads it by the granulometry a texture
+  gets (`stamp_finest_mm`; a pointed tip is a sliver of its ink and costs
+  nothing), reporting under `dfm::STAMP` because a stamp is not a layer.
+  The trails now taper to 0.36 mm over Delft's 0.30. The wall check judges
+  the body with joined stamps left out: they only add metal.
+
+**A saved design must reopen bit for bit, and `serde_json` does not promise
+that by default.** Without `float_roundtrip` a parsed float can be one unit
+in the last place off. Only the graph crate enabled it, so any build that
+included the graph was exact and a core-only one was not — invisible while
+every float fed a height field, and caught the day a stamp's outline went
+through a boolean: the writer's own reload check failed. It is on for the
+whole workspace now.
+
 ### Booleans are exact in topology and approximate only in position
 
 `csg.rs` is a pure-Rust mesh boolean (`robust` + `spade`, both already in
@@ -1623,7 +1696,20 @@ face needs no seed of its own. The work is local: only faces whose boxes
 meet the tool's are touched, and the cut region is checked to close on
 itself and onto the faces left alone before anything is returned. Any
 coincidence the predicates report is `Snag::Degenerate`, and `combine`
-retries with the tool nudged by 1e-7 mm, eight times. `OpenCADStudio`'s
+retries with the tool nudged by 1e-7 mm, eight times.
+
+**Exact topology still leaves slivers in position.** A crossing that lands
+a hair from an existing vertex is kept as a vertex of its own, and in f32
+the face between the two is a line or a point — a degenerate face in the
+exported STL. It happens whenever the tool lines up with the band: a half
+moon struck at 60° on a 384-column sweep has its straight terminator wall
+in a grid column, 6e-8 mm from every vertex in it, 39 degenerate faces. So
+`into_mesh` runs `csg::clean` at 20 nm first: edges shorter than that
+collapse (refused where the ends share a neighbour off the edge, or a face
+round the moved end would turn over), a face thinner than that has its
+long edge flipped so its apex splits the neighbour instead, and an apex
+too near a corner for that is merged into the corner. The solid is left
+as it was if the result would not close. `OpenCADStudio`'s
 kernel is the same `cadkernel` the core's `cad.rs` already drives; its
 B-rep boolean is the wrong tool for a 1.4M-facet band, which is why this
 exists.
@@ -2157,6 +2243,27 @@ wrapped against 96 × 84 alone; the test builds both hosts and holds them
 equal. That was also most of "Arrange makes it worse" — it laid out
 from those measures.
 
+**A pinch is never a tap, and never the ring's.** egui-winit drives egui's
+pointer from the *first* finger only, so lifting a pinch whose first finger
+barely moved is a click: on the graph it chose the node under that finger
+(and the ring turned to it), and two quick pinches made the double click
+snarl answers by fitting the whole graph — "it keeps auto zooming out".
+`Editor::pinched` marks any press that had two fingers down; such a press
+chooses nothing, and on a touch screen snarl's double-click fit is off
+(the Fit button is there). Choosing a node that is already on screen at a
+readable zoom no longer moves the view, `focus_transform` never zooms out
+from a zoom the node still fits at (it capped at 1.25), and only an
+explicit arrange re-fits — its refinement passes keep the view. On the
+phone `ring::pinch_in` gives a pinch only to the pane its first finger
+landed on: `multi_touch()` is one gesture for the whole screen, and read
+raw, pinching the graph zoomed and rolled the ring. Not egui's own
+`start_pos`, which is the pointer as of the frame *before* — two fingers
+landing in one frame, which is common, were placed where the last gesture
+was; `first_finger` counts the raw touch events once per pass and trusts
+nothing across a pass it did not see. Both are pinned by tests that fail
+without them (the editor's with a real pivot-pinch event sequence, which
+had to fit kittest's quarter-second steps inside egui's 0.8 s click).
+
 **A tap is mapped into graph space before it chooses a node.**
 `final_node_rect` hands over a rect in graph space and the pointer is on
 the screen; compared raw they agree only at the identity view, so a tap
@@ -2330,6 +2437,22 @@ and the head, `yaw' = 2·head − yaw`: left shoulder to right, a
 three-quarter view to its twin, and face-on it is the same view. The half
 turn stays in the Views menu as Opposite side.
 
+**The tilt runs the whole circle.** Pitch used to be clamped a hair short of
+each pole, with "up" the finger axis until it switched at the pole — and the
+navigator folded any pitch past 90° back as yaw + 180°. That fold names the
+same eye point with the view upside down: rotating the face away stopped at
+the back view and the ring turned over. Both cameras and `focus::view_axes`
+now take up as the way the eye moves as it tilts,
+`[−sin p cos y, −sin p sin y, cos p]` — the finger axis at any tilt short of
+a pole, out to the head at one, and continuous past it — so pitch wraps on
+(−π, π] and a drag tumbles on over the poles. Past one the camera is upside
+down and a turn about the finger crosses the screen the other way, so
+`orbit` and `Action::Orbit` turn yaw by `sign(cos p)`, which keeps the
+surface under the finger; `ease` takes pitch the short way round like yaw
+and roll. `a_drag_tumbles_on_over_the_poles_without_a_flip` walks a full
+turn in 4-point steps and holds every step to a small move and the end to
+the start.
+
 **Roll is the third angle, and the only way to stand a ring on its head.**
 Yaw turns about the finger axis and pitch stops at the poles, so with up
 pinned to the finger axis no drag ever showed the ring inverted. Both
@@ -2448,9 +2571,12 @@ hand over inside one skin. What the sand taught, all measured:
   locks. Free shapes — small round overlapping scales — go on the cheeks,
   where relief moves along the pull.
 - A sky's fine detail belongs to the graver. Zenith casts what casts — the
-  belt's three mounds on the parting line, a crescent, the moon's phases as
-  discs centred on it, star trails on the cheeks — and leaves Orion's stars,
-  the lines between them and the Pleiades as a `bench_only` layer. For that
+  belt's three mounds on the parting line, and as **stamps** the moon's
+  phases, a crescent and the star trails on the cheeks — and leaves Orion's
+  stars, the lines between them and the Pleiades as a `bench_only` layer.
+  (The moons and trails were painted first; the draft clamp works column
+  by column, so wherever it bit an edge it combed it, and it cut the
+  crescents to arrows. Nothing of Zenith's cast relief is painted now.) For that
   to show, `pull::build` now envelopes only the cast stack and lays
   bench-only relief on the supported surface afterwards; before, the
   support filled every engraved line.
