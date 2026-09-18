@@ -35,6 +35,7 @@ layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec3 a_color;
 layout(location = 3) in vec3 a_wall;
+layout(location = 4) in float a_focus;
 
 uniform mat4 u_mvp;
 uniform mat3 u_normal_matrix;
@@ -46,9 +47,11 @@ out vec3 v_bary;
 out float v_obj_nz;
 out vec3 v_world;
 out float v_cavity;
+out float v_focus;
 
 void main() {
     gl_Position = u_mvp * vec4(a_position, 1.0);
+    v_focus = a_focus;
     v_normal = u_normal_matrix * a_normal;
     v_color = a_color;
     v_wall = a_wall;
@@ -71,7 +74,9 @@ in vec3 v_bary;
 in float v_obj_nz;
 in vec3 v_world;
 in float v_cavity;
+in float v_focus;
 uniform vec4 u_clip_plane;
+uniform vec4 u_focus;
 
 uniform int u_mode;
 uniform vec3 u_light_dir;
@@ -110,6 +115,14 @@ void main() {
         color = studio_metal(n, u_base_color, l, u_ambient, v_cavity);
     }
 
+    // The chosen node's reach: its tint over whatever the mode drew, a little
+    // of the key light kept so relief still reads under it.
+    float focus = clamp(v_focus, 0.0, 1.0) * u_focus.a;
+    if (focus > 0.0) {
+        float lit = 0.62 + 0.38 * max(dot(n, l), 0.0);
+        color = mix(color, u_focus.rgb * lit, focus);
+    }
+
     if (u_wire_px > 0.0) {
         vec3 w = fwidth(v_bary) * u_wire_px;
         vec3 a = smoothstep(vec3(0.0), w, v_bary);
@@ -146,6 +159,7 @@ struct Uniforms {
     wire_color: Option<glow::NativeUniformLocation>,
     wire_px: Option<glow::NativeUniformLocation>,
     clip_plane: Option<glow::NativeUniformLocation>,
+    focus: Option<glow::NativeUniformLocation>,
 }
 
 struct GpuResources {
@@ -154,6 +168,8 @@ struct GpuResources {
     vbo: glow::NativeBuffer,
     gem_vao: glow::NativeVertexArray,
     gem_vbo: glow::NativeBuffer,
+    /// One float a staged vertex: how far the chosen node reaches it.
+    focus_vbo: glow::NativeBuffer,
     uniforms: Uniforms,
 }
 
@@ -164,6 +180,10 @@ pub struct GpuMeshRenderer {
     gem_count: i32,
     pending: Option<Vec<f32>>,
     pending_gems: Option<Vec<f32>>,
+    /// A focus channel awaiting upload; `Some(empty)` clears it.
+    pending_focus: Option<Vec<f32>>,
+    /// The uploaded focus channel covers the uploaded mesh vertex for vertex.
+    focus_live: bool,
     depth_checked: bool,
     /// Set once if the shaders will not build, so the pane can say so instead of drawing nothing.
     pub failed: Option<String>,
@@ -179,6 +199,20 @@ impl GpuMeshRenderer {
     /// frame's budget.
     /// `wall` is `(inner_radius_mm, min_section_mm)`, baked alongside the
     /// draft colours so switching shade modes never re-uploads.
+    /// The focus channel for `mesh`: `weight[v]` of each vertex, in the
+    /// order [`stage`](Self::stage) emits them — the same faces skipped, so
+    /// the two buffers stay vertex for vertex.
+    pub fn stage_focus(mesh: &Mesh, weight: &[f32]) -> Vec<f32> {
+        let mut data = Vec::with_capacity(mesh.faces.len() * 3);
+        for face in &mesh.faces {
+            if face.iter().any(|&vi| !mesh.vertices.get(vi as usize).is_some_and(|p| p.is_finite())) {
+                continue;
+            }
+            data.extend(face.iter().map(|&vi| weight.get(vi as usize).copied().unwrap_or(0.0)));
+        }
+        data
+    }
+
     pub fn stage(mesh: &Mesh, cast: Option<&CastReport>, wall: (f64, f64)) -> Vec<f32> {
         let (inner_r, min_section) = wall;
         let mut data: Vec<f32> = Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
@@ -227,6 +261,16 @@ impl GpuMeshRenderer {
         self.pending_gems = Some(verts);
     }
 
+    /// Queue a focus channel built by [`stage_focus`](Self::stage_focus)
+    /// for the mesh on screen. Empty clears the highlight.
+    pub fn set_pending_focus(&mut self, weights: Vec<f32>) {
+        self.pending_focus = Some(weights);
+    }
+
+    pub fn has_focus(&self) -> bool {
+        self.focus_live || self.pending_focus.as_ref().is_some_and(|w| !w.is_empty())
+    }
+
     pub fn has_mesh(&self) -> bool {
         self.vertex_count > 0 || self.pending.is_some()
     }
@@ -244,6 +288,7 @@ impl GpuMeshRenderer {
         wireframe: bool,
         wire_color: [f32; 3],
         clip_plane: [f32; 4],
+        focus: [f32; 4],
     ) {
         self.ensure_resources(gl);
         self.warn_if_no_depth_buffer(gl);
@@ -251,10 +296,22 @@ impl GpuMeshRenderer {
 
         if let Some(verts) = self.pending.take() {
             self.vertex_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
+            // A channel staged for the last mesh says nothing about this one.
+            self.focus_live = false;
             unsafe {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.vbo));
                 gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
                 gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            }
+        }
+        if let Some(weights) = self.pending_focus.take() {
+            self.focus_live = !weights.is_empty() && weights.len() as i32 == self.vertex_count;
+            if self.focus_live {
+                unsafe {
+                    gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.focus_vbo));
+                    gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&weights), glow::STATIC_DRAW);
+                    gl.bind_buffer(glow::ARRAY_BUFFER, None);
+                }
             }
         }
         if let Some(verts) = self.pending_gems.take() {
@@ -298,12 +355,23 @@ impl GpuMeshRenderer {
             gl.uniform_3_f32(u.wire_color.as_ref(), wire_color[0], wire_color[1], wire_color[2]);
             gl.uniform_1_f32(u.wire_px.as_ref(), if wireframe { WIRE_PX } else { 0.0 });
             gl.uniform_4_f32_slice(u.clip_plane.as_ref(), &clip_plane);
+            // Without a channel the attribute is a constant zero: no buffer
+            // is read, so a stale one can never be read past its end.
+            let lit = self.focus_live && focus[3] > 0.0;
+            gl.uniform_4_f32_slice(u.focus.as_ref(), &if lit { focus } else { [0.0; 4] });
+            if lit {
+                gl.enable_vertex_attrib_array(4);
+            } else {
+                gl.disable_vertex_attrib_array(4);
+                gl.vertex_attrib_1_f32(4, 0.0);
+            }
 
             gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
 
             // Stones ride in a second buffer with the same program: dielectric
             // shading, their own tint, whatever the ring's mode is.
             if self.gem_count > 0 {
+                gl.uniform_4_f32_slice(u.focus.as_ref(), &[0.0; 4]);
                 gl.uniform_1_i32(u.mode.as_ref(), 5);
                 gl.uniform_3_f32(
                     u.base_color.as_ref(),
@@ -383,10 +451,11 @@ impl GpuMeshRenderer {
             }
         };
 
-        let (Some(vao), Some(vbo), Some(gem_vao), Some(gem_vbo)) = (
+        let (Some(vao), Some(vbo), Some(gem_vao), Some(gem_vbo), Some(focus_vbo)) = (
             unsafe { gl.create_vertex_array() }.ok(),
             unsafe { gl.create_buffer() }.ok(),
             unsafe { gl.create_vertex_array() }.ok(),
+            unsafe { gl.create_buffer() }.ok(),
             unsafe { gl.create_buffer() }.ok(),
         ) else {
             self.failed = Some("could not create VAO/VBO".into());
@@ -405,6 +474,7 @@ impl GpuMeshRenderer {
                 wire_color: gl.get_uniform_location(program, "u_wire_color"),
                 wire_px: gl.get_uniform_location(program, "u_wire_px"),
                 clip_plane: gl.get_uniform_location(program, "u_clip_plane"),
+                focus: gl.get_uniform_location(program, "u_focus"),
             }
         };
 
@@ -421,9 +491,16 @@ impl GpuMeshRenderer {
                 gl.bind_vertex_array(None);
                 gl.bind_buffer(glow::ARRAY_BUFFER, None);
             }
+            // The focus channel rides the ring's VAO from a buffer of its
+            // own, so a highlight is one small upload and never a re-stage.
+            gl.bind_vertex_array(Some(vao));
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(focus_vbo));
+            gl.vertex_attrib_pointer_f32(4, 1, glow::FLOAT, false, f, 0);
+            gl.bind_vertex_array(None);
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
         }
 
-        self.resources = Some(GpuResources { program, vao, vbo, gem_vao, gem_vbo, uniforms });
+        self.resources = Some(GpuResources { program, vao, vbo, gem_vao, gem_vbo, focus_vbo, uniforms });
     }
 }
 
@@ -565,6 +642,7 @@ pub fn paint_callback(
     wireframe: bool,
     wire_color: [f32; 3],
     clip_plane: [f32; 4],
+    focus: [f32; 4],
 ) {
     let cb = egui_glow::CallbackFn::new(move |info, painter| {
         if let Ok(mut r) = renderer.lock() {
@@ -579,6 +657,7 @@ pub fn paint_callback(
                 wireframe,
                 wire_color,
                 clip_plane,
+                focus,
             );
         }
     });
@@ -608,6 +687,25 @@ mod tests {
         assert_eq!(data[FLOATS_PER_VERTEX], 1.0);
         // No cast report means white.
         assert_eq!(data[6], 1.0);
+    }
+
+    #[test]
+    fn the_focus_channel_rides_vertex_for_vertex_with_the_staged_mesh() {
+        let mesh = Mesh {
+            vertices: vec![Vec3(0.0, 0.0, 0.0), Vec3(1.0, 0.0, 0.0), Vec3(0.0, 1.0, 0.0), Vec3(f32::NAN, 0.0, 0.0)],
+            normals: vec![Vec3(0.0, 0.0, 1.0); 4],
+            faces: vec![[0, 1, 2], [0, 1, 3], [2, 1, 0]],
+        };
+        let staged = GpuMeshRenderer::stage(&mesh, None, (8.5, 0.8));
+        let focus = GpuMeshRenderer::stage_focus(&mesh, &[0.0, 0.5, 1.0, 9.0]);
+        assert_eq!(focus.len() * FLOATS_PER_VERTEX, staged.len(), "the face with a bad vertex is skipped in both");
+        assert_eq!(focus, vec![0.0, 0.5, 1.0, 1.0, 0.5, 0.0]);
+        let mut r = GpuMeshRenderer::default();
+        assert!(!r.has_focus());
+        r.set_pending_focus(focus);
+        assert!(r.has_focus());
+        r.set_pending_focus(Vec::new());
+        assert!(!r.has_focus(), "an empty channel clears the highlight");
     }
 
     #[test]

@@ -24,6 +24,7 @@
 //! undercuts, and [`castability::analyze`] reports where.
 
 pub mod adaptive;
+pub mod imported_base;
 pub mod alpha;
 pub mod castability;
 pub mod contour;
@@ -77,6 +78,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RingDesign {
     pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub imported_base: Option<imported_base::ImportedBase>,
     pub size: RingSize,
     pub profile: BandProfile,
     pub shank: ShankStyle,
@@ -127,6 +130,7 @@ impl Default for RingDesign {
     fn default() -> Self {
         Self {
             name: "Untitled".into(),
+            imported_base: None,
             size: RingSize(7.0),
             profile: BandProfile::default(),
             shank: ShankStyle::default(),
@@ -308,6 +312,16 @@ impl RingDesign {
         m
     }
 
+    /// The common base-surface path for sections, stones, picking and analysis.
+    pub fn section_at(&self, theta: f64, steps: usize, density: Option<&adaptive::Density>, reference: Option<&ProfileLoop>) -> ProfileLoop {
+        if let Some(base) = &self.imported_base {
+            return base.section(self, theta, steps).unwrap_or_default();
+        }
+        let crest = reference.map(|r|r.crest_radius_mm).unwrap_or_else(||self.reference_loop().crest_radius_mm);
+        let m = self.modulation_at(theta, self.inner_radius_mm(), crest);
+        self.profile.sample_spaced(self.inner_radius_mm(), steps, &m, density, reference)
+    }
+
     /// The reference cross-section used to parameterize the height field: the
     /// unmodulated profile, so `v` stays put as the shank tapers.
     ///
@@ -316,6 +330,9 @@ impl RingDesign {
     /// export resolution. Adaptive spacing also derives from this, and a `v`
     /// span that moved with the sampling would make that circular.
     pub fn reference_loop(&self) -> ProfileLoop {
+        if let Some(chart) = self.imported_base.as_ref().and_then(|b|b.chart.as_ref()) {
+            return chart.profile.sample(self.inner_radius_mm(), profile::REFERENCE_PROFILE_STEPS);
+        }
         self.profile
             .sample(self.inner_radius_mm(), profile::REFERENCE_PROFILE_STEPS)
     }
@@ -323,6 +340,21 @@ impl RingDesign {
     /// Unrolled-space context for evaluating the layer stack.
     pub fn field_context(&self) -> FieldContext {
         let loop_ = self.reference_loop();
+        let imported_surface=self.imported_base.as_ref().and_then(|b|b.field_surface(self).ok());
+        let mut imported_seats=std::collections::HashMap::new();
+        if let Some(surface)=&imported_surface {
+            fn collect(stack:&field::LayerStack,surface:&imported_base::FieldSurface,span:f64,out:&mut std::collections::HashMap<(u64,u64),imported_base::TangentFrame>,depth:usize) {
+                if depth>field::MAX_GROUP_DEPTH {return;}
+                for e in &stack.layers {
+                    match &e.layer {
+                        field::Layer::SeatPad(s) if s.metal_true=>{out.insert((s.theta_deg.to_bits(),s.v_mm.to_bits()),surface.frame(s.theta_deg,s.v_mm/span));},
+                        field::Layer::Group(g)=>collect(&g.stack,surface,span,out,depth+1),
+                        _=>{},
+                    }
+                }
+            }
+            collect(&self.layers,surface,loop_.surface_len_mm.max(1e-9),&mut imported_seats,0);
+        }
         FieldContext {
             circumference_mm: std::f64::consts::TAU * loop_.crest_radius_mm,
             band_v_len_mm: loop_.surface_len_mm,
@@ -332,6 +364,8 @@ impl RingDesign {
             bore_radius_mm: self.inner_radius_mm(),
             side_faces_cache: Default::default(),
             stretch: self.station_stretch_table(),
+            imported_surface,
+            imported_seats,
         }
     }
 
@@ -346,7 +380,7 @@ impl RingDesign {
     /// tents; the key is the serialized profile and shank, so a field added
     /// to either can never serve a stale table.
     fn station_stretch_table(&self) -> Option<std::sync::Arc<Vec<f32>>> {
-        if self.shank.kind == ShankKind::Uniform && self.profile.morph.is_none() {
+        if self.imported_base.is_none() && self.shank.kind == ShankKind::Uniform && self.profile.morph.is_none() {
             return None;
         }
         const STATIONS: usize = 360;
@@ -354,12 +388,12 @@ impl RingDesign {
         let inner = self.inner_radius_mm();
         let crest = inner + self.profile.thickness_mm;
         let build = || {
-            let ref_len = self.profile.sample(inner, SECTION_STEPS).surface_len_mm.max(1e-9);
+            let ref_len = if self.imported_base.is_some() { self.reference_loop().surface_len_mm } else { self.profile.sample(inner, SECTION_STEPS).surface_len_mm }.max(1e-9);
             (0..STATIONS)
                 .map(|i| {
                     let theta = i as f64 * 360.0 / STATIONS as f64;
                     let m = self.modulation_at(theta, inner, crest);
-                    let len = self.profile.sample_mod(inner, SECTION_STEPS, &m).surface_len_mm;
+                    let len = if let Some(b) = &self.imported_base { b.section(self, theta, SECTION_STEPS).map(|s|s.surface_len_mm).unwrap_or(ref_len) } else { self.profile.sample_mod(inner, SECTION_STEPS, &m).surface_len_mm };
                     (len / ref_len) as f32
                 })
                 .collect()
@@ -372,6 +406,8 @@ impl RingDesign {
             // uncached rather than serve someone else's table.
             Err(_) => return Some(std::sync::Arc::new(build())),
         }
+        if let Some(b)=&self.imported_base { b.source.fingerprint().hash(&mut h);
+            serde_json::to_vec(&b.chart).unwrap_or_default().hash(&mut h); }
         inner.to_bits().hash(&mut h);
         Some(stretch_cached(h.finish(), build))
     }

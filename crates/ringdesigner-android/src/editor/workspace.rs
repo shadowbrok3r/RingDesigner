@@ -48,6 +48,12 @@ pub fn inspector_extent(available: egui::Vec2, landscape: bool, fraction: f32) -
     (axis * fraction.clamp(0.08, 0.75)).clamp(minimum, maximum)
 }
 
+/// The bottom inspector hugs its measured contents; long editors scroll at half height.
+pub fn content_height(available: f32, measured: Option<f32>) -> f32 {
+    let cap = (available * 0.5).max(0.0);
+    measured.filter(|v| v.is_finite()).unwrap_or(cap).clamp(42.0_f32.min(cap), cap)
+}
+
 #[derive(Clone, Copy)]
 struct Grab {
     pointer: egui::Pos2,

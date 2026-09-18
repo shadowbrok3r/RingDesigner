@@ -14,6 +14,12 @@ use crate::app::RingDesignerApp;
 use crate::theme;
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    if ringdesign_workbench::imported_base::ui(ui, &mut app.design) { app.mark_dirty(); }
+    if app.design.imported_base.is_some() {
+        section(ui, "Casting".into(), false, |ui| casting(app,ui));
+        section(ui, "Mesh".into(), false, |ui| mesh(app,ui));
+        return;
+    }
     section(ui, format!("{} Ring", icon::CIRCLE_NOTCH), true, |ui| {
         ring(app, ui)
     });
@@ -1560,6 +1566,16 @@ fn curve_canvas(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
 // --- Mesh ------------------------------------------------------------------
 
 fn mesh(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    if app.design.imported_base.is_some() {
+        app.export_params.refine=None;app.export_params.adaptive=false;
+        egui::ComboBox::from_id_salt("imported-export-quality").selected_text(format!("{} samples around",app.export_params.theta_steps)).show_ui(ui,|ui| {
+            for &(name,theta,profile) in ringdesign_core::BuildParams::PRESETS {
+                if ui.selectable_label(app.export_params.theta_steps==theta,name).clicked() {app.export_params.theta_steps=theta;app.export_params.profile_steps=profile;}
+            }
+        });
+        hint(ui,"Master triangles stay intact. Detail controls relief subdivision; preview and export use the same base.");
+        return;
+    }
     crate::panels::quality_picker(ui, "export_quality", &mut app.export_params);
 
     match app.export_params.refine {

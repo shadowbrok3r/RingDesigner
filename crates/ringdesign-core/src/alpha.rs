@@ -18,6 +18,11 @@ const BUILTIN_SIZE: usize = 256;
 /// One f32 per pixel, so this is 1 MB per square alpha.
 pub const MAX_ALPHA_EDGE: usize = 512;
 
+/// A saved full-ring map needs more samples than one repeating import tile.
+/// Keep at most 8 MiB of f32 height data per embedded map.
+pub const MAX_EMBEDDED_ALPHA_EDGE: usize = 2048;
+pub const MAX_EMBEDDED_ALPHA_PIXELS: usize = 2 * 1024 * 1024;
+
 /// Longest edge accepted at all. Above this a file is rejected from its header
 /// rather than decoded, so a small highly-compressible image cannot expand into
 /// gigabytes before anyone can downscale it.
@@ -188,8 +193,9 @@ impl Alpha {
 
     /// Decode a [`to_png16`](Self::to_png16) payload, keeping 16-bit precision.
     ///
-    /// An oversized payload falls back to the standard import path and its
-    /// downscale, so a hostile design file cannot expand past the library caps.
+    /// Full-ring artwork retains up to 2048 pixels on its long edge and two
+    /// million samples. Larger payloads are resized in 16-bit precision.
+    /// Ordinary image imports still use the smaller repeating-tile limit.
     pub fn from_png16(name: impl Into<String>, bytes: &[u8]) -> anyhow::Result<Alpha> {
         let name = name.into();
         let mut reader =
@@ -203,12 +209,17 @@ impl Alpha {
         if sw == 0 || sh == 0 {
             anyhow::bail!("{name} has zero extent");
         }
-        if sw.max(sh) > MAX_ALPHA_EDGE as u32 {
-            let reader =
-                image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format()?;
-            return decode(reader, name);
-        }
-        let luma = decoded.into_luma16();
+        let scale = (MAX_EMBEDDED_ALPHA_EDGE as f64 / sw.max(sh) as f64)
+            .min((MAX_EMBEDDED_ALPHA_PIXELS as f64 / (sw as f64 * sh as f64)).sqrt())
+            .min(1.0);
+        let luma = if scale < 1.0 {
+            image::imageops::resize(
+                &decoded.into_luma16(),
+                ((sw as f64 * scale).floor() as u32).max(1),
+                ((sh as f64 * scale).floor() as u32).max(1),
+                image::imageops::FilterType::Lanczos3,
+            )
+        } else { decoded.into_luma16() };
         let (w, h) = (luma.width() as usize, luma.height() as usize);
         let data = luma.into_raw().into_iter().map(|p| p as f32 / 65535.0).collect();
         Ok(Alpha::new(name, w, h, data))
@@ -1622,6 +1633,24 @@ impl AlphaLibrary {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn embedded_full_ring_maps_keep_fine_height_steps_and_bounded_resolution() {
+        let source = Alpha::new("native stock atlas", 2048, 768,
+            (0..2048*768).map(|i| (i%65536) as f32/65535.).collect());
+        let bytes = source.to_png16().unwrap();
+        let loaded = Alpha::from_png16("native stock atlas", &bytes).unwrap();
+        assert_eq!((loaded.width,loaded.height),(2048,768));
+        assert_eq!(loaded.data,source.data);
+        assert!(loaded.data[1]>0. && loaded.data[1]<1./255.);
+        let ordinary = Alpha::from_bytes("repeating tile", &bytes).unwrap();
+        assert_eq!(ordinary.width,MAX_ALPHA_EDGE);
+        let large = Alpha::new("bounded", 2304, 1152, vec![0.31415;2304*1152]);
+        let loaded = Alpha::from_png16("bounded", &large.to_png16().unwrap()).unwrap();
+        assert!(loaded.width<=MAX_EMBEDDED_ALPHA_EDGE && loaded.height<=MAX_EMBEDDED_ALPHA_EDGE);
+        assert!(loaded.width*loaded.height<=MAX_EMBEDDED_ALPHA_PIXELS);
+        assert!((loaded.data[loaded.data.len()/2]-0.31415).abs()<2./65535.);
+    }
+
     #[test]
     fn a_recipe_stays_seamless_under_every_knob() {
         let r = super::ProcRecipe {

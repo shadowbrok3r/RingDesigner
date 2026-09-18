@@ -3584,7 +3584,7 @@ fn resample_at(p: &[[f64; 2]], targets: &[f64]) -> Vec<[f64; 2]> {
 
 /// Compute normals, `v` coordinates, and displacement weights for a finished
 /// closed loop.
-fn finish_loop(mut pts: Vec<ProfileSample>, feature_v: Vec<f64>) -> ProfileLoop {
+pub(crate) fn finish_loop(mut pts: Vec<ProfileSample>, feature_v: Vec<f64>) -> ProfileLoop {
     let n = pts.len();
     if n < 3 {
         return ProfileLoop::default();

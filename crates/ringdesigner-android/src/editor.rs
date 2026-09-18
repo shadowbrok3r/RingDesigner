@@ -6,6 +6,7 @@ pub mod overlay;
 pub mod pen;
 pub mod picking;
 pub mod workspace;
+pub mod visibility;
 
 use egui_mobile::egui;
 use ringdesign_core::RingDesign;
@@ -51,6 +52,8 @@ pub enum Sheet {
     Advanced,
     Construction,
     Workflow,
+    /// The recipe graph under the ring, so a node's reach shows on the metal.
+    Graph,
 }
 
 impl Sheet {
@@ -64,6 +67,7 @@ impl Sheet {
             Self::Advanced => "All design controls",
             Self::Construction => "Construction guide",
             Self::Workflow => "Jewelry workflow",
+            Self::Graph => "Recipe graph",
         }
     }
 }
@@ -175,6 +179,8 @@ impl Parameter {
         }
     }
     pub fn set(self, d: &mut RingDesign, value: f64) -> bool {
+        let before=d.clone();
+        if d.imported_base.is_some() && !matches!(self, Self::Bore|Self::Width|Self::Thickness|Self::HeadLength|Self::HeadRise) { return false; }
         if !value.is_finite() {
             return false;
         }
@@ -199,6 +205,7 @@ impl Parameter {
             Self::HeadRound => d.shank.head.rim_round_mm = value,
             Self::HeadDome => d.shank.head.table_dome_mm = value,
         }
+        if let Some(base)=&d.imported_base { if base.validate_design(d).is_err() { *d=before; return false; } }
         true
     }
     pub fn unit(self) -> &'static str {
@@ -224,6 +231,8 @@ pub struct HandleDrag {
 pub struct Editor {
     pub workspace: crate::prefs::Workspace,
     pub reflow: workspace::Reflow,
+    pub inspector_height: Option<f32>,
+    pub menu_avoidance: visibility::MenuAvoidance,
     pub palette: Option<workspace::Palette>,
     pub floating_rects: Vec<egui::Rect>,
     pub floating_dragging: bool,
@@ -252,6 +261,8 @@ impl Default for Editor {
         Self {
             workspace: crate::prefs::Workspace::default(),
             reflow: workspace::Reflow::default(),
+            inspector_height: None,
+            menu_avoidance: visibility::MenuAvoidance::default(),
             palette: None,
             floating_rects: Vec::new(),
             floating_dragging: false,

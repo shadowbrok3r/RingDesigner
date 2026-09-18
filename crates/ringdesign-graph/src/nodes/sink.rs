@@ -19,7 +19,10 @@ use crate::value::{Value, ValueKind};
 
 fn design_of(i: &Inputs, pin: &str) -> Result<Arc<RingDesign>, NodeError> {
     match i.get(pin) {
-        Value::Design(d) => Ok(d.clone()),
+        Value::Design(d) => {
+            if let Some(base) = &d.imported_base { base.validate_shape(d).map_err(|e|NodeError::input(pin,e.to_string()))?; }
+            Ok(d.clone())
+        },
         other => Err(NodeError::input(pin, format!("expected a design, got {}", other.summary()))),
     }
 }
@@ -163,12 +166,13 @@ fn build(ctx: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeErr
     params.refine = None;
     params.soften_mm = i.number("soften_mm")?.max(0.0);
     let lib = baked(&d, ctx.lib);
-    let out = ringdesign_core::build(&d, &lib, params);
+    let out = ringdesign_core::mesh::try_build(&d, &lib, params).map_err(|e|NodeError::input("design",e.to_string()))?;
     report_outputs(Outputs::default(), out.mesh, &out.report)
 }
 
 fn refine_build(ctx: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
     let d = design_of(i, "design")?;
+    if d.imported_base.is_some() { return Err(NodeError::input("design", "Use Mesh build with imported stock; procedural refinement does not retain the master triangles")); }
     let preset = i.text("preset")?;
     let mut params = RefineParams::preset(preset)
         .ok_or_else(|| NodeError::input("preset", format!("{preset:?} is not one of {:?}", RefineParams::PRESETS.iter().map(|p| p.0).collect::<Vec<_>>())))?;
@@ -235,7 +239,7 @@ fn sheet(ctx: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeErr
         params.theta_steps = 192;
         params.profile_steps = 96;
         params.refine = None;
-        ringdesign_core::build(&d, &lib, params).report
+        ringdesign_core::mesh::try_build(&d, &lib, params).map_err(|e|NodeError::input("design",e.to_string()))?.report
     };
     let stones = match i.get("stones") {
         Value::Stones(s) => Some((**s).clone()),

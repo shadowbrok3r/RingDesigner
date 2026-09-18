@@ -26,6 +26,7 @@ layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec3 a_color;
 layout(location = 3) in vec3 a_color2;
+layout(location = 4) in float a_focus;
 
 uniform mat4 u_mvp;
 uniform mat3 u_normal_matrix;
@@ -36,9 +37,11 @@ out vec3 v_color2;
 out float v_obj_nz;
 out vec3 v_world;
 out float v_cavity;
+out float v_focus;
 
 void main() {
     gl_Position = u_mvp * vec4(a_position, 1.0);
+    v_focus = a_focus;
     v_normal = u_normal_matrix * a_normal;
     v_color = a_color;
     v_color2 = a_color2;
@@ -58,7 +61,9 @@ in vec3 v_color2;
 in float v_obj_nz;
 in vec3 v_world;
 in float v_cavity;
+in float v_focus;
 uniform vec4 u_clip_plane;
+uniform vec4 u_focus;
 
 uniform int u_mode;
 uniform vec3 u_light_dir;
@@ -97,6 +102,14 @@ void main() {
         color = studio_metal(n, u_base_color, l, u_ambient, v_cavity);
     }
 
+    // The chosen graph node's reach: its tint over whatever the mode drew,
+    // a little of the key light kept so relief still reads under it.
+    float focus = clamp(v_focus, 0.0, 1.0) * u_focus.a;
+    if (focus > 0.0) {
+        float lit = 0.62 + 0.38 * max(dot(n, l), 0.0);
+        color = mix(color, u_focus.rgb * lit, focus);
+    }
+
     frag_color = vec4(color, u_alpha);
 }
 "#;
@@ -126,6 +139,8 @@ struct GpuResources {
     gem_vbo: glow::NativeBuffer,
     ghost_vao: glow::NativeVertexArray,
     ghost_vbo: glow::NativeBuffer,
+    /// One float a staged vertex: how far the chosen node reaches it.
+    focus_vbo: glow::NativeBuffer,
 }
 
 pub struct GpuMeshRenderer {
@@ -136,6 +151,10 @@ pub struct GpuMeshRenderer {
     gem_pending: Option<Vec<f32>>,
     ghost_count: i32,
     ghost_pending: Option<Vec<f32>>,
+    /// A focus channel awaiting upload; `Some(empty)` clears it.
+    focus_pending: Option<Vec<f32>>,
+    /// The uploaded channel covers the uploaded mesh vertex for vertex.
+    focus_live: bool,
     depth_checked: bool,
 }
 
@@ -153,6 +172,8 @@ impl Default for GpuMeshRenderer {
             gem_pending: None,
             ghost_count: 0,
             ghost_pending: None,
+            focus_pending: None,
+            focus_live: false,
             depth_checked: false,
         }
     }
@@ -236,6 +257,24 @@ impl GpuMeshRenderer {
         self.prepare_upload(&display, None, (0.0, 0.0));
     }
 
+    /// Per-vertex weights in the order [`prepare_upload`](Self::prepare_upload)
+    /// emits vertices — the same faces skipped, so the two stay vertex for vertex.
+    pub fn stage_focus(mesh: &Mesh, weight: &[f32]) -> Vec<f32> {
+        let mut data = Vec::with_capacity(mesh.faces.len() * 3);
+        for face in &mesh.faces {
+            if face.iter().any(|&vi| !mesh.vertices.get(vi as usize).is_some_and(|p| p.is_finite())) {
+                continue;
+            }
+            data.extend(face.iter().map(|&vi| weight.get(vi as usize).copied().unwrap_or(0.0)));
+        }
+        data
+    }
+
+    /// Queue a focus channel staged for the mesh on screen. Empty clears it.
+    pub fn prepare_focus(&mut self, weights: Vec<f32>) {
+        self.focus_pending = Some(weights);
+    }
+
     /// Queue the stone-preview triangles built by [`crate::gems`]. An empty
     /// buffer clears them.
     pub fn prepare_gems(&mut self, verts: Vec<f32>) {
@@ -286,16 +325,29 @@ impl GpuMeshRenderer {
         wire_color: [f32; 3],
         show_gems: bool,
         clip_plane: [f32; 4],
+        focus: [f32; 4],
     ) {
         unsafe { self.ensure_resources(gl) };
         let Some(res) = self.resources else { return };
 
         if let Some(verts) = self.pending.take() {
+            // A channel staged for the last mesh says nothing about this one.
+            self.focus_live = false;
             self.vertex_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
             unsafe {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.vbo));
                 gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
                 gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            }
+        }
+        if let Some(weights) = self.focus_pending.take() {
+            self.focus_live = !weights.is_empty() && weights.len() as i32 == self.vertex_count;
+            if self.focus_live {
+                unsafe {
+                    gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.focus_vbo));
+                    gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&weights), glow::STATIC_DRAW);
+                    gl.bind_buffer(glow::ARRAY_BUFFER, None);
+                }
             }
         }
         if let Some(verts) = self.ghost_pending.take() {
@@ -361,9 +413,21 @@ impl GpuMeshRenderer {
             gl.uniform_1_f32(loc.as_ref(), 1.0);
             let loc = gl.get_uniform_location(res.program, "u_clip_plane");
             gl.uniform_4_f32_slice(loc.as_ref(), &clip_plane);
+            // Without a channel the attribute is a constant zero: no buffer
+            // is read, so a stale one can never be read past its end.
+            let lit = self.focus_live && focus[3] > 0.0;
+            let focus_loc = gl.get_uniform_location(res.program, "u_focus");
+            gl.uniform_4_f32_slice(focus_loc.as_ref(), &if lit { focus } else { [0.0; 4] });
+            if lit {
+                gl.enable_vertex_attrib_array(4);
+            } else {
+                gl.disable_vertex_attrib_array(4);
+                gl.vertex_attrib_1_f32(4, 0.0);
+            }
 
             gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
             gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
+            gl.uniform_4_f32_slice(focus_loc.as_ref(), &[0.0; 4]);
 
             // The pinned comparison ghost: last, translucent, no depth
             // writes, so it reads as a spectre around the live metal.
@@ -482,6 +546,7 @@ impl GpuMeshRenderer {
         let gem_vbo = unsafe { gl.create_buffer() }.expect("create gem VBO");
         let ghost_vao = unsafe { gl.create_vertex_array() }.expect("create ghost VAO");
         let ghost_vbo = unsafe { gl.create_buffer() }.expect("create ghost VBO");
+        let focus_vbo = unsafe { gl.create_buffer() }.expect("create focus VBO");
 
         unsafe {
             for (vao, vbo) in [(vao, vbo), (gem_vao, gem_vbo), (ghost_vao, ghost_vbo)] {
@@ -496,6 +561,12 @@ impl GpuMeshRenderer {
                 }
             }
 
+            // The focus channel rides the ring's VAO from a buffer of its
+            // own, so a highlight is one small upload and never a re-stage.
+            gl.bind_vertex_array(Some(vao));
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(focus_vbo));
+            gl.vertex_attrib_pointer_f32(4, 1, glow::FLOAT, false, std::mem::size_of::<f32>() as i32, 0);
+
             gl.bind_vertex_array(None);
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
         }
@@ -509,6 +580,7 @@ impl GpuMeshRenderer {
             gem_vbo,
             ghost_vao,
             ghost_vbo,
+            focus_vbo,
         });
     }
 
@@ -523,8 +595,11 @@ impl GpuMeshRenderer {
                 gl.delete_buffer(res.gem_vbo);
                 gl.delete_vertex_array(res.ghost_vao);
                 gl.delete_buffer(res.ghost_vbo);
+                gl.delete_buffer(res.focus_vbo);
             }
         }
+        self.focus_pending = None;
+        self.focus_live = false;
         self.vertex_count = 0;
         self.pending = None;
         self.gem_count = 0;
@@ -818,8 +893,23 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         &mut app.panes[pane].navigation, [camera.yaw, camera.pitch], head);
     if let Some(action) = nav.action {
         let angles = action.angles(camera.yaw, camera.pitch, head);
-        app.panes[pane].camera.yaw = angles[0]; app.panes[pane].camera.pitch = angles[1];
-        app.panes[pane].camera.pan = [0.0; 2];
+        if action.recentres() {
+            // A view from the cube eases in, as a chosen node's does.
+            let from = camera.pose();
+            app.panes[pane].turn = Some(ringdesign_workbench::focus::Turn::new(from, ringdesign_workbench::focus::Pose { yaw: angles[0], pitch: angles[1], pan: [0.0; 2], ..from }));
+        } else {
+            app.panes[pane].turn = None;
+            app.panes[pane].camera.yaw = angles[0];
+            app.panes[pane].camera.pitch = angles[1];
+        }
+    }
+    if let Some(turn) = app.panes[pane].turn {
+        let (pose, arrived) = turn.now();
+        app.panes[pane].camera.set_pose(pose);
+        if arrived {
+            app.panes[pane].turn = None;
+        }
+        ui.ctx().request_repaint();
     }
     let shift = ui.input(|i| i.modifiers.shift);
     let explicit_navigation = shift || ui.input(|i| i.pointer.middle_down() || i.multi_touch().is_some_and(|m| m.num_touches >= 2));
@@ -896,6 +986,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             app.renderer.clone()
         };
         let clip_plane = if active { app.visual.clip() } else { [0.0; 4] };
+        let focus = if mould_active { [0.0; 4] } else { app.node_focus.tint };
 
         let callback = egui_glow::CallbackFn::new(move |info, glow_painter| {
             if let Ok(mut r) = renderer.lock() {
@@ -913,6 +1004,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                     wire_color,
                     show_gems,
                     clip_plane,
+                    focus,
                 );
             }
         });
@@ -920,6 +1012,13 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             rect,
             callback: Arc::new(callback),
         });
+        // What the chosen graph node does, said on the ring it is shown on.
+        if let Some(words) = app.node_words() {
+            let galley = painter.layout_no_wrap(words, egui::FontId::proportional(12.0), egui::Color32::from_rgb(255, 110, 168));
+            let at = egui::pos2(rect.center().x - galley.size().x * 0.5, rect.bottom() - 46.0);
+            painter.rect_filled(egui::Rect::from_min_size(at, galley.size()).expand2(egui::vec2(7.0, 4.0)), 5.0, egui::Color32::from_black_alpha(190));
+            painter.galley(at, galley, egui::Color32::WHITE);
+        }
     } else {
         painter.text(
             rect.center(),
@@ -970,8 +1069,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     }
 
     if active && app.panes[pane].navigation.magnifier && !floating_blocked && !navigating {
-        if let Some(contact) = app.visual.placement_contact(ui, rect) {
-            ringdesign_workbench::loupe::show(ui, rect, contact, &[nav.rect]);
+        if let Some((contact, reach)) = app.visual.placement_focus(ui, rect) {
+            ringdesign_workbench::loupe::show(ui, rect, contact, reach, &[nav.rect]);
         }
     }
     painter.text(
@@ -1025,6 +1124,7 @@ pub fn candidate_view(
                 false,
                 [0.3, 0.3, 0.3],
                 true,
+                [0.0; 4],
                 [0.0; 4],
             );
         }
@@ -1395,6 +1495,17 @@ fn probe_click(
     named = found;
     if let Some((i, _)) = named {
         app.selected_layer = Some(i);
+    }
+    // On a graph-driven design the click also opens the node behind that
+    // metal: the layer that wins the blend there, not merely the topmost.
+    if app.graph_ed.is_some() {
+        let hit = ringdesign_core::interaction::picking::Hit { ray: ([0.0; 3], [0.0, 0.0, 1.0]), world, face: fi, theta_deg: theta, v_mm, radial_wall_mm: r - inner_r, relief_mm: h };
+        if let Some(node) = ringdesign_workbench::focus::layer_behind(&app.design, &app.lib, &hit).and_then(|layer| app.node_for_layer(layer)) {
+            if let Some(ed) = app.graph_ed.as_mut() {
+                ed.focus(node);
+            }
+            app.selected_node = Some(node);
+        }
     }
 
     let text = format!(

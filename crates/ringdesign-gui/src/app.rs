@@ -229,6 +229,10 @@ pub struct RingDesignerApp {
     pub graph_json: Option<serde_json::Value>,
     /// Graph-level errors from the last evaluation, when nothing ran.
     pub graph_errors: Vec<String>,
+    /// What each node reaches on the ring, as of the last evaluation.
+    pub graph_effects: BTreeMap<GraphNodeId, ringdesign_graph::focus::NodeEffect>,
+    /// The chosen node's highlight on the ring.
+    pub node_focus: NodeFocus,
     pub selected_node: Option<GraphNodeId>,
 
     /// Embedded MCP server, `None` until the user starts it.
@@ -343,6 +347,8 @@ impl RingDesignerApp {
             graph_ed: None,
             graph_json: None,
             graph_errors: Vec::new(),
+            graph_effects: BTreeMap::new(),
+            node_focus: NodeFocus::default(),
             selected_node: None,
 
             mcp: None,
@@ -522,6 +528,8 @@ impl RingDesignerApp {
                         }
                     }
                     self.build = Some(Arc::new(done.result));
+                    self.node_focus.mesh_generation = done.generation;
+                    self.node_focus.mesh_params = Some(done.params);
                     self.visual.mesh_changed();
                     self.cast = Some(done.cast);
                     self.field = Some(done.field);
@@ -529,6 +537,10 @@ impl RingDesignerApp {
                     self.hot_spot = done.hot_spot;
                     if let Some(gd) = done.graph {
                         if gd.ok {
+                            if let Some(lib) = gd.baked_library {
+                                self.lib = lib;
+                                self.thumbs.clear();
+                            }
                             // The evaluated design, under whatever the graph
                             // has become since the job was queued.
                             let graph = self.design.graph.take();
@@ -536,6 +548,9 @@ impl RingDesignerApp {
                             self.design.graph = graph;
                         }
                         self.graph_errors = gd.errors.iter().map(ToString::to_string).collect();
+                        if gd.ok {
+                            self.graph_effects = gd.effects;
+                        }
                         if let Some(ed) = &mut self.graph_ed {
                             ed.set_values(&gd.values);
                             ed.set_diagnostics(&gd.errors, &gd.notes);
@@ -554,6 +569,7 @@ impl RingDesignerApp {
                 self.status = "Build worker stopped".into();
             }
         }
+        self.sync_node_focus(ctx);
 
         // Diffed against the last committed design, so an edit is recorded
         // however it arrived — a panel, an MCP client, a loaded file.
@@ -827,10 +843,16 @@ impl RingDesignerApp {
         self.graph_json = self.design.graph.clone();
         let parsed = self.design.graph.as_ref().and_then(|j| serde_json::from_value::<Graph>(j.clone()).ok());
         match parsed {
-            Some(g) => match &mut self.graph_ed {
-                Some(ed) => ed.set_graph(g, &self.graph_reg),
-                None => self.graph_ed = Some(Editor::new(g, &self.graph_reg)),
-            },
+            Some(g) => {
+                match &mut self.graph_ed {
+                    Some(ed) => ed.set_graph(g, &self.graph_reg),
+                    None => self.graph_ed = Some(Editor::new(g, &self.graph_reg)),
+                }
+                // A lifted graph sits on a nominal grid its nodes overflow.
+                if let Some(ed) = &mut self.graph_ed {
+                    ed.arrange_if_tangled();
+                }
+            }
             None => {
                 self.graph_ed = None;
                 self.selected_node = None;
@@ -840,6 +862,93 @@ impl RingDesignerApp {
             if ed.node(sel).is_none() {
                 self.selected_node = None;
             }
+        }
+    }
+
+    /// What the chosen node does, in words: its reach, then what was measured.
+    pub fn node_words(&self) -> Option<String> {
+        let effect = self.graph_effects.get(&self.selected_node?)?;
+        Some(if self.node_focus.words.is_empty() { effect.summary() } else { format!("{} \u{b7} {}", effect.summary(), self.node_focus.words) })
+    }
+
+    /// The node to open for the layer at `index` of the evaluated stack:
+    /// the layer's own node, where its numbers are, else its entry.
+    pub fn node_for_layer(&self, index: usize) -> Option<GraphNodeId> {
+        let g = self.graph_ed.as_ref()?.graph();
+        let entry = g.nodes.iter().filter(|n| n.kind == "entry").map(|n| n.id).find(|id| self.graph_effects.get(id).is_some_and(|e| e.layers.iter().any(|p| p.as_slice() == [index])))?;
+        Some(g.wire_into(entry, "layer").map_or(entry, |w| w.from))
+    }
+
+    /// Keeps the ring's highlight in step with the chosen node: asks for one
+    /// when the node or the mesh under it changes, takes the newest result,
+    /// and carries the flash frame to frame.
+    fn sync_node_focus(&mut self, ctx: &egui::Context) {
+        let want = if self.graph_ed.is_some() { self.selected_node } else { None };
+        if want != self.node_focus.shown {
+            self.node_focus.shown = want;
+            self.node_focus.asked = None;
+            self.node_focus.words.clear();
+            self.node_focus.chosen_at = Some(Instant::now());
+            self.node_focus.aim_pending = want.is_some();
+            if let Ok(mut r) = self.renderer.lock() {
+                r.prepare_focus(Vec::new());
+            }
+        }
+        if self.node_focus.worker.is_none() {
+            let wake = ctx.clone();
+            self.node_focus.worker = Some(ringdesign_workbench::focus::Worker::spawn(move || wake.request_repaint(), GpuMeshRenderer::stage_focus));
+            self.node_focus.follow = true;
+        }
+        let mut arrived = Vec::new();
+        if let Some(worker) = &self.node_focus.worker {
+            while let Some(hl) = worker.poll() {
+                arrived.push(hl);
+            }
+        }
+        for hl in arrived {
+            if Some((hl.node, hl.generation)) != self.node_focus.asked || want != Some(hl.node) {
+                continue;
+            }
+            if let Some(effect) = self.graph_effects.get(&hl.node) {
+                self.node_focus.words = hl.words(effect);
+            }
+            if std::mem::take(&mut self.node_focus.aim_pending) && self.node_focus.follow {
+                if let Some(aim) = &hl.aim {
+                    for pane in self.panes.iter_mut().filter(|p| p.kind == PaneKind::Solid) {
+                        pane.turn = Some(ringdesign_workbench::focus::Turn::new(pane.camera.pose(), pane.camera.aimed_at(aim)));
+                    }
+                }
+            }
+            if let Ok(mut r) = self.renderer.lock() {
+                r.prepare_focus(hl.staged);
+            }
+            ctx.request_repaint();
+        }
+        let Some(node) = want else {
+            self.node_focus.tint = [0.0; 4];
+            return;
+        };
+        let key = (node, self.node_focus.mesh_generation);
+        let settled = self.dirty_at.is_none() && !self.in_flight;
+        if settled && self.node_focus.asked != Some(key) && self.design.cad.is_none() {
+            if let (Some(worker), Some(build), Some(params), Some(effect)) = (self.node_focus.worker.as_ref(), self.build.as_ref(), self.node_focus.mesh_params, self.graph_effects.get(&node)) {
+                // The graph's JSON can run to megabytes of embedded artwork,
+                // and a before/after build reads none of it.
+                let graph = self.design.graph.take();
+                let design = self.design.clone();
+                self.design.graph = graph;
+                let view_yaw = self.panes.iter().find(|p| p.kind == PaneKind::Solid).map_or(0.0, |p| p.camera.yaw);
+                let mesh = Arc::new(build.mesh.clone());
+                if worker.request(ringdesign_workbench::focus::Request { node, generation: key.1, design, lib: self.lib.clone(), params, mesh, effect: effect.clone(), view_yaw }) {
+                    self.node_focus.asked = Some(key);
+                }
+            }
+        }
+        let since = self.node_focus.chosen_at.map_or(f32::MAX, |at| at.elapsed().as_secs_f32());
+        let (strength, moving) = ringdesign_workbench::focus::pulse(since);
+        self.node_focus.tint = [1.0, 0.24, 0.545, strength];
+        if moving {
+            ctx.request_repaint();
         }
     }
 
@@ -962,6 +1071,9 @@ struct Job {
 /// What evaluating a job's graph produced.
 pub struct GraphDone {
     pub design: RingDesign,
+    /// What each node reaches on the evaluated design.
+    pub effects: BTreeMap<GraphNodeId, ringdesign_graph::focus::NodeEffect>,
+    pub baked_library: Option<Arc<AlphaLibrary>>,
     pub values: BTreeMap<GraphNodeId, BTreeMap<String, String>>,
     pub notes: BTreeMap<GraphNodeId, Vec<String>>,
     pub errors: Vec<GraphError>,
@@ -972,6 +1084,8 @@ pub struct GraphDone {
 
 struct Done {
     generation: u64,
+    /// What `result` was built with, so a before/after can be built to match.
+    params: BuildParams,
     result: BuildResult,
     cast: CastReport,
     field: ringdesign_core::castability::FieldReport,
@@ -980,6 +1094,27 @@ struct Done {
     hot_spot: Option<(f64, f64)>,
     gems: Vec<f32>,
     graph: Option<GraphDone>,
+}
+
+/// The highlight a chosen graph node casts on the ring, and what it was
+/// measured against.
+#[derive(Default)]
+pub struct NodeFocus {
+    worker: Option<ringdesign_workbench::focus::Worker>,
+    mesh_generation: u64,
+    mesh_params: Option<BuildParams>,
+    /// `(node, mesh generation)` the highlight on screen, or on its way, is for.
+    asked: Option<(GraphNodeId, u64)>,
+    shown: Option<GraphNodeId>,
+    chosen_at: Option<Instant>,
+    /// The next highlight to arrive also turns the cameras.
+    aim_pending: bool,
+    /// The measured half of the caption.
+    pub words: String,
+    /// Tint and strength for the renderer; zero strength is off.
+    pub tint: [f32; 4],
+    /// Turn the ring to the chosen node.
+    pub follow: bool,
 }
 
 /// What comes back from the build thread.
@@ -1048,12 +1183,16 @@ impl Worker {
                                             (*id, lines)
                                         })
                                         .collect();
-                                    graph_done = Some(GraphDone { design: d.clone(), values, notes, errors: Vec::new(), ok: true });
+                                    if let Some(lib) = &out.baked_library {
+                                        job.lib = lib.clone();
+                                    }
+                                    let effects = ringdesign_graph::focus::effects(g, &reg, &out.report.values, &out.design);
+                                    graph_done = Some(GraphDone { design: d.clone(), effects, baked_library: out.baked_library, values, notes, errors: Vec::new(), ok: true });
                                     field_from_graph = Some(out.field);
                                     job.design = d;
                                 }
                                 Err(e) => {
-                                    graph_done = Some(GraphDone { design: job.design.clone(), values: BTreeMap::new(), notes: BTreeMap::new(), errors: vec![e], ok: false });
+                                    graph_done = Some(GraphDone { design: job.design.clone(), effects: BTreeMap::new(), baked_library: None, values: BTreeMap::new(), notes: BTreeMap::new(), errors: vec![e], ok: false });
                                 }
                             }
                         }
@@ -1077,6 +1216,7 @@ impl Worker {
                         let gems = crate::gems::preview_vertices(&job.design, &job.lib);
         Done {
                             generation,
+                            params: job.params,
                             result,
                             cast,
                             field,

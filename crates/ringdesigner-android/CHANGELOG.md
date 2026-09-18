@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.21.0 — 2026-09-18
+
+- The corner navigator is a view cube. It turns with the ring: tap a face to look straight at that side (FACE, PALM, LEFT, RIGHT and the two openings), an edge or a corner to look between them, drag the cube to orbit, tap the arrows to step to the face on that side, double-tap for the home view. Views ease in instead of jumping.
+- Mirror now shows the same view from the other shoulder and never turns the face away; the old button looked from the diametrically opposite side, which is still in the Views menu as Opposite side. Left and Right shoulder are also the way round they appear on screen.
+- Choosing a graph node always turns the ring to what it does. A layer mirrored onto both shoulders is faced on the nearer shoulder rather than at the head between them; a layer that runs most of the way round is entered from its near end; whole-band nodes frame the whole ring.
+- Two new masterworks in File → New → Showcase templates, each with its editable graph. Palisade — deco colonnade is held to two-part sand and reads Castable at 0.0000% undercut: a buff-top oval with a bench-cut sunburst, an emerald cut and graduated rounds on the parting line, gadrooned shoulders that run whole into the head, reeded edges, zigzag wires and crest beads. Oriel — jewelled lantern has no guard rails: a bezel-set cabochon in an 18-stone prong halo laid out in true metal millimetres, pave shoulders, engine turning, rope and milgrain rails, and a pierced lattice gallery, judged for lost wax.
+- The casting verdict and the fine-detail findings set aside layers marked "cut at the bench": a graver's line in a signet's table is in the finished ring and not in the pattern, and no longer fails the pour. The verdict says which layers it set aside.
+
+## 0.20.0 — 2026-09-18
+
+- The recipe graph docks under the ring (beside it in landscape): Tools → Recipe graph, or Open graph on a graph-driven design. Drag the grip to share the screen; the expand button gives the graph the whole screen and brings it back.
+- Choosing a node lights what it does on the ring, and the ring turns to face it. A layer's reach is measured by building the ring with and without it — the caption gives its share of the surface and how far metal moved — so a window, a mask or a layer that loses its blend shows truthfully, including "no metal moves". Head nodes light the head, section and shank nodes wash the whole band, and build or casting settings say they move nothing.
+- Step through the recipe with < and >, jump to any node from the list between them, or follow the chosen node's wires from the In and Out menus. Tap ornament on the ring to open the node that made it.
+- Nodes keep their width. The shell's text wrapping reached into the canvas and folded titles to a letter per line, which also threw off Arrange; rows now lay out on one line at any zoom.
+- Taps choose the node under the finger at any pan or zoom (they were tested against the wrong coordinates, so a tap elsewhere could change the selection). The title-bar grab grows as you zoom out, so a node can be moved with a fingertip even when the whole graph is in view.
+- Arrange places each source beside what it feeds along one straight spine, instead of stacking every source in the first column beside a chain running off screen. A graph that opens with overlapping nodes is arranged once automatically; a tidy one is left alone.
+- Rebuilt Nocturne and Solstice on imported stock with ornament fitted to the real face and shoulders, leaving polished rims clear of relief.
+- Added Aurelia, a large floral sand-pattern showcase, and Vesper, an unrestricted 15-stone celestial signet. All four stock masterworks include portable artwork, manufacturing setup, and editable graphs in File → New.
+- Higher-resolution relief sampling and 16-bit embedded height maps retain fine detail after saving and reopening. Imported stone settings keep their physical dimensions when the face is resized. New saves use format 4; update desktop RingDesigner before opening them there.
+- Optional sand withdrawal support fills relief toward the parting plane and keeps a calibrated releasing bore. Casting checks still report low draft and other findings for workshop review.
+- Kept the dedicated File button, content-sized half-screen inspector, and menu-opening camera adjustment. Mesh detail labels now account for imported meshes with variable triangle counts.
+
+## 0.19.0 — 2026-09-18
+
+- Dedicated File button on the top bar: New, Open, Save, copy to Downloads, and export access from every workspace.
+- Bottom inspector fits its content and scrolls at half the available screen height. Opening menus and tool palettes shifts the ring toward unobstructed space once; manual pan, zoom and orientation remain under your control.
+- New design menu includes 19 bundled imported signet bases, Nocturne and Solstice with imported shoulders, and four showcase graph templates. No external asset download is needed.
+- Smooth resizing of imported faces and shoulders preserves the bore and source topology. Base-only inspection, dimension reset, deformation validation, and section comparison are available in Shape.
+- Imported geometry, artwork, stones, and editable graphs survive save/reload and STL/3MF export. Projects use format version 3; update desktop RingDesigner before opening them there.
+
+## 0.18.1 — 2026-09-17
+
+- The placement magnifier holds the whole stamp: the lens grows to the artwork's own footprint and prints its magnification, easing off 2.5× only when a placement is too large to fit. Its edges are no longer cropped by the circle.
+
 ## 0.18.0 — 2026-09-16
 
 - Live 2.5× placement magnifier above the finger for Stamp, Path, Paint and Move; samples the actual mesh and surface overlay. Toggle it in the ring navigator.

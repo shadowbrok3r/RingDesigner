@@ -151,18 +151,19 @@ impl TransformTool {
         project: impl Fn([f64; 3]) -> Pos2,
         ray: impl Fn(Pos2) -> ([f32; 3], [f32; 3]),
         pointer: Pointer,
-    ) {
+    ) -> Rect {
         if d.graph.is_some() || d.cad.is_some() {
-            return;
+            return Rect::NOTHING;
         }
         if pointer.navigating {
             self.drag = None;
-            return;
+            return Rect::NOTHING;
         }
         let mut used = false;
+        let mut footprint = Rect::NOTHING;
         if let Some(target) = self.target.as_ref() {
             if let Some((layer, _)) = ornament::get(d, target) {
-                crate::artwork::preview(
+                footprint = crate::artwork::preview(
                     ui,
                     rect,
                     d,
@@ -266,6 +267,7 @@ impl TransformTool {
                 }
             }
         }
+        footprint
     }
 }
 

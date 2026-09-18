@@ -196,9 +196,8 @@ struct Column {
 use crate::profile::ProfileSample as Sample;
 
 impl Column {
-    fn build(design: &RingDesign, inner_r: f64, crest_r: f64, theta_deg: f64, steps: usize) -> Self {
-        let m = design.modulation_at(theta_deg, inner_r, crest_r);
-        let loop_ = design.profile.sample_mod(inner_r, steps, &m);
+    fn build(design: &RingDesign, _inner_r: f64, _crest_r: f64, theta_deg: f64, steps: usize) -> Self {
+        let loop_ = design.section_at(theta_deg, steps, None, None);
         let n = loop_.len();
         let mut cum = Vec::with_capacity(n + 1);
         let mut acc = 0.0;

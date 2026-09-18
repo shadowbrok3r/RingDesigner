@@ -1,6 +1,8 @@
 //! Touch-friendly workshop shared by the configurator and Android.
 pub mod artwork;
+pub mod imported_base;
 pub mod construction;
+pub mod focus;
 pub mod icons;
 pub mod navigation;
 #[cfg(feature = "glow")]

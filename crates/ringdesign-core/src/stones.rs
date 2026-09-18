@@ -469,15 +469,22 @@ fn frame_at(
 ) -> StoneFrame {
     let b = base_at(design, inner_r, crest_r, ctx, st.theta_deg, st.v_mm);
     let (sin, cos) = st.theta_deg.to_radians().sin_cos();
-    let normal = [b.nr * cos, b.nr * sin, b.nz];
-    let girdle = [
+    let mut normal = [b.nr * cos, b.nr * sin, b.nz];
+    let mut girdle = [
         b.r * cos + normal[0] * st.stand_off_mm(),
         b.r * sin + normal[1] * st.stand_off_mm(),
         b.z + normal[2] * st.stand_off_mm(),
     ];
     // The band's own two tangents: along the ring, and across the section.
-    let t = [-sin, cos, 0.0];
-    let across = [-b.nz * cos, -b.nz * sin, b.nr];
+    let mut t = [-sin, cos, 0.0];
+    let mut across = [-b.nz * cos, -b.nz * sin, b.nr];
+    if let Some(base)=&design.imported_base {
+        if let Ok((point,n))=base.point_normal(design,st.theta_deg,st.v_mm) {
+            normal=n;girdle=std::array::from_fn(|i|point[i]+n[i]*st.stand_off_mm());
+            let projected=std::array::from_fn(|i|t[i]-n[i]*dot(t,n));let len=norm(projected).max(1e-9);t=projected.map(|x|x/len);
+            across=crate::mesh::cross(n,t);
+        }
+    }
     let (rs, rc) = st.rot_deg().to_radians().sin_cos();
     let long = [
         t[0] * rc + across[0] * rs,
@@ -712,13 +719,12 @@ struct BasePoint {
 fn base_at(
     design: &RingDesign,
     inner_r: f64,
-    crest_r: f64,
+    _crest_r: f64,
     ctx: &FieldContext,
     theta_deg: f64,
     v_mm: f64,
 ) -> BasePoint {
-    let m = design.modulation_at(theta_deg, inner_r, crest_r);
-    let l = design.profile.sample_mod(inner_r, 192, &m);
+    let l = design.section_at(theta_deg, 192, None, None);
     let v_norm = (v_mm / ctx.band_v_len_mm.max(1e-9)).clamp(0.0, 1.0);
     let target = v_norm * l.surface_len_mm;
 

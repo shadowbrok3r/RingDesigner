@@ -327,9 +327,9 @@ impl Icon {
             ),
             Magnifier => (
                 "Placement magnifier",
-                "Show a live 2.5× close-up above your contact.",
+                "Show a live close-up above your contact, up to 2.5×.",
                 "Touch or drag on the ring with Stamp, Path, Paint or Move. Tap this icon to hide or show the lens.",
-                "The crosshair marks the actual contact; the image includes the surface overlay.",
+                "The lens holds the whole stamp, easing off 2.5× for a large one; its own factor is printed on the rim.",
             ),
             TurnLeft | TurnRight => (
                 "Quarter turn",
@@ -629,7 +629,8 @@ impl Icon {
             "Before" => Before,
             "Jewelry workflow" | "Construction guide" | "Guide" => Guide,
             "Edit history" => History,
-            "Files & exports" => Files,
+            "File" | "Files & exports" => Files,
+            "New" => Shape,
             "Pattern library" | "Patterns & alphas" => Pattern,
             "Recipe graph" => Graph,
             "CAD & mould workshop" => Workshop,

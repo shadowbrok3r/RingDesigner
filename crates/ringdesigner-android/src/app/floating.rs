@@ -362,6 +362,10 @@ impl RingApp {
                 (Tab::Files, "Files & exports"),
             ] {
                 if button(ui, label, false).clicked() {
+                    if tab == Tab::Graph {
+                        self.open_graph_sheet();
+                        continue;
+                    }
                     self.tab = tab;
                     self.editor.palette = None;
                 }

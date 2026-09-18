@@ -105,6 +105,10 @@ pub struct FieldContext {
     /// unmodulated band, where the stretch is exactly 1 everywhere.
     /// [`RingDesign::field_context`](crate::RingDesign::field_context) fills it.
     pub stretch: Option<std::sync::Arc<Vec<f32>>>,
+    /// Actual imported stock in the persistent chart, for rigid setting
+    /// footprints instead of a whole-section average stretch.
+    pub imported_surface: Option<std::sync::Arc<crate::imported_base::FieldSurface>>,
+    pub imported_seats: std::collections::HashMap<(u64,u64),crate::imported_base::TangentFrame>,
 }
 
 impl FieldContext {
@@ -1433,7 +1437,17 @@ impl SeatPadLayer {
         let du = wrap_delta(uv.u - u0, ctx.circumference_mm);
         let dv = uv.v - self.v_mm;
         // Metal-true: offsets in metal mm at the pad's own station.
-        let (du, dv) = if self.metal_true {
+        let (du, dv) = if self.metal_true && ctx.imported_surface.is_some() {
+            let surface=ctx.imported_surface.as_ref().unwrap();
+            let frame=ctx.imported_seats.get(&(self.theta_deg.to_bits(),self.v_mm.to_bits())).copied()
+                .unwrap_or_else(||surface.frame(self.theta_deg,self.v_mm/ctx.band_v_len_mm));
+            let point=surface.point(ctx.theta_of_u(uv.u),uv.v/ctx.band_v_len_mm);
+            let delta=crate::mesh::sub(point,frame.point);
+            // Do not stamp the same tangent footprint onto the opposite
+            // side of the ring or the inner wall.
+            if delta.iter().zip(frame.normal).map(|(a,b)|a*b).sum::<f64>().abs()>self.plan_reach_mm()+blend+0.5 { return 0.; }
+            (delta.iter().zip(frame.along).map(|(a,b)|a*b).sum(),delta.iter().zip(frame.across).map(|(a,b)|a*b).sum())
+        } else if self.metal_true {
             let (ku, kv) = self.station_scale(ctx);
             (du * ku, dv * kv)
         } else {
@@ -3368,6 +3382,7 @@ mod tests {
             bore_radius_mm: 8.5,
             side_faces_cache: Default::default(),
             stretch: None,
+            ..Default::default()
         }
     }
 

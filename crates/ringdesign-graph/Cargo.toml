@@ -19,6 +19,6 @@ kernel-manifold = ["dep:ringdesign-solid", "ringdesign-solid/manifold"]
 ringdesign-core = { path = "../ringdesign-core", default-features = false }
 ringdesign-solid = { path = "../ringdesign-solid", optional = true }
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
 anyhow.workspace = true
 log.workspace = true

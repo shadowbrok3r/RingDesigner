@@ -17,6 +17,7 @@ use ringdesign_core::drawn::DrawnAlpha;
 use ringdesign_core::field::{Layer, LayerEntry};
 use ringdesign_core::tiling::TilingLayer;
 
+mod files;
 mod floating;
 mod studio;
 
@@ -226,8 +227,31 @@ pub struct RingApp {
     bench: BenchState,
     /// The design's graph, when it has one: the editor and its evaluation.
     graph: crate::graph::GraphState,
+    /// The chosen node's reach, shown on the ring.
+    node_focus: NodeFocus,
+    /// The camera easing to a pose: a chosen node's patch, or a view from the cube.
+    camera_turn: Option<crate::focus::Turn>,
     /// Exports in flight, one thread each; none is ever dropped as stale.
     exports: Vec<std::sync::mpsc::Receiver<ExportDone>>,
+}
+
+/// The highlight a chosen graph node casts on the ring, and the turn of the
+/// camera toward it.
+#[derive(Default)]
+struct NodeFocus {
+    worker: Option<crate::focus::Worker>,
+    /// What the mesh on screen was built from, so a before/after matches it.
+    mesh_generation: u64,
+    mesh_params: Option<ringdesign_core::mesh::BuildParams>,
+    mesh_isolated: bool,
+    /// `(node, mesh generation)` the highlight on screen, or on its way, is for.
+    asked: Option<(ringdesign_graph::graph::NodeId, u64)>,
+    /// When the node was chosen, for the flash.
+    chosen_at: Option<Instant>,
+    /// The next highlight to arrive also turns the camera.
+    aim_pending: bool,
+    /// The measured half of the status line.
+    words: String,
 }
 
 #[derive(Default)]
@@ -321,6 +345,8 @@ impl RingApp {
             sketch_mode: None,
             bench: BenchState::default(),
             graph: crate::graph::GraphState::new(),
+            node_focus: NodeFocus::default(),
+            camera_turn: None,
             exports: Vec::new(),
         }
     }
@@ -356,6 +382,12 @@ impl RingApp {
     /// pull, a template — and start the history over from it.
     fn adopt(&mut self, design: RingDesign) {
         self.fit_next = true;
+        // A new ring is framed whole: a zoom left on the last ring's detail
+        // opens this one on a close-up of nothing in particular.
+        self.camera_turn = None;
+        self.pane.camera.zoom = 1.0;
+        self.pane.camera.pan = [0.0; 2];
+        self.graph.shown = None;
         self.can_compare = false;
         self.editor.hold_before = false;
         self.design = design;
@@ -520,12 +552,19 @@ impl RingApp {
 
     fn tick(&mut self, ctx: &egui::Context) {
         if let Some(worker) = self.worker.as_ref() {
+            while let Ok((generation, error)) = worker.errors.try_recv() {
+                if generation == self.generation { self.preview_in_flight = false; self.status = error; }
+            }
             while let Some(done) = worker.poll() {
                 if done.generation != self.generation {
                     continue;
                 }
-                if let Some(g) = done.graph {
+                if let Some(mut g) = done.graph {
                     if g.ok {
+                        if let Some(lib) = g.baked_library.take() {
+                            self.lib = lib;
+                            self.thumbs.clear();
+                        }
                         let mut next = g.design;
                         next.name = self.design.name.clone();
                         next.manufacturing = self.design.manufacturing.clone();
@@ -543,6 +582,9 @@ impl RingApp {
                     self.fit_next = false;
                 }
                 self.preview_gems = done.gems.clone();
+                self.node_focus.mesh_generation = done.generation;
+                self.node_focus.mesh_params = Some(done.params);
+                self.node_focus.mesh_isolated = done.isolated;
                 if let Some(hit) = &self.editor.selection {
                     self.editor.selection = crate::editor::picking::hit(
                         &self.design,
@@ -1328,14 +1370,14 @@ impl RingApp {
                 ui.label(egui::RichText::new("Driven by the graph").strong());
                 ui.label(
                     egui::RichText::new(
-                        "Edit the nodes in the Graph tab, or bake the graph to edit here.",
+                        "Open the graph under the ring to edit its nodes, or bake it to edit here.",
                     )
                     .small()
                     .color(crate::theme::INK_DIM),
                 );
                 ui.horizontal(|ui| {
                     if ui.button("Open graph").clicked() {
-                        self.tab = Tab::Graph;
+                        self.open_graph_sheet();
                     }
                     if ui.button("Bake").clicked() && self.graph.bake(&mut self.design) {
                         self.status = "baked: the graph is gone and the design is yours".into();
@@ -1346,11 +1388,35 @@ impl RingApp {
         true
     }
 
-    /// The node editor over the design's graph.
+    /// The recipe graph filling the tab.
     fn graph_tab(&mut self, ui: &mut egui::Ui, host: &Host) {
+        self.graph_panel(ui, host, false);
+    }
+
+    /// The graph under the ring, where a chosen node shows on the metal.
+    pub(super) fn open_graph_sheet(&mut self) {
+        if self.editor.isolate {
+            self.editor.isolate = false;
+            self.request_view_update();
+        }
+        self.tab = Tab::Ring;
+        self.editor.palette = None;
+        self.editor.hold_before = false;
+        self.visual.select(ringdesign_workbench::visual::Tool::Select);
+        self.editor.sheet = Some(Sheet::Graph);
+        if let Some(ed) = &mut self.graph.ed {
+            match ed.selected {
+                Some(id) => ed.focus(id),
+                None => ed.fit(),
+            }
+        }
+        self.save_prefs();
+    }
+
+    fn graph_empty_state(&mut self, ui: &mut egui::Ui, host: &Host) {
         use ringdesign_graph::templates;
-        if !self.graph.is_driven() {
-            ui.add_space(24.0);
+        crate::theme::scroll_vertical().id_salt("graph-empty").show(ui, |ui| {
+            ui.add_space(12.0);
             ui.vertical_centered(|ui| {
                 ui.label(egui::RichText::new("No graph behind this design yet").size(16.0));
                 ui.label(
@@ -1365,6 +1431,9 @@ impl RingApp {
                     match self.graph.convert(&mut self.design, &self.lib) {
                         Ok(()) => {
                             self.status = "converted: the graph drives the design now".into();
+                            if let Some(ed) = &mut self.graph.ed {
+                                ed.arrange(&self.graph.reg);
+                            }
                             self.mark_dirty();
                             host.haptic(Haptic::Success);
                         }
@@ -1381,14 +1450,41 @@ impl RingApp {
                 }
                 ui.add_space(12.0);
                 ui.label(egui::RichText::new("template graphs").weak());
-                for (name, g) in templates::all() {
-                    if ui.button(name).clicked() {
-                        self.graph.open(&mut self.design, g);
-                        self.status = format!("started from the {name} graph");
-                        self.mark_dirty();
+                for template in templates::catalog() {
+                    if ui.button(template.name).clicked() {
+                        match template.instantiate(&self.graph.reg, &self.lib) {
+                            Ok(design) => {
+                                self.load_template_design(design, template.name);
+                                self.graph.sync(&self.design);
+                                if let Some(ed) = &mut self.graph.ed {
+                                    ed.arrange(&self.graph.reg);
+                                }
+                            }
+                            Err(e) => self.status = format!("could not open template: {e}"),
+                        }
                     }
                 }
             });
+        });
+    }
+
+    /// What the chosen node does, in words: its reach, then what was measured.
+    pub(super) fn node_words(&self) -> Option<String> {
+        let id = self.graph.shown?;
+        let effect = self.graph.effect_of(id)?;
+        let measured = &self.node_focus.words;
+        Some(if measured.is_empty() {
+            effect.summary()
+        } else {
+            format!("{} \u{b7} {measured}", effect.summary())
+        })
+    }
+
+    /// The node editor over the design's graph. `docked` is the sheet under
+    /// the ring; otherwise it fills the tab.
+    pub(super) fn graph_panel(&mut self, ui: &mut egui::Ui, host: &Host, docked: bool) {
+        if !self.graph.is_driven() {
+            self.graph_empty_state(ui, host);
             return;
         }
         enum Act {
@@ -1396,59 +1492,134 @@ impl RingApp {
             Fit,
             Lock(bool),
             Bake,
+            Dock(bool),
+            Close,
         }
         let mut act = None;
-        let nodes = self
-            .graph
-            .ed
-            .as_ref()
-            .map(|e| e.graph().nodes.len())
-            .unwrap_or(0);
-        ui.horizontal_wrapped(|ui| {
-            if ui.button("Arrange").clicked() {
-                act = Some(Act::Arrange);
+        let reg = self.graph.reg.clone();
+        let Some(mut ed) = self.graph.ed.take() else {
+            return;
+        };
+        let nav = ringdesign_graph_ui::navigator(&mut ed, ui);
+        for (name, rect) in &nav.controls {
+            crate::editor::layout::record(ui, format!("graph/{name}"), *rect);
+        }
+        let stepped = nav.moved;
+        let words = self.node_words().unwrap_or_else(|| {
+            "Tap a node, or step with < and >, to see what it does to the ring".into()
+        });
+        let nodes = ed.graph().nodes.len();
+        let has_parameters = !ed.graph().exposed.is_empty();
+        // From the right, so the tools keep their place at any width and the
+        // sentence takes what is left.
+        let row = egui::vec2(ui.available_width(), 28.0);
+        ui.allocate_ui_with_layout(row, egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            use ringdesign_workbench::icons::{self, Icon};
+            if docked {
+                let r = icons::compact(ui, Icon::Close, false);
+                crate::editor::layout::record(ui, "graph/Close", r.rect);
+                if r.clicked() {
+                    act = Some(Act::Close);
+                }
             }
-            if ui.button("Fit").clicked() {
-                act = Some(Act::Fit);
+            let dock = icons::compact(ui, if docked { Icon::Expand } else { Icon::Collapse }, false);
+            crate::editor::layout::record(ui, "graph/Dock", dock.rect);
+            if dock
+                .response
+                .on_hover_text(if docked {
+                    "Give the graph the whole screen"
+                } else {
+                    "Put the graph under the ring"
+                })
+                .clicked()
+            {
+                act = Some(Act::Dock(!docked));
             }
+            crate::theme::up_menu(ui, "More", |ui| {
+                ui.label(
+                    egui::RichText::new(format!("{nodes} nodes"))
+                        .small()
+                        .color(crate::theme::INK_DIM),
+                );
+                if ui.button("Arrange nodes").clicked() {
+                    act = Some(Act::Arrange);
+                }
+                if ui
+                    .checkbox(
+                        &mut self.editor.workspace.graph_follow,
+                        "Turn the ring to the chosen node",
+                    )
+                    .changed()
+                {
+                    self.save_prefs();
+                }
+                if ui.button("Bake: drop the graph, keep the ring").clicked() {
+                    act = Some(Act::Bake);
+                }
+            });
             let locked = self.graph.locked;
-            if ui
-                .selectable_label(locked, if locked { "Locked" } else { "Lock" })
+            let r = icons::compact(ui, if locked { Icon::Locked } else { Icon::Unlocked }, locked);
+            crate::editor::layout::record(ui, "graph/Lock", r.rect);
+            if r.response
+                .on_hover_text("Locked: pan and zoom only; nodes and wires stay put")
                 .clicked()
             {
                 act = Some(Act::Lock(!locked));
             }
-            if ui.button("Bake").clicked() {
-                act = Some(Act::Bake);
+            let r = icons::compact(ui, Icon::Fit, false);
+            crate::editor::layout::record(ui, "graph/Fit", r.rect);
+            if r.response.on_hover_text("Fit the whole graph in view").clicked() {
+                act = Some(Act::Fit);
             }
-            ui.label(
-                egui::RichText::new(format!("{nodes} nodes"))
-                    .small()
-                    .color(crate::theme::INK_DIM),
-            );
+            if has_parameters {
+                let r = icons::compact(ui, Icon::Settings, self.graph.parameters);
+                crate::editor::layout::record(ui, "graph/Parameters", r.rect);
+                if r.response.on_hover_text("The graph's exposed parameters").clicked() {
+                    self.graph.parameters = !self.graph.parameters;
+                }
+            }
+            ui.add_sized(
+                [ui.available_width().max(10.0), 26.0],
+                egui::Label::new(
+                    egui::RichText::new(&words)
+                        .small()
+                        .color(crate::theme::PINK_BRIGHT),
+                )
+                .truncate(),
+            )
+            .on_hover_text(&words);
         });
         if !self.graph.errors.is_empty() {
-            ui.label(
-                egui::RichText::new(self.graph.errors.join("; "))
-                    .small()
-                    .color(egui::Color32::from_rgb(230, 190, 90)),
+            ui.add(
+                egui::Label::new(
+                    egui::RichText::new(self.graph.errors.join("; "))
+                        .small()
+                        .color(egui::Color32::from_rgb(230, 190, 90)),
+                )
+                .truncate(),
+            );
+        }
+        let mut parameters_changed = false;
+        let mut response = None;
+        if self.graph.parameters && has_parameters {
+            parameters_changed = ed.parameters_ui(&reg, ui);
+        } else {
+            response = Some(
+                egui::Frame::new()
+                    .fill(egui::Color32::from_rgb(18, 18, 20))
+                    .corner_radius(8.0)
+                    .show(ui, |ui| ed.show(&reg, ui, "phone-graph"))
+                    .inner,
             );
         }
         match act {
-            Some(Act::Arrange) => {
-                let reg = self.graph.reg.clone();
-                if let Some(ed) = &mut self.graph.ed {
-                    ed.arrange(&reg);
-                }
-                if self.graph.changed(&mut self.design) {
-                    self.mark_dirty();
-                }
-            }
-            Some(Act::Fit) => {
-                if let Some(ed) = &mut self.graph.ed {
-                    ed.fit();
-                }
-            }
+            Some(Act::Arrange) => ed.arrange(&reg),
+            Some(Act::Fit) => ed.fit(),
+            _ => {}
+        }
+        let chosen = ed.selected;
+        self.graph.ed = Some(ed);
+        match act {
             Some(Act::Lock(l)) => {
                 self.graph.set_locked(l);
                 host.haptic(Haptic::Light);
@@ -1460,40 +1631,159 @@ impl RingApp {
                 }
                 return;
             }
-            None => {}
+            Some(Act::Dock(true)) => self.open_graph_sheet(),
+            Some(Act::Dock(false)) => {
+                self.tab = Tab::Graph;
+                if let Some(ed) = &mut self.graph.ed {
+                    match ed.selected {
+                        Some(id) => ed.focus(id),
+                        None => ed.fit(),
+                    }
+                }
+            }
+            Some(Act::Close) => {
+                self.editor.sheet = None;
+                self.save_prefs();
+            }
+            _ => {}
         }
-        ui.label(
-            egui::RichText::new(
-                "drag to pan · pinch to zoom · long-press for menus · drag pins to wire",
-            )
-            .small()
-            .color(crate::theme::INK_DIM),
-        );
-        let reg = self.graph.reg.clone();
-        let Some(mut ed) = self.graph.ed.take() else {
-            return;
-        };
-        let resp = egui::Frame::new()
-            .fill(egui::Color32::from_rgb(18, 18, 20))
-            .corner_radius(8.0)
-            .show(ui, |ui| ed.show(&reg, ui, "phone-graph"))
-            .inner;
-        self.graph.ed = Some(ed);
-        if let Some(r) = resp.refused {
+        if let Some(r) = response.as_ref().and_then(|r| r.refused.clone()) {
             self.status = format!("wire refused: {r}");
             host.haptic(Haptic::Error);
         }
-        if let Some(id) = resp.selected {
-            if let Some(n) = self.graph.ed.as_ref().and_then(|e| e.node(id)) {
-                self.status = match &n.label {
-                    Some(l) => format!("{l} ({})", n.kind),
-                    None => n.kind.clone(),
-                };
+        if chosen != self.graph.shown {
+            self.choose_node(chosen);
+            if stepped.is_some() {
+                host.haptic(Haptic::Selection);
             }
         }
-        if resp.changed && self.graph.changed(&mut self.design) {
+        let changed = response.is_some_and(|r| r.changed)
+            || parameters_changed
+            || matches!(act, Some(Act::Arrange));
+        if changed && self.graph.changed(&mut self.design) {
             self.mark_dirty();
         }
+    }
+
+    /// A different node is chosen: the old highlight goes at once, and the
+    /// next one to arrive may turn the camera.
+    pub(super) fn choose_node(&mut self, node: Option<ringdesign_graph::graph::NodeId>) {
+        self.graph.shown = node;
+        self.node_focus.asked = None;
+        self.node_focus.words.clear();
+        self.node_focus.chosen_at = Some(Instant::now());
+        self.node_focus.aim_pending = node.is_some();
+        if let Ok(mut r) = self.renderer.lock() {
+            r.set_pending_focus(Vec::new());
+        }
+        if let Some(n) = node.and_then(|id| self.graph.ed.as_ref().and_then(|e| e.node(id))) {
+            self.status = match &n.label {
+                Some(l) => format!("{l} ({})", n.kind),
+                None => n.kind.clone(),
+            };
+        }
+    }
+
+    /// Keeps the ring's highlight in step with the chosen node: asks for one
+    /// when the node or the mesh under it changes, takes the newest result,
+    /// and carries the flash and the camera's turn frame to frame.
+    fn sync_node_focus(&mut self, ctx: &egui::Context) {
+        let on_view = self.tab == Tab::Ring
+            && self.editor.sheet == Some(Sheet::Graph)
+            && self.graph.is_driven()
+            && !self.node_focus.mesh_isolated;
+        let want = if on_view { self.graph.shown } else { None };
+        let mut arrived = Vec::new();
+        if let Some(worker) = &self.node_focus.worker {
+            while let Some(hl) = worker.poll() {
+                arrived.push(hl);
+            }
+        }
+        for hl in arrived {
+            if Some((hl.node, hl.generation)) != self.node_focus.asked || want != Some(hl.node) {
+                continue;
+            }
+            if let Some(effect) = self.graph.effect_of(hl.node) {
+                self.node_focus.words = hl.words(effect);
+            }
+            if std::mem::take(&mut self.node_focus.aim_pending)
+                && self.editor.workspace.graph_follow
+            {
+                if let Some(aim) = &hl.aim {
+                    let to = self.pane.camera.aimed_at(aim);
+                    self.camera_turn = Some(crate::focus::Turn::new(self.pane.camera.pose(), to));
+                    self.pane.actual_size = false;
+                }
+            }
+            if let Ok(mut r) = self.renderer.lock() {
+                r.set_pending_focus(hl.staged);
+            }
+            ctx.request_repaint();
+        }
+        let Some(node) = want else {
+            if self.node_focus.asked.take().is_some() {
+                if let Ok(mut r) = self.renderer.lock() {
+                    r.set_pending_focus(Vec::new());
+                }
+                self.node_focus.words.clear();
+            }
+            self.pane.focus = [0.0; 4];
+            return;
+        };
+        let key = (node, self.node_focus.mesh_generation);
+        let settled = self.dirty_at.is_none() && !self.preview_in_flight;
+        if settled && self.node_focus.asked != Some(key) {
+            if let (Some(worker), Some(mesh), Some(params), Some(effect)) = (
+                self.node_focus.worker.as_ref(),
+                self.preview_mesh.as_ref(),
+                self.node_focus.mesh_params,
+                self.graph.effect_of(node),
+            ) {
+                // The graph's JSON can run to megabytes of embedded artwork,
+                // and a before/after build reads none of it.
+                let graph = self.design.graph.take();
+                let design = self.design.clone();
+                self.design.graph = graph;
+                if worker.request(crate::focus::Request {
+                    node,
+                    generation: key.1,
+                    design,
+                    lib: self.lib.clone(),
+                    params,
+                    mesh: mesh.clone(),
+                    effect: effect.clone(),
+                    view_yaw: self.pane.camera.yaw,
+                }) {
+                    self.node_focus.asked = Some(key);
+                }
+            }
+        }
+        let since = self
+            .node_focus
+            .chosen_at
+            .map_or(f32::MAX, |at| at.elapsed().as_secs_f32());
+        let (strength, moving) = crate::focus::pulse(since);
+        let tint = crate::theme::PINK;
+        self.pane.focus = [
+            f32::from(tint.r()) / 255.0,
+            f32::from(tint.g()) / 255.0,
+            f32::from(tint.b()) / 255.0,
+            strength,
+        ];
+        if moving {
+            ctx.request_repaint();
+        }
+    }
+
+    /// Carries a camera turn one frame further.
+    pub(super) fn advance_camera_turn(&mut self, ctx: &egui::Context) {
+        let Some(turn) = self.camera_turn else { return };
+        let (pose, arrived) = turn.now();
+        self.pane.camera.set_pose(pose);
+        if arrived {
+            self.camera_turn = None;
+        }
+        ctx.request_repaint();
     }
 
     fn paint_tab(&mut self, ui: &mut egui::Ui, host: &Host, domain: Domain) {
@@ -2275,89 +2565,8 @@ impl RingApp {
         // One row of menus instead of a dozen wrapping buttons: every popup
         // opens upward so it never lands under the system gesture area.
         ui.horizontal_wrapped(|ui| {
-            crate::theme::up_menu(ui, "\u{1F4C4} File", |ui| {
-                if ui.button("Save").clicked() {
-                    let path = crate::util::design_path(&designs, &self.design.name);
-                    let _ = std::fs::create_dir_all(&designs);
-                    // Two designs both called "untitled" slug to one path, so a
-                    // save used to overwrite the other silently. Say so once and
-                    // let the second tap through.
-                    if path.exists() && self.overwrite_warned.as_ref() != Some(&path) {
-                        self.overwrite_warned = Some(path.clone());
-                        self.status = format!(
-                            "{} already exists — Save again to replace it",
-                            self.design.name
-                        );
-                        host.haptic(Haptic::Warning);
-                    } else {
-                        self.overwrite_warned = None;
-                        self.status = match library::save_design(&path, &self.design) {
-                            Ok(()) => {
-                                self.prefs.push_recent(&path.to_string_lossy());
-                                self.save_prefs();
-                                format!("saved {}", path.display())
-                            }
-                            Err(e) => format!("save failed: {e}"),
-                        };
-                        host.haptic(Haptic::Success);
-                    }
-                }
-                if ui
-                    .button("Save a copy to Downloads")
-                    .on_hover_text("A copy in shared storage that survives uninstalling the app")
-                    .clicked()
-                {
-                    let name = format!("{}.ring.json", slug(&self.design.name));
-                    let path = designs.join(&name);
-                    let _ = std::fs::create_dir_all(&designs);
-                    self.status = match library::save_design(&path, &self.design) {
-                        Ok(()) => match host.save_to_gallery(
-                            path.to_string_lossy().into_owned(),
-                            name,
-                            "application/json",
-                        ) {
-                            Some(folder) => format!("copy saved to {folder}"),
-                            None => "could not write to Downloads".into(),
-                        },
-                        Err(e) => format!("save failed: {e}"),
-                    };
-                    host.haptic(Haptic::Success);
-                }
-                if ui.button("Copy design as JSON").clicked() {
-                    if let Ok(json) = serde_json::to_string_pretty(&self.design) {
-                        host.copy_text(json);
-                        self.status = "design copied as JSON".into();
-                        host.haptic(Haptic::Success);
-                    }
-                }
-                if ui.button("Paste design").clicked() {
-                    match host
-                        .clipboard_text()
-                        .and_then(|t| serde_json::from_str::<RingDesign>(&t).ok())
-                    {
-                        Some(d) => {
-                            self.adopt(d);
-                            self.status = "design pasted".into();
-                            host.haptic(Haptic::Success);
-                        }
-                        None => {
-                            self.status = "clipboard is not a design".into();
-                            host.haptic(Haptic::Error);
-                        }
-                    }
-                }
-            });
-            crate::theme::up_menu(ui, "\u{1F48D} New", |ui| {
-                if ui.button("Blank band").clicked() {
-                    self.load_template_design(RingDesign::default(), "new blank design");
-                }
-                ui.separator();
-                for t in ringdesign_core::templates::all() {
-                    if ui.button(t.name).on_hover_text(t.blurb).clicked() {
-                        self.load_template_design(t.design(), t.name);
-                    }
-                }
-            });
+            crate::theme::up_menu(ui, "File", |ui| self.file_entries(ui, host));
+            crate::theme::up_menu(ui, "New", |ui| self.new_design_entries(ui));
             crate::theme::up_menu(ui, "\u{1F4E4} Export", |ui| {
                 if ui.button("STL — the pattern to cut").clicked() {
                     self.export(ExportKind::Stl, &exports, ui.ctx());
@@ -2891,6 +3100,8 @@ impl EguiApp for RingApp {
             self.design.bake_all(lib);
         }
         self.worker = Some(Worker::spawn(ctx.clone()));
+        let wake = ctx.clone();
+        self.node_focus.worker = Some(crate::focus::Worker::spawn(move || wake.request_repaint(), crate::focus::stage));
         self.history.reset(&self.design);
         if self.design.shank.kind == ringdesign_core::ShankKind::Signet {
             self.frame_head(true);
@@ -2930,6 +3141,7 @@ impl EguiApp for RingApp {
             host.haptic(Haptic::Selection);
         }
         self.graph.sync(&self.design);
+        self.sync_node_focus(ui.ctx());
         self.poll_exports(host);
         self.poll_generate(host);
 

@@ -426,7 +426,7 @@ impl RingDesignServer {
         let g = if p.name.eq_ignore_ascii_case("simple") {
             templates::simple()
         } else {
-            templates::graph(&p.name).ok_or_else(|| bad(format!("no template graph {:?}; one of Simple, {}", p.name, templates::BUNDLED.iter().map(|t| t.name).collect::<Vec<_>>().join(", "))))?
+            templates::graph(&p.name).ok_or_else(|| bad(format!("no template graph {:?}; one of Simple, {}", p.name, templates::catalog().map(|t| t.name).collect::<Vec<_>>().join(", "))))?
         };
         self.adopt(g, vec![format!("template={}", p.name)])
     }
@@ -573,7 +573,7 @@ impl RingDesignServer {
             .map(|c| ClusterDesc { name: c.name.clone(), inputs: c.exposed.iter().map(|e| e.name.clone()).collect(), outputs: c.outputs.iter().map(|o| o.name.clone()).collect() })
             .collect();
         let presets = file::list_presets().into_iter().map(|p| PresetDesc { name: p.name, cluster: p.cluster, values: serde_json::to_value(&p.values).unwrap_or_default() }).collect();
-        Ok(Json(ClusterList { clusters, presets, templates: templates::BUNDLED.iter().map(|t| t.name.to_string()).collect() }))
+        Ok(Json(ClusterList { clusters, presets, templates: templates::catalog().map(|t| t.name.to_string()).collect() }))
     }
 
     #[tool(description = "Add a saved cluster as a node; its exposed inputs and outputs are the pins, and the cluster's graph rides in the node.")]
