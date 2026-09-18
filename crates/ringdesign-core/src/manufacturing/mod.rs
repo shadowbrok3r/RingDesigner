@@ -12,7 +12,7 @@ mod tests;
 pub mod trials;
 
 use crate::castability::{CastProcess, SandProcess};
-use crate::{AlphaLibrary, BuildParams, Layer, Mesh, RingDesign};
+use crate::{AlphaLibrary, BuildParams, Mesh, RingDesign};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -401,23 +401,11 @@ fn prepare_with_library(
     pattern.draft.min_draft_deg = setup.recipe.min_draft_deg;
     pattern.draft.min_section_mm = setup.recipe.min_section_mm;
     pattern.draft.min_detail_mm = setup.recipe.min_detail_mm;
-    fn omit(stack: &mut crate::field::LayerStack, prefix: &str, notes: &mut Vec<String>) {
-        for e in &mut stack.layers {
-            let name = if prefix.is_empty() {
-                e.name.clone()
-            } else {
-                format!("{prefix} / {}", e.name)
-            };
-            if e.enabled && e.bench_only {
-                e.enabled = false;
-                notes.push(name);
-            } else if let Layer::Group(g) = &mut e.layer {
-                omit(&mut g.stack, &name, notes);
-            }
-        }
-    }
-    let mut bench_layers = Vec::new();
-    omit(&mut pattern.layers, "", &mut bench_layers);
+    // What the pattern leaves to the bench, by the one rule the live verdict uses.
+    let (left, mut bench_layers, seats) = crate::castability::pattern_parts(&pattern);
+    let left = left.into_owned();
+    bench_layers.extend(seats.into_iter().map(|s| format!("{s} (setting)")));
+    let pattern = left;
     let out = crate::mesh::try_build(&pattern, lib, params)?;
     let scale = setup.scale();
     Ok(Prepared {

@@ -462,7 +462,9 @@
             "rot_deg": 0.0,
             "plan_pow": 6.0,
             "set_depth_mm": null,
-            "metal_true": false
+            "metal_true": false,
+            "solid": "Flush",
+            "through": true
           }
         }
       },
@@ -508,7 +510,9 @@
             "rot_deg": 0.0,
             "plan_pow": 2.0,
             "set_depth_mm": null,
-            "metal_true": false
+            "metal_true": false,
+            "solid": "Flush",
+            "through": true
           }
         }
       },
@@ -554,7 +558,9 @@
             "rot_deg": 0.0,
             "plan_pow": 2.0,
             "set_depth_mm": null,
-            "metal_true": false
+            "metal_true": false,
+            "solid": "Flush",
+            "through": true
           }
         }
       },
@@ -601,7 +607,9 @@
               "rot_deg": 0.0,
               "plan_pow": 2.0,
               "set_depth_mm": null,
-              "metal_true": false
+              "metal_true": false,
+              "solid": "Flush",
+              "through": true
             },
             "count": 17,
             "gem": {
@@ -661,7 +669,9 @@
               "rot_deg": 0.0,
               "plan_pow": 2.0,
               "set_depth_mm": null,
-              "metal_true": false
+              "metal_true": false,
+              "solid": "Flush",
+              "through": true
             },
             "count": 17,
             "gem": {

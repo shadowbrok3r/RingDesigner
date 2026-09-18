@@ -304,11 +304,13 @@ fn draw_parts(
             && m.normals.len() == m.vertices.len()
             && f.iter().all(|&i| (i as usize) < m.normals.len());
         let vn = smooth.then(|| {
-            let g = |i: u32| {
-                let nv = m.normals[i as usize];
+            // Binary search rather than a cursor: faces arrive part by part, culled and skipped.
+            let corners = m.corner_normals.binary_search_by_key(&(fi as u32), |c| c.0).ok().map(|k| m.corner_normals[k].1);
+            let g = |k: usize| {
+                let nv = corners.map_or(m.normals[f[k] as usize], |c| c[k]);
                 rot([nv.0 as f64, nv.1 as f64, nv.2 as f64])
             };
-            [g(f[0]), g(f[1]), g(f[2])]
+            [g(0), g(1), g(2)]
         });
         // Flat shading, for the facet case and as the fallback.
         let shade_of = |nn: [f64; 3]| -> [u8; 3] {

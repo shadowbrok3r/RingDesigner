@@ -137,6 +137,8 @@ pub struct RingApp {
     /// Last long-press readout, shown as a chip until dismissed.
     probe_info: Option<String>,
     show_gems: bool,
+    /// Made settings in the preview: resolved live, and their cutters ghosted.
+    cuts: crate::ring::Cuts,
     /// The design editor rides a collapsible bottom sheet over the live view.
     /// The DFM findings ride a second one, opened by tapping their chip.
     /// Whole-design snapshots with a name read out of the diff. Shared with the
@@ -294,6 +296,7 @@ impl RingApp {
             preview_mesh: None,
             probe_info: None,
             show_gems: true,
+            cuts: Default::default(),
             history: ringdesign_core::history::History::new(&RingDesign::default()),
             selected_layer: None,
             stone: crate::stones::Pick::default(),
@@ -450,6 +453,7 @@ impl RingApp {
         self.pane.polish = p.polish.min(ringdesign_core::render::POLISHES.len() - 1);
         self.as_cast = p.as_cast;
         self.show_gems = p.show_gems;
+        self.cuts = crate::ring::Cuts { live: p.live_cuts, ghost: p.show_cutters };
         self.editor.mode = Mode::ALL.get(p.editor_mode).copied().unwrap_or_default();
         self.editor.guides = p.editor_guides;
         self.editor.sheet = p.editor_inspector.then_some(Sheet::Edit);
@@ -485,6 +489,8 @@ impl RingApp {
         self.prefs.polish = self.pane.polish;
         self.prefs.as_cast = self.as_cast;
         self.prefs.show_gems = self.show_gems;
+        self.prefs.live_cuts = self.cuts.live;
+        self.prefs.show_cutters = self.cuts.ghost;
         self.prefs.editor_mode = self.editor.mode as usize;
         self.prefs.editor_guides = self.editor.guides;
         self.prefs.editor_inspector = self.editor.sheet.is_some();
@@ -545,6 +551,7 @@ impl RingApp {
             analyze,
             self.show_gems,
             view_layer,
+            self.cuts,
         ) {
             self.status = "build worker stopped".into();
         }
@@ -597,6 +604,7 @@ impl RingApp {
                 if let Ok(mut r) = self.renderer.lock() {
                     r.set_pending(done.verts);
                     r.set_pending_gems(done.gems);
+                    r.set_pending_ghost(done.ghost);
                 }
                 self.preview_mesh = Some(done.mesh);
                 self.visual.mesh_changed();

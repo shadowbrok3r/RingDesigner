@@ -55,9 +55,33 @@ pub struct Mesh {
     /// Smooth per-vertex normals, parallel to `vertices`.
     pub normals: Vec<Vec3>,
     pub faces: Vec<[u32; 3]>,
+    /// Corner normals for the faces that keep hard edges, sorted by face.
+    /// The band shades from its own vertex normals; a solid resolved into it
+    /// has creases one normal per vertex would smear.
+    pub corner_normals: Vec<(u32, [Vec3; 3])>,
+    /// Where each vertex came from once solids are resolved into the band:
+    /// its index in the band as swept, or [`SOLID_VERTEX`] and up for the
+    /// stone whose solid made it. Empty when nothing was resolved.
+    pub origin: Vec<u32>,
 }
 
+/// First [`Mesh::origin`] value that names a stone's solid rather than a band vertex.
+pub const SOLID_VERTEX: u32 = 0xF000_0000;
+
 impl Mesh {
+    /// The normals a face shades from: its own corners' where it keeps hard
+    /// edges, else its vertices'. `cursor` walks `corner_normals` and must
+    /// start at 0 for a pass over the faces in order.
+    pub fn face_normals(&self, face: usize, cursor: &mut usize) -> [Vec3; 3] {
+        while self.corner_normals.get(*cursor).is_some_and(|c| (c.0 as usize) < face) {
+            *cursor += 1;
+        }
+        match self.corner_normals.get(*cursor) {
+            Some((f, n)) if *f as usize == face => *n,
+            _ => self.faces[face].map(|i| self.normals.get(i as usize).copied().filter(Vec3::is_finite).unwrap_or(Vec3(0.0, 0.0, 1.0))),
+        }
+    }
+
     pub fn bounds(&self) -> Option<(Vec3, Vec3)> {
         let mut it = self.vertices.iter();
         let first = *it.next()?;
@@ -135,6 +159,7 @@ impl Mesh {
             vertices: self.vertices.iter().map(|v| Vec3(v.0 * f, v.1 * f, v.2 * f)).collect(),
             normals: self.normals.clone(),
             faces: self.faces.clone(),
+            ..Default::default()
         }
     }
 
@@ -292,6 +317,8 @@ pub struct BuildResult {
     /// Where this build put its sample lines. The section view needs it to
     /// slice the solid rather than an independent approximation of it.
     pub spacing: Spacing,
+    /// What the seats' pre-made solids did to the mesh.
+    pub solids: crate::setting::Applied,
 }
 
 /// Build the ring mesh from a design.
@@ -320,8 +347,9 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
 /// interactive workers catch its failure and retain the last successful mesh.
 pub fn try_build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::Result<BuildResult> {
     if design.cad.is_none() {
-        if design.imported_base.is_some() { return crate::imported_base::build(design,lib,params); }
-        return Ok(build_band(design,lib,params));
+        let mut built = if design.imported_base.is_some() { crate::imported_base::build(design,lib,params)? } else { build_band(design,lib,params) };
+        resolve_solids(design, lib, &mut built);
+        return Ok(built);
     }
     let started=BuildClock::start();
     let evaluated=crate::cad::evaluate(design,lib,params)?;
@@ -329,7 +357,32 @@ pub fn try_build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -
     anyhow::ensure!(!mesh.faces.is_empty(),"The design contains only reference components");
     let (lo,hi)=mesh.bounds().unwrap();let bounds_mm=[(hi.0-lo.0) as f64,(hi.1-lo.1) as f64,(hi.2-lo.2) as f64];let volume=mesh.volume_mm3();
     let report=Report {validation:mesh.validate(),volume_mm3:volume,surface_area_mm2:mesh.surface_area_mm2(),bounds_mm,inner_diameter_mm:measured_bore_diameter_mm(&mesh,design.size.inner_diameter_mm()),outer_diameter_mm:bounds_mm[0].max(bounds_mm[1]),band_width_mm:bounds_mm[2],max_relief_mm:0.0,min_relief_mm:0.0,metals:metal_table(volume),build_ms:started.ms(),refine:None,quality:mesh.quality()};
-    Ok(BuildResult {mesh,report,reference:design.reference_loop(),spacing:Spacing::uniform(params.theta_steps.clamp(24,4096))})
+    Ok(BuildResult {mesh,report,reference:design.reference_loop(),spacing:Spacing::uniform(params.theta_steps.clamp(24,4096)),solids:Default::default()})
+}
+
+/// The mesh a mould is made from rather than the finished ring: bench-only layers off, and under sand
+/// every made setting left out with a raised drill mark in its place. Mesh exports write this.
+pub fn try_build_pattern(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::Result<BuildResult> {
+    try_build(&crate::castability::casting_pattern(design).0, lib, params)
+}
+
+/// Place every seat's pre-made solid on the built band and resolve it, then measure what is left.
+fn resolve_solids(design: &RingDesign, lib: &AlphaLibrary, built: &mut BuildResult) {
+    let applied = crate::setting::apply(design, lib, &mut built.mesh);
+    if applied.resolved == 0 && applied.notes.is_empty() {
+        return;
+    }
+    let mesh = &built.mesh;
+    let bounds = mesh.bounds().unwrap_or_default();
+    let volume = mesh.volume_mm3();
+    let r = &mut built.report;
+    r.bounds_mm = [(bounds.1.0 - bounds.0.0) as f64, (bounds.1.1 - bounds.0.1) as f64, (bounds.1.2 - bounds.0.2) as f64];
+    r.validation = mesh.validate();
+    r.volume_mm3 = volume;
+    r.surface_area_mm2 = mesh.surface_area_mm2();
+    r.metals = metal_table(volume);
+    r.quality = mesh.quality();
+    built.solids = applied;
 }
 
 pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> BuildResult {
@@ -425,7 +478,7 @@ pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
     }
 
     let normals = grid_normals(&vertices, n_theta, p);
-    let mesh = Mesh { vertices, normals, faces };
+    let mesh = Mesh { vertices, normals, faces, ..Default::default() };
 
     let bounds = mesh.bounds().unwrap_or_default();
     let bounds_mm = [
@@ -451,7 +504,7 @@ pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
         quality: mesh.quality(),
     };
 
-    BuildResult { mesh, report, reference, spacing }
+    BuildResult { mesh, report, reference, spacing, solids: Default::default() }
 }
 
 /// Build by refining the `(u, s)` domain to a tolerance rather than sweeping a
@@ -498,6 +551,7 @@ fn build_refined(
         // back to slicing the design at its own resolution, which is a finer
         // sample of the same surface.
         spacing: Spacing::uniform(params.theta_steps.max(1)),
+        solids: Default::default(),
     }
 }
 

@@ -24,4 +24,6 @@ fontdue = "0.9"
 resvg = { version = "0.48.1", default-features = false }
 cadkernel = { git = "https://github.com/HakanSeven12/cadkernel.git", rev = "920ff591028ab4ba13648b920d9d333ec3b7d44b", default-features = false, features = ["brep", "offset"] }
 roxmltree = "0.21"
+robust = "1.2"
+spade = "2.15"
 svgtypes = "0.16"

@@ -37,7 +37,7 @@ pub fn read_stl(path: &str) -> Mesh {
             faces.push(tri);
         }
     }
-    Mesh { vertices, normals: Vec::new(), faces }
+    Mesh { vertices, normals: Vec::new(), faces, ..Default::default() }
 }
 
 /// Split into connected pieces. These files hold one ring per size.
@@ -78,7 +78,7 @@ pub fn components(m: &Mesh) -> Vec<Mesh> {
                     })
                 })
                 .collect();
-            Mesh { vertices, normals: Vec::new(), faces }
+            Mesh { vertices, normals: Vec::new(), faces, ..Default::default() }
         })
         .collect();
     out.sort_by_key(|c| std::cmp::Reverse(c.faces.len()));
@@ -133,6 +133,7 @@ impl Scan {
                     .collect(),
                 normals: Vec::new(),
                 faces: m.faces.clone(),
+                ..Default::default()
             },
             bore_r: 0.0,
             steps: Vec::new(),

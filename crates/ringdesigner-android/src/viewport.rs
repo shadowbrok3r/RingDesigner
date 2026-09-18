@@ -77,6 +77,7 @@ in float v_cavity;
 in float v_focus;
 uniform vec4 u_clip_plane;
 uniform vec4 u_focus;
+uniform float u_alpha;
 
 uniform int u_mode;
 uniform vec3 u_light_dir;
@@ -96,6 +97,12 @@ void main() {
     vec3 l = normalize(u_light_dir);
     vec3 color;
 
+    if (u_mode == 6) {
+        // A ghost: faint face on, bright where the surface turns away, so a cutter reads as its outline.
+        float rim = 1.0 - abs(n.z);
+        frag_color = vec4(u_base_color, u_alpha * (0.16 + 0.84 * rim * rim));
+        return;
+    }
     if (u_mode == 5) {
         color = studio_gem(n, u_base_color, l, u_ambient);
     } else if (u_mode == 4) {
@@ -160,6 +167,7 @@ struct Uniforms {
     wire_px: Option<glow::NativeUniformLocation>,
     clip_plane: Option<glow::NativeUniformLocation>,
     focus: Option<glow::NativeUniformLocation>,
+    alpha: Option<glow::NativeUniformLocation>,
 }
 
 struct GpuResources {
@@ -168,6 +176,8 @@ struct GpuResources {
     vbo: glow::NativeBuffer,
     gem_vao: glow::NativeVertexArray,
     gem_vbo: glow::NativeBuffer,
+    ghost_vao: glow::NativeVertexArray,
+    ghost_vbo: glow::NativeBuffer,
     /// One float a staged vertex: how far the chosen node reaches it.
     focus_vbo: glow::NativeBuffer,
     uniforms: Uniforms,
@@ -178,8 +188,10 @@ pub struct GpuMeshRenderer {
     resources: Option<GpuResources>,
     vertex_count: i32,
     gem_count: i32,
+    ghost_count: i32,
     pending: Option<Vec<f32>>,
     pending_gems: Option<Vec<f32>>,
+    pending_ghost: Option<Vec<f32>>,
     /// A focus channel awaiting upload; `Some(empty)` clears it.
     pending_focus: Option<Vec<f32>>,
     /// The uploaded focus channel covers the uploaded mesh vertex for vertex.
@@ -217,7 +229,10 @@ impl GpuMeshRenderer {
         let (inner_r, min_section) = wall;
         let mut data: Vec<f32> = Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
 
+        let mut hard = 0;
         'faces: for (i, face) in mesh.faces.iter().enumerate() {
+            // A solid's faces keep their creases; the band shades from its own vertex normals.
+            let corners = mesh.face_normals(i, &mut hard);
             let rgb = match cast {
                 Some(c) => c.classes.get(i).map_or([1.0; 3], |k| k.rgb()),
                 None => [1.0; 3],
@@ -227,10 +242,7 @@ impl GpuMeshRenderer {
                 let Some(p) = mesh.vertices.get(vi as usize).filter(|p| p.is_finite()) else {
                     continue 'faces;
                 };
-                let n = match mesh.normals.get(vi as usize) {
-                    Some(n) if n.is_finite() => *n,
-                    _ => Vec3(0.0, 0.0, 1.0),
-                };
+                let n = corners[k];
                 // Radial metal under this vertex; the bore itself (facing
                 // inward) is not a wall and sits out in neutral grey.
                 let r = (p.0 as f64).hypot(p.1 as f64);
@@ -257,6 +269,11 @@ impl GpuMeshRenderer {
     }
 
     /// Queue stone-preview triangles in the same layout. Empty clears them.
+    /// The cutters' ghost, in the stones' layout; empty clears it.
+    pub fn set_pending_ghost(&mut self, verts: Vec<f32>) {
+        self.pending_ghost = Some(verts);
+    }
+
     pub fn set_pending_gems(&mut self, verts: Vec<f32>) {
         self.pending_gems = Some(verts);
     }
@@ -323,6 +340,15 @@ impl GpuMeshRenderer {
             }
         }
 
+        if let Some(verts) = self.pending_ghost.take() {
+            self.ghost_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
+            unsafe {
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.ghost_vbo));
+                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
+                gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            }
+        }
+
         if self.vertex_count == 0 {
             return;
         }
@@ -381,6 +407,25 @@ impl GpuMeshRenderer {
                 );
                 gl.bind_vertex_array(Some(res.gem_vao));
                 gl.draw_arrays(glow::TRIANGLES, 0, self.gem_count);
+            }
+
+            // The cutters' ghost: over everything, blended, writing no depth — the tool is inside
+            // the metal it removes, and a depth test would hide exactly what is being asked for.
+            if self.ghost_count > 0 {
+                gl.uniform_4_f32_slice(u.focus.as_ref(), &[0.0; 4]);
+                gl.uniform_1_f32(u.wire_px.as_ref(), 0.0);
+                gl.uniform_1_i32(u.mode.as_ref(), 6);
+                gl.uniform_3_f32(u.base_color.as_ref(), 1.0, 0.34, 0.62);
+                gl.uniform_1_f32(u.alpha.as_ref(), 0.85);
+                gl.disable(glow::DEPTH_TEST);
+                gl.depth_mask(false);
+                gl.disable(glow::CULL_FACE);
+                gl.enable(glow::BLEND);
+                gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+                gl.bind_vertex_array(Some(res.ghost_vao));
+                gl.draw_arrays(glow::TRIANGLES, 0, self.ghost_count);
+                gl.depth_mask(true);
+                gl.disable(glow::BLEND);
             }
 
             gl.bind_vertex_array(None);
@@ -451,7 +496,9 @@ impl GpuMeshRenderer {
             }
         };
 
-        let (Some(vao), Some(vbo), Some(gem_vao), Some(gem_vbo), Some(focus_vbo)) = (
+        let (Some(vao), Some(vbo), Some(gem_vao), Some(gem_vbo), Some(ghost_vao), Some(ghost_vbo), Some(focus_vbo)) = (
+            unsafe { gl.create_vertex_array() }.ok(),
+            unsafe { gl.create_buffer() }.ok(),
             unsafe { gl.create_vertex_array() }.ok(),
             unsafe { gl.create_buffer() }.ok(),
             unsafe { gl.create_vertex_array() }.ok(),
@@ -475,13 +522,14 @@ impl GpuMeshRenderer {
                 wire_px: gl.get_uniform_location(program, "u_wire_px"),
                 clip_plane: gl.get_uniform_location(program, "u_clip_plane"),
                 focus: gl.get_uniform_location(program, "u_focus"),
+                alpha: gl.get_uniform_location(program, "u_alpha"),
             }
         };
 
         unsafe {
             let f = std::mem::size_of::<f32>() as i32;
             let stride = FLOATS_PER_VERTEX as i32 * f;
-            for (va, vb) in [(vao, vbo), (gem_vao, gem_vbo)] {
+            for (va, vb) in [(vao, vbo), (gem_vao, gem_vbo), (ghost_vao, ghost_vbo)] {
                 gl.bind_vertex_array(Some(va));
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(vb));
                 for (loc, offset) in [(0, 0), (1, 3 * f), (2, 6 * f), (3, 9 * f)] {
@@ -500,7 +548,7 @@ impl GpuMeshRenderer {
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
         }
 
-        self.resources = Some(GpuResources { program, vao, vbo, gem_vao, gem_vbo, focus_vbo, uniforms });
+        self.resources = Some(GpuResources { program, vao, vbo, gem_vao, gem_vbo, ghost_vao, ghost_vbo, focus_vbo, uniforms });
     }
 }
 
@@ -680,6 +728,7 @@ mod tests {
             vertices: vec![Vec3(0.0, 0.0, 0.0), Vec3(1.0, 0.0, 0.0), Vec3(0.0, 1.0, 0.0)],
             normals: vec![Vec3(0.0, 0.0, 1.0); 3],
             faces: vec![[0, 1, 2]],
+            ..Default::default()
         };
         let data = GpuMeshRenderer::stage(&mesh, None, (8.5, 0.8));
         assert_eq!(data.len(), 3 * FLOATS_PER_VERTEX);
@@ -695,6 +744,7 @@ mod tests {
             vertices: vec![Vec3(0.0, 0.0, 0.0), Vec3(1.0, 0.0, 0.0), Vec3(0.0, 1.0, 0.0), Vec3(f32::NAN, 0.0, 0.0)],
             normals: vec![Vec3(0.0, 0.0, 1.0); 4],
             faces: vec![[0, 1, 2], [0, 1, 3], [2, 1, 0]],
+            ..Default::default()
         };
         let staged = GpuMeshRenderer::stage(&mesh, None, (8.5, 0.8));
         let focus = GpuMeshRenderer::stage_focus(&mesh, &[0.0, 0.5, 1.0, 9.0]);
@@ -714,6 +764,7 @@ mod tests {
             vertices: vec![Vec3(0.0, 0.0, 0.0)],
             normals: vec![Vec3(0.0, 0.0, 1.0)],
             faces: vec![[0, 9, 9]],
+            ..Default::default()
         };
         assert!(GpuMeshRenderer::stage(&mesh, None, (8.5, 0.8)).is_empty());
     }

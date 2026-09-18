@@ -108,15 +108,32 @@ fn layer_weights(req: &Request) -> (Vec<f32>, f32) {
     let none = (Vec::new(), 0.0);
     let without = without_layers(&req.design, &req.effect.layers);
     let Ok(before) = ringdesign_core::mesh::try_build(&without, &req.lib, req.params) else { return none };
-    let (a, b) = (&req.mesh.vertices, &before.mesh.vertices);
-    if a.len() != b.len() || req.mesh.faces.len() != before.mesh.faces.len() {
+    let (a, b) = (&req.mesh, &before.mesh);
+    // Seats resolved as solids cut the two meshes differently, so they are compared through the band
+    // vertex each came from; a solid's own vertices light with the layer that carries its stone.
+    let plain = a.origin.is_empty() && b.origin.is_empty();
+    if plain && (a.vertices.len() != b.vertices.len() || a.faces.len() != b.faces.len()) {
         return none;
     }
+    let mut was: std::collections::HashMap<u32, ringdesign_core::Vec3> = std::collections::HashMap::new();
+    if !plain {
+        for (i, p) in b.vertices.iter().enumerate() {
+            let o = b.origin.get(i).copied().unwrap_or(i as u32);
+            if o < ringdesign_core::mesh::SOLID_VERTEX { was.insert(o, *p); }
+        }
+    }
+    let lit: Vec<bool> = before.solids.paths.iter().map(|path| req.effect.layers.iter().any(|l| path.starts_with(l))).collect();
     let mut furthest = 0.0f32;
     let weights = a
+        .vertices
         .iter()
-        .zip(b)
-        .map(|(p, q)| {
+        .enumerate()
+        .map(|(i, p)| {
+            let o = if plain { i as u32 } else { a.origin.get(i).copied().unwrap_or(i as u32) };
+            if o >= ringdesign_core::mesh::SOLID_VERTEX {
+                return if lit.get((o - ringdesign_core::mesh::SOLID_VERTEX) as usize).copied().unwrap_or(false) { 1.0 } else { 0.0 };
+            }
+            let Some(q) = (if plain { b.vertices.get(i).copied() } else { was.get(&o).copied() }) else { return 0.0 };
             let d = ((p.0 - q.0).powi(2) + (p.1 - q.1).powi(2) + (p.2 - q.2).powi(2)).sqrt();
             if !d.is_finite() || d < MOVED_MM {
                 return 0.0;
@@ -319,6 +336,8 @@ pub fn pulse(since_s: f32) -> (f32, bool) {
 pub struct Pose {
     pub yaw: f32,
     pub pitch: f32,
+    /// Turn about the view axis; what lets a ring be looked at upside down.
+    pub roll: f32,
     pub zoom: f32,
     pub pan: [f32; 2],
 }
@@ -336,13 +355,16 @@ fn unit(a: [f32; 3]) -> [f32; 3] {
     if len > 1e-9 { [a[0] / len, a[1] / len, a[2] / len] } else { [0.0, 0.0, 1.0] }
 }
 
-/// The view's right and up for a pose, world up being the finger axis.
-pub fn view_axes(yaw: f32, pitch: f32) -> ([f32; 3], [f32; 3]) {
+/// The view's right and up for a pose, world up being the finger axis,
+/// turned about the view axis by `roll`.
+pub fn view_axes(yaw: f32, pitch: f32, roll: f32) -> ([f32; 3], [f32; 3]) {
     let d = [pitch.cos() * yaw.cos(), pitch.cos() * yaw.sin(), pitch.sin()];
     let up = if pitch.abs() > std::f32::consts::FRAC_PI_2 - 0.02 { [-yaw.cos(), -yaw.sin(), 0.0] } else { [0.0, 0.0, 1.0] };
     let f = [-d[0], -d[1], -d[2]];
     let s = unit(cross(f, up));
-    (s, cross(s, f))
+    let u = cross(s, f);
+    let (sin, cos) = roll.sin_cos();
+    ([s[0] * cos + u[0] * sin, s[1] * cos + u[1] * sin, s[2] * cos + u[2] * sin], [u[0] * cos - s[0] * sin, u[1] * cos - s[1] * sin, u[2] * cos - s[2] * sin])
 }
 
 /// The pose that looks straight at a patch: down its outward normal, the
@@ -355,12 +377,12 @@ pub fn aim_pose(current: Pose, target: [f32; 3], radius: f32, aim: &Aim) -> Pose
     // Straight down the finger axis there is no yaw to read; keep the one in hand.
     let yaw = if n[0].hypot(n[1]) > 0.05 { n[1].atan2(n[0]) } else { current.yaw };
     let pitch = n[2].clamp(-1.0, 1.0).asin().clamp(-FRAC_PI_2 + 0.02, FRAC_PI_2 - 0.02);
-    let (s, u) = view_axes(yaw, pitch);
+    let (s, u) = view_axes(yaw, pitch, current.roll);
     let rel = [aim.point[0] - target[0], aim.point[1] - target[1], aim.point[2] - target[2]];
     // A seat is a millimetre or two across: framed alone it is a pink disc
     // with nothing round it to say where on the ring it is.
     let zoom = (radius * 1.15 / (aim.reach_mm.max(3.0) * 2.4)).clamp(1.0, 3.5);
-    Pose { yaw, pitch, zoom, pan: [dot(rel, s), dot(rel, u)] }
+    Pose { yaw, pitch, roll: current.roll, zoom, pan: [dot(rel, s), dot(rel, u)] }
 }
 
 /// Part of the way from one pose to another, yaw taking the short way round.
@@ -368,8 +390,9 @@ pub fn ease(from: Pose, to: Pose, t: f32) -> Pose {
     let t = t.clamp(0.0, 1.0);
     let e = t * t * (3.0 - 2.0 * t);
     let lerp = |a: f32, b: f32| a + (b - a) * e;
-    let turn = (to.yaw - from.yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
-    Pose { yaw: from.yaw + turn * e, pitch: lerp(from.pitch, to.pitch), zoom: lerp(from.zoom, to.zoom), pan: [lerp(from.pan[0], to.pan[0]), lerp(from.pan[1], to.pan[1])] }
+    let short = |a: f32, b: f32| (b - a + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+    let turn = short(from.yaw, to.yaw);
+    Pose { yaw: from.yaw + turn * e, pitch: lerp(from.pitch, to.pitch), roll: from.roll + short(from.roll, to.roll) * e, zoom: lerp(from.zoom, to.zoom), pan: [lerp(from.pan[0], to.pan[0]), lerp(from.pan[1], to.pan[1])] }
 }
 
 /// A camera turn under way.
@@ -482,6 +505,35 @@ mod tests {
     }
 
     #[test]
+    fn a_seat_with_a_claw_head_lights_the_head_and_the_camera_faces_it() {
+        use ringdesign_core::field::{Layer, LayerEntry, SeatPadLayer};
+        use ringdesign_core::gem::{Gem, GemCut};
+        let lib = Arc::new(AlphaLibrary::builtin());
+        let mut design = RingDesign::default();
+        let v = design.field_context().crest_v_mm;
+        for (name, theta) in [("Centre", 90.0), ("Other", 250.0)] {
+            let mut pad = SeatPadLayer { theta_deg: theta, v_mm: v, blend_mm: 0.4, solid: ringdesign_core::setting::SolidKind::Prong, ..Default::default() };
+            pad.fit_stone(Gem::calibrated(GemCut::Round, 3.0));
+            pad.height_mm = 0.3;
+            design.layers.layers.push(LayerEntry::new(name, Layer::SeatPad(pad)));
+        }
+        let effect = NodeEffect { scope: Scope::Layers, layers: vec![vec![0]], names: vec!["Centre".into()] };
+        let req = request(&design, &lib, NodeId(3), &effect);
+        assert!(!req.mesh.origin.is_empty(), "the head is resolved into the band");
+        let hl = compute(&req);
+        assert_eq!(hl.weights.len(), req.mesh.vertices.len());
+        let solid = |i: usize| req.mesh.origin[i] >= ringdesign_core::mesh::SOLID_VERTEX;
+        let (mut mine, mut theirs) = (0, 0);
+        for (i, w) in hl.weights.iter().enumerate().filter(|(i, _)| solid(*i)) {
+            let top = req.mesh.vertices[i].1 > 0.0;
+            if top { assert_eq!(*w, 1.0, "the chosen seat's head is lit whole"); mine += 1; } else { assert_eq!(*w, 0.0, "and the other seat's is not"); theirs += 1; }
+        }
+        assert!(mine > 500 && theirs > 500, "{mine} {theirs}");
+        let aim = hl.aim.expect("a head to face");
+        assert!((aim.normal[1].atan2(aim.normal[0]).to_degrees() - 90.0).abs() < 25.0, "{:?}", aim.normal);
+    }
+
+    #[test]
     fn a_reach_on_both_shoulders_is_faced_on_the_nearer_one_not_between_them() {
         use ringdesign_core::field::{BorderLayer, Layer, LayerEntry};
         let lib = Arc::new(AlphaLibrary::builtin());
@@ -587,11 +639,11 @@ mod tests {
 
     #[test]
     fn aiming_centres_the_patch_faces_it_and_eases_the_short_way_round() {
-        let current = Pose { yaw: 3.0, pitch: 0.2, zoom: 3.0, pan: [4.0, -2.0] };
+        let current = Pose { yaw: 3.0, pitch: 0.2, roll: 0.0, zoom: 3.0, pan: [4.0, -2.0] };
         let target = [0.5, 1.5, 0.0];
         for (point, normal) in [([0.0, 10.5, 0.0], [0.0, 1.0, 0.0]), ([-9.0, 2.0, 3.5], [0.0, 0.1, 1.0]), ([7.0, -7.0, -1.0], [0.7, -0.7, -0.2])] {
             let pose = aim_pose(current, target, 17.0, &Aim { point, normal, reach_mm: 2.5 });
-            let (s, u) = view_axes(pose.yaw, pose.pitch);
+            let (s, u) = view_axes(pose.yaw, pose.pitch, pose.roll);
             let rel = [point[0] - target[0], point[1] - target[1], point[2] - target[2]];
             assert!((dot(rel, s) - pose.pan[0]).abs() < 1e-4 && (dot(rel, u) - pose.pan[1]).abs() < 1e-4, "the patch is the middle of the view");
             let d = [pose.pitch.cos() * pose.yaw.cos(), pose.pitch.cos() * pose.yaw.sin(), pose.pitch.sin()];
@@ -604,6 +656,16 @@ mod tests {
         assert!(mid.yaw > 3.0 && mid.yaw < 3.3, "through pi, not back through zero: {}", mid.yaw);
         let end = ease(current, to, 1.0);
         assert!((end.yaw.sin() - to.yaw.sin()).abs() < 1e-5 && end.zoom == 2.0);
+        // Upside down the patch is still the middle of the view, and the turn rolls the short way.
+        let flipped = Pose { roll: std::f32::consts::PI, ..current };
+        let pose = aim_pose(flipped, target, 17.0, &Aim { point: [0.0, 10.5, 1.0], normal: [0.0, 1.0, 0.0], reach_mm: 2.5 });
+        let (s, u) = view_axes(pose.yaw, pose.pitch, pose.roll);
+        let (s0, u0) = view_axes(pose.yaw, pose.pitch, 0.0);
+        assert!((dot(s, s0) + 1.0).abs() < 1e-5 && (dot(u, u0) + 1.0).abs() < 1e-5, "rolled half way round, right is left and up is down");
+        let rel = [0.0 - target[0], 10.5 - target[1], 1.0 - target[2]];
+        assert!((dot(rel, s) - pose.pan[0]).abs() < 1e-4 && (dot(rel, u) - pose.pan[1]).abs() < 1e-4 && pose.roll == flipped.roll);
+        let half = ease(Pose { roll: 3.0, ..current }, Pose { roll: -3.0, ..current }, 0.5);
+        assert!(half.roll > 3.0 && half.roll < 3.3, "{}", half.roll);
         let (start, moving) = pulse(0.0);
         let (held, still) = pulse(5.0);
         assert!(start > held && moving && !still && (0.5..0.7).contains(&held));

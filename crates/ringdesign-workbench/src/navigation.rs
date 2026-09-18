@@ -89,6 +89,12 @@ pub enum Action {
     Look([f32; 2]),
     /// A drag on the cube, in points.
     Orbit(egui::Vec2),
+    /// Quarter turns about the view axis. Two of them stand the ring on its
+    /// head, which no yaw or pitch can: pitch stops at the poles, and up
+    /// stays the finger axis.
+    Roll(f32),
+    /// A free turn about the view axis, radians: two fingers twisting.
+    Twist(f32),
 }
 impl Action {
     pub fn angles(self, yaw: f32, pitch: f32, head_degrees: f32) -> [f32; 2] {
@@ -100,6 +106,7 @@ impl Action {
             Self::Opposite => [yaw + PI, -pitch],
             Self::Look(angles) => angles,
             Self::Orbit(d) => [yaw - d.x * 0.012, (pitch + d.y * 0.012).clamp(-FRAC_PI_2 + 0.001, FRAC_PI_2 - 0.001)],
+            Self::Roll(_) | Self::Twist(_) => [yaw, pitch],
         };
         pitch = (pitch + PI).rem_euclid(TAU) - PI;
         if pitch > FRAC_PI_2 {
@@ -113,10 +120,39 @@ impl Action {
         [(yaw + PI).rem_euclid(TAU) - PI, pitch]
     }
 
+    /// The whole pose after the action, `[yaw, pitch, roll]`. A named view
+    /// is upright; a mirror mirrors the roll with the rest; a drag is read
+    /// in the screen's axes, which a rolled camera's are not.
+    pub fn apply(self, pose: [f32; 3], head_degrees: f32) -> [f32; 3] {
+        let [yaw, pitch, roll] = pose;
+        let wrap = |a: f32| (a + PI).rem_euclid(TAU) - PI;
+        match self {
+            Self::Roll(quarters) => [yaw, pitch, wrap(roll + quarters * FRAC_PI_2)],
+            Self::Twist(radians) => [yaw, pitch, wrap(roll + radians)],
+            Self::Orbit(d) => {
+                let (sin, cos) = roll.sin_cos();
+                let a = Self::Orbit(egui::vec2(d.x * cos + d.y * sin, d.y * cos - d.x * sin)).angles(yaw, pitch, head_degrees);
+                [a[0], a[1], roll]
+            }
+            Self::View(_) | Self::Look(_) => {
+                let a = self.angles(yaw, pitch, head_degrees);
+                [a[0], a[1], 0.0]
+            }
+            Self::Mirror => {
+                let a = self.angles(yaw, pitch, head_degrees);
+                [a[0], a[1], wrap(-roll)]
+            }
+            Self::Turn(_) | Self::Tilt(_) | Self::Opposite => {
+                let a = self.angles(yaw, pitch, head_degrees);
+                [a[0], a[1], roll]
+            }
+        }
+    }
+
     /// Whether the view should recentre on the ring and may ease into the
-    /// pose. A drag follows the finger and leaves the pan alone.
+    /// pose. A drag or a twist follows the fingers and leaves the pan alone.
     pub fn recentres(self) -> bool {
-        !matches!(self, Self::Orbit(_))
+        !matches!(self, Self::Orbit(_) | Self::Twist(_))
     }
 }
 
@@ -178,7 +214,12 @@ pub struct Cube {
 
 impl Cube {
     pub fn new(centre: Pos2, half: f32, angles: [f32; 2], head_degrees: f32) -> Self {
-        let (s, u) = view_axes(angles[0], angles[1]);
+        Self::rolled(centre, half, [angles[0], angles[1], 0.0], head_degrees)
+    }
+
+    /// The cube for a whole pose, `[yaw, pitch, roll]`.
+    pub fn rolled(centre: Pos2, half: f32, angles: [f32; 3], head_degrees: f32) -> Self {
+        let (s, u) = view_axes(angles[0], angles[1], angles[2]);
         let d = [angles[1].cos() * angles[0].cos(), angles[1].cos() * angles[0].sin(), angles[1].sin()];
         let head = head_degrees.to_radians();
         Self { centre, half, s, u, d, faces: cube_faces(head), head }
@@ -276,7 +317,7 @@ pub fn show(
     viewport: Rect,
     id: egui::Id,
     settings: &mut Settings,
-    angles: [f32; 2],
+    angles: [f32; 3],
     head: f32,
 ) -> Response {
     let before = *settings;
@@ -293,7 +334,7 @@ pub fn show(
                     let (r, _) = ui.allocate_exact_size(egui::vec2(96.0, 92.0), egui::Sense::hover());
                     let ink = Color32::from_rgb(143, 137, 156);
                     let aqua = Color32::from_rgb(43, 226, 214);
-                    let cube = Cube::new(r.center(), 19.0, angles, head);
+                    let cube = Cube::rolled(r.center(), 19.0, angles, head);
                     let body = ui.interact(Rect::from_center_size(r.center(), egui::vec2(62.0, 62.0)), id.with("view-cube"), egui::Sense::click_and_drag());
                     controls.push(("View cube", body.rect));
                     let pointer = body.hover_pos().or(body.interact_pointer_pos());
@@ -340,6 +381,9 @@ pub fn show(
                             }
                             ui.separator();
                             if ui.button("Opposite side").clicked() { action = Some(Action::Opposite); ui.close(); }
+                            for (name, command) in [("Roll left 90\u{b0}", Action::Roll(1.0)), ("Roll right 90\u{b0}", Action::Roll(-1.0)), ("Upside down", Action::Roll(2.0))] {
+                                if ui.button(name).clicked() { action = Some(command); ui.close(); }
+                            }
                             ui.small(if settings.locked { "Locked · empty space pans" } else { "Free · empty space orbits" });
                         });
                     });
@@ -350,6 +394,10 @@ pub fn show(
                         let loupe = icons::compact(ui, Icon::Magnifier, settings.magnifier);
                         controls.push(("Magnifier", loupe.rect));
                         if loupe.clicked() { settings.magnifier = !settings.magnifier; }
+                        let upside_down = (angles[2].abs() - PI).abs() < 0.2;
+                        let flip = icons::compact(ui, Icon::Rotate, upside_down);
+                        controls.push(("Upside down", flip.rect));
+                        if flip.response.clone().on_hover_text("Turn the ring upside down in the view, and back. Two fingers twist it freely.").clicked() { action = Some(Action::Roll(2.0)); }
                     });
                 });
         });
@@ -530,6 +578,39 @@ mod tests {
         let top = Cube::new(centre, 20.0, [0.3, 1.2], head);
         let bore = top.hit(top.point(4, [0.0, 0.0])).unwrap();
         assert_eq!(top.look(bore), View::Opening.angles(head));
+    }
+    #[test]
+    fn the_ring_can_be_stood_on_its_head_and_the_cube_goes_with_it() {
+        let head = 90.0f32;
+        let face = View::Face.angles(head);
+        let upright = [face[0], face[1], 0.0];
+        let flipped = Action::Roll(2.0).apply(upright, head);
+        assert!((flipped[2].abs() - PI).abs() < 1e-5 && flipped[0] == upright[0] && flipped[1] == upright[1], "the same side, upside down: {flipped:?}");
+        let back = Action::Roll(2.0).apply(flipped, head);
+        assert!(back[2].abs() < 1e-5, "twice is upright again");
+        // Face on, BORE is drawn above FACE; upside down it is drawn below, and RIGHT is on the left.
+        let centre = egui::pos2(100.0, 100.0);
+        let at = |cube: &Cube, label: &str| cube.point(cube.faces.iter().position(|f| f.label == label).unwrap(), [0.0, 0.0]);
+        let iso = [head.to_radians() + 0.5, 0.45];
+        let up = Cube::rolled(centre, 20.0, [iso[0], iso[1], 0.0], head);
+        let down = Cube::rolled(centre, 20.0, [iso[0], iso[1], PI], head);
+        assert!(at(&up, "BORE").y < at(&up, "FACE").y && at(&down, "BORE").y > at(&down, "FACE").y);
+        assert!(at(&up, "RIGHT").x > at(&up, "FACE").x && at(&down, "RIGHT").x < at(&down, "FACE").x);
+        // A tap on the rolled cube still looks at the face under the finger.
+        let hit = down.hit(at(&down, "RIGHT")).unwrap();
+        assert_eq!(down.look(hit), View::Right.angles(head));
+        // A named view is upright; a twist is free and keeps the side; a drag follows the screen.
+        assert_eq!(Action::View(View::Face).apply(flipped, head)[2], 0.0);
+        let twisted = Action::Twist(0.3).apply(upright, head);
+        assert!((twisted[2] - 0.3).abs() < 1e-6 && !Action::Twist(0.3).recentres());
+        let a = Action::Orbit(egui::vec2(10.0, 0.0)).apply(upright, head);
+        let b = Action::Orbit(egui::vec2(10.0, 0.0)).apply(flipped, head);
+        assert!(a[0] < upright[0] && b[0] > upright[0], "upside down, a drag to the right turns the other way round the axis");
+        // Rolled a quarter, the finger axis lies across the screen: a drag along it tilts, and never turns.
+        let quarter = Action::Orbit(egui::vec2(10.0, 0.0)).apply([upright[0], 0.3, FRAC_PI_2], head);
+        assert!((quarter[0] - upright[0]).abs() < 1e-4 && quarter[1] < 0.25, "{quarter:?}");
+        // Mirrored, a roll mirrors too.
+        assert!((Action::Mirror.apply([0.4, 0.2, 0.7], head)[2] + 0.7).abs() < 1e-6);
     }
     #[test]
     fn a_drag_on_the_cube_orbits_and_leaves_the_pan_alone() {

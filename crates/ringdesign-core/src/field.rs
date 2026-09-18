@@ -105,6 +105,11 @@ pub struct FieldContext {
     /// unmodulated band, where the stretch is exactly 1 everywhere.
     /// [`RingDesign::field_context`](crate::RingDesign::field_context) fills it.
     pub stretch: Option<std::sync::Arc<Vec<f32>>>,
+    /// Crest radius per ring angle over the reference's, laid out like
+    /// `stretch`. `u` is arc at the *reference* crest, so where a head
+    /// stands further out a chart millimetre round the ring is this many of
+    /// metal — 1.15 on a signet's table.
+    pub crest_scale: Option<std::sync::Arc<Vec<f32>>>,
     /// Actual imported stock in the persistent chart, for rigid setting
     /// footprints instead of a whole-section average stretch.
     pub imported_surface: Option<std::sync::Arc<crate::imported_base::FieldSurface>>,
@@ -146,7 +151,19 @@ impl FieldContext {
     /// deliberate exception, a [`SeatPadLayer`] whose `metal_true` is set,
     /// which divides its drawn extents by it so they cast as drawn.
     pub fn station_stretch(&self, theta_deg: f64) -> f64 {
-        let Some(t) = &self.stretch else { return 1.0 };
+        Self::station_read(self.stretch.as_deref(), theta_deg)
+    }
+
+    /// Metal mm per chart mm **round** the ring at the crest of a ring
+    /// angle's own section: its crest radius over the reference's. Exactly 1
+    /// on an unmodulated band; with [`arc_scale`](Self::arc_scale) it is
+    /// what a [`SeatPadLayer`] drawn `metal_true` divides its `u` reach by.
+    pub fn crest_scale(&self, theta_deg: f64) -> f64 {
+        Self::station_read(self.crest_scale.as_deref(), theta_deg)
+    }
+
+    fn station_read(table: Option<&Vec<f32>>, theta_deg: f64) -> f64 {
+        let Some(t) = table else { return 1.0 };
         let n = t.len();
         if n == 0 {
             return 1.0;
@@ -1160,6 +1177,19 @@ pub struct SeatPadLayer {
     /// Off by default, so saved designs keep the read they were built on.
     #[serde(default)]
     pub metal_true: bool,
+    /// The pre-made solid this seat carries — a claw head, a collet, the
+    /// setting bur — placed on the built ring and resolved by boolean. The
+    /// pad itself stays the stock under it.
+    #[serde(default)]
+    pub solid: crate::setting::SolidKind,
+    /// Drill the solid's pilot through to the finger, where the seat faces out from the bore.
+    #[serde(default)]
+    pub through: bool,
+    /// Diameter of a raised dot at the seat's centre, mm: where the drill starts on a casting whose
+    /// seat is cut at the bench. Raised, not sunk — a pit's far wall faces back into its own mould
+    /// half and locks, a dot on the parting line pulls. The bur takes it away. 0 is none.
+    #[serde(default)]
+    pub mark_mm: f64,
 }
 
 fn default_elong() -> f64 {
@@ -1217,6 +1247,9 @@ impl Default for SeatPadLayer {
             plan_pow: default_plan_pow(),
             set_depth_mm: None,
             metal_true: false,
+            solid: Default::default(),
+            through: false,
+            mark_mm: 0.0,
         }
     }
 }
@@ -1374,7 +1407,7 @@ impl SeatPadLayer {
     /// arc scale at the pad's `v`, `v` by the modulated section's stretch —
     /// the same pair the decal measurement reads.
     pub fn station_scale(&self, ctx: &FieldContext) -> (f64, f64) {
-        (ctx.arc_scale(self.v_mm), ctx.station_stretch(self.theta_deg))
+        (ctx.arc_scale(self.v_mm) * ctx.crest_scale(self.theta_deg), ctx.station_stretch(self.theta_deg))
     }
 
     /// Rim-plus-skirt half-extents in chart mm — what shares the chart with
@@ -1412,6 +1445,10 @@ impl SeatPadLayer {
     /// preview, the pavilion check and the spacing census all read, so the
     /// stone they each mean is the same stone.
     pub fn girdle_drop_mm(&self, gem: crate::gem::Gem) -> f64 {
+        // A solid stands its stone where the part needs it: over the pad on a head, under the surface for a bur.
+        if let Some(d) = self.solid.girdle_drop_mm(gem) {
+            return self.set_depth_mm.unwrap_or(d);
+        }
         let d = self.set_depth_mm.unwrap_or(match (gem.form, self.style) {
             // A cabochon is flat-backed: it rests on the surface it is given.
             (crate::gem::GemForm::Cabochon, _) => 0.0,
@@ -1428,7 +1465,8 @@ impl SeatPadLayer {
     /// Height of the girdle over the bare band, mm — the pad's own stand-off
     /// less how deep the stone is set into it.
     pub fn stand_off_mm(&self, gem: crate::gem::Gem) -> f64 {
-        (self.height_mm - self.girdle_drop_mm(gem)).max(0.0)
+        let h = self.height_mm - self.girdle_drop_mm(gem);
+        if self.solid.is_none() { h.max(0.0) } else { h }
     }
 
     pub fn height(&self, uv: Uv, ctx: &FieldContext) -> f64 {
@@ -1468,13 +1506,15 @@ impl SeatPadLayer {
         let (a, b) = self.pad_frame(du, dv);
         let r = self.rim_mm(a, b);
 
-        let body = match self.style {
+        let headed = matches!(self.solid, crate::setting::SolidKind::Prong | crate::setting::SolidKind::Bezel);
+        let body = match if headed && self.style == SeatStyle::Bezel { SeatStyle::Boss } else { self.style } {
             SeatStyle::Boss => {
                 let crown = self.crown.clamp(0.0, 1.0);
                 if d <= r {
                     let t = d / r;
                     let dome = (1.0 - t * t).max(0.0).sqrt();
-                    let flat = 1.0 - smoothstep(0.82, 1.0, t);
+                    // A skirt takes the flat top down from the rim; without one the shoulder rolls off inside it.
+                    let flat = if blend > 1e-9 { 1.0 } else { 1.0 - smoothstep(0.82, 1.0, t) };
                     self.height_mm * ((1.0 - crown) * flat + crown * dome)
                 } else {
                     self.skirt(d, r, blend)
@@ -1531,7 +1571,14 @@ impl SeatPadLayer {
             _ => body,
         };
 
-        let n = self.prongs.min(8);
+        // The drill mark: a low cosine dot, a quarter as high as it is wide.
+        let body = if self.mark_mm > 0.05 && d < self.mark_mm * 0.5 {
+            let t = d / (self.mark_mm * 0.5);
+            body + (0.25 * self.mark_mm).min(0.25) * (0.5 + 0.5 * (std::f64::consts::PI * t).cos())
+        } else {
+            body
+        };
+        let n = if self.solid.is_none() { self.prongs.min(8) } else { 0 };
         if n == 0 {
             return body;
         }
@@ -3382,6 +3429,7 @@ mod tests {
             bore_radius_mm: 8.5,
             side_faces_cache: Default::default(),
             stretch: None,
+            crest_scale: None,
             ..Default::default()
         }
     }

@@ -637,6 +637,12 @@ pub struct AddSeatPadParams {
     /// section (signet wall, keyframed lobe) casts as drawn instead of the
     /// station's stretch times bigger.
     pub metal_true: Option<bool>,
+    /// The pre-made solid the seat carries, resolved into the ring by boolean:
+    /// "None", "Flush" (the setting bur), "Bead" (bur plus raised beads),
+    /// "Prong" (a claw head notched by its stone) or "Bezel" (a collet).
+    pub solid: Option<String>,
+    /// Carry the solid's pilot through to the finger.
+    pub through: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -767,6 +773,12 @@ pub struct UpdateLayerParams {
     /// pad on a stretched section (signet wall, keyframed lobe) casts as
     /// drawn instead of the station's stretch times bigger.
     pub metal_true: Option<bool>,
+    /// The pre-made solid the seat carries, resolved into the ring by boolean:
+    /// "None", "Flush" (the setting bur), "Bead" (bur plus raised beads),
+    /// "Prong" (a claw head notched by its stone) or "Bezel" (a collet).
+    pub solid: Option<String>,
+    /// Carry the solid's pilot through to the finger.
+    pub through: Option<bool>,
     /// Milgrain only.
     pub bead_diameter_mm: Option<f64>,
     /// Milgrain only: beads around the circumference.
@@ -1028,6 +1040,15 @@ fn put_u32(dst: &mut u32, src: Option<u32>, name: &str, applied: &mut Vec<String
         *dst = v;
         applied.push(format!("{name}={v}"));
     }
+}
+
+fn put_solid(dst: &mut ringdesign_core::setting::SolidKind, src: Option<&str>, applied: &mut Vec<String>) -> Result<(), ErrorData> {
+    let Some(name) = src else { return Ok(()) };
+    let kind = serde_json::from_value(serde_json::Value::String(name.to_string()))
+        .map_err(|_| ErrorData::invalid_params(format!("solid {name:?} is not one of None, Flush, Bead, Prong, Bezel"), None))?;
+    *dst = kind;
+    applied.push(format!("solid={name}"));
+    Ok(())
 }
 
 fn put_bool(dst: &mut bool, src: Option<bool>, name: &str, applied: &mut Vec<String>) {
@@ -1312,7 +1333,7 @@ const TILING_FIELDS: &[&str] = &[
 ];
 const BORDER_FIELDS: &[&str] = &["v_mm", "width_mm", "profile", "mirror", "rope_twists"];
 const SEAT_PAD_FIELDS: &[&str] =
-    &["theta_deg", "v_mm", "diameter_mm", "elong", "rot_deg", "crown", "blend_mm", "metal_true"];
+    &["theta_deg", "v_mm", "diameter_mm", "elong", "rot_deg", "crown", "blend_mm", "metal_true", "solid", "through"];
 const MILGRAIN_FIELDS: &[&str] = &["v_mm", "bead_diameter_mm", "beads_around", "mirror"];
 const SIGNET_FIELDS: &[&str] = &[
     "theta_deg",
@@ -1860,6 +1881,8 @@ impl RingDesignServer {
         put_range(&mut s.crown, p.crown, "crown", 0.0, 1.0, &mut applied)?;
         put_f64(&mut s.blend_mm, p.blend_mm, "blend_mm", &mut applied)?;
         put_bool(&mut s.metal_true, p.metal_true, "metal_true", &mut applied);
+        put_solid(&mut s.solid, p.solid.as_deref(), &mut applied)?;
+        put_bool(&mut s.through, p.through, "through", &mut applied);
 
         let name = p.name.unwrap_or_else(|| "Gem seat".to_string());
         let mut entry = LayerEntry::new(name, Layer::SeatPad(s));
@@ -2084,6 +2107,8 @@ impl RingDesignServer {
                 put_range(&mut s.crown, p.crown, "crown", 0.0, 1.0, &mut applied)?;
                 put_f64(&mut s.blend_mm, p.blend_mm, "blend_mm", &mut applied)?;
                 put_bool(&mut s.metal_true, p.metal_true, "metal_true", &mut applied);
+                put_solid(&mut s.solid, p.solid.as_deref(), &mut applied)?;
+                put_bool(&mut s.through, p.through, "through", &mut applied);
             }
             Layer::Signet(s) => {
                 put_f64(&mut s.theta_deg, p.theta_deg, "theta_deg", &mut applied)?;

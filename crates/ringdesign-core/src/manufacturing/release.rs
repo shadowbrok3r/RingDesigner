@@ -598,6 +598,7 @@ mod tests {
                 [3, 0, 4],
                 [3, 4, 7],
             ],
+            ..Default::default()
         }
     }
     fn setup() -> Setup {

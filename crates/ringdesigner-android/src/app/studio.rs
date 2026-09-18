@@ -258,6 +258,20 @@ impl RingApp {
                 self.request_view_update();
             }
             if ui
+                .checkbox(&mut self.cuts.live, "Live cuts")
+                .on_hover_text("Resolve made settings — burs, heads, collets — into the ring as you edit. Off, the ring shows its cast stock alone, and builds faster.")
+                .changed()
+            {
+                self.request_view_update();
+            }
+            if ui
+                .checkbox(&mut self.cuts.ghost, "Show cutters")
+                .on_hover_text("Draw each seat's cutter over the ring as a ghost: what the boolean takes away, where it stands.")
+                .changed()
+            {
+                self.request_view_update();
+            }
+            if ui
                 .checkbox(&mut self.as_cast, "Soften to sand detail")
                 .changed()
             {
@@ -882,6 +896,7 @@ impl RingApp {
                             ),
                         ));
                         r.set_pending_gems(Vec::new());
+                        r.set_pending_ghost(Vec::new());
                     }
                     self.mould_serial = self.visual.study_serial;
                 }
@@ -909,20 +924,21 @@ impl RingApp {
         self.floating_tools(ui.ctx(), rect, host);
         let nav = ringdesign_workbench::navigation::show(
             ui, rect, ui.id().with("phone-view"), &mut self.pane.navigation,
-            [self.pane.camera.yaw, self.pane.camera.pitch], self.design.shank.head.theta_deg as f32,
+            [self.pane.camera.yaw, self.pane.camera.pitch, self.pane.camera.roll], self.design.shank.head.theta_deg as f32,
         );
         for (name, r) in &nav.controls { editor::layout::record(ui, format!("navigator/{name}"), *r); }
         if let Some(action) = nav.action {
-            let angles = action.angles(self.pane.camera.yaw, self.pane.camera.pitch, self.design.shank.head.theta_deg as f32);
+            let angles = action.apply([self.pane.camera.yaw, self.pane.camera.pitch, self.pane.camera.roll], self.design.shank.head.theta_deg as f32);
             if action.recentres() {
                 // A view from the cube eases in, as a chosen node's does.
                 let from = self.pane.camera.pose();
-                let to = crate::focus::Pose { yaw: angles[0], pitch: angles[1], pan: [0.0; 2], ..from };
+                let to = crate::focus::Pose { yaw: angles[0], pitch: angles[1], roll: angles[2], pan: [0.0; 2], ..from };
                 self.camera_turn = Some(crate::focus::Turn::new(from, to));
             } else {
                 self.camera_turn = None;
                 self.pane.camera.yaw = angles[0];
                 self.pane.camera.pitch = angles[1];
+                self.pane.camera.roll = angles[2];
             }
             self.pane.actual_size = false;
             ui.ctx().request_repaint();

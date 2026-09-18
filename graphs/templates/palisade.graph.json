@@ -666,8 +666,10 @@
         "prongs": 0,
         "recess_mm": 0.5,
         "rot_deg": 0.0,
+        "solid": "Flush",
         "style": "GypsyMound",
         "theta_deg": 90.0,
+        "through": true,
         "v_mm": 9.484222639733938
       },
       "pos": [
@@ -750,8 +752,10 @@
         "prongs": 0,
         "recess_mm": 0.5,
         "rot_deg": 0.0,
+        "solid": "Flush",
         "style": "GypsyMound",
         "theta_deg": 111.0,
+        "through": true,
         "v_mm": 9.484222639733938
       },
       "pos": [
@@ -834,8 +838,10 @@
         "prongs": 0,
         "recess_mm": 0.5,
         "rot_deg": 0.0,
+        "solid": "Flush",
         "style": "GypsyMound",
         "theta_deg": 69.0,
+        "through": true,
         "v_mm": 9.484222639733938
       },
       "pos": [
@@ -949,8 +955,10 @@
         "prongs": 0,
         "recess_mm": 0.5,
         "rot_deg": 0.0,
+        "solid": "Flush",
         "style": "GypsyMound",
         "theta_deg": 90.0,
+        "through": true,
         "v_mm": 9.484222639733938
       },
       "pos": [
@@ -1063,8 +1071,10 @@
         "prongs": 0,
         "recess_mm": 0.5,
         "rot_deg": 0.0,
+        "solid": "Flush",
         "style": "GypsyMound",
         "theta_deg": 90.0,
+        "through": true,
         "v_mm": 9.484222639733938
       },
       "pos": [

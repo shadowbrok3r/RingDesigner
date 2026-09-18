@@ -25,6 +25,7 @@ use ringdesign_core::mesh::{self, BuildParams};
 use ringdesign_core::pave::{self, PaveRegion, PaveSpec};
 use ringdesign_core::profile::TOP_DEG;
 use ringdesign_core::render::{self, Part};
+use ringdesign_core::setting::SolidKind;
 use ringdesign_core::svg::SvgAlpha;
 use ringdesign_core::text::{TextAlpha, TextFont};
 use ringdesign_core::tiling::TilingLayer;
@@ -166,11 +167,13 @@ fn palisade() -> RingDesign {
     // The gem column: an emerald cut on the parting line with a round either
     // side of it. A mound astride the parting plane splits cleanly between
     // cope and drag; the same mound two millimetres off it locks.
-    let mut centre = SeatPadLayer { theta_deg: TOP_DEG, v_mm: crest, style: SeatStyle::GypsyMound, height_mm: 0.55, crown: 1.0, blend_mm: 0.6, ..Default::default() };
+    // Every stone is flush set: the mound casts, and the setting bur — bevel, girdle wall, bearing,
+    // pilot through to the finger — is cut after the pour and is in the finished ring, not the pattern.
+    let mut centre = SeatPadLayer { theta_deg: TOP_DEG, v_mm: crest, style: SeatStyle::GypsyMound, height_mm: 0.55, crown: 1.0, blend_mm: 0.6, solid: SolidKind::Flush, through: true, ..Default::default() };
     centre.fit_stone(Gem::calibrated(GemCut::Emerald, 4.0));
     d.layers.layers.push(LayerEntry::new("Emerald cut, on the parting line", Layer::SeatPad(centre)));
     for (name, side) in [("Round, toward the right shoulder", 1.0), ("Round, toward the left shoulder", -1.0)] {
-        let mut seat = SeatPadLayer { theta_deg: TOP_DEG + side * 21.0, v_mm: crest, style: SeatStyle::GypsyMound, height_mm: 0.4, crown: 1.0, blend_mm: 0.5, ..Default::default() };
+        let mut seat = SeatPadLayer { theta_deg: TOP_DEG + side * 21.0, v_mm: crest, style: SeatStyle::GypsyMound, height_mm: 0.4, crown: 1.0, blend_mm: 0.5, solid: SolidKind::Flush, through: true, ..Default::default() };
         seat.fit_stone(Gem::calibrated(GemCut::Round, 2.0));
         d.layers.layers.push(LayerEntry::new(name, Layer::SeatPad(seat)));
     }
@@ -178,7 +181,7 @@ fn palisade() -> RingDesign {
     // the stones shrink away from the head and the stations close up with
     // them, so the metal between neighbours stays what this sand fills.
     for (name, side) in [("Graduated rounds, right rib", 1.0), ("Graduated rounds, left rib", -1.0)] {
-        let mut seat = SeatPadLayer { v_mm: crest, style: SeatStyle::GypsyMound, height_mm: 0.36, crown: 1.0, blend_mm: 0.45, ..Default::default() };
+        let mut seat = SeatPadLayer { v_mm: crest, style: SeatStyle::GypsyMound, height_mm: 0.36, crown: 1.0, blend_mm: 0.45, solid: SolidKind::Flush, through: true, ..Default::default() };
         let gem = Gem::calibrated(GemCut::Round, 1.75);
         seat.fit_stone(gem);
         let run = SeatRunLayer { seat, count: 17, gem, bridge_mm: 0.85, taper: 0.45, taper_theta_deg: TOP_DEG, shared_prong_mm: 0.0, tilt_deg: 0.0 };
@@ -221,7 +224,7 @@ const LANTERN_FLEUR: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox=
 
 /// Oriel: the lost-wax ring.
 fn oriel() -> RingDesign {
-    let mut d = signet(SignetOutline::Cushion, 13.0, 2.3);
+    let mut d = signet(SignetOutline::Cushion, 14.0, 2.3);
     d.name = "Oriel \u{2014} jewelled lantern".into();
     d.size = RingSize::new(7.0);
     CastProcess::LostWax.apply(&mut d.draft);
@@ -304,6 +307,13 @@ fn oriel() -> RingDesign {
             // onto a stack index.
             if let Layer::Group(g) = &mut e.layer {
                 g.recipe = None;
+                // Bead set: every seat is cut with the bur and holds its stone under raised beads.
+                for seat in &mut g.stack.layers {
+                    if let Layer::SeatPad(p) = &mut seat.layer {
+                        p.solid = SolidKind::Bead;
+                        p.prongs = 0;
+                    }
+                }
             }
             println!("  {name}: {} seats in {} rows", outcome.seats, outcome.rows);
             d.layers.layers.push(e);
@@ -334,12 +344,22 @@ fn oriel() -> RingDesign {
     // to cast as drawn, in a group that blends as one.
     let cab = Gem::cabochon(GemCut::Oval, 6.0);
     let melee = Gem::calibrated(GemCut::Round, 1.3);
-    let mut bezel = SeatPadLayer { theta_deg: TOP_DEG, v_mm: crest, style: SeatStyle::Bezel, height_mm: 0.9, crown: 1.0, blend_mm: 0.5, bezel_wall_mm: 0.55, metal_true: true, ..Default::default() };
+    // The centre is a made collet — tapered wall, bearing ledge, a lip up the dome — stood on a low
+    // platform and resolved into the head, so it fits its stone in metal millimetres wherever it lands.
+    const PLATE_MM: f64 = 0.55;
+    let mut bezel = SeatPadLayer { theta_deg: TOP_DEG, v_mm: crest, style: SeatStyle::Boss, crown: 0.0, blend_mm: 0.3, metal_true: true, solid: SolidKind::Bezel, ..Default::default() };
     bezel.fit_stone(cab);
-    let mut seats = vec![LayerEntry::new("Cabochon bezel", Layer::SeatPad(bezel))];
-    let r_crest = ctx.crest_radius_mm;
+    bezel.height_mm = PLATE_MM;
+    let r_crest = ctx.crest_radius_mm * ctx.crest_scale(TOP_DEG);
     // The halo is the bezel's own outline grown by the gap, melee at equal arc length round it.
-    let (ha, hb) = (cab.l_mm * 0.5 + 0.55 + 0.45 + melee.w_mm * 0.5 + 0.9, cab.w_mm * 0.5 + 0.55 + 0.45 + melee.w_mm * 0.5 + 0.9);
+    let reach = 0.82 + 0.35 + melee.w_mm * 0.5;
+    let (ha, hb) = (cab.l_mm * 0.5 + reach, cab.w_mm * 0.5 + reach);
+    // One plate under the collet and its halo, flat-topped, a rim's width past the melee.
+    let rim = melee.w_mm * 0.5 + 0.45;
+    let mut plate = SeatPadLayer { theta_deg: TOP_DEG, v_mm: crest, style: SeatStyle::Boss, height_mm: PLATE_MM, crown: 0.0, blend_mm: 0.45, metal_true: true, plan_pow: 2.0, ..Default::default() };
+    plate.diameter_mm = 2.0 * (hb + rim);
+    plate.elong = (ha + rim) / (hb + rim);
+    let mut seats = vec![LayerEntry::new("Halo plate", Layer::SeatPad(plate)), LayerEntry::new("Cabochon collet", Layer::SeatPad(bezel))];
     let count = 18usize;
     let samples: Vec<(f64, f64)> = (0..=720).map(|i| { let t = i as f64 / 720.0 * std::f64::consts::TAU; (ha * t.cos(), hb * t.sin()) }).collect();
     let lengths: Vec<f64> = samples.windows(2).scan(0.0, |acc, w| { *acc += ((w[1].0 - w[0].0).powi(2) + (w[1].1 - w[0].1).powi(2)).sqrt(); Some(*acc) }).collect();
@@ -350,8 +370,10 @@ fn oriel() -> RingDesign {
         let (along, across) = samples[at];
         let theta = TOP_DEG + (along / r_crest).to_degrees();
         let stretch = ctx.station_stretch(theta).max(1.0);
-        let mut seat = SeatPadLayer { theta_deg: theta, v_mm: crest + across / stretch, style: SeatStyle::Boss, height_mm: 0.42, crown: 0.6, blend_mm: 0.22, prongs: 4, prong_mm: 0.26, metal_true: true, ..Default::default() };
+        // Bead set into the plate: the seat's own stock is the plate's height, so its girdle reads off the same top.
+        let mut seat = SeatPadLayer { theta_deg: theta, v_mm: crest + across / stretch, style: SeatStyle::Boss, crown: 0.0, blend_mm: 0.1, metal_true: true, solid: SolidKind::Bead, ..Default::default() };
         seat.fit_stone(melee);
+        seat.height_mm = PLATE_MM;
         seats.push(LayerEntry::new(format!("Halo melee {:02}", k + 1), Layer::SeatPad(seat)));
     }
     println!("  halo: {count} melee round a {:.1} x {:.1} mm cabochon", cab.l_mm, cab.w_mm);
@@ -501,6 +523,7 @@ fn main() {
         let params = BuildParams { theta_steps: 1536, profile_steps: 448, ..Default::default() };
         let out = mesh::build(&d, &lib, params);
         assert!(out.report.validation.watertight, "{slug} is not watertight");
+        println!("  made settings: {} resolved in {} ms{}", out.solids.resolved, out.solids.ms, if out.solids.notes.is_empty() { String::new() } else { format!(", {} refused: {:?}", out.solids.notes.len(), out.solids.notes) });
         println!("  {} triangles, {:.0} mm3, relief {:+.2}..{:+.2} mm", out.report.validation.triangle_count, out.report.volume_mm3, out.report.min_relief_mm, out.report.max_relief_mm);
         for m in out.report.metals.iter().take(3) {
             println!("    {}: {:.2} g", m.metal, m.grams);

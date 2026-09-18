@@ -99,6 +99,58 @@ pub struct RingPane {
     pub clip_plane: [f32; 4],
     /// Tint and strength of the chosen node's highlight; zero strength is off.
     pub focus: [f32; 4],
+    /// The two-finger twist in hand.
+    pub twist: Twist,
+}
+
+/// A pinch is never quite straight, so a twist turns nothing until the
+/// fingers have turned `TWIST_DEAD` about each other; let go near a quarter
+/// turn and the view settles onto it.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Twist {
+    turned: f32,
+    engaged: bool,
+    settle: Option<f32>,
+}
+
+const TWIST_DEAD: f32 = 0.14;
+const TWIST_SNAP: f32 = 0.26;
+
+impl Twist {
+    /// The roll after this frame's `delta`, `None` with the fingers lifted. Returns whether it moved.
+    pub fn advance(&mut self, roll: &mut f32, delta: Option<f32>) -> bool {
+        use std::f32::consts::{FRAC_PI_2, PI, TAU};
+        let wrap = |a: f32| (a + PI).rem_euclid(TAU) - PI;
+        match delta {
+            Some(d) => {
+                self.settle = None;
+                if !self.engaged {
+                    self.turned += d;
+                    if self.turned.abs() < TWIST_DEAD { return false; }
+                    self.engaged = true;
+                }
+                *roll = wrap(*roll + d);
+                d != 0.0
+            }
+            None => {
+                if self.engaged {
+                    let nearest = (*roll / FRAC_PI_2).round() * FRAC_PI_2;
+                    if (*roll - nearest).abs() < TWIST_SNAP { self.settle = Some(wrap(nearest)); }
+                }
+                self.engaged = false;
+                self.turned = 0.0;
+                let Some(to) = self.settle else { return false };
+                let gap = wrap(to - *roll);
+                if gap.abs() < 0.002 {
+                    *roll = to;
+                    self.settle = None;
+                } else {
+                    *roll = wrap(*roll + gap * 0.3);
+                }
+                true
+            }
+        }
+    }
 }
 
 impl Default for RingPane {
@@ -113,6 +165,7 @@ impl Default for RingPane {
             actual_size: false,
             clip_plane: [0.0; 4],
             focus: [0.0; 4],
+            twist: Twist::default(),
         }
     }
 }
@@ -224,8 +277,14 @@ impl RingPane {
             if mt.translation_delta != egui::Vec2::ZERO {
                 self.camera.pan_by(mt.translation_delta, rect);
             }
+            // Two fingers turning about each other roll the view, which is
+            // the one way to stand the ring on its head: pitch stops at the poles.
+            if !self.navigation.locked {
+                self.twist.advance(&mut self.camera.roll, Some(mt.rotation_delta));
+            }
             return true;
         }
+        let settling = self.twist.advance(&mut self.camera.roll, None);
         if response.dragged() {
             if self.navigation.locked {
                 self.camera.pan_by(response.drag_delta(), rect);
@@ -234,7 +293,7 @@ impl RingPane {
             }
             return true;
         }
-        false
+        settling
     }
 }
 
@@ -246,6 +305,8 @@ pub struct Done {
     pub verts: Vec<f32>,
     /// Stone-preview triangles, empty when the toggle is off.
     pub gems: Vec<f32>,
+    /// The seats' cutters as a ghost, empty unless asked for.
+    pub ghost: Vec<f32>,
     /// The built mesh, kept for the tap probe's raycast.
     pub mesh: Arc<ringdesign_core::mesh::Mesh>,
     pub bounds: Option<(Vec3, Vec3)>,
@@ -279,6 +340,21 @@ struct Job {
     analyze: bool,
     gems: bool,
     view_layer: Option<usize>,
+    cuts: Cuts,
+}
+
+/// How made settings show in the preview: resolved live into the mesh, and whether their cutters are
+/// drawn over it as a ghost. Off, the ring builds as its stock alone, which is also the faster build.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Cuts {
+    pub live: bool,
+    pub ghost: bool,
+}
+
+impl Default for Cuts {
+    fn default() -> Self {
+        Self { live: true, ghost: false }
+    }
 }
 
 pub struct Worker {
@@ -338,7 +414,10 @@ impl Worker {
                         let _ =
                             detail_tx.send((job.generation, job.design.clone(), job.lib.clone()));
                     }
-                    let out = match ringdesign_core::mesh::try_build(&job.design, &job.lib, job.params) {
+                    // The cutters are read off the whole design; with live cuts off only the stock is built.
+                    let ghost = if job.cuts.ghost { ringdesign_core::setting::ghost_vertices(&job.design, &job.lib) } else { Vec::new() };
+                    let shown = if job.cuts.live { None } else { Some(ringdesign_core::setting::without_solids(&job.design)) };
+                    let out = match ringdesign_core::mesh::try_build(shown.as_ref().unwrap_or(&job.design), &job.lib, job.params) {
                         Ok(out) => out,
                         Err(e) => { let _ = error_tx.send((job.generation, e.to_string())); ctx.request_repaint(); continue; }
                     };
@@ -365,7 +444,7 @@ impl Worker {
                         .view_layer
                         .filter(|&i| i < job.design.layers.layers.len());
                     let visible = if let Some(index) = view_layer {
-                        let mut design = job.design.clone();
+                        let mut design = shown.clone().unwrap_or_else(|| job.design.clone());
                         for (i, entry) in design.layers.layers.iter_mut().enumerate() {
                             entry.enabled &= i == index;
                         }
@@ -402,6 +481,7 @@ impl Worker {
                         generation: job.generation,
                         verts,
                         gems,
+                        ghost,
                         bounds: mesh.bounds(),
                         mesh: mesh.clone(),
                         triangles: report.validation.triangle_count,
@@ -439,6 +519,7 @@ impl Worker {
         analyze: bool,
         gems: bool,
         view_layer: Option<usize>,
+        cuts: Cuts,
     ) -> bool {
         self.jobs
             .send(Job {
@@ -449,6 +530,7 @@ impl Worker {
                 analyze,
                 gems,
                 view_layer,
+                cuts,
             })
             .is_ok()
     }
@@ -467,6 +549,40 @@ impl Worker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_twist_ignores_a_crooked_pinch_then_follows_the_fingers_and_settles_on_a_quarter() {
+        use std::f32::consts::PI;
+        let mut twist = Twist::default();
+        let mut roll = 0.0f32;
+        // A pinch wanders a few degrees either way and turns nothing.
+        for d in [0.03, -0.02, 0.04, -0.05, 0.02] {
+            assert!(!twist.advance(&mut roll, Some(d)));
+        }
+        assert_eq!(roll, 0.0);
+        assert!(!twist.advance(&mut roll, None), "and nothing settles after it");
+        // A deliberate half turn, clockwise, stopped a little short.
+        let step = 0.05;
+        let mut turned = 0.0;
+        while turned < PI - 0.12 {
+            twist.advance(&mut roll, Some(step));
+            turned += step;
+        }
+        assert!(roll > 2.6 && roll < PI, "{roll}");
+        // Fingers up: it eases the rest of the way and stops exactly upside down.
+        let mut frames = 0;
+        while twist.advance(&mut roll, None) {
+            frames += 1;
+            assert!(frames < 60);
+        }
+        assert!((roll.abs() - PI).abs() < 1e-6 && frames > 2, "{roll} after {frames}");
+        // Let go between quarters and it stays where it was left.
+        let mut free = Twist::default();
+        let mut roll = 0.0f32;
+        for _ in 0..16 { free.advance(&mut roll, Some(0.05)); }
+        let left = roll;
+        assert!(!free.advance(&mut roll, None) && roll == left && left > 0.5, "{left}");
+    }
 
     #[test]
     fn the_preview_preset_is_the_desktops_own() {

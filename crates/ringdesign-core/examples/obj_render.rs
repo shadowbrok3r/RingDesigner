@@ -126,14 +126,14 @@ fn read_obj(path: &Path, cg: bool) -> anyhow::Result<Mesh> {
     let mut normals = vertex_normals(&vertices, &faces);
     // Two faceless vertices widen the bounds the renderer frames on, so a
     // rotated ring is not cropped at the image edge.
-    if let Some((min, max)) = (Mesh { vertices: vertices.clone(), normals: normals.clone(), faces: Vec::new() }).bounds() {
+    if let Some((min, max)) = (Mesh { vertices: vertices.clone(), normals: normals.clone(), faces: Vec::new(), ..Default::default() }).bounds() {
         let pad = 0.35 * (max.0 - min.0).max(max.1 - min.1).max(max.2 - min.2);
         vertices.push(Vec3(min.0 - pad, min.1 - pad, min.2 - pad));
         vertices.push(Vec3(max.0 + pad, max.1 + pad, max.2 + pad));
         normals.push(Vec3(0.0, 0.0, 1.0));
         normals.push(Vec3(0.0, 0.0, 1.0));
     }
-    Ok(Mesh { vertices, normals, faces })
+    Ok(Mesh { vertices, normals, faces, ..Default::default() })
 }
 
 fn vertex_normals(v: &[Vec3], faces: &[[u32; 3]]) -> Vec<Vec3> {

@@ -915,6 +915,17 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 "Preview the stones in their seats. Render only — never in the mesh, never exported.",
             );
         if ui
+            .checkbox(&mut app.live_cuts, "Live cuts")
+            .on_hover_text("Resolve made settings — burs, heads, collets — into the ring as you edit. Off, the ring shows its cast stock alone, and builds faster.")
+            .changed()
+            | ui
+                .checkbox(&mut app.show_cutters, "Cutters")
+                .on_hover_text("Draw each seat's cutter over the ring as a ghost: what the boolean takes away, where it stands.")
+                .changed()
+        {
+            app.mark_dirty();
+        }
+        if ui
             .checkbox(&mut app.as_cast, "As-cast")
             .on_hover_text(
                 "Soften the 3D preview at the sand's detail radius, so beads merge and fine \

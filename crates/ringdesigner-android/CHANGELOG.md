@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.22.0 — 2026-09-18
+
+- Stone settings are made parts now, not bumps in the surface. A seat's new "Made setting" picker (Stone & setting, in the seat's editor) gives it a claw head, a collet, a flush cut or a bead-set cut, built beforehand to the stone's own millimetres and joined to or cut from the ring by boolean: claws lean out from a gallery rail, bend once and lie along the crown, notched by the stone itself so they bear on it; a collet has a tapered wall, a bearing ledge at the pavilion's angle and a lip up the crown; the setting bur leaves a bright-cut bevel, a girdle wall with a lip over the stone, a bearing cone and a pilot, drilled through to the finger with "Drill through". Bead-set neighbours share the beads between them. Every cut and plan is covered — round, oval, cushion, princess, emerald, marquise, pear, cabochons — and runs, pave and halos carry them too. The result is one watertight mesh at any resolution.
+- Seats fit their stones on signet heads. A "True size" seat is now round along the ring as well as across it: the chart measures round the ring at the band's reference radius, and a signet's table stands about 15% further out, so a seat there was drawn that much too long and gaped at both sides of its stone.
+- A flat-topped seat no longer has a moat round it. The boss's top rolled off to nothing at its rim and the skirt then started back up at full height, cutting a groove round every skirted seat; the top now meets its skirt.
+- The ring can be stood on its head. Twist with two fingers to roll the view — it turns with your fingers, ignores the wobble of a pinch, and settles onto the nearest quarter turn when you let go near one — or tap the new Upside down button on the view cube. The cube and its labels roll with the view, dragging still moves the surface under the finger, and any named view stands the ring upright again. Views → Roll left, Roll right and Upside down do the same in quarter turns.
+- Oriel and Palisade are rebuilt on made settings: Oriel's cabochon sits in a collet that fits it, inside a bead-set halo on one plate, with bead-set pave on the shoulders; Palisade's emerald cut and rounds are flush set in cut seats with pilots through to the finger. Choosing a seat's node lights its head as well as its stock.
+- The casting verdict says what it did not judge: seats cut with the bur after the pour, and made heads — cast in place under lost wax, soldered on after a sand pour. A manufacturing pattern leaves both out where the process cannot cast them.
+
 ## 0.21.0 — 2026-09-18
 
 - The corner navigator is a view cube. It turns with the ring: tap a face to look straight at that side (FACE, PALM, LEFT, RIGHT and the two openings), an edge or a corner to look between them, drag the cube to orbit, tap the arrows to step to the face on that side, double-tap for the home view. Views ease in instead of jumping.

@@ -36,6 +36,12 @@ pub struct Workspace {
     pub show_grid: bool,
     #[serde(default = "default_true")]
     pub show_gems: bool,
+    /// Resolve made settings into the preview as they are edited.
+    #[serde(default = "default_true")]
+    pub live_cuts: bool,
+    /// Draw the seats' cutters over the ring as a ghost.
+    #[serde(default)]
+    pub show_cutters: bool,
     /// Index into `METALS` to cut exports oversize for, or none for nominal.
     #[serde(default)]
     pub shrink_metal: Option<usize>,
@@ -76,6 +82,8 @@ impl Default for Workspace {
             show_wireframe: false,
             show_grid: true,
             show_gems: true,
+            live_cuts: true,
+            show_cutters: false,
             shrink_metal: None,
             as_cast: false,
             finish: 0,
@@ -98,6 +106,8 @@ impl RingDesignerApp {
             show_wireframe: self.show_wireframe,
             show_grid: self.show_grid,
             show_gems: self.show_gems,
+            live_cuts: self.live_cuts,
+            show_cutters: self.show_cutters,
             shrink_metal: self.shrink_metal,
             as_cast: self.as_cast,
             finish: self.finish,
@@ -156,6 +166,10 @@ pub struct RingDesignerApp {
     pub show_grid: bool,
     /// Stone previews in the viewport — render only, never in the mesh.
     pub show_gems: bool,
+    /// Resolve made settings into the preview as they are edited.
+    pub live_cuts: bool,
+    /// Draw the seats' cutters over the ring as a ghost.
+    pub show_cutters: bool,
     /// Export patterns oversize for this metal's shrink, or nominal.
     pub shrink_metal: Option<usize>,
     /// Soften the preview at the sand's detail radius — see the pour early.
@@ -303,6 +317,8 @@ impl RingDesignerApp {
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
             show_wireframe: ws.show_wireframe,
             show_gems: ws.show_gems,
+            live_cuts: ws.live_cuts,
+            show_cutters: ws.show_cutters,
             shrink_metal: ws.shrink_metal,
             as_cast: ws.as_cast,
             band_paint: false,
@@ -516,6 +532,7 @@ impl RingDesignerApp {
                         );
                         }
                         r.prepare_gems(std::mem::take(&mut done.gems));
+                        r.prepare_cutters(std::mem::take(&mut done.cutters));
                     }
                     // Fit only on the first build of a design; a rebuild that
                     // re-framed the view would stomp the user's own framing
@@ -606,6 +623,8 @@ impl RingDesignerApp {
             lib: self.lib.clone(),
             params,
             graph: self.design.graph.as_ref().and_then(|j| serde_json::from_value::<Graph>(j.clone()).ok()),
+            live_cuts: self.live_cuts,
+            show_cutters: self.show_cutters,
         };
         if self.worker.jobs.send(job).is_err() {
             self.in_flight = false;
@@ -1066,6 +1085,10 @@ struct Job {
     params: BuildParams,
     /// The design's graph, evaluated before the build when present.
     graph: Option<Graph>,
+    /// Resolve made settings into the preview mesh.
+    live_cuts: bool,
+    /// Stage the seats' cutters as a ghost.
+    show_cutters: bool,
 }
 
 /// What evaluating a job's graph produced.
@@ -1093,6 +1116,8 @@ struct Done {
     /// Slowest-freezing slice: `(theta, modulus mm)` off the Chvorinov scan.
     hot_spot: Option<(f64, f64)>,
     gems: Vec<f32>,
+    /// The seats' cutters as a ghost, empty unless asked for.
+    cutters: Vec<f32>,
     graph: Option<GraphDone>,
 }
 
@@ -1196,7 +1221,12 @@ impl Worker {
                                 }
                             }
                         }
-                        let result = ringdesign_core::mesh::build(&job.design, &job.lib, job.params);
+                        let cutters = if job.show_cutters { ringdesign_core::setting::ghost_vertices(&job.design, &job.lib) } else { Vec::new() };
+                        let result = if job.live_cuts {
+                            ringdesign_core::mesh::build(&job.design, &job.lib, job.params)
+                        } else {
+                            ringdesign_core::mesh::build(&ringdesign_core::setting::without_solids(&job.design), &job.lib, job.params)
+                        };
                         let cast = castability::analyze(
                             &result.mesh,
                             &job.design.draft,
@@ -1223,6 +1253,7 @@ impl Worker {
                             hot_spot,
                             stones,
                             gems,
+                            cutters,
                             graph: graph_done,
                         }
                     }));

@@ -38,7 +38,7 @@ pub fn vertex_normals(vertices: &[Vec3], faces: &[[u32; 3]]) -> Vec<Vec3> {
 /// A mesh from vertices and faces, normals computed.
 pub fn mesh_from(vertices: Vec<Vec3>, faces: Vec<[u32; 3]>) -> Mesh {
     let normals = vertex_normals(&vertices, &faces);
-    Mesh { vertices, normals, faces }
+    Mesh { vertices, normals, faces, ..Default::default() }
 }
 
 /// Whether this build carries the Manifold kernel.

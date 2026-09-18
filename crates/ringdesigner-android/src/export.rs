@@ -105,7 +105,13 @@ fn write(job: &ExportJob) -> Result<String, Box<dyn std::error::Error>> {
     if let Some(dir) = job.path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let out = ringdesign_core::mesh::try_build(&job.design, &job.lib, job.params)?;
+    // Mesh files are patterns: under sand the made settings are left out and each seat carries its drill
+    // mark. Everything else shows the finished ring.
+    let out = if matches!(job.kind, ExportKind::Stl | ExportKind::ThreeMf) {
+        ringdesign_core::mesh::try_build_pattern(&job.design, &job.lib, job.params)?
+    } else {
+        ringdesign_core::mesh::try_build(&job.design, &job.lib, job.params)?
+    };
     let mb = |bytes: usize| bytes as f64 / 1048576.0;
     Ok(match job.kind {
         ExportKind::Stl | ExportKind::ThreeMf => {

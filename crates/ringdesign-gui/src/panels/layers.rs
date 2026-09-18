@@ -2678,6 +2678,28 @@ fn seat_pad(ui: &mut egui::Ui, p: &mut SeatPadLayer, fctx: &FieldContext) -> boo
             .changed();
         ui.end_row();
 
+        ui.label("Made setting");
+        ui.horizontal(|ui| {
+            egui::ComboBox::from_id_salt("seat-solid")
+                .selected_text(p.solid.label())
+                .show_ui(ui, |ui| {
+                    for &kind in ringdesign_core::setting::SolidKind::ALL {
+                        c |= ui.selectable_value(&mut p.solid, kind, kind.label()).changed();
+                    }
+                })
+                .response
+                .on_hover_text(
+                    "A pre-made part sized to the stone and resolved into the ring by boolean: the                      setting bur (bevel, girdle wall, bearing, pilot), the bur with raised beads, a                      claw head notched by its stone, or a collet with a bearing ledge. The pad stays                      the stock under it.",
+                );
+            if !p.solid.is_none() {
+                c |= ui
+                    .checkbox(&mut p.through, "Drill through")
+                    .on_hover_text("Carries the pilot through to the finger, where the seat faces out from the bore.")
+                    .changed();
+            }
+        });
+        ui.end_row();
+
         ui.label("True size");
         ui.horizontal(|ui| {
             c |= ui

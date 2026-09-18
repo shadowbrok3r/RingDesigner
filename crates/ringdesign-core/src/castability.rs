@@ -1285,6 +1285,7 @@ pub fn attributed_field_report(
     // in the finished ring and not in the pattern, so it cannot lock a
     // mould: a graver's line square into a signet's table is exactly the
     // ledge the sand could never leave, and exactly what the bench is for.
+    let original = design;
     let (pattern, bench) = casting_pattern(design);
     let design = pattern.as_ref();
     let mut f = analyze_field(design, lib, settings, theta_steps, profile_steps);
@@ -1296,6 +1297,17 @@ pub fn attributed_field_report(
     if !bench.is_empty() {
         f.notes.push(format!("Cut at the bench after casting, and so not judged here: {}.", bench.join(", ")));
     }
+    // Seats resolved as solids are in the finished ring, never in the field. Under sand the field has
+    // just judged the pattern — stock and drill marks — and the cutting is the bench's; under lost
+    // wax they are cast in place. Said either way, so nobody reads a clean pour as a judged setting.
+    let made = crate::setstone::set_stones(original).iter().filter(|s| !s.seat.solid.is_none()).count();
+    if made > 0 {
+        let s = if made == 1 { "" } else { "s" };
+        f.notes.push(match settings.process {
+            CastProcess::SandTwoPart => format!("{made} made setting{s} left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."),
+            CastProcess::LostWax => format!("{made} made setting{s} cast in place with the ring; the field judges the band under {}.", if made == 1 { "it" } else { "them" }),
+        });
+    }
     f
 }
 
@@ -1303,26 +1315,58 @@ pub fn attributed_field_report(
 /// groups included, and the names of what was set aside. Borrowed when
 /// there is nothing to set aside.
 pub fn casting_pattern(design: &RingDesign) -> (std::borrow::Cow<'_, RingDesign>, Vec<String>) {
-    fn any(stack: &crate::field::LayerStack) -> bool {
-        stack.layers.iter().any(|e| e.enabled && (e.bench_only || matches!(&e.layer, crate::field::Layer::Group(g) if any(&g.stack))))
+    let (pattern, bench, _) = pattern_parts(design);
+    (pattern, bench)
+}
+
+/// [`casting_pattern`] with the seats it left to the bench named apart from the layers: under sand a
+/// seat's made solid is not poured — the pattern carries its stock and a raised drill mark instead —
+/// while lost wax casts cut seats and heads in place, so there the design is its own pattern.
+pub fn pattern_parts(design: &RingDesign) -> (std::borrow::Cow<'_, RingDesign>, Vec<String>, Vec<String>) {
+    use crate::field::{Layer, LayerStack};
+    let sand = design.draft.process == CastProcess::SandTwoPart;
+    fn seat_of(layer: &Layer) -> Option<&crate::field::SeatPadLayer> {
+        match layer {
+            Layer::SeatPad(s) => Some(s),
+            Layer::SeatRun(r) => Some(&r.seat),
+            _ => None,
+        }
     }
-    fn omit(stack: &mut crate::field::LayerStack, names: &mut Vec<String>) {
+    fn any(stack: &LayerStack, sand: bool) -> bool {
+        stack.layers.iter().any(|e| {
+            e.enabled && (e.bench_only
+                || (sand && seat_of(&e.layer).is_some_and(|s| !s.solid.is_none()))
+                || matches!(&e.layer, Layer::Group(g) if any(&g.stack, sand)))
+        })
+    }
+    fn omit(stack: &mut LayerStack, prefix: &str, sand: bool, layers: &mut Vec<String>, seats: &mut Vec<String>) {
         for e in &mut stack.layers {
-            if e.enabled && e.bench_only {
+            if !e.enabled { continue; }
+            let name = if prefix.is_empty() { e.name.clone() } else { format!("{prefix} / {}", e.name) };
+            if e.bench_only {
                 e.enabled = false;
-                names.push(e.name.clone());
-            } else if let crate::field::Layer::Group(g) = &mut e.layer {
-                omit(&mut g.stack, names);
+                layers.push(name);
+                continue;
+            }
+            match &mut e.layer {
+                Layer::SeatPad(s) => if sand && crate::setting::pattern_seat(s) { seats.push(name) },
+                Layer::SeatRun(r) => {
+                    let gem = r.gem;
+                    r.seat.gem.get_or_insert(gem);
+                    if sand && crate::setting::pattern_seat(&mut r.seat) { seats.push(name) }
+                }
+                Layer::Group(g) => omit(&mut g.stack, &name, sand, layers, seats),
+                _ => {}
             }
         }
     }
-    if !any(&design.layers) {
-        return (std::borrow::Cow::Borrowed(design), Vec::new());
+    if !any(&design.layers, sand) {
+        return (std::borrow::Cow::Borrowed(design), Vec::new(), Vec::new());
     }
     let mut pattern = design.clone();
-    let mut names = Vec::new();
-    omit(&mut pattern.layers, &mut names);
-    (std::borrow::Cow::Owned(pattern), names)
+    let (mut layers, mut seats) = (Vec::new(), Vec::new());
+    omit(&mut pattern.layers, "", sand, &mut layers, &mut seats);
+    (std::borrow::Cow::Owned(pattern), layers, seats)
 }
 
 // --- Undercut localization and attribution ----------------------------------
@@ -2281,6 +2325,7 @@ mod tests {
             vertices: vec![crate::mesh::Vec3(0.0, 0.0, 0.0); 3],
             normals: vec![],
             faces: vec![[0, 1, 2], [0, 0, 0], [9, 9, 9]],
+            ..Default::default()
         };
         let rep = analyze(&mesh, &DraftSettings::default(), 0.0);
         println!("degenerate: {:?} {}", rep.verdict, rep.classes.len());
@@ -2288,6 +2333,7 @@ mod tests {
             vertices: vec![crate::mesh::Vec3(f32::NAN, 0.0, 0.0); 3],
             normals: vec![],
             faces: vec![[0, 1, 2]],
+            ..Default::default()
         };
         let rep = analyze(&nanmesh, &DraftSettings::default(), f64::NAN);
         println!("nan mesh: {:?} {}", rep.verdict, rep.parting_z_mm);

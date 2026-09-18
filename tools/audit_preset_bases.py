@@ -29,6 +29,29 @@ def topology(mesh):
     }
 
 
+def cap_single_triangles(mesh):
+    """Close holes exactly one triangle big, wound against their neighbours.
+
+    Preset 013 welds to a closed solid but for one face its exporter dropped:
+    three boundary edges round three existing vertices. Nothing is invented —
+    no vertex is added or moved — so this stays inside "no hole filling" in
+    the sense that matters: the surface is the factory's own.
+    """
+    edges = mesh.edges_sorted
+    counts = np.bincount(mesh.edges_unique_inverse)
+    open_edges = {tuple(e) for e in mesh.edges_unique[counts == 1]}
+    if len(open_edges) != 3:
+        return 0
+    corners = sorted({v for e in open_edges for v in e})
+    if len(corners) != 3:
+        return 0
+    # The directed boundary edge as a face already uses it; the cap runs the other way.
+    a, b = next(tuple(e) for e in mesh.edges if tuple(sorted(e)) in open_edges)
+    c = next(v for v in corners if v not in (a, b))
+    mesh.faces = np.vstack([mesh.faces, [b, a, c]])
+    return 1
+
+
 def signet(folder, root, out, clean):
     path = folder / "Rings-0.obj"
     mesh = trimesh.load_mesh(path, process=False)
@@ -41,6 +64,7 @@ def signet(folder, root, out, clean):
     mesh.update_faces(mesh.nondegenerate_faces(height=1e-8))
     mesh.update_faces(mesh.unique_faces())
     mesh.remove_unreferenced_vertices()
+    capped = cap_single_triangles(mesh)
     cleaned = topology(mesh)
     usable = cleaned["watertight"] and cleaned["consistent_winding"] and cleaned["components"] == 1
     entry = {
@@ -51,7 +75,8 @@ def signet(folder, root, out, clean):
         "raw": raw,
         "welded": welded,
         "cleaned": cleaned,
-        "removed_triangles": before - len(mesh.faces),
+        "removed_triangles": before + capped - len(mesh.faces),
+        "capped_triangles": capped,
         "candidate_for_solid_import": usable,
         "bounds_mm": mesh.bounds.tolist(),
         "minimum_vertex_radius_from_finger_axis_mm": float(np.hypot(mesh.vertices[:, 0], mesh.vertices[:, 2]).min()),
