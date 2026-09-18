@@ -192,6 +192,11 @@ pub struct Editor {
     refine_left: u8,
     /// The editor moved nodes itself this frame; reported as a change.
     layout_changed: bool,
+    /// Arrange once measured, if the nodes overlap as placed.
+    untangle_pending: bool,
+    /// Last frame's measures: a node's first frame is narrower than its
+    /// second, and a layout from measures still moving overlaps.
+    last_sizes: HashMap<NodeId, egui::Vec2>,
     /// Where the current drag began, held for the whole drag.
     drag_kind: DragKind,
 }
@@ -213,6 +218,17 @@ pub enum DragKind {
 
 /// Graph-space height of a node's title bar, for header-only dragging.
 const NODE_HEADER_H: f32 = 30.0;
+/// The least a title bar may measure on screen and still be grabbed by a
+/// finger, in points.
+const MIN_GRAB_PT: f32 = 36.0;
+
+/// The graph-space height that moves a node at this zoom: the title bar,
+/// grown so it never falls under a fingertip on screen. Zoomed far out that
+/// covers the whole node, which is right — nothing inside it can be read or
+/// touched at that size, so all of it is the handle.
+pub fn grab_height(scale: f32) -> f32 {
+    NODE_HEADER_H.max(MIN_GRAB_PT / scale.max(0.01))
+}
 /// snarl's node frame margin: a node's stored position is its content
 /// origin, the drawn frame starts this far above-left.
 const FRAME_MARGIN: f32 = 6.0;
@@ -220,13 +236,13 @@ const FRAME_MARGIN: f32 = 6.0;
 /// Which region a graph-space point falls on, over the drawn node frames.
 /// Any header wins over any body, so a title-bar grab can always move a
 /// node where nodes overlap.
-pub fn classify_point(gp: egui::Pos2, frames: impl IntoIterator<Item = egui::Rect>) -> DragKind {
+pub fn classify_point(gp: egui::Pos2, frames: impl IntoIterator<Item = egui::Rect>, grab_h: f32) -> DragKind {
     let mut on_body = false;
     for frame in frames {
         if !frame.contains(gp) {
             continue;
         }
-        let header = egui::Rect::from_min_size(frame.min, egui::vec2(frame.width(), NODE_HEADER_H.min(frame.height())));
+        let header = egui::Rect::from_min_size(frame.min, egui::vec2(frame.width(), grab_h.min(frame.height())));
         if header.contains(gp) {
             return DragKind::Header;
         }
@@ -255,6 +271,8 @@ impl Editor {
             arranged_sizes: HashMap::new(),
             refine_left: 0,
             layout_changed: false,
+            untangle_pending: false,
+            last_sizes: HashMap::new(),
             drag_kind: DragKind::None,
         }
     }
@@ -278,7 +296,7 @@ impl Editor {
         if pressed {
             self.drag_kind = match (origin, self.transform) {
                 (Some(p), Some(t)) if viewport.contains(p) && ctx.layer_id_at(p).is_none_or(|l| l.order == egui::Order::Background) => {
-                    classify_point(t.inverse() * p, self.node_frames())
+                    classify_point(t.inverse() * p, self.node_frames(), grab_height(t.scaling))
                 }
                 _ => DragKind::None,
             };
@@ -370,6 +388,54 @@ impl Editor {
         self.pending_fit = true;
     }
 
+    /// The nodes in the order a reader steps through them: evaluation
+    /// order, so a walk runs from the sources to the output.
+    pub fn walk_order(&self) -> Vec<NodeId> {
+        self.graph.topo().unwrap_or_else(|_| self.graph.nodes.iter().map(|n| n.id).collect())
+    }
+
+    /// Focus the node `delta` steps along [`Editor::walk_order`] from the
+    /// chosen one, wrapping; with nothing chosen, the first (or last).
+    pub fn step(&mut self, delta: isize) -> Option<NodeId> {
+        let order = self.walk_order();
+        if order.is_empty() {
+            return None;
+        }
+        let n = order.len() as isize;
+        let at = match self.selected.and_then(|s| order.iter().position(|id| *id == s)) {
+            Some(i) => (i as isize + delta).rem_euclid(n),
+            None if delta < 0 => n - 1,
+            None => 0,
+        };
+        let id = order[at as usize];
+        self.focus(id);
+        Some(id)
+    }
+
+    /// Where the chosen node sits in the walk, one-based, and the walk's length.
+    pub fn walk_position(&self) -> Option<(usize, usize)> {
+        let order = self.walk_order();
+        let at = order.iter().position(|id| Some(*id) == self.selected)?;
+        Some((at + 1, order.len()))
+    }
+
+    /// The nodes wired into `id` and out of it, each with the pin on `id`
+    /// the wire uses, in pin order.
+    pub fn neighbours(&self, id: NodeId) -> (Vec<(String, NodeId)>, Vec<(String, NodeId)>) {
+        let card = self.card(id);
+        let pin_rank = |pins: Option<&Vec<PinSpec>>, name: &str| pins.and_then(|p| p.iter().position(|x| x.name == name)).unwrap_or(usize::MAX);
+        let mut ins: Vec<(String, NodeId)> = self.graph.wires_into(id).map(|w| (w.input.clone(), w.from)).collect();
+        ins.sort_by_key(|(pin, from)| (pin_rank(card.map(|c| &c.pins_in), pin), *from));
+        let mut outs: Vec<(String, NodeId)> = self.graph.wires_from(id).map(|w| (w.out.clone(), w.to)).collect();
+        outs.sort_by_key(|(pin, to)| (pin_rank(card.map(|c| &c.pins_out), pin), *to));
+        (ins, outs)
+    }
+
+    /// A node's title as the canvas shows it.
+    pub fn title_of(&self, id: NodeId) -> String {
+        self.card(id).map(|c| c.title.clone()).or_else(|| self.graph.node(id).map(|n| n.kind.clone())).unwrap_or_default()
+    }
+
     /// The nodes the view has selected (rubber-band or click), as graph ids.
     pub fn selected_nodes(&self, ctx: &egui::Context) -> Vec<NodeId> {
         let Some(id) = self.snarl_id else { return Vec::new() };
@@ -412,7 +478,7 @@ impl Editor {
             ids: &self.ids,
             focus,
             fit,
-            viewport_center: viewport.center(),
+            viewport,
             seen_transform: None,
             collapse_request: None,
             mode: self.graph.mode,
@@ -438,7 +504,21 @@ impl Editor {
         self.transform = viewer.seen_transform.or(self.transform);
         // The first arrange ran on nominal sizes; once every node has been
         // drawn once, lay them out again from what they really measure.
-        if self.refine_left > 0 && self.all_measured() {
+        let settled = self.all_measured() && sizes_agree(&self.last_sizes, &self.sizes);
+        self.last_sizes = self.sizes.clone();
+        let mut untangled = false;
+        if self.untangle_pending && settled {
+            self.untangle_pending = false;
+            if self.refine_left == 0 && self.tangled() {
+                self.arrange(reg);
+                self.layout_changed = true;
+                untangled = true;
+            }
+        } else if self.untangle_pending {
+            ui.ctx().request_repaint();
+        }
+        // The frame that laid out has not measured anything since.
+        if !untangled && self.refine_left > 0 && self.all_measured() {
             if sizes_agree(&self.arranged_sizes, &self.sizes) {
                 self.refine_left = 0;
             } else {
@@ -559,6 +639,37 @@ impl Editor {
         self.commit()
     }
 
+    /// The graph's exposed controls, independent of canvas zoom. Both
+    /// desktop and touch hosts use the same widgets and edit path.
+    pub fn parameters_ui(&mut self, reg: &Registry, ui: &mut Ui) -> bool {
+        let exposed = self.graph.exposed.clone();
+        let mut changed = false;
+        egui::ScrollArea::vertical().id_salt("graph-parameters").max_height(220.0).show(ui, |ui| {
+            ui.spacing_mut().slider_width = (ui.available_width() - 180.0).clamp(60.0, 140.0);
+            egui::Grid::new("graph-parameter-grid").num_columns(2).spacing([12.0, 6.0]).show(ui, |ui| {
+                for e in exposed {
+                    let Some(node) = self.graph.node(e.node) else { continue };
+                    let Some((pins, _)) = reg.node_pins(node) else { continue };
+                    let Some(pin) = pins.into_iter().find(|p| p.name == e.input) else { continue };
+                    let wired = self.graph.wire_into(e.node, &e.input).is_some();
+                    let mut literal = node.inputs.get(&e.input).cloned();
+                    ui.add(egui::Label::new(&e.name).wrap_mode(egui::TextWrapMode::Extend)).on_hover_text(if e.doc.is_empty() { &pin.doc } else { &e.doc });
+                    let response = ui.push_id((e.node.0, &e.input), |ui| {
+                        ui.add_enabled_ui(self.editable && !wired, |ui| pin_widget(ui, &pin, &mut literal)).inner
+                    });
+                    if wired {
+                        response.response.on_hover_text("This input is driven by a wire; edit its source node.");
+                    }
+                    if response.inner {
+                        changed |= self.set_input(e.node, &e.input, literal);
+                    }
+                    ui.end_row();
+                }
+            });
+        });
+        changed
+    }
+
     pub fn set_label(&mut self, id: NodeId, label: Option<String>) -> bool {
         let Some(&sid) = self.ids.to_snarl.get(&id) else { return false };
         if let Some(card) = self.snarl.get_node_mut(sid) {
@@ -583,10 +694,23 @@ impl Editor {
         hit
     }
 
-    /// Lay the nodes out by depth from their measured sizes — columns by
-    /// longest path, nodes stacked within a column, columns centred across
-    /// the flow — so nothing overlaps. Nodes not yet drawn take the nominal
-    /// footprint and a second pass follows once they have been.
+    /// Arrange the graph once its nodes have been measured, but only if it
+    /// needs it: a lifted or generated graph is placed on a nominal grid its
+    /// real nodes overflow, while a graph someone has tidied is left alone.
+    pub fn arrange_if_tangled(&mut self) {
+        self.untangle_pending = true;
+    }
+
+    /// Whether the nodes overlap as placed, by their measured frames.
+    fn tangled(&self) -> bool {
+        let frames = self.node_frames();
+        let overlapping = frames.iter().enumerate().filter(|(i, a)| frames.iter().enumerate().any(|(j, b)| *i != j && a.shrink(2.0).intersects(b.shrink(2.0)))).count();
+        overlapping > (frames.len() / 8).max(1)
+    }
+
+    /// Lay the nodes out from their measured sizes — see [`layout_columns`]
+    /// — so nothing overlaps. Nodes not yet drawn take the nominal footprint
+    /// and a second pass follows once they have been.
     pub fn arrange(&mut self, reg: &Registry) {
         self.refine_left = 3;
         self.lay_out(reg);
@@ -596,43 +720,17 @@ impl Editor {
         const FLOW_GAP: f32 = 60.0;
         const CROSS_GAP: f32 = 24.0;
         let Ok(order) = self.graph.topo() else { return };
-        let mut depth: BTreeMap<NodeId, usize> = BTreeMap::new();
-        for id in &order {
-            let d = self.graph.wires_into(*id).filter_map(|w| depth.get(&w.from)).max().map(|m| m + 1).unwrap_or(0);
-            depth.insert(*id, d);
-        }
-        let deepest = depth.values().copied().max().unwrap_or(0);
-        let mut columns: Vec<Vec<NodeId>> = vec![Vec::new(); deepest + 1];
-        for id in &order {
-            columns[depth[id]].push(*id);
-        }
-        // Each column ordered by where its feeders sit, so wires run across.
-        let mut row: BTreeMap<NodeId, f32> = BTreeMap::new();
-        for column in columns.iter_mut() {
-            let mut keyed: Vec<(NodeId, f32)> = column
-                .iter()
-                .enumerate()
-                .map(|(i, id)| {
-                    let feeders: Vec<f32> = self.graph.wires_into(*id).filter_map(|w| row.get(&w.from).copied()).collect();
-                    let key = if feeders.is_empty() { i as f32 } else { feeders.iter().sum::<f32>() / feeders.len() as f32 };
-                    (*id, key)
-                })
-                .collect();
-            keyed.sort_by(|a, b| a.1.total_cmp(&b.1));
-            *column = keyed.iter().map(|(id, _)| *id).collect();
-            for (i, id) in column.iter().enumerate() {
-                row.insert(*id, i as f32);
-            }
-        }
+        let pin_index = |id: NodeId, input: &str| {
+            self.graph.node(id).and_then(|n| reg.node_pins(n)).and_then(|(pins, _)| pins.iter().position(|p| p.name == input)).unwrap_or(0)
+        };
+        let columns = layout_columns(&self.graph, &order, pin_index);
         let size = |id: NodeId| self.sizes.get(&id).copied().unwrap_or(NODE_SIZE);
         let mut x = 0.0f32;
         let mut pos: BTreeMap<NodeId, [f32; 2]> = BTreeMap::new();
         for column in &columns {
-            if column.is_empty() {
-                continue;
-            }
-            let total: f32 = column.iter().map(|id| size(*id).y + CROSS_GAP).sum::<f32>() - CROSS_GAP;
-            let mut y = -total / 2.0;
+            // Top-aligned, so the spine of the flow runs straight along the
+            // first row and each branch hangs under the place it joins.
+            let mut y = 0.0f32;
             for id in column {
                 pos.insert(*id, [x, y]);
                 y += size(*id).y + CROSS_GAP;
@@ -651,6 +749,75 @@ impl Editor {
     }
 }
 
+/// The view that puts `frame` (graph space) in front of the reader: wide
+/// enough to read, the title in sight. A zoom already in the readable band
+/// is kept, so stepping through nodes does not fight a chosen zoom; a tall
+/// node is pinned by its title rather than centred on rows off screen.
+pub fn focus_transform(viewport: egui::Rect, frame: egui::Rect, current: f32) -> (f32, egui::Vec2) {
+    const PAD: f32 = 28.0;
+    let fit_w = (viewport.width() - 2.0 * PAD).max(60.0) / frame.width().max(1.0);
+    let readable = fit_w.clamp(0.45, 1.0);
+    let scale = if (0.45..=1.25).contains(&current) && frame.width() * current <= viewport.width() - PAD { current } else { readable };
+    let x = viewport.center().x - frame.center().x * scale;
+    let y = if frame.height() * scale + 2.0 * PAD <= viewport.height() { viewport.center().y - frame.center().y * scale } else { viewport.top() + PAD - frame.top() * scale };
+    (scale, egui::vec2(x, y))
+}
+
+/// The columns of a left-to-right layout, each node one column before the
+/// first node that consumes it. Sources therefore sit beside what they feed
+/// — a layer, its window and its entry next to their place in the stack —
+/// instead of every source piling into the first column while a chain runs
+/// off to the right. One longest chain takes the first row of every column,
+/// so the spine of the flow is a straight line and each branch hangs under
+/// the place it joins; the rest follow their consumer's row and then its
+/// input order, so wires run across rather than through each other.
+pub fn layout_columns(g: &Graph, order: &[NodeId], pin_index: impl Fn(NodeId, &str) -> usize) -> Vec<Vec<NodeId>> {
+    let mut tail: BTreeMap<NodeId, usize> = BTreeMap::new();
+    for id in order.iter().rev() {
+        let t = g.wires_from(*id).filter_map(|w| tail.get(&w.to)).max().map(|m| m + 1).unwrap_or(0);
+        tail.insert(*id, t);
+    }
+    let deepest = tail.values().copied().max().unwrap_or(0);
+    let mut head: BTreeMap<NodeId, usize> = BTreeMap::new();
+    for id in order {
+        let h = g.wires_into(*id).filter_map(|w| head.get(&w.from)).max().map(|m| m + 1).unwrap_or(0);
+        head.insert(*id, h);
+    }
+    let mut columns: Vec<Vec<NodeId>> = vec![Vec::new(); deepest + 1];
+    for id in order {
+        let ends_flow = g.wires_from(*id).next().is_none();
+        let is_sink = g.node(*id).is_some_and(|n| n.kind.starts_with("sink."));
+        // A node nothing consumes is not the end of the flow unless it is a
+        // sink: it stays where its own inputs put it.
+        let col = if ends_flow && !is_sink { head[id].min(deepest) } else { deepest - tail[id] };
+        columns[col].push(*id);
+    }
+    let mut spine: std::collections::BTreeSet<NodeId> = std::collections::BTreeSet::new();
+    let mut at = order.iter().copied().filter(|id| tail[id] == 0 && head[id] == deepest).min_by_key(|id| !g.node(*id).is_some_and(|n| n.kind.starts_with("sink.")));
+    while let Some(id) = at {
+        spine.insert(id);
+        at = g.wires_into(id).filter(|w| head[&w.from] + 1 == head[&id]).min_by_key(|w| pin_index(id, &w.input)).map(|w| w.from);
+    }
+    let rank: BTreeMap<NodeId, usize> = order.iter().enumerate().map(|(i, id)| (*id, i)).collect();
+    let mut row: BTreeMap<NodeId, f32> = BTreeMap::new();
+    for column in columns.iter_mut().rev() {
+        let mut keyed: Vec<(NodeId, f32)> = column
+            .iter()
+            .map(|id| {
+                let by_consumer = g.wires_from(*id).filter_map(|w| row.get(&w.to).map(|r| r + 0.01 * pin_index(w.to, &w.input) as f32)).fold(f32::INFINITY, f32::min);
+                (*id, if spine.contains(id) { -1.0 } else { by_consumer })
+            })
+            .collect();
+        keyed.sort_by(|a, b| a.1.total_cmp(&b.1).then(rank[&a.0].cmp(&rank[&b.0])));
+        *column = keyed.iter().map(|(id, _)| *id).collect();
+        for (i, id) in column.iter().enumerate() {
+            row.insert(*id, i as f32);
+        }
+    }
+    columns.retain(|c| !c.is_empty());
+    columns
+}
+
 /// Two measure snapshots describe the same canvas: same nodes, none moved
 /// by more than a unit.
 fn sizes_agree(a: &HashMap<NodeId, egui::Vec2>, b: &HashMap<NodeId, egui::Vec2>) -> bool {
@@ -666,7 +833,7 @@ struct Viewer<'a> {
     ids: &'a IdMap,
     focus: Option<SnarlId>,
     fit: Option<egui::Rect>,
-    viewport_center: egui::Pos2,
+    viewport: egui::Rect,
     seen_transform: Option<egui::emath::TSTransform>,
     collapse_request: Option<SnarlId>,
     mode: ringdesign_graph::graph::Mode,
@@ -815,11 +982,11 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
         }
         if let Some(sid) = self.focus.take() {
             if let Some(info) = snarl.get_node_info(sid) {
-                // The node's top-left, pushed a little so the header sits
-                // near the centre rather than the corner.
-                let anchor = info.pos + egui::vec2(110.0, 40.0);
-                let scale = to_global.scaling.max(0.1);
-                to_global.translation = self.viewport_center.to_vec2() - anchor.to_vec2() * scale;
+                let size = self.ids.to_graph.get(&sid).and_then(|g| self.sizes.get(g)).copied().unwrap_or(NODE_SIZE);
+                let frame = egui::Rect::from_min_size(info.pos - egui::vec2(FRAME_MARGIN, FRAME_MARGIN), size);
+                let (scale, translation) = focus_transform(self.viewport, frame, to_global.scaling);
+                to_global.scaling = scale;
+                to_global.translation = translation;
             }
         }
         if self.pan != egui::Vec2::ZERO {
@@ -833,9 +1000,16 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
             // Clamped so one pathological measure cannot throw the layout.
             self.sizes.insert(*gid, rect.size().min(egui::vec2(1600.0, 3000.0)));
         }
-        let clicked = ui.input(|i| i.pointer.primary_clicked() && i.pointer.interact_pos().is_some_and(|p| rect.contains(p)));
-        if clicked {
-            self.clicked = Some(node);
+        // `rect` is in graph space and the pointer is on the screen: the two
+        // only agree at the identity view. Unmapped, a tap anywhere — on the
+        // host's own buttons too — chose whichever node's graph rect happened
+        // to hold that screen position.
+        let tap = ui.input(|i| if i.pointer.primary_clicked() { i.pointer.interact_pos() } else { None });
+        if let (Some(p), Some(t)) = (tap, self.seen_transform) {
+            let on_canvas = self.viewport.contains(p) && ui.ctx().layer_id_at(p).is_none_or(|l| l.order == egui::Order::Background);
+            if on_canvas && rect.contains(t.inverse() * p) {
+                self.clicked = Some(node);
+            }
         }
     }
 
@@ -989,7 +1163,7 @@ mod tests {
 
         // Text -> Number is refused by the viewer; Number -> Number replaces.
         let (mut snarl, ids) = build_snarl(&g, &reg);
-        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport_center: egui::Pos2::ZERO, seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), pan: egui::Vec2::ZERO };
+        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0)), seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), pan: egui::Vec2::ZERO };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
         viewer.connect(&text_out, &add_b, &mut snarl);
@@ -1126,11 +1300,225 @@ mod drag_tests {
         let a = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(200.0, 120.0));
         let b = egui::Rect::from_min_size(egui::pos2(150.0, 100.0), egui::vec2(200.0, 120.0));
         let frames = || [a, b];
-        assert_eq!(classify_point(egui::pos2(20.0, 10.0), frames()), DragKind::Header);
-        assert_eq!(classify_point(egui::pos2(20.0, 80.0), frames()), DragKind::Body);
-        assert_eq!(classify_point(egui::pos2(400.0, 400.0), frames()), DragKind::Canvas);
+        let h = grab_height(1.5);
+        assert_eq!(h, NODE_HEADER_H, "zoomed in, the title bar is the handle");
+        assert_eq!(classify_point(egui::pos2(20.0, 10.0), frames(), h), DragKind::Header);
+        assert_eq!(classify_point(egui::pos2(20.0, 80.0), frames(), h), DragKind::Body);
+        assert_eq!(classify_point(egui::pos2(400.0, 400.0), frames(), h), DragKind::Canvas);
         // Where a's body overlaps b's header, the header wins.
-        assert_eq!(classify_point(egui::pos2(160.0, 110.0), frames()), DragKind::Header);
-        assert_eq!(classify_point(egui::pos2(5.0, 5.0), std::iter::empty()), DragKind::Canvas);
+        assert_eq!(classify_point(egui::pos2(160.0, 110.0), frames(), h), DragKind::Header);
+        assert_eq!(classify_point(egui::pos2(5.0, 5.0), std::iter::empty(), h), DragKind::Canvas);
+    }
+
+    #[test]
+    fn a_title_bar_never_shrinks_under_a_fingertip() {
+        // At a third of full size a 30-unit bar is 10 points on screen; the
+        // handle grows to stay 36, and far enough out it is the whole node.
+        let a = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(200.0, 120.0));
+        for scale in [0.05_f32, 0.2, 0.33, 0.8, 1.0, 2.5] {
+            assert!(grab_height(scale) * scale >= MIN_GRAB_PT.min(NODE_HEADER_H * scale).max(MIN_GRAB_PT - 0.01) - 0.01 || scale > 1.2, "{scale}");
+            assert!(grab_height(scale) >= NODE_HEADER_H);
+        }
+        assert_eq!(classify_point(egui::pos2(20.0, 80.0), [a], grab_height(0.33)), DragKind::Header);
+        assert_eq!(classify_point(egui::pos2(20.0, 119.0), [a], grab_height(0.2)), DragKind::Header, "the whole node moves it");
+        assert_eq!(classify_point(egui::pos2(20.0, 80.0), [a], grab_height(1.0)), DragKind::Body);
+    }
+}
+
+#[cfg(test)]
+mod layout_tests {
+    use super::*;
+
+    fn arranged(name: &str) -> (Editor, Registry) {
+        let reg = Registry::builtin();
+        let g = ringdesign_graph::templates::graph(name).unwrap_or_else(|| panic!("{name} is bundled"));
+        let mut ed = Editor::new(g, &reg);
+        ed.arrange(&reg);
+        (ed, reg)
+    }
+
+    #[test]
+    fn a_source_sits_one_column_before_what_it_feeds() {
+        let reg = Registry::builtin();
+        let g = ringdesign_graph::templates::graph("Braided band").expect("bundled");
+        let order = g.topo().unwrap();
+        let cols = layout_columns(&g, &order, |id, input| g.node(id).and_then(|n| reg.node_pins(n)).and_then(|(p, _)| p.iter().position(|x| x.name == input)).unwrap_or(0));
+        let col_of = |id: NodeId| cols.iter().position(|c| c.contains(&id)).unwrap();
+        assert_eq!(cols.iter().map(Vec::len).sum::<usize>(), g.nodes.len(), "every node is placed once");
+        for w in &g.wires {
+            assert!(col_of(w.from) < col_of(w.to), "{:?} flows left to right", w);
+        }
+        // As late as possible: a node with consumers is adjacent to the nearest one.
+        for n in &g.nodes {
+            if let Some(nearest) = g.wires_from(n.id).map(|w| col_of(w.to)).min() {
+                assert_eq!(col_of(n.id) + 1, nearest, "{} sits beside its consumer", n.kind);
+            }
+        }
+        let sink = g.nodes.iter().find(|n| n.kind == "sink.output").unwrap().id;
+        assert_eq!(col_of(sink), cols.len() - 1);
+    }
+
+    #[test]
+    fn a_long_stack_is_a_ribbon_not_a_wall() {
+        // A lifted showcase graph is a chain of stacks with a layer, a
+        // window and an entry per link. By depth from the sources every one
+        // of those lands in the first columns; beside their consumers no
+        // column holds more than a few.
+        let (ed, _) = arranged("Aster Atelier");
+        let mut by_x: BTreeMap<i64, usize> = BTreeMap::new();
+        for n in &ed.graph().nodes {
+            *by_x.entry(n.pos[0] as i64).or_default() += 1;
+        }
+        let tallest = by_x.values().copied().max().unwrap();
+        assert!(tallest <= 12, "{tallest} nodes in one column of {}", ed.graph().nodes.len());
+        let spine: Vec<&Node> = ed.graph().nodes.iter().filter(|n| n.kind == "stack").collect();
+        assert!(spine.iter().all(|n| n.pos[1] == 0.0), "the stack chain runs straight along the first row");
+    }
+
+    #[test]
+    fn a_grid_the_nodes_overflow_is_untangled_once_and_a_tidy_graph_is_left_alone() {
+        let reg = Registry::builtin();
+        let mut g = ringdesign_graph::templates::graph("Shouldered cushion signet").expect("bundled");
+        // The lift's nominal grid: real nodes are several cells tall.
+        for (i, n) in g.nodes.iter_mut().enumerate() {
+            n.pos = [(i % 3) as f32 * 240.0, (i / 3) as f32 * 150.0];
+        }
+        let settle = |ed: Editor| {
+            let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_ui_state(
+                |ui, ed: &mut Editor| {
+                    ed.show(&reg, ui, "untangle-editor");
+                },
+                ed,
+            );
+            harness.run_steps(8);
+            harness
+        };
+        let mut ed = Editor::new(g, &reg);
+        ed.arrange_if_tangled();
+        let harness = settle(ed);
+        let ed = harness.state();
+        assert!(!ed.tangled(), "arranged on open");
+        let tidy = ed.graph().clone();
+        drop(harness);
+        let mut ed = Editor::new(tidy.clone(), &reg);
+        ed.arrange_if_tangled();
+        let harness = settle(ed);
+        assert_eq!(harness.state().graph(), &tidy, "a graph that does not overlap is not rearranged");
+    }
+
+    #[test]
+    fn nothing_overlaps_after_arrange_settles() {
+        let (mut ed, reg) = arranged("Shouldered cushion signet");
+        for _ in 0..6 {
+            let mut harness = egui_kittest::Harness::new_ui(|ui| {
+                ed.show(&reg, ui, "arrange-editor");
+            });
+            harness.set_size(egui::vec2(1200.0, 800.0));
+            harness.run();
+        }
+        assert!(ed.all_measured());
+        let frames = ed.node_frames();
+        for (i, a) in frames.iter().enumerate() {
+            for b in &frames[i + 1..] {
+                assert!(!a.shrink(1.0).intersects(b.shrink(1.0)), "{a:?} overlaps {b:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn nodes_keep_their_width_inside_a_host_that_wraps() {
+        // The phone's shell wraps every label; inside the editor that used
+        // to fold a title to one letter per line and the node never recovered.
+        let reg = Registry::builtin();
+        let measure = |wrap: Option<egui::TextWrapMode>| {
+            let mut ed = Editor::new(ringdesign_graph::templates::simple(), &reg);
+            for _ in 0..4 {
+                let mut harness = egui_kittest::Harness::new_ui(|ui| {
+                    ui.style_mut().wrap_mode = wrap;
+                    ed.show(&reg, ui, "wrapping-host");
+                });
+                harness.set_size(egui::vec2(420.0, 360.0));
+                harness.run();
+            }
+            ed
+        };
+        let plain = measure(None);
+        let wrapped = measure(Some(egui::TextWrapMode::Wrap));
+        assert!(plain.all_measured() && wrapped.all_measured());
+        for (id, size) in &plain.sizes {
+            let got = wrapped.sizes[id];
+            assert!((got - *size).abs().max_elem() <= 1.0, "{} is {size:?} alone and {got:?} in a host that wraps", plain.title_of(*id));
+        }
+    }
+
+    #[test]
+    fn a_tap_chooses_the_node_under_it_on_screen_not_in_graph_space() {
+        let reg = Registry::builtin();
+        let mut g = Graph::new("t", ringdesign_graph::graph::Mode::SandRing);
+        let a = g.add("number").unwrap();
+        let b = g.add("number").unwrap();
+        g.node_mut(a).unwrap().pos = [40.0, 60.0];
+        g.node_mut(b).unwrap().pos = [900.0, 700.0];
+        let mut ed = Editor::new(g, &reg);
+        // Put `b` in the middle of the view; `a` is now far off screen.
+        ed.focus(b);
+        let size = egui::vec2(800.0, 600.0);
+        // One context throughout: the view's transform lives in its memory.
+        let mut harness = egui_kittest::Harness::builder().with_size(size).build_ui_state(
+            |ui, ed: &mut Editor| {
+                ed.show(&reg, ui, "tap-editor");
+            },
+            ed,
+        );
+        harness.run();
+        harness.state_mut().selected = None;
+        let t = harness.state().transform.expect("a frame leaves its transform");
+        let b_on_screen = t * (egui::pos2(900.0, 700.0) + egui::vec2(20.0, 10.0));
+        assert!(egui::Rect::from_min_size(egui::Pos2::ZERO, size).contains(b_on_screen));
+        // `a`'s graph rect holds (60, 75); that *screen* point is empty canvas.
+        let decoy = egui::pos2(60.0, 75.0);
+        assert!((t * decoy - decoy).length() > 200.0, "the view is far from the identity");
+        let mut tap = |harness: &mut egui_kittest::Harness<'_, Editor>, at: egui::Pos2| {
+            harness.input_mut().events.push(egui::Event::PointerMoved(at));
+            harness.input_mut().events.push(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: true, modifiers: Default::default() });
+            harness.step();
+            harness.input_mut().events.push(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: false, modifiers: Default::default() });
+            harness.run();
+        };
+        tap(&mut harness, decoy);
+        assert_eq!(harness.state().selected, None, "empty canvas chooses nothing");
+        tap(&mut harness, b_on_screen);
+        assert_eq!(harness.state().selected, Some(b));
+    }
+
+    #[test]
+    fn stepping_walks_the_flow_and_focus_frames_the_node() {
+        let reg = Registry::builtin();
+        let g = ringdesign_graph::templates::graph("Braided band").expect("bundled");
+        let mut ed = Editor::new(g, &reg);
+        let order = ed.walk_order();
+        assert_eq!(ed.step(1), Some(order[0]));
+        assert_eq!(ed.step(1), Some(order[1]));
+        assert_eq!(ed.walk_position(), Some((2, order.len())));
+        assert_eq!(ed.step(-1), Some(order[0]));
+        assert_eq!(ed.step(-1), Some(*order.last().unwrap()), "the walk wraps");
+        let entry = ed.graph().entry_nodes()[0];
+        let (ins, outs) = ed.neighbours(entry);
+        assert!(ins.iter().any(|(pin, _)| pin == "layer") && ins.iter().any(|(pin, _)| pin == "window") || ins.iter().any(|(pin, _)| pin == "layer"));
+        assert!(outs.iter().all(|(pin, to)| pin == "entry" && ed.graph().node(*to).is_some_and(|n| n.kind == "stack")));
+
+        // A readable zoom is kept; an unreadable one is replaced; a tall node is pinned by its title.
+        let view = egui::Rect::from_min_size(egui::pos2(0.0, 100.0), egui::vec2(400.0, 320.0));
+        let node = egui::Rect::from_min_size(egui::pos2(1000.0, 500.0), egui::vec2(280.0, 160.0));
+        let (scale, t) = focus_transform(view, node, 0.8);
+        assert_eq!(scale, 0.8);
+        let on_screen = (node.center().to_vec2() * scale + t).to_pos2();
+        assert!((on_screen - view.center()).length() < 0.5, "{on_screen:?}");
+        let (scale, _) = focus_transform(view, node, 0.06);
+        assert!((0.45..=1.0).contains(&scale), "{scale}");
+        let tall = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(280.0, 900.0));
+        let (scale, t) = focus_transform(view, tall, 1.0);
+        let top = tall.top() * scale + t.y;
+        assert!(top >= view.top() && top <= view.top() + 40.0, "the title is in sight: {top}");
     }
 }

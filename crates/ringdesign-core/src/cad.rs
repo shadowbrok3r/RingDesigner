@@ -306,14 +306,14 @@ fn body_for(
             let mut nominal = design.clone();
             nominal.cad = None;
             let resolved = crate::manufacturing::source_library(&nominal, lib);
-            let built = crate::mesh::build_band(
+            let built = crate::mesh::try_build(
                 &nominal,
                 &resolved,
                 BuildParams {
                     refine: None,
                     ..params
                 },
-            );
+            )?;
             let vertices: Vec<_> = built
                 .mesh
                 .vertices

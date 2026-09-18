@@ -12,7 +12,7 @@ parallel = ["dep:rayon"]
 
 [dependencies]
 nalgebra.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["rc"] }
 serde_json.workspace = true
 anyhow.workspace = true
 log.workspace = true

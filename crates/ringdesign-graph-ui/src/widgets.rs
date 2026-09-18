@@ -78,7 +78,23 @@ pub fn pin_widget(ui: &mut Ui, pin: &PinSpec, literal: &mut Option<Literal>) -> 
         }
         (Widget::TextArea, _) => {
             let mut v = effective.as_ref().and_then(as_text).unwrap_or_default();
-            if ui.add_sized([160.0, 60.0], egui::TextEdit::multiline(&mut v)).changed() {
+            // add_sized is a minimum size: a portable PNG's base64 used
+            // to stretch its node thousands of rows and destroy Fit.
+            // Keep large source payloads folded, and bound the editor even
+            // when explicitly opened.
+            let edit = |ui: &mut Ui, v: &mut String| {
+                egui::ScrollArea::both().id_salt(("source", &pin.name))
+                    .max_height(80.0).max_width(200.0).auto_shrink([false, false])
+                    .show(ui, |ui| ui.add(egui::TextEdit::multiline(v).desired_width(180.0).desired_rows(3)).changed()).inner
+            };
+            let edited = if v.len() > 1024 {
+                egui::CollapsingHeader::new(format!("Source ({} KB)", v.len().div_ceil(1024)))
+                    .id_salt(&pin.name)
+                    .show(ui, |ui| edit(ui, &mut v)).body_returned.unwrap_or(false)
+            } else {
+                edit(ui, &mut v)
+            };
+            if edited {
                 *literal = Some(Literal::Text(v));
                 changed = true;
             }

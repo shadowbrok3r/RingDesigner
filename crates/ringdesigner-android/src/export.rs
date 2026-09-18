@@ -105,7 +105,7 @@ fn write(job: &ExportJob) -> Result<String, Box<dyn std::error::Error>> {
     if let Some(dir) = job.path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let out = ringdesign_core::mesh::build(&job.design, &job.lib, job.params);
+    let out = ringdesign_core::mesh::try_build(&job.design, &job.lib, job.params)?;
     let mb = |bytes: usize| bytes as f64 / 1048576.0;
     Ok(match job.kind {
         ExportKind::Stl | ExportKind::ThreeMf => {

@@ -1,0 +1,17 @@
+{
+  "mesh_triangles": 81920,
+  "stone_count": 0,
+  "wall": {
+    "below_limit": 0,
+    "limit_mm": 0.8,
+    "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+    "point": [
+      8.499600092569986,
+      -3.439405838648478,
+      2.59458327293396
+    ],
+    "rays": 383,
+    "sampled_min_mm": 1.031375932548912,
+    "unresolved": 0
+  }
+}

@@ -42,8 +42,12 @@ def main():
         c=matches[args.index];r=c['rect'];clip=c['clip']
         left,top,right,bottom=max(r[0],clip[0]),max(r[1],clip[1]),min(r[2],clip[2]),min(r[3],clip[3])
         if right-left<2 or bottom-top<2:raise RuntimeError('Control is clipped; scroll it into view first')
-        density=run('shell','wm','density').decode()
-        scale=int(re.findall(r'density: (\d+)',density)[-1])/160.0
+        # Android can report the new density before the running egui surface
+        # has adopted it. Use the scale that produced these measured bounds.
+        scale=data.get('pointer',{}).get('pixels_per_point')
+        if not scale:
+            density=run('shell','wm','density').decode()
+            scale=int(re.findall(r'density: (\d+)',density)[-1])/160.0
         x,y=(left+right)*0.5,(top+bottom)*0.5
         point=lambda v:str(round(v*scale))
         if args.action=='tap':run('shell','input','tap',point(x),point(y))

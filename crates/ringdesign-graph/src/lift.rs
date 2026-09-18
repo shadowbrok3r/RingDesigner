@@ -14,7 +14,7 @@ use ringdesign_core::{AlphaLibrary, RingDesign};
 use crate::eval::{Evaluator, OUTPUT_DESIGN_PIN, OUTPUT_KIND, Targets};
 use crate::graph::{Graph, GraphError, Mode, NodeId};
 use crate::registry::Registry;
-use crate::value::{Literal, Value};
+use crate::value::{Literal, Value, ValueKind};
 
 /// Most `design.set` patches the lift adds before it patches whole
 /// top-level fields instead.
@@ -30,6 +30,10 @@ fn set_fields(g: &mut Graph, id: NodeId, reg: &Registry, json: &serde_json::Valu
             continue;
         }
         let Some(v) = obj.get(&pin.name) else { continue };
+        if v.is_object() && pin.kind == ValueKind::Json {
+            let _ = g.set_input(id, pin.name.clone(), Literal::Json(v.clone()));
+            continue;
+        }
         if v.is_null() || v.is_object() {
             continue;
         }
@@ -79,7 +83,7 @@ fn remap_node(g: &mut Graph, r: &Remap) -> Result<Option<NodeId>, GraphError> {
         Remap::Off => None,
         Remap::Curve { curve, span_mm } => {
             let id = g.add("remap.curve")?;
-            g.set_input(id, "points", Literal::Json(json_of(&curve.points().to_vec())))?;
+            g.set_input(id, "points", serde_json::from_value(json_of(&curve.points().to_vec())).expect("point literal"))?;
             g.set_input(id, "span_mm", Literal::Number(*span_mm))?;
             Some(id)
         }
@@ -137,7 +141,7 @@ fn layer_node(g: &mut Graph, reg: &Registry, layer: &Layer) -> Result<NodeId, Gr
         Layer::Curve(c) => {
             let id = g.add("layer.curve")?;
             set_fields(g, id, reg, &json_of(c), &["points"]);
-            g.set_input(id, "points", Literal::Json(json_of(&c.points)))?;
+            g.set_input(id, "points", serde_json::from_value(json_of(&c.points)).expect("point literal"))?;
             id
         }
         Layer::Flutes(f) => {
@@ -172,10 +176,13 @@ fn layer_node(g: &mut Graph, reg: &Registry, layer: &Layer) -> Result<NodeId, Gr
 
 fn entry_node(g: &mut Graph, reg: &Registry, e: &LayerEntry) -> Result<NodeId, GraphError> {
     let layer = layer_node(g, reg, &e.layer)?;
+    g.node_mut(layer).expect("added").label = Some(e.name.clone());
     let id = g.add("entry")?;
+    g.node_mut(id).expect("added").label = Some(format!("{} / blend", e.name));
     g.connect(layer, "layer", id, "layer")?;
     g.set_input(id, "name", Literal::Text(e.name.clone()))?;
     g.set_input(id, "enabled", Literal::Bool(e.enabled))?;
+    g.set_input(id, "bench_only", Literal::Bool(e.bench_only))?;
     if let Some(b) = json_of(&e.blend).as_str() {
         g.set_input(id, "blend", Literal::Text(b.into()))?;
     }
@@ -185,6 +192,7 @@ fn entry_node(g: &mut Graph, reg: &Registry, e: &LayerEntry) -> Result<NodeId, G
         g.set_input(id, "mask", Literal::Text(m.clone()))?;
     }
     let w = window_node(g, &e.window)?;
+    g.node_mut(w).expect("added").label = Some(format!("{} / placement", e.name));
     g.connect(w, "window", id, "window")?;
     if let Some(r) = remap_node(g, &e.remap)? {
         g.connect(r, "remap", id, "remap")?;
@@ -329,9 +337,38 @@ pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result
     g.set_input(design, "size", Literal::Number(d.size.0))?;
     g.connect(profile, "profile", design, "profile")?;
     g.connect(shank_out, "shank", design, "shank")?;
+    g.node_mut(profile).expect("added").label = Some("Band section".into());
+    g.node_mut(shank).expect("added").label = Some("Shoulders and taper".into());
+    g.node_mut(head).expect("added").label = Some("Signet face".into());
+    g.expose(design, "size", "US size")?;
+    g.expose(profile, "width_mm", if d.imported_base.is_some() { "Face width" } else { "Band width" })?;
+    g.expose(profile, "thickness_mm", if d.imported_base.is_some() { "Palm thickness" } else { "Band thickness" })?;
+    if d.shank.kind == ringdesign_core::ShankKind::Signet {
+        for (pin, name) in [
+            ("length_mm", "Face length"),
+            ("rise_mm", "Face rise"),
+            ("table_dome_mm", "Table dome"),
+            ("shoulder_deg", "Shoulder arc"),
+            ("swell_deg", "Body swell"),
+            ("rim_round_mm", "Rim rounding"),
+            ("dome", "Cut dome"),
+            ("loft", "Loft"),
+        ] {
+            if d.imported_base.is_none() || matches!(pin, "length_mm" | "rise_mm") {
+                g.expose(head, pin, name)?;
+            }
+        }
+        if d.imported_base.is_none() { g.expose(shank, "amount", "Shank taper")?; }
+    }
 
     let stack = stack_nodes(&mut g, reg, &d.layers.layers)?;
     let alphas = alpha_nodes(&mut g, d)?;
+    for id in &alphas {
+        let node = g.node_mut(*id).expect("added");
+        if let Some(Literal::Text(name)) = node.inputs.get("name") {
+            node.label = Some(name.clone());
+        }
+    }
     let merged = merge_chain(&mut g, &alphas, "source")?;
     let mut last = design;
     if stack.is_some() || merged.is_some() {
@@ -377,6 +414,7 @@ pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result
     for (pointer, value) in patches {
         let set = g.add("design.set")?;
         g.connect(last, "design", set, "design")?;
+        g.node_mut(set).expect("added").label = Some(format!("Preserve {pointer}"));
         g.set_input(set, "pointer", Literal::Text(pointer))?;
         g.set_input(set, "value", Literal::Json(value))?;
         last = set;
@@ -433,7 +471,7 @@ mod tests {
         assert_eq!(got, want);
         let pointers: Vec<String> = g.nodes.iter().filter(|n| n.kind == "design.set").filter_map(|n| n.inputs.get("pointer")).filter_map(|l| if let Literal::Text(s) = l { Some(s.clone()) } else { None }).collect();
         assert!(pointers.iter().any(|p| p.starts_with("/profile/flange")), "{pointers:?}");
-        assert!(pointers.iter().any(|p| p.contains("warp")), "{pointers:?}");
+        assert!(!pointers.iter().any(|p| p.contains("warp")), "warp must travel with its layer, not a stack index: {pointers:?}");
         assert!(pointers.iter().any(|p| p.starts_with("/draft")), "{pointers:?}");
         assert_eq!(g.nodes.iter().filter(|n| n.kind == "alpha.text").count(), 1);
         assert_eq!(g.nodes.iter().filter(|n| n.kind == "remap.terrace").count(), 1);

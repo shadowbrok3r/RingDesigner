@@ -17,9 +17,12 @@ struct Resources {
     size: [i32; 2],
 }
 
-pub fn show(ui: &egui::Ui, viewport: Rect, contact: Pos2, obstacles: &[Rect]) -> Rect {
-    let rect = crate::navigation::loupe_rect(contact, viewport, obstacles);
-    let source = Rect::from_center_size(contact, rect.size() / 2.5);
+/// `reach` is how far the placement being made extends from the contact in
+/// points, so the crop holds the whole stamp instead of clipping its edges.
+pub fn show(ui: &egui::Ui, viewport: Rect, contact: Pos2, reach: f32, obstacles: &[Rect]) -> Rect {
+    let rect = crate::navigation::loupe_rect(contact, viewport, obstacles, reach);
+    let zoom = crate::navigation::loupe_zoom(rect, reach);
+    let source = Rect::from_center_size(contact, rect.size() / zoom);
     let id = ui.id().with("placement-loupe");
     let gpu = ui.data_mut(|d| d.get_temp_mut_or_default::<Arc<Mutex<Gpu>>>(id).clone());
     let error = gpu.lock().ok().and_then(|g| g.error.clone());
@@ -69,7 +72,7 @@ pub fn show(ui: &egui::Ui, viewport: Rect, contact: Pos2, obstacles: &[Rect]) ->
     painter.text(
         label.center(),
         egui::Align2::CENTER_CENTER,
-        "2.5×",
+        format!("{zoom:.1}×"),
         egui::FontId::proportional(11.0),
         aqua,
     );

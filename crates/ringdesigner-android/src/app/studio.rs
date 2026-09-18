@@ -7,6 +7,46 @@ use crate::editor::{
 use ringdesign_workbench::visual::{Pointer as VisualPointer, Tool as VisualTool};
 
 impl RingApp {
+    fn clear_opened_menus(&mut self, ctx: &egui::Context, view: egui::Rect, manual: bool) {
+        let overlays: Vec<_> = ctx.memory(|m| {
+            m.areas().visible_layer_ids().into_iter()
+                .filter(|layer| layer.order == egui::Order::Foreground)
+                .filter_map(|layer| m.area_rect(layer.id).map(|rect| (layer.id, rect)))
+                .collect()
+        });
+        let mut observed = overlays.clone();
+        // Semantic changes can reuse the same floating Area. Their bounds also
+        // keep the short settle alive while the content-height inspector reflows.
+        observed.push((egui::Id::new("viewport-layout"), view));
+        if let Some(sheet) = self.editor.sheet {
+            observed.push((egui::Id::new(("inspector-open", sheet as u8, self.editor.mode as u8)), view));
+        }
+        if let Some(palette) = self.editor.palette {
+            observed.push((egui::Id::new(("palette-open", format!("{palette:?}"))), view));
+        }
+        if !self.editor.workspace.rail_collapsed {
+            observed.push((egui::Id::new("rail-expanded"), view));
+        }
+        let ready = self.editor.menu_avoidance.observe(&observed, manual, self.preview_mesh.is_some());
+        if self.editor.menu_avoidance.settling() {
+            ctx.request_repaint_after(Duration::from_millis(16));
+        }
+        if !ready { return; }
+        let Some(mesh) = &self.preview_mesh else { return; };
+        let projector = self.pane.camera.projector(view);
+        let mut ring = egui::Rect::NOTHING;
+        for p in &mesh.vertices {
+            ring.extend_with(projector.at([p.0, p.1, p.2]));
+        }
+        let obstacles: Vec<_> = overlays.iter().map(|(_, r)| *r).collect();
+        let shift = editor::visibility::clearance(view.shrink(6.0), ring.expand(4.0), &obstacles);
+        if shift.length() > 0.5 {
+            self.pane.camera.pan_by(shift, view);
+            self.editor.menu_avoidance.record_shift(shift);
+            ctx.request_repaint();
+        }
+    }
+
     pub(super) fn capture_before(&mut self) {
         if self.history.is_pending() || self.fit_next || self.editor.isolate {
             return;
@@ -95,6 +135,10 @@ impl RingApp {
                         (Tab::Bench, "Performance bench"),
                     ] {
                         if ui.button(title).clicked() {
+                            if tab == Tab::Graph {
+                                self.open_graph_sheet();
+                                continue;
+                            }
                             if self.editor.isolate {
                                 self.editor.isolate = false;
                                 self.request_view_update();
@@ -263,6 +307,7 @@ impl RingApp {
             .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(8, 2)))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
+                    self.header_file_menu(ui, host);
                     let title = if self.tab == Tab::Ring {
                         self.design.name.as_str()
                     } else {
@@ -310,9 +355,18 @@ impl RingApp {
             if let Some(sheet) = self.editor.sheet {
                 let available = ui.available_size();
                 let landscape = safe.width() > safe.height() * 1.15;
-                let fraction = self.editor.workspace.inspector_fraction[landscape as usize];
-                let extent = editor::workspace::inspector_extent(available, landscape, fraction);
-                if extent >= 64.0 {
+                let graph = sheet == Sheet::Graph;
+                let fraction = if graph {
+                    self.editor.workspace.graph_fraction[landscape as usize]
+                } else {
+                    self.editor.workspace.inspector_fraction[landscape as usize]
+                };
+                let extent = if landscape || graph {
+                    editor::workspace::inspector_extent(available, landscape, fraction)
+                } else {
+                    editor::workspace::content_height(available.y, self.editor.inspector_height)
+                };
+                if extent >= 42.0 {
                     let panel = if landscape {
                         egui::Panel::right(egui::Id::new("studio-inspector-side"))
                     } else {
@@ -329,15 +383,28 @@ impl RingApp {
                         .show(ui, |ui| {
                             ui.set_clip_rect(ui.clip_rect().intersect(ui.max_rect()));
                             editor::layout::record(ui, "inspector", ui.max_rect());
-                            if editor::workspace::splitter(
-                                ui,
-                                &mut self.editor.workspace.inspector_fraction[landscape as usize],
-                                available,
-                                landscape,
-                            ) {
+                            let share = if graph {
+                                &mut self.editor.workspace.graph_fraction[landscape as usize]
+                            } else {
+                                &mut self.editor.workspace.inspector_fraction[landscape as usize]
+                            };
+                            if (landscape || graph)
+                                && editor::workspace::splitter(ui, share, available, landscape)
+                            {
                                 self.save_prefs();
                             }
-                            self.inspector(ui, sheet, host);
+                            if graph {
+                                self.graph_panel(ui, host, true);
+                                return;
+                            }
+                            let wanted = self.inspector(ui, sheet, host, landscape) + 12.0;
+                            if !landscape {
+                                let next = editor::workspace::content_height(available.y, Some(wanted));
+                                self.editor.inspector_height = Some(wanted);
+                                if (next - extent).abs() > 0.5 {
+                                    ui.ctx().request_repaint();
+                                }
+                            }
                         });
                 }
             }
@@ -408,6 +475,7 @@ impl RingApp {
             data["navigation"] = serde_json::to_value(self.pane.navigation).unwrap_or_default();
             data["visual"] = serde_json::json!({"tool":format!("{:?}",self.visual.tool),"path_points":self.visual.path.curve.points.len(),"navigating":self.visual.navigating()});
             data["camera"] = serde_json::json!({"yaw":self.pane.camera.yaw,"pitch":self.pane.camera.pitch,"zoom":self.pane.camera.zoom,"pan":self.pane.camera.pan});
+            data["menu_avoidance"] = serde_json::json!({"shifts":self.editor.menu_avoidance.shifts,"last_delta":self.editor.menu_avoidance.last_delta});
             let text = data.to_string();
             if text != self.editor.last_layout {
                 log::info!("mobile-layout {text}");
@@ -419,7 +487,8 @@ impl RingApp {
         }
     }
 
-    fn inspector(&mut self, ui: &mut egui::Ui, sheet: Sheet, host: &Host) {
+    fn inspector(&mut self, ui: &mut egui::Ui, sheet: Sheet, host: &Host, landscape: bool) -> f32 {
+        let top = ui.cursor().top();
         let title = if sheet == Sheet::Edit {
             self.editor.mode.label()
         } else {
@@ -427,15 +496,17 @@ impl RingApp {
         };
         ui.horizontal(|ui| {
             ui.add_sized(
-                [(ui.available_width() - 70.0).max(30.0), 26.0],
+                [(ui.available_width() - if landscape { 70.0 } else { 36.0 }).max(30.0), 26.0],
                 egui::Label::new(egui::RichText::new(title).strong()).truncate(),
             );
             use ringdesign_workbench::icons::{self, Icon};
-            let expand = icons::compact(ui, Icon::Expand, false);
-            editor::layout::record(ui, "inspector/expand", expand.rect);
-            if expand.clicked() {
-                self.editor.workspace.inspector_fraction = [0.40, 0.4];
-                self.save_prefs();
+            if landscape {
+                let expand = icons::compact(ui, Icon::Expand, false);
+                editor::layout::record(ui, "inspector/expand", expand.rect);
+                if expand.clicked() {
+                    self.editor.workspace.inspector_fraction[1] = 0.4;
+                    self.save_prefs();
+                }
             }
             if icons::compact(ui, Icon::Close, false).clicked() {
                 self.editor.sheet = None;
@@ -444,9 +515,9 @@ impl RingApp {
         });
         let width = ui.available_width();
         ui.spacing_mut().slider_width = (width - 150.0).clamp(60.0, 170.0);
-        crate::theme::scroll_vertical()
+        let scroll = crate::theme::scroll_vertical()
             .id_salt(("inspector-scroll", sheet as u8, self.editor.mode as u8))
-            .auto_shrink([false, false])
+            .auto_shrink([false, true])
             .min_scrolled_height(1.0)
             .max_height(ui.available_height().max(1.0))
             .max_width(width)
@@ -456,6 +527,7 @@ impl RingApp {
                 self.inspector_content(ui, sheet, host);
                 editor::layout::record(ui, "inspector/content", ui.min_rect());
             });
+        scroll.inner_rect.top() - top + scroll.content_size.y
     }
 
     pub(super) fn inspector_content(&mut self, ui: &mut egui::Ui, sheet: Sheet, host: &Host) {
@@ -703,6 +775,7 @@ impl RingApp {
                 }
             }
             Sheet::Timeline => self.timeline_sheet(ui),
+            Sheet::Graph => self.graph_panel(ui, host, true),
         }
     }
 
@@ -841,8 +914,17 @@ impl RingApp {
         for (name, r) in &nav.controls { editor::layout::record(ui, format!("navigator/{name}"), *r); }
         if let Some(action) = nav.action {
             let angles = action.angles(self.pane.camera.yaw, self.pane.camera.pitch, self.design.shank.head.theta_deg as f32);
-            self.pane.camera.yaw = angles[0]; self.pane.camera.pitch = angles[1];
-            self.pane.camera.pan = [0.0; 2];
+            if action.recentres() {
+                // A view from the cube eases in, as a chosen node's does.
+                let from = self.pane.camera.pose();
+                let to = crate::focus::Pose { yaw: angles[0], pitch: angles[1], pan: [0.0; 2], ..from };
+                self.camera_turn = Some(crate::focus::Turn::new(from, to));
+            } else {
+                self.camera_turn = None;
+                self.pane.camera.yaw = angles[0];
+                self.pane.camera.pitch = angles[1];
+            }
+            self.pane.actual_size = false;
             ui.ctx().request_repaint();
         }
         if nav.changed { self.save_prefs(); }
@@ -854,6 +936,14 @@ impl RingApp {
             || pointer.is_some_and(|p| {
                 ui.ctx().layer_id_at(p).is_some_and(|layer| layer != ui.layer_id())
             });
+        let manual_navigation = explicit_navigation || nav.action.is_some()
+            || ui.input(|i| i.pointer.any_down())
+                && !floating_blocked && pointer.is_some_and(|p| rect.contains(p));
+        if manual_navigation && nav.action.is_none() {
+            self.camera_turn = None;
+        }
+        self.advance_camera_turn(ui.ctx());
+        self.clear_opened_menus(ui.ctx(), rect, manual_navigation);
         let accepted = crate::paint::accepts(crate::paint::Tool::from_code(self.probe.tool), self.visual.stylus_only);
         let camera = self.pane.camera;
         let projector = camera.projector(rect);
@@ -893,7 +983,9 @@ impl RingApp {
             .as_ref()
             .map(|f| f.parting_z_mm)
             .unwrap_or(self.design.draft.parting_z_mm);
+        let graph_sheet = self.editor.sheet == Some(Sheet::Graph);
         let (changed, stone_pick) = if !floating_blocked
+            && !graph_sheet
             && matches!(self.visual.tool, VisualTool::Select | VisualTool::Clearance)
         {
             editor::overlay::draw(
@@ -932,9 +1024,19 @@ impl RingApp {
                 (&self.preview_mesh, view.response.interact_pointer_pos())
             {
                 let (origin, direction) = self.pane.camera.ray(view.rect, pos);
-                if let Some(hit) =
-                    editor::picking::hit(&self.design, &self.lib, mesh, origin, direction)
-                {
+                let hit = editor::picking::hit(&self.design, &self.lib, mesh, origin, direction);
+                if let (true, Some(hit)) = (graph_sheet, &hit) {
+                    // Under the graph a tap asks which node made this metal.
+                    let node = crate::focus::layer_behind(&self.design, &self.lib, hit)
+                        .and_then(|layer| self.graph.node_for_layer(layer));
+                    match (node, &mut self.graph.ed) {
+                        (Some(node), Some(ed)) => {
+                            ed.focus(node);
+                            host.haptic(Haptic::Selection);
+                        }
+                        _ => self.status = "bare band here: no layer's node to open".into(),
+                    }
+                } else if let Some(hit) = hit {
                     match self.editor.mode {
                         Mode::Shape => {
                             let delta = ringdesign_core::field::wrap_delta(
@@ -980,7 +1082,7 @@ impl RingApp {
             }
         }
         if let Some((origin, direction)) = view.probe {
-            if self.visual.tool == VisualTool::Select && !blocked {
+            if self.visual.tool == VisualTool::Select && !blocked && !graph_sheet {
                 self.probe(origin, direction);
             }
         }
@@ -1032,13 +1134,16 @@ impl RingApp {
             }
         }
         if self.pane.navigation.magnifier && !floating_blocked && !navigating && !self.editor.hold_before {
-            if let Some(contact) = self.visual.placement_contact(ui, view.rect) {
+            if let Some((contact, reach)) = self.visual.placement_focus(ui, view.rect) {
                 let mut obstacles = self.editor.floating_rects.clone(); obstacles.push(nav.rect);
-                let lens = ringdesign_workbench::loupe::show(ui, view.rect, contact, &obstacles);
+                let lens = ringdesign_workbench::loupe::show(ui, view.rect, contact, reach, &obstacles);
                 editor::layout::record(ui, "viewport/magnifier", lens);
             }
         }
-        let state = if self.editor.hold_before {
+        let node_words = if graph_sheet { self.node_words() } else { None };
+        let state = if let Some(words) = &node_words {
+            words.clone()
+        } else if self.editor.hold_before {
             "Before latest edit — release to return".to_string()
         } else if self.editor.isolate {
             "Isolated layer preview · full design preserved".to_string()
@@ -1059,7 +1164,7 @@ impl RingApp {
             view.rect,
             view.rect.center_bottom() - egui::vec2(0.0, 19.0),
             &state,
-            crate::theme::INK_DIM,
+            if node_words.is_some() { crate::theme::PINK_BRIGHT } else { crate::theme::INK_DIM },
         );
         if self.editor.help {
             editor::overlay::tag(

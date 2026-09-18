@@ -62,9 +62,9 @@ impl PreviewQuality {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Fast => "Fast · 111k",
-            Self::Detailed => "Detailed · 655k",
-            Self::Showcase => "Showcase · 1.38M",
+            Self::Fast => "Fast",
+            Self::Detailed => "Detailed",
+            Self::Showcase => "Showcase",
         }
     }
 
@@ -97,6 +97,8 @@ pub struct RingPane {
     /// Render at true physical size using the panel's real pixel density.
     pub actual_size: bool,
     pub clip_plane: [f32; 4],
+    /// Tint and strength of the chosen node's highlight; zero strength is off.
+    pub focus: [f32; 4],
 }
 
 impl Default for RingPane {
@@ -110,6 +112,7 @@ impl Default for RingPane {
             polish: 0,
             actual_size: false,
             clip_plane: [0.0; 4],
+            focus: [0.0; 4],
         }
     }
 }
@@ -200,6 +203,7 @@ impl RingPane {
             self.wireframe,
             [0.10, 0.10, 0.12],
             self.clip_plane,
+            self.focus,
         );
         ViewResponse {
             response,
@@ -261,6 +265,10 @@ pub struct Done {
     pub field: Option<FieldReport>,
     /// The graph's evaluation, when the design carries one.
     pub graph: Option<crate::graph::GraphDone>,
+    /// What `mesh` was built with, so a before/after can be built to match.
+    pub params: BuildParams,
+    /// The mesh shows one isolated layer rather than the design.
+    pub isolated: bool,
 }
 
 struct Job {
@@ -276,6 +284,7 @@ struct Job {
 pub struct Worker {
     jobs: Sender<Job>,
     pub done: Receiver<Done>,
+    pub errors: Receiver<(u64, String)>,
     detail_done: Receiver<(u64, Vec<ringdesign_core::dfm::DfmFinding>)>,
 }
 
@@ -283,6 +292,7 @@ impl Worker {
     pub fn spawn(ctx: egui::Context) -> Self {
         let (jobs_tx, jobs_rx) = channel::<Job>();
         let (done_tx, done_rx) = channel::<Done>();
+        let (error_tx, error_rx) = channel();
         // Fine-detail measurement of a large painted alpha can take seconds.
         // It must block neither input nor the next geometry preview.
         let (detail_tx, detail_rx) = channel::<(u64, RingDesign, Arc<AlphaLibrary>)>();
@@ -318,6 +328,9 @@ impl Worker {
                     if let Some(g) = &graph {
                         if g.ok {
                             job.design = g.design.clone();
+                            if let Some(lib) = &g.baked_library {
+                                job.lib = lib.clone();
+                            }
                         }
                     }
                     let field_from_graph = graph.as_mut().and_then(|g| g.field.take());
@@ -325,7 +338,10 @@ impl Worker {
                         let _ =
                             detail_tx.send((job.generation, job.design.clone(), job.lib.clone()));
                     }
-                    let out = ringdesign_core::mesh::build(&job.design, &job.lib, job.params);
+                    let out = match ringdesign_core::mesh::try_build(&job.design, &job.lib, job.params) {
+                        Ok(out) => out,
+                        Err(e) => { let _ = error_tx.send((job.generation, e.to_string())); ctx.request_repaint(); continue; }
+                    };
                     let cast = job.analyze.then(|| {
                         castability::analyze(
                             &out.mesh,
@@ -395,6 +411,8 @@ impl Worker {
                         cast,
                         field,
                         graph,
+                        params: job.params,
+                        isolated: view_layer.is_some(),
                     };
                     if done_tx.send(done).is_err() {
                         break;
@@ -406,6 +424,7 @@ impl Worker {
         Self {
             jobs: jobs_tx,
             done: done_rx,
+            errors: error_rx,
             detail_done: detail_done_rx,
         }
     }

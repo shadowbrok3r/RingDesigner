@@ -19,6 +19,7 @@ pub const GEM_TINT: [f32; 3] = [0.72, 0.82, 0.92];
 /// Interleaved `position(3) normal(3) color(3) color2(3)` triangles for every
 /// stone, matching the ring buffer's layout.
 pub fn preview_vertices(design: &RingDesign, _lib: &AlphaLibrary) -> Vec<f32> {
+    if design.imported_base.as_ref().is_some_and(|b|b.bare) { return Vec::new(); }
     let mut out = Vec::new();
     for (st, frame) in crate::stones::stone_frames(design) {
         place(st.gem, &frame, &mut out);

@@ -1,0 +1,332 @@
+{
+  "bench_layers": [
+    "Paired palmette cartouches / bench chasing",
+    "Flowing engine-turned cheek ground / bench chasing",
+    "Silk ground / bench finish",
+    "Palm signature / bench engraving"
+  ],
+  "cast_ring_grams": 25.884377079821505,
+  "design": "Solstice — sun seal",
+  "detail_findings": [],
+  "diagnostic_only": false,
+  "estimated_channel_grams": 4.609012747618234,
+  "estimated_charge_grams": 30.49338982743974,
+  "feeding_proxy": [
+    56.25,
+    2.6390924373770646
+  ],
+  "format_version": 1,
+  "geometry": {
+    "bounds_mm": [
+      23.04568099975586,
+      26.691057205200195,
+      18.94908905029297
+    ],
+    "surface_area_mm2": 1718.7431627789342,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 1376256,
+      "vertex_count": 688128,
+      "watertight": true
+    },
+    "volume_mm3": 2646.493706359172
+  },
+  "limits": [
+    "Release is sampled; features between rays can be missed",
+    "Sand-slot widths are a screening check, not a sand-strength model",
+    "Radial wall is not the minimum thickness in every direction",
+    "Channel volumes overlap at junctions and omit melt/handling losses",
+    "Separately cored geometry needs a core and assembly plan"
+  ],
+  "nominal_bore_mm": 18.2,
+  "nominal_size": "US 8.11",
+  "pattern_fingerprint": "f1a30f1cb36cdc34",
+  "pattern_scale": 1.019367991845056,
+  "radial_wall_limit_mm": 0.8,
+  "radial_wall_mm": 1.2963249464771955,
+  "release": {
+    "bounds": [
+      [
+        -11.50685977935791,
+        -11.396039962768555,
+        -9.474563598632812
+      ],
+      [
+        11.538820266723633,
+        15.29501724243164,
+        9.474525451660156
+      ]
+    ],
+    "cell_mm": [
+      0.09976484868433569,
+      0.09996650638651759
+    ],
+    "fits_flask": true,
+    "frame": {
+      "x": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "y": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "z": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "grid": [
+      231,
+      267
+    ],
+    "low_draft_area_mm2": 536.5287708914806,
+    "notes": [
+      "536.53 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
+    "obstructions": [],
+    "occupied_rays": 25353,
+    "parting_mm": 0.0,
+    "sand_findings": [
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          -2.3783761247411954,
+          -10.946190684029226,
+          0.0
+        ],
+        "width_mm": 0.19952969736867138
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          2.410336612106918,
+          -10.946190684029226,
+          0.0
+        ],
+        "width_mm": 0.19952969736867138
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          1.9115123686852398,
+          14.945134470078832,
+          0.0
+        ],
+        "width_mm": 0.39905939473734275
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          -11.157682808962734,
+          7.147746971930457,
+          0.0
+        ],
+        "width_mm": 0.5997990383191055
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          -10.958153111594063,
+          -2.3490711347887125,
+          0.0
+        ],
+        "width_mm": 0.19993301277303518
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          -10.35956401948805,
+          -4.348401262519065,
+          0.0
+        ],
+        "width_mm": 0.09996650638651759
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          10.29175965816944,
+          10.946474214618126,
+          0.0
+        ],
+        "width_mm": 0.09996650638651759
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          10.990113598959788,
+          -2.3490711347887125,
+          0.0
+        ],
+        "width_mm": 0.499832531932588
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          11.189643296328459,
+          -0.3497410070583614,
+          0.0
+        ],
+        "width_mm": 0.29989951915955276
+      }
+    ],
+    "status": "Review",
+    "suggested_parting_mm": -0.000019073486328125,
+    "tolerance_mm": 0.02,
+    "unresolved_rays": 0,
+    "worst_draft_deg": -0.0002622740272932125
+  },
+  "sampled_local_wall": null,
+  "setup": {
+    "auto_parting": false,
+    "axial_stock_mm": 0.0,
+    "bench_notes": "Imported-stock master with axial solar relief and isolated cheek ornament. Z=0 parting, opposed Z withdrawal, molded bore. Cast all ornament except the explicitly marked fine finish and inscription. Dress seam/gate and polish reserved borders. Confirm shrink, sand support, filling, and actual release with a physical trial; channel layout is preliminary.",
+    "bore": "Molded",
+    "bore_stock_mm": 0.0,
+    "channels": [
+      {
+        "diameter_mm": 4.0,
+        "end": [
+          0.0,
+          -21.0,
+          0.0
+        ],
+        "kind": "Gate",
+        "start": [
+          0.0,
+          -10.5,
+          0.0
+        ]
+      },
+      {
+        "diameter_mm": 6.0,
+        "end": [
+          0.0,
+          -33.0,
+          0.0
+        ],
+        "kind": "Sprue",
+        "start": [
+          0.0,
+          -21.0,
+          0.0
+        ]
+      }
+    ],
+    "component": null,
+    "flask": {
+      "cope_mm": 20.0,
+      "drag_mm": 20.0,
+      "length_mm": 80.0,
+      "width_mm": 80.0
+    },
+    "parting_mm": 0.0,
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "radial_stock_mm": 0.0,
+    "recipe": {
+      "alloy": "Silver 925",
+      "calibration_note": "Starting values; verify with shop trials",
+      "min_detail_mm": 0.3,
+      "min_draft_deg": 3.0,
+      "min_sand_web_mm": 0.6,
+      "min_section_mm": 0.8,
+      "name": "Solstice — sun seal / Delft clay",
+      "process": "SandTwoPart",
+      "sand": "DelftClay",
+      "sand_margin_mm": 5.0,
+      "shrink_pct": 1.9
+    },
+    "sample_pitch_mm": 0.1,
+    "tolerance_mm": 0.02
+  },
+  "source_build": {
+    "band_width_mm": 18.58905792236328,
+    "bounds_mm": [
+      22.607812881469727,
+      26.183929443359375,
+      18.58905792236328
+    ],
+    "build_ms": 264,
+    "inner_diameter_mm": 18.199999039585006,
+    "max_relief_mm": 0.49822458409459175,
+    "metals": [
+      {
+        "dwt": 16.644040951602882,
+        "grams": 25.884377079821505,
+        "metal": "Silver 925"
+      },
+      {
+        "dwt": 14.137795402905923,
+        "grams": 21.98672956587155,
+        "metal": "Bronze"
+      },
+      {
+        "dwt": 13.736153488050642,
+        "grams": 21.36210656684111,
+        "metal": "Brass"
+      },
+      {
+        "dwt": 18.555856466314022,
+        "grams": 28.85758255520641,
+        "metal": "Gold 10k"
+      },
+      {
+        "dwt": 20.997839308634138,
+        "grams": 32.655290389311496,
+        "metal": "Gold 14k"
+      },
+      {
+        "dwt": 25.030324133781168,
+        "grams": 38.92650529957713,
+        "metal": "Gold 18k"
+      },
+      {
+        "dwt": 28.596904337696074,
+        "grams": 44.473157530967455,
+        "metal": "Gold 22k"
+      },
+      {
+        "dwt": 31.038887180016186,
+        "grams": 48.27086536507254,
+        "metal": "Gold 24k"
+      },
+      {
+        "dwt": 19.27881191305353,
+        "grams": 29.981903953461202,
+        "metal": "Palladium 950"
+      },
+      {
+        "dwt": 34.46087629458319,
+        "grams": 53.5926533168119,
+        "metal": "Platinum 950"
+      }
+    ],
+    "min_relief_mm": -0.04233093819189957,
+    "outer_diameter_mm": 26.183929443359375,
+    "quality": {
+      "degenerate_faces": 0,
+      "min_angle_deg": 1.5898290874753118,
+      "worst_aspect": 37.14936351857945
+    },
+    "refine": null,
+    "surface_area_mm2": 1654.051577065325,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 1376256,
+      "vertex_count": 688128,
+      "watertight": true
+    },
+    "volume_mm3": 2498.491996121767
+  },
+  "units": "millimeter"
+}

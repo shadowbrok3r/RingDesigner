@@ -10,10 +10,12 @@
 //! tree. [`editor`] is filled in by M3.2.
 
 pub mod editor;
+pub mod navigator;
 pub mod style;
 pub mod widgets;
 
 pub use editor::{Editor, EditorResponse, NodeCard, build_snarl, extract_graph};
+pub use navigator::{NavResponse, navigator};
 
 /// The egui-snarl this editor is built on, for sanity checks and the diff
 /// guard against the sibling copies.

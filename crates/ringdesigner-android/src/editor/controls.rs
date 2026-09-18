@@ -145,6 +145,8 @@ pub fn field(
 
 pub fn shape(ui: &mut egui::Ui, editor: &mut Editor, d: &mut RingDesign) -> Edit {
     let mut edit = Edit::default();
+    edit.changed |= ringdesign_workbench::imported_base::ui(ui, d);
+    if d.imported_base.is_some() { return edit; }
     ui.horizontal(|ui| {
         let width = super::row_width(ui.available_width(), 2, ui.spacing().item_spacing.x);
         for (part, title) in [

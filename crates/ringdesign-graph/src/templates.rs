@@ -20,6 +20,26 @@ pub struct TemplateGraph {
     pub json: &'static str,
 }
 
+impl TemplateGraph {
+    pub fn load(&self) -> Graph {
+        crate::file::load_graph_str(self.json, None).expect("bundled graph parses")
+    }
+
+    /// Start a project from the whole template, including its title and
+    /// manufacturing setup. Attaching just the graph to the old project
+    /// lets the hosts' metadata-preserving rebuild overwrite those fields.
+    pub fn instantiate(&self, reg: &crate::registry::Registry, lib: &ringdesign_core::AlphaLibrary) -> Result<ringdesign_core::RingDesign, GraphError> {
+        let graph = self.load();
+        let out = crate::eval::evaluate_design(&mut crate::eval::Evaluator::new(), &graph, reg, lib, 0)?;
+        if !out.notes.is_empty() {
+            return Err(GraphError { node: None, message: out.notes.join("; ") });
+        }
+        let mut design = (*out.design).clone();
+        design.graph = Some(serde_json::to_value(&graph).map_err(|e| GraphError { node: None, message: e.to_string() })?);
+        Ok(design)
+    }
+}
+
 macro_rules! bundled {
     ($($name:literal => $slug:literal),* $(,)?) => {
         pub static BUNDLED: &[TemplateGraph] = &[$(
@@ -38,6 +58,28 @@ bundled! {
     "Wishbone wave" => "wishbone-wave",
     "Split shank" => "split-shank",
     "Toi et moi" => "toi-et-moi",
+}
+
+/// Authored showcase designs, with the artwork embedded and each layer
+/// exposed as nodes. Kept separate from the small procedural starters.
+pub static SHOWCASE: &[TemplateGraph] = &[
+    TemplateGraph { name: "Aster Atelier", slug: "aster-atelier", json: include_str!("../../../graphs/templates/aster-atelier.graph.json") },
+    TemplateGraph { name: "Thalassa", slug: "thalassa", json: include_str!("../../../graphs/templates/thalassa.graph.json") },
+    // The two process masterworks: one held to two-part sand, one to nothing.
+    TemplateGraph { name: "Palisade — deco colonnade", slug: "palisade", json: include_str!("../../../graphs/templates/palisade.graph.json") },
+    TemplateGraph { name: "Oriel — jewelled lantern", slug: "oriel", json: include_str!("../../../graphs/templates/oriel.graph.json") },
+];
+
+/// Metadata only: menus must not parse megabytes of embedded artwork on
+/// every frame. Load just the selected template.
+pub static IMPORTED: &[TemplateGraph] = &[
+    TemplateGraph { name: "Nocturne — night garden", slug: "nocturne-imported", json: include_str!("../../../graphs/templates/nocturne-imported.graph.json") },
+    TemplateGraph { name: "Solstice — sun seal", slug: "solstice-imported", json: include_str!("../../../graphs/templates/solstice-imported.graph.json") },
+    TemplateGraph { name: "Aurelia — sovereign sun", slug: "aurelia-imported", json: include_str!("../../../graphs/templates/aurelia-imported.graph.json") },
+    TemplateGraph { name: "Vesper — celestial reliquary", slug: "vesper-imported", json: include_str!("../../../graphs/templates/vesper-imported.graph.json") },
+];
+pub fn catalog() -> impl Iterator<Item = &'static TemplateGraph> {
+    BUNDLED.iter().chain(SHOWCASE).chain(IMPORTED)
 }
 
 /// The bundled starter graph the editor opens on: size, section, shank,
@@ -184,11 +226,11 @@ fn signet_cluster() -> Result<Graph, GraphError> {
 
 /// Every bundled template graph, parsed.
 pub fn all() -> Vec<(&'static str, Graph)> {
-    BUNDLED.iter().map(|t| (t.name, crate::file::load_graph_str(t.json, None).expect("bundled graph parses"))).collect()
+    catalog().map(|t| (t.name, t.load())).collect()
 }
 
 pub fn graph(name: &str) -> Option<Graph> {
-    BUNDLED.iter().find(|t| t.name == name).and_then(|t| crate::file::load_graph_str(t.json, None).ok())
+    catalog().find(|t| t.name == name).map(TemplateGraph::load)
 }
 
 pub fn simple() -> Graph {

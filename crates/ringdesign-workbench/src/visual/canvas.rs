@@ -179,17 +179,38 @@ impl Visual {
 
     /// A loupe follows an editing contact only; hover and camera drags leave the
     /// viewport unobstructed. The caller samples after all overlays are painted.
-    pub fn placement_contact(&self, ui: &egui::Ui, rect: Rect) -> Option<Pos2> {
+    /// The second value is how far this frame's placement reaches from the
+    /// contact, so the lens can hold the whole stamp rather than crop it.
+    pub fn placement_focus(&self, ui: &egui::Ui, rect: Rect) -> Option<(Pos2, f32)> {
         if !self.is_painting() || self.contact.0 != Some(true) {
             return None;
         }
-        ui.input(|i| {
-            i.pointer
-                .primary_down()
-                .then(|| i.pointer.interact_pos())
-                .flatten()
-        })
-        .filter(|p| rect.contains(*p))
+        let contact = ui
+            .input(|i| {
+                i.pointer
+                    .primary_down()
+                    .then(|| i.pointer.interact_pos())
+                    .flatten()
+            })
+            .filter(|p| rect.contains(*p))?;
+        Some((contact, self.placement_reach(contact)))
+    }
+
+    /// The placement's outermost drawn point, as a radius about the contact.
+    fn placement_reach(&self, contact: Pos2) -> f32 {
+        let extent = self.placement_extent;
+        if !extent.is_positive() {
+            return 0.0;
+        }
+        [
+            extent.left_top(),
+            extent.right_top(),
+            extent.left_bottom(),
+            extent.right_bottom(),
+        ]
+        .into_iter()
+        .map(|corner| contact.distance(corner))
+        .fold(0.0, f32::max)
     }
     #[allow(clippy::too_many_arguments)]
     pub fn draw(
@@ -206,10 +227,13 @@ impl Visual {
     ) -> Edit {
         let mut edit = Edit::default();
         let painter = ui.painter_at(rect);
+        let previous = std::mem::replace(&mut self.placement_extent, Rect::NOTHING);
         match self.tool {
-            Tool::Transform => self
-                .transform
-                .draw(ui, rect, response, d, lib, mesh, project, ray, pointer),
+            Tool::Transform => {
+                self.placement_extent =
+                    self.transform
+                        .draw(ui, rect, response, d, lib, mesh, project, ray, pointer);
+            }
             Tool::Path => {
                 edit.layer = self
                     .path
@@ -303,7 +327,7 @@ impl Visual {
                             rotation_deg: self.brush.rotation_deg,
                             ..Default::default()
                         };
-                        crate::artwork::preview(
+                        self.placement_extent = crate::artwork::preview(
                             ui,
                             rect,
                             d,
@@ -325,6 +349,9 @@ impl Visual {
                     });
                     let centre = project(world);
                     let radius = centre.distance(project(other)).max(4.0);
+                    self.placement_extent = self
+                        .placement_extent
+                        .union(Rect::from_center_size(centre, egui::Vec2::splat(radius * 2.0)));
                     painter.circle_stroke(
                         centre,
                         radius,
@@ -604,6 +631,10 @@ impl Visual {
             }
             Tool::Select => {}
         }
+        if !self.placement_extent.is_positive() && self.contact.0 == Some(true) {
+            // A finger drifting off the metal must not resize the lens mid-stroke.
+            self.placement_extent = previous;
+        }
         edit
     }
 }
@@ -660,6 +691,30 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn the_lens_holds_the_stamp_to_its_corners_not_its_half_width() {
+        use crate::navigation::{LOUPE_ZOOM, loupe_rect, loupe_zoom};
+        let viewport = Rect::from_min_size(egui::pos2(0.0, 90.0), egui::vec2(410.0, 580.0));
+        let contact = egui::pos2(220.0, 450.0);
+        let mut v = super::super::Visual::default();
+        for side in [24.0_f32, 48.0, 72.0] {
+            v.placement_extent = Rect::from_center_size(contact, egui::Vec2::splat(side));
+            let reach = v.placement_reach(contact);
+            // The artwork's corner, which is what the circle was cropping.
+            assert!((reach - side * 0.5 * 2.0_f32.sqrt()).abs() < 0.01);
+            let lens = loupe_rect(contact, viewport, &[], reach);
+            let zoom = loupe_zoom(lens, reach);
+            assert!(
+                reach * zoom <= lens.width() * 0.5 - 6.0,
+                "{side} clipped at {zoom}x"
+            );
+            // A 48 pt stamp is already past the fixed 120 pt lens at a fixed 2.5x.
+            assert_eq!(side < 48.0, reach * LOUPE_ZOOM < 59.0);
+        }
+        v.placement_extent = Rect::NOTHING;
+        assert_eq!(v.placement_reach(contact), 0.0);
+    }
 
     #[test]
     fn stamp_contact_survives_long_touch_and_commits_only_on_release() {

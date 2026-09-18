@@ -243,6 +243,8 @@ pub fn chart(circumference_mm: f64, a: &Alpha, decal: &Decal, uv: [f64; 2]) -> [
     ]
 }
 
+/// Returns the screen region the artwork covers, which the placement loupe
+/// sizes itself from.
 pub fn preview(
     ui: &Ui,
     rect: egui::Rect,
@@ -253,9 +255,9 @@ pub fn preview(
     feather: f64,
     invert: bool,
     project: impl Fn([f64; 3]) -> egui::Pos2,
-) {
+) -> egui::Rect {
     let Some(a) = lib.get(name).filter(|a| !a.is_empty()) else {
-        return;
+        return egui::Rect::NOTHING;
     };
     let ctx = d.field_context();
     const N: usize = 12;
@@ -281,6 +283,7 @@ pub fn preview(
             p
         });
     let band = ctx.band_v_len_mm;
+    let mut painted = egui::Rect::NOTHING;
     let mut mesh = egui::Mesh::with_texture(texture);
     for (i, p) in world.iter().enumerate() {
         mesh.vertices.push(egui::epaint::Vertex {
@@ -300,12 +303,16 @@ pub fn preview(
                 .iter()
                 .all(|&i| (0.0..=band).contains(&chart[i][1]) && mesh.vertices[i].pos.is_finite())
             {
+                for i in ids {
+                    painted.extend_with(mesh.vertices[i].pos);
+                }
                 mesh.add_triangle(k as u32, (k + 1) as u32, (k + N + 1) as u32);
                 mesh.add_triangle((k + 1) as u32, (k + N + 2) as u32, (k + N + 1) as u32);
             }
         }
     }
     ui.painter_at(rect).add(egui::Shape::mesh(mesh));
+    painted.intersect(rect)
 }
 
 #[cfg(test)]

@@ -822,16 +822,7 @@ pub fn section_at_spaced(
     let inner_r = design.inner_radius_mm();
     let reference = design.reference_loop();
     let ctx = design.field_context();
-    let m = design.modulation_at(theta_deg, inner_r, reference.crest_radius_mm);
-    // The same reference the sweep uses — snap set and row split both — so
-    // the section matches the mesh.
-    let loop_i = design.profile.sample_spaced(
-        inner_r,
-        n,
-        &m,
-        spacing.map(|s| &s.v),
-        Some(&reference),
-    );
+    let loop_i = design.section_at(theta_deg, n, spacing.map(|s| &s.v), Some(&reference));
     if loop_i.len() < 3 {
         return Section { theta_deg, ..Default::default() };
     }
@@ -1290,13 +1281,48 @@ pub fn attributed_field_report(
     theta_steps: usize,
     profile_steps: usize,
 ) -> FieldReport {
+    // The verdict is about the pour. A layer cut at the bench afterwards is
+    // in the finished ring and not in the pattern, so it cannot lock a
+    // mould: a graver's line square into a signet's table is exactly the
+    // ledge the sand could never leave, and exactly what the bench is for.
+    let (pattern, bench) = casting_pattern(design);
+    let design = pattern.as_ref();
     let mut f = analyze_field(design, lib, settings, theta_steps, profile_steps);
     if f.undercut_area_mm2 > 0.0 {
         for r in attribute_undercuts(design, lib, settings, f.parting_z_mm) {
             f.notes.push(r.note());
         }
     }
+    if !bench.is_empty() {
+        f.notes.push(format!("Cut at the bench after casting, and so not judged here: {}.", bench.join(", ")));
+    }
     f
+}
+
+/// The design as it is poured: every enabled bench-only layer switched off,
+/// groups included, and the names of what was set aside. Borrowed when
+/// there is nothing to set aside.
+pub fn casting_pattern(design: &RingDesign) -> (std::borrow::Cow<'_, RingDesign>, Vec<String>) {
+    fn any(stack: &crate::field::LayerStack) -> bool {
+        stack.layers.iter().any(|e| e.enabled && (e.bench_only || matches!(&e.layer, crate::field::Layer::Group(g) if any(&g.stack))))
+    }
+    fn omit(stack: &mut crate::field::LayerStack, names: &mut Vec<String>) {
+        for e in &mut stack.layers {
+            if e.enabled && e.bench_only {
+                e.enabled = false;
+                names.push(e.name.clone());
+            } else if let crate::field::Layer::Group(g) = &mut e.layer {
+                omit(&mut g.stack, names);
+            }
+        }
+    }
+    if !any(&design.layers) {
+        return (std::borrow::Cow::Borrowed(design), Vec::new());
+    }
+    let mut pattern = design.clone();
+    let mut names = Vec::new();
+    omit(&mut pattern.layers, &mut names);
+    (std::borrow::Cow::Owned(pattern), names)
 }
 
 // --- Undercut localization and attribution ----------------------------------
@@ -1484,6 +1510,48 @@ pub fn attribute_undercuts(
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod bench_stage_tests {
+    use super::*;
+    use crate::field::{Blend, Layer, LayerEntry};
+    use crate::tiling::TilingLayer;
+
+    /// A signet's table is a zero-draft plane: a line cut square into it off
+    /// the parting line is a ledge. Cast, it fails the ring; marked for the
+    /// bench it is set aside, said so, and the ring under it is judged alone.
+    #[test]
+    fn a_layer_cut_at_the_bench_does_not_lock_the_mould() {
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 14.0;
+        d.profile.thickness_mm = 2.4;
+        d.shank.apply_signet(14.0);
+        let bare = attributed_field_report(&d, &lib, &d.draft, 160, 112);
+        let ctx = d.field_context();
+        let mut t = TilingLayer::default_for("Greek Key", &ctx);
+        t.repeats_around = 2;
+        t.rows = 1;
+        t.height_mm = 0.35;
+        t.v_center_mm = ctx.crest_v_mm;
+        t.v_span_mm = ctx.band_v_len_mm * 0.4;
+        let mut e = LayerEntry::new("Seal", Layer::Tiling(t));
+        e.blend = Blend::Subtract;
+        e.window = crate::field::Window::around(crate::profile::TOP_DEG, 50.0);
+        d.layers.layers.push(e);
+        let cast = attributed_field_report(&d, &lib, &d.draft, 160, 112);
+        assert!(cast.undercut_area_mm2 > bare.undercut_area_mm2 + 1.0, "cut into the table it locks: {} mm2", cast.undercut_area_mm2);
+        d.layers.layers[0].bench_only = true;
+        let bench = attributed_field_report(&d, &lib, &d.draft, 160, 112);
+        assert_eq!(bench.verdict, bare.verdict);
+        assert!((bench.undercut_area_mm2 - bare.undercut_area_mm2).abs() < 1e-9);
+        assert!(bench.notes.iter().any(|n| n.contains("Cut at the bench") && n.contains("Seal")), "{:?}", bench.notes);
+        let (pattern, names) = casting_pattern(&d);
+        assert!(!pattern.layers.layers[0].enabled && names == ["Seal"]);
+        assert!(matches!(casting_pattern(&RingDesign::default()).0, std::borrow::Cow::Borrowed(_)));
+    }
 }
 
 #[cfg(test)]

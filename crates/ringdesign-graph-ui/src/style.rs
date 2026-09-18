@@ -169,6 +169,11 @@ pub fn apply_visuals(style: &mut egui::Style) {
     style.visuals = v;
     style.spacing.item_spacing = egui::vec2(6.0, 6.0);
     style.spacing.button_padding = egui::vec2(8.0, 6.0);
+    // A node is as wide as its content, and its content is laid out in the
+    // width the node had last frame. Text that wraps to that width measures
+    // narrower every frame until a title stands one letter per line; a host
+    // that wraps its own panels must not reach in here.
+    style.wrap_mode = Some(egui::TextWrapMode::Extend);
 }
 
 fn widget_palette(w: &mut egui::style::Widgets) {
@@ -244,5 +249,6 @@ mod tests {
         assert_eq!(v.selection.bg_fill, Color32::from_rgba_unmultiplied(255, 61, 139, 140));
         assert_eq!(v.hyperlink_color, AQUA);
         assert_eq!(v.widgets.hovered.bg_stroke.color, Color32::from_rgba_unmultiplied(43, 226, 214, 240));
+        assert_eq!(style.wrap_mode, Some(egui::TextWrapMode::Extend), "a host's wrapping must not collapse the nodes");
     }
 }

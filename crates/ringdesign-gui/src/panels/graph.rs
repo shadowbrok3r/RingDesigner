@@ -10,6 +10,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         empty_state(app, ui);
         return;
     }
+    let mut parameters_changed = false;
     egui::Panel::top(egui::Id::new(("graph_bar", pane)))
         .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(egui::Margin::symmetric(6, 3)))
         .show(ui, |ui| {
@@ -39,6 +40,22 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                     ui.weak("right-click: add node • drag pins to wire • click a node to inspect it");
                 });
             });
+            // Step through the flow without hunting for each node on the canvas.
+            if let Some(ed) = app.graph_ed.as_mut() {
+                ui.scope(|ui| {
+                    ui.set_max_width(520.0);
+                    if let Some(id) = ringdesign_graph_ui::navigator(ed, ui).moved {
+                        app.selected_node = Some(id);
+                    }
+                });
+            }
+            if let Some(ed) = app.graph_ed.as_mut() {
+                if !ed.graph().exposed.is_empty() {
+                    egui::CollapsingHeader::new("Parameters").default_open(true).show(ui, |ui| {
+                        parameters_changed = ed.parameters_ui(&app.graph_reg, ui);
+                    });
+                }
+            }
         });
     let reg = app.graph_reg.clone();
     // The editor leaves the app while it draws, as the dock's tree does, so
@@ -55,7 +72,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     if let Some(r) = resp.refused {
         app.set_status(format!("Wire refused: {r}"));
     }
-    if resp.changed {
+    if resp.changed || parameters_changed {
         app.graph_changed();
     }
 }
@@ -76,9 +93,22 @@ fn empty_state(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
         ui.add_space(6.0);
         ui.menu_button(format!("{} Open a template graph", icon::FOLDER_OPEN), |ui| {
-            for (name, g) in ringdesign_graph::templates::all() {
-                if ui.button(name).clicked() {
-                    app.open_graph(g);
+            for template in ringdesign_graph::templates::catalog() {
+                if ui.button(template.name).clicked() {
+                    match template.instantiate(&app.graph_reg, &app.lib) {
+                        Ok(design) => {
+                            app.design = design;
+                            app.selected_layer = None;
+                            let restored = app.design.clone();
+                            restored.unpack_embedded(app.library_mut());
+                            restored.bake_all(app.library_mut());
+                            app.sync_graph();
+                            app.arrange_graph();
+                            app.show_graph_pane();
+                            app.mark_dirty();
+                        }
+                        Err(e) => app.set_status(format!("Could not open template: {e}")),
+                    }
                     ui.close();
                 }
             }

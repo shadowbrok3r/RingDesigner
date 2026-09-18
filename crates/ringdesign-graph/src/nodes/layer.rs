@@ -96,7 +96,7 @@ fn tiling_node() -> NodeSpec {
     .field(PinSpec::item("edge_mm", ValueKind::Number).doc("Bevel width from the alpha's distance field, mm."))
     .field(PinSpec::item("shear", ValueKind::Number).doc("Helix shear round the ring."))
     .field(PinSpec::item("kfold", ValueKind::Int).doc("k-fold kaleidoscope in u; 0 is off."))
-    .hidden(&["warp"])
+    .field(PinSpec::item("warp", ValueKind::Json).doc("Optional guide warp: points, strength and falloff_mm. Travels with this layer when the stack is rewired."))
     .build()
 }
 
@@ -377,9 +377,12 @@ fn group(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError
     Ok(Outputs::one("layer", Value::Layer(Arc::new(Layer::Group(GroupLayer { stack, recipe: None })))))
 }
 
-fn entry_name(e: &mut LayerEntry, _: &Inputs, _: &mut EvalCtx<'_>) -> Result<(), NodeError> {
+fn entry_name(e: &mut LayerEntry, i: &Inputs, _: &mut EvalCtx<'_>) -> Result<(), NodeError> {
     if e.name.trim().is_empty() {
         e.name = layer_label(&e.layer).to_string();
+    }
+    if let Some(bench_only) = i.get("bench_only").as_bool() {
+        e.bench_only = bench_only;
     }
     Ok(())
 }
@@ -400,6 +403,8 @@ fn entry_node() -> NodeSpec {
     .field(PinSpec::item("layer", ValueKind::Layer).doc("The layer."))
     .field(PinSpec::item("name", ValueKind::Text).widget(Widget::TextLine).doc("Its name; the layer's kind if left empty."))
     .field(PinSpec::item("enabled", ValueKind::Bool).doc("Whether it contributes."))
+    // Omitted by serde when false; handled by the finish hook.
+    .extra(PinSpec::item("bench_only", ValueKind::Bool).widget(Widget::Checkbox).doc("Apply at the bench; omit this layer from the casting pattern."))
     .field(PinSpec::select("blend", enum_names(Blend::ALL)).doc("How it combines with what is under it."))
     .field(PinSpec::item("opacity", ValueKind::Number).widget(Widget::Slider { min: 0.0, max: 1.0 }).doc("Strength, 0..1."))
     .field(PinSpec::item("soft_mm", ValueKind::Number).doc("Blur radius, mm."))

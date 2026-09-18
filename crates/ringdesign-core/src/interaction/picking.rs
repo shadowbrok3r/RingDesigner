@@ -32,14 +32,7 @@ pub fn hit(
     let radius = (world[0] as f64).hypot(world[1] as f64);
     let reference = d.reference_loop();
     let ctx = d.field_context();
-    let modulation = d.modulation_at(theta_deg, d.inner_radius_mm(), reference.crest_radius_mm);
-    let base = d.profile.sample_spaced(
-        d.inner_radius_mm(),
-        160,
-        &modulation,
-        None,
-        Some(&reference),
-    );
+    let base = d.section_at(theta_deg, 160, None, Some(&reference));
     let section = crate::castability::section_at_spaced(d, lib, theta_deg, 160, None);
     let mut best = f64::INFINITY;
     let mut v_mm = ctx.crest_v_mm;

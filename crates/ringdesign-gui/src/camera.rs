@@ -88,6 +88,23 @@ impl OrbitCamera {
         self.radius = keep_radius;
     }
 
+    /// The pose as the shared focus and navigator maths hold it.
+    pub fn pose(&self) -> ringdesign_workbench::focus::Pose {
+        ringdesign_workbench::focus::Pose { yaw: self.yaw, pitch: self.pitch, zoom: self.zoom, pan: self.pan }
+    }
+
+    pub fn set_pose(&mut self, pose: ringdesign_workbench::focus::Pose) {
+        self.yaw = pose.yaw;
+        self.pitch = pose.pitch;
+        self.zoom = pose.zoom.clamp(0.15, 24.0);
+        self.pan = pose.pan;
+    }
+
+    /// The pose that looks straight at a patch of the ring.
+    pub fn aimed_at(&self, aim: &ringdesign_workbench::focus::Aim) -> ringdesign_workbench::focus::Pose {
+        ringdesign_workbench::focus::aim_pose(self.pose(), self.target, self.radius, aim)
+    }
+
     pub fn set_view(&mut self, view: StandardView) {
         let (yaw, pitch) = view.angles();
         self.yaw = yaw;

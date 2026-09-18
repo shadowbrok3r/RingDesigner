@@ -43,7 +43,7 @@ pub fn findings_in(design: &RingDesign, lib: &crate::AlphaLibrary) -> Vec<DfmFin
     // the measurement replaces the guess either way.
     for (i, entry) in design.layers.layers.iter().enumerate() {
         let Layer::Decals(dl) = &entry.layer else { continue };
-        if !entry.enabled {
+        if !entry.enabled || entry.bench_only {
             continue;
         }
         let Some(alpha) = lib.get(&dl.alpha) else { continue };
@@ -56,7 +56,11 @@ pub fn findings_in(design: &RingDesign, lib: &crate::AlphaLibrary) -> Vec<DfmFin
         let mut finest_of: Option<(&str, f64)> = None;
         for d in dl.decals.iter().take(crate::field::MAX_DECALS) {
             let m = design.modulation_at(d.theta_deg, inner_r, crest_r);
-            let k = design.profile.sample_mod(inner_r, 96, &m).surface_len_mm / ctx.band_v_len_mm.max(1e-9);
+            let k = if design.imported_base.is_some() {
+                ctx.station_stretch(d.theta_deg)
+            } else {
+                design.profile.sample_mod(inner_r, 96, &m).surface_len_mm / ctx.band_v_len_mm.max(1e-9)
+            };
             let k = if k.is_finite() { k.clamp(0.25, 8.0) } else { 1.0 };
             let (w, h) = (alpha.width.max(1), alpha.height.max(1));
             let hs = ((h as f64 * k).round() as usize).clamp(1, 4096);
@@ -96,13 +100,13 @@ pub fn findings_in(design: &RingDesign, lib: &crate::AlphaLibrary) -> Vec<DfmFin
         }
     }
     for (i, entry) in design.layers.layers.iter().enumerate() {
-        if !entry.enabled || out.iter().any(|f| f.layer == i) {
+        if !entry.enabled || entry.bench_only || out.iter().any(|f| f.layer == i) {
             continue;
         }
         let mut ts = Vec::new();
         let one = crate::field::LayerStack { layers: vec![entry.clone()] };
         tilings(&one, &mut ts);
-        let (ratio, at_deg) = worst_arc_ratio(design, entry, &ctx);
+        let (ratio, at_deg) = worst_arc_ratio(design, entry, &ctx, lib);
         for t in ts {
             let Some((finest, what)) = tiling_finest_mm_at(t, lib, &ctx, ratio) else { continue };
             let (cw, ch) = t.cell_size(&ctx);
@@ -138,7 +142,8 @@ pub fn findings(design: &RingDesign) -> Vec<DfmFinding> {
     }
     let mut out = Vec::new();
     for (i, entry) in design.layers.layers.iter().enumerate() {
-        if !entry.enabled {
+        // A layer cut at the bench is not poured: the sand's floor is not its floor.
+        if !entry.enabled || entry.bench_only {
             continue;
         }
         let finest = entry
@@ -429,6 +434,7 @@ fn worst_arc_ratio(
     design: &RingDesign,
     entry: &crate::field::LayerEntry,
     ctx: &crate::field::FieldContext,
+    lib: &crate::AlphaLibrary,
 ) -> (f64, f64) {
     const STATIONS: usize = 72;
     let inner_r = design.inner_radius_mm();
@@ -444,9 +450,14 @@ fn worst_arc_ratio(
         if entry.window.enabled && entry.window.mask(uv, ctx) <= 1e-6 {
             continue;
         }
+        if design.imported_base.is_some() && entry.mask.is_some()
+            && !(0..=128).any(|j| entry.mask_at(crate::Uv { u, v: reference*j as f64/128. }, ctx, lib)>1e-3)
+        {
+            continue;
+        }
         let m = design.modulation_at(theta, inner_r, crest_r);
         let len = design.profile.sample_mod(inner_r, 96, &m).surface_len_mm;
-        let ratio = len / reference;
+        let ratio = if design.imported_base.is_some() { ctx.station_stretch(theta) } else { len / reference };
         if ratio.is_finite() && ratio < worst.0 {
             worst = (ratio, theta);
         }

@@ -99,7 +99,7 @@ fn design_set(_: &mut EvalCtx<'_>, n: &Node, i: &Inputs) -> Result<Outputs, Node
     let mut json = serde_json::to_value(&d).map_err(|e| NodeError::new(e.to_string()))?;
     // These optional source fields are omitted by serde when empty. They are
     // still legitimate graph parameters; unknown paths remain errors.
-    let optional = matches!(pointer, "/cad" | "/manufacturing" | "/casting_trials")
+    let optional = matches!(pointer, "/cad" | "/manufacturing" | "/casting_trials" | "/imported_base")
         || (pointer.ends_with("/bench_only")
             && json.pointer(pointer.trim_end_matches("/bench_only")).is_some_and(|v|v.get("layer").is_some()));
     if json.pointer(pointer).is_none() && !optional {

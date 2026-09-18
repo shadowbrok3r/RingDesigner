@@ -2008,11 +2008,51 @@ overlap), a body drag pans the view through `current_transform` while
 the node's own move is undone from a position snapshot after the frame,
 and a locked editor (`editable = false`) pans on any node drag and vetoes
 every move — so a finger that misses a pin scrolls the view instead of
-dragging the node around.
-Arrange lays nodes out by depth from their **measured** sizes
+dragging the node around. The grab is the title bar **grown to 36 points
+on screen** (`grab_height`): at a third of full size a 30-unit bar is ten
+points tall and no finger finds it, and far enough out the whole node is
+the handle, which is right — nothing inside it can be read or touched at
+that size.
+
+**The editor forces `TextWrapMode::Extend` inside its scope.** A node is
+as wide as its content, and its content is laid out in the width the node
+had last frame — snarl starts every node at `interact_size`, 40 points. A
+host that wraps its own panels (the phone's shell sets
+`style.wrap_mode = Wrap` for every label) reaches in, the title folds to
+one letter per line, the node measures narrow and tall, and next frame's
+width is that measure: it never recovers. `Output` measured 64 × 159
+wrapped against 96 × 84 alone; the test builds both hosts and holds them
+equal. That was also most of "Arrange makes it worse" — it laid out
+from those measures.
+
+**A tap is mapped into graph space before it chooses a node.**
+`final_node_rect` hands over a rect in graph space and the pointer is on
+the screen; compared raw they agree only at the identity view, so a tap
+anywhere — on the host's own buttons — chose whichever node's graph rect
+held that screen position, and stepping with the navigator snapped back
+to it every time. The test taps a decoy point far from the identity view.
+
+`navigator` is one row for stepping without hunting on the canvas:
+previous, a jump list over the walk (evaluation order, sources to
+output), next, and the chosen node's inputs and outputs as menus. Every
+move goes through `Editor::focus`, which frames the node readably
+(`focus_transform`: a zoom already between 0.45 and 1.25 is kept, a tall
+node is pinned by its title rather than centred on rows off screen).
+Arrange lays nodes out from their **measured** sizes
 (`final_node_rect`, keyed by graph id so a rebuilt snarl keeps them) with
-that app's gaps, and re-runs while the measures it used disagree with the
-current ones, three passes at most — snarl's first frame measures a node
+that app's gaps, in `layout_columns`: each node sits **one column before
+the first node that consumes it**, not by depth from the sources. A
+lifted graph is a chain of `stack` nodes with a layer, a window and an
+entry per link; by depth every one of those two hundred sources piled
+into the first column beside a chain running off to the right, and
+beside their consumers no column holds more than a few. One longest
+chain takes the first row of every column, so the spine is a straight
+line and each branch hangs under the place it joins.
+`arrange_if_tangled` runs that once when a graph arrives overlapping
+(the lift's nominal grid does) and leaves a tidy one alone — but only
+after two frames measure alike, because an arrange on first-frame
+measures agrees with itself and cancels its own refinement. It re-runs while the measures it used
+disagree with the current ones, three passes at most — snarl's first frame measures a node
 before its widgets settle (the Court band's profile node read 125 wide on
 frame one and 253 on frame two), and a layout from those numbers overlaps.
 `RD_GRAPH_SHOT=/dir cargo test -p ringdesign-graph-ui --features shot shot_the_editor`
@@ -2069,6 +2109,150 @@ nothing, and the ring renders see-through — the far wall painting over the nea
 one. `main.rs` sets `depth_buffer: 24`, and `GpuMeshRenderer` queries
 `FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE` once and logs a warning at 0 bits, so this
 can never fail quietly again.
+
+### A node says what it does, on the ring
+
+`ringdesign_graph::focus::effects` reads an evaluated graph back into
+reach: a layer node, its entry, its window, its remap and the alpha it
+names all resolve to the same **path** in the evaluated stack (a top-level
+index, then indices inside groups); a head node to the head; a section,
+shank or sink to the band; a `design.set` by its pointer; build and casting
+fields to nothing on the metal. Classification is by what a node
+*produces*, read off the registry's pins, so a kind added later sorts
+itself; scalars pass through to the nearest classified consumer. Entries
+are matched into the design **by value** (name, then JSON to split
+duplicates), because a position in a chain of `stack` nodes says nothing
+once a list or a group is involved. The test sweeps every bundled graph:
+every layer of every evaluated design is accounted for by an entry node.
+
+The highlight itself is **measured, not guessed**: the host builds the
+design once more with those layers muted, at the parameters of the mesh
+on screen, and every vertex that moved is the node's doing — a window, a
+mask, a Max that loses to the layer above and a group's Replace all come
+out right because the height field already composed them. Three things it
+had to get right:
+
+- **Muted, not switched off** (`focus::without_layers`, opacity `1e-9`).
+  An imported base subdivides its mesh where *enabled* layers have
+  footprints, so disabling a layer cuts a different mesh and a
+  vertex-for-vertex diff has nothing to compare: every shoulder layer of
+  Vesper read "no metal moves" until the before-build kept the layer in
+  the stack. Add and Subtract are exactly the disabled result; Max, Min
+  and Replace compare against a zero layer, which is where the layer's own
+  relief wins — the reach wanted.
+- **It reports the truth when the truth is nothing.** Vesper's two
+  "Drawn shoulder star" decals carry 0.19 mm of their own and a "Shoulder
+  reserve" mask that is 0.000 at their own stamp; the caption says no
+  metal moves, and it is right.
+- **A tap on the ring asks the same question at one point**
+  (`workbench::focus::layer_behind`, both apps): of the layers with relief under
+  the tap, the one whose absence changes the height most — not the first
+  with relief, which under a Max blend is often a layer that loses.
+
+The measuring, the aim and the camera's turn live in
+`ringdesign_workbench::focus`, shared by the desktop and the phone; each
+app adds only its renderer's vertex order (`stage_focus`). **The aim is
+the largest run of the reach round the ring, the nearer of equals** — not
+its mean. A layer mirrored onto both shoulders has a mean that points at
+the head between them, where none of it is; a camera sent there shows
+neither. The reach is binned by angle (72 bins), runs are found with a
+one-bin gap bridged, and the run nearest the camera's own yaw wins among
+those within 70% of the largest. A reach over more than 55% of the ring
+has no one side: the camera keeps its yaw and lifts to a three-quarter
+look (or over the side faces, if that is where the reach lives), and if
+it is standing in the reach's gap it steps round to the near end. Whole-
+band nodes frame the whole ring the same way. `Pose`, `aim_pose`, `ease`
+and `Turn` are the camera maths both apps' cameras go through.
+
+On both apps the weights ride a **focus channel**: one float a staged
+vertex in a buffer of its own on attribute 4 of the ring's VAO, mixed
+into every shade mode by `u_focus` (tint and strength). A highlight is
+one small upload and never a re-stage; with no channel the attribute
+array is disabled and reads a constant zero, so a stale buffer can never
+be read past its end, and a new mesh drops the old channel in the same
+paint. The area-weighted outward normal of the reach is the side to face
+(`OrbitCamera::aimed_at`, eased by `toward`); bore faces count as reach
+but not toward the aim, or the head's inside cancels its outside, and a
+reach that wraps the ring has no side and leaves the camera alone.
+
+### The navigator is a view cube, named for the ring and for the screen
+
+`ringdesign_workbench::navigation` draws a cube in the viewport's corner
+that turns with the camera: a tap on a face looks straight at that side,
+an edge band between two faces, a corner between three; a drag on the cube
+orbits (`Action::Orbit`, which leaves the pan alone); the arrows round it
+step to the face on that side; a double tap goes home. Views from it ease
+in through the same `Turn` a chosen node uses. Its faces are named for the
+ring — FACE is wherever the head is, PALM opposite, BORE and BACK the two
+openings — and for the **screen**: screen right is the way theta climbs
+from the head (`s = l` at the face view, worked through `look_at`), so the
+shoulder on the viewer's right is looked at from `head + 90°`. `View::Left`
+and `Right` were the other way round, and the old glyph's left hotspot
+showed the right-hand shoulder.
+
+**Mirror is a reflection, not a half turn.** The button that was there did
+`[yaw + π, −pitch]` — the diametrically opposite side — so from a face-on
+view it showed the palm: "it makes the ring's face face away from me".
+`Action::Mirror` reflects the camera in the plane through the finger axis
+and the head, `yaw' = 2·head − yaw`: left shoulder to right, a
+three-quarter view to its twin, and face-on it is the same view. The half
+turn stays in the Views menu as Opposite side.
+
+## The verdict judges the pour, not the bench
+
+`castability::attributed_field_report` sets aside every enabled
+`bench_only` layer (groups included, `casting_pattern`) before it samples,
+says which in a note, and `dfm::findings`/`findings_in` skip them: a layer
+cut at the bench is in the finished ring and not in the pattern. Before
+this the flag only reached `manufacturing::prepare`, so the live verdict
+failed any design that used the stage for what it is for — Palisade's
+bench-cut sunburst read 32 mm² of undercut at 12°. This is the first half
+of the two-stage model the audit asked for; `LayerEntry::stage` proper is
+still open.
+
+## Two masterworks, and what the verdict taught while they were made
+
+`examples/atelier_masterworks.rs` builds them, field-checks them, renders
+six views and a turntable each, and with `--write` saves
+`showcase/<slug>/design.ring.json`, from which
+`cargo run -p ringdesign-graph --example showcase_templates -- --write`
+lifts the graph templates. **Palisade — deco colonnade** is held to
+two-part Delft clay and reads Castable at 0.0000% with no DFM finding;
+**Oriel — jewelled lantern** is lost wax with no guard rails. Measured on
+the way, all on a 15 mm lofted signet:
+
+- **A flat table is a zero-draft plane and a seventh of the surface**, so
+  every flat-table signet on every section reads "castable with care"
+  (drag 13-23% against the 12% gate). Buffed to a 0.7-0.8 mm
+  `table_dome_mm` the head has real draft: drag 5.3% and Castable on a
+  LowDome at 3.0 thick with 1.8 mm of side face left. Domed, an Octagon or
+  Hexagon creases along the parting line where its straight ends meet the
+  cap; Oval and Cushion are clean (Cushion at 11.9%, against the gate).
+- **Relief with walls that face round the ring leans wherever the section
+  is still changing width.** On a widening shoulder `dP/dθ` has an axial
+  part off the crest, so the in-surface direction a flute's wall tips
+  along has one too, and beside the crest there is no draft to outweigh
+  it: flutes run across the crown leaned 1-10° over 0.1 mm² each, and
+  crest beads leaned 45° on the 14° of shank still tapering past the
+  swell (209-223°) while the constant arc behind them was clean. Collars
+  and bead rows are castable on a band, or on the arc of a signet's shank
+  that has stopped changing.
+- **A v-gate's fade is a wall facing the crest**, which is the off-crest
+  rail's lean by another route — and the chart squeezes it as the shoulder
+  narrows: flank-gated flutes leaned 19° at the narrow end of their arc and
+  3° at the head. With the fade most of the flank wide, 0.24 mm of relief
+  and the arc stopped before the shank narrows, the same gadroons field
+  0.0000%.
+- **The reference side face is only the bottom strip of a lofted head's
+  wall** — the tall wall above it is in the crown's `v` range — and reeding
+  on that strip tipped 9° on the head, whose wall curls under its table.
+  Shoulders only.
+- **A generator's halo is laid out in chart millimetres**, and across a
+  lofted head one is 1.7 of metal: `pave::halo`'s ring came out hugging the
+  rim instead of the stone. Oriel places each melee by its own station's
+  `station_stretch` and flags the pads `metal_true`.
+- A showcase template must lift without a patch by stack index, which a
+  live group's recipe needs: Oriel's pavé groups are baked.
 
 ## The phone has the graph too
 

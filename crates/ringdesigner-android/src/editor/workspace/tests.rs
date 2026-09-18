@@ -1,6 +1,17 @@
 use super::*;
 
 #[test]
+fn bottom_inspector_hugs_content_and_never_exceeds_half_the_workspace() {
+    assert_eq!(content_height(720.0, Some(96.0)), 96.0);
+    assert_eq!(content_height(720.0, Some(900.0)), 360.0);
+    assert_eq!(content_height(720.0, Some(60.0)), 60.0);
+    assert_eq!(content_height(240.0, Some(900.0)), 120.0);
+    assert_eq!(content_height(720.0, None), 360.0);
+    assert_eq!(content_height(720.0, Some(f32::NAN)), 360.0);
+    assert_eq!(content_height(0.0, Some(96.0)), 0.0);
+}
+
+#[test]
 fn keyboard_close_restores_layout_without_another_touch_then_stops_polling() {
     let full = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(320.0, 680.0));
     let keyboard = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(320.0, 420.0));

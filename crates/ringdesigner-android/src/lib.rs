@@ -27,6 +27,7 @@ pub mod stones;
 pub mod util;
 pub mod viewport;
 
+pub mod focus;
 pub mod frost;
 pub mod graph;
 pub mod export;

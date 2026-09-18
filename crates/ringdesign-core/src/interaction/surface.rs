@@ -106,10 +106,13 @@ pub fn points(d: &RingDesign, lib: &AlphaLibrary, chart: &[[f64; 2]]) -> Vec<[f6
         .take(4096)
         .map(|q| {
             let theta = q[0].rem_euclid(1.0) * 360.0;
-            let m = d.modulation_at(theta, inner, reference.crest_radius_mm);
-            let section = d
-                .profile
-                .sample_spaced(inner, 160, &m, None, Some(&reference));
+            if let Some(base)=&d.imported_base {
+                if let Ok((p,n))=base.point_normal(d,theta,q[1]) {
+                    let h=if base.bare {0.0}else{d.layers.height(crate::Uv{u:ctx.u_of_theta(theta),v:q[1]},&ctx,lib)};
+                    return std::array::from_fn(|i|p[i]+n[i]*h);
+                }
+            }
+            let section = d.section_at(theta, 160, None, Some(&reference));
             let target = q[1].clamp(0.0, ctx.band_v_len_mm) / ctx.band_v_len_mm.max(1e-9)
                 * section.surface_len_mm;
             let pts = &section.pts[section.surface_start..];

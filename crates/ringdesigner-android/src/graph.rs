@@ -8,6 +8,7 @@ use ringdesign_core::alpha::AlphaLibrary;
 use ringdesign_core::castability::FieldReport;
 use ringdesign_core::RingDesign;
 use ringdesign_graph::eval::{evaluate_design, Evaluator};
+use ringdesign_graph::focus::NodeEffect;
 use ringdesign_graph::graph::{Graph, GraphError, NodeId};
 use ringdesign_graph::registry::Registry;
 use ringdesign_graph_ui::Editor;
@@ -21,6 +22,12 @@ pub struct GraphState {
     pub errors: Vec<String>,
     /// Pans and zooms only; no node moves, wires or edits.
     pub locked: bool,
+    /// What each node reaches on the ring, as of the last evaluation.
+    pub effects: BTreeMap<NodeId, NodeEffect>,
+    /// The node whose reach the ring is showing.
+    pub shown: Option<NodeId>,
+    /// The exposed parameters stand in for the canvas.
+    pub parameters: bool,
 }
 
 impl Default for GraphState {
@@ -31,7 +38,16 @@ impl Default for GraphState {
 
 impl GraphState {
     pub fn new() -> Self {
-        Self { reg: Arc::new(ringdesign_script::registry()), ed: None, json: None, errors: Vec::new(), locked: false }
+        Self {
+            reg: Arc::new(ringdesign_script::registry()),
+            ed: None,
+            json: None,
+            errors: Vec::new(),
+            locked: false,
+            effects: BTreeMap::new(),
+            shown: None,
+            parameters: false,
+        }
     }
 
     pub fn is_driven(&self) -> bool {
@@ -48,15 +64,22 @@ impl GraphState {
         let parsed = design.graph.as_ref().and_then(|j| serde_json::from_value::<Graph>(j.clone()).ok());
         match parsed {
             Some(g) => match &mut self.ed {
-                Some(ed) => ed.set_graph(g, &self.reg),
+                Some(ed) => {
+                    ed.set_graph(g, &self.reg);
+                    ed.arrange_if_tangled();
+                }
                 None => {
                     let mut ed = Editor::new(g, &self.reg);
                     ed.editable = !self.locked;
                     ed.fit();
+                    ed.arrange_if_tangled();
                     self.ed = Some(ed);
                 }
             },
             None => self.ed = None,
+        }
+        if self.shown.is_some_and(|id| !self.ed.as_ref().is_some_and(|e| e.graph().contains(id))) {
+            self.shown = None;
         }
         true
     }
@@ -96,6 +119,8 @@ impl GraphState {
         self.json = None;
         self.ed = None;
         self.errors.clear();
+        self.effects.clear();
+        self.shown = None;
         true
     }
 
@@ -106,9 +131,26 @@ impl GraphState {
         }
     }
 
+    /// The chosen node's reach, if the last evaluation covered it.
+    pub fn effect_of(&self, id: NodeId) -> Option<&NodeEffect> {
+        self.effects.get(&id)
+    }
+
+    /// The node to open for the layer at `index` of the evaluated stack:
+    /// the layer's own node, where its numbers are, else its entry.
+    pub fn node_for_layer(&self, index: usize) -> Option<NodeId> {
+        let g = self.ed.as_ref()?.graph();
+        let entry = g.nodes.iter().filter(|n| n.kind == "entry").map(|n| n.id).find(|id| self.effects.get(id).is_some_and(|e| e.layers.iter().any(|p| p.as_slice() == [index])))?;
+        Some(g.wire_into(entry, "layer").map_or(entry, |w| w.from))
+    }
+
     /// The last evaluation's values and notes onto the editor's badges.
     pub fn apply(&mut self, done: &GraphDone) {
         self.errors = done.errors.iter().map(|e| e.to_string()).collect();
+        // A failed evaluation says nothing new; the last good reach stands.
+        if done.ok {
+            self.effects = done.effects.clone();
+        }
         if let Some(ed) = &mut self.ed {
             ed.set_values(&done.values);
             ed.set_diagnostics(&done.errors, &done.notes);
@@ -121,9 +163,12 @@ pub struct GraphDone {
     /// The evaluated design, carrying the graph; the job's own design when
     /// evaluation failed.
     pub design: RingDesign,
+    pub baked_library: Option<Arc<AlphaLibrary>>,
     pub values: BTreeMap<NodeId, BTreeMap<String, String>>,
     pub notes: BTreeMap<NodeId, Vec<String>>,
     pub errors: Vec<GraphError>,
+    /// What each node reaches on the evaluated design.
+    pub effects: BTreeMap<NodeId, NodeEffect>,
     /// The verdict the evaluation already paid for.
     pub field: Option<FieldReport>,
     pub ok: bool,
@@ -154,9 +199,11 @@ impl GraphRunner {
             Err(e) => {
                 return Some(GraphDone {
                     design: design.clone(),
+                    baked_library: None,
                     values: BTreeMap::new(),
                     notes: BTreeMap::new(),
                     errors: vec![GraphError { node: None, message: format!("the design's graph does not parse: {e}") }],
+                    effects: BTreeMap::new(),
                     field: None,
                     ok: false,
                 });
@@ -188,13 +235,16 @@ impl GraphRunner {
                         (*id, lines)
                     })
                     .collect();
-                Some(GraphDone { design: d, values, notes, errors: Vec::new(), field: Some(out.field), ok: true })
+                let effects = ringdesign_graph::focus::effects(&g, &self.reg, &out.report.values, &out.design);
+                Some(GraphDone { design: d, baked_library: out.baked_library, values, notes, errors: Vec::new(), effects, field: Some(out.field), ok: true })
             }
             Err(e) => Some(GraphDone {
                 design: design.clone(),
+                baked_library: None,
                 values: BTreeMap::new(),
                 notes: BTreeMap::new(),
                 errors: vec![e],
+                effects: BTreeMap::new(),
                 field: None,
                 ok: false,
             }),
@@ -254,9 +304,27 @@ mod tests {
             assert_eq!(done.design.graph, design.graph, "the evaluated design keeps its graph");
             assert_ne!(done.field.as_ref().unwrap().verdict, Verdict::NotCastable, "{name}");
             assert!(!done.values.is_empty());
+            assert_eq!(done.effects.len(), g.nodes.len(), "{name}: every node's reach is known");
+            if !done.design.embedded.is_empty() {
+                let baked = done.baked_library.as_ref().expect("graph artwork reaches the phone's mesh builder");
+                for source in &done.design.embedded {
+                    assert!(baked.get(&source.name).is_some(), "{name}: missing {}", source.name);
+                }
+            }
             layered |= !done.design.layers.layers.is_empty();
         }
         assert!(layered, "some template graph carries layers");
+
+        // A tap on a layer of the ring opens the node that makes it.
+        let mut st = GraphState::new();
+        let g = ringdesign_graph::templates::graph("Braided band").unwrap();
+        st.open(&mut design, g.clone());
+        let done = runner.run(&design, &lib).unwrap();
+        st.apply(&done);
+        let node = st.node_for_layer(1).expect("the second layer has a node");
+        assert_eq!(g.node(node).unwrap().kind, "layer.milgrain");
+        assert_eq!(st.effect_of(node).unwrap().layers, vec![vec![1]]);
+        assert!(st.node_for_layer(9).is_none());
         design.graph = Some(serde_json::json!({"not": "a graph"}));
         let bad = runner.run(&design, &lib).unwrap();
         assert!(!bad.ok && bad.errors.len() == 1);

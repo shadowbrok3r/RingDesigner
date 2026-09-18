@@ -37,8 +37,10 @@ pub const DESIGN_EXT: &str = "ring.json";
 /// changes what defines the solid: a CAD assembly can replace the cached band.
 /// Older apps must refuse it instead of opening that cache as the whole design.
 /// Version 1 documents already have defaults for the new fields, so their
-/// migration changes no values. Every version still has a migration step.
-pub const FORMAT_VERSION: u32 = 2;
+/// migration changes no values. Version 3 also protects imported base geometry
+/// from being discarded by an older app. Every version has a migration step.
+// Version 4 protects the sand-support surface and high-resolution embedded maps.
+pub const FORMAT_VERSION: u32 = 4;
 
 /// Version stamped into saved profile and outline files.
 ///
@@ -111,7 +113,7 @@ fn asset_from_str<T: serde::de::DeserializeOwned>(
 const VERSION_KEY: &str = "format_version";
 
 /// `MIGRATIONS[n]` rewrites a version-`n` document in place to version `n + 1`.
-static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1, migrate_v1_to_v2];
+static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1, migrate_v1_to_v2, migrate_v2_to_v3, migrate_v3_to_v4];
 
 /// Version 0 predates the version field; the document already has v1's shape.
 fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
@@ -120,6 +122,10 @@ fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
 /// no data rewrite. The version bump prevents an older app from ignoring a
 /// CAD assembly and silently treating its cached band parameters as the ring.
 fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
+// Older readers must not silently discard an imported solid.
+fn migrate_v2_to_v3(_doc: &mut serde_json::Value) {}
+// Older readers would drop sand support and reduce full-ring relief to 512 px.
+fn migrate_v3_to_v4(_doc: &mut serde_json::Value) {}
 
 /// Serialization wrapper that puts the version key ahead of the design fields.
 #[derive(serde::Serialize)]
@@ -209,7 +215,9 @@ pub fn load_design_str(text: &str) -> anyhow::Result<RingDesign> {
     if let Some(obj) = doc.as_object_mut() {
         obj.remove(VERSION_KEY);
     }
-    Ok(serde_json::from_value(doc)?)
+    let design: RingDesign = serde_json::from_value(doc)?;
+    if let Some(base) = &design.imported_base { base.validate_design(&design)?; }
+    Ok(design)
 }
 
 /// Alphas bundled with the source tree: `<workspace>/assets/alphas`.

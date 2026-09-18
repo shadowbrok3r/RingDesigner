@@ -357,7 +357,22 @@ fn run_node(
             None => match g.wire_into(node.id, &pin.name) {
                 Some(w) => values.get(&w.from).and_then(|o| o.get(&w.out)).cloned().unwrap_or(Value::Null),
                 None => match node.inputs.get(&pin.name) {
-                    Some(lit) => Value::from(lit.clone()),
+                    Some(lit) => {
+                        // A saved path literal is [[x, y], ...]. Untagged
+                        // Literal serde reads that back as nested Lists;
+                        // treating those pairs as separate executions loses
+                        // curves and remaps after reopening a design. Resolve
+                        // a literal coordinate array as one Path here, leaving
+                        // other lists to the normal broadcast handling.
+                        let path = (pin.kind == crate::value::ValueKind::Path)
+                            .then(|| serde_json::from_value::<Vec<[f64; 2]>>(serde_json::to_value(lit).ok()?).ok())
+                            .flatten()
+                            .filter(|p| !p.is_empty());
+                        match path {
+                            Some(p) => Value::from(p),
+                            None => Value::from(lit.clone()),
+                        }
+                    }
                     None => pin.default.clone().map(Value::from).unwrap_or(Value::Null),
                 },
             },
@@ -486,6 +501,9 @@ fn run_node(
 pub struct DesignOut {
     pub design: Arc<RingDesign>,
     pub field: FieldReport,
+    /// The evaluated artwork used for the verdict. Preview builders must
+    /// use this too, rather than the host's previous raster library.
+    pub baked_library: Option<Arc<AlphaLibrary>>,
     /// Evaluation notes: per-item failures and warnings.
     pub notes: Vec<String>,
     pub report: EvalReport,
@@ -500,16 +518,21 @@ pub fn evaluate_design(ev: &mut Evaluator, g: &Graph, reg: &Registry, lib: &Alph
         return Err(e.clone());
     }
     let design = find_design(g, &report)?;
+    if let Some(base) = &design.imported_base {
+        base.validate_shape(&design).map_err(|e| GraphError { node: None, message: e.to_string() })?;
+    }
     let notes = report.notes(g);
-    let has_sources = !(design.texts.is_empty() && design.svgs.is_empty() && design.drawn.is_empty() && design.recipes.is_empty());
-    let field = if has_sources {
+    let has_sources = !(design.texts.is_empty() && design.svgs.is_empty() && design.drawn.is_empty() && design.recipes.is_empty() && design.embedded.is_empty());
+    let baked_library = if has_sources {
         let mut baked = lib.clone();
+        design.unpack_embedded(&mut baked);
         design.bake_all(&mut baked);
-        attributed_field_report(&design, &baked, &design.draft, FIELD_THETA_STEPS, FIELD_PROFILE_STEPS)
+        Some(Arc::new(baked))
     } else {
-        attributed_field_report(&design, lib, &design.draft, FIELD_THETA_STEPS, FIELD_PROFILE_STEPS)
+        None
     };
-    Ok(DesignOut { design, field, notes, report })
+    let field = attributed_field_report(&design, baked_library.as_deref().unwrap_or(lib), &design.draft, FIELD_THETA_STEPS, FIELD_PROFILE_STEPS);
+    Ok(DesignOut { design, field, baked_library, notes, report })
 }
 
 fn find_design(g: &Graph, report: &EvalReport) -> Result<Arc<RingDesign>, GraphError> {

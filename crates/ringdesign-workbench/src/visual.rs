@@ -102,6 +102,7 @@ pub struct Visual {
     pub(super) phase: f64,
     pub(super) section_dragging: bool,
     pub(super) section_grab: Option<(egui::Pos2, f64)>,
+    pub(super) placement_extent: egui::Rect,
 }
 impl Default for Visual {
     fn default() -> Self {
@@ -139,6 +140,7 @@ impl Default for Visual {
             phase: 0.0,
             section_dragging: false,
             section_grab: None,
+            placement_extent: egui::Rect::NOTHING,
         }
     }
 }

@@ -60,6 +60,9 @@ pub struct Pane {
     /// Slice at this pane's own angle, refreshed when the build lands.
     #[serde(skip)]
     pub section: Option<Section>,
+    /// The camera easing to a pose: a chosen node's patch, or a view from the cube.
+    #[serde(skip)]
+    pub turn: Option<ringdesign_workbench::focus::Turn>,
 }
 
 impl Default for Pane {
@@ -71,6 +74,7 @@ impl Default for Pane {
             shade: ShadeMode::Metal,
             section_theta_deg: TOP_DEG,
             section: None,
+            turn: None,
         }
     }
 }

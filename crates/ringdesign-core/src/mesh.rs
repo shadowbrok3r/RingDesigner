@@ -319,7 +319,10 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
 /// Fallible entry for document-driven geometry. Legacy callers keep `build`;
 /// interactive workers catch its failure and retain the last successful mesh.
 pub fn try_build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::Result<BuildResult> {
-    if design.cad.is_none() {return Ok(build_band(design,lib,params));}
+    if design.cad.is_none() {
+        if design.imported_base.is_some() { return crate::imported_base::build(design,lib,params); }
+        return Ok(build_band(design,lib,params));
+    }
     let started=BuildClock::start();
     let evaluated=crate::cad::evaluate(design,lib,params)?;
     let mesh=crate::cad::combined(&evaluated,false);
@@ -598,7 +601,7 @@ impl Displacer<'_> {
     }
 }
 
-fn soft_height(
+pub(crate) fn soft_height(
     stack: &crate::field::LayerStack,
     uv: Uv,
     ctx: &crate::field::FieldContext,

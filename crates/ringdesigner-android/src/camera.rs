@@ -205,6 +205,23 @@ impl OrbitCamera {
         (mvp, normal)
     }
 
+    /// The pose as the shared focus and navigator maths hold it.
+    pub fn pose(&self) -> ringdesign_workbench::focus::Pose {
+        ringdesign_workbench::focus::Pose { yaw: self.yaw, pitch: self.pitch, zoom: self.zoom, pan: self.pan }
+    }
+
+    pub fn set_pose(&mut self, pose: ringdesign_workbench::focus::Pose) {
+        self.yaw = pose.yaw;
+        self.pitch = pose.pitch;
+        self.zoom = pose.zoom.clamp(0.15, 24.0);
+        self.pan = pose.pan;
+    }
+
+    /// The pose that looks straight at a patch of the ring.
+    pub fn aimed_at(&self, aim: &ringdesign_workbench::focus::Aim) -> ringdesign_workbench::focus::Pose {
+        ringdesign_workbench::focus::aim_pose(self.pose(), self.target, self.radius, aim)
+    }
+
     /// The projection for one viewport rect, with the matrices resolved once.
     ///
     /// Taken once per overlay rather than per point: the ground grid alone
@@ -379,6 +396,26 @@ mod tests {
             let p = cam.projector(rect);
             assert!(((p.at([1.,0.,0.]) - p.at([0.,0.,0.])).length() - 4.).abs() < 0.001);
         }
+    }
+
+    #[test]
+    fn aiming_centres_the_patch_and_faces_it() {
+        let mut cam = OrbitCamera::default();
+        cam.fit(Some((Vec3(-11., -11., -4.), Vec3(11., 14., 4.))));
+        cam.zoom = 3.0;
+        cam.pan = [4.0, -2.0];
+        let view = rect();
+        for (point, normal) in [([0.0, 10.5, 0.0], [0.0, 1.0, 0.0]), ([-9.0, 2.0, 3.5], [0.0, 0.1, 1.0]), ([7.0, -7.0, -1.0], [0.7, -0.7, -0.2])] {
+            let mut aimed = cam;
+            aimed.set_pose(cam.aimed_at(&ringdesign_workbench::focus::Aim { point, normal, reach_mm: 2.5 }));
+            let on_screen = aimed.projector(view).at(point);
+            assert!((on_screen - view.center()).length() < 1.0, "{point:?} lands at {on_screen:?}");
+            let (_, forward) = aimed.ray(view, view.center());
+            let n = normalize(normal);
+            assert!(dot(forward, n) < -0.9, "the camera looks against the patch's normal: {}", dot(forward, n));
+            assert!((1.0..=3.5).contains(&aimed.zoom));
+        }
+        assert_eq!(cam.pose(), { let mut c = cam; c.set_pose(cam.pose()); c.pose() });
     }
 
     #[test]

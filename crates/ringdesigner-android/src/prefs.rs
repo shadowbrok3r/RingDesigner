@@ -125,6 +125,11 @@ impl Prefs {
 pub struct Workspace {
     /// Portrait height and landscape width as fractions of the available editor.
     pub inspector_fraction: [f32; 2],
+    /// The same, while the recipe graph rides under (or beside) the ring: a
+    /// canvas has no height of its own to hug.
+    pub graph_fraction: [f32; 2],
+    /// Turn the ring to face what the chosen node does.
+    pub graph_follow: bool,
     pub rail_position: Option<[f32; 2]>,
     pub palette_position: Option<[f32; 2]>,
     pub rail_collapsed: bool,
@@ -134,6 +139,8 @@ impl Default for Workspace {
     fn default() -> Self {
         Self {
             inspector_fraction: [0.32, 0.36],
+            graph_fraction: [0.5, 0.5],
+            graph_follow: true,
             rail_position: None,
             palette_position: None,
             rail_collapsed: false,
@@ -148,6 +155,13 @@ impl Workspace {
                 fraction.clamp(0.08, 0.75)
             } else {
                 Self::default().inspector_fraction[i]
+            };
+        }
+        for (i, fraction) in self.graph_fraction.iter_mut().enumerate() {
+            *fraction = if fraction.is_finite() {
+                fraction.clamp(0.2, 0.75)
+            } else {
+                Self::default().graph_fraction[i]
             };
         }
         for position in [&mut self.rail_position, &mut self.palette_position] {

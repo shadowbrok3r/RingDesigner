@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 
 use ringdesign_core::alpha::AlphaLibrary;
 use ringdesign_core::castability::analyze_field;
-use ringdesign_core::mesh::build;
+use ringdesign_core::mesh::try_build;
 use ringdesign_core::sizing::RingSize;
 use ringdesign_core::{RingDesign, library, metal, stl, stones, threemf};
 use ringdesign_graph::eval::{Evaluator, Targets, evaluate_design};
@@ -29,6 +29,7 @@ use ringdesign_graph::graph::Graph;
 use ringdesign_graph::value::Literal;
 
 mod casting;
+mod base;
 mod cad;
 
 fn main() {
@@ -42,6 +43,11 @@ fn main() {
 }
 
 const USAGE: &str = "usage:
+  ringdesign base list
+  ringdesign base import <source.obj> --calibration <calibration.json> [--scale 1] [--crossgems-axes] --out <master.ringbase.json>
+  ringdesign base attach <design.ring.json> --preset <001..020> | --base <master.ringbase.json> --out <new.ring.json>
+  ringdesign base render <design.ring.json> [--bare] --out <image.png>
+  ringdesign base check <design.ring.json> [--bare]
   ringdesign cad example <twisted-band|two-part-signet|solitaire|inlay-band|gallery> --out <design.ring.json>
   ringdesign cad check <design.ring.json>
   ringdesign cad export <design.ring.json> --out <new-directory>
@@ -58,6 +64,7 @@ const USAGE: &str = "usage:
   ringdesign graph eval     <graph.json> [--set Name=value]* [--preset name] [--out design.ring.json] [--run-sinks]
   ringdesign graph check    <graph.json> [--set Name=value]*
   ringdesign graph describe <graph.json>
+  ringdesign graph lift     <design.ring.json> --out <template.graph.json>
 
 options:
   --sizes 5:9:0.5 | 6,7,8   sizes to run (default: the design's own)
@@ -68,6 +75,7 @@ options:
   --steps 1024x320          sweep resolution; overrides a saved refine tolerance";
 
 fn run(args: &[String]) -> anyhow::Result<()> {
+    if args.first().map(String::as_str)==Some("base") { return base::run(&args[1..]); }
     if args.first().map(String::as_str)==Some("cad") {return cad::run(&args[1..]);}
     if args.first().map(String::as_str) == Some("casting") {
         return casting::run(&args[1..]);
@@ -105,6 +113,7 @@ fn load(path: &str) -> anyhow::Result<RingDesign> {
 
 /// The field verdict and the stones checks, printed plainly.
 fn check(design: &RingDesign, lib: &AlphaLibrary) -> anyhow::Result<()> {
+    if let Some(base) = &design.imported_base { base.validate_shape(design)?; }
     let f = analyze_field(design, lib, &design.draft, 192, 128);
     println!(
         "{}  size {}  —  {}",
@@ -207,6 +216,7 @@ fn export(
     for &size in &sizes {
         let mut d = base.clone();
         d.size = RingSize(size);
+        if let Some(base) = &d.imported_base { base.validate_shape(&d)?; }
         let f = analyze_field(&d, lib, &d.draft, 192, 128);
         // The run used to gate on the field verdict alone. Both of the other
         // checks move with the size: circumference grows 20% from a 5 to a 9,
@@ -217,7 +227,7 @@ fn export(
             .as_ref()
             .map(|s| s.seats.iter().map(|c| c.warnings.len()).sum())
             .unwrap_or(0);
-        let built = build(&d, lib, params);
+        let built = try_build(&d, lib, params)?;
         let v = built.report.validation;
         let (mesh, name) = match scale {
             Some((m, k)) => (
@@ -379,11 +389,39 @@ mod graph {
     use super::*;
 
     pub fn run(args: &[String]) -> anyhow::Result<()> {
+    if args.first().map(String::as_str)==Some("base") { return base::run(&args[1..]); }
         let (sub, path) = match args {
             [s, p, ..] => (s.as_str(), p.as_str()),
-            _ => anyhow::bail!("expected `graph eval|check|describe <graph.json>`"),
+            _ => anyhow::bail!("expected `graph eval|check|describe <graph.json>` or `graph lift <design.ring.json> --out <graph.json>`"),
         };
         let reg = ringdesign_script::registry();
+        if sub == "lift" {
+            anyhow::ensure!(args.len() == 4 && args[2] == "--out", "graph lift <design.ring.json> --out <template.graph.json>");
+            let out = Path::new(&args[3]);
+            anyhow::ensure!(!out.exists(), "{} already exists; choose a new graph file", out.display());
+            let mut d = load(path)?;
+            let mut lib = AlphaLibrary::builtin();
+            lib.load_dir(library::user_alpha_dir())?;
+            d.unpack_embedded(&mut lib);
+            d.bake_all(&mut lib);
+            // Capture imported library art too, while preserving the saved
+            // source's existing PNG samples byte for byte.
+            let embedded = d.embedded.clone();
+            d.embed_alphas(&lib);
+            for e in embedded {
+                d.embedded.retain(|a| a.name != e.name);
+                d.embedded.push(e);
+            }
+            let g = ringdesign_graph::lift::from_design(&d, &reg, &lib)?;
+            let g = file::load_graph_str(&file::graph_to_string(&g)?, Some(&reg))?;
+            let check = evaluate_design(&mut Evaluator::with_exprs(ringdesign_script::engine()), &g, &reg, &AlphaLibrary::builtin(), 0)?;
+            d.graph = None;
+            anyhow::ensure!(check.notes.is_empty(), "graph reload: {:?}", check.notes);
+            anyhow::ensure!(serde_json::to_value(&*check.design)? == serde_json::to_value(&d)?, "graph reload changed the source design");
+            file::save_graph(out, &g)?;
+            println!("wrote {} ({} nodes, {} controls)", out.display(), g.nodes.len(), g.exposed.len());
+            return Ok(());
+        }
         let mut g = file::load_graph(path, Some(&reg)).map_err(|e| anyhow::anyhow!("{path}: {e:#}"))?;
         let mut out: Option<PathBuf> = None;
         let mut run_sinks = false;
@@ -476,14 +514,13 @@ mod graph {
                 if let Some(path) = out {
                     let mut d = (*result.design).clone();
                     d.graph = Some(serde_json::to_value(&g)?);
-                    let mut baked = lib.clone();
-                    d.bake_all(&mut baked);
-                    library::save_design_embedded(&path, &d, &baked)?;
+                    let baked = result.baked_library.as_deref().unwrap_or(&lib);
+                    library::save_design_embedded(&path, &d, baked)?;
                     println!("wrote {}", path.display());
                 }
                 Ok(())
             }
-            other => anyhow::bail!("unknown graph command {other:?} (eval, check, describe)"),
+            other => anyhow::bail!("unknown graph command {other:?} (eval, check, describe, lift)"),
         }
     }
 
