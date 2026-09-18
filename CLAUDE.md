@@ -1581,6 +1581,31 @@ Two defects found on the way, both older than the solids:
   table) now multiplies into `SeatPadLayer::station_scale`'s `u` side;
   the lobe test pins the reach round the ring as well as across it.
 
+### Shown finished, exported as the pattern
+
+Under sand a made setting is never poured: a seat is cut after the pour and
+a head is soldered on. `castability::pattern_parts` is the one rule for what
+a pattern is — bench-only layers off, and under `SandTwoPart` every seat's
+solid left out by `setting::pattern_seat`, which holds the stock where the
+finished seat needs it and adds **`SeatPadLayer::mark_mm`**, a raised
+drill-start dot (0.4 of the stone, 0.6-1.0 mm, a quarter as high as wide).
+Raised on purpose: a pit's far wall faces back into its own mould half and
+locks — the commissions measured it — while a dot on the parting line pulls,
+and the bur takes it away with the seat. The live verdict judges that
+pattern and says so; `mesh::try_build_pattern` builds it; STL, OBJ, 3MF and
+PLY exports on both apps, the CLI and `manufacturing::prepare` write it,
+while renders, GLB and the viewport show the finished ring. Lost wax casts
+cuts and heads in place, so there the design is its own pattern.
+
+Both viewports carry two toggles for the solids (`ring::Cuts` on the phone,
+`live_cuts`/`show_cutters` on the desktop): **Live cuts** builds
+`setting::without_solids` when off — the cast stock alone, and the faster
+build — and **Show cutters** stages `setting::ghost_vertices`, every seat's
+placed cutters, drawn blended with the depth test *off*, because a tool
+sits inside the metal it removes and a depth test hides exactly what was
+asked for. The phone's ghost is rim-weighted (`u_mode == 6`: alpha by
+`1 − |n.z|`), so a cutter reads as its outline.
+
 ### Booleans are exact in topology and approximate only in position
 
 `csg.rs` is a pure-Rust mesh boolean (`robust` + `spade`, both already in
@@ -2388,6 +2413,67 @@ stock is the plate's height so its girdle reads off the same top — and
 Palisade's emerald cut and rounds flush set with pilots through. Oriel's
 head went 13 → 14 mm so the plate's skirt lands on the table and not on
 its rolled rim.
+
+## One theme per ring, on the factory's signets
+
+Logan's standing preference, set on 2026-09-18: a signet starts from a
+decoded factory preset (`bases/signets/*.ringbase.json`, packaged from
+`assets/decoded/presets/Signet Ring/` by `tools/audit_preset_bases.py` and
+`tools/package_signet_bases.py`) because those have the hard angles where
+the walls meet the face; and a design commits to **one theme face to palm**
+— Palisade was retired for being "random elements placed in various spots".
+All twenty presets are bundled now: 013 welded to a closed solid but for
+one triangle its exporter dropped, and `cap_single_triangles` closes a hole
+exactly one face big without adding or moving a vertex.
+
+`examples/stock_masterworks.rs` holds the two rings that came of it,
+**Saurian** (013, one stone) and **Zenith** (017, three), and the method:
+each ring is *one* height map painted from the stock's own 3D samples
+(`Atlas`, `Skin::spot`), so distances are metal millimetres and regions
+hand over inside one skin. What the sand taught, all measured:
+
+- **On a signet's face, anything proud off the parting line is an
+  undercut.** The face has almost no draft, so a bump's near flank faces
+  back across the parting plane. The stock's sand envelope
+  (`imported_base/pull.rs`) makes every section's radius monotone toward
+  the parting line by *filling*: a field of beads came back as ridges run
+  to the centre line. The painter's `draft_clamp` is the same rule applied
+  the other way — walking out from the parting line, relief may rise only
+  as fast as the stock's own draft allows, and what breaks it is cut back —
+  so the envelope stays on as the guarantee and has nothing left to fill.
+- The castable reptile form is therefore the **pointed scute**: a plate the
+  width of the band whose free edge is a chevron with its point on the
+  parting line, leading. Its wall faces round the ring and *away* from the
+  parting line; turn the chevron round and the same wall faces back and
+  locks. Free shapes — small round overlapping scales — go on the cheeks,
+  where relief moves along the pull.
+- A sky's fine detail belongs to the graver. Zenith casts what casts — the
+  belt's three mounds on the parting line, a crescent, the moon's phases as
+  discs centred on it, star trails on the cheeks — and leaves Orion's stars,
+  the lines between them and the Pleiades as a `bench_only` layer. For that
+  to show, `pull::build` now envelopes only the cast stack and lays
+  bench-only relief on the supported surface afterwards; before, the
+  support filled every engraved line.
+- With the envelope *off* the mesh-space release analysis reports dozens of
+  single-sample (0.01 mm²) obstructions, some on bare palm: the envelope
+  path is also what makes the stock itself sample clean. Both rings read 0
+  obstructions and 0 unresolved with it on.
+
+## Reels are played by the app, not by a finger
+
+Tools → **Play build reel** (`reel.rs`, host-tested; the driver is
+`App::advance_reel`) replays the open design's construction on the real UI
+for a screen recorder: bare stock, each enabled top-level layer switching on
+in stack order under its own name (`built_to`, with the graph set aside so
+it cannot put the layers back), then the cutters ghosted, the seats cut, the
+stones set, a full turn and a flip. Each step waits for its build to land
+and its camera turn to arrive before its hold starts, so a slow device
+changes the reel's length and never what it shows. Views are the cameras'
+own angles — yaw about the finger from the head, pitch toward the finger's
+axis, so the face is `[head, 0]`; the first cut used the software
+renderer's convention and looked down the bore. Record with
+`adb shell screenrecord`; a tap on the ring stops it and restores the view
+options and the design.
 
 ## The phone has the graph too
 

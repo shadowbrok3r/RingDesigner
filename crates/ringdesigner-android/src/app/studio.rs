@@ -125,6 +125,14 @@ impl RingApp {
                         self.editor.hold_before = false;
                         self.visual.tool = VisualTool::Select;
                     }
+                    if ui
+                        .button("Play build reel")
+                        .on_hover_text("Replays this design's construction on screen — bare stock, each layer in turn, the stones, their cutters ghosted, the cut, a closing spin — for recording. Tap the ring to stop.")
+                        .clicked()
+                    {
+                        self.play_reel();
+                        ui.close();
+                    }
                     for (tab, title) in [
                         (Tab::Alphas, "Patterns & alphas"),
                         (Tab::Band, "Paint the band"),
@@ -958,6 +966,12 @@ impl RingApp {
         if manual_navigation && nav.action.is_none() {
             self.camera_turn = None;
         }
+        self.reel_caption = if self.reel.is_some() {
+            let tapped = pointer.is_some_and(|p| rect.contains(p)) && ui.input(|i| i.pointer.primary_clicked()) && !floating_blocked;
+            self.advance_reel(ui.ctx(), tapped)
+        } else {
+            None
+        };
         self.advance_camera_turn(ui.ctx());
         self.clear_opened_menus(ui.ctx(), rect, manual_navigation);
         let accepted = crate::paint::accepts(crate::paint::Tool::from_code(self.probe.tool), self.visual.stylus_only);
@@ -1182,6 +1196,14 @@ impl RingApp {
             &state,
             if node_words.is_some() { crate::theme::PINK_BRIGHT } else { crate::theme::INK_DIM },
         );
+        if let Some(caption) = &self.reel_caption {
+            let at = view.rect.center_bottom() - egui::vec2(0.0, 74.0);
+            let galley = ui.painter().layout(caption.clone(), egui::FontId::proportional(19.0), crate::theme::INK, view.rect.width() - 48.0);
+            let plate = egui::Rect::from_center_size(at, galley.size() + egui::vec2(28.0, 18.0));
+            ui.painter().rect_filled(plate, 12.0, egui::Color32::from_rgba_unmultiplied(8, 8, 12, 214));
+            ui.painter().rect_stroke(plate, 12.0, egui::Stroke::new(1.0, crate::theme::PINK_BRIGHT), egui::StrokeKind::Inside);
+            ui.painter().galley(plate.center() - galley.size() * 0.5, galley, crate::theme::INK);
+        }
         if self.editor.help {
             editor::overlay::tag(
                 ui,

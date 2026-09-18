@@ -139,6 +139,9 @@ pub struct RingApp {
     show_gems: bool,
     /// Made settings in the preview: resolved live, and their cutters ghosted.
     cuts: crate::ring::Cuts,
+    /// A showcase reel in flight, and the caption of the step it is on.
+    reel: Option<Reel>,
+    reel_caption: Option<String>,
     /// The design editor rides a collapsible bottom sheet over the live view.
     /// The DFM findings ride a second one, opened by tapping their chip.
     /// Whole-design snapshots with a name read out of the diff. Shared with the
@@ -237,6 +240,17 @@ pub struct RingApp {
     exports: Vec<std::sync::mpsc::Receiver<ExportDone>>,
 }
 
+/// A showcase reel in flight: the design it tells the story of, where it has got to, and what to put back.
+pub(crate) struct Reel {
+    full: RingDesign,
+    steps: Vec<crate::reel::Step>,
+    index: usize,
+    shown: bool,
+    landed: Option<f64>,
+    spun: Option<f32>,
+    before: (bool, crate::ring::Cuts),
+}
+
 /// The highlight a chosen graph node casts on the ring, and the turn of the
 /// camera toward it.
 #[derive(Default)]
@@ -297,6 +311,8 @@ impl RingApp {
             probe_info: None,
             show_gems: true,
             cuts: Default::default(),
+            reel: None,
+            reel_caption: None,
             history: ringdesign_core::history::History::new(&RingDesign::default()),
             selected_layer: None,
             stone: crate::stones::Pick::default(),
@@ -1784,6 +1800,85 @@ impl RingApp {
     }
 
     /// Carries a camera turn one frame further.
+    /// Play the open design's construction as a reel. What was on screen comes back when it ends or is stopped.
+    pub(super) fn play_reel(&mut self) {
+        let full = self.design.clone();
+        let steps = crate::reel::plan(&full);
+        self.reel = Some(Reel { full, steps, index: 0, shown: false, landed: None, spun: None, before: (self.show_gems, self.cuts) });
+        self.sheet_close_for_reel();
+        self.status = "Reel playing - tap the ring to stop".into();
+    }
+
+    pub(super) fn stop_reel(&mut self) {
+        let Some(reel) = self.reel.take() else { return };
+        (self.show_gems, self.cuts) = reel.before;
+        self.pane.camera.roll = 0.0;
+        self.design = reel.full;
+        self.mark_dirty();
+        self.status = "Reel finished".into();
+    }
+
+    /// One frame of the reel: show the step, wait for its build to land, hold, move on. Returns the caption.
+    pub(super) fn advance_reel(&mut self, ctx: &egui::Context, tapped: bool) -> Option<String> {
+        use crate::reel::Beat;
+        let settled = self.dirty_at.is_none() && !self.preview_in_flight;
+        let now = ctx.input(|i| i.time);
+        let reel = self.reel.as_mut()?;
+        if tapped || reel.index >= reel.steps.len() {
+            self.stop_reel();
+            return None;
+        }
+        let step = reel.steps[reel.index].clone();
+        if !reel.shown {
+            reel.shown = true;
+            reel.landed = None;
+            let full = reel.full.clone();
+            match step.beat {
+                Beat::Build { layers } => {
+                    self.show_gems = false;
+                    self.cuts = crate::ring::Cuts { live: false, ghost: false };
+                    self.design = crate::reel::built_to(&full, layers);
+                }
+                Beat::Finish { stones, ghost, live } => {
+                    self.show_gems = stones;
+                    self.cuts = crate::ring::Cuts { live, ghost };
+                    self.design = crate::reel::built_to(&full, usize::MAX);
+                }
+                Beat::Spin => {}
+            }
+            if let Some([yaw, pitch]) = step.view {
+                let from = self.pane.camera.pose();
+                self.camera_turn = Some(crate::focus::Turn::new(from, crate::focus::Pose { yaw, pitch, roll: 0.0, pan: [0.0; 2], zoom: 1.0 }));
+            }
+            self.mark_dirty();
+        } else if settled && self.camera_turn.is_none() {
+            let reel = self.reel.as_mut()?;
+            let landed = *reel.landed.get_or_insert(now);
+            let t = (now - landed) as f32;
+            if step.beat == Beat::Spin {
+                // A whole turn, then over onto its head and back.
+                let from = *reel.spun.get_or_insert(self.pane.camera.yaw);
+                let turn = (t / (step.hold_s * 0.6)).clamp(0.0, 1.0);
+                let ease = turn * turn * (3.0 - 2.0 * turn);
+                self.pane.camera.yaw = from + std::f32::consts::TAU * ease;
+                let flip = ((t - step.hold_s * 0.6) / (step.hold_s * 0.4)).clamp(0.0, 1.0);
+                self.pane.camera.roll = std::f32::consts::PI * (0.5 - 0.5 * (flip * std::f32::consts::TAU).cos());
+            }
+            if t >= step.hold_s {
+                reel.index += 1;
+                reel.shown = false;
+                reel.spun = None;
+            }
+        }
+        ctx.request_repaint();
+        Some(step.caption)
+    }
+
+    fn sheet_close_for_reel(&mut self) {
+        self.editor.reset_selection();
+        self.graph.shown = None;
+    }
+
     pub(super) fn advance_camera_turn(&mut self, ctx: &egui::Context) {
         let Some(turn) = self.camera_turn else { return };
         let (pose, arrived) = turn.now();

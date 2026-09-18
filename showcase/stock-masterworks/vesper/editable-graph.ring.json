@@ -93842,7 +93842,10 @@
             "rot_deg": 90.0,
             "plan_pow": 6.0,
             "set_depth_mm": null,
-            "metal_true": true
+            "metal_true": true,
+            "solid": "None",
+            "through": false,
+            "mark_mm": 0.0
           }
         }
       },
@@ -93908,7 +93911,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 },
@@ -93954,7 +93960,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 },
@@ -94000,7 +94009,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 },
@@ -94046,7 +94058,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 },
@@ -94092,7 +94107,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 },
@@ -94138,7 +94156,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 },
@@ -94184,7 +94205,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 },
@@ -94230,7 +94254,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 },
@@ -94276,7 +94303,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 },
@@ -94322,7 +94352,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 },
@@ -94368,7 +94401,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 },
@@ -94414,7 +94450,10 @@
                       "rot_deg": 0.0,
                       "plan_pow": 2.0,
                       "set_depth_mm": null,
-                      "metal_true": true
+                      "metal_true": true,
+                      "solid": "None",
+                      "through": false,
+                      "mark_mm": 0.0
                     }
                   }
                 }
@@ -94466,7 +94505,10 @@
             "rot_deg": 0.0,
             "plan_pow": 1.5,
             "set_depth_mm": null,
-            "metal_true": true
+            "metal_true": true,
+            "solid": "None",
+            "through": false,
+            "mark_mm": 0.0
           }
         }
       },
@@ -94512,7 +94554,10 @@
             "rot_deg": 0.0,
             "plan_pow": 1.5,
             "set_depth_mm": null,
-            "metal_true": true
+            "metal_true": true,
+            "solid": "None",
+            "through": false,
+            "mark_mm": 0.0
           }
         }
       },
@@ -96142,14 +96187,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.93644,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 6.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.65,
           "rot_deg": 90.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 90.0,
+          "through": false,
           "v_mm": 10.017932149491678
         },
         "kind": "layer.seat",
@@ -96236,14 +96284,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 67.30423896920189,
+          "through": false,
           "v_mm": 13.219866159297563
         },
         "kind": "layer.seat",
@@ -96320,14 +96371,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 70.09006939495835,
+          "through": false,
           "v_mm": 15.153707491952602
         },
         "kind": "layer.seat",
@@ -96404,14 +96458,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 78.18901045644039,
+          "through": false,
           "v_mm": 15.375623710453999
         },
         "kind": "layer.seat",
@@ -96488,14 +96545,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 90.0,
+          "through": false,
           "v_mm": 14.107531033303156
         },
         "kind": "layer.seat",
@@ -96572,14 +96632,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 101.81098954355961,
+          "through": false,
           "v_mm": 15.375623710453999
         },
         "kind": "layer.seat",
@@ -96656,14 +96719,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 109.90993060504167,
+          "through": false,
           "v_mm": 15.153707491952602
         },
         "kind": "layer.seat",
@@ -96740,14 +96806,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 112.69576103079812,
+          "through": false,
           "v_mm": 13.219866159297563
         },
         "kind": "layer.seat",
@@ -96824,14 +96893,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 109.90993060504167,
+          "through": false,
           "v_mm": 10.33495531877939
         },
         "kind": "layer.seat",
@@ -96908,14 +96980,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 101.81098954355963,
+          "through": false,
           "v_mm": 7.576853745976301
         },
         "kind": "layer.seat",
@@ -96992,14 +97067,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 90.00000000000001,
+          "through": false,
           "v_mm": 5.928333265680202
         },
         "kind": "layer.seat",
@@ -97076,14 +97154,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 78.18901045644039,
+          "through": false,
           "v_mm": 7.576853745976301
         },
         "kind": "layer.seat",
@@ -97160,14 +97241,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.35486500000000004,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.28,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 70.09006939495835,
+          "through": false,
           "v_mm": 10.33495531877939
         },
         "kind": "layer.seat",
@@ -97286,14 +97370,17 @@
           "dimple_mm": 0.16,
           "elong": 1.5,
           "height_mm": 0.42,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 1.5,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.5,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "GypsyMound",
           "theta_deg": 26.0,
+          "through": false,
           "v_mm": 10.017932149491678
         },
         "kind": "layer.seat",
@@ -97370,14 +97457,17 @@
           "dimple_mm": 0.16,
           "elong": 1.5,
           "height_mm": 0.42,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 1.5,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.5,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "GypsyMound",
           "theta_deg": 154.0,
+          "through": false,
           "v_mm": 10.017932149491678
         },
         "kind": "layer.seat",

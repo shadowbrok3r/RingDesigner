@@ -94202,7 +94202,10 @@
             "rot_deg": 90.0,
             "plan_pow": 2.0,
             "set_depth_mm": null,
-            "metal_true": true
+            "metal_true": true,
+            "solid": "None",
+            "through": false,
+            "mark_mm": 0.0
           }
         }
       },
@@ -94248,7 +94251,10 @@
             "rot_deg": 0.0,
             "plan_pow": 2.0,
             "set_depth_mm": null,
-            "metal_true": true
+            "metal_true": true,
+            "solid": "None",
+            "through": false,
+            "mark_mm": 0.0
           }
         }
       },
@@ -94294,7 +94300,10 @@
             "rot_deg": 0.0,
             "plan_pow": 2.0,
             "set_depth_mm": null,
-            "metal_true": true
+            "metal_true": true,
+            "solid": "None",
+            "through": false,
+            "mark_mm": 0.0
           }
         }
       },
@@ -95818,14 +95827,17 @@
           "dimple_mm": 0.0,
           "elong": 1.0,
           "height_mm": 0.83228,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.65,
           "rot_deg": 90.0,
+          "solid": "None",
           "style": "Bezel",
           "theta_deg": 90.0,
+          "through": false,
           "v_mm": 9.445306440041422
         },
         "kind": "layer.seat",
@@ -95903,14 +95915,17 @@
           "dimple_mm": 0.16,
           "elong": 1.0,
           "height_mm": 0.42,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.5,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "GypsyMound",
           "theta_deg": 26.0,
+          "through": false,
           "v_mm": 9.445306440041422
         },
         "kind": "layer.seat",
@@ -95987,14 +96002,17 @@
           "dimple_mm": 0.16,
           "elong": 1.0,
           "height_mm": 0.42,
+          "mark_mm": 0.0,
           "metal_true": true,
           "plan_pow": 2.0,
           "prong_mm": 0.9,
           "prongs": 0,
           "recess_mm": 0.5,
           "rot_deg": 0.0,
+          "solid": "None",
           "style": "GypsyMound",
           "theta_deg": 154.0,
+          "through": false,
           "v_mm": 9.445306440041422
         },
         "kind": "layer.seat",

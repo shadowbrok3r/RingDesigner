@@ -22,7 +22,9 @@ use egui_glow::glow;
 use glow::HasContext;
 
 use ringdesign_core::castability::CastReport;
-use ringdesign_core::mesh::{Mesh, Vec3};
+use ringdesign_core::mesh::Mesh;
+#[cfg(test)]
+use ringdesign_core::mesh::Vec3;
 
 /// Floats per vertex: position(3), normal(3), draft colour(3), wall colour(3).
 const FLOATS_PER_VERTEX: usize = 12;

@@ -65,8 +65,7 @@ bundled! {
 pub static SHOWCASE: &[TemplateGraph] = &[
     TemplateGraph { name: "Aster Atelier", slug: "aster-atelier", json: include_str!("../../../graphs/templates/aster-atelier.graph.json") },
     TemplateGraph { name: "Thalassa", slug: "thalassa", json: include_str!("../../../graphs/templates/thalassa.graph.json") },
-    // The two process masterworks: one held to two-part sand, one to nothing.
-    TemplateGraph { name: "Palisade — deco colonnade", slug: "palisade", json: include_str!("../../../graphs/templates/palisade.graph.json") },
+    // No guard rails: lost wax, made settings throughout. Its sand counterpart is Saurian, on stock.
     TemplateGraph { name: "Oriel — jewelled lantern", slug: "oriel", json: include_str!("../../../graphs/templates/oriel.graph.json") },
 ];
 
@@ -77,6 +76,9 @@ pub static IMPORTED: &[TemplateGraph] = &[
     TemplateGraph { name: "Solstice — sun seal", slug: "solstice-imported", json: include_str!("../../../graphs/templates/solstice-imported.graph.json") },
     TemplateGraph { name: "Aurelia — sovereign sun", slug: "aurelia-imported", json: include_str!("../../../graphs/templates/aurelia-imported.graph.json") },
     TemplateGraph { name: "Vesper — celestial reliquary", slug: "vesper-imported", json: include_str!("../../../graphs/templates/vesper-imported.graph.json") },
+    // One theme each, face to palm, on the factory's own signets and held to two-part sand.
+    TemplateGraph { name: "Saurian — beaded skin", slug: "saurian-imported", json: include_str!("../../../graphs/templates/saurian-imported.graph.json") },
+    TemplateGraph { name: "Zenith — the hunter's belt", slug: "zenith-imported", json: include_str!("../../../graphs/templates/zenith-imported.graph.json") },
 ];
 pub fn catalog() -> impl Iterator<Item = &'static TemplateGraph> {
     BUNDLED.iter().chain(SHOWCASE).chain(IMPORTED)

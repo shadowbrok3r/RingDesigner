@@ -12,6 +12,8 @@ mod tests;
 pub mod trials;
 
 use crate::castability::{CastProcess, SandProcess};
+#[cfg(test)]
+use crate::Layer;
 use crate::{AlphaLibrary, BuildParams, Mesh, RingDesign};
 use serde::{Deserialize, Serialize};
 

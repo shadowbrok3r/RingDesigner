@@ -20,6 +20,7 @@ pub mod paint;
 pub mod prefs;
 pub mod report;
 pub mod camera;
+pub mod reel;
 pub mod ring;
 pub mod similar;
 pub mod sketch;
