@@ -34,6 +34,8 @@ struct Sample {
     n: [f64; 3],
     theta: f64,
     v: f64,
+    /// Where it sits in the atlas.
+    i: usize,
 }
 struct Atlas {
     samples: Vec<Sample>,
@@ -56,6 +58,7 @@ impl Atlas {
                     p: surface.point(theta, fraction),
                     theta,
                     v: fraction * span,
+                    i: y * AW + x,
                     ..Default::default()
                 };
             }
@@ -568,6 +571,7 @@ fn base(slug: &str) -> Result<RingDesign> {
         ),
         "saurian" => ("Saurian — beaded skin", "013", 12.0, 11.5, 18.2, true),
         "zenith" => ("Zenith — the hunter's belt", "017", 17.0, 13.0, 18.6, true),
+        "caiman" => ("Caiman — armoured hide", "015", 15.0, 14.0, 19.0, true),
         _ => anyhow::bail!("Unknown design {slug}"),
     };
     let mut d = RingDesign::default();
@@ -650,7 +654,7 @@ fn base(slug: &str) -> Result<RingDesign> {
     Ok(d)
 }
 fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
-    if matches!(slug, "saurian" | "zenith") {
+    if matches!(slug, "saurian" | "zenith" | "caiman") {
         return themed(slug);
     }
     let mut d = base(slug)?;
@@ -1583,6 +1587,10 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
     let mut lib = AlphaLibrary::builtin();
     let a = Atlas::new(&d)?;
     let skin = Skin::new(&a);
+    if slug == "caiman" {
+        caiman(&mut d, &mut lib, &a, &skin)?;
+        return Ok((d, lib));
+    }
     let setup = d.manufacturing.as_mut().unwrap();
     if slug == "saurian" {
         setup.recipe.alloy = "Silver 925".into();
@@ -1738,6 +1746,467 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
     Ok((d, lib))
 }
 
+/// The stock's surface measured in millimetres the way a hide is: `along` the parting line from the
+/// head's centre (per column, signed by shoulder), `across` the section from the parting line (per
+/// sample, signed by side), and `rim`, how far across the outer surface runs on each side before it
+/// turns to face the pull. On a head's end wall the parting line runs down the wall, so rows laid by
+/// `along` keep their size there instead of crowding into the few degrees the wall spans.
+struct Hide {
+    along: Vec<f64>,
+    across: Vec<f64>,
+    rim: Vec<[f64; 2]>,
+    /// How far the wall runs down past the rim on each side before the bore's edge.
+    wall: Vec<[f64; 2]>,
+    /// The atlas row of the parting line in each column.
+    crest: Vec<usize>,
+}
+
+impl Hide {
+    fn new(a: &Atlas) -> Self {
+        let at = |x: usize, y: usize| a.samples[y * AW + x];
+        let dist = |p: [f64; 3], q: [f64; 3]| (0..3).map(|k| (p[k] - q[k]).powi(2)).sum::<f64>().sqrt();
+        let crest: Vec<usize> = (0..AW)
+            .map(|x| (1..AH - 1).min_by(|p, q| at(x, *p).p[2].abs().total_cmp(&at(x, *q).p[2].abs())).unwrap_or(AH / 2))
+            .collect();
+        let head = AW / 4;
+        let mut along = vec![0.0; AW];
+        for dir in [1i64, -1] {
+            let (mut acc, mut prev) = (0.0, head);
+            for k in 1..=AW / 2 {
+                let x = (head as i64 + dir * k as i64).rem_euclid(AW as i64) as usize;
+                acc += dist(at(prev, crest[prev]).p, at(x, crest[x]).p);
+                along[x] = dir as f64 * acc;
+                prev = x;
+            }
+        }
+        let mut across = vec![0.0; AW * AH];
+        let mut rim = vec![[0.0; 2]; AW];
+        let mut wall = vec![[0.0; 2]; AW];
+        for x in 0..AW {
+            let c = crest[x];
+            for dir in [1i64, -1] {
+                let (mut acc, mut y) = (0.0, c as i64);
+                let (mut edge, mut low) = (None, 0.0);
+                loop {
+                    let next = y + dir;
+                    if next < 0 || next >= AH as i64 {
+                        break;
+                    }
+                    let (p, q) = (at(x, y as usize), at(x, next as usize));
+                    acc += dist(p.p, q.p);
+                    across[next as usize * AW + x] = acc * q.p[2].signum();
+                    if edge.is_none() && q.n[2].abs() > 0.6 {
+                        edge = Some(acc);
+                    }
+                    if q.p[0].hypot(q.p[1]) > a.bore + 0.9 {
+                        low = acc;
+                    }
+                    y = next;
+                }
+                let side = if at(x, (c as i64 + dir * 4).clamp(0, AH as i64 - 1) as usize).p[2] < 0.0 { 0 } else { 1 };
+                rim[x][side] = edge.unwrap_or(acc).max(0.5);
+                wall[x][side] = (low - rim[x][side]).max(0.0);
+            }
+        }
+        // Each column finds its rim on its own, to within a row of the atlas; averaged along the ring the
+        // steps laid from it run straight instead of combing the plates between neighbouring columns.
+        let smooth = |v: &Vec<[f64; 2]>| -> Vec<[f64; 2]> {
+            (0..AW).map(|x| std::array::from_fn(|k| (-6i64..=6).map(|o| v[(x as i64 + o).rem_euclid(AW as i64) as usize][k]).sum::<f64>() / 13.0)).collect()
+        };
+        let (rim, wall) = (smooth(&rim), smooth(&wall));
+        Self { along, across, rim, wall, crest }
+    }
+    /// The point of the parting line `along` mm from the head's centre, to the atlas's resolution.
+    fn crest_point(&self, a: &Atlas, along: f64) -> [f64; 3] {
+        let x = (0..AW).min_by(|p, q| (self.along[*p] - along).abs().total_cmp(&(self.along[*q] - along).abs())).unwrap_or(AW / 4);
+        a.samples[self.crest[x] * AW + x].p
+    }
+    /// The chart point on the parting line `along` mm from the head's centre, signed by shoulder: `v` where
+    /// the section actually crosses `z = 0`, not the nearest row, which can stand a fiftieth off it.
+    fn crest_at(&self, a: &Atlas, along: f64) -> (f64, f64) {
+        let x = (0..AW).min_by(|p, q| (self.along[*p] - along).abs().total_cmp(&(self.along[*q] - along).abs())).unwrap_or(AW / 4);
+        let at = |y: usize| a.samples[y * AW + x];
+        let c = self.crest[x];
+        for (y0, y1) in [(c.saturating_sub(1), c), (c, (c + 1).min(AH - 1))] {
+            let (p, q) = (at(y0), at(y1));
+            if y0 != y1 && p.p[2] * q.p[2] <= 0.0 && p.p[2] != q.p[2] {
+                let f = p.p[2] / (p.p[2] - q.p[2]);
+                return (p.theta, p.v + (q.v - p.v) * f);
+            }
+        }
+        (at(c).theta, at(c).v)
+    }
+    /// A sample's `(along, across, rim, wall)`, the last two on its own side.
+    fn at(&self, s: Sample) -> (f64, f64, f64, f64) {
+        let (x, side) = (s.i % AW, if s.p[2] < 0.0 { 0 } else { 1 });
+        (self.along[x], self.across[s.i], self.rim[x][side], self.wall[x][side])
+    }
+}
+
+/// Where one series of plates is jointed along the ring, from `start` to `end` mm: lengths scattered
+/// about the local pitch, so neighbouring series never line up.
+struct Joints(Vec<f64>);
+
+impl Joints {
+    fn new(start: f64, end: f64, pitch: impl Fn(f64) -> f64, seed: i64) -> Self {
+        let mut g = vec![start];
+        let mut j = 0;
+        while *g.last().unwrap() < end {
+            let l = *g.last().unwrap();
+            g.push(l + pitch(l) * (0.72 + 0.56 * hash(seed, j)));
+            j += 1;
+        }
+        // Close on `end`: a stub shorter than half a plate joins the plate before it.
+        let n = g.len();
+        if n >= 3 && end - g[n - 2] < 0.5 * pitch(end) {
+            g.remove(n - 2);
+        }
+        *g.last_mut().unwrap() = end;
+        Self(g)
+    }
+    /// The plate at `l`: its index, how far along it from 0 to 1, and its length.
+    fn at(&self, l: f64) -> Option<(usize, f64, f64)> {
+        let g = &self.0;
+        if g.len() < 2 || l < g[0] || l > g[g.len() - 1] {
+            return None;
+        }
+        let j = g.partition_point(|x| *x <= l).saturating_sub(1).min(g.len() - 2);
+        let len = g[j + 1] - g[j];
+        Some((j, (l - g[j]) / len, len))
+    }
+}
+
+/// Clamp a painted layer to the sand's rule and say how much the rule took: a hide drawn to pull should
+/// lose next to nothing.
+fn clamped(a: &Atlas, mut alpha: Alpha, height_mm: f64) -> Alpha {
+    let before = alpha.data.clone();
+    draft_clamp(a, &mut alpha, height_mm);
+    let (mut cut, mut worst) = (0usize, 0.0f32);
+    for (b, c) in before.iter().zip(&alpha.data) {
+        if b - c > 0.02 {
+            cut += 1;
+        }
+        worst = worst.max(b - c);
+    }
+    println!("  {}: the draft rule cut {} texels, at most {:.3} mm", alpha.name, cut, worst as f64 * height_mm);
+    alpha
+}
+
+/// A painted layer over the whole chart, one tile, windowed round the ring and joined by `Max`, so that
+/// each layer keeping the draft rule keeps the whole hide to it.
+fn hide_layer(d: &RingDesign, name: &str, height: f64, centre: f64, span: f64) -> LayerEntry {
+    let mut e = skin_layer(d, name, height);
+    e.blend = Blend::Max;
+    e.window = Window::around(centre, span);
+    e.window.fade_deg = 6.0;
+    e
+}
+
+fn caiman(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, skin: &Skin) -> Result<()> {
+    let setup = d.manufacturing.as_mut().unwrap();
+    setup.bench_notes = "Imported-stock master, one crocodile hide from back to belly: dorsal plates in rows across the face and down both shoulders, grading from the spine to the rim, with a crest of horns struck along the spine and the emerald set as the central plate of the nuchal shield; granular flanks studded with bony tubercles on the head's walls; broad ventral scutes across the palm. Every plate steps down away from the parting line and every groove runs round the ring, so the hide pulls as drawn. Z=0 parting, opposed Z withdrawal. At the bench: drill on the raised mark at the face's centre and cut the emerald's seat to the measured stone; punch the pits into the dorsal plates; cut the two lines down the belly that divide its scutes into tiles. Polish the plates' tops and the palm, leave the grooves and granules satin.".into();
+    let hide = Hide::new(a);
+    // The palm carries six belly scutes a side at an even 2.1 mm, closing on a joint at its centre; the
+    // dorsal mosaic runs from the head's centre to where they begin.
+    let lmax = hide.along.iter().fold(0.0_f64, |m, l| m.max(l.abs()));
+    const BELLY_PITCH: f64 = 2.1;
+    let l_belly = lmax - 6.0 * BELLY_PITCH;
+    println!("  hide: {lmax:.2} mm to the palm, the belly from {l_belly:.2}");
+    // Across the band, three series a side on the face: a horned spine on the parting line, then two
+    // stepping down away from it. Each is sloped outward and none rises, so every wall faces round the ring
+    // or away from the parting line.
+    let series = |along: f64, rim: f64| -> (f64, f64) {
+        let l = along.abs();
+        ((0.36 + 0.10 * smoothstep(8.0, 24.0, l)) * rim, (0.70 + 0.30 * smoothstep(14.0, 24.0, l)) * rim)
+    };
+    // Rows across the band as a crocodile's back has them, the same on both shoulders, their lengths
+    // scattered a little about the local pitch. The outer series is jointed twice as often, so the scales
+    // shrink toward the flank the way the hide's do. Joints line up across the band, so each can run to the
+    // full depth: at a joint every series is at its floor together.
+    let pitch = |l: f64| 3.4 - 1.2 * smoothstep(6.0, 28.0, l);
+    let rows = Joints::new(3.6, l_belly, pitch, 7);
+    // The spine's plates carry the crest: a horn struck on each as a stamp, straddling the parting line
+    // like the moons did, graded down both shoulders. Where the parting line folds over the head's end wall
+    // onto the shoulder it turns at better than 12 degrees a millimetre, where the ring's own round is
+    // under 5, and those millimetres are mapped first.
+    let turn = |p: [[f64; 3]; 3]| {
+        let (u, w): ([f64; 3], [f64; 3]) = (std::array::from_fn(|k| p[1][k] - p[0][k]), std::array::from_fn(|k| p[2][k] - p[1][k]));
+        let dot = u[0] * w[0] + u[1] * w[1] + u[2] * w[2];
+        (dot / (u.iter().map(|x| x * x).sum::<f64>() * w.iter().map(|x| x * x).sum::<f64>()).sqrt().max(1e-12)).clamp(-1.0, 1.0).acos().to_degrees()
+    };
+    for sign in [1.0, -1.0] {
+        let folds: Vec<f64> = (0..300)
+            .map(|i| i as f64 * 0.1)
+            .filter(|l| turn([l - 0.4, *l, l + 0.4].map(|o| hide.crest_point(a, sign * o))) > 12.0 * 0.8)
+            .collect();
+        for (j, pair) in rows.0.windows(2).enumerate() {
+            let (centre, len) = (0.5 * (pair[0] + pair[1]), pair[1] - pair[0]);
+            let fade = smoothstep(4.0, 28.0, centre);
+            // Clear of the plate's ends by 0.6 mm, where the plate is flat along the ring even as a coarse
+            // preview mesh smears its joints; a plate too short for that goes without.
+            let (a_half, b_half) = ((0.33 * len).min(0.5 * len - 0.6), 0.55 - 0.2 * fade);
+            if a_half < 0.4 {
+                continue;
+            }
+            // Not on the fold, nor within a millimetre of it: a horn's flat bottom cannot follow the parting
+            // line round the bend (measured 0.06 mm into the drag from one standing on its last kink). The
+            // end wall stays bare between the face's crest and the shoulders'.
+            if folds.iter().any(|f| *f >= centre - a_half - 1.0 && *f <= centre + a_half + 0.3) {
+                continue;
+            }
+            let (theta, v) = hide.crest_at(a, sign * centre);
+            // An elongated hexagon, pointed along the ring: a keel seen from above. Its points are blunted to
+            // a short end square to the ring, so no facet beside the parting line leans across it. Its edges
+            // carry a point every tenth of a millimetre, so its walls follow a bend instead of chording it.
+            let tip = 0.09;
+            let corners = [
+                [-a_half, -tip], [-0.4 * a_half, -b_half], [0.4 * a_half, -b_half], [a_half, -tip],
+                [a_half, tip], [0.4 * a_half, b_half], [-0.4 * a_half, b_half], [-a_half, tip],
+            ];
+            let mut outline = Vec::new();
+            for (c, n) in corners.iter().zip(corners.iter().cycle().skip(1)) {
+                let steps = ((c[0] - n[0]).hypot(c[1] - n[1]) / 0.1).ceil().max(1.0) as usize;
+                outline.extend((0..steps).map(|q| {
+                    let f = q as f64 / steps as f64;
+                    [c[0] + (n[0] - c[0]) * f, c[1] + (n[1] - c[1]) * f]
+                }));
+            }
+            d.stamps.push(ringdesign_core::setting::Stamp {
+                name: format!("Dorsal crest, {} {}", if sign > 0.0 { "right" } else { "left" }, j + 1),
+                theta_deg: theta,
+                v_mm: v,
+                rot_deg: 0.0,
+                outline,
+                height_mm: 0.40 - 0.18 * fade,
+                sink_mm: 0.3,
+                draft_deg: 4.0,
+                cut: false,
+                bench: false,
+                along_pull: false,
+            });
+        }
+    }
+    let plate = move |k: usize, along: f64, _across: f64| -> Option<(usize, f64, f64)> {
+        let l = along.abs();
+        // Beside the emerald the side series run one plate from the head's centre to the stone's end.
+        let (j, t, len) = if l < 3.6 {
+            if k == 0 {
+                return None;
+            }
+            (0, l / 3.6, 3.6)
+        } else {
+            let (j, t, len) = rows.at(l)?;
+            (j + 1, t, len)
+        };
+        if k == 2 {
+            return Some(if t < 0.5 { (2 * j, 2.0 * t, 0.5 * len) } else { (2 * j + 1, 2.0 * t - 1.0, 0.5 * len) });
+        }
+        Some((j, t, len))
+    };
+    // Floor at the joints, and the plate's height at its inner and outer edge, per series.
+    const LEVELS: [(f64, f64, f64); 3] = [(0.0, 0.82, 0.82), (0.0, 0.46, 0.36), (0.0, 0.18, 0.08)];
+    const DORSAL: f64 = 1.05;
+    let dorsal = a.alpha("Dorsal armour", |s| {
+        let (along, across, rim, _) = hide.at(s);
+        let l = along.abs();
+        if l > l_belly {
+            return 0.0;
+        }
+        let w = across.abs();
+        let (e0, e1) = series(along, rim);
+        let bounds = [(0.0, e0), (e0, e1), (e1, rim)];
+        let mut h = [0.0; 3];
+        for k in 0..3 {
+            let (floor, inner, outer) = LEVELS[k];
+            let f = ((w - bounds[k].0) / (bounds[k].1 - bounds[k].0).max(0.1)).clamp(0.0, 1.0);
+            h[k] = if k == 0 && l < 3.6 {
+                // The emerald's plate: two rows long, flat, the tallest on the ring.
+                floor + (1.0 - floor) * smoothstep(0.10, 0.26, 3.6 - l)
+            } else if let Some((_, t, len)) = plate(k, along, across) {
+                // A loaf along the ring, rising off the joints and flat through the middle. The spine's is
+                // keeled on the parting line, and the horn struck over it takes the keel's gable for its top.
+                // Under the horn nothing may vary along the ring: a stamp's top copies the surface at the
+                // points it drops, and a surface curving both ways there tilts some of its facets across
+                // the parting line (phantom obstructions of 0.03-0.07 mm, at every mesh resolution tried).
+                let from_joint = t.min(1.0 - t) * len;
+                let end = smoothstep(0.08, 0.2, from_joint);
+                let middle = smoothstep(0.0, 0.3, from_joint);
+                let loaf = 0.88 + 0.12 * middle;
+                let keel = if k == 0 {
+                    (0.26 - 0.12 * smoothstep(4.0, 28.0, l)) * (1.0 - (w / 0.52).min(1.0)).powf(1.2) * middle
+                } else {
+                    0.0
+                };
+                floor + ((inner + (outer - inner) * f) * loaf + keel - floor) * end
+            } else {
+                floor
+            };
+        }
+        let s0 = smoothstep(e0 - 0.05, e0 + 0.05, w);
+        let s1 = smoothstep(e1 - 0.05, e1 + 0.05, w);
+        let s2 = smoothstep(rim - 0.30, rim + 0.05, w);
+        // Where the mosaic meets the belly it closes on one joint across the band.
+        let close = smoothstep(0.10, 0.26, l_belly - l);
+        let top = ((h[0] * (1.0 - s0) + h[1] * s0) * (1.0 - s1) + h[2] * s1) * (1.0 - s2);
+        top * close * (1.0 - 0.3 * smoothstep(9.0, 30.0, l)) / DORSAL
+    });
+    let dorsal = clamped(a, dorsal, DORSAL);
+    portable(lib, dorsal);
+    d.layers.layers.push(hide_layer(d, "Dorsal armour", DORSAL, 90.0, 290.0));
+    // Granules over every wall that faces the pull, where any relief casts.
+    const FLANK: f64 = 0.30;
+    let flank = a.alpha("Flank granules", |s| {
+        let (_, across, rim, _) = hide.at(s);
+        let rho = s.p[0].hypot(s.p[1]);
+        let side = smoothstep(0.62, 0.80, s.n[2].abs()) * smoothstep(a.bore + 0.3, a.bore + 0.75, rho);
+        if side <= 0.0 {
+            return 0.0;
+        }
+        let dd = across.abs() - rim;
+        let ua = s.p[0].atan2(s.p[1]) * rho;
+        let (du, dv) = (0.86, 0.72);
+        let mut best: f64 = 0.0;
+        let r0 = (dd / dv).round();
+        for ri in [r0 - 1.0, r0, r0 + 1.0] {
+            let off = if (ri as i64).rem_euclid(2) == 0 { 0.0 } else { 0.5 * du };
+            let ci = ((ua - off) / du).round();
+            let (cu, cd) = (ci * du + off + 0.12 * (hash(ri as i64, ci as i64 + 5) - 0.5), ri * dv);
+            let q = ((ua - cu) / 0.44).hypot((dd - cd) / 0.37) / (0.9 + 0.2 * hash(ri as i64, ci as i64));
+            if q < 1.0 {
+                best = best.max(0.5 + 0.5 * (PI * q).cos());
+            }
+        }
+        best * side * 0.26 / FLANK
+    });
+    let flank = clamped(a, flank, FLANK);
+    portable(lib, flank);
+    d.layers.layers.push(hide_layer(d, "Flank granules", FLANK, 90.0, 359.0));
+    // Bony tubercles in rows along the head's walls, graded down as the walls shorten.
+    const HORN: f64 = 0.78;
+    let horn = a.alpha("Hornback", |s| {
+        let at = skin.spot(s);
+        let (_, across, rim, wall) = hide.at(s);
+        let side = smoothstep(0.78, 0.9, s.n[2].abs());
+        if side <= 0.0 || at.away > 112.0 {
+            return 0.0;
+        }
+        let rho = s.p[0].hypot(s.p[1]);
+        let dd = across.abs() - rim;
+        let ua = s.p[0].atan2(s.p[1]) * rho;
+        let size = 1.0 - 0.3 * smoothstep(25.0, 100.0, at.away);
+        let mut best: f64 = 0.0;
+        // Two rows of osteoderms under the rim, the upper larger, each a rounded knob keeled along the ring.
+        for (k, depth) in [1.25, 3.1].into_iter().enumerate() {
+            let (ra, rb) = ([0.95, 0.82][k] * size, [0.78, 0.66][k] * size);
+            if depth + rb > wall - 0.25 {
+                continue;
+            }
+            let pitch = [2.45, 2.2][k] * size;
+            let off = if k % 2 == 1 { 0.5 * pitch } else { 0.0 };
+            let cu = ((ua - off) / pitch).round() * pitch + off;
+            let q = ((ua - cu) / ra).hypot((dd - depth) / rb);
+            if q < 1.0 {
+                let knob = (1.0 - q * q).powf(0.8);
+                let ridge = (1.0 - ((dd - depth) / (0.35 * rb)).abs().min(1.0)) * (1.0 - q);
+                best = best.max(knob * (0.86 + 0.14 * ridge));
+            }
+        }
+        best * side * 0.72 / HORN
+    });
+    let horn = clamped(a, horn, HORN);
+    portable(lib, horn);
+    d.layers.layers.push(hide_layer(d, "Hornback", HORN, 90.0, 230.0));
+    // Broad scutes across the palm, in step with the dorsal rows: the graver divides them into tiles.
+    const BELLY: f64 = 0.30;
+    let belly = a.alpha("Belly scutes", |s| {
+        let (along, across, rim, _) = hide.at(s);
+        let l = along.abs();
+        if l < l_belly {
+            return 0.0;
+        }
+        let t = ((l - l_belly) / BELLY_PITCH).fract();
+        let ml = smoothstep(0.10, 0.22, t.min(1.0 - t) * BELLY_PITCH);
+        let pillow = 0.86 + 0.14 * (PI * t).sin();
+        let edge = 1.0 - smoothstep(rim * 0.9, rim + 0.25, across.abs());
+        ml * pillow * edge
+    });
+    let belly = clamped(a, belly, BELLY);
+    portable(lib, belly);
+    d.layers.layers.push(hide_layer(d, "Belly scutes", BELLY, 270.0, 150.0));
+    // After the pour: pits punched into the dorsal plates, and the two lines that tile the belly.
+    const GRAVER: f64 = 0.12;
+    let graver = a.alpha("Graver's pits and tiles", |s| {
+        let (along, across, rim, _) = hide.at(s);
+        let (l, w) = (along.abs(), across.abs());
+        let side = if across < 0.0 { 1i64 } else { 2 } + if along < 0.0 { 10 } else { 0 };
+        let mut cut: f64 = 0.0;
+        if l < l_belly && w < rim - 0.3 {
+            let (e0, e1) = series(along, rim);
+            // A scatter, not a grid: half the cells of a jittered lattice carry a pit, of three sizes, some
+            // drawn out along the ring the way a punch skids.
+            let cell = 0.78;
+            let (gi, gj) = ((l / cell).floor() as i64, (w / cell).floor() as i64);
+            for ci in gi - 1..=gi + 1 {
+                for cj in gj - 1..=gj + 1 {
+                    if hash(ci * 3 + side, cj + 101) > 0.36 {
+                        continue;
+                    }
+                    let pu = (ci as f64 + 0.1 + 0.8 * hash(ci + 7, cj * 5 + side)) * cell;
+                    let pw = (cj as f64 + 0.1 + 0.8 * hash(cj + 13, ci * 3 - side)) * cell;
+                    let rad = [0.09, 0.13, 0.17][(hash(ci * 11 + side, cj * 17) * 3.0) as usize % 3];
+                    let long = 1.0 + 0.8 * hash(ci * 5 - side, cj * 7 + 3);
+                    let depth = 0.6 + 0.4 * hash(ci * 13, cj * 19 + side);
+                    // Only on a plate's own top: clear of the joints, the steps, the horn and the stone.
+                    let k = if pw < e0 { 0 } else if pw < e1 { 1 } else { 2 };
+                    let on_plate = plate(k, pu.copysign(along), across)
+                        .is_some_and(|(_, t, len)| t.min(1.0 - t) * len > 0.34 + rad * long && pu < l_belly - 0.4);
+                    let clear = on_plate
+                        && k < 2
+                        && (pw - e0).abs() > 0.2 + rad
+                        && (pw - e1).abs() > 0.2 + rad
+                        && pw < rim - 0.45
+                        && !(k == 0 && pw < 0.7 + rad);
+                    let q = ((l - pu) / long).hypot(w - pw);
+                    if clear && q < rad {
+                        cut = cut.max(depth * dome(q, rad));
+                    }
+                }
+            }
+        }
+        if l > l_belly {
+            let t = ((l - l_belly) / BELLY_PITCH).fract();
+            let on = smoothstep(0.30, 0.42, t.min(1.0 - t) * BELLY_PITCH);
+            let line = 1.0 - smoothstep(0.035, 0.085, (w - 0.36 * rim).abs());
+            cut = cut.max(line * on * (1.0 - smoothstep(rim * 0.85, rim, w)));
+        }
+        cut * 0.10 / GRAVER
+    });
+    portable(lib, graver);
+    let mut cut = hide_layer(d, "Graver's pits and tiles", GRAVER, 90.0, 359.0);
+    cut.blend = Blend::Subtract;
+    cut.bench_only = true;
+    d.layers.layers.push(cut);
+    // The emerald is the central plate of the nuchal shield: a boss the plate's own height, cut flush.
+    let (theta, v) = skin.on_face(0.0, 0.0);
+    let mut seat = SeatPadLayer {
+        theta_deg: theta,
+        v_mm: v,
+        style: SeatStyle::Boss,
+        crown: 0.15,
+        blend_mm: 0.4,
+        metal_true: true,
+        solid: ringdesign_core::setting::SolidKind::Flush,
+        through: true,
+        ..Default::default()
+    };
+    seat.fit_stone(Gem::calibrated(GemCut::Emerald, 4.0));
+    seat.height_mm = 1.0;
+    let mut e = LayerEntry::new("Emerald on the nuchal shield", Layer::SeatPad(seat));
+    e.blend = Blend::Max;
+    d.layers.layers.push(e);
+    Ok(())
+}
+
 /// Half the band's width at a sample's own station, mm.
 fn self_half(skin: &Skin, s: Sample) -> f64 {
     skin.half[((s.theta / 360.0 * AW as f64).round() as usize) % AW]
@@ -1827,6 +2296,12 @@ fn write(out: &Path, slug: &str, draft: bool) -> Result<()> {
         inspection.release.obstructions.len(),
         inspection.release.unresolved_rays
     );
+    if setup.recipe.process == CastProcess::SandTwoPart {
+        // The template test inspects the preview-sized build, where a coarse mesh can put a ridge a hair
+        // off the parting line: the ring has to pull there too.
+        let coarse = mf::inspect(&d, &lib, setup, BuildParams { theta_steps: 384, profile_steps: 192, ..params })?;
+        println!("{slug} at 384 x 192: {} obstructions {:?}", coarse.release.obstructions.len(), coarse.release.obstructions.iter().map(|o| o.world.map(|v| (v * 100.0).round() / 100.0)).collect::<Vec<_>>());
+    }
     if !draft {
         // Mesh files are the pattern: no bench cuts, a raised drill mark on every seat.
         let pattern = ringdesign_core::mesh::try_build_pattern(&d, &lib, params)?;
@@ -1882,7 +2357,7 @@ fn main() -> Result<()> {
     let out = Path::new(&args[0]);
     std::fs::create_dir_all(out)?;
     let draft = args.iter().any(|x| x == "--draft");
-    const ALL: [&str; 6] = ["nocturne", "solstice", "aurelia", "vesper", "saurian", "zenith"];
+    const ALL: [&str; 7] = ["nocturne", "solstice", "aurelia", "vesper", "saurian", "zenith", "caiman"];
     for slug in ALL {
         if args.len() > 1
             && args

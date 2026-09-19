@@ -86,7 +86,7 @@ fn stock_masterworks_match_their_sources_with_native_maps_and_casting_modes() {
     for template in templates::catalog() {
         assert!(names.insert(template.name), "duplicate menu entry");
     }
-    assert_eq!(templates::IMPORTED.len(), 6);
+    assert_eq!(templates::IMPORTED.len(), 7);
     for t in templates::IMPORTED {
         let slug = t.slug.strip_suffix("-imported").unwrap();
         let source = library::load_design(
@@ -104,9 +104,9 @@ fn stock_masterworks_match_their_sources_with_native_maps_and_casting_modes() {
             serde_json::to_value(&project).unwrap() == serde_json::to_value(&source).unwrap(),
             "{slug} lost portable source data"
         );
-        let sand = matches!(slug, "solstice" | "aurelia" | "saurian" | "zenith");
+        let sand = matches!(slug, "solstice" | "aurelia" | "saurian" | "zenith" | "caiman");
         // The themed rings paint one skin from the stock's own samples, regions and all, so they carry no reserve masks.
-        let one_skin = matches!(slug, "saurian" | "zenith");
+        let one_skin = matches!(slug, "saurian" | "zenith" | "caiman");
         assert_eq!(
             graph.mode,
             if sand {
@@ -156,9 +156,16 @@ fn stock_masterworks_match_their_sources_with_native_maps_and_casting_modes() {
             let unexpected: Vec<_> = inspection.details.iter().filter(|d| !(one_skin && d.contains("texture's finest"))).collect();
             assert!(unexpected.is_empty(), "{slug}: {unexpected:?}");
             // Fill is a question for what is poured: a flush seat's lip is cut thin at the bench on purpose.
-            // A joined stamp only adds metal, and its strokes are the detail floor's, which the findings read.
+            // What only adds metal cannot thin a wall — a joined stamp, a layer joined by Max — and its own
+            // strokes are the detail floor's, which the findings read: a ray from one chords straight
+            // through it (0.24 mm across a granule on Caiman's palm).
             let mut body = project.clone();
             body.stamps.retain(|s| s.cut);
+            for e in &mut body.layers.layers {
+                if e.blend == ringdesign_core::field::Blend::Max {
+                    e.enabled = false;
+                }
+            }
             let wall_mesh = ringdesign_core::mesh::try_build_pattern(
                 &body,
                 &lib,

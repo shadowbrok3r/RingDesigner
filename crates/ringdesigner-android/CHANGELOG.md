@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.23.0 — 2026-09-19
+
+- A new ring in File → New → Stock masterworks: Caiman — armoured hide, on the factory's octagonal signet (preset 015) with one emerald, held to two-part sand. One crocodile hide runs from back to belly. Rows of dorsal plates cross the face and run down both shoulders, grading from broad plates on the spine to small ones at the rim. A crest of keeled horns is struck along the spine, and the emerald-cut stone is flush set as the central plate of the nuchal shield, with a window drilled through beneath it. The head's walls carry granular flank skin studded with rows of bony knobs, and the palm carries the belly's broad scutes. After the pour the bench punches pits into the plates and cuts the lines that divide the belly into tiles. It reads zero withdrawal obstructions at every resolution checked.
+- Each part of the hide is its own layer and the crest is one family of stamps, so the recipe graph and the build reel show the ring assembled in steps: dorsal armour, flank granules, the knobs, the belly scutes, the graver's work, the stone's plate, the horns, then the burs, the cut seat and the stone.
+- The build reel strikes a design's stamps as steps of their own, family by family, before the setting burs are ghosted: Caiman's crest of horns, Zenith's moons and star trails. A ring whose only made parts are stamps no longer shows burs and seat cuts it does not have.
+
 ## 0.22.1 — 2026-09-18
 
 - Stamps: an outline extruded off the ring's surface and joined to it, or cut from it, by boolean — relief with true walls and a silhouette as crisp as its polygon, which the height field cannot hold at any resolution. A stamp's top follows the surface it stands on at one height; on a head's leaning wall it can stand along the mould's pull instead, so neither edge tucks under. A stamp can be marked as made at the bench, which keeps it in the finished ring and out of the pattern. They show in the viewport, obey Live cuts, and their cutters appear under Show cutters.

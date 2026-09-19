@@ -413,11 +413,13 @@ struct Job {
 pub struct Cuts {
     pub live: bool,
     pub ghost: bool,
+    /// With live cuts off, still strike the stamps: the reel shows them before the seats are cut.
+    pub stamps: bool,
 }
 
 impl Default for Cuts {
     fn default() -> Self {
-        Self { live: true, ghost: false }
+        Self { live: true, ghost: false, stamps: false }
     }
 }
 
@@ -480,7 +482,13 @@ impl Worker {
                     }
                     // The cutters are read off the whole design; with live cuts off only the stock is built.
                     let ghost = if job.cuts.ghost { ringdesign_core::setting::ghost_vertices(&job.design, &job.lib) } else { Vec::new() };
-                    let shown = if job.cuts.live { None } else { Some(ringdesign_core::setting::without_solids(&job.design)) };
+                    let shown = (!job.cuts.live).then(|| {
+                        let mut d = ringdesign_core::setting::without_solids(&job.design);
+                        if job.cuts.stamps {
+                            d.stamps = job.design.stamps.clone();
+                        }
+                        d
+                    });
                     let out = match ringdesign_core::mesh::try_build(shown.as_ref().unwrap_or(&job.design), &job.lib, job.params) {
                         Ok(out) => out,
                         Err(e) => { let _ = error_tx.send((job.generation, e.to_string())); ctx.request_repaint(); continue; }
