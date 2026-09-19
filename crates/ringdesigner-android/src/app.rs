@@ -469,7 +469,7 @@ impl RingApp {
         self.pane.polish = p.polish.min(ringdesign_core::render::POLISHES.len() - 1);
         self.as_cast = p.as_cast;
         self.show_gems = p.show_gems;
-        self.cuts = crate::ring::Cuts { live: p.live_cuts, ghost: p.show_cutters };
+        self.cuts = crate::ring::Cuts { live: p.live_cuts, ghost: p.show_cutters, stamps: false };
         self.editor.mode = Mode::ALL.get(p.editor_mode).copied().unwrap_or_default();
         self.editor.guides = p.editor_guides;
         self.editor.sheet = p.editor_inspector.then_some(Sheet::Edit);
@@ -1836,12 +1836,17 @@ impl RingApp {
             match step.beat {
                 Beat::Build { layers } => {
                     self.show_gems = false;
-                    self.cuts = crate::ring::Cuts { live: false, ghost: false };
+                    self.cuts = crate::ring::Cuts { live: false, ghost: false, stamps: false };
                     self.design = crate::reel::built_to(&full, layers);
+                }
+                Beat::Stamps { families } => {
+                    self.show_gems = false;
+                    self.cuts = crate::ring::Cuts { live: false, ghost: false, stamps: true };
+                    self.design = crate::reel::struck_to(&full, families);
                 }
                 Beat::Finish { stones, ghost, live } => {
                     self.show_gems = stones;
-                    self.cuts = crate::ring::Cuts { live, ghost };
+                    self.cuts = crate::ring::Cuts { live, ghost, stamps: true };
                     self.design = crate::reel::built_to(&full, usize::MAX);
                 }
                 Beat::Spin => {}

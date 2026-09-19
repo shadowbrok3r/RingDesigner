@@ -17,7 +17,7 @@ fn main() -> Result<()> {
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| root.join("showcase/stock-masterworks"));
     let reg = Registry::builtin();
-    for slug in ["nocturne", "solstice", "aurelia", "vesper", "saurian", "zenith"] {
+    for slug in ["nocturne", "solstice", "aurelia", "vesper", "saurian", "zenith", "caiman"] {
         let d = library::load_design(source.join(slug).join("design.ring.json"))?;
         ensure!(d.imported_base.is_some(), "{slug} must originate on stock");
         let lib = manufacturing::source_library(&d, &AlphaLibrary::default()).into_owned();

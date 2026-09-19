@@ -79,6 +79,7 @@ pub static IMPORTED: &[TemplateGraph] = &[
     // One theme each, face to palm, on the factory's own signets and held to two-part sand.
     TemplateGraph { name: "Saurian — beaded skin", slug: "saurian-imported", json: include_str!("../../../graphs/templates/saurian-imported.graph.json") },
     TemplateGraph { name: "Zenith — the hunter's belt", slug: "zenith-imported", json: include_str!("../../../graphs/templates/zenith-imported.graph.json") },
+    TemplateGraph { name: "Caiman — armoured hide", slug: "caiman-imported", json: include_str!("../../../graphs/templates/caiman-imported.graph.json") },
 ];
 pub fn catalog() -> impl Iterator<Item = &'static TemplateGraph> {
     BUNDLED.iter().chain(SHOWCASE).chain(IMPORTED)

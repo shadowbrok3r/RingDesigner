@@ -2585,14 +2585,60 @@ hand over inside one skin. What the sand taught, all measured:
   path is also what makes the stock itself sample clean. Both rings read 0
   obstructions and 0 unresolved with it on.
 
+**Caiman — armoured hide** (015, one emerald) is the richer reptile: one
+crocodile hide from back to belly in five layers and a crest of stamps —
+dorsal plates in rows across the face and shoulders, grading from the
+spine to the rim; horns struck down the spine; the emerald flush in the
+nuchal shield's central plate (a Boss the plate's own height, piloted
+through); granular flanks with rows of osteoderm knobs on the head's
+walls; ventral scutes across the palm; pits and the belly's tile lines
+left to the bench. What it taught:
+
+- **The face's whole rule is one sentence**: at every station round the
+  ring, height may not rise walking away from the parting line. So
+  anything that varies only along the ring is free — joints across the
+  band, loaves, ends — and joints *aligned* across the series can run to
+  full depth, because at a joint every series is at its floor together.
+  Staggered joints are castable too if each series' floor stands above the
+  next one's tallest plate; it read as brickwork and was dropped.
+- **Paint the hide in true millimetres** (`Hide`: distance along the
+  parting line, across the section, the rim where the surface turns to
+  face the pull, the wall below it). The chart's `theta` crosses a head's
+  end wall in a few degrees; rows laid by distance along the parting line
+  keep their size down it. Per-column rims are averaged along the ring, or
+  the steps laid from them comb the plates.
+- **Layers joined by `Max` keep the draft clamp's guarantee**: each layer
+  clamped alone is clamped together. Only the flanks' granules and knobs
+  are trimmed at all, where the shank's walls lean back (0.2 mm at most).
+- **A stamp on the crest needs the crest exactly.** The nearest atlas row
+  can stand 0.02 mm off `z = 0`, and a horn's pointed tip then hangs that
+  far into one mould half (0.023 mm obstructions): `crest_at` interpolates
+  where the section crosses zero, and the tips are blunted square to the
+  ring. Outlines carry a point every 0.1 mm so walls follow a bend. No horn
+  stands on or within a millimetre of the fold where the parting line
+  turns over the head's end wall (a flat bottom cannot follow it; 0.06 mm).
+- **Under a stamp the surface may vary only across the band.** A stamp's
+  cap copies the surface at the points it drops, and where the surface
+  curves both ways there some facets tilt across the parting line —
+  phantom obstructions of 0.03-0.07 mm that moved with the mesh
+  resolution instead of vanishing. So the spine's plates are flat along
+  the ring except within 0.3 mm of a joint, the keel under each horn is a
+  sharp gable (a flat-topped one is all noise), and each horn stands 0.6
+  mm clear of its plate's ends. `stock_masterworks` now inspects every
+  sand ring at the template test's 384 x 192 as well as at its own.
+
 ## Reels are played by the app, not by a finger
 
 Tools → **Play build reel** (`reel.rs`, host-tested; the driver is
 `App::advance_reel`) replays the open design's construction on the real UI
 for a screen recorder: bare stock, each enabled top-level layer switching on
 in stack order under its own name (`built_to`, with the graph set aside so
-it cannot put the layers back), then the cutters ghosted, the seats cut, the
-stones set, a full turn and a flip. Each step waits for its build to land
+it cannot put the layers back), each family of stamps struck (`struck_to`; a
+family is a stamp's name up to its first comma or colon, less a trailing
+number, so Caiman's twelve horns are one step), then the cutters ghosted, the
+seats cut, the stones set, a full turn and a flip. Stamps obey Live cuts and
+the burs are ghosted with it off, so `Cuts::stamps` keeps the stamps struck
+while the seats wait; a ring whose only made parts are stamps gets no burs. Each step waits for its build to land
 and its camera turn to arrive before its hold starts, so a slow device
 changes the reel's length and never what it shows. Views are the cameras'
 own angles — yaw about the finger from the head, pitch toward the finger's
