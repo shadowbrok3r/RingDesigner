@@ -218,6 +218,13 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
         ui.add_space(4.0);
         ui.weak(note);
     }
+    if let Some(f) = i.field.as_ref().filter(|f| !f.parts.is_empty()) {
+        ui.separator();
+        ui.strong("CAD parts on the band");
+        for p in &f.parts {
+            ui.colored_label(if p.undercut_at.is_some() { theme::WARN } else { theme::TEXT }, &p.note);
+        }
+    }
     if !i.prepared.bench_layers.is_empty() {
         ui.separator();
         ui.strong("Deferred to bench");

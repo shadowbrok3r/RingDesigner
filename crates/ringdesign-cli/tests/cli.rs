@@ -60,6 +60,54 @@ fn casting_commands_export_the_checked_pattern_and_preserve_the_source() {
     std::fs::remove_dir_all(root).unwrap();
 }
 
+/// A 6 mm court band with a 2 mm post joined 1.5 mm off its mid-plane, staged as asked.
+fn post_band(stage: ringdesign_core::cad::Stage) -> ringdesign_core::RingDesign {
+    use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation, Placement};
+    let mut d = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+    d.profile.width_mm = 6.0;
+    let mut doc = Document::default();
+    doc.append(Feature { id: 0, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+    let placement = Placement::Ring { theta_deg: 90.0, across_mm: 1.5, height_mm: 0.6, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+    doc.append(Feature { id: 3, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, component: Component { attach: Attach::Join, stage, placement, ..Default::default() } }).unwrap();
+    d.cad = Some(doc);
+    d
+}
+
+#[test]
+fn check_and_the_size_run_judge_the_parts_a_build_carries() {
+    use ringdesign_core::cad::Stage;
+    let dir = std::env::temp_dir().join(format!("ring-parts-cli-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    for (stage, verdict, label) in [(Stage::Cast, "Marginal", "Castable with care"), (Stage::Bench, "Castable", "Castable")] {
+        let path = dir.join(format!("{stage:?}.ring.json"));
+        ringdesign_core::library::save_design(&path, &post_band(stage)).unwrap();
+        let o = bin().args(["check", path.to_str().unwrap()]).output().unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+        let text = String::from_utf8_lossy(&o.stdout).to_string();
+        assert!(text.lines().next().unwrap().ends_with(&format!("—  {label}")), "{text}");
+        let out = dir.join(format!("{stage:?}"));
+        let o = bin().args(["export", path.to_str().unwrap(), "--sizes", "7", "--formats", "stl", "--out", out.to_str().unwrap()]).output().unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+        let manifest = std::fs::read_to_string(out.join("untitled_manifest.csv")).unwrap_or_else(|_| {
+            let name = std::fs::read_dir(&out).unwrap().filter_map(Result::ok).map(|e| e.path()).find(|p| p.to_string_lossy().ends_with("_manifest.csv")).unwrap();
+            std::fs::read_to_string(name).unwrap()
+        });
+        let row = manifest.lines().nth(1).unwrap();
+        assert_eq!(row.split(',').nth(6), Some(verdict), "{manifest}");
+        match stage {
+            Stage::Cast => {
+                assert!(text.contains("part Cylinder \"Post\" (#3) — Join, Cast: 5.2"), "{text}");
+                assert!(text.contains("on its drag-facing flank above the parting plane") && text.contains("stage it Bench"), "{text}");
+            }
+            Stage::Bench => {
+                assert!(text.contains("part Cylinder \"Post\" (#3) — Join, Bench: not judged"), "{text}");
+                assert!(text.contains("locating mark on the parting line at 90°; the part's foot is 1.5 mm toward the high edge"), "{text}");
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn editable_cad_roundtrip_exports_components_and_resized_manufacturing_reports() {
     let dir=std::env::temp_dir().join(format!("ring-cad-cli-{}-{}",std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));

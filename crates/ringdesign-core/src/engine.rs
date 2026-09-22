@@ -144,6 +144,13 @@ impl DesignEngine {
         castability::attributed_field_report(&self.design, &self.lib, &self.design.draft, 192, 128)
     }
 
+    /// [`Self::field_report`] with its CAD parts judged on the current build, built when stale.
+    pub fn judged_field_report(&mut self) -> castability::FieldReport {
+        let parts = self.design.cad.as_ref().is_some_and(|doc| !doc.attachments().is_empty());
+        let built = parts.then(|| self.ensure_built());
+        castability::judged_field_report(&self.design, &self.lib, &self.design.draft, 192, 128, built.as_deref())
+    }
+
     pub fn mesh(&mut self) -> Arc<BuildResult> {
         self.ensure_built()
     }

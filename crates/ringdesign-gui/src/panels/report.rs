@@ -228,6 +228,12 @@ fn castability(
                 ui.add(egui::Label::new(egui::RichText::new(n)).wrap());
             });
         }
+        if !f.parts.is_empty() {
+            ui.add_space(4.0);
+            egui::CollapsingHeader::new(format!("{} CAD parts — read off the built ring", icon::CUBE))
+                .default_open(true)
+                .show(ui, |ui| parts_section(ui, f));
+        }
     }
     for f in dfm {
         ui.horizontal_top(|ui| {
@@ -250,6 +256,23 @@ fn castability(
         .show(ui, |ui| face_census(ui, cast, draft, field.is_some()));
 
     clicked_draft_button(ui, already_draft)
+}
+
+/// One line per CAD part: judged and clean, judged and locking, or not judged against the ring's plane.
+fn parts_section(ui: &mut egui::Ui, f: &ringdesign_core::castability::FieldReport) {
+    for p in &f.parts {
+        let (glyph, color) = if !p.judged {
+            (icon::MINUS_CIRCLE, theme::TEXT_DIM)
+        } else if p.undercut_at.is_some() {
+            (icon::WARNING, theme::class_color(FaceClass::Undercut))
+        } else {
+            (icon::CHECK_CIRCLE, theme::GOOD)
+        };
+        ui.horizontal_top(|ui| {
+            ui.label(egui::RichText::new(glyph).color(color));
+            ui.add(egui::Label::new(egui::RichText::new(&p.note).small()).wrap());
+        });
+    }
 }
 
 /// The mesh face analyzer's own numbers, boxed off from the verdict.

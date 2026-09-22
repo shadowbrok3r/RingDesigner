@@ -648,13 +648,17 @@ impl Layer {
                 // A marker pad — the sand halo's melee — carries a stone for
                 // the report and the preview but raises no metal, so it has
                 // no feature for the detail floor or the refiner to find.
-                if l.height_mm.abs() <= 1e-9 {
+                let f = if l.height_mm.abs() > 1e-9 {
+                    l.blend_mm.clamp(0.15, l.diameter_mm.max(0.15))
+                } else if l.mark_mm > 0.05 {
+                    // A bare locating or drill mark raises only its dot.
+                    l.mark_mm
+                } else {
                     return Vec::new();
-                }
+                };
                 let (ku, kv) = l.station_scale(ctx);
                 let (ru, rv) = l.chart_reach_mm(ctx);
                 let u0 = ctx.u_of_theta(l.theta_deg);
-                let f = l.blend_mm.clamp(0.15, l.diameter_mm.max(0.15));
                 // A metal-true skirt spans less chart than it draws.
                 let (fu, fv) =
                     if l.metal_true { (f / ku.max(1e-6), f / kv.max(1e-6)) } else { (f, f) };

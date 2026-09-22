@@ -93,6 +93,23 @@ pub fn html(
         ));
     }
     h.push_str("</ul>");
+    if !field.parts.is_empty() {
+        h.push_str("<table><tr><th>CAD part</th><th>Meets the band</th><th>Stage</th><th>Undercut</th><th>Worst draft</th></tr>");
+        for p in &field.parts {
+            let (undercut, worst) = if p.judged {
+                (format!("{:.2} mm&sup2;", p.undercut_area_mm2 - p.silhouette_mm2), format!("{:+.1}&deg;", p.worst_draft_deg))
+            } else {
+                ("not judged".to_string(), String::new())
+            };
+            h.push_str(&format!(
+                "<tr><td>{}</td><td>{:?}</td><td>{:?}</td><td>{undercut}</td><td>{worst}</td></tr>",
+                esc(&p.label),
+                p.attach,
+                p.stage
+            ));
+        }
+        h.push_str("</table>");
+    }
 
     // --- Dimensions ---------------------------------------------------------
     h.push_str(&format!(

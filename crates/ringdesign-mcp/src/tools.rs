@@ -282,6 +282,25 @@ pub struct FieldJson {
     pub thinnest_wall_mm: f64,
     pub thinnest_wall_theta_deg: f64,
     pub notes: Vec<String>,
+    /// The CAD parts read off the built ring, one line each.
+    pub parts: Vec<PartJson>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct PartJson {
+    pub feature: u64,
+    /// Kind, name and number, as the notes name it.
+    pub label: String,
+    /// Join, Cut or Separate.
+    pub attach: String,
+    /// Cast or Bench.
+    pub stage: String,
+    /// Read against the ring's parting plane; separate parts and bench parts under sand are not.
+    pub judged: bool,
+    /// Undercut that locks, mm²: the undercut class less facets that span the parting plane.
+    pub undercut_mm2: f64,
+    pub worst_draft_deg: f64,
+    pub note: String,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -1186,6 +1205,20 @@ fn field_json(f: &ringdesign_core::castability::FieldReport) -> FieldJson {
         thinnest_wall_mm: f.thinnest_wall_mm,
         thinnest_wall_theta_deg: f.thinnest_wall_theta_deg,
         notes: f.notes.clone(),
+        parts: f
+            .parts
+            .iter()
+            .map(|p| PartJson {
+                feature: p.feature,
+                label: p.label.clone(),
+                attach: format!("{:?}", p.attach),
+                stage: format!("{:?}", p.stage),
+                judged: p.judged,
+                undercut_mm2: p.undercut_area_mm2 - p.silhouette_mm2,
+                worst_draft_deg: p.worst_draft_deg,
+                note: p.note.clone(),
+            })
+            .collect(),
     }
 }
 
@@ -2330,7 +2363,7 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Legacy procedural-band draft and radial-wall inspection, with stone stock and ornament findings. These field checks assume a swept ring and a Z-axis parting plane. Use manufacturing_check for actual two-half withdrawal, arbitrary pull directions, bore interference, CAD components, flask fit and compensated patterns."
+        description = "Legacy procedural-band draft and radial-wall inspection, with stone stock and ornament findings. These field checks assume a swept ring and a Z-axis parting plane. The field block also judges every CAD part joined into or cut from the band on the current build, at the field's parting plane, one line per part in `field.parts`. Use manufacturing_check for actual two-half withdrawal, arbitrary pull directions, bore interference, CAD components, flask fit and compensated patterns."
     )]
     async fn castability(&self) -> Json<CastJson> {
         let mut e = self.engine.lock();
@@ -2339,7 +2372,7 @@ impl RingDesignServer {
         let generation = e.generation();
         let stones =
             ringdesign_core::stones::report(e.design(), cast.parting_z_mm).map(|r| stones_json(&r));
-        let field = field_json(&e.field_report());
+        let field = field_json(&e.judged_field_report());
         let dfm = ringdesign_core::dfm::findings_in(e.design(), e.library())
             .into_iter()
             .map(|f| format!("{}: {}", f.label, f.message))

@@ -30,34 +30,8 @@ pub fn hit(
         .to_degrees()
         .rem_euclid(360.0);
     let radius = (world[0] as f64).hypot(world[1] as f64);
-    let reference = d.reference_loop();
     let ctx = d.field_context();
-    let base = d.section_at(theta_deg, 160, None, Some(&reference));
-    let section = crate::castability::section_at_spaced(d, lib, theta_deg, 160, None);
-    let mut best = f64::INFINITY;
-    let mut v_mm = ctx.crest_v_mm;
-    if base.pts.len() == section.points.len() {
-        for i in 0..section.points.len().saturating_sub(1) {
-            let a = &section.points[i];
-            let b = &section.points[i + 1];
-            if !a.surface || !b.surface {
-                continue;
-            }
-            let delta = [b.r - a.r, b.z - a.z];
-            let denom = delta[0] * delta[0] + delta[1] * delta[1];
-            let t = (((radius - a.r) * delta[0] + (world[2] as f64 - a.z) * delta[1])
-                / denom.max(1e-12))
-            .clamp(0.0, 1.0);
-            let distance = (radius - a.r - t * delta[0]).powi(2)
-                + (world[2] as f64 - a.z - t * delta[1]).powi(2);
-            if distance < best {
-                best = distance;
-                v_mm = (base.pts[i].v_mm * (1.0 - t) + base.pts[i + 1].v_mm * t)
-                    / base.surface_len_mm.max(1e-9)
-                    * ctx.band_v_len_mm;
-            }
-        }
-    }
+    let v_mm = v_at(d, lib, theta_deg, 160, Some(radius), world[2] as f64);
     let uv = Uv {
         u: ctx.u_of_theta(theta_deg),
         v: v_mm,
@@ -71,6 +45,60 @@ pub fn hit(
         radial_wall_mm: radius - d.inner_radius_mm(),
         relief_mm: d.layers.height(uv, &ctx, lib),
     })
+}
+
+/// Chart `v` of the displaced surface at `theta_deg` nearest `(radius, z)`, or outermost at height `z` without a radius.
+pub fn v_at(d: &RingDesign, lib: &AlphaLibrary, theta_deg: f64, steps: usize, radius: Option<f64>, z: f64) -> f64 {
+    let reference = d.reference_loop();
+    let ctx = d.field_context();
+    let base = d.section_at(theta_deg, steps, None, Some(&reference));
+    let section = crate::castability::section_at_spaced(d, lib, theta_deg, steps, None);
+    let mut v_mm = ctx.crest_v_mm;
+    if base.pts.len() != section.points.len() {
+        return v_mm;
+    }
+    let chart = |i: usize, t: f64| {
+        (base.pts[i].v_mm * (1.0 - t) + base.pts[i + 1].v_mm * t) / base.surface_len_mm.max(1e-9) * ctx.band_v_len_mm
+    };
+    let segments = || {
+        (0..section.points.len().saturating_sub(1))
+            .map(|i| (i, &section.points[i], &section.points[i + 1]))
+            .filter(|(_, a, b)| a.surface && b.surface)
+    };
+    let radius = match radius {
+        Some(r) => r,
+        None => {
+            // The outermost crossing of the height, else the nearest point to the outermost radius there.
+            let mut outer = f64::MIN;
+            for (i, a, b) in segments() {
+                if (z < a.z.min(b.z)) || (z > a.z.max(b.z)) || (b.z - a.z).abs() < 1e-12 {
+                    continue;
+                }
+                let t = (z - a.z) / (b.z - a.z);
+                let r = a.r + (b.r - a.r) * t;
+                if r > outer {
+                    outer = r;
+                    v_mm = chart(i, t);
+                }
+            }
+            if outer > f64::MIN {
+                return v_mm;
+            }
+            section.points.iter().filter(|p| p.surface).map(|p| p.r).fold(f64::MIN, f64::max)
+        }
+    };
+    let mut best = f64::INFINITY;
+    for (i, a, b) in segments() {
+        let delta = [b.r - a.r, b.z - a.z];
+        let denom = delta[0] * delta[0] + delta[1] * delta[1];
+        let t = (((radius - a.r) * delta[0] + (z - a.z) * delta[1]) / denom.max(1e-12)).clamp(0.0, 1.0);
+        let distance = (radius - a.r - t * delta[0]).powi(2) + (z - a.z - t * delta[1]).powi(2);
+        if distance < best {
+            best = distance;
+            v_mm = chart(i, t);
+        }
+    }
+    v_mm
 }
 
 pub fn layers_at(d: &RingDesign, lib: &AlphaLibrary, hit: &Hit) -> Vec<usize> {
