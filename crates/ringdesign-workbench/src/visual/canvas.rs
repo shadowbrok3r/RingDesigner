@@ -276,7 +276,7 @@ impl Visual {
                     self.stamp_contact = Default::default();
                     return edit;
                 }
-                let editable = d.graph.is_none() && d.cad.is_none() && pointer.accepted;
+                let editable = d.graph.is_none() && !crate::cad_tools::replaces_band(d) && pointer.accepted;
                 let (position, place_stamp) = if self.tool == Tool::Stamp {
                     self.stamp_contact.update(ui, response, editable)
                 } else {

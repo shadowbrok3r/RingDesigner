@@ -111,8 +111,12 @@ impl PathTool {
         }
     }
     pub fn controls(&mut self, ui: &mut egui::Ui, d: &RingDesign) {
-        if d.graph.is_some() || d.cad.is_some() {
+        if d.graph.is_some() {
             ui.label("Bake the driven design to edit surface paths.");
+            return;
+        }
+        if crate::cad_tools::replaces_band(d) {
+            ui.label(crate::cad_tools::PARTS_ONLY);
             return;
         }
         let width = (ui.available_width() - 18.0).max(90.0);
@@ -309,7 +313,7 @@ impl PathTool {
             self.stop_drag();
             return None;
         }
-        if d.graph.is_some() || d.cad.is_some() {
+        if d.graph.is_some() || crate::cad_tools::replaces_band(d) {
             return None;
         }
         if let Some(index) = self.apply_pending(d) {

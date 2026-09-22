@@ -11,7 +11,8 @@ use egui::{Stroke, vec2};
 use ringdesign_workbench::{cad_tools, icons::{self, Icon}};
 use ringdesign_core::{
     BuildParams, RingDesign,
-    cad::{self, Boolean, EdgeRef, Evaluated, FaceRef, Feature, Operation, Placement, Profile},
+    cad::{self, Attach, Boolean, EdgeRef, Evaluated, FaceRef, Feature, Operation, Placement, Profile},
+    mesh::BuildResult,
     sketch::{Constraint, Geometry, Sketch},
 };
 use ringdesign_graph::{
@@ -30,6 +31,12 @@ struct View {
     evaluated: Evaluated,
     pairs: Vec<cad::assembly::PairReport>,
     walls: Vec<cad::measure::Thickness>,
+    /// The whole ring as the Ring viewport builds it: band, seats, stamps and the resolved parts.
+    built: Option<BuildResult>,
+    /// Why the whole ring did not build, while the parts alone still show.
+    build_error: Option<String>,
+    /// The stone previews standing on the built ring's seats.
+    gems: Vec<f32>,
 }
 struct Job {
     key: u64,
@@ -102,6 +109,8 @@ pub struct CadState {
     stages: study::Stages,
     section_axis: usize,
     section_offset: f64,
+    /// Show the evaluated parts alone instead of the whole built ring.
+    parts_only: bool,
 }
 impl Default for CadState {
     fn default() -> Self {
@@ -148,6 +157,7 @@ impl Default for CadState {
             stages: Default::default(),
             section_axis: 2,
             section_offset: 0.0,
+            parts_only: false,
         }
     }
 }
@@ -245,6 +255,15 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
     } else {
         "Current feature geometry"
     });
+    if let Some(b) = &v.built {
+        ui.label(format!(
+            "Whole ring {:.2} mm³ • {} tris • {} ms",
+            b.report.volume_mm3, b.report.validation.triangle_count, b.report.build_ms
+        ));
+    }
+    if let Some(e) = &v.build_error {
+        ui.colored_label(theme::WARN, e);
+    }
     for (index, c) in v.evaluated.components.iter().enumerate() {
         ui.separator();
         ui.strong(&c.name);
@@ -298,6 +317,8 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
         refine: None,
         ..app.preview_params
     };
+    // The whole ring builds at the preview quality the Ring viewport shows it at.
+    let ring_params = BuildParams { refine: None, ..app.preview_params };
     let (tx, receiver) = mpsc::channel();
     let cancel = Arc::new(AtomicBool::new(false));
     state.job = Some(Job { key, receiver, cancel: cancel.clone() });
@@ -345,11 +366,20 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
                         )
                     })
                     .collect();
+                // The parts stay for the inspector; the ring is what the Ring viewport will show.
+                let (built, build_error) = match ringdesign_core::mesh::try_build(&d, &lib, ring_params) {
+                    Ok(b) => (Some(b), None),
+                    Err(e) => (None, Some(format!("Whole ring did not build: {e:#}"))),
+                };
+                let gems = built.as_ref().map_or_else(Vec::new, |_| ringdesign_core::gems::preview_vertices(&d, &lib));
                 Ok(View {
                     design: d,
                     evaluated,
                     pairs,
                     walls,
+                    built,
+                    build_error,
+                    gems,
                 })
             }))
             .map_err(|_| "CAD operation failed; original design is unchanged".to_string())
@@ -370,13 +400,29 @@ fn signed_edge(state: &CadState, part: u64, edge: usize) -> EdgeRef {
         })
         .unwrap_or_else(|| EdgeRef::bare(edge))
 }
+/// Whether the candidate carries a procedural shank feature.
+fn has_band(g: &Graph) -> bool {
+    g.nodes.iter().filter(|n| n.kind == "cad.feature").any(|n| {
+        serde_json::from_value::<Feature>(n.params.clone())
+            .is_ok_and(|f| matches!(f.operation, Operation::Band))
+    })
+}
 /// Append one feature to the candidate and select it; an anchor seats it on the ring.
+/// A new solid beside a procedural shank starts joined to it.
 fn add_feature(state: &mut CadState, g: &mut Graph, operation: Operation, anchor: Option<(f64, f64)>) {
+    let shank = has_band(g);
     match graph_cad::append(g, operation) {
         Ok(id) => {
-            if let (Some((theta, height)), Some(node)) = (anchor, g.node_mut(id)) {
+            if let Some(node) = g.node_mut(id) {
                 if let Ok(mut f) = serde_json::from_value::<Feature>(node.params.clone()) {
-                    f.component.placement = Placement::ring(theta, height);
+                    if let Some((theta, height)) = anchor {
+                        f.component.placement = Placement::ring(theta, height);
+                    }
+                    let solid = f.operation.sources().is_empty()
+                        && !matches!(f.operation, Operation::Band | Operation::Sketch { .. });
+                    if shank && solid && !f.component.reference {
+                        f.component.attach = Attach::Join;
+                    }
                     node.params = serde_json::to_value(f).unwrap();
                 }
             }
@@ -394,8 +440,16 @@ fn upload(state: &mut CadState, fit: bool) {
     };
     let mut metal = ringdesign_core::Mesh::default();
     let mut gems = ringdesign_core::Mesh::default();
+    // Isolating or exploding reads the parts one by one, which only the parts view draws.
+    let whole = view
+        .built
+        .as_ref()
+        .filter(|_| !state.parts_only && state.isolated.is_none() && state.explode <= 0.0);
     for (index, c) in view.evaluated.components.iter().enumerate() {
         if !c.settings.visible || state.isolated.is_some_and(|id| id != c.id) {
+            continue;
+        }
+        if whole.is_some() && !c.settings.reference {
             continue;
         }
         let target = if c.settings.reference {
@@ -414,12 +468,17 @@ fn upload(state: &mut CadState, fit: bool) {
             .faces
             .extend(c.mesh.faces.iter().map(|f| f.map(|i| i + offset)));
     }
+    let metal = whole.map_or(&metal, |b| &b.mesh);
     if fit {
         state.camera.fit(metal.bounds());
     }
     if let Ok(mut r) = state.renderer.lock() {
-        r.prepare_cad(&metal);
-        r.prepare_gems(GpuMeshRenderer::stage_plain(&gems));
+        r.prepare_cad(metal);
+        let mut stones = GpuMeshRenderer::stage_plain(&gems);
+        if whole.is_some() {
+            stones.extend_from_slice(&view.gems);
+        }
+        r.prepare_gems(stones);
     }
 }
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
@@ -800,6 +859,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 "Parameters changed — preview to evaluate this candidate",
             );
         }
+        if let Some(e) = state.view.as_ref().and_then(|v| v.build_error.as_deref()) {
+            ui.colored_label(theme::WARN, e);
+        }
         let mut redraw = false;
         egui::Panel::bottom(ui.id().with("cad-view-footer"))
             .frame(egui::Frame::new().inner_margin(6).fill(theme::PANEL)).show(ui, |ui| {
@@ -820,6 +882,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 if icons::compact(ui,Icon::Fit,false).clicked() { redraw = true; }
                 if icons::compact(ui,Icon::Wire,state.display.wire).clicked() {state.display.wire = !state.display.wire;}
                 if icons::compact(ui,Icon::Grid,state.display.grid).clicked() {state.display.grid = !state.display.grid;}
+                let ring_built = state.view.as_ref().is_some_and(|v| v.built.is_some());
+                if ui.add_enabled(ring_built, egui::Checkbox::new(&mut state.parts_only, "Parts only"))
+                    .on_hover_text("Show the evaluated parts alone; off, the whole ring as the Ring viewport builds it")
+                    .on_disabled_hover_text("The whole ring did not build, so only the parts are shown").changed() { redraw = true; }
                 ui.menu_button((Icon::Layers.image(ui,18.), "Display"), |ui| {
                     if ui.button("Show all components").clicked() { state.isolated = None; redraw = true; }
                     if let Some(view) = &state.view {
@@ -1645,10 +1711,13 @@ fn component_ui(ui: &mut egui::Ui, f: &mut Feature) {
         });
     ui.horizontal_wrapped(|ui| {
         ui.checkbox(&mut c.visible, "Visible");
-        ui.checkbox(
-            &mut c.reference,
-            "Reference stone (exclude from metal export)",
-        );
+        if ui
+            .checkbox(&mut c.reference, "Reference stone (exclude from metal export)")
+            .changed()
+            && c.reference
+        {
+            c.attach = Attach::Separate;
+        }
     });
     egui::ComboBox::from_id_salt("component_material")
         .selected_text(&c.material)

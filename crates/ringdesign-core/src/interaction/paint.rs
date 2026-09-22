@@ -94,7 +94,7 @@ impl Gesture {
     }
     pub fn commit(&mut self, d: &mut RingDesign, brush: &Brush) -> Option<usize> {
         self.strokes.retain(|s| !s.is_empty());
-        if self.strokes.is_empty() || d.graph.is_some() || d.cad.is_some() {
+        if self.strokes.is_empty() || d.graph.is_some() || super::surface::replaces_band(d) {
             *self = Self::default();
             return None;
         }
@@ -153,7 +153,7 @@ pub fn stamp(d: &mut RingDesign, lib: &AlphaLibrary, brush: &Brush, hit: &Hit) -
 
 pub fn stamp_pattern(d: &mut RingDesign, lib: &AlphaLibrary, brush: &Brush, hit: &Hit, arrangement: super::surface::Arrangement) -> Option<usize> {
     if d.graph.is_some()
-        || d.cad.is_some()
+        || super::surface::replaces_band(d)
         || !hit.theta_deg.is_finite() || !hit.v_mm.is_finite()
         || !brush.diameter_mm.is_finite() || !brush.depth_mm.is_finite() || !brush.rotation_deg.is_finite()
         || hit.radial_wall_mm < 0.05
