@@ -377,6 +377,17 @@ worktrees, then verified, measured and committed by the integrator.
 - Verified: core 548, workbench 91, gui 74, graph 81 + 6 (the three Nocturne tests red as
   before), graph-ui 26, mcp 43, cli 5, configurator 5, script 5, android 132 host tests, wasm clean,
   zero warnings across the workspace (the machine's `-Awarnings` is gone, 65fbfdd).
+- **Verified live** on a restored graph-driven band with one cylinder: select it, G, type 12,
+  Enter → it moves 12° round the ring as one History entry; Undo takes it back; Ctrl+Z during a
+  live move ends the move and takes back nothing else; J turns the pocket into a post
+  (559.89 → 585.91 mm³); the strip's menu suppresses and Undo restores; B and a window drag take
+  the whole post without orbiting. Three defects found and fixed: Shift+A on a driven design was
+  refused ("Feature identity #5 names another node", the command asks for `Document::fresh_id`,
+  which knows nothing of the graph's other nodes) — the funnel now asks the graph for a fresh id
+  where one of its nodes carries the asked-for one; after an add on a driven design the editor's
+  auto-arrange was recorded as its own History entry, so the first Undo only moved nodes —
+  History treats a change that only moves graph nodes as no edit; and History named a CAD edit by
+  its first changed field ("Across 0 mm -> 0.50 mm") — funnel commits carry the edit's own label.
 - Open: the band surface for the ring frame is built on the UI thread; a Sketch feature has no
   cache slot; which regions a `Profile::Feature` extrudes is a schema decision
   (`regions: Option<Vec<usize>>`); a sketch strip on a driven design lags its graph by one build.
