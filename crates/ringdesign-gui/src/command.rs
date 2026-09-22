@@ -1047,7 +1047,10 @@ fn gizmo_draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: R
         ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
         return;
     }
-    let Some((_, gizmo)) = gizmo_of(app) else { return };
+    let Some((_, gizmo)) = gizmo_of(app) else {
+        app.command.gizmo_hot = None;
+        return;
+    };
     let layout = layout_of(app, pane, rect, &gizmo);
     let hot = app.command.gizmo_hot;
     gizmo::paint(painter, &layout, hot, None);
