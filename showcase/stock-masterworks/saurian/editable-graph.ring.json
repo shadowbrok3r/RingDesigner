@@ -268204,7 +268204,7 @@
           "waves": 1
         },
         "kind": "shank",
-        "label": "Shoulders and taper",
+        "label": "Stock body",
         "pos": [
           240.0,
           0.0
@@ -268230,7 +268230,7 @@
           "theta_deg": 90.0
         },
         "kind": "head",
-        "label": "Signet face",
+        "label": "Stock face dimensions",
         "pos": [
           0.0,
           150.0

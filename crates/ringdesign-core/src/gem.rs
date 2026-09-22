@@ -228,6 +228,10 @@ pub struct Gem {
     pub l_mm: f64,
     #[serde(default)]
     pub form: GemForm,
+    /// Optional linear RGB preview colour. Does not affect the stone's cut or
+    /// the setting geometry; absent in older files, which keep the neutral tint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview_tint: Option<[f32; 3]>,
 }
 
 impl Default for Gem {
@@ -239,7 +243,7 @@ impl Default for Gem {
 impl Gem {
     /// A stone of standard proportions at a stock width.
     pub fn calibrated(cut: GemCut, w_mm: f64) -> Self {
-        Self { cut, w_mm, l_mm: w_mm * cut.aspect(), form: GemForm::Faceted }
+        Self { cut, w_mm, l_mm: w_mm * cut.aspect(), form: GemForm::Faceted, preview_tint: None }
     }
 
     /// A cabochon of the same cut, at its own fatter proportions.
@@ -249,6 +253,7 @@ impl Gem {
             w_mm,
             l_mm: w_mm * cut.aspect().min(CABOCHON_MAX_ASPECT),
             form: GemForm::Cabochon,
+            preview_tint: None,
         }
     }
 

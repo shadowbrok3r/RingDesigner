@@ -172,11 +172,16 @@ pub struct Editor {
     pub revision: u64,
     pub selected: Option<NodeId>,
     pub editable: bool,
+    /// Hosts with a dedicated inspector can keep node cards compact.
+    pub inline_inputs: bool,
     style: SnarlStyle,
     /// A node to centre the view on at the next frame.
     pending_focus: Option<NodeId>,
     /// Fit every node into the view at the next frame.
     pending_fit: bool,
+    /// A zoom the host asked for, applied about the view's own centre so the
+    /// graph does not slide out from under the reader as the slider moves.
+    pending_zoom: Option<f32>,
     /// The press in hand had two fingers down at some point. egui drives its pointer from the first
     /// finger alone, so lifting a pinch whose first finger barely moved reads as a tap — which chose
     /// whatever node was under it, and two quick pinches read as the double click that fits the graph.
@@ -186,6 +191,7 @@ pub struct Editor {
     /// The persistent id the snarl was last shown under, for selection.
     snarl_id: Option<egui::Id>,
     pub show_minimap: bool,
+    pub minimap_corner: egui::Align2,
     /// Every node's drawn size, by graph id so a rebuilt snarl keeps them.
     sizes: HashMap<NodeId, egui::Vec2>,
     /// The sizes the last arrange laid out from, and how many correction
@@ -265,6 +271,7 @@ impl Editor {
             revision: 0,
             selected: None,
             editable: true,
+            inline_inputs: true,
             style: crate::style::snarl_style(),
             pending_focus: None,
             pending_fit: false,
@@ -272,6 +279,7 @@ impl Editor {
             transform: None,
             snarl_id: None,
             show_minimap: true,
+            minimap_corner: egui::Align2::LEFT_TOP,
             sizes: HashMap::new(),
             arranged_sizes: HashMap::new(),
             refine_left: 0,
@@ -279,6 +287,7 @@ impl Editor {
             untangle_pending: false,
             last_sizes: HashMap::new(),
             drag_kind: DragKind::None,
+            pending_zoom: None,
         }
     }
 
@@ -378,12 +387,18 @@ impl Editor {
 
     /// Attach output value summaries for badges.
     pub fn set_values(&mut self, values: &BTreeMap<NodeId, BTreeMap<String, String>>) {
+        let mut first_values = false;
         for (sid, card) in self.snarl.nodes_ids_mut() {
+            let was_empty = card.values.is_empty();
             card.values.clear();
             if let Some(v) = self.ids.to_graph.get(&sid).and_then(|gid| values.get(gid)) {
+                first_values |= was_empty && !v.is_empty();
                 card.values = v.clone();
             }
         }
+        // The first evaluation adds badges that can widen generated cards.
+        // Wait for their new measurements, then repair only actual overlaps.
+        if first_values { self.arrange_if_tangled(); }
     }
 
     /// Centre the view on a node at the next frame, and select it.
@@ -397,6 +412,17 @@ impl Editor {
     /// Fit the whole graph into the view at the next frame.
     pub fn fit(&mut self) {
         self.pending_fit = true;
+    }
+
+    /// The view's current zoom, 1.0 being a node at its drawn size.
+    /// `None` until a frame has drawn and left its transform.
+    pub fn zoom(&self) -> Option<f32> {
+        self.transform.map(|t| t.scaling)
+    }
+
+    /// Zoom to this scale at the next frame, about the view's centre.
+    pub fn set_zoom(&mut self, scale: f32) {
+        self.pending_zoom = Some(scale.clamp(crate::style::MIN_SCALE, crate::style::MAX_SCALE));
     }
 
     /// The nodes in the order a reader steps through them: evaluation
@@ -481,8 +507,11 @@ impl Editor {
         let (pan, veto) = self.drag_gate(ui.ctx(), viewport);
         let saved: Option<Vec<(SnarlId, egui::Pos2)>> = veto.then(|| self.snarl.nodes_pos_ids().map(|(id, pos, _)| (id, pos)).collect());
         let mut viewer = Viewer {
+            zoom: self.pending_zoom.take(),
+            rows: HashMap::new(),
             reg,
             editable: self.editable,
+            inline_inputs: self.inline_inputs,
             clicked: None,
             refused: None,
             search: String::new(),
@@ -536,9 +565,12 @@ impl Editor {
         if !untangled && self.refine_left > 0 && self.all_measured() {
             if sizes_agree(&self.arranged_sizes, &self.sizes) {
                 self.refine_left = 0;
+                // Fit only after the final card sizes and column positions settle.
+                self.pending_fit = true;
             } else {
                 self.refine_left -= 1;
                 self.lay_out(reg);
+                self.pending_fit = true;
                 self.layout_changed = true;
             }
         }
@@ -848,6 +880,7 @@ struct Viewer<'a> {
     /// The gesture in hand had two fingers: nothing it does is a tap.
     pinched: bool,
     editable: bool,
+    inline_inputs: bool,
     clicked: Option<SnarlId>,
     refused: Option<String>,
     search: String,
@@ -862,6 +895,11 @@ struct Viewer<'a> {
     selected: Option<SnarlId>,
     /// Measured node sizes, filled as nodes are drawn.
     sizes: &'a mut HashMap<NodeId, egui::Vec2>,
+    /// A zoom the host asked for, applied about the viewport's centre.
+    zoom: Option<f32>,
+    /// Each node's widest pin row, so its widgets share one right edge.
+    /// Read off the specs alone, never back from the layout it decides.
+    rows: HashMap<SnarlId, f32>,
     /// Screen delta to pan the view by this frame.
     pan: egui::Vec2,
 }
@@ -881,8 +919,7 @@ fn node_bounds(snarl: &Snarl<NodeCard>, sizes: &HashMap<NodeId, egui::Vec2>, ids
 }
 
 impl Editor {
-    /// A small map of every node and the current view, in the top-left
-    /// corner as that app keeps it.
+    /// A small map of every node and the current view, in the host's corner.
     fn paint_minimap(&self, ui: &Ui, viewport: egui::Rect) {
         let Some(bounds) = node_bounds(&self.snarl, &self.sizes, &self.ids) else { return };
         if self.snarl.node_ids().count() < 2 || !viewport.is_finite() || viewport.width() < 160.0 || viewport.height() < 160.0 {
@@ -891,7 +928,7 @@ impl Editor {
         let pad = bounds.expand(60.0);
         let w = (viewport.width() * 0.30).clamp(96.0, 200.0);
         let h = (w * (pad.height() / pad.width().max(1.0)).clamp(0.35, 1.4)).clamp(60.0, 200.0);
-        let map = egui::Rect::from_min_size(viewport.left_top() + egui::vec2(10.0, 10.0), egui::vec2(w, h));
+        let map = self.minimap_corner.align_size_within_rect(egui::vec2(w, h), viewport.shrink(10.0));
         let painter = ui.painter().with_clip_rect(viewport);
         painter.rect_filled(map, 4.0, Color32::from_black_alpha(170));
         let scale = (map.size() / pad.size()).min_elem();
@@ -920,6 +957,23 @@ impl Editor {
     }
 }
 
+/// The widest label-plus-widget a node's input rows need, capped at the field
+/// width. Every widget of known width is then right-aligned to it.
+fn row_width(ui: &Ui, card: &NodeCard) -> f32 {
+    let gap = ui.spacing().item_spacing.x;
+    let font = egui::TextStyle::Body.resolve(ui.style());
+    card.pins_in
+        .iter()
+        .filter_map(|spec| {
+            let w = crate::widgets::widget_width(spec, card.inputs.get(&spec.name))?;
+            let name = if spec.widget == ringdesign_graph::registry::Widget::Image { "Image" } else { &spec.name };
+            let label = ui.painter().layout_no_wrap(name.to_owned(), font.clone(), crate::style::INK).size().x;
+            Some(label + gap + w)
+        })
+        .fold(0.0_f32, f32::max)
+        .min(crate::style::NODE_FIELD_W)
+}
+
 fn pin_info(pin: &PinSpec) -> PinInfo {
     crate::style::pin_info(pin.kind, pin.access)
 }
@@ -927,6 +981,11 @@ fn pin_info(pin: &PinSpec) -> PinInfo {
 impl SnarlViewer<NodeCard> for Viewer<'_> {
     fn title(&mut self, node: &NodeCard) -> String {
         node.title.clone()
+    }
+
+    fn show_header(&mut self, node: SnarlId, _inputs: &[InPin], _outputs: &[OutPin], ui: &mut Ui, snarl: &mut Snarl<NodeCard>) {
+        // Text selection steals title drags from snarl's header interaction.
+        ui.add(egui::Label::new(&snarl[node].title).selectable(false).sense(egui::Sense::hover()));
     }
 
     fn node_frame(&mut self, default: egui::Frame, node: SnarlId, _inputs: &[InPin], _outputs: &[OutPin], snarl: &Snarl<NodeCard>) -> egui::Frame {
@@ -948,23 +1007,33 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     }
 
     fn show_input(&mut self, pin: &InPin, ui: &mut Ui, snarl: &mut Snarl<NodeCard>) -> impl egui_snarl::ui::SnarlPin + 'static {
+        // The node's row width is a function of its own specs, so it is
+        // measured once per node — on its first pin — and never read back
+        // from the layout it decides.
+        if pin.id.input == 0 {
+            let width = row_width(ui, &snarl[pin.id.node]);
+            self.rows.insert(pin.id.node, width);
+        }
+        let row = self.rows.get(&pin.id.node).copied().unwrap_or(0.0);
         let card = &mut snarl[pin.id.node];
         let Some(spec) = card.pins_in.get(pin.id.input).cloned() else { return PinInfo::circle() };
         ui.set_max_width(crate::style::NODE_FIELD_W);
         ui.horizontal(|ui| {
-            ui.label(RichText::new(&spec.name).color(crate::style::INK)).on_hover_text(format!("{}\n{}", spec.kind.label(), spec.doc));
-            if pin.remotes.is_empty() && self.editable {
-                let mut lit = card.inputs.get(&spec.name).cloned();
-                if pin_widget(ui, &spec, &mut lit) {
-                    match lit {
-                        Some(l) => {
-                            card.inputs.insert(spec.name.clone(), l);
-                        }
-                        None => {
-                            card.inputs.remove(&spec.name);
-                        }
-                    }
+            let label = ui.label(RichText::new(if spec.widget == ringdesign_graph::registry::Widget::Image { "Image" } else { &spec.name }).color(crate::style::INK));
+            let label_w = label.rect.width();
+            label.on_hover_text(format!("{}\n{}", spec.kind.label(), spec.doc));
+            if pin.remotes.is_empty() && self.editable && self.inline_inputs {
+                // Temporarily move the literal; a PNG can contain megabytes.
+                let mut lit = card.inputs.remove(&spec.name);
+                // The label stays at the left; a widget of known width is
+                // pushed out to the node's own right edge by a spacer, not by
+                // a right-to-left layout — that one reverses a slider's own
+                // parts and leaves its rail drawn back over the label.
+                if let Some(w) = crate::widgets::widget_width(&spec, lit.as_ref()) {
+                    ui.add_space((row - label_w - ui.spacing().item_spacing.x - w).max(0.0));
                 }
+                pin_widget(ui, &spec, &mut lit);
+                if let Some(literal) = lit { card.inputs.insert(spec.name.clone(), literal); }
             }
         });
         pin_info(&spec)
@@ -1001,18 +1070,23 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
                 to_global.translation = viewport.center().to_vec2() - pad.center().to_vec2() * scale;
             }
         }
+        if let Some(scale) = self.zoom.take() {
+            // About the middle of the view: a slider that slid the graph
+            // sideways as it zoomed would be unusable.
+            let centre = self.viewport.center().to_vec2();
+            let graph = (centre - to_global.translation) / to_global.scaling;
+            to_global.scaling = scale;
+            to_global.translation = centre - graph * scale;
+        }
         if let Some(sid) = self.focus.take() {
             if let Some(info) = snarl.get_node_info(sid) {
                 let size = self.ids.to_graph.get(&sid).and_then(|g| self.sizes.get(g)).copied().unwrap_or(NODE_SIZE);
                 let frame = egui::Rect::from_min_size(info.pos - egui::vec2(FRAME_MARGIN, FRAME_MARGIN), size);
-                // A node already on screen at a readable zoom is chosen where it is: the view is the
-                // reader's, and moving it under their finger is what read as the graph zooming out.
-                let shown = *to_global * frame;
-                if !(to_global.scaling >= FOCUS_MIN_SCALE && self.viewport.shrink(8.0).contains_rect(shown)) {
-                    let (scale, translation) = focus_transform(self.viewport, frame, to_global.scaling);
-                    to_global.scaling = scale;
-                    to_global.translation = translation;
-                }
+                // A focus centres the node. The zoom it arrives at stays the
+                // reader's wherever the node is already readable there.
+                let (scale, translation) = focus_transform(self.viewport, frame, to_global.scaling);
+                to_global.scaling = scale;
+                to_global.translation = translation;
             }
         }
         if self.pan != egui::Vec2::ZERO {
@@ -1030,6 +1104,13 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
         // only agree at the identity view. Unmapped, a tap anywhere — on the
         // host's own buttons too — chose whichever node's graph rect happened
         // to hold that screen position.
+        if let (Some(p), Some(t)) = (ui.input(|i| i.pointer.hover_pos()), self.seen_transform) {
+            let on_canvas = self.viewport.contains(p) && ui.ctx().layer_id_at(p).is_none_or(|l| l.order == egui::Order::Background);
+            if on_canvas && rect.contains(t.inverse() * p) && !self.pinched {
+                ui.painter().rect_stroke(rect, crate::style::NODE_CORNER, egui::Stroke::new(1.7 / t.scaling.max(0.1), crate::style::AQUA), egui::StrokeKind::Inside);
+                if !ui.ctx().egui_is_using_pointer() { ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand); }
+            }
+        }
         let tap = ui.input(|i| if i.pointer.primary_clicked() && !self.pinched { i.pointer.interact_pos() } else { None });
         if let (Some(p), Some(t)) = (tap, self.seen_transform) {
             let on_canvas = self.viewport.contains(p) && ui.ctx().layer_id_at(p).is_none_or(|l| l.order == egui::Order::Background);
@@ -1090,7 +1171,8 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
         if !needle.is_empty() {
             egui::ScrollArea::vertical().max_height(260.0).show(ui, |ui| {
                 for spec in specs.iter().filter(|s| s.key.to_lowercase().contains(&needle) || s.label.to_lowercase().contains(&needle)) {
-                    if ui.button(format!("{}  ({})", spec.label, spec.key)).on_hover_text(&spec.doc).clicked() {
+                    let mark = crate::marks::of(spec);
+                    if crate::marks::button(ui, mark, &format!("{}  ({})", spec.label, spec.key)).on_hover_text(&spec.doc).clicked() {
                         snarl.insert_node(pos, NodeCard::new_of(spec, self.reg));
                         self.search.clear();
                         ui.close();
@@ -1104,9 +1186,10 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
             if in_cat.is_empty() {
                 continue;
             }
-            ui.menu_button(cat.label(), |ui| {
+            crate::marks::submenu(ui, *cat, |ui| {
                 for spec in in_cat {
-                    if ui.button(&spec.label).on_hover_text(format!("{}\n{}", spec.key, spec.doc)).clicked() {
+                    let mark = crate::marks::of(spec);
+                    if crate::marks::button(ui, mark, &spec.label).on_hover_text(format!("{}\n{}", spec.key, spec.doc)).clicked() {
                         snarl.insert_node(pos, NodeCard::new_of(spec, self.reg));
                         ui.close();
                     }
@@ -1189,7 +1272,7 @@ mod tests {
 
         // Text -> Number is refused by the viewer; Number -> Number replaces.
         let (mut snarl, ids) = build_snarl(&g, &reg);
-        let mut viewer = Viewer { reg: &reg, editable: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0)), seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), pan: egui::Vec2::ZERO , pinched: false };
+        let mut viewer = Viewer { reg: &reg, editable: true, inline_inputs: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0)), seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), rows: HashMap::new(), zoom: None, pan: egui::Vec2::ZERO , pinched: false };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
         viewer.connect(&text_out, &add_b, &mut snarl);

@@ -75,6 +75,8 @@ pub enum Widget {
     Select(Vec<String>),
     TextLine,
     TextArea,
+    /// A portable PNG chosen visually, never edited as its base64 payload.
+    Image,
 }
 
 /// One pin.

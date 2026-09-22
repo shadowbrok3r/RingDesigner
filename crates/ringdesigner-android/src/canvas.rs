@@ -116,6 +116,7 @@ pub struct CanvasInput<'a> {
 /// What the canvas did this frame.
 #[derive(Default)]
 pub struct CanvasOutput {
+    pub brush_chart: Option<([f64;2], bool)>,
     /// A stroke was extended or finished, so the design changed.
     pub painted: bool,
     /// A stroke ended — the moment to commit and rebuild at full quality.
@@ -385,6 +386,7 @@ pub fn show(ui: &mut egui::Ui, input: CanvasInput<'_>) -> CanvasOutput {
         let wanted = paint::wanted_mm(1.0, depth_scale).max(1e-6);
         let allowed = (b.depth_mm / wanted).clamp(0.0, 1.0) as f32;
 
+        if domain == Domain::Band { out.brush_chart=Some(([n.x as f64, v_mm],response.dragged() && accepted && multi.is_none())); }
         let r_px = (brush_frac * plot.width() * view.zoom).clamp(3.0, 240.0);
         // Fade the preview in as the tip approaches. `Axis::Distance` is in
         // device units and simply absent on hardware that does not report it,

@@ -1,0 +1,250 @@
+{
+  "court-band": {
+    "source": "target/template-library-review/starter-renders/court_band.png",
+    "source_sha256": "ce060f5f053cf81f7d86c3a01f287dae383633dd6445cc1368f645b63af0d0dd",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "heart-signet": {
+    "source": "target/template-library-review/starter-renders/heart_signet.png",
+    "source_sha256": "3dcaa061e95db94cbd5bebc093f0d3abac74df3707930ff2256d50e34d5562d4",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "waved-hexagon-signet": {
+    "source": "target/template-library-review/starter-renders/waved_hexagon_signet.png",
+    "source_sha256": "42bc64340c8ca69428ee47c844ef31738a96af5fdf6b032e7584d0fa7a8dd779",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "shouldered-cushion-signet": {
+    "source": "target/template-library-review/starter-renders/shouldered_cushion_signet.png",
+    "source_sha256": "6ff12c59781c9b6a0bbadb09fa57f85d00a83801289250df76a514e970ebddea",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "braided-band": {
+    "source": "target/template-library-review/starter-renders/braided_band.png",
+    "source_sha256": "fbca195bbe7a747f7566a8b859f3afbe3835cf20e28fc49ca2663fc5e69ac586",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "cathedral-solitaire-stock": {
+    "source": "target/template-library-review/starter-renders/cathedral_solitaire_stock.png",
+    "source_sha256": "772d5af41998130e7403be17f34a28f5d232e0e2aa23b4cc967caacfe8ace593",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "wishbone-wave": {
+    "source": "target/template-library-review/starter-renders/wishbone_wave.png",
+    "source_sha256": "318cc907c69bdc39e673290b9066ef18a4a28866fcb845adc5d921e3d8fd08c8",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "split-shank": {
+    "source": "target/template-library-review/starter-renders/split_shank.png",
+    "source_sha256": "bed5d2a0e6530ff734907ff745d3f0e10d7a715f1904e5894c03d7e13ac2eb5e",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "toi-et-moi": {
+    "source": "target/template-library-review/starter-renders/toi_et_moi.png",
+    "source_sha256": "c3b404ce21eff4acdee9be5fd2a4d4aeeae37b553d15753d2f61ffe5206d32e4",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "nocturne": {
+    "source": "showcase/masterwork-signets/nocturne/hero.png",
+    "source_sha256": "df59f89c9e13cd688a318033b4bc2b9faf952ca43500d9e0f29e89d2e89e0d2c",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "solstice": {
+    "source": "showcase/masterwork-signets/solstice/hero.png",
+    "source_sha256": "7ed08bb096b40be2ba2b987a1eb93ef2cdabd7a6adaada0d640296054b12abec",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "aster-atelier": {
+    "source": "showcase/aster-atelier/hero.png",
+    "source_sha256": "a1f082a51c9f922bbeaa8a7d9ab9661d18d9d475bf699af5d07cd72e85fc803c",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "thalassa": {
+    "source": "showcase/thalassa/hero.png",
+    "source_sha256": "cfee7d5e04d0075bf51c570e4751b2044493780f0b376c07156c9a1b79e7f58c",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "oriel": {
+    "source": "target/atelier/oriel-hero.png",
+    "source_sha256": "fc36ad2be24a5aaa6c19f500dea7ba0781f419d1da98e4330a89c173026f4810",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "nocturne-imported": {
+    "source": "showcase/stock-masterworks/nocturne/hero.png",
+    "source_sha256": "07e2b6f767ab4704043b4d4f12d6966f4352490742595c6fffc04af30a839687",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "solstice-imported": {
+    "source": "showcase/stock-masterworks/solstice/hero.png",
+    "source_sha256": "5e938c3512b6328a85205f9a012366c49ade6bd2016e85e95fd483cbb0ccbb19",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "aurelia-imported": {
+    "source": "showcase/stock-masterworks/aurelia/hero.png",
+    "source_sha256": "d91bd5e62227ba83e0e0e71f7cfe6a1514d4545ab3b364b5c26d35bbcd443c3f",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "vesper-imported": {
+    "source": "showcase/stock-masterworks/vesper/hero.png",
+    "source_sha256": "a382da6b4e32fb19022d28083184f437a2fe1c2c702825806abec60b939dc6ca",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "saurian-imported": {
+    "source": "showcase/stock-masterworks/saurian/hero.png",
+    "source_sha256": "16574aa7d260abb8317fc971f5ccc90cc9af115cc25ebe640be73a491f740dab",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "zenith-imported": {
+    "source": "showcase/stock-masterworks/zenith/hero.png",
+    "source_sha256": "0813aa12fa7f15a64f57c4196f1150e6d96be98f88044176a93199bc28385690",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "caiman-imported": {
+    "source": "showcase/stock-masterworks/caiman/hero.png",
+    "source_sha256": "57adeb9b5ca4c1c325d0b9fe307e58d7a44a91c94aee751d06c4d53df3a0f31c",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "ecdysis-reptilia": {
+    "source": "showcase/reptilia/ecdysis/hero.png",
+    "source_sha256": "f90ee7e20d7a570289135f8edd8f5edcdff07b8ab2302568cb0aa50e76a73f43",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "tessera-reptilia": {
+    "source": "showcase/reptilia/tessera/hero.png",
+    "source_sha256": "16ab68f9cf82ba01b039dc293c3576dbfd114a40aaef449a33fe8392450ceb39",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "lorica-reptilia": {
+    "source": "showcase/reptilia/lorica/hero.png",
+    "source_sha256": "6cfb69cfb9e87ba4ef764cb9bad558b21485e3732da9417d627defa7b2e131f2",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "ophidian-reptilia": {
+    "source": "showcase/reptilia/ophidian/hero.png",
+    "source_sha256": "b1e888ff9f64e3b6b735c77ce39a43e8bd1adee74f6c42af30ef69720c38413e",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "varanus-reptilia": {
+    "source": "showcase/reptilia/varanus/hero.png",
+    "source_sha256": "b52581fe754e6d68835a1b9ce08e488554b6b7cad4736cd989f4b13b46d00c34",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "aster-botanical": {
+    "source": "showcase/aster/hero.png",
+    "source_sha256": "f960cb6d261a7575ccded5a418777e92be7510711a1634247e6e94f0b3ec0eb8",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "aster-workshop": {
+    "source": "showcase/workshop-collection/aster/hero.png",
+    "source_sha256": "5b8bdefffa7fbc06a86d34c70cb0d88babb2eccaf229b676b6f8c60f77a176f7",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "tide-workshop": {
+    "source": "showcase/workshop-collection/tide/hero.png",
+    "source_sha256": "d822eb12dc5dc0251b0f732a53b9ead5a27da0bcd0466c7ca39025a70805938e",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "lantern-workshop": {
+    "source": "showcase/workshop-collection/lantern/hero.png",
+    "source_sha256": "21279a9edcf1957473ec90e3dcb4b55f1d4a565e884672bb4c0187f340741a83",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "aureole-workshop": {
+    "source": "showcase/workshop-collection/aureole/hero.png",
+    "source_sha256": "12b16df4d76ac41c5f9173e74082fc673bead705e8b18c0b652fc1fd6460d1f6",
+    "size": [
+      160,
+      160
+    ]
+  }
+}

@@ -67,6 +67,28 @@ pub enum Geometry {
     Arc { center: Id, start: Id, end: Id },
     Bezier { points: [Id; 4] },
 }
+impl Geometry {
+    /// Every point the geometry names.
+    pub fn points(&self) -> Vec<Id> {
+        match self {
+            Self::Line { a, b } => vec![*a, *b],
+            Self::Polyline { points, .. } => points.clone(),
+            Self::Circle { center, rim } => vec![*center, *rim],
+            Self::Arc { center, start, end } => vec![*center, *start, *end],
+            Self::Bezier { points } => points.to_vec(),
+        }
+    }
+    /// The two ends a neighbour joins; `None` for geometry that closes on itself.
+    fn ends(&self) -> Option<(Id, Id)> {
+        match self {
+            Self::Line { a, b } => Some((*a, *b)),
+            Self::Polyline { closed: true, .. } | Self::Circle { .. } => None,
+            Self::Polyline { points, .. } => Some((*points.first()?, *points.last()?)),
+            Self::Arc { start, end, .. } => Some((*start, *end)),
+            Self::Bezier { points } => Some((points[0], points[3])),
+        }
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Entity {
     pub id: Id,
@@ -96,6 +118,17 @@ pub enum Constraint {
         center: Id,
         at: Id,
     },
+}
+impl Constraint {
+    /// Every point the constraint names.
+    pub fn points(&self) -> Vec<Id> {
+        match *self {
+            Self::Horizontal(a, b) | Self::Vertical(a, b) | Self::Coincident(a, b) => vec![a, b],
+            Self::Distance { a, b, .. } => vec![a, b],
+            Self::Symmetry { a, b, center } => vec![a, b, center],
+            Self::Tangent { a, b, center, at } => vec![a, b, center, at],
+        }
+    }
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
@@ -312,6 +345,80 @@ impl Sketch {
     pub fn solved_curves(&self) -> Result<Vec<Curve>> {
         self.solve()?.sketch.curves()
     }
+    /// Remove one entity, then every point nothing names any more.
+    pub fn remove_entity(&mut self, id: Id) {
+        self.entities.retain(|e| e.id != id);
+        self.prune_points();
+    }
+    /// Remove one point with every entity and constraint that names it.
+    pub fn remove_point(&mut self, id: Id) {
+        self.entities.retain(|e| !e.geometry.points().contains(&id));
+        self.constraints.retain(|c| !c.points().contains(&id));
+        self.points.retain(|p| p.id != id);
+        self.prune_points();
+    }
+    fn prune_points(&mut self) {
+        let named: BTreeSet<Id> = self
+            .entities
+            .iter()
+            .flat_map(|e| e.geometry.points())
+            .collect();
+        self.constraints
+            .retain(|c| c.points().iter().all(|id| named.contains(id)));
+        self.points.retain(|p| named.contains(&p.id));
+    }
+    /// The solved profile as one closed loop in joining order, or the reason it is not one.
+    pub fn profile_curves(&self) -> Result<Vec<Curve>> {
+        let solved = self.solve()?.sketch;
+        let key = |id: Id| -> Result<[i64; 2]> {
+            Ok(solved.at(id)?.map(|v| (v * 1e6).round() as i64))
+        };
+        let mut closed = Vec::new();
+        let mut open = Vec::new();
+        for e in solved.entities.iter().filter(|e| !e.construction) {
+            let curves = solved.curves_of(e)?;
+            match e.geometry.ends() {
+                Some((a, b)) if key(a)? != key(b)? => open.push((a, b, curves)),
+                _ => closed.push(curves),
+            }
+        }
+        ensure!(
+            !closed.is_empty() || !open.is_empty(),
+            "Sketch has no profile geometry"
+        );
+        let mut chains: Vec<Vec<Curve>> = closed;
+        while !open.is_empty() {
+            let (start, mut end, mut chain) = open.remove(0);
+            while key(end)? != key(start)? {
+                let at = key(end)?;
+                let mut next = None;
+                for (i, (a, b, _)) in open.iter().enumerate() {
+                    if key(*a)? == at || key(*b)? == at {
+                        next = Some(i);
+                        break;
+                    }
+                }
+                let Some(i) = next else {
+                    bail!("Sketch profile is open at point #{end}; join it to close the loop");
+                };
+                let (a, b, mut curves) = open.remove(i);
+                if key(a)? == at {
+                    end = b;
+                } else {
+                    curves.reverse();
+                    end = a;
+                }
+                chain.extend(curves);
+            }
+            chains.push(chain);
+        }
+        ensure!(
+            chains.len() == 1,
+            "Sketch has {} separate loops; a profile is one closed loop. Delete the others or mark them Construction",
+            chains.len()
+        );
+        Ok(chains.remove(0))
+    }
     fn residuals(&self) -> Result<Vec<f64>> {
         let mut r = Vec::new();
         for c in &self.constraints {
@@ -517,6 +624,25 @@ mod tests {
         assert_eq!(snap.kind, "Tangent");
         assert!((distance(snap.xy, [0.0, 0.0]) - 2.0).abs() < 1e-9);
         assert!(((a[0] - snap.xy[0]) * snap.xy[0] + (a[1] - snap.xy[1]) * snap.xy[1]).abs() < 1e-9);
+    }
+    #[test]
+    fn a_profile_names_its_loops_and_joins_lines_drawn_in_any_order() {
+        let mut s = Sketch::rectangle(8.0, 6.0);
+        let p = [[10.0, 0.0], [14.0, 0.0], [12.0, 3.0]].map(|p| s.point(p));
+        s.entity(Geometry::Line { a: p[0], b: p[1] });
+        s.entity(Geometry::Line { a: p[0], b: p[2] });
+        let open = s.profile_curves().err().unwrap().to_string();
+        assert!(open.contains("open at point"), "{open}");
+        s.entity(Geometry::Line { a: p[2], b: p[1] });
+        let two = s.profile_curves().err().unwrap().to_string();
+        assert!(two.contains("2 separate loops"), "{two}");
+        let rectangle = s.entities[0].id;
+        s.remove_entity(rectangle);
+        assert_eq!(s.points.len(), 3);
+        assert!(s.constraints.is_empty());
+        assert_eq!(s.profile_curves().unwrap().len(), 3);
+        s.remove_point(p[2]);
+        assert_eq!((s.points.len(), s.entities.len()), (2, 1));
     }
     #[test]
     fn workplane_roundtrip_and_sketch_persistence() {

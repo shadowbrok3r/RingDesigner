@@ -1,6 +1,52 @@
 use super::*;
 
 #[test]
+fn floating_palette_buttons_keep_the_mobile_standard_height() {
+    let ctx = egui::Context::default();
+    crate::theme::apply(&ctx);
+    let mut saved = None;
+    let mut heights = Vec::new();
+    for _ in 0..3 {
+        frame(&ctx, vec![], |root| {
+            heights = floating(
+                root.ctx(),
+                "height-review",
+                "Tools",
+                root.max_rect(),
+                egui::vec2(300., 240.),
+                egui::vec2(8., 8.),
+                &mut saved,
+                Some("Close"),
+                |ui| {
+                    let mut heights = Vec::new();
+                    heights.push(ui.button("Action").rect.height());
+                    heights.push(ui.small_button("Compact action").rect.height());
+                    heights.push(ui.selectable_label(true, "Selected").rect.height());
+                    heights.push(ui.menu_button("Display", |_| {}).response.rect.height());
+                    heights.push(
+                        ringdesign_workbench::icons::compact(
+                            ui,
+                            ringdesign_workbench::icons::Icon::Undo,
+                            false,
+                        )
+                        .rect
+                        .height(),
+                    );
+                    heights
+                },
+            )
+            .inner;
+        });
+    }
+    assert!(
+        heights
+            .iter()
+            .all(|height| (*height - crate::theme::MENU_ROW_H).abs() < 0.1),
+        "Button heights: {heights:?}"
+    );
+}
+
+#[test]
 fn bottom_inspector_hugs_content_and_never_exceeds_half_the_workspace() {
     assert_eq!(content_height(720.0, Some(96.0)), 96.0);
     assert_eq!(content_height(720.0, Some(900.0)), 360.0);

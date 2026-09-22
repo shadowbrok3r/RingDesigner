@@ -9,7 +9,9 @@
 //! root `[patch.crates-io]` table reaches it, so exactly one egui is in the
 //! tree. [`editor`] is filled in by M3.2.
 
+pub mod marks;
 pub mod editor;
+pub mod alpha_picker;
 pub mod navigator;
 pub mod style;
 pub mod widgets;

@@ -4,10 +4,40 @@ use egui::Ui;
 use ringdesign_graph::registry::{PinSpec, Widget};
 use ringdesign_graph::value::{Literal, ValueKind};
 
+/// The width the inline widget for this pin draws at, or `None` where it is
+/// set by its content. Mirrors the `add_sized` calls in [`pin_widget`].
+pub fn widget_width(pin: &PinSpec, literal: Option<&Literal>) -> Option<f32> {
+    let effective = literal.or(pin.default.as_ref());
+    if pin.widget == Widget::Image || pin.kind == ValueKind::AlphaRef {
+        return None;
+    }
+    match effective {
+        Some(Literal::Expr(_)) => return Some(152.0),
+        Some(Literal::List(_) | Literal::Json(_)) => return None,
+        _ => {}
+    }
+    Some(match (&pin.widget, pin.kind) {
+        (Widget::Checkbox, _) | (Widget::Auto, ValueKind::Bool) => 16.0,
+        (Widget::Select(_), _) => 110.0,
+        (Widget::Slider { .. }, _) => 120.0,
+        (Widget::Mm { .. }, _) => 90.0,
+        (Widget::Angle, _) => 80.0,
+        (Widget::TextLine, _) | (Widget::Auto, ValueKind::Text | ValueKind::AlphaRef) => 120.0,
+        (Widget::TextArea, _) => return None,
+        (Widget::Auto, ValueKind::Int) => 70.0,
+        (Widget::Auto, ValueKind::Number) => 80.0,
+        _ => 12.0,
+    })
+}
+
 /// Draw the widget for an unwired pin over its literal. Returns whether
 /// the literal changed.
 pub fn pin_widget(ui: &mut Ui, pin: &PinSpec, literal: &mut Option<Literal>) -> bool {
-    let effective = literal.clone().or_else(|| pin.default.clone());
+    let effective = literal.as_ref().or(pin.default.as_ref());
+    // Images must bypass text layout and cloning, including while folded.
+    if (pin.widget == Widget::Image || pin.kind == ValueKind::AlphaRef) && !matches!(effective, Some(Literal::Expr(_))) {
+        return crate::alpha_picker::widget(ui, pin, literal);
+    }
     if let Some(Literal::Expr(e)) = &effective {
         let mut code = e.expr.clone();
         ui.label(egui::RichText::new("=").monospace().strong());
@@ -28,14 +58,14 @@ pub fn pin_widget(ui: &mut Ui, pin: &PinSpec, literal: &mut Option<Literal>) -> 
     let mut changed = false;
     match (&pin.widget, pin.kind) {
         (Widget::Checkbox, _) | (Widget::Auto, ValueKind::Bool) => {
-            let mut v = effective.as_ref().and_then(as_bool).unwrap_or(false);
+            let mut v = effective.and_then(as_bool).unwrap_or(false);
             if ui.checkbox(&mut v, "").changed() {
                 *literal = Some(Literal::Bool(v));
                 changed = true;
             }
         }
         (Widget::Select(names), _) => {
-            let mut v = effective.as_ref().and_then(as_text).unwrap_or_default();
+            let mut v = effective.and_then(as_text).unwrap_or_default();
             let id = ui.id().with(&pin.name);
             egui::ComboBox::from_id_salt(id).selected_text(if v.is_empty() { "…".to_string() } else { v.clone() }).width(110.0).show_ui(ui, |ui| {
                 for n in names {
@@ -49,35 +79,35 @@ pub fn pin_widget(ui: &mut Ui, pin: &PinSpec, literal: &mut Option<Literal>) -> 
             }
         }
         (Widget::Slider { min, max }, _) => {
-            let mut v = effective.as_ref().and_then(as_f64).unwrap_or(*min);
+            let mut v = effective.and_then(as_f64).unwrap_or(*min);
             if ui.add_sized([120.0, 18.0], egui::Slider::new(&mut v, *min..=*max).show_value(true)).changed() {
                 *literal = Some(number_like(pin.kind, v));
                 changed = true;
             }
         }
         (Widget::Mm { min, max }, _) => {
-            let mut v = effective.as_ref().and_then(as_f64).unwrap_or(*min);
+            let mut v = effective.and_then(as_f64).unwrap_or(*min);
             if ui.add_sized([90.0, 18.0], egui::DragValue::new(&mut v).range(*min..=*max).speed(0.05).suffix(" mm").fixed_decimals(2)).changed() {
                 *literal = Some(number_like(pin.kind, v));
                 changed = true;
             }
         }
         (Widget::Angle, _) => {
-            let mut v = effective.as_ref().and_then(as_f64).unwrap_or(90.0);
+            let mut v = effective.and_then(as_f64).unwrap_or(90.0);
             if ui.add_sized([80.0, 18.0], egui::DragValue::new(&mut v).speed(0.5).suffix("°").fixed_decimals(1)).changed() {
                 *literal = Some(number_like(pin.kind, v));
                 changed = true;
             }
         }
         (Widget::TextLine, _) | (Widget::Auto, ValueKind::Text | ValueKind::AlphaRef) => {
-            let mut v = effective.as_ref().and_then(as_text).unwrap_or_default();
+            let mut v = effective.and_then(as_text).unwrap_or_default();
             if ui.add_sized([120.0, 18.0], egui::TextEdit::singleline(&mut v)).changed() {
                 *literal = Some(Literal::Text(v));
                 changed = true;
             }
         }
         (Widget::TextArea, _) => {
-            let mut v = effective.as_ref().and_then(as_text).unwrap_or_default();
+            let mut v = effective.and_then(as_text).unwrap_or_default();
             // add_sized is a minimum size: a portable PNG's base64 used
             // to stretch its node thousands of rows and destroy Fit.
             // Keep large source payloads folded, and bound the editor even
@@ -100,14 +130,14 @@ pub fn pin_widget(ui: &mut Ui, pin: &PinSpec, literal: &mut Option<Literal>) -> 
             }
         }
         (Widget::Auto, ValueKind::Int) => {
-            let mut v = effective.as_ref().and_then(as_i64).unwrap_or(0);
+            let mut v = effective.and_then(as_i64).unwrap_or(0);
             if ui.add_sized([70.0, 18.0], egui::DragValue::new(&mut v).speed(0.1)).changed() {
                 *literal = Some(Literal::Int(v));
                 changed = true;
             }
         }
         (Widget::Auto, ValueKind::Number) => {
-            let mut v = effective.as_ref().and_then(as_f64).unwrap_or(0.0);
+            let mut v = effective.and_then(as_f64).unwrap_or(0.0);
             if ui.add_sized([80.0, 18.0], egui::DragValue::new(&mut v).speed(0.05).max_decimals(4)).changed() {
                 *literal = Some(Literal::Number(v));
                 changed = true;

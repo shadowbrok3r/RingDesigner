@@ -50,6 +50,7 @@ pub mod pave;
 pub mod profile;
 pub mod refine;
 pub mod render;
+pub mod reptile;
 pub mod setstone;
 pub mod setting;
 pub mod sizing;

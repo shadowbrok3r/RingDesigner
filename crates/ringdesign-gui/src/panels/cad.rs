@@ -2,12 +2,13 @@
 //! own evaluated solids and renderer; Enter applies one edit, Escape cancels.
 use crate::{
     app::RingDesignerApp,
-    camera::{OrbitCamera, StandardView},
+    camera::OrbitCamera,
     pane::PaneKind,
     theme,
     viewport::GpuMeshRenderer,
 };
 use egui::{Stroke, vec2};
+use ringdesign_workbench::{cad_tools, icons::{self, Icon}};
 use ringdesign_core::{
     BuildParams, RingDesign,
     cad::{self, Boolean, Evaluated, Feature, Operation},
@@ -19,6 +20,7 @@ use ringdesign_graph::{
 };
 use std::sync::{
     Arc, Mutex,
+    atomic::{AtomicBool, AtomicUsize, Ordering},
     mpsc::{self, Receiver},
 };
 
@@ -32,6 +34,30 @@ struct View {
 struct Job {
     key: u64,
     receiver: Receiver<Result<View, String>>,
+    cancel: Arc<AtomicBool>,
+}
+/// One running evaluation plus the abandoned ones still inside a kernel call.
+const MAX_WORKERS: usize = 3;
+struct Live(Arc<AtomicUsize>);
+impl Drop for Live {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+/// What another pane or the palette asks of the CAD pane.
+pub enum CadRequest {
+    /// A new feature, optionally anchored at a ring angle and radial height.
+    Add { operation: Operation, anchor: Option<(f64, f64)> },
+    Preview,
+    Apply,
+    Discard,
+}
+/// What the pointer was over when a context menu opened.
+#[derive(Clone, Copy)]
+struct MenuHit {
+    part: u64,
+    point: Option<[f32; 3]>,
+    edge: Option<usize>,
 }
 pub struct CadState {
     draft: Option<Graph>,
@@ -44,6 +70,9 @@ pub struct CadState {
     requested: u64,
     renderer: Arc<Mutex<GpuMeshRenderer>>,
     camera: OrbitCamera,
+    display: crate::viewport::CandidateDisplay,
+    changed_at: f64,
+    observed: u64,
     error: Option<String>,
     message: String,
     json: String,
@@ -54,7 +83,16 @@ pub struct CadState {
     constraint_kind: usize,
     dimension: f64,
     construction: bool,
+    escape_requested: bool,
+    delete_requested: bool,
     sketch_scale: f32,
+    sketch_pan: egui::Vec2,
+    entity: Option<u64>,
+    workers: Arc<AtomicUsize>,
+    discarded: Option<Graph>,
+    requests: Vec<CadRequest>,
+    menu_hit: Option<MenuHit>,
+    pub ring_menu_hit: Option<[f32; 3]>,
     isolated: Option<u64>,
     explode: f64,
     edge: Option<(u64, usize)>,
@@ -78,6 +116,9 @@ impl Default for CadState {
             requested: 0,
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
             camera: OrbitCamera::default(),
+            display: Default::default(),
+            changed_at: 0.0,
+            observed: 0,
             error: None,
             message: String::new(),
             json: String::new(),
@@ -88,7 +129,16 @@ impl Default for CadState {
             constraint_kind: 0,
             dimension: 6.0,
             construction: false,
+            escape_requested: false,
+            delete_requested: false,
             sketch_scale: 25.0,
+            sketch_pan: egui::Vec2::ZERO,
+            entity: None,
+            workers: Default::default(),
+            discarded: None,
+            requests: Vec::new(),
+            menu_hit: None,
+            ring_menu_hit: None,
             isolated: None,
             explode: 0.0,
             edge: None,
@@ -102,6 +152,22 @@ impl Default for CadState {
     }
 }
 impl CadState {
+    /// Escape from the global shortcut router: backs out of pending sketch picks, then a history
+    /// rollback. It never discards the candidate.
+    pub fn cancel_shortcut(&mut self) -> bool {
+        let editing = self.rollback.is_some() || !self.pending.is_empty();
+        self.escape_requested |= editing;
+        editing
+    }
+    /// Delete from the global shortcut router: the selected sketch point or entity.
+    pub fn delete_shortcut(&mut self) -> bool {
+        let editing = self.tab == 1 && (self.point.is_some() || self.entity.is_some());
+        self.delete_requested |= editing;
+        editing
+    }
+    pub fn request(&mut self, request: CadRequest) {
+        self.requests.push(request);
+    }
     pub fn open_section(&mut self) {
         self.tab = 6;
     }
@@ -116,6 +182,19 @@ fn source_key(app: &RingDesignerApp) -> u64 {
         hash(&(&app.design, Arc::as_ptr(&app.lib) as usize))
     }
 }
+/// Queue a request and bring the CAD pane up to serve it.
+pub fn ask(app: &mut RingDesignerApp, request: CadRequest) {
+    app.cad.request(request);
+    app.focus(PaneKind::Cad);
+}
+/// Add the starter feature called `label`, seated at a ring angle and radial height when given.
+pub fn add_starter(app: &mut RingDesignerApp, label: &str, anchor: Option<(f64, f64)>) {
+    if let Some(operation) = cad_tools::starters(0, 0).into_iter().find(|op| op.label() == label) {
+        ask(app, CadRequest::Add { operation, anchor });
+    }
+}
+/// Starters that make sense seated on the ring's surface.
+pub const PLACEABLE: [&str; 6] = ["Box", "Cylinder", "Sphere", "Extrude", "Sweep", "Loft"];
 pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
     let state = &app.cad;
     ui.strong("CAD candidate");
@@ -179,6 +258,14 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
     ui.weak("Use Casting for component release, flask fit, and pattern preparation");
 }
 fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Context) {
+    if let Some(job) = state.job.take() {
+        job.cancel.store(true, Ordering::Relaxed);
+    }
+    if state.workers.load(Ordering::Relaxed) >= MAX_WORKERS {
+        state.message = "Waiting for an earlier evaluation to stop".into();
+        ctx.request_repaint_after(std::time::Duration::from_millis(200));
+        return;
+    }
     let rollback = state.rollback;
     let key = hash(&(&g, rollback));
     let lib = app.lib.clone();
@@ -190,10 +277,14 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
         ..app.preview_params
     };
     let (tx, receiver) = mpsc::channel();
-    state.job = Some(Job { key, receiver });
+    let cancel = Arc::new(AtomicBool::new(false));
+    state.job = Some(Job { key, receiver, cancel: cancel.clone() });
     state.requested = key;
     state.error = None;
+    state.workers.fetch_add(1, Ordering::Relaxed);
+    let live = Live(state.workers.clone());
     std::thread::spawn(move || {
+        let _live = live;
         let result =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> anyhow::Result<View> {
                 let mut evaluator =
@@ -217,7 +308,7 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
                     d.cad = Some(doc);
                 }
                 d.cad.as_mut().unwrap().through = None;
-                let evaluated = cad::evaluate(&d, &lib, params)?;
+                let evaluated = cad::evaluate_with(&d, &lib, params, &cad::BuildCtx { cancel: &cancel })?;
                 let pairs = cad::assembly::inspect(&d, &evaluated);
                 let walls = evaluated
                     .components
@@ -244,6 +335,25 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
         let _ = tx.send(result);
         ctx.request_repaint();
     });
+}
+/// Append one feature to the candidate and select it; an anchor seats it on the ring.
+fn add_feature(state: &mut CadState, g: &mut Graph, operation: Operation, anchor: Option<(f64, f64)>) {
+    match graph_cad::append(g, operation) {
+        Ok(id) => {
+            if let (Some((theta, height)), Some(node)) = (anchor, g.node_mut(id)) {
+                if let Ok(mut f) = serde_json::from_value::<Feature>(node.params.clone()) {
+                    f.component.ring_anchor_deg = Some(theta);
+                    f.component.anchor_height_mm = height;
+                    node.params = serde_json::to_value(f).unwrap();
+                }
+            }
+            state.selected = Some(id);
+            state.json_node = None;
+            state.tab = 0;
+            state.rollback = None;
+        }
+        Err(e) => state.error = Some(e.to_string()),
+    }
 }
 fn upload(state: &mut CadState, fit: bool) {
     let Some(view) = &state.view else {
@@ -289,9 +399,17 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         state.pending.clear();
         state.requested = 0;
         state.view_key = 0;
-        state.job = None;
+        state.view = None;
+        state.selected = None;
+        state.edge = None;
+        state.isolated = None;
+        if let Some(job) = state.job.take() {
+            job.cancel.store(true, Ordering::Relaxed);
+        }
         state.rollback = None;
         state.joints = None;
+        state.discarded = None;
+        state.entity = None;
     }
     let mut original = match app
         .graph_ed
@@ -307,91 +425,84 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
     };
     let mut g = state.draft.clone().unwrap_or_else(|| original.clone());
+    let (mut preview_requested, mut apply_requested, mut discard_requested) = (false, false, false);
+    for request in std::mem::take(&mut state.requests) {
+        match request {
+            CadRequest::Add { operation, anchor } => {
+                // A part seated on the ring needs the ring beside it.
+                if anchor.is_some() && !g.nodes.iter().any(|n| n.kind == "cad.feature") {
+                    add_feature(&mut state, &mut g, Operation::Band, None);
+                }
+                add_feature(&mut state, &mut g, operation, anchor);
+            }
+            CadRequest::Preview => preview_requested = true,
+            CadRequest::Apply => apply_requested = true,
+            CadRequest::Discard => discard_requested = true,
+        }
+    }
     let before = hash(&(&g, state.rollback));
     ui.horizontal_wrapped(|ui| {
-        for (i, name) in [
-            "Features",
-            "Sketch",
-            "Components",
-            "Debug",
-            "Sizes",
-            "Stages",
-            "Section",
-        ]
-        .iter()
-        .enumerate()
-        {
-            ui.selectable_value(&mut state.tab, i, *name);
-        }
-        ui.weak("Millimeters • editable feature history");
-        if ui.small_button("Ring view").clicked() {
-            app.focus(PaneKind::Solid);
-        }
-    });
-    ui.separator();
-    ui.horizontal_wrapped(|ui| {
-        ui.menu_button("Add feature", |ui| {
-            let previous = state
-                .edge
-                .map(|(id, _)| id)
-                .or_else(|| {
-                    state
-                        .selected
-                        .filter(|id| g.node(*id).is_some_and(|n| n.kind == "cad.feature"))
-                        .map(|id| id.0)
-                })
-                .unwrap_or_else(|| {
-                    g.nodes
-                        .iter()
-                        .rev()
-                        .find(|n| n.kind == "cad.feature")
-                        .map_or(0, |n| n.id.0)
-                });
-            for mut op in starters(previous) {
-                if ui.button(op.label()).clicked() {
-                    if let (
-                        Some((_, edge)),
-                        Operation::Fillet { edges, .. } | Operation::Chamfer { edges, .. },
-                    ) = (state.edge, &mut op)
-                    {
-                        *edges = vec![edge];
+        for (modify, title, icon) in [(false, "Create", Icon::Add), (true, "Modify", Icon::CadFillet)] {
+            ui.menu_button((icon.image(ui, 18.), title), |ui| {
+                ui.set_min_width(210.);
+                let ids: Vec<_> = g.nodes.iter().filter(|n| n.kind == "cad.feature")
+                    .map(|n| n.id.0).collect();
+                let previous = state.edge.map(|(id, _)| id)
+                    .or(state.selected.map(|id| id.0).filter(|id| ids.contains(id)))
+                    .or(ids.last().copied()).unwrap_or(0);
+                let second = ids.iter().rev().copied().find(|id| *id != previous).unwrap_or(0);
+                for mut op in cad_tools::starters(previous, second).into_iter().filter(|op| cad_tools::modify(op) == modify) {
+                    let valid = cad_tools::unavailable(&op).is_none() && (!modify || (ids.contains(&previous)
+                        && (!matches!(op, Operation::Boolean {..}) || second != 0)));
+                    let hint = if let Some(reason) = cad_tools::unavailable(&op) {reason} else if valid { cad_tools::hint(&op) } else if matches!(op, Operation::Boolean {..}) {
+                        "Create two different solids before using a boolean."
+                    } else { "Create or select a solid first." };
+                    if ui.add_enabled(valid, egui::Button::new((cad_tools::icon(&op).image(ui, 20.), op.label())))
+                        .on_disabled_hover_text(hint).on_hover_text(hint).clicked() {
+                        if let (Some((_, edge)), Operation::Fillet {edges, ..} | Operation::Chamfer {edges, ..}) = (state.edge, &mut op) { *edges = vec![edge]; }
+                        add_feature(&mut state, &mut g, op, None);
+                        ui.close();
                     }
-                    match graph_cad::append(&mut g, op) {
-                        Ok(id) => {
-                            state.selected = Some(id);
-                            state.json_node = None;
-                        }
-                        Err(e) => state.error = Some(e.to_string()),
-                    }
-                    ui.close();
                 }
-            }
-        });
-        ui.menu_button("Examples", |ui| {
-            for name in cad::examples::NAMES {
-                if ui.button(*name).clicked() {
-                    match cad::examples::design(name)
-                        .and_then(|d| graph_cad::from_document(&d).map_err(Into::into))
-                    {
-                        Ok(next) => {
-                            g = next;
-                            state.selected = g
-                                .nodes
-                                .iter()
-                                .find(|n| n.kind == "cad.feature")
-                                .map(|n| n.id);
-                            state.tab = 0;
-                            state.rollback = None;
-                            state.joints = None;
-                            state.error = None;
+                if !modify {
+                    ui.separator();
+                    ui.menu_button((Icon::Files.image(ui, 18.), "Example projects"), |ui| {
+                        for name in cad::examples::NAMES {
+                            if cad_tools::example_button(ui, name).clicked() {
+                                match cad::examples::design(name).and_then(|d| graph_cad::from_document(&d).map_err(Into::into)) {
+                                    Ok(next) => { g = next; state.selected = g.nodes.iter().find(|n| n.kind == "cad.feature").map(|n| n.id);
+                                        state.tab = 0; state.rollback = None; state.joints = None; state.error = None;
+                                        state.view = None; state.edge = None; state.isolated = None; }
+                                    Err(e) => state.error = Some(e.to_string()),
+                                }
+                                ui.close();
+                            }
                         }
-                        Err(e) => state.error = Some(e.to_string()),
-                    }
-                    ui.close();
+                    });
                 }
+            });
+        }
+        ui.menu_button((Icon::CadSketch.image(ui, 18.), "Sketch"), |ui| {
+            let editable = state.selected.and_then(|id| g.node(id))
+                .and_then(|n| serde_json::from_value::<Feature>(n.params.clone()).ok())
+                .is_some_and(|mut f| f.operation.sketch_mut().is_some());
+            if ui.add_enabled(editable, egui::Button::new("Edit selected sketch"))
+                .on_disabled_hover_text("Select an extrusion, revolve, sweep, twist or loft feature first.").clicked() {
+                state.tab = 1; ui.close();
             }
+            if ui.button("Return to solid view").clicked() { state.tab = 0; ui.close(); }
         });
-        if ui.button("Preview").clicked() && state.job.is_none() {
+        ui.menu_button((Icon::Panel.image(ui, 18.), "Inspect"), |ui| {
+            for (tab, label) in [(0,"Feature properties"),(2,"Components & assembly"),(6,"Section"),(4,"Size study"),(5,"Manufacturing stages"),(3,"Advanced source")] {
+                if ui.selectable_value(&mut state.tab, tab, label).clicked() { ui.close(); }
+            }
+            ui.separator();
+            if ui.button("Return to Ring viewport").clicked() { app.focus(PaneKind::Solid); ui.close(); }
+        });
+        ui.separator();
+        if ui.add_enabled(state.job.is_none(), egui::Button::new((Icon::Rebuild.image(ui, 18.), "Preview")))
+            .on_hover_text("Evaluate the candidate (Enter)")
+            .on_disabled_hover_text("The current solid is still evaluating.").clicked() || (preview_requested && state.job.is_none()) {
             launch(&mut state, g.clone(), app, ui.ctx().clone());
         }
         let ready = state.rollback.is_none()
@@ -399,13 +510,17 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             && state.draft.is_some()
             && state.job.is_none()
             && state.error.is_none();
-        let enter = ui.input(|i| i.key_pressed(egui::Key::Enter) && !i.modifiers.any())
-            && !ui.ctx().egui_wants_keyboard_input()
-            && state.pending.is_empty();
+        // Enter only previews, and never from the sketch tab where it belongs to the drawing tools.
+        let typing = ui.ctx().egui_wants_keyboard_input();
+        let enter = !typing && state.tab != 1 && state.pending.is_empty()
+            && ui.input(|i| i.key_pressed(egui::Key::Enter) && !i.modifiers.any());
+        let apply_key = !typing && ui.input(|i| i.key_pressed(egui::Key::Enter) && i.modifiers.command_only());
         if ui
-            .add_enabled(ready, egui::Button::new("Apply edit"))
+            .add_enabled(ready, egui::Button::new((Icon::Check.image(ui, 18.), "Apply")))
+            .on_hover_text("Commit the previewed candidate (Ctrl+Enter)")
+            .on_disabled_hover_text("Apply becomes available after a changed candidate previews successfully at the end of history.")
             .clicked()
-            || (enter && ready)
+            || ((apply_key || apply_requested) && ready)
         {
             app.history.commit(&app.design);
             if let Some(view) = &state.view {
@@ -414,26 +529,45 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 applied.casting_trials = app.design.casting_trials.clone();
                 app.design = applied;
             }
-            app.open_graph(g.clone());
+            app.set_graph(g.clone());
             // The evaluated candidate is already available. Record the whole
             // edit now so immediate Undo does not depend on the rebuild timer.
             app.history.commit(&app.design);
             original = g.clone();
-            app.focus(PaneKind::Cad);
             state.draft = None;
+            state.discarded = None;
             state.source = source_key(app);
             state.message = "Feature edit applied; undo restores its source graph".into();
         } else if enter && state.draft.is_some() && state.job.is_none() {
             launch(&mut state, g.clone(), app, ui.ctx().clone());
         }
-        if ui.button("Cancel edit").clicked() || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+        if std::mem::take(&mut state.escape_requested) {
+            if !state.pending.is_empty() {
+                state.pending.clear();
+            } else if state.rollback.take().is_some() {
+                launch(&mut state, g.clone(), app, ui.ctx().clone());
+            }
+        }
+        if ui.add_enabled(state.draft.is_some() || state.rollback.is_some() || state.job.is_some(), egui::Button::new((Icon::Close.image(ui, 18.), "Cancel")))
+            .on_hover_text("Stop the evaluation and set the candidate aside; it can be restored until the next edit").clicked() || discard_requested {
+            if state.draft.is_some() {
+                state.discarded = Some(g.clone());
+            }
+            if let Some(job) = state.job.take() {
+                job.cancel.store(true, Ordering::Relaxed);
+            }
             g = original.clone();
             state.draft = None;
             state.pending.clear();
             state.error = None;
             state.requested = 0;
             state.rollback = None;
-            state.message = "Candidate discarded".into();
+            state.message = "Candidate set aside".into();
+        }
+        if state.draft.is_none() && state.discarded.is_some()
+            && ui.button((Icon::History.image(ui, 18.), "Restore discarded candidate")).clicked() {
+            g = state.discarded.take().unwrap();
+            state.message.clear();
         }
         if state.job.is_some() {
             ui.spinner();
@@ -465,26 +599,28 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             )
         })
         .collect::<Vec<_>>();
-    egui::ScrollArea::horizontal()
-        .id_salt("feature_tree")
+    if state.selected.is_none() { state.selected = tree.first().map(|(id, _)| *id); }
+    egui::Panel::left(ui.id().with("cad-inspector"))
+        .resizable(true).default_size(280.).size_range(230.0..=460.)
+        .frame(egui::Frame::new().inner_margin(8).fill(theme::PANEL))
         .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                for (id, label) in &tree {
-                    if ui
-                        .selectable_label(
-                            state.selected == Some(*id),
-                            format!("{} · {}", id.0, label),
-                        )
-                        .clicked()
-                    {
-                        state.selected = Some(*id);
-                        app.selected_node = Some(*id);
-                        state.pending.clear();
-                        state.json_node = None;
-                    }
+        ui.strong(match state.tab { 1 => "CAD · Sketch", 2 => "CAD · Components", 3 => "CAD · Source", 4 => "CAD · Sizes", 5 => "CAD · Stages", 6 => "CAD · Section", _ => "CAD · Features" });
+        ui.weak("1 Create   2 Edit & preview   3 Apply");
+        egui::ScrollArea::vertical().id_salt("cad-inspector-scroll").auto_shrink([false,false]).show(ui, |ui| {
+        egui::CollapsingHeader::new("Feature history").default_open(true).show(ui, |ui| {
+            if tree.is_empty() { ui.label("The current ring is the source. Add a Procedural shank to modify it as a CAD solid, or start from an Example project."); }
+            for (id, label) in &tree {
+                let icon = g.node(*id).and_then(|n| serde_json::from_value::<Feature>(n.params.clone()).ok())
+                    .map_or(Icon::Graph, |f| cad_tools::icon(&f.operation));
+                if ui.add_sized([ui.available_width(), ui.spacing().interact_size.y],
+                    egui::Button::new((icon.image(ui, 18.), label.as_str())).selected(state.selected == Some(*id)).right_text(egui::Atom::grow()))
+                    .on_hover_text(format!("Feature #{}", id.0)).clicked() {
+                    state.selected = Some(*id); app.selected_node = Some(*id);
+                    state.pending.clear(); state.json_node = None;
                 }
-            });
+            }
         });
+        ui.separator();
     if state.tab <= 3 {
         if let Some(id) = state.selected {
             let bound_operation = g.wire_into(id, "operation").is_some()
@@ -493,8 +629,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             if let Some(n) = g.node_mut(id) {
                 if n.kind == "cad.feature" {
                     if let Ok(mut f) = serde_json::from_value::<Feature>(n.params.clone()) {
-                        egui::ScrollArea::vertical().id_salt("feature_properties").max_height(if state.tab==1 {180.0} else {280.0}).show(ui,|ui|{
-                        ui.horizontal_wrapped(|ui|{ui.text_edit_singleline(&mut f.name);ui.checkbox(&mut f.enabled,"Enabled");ui.weak(format!("Feature #{}",id.0));});
+                        ui.vertical(|ui|{
+                        ui.add(egui::TextEdit::singleline(&mut f.name).desired_width(f32::INFINITY));
+                        ui.checkbox(&mut f.enabled,"Enabled");
+                        ui.weak(cad_tools::hint(&f.operation));
                         match state.tab {
                             0=>{if bound_operation {ui.weak("Operation is bound to a graph input; edit its upstream parameters in Graph.");} else {operation_ui(ui,&mut f.operation,&tree);}},
                             1=>{if bound_operation {ui.weak("Sketch is controlled by the connected operation input");} else if let Some(sketch)=f.operation.sketch_mut() {sketch_controls(ui,sketch,&mut state);} else {ui.weak("Select an extrusion, revolution, sweep, or loft to edit its sketch");}},
@@ -507,11 +645,6 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                             },
                         }
                     });
-                        if state.tab == 1 && !bound_operation {
-                            if let Some(s) = f.operation.sketch_mut() {
-                                sketch_canvas(ui, s, &mut state);
-                            }
-                        }
                         n.params = serde_json::to_value(f).unwrap();
                     }
                 } else {
@@ -540,9 +673,12 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     if state.tab == 5 {
         study::stages(app, ui, &g, &context, &mut state.stages);
     }
+        });
+    });
     let current = hash(&(&g, state.rollback));
     if hash(&g) != hash(&original) {
         state.draft = Some(g.clone());
+        state.discarded = None;
     } else {
         state.draft = None;
     }
@@ -554,9 +690,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 if job_key == current {
                     match result {
                         Ok(view) => {
+                            let first = state.view.is_none();
                             state.view = Some(view);
                             state.view_key = current;
-                            upload(&mut state, true);
+                            upload(&mut state, first);
                         }
                         Err(e) => {
                             state.error = Some(e);
@@ -572,14 +709,26 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             Err(mpsc::TryRecvError::Empty) => {}
         }
     }
-    if (state.view.is_none() || state.draft.is_none())
-        && state.job.is_none()
-        && state.requested != current
-        && g.nodes
-            .iter()
-            .any(|n| matches!(n.kind.as_str(), "cad.feature" | "design.resize"))
-    {
-        launch(&mut state, g.clone(), app, ui.ctx().clone());
+    let now = ui.input(|i| i.time);
+    if state.observed != current { state.observed = current; state.changed_at = now; }
+    // A changed candidate supersedes the evaluation in flight; `launch` stops it.
+    if state.requested != current {
+        if now - state.changed_at >= 0.25 && !ui.input(|i| i.pointer.any_down()) {
+            launch(&mut state, g.clone(), app, ui.ctx().clone());
+        } else { ui.ctx().request_repaint_after(std::time::Duration::from_millis(80)); }
+    }
+    egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| {
+    if state.tab == 1 {
+        if let Some(id) = state.selected {
+            if g.wire_into(id, "operation").is_none() {
+                if let Some(n) = g.node_mut(id) {
+                    if let Ok(mut f) = serde_json::from_value::<Feature>(n.params.clone()) {
+                        if let Some(sketch) = f.operation.sketch_mut() { sketch_canvas(ui, sketch, &mut state); }
+                        n.params = serde_json::to_value(f).unwrap();
+                    }
+                }
+            }
+        }
     }
     if state.tab == 6 {
         if state.view_key != current {
@@ -590,7 +739,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
         section_ui(ui, &mut state);
     }
-    if state.tab != 1 && state.tab < 4 {
+    if state.tab != 1 && state.tab != 6 {
         if state.view_key != current {
             ui.colored_label(
                 theme::WARN,
@@ -598,77 +747,48 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             );
         }
         let mut redraw = false;
-        ui.horizontal_wrapped(|ui| {
-            for v in StandardView::ALL {
-                if ui.small_button(v.label()).clicked() {
-                    state.camera.set_view(*v);
-                }
-            }
-            if ui.small_button("Fit").clicked() {
-                redraw = true;
-            }
-            if ui
-                .add_enabled(
-                    state.selected.is_some() && state.job.is_none(),
-                    egui::Button::new("Preview through selected feature"),
-                )
-                .clicked()
-            {
-                state.rollback = state.selected.map(|id| id.0);
-                launch(&mut state, g.clone(), app, ui.ctx().clone());
-            }
-            if state.rollback.is_some() && ui.button("Return to end of history").clicked() {
-                state.rollback = None;
-                launch(&mut state, g.clone(), app, ui.ctx().clone());
-            }
-        });
-        ui.horizontal_wrapped(|ui| {
-            redraw |= ui
-                .add(egui::Slider::new(&mut state.explode, 0.0..=20.0).text("Explode mm"))
-                .changed();
-            if ui.small_button("Show all components").clicked() {
-                state.isolated = None;
-                redraw = true;
-            }
-        });
-        if let Some(view) = &state.view {
+        egui::Panel::bottom(ui.id().with("cad-view-footer"))
+            .frame(egui::Frame::new().inner_margin(6).fill(theme::PANEL)).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                for c in &view.evaluated.components {
-                    if ui
-                        .selectable_label(state.isolated == Some(c.id), &c.name)
-                        .clicked()
-                    {
-                        state.isolated = Some(c.id);
-                        redraw = true;
+                ui.menu_button((Icon::View.image(ui,18.), "View"), |ui| {
+                    for view in ringdesign_workbench::navigation::View::ALL {
+                        if ui.button(view.label()).clicked() {
+                            let angles = ringdesign_workbench::navigation::Action::View(view)
+                                .apply([state.camera.yaw,state.camera.pitch,state.camera.roll],app.design.shank.head.theta_deg as f32);
+                            let from = state.camera.pose();
+                            state.display.turn = Some(ringdesign_workbench::focus::Turn::new(from,
+                                ringdesign_workbench::focus::Pose { yaw:angles[0],pitch:angles[1],roll:angles[2],pan:[0.;2],..from }));
+                            ui.close();
+                        }
                     }
-                }
+                    ui.checkbox(&mut state.display.navigation.locked, "Lock orbit (drag to pan)");
+                });
+                if icons::compact(ui,Icon::Fit,false).clicked() { redraw = true; }
+                if icons::compact(ui,Icon::Wire,state.display.wire).clicked() {state.display.wire = !state.display.wire;}
+                if icons::compact(ui,Icon::Grid,state.display.grid).clicked() {state.display.grid = !state.display.grid;}
+                ui.menu_button((Icon::Layers.image(ui,18.), "Display"), |ui| {
+                    if ui.button("Show all components").clicked() { state.isolated = None; redraw = true; }
+                    if let Some(view) = &state.view {
+                        for c in &view.evaluated.components {
+                            if ui.selectable_label(state.isolated == Some(c.id), &c.name).clicked() {state.isolated = Some(c.id); redraw = true;}
+                        }
+                    }
+                    redraw |= ringdesign_workbench::controls::row(ui,"Explode",|ui| ui.add(egui::DragValue::new(&mut state.explode).range(0.0..=20.0).speed(0.1).suffix(" mm"))).changed();
+                });
+                ui.menu_button((Icon::History.image(ui,18.), "History"), |ui| {
+                    if ui.add_enabled(state.selected.is_some() && state.job.is_none(), egui::Button::new("Preview through selected feature")).clicked() {
+                        state.rollback = state.selected.map(|id| id.0); launch(&mut state,g.clone(),app,ui.ctx().clone()); ui.close();
+                    }
+                    if ui.add_enabled(state.rollback.is_some() && state.job.is_none(),egui::Button::new("Return to end of history")).clicked() {
+                        state.rollback = None; launch(&mut state,g.clone(),app,ui.ctx().clone()); ui.close();
+                    }
+                });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.weak(if state.job.is_some() { "Evaluating…" } else if state.view_key != current { "Preview pending" } else if state.draft.is_some() { "Candidate · Apply to save" } else { "Committed · mm" });
+                });
             });
-            if let Some(f) = state
-                .selected
-                .and_then(|id| view.evaluated.features.iter().find(|f| f.id == id.0))
-            {
-                ui.weak(format!(
-                    "{} faces • {} selectable edges{}",
-                    f.faces,
-                    f.edges,
-                    if f.suppressed { " • suppressed" } else { "" }
-                ));
-            }
-            let metal: Vec<_> = view
-                .evaluated
-                .components
-                .iter()
-                .filter(|c| !c.settings.reference)
-                .collect();
-            ui.label(format!(
-                "{} metal components • {:.2} mm³ • mesh checks passed",
-                metal.len(),
-                metal.iter().map(|c| c.mesh.volume_mm3()).sum::<f64>()
-            ));
-        }
-        if redraw {
-            upload(&mut state, true);
-        }
+        });
+        if redraw { upload(&mut state, true); }
         if state.tab == 2 && state.view_key == current && state.rollback.is_none() {
             if let Some(view) = &state.view {
                 egui::CollapsingHeader::new("Interference and assembly clearance").show(ui, |ui| {
@@ -721,10 +841,12 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 "Selected component #{id}, edge {edge} • Add Fillet or Chamfer to use it"
             ));
         }
+        state.display.finish=app.finish; state.display.polish=app.polish; state.display.light=app.light; state.display.show_gems=app.show_gems;
         let (rect, response) =
-            crate::viewport::candidate_view(ui, state.renderer.clone(), &mut state.camera);
+            crate::viewport::candidate_view(ui, state.renderer.clone(), &mut state.camera, &mut state.display, app.design.shank.head.theta_deg as f32);
         let project = state.camera.projector(rect);
         let mut nearest = None;
+        let mut hovered_edge = Vec::new();
         if let Some(view) = &state.view {
             for (index, c) in view.evaluated.components.iter().enumerate() {
                 if !c.settings.visible || state.isolated.is_some_and(|id| id != c.id) {
@@ -747,8 +869,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                             Stroke::new(2.0, theme::WARN),
                         ));
                     }
-                    if response.clicked() {
-                        if let Some(cursor) = response.interact_pointer_pos() {
+                    if response.hovered() || response.clicked() {
+                        if let Some(cursor) = response.hover_pos().or(response.interact_pointer_pos()) {
                             for pair in points.windows(2) {
                                 let d = pair[1] - pair[0];
                                 let t = ((cursor - pair[0]).dot(d) / d.length_sq().max(1e-8))
@@ -758,6 +880,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                                     && nearest.is_none_or(|(_, _, best)| distance < best)
                                 {
                                     nearest = Some((c.id, edge, distance));
+                                    hovered_edge=points.clone();
                                 }
                             }
                         }
@@ -765,14 +888,95 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 }
             }
         }
+        // The nearest visible part under a screen point, with where the ray met it.
+        let pick = |state: &CadState, pos: egui::Pos2| -> Option<(u64, [f32; 3])> {
+            let view = state.view.as_ref()?;
+            let (origin,direction)=state.camera.ray(rect,pos);
+            view.evaluated.components.iter().enumerate()
+                .filter(|(_,c)|c.settings.visible && state.isolated.is_none_or(|id|id==c.id))
+                .filter_map(|(index,c)| {
+                    let shifted=[origin[0],origin[1],origin[2]-index as f32*state.explode as f32];
+                    ringdesign_core::interaction::picking::raycast(&c.mesh,shifted,direction).map(|(_,point)|
+                        (c.id,point,(0..3).map(|k|(point[k]-shifted[k])*direction[k]).sum::<f32>()))
+                }).min_by(|a,b|a.2.total_cmp(&b.2)).map(|(id,point,_)|(id,point))
+        };
         if let Some((id, edge, _)) = nearest {
-            state.edge = Some((id, edge));
-            state.selected = Some(NodeId(id));
+            ui.painter_at(rect).add(egui::Shape::line(hovered_edge,Stroke::new(2.,theme::INFO)));
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            if response.clicked() {state.edge=Some((id,edge));state.selected=Some(NodeId(id));}
+        } else if response.clicked() {
+            if let Some((id,_))=response.interact_pointer_pos().and_then(|pos|pick(&state,pos)) {state.selected=Some(NodeId(id));state.edge=None;}
         }
+        if response.secondary_clicked() {
+            let under = response.interact_pointer_pos().and_then(|pos| pick(&state, pos));
+            state.menu_hit = match (under, nearest) {
+                (Some((part, point)), edge) => Some(MenuHit { part, point: Some(point), edge: edge.filter(|(id, _, _)| *id == part).map(|(_, e, _)| e) }),
+                (None, Some((part, edge, _))) => Some(MenuHit { part, point: None, edge: Some(edge) }),
+                (None, None) => None,
+            };
+        }
+        let hit = state.menu_hit;
+        let ring_radius = state.view.as_ref().map(|v| v.design.inner_radius_mm() + v.design.profile.thickness_mm);
+        let part_name = hit.and_then(|h| state.view.as_ref()?.evaluated.components.iter().find(|c| c.id == h.part).map(|c| c.name.clone()));
+        let mut refit = false;
+        response.context_menu(|ui| {
+            ui.set_min_width(190.);
+            if let Some(hit) = hit {
+                ui.weak(part_name.as_deref().unwrap_or("Component"));
+                if let (Some(point), Some(radius)) = (hit.point, ring_radius) {
+                    ui.menu_button((Icon::Add.image(ui, 18.), "Add here"), |ui| {
+                        for op in cad_tools::starters(0, 0).into_iter().filter(|op| PLACEABLE.contains(&op.label())) {
+                            if ui.button((cad_tools::icon(&op).image(ui, 18.), op.label())).clicked() {
+                                let (x, y) = (point[0] as f64, point[1] as f64);
+                                add_feature(&mut state, &mut g, op, Some((y.atan2(x).to_degrees(), x.hypot(y) - radius)));
+                                ui.close();
+                            }
+                        }
+                    });
+                }
+                if let Some(edge) = hit.edge {
+                    for op in cad_tools::starters(hit.part, 0) {
+                        let mut op = op;
+                        if let Operation::Fillet { edges, .. } | Operation::Chamfer { edges, .. } = &mut op {
+                            *edges = vec![edge];
+                            if ui.button((cad_tools::icon(&op).image(ui, 18.), format!("{} this edge", op.label()))).clicked() {
+                                state.edge = Some((hit.part, edge));
+                                add_feature(&mut state, &mut g, op, None);
+                                ui.close();
+                            }
+                        }
+                    }
+                }
+                if ui.button((Icon::Panel.image(ui, 18.), "Select feature")).clicked() {
+                    state.selected = Some(NodeId(hit.part));
+                    state.tab = 0;
+                    ui.close();
+                }
+                if ui.button((Icon::Layers.image(ui, 18.), "Isolate")).clicked() {
+                    state.isolated = Some(hit.part);
+                    refit = true;
+                    ui.close();
+                }
+            }
+            if state.isolated.is_some() && ui.button((Icon::Layers.image(ui, 18.), "Show all components")).clicked() {
+                state.isolated = None;
+                refit = true;
+                ui.close();
+            }
+            ui.separator();
+            if ui.button((Icon::Fit.image(ui, 18.), "Fit view")).clicked() {
+                refit = true;
+                ui.close();
+            }
+            ui.checkbox(&mut state.display.wire, "Wireframe");
+            ui.checkbox(&mut state.display.grid, "Grid");
+        });
+        if refit { upload(&mut state, true); }
         if matches!(state.tab, 0 | 2) && state.rollback.is_none() {
             direct_handles(ui, rect, &state, &mut g);
         }
     }
+    });
     if hash(&g) != hash(&original) {
         state.draft = Some(g);
     }
@@ -816,7 +1020,6 @@ fn direct_handles(ui: &mut egui::Ui, rect: egui::Rect, state: &CadState, g: &mut
         };
         p.map(|v| v as f32)
     };
-    let label_row = std::cell::Cell::new(0);
     let grip = |label: &str,
                 value: &mut f64,
                 start: [f64; 3],
@@ -837,28 +1040,17 @@ fn direct_handles(ui: &mut egui::Ui, rect: egui::Rect, state: &CadState, g: &mut
         }
         painter.line_segment([a, b], Stroke::new(1.0, theme::INFO));
         painter.circle_filled(b, 5.0, theme::INFO);
-        let label_left = b.x > rect.center().x;
-        painter.text(
-            b + vec2(
-                if label_left { -8.0 } else { 8.0 },
-                5.0 + label_row.get() as f32 * 15.0,
-            ),
-            if label_left {
-                egui::Align2::RIGHT_TOP
-            } else {
-                egui::Align2::LEFT_TOP
-            },
-            format!("{label} {value:.3} {units}"),
-            egui::FontId::proportional(12.0),
-            theme::TEXT,
-        );
-        label_row.set(label_row.get() + 1);
         let grip_id = ui.id().with(("dimension_grip", id.0, label));
         let response = ui.interact(
             egui::Rect::from_center_size(b, vec2(16.0, 16.0)),
             grip_id,
             egui::Sense::drag(),
         );
+        if response.hovered() || response.dragged() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
+            painter.text(b + vec2(10., -12.), egui::Align2::LEFT_BOTTOM,
+                format!("{label} {value:.3} {units}"), egui::FontId::proportional(12.), theme::TEXT);
+        }
         type Drag = (f64, egui::Pos2, egui::Vec2, f64);
         if response.drag_started() {
             if let Some(origin) = ui.input(|i| i.pointer.press_origin()) {
@@ -1171,19 +1363,19 @@ fn section_ui(ui: &mut egui::Ui, state: &mut CadState) {
     );
 }
 fn number(ui: &mut egui::Ui, label: &str, v: &mut f64) {
-    ui.horizontal(|ui| {
-        ui.label(label);
-        ui.add(egui::DragValue::new(v).speed(0.05).max_decimals(4));
+    ringdesign_workbench::controls::named(ui, label, label, |ui| {
+        ui.add(egui::DragValue::new(v).speed(0.05).max_decimals(4))
     });
 }
 fn vector(ui: &mut egui::Ui, label: &str, v: &mut [f64; 3]) {
-    ui.horizontal_wrapped(|ui| {
-        ui.label(label);
-        for x in v {
-            ui.add(egui::DragValue::new(x).speed(0.1).max_decimals(3));
-        }
-    });
+    ui.strong(label);
+    for (axis, x) in ["X", "Y", "Z"].into_iter().zip(v) {
+        ringdesign_workbench::controls::named(ui, axis, &format!("{label} {axis}"), |ui| {
+            ui.add(egui::DragValue::new(x).speed(0.1).max_decimals(3))
+        });
+    }
 }
+
 fn source(ui: &mut egui::Ui, label: &str, value: &mut u64, tree: &[(NodeId, String)]) {
     egui::ComboBox::from_id_salt(label)
         .selected_text(format!("{label} #{}", value))
@@ -1196,8 +1388,10 @@ fn source(ui: &mut egui::Ui, label: &str, value: &mut u64, tree: &[(NodeId, Stri
 fn indices(ui: &mut egui::Ui, label: &str, list: &mut Vec<usize>) {
     ui.horizontal_wrapped(|ui| {
         ui.label(label);
-        for n in list.iter_mut() {
-            ui.add(egui::DragValue::new(n).range(0..=100000));
+        for (i, n) in list.iter_mut().enumerate() {
+            let name = format!("{label} {}", i + 1);
+            ui.add(egui::DragValue::new(n).range(0..=100000))
+                .widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::DragValue, true, &name));
         }
         if ui.small_button("+").clicked() {
             list.push(0);
@@ -1401,84 +1595,11 @@ fn component_ui(ui: &mut egui::Ui, f: &mut Feature) {
     ui.label("Assembly / bench instructions");
     ui.text_edit_multiline(&mut c.bench_notes);
 }
-fn starters(source: u64) -> Vec<Operation> {
-    let mut section = Sketch::rectangle(2.0, 5.0);
-    section.plane = ringdesign_core::sketch::Workplane::section();
-    for p in &mut section.points {
-        p.xy[0] += 10.0;
-    }
-    let mut top = Sketch::rectangle(8.0, 6.0);
-    top.plane.origin[2] = 5.0;
-    vec![
-        Operation::Band,
-        Operation::TwistedRing {
-            major_mm: 10.0,
-            radial_mm: 2.0,
-            axial_mm: 4.0,
-            turns: 1.0,
-        },
-        Operation::Box {
-            size: [8.0, 6.0, 3.0],
-        },
-        Operation::Cylinder {
-            radius_mm: 4.0,
-            height_mm: 3.0,
-        },
-        Operation::Sphere { radius_mm: 3.0 },
-        Operation::Torus {
-            major_mm: 10.0,
-            minor_mm: 1.5,
-        },
-        Operation::Extrude {
-            sketch: Sketch::rectangle(8.0, 6.0),
-            height_mm: 3.0,
-            draft_deg: 0.0,
-        },
-        Operation::Revolve {
-            sketch: section,
-            pivot: [0.0; 3],
-            axis: [0.0, 0.0, 1.0],
-            degrees: 360.0,
-        },
-        Operation::Sweep {
-            sketch: Sketch::circle(1.0),
-            path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]],
-        },
-        Operation::Loft {
-            sections: vec![Sketch::rectangle(10.0, 8.0), top],
-        },
-        Operation::Boolean {
-            a: source,
-            b: 0,
-            kind: Boolean::Union,
-        },
-        Operation::Fillet {
-            source,
-            edges: vec![0],
-            radius_mm: 0.5,
-        },
-        Operation::Chamfer {
-            source,
-            edges: vec![0],
-            base_face: 4,
-            distance_mm: 0.3,
-        },
-        Operation::Shell {
-            source,
-            open_faces: vec![],
-            thickness_mm: 0.8,
-        },
-        Operation::Transform {
-            source,
-            translation: [0.0, 0.0, 5.0],
-            rotation_deg: [0.0; 3],
-        },
-    ]
-}
 
 fn sketch_controls(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
-    ui.horizontal_wrapped(|ui| {
-        if ui.button("Import SVG / DXF…").clicked() {
+    ui.menu_button((Icon::Files.image(ui, 18.), "Profile file"), |ui| {
+        if ui.button((Icon::Files.image(ui, 18.), "Import SVG / DXF…")).clicked() {
+            ui.close();
             if let Some(path) = rfd::FileDialog::new()
                 .add_filter("Vector profiles", &["svg", "dxf"])
                 .pick_file()
@@ -1501,7 +1622,8 @@ fn sketch_controls(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
                 }
             }
         }
-        if ui.button("Export profile…").clicked() {
+        if ui.button((Icon::Export.image(ui, 18.), "Export profile…")).clicked() {
+            ui.close();
             if let Some(path) = rfd::FileDialog::new()
                 .add_filter("SVG", &["svg"])
                 .add_filter("DXF", &["dxf"])
@@ -1525,21 +1647,41 @@ fn sketch_controls(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
         }
     });
     ui.horizontal_wrapped(|ui| {
-        ui.label("Sketch");
-        ui.text_edit_singleline(&mut s.name);
+        ringdesign_workbench::controls::row(ui, "Name", |ui| {
+            ui.add(egui::TextEdit::singleline(&mut s.name).desired_width(ui.available_width()));
+        });
+    });
+    ui.horizontal_wrapped(|ui| {
+        ui.menu_button((Icon::CadSketch.image(ui, 18.), "Reset profile"), |ui| {
         if ui.button("Rectangle").clicked() {
+            ui.close();
             let plane = s.plane.clone();
             *s = Sketch::rectangle(8.0, 6.0);
             s.plane = plane;
             state.pending.clear();
         }
         if ui.button("Circle").clicked() {
+            ui.close();
             let plane = s.plane.clone();
             *s = Sketch::circle(3.0);
             s.plane = plane;
             state.pending.clear();
         }
-        if ui.button("Solve constraints").clicked() {
+        if ui.button("Empty").on_hover_text("Remove every point, entity and constraint, and draw your own").clicked() {
+            ui.close();
+            s.points.clear();
+            s.entities.clear();
+            s.constraints.clear();
+            state.pending.clear();
+            state.point = None;
+            state.entity = None;
+        }
+        });
+        if ui.add_enabled(state.point.is_some() || state.entity.is_some(), egui::Button::new((Icon::Delete.image(ui, 18.), "Delete selected")))
+            .on_disabled_hover_text("Click a point or a curve in the canvas first").clicked() {
+            state.delete_requested = true;
+        }
+        if ui.button((Icon::Check.image(ui, 18.), "Solve")).on_hover_text("Solve the sketch constraints").clicked() {
             match s.solve() {
                 Ok(solution) => {
                     state.message = format!(
@@ -1553,6 +1695,7 @@ fn sketch_controls(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
         }
     });
     egui::CollapsingHeader::new("Workplane and point dimensions").show(ui, |ui| {
+        ui.weak("Starter profiles hold their dimensions. Change the distance constraints to resize them; Solve restores those dimensions after a point drag.");
         ui.horizontal_wrapped(|ui| {
             if ui.button("Head plan XY").clicked() {
                 s.plane = Default::default();
@@ -1574,108 +1717,157 @@ fn sketch_controls(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
             });
         }
         for (i, c) in s.constraints.iter_mut().enumerate() {
-            ui.horizontal(|ui| {
+            if let Constraint::Distance { a, b, mm } = c {
+                ringdesign_workbench::controls::row(ui, &format!("Distance #{a} to #{b}"), |ui| {
+                    ui.add(egui::DragValue::new(mm).range(0.0001..=1000.0).speed(0.05).suffix(" mm"));
+                });
+            } else {
                 ui.label(format!("{i}: {c:?}"));
-                if let Constraint::Distance { mm, .. } = c {
-                    ui.add(
-                        egui::DragValue::new(mm)
-                            .range(0.0001..=1000.0)
-                            .speed(0.05)
-                            .suffix(" mm"),
-                    );
+            }
+        }
+        let mut remove = None;
+        for e in &mut s.entities {
+            ui.horizontal(|ui| {
+                if ui.selectable_label(state.entity == Some(e.id), format!("Entity #{} {:?}", e.id, e.geometry)).clicked() {
+                    state.entity = Some(e.id);
+                    state.point = None;
+                }
+                ui.checkbox(&mut e.construction, "Construction");
+                if ui.small_button("Delete").clicked() {
+                    remove = Some(e.id);
                 }
             });
         }
-        for e in &mut s.entities {
-            ui.horizontal(|ui| {
-                ui.label(format!("Entity #{} {:?}", e.id, e.geometry));
-                ui.checkbox(&mut e.construction, "Construction");
-            });
+        if let Some(id) = remove {
+            s.remove_entity(id);
+            state.entity = None;
+            state.pending.clear();
         }
-        if ui.small_button("Remove last constraint").clicked() {
+        if ui.add_enabled(!s.constraints.is_empty(), egui::Button::new((Icon::Delete.image(ui, 18.), "Remove last constraint"))).clicked() {
             s.constraints.pop();
         }
     });
+    let tools = ["Select", "Line", "Polyline", "Circle", "Arc", "Cubic"];
     ui.horizontal_wrapped(|ui| {
-        for (i, label) in ["Select", "Line", "Polyline", "Circle", "Arc", "Cubic"]
-            .iter()
-            .enumerate()
-        {
-            if ui.selectable_value(&mut state.tool, i, *label).changed() {
-                state.pending.clear();
+        ui.menu_button((Icon::CadSketch.image(ui, 18.), format!("Tool: {}", tools[state.tool])), |ui| {
+            for (i, label) in tools.iter().enumerate() {
+                if ui.selectable_value(&mut state.tool, i, *label).clicked() {
+                    state.pending.clear();
+                    ui.close();
+                }
             }
-        }
+        });
         ui.checkbox(&mut state.construction, "Construction");
-        ui.add(
-            egui::DragValue::new(&mut s.grid_mm)
-                .range(0.01..=10.0)
-                .prefix("Grid ")
-                .suffix(" mm"),
-        );
     });
-    ui.horizontal_wrapped(|ui|{
-        egui::ComboBox::from_id_salt("constraint_kind").selected_text(["Distance","Horizontal","Vertical","Coincident","Symmetry","Tangent"][state.constraint_kind]).show_ui(ui,|ui|{for (i,label) in ["Distance","Horizontal","Vertical","Coincident","Symmetry","Tangent"].iter().enumerate() {ui.selectable_value(&mut state.constraint_kind,i,*label);}});
-        ui.add(egui::DragValue::new(&mut state.dimension).speed(0.1).suffix(" mm"));
-        if ui.button("Constrain selected points").clicked() {
-            let p=&state.pending;let needed=match state.constraint_kind {4=>3,5=>4,_=>2};
-            if p.len()>=needed {s.constraints.push(match state.constraint_kind {0=>Constraint::Distance {a:p[0],b:p[1],mm:state.dimension},1=>Constraint::Horizontal(p[0],p[1]),2=>Constraint::Vertical(p[0],p[1]),3=>Constraint::Coincident(p[0],p[1]),4=>Constraint::Symmetry {a:p[0],b:p[1],center:p[2]},_=>Constraint::Tangent {a:p[0],b:p[1],center:p[2],at:p[3]}});state.pending.clear();}
-            else {state.error=Some(format!("Shift-click {needed} points in order; tangent uses line endpoints, circle center, and tangent point"));}
-        }
+    ringdesign_workbench::controls::row(ui, "Grid", |ui| { ui.add(egui::DragValue::new(&mut s.grid_mm).range(0.01..=10.0).speed(0.01).suffix(" mm")); });
+    ringdesign_workbench::controls::row(ui, "Constraint", |ui| {
+        egui::ComboBox::from_id_salt("constraint_kind")
+            .selected_text(["Distance", "Horizontal", "Vertical", "Coincident", "Symmetry", "Tangent"][state.constraint_kind])
+            .show_ui(ui, |ui| {
+                for (i, label) in ["Distance", "Horizontal", "Vertical", "Coincident", "Symmetry", "Tangent"].iter().enumerate() {
+                    ui.selectable_value(&mut state.constraint_kind, i, *label);
+                }
+            });
     });
+    ui.add_enabled_ui(state.constraint_kind == 0, |ui| {
+        ringdesign_workbench::controls::row(ui, "Distance", |ui| { ui.add(egui::DragValue::new(&mut state.dimension).range(0.001..=1000.0).speed(0.1).suffix(" mm")); });
+    });
+    let needed = match state.constraint_kind { 4 => 3, 5 => 4, _ => 2 };
+    if ui.add_enabled(state.pending.len() >= needed,
+        egui::Button::new((Icon::Check.image(ui, 18.), "Constrain points")))
+        .on_disabled_hover_text(format!("Shift-click {needed} points in order; tangent uses line endpoints, circle center, and tangent point")).clicked() {
+        let p = &state.pending;
+        s.constraints.push(match state.constraint_kind {
+            0 => Constraint::Distance { a:p[0], b:p[1], mm:state.dimension },
+            1 => Constraint::Horizontal(p[0],p[1]),
+            2 => Constraint::Vertical(p[0],p[1]),
+            3 => Constraint::Coincident(p[0],p[1]),
+            4 => Constraint::Symmetry { a:p[0], b:p[1], center:p[2] },
+            _ => Constraint::Tangent { a:p[0], b:p[1], center:p[2], at:p[3] },
+        });
+        state.pending.clear();
+    }
 }
+
 fn sketch_canvas(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
-    ui.weak("Millimeters • click to draw • Shift-click points for constraints • drag points to edit • wheel to zoom • Enter closes a polyline");
+    ui.weak("Millimeters • click to draw • click the first point or press C to close a polyline, Enter leaves it open • Shift-click points for constraints • drag points to edit • drag empty space, Shift-drag or middle-drag to pan • wheel to zoom • Delete removes the selection");
     let (rect, response) = ui.allocate_exact_size(
         ui.available_size().max(vec2(200.0, 180.0)),
         egui::Sense::click_and_drag(),
     );
-    if response.hovered() {
-        state.sketch_scale = (state.sketch_scale
-            * (1.0 + ui.input(|i| i.smooth_scroll_delta.y) * 0.002))
-            .clamp(2.0, 300.0);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, "Sketch canvas"));
+    if std::mem::take(&mut state.delete_requested) {
+        if let Some(id) = state.entity.take() {
+            s.remove_entity(id);
+        } else if let Some(id) = state.point.take() {
+            s.remove_point(id);
+        }
+        state.pending.clear();
     }
+    if response.hovered() {
+        let old = state.sketch_scale;
+        let new = (old * (1.0 + ui.input(|i| i.smooth_scroll_delta.y) * 0.002)).clamp(2.0, 300.0);
+        if let Some(cursor) = response.hover_pos().filter(|_| new != old) {
+            // Keep the millimetre under the cursor where it is.
+            state.sketch_pan += (cursor - rect.center() - state.sketch_pan) * (1.0 - new / old);
+        }
+        state.sketch_scale = new;
+    }
+    let shift = ui.input(|i| i.modifiers.shift);
     let scale = state.sketch_scale;
-    let map = |p: [f64; 2]| rect.center() + vec2(p[0] as f32, -p[1] as f32) * scale;
+    let centre = rect.center() + state.sketch_pan;
+    let map = |p: [f64; 2]| centre + vec2(p[0] as f32, -p[1] as f32) * scale;
     let inverse = |p: egui::Pos2| {
         [
-            (p.x - rect.center().x) as f64 / scale as f64,
-            -(p.y - rect.center().y) as f64 / scale as f64,
+            (p.x - centre.x) as f64 / scale as f64,
+            -(p.y - centre.y) as f64 / scale as f64,
         ]
     };
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 0.0, theme::VIEWPORT_BG);
     let grid = (s.grid_mm as f32 * scale).max(8.0);
-    for i in -100..=100 {
-        let x = rect.center().x + i as f32 * grid;
-        let y = rect.center().y + i as f32 * grid;
-        if x >= rect.left() && x <= rect.right() {
-            painter.line_segment(
-                [egui::pos2(x, rect.top()), egui::pos2(x, rect.bottom())],
-                Stroke::new(0.5, theme::GRID),
-            );
-        }
-        if y >= rect.top() && y <= rect.bottom() {
-            painter.line_segment(
-                [egui::pos2(rect.left(), y), egui::pos2(rect.right(), y)],
-                Stroke::new(0.5, theme::GRID),
-            );
-        }
+    let columns = ((rect.left() - centre.x) / grid).floor() as i32..=((rect.right() - centre.x) / grid).ceil() as i32;
+    for i in columns {
+        let x = centre.x + i as f32 * grid;
+        painter.line_segment(
+            [egui::pos2(x, rect.top()), egui::pos2(x, rect.bottom())],
+            Stroke::new(if i == 0 { 1.0 } else { 0.5 }, theme::GRID),
+        );
     }
+    let rows = ((rect.top() - centre.y) / grid).floor() as i32..=((rect.bottom() - centre.y) / grid).ceil() as i32;
+    for i in rows {
+        let y = centre.y + i as f32 * grid;
+        painter.line_segment(
+            [egui::pos2(rect.left(), y), egui::pos2(rect.right(), y)],
+            Stroke::new(if i == 0 { 1.0 } else { 0.5 }, theme::GRID),
+        );
+    }
+    // Screen polylines per entity, kept for picking.
+    let mut drawn: Vec<(u64, Vec<egui::Pos2>)> = Vec::new();
     for e in &s.entities {
         for curve in s.curves_of(e).unwrap_or_default() {
-            let points = curve.tessellate_within(0.02);
+            let points: Vec<egui::Pos2> = curve.tessellate_within(0.02).into_iter().map(map).collect();
             painter.add(egui::Shape::line(
-                points.into_iter().map(map).collect(),
+                points.clone(),
                 Stroke::new(
                     if e.construction { 1.0 } else { 2.0 },
-                    if e.construction {
+                    if state.entity == Some(e.id) {
+                        theme::WARN
+                    } else if e.construction {
                         theme::TEXT_DIM
                     } else {
                         theme::ACCENT
                     },
                 ),
             ));
+            drawn.push((e.id, points));
         }
+    }
+    // The shape being drawn, with a rubber band to the cursor.
+    if state.tool != 0 && !state.pending.is_empty() {
+        let mut preview: Vec<egui::Pos2> = state.pending.iter().filter_map(|id| s.at(*id).ok()).map(map).collect();
+        preview.extend(response.hover_pos());
+        painter.add(egui::Shape::line(preview, Stroke::new(1.0, theme::INFO)));
     }
     for p in &s.points {
         painter.circle_filled(
@@ -1720,18 +1912,21 @@ fn sketch_canvas(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
                 theme::INFO,
             );
         }
-        if response.drag_started() && state.tool == 0 {
-            state.point = nearest;
+        if response.drag_started_by(egui::PointerButton::Primary) && state.tool == 0 {
+            state.point = if shift { None } else { nearest };
         }
-        if response.dragged() && state.tool == 0 {
-            if let Some(id) = state.point {
-                if let Some(p) = s.points.iter_mut().find(|p| p.id == id) {
-                    p.xy = xy;
-                }
+        let moving = state.tool == 0 && !shift && state.point.is_some() && response.dragged_by(egui::PointerButton::Primary);
+        if moving {
+            if let Some(p) = s.points.iter_mut().find(|p| Some(p.id) == state.point) {
+                p.xy = xy;
             }
+        } else if response.dragged_by(egui::PointerButton::Middle)
+            || (response.dragged_by(egui::PointerButton::Primary) && (shift || state.tool == 0))
+        {
+            state.sketch_pan += response.drag_delta();
         }
         if response.clicked() {
-            if ui.input(|i| i.modifiers.shift) {
+            if shift {
                 if let Some(id) = nearest {
                     if !state.pending.contains(&id) {
                         state.pending.push(id);
@@ -1739,6 +1934,17 @@ fn sketch_canvas(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
                 }
             } else if state.tool == 0 {
                 state.point = nearest;
+                state.entity = if nearest.is_some() { None } else {
+                    drawn.iter().filter_map(|(id, points)| {
+                        points.windows(2).map(|w| {
+                            let d = w[1] - w[0];
+                            let t = ((pos - w[0]).dot(d) / d.length_sq().max(1e-8)).clamp(0.0, 1.0);
+                            pos.distance(w[0] + d * t)
+                        }).min_by(f32::total_cmp).map(|distance| (*id, distance))
+                    }).filter(|(_, distance)| *distance < 8.0).min_by(|a, b| a.1.total_cmp(&b.1)).map(|(id, _)| id)
+                };
+            } else if state.tool == 2 && state.pending.len() >= 3 && nearest == state.pending.first().copied() {
+                finish_polyline(s, state, true);
             } else {
                 let xy = if state.tool == 4 && state.pending.len() == 2 {
                     let center = s.at(state.pending[0]).unwrap();
@@ -1784,17 +1990,20 @@ fn sketch_canvas(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
             }
         }
     }
-    if state.tool == 2 && state.pending.len() >= 3 && ui.input(|i| i.key_pressed(egui::Key::Enter))
-    {
-        let points = std::mem::take(&mut state.pending);
-        let id = s.entity(Geometry::Polyline {
-            points,
-            closed: true,
-        });
-        s.entities
-            .iter_mut()
-            .find(|e| e.id == id)
-            .unwrap()
-            .construction = state.construction;
+    if state.tool == 2 && !ui.ctx().egui_wants_keyboard_input() {
+        let (close, leave_open) = ui.input(|i| (i.key_pressed(egui::Key::C), i.key_pressed(egui::Key::Enter)));
+        if close && state.pending.len() >= 3 {
+            finish_polyline(s, state, true);
+        } else if leave_open && state.pending.len() >= 2 {
+            finish_polyline(s, state, false);
+        }
+    }
+}
+
+fn finish_polyline(s: &mut Sketch, state: &mut CadState, closed: bool) {
+    let points = std::mem::take(&mut state.pending);
+    let id = s.entity(Geometry::Polyline { points, closed });
+    if let Some(e) = s.entities.iter_mut().find(|e| e.id == id) {
+        e.construction = state.construction;
     }
 }

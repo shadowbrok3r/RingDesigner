@@ -61,14 +61,10 @@ fn ring(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     });
 
     let mut size = app.design.size.0;
-    let changed = ui
-        .add(
-            egui::Slider::new(&mut size, 3.0..=15.0)
+    let changed = ringdesign_workbench::controls::slider(ui, "Size", egui::Slider::new(&mut size, 3.0..=15.0)
                 .clamping(egui::SliderClamping::Never)
                 .step_by(0.25)
-                .fixed_decimals(2)
-                .text("Size"),
-        )
+                .fixed_decimals(2))
         .changed();
     if changed && ui.is_enabled() {
         app.design.size = RingSize::new(size);
@@ -171,13 +167,10 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
     let thickness = app.design.profile.thickness_mm;
     let mut changed = false;
-    egui::Grid::new("profile_dims")
-        .num_columns(2)
-        .spacing([8.0, 4.0])
-        .show(ui, |ui| {
+    ui.push_id("profile_dims", |ui| {
             let p = &mut app.design.profile;
 
-            ui.label("Width");
+            ringdesign_workbench::controls::row(ui, "Width", |ui| {
             changed |= ui
                 .add(
                     egui::DragValue::new(&mut p.width_mm)
@@ -187,9 +180,9 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 )
                 .on_hover_text("Band width along the finger.")
                 .changed();
-            ui.end_row();
+            });
 
-            ui.label("Thickness");
+            ringdesign_workbench::controls::row(ui, "Thickness", |ui| {
             changed |= ui
                 .add(
                     egui::DragValue::new(&mut p.thickness_mm)
@@ -199,9 +192,9 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 )
                 .on_hover_text("Metal at the crest, measured off the bore.")
                 .changed();
-            ui.end_row();
+            });
 
-            ui.label("Crown");
+            ringdesign_workbench::controls::row(ui, "Crown", |ui| {
             changed |= ui
                 .add(
                     egui::DragValue::new(&mut p.crown_mm)
@@ -211,9 +204,9 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 )
                 .on_hover_text("Drop from the crest down to the outer edge.")
                 .changed();
-            ui.end_row();
+            });
 
-            ui.label("Edge round");
+            ringdesign_workbench::controls::row(ui, "Edge round", |ui| {
             changed |= ui
                 .add(
                     egui::DragValue::new(&mut p.edge_round_mm)
@@ -223,9 +216,9 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 )
                 .on_hover_text("Fillet where the side faces meet the outer surface.")
                 .changed();
-            ui.end_row();
+            });
 
-            ui.label("Comfort fit");
+            ringdesign_workbench::controls::row(ui, "Comfort fit", |ui| {
             changed |= ui
                 .add(
                     egui::DragValue::new(&mut p.comfort_fit_mm)
@@ -235,9 +228,9 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 )
                 .on_hover_text("Dome inside the bore; size is measured at the contact band.")
                 .changed();
-            ui.end_row();
+            });
 
-            ui.label("Side draft");
+            ringdesign_workbench::controls::row(ui, "Side draft", |ui| {
             changed |= ui
                 .add(
                     egui::DragValue::new(&mut p.side_draft_deg)
@@ -247,9 +240,9 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 )
                 .on_hover_text("Positive narrows the band outward, adding draft to the side faces.")
                 .changed();
-            ui.end_row();
+            });
 
-            ui.label("Crest bias");
+            ringdesign_workbench::controls::row(ui, "Crest bias", |ui| {
             changed |= ui
                 .add(
                     egui::DragValue::new(&mut p.crest_bias)
@@ -259,7 +252,7 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 )
                 .on_hover_text("Moves the crest across the width; 0 is centred.")
                 .changed();
-            ui.end_row();
+            });
         });
 
     changed |= side_faces(app, ui);
@@ -366,12 +359,8 @@ fn morph(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             });
         ui.memory_mut(|mem| mem.data.insert_temp(style_id, style));
 
-        changed |= ui
-            .add(
-                egui::Slider::new(&mut m.focus, 0.5..=6.0)
-                    .fixed_decimals(1)
-                    .text("Focus"),
-            )
+        changed |= ringdesign_workbench::controls::slider(ui, "Focus", egui::Slider::new(&mut m.focus, 0.5..=6.0)
+                    .fixed_decimals(1))
             .on_hover_text("How tightly the second crown hugs the top of the ring")
             .changed();
     }
@@ -479,27 +468,20 @@ fn flange(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
         let enabled = f.enabled;
         ui.add_enabled_ui(enabled, |ui| {
-            changed |= ui
-                .add(
-                    egui::Slider::new(&mut f.v_pos, 0.0..=1.0)
+            changed |= ringdesign_workbench::controls::slider(ui, "Across", egui::Slider::new(&mut f.v_pos, 0.0..=1.0)
                         .custom_formatter(|v, _| match v {
                             v if v <= EDGE_FLANGE_T => "bottom edge".to_string(),
                             v if v >= 1.0 - EDGE_FLANGE_T => "top edge".to_string(),
                             v if (v - 0.5).abs() < 0.005 => "middle".to_string(),
                             v => format!("{v:.2}"),
-                        })
-                        .text("Across"),
-                )
+                        }))
                 .on_hover_text("0 is the bottom band edge, 0.5 the middle, 1 the top band edge.")
                 .changed();
             hint(ui, flange_meaning(f.v_pos));
 
             ui.add_space(2.0);
-            egui::Grid::new("flange_dims")
-                .num_columns(2)
-                .spacing([8.0, 4.0])
-                .show(ui, |ui| {
-                    ui.label("Extent");
+            ui.push_id("flange_dims", |ui| {
+                    ringdesign_workbench::controls::row(ui, "Extent", |ui| {
                     changed |= ui
                         .add(
                             egui::DragValue::new(&mut f.extent_mm)
@@ -509,9 +491,9 @@ fn flange(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         )
                         .on_hover_text("Radial projection of the rim beyond the dome.")
                         .changed();
-                    ui.end_row();
+                    });
 
-                    ui.label("Thickness");
+                    ringdesign_workbench::controls::row(ui, "Thickness", |ui| {
                     changed |= ui
                         .add(
                             egui::DragValue::new(&mut f.thickness_mm)
@@ -521,9 +503,9 @@ fn flange(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         )
                         .on_hover_text("Axial thickness of the flat disc.")
                         .changed();
-                    ui.end_row();
+                    });
 
-                    ui.label("Edge round");
+                    ringdesign_workbench::controls::row(ui, "Edge round", |ui| {
                     changed |= ui
                         .add(
                             egui::DragValue::new(&mut f.edge_round_mm)
@@ -533,7 +515,7 @@ fn flange(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         )
                         .on_hover_text("Fillet where the flange meets the dome.")
                         .changed();
-                    ui.end_row();
+                    });
                 });
         });
     }
@@ -583,6 +565,81 @@ fn style_row(ui: &mut egui::Ui, style: ProfileStyle, selected: bool) -> egui::Re
 
 /// A picker row for any profile — preset or saved: its section drawn small
 /// at a normalized size, then the name.
+/// One shank kind in the picker, drawn as its own band: the width envelope
+/// unrolled around the ring, with the crest line over it.
+fn shank_row(
+    ui: &mut egui::Ui,
+    kind: ShankKind,
+    profile: &ringdesign_core::BandProfile,
+    amount: f64,
+    selected: bool,
+) -> egui::Response {
+    let desired = egui::vec2(ui.available_width().max(170.0), 34.0);
+    let (response, painter) = ui.allocate_painter(desired, egui::Sense::click());
+    let rect = response.rect;
+    if selected || response.hovered() {
+        painter.rect_filled(rect, 3.0, theme::ACCENT.gamma_multiply(if selected { 0.28 } else { 0.12 }));
+    }
+    let plot = egui::Rect::from_min_size(rect.min + egui::vec2(4.0, 3.0), egui::vec2(62.0, 28.0));
+    let mut style = ringdesign_core::ShankStyle { kind, amount, ..Default::default() };
+    if kind == ShankKind::Signet {
+        style.apply_signet(profile.width_mm);
+    }
+    let inner = 8.55;
+    let outer = inner + profile.thickness_mm;
+    const N: usize = 64;
+    let mods: Vec<_> = (0..=N)
+        .map(|i| {
+            let theta = i as f64 / N as f64 * 360.0;
+            let m = style.modulation(theta, inner, outer, profile);
+            let half = 0.5 * profile.width_mm * m.width_scale;
+            let centre = m.z_center_frac * 0.5 * profile.width_mm;
+            let crest = m.outer_r.unwrap_or(inner + profile.thickness_mm * m.thickness_scale);
+            (centre - half, centre + half, crest)
+        })
+        .collect();
+    let (mut zlo, mut zhi, mut rhi) = (f64::MAX, f64::MIN, f64::MIN);
+    for &(lo, hi, r) in &mods {
+        zlo = zlo.min(lo);
+        zhi = zhi.max(hi);
+        rhi = rhi.max(r);
+    }
+    // One scale for the band, another for the crest strip above it: the two
+    // are different measures and only their shape matters here.
+    let span = (zhi - zlo).max(0.5);
+    let body = egui::Rect::from_min_max(plot.left_top() + egui::vec2(0.0, 9.0), plot.right_bottom());
+    let at = |i: usize, z: f64| {
+        egui::pos2(
+            plot.left() + plot.width() * i as f32 / N as f32,
+            body.bottom() - (body.height() as f64 * (z - zlo) / span) as f32,
+        )
+    };
+    let colour = if selected { theme::ACCENT } else { theme::ACCENT_DIM };
+    let mut edge = Vec::with_capacity(2 * (N + 1));
+    edge.extend((0..=N).map(|i| at(i, mods[i].1)));
+    edge.extend((0..=N).rev().map(|i| at(i, mods[i].0)));
+    painter.add(egui::Shape::closed_line(edge, egui::Stroke::new(1.0, colour)));
+    let rlo = mods.iter().map(|m| m.2).fold(f64::MAX, f64::min);
+    let lift = (rhi - rlo).max(1e-6);
+    let crest: Vec<_> = (0..=N)
+        .map(|i| {
+            egui::pos2(
+                plot.left() + plot.width() * i as f32 / N as f32,
+                plot.top() + 7.0 - (7.0 * (mods[i].2 - rlo) / lift) as f32,
+            )
+        })
+        .collect();
+    painter.add(egui::Shape::line(crest, egui::Stroke::new(1.0, theme::TEXT_DIM)));
+    painter.text(
+        egui::pos2(plot.right() + 8.0, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        kind.label(),
+        egui::TextStyle::Button.resolve(ui.style()),
+        if selected { theme::ACCENT } else { theme::TEXT },
+    );
+    response
+}
+
 fn profile_row(
     ui: &mut egui::Ui,
     label: &str,
@@ -728,11 +785,16 @@ fn shank(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         .selected_text(app.design.shank.kind.label())
         .width(180.0)
         .show_ui(ui, |ui| {
+            // Each kind draws its own band: the unrolled width envelope with
+            // the crest over it, which is where these kinds differ.
+            let (profile, amount) = (app.design.profile.clone(), app.design.shank.amount);
             for &kind in ShankKind::ALL {
-                changed |= ui
-                    .selectable_value(&mut app.design.shank.kind, kind, kind.label())
-                    .on_hover_text(kind.description())
-                    .changed();
+                let at = app.design.shank.kind == kind;
+                if shank_row(ui, kind, &profile, amount, at).on_hover_text(kind.description()).clicked() && !at {
+                    app.design.shank.kind = kind;
+                    changed = true;
+                    ui.close();
+                }
             }
         });
     // Picking Signet from a standing start would otherwise land on whatever the
@@ -744,18 +806,11 @@ fn shank(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     hint(ui, app.design.shank.kind.description());
 
     let uniform = app.design.shank.kind == ShankKind::Uniform;
-    changed |= ui
-        .add_enabled(
-            !uniform,
-            egui::Slider::new(&mut app.design.shank.amount, 0.0..=1.0)
-                .fixed_decimals(2)
-                .text("Amount"),
-        )
-        .changed();
+    changed |= ui.add_enabled_ui(!uniform,|ui| ringdesign_workbench::controls::slider(ui,"Amount",
+        egui::Slider::new(&mut app.design.shank.amount,0.0..=1.0).fixed_decimals(2))).inner.changed();
 
     if matches!(app.design.shank.kind, ShankKind::Wave | ShankKind::Twist) {
-        changed |= ui
-            .add(egui::Slider::new(&mut app.design.shank.waves, 1..=6).text("Waves"))
+        changed |= ringdesign_workbench::controls::slider(ui, "Waves", egui::Slider::new(&mut app.design.shank.waves, 1..=6))
             .on_hover_text("Waves per revolution. Integer, so the band closes on itself.")
             .changed();
     }
@@ -920,32 +975,20 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
     });
     let head = &mut app.design.shank.head;
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut head.length_mm, 3.0..=30.0)
+    changed |= ringdesign_workbench::controls::slider(ui, "Face length", egui::Slider::new(&mut head.length_mm, 3.0..=30.0)
                 .fixed_decimals(1)
-                .suffix(" mm")
-                .text("Face length"),
-        )
+                .suffix(" mm"))
         .on_hover_text("Extent of the face around the ring. Across the band it is the Width.")
         .changed();
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut head.rise_mm, 0.0..=4.0)
+    changed |= ringdesign_workbench::controls::slider(ui, "Rise", egui::Slider::new(&mut head.rise_mm, 0.0..=4.0)
                 .fixed_decimals(2)
-                .suffix(" mm")
-                .text("Rise"),
-        )
+                .suffix(" mm"))
         .on_hover_text("How far the middle of the table stands above the band's crest.")
         .changed();
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut head.body_fair, 0.0..=1.0)
-                .fixed_decimals(2)
-                .text("Body fairing"),
-        )
+    changed |= ringdesign_workbench::controls::slider(ui, "Body fairing", egui::Slider::new(&mut head.body_fair, 0.0..=1.0)
+                .fixed_decimals(2))
         .on_hover_text(
             "How far the body under the table rounds away from the face's outline. 0 extrudes \
              the face straight down to the finger, so a heart's dimple runs the whole depth of \
@@ -965,14 +1008,8 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
             changed = true;
         }
         let mut deg = head.swell_deg.unwrap_or(90.0);
-        if ui
-            .add_enabled(
-                !on,
-                egui::Slider::new(&mut deg, 20.0..=160.0)
-                    .fixed_decimals(0)
-                    .suffix("°")
-                    .text("Swell"),
-            )
+        if ui.add_enabled_ui(!on,|ui| ringdesign_workbench::controls::slider(ui,"Swell",
+                egui::Slider::new(&mut deg,20.0..=160.0).fixed_decimals(0).suffix("°"))).inner
             .on_hover_text(
                 "Arc the band's width takes to come back to the shank. This is what a signet \
                  reads as from the side, and it runs two and a half times as far as the face.",
@@ -984,33 +1021,21 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         }
     });
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut head.shoulder_deg, 8.0..=80.0)
+    changed |= ringdesign_workbench::controls::slider(ui, "Shoulder", egui::Slider::new(&mut head.shoulder_deg, 8.0..=80.0)
                 .fixed_decimals(0)
-                .suffix("°")
-                .text("Shoulder"),
-        )
+                .suffix("°"))
         .on_hover_text("Arc the crest takes to fall from the head back to the shank.")
         .changed();
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut head.table_flat, 0.0..=1.0)
-                .fixed_decimals(2)
-                .text("Table flat"),
-        )
+    changed |= ringdesign_workbench::controls::slider(ui, "Table flat", egui::Slider::new(&mut head.table_flat, 0.0..=1.0)
+                .fixed_decimals(2))
         .on_hover_text(
             "1 is a true plane to engrave. Below that the head keeps the profile's crown.",
         )
         .changed();
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut head.dome, 0.0..=1.0)
-                .fixed_decimals(2)
-                .text("Cut dome"),
-        )
+    changed |= ringdesign_workbench::controls::slider(ui, "Cut dome", egui::Slider::new(&mut head.dome, 0.0..=1.0)
+                .fixed_decimals(2))
         .on_hover_text(
             "1 cuts the face from a swollen dome: the band's plan ignores the \
              outline, the flank rounds as one dome, and the facet is where the \
@@ -1020,12 +1045,8 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         )
         .changed();
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut head.loft, 0.0..=1.0)
-                .fixed_decimals(2)
-                .text("Lofted body"),
-        )
+    changed |= ringdesign_workbench::controls::slider(ui, "Lofted body", egui::Slider::new(&mut head.loft, 0.0..=1.0)
+                .fixed_decimals(2))
         .on_hover_text(
             "1 builds the head the way the factory presets do: one loose loft from the \
              table's rim, through a body outline three millimetres under it, down to the \
@@ -1035,37 +1056,25 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         )
         .changed();
     if head.loft > 0.0 {
-        changed |= ui
-            .add(
-                egui::Slider::new(&mut head.loft_frontal_mm, 0.0..=8.0)
+        changed |= ringdesign_workbench::controls::slider(ui, "Body growth along", egui::Slider::new(&mut head.loft_frontal_mm, 0.0..=8.0)
                     .fixed_decimals(1)
-                    .suffix(" mm")
-                    .text("Body growth along"),
-            )
+                    .suffix(" mm"))
             .on_hover_text(
                 "How much wider than the table the body outline is along the ring, 3 mm \
                  under the table. A control row of the loft, so it shows as a bulge of a \
                  few tenths rather than a shelf.",
             )
             .changed();
-        changed |= ui
-            .add(
-                egui::Slider::new(&mut head.loft_lateral_mm, 0.0..=8.0)
+        changed |= ringdesign_workbench::controls::slider(ui, "Body growth across", egui::Slider::new(&mut head.loft_lateral_mm, 0.0..=8.0)
                     .fixed_decimals(1)
-                    .suffix(" mm")
-                    .text("Body growth across"),
-            )
+                    .suffix(" mm"))
             .on_hover_text("The same growth across the band.")
             .changed();
     }
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut head.table_dome_mm, 0.0..=3.0)
+    changed |= ringdesign_workbench::controls::slider(ui, "Cab dome", egui::Slider::new(&mut head.table_dome_mm, 0.0..=3.0)
                 .fixed_decimals(2)
-                .suffix(" mm")
-                .text("Cab dome"),
-        )
+                .suffix(" mm"))
         .on_hover_text(
             "Dome standing on the table's centre. On a prism or cut-dome head a \
              parabolic cab; on a lofted head the factory presets' smooth table — the \
@@ -1075,13 +1084,9 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         )
         .changed();
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut head.hollow_mm, 0.0..=4.0)
+    changed |= ringdesign_workbench::controls::slider(ui, "Hollow", egui::Slider::new(&mut head.hollow_mm, 0.0..=4.0)
                 .fixed_decimals(2)
-                .suffix(" mm")
-                .text("Hollow"),
-        )
+                .suffix(" mm"))
         .on_hover_text(
             "A scoop from the finger hole up into the head's belly, fading out over the \
              shoulder: lightens a heavy head. The bore is a vertical wall at any radius, \
@@ -1090,13 +1095,9 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         )
         .changed();
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut head.rim_round_mm, 0.0..=1.5)
+    changed |= ringdesign_workbench::controls::slider(ui, "Rim round", egui::Slider::new(&mut head.rim_round_mm, 0.0..=1.5)
                 .fixed_decimals(2)
-                .suffix(" mm")
-                .text("Rim round"),
-        )
+                .suffix(" mm"))
         .on_hover_text(
             "Rounding between the table and the head's walls — how hard the face \
              outline reads. The reference signets round theirs about 0.6 mm; the \
@@ -1104,12 +1105,8 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
         )
         .changed();
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut head.theta_deg, 0.0..=360.0)
-                .suffix("°")
-                .text("Around"),
-        )
+    changed |= ringdesign_workbench::controls::slider(ui, "Around", egui::Slider::new(&mut head.theta_deg, 0.0..=360.0)
+                .suffix("°"))
         .on_hover_text("Where the head sits round the ring. 90° is the top.")
         .changed();
 
@@ -1151,28 +1148,16 @@ fn signet_head(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
                 if h2.outline != before {
                     h2.fit_length_to(h2.length_mm / before.head_aspect().max(0.1));
                 }
-                changed |= ui
-                    .add(
-                        egui::Slider::new(&mut h2.length_mm, 3.0..=30.0)
+                changed |= ringdesign_workbench::controls::slider(ui, "Face length", egui::Slider::new(&mut h2.length_mm, 3.0..=30.0)
                             .fixed_decimals(1)
-                            .suffix(" mm")
-                            .text("Face length"),
-                    )
+                            .suffix(" mm"))
                     .changed();
-                changed |= ui
-                    .add(
-                        egui::Slider::new(&mut h2.theta_deg, 0.0..=360.0)
-                            .suffix("°")
-                            .text("Around"),
-                    )
+                changed |= ringdesign_workbench::controls::slider(ui, "Around", egui::Slider::new(&mut h2.theta_deg, 0.0..=360.0)
+                            .suffix("°"))
                     .changed();
-                changed |= ui
-                    .add(
-                        egui::Slider::new(&mut h2.rise_mm, 0.0..=4.0)
+                changed |= ringdesign_workbench::controls::slider(ui, "Rise", egui::Slider::new(&mut h2.rise_mm, 0.0..=4.0)
                             .fixed_decimals(2)
-                            .suffix(" mm")
-                            .text("Rise"),
-                    )
+                            .suffix(" mm"))
                     .changed();
             });
         }
@@ -1285,36 +1270,24 @@ fn casting(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             .changed();
     });
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut d.min_draft_deg, 1.0..=10.0)
+    changed |= ringdesign_workbench::controls::slider(ui, "Min draft", egui::Slider::new(&mut d.min_draft_deg, 1.0..=10.0)
                 .fixed_decimals(1)
-                .suffix("°")
-                .text("Min draft"),
-        )
+                .suffix("°"))
         .changed();
     hint(
         ui,
         "3° is a normal minimum for sand; below it a wall drags on the way out.",
     );
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut d.min_section_mm, 0.3..=2.0)
+    changed |= ringdesign_workbench::controls::slider(ui, "Min section", egui::Slider::new(&mut d.min_section_mm, 0.3..=2.0)
                 .fixed_decimals(2)
-                .suffix(" mm")
-                .text("Min section"),
-        )
+                .suffix(" mm"))
         .changed();
     hint(ui, "Thinnest section the metal will reliably fill. This one gates the verdict.");
 
-    changed |= ui
-        .add(
-            egui::Slider::new(&mut d.min_detail_mm, 0.1..=1.0)
+    changed |= ringdesign_workbench::controls::slider(ui, "Min detail", egui::Slider::new(&mut d.min_detail_mm, 0.1..=1.0)
                 .fixed_decimals(2)
-                .suffix(" mm")
-                .text("Min detail"),
-        )
+                .suffix(" mm"))
         .changed();
     hint(
         ui,
@@ -1371,13 +1344,10 @@ fn crown(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
 fn exponents(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
     let mut changed = false;
     hint(ui, "Superellipse exponents of d(x) = 1 - (1 - x^a)^(1/b).");
-    egui::Grid::new("profile_shape")
-        .num_columns(2)
-        .spacing([8.0, 4.0])
-        .show(ui, |ui| {
+    ui.push_id("profile_shape", |ui| {
             let p = &mut app.design.profile;
 
-            ui.label("Shape a");
+            ringdesign_workbench::controls::row(ui, "Shape a", |ui| {
             changed |= ui
                 .add(
                     egui::DragValue::new(&mut p.shape_a)
@@ -1387,9 +1357,9 @@ fn exponents(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
                 )
                 .on_hover_text("Higher flattens the crown and sharpens the falloff at the edges.")
                 .changed();
-            ui.end_row();
+            });
 
-            ui.label("Shape b");
+            ringdesign_workbench::controls::row(ui, "Shape b", |ui| {
             changed |= ui
                 .add(
                     egui::DragValue::new(&mut p.shape_b)
@@ -1399,7 +1369,7 @@ fn exponents(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
                 )
                 .on_hover_text("Higher fills the crest out.")
                 .changed();
-            ui.end_row();
+            });
         });
     changed
 }
@@ -1576,20 +1546,16 @@ fn mesh(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         hint(ui,"Master triangles stay intact. Detail controls relief subdivision; preview and export use the same base.");
         return;
     }
-    crate::panels::quality_picker(ui, "export_quality", &mut app.export_params);
+    crate::panels::quality_picker(ui, "export_quality", &mut app.export_params, "");
 
     match app.export_params.refine {
         Some(r) => {
             ui.add_space(4.0);
             let mut tol = r.tolerance_mm;
-            if ui
-                .add(
-                    egui::Slider::new(&mut tol, 0.004..=0.2)
+            if ringdesign_workbench::controls::slider(ui, "Tolerance", egui::Slider::new(&mut tol, 0.004..=0.2)
                         .logarithmic(true)
                         .fixed_decimals(3)
-                        .suffix(" mm")
-                        .text("Tolerance"),
-                )
+                        .suffix(" mm"))
                 .changed()
             {
                 app.export_params.refine = Some(RefineParams {
@@ -1604,27 +1570,24 @@ fn mesh(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             );
         }
         None => {
-            egui::Grid::new("export_res")
-                .num_columns(2)
-                .spacing([8.0, 4.0])
-                .show(ui, |ui| {
-                    ui.label("Around");
+            ui.push_id("export_res", |ui| {
+                    ringdesign_workbench::controls::row(ui, "Around", |ui| {
                     ui.add(
                         egui::DragValue::new(&mut app.export_params.theta_steps)
                             .speed(8.0)
                             .range(64..=4096),
                     )
                     .on_hover_text("Sweep steps around the ring.");
-                    ui.end_row();
+                    });
 
-                    ui.label("Across");
+                    ringdesign_workbench::controls::row(ui, "Across", |ui| {
                     ui.add(
                         egui::DragValue::new(&mut app.export_params.profile_steps)
                             .speed(4.0)
                             .range(32..=1024),
                     )
                     .on_hover_text("Vertices around the cross-section.");
-                    ui.end_row();
+                    });
                 });
 
             ui.label(

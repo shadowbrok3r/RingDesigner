@@ -409,6 +409,7 @@ pub fn save_design(app: &mut RingDesignerApp) {
     };
     match library::save_design_embedded(&path, &app.design, &app.lib) {
         Ok(()) => {
+            app.document_path = Some(path.clone());
             app.push_recent(&path);
             app.set_status(format!("Saved {}", path.display()));
         }
@@ -440,6 +441,7 @@ pub fn open_design_path(app: &mut RingDesignerApp, path: &std::path::Path) {
             app.selected_layer = None;
             app.fit_pending = true;
             app.mark_dirty();
+            app.document_path = Some(path.to_path_buf());
             app.push_recent(path);
             app.set_status(format!("Opened {}", path.display()));
         }
@@ -447,14 +449,26 @@ pub fn open_design_path(app: &mut RingDesignerApp, path: &std::path::Path) {
     }
 }
 
-/// Replace the design with a fresh template instance.
-pub fn load_template(app: &mut RingDesignerApp, t: &ringdesign_core::templates::Template) {
-    app.design = t.design();
+/// Start a template from the shared collection library.
+pub fn load_catalog_template(app: &mut RingDesignerApp, t: &ringdesign_workbench::templates::Template) {
+    match t.instantiate(&app.graph_reg, &app.lib) {
+        Ok(design) => adopt_template(app, design, t.name),
+        Err(e) => app.set_status(format!("Could not open template: {e}")),
+    }
+}
+
+fn adopt_template(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, name: &str) {
+    design.unpack_embedded(app.library_mut());
+    design.bake_all(app.library_mut());
+    app.document_path = None;
+    app.design = design;
     app.history.reset(&app.design.clone());
     app.selected_layer = None;
     app.fit_pending = true;
+    app.sync_graph();
+    app.arrange_graph();
     app.mark_dirty();
-    app.set_status(format!("New design from template: {}", t.name));
+    app.set_status(format!("New design from template: {name}"));
 }
 
 /// Import SVG files: the text travels in the design, the raster in the library.

@@ -315,6 +315,30 @@ pub fn show(
     angles: [f32; 3],
     head: f32,
 ) -> Response {
+    show_impl(ui, viewport, id, settings, angles, head, true)
+}
+
+/// Camera controls without surface-placement tools (CAD and study previews).
+pub fn show_camera(
+    ui: &egui::Ui,
+    viewport: Rect,
+    id: egui::Id,
+    settings: &mut Settings,
+    angles: [f32; 3],
+    head: f32,
+) -> Response {
+    show_impl(ui, viewport, id, settings, angles, head, false)
+}
+
+fn show_impl(
+    ui: &egui::Ui,
+    viewport: Rect,
+    id: egui::Id,
+    settings: &mut Settings,
+    angles: [f32; 3],
+    head: f32,
+    placement: bool,
+) -> Response {
     let before = *settings;
     let mut action = None;
     let mut controls = vec![];
@@ -386,7 +410,10 @@ pub fn show(
                         let lock = icons::compact(ui, if settings.locked { Icon::Locked } else { Icon::Unlocked }, settings.locked);
                         controls.push(("Lock view", lock.rect));
                         if lock.clicked() { settings.locked = !settings.locked; }
-                        let loupe = icons::compact(ui, Icon::Magnifier, settings.magnifier);
+                        let loupe = ui.add_enabled_ui(placement, |ui| {
+                            icons::compact(ui, Icon::Magnifier, placement && settings.magnifier)
+                        }).inner;
+                        loupe.response.clone().on_disabled_hover_text("The placement magnifier is available when placing surface features in the ring viewport.");
                         controls.push(("Magnifier", loupe.rect));
                         if loupe.clicked() { settings.magnifier = !settings.magnifier; }
                         let upside_down = (angles[2].abs() - PI).abs() < 0.2;

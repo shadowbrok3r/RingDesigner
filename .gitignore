@@ -21,6 +21,7 @@ __pycache__/
 /showcase/**/*.glb
 /showcase/**/*.zip
 /showcase/**/*.bak
+/showcase/reptilia/**/*.blend
 /showcase/**/review/
 /showcase/**/reels/
 /showcase/**/highlights/

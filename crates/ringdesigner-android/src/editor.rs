@@ -42,7 +42,7 @@ impl Mode {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Sheet {
     Edit,
     Layers,
@@ -242,6 +242,7 @@ pub struct Editor {
     pub part: ShapePart,
     pub parameter: Parameter,
     pub guides: bool,
+    pub handles_active: bool,
     pub help: bool,
     pub selection: Option<picking::Hit>,
     pub overlaps: Vec<usize>,
@@ -272,6 +273,7 @@ impl Default for Editor {
             part: ShapePart::Band,
             parameter: Parameter::Bore,
             guides: true,
+            handles_active: true,
             help: false,
             selection: None,
             overlaps: Vec::new(),
@@ -290,11 +292,12 @@ impl Default for Editor {
 
 impl Editor {
     pub fn select_mode(&mut self, mode: Mode) {
-        self.mode = mode;
-        // Keep a collapsed inspector collapsed while working from floating tools.
-        if self.sheet.is_some() {
-            self.sheet = Some(Sheet::Edit);
+        if self.sheet != Some(Sheet::Graph) {
+            self.workspace.mode_panels[self.mode as usize] = self.sheet;
         }
+        self.mode = mode;
+        self.handles_active = true;
+        self.sheet = self.workspace.mode_panels[mode as usize];
         self.drag = None;
         self.hold_before = false;
         if mode != Mode::Surface {
@@ -309,6 +312,7 @@ impl Editor {
         };
     }
     pub fn reset_selection(&mut self) {
+        self.handles_active = false;
         self.selection = None;
         self.overlaps.clear();
         self.stone = None;
@@ -331,6 +335,33 @@ pub fn row_width(available: f32, count: usize, gap: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // Behavior paths reviewed on emulator-5554 through ARTEMIS, 2026-09-19.
+    #[test]
+    fn workspaces_restore_collapsed_and_custom_inspectors() {
+        let mut e = Editor::default();
+        e.sheet = None;
+        e.select_mode(Mode::Surface);
+        assert_eq!(e.sheet, Some(Sheet::Layers));
+        e.sheet = Some(Sheet::Report);
+        e.select_mode(Mode::Casting);
+        assert_eq!(e.sheet, Some(Sheet::Findings));
+        e.select_mode(Mode::Shape);
+        assert_eq!(e.sheet, None);
+        e.select_mode(Mode::Surface);
+        assert_eq!(e.sheet, Some(Sheet::Report));
+    }
+    #[test]
+    fn clearing_selection_releases_dimension_handles_for_navigation() {
+        let mut e = Editor::default();
+        let d = RingDesign::default();
+        let camera = crate::camera::OrbitCamera::default();
+        let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400.,500.));
+        let handle = camera.projector(rect).at(overlay::dimension(&d,e.parameter).0);
+        assert!(overlay::blocks_orbit(&e,&d,&camera,rect,Some(handle)));
+        e.reset_selection();
+        assert!(!overlay::blocks_orbit(&e,&d,&camera,rect,Some(handle)));
+        assert!(e.selection.is_none() && e.stone.is_none());
+    }
     #[test]
     fn every_sheet_replaces_the_previous_one() {
         let mut e = Editor::default();

@@ -37,6 +37,8 @@ impl RingApp {
                 if file_action(ui, "Rename, export & share...").clicked() {
                     self.show_files();
                 }
+                ui.separator();
+                if file_action(ui, "Feature request / bug report...").clicked() { ringdesign_workbench::feedback::open(ui.ctx()); }
             },
         );
         crate::editor::layout::record(ui, "header/File", response.rect);
@@ -152,42 +154,12 @@ impl RingApp {
             }
         }
         ui.separator();
-        ui.weak("Stock masterworks");
-        for template in ringdesign_graph::templates::IMPORTED {
-            self.new_graph_entry(ui, template);
-        }
-        ui.separator();
-        ui.weak("Showcase templates");
-        for template in ringdesign_graph::templates::SHOWCASE {
-            self.new_graph_entry(ui, template);
-        }
-        ui.separator();
-        ui.weak("Starter designs");
-        for template in ringdesign_core::templates::all() {
-            if file_action(ui, template.name)
-                .on_hover_text(template.blurb)
-                .clicked()
-            {
-                self.load_template_design(template.design(), template.name);
-                self.show_new_design();
-                ui.close();
-            }
-        }
-    }
-
-    fn new_graph_entry(
-        &mut self,
-        ui: &mut egui::Ui,
-        template: &ringdesign_graph::templates::TemplateGraph,
-    ) {
-        if file_action(ui, template.name).clicked() {
+        if let Some(template) = ringdesign_workbench::templates::menu(ui) {
             match template.instantiate(&self.graph.reg, &self.lib) {
                 Ok(design) => {
                     self.load_template_design(design, template.name);
                     self.graph.sync(&self.design);
-                    if let Some(editor) = &mut self.graph.ed {
-                        editor.arrange(&self.graph.reg);
-                    }
+                    if let Some(editor) = &mut self.graph.ed { editor.arrange(&self.graph.reg); }
                     self.show_new_design();
                     ui.close();
                 }
@@ -195,6 +167,7 @@ impl RingApp {
             }
         }
     }
+
 
     fn show_new_design(&mut self) {
         self.editor.isolate = false;

@@ -317,7 +317,7 @@ fn search_row(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 }
 
 fn source_row(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         if ui
             .button(format!("{} Import images…", icon::FILE_IMAGE))
             .on_hover_text("PNG/JPG/BMP. Brightness reads as height: black is flat, white is the layer's full relief.")
@@ -373,7 +373,7 @@ fn source_row(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
     });
 
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         let size_id = egui::Id::new("library_builtin_size");
         let mut size: usize = ui.memory(|m| m.data.get_temp(size_id)).unwrap_or(256);
 

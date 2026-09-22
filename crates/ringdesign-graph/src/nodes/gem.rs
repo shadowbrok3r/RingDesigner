@@ -44,6 +44,21 @@ fn gem_node() -> NodeSpec {
     .field(PinSpec::item("w_mm", ValueKind::Number).widget(Widget::Mm { min: 0.5, max: 30.0 }).doc("Width (the short axis), mm."))
     .field(PinSpec::item("l_mm", ValueKind::Number).widget(Widget::Mm { min: 0.5, max: 40.0 }).doc("Length (the long axis), mm."))
     .field(PinSpec::select("form", enum_names(GemForm::ALL)).doc("Faceted, or a flat-backed cabochon."))
+    // None is omitted from old files, so this optional serde field is handled
+    // outside the default-record coverage check. An unset pin preserves its base.
+    .extra(PinSpec::list("preview_tint", ValueKind::Number).doc("Optional preview colour as [red, green, blue], each 0 to 1."))
+    .finish(|gem, inputs, _| {
+        let value = inputs.get("preview_tint");
+        if !value.is_null() && !inputs.list("preview_tint").is_empty() {
+            let json = value.to_json_any().ok_or_else(|| NodeError::input("preview_tint", "expected an RGB array"))?;
+            let tint: [f32; 3] = serde_json::from_value(json).map_err(|e| NodeError::input("preview_tint", e.to_string()))?;
+            if tint.iter().any(|v| !v.is_finite() || !(0.0..=1.0).contains(v)) {
+                return Err(NodeError::input("preview_tint", "RGB components must be between 0 and 1"));
+            }
+            gem.preview_tint = Some(tint);
+        }
+        Ok(())
+    })
     .build()
 }
 

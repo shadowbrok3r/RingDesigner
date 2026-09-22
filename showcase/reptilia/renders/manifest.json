@@ -1,0 +1,77 @@
+[
+  {
+    "file": "Reptilia-Ecdysis-portrait.png",
+    "sha256": "86f4f03556d278b97b7d4e16ca29e68165e62963fc3589db542e3337aa9bd3b1",
+    "source_mesh": "ecdysis/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Ecdysis-close-up.png",
+    "sha256": "bcdbe292a5c971238ef34d1189b84690fdc1fd0a7394f418f3eaa1cbe7f36b3e",
+    "source_mesh": "ecdysis/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Ecdysis-palm.png",
+    "sha256": "5913080ba761e0ccf42044b09e2ae56c1d388d4623941ee61e36c30b25d93f62",
+    "source_mesh": "ecdysis/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Tessera-portrait.png",
+    "sha256": "3669986624cecef57907c695411353ee397a30e3897fe5b554d4fa6adb5a5ca2",
+    "source_mesh": "tessera/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Tessera-close-up.png",
+    "sha256": "30e8ffc6e953bd211ad99832eb7dbd23f065313df078539112c0d4406aef7a8d",
+    "source_mesh": "tessera/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Tessera-palm.png",
+    "sha256": "d54cd5ea7917bd7e1eb2f0ef892b941df340c52672f05dcd185c370b7739ec2d",
+    "source_mesh": "tessera/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Lorica-portrait.png",
+    "sha256": "a93335596ad27de721eec06a457f354ed3b4cac638aad7c4d7e2e497c690d12f",
+    "source_mesh": "lorica/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Lorica-close-up.png",
+    "sha256": "38ef65bada72304e50c29e914a16d9c6cfb41ad6979ab192cfdaf6a8d17469f1",
+    "source_mesh": "lorica/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Lorica-palm.png",
+    "sha256": "cf4b45b60170a4ca023805bb53418da423389f9410af17eadfe3da881d0fcc75",
+    "source_mesh": "lorica/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Ophidian-portrait.png",
+    "sha256": "9b87afea3c4b0e76f61d7d44597c340352eee2b65febf8c96988248258570bb3",
+    "source_mesh": "ophidian/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Ophidian-close-up.png",
+    "sha256": "26d22cd718a05826c40b7bba576cdb0db1fa8a100152669b8688062ed43751c9",
+    "source_mesh": "ophidian/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Ophidian-palm.png",
+    "sha256": "ec0d1e6ad18d4be14e2155d8b86e8a2ed56fc827403e825d2686f2a6a981a2c4",
+    "source_mesh": "ophidian/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Varanus-portrait.png",
+    "sha256": "1b88bcd5b76dc63399a82f47a53cdc3ece5218e0b0273d7842ee73cb9e66ec5a",
+    "source_mesh": "varanus/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Varanus-close-up.png",
+    "sha256": "4476fe2ecc5650f2d09476a782c5d3efa7e20379274c61051834f0223a51ece9",
+    "source_mesh": "varanus/finished-metal.stl"
+  },
+  {
+    "file": "Reptilia-Varanus-palm.png",
+    "sha256": "0dde9f310db90eaae0643f6a7d08445c5616e077b1efecb5684dfb065ca34b96",
+    "source_mesh": "varanus/finished-metal.stl"
+  }
+]

@@ -10,22 +10,18 @@
 
 use crate::style::StyleModifier;
 use crate::{
-    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, PointerButton, Popup,
+    Button, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, PointerButton, Popup,
     PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
 };
 use emath::{Align, RectAlign, Vec2, vec2};
-use epaint::Stroke;
 
 /// Apply a menu style to the [`Style`].
 ///
-/// Mainly removes the background stroke and the inactive background fill.
+/// Keep the theme's control frames, including inactive menu choices.
 pub fn menu_style(style: &mut Style) {
     style.spacing.button_padding = vec2(2.0, 0.0);
-    style.visuals.widgets.active.bg_stroke = Stroke::NONE;
-    style.visuals.widgets.open.bg_stroke = Stroke::NONE;
-    style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
-    style.visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
-    style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
+    // RingDesigner: menu items need the same visible borders and hover feedback
+    // as controls outside popups, on both desktop and touch screens.
 }
 
 /// Find the root [`UiStack`] of the menu.
@@ -319,7 +315,19 @@ impl<'a> MenuButton<'a> {
         ui: &mut Ui,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> (Response, Option<InnerResponse<R>>) {
-        let response = self.button.ui(ui);
+        // A menu must advertise that it opens more choices, including when
+        // supplied as an image/text button outside a MenuBar.
+        let caret_id = Id::new("menu-down-caret");
+        let atoms = self.button.right_text(crate::Atom::custom(caret_id, vec2(8.0, 8.0))).atom_ui(ui);
+        if let Some(rect) = atoms.rect(caret_id) {
+            let c = rect.center();
+            let color = ui.style().interact(&atoms.response).fg_stroke.color;
+            ui.painter().add(crate::Shape::convex_polygon(
+                vec![c + vec2(-3.5,-2.0), c + vec2(3.5,-2.0), c + vec2(0.0,2.5)],
+                color, crate::Stroke::NONE,
+            ));
+        }
+        let response = atoms.response;
         let mut config = self.config.unwrap_or_else(|| MenuConfig::find(ui));
         config.bar = false;
         let inner = Popup::menu(&response)

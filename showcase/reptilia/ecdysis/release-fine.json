@@ -1,0 +1,451 @@
+{
+  "status": "Review",
+  "frame": {
+    "x": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "y": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "z": [
+      0.0,
+      0.0,
+      1.0
+    ]
+  },
+  "parting_mm": 0.0,
+  "suggested_parting_mm": 0.0,
+  "bounds": [
+    [
+      -12.041827201843262,
+      -12.041827201843262,
+      -4.332313537597656
+    ],
+    [
+      12.041827201843262,
+      12.041827201843262,
+      4.332313537597656
+    ]
+  ],
+  "grid": [
+    322,
+    322
+  ],
+  "cell_mm": [
+    0.07479395777542398,
+    0.07479395777542398
+  ],
+  "tolerance_mm": 0.02,
+  "unresolved_rays": 0,
+  "occupied_rays": 30424,
+  "obstructions": [],
+  "sand_findings": [
+    {
+      "point": [
+        -0.037396978887712866,
+        -12.00443022295555,
+        0.0
+      ],
+      "width_mm": 0.3739697888771199,
+      "message": "Sand slot about 0.37 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -1.6080700921716153,
+        -11.854842307404702,
+        0.0
+      ],
+      "width_mm": 0.29917583110169593,
+      "message": "Sand slot about 0.30 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        1.5332761343961914,
+        -11.854842307404702,
+        0.0
+      ],
+      "width_mm": 0.3739697888771199,
+      "message": "Sand slot about 0.37 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        3.1039492476800956,
+        -11.555666476303006,
+        0.0
+      ],
+      "width_mm": 0.3739697888771199,
+      "message": "Sand slot about 0.37 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -3.1039492476800965,
+        -11.480872518527582,
+        0.0
+      ],
+      "width_mm": 0.29917583110169593,
+      "message": "Sand slot about 0.30 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -4.5998284031885746,
+        -10.957314814099615,
+        0.0
+      ],
+      "width_mm": 0.22438187332627196,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        4.525034445413151,
+        -10.957314814099615,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        5.946119643146207,
+        -10.284169194120798,
+        0.0
+      ],
+      "width_mm": 0.22438187332627196,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -6.020913600921631,
+        -10.209375236345375,
+        0.0
+      ],
+      "width_mm": 0.07479395777542398,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        7.2176169253284135,
+        -9.38664170081571,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -7.217616925328414,
+        -9.311847743040287,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        7.29241088310384,
+        9.311847743040284,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -7.14282296755299,
+        9.38664170081571,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        6.02091360092163,
+        10.209375236345371,
+        0.0
+      ],
+      "width_mm": 0.07479395777542398,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -5.946119643146207,
+        10.284169194120798,
+        0.0
+      ],
+      "width_mm": 0.22438187332627196,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        4.599828403188574,
+        10.88252085632419,
+        0.0
+      ],
+      "width_mm": 0.07479395777542398,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -4.450240487637727,
+        10.957314814099613,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        3.1787432054555187,
+        11.406078560752155,
+        0.0
+      ],
+      "width_mm": 0.07479395777542398,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -3.0291552899046716,
+        11.480872518527582,
+        0.0
+      ],
+      "width_mm": 0.22438187332627196,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -1.4584821766207674,
+        11.70525439185385,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        1.6080700921716145,
+        11.70525439185385,
+        0.0
+      ],
+      "width_mm": 0.07479395777542398,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        0.03739697888771199,
+        11.8548423074047,
+        0.0
+      ],
+      "width_mm": 0.22438187332627196,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -12.00443022295555,
+        0.03739697888771199,
+        0.0
+      ],
+      "width_mm": 0.3739697888771199,
+      "message": "Sand slot about 0.37 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -11.854842307404702,
+        -1.5332761343961923,
+        0.0
+      ],
+      "width_mm": 0.3739697888771199,
+      "message": "Sand slot about 0.37 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -11.854842307404702,
+        1.6828640499470393,
+        0.0
+      ],
+      "width_mm": 0.29917583110169593,
+      "message": "Sand slot about 0.30 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -11.555666476303006,
+        -3.1039492476800965,
+        0.0
+      ],
+      "width_mm": 0.3739697888771199,
+      "message": "Sand slot about 0.37 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -11.480872518527582,
+        3.1787432054555187,
+        0.0
+      ],
+      "width_mm": 0.29917583110169593,
+      "message": "Sand slot about 0.30 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -10.957314814099615,
+        -4.450240487637727,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -10.957314814099615,
+        4.599828403188574,
+        0.0
+      ],
+      "width_mm": 0.22438187332627196,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -10.284169194120798,
+        -5.946119643146207,
+        0.0
+      ],
+      "width_mm": 0.22438187332627196,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -10.209375236345375,
+        6.02091360092163,
+        0.0
+      ],
+      "width_mm": 0.07479395777542398,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -9.38664170081571,
+        -7.14282296755299,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -9.311847743040287,
+        7.29241088310384,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        9.311847743040284,
+        -7.217616925328414,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        9.38664170081571,
+        7.2176169253284135,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        10.209375236345371,
+        -6.020913600921631,
+        0.0
+      ],
+      "width_mm": 0.07479395777542398,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        10.284169194120798,
+        5.946119643146207,
+        0.0
+      ],
+      "width_mm": 0.22438187332627196,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        10.88252085632419,
+        -4.5998284031885746,
+        0.0
+      ],
+      "width_mm": 0.07479395777542398,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        10.957314814099613,
+        4.525034445413151,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        11.406078560752155,
+        -3.1787432054555196,
+        0.0
+      ],
+      "width_mm": 0.07479395777542398,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        11.480872518527582,
+        3.0291552899046708,
+        0.0
+      ],
+      "width_mm": 0.22438187332627196,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        11.70525439185385,
+        -1.6080700921716153,
+        0.0
+      ],
+      "width_mm": 0.07479395777542398,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        11.70525439185385,
+        1.5332761343961914,
+        0.0
+      ],
+      "width_mm": 0.14958791555084797,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        11.8548423074047,
+        -0.037396978887712866,
+        0.0
+      ],
+      "width_mm": 0.22438187332627196,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    }
+  ],
+  "worst_draft_deg": 0.0,
+  "low_draft_area_mm2": 360.31886061539916,
+  "fits_flask": true,
+  "notes": [
+    "360.32 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+    "Sample spacing 0.075 × 0.075 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+  ]
+}

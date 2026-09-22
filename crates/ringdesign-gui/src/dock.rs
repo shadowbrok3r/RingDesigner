@@ -23,6 +23,10 @@ pub enum ToolKind {
 }
 
 impl ToolKind {
+    pub fn atelier(self) -> ringdesign_workbench::icons::Icon {
+        use ringdesign_workbench::icons::Icon;
+        match self { Self::Design => Icon::Shape, Self::Layers => Icon::Layers, Self::Report => Icon::Casting, Self::Library => Icon::Pattern, Self::Node => Icon::Graph }
+    }
     pub const ALL: &'static [ToolKind] = &[
         ToolKind::Design,
         ToolKind::Layers,
@@ -36,7 +40,7 @@ impl ToolKind {
             ToolKind::Design => "Design",
             ToolKind::Layers => "Layers",
             ToolKind::Report => "Report",
-            ToolKind::Library => "Tiles",
+            ToolKind::Library => "Alphas",
             ToolKind::Node => "Node",
         }
     }
@@ -105,6 +109,19 @@ impl Default for Dock {
 }
 
 impl Dock {
+    pub fn for_desktop(desktop: Desktop) -> Self {
+        if desktop == Desktop::Model { return Self::default(); }
+        let (left, right) = match desktop {
+            Desktop::Graph => (vec![], vec![ToolKind::Node]),
+            Desktop::Surface => (vec![ToolKind::Layers], vec![ToolKind::Library]),
+            _ => (vec![], vec![]),
+        };
+        Self {
+            left: if left.is_empty() { egui_tiles::Tree::empty("dock_left") } else { egui_tiles::Tree::new_vertical("dock_left", left) },
+            right: if right.is_empty() { egui_tiles::Tree::empty("dock_right") } else { egui_tiles::Tree::new_vertical("dock_right", right) },
+            left_width: 336.0, right_width: if desktop == Desktop::Graph { 420.0 } else { 326.0 },
+        }
+    }
     pub fn tree(&self, side: Side) -> &egui_tiles::Tree<ToolKind> {
         match side {
             Side::Left => &self.left,
@@ -183,6 +200,122 @@ impl Dock {
             self.open_on(tool, Side::Left);
         } else {
             self.close(tool);
+        }
+    }
+}
+
+/// Each working environment remembers its own panes and inspector arrangement.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Desktop { #[default] Model, Graph, Surface, Casting, Cad }
+impl Desktop {
+    pub const ALL: [Self; 5] = [Self::Model, Self::Graph, Self::Surface, Self::Casting, Self::Cad];
+    pub fn label(self) -> &'static str { match self { Self::Model => "Model", Self::Graph => "Graph", Self::Surface => "Surface", Self::Casting => "Casting", Self::Cad => "CAD" } }
+    pub fn pane(self) -> crate::pane::PaneKind { use crate::pane::PaneKind::*; match self { Self::Model => Solid, Self::Graph => Graph, Self::Surface => Unrolled, Self::Casting => Casting, Self::Cad => Cad } }
+    pub fn icon(self) -> ringdesign_workbench::icons::Icon { use ringdesign_workbench::icons::Icon::*; match self { Self::Model => Shape, Self::Graph => Graph, Self::Surface => Surface, Self::Casting => Casting, Self::Cad => Workshop } }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct DesktopLayout {
+    pub dock: Dock,
+    pub panes: Vec<crate::pane::Pane>,
+    pub layout: crate::pane::Layout,
+    pub active: usize,
+    #[serde(default)]
+    pub viewport_layout: Option<crate::pane::ViewportLayout>,
+}
+impl DesktopLayout {
+    pub fn new(desktop: Desktop) -> Self {
+        use crate::pane::{Layout, PaneKind};
+        let mut panes = crate::pane::Pane::defaults();
+        panes[0].kind = desktop.pane();
+        // Each workspace opens on the pair of views its work needs: the graph
+        // beside two previews, the tile layout under the ring it wraps.
+        let (layout, active) = match desktop {
+            Desktop::Graph => {
+                panes = crate::pane::graph_panes();
+                (Layout::GraphReview, 2)
+            }
+            Desktop::Surface => {
+                panes[0].kind = PaneKind::Solid;
+                panes[1].kind = PaneKind::Unrolled;
+                (Layout::SplitV, 1)
+            }
+            _ => (Layout::Single, 0),
+        };
+        Self { dock: Dock::for_desktop(desktop), panes, layout, active,
+            viewport_layout: Some(crate::pane::ViewportLayout::new(layout)) }
+
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Which tools are docked to a side. A set, not a list: `Tiles::iter`
+    /// walks its own storage, which is not the order they were inserted in.
+    fn tools_on(dock: &Dock, side: Side) -> std::collections::BTreeSet<&'static str> {
+        dock.tree(side)
+            .tiles
+            .iter()
+            .filter_map(|(_, t)| match t {
+                egui_tiles::Tile::Pane(p) => Some(p.label()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_workspace_opens_on_the_views_its_work_needs() {
+        use crate::pane::{Layout, PaneKind};
+        // The surface is painted on the ring it wraps, so both are on screen.
+        let surface = DesktopLayout::new(Desktop::Surface);
+        assert_eq!(surface.layout, Layout::SplitV, "stacked, not side by side");
+        assert_eq!(surface.panes[0].kind, PaneKind::Solid, "the ring on top");
+        assert_eq!(surface.panes[1].kind, PaneKind::Unrolled, "its layout under it");
+        assert_eq!(surface.active, 1, "the editor is what the work happens in");
+
+        let graph = DesktopLayout::new(Desktop::Graph);
+        assert_eq!(graph.layout, Layout::GraphReview);
+        assert_eq!(graph.panes[2].kind, PaneKind::Graph);
+
+        // Everything else opens on one view of its own thing.
+        for desktop in [Desktop::Model, Desktop::Casting, Desktop::Cad] {
+            let d = DesktopLayout::new(desktop);
+            assert_eq!(d.layout, Layout::Single, "{desktop:?}");
+            assert_eq!(d.panes[0].kind, desktop.pane(), "{desktop:?}");
+        }
+    }
+
+    #[test]
+    fn a_default_layout_is_the_one_every_workspace_opens_with() {
+        // What `RingDesignerApp::restore_default_layout` puts back: the same
+        // arrangement a fresh workspace builds, whatever was moved since.
+        for desktop in Desktop::ALL {
+            let fresh = DesktopLayout::new(desktop);
+
+            let mut moved = DesktopLayout::new(desktop);
+            for tool in ToolKind::ALL {
+                moved.dock.close(*tool);
+                moved.dock.open_on(*tool, Side::Right);
+            }
+            assert_ne!(
+                tools_on(&moved.dock, Side::Right),
+                tools_on(&fresh.dock, Side::Right),
+                "{desktop:?}: the test has to actually move something"
+            );
+
+            let back = DesktopLayout::new(desktop);
+            assert_eq!(back.layout, fresh.layout, "{desktop:?}");
+            assert_eq!(back.active, fresh.active, "{desktop:?}");
+            assert_eq!(back.panes.len(), fresh.panes.len(), "{desktop:?}");
+            for side in Side::ALL {
+                assert_eq!(tools_on(&back.dock, *side), tools_on(&fresh.dock, *side), "{desktop:?} {side:?}");
+            }
+            // Every view the preset names is back in the tree it hands over.
+            let views = back.viewport_layout.as_ref().expect("a default layout carries its views");
+            assert!(views.valid_for(fresh.layout), "{desktop:?}");
+            assert_eq!(views.shown().len(), fresh.layout.count(), "{desktop:?}");
         }
     }
 }

@@ -129,6 +129,8 @@ impl Prefs {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Workspace {
+    pub mode_panels: [Option<crate::editor::Sheet>; 4],
+    pub graph_fullscreen: bool,
     /// Portrait height and landscape width as fractions of the available editor.
     pub inspector_fraction: [f32; 2],
     /// The same, while the recipe graph rides under (or beside) the ring: a
@@ -144,6 +146,8 @@ pub struct Workspace {
 impl Default for Workspace {
     fn default() -> Self {
         Self {
+            mode_panels: [Some(crate::editor::Sheet::Edit), Some(crate::editor::Sheet::Layers), Some(crate::editor::Sheet::Edit), Some(crate::editor::Sheet::Findings)],
+            graph_fullscreen: true,
             inspector_fraction: [0.32, 0.36],
             graph_fraction: [0.5, 0.5],
             graph_follow: true,

@@ -151,6 +151,35 @@ fn studio_gem(n: V3, tint: [f32; 3]) -> [u8; 3] {
     studio_display(std::array::from_fn(|k| tint[k] as f64 * body * (1.0 - fresnel) + env[k] * fresnel))
 }
 
+/// One ball of this metal under the studio, for a material swatch: the same
+/// environment, roughness and Fresnel the viewports shade with, so a chip of
+/// it is the metal the ring will be. RGBA row-major, transparent off the ball.
+pub fn metal_ball(edge: usize, f0: [f32; 3], roughness: f64, key: V3, ambient: f64) -> Vec<u8> {
+    let mut out = vec![0u8; edge * edge * 4];
+    let r = edge as f64 * 0.5;
+    for y in 0..edge {
+        for x in 0..edge {
+            // Unit sphere across the chip, one pixel of anti-aliased rim.
+            let (u, v) = ((x as f64 + 0.5 - r) / (r - 0.5), (r - 0.5 - y as f64) / (r - 0.5));
+            let d2 = u * u + v * v;
+            if d2 >= 1.0 {
+                continue;
+            }
+            let n = [u, v, (1.0 - d2).sqrt()];
+            let env = studio_environment(studio_reflect(n), roughness, key, ambient);
+            let rim = (1.0 - n[2].clamp(0.0, 1.0)).powi(5);
+            let rgb = studio_display(std::array::from_fn(|k| {
+                env[k] * (f0[k] as f64 + (1.0 - f0[k] as f64) * rim)
+            }));
+            let a = (((1.0 - d2.sqrt()) * (r - 0.5)).clamp(0.0, 1.0) * 255.0) as u8;
+            let at = (y * edge + x) * 4;
+            out[at..at + 3].copy_from_slice(&rgb);
+            out[at + 3] = a;
+        }
+    }
+    out
+}
+
 /// Gold-shaded render at the given orientation. RGB, row-major.
 pub fn render(m: &Mesh, yaw: f64, pitch: f64, w: usize, h: usize) -> Vec<u8> {
     draw(m, yaw, pitch, w, h, None, GOLD)

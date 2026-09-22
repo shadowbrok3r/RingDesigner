@@ -49,6 +49,7 @@ pub fn blocks_orbit(
         return true;
     }
     if !editor.guides
+        || !editor.handles_active
         || editor.mode != Mode::Shape
         || !editor.parameter.has_handle()
         || (editor.part == super::ShapePart::Head
@@ -126,7 +127,7 @@ pub fn draw(
     let mut stone_pick = None;
     match editor.mode {
         Mode::Shape
-            if editor.parameter.has_handle()
+            if editor.handles_active && editor.parameter.has_handle()
                 && (editor.part != super::ShapePart::Head
                     || d.shank.kind == ringdesign_core::ShankKind::Signet) =>
         {

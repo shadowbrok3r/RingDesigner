@@ -1,0 +1,163 @@
+{
+  "status": "Review",
+  "frame": {
+    "x": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "y": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "z": [
+      0.0,
+      0.0,
+      1.0
+    ]
+  },
+  "parting_mm": 0.0,
+  "suggested_parting_mm": 0.0,
+  "bounds": [
+    [
+      -12.048928260803223,
+      -12.009026527404785,
+      -4.587155818939209
+    ],
+    [
+      12.048928260803223,
+      12.009026527404785,
+      4.587155818939209
+    ]
+  ],
+  "grid": [
+    322,
+    321
+  ],
+  "cell_mm": [
+    0.07483806373169703,
+    0.07482259518632264
+  ],
+  "tolerance_mm": 0.02,
+  "unresolved_rays": 0,
+  "occupied_rays": 30592,
+  "obstructions": [],
+  "sand_findings": [
+    {
+      "point": [
+        2.806427389938639,
+        -11.148566682762075,
+        2.2935779094696045
+      ],
+      "width_mm": 0.22451419119509108,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -5.126407365621247,
+        -10.400340730898849,
+        2.2935779094696045
+      ],
+      "width_mm": 0.44902838239018217,
+      "message": "Sand slot about 0.45 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -8.34444410608422,
+        -7.931195089750201,
+        2.2935779094696045
+      ],
+      "width_mm": 0.07483806373169703,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        8.344444106084218,
+        7.931195089750199,
+        2.2935779094696045
+      ],
+      "width_mm": 0.07483806373169703,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        5.126407365621247,
+        10.325518135712523,
+        2.2935779094696045
+      ],
+      "width_mm": 0.14967612746339407,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -2.806427389938639,
+        11.148566682762072,
+        2.2935779094696045
+      ],
+      "width_mm": 0.22451419119509108,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -11.562480846547192,
+        -0.8978711422358732,
+        2.2935779094696045
+      ],
+      "width_mm": 0.5985807614905811,
+      "message": "Sand slot about 0.60 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -11.263128591620404,
+        -3.1425489978255516,
+        2.2935779094696045
+      ],
+      "width_mm": 0.07482259518632264,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        -11.11345246415701,
+        3.2173715930118725,
+        2.2935779094696045
+      ],
+      "width_mm": 0.2992903807452906,
+      "message": "Sand slot about 0.30 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        11.038614400425313,
+        -3.1425489978255516,
+        2.2935779094696045
+      ],
+      "width_mm": 0.1496451903726453,
+      "message": "Sand slot about 0.15 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        11.263128591620404,
+        3.14254899782555,
+        2.2935779094696045
+      ],
+      "width_mm": 0.07482259518632264,
+      "message": "Sand slot about 0.07 mm wide; inspect its support and depth"
+    },
+    {
+      "point": [
+        11.487642782815495,
+        0.8230485470495488,
+        2.2935779094696045
+      ],
+      "width_mm": 0.22446778555896793,
+      "message": "Sand slot about 0.22 mm wide; inspect its support and depth"
+    }
+  ],
+  "worst_draft_deg": 0.0,
+  "low_draft_area_mm2": 369.0230458348793,
+  "fits_flask": true,
+  "notes": [
+    "369.02 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+    "Sample spacing 0.075 × 0.075 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+  ]
+}

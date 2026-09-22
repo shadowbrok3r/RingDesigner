@@ -467,3 +467,77 @@ zoom buttons. Native Android/desktop source checks and 137 library tests pass.
 rendering reference. The subsequent Aster Atelier creation sessions complete M13;
 their evidence is in `showcase/aster-atelier/README.md`. Store publication of
 0.15.0 is separate from this video delivery.
+
+
+## Desktop and mobile workspace overhaul — 2026-09-19
+
+- [x] Inspect desktop/mobile chrome, graph routing, shared SVG icons and Mastertech's GitHub updater.
+- [x] Define shared interaction styling: coloured Atelier icons, visible frames on every selectable button, accent selection and hover strokes.
+- [x] Consolidate desktop commands into one row: File, View, workspace/tools menus, right-aligned build/preview/export/update controls.
+- [x] Move viewport display toggles into a local bottom toolbar; rename layouts Single, Split Vertical, Split Horizontal and Four.
+- [x] Add persistent workspace-specific panels for model, graph, surface, casting and CAD work; make Edit graph switch the visible viewport.
+- [x] Move graph parameters into a spacious Node inspector; highlight active panels and make resize boundaries and clickable nodes clear.
+- [x] Preview selectable features on hover; add explicit clear selection/navigation controls and Escape behaviour on both apps.
+- [x] Adapt mobile panel visibility and command menus to the active workspace; disable unavailable and running actions with explanations.
+- [x] Add nonblocking GitHub release checks, compatible asset selection, verified downloads, safe replacement and preserved-session restart; supply release packaging/workflow.
+- [x] Verify desktop layout and graph/selection behaviour; explore and verify mobile interactions with ARTEMIS before writing mobile tests.
+- [x] Run relevant tests and release builds, publish the Android update, and verify its downloaded hash.
+
+Design tokens: canvas `#0D0D12`, panel `#16141D`, ink `#E8E8E8`, selection `#E66C99`, hover `#67D9D5`, metal `#E8BF70`. Existing proportional UI font: 12 px supporting text, 14 px controls, 17 px workspace titles.
+
+Design direction: retain the jewellery workbench's black/violet surfaces and pink selection accent; use aqua for hover, warm gold for metal/shape, violet for stones/graphs, blue for files and green for successful actions. Existing UI typography remains compact and readable. One global command row sits above workspace-specific panels; view controls belong inside the viewport. Strong panel edges and generous inspector rows distinguish resize handles from content. No decorative dashboard chrome.
+
+Update behaviour: automatically check and download compatible stable releases without blocking editing. Validate size and SHA-256 before replacement; preserve the working design and workspace before a requested restart. No GitHub release exists yet, so include the publishing contract/workflow and handle the empty release feed clearly.
+
+Verification: 213 Rust tests pass; ARTEMIS follow-up passed 8/8 checkpoints, and the final x86_64 APK passed six repeatable device checks. Native Linux review verified feature hover/selection, Edit graph, context panels and popup frames. Android 0.25.0 is published (version code 16783616); the authenticated store download exactly matches the ARM64 build. Linux desktop 0.2.0 and both Android ABI builds succeeded. Evidence: `docs/WORKSPACE-REVIEW.md`.
+
+## Graph workspace refinement — 2026-09-19
+
+- [x] Review panel/frame overlap, split layout architecture, graph inputs, workspace restrictions and inspection support.
+- [x] Add inner padding to inspector frames and consistent button heights across desktop/shared controls.
+- [x] Replace fixed viewport splits with a persistent, resizable egui_tiles tree; default Graph to 35% stacked previews and 65% graph.
+- [x] Keep a free 3D preview above a locked orthographic feature preview; update both in real time and focus the lower view on the selected node.
+- [x] Add Graph View/Edit controls, default View, and restore inline inputs in Edit; make node titles drag without selecting their text.
+- [x] Make the active workspace explicit; scope tools to the working surface and explain graph-driven geometry with an actionable route to editing.
+- [x] Add a bug-report/feature-request form that opens a prefilled GitHub issue for the user to submit.
+- [x] Keep command search above viewport navigation overlays.
+- [x] Keep session storage stable across releases and migrate existing saved designs/layouts without overwriting them.
+- [x] Verify with the inspection-enabled desktop, regression tests and visual review; build desktop and publish any Android changes after device checks.
+
+Retain the established canvas `#0D0D12`, panel `#16141D`, ink `#E8E8E8`, pink selection `#E66C99`, aqua hover `#67D9D5`, and gold `#E8BF70`. Keep the existing proportional fonts. Use 8 px inspector padding and one standard button height per platform, preserving mobile touch targets.
+
+Default Graph layout: `[ free 3D / focused orthographic | graph (65%) ] [Node inspector]`. Both dividers resize; layouts and focus settings persist per workspace. The workspace label states the editing context, while per-pane headers state the displayed surface. Geometry generated by a graph stays protected from silently losing its recipe; explain that distinction when surface tools are unavailable. View mode keeps node fields in the inspector, Edit restores inline fields. This follows the requested modeling workflow without adding floating windows or decorative chrome.
+
+Verification: 220 Rust tests passed. Native inspection verified both splitters, live mesh updates, title dragging, panel padding, button heights and command-search stacking. Final ARTEMIS review passed 8/8 checks on Android 16. Desktop 0.3.0 and both Android 0.26.0 ABI release builds succeeded. Android 0.26.0 is published (version code 16783872), with its downloaded ARM64 SHA-256 matching the local APK and store metadata. Evidence: `docs/GRAPH-WORKSPACE-REVIEW.md`.
+
+## Visual sources and complete template library — 2026-09-19
+
+- [x] Inspect alpha source editing, template assets and graph dependencies; identify redundant nodes and their effect on output.
+- [x] Replace raw PNG/base64 editing with a cached visual alpha picker in the graph and Node inspector.
+- [x] Include every authored template in a shared categorized library, with collection and template preview thumbnails.
+- [x] Show the active file/template name centered in the desktop top bar; preserve meaningful names when opening and saving.
+- [x] Remove unused template nodes and redundant inputs without changing their rendered designs; verify the generated files and builders agree.
+- [x] Darken button and selectable backgrounds while retaining readable text, icons and clear selected/hover states on both apps.
+- [x] Verify native UI interactions and regressions: 300 tests pass; inspect both source editors, template menus and title behavior at two window sizes.
+- [x] Verify Android device behavior, complete release builds and publish the Android update: ARTEMIS passed 8/8 checks; desktop 0.4.0 and Android 0.27.0 builds succeeded; the published APK's downloaded hash matches.
+- [x] Fix the final manual review finding: reopening after a short search restores complete thumbnails and captions; keyboard/rotation bounds are respected. The regression test and 11/11 targeted device checks pass. Android 0.27.1 is published and its downloaded hash matches; desktop 0.4.0 includes the same fix.
+
+## CAD workspace and interaction polish — 2026-09-19
+
+- [x] Audit CAD end to end: identify working sketch, primitive, revolve, sweep, loft, transform, boolean and export operations; fix broken routes and explain or disable unavailable actions.
+- [x] Give CAD a clear starting workflow and bring its viewport, top controls and local bottom toolbar in line with the modeling workspace.
+- [x] Reuse the interactive navigation cube and camera controls in CAD: face/edge/corner views, orbit, pan, zoom, fit and orthographic views.
+- [x] Add colored SVG icons for every CAD feature and operation, including twisted ring, cylinder, revolve and sweep; provide small geometry/example previews for choosing tools.
+- [x] Group CAD commands into useful menus and show a down caret on menu buttons throughout desktop and mobile.
+- [x] Make command-search results fill the popup width, keep the scrollbar at its right edge, and support Up/Down selection plus Enter activation.
+- [x] Add a paint-position/brush preview and smooth 3D camera tracking while dragging across the paint surface, with a clear way to control following.
+- [x] Align parameter labels left and drag values/sliders right in consistent rows, preserving usable widths and touch targets.
+- [x] Stabilize geometry hover at the editable-feature level; stop advertising individual mesh triangles as editable and remove flickering labels/highlights.
+- [x] Validate real CAD workflows, camera controls, search keyboard behavior, paint following, parameter alignment and hover stability in the native app; explore affected mobile interactions with ARTEMIS before writing mobile UI tests.
+- [x] Complete relevant regression tests and release builds, update the CAD usage/review notes, and publish validated Android changes.
+
+Retain the workbench's dark violet surfaces, readable ink `#E8E8E8`, pink selection `#E66C99`, aqua hover `#67D9D5`, gold shape controls `#E8BF70` and colored SVG vocabulary. Keep existing fonts and uniform control heights. CAD layout: `[Create ▾ | Modify ▾ | Sketch ▾ | View ▾]`, a spacious geometry viewport with the shared navigation cube, a local view/display footer, and an aligned feature inspector/history. Previews explain an operation's resulting shape. Menus disclose their behavior with carets; unavailable actions state their prerequisite. Camera following is smooth and subordinate to deliberate navigation. Preserve concurrent edits by reviewing the current file immediately before each focused patch.
+
+Keep the established jewellery workbench palette and proportional fonts. Darker control surfaces use ink-violet `#191620`, hover `#292131`, and selected plum `#3B2845`; text remains `#E8E8E8`, with pink `#E66C99` selection and aqua `#67D9D5` hover outlines. Image choices display their actual alpha or ring thumbnail next to a short name. Collections group the full library; long names truncate only in the centered title and retain a hover tooltip. Decode only visible images and cache them; never put embedded image payloads into editable text widgets.
+
+Coordination: the other agent owns node-field alignment, dock dragging/closing, graph focus, preview popup behavior, and material/camera/shank/imported-signet thumbnails. CAD and regular inspector edits here preserve those changes. CAD kernel audit: 10/10 existing tests pass. All enabled Create defaults and all seven Modify defaults build valid positive-volume solids; generic Twisted sweep is disabled with its kernel limitation explained. Regression suites pass: desktop 43, shared workbench 33, Android host 132 (218 tests including the core CAD audit). Native release inspection verified aligned sliders/fields, full-width keyboard search, CAD material changes, sketch dimension editing, resizing, paint following, stable feature hover, and Escape closing a menu before cancelling a CAD candidate. ARTEMIS passed 14/14 initial and 7/7 final checks on Android 16; the scrolling cube and live pink brush cue were inspected in screenshots. Desktop 0.5.0 is built locally. Android 0.28.0 is published (code 16784384); the downloaded APK SHA-256 matches the validated ARM64 build: `30027ea2759f634a8ffe9fe0da8d7eab83b7fc06974474d1067445cf41d8e0c3`. Usage, limits and evidence: `docs/CAD-WORKSPACE-REVIEW.md`.

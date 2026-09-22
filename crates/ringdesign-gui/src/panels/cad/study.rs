@@ -10,6 +10,7 @@ use std::sync::{
 struct Preview {
     renderer: Arc<Mutex<GpuMeshRenderer>>,
     camera: OrbitCamera,
+    display: crate::viewport::CandidateDisplay,
 }
 impl Preview {
     fn new(mesh: &ringdesign_core::Mesh) -> Self {
@@ -20,6 +21,7 @@ impl Preview {
         Self {
             renderer: Arc::new(Mutex::new(r)),
             camera,
+            display: Default::default(),
         }
     }
 }
@@ -288,7 +290,7 @@ pub fn sizes(
                                 crate::viewport::candidate_view(
                                     ui,
                                     view.renderer.clone(),
-                                    &mut view.camera,
+                                    &mut view.camera, &mut view.display, d.shank.head.theta_deg as f32,
                                 );
                             },
                         );
@@ -445,6 +447,6 @@ pub fn stages(app: &RingDesignerApp, ui: &mut egui::Ui, g: &Graph, d: &RingDesig
             ));
         }
         let v = &mut s.views[s.selected];
-        crate::viewport::candidate_view(ui, v.renderer.clone(), &mut v.camera);
+        crate::viewport::candidate_view(ui, v.renderer.clone(), &mut v.camera, &mut v.display, d.shank.head.theta_deg as f32);
     }
 }

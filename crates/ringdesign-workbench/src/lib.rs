@@ -3,7 +3,12 @@ pub mod artwork;
 pub mod imported_base;
 pub mod construction;
 pub mod focus;
+pub mod feedback;
+pub mod templates;
 pub mod icons;
+pub mod cad_tools;
+pub mod controls;
+pub mod paint_preview;
 pub mod navigation;
 #[cfg(feature = "glow")]
 pub mod loupe;
@@ -150,6 +155,10 @@ pub struct Workshop {
     feature_text_id: Option<u64>,
     yaw: f32,
     pitch: f32,
+    roll: f32,
+    zoom: f32,
+    pan: egui::Vec2,
+    navigation: navigation::Settings,
     section_axis: usize,
     section_offset: f64,
     section: bool,
@@ -171,6 +180,10 @@ impl Default for Workshop {
             feature_text_id: None,
             yaw: 0.6,
             pitch: 0.7,
+            roll: 0.0,
+            zoom: 1.0,
+            pan: egui::Vec2::ZERO,
+            navigation: Default::default(),
             section_axis: 2,
             section_offset: 0.0,
             section: false,
@@ -266,3 +279,5 @@ mod tests {
         assert_ne!(d.name, "Second");
     }
 }
+
+pub mod hover;

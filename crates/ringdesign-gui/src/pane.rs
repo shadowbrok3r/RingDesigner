@@ -55,6 +55,9 @@ pub struct Pane {
     pub camera: OrbitCamera,
     #[serde(default)]
     pub navigation: ringdesign_workbench::navigation::Settings,
+    /// This preview stays orthographic and follows the selected graph feature.
+    #[serde(default)]
+    pub follow_node: bool,
     pub shade: ShadeMode,
     pub section_theta_deg: f64,
     /// Slice at this pane's own angle, refreshed when the build lands.
@@ -71,6 +74,7 @@ impl Default for Pane {
             kind: PaneKind::Solid,
             camera: OrbitCamera::default(),
             navigation: Default::default(),
+            follow_node: false,
             shade: ShadeMode::Metal,
             section_theta_deg: TOP_DEG,
             section: None,
@@ -107,11 +111,12 @@ pub enum Layout {
     SplitH,
     SplitV,
     Quad,
+    GraphReview,
 }
 
 impl Layout {
     pub const ALL: &'static [Layout] =
-        &[Layout::Single, Layout::SplitH, Layout::SplitV, Layout::Quad];
+        &[Layout::Single, Layout::SplitH, Layout::SplitV, Layout::Quad, Layout::GraphReview];
 
     /// Panes this layout shows, always starting from pane 0.
     pub fn count(self) -> usize {
@@ -119,15 +124,17 @@ impl Layout {
             Layout::Single => 1,
             Layout::SplitH | Layout::SplitV => 2,
             Layout::Quad => 4,
+            Layout::GraphReview => 3,
         }
     }
 
     pub fn label(self) -> &'static str {
         match self {
             Layout::Single => "Single",
-            Layout::SplitH => "Two across",
-            Layout::SplitV => "Two down",
+            Layout::SplitH => "Split Vertical",
+            Layout::SplitV => "Split Horizontal",
             Layout::Quad => "Four",
+            Layout::GraphReview => "Graph & previews",
         }
     }
 
@@ -137,80 +144,68 @@ impl Layout {
             Layout::SplitH => icon::COLUMNS,
             Layout::SplitV => icon::ROWS,
             Layout::Quad => icon::SQUARES_FOUR,
+            Layout::GraphReview => icon::GRAPH,
         }
     }
 
-    /// Sub-rects for each visible pane, with a gutter left between them for the
-    /// dividers.
-    pub fn split(self, rect: egui::Rect, gutter: f32) -> Vec<egui::Rect> {
-        let g = gutter * 0.5;
-        let (cx, cy) = (rect.center().x, rect.center().y);
-        let left = egui::Rect::from_min_max(rect.min, egui::pos2(cx - g, rect.max.y));
-        let right = egui::Rect::from_min_max(egui::pos2(cx + g, rect.min.y), rect.max);
-        let top = egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x, cy - g));
-        let bottom = egui::Rect::from_min_max(egui::pos2(rect.min.x, cy + g), rect.max);
-        match self {
-            Layout::Single => vec![rect],
-            Layout::SplitH => vec![left, right],
-            Layout::SplitV => vec![top, bottom],
-            Layout::Quad => vec![
-                egui::Rect::from_min_max(rect.min, egui::pos2(cx - g, cy - g)),
-                egui::Rect::from_min_max(
-                    egui::pos2(cx + g, rect.min.y),
-                    egui::pos2(rect.max.x, cy - g),
-                ),
-                egui::Rect::from_min_max(
-                    egui::pos2(rect.min.x, cy + g),
-                    egui::pos2(cx - g, rect.max.y),
-                ),
-                egui::Rect::from_min_max(egui::pos2(cx + g, cy + g), rect.max),
-            ],
-        }
+    pub fn tree(self) -> egui_tiles::Tree<usize> {
+        use egui_tiles::{Container, Linear, LinearDir, Tiles, Tree};
+        let mut tiles = Tiles::default();
+        let panes: Vec<_> = (0..self.count()).map(|i| tiles.insert_pane(i)).collect();
+        let root = match self {
+            Self::Single => panes[0],
+            Self::SplitH => tiles.insert_horizontal_tile(panes),
+            Self::SplitV => tiles.insert_vertical_tile(panes),
+            Self::Quad => {
+                let left = tiles.insert_vertical_tile(vec![panes[0], panes[2]]);
+                let right = tiles.insert_vertical_tile(vec![panes[1], panes[3]]);
+                tiles.insert_horizontal_tile(vec![left, right])
+            }
+            Self::GraphReview => {
+                let previews = tiles.insert_vertical_tile(vec![panes[0], panes[1]]);
+                tiles.insert_container(Container::Linear(Linear::new_binary(
+                    LinearDir::Horizontal, [previews, panes[2]], 0.35,
+                )))
+            }
+        };
+        Tree::new("viewports", root, tiles)
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn rect() -> egui::Rect {
-        egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(800.0, 600.0))
-    }
-
-    #[test]
-    fn every_layout_yields_one_rect_per_pane() {
-        for &l in Layout::ALL {
-            assert_eq!(l.split(rect(), 4.0).len(), l.count(), "{l:?}");
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct ViewportLayout {
+    pub preset: Layout,
+    pub tree: egui_tiles::Tree<usize>,
+}
+impl ViewportLayout {
+    pub fn new(preset: Layout) -> Self { Self { preset, tree: preset.tree() } }
+    /// A layout still serves its preset while it holds some of the preset's
+    /// views and nothing else. A subset, not the whole set, because closing a
+    /// view leaves one — rebuilt from the preset, it would simply come back.
+    pub fn valid_for(&self, preset: Layout) -> bool {
+        if self.preset != preset || self.tree.root.is_none() {
+            return false;
         }
+        let shown: std::collections::BTreeSet<_> = self.tree.tiles.iter().filter_map(|(_, tile)| match tile {
+            egui_tiles::Tile::Pane(i) => Some(*i), _ => None,
+        }).collect();
+        !shown.is_empty() && shown.iter().all(|i| *i < preset.count())
     }
 
-    #[test]
-    fn panes_stay_inside_the_area_and_do_not_overlap() {
-        for &l in Layout::ALL {
-            let rs = l.split(rect(), 4.0);
-            for r in &rs {
-                assert!(rect().contains_rect(*r), "{l:?}: {r:?} escaped");
-                assert!(r.width() > 0.0 && r.height() > 0.0, "{l:?}: empty pane");
-            }
-            for i in 0..rs.len() {
-                for j in i + 1..rs.len() {
-                    let hit = rs[i].intersect(rs[j]);
-                    assert!(
-                        hit.width() <= 0.0 || hit.height() <= 0.0,
-                        "{l:?}: panes {i} and {j} overlap"
-                    );
-                }
-            }
-        }
+    /// The views this layout still shows, in pane order.
+    pub fn shown(&self) -> Vec<usize> {
+        let mut v: Vec<_> = self.tree.tiles.iter().filter_map(|(_, tile)| match tile {
+            egui_tiles::Tile::Pane(i) => Some(*i), _ => None,
+        }).collect();
+        v.sort_unstable();
+        v
     }
+}
 
-    #[test]
-    fn the_default_panes_cover_a_quad_layout() {
-        let p = Pane::defaults();
-        assert_eq!(p.len(), Layout::Quad.count());
-        assert!(
-            p.iter().any(|x| x.kind == PaneKind::Section),
-            "no section pane"
-        );
-    }
+pub fn graph_panes() -> Vec<Pane> {
+    let mut panes = Pane::defaults();
+    panes[1].follow_node = true;
+    panes[1].navigation.locked = true;
+    panes[2].kind = PaneKind::Graph;
+    panes
 }

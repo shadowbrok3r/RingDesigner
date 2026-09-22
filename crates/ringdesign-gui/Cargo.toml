@@ -1,7 +1,7 @@
 [package]
 name = "ringdesign-gui"
 edition.workspace = true
-version.workspace = true
+version = "0.5.0"
 license.workspace = true
 
 [[bin]]
@@ -10,6 +10,7 @@ path = "src/main.rs"
 
 [features]
 default = []
+ui-shot = ["egui_kittest/wgpu", "egui_kittest/snapshot"]
 ## Free mode's solid kernel (Manifold, C++ via cmake on first build).
 kernel = ["ringdesign-graph/kernel-manifold", "ringdesign-script/kernel"]
 
@@ -18,7 +19,7 @@ ringdesign-core.workspace = true
 ringdesign-workbench = { path = "../ringdesign-workbench", features = ["glow"] }
 ringdesign-mcp.workspace = true
 tokio.workspace = true
-eframe.workspace = true
+eframe = { workspace = true, features = ["links"] }
 egui.workspace = true
 egui_glow.workspace = true
 egui-phosphor.workspace = true
@@ -33,3 +34,12 @@ serde_json.workspace = true
 anyhow.workspace = true
 log.workspace = true
 env_logger.workspace = true
+
+reqwest = { version = "0.12.28", default-features = false, features = ["blocking", "rustls-tls"] }
+sha2 = "0.10.9"
+semver = "1.0.28"
+tempfile = "3.27"
+self-replace = "1.5"
+
+[dev-dependencies]
+egui_kittest = { version = "0.36", features = ["eframe"] }

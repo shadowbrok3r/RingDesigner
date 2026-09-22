@@ -106,7 +106,7 @@ void main() {
         return;
     }
     if (u_mode == 5) {
-        color = studio_gem(n, u_base_color, l, u_ambient);
+        color = studio_gem(n, v_color, l, u_ambient);
     } else if (u_mode == 4) {
         float lambert = max(dot(n, l), 0.0);
         vec3 half_c = v_obj_nz > 0.0 ? vec3(0.42, 0.62, 0.82) : vec3(0.80, 0.62, 0.38);

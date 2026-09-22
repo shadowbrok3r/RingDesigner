@@ -16,6 +16,7 @@ egui_glow = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
+image.workspace = true
 resvg = { version = "0.48.1", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

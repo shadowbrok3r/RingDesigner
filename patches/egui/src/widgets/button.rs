@@ -78,7 +78,9 @@ impl<'a> Button<'a> {
     pub fn selectable(selected: bool, atoms: impl IntoAtoms<'a>) -> Self {
         Self::new(atoms)
             .selected(selected)
-            .frame_when_inactive(selected)
+            // RingDesigner: selectable choices must read as controls at rest,
+            // on mouse, pen and touch, including choices inside combo boxes.
+            .frame_when_inactive(true)
             .frame(true)
     }
 
@@ -303,10 +305,8 @@ impl<'a> Button<'a> {
             mut classes,
         } = self;
 
-        // Min size height always equal or greater than interact size if not small
-        if !small {
-            min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
-        }
+        // RingDesigner: compact labels and icon buttons share the platform control height.
+        min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
 
         if limit_image_size {
             layout.map_atoms(|atom| {

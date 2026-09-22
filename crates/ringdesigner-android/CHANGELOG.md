@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.28.0 — 2026-09-19
+
+- CAD Workshop groups creation and modification tools into menus with dedicated colored SVG icons and real example thumbnails. Missing source prerequisites and the unsupported generic twisted sweep are explicitly disabled.
+- Workshop previews use the shared navigation cube, with orbit, pan, zoom, fit and view lock. The cube stays out of the fixed app chrome when scrolling properties, and the unused placement magnifier is disabled in CAD. Numeric parameter rows keep labels left and values right.
+- Painting shows its brush footprint on the 3D preview and smoothly follows drawing drags. Follow brush can hold the camera still; locked views and manual navigation remain respected.
+- Every menu button draws a visible down caret. Geometry hover keeps a stable feature caption without claiming individual mesh polygons are editable.
+
+## 0.27.1 — 2026-09-19
+
+- Reopening the alpha picker after filtering restores full thumbnail and caption space. The dialog follows the phone's safe content area, including keyboard and rotation changes.
+
+## 0.27.0 — 2026-09-19
+
+- Graph PNG sources open a visual, searchable alpha picker instead of editing base64 text. Cached previews keep large images out of text layout; chosen artwork remains embedded and portable.
+- New design includes all 31 authored templates in eight collections, with real ring thumbnails and preview images.
+- Reptilia bands no longer include dormant signet controls. Authored graphs omit unused and overwritten artwork sources while preserving their effective geometry and images.
+- Darker button and selectable backgrounds retain readable text, colored icons and selection/hover outlines.
+
+## 0.26.0 — 2026-09-19
+
+- File → Feature request / bug report opens a form for a prefilled GitHub issue. Add a title and details, review it on GitHub, then submit it there. The form includes app version, platform and workspace; it does not attach design files or logs.
+- Menu, icon and compact buttons share a consistent 32-point height. Selectable controls retain their visible frames and colours.
+- Node titles no longer select text when dragged. Graph layouts account for output badges appearing after the first evaluation.
+
+## 0.25.0 — 2026-09-19
+
+- Graph opens in its own workspace with contextual navigation and hides unrelated modeling palettes. Graph view can still dock beside the ring; each modeling mode remembers its inspector panel.
+- Colored Atelier icons and permanent button frames make selectable labels and dimension controls easier to recognize. Graph nodes show hover and selection borders.
+- A viewport-local Clear button releases feature, node and stone selection, exits active tools and releases dimension handles for free orbiting. Empty-space taps clear selection; Escape dismisses menus first, then clears selection. Mouse and hovering pen users see the selectable feature under the pointer.
+- The viewport shows an explicit Cutters button while seat cutters are visible, so their overlay can be hidden independently of selection.
+- Unavailable history, graph parameter and editing actions are disabled; view controls are scoped to visual workspaces.
+
+## 0.24.0 — 2026-09-19
+
+- Reptilia adds five editable presets in File → New: Ecdysis (snake belly band), Tessera (shield mosaic band), Lorica (crocodile armour band), Ophidian (factory 013 with a purple 7 × 5 mm oval stone), and Varanus (fully patterned factory 017). Each includes its geometry, artwork, recipe graph and separate casting and bench-finishing layers.
+- Four reusable patterns join the library: Snake keels, Ventral scutes, Crocodile scutes and Reptile shields.
+- Stones have a saved preview colour, editable under Stone & setting. Ophidian opens with its amethyst colour on desktop and Android; stone dimensions and setting geometry stay independent of colour.
+
 ## 0.23.0 — 2026-09-19
 
 - A new ring in File → New → Stock masterworks: Caiman — armoured hide, on the factory's octagonal signet (preset 015) with one emerald, held to two-part sand. One crocodile hide runs from back to belly. Rows of dorsal plates cross the face and run down both shoulders, grading from broad plates on the spine to small ones at the rim. A crest of keeled horns is struck along the spine, and the emerald-cut stone is flush set as the central plate of the nuchal shield, with a window drilled through beneath it. The head's walls carry granular flank skin studded with rows of bony knobs, and the palm carries the belly's broad scutes. After the pour the bench punches pits into the plates and cuts the lines that divide the belly into tiles. It reads zero withdrawal obstructions at every resolution checked.

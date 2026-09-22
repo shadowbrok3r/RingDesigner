@@ -1,0 +1,13 @@
+{
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "exposed_controls": [
+    "US size",
+    "Band width",
+    "Band thickness"
+  ],
+  "nodes": 20,
+  "source_identical": true,
+  "triangles": 1474560,
+  "vertices_faces_normals_identical": true
+}

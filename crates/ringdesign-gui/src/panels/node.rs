@@ -8,6 +8,15 @@ use crate::app::RingDesignerApp;
 use crate::theme;
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    let mut changed = false;
+    if let Some(ed) = app.graph_ed.as_mut() {
+        if !ed.graph().exposed.is_empty() {
+            egui::CollapsingHeader::new("Graph parameters").default_open(app.selected_node.is_none()).show(ui, |ui| {
+                changed = ed.parameters_ui(&app.graph_reg, ui);
+            });
+        }
+    }
+    if changed { app.graph_changed(); }
     let Some(ed) = app.graph_ed.as_ref() else {
         ui.weak("No graph. Open the Graph pane to convert the design or start one.");
         return;
@@ -20,8 +29,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         ui.weak("The selected node is gone.");
         return;
     };
-    let Some(node) = ed.node(id).cloned() else { return };
-    let graph = ed.graph().clone();
+    let Some(params) = ed.node(id).map(|node| node.params.clone()) else { return };
+    let wires = ed.graph().wires.clone();
+    let exposures = ed.graph().exposed.clone();
     let reg = app.graph_reg.clone();
 
     ui.horizontal(|ui| {
@@ -50,27 +60,27 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     }
     ui.separator();
     ui.label(egui::RichText::new("Inputs").strong());
-    egui::Grid::new(("node_inputs", id)).num_columns(3).spacing([8.0, 4.0]).show(ui, |ui| {
+    ui.vertical(|ui| {
         for pin in &card.pins_in {
-            ui.label(egui::RichText::new(&pin.name).color(kind_color(pin.kind))).on_hover_text(format!("{}\n{}", pin.kind.label(), pin.doc));
-            match graph.wire_into(id, &pin.name) {
+            ui.add_space(6.0);
+            ui.label(egui::RichText::new(pretty(&pin.name)).color(kind_color(pin.kind))).on_hover_text(format!("{}\n{}", pin.kind.label(), pin.doc));
+            ui.horizontal_wrapped(|ui| {
+            match wires.iter().find(|wire| wire.to == id && wire.input == pin.name) {
                 Some(w) => {
                     ui.weak(format!("{} from {}.{}", icon::PLUGS_CONNECTED, w.from, w.out));
                     ui.label("");
                 }
                 None => {
-                    let mut lit: Option<Literal> = node.inputs.get(&pin.name).cloned();
-                    let before = lit.clone();
+                    let mut lit: Option<Literal> = card.inputs.get(&pin.name).cloned();
                     let spec = pin.clone();
-                    pin_widget(ui, &spec, &mut lit);
-                    if lit != before {
+                    if pin_widget(ui, &spec, &mut lit) {
                         if let Some(ed) = app.graph_ed.as_mut() {
                             if ed.set_input(id, &pin.name, lit) {
                                 app.graph_changed();
                             }
                         }
                     }
-                    let exposed = graph.exposed.iter().find(|e| e.node == id && e.input == pin.name).map(|e| e.name.clone());
+                    let exposed = exposures.iter().find(|e| e.node == id && e.input == pin.name).map(|e| e.name.clone());
                     match exposed {
                         Some(name) => {
                             if ui.small_button(format!("{} {name}", icon::PUSH_PIN)).on_hover_text("Exposed on the graph's panel; click to withdraw").clicked() {
@@ -93,7 +103,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     }
                 }
             }
-            ui.end_row();
+            });
+            ui.separator();
         }
     });
     if !card.pins_out.is_empty() {
@@ -110,10 +121,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             }
         });
     }
-    if !node.params.is_null() {
+    if !params.is_null() {
         ui.separator();
         ui.collapsing("Params", |ui| {
-            let text = serde_json::to_string_pretty(&node.params).unwrap_or_default();
+            let text = serde_json::to_string_pretty(&params).unwrap_or_default();
             let shown: String = text.lines().take(40).collect::<Vec<_>>().join("\n");
             ui.add(egui::Label::new(egui::RichText::new(shown).monospace().small()).wrap());
         });
@@ -129,6 +140,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
 /// `width_mm` -> `Width`.
 fn pretty(key: &str) -> String {
+    if key == "png_base64" { return "Image".into(); }
     let base = key.trim_end_matches("_mm").trim_end_matches("_deg").replace('_', " ");
     let mut c = base.chars();
     match c.next() {

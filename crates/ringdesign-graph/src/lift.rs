@@ -318,47 +318,55 @@ pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result
     let mut g = Graph::new(&d.name, Mode::SandRing);
     let profile = g.add("band.profile")?;
     set_fields(&mut g, profile, reg, &json_of(&d.profile), &[]);
-    let shank = g.add("shank")?;
-    set_fields(&mut g, shank, reg, &json_of(&d.shank), &["head", "head_theta_deg", "head_length_mm"]);
-    let head = g.add("head")?;
-    set_fields(&mut g, head, reg, &json_of(&d.shank.head), &[]);
-    g.connect(head, "head", shank, "head")?;
-    let mut shank_out = shank;
-    for h in &d.shank.extra_heads {
-        let hn = g.add("head")?;
-        set_fields(&mut g, hn, reg, &json_of(h), &[]);
-        let add = g.add("shank.add_head")?;
-        g.connect(shank_out, "shank", add, "shank")?;
-        g.connect(hn, "head", add, "head")?;
-        shank_out = add;
+    // A uniform band's default head does not participate in its geometry.
+    // Do not manufacture editable signet controls for that dormant state.
+    let uses_head = d.shank.kind == ringdesign_core::ShankKind::Signet || d.imported_base.is_some();
+    let mut shank_out = None;
+    let mut head = None;
+    let mut shank = None;
+    if uses_head || json_of(&d.shank) != json_of(&ringdesign_core::ShankStyle::default()) {
+        let id = g.add("shank")?;
+        set_fields(&mut g, id, reg, &json_of(&d.shank), &["head", "head_theta_deg", "head_length_mm"]);
+        g.node_mut(id).expect("added").label = Some(if d.imported_base.is_some() { "Stock body" } else { "Shoulders and taper" }.into());
+        shank = Some(id);
+        shank_out = Some(id);
+        if uses_head {
+            let hn = g.add("head")?;
+            set_fields(&mut g, hn, reg, &json_of(&d.shank.head), &[]);
+            g.connect(hn, "head", id, "head")?;
+            g.node_mut(hn).expect("added").label = Some(if d.imported_base.is_some() { "Stock face dimensions" } else { "Signet face" }.into());
+            head = Some(hn);
+        }
+        for h in &d.shank.extra_heads {
+            let hn = g.add("head")?;
+            set_fields(&mut g, hn, reg, &json_of(h), &[]);
+            let add = g.add("shank.add_head")?;
+            g.connect(shank_out.expect("shank"), "shank", add, "shank")?;
+            g.connect(hn, "head", add, "head")?;
+            shank_out = Some(add);
+        }
     }
     let design = g.add("design.new")?;
     g.set_input(design, "name", Literal::Text(d.name.clone()))?;
     g.set_input(design, "size", Literal::Number(d.size.0))?;
     g.connect(profile, "profile", design, "profile")?;
-    g.connect(shank_out, "shank", design, "shank")?;
+    if let Some(shank_out) = shank_out { g.connect(shank_out, "shank", design, "shank")?; }
     g.node_mut(profile).expect("added").label = Some("Band section".into());
-    g.node_mut(shank).expect("added").label = Some("Shoulders and taper".into());
-    g.node_mut(head).expect("added").label = Some("Signet face".into());
     g.expose(design, "size", "US size")?;
     g.expose(profile, "width_mm", if d.imported_base.is_some() { "Face width" } else { "Band width" })?;
     g.expose(profile, "thickness_mm", if d.imported_base.is_some() { "Palm thickness" } else { "Band thickness" })?;
-    if d.shank.kind == ringdesign_core::ShankKind::Signet {
+    if let Some(head) = head {
         for (pin, name) in [
-            ("length_mm", "Face length"),
-            ("rise_mm", "Face rise"),
-            ("table_dome_mm", "Table dome"),
-            ("shoulder_deg", "Shoulder arc"),
-            ("swell_deg", "Body swell"),
-            ("rim_round_mm", "Rim rounding"),
-            ("dome", "Cut dome"),
-            ("loft", "Loft"),
+            ("length_mm", "Face length"), ("rise_mm", "Face rise"),
+            ("table_dome_mm", "Table dome"), ("shoulder_deg", "Shoulder arc"),
+            ("swell_deg", "Body swell"), ("rim_round_mm", "Rim rounding"),
+            ("dome", "Cut dome"), ("loft", "Loft"),
         ] {
             if d.imported_base.is_none() || matches!(pin, "length_mm" | "rise_mm") {
                 g.expose(head, pin, name)?;
             }
         }
-        if d.imported_base.is_none() { g.expose(shank, "amount", "Shank taper")?; }
+        if d.imported_base.is_none() { g.expose(shank.expect("head has a shank"), "amount", "Shank taper")?; }
     }
 
     let stack = stack_nodes(&mut g, reg, &d.layers.layers)?;
@@ -444,6 +452,14 @@ pub fn round_trip(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn uniform_band_does_not_acquire_dormant_signet_controls() {
+        let reg = Registry::builtin();
+        let (graph, got, want) = round_trip(&RingDesign::default(), &reg, &AlphaLibrary::default()).unwrap();
+        assert_eq!(got, want);
+        assert!(!graph.nodes.iter().any(|node| matches!(node.kind.as_str(), "head" | "shank")));
+    }
 
     #[test]
     fn every_template_lifts_and_evaluates_back_byte_for_byte() {

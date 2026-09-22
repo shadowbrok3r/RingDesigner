@@ -13,11 +13,13 @@ shot = ["egui_kittest/wgpu", "egui_kittest/snapshot"]
 [dependencies]
 ringdesign-core = { path = "../ringdesign-core", default-features = false }
 ringdesign-graph = { path = "../ringdesign-graph", default-features = false }
+ringdesign-workbench = { path = "../ringdesign-workbench" }
 egui.workspace = true
 egui-snarl.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 log.workspace = true
+base64 = "0.22"
 
 [dev-dependencies]
 egui_kittest = "0.36"

@@ -1470,6 +1470,56 @@ folder prices the metal table; File > Cost JSON writes the volume/weights
 interchange for the sibling calculator; the section view draws each seat's
 stone to scale, girdle on the pad and pavilion into the metal.
 
+**A picker shows the thing, not its name.** `swatch.rs` builds one ball per
+choice under the viewports' own studio — `render::metal_ball`, the same
+environment and Fresnel the GPU shades with — so the metals, the three
+polishes and the light rigs read off the Preview menu at a glance, and the
+shading modes are that same ball painted the way each mode paints the ring.
+The standard views are a plain band software-rendered from each angle. The
+shank picker draws every kind's own band (the width envelope unrolled with
+the crest over it, off `ShankStyle::modulation`), the way the profile picker
+has always drawn its section, and the stock signets draw their table plan
+from `Preset::plan`.
+
+**A combo box inside a menu closes it.** A menu closes on any click it does
+not recognise and only a *submenu* registers itself as the parent's open
+item, so a combo opened in a menu shuts the menu around it and never opens.
+`quality_picker` therefore asks `menu::is_in_menu` and renders itself as a
+submenu there and a combo everywhere else. Registering the combo's popup as
+the open item by hand does not work: on the click that opens it the popup
+has not been shown yet, so the parent drops it as stale in the same pass.
+
+Tool panels and viewport panes carry a **grip and a close button** in their
+own strips: the grip returns `egui_tiles::UiResponse::DragStarted`, which is
+the only way a pane whose body draws a viewport can be dragged, and the
+close defers to after `tree.ui` because the tree is borrowed while it draws.
+A closed viewport pane sticks because `ViewportLayout::valid_for` takes a
+*subset* of the preset's views; the last one keeps no close button, since an
+empty tree is rebuilt from the preset on the next frame. `RingDesignerApp::restore_default_layout` is the way back from
+all of it — panels *and* views, for the workspace in hand — and it sits in
+the layout cluster beside the presets it restores, in View, and in the
+command palette, because one of those is always in reach. Anything else that
+asks what is on screen goes through `RingDesignerApp::visible_panes`, which
+reads the tree only while it holds panes: `panes` swaps the tree out for an
+empty one for the length of `tree.ui`, so a bare tree walk answers "nothing
+is shown" mid-frame — which took the Preview menu off the toolbar, left the
+centred document title with no right-hand bound, and later hid the section
+marker from the very pane it is drawn in.
+
+**Each view's own strip carries what that view costs and how the window is
+split.** The build quality is a combo on every 3D view, right-aligned beside
+its close button, because it is what *that* picture costs to draw and it was
+three clicks away in a menu; the layout menu is on every pane's strip, not
+only a 3D one, because a section or a graph is as likely to be the pane you
+are looking at when you want a second view. A workspace opens on the pair of
+views its work needs (`DesktopLayout::new`): the surface on the ring it
+wraps, the graph beside two previews. Asking for a cross-section from a
+single view splits the window rather than replacing the ring
+(`set_pane_kind`) — a section is read against the shape it cuts — and
+`viewport::draw_section_marker` draws that slice back onto the ring, read
+from whichever section pane is on screen so dragging its angle moves the
+outline in the same frame.
+
 ## Stones are stock, not geometry to cast
 
 Stones are set at the bench; the ring casts the *stock* for them — bosses,
@@ -2149,6 +2199,14 @@ jobs. Panels never build synchronously — only export does, at
 Panels are `pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui)` and are
 wired in `panels/mod.rs`.
 
+**The chrome sits below the viewport.** `theme.rs` orders its surfaces
+`BG < PANEL < VIEWPORT_BG < FLOAT`: wells recede into a panel, the panel
+recedes behind the metal it frames, and a floating plate stands over
+everything. The viewport's ground carries the chrome's own violet rather
+than a neutral grey, which is what read as "way too gray" against the rest.
+`the_chrome_sits_below_the_viewport` pins the order, and the phone has
+always worked this way (near-black panels over a 18,18,20 ring canvas).
+
 The left column is **two panes**, not one scroll area: design on top, layers in a
 nested bottom panel. They shared a scroll once and the design column grew long
 enough to push `Add layer` off the bottom of the window, which reads as the
@@ -2232,6 +2290,26 @@ points tall and no finger finds it, and far enough out the whole node is
 the handle, which is right — nothing inside it can be read or touched at
 that size.
 
+**Every node and category in the add-node menu carries its mark**
+(`ringdesign_graph_ui::marks`, drawing the workbench's Atelier family):
+one mark per *kind* of node, so each `math.*` gets its own operator glyph
+while the three culls share a cull mark, and a node whose own mark would say
+nothing borrows the one from the thing it makes. `node()` returns an
+`Option` rather than a sentinel icon — a mark chosen on purpose and a mark
+missed must not be the same value — and `every_node_has_its_own_mark` fails
+on any registry key it does not name. The canvas also carries a zoom slider
+on the graph bar (`Editor::zoom` / `set_zoom`, applied about the view's own
+centre in `current_transform`): a canvas has no edges to judge a scale
+against, so pinching toward one was the only way to find it.
+
+**A node's labels sit left and its widgets right.** The row width is the
+widest `label + widget` over the node's *own* pins — `widget_width` is the
+nominal each arm draws at, read off the specs and never back from the
+layout it decides, which is the feedback that ratchets a node wider every
+frame. The widget is pushed out by a spacer, not by a right-to-left layout:
+that one reverses a slider's own parts and leaves its rail drawn back over
+the label.
+
 **The editor forces `TextWrapMode::Extend` inside its scope.** A node is
 as wide as its content, and its content is laid out in the width the node
 had last frame — snarl starts every node at `interact_size`, 40 points. A
@@ -2250,10 +2328,13 @@ barely moved is a click: on the graph it chose the node under that finger
 snarl answers by fitting the whole graph — "it keeps auto zooming out".
 `Editor::pinched` marks any press that had two fingers down; such a press
 chooses nothing, and on a touch screen snarl's double-click fit is off
-(the Fit button is there). Choosing a node that is already on screen at a
-readable zoom no longer moves the view, `focus_transform` never zooms out
-from a zoom the node still fits at (it capped at 1.25), and only an
-explicit arrange re-fits — its refinement passes keep the view. On the
+(the Fit button is there). **A focus centres its node**, wherever it already
+sat: the navigator, an Edit-in-graph and a tap on the ring all say "show me
+this one", and leaving a node where it was because it happened to be on
+screen read as the button doing nothing. The zoom that arrives stays the
+reader's — `focus_transform` never zooms out from one the node still fits at
+(it capped at 1.25) — and only an explicit arrange re-fits, its refinement
+passes keeping the view. On the
 phone `ring::pinch_in` gives a pinch only to the pane its first finger
 landed on: `multi_touch()` is one gesture for the whole screen, and read
 raw, pinching the graph zoomed and rolled the ring. Not egui's own
@@ -2548,6 +2629,18 @@ the walls meet the face; and a design commits to **one theme face to palm**
 All twenty presets are bundled now: 013 welded to a closed solid but for
 one triangle its exporter dropped, and `cap_single_triangles` closes a hole
 exactly one face big without adding or moving a vertex.
+
+**Each one is named for the shape its table draws**, from the factory's own
+outline export (`tools/harvest/outline_export.py`'s `NAMES`): 001 Cushion,
+002 Kite, 003 Clover, 004 Shield, 005 Rosette, 006 Square, 007 Quatrefoil,
+008 Heart, 009 Drop, 010 Trillion, 011 Badge, 012 Cushion (the 10 mm one —
+its plan matches 001's to 0.016), 013 Round, 014 Heater, 015 Octagon,
+016 Star, 017 Tonneau, 018 Butterfly, 019 Jewel, 020 Escutcheon. The number
+stays the provenance — `Preset::id` is what a design or an example names one
+by, and `stock_name()` is what the master file calls itself — while `name`,
+`face_mm` and `plan` (48 polar radii off the table band of its own mesh) are
+what the picker draws. "002 · Signet" told a reader nothing about the head
+they were about to get.
 
 `examples/stock_masterworks.rs` holds the two rings that came of it,
 **Saurian** (013, one stone) and **Zenith** (017, three), and the method:

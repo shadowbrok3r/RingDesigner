@@ -720,17 +720,8 @@ impl RingApp {
         let pending = self.history.is_pending();
         let undo = self.history.undo_label().map(str::to_owned);
         let redo = self.history.redo_label().map(str::to_owned);
-        // egui hit-tests against the previous frame. Keep these targets alive
-        // when batched touch events follow an edit before the header repaints;
-        // unavailable actions retain a muted appearance and safely do nothing.
         let history_button = |ui: &mut egui::Ui, icon, available: bool| {
-            ui.scope(|ui| {
-                if !available {
-                    ui.visuals_mut().override_text_color = Some(ui.visuals().weak_text_color());
-                }
-                ringdesign_workbench::icons::compact(ui, icon, false)
-            })
-            .inner
+            ui.add_enabled_ui(available, |ui| ringdesign_workbench::icons::compact(ui, icon, false)).inner
         };
         let r = history_button(
             ui,
@@ -1403,7 +1394,7 @@ impl RingApp {
                     if ui.button("Open graph").clicked() {
                         self.open_graph_sheet();
                     }
-                    if ui.button("Bake").clicked() && self.graph.bake(&mut self.design) {
+                    if ui.add_enabled(!self.preview_in_flight && self.dirty_at.is_none() && self.graph.errors.is_empty(), egui::Button::new("Bake")).on_disabled_hover_text("Wait for the graph to finish rebuilding successfully").clicked() && self.graph.bake(&mut self.design) {
                         self.status = "baked: the graph is gone and the design is yours".into();
                         self.mark_dirty();
                     }
@@ -1428,6 +1419,7 @@ impl RingApp {
         self.editor.hold_before = false;
         self.visual.select(ringdesign_workbench::visual::Tool::Select);
         self.editor.sheet = Some(Sheet::Graph);
+        if self.editor.workspace.graph_fullscreen { self.tab = Tab::Graph; }
         if let Some(ed) = &mut self.graph.ed {
             match ed.selected {
                 Some(id) => ed.focus(id),
@@ -1577,7 +1569,7 @@ impl RingApp {
                 {
                     self.save_prefs();
                 }
-                if ui.button("Bake: drop the graph, keep the ring").clicked() {
+                if ui.add_enabled(!self.preview_in_flight && self.dirty_at.is_none() && self.graph.errors.is_empty(), egui::Button::new("Bake: drop the graph, keep the ring")).on_disabled_hover_text("Wait for the graph to finish rebuilding successfully").clicked() {
                     act = Some(Act::Bake);
                 }
             });
@@ -1655,9 +1647,14 @@ impl RingApp {
                 }
                 return;
             }
-            Some(Act::Dock(true)) => self.open_graph_sheet(),
+            Some(Act::Dock(true)) => {
+                self.editor.workspace.graph_fullscreen = false;
+                self.open_graph_sheet();
+            },
             Some(Act::Dock(false)) => {
+                self.editor.workspace.graph_fullscreen = true;
                 self.tab = Tab::Graph;
+                self.save_prefs();
                 if let Some(ed) = &mut self.graph.ed {
                     match ed.selected {
                         Some(id) => ed.focus(id),
@@ -1922,10 +1919,12 @@ impl RingApp {
             });
             ui.horizontal_wrapped(|ui| {
                 ui.toggle_value(&mut self.brush.erase, "Carve");
+                if domain == Domain::Band {ringdesign_workbench::paint_preview::control(ui);}
                 if self.has_stylus {
                     ui.toggle_value(&mut self.brush.stylus_only, "Pen only");
                 }
-                if ui.button("Undo").clicked() {
+                let has_strokes=self.design.drawn.get(index).is_some_and(|d|!d.strokes.is_empty());
+                if ui.add_enabled(has_strokes,egui::Button::new("Undo")).clicked() {
                     if let Some(d) = self.design.drawn.get_mut(index) {
                         d.strokes.pop();
                     }
@@ -1933,7 +1932,7 @@ impl RingApp {
                     self.mark_dirty();
                     host.haptic(Haptic::Light);
                 }
-                if ui.button("Clear").clicked() {
+                if ui.add_enabled(has_strokes,egui::Button::new("Clear")).clicked() {
                     if let Some(d) = self.design.drawn.get_mut(index) {
                         d.strokes.clear();
                     }
@@ -1991,6 +1990,10 @@ impl RingApp {
                 *slot = drawing;
             }
 
+            if let Some((chart,dragging))=out.brush_chart {
+                ringdesign_workbench::paint_preview::publish(ui,&self.design,&self.lib,chart,
+                    [self.brush.frac as f64 * ctx.circumference_mm,self.brush.frac as f64 * w as f64/h as f64 * ctx.band_v_len_mm],dragging);
+            }
             if out.readout.is_some() {
                 self.readout = out.readout;
             }
@@ -3242,6 +3245,7 @@ impl EguiApp for RingApp {
             .request_repaint_after(std::time::Duration::from_millis(200));
         self.poll_sync(host);
         self.tick(ui.ctx());
+        ringdesign_graph_ui::alpha_picker::set_library(ui.ctx(), self.lib.clone());
         if std::mem::take(&mut self.verdict_fell) {
             host.haptic(Haptic::Warning);
         }

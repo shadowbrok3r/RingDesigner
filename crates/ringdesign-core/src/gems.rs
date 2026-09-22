@@ -62,6 +62,9 @@ pub fn preview_mesh(design: &RingDesign, lib: &AlphaLibrary) -> Option<crate::me
 /// that chart coordinate or rotate a stone onto a bezel's pocket wall.
 fn place(gem: Gem, frame: &crate::stones::StoneFrame, out: &mut Vec<f32>) {
     let (centre, n, t, b) = (frame.girdle, frame.normal, frame.long, frame.short);
+    let tint = gem.preview_tint
+        .filter(|rgb| rgb.iter().all(|v| v.is_finite() && (0.0..=1.0).contains(v)))
+        .unwrap_or(GEM_TINT);
 
     for (p0, p1, p2) in facets(gem) {
         let world = |p: [f64; 3]| -> [f64; 3] {
@@ -81,12 +84,12 @@ fn place(gem: Gem, frame: &crate::stones::StoneFrame, out: &mut Vec<f32>) {
                 fn3[0] as f32,
                 fn3[1] as f32,
                 fn3[2] as f32,
-                GEM_TINT[0],
-                GEM_TINT[1],
-                GEM_TINT[2],
-                GEM_TINT[0],
-                GEM_TINT[1],
-                GEM_TINT[2],
+                tint[0],
+                tint[1],
+                tint[2],
+                tint[0],
+                tint[1],
+                tint[2],
             ]);
         }
     }
@@ -521,6 +524,31 @@ f 1 4 6
             .layers
             .push(LayerEntry::new("Empty pad", Layer::SeatPad(SeatPadLayer::default())));
         assert!(preview_vertices(&d2, &lib).is_empty());
+    }
+
+    #[test]
+    fn saved_stone_colour_changes_only_preview_colour() {
+        let mut d = RingDesign::default();
+        let mut seat = SeatPadLayer::default();
+        seat.v_mm = d.field_context().crest_v_mm;
+        seat.fit_stone(Gem::calibrated(GemCut::Oval, 5.0));
+        d.layers.layers.push(LayerEntry::new("Amethyst", Layer::SeatPad(seat)));
+        let lib = AlphaLibrary::default();
+        let neutral = preview_vertices(&d, &lib);
+        let Layer::SeatPad(s) = &mut d.layers.layers[0].layer else { unreachable!() };
+        s.gem.as_mut().unwrap().preview_tint = Some([0.27, 0.045, 0.46]);
+        let saved = crate::library::design_json(&d).unwrap();
+        let reloaded = crate::library::load_design_str(&saved).unwrap();
+        let coloured = preview_vertices(&reloaded, &lib);
+        assert!(!coloured.is_empty());
+        assert_eq!(neutral.len(), coloured.len());
+        for (a, b) in neutral.chunks_exact(12).zip(coloured.chunks_exact(12)) {
+            assert_eq!(&a[..6], &b[..6], "colour moved the stone geometry");
+            assert_eq!(&b[6..9], &[0.27, 0.045, 0.46]);
+            assert_eq!(&b[9..12], &[0.27, 0.045, 0.46]);
+        }
+        // Existing files carry no new key and keep the historical tint.
+        assert!(!serde_json::to_string(&Gem::default()).unwrap().contains("preview_tint"));
     }
 
     #[test]

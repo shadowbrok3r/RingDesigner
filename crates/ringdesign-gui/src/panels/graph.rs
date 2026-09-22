@@ -10,11 +10,13 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         empty_state(app, ui);
         return;
     }
-    let mut parameters_changed = false;
     egui::Panel::top(egui::Id::new(("graph_bar", pane)))
         .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(egui::Margin::symmetric(6, 3)))
         .show(ui, |ui| {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.selectable_value(&mut app.graph_inline_edit, false, "View").on_hover_text("Compact nodes; edit values in the Node inspector.");
+                ui.selectable_value(&mut app.graph_inline_edit, true, "Edit").on_hover_text("Edit values directly on each node or in the Node inspector.");
+                ui.separator();
                 if ui.button(format!("{} Arrange", icon::ARROWS_OUT_LINE_HORIZONTAL)).on_hover_text("Lay the nodes out by depth").clicked() {
                     app.arrange_graph();
                 }
@@ -27,18 +29,40 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                 if ui.add_enabled(!selection.is_empty(), egui::Button::new(format!("{} Collapse {}", icon::PACKAGE, selection.len()))).on_hover_text("Fold the selected nodes into one cluster node").clicked() {
                     app.collapse_nodes(&selection);
                 }
-                if ui.button(format!("{} Bake", icon::FIRE)).on_hover_text("Drop the graph; keep the design as last evaluated").clicked() {
+                if ui.add_enabled(app.is_current(), egui::Button::new(format!("{} Bake", icon::FIRE))).on_hover_text("Drop the graph; keep the design as last evaluated").clicked() {
                     app.bake_graph();
                     return;
+                }
+                // A zoom you can set, not only pinch toward: the canvas has
+                // no edges to judge a scale against.
+                if let Some(ed) = app.graph_ed.as_mut() {
+                    if let Some(at) = ed.zoom() {
+                        ui.separator();
+                        let mut zoom = at;
+                        ui.add(egui::Label::new(format!("{} ", icon::MAGNIFYING_GLASS)).selectable(false));
+                        let slider = ui.add_sized(
+                            [116., ui.spacing().interact_size.y],
+                            egui::Slider::new(&mut zoom, ringdesign_graph_ui::style::MIN_SCALE..=ringdesign_graph_ui::style::MAX_SCALE)
+                                .logarithmic(true)
+                                .show_value(false),
+                        );
+                        if slider.changed() {
+                            ed.set_zoom(zoom);
+                        }
+                        slider.on_hover_text("Zoom the canvas about its centre");
+                        if ui.add(egui::Label::new(format!("{:.0}%", at * 100.)).sense(egui::Sense::click()))
+                            .on_hover_text("Back to full size")
+                            .clicked()
+                        {
+                            ed.set_zoom(1.0);
+                        }
+                    }
                 }
                 let nodes = app.graph_ed.as_ref().map(|e| e.graph().nodes.len()).unwrap_or(0);
                 ui.weak(format!("{nodes} nodes"));
                 if !app.graph_errors.is_empty() {
                     ui.colored_label(theme::WARN, format!("{} {}", icon::WARNING, app.graph_errors.join("; ")));
                 }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.weak("right-click: add node • drag pins to wire • click a node to inspect it");
-                });
             });
             // Step through the flow without hunting for each node on the canvas.
             if let Some(ed) = app.graph_ed.as_mut() {
@@ -49,18 +73,16 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                     }
                 });
             }
-            if let Some(ed) = app.graph_ed.as_mut() {
-                if !ed.graph().exposed.is_empty() {
-                    egui::CollapsingHeader::new("Parameters").default_open(true).show(ui, |ui| {
-                        parameters_changed = ed.parameters_ui(&app.graph_reg, ui);
-                    });
-                }
-            }
         });
     let reg = app.graph_reg.clone();
     // The editor leaves the app while it draws, as the dock's tree does, so
     // the response can act on the app afterwards.
     let Some(mut ed) = app.graph_ed.take() else { return };
+    if ed.inline_inputs != app.graph_inline_edit {
+        ed.inline_inputs = app.graph_inline_edit;
+        ed.arrange_if_tangled();
+    }
+    ed.minimap_corner = egui::Align2::RIGHT_BOTTOM;
     let resp = egui::CentralPanel::default()
         .frame(egui::Frame::NONE.fill(theme::VIEWPORT_BG))
         .show(ui, |ui| ed.show(&reg, ui, &format!("graph-pane-{pane}")))
@@ -68,11 +90,14 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     app.graph_ed = Some(ed);
     if resp.selected != app.selected_node {
         app.selected_node = resp.selected;
+        if resp.selected.is_some() && !app.dock.is_open(crate::dock::ToolKind::Node) {
+            app.dock.open_on(crate::dock::ToolKind::Node, crate::dock::Side::Right);
+        }
     }
     if let Some(r) = resp.refused {
         app.set_status(format!("Wire refused: {r}"));
     }
-    if resp.changed || parameters_changed {
+    if resp.changed {
         app.graph_changed();
     }
 }
@@ -93,24 +118,11 @@ fn empty_state(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
         ui.add_space(6.0);
         ui.menu_button(format!("{} Open a template graph", icon::FOLDER_OPEN), |ui| {
-            for template in ringdesign_graph::templates::catalog() {
-                if ui.button(template.name).clicked() {
-                    match template.instantiate(&app.graph_reg, &app.lib) {
-                        Ok(design) => {
-                            app.design = design;
-                            app.selected_layer = None;
-                            let restored = app.design.clone();
-                            restored.unpack_embedded(app.library_mut());
-                            restored.bake_all(app.library_mut());
-                            app.sync_graph();
-                            app.arrange_graph();
-                            app.show_graph_pane();
-                            app.mark_dirty();
-                        }
-                        Err(e) => app.set_status(format!("Could not open template: {e}")),
-                    }
-                    ui.close();
-                }
+            if let Some(template) = ringdesign_workbench::templates::menu(ui) {
+                crate::export::load_catalog_template(app, template);
+                if app.design.graph.is_none() { app.convert_to_graph(); }
+                app.show_graph_pane();
+                ui.close();
             }
         });
     });

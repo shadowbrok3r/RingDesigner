@@ -23,14 +23,13 @@ impl Guide {
     pub fn ui(&mut self, ui: &mut egui::Ui, d: &mut RingDesign) -> Event {
         let mut event = Event::default();
         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
-        ui.spacing_mut().interact_size.y=24.;
         ui.spacing_mut().item_spacing=egui::vec2(4.,3.);
         ui.spacing_mut().button_padding=egui::vec2(6.,3.);
         ui.label(egui::RichText::new("ASTER ATELIER / SAND SIGNET").strong());
         if !self.started {
             let completed = (0..recipe::STEPS.len()).filter(|&i| recipe::present(d, i)).count();
             if d.name == recipe::source().name && completed > 0 {
-                if ui.add_sized([ui.available_width(), 40.], egui::Button::new("Continue this design")).clicked() {
+                if ui.add_sized([ui.available_width(), ui.spacing().interact_size.y], egui::Button::new("Continue this design")).clicked() {
                     self.started = true;
                     self.step = (0..recipe::STEPS.len()).find(|&i| !recipe::present(d, i)).unwrap_or(recipe::STEPS.len()-1);
                     self.strength = 1.;
@@ -38,7 +37,7 @@ impl Guide {
             }
             ui.label("Build a botanical signet from a blank band. Apply one operation at a time; every layer remains editable.");
             ui.label("Solid metal · broad ornament · two-part mould");
-            if ui.add_sized([ui.available_width(), 40.], egui::Button::new("Start from a blank band")).clicked() {
+            if ui.add_sized([ui.available_width(), ui.spacing().interact_size.y], egui::Button::new("Start from a blank band")).clicked() {
                 *d = recipe::blank();
                 self.started = true;
                 self.step = 0;
@@ -52,7 +51,7 @@ impl Guide {
         ui.add(egui::ProgressBar::new(completed as f32 / count as f32).desired_height(16.).text(format!("{completed} / {count} operations in this design")));
         ui.horizontal_wrapped(|ui| {
             for (label, view) in [("Seal",View::Seal),("3/4",View::ThreeQuarter),("Cheek",View::Cheek),("Bore",View::Bore)] {
-                if ui.add_sized([54.,32.],egui::Button::new(label)).clicked() { event.view=Some(view); }
+                if ui.add_sized([54.,ui.spacing().interact_size.y],egui::Button::new(label)).clicked() { event.view=Some(view); }
             }
         });
         // The step list remains usable after undo or an ordinary editor change.
@@ -102,8 +101,8 @@ impl Guide {
         let label=if recipe::present(d,self.step) { "Apply settings" } else { "Apply operation" };
         let apply = ui.horizontal(|ui| {
             let width=ui.available_width();
-            let apply=ui.add_sized([width*0.62,40.],egui::Button::new(label)).clicked();
-            if ui.add_enabled(self.step+1<count,egui::Button::new("Next").min_size(egui::vec2(width*0.32,40.))).clicked() {
+            let apply=ui.add_sized([width*0.62,ui.spacing().interact_size.y],egui::Button::new(label)).clicked();
+            if ui.add_enabled(self.step+1<count,egui::Button::new("Next").min_size(egui::vec2(width*0.32,ui.spacing().interact_size.y))).clicked() {
                 self.step=(self.step+1).min(count-1);
                 self.strength=1.;
             }

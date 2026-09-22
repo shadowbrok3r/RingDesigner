@@ -1,0 +1,15 @@
+{
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "exposed_controls": [
+    "US size",
+    "Face width",
+    "Palm thickness",
+    "Face length",
+    "Face rise"
+  ],
+  "nodes": 21,
+  "source_identical": true,
+  "triangles": 1474560,
+  "vertices_faces_normals_identical": true
+}

@@ -201,7 +201,7 @@ pub fn floating<R>(
             ui.set_max_height(size.y);
             ui.spacing_mut().item_spacing = egui::vec2(4.0, 3.0);
             ui.spacing_mut().button_padding = egui::vec2(4.0, 2.0);
-            ui.spacing_mut().interact_size.y = 26.0;
+            ui.spacing_mut().interact_size.y = crate::theme::MENU_ROW_H;
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
             let frame = egui::Frame::new()
                 .fill(egui::Color32::from_rgba_unmultiplied(20, 20, 25, 248))

@@ -98,7 +98,7 @@ pub fn field(
                     } else {
                         crate::theme::INK
                     }))
-                    .frame(false)
+                    .frame(true)
                     .truncate(),
                 );
                 super::layout::record(ui, format!("field/{label}"), response.rect);
@@ -144,6 +144,9 @@ pub fn field(
 }
 
 pub fn shape(ui: &mut egui::Ui, editor: &mut Editor, d: &mut RingDesign) -> Edit {
+    if ui.rect_contains_pointer(ui.max_rect()) && ui.input(|i| i.pointer.primary_clicked()) {
+        editor.handles_active = true;
+    }
     let mut edit = Edit::default();
     edit.changed |= ringdesign_workbench::imported_base::ui(ui, d);
     if d.imported_base.is_some() { return edit; }

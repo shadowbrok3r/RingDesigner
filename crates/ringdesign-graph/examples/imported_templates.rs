@@ -19,6 +19,7 @@ fn main() -> Result<()> {
     let reg = Registry::builtin();
     for slug in ["nocturne", "solstice", "aurelia", "vesper", "saurian", "zenith", "caiman"] {
         let d = library::load_design(source.join(slug).join("design.ring.json"))?;
+        let d = ringdesign_graph::templates::refine_sources(&d);
         ensure!(d.imported_base.is_some(), "{slug} must originate on stock");
         let lib = manufacturing::source_library(&d, &AlphaLibrary::default()).into_owned();
         let mut graph = lift::from_design(&d, &reg, &lib)?;

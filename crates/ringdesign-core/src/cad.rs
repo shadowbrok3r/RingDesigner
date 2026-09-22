@@ -435,7 +435,7 @@ fn body_for(
             maybe(
                 brep::extrude_tapered(
                     p,
-                    &sketch.solved_curves()?,
+                    &sketch.profile_curves()?,
                     p.normal().unwrap().map(|v| v * h),
                     draft_deg.to_radians(),
                 ),
@@ -457,7 +457,7 @@ fn body_for(
             maybe(
                 brep::revolve(
                     sketch.plane.plane()?,
-                    &sketch.solved_curves()?,
+                    &sketch.profile_curves()?,
                     *pivot,
                     *axis,
                     degrees.to_radians(),
@@ -474,7 +474,7 @@ fn body_for(
             maybe(
                 brep::sweep_path(
                     sketch.plane.plane()?,
-                    &[sketch.solved_curves()?],
+                    &[sketch.profile_curves()?],
                     brep::SweepPath::Polyline3d {
                         points: path,
                         closed: false,
@@ -498,7 +498,7 @@ fn body_for(
             maybe(
                 brep::sweep_along_deformed(
                     sketch.plane.plane()?,
-                    &sketch.solved_curves()?,
+                    &sketch.profile_curves()?,
                     path.plane.plane()?,
                     &path.solved_curves()?,
                     0.0,
@@ -515,7 +515,7 @@ fn body_for(
             );
             let profiles = sections
                 .iter()
-                .map(|s| Ok((s.plane.plane()?, s.solved_curves()?)))
+                .map(|s| Ok((s.plane.plane()?, s.profile_curves()?)))
                 .collect::<Result<Vec<_>>>()?;
             ensure!(
                 profiles.iter().all(|(_, p)| p.len() == profiles[0].1.len()),
@@ -525,6 +525,13 @@ fn body_for(
         }
         Operation::Boolean { a, b, kind } => {
             ensure!(a != b, "Boolean sources must be different");
+            for id in [a, b] {
+                let faces = source(id)?.faces.len();
+                ensure!(
+                    faces <= MAX_ANALYTIC_BOOLEAN_FACES,
+                    "Feature #{id} is a faceted solid of {faces} faces; the analytic kernel cannot combine it in usable time. Keep it as a separate component"
+                );
+            }
             let kind = match kind {
                 Boolean::Union => brep::Operation::Union,
                 Boolean::Subtract => brep::Operation::Difference,
@@ -594,7 +601,33 @@ fn body_for(
     }
 }
 
+/// Largest operand the analytic boolean accepts; a faceted band is 24k faces and does not finish.
+pub const MAX_ANALYTIC_BOOLEAN_FACES: usize = 2000;
+/// The error text of an evaluation stopped through its `BuildCtx`.
+pub const CANCELLED: &str = "CAD evaluation cancelled";
+
+/// Cooperative stop for a running evaluation, polled between features and tessellations.
+pub struct BuildCtx<'a> {
+    pub cancel: &'a std::sync::atomic::AtomicBool,
+}
+impl BuildCtx<'_> {
+    fn check(&self) -> Result<()> {
+        ensure!(!self.cancel.load(std::sync::atomic::Ordering::Relaxed), CANCELLED);
+        Ok(())
+    }
+}
+
 pub fn evaluate(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<Evaluated> {
+    let never = std::sync::atomic::AtomicBool::new(false);
+    evaluate_with(design, lib, params, &BuildCtx { cancel: &never })
+}
+
+pub fn evaluate_with(
+    design: &RingDesign,
+    lib: &AlphaLibrary,
+    params: BuildParams,
+    ctx: &BuildCtx,
+) -> Result<Evaluated> {
     let doc = design.cad.as_ref().context("No CAD features")?;
     ensure!(doc.features.len() <= 256, "Too many CAD features");
     ensure!(
@@ -624,6 +657,7 @@ pub fn evaluate(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) ->
     let mut ids = BTreeSet::new();
     let mut available_outputs = Vec::new();
     for f in &doc.features {
+        ctx.check()?;
         ensure!(ids.insert(f.id), "Duplicate feature #{}", f.id);
         if !f.enabled {
             if let Some(id) = f.operation.sources().first() {
@@ -693,6 +727,7 @@ pub fn evaluate(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) ->
     };
     let mut components = Vec::new();
     for id in output {
+        ctx.check()?;
         let Some(body) = bodies.get(id) else {
             continue;
         };
@@ -1132,5 +1167,68 @@ mod tests {
                 .unwrap()
                 .contains("B_SPLINE_SURFACE")
         );
+    }
+    #[test]
+    fn a_profile_drawn_out_of_order_extrudes_and_two_loops_say_so() {
+        let mut s = Sketch::default();
+        let p = [[0.0, 0.0], [6.0, 0.0], [0.0, 4.0]].map(|p| s.point(p));
+        s.entity(crate::sketch::Geometry::Line { a: p[0], b: p[1] });
+        s.entity(crate::sketch::Geometry::Line { a: p[0], b: p[2] });
+        s.entity(crate::sketch::Geometry::Line { a: p[2], b: p[1] });
+        let extrude = |sketch: Sketch| Operation::Extrude {
+            sketch,
+            height_mm: 2.0,
+            draft_deg: 0.0,
+        };
+        let lib = AlphaLibrary::builtin();
+        let e = evaluate(&design(vec![extrude(s.clone())]), &lib, BuildParams::default()).unwrap();
+        assert!((e.components[0].mesh.volume_mm3() - 24.0).abs() < 1e-3);
+        let q = [[10.0, 0.0], [12.0, 0.0], [11.0, 2.0]].map(|p| s.point(p));
+        s.entity(crate::sketch::Geometry::Polyline {
+            points: q.to_vec(),
+            closed: true,
+        });
+        let error = evaluate(&design(vec![extrude(s)]), &lib, BuildParams::default())
+            .err()
+            .unwrap();
+        assert!(format!("{error:#}").contains("2 separate loops"), "{error:#}");
+    }
+    #[test]
+    fn a_faceted_operand_is_refused_before_the_kernel_is_asked() {
+        let d = design(vec![
+            Operation::Band,
+            Operation::Cylinder {
+                radius_mm: 3.0,
+                height_mm: 3.0,
+            },
+            Operation::Boolean {
+                a: 1,
+                b: 2,
+                kind: Boolean::Union,
+            },
+        ]);
+        let started = std::time::Instant::now();
+        let params = BuildParams {
+            theta_steps: 128,
+            profile_steps: 96,
+            ..BuildParams::default()
+        };
+        let error = evaluate(&d, &AlphaLibrary::builtin(), params).err().unwrap();
+        assert!(format!("{error:#}").contains("faceted solid"), "{error:#}");
+        assert!(started.elapsed().as_secs() < 20, "{:?}", started.elapsed());
+    }
+    #[test]
+    fn a_raised_flag_stops_the_evaluation_between_features() {
+        let d = design(vec![Operation::Box { size: [4.0; 3] }]);
+        let stop = std::sync::atomic::AtomicBool::new(true);
+        let error = evaluate_with(
+            &d,
+            &AlphaLibrary::builtin(),
+            BuildParams::default(),
+            &BuildCtx { cancel: &stop },
+        )
+        .err()
+        .unwrap();
+        assert_eq!(error.to_string(), CANCELLED);
     }
 }

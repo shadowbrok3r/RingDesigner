@@ -858,11 +858,17 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             .filter(|p| plot.contains(*p))
         {
             let v_mm = v_of_y(p.y).clamp(0.0, ctx.band_v_len_mm);
+            let turn = ((p.x-sheet_for_paint.left())/sheet_for_paint.width()).rem_euclid(1.0) as f64;
+            ringdesign_workbench::paint_preview::publish(ui,&app.design,&app.lib,[turn,v_mm],
+                [app.brush_frac as f64 * ctx.circumference_mm, app.brush_frac as f64 * ctx.band_v_len_mm * app.design.drawn.iter().find(|d|d.name==paint::BAND_ALPHA).map_or(4.,|d|d.width as f64/d.height as f64)],
+                response.dragged_by(egui::PointerButton::Primary));
             let ceiling = paint::ceiling_mm(&ctx, v_mm);
-            let r_px = app.brush_frac * plot.width();
-            painter.circle_stroke(
+            let r_px = app.brush_frac * sheet_for_paint.width();
+            let ratio=app.design.drawn.iter().find(|d|d.name==paint::BAND_ALPHA).map_or(4.,|d|d.width as f32/d.height as f32);
+            let radius_y=app.brush_frac * ratio * sheet_for_paint.height();
+            painter.add(egui::Shape::ellipse_stroke(
                 p,
-                r_px.clamp(3.0, 200.0),
+                egui::vec2(r_px.clamp(3.0,200.0),radius_y.clamp(3.0,200.0)),
                 egui::Stroke::new(
                     1.5,
                     if app.brush_erase {
@@ -871,7 +877,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         theme::ACCENT
                     },
                 ),
-            );
+            ));
             let asked = paint::wanted_mm(1.0, app.brush_depth);
             painter.text(
                 egui::pos2(p.x + r_px.clamp(3.0, 200.0) + 6.0, p.y),
@@ -1043,6 +1049,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             }
             readout(&painter, plot, &lines);
         }
+        None if app.band_paint => {}
         None => {
             // Backed so it stays readable over the height field and zone labels.
             let galley = painter.layout_no_wrap(
@@ -1382,15 +1389,18 @@ fn draw_strokes(painter: &egui::Painter, plot: egui::Rect, d: &ringdesign_core::
 
 /// The floating brush bar: mode toggle always, controls while painting.
 fn paint_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui, rect: egui::Rect) {
+    let editable = app.surface_edit_reason().is_none();
     egui::Area::new(ui.id().with("band_paint_bar"))
         .fixed_pos(rect.left_top() + egui::vec2(8.0, 24.0))
         .show(ui.ctx(), |ui| {
+            if !editable { ui.disable(); }
             egui::Frame::NONE
                 .fill(theme::PANEL.gamma_multiply(0.92))
                 .corner_radius(5.0)
                 .inner_margin(egui::Margin::symmetric(7, 4))
                 .show(ui, |ui| {
-                    ui.horizontal(|ui| {
+                    ui.set_max_width((rect.width()-32.).max(160.));
+                    ui.horizontal_wrapped(|ui| {
                         let label = if app.band_paint {
                             format!("{} Done", icon::CHECK)
                         } else {
@@ -1406,29 +1416,22 @@ fn paint_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui, rect: egui::Rect) {
                             .clicked()
                         {
                             app.band_paint = !app.band_paint;
+                            if app.band_paint && app.layout == crate::pane::Layout::Single {
+                                app.panes[0].kind=crate::pane::PaneKind::Solid;
+                                app.panes[1].kind=crate::pane::PaneKind::Unrolled;
+                                app.set_layout(crate::pane::Layout::SplitH);
+                                app.active_pane=1;
+                            }
                         }
                         if app.band_paint {
-                            ui.label(egui::RichText::new("size").small().color(theme::TEXT_DIM));
-                            ui.add(
-                                egui::Slider::new(&mut app.brush_frac, 0.002..=0.06)
-                                    .show_value(false),
-                            );
-                            ui.label(egui::RichText::new("depth").small().color(theme::TEXT_DIM));
-                            ui.add(
-                                egui::Slider::new(&mut app.brush_depth, 0.05..=1.0)
-                                    .show_value(false),
-                            );
-                            ui.label(
-                                egui::RichText::new(format!(
-                                    "{:.2} mm",
-                                    paint::wanted_mm(1.0, app.brush_depth)
-                                ))
-                                .small(),
-                            );
-                            ui.label(egui::RichText::new("soft").small().color(theme::TEXT_DIM));
-                            ui.add(
-                                egui::Slider::new(&mut app.brush_soft, 0.0..=1.0).show_value(false),
-                            );
+                            ringdesign_workbench::paint_preview::control(ui);
+                            ui.menu_button((ringdesign_workbench::icons::Icon::Paint.image(ui,18.),"Brush"),|ui| {
+                                ui.set_min_width(220.);
+                                ringdesign_workbench::controls::slider_track(ui,"Size",egui::Slider::new(&mut app.brush_frac,0.002..=0.06).show_value(false));
+                                ringdesign_workbench::controls::slider_track(ui,"Depth",egui::Slider::new(&mut app.brush_depth,0.05..=1.).show_value(false));
+                                ui.weak(format!("{:.2} mm maximum relief",paint::wanted_mm(1.,app.brush_depth)));
+                                ringdesign_workbench::controls::slider_track(ui,"Softness",egui::Slider::new(&mut app.brush_soft,0.0..=1.).show_value(false));
+                            });
                             ui.toggle_value(&mut app.brush_erase, format!("{}", icon::ERASER))
                                 .on_hover_text("Erase instead of adding");
                             let has_strokes = app

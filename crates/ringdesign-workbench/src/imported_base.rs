@@ -5,6 +5,39 @@ use ringdesign_core::{
     imported_base::{ImportedBase, PRESETS, Source},
 };
 
+/// One stock in the picker: its table plan drawn to scale beside its name.
+fn stock_row(ui: &mut egui::Ui, preset: &ringdesign_core::imported_base::Preset, selected: bool) -> egui::Response {
+    let height = 30.0;
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(ui.available_width().max(190.0), height), egui::Sense::click());
+    let painter = ui.painter_at(rect);
+    let accent = ui.visuals().selection.stroke.color;
+    if selected || response.hovered() {
+        painter.rect_filled(rect, 3.0, accent.gamma_multiply(if selected { 0.28 } else { 0.12 }));
+    }
+    // The plan is the table's own radii at even bearings in mm, scaled so the
+    // longest is 1 — the aspect is already in it, so a kite reads long.
+    let thumb = egui::Rect::from_min_size(rect.min + Vec2::new(4.0, 3.0), Vec2::splat(height - 6.0));
+    let n = preset.plan.len().max(1);
+    let unit = thumb.width().min(thumb.height()) * 0.5;
+    let points: Vec<egui::Pos2> = (0..n)
+        .map(|i| {
+            let a = i as f32 / n as f32 * std::f32::consts::TAU;
+            let r = preset.plan[i] * unit;
+            thumb.center() + Vec2::new(r * a.cos(), -r * a.sin())
+        })
+        .collect();
+    painter.add(egui::Shape::closed_line(points, Stroke::new(1.2, accent)));
+    let text = ui.visuals().text_color();
+    painter.text(
+        egui::pos2(thumb.right() + 8.0, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        preset.label(),
+        egui::TextStyle::Button.resolve(ui.style()),
+        text,
+    );
+    response
+}
+
 /// Uses ordinary design history in the host. Rejected numeric edits leave the
 /// source untouched and explain which calibrated limit was crossed.
 pub fn ui(ui: &mut egui::Ui, d: &mut RingDesign) -> bool {
@@ -12,9 +45,18 @@ pub fn ui(ui: &mut egui::Ui, d: &mut RingDesign) -> bool {
     ui.collapsing("Imported signet base",|ui|{
         ui.label("Use finished shoulders as the master, then resize and decorate them.");
         let mut chosen=None;
+        let at=d.imported_base.as_ref().map(|b|b.source.name.clone());
+        let current=PRESETS.iter().position(|p|at.as_deref()==Some(p.stock_name().as_str()));
         egui::ComboBox::from_id_salt("imported-stock-picker")
-            .selected_text(d.imported_base.as_ref().map(|b|b.source.name.as_str()).unwrap_or("Choose stock…"))
-            .show_ui(ui,|ui|{for (i,p) in PRESETS.iter().enumerate(){if ui.selectable_label(false,p.name).clicked(){chosen=Some(i);}}});
+            .selected_text(current.map(|i|PRESETS[i].label()).or(at).unwrap_or_else(||"Choose stock…".into()))
+            .width(ui.available_width().min(260.0))
+            .show_ui(ui,|ui|{
+                // Every head is drawn from its own table plan: a number says
+                // nothing about the shape it is about to become.
+                for (i,p) in PRESETS.iter().enumerate(){
+                    if stock_row(ui,p,current==Some(i)).clicked(){chosen=Some(i);ui.close();}
+                }
+            });
         let key=ui.id().with("base-error");
         let mut error=ui.data(|m|m.get_temp::<String>(key).unwrap_or_default());
         if let Some(i)=chosen {

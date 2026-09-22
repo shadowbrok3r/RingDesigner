@@ -143,9 +143,9 @@ pub fn register(reg: &mut Registry) {
             .output(PinSpec::item("alpha", ValueKind::AlphaRef).doc("Its name, for layers."))
             .eval(drawn),
         NodeSpec::new("alpha.png", "Embedded PNG alpha", Category::Alpha)
-            .doc("A height image carried in the design as base64 PNG, so the file survives moving machines.")
+            .doc("Choose a height image from the alpha library. The image is saved with the design.")
             .input(PinSpec::item("name", ValueKind::Text).default("Image").widget(Widget::TextLine).doc("The name layers refer to."))
-            .input(PinSpec::item("png_base64", ValueKind::Text).default("").widget(Widget::TextArea).doc("The PNG, base64."))
+            .input(PinSpec::item("png_base64", ValueKind::Text).default("").widget(Widget::Image).doc("Choose a height image from the alpha library. The image travels with the design."))
             .output(PinSpec::item("source", ValueKind::AlphaSource).doc("The source, for design.assemble."))
             .output(PinSpec::item("alpha", ValueKind::AlphaRef).doc("Its name, for layers."))
             .eval(png),

@@ -4,27 +4,18 @@ use ringdesign_core::{
     cad::{self, ComponentRole, Feature, Operation},
     castability::{CastProcess, SandProcess},
     manufacturing::{BoreStrategy, Recipe, Setup},
-    sketch::Sketch,
 };
 
 fn number(ui: &mut egui::Ui, label: &str, value: &mut f64) {
-    ui.horizontal_wrapped(|ui| {
-        ui.label(label);
+    crate::controls::row(ui,label,|ui| {
         ui.add(egui::DragValue::new(value).speed(0.02).max_decimals(4));
     });
 }
 fn xyz(ui: &mut egui::Ui, label: &str, v: &mut [f64; 3]) {
-    ui.label(label);
-    ui.horizontal_wrapped(|ui| {
-        for (i, x) in v.iter_mut().enumerate() {
-            ui.add(
-                egui::DragValue::new(x)
-                    .prefix(["X ", "Y ", "Z "][i])
-                    .speed(0.02)
-                    .max_decimals(3),
-            );
-        }
-    });
+    ui.strong(label);
+    for (axis,x) in ["X","Y","Z"].into_iter().zip(v) {
+        crate::controls::row(ui,axis,|ui| {ui.add(egui::DragValue::new(x).speed(0.02).max_decimals(3));});
+    }
 }
 
 impl Workshop {
@@ -56,8 +47,6 @@ impl Workshop {
         if worker_failed {
             self.worker = None;
         }
-        ui.spacing_mut().interact_size.y = 44.0;
-        ui.spacing_mut().button_padding = vec2(12.0, 8.0);
         ui.horizontal_wrapped(|ui| {
             ui.heading("Workshop");
             ui.weak(if self.session.draft.is_some() {
@@ -402,16 +391,15 @@ impl Workshop {
             }
             return;
         }
-        ui.collapsing("Start from an example", |ui| {
+        ui.weak("Create a solid, edit its fields, then Preview and Apply.");
+        ui.menu_button((icons::Icon::Files.image(ui,20.), "Example projects"), |ui| {
             for name in cad::examples::NAMES {
-                if ui.button(*name).clicked() {
+                if cad_tools::example_button(ui,name).clicked() {
                     match cad::examples::design(name) {
-                        Ok(next) => {
-                            *d = next;
-                            self.feature_text_id = None;
-                        }
+                        Ok(next) => { *d = next; self.feature = 0; self.feature_text_id = None; }
                         Err(e) => self.session.error = Some(e.to_string()),
                     }
+                    ui.close();
                 }
             }
         });
@@ -435,51 +423,30 @@ impl Workshop {
             number(ui, "Band thickness mm", &mut d.profile.thickness_mm);
         });
         ui.horizontal_wrapped(|ui| {
-            for (name, op) in [
-                ("Add shank", Operation::Band),
-                ("Add box", Operation::Box { size: [6., 4., 2.] }),
-                (
-                    "Add extrusion",
-                    Operation::Extrude {
-                        sketch: Sketch::rectangle(8., 6.),
-                        height_mm: 2.,
-                        draft_deg: 3.,
-                    },
-                ),
-                (
-                    "Add torus",
-                    Operation::Torus {
-                        major_mm: d.inner_radius_mm() + 1.2,
-                        minor_mm: 1.2,
-                    },
-                ),
-            ] {
-                if ui.button(name).clicked() {
-                    let doc = d.cad.get_or_insert_with(Default::default);
-                    let id = doc.features.iter().map(|f| f.id).max().unwrap_or(0) + 1;
-                    let role = if matches!(op, Operation::Band | Operation::Torus { .. }) {
-                        ComponentRole::Shank
-                    } else {
-                        ComponentRole::Other
-                    };
-                    let f = Feature {
-                        id,
-                        name: op.label().into(),
-                        enabled: true,
-                        operation: op,
-                        component: cad::Component {
-                            role,
-                            ..Default::default()
-                        },
-                    };
-                    match doc.append(f) {
-                        Ok(()) => {
-                            self.feature = doc.features.len() - 1;
-                            self.feature_text_id = None;
+            for (modify,title,icon) in [(false,"Create",icons::Icon::Add),(true,"Modify",icons::Icon::CadFillet)] {
+                ui.menu_button((icon.image(ui,20.),title), |ui| {
+                    let ids: Vec<u64> = d.cad.as_ref().map(|doc| doc.features.iter().filter(|f| f.enabled).map(|f|f.id).collect()).unwrap_or_default();
+                    let first = d.cad.as_ref().and_then(|doc|doc.features.get(self.feature)).map(|f|f.id).or(ids.last().copied()).unwrap_or(0);
+                    let second = ids.iter().rev().copied().find(|id|*id != first).unwrap_or(0);
+                    for op in cad_tools::starters(first,second).into_iter().filter(|op|cad_tools::modify(op)==modify) {
+                        let valid = cad_tools::unavailable(&op).is_none() && (!modify || (ids.contains(&first) && (!matches!(op,Operation::Boolean{..}) || second != 0)));
+                        let response = ui.add_enabled(valid,egui::Button::new((cad_tools::icon(&op).image(ui,20.),op.label())))
+                            .on_hover_text(cad_tools::hint(&op)).on_disabled_hover_text(cad_tools::unavailable(&op).unwrap_or("Create the source solids first; booleans need two different solids."));
+                        if response.clicked() {
+                            let doc = d.cad.get_or_insert_with(Default::default);
+                            let id = doc.features.iter().map(|f|f.id).max().unwrap_or(0)+1;
+                            let mut component=op.sources().first().and_then(|id|doc.features.iter().find(|f|f.id==*id)).map(|f|f.component.clone()).unwrap_or_default();
+                            if matches!(op,Operation::Band | Operation::Torus{..} | Operation::TwistedRing{..}) {component.role=ComponentRole::Shank;}
+                            component.ring_anchor_deg=None; component.anchor_height_mm=0.;
+                            let f = Feature { id,name:op.label().into(),enabled:true,operation:op,component };
+                            match doc.append(f) {
+                                Ok(()) => {self.feature = doc.features.len()-1;self.feature_text_id=None;}
+                                Err(e) => self.session.error=Some(e.to_string()),
+                            }
+                            ui.close();
                         }
-                        Err(e) => self.session.error = Some(e.to_string()),
                     }
-                }
+                });
             }
         });
         let Some(doc) = &mut d.cad else {
@@ -487,7 +454,7 @@ impl Workshop {
         };
         for (i, f) in doc.features.iter().enumerate() {
             if ui
-                .selectable_value(&mut self.feature, i, format!("#{} {}", f.id, f.name))
+                .selectable_value(&mut self.feature, i, (cad_tools::icon(&f.operation).image(ui,20.), format!("#{} {}", f.id, f.name)))
                 .clicked()
             {
                 self.feature_text_id = None;
@@ -609,9 +576,10 @@ impl Workshop {
 
     fn preview(&mut self, ui: &mut egui::Ui, current: bool) {
         ui.horizontal_wrapped(|ui| {
-            for stage in Stage::ALL {
-                ui.selectable_value(&mut self.stage, stage, stage.label());
-            }
+            ui.menu_button((icons::Icon::Layers.image(ui,20.),self.stage.label()),|ui| {
+                for stage in Stage::ALL { if ui.selectable_value(&mut self.stage,stage,stage.label()).clicked(){ui.close();} }
+            });
+            if icons::compact(ui,icons::Icon::Fit,false).clicked() {self.zoom=1.;self.pan=egui::Vec2::ZERO;}
         });
         let Some(view) = &self.session.view else {
             ui.allocate_space(vec2(ui.available_width(), 160.));
@@ -653,10 +621,30 @@ impl Workshop {
         let height = ui.available_width().clamp(200., 440.) * 0.8;
         let (rect, response) =
             ui.allocate_exact_size(vec2(ui.available_width(), height), egui::Sense::drag());
-        if response.dragged() && !self.section {
-            let delta = ui.input(|i| i.pointer.delta());
-            self.yaw += delta.x * 0.008;
-            self.pitch = (self.pitch + delta.y * 0.008).clamp(-1.5, 1.5);
+        // The cube owns a foreground Area, so it cannot inherit this scroll
+        // area's clip. Hide it when scrolling would cover the fixed app chrome.
+        let navigator_bounds = egui::Rect::from_min_size(
+            rect.right_top() + vec2(-110., 7.),
+            vec2(110., 112. + 2. * ui.spacing().interact_size.y.max(28.)),
+        );
+        let nav = if !self.section && ui.clip_rect().contains_rect(navigator_bounds) {
+            Some(navigation::show_camera(ui, rect, ui.id().with("workshop-cube"),
+                &mut self.navigation, [self.yaw,self.pitch,self.roll], 90.))
+        } else { None };
+        if let Some(action) = nav.as_ref().and_then(|nav|nav.action) {
+            [self.yaw,self.pitch,self.roll] = action.apply([self.yaw,self.pitch,self.roll],90.);
+            if action.recentres() {self.pan=egui::Vec2::ZERO;}
+        }
+        let blocked = ui.input(|i|i.pointer.press_origin().or(i.pointer.interact_pos()))
+            .is_some_and(|p|nav.as_ref().is_some_and(|nav|nav.rect.contains(p)) || ui.ctx().layer_id_at(p).is_some_and(|layer|layer!=ui.layer_id()));
+        if !blocked && !self.section {
+            if response.dragged() {
+                let delta=ui.input(|i|i.pointer.delta());
+                if self.navigation.locked || ui.input(|i|i.modifiers.shift || i.pointer.middle_down()) { self.pan+=delta; }
+                else {self.yaw-=delta.x*0.008;self.pitch+=delta.y*0.008;}
+            }
+            if response.hovered() {self.zoom=(self.zoom*(ui.input(|i|i.smooth_scroll_delta.y)*0.002).exp()).clamp(0.2,12.);}
+            if let Some(touch)=ui.input(|i|i.multi_touch()) {self.zoom=(self.zoom*touch.zoom_delta).clamp(0.2,12.);self.pan+=touch.translation_delta;}
         }
         let painter = ui.painter_at(rect);
         painter.rect_filled(rect, 8., ui.visuals().extreme_bg_color);
@@ -676,7 +664,7 @@ impl Workshop {
                 );
             }
         } else {
-            draw(&painter, rect, &view.shape, self.yaw, self.pitch);
+            draw(&painter, rect, &view.shape, [self.yaw,self.pitch,self.roll],self.zoom,self.pan);
         }
         ui.weak("Finished shows the intended final surface. As cast predicts uniform shrink and retains modeled finishing stock.");
     }
@@ -744,7 +732,14 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
             number(ui, "Twist °", degrees);
             number(ui, "End scale", end_scale);
         }
-        _ => {}
+        Operation::Sweep { path, .. } => {
+            for (i,p) in path.iter_mut().enumerate() { xyz(ui,&format!("Station {i} mm"),p); }
+        }
+        Operation::Loft { sections } => {
+            for (i,s) in sections.iter_mut().enumerate() { xyz(ui,&format!("Section {i} origin"),&mut s.plane.origin); }
+        }
+        Operation::Boolean {a,b,..} => { ui.label(format!("Solids #{a} and #{b}. Change references in Feature source.")); }
+        Operation::Band => { ui.weak("Uses the ring's fit, profile and ornament."); }
     }
     if let Some(sketch) = op.sketch_mut() {
         ui.collapsing("Sketch points and workplane", |ui| {
@@ -757,7 +752,8 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
     }
 }
 
-fn draw(p: &egui::Painter, rect: egui::Rect, shape: &job::Shape, yaw: f32, pitch: f32) {
+fn draw(p: &egui::Painter, rect: egui::Rect, shape: &job::Shape, angles: [f32;3], zoom: f32, pan: egui::Vec2) {
+    let [yaw,pitch,roll]=angles;
     if shape.vertices.is_empty() {
         return;
     }
@@ -767,9 +763,11 @@ fn draw(p: &egui::Painter, rect: egui::Rect, shape: &job::Shape, yaw: f32, pitch
         .vertices
         .iter()
         .map(|v| {
-            let x = cy * v[0] - sy * v[1];
-            let y = sy * v[0] + cy * v[1];
-            [x, cp * y - sp * v[2], sp * y + cp * v[2]]
+            let x = -sy*v[0]+cy*v[1];
+            let y = -sp*cy*v[0]-sp*sy*v[1]+cp*v[2];
+            let z = cp*cy*v[0]+cp*sy*v[1]+sp*v[2];
+            let (sr,cr)=roll.sin_cos();
+            [cr*x+sr*y,-sr*x+cr*y,z]
         })
         .collect();
     let mut lo = [f32::INFINITY; 3];
@@ -782,11 +780,11 @@ fn draw(p: &egui::Painter, rect: egui::Rect, shape: &job::Shape, yaw: f32, pitch
     }
     let scale = (rect.width() / (hi[0] - lo[0]).max(1.0))
         .min(rect.height() / (hi[1] - lo[1]).max(1.0))
-        * 0.86;
+        * 0.86 * zoom;
     let project = |v: [f32; 3]| {
         pos2(
-            rect.center().x + (v[0] - (lo[0] + hi[0]) * 0.5) * scale,
-            rect.center().y - (v[1] - (lo[1] + hi[1]) * 0.5) * scale,
+            rect.center().x + pan.x + (v[0] - (lo[0] + hi[0]) * 0.5) * scale,
+            rect.center().y + pan.y - (v[1] - (lo[1] + hi[1]) * 0.5) * scale,
         )
     };
     let mut faces: Vec<_> = shape.faces.iter().collect();

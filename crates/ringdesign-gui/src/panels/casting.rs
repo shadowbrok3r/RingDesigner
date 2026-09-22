@@ -526,10 +526,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         });
         if state.view == 0 {
             ui.horizontal_wrapped(|ui| {
-                ui.add(egui::Slider::new(&mut state.opening, 0.0..=1.0).text("Upper mold"));
-                ui.add(
-                    egui::Slider::new(&mut state.withdrawal, 0.0..=1.0).text("Pattern withdrawal"),
-                );
+                ringdesign_workbench::controls::slider(ui, "Upper mold", egui::Slider::new(&mut state.opening, 0.0..=1.0));
+                ringdesign_workbench::controls::slider(ui, "Pattern withdrawal", egui::Slider::new(&mut state.withdrawal, 0.0..=1.0));
                 ui.checkbox(&mut state.show_cope, "Upper");
                 ui.checkbox(&mut state.show_drag, "Lower");
             });
@@ -586,7 +584,7 @@ fn shop_data(
             }}
         });
         for (label,value) in [("Trial ID",&mut state.trial.id),("Design family",&mut state.trial.design_family),("Casting run",&mut state.trial.run_id),("Printed pattern fingerprint",&mut state.trial.pattern_fingerprint),("Pattern material",&mut state.trial.pattern_material)] {ui.horizontal(|ui|{ui.label(label);ui.text_edit_singleline(value);});}
-        ui.horizontal_wrapped(|ui|{ui.label("Actual release");for outcome in [mf::trials::ReleaseOutcome::NotTried,mf::trials::ReleaseOutcome::Clean,mf::trials::ReleaseOutcome::Dragged,mf::trials::ReleaseOutcome::BrokenMold] {ui.selectable_value(&mut state.trial.release,outcome,format!("{outcome:?}"));}ui.add(egui::Slider::new(&mut state.trial.detail_quality,0..=5).text("Detail quality"));});
+        ui.horizontal_wrapped(|ui|{ui.label("Actual release");for outcome in [mf::trials::ReleaseOutcome::NotTried,mf::trials::ReleaseOutcome::Clean,mf::trials::ReleaseOutcome::Dragged,mf::trials::ReleaseOutcome::BrokenMold] {ui.selectable_value(&mut state.trial.release,outcome,format!("{outcome:?}"));}ringdesign_workbench::controls::slider(ui, "Detail quality", egui::Slider::new(&mut state.trial.detail_quality,0..=5));});
         if ui.button("Add measured dimension").clicked()&&state.trial.measurements.len()<100 {state.trial.measurements.push(mf::trials::Measurement {label:"Bore diameter".into(),pattern_mm:0.0,as_cast_mm:0.0,finished_mm:None});}
         for m in &mut state.trial.measurements {ui.horizontal_wrapped(|ui|{ui.text_edit_singleline(&mut m.label);number(ui,"Printed",&mut m.pattern_mm,0.0..=999.0);number(ui,"As cast",&mut m.as_cast_mm,0.0..=999.0);let mut finished=m.finished_mm.is_some();if ui.checkbox(&mut finished,"Finished").changed() {m.finished_mm=finished.then_some(m.as_cast_mm);}if let Some(v)=&mut m.finished_mm {number(ui,"Final",v,0.0..=999.0);}});}
         ui.label("Defects / release notes");ui.text_edit_multiline(&mut state.trial.defects);

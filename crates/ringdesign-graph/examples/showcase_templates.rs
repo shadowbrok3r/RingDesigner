@@ -21,6 +21,7 @@ fn main() -> Result<()> {
             slug => format!("showcase/{slug}/design.ring.json"),
         };
         let d = library::load_design(repo.join(source))?;
+        let d = ringdesign_graph::templates::refine_sources(&d);
         let mut lib = AlphaLibrary::builtin();
         d.unpack_embedded(&mut lib);
         d.bake_all(&mut lib);

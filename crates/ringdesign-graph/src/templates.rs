@@ -63,6 +63,8 @@ bundled! {
 /// Authored showcase designs, with the artwork embedded and each layer
 /// exposed as nodes. Kept separate from the small procedural starters.
 pub static SHOWCASE: &[TemplateGraph] = &[
+    TemplateGraph { name: "Nocturne — original night garden", slug: "nocturne", json: include_str!("../../../graphs/templates/nocturne.graph.json") },
+    TemplateGraph { name: "Solstice — original sun seal", slug: "solstice", json: include_str!("../../../graphs/templates/solstice.graph.json") },
     TemplateGraph { name: "Aster Atelier", slug: "aster-atelier", json: include_str!("../../../graphs/templates/aster-atelier.graph.json") },
     TemplateGraph { name: "Thalassa", slug: "thalassa", json: include_str!("../../../graphs/templates/thalassa.graph.json") },
     // No guard rails: lost wax, made settings throughout. Its sand counterpart is Saurian, on stock.
@@ -81,8 +83,65 @@ pub static IMPORTED: &[TemplateGraph] = &[
     TemplateGraph { name: "Zenith — the hunter's belt", slug: "zenith-imported", json: include_str!("../../../graphs/templates/zenith-imported.graph.json") },
     TemplateGraph { name: "Caiman — armoured hide", slug: "caiman-imported", json: include_str!("../../../graphs/templates/caiman-imported.graph.json") },
 ];
+/// The Reptilia collection: full-ring skins, with subtractive bench detail kept
+/// separate from the supported casting relief. Artwork is embedded in each graph.
+pub static REPTILIA: &[TemplateGraph] = &[
+    TemplateGraph { name: "Ecdysis — ventral scales", slug: "ecdysis-reptilia", json: include_str!("../../../graphs/templates/ecdysis-reptilia.graph.json") },
+    TemplateGraph { name: "Tessera — shield mosaic", slug: "tessera-reptilia", json: include_str!("../../../graphs/templates/tessera-reptilia.graph.json") },
+    TemplateGraph { name: "Lorica — crocodile armour", slug: "lorica-reptilia", json: include_str!("../../../graphs/templates/lorica-reptilia.graph.json") },
+    TemplateGraph { name: "Ophidian — amethyst serpent", slug: "ophidian-reptilia", json: include_str!("../../../graphs/templates/ophidian-reptilia.graph.json") },
+    TemplateGraph { name: "Varanus — sovereign scales", slug: "varanus-reptilia", json: include_str!("../../../graphs/templates/varanus-reptilia.graph.json") },
+];
 pub fn catalog() -> impl Iterator<Item = &'static TemplateGraph> {
-    BUNDLED.iter().chain(SHOWCASE).chain(IMPORTED)
+    BUNDLED.iter().chain(SHOWCASE).chain(IMPORTED).chain(REPTILIA)
+}
+
+/// Curated templates carry only artwork that reaches a layer or mask. Within
+/// each name, keep the source that `RingDesign::bake_all` actually uses. This
+/// is an authoring operation, never an automatic edit to a user's project.
+pub fn refine_sources(design: &ringdesign_core::RingDesign) -> ringdesign_core::RingDesign {
+    use std::collections::HashSet;
+    let mut result = design.clone();
+    let referenced: HashSet<String> = design.layers.referenced_alphas().into_iter().map(str::to_owned).collect();
+    let mut kept = HashSet::new();
+    // Reverse bake order: recipes override SVGs, texts, drawings and PNGs.
+    macro_rules! retain_last {
+        ($field:ident) => {{
+            result.$field.reverse();
+            result.$field.retain(|source| referenced.contains(&source.name) && kept.insert(source.name.clone()));
+            result.$field.reverse();
+        }};
+    }
+    retain_last!(recipes);
+    retain_last!(svgs);
+    retain_last!(texts);
+    retain_last!(drawn);
+    retain_last!(embedded);
+    result
+}
+
+#[cfg(test)]
+mod refinement_tests {
+    #[test]
+    fn referenced_masks_survive_and_last_baked_source_wins() {
+        use ringdesign_core::{RingDesign, EmbeddedAlpha, field::{Layer, LayerEntry}, tiling::TilingLayer, alpha::ProcRecipe};
+        let mut design = RingDesign::default();
+        let mut layer = LayerEntry::new("scales", Layer::Tiling(TilingLayer::default_for("Scales", &design.field_context())));
+        layer.mask = Some("Mask".into());
+        design.layers.layers.push(layer);
+        design.embedded = ["Scales", "Mask", "Unused"].map(|name| EmbeddedAlpha { name: name.into(), png: String::new() }).into();
+        design.recipes = vec![
+            ProcRecipe { name: "Scales".into(), gamma: 1., ..Default::default() },
+            ProcRecipe { name: "Scales".into(), gamma: 2., ..Default::default() },
+            ProcRecipe { name: "Unused".into(), ..Default::default() },
+        ];
+        let refined = super::refine_sources(&design);
+        assert_eq!(refined.embedded.len(), 1);
+        assert_eq!(refined.embedded[0].name, "Mask");
+        assert_eq!(refined.recipes.len(), 1);
+        assert_eq!(refined.recipes[0].gamma, 2.);
+        assert_eq!(design.embedded.len(), 3, "authoring cleanup leaves its source untouched");
+    }
 }
 
 /// The bundled starter graph the editor opens on: size, section, shank,

@@ -45,16 +45,16 @@ fn glass(r: u8, g: u8, b: u8, a: u8) -> Color32 {
 
 /// Widget rest fill: violet-cast translucent glass, raised to compensate for alpha over black.
 fn fill_rest() -> Color32 {
-    glass(31, 28, 47, 165)
+    glass(25, 22, 32, 185)
 }
 fn fill_weak() -> Color32 {
-    glass(25, 23, 38, 150)
+    glass(22, 19, 29, 185)
 }
 fn fill_hover() -> Color32 {
-    glass(43, 226, 214, 42)
+    glass(29, 25, 38, 220)
 }
 fn fill_active() -> Color32 {
-    glass(255, 61, 139, 54)
+    glass(42, 25, 40, 235)
 }
 
 /// The widget states, shared between [`apply`] and [`menu_row_style`] — egui's
@@ -125,7 +125,7 @@ pub fn apply(ctx: &egui::Context) {
     v.hyperlink_color = AQUA;
     v.warn_fg_color = AQUA_BRIGHT;
     v.error_fg_color = PINK;
-    v.selection.bg_fill = glass(255, 61, 139, 140);
+    v.selection.bg_fill = glass(59, 40, 69, 245);
     v.selection.stroke = Stroke::new(1.4, PINK_BRIGHT);
 
     widget_palette(&mut v.widgets);
@@ -146,7 +146,7 @@ pub fn apply(ctx: &egui::Context) {
             .insert(egui::TextStyle::Heading, egui::FontId::proportional(16.0));
         s.spacing.item_spacing = egui::vec2(4.0, 4.0);
         s.spacing.button_padding = egui::vec2(4.0, 2.0);
-        s.spacing.interact_size.y = 26.0;
+        s.spacing.interact_size.y = MENU_ROW_H;
         s.interaction.tooltip_delay = 0.7;
         s.interaction.tooltip_grace_time = 0.0;
         s.interaction.drag_value_dragging = false;

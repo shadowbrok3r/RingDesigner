@@ -514,15 +514,27 @@ impl Visual {
         value(ui, "Stone width", &mut width, 0.5..=18.0, " mm");
         value(ui, "Around ring", &mut angle, 0.0..=360.0, "°");
         value(ui, "Across band", &mut across, 0.0..=max_v, " mm");
-        let changed = width != gem.w_mm || angle != seat.theta_deg || across != seat.v_mm;
-        if changed {
+        let mut tint = gem.preview_tint.unwrap_or(ringdesign_core::gems::GEM_TINT);
+        let tint_changed = ui.horizontal(|ui| {
+            ui.label("Stone colour");
+            let picked = ui.color_edit_button_rgb(&mut tint).changed();
+            let reset = ui.small_button("Neutral").clicked();
+            if reset { gem.preview_tint = None; }
+            else if picked { gem.preview_tint = Some(tint); }
+            picked || reset
+        }).inner;
+        let geometry_changed = width != gem.w_mm || angle != seat.theta_deg || across != seat.v_mm;
+        if geometry_changed {
             gem.l_mm *= width / gem.w_mm.max(0.01);
             gem.w_mm = width;
             seat.fit_stone(gem);
             seat.theta_deg = angle;
             seat.v_mm = across;
+        } else if tint_changed {
+            // A colour edit must preserve hand-adjusted stock and bearing sizes.
+            seat.gem = Some(gem);
         }
-        changed
+        geometry_changed || tint_changed
     }
 }
 fn relief_direction(ui: &mut egui::Ui, engrave: &mut bool) {

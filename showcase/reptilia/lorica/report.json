@@ -1,0 +1,437 @@
+{
+  "bench_layers": [
+    "lorica / chased scale joints"
+  ],
+  "cast_ring_grams": 10.684366006786005,
+  "design": "Lorica — crocodile armour",
+  "detail_findings": [
+    "lorica / cast scale sculpture: the lorica / cast scale sculpture texture's finest gaps measure 0.24 mm on 71.0 x 9.8 mm cells against the sand's 0.30 mm floor — they will cast as mush. Coarsen the pattern, use fewer repeats, or accept the softness."
+  ],
+  "diagnostic_only": false,
+  "estimated_channel_grams": -0.0,
+  "estimated_charge_grams": 10.684366006786005,
+  "feeding_proxy": [
+    292.5,
+    0.8721148206652695
+  ],
+  "format_version": 1,
+  "geometry": {
+    "bounds_mm": [
+      24.031368255615234,
+      24.031368255615234,
+      8.154943466186523
+    ],
+    "surface_area_mm2": 1312.3803103205287,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 1474560,
+      "vertex_count": 737280,
+      "watertight": true
+    },
+    "volume_mm3": 1092.4005371523988
+  },
+  "limits": [
+    "Release is sampled; features between rays can be missed",
+    "Sand-slot widths are a screening check, not a sand-strength model",
+    "Radial wall is not the minimum thickness in every direction",
+    "Channel volumes overlap at junctions and omit melt/handling losses",
+    "Separately cored geometry needs a core and assembly plan"
+  ],
+  "nominal_bore_mm": 18.6,
+  "nominal_size": "US 8.6",
+  "pattern_fingerprint": "ec17ed6ac798f767",
+  "pattern_scale": 1.019367991845056,
+  "radial_wall_limit_mm": 0.8,
+  "radial_wall_mm": 1.7143549243433327,
+  "release": {
+    "bounds": [
+      [
+        -12.015684127807617,
+        -12.015684127807617,
+        -4.077471733093262
+      ],
+      [
+        12.015684127807617,
+        12.015684127807617,
+        4.077471733093262
+      ]
+    ],
+    "cell_mm": [
+      0.09971522097765657,
+      0.09971522097765657
+    ],
+    "fits_flask": true,
+    "frame": {
+      "x": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "y": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "z": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "grid": [
+      241,
+      241
+    ],
+    "low_draft_area_mm2": 305.67240954927564,
+    "notes": [
+      "305.67 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
+    "obstructions": [],
+    "occupied_rays": 16696,
+    "parting_mm": 0.0,
+    "sand_findings": [
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          -3.5388358909926865e-16,
+          -11.766396075363476,
+          0.0
+        ],
+        "width_mm": 0.49857610488828286
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          -3.091171850307353,
+          -11.367535191452848,
+          0.0
+        ],
+        "width_mm": 0.5982913258659395
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          3.1908870712850095,
+          -11.367535191452848,
+          0.0
+        ],
+        "width_mm": 0.5982913258659395
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          -5.883198037681738,
+          -10.071237318743314,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          5.982913258659394,
+          -10.071237318743314,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          -5.883198037681738,
+          10.071237318743314,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          5.982913258659394,
+          10.071237318743314,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          -2.9914566293296976,
+          11.267819970475195,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          3.091171850307354,
+          11.267819970475195,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          -3.5388358909926865e-16,
+          11.66668085438582,
+          0.0
+        ],
+        "width_mm": 0.49857610488828286
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          -11.766396075363476,
+          -3.5388358909926865e-16,
+          0.0
+        ],
+        "width_mm": 0.49857610488828286
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          -11.367535191452848,
+          -3.091171850307353,
+          0.0
+        ],
+        "width_mm": 0.5982913258659395
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          -11.367535191452848,
+          3.1908870712850095,
+          0.0
+        ],
+        "width_mm": 0.5982913258659395
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          -10.071237318743314,
+          -5.883198037681738,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          -10.071237318743314,
+          5.982913258659394,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          10.071237318743314,
+          -5.883198037681738,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          10.071237318743314,
+          5.982913258659394,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          11.267819970475195,
+          -2.9914566293296976,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          11.267819970475195,
+          3.091171850307354,
+          0.0
+        ],
+        "width_mm": 0.3988608839106263
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          11.66668085438582,
+          -3.5388358909926865e-16,
+          0.0
+        ],
+        "width_mm": 0.49857610488828286
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          -8.276363341145496,
+          -7.977217678212526,
+          2.038735866546631
+        ],
+        "width_mm": 0.29914566293296974
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          8.276363341145498,
+          -7.977217678212526,
+          2.038735866546631
+        ],
+        "width_mm": 0.29914566293296974
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          -8.276363341145496,
+          7.977217678212526,
+          2.038735866546631
+        ],
+        "width_mm": 0.29914566293296974
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          8.276363341145498,
+          7.977217678212526,
+          2.038735866546631
+        ],
+        "width_mm": 0.29914566293296974
+      }
+    ],
+    "status": "Review",
+    "suggested_parting_mm": 0.0,
+    "tolerance_mm": 0.02,
+    "unresolved_rays": 0,
+    "worst_draft_deg": 0.0
+  },
+  "sampled_local_wall": null,
+  "setup": {
+    "auto_parting": false,
+    "axial_stock_mm": 0.0,
+    "bench_notes": "",
+    "bore": "Molded",
+    "bore_stock_mm": 0.0,
+    "channels": [],
+    "component": null,
+    "flask": {
+      "cope_mm": 20.0,
+      "drag_mm": 20.0,
+      "length_mm": 60.0,
+      "width_mm": 60.0
+    },
+    "parting_mm": 0.0,
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "radial_stock_mm": 0.0,
+    "recipe": {
+      "alloy": "Silver 925",
+      "calibration_note": "Cast supported sculpture in Delft clay; chase only the explicitly deferred joints and scale facets. Oxidize recesses and polish scale crowns. Shrink allowance requires a shop trial.",
+      "min_detail_mm": 0.3,
+      "min_draft_deg": 3.0,
+      "min_sand_web_mm": 0.6,
+      "min_section_mm": 0.8,
+      "name": "Lorica — crocodile armour / sterling silver / cast and chased",
+      "process": "SandTwoPart",
+      "sand": "DelftClay",
+      "sand_margin_mm": 5.0,
+      "shrink_pct": 1.9
+    },
+    "sample_pitch_mm": 0.1,
+    "tolerance_mm": 0.02
+  },
+  "source_build": {
+    "band_width_mm": 8.0,
+    "bounds_mm": [
+      23.57477378845215,
+      23.57477378845215,
+      8.0
+    ],
+    "build_ms": 217,
+    "inner_diameter_mm": 18.600008009581487,
+    "max_relief_mm": 0.52,
+    "metals": [
+      {
+        "dwt": 6.870206874612814,
+        "grams": 10.684366006786007,
+        "metal": "Silver 925"
+      },
+      {
+        "dwt": 5.835696959130575,
+        "grams": 9.07552324900742,
+        "metal": "Bronze"
+      },
+      {
+        "dwt": 5.6699101137007295,
+        "grams": 8.8176958839788,
+        "metal": "Brass"
+      },
+      {
+        "dwt": 7.65935225885888,
+        "grams": 11.911624264322239,
+        "metal": "Gold 10k"
+      },
+      {
+        "dwt": 8.667336279072343,
+        "grams": 13.479214643696247,
+        "metal": "Gold 14k"
+      },
+      {
+        "dwt": 10.331836207187996,
+        "grams": 16.06780138858359,
+        "metal": "Gold 18k"
+      },
+      {
+        "dwt": 11.804023394605027,
+        "grams": 18.357308390037733,
+        "metal": "Gold 22k"
+      },
+      {
+        "dwt": 12.81200741481849,
+        "grams": 19.924898769411744,
+        "metal": "Gold 24k"
+      },
+      {
+        "dwt": 7.957768580632603,
+        "grams": 12.375713521373754,
+        "metal": "Palladium 950"
+      },
+      {
+        "dwt": 14.224511337880775,
+        "grams": 22.121587919455582,
+        "metal": "Platinum 950"
+      }
+    ],
+    "min_relief_mm": 0.0,
+    "outer_diameter_mm": 23.57477378845215,
+    "quality": {
+      "degenerate_faces": 0,
+      "min_angle_deg": 11.044165594207557,
+      "worst_aspect": 6.865736520768865
+    },
+    "refine": null,
+    "surface_area_mm2": 1262.983769294338,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 1474560,
+      "vertex_count": 737280,
+      "watertight": true
+    },
+    "volume_mm3": 1031.3094601144794
+  },
+  "units": "millimeter"
+}

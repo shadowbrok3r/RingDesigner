@@ -7,6 +7,22 @@ use crate::editor::{
 use ringdesign_workbench::visual::{Pointer as VisualPointer, Tool as VisualTool};
 
 impl RingApp {
+    pub(super) fn clear_viewport_selection(&mut self) {
+        let isolated = self.editor.isolate;
+        self.editor.reset_selection();
+        self.probe_info = None;
+        self.camera_turn = None;
+        self.pane.focus = [0.0; 4];
+        self.editor.palette = None;
+        self.selected_layer = None;
+        self.visual.select(VisualTool::Select);
+        self.visual.selected_stone = None;
+        if let Some(ed) = &mut self.graph.ed { ed.selected = None; }
+        self.choose_node(None);
+        if isolated { self.request_view_update(); }
+        self.status = "Selection cleared — drag to orbit, pinch to zoom".into();
+    }
+
     fn clear_opened_menus(&mut self, ctx: &egui::Context, view: egui::Rect, manual: bool) {
         let overlays: Vec<_> = ctx.memory(|m| {
             m.areas().visible_layer_ids().into_iter()
@@ -89,6 +105,22 @@ impl RingApp {
     }
 
     pub(super) fn mode_bar(&mut self, ui: &mut egui::Ui, host: &Host) {
+        if self.tab == Tab::Graph || self.editor.sheet == Some(Sheet::Graph) && self.tab == Tab::Ring {
+            use ringdesign_workbench::icons::{self, Icon};
+            ui.horizontal(|ui| {
+                if icons::button(ui, Icon::Shape, "Model", false, egui::vec2(0.,30.)).clicked() {
+                    self.choose_mode(self.editor.mode);
+                }
+                ui.separator();
+                ui.add(Icon::Graph.image(ui, 18.)); ui.strong("Graph workspace");
+                crate::theme::up_menu(ui, "Workspace", |ui| {
+                    for mode in Mode::ALL {
+                        if ui.button(mode.label()).clicked() { self.choose_mode(mode); ui.close(); }
+                    }
+                });
+            });
+            return;
+        }
         ui.spacing_mut().item_spacing.x = 2.0;
         ui.spacing_mut().button_padding = egui::vec2(3.0, 4.0);
         ui.horizontal(|ui| {
@@ -197,6 +229,16 @@ impl RingApp {
     }
 
     fn view_menu(&mut self, ui: &mut egui::Ui) {
+        if self.tab == Tab::Graph {
+            crate::theme::up_menu(ui, "View", |ui| {
+                if ui.button("Fit graph").clicked() { if let Some(ed) = &mut self.graph.ed { ed.fit(); } }
+                if ui.button("Show ring alongside graph").clicked() {
+                    self.editor.workspace.graph_fullscreen = false;
+                    self.open_graph_sheet();
+                }
+            });
+            return;
+        }
         crate::theme::up_menu(ui, "View", |ui| {
             if self.design.shank.kind == ringdesign_core::ShankKind::Signet {
                 if ui.button("Signet face").clicked() {
@@ -306,6 +348,9 @@ impl RingApp {
 
     pub(super) fn studio_ui(&mut self, ui: &mut egui::Ui, host: &Host) {
         crate::theme::ambience(ui.ctx());
+        if !egui::Popup::is_any_open(ui.ctx()) && !ringdesign_graph_ui::alpha_picker::is_open(ui.ctx()) && !ringdesign_workbench::feedback::is_open(ui.ctx()) && !ui.ctx().egui_wants_keyboard_input() && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+            self.clear_viewport_selection();
+        }
         let safe = ui.available_rect_before_wrap();
         crate::theme::set_content_bounds(ui.ctx(), safe);
         editor::layout::begin(ui.ctx());
@@ -313,7 +358,7 @@ impl RingApp {
         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
         ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
         ui.spacing_mut().button_padding = egui::vec2(4.0, 2.0);
-        ui.spacing_mut().interact_size.y = 26.0;
+        ui.spacing_mut().interact_size.y = crate::theme::MENU_ROW_H;
         ui.spacing_mut().slider_width = (safe.width() - 170.0).clamp(70.0, 200.0);
         let typing = host.keyboard_height() > 1.0;
         if !typing {
@@ -352,9 +397,13 @@ impl RingApp {
                         self.editor.palette = None;
                         self.save_prefs();
                     }
-                    let panel = icons::compact(ui, Icon::Panel, self.editor.sheet.is_some());
+                    let panel_available = self.tab == Tab::Ring || self.tab == Tab::Graph && self.graph.ed.as_ref().is_some_and(|ed| !ed.graph().exposed.is_empty());
+                    let panel = ui.add_enabled_ui(panel_available, |ui| icons::compact(ui, Icon::Panel, self.editor.sheet.is_some())).inner;
+                    panel.response.clone().on_disabled_hover_text("This graph has no exposed parameters");
                     editor::layout::record(ui, "header/Panel", panel.rect);
-                    if panel.clicked() {
+                    if panel.clicked() && self.tab == Tab::Graph {
+                        self.graph.parameters = !self.graph.parameters;
+                    } else if panel.clicked() {
                         if self.editor.sheet.is_some()
                             && self
                                 .editor
@@ -370,7 +419,8 @@ impl RingApp {
                         }
                         self.save_prefs();
                     }
-                    self.view_menu(ui);
+                    ui.add_enabled_ui(matches!(self.tab, Tab::Ring | Tab::Graph | Tab::Band | Tab::Tile | Tab::Alphas), |ui| self.view_menu(ui))
+                        .response.on_disabled_hover_text("View controls are available in visual workspaces");
                 });
             });
         if self.tab == Tab::Ring && self.sketch_mode.is_none() {
@@ -400,6 +450,7 @@ impl RingApp {
                         .frame(
                             egui::Frame::new()
                                 .fill(egui::Color32::from_rgb(20, 20, 25))
+                                .stroke(egui::Stroke::new(1.5, if graph { crate::theme::PINK_BRIGHT } else { crate::theme::AQUA.gamma_multiply(0.55) }))
                                 .inner_margin(6),
                         )
                         .show(ui, |ui| {
@@ -471,6 +522,8 @@ impl RingApp {
                 }
                 editor::layout::record(ui, "tool/content", ui.min_rect());
             });
+        ringdesign_graph_ui::alpha_picker::show_in(ui.ctx(), crate::theme::content_bounds(ui.ctx()));
+        if let Some(url) = ringdesign_workbench::feedback::show(ui.ctx(), env!("CARGO_PKG_VERSION"), self.editor.mode.label()) { host.open_url(url); }
         if self.editor.debug_layout {
             editor::layout::draw(ui, safe);
             let mut data = editor::layout::report(ui.ctx(), safe);
@@ -495,6 +548,7 @@ impl RingApp {
             data["workspace"] = serde_json::json!(self.editor.workspace);
             data["palette"] = serde_json::json!(format!("{:?}", self.editor.palette));
             data["navigation"] = serde_json::to_value(self.pane.navigation).unwrap_or_default();
+            data["selection"] = serde_json::json!({"layer":self.selected_layer,"node":self.graph.shown,"hit":self.editor.selection.is_some(),"stone":self.editor.stone,"handles":self.editor.handles_active,"cutters":self.cuts.ghost,"tab":self.tab.label(),"sheet":format!("{:?}",self.editor.sheet)});
             data["visual"] = serde_json::json!({"tool":format!("{:?}",self.visual.tool),"path_points":self.visual.path.curve.points.len(),"navigating":self.visual.navigating()});
             data["camera"] = serde_json::json!({"yaw":self.pane.camera.yaw,"pitch":self.pane.camera.pitch,"zoom":self.pane.camera.zoom,"pan":self.pane.camera.pan});
             data["menu_avoidance"] = serde_json::json!({"shifts":self.editor.menu_avoidance.shifts,"last_delta":self.editor.menu_avoidance.last_delta});
@@ -928,8 +982,33 @@ impl RingApp {
         if self.visual.wants_repaint() {
             ui.ctx().request_repaint();
         }
+        egui::Panel::bottom(egui::Id::new("viewport-selection-bar"))
+            .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(4,3)).stroke(egui::Stroke::new(1., crate::theme::AQUA.gamma_multiply(0.45))))
+            .show(ui, |ui| {
+                use ringdesign_workbench::icons::{self, Icon};
+                ui.horizontal(|ui| {
+                    let selected = self.editor.selection.is_some() || self.selected_layer.is_some() || self.graph.shown.is_some() || self.visual.tool != VisualTool::Select || self.editor.mode == Mode::Shape && self.editor.guides && self.editor.handles_active;
+                    let clear = ui.add_enabled_ui(selected, |ui| icons::button(ui, Icon::Close, "Clear", false, egui::vec2(62.,28.))).inner;
+                    editor::layout::record(ui, "viewport/Clear", clear.rect);
+                    if clear.clicked() { self.clear_viewport_selection(); }
+                    if self.cuts.ghost {
+                        let cutters = icons::button(ui, Icon::Cutters, "Cutters", true, egui::vec2(0.,28.));
+                        editor::layout::record(ui, "viewport/Cutters", cutters.rect);
+                        if cutters.clicked() { self.cuts.ghost = false; self.request_view_update(); self.save_prefs(); }
+                    }
+                    ui.add(Icon::Select.image(ui, 16.));
+                    ui.add(egui::Label::new(egui::RichText::new("Drag to orbit · pinch to zoom").small().color(crate::theme::INK_DIM)).truncate());
+                });
+            });
         let rect = ui.available_rect_before_wrap();
         self.floating_tools(ui.ctx(), rect, host);
+        if self.tab == Tab::Band && !self.pane.navigation.locked
+            && !ui.input(|i|i.pointer.hover_pos()).is_some_and(|p|rect.contains(p)) {
+            let cam=&mut self.pane.camera;
+            if let Some(pose)=ringdesign_workbench::paint_preview::follow(ui,cam.pose(),cam.target,cam.half_extent()*cam.zoom/1.15) {
+                cam.set_pose(pose); self.camera_turn=None;
+            }
+        }
         let nav = ringdesign_workbench::navigation::show(
             ui, rect, ui.id().with("phone-view"), &mut self.pane.navigation,
             [self.pane.camera.yaw, self.pane.camera.pitch, self.pane.camera.roll], self.design.shank.head.theta_deg as f32,
@@ -1055,6 +1134,7 @@ impl RingApp {
             {
                 let (origin, direction) = self.pane.camera.ray(view.rect, pos);
                 let hit = editor::picking::hit(&self.design, &self.lib, mesh, origin, direction);
+                if hit.is_none() { self.clear_viewport_selection(); }
                 if let (true, Some(hit)) = (graph_sheet, &hit) {
                     // Under the graph a tap asks which node made this metal.
                     let node = crate::focus::layer_behind(&self.design, &self.lib, hit)
@@ -1104,11 +1184,28 @@ impl RingApp {
                         }
                         _ => {}
                     }
+                    self.editor.handles_active = true;
                     self.editor.selection = Some(hit);
                     if self.editor.sheet.is_some() {
                         self.editor.sheet = Some(Sheet::Edit);
                     }
                 }
+            }
+        }
+        if self.tab == Tab::Band {
+            let project=self.pane.camera.projector(view.rect);
+            ringdesign_workbench::paint_preview::draw(ui,view.rect,|p|project.at(p));
+        }
+        if !floating_blocked && self.visual.tool == VisualTool::Select {
+            if let Some(mesh) = &self.preview_mesh {
+                let camera = self.pane.camera; let project = camera.projector(view.rect);
+                ringdesign_workbench::hover::show(ui, view.rect, &view.response, &self.design, &self.lib, mesh,
+                    |p| camera.ray(view.rect,p), |p| project.at(p), |hit| {
+                        if graph_sheet { crate::focus::layer_behind(&self.design,&self.lib,hit).and_then(|i| self.graph.node_for_layer(i)).map(|_| "Graph feature".into()) }
+                        else if self.editor.mode == Mode::Surface { editor::picking::layers_at(&self.design,&self.lib,hit).first().filter(|&&i| !self.editor.isolate || Some(i) == self.selected_layer).map(|&i| self.design.layers.layers[i].name.clone()) }
+                        else if self.editor.mode == Mode::Shape { Some(if self.design.shank.kind == ringdesign_core::ShankKind::Signet && ringdesign_core::field::wrap_delta(hit.theta_deg-self.design.shank.head.theta_deg,360.).abs()<45. { "Signet head" } else { "Band" }.into()) }
+                        else { None }
+                    });
             }
         }
         if let Some((origin, direction)) = view.probe {

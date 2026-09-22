@@ -16,10 +16,10 @@ use ringdesign_graph::registry::Registry;
 use ringdesign_graph_ui::Editor;
 
 use crate::alpha_editor::AlphaEditor;
-use crate::dock::Dock;
+use crate::dock::{Dock, Desktop, DesktopLayout};
 use ringdesign_core::history::History;
 use crate::mcp_host::McpHost;
-use crate::pane::{Layout, Pane, PaneKind};
+use crate::pane::{Layout, Pane, PaneKind, ViewportLayout};
 use crate::viewport::GpuMeshRenderer;
 
 pub const DESIGN_STORAGE_KEY: &str = "ring_design";
@@ -30,6 +30,12 @@ pub const WORKSPACE_STORAGE_KEY: &str = "workspace";
 /// the design and dock already do; this carries the rest.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Workspace {
+    #[serde(default = "default_true")]
+    pub automatic_updates: bool,
+    #[serde(default)]
+    pub desktop: Desktop,
+    #[serde(default)]
+    pub desktops: BTreeMap<Desktop, DesktopLayout>,
     pub preview_params: BuildParams,
     pub export_params: BuildParams,
     pub show_wireframe: bool,
@@ -56,7 +62,13 @@ pub struct Workspace {
     /// Design files opened or saved, newest first.
     #[serde(default)]
     pub recent: Vec<String>,
+    #[serde(default)]
+    pub document_path: Option<std::path::PathBuf>,
     pub layout: Layout,
+    #[serde(default)]
+    pub viewport_layout: Option<ViewportLayout>,
+    #[serde(default)]
+    pub graph_inline_edit: bool,
     pub panes: Vec<Pane>,
     pub active_pane: usize,
     pub mcp_port: u16,
@@ -69,6 +81,9 @@ fn default_true() -> bool {
 impl Default for Workspace {
     fn default() -> Self {
         Self {
+            automatic_updates: true,
+            desktop: Desktop::default(),
+            desktops: BTreeMap::new(),
             preview_params: BuildParams {
                 theta_steps: 384,
                 profile_steps: 144,
@@ -90,7 +105,10 @@ impl Default for Workspace {
             polish: 0,
             light: 0,
             recent: Vec::new(),
+            document_path: None,
             layout: Layout::Single,
+            viewport_layout: None,
+            graph_inline_edit: false,
             panes: Pane::defaults(),
             active_pane: 0,
             mcp_port: ringdesign_mcp::DEFAULT_PORT,
@@ -101,6 +119,9 @@ impl Default for Workspace {
 impl RingDesignerApp {
     pub fn workspace(&self) -> Workspace {
         Workspace {
+            automatic_updates: self.updater.automatic,
+            desktop: self.desktop,
+            desktops: self.desktops.clone(),
             preview_params: self.preview_params,
             export_params: self.export_params,
             show_wireframe: self.show_wireframe,
@@ -114,7 +135,10 @@ impl RingDesignerApp {
             polish: self.polish,
             light: self.light,
             recent: self.recent.clone(),
+            document_path: self.document_path.clone(),
             layout: self.layout,
+            viewport_layout: Some(self.viewport_layout.clone()),
+            graph_inline_edit: self.graph_inline_edit,
             panes: self.panes.clone(),
             active_pane: self.active_pane,
             mcp_port: self.mcp_port,
@@ -139,6 +163,10 @@ const DEBOUNCE: Duration = Duration::from_millis(90);
 const THUMB_TEXTURE_EDGE: usize = 128;
 
 pub struct RingDesignerApp {
+    pub updater: crate::updater::Updater,
+    pub install_update: bool,
+    pub desktop: Desktop,
+    pub desktops: BTreeMap<Desktop, DesktopLayout>,
     pub design: RingDesign,
     pub visual: ringdesign_workbench::visual::Visual,
     pub construction: ringdesign_workbench::construction::Guide,
@@ -184,6 +212,7 @@ pub struct RingDesignerApp {
     pub brush_soft: f32,
     pub brush_erase: bool,
     /// Last probe click in the 3D view: world position and its readout.
+    pub hovered_node: Option<GraphNodeId>,
     pub probe: Option<([f32; 3], String)>,
     /// Measurement pins from shift-clicks, world space. Two make a distance.
     pub pins: Vec<[f32; 3]>,
@@ -201,6 +230,7 @@ pub struct RingDesignerApp {
     /// The Ctrl+K command palette.
     pub palette_open: bool,
     pub palette_query: String,
+    pub palette_selection: usize,
     pub pave_spec: ringdesign_core::pave::PaveSpec,
     /// The user's saved cross-sections, loaded from `library::profile_dir()`.
     pub saved_profiles: Vec<(String, ringdesign_core::BandProfile)>,
@@ -213,10 +243,13 @@ pub struct RingDesignerApp {
     pub light: usize,
     /// Design files opened or saved, newest first.
     pub recent: Vec<String>,
+    pub document_path: Option<std::path::PathBuf>,
 
     /// One per quadrant, whatever the layout currently shows.
     pub panes: Vec<Pane>,
     pub layout: Layout,
+    pub viewport_layout: ViewportLayout,
+    pub graph_inline_edit: bool,
     /// Pane the toolbar's view controls act on.
     pub active_pane: usize,
     /// Frame the next completed build. Set on new/open, never on rebuilds.
@@ -294,10 +327,22 @@ impl RingDesignerApp {
         // A restored workspace keeps its cameras; a fresh start frames the
         // first build.
         let fit_pending = workspace.is_none();
-        let ws = workspace.unwrap_or_default();
+        let mut ws = workspace.unwrap_or_default();
+        if ws.desktop == Desktop::Graph && ws.viewport_layout.is_none() {
+            ws.layout = Layout::GraphReview;
+            ws.panes = crate::pane::graph_panes();
+            ws.active_pane = 2;
+        }
+        ws.panes.resize_with(4, || Pane::defaults().remove(0));
+        ws.panes.truncate(4);
+        ws.active_pane = ws.active_pane.min(ws.layout.count() - 1);
 
         let design_for_history = design.clone();
         let mut app = Self {
+            updater: crate::updater::Updater::new(ws.automatic_updates),
+            install_update: false,
+            desktop: ws.desktop,
+            desktops: ws.desktops,
             design,
             visual: Default::default(),
             construction: Default::default(),
@@ -326,6 +371,7 @@ impl RingDesignerApp {
             brush_depth: 0.6,
             brush_soft: 0.35,
             brush_erase: false,
+            hovered_node: None,
             probe: None,
             pins: Vec::new(),
             pinned: None,
@@ -334,6 +380,7 @@ impl RingDesignerApp {
             exporting: None,
             palette_open: false,
             palette_query: String::new(),
+            palette_selection: 0,
             pave_spec: ringdesign_core::pave::PaveSpec::default(),
             saved_profiles: ringdesign_core::library::list_profiles(),
             profile_save_name: String::new(),
@@ -342,8 +389,11 @@ impl RingDesignerApp {
             polish: ws.polish,
             light: ws.light,
             recent: ws.recent,
+            document_path: ws.document_path,
             panes: ws.panes,
             layout: ws.layout,
+            viewport_layout: ws.viewport_layout.filter(|v| v.valid_for(ws.layout)).unwrap_or_else(|| ViewportLayout::new(ws.layout)),
+            graph_inline_edit: ws.graph_inline_edit,
             active_pane: ws.active_pane,
             fit_pending,
             dock: cc
@@ -378,6 +428,7 @@ impl RingDesignerApp {
             last_build_valid: false,
             generation: 0,
         };
+        app.restore_desktop_view();
         app.mark_dirty();
         app
     }
@@ -657,16 +708,124 @@ impl RingDesignerApp {
         }
     }
 
+    /// Put `kind` in pane `i`.
+    ///
+    /// A cross-section arrives *beside* the ring rather than over it: a
+    /// section is read against the shape it cuts, so asking for one from a
+    /// single view splits the window and keeps the ring on the left.
+    pub fn set_pane_kind(&mut self, i: usize, kind: PaneKind) {
+        if kind == PaneKind::Section && self.layout == Layout::Single && self.panes.len() > 1 {
+            self.set_layout(Layout::SplitH);
+            self.panes[0].kind = PaneKind::Solid;
+            self.panes[1].kind = PaneKind::Section;
+            self.active_pane = 1;
+            self.refresh_section(1);
+            return;
+        }
+        let Some(pane) = self.panes.get_mut(i) else { return };
+        pane.kind = kind;
+        self.active_pane = i;
+        if kind == PaneKind::Section {
+            self.refresh_section(i);
+        }
+    }
+
     /// Show `kind` in the active pane, so a control elsewhere can bring a view
     /// up without guessing which quadrant the user is looking at.
     pub fn focus(&mut self, kind: PaneKind) {
-        let i = self.active_pane.min(self.panes.len().saturating_sub(1));
+        let desktop = match kind {
+            PaneKind::Graph => Desktop::Graph,
+            PaneKind::Unrolled => Desktop::Surface,
+            PaneKind::Casting => Desktop::Casting,
+            PaneKind::Cad => Desktop::Cad,
+            _ => Desktop::Model,
+        };
+        self.switch_desktop(desktop);
+        let i = self.panes.iter().take(self.layout.count()).position(|p| p.kind == kind)
+            .unwrap_or(self.active_pane.min(self.layout.count() - 1).min(self.panes.len().saturating_sub(1)));
+        self.active_pane = i;
         if let Some(p) = self.panes.get_mut(i) {
             p.kind = kind;
         }
         if kind == PaneKind::Section {
             self.refresh_section(i);
         }
+    }
+
+    pub fn switch_desktop(&mut self, desktop: Desktop) {
+        if self.desktop == desktop { return; }
+        let previous = DesktopLayout { dock: self.dock.clone(), panes: self.panes.clone(), layout: self.layout, active: self.active_pane, viewport_layout: Some(self.viewport_layout.clone()) };
+        self.desktops.insert(self.desktop, previous);
+        let mut next = self.desktops.remove(&desktop).unwrap_or_else(|| DesktopLayout::new(desktop));
+        if desktop == Desktop::Graph && next.viewport_layout.is_none() {
+            next = DesktopLayout::new(desktop);
+        }
+        next.panes.resize_with(4, || Pane::defaults().remove(0));
+        next.panes.truncate(4);
+        self.dock = next.dock;
+        self.panes = next.panes;
+        self.layout = next.layout;
+        self.viewport_layout = next.viewport_layout.filter(|v| v.valid_for(next.layout)).unwrap_or_else(|| ViewportLayout::new(next.layout));
+        self.active_pane = next.active.min(self.layout.count() - 1);
+        self.desktop = desktop;
+        self.restore_desktop_view();
+        self.construction.open = false;
+        self.hovered_node = None;
+        self.node_focus.asked = None;
+        self.node_focus.aim_pending = self.selected_node.is_some();
+        self.band_paint = false;
+        self.visual.select(ringdesign_workbench::visual::Tool::Select);
+    }
+
+    /// A stored layout can have lost the workspace's own view; put it back in a visible pane.
+    pub fn restore_desktop_view(&mut self) {
+        let kind = self.desktop.pane();
+        let shown = self.visible_panes();
+        if shown.iter().any(|i| self.panes.get(*i).is_some_and(|p| p.kind == kind)) {
+            return;
+        }
+        let Some(i) = shown.iter().copied().find(|i| *i == self.active_pane).or(shown.first().copied()) else { return };
+        if let Some(pane) = self.panes.get_mut(i) {
+            pane.kind = kind;
+            self.active_pane = i;
+        }
+    }
+
+    pub fn set_layout(&mut self, layout: Layout) {
+        self.layout = layout;
+        self.viewport_layout = ViewportLayout::new(layout);
+        if layout == Layout::GraphReview {
+            let free_camera = self.panes.iter().find(|p| p.kind == PaneKind::Solid && !p.follow_node).map(|p| p.camera);
+            self.panes = crate::pane::graph_panes();
+            if let Some(camera) = free_camera { self.panes[0].camera = camera; }
+            self.active_pane = 2;
+            self.node_focus.asked = None;
+            self.node_focus.aim_pending = self.selected_node.is_some();
+        } else {
+            for pane in &mut self.panes {
+                if pane.follow_node { pane.follow_node = false; pane.navigation.locked = false; }
+            }
+            self.active_pane = self.active_pane.min(layout.count() - 1);
+        }
+        self.refresh_sections();
+    }
+
+    pub fn surface_edit_reason(&self) -> Option<&'static str> {
+        if self.graph_driven() { Some("This design is generated by nodes. Edit its graph, or make it directly editable.") }
+        else if matches!(self.desktop, Desktop::Graph | Desktop::Casting | Desktop::Cad) { Some("Surface editing is available in the Model and Surface workspaces.") }
+        else { None }
+    }
+
+    pub fn clear_selection(&mut self) {
+        self.hovered_node = None;
+        self.pins.clear();
+        self.selected_node = None;
+        if let Some(ed) = &mut self.graph_ed { ed.selected = None; }
+        self.selected_layer = None;
+        self.visual.selected_stone = None;
+        self.probe = None;
+        self.visual.select(ringdesign_workbench::visual::Tool::Select);
+        self.set_status("Selection cleared — drag empty space to orbit");
     }
 
     // --- History -----------------------------------------------------------
@@ -848,6 +1007,53 @@ impl RingDesignerApp {
 
 impl RingDesignerApp {
     /// Whether the design is driven by a graph right now.
+    /// Put this workspace's panels and views back where they start.
+    ///
+    /// One implementation for the View menu, the layout cluster and the
+    /// command palette: a workspace that has been rearranged — panels docked
+    /// elsewhere, views closed or dragged about — comes back in a click.
+    pub fn restore_default_layout(&mut self) {
+        let defaults = DesktopLayout::new(self.desktop);
+        self.dock = defaults.dock;
+        self.panes = defaults.panes;
+        self.set_layout(defaults.layout);
+        self.active_pane = defaults.active;
+        self.set_status(format!("{} workspace back to its default layout", self.desktop.label()));
+    }
+
+    /// The slice a cross-section view on screen is showing, if one is.
+    ///
+    /// The active pane wins where several are open, so the one being read is
+    /// the one marked on the ring.
+    pub fn section_on_screen(&self) -> Option<&ringdesign_core::castability::Section> {
+        let is_section = |i: &usize| self.panes.get(*i).is_some_and(|p| p.kind == PaneKind::Section);
+        let shown = self.visible_panes();
+        let at = shown
+            .iter()
+            .copied()
+            .find(|i| *i == self.active_pane && is_section(i))
+            .or_else(|| shown.iter().copied().find(is_section))?;
+        self.panes.get(at)?.section.as_ref()
+    }
+
+    /// Which panes are on screen.
+    ///
+    /// The tree is the truth while it holds panes — a closed one must count
+    /// as gone — but `panes` takes the tree out for the length of its own
+    /// draw, so the preset answers for the frames it is away. Everything
+    /// asking what is visible goes through here, code inside a pane included.
+    pub fn visible_panes(&self) -> Vec<usize> {
+        let shown = self.viewport_layout.shown();
+        if shown.is_empty() { (0..self.layout.count()).collect() } else { shown }
+    }
+
+    /// Is a 3D view of the ring on screen?
+    pub fn showing_a_ring(&self) -> bool {
+        self.visible_panes()
+            .into_iter()
+            .any(|i| self.panes.get(i).is_some_and(|p| p.kind == PaneKind::Solid))
+    }
+
     pub fn graph_driven(&self) -> bool {
         self.design.graph.is_some()
     }
@@ -902,13 +1108,13 @@ impl RingDesignerApp {
     /// when the node or the mesh under it changes, takes the newest result,
     /// and carries the flash frame to frame.
     fn sync_node_focus(&mut self, ctx: &egui::Context) {
-        let want = if self.graph_ed.is_some() { self.selected_node } else { None };
+        let want = if self.graph_ed.is_some() { self.hovered_node.or(self.selected_node) } else { None };
         if want != self.node_focus.shown {
             self.node_focus.shown = want;
             self.node_focus.asked = None;
             self.node_focus.words.clear();
             self.node_focus.chosen_at = Some(Instant::now());
-            self.node_focus.aim_pending = want.is_some();
+            self.node_focus.aim_pending = want.is_some() && self.hovered_node.is_none();
             if let Ok(mut r) = self.renderer.lock() {
                 r.prepare_focus(Vec::new());
             }
@@ -931,10 +1137,14 @@ impl RingDesignerApp {
             if let Some(effect) = self.graph_effects.get(&hl.node) {
                 self.node_focus.words = hl.words(effect);
             }
-            if std::mem::take(&mut self.node_focus.aim_pending) && self.node_focus.follow {
+            let first_selection = std::mem::take(&mut self.node_focus.aim_pending);
+            let has_feature_view = self.panes.iter().take(self.layout.count()).any(|p| p.kind == PaneKind::Solid && p.follow_node);
+            if self.hovered_node.is_none() {
                 if let Some(aim) = &hl.aim {
-                    for pane in self.panes.iter_mut().filter(|p| p.kind == PaneKind::Solid) {
-                        pane.turn = Some(ringdesign_workbench::focus::Turn::new(pane.camera.pose(), pane.camera.aimed_at(aim)));
+                    for pane in self.panes.iter_mut().take(self.layout.count()).filter(|p| p.kind == PaneKind::Solid) {
+                        if pane.follow_node || (!has_feature_view && first_selection && self.node_focus.follow) {
+                            pane.turn = Some(ringdesign_workbench::focus::Turn::new(pane.camera.pose(), pane.camera.aimed_at(aim)));
+                        }
                     }
                 }
             }
@@ -965,7 +1175,7 @@ impl RingDesignerApp {
         }
         let since = self.node_focus.chosen_at.map_or(f32::MAX, |at| at.elapsed().as_secs_f32());
         let (strength, moving) = ringdesign_workbench::focus::pulse(since);
-        self.node_focus.tint = [1.0, 0.24, 0.545, strength];
+        self.node_focus.tint = if self.hovered_node.is_some() { [0.40, 0.85, 0.83, 0.65] } else { [1.0, 0.24, 0.545, strength] };
         if moving {
             ctx.request_repaint();
         }
@@ -997,14 +1207,22 @@ impl RingDesignerApp {
 
     /// Open a starter or template graph as the design's graph.
     pub fn open_graph(&mut self, g: Graph) {
+        self.document_path = None;
+        self.design.name = g.name.clone();
+        self.set_graph(g);
+        self.show_graph_pane();
+    }
+
+    /// Replace the design's graph in place: the same document in the same panes.
+    pub fn set_graph(&mut self, g: Graph) {
         self.design.graph = serde_json::to_value(&g).ok();
         self.sync_graph();
-        self.show_graph_pane();
         self.mark_dirty();
     }
 
     /// Drop the graph; the design stays exactly as last evaluated.
     pub fn bake_graph(&mut self) {
+        if !self.is_current() { self.set_status("Wait for a successful rebuild before baking the graph"); return; }
         if self.design.graph.take().is_some() {
             self.graph_json = None;
             self.graph_ed = None;
@@ -1018,12 +1236,9 @@ impl RingDesignerApp {
     /// Make a graph pane the active one, turning the active pane into one
     /// if none shows the graph.
     pub fn show_graph_pane(&mut self) {
-        if let Some(i) = self.panes.iter().position(|p| p.kind == PaneKind::Graph) {
-            self.active_pane = i;
-            return;
-        }
-        if let Some(p) = self.panes.get_mut(self.active_pane) {
-            p.kind = PaneKind::Graph;
+        self.focus(PaneKind::Graph);
+        if !self.dock.is_open(crate::dock::ToolKind::Node) {
+            self.dock.open_on(crate::dock::ToolKind::Node, crate::dock::Side::Right);
         }
     }
 

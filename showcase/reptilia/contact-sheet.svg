@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="2400" height="2920" viewBox="0 0 2400 2920">
+<rect width="2400" height="2920" fill="#101313"/>
+<text x="120" y="130" fill="#a6aaa5" font-size="28" font-family="sans-serif" letter-spacing="7">KINGS OF ALCHEMY</text>
+<text x="120" y="345" fill="#eeeae1" font-size="225" font-family="EB Garamond, serif" >Reptilia</text>
+<text x="123" y="422" fill="#a6aaa5" font-size="28" font-family="sans-serif" letter-spacing="4">THREE BANDS · TWO SIGNETS · ONE AMETHYST</text>
+<path d="M120 485H2280 M120 1450H2280 M120 2700H2280" stroke="#333936" stroke-width="2"/>
+<image x="80" y="530" width="720" height="720" xlink:href="ecdysis/studio.png"/>
+<text x="120" y="1300" fill="#eeeae1" font-size="74" font-family="EB Garamond, serif" >Ecdysis</text>
+<text x="120" y="1352" fill="#c3a7d0" font-size="30" font-family="sans-serif" >Ventral scales</text>
+<text x="120" y="1400" fill="#a6aaa5" font-size="25" font-family="sans-serif" >8.5 mm band</text>
+<image x="840" y="530" width="720" height="720" xlink:href="tessera/studio.png"/>
+<text x="880" y="1300" fill="#eeeae1" font-size="74" font-family="EB Garamond, serif" >Tessera</text>
+<text x="880" y="1352" fill="#c3a7d0" font-size="30" font-family="sans-serif" >Shield mosaic</text>
+<text x="880" y="1400" fill="#a6aaa5" font-size="25" font-family="sans-serif" >9 mm band</text>
+<image x="1600" y="530" width="720" height="720" xlink:href="lorica/studio.png"/>
+<text x="1640" y="1300" fill="#eeeae1" font-size="74" font-family="EB Garamond, serif" >Lorica</text>
+<text x="1640" y="1352" fill="#c3a7d0" font-size="30" font-family="sans-serif" >Crocodile armour</text>
+<text x="1640" y="1400" fill="#a6aaa5" font-size="25" font-family="sans-serif" >8 mm band</text>
+<image x="150" y="1530" width="1000" height="1000" xlink:href="ophidian/studio.png"/>
+<text x="200" y="2540" fill="#eeeae1" font-size="86" font-family="EB Garamond, serif" >Ophidian</text>
+<text x="200" y="2592" fill="#c3a7d0" font-size="30" font-family="sans-serif" >Amethyst serpent</text>
+<text x="200" y="2640" fill="#a6aaa5" font-size="25" font-family="sans-serif" >Factory signet 013 · 7 × 5 mm amethyst</text>
+<image x="1250" y="1530" width="1000" height="1000" xlink:href="varanus/studio.png"/>
+<text x="1300" y="2540" fill="#eeeae1" font-size="86" font-family="EB Garamond, serif" >Varanus</text>
+<text x="1300" y="2592" fill="#c3a7d0" font-size="30" font-family="sans-serif" >Sovereign scales</text>
+<text x="1300" y="2640" fill="#a6aaa5" font-size="25" font-family="sans-serif" >Factory signet 017 · patterned face</text>
+<text x="120" y="2790" fill="#a6aaa5" font-size="30" font-family="sans-serif" >Polished silver · darkened recesses · sculpted surfaces</text>
+<text x="120" y="2846" fill="#a6aaa5" font-size="26" font-family="sans-serif" >Rendered from actual ring geometry. Fine detail and stone setting completed at the bench.</text>
+</svg>

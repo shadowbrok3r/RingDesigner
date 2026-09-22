@@ -2226,28 +2226,16 @@ fn recipe_ui(
     match r {
         GenRecipe::Pave(spec) => {
             c |= gem_picker(ui, "recipe_pave_gem", &mut spec.gem);
-            c |= ui
-                .add(
-                    egui::Slider::new(&mut spec.bridge_mm, 0.1..=1.5)
+            c |= ringdesign_workbench::controls::slider(ui, "Bridge", egui::Slider::new(&mut spec.bridge_mm, 0.1..=1.5)
                         .fixed_decimals(2)
-                        .suffix(" mm")
-                        .text("Bridge"),
-                )
+                        .suffix(" mm"))
                 .changed();
-            c |= ui
-                .add(
-                    egui::Slider::new(&mut spec.span_deg, 20.0..=360.0)
-                        .suffix("°")
-                        .text("Span"),
-                )
+            c |= ringdesign_workbench::controls::slider(ui, "Span", egui::Slider::new(&mut spec.span_deg, 20.0..=360.0)
+                        .suffix("°"))
                 .changed();
             if spec.span_deg < 359.0 {
-                c |= ui
-                    .add(
-                        egui::Slider::new(&mut spec.theta_deg, 0.0..=360.0)
-                            .suffix("°")
-                            .text("Centre"),
-                    )
+                c |= ringdesign_workbench::controls::slider(ui, "Centre", egui::Slider::new(&mut spec.theta_deg, 0.0..=360.0)
+                            .suffix("°"))
                     .changed();
             }
             ui.horizontal(|ui| {
@@ -2282,21 +2270,13 @@ fn recipe_ui(
                 width_mm,
             } = &mut spec.region
             {
-                c |= ui
-                    .add(
-                        egui::Slider::new(width_mm, 1.0..=fctx.band_v_len_mm.max(2.0))
+                c |= ringdesign_workbench::controls::slider(ui, "Band width", egui::Slider::new(width_mm, 1.0..=fctx.band_v_len_mm.max(2.0))
                             .fixed_decimals(1)
-                            .suffix(" mm")
-                            .text("Band width"),
-                    )
+                            .suffix(" mm"))
                     .changed();
-                c |= ui
-                    .add(
-                        egui::Slider::new(center_mm, 0.0..=fctx.band_v_len_mm.max(0.5))
+                c |= ringdesign_workbench::controls::slider(ui, "Band centre", egui::Slider::new(center_mm, 0.0..=fctx.band_v_len_mm.max(0.5))
                             .fixed_decimals(1)
-                            .suffix(" mm")
-                            .text("Band centre"),
-                    )
+                            .suffix(" mm"))
                     .changed();
             }
         }
@@ -2305,52 +2285,32 @@ fn recipe_ui(
             c |= gem_picker(ui, "recipe_halo_center", &mut spec.center);
             ui.label(egui::RichText::new("Melee").small().color(theme::TEXT_DIM));
             c |= gem_picker(ui, "recipe_halo_accent", &mut spec.accent);
-            c |= ui
-                .add(
-                    egui::Slider::new(&mut spec.gap_mm, 0.0..=1.5)
+            c |= ringdesign_workbench::controls::slider(ui, "Gap", egui::Slider::new(&mut spec.gap_mm, 0.0..=1.5)
                         .fixed_decimals(2)
-                        .suffix(" mm")
-                        .text("Gap"),
-                )
+                        .suffix(" mm"))
                 .changed();
-            c |= ui
-                .add(
-                    egui::Slider::new(&mut spec.bridge_mm, 0.0..=1.0)
+            c |= ringdesign_workbench::controls::slider(ui, "Bridge", egui::Slider::new(&mut spec.bridge_mm, 0.0..=1.0)
                         .fixed_decimals(2)
-                        .suffix(" mm")
-                        .text("Bridge"),
-                )
+                        .suffix(" mm"))
                 .changed();
-            c |= ui
-                .add(
-                    egui::Slider::new(&mut spec.count, 0..=24)
-                        .text("Accents")
+            c |= ringdesign_workbench::controls::slider(ui, "Accents", egui::Slider::new(&mut spec.count, 0..=24)
                         .custom_formatter(|v, _| {
                             if v < 3.0 {
                                 "auto".into()
                             } else {
                                 format!("{v:.0}")
                             }
-                        }),
-                )
+                        }))
                 .changed();
-            c |= ui
-                .add(
-                    egui::Slider::new(&mut spec.theta_deg, 0.0..=360.0)
-                        .suffix("°")
-                        .text("At"),
-                )
+            c |= ringdesign_workbench::controls::slider(ui, "At", egui::Slider::new(&mut spec.theta_deg, 0.0..=360.0)
+                        .suffix("°"))
                 .changed();
         }
         GenRecipe::Channel(spec) => {
             c |= gem_picker(ui, "recipe_channel_gem", &mut spec.gem);
-            c |= ui
-                .add(
-                    egui::Slider::new(&mut spec.recess_mm, 0.1..=1.0)
+            c |= ringdesign_workbench::controls::slider(ui, "Recess", egui::Slider::new(&mut spec.recess_mm, 0.1..=1.0)
                         .fixed_decimals(2)
-                        .suffix(" mm")
-                        .text("Recess"),
-                )
+                        .suffix(" mm"))
                 .changed();
         }
     }
@@ -3202,12 +3162,9 @@ fn pave_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         .color(theme::TEXT_DIM),
                 );
             });
-            ui.add(
-                egui::Slider::new(&mut spec.bridge_mm, 0.2..=1.2)
+            ringdesign_workbench::controls::slider(ui, "Bridge", egui::Slider::new(&mut spec.bridge_mm, 0.2..=1.2)
                     .suffix(" mm")
-                    .fixed_decimals(2)
-                    .text("Bridge"),
-            );
+                    .fixed_decimals(2));
 
             let mut full = spec.span_deg >= 360.0;
             ui.horizontal(|ui| {
@@ -3257,16 +3214,10 @@ fn pave_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 width_mm,
             } = &mut spec.region
             {
-                ui.add(
-                    egui::Slider::new(center_mm, 0.0..=ctx.band_v_len_mm)
-                        .suffix(" mm")
-                        .text("Centre v"),
-                );
-                ui.add(
-                    egui::Slider::new(width_mm, 1.0..=ctx.band_v_len_mm)
-                        .suffix(" mm")
-                        .text("Width"),
-                );
+                ringdesign_workbench::controls::slider(ui, "Centre v", egui::Slider::new(center_mm, 0.0..=ctx.band_v_len_mm)
+                        .suffix(" mm"));
+                ringdesign_workbench::controls::slider(ui, "Width", egui::Slider::new(width_mm, 1.0..=ctx.band_v_len_mm)
+                        .suffix(" mm"));
             } else {
                 ui.label(
                     egui::RichText::new(

@@ -36,7 +36,7 @@ impl RingApp {
         self.editor.floating_rects.clear();
         self.editor.floating_dragging = false;
         self.editor.hold_before = false;
-        if self.tab != Tab::Ring || viewport.width() < 160.0 || viewport.height() < 64.0 {
+        if self.tab != Tab::Ring || self.editor.sheet == Some(Sheet::Graph) || viewport.width() < 160.0 || viewport.height() < 64.0 {
             return;
         }
         let bounds = crate::theme::content_bounds(ctx).shrink(4.0);
@@ -80,7 +80,8 @@ impl RingApp {
                     Mode::Casting => &[(Tool::Mould, "Mould")],
                 };
                 for &(tool, label) in tools {
-                    if button(ui, label, self.visual.tool == tool).clicked() {
+                    let available = !self.graph.is_driven() || !matches!(tool, Tool::Paint | Tool::Stamp | Tool::Path | Tool::Transform);
+                    if ui.add_enabled_ui(available, |ui| button(ui, label, self.visual.tool == tool)).inner.clicked() {
                         self.visual.select(tool);
                         if self.editor.isolate && self.visual.is_painting() {
                             self.editor.isolate = false;

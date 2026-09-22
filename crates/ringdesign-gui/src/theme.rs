@@ -13,17 +13,19 @@ const THEME_JSON: &str = include_str!("../assets/theme.json");
 
 // --- Chrome, taken from the theme -----------------------------------------
 
-/// `visuals.extreme_bg_color`.
-pub const BG: Color32 = Color32::from_rgb(13, 13, 18);
-/// `visuals.panel_fill`.
-pub const PANEL: Color32 = Color32::from_rgb(0, 0, 0);
-/// A hair above panel black so the metal reads against it.
-pub const VIEWPORT_BG: Color32 = Color32::from_rgb(10, 10, 14);
+/// `visuals.extreme_bg_color` — the wells sunk into a panel.
+pub const BG: Color32 = Color32::from_rgb(4, 4, 7);
+/// `visuals.panel_fill` — the chrome, below [`VIEWPORT_BG`].
+pub const PANEL: Color32 = Color32::from_rgb(8, 7, 12);
+/// A step above the chrome so the metal reads, on the chrome's own violet.
+pub const VIEWPORT_BG: Color32 = Color32::from_rgb(12, 11, 17);
+/// `visuals.window_fill` — floating plates, above the viewport they cover.
+pub const FLOAT: Color32 = Color32::from_rgb(22, 20, 29);
 pub const GRID: Color32 = Color32::from_rgb(34, 33, 46);
 /// `widgets.active.bg_stroke` — the theme's pink highlight.
 pub const ACCENT: Color32 = Color32::from_rgb(230, 108, 153);
-/// `widgets.hovered.bg_stroke` — the periwinkle secondary.
-pub const ACCENT_DIM: Color32 = Color32::from_rgb(125, 122, 166);
+/// `widgets.hovered.bg_stroke` — the aqua hover accent.
+pub const ACCENT_DIM: Color32 = Color32::from_rgb(103, 217, 213);
 /// `visuals.override_text_color`.
 pub const TEXT: Color32 = Color32::from_rgb(232, 232, 232);
 /// `override_text_color` at `weak_text_alpha`.
@@ -57,7 +59,7 @@ pub fn install(ctx: &Context) {
     style.interaction.tooltip_grace_time = 0.0;
     style.spacing.button_padding = egui::vec2(4.0, 2.0);
     // Floating controls and hints must stay readable over other text and metal.
-    style.visuals.window_fill = Color32::from_rgb(22, 20, 29);
+    style.visuals.window_fill = FLOAT;
     ctx.set_style_of(Theme::Dark, style.clone());
     ctx.set_style_of(Theme::Light, style);
 }
@@ -103,6 +105,16 @@ mod tests {
         assert_eq!(style.visuals.panel_fill, PANEL);
         assert_eq!(style.visuals.extreme_bg_color, BG);
         assert_eq!(style.visuals.override_text_color, Some(TEXT));
+    }
+
+    #[test]
+    fn the_chrome_sits_below_the_viewport() {
+        // Panels recede, the viewport carries the metal, floating plates cover it.
+        let lum = |c: Color32| c.r() as u32 + c.g() as u32 + c.b() as u32;
+        assert!(lum(BG) < lum(PANEL));
+        assert!(lum(PANEL) < lum(VIEWPORT_BG));
+        assert!(lum(VIEWPORT_BG) < lum(FLOAT));
+        assert!(lum(VIEWPORT_BG) < lum(GRID));
     }
 
     #[test]

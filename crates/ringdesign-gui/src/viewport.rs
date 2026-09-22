@@ -10,7 +10,6 @@ use egui_glow::glow;
 use glow::HasContext;
 
 use ringdesign_core::castability::{CastReport, FaceClass};
-use ringdesign_core::field::Uv;
 use ringdesign_core::mesh::{Mesh, Vec3};
 
 use crate::app::RingDesignerApp;
@@ -83,7 +82,7 @@ void main() {
     vec3 color;
 
     if (u_mode == 5) {
-        color = studio_gem(n, u_base_color, l, u_ambient);
+        color = studio_gem(n, v_color, l, u_ambient);
     } else if (u_mode == 4) {
         // Cope in cool blue, drag in warm sand, the parting band bright.
         float lambert = max(dot(n, l), 0.0);
@@ -848,16 +847,14 @@ pub const WALL_NEUTRAL: [f32; 3] = [0.42, 0.42, 0.45];
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     use ringdesign_workbench::visual::{Pointer, Tool};
-    let active = pane == app.active_pane;
+    let follow_node = app.panes[pane].follow_node;
+    let active = pane == app.active_pane && !follow_node;
     if active {
         app.visual.poll();
-        egui::Panel::top(egui::Id::new(("direct-viewport-tools", pane))).show(ui, |ui| {
-            app.visual.chooser(ui, &Tool::ALL);
-        });
         if app.visual.tool != Tool::Select {
             let mut open = true;
             egui::Window::new(app.visual.tool.label())
-                .frame(egui::Frame::window(ui.style()).fill(egui::Color32::from_rgb(22, 20, 29)))
+                .frame(egui::Frame::window(ui.style()).fill(theme::FLOAT))
                 .id(egui::Id::new("direct-viewport-inspector"))
                 .open(&mut open)
                 .default_width(180.0).min_width(150.0)
@@ -937,10 +934,20 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         return;
     }
 
+    if !follow_node && app.band_paint && !response.hovered() && !app.panes[pane].navigation.locked {
+        let camera = &mut app.panes[pane].camera;
+        if let Some(pose)=ringdesign_workbench::paint_preview::follow(ui,camera.pose(),camera.target,camera.half_extent()*camera.zoom/1.15) {
+            camera.set_pose(pose); app.panes[pane].turn=None;
+        }
+    }
     let head = app.design.shank.head.theta_deg as f32;
     let camera = app.panes[pane].camera;
-    let nav = ringdesign_workbench::navigation::show(ui, rect, ui.id().with(("desktop-view", pane)),
-        &mut app.panes[pane].navigation, [camera.yaw, camera.pitch, camera.roll], head);
+    let nav = if follow_node {
+        ringdesign_workbench::navigation::Response { rect: egui::Rect::NOTHING, action: None, changed: false, controls: Vec::new() }
+    } else {
+        ringdesign_workbench::navigation::show(ui, rect, ui.id().with(("desktop-view", pane)),
+            &mut app.panes[pane].navigation, [camera.yaw, camera.pitch, camera.roll], head)
+    };
     if let Some(action) = nav.action {
         let angles = action.apply([camera.yaw, camera.pitch, camera.roll], head);
         if action.recentres() {
@@ -962,6 +969,37 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
         ui.ctx().request_repaint();
     }
+    if response.secondary_clicked() {
+        let camera = app.panes[pane].camera;
+        app.cad.ring_menu_hit = response.interact_pointer_pos().zip(app.build.as_ref()).and_then(|(pos, b)| {
+            let (origin, direction) = camera.ray(rect, pos);
+            ringdesign_core::interaction::picking::raycast(&b.mesh, origin, direction).map(|(_, point)| point)
+        });
+    }
+    response.context_menu(|ui| {
+        ui.set_min_width(190.);
+        if let Some(point) = app.cad.ring_menu_hit {
+            ui.menu_button((ringdesign_workbench::icons::Icon::Add.image(ui, 18.), "Add CAD part here"), |ui| {
+                for label in crate::panels::cad::PLACEABLE {
+                    if ui.button(label).clicked() {
+                        let (x, y) = (point[0] as f64, point[1] as f64);
+                        let radius = app.design.inner_radius_mm() + app.design.profile.thickness_mm;
+                        crate::panels::cad::add_starter(app, label, Some((y.atan2(x).to_degrees(), x.hypot(y) - radius)));
+                        ui.close();
+                    }
+                }
+            });
+        }
+        if ui.button((ringdesign_workbench::icons::Icon::Fit.image(ui, 18.), "Fit view")).clicked() {
+            let bounds = app.build.as_ref().and_then(|b| b.mesh.bounds());
+            app.panes[pane].camera.fit(bounds);
+            ui.close();
+        }
+        if ui.button((ringdesign_workbench::icons::Icon::Workshop.image(ui, 18.), "Open CAD workspace")).clicked() {
+            app.focus(crate::pane::PaneKind::Cad);
+            ui.close();
+        }
+    });
     let shift = ui.input(|i| i.modifiers.shift);
     let explicit_navigation = shift || ui.input(|i| i.pointer.middle_down() || i.multi_touch().is_some_and(|m| m.num_touches >= 2));
     let camera = app.panes[pane].camera;
@@ -984,7 +1022,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         let Some(cam) = app.panes.get_mut(pane).map(|p| &mut p.camera) else {
             return;
         };
-        if response.dragged_by(egui::PointerButton::Primary) && !blocked && !floating_blocked {
+        if response.dragged_by(egui::PointerButton::Primary) && !blocked && !floating_blocked && !follow_node {
             let delta = response.drag_delta();
             if shift || locked {
                 cam.pan_by(delta, rect);
@@ -992,7 +1030,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                 cam.orbit(delta);
             }
         }
-        if response.dragged_by(egui::PointerButton::Middle) {
+        if response.dragged_by(egui::PointerButton::Middle) && !follow_node {
             cam.pan_by(response.drag_delta(), rect);
         }
         if scroll != 0.0 {
@@ -1009,6 +1047,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
 
     if response.clicked() && (!active || app.visual.tool == Tool::Select) {
         if let Some(pos) = response.interact_pointer_pos() {
+            app.active_pane = pane;
             probe_click(app, camera, rect, pos, ui.input(|i| i.modifiers.shift));
         }
     }
@@ -1084,6 +1123,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         draw_axes(&painter, &proj, rect);
     }
 
+    draw_section_marker(app, &painter, &proj);
     draw_legend(app, shade, &painter, rect);
     draw_probe(app, &painter, &proj, rect);
     if active && !floating_blocked {
@@ -1119,6 +1159,21 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
     }
 
+    if app.band_paint { ringdesign_workbench::paint_preview::draw(ui,rect,|p|proj.at(p)); }
+
+    if active && app.visual.tool == Tool::Select {
+        app.hovered_node = None;
+        if let Some(build) = &app.build {
+            let hit = ringdesign_workbench::hover::show(ui, rect, &response, &app.design, &app.lib, &build.mesh,
+                |p| camera.ray(rect,p), |p| proj.at(p), |hit| {
+                    let layer = ringdesign_workbench::focus::layer_behind(&app.design,&app.lib,hit);
+                    if app.graph_driven() { layer.and_then(|i| app.node_for_layer(i)).map(|id| app.graph_ed.as_ref().and_then(|ed| ed.card(id)).map_or("Graph feature".into(), |card| card.title.clone())) }
+                    else if app.design.cad.is_none() { Some(layer.map_or("Band / shape".into(), |i| app.design.layers.layers[i].name.clone())) } else { None }
+                });
+            app.hovered_node = hit.and_then(|hit| ringdesign_workbench::focus::layer_behind(&app.design,&app.lib,&hit)).and_then(|i| app.node_for_layer(i));
+        }
+    }
+
     if active && app.panes[pane].navigation.magnifier && !floating_blocked && !navigating {
         if let Some((contact, reach)) = app.visual.placement_focus(ui, rect) {
             ringdesign_workbench::loupe::show(ui, rect, contact, reach, &[nav.rect]);
@@ -1127,65 +1182,98 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     painter.text(
         rect.right_bottom() - egui::vec2(12.0, 9.0),
         egui::Align2::RIGHT_BOTTOM,
-        if locked { "View locked • Drag empty space to pan • Scroll to zoom" } else { "Drag empty space to orbit • Shift-drag to pan • Scroll to zoom" },
+        if follow_node { "Selected feature · scroll to zoom" } else if locked { "View locked • Drag empty space to pan • Scroll to zoom" } else if rect.width() < 420. { "Drag to orbit · scroll to zoom" } else { "Drag empty space to orbit • Shift-drag to pan • Scroll to zoom" },
         egui::FontId::proportional(11.0),
         theme::TEXT_DIM,
     );
 }
 
-/// Independent CAD candidate renderer: edits can be inspected without changing
-/// the committed ring or its shared viewport buffers.
+/// Candidate display controls share navigation behavior with the main viewport.
+pub struct CandidateDisplay {
+    pub navigation: ringdesign_workbench::navigation::Settings,
+    pub turn: Option<ringdesign_workbench::focus::Turn>,
+    pub wire: bool,
+    pub grid: bool,
+    pub finish: usize,
+    pub polish: usize,
+    pub light: usize,
+    pub show_gems: bool,
+}
+impl Default for CandidateDisplay {
+    fn default() -> Self { Self { navigation: Default::default(), turn: None, wire: false, grid: true, finish: 2, polish: 0, light: 0, show_gems: true } }
+}
+
+/// Independent CAD buffers keep candidate edits separate from committed geometry.
 pub fn candidate_view(
     ui: &mut egui::Ui,
     renderer: Arc<std::sync::Mutex<GpuMeshRenderer>>,
     camera: &mut crate::camera::OrbitCamera,
+    display: &mut CandidateDisplay,
+    head: f32,
 ) -> (egui::Rect, egui::Response) {
-    let available = ui
-        .available_rect_before_wrap()
-        .intersect(ui.clip_rect())
-        .size()
-        .max(egui::vec2(1.0, 1.0));
+    let available = ui.available_rect_before_wrap().intersect(ui.clip_rect()).size().max(egui::vec2(1.,1.));
     let (rect, response) = ui.allocate_exact_size(available, egui::Sense::click_and_drag());
-    if response.dragged() {
-        let delta = ui.input(|i| i.pointer.delta());
-        if ui.input(|i| i.modifiers.shift) {
-            camera.pan_by(delta, rect);
+    let nav = ringdesign_workbench::navigation::show_camera(ui,rect,ui.id().with("cad-cube"),
+        &mut display.navigation,[camera.yaw,camera.pitch,camera.roll],head);
+    if let Some(action) = nav.action {
+        let angles = action.apply([camera.yaw,camera.pitch,camera.roll],head);
+        if action.recentres() {
+            let from = camera.pose();
+            display.turn = Some(ringdesign_workbench::focus::Turn::new(from,
+                ringdesign_workbench::focus::Pose { yaw:angles[0],pitch:angles[1],roll:angles[2],pan:[0.;2],..from }));
         } else {
-            camera.orbit(delta);
+            display.turn = None;
+            [camera.yaw,camera.pitch,camera.roll] = angles;
         }
     }
-    if response.hovered() {
-        camera.zoom_by(ui.input(|i| i.smooth_scroll_delta.y));
+    let blocked = ui.input(|i| i.pointer.press_origin().or(i.pointer.interact_pos())).is_some_and(|p|
+        nav.rect.contains(p) || ui.ctx().layer_id_at(p).is_some_and(|layer| layer != ui.layer_id()));
+    if !blocked {
+        if response.dragged_by(egui::PointerButton::Primary) || response.dragged_by(egui::PointerButton::Middle) {
+            display.turn = None;
+            let delta = ui.input(|i| i.pointer.delta());
+            if display.navigation.locked || ui.input(|i| i.modifiers.shift || i.pointer.middle_down()) {
+                camera.pan_by(delta,rect);
+            } else { camera.orbit(delta); }
+        }
+        if response.hovered() { camera.zoom_by(ui.input(|i| i.smooth_scroll_delta.y)); }
     }
-    let (mvp, normal) = camera.matrices(rect);
+    if let Some(turn) = display.turn {
+        let (pose, arrived) = turn.now(); camera.set_pose(pose);
+        if arrived {display.turn = None;}
+        ui.ctx().request_repaint();
+    }
+    let (mvp,normal) = camera.matrices(rect);
     let painter = ui.painter_at(rect);
-    painter.rect_filled(rect, 0.0, theme::VIEWPORT_BG);
-    let callback = egui_glow::CallbackFn::new(move |info, glow_painter| {
+    painter.rect_filled(rect,0.,theme::VIEWPORT_BG);
+    let project = camera.projector(rect);
+    if display.grid {
+        let step = grid_step(camera.half_extent());
+        let extent = step * 12.;
+        for i in -12..=12 {
+            let v = i as f32 * step;
+            let stroke = egui::Stroke::new(1.,if i == 0 {theme::ACCENT_DIM.gamma_multiply(0.4)} else {theme::GRID});
+            painter.line_segment([project.at([-extent,v,0.]),project.at([extent,v,0.])],stroke);
+            painter.line_segment([project.at([v,-extent,0.]),project.at([v,extent,0.])],stroke);
+        }
+    }
+    let wire = display.wire;
+    let base_color = ringdesign_core::render::METAL_FINISHES[display.finish.min(FINISHES.len()-1)].1;
+    let roughness = ringdesign_core::render::POLISHES[display.polish.min(2)].1;
+    let rig=&LIGHT_RIGS[display.light.min(LIGHT_RIGS.len()-1)];
+    let (light_dir,ambient,show_gems)=(rig.dir,rig.ambient,display.show_gems);
+    let callback = egui_glow::CallbackFn::new(move |info,glow_painter| {
         if let Ok(mut r) = renderer.lock() {
-            r.paint(
-                glow_painter.gl(),
-                info,
-                &mvp,
-                &normal,
-                0,
-                [0.72, 0.76, 0.85],
-                0.38,
-                [0.4, 0.7, 0.8],
-                0.3,
-                false,
-                [0.3, 0.3, 0.3],
-                true,
-                [0.0; 4],
-                [0.0; 4],
-            );
+            r.paint(glow_painter.gl(),info,&mvp,&normal,0,base_color,roughness,
+                light_dir,ambient,wire,[0.3,0.3,0.3],show_gems,[0.;4],[0.;4]);
         }
     });
-    painter.add(egui::PaintCallback {
-        rect,
-        callback: Arc::new(callback),
-    });
-    draw_axes(&painter, &camera.projector(rect), rect);
-    (rect, response)
+    painter.add(egui::PaintCallback {rect,callback:Arc::new(callback)});
+    draw_axes(&painter,&project,rect);
+    painter.text(rect.left_bottom()+egui::vec2(12.,-14.),egui::Align2::LEFT_BOTTOM,
+        "Orthographic · Drag orbit · Shift / middle drag pan · Scroll zoom",
+        egui::FontId::proportional(11.),theme::TEXT_DIM);
+    (rect,response)
 }
 
 /// Ground grid on the sand plane, under the ring.
@@ -1398,61 +1486,6 @@ fn rgb_of(c: egui::Color32) -> [f32; 3] {
 
 // --- Surface probe -----------------------------------------------------------
 
-/// Nearest triangle of the built mesh under the ray, by walking every face —
-/// on a click, not a hover, so 110k Möller-Trumbore tests are a millisecond
-/// well spent and no BVH earns its keep.
-fn raycast(mesh: &Mesh, origin: [f32; 3], dir: [f32; 3]) -> Option<(usize, [f32; 3], f32)> {
-    let o = [origin[0] as f64, origin[1] as f64, origin[2] as f64];
-    let d = [dir[0] as f64, dir[1] as f64, dir[2] as f64];
-    let mut best: Option<(usize, f64)> = None;
-    for (fi, f) in mesh.faces.iter().enumerate() {
-        let Some((a, b, c)) = mesh.triangle(f) else {
-            continue;
-        };
-        let e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-        let e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
-        let p = [
-            d[1] * e2[2] - d[2] * e2[1],
-            d[2] * e2[0] - d[0] * e2[2],
-            d[0] * e2[1] - d[1] * e2[0],
-        ];
-        let det = e1[0] * p[0] + e1[1] * p[1] + e1[2] * p[2];
-        if det.abs() < 1e-12 {
-            continue;
-        }
-        let inv = 1.0 / det;
-        let t_vec = [o[0] - a[0], o[1] - a[1], o[2] - a[2]];
-        let u = (t_vec[0] * p[0] + t_vec[1] * p[1] + t_vec[2] * p[2]) * inv;
-        if !(0.0..=1.0).contains(&u) {
-            continue;
-        }
-        let q = [
-            t_vec[1] * e1[2] - t_vec[2] * e1[1],
-            t_vec[2] * e1[0] - t_vec[0] * e1[2],
-            t_vec[0] * e1[1] - t_vec[1] * e1[0],
-        ];
-        let v = (d[0] * q[0] + d[1] * q[1] + d[2] * q[2]) * inv;
-        if v < 0.0 || u + v > 1.0 {
-            continue;
-        }
-        let t = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) * inv;
-        if t > 1e-6 && best.map_or(true, |(_, bt)| t < bt) {
-            best = Some((fi, t));
-        }
-    }
-    best.map(|(fi, t)| {
-        (
-            fi,
-            [
-                (o[0] + d[0] * t) as f32,
-                (o[1] + d[1] * t) as f32,
-                (o[2] + d[2] * t) as f32,
-            ],
-            t as f32,
-        )
-    })
-}
-
 fn probe_click(
     app: &mut RingDesignerApp,
     camera: crate::camera::OrbitCamera,
@@ -1464,13 +1497,11 @@ fn probe_click(
         return;
     };
     let (origin, dir) = camera.ray(rect, pos);
-    let Some((fi, world, _)) = raycast(&build.mesh, origin, dir) else {
-        if !shift {
-            app.probe = None;
-        }
+    let Some(hit) = ringdesign_core::interaction::picking::hit(&app.design, &app.lib, &build.mesh, origin, dir) else {
+        if !shift { app.clear_selection(); }
         return;
     };
-
+    let world = hit.world;
     if shift {
         if app.pins.len() >= 2 {
             app.pins.clear();
@@ -1484,42 +1515,10 @@ fn probe_click(
         return;
     }
 
-    // Where on the band the hit is, in the field's own coordinates.
-    let theta = (world[1] as f64)
-        .atan2(world[0] as f64)
-        .to_degrees()
-        .rem_euclid(360.0);
-    let r = (world[0] as f64).hypot(world[1] as f64);
-    let inner_r = app.design.inner_radius_mm();
-    let ctx = app.design.field_context();
-    let section = ringdesign_core::castability::section_at(&app.design, &app.lib, theta, 160);
-    let surface: Vec<_> = section.points.iter().filter(|p| p.surface).collect();
-    let mut v_mm = 0.0;
-    if surface.len() >= 2 {
-        let total: f64 = surface
-            .windows(2)
-            .map(|w| ((w[1].r - w[0].r).powi(2) + (w[1].z - w[0].z).powi(2)).sqrt())
-            .sum();
-        let mut acc = 0.0;
-        let mut best_d = f64::MAX;
-        let mut at = 0.0;
-        for w in surface.windows(2) {
-            let seg = ((w[1].r - w[0].r).powi(2) + (w[1].z - w[0].z).powi(2)).sqrt();
-            acc += seg;
-            let d = (w[1].r - r).powi(2) + (w[1].z - world[2] as f64).powi(2);
-            if d < best_d {
-                best_d = d;
-                at = acc;
-            }
-        }
-        v_mm = at / total.max(1e-9) * ctx.band_v_len_mm;
-    }
-
-    let uv = Uv {
-        u: ctx.u_of_theta(theta),
-        v: v_mm,
-    };
-    let h = app.design.layers.height(uv, &ctx, &app.lib);
+    let theta = hit.theta_deg;
+    let v_mm = hit.v_mm;
+    let h = hit.relief_mm;
+    let fi = hit.face;
     let class = app
         .cast
         .as_ref()
@@ -1527,36 +1526,22 @@ fn probe_click(
         .map(|k| k.label())
         .unwrap_or("—");
 
-    // The topmost layer with any say here becomes the selection.
-    let named: Option<(usize, String)>;
-    let mut found = None;
-    for (i, e) in app.design.layers.layers.iter().enumerate().rev() {
-        if !e.enabled {
-            continue;
-        }
-        let m = e.window.mask(uv, &ctx) * e.opacity.max(0.0);
-        if m <= 1e-4 {
-            continue;
-        }
-        if e.layer.height(uv, &ctx, &app.lib).abs() * m > 5e-3 {
-            found = Some((i, e.name.clone()));
-            break;
-        }
-    }
-    named = found;
-    if let Some((i, _)) = named {
-        app.selected_layer = Some(i);
-    }
-    // On a graph-driven design the click also opens the node behind that
-    // metal: the layer that wins the blend there, not merely the topmost.
+    let layer = ringdesign_workbench::focus::layer_behind(&app.design, &app.lib, &hit);
+    let named = layer.map(|i| (i, app.design.layers.layers[i].name.clone()));
+    app.selected_layer = layer;
     if app.graph_ed.is_some() {
-        let hit = ringdesign_core::interaction::picking::Hit { ray: ([0.0; 3], [0.0, 0.0, 1.0]), world, face: fi, theta_deg: theta, v_mm, radial_wall_mm: r - inner_r, relief_mm: h };
-        if let Some(node) = ringdesign_workbench::focus::layer_behind(&app.design, &app.lib, &hit).and_then(|layer| app.node_for_layer(layer)) {
-            if let Some(ed) = app.graph_ed.as_mut() {
-                ed.focus(node);
-            }
-            app.selected_node = Some(node);
+        let node = layer.and_then(|i| app.node_for_layer(i));
+        app.selected_node = node;
+        if let Some(ed) = app.graph_ed.as_mut() {
+            ed.selected = node;
+            if let Some(node) = node { ed.focus(node); }
         }
+        if node.is_some() && !app.dock.is_open(crate::dock::ToolKind::Node) {
+            app.dock.open_on(crate::dock::ToolKind::Node, crate::dock::Side::Right);
+        }
+    } else {
+        let tool = if layer.is_some() { crate::dock::ToolKind::Layers } else { crate::dock::ToolKind::Design };
+        if !app.dock.is_open(tool) { app.dock.open_on(tool, crate::dock::Side::Left); }
     }
 
     let text = format!(
@@ -1564,12 +1549,53 @@ fn probe_click(
         theta,
         v_mm,
         h,
-        r - inner_r,
+        hit.radial_wall_mm,
         class,
         named.map(|(_, n)| format!(" • {n}")).unwrap_or_default()
     );
     app.set_status(text.clone());
     app.probe = Some((world, text));
+}
+
+/// Where a cross-section view is cutting, drawn on the ring it cuts.
+///
+/// The slice is read from whichever section pane is on screen, so dragging
+/// its angle moves the outline here in the same frame — a section is much
+/// easier to read once you can see where on the ring it was taken.
+fn draw_section_marker(app: &RingDesignerApp, painter: &egui::Painter, proj: &Projector) {
+    let Some(section) = app.section_on_screen() else { return };
+    let theta = (section.theta_deg as f32).to_radians();
+    let (sin, cos) = theta.sin_cos();
+    // A section point is (r, z) in its own plane; the plane stands at this
+    // angle about the finger axis, which is where the ring is cut.
+    let at = |r: f64, z: f64| proj.at([r as f32 * cos, r as f32 * sin, z as f32]);
+    let ring: Vec<egui::Pos2> = section.points.iter().map(|p| at(p.r, p.z)).collect();
+    if ring.len() < 3 {
+        return;
+    }
+    // The cut face first, so the outline reads over it.
+    painter.add(egui::Shape::convex_polygon(
+        ring.clone(),
+        theme::ACCENT.gamma_multiply(0.20),
+        egui::Stroke::NONE,
+    ));
+    painter.add(egui::Shape::closed_line(
+        ring,
+        egui::Stroke::new(1.8, theme::ACCENT),
+    ));
+    // A tick out past the metal says which way the slice faces.
+    let out = section.max_r + (section.max_r - section.min_r).max(1.0) * 0.45;
+    painter.line_segment(
+        [at(section.max_r, section.parting_z_mm), at(out, section.parting_z_mm)],
+        egui::Stroke::new(1.2, theme::ACCENT.gamma_multiply(0.7)),
+    );
+    painter.text(
+        at(out, section.parting_z_mm),
+        egui::Align2::LEFT_BOTTOM,
+        format!("{:.0}°", section.theta_deg),
+        egui::FontId::proportional(11.0),
+        theme::ACCENT,
+    );
 }
 
 fn draw_probe(app: &RingDesignerApp, painter: &egui::Painter, proj: &Projector, rect: egui::Rect) {
