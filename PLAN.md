@@ -294,8 +294,8 @@ answer to AccessKit so kittest and `egui_drive.py` can type into them.
   gives "2 selected", Escape clears, Attach → Cut turns the post into a pocket (568.27 → 559.88
   mm³) and Undo restores the join. The probe's Shift-click pins were removed with it (the Measure
   tool measures). Open: box select is in the scene but not on a drag; CAD-only rings still read
-  as band (fixed by `m4-feature-status`); a fresh design with no CAD shows "Parameters changed —
-  preview to evaluate this candidate" in the CAD pane.
+  as band (fixed by `m4-feature-status`); until its first evaluation lands, the CAD pane says
+  "Parameters changed — preview to evaluate this candidate" when nothing has changed.
 
 ### M2 detail
 
