@@ -735,6 +735,7 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
         Operation::Sketch { .. } => { ui.weak("A closed profile for other features to extrude, revolve, sweep or loft; edit it below."); }
         Operation::Boolean {a,b,..} => { ui.label(format!("Solids #{a} and #{b}. Change references in Feature source.")); }
         Operation::Band => { ui.weak("Uses the ring's fit, profile and ornament."); }
+        Operation::Builder { .. } => { ui.weak("Built round its stone; edit its settings in Feature source."); }
     }
     if let Some(sketch) = op.sketch_mut() {
         ui.collapsing("Sketch points and workplane", |ui| {

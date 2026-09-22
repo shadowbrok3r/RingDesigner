@@ -10,7 +10,7 @@
 //! a bearing cone and a pilot through to the finger — and because they are
 //! sized in the stone's millimetres and placed rigidly, the seat fits its
 //! stone wherever on the ring it lands.
-use crate::csg::{self, Op, Snag, Solid, P3};
+use crate::csg::{self, Op, Parent, Snag, Solid, P3};
 use crate::gem::{Gem, GemForm};
 use serde::{Deserialize, Serialize};
 use std::f64::consts::{PI, TAU};
@@ -87,6 +87,8 @@ const PRONG_LEAN: f64 = 0.21;
 const PHASE: f64 = 0.1234;
 
 fn girdle_half(gem: Gem) -> f64 { (0.015 * gem.w_mm).clamp(0.02, 0.06) }
+/// Half the girdle's own thickness, mm.
+pub fn girdle_half_mm(gem: Gem) -> f64 { girdle_half(gem) }
 fn collet_depth(gem: Gem) -> f64 {
     match gem.form {
         GemForm::Faceted => 0.6 * gem.pavilion_mm() + 0.35,
@@ -198,6 +200,163 @@ pub fn sweep(plan: &Plan, section: &[Station], around: usize) -> Solid {
     out
 }
 
+/// [`sweep`] with the section interval behind each face: face `k` spans stations `seg[k]` and `seg[k] + 1`,
+/// the last of a ring wrapping to the first.
+pub fn sweep_traced(plan: &Plan, section: &[Station], around: usize) -> (Solid, Vec<u32>) {
+    let solid = sweep(plan, section, around);
+    let n = around.max(8);
+    let is_pole = |s: &Station| s.s == 0.0 && s.o == 0.0;
+    let ball = section.first().is_some_and(is_pole) && section.last().is_some_and(is_pole);
+    let rows: Vec<u32> = section.iter().enumerate().filter(|(_, s)| !is_pole(s)).map(|(i, _)| i as u32).collect();
+    let bands = if ball { rows.len().saturating_sub(1) } else { rows.len() };
+    let mut seg = Vec::with_capacity(solid.f.len());
+    for r in &rows[..bands] {
+        seg.extend(std::iter::repeat_n(*r, 2 * n));
+    }
+    if let (true, Some(last)) = (ball, rows.last()) {
+        for _ in 0..n {
+            seg.extend([0, *last]);
+        }
+    }
+    (solid, seg)
+}
+
+/// A closed solid whose every face names the patch it lies on: a claw, a rail, a bearing.
+#[derive(Clone, Debug, Default)]
+pub struct Named {
+    pub solid: Solid,
+    /// The patch behind each face.
+    pub patch: Vec<u32>,
+    /// Patch names in first-use order.
+    pub names: Vec<String>,
+}
+
+impl Named {
+    /// A solid that is one patch.
+    pub fn whole(solid: Solid, name: impl Into<String>) -> Self {
+        Self { patch: vec![0; solid.f.len()], solid, names: vec![name.into()] }
+    }
+
+    /// A swept solid whose section interval `k` is called `names[k]`; equal names share a patch.
+    pub fn swept(plan: &Plan, section: &[Station], names: &[&str], around: usize) -> Self {
+        let (solid, seg) = sweep_traced(plan, section, around);
+        let mut out = Self { solid, patch: Vec::with_capacity(seg.len()), names: Vec::new() };
+        for s in seg {
+            let name = names.get(s as usize).or(names.last()).copied().unwrap_or("Face");
+            let p = out.name_index(name);
+            out.patch.push(p);
+        }
+        out
+    }
+
+    /// The index of the patch called `name`, added when it is new.
+    fn name_index(&mut self, name: &str) -> u32 {
+        match self.names.iter().position(|n| n == name) {
+            Some(i) => i as u32,
+            None => {
+                self.names.push(name.to_string());
+                (self.names.len() - 1) as u32
+            }
+        }
+    }
+
+    /// The name of the patch behind face `face`.
+    pub fn face_name(&self, face: usize) -> Option<&str> {
+        self.names.get(*self.patch.get(face)? as usize).map(String::as_str)
+    }
+
+    /// How many faces each patch holds, by patch index.
+    pub fn census(&self) -> Vec<usize> {
+        let mut out = vec![0; self.names.len()];
+        for p in &self.patch {
+            if let Some(n) = out.get_mut(*p as usize) {
+                *n += 1;
+            }
+        }
+        out
+    }
+
+    pub fn placed(&self, frame: &csg::Frame) -> Self {
+        Self { solid: self.solid.placed(frame), patch: self.patch.clone(), names: self.names.clone() }
+    }
+
+    /// `other` joined on, each face keeping its own patch; the solid is [`csg::combine`]'s own bytes.
+    pub fn union(self, other: &Named) -> Result<Self, Snag> {
+        self.combine(other, Op::Union)
+    }
+
+    /// `other` joined on, cut away or kept in common, each face keeping the patch it lies on; the solid is
+    /// [`csg::combine`]'s own bytes, and patches of the same name are one.
+    pub fn combine(self, other: &Named, op: Op) -> Result<Self, Snag> {
+        let t = csg::combine_traced(&self.solid, &other.solid, op, None)?;
+        let mut out = Self { solid: Solid::default(), patch: Vec::new(), names: self.names };
+        let theirs: Vec<u32> = other.names.iter().map(|n| out.name_index(n)).collect();
+        out.patch = t
+            .parent
+            .iter()
+            .map(|q| match q {
+                Parent::A(f) => self.patch.get(*f as usize).copied().unwrap_or(0),
+                Parent::B(f) => other.patch.get(*f as usize).and_then(|p| theirs.get(*p as usize)).copied().unwrap_or(0),
+            })
+            .collect();
+        out.solid = t.solid;
+        Ok(out)
+    }
+
+    /// Every part joined into one solid, as [`csg::union_all`] joins them.
+    pub fn union_all(parts: Vec<Named>) -> Result<Self, Snag> {
+        let mut it = parts.into_iter().filter(|p| !p.solid.is_empty());
+        let Some(mut out) = it.next() else { return Err(Snag::Empty) };
+        for p in it {
+            out = out.union(&p)?;
+        }
+        Ok(out)
+    }
+
+    /// `tool` taken away; a face the cut leaves takes the patch of the face beside it, so a claw's notch is the claw's.
+    pub fn notched(self, tool: &Solid) -> Result<Self, Snag> {
+        let t = csg::combine_traced(&self.solid, tool, Op::Subtract, None)?;
+        let mut patch: Vec<u32> = t.parent.iter().map(|q| match q {
+            Parent::A(f) => self.patch.get(*f as usize).copied().unwrap_or(0),
+            Parent::B(_) => u32::MAX,
+        }).collect();
+        adopt_neighbours(&t.solid, &mut patch);
+        Ok(Self { solid: t.solid, patch, names: self.names })
+    }
+
+    /// Drop vertices no face uses; faces and their patches keep their order.
+    pub fn compact(&mut self) {
+        self.solid.compact();
+    }
+}
+
+/// Every face marked `u32::MAX` takes the patch of a neighbour across an edge, spreading until none is left.
+fn adopt_neighbours(solid: &Solid, patch: &mut [u32]) {
+    let mut by_edge: std::collections::HashMap<(u32, u32), Vec<usize>> = std::collections::HashMap::new();
+    for (i, f) in solid.f.iter().enumerate() {
+        for k in 0..3 {
+            let (a, b) = (f[k], f[(k + 1) % 3]);
+            by_edge.entry((a.min(b), a.max(b))).or_default().push(i);
+        }
+    }
+    let mut queue: std::collections::VecDeque<usize> = (0..patch.len()).filter(|i| patch[*i] != u32::MAX).collect();
+    while let Some(i) = queue.pop_front() {
+        let f = solid.f[i];
+        for k in 0..3 {
+            let (a, b) = (f[k], f[(k + 1) % 3]);
+            for &j in by_edge.get(&(a.min(b), a.max(b))).map(Vec::as_slice).unwrap_or(&[]) {
+                if patch[j] == u32::MAX {
+                    patch[j] = patch[i];
+                    queue.push_back(j);
+                }
+            }
+        }
+    }
+    for p in patch.iter_mut().filter(|p| **p == u32::MAX) {
+        *p = 0;
+    }
+}
+
 /// A round wire along a path, its radius given per point; either end flat or domed.
 pub fn tube(path: &[P3], radii: &[f64], around: usize, dome: (bool, bool)) -> Solid {
     let n = around.max(6);
@@ -284,13 +443,21 @@ fn crown_scale(gem: Gem, z: f64) -> f64 {
 
 /// The stone as the preview draws it, grown by `clear`: what notches a claw and what a seat must swallow.
 pub fn envelope(gem: Gem, clear: f64) -> Solid {
+    envelope_named(gem, clear).solid
+}
+
+/// [`envelope`] with its table, crown, girdle and pavilion (a cabochon's dome, girdle and back) named.
+pub fn envelope_named(gem: Gem, clear: f64) -> Named {
     let plan = Plan::of(gem);
     let (c, p, g) = (gem.crown_mm(), gem.pavilion_mm(), girdle_half(gem));
-    let section: Vec<Station> = match gem.form {
-        GemForm::Faceted => vec![
-            pole(c + clear), st(0.52, clear, c + clear), st(0.78, clear, 0.55 * c + clear * 0.8),
-            st(1.0, clear, g + clear * 0.5), st(1.0, clear, -g - clear * 0.5), pole(-p - clear),
-        ],
+    let (section, names): (Vec<Station>, Vec<&str>) = match gem.form {
+        GemForm::Faceted => (
+            vec![
+                pole(c + clear), st(0.52, clear, c + clear), st(0.78, clear, 0.55 * c + clear * 0.8),
+                st(1.0, clear, g + clear * 0.5), st(1.0, clear, -g - clear * 0.5), pole(-p - clear),
+            ],
+            vec!["Table", "Crown", "Crown", "Girdle", "Pavilion"],
+        ),
         GemForm::Cabochon => {
             let mut s = vec![pole(c + clear)];
             for k in (0..8).rev() {
@@ -299,42 +466,58 @@ pub fn envelope(gem: Gem, clear: f64) -> Solid {
             }
             s.push(st(1.0, clear, -clear));
             s.push(pole(-clear));
-            s
+            let mut names = vec!["Dome"; 8];
+            names.extend(["Girdle", "Back"]);
+            (s, names)
         }
     };
-    sweep(&plan, &section, plan.segments())
+    Named::swept(&plan, &section, &names, plan.segments())
 }
 
 /// The setting bur: a bright-cut bevel at the surface, a lip left over the girdle, the girdle wall,
 /// a bearing cone at the pavilion's own angle, and a pilot below it.
 pub fn bur(gem: Gem, fit: &Fit) -> Solid {
+    bur_named(gem, fit).solid
+}
+
+/// [`bur`] with its clearance, bevel, lip, girdle wall, bearing and pilot named.
+pub fn bur_named(gem: Gem, fit: &Fit) -> Named {
     let plan = Plan::of(gem);
     let (c, p, g) = (gem.crown_mm(), gem.pavilion_mm(), girdle_half(gem));
     let bevel = (0.07 * gem.w_mm).clamp(0.08, 0.22);
     let lip = (0.03 * gem.w_mm).clamp(0.03, 0.08);
     let top = fit.surface_z.max(c) + 1.2;
-    let mut s = vec![pole(top), st(1.0, CLEAR + bevel, top)];
+    let mut s = vec![(pole(top), "Clearance"), (st(1.0, CLEAR + bevel, top), "Clearance")];
     let under = fit.surface_z - bevel - lip - CLEAR;
     if under > g + 0.04 {
-        s.push(st(1.0, CLEAR + bevel, fit.surface_z + 0.01));
-        s.push(st(1.0, -lip, under));
+        s.push((st(1.0, CLEAR + bevel, fit.surface_z + 0.01), "Bevel"));
+        s.push((st(1.0, -lip, under), "Lip"));
     }
-    s.push(st(1.0, CLEAR, g));
-    s.push(st(1.0, CLEAR, -g));
+    s.push((st(1.0, CLEAR, g), "Girdle wall"));
     match gem.form {
         GemForm::Faceted => {
             let blind = p + 0.15;
-            s.push(st(0.52, CLEAR, -g - 0.48 * p));
-            s.push(st(0.52, CLEAR, -fit.through_mm.unwrap_or(blind).max(g + 0.48 * p + 0.1)));
-            s.push(pole(-fit.through_mm.unwrap_or(blind).max(g + 0.48 * p + 0.1)));
+            s.push((st(1.0, CLEAR, -g), "Bearing"));
+            s.push((st(0.52, CLEAR, -g - 0.48 * p), "Pilot"));
+            s.push((st(0.52, CLEAR, -fit.through_mm.unwrap_or(blind).max(g + 0.48 * p + 0.1)), "Pilot"));
+            s.push((pole(-fit.through_mm.unwrap_or(blind).max(g + 0.48 * p + 0.1)), "Pilot"));
         }
-        GemForm::Cabochon => s.push(pole(-g - 0.04)),
+        GemForm::Cabochon => {
+            s.push((st(1.0, CLEAR, -g), "Bed"));
+            s.push((pole(-g - 0.04), "Bed"));
+        }
     }
-    sweep(&plan, &s, plan.segments())
+    let (section, names): (Vec<Station>, Vec<&str>) = s.into_iter().unzip();
+    Named::swept(&plan, &section, &names, plan.segments())
 }
 
 /// Room for a pavilion that hangs below its head into the band, and the pilot under it.
 pub fn relief(gem: Gem, from_z: f64, inset: f64, fit: &Fit) -> Option<Solid> {
+    relief_named(gem, from_z, inset, fit).map(|n| n.solid)
+}
+
+/// [`relief`] with its pocket and pilot named.
+pub fn relief_named(gem: Gem, from_z: f64, inset: f64, fit: &Fit) -> Option<Named> {
     if gem.form == GemForm::Cabochon { return None; }
     let plan = Plan::of(gem);
     let p = gem.pavilion_mm();
@@ -347,7 +530,9 @@ pub fn relief(gem: Gem, from_z: f64, inset: f64, fit: &Fit) -> Option<Solid> {
     let floor = fit.through_mm.unwrap_or(blind).max(0.7 * p + 0.3);
     s.push(st(0.3, 0.0, -floor));
     s.push(pole(-floor));
-    Some(sweep(&plan, &s, plan.segments()))
+    let mut names = vec!["Relief"; s.len() - 3];
+    names.extend(["Pilot", "Pilot"]);
+    Some(Named::swept(&plan, &s, &names, plan.segments()))
 }
 
 /// Four beads raised at the stone's corners, overlapping the girdle so the bur shapes them to it.
@@ -360,14 +545,28 @@ pub fn beads(gem: Gem, fit: &Fit) -> Vec<(P3, f64)> {
     }).collect()
 }
 
+/// A collet's own wall thickness for a stone, mm.
+pub fn collet_wall_mm(gem: Gem) -> f64 { (0.10 * gem.w_mm + 0.22).clamp(0.35, 0.9) }
+/// How far a collet's lip rises over the girdle, as a share of the crown.
+pub fn collet_lip(gem: Gem) -> f64 {
+    match gem.form { GemForm::Faceted => 0.40, GemForm::Cabochon => 0.30 }
+}
+/// How far a collet reaches below the girdle, mm.
+pub fn collet_depth_mm(gem: Gem) -> f64 { collet_depth(gem) }
+
 /// A collet: tapered wall, bearing ledge at the pavilion's angle, a lip leaning up the crown.
 pub fn collet(gem: Gem) -> Solid {
+    collet_named(gem, collet_wall_mm(gem), collet_lip(gem), -collet_depth(gem)).solid
+}
+
+/// [`collet`] with its wall, lip share and base height chosen, and its rim, wall, base, inner wall,
+/// bearing, girdle seat and lip named. A base below the collet's own depth lengthens the wall to it.
+pub fn collet_named(gem: Gem, wall: f64, lip: f64, base_z: f64) -> Named {
     let plan = Plan::of(gem);
     let (c, p, g) = (gem.crown_mm(), gem.pavilion_mm(), girdle_half(gem));
-    let wall = (0.10 * gem.w_mm + 0.22).clamp(0.35, 0.9);
     let ledge = (0.09 * gem.w_mm).clamp(0.18, 0.45);
-    let depth = collet_depth(gem);
-    let top = g + match gem.form { GemForm::Faceted => 0.40 * c, GemForm::Cabochon => 0.30 * c };
+    let depth = -base_z.min(-collet_depth(gem));
+    let top = g + lip * c;
     let lean = 0.8 * (1.0 - crown_scale(gem, top - g)) * plan.b;
     let slope = match gem.form { GemForm::Faceted => 0.9 * p / plan.b.max(1e-6), GemForm::Cabochon => 0.0 };
     let section = [
@@ -381,27 +580,64 @@ pub fn collet(gem: Gem) -> Solid {
         st(1.0, CLEAR - lean, top - 0.05),
         st(1.0, CLEAR - lean + 0.05, top),
     ];
-    sweep(&plan, &section, plan.segments())
+    let names = ["Rim", "Wall", "Base", "Inner wall", "Bearing", "Girdle seat", "Lip", "Lip", "Rim"];
+    Named::swept(&plan, &section, &names, plan.segments())
 }
 
 /// A claw head: tapered prongs leaning out from a base rail, bent over the crown, with a gallery rail between,
 /// joined into one solid and then notched by the stone itself so every claw bears on it.
 pub fn claw_head(gem: Gem, prongs: u32) -> Result<Solid, Snag> {
-    let head = csg::union_all(&claw_parts(gem, prongs))?;
-    let mut head = csg::combine(&head, &envelope(gem, 0.02), Op::Subtract)?;
+    claw_head_named(gem, prongs, prong_wire_mm(gem), Rails::Seat, None).map(|n| n.solid)
+}
+
+/// The height of the metal under a point of the stone's girdle plane, in the stone's frame; `None` where there is none.
+pub type Floor<'a> = &'a dyn Fn([f64; 2]) -> Option<f64>;
+
+/// How far a claw's foot reaches past the metal under it, mm.
+pub const FOOT_SINK_MM: f64 = 0.5;
+/// How far below the head's own base a claw may lengthen to find metal, mm.
+pub const CLAW_REACH_MM: f64 = 6.0;
+
+/// [`claw_head`] with its wire and rails chosen, every claw and rail named, and each claw reaching past the
+/// metal `floor` finds under its own foot; the stone's notch in a claw is the claw's.
+pub fn claw_head_named(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor: Option<Floor>) -> Result<Named, Snag> {
+    let head = Named::union_all(claw_parts_named(gem, prongs, wire_mm, rails, floor))?;
+    let mut head = head.notched(&envelope(gem, 0.02))?;
     head.compact();
     Ok(head)
 }
 
 /// The claws and rails of a head before they are joined, each closed on its own.
 pub fn claw_parts(gem: Gem, prongs: u32) -> Vec<Solid> {
+    claw_parts_named(gem, prongs, prong_wire_mm(gem), Rails::Seat, None).into_iter().map(|n| n.solid).collect()
+}
+
+/// The rails that tie a head's claws together.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Rails {
+    /// A base rail on stones from 1.6 mm, and a gallery rail at 0.45 of the depth from 2.4 mm: the seats' own head.
+    Seat,
+    /// A basket: this many rails, evenly from the base rail up to 0.35 of the pavilion under the girdle.
+    Basket(u32),
+}
+
+/// Claws a head carries: `prongs` when it names three or more, else the cut's own.
+pub fn claw_count(gem: Gem, prongs: u32) -> u32 {
+    let plan = Plan::of(gem);
+    if prongs >= 3 { prongs } else if plan.pow < 1.8 || (plan.a / plan.b > 1.25 && plan.pow < 3.0) { 6 } else { 4 }
+}
+
+/// [`claw_parts`] with the wire and the rails chosen, each part named: claws first, then rails from the base up.
+/// Where `floor` finds metal under a claw's foot deeper than the head's own base, the claw lengthens to reach
+/// [`FOOT_SINK_MM`] past it.
+pub fn claw_parts_named(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor: Option<Floor>) -> Vec<Named> {
     let plan = Plan::of(gem);
     let (c, p, g) = (gem.crown_mm(), gem.pavilion_mm(), girdle_half(gem));
-    let d = prong_wire_mm(gem);
-    let count = if prongs >= 3 { prongs } else if plan.pow < 1.8 || (plan.a / plan.b > 1.25 && plan.pow < 3.0) { 6 } else { 4 };
+    let d = wire_mm;
+    let count = claw_count(gem, prongs);
     let depth = p + 0.2;
     let mut parts = Vec::new();
-    for phi in plan.claw_angles(count) {
+    for (claw, phi) in plan.claw_angles(count).into_iter().enumerate() {
         let (o, n) = (plan.point(phi), plan.normal(phi));
         let reach = o[0].hypot(o[1]).max(1e-6);
         // The crown as this claw meets it: rising `rise` over `inward` from the girdle to the facets' break.
@@ -423,6 +659,23 @@ pub fn claw_parts(gem: Gem, prongs: u32) -> Vec<Solid> {
         let arc_end = [run_from[0] + 0.15 * d * turn.sin(), run_from[1] - 0.15 * d * turn.cos()];
         let start = [arc_end[0] - bend * (turn.cos() - lean.cos()), arc_end[1] - bend * (turn.sin() + lean.sin())];
         let base_z = (-depth - 0.8).min(start[1] - 0.4);
+        // Down the claw's own line, whose foot moves in as it lengthens, until the inner edge of its foot enters
+        // metal from above; a claw with none within reach keeps its own length and is held by its rails.
+        let base_z = floor.map_or(base_z, |floor| {
+            let inner = |z: f64| {
+                let foot = start[0] - (start[1] - z) * PRONG_LEAN - 0.60 * d;
+                [o[0] + n[0] * foot, o[1] + n[1] * foot]
+            };
+            let mut z = base_z;
+            while z > base_z - CLAW_REACH_MM {
+                if let Some(metal) = floor(inner(z)).filter(|metal| z <= metal - FOOT_SINK_MM) {
+                    // Found only far below the top, the foot came down beside a wall rather than onto metal.
+                    return if z >= metal - FOOT_SINK_MM - 0.5 { z } else { base_z };
+                }
+                z -= 0.05;
+            }
+            base_z
+        });
         let foot = start[0] - (start[1] - base_z) * PRONG_LEAN;
         let steps = (((start[1] - base_z) / 0.3).ceil() as usize).max(2);
         let (mut line, mut rs): (Vec<[f64; 2]>, Vec<f64>) = (0..steps).map(|k| {
@@ -439,19 +692,32 @@ pub fn claw_parts(gem: Gem, prongs: u32) -> Vec<Solid> {
         line.push([end[0] - (hold + 0.15 * d) * turn.sin(), end[1] + (hold + 0.15 * d) * turn.cos()]);
         rs.push(0.36 * d);
         let path: Vec<P3> = line.iter().map(|q| [o[0] + n[0] * q[0], o[1] + n[1] * q[0], q[1]]).collect();
-        parts.push(tube(&path, &rs, 14, (false, true)));
+        parts.push(Named::whole(tube(&path, &rs, 14, (false, true)), format!("Claw {}", claw + 1)));
     }
     // Rails thread the prongs' own axes at their heights.
-    let rail = |z: f64, r: f64| {
+    let rail = |z: f64, r: f64, name: String| {
         let offset = 0.2 * d + z * PRONG_LEAN;
         let section: Vec<Station> = (0..10).map(|k| {
             let a = TAU * (k as f64 + 0.31) / 10.0;
             st(1.0, offset + r * a.sin(), z + r * a.cos())
         }).collect();
-        sweep(&plan, &section, plan.segments())
+        Named::whole(sweep(&plan, &section, plan.segments()), name)
     };
-    if gem.w_mm >= 1.6 { parts.push(rail(-depth + 0.18, 0.45 * d)); }
-    if gem.w_mm >= 2.4 { parts.push(rail(-0.45 * depth, 0.36 * d)); }
+    match rails {
+        Rails::Seat => {
+            if gem.w_mm >= 1.6 { parts.push(rail(-depth + 0.18, 0.45 * d, "Base rail".into())); }
+            if gem.w_mm >= 2.4 { parts.push(rail(-0.45 * depth, 0.36 * d, "Gallery rail".into())); }
+        }
+        Rails::Basket(n) => {
+            let (low, high) = (-depth + 0.18, -g - 0.35 * p);
+            let n = n.clamp(1, 6);
+            for k in 0..n {
+                let t = if n > 1 { k as f64 / (n - 1) as f64 } else { 0.0 };
+                let name = if k == 0 { "Base rail".to_string() } else { format!("Gallery rail {k}") };
+                parts.push(rail(low + (high - low) * t, if k == 0 { 0.45 * d } else { 0.36 * d }, name));
+            }
+        }
+    }
     parts
 }
 
@@ -1333,6 +1599,40 @@ mod tests {
         let b = parts(gem, SolidKind::Prong, fit).unwrap();
         assert!(Arc::ptr_eq(&a, &b));
         assert!(a.cut.is_empty() && a.add.len() == 1);
+    }
+
+    #[test]
+    fn a_named_solid_is_its_plain_solid_with_every_face_named_and_claws_reach_the_floor() {
+        let same = |a: &Solid, b: &Solid| a.v == b.v && a.f == b.f;
+        for (cut, w) in [(GemCut::Round, 6.5), (GemCut::Oval, 5.0), (GemCut::Princess, 4.0), (GemCut::Marquise, 3.0)] {
+            let gem = Gem::calibrated(cut, w);
+            let fit = Fit { surface_z: 0.4, through_mm: Some(2.4), prongs: 0 };
+            // The named variants are the seats' own solids, byte for byte, with a patch per face.
+            let head = claw_head_named(gem, 0, prong_wire_mm(gem), Rails::Seat, None).unwrap();
+            assert!(same(&head.solid, &claw_head(gem, 0).unwrap()), "{cut:?}");
+            assert!(same(&bur_named(gem, &fit).solid, &bur(gem, &fit)), "{cut:?}");
+            assert!(same(&relief_named(gem, -0.4, 0.3, &fit).unwrap().solid, &relief(gem, -0.4, 0.3, &fit).unwrap()), "{cut:?}");
+            assert!(same(&envelope_named(gem, 0.02).solid, &envelope(gem, 0.02)), "{cut:?}");
+            assert!(same(&collet_named(gem, collet_wall_mm(gem), collet_lip(gem), -collet_depth_mm(gem)).solid, &collet(gem)), "{cut:?}");
+            assert_eq!(head.patch.len(), head.solid.f.len());
+            let claws = head.names.iter().filter(|n| n.starts_with("Claw ")).count();
+            assert_eq!(claws, claw_count(gem, 0) as usize, "{cut:?}");
+            assert!(head.census().iter().all(|n| *n > 0), "{cut:?}: every patch owns faces, the notches their claws'");
+            let sunk = Fit { surface_z: 1.2, ..fit };
+            assert_eq!(bur_named(gem, &sunk).names, ["Clearance", "Bevel", "Lip", "Girdle wall", "Bearing", "Pilot"]);
+        }
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        // A basket's rails run evenly from the base rail to just under the girdle.
+        let basket = claw_head_named(gem, 4, prong_wire_mm(gem), Rails::Basket(3), None).unwrap();
+        assert_eq!(basket.names, ["Claw 1", "Claw 2", "Claw 3", "Claw 4", "Base rail", "Gallery rail 1", "Gallery rail 2"]);
+        // Over metal 2 mm below its own base a claw lengthens to reach it; with none in reach, it keeps its length.
+        let own = claw_head_named(gem, 4, prong_wire_mm(gem), Rails::Seat, None).unwrap();
+        let low = |s: &Solid| s.v.iter().map(|p| p[2]).fold(f64::MAX, f64::min);
+        let floor = |_: [f64; 2]| Some(low(&own.solid) - 2.0);
+        let reaching = claw_head_named(gem, 4, prong_wire_mm(gem), Rails::Seat, Some(&floor)).unwrap();
+        assert!(low(&reaching.solid) < low(&own.solid) - 2.0 - FOOT_SINK_MM + 0.1, "{} against {}", low(&reaching.solid), low(&own.solid));
+        let nothing = |_: [f64; 2]| None;
+        assert!(same(&claw_head_named(gem, 4, prong_wire_mm(gem), Rails::Seat, Some(&nothing)).unwrap().solid, &own.solid));
     }
 }
 

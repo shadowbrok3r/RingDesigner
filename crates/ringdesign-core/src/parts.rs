@@ -980,6 +980,36 @@ mod tests {
         assert_eq!(counts(), (4, 8));
     }
 
+    #[test]
+    fn a_builders_mesh_joins_cuts_and_beads_like_a_kernel_part_and_names_its_feature() {
+        use crate::cad::builders;
+        use crate::gem::{Gem, GemCut};
+        let lib = AlphaLibrary::builtin();
+        // A stone whose bezel stands wholly on the 4 mm crown, so its seam is one loop.
+        let gem = Gem::calibrated(GemCut::Round, 2.5);
+        let mut d = with_parts(template("Court band"), vec![builders::stone_feature(1, gem, Placement::ring(90.0, builders::stand_off_mm("bezel", gem)))]);
+        let doc = d.cad.as_mut().unwrap();
+        let mut next = 1;
+        for f in builders::setting_features("bezel", 1, gem, true, &mut || { next += 1; next }).unwrap() {
+            doc.append(f).unwrap();
+        }
+        let plain = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        d.cad.as_mut().unwrap().feature_mut(2).unwrap().component.blend_mm = 0.2;
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        for b in [&plain, &built] {
+            assert!(b.report.validation.watertight, "{:?}", b.report.validation);
+            assert_eq!((b.parts.joined, b.parts.cut, b.parts.references), (1, 1, 1));
+            assert_eq!(b.parts.features, vec![2, 3], "the bezel and its bur, in the order the origin counts them; the stone is never metal");
+        }
+        // The bezel's seam with the band is beaded, and the bead is the bezel's own metal.
+        assert!(built.parts.beads >= 1 && built.report.volume_mm3 > plain.report.volume_mm3, "{} beads, {:?}", built.parts.beads, built.parts.notes);
+        let named: std::collections::BTreeSet<Id> = built.mesh.origin.iter().filter_map(|o| built.parts.feature_of(*o)).collect();
+        assert_eq!(named, [2, 3].into_iter().collect());
+        let bezel = built.mesh.origin.iter().filter(|o| built.parts.feature_of(**o) == Some(2)).count();
+        let plain_bezel = plain.mesh.origin.iter().filter(|o| plain.parts.feature_of(**o) == Some(2)).count();
+        assert!(bezel > plain_bezel, "the bead's vertices name the bezel: {bezel} against {plain_bezel}");
+    }
+
     /// Timings for the report: `cargo test -p ringdesign-core measured_junctions -- --ignored --nocapture`.
     #[test]
     #[ignore = "timings only"]

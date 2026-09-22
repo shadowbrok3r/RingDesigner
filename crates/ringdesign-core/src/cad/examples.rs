@@ -7,6 +7,9 @@ pub const NAMES: &[&str] = &[
     "inlay-band",
     "gallery",
 ];
+/// Examples built round a stone on the procedural band. Kept apart from [`NAMES`], whose sweeps move every
+/// document's last feature to the front: a setting reads its stone and cannot stand before it.
+pub const SET_STONES: &[&str] = &["claw-solitaire"];
 pub fn design(name: &str) -> Result<RingDesign> {
     let mut d = RingDesign::default();
     d.name = name.into();
@@ -200,7 +203,19 @@ pub fn design(name: &str) -> Result<RingDesign> {
                 )?;
             }
         }
-        _ => anyhow::bail!("Unknown CAD example {name}; choose {}", NAMES.join(", ")),
+        "claw-solitaire" => {
+            // A carat round brilliant on the crest, culet clear of the metal, in a four-claw head joined to the
+            // band, with the seat bur under it: staged Bench, as a seat is cut after a sand pour.
+            add(&mut doc, "Procedural shank", Operation::Band, ComponentRole::Shank)?;
+            let gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Round, 6.5);
+            let at = Placement::ring(90.0, builders::stand_off_mm("claw4", gem));
+            doc.append(builders::stone_feature(2, gem, at))?;
+            doc.append(builders::feature_on(3, "Four-claw head", builders::CLAW, 2, serde_json::json!({ "prongs": 4 })))?;
+            let mut bur = builders::feature_on(4, "Seat bur", builders::BUR, 2, serde_json::json!({ "through": true }));
+            bur.component.stage = Stage::Bench;
+            doc.append(bur)?;
+        }
+        _ => anyhow::bail!("Unknown CAD example {name}; choose {}", NAMES.iter().chain(SET_STONES).copied().collect::<Vec<_>>().join(", ")),
     }
     d.cad = Some(doc);
     Ok(d)

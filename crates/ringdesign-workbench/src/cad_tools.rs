@@ -44,6 +44,7 @@ pub fn icon(op: &Operation) -> Icon {
         Chamfer { .. } => Icon::CadChamfer,
         Shell { .. } => Icon::CadShell,
         Transform { .. } => Icon::CadPlace,
+        Builder { key, .. } => if key == ringdesign_core::cad::builders::STONE { Icon::Stones } else { Icon::NodeHead },
     }
 }
 pub fn hint(op: &Operation) -> &'static str {
@@ -74,6 +75,7 @@ pub fn hint(op: &Operation) -> &'static str {
             "Hollow a box, cylinder or sphere. Select opening face indices, or leave them empty for a sealed cavity."
         }
         Transform { .. } => "Move or rotate an existing solid without modifying its source recipe.",
+        Builder { key, .. } => ringdesign_core::cad::builders::spec(key).map_or("A part built round a stone.", |s| s.hint),
     }
 }
 /// Keep tools with a known invalid default out of the creation path.

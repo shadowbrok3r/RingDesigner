@@ -48,6 +48,14 @@ pub fn inspect(d: &RingDesign, e: &Evaluated) -> Vec<PairReport> {
             let lower = aabb_distance(&a.mesh, &b.mesh);
             let (interference, note) = if lower > 1e-6 {
                 (Some(0.0), "Disjoint component bounds".to_string())
+            } else if a.made.is_some() || b.made.is_some() {
+                // A part a builder made is a mesh: the overlap is measured by csg.
+                let solid = |c: &super::EvaluatedComponent| crate::csg::Solid { v: c.trace.positions.clone(), f: c.mesh.faces.clone() };
+                match crate::csg::combine(&solid(a), &solid(b), crate::csg::Op::Intersect) {
+                    Ok(common) => (Some(common.volume()), "Mesh intersection measured by csg".into()),
+                    Err(crate::csg::Snag::Empty) => (Some(0.0), "No solid intersection; touching surfaces may remain".into()),
+                    Err(err) => (None, format!("Intersection is unresolved: {err}")),
+                }
             } else if a.body.faces.len() + b.body.faces.len() > 2000 {
                 (
                     None,
@@ -279,10 +287,18 @@ pub fn files(
         name: "assembly-nominal.3mf".into(),
         data: threemf(&evaluated, &d.name),
     });
-    entries.push(crate::threemf::Entry {
-        name: "assembly-nominal.step".into(),
-        data: super::step::export(&evaluated, &d.name)?.into_bytes(),
-    });
+    // STEP carries kernel bodies; a part a builder made is a mesh and rides in the STL and 3MF files only.
+    let metal = evaluated.components.iter().filter(|c| !c.settings.reference);
+    if metal.clone().any(|c| c.made.is_none()) {
+        entries.push(crate::threemf::Entry {
+            name: "assembly-nominal.step".into(),
+            data: super::step::export(&evaluated, &d.name)?.into_bytes(),
+        });
+    }
+    let meshes: Vec<String> = metal.filter(|c| c.made.is_some()).map(|c| format!("#{} {}", c.id, escape(&c.name))).collect();
+    if !meshes.is_empty() {
+        write!(sheet, "<p>Made as meshes by their builders, so in the STL and 3MF files and not in STEP: {}.</p>", meshes.join(", "))?;
+    }
     entries.push(crate::threemf::Entry {
         name: "manifest.json".into(),
         data: serde_json::to_vec_pretty(&manifest)?,

@@ -1,5 +1,6 @@
 //! Window layout and the top-level chrome.
 
+pub mod builder;
 pub mod cad;
 pub mod casting;
 pub mod design;
