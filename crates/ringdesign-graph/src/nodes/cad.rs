@@ -249,6 +249,34 @@ pub fn from_document(d: &RingDesign) -> Result<Graph, crate::graph::GraphError> 
     }
     Ok(g)
 }
+/// Chains after `from` one `cad.feature` node per feature, each carrying its feature's id, then the
+/// document's outputs, joints and rollback as property nodes; returns the chain's last node.
+pub fn chain_document(g: &mut Graph, from: NodeId, doc: &Document) -> Result<NodeId, GraphError> {
+    let mut previous = from;
+    for f in &doc.features {
+        if g.node(NodeId(f.id)).is_some() {
+            return Err(GraphError::global(format!("CAD feature #{} would take the id of a node already in the graph", f.id)));
+        }
+        let temporary = g.add("cad.feature")?;
+        let node = g.node_mut(temporary).expect("added");
+        node.id = NodeId(f.id);
+        node.params = serde_json::to_value(f).map_err(|e| GraphError::global(e.to_string()))?;
+        g.connect(previous, "design", NodeId(f.id), "design")?;
+        previous = NodeId(f.id);
+    }
+    for (path, value) in [
+        (OUTPUTS, serde_json::to_value(&doc.outputs)),
+        (JOINTS, serde_json::to_value(&doc.joints)),
+        (THROUGH, serde_json::to_value(doc.through)),
+    ] {
+        let id = g.add("design.set")?;
+        g.set_input(id, "pointer", Literal::Text(path.into()))?;
+        g.node_mut(id).expect("added").params = serde_json::json!({ "json_value": value.map_err(|e| GraphError::global(e.to_string()))? });
+        g.connect(previous, "design", id, "design")?;
+        previous = id;
+    }
+    Ok(previous)
+}
 pub fn append(g: &mut Graph, operation: Operation) -> Result<NodeId, crate::graph::GraphError> {
     let output = g
         .nodes

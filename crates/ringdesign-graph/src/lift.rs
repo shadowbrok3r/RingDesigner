@@ -316,6 +316,11 @@ pub fn diff(got: &serde_json::Value, want: &serde_json::Value, path: &str, out: 
 /// Lift `d` into a graph whose evaluation reproduces it exactly.
 pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result<Graph, GraphError> {
     let mut g = Graph::new(&d.name, Mode::SandRing);
+    let cad = d.cad.as_ref().filter(|doc| !doc.features.is_empty());
+    // A CAD feature's id is its node's id, so every other node is numbered above them.
+    if let Some(doc) = cad {
+        g.next_id = g.next_id.max(doc.features.iter().map(|f| f.id + 1).max().unwrap_or(1));
+    }
     let profile = g.add("band.profile")?;
     set_fields(&mut g, profile, reg, &json_of(&d.profile), &[]);
     // A uniform band's default head does not participate in its geometry.
@@ -389,6 +394,10 @@ pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result
             g.connect(m, "out", asm, "alphas")?;
         }
         last = asm;
+    }
+
+    if let Some(doc) = cad {
+        last = crate::nodes::cad::chain_document(&mut g, last, doc)?;
     }
 
     // Evaluate what the nodes express and patch the rest.
@@ -471,6 +480,32 @@ mod tests {
             assert_eq!(got, want, "{}: the lift does not round-trip", t.name);
             let patches = g.nodes.iter().filter(|n| n.kind == "design.set").count();
             assert!(patches <= 4, "{}: {patches} design.set patches — the nodes should carry a template: {:?}", t.name, g.nodes.iter().filter(|n| n.kind == "design.set").map(|n| n.inputs.get("pointer").cloned()).collect::<Vec<_>>());
+        }
+    }
+
+    #[test]
+    fn a_design_with_cad_parts_lifts_to_feature_nodes_the_edit_funnel_can_edit() {
+        use ringdesign_core::cad::{self, Attach, Component, Document, Feature, Operation, Placement, edit::CadEdit};
+        let reg = Registry::builtin();
+        let lib = AlphaLibrary::builtin();
+        let mut band = ringdesign_core::templates::all()[0].design();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        doc.append(Feature { id: 2, name: "Bezel".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 3.0, height_mm: 2.5 }, component: Component { attach: Attach::Join, placement: Placement::ring(90.0, 1.25), ..Default::default() } }).unwrap();
+        band.cad = Some(doc);
+        let designs: Vec<(String, RingDesign)> = cad::examples::NAMES.iter().map(|n| (n.to_string(), cad::examples::design(n).unwrap())).chain([("band and bezel".to_string(), band)]).collect();
+        for (name, d) in designs {
+            let (mut g, got, want) = round_trip(&d, &reg, &lib).unwrap();
+            assert_eq!(got, want, "{name}");
+            let whole = g.nodes.iter().filter(|n| n.kind == "design.set").any(|n| matches!(n.inputs.get("pointer"), Some(Literal::Text(p)) if p == "/cad"));
+            assert!(!whole, "{name}: the document travels as feature nodes, not one patch");
+            let features = d.cad.as_ref().unwrap().features.len();
+            assert_eq!(g.nodes.iter().filter(|n| n.kind == "cad.feature").count(), features, "{name}");
+            assert_eq!(serde_json::to_value(crate::nodes::cad::document(&g).unwrap()).unwrap(), serde_json::to_value(d.cad.as_ref().unwrap()).unwrap(), "{name}");
+            let id = d.cad.as_ref().unwrap().features.last().unwrap().id;
+            crate::nodes::cad::apply_edit(&mut g, &CadEdit::Rename { id, name: "Renamed".into() }).unwrap();
+            let out = crate::eval::evaluate_design(&mut Evaluator::new(), &g, &reg, &lib, 0).unwrap();
+            assert_eq!(out.design.cad.as_ref().unwrap().feature(id).unwrap().name, "Renamed", "{name}");
         }
     }
 
