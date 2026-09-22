@@ -1769,7 +1769,6 @@ fn skipped_by(op: &Operation, status: &BTreeMap<Id, FeatureStatus>, doc: &Docume
 }
 
 /// One enabled feature's body, validated and seated; a boolean against the band is its other operand with an attachment.
-#[allow(clippy::too_many_arguments)]
 fn build_feature(
     f: &Feature,
     design: &RingDesign,
@@ -1938,7 +1937,6 @@ fn seat_at(frame: &brep::Placement, placement: &Placement, design: &RingDesign, 
 }
 
 /// A builder's part: a stone seated by its own placement, or a setting made in the frame of the stone it stands on.
-#[allow(clippy::too_many_arguments)]
 fn build_made(
     f: &Feature,
     key: &str,

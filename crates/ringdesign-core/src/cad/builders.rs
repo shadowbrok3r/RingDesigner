@@ -737,6 +737,8 @@ mod tests {
         // Every part vertex names its feature; the stone, never metal, names none.
         let named: HashSet<Id> = full.mesh.origin.iter().filter_map(|o| full.parts.feature_of(*o)).collect();
         assert_eq!(named, [3, 4].into_iter().collect());
+        // The seat leaves the claws standing on the band: one piece of metal.
+        assert_eq!(pieces(&ring), 1);
         eprintln!("claw solitaire on the Court band: rise {rise:.3} of the head's {own:.3} mm³ ({:.2}%), overlap {overlap:.3}, seat cut {removed:.3} mm³, {} faces", 100.0 * (1.0 - rise / own), full.mesh.faces.len());
     }
 
@@ -767,6 +769,20 @@ mod tests {
             assert_eq!(e.status_of(id), Some(&FeatureStatus::Skipped("source #2 Round 6.5 mm was suppressed".into())));
         }
         assert!(e.components.is_empty() && e.band == Some(1) && e.failures().is_empty());
+    }
+
+    #[test]
+    fn a_stone_moved_by_a_transform_carries_the_head_built_round_it() {
+        let lib = AlphaLibrary::builtin();
+        let d = solitaire();
+        let mut lifted = d.clone();
+        let doc = lifted.cad.as_mut().unwrap();
+        let lift = Operation::Transform { source: 2, translation: [0.0, 1.0, 0.0], rotation_deg: [0.0; 3] };
+        doc.apply(&CadEdit::Add { feature: Feature { id: 9, name: "Lift".into(), enabled: true, operation: lift, component: Component::default() }, after: Some(2) }).unwrap();
+        doc.apply(&CadEdit::Operation { id: 3, operation: Operation::Builder { key: CLAW.into(), on: Some(9), params: json!({ "prongs": 4 }) } }).unwrap();
+        let head = |d: &RingDesign| cad::evaluate(d, &lib, params()).unwrap().components.into_iter().find(|c| c.id == 3).and_then(|c| c.made).unwrap();
+        let (a, b) = (centroid(head(&d).solid()), centroid(head(&lifted).solid()));
+        assert!((b[0] - a[0]).abs() < 1e-9 && (b[1] - a[1] - 1.0).abs() < 1e-9 && (b[2] - a[2]).abs() < 1e-9, "{a:?} -> {b:?}");
     }
 
     #[test]
@@ -827,6 +843,7 @@ mod tests {
             assert!(overlap > 0.05, "{key}: reaches the band: {overlap:.3}");
             let far = reach(&head, &d, &bare.mesh);
             assert!(far < 6.5, "{key}: stands by its stone: {far:.2} mm out");
+            assert_eq!(pieces(&as_solid(&built.mesh)), 1, "{key}: the setting and the band are one piece of metal");
             eprintln!("{key}: {} faces, {:.3} mm³, into the band {overlap:.3} mm³, ring {} faces", head.named.solid.f.len(), head.solid().volume(), built.mesh.faces.len());
         }
     }
