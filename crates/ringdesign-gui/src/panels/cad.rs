@@ -171,9 +171,31 @@ impl CadState {
     pub fn open_section(&mut self) {
         self.tab = 6;
     }
+    /// The feature the tree has chosen.
+    pub fn selected_feature(&self) -> Option<u64> {
+        self.selected.map(|id| id.0)
+    }
+    /// The last evaluation or apply failure.
+    pub fn last_error(&self) -> Option<&str> {
+        self.error.as_deref()
+    }
 }
 fn hash<T: serde::Serialize>(v: &T) -> u64 {
     ringdesign_core::manufacturing::package::fingerprint(&serde_json::to_vec(v).unwrap_or_default())
+}
+/// Commit the previewed document onto a design with no graph; the lifted graph is what the pane edits next.
+fn apply_plain(app: &mut RingDesignerApp, state: &CadState) -> Result<Graph, String> {
+    let view = state.view.as_ref().ok_or("Preview the candidate first")?;
+    let mut applied = app.design.clone();
+    applied.cad = view.design.cad.clone();
+    // The preview evaluates the whole history; a persisted rollback survives only while it still names a feature.
+    if let (Some(doc), Some(through)) = (applied.cad.as_mut(), app.design.cad.as_ref().and_then(|d| d.through)) {
+        doc.through = doc.features.iter().any(|f| f.id == through).then_some(through);
+    }
+    let lifted = graph_cad::from_document(&applied).map_err(|e| e.to_string())?;
+    app.design = applied;
+    app.mark_dirty();
+    Ok(lifted)
 }
 fn source_key(app: &RingDesignerApp) -> u64 {
     if app.design.graph.is_some() {
@@ -534,21 +556,42 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             || ((apply_key || apply_requested) && ready)
         {
             app.history.commit(&app.design);
-            if let Some(view) = &state.view {
-                let mut applied = view.design.clone();
-                applied.manufacturing = app.design.manufacturing.clone();
-                applied.casting_trials = app.design.casting_trials.clone();
-                app.design = applied;
+            let committed = if app.design.graph.is_some() {
+                if let Some(view) = &state.view {
+                    let mut applied = view.design.clone();
+                    applied.manufacturing = app.design.manufacturing.clone();
+                    applied.casting_trials = app.design.casting_trials.clone();
+                    app.design = applied;
+                }
+                app.set_graph(g.clone());
+                state.message = "Feature edit applied; undo restores its source graph".into();
+                Some(g.clone())
+            } else {
+                match apply_plain(app, &state) {
+                    Ok(lifted) => {
+                        state.message = "Feature edit applied; undo restores the design".into();
+                        Some(lifted)
+                    }
+                    Err(e) => {
+                        state.error = Some(e);
+                        None
+                    }
+                }
+            };
+            if let Some(lifted) = committed {
+                // The evaluated candidate is already available. Record the whole
+                // edit now so immediate Undo does not depend on the rebuild timer.
+                app.history.commit(&app.design);
+                // The preview already shows the committed document.
+                let key = hash(&(&lifted, state.rollback));
+                state.view_key = key;
+                state.requested = key;
+                original = lifted;
+                g = original.clone();
+                state.draft = None;
+                state.discarded = None;
+                state.source = source_key(app);
             }
-            app.set_graph(g.clone());
-            // The evaluated candidate is already available. Record the whole
-            // edit now so immediate Undo does not depend on the rebuild timer.
-            app.history.commit(&app.design);
-            original = g.clone();
-            state.draft = None;
-            state.discarded = None;
-            state.source = source_key(app);
-            state.message = "Feature edit applied; undo restores its source graph".into();
         } else if enter && state.draft.is_some() && state.job.is_none() {
             launch(&mut state, g.clone(), app, ui.ctx().clone());
         }
