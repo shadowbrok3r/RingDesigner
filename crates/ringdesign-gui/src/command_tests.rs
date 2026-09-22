@@ -167,6 +167,44 @@ fn g_moves_the_chosen_part_twelve_typed_degrees_round_the_ring_as_one_undo_step(
     assert_eq!(post(&h).component.placement.theta_deg(), Some(before));
 }
 
+fn press_undo(h: &mut Harness<'static, RingDesignerApp>) {
+    h.event(Event::ModifiersChanged(Modifiers::COMMAND));
+    h.event(Event::Key { key: Key::Z, pressed: true, modifiers: Modifiers::COMMAND, repeat: false, physical_key: None });
+    h.run_steps(1);
+    h.event(Event::Key { key: Key::Z, pressed: false, modifiers: Modifiers::COMMAND, repeat: false, physical_key: None });
+    h.event(Event::ModifiersChanged(Modifiers::NONE));
+    h.run_steps(2);
+}
+
+#[test]
+fn undo_during_a_move_takes_back_the_move_and_the_next_undo_the_last_edit() {
+    let mut h = harness();
+    let pane = band_and_cylinder(&mut h);
+    let top = select_post(&mut h, pane);
+    let before = post(&h).component.placement.theta_deg().unwrap();
+    h.hover_at(top);
+    h.run_steps(2);
+    press(&mut h, Key::G);
+    h.hover_at(top + egui::vec2(25.0, 0.0));
+    h.run_steps(3);
+    text(&mut h, "12");
+    press(&mut h, Key::Enter);
+    let (entries, doc) = (h.state().history.present(), document(&h));
+    assert_eq!(post(&h).component.placement.theta_deg(), Some(before + 12.0));
+    h.hover_at(top);
+    h.run_steps(2);
+    press(&mut h, Key::G);
+    h.hover_at(top + egui::vec2(40.0, 0.0));
+    h.run_steps(3);
+    assert_eq!(live(&h), Some("move"));
+    press_undo(&mut h);
+    assert_eq!(live(&h), None, "Undo ends the live command");
+    assert_eq!((document(&h), h.state().history.present()), (doc, entries), "and takes back nothing committed");
+    assert_eq!(h.state().status, "Cancelled; nothing changed");
+    press_undo(&mut h);
+    assert_eq!(post(&h).component.placement.theta_deg(), Some(before), "the next Undo takes back the typed move");
+}
+
 #[test]
 fn escape_backs_out_of_a_typed_move_and_only_then_reaches_the_selection() {
     let mut h = harness();

@@ -558,7 +558,9 @@ fn shortcuts(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     const NEW: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::N);
     const PALETTE: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::K);
 
-    if !egui::Popup::is_any_open(ui.ctx()) && !app.palette_open && !ringdesign_graph_ui::alpha_picker::is_open(ui.ctx()) && !ringdesign_workbench::feedback::is_open(ui.ctx()) && !ui.ctx().egui_wants_keyboard_input() && ui.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
+    // A live viewport command or an armed box answers Escape itself.
+    let viewport_holds = app.command.session.is_live() || app.command.box_armed;
+    if !viewport_holds && !egui::Popup::is_any_open(ui.ctx()) && !app.palette_open && !ringdesign_graph_ui::alpha_picker::is_open(ui.ctx()) && !ringdesign_workbench::feedback::is_open(ui.ctx()) && !ui.ctx().egui_wants_keyboard_input() && ui.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
         let cad_active = app.panes.get(app.active_pane).is_some_and(|p| p.kind == PaneKind::Cad);
         if !cad_active || !app.cad.cancel_shortcut() { app.clear_selection(); }
     }

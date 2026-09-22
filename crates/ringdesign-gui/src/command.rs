@@ -262,6 +262,16 @@ pub fn start(app: &mut RingDesignerApp, key: &str) -> bool {
     true
 }
 
+/// Ends a live command without committing it; whether one was live.
+pub fn cancel(app: &mut RingDesignerApp) -> bool {
+    if !app.command.session.is_live() {
+        return false;
+    }
+    let out = app.command.session.feed(StepInput::Cancel);
+    outcome(app, out);
+    true
+}
+
 /// Does what a command's outcome asks: commit through the funnel, say a refusal, drop a cancelled ghost.
 fn outcome(app: &mut RingDesignerApp, out: Outcome) {
     match out {
