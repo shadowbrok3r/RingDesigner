@@ -207,6 +207,24 @@ answer to AccessKit so kittest and `egui_drive.py` can type into them.
 | R4 seam bead folds | Cylinder-on-torus and 0.8 mm wire-on-dome through `csg` + variable-section sweep; `self_crossings == 0` over 200 placements |
 | R5 anchors ignore relief | **Retired 2026-09-21** (`examples/anchor_probe.rs`): the reference-crest anchor (`cad.rs:652`) is exact on plain bands (Court, Wishbone, Split: 0.00 mm) but buries a part's foot by **+2.06 / +2.42 / +2.26 mm on the three signets' shoulders** (45°/135°), +0.30 at their tables, +1.34 on the cathedral stock's top, +0.21 under braided relief, +0.92 on the toi et moi. **v5 `Placement::Ring` resolves by ray-drop onto the built mesh** (radial ray in the finger's plane at θ, then along the hit normal), with `height_mm` a stand-off from the true surface; the M0 right-click already uses the clicked hit's radius, so it is exact where the click was. |
 
+### M2 status — 2026-09-22, phase 1 (branch `m2-integration`, three worktree agents)
+
+- `csg.rs` is the road every part takes onto the band: `combine_with(.., cancel)` with
+  `Snag::Cancelled` polled inside the pair loop (a flag set mid-way is seen in ~1 ms; a pre-set flag
+  returns before a 786k-face band is touched), `Solid::check(crossings)` (grid-culled, no longer
+  O(n²)) and `strip_zero_area`, inputs refused as `Snag::Unclosed` before any work,
+  `combine_traced` → `Traced { solid, parent, seam }` with `seam_loops` (a bezel on the Court band:
+  one closed loop, 118 vertices at preview, 284 at export), `cluster(parts, pad)` for eight collars
+  round a ring. Contact matrix pinned: a coplanar foot resolves after the first nudge, sunk 0.05 mm
+  resolves first time with the exact volume, a tangent sphere is lifted clear and stays unfused.
+  Cost: every `combine` now validates both inputs (~12 ms per 786k faces; ~+0.8 s on Oriel's 4.3 s
+  export build) — a `combine_unchecked` for chained outputs is the fix if it matters.
+- `Component.attach: Attach::{Separate, Join, Cut}`, `stage: Stage::{Cast, Bench}`, `blend_mm`
+  (serde defaults, no format bump), `Component::attaches()`, and `cad_tools::attachment` on both apps.
+- A CAD Apply on a plain design stays plain: `apply_plain` copies the evaluated document into
+  `design.cad` and re-lifts it; the graph path is unchanged; Undo restores `design.cad`
+  (`a_plain_design_stays_plain_after_a_cad_apply`, `a_graph_driven_design_keeps_its_graph_after_a_cad_apply`).
+
 ### M2 detail
 
 **Measured 2026-09-21 (`examples/join_probe.rs`)**: a traced kernel cylinder dropped onto the built
