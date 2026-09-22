@@ -435,8 +435,6 @@ mod tests {
         d.profile.apply_style(crate::ProfileStyle::Flat);
         d.profile.flatten_sides();
         let fc = d.field_context();
-        let (lo, hi) = fc.side_faces_std().expect("squared sides").wider().unwrap();
-
         let mut vine = CurveLayer::preset_vine(&fc);
         vine.height_mm = 0.5;
         vine.taper = 0.0;

@@ -1587,7 +1587,7 @@ mod layout_tests {
         // `a`'s graph rect holds (60, 75); that *screen* point is empty canvas.
         let decoy = egui::pos2(60.0, 75.0);
         assert!((t * decoy - decoy).length() > 200.0, "the view is far from the identity");
-        let mut tap = |harness: &mut egui_kittest::Harness<'_, Editor>, at: egui::Pos2| {
+        let tap = |harness: &mut egui_kittest::Harness<'_, Editor>, at: egui::Pos2| {
             harness.input_mut().events.push(egui::Event::PointerMoved(at));
             harness.input_mut().events.push(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: true, modifiers: Default::default() });
             harness.step();

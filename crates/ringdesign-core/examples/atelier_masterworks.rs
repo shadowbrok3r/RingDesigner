@@ -56,11 +56,6 @@ fn side_tiling(d: &RingDesign, alpha: &str, height: f64, repeats: u32) -> Tiling
     t
 }
 
-/// A window over one shoulder: `offset` degrees off the top, either side.
-fn shoulder(offset: f64, span: f64, fade: f64) -> Window {
-    Window { fade_deg: fade, ..Window::around(TOP_DEG + offset, span) }
-}
-
 /// Palisade: the sand ring.
 fn palisade() -> RingDesign {
     // A flat table is a zero-draft plane and a seventh of this ring's

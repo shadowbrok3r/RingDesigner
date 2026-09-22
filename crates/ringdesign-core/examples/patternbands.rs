@@ -14,11 +14,10 @@
 //   BANDS=R,S runs only the named bands.
 use ringdesign_core::alpha::AlphaLibrary;
 use ringdesign_core::castability::{self, Verdict};
-use ringdesign_core::curve::CurveLayer;
 use ringdesign_core::dfm::{self, FloorFit};
 use ringdesign_core::field::{
     Blend, BorderLayer, BorderProfile, FluteProfile, FlutesLayer, Layer, LayerEntry, MilgrainLayer,
-    Remap, VGate, Window, SIDE_FACE_MIN_DRAFT_DEG,
+    Remap, Window, SIDE_FACE_MIN_DRAFT_DEG,
 };
 use ringdesign_core::mesh::{self, BuildParams};
 use ringdesign_core::profile::{ShankKey, ShankKind, TOP_DEG};

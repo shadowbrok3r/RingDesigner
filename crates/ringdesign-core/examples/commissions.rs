@@ -221,7 +221,7 @@ fn main() {
 
     // --- C. Ornament crescent: floral scrollwork halfway round. --------------
     let mut d = squared(6.0, 2.7);
-    let mut t = side_tiling(&d, "ornament-a-07", 0.30);
+    let t = side_tiling(&d, "ornament-a-07", 0.30);
     let mut e = LayerEntry::new("Ornament", Layer::Tiling(t));
     e.window = half_wrap();
     d.layers.layers.push(e);

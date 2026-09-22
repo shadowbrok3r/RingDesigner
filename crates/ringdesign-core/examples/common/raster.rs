@@ -1,2 +1,3 @@
 // Shim kept for the examples' #[path] includes; the rasterizer lives in core.
+#![allow(unused_imports)]
 pub use ringdesign_core::render::{render, render_classed};

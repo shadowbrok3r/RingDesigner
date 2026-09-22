@@ -482,7 +482,7 @@ mod graph {
                     }
                     anyhow::bail!("the graph does not validate");
                 }
-                let mut lib = AlphaLibrary::installed();
+                let lib = AlphaLibrary::installed();
                 let mut ev = Evaluator::with_exprs(ringdesign_script::engine());
                 let result = evaluate_design(&mut ev, &g, &reg, &lib, 0).map_err(|e| anyhow::anyhow!("{e}"))?;
                 for n in &result.notes {

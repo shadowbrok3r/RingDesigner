@@ -1328,35 +1328,6 @@ fn dome(d: f64, r: f64) -> f64 {
     1.0 - smoothstep(0.55 * r, r, d)
 }
 
-/// Overlapping scales in rows one deep and columns one wide, tiered down from a keeled spine on the
-/// parting line: each rises to its free edge, which lies over the base of the row behind, and each
-/// column stands lower than the one inside it, so no scale shows a wall toward the parting line.
-fn imbricate(row: f64, col: f64) -> f64 {
-    let mut best: f64 = 0.0;
-    let i0 = row.floor() as i64;
-    for i in [i0 - 1, i0] {
-        let stagger = if i.rem_euclid(2) == 0 { 0.0 } else { 0.5 };
-        let j = (col - stagger).round();
-        let centre = j + stagger;
-        let t = (row - i as f64) / 1.62;
-        if !(0.0..=1.0).contains(&t) {
-            continue;
-        }
-        let dc = (col - centre).abs();
-        let half = 0.57 * (1.0 - t.powf(2.6)).max(0.0).powf(0.62);
-        if dc >= half {
-            continue;
-        }
-        let edge = smoothstep(0.0, 0.16, half - dc) * smoothstep(0.0, 0.10, 1.0 - t);
-        let tier = (1.0 - 0.26 * centre.abs()).max(0.35);
-        // Shingled away from the spine, and keeled only on it.
-        let shed = 1.0 - 0.16 * (col.abs() - centre.abs()).max(0.0);
-        let keel = if centre == 0.0 { 0.16 * (1.0 - dc / half.max(1e-6)).powf(1.5) * (0.3 + 0.7 * t) } else { 0.0 };
-        best = best.max(edge * tier * shed * (0.34 + 0.50 * t + keel));
-    }
-    best.min(1.0)
-}
-
 /// Pointed scutes: plates the whole width of the band, each rising to a free edge that lies over the
 /// next. The edge is a chevron whose point rides the parting line and leads, so its wall faces round the
 /// ring and away from the parting line and never back toward it; the plate is arched and keeled along
@@ -1389,14 +1360,6 @@ fn round_scales(row: f64, col: f64) -> f64 {
         best = best.max(smoothstep(0.0, 0.22, half - dc) * smoothstep(0.0, 0.16, 1.0 - t) * (0.35 + 0.65 * t));
     }
     best
-}
-
-/// Rounded plates laid like brickwork, `gap` apart.
-fn plates(row: f64, col: f64, gap: (f64, f64)) -> f64 {
-    let i = row.floor();
-    let c = col + if (i as i64).rem_euclid(2) == 0 { 0.0 } else { 0.5 };
-    let (dr, dc) = ((row - i - 0.5).abs(), (c - c.floor() - 0.5).abs());
-    smoothstep(0.0, 0.16, 0.5 - gap.0 * 0.5 - dr) * smoothstep(0.0, 0.14, 0.5 - gap.1 * 0.5 - dc)
 }
 
 fn skin_layer(d: &RingDesign, name: &str, height: f64) -> LayerEntry {
@@ -1497,7 +1460,7 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
         // line wherever it is put, so it is cast as the half moon and the bench cuts it to the crescent;
         // the new moon is cast a disc and the bench leaves its rim.
         let mut moons: Vec<Stamp> = Vec::new();
-        let mut phase = |name: &str, at: (f64, f64), rot: f64, r: f64, k: usize, moons: &mut Vec<Stamp>| match k {
+        let phase = |name: &str, at: (f64, f64), rot: f64, r: f64, k: usize, moons: &mut Vec<Stamp>| match k {
             0 => moons.push(stamp(format!("{name}: full moon"), at, rot, moon_outline(r, 1.0, HORN))),
             1 => moons.push(stamp(format!("{name}: gibbous moon"), at, rot, moon_outline(r, 0.76, HORN))),
             2 => moons.push(stamp(format!("{name}: half moon"), at, rot, moon_outline(r, 0.5, HORN))),

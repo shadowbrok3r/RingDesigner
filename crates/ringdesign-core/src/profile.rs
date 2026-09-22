@@ -5584,8 +5584,6 @@ mod hollow_tests {
 
 #[cfg(test)]
 mod signet_shank_probe {
-    use super::*;
-
     /// What a new signet's shank section actually is, at the palm.
     ///
     /// A probe, in the house sense: it asserts the one invariant worth holding

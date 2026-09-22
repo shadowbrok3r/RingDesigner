@@ -268,7 +268,7 @@ fn main() {
     // --- 05. Laurel band: a running vine in wire. ----------------------------
     let mut d = squared(5.5, 2.6);
     let ctx = d.field_context();
-    let (lo, hi) = ctx.side_faces_std().and_then(|f| f.wider()).unwrap();
+    ctx.side_faces_std().and_then(|f| f.wider()).expect("a squared band has a side face");
     let mut vine = CurveLayer::preset_vine(&ctx);
     vine.land_on_side_face(&ctx, 0.52);
     vine.width_mm = 0.6;

@@ -19,8 +19,10 @@ pub struct McpHost {
     /// The design behind `last_seen`, serialized.
     last_json: Vec<u8>,
     /// Dropping this stops the listener.
+    #[allow(dead_code)]
     runtime: tokio::runtime::Runtime,
     /// Where the phone-facing sync endpoint is bound, once started.
+    #[allow(dead_code)]
     sync_addr: Option<SocketAddr>,
 }
 
@@ -73,6 +75,7 @@ impl McpHost {
     /// port here lets anyone who can reach it replace the design you are looking at. Tailscale is
     /// the right boundary — the tailnet is authenticated, the coffee-shop LAN is not — so this
     /// binds the `100.64.0.0/10` address specifically rather than `0.0.0.0`.
+    #[allow(dead_code)]
     pub fn start_sync(&mut self, token: &str, remote: bool) -> anyhow::Result<SocketAddr> {
         let cfg = if remote {
             let ip = ringdesign_mcp::sync::tailnet_addr()
@@ -99,6 +102,7 @@ impl McpHost {
         Ok(addr)
     }
 
+    #[allow(dead_code)]
     pub fn sync_addr(&self) -> Option<SocketAddr> {
         self.sync_addr
     }

@@ -2440,7 +2440,7 @@ impl RingDesignServer {
         &self,
         Parameters(p): Parameters<ExportParams>,
     ) -> Result<Json<ExportResult>, ErrorData> {
-        let mut e = self.engine.lock();
+        let e = self.engine.lock();
         let path = p.path.unwrap_or_else(|| default_export_path(&e.design().name, "stones.svg"));
         let field = e.field_report();
         let report = ringdesign_core::stones::report(e.design(), field.parting_z_mm);
