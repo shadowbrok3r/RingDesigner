@@ -388,6 +388,40 @@ worktrees, then verified, measured and committed by the integrator.
   auto-arrange was recorded as its own History entry, so the first Undo only moved nodes —
   History treats a change that only moves graph nodes as no edit; and History named a CAD edit by
   its first changed field ("Across 0 mm -> 0.50 mm") — funnel commits carry the edit's own label.
+
+### M11 status — 2026-09-22 (core half on master: `75cc5ec`, merged in the batch-6 window)
+
+- **The verdict judges the parts a ring pours with** (`castability::judge_parts`,
+  `judged_field_report`): every enabled, non-reference, Cast-stage Join or Cut part's faces in the
+  built mesh — owned by the pick scene's one rule (`interaction::pick::part_owners`), beads
+  included — read at the field's parting plane with the face analyzer's classes; their areas join
+  the report's and can only worsen the verdict. `FieldReport.parts` carries one `PartVerdict` per
+  part (undercut, silhouette, marginal, vertical, total, worst draft, where), and the notes say
+  what to do: "stage it Bench to solder it on after the pour … or move it onto the parting line",
+  "drill it at the bench". Lost wax measures and never gates; Separate parts are noted, not judged.
+  Measured: a post on the parting line adds 0.000 mm²; 1.5 mm off it locks 5.23 mm² against 5.21
+  from the geometry; a radial pilot hole locks both walls, 1.51 against 1.51. Cost 1.9 ms on a
+  preview build, 10.5 ms on an export build.
+- **The stage rule**: under sand a Join or Cut part staged Bench leaves the pattern and a raised
+  locating or drill mark takes its place in the height field (0.4 × the foot, 0.6–1.0 mm, 0.2 mm
+  high), at the foot when the field says it pulls there, else on the parting line at the part's
+  angle with the offset said in the note. The finished ring never shows it.
+- The draft colours paint at the verdict's own plane (`analyze_at`): the mesh's own plane sat
+  0.02–0.14 mm away and painted 4–12 part faces differently. The GUI worker judges parts on every
+  build with live cuts on; exports, the phone, MCP, the CLI (check and the size-run manifest), the
+  graph's SandRing export and Python judge on the build they have. `casting_pattern` and
+  `pattern_parts` now take the library (the marks read the field).
+- **A part at the crest leaned with the build's resolution**, found while merging: grid vertex
+  normals took the plain chord between neighbours, and the row snapped onto the crest sits nearer
+  one of them, so the crest normal tilted 0.84° at preview and 0.38° at export — and a post seated
+  there tilted with it, turning its flat top into 0.7 mm² of "undercut". The tangent is now the
+  second-order difference for uneven spacing wherever the grid resolves the curve (neighbouring
+  chords turning under 6°): 0.002° and 0.001°. Across a fillet the grid does not resolve (a 0.1 mm
+  edge round over 0.13 and 0.21 mm rows) it keeps the plain chord, which reads it better (0.1°
+  against 3.0°).
+- Open: the phone lists no parts (its notes carry them); placing a bench part's mark costs a
+  design-only verdict 94 ms; the silhouette rule reads a fan-triangulated flat face touching the
+  plane as silhouette.
 - Open: the band surface for the ring frame is built on the UI thread; a Sketch feature has no
   cache slot; which regions a `Profile::Feature` extrudes is a schema decision
   (`regions: Option<Vec<usize>>`); a sketch strip on a driven design lags its graph by one build.
