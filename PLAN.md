@@ -173,6 +173,17 @@ does not Apply" (covered by the Enter-never-applies pin instead).
 
 ### M2 detail
 
+**Measured 2026-09-21 (`examples/join_probe.rs`)**: a traced kernel cylinder dropped onto the built
+surface and joined through `csg::combine` — Court band, Heart signet, Braided band, Cathedral stock:
+
+| build | union bezel | subtract pilot | closure |
+| --- | --- | --- | --- |
+| preview 256×128 (65k faces) | 1.1–5.0 ms | 2–46 ms | open 0, repeated 0, every case |
+| export 1024×384 (786k faces) | 6.6–51 ms | 10–331 ms | open 0, repeated 0, every case |
+
+Volumes are exact (+70.6 mm³ for π·3²·2.5). The same union through `brep::combine` never
+returned. `csg::clean(2e-5)` removed 0–626 slivers per operation. The bet holds; M2 is engineering.
+
 - `cad.rs:733`: `tessellate_solid(body, chord) -> (csg::Solid f64, tri_face, edges, vertices)`
   (keeps `BodyMesh.triangle_faces`, which `tessellate` drops today).
 - `csg.rs`: `Solid::check()` on the existing `Grid`, `strip_zero_area`, `Snag::Cancelled` polled
