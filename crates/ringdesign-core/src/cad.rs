@@ -362,11 +362,110 @@ impl Placement {
             }
         }
     }
+    /// [`Placement::frame`] seated on the built surface: a radial ray in the finger's plane at
+    /// `theta_deg`, `across_mm` along the finger, meets `surface`, and the part stands `height_mm`
+    /// out along the surface normal there with z along it and x along the finger. Without a
+    /// surface, or where the ray misses, it is `frame()` bit for bit.
+    pub fn frame_on(&self, design: &RingDesign, surface: Option<&Mesh>) -> Result<brep::Placement> {
+        let Self::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } = *self else {
+            return self.frame(design);
+        };
+        let Some(mesh) = surface else {
+            return self.frame(design);
+        };
+        ensure!(
+            [theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg].iter().all(|v| v.is_finite()),
+            "Invalid ring placement"
+        );
+        let Some((hit, normal)) = surface_hit(mesh, theta_deg, across_mm) else {
+            return self.frame(design);
+        };
+        let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        let z = normal;
+        // x runs along the finger as `frame()` has it, squared up to the normal.
+        let along = [0.0, 0.0, -1.0];
+        let d = dot(along, z);
+        let x: [f64; 3] = std::array::from_fn(|k| along[k] - z[k] * d);
+        let len = crate::mesh::norm(x);
+        if len < 1e-6 {
+            return self.frame(design);
+        }
+        let x = x.map(|v| v / len);
+        let y = crate::mesh::cross(z, x);
+        let lean = nalgebra::Rotation3::from_euler_angles(
+            tilt_deg.to_radians(),
+            cant_deg.to_radians(),
+            spin_deg.to_radians(),
+        );
+        let l = lean.matrix();
+        let col = |i: usize| -> [f64; 3] { std::array::from_fn(|k| x[k] * l[(0, i)] + y[k] * l[(1, i)] + z[k] * l[(2, i)]) };
+        Ok(brep::Placement {
+            x_axis: col(0),
+            y_axis: col(1),
+            z_axis: col(2),
+            origin: std::array::from_fn(|k| hit[k] + z[k] * height_mm),
+        })
+    }
     /// A part-local point in world millimetres.
     pub fn world(&self, design: &RingDesign, p: [f64; 3]) -> Result<[f64; 3]> {
         let f = self.frame(design)?;
         Ok(std::array::from_fn(|k| f.origin[k] + f.x_axis[k] * p[0] + f.y_axis[k] * p[1] + f.z_axis[k] * p[2]))
     }
+}
+/// Where a radial ray in the finger's plane at `theta_deg`, `z = across_mm`, first meets the
+/// surface from outside, with the smooth outward normal there (the face's own when the mesh
+/// carries no vertex normals). A ray exactly on the crest loop slips between the faces that
+/// share it and lands on the bore beyond, so it runs a tenth of a micron off the plane first
+/// and a hit on a face turned away from it is a miss.
+pub fn surface_hit(mesh: &Mesh, theta_deg: f64, across_mm: f64) -> Option<([f64; 3], [f64; 3])> {
+    let (lo, hi) = mesh.bounds()?;
+    // Past every vertex's radius: at 45° a ring reaches further than either axis extent.
+    let far = (lo.0.abs().max(hi.0.abs()) as f64).hypot(lo.1.abs().max(hi.1.abs()) as f64) + 1.0;
+    let (sin, cos) = theta_deg.to_radians().sin_cos();
+    let direction = [(-cos) as f32, (-sin) as f32, 0.0];
+    for dz in [1e-4, -1e-4, 0.0, 1e-3, -1e-3] {
+        let origin = [(far * cos) as f32, (far * sin) as f32, (across_mm + dz) as f32];
+        let Some((face, p)) = crate::interaction::picking::raycast(mesh, origin, direction) else {
+            continue;
+        };
+        let f = mesh.faces[face];
+        let (a, b, c) = mesh.triangle(&f)?;
+        let facet = crate::mesh::cross(crate::mesh::sub(b, a), crate::mesh::sub(c, a));
+        if facet[0] * cos + facet[1] * sin <= 0.0 {
+            continue;
+        }
+        let p = p.map(f64::from);
+        let mut n = facet;
+        if mesh.normals.len() == mesh.vertices.len() {
+            // Barycentric weights of the hit in its triangle.
+            let (v0, v1, v2) = (crate::mesh::sub(b, a), crate::mesh::sub(c, a), crate::mesh::sub(p, a));
+            let dot = |u: [f64; 3], v: [f64; 3]| u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+            let (d00, d01, d11, d20, d21) = (dot(v0, v0), dot(v0, v1), dot(v1, v1), dot(v2, v0), dot(v2, v1));
+            let denom = d00 * d11 - d01 * d01;
+            if denom.abs() > 1e-18 {
+                let wb = ((d11 * d20 - d01 * d21) / denom).clamp(0.0, 1.0);
+                let wc = ((d00 * d21 - d01 * d20) / denom).clamp(0.0, 1.0);
+                let wa = (1.0 - wb - wc).clamp(0.0, 1.0);
+                let at = |i: u32| { let v = mesh.normals[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] };
+                let (na, nb, nc) = (at(f[0]), at(f[1]), at(f[2]));
+                let smooth: [f64; 3] = std::array::from_fn(|k| wa * na[k] + wb * nb[k] + wc * nc[k]);
+                if crate::mesh::norm(smooth) > 1e-6 {
+                    n = smooth;
+                }
+            }
+        }
+        let len = crate::mesh::norm(n);
+        if len < 1e-12 {
+            continue;
+        }
+        let mut n = n.map(|v| v / len);
+        // Outward is toward the ray's origin.
+        if n[0] * cos + n[1] * sin < 0.0 {
+            n = n.map(|v| -v);
+        }
+        return Some((p, n));
+    }
+    None
 }
 /// A world point or direction taken back into a placed part's own frame.
 fn unplace(f: &brep::Placement, p: [f64; 3], point: bool) -> [f64; 3] {
@@ -717,6 +816,51 @@ impl Document {
         self.features.push(f);
         Ok(())
     }
+    /// The enabled `Band` feature, if the document anchors its parts on the procedural ring.
+    pub fn band(&self) -> Option<Id> {
+        self.features.iter().find(|f| f.enabled && matches!(f.operation, Operation::Band)).map(|f| f.id)
+    }
+    /// Whether the document is the whole ring: no enabled `Band` feature, and a feature that builds a body.
+    pub fn replaces_band(&self) -> bool {
+        self.band().is_none()
+            && self.features.iter().any(|f| f.enabled && !matches!(f.operation, Operation::Sketch { .. }))
+    }
+    /// How each output part meets the band, read off the document: a boolean against the band is the
+    /// attachment it stands for, anything else its component's own. Reference parts are left out.
+    pub fn attachments(&self) -> Vec<(Id, Attach, Stage)> {
+        let band = self.band();
+        self.outputs
+            .iter()
+            .filter_map(|id| self.features.iter().find(|f| f.id == *id && f.enabled))
+            .filter(|f| !f.component.reference && !matches!(f.operation, Operation::Sketch { .. } | Operation::Band))
+            .map(|f| {
+                let attach = match &f.operation {
+                    Operation::Boolean { a, b, kind } if band.is_some_and(|band| band == *a || band == *b) => match kind {
+                        Boolean::Union => Attach::Join,
+                        Boolean::Subtract => Attach::Cut,
+                        Boolean::Intersect => f.component.attach,
+                    },
+                    _ => f.component.attach,
+                };
+                (f.id, attach, f.component.stage)
+            })
+            .collect()
+    }
+    /// The parts a sand pattern leaves to the bench dropped from the outputs, named; nothing under lost wax.
+    pub fn leave_bench_parts_out(&mut self, sand: bool) -> Vec<String> {
+        if !sand {
+            return Vec::new();
+        }
+        let mut names = Vec::new();
+        self.outputs.retain(|id| {
+            let bench = self.features.iter().any(|f| f.id == *id && f.enabled && !f.component.reference && f.component.stage == Stage::Bench);
+            if bench {
+                names.push(self.features.iter().find(|f| f.id == *id).map(|f| f.name.clone()).unwrap_or_default());
+            }
+            !bench
+        });
+        names
+    }
 }
 pub struct EvaluatedComponent {
     pub id: Id,
@@ -726,6 +870,9 @@ pub struct EvaluatedComponent {
     pub mesh: Mesh,
     pub edges: Vec<Vec<[f64; 3]>>,
     pub trace: PartTrace,
+    /// How the part meets the band: its component's own, or what a boolean against the band said.
+    pub attach: Attach,
+    pub stage: Stage,
 }
 /// What the tessellation knows about the body it came from, so a triangle answers to a face and
 /// a hover can name an edge or a vertex. Ordinals index the body's own iteration order.
@@ -749,6 +896,8 @@ impl PartTrace {
 pub struct Evaluated {
     pub components: Vec<EvaluatedComponent>,
     pub features: Vec<FeatureReport>,
+    /// The `Band` feature the parts are anchored on; `None` when the document is the whole ring.
+    pub band: Option<Id>,
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct FeatureReport {
@@ -810,8 +959,7 @@ fn profile<'a>(p: &'a Profile, sketches: &'a BTreeMap<Id, Sketch>) -> Result<&'a
 fn plane_of(
     sketch: &Sketch,
     bodies: &BTreeMap<Id, Body>,
-    metadata: &BTreeMap<Id, &Feature>,
-    design: &RingDesign,
+    frames: &BTreeMap<Id, brep::Placement>,
     notes: &mut Vec<String>,
 ) -> Result<cadkernel::space::Plane> {
     let Some(anchor) = &sketch.plane.on_face else {
@@ -820,9 +968,7 @@ fn plane_of(
     let body = bodies
         .get(&anchor.feature)
         .ok_or_else(|| anyhow::anyhow!("Sketch face: feature #{} is unavailable or suppressed", anchor.feature))?;
-    let frame = metadata
-        .get(&anchor.feature)
-        .map_or(Ok(brep::Placement::IDENTITY), |f| f.component.placement.frame(design))?;
+    let frame = frames.get(&anchor.feature).copied().unwrap_or(brep::Placement::IDENTITY);
     let key = resolve_face(body, &anchor.face, &frame, notes).context("Sketch face")?;
     let face = brep::planar_face_profile(body, key)
         .ok_or_else(|| anyhow::anyhow!("Sketch face {} of feature #{} is not planar", anchor.face.ordinal, anchor.feature))?;
@@ -832,9 +978,7 @@ fn body_for(
     op: &Operation,
     bodies: &BTreeMap<Id, Body>,
     sketches: &BTreeMap<Id, Sketch>,
-    metadata: &BTreeMap<Id, &Feature>,
-    design: &RingDesign,
-    lib: &AlphaLibrary,
+    frames: &BTreeMap<Id, brep::Placement>,
     params: BuildParams,
     notes: &mut Vec<String>,
 ) -> Result<Body> {
@@ -843,43 +987,15 @@ fn body_for(
             .get(id)
             .ok_or_else(|| anyhow::anyhow!("Source feature #{id} is unavailable or suppressed"))
     };
-    // References are signed in the source part's own frame, so its placement is taken back off.
-    let frame_of = |id: &Id| -> Result<brep::Placement> {
-        metadata
-            .get(id)
-            .map_or(Ok(brep::Placement::IDENTITY), |f| f.component.placement.frame(design))
-    };
+    // References are signed in the source part's own frame, so the placement its body was seated by is taken back off.
+    let frame_of = |id: &Id| -> brep::Placement { frames.get(id).cloned().unwrap_or(brep::Placement::IDENTITY) };
     fn edges(body: &Body, frame: &brep::Placement, refs: &[EdgeRef], notes: &mut Vec<String>) -> Result<Vec<brep::EdgeKey>> {
         ensure!(!refs.is_empty(), "Select at least one edge");
         refs.iter().map(|r| resolve_edge(body, r, frame, notes)).collect()
     }
     match op {
-        Operation::Band => {
-            let mut nominal = design.clone();
-            nominal.cad = None;
-            let resolved = crate::manufacturing::source_library(&nominal, lib);
-            let built = crate::mesh::try_build(
-                &nominal,
-                &resolved,
-                BuildParams {
-                    refine: None,
-                    ..params
-                },
-            )?;
-            let vertices: Vec<_> = built
-                .mesh
-                .vertices
-                .iter()
-                .map(|p| [p.0 as f64, p.1 as f64, p.2 as f64])
-                .collect();
-            let faces: Vec<Vec<usize>> = built
-                .mesh
-                .faces
-                .iter()
-                .map(|f| f.map(|v| v as usize).to_vec())
-                .collect();
-            maybe(make::faceted_solid(&vertices, &faces), "Procedural shank")
-        }
+        // The band is the anchor the parts stand on, never a kernel body: it is joined in the mesh stage.
+        Operation::Band => anyhow::bail!("The procedural shank is not a body; parts are joined to it after the build"),
         Operation::Box { size } => {
             for x in size {
                 positive(*x, "Box dimension")?;
@@ -980,7 +1096,7 @@ fn body_for(
             draft_deg,
         } => {
             let sketch = profile(sketch, sketches)?;
-            let p = plane_of(sketch, bodies, metadata, design, notes)?;
+            let p = plane_of(sketch, bodies, frames, notes)?;
             let h = positive(*height_mm, "Height")?;
             ensure!(
                 draft_deg.is_finite() && draft_deg.abs() < 80.0,
@@ -1011,7 +1127,7 @@ fn body_for(
             let sketch = profile(sketch, sketches)?;
             maybe(
                 brep::revolve(
-                    plane_of(sketch, bodies, metadata, design, notes)?,
+                    plane_of(sketch, bodies, frames, notes)?,
                     &sketch.profile_curves()?,
                     *pivot,
                     *axis,
@@ -1029,7 +1145,7 @@ fn body_for(
             let sketch = profile(sketch, sketches)?;
             maybe(
                 brep::sweep_path(
-                    plane_of(sketch, bodies, metadata, design, notes)?,
+                    plane_of(sketch, bodies, frames, notes)?,
                     &[sketch.profile_curves()?],
                     brep::SweepPath::Polyline3d {
                         points: path,
@@ -1054,7 +1170,7 @@ fn body_for(
             let sketch = profile(sketch, sketches)?;
             maybe(
                 brep::sweep_along_deformed(
-                    plane_of(sketch, bodies, metadata, design, notes)?,
+                    plane_of(sketch, bodies, frames, notes)?,
                     &sketch.profile_curves()?,
                     path.plane.plane()?,
                     &path.solved_curves()?,
@@ -1074,7 +1190,7 @@ fn body_for(
                 .iter()
                 .map(|p| {
                     let s = profile(p, sketches)?;
-                    Ok((plane_of(s, bodies, metadata, design, notes)?, s.profile_curves()?))
+                    Ok((plane_of(s, bodies, frames, notes)?, s.profile_curves()?))
                 })
                 .collect::<Result<Vec<_>>>()?;
             ensure!(
@@ -1108,7 +1224,7 @@ fn body_for(
             let b = source(id)?;
             brep::fillet_edges(
                 b,
-                &edges(b, &frame_of(id)?, refs, notes)?,
+                &edges(b, &frame_of(id), refs, notes)?,
                 positive(*radius_mm, "Fillet radius")?,
             )
             .map_err(|e| anyhow::anyhow!("Fillet is unsupported for these edges/radius: {e:?}"))
@@ -1120,7 +1236,7 @@ fn body_for(
             distance_mm,
         } => {
             let b = source(id)?;
-            let frame = frame_of(id)?;
+            let frame = frame_of(id);
             let face = resolve_face(b, base_face, &frame, notes).context("Chamfer base face")?;
             let mm = positive(*distance_mm, "Chamfer")?;
             brep::chamfer_edges(b, &edges(b, &frame, refs, notes)?, face, mm, mm)
@@ -1132,7 +1248,7 @@ fn body_for(
             thickness_mm,
         } => {
             let b = source(id)?;
-            let frame = frame_of(id)?;
+            let frame = frame_of(id);
             let faces = open_faces
                 .iter()
                 .map(|r| resolve_face(b, r, &frame, notes).context("Shell opening face"))
@@ -1159,9 +1275,12 @@ pub const MAX_ANALYTIC_BOOLEAN_FACES: usize = 500;
 /// The error text of an evaluation stopped through its `BuildCtx`.
 pub const CANCELLED: &str = "CAD evaluation cancelled";
 
-/// Cooperative stop for a running evaluation, polled between features and tessellations.
+/// Cooperative stop for a running evaluation, polled between features and tessellations, and the
+/// built surface a ring placement drops onto.
 pub struct BuildCtx<'a> {
     pub cancel: &'a std::sync::atomic::AtomicBool,
+    /// The band as built, for `Placement::Ring` to seat parts on; `None` falls back to the reference crest.
+    pub surface: Option<&'a Mesh>,
 }
 impl BuildCtx<'_> {
     fn check(&self) -> Result<()> {
@@ -1172,7 +1291,7 @@ impl BuildCtx<'_> {
 
 pub fn evaluate(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<Evaluated> {
     let never = std::sync::atomic::AtomicBool::new(false);
-    evaluate_with(design, lib, params, &BuildCtx { cancel: &never })
+    evaluate_with(design, lib, params, &BuildCtx { cancel: &never, surface: None })
 }
 
 pub fn evaluate_with(
@@ -1204,9 +1323,15 @@ pub fn evaluate_with(
             "Joint references missing/identical parts or an invalid clearance"
         );
     }
+    let _ = lib;
     let mut bodies = BTreeMap::new();
     let mut sketches: BTreeMap<Id, Sketch> = BTreeMap::new();
     let mut metadata = BTreeMap::new();
+    // The placement each body was seated by, which its references are signed in.
+    let mut frames: BTreeMap<Id, brep::Placement> = BTreeMap::new();
+    // The attachment a boolean against the band stands for, by the boolean's id.
+    let mut attached: BTreeMap<Id, Attach> = BTreeMap::new();
+    let mut band: Option<Id> = None;
     let mut reports = Vec::new();
     let mut ids = BTreeSet::new();
     let mut available_outputs = Vec::new();
@@ -1218,6 +1343,9 @@ pub fn evaluate_with(
                 if let Some(body) = bodies.get(id).cloned() {
                     bodies.insert(f.id, body);
                     metadata.insert(f.id, f);
+                    if let Some(frame) = frames.get(id).cloned() {
+                        frames.insert(f.id, frame);
+                    }
                 }
             }
             reports.push(FeatureReport {
@@ -1242,10 +1370,59 @@ pub fn evaluate_with(
                 suppressed: false,
                 notes: Vec::new(),
             });
+        } else if matches!(f.operation, Operation::Band) {
+            // The band is an anchor: it builds no body, and a boolean against it is an attachment.
+            ensure!(band.is_none(), "Feature #{} — {}: a document carries one procedural shank", f.id, f.name);
+            band = Some(f.id);
+            metadata.insert(f.id, f);
+            reports.push(FeatureReport {
+                id: f.id,
+                name: f.name.clone(),
+                faces: 0,
+                edges: 0,
+                suppressed: false,
+                notes: Vec::new(),
+            });
         } else {
             let mut notes = Vec::new();
-            let mut body = body_for(&f.operation, &bodies, &sketches, &metadata, design, lib, params, &mut notes)
-                .with_context(|| format!("Feature #{} — {}", f.id, f.name))?;
+            let against_band = match &f.operation {
+                Operation::Boolean { a, b, kind } if band.is_some_and(|id| id == *a || id == *b) => Some((*a, *b, *kind)),
+                _ => None,
+            };
+            let mut body = if let Some((a, b, kind)) = against_band {
+                let band_id = band.unwrap_or_default();
+                ensure!(a != b, "Feature #{} — {}: Boolean sources must be different", f.id, f.name);
+                let other = if a == band_id { b } else { a };
+                let attach = match kind {
+                    Boolean::Union => Attach::Join,
+                    Boolean::Subtract => {
+                        ensure!(
+                            a == band_id,
+                            "Feature #{} — {}: subtracting the procedural shank from a part is not supported; subtract the part from the shank to cut it",
+                            f.id,
+                            f.name
+                        );
+                        Attach::Cut
+                    }
+                    Boolean::Intersect => anyhow::bail!(
+                        "Feature #{} — {}: intersecting with the procedural shank is not supported; Union joins a part to it and Subtract cuts one from it",
+                        f.id,
+                        f.name
+                    ),
+                };
+                let body = bodies
+                    .get(&other)
+                    .cloned()
+                    .ok_or_else(|| anyhow::anyhow!("Feature #{} — {}: source feature #{other} is unavailable or suppressed", f.id, f.name))?;
+                attached.insert(f.id, attach);
+                if let Some(frame) = frames.get(&other).cloned() {
+                    frames.insert(f.id, frame);
+                }
+                body
+            } else {
+                body_for(&f.operation, &bodies, &sketches, &frames, params, &mut notes)
+                    .with_context(|| format!("Feature #{} — {}", f.id, f.name))?
+            };
             ensure!(
                 body.validate().is_empty(),
                 "Feature #{} — {} generated invalid topology: {:?}",
@@ -1254,8 +1431,9 @@ pub fn evaluate_with(
                 body.validate()
             );
             if f.component.placement != Placement::Free {
-                let frame = f.component.placement.frame(design)?;
+                let frame = f.component.placement.frame_on(design, ctx.surface)?;
                 body = maybe(brep::transform(&body, &frame), "Ring placement")?;
+                frames.insert(f.id, frame);
             }
             reports.push(FeatureReport {
                 id: f.id,
@@ -1315,12 +1493,16 @@ pub fn evaluate_with(
             mesh,
             edges,
             trace,
+            attach: attached.get(id).copied().unwrap_or(f.component.attach),
+            stage: f.component.stage,
         });
     }
-    ensure!(!components.is_empty(), "No active CAD components");
+    // A band with nothing on it yet is a ring; a document with neither is not.
+    ensure!(!components.is_empty() || band.is_some(), "No active CAD components");
     Ok(Evaluated {
         components,
         features: reports,
+        band,
     })
 }
 
@@ -1944,7 +2126,7 @@ mod tests {
     #[test]
     fn a_faceted_operand_is_refused_before_the_kernel_is_asked() {
         let d = design(vec![
-            Operation::Band,
+            Operation::TwistedRing { major_mm: 10.0, radial_mm: 2.0, axial_mm: 4.0, turns: 0.5 },
             Operation::Cylinder {
                 radius_mm: 3.0,
                 height_mm: 3.0,
@@ -1966,6 +2148,93 @@ mod tests {
         assert!(started.elapsed().as_secs() < 20, "{:?}", started.elapsed());
     }
     #[test]
+    fn the_band_is_an_anchor_and_a_boolean_against_it_is_an_attachment() {
+        let lib = AlphaLibrary::builtin();
+        let cylinder = || Operation::Cylinder { radius_mm: 3.0, height_mm: 2.5 };
+        let boolean = |a, b, kind| Operation::Boolean { a, b, kind };
+        // Union(band, part): the part's body comes out as the boolean's, attached Join; the band builds nothing.
+        let d = design(vec![Operation::Band, cylinder(), boolean(1, 2, Boolean::Union)]);
+        let started = std::time::Instant::now();
+        let e = evaluate(&d, &lib, BuildParams::default()).unwrap();
+        assert!(started.elapsed().as_millis() < 2000, "no faceted band went into the kernel: {:?}", started.elapsed());
+        assert_eq!(e.band, Some(1));
+        assert_eq!(e.features[0].faces, 0);
+        assert_eq!(e.components.len(), 1);
+        assert_eq!((e.components[0].id, e.components[0].attach, e.components[0].stage), (3, Attach::Join, Stage::Cast));
+        assert!((e.components[0].mesh.volume_mm3() - std::f64::consts::PI * 9.0 * 2.5).abs() < 0.3);
+        assert!(!d.cad.as_ref().unwrap().replaces_band() && d.band_is_procedural());
+        assert_eq!(d.cad.as_ref().unwrap().attachments(), vec![(3, Attach::Join, Stage::Cast)]);
+        // Subtract(band, part) cuts; the other way round, and Intersect, are refused by name.
+        let d = design(vec![Operation::Band, cylinder(), boolean(1, 2, Boolean::Subtract)]);
+        assert_eq!(evaluate(&d, &lib, BuildParams::default()).unwrap().components[0].attach, Attach::Cut);
+        let d = design(vec![Operation::Band, cylinder(), boolean(2, 1, Boolean::Subtract)]);
+        let error = format!("{:#}", evaluate(&d, &lib, BuildParams::default()).err().unwrap());
+        assert!(error.contains("subtracting the procedural shank"), "{error}");
+        let d = design(vec![Operation::Band, cylinder(), boolean(1, 2, Boolean::Intersect)]);
+        let error = format!("{:#}", evaluate(&d, &lib, BuildParams::default()).err().unwrap());
+        assert!(error.contains("intersecting with the procedural shank"), "{error}");
+        // A plain part beside the band keeps its component's own attach; a band alone is a ring with nothing on it.
+        let mut d = design(vec![Operation::Band, cylinder()]);
+        d.cad.as_mut().unwrap().features[1].component.attach = Attach::Cut;
+        let e = evaluate(&d, &lib, BuildParams::default()).unwrap();
+        assert_eq!((e.components.len(), e.components[0].attach), (1, Attach::Cut));
+        let d = design(vec![Operation::Band]);
+        let e = evaluate(&d, &lib, BuildParams::default()).unwrap();
+        assert!(e.components.is_empty() && e.band == Some(1));
+        assert!(d.band_is_procedural());
+        // Without a Band feature the document is the whole ring, as the shipped examples are.
+        let d = design(vec![cylinder()]);
+        assert!(d.cad.as_ref().unwrap().replaces_band() && !d.band_is_procedural());
+        assert!(RingDesign::default().band_is_procedural());
+        let mut only_sketch = Document::default();
+        only_sketch.append(Feature { id: 1, name: "s".into(), enabled: true, operation: Operation::Sketch { sketch: Sketch::rectangle(2.0, 2.0) }, component: Component::default() }).unwrap();
+        assert!(!only_sketch.replaces_band(), "a sketch alone builds nothing and replaces nothing");
+    }
+    #[test]
+    fn a_ring_placement_drops_onto_the_built_surface() {
+        let lib = AlphaLibrary::builtin();
+        let params = BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() };
+        // The reference-crest anchor buries a part's foot on a signet's shoulder; the surface drop does not.
+        let heart = crate::templates::all().iter().find(|t| t.name == "Heart signet").unwrap().design();
+        let built = crate::mesh::try_build(&heart, &lib, params).unwrap();
+        let seat = Placement::ring(45.0, 0.0);
+        let reference = seat.frame(&heart).unwrap();
+        let dropped = seat.frame_on(&heart, Some(&built.mesh)).unwrap();
+        let radius = |p: [f64; 3]| p[0].hypot(p[1]);
+        let (hit, normal) = surface_hit(&built.mesh, 45.0, 0.0).unwrap();
+        let foot_gap = radius(dropped.origin) - radius(hit);
+        assert!(foot_gap.abs() < 0.02, "the foot stands on the surface: {foot_gap:.4}");
+        assert!((radius(hit) - radius(reference.origin)).abs() > 1.0, "the reference formula was millimetres off here: {:.2}", radius(hit) - radius(reference.origin));
+        assert!(dropped.z_axis.iter().zip(normal).all(|(a, b)| (a - b).abs() < 1e-9), "z along the hit normal");
+        assert!(dropped.x_axis[2] < -0.9, "x runs along the finger: {:?}", dropped.x_axis);
+        let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        assert!(dot(dropped.x_axis, dropped.z_axis).abs() < 1e-9 && dot(dropped.y_axis, dropped.z_axis).abs() < 1e-9);
+        // On a plain band the drop is the reference frame to a hundredth, and the stand-off rides the normal.
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let built = crate::mesh::try_build(&court, &lib, params).unwrap();
+        let seat = Placement::ring(90.0, 0.4);
+        let a = seat.frame(&court).unwrap();
+        let b = seat.frame_on(&court, Some(&built.mesh)).unwrap();
+        assert!((0..3).all(|k| (a.origin[k] - b.origin[k]).abs() < 0.02), "{:?} vs {:?}", a.origin, b.origin);
+        // The grid normal at the snapped crest row tilts by its neighbours' uneven spacing: 0.94° at 256x128.
+        assert!((0..3).all(|k| (a.z_axis[k] - b.z_axis[k]).abs() < 0.02), "{:?} vs {:?}", a.z_axis, b.z_axis);
+        // No surface, or a ray that misses, is the reference frame exactly.
+        let c = seat.frame_on(&court, None).unwrap();
+        assert!(a.origin == c.origin && a.x_axis == c.x_axis && a.y_axis == c.y_axis && a.z_axis == c.z_axis);
+        let off = Placement::Ring { theta_deg: 90.0, across_mm: 40.0, height_mm: 0.4, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        assert_eq!(off.frame_on(&court, Some(&built.mesh)).unwrap().origin, off.frame(&court).unwrap().origin);
+        // Evaluating with the surface in the context seats the body there.
+        let mut d = court.clone();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "boss".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.0, height_mm: 1.0 }, component: Component { placement: Placement::ring(90.0, 0.5), ..Default::default() } }).unwrap();
+        d.cad = Some(doc);
+        let never = std::sync::atomic::AtomicBool::new(false);
+        let e = evaluate_with(&d, &lib, params, &BuildCtx { cancel: &never, surface: Some(&built.mesh) }).unwrap();
+        let (lo, hi) = e.components[0].mesh.bounds().unwrap();
+        let (hit, _) = surface_hit(&built.mesh, 90.0, 0.0).unwrap();
+        assert!((lo.1 as f64 - hit[1]).abs() < 0.02 && (hi.1 as f64 - hit[1] - 1.0).abs() < 0.02, "{lo:?} {hi:?} on {hit:?}");
+    }
+    #[test]
     fn a_raised_flag_stops_the_evaluation_between_features() {
         let d = design(vec![Operation::Box { size: [4.0; 3] }]);
         let stop = std::sync::atomic::AtomicBool::new(true);
@@ -1973,7 +2242,7 @@ mod tests {
             &d,
             &AlphaLibrary::builtin(),
             BuildParams::default(),
-            &BuildCtx { cancel: &stop },
+            &BuildCtx { cancel: &stop, surface: None },
         )
         .err()
         .unwrap();
