@@ -8,10 +8,15 @@ use crate::{
     viewport::GpuMeshRenderer,
 };
 use egui::{Stroke, vec2};
-use ringdesign_workbench::{cad_tools, icons::{self, Icon}};
+use ringdesign_workbench::{
+    cad_tools,
+    icons::{self, Icon},
+    timeline::{self, Action},
+    viewport::{Mods, Sel},
+};
 use ringdesign_core::{
     BuildParams, RingDesign,
-    cad::{self, Attach, Boolean, EdgeRef, Evaluated, FaceRef, Feature, Operation, Placement, Profile},
+    cad::{self, Attach, Boolean, EdgeRef, Evaluated, FaceRef, Feature, Operation, Placement, Profile, edit::CadEdit},
     mesh::BuildResult,
     sketch::{Constraint, Geometry, Sketch},
 };
@@ -190,10 +195,12 @@ impl CadState {
         self.tab = 6;
     }
     /// The feature the tree has chosen.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn selected_feature(&self) -> Option<u64> {
         self.selected.map(|id| id.0)
     }
     /// The last evaluation or apply failure.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn last_error(&self) -> Option<&str> {
         self.error.as_deref()
     }
@@ -765,16 +772,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         egui::ScrollArea::vertical().id_salt("cad-inspector-scroll").auto_shrink([false,false]).show(ui, |ui| {
         egui::CollapsingHeader::new("Feature history").default_open(true).show(ui, |ui| {
             if tree.is_empty() { ui.label("The current ring is the source. Add a Procedural shank to modify it as a CAD solid, or start from an Example project."); }
-            for (id, label) in &tree {
-                let icon = g.node(*id).and_then(|n| serde_json::from_value::<Feature>(n.params.clone()).ok())
-                    .map_or(Icon::Graph, |f| cad_tools::icon(&f.operation));
-                if ui.add_sized([ui.available_width(), ui.spacing().interact_size.y],
-                    egui::Button::new((icon.image(ui, 18.), label.as_str())).selected(state.selected == Some(*id)).right_text(egui::Atom::grow()))
-                    .on_hover_text(format!("Feature #{}", id.0)).clicked() {
-                    state.selected = Some(*id); app.selected_node = Some(*id);
-                    state.pending.clear(); state.json_node = None;
-                }
-            }
+            history(app, ui, &mut state, &mut g, &original, &tree);
         });
         ui.separator();
     if state.tab <= 3 {
@@ -887,20 +885,14 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
     }
     if state.tab == 6 {
-        if state.view_key != current {
-            ui.colored_label(
-                theme::WARN,
-                "Previous section — preview the changed parameters to update it",
-            );
+        if let Some((color, text)) = stale_banner(&state, current, "Previous section — preview the changed parameters to update it") {
+            ui.colored_label(color, text);
         }
         section_ui(ui, &mut state);
     }
     if state.tab != 1 && state.tab != 6 {
-        if state.view_key != current {
-            ui.colored_label(
-                theme::WARN,
-                "Parameters changed — preview to evaluate this candidate",
-            );
+        if let Some((color, text)) = stale_banner(&state, current, "Parameters changed — preview to evaluate this candidate") {
+            ui.colored_label(color, text);
         }
         if let Some(e) = state.view.as_ref().and_then(|v| v.build_error.as_deref()) {
             ui.colored_label(theme::WARN, e);
@@ -1151,6 +1143,135 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         state.draft = Some(g);
     }
     app.cad = state;
+}
+
+/// What the viewer says while its evaluation is not of the candidate shown: that the first one is on its
+/// way until it lands (a failure says itself above), then `changed`.
+fn stale_banner(state: &CadState, current: u64, changed: &'static str) -> Option<(egui::Color32, &'static str)> {
+    if state.view_key == current {
+        return None;
+    }
+    match &state.view {
+        None if state.error.is_none() => Some((theme::INFO, "Evaluating the candidate…")),
+        None => None,
+        Some(_) => Some((theme::WARN, changed)),
+    }
+}
+
+/// One history row the timeline does not draw: a resize, or every node of a chain that is not plain features.
+fn history_row(app: &mut RingDesignerApp, ui: &mut egui::Ui, state: &mut CadState, g: &Graph, id: NodeId, label: &str) {
+    let icon = g.node(id).and_then(|n| serde_json::from_value::<Feature>(n.params.clone()).ok()).map_or(Icon::Graph, |f| cad_tools::icon(&f.operation));
+    if ui
+        .add_sized([ui.available_width(), ui.spacing().interact_size.y], egui::Button::new((icon.image(ui, 18.), label)).selected(state.selected == Some(id)).right_text(egui::Atom::grow()))
+        .on_hover_text(format!("Feature #{}", id.0))
+        .clicked()
+    {
+        state.selected = Some(id);
+        app.selected_node = Some(id);
+        state.pending.clear();
+        state.json_node = None;
+    }
+}
+
+/// Chooses a feature in the tree and on the Ring viewport.
+fn choose(app: &mut RingDesignerApp, state: &mut CadState, id: u64) {
+    state.selected = Some(NodeId(id));
+    app.selected_node = Some(NodeId(id));
+    state.pending.clear();
+    state.json_node = None;
+    app.selection.click(Some(Sel::Part(id)), Mods::default());
+}
+
+/// The feature history as the timeline's list: chips read off the candidate's document, statuses from
+/// the pane's evaluation while it is of this candidate, and resizes as rows of their own.
+fn history(app: &mut RingDesignerApp, ui: &mut egui::Ui, state: &mut CadState, g: &mut Graph, original: &Graph, tree: &[(NodeId, String)]) {
+    let doc = match graph_cad::document(g) {
+        Ok(doc) => doc,
+        Err(e) => {
+            ui.weak(format!("This history is more than a chain of features ({e}); its steps are listed as nodes."));
+            for (id, label) in tree {
+                history_row(app, ui, state, g, *id, label);
+            }
+            return;
+        }
+    };
+    if !doc.features.is_empty() {
+        let key = hash(&(&*g, state.rollback));
+        let evaluated = state.view.as_ref().filter(|_| state.view_key == key).map(|v| &v.evaluated);
+        let selected: Vec<u64> = state.selected.map(|id| id.0).into_iter().collect();
+        let chips = timeline::chips(&doc, evaluated, &selected);
+        for action in timeline::show(ui, &chips, doc.through, true) {
+            serve(app, state, g, original, &doc, action);
+        }
+    }
+    for (id, label) in tree.iter().filter(|(id, _)| doc.feature(id.0).is_none()) {
+        history_row(app, ui, state, g, *id, label);
+    }
+}
+
+/// One timeline action in the pane. Structural edits go through the funnel while nothing is pending,
+/// and onto the candidate's graph while one is, so a candidate is never thrown away by them.
+fn serve(app: &mut RingDesignerApp, state: &mut CadState, g: &mut Graph, original: &Graph, doc: &cad::Document, action: Action) {
+    match action {
+        Action::Select(id) => choose(app, state, id),
+        Action::Edit(id) => {
+            choose(app, state, id);
+            state.tab = 0;
+            state.edge = None;
+        }
+        Action::Isolate(id) => {
+            choose(app, state, id);
+            state.isolated = Some(id);
+            state.tab = 0;
+            upload(state, true);
+        }
+        action => {
+            let edits = match timeline::edits(doc, &action) {
+                Ok(edits) if !edits.is_empty() => edits,
+                Ok(_) => return,
+                Err(reason) => {
+                    app.set_status(reason);
+                    return;
+                }
+            };
+            if hash(&*g) != hash(original) {
+                let before = g.clone();
+                let mut labels = Vec::with_capacity(edits.len());
+                for edit in &edits {
+                    match graph_cad::apply_edit(g, edit) {
+                        Ok(applied) => labels.push(applied.label),
+                        Err(e) => {
+                            *g = before;
+                            app.set_status(e.to_string());
+                            return;
+                        }
+                    }
+                }
+                app.set_status(format!("{} · in the candidate", labels.join(" · ")));
+            } else if crate::cad_edit::apply(app, &edits).is_ok() {
+                // Keeps the pane's choices across its own commit; the changed candidate re-evaluates.
+                state.source = source_key(app);
+            } else {
+                return;
+            }
+            let gone: Vec<u64> = edits.iter().filter_map(|e| match e {
+                CadEdit::Remove { id } => Some(*id),
+                _ => None,
+            }).collect();
+            if state.selected.is_some_and(|id| gone.contains(&id.0)) {
+                state.selected = None;
+            }
+            if state.isolated.is_some_and(|id| gone.contains(&id)) {
+                state.isolated = None;
+            }
+            if state.edge.is_some_and(|(id, _)| gone.contains(&id)) {
+                state.edge = None;
+            }
+            if state.rollback.is_some_and(|id| gone.contains(&id)) {
+                state.rollback = None;
+            }
+        }
+    }
 }
 
 fn direct_handles(ui: &mut egui::Ui, rect: egui::Rect, state: &CadState, g: &mut Graph) {
