@@ -13,6 +13,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 pub mod assembly;
+pub mod edit;
 pub mod examples;
 pub mod measure;
 pub mod step;
