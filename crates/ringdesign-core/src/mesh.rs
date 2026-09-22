@@ -590,6 +590,29 @@ struct RingSlice {
 /// area-weighted accumulation carries at preview resolutions. Both directions
 /// wrap. Degenerate tangents (coincident neighbours under the min-wall clamp)
 /// fall back to the same `(0, 0, 1)` the accumulator used.
+///
+/// The difference is the second-order one for uneven spacing: rows snapped onto
+/// the crest and the fillet tangencies sit nearer one neighbour than the other,
+/// and the plain chord between the neighbours tilted the crest's normal by
+/// 0.84° at preview (0.38° at export) — enough to lean every part seated there.
+/// Chords turning by more than this between neighbours cross a feature the grid does not resolve.
+const RESOLVED_TURN_COS: f64 = 0.9945;
+
+/// The tangent at `b` between neighbours `a` and `c`: weighted for their uneven distances where
+/// the curve is resolved, the plain chord between them where it turns too fast to be.
+fn tangent(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> [f64; 3] {
+    let (back, ahead) = (sub(b, a), sub(c, b));
+    let (h1, h2) = (norm(back), norm(ahead));
+    if h1 < 1e-12 || h2 < 1e-12 {
+        return sub(c, a);
+    }
+    let turn = (back[0] * ahead[0] + back[1] * ahead[1] + back[2] * ahead[2]) / (h1 * h2);
+    if turn < RESOLVED_TURN_COS {
+        return sub(c, a);
+    }
+    std::array::from_fn(|k| h1 * h1 * ahead[k] + h2 * h2 * back[k])
+}
+
 pub(crate) fn grid_normals(vertices: &[Vec3], n_theta: usize, n_prof: usize) -> Vec<Vec3> {
     debug_assert_eq!(vertices.len(), n_theta * n_prof);
     let at = |i: usize, j: usize| {
@@ -598,8 +621,8 @@ pub(crate) fn grid_normals(vertices: &[Vec3], n_theta: usize, n_prof: usize) -> 
     };
     let row = |i: usize| {
         (0..n_prof).map(move |j| {
-            let tu = sub(at(i + 1, j), at(i + n_theta - 1, j));
-            let ts = sub(at(i, j + 1), at(i, j + n_prof - 1));
+            let tu = tangent(at(i + n_theta - 1, j), at(i, j), at(i + 1, j));
+            let ts = tangent(at(i, j + n_prof - 1), at(i, j), at(i, j + 1));
             // `e_theta x e_profile` points outward, matching the winding.
             let n = cross(tu, ts);
             let len = norm(n);

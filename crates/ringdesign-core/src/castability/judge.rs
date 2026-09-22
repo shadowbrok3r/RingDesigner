@@ -657,11 +657,15 @@ mod tests {
             let scene = crate::interaction::pick::PickScene::build(&built, &d);
             assert!((0..built.mesh.faces.len()).all(|i| scene.feature_of_face(i) == own[i].map(|k| built.parts.features[k as usize])));
         }
-        // On the plain 4 mm court band the two planes are measurably apart.
-        let d = court_post();
+        // On a heart signet's asymmetric head the two planes are measurably apart; a post seated square on a court band leaves them together.
+        let heart = templates::all().iter().find(|t| t.name == "Heart signet").unwrap().design();
+        let d = with_part(heart, "Post", Operation::Cylinder { radius_mm: POST_R, height_mm: POST_H }, Attach::Join, Stage::Cast, post_at(0.0));
         let (built, f) = judged(&d);
         let auto = super::super::analyze(&built.mesh, &d.draft, d.inner_radius_mm());
         assert!((auto.parting_z_mm - f.parting_z_mm).abs() > 0.01, "{} {}", auto.parting_z_mm, f.parting_z_mm);
+        let (built, f) = judged(&court_post());
+        let auto = super::super::analyze(&built.mesh, &court_post().draft, court_post().inner_radius_mm());
+        assert!((auto.parting_z_mm - f.parting_z_mm).abs() < 0.01, "{} {}", auto.parting_z_mm, f.parting_z_mm);
     }
 
     /// A seam bead is the part's own metal: the verdict judges it with the part, and the pick names it.
