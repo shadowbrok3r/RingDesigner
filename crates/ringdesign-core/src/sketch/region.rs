@@ -1,0 +1,534 @@
+//! The closed loops a sketch draws and the regions they bound, nested even-odd.
+use super::{Id, Sketch};
+use anyhow::{Result, bail, ensure};
+use cadkernel::geom2d::{self, Arc, Curve, Tolerance};
+use std::collections::BTreeMap;
+use std::f64::consts::{PI, TAU};
+
+/// Linear tolerance loops are tested against each other at: the kernel's own for region loops.
+pub const CROSSING_MM: f64 = 1e-9;
+/// How far a crossing may sit from a shared corner and still be that corner: the chain key's grid.
+const JOINT_MM: f64 = 1e-6;
+
+/// One closed loop in joining order.
+#[derive(Clone, Debug)]
+pub struct Loop {
+    pub curves: Vec<Curve>,
+    /// Whether each curve is walked from its start to its end.
+    pub forward: Vec<bool>,
+    /// The entity each curve came from.
+    pub entities: Vec<Id>,
+}
+impl Loop {
+    /// Signed area, positive counter-clockwise.
+    pub fn area(&self) -> f64 {
+        walked_moments(&self.curves, &self.forward, [0.0; 2])[0]
+    }
+    /// The curve walked from its start, the start of curve `i`.
+    fn start(&self, i: usize) -> [f64; 2] {
+        self.curves[i].point_at(if self.forward[i] { 0.0 } else { 1.0 })
+    }
+    /// Where curve `i` ends as walked.
+    fn end(&self, i: usize) -> [f64; 2] {
+        self.curves[i].point_at(if self.forward[i] { 1.0 } else { 0.0 })
+    }
+}
+
+/// A bounded area of a sketch: an outer loop less the loops directly inside it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Region {
+    pub outer: Vec<Curve>,
+    pub holes: Vec<Vec<Curve>>,
+    /// The entities bounding it, outer loop first, each once.
+    pub entities: Vec<Id>,
+}
+impl Region {
+    /// Every loop, outer first, as the kernel's region builders take them.
+    pub fn loops(&self) -> Vec<Vec<Curve>> {
+        std::iter::once(self.outer.clone()).chain(self.holes.iter().cloned()).collect()
+    }
+    /// Area inside the outer loop less its holes, in mm².
+    pub fn area(&self) -> f64 {
+        let area = |c: &[Curve]| loop_moments(c, [0.0; 2]).map_or(0.0, |m| m[0].abs());
+        area(&self.outer) - self.holes.iter().map(|h| area(h)).sum::<f64>()
+    }
+    /// Whether `p` lies in the region: inside the outer loop and in no hole, boundaries included.
+    pub fn contains(&self, p: [f64; 2]) -> bool {
+        let tol = Tolerance::new(CROSSING_MM);
+        let on = |c: &[Curve]| c.iter().any(|c| geom2d::distance_to(c, p) <= CROSSING_MM);
+        geom2d::contains(&self.outer, p, tol) && self.holes.iter().all(|h| on(h) || !geom2d::contains(h, p, tol))
+    }
+}
+
+impl Sketch {
+    /// Every region the solved profile bounds: closed loops nested even-odd, so a loop inside a
+    /// loop is a hole and a loop inside that hole is a region of its own. Loops that cross or
+    /// touch are refused with the place they meet.
+    pub fn profile_regions(&self) -> Result<Vec<Region>> {
+        regions(loops(&self.solve()?.sketch)?)
+    }
+    /// The one region an inline profile sweeps, holes allowed.
+    pub fn profile_region(&self) -> Result<Region> {
+        let mut regions = self.profile_regions()?;
+        ensure!(
+            regions.len() == 1,
+            "Sketch has {} separate loops; a profile is one closed loop with any holes inside it. Delete the others, mark them Construction, or draw it as a Sketch feature to sweep every region",
+            regions.len()
+        );
+        Ok(regions.remove(0))
+    }
+    /// The entities of the closed loop `entity` runs through, as drawn, in joining order.
+    pub fn loop_through(&self, entity: Id) -> Result<Vec<Id>> {
+        ensure!(self.entities.iter().any(|e| e.id == entity), "Sketch entity #{entity} is missing");
+        let key = |id: Id| -> Result<[i64; 2]> { Ok(self.at(id)?.map(|v| (v * 1e6).round() as i64)) };
+        // The entities joined to this one end to end, and nothing else.
+        let mut picked = std::collections::BTreeSet::from([entity]);
+        let mut ends = std::collections::BTreeSet::new();
+        loop {
+            let before = picked.len();
+            for e in &self.entities {
+                let Some((a, b)) = e.geometry.ends() else { continue };
+                let (a, b) = (key(a)?, key(b)?);
+                if picked.contains(&e.id) || ends.contains(&a) || ends.contains(&b) {
+                    picked.insert(e.id);
+                    ends.extend([a, b]);
+                }
+            }
+            if picked.len() == before {
+                break;
+            }
+        }
+        let mut drawn = self.clone();
+        drawn.entities.retain(|e| picked.contains(&e.id));
+        for e in &mut drawn.entities {
+            e.construction = false;
+        }
+        let found = loops(&drawn)?.into_iter().find(|l| l.entities.contains(&entity));
+        let Some(found) = found else {
+            bail!("Sketch entity #{entity} is not part of a closed loop");
+        };
+        Ok(distinct(found.entities))
+    }
+}
+
+/// The ids in order, each once.
+pub(super) fn distinct(ids: Vec<Id>) -> Vec<Id> {
+    let mut out: Vec<Id> = Vec::with_capacity(ids.len());
+    for id in ids {
+        if !out.contains(&id) {
+            out.push(id);
+        }
+    }
+    out
+}
+
+/// A whole circle as two half arcs; the kernel sweeps arcs, never a whole circle.
+fn halves(c: Curve) -> Vec<Curve> {
+    match c {
+        Curve::Circle(circle) => {
+            let half = |from: f64| {
+                Curve::Arc(Arc { centre: circle.centre, radius: circle.radius, start_angle: from, end_angle: from + PI })
+            };
+            vec![half(0.0), half(PI)]
+        }
+        other => vec![other],
+    }
+}
+
+/// Every closed loop of the sketch's profile geometry in joining order, or where one fails to close.
+pub(super) fn loops(solved: &Sketch) -> Result<Vec<Loop>> {
+    let key = |id: Id| -> Result<[i64; 2]> { Ok(solved.at(id)?.map(|v| (v * 1e6).round() as i64)) };
+    let mut closed = Vec::new();
+    let mut open = Vec::new();
+    for e in solved.entities.iter().filter(|e| !e.construction) {
+        let curves = solved.curves_of(e)?;
+        match e.geometry.ends() {
+            Some((a, b)) if key(a)? != key(b)? => open.push((a, b, curves, e.id)),
+            _ => closed.push((curves, e.id)),
+        }
+    }
+    ensure!(!closed.is_empty() || !open.is_empty(), "Sketch has no profile geometry");
+    let mut degree: BTreeMap<[i64; 2], (usize, Id)> = BTreeMap::new();
+    for (a, b, _, _) in &open {
+        for id in [*a, *b] {
+            degree.entry(key(id)?).or_insert((0, id)).0 += 1;
+        }
+    }
+    if let Some((n, id)) = degree.values().find(|(n, _)| *n > 2) {
+        bail!("Sketch point #{id} joins {n} curves; a profile loop passes through a point once. Trim the extra curve or mark it Construction");
+    }
+    let mut out: Vec<Loop> = closed
+        .into_iter()
+        .map(|(curves, id)| {
+            let curves: Vec<Curve> = curves.into_iter().flat_map(halves).collect();
+            Loop { forward: vec![true; curves.len()], entities: vec![id; curves.len()], curves }
+        })
+        .collect();
+    while !open.is_empty() {
+        let (start, mut end, curves, id) = open.remove(0);
+        let mut chain = Loop { forward: vec![true; curves.len()], entities: vec![id; curves.len()], curves };
+        while key(end)? != key(start)? {
+            let at = key(end)?;
+            let mut next = None;
+            for (i, (a, b, _, _)) in open.iter().enumerate() {
+                if key(*a)? == at || key(*b)? == at {
+                    next = Some(i);
+                    break;
+                }
+            }
+            let Some(i) = next else {
+                bail!("Sketch profile is open at point #{end}; join it to close the loop");
+            };
+            let (a, b, mut curves, id) = open.remove(i);
+            let forward = key(a)? == at;
+            if forward {
+                end = b;
+            } else {
+                curves.reverse();
+                end = a;
+            }
+            chain.forward.extend(std::iter::repeat_n(forward, curves.len()));
+            chain.entities.extend(std::iter::repeat_n(id, curves.len()));
+            chain.curves.extend(curves);
+        }
+        out.push(chain);
+    }
+    Ok(out)
+}
+
+/// A box around a curve, padded, never smaller than the curve.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Bounds {
+    lo: [f64; 2],
+    hi: [f64; 2],
+}
+impl Bounds {
+    pub(super) fn of(c: &Curve) -> Self {
+        let mut b = Self { lo: [f64::INFINITY; 2], hi: [f64::NEG_INFINITY; 2] };
+        match c {
+            Curve::Line(l) => {
+                b.add(l.start);
+                b.add(l.end);
+            }
+            Curve::Arc(Arc { centre, radius, .. }) | Curve::Circle(geom2d::Circle { centre, radius }) => {
+                b.add([centre[0] - radius, centre[1] - radius]);
+                b.add([centre[0] + radius, centre[1] + radius]);
+            }
+            Curve::Nurbs(n) => n.control_points().iter().for_each(|p| b.add(*p)),
+            other => other.tessellate(16.0).into_iter().for_each(|p| b.add(p)),
+        }
+        let pad = 1e-6 * (1.0 + b.lo.iter().chain(&b.hi).fold(0.0_f64, |m, v| m.max(v.abs())));
+        b.lo = b.lo.map(|v| v - pad);
+        b.hi = b.hi.map(|v| v + pad);
+        b
+    }
+    fn add(&mut self, p: [f64; 2]) {
+        for k in 0..2 {
+            self.lo[k] = self.lo[k].min(p[k]);
+            self.hi[k] = self.hi[k].max(p[k]);
+        }
+    }
+    pub(super) fn union(all: &[Self]) -> Self {
+        let mut b = Self { lo: [f64::INFINITY; 2], hi: [f64::NEG_INFINITY; 2] };
+        for o in all {
+            b.add(o.lo);
+            b.add(o.hi);
+        }
+        b
+    }
+    pub(super) fn meets(&self, o: &Self) -> bool {
+        (0..2).all(|k| self.lo[k] <= o.hi[k] && o.lo[k] <= self.hi[k])
+    }
+    fn holds(&self, p: [f64; 2]) -> bool {
+        (0..2).all(|k| self.lo[k] <= p[k] && p[k] <= self.hi[k])
+    }
+}
+
+/// Where a loop crosses or touches itself away from the corners it joins at, if it does.
+pub(super) fn self_crossing(l: &Loop, boxes: &[Bounds]) -> Option<[f64; 2]> {
+    let tol = Tolerance::new(CROSSING_MM);
+    let n = l.curves.len();
+    let near = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).hypot(a[1] - b[1]) <= JOINT_MM;
+    for p in 0..n {
+        for q in p + 1..n {
+            if !boxes[p].meets(&boxes[q]) {
+                continue;
+            }
+            // The corners the two share as neighbours in the walk.
+            let mut joints = Vec::new();
+            if q == p + 1 {
+                joints.push(l.end(p));
+            }
+            if p == 0 && q == n - 1 {
+                joints.push(l.start(0));
+            }
+            for x in geom2d::intersect(&l.curves[p], &l.curves[q], tol) {
+                if !joints.iter().any(|j| near(*j, x.point)) {
+                    return Some(x.point);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Loops grouped into regions by even-odd nesting; loops that cross, touch or enclose nothing are refused.
+pub(super) fn regions(loops: Vec<Loop>) -> Result<Vec<Region>> {
+    let tol = Tolerance::new(CROSSING_MM);
+    let boxes: Vec<Vec<Bounds>> = loops.iter().map(|l| l.curves.iter().map(Bounds::of).collect()).collect();
+    let whole: Vec<Bounds> = boxes.iter().map(|b| Bounds::union(b)).collect();
+    for (i, l) in loops.iter().enumerate() {
+        if let Some(x) = self_crossing(l, &boxes[i]) {
+            bail!(
+                "Sketch loop through #{} crosses itself at ({:.4}, {:.4}); split it there and trim",
+                l.entities[0],
+                x[0],
+                x[1]
+            );
+        }
+        ensure!(l.area().abs() > 1e-12, "Sketch loop through #{} encloses no area", l.entities[0]);
+        for (j, m) in loops.iter().enumerate().skip(i + 1) {
+            if !whole[i].meets(&whole[j]) {
+                continue;
+            }
+            for (p, a) in l.curves.iter().enumerate() {
+                for (q, b) in m.curves.iter().enumerate() {
+                    if !boxes[i][p].meets(&boxes[j][q]) {
+                        continue;
+                    }
+                    if let Some(x) = geom2d::intersect(a, b, tol).first() {
+                        bail!(
+                            "Sketch loops through #{} and #{} meet at ({:.4}, {:.4}); loops may nest but not touch. Split and trim them, or mark one Construction",
+                            l.entities[p],
+                            m.entities[q],
+                            x.point[0],
+                            x.point[1]
+                        );
+                    }
+                }
+            }
+        }
+    }
+    // A point of each loop, tested against every other: loops that never meet nest whole.
+    let probe: Vec<[f64; 2]> = loops.iter().map(|l| l.curves[0].point_at(0.5)).collect();
+    let n = loops.len();
+    let parents: Vec<Vec<usize>> = (0..n)
+        .map(|i| (0..n).filter(|&j| j != i && whole[j].holds(probe[i]) && geom2d::contains(&loops[j].curves, probe[i], tol)).collect())
+        .collect();
+    let depth: Vec<usize> = parents.iter().map(Vec::len).collect();
+    let mut out: Vec<Region> = Vec::new();
+    let mut index = vec![usize::MAX; n];
+    for i in (0..n).filter(|i| depth[*i] % 2 == 0) {
+        index[i] = out.len();
+        out.push(Region { outer: loops[i].curves.clone(), holes: Vec::new(), entities: distinct(loops[i].entities.clone()) });
+    }
+    for i in (0..n).filter(|i| depth[*i] % 2 == 1) {
+        let parent = parents[i].iter().copied().find(|j| depth[*j] + 1 == depth[i]);
+        let Some(parent) = parent else {
+            bail!("Sketch loop through #{} has no loop around it to be a hole of", loops[i].entities[0]);
+        };
+        let r = &mut out[index[parent]];
+        r.holes.push(loops[i].curves.clone());
+        let more = distinct(loops[i].entities.clone());
+        r.entities.extend(more);
+    }
+    Ok(out)
+}
+
+/// Whether each piece of a closed chain runs its own way, found by which ends meet; `None` if it does not close.
+pub fn senses(curves: &[Curve]) -> Option<Vec<bool>> {
+    let first = curves.first()?;
+    if curves.len() == 1 {
+        return first.is_closed().then(|| vec![true]);
+    }
+    let scale = curves.iter().flat_map(|c| c.point_at(0.0)).fold(1.0_f64, |m, v| m.max(v.abs()));
+    let near = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).hypot(a[1] - b[1]) <= 1e-7 * scale;
+    'first: for lead in [true, false] {
+        let mut out = vec![lead];
+        let begin = first.point_at(if lead { 0.0 } else { 1.0 });
+        let mut head = first.point_at(if lead { 1.0 } else { 0.0 });
+        for c in &curves[1..] {
+            let (s, e) = (c.point_at(0.0), c.point_at(1.0));
+            if near(s, head) {
+                out.push(true);
+                head = e;
+            } else if near(e, head) {
+                out.push(false);
+                head = s;
+            } else {
+                continue 'first;
+            }
+        }
+        if near(head, begin) {
+            return Some(out);
+        }
+    }
+    None
+}
+
+/// Area and first moments `[A, ∫∫x dA, ∫∫y dA]` of the region a closed chain walks round, about
+/// `about`, signed by its winding; `None` if the chain does not close.
+pub fn loop_moments(curves: &[Curve], about: [f64; 2]) -> Option<[f64; 3]> {
+    let forward = senses(curves)?;
+    Some(walked_moments(curves, &forward, about))
+}
+
+/// [`loop_moments`] with the senses known.
+pub(super) fn walked_moments(curves: &[Curve], forward: &[bool], about: [f64; 2]) -> [f64; 3] {
+    let mut m = [0.0; 3];
+    for (c, f) in curves.iter().zip(forward) {
+        let piece = moments(c, about);
+        let s = if *f { 1.0 } else { -1.0 };
+        for k in 0..3 {
+            m[k] += s * piece[k];
+        }
+    }
+    m
+}
+
+/// Gauss–Legendre nodes and weights on `[-1, 1]`.
+const NODES: [(f64, f64); 5] = [
+    (-0.906_179_845_938_664, 0.236_926_885_056_189),
+    (-0.538_469_310_105_683, 0.478_628_670_499_366),
+    (0.0, 0.568_888_888_888_889),
+    (0.538_469_310_105_683, 0.478_628_670_499_366),
+    (0.906_179_845_938_664, 0.236_926_885_056_189),
+];
+
+/// One curve's share of Green's integrals `[½∮(x dy − y dx), ½∮x² dy, −½∮y² dx]`, walked start to end.
+pub fn moments(c: &Curve, about: [f64; 2]) -> [f64; 3] {
+    let o = |p: [f64; 2]| [p[0] - about[0], p[1] - about[1]];
+    match c {
+        Curve::Line(l) => {
+            let (p, q) = (o(l.start), o(l.end));
+            let (dx, dy) = (q[0] - p[0], q[1] - p[1]);
+            [
+                0.5 * (p[0] * q[1] - p[1] * q[0]),
+                0.5 * dy * (p[0] * p[0] + p[0] * dx + dx * dx / 3.0),
+                -0.5 * dx * (p[1] * p[1] + p[1] * dy + dy * dy / 3.0),
+            ]
+        }
+        Curve::Arc(a) => arc_moments(o(a.centre), a.radius, a.start_angle, a.sweep()),
+        Curve::Circle(c) => arc_moments(o(c.centre), c.radius, 0.0, TAU),
+        Curve::Polyline(_) => c.segments().iter().map(|s| moments(s, about)).fold([0.0; 3], |a, b| [a[0] + b[0], a[1] + b[1], a[2] + b[2]]),
+        other => {
+            const PANELS: usize = 32;
+            let mut m = [0.0; 3];
+            for k in 0..PANELS {
+                for (x, w) in NODES {
+                    let t = (k as f64 + (x + 1.0) * 0.5) / PANELS as f64;
+                    let p = o(other.point_at(t));
+                    let d = other.tangent_at(t);
+                    let w = w * 0.5 / PANELS as f64;
+                    m[0] += w * 0.5 * (p[0] * d[1] - p[1] * d[0]);
+                    m[1] += w * 0.5 * p[0] * p[0] * d[1];
+                    m[2] -= w * 0.5 * p[1] * p[1] * d[0];
+                }
+            }
+            m
+        }
+    }
+}
+
+/// Green's integrals along a circular arc about the origin: centre `c`, radius `r`, from `a0` turning `s`.
+fn arc_moments(c: [f64; 2], r: f64, a0: f64, s: f64) -> [f64; 3] {
+    let a1 = a0 + s;
+    let (s0, c0, s1, c1) = (a0.sin(), a0.cos(), a1.sin(), a1.cos());
+    let twice = 0.25 * ((2.0 * a1).sin() - (2.0 * a0).sin());
+    let area = 0.5 * (r * c[0] * (s1 - s0) - r * c[1] * (c1 - c0) + r * r * s);
+    let cos2 = 0.5 * s + twice;
+    let cos3 = (s1 - s1.powi(3) / 3.0) - (s0 - s0.powi(3) / 3.0);
+    let mx = 0.5 * r * (c[0] * c[0] * (s1 - s0) + 2.0 * c[0] * r * cos2 + r * r * cos3);
+    let sin2 = 0.5 * s - twice;
+    let sin3 = (c1.powi(3) / 3.0 - c1) - (c0.powi(3) / 3.0 - c0);
+    let my = 0.5 * r * (c[1] * c[1] * (c0 - c1) + 2.0 * c[1] * r * sin2 + r * r * sin3);
+    [area, mx, my]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sketch::{Geometry, Sketch};
+
+    fn square(s: &mut Sketch, lo: [f64; 2], side: f64) -> Id {
+        let p = [lo, [lo[0] + side, lo[1]], [lo[0] + side, lo[1] + side], [lo[0], lo[1] + side]].map(|p| s.point(p));
+        s.entity(Geometry::Polyline { points: p.to_vec(), closed: true })
+    }
+    fn circle(s: &mut Sketch, c: [f64; 2], r: f64) -> Id {
+        let centre = s.point(c);
+        let rim = s.point([c[0] + r, c[1]]);
+        s.entity(Geometry::Circle { center: centre, rim })
+    }
+
+    #[test]
+    fn loops_nest_even_odd_into_regions() {
+        // A washer: one region with one hole.
+        let mut s = Sketch::default();
+        circle(&mut s, [0.0; 2], 3.0);
+        circle(&mut s, [0.0; 2], 2.0);
+        let r = s.profile_regions().unwrap();
+        assert_eq!((r.len(), r[0].holes.len()), (1, 1));
+        let washer = std::f64::consts::PI * (9.0 - 4.0);
+        assert!((r[0].area() - washer).abs() < 1e-9, "{}", r[0].area());
+        assert!(r[0].contains([2.5, 0.0]) && !r[0].contains([1.0, 0.0]) && !r[0].contains([4.0, 0.0]));
+        // Two disjoint squares: two regions.
+        let mut s = Sketch::default();
+        square(&mut s, [0.0, 0.0], 2.0);
+        square(&mut s, [5.0, 0.0], 2.0);
+        let r = s.profile_regions().unwrap();
+        assert_eq!(r.len(), 2);
+        assert!(r.iter().all(|r| r.holes.is_empty() && (r.area() - 4.0).abs() < 1e-12));
+        let one = s.profile_region().err().unwrap().to_string();
+        assert!(one.contains("2 separate loops"), "{one}");
+        // A square in the hole of a square: the island is a region of its own.
+        let mut s = Sketch::default();
+        let outer = square(&mut s, [0.0, 0.0], 10.0);
+        let hole = square(&mut s, [2.0, 2.0], 6.0);
+        let island = square(&mut s, [4.0, 4.0], 2.0);
+        let r = s.profile_regions().unwrap();
+        assert_eq!(r.len(), 2);
+        assert_eq!((r[0].entities.clone(), r[0].holes.len(), r[1].entities.clone()), (vec![outer, hole], 1, vec![island]));
+        assert!((r[0].area() - 64.0).abs() < 1e-9 && (r[1].area() - 4.0).abs() < 1e-12);
+        // Crossing and touching loops are refused with where they meet.
+        let mut s = Sketch::default();
+        square(&mut s, [0.0, 0.0], 4.0);
+        square(&mut s, [2.0, 2.0], 4.0);
+        let error = s.profile_regions().err().unwrap().to_string();
+        assert!(error.contains("meet at (4.0000, 2.0000)"), "{error}");
+        let mut s = Sketch::default();
+        square(&mut s, [0.0, 0.0], 2.0);
+        square(&mut s, [2.0, 2.0], 2.0);
+        assert!(s.profile_regions().err().unwrap().to_string().contains("meet at (2.0000, 2.0000)"));
+        // A loop crossing itself, and a point three curves meet at, are named.
+        let mut s = Sketch::default();
+        let p = [[0.0, 0.0], [4.0, 4.0], [4.0, 0.0], [0.0, 4.0]].map(|p| s.point(p));
+        s.entity(Geometry::Polyline { points: p.to_vec(), closed: true });
+        let error = s.profile_regions().err().unwrap().to_string();
+        assert!(error.contains("crosses itself at (2.0000, 2.0000)"), "{error}");
+        let mut s = Sketch::default();
+        let p = [[0.0, 0.0], [4.0, 0.0], [2.0, 3.0], [2.0, -3.0]].map(|p| s.point(p));
+        s.entity(Geometry::Line { a: p[0], b: p[1] });
+        s.entity(Geometry::Line { a: p[1], b: p[2] });
+        s.entity(Geometry::Line { a: p[2], b: p[0] });
+        s.entity(Geometry::Line { a: p[0], b: p[3] });
+        let error = s.profile_regions().err().unwrap().to_string();
+        assert!(error.contains(&format!("point #{} joins 3 curves", p[0])), "{error}");
+    }
+
+    #[test]
+    fn green_moments_are_exact_for_lines_arcs_and_splines() {
+        // A half disc of radius 2 at (1, 1): centroid 4r/3π above its diameter.
+        let arc = Curve::Arc(Arc { centre: [1.0, 1.0], radius: 2.0, start_angle: 0.0, end_angle: PI });
+        let diameter = Curve::Line(geom2d::Line { start: [-1.0, 1.0], end: [3.0, 1.0] });
+        let m = loop_moments(&[arc, diameter], [0.3, -0.2]).unwrap();
+        let area = 2.0 * PI;
+        assert!((m[0] - area).abs() < 1e-12, "{m:?}");
+        assert!((m[1] / m[0] + 0.3 - 1.0).abs() < 1e-12 && (m[2] / m[0] - 0.2 - (1.0 + 8.0 / (3.0 * PI))).abs() < 1e-12, "{m:?}");
+        // A straight spline edge closes the same triangle three lines would.
+        let bezier = Curve::Nurbs(geom2d::NurbsCurve::new(3, vec![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [3.0, 0.0]], vec![0., 0., 0., 0., 1., 1., 1., 1.], None).unwrap());
+        let up = Curve::Line(geom2d::Line { start: [3.0, 0.0], end: [3.0, 2.0] });
+        let back = Curve::Line(geom2d::Line { start: [3.0, 2.0], end: [0.0, 0.0] });
+        let m = loop_moments(&[bezier, up, back], [0.0; 2]).unwrap();
+        assert!((m[0] - 3.0).abs() < 1e-9 && (m[1] / m[0] - 2.0).abs() < 1e-9 && (m[2] / m[0] - 2.0 / 3.0).abs() < 1e-9, "{m:?}");
+    }
+}

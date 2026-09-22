@@ -168,12 +168,31 @@ impl Operation {
             | Self::Chamfer { source, .. }
             | Self::Shell { source, .. }
             | Self::Transform { source, .. } => vec![*source],
+            Self::Extrude { sketch, .. } | Self::Revolve { sketch, .. } | Self::Sweep { sketch, .. } => sketch.dependencies(),
+            Self::Twist { sketch, path, .. } => {
+                let mut ids = sketch.dependencies();
+                ids.extend(path.plane.on_face.iter().map(|a| a.feature));
+                ids
+            }
+            Self::Loft { sections } => sections.iter().flat_map(Profile::dependencies).collect(),
+            Self::Sketch { sketch } => sketch.plane.on_face.iter().map(|a| a.feature).collect(),
+            _ => vec![],
+        }
+    }
+    /// The sources whose bodies this feature takes the place of among the outputs: every source
+    /// but the faces its sketches lie on, which are read and stay parts of their own.
+    pub fn consumes(&self) -> Vec<Id> {
+        match self {
+            Self::Boolean { a, b, .. } => vec![*a, *b],
+            Self::Fillet { source, .. }
+            | Self::Chamfer { source, .. }
+            | Self::Shell { source, .. }
+            | Self::Transform { source, .. } => vec![*source],
             Self::Extrude { sketch, .. }
             | Self::Revolve { sketch, .. }
             | Self::Sweep { sketch, .. }
-            | Self::Twist { sketch, .. } => sketch.dependencies(),
-            Self::Loft { sections } => sections.iter().flat_map(Profile::dependencies).collect(),
-            Self::Sketch { sketch } => sketch.plane.on_face.iter().map(|a| a.feature).collect(),
+            | Self::Twist { sketch, .. } => sketch.feature().into_iter().collect(),
+            Self::Loft { sections } => sections.iter().filter_map(Profile::feature).collect(),
             _ => vec![],
         }
     }
@@ -1000,7 +1019,8 @@ fn profile<'a>(p: &'a Profile, sketches: &'a BTreeMap<Id, Sketch>) -> Result<&'a
             .ok_or_else(|| anyhow::anyhow!("Sketch feature #{feature} is unavailable or suppressed")),
     }
 }
-/// The plane a sketch lies on: its own, or the planar face of an earlier feature it is anchored to.
+/// The plane a sketch lies on: its own, or its workplane read in the frame of the planar face of
+/// an earlier feature it is anchored to, found again by signature when the source has changed.
 fn plane_of(
     sketch: &Sketch,
     bodies: &BTreeMap<Id, Body>,
@@ -1014,10 +1034,55 @@ fn plane_of(
         .get(&anchor.feature)
         .ok_or_else(|| anyhow::anyhow!("Sketch face: feature #{} is unavailable or suppressed", anchor.feature))?;
     let frame = frames.get(&anchor.feature).copied().unwrap_or(brep::Placement::IDENTITY);
-    let key = resolve_face(body, &anchor.face, &frame, notes).context("Sketch face")?;
+    sketch_plane(sketch, body, &frame, notes)
+}
+/// The world plane `sketch` lies on: its own, or, when it is anchored to a face, that face of
+/// `body` (the anchored feature's body as built, seated by `frame`) found again by signature, with
+/// any finding written to `notes`. What a canvas draws a face sketch in, and what the evaluation sweeps.
+pub fn sketch_plane(
+    sketch: &Sketch,
+    body: &Body,
+    frame: &brep::Placement,
+    notes: &mut Vec<String>,
+) -> Result<cadkernel::space::Plane> {
+    let Some(anchor) = &sketch.plane.on_face else {
+        return sketch.plane.plane();
+    };
+    let key = resolve_face(body, &anchor.face, frame, notes).context("Sketch face")?;
+    let kind = SurfaceKind::of(body.faces.get(key).and_then(|f| body.surfaces.get(f.surface)));
+    ensure!(
+        kind == SurfaceKind::Plane,
+        "Sketch face {} of feature #{}: sketch planes need a planar face: {}",
+        anchor.face.ordinal,
+        anchor.feature,
+        format!("{kind:?}").to_lowercase()
+    );
     let face = brep::planar_face_profile(body, key)
-        .ok_or_else(|| anyhow::anyhow!("Sketch face {} of feature #{} is not planar", anchor.face.ordinal, anchor.feature))?;
-    sketch.plane.on(face.plane.origin, face.outward)
+        .ok_or_else(|| anyhow::anyhow!("Sketch face {} of feature #{} has no boundary the kernel can read", anchor.face.ordinal, anchor.feature))?;
+    sketch.plane.on_frame(&crate::sketch::FaceFrame::of(&face).context("Sketch face")?)
+}
+/// A sketch validated and, when it lies on a face, laid onto that face's plane in world millimetres.
+fn laid(
+    sketch: &Sketch,
+    bodies: &BTreeMap<Id, Body>,
+    frames: &BTreeMap<Id, brep::Placement>,
+    notes: &mut Vec<String>,
+) -> Result<Sketch> {
+    sketch.validate()?;
+    if sketch.plane.on_face.is_none() {
+        return Ok(sketch.clone());
+    }
+    let plane = plane_of(sketch, bodies, frames, notes)?;
+    let mut out = sketch.clone();
+    out.plane = crate::sketch::Workplane { origin: plane.origin, x: plane.x_axis, y: plane.y_axis, on_face: None };
+    Ok(out)
+}
+/// The regions a profile sweeps: every one a `Sketch` feature holds, the single one of an inline sketch.
+fn regions_of(p: &Profile, sketch: &Sketch) -> Result<Vec<crate::sketch::Region>> {
+    match p {
+        Profile::Feature { .. } => sketch.profile_regions(),
+        Profile::Inline(_) => Ok(vec![sketch.profile_region()?]),
+    }
 }
 fn body_for(
     op: &Operation,
@@ -1136,29 +1201,26 @@ fn body_for(
         }
         Operation::Sketch { .. } => anyhow::bail!("A sketch has no body of its own"),
         Operation::Extrude {
-            sketch,
+            sketch: from,
             height_mm,
             draft_deg,
         } => {
-            let sketch = profile(sketch, sketches)?;
+            let sketch = profile(from, sketches)?;
             let p = plane_of(sketch, bodies, frames, notes)?;
             let h = positive(*height_mm, "Height")?;
             ensure!(
                 draft_deg.is_finite() && draft_deg.abs() < 80.0,
                 "Draft must be below 80 degrees"
             );
-            maybe(
-                brep::extrude_tapered(
-                    p,
-                    &sketch.profile_curves()?,
-                    p.normal().unwrap().map(|v| v * h),
-                    draft_deg.to_radians(),
-                ),
-                "Extrusion",
+            crate::sketch::solid::extrude(
+                p,
+                &regions_of(from, sketch)?,
+                p.normal().unwrap().map(|v| v * h),
+                draft_deg.to_radians(),
             )
         }
         Operation::Revolve {
-            sketch,
+            sketch: from,
             pivot,
             axis,
             degrees,
@@ -1169,16 +1231,13 @@ fn body_for(
                 "Revolution must be between 0 and 360 degrees"
             );
             ensure!(crate::mesh::norm(*axis) > 1e-8, "Revolution axis is zero");
-            let sketch = profile(sketch, sketches)?;
-            maybe(
-                brep::revolve(
-                    plane_of(sketch, bodies, frames, notes)?,
-                    &sketch.profile_curves()?,
-                    *pivot,
-                    *axis,
-                    degrees.to_radians(),
-                ),
-                "Revolution",
+            let sketch = profile(from, sketches)?;
+            crate::sketch::solid::revolve(
+                plane_of(sketch, bodies, frames, notes)?,
+                &regions_of(from, sketch)?,
+                *pivot,
+                *axis,
+                degrees.to_radians(),
             )
         }
         Operation::Sweep { sketch, path } => {
@@ -1217,7 +1276,7 @@ fn body_for(
                 brep::sweep_along_deformed(
                     plane_of(sketch, bodies, frames, notes)?,
                     &sketch.profile_curves()?,
-                    path.plane.plane()?,
+                    plane_of(path, bodies, frames, notes)?,
                     &path.solved_curves()?,
                     0.0,
                     degrees.to_radians(),
@@ -1715,9 +1774,10 @@ pub fn evaluate_memo(
         } else if let Some(why) = skipped_by(&f.operation, &status, doc) {
             report.status = FeatureStatus::Skipped(why);
         } else if let Operation::Sketch { sketch } = &f.operation {
-            match sketch.validate() {
-                Ok(()) => {
-                    sketches.insert(f.id, sketch.clone());
+            // A sketch on a face takes its plane from the face as built now, so what sweeps it follows the face.
+            match laid(sketch, &bodies, &frames, &mut report.notes) {
+                Ok(sketch) => {
+                    sketches.insert(f.id, sketch);
                     metadata.insert(f.id, f);
                 }
                 Err(e) => report.status = FeatureStatus::Failed(format!("{e:#}")),
@@ -2807,5 +2867,306 @@ mod tests {
         // The GUI worker holds one across threads.
         fn shared<T: Send + Sync>() {}
         shared::<Mutex<Cache>>();
+    }
+}
+
+#[cfg(test)]
+mod sketch_tests {
+    use super::*;
+    use crate::sketch::{FaceAnchor, FaceFrame, Geometry, Workplane};
+    use std::f64::consts::PI;
+    use std::sync::atomic::AtomicBool;
+
+    fn feature(id: Id, operation: Operation) -> Feature {
+        Feature { id, name: operation.label().into(), enabled: true, operation, component: Component::default() }
+    }
+    fn design_of(features: Vec<Feature>, outputs: Vec<Id>) -> RingDesign {
+        let mut doc = Document::default();
+        for f in features {
+            doc.append(f).unwrap();
+        }
+        doc.outputs = outputs;
+        RingDesign { cad: Some(doc), ..RingDesign::default() }
+    }
+    fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+        a.iter().zip(b).map(|(x, y)| x * y).sum()
+    }
+    fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+        std::array::from_fn(|k| a[k] - b[k])
+    }
+    /// The planar face whose outward normal, in the part's own frame, lies along `dir`.
+    fn face_along(body: &Body, frame: &brep::Placement, dir: [f64; 3]) -> usize {
+        (0..body.faces.len())
+            .find(|i| face_signature(body, *i, frame).is_some_and(|s| s.kind == SurfaceKind::Plane && dot(s.normal, dir) > 0.99))
+            .unwrap()
+    }
+    /// The frame of the planar face whose outward normal lies along `dir` in the world.
+    fn frame_along(body: &Body, dir: [f64; 3]) -> FaceFrame {
+        let face = body
+            .faces
+            .iter()
+            .filter_map(|(k, _)| brep::planar_face_profile(body, k))
+            .find(|p| dot(p.outward, dir) > 0.99)
+            .unwrap();
+        FaceFrame::of(&face).unwrap()
+    }
+    fn extrude(from: Profile, height_mm: f64) -> Operation {
+        Operation::Extrude { sketch: from, height_mm, draft_deg: 0.0 }
+    }
+
+    #[test]
+    fn a_sketch_on_a_face_stands_its_extrusion_there_and_follows_the_face() {
+        let lib = AlphaLibrary::builtin();
+        let params = BuildParams::default();
+        let seat = Placement::ring(90.0, 0.0);
+        let boxed = |h: f64| {
+            let mut f = feature(1, Operation::Box { size: [8.0, 6.0, h] });
+            f.component.placement = seat.clone();
+            f
+        };
+        let d = design_of(vec![boxed(2.0)], vec![1]);
+        let frame = seat.frame(&d).unwrap();
+        let block = evaluate(&d, &lib, params).unwrap().components.remove(0).body;
+        let top = face_along(&block, &frame, [0.0, 0.0, 1.0]);
+        let anchor = FaceAnchor { feature: 1, face: FaceRef::signed(&block, top, &frame) };
+        // A 2 mm circle on the top face, extruded 1 by a feature that names the sketch.
+        let mut circle = Sketch::circle(1.0);
+        circle.plane.on_face = Some(anchor.clone());
+        let build = |h: f64| {
+            let d = design_of(
+                vec![boxed(h), feature(2, Operation::Sketch { sketch: circle.clone() }), feature(3, extrude(Profile::Feature { feature: 2 }, 1.0))],
+                vec![1, 3],
+            );
+            let e = evaluate(&d, &lib, params).unwrap();
+            assert!(e.failures().is_empty(), "{:?}", e.failures());
+            e
+        };
+        let out = frame.z_axis;
+        let down = out.map(|v| -v);
+        let e = build(2.0);
+        let face = frame_along(&e.components[0].body, out);
+        let base = frame_along(&e.components[1].body, down).origin;
+        let centre: [f64; 3] = std::array::from_fn(|k| frame.origin[k] + out[k]);
+        assert!(sub(face.origin, centre).iter().all(|v| v.abs() < 1e-9), "{:?} vs {centre:?}", face.origin);
+        assert!(sub(base, face.origin).iter().all(|v| v.abs() < 1e-6), "the base centre is the face centroid: {base:?} vs {:?}", face.origin);
+        assert!(dot(face.x, frame.x_axis).abs() > 1.0 - 1e-12, "x runs along the 8 mm edge");
+        // The plane a canvas would draw the sketch in, read straight off the box.
+        let mut notes = Vec::new();
+        let drawn = sketch_plane(&circle, &e.components[0].body, &frame, &mut notes).unwrap();
+        assert!(sub(drawn.origin, face.origin).iter().all(|v| v.abs() < 1e-12) && notes.is_empty());
+        assert!(dot(drawn.normal().unwrap(), out) > 1.0 - 1e-12 && dot(drawn.x_axis, face.x) > 1.0 - 1e-12);
+        let post = &e.components[1].mesh;
+        assert!(post.validate().watertight);
+        assert!((post.volume_mm3() / PI - 1.0).abs() < 0.005, "{}", post.volume_mm3());
+        // The box grows about its centre: its top rises half the growth and the post rises with it.
+        for (h, rise) in [(3.0, 0.5), (4.0, 1.0)] {
+            let moved = frame_along(&build(h).components[1].body, down).origin;
+            let step = sub(moved, base);
+            assert!((dot(step, out) - rise).abs() < 1e-9, "{h}: {step:?}");
+            assert!(dot(step, frame.x_axis).abs() < 1e-9 && dot(step, frame.y_axis).abs() < 1e-9, "{h}: {step:?}");
+        }
+        // An inline sketch 2 mm off centre lands 2 mm along the longest edge, in the face.
+        let mut square = Sketch::rectangle(2.0, 2.0);
+        for p in &mut square.points {
+            p.xy[0] += 2.0;
+        }
+        square.plane.on_face = Some(anchor.clone());
+        let d = design_of(vec![boxed(2.0), feature(2, extrude(square.into(), 1.0))], vec![1, 2]);
+        let e = evaluate(&d, &lib, params).unwrap();
+        let foot = sub(frame_along(&e.components[1].body, down).origin, face.origin);
+        assert!((dot(foot, frame.x_axis).abs() - 2.0).abs() < 1e-9, "{foot:?}");
+        assert!(dot(foot, frame.y_axis).abs() < 1e-9 && dot(foot, out).abs() < 1e-9, "{foot:?}");
+        // A workplane origin is an offset read in the face's frame.
+        let mut lifted = Sketch::circle(1.0);
+        lifted.plane = Workplane { origin: [0.0, 0.0, 0.5], on_face: Some(anchor), ..Workplane::default() };
+        let d = design_of(vec![boxed(2.0), feature(2, extrude(lifted.into(), 1.0))], vec![1, 2]);
+        let e = evaluate(&d, &lib, params).unwrap();
+        let foot = sub(frame_along(&e.components[1].body, down).origin, face.origin);
+        assert!((dot(foot, out) - 0.5).abs() < 1e-9, "{foot:?}");
+    }
+
+    #[test]
+    fn a_face_gone_or_curved_fails_the_sketch_and_skips_what_sweeps_it() {
+        let lib = AlphaLibrary::builtin();
+        let params = BuildParams::default();
+        let identity = brep::Placement::IDENTITY;
+        let block = make::cuboid([-4.0, -3.0, -1.0], [8.0, 6.0, 2.0]).unwrap();
+        let side = face_along(&block, &identity, [1.0, 0.0, 0.0]);
+        let mut sketch = Sketch::rectangle(1.0, 1.0);
+        sketch.plane.on_face = Some(FaceAnchor { feature: 1, face: FaceRef::signed(&block, side, &identity) });
+        let doc = |first: Operation, sketch: Sketch| {
+            design_of(
+                vec![feature(1, first), feature(2, Operation::Sketch { sketch }), feature(3, extrude(Profile::Feature { feature: 2 }, 1.0))],
+                vec![1, 3],
+            )
+        };
+        let cube = || Operation::Box { size: [8.0, 6.0, 2.0] };
+        let drum = || Operation::Cylinder { radius_mm: 3.0, height_mm: 2.0 };
+        let e = evaluate(&doc(cube(), sketch.clone()), &lib, params).unwrap();
+        assert!(e.failures().is_empty() && e.features[1].notes.is_empty(), "{:?}", e.failures());
+        // The box turned into a drum has no face looking along x: the sketch fails and its extrusion is skipped.
+        let e = evaluate(&doc(drum(), sketch.clone()), &lib, params).unwrap();
+        let Some(FeatureStatus::Failed(why)) = e.status_of(2) else { panic!("{:?}", e.status_of(2)) };
+        assert_eq!(why, &format!("Sketch face: Face {side} is no longer a Plane face; the source changed underneath, pick it again"));
+        assert_eq!(e.status_of(3), Some(&FeatureStatus::Skipped("source #2 Sketch failed".into())));
+        assert_eq!(e.components.iter().map(|c| c.id).collect::<Vec<_>>(), vec![1]);
+        // A curved face is refused by its kind.
+        let round = make::cylinder([0.0, 0.0, -1.0], 3.0, 2.0).unwrap();
+        let wall = (0..round.faces.len())
+            .find(|i| face_signature(&round, *i, &identity).is_some_and(|s| s.kind == SurfaceKind::Cylinder))
+            .unwrap();
+        sketch.plane.on_face = Some(FaceAnchor { feature: 1, face: FaceRef::signed(&round, wall, &identity) });
+        let e = evaluate(&doc(drum(), sketch.clone()), &lib, params).unwrap();
+        let Some(FeatureStatus::Failed(why)) = e.status_of(2) else { panic!("{:?}", e.status_of(2)) };
+        assert_eq!(why, &format!("Sketch face {wall} of feature #1: sketch planes need a planar face: cylinder"));
+        // A signature kept under the wrong ordinal is found again, and the sketch says so.
+        let wrong = (side + 1) % block.faces.len();
+        sketch.plane.on_face = Some(FaceAnchor { feature: 1, face: FaceRef { ordinal: wrong, ..FaceRef::signed(&block, side, &identity) } });
+        let e = evaluate(&doc(cube(), sketch), &lib, params).unwrap();
+        assert!(e.failures().is_empty(), "{:?}", e.failures());
+        assert_eq!(
+            e.features[1].notes,
+            vec![format!("Face {wrong} is now face {side}; the source changed underneath and the same face was found again")]
+        );
+    }
+
+    #[test]
+    fn growing_the_box_rebuilds_what_stands_on_its_face_and_an_edit_elsewhere_does_not() {
+        let lib = AlphaLibrary::builtin();
+        let params = BuildParams::default();
+        let never = AtomicBool::new(false);
+        let ctx = BuildCtx::new(&never);
+        let cache = Mutex::new(Cache::default());
+        let memo = Memo::new(&cache);
+        let counts = || {
+            let c = cache.lock().unwrap();
+            (c.hits(), c.misses())
+        };
+        let identity = brep::Placement::IDENTITY;
+        let block = make::cuboid([-4.0, -3.0, -1.0], [8.0, 6.0, 2.0]).unwrap();
+        let mut circle = Sketch::circle(1.0);
+        let top = face_along(&block, &identity, [0.0, 0.0, 1.0]);
+        circle.plane.on_face = Some(FaceAnchor { feature: 1, face: FaceRef::signed(&block, top, &identity) });
+        let mut d = design_of(
+            vec![
+                feature(1, Operation::Box { size: [8.0, 6.0, 2.0] }),
+                feature(2, Operation::Sketch { sketch: circle }),
+                feature(3, extrude(Profile::Feature { feature: 2 }, 1.0)),
+                feature(4, Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }),
+            ],
+            vec![1, 3, 4],
+        );
+        let floor = |e: &Evaluated| e.components.iter().find(|c| c.id == 3).unwrap().mesh.bounds().unwrap().0 .2 as f64;
+        // Cold: three bodies and three tessellations; a sketch holds no body.
+        let e = evaluate_memo(&d, &lib, params, &ctx, memo).unwrap();
+        assert_eq!(counts(), (0, 6));
+        assert!((floor(&e) - 1.0).abs() < 1e-6);
+        evaluate_memo(&d, &lib, params, &ctx, memo).unwrap();
+        assert_eq!(counts(), (6, 6));
+        // Growing the box rebuilds it and the extrusion on its face; the cylinder answers.
+        d.cad.as_mut().unwrap().features[0].operation = Operation::Box { size: [8.0, 6.0, 3.0] };
+        let e = evaluate_memo(&d, &lib, params, &ctx, memo).unwrap();
+        assert_eq!(counts(), (8, 10));
+        assert!((floor(&e) - 1.5).abs() < 1e-6, "the post rose with the face: {}", floor(&e));
+        // An edit elsewhere rebuilds only itself.
+        d.cad.as_mut().unwrap().features[3].operation = Operation::Cylinder { radius_mm: 1.5, height_mm: 2.0 };
+        let e = evaluate_memo(&d, &lib, params, &ctx, memo).unwrap();
+        assert_eq!(counts(), (12, 12));
+        assert!((floor(&e) - 1.5).abs() < 1e-6);
+        // The recipe of everything that reads the face carries the box's.
+        let sigs = signatures(d.cad.as_ref().unwrap(), &d, params, 0);
+        let mut grown = d.clone();
+        grown.cad.as_mut().unwrap().features[0].operation = Operation::Box { size: [8.0, 6.0, 3.5] };
+        let after = signatures(grown.cad.as_ref().unwrap(), &grown, params, 0);
+        assert_eq!([1, 2, 3, 4].map(|id| sigs[&id] != after[&id]), [true, true, true, false]);
+    }
+
+    #[test]
+    fn a_washer_extrudes_with_its_hole_and_separate_regions_as_separate_lumps() {
+        let lib = AlphaLibrary::builtin();
+        let export = BuildParams { theta_steps: 1024, profile_steps: 384, ..BuildParams::default() };
+        let mut washer = Sketch::default();
+        for r in [3.0, 2.0] {
+            let centre = washer.point([0.0; 2]);
+            let rim = washer.point([r, 0.0]);
+            washer.entity(Geometry::Circle { center: centre, rim });
+        }
+        let expected = PI * (9.0 - 4.0) * 2.0;
+        for inline in [true, false] {
+            let d = if inline {
+                design_of(vec![feature(2, extrude(washer.clone().into(), 2.0))], vec![2])
+            } else {
+                design_of(vec![feature(1, Operation::Sketch { sketch: washer.clone() }), feature(2, extrude(Profile::Feature { feature: 1 }, 2.0))], vec![2])
+            };
+            let e = evaluate(&d, &lib, export).unwrap();
+            assert!(e.failures().is_empty(), "{:?}", e.failures());
+            let c = &e.components[0];
+            assert!(c.mesh.validate().watertight);
+            assert_eq!(c.body.roots.len(), 1);
+            let v = c.mesh.volume_mm3();
+            assert!((v / expected - 1.0).abs() < 0.005, "{v} against {expected}");
+        }
+        // Drafted, the outer wall leans in and the hole's leans out: less metal, still closed.
+        let d = design_of(vec![feature(1, Operation::Extrude { sketch: washer.into(), height_mm: 2.0, draft_deg: 5.0 })], vec![1]);
+        let e = evaluate(&d, &lib, export).unwrap();
+        assert!(e.failures().is_empty(), "{:?}", e.failures());
+        let c = &e.components[0];
+        assert!(c.mesh.validate().watertight && c.mesh.volume_mm3() < expected * 0.97, "{}", c.mesh.volume_mm3());
+        // Two squares drawn as one sketch feature are two lumps of one body; drawn inline they are refused as before.
+        let mut two = Sketch::default();
+        for x in [0.0, 5.0] {
+            let p = [[x, 0.0], [x + 2.0, 0.0], [x + 2.0, 2.0], [x, 2.0]].map(|p| two.point(p));
+            two.entity(Geometry::Polyline { points: p.to_vec(), closed: true });
+        }
+        let d = design_of(vec![feature(1, Operation::Sketch { sketch: two.clone() }), feature(2, extrude(Profile::Feature { feature: 1 }, 1.5))], vec![2]);
+        let e = evaluate(&d, &lib, export).unwrap();
+        let c = &e.components[0];
+        assert_eq!(c.body.roots.len(), 2);
+        assert!(c.body.validate().is_empty() && c.mesh.validate().watertight);
+        assert!((c.mesh.volume_mm3() - 12.0).abs() < 1e-6, "{}", c.mesh.volume_mm3());
+        let d = design_of(vec![feature(1, extrude(two.into(), 1.5))], vec![1]);
+        let error = evaluate(&d, &lib, export).unwrap().first_error().unwrap();
+        assert!(error.contains("2 separate loops"), "{error}");
+        // Revolved, a square with a square hole keeps a void on a full turn and opens through both caps on a half.
+        let mut frame = Sketch { plane: Workplane::section(), ..Sketch::default() };
+        for (lo, hi) in [([2.0, 0.0], [5.0, 4.0]), ([3.0, 1.0], [4.0, 3.0])] {
+            let p = [lo, [hi[0], lo[1]], hi, [lo[0], hi[1]]].map(|p| frame.point(p));
+            frame.entity(Geometry::Polyline { points: p.to_vec(), closed: true });
+        }
+        for (degrees, share) in [(360.0, 1.0), (180.0, 0.5)] {
+            let op = Operation::Revolve { sketch: frame.clone().into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees };
+            let e = evaluate(&design_of(vec![feature(1, op)], vec![1]), &lib, export).unwrap();
+            assert!(e.failures().is_empty(), "{degrees}: {:?}", e.failures());
+            let c = &e.components[0];
+            let expected = 70.0 * PI * share;
+            assert!(c.mesh.validate().watertight, "{degrees}");
+            assert!((c.mesh.volume_mm3() / expected - 1.0).abs() < 0.005, "{degrees}: {} against {expected}", c.mesh.volume_mm3());
+        }
+    }
+
+    #[test]
+    fn a_face_a_sketch_lies_on_is_read_and_never_consumed() {
+        let mut anchored = Sketch::rectangle(1.0, 1.0);
+        anchored.plane.on_face = Some(FaceAnchor { feature: 1, face: FaceRef::bare(4) });
+        let on_face = extrude(anchored.clone().into(), 1.0);
+        assert_eq!((on_face.sources(), on_face.consumes()), (vec![1], vec![]));
+        let sketch = Operation::Sketch { sketch: anchored.clone() };
+        assert_eq!((sketch.sources(), sketch.consumes()), (vec![1], vec![]));
+        let by_id = extrude(Profile::Feature { feature: 2 }, 1.0);
+        assert_eq!((by_id.sources(), by_id.consumes()), (vec![2], vec![2]));
+        let twist = Operation::Twist { sketch: Sketch::circle(0.5).into(), path: anchored, degrees: 90.0, end_scale: 1.0 };
+        assert_eq!((twist.sources(), twist.consumes()), (vec![1], vec![]));
+        let fillet = Operation::Fillet { source: 3, edges: vec![EdgeRef::bare(0)], radius_mm: 0.2 };
+        assert_eq!(fillet.sources(), fillet.consumes());
+        // The edit funnel reads the anchor: the box cannot go while a sketch stands on it.
+        let mut doc = Document::default();
+        let mut sketch = Sketch::circle(1.0);
+        sketch.plane.on_face = Some(FaceAnchor { feature: 1, face: FaceRef::bare(4) });
+        doc.append(feature(1, Operation::Box { size: [4.0; 3] })).unwrap();
+        doc.append(feature(2, Operation::Sketch { sketch })).unwrap();
+        doc.append(feature(3, extrude(Profile::Feature { feature: 2 }, 1.0))).unwrap();
+        assert_eq!(doc.dependents(1), vec![2, 3]);
+        let error = doc.apply(&edit::CadEdit::Remove { id: 1 }).unwrap_err().to_string();
+        assert!(error.contains("2 depend on it"), "{error}");
     }
 }
