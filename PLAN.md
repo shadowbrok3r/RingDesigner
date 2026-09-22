@@ -281,8 +281,21 @@ answer to AccessKit so kittest and `egui_drive.py` can type into them.
   part < stone < band, occlusion-tested. Measured: scene build 7–9 ms at preview, 81–84 ms at
   export (780k faces); a pick 2–3 µs; box select 0.3 / 3 ms. Open: CAD-only rings have no origin
   provenance (`parts::assembled`), seat solids and stamps read as Band.
-- In flight: the Ring viewport's hover pre-highlight, selection and per-selection right-click
-  menus on the pick scene (`m3-viewport-select`).
+- **The Ring viewport selects** (`fb713d8`, `workbench::viewport::{selection, menu}`): hover
+  pre-lights through a second focus channel (attribute 5) and names the entity ("Cylinder face 1
+  (plane) · Tab 1/2"), click selects, Shift adds, Ctrl removes, Tab / Alt-click walk the depth
+  stack, Escape clears; right-click lists what the selection can do (band: Add CAD part here, Fit,
+  Open CAD; part: Edit feature, Attach and Stage with the current one ticked, Isolate; edge:
+  Fillet / Chamfer this edge; face: a "Face n of <part>" heading). Hover costs 1.2 µs mean, 11 µs
+  worst on 780k faces; the scene rebuilds in `tick` at 7-9 ms per preview build. **Verified live
+  2026-09-22**: right-click the band → Add CAD part here → Cylinder, set 1.5 × 2.5, Apply; back in
+  the Model workspace the report reads "1 joined", hovering the post lights its end face and the
+  viewport's AccessKit label says "hovering Cylinder face 1 (plane)", click + Shift-click the band
+  gives "2 selected", Escape clears, Attach → Cut turns the post into a pocket (568.27 → 559.88
+  mm³) and Undo restores the join. The probe's Shift-click pins were removed with it (the Measure
+  tool measures). Open: box select is in the scene but not on a drag; CAD-only rings still read
+  as band (fixed by `m4-feature-status`); a fresh design with no CAD shows "Parameters changed —
+  preview to evaluate this candidate" in the CAD pane.
 
 ### M2 detail
 
