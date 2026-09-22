@@ -5,4 +5,4 @@ pub mod menu;
 pub mod selection;
 
 pub use menu::{MenuAction, MenuItem, context_items, heading};
-pub use selection::{Mods, Sel, Selection, label, tint};
+pub use selection::{Mods, Sel, Selection, box_planes, label, tint};

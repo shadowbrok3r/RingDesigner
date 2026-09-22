@@ -17,6 +17,8 @@ pub enum DimEvent {
 pub struct DimensionBar {
     id: Id,
     texts: Vec<(&'static str, String)>,
+    /// The widget holding the keys for the tool while no field does; focus there counts as none.
+    host: Option<Id>,
 }
 impl Default for DimensionBar {
     fn default() -> Self {
@@ -57,7 +59,17 @@ fn cursor_to_end(ctx: &Context, id: Id, text: &str) {
 
 impl DimensionBar {
     pub fn new(id_salt: impl egui::AsId) -> Self {
-        Self { id: Id::new(id_salt), texts: Vec::new() }
+        Self { id: Id::new(id_salt), texts: Vec::new(), host: None }
+    }
+    /// Names the widget that holds the keys for the tool, so a number typed while it has focus still starts the first field.
+    pub fn set_host(&mut self, host: Option<Id>) {
+        self.host = host;
+    }
+    /// Gives a field the keyboard, its cursor after its text.
+    pub fn focus_field(&self, ctx: &Context, key: &str) {
+        let id = self.field_id(key);
+        ctx.memory_mut(|m| m.request_focus(id));
+        cursor_to_end(ctx, id, self.text(key));
     }
     pub fn field_id(&self, key: &str) -> Id {
         self.id.with(key)
@@ -116,7 +128,7 @@ impl DimensionBar {
                 .map(|at| (at, cur, false)),
             // egui acted on an Escape before the field's filter landed and dropped its focus.
             (None, Some(cur)) if input.iter().any(|e| pressed(e, Key::Escape)) => Some((0, cur, false)),
-            (None, _) if ctx.memory(|m| m.focused()).is_none() => input.iter().position(starts_a_number).map(|at| (at, 0, true)),
+            (None, _) if ctx.memory(|m| m.focused()).is_none_or(|f| Some(f) == self.host) => input.iter().position(starts_a_number).map(|at| (at, 0, true)),
             _ => None,
         };
         if focused.is_some() || takeover.is_some() {
@@ -252,9 +264,14 @@ mod tests {
         bar: DimensionBar,
         events: Vec<DimEvent>,
         committed: Vec<Effect>,
+        host: Option<Id>,
     }
     /// A decoy button either side of the bar, and a real cylinder waiting at its radius step.
     fn harness() -> Harness<'static, App> {
+        hosted(None)
+    }
+    /// The same, with a focusable widget standing in for the viewport that holds the tool's keys.
+    fn hosted(host: Option<Id>) -> Harness<'static, App> {
         let mut session = Session::default();
         session.start(Box::new(AddPrimitiveCmd::new(Primitive::Cylinder, 7)));
         session.feed(StepInput::Pointer {
@@ -267,10 +284,16 @@ mod tests {
             dragging: false,
         });
         assert!(matches!(session.feed(StepInput::Click), Outcome::NextStep));
-        let app = App { session, bar: DimensionBar::default(), events: vec![], committed: vec![] };
+        let mut bar = DimensionBar::default();
+        bar.set_host(host);
+        let app = App { session, bar, events: vec![], committed: vec![], host };
         let mut h = Harness::builder().with_size([640.0, 320.0]).build_ui_state(
             |ui, app: &mut App| {
                 let _ = ui.button("Before");
+                if let Some(id) = app.host {
+                    let rect = egui::Rect::from_min_size(egui::pos2(300.0, 200.0), egui::vec2(80.0, 40.0));
+                    ui.interact(rect, id, egui::Sense::click());
+                }
                 let mut dims = app.session.dimensions();
                 let events = app.bar.show(ui.ctx(), egui::pos2(40.0, 60.0), &mut dims);
                 for e in &events {
@@ -423,6 +446,33 @@ mod tests {
         assert!(!h.state().session.dimensions()[0].locked);
         assert_eq!(focused(&h), ["Radius (mm)"]);
         assert!(h.state().bar.has_focus(&h.ctx));
+    }
+
+    #[test]
+    fn a_number_typed_while_the_host_holds_the_keys_starts_the_first_field() {
+        let host = Id::new("viewport");
+        let mut h = hosted(Some(host));
+        h.ctx.memory_mut(|m| m.request_focus(host));
+        h.run_steps(2);
+        h.event(Event::Text("2.5".into()));
+        h.run_steps(2);
+        assert_eq!(focused(&h), ["Radius (mm)"], "focus on the host counts as none");
+        assert_eq!(value(&h, "Radius (mm)"), "2.5");
+        assert_eq!(typed(&h), [DimEvent::Typed { key: "radius", value: 2.5 }]);
+        // Without the host named, a focused widget keeps its keys.
+        let mut h = hosted(Some(host));
+        h.state_mut().bar.set_host(None);
+        h.ctx.memory_mut(|m| m.request_focus(host));
+        h.run_steps(2);
+        h.event(Event::Text("2.5".into()));
+        h.run_steps(2);
+        assert_eq!(focused(&h), Vec::<&str>::new());
+        assert!(typed(&h).is_empty());
+        // The host's Tab hands the keys to a field by name.
+        let mut h = hosted(Some(host));
+        h.state().bar.focus_field(&h.ctx, "height");
+        h.run_steps(2);
+        assert_eq!(focused(&h), ["Height (mm)"]);
     }
 
     #[test]

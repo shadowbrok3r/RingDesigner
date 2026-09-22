@@ -613,7 +613,7 @@ fn shortcuts(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
 /// Everything the palette can do, one match away from the code that does it.
 #[derive(Clone, Copy, PartialEq)]
-enum Command {
+pub(crate) enum Command {
     New,
     Open,
     Save,
@@ -646,6 +646,14 @@ enum Command {
     CadPreview,
     CadApply,
     CadDiscard,
+    ToolMove,
+    ToolRotate,
+    ToolScale,
+    ToolPlace,
+    ToolAddBox,
+    ToolAddCylinder,
+    ToolAddSphere,
+    ToolAttach,
 }
 
 /// The strip over a panel whose design is driven by a graph.
@@ -702,7 +710,7 @@ fn driven_banner(app: &mut RingDesignerApp, ui: &mut egui::Ui, tool: ToolKind) {
 }
 
 impl Command {
-    const ALL: &'static [Command] = &[
+    pub(crate) const ALL: &'static [Command] = &[
         Command::New,
         Command::Open,
         Command::Save,
@@ -735,9 +743,32 @@ impl Command {
         Command::CadPreview,
         Command::CadApply,
         Command::CadDiscard,
+        Command::ToolMove,
+        Command::ToolRotate,
+        Command::ToolScale,
+        Command::ToolPlace,
+        Command::ToolAddBox,
+        Command::ToolAddCylinder,
+        Command::ToolAddSphere,
+        Command::ToolAttach,
     ];
 
-    fn label(self) -> &'static str {
+    /// The viewport command catalog key an entry starts, as its hotkey and its rail slot start it.
+    pub(crate) fn tool(self) -> Option<&'static str> {
+        Some(match self {
+            Command::ToolMove => "move",
+            Command::ToolRotate => "rotate",
+            Command::ToolScale => "scale",
+            Command::ToolPlace => "place",
+            Command::ToolAddBox => "add-box",
+            Command::ToolAddCylinder => "add-cylinder",
+            Command::ToolAddSphere => "add-sphere",
+            Command::ToolAttach => "attach",
+            _ => return None,
+        })
+    }
+
+    pub(crate) fn label(self) -> &'static str {
         match self {
             Command::New => "New design",
             Command::Open => "Open design…  (Ctrl+O)",
@@ -771,10 +802,18 @@ impl Command {
             Command::CadPreview => "CAD: preview the candidate  (Enter)",
             Command::CadApply => "CAD: apply the candidate  (Ctrl+Enter)",
             Command::CadDiscard => "CAD: set the candidate aside",
+            Command::ToolMove => "Move selected part  (G)",
+            Command::ToolRotate => "Rotate selected part  (R)",
+            Command::ToolScale => "Scale selected part  (S)",
+            Command::ToolPlace => "Place selected part on the ring  (P)",
+            Command::ToolAddBox => "Add a box on the ring  (Shift+A)",
+            Command::ToolAddCylinder => "Add a cylinder on the ring  (Shift+A)",
+            Command::ToolAddSphere => "Add a sphere on the ring  (Shift+A)",
+            Command::ToolAttach => "Cycle Join / Cut / Separate  (J)",
         }
     }
 
-    fn run(self, app: &mut RingDesignerApp) {
+    pub(crate) fn run(self, app: &mut RingDesignerApp) {
         match self {
             Command::New => {
                 app.document_path = None;
@@ -830,6 +869,18 @@ impl Command {
             Command::CadPreview => cad::ask(app, cad::CadRequest::Preview),
             Command::CadApply => cad::ask(app, cad::CadRequest::Apply),
             Command::CadDiscard => cad::ask(app, cad::CadRequest::Discard),
+            Command::ToolMove
+            | Command::ToolRotate
+            | Command::ToolScale
+            | Command::ToolPlace
+            | Command::ToolAddBox
+            | Command::ToolAddCylinder
+            | Command::ToolAddSphere
+            | Command::ToolAttach => {
+                if let Some(key) = self.tool() {
+                    crate::command::start(app, key);
+                }
+            }
         }
     }
 }
