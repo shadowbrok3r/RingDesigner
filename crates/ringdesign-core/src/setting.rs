@@ -927,6 +927,12 @@ pub fn any(design: &crate::RingDesign) -> bool {
     !design.stamps.is_empty() || crate::setstone::set_stones(design).iter().any(|s| !s.seat.solid.is_none())
 }
 
+/// One boolean on the running solid: its census is paid while it is still the band as swept, and skipped
+/// once it is a combine's own closed output.
+fn chain(solid: &Solid, tool: &Solid, op: Op, vouched: bool) -> Result<Solid, Snag> {
+    if vouched { csg::combine_unchecked(solid, tool, op, None).map(|t| t.solid) } else { csg::combine(solid, tool, op) }
+}
+
 /// Place every seat's solid on the built band and resolve it: every head first, then every cut, so a
 /// neighbour's bead never fills a seat already cut. A solid that will not resolve is left out and said.
 pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut crate::Mesh) -> Applied {
@@ -946,6 +952,7 @@ pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut c
     };
     // Which stone's solid each appended vertex belongs to, by the vertex count after its operation.
     let mut spans: Vec<(usize, u32)> = Vec::new();
+    let mut vouched = false;
     let mut placed: Vec<(usize, Arc<Parts>, csg::Frame, String)> = Vec::new();
     for (i, (stone, frame)) in stones.iter().enumerate() {
         let fit = fit_of(design, lib, &ctx, inner, stone, frame);
@@ -984,9 +991,10 @@ pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut c
         }
     }
     for (c, r, i, _) in &beads {
-        match csg::combine(&solid, &ball(*c, *r, 8), Op::Union) {
+        match chain(&solid, &ball(*c, *r, 8), Op::Union, vouched) {
             Ok(next) => {
                 solid = next;
+                vouched = true;
                 spans.push((solid.v.len(), *i as u32));
             }
             Err(e) => out.notes.push(format!("{}: a bead could not be raised ({e})", stones[*i].0.label)),
@@ -999,9 +1007,10 @@ pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut c
     }).collect();
     for (op, pick) in [(Op::Union, 0usize), (Op::Subtract, 1)] {
         for (k, made) in stamps.iter().filter(|(k, _)| design.stamps[*k].cut == (pick == 1)) {
-            match csg::combine(&solid, made, op) {
+            match chain(&solid, made, op, vouched) {
                 Ok(next) => {
                     solid = next;
+                    vouched = true;
                     spans.push((solid.v.len(), (stones.len() + k) as u32));
                     out.stamped += 1;
                 }
@@ -1010,9 +1019,10 @@ pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut c
         }
         for (i, p, frame, label) in &placed {
             for part in if pick == 0 { &p.add } else { &p.cut } {
-                match csg::combine(&solid, &part.placed(frame), op) {
+                match chain(&solid, &part.placed(frame), op, vouched) {
                     Ok(next) => {
                         solid = next;
+                        vouched = true;
                         spans.push((solid.v.len(), *i as u32));
                     }
                     Err(e) => {

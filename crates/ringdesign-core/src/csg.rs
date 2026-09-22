@@ -338,10 +338,20 @@ pub fn combine_with(a: &Solid, b: &Solid, op: Op, cancel: Option<&AtomicBool>) -
 /// [`combine_with`] with the provenance kept: the solid is the same bytes. Either input that is not closed
 /// is refused as `Snag::Unclosed` before anything is computed.
 pub fn combine_traced(a: &Solid, b: &Solid, op: Op, cancel: Option<&AtomicBool>) -> Result<Traced, Snag> {
+    combine_vouched(a, b, op, cancel, false)
+}
+
+/// [`combine_traced`] with `a`'s census skipped: the caller vouches `a` is a previous combine's closed
+/// output. `b`, the tool, is still checked. A chain of dozens of parts pays the census on the band once.
+pub fn combine_unchecked(a: &Solid, b: &Solid, op: Op, cancel: Option<&AtomicBool>) -> Result<Traced, Snag> {
+    combine_vouched(a, b, op, cancel, true)
+}
+
+fn combine_vouched(a: &Solid, b: &Solid, op: Op, cancel: Option<&AtomicBool>, a_vouched: bool) -> Result<Traced, Snag> {
     if cancelled(cancel) {
         return Err(Snag::Cancelled);
     }
-    for s in [a, b] {
+    for s in [a, b].into_iter().skip(a_vouched as usize) {
         let (open, repeated) = s.open_edges();
         if open > 0 || repeated > 0 {
             return Err(Snag::Unclosed { open, repeated });

@@ -15,8 +15,9 @@
 //!
 //! Three-edge corners are not blended: a seam that turns a corner pinches the bead toward
 //! [`RADIUS_MIN_MM`] there.
-use crate::csg::{self, Op, Parent, Solid, Traced};
+use crate::csg::{self, Op, Parent, Snag, Solid, Traced};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub type P3 = [f64; 3];
 
@@ -60,6 +61,8 @@ pub struct Seam {
     pub points: Vec<P3>,
     pub normals_a: Vec<P3>,
     pub normals_b: Vec<P3>,
+    /// The tool's face behind each point.
+    pub b_faces: Vec<u32>,
 }
 
 /// A junction filleted, with what the beads did.
@@ -394,6 +397,15 @@ pub fn bead(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: f64) -> 
 
 /// [`bead`] with the ball settled against the faces of each side at every station.
 pub fn bead_against(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: f64, surfaces: Option<&Surfaces>) -> Result<Bead, String> {
+    bead_polled(seam, normals_a, normals_b, radius_mm, surfaces, None)
+}
+
+fn cancelled(flag: Option<&AtomicBool>) -> Result<(), String> {
+    if flag.is_some_and(|f| f.load(Ordering::Relaxed)) { Err(Snag::Cancelled.to_string()) } else { Ok(()) }
+}
+
+/// [`bead_against`] that stops soon after `cancel` is raised: read between the settling rounds and the fold rounds.
+fn bead_polled(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: f64, surfaces: Option<&Surfaces>, cancel: Option<&AtomicBool>) -> Result<Bead, String> {
     if seam.len() < 3 {
         return Err(format!("a seam of {} points is not a loop", seam.len()));
     }
@@ -418,10 +430,11 @@ pub fn bead_against(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: 
         }
     }
     rate_limit(&mut radii, step);
-    let mut m_arc = settle(&mut st, &mut radii, step, surfaces);
+    let mut m_arc = settle(&mut st, &mut radii, step, surfaces, cancel)?;
     let mut folded = vec![false; n];
     let mut solid = sweep(&st, m_arc);
     for round in 0..=FOLD_ROUNDS {
+        cancelled(cancel)?;
         let crossing = folded_stations(&solid, m_arc + 2);
         if crossing.is_empty() {
             break;
@@ -437,7 +450,7 @@ pub fn bead_against(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: 
             }
         }
         rate_limit(&mut radii, step);
-        m_arc = settle(&mut st, &mut radii, step, surfaces);
+        m_arc = settle(&mut st, &mut radii, step, surfaces, cancel)?;
         solid = sweep(&st, m_arc);
     }
     let clamped = radii.iter().filter(|r| **r < r0 - 1e-9).count();
@@ -448,9 +461,10 @@ pub fn bead_against(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: 
 
 /// Settle every station's ball at its radius, then shrink any whose reach or inward extent breaks a
 /// guard, until the radii hold still; returns the arc step count the sections share.
-fn settle(st: &mut [Station], radii: &mut [f64], step: f64, surfaces: Option<&Surfaces>) -> usize {
+fn settle(st: &mut [Station], radii: &mut [f64], step: f64, surfaces: Option<&Surfaces>, cancel: Option<&AtomicBool>) -> Result<usize, String> {
     let mut m_arc = 3;
     for _round in 0..4 {
+        cancelled(cancel)?;
         for (s, r) in st.iter_mut().zip(radii.iter()) {
             s.r = *r;
             s.planar();
@@ -478,7 +492,7 @@ fn settle(st: &mut [Station], radii: &mut [f64], step: f64, surfaces: Option<&Su
             break;
         }
     }
-    m_arc
+    Ok(m_arc)
 }
 
 /// Where the segment `p q` passes through the open interior of the triangle, by Möller–Trumbore.
@@ -595,12 +609,13 @@ pub fn seams(traced: &Traced, a: &Solid, b: &Solid, concave: bool) -> Vec<Seam> 
     csg::seam_loops(traced)
         .into_iter()
         .filter_map(|lp| {
-            let mut seam = Seam { points: Vec::new(), normals_a: Vec::new(), normals_b: Vec::new() };
+            let mut seam = Seam { points: Vec::new(), normals_a: Vec::new(), normals_b: Vec::new(), b_faces: Vec::new() };
             for v in lp {
                 let &(fa, fb) = by_vertex.get(&v)?;
                 seam.points.push(traced.solid.v[v as usize]);
                 seam.normals_a.push(scale(face_normal(&a.v, *a.f.get(fa as usize)?), sa));
                 seam.normals_b.push(scale(face_normal(&b.v, *b.f.get(fb as usize)?), sb));
+                seam.b_faces.push(fb);
             }
             Some(seam)
         })
@@ -613,6 +628,19 @@ pub fn fillet_junction(traced: &Traced, a: &Solid, b: &Solid, radius_mm: f64, co
     fillet_junction_report(traced, a, b, radius_mm, concave).map(|j| j.solid)
 }
 
+/// One seam loop of `traced` beaded at `radius_mm`, the ball settled against the faces of both sides,
+/// for the caller to lay in with its own bookkeeping: a union into a concave seam, a subtraction off a
+/// convex rim. `None` for a loop too short to bead; the bead stops soon after `cancel` is raised.
+pub fn bead_seam(traced: &Traced, seam: &Seam, radius_mm: f64, cancel: Option<&AtomicBool>) -> Option<Result<Bead, String>> {
+    let n = seam.points.len();
+    let length: f64 = (0..n).map(|i| norm(sub(seam.points[(i + 1) % n], seam.points[i]))).sum();
+    if n < 3 || length < 3.0 * STATION_MM.min(radius_mm / 3.0) {
+        return None;
+    }
+    let surfaces = Surfaces::near(traced, &seam.points, (REACH_MAX + 1.5) * radius_mm + 0.05);
+    Some(bead_polled(&seam.points, &seam.normals_a, &seam.normals_b, radius_mm, Some(&surfaces), cancel))
+}
+
 /// [`fillet_junction`] with what every bead did.
 pub fn fillet_junction_report(traced: &Traced, a: &Solid, b: &Solid, radius_mm: f64, concave: bool) -> Result<Junction, String> {
     let seams = seams(traced, a, b, concave);
@@ -622,13 +650,11 @@ pub fn fillet_junction_report(traced: &Traced, a: &Solid, b: &Solid, radius_mm: 
     let mut out = Junction { solid: traced.solid.clone(), loops: seams.len(), skipped: 0, stations: 0, clamped: 0, unrefined: 0, folded: 0, min_radius_mm: radius_mm };
     let op = if concave { Op::Union } else { Op::Subtract };
     for (k, seam) in seams.iter().enumerate() {
-        let length: f64 = (0..seam.points.len()).map(|i| norm(sub(seam.points[(i + 1) % seam.points.len()], seam.points[i]))).sum();
-        if seam.points.len() < 3 || length < 3.0 * STATION_MM.min(radius_mm / 3.0) {
+        let Some(bead) = bead_seam(traced, seam, radius_mm, None) else {
             out.skipped += 1;
             continue;
-        }
-        let surfaces = Surfaces::near(traced, &seam.points, (REACH_MAX + 1.5) * radius_mm + 0.05);
-        let bead = bead_against(&seam.points, &seam.normals_a, &seam.normals_b, radius_mm, Some(&surfaces))?;
+        };
+        let bead = bead?;
         out.stations += bead.stations;
         out.clamped += bead.clamped;
         out.unrefined += bead.unrefined;
@@ -642,6 +668,15 @@ pub fn fillet_junction_report(traced: &Traced, a: &Solid, b: &Solid, radius_mm: 
     }
     out.solid.compact();
     Ok(out)
+}
+
+/// Volume of the fillet round a post of radius `big` on a plane with a bead of radius `r`, by Pappus.
+#[cfg(test)]
+pub(crate) fn torus_fillet_volume(big: f64, r: f64) -> f64 {
+    use std::f64::consts::PI;
+    let area = r * r * (1.0 - PI / 4.0);
+    let centroid = (r * r * (big + r / 2.0) - PI * r * r / 4.0 * (big + r - 4.0 * r / (3.0 * PI))) / area;
+    2.0 * PI * centroid * area
 }
 
 #[cfg(test)]
@@ -685,13 +720,6 @@ mod tests {
         let e = s.open_edges();
         assert_eq!(e, (0, 0), "closed and manifold");
         e
-    }
-
-    /// Volume of the fillet round a post of radius `big` with a bead of radius `r`, by Pappus.
-    fn torus_fillet_volume(big: f64, r: f64) -> f64 {
-        let area = r * r * (1.0 - PI / 4.0);
-        let centroid = (r * r * (big + r / 2.0) - PI * r * r / 4.0 * (big + r - 4.0 * r / (3.0 * PI))) / area;
-        2.0 * PI * centroid * area
     }
 
     /// Volume of the bead itself round that post: the fillet plus the two triangles from the seam to

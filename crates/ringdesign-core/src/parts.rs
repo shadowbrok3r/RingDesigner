@@ -1,9 +1,11 @@
 //! CAD parts resolved into the height-field band, in the stage the seats' solids and the stamps
 //! use: the band never enters the kernel. Each output component of the design's CAD document is
 //! the kernel's own tessellation, seated on the built surface, and then joined to the band, cut
-//! from it, or set beside it through `csg`. Reference parts are stones and never metal.
+//! from it, or set beside it through `csg`. Reference parts are stones and never metal. A part
+//! asking for a `blend_mm` gets a rolling-ball bead along every seam it shares with the band,
+//! joined after the part is, so the fillet is the part's own metal and names it.
 use crate::{
-    AlphaLibrary, BuildParams, Mesh, RingDesign, Vec3,
+    AlphaLibrary, BuildParams, Mesh, RingDesign, Vec3, blend,
     cad::{self, Attach, BuildCtx},
     csg::{self, Op, Parent, Snag, Solid, Traced, P3},
     mesh::{BuildResult, SOLID_VERTEX},
@@ -14,6 +16,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Boxes closer than this are one cluster of joined parts, united into one tool before the band sees it.
 pub const CLUSTER_PAD_MM: f64 = 0.1;
+/// Sliver tolerance after each bead is laid, the same the finished mesh is cleaned at.
+const CLEAN_MM: f64 = 2e-5;
 
 /// What resolving the CAD parts did to a build.
 #[derive(Clone, Debug, Default)]
@@ -26,6 +30,12 @@ pub struct Resolved {
     pub separate: usize,
     /// Reference parts passed over.
     pub references: usize,
+    /// Seam loops beaded with a part's fillet.
+    pub beads: usize,
+    /// Stations along every bead laid.
+    pub bead_stations: usize,
+    /// Stations whose radius a guard shrank.
+    pub bead_clamped: usize,
     /// Faces the parts account for.
     pub faces: usize,
     pub ms: u128,
@@ -56,6 +66,88 @@ struct Part {
     index: u32,
     name: String,
     solid: Solid,
+    blend_mm: f64,
+}
+
+
+/// The running solid with every vertex named, chained through booleans that pay the band's census once.
+struct Chain<'a> {
+    solid: Solid,
+    origin: Vec<u32>,
+    /// Whether `solid` is a combine's own closed output.
+    vouched: bool,
+    cancel: &'a AtomicBool,
+}
+
+impl Chain<'_> {
+    fn combine(&self, tool: &Solid, op: Op) -> Result<Traced, Snag> {
+        if self.vouched { csg::combine_unchecked(&self.solid, tool, op, Some(self.cancel)) } else { csg::combine_traced(&self.solid, tool, op, Some(self.cancel)) }
+    }
+
+    /// Take `t` as the running solid, its new vertices named by the part behind each tool face.
+    fn take(&mut self, t: Traced, face_part: &[u32], fallback: u32, base: u32) {
+        extend_origin(&mut self.origin, &t, self.solid.v.len(), face_part, fallback, base);
+        self.solid = t.solid;
+        self.vouched = true;
+    }
+
+    /// Every seam loop of `t`, the boolean of the running solid with `tool`, whose part asks for a
+    /// fillet, beaded against `t`'s faces; `parts` are the tool's parts and `face_part` the part index
+    /// behind each tool face. A bead that fails, or a part whose blend finds no seam long enough to
+    /// follow, is a note; a raised flag is the error.
+    fn beads<'p>(&self, t: &Traced, tool: &Solid, concave: bool, parts: &[&'p Part], face_part: &[u32], notes: &mut Vec<String>) -> Result<Vec<(&'p Part, blend::Bead)>> {
+        let mut out = Vec::new();
+        let mut touched = Vec::new();
+        for seam in blend::seams(t, &self.solid, tool, concave) {
+            let Some(&bf) = seam.b_faces.first() else { continue };
+            let index = face_part.get(bf as usize).copied().unwrap_or(parts[0].index);
+            let part = parts.iter().copied().find(|p| p.index == index).unwrap_or(parts[0]);
+            if part.blend_mm <= 0.0 {
+                continue;
+            }
+            match blend::bead_seam(t, &seam, part.blend_mm, Some(self.cancel)) {
+                None => {}
+                Some(Ok(bead)) => {
+                    touched.push(part.index);
+                    out.push((part, bead));
+                }
+                Some(Err(e)) => {
+                    check(self.cancel)?;
+                    touched.push(part.index);
+                    notes.push(format!("{}: its fillet could not be laid ({e})", part.name));
+                }
+            }
+        }
+        for p in parts.iter().filter(|p| p.blend_mm > 0.0 && !touched.contains(&p.index)) {
+            notes.push(format!("{}: its fillet found no seam long enough to follow", p.name));
+        }
+        Ok(out)
+    }
+
+    /// Lay each bead into the running solid, a union into a concave junction or a subtraction off a
+    /// convex rim, every bead vertex named for its part.
+    fn lay(&mut self, beads: Vec<(&Part, blend::Bead)>, op: Op, base: u32, out: &mut Resolved) -> Result<()> {
+        for (part, bead) in beads {
+            match self.combine(&bead.solid, op) {
+                Ok(t) => {
+                    let na = self.solid.v.len();
+                    self.origin.truncate(na);
+                    self.origin.resize(t.solid.v.len(), SOLID_VERTEX + base + part.index);
+                    self.solid = t.solid;
+                    csg::clean(&mut self.solid, CLEAN_MM);
+                    out.beads += 1;
+                    out.bead_stations += bead.stations;
+                    out.bead_clamped += bead.clamped;
+                    if bead.min_radius_mm <= blend::RADIUS_MIN_MM + 1e-9 {
+                        out.notes.push(format!("{}: its fillet pinches to {:.2} mm at {} of {} stations", part.name, bead.min_radius_mm, bead.clamped, bead.stations));
+                    }
+                }
+                Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
+                Err(e) => out.notes.push(format!("{}: its fillet could not be laid ({e})", part.name)),
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Evaluate the design's CAD parts against the built band and resolve them into it: joins first,
@@ -81,6 +173,7 @@ pub fn resolve(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx
             index: out.features.len() as u32,
             name: c.name.clone(),
             solid: Solid { v: c.trace.positions.clone(), f: c.mesh.faces.clone() },
+            blend_mm: if c.settings.blend_mm.is_finite() { c.settings.blend_mm.max(0.0) } else { 0.0 },
         };
         out.features.push(c.id);
         match c.attach {
@@ -97,18 +190,24 @@ pub fn resolve(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx
     let cancel = Some(ctx.cancel);
     let mesh = &built.mesh;
     let n0 = mesh.vertices.len();
-    let mut solid = Solid { v: mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: mesh.faces.clone() };
-    let mut origin: Vec<u32> = if mesh.origin.len() == n0 { mesh.origin.clone() } else { (0..n0 as u32).collect() };
+    let mut chain = Chain {
+        solid: Solid { v: mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: mesh.faces.clone() },
+        origin: if mesh.origin.len() == n0 { mesh.origin.clone() } else { (0..n0 as u32).collect() },
+        vouched: false,
+        cancel: ctx.cancel,
+    };
     let base = out.first;
     let refs: Vec<&Solid> = joins.iter().map(|p| &p.solid).collect();
     for group in csg::cluster(&refs, CLUSTER_PAD_MM) {
         check(ctx.cancel)?;
         let names = || group.iter().map(|g| joins[*g].name.as_str()).collect::<Vec<_>>().join(", ");
         match tool_of(&joins, &group, cancel) {
-            Ok((tool, face_part)) => match csg::combine_traced(&solid, &tool, Op::Union, cancel) {
+            Ok((tool, face_part)) => match chain.combine(&tool, Op::Union) {
                 Ok(t) => {
-                    extend_origin(&mut origin, &t, solid.v.len(), &face_part, joins[group[0]].index, base);
-                    solid = t.solid;
+                    let parts: Vec<&Part> = group.iter().map(|g| &joins[*g]).collect();
+                    let beads = chain.beads(&t, &tool, true, &parts, &face_part, &mut out.notes)?;
+                    chain.take(t, &face_part, joins[group[0]].index, base);
+                    chain.lay(beads, Op::Union, base, &mut out)?;
                     out.joined += group.len();
                 }
                 Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
@@ -121,11 +220,12 @@ pub fn resolve(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx
                 for g in group {
                     check(ctx.cancel)?;
                     let p = &joins[g];
-                    match csg::combine_traced(&solid, &p.solid, Op::Union, cancel) {
+                    match chain.combine(&p.solid, Op::Union) {
                         Ok(t) => {
                             let own = vec![p.index; p.solid.f.len()];
-                            extend_origin(&mut origin, &t, solid.v.len(), &own, p.index, base);
-                            solid = t.solid;
+                            let beads = chain.beads(&t, &p.solid, true, &[p], &own, &mut out.notes)?;
+                            chain.take(t, &own, p.index, base);
+                            chain.lay(beads, Op::Union, base, &mut out)?;
                             out.joined += 1;
                         }
                         Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
@@ -137,11 +237,12 @@ pub fn resolve(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx
     }
     for p in &cuts {
         check(ctx.cancel)?;
-        match csg::combine_traced(&solid, &p.solid, Op::Subtract, cancel) {
+        match chain.combine(&p.solid, Op::Subtract) {
             Ok(t) => {
                 let own = vec![p.index; p.solid.f.len()];
-                extend_origin(&mut origin, &t, solid.v.len(), &own, p.index, base);
-                solid = t.solid;
+                let beads = chain.beads(&t, &p.solid, false, &[p], &own, &mut out.notes)?;
+                chain.take(t, &own, p.index, base);
+                chain.lay(beads, Op::Subtract, base, &mut out)?;
                 out.cut += 1;
             }
             Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
@@ -155,8 +256,8 @@ pub fn resolve(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx
             out.notes.push(format!("{}: left out, {}", p.name, Snag::Unclosed { open, repeated }));
             continue;
         }
-        solid.push(&p.solid);
-        origin.extend(std::iter::repeat_n(SOLID_VERTEX + base + p.index, p.solid.v.len()));
+        chain.solid.push(&p.solid);
+        chain.origin.extend(std::iter::repeat_n(SOLID_VERTEX + base + p.index, p.solid.v.len()));
         out.separate += 1;
     }
     if out.joined + out.cut + out.separate == 0 {
@@ -165,7 +266,7 @@ pub fn resolve(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx
     }
     let band_normals = swept_normals(mesh);
     let band_faces = mesh.faces.len();
-    built.mesh = into_mesh(solid, &band_normals, origin);
+    built.mesh = into_mesh(chain.solid, &band_normals, chain.origin);
     out.faces = built.mesh.faces.len().saturating_sub(band_faces);
     let mesh = &built.mesh;
     let bounds = mesh.bounds().unwrap_or_default();
@@ -575,4 +676,200 @@ mod tests {
         assert!((built.report.volume_mm3 - 96.0).abs() < 0.01, "two 64 mm³ boxes overlapping by 32: {}", built.report.volume_mm3);
         assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
     }
+
+    /// A bezel of radius `r` standing 2.5 mm on the top of the ring, its foot sunk `sink` into the
+    /// crown, with a fillet of `blend_mm` at the junction.
+    fn bezel(r: f64, sink: f64, blend_mm: f64) -> Feature {
+        let mut f = part(1, "bezel", cylinder(r, 2.5), Attach::Join, Stage::Cast, Placement::ring(90.0, 1.25 - sink));
+        f.component.blend_mm = blend_mm;
+        f
+    }
+    /// The parts of `d` evaluated on the built band, as csg solids in build order.
+    fn placed(d: &RingDesign, lib: &AlphaLibrary, surface: &Mesh) -> Vec<Solid> {
+        let never = AtomicBool::new(false);
+        let e = cad::evaluate_with(d, lib, params(), &BuildCtx { cancel: &never, surface: Some(surface) }).unwrap();
+        e.components.iter().map(|c| Solid { v: c.trace.positions.clone(), f: c.mesh.faces.clone() }).collect()
+    }
+    fn as_solid(mesh: &Mesh) -> Solid {
+        Solid { v: mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: mesh.faces.clone() }
+    }
+
+    #[test]
+    fn a_blend_lays_the_parts_fillet_along_its_seam_and_the_fillet_names_the_part() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        // The bezel the bead spike beads clean: 1.5 mm, its foot 0.5 mm into the crown, one seam loop.
+        let plain = crate::mesh::try_build(&with_parts(court.clone(), vec![bezel(1.5, 0.5, 0.0)]), &lib, params()).unwrap();
+        // No blend takes no bead path: the join is the part's own, vertex for vertex.
+        assert_eq!((plain.parts.beads, plain.parts.bead_stations, plain.parts.bead_clamped), (0, 0, 0));
+        let default = crate::mesh::try_build(&with_parts(court.clone(), vec![part(1, "bezel", cylinder(1.5, 2.5), Attach::Join, Stage::Cast, Placement::ring(90.0, 0.75))]), &lib, params()).unwrap();
+        assert!(plain.mesh.vertices == default.mesh.vertices && plain.mesh.faces == default.mesh.faces && plain.mesh.origin == default.mesh.origin);
+        let started = std::time::Instant::now();
+        let built = crate::mesh::try_build(&with_parts(court.clone(), vec![bezel(1.5, 0.5, 0.3)]), &lib, params()).unwrap();
+        let ms = started.elapsed().as_millis();
+        assert!(built.report.validation.watertight, "{:?}", built.report.validation);
+        assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
+        assert_eq!((built.parts.joined, built.parts.beads, built.parts.bead_clamped), (1, 1, 0));
+        assert!(built.parts.bead_stations > 150, "{} stations", built.parts.bead_stations);
+        // Under the plane's torus: the crown falls away from the foot, so the junction is blunter on the flanks.
+        let fillet = blend::torus_fillet_volume(1.5, 0.3);
+        let added = built.report.volume_mm3 - plain.report.volume_mm3;
+        eprintln!("beaded bezel on the Court band: {ms} ms, parts {} ms, {} stations, added {added:.4} mm³ of the plane's {fillet:.4}, {} faces", built.parts.ms, built.parts.bead_stations, built.mesh.faces.len());
+        assert!(added > 0.25 * fillet && added < fillet, "added {added:.4} of {fillet:.4}");
+        // Every vertex is the band's or the bezel's, and the fillet's own vertices are the bezel's, at its foot.
+        assert_eq!(built.mesh.origin.len(), built.mesh.vertices.len());
+        let named: std::collections::BTreeSet<u32> = built.mesh.origin.iter().filter(|o| **o >= SOLID_VERTEX).copied().collect();
+        assert_eq!(named, [built.parts.origin_of(0)].into_iter().collect());
+        let bare = crate::mesh::try_build(&court, &lib, params()).unwrap();
+        let (hit, normal) = cad::surface_hit(&bare.mesh, 90.0, 0.0).unwrap();
+        let up = |v: usize| { let p = built.mesh.vertices[v]; (0..3).map(|k| ([p.0 as f64, p.1 as f64, p.2 as f64][k] - hit[k]) * normal[k]).sum::<f64>() };
+        let foot = built.mesh.origin.iter().enumerate().filter(|(v, o)| **o >= SOLID_VERTEX && up(*v) < 0.0).count();
+        let plain_foot = plain.mesh.origin.iter().enumerate().filter(|(v, o)| **o >= SOLID_VERTEX && { let p = plain.mesh.vertices[*v]; (0..3).map(|k| ([p.0 as f64, p.1 as f64, p.2 as f64][k] - hit[k]) * normal[k]).sum::<f64>() } < 0.0).count();
+        assert!(foot > plain_foot + 500, "the fillet's vertices sit below the crest round the foot: {foot} against {plain_foot}");
+        assert!(built.parts.faces > plain.parts.faces);
+    }
+
+    #[test]
+    fn an_overhanging_bezel_beads_round_its_corners_and_a_tangent_foot_has_no_seam() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        // A 3 mm bezel overhangs the 4 mm band: its seam runs under the disc across each side face and turns four corners.
+        let plain = crate::mesh::try_build(&with_parts(court.clone(), vec![bezel(3.0, 0.5, 0.0)]), &lib, params()).unwrap();
+        let built = crate::mesh::try_build(&with_parts(court.clone(), vec![bezel(3.0, 0.5, 0.3)]), &lib, params()).unwrap();
+        assert!(built.report.validation.watertight, "{:?}", built.report.validation);
+        assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
+        assert_eq!((built.parts.joined, built.parts.beads), (1, 1));
+        assert!(built.parts.bead_clamped > 0 && built.parts.bead_clamped < built.parts.bead_stations, "{} of {} clamped", built.parts.bead_clamped, built.parts.bead_stations);
+        let added = built.report.volume_mm3 - plain.report.volume_mm3;
+        eprintln!("overhanging bezel: {} of {} stations clamped, added {added:.4} mm³", built.parts.bead_clamped, built.parts.bead_stations);
+        assert!(added > blend::torus_fillet_volume(3.0, 0.3), "the run under the disc adds more than a torus: {added:.4}");
+        let named: std::collections::BTreeSet<u32> = built.mesh.origin.iter().filter(|o| **o >= SOLID_VERTEX).copied().collect();
+        assert_eq!(named, [built.parts.origin_of(0)].into_iter().collect());
+        // Standing on the crest unsunk, the same bezel touches the band in a point: a 0.0006 mm seam, nothing to fillet.
+        let tangent = crate::mesh::try_build(&with_parts(court.clone(), vec![bezel(3.0, 0.0, 0.3)]), &lib, params()).unwrap();
+        assert!(tangent.report.validation.watertight);
+        assert_eq!((tangent.parts.joined, tangent.parts.beads), (1, 0));
+        assert!(tangent.parts.notes.iter().any(|n| n.contains("no seam")), "{:?}", tangent.parts.notes);
+    }
+
+    #[test]
+    fn a_cut_with_a_blend_rounds_both_rims_of_the_hole() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        let pilot = || part(1, "pilot", cylinder(1.0, 12.0), Attach::Cut, Stage::Cast, Placement::ring(90.0, 0.0));
+        let plain = crate::mesh::try_build(&with_parts(court.clone(), vec![pilot()]), &lib, params()).unwrap();
+        let mut rounded = pilot();
+        rounded.component.blend_mm = 0.2;
+        let built = crate::mesh::try_build(&with_parts(court.clone(), vec![rounded]), &lib, params()).unwrap();
+        assert!(built.report.validation.watertight, "{:?}", built.report.validation);
+        assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
+        assert_eq!((built.parts.cut, built.parts.beads), (1, 2), "a rim on the crown and one in the bore");
+        // Both rims are sharper than a plane's: the crown falls away from the hole and the comfort bore opens toward the edges.
+        let removed = plain.report.volume_mm3 - built.report.volume_mm3;
+        let fillet = 2.0 * blend::torus_fillet_volume(1.0, 0.2);
+        eprintln!("rounded pilot: removed {removed:.4} mm³ of two plane rims' {fillet:.4}, {} stations, {} clamped", built.parts.bead_stations, built.parts.bead_clamped);
+        assert!(removed > fillet && removed < 1.8 * fillet, "removed {removed:.4} of {fillet:.4}");
+        assert_eq!(built.parts.bead_clamped, 0);
+        let named: std::collections::BTreeSet<u32> = built.mesh.origin.iter().filter(|o| **o >= SOLID_VERTEX).copied().collect();
+        assert_eq!(named, [built.parts.origin_of(0)].into_iter().collect());
+    }
+
+    #[test]
+    fn a_wire_lying_on_the_dome_beads_or_says_it_pinches_and_the_build_stands() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        // A 0.8 mm wire along the ring, sunk 0.05 mm at the top: the wedge under it closes toward both tips.
+        let mut wire = part(1, "wire", cylinder(0.4, 3.0), Attach::Join, Stage::Cast, Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.35, spin_deg: 0.0, tilt_deg: 90.0, cant_deg: 0.0 });
+        wire.component.blend_mm = 0.3;
+        let built = crate::mesh::try_build(&with_parts(court, vec![wire]), &lib, params()).unwrap();
+        assert!(built.report.validation.watertight, "{:?}", built.report.validation);
+        assert_eq!(built.parts.joined, 1);
+        eprintln!("lying wire: {} beads, {} of {} clamped, notes {:?}", built.parts.beads, built.parts.bead_clamped, built.parts.bead_stations, built.parts.notes);
+        let pinched = built.parts.beads == 1 && built.parts.notes.iter().any(|n| n.contains("pinches"));
+        let refused = built.parts.beads == 0 && built.parts.notes.iter().any(|n| n.contains("fillet could not be laid"));
+        assert!(pinched || refused, "{} beads, {:?}", built.parts.beads, built.parts.notes);
+    }
+
+    #[test]
+    fn combine_unchecked_is_combine_with_along_the_join_chain() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        let bare = crate::mesh::try_build(&court, &lib, params()).unwrap();
+        let band = as_solid(&bare.mesh);
+        let tools = placed(&with_parts(court.clone(), vec![bezel(1.5, 0.5, 0.0), part(2, "pilot", cylinder(1.0, 12.0), Attach::Cut, Stage::Cast, Placement::ring(90.0, 0.0))]), &lib, &bare.mesh);
+        let (bezel, pilot) = (&tools[0], &tools[1]);
+        let checked = csg::combine_with(&band, bezel, Op::Union, None).unwrap();
+        let vouched = csg::combine_unchecked(&band, bezel, Op::Union, None).unwrap().solid;
+        assert!(checked.v == vouched.v && checked.f == vouched.f);
+        let checked2 = csg::combine_with(&checked, pilot, Op::Subtract, None).unwrap();
+        let vouched2 = csg::combine_unchecked(&vouched, pilot, Op::Subtract, None).unwrap().solid;
+        assert!(checked2.v == vouched2.v && checked2.f == vouched2.f);
+        assert_eq!(vouched2.open_edges(), (0, 0));
+        // The tool is still checked.
+        let mut open = bezel.clone();
+        open.f.pop();
+        assert!(matches!(csg::combine_unchecked(&vouched, &open, Op::Union, None), Err(Snag::Unclosed { open: 3, .. })));
+        let started = std::time::Instant::now();
+        let census = band.open_edges();
+        eprintln!("census of {} faces: {:?} in {:.2} ms", band.f.len(), census, started.elapsed().as_secs_f64() * 1e3);
+        assert_eq!(census, (0, 0));
+    }
+
+    #[test]
+    fn a_raised_flag_stops_the_build_with_a_bead_in_flight() {
+        let lib = AlphaLibrary::builtin();
+        // The overhanging bezel: its bead spends most of the build settling and re-sweeping its corners.
+        let d = with_parts(template("Court band"), vec![bezel(3.0, 0.5, 0.3)]);
+        crate::mesh::try_build(&d, &lib, params()).unwrap();
+        let started = std::time::Instant::now();
+        crate::mesh::try_build(&d, &lib, params()).unwrap();
+        let full = started.elapsed();
+        let stop = std::sync::Arc::new(AtomicBool::new(false));
+        let raise = std::thread::spawn({
+            let stop = stop.clone();
+            move || {
+                std::thread::sleep(full / 2);
+                stop.store(true, Ordering::Relaxed);
+            }
+        });
+        let started = std::time::Instant::now();
+        let result = crate::mesh::try_build_with(&d, &lib, params(), &stop);
+        let elapsed = started.elapsed();
+        raise.join().unwrap();
+        let error = result.err().unwrap_or_else(|| panic!("the build finished in {elapsed:?} with the flag raised at {:?}", full / 2));
+        assert_eq!(error.root_cause().to_string(), cad::CANCELLED);
+        eprintln!("bead in flight: full build {full:?}, flag at {:?}, stopped {:?} after it", full / 2, elapsed.saturating_sub(full / 2));
+        assert!(elapsed < full / 2 + std::time::Duration::from_millis(200), "stopped {:?} after the flag, full build {full:?}", elapsed.saturating_sub(full / 2));
+    }
+
+    /// Timings for the report: `cargo test -p ringdesign-core measured_junctions -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "timings only"]
+    fn measured_junctions() {
+        let lib = AlphaLibrary::builtin();
+        let sizes = [("preview 256x128", BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() }), ("export 1024x384", BuildParams { theta_steps: 1024, profile_steps: 384, ..BuildParams::default() })];
+        for (label, p) in &sizes {
+            for name in ["Court band", "Heart signet"] {
+                for (r, blend) in [(1.5, 0.0), (1.5, 0.3), (3.0, 0.0), (3.0, 0.3)] {
+                    let d = with_parts(template(name), vec![bezel(r, 0.5, blend)]);
+                    let started = std::time::Instant::now();
+                    let built = crate::mesh::try_build(&d, &lib, *p).unwrap();
+                    let ms = started.elapsed().as_millis();
+                    eprintln!("{label:<16} {name:<13} r {r:.1} blend {blend:.1}: build {ms:>5} ms, parts {:>5} ms, {} faces, beads {} ({} stations, {} clamped), open {} non-manifold {}, notes {:?}", built.parts.ms, built.mesh.faces.len(), built.parts.beads, built.parts.bead_stations, built.parts.bead_clamped, built.report.validation.boundary_edges, built.report.validation.non_manifold_edges, built.parts.notes);
+                }
+            }
+        }
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../showcase/oriel/design.ring.json");
+        let Ok(oriel) = crate::library::load_design(&path) else { eprintln!("Oriel not found at {}", path.display()); return };
+        let mut lib = AlphaLibrary::builtin();
+        oriel.unpack_embedded(&mut lib);
+        oriel.bake_all(&mut lib);
+        for (label, p) in &sizes {
+            let started = std::time::Instant::now();
+            let built = crate::mesh::try_build(&oriel, &lib, *p).unwrap();
+            let ms = started.elapsed().as_millis();
+            eprintln!("{label:<16} Oriel: build {ms:>5} ms, setting::apply {:>5} ms, {} seats resolved, {} faces, notes {:?}", built.solids.ms, built.solids.resolved, built.mesh.faces.len(), built.solids.notes);
+        }
+    }
+
 }
