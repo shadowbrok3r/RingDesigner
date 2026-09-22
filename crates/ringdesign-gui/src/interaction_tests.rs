@@ -102,3 +102,104 @@ fn a_workspace_always_shows_its_own_view() {
     }
     h.run_steps(2);
 }
+
+/// Step the harness until the Apply button enables; the evaluation runs on a worker thread.
+fn wait_until_previewed(h: &mut Harness<'static, RingDesignerApp>) {
+    use egui_kittest::kittest::NodeT;
+    let start = std::time::Instant::now();
+    loop {
+        h.run_steps(5);
+        if h.get_all_by_label("Apply").any(|n| !n.accesskit_node().is_disabled()) {
+            return;
+        }
+        let error = h.state().cad.last_error().map(str::to_owned);
+        assert!(error.is_none(), "the candidate failed to evaluate: {error:?}");
+        assert!(start.elapsed() < std::time::Duration::from_secs(20), "the candidate never previewed");
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+/// Ctrl+Enter held across a frame: egui keeps only the last modifier change of a frame.
+fn press_ctrl_enter(h: &mut Harness<'static, RingDesignerApp>) {
+    let key = |pressed| egui::Event::Key {
+        key: egui::Key::Enter,
+        pressed,
+        modifiers: egui::Modifiers::COMMAND,
+        repeat: false,
+        physical_key: None,
+    };
+    h.event(egui::Event::ModifiersChanged(egui::Modifiers::COMMAND));
+    h.event(key(true));
+    h.run_steps(2);
+    h.event(key(false));
+    h.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
+    h.run_steps(2);
+}
+/// Create → Cylinder on the CAD desktop, previewed with Enter and applied with Ctrl+Enter.
+fn create_and_apply_a_cylinder(h: &mut Harness<'static, RingDesignerApp>) -> u64 {
+    h.state_mut().switch_desktop(crate::dock::Desktop::Cad);
+    h.run_steps(4);
+    h.get_by_label("Create").click();
+    h.run_steps(3);
+    h.get_by_label("Cylinder").click();
+    h.run_steps(4);
+    h.key_press(egui::Key::Enter);
+    h.run_steps(3);
+    wait_until_previewed(h);
+    let selected = h.state().cad.selected_feature().expect("the new feature is selected");
+    press_ctrl_enter(h);
+    selected
+}
+
+#[test]
+fn a_plain_design_stays_plain_after_a_cad_apply() {
+    use egui_kittest::kittest::NodeT;
+    let mut h = harness();
+    let selected = create_and_apply_a_cylinder(&mut h);
+    {
+        let app = h.state();
+        assert_eq!(app.cad.last_error(), None);
+        assert!(app.design.graph.is_none() && !app.graph_driven(), "a plain design stays plain");
+        let doc = app.design.cad.as_ref().expect("the applied document");
+        let names: Vec<_> = doc.features.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, ["Cylinder"]);
+        assert_eq!(doc.outputs, vec![selected]);
+        assert_eq!(app.cad.selected_feature(), Some(selected), "the selection survives the re-lift");
+    }
+    let chosen = h.get_all_by_label("Cylinder")
+        .any(|n| n.accesskit_node().toggled() == Some(egui::accesskit::Toggled::True));
+    assert!(chosen, "the feature history still shows the Cylinder chosen");
+    assert!(h.get_all_by_label("Apply").all(|n| n.accesskit_node().is_disabled()), "nothing is left to apply");
+    assert!(h.query_by_label_contains("Parameters changed").is_none(), "the preview stays valid");
+    h.state_mut().switch_desktop(crate::dock::Desktop::Model);
+    h.run_steps(3);
+    assert!(h.query_all_by_label_contains("Driven by the graph").next().is_none(), "the Design panel is not driven");
+    h.state_mut().undo();
+    h.run_steps(2);
+    assert!(h.state().design.cad.is_none(), "undo takes the parts back");
+}
+
+#[test]
+fn a_graph_driven_design_keeps_its_graph_after_a_cad_apply() {
+    let mut h = harness();
+    {
+        let app = h.state_mut();
+        let g = ringdesign_graph::nodes::cad::from_document(&app.design).unwrap();
+        app.set_graph(g);
+    }
+    h.run_steps(2);
+    let before = h.state().design.graph.clone().expect("driven before the edit");
+    let selected = create_and_apply_a_cylinder(&mut h);
+    {
+        let app = h.state();
+        assert_eq!(app.cad.last_error(), None);
+        let after = app.design.graph.clone().expect("the graph stays");
+        assert!(app.graph_driven() && after != before, "the graph carries the edit");
+        let g: ringdesign_graph::graph::Graph = serde_json::from_value(after).unwrap();
+        let feature = g.nodes.iter().find(|n| n.kind == "cad.feature" && n.id.0 == selected).expect("the feature node");
+        assert_eq!(feature.params["name"], "Cylinder");
+        assert_eq!(app.design.cad.as_ref().map(|d| d.features.len()), Some(1));
+    }
+    h.state_mut().switch_desktop(crate::dock::Desktop::Model);
+    h.run_steps(3);
+    assert!(h.query_all_by_label_contains("Driven by the graph").next().is_some(), "the Design panel says so");
+}
