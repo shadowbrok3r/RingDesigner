@@ -2179,6 +2179,59 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
 `graph_add_node` on the cluster, `graph_set_input` on its exposed pins,
 `graph_evaluate`, and a `sink.export` in Free mode.
 
+## CAD parts stand on the band; the band never enters the kernel
+
+`design.cad` is the design's **parts**, not a mode. The CAD roadmap
+(`PLAN.md`, M0–M13) records how it got here; the doctrine it settled:
+
+- **cadkernel builds small analytic parts and nothing else.** Every output
+  part is tessellated and then joined to, cut from or set beside the swept
+  band by `csg.rs` in `parts::resolve`, the stage after seats and stamps.
+  Measured (`examples/kernel_probe.rs`, `join_probe.rs`): a faceted union
+  through the kernel is super-linear and never succeeds — 1024 faces 14 s
+  refused, 2304+ never return — while the same bezel joins the Court band
+  through `csg` in 1.1–5 ms at preview and 6.6–51 ms at export, closed, with
+  the exact volume. Faceted operands past 500 faces are refused before the
+  kernel sees them.
+- **The band is procedural until a feature replaces it**
+  (`RingDesign::band_is_procedural`; every surface tool asks it through
+  `interaction::surface::replaces_band`). The `Band` feature is an anchor,
+  not a body (`Evaluated.band`), and a Boolean against it reads as the other
+  operand's attachment — Union is Join, Subtract is Cut — so old documents
+  keep their meaning with no migration.
+- **A part is placed on the ring as built.** `Placement::Ring { theta_deg,
+  across_mm, height_mm, spin, tilt, cant }` is dropped onto the built mesh
+  (`Placement::frame_on`), `height_mm` a stand-off along the surface normal.
+  The reference-crest formula it replaced buried a part's foot 2.06–2.42 mm
+  on a signet's shoulders (`examples/anchor_probe.rs`).
+- **`Component.attach` / `stage` / `blend_mm`** say how the part meets the
+  band (Separate, Join, Cut), whether it is poured or added at the bench,
+  and the radius of the rolling-ball seam bead (`blend.rs`) laid along every
+  seam the traced boolean reports — 0.0046 mm off the analytic torus fillet.
+  A bench part is shown finished and left out of a sand pattern. Every part
+  vertex names its feature through `Mesh.origin` (`Resolved::feature_of`).
+- **Edges are named by signature, not by position.** `EdgeRef` carries the
+  ordinal, the two surface kinds, the curve and a direction in the part's
+  own frame; the ordinal is kept while the signature agrees, searched for
+  when it does not, and a miss badges the feature instead of retargeting it
+  (`examples/ref_probe.rs`: ordinals hold under every parameter sweep and
+  move for real when topology does).
+- **One edit funnel.** `cad::edit::CadEdit` has two appliers that agree byte
+  for byte on every example (`tests/cad_edits.rs`): `Document::apply` on a
+  plain design and `nodes::cad::apply_edit` on a graph, dispatched by
+  `nodes::cad::edit_design`. In the GUI `cad_edit::apply` is the only road
+  for a committed edit — one History entry, and on a driven design the
+  document the edited graph evaluates to is carried with it, or Undo takes
+  back only the build's splice. "Convert to graph" chains a document as
+  `cad.feature` nodes (`nodes::cad::chain_document`), never as one opaque
+  `/cad` patch the funnel cannot read.
+- **A failed feature fails alone.** Evaluation carries on past it and skips
+  only what reads it (`FeatureStatus::{Ok, Suppressed, Failed, Skipped}` on
+  every `FeatureReport`). `cad::Cache` behind a `Memo` keyed on recipe
+  signatures and the surface epoch makes a warm edit of the gallery's last
+  feature 35.1 → 2.3 ms at preview; the boolean resolve into the band is not
+  cached and is what a part edit now costs (34 ms preview, 377 ms export).
+
 ## Python: `crates/ringdesign-py`
 
 The core and the graph runtime as a Python module (`import ringdesign`),
