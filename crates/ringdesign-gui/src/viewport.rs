@@ -1622,29 +1622,16 @@ fn probe_click(
     camera: crate::camera::OrbitCamera,
     rect: egui::Rect,
     pos: egui::Pos2,
-    shift: bool,
 ) {
     let Some(build) = app.build.clone() else {
         return;
     };
     let (origin, dir) = camera.ray(rect, pos);
     let Some(hit) = ringdesign_core::interaction::picking::hit(&app.design, &app.lib, &build.mesh, origin, dir) else {
-        if !shift { app.clear_selection(); }
+        app.clear_selection();
         return;
     };
     let world = hit.world;
-    if shift {
-        if app.pins.len() >= 2 {
-            app.pins.clear();
-        }
-        app.pins.push(world);
-        if app.pins.len() == 2 {
-            let (a, b) = (app.pins[0], app.pins[1]);
-            let d = ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt();
-            app.set_status(format!("Pin to pin: {d:.2} mm"));
-        }
-        return;
-    }
 
     let theta = hit.theta_deg;
     let v_mm = hit.v_mm;
@@ -1694,7 +1681,7 @@ fn probe_click(
 fn select_click(app: &mut RingDesignerApp, camera: crate::camera::OrbitCamera, rect: egui::Rect, pos: egui::Pos2, mods: Mods) {
     let Some(scene) = app.pick_scene.clone() else {
         if !mods.shift && !mods.ctrl {
-            probe_click(app, camera, rect, pos, false);
+            probe_click(app, camera, rect, pos);
         }
         return;
     };
@@ -1707,7 +1694,7 @@ fn select_click(app: &mut RingDesignerApp, camera: crate::camera::OrbitCamera, r
     let plain = !mods.shift && !mods.ctrl;
     match app.selection.items.last() {
         None if plain => app.clear_selection(),
-        Some(Sel::BandPoint { .. }) if plain => probe_click(app, camera, rect, pos, false),
+        Some(Sel::BandPoint { .. }) if plain => probe_click(app, camera, rect, pos),
         Some(sel) => {
             let what = ringdesign_workbench::viewport::selection::describe(sel, &app.design, app.build.as_deref());
             let n = app.selection.items.len();
@@ -1902,28 +1889,5 @@ fn draw_probe(app: &RingDesignerApp, painter: &egui::Painter, proj: &Projector, 
             painter.rect_filled(bg, 3.0, theme::PANEL.gamma_multiply(0.9));
             painter.galley(at, galley, theme::TEXT);
         }
-    }
-    for pin in &app.pins {
-        let p = proj.at(*pin);
-        if rect.contains(p) {
-            painter.circle_stroke(p, 5.0, egui::Stroke::new(1.6, theme::WARN));
-            painter.circle_filled(p, 1.6, theme::WARN);
-        }
-    }
-    if app.pins.len() == 2 {
-        let (a, b) = (proj.at(app.pins[0]), proj.at(app.pins[1]));
-        painter.line_segment([a, b], egui::Stroke::new(1.2, theme::WARN));
-        let d = {
-            let (p, q) = (app.pins[0], app.pins[1]);
-            ((p[0] - q[0]).powi(2) + (p[1] - q[1]).powi(2) + (p[2] - q[2]).powi(2)).sqrt()
-        };
-        let mid = egui::pos2((a.x + b.x) * 0.5, (a.y + b.y) * 0.5 - 10.0);
-        painter.text(
-            mid,
-            egui::Align2::CENTER_BOTTOM,
-            format!("{d:.2} mm"),
-            egui::FontId::proportional(11.0),
-            theme::WARN,
-        );
     }
 }

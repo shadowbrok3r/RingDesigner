@@ -220,8 +220,6 @@ pub struct RingDesignerApp {
     /// Last probe click in the 3D view: world position and its readout.
     pub hovered_node: Option<GraphNodeId>,
     pub probe: Option<([f32; 3], String)>,
-    /// Measurement pins from shift-clicks, world space. Two make a distance.
-    pub pins: Vec<[f32; 3]>,
     /// The pinned comparison: the design as it was when pinned. Its mesh
     /// rides the viewport as a translucent ghost; the section view overlays
     /// its outline dashed.
@@ -376,7 +374,6 @@ impl RingDesignerApp {
             brush_erase: false,
             hovered_node: None,
             probe: None,
-            pins: Vec::new(),
             pinned: None,
             pave_open: false,
             prices: load_prices(),
@@ -826,7 +823,6 @@ impl RingDesignerApp {
     pub fn clear_selection(&mut self) {
         self.hovered_node = None;
         self.selection.clear();
-        self.pins.clear();
         self.selected_node = None;
         if let Some(ed) = &mut self.graph_ed { ed.selected = None; }
         self.selected_layer = None;

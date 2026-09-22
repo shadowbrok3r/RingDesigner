@@ -1301,10 +1301,15 @@ emits one line per distinct seat.
   angle and dashes its outline — resolution-independent on both counts.
 - **Ctrl+K** opens the command palette (`panels::Command`, one enum arm per
   action); Ctrl+S/O/N and Delete-layer ride the same dispatch.
-- **The viewport probe**: click the 3D view to ray-cast the built mesh
-  (Möller–Trumbore over every face — a millisecond on a click, no BVH):
-  readout of θ/v/relief/wall/class, and the topmost contributing layer
-  becomes the selection. Shift-click drops pins; two pins measure mm.
+- **The viewport probe and selection**: the Ring viewport keeps a pick
+  scene over every build (`interaction::pick::PickScene`, one BVH, rebuilt
+  in `tick`), so a hover pre-lights the face, edge, vertex, part, stone or
+  band point under the pointer (a second focus channel, attribute 5), a
+  click selects it, Shift adds, Ctrl removes, Tab or Alt-click walks the
+  depth stack and Escape clears. Right-click offers what the selection can
+  do (`workbench::viewport::menu::context_items`). A click on the band
+  still reads θ/v/relief/wall/class and makes the topmost contributing
+  layer the selection; distances are the Measure tool's two taps.
 - **Channel set** (`pave::channel_set`): two rails flanking a recessed
   channel, one Group gated to the wider side face — the only place a
   channel's walls stand parallel to the pull. It is honestly a *thick-band*
