@@ -26,6 +26,14 @@ pub enum MenuAction {
     OpenCad,
     ToggleWire,
     ToggleGrid,
+    /// A new sketch on a planar face of a part.
+    SketchOnFace { feature: Id, face: u32 },
+    /// A new sketch on a plane through a point of the band.
+    SketchOnPlane { theta_deg: f64, across_mm: f64 },
+    /// A reference stone seated where the click landed; `key` names the stone.
+    AddStone { theta_deg: f64, height_mm: f64, key: &'static str },
+    /// A made setting round a stone: a reference part, or a height-field stone by its layer path.
+    Setting { part: Option<Id>, stone: Option<Vec<usize>>, key: &'static str },
 }
 
 #[derive(Clone, Debug)]
@@ -42,18 +50,18 @@ pub struct MenuItem {
 }
 
 impl MenuItem {
-    fn new(label: impl Into<String>, icon: Icon, action: MenuAction, hint: &'static str) -> Self {
+    pub(crate) fn new(label: impl Into<String>, icon: Icon, action: MenuAction, hint: &'static str) -> Self {
         Self { label: label.into(), icon, action, enabled: true, hint, submenu: None, checked: false }
     }
-    fn under(mut self, submenu: &'static str) -> Self {
+    pub(crate) fn under(mut self, submenu: &'static str) -> Self {
         self.submenu = Some(submenu);
         self
     }
-    fn ticked(mut self, checked: bool) -> Self {
+    pub(crate) fn ticked(mut self, checked: bool) -> Self {
         self.checked = checked;
         self
     }
-    fn only_if(mut self, enabled: bool, hint: &'static str) -> Self {
+    pub(crate) fn only_if(mut self, enabled: bool, hint: &'static str) -> Self {
         if !enabled {
             self.enabled = false;
             self.hint = hint;
@@ -66,8 +74,9 @@ impl MenuItem {
 enum Subject {
     /// A place on the band, when one is known.
     Band(Option<[f64; 3]>),
-    Feature { id: Id, edge: Option<u32> },
-    Stone,
+    Feature { id: Id, edge: Option<u32>, face: Option<u32> },
+    /// A height-field stone, by its layer path when one is known.
+    Stone(Option<Vec<usize>>),
     Nothing,
 }
 
@@ -75,17 +84,19 @@ fn subject(sel: &Selection, under: Option<&Pick>) -> Subject {
     if let Some(p) = under {
         return match &p.entity {
             Entity::Band => Subject::Band(Some(p.world)),
-            Entity::Part { feature } | Entity::Face { feature, .. } | Entity::Vertex { feature, .. } => Subject::Feature { id: *feature, edge: None },
-            Entity::Edge { feature, edge } => Subject::Feature { id: *feature, edge: Some(*edge) },
-            Entity::Stone { .. } => Subject::Stone,
+            Entity::Part { feature } | Entity::Vertex { feature, .. } => Subject::Feature { id: *feature, edge: None, face: None },
+            Entity::Face { feature, face } => Subject::Feature { id: *feature, edge: None, face: Some(*face) },
+            Entity::Edge { feature, edge } => Subject::Feature { id: *feature, edge: Some(*edge), face: None },
+            Entity::Stone { path } => Subject::Stone(Some(path.clone())),
         };
     }
     match sel.items.last() {
         Some(Sel::BandPoint { world, .. }) => Subject::Band(Some(*world)),
         Some(Sel::Layer(_)) => Subject::Band(None),
-        Some(Sel::Stone(_)) => Subject::Stone,
+        Some(Sel::Stone(path)) => Subject::Stone(Some(path.clone())),
+        Some(Sel::Face { feature, face }) => Subject::Feature { id: *feature, edge: None, face: Some(*face) },
         Some(s) => match (s.feature(), s.edge()) {
-            (Some(id), edge) => Subject::Feature { id, edge },
+            (Some(id), edge) => Subject::Feature { id, edge, face: None },
             _ => Subject::Nothing,
         },
         None => Subject::Nothing,
@@ -128,12 +139,20 @@ pub fn context_items(sel: &Selection, under: Option<&Pick>, design: &RingDesign)
             for label in PLACEABLE {
                 items.push(MenuItem::new(label, Icon::Add, MenuAction::AddPartHere { theta_deg, height_mm, label }, "A new part seated where the click landed, joined to the band").under("Add CAD part here"));
             }
+            items.extend(super::stones::band_items(theta_deg, height_mm));
+            items.push(MenuItem::new("Sketch on a plane here", Icon::CadSketch, MenuAction::SketchOnPlane { theta_deg, across_mm: world[2] }, "A new sketch on a plane through this point of the band"));
         }
-        Subject::Feature { id, edge } => {
+        Subject::Feature { id, edge, face } => {
             let feature = design.cad.as_ref().and_then(|d| d.features.iter().find(|f| f.id == id));
             let component = feature.map(|f| &f.component);
             let reference = component.is_some_and(|c| c.reference);
             const STONE: &str = "A reference stone is never metal";
+            if let Some(face) = face {
+                items.push(MenuItem::new("Sketch on this face", Icon::CadSketch, MenuAction::SketchOnFace { feature: id, face }, "A new sketch lying on this face, moving with it"));
+            }
+            if reference {
+                items.extend(super::stones::setting_items(Some(id), None));
+            }
             if let Some(edge) = edge {
                 items.push(MenuItem::new("Fillet this edge", Icon::CadFillet, MenuAction::FilletEdge { feature: id, edge }, "Round the edge with a new Fillet feature on this part"));
                 items.push(MenuItem::new("Chamfer this edge", Icon::CadChamfer, MenuAction::ChamferEdge { feature: id, edge }, "Bevel the edge with a new Chamfer feature on this part"));
@@ -156,7 +175,8 @@ pub fn context_items(sel: &Selection, under: Option<&Pick>, design: &RingDesign)
             }
             items.push(MenuItem::new("Isolate in CAD", Icon::Layers, MenuAction::IsolateInCad(id), "Show this part alone in the CAD pane"));
         }
-        Subject::Band(None) | Subject::Stone | Subject::Nothing => {}
+        Subject::Stone(path) => items.extend(super::stones::setting_items(None, path)),
+        Subject::Band(None) | Subject::Nothing => {}
     }
     items.push(MenuItem::new("Fit view", Icon::Fit, MenuAction::FitView, "Frame the whole ring"));
     items.push(MenuItem::new("Open CAD workspace", Icon::Workshop, MenuAction::OpenCad, "The feature tree and the parts pane"));
@@ -218,7 +238,8 @@ mod tests {
             other => panic!("{other:?}"),
         }
         let tail: Vec<_> = items.iter().skip(adds.len()).map(|i| i.action.clone()).collect();
-        assert_eq!(tail, [MenuAction::FitView, MenuAction::OpenCad, MenuAction::ToggleWire, MenuAction::ToggleGrid]);
+        let sketch = MenuAction::SketchOnPlane { theta_deg: 90.0, across_mm: 0.0 };
+        assert_eq!(tail, [sketch, MenuAction::FitView, MenuAction::OpenCad, MenuAction::ToggleWire, MenuAction::ToggleGrid]);
         assert!(items.iter().all(|i| i.enabled));
         // With nothing under and nothing chosen only the view items remain.
         assert_eq!(context_items(&sel, None, &d).len(), 4);
@@ -275,7 +296,8 @@ mod tests {
         let face = pick(Entity::Face { feature: 3, face: 1 }, [0.0, 10.0, 0.0]);
         let items = context_items(&sel, Some(&face), &d);
         assert_eq!(heading(&sel, Some(&face), &d).as_deref(), Some("Face 1 of Bezel"));
-        assert_eq!(items.len(), 11, "a face has the part's items");
+        assert_eq!(items[0].action, MenuAction::SketchOnFace { feature: 3, face: 1 });
+        assert_eq!(items.len(), 12, "a face has the part's items and a sketch on it");
         assert!(!items.iter().any(|i| matches!(i.action, MenuAction::FilletEdge { .. })));
     }
 

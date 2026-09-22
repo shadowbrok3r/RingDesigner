@@ -203,6 +203,8 @@ pub struct RingDesignerApp {
     pub selection: Selection,
     /// The Ring viewport's command session, its dimension bar and box select.
     pub command: crate::command::CommandState,
+    /// The sketch being drawn in the Ring viewport, if any.
+    pub sketch: crate::sketch_mode::SketchMode,
     pub cast: Option<CastReport>,
     pub field: Option<ringdesign_core::castability::FieldReport>,
     pub stones: Option<ringdesign_core::stones::StonesReport>,
@@ -374,6 +376,7 @@ impl RingDesignerApp {
             pick_scene: None,
             selection: Selection::default(),
             command: Default::default(),
+            sketch: Default::default(),
             cast: None,
             field: None,
             stones: None,

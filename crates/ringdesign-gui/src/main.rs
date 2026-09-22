@@ -20,6 +20,8 @@ mod theme;
 mod viewport;
 mod updater;
 mod session;
+mod sketch_mode;
+mod stone_tools;
 mod swatch;
 #[cfg(test)]
 mod ui_tests;
@@ -29,6 +31,12 @@ mod interaction_tests;
 mod timeline_tests;
 #[cfg(test)]
 mod command_tests;
+#[cfg(test)]
+mod gizmo_tests;
+#[cfg(test)]
+mod sketch_tests;
+#[cfg(test)]
+mod stone_tests;
 
 use app::RingDesignerApp;
 

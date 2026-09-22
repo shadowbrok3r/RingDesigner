@@ -1162,8 +1162,15 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
         ui.ctx().request_repaint();
     }
-    // The command layer takes its keys, the pointer and its clicks before the viewport's own handling.
-    let took = if active { crate::command::input(app, ui, pane, rect, &response) } else { crate::command::Took::default() };
+    // A live sketch, then the command layer, take their keys, the pointer and their clicks before the viewport's own handling.
+    let sketching = active && crate::sketch_mode::active(app);
+    let took = if sketching {
+        crate::sketch_mode::input(app, ui, pane, rect, &response)
+    } else if active {
+        crate::command::input(app, ui, pane, rect, &response)
+    } else {
+        crate::command::Took::default()
+    };
     if response.secondary_clicked() && !took.secondary {
         // What the menu is about: the best pick under the pointer, with the band's own raycast as
         // the fallback before the first scene is built.
@@ -1408,6 +1415,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     draw_selection(app, &painter, &proj, rect);
     if !follow_node {
         crate::command::draw(app, ui, pane, &response, &painter, &proj, active);
+        crate::sketch_mode::draw(app, ui, pane, &response, &painter, &proj, active);
     }
     let label = {
         let mut s = String::from("Ring viewport");
@@ -1893,6 +1901,10 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
         MenuAction::OpenCad => app.focus(crate::pane::PaneKind::Cad),
         MenuAction::ToggleWire => app.show_wireframe = !app.show_wireframe,
         MenuAction::ToggleGrid => app.show_grid = !app.show_grid,
+        MenuAction::SketchOnFace { feature, face } => crate::sketch_mode::start_on_face(app, pane, feature, face),
+        MenuAction::SketchOnPlane { theta_deg, across_mm } => crate::sketch_mode::start_on_plane(app, pane, theta_deg, across_mm),
+        MenuAction::AddStone { theta_deg, height_mm, key } => crate::stone_tools::add_stone(app, theta_deg, height_mm, key),
+        MenuAction::Setting { part, stone, key } => crate::stone_tools::setting(app, part, stone, key),
     }
 }
 

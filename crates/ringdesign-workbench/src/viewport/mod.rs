@@ -3,6 +3,7 @@
 //! Tab cycles, the focus-channel weights that light it, and what a right-click may do with it.
 pub mod menu;
 pub mod selection;
+pub mod stones;
 
 pub use menu::{MenuAction, MenuItem, context_items, heading};
 pub use selection::{Mods, Sel, Selection, box_planes, label, tint};
