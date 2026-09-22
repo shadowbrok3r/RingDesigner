@@ -444,6 +444,8 @@ pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result
     }
     let out = g.add(OUTPUT_KIND)?;
     g.connect(last, "design", out, OUTPUT_DESIGN_PIN)?;
+    // Nodes in id order, as the editor writes them back.
+    g.nodes.sort_by_key(|n| n.id);
     crate::templates::arrange(&mut g);
     Ok(g)
 }
@@ -501,6 +503,7 @@ mod tests {
             assert!(!whole, "{name}: the document travels as feature nodes, not one patch");
             let features = d.cad.as_ref().unwrap().features.len();
             assert_eq!(g.nodes.iter().filter(|n| n.kind == "cad.feature").count(), features, "{name}");
+            assert!(g.nodes.windows(2).all(|w| w[0].id < w[1].id), "{name}: nodes in id order, as the editor writes them back");
             assert_eq!(serde_json::to_value(crate::nodes::cad::document(&g).unwrap()).unwrap(), serde_json::to_value(d.cad.as_ref().unwrap()).unwrap(), "{name}");
             let id = d.cad.as_ref().unwrap().features.last().unwrap().id;
             crate::nodes::cad::apply_edit(&mut g, &CadEdit::Rename { id, name: "Renamed".into() }).unwrap();

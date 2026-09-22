@@ -112,11 +112,13 @@ fn the_ring_viewport_strip_suppresses_through_the_funnel_undoes_and_does_the_sam
     assert_eq!(joined(&h), (1, 1));
     h.get_by_label("Cylinder · ok");
 
-    // The same design driven by its graph takes the same gesture on its graph.
+    // The same design converted to a graph takes the same gesture on its graph.
     {
         let app = h.state_mut();
-        let g = ringdesign_graph::nodes::cad::from_document(&app.design).unwrap();
-        app.set_graph(g);
+        app.convert_to_graph();
+        assert!(app.graph_driven(), "{}", app.status);
+        // Back to the one Ring viewport; the Graph desktop shows two previews, each with its strip.
+        app.switch_desktop(crate::dock::Desktop::Model);
         app.history.commit(&app.design);
     }
     settle(&mut h);
