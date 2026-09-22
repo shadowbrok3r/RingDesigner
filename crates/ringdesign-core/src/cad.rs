@@ -1245,6 +1245,9 @@ mod tests {
         let lib = AlphaLibrary::builtin();
         let e = evaluate(&design(vec![extrude(s.clone())]), &lib, BuildParams::default()).unwrap();
         assert!((e.components[0].mesh.volume_mm3() - 24.0).abs() < 1e-3);
+        let round = evaluate(&design(vec![extrude(Sketch::circle(3.0))]), &lib, BuildParams::default()).unwrap();
+        let volume = round.components[0].mesh.volume_mm3();
+        assert!((volume - std::f64::consts::PI * 9.0 * 2.0).abs() < 0.3, "{volume}");
         let q = [[10.0, 0.0], [12.0, 0.0], [11.0, 2.0]].map(|p| s.point(p));
         s.entity(crate::sketch::Geometry::Polyline {
             points: q.to_vec(),

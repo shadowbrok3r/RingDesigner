@@ -386,7 +386,29 @@ impl Sketch {
             !closed.is_empty() || !open.is_empty(),
             "Sketch has no profile geometry"
         );
-        let mut chains: Vec<Vec<Curve>> = closed;
+        // The kernel sweeps arcs, never a whole circle: hand it two halves.
+        let mut chains: Vec<Vec<Curve>> = closed
+            .into_iter()
+            .map(|curves| {
+                curves
+                    .into_iter()
+                    .flat_map(|c| match c {
+                        Curve::Circle(circle) => {
+                            let half = |from: f64| {
+                                Curve::Arc(Arc {
+                                    centre: circle.centre,
+                                    radius: circle.radius,
+                                    start_angle: from,
+                                    end_angle: from + std::f64::consts::PI,
+                                })
+                            };
+                            vec![half(0.0), half(std::f64::consts::PI)]
+                        }
+                        other => vec![other],
+                    })
+                    .collect()
+            })
+            .collect();
         while !open.is_empty() {
             let (start, mut end, mut chain) = open.remove(0);
             while key(end)? != key(start)? {
@@ -641,6 +663,7 @@ mod tests {
         assert_eq!(s.points.len(), 3);
         assert!(s.constraints.is_empty());
         assert_eq!(s.profile_curves().unwrap().len(), 3);
+        assert_eq!(Sketch::circle(2.0).profile_curves().unwrap().len(), 2, "a circle sweeps as two arcs");
         s.remove_point(p[2]);
         assert_eq!((s.points.len(), s.entities.len()), (2, 1));
     }
