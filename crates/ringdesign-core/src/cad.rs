@@ -828,7 +828,7 @@ impl Document {
             "Duplicate feature identity #{}",
             f.id
         );
-        for id in f.operation.sources() {
+        for id in f.operation.consumes() {
             self.outputs.retain(|v| *v != id);
         }
         // A sketch has no body to output.
@@ -1760,8 +1760,8 @@ pub fn evaluate_memo(
             status: FeatureStatus::Ok,
         };
         if !f.enabled {
-            // A suppressed feature passes its first source's body and frame through.
-            if let Some(id) = f.operation.sources().first() {
+            // A suppressed feature passes the first body it consumes, and that body's frame, through.
+            if let Some(id) = f.operation.consumes().first() {
                 if let Some(body) = bodies.get(id).cloned() {
                     bodies.insert(f.id, body);
                     metadata.insert(f.id, f);
@@ -1824,7 +1824,7 @@ pub fn evaluate_memo(
         }
         status.insert(f.id, report.status.clone());
         reports.push(report);
-        for id in f.operation.sources() {
+        for id in f.operation.consumes() {
             available_outputs.retain(|v| *v != id);
         }
         if bodies.contains_key(&f.id) {
@@ -2885,7 +2885,7 @@ mod sketch_tests {
         for f in features {
             doc.append(f).unwrap();
         }
-        doc.outputs = outputs;
+        assert_eq!(doc.outputs, outputs, "a face a sketch lies on stays an output");
         RingDesign { cad: Some(doc), ..RingDesign::default() }
     }
     fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
@@ -3168,5 +3168,47 @@ mod sketch_tests {
         assert_eq!(doc.dependents(1), vec![2, 3]);
         let error = doc.apply(&edit::CadEdit::Remove { id: 1 }).unwrap_err().to_string();
         assert!(error.contains("2 depend on it"), "{error}");
+        assert_eq!(doc.outputs, vec![1, 3], "the box stays a part beside what stands on it");
+    }
+
+    #[test]
+    fn every_edit_keeps_the_box_a_sketch_stands_on_among_the_outputs() {
+        use edit::CadEdit;
+        let lib = AlphaLibrary::builtin();
+        let params = BuildParams::default();
+        let seat = Placement::ring(90.0, 0.0);
+        let mut block = feature(1, Operation::Box { size: [8.0, 6.0, 2.0] });
+        block.component.placement = seat.clone();
+        let d = design_of(vec![block.clone()], vec![1]);
+        let body = evaluate(&d, &lib, params).unwrap().components.remove(0).body;
+        let top = face_along(&body, &seat.frame(&d).unwrap(), [0.0, 0.0, 1.0]);
+        let mut circle = Sketch::circle(1.0);
+        circle.plane.on_face = Some(FaceAnchor { feature: 1, face: FaceRef::signed(&body, top, &seat.frame(&d).unwrap()) });
+        let post = feature(2, extrude(circle.clone().into(), 1.0));
+        let mut doc = Document::default();
+        doc.apply(&CadEdit::Add { feature: block, after: None }).unwrap();
+        doc.apply(&CadEdit::Add { feature: post, after: None }).unwrap();
+        assert_eq!(doc.outputs, vec![1, 2], "added through the funnel");
+        let parts = |doc: &Document| {
+            let d = RingDesign { cad: Some(doc.clone()), ..RingDesign::default() };
+            let e = evaluate(&d, &lib, params).unwrap();
+            assert!(e.failures().is_empty(), "{:?}", e.failures());
+            e.components.iter().map(|c| c.id).collect::<Vec<_>>()
+        };
+        assert_eq!(parts(&doc), vec![1, 2]);
+        doc.apply(&CadEdit::Enable { id: 2, enabled: false }).unwrap();
+        assert_eq!(parts(&doc), vec![1], "a suppressed post passes nothing through, and the box is still there");
+        doc.apply(&CadEdit::Enable { id: 2, enabled: true }).unwrap();
+        doc.apply(&CadEdit::Through { through: Some(2) }).unwrap();
+        assert_eq!(parts(&doc), vec![1, 2], "rolled back to the post");
+        doc.apply(&CadEdit::Through { through: None }).unwrap();
+        // A post that consumed the box by a boolean gives it back when it only stands on it again.
+        doc.apply(&CadEdit::Add { feature: feature(3, Operation::Cylinder { radius_mm: 0.5, height_mm: 4.0 }), after: Some(1) }).unwrap();
+        doc.apply(&CadEdit::Operation { id: 2, operation: Operation::Boolean { a: 1, b: 3, kind: Boolean::Subtract } }).unwrap();
+        assert_eq!(doc.outputs, vec![2]);
+        doc.apply(&CadEdit::Operation { id: 2, operation: extrude(circle.into(), 1.0) }).unwrap();
+        assert_eq!(doc.outputs, vec![2, 1, 3]);
+        doc.apply(&CadEdit::Remove { id: 2 }).unwrap();
+        assert_eq!(doc.outputs, vec![1, 3], "removing what stands on the box leaves the box");
     }
 }

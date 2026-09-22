@@ -173,9 +173,9 @@ impl Document {
         }
         Ok(())
     }
-    /// Puts a source back in the outputs when no feature reads it any more.
+    /// Puts a source back in the outputs when no feature consumes it any more.
     fn release(&mut self, source: Id) {
-        let consumed = self.features.iter().any(|g| g.operation.sources().contains(&source));
+        let consumed = self.features.iter().any(|g| g.operation.consumes().contains(&source));
         let body = self.feature(source).is_some_and(|f| !is_sketch(f));
         if !consumed && body && !self.outputs.contains(&source) {
             self.outputs.push(source);
@@ -276,8 +276,8 @@ impl Document {
         }
         check_component(&format!("Add {}", f.name), &f.component)?;
         self.one_band(&f, f.id)?;
-        for s in &sources {
-            self.outputs.retain(|v| v != s);
+        for s in f.operation.consumes() {
+            self.outputs.retain(|v| *v != s);
         }
         if !is_sketch(&f) {
             self.outputs.push(f.id);
@@ -367,12 +367,13 @@ impl Document {
         f.operation = operation;
         self.one_band(&f, id)?;
         let now_sketch = is_sketch(&f);
+        let consumed = f.operation.consumes();
         *self.feature_mut(id).unwrap() = f;
-        for s in &sources {
+        for s in &consumed {
             self.outputs.retain(|v| v != s);
         }
         for s in old_sources {
-            if !sources.contains(&s) {
+            if !consumed.contains(&s) {
                 self.release(s);
             }
         }
