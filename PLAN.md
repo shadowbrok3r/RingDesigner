@@ -16,6 +16,16 @@ Decisions Logan made this session:
 | Order | Unblock first, then the viewport tool framework, then builders |
 | Phone | Shared core/workbench, desktop UI first, touch a milestone or two behind |
 
+Added 2026-09-22 (Logan):
+
+- **Plain sketches**: a sketch is a feature of its own that extrude/revolve/sweep/loft consume, and
+  a sketch can be drawn **on a face**. Schema landed in M1 (`Operation::Sketch`, `Profile`,
+  `Workplane::on_face`); the face-pick and in-context canvas are M8.
+- **Fusion-style dimension entry**: while creating or editing anything with dimensions (a sketch, an
+  extrude, a cylinder…) you can type a number for the live dimension at any time, press **Tab** to
+  focus the next dimension field and keep typing, and **Enter** to finalise. egui claims Tab for
+  global focus traversal, so the viewport's dimension fields must own it (M4 below).
+
 ### What driving the GUI showed (egui inspection port, 2026-09-21)
 
 I could not finish one fused ring.
@@ -93,10 +103,10 @@ spot-verified against the code):
 | M2 | **Join/Cut that finish; CAD stops being a mode** | 2-3 wk | Fuse a bezel to the real band in seconds, keep painting it |
 | M3 | **Pick, hover, multi-select, context menu, entity browser** | 2 wk | Faces/edges light under the mouse; right-click does the obvious thing |
 | M4 | **One edit funnel, feature strip, per-feature status + cache** | 2-3 wk | Delete/reorder/suppress on a timeline; errors sit on the feature |
-| M5 | **Command session**: G/R/S in ring frame, axis locks, typed values, Place on ring, Join/Cut, grid/vertex/midpoint snaps, tool rail | 3 wk | Model by mouse + hotkeys with exact numbers |
+| M5 | **Command session**: G/R/S in ring frame, axis locks, typed values with **Tab-cycled dimension fields**, Place on ring, Join/Cut, grid/vertex/midpoint snaps, tool rail | 3 wk | Model by mouse + hotkeys with exact numbers |
 | M6 | **Ring-frame gizmo**, ring dial, click-drag primitives, shared grips | 2 wk | Slide a head round the shank, spin, tilt |
 | M7 | **Ring-aware snaps** (theta, side face, parting plane, stone stations, castability tint), work planes, bench pin, measure | 2 wk | Snap to what matters on a ring |
-| M8 | **Sketch in 3D context**: on-face/on-plane, ring underlay, pan, delete, trim/offset/corner fillet, multi-loop regions, in-canvas dimensions | 2-3 wk | Draw a profile where it lives |
+| M8 | **Sketch in 3D context**: pick a face or plane to sketch on (writes `Workplane::on_face`), ring underlay, plain `Sketch` features in the tree with "Extrude/Revolve/Sweep this sketch" on right-click, trim/offset/corner fillet, multi-loop regions, in-canvas dimensions | 2-3 wk | Draw a profile where it lives |
 | M9 | **Press-pull, geometric refs everywhere, mirror, ring array** | 2-3 wk | Push faces; six prongs from one |
 | M10 | **Gem-driven builders** as one `Operation::Builder{key, params}` + graph nodes: heads, bezels, baskets, halos; stone right-click → Setting | 3 wk | A solitaire in three gestures |
 | M11 | **Verdict for parts** (per-face draft tint vs parting plane, stage rule: fused head under sand = bench + locating dot) and the **seam bead** | 2-3 wk | Honest casting read on CAD rings; filleted junctions |
@@ -157,9 +167,34 @@ does not Apply" (covered by the Enter-never-applies pin instead).
   surface kind per face and the body's vertices; `EvaluatedComponent.trace` carries it. Pinned by
   `a_traced_tessellation_names_the_face_and_kind_behind_every_triangle`.
 - R2 retired (below); the boolean gate is 500 faces.
-- Open: v5 schema (`Placement`, `Component` attach/stage/anchor/repeat/blend, `EdgeSel`/`FaceSel`
-  with the migration walking `cad.feature` params inside `design.graph`), `csg::Solid` from a trace,
-  spikes R1/R3/R4/R5.
+- v5 schema (2026-09-22): `Component.placement: Placement::{Free, Ring{theta_deg, across_mm,
+  height_mm, spin_deg, tilt_deg, cant_deg}}` replaces the anchor pair (legacy fields fold in on any
+  read; `migrate_v4_to_v5` rewrites the document and every `cad.feature` node inside
+  `design.graph`); `EdgeRef`/`FaceRef { ordinal, signature }` replace positional indices (a bare
+  number still reads; a signature is checked every evaluation, a moved edge is found again and
+  noted on the feature, a missing one is refused by name); `Operation::Sketch`, `Profile::{Inline,
+  Feature}` on extrude/revolve/sweep/twist/loft, and `Workplane::on_face` (a `FaceAnchor` whose
+  plane is the face's own, outward normal, origin and x projected onto it).
+- Open: `Component` attach/stage/blend (additive, with M2), `csg::Solid` from a trace, spikes R1/R4.
+- Known red, pre-existing (fails on the tree before this work): graph integration test
+  `stock_masterworks_match_their_sources_with_native_maps_and_casting_modes` — the bundled
+  `graphs/templates/nocturne-imported.graph.json` no longer matches
+  `showcase/stock-masterworks/nocturne/design.ring.json`; regenerate one from the other
+  (`showcase_templates --write`) when the Reptilia batch is reviewed.
+
+### Dimension entry (M4/M5 design note)
+
+The tool's dimension fields are real `egui::TextEdit`s in an `Area` by the cursor, one per free
+dimension (a cylinder: radius, height; an extrude: height, taper; a sketch line: length, angle).
+Typing a digit while the tool is live focuses the first field and starts its text. **Tab moves to
+the next field and Shift+Tab back, inside the tool only**: egui moves focus on Tab in
+`Memory::begin_pass`, before any UI runs, so a field cannot consume the key late — each field
+registers `ui.memory_mut(|m| m.set_focus_lock_filter(id, EventFilter { tab: true, ..}))` (what
+`TextEdit::lock_focus(true)` does) so egui leaves focus alone and delivers the Tab event, and the
+tool reads `Event::Key { key: Tab, .. }` from `input_mut` and calls `request_focus` on the next of
+its own ids. A field with text is a locked degree of freedom (the mouse stops driving it);
+**Enter** commits the step, Escape empties the field first, then leaves the step. The same fields
+answer to AccessKit so kittest and `egui_drive.py` can type into them.
 
 ### M1 spikes (retire before writing refs into saved files)
 

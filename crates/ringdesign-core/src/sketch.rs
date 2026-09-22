@@ -17,6 +17,15 @@ pub struct Workplane {
     pub origin: [f64; 3],
     pub x: [f64; 3],
     pub y: [f64; 3],
+    /// Taken from a planar face of an earlier feature; `origin` and `x` are then projected onto it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub on_face: Option<FaceAnchor>,
+}
+/// A planar face of an earlier feature that a sketch lies on.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct FaceAnchor {
+    pub feature: Id,
+    pub face: crate::cad::FaceRef,
 }
 impl Default for Workplane {
     fn default() -> Self {
@@ -24,6 +33,7 @@ impl Default for Workplane {
             origin: [0.0; 3],
             x: [1.0, 0.0, 0.0],
             y: [0.0, 1.0, 0.0],
+            on_face: None,
         }
     }
 }
@@ -50,6 +60,29 @@ impl Workplane {
             y: [0.0, 0.0, 1.0],
             ..Default::default()
         }
+    }
+    /// This workplane laid onto the plane through `point` with `normal`: the origin projected
+    /// along the normal, `x` flattened into the plane, `y` following the normal's hand.
+    pub fn on(&self, point: [f64; 3], normal: [f64; 3]) -> Result<Plane> {
+        let len = normal.iter().map(|v| v * v).sum::<f64>().sqrt();
+        ensure!(len > 1e-9, "Sketch face has no normal");
+        let n = normal.map(|v| v / len);
+        let dot = |a: [f64; 3], b: [f64; 3]| a.iter().zip(b).map(|(x, y)| x * y).sum::<f64>();
+        let off = dot(std::array::from_fn(|k| self.origin[k] - point[k]), n);
+        let origin: [f64; 3] = std::array::from_fn(|k| self.origin[k] - n[k] * off);
+        let lift = dot(self.x, n);
+        let mut x: [f64; 3] = std::array::from_fn(|k| self.x[k] - n[k] * lift);
+        if dot(x, x) < 1e-12 {
+            x = if n[0].abs() < 0.9 { [1.0, 0.0, 0.0] } else { [0.0, 1.0, 0.0] };
+            let lift = dot(x, n);
+            x = std::array::from_fn(|k| x[k] - n[k] * lift);
+        }
+        let xl = dot(x, x).sqrt();
+        let x = x.map(|v| v / xl);
+        let y = [n[1] * x[2] - n[2] * x[1], n[2] * x[0] - n[0] * x[2], n[0] * x[1] - n[1] * x[0]];
+        let p = Plane::from_axes(origin, x, y);
+        ensure!(p.is_orthonormal(), "Sketch face frame is degenerate");
+        Ok(p)
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

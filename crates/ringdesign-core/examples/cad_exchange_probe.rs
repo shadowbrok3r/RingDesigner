@@ -1,6 +1,6 @@
 //! Generates STEP fixtures plus independently checkable source volumes.
 //! cargo run -p ringdesign-core --example cad_exchange_probe -- /tmp/cad-probe
-use ringdesign_core::cad::{self, Document, Feature, Operation as Op};
+use ringdesign_core::cad::{self, Document, Feature, Operation as Op, EdgeRef, FaceRef};
 fn main() -> anyhow::Result<()> {
     run()
 }
@@ -46,7 +46,7 @@ fn run() -> anyhow::Result<()> {
                 Op::Box { size: [8.0; 3] },
                 Op::Fillet {
                     source: 1,
-                    edges: vec![0],
+                    edges: vec![EdgeRef::bare(0)],
                     radius_mm: 0.5,
                 },
             ],
@@ -57,8 +57,8 @@ fn run() -> anyhow::Result<()> {
                 Op::Box { size: [8.0; 3] },
                 Op::Chamfer {
                     source: 1,
-                    edges: vec![0],
-                    base_face: 4,
+                    edges: vec![EdgeRef::bare(0)],
+                    base_face: FaceRef::bare(4),
                     distance_mm: 0.5,
                 },
             ],
@@ -66,7 +66,7 @@ fn run() -> anyhow::Result<()> {
         (
             "sweep",
             vec![Op::Sweep {
-                sketch: ringdesign_core::sketch::Sketch::circle(1.0),
+                sketch: ringdesign_core::sketch::Sketch::circle(1.0).into(),
                 path: vec![[0.0; 3], [0.0, 0.0, 5.0]],
             }],
         ),
@@ -76,13 +76,13 @@ fn run() -> anyhow::Result<()> {
     cases.push((
         "loft",
         vec![Op::Loft {
-            sections: vec![ringdesign_core::sketch::Sketch::rectangle(8.0, 6.0), top],
+            sections: vec![ringdesign_core::sketch::Sketch::rectangle(8.0.into(), 6.0).into(), top.into()],
         }],
     ));
     cases.push((
         "tapered-circle",
         vec![Op::Extrude {
-            sketch: ringdesign_core::sketch::Sketch::circle(3.0),
+            sketch: ringdesign_core::sketch::Sketch::circle(3.0).into(),
             height_mm: 4.0,
             draft_deg: 5.0,
         }],
@@ -110,7 +110,7 @@ fn run() -> anyhow::Result<()> {
     cases.push((
         "cubic-extrusion",
         vec![Op::Extrude {
-            sketch: curved,
+            sketch: curved.into(),
             height_mm: 3.0,
             draft_deg: 0.0,
         }],

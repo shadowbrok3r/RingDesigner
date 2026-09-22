@@ -40,7 +40,7 @@ pub const DESIGN_EXT: &str = "ring.json";
 /// migration changes no values. Version 3 also protects imported base geometry
 /// from being discarded by an older app. Every version has a migration step.
 // Version 4 protects the sand-support surface and high-resolution embedded maps.
-pub const FORMAT_VERSION: u32 = 4;
+pub const FORMAT_VERSION: u32 = 5;
 
 /// Version stamped into saved profile and outline files.
 ///
@@ -113,7 +113,7 @@ fn asset_from_str<T: serde::de::DeserializeOwned>(
 const VERSION_KEY: &str = "format_version";
 
 /// `MIGRATIONS[n]` rewrites a version-`n` document in place to version `n + 1`.
-static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1, migrate_v1_to_v2, migrate_v2_to_v3, migrate_v3_to_v4];
+static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1, migrate_v1_to_v2, migrate_v2_to_v3, migrate_v3_to_v4, migrate_v4_to_v5];
 
 /// Version 0 predates the version field; the document already has v1's shape.
 fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
@@ -126,6 +126,39 @@ fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
 fn migrate_v2_to_v3(_doc: &mut serde_json::Value) {}
 // Older readers would drop sand support and reduce full-ring relief to 512 px.
 fn migrate_v3_to_v4(_doc: &mut serde_json::Value) {}
+/// A CAD component stands by a `placement`: the two anchor numbers become `Ring`. The same
+/// component lives in every `cad.feature` node of the design's graph, so those are rewritten too.
+fn migrate_v4_to_v5(doc: &mut serde_json::Value) {
+    fn component(c: &mut serde_json::Value) {
+        let Some(obj) = c.as_object_mut() else { return };
+        let theta = obj.remove("ring_anchor_deg").and_then(|v| v.as_f64());
+        let height = obj.remove("anchor_height_mm").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        if obj.contains_key("placement") {
+            return;
+        }
+        obj.insert(
+            "placement".into(),
+            match theta {
+                Some(theta) => serde_json::json!({ "kind": "ring", "theta_deg": theta, "height_mm": height }),
+                None => serde_json::json!({ "kind": "free" }),
+            },
+        );
+    }
+    if let Some(features) = doc.pointer_mut("/cad/features").and_then(|v| v.as_array_mut()) {
+        for f in features {
+            if let Some(c) = f.get_mut("component") {
+                component(c);
+            }
+        }
+    }
+    if let Some(nodes) = doc.pointer_mut("/graph/nodes").and_then(|v| v.as_array_mut()) {
+        for n in nodes.iter_mut().filter(|n| n.get("kind").and_then(|k| k.as_str()) == Some("cad.feature")) {
+            if let Some(c) = n.pointer_mut("/params/component") {
+                component(c);
+            }
+        }
+    }
+}
 
 /// Serialization wrapper that puts the version key ahead of the design fields.
 #[derive(serde::Serialize)]
@@ -433,6 +466,41 @@ mod tests {
     #[test]
     fn every_version_has_a_migration_step() {
         assert_eq!(MIGRATIONS.len(), FORMAT_VERSION as usize);
+    }
+    #[test]
+    fn a_format_4_anchor_becomes_a_ring_placement_in_the_document_and_in_its_graph() {
+        let mut doc = serde_json::to_value(RingDesign::default()).unwrap();
+        doc["format_version"] = 4.into();
+        doc["cad"] = serde_json::json!({ "features": [ { "id": 1, "name": "Bezel", "enabled": true,
+            "operation": { "Cylinder": { "radius_mm": 3.0, "height_mm": 2.0 } },
+            "component": { "ring_anchor_deg": 90.0, "anchor_height_mm": 1.5 } } ], "outputs": [1] });
+        doc["graph"] = serde_json::json!({ "name": "g", "mode": "Free", "nodes": [
+            { "id": 7, "kind": "cad.feature", "params": { "id": 7, "name": "Head", "enabled": true,
+              "operation": { "Sphere": { "radius_mm": 2.0 } },
+              "component": { "ring_anchor_deg": 45.0, "anchor_height_mm": 0.25 } } },
+            { "id": 8, "kind": "design.set", "params": { "component": { "ring_anchor_deg": 1.0 } } }
+        ] });
+        let d = load_design_str(&doc.to_string()).unwrap();
+        let c = &d.cad.as_ref().unwrap().features[0].component;
+        assert_eq!(c.placement, crate::cad::Placement::ring(90.0, 1.5));
+        let graph = d.graph.unwrap();
+        let head = &graph["nodes"][0]["params"]["component"];
+        assert_eq!(head["placement"], serde_json::json!({ "kind": "ring", "theta_deg": 45.0, "height_mm": 0.25 }));
+        assert!(head.get("ring_anchor_deg").is_none());
+        // Only CAD feature nodes are rewritten; other nodes' params are their own business.
+        assert_eq!(graph["nodes"][1]["params"]["component"]["ring_anchor_deg"], 1.0);
+        // The same fold happens on any read that skips the ladder, such as a graph file.
+        let legacy: crate::cad::Component = serde_json::from_str(r#"{"ring_anchor_deg": 30.0, "anchor_height_mm": 0.5}"#).unwrap();
+        assert_eq!(legacy.placement, crate::cad::Placement::ring(30.0, 0.5));
+        let free: crate::cad::Component = serde_json::from_str(r#"{}"#).unwrap();
+        assert_eq!(free.placement, crate::cad::Placement::Free);
+        // Bare ordinals still read as references, and signed ones survive a round trip.
+        let op: crate::cad::Operation = serde_json::from_str(r#"{"Fillet": {"source": 1, "edges": [0, 2], "radius_mm": 0.3}}"#).unwrap();
+        let crate::cad::Operation::Fillet { edges, .. } = &op else { panic!() };
+        assert_eq!(edges.iter().map(|e| e.ordinal).collect::<Vec<_>>(), vec![0, 2]);
+        assert!(edges.iter().all(|e| e.signature.is_none()));
+        let text = serde_json::to_string(&op).unwrap();
+        assert_eq!(serde_json::from_str::<crate::cad::Operation>(&text).unwrap().sources(), vec![1]);
     }
 
     #[test]

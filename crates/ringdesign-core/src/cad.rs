@@ -44,29 +44,33 @@ pub enum Operation {
         axial_mm: f64,
         turns: f64,
     },
-    Extrude {
+    /// A closed profile with no body of its own, for other features to sweep.
+    Sketch {
         sketch: Sketch,
+    },
+    Extrude {
+        sketch: Profile,
         height_mm: f64,
         draft_deg: f64,
     },
     Revolve {
-        sketch: Sketch,
+        sketch: Profile,
         pivot: [f64; 3],
         axis: [f64; 3],
         degrees: f64,
     },
     Sweep {
-        sketch: Sketch,
+        sketch: Profile,
         path: Vec<[f64; 3]>,
     },
     Twist {
-        sketch: Sketch,
+        sketch: Profile,
         path: Sketch,
         degrees: f64,
         end_scale: f64,
     },
     Loft {
-        sections: Vec<Sketch>,
+        sections: Vec<Profile>,
     },
     Boolean {
         a: Id,
@@ -75,18 +79,18 @@ pub enum Operation {
     },
     Fillet {
         source: Id,
-        edges: Vec<usize>,
+        edges: Vec<EdgeRef>,
         radius_mm: f64,
     },
     Chamfer {
         source: Id,
-        edges: Vec<usize>,
-        base_face: usize,
+        edges: Vec<EdgeRef>,
+        base_face: FaceRef,
         distance_mm: f64,
     },
     Shell {
         source: Id,
-        open_faces: Vec<usize>,
+        open_faces: Vec<FaceRef>,
         thickness_mm: f64,
     },
     Transform {
@@ -95,10 +99,44 @@ pub enum Operation {
         rotation_deg: [f64; 3],
     },
 }
+/// The closed profile a feature sweeps: drawn in the feature, or a `Sketch` feature named by id.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum Profile {
+    Feature { feature: Id },
+    Inline(Sketch),
+}
+impl From<Sketch> for Profile {
+    fn from(sketch: Sketch) -> Self {
+        Self::Inline(sketch)
+    }
+}
+impl Profile {
+    pub fn feature(&self) -> Option<Id> {
+        match self {
+            Self::Feature { feature } => Some(*feature),
+            Self::Inline(_) => None,
+        }
+    }
+    pub fn sketch_mut(&mut self) -> Option<&mut Sketch> {
+        match self {
+            Self::Inline(sketch) => Some(sketch),
+            Self::Feature { .. } => None,
+        }
+    }
+    /// The features this profile reads: the sketch it names, or the face its own plane sits on.
+    pub fn dependencies(&self) -> Vec<Id> {
+        match self {
+            Self::Feature { feature } => vec![*feature],
+            Self::Inline(sketch) => sketch.plane.on_face.iter().map(|a| a.feature).collect(),
+        }
+    }
+}
 impl Operation {
     pub fn label(&self) -> &'static str {
         match self {
             Self::Band => "Procedural shank",
+            Self::Sketch { .. } => "Sketch",
             Self::Box { .. } => "Box",
             Self::Cylinder { .. } => "Cylinder",
             Self::Sphere { .. } => "Sphere",
@@ -127,22 +165,29 @@ impl Operation {
             | Self::Chamfer { source, .. }
             | Self::Shell { source, .. }
             | Self::Transform { source, .. } => vec![*source],
+            Self::Extrude { sketch, .. }
+            | Self::Revolve { sketch, .. }
+            | Self::Sweep { sketch, .. }
+            | Self::Twist { sketch, .. } => sketch.dependencies(),
+            Self::Loft { sections } => sections.iter().flat_map(Profile::dependencies).collect(),
+            Self::Sketch { sketch } => sketch.plane.on_face.iter().map(|a| a.feature).collect(),
             _ => vec![],
         }
     }
     pub fn sketch_mut(&mut self) -> Option<&mut Sketch> {
         match self {
+            Self::Sketch { sketch } => Some(sketch),
             Self::Extrude { sketch, .. }
             | Self::Revolve { sketch, .. }
             | Self::Sweep { sketch, .. }
-            | Self::Twist { sketch, .. } => Some(sketch),
-            Self::Loft { sections } => sections.first_mut(),
+            | Self::Twist { sketch, .. } => sketch.sketch_mut(),
+            Self::Loft { sections } => sections.first_mut().and_then(Profile::sketch_mut),
             _ => None,
         }
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, from = "ComponentWire")]
 pub struct Component {
     pub role: ComponentRole,
     pub material: String,
@@ -151,9 +196,413 @@ pub struct Component {
     pub reference: bool,
     pub stone_id: Option<String>,
     pub bench_notes: String,
-    /// A ring angle follows resizing without stretching the component itself.
-    pub ring_anchor_deg: Option<f64>,
-    pub anchor_height_mm: f64,
+    /// Where the built part stands; `Ring` follows resizing without stretching the part.
+    pub placement: Placement,
+}
+/// The component as files before format 5 wrote it, with the anchor as two loose numbers.
+#[derive(Deserialize)]
+#[serde(default)]
+struct ComponentWire {
+    role: ComponentRole,
+    material: String,
+    manufacturing: Option<Setup>,
+    visible: bool,
+    reference: bool,
+    stone_id: Option<String>,
+    bench_notes: String,
+    placement: Placement,
+    ring_anchor_deg: Option<f64>,
+    anchor_height_mm: f64,
+}
+impl Default for ComponentWire {
+    fn default() -> Self {
+        let c = Component::default();
+        Self {
+            role: c.role,
+            material: c.material,
+            manufacturing: c.manufacturing,
+            visible: c.visible,
+            reference: c.reference,
+            stone_id: c.stone_id,
+            bench_notes: c.bench_notes,
+            placement: c.placement,
+            ring_anchor_deg: None,
+            anchor_height_mm: 0.0,
+        }
+    }
+}
+impl From<ComponentWire> for Component {
+    fn from(w: ComponentWire) -> Self {
+        let placement = match (w.placement, w.ring_anchor_deg) {
+            (Placement::Free, Some(theta)) => Placement::ring(theta, w.anchor_height_mm),
+            (placement, _) => placement,
+        };
+        Self {
+            role: w.role,
+            material: w.material,
+            manufacturing: w.manufacturing,
+            visible: w.visible,
+            reference: w.reference,
+            stone_id: w.stone_id,
+            bench_notes: w.bench_notes,
+            placement,
+        }
+    }
+}
+/// Where a component stands once its feature has built it.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Placement {
+    /// As built, in world millimetres.
+    #[default]
+    Free,
+    /// Seated on the ring's outer surface: `theta_deg` round the ring, `across_mm` along the
+    /// finger from the band's mid-plane, `height_mm` out along the surface normal; then the part
+    /// is turned about that normal (`spin`), leaned along the ring (`tilt`) and across it (`cant`).
+    Ring {
+        theta_deg: f64,
+        #[serde(default)]
+        across_mm: f64,
+        #[serde(default)]
+        height_mm: f64,
+        #[serde(default)]
+        spin_deg: f64,
+        #[serde(default)]
+        tilt_deg: f64,
+        #[serde(default)]
+        cant_deg: f64,
+    },
+}
+impl Placement {
+    pub fn ring(theta_deg: f64, height_mm: f64) -> Self {
+        Self::Ring {
+            theta_deg,
+            across_mm: 0.0,
+            height_mm,
+            spin_deg: 0.0,
+            tilt_deg: 0.0,
+            cant_deg: 0.0,
+        }
+    }
+    pub fn theta_deg(&self) -> Option<f64> {
+        match self {
+            Self::Ring { theta_deg, .. } => Some(*theta_deg),
+            Self::Free => None,
+        }
+    }
+    /// The rigid motion that takes the built part to where it stands.
+    pub fn frame(&self, design: &RingDesign) -> Result<brep::Placement> {
+        match *self {
+            Self::Free => Ok(brep::Placement::IDENTITY),
+            Self::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } => {
+                ensure!(
+                    [theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg].iter().all(|v| v.is_finite()),
+                    "Invalid ring placement"
+                );
+                let a = theta_deg.to_radians();
+                let r = design.inner_radius_mm() + design.profile.thickness_mm + height_mm;
+                // The part's z goes radial and its x runs along the finger; the leans turn it in place first.
+                let seat = nalgebra::Rotation3::from_euler_angles(0.0, std::f64::consts::FRAC_PI_2, a);
+                let lean = nalgebra::Rotation3::from_euler_angles(
+                    tilt_deg.to_radians(),
+                    cant_deg.to_radians(),
+                    spin_deg.to_radians(),
+                );
+                let m = seat * lean;
+                let col = |i| std::array::from_fn(|j| m.matrix()[(j, i)]);
+                Ok(brep::Placement {
+                    x_axis: col(0),
+                    y_axis: col(1),
+                    z_axis: col(2),
+                    origin: [r * a.cos(), r * a.sin(), across_mm],
+                })
+            }
+        }
+    }
+    /// A part-local point in world millimetres.
+    pub fn world(&self, design: &RingDesign, p: [f64; 3]) -> Result<[f64; 3]> {
+        let f = self.frame(design)?;
+        Ok(std::array::from_fn(|k| f.origin[k] + f.x_axis[k] * p[0] + f.y_axis[k] * p[1] + f.z_axis[k] * p[2]))
+    }
+}
+/// A world point or direction taken back into a placed part's own frame.
+fn unplace(f: &brep::Placement, p: [f64; 3], point: bool) -> [f64; 3] {
+    let d: [f64; 3] = if point { std::array::from_fn(|k| p[k] - f.origin[k]) } else { p };
+    let dot = |axis: [f64; 3]| axis.iter().zip(d).map(|(a, b)| a * b).sum::<f64>();
+    [dot(f.x_axis), dot(f.y_axis), dot(f.z_axis)]
+}
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+pub enum SurfaceKind {
+    Plane,
+    Cylinder,
+    Cone,
+    Sphere,
+    Torus,
+    Freeform,
+}
+impl SurfaceKind {
+    fn of(surface: Option<&brep::Surface>) -> Self {
+        match surface {
+            Some(brep::Surface::Plane(_)) => Self::Plane,
+            Some(brep::Surface::Cylinder(_)) => Self::Cylinder,
+            Some(brep::Surface::Cone(_)) => Self::Cone,
+            Some(brep::Surface::Sphere(_)) => Self::Sphere,
+            Some(brep::Surface::Torus(_)) => Self::Torus,
+            _ => Self::Freeform,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CurveKind {
+    Line,
+    Circle,
+    Ellipse,
+    Spline,
+    Freeform,
+}
+/// What an edge was when it was picked, in its part's own frame: enough to notice the source
+/// changing underneath a fillet, and to find the edge again when only its ordinal moved.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct EdgeSignature {
+    pub faces: [SurfaceKind; 2],
+    pub curve: CurveKind,
+    pub direction: [f64; 3],
+    pub midpoint: [f64; 3],
+}
+impl EdgeSignature {
+    /// The same edge, allowing a resize or a draft to turn it a little.
+    pub fn matches(&self, other: &Self) -> bool {
+        self.faces == other.faces && self.curve == other.curve && self.alignment(other) >= 0.9
+    }
+    fn alignment(&self, other: &Self) -> f64 {
+        self.direction.iter().zip(other.direction).map(|(a, b)| a * b).sum::<f64>().abs()
+    }
+    fn drift(&self, other: &Self) -> f64 {
+        self.midpoint.iter().zip(other.midpoint).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt()
+    }
+    pub fn describe(&self) -> String {
+        format!("{:?} between {:?} and {:?}", self.curve, self.faces[0], self.faces[1]).to_lowercase()
+    }
+}
+/// What a face was when it was picked, in its part's own frame.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct FaceSignature {
+    pub kind: SurfaceKind,
+    pub normal: [f64; 3],
+    pub centre: [f64; 3],
+}
+impl FaceSignature {
+    pub fn matches(&self, other: &Self) -> bool {
+        self.kind == other.kind && self.alignment(other) >= 0.9
+    }
+    fn alignment(&self, other: &Self) -> f64 {
+        self.normal.iter().zip(other.normal).map(|(a, b)| a * b).sum::<f64>().abs()
+    }
+    fn drift(&self, other: &Self) -> f64 {
+        self.centre.iter().zip(other.centre).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt()
+    }
+}
+/// One edge of a source body: its ordinal in the body's iteration order, and what stood there
+/// when it was picked. A bare number in a file is an unsigned ordinal, as format 4 wrote them.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(from = "EdgeRefWire")]
+pub struct EdgeRef {
+    pub ordinal: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<EdgeSignature>,
+}
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum EdgeRefWire {
+    Ordinal(usize),
+    Full {
+        ordinal: usize,
+        #[serde(default)]
+        signature: Option<EdgeSignature>,
+    },
+}
+impl From<EdgeRefWire> for EdgeRef {
+    fn from(w: EdgeRefWire) -> Self {
+        match w {
+            EdgeRefWire::Ordinal(ordinal) => Self { ordinal, signature: None },
+            EdgeRefWire::Full { ordinal, signature } => Self { ordinal, signature },
+        }
+    }
+}
+impl EdgeRef {
+    pub fn bare(ordinal: usize) -> Self {
+        Self { ordinal, signature: None }
+    }
+    /// A reference that remembers the edge it points at, taken in the part's own frame.
+    pub fn signed(body: &Body, ordinal: usize, frame: &brep::Placement) -> Self {
+        Self { ordinal, signature: edge_signature(body, ordinal, frame) }
+    }
+}
+/// One face of a source body, referenced like an edge.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(from = "FaceRefWire")]
+pub struct FaceRef {
+    pub ordinal: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<FaceSignature>,
+}
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum FaceRefWire {
+    Ordinal(usize),
+    Full {
+        ordinal: usize,
+        #[serde(default)]
+        signature: Option<FaceSignature>,
+    },
+}
+impl From<FaceRefWire> for FaceRef {
+    fn from(w: FaceRefWire) -> Self {
+        match w {
+            FaceRefWire::Ordinal(ordinal) => Self { ordinal, signature: None },
+            FaceRefWire::Full { ordinal, signature } => Self { ordinal, signature },
+        }
+    }
+}
+impl FaceRef {
+    pub fn bare(ordinal: usize) -> Self {
+        Self { ordinal, signature: None }
+    }
+    pub fn signed(body: &Body, ordinal: usize, frame: &brep::Placement) -> Self {
+        Self { ordinal, signature: face_signature(body, ordinal, frame) }
+    }
+}
+/// The signature of the edge at `ordinal`, with its geometry taken back through `frame`.
+pub fn edge_signature(body: &Body, ordinal: usize, frame: &brep::Placement) -> Option<EdgeSignature> {
+    let (key, edge) = body.edges.iter().nth(ordinal)?;
+    let mut faces: Vec<SurfaceKind> = edge
+        .coedges
+        .iter()
+        .filter_map(|c| body.coedges.get(*c))
+        .filter_map(|c| body.loops.get(c.owner))
+        .filter_map(|l| body.faces.get(l.owner))
+        .map(|f| SurfaceKind::of(body.surfaces.get(f.surface)))
+        .collect();
+    faces.sort();
+    faces.resize(2, SurfaceKind::Freeform);
+    let curve = match body.curves.get(edge.curve)? {
+        brep::Curve3::Line(_) => CurveKind::Line,
+        brep::Curve3::Circle(_) => CurveKind::Circle,
+        brep::Curve3::Ellipse(_) => CurveKind::Ellipse,
+        brep::Curve3::PlanarSpline { .. } => CurveKind::Spline,
+        brep::Curve3::Nurbs(_) => CurveKind::Freeform,
+    };
+    let (a, b) = body.edge_endpoints(key)?;
+    let (a, b) = (unplace(frame, a, true), unplace(frame, b, true));
+    let d: [f64; 3] = std::array::from_fn(|k| b[k] - a[k]);
+    let len = crate::mesh::norm(d);
+    // A closed edge has no chord; its direction is the plane it lies in.
+    let direction = if len > 1e-9 {
+        d.map(|v| v / len)
+    } else {
+        let n = body.curves.get(edge.curve).and_then(|c| match c {
+            brep::Curve3::Circle(c) => c.plane.normal(),
+            brep::Curve3::Ellipse(e) => e.plane.normal(),
+            _ => None,
+        })?;
+        unplace(frame, n, false)
+    };
+    Some(EdgeSignature {
+        faces: [faces[0], faces[1]],
+        curve,
+        direction,
+        midpoint: std::array::from_fn(|k| (a[k] + b[k]) * 0.5),
+    })
+}
+/// The signature of the face at `ordinal`: its surface kind, and its normal and centre at the
+/// mean of its boundary vertices, taken back through `frame`.
+pub fn face_signature(body: &Body, ordinal: usize, frame: &brep::Placement) -> Option<FaceSignature> {
+    let (key, face) = body.faces.iter().nth(ordinal)?;
+    let surface = body.surfaces.get(face.surface)?;
+    let points: Vec<[f64; 3]> = body
+        .face_coedges(key)
+        .into_iter()
+        .filter_map(|c| body.coedge_vertices(c))
+        .filter_map(|(v, _)| body.vertices.get(v))
+        .map(|v| v.point)
+        .collect();
+    if points.is_empty() {
+        return None;
+    }
+    let n = points.len() as f64;
+    let centre: [f64; 3] = std::array::from_fn(|k| points.iter().map(|p| p[k]).sum::<f64>() / n);
+    let (u, v) = surface.parameters_at(centre).unwrap_or((0.0, 0.0));
+    let mut normal = surface.normal_at(u, v)?;
+    if !face.forward {
+        normal = normal.map(|v| -v);
+    }
+    Some(FaceSignature {
+        kind: SurfaceKind::of(Some(surface)),
+        normal: unplace(frame, normal, false),
+        centre: unplace(frame, centre, true),
+    })
+}
+/// The edge a reference names now: its ordinal when the signature still holds, else the edge
+/// whose signature matches best, else an error that says what was expected.
+fn resolve_edge(body: &Body, r: &EdgeRef, frame: &brep::Placement, notes: &mut Vec<String>) -> Result<brep::EdgeKey> {
+    let keys: Vec<_> = body.edges.iter().map(|(k, _)| k).collect();
+    let at = |i: usize| {
+        keys.get(i).copied().ok_or_else(|| {
+            anyhow::anyhow!("Edge {i} is unavailable; reselect after changing the source")
+        })
+    };
+    let Some(expected) = &r.signature else {
+        return at(r.ordinal);
+    };
+    if edge_signature(body, r.ordinal, frame).is_some_and(|now| expected.matches(&now)) {
+        return at(r.ordinal);
+    }
+    let best = (0..keys.len())
+        .filter_map(|i| edge_signature(body, i, frame).map(|s| (i, s)))
+        .filter(|(_, s)| expected.matches(s))
+        .min_by(|a, b| expected.drift(&a.1).total_cmp(&expected.drift(&b.1)));
+    match best {
+        Some((i, _)) => {
+            notes.push(format!("Edge {} is now edge {i}; the source changed underneath and the same edge was found again", r.ordinal));
+            at(i)
+        }
+        None => anyhow::bail!(
+            "Edge {} is no longer a {}; the source changed underneath, pick it again",
+            r.ordinal,
+            expected.describe()
+        ),
+    }
+}
+fn resolve_face(body: &Body, r: &FaceRef, frame: &brep::Placement, notes: &mut Vec<String>) -> Result<brep::FaceKey> {
+    let keys: Vec<_> = body.faces.iter().map(|(k, _)| k).collect();
+    let at = |i: usize| {
+        keys.get(i).copied().ok_or_else(|| {
+            anyhow::anyhow!("Face {i} is unavailable; reselect after changing the source")
+        })
+    };
+    let Some(expected) = &r.signature else {
+        return at(r.ordinal);
+    };
+    if face_signature(body, r.ordinal, frame).is_some_and(|now| expected.matches(&now)) {
+        return at(r.ordinal);
+    }
+    let best = (0..keys.len())
+        .filter_map(|i| face_signature(body, i, frame).map(|s| (i, s)))
+        .filter(|(_, s)| expected.matches(s))
+        .min_by(|a, b| expected.drift(&a.1).total_cmp(&expected.drift(&b.1)));
+    match best {
+        Some((i, _)) => {
+            notes.push(format!("Face {} is now face {i}; the source changed underneath and the same face was found again", r.ordinal));
+            at(i)
+        }
+        None => anyhow::bail!(
+            "Face {} is no longer a {:?} face; the source changed underneath, pick it again",
+            r.ordinal,
+            expected.kind
+        ),
+    }
 }
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ComponentRole {
@@ -175,8 +624,7 @@ impl Default for Component {
             reference: false,
             stone_id: None,
             bench_notes: String::new(),
-            ring_anchor_deg: None,
-            anchor_height_mm: 0.0,
+            placement: Placement::Free,
         }
     }
 }
@@ -216,7 +664,10 @@ impl Document {
         for id in f.operation.sources() {
             self.outputs.retain(|v| *v != id);
         }
-        self.outputs.push(f.id);
+        // A sketch has no body to output.
+        if !matches!(f.operation, Operation::Sketch { .. }) {
+            self.outputs.push(f.id);
+        }
         self.features.push(f);
         Ok(())
     }
@@ -243,15 +694,6 @@ pub struct PartTrace {
     /// The body's vertices, for snapping.
     pub vertices: Vec<[f64; 3]>,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SurfaceKind {
-    Plane,
-    Cylinder,
-    Cone,
-    Sphere,
-    Torus,
-    Freeform,
-}
 impl PartTrace {
     /// The face ordinal a triangle came from, if it has one.
     pub fn face_of(&self, triangle: usize) -> Option<u32> {
@@ -269,6 +711,9 @@ pub struct FeatureReport {
     pub faces: usize,
     pub edges: usize,
     pub suppressed: bool,
+    /// What the evaluation had to say about the feature, such as a reference found again.
+    #[serde(default)]
+    pub notes: Vec<String>,
 }
 
 fn positive(value: f64, name: &str) -> Result<f64> {
@@ -306,30 +751,62 @@ fn rotate_place(translation: [f64; 3], degrees: [f64; 3]) -> Result<brep::Placem
         origin: translation,
     })
 }
+/// The sketch a profile names, drawn in place or held by an earlier `Sketch` feature.
+fn profile<'a>(p: &'a Profile, sketches: &'a BTreeMap<Id, Sketch>) -> Result<&'a Sketch> {
+    match p {
+        Profile::Inline(sketch) => Ok(sketch),
+        Profile::Feature { feature } => sketches
+            .get(feature)
+            .ok_or_else(|| anyhow::anyhow!("Sketch feature #{feature} is unavailable or suppressed")),
+    }
+}
+/// The plane a sketch lies on: its own, or the planar face of an earlier feature it is anchored to.
+fn plane_of(
+    sketch: &Sketch,
+    bodies: &BTreeMap<Id, Body>,
+    metadata: &BTreeMap<Id, &Feature>,
+    design: &RingDesign,
+    notes: &mut Vec<String>,
+) -> Result<cadkernel::space::Plane> {
+    let Some(anchor) = &sketch.plane.on_face else {
+        return sketch.plane.plane();
+    };
+    let body = bodies
+        .get(&anchor.feature)
+        .ok_or_else(|| anyhow::anyhow!("Sketch face: feature #{} is unavailable or suppressed", anchor.feature))?;
+    let frame = metadata
+        .get(&anchor.feature)
+        .map_or(Ok(brep::Placement::IDENTITY), |f| f.component.placement.frame(design))?;
+    let key = resolve_face(body, &anchor.face, &frame, notes).context("Sketch face")?;
+    let face = brep::planar_face_profile(body, key)
+        .ok_or_else(|| anyhow::anyhow!("Sketch face {} of feature #{} is not planar", anchor.face.ordinal, anchor.feature))?;
+    sketch.plane.on(face.plane.origin, face.outward)
+}
 fn body_for(
     op: &Operation,
     bodies: &BTreeMap<Id, Body>,
+    sketches: &BTreeMap<Id, Sketch>,
+    metadata: &BTreeMap<Id, &Feature>,
     design: &RingDesign,
     lib: &AlphaLibrary,
     params: BuildParams,
+    notes: &mut Vec<String>,
 ) -> Result<Body> {
     let source = |id: &Id| {
         bodies
             .get(id)
             .ok_or_else(|| anyhow::anyhow!("Source feature #{id} is unavailable or suppressed"))
     };
-    let edges = |body: &Body, indices: &Vec<usize>| -> Result<Vec<brep::EdgeKey>> {
-        let keys: Vec<_> = body.edges.iter().map(|(k, _)| k).collect();
-        ensure!(!indices.is_empty(), "Select at least one edge");
-        indices
-            .iter()
-            .map(|i| {
-                keys.get(*i).copied().ok_or_else(|| {
-                    anyhow::anyhow!("Edge {i} is unavailable; reselect after changing the source")
-                })
-            })
-            .collect()
+    // References are signed in the source part's own frame, so its placement is taken back off.
+    let frame_of = |id: &Id| -> Result<brep::Placement> {
+        metadata
+            .get(id)
+            .map_or(Ok(brep::Placement::IDENTITY), |f| f.component.placement.frame(design))
     };
+    fn edges(body: &Body, frame: &brep::Placement, refs: &[EdgeRef], notes: &mut Vec<String>) -> Result<Vec<brep::EdgeKey>> {
+        ensure!(!refs.is_empty(), "Select at least one edge");
+        refs.iter().map(|r| resolve_edge(body, r, frame, notes)).collect()
+    }
     match op {
         Operation::Band => {
             let mut nominal = design.clone();
@@ -450,12 +927,14 @@ fn body_for(
             }
             maybe(make::faceted_solid(&vertices, &faces), "Twisted ring")
         }
+        Operation::Sketch { .. } => anyhow::bail!("A sketch has no body of its own"),
         Operation::Extrude {
             sketch,
             height_mm,
             draft_deg,
         } => {
-            let p = sketch.plane.plane()?;
+            let sketch = profile(sketch, sketches)?;
+            let p = plane_of(sketch, bodies, metadata, design, notes)?;
             let h = positive(*height_mm, "Height")?;
             ensure!(
                 draft_deg.is_finite() && draft_deg.abs() < 80.0,
@@ -483,9 +962,10 @@ fn body_for(
                 "Revolution must be between 0 and 360 degrees"
             );
             ensure!(crate::mesh::norm(*axis) > 1e-8, "Revolution axis is zero");
+            let sketch = profile(sketch, sketches)?;
             maybe(
                 brep::revolve(
-                    sketch.plane.plane()?,
+                    plane_of(sketch, bodies, metadata, design, notes)?,
                     &sketch.profile_curves()?,
                     *pivot,
                     *axis,
@@ -500,9 +980,10 @@ fn body_for(
                 "Sweep needs 2–128 path stations"
             );
             coords(path)?;
+            let sketch = profile(sketch, sketches)?;
             maybe(
                 brep::sweep_path(
-                    sketch.plane.plane()?,
+                    plane_of(sketch, bodies, metadata, design, notes)?,
                     &[sketch.profile_curves()?],
                     brep::SweepPath::Polyline3d {
                         points: path,
@@ -524,9 +1005,10 @@ fn body_for(
                 "Twist exceeds ten turns"
             );
             positive(*end_scale, "End scale")?;
+            let sketch = profile(sketch, sketches)?;
             maybe(
                 brep::sweep_along_deformed(
-                    sketch.plane.plane()?,
+                    plane_of(sketch, bodies, metadata, design, notes)?,
                     &sketch.profile_curves()?,
                     path.plane.plane()?,
                     &path.solved_curves()?,
@@ -544,7 +1026,10 @@ fn body_for(
             );
             let profiles = sections
                 .iter()
-                .map(|s| Ok((s.plane.plane()?, s.profile_curves()?)))
+                .map(|p| {
+                    let s = profile(p, sketches)?;
+                    Ok((plane_of(s, bodies, metadata, design, notes)?, s.profile_curves()?))
+                })
                 .collect::<Result<Vec<_>>>()?;
             ensure!(
                 profiles.iter().all(|(_, p)| p.len() == profiles[0].1.len()),
@@ -571,32 +1056,28 @@ fn body_for(
         }
         Operation::Fillet {
             source: id,
-            edges: indices,
+            edges: refs,
             radius_mm,
         } => {
             let b = source(id)?;
             brep::fillet_edges(
                 b,
-                &edges(b, indices)?,
+                &edges(b, &frame_of(id)?, refs, notes)?,
                 positive(*radius_mm, "Fillet radius")?,
             )
             .map_err(|e| anyhow::anyhow!("Fillet is unsupported for these edges/radius: {e:?}"))
         }
         Operation::Chamfer {
             source: id,
-            edges: indices,
+            edges: refs,
             base_face,
             distance_mm,
         } => {
             let b = source(id)?;
-            let face = b
-                .faces
-                .iter()
-                .nth(*base_face)
-                .map(|(k, _)| k)
-                .context("Chamfer base face is unavailable")?;
+            let frame = frame_of(id)?;
+            let face = resolve_face(b, base_face, &frame, notes).context("Chamfer base face")?;
             let mm = positive(*distance_mm, "Chamfer")?;
-            brep::chamfer_edges(b, &edges(b, indices)?, face, mm, mm)
+            brep::chamfer_edges(b, &edges(b, &frame, refs, notes)?, face, mm, mm)
                 .map_err(|e| anyhow::anyhow!("Chamfer is unsupported: {e:?}"))
         }
         Operation::Shell {
@@ -605,15 +1086,10 @@ fn body_for(
             thickness_mm,
         } => {
             let b = source(id)?;
+            let frame = frame_of(id)?;
             let faces = open_faces
                 .iter()
-                .map(|i| {
-                    b.faces
-                        .iter()
-                        .nth(*i)
-                        .map(|(k, _)| k)
-                        .context("Shell opening face is unavailable")
-                })
+                .map(|r| resolve_face(b, r, &frame, notes).context("Shell opening face"))
                 .collect::<Result<Vec<_>>>()?;
             brep::shell(b, &faces, positive(*thickness_mm, "Shell thickness")?).map_err(|e| {
                 anyhow::anyhow!("Shell supports analytic boxes, cylinders, and spheres: {e:?}")
@@ -683,6 +1159,7 @@ pub fn evaluate_with(
         );
     }
     let mut bodies = BTreeMap::new();
+    let mut sketches: BTreeMap<Id, Sketch> = BTreeMap::new();
     let mut metadata = BTreeMap::new();
     let mut reports = Vec::new();
     let mut ids = BTreeSet::new();
@@ -703,9 +1180,25 @@ pub fn evaluate_with(
                 faces: 0,
                 edges: 0,
                 suppressed: true,
+                notes: Vec::new(),
+            });
+        } else if let Operation::Sketch { sketch } = &f.operation {
+            sketch
+                .validate()
+                .with_context(|| format!("Feature #{} — {}", f.id, f.name))?;
+            sketches.insert(f.id, sketch.clone());
+            metadata.insert(f.id, f);
+            reports.push(FeatureReport {
+                id: f.id,
+                name: f.name.clone(),
+                faces: 0,
+                edges: 0,
+                suppressed: false,
+                notes: Vec::new(),
             });
         } else {
-            let mut body = body_for(&f.operation, &bodies, design, lib, params)
+            let mut notes = Vec::new();
+            let mut body = body_for(&f.operation, &bodies, &sketches, &metadata, design, lib, params, &mut notes)
                 .with_context(|| format!("Feature #{} — {}", f.id, f.name))?;
             ensure!(
                 body.validate().is_empty(),
@@ -714,22 +1207,9 @@ pub fn evaluate_with(
                 f.name,
                 body.validate()
             );
-            if let Some(theta) = f.component.ring_anchor_deg {
-                ensure!(
-                    theta.is_finite() && f.component.anchor_height_mm.is_finite(),
-                    "Invalid ring anchor"
-                );
-                let a = theta.to_radians();
-                let r = design.inner_radius_mm()
-                    + design.profile.thickness_mm
-                    + f.component.anchor_height_mm;
-                body = maybe(
-                    brep::transform(
-                        &body,
-                        &rotate_place([r * a.cos(), r * a.sin(), 0.0], [0.0, 90.0, theta])?,
-                    ),
-                    "Ring anchor",
-                )?;
+            if f.component.placement != Placement::Free {
+                let frame = f.component.placement.frame(design)?;
+                body = maybe(brep::transform(&body, &frame), "Ring placement")?;
             }
             reports.push(FeatureReport {
                 id: f.id,
@@ -737,6 +1217,7 @@ pub fn evaluate_with(
                 faces: body.faces.len(),
                 edges: body.edges.len(),
                 suppressed: false,
+                notes,
             });
             bodies.insert(f.id, body);
             metadata.insert(f.id, f);
@@ -822,14 +1303,7 @@ pub fn tessellate_traced(body: &Body, chord_mm: f64) -> Result<(Mesh, PartTrace)
     let face_kind = body
         .faces
         .iter()
-        .map(|(_, face)| match body.surfaces.get(face.surface) {
-            Some(brep::Surface::Plane(_)) => SurfaceKind::Plane,
-            Some(brep::Surface::Cylinder(_)) => SurfaceKind::Cylinder,
-            Some(brep::Surface::Cone(_)) => SurfaceKind::Cone,
-            Some(brep::Surface::Sphere(_)) => SurfaceKind::Sphere,
-            Some(brep::Surface::Torus(_)) => SurfaceKind::Torus,
-            _ => SurfaceKind::Freeform,
-        })
+        .map(|(_, face)| SurfaceKind::of(body.surfaces.get(face.surface)))
         .collect();
     let mut tri_face = Vec::with_capacity(display.mesh.triangles.len());
     let mut mesh = Mesh::default();
@@ -1072,7 +1546,7 @@ mod tests {
     #[test]
     fn extrusion_uses_analytic_sketch_dimensions() {
         let d = design(vec![Operation::Extrude {
-            sketch: Sketch::rectangle(6.0, 4.0),
+            sketch: Sketch::rectangle(6.0, 4.0).into(),
             height_mm: 3.0,
             draft_deg: 0.0,
         }]);
@@ -1083,7 +1557,7 @@ mod tests {
     fn missing_sources_are_located_and_source_document_is_unchanged() {
         let d = design(vec![Operation::Fillet {
             source: 99,
-            edges: vec![0],
+            edges: vec![EdgeRef::bare(0)],
             radius_mm: 1.0,
         }]);
         let before = serde_json::to_string(&d).unwrap();
@@ -1113,19 +1587,19 @@ mod tests {
                 minor_mm: 1.0,
             }],
             vec![Operation::Revolve {
-                sketch: section,
+                sketch: section.into(),
                 pivot: [0.0; 3],
                 axis: [0.0, 0.0, 1.0],
                 degrees: 360.0,
             }],
             vec![Operation::Loft {
-                sections: vec![Sketch::rectangle(8.0, 6.0), top],
+                sections: vec![Sketch::rectangle(8.0, 6.0).into(), top.into()],
             }],
             vec![
                 Operation::Box { size: [8.0; 3] },
                 Operation::Fillet {
                     source: 1,
-                    edges: vec![0],
+                    edges: vec![EdgeRef::bare(0)],
                     radius_mm: 0.5,
                 },
             ],
@@ -1133,13 +1607,13 @@ mod tests {
                 Operation::Box { size: [8.0; 3] },
                 Operation::Chamfer {
                     source: 1,
-                    edges: vec![0],
-                    base_face: 4,
+                    edges: vec![EdgeRef::bare(0)],
+                    base_face: FaceRef::bare(4),
                     distance_mm: 0.5,
                 },
             ],
             vec![Operation::Sweep {
-                sketch: Sketch::circle(1.0),
+                sketch: Sketch::circle(1.0).into(),
                 path: vec![[0.0; 3], [0.0, 0.0, 5.0]],
             }],
         ];
@@ -1216,7 +1690,7 @@ mod tests {
         });
         s.entity(crate::sketch::Geometry::Line { a: p[5], b: p[0] });
         let d = design(vec![Operation::Extrude {
-            sketch: s,
+            sketch: s.into(),
             height_mm: 3.0,
             draft_deg: 0.0,
         }]);
@@ -1238,7 +1712,7 @@ mod tests {
         s.entity(crate::sketch::Geometry::Line { a: p[0], b: p[2] });
         s.entity(crate::sketch::Geometry::Line { a: p[2], b: p[1] });
         let extrude = |sketch: Sketch| Operation::Extrude {
-            sketch,
+            sketch: sketch.into(),
             height_mm: 2.0,
             draft_deg: 0.0,
         };
@@ -1290,6 +1764,136 @@ mod tests {
         let kinds: BTreeSet<_> = e.components[1].trace.face_kind.iter().map(|k| format!("{k:?}")).collect();
         assert_eq!(kinds, BTreeSet::from(["Cylinder".to_string(), "Plane".to_string()]));
         assert_eq!(e.components[1].trace.positions.len(), e.components[1].mesh.vertices.len());
+    }
+    #[test]
+    fn a_signed_reference_is_found_again_when_its_ordinal_moves_and_refused_when_its_edge_is_gone() {
+        let cube = make::cuboid([-2.0; 3], [4.0; 3]).unwrap();
+        let identity = brep::Placement::IDENTITY;
+        let keys: Vec<_> = cube.edges.iter().map(|(k, _)| k).collect();
+        let picked = EdgeRef::signed(&cube, 5, &identity);
+        let expected = picked.signature.clone().unwrap();
+        assert_eq!(expected.faces, [SurfaceKind::Plane, SurfaceKind::Plane]);
+        assert_eq!(expected.curve, CurveKind::Line);
+        let mut notes = Vec::new();
+        assert_eq!(resolve_edge(&cube, &picked, &identity, &mut notes).unwrap(), keys[5]);
+        assert!(notes.is_empty());
+        // The same signature stored under the wrong ordinal finds its edge and says so.
+        let moved = EdgeRef { ordinal: 0, signature: Some(expected.clone()) };
+        let found = resolve_edge(&cube, &moved, &identity, &mut notes).unwrap();
+        assert_eq!(found, keys[5], "{notes:?}");
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        // A rim of a cylinder is no edge of a cube.
+        let cylinder = make::cylinder([0.0; 3], 2.0, 3.0).unwrap();
+        let rim = EdgeRef::signed(&cylinder, 0, &identity);
+        assert_eq!(rim.signature.as_ref().unwrap().curve, CurveKind::Circle);
+        let error = resolve_edge(&cube, &rim, &identity, &mut notes).err().unwrap().to_string();
+        assert!(error.contains("no longer a circle"), "{error}");
+        // A signature is taken in the part's own frame, so seating the part does not change it.
+        let d = RingDesign::default();
+        let seat = Placement::ring(37.0, 0.4);
+        let placed = brep::transform(&cube, &seat.frame(&d).unwrap()).unwrap();
+        let there = EdgeRef::signed(&placed, 5, &seat.frame(&d).unwrap()).signature.unwrap();
+        assert!(expected.matches(&there), "{expected:?} vs {there:?}");
+        assert!(expected.drift(&there) < 1e-6);
+        // Faces answer the same way, with their outward normal.
+        let top = FaceRef::signed(&cube, 5, &identity);
+        let sig = top.signature.clone().unwrap();
+        assert_eq!(sig.kind, SurfaceKind::Plane);
+        assert!((crate::mesh::norm(sig.normal) - 1.0).abs() < 1e-9);
+        let wrong = FaceRef { ordinal: 0, signature: Some(sig) };
+        let face_keys: Vec<_> = cube.faces.iter().map(|(k, _)| k).collect();
+        assert_eq!(resolve_face(&cube, &wrong, &identity, &mut notes).unwrap(), face_keys[5]);
+    }
+    #[test]
+    fn a_ring_placement_frame_is_the_anchor_frame_it_replaced() {
+        let d = RingDesign::default();
+        let theta: f64 = 130.0;
+        let height = 0.7;
+        let a = theta.to_radians();
+        let r = d.inner_radius_mm() + d.profile.thickness_mm + height;
+        let old = rotate_place([r * a.cos(), r * a.sin(), 0.0], [0.0, 90.0, theta]).unwrap();
+        let new = Placement::ring(theta, height).frame(&d).unwrap();
+        for (p, q) in [(old.x_axis, new.x_axis), (old.y_axis, new.y_axis), (old.z_axis, new.z_axis), (old.origin, new.origin)] {
+            assert!(p.iter().zip(q).all(|(x, y)| (x - y).abs() < 1e-12), "{p:?} vs {q:?}");
+        }
+        // The part's z stands out of the ring, its x runs along the finger, and the leans turn it in place.
+        let out = Placement::ring(theta, 0.0).world(&d, [0.0, 0.0, 1.0]).unwrap();
+        let origin = Placement::ring(theta, 0.0).world(&d, [0.0; 3]).unwrap();
+        let radial = [a.cos(), a.sin(), 0.0];
+        assert!((0..3).all(|k| (out[k] - origin[k] - radial[k]).abs() < 1e-12));
+        let along = Placement::ring(theta, 0.0).world(&d, [1.0, 0.0, 0.0]).unwrap();
+        assert!((along[2] - origin[2] + 1.0).abs() < 1e-12);
+        let spun = Placement::Ring { theta_deg: theta, across_mm: 0.5, height_mm: 0.0, spin_deg: 90.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let x = spun.world(&d, [1.0, 0.0, 0.0]).unwrap();
+        let o = spun.world(&d, [0.0; 3]).unwrap();
+        assert!((o[2] - 0.5).abs() < 1e-12);
+        // A quarter spin about the normal takes the part's x onto its y: the ring's tangent.
+        let tangent = [-a.sin(), a.cos(), 0.0];
+        assert!((0..3).all(|k| (x[k] - o[k] - tangent[k]).abs() < 1e-9), "{x:?} {o:?}");
+        // The evaluated anchor of a shipped example is unchanged by the migration.
+        let e = evaluate(&crate::cad::examples::design("solitaire").unwrap(), &AlphaLibrary::builtin(), BuildParams::default()).unwrap();
+        let bezel = e.components.iter().find(|c| c.name == "Open bezel stock").unwrap();
+        let (lo, hi) = bezel.mesh.bounds().unwrap();
+        assert!(hi.1 > 9.0 && lo.1 > 8.0, "the bezel stands over the top of the ring: {lo:?} {hi:?}");
+    }
+    #[test]
+    fn a_sketch_feature_is_extruded_by_id_and_a_sketch_on_a_face_stands_on_it() {
+        let lib = AlphaLibrary::builtin();
+        // A plain sketch, extruded twice by id: the sketch has no body, the extrusions do.
+        let mut doc = Document::default();
+        let add = |doc: &mut Document, id: Id, operation: Operation| {
+            doc.append(Feature { id, name: operation.label().into(), enabled: true, operation, component: Component::default() }).unwrap();
+        };
+        add(&mut doc, 1, Operation::Sketch { sketch: Sketch::rectangle(4.0, 3.0) });
+        add(&mut doc, 2, Operation::Extrude { sketch: Profile::Feature { feature: 1 }, height_mm: 2.0, draft_deg: 0.0 });
+        add(&mut doc, 3, Operation::Revolve { sketch: Profile::Feature { feature: 1 }, pivot: [6.0, 0.0, 0.0], axis: [0.0, 1.0, 0.0], degrees: 360.0 });
+        assert_eq!(doc.outputs, vec![2, 3], "a sketch is never an output");
+        let mut d = RingDesign::default();
+        d.cad = Some(doc.clone());
+        let e = evaluate(&d, &lib, BuildParams::default()).unwrap();
+        assert_eq!(e.features[0].faces, 0);
+        let volumes: Vec<f64> = e.components.iter().map(|c| c.mesh.volume_mm3()).collect();
+        assert!((volumes[0] - 24.0).abs() < 1e-3, "{volumes:?}");
+        assert!(volumes[1] > 24.0, "{volumes:?}");
+        // Text says which sketch a profile came from, and reads back the same.
+        let text = serde_json::to_string(&doc.features[1].operation).unwrap();
+        assert!(text.contains(r#""sketch":{"feature":1}"#), "{text}");
+        assert_eq!(serde_json::to_string(&serde_json::from_str::<Operation>(&text).unwrap()).unwrap(), text);
+        let inline: Operation = serde_json::from_str(r#"{"Extrude":{"sketch":{"name":"x","points":[],"entities":[]},"height_mm":1.0,"draft_deg":0.0}}"#).unwrap();
+        let Operation::Extrude { sketch: Profile::Inline(s), .. } = inline else { panic!("an inline sketch stays inline") };
+        assert_eq!(s.name, "x");
+        // A disabled sketch takes its extrusion down with it, by name.
+        let mut off = doc.clone();
+        off.features[0].enabled = false;
+        d.cad = Some(off);
+        let error = format!("{:#}", evaluate(&d, &lib, BuildParams::default()).err().unwrap());
+        assert!(error.contains("Sketch feature #1 is unavailable"), "{error}");
+        // A sketch on the top face of a box extrudes outward from that face, wherever the box stands.
+        let mut doc = Document::default();
+        add(&mut doc, 1, Operation::Box { size: [6.0, 6.0, 4.0] });
+        let seat = Placement::ring(90.0, 0.0);
+        doc.features[0].component.placement = seat.clone();
+        let mut d = RingDesign::default();
+        d.cad = Some(doc.clone());
+        let boxed = evaluate(&d, &lib, BuildParams::default()).unwrap();
+        let body = &boxed.components[0].body;
+        let frame = seat.frame(&d).unwrap();
+        // The face whose outward normal is the part's own +z, found by signature in the part's frame.
+        let top = (0..body.faces.len())
+            .find(|i| face_signature(body, *i, &frame).is_some_and(|s| s.normal[2] > 0.9))
+            .expect("a top face");
+        let mut sketch = Sketch::rectangle(2.0, 2.0);
+        sketch.plane.on_face = Some(crate::sketch::FaceAnchor { feature: 1, face: FaceRef::signed(body, top, &frame) });
+        add(&mut doc, 2, Operation::Extrude { sketch: sketch.into(), height_mm: 1.5, draft_deg: 0.0 });
+        assert_eq!(doc.features[1].operation.sources(), vec![1], "the face is a dependency");
+        d.cad = Some(doc);
+        let e = evaluate(&d, &lib, BuildParams::default()).unwrap();
+        let boss = e.components.iter().find(|c| c.id == 2).unwrap();
+        assert!((boss.mesh.volume_mm3() - 6.0).abs() < 1e-3);
+        // The box's top face stands 2 mm out along the ring's radial at 90°: the boss starts there.
+        let (lo, hi) = boss.mesh.bounds().unwrap();
+        let top_r = d.inner_radius_mm() + d.profile.thickness_mm + 2.0;
+        assert!((lo.1 as f64 - top_r).abs() < 1e-3 && (hi.1 as f64 - top_r - 1.5).abs() < 1e-3, "{lo:?} {hi:?} {top_r}");
     }
     #[test]
     fn a_faceted_operand_is_refused_before_the_kernel_is_asked() {

@@ -1,7 +1,7 @@
 use super::*;
 use egui::{Color32, RichText, Stroke, pos2, vec2};
 use ringdesign_core::{
-    cad::{self, ComponentRole, Feature, Operation},
+    cad::{self, ComponentRole, Feature, Operation, Placement},
     castability::{CastProcess, SandProcess},
     manufacturing::{BoreStrategy, Recipe, Setup},
 };
@@ -437,7 +437,7 @@ impl Workshop {
                             let id = doc.features.iter().map(|f|f.id).max().unwrap_or(0)+1;
                             let mut component=op.sources().first().and_then(|id|doc.features.iter().find(|f|f.id==*id)).map(|f|f.component.clone()).unwrap_or_default();
                             if matches!(op,Operation::Band | Operation::Torus{..} | Operation::TwistedRing{..}) {component.role=ComponentRole::Shank;}
-                            component.ring_anchor_deg=None; component.anchor_height_mm=0.;
+                            component.placement=Placement::Free;
                             let f = Feature { id,name:op.label().into(),enabled:true,operation:op,component };
                             match doc.append(f) {
                                 Ok(()) => {self.feature = doc.features.len()-1;self.feature_text_id=None;}
@@ -501,14 +501,7 @@ impl Workshop {
                         ui.selectable_value(&mut f.component.material, m.name.into(), m.name);
                     }
                 });
-            let mut anchor = f.component.ring_anchor_deg.is_some();
-            if ui.checkbox(&mut anchor, "Anchor to ring angle").changed() {
-                f.component.ring_anchor_deg = anchor.then_some(90.0);
-            }
-            if let Some(angle) = &mut f.component.ring_anchor_deg {
-                number(ui, "Anchor angle °", angle);
-                number(ui, "Anchor height mm", &mut f.component.anchor_height_mm);
-            }
+            cad_tools::placement(ui, &mut f.component.placement);
             ui.text_edit_multiline(&mut f.component.bench_notes);
             if ui
                 .button("Use current casting setup for this part")
@@ -736,8 +729,9 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
             for (i,p) in path.iter_mut().enumerate() { xyz(ui,&format!("Station {i} mm"),p); }
         }
         Operation::Loft { sections } => {
-            for (i,s) in sections.iter_mut().enumerate() { xyz(ui,&format!("Section {i} origin"),&mut s.plane.origin); }
+            for (i,p) in sections.iter_mut().enumerate() { if let Some(s) = p.sketch_mut() { xyz(ui,&format!("Section {i} origin"),&mut s.plane.origin); } else { ui.weak(format!("Section {i}: sketch feature #{}", p.feature().unwrap_or(0))); } }
         }
+        Operation::Sketch { .. } => { ui.weak("A closed profile for other features to extrude, revolve, sweep or loft; edit it below."); }
         Operation::Boolean {a,b,..} => { ui.label(format!("Solids #{a} and #{b}. Change references in Feature source.")); }
         Operation::Band => { ui.weak("Uses the ring's fit, profile and ornament."); }
     }

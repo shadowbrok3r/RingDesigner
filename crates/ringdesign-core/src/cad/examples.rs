@@ -53,15 +53,14 @@ pub fn design(name: &str) -> Result<RingDesign> {
                 &mut doc,
                 "Separate signet head",
                 Operation::Extrude {
-                    sketch: Sketch::rectangle(9.0, 7.0),
+                    sketch: Sketch::rectangle(9.0, 7.0).into(),
                     height_mm: 2.5,
                     draft_deg: 3.0,
                 },
                 ComponentRole::Head,
             )?;
             let head = doc.features.last_mut().unwrap();
-            head.component.ring_anchor_deg = Some(90.0);
-            head.component.anchor_height_mm = 0.2;
+            head.component.placement = Placement::ring(90.0, 0.2);
             head.component.bench_notes="Fit the head to the shank and solder; review the joint's contact surfaces before manufacture".into();
             doc.joints.push(Joint {
                 a: 1,
@@ -110,8 +109,7 @@ pub fn design(name: &str) -> Result<RingDesign> {
                 ComponentRole::Setting,
             )?;
             let f = doc.features.last_mut().unwrap();
-            f.component.ring_anchor_deg = Some(90.0);
-            f.component.anchor_height_mm = 1.5;
+            f.component.placement = Placement::ring(90.0, 1.5);
             f.component.bench_notes="Cut the final bearing to the measured stone; bezel stock includes metal for setting".into();
             let stone = add(
                 &mut doc,
@@ -125,8 +123,7 @@ pub fn design(name: &str) -> Result<RingDesign> {
             let f = doc.features.last_mut().unwrap();
             f.component.reference = true;
             f.component.stone_id = Some("stone-001-6mm-round".into());
-            f.component.ring_anchor_deg = Some(90.0);
-            f.component.anchor_height_mm = 2.0;
+            f.component.placement = Placement::ring(90.0, 2.0);
             doc.joints.push(Joint {a:setting,b:stone,clearance_mm:0.05,method:"Cut bearing / set".into(),notes:"The cylinder is a measured envelope; refine pavilion and crown geometry before cutting".into()});
         }
         "inlay-band" => {
@@ -193,7 +190,7 @@ pub fn design(name: &str) -> Result<RingDesign> {
                     &mut doc,
                     &format!("Gallery strut {}", k + 1),
                     Operation::Sweep {
-                        sketch: Sketch::circle(0.4),
+                        sketch: Sketch::circle(0.4).into(),
                         path: vec![
                             [4.0 * a.cos(), 4.0 * a.sin(), 0.0],
                             [5.0 * a.cos(), 5.0 * a.sin(), 3.0],

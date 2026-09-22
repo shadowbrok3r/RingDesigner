@@ -165,7 +165,7 @@ fn lantern() -> RingDesign {
         &mut doc,
         "Analytic gallery shank",
         Op::Revolve {
-            sketch: shank,
+            sketch: shank.into(),
             pivot: [0.; 3],
             axis: [0., 0., 1.],
             degrees: 360.,
@@ -189,7 +189,7 @@ fn lantern() -> RingDesign {
         &mut doc,
         "Octagonal seal stock",
         Op::Extrude {
-            sketch: head,
+            sketch: head.into(),
             height_mm: 4.2,
             draft_deg: 0.,
         },

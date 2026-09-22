@@ -938,7 +938,7 @@ _pulls` pins it with a deliberately hostile plan (an asymmetric clipped
 star): containment to 1e-5, field-clean, and a JSON round-trip that must
 not carry the derived table. The library half lives in
 `library::outline_dir()` (`<name>.outline.json`); applying one **copies**
-it into the design. 19 factory signet plans decoded from the CrossGems
+it into the design. 19 factory signet plans decoded from
 presets (`tools/harvest/outline_export.py`) ship there as user assets —
 clover, rosette, star, butterfly, escutcheon and the rest — every one
 fielding 0.000% on a bare head.
@@ -1172,7 +1172,6 @@ instead the moment the pitch changed. `blocked()` tests ellipse against
 ellipse in the chart with the spec's own `bridge_mm` between them, so an
 elongated pin claims the ground its plan actually covers.
 
-What must not be taken from CrossGems here is their **solver**. Their
 `CgPhysicalSystem` relaxes free positions (`step = MoveSum / (WeightSum +
 Mass)`, velocity damped 0.99); `fill()` is a closed-form lattice, and its
 `n = floor(circumference / pitch)` with `step = 360/n` *is* the seamlessness
@@ -1424,7 +1423,7 @@ the chart's 0.85 metal scale, so a 0.4 mm skirt measures 0.34 against a
 0.35 floor. The hollow takes 11% out of a 12 mm clover signet.
 
 `examples/sketches.rs` is the same discipline on pencil sketches, built
-here and through CrossGems' own components for the side-by-side
+here and components for the side-by-side
 (`SKETCHES=A,N` runs only the named designs; `NOCT_*`, `BOLT_*`, `CLOUD_*`
 knobs probe one). What it measured: a **cast dot on a signet's table must
 ride the parting line** — a 0.2 mm dot 2 mm off it on the zero-draft
@@ -2879,8 +2878,3 @@ footprints stay aligned with `height`.
 - `../jewelry_cost_calculator` — the egui_glow viewport in `src/ui/gpu_mesh.rs`
   is the reference this app's renderer was ported from. Also has ring sizing and
   STL/OBJ loading.
-
-- `tools/harvest/` (gitignored) — the CrossGems decode tools, their reports and the
-  mesh-comparison probes (`deviation.py`, `dihedral.py`, `measure_cg.py`); venv at
-  `tools/venv` (`requirements.txt` beside the scripts). The archive itself — decompiled
-  sources, the 122 decoded clusters, resources — stays in `../PostLoad/PostLoad`.

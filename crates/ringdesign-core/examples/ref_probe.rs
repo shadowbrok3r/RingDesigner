@@ -117,15 +117,15 @@ fn main() {
         Operation::Torus { major_mm: 10.0, minor_mm: 3.0 },
     ]);
     sweep("extrude rectangle (height, draft)", vec![
-        Operation::Extrude { sketch: Sketch::rectangle(8.0, 6.0), height_mm: 3.0, draft_deg: 0.0 },
-        Operation::Extrude { sketch: Sketch::rectangle(8.0, 6.0), height_mm: 9.0, draft_deg: 0.0 },
-        Operation::Extrude { sketch: Sketch::rectangle(8.0, 6.0), height_mm: 3.0, draft_deg: 10.0 },
-        Operation::Extrude { sketch: Sketch::rectangle(3.0, 12.0), height_mm: 3.0, draft_deg: 0.0 },
+        Operation::Extrude { sketch: Sketch::rectangle(8.0, 6.0).into(), height_mm: 3.0, draft_deg: 0.0 },
+        Operation::Extrude { sketch: Sketch::rectangle(8.0, 6.0).into(), height_mm: 9.0, draft_deg: 0.0 },
+        Operation::Extrude { sketch: Sketch::rectangle(8.0, 6.0).into(), height_mm: 3.0, draft_deg: 10.0 },
+        Operation::Extrude { sketch: Sketch::rectangle(3.0, 12.0).into(), height_mm: 3.0, draft_deg: 0.0 },
     ]);
     sweep("extrude circle (height)", vec![
-        Operation::Extrude { sketch: Sketch::circle(3.0), height_mm: 2.0, draft_deg: 0.0 },
-        Operation::Extrude { sketch: Sketch::circle(3.0), height_mm: 8.0, draft_deg: 0.0 },
-        Operation::Extrude { sketch: Sketch::circle(1.0), height_mm: 2.0, draft_deg: 0.0 },
+        Operation::Extrude { sketch: Sketch::circle(3.0).into(), height_mm: 2.0, draft_deg: 0.0 },
+        Operation::Extrude { sketch: Sketch::circle(3.0).into(), height_mm: 8.0, draft_deg: 0.0 },
+        Operation::Extrude { sketch: Sketch::circle(1.0).into(), height_mm: 2.0, draft_deg: 0.0 },
     ]);
     let section = |w: f64, h: f64, offset: f64| {
         let mut s = Sketch::rectangle(w, h);
@@ -136,10 +136,10 @@ fn main() {
         s
     };
     sweep("revolve section (size, radius, angle)", vec![
-        Operation::Revolve { sketch: section(2.0, 5.0, 10.0), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0 },
-        Operation::Revolve { sketch: section(2.0, 5.0, 14.0), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0 },
-        Operation::Revolve { sketch: section(4.0, 2.0, 10.0), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0 },
-        Operation::Revolve { sketch: section(2.0, 5.0, 10.0), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 180.0 },
+        Operation::Revolve { sketch: section(2.0, 5.0, 10.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0 },
+        Operation::Revolve { sketch: section(2.0, 5.0, 14.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0 },
+        Operation::Revolve { sketch: section(4.0, 2.0, 10.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0 },
+        Operation::Revolve { sketch: section(2.0, 5.0, 10.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 180.0 },
     ]);
     let top = |w: f64, h: f64, z: f64| {
         let mut s = Sketch::rectangle(w, h);
@@ -147,14 +147,14 @@ fn main() {
         s
     };
     sweep("loft two rectangles (top size, height)", vec![
-        Operation::Loft { sections: vec![Sketch::rectangle(10.0, 8.0), top(8.0, 6.0, 5.0)] },
-        Operation::Loft { sections: vec![Sketch::rectangle(10.0, 8.0), top(4.0, 3.0, 5.0)] },
-        Operation::Loft { sections: vec![Sketch::rectangle(10.0, 8.0), top(8.0, 6.0, 12.0)] },
+        Operation::Loft { sections: vec![Sketch::rectangle(10.0.into(), 8.0).into(), top(8.0.into(), 6.0.into(), 5.0).into()] },
+        Operation::Loft { sections: vec![Sketch::rectangle(10.0.into(), 8.0).into(), top(4.0.into(), 3.0.into(), 5.0).into()] },
+        Operation::Loft { sections: vec![Sketch::rectangle(10.0.into(), 8.0).into(), top(8.0.into(), 6.0.into(), 12.0).into()] },
     ]);
     sweep("sweep circle on a 3-station path", vec![
-        Operation::Sweep { sketch: Sketch::circle(1.0), path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]] },
-        Operation::Sweep { sketch: Sketch::circle(0.5), path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]] },
-        Operation::Sweep { sketch: Sketch::circle(1.0), path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 9.0], [4.0, 0.0, 12.0]] },
+        Operation::Sweep { sketch: Sketch::circle(1.0).into(), path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]] },
+        Operation::Sweep { sketch: Sketch::circle(0.5).into(), path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]] },
+        Operation::Sweep { sketch: Sketch::circle(1.0).into(), path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 9.0], [4.0, 0.0, 12.0]] },
     ]);
     // A boolean's edge list depends on where the cut lands: the case a stored ordinal fears most.
     let boolean = |offset: f64| {

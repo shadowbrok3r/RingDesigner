@@ -135,6 +135,9 @@ pub fn candidate(d: &RingDesign, bore_mm: f64, policy: &Policy) -> Result<Candid
                     axis,
                     degrees,
                 } if f.component.role == crate::cad::ComponentRole::Shank => {
+                    let Some(sketch) = sketch.sketch_mut() else {
+                        anyhow::bail!("Shank revolution must draw its section in the feature to resize automatically");
+                    };
                     ensure!(
                         *pivot == [0.0; 3]
                             && *axis == [0.0, 0.0, 1.0]

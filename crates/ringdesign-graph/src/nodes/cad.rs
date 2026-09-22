@@ -265,7 +265,7 @@ pub fn append(g: &mut Graph, operation: Operation) -> Result<NodeId, crate::grap
         .and_then(|n| serde_json::from_value::<Feature>(n.params.clone()).ok())
         .map(|f| f.component)
         .unwrap_or_default();
-    component.ring_anchor_deg = None;
+    component.placement = ringdesign_core::cad::Placement::Free;
     if matches!(
         operation,
         Operation::Band

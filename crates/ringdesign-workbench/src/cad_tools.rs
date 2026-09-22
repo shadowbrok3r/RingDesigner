@@ -1,7 +1,7 @@
 //! Shared, inspectable CAD creation tools. Solid evaluation remains in core.
 use crate::icons::Icon;
 use ringdesign_core::{
-    cad::{Boolean, Operation},
+    cad::{Boolean, EdgeRef, FaceRef, Operation, Placement},
     sketch::{Geometry, Sketch, Workplane},
 };
 pub fn icon(op: &Operation) -> Icon {
@@ -13,6 +13,7 @@ pub fn icon(op: &Operation) -> Icon {
         Sphere { .. } => Icon::CadSphere,
         Torus { .. } => Icon::CadTorus,
         TwistedRing { .. } => Icon::CadTwistedRing,
+        Sketch { .. } => Icon::CadSketch,
         Extrude { .. } => Icon::CadExtrude,
         Revolve { .. } => Icon::CadRevolve,
         Sweep { .. } => Icon::CadSweep,
@@ -40,6 +41,7 @@ pub fn hint(op: &Operation) -> &'static str {
         TwistedRing { .. } => {
             "An oval section twisted around a closed ring. Whole and half turns join cleanly."
         }
+        Sketch { .. } => "A closed profile of its own, for other features to extrude, revolve, sweep or loft.",
         Extrude { .. } => "Give a closed sketch depth, optionally tapering the walls.",
         Revolve { .. } => "Rotate a closed sketch about an axis. Edit the profile in Sketch.",
         Sweep { .. } => "Carry a closed section along a 3D path. Edit the stations in Properties.",
@@ -94,23 +96,26 @@ pub fn starters(source: u64, second: u64) -> Vec<Operation> {
             major_mm: 10.0,
             minor_mm: 1.5,
         },
-        Operation::Extrude {
+        Operation::Sketch {
             sketch: Sketch::rectangle(8.0, 6.0),
+        },
+        Operation::Extrude {
+            sketch: Sketch::rectangle(8.0, 6.0).into(),
             height_mm: 3.0,
             draft_deg: 0.0,
         },
         Operation::Revolve {
-            sketch: section,
+            sketch: section.into(),
             pivot: [0.0; 3],
             axis: [0.0, 0.0, 1.0],
             degrees: 360.0,
         },
         Operation::Sweep {
-            sketch: Sketch::circle(1.0),
+            sketch: Sketch::circle(1.0).into(),
             path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]],
         },
         Operation::Loft {
-            sections: vec![Sketch::rectangle(10.0, 8.0), top],
+            sections: vec![Sketch::rectangle(10.0, 8.0).into(), top.into()],
         },
         Operation::Boolean {
             a: source,
@@ -128,20 +133,20 @@ pub fn starters(source: u64, second: u64) -> Vec<Operation> {
             kind: Boolean::Intersect,
         },
         Operation::Twist {
-            sketch: Sketch::rectangle(2.0, 1.5),
+            sketch: Sketch::rectangle(2.0, 1.5).into(),
             path: twist_path(),
             degrees: 180.0,
             end_scale: 1.0,
         },
         Operation::Fillet {
             source,
-            edges: vec![0],
+            edges: vec![EdgeRef::bare(0)],
             radius_mm: 0.5,
         },
         Operation::Chamfer {
             source,
-            edges: vec![0],
-            base_face: 4,
+            edges: vec![EdgeRef::bare(0)],
+            base_face: FaceRef::bare(4),
             distance_mm: 0.3,
         },
         Operation::Shell {
@@ -226,6 +231,7 @@ mod tests {
             let label = op.label();
             let mut d = RingDesign::default();
             let mut doc = Document::default();
+            let sketch = matches!(op, Operation::Sketch { .. });
             doc.append(Feature {
                 id: 1,
                 name: label.into(),
@@ -234,6 +240,21 @@ mod tests {
                 component: Default::default(),
             })
             .unwrap();
+            // A sketch has no body of its own; the starter is judged by what extrudes from it.
+            if sketch {
+                doc.append(Feature {
+                    id: 2,
+                    name: "Extrude".into(),
+                    enabled: true,
+                    operation: Operation::Extrude {
+                        sketch: ringdesign_core::cad::Profile::Feature { feature: 1 },
+                        height_mm: 2.0,
+                        draft_deg: 0.0,
+                    },
+                    component: Default::default(),
+                })
+                .unwrap();
+            }
             d.cad = Some(doc);
             let evaluated = cad::evaluate(
                 &d,
@@ -292,5 +313,21 @@ mod tests {
                 original
             );
         }
+    }
+}
+
+/// The seat of a part on the ring: on or off, then the six numbers.
+pub fn placement(ui: &mut egui::Ui, p: &mut Placement) {
+    let mut seated = matches!(p, Placement::Ring { .. });
+    if ui.checkbox(&mut seated, "Seat on the ring").on_hover_text("Stand the part on the ring's outer surface at an angle; it follows resizing").changed() {
+        *p = if seated { Placement::ring(90.0, 0.0) } else { Placement::Free };
+    }
+    if let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } = p {
+        crate::controls::named(ui, "Ring angle °", "Ring angle", |ui| ui.add(egui::DragValue::new(theta_deg).speed(0.5).max_decimals(2)));
+        crate::controls::named(ui, "Across the band mm", "Across the band", |ui| ui.add(egui::DragValue::new(across_mm).speed(0.05).max_decimals(3)));
+        crate::controls::named(ui, "Stand-off mm", "Stand-off", |ui| ui.add(egui::DragValue::new(height_mm).speed(0.05).max_decimals(3)));
+        crate::controls::named(ui, "Spin °", "Spin", |ui| ui.add(egui::DragValue::new(spin_deg).speed(0.5).max_decimals(2)));
+        crate::controls::named(ui, "Tilt along the ring °", "Tilt", |ui| ui.add(egui::DragValue::new(tilt_deg).speed(0.5).max_decimals(2)));
+        crate::controls::named(ui, "Cant across the band °", "Cant", |ui| ui.add(egui::DragValue::new(cant_deg).speed(0.5).max_decimals(2)));
     }
 }

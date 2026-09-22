@@ -11,7 +11,7 @@ use egui::{Stroke, vec2};
 use ringdesign_workbench::{cad_tools, icons::{self, Icon}};
 use ringdesign_core::{
     BuildParams, RingDesign,
-    cad::{self, Boolean, Evaluated, Feature, Operation},
+    cad::{self, Boolean, EdgeRef, Evaluated, FaceRef, Feature, Operation, Placement, Profile},
     sketch::{Constraint, Geometry, Sketch},
 };
 use ringdesign_graph::{
@@ -336,14 +336,25 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
         ctx.request_repaint();
     });
 }
+/// A reference to `edge` of the evaluated part `part` that remembers what it points at.
+fn signed_edge(state: &CadState, part: u64, edge: usize) -> EdgeRef {
+    state
+        .view
+        .as_ref()
+        .and_then(|v| {
+            let c = v.evaluated.components.iter().find(|c| c.id == part)?;
+            let frame = c.settings.placement.frame(&v.design).ok()?;
+            Some(EdgeRef::signed(&c.body, edge, &frame))
+        })
+        .unwrap_or_else(|| EdgeRef::bare(edge))
+}
 /// Append one feature to the candidate and select it; an anchor seats it on the ring.
 fn add_feature(state: &mut CadState, g: &mut Graph, operation: Operation, anchor: Option<(f64, f64)>) {
     match graph_cad::append(g, operation) {
         Ok(id) => {
             if let (Some((theta, height)), Some(node)) = (anchor, g.node_mut(id)) {
                 if let Ok(mut f) = serde_json::from_value::<Feature>(node.params.clone()) {
-                    f.component.ring_anchor_deg = Some(theta);
-                    f.component.anchor_height_mm = height;
+                    f.component.placement = Placement::ring(theta, height);
                     node.params = serde_json::to_value(f).unwrap();
                 }
             }
@@ -459,7 +470,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     } else { "Create or select a solid first." };
                     if ui.add_enabled(valid, egui::Button::new((cad_tools::icon(&op).image(ui, 20.), op.label())))
                         .on_disabled_hover_text(hint).on_hover_text(hint).clicked() {
-                        if let (Some((_, edge)), Operation::Fillet {edges, ..} | Operation::Chamfer {edges, ..}) = (state.edge, &mut op) { *edges = vec![edge]; }
+                        if let (Some((part, edge)), Operation::Fillet {edges, ..} | Operation::Chamfer {edges, ..}) = (state.edge, &mut op) { *edges = vec![signed_edge(&state, part, edge)]; }
                         add_feature(&mut state, &mut g, op, None);
                         ui.close();
                     }
@@ -487,7 +498,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .and_then(|n| serde_json::from_value::<Feature>(n.params.clone()).ok())
                 .is_some_and(|mut f| f.operation.sketch_mut().is_some());
             if ui.add_enabled(editable, egui::Button::new("Edit selected sketch"))
-                .on_disabled_hover_text("Select an extrusion, revolve, sweep, twist or loft feature first.").clicked() {
+                .on_disabled_hover_text("Select a sketch, extrusion, revolve, sweep, twist or loft feature first.").clicked() {
                 state.tab = 1; ui.close();
             }
             if ui.button("Return to solid view").clicked() { state.tab = 0; ui.close(); }
@@ -938,7 +949,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     for op in cad_tools::starters(hit.part, 0) {
                         let mut op = op;
                         if let Operation::Fillet { edges, .. } | Operation::Chamfer { edges, .. } = &mut op {
-                            *edges = vec![edge];
+                            *edges = vec![signed_edge(&state, hit.part, edge)];
                             if ui.button((cad_tools::icon(&op).image(ui, 18.), format!("{} this edge", op.label()))).clicked() {
                                 state.edge = Some((hit.part, edge));
                                 add_feature(&mut state, &mut g, op, None);
@@ -1004,22 +1015,8 @@ fn direct_handles(ui: &mut egui::Ui, rect: egui::Rect, state: &CadState, g: &mut
     };
     let projector = state.camera.projector(rect);
     let painter = ui.painter_at(rect);
-    let anchor = feature.component.ring_anchor_deg;
-    let height = feature.component.anchor_height_mm;
-    let world = |p: [f64; 3]| {
-        let p = if let Some(theta) = anchor {
-            let a = theta.to_radians();
-            let r = view.design.inner_radius_mm() + view.design.profile.thickness_mm + height;
-            [
-                (r + p[2]) * a.cos() - p[1] * a.sin(),
-                (r + p[2]) * a.sin() + p[1] * a.cos(),
-                -p[0],
-            ]
-        } else {
-            p
-        };
-        p.map(|v| v as f32)
-    };
+    let placement = feature.component.placement.clone();
+    let world = |p: [f64; 3]| placement.world(&view.design, p).unwrap_or(p).map(|v| v as f32);
     let grip = |label: &str,
                 value: &mut f64,
                 start: [f64; 3],
@@ -1203,9 +1200,10 @@ fn direct_handles(ui: &mut egui::Ui, rect: egui::Rect, state: &CadState, g: &mut
         Operation::Extrude {
             sketch, height_mm, ..
         } => {
-            if let Ok(plane) = sketch.plane.plane() {
-                if let Some(normal) = plane.normal() {
-                    let base = sketch.plane.origin;
+            // Only a sketch drawn here on its own plane has a plane the panel can read.
+            if let Some(plane) = sketch.sketch_mut().filter(|s| s.plane.on_face.is_none()).map(|s| s.plane.clone()) {
+                if let Some(normal) = plane.plane().ok().and_then(|p| p.normal()) {
+                    let base = plane.origin;
                     let end = std::array::from_fn(|i| base[i] + normal[i] * *height_mm);
                     handle("Extrusion", height_mm, base, end, normal, 1.0);
                 }
@@ -1213,11 +1211,12 @@ fn direct_handles(ui: &mut egui::Ui, rect: egui::Rect, state: &CadState, g: &mut
         }
         _ => {}
     }
-    if let Some(angle) = &mut feature.component.ring_anchor_deg {
+    if let Placement::Ring { theta_deg, height_mm, .. } = &mut feature.component.placement {
+        let height = *height_mm;
         let radius = view.design.inner_radius_mm() + view.design.profile.thickness_mm + height;
         grip(
             "Ring position",
-            angle,
+            theta_deg,
             [0.0; 3],
             [0.0, 2.0, 0.0],
             [0.0, 1.0, 0.0],
@@ -1227,7 +1226,7 @@ fn direct_handles(ui: &mut egui::Ui, rect: egui::Rect, state: &CadState, g: &mut
         );
         grip(
             "Radial placement",
-            &mut feature.component.anchor_height_mm,
+            height_mm,
             [0.0, 0.0, -height],
             [0.0; 3],
             [0.0, 0.0, 1.0],
@@ -1376,6 +1375,28 @@ fn vector(ui: &mut egui::Ui, label: &str, v: &mut [f64; 3]) {
     }
 }
 
+/// Where a profile comes from: drawn in this feature, or a Sketch feature earlier in the tree.
+fn profile_source(ui: &mut egui::Ui, label: &str, profile: &mut Profile, tree: &[(NodeId, String)]) {
+    let current = profile.feature();
+    let shown = match current {
+        None => "Drawn in this feature".to_string(),
+        Some(id) => format!("Sketch #{id}"),
+    };
+    ringdesign_workbench::controls::row(ui, label, |ui| {
+        egui::ComboBox::from_id_salt(("profile-source", label))
+            .selected_text(shown)
+            .show_ui(ui, |ui| {
+                if ui.selectable_label(current.is_none(), "Drawn in this feature").clicked() && current.is_some() {
+                    *profile = Sketch::rectangle(8.0, 6.0).into();
+                }
+                for (id, name) in tree {
+                    if ui.selectable_label(current == Some(id.0), format!("#{} {name}", id.0)).clicked() {
+                        *profile = Profile::Feature { feature: id.0 };
+                    }
+                }
+            });
+    });
+}
 fn source(ui: &mut egui::Ui, label: &str, value: &mut u64, tree: &[(NodeId, String)]) {
     egui::ComboBox::from_id_salt(label)
         .selected_text(format!("{label} #{}", value))
@@ -1385,16 +1406,44 @@ fn source(ui: &mut egui::Ui, label: &str, value: &mut u64, tree: &[(NodeId, Stri
             }
         });
 }
-fn indices(ui: &mut egui::Ui, label: &str, list: &mut Vec<usize>) {
+/// Edge references by ordinal; a typed ordinal forgets the pick it replaced.
+fn edge_refs(ui: &mut egui::Ui, label: &str, list: &mut Vec<EdgeRef>) {
     ui.horizontal_wrapped(|ui| {
         ui.label(label);
-        for (i, n) in list.iter_mut().enumerate() {
+        for (i, r) in list.iter_mut().enumerate() {
             let name = format!("{label} {}", i + 1);
-            ui.add(egui::DragValue::new(n).range(0..=100000))
-                .widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::DragValue, true, &name));
+            let response = ui.add(egui::DragValue::new(&mut r.ordinal).range(0..=100000));
+            response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::DragValue, true, &name));
+            if response.changed() {
+                r.signature = None;
+            }
+            if let Some(s) = &r.signature {
+                response.on_hover_text(format!("Picked: {}", s.describe()));
+            }
         }
         if ui.small_button("+").clicked() {
-            list.push(0);
+            list.push(EdgeRef::bare(0));
+        }
+        if ui.small_button("−").clicked() {
+            list.pop();
+        }
+    });
+}
+fn face_ref(ui: &mut egui::Ui, name: &str, r: &mut FaceRef) {
+    let response = ui.add(egui::DragValue::new(&mut r.ordinal).range(0..=100000).prefix(format!("{name} ")));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::DragValue, true, name));
+    if response.changed() {
+        r.signature = None;
+    }
+}
+fn face_refs(ui: &mut egui::Ui, label: &str, list: &mut Vec<FaceRef>) {
+    ui.horizontal_wrapped(|ui| {
+        ui.label(label);
+        for (i, r) in list.iter_mut().enumerate() {
+            face_ref(ui, &format!("{label} {}", i + 1), r);
+        }
+        if ui.small_button("+").clicked() {
+            list.push(FaceRef::bare(0));
         }
         if ui.small_button("−").clicked() {
             list.pop();
@@ -1431,25 +1480,31 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             number(ui, "Major radius mm", major_mm);
             number(ui, "Tube radius mm", minor_mm);
         }
+        Operation::Sketch { .. } => {
+            ui.weak("A closed profile with no body of its own; draw it in the Sketch tab and extrude, revolve, sweep or loft it from another feature.");
+        }
         Operation::Extrude {
+            sketch,
             height_mm,
             draft_deg,
-            ..
         } => {
+            profile_source(ui, "Profile", sketch, tree);
             number(ui, "Height mm", height_mm);
             number(ui, "Taper degrees", draft_deg);
         }
         Operation::Revolve {
+            sketch,
             pivot,
             axis,
             degrees,
-            ..
         } => {
+            profile_source(ui, "Profile", sketch, tree);
             vector(ui, "Axis origin mm", pivot);
             vector(ui, "Axis direction", axis);
             number(ui, "Revolution degrees", degrees);
         }
-        Operation::Sweep { path, .. } => {
+        Operation::Sweep { sketch, path } => {
+            profile_source(ui, "Section", sketch, tree);
             for (i, p) in path.iter_mut().enumerate() {
                 vector(ui, &format!("Station {i} mm"), p);
             }
@@ -1466,8 +1521,11 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             ui.weak("Edit the planar path in Debug; the section must contain straight segments.");
         }
         Operation::Loft { sections } => {
-            for (i, s) in sections.iter_mut().enumerate() {
-                vector(ui, &format!("Section {i} origin mm"), &mut s.plane.origin);
+            for (i, p) in sections.iter_mut().enumerate() {
+                profile_source(ui, &format!("Section {i}"), p, tree);
+                if let Some(s) = p.sketch_mut() {
+                    vector(ui, &format!("Section {i} origin mm"), &mut s.plane.origin);
+                }
             }
             ui.weak(
                 "Sections must have matching curve counts and winding. Debug exposes each profile.",
@@ -1488,7 +1546,7 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             radius_mm,
         } => {
             source(ui, "Source", id, tree);
-            indices(ui, "Edge indices (zero based)", edges);
+            edge_refs(ui, "Edge", edges);
             number(ui, "Radius mm", radius_mm);
             ui.weak("Analytic and prismatic edges are supported; unsupported intersections return a preview error.");
         }
@@ -1499,8 +1557,8 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             distance_mm,
         } => {
             source(ui, "Source", id, tree);
-            indices(ui, "Edge indices", edges);
-            ui.add(egui::DragValue::new(base_face).prefix("Base face "));
+            edge_refs(ui, "Edge", edges);
+            face_ref(ui, "Base face", base_face);
             number(ui, "Equal distances mm", distance_mm);
         }
         Operation::Shell {
@@ -1509,7 +1567,7 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             thickness_mm,
         } => {
             source(ui, "Source", id, tree);
-            indices(ui, "Opening face indices", open_faces);
+            face_refs(ui, "Opening face", open_faces);
             number(ui, "Wall mm", thickness_mm);
             ui.weak(
                 "Exact boxes, cylinders, and spheres; an empty opening list makes a closed cavity.",
@@ -1556,17 +1614,7 @@ fn component_ui(ui: &mut egui::Ui, f: &mut Feature) {
                 ui.selectable_value(&mut c.material, m.name.to_string(), m.name);
             }
         });
-    let mut anchored = c.ring_anchor_deg.is_some();
-    if ui
-        .checkbox(&mut anchored, "Anchor to ring circumference")
-        .changed()
-    {
-        c.ring_anchor_deg = anchored.then_some(90.0);
-    }
-    if let Some(theta) = &mut c.ring_anchor_deg {
-        number(ui, "Ring angle degrees", theta);
-        number(ui, "Extra radial height mm", &mut c.anchor_height_mm);
-    }
+    cad_tools::placement(ui, &mut c.placement);
     if c.reference {
         let id = c.stone_id.get_or_insert_with(|| format!("stone-{}", f.id));
         ui.horizontal(|ui| {
