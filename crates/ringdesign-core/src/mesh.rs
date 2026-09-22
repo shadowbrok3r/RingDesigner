@@ -367,12 +367,12 @@ pub fn try_build_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildPara
         return Ok(built);
     }
     let started=BuildClock::start();
-    let evaluated=crate::cad::evaluate_with(design,lib,params,&crate::cad::BuildCtx { cancel, surface: None })?;
-    let (mesh, notes)=crate::parts::assembled(&evaluated, Some(cancel))?;
+    let evaluated=crate::cad::evaluate_with(design,lib,params,&crate::cad::BuildCtx::new(cancel))?;
+    let (mesh, mut parts)=crate::parts::assembled(evaluated, Some(cancel))?;
     anyhow::ensure!(!mesh.faces.is_empty(),"The design contains only reference components");
     let (lo,hi)=mesh.bounds().unwrap();let bounds_mm=[(hi.0-lo.0) as f64,(hi.1-lo.1) as f64,(hi.2-lo.2) as f64];let volume=mesh.volume_mm3();
     let report=Report {validation:mesh.validate(),volume_mm3:volume,surface_area_mm2:mesh.surface_area_mm2(),bounds_mm,inner_diameter_mm:measured_bore_diameter_mm(&mesh,design.size.inner_diameter_mm()),outer_diameter_mm:bounds_mm[0].max(bounds_mm[1]),band_width_mm:bounds_mm[2],max_relief_mm:0.0,min_relief_mm:0.0,metals:metal_table(volume),build_ms:started.ms(),refine:None,quality:mesh.quality()};
-    let parts = crate::parts::Resolved { notes, ..Default::default() };
+    parts.ms = started.ms();
     Ok(BuildResult {mesh,report,reference:design.reference_loop(),spacing:Spacing::uniform(params.theta_steps.clamp(24,4096)),solids:Default::default(),parts})
 }
 

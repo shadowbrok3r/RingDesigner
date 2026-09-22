@@ -367,26 +367,8 @@ fn prepare_with_library(
                 "Select one CAD component in the casting recipe"
             );
         }
-        fn uses_band(
-            doc: &crate::cad::Document,
-            id: u64,
-            seen: &mut std::collections::BTreeSet<u64>,
-        ) -> bool {
-            if !seen.insert(id) {
-                return false;
-            }
-            doc.features.iter().find(|f| f.id == id).is_some_and(|f| {
-                matches!(f.operation, crate::cad::Operation::Band)
-                    || f.operation
-                        .sources()
-                        .into_iter()
-                        .any(|source| uses_band(doc, source, seen))
-            })
-        }
-        let band_stock = doc
-            .outputs
-            .iter()
-            .any(|id| uses_band(doc, *id, &mut Default::default()));
+        // Profile stock goes on the swept band, which is there whenever the document anchors on one.
+        let band_stock = doc.band().is_some();
         anyhow::ensure!(
             band_stock || setup.radial_stock_mm + setup.axial_stock_mm + setup.bore_stock_mm == 0.0,
             "Profile stock requires a procedural shank; model stock into this CAD component explicitly"

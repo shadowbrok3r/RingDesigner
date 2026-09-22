@@ -837,4 +837,55 @@ mod tests {
         assert!(scene.faces() > 750_000, "{}", scene.faces());
         assert!(per < 1.0, "{per:.3} ms per pick");
     }
+
+    #[test]
+    fn a_ring_of_parts_only_names_each_part_and_never_the_band() {
+        let lib = AlphaLibrary::builtin();
+        let cylinder = || Operation::Cylinder { radius_mm: 1.5, height_mm: 3.0 };
+        let mut doc = Document::default();
+        for (id, name, operation) in [
+            (1, "left", cylinder()),
+            (2, "right stock", cylinder()),
+            (3, "right", Operation::Transform { source: 2, translation: [5.0, 0.0, 0.0], rotation_deg: [0.0; 3] }),
+        ] {
+            doc.append(Feature { id, name: name.into(), enabled: true, operation, component: Component::default() }).unwrap();
+        }
+        let mut d = RingDesign::default();
+        d.cad = Some(doc);
+        assert!(!d.band_is_procedural());
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        assert_eq!((built.parts.first, built.parts.features.clone(), built.parts.separate), (0, vec![1, 3], 2));
+        assert_eq!(built.mesh.origin.len(), built.mesh.vertices.len());
+        let scene = PickScene::build(&built, &d);
+        assert_eq!((scene.parts(), scene.stones()), (2, 0));
+        assert!((0..scene.faces()).all(|f| scene.feature_of_face(f).is_some()), "every fused face is a part's");
+        let down = ViewScale { right: [1.0, 0.0, 0.0], up: [0.0, 1.0, 0.0], px_per_mm: 10.0 };
+        let e = built.parts.evaluated.as_ref().unwrap();
+        for (x, feature) in [(0.0, 1), (5.0, 3)] {
+            let c = e.components.iter().find(|c| c.id == feature).unwrap();
+            let (top, _) = ordinal_heights_along(c, 2).into_iter().max_by(|a, b| a.1.total_cmp(&b.1)).unwrap();
+            let picks = scene.pick(Ray { origin: [x, 0.0, 40.0], direction: [0.0, 0.0, -1.0] }, &down, 0.0, Filter::default());
+            let names: Vec<&Entity> = picks.iter().map(|p| &p.entity).collect();
+            assert_eq!(names, vec![&Entity::Face { feature, face: top }, &Entity::Part { feature }], "{picks:?}");
+            assert!((picks[0].world[2] - 1.5).abs() < 1e-3 && dot(picks[0].normal, [0.0, 0.0, 1.0]) > 0.999, "{:?}", picks[0]);
+        }
+        // Between them the ray meets nothing; box selection round both never says Band.
+        assert!(scene.pick(Ray { origin: [2.5, 0.0, 40.0], direction: [0.0, 0.0, -1.0] }, &down, 0.0, Filter::default()).is_empty());
+        let planes = [[1.0, 0.0, 0.0, 3.0], [-1.0, 0.0, 0.0, 8.0], [0.0, 1.0, 0.0, 3.0], [0.0, -1.0, 0.0, 3.0]];
+        let all = scene.box_select(planes, true, Filter::default());
+        assert!(!all.contains(&Entity::Band) && all.contains(&Entity::Part { feature: 1 }) && all.contains(&Entity::Part { feature: 3 }), "{all:?}");
+    }
+
+    /// Per face ordinal, the mean of its triangles' coordinate `axis`.
+    fn ordinal_heights_along(c: &crate::cad::EvaluatedComponent, axis: usize) -> Vec<(u32, f64)> {
+        let n = c.trace.face_kind.len();
+        let (mut sum, mut count) = (vec![0.0; n], vec![0usize; n]);
+        for (ti, f) in c.mesh.faces.iter().enumerate() {
+            let Some(ord) = c.trace.face_of(ti) else { continue };
+            let (a, b, cc) = c.mesh.triangle(f).unwrap();
+            sum[ord as usize] += (a[axis] + b[axis] + cc[axis]) / 3.0;
+            count[ord as usize] += 1;
+        }
+        (0..n as u32).map(|k| (k, sum[k as usize] / count[k as usize].max(1) as f64)).collect()
+    }
 }

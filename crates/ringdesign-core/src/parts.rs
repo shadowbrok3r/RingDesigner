@@ -6,7 +6,7 @@
 //! joined after the part is, so the fillet is the part's own metal and names it.
 use crate::{
     AlphaLibrary, BuildParams, Mesh, RingDesign, Vec3, blend,
-    cad::{self, Attach, BuildCtx},
+    cad::{self, Attach, BuildCtx, FeatureStatus, Memo},
     csg::{self, Op, Parent, Snag, Solid, Traced, P3},
     mesh::{BuildResult, SOLID_VERTEX},
     sketch::Id,
@@ -150,18 +150,38 @@ impl Chain<'_> {
     }
 }
 
+/// [`resolve_with`] remembering nothing between builds.
+pub fn resolve(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx: &BuildCtx, built: &mut BuildResult) -> Result<Resolved> {
+    resolve_with(design, lib, params, ctx, Memo::default(), built)
+}
+
+/// Every feature that failed or was skipped, as a note naming it.
+fn status_notes(e: &cad::Evaluated) -> Vec<String> {
+    e.features
+        .iter()
+        .filter_map(|r| match &r.status {
+            FeatureStatus::Failed(message) => Some(format!("Feature #{} — {}: {message}", r.id, r.name)),
+            FeatureStatus::Skipped(why) => Some(format!("Feature #{} — {}: skipped, {why}", r.id, r.name)),
+            _ => None,
+        })
+        .collect()
+}
+
 /// Evaluate the design's CAD parts against the built band and resolve them into it: joins first,
 /// clustered so touching parts become one tool, then cuts, then separate shells appended. A part
 /// that will not resolve is left out and said; the flag is read between parts and inside each
-/// boolean. Nothing happens when the document is the whole ring or the band is empty.
-pub fn resolve(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx: &BuildCtx, built: &mut BuildResult) -> Result<Resolved> {
+/// boolean. Nothing happens when the document is the whole ring or the band is empty. A memo's
+/// cache is keyed on the built band's [`cad::surface_epoch`].
+pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx: &BuildCtx, memo: Memo, built: &mut BuildResult) -> Result<Resolved> {
     let mut out = Resolved::default();
     let Some(doc) = &design.cad else { return Ok(out) };
     if doc.replaces_band() || built.mesh.faces.is_empty() {
         return Ok(out);
     }
     let clock = crate::mesh::BuildClock::start();
-    let evaluated = cad::evaluate_with(design, lib, params, &BuildCtx { cancel: ctx.cancel, surface: Some(&built.mesh) })?;
+    let memo = if memo.cache.is_some() { memo.with_epoch(cad::surface_epoch(&built.mesh)) } else { memo };
+    let evaluated = cad::evaluate_memo(design, lib, params, &BuildCtx::new(ctx.cancel).with_surface(&built.mesh), memo)?;
+    out.notes = status_notes(&evaluated);
     out.first = (built.solids.paths.len() + design.stamps.len()) as u32;
     let (mut joins, mut cuts, mut separates) = (Vec::new(), Vec::new(), Vec::new());
     for c in &evaluated.components {
@@ -441,37 +461,47 @@ pub(crate) fn into_mesh(mut solid: Solid, band_normals: &[Vec3], origin: Vec<u32
 
 /// A CAD-only ring's components as one mesh: parts whose boxes meet are united so a shank and the
 /// head standing in it are counted once, parts that touch nothing ride along as their own shells,
-/// and a union that will not resolve leaves both shells as they were, said in the notes.
-pub fn assembled(e: &cad::Evaluated, cancel: Option<&AtomicBool>) -> Result<(Mesh, Vec<String>)> {
+/// and a union that will not resolve leaves both shells as they were, said in the notes. Each
+/// vertex's origin names its part from index 0, and the evaluation rides in the [`Resolved`].
+pub fn assembled(e: cad::Evaluated, cancel: Option<&AtomicBool>) -> Result<(Mesh, Resolved)> {
+    let mut out = Resolved { notes: status_notes(&e), ..Default::default() };
     let metal: Vec<&cad::EvaluatedComponent> = e.components.iter().filter(|c| !c.settings.reference).collect();
-    ensure!(!metal.is_empty(), "The design contains only reference components");
+    out.references = e.components.len() - metal.len();
+    if metal.is_empty() {
+        anyhow::bail!(e.first_error().unwrap_or_else(|| "The design contains only reference components".into()));
+    }
     let solids: Vec<Solid> = metal.iter().map(|c| Solid { v: c.trace.positions.clone(), f: c.mesh.faces.clone() }).collect();
     let refs: Vec<&Solid> = solids.iter().collect();
-    let mut notes = Vec::new();
-    let mut out = Solid::default();
+    let name_of = |i: usize| SOLID_VERTEX + i as u32;
+    let mut solid = Solid::default();
+    let mut origin: Vec<u32> = Vec::new();
     for group in csg::cluster(&refs, 0.0) {
         let mut tool = solids[group[0]].clone();
+        let mut named = vec![name_of(group[0]); tool.v.len()];
         for &g in &group[1..] {
-            match csg::combine_with(&tool, &solids[g], Op::Union, cancel) {
-                Ok(next) => tool = next,
+            match csg::combine_traced(&tool, &solids[g], Op::Union, cancel) {
+                Ok(t) => {
+                    extend_origin(&mut named, &t, tool.v.len(), &vec![g as u32; solids[g].f.len()], g as u32, 0);
+                    tool = t.solid;
+                }
                 Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
                 Err(err) => {
-                    notes.push(format!("{} and {}: overlap counted twice, their union did not resolve ({err})", metal[group[0]].name, metal[g].name));
+                    out.notes.push(format!("{} and {}: overlap counted twice, their union did not resolve ({err})", metal[group[0]].name, metal[g].name));
                     tool.push(&solids[g]);
+                    named.extend(std::iter::repeat_n(name_of(g), solids[g].v.len()));
                 }
             }
         }
-        out.push(&tool);
+        solid.push(&tool);
+        origin.extend(named);
     }
-    csg::clean(&mut out, 2e-5);
-    out.compact();
-    let mut mesh = Mesh {
-        vertices: out.v.iter().map(|p| Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(),
-        faces: out.f,
-        ..Default::default()
-    };
-    mesh.normals = cad::normals(&mesh);
-    Ok((mesh, notes))
+    let mesh = into_mesh(solid, &[], origin);
+    out.first = 0;
+    out.features = metal.iter().map(|c| c.id).collect();
+    out.separate = metal.len();
+    out.faces = mesh.faces.len();
+    out.evaluated = Some(e);
+    Ok((mesh, out))
 }
 
 #[cfg(test)]
@@ -658,8 +688,30 @@ mod tests {
             let built = crate::mesh::try_build(&d, &lib, params()).unwrap_or_else(|e| panic!("{name}: {e:#}"));
             assert!(built.report.validation.watertight, "{name}: {:?}", built.report.validation);
             assert!(built.report.volume_mm3 > 1.0, "{name}");
-            assert!(built.mesh.origin.is_empty() && built.parts.features.is_empty(), "{name}");
+            // Every vertex names its part from the first index, and the evaluation rides along.
+            let e = built.parts.evaluated.as_ref().unwrap_or_else(|| panic!("{name}: no evaluation"));
+            let metal: Vec<Id> = e.components.iter().filter(|c| !c.settings.reference).map(|c| c.id).collect();
+            assert_eq!((built.parts.first, &built.parts.features, built.parts.separate), (0, &metal, metal.len()), "{name}");
+            assert_eq!(built.parts.references, e.components.len() - metal.len(), "{name}");
+            assert_eq!(built.mesh.origin.len(), built.mesh.vertices.len(), "{name}");
+            // A part wholly inside another, as the inlay-band's inlay is in its shank, leaves no vertex.
+            let named: std::collections::BTreeSet<Id> = built.mesh.origin.iter().filter_map(|o| built.parts.feature_of(*o)).collect();
+            assert!(!named.is_empty() && named.iter().all(|id| metal.contains(id)), "{name}: {named:?} of {metal:?}");
+            if *name == "inlay-band" {
+                assert_eq!(named, [1].into_iter().collect(), "the inlay is swallowed by the shank");
+            }
+            assert!(built.mesh.origin.iter().all(|o| *o >= SOLID_VERTEX), "{name}: nothing here is band");
+            assert!(!built.mesh.corner_normals.is_empty(), "{name}");
         }
+        // A ring of parts whose only body fails says which feature, not "reference components".
+        let mut d = cad::examples::design("solitaire").unwrap();
+        d.cad.as_mut().unwrap().features.retain(|f| f.id == 5);
+        d.cad.as_mut().unwrap().outputs.retain(|id| *id == 5);
+        d.cad.as_mut().unwrap().joints.clear();
+        d.cad.as_mut().unwrap().features[0].component.reference = false;
+        d.cad.as_mut().unwrap().features[0].operation = Operation::Fillet { source: 1, edges: vec![cad::EdgeRef::bare(0)], radius_mm: 0.2 };
+        let error = crate::mesh::try_build(&d, &lib, params()).err().unwrap().to_string();
+        assert!(error.starts_with("Feature #5 — ") && error.contains("#1 is unavailable"), "{error}");
         // Two overlapping boxes as separate components are one solid, not two counted twice.
         let mut doc = Document::default();
         for f in [
@@ -840,6 +892,70 @@ mod tests {
         assert_eq!(error.root_cause().to_string(), cad::CANCELLED);
         eprintln!("bead in flight: full build {full:?}, flag at {:?}, stopped {:?} after it", full / 2, elapsed.saturating_sub(full / 2));
         assert!(elapsed < full / 2 + std::time::Duration::from_millis(200), "stopped {:?} after the flag, full build {full:?}", elapsed.saturating_sub(full / 2));
+    }
+
+    #[test]
+    fn profile_stock_needs_the_band_anchor_and_a_failed_part_is_a_note_on_the_build() {
+        use crate::manufacturing::{Setup, prepare};
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        let d = with_parts(court.clone(), vec![part(1, "bezel", cylinder(3.0, 2.5), Attach::Join, Stage::Cast, seated(90.0, 2.5))]);
+        let stock = Setup { radial_stock_mm: 0.1, component: Some(1), ..Setup::default() };
+        // The anchor is the band, so the pattern carries profile stock and the part stays joined.
+        let p = prepare(&d, &lib, &stock, params()).unwrap();
+        assert!((p.design.profile.thickness_mm - court.profile.thickness_mm - 0.1).abs() < 1e-9);
+        assert_eq!(p.design.cad.as_ref().unwrap().outputs, vec![1]);
+        let bare = prepare(&court, &lib, &Setup { radial_stock_mm: 0.1, ..Setup::default() }, params()).unwrap();
+        assert!(p.build.volume_mm3 > bare.build.volume_mm3 + 60.0, "{} vs {}", p.build.volume_mm3, bare.build.volume_mm3);
+        // A ring of parts only has no band to carry stock: refused with stock, prepared without.
+        let solo = cad::examples::design("twisted-band").unwrap();
+        let error = prepare(&solo, &lib, &Setup { radial_stock_mm: 0.1, ..Setup::default() }, params()).err().unwrap().to_string();
+        assert!(error.contains("Profile stock requires a procedural shank"), "{error}");
+        assert!(prepare(&solo, &lib, &Setup { radial_stock_mm: 0.0, axial_stock_mm: 0.0, bore_stock_mm: 0.0, ..Setup::default() }, params()).is_ok());
+        // A part that fails to build is a note on the resolve, and the band still builds.
+        let broken = with_parts(court.clone(), vec![
+            part(1, "bezel", cylinder(3.0, 2.5), Attach::Join, Stage::Cast, seated(90.0, 2.5)),
+            Feature { id: 2, name: "Fillet".into(), enabled: true, operation: Operation::Fillet { source: 1, edges: vec![cad::EdgeRef::bare(999)], radius_mm: 0.3 }, component: Component::default() },
+        ]);
+        let built = crate::mesh::try_build(&broken, &lib, params()).unwrap();
+        assert_eq!((built.parts.joined, built.parts.features.clone()), (0, vec![]));
+        assert_eq!(built.parts.notes, vec!["Feature #2 — Fillet: Edge 999 is unavailable; reselect after changing the source".to_string()]);
+        assert!(matches!(built.parts.evaluated.as_ref().unwrap().status_of(2), Some(FeatureStatus::Failed(_))));
+        assert!(built.report.validation.watertight);
+    }
+
+    #[test]
+    fn a_cache_carried_across_builds_answers_the_parts_the_band_did_not_move() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        let d = with_parts(court.clone(), vec![
+            part(1, "bezel", cylinder(3.0, 2.5), Attach::Join, Stage::Cast, seated(90.0, 2.5)),
+            part(2, "pilot", cylinder(1.0, 12.0), Attach::Cut, Stage::Cast, Placement::ring(90.0, 0.0)),
+        ]);
+        let cache = std::sync::Mutex::new(cad::Cache::default());
+        let never = AtomicBool::new(false);
+        let counts = || { let c = cache.lock().unwrap(); (c.hits(), c.misses()) };
+        let build = |d: &RingDesign| {
+            let mut built = crate::mesh::try_build(&court, &lib, params()).unwrap();
+            let ctx = BuildCtx::new(&never);
+            let r = resolve_with(d, &lib, params(), &ctx, Memo::new(&cache), &mut built).unwrap();
+            (built, r)
+        };
+        let (cold, r) = build(&d);
+        assert_eq!((r.joined, r.cut), (1, 1));
+        assert_eq!(counts(), (0, 4));
+        let (warm, r) = build(&d);
+        assert_eq!((r.joined, r.cut), (1, 1));
+        assert_eq!(counts(), (4, 4));
+        assert!(cold.mesh.vertices == warm.mesh.vertices && cold.mesh.origin == warm.mesh.origin);
+        // A wider band is a new surface: every ring-placed part is re-seated.
+        let mut wider = d.clone();
+        wider.profile.width_mm += 0.5;
+        let mut plain = wider.clone();
+        plain.cad = None;
+        let mut built = crate::mesh::try_build(&plain, &lib, params()).unwrap();
+        resolve_with(&wider, &lib, params(), &BuildCtx::new(&never), Memo::new(&cache), &mut built).unwrap();
+        assert_eq!(counts(), (4, 8));
     }
 
     /// Timings for the report: `cargo test -p ringdesign-core measured_junctions -- --ignored --nocapture`.
