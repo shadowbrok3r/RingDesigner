@@ -382,9 +382,9 @@ pub fn try_build_memo(design: &RingDesign, lib: &AlphaLibrary, params: BuildPara
 }
 
 /// The mesh a mould is made from rather than the finished ring: bench-only layers off, and under sand
-/// every made setting left out with a raised drill mark in its place. Mesh exports write this.
+/// every made setting and bench part left out with a raised mark in its place. Mesh exports write this.
 pub fn try_build_pattern(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::Result<BuildResult> {
-    try_build(&crate::castability::casting_pattern(design).0, lib, params)
+    try_build(&crate::castability::casting_pattern(design, lib).0, lib, params)
 }
 
 /// Place every seat's pre-made solid on the built band and resolve it, then measure what is left.

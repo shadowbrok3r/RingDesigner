@@ -633,9 +633,9 @@ mod tests {
         ]);
         let finished = crate::mesh::try_build(&d, &lib, params()).unwrap();
         assert_eq!((finished.parts.joined, finished.parts.features.clone()), (2, vec![1, 2]));
-        let (pattern, layers, bench) = crate::castability::pattern_parts(&d);
-        assert!(layers.is_empty() && bench == vec!["soldered post".to_string()], "{layers:?} {bench:?}");
-        assert_eq!(pattern.cad.as_ref().unwrap().outputs, vec![0, 1], "the anchor and the cast part stay");
+        let p = crate::castability::pattern_parts(&d, &lib);
+        assert!(p.layers.is_empty() && p.seats.is_empty() && p.parts == vec!["soldered post".to_string()], "{:?} {:?}", p.layers, p.parts);
+        assert_eq!(p.design.cad.as_ref().unwrap().outputs, vec![0, 1], "the anchor and the cast part stay");
         let sand = crate::mesh::try_build_pattern(&d, &lib, params()).unwrap();
         assert_eq!((sand.parts.joined, sand.parts.features.clone()), (1, vec![1]));
         assert!(sand.report.volume_mm3 < finished.report.volume_mm3 - 3.0);

@@ -37,7 +37,7 @@ impl ExportJob {
     /// tolerance both left the app looking like a clean export.
     fn caveats(&self, out: &ringdesign_core::BuildResult) -> String {
         let mut w: Vec<String> = Vec::new();
-        match self.verdict {
+        match self.verdict_of(out) {
             Some(Verdict::NotCastable) => {
                 w.push("the field verdict says this will NOT release".into())
             }
@@ -59,6 +59,16 @@ impl ExportJob {
             w.push("NOT watertight".into());
         }
         if w.is_empty() { String::new() } else { format!(" • {}", w.join(" • ")) }
+    }
+
+    /// The verdict the file carries: the snapshot, or with CAD parts on the band the field judged with them on `out`.
+    fn verdict_of(&self, out: &ringdesign_core::BuildResult) -> Option<Verdict> {
+        let parts = self.design.band_is_procedural() && self.design.cad.as_ref().is_some_and(|doc| !doc.attachments().is_empty());
+        if !parts {
+            return self.verdict;
+        }
+        let d = &self.design;
+        Some(ringdesign_core::castability::judged_field_report(d, &self.lib, &d.draft, 192, 128, Some(out)).verdict)
     }
 
     fn build(&self) -> ringdesign_core::BuildResult {
@@ -334,12 +344,13 @@ pub fn export_spec(app: &mut RingDesignerApp) {
     let job = ExportJob::snapshot(app);
     spawn_export(app, "Casting sheet", move || {
         let out = job.build();
-        let field = ringdesign_core::castability::attributed_field_report(
+        let field = ringdesign_core::castability::judged_field_report(
             &job.design,
             &job.lib,
             &job.design.draft,
             192,
             128,
+            Some(&out),
         );
         let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
         let dfm = ringdesign_core::dfm::findings_in(&job.design, &job.lib);

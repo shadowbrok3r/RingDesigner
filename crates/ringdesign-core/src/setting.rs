@@ -1217,7 +1217,7 @@ mod tests {
         assert!(dot > 0.02 && dot < 0.3, "the mark is a raised dot, a tenth of a cubic millimetre: {dot}");
         assert!(finished.report.volume_mm3 < bare.report.volume_mm3 - 1.0, "and the bur takes the dot with the seat");
         // The source design is untouched, and the verdict names what it left out.
-        let (p, _) = casting_pattern(&d);
+        let (p, _) = casting_pattern(&d, &lib);
         let crate::field::Layer::SeatPad(seat) = &p.layers.layers[0].layer else { panic!() };
         assert!(seat.solid.is_none() && seat.mark_mm >= 0.6);
         let field = crate::castability::attributed_field_report(&d, &lib, &d.draft, 96, 64);

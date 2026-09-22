@@ -19,7 +19,7 @@
 use std::path::{Path, PathBuf};
 
 use ringdesign_core::alpha::AlphaLibrary;
-use ringdesign_core::castability::analyze_field;
+use ringdesign_core::castability::judged_field_report;
 use ringdesign_core::mesh::try_build;
 use ringdesign_core::sizing::RingSize;
 use ringdesign_core::{RingDesign, library, metal, stl, stones, threemf};
@@ -111,10 +111,18 @@ fn load(path: &str) -> anyhow::Result<RingDesign> {
     } else {Ok(source)}
 }
 
-/// The field verdict and the stones checks, printed plainly.
+/// Whether the design carries CAD parts on its band that only a build can judge.
+fn carries_parts(design: &RingDesign) -> bool {
+    design.band_is_procedural() && design.cad.as_ref().is_some_and(|doc| !doc.attachments().is_empty())
+}
+
+/// The field verdict, its CAD parts judged on a Preview build, and the stones checks, printed plainly.
 fn check(design: &RingDesign, lib: &AlphaLibrary) -> anyhow::Result<()> {
     if let Some(base) = &design.imported_base { base.validate_shape(design)?; }
-    let f = analyze_field(design, lib, &design.draft, 192, 128);
+    let (_, theta, profile) = ringdesign_core::BuildParams::PRESETS.iter().find(|p| p.0 == "Preview").copied().unwrap_or(("Preview", 384, 144));
+    let params = ringdesign_core::BuildParams { theta_steps: theta, profile_steps: profile, refine: None, ..design.build };
+    let built = if carries_parts(design) { Some(try_build(design, lib, params)?) } else { None };
+    let f = judged_field_report(design, lib, &design.draft, 192, 128, built.as_ref());
     println!(
         "{}  size {}  —  {}",
         design.name,
@@ -130,6 +138,14 @@ fn check(design: &RingDesign, lib: &AlphaLibrary) -> anyhow::Result<()> {
     );
     for n in &f.notes {
         println!("  • {n}");
+    }
+    for p in &f.parts {
+        let read = if p.judged {
+            format!("{:.2} mm² locking, worst {:+.1} deg, {:.1} mm² judged", p.undercut_area_mm2 - p.silhouette_mm2, p.worst_draft_deg, p.total_area_mm2)
+        } else {
+            "not judged against the ring's parting plane".to_string()
+        };
+        println!("  part {} — {:?}, {:?}: {read}", p.label, p.attach, p.stage);
     }
     if let Some(s) = stones::report(design, f.parting_z_mm) {
         println!("  {} stones, {:.2} ct total", s.stone_count, s.total_carats);
@@ -217,7 +233,11 @@ fn export(
         let mut d = base.clone();
         d.size = RingSize(size);
         if let Some(base) = &d.imported_base { base.validate_shape(&d)?; }
-        let f = analyze_field(&d, lib, &d.draft, 192, 128);
+        // Mesh files are patterns — under sand, made settings and bench parts left out and a raised mark
+        // for each; GLB is the finished ring, and only built when asked for and different.
+        let built = ringdesign_core::mesh::try_build_pattern(&d, lib, params)?;
+        // The verdict is the pattern's as written: its field, and the CAD parts poured with it.
+        let f = judged_field_report(&d, lib, &d.draft, 192, 128, carries_parts(&d).then_some(&built));
         // The run used to gate on the field verdict alone. Both of the other
         // checks move with the size: circumference grows 20% from a 5 to a 9,
         // so a tiling's cell pitch changes and a run's stone bridges close.
@@ -227,9 +247,6 @@ fn export(
             .as_ref()
             .map(|s| s.seats.iter().map(|c| c.warnings.len()).sum())
             .unwrap_or(0);
-        // Mesh files are patterns — under sand, made settings left out and a drill mark on every seat;
-        // GLB is the finished ring, and only built when asked for and different.
-        let built = ringdesign_core::mesh::try_build_pattern(&d, lib, params)?;
         let finished = if formats.iter().any(|f| f == "glb") && ringdesign_core::setting::any(&d) { Some(try_build(&d, lib, params)?.mesh) } else { None };
         let v = built.report.validation;
         let (mesh, name) = match scale {

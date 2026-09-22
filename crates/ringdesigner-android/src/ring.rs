@@ -493,15 +493,9 @@ impl Worker {
                         Ok(out) => out,
                         Err(e) => { let _ = error_tx.send((job.generation, e.to_string())); ctx.request_repaint(); continue; }
                     };
-                    let cast = job.analyze.then(|| {
-                        castability::analyze(
-                            &out.mesh,
-                            &job.design.draft,
-                            job.design.inner_radius_mm(),
-                        )
-                    });
+                    // The verdict first, its CAD parts judged on this build; the draft colours then paint at its plane.
                     let field = job.analyze.then(|| {
-                        field_from_graph.unwrap_or_else(|| {
+                        let mut f = field_from_graph.unwrap_or_else(|| {
                             castability::attributed_field_report(
                                 &job.design,
                                 &job.lib,
@@ -509,7 +503,17 @@ impl Worker {
                                 160,
                                 112,
                             )
-                        })
+                        });
+                        castability::judge_parts(&mut f, &job.design, &out);
+                        f
+                    });
+                    let cast = field.as_ref().map(|f| {
+                        castability::analyze_at(
+                            &out.mesh,
+                            &job.design.draft,
+                            job.design.inner_radius_mm(),
+                            f.parting_z_mm,
+                        )
                     });
                     let report = out.report.clone();
                     let view_layer = job

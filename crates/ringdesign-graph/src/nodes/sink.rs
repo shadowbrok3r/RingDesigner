@@ -52,9 +52,14 @@ fn field_for(design: &RingDesign, lib: &AlphaLibrary, theta: usize, profile: usi
     attributed_field_report(design, &lib, &design.draft, theta, profile)
 }
 
+/// Whether a design carries CAD parts on its band that only a build can judge.
+fn carries_parts(design: &RingDesign) -> bool {
+    design.band_is_procedural() && design.cad.as_ref().is_some_and(|doc| !doc.attachments().is_empty())
+}
+
 /// The verdict a file-writing sink is judged by in SandRing mode: the
-/// wired field report, else one computed from the wired design.
-fn judge(ctx: &EvalCtx<'_>, i: &Inputs, what: &str) -> Result<Option<Arc<FieldReport>>, NodeError> {
+/// wired field report, else one computed from the wired design, `parts` judged on a build.
+fn judge(ctx: &EvalCtx<'_>, i: &Inputs, what: &str, parts: bool) -> Result<Option<Arc<FieldReport>>, NodeError> {
     if ctx.mode != Mode::SandRing {
         return Ok(None);
     }
@@ -66,6 +71,18 @@ fn judge(ctx: &EvalCtx<'_>, i: &Inputs, what: &str) -> Result<Option<Arc<FieldRe
             other => return Err(NodeError::input("design", format!("expected a design, got {}", other.summary()))),
         },
         other => return Err(NodeError::input("field", format!("expected a field report, got {}", other.summary()))),
+    };
+    let field = match i.get("design") {
+        Value::Design(d) if parts && field.parts.is_empty() && carries_parts(d) => {
+            let lib = baked(d, ctx.lib);
+            let (_, theta, profile) = BuildParams::PRESETS.iter().find(|p| p.0 == "Preview").copied().unwrap_or(("Preview", 384, 144));
+            let params = BuildParams { theta_steps: theta, profile_steps: profile, refine: None, ..d.build };
+            let built = ringdesign_core::mesh::try_build(d, &lib, params).map_err(|e| NodeError::input("design", e.to_string()))?;
+            let mut f = (*field).clone();
+            castability::judge_parts(&mut f, d, &built);
+            Arc::new(f)
+        }
+        _ => field,
     };
     if field.verdict == Verdict::NotCastable {
         let why = field.notes.iter().take(3).cloned().collect::<Vec<_>>().join("; ");
@@ -268,7 +285,7 @@ fn pattern_path(path: &Path, metal: &str) -> PathBuf {
 }
 
 fn export(ctx: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
-    judge(ctx, i, "export")?;
+    judge(ctx, i, "export", true)?;
     let mesh = mesh_of(i, "mesh")?;
     let mut path = path_of(i, "path")?;
     let name = i.text("name")?.to_string();
@@ -325,7 +342,7 @@ fn render_sink(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, Nod
 }
 
 fn save_design(ctx: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
-    judge(ctx, i, "save")?;
+    judge(ctx, i, "save", false)?;
     let d = design_of(i, "design")?;
     let mut path = path_of(i, "path")?;
     if !path.to_string_lossy().ends_with(".ring.json") {
@@ -452,7 +469,7 @@ pub fn register(reg: &mut Registry) {
             .output(PinSpec::item("bytes", ValueKind::Int).doc("Bytes written."))
             .eval(write_text),
         NodeSpec::new("sink.export", "Export mesh", Category::Sink)
-            .doc("Write the mesh as STL, OBJ, PLY, 3MF or GLB. In SandRing mode the ring is judged first and a ring that will not release is refused; a shrink metal scales it to a pattern and names the file as one.")
+            .doc("Write the mesh as STL, OBJ, PLY, 3MF or GLB. In SandRing mode the ring is judged first, the wired design's CAD parts on a Preview build of it, and a ring that will not release is refused; a shrink metal scales it to a pattern and names the file as one.")
             .side_effect()
             .input(PinSpec::item("mesh", ValueKind::Mesh).doc("The mesh."))
             .input(PinSpec::item("path", ValueKind::Text).default("").widget(Widget::TextLine).doc("Where; the extension follows the format if missing."))
@@ -617,6 +634,48 @@ mod tests {
         assert!(r.value(dfm_, "count").unwrap().as_int().unwrap() >= 0);
         let html = r.value(sheet_, "html").unwrap().as_text().unwrap().to_string();
         assert!(html.contains("<html") && html.contains("Untitled"), "{}", &html[..200.min(html.len())]);
+    }
+
+    /// A post whose lower flank faces the drag above the plane: the export refuses it, a design-only save does not.
+    #[test]
+    fn a_sandring_export_judges_the_parts_its_design_carries() {
+        use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation, Placement, Stage};
+        let mut doc = Document::default();
+        doc.append(Feature { id: 0, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        let placement = Placement::Ring { theta_deg: 90.0, across_mm: 1.5, height_mm: 2.1, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        doc.append(Feature { id: 1, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.4, height_mm: 5.0 }, component: Component { attach: Attach::Join, stage: Stage::Cast, placement, ..Default::default() } }).unwrap();
+        let mut g = Graph::default();
+        let band = squared(&mut g);
+        let set = g.add("design.set").unwrap();
+        g.set_input(set, "pointer", Literal::Text("/cad".into())).unwrap();
+        g.node_mut(set).unwrap().params = serde_json::json!({ "json_value": serde_json::to_value(&doc).unwrap() });
+        g.connect(band, "design", set, "design").unwrap();
+        let b = g.add("sink.build").unwrap();
+        g.connect(set, "design", b, "design").unwrap();
+        g.set_input(b, "preset", Literal::Text("Draft".into())).unwrap();
+        let path = tmp("post.stl");
+        let _ = std::fs::remove_file(&path);
+        let ex = g.add("sink.export").unwrap();
+        g.connect(b, "mesh", ex, "mesh").unwrap();
+        g.connect(set, "design", ex, "design").unwrap();
+        g.set_input(ex, "path", Literal::Text(path.display().to_string())).unwrap();
+        let fv = g.add("sink.field_verdict").unwrap();
+        g.connect(set, "design", fv, "design").unwrap();
+        let save = g.add("sink.save_design").unwrap();
+        g.connect(set, "design", save, "design").unwrap();
+        g.set_input(save, "path", Literal::Text(tmp("post").display().to_string())).unwrap();
+        let r = run(&g, Targets::Everything);
+        let notes: Vec<String> = match r.value(fv, "notes") {
+            Some(Value::List(items)) => items.iter().filter_map(|v| v.as_text().map(str::to_string)).collect(),
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(r.value(fv, "castable"), Some(&Value::Bool(true)));
+        assert!(notes.iter().any(|n| n.contains(castability::NOT_JUDGED_HERE)), "{notes:?}");
+        assert!(r.status[&ex].failed(), "{:?}", r.value(ex, "path"));
+        let why = &r.status[&ex].errors[0].1;
+        assert!(why.starts_with("refused: this ring will not release") && why.contains("Judged with the ring as built: 1 CAD part"), "{why}");
+        assert!(!path.exists(), "a refused export writes nothing");
+        assert!(!r.status[&save].failed(), "a design-only save keeps the honest note: {:?}", r.status[&save].errors);
     }
 
     #[test]

@@ -18,7 +18,7 @@ pub fn evaluate(
 ) -> anyhow::Result<Stages> {
     let resolved = source_library(d, lib);
     let lib = resolved.as_ref();
-    let prepared = prepare_with_library(d, lib, setup, params)?;
+    let (prepared, _) = prepare_with_library(d, lib, setup, params)?;
     let mut nominal = d.clone();
     if let Some(doc) = &mut nominal.cad {
         doc.outputs = prepared.design.cad.as_ref().unwrap().outputs.clone();

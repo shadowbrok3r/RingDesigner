@@ -15,6 +15,11 @@ use crate::alpha::AlphaLibrary;
 use crate::mesh::{Mesh, cross, norm, sub};
 use crate::RingDesign;
 
+mod judge;
+mod marks;
+pub use judge::{PartSpan, PartVerdict, PartingSide, judge_parts, judged_field_report};
+pub use marks::LocatingMark;
+
 /// Draft this close to zero is called a wall parallel to the pull, degrees.
 const VERTICAL_TOL_DEG: f64 = 0.5;
 /// Undercut share of the total area above which nothing will release.
@@ -451,6 +456,37 @@ pub fn suggest_parting_z(mesh: &Mesh) -> f64 {
     best_parting_z(&samples, z_lo, z_hi)
 }
 
+/// One face read against a parting plane.
+#[derive(Clone, Copy, Debug)]
+struct FaceRead {
+    class: FaceClass,
+    draft: f64,
+    area: f64,
+    centroid: [f64; 3],
+    bore: bool,
+}
+
+/// How one face pulls at `parting_z`, the bore no worse than a vertical wall; `None` when degenerate.
+fn read_face(mesh: &Mesh, f: &[u32; 3], parting_z: f64, min_draft: f64, bore_limit: f64, bore: &BoreTrace) -> Option<FaceRead> {
+    let (Some(n), Some((a, b, c))) = (mesh.face_normal(f), mesh.triangle(f)) else {
+        return None;
+    };
+    let area = norm(cross(sub(b, a), sub(c, a))) * 0.5;
+    let area = if area.is_finite() { area } else { 0.0 };
+    let centroid = [(a[0] + b[0] + c[0]) / 3.0, (a[1] + b[1] + c[1]) / 3.0, (a[2] + b[2] + c[2]) / 3.0];
+    let [cx, cy, cz] = centroid;
+    let radius = cx.hypot(cy);
+    let inward = radius > 1e-9 && (n[0] * cx + n[1] * cy) / radius < 0.0;
+    let draft = draft_angle(n, cz, parting_z);
+    let is_bore = inward && radius <= bore_limit.max(bore.limit(cz));
+    let class = if is_bore {
+        if draft >= min_draft { FaceClass::Good } else { FaceClass::Vertical }
+    } else {
+        classify(draft, min_draft)
+    };
+    Some(FaceRead { class, draft, area, centroid, bore: is_bore })
+}
+
 /// Classify every face of the mesh.
 ///
 /// `bore_radius_mm` is the nominal finger-hole radius. Faces facing inward on
@@ -458,7 +494,6 @@ pub fn suggest_parting_z(mesh: &Mesh) -> f64 {
 /// bore, which a jeweller reams or which casts as a through hole, so they are
 /// reported separately rather than as undercuts.
 pub fn analyze(mesh: &Mesh, settings: &DraftSettings, bore_radius_mm: f64) -> CastReport {
-    let bore = BoreTrace::of(mesh);
     let parting_z = if settings.auto_parting {
         suggest_parting_z(mesh)
     } else if settings.parting_z_mm.is_finite() {
@@ -466,6 +501,18 @@ pub fn analyze(mesh: &Mesh, settings: &DraftSettings, bore_radius_mm: f64) -> Ca
     } else {
         0.0
     };
+    census(mesh, settings, bore_radius_mm, parting_z, if settings.auto_parting { ", chosen automatically" } else { "" })
+}
+
+/// [`analyze`] at a parting plane the caller names, such as the field verdict's.
+pub fn analyze_at(mesh: &Mesh, settings: &DraftSettings, bore_radius_mm: f64, parting_z_mm: f64) -> CastReport {
+    let parting_z = if parting_z_mm.is_finite() { parting_z_mm } else { 0.0 };
+    census(mesh, settings, bore_radius_mm, parting_z, ", where the field verdict parts it")
+}
+
+/// Every face read at one parting plane, with the notes; `origin` says where the plane came from.
+fn census(mesh: &Mesh, settings: &DraftSettings, bore_radius_mm: f64, parting_z: f64, origin: &str) -> CastReport {
+    let bore = BoreTrace::of(mesh);
     let min_draft = settings.min_draft_deg.max(0.0);
     let bore_limit = bore_radius_mm.max(0.0) + BORE_TOL_MM;
 
@@ -482,34 +529,21 @@ pub fn analyze(mesh: &Mesh, settings: &DraftSettings, bore_radius_mm: f64) -> Ca
     let mut bore_best_draft = 0.0f64;
 
     for f in &mesh.faces {
-        let (Some(n), Some((a, b, c))) = (mesh.face_normal(f), mesh.triangle(f)) else {
+        let Some(FaceRead { class, draft, area, bore: is_bore, .. }) = read_face(mesh, f, parting_z, min_draft, bore_limit, &bore) else {
             classes.push(FaceClass::Good);
             good += 1;
             continue;
         };
-        let area = norm(cross(sub(b, a), sub(c, a))) * 0.5;
-        let area = if area.is_finite() { area } else { 0.0 };
-        let cx = (a[0] + b[0] + c[0]) / 3.0;
-        let cy = (a[1] + b[1] + c[1]) / 3.0;
-        let cz = (a[2] + b[2] + c[2]) / 3.0;
-        let radius = cx.hypot(cy);
-        let inward = radius > 1e-9 && (n[0] * cx + n[1] * cy) / radius < 0.0;
-        let draft = draft_angle(n, cz, parting_z);
-
-        let is_bore = inward && radius <= bore_limit.max(bore.limit(cz));
-        let class = if is_bore {
-            // The hole is classed no worse than a vertical wall.
+        if is_bore {
             bore_faces += 1;
             bore_area += area;
             if draft > VERTICAL_TOL_DEG {
                 bore_drafted += 1;
                 bore_best_draft = bore_best_draft.max(draft);
             }
-            if draft >= min_draft { FaceClass::Good } else { FaceClass::Vertical }
         } else {
             worst = worst.min(draft);
-            classify(draft, min_draft)
-        };
+        }
 
         total_area += area;
         match class {
@@ -558,8 +592,7 @@ pub fn analyze(mesh: &Mesh, settings: &DraftSettings, bore_radius_mm: f64) -> Ca
         );
     }
     notes.push(format!(
-        "Parting plane at z = {parting_z:+.2} mm{}: the cope pulls +Z off everything above it, the drag -Z off everything below.",
-        if settings.auto_parting { ", chosen automatically" } else { "" }
+        "Parting plane at z = {parting_z:+.2} mm{origin}: the cope pulls +Z off everything above it, the drag -Z off everything below."
     ));
 
     if undercut > 0 {
@@ -1026,6 +1059,8 @@ pub struct FieldReport {
     pub theta_samples: usize,
     pub profile_samples: usize,
     pub notes: Vec<String>,
+    /// The CAD parts read off a built ring, in build order; empty until [`judge_parts`] runs.
+    pub parts: Vec<PartVerdict>,
 }
 
 impl FieldReport {
@@ -1076,6 +1111,7 @@ pub fn analyze_field(
         theta_samples: t_n,
         profile_samples: profile_steps,
         notes: Vec::new(),
+        parts: Vec::new(),
     };
 
     // A document that is the whole ring has no field to sample; parts standing on the band are
@@ -1255,14 +1291,14 @@ pub fn analyze_field(
             "Thinnest wall {thinnest:.2} mm at {thinnest_at:.0} deg is under the {min_section:.1} mm {medium} reliably fills."
         ));
     }
-    // CAD parts are stock added to the band after the field, like made settings: counted, not judged.
+    // Counts the CAD parts left for a built ring to judge.
     if let Some(doc) = &design.cad {
         let parts = doc.attachments();
         if !parts.is_empty() {
             let count = |a: crate::cad::Attach| parts.iter().filter(|p| p.1 == a).count();
             let n = parts.len();
             notes.push(format!(
-                "{n} CAD part{} stand{} on the band after the field is judged ({} joined, {} cut, {} separate): the verdict reads the band and its relief, not the parts.",
+                "{n} CAD part{} stand{} on the band ({} joined, {} cut, {} separate), {NOT_JUDGED_HERE}.",
                 if n == 1 { "" } else { "s" },
                 if n == 1 { "s" } else { "" },
                 count(crate::cad::Attach::Join),
@@ -1286,8 +1322,12 @@ pub fn analyze_field(
         theta_samples: t_n,
         profile_samples: p_n,
         notes,
+        parts: Vec::new(),
     }
 }
+
+/// How the design-only verdict says CAD parts were left for a built ring; [`judge_parts`] replaces it.
+pub const NOT_JUDGED_HERE: &str = "not judged here: the built ring judges them";
 
 /// [`analyze_field`] with each undercut arc located and blamed in the notes.
 /// Attribution costs one light pass per enabled layer, so it only runs when
@@ -1304,17 +1344,18 @@ pub fn attributed_field_report(
     // mould: a graver's line square into a signet's table is exactly the
     // ledge the sand could never leave, and exactly what the bench is for.
     let original = design;
-    let (pattern, bench) = casting_pattern(design);
-    let design = pattern.as_ref();
+    let pattern = pattern_parts(design, lib);
+    let design = pattern.design.as_ref();
     let mut f = analyze_field(design, lib, settings, theta_steps, profile_steps);
     if f.undercut_area_mm2 > 0.0 {
         for r in attribute_undercuts(design, lib, settings, f.parting_z_mm) {
             f.notes.push(r.note());
         }
     }
-    if !bench.is_empty() {
-        f.notes.push(format!("Cut at the bench after casting, and so not judged here: {}.", bench.join(", ")));
+    if !pattern.layers.is_empty() {
+        f.notes.push(format!("Cut at the bench after casting, and so not judged here: {}.", pattern.layers.join(", ")));
     }
+    f.notes.extend(pattern.marks.iter().map(LocatingMark::note));
     // Seats resolved as solids are in the finished ring, never in the field. Under sand the field has
     // just judged the pattern — stock and drill marks — and the cutting is the bench's; under lost
     // wax they are cast in place. Said either way, so nobody reads a clean pour as a judged setting.
@@ -1332,15 +1373,26 @@ pub fn attributed_field_report(
 /// The design as it is poured: every enabled bench-only layer switched off,
 /// groups included, and the names of what was set aside. Borrowed when
 /// there is nothing to set aside.
-pub fn casting_pattern(design: &RingDesign) -> (std::borrow::Cow<'_, RingDesign>, Vec<String>) {
-    let (pattern, bench, _) = pattern_parts(design);
-    (pattern, bench)
+pub fn casting_pattern<'a>(design: &'a RingDesign, lib: &AlphaLibrary) -> (std::borrow::Cow<'a, RingDesign>, Vec<String>) {
+    let p = pattern_parts(design, lib);
+    (p.design, p.layers)
 }
 
-/// [`casting_pattern`] with the seats it left to the bench named apart from the layers: under sand a
-/// seat's made solid is not poured — the pattern carries its stock and a raised drill mark instead —
-/// while lost wax casts cut seats and heads in place, so there the design is its own pattern.
-pub fn pattern_parts(design: &RingDesign) -> (std::borrow::Cow<'_, RingDesign>, Vec<String>, Vec<String>) {
+/// The design as poured, and what was set aside to make it.
+pub struct CastingPattern<'a> {
+    pub design: std::borrow::Cow<'a, RingDesign>,
+    /// Bench-only layers and stamps, switched off.
+    pub layers: Vec<String>,
+    /// Seats whose made solid was left to the bench.
+    pub seats: Vec<String>,
+    /// CAD parts left to the bench.
+    pub parts: Vec<String>,
+    /// The raised marks the pattern carries in the bench parts' place.
+    pub marks: Vec<LocatingMark>,
+}
+
+/// [`casting_pattern`] with the seats and parts left to the bench named, and the marks standing in for the parts.
+pub fn pattern_parts<'a>(design: &'a RingDesign, lib: &AlphaLibrary) -> CastingPattern<'a> {
     use crate::field::{Layer, LayerStack};
     let sand = design.draft.process == CastProcess::SandTwoPart;
     fn seat_of(layer: &Layer) -> Option<&crate::field::SeatPadLayer> {
@@ -1384,7 +1436,7 @@ pub fn pattern_parts(design: &RingDesign) -> (std::borrow::Cow<'_, RingDesign>, 
             doc.attachments().iter().any(|(_, _, stage)| *stage == crate::cad::Stage::Bench)
         });
     if !any(&design.layers, sand) && !design.stamps.iter().any(|s| s.bench) && !bench_parts {
-        return (std::borrow::Cow::Borrowed(design), Vec::new(), Vec::new());
+        return CastingPattern { design: std::borrow::Cow::Borrowed(design), layers: Vec::new(), seats: Vec::new(), parts: Vec::new(), marks: Vec::new() };
     }
     let mut pattern = design.clone();
     let (mut layers, mut seats) = (Vec::new(), Vec::new());
@@ -1394,10 +1446,9 @@ pub fn pattern_parts(design: &RingDesign) -> (std::borrow::Cow<'_, RingDesign>, 
         if s.bench { layers.push(s.name.clone()); }
         !s.bench
     });
-    if let Some(doc) = &mut pattern.cad {
-        seats.extend(doc.leave_bench_parts_out(sand));
-    }
-    (std::borrow::Cow::Owned(pattern), layers, seats)
+    let parts = pattern.cad.as_mut().map(|doc| doc.leave_bench_parts_out(sand)).unwrap_or_default();
+    let marks = if parts.is_empty() { Vec::new() } else { marks::place(design, &mut pattern, lib) };
+    CastingPattern { design: std::borrow::Cow::Owned(pattern), layers, seats, parts, marks }
 }
 
 // --- Undercut localization and attribution ----------------------------------
@@ -1623,9 +1674,9 @@ mod bench_stage_tests {
         assert_eq!(bench.verdict, bare.verdict);
         assert!((bench.undercut_area_mm2 - bare.undercut_area_mm2).abs() < 1e-9);
         assert!(bench.notes.iter().any(|n| n.contains("Cut at the bench") && n.contains("Seal")), "{:?}", bench.notes);
-        let (pattern, names) = casting_pattern(&d);
+        let (pattern, names) = casting_pattern(&d, &lib);
         assert!(!pattern.layers.layers[0].enabled && names == ["Seal"]);
-        assert!(matches!(casting_pattern(&RingDesign::default()).0, std::borrow::Cow::Borrowed(_)));
+        assert!(matches!(casting_pattern(&RingDesign::default(), &lib).0, std::borrow::Cow::Borrowed(_)));
     }
 }
 

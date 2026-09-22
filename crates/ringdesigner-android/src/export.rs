@@ -134,12 +134,13 @@ fn write(job: &ExportJob) -> Result<String, Box<dyn std::error::Error>> {
             format!("GLB · {:.1} MB", mb(bytes))
         }
         ExportKind::Sheet => {
-            let field = ringdesign_core::castability::attributed_field_report(
+            let field = ringdesign_core::castability::judged_field_report(
                 &job.design,
                 &job.lib,
                 &job.design.draft,
                 160,
                 112,
+                Some(&out),
             );
             let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
             let dfm = ringdesign_core::dfm::findings_in(&job.design, &job.lib);

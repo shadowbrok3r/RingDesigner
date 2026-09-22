@@ -308,7 +308,7 @@ pub fn prepare(
     params: BuildParams,
 ) -> anyhow::Result<Prepared> {
     let resolved = source_library(d, lib);
-    prepare_with_library(d, &resolved, setup, params)
+    prepare_with_library(d, &resolved, setup, params).map(|(prepared, _)| prepared)
 }
 
 /// Resolve portable source artwork before building nominal or pattern geometry.
@@ -330,12 +330,13 @@ pub fn source_library<'a>(
     d.bake_all(&mut resolved);
     std::borrow::Cow::Owned(resolved)
 }
+/// The pattern prepared, with the unscaled build it was cut from.
 fn prepare_with_library(
     d: &RingDesign,
     lib: &AlphaLibrary,
     setup: &Setup,
     params: BuildParams,
-) -> anyhow::Result<Prepared> {
+) -> anyhow::Result<(Prepared, crate::mesh::BuildResult)> {
     setup.validate()?;
     anyhow::ensure!(
         d.size.0.is_finite()
@@ -386,19 +387,21 @@ fn prepare_with_library(
     pattern.draft.min_section_mm = setup.recipe.min_section_mm;
     pattern.draft.min_detail_mm = setup.recipe.min_detail_mm;
     // What the pattern leaves to the bench, by the one rule the live verdict uses.
-    let (left, mut bench_layers, seats) = crate::castability::pattern_parts(&pattern);
-    let left = left.into_owned();
-    bench_layers.extend(seats.into_iter().map(|s| format!("{s} (setting)")));
-    let pattern = left;
+    let left = crate::castability::pattern_parts(&pattern, lib);
+    let mut bench_layers = left.layers;
+    bench_layers.extend(left.seats.into_iter().map(|s| format!("{s} (setting)")));
+    bench_layers.extend(left.parts.into_iter().map(|s| format!("{s} (part)")));
+    let pattern = left.design.into_owned();
     let out = crate::mesh::try_build(&pattern, lib, params)?;
     let scale = setup.scale();
-    Ok(Prepared {
+    let prepared = Prepared {
         design: pattern,
         mesh: out.mesh.scaled(scale),
-        build: out.report,
+        build: out.report.clone(),
         scale,
         bench_layers,
-    })
+    };
+    Ok((prepared, out))
 }
 
 pub struct Inspection {
@@ -419,10 +422,13 @@ pub fn inspect(
 ) -> anyhow::Result<Inspection> {
     let resolved = source_library(d, lib);
     let lib = resolved.as_ref();
-    let prepared = prepare_with_library(d, lib, setup, params)?;
+    let (prepared, built) = prepare_with_library(d, lib, setup, params)?;
     let release = release::analyze(&prepared.mesh, setup)?;
+    // The pattern's CAD parts are judged on the build the pattern was cut from.
     let field = d.band_is_procedural().then(|| {
-        crate::castability::analyze_field(&prepared.design, lib, &prepared.design.draft, 192, 128)
+        let mut f = crate::castability::analyze_field(&prepared.design, lib, &prepared.design.draft, 192, 128);
+        crate::castability::judge_parts(&mut f, &prepared.design, &built);
+        f
     });
     let local_wall = (!d.band_is_procedural()).then(|| {
         crate::cad::measure::thickness(

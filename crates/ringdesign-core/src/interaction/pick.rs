@@ -124,63 +124,84 @@ fn rank(e: &Entity) -> u8 {
     }
 }
 
+/// Every CAD part of a build that is metal, on its own placed tessellation.
+fn placed_parts(built: &BuildResult) -> Vec<Part> {
+    let Some(e) = &built.parts.evaluated else { return Vec::new() };
+    e.components
+        .iter()
+        .filter(|c| !c.settings.reference)
+        .map(|c| {
+            let own = Mesh { vertices: c.mesh.vertices.clone(), faces: c.mesh.faces.clone(), ..Default::default() };
+            let bvh = Bvh::build(&own);
+            Part {
+                feature: c.id,
+                mesh: own,
+                bvh,
+                tri_face: c.trace.tri_face.clone(),
+                edges: c.edges.clone(),
+                vertices: c.trace.vertices.clone(),
+                faces: c.trace.face_kind.len() as u32,
+            }
+        })
+        .collect()
+}
+
+/// Per fused face, the owning index into `parts` and its face ordinal: a part's surface, else a bead all three vertices name.
+fn owners(src: &Mesh, resolved: &crate::parts::Resolved, parts: &[Part]) -> (Vec<u32>, Vec<u32>) {
+    let n = src.faces.len();
+    let mut owner = vec![BAND; n];
+    let mut ordinal = vec![u32::MAX; n];
+    if src.origin.len() != src.vertices.len() || parts.is_empty() {
+        return (owner, ordinal);
+    }
+    let by_feature: HashMap<Id, u32> = parts.iter().enumerate().map(|(i, p)| (p.feature, i as u32)).collect();
+    for (i, f) in src.faces.iter().enumerate() {
+        // Candidates are the parts the face's vertices name; the surface decides between them.
+        let mut candidates = [BAND; 3];
+        for (k, &v) in f.iter().enumerate() {
+            if let Some(p) = src.origin.get(v as usize).and_then(|o| resolved.feature_of(*o)).and_then(|id| by_feature.get(&id)) {
+                candidates[k] = *p;
+            }
+        }
+        if candidates.iter().all(|c| *c == BAND) {
+            continue;
+        }
+        let Some((a, b, c)) = src.triangle(f) else { continue };
+        let centroid: [f64; 3] = std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0);
+        for (k, &p) in candidates.iter().enumerate() {
+            if p == BAND || candidates[..k].contains(&p) {
+                continue;
+            }
+            let part = &parts[p as usize];
+            if let Some((tri, _)) = part.bvh.nearest(&part.mesh, centroid, ON_PART_MM) {
+                owner[i] = p;
+                ordinal[i] = part.tri_face.get(tri).copied().unwrap_or(u32::MAX);
+                break;
+            }
+        }
+        if owner[i] == BAND && candidates.iter().all(|c| *c == candidates[0]) {
+            owner[i] = candidates[0];
+        }
+    }
+    (owner, ordinal)
+}
+
+/// Per fused face, the index into `built.parts.features` of the part the pick scene names; `None` for the band.
+pub fn part_owners(built: &BuildResult) -> Vec<Option<u32>> {
+    let parts = placed_parts(built);
+    let (owner, _) = owners(&built.mesh, &built.parts, &parts);
+    let index: Vec<Option<u32>> = parts.iter().map(|p| built.parts.features.iter().position(|f| *f == p.feature).map(|i| i as u32)).collect();
+    owner.into_iter().map(|o| if o == BAND { None } else { index[o as usize] }).collect()
+}
+
 impl PickScene {
     /// The scene over a build: the fused mesh, the parts its origin names, and the design's stones.
     pub fn build(built: &BuildResult, design: &RingDesign) -> Self {
         let src = &built.mesh;
         let mesh = Mesh { vertices: src.vertices.clone(), faces: src.faces.clone(), ..Default::default() };
         let bvh = Bvh::build(&mesh);
-        let mut parts = Vec::new();
-        let mut by_feature: HashMap<Id, u32> = HashMap::new();
-        if let Some(e) = &built.parts.evaluated {
-            for c in &e.components {
-                if c.settings.reference {
-                    continue;
-                }
-                let own = Mesh { vertices: c.mesh.vertices.clone(), faces: c.mesh.faces.clone(), ..Default::default() };
-                let bvh = Bvh::build(&own);
-                by_feature.insert(c.id, parts.len() as u32);
-                parts.push(Part {
-                    feature: c.id,
-                    mesh: own,
-                    bvh,
-                    tri_face: c.trace.tri_face.clone(),
-                    edges: c.edges.clone(),
-                    vertices: c.trace.vertices.clone(),
-                    faces: c.trace.face_kind.len() as u32,
-                });
-            }
-        }
-        let n = mesh.faces.len();
-        let mut owner = vec![BAND; n];
-        let mut ordinal = vec![u32::MAX; n];
-        if src.origin.len() == src.vertices.len() && !parts.is_empty() {
-            for (i, f) in mesh.faces.iter().enumerate() {
-                // Candidates are the parts the face's vertices name; the surface decides between them.
-                let mut candidates = [BAND; 3];
-                for (k, &v) in f.iter().enumerate() {
-                    if let Some(p) = src.origin.get(v as usize).and_then(|o| built.parts.feature_of(*o)).and_then(|id| by_feature.get(&id)) {
-                        candidates[k] = *p;
-                    }
-                }
-                if candidates.iter().all(|c| *c == BAND) {
-                    continue;
-                }
-                let Some((a, b, c)) = mesh.triangle(f) else { continue };
-                let centroid: [f64; 3] = std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0);
-                for (k, &p) in candidates.iter().enumerate() {
-                    if p == BAND || candidates[..k].contains(&p) {
-                        continue;
-                    }
-                    let part = &parts[p as usize];
-                    if let Some((tri, _)) = part.bvh.nearest(&part.mesh, centroid, ON_PART_MM) {
-                        owner[i] = p;
-                        ordinal[i] = part.tri_face.get(tri).copied().unwrap_or(u32::MAX);
-                        break;
-                    }
-                }
-            }
-        }
+        let parts = placed_parts(built);
+        let (owner, ordinal) = owners(src, &built.parts, &parts);
         Self { mesh, bvh, owner, ordinal, parts, stones: stones_of(design) }
     }
 

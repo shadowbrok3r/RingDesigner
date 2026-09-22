@@ -32,6 +32,18 @@ fn io(e: impl std::fmt::Display) -> PyErr {
     PyIOError::new_err(e.to_string())
 }
 
+/// The field verdict with the design's CAD parts judged on a Preview build, when it carries any.
+fn judged(design: &RingDesign, lib: &AlphaLibrary, theta_steps: usize, profile_steps: usize) -> anyhow::Result<FieldReport> {
+    let parts = design.band_is_procedural() && design.cad.as_ref().is_some_and(|doc| !doc.attachments().is_empty());
+    let built = if parts {
+        let (_, theta, profile) = BuildParams::PRESETS.iter().find(|p| p.0 == "Preview").copied().unwrap_or(("Preview", 384, 144));
+        Some(ringdesign_core::mesh::try_build(design, lib, BuildParams { theta_steps: theta, profile_steps: profile, refine: None, ..design.build })?)
+    } else {
+        None
+    };
+    Ok(castability::judged_field_report(design, lib, &design.draft, theta_steps, profile_steps, built.as_ref()))
+}
+
 /// A JSON value as Python objects.
 fn json_to_py(py: Python<'_>, v: &serde_json::Value) -> PyResult<PyObject> {
     Ok(match v {
@@ -294,21 +306,21 @@ impl Design {
         }))
     }
 
-    /// The castability verdict from the true surface, as a dict.
+    /// The castability verdict from the true surface, as a dict; CAD parts on the band are judged on a Preview build.
     #[pyo3(signature = (lib = None, theta_steps = 192, profile_steps = 128))]
     fn field_report(&self, py: Python<'_>, lib: Option<&Library>, theta_steps: usize, profile_steps: usize) -> PyResult<PyObject> {
         let design = self.inner.clone();
         let lib = lib_for(&design, lib);
-        let f: FieldReport = py.detach(move || castability::attributed_field_report(&design, &lib, &design.draft, theta_steps.clamp(16, 4096), profile_steps.clamp(8, 2048)));
+        let f: FieldReport = py.detach(move || judged(&design, &lib, theta_steps.clamp(16, 4096), profile_steps.clamp(8, 2048))).map_err(bad)?;
         serialize_py(py, &f)
     }
 
     /// "Castable", "Castable with care" or "Will not release".
     #[pyo3(signature = (lib = None))]
-    fn verdict(&self, py: Python<'_>, lib: Option<&Library>) -> String {
+    fn verdict(&self, py: Python<'_>, lib: Option<&Library>) -> PyResult<String> {
         let design = self.inner.clone();
         let lib = lib_for(&design, lib);
-        py.detach(move || castability::attributed_field_report(&design, &lib, &design.draft, 192, 128).verdict.label().to_string())
+        py.detach(move || judged(&design, &lib, 192, 128)).map(|f| f.verdict.label().to_string()).map_err(bad)
     }
 
     /// The cross-section at an angle (90° is the top), as a dict.
