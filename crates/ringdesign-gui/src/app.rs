@@ -571,7 +571,7 @@ impl RingDesignerApp {
                         ),
                     };
                     if let Ok(mut r) = self.renderer.lock() {
-                        let cad=done.graph.as_ref().map_or(self.design.cad.is_some(),|g|g.design.cad.is_some());
+                        let cad=done.graph.as_ref().map_or(!self.design.band_is_procedural(),|g|!g.design.band_is_procedural());
                         if cad {r.prepare_cad(&done.result.mesh);} else {
                         r.prepare_upload(
                             &done.result.mesh,
@@ -1160,7 +1160,7 @@ impl RingDesignerApp {
         };
         let key = (node, self.node_focus.mesh_generation);
         let settled = self.dirty_at.is_none() && !self.in_flight;
-        if settled && self.node_focus.asked != Some(key) && self.design.cad.is_none() {
+        if settled && self.node_focus.asked != Some(key) && self.design.band_is_procedural() {
             if let (Some(worker), Some(build), Some(params), Some(effect)) = (self.node_focus.worker.as_ref(), self.build.as_ref(), self.node_focus.mesh_params, self.graph_effects.get(&node)) {
                 // The graph's JSON can run to megabytes of embedded artwork,
                 // and a before/after build reads none of it.

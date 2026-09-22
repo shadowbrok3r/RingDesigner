@@ -439,16 +439,16 @@ pub fn inspect(
     let lib = resolved.as_ref();
     let prepared = prepare_with_library(d, lib, setup, params)?;
     let release = release::analyze(&prepared.mesh, setup)?;
-    let field = d.cad.is_none().then(|| {
+    let field = d.band_is_procedural().then(|| {
         crate::castability::analyze_field(&prepared.design, lib, &prepared.design.draft, 192, 128)
     });
-    let local_wall = d.cad.is_some().then(|| {
+    let local_wall = (!d.band_is_procedural()).then(|| {
         crate::cad::measure::thickness(
             &prepared.mesh.scaled(1.0 / prepared.scale),
             setup.recipe.min_section_mm,
         )
     });
-    let details = if d.cad.is_none() {
+    let details = if d.band_is_procedural() {
         crate::dfm::findings_in(&prepared.design, lib)
             .into_iter()
             .map(|f| format!("{}: {}", f.label, f.message))
@@ -466,7 +466,7 @@ pub fn inspect(
         .sum::<f64>()
         / prepared.scale.powi(3)
         * density;
-    let scan = if d.cad.is_none() {
+    let scan = if d.band_is_procedural() {
         crate::castability::modulus_scan(&prepared.design, lib, 64)
     } else {
         Vec::new()

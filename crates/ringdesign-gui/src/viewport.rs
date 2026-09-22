@@ -1168,7 +1168,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                 |p| camera.ray(rect,p), |p| proj.at(p), |hit| {
                     let layer = ringdesign_workbench::focus::layer_behind(&app.design,&app.lib,hit);
                     if app.graph_driven() { layer.and_then(|i| app.node_for_layer(i)).map(|id| app.graph_ed.as_ref().and_then(|ed| ed.card(id)).map_or("Graph feature".into(), |card| card.title.clone())) }
-                    else if app.design.cad.is_none() { Some(layer.map_or("Band / shape".into(), |i| app.design.layers.layers[i].name.clone())) } else { None }
+                    else if app.design.band_is_procedural() { Some(layer.map_or("Band / shape".into(), |i| app.design.layers.layers[i].name.clone())) } else { None }
                 });
             app.hovered_node = hit.and_then(|hit| ringdesign_workbench::focus::layer_behind(&app.design,&app.lib,&hit)).and_then(|i| app.node_for_layer(i));
         }

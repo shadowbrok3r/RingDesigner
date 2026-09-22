@@ -14,10 +14,7 @@ pub const PARTS_ONLY: &str = "This ring is CAD parts only; add a Procedural shan
 
 /// True when the CAD document carries features and none of them is the procedural band.
 pub fn replaces_band(d: &RingDesign) -> bool {
-    d.cad.as_ref().is_some_and(|doc| {
-        !doc.features.is_empty()
-            && !doc.features.iter().any(|f| matches!(f.operation, crate::cad::Operation::Band))
-    })
+    !d.band_is_procedural()
 }
 
 /// Unwrap a picked angle around its neighbour, so 359 -> 1 draws across the seam.

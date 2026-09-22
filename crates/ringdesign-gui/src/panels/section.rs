@@ -39,7 +39,7 @@ impl Default for ViewOpts {
 }
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
-    if app.design.cad.is_some() {
+    if !app.design.band_is_procedural() {
         ui.label("Inspect actual CAD geometry in CAD → Section.");
         if ui.button("Open CAD sections").clicked() {
             app.cad.open_section();

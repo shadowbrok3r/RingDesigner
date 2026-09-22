@@ -296,17 +296,21 @@ mod tests {
                 })
                 .unwrap();
             }
+            let band = matches!(doc.features[0].operation, Operation::Band);
             d.cad = Some(doc);
-            let evaluated = cad::evaluate(
-                &d,
-                &lib,
-                BuildParams {
-                    theta_steps: 64,
-                    profile_steps: 48,
-                    ..Default::default()
-                },
-            )
-            .unwrap_or_else(|e| panic!("{label}: {e:#}"));
+            let params = BuildParams {
+                theta_steps: 64,
+                profile_steps: 48,
+                ..Default::default()
+            };
+            // The procedural shank is the band itself, an anchor with no body of its own: it is
+            // judged by the ring it builds.
+            if band {
+                let built = ringdesign_core::mesh::try_build(&d, &lib, params).unwrap_or_else(|e| panic!("{label}: {e:#}"));
+                assert!(built.report.validation.watertight && built.mesh.volume_mm3() > 1.0, "{label}: no band");
+                continue;
+            }
+            let evaluated = cad::evaluate(&d, &lib, params).unwrap_or_else(|e| panic!("{label}: {e:#}"));
             assert!(!evaluated.components.is_empty(), "{label} has no output");
             for c in evaluated.components {
                 assert!(c.mesh.volume_mm3() > 0.001, "{label}: empty solid");

@@ -225,6 +225,42 @@ answer to AccessKit so kittest and `egui_drive.py` can type into them.
   `design.cad` and re-lifts it; the graph path is unchanged; Undo restores `design.cad`
   (`a_plain_design_stays_plain_after_a_cad_apply`, `a_graph_driven_design_keeps_its_graph_after_a_cad_apply`).
 
+### M2 status — 2026-09-22, phase 2 (branch `m2-integration`, three worktree agents + integration)
+
+- **CAD stops being a mode.** `mesh::try_build` always sweeps the band when it is procedural
+  (`RingDesign::band_is_procedural` = no enabled `Band` feature *and* a real feature means the CAD
+  replaces the band); seats and stamps resolve as before, then `parts::resolve` evaluates the CAD
+  with the built mesh as its surface and joins, cuts or appends every output part through
+  `csg::combine_traced` (joins clustered by padded box, one tool per cluster; a cluster that will not
+  unite falls back one by one). `Mesh.origin` names each part (`Resolved::feature_of`), the
+  evaluation rides along in `Resolved.evaluated` so the CAD pane never evaluates twice, and
+  `try_build_with(.., cancel)` stops the CAD stage within ~150 ms of a raised flag.
+- **The Band feature is an anchor, not a body** (`Evaluated.band`); a Boolean against it is read as
+  the other operand's attachment (Union → Join, Subtract → Cut), so every existing document keeps
+  its meaning without a migration. `Placement::frame_on` drops a Ring placement onto the built
+  surface (Heart signet shoulder: 2.06 mm off → < 0.02 mm).
+- Measured (dev profile): bezel r 3 × 2.5 joined + pilot cut — Court band 256×128: band 10.9 ms,
+  band + parts 41.8 ms; at 1024×384: 122 ms → 500 ms; every case open 0 / non-manifold 0; a Join
+  adds 69.7–70.7 mm³ of π·9·2.5 = 70.69.
+- Every surface-tool gate (Paint, Stamp, Path, Move ornament, unrolled editor, section, report,
+  node focus, manufacturing inspection, imported-base attach) now reads
+  `band_is_procedural()` through one body, `interaction::surface::replaces_band`; a ring of parts
+  only says `PARTS_ONLY`. New parts beside a procedural shank default to **Join**; the CAD pane
+  previews the whole ring (`Parts only` toggle for the old view) and Live cuts off skips the joins.
+- Bench-stage parts are shown finished and left out of a sand pattern (`pattern_parts`); the field
+  verdict judges a procedural band with parts as it judges made settings, with a note.
+- **Spike R4 retired** (`blend.rs`, `examples/bead_probe.rs`): a rolling-ball bead swept along the
+  traced seam and joined through csg fillets a post on a plane to **0.0046 mm** of the analytic
+  torus (96-gon, r 0.3), rounds a drilled rim as a cut, survives a plus-shaped post's re-entrant
+  corners by pinching (fold guard), and beads 20 random bezels round the Court band clean (0 of
+  3831 stations clamped, ≤ 196 ms debug). Known limit: a wire lying on a low dome closes its wedge
+  and clamps to the 0.02 mm floor; sink it 0.4 mm or stand it up.
+- Open (phase 3): wire `Component.blend_mm` into `parts::resolve` (the bead must keep the part's
+  origin provenance — `fillet_junction` compacts its result today); `launch()` still seeds a Band
+  when a design has no CAD document; `assembly::inspect` no longer sees a band component;
+  `manufacturing::prepare`'s `uses_band` still counts the Band id in `outputs`; the csg input
+  census costs ~12 ms per 786k faces per combine.
+
 ### M2 detail
 
 **Measured 2026-09-21 (`examples/join_probe.rs`)**: a traced kernel cylinder dropped onto the built

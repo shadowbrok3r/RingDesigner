@@ -862,6 +862,7 @@ impl Document {
         names
     }
 }
+#[derive(Clone, Debug)]
 pub struct EvaluatedComponent {
     pub id: Id,
     pub name: String,
@@ -893,6 +894,7 @@ impl PartTrace {
         self.tri_face.get(triangle).copied().filter(|f| *f != u32::MAX)
     }
 }
+#[derive(Clone, Debug)]
 pub struct Evaluated {
     pub components: Vec<EvaluatedComponent>,
     pub features: Vec<FeatureReport>,

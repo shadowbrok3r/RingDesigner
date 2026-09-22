@@ -351,7 +351,16 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
                     d.cad = Some(doc);
                 }
                 d.cad.as_mut().unwrap().through = None;
-                let evaluated = cad::evaluate_with(&d, &lib, params, &cad::BuildCtx { cancel: &cancel, surface: None })?;
+                // The ring is what the Ring viewport will show; the parts it resolved stay for the inspector,
+                // placed on the built surface. A ring of parts only is evaluated on its own.
+                let (mut built, build_error) = match ringdesign_core::mesh::try_build_with(&d, &lib, ring_params, &cancel) {
+                    Ok(b) => (Some(b), None),
+                    Err(e) => (None, Some(format!("Whole ring did not build: {e:#}"))),
+                };
+                let evaluated = match built.as_mut().and_then(|b| b.parts.evaluated.take()) {
+                    Some(e) => e,
+                    None => cad::evaluate_with(&d, &lib, params, &cad::BuildCtx { cancel: &cancel, surface: None })?,
+                };
                 let pairs = cad::assembly::inspect(&d, &evaluated);
                 let walls = evaluated
                     .components
@@ -366,11 +375,6 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
                         )
                     })
                     .collect();
-                // The parts stay for the inspector; the ring is what the Ring viewport will show.
-                let (built, build_error) = match ringdesign_core::mesh::try_build(&d, &lib, ring_params) {
-                    Ok(b) => (Some(b), None),
-                    Err(e) => (None, Some(format!("Whole ring did not build: {e:#}"))),
-                };
                 let gems = built.as_ref().map_or_else(Vec::new, |_| ringdesign_core::gems::preview_vertices(&d, &lib));
                 Ok(View {
                     design: d,

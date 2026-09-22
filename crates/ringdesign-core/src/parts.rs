@@ -35,6 +35,9 @@ pub struct Resolved {
     pub first: u32,
     /// The feature id behind each part index, in the order the origin counts them.
     pub features: Vec<Id>,
+    /// The evaluation the parts came from, placed on the built surface, for inspectors that need
+    /// the bodies, edges and traces without evaluating again.
+    pub evaluated: Option<cad::Evaluated>,
 }
 
 impl Resolved {
@@ -86,6 +89,7 @@ pub fn resolve(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx
             Attach::Separate => separates.push(part),
         }
     }
+    out.evaluated = Some(evaluated);
     if joins.is_empty() && cuts.is_empty() && separates.is_empty() {
         out.ms = clock.ms();
         return Ok(out);
