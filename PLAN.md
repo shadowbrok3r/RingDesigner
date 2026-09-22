@@ -150,12 +150,23 @@ does not Apply" (covered by the Enter-never-applies pin instead).
 - Cheap half of H7: entity/point delete, deletable starter rectangle, error naming the loops,
   canvas pan. Labels on every numeric field (`widget_info`), CAD entries in Ctrl+K.
 
+### M1 status — 2026-09-21
+
+- `cad::tessellate_traced(body, chord) -> (Mesh, PartTrace)` keeps the kernel's triangle→face
+  ordinal through the weld and the stitch (`u32::MAX` for a stitched gap), the f64 positions, the
+  surface kind per face and the body's vertices; `EvaluatedComponent.trace` carries it. Pinned by
+  `a_traced_tessellation_names_the_face_and_kind_behind_every_triangle`.
+- R2 retired (below); the boolean gate is 500 faces.
+- Open: v5 schema (`Placement`, `Component` attach/stage/anchor/repeat/blend, `EdgeSel`/`FaceSel`
+  with the migration walking `cad.feature` params inside `design.graph`), `csg::Solid` from a trace,
+  spikes R1/R3/R4/R5.
+
 ### M1 spikes (retire before writing refs into saved files)
 
 | Risk | Spike (1-2 days each) |
 | --- | --- |
 | R1 graph-hosted CAD + snapshot cost | Prototype parts on a plain design beside paint; measure `History` cost with `Arc<Value>` graph |
-| R2 uncancellable kernel calls | Time curve of every `Operation` and `brep::combine` 100-4000 faces; pick the gate; decide child-process eval on desktop |
+| R2 uncancellable kernel calls | **Retired 2026-09-21** (`examples/kernel_probe.rs`): an intersecting faceted union is super-linear and never succeeds — 256 faces 0.3 s, 576 faces 3.8 s, 1024 faces 14 s, all `CutRefused`; 2304+ faces never return; `slice_by_plane` never returns on a 1024-face faceted body; analytic torus/sphere/crossing-cylinder pairs refuse in 0.1 ms. Gate set to **500 faces**. Band booleans go through `csg.rs` (M2), never the kernel. Child-process evaluation is not needed for cancel once faceted operands are gated. |
 | R3 refs retarget silently | Parameter sweep per `Operation`; per-edge signature (ordinal, dir, adjacent surface kinds, normalized ends) |
 | R4 seam bead folds | Cylinder-on-torus and 0.8 mm wire-on-dome through `csg` + variable-section sweep; `self_crossings == 0` over 200 placements |
 | R5 anchors ignore relief | 200 anchors on Caiman/Zenith and a 0.8 mm boss; choose mesh-drop placement (as stamps do) |

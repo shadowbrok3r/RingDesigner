@@ -228,6 +228,35 @@ pub struct EvaluatedComponent {
     pub body: Body,
     pub mesh: Mesh,
     pub edges: Vec<Vec<[f64; 3]>>,
+    pub trace: PartTrace,
+}
+/// What the tessellation knows about the body it came from, so a triangle answers to a face and
+/// a hover can name an edge or a vertex. Ordinals index the body's own iteration order.
+#[derive(Clone, Debug, Default)]
+pub struct PartTrace {
+    /// The face ordinal behind each triangle; `u32::MAX` for a stitched gap.
+    pub tri_face: Vec<u32>,
+    /// Vertex positions in f64, welded like the mesh.
+    pub positions: Vec<[f64; 3]>,
+    /// The kind of surface under each face ordinal, for tinting and for what an edit may do.
+    pub face_kind: Vec<SurfaceKind>,
+    /// The body's vertices, for snapping.
+    pub vertices: Vec<[f64; 3]>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SurfaceKind {
+    Plane,
+    Cylinder,
+    Cone,
+    Sphere,
+    Torus,
+    Freeform,
+}
+impl PartTrace {
+    /// The face ordinal a triangle came from, if it has one.
+    pub fn face_of(&self, triangle: usize) -> Option<u32> {
+        self.tri_face.get(triangle).copied().filter(|f| *f != u32::MAX)
+    }
 }
 pub struct Evaluated {
     pub components: Vec<EvaluatedComponent>,
@@ -601,8 +630,10 @@ fn body_for(
     }
 }
 
-/// Largest operand the analytic boolean accepts; a faceted band is 24k faces and does not finish.
-pub const MAX_ANALYTIC_BOOLEAN_FACES: usize = 2000;
+/// Largest operand the analytic boolean accepts. Measured by `examples/kernel_probe.rs` on a
+/// faceted torus with a cylinder through its tube: 256 faces 0.3 s, 576 faces 3.8 s, 1024 faces
+/// 14 s, every one refused as `CutRefused`; 2304 faces and up never return. A faceted band is 24k.
+pub const MAX_ANALYTIC_BOOLEAN_FACES: usize = 500;
 /// The error text of an evaluation stopped through its `BuildCtx`.
 pub const CANCELLED: &str = "CAD evaluation cancelled";
 
@@ -732,7 +763,7 @@ pub fn evaluate_with(
             continue;
         };
         let f = metadata[id];
-        let mesh = tessellate(
+        let (mesh, trace) = tessellate_traced(
             body,
             if params.theta_steps >= 512 {
                 0.015
@@ -756,6 +787,7 @@ pub fn evaluate_with(
             body: body.clone(),
             mesh,
             edges,
+            trace,
         });
     }
     ensure!(!components.is_empty(), "No active CAD components");
@@ -766,6 +798,10 @@ pub fn evaluate_with(
 }
 
 pub fn tessellate(body: &Body, chord_mm: f64) -> Result<Mesh> {
+    tessellate_traced(body, chord_mm).map(|(mesh, _)| mesh)
+}
+/// Tessellate and keep the kernel's triangle-to-face map through the weld and the stitch.
+pub fn tessellate_traced(body: &Body, chord_mm: f64) -> Result<(Mesh, PartTrace)> {
     // Spline caps use angular sampling too; tighten it with export tolerance.
     let angle = (0.15 * (chord_mm / 0.04).sqrt()).clamp(0.01, 0.15);
     let display = brep::mesh::tessellate(
@@ -777,6 +813,25 @@ pub fn tessellate(body: &Body, chord_mm: f64) -> Result<Mesh> {
         "Kernel could not tessellate {} faces",
         display.missing_faces.len()
     );
+    let face_ordinal: BTreeMap<u32, u32> = body
+        .faces
+        .iter()
+        .enumerate()
+        .map(|(i, (key, _))| (key.slot(), i as u32))
+        .collect();
+    let face_kind = body
+        .faces
+        .iter()
+        .map(|(_, face)| match body.surfaces.get(face.surface) {
+            Some(brep::Surface::Plane(_)) => SurfaceKind::Plane,
+            Some(brep::Surface::Cylinder(_)) => SurfaceKind::Cylinder,
+            Some(brep::Surface::Cone(_)) => SurfaceKind::Cone,
+            Some(brep::Surface::Sphere(_)) => SurfaceKind::Sphere,
+            Some(brep::Surface::Torus(_)) => SurfaceKind::Torus,
+            _ => SurfaceKind::Freeform,
+        })
+        .collect();
+    let mut tri_face = Vec::with_capacity(display.mesh.triangles.len());
     let mut mesh = Mesh::default();
     let mut index: BTreeMap<[i64; 3], Vec<u32>> = BTreeMap::new();
     let mut remap = Vec::new();
@@ -822,15 +877,17 @@ pub fn tessellate(body: &Body, chord_mm: f64) -> Result<Mesh> {
         });
         remap.push(id);
     }
-    for f in display.mesh.triangles {
+    for (t, f) in display.mesh.triangles.iter().enumerate() {
         let f = f.map(|i| remap[i]);
         if f[0] != f[1] && f[1] != f[2] && f[2] != f[0] {
             mesh.faces.push(f);
+            tri_face.push(display.triangle_faces.get(t).and_then(|k| face_ordinal.get(&k.slot()).copied()).unwrap_or(u32::MAX));
         }
     }
     ensure!(!mesh.faces.is_empty(), "Solid is empty");
     if !mesh.validate().watertight {
         stitch_chord_gaps(&mut mesh, body, chord_mm);
+        tri_face.resize(mesh.faces.len(), u32::MAX);
     }
     let validation = mesh.validate();
     ensure!(
@@ -840,7 +897,12 @@ pub fn tessellate(body: &Body, chord_mm: f64) -> Result<Mesh> {
         validation.non_manifold_edges
     );
     mesh.normals = normals(&mesh);
-    Ok(mesh)
+    let vertices = body
+        .vertices
+        .iter()
+        .map(|(_, v)| v.point)
+        .collect();
+    Ok((mesh, PartTrace { tri_face, positions: precise, face_kind, vertices }))
 }
 /// The kernel can refine one side of a shared spline boundary more than the
 /// planar cap, leaving triangular slivers between two chord approximations.
@@ -1192,6 +1254,39 @@ mod tests {
             .err()
             .unwrap();
         assert!(format!("{error:#}").contains("2 separate loops"), "{error:#}");
+    }
+    #[test]
+    fn a_traced_tessellation_names_the_face_and_kind_behind_every_triangle() {
+        let d = design(vec![
+            Operation::Box { size: [4.0, 6.0, 2.0] },
+            Operation::Cylinder {
+                radius_mm: 2.0,
+                height_mm: 3.0,
+            },
+        ]);
+        let e = evaluate(&d, &AlphaLibrary::builtin(), BuildParams::default()).unwrap();
+        let cube = &e.components[0];
+        assert_eq!(cube.trace.tri_face.len(), cube.mesh.faces.len());
+        let faces: BTreeSet<_> = cube.trace.tri_face.iter().copied().collect();
+        assert_eq!(faces.len(), 6, "{faces:?}");
+        assert!(cube.trace.face_kind.iter().all(|k| *k == SurfaceKind::Plane));
+        assert_eq!(cube.trace.vertices.len(), 8);
+        // Every triangle of one face shares that face's plane normal.
+        for (t, f) in cube.mesh.faces.iter().enumerate() {
+            let (a, b, c) = cube.mesh.triangle(f).unwrap();
+            let n = crate::mesh::cross(crate::mesh::sub(b, a), crate::mesh::sub(c, a));
+            let face = cube.trace.face_of(t).unwrap() as usize;
+            let same: Vec<_> = cube.trace.tri_face.iter().enumerate().filter(|(_, o)| **o as usize == face).map(|(i, _)| i).collect();
+            for i in same {
+                let (p, q, r) = cube.mesh.triangle(&cube.mesh.faces[i]).unwrap();
+                let m = crate::mesh::cross(crate::mesh::sub(q, p), crate::mesh::sub(r, p));
+                let dot: f64 = n.iter().zip(m).map(|(x, y)| x * y).sum();
+                assert!(dot > 0.0, "face {face} mixes orientations");
+            }
+        }
+        let kinds: BTreeSet<_> = e.components[1].trace.face_kind.iter().map(|k| format!("{k:?}")).collect();
+        assert_eq!(kinds, BTreeSet::from(["Cylinder".to_string(), "Plane".to_string()]));
+        assert_eq!(e.components[1].trace.positions.len(), e.components[1].mesh.vertices.len());
     }
     #[test]
     fn a_faceted_operand_is_refused_before_the_kernel_is_asked() {
