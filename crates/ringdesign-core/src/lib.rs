@@ -550,3 +550,4 @@ mod design_tests {
         assert!(!d.sdfs_missing(&lib), "and the bake satisfies it");
     }
 }
+pub mod blend;
