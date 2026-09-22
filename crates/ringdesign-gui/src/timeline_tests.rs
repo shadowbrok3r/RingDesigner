@@ -65,10 +65,10 @@ fn ring() -> Harness<'static, RingDesignerApp> {
     h
 }
 
-/// The field verdict's note on the parts standing on the band.
-fn parts_note(h: &Harness<'static, RingDesignerApp>) -> String {
+/// The parts the field verdict lists: feature, attachment, and whether it was judged against the parting plane.
+fn verdict_parts(h: &Harness<'static, RingDesignerApp>) -> Vec<(u64, Attach, bool)> {
     let field = h.state().field.as_ref().expect("the field verdict");
-    field.notes.iter().find(|n| n.contains("CAD part")).cloned().unwrap_or_default()
+    field.parts.iter().map(|p| (p.feature, p.attach, p.judged)).collect()
 }
 
 fn joined(h: &Harness<'static, RingDesignerApp>) -> (usize, usize) {
@@ -94,7 +94,7 @@ fn the_ring_viewport_strip_suppresses_through_the_funnel_undoes_and_does_the_sam
     assert!(rects[0].right() <= rects[1].left() && rects[1].right() <= rects[2].left(), "in document order: {rects:?}");
     assert!(rects.iter().all(|r| r.top() >= viewport.bottom() - 1.0 && viewport.x_range().contains(r.center().x)), "under the Ring viewport: {viewport:?} {rects:?}");
     assert_eq!(joined(&h), (1, 1));
-    assert!(parts_note(&h).starts_with("2 CAD parts stand on the band") && parts_note(&h).contains("(1 joined, 0 cut, 1 separate)"), "{}", parts_note(&h));
+    assert_eq!(verdict_parts(&h), [(2, Attach::Join, true), (3, Attach::Separate, false)], "the joined cylinder judged, the box beside it not");
     let entries = h.state().history.present();
 
     menu(&mut h, "Cylinder · ok", "Suppress");
@@ -103,7 +103,7 @@ fn the_ring_viewport_strip_suppresses_through_the_funnel_undoes_and_does_the_sam
     assert!(h.query_by_label("Cylinder · suppressed").is_some(), "the chip says so before the rebuild lands");
     settle(&mut h);
     assert_eq!(joined(&h), (0, 1), "one fewer part in the build");
-    assert!(parts_note(&h).starts_with("1 CAD part stands on the band") && parts_note(&h).contains("(0 joined, 0 cut, 1 separate)"), "{}", parts_note(&h));
+    assert_eq!(verdict_parts(&h), [(3, Attach::Separate, false)], "a suppressed part is not in the verdict");
     h.get_by_label("Cylinder · suppressed");
     let plain = serde_json::to_value(h.state().design.cad.as_ref().unwrap()).unwrap();
 

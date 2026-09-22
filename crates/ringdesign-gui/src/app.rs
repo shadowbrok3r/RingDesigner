@@ -1463,18 +1463,24 @@ impl Worker {
                             ringdesign_core::mesh::try_build_memo(&stock, &job.lib, job.params, &never, memo)
                         }
                         .map_err(|e| format!("{e:#}"))?;
-                        let cast = castability::analyze(
-                            &result.mesh,
-                            &job.design.draft,
-                            job.design.inner_radius_mm(),
-                        );
                         // The verdict itself comes from the surface, at a fixed
                         // sampling so it cannot wobble with preview quality; any
                         // undercut arrives located and blamed.
-                        let field = match field_from_graph {
+                        let mut field = match field_from_graph {
                             Some(f) => f,
                             None => castability::attributed_field_report(&job.design, &job.lib, &job.design.draft, 192, 128),
                         };
+                        // Parts are judged only on a build that joins them; with live cuts off they keep the design-only note.
+                        if job.live_cuts {
+                            castability::judge_parts(&mut field, &job.design, &result);
+                        }
+                        // The draft colours paint at the verdict's own parting plane.
+                        let cast = castability::analyze_at(
+                            &result.mesh,
+                            &job.design.draft,
+                            job.design.inner_radius_mm(),
+                            field.parting_z_mm,
+                        );
                         let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
                         let hot_spot = castability::modulus_scan(&job.design, &job.lib, 64)
                             .into_iter()
