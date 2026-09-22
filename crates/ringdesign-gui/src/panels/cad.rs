@@ -1615,6 +1615,7 @@ fn component_ui(ui: &mut egui::Ui, f: &mut Feature) {
             }
         });
     cad_tools::placement(ui, &mut c.placement);
+    cad_tools::attachment(ui, c);
     if c.reference {
         let id = c.stone_id.get_or_insert_with(|| format!("stone-{}", f.id));
         ui.horizontal(|ui| {

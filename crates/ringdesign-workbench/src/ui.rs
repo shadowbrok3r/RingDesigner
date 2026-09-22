@@ -502,6 +502,7 @@ impl Workshop {
                     }
                 });
             cad_tools::placement(ui, &mut f.component.placement);
+            cad_tools::attachment(ui, &mut f.component);
             ui.text_edit_multiline(&mut f.component.bench_notes);
             if ui
                 .button("Use current casting setup for this part")

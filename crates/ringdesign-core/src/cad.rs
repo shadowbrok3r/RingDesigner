@@ -198,6 +198,40 @@ pub struct Component {
     pub bench_notes: String,
     /// Where the built part stands; `Ring` follows resizing without stretching the part.
     pub placement: Placement,
+    /// How the part meets the band: beside it, united into it, or subtracted from it.
+    pub attach: Attach,
+    /// Whether the part is poured with the pattern or added at the bench afterwards.
+    pub stage: Stage,
+    /// Radius of the seam bead laid along a `Join`/`Cut` junction; 0 lays none.
+    pub blend_mm: f64,
+}
+/// How a component's solid meets the band once both are built.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Attach {
+    /// Kept as its own solid beside the band; what a reference stone always is.
+    #[default]
+    Separate,
+    /// United into the band, so the pattern and the verdict see one solid.
+    Join,
+    /// Subtracted from the band.
+    Cut,
+}
+/// Which manufacturing stage a component belongs to.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Stage {
+    /// Part of the pattern: poured with the ring.
+    #[default]
+    Cast,
+    /// Added after the pour, soldered on or cut in: shown finished, never in a sand pattern.
+    Bench,
+}
+impl Component {
+    /// Joined into or cut from the band; a reference stone never is.
+    pub fn attaches(&self) -> bool {
+        !self.reference && matches!(self.attach, Attach::Join | Attach::Cut)
+    }
 }
 /// The component as files before format 5 wrote it, with the anchor as two loose numbers.
 #[derive(Deserialize)]
@@ -211,6 +245,9 @@ struct ComponentWire {
     stone_id: Option<String>,
     bench_notes: String,
     placement: Placement,
+    attach: Attach,
+    stage: Stage,
+    blend_mm: f64,
     ring_anchor_deg: Option<f64>,
     anchor_height_mm: f64,
 }
@@ -226,6 +263,9 @@ impl Default for ComponentWire {
             stone_id: c.stone_id,
             bench_notes: c.bench_notes,
             placement: c.placement,
+            attach: c.attach,
+            stage: c.stage,
+            blend_mm: c.blend_mm,
             ring_anchor_deg: None,
             anchor_height_mm: 0.0,
         }
@@ -246,6 +286,9 @@ impl From<ComponentWire> for Component {
             stone_id: w.stone_id,
             bench_notes: w.bench_notes,
             placement,
+            attach: w.attach,
+            stage: w.stage,
+            blend_mm: w.blend_mm,
         }
     }
 }
@@ -625,6 +668,9 @@ impl Default for Component {
             stone_id: None,
             bench_notes: String::new(),
             placement: Placement::Free,
+            attach: Attach::Separate,
+            stage: Stage::Cast,
+            blend_mm: 0.0,
         }
     }
 }
@@ -1932,5 +1978,43 @@ mod tests {
         .err()
         .unwrap();
         assert_eq!(error.to_string(), CANCELLED);
+    }
+    #[test]
+    fn a_component_reads_separate_and_cast_unless_the_file_says_otherwise() {
+        let bare: Component = serde_json::from_str("{}").unwrap();
+        assert_eq!(bare.attach, Attach::Separate);
+        assert_eq!(bare.stage, Stage::Cast);
+        assert_eq!(bare.blend_mm, 0.0);
+        assert!(!bare.attaches());
+        let joined = Component { attach: Attach::Join, stage: Stage::Bench, blend_mm: 0.3, ..Default::default() };
+        let json = serde_json::to_value(&joined).unwrap();
+        assert_eq!(json["attach"], "join");
+        assert_eq!(json["stage"], "bench");
+        assert_eq!(json["blend_mm"], 0.3);
+        let back: Component = serde_json::from_value(json).unwrap();
+        assert_eq!((back.attach, back.stage, back.blend_mm), (Attach::Join, Stage::Bench, 0.3));
+        assert!(back.attaches());
+        let cut: Component = serde_json::from_str(r#"{"attach": "cut"}"#).unwrap();
+        assert!(cut.attaches());
+        // A reference stone is never metal, whatever its attach says.
+        let stone = Component { attach: Attach::Join, reference: true, ..Default::default() };
+        assert!(!stone.attaches());
+        // A v4 file folds its anchor into a placement and takes the new defaults beside it.
+        let legacy: Component = serde_json::from_str(r#"{"ring_anchor_deg": 30.0, "anchor_height_mm": 0.5, "role": "Head"}"#).unwrap();
+        assert_eq!(legacy.placement, Placement::ring(30.0, 0.5));
+        assert_eq!(legacy.role, ComponentRole::Head);
+        assert_eq!((legacy.attach, legacy.stage, legacy.blend_mm), (Attach::Separate, Stage::Cast, 0.0));
+        // The shipped examples stay beside the band and build the same parts they did.
+        for name in crate::cad::examples::NAMES {
+            let d = crate::cad::examples::design(name).unwrap();
+            let doc = d.cad.as_ref().unwrap();
+            assert!(doc.features.iter().all(|f| f.component.attach == Attach::Separate && f.component.stage == Stage::Cast), "{name}");
+            let json = serde_json::to_value(doc).unwrap();
+            let back: Document = serde_json::from_value(json.clone()).unwrap();
+            assert_eq!(serde_json::to_value(&back).unwrap(), json, "{name}");
+            let e = evaluate(&d, &AlphaLibrary::builtin(), BuildParams::default()).unwrap();
+            assert!(!e.components.is_empty(), "{name}");
+            assert!(e.components.iter().all(|c| c.mesh.volume_mm3() > 0.001), "{name}");
+        }
     }
 }
