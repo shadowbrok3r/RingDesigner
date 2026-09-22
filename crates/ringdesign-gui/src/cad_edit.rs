@@ -19,6 +19,19 @@ pub fn apply(app: &mut RingDesignerApp, edits: &[CadEdit]) -> Result<Vec<Applied
             }
         }
     }
+    // A driven design's document is what its graph evaluates to; carrying it now keeps the build's splice from reading as an edit of its own.
+    if let Some(json) = &next.graph {
+        let document = serde_json::from_value::<ringdesign_graph::graph::Graph>(json.clone())
+            .map_err(|e| e.to_string())
+            .and_then(|g| ringdesign_graph::nodes::cad::document(&g).map_err(|e| e.message));
+        match document {
+            Ok(doc) => next.cad = (!doc.features.is_empty()).then_some(doc),
+            Err(message) => {
+                app.set_status(message.clone());
+                return Err(message);
+            }
+        }
+    }
     app.history.commit(&app.design);
     app.design = next;
     if app.design.graph.is_some() {

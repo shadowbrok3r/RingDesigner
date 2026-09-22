@@ -452,3 +452,54 @@ fn a_cad_edit_through_the_funnel_is_one_undo_step_and_lands_in_a_driven_designs_
     h.state_mut().undo();
     assert!(graph(&h).feature(2).unwrap().enabled);
 }
+
+#[test]
+fn undo_takes_back_a_funnel_edit_on_a_driven_design_while_the_graph_pane_is_open() {
+    use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation, Placement, Stage, edit::CadEdit};
+    let mut h = harness();
+    {
+        let app = h.state_mut();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 5, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        doc.append(Feature {
+            id: 6,
+            name: "Cylinder".into(),
+            enabled: true,
+            operation: Operation::Cylinder { radius_mm: 1.5, height_mm: 2.5 },
+            component: Component { attach: Attach::Join, stage: Stage::Cast, placement: Placement::ring(90.0, 0.25), ..Default::default() },
+        })
+        .unwrap();
+        app.design.cad = Some(doc);
+        app.switch_desktop(crate::dock::Desktop::Graph);
+        app.convert_to_graph();
+    }
+    for _ in 0..40 {
+        h.run_steps(1);
+    }
+    {
+        let app = h.state_mut();
+        let design = app.design.clone();
+        app.history.commit(&design);
+    }
+    let attach = |h: &Harness<'static, RingDesignerApp>| -> Attach {
+        let g: ringdesign_graph::graph::Graph = serde_json::from_value(h.state().design.graph.clone().expect("driven")).unwrap();
+        ringdesign_graph::nodes::cad::document(&g).unwrap().feature(6).unwrap().component.attach
+    };
+    assert_eq!(attach(&h), Attach::Join);
+    crate::cad_edit::apply(h.state_mut(), &[CadEdit::Attach { id: 6, attach: Attach::Cut }]).unwrap();
+    // The build lands and splices the evaluated design in before the undo, as it does in the app.
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    for _ in 0..20 {
+        h.run_steps(1);
+    }
+    assert_eq!(attach(&h), Attach::Cut);
+    assert_eq!(h.state().design.cad.as_ref().and_then(|d| d.feature(6)).map(|f| f.component.attach), Some(Attach::Cut));
+    let timeline: Vec<String> = h.state().history.timeline().into_iter().map(|(l, _)| l).collect();
+    h.state_mut().undo();
+    for _ in 0..20 {
+        h.run_steps(1);
+    }
+    assert_eq!(attach(&h), Attach::Join, "undo takes the cut back; timeline before it: {timeline:?}");
+}
+
