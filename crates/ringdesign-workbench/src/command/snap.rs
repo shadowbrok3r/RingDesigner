@@ -117,6 +117,12 @@ fn midpoint(poly: &[[f64; 3]]) -> Option<[f64; 3]> {
 fn round_to(v: f64, pitch: f64) -> f64 {
     if pitch > 0.0 { (v / pitch).round() * pitch + 0.0 } else { v }
 }
+/// The world point read as `from`, turned to `to`'s angle, slid to its across and moved out by its change in height.
+fn carried(world: [f64; 3], from: RingPoint, to: RingPoint) -> [f64; 3] {
+    let r = world[0].hypot(world[1]) + (to.height_mm - from.height_mm);
+    let a = to.theta_deg.to_radians();
+    [r * a.cos(), r * a.sin(), to.across_mm]
+}
 
 impl Snapper {
     /// The best snap within `aperture_px`: by tier, then nearest on screen; the grid needs no aperture.
@@ -163,12 +169,14 @@ impl Snapper {
         .filter(|(on, _, _, px)| *on && *px <= aperture)
         .min_by(|a, b| a.3.total_cmp(&b.3));
         if let Some((_, kind, label, _)) = plane {
-            return Some(SnapHit {
-                kind,
-                world: [world[0], world[1], 0.0],
-                ring: RingPoint { across_mm: 0.0, ..ring },
-                label: label.into(),
-            });
+            let on_plane = RingPoint { across_mm: 0.0, ..ring };
+            // On the plane the grid still rounds the angle and the height.
+            let Some(grid) = self.grid else {
+                return Some(SnapHit { kind, world: [world[0], world[1], 0.0], ring: on_plane, label: label.into() });
+            };
+            let snapped = RingPoint { theta_deg: wrap360(round_to(ring.theta_deg, grid.theta_deg)), height_mm: round_to(ring.height_mm, grid.height_mm), ..on_plane };
+            let world = if snapped == on_plane { [world[0], world[1], 0.0] } else { carried(world, ring, snapped) };
+            return Some(SnapHit { kind, world, ring: snapped, label: format!("{label} {:.1}°", snapped.theta_deg) });
         }
         let grid = self.grid?;
         let snapped = RingPoint {
@@ -176,12 +184,9 @@ impl Snapper {
             across_mm: round_to(ring.across_mm, grid.across_mm),
             height_mm: round_to(ring.height_mm, grid.height_mm),
         };
-        // Turned to the snapped angle, slid to the snapped across and out by the height change.
-        let r = world[0].hypot(world[1]) + (snapped.height_mm - ring.height_mm);
-        let a = snapped.theta_deg.to_radians();
         Some(SnapHit {
             kind: SnapKind::Grid,
-            world: [r * a.cos(), r * a.sin(), snapped.across_mm],
+            world: carried(world, ring, snapped),
             ring: snapped,
             label: format!("grid {:.1}° {:.2} mm", snapped.theta_deg, snapped.across_mm),
         })
@@ -264,6 +269,12 @@ mod tests {
         assert_eq!((hit.kind, hit.world, hit.ring.across_mm), (SnapKind::PartingPlane, [0.0, 9.5, 0.0], 0.0));
         let hit = s.snap([0.0, 9.5, 0.5], ring(92.0, 0.5), &view(), 4.0, &geometry).unwrap();
         assert_eq!((hit.kind, hit.ring.theta_deg), (SnapKind::Grid, 90.0));
+        // On the plane the grid still rounds the angle, and the point turns to it.
+        let a = 87f64.to_radians();
+        let hit = s.snap([9.5 * a.cos(), 9.5 * a.sin(), 0.1], ring(87.0, 0.1), &view(), 8.0, &geometry).unwrap();
+        assert_eq!((hit.kind, hit.ring, hit.label.as_str()), (SnapKind::PartingPlane, ring(85.0, 0.0), "parting plane 85.0°"));
+        let b = 85f64.to_radians();
+        assert!((hit.world[0] - 9.5 * b.cos()).abs() < 1e-12 && (hit.world[1] - 9.5 * b.sin()).abs() < 1e-12 && hit.world[2] == 0.0, "{:?}", hit.world);
         // Of the two planes the nearer answers: here the crest, read off the ring point.
         let s = Snapper { crest: true, grid: None, ..Snapper::default() };
         let hit = s.snap([0.0, 9.5, 0.6], ring(90.0, 0.3), &view(), 8.0, &geometry).unwrap();

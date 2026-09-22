@@ -8,6 +8,7 @@ mod alpha_editor;
 mod app;
 mod camera;
 mod cad_edit;
+mod command;
 mod comfy_texture;
 mod dock;
 mod export;

@@ -24,6 +24,8 @@ pub const APERTURE_PX: f32 = 8.0;
 pub const SELECT_TINT: [f32; 4] = [0.80, 0.57, 0.85, 0.55];
 /// The hovered entity's tint and strength: the hover cue's aqua.
 pub const HOVER_TINT: [f32; 4] = [0.40, 0.85, 0.83, 0.55];
+/// A live command's ghost: the hover aqua, and its opacity.
+pub const PREVIEW_TINT: [f32; 4] = [0.40, 0.85, 0.83, 0.45];
 
 /// Floats per vertex: position(3), normal(3), draft colour(3), wall colour(3).
 const FLOATS_PER_VERTEX: usize = 12;
@@ -164,6 +166,9 @@ struct GpuResources {
     ghost_vbo: glow::NativeBuffer,
     cutter_vao: glow::NativeVertexArray,
     cutter_vbo: glow::NativeBuffer,
+    /// A live command's ghost: staged once, moved by a model matrix.
+    preview_vao: glow::NativeVertexArray,
+    preview_vbo: glow::NativeBuffer,
     /// One float a staged vertex: how far the chosen node reaches it.
     focus_vbo: glow::NativeBuffer,
     /// Two floats a staged vertex: chosen, and under the pointer.
@@ -180,6 +185,10 @@ pub struct GpuMeshRenderer {
     ghost_pending: Option<Vec<f32>>,
     cutter_count: i32,
     cutter_pending: Option<Vec<f32>>,
+    preview_count: i32,
+    preview_pending: Option<Vec<f32>>,
+    /// Where the ghost stands: its column-major model matrix and the normals' 3x3; `None` hides it.
+    preview_model: Option<([f32; 16], [f32; 9])>,
     /// A focus channel awaiting upload; `Some(empty)` clears it.
     focus_pending: Option<Vec<f32>>,
     /// The uploaded channel covers the uploaded mesh vertex for vertex.
@@ -206,6 +215,9 @@ impl Default for GpuMeshRenderer {
             ghost_pending: None,
             cutter_count: 0,
             cutter_pending: None,
+            preview_count: 0,
+            preview_pending: None,
+            preview_model: None,
             focus_pending: None,
             focus_live: false,
             select_pending: None,
@@ -213,6 +225,22 @@ impl Default for GpuMeshRenderer {
             depth_checked: false,
         }
     }
+}
+
+/// Column-major `a · b` for 4x4 matrices.
+fn mul4(a: &[f32; 16], b: &[f32; 16]) -> [f32; 16] {
+    std::array::from_fn(|i| {
+        let (col, row) = (i / 4, i % 4);
+        (0..4).map(|k| a[k * 4 + row] * b[col * 4 + k]).sum()
+    })
+}
+
+/// Column-major `a · b` for 3x3 matrices.
+fn mul3(a: &[f32; 9], b: &[f32; 9]) -> [f32; 9] {
+    std::array::from_fn(|i| {
+        let (col, row) = (i / 3, i % 3);
+        (0..3).map(|k| a[k * 3 + row] * b[col * 3 + k]).sum()
+    })
 }
 
 impl GpuMeshRenderer {
@@ -349,6 +377,34 @@ impl GpuMeshRenderer {
         self.ghost_pending = Some(verts);
     }
 
+    /// Queue a live command's ghost in its own coordinates. Empty clears it.
+    pub fn prepare_preview(&mut self, verts: Vec<f32>) {
+        self.preview_pending = Some(verts);
+    }
+
+    /// Where the queued ghost stands: model matrix and normal matrix, column-major; `None` hides it.
+    pub fn set_preview_model(&mut self, model: Option<([f32; 16], [f32; 9])>) {
+        self.preview_model = model;
+    }
+
+    /// A part's tessellation in the interleaved layout, a vertex normal kept only within 20° of its facet's.
+    pub fn stage_part(mesh: &Mesh) -> Vec<f32> {
+        let mut data = Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
+        for face in &mesh.faces {
+            let Some(facet) = mesh.face_normal(face) else { continue };
+            let facet = Vec3(facet[0] as f32, facet[1] as f32, facet[2] as f32);
+            let Some(points) = face.iter().map(|&vi| mesh.vertices.get(vi as usize).filter(|p| p.is_finite()).copied()).collect::<Option<Vec<_>>>() else { continue };
+            for (p, &vi) in points.iter().zip(face) {
+                let n = match mesh.normals.get(vi as usize) {
+                    Some(n) if n.is_finite() && n.0 * facet.0 + n.1 * facet.1 + n.2 * facet.2 > 0.94 => *n,
+                    _ => facet,
+                };
+                data.extend_from_slice(&[p.0, p.1, p.2, n.0, n.1, n.2, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
+            }
+        }
+        data
+    }
+
     /// Flatten a mesh into the interleaved layout with neutral colours — the
     /// ghost pass supplies its own tint.
     pub fn stage_plain(mesh: &ringdesign_core::Mesh) -> Vec<f32> {
@@ -447,6 +503,14 @@ impl GpuMeshRenderer {
             unsafe {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.gem_vbo));
                 gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
+                gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            }
+        }
+        if let Some(verts) = self.preview_pending.take() {
+            self.preview_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
+            unsafe {
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.preview_vbo));
+                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::DYNAMIC_DRAW);
                 gl.bind_buffer(glow::ARRAY_BUFFER, None);
             }
         }
@@ -576,6 +640,39 @@ impl GpuMeshRenderer {
                 gl.uniform_3_f32(loc.as_ref(), base_color[0], base_color[1], base_color[2]);
             }
 
+            // A live command's ghost: its own buffer under a model matrix, translucent and depth-tested.
+            if let (true, Some((model, normal))) = (self.preview_count > 0, self.preview_model) {
+                gl.use_program(Some(res.program));
+                let mvp_loc = gl.get_uniform_location(res.program, "u_mvp");
+                gl.uniform_matrix_4_f32_slice(mvp_loc.as_ref(), false, &mul4(mvp, &model));
+                let normal_loc = gl.get_uniform_location(res.program, "u_normal_matrix");
+                gl.uniform_matrix_3_f32_slice(normal_loc.as_ref(), false, &mul3(normal_matrix, &normal));
+                let loc = gl.get_uniform_location(res.program, "u_mode");
+                gl.uniform_1_i32(loc.as_ref(), 0);
+                let loc = gl.get_uniform_location(res.program, "u_base_color");
+                gl.uniform_3_f32(loc.as_ref(), PREVIEW_TINT[0], PREVIEW_TINT[1], PREVIEW_TINT[2]);
+                let alpha_loc = gl.get_uniform_location(res.program, "u_alpha");
+                gl.uniform_1_f32(alpha_loc.as_ref(), PREVIEW_TINT[3]);
+                let clip_loc = gl.get_uniform_location(res.program, "u_clip_plane");
+                gl.uniform_4_f32_slice(clip_loc.as_ref(), &[0.0; 4]);
+                gl.enable(glow::BLEND);
+                gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+                gl.depth_mask(false);
+                gl.bind_vertex_array(Some(res.preview_vao));
+                gl.draw_arrays(glow::TRIANGLES, 0, self.preview_count);
+                gl.depth_mask(true);
+                gl.disable(glow::BLEND);
+                gl.bind_vertex_array(Some(res.vao));
+                gl.uniform_matrix_4_f32_slice(mvp_loc.as_ref(), false, mvp);
+                gl.uniform_matrix_3_f32_slice(normal_loc.as_ref(), false, normal_matrix);
+                gl.uniform_1_f32(alpha_loc.as_ref(), 1.0);
+                gl.uniform_4_f32_slice(clip_loc.as_ref(), &clip_plane);
+                let loc = gl.get_uniform_location(res.program, "u_mode");
+                gl.uniform_1_i32(loc.as_ref(), mode);
+                let loc = gl.get_uniform_location(res.program, "u_base_color");
+                gl.uniform_3_f32(loc.as_ref(), base_color[0], base_color[1], base_color[2]);
+            }
+
             if wireframe {
                 gl.use_program(Some(res.wire_program));
                 let loc = gl.get_uniform_location(res.wire_program, "u_mvp");
@@ -669,11 +766,13 @@ impl GpuMeshRenderer {
         let ghost_vbo = unsafe { gl.create_buffer() }.expect("create ghost VBO");
         let cutter_vao = unsafe { gl.create_vertex_array() }.expect("create cutter VAO");
         let cutter_vbo = unsafe { gl.create_buffer() }.expect("create cutter VBO");
+        let preview_vao = unsafe { gl.create_vertex_array() }.expect("create preview VAO");
+        let preview_vbo = unsafe { gl.create_buffer() }.expect("create preview VBO");
         let focus_vbo = unsafe { gl.create_buffer() }.expect("create focus VBO");
         let select_vbo = unsafe { gl.create_buffer() }.expect("create select VBO");
 
         unsafe {
-            for (vao, vbo) in [(vao, vbo), (gem_vao, gem_vbo), (ghost_vao, ghost_vbo), (cutter_vao, cutter_vbo)] {
+            for (vao, vbo) in [(vao, vbo), (gem_vao, gem_vbo), (ghost_vao, ghost_vbo), (cutter_vao, cutter_vbo), (preview_vao, preview_vbo)] {
                 gl.bind_vertex_array(Some(vao));
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
 
@@ -708,6 +807,8 @@ impl GpuMeshRenderer {
             ghost_vbo,
             cutter_vao,
             cutter_vbo,
+            preview_vao,
+            preview_vbo,
             focus_vbo,
             select_vbo,
         });
@@ -726,10 +827,15 @@ impl GpuMeshRenderer {
                 gl.delete_buffer(res.ghost_vbo);
                 gl.delete_vertex_array(res.cutter_vao);
                 gl.delete_buffer(res.cutter_vbo);
+                gl.delete_vertex_array(res.preview_vao);
+                gl.delete_buffer(res.preview_vbo);
                 gl.delete_buffer(res.focus_vbo);
                 gl.delete_buffer(res.select_vbo);
             }
         }
+        self.preview_count = 0;
+        self.preview_pending = None;
+        self.preview_model = None;
         self.focus_pending = None;
         self.focus_live = false;
         self.select_pending = None;
@@ -1056,7 +1162,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
         ui.ctx().request_repaint();
     }
-    if response.secondary_clicked() {
+    // The command layer takes its keys, the pointer and its clicks before the viewport's own handling.
+    let took = if active { crate::command::input(app, ui, pane, rect, &response) } else { crate::command::Took::default() };
+    if response.secondary_clicked() && !took.secondary {
         // What the menu is about: the best pick under the pointer, with the band's own raycast as
         // the fallback before the first scene is built.
         let camera = app.panes[pane].camera;
@@ -1080,10 +1188,12 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         app.selection.under = under;
         app.cad.ring_menu_hit = app.selection.under.as_ref().map(|p| p.world.map(|v| v as f32));
     }
-    response.context_menu(|ui| {
-        ui.set_min_width(190.);
-        show_menu(app, ui, pane);
-    });
+    if !took.secondary && !took.live {
+        response.context_menu(|ui| {
+            ui.set_min_width(190.);
+            show_menu(app, ui, pane);
+        });
+    }
     let shift = ui.input(|i| i.modifiers.shift);
     let explicit_navigation = shift || ui.input(|i| i.pointer.middle_down() || i.multi_touch().is_some_and(|m| m.num_touches >= 2));
     let camera = app.panes[pane].camera;
@@ -1106,7 +1216,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         let Some(cam) = app.panes.get_mut(pane).map(|p| &mut p.camera) else {
             return;
         };
-        if response.dragged_by(egui::PointerButton::Primary) && !blocked && !floating_blocked && !follow_node {
+        if response.dragged_by(egui::PointerButton::Primary) && !blocked && !floating_blocked && !follow_node && !took.drag {
             let delta = response.drag_delta();
             if shift || locked {
                 cam.pan_by(delta, rect);
@@ -1129,7 +1239,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     };
     let proj = camera.projector(rect);
 
-    if response.clicked() && (!active || app.visual.tool == Tool::Select) {
+    if response.clicked() && !took.click && (!active || app.visual.tool == Tool::Select) {
         if let Some(pos) = response.interact_pointer_pos() {
             app.active_pane = pane;
             let mods = ui.input(|i| ringdesign_workbench::viewport::Mods { shift: i.modifiers.shift, ctrl: i.modifiers.command, alt: i.modifiers.alt });
@@ -1207,12 +1317,14 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         );
     }
 
+    // The tool rail stands at the left edge; the corner overlays start beside it.
+    let overlay = if follow_node { rect } else { rect.with_min_x(rect.left() + crate::command::RAIL_W) };
     if app.show_grid {
-        draw_axes(&painter, &proj, rect);
+        draw_axes(&painter, &proj, overlay);
     }
 
     draw_section_marker(app, &painter, &proj);
-    draw_legend(app, shade, &painter, rect);
+    draw_legend(app, shade, &painter, overlay);
     draw_probe(app, &painter, &proj, rect);
     if active && !floating_blocked {
         if let Some(build) = app.build.clone() {
@@ -1249,7 +1361,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
 
     if app.band_paint { ringdesign_workbench::paint_preview::draw(ui,rect,|p|proj.at(p)); }
 
-    if active && app.visual.tool == Tool::Select {
+    if active && app.visual.tool == Tool::Select && !took.live && !took.boxing {
         app.hovered_node = None;
         // The scene answers first; a band under the pointer falls through to the layer caption and
         // the node highlight it always had.
@@ -1272,7 +1384,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             if of > 1 {
                 text = format!("{text} · Tab {}/{of}", at + 1);
             }
-            ringdesign_workbench::hover::caption(&painter, rect, &text, ringdesign_workbench::hover::AQUA);
+            ringdesign_workbench::hover::caption(&painter, overlay, &text, ringdesign_workbench::hover::AQUA);
             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
         }
         if response.hovered() && app.selection.stack().len() > 1 && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab)) {
@@ -1294,6 +1406,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
     }
     draw_selection(app, &painter, &proj, rect);
+    if !follow_node {
+        crate::command::draw(app, ui, pane, &response, &painter, &proj, active);
+    }
     let label = {
         let mut s = String::from("Ring viewport");
         if let Some(h) = &app.selection.hover {
@@ -1301,6 +1416,12 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
         if !app.selection.items.is_empty() {
             s.push_str(&format!(" · {} selected", app.selection.items.len()));
+        }
+        if let Some(c) = app.command.session.command() {
+            s.push_str(&format!(" · {} live", c.title()));
+        }
+        if app.command.box_armed {
+            s.push_str(" · box select armed");
         }
         s
     };

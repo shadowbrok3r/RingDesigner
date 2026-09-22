@@ -7,7 +7,7 @@ use ringdesign_core::{
     cad::EvaluatedComponent,
     interaction::{
         bvh::Bvh,
-        pick::{Entity, Filter, Pick},
+        pick::{Entity, Filter, Pick, Ray},
     },
     mesh::SOLID_VERTEX,
     sketch::Id,
@@ -40,6 +40,18 @@ impl Sel {
             Entity::Vertex { feature, vertex } => Sel::Vertex { feature: *feature, vertex: *vertex },
             Entity::Stone { path } => Sel::Stone(path.clone()),
         }
+    }
+
+    /// The selection an entity is, without a pick; the band has no place to name and is none.
+    pub fn of_entity(e: &Entity) -> Option<Self> {
+        Some(match e {
+            Entity::Band => return None,
+            Entity::Part { feature } => Sel::Part(*feature),
+            Entity::Face { feature, face } => Sel::Face { feature: *feature, face: *face },
+            Entity::Edge { feature, edge } => Sel::Edge { feature: *feature, edge: *edge },
+            Entity::Vertex { feature, vertex } => Sel::Vertex { feature: *feature, vertex: *vertex },
+            Entity::Stone { path } => Sel::Stone(path.clone()),
+        })
     }
 
     /// The CAD feature the selection is on, if any.
@@ -179,6 +191,36 @@ impl Selection {
         self.under = None;
     }
 
+    /// A box's catch as the choice, a whole part standing for its faces, edges and vertices: Shift adds, Ctrl removes, else replaces.
+    pub fn boxed(&mut self, entities: &[Entity], mods: Mods) {
+        let parts: Vec<Id> = entities.iter().filter_map(|e| if let Entity::Part { feature } = e { Some(*feature) } else { None }).collect();
+        let chosen: Vec<Sel> = entities
+            .iter()
+            .filter(|e| !matches!(e, Entity::Face { feature, .. } | Entity::Edge { feature, .. } | Entity::Vertex { feature, .. } if parts.contains(feature)))
+            .filter_map(Sel::of_entity)
+            .collect();
+        match (mods.shift, mods.ctrl) {
+            (true, _) => {
+                for sel in chosen {
+                    if !self.items.contains(&sel) {
+                        self.items.push(sel);
+                        self.dirty = true;
+                    }
+                }
+            }
+            (false, true) => {
+                let before = self.items.len();
+                self.items.retain(|s| !chosen.contains(s));
+                self.dirty |= self.items.len() != before;
+            }
+            (false, false) => {
+                self.dirty |= self.items != chosen;
+                self.items = chosen;
+                self.under = None;
+            }
+        }
+    }
+
     pub fn is_selected(&self, e: &Entity) -> bool {
         self.items.iter().any(|s| s.is(e))
     }
@@ -190,6 +232,37 @@ impl Selection {
         self.staged_for = mesh_key;
         due
     }
+}
+
+/// The planes through the rays under a rectangle's corners, taken round it, as `a·x + b·y + c·z + d ≥ 0` inside.
+pub fn box_planes(corners: [Ray; 4]) -> [[f64; 4]; 4] {
+    let unit = |v: [f64; 3]| {
+        let l = dot3(v, v).sqrt();
+        if l > 0.0 { v.map(|x| x / l) } else { v }
+    };
+    let dirs = corners.map(|r| unit(r.direction));
+    let mid_o: [f64; 3] = std::array::from_fn(|k| corners.iter().map(|r| r.origin[k]).sum::<f64>() / 4.0);
+    let mid_d = unit(std::array::from_fn(|k| dirs.iter().map(|d| d[k]).sum::<f64>()));
+    let probe: [f64; 3] = std::array::from_fn(|k| mid_o[k] + mid_d[k]);
+    std::array::from_fn(|i| {
+        let j = (i + 1) % 4;
+        let p0 = corners[i].origin;
+        let p1: [f64; 3] = std::array::from_fn(|k| p0[k] + dirs[i][k]);
+        let p2: [f64; 3] = std::array::from_fn(|k| corners[j].origin[k] + dirs[j][k]);
+        let n = unit(cross3(sub3(p1, p0), sub3(p2, p0)));
+        let d = -dot3(n, p0);
+        if dot3(n, probe) + d < 0.0 { [-n[0], -n[1], -n[2], -d] } else { [n[0], n[1], n[2], d] }
+    })
+}
+
+fn sub3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+fn dot3(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+fn cross3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
 }
 
 /// A fused vertex within this of a part's own face tessellation is on that face.
@@ -433,6 +506,37 @@ mod tests {
         assert!(!s.needs_stage(2), "the same hover again is not a change");
         s.click(Some(Sel::Part(1)), Mods::default());
         assert!(s.needs_stage(2));
+    }
+
+    #[test]
+    fn a_window_round_the_bezel_boxes_its_part_and_the_modifiers_add_and_remove() {
+        let design = court_with_bezel();
+        let lib = AlphaLibrary::builtin();
+        let built = mesh::build(&design, &lib, BuildParams { theta_steps: 256, profile_steps: 128, ..Default::default() });
+        let scene = PickScene::build(&built, &design);
+        // Looking down −y at the top of the ring: a screen corner at (x, z) is a ray from y = 40.
+        let corner = |x: f64, z: f64| Ray { origin: [x, 40.0, z], direction: [0.0, -1.0, 0.0] };
+        let window = box_planes([corner(-2.0, -2.0), corner(2.0, -2.0), corner(2.0, 2.0), corner(-2.0, 2.0)]);
+        let inside = |p: [f64; 3]| window.iter().all(|pl| pl[0] * p[0] + pl[1] * p[1] + pl[2] * p[2] + pl[3] >= 0.0);
+        assert!(inside([0.0, 10.0, 0.0]) && inside([1.9, -30.0, -1.9]) && !inside([2.1, 10.0, 0.0]) && !inside([0.0, 10.0, -2.1]));
+        let caught = scene.box_select(window, false, Filter::default());
+        assert!(caught.contains(&Entity::Part { feature: 1 }), "{caught:?}");
+        assert!(caught.iter().any(|e| matches!(e, Entity::Face { .. })) && !caught.contains(&Entity::Band));
+        let mut s = Selection::default();
+        s.click(Some(Sel::BandPoint { theta_deg: 0.0, v_mm: 0.0, world: [10.0, 0.0, 0.0] }), Mods::default());
+        s.boxed(&caught, Mods::default());
+        assert_eq!(s.items, [Sel::Part(1)], "a whole part stands for its faces, edges and vertices");
+        // A crossing that only clips the rim still takes the part; Ctrl takes it away, Shift puts it back.
+        let crossing = box_planes([corner(1.2, -0.3), corner(2.5, -0.3), corner(2.5, 0.3), corner(1.2, 0.3)]);
+        let clipped = scene.box_select(crossing, true, Filter::default());
+        assert!(clipped.contains(&Entity::Part { feature: 1 }) && clipped.contains(&Entity::Band), "{clipped:?}");
+        assert!(scene.box_select(crossing, false, Filter { parts: true, ..Filter::none() }).is_empty(), "a window must hold the whole part");
+        s.boxed(&clipped, Mods { ctrl: true, ..Default::default() });
+        assert!(s.items.is_empty());
+        s.boxed(&clipped, Mods { shift: true, ..Default::default() });
+        assert_eq!(s.items, [Sel::Part(1)], "the band is never boxed");
+        s.boxed(&[], Mods::default());
+        assert!(s.items.is_empty(), "an empty plain box clears");
     }
 
     /// The Court band with a joined cylinder at its top, as the pick scene's own tests build it.

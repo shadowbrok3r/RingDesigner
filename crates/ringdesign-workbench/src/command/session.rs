@@ -441,12 +441,12 @@ mod tests {
     }
 
     #[test]
-    fn the_catalog_lists_every_command_with_a_mark_and_the_three_hotkeys() {
+    fn the_catalog_lists_every_command_with_a_mark_and_its_hotkey() {
         let cat = Session::catalog();
         let keys: Vec<_> = cat.iter().map(|c| c.key).collect();
         assert_eq!(keys, ["move", "rotate", "scale", "place", "add-box", "add-cylinder", "add-sphere", "attach"]);
         let hot: Vec<_> = cat.iter().filter_map(|c| c.hotkey.map(|h| (c.key, h))).collect();
-        assert_eq!(hot, [("move", 'G'), ("rotate", 'R'), ("scale", 'S')]);
+        assert_eq!(hot, [("move", 'G'), ("rotate", 'R'), ("scale", 'S'), ("place", 'P'), ("attach", 'J')]);
         assert!(cat.iter().all(|c| !c.steps.is_empty() && !c.title.is_empty()));
         let marks: std::collections::HashSet<_> = cat.iter().map(|c| c.icon).collect();
         assert_eq!(marks.len(), cat.len(), "every command has its own mark");

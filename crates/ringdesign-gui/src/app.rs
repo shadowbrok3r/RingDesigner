@@ -182,6 +182,8 @@ pub struct RingDesignerApp {
     pub pick_scene: Option<Arc<PickScene>>,
     /// What the Ring viewport has chosen and is hovering.
     pub selection: Selection,
+    /// The Ring viewport's command session, its dimension bar and box select.
+    pub command: crate::command::CommandState,
     pub cast: Option<CastReport>,
     pub field: Option<ringdesign_core::castability::FieldReport>,
     pub stones: Option<ringdesign_core::stones::StonesReport>,
@@ -352,6 +354,7 @@ impl RingDesignerApp {
             build: None,
             pick_scene: None,
             selection: Selection::default(),
+            command: Default::default(),
             cast: None,
             field: None,
             stones: None,
@@ -1387,6 +1390,9 @@ impl Worker {
             .spawn(move || {
                 let reg = ringdesign_script::registry();
                 let mut evaluator = Evaluator::with_exprs(ringdesign_script::engine());
+                // CAD bodies and tessellations an edit leaves alone come back from here on the next build.
+                let cache = Mutex::new(ringdesign_core::cad::Cache::default());
+                let never = std::sync::atomic::AtomicBool::new(false);
                 while let Ok(mut job) = jobs_rx.recv() {
                     // Skip stale work: only the newest queued job matters.
                     while let Ok(newer) = jobs_rx.try_recv() {
@@ -1397,7 +1403,7 @@ impl Worker {
                     // thread died, `jobs_tx.send` failed from then on, and
                     // the app went quietly read-only. Now it is one failed
                     // build with a message.
-                    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Done, String> {
                         // A graph-driven design is evaluated first; the library's
                         // identity is its epoch, so a replaced library re-runs it.
                         let mut graph_done = None;
@@ -1441,13 +1447,15 @@ impl Worker {
                             }
                         }
                         let cutters = if job.show_cutters { ringdesign_core::setting::ghost_vertices(&job.design, &job.lib) } else { Vec::new() };
+                        let memo = ringdesign_core::cad::Memo::new(&cache);
                         let result = if job.live_cuts {
-                            ringdesign_core::mesh::build(&job.design, &job.lib, job.params)
+                            ringdesign_core::mesh::try_build_memo(&job.design, &job.lib, job.params, &never, memo)
                         } else {
                             // Seats uncut and parts unjoined: the cheap build while a stroke is live.
                             let stock = ringdesign_workbench::cad_tools::without_joins(&ringdesign_core::setting::without_solids(&job.design));
-                            ringdesign_core::mesh::build(&stock, &job.lib, job.params)
-                        };
+                            ringdesign_core::mesh::try_build_memo(&stock, &job.lib, job.params, &never, memo)
+                        }
+                        .map_err(|e| format!("{e:#}"))?;
                         let cast = castability::analyze(
                             &result.mesh,
                             &job.design.draft,
@@ -1465,7 +1473,7 @@ impl Worker {
                             .into_iter()
                             .max_by(|a, b| a.1.total_cmp(&b.1));
                         let gems = crate::gems::preview_vertices(&job.design, &job.lib);
-        Done {
+                        Ok(Done {
                             generation,
                             params: job.params,
                             result,
@@ -1476,10 +1484,18 @@ impl Worker {
                             gems,
                             cutters,
                             graph: graph_done,
-                        }
+                        })
                     }));
+                    // A panic inside a cache update leaves it poisoned; it starts again empty.
+                    if cache.is_poisoned() {
+                        cache.clear_poison();
+                        if let Ok(mut c) = cache.lock() {
+                            c.clear();
+                        }
+                    }
                     let msg = match outcome {
-                        Ok(done) => WorkerMsg::Done(Box::new(done)),
+                        Ok(Ok(done)) => WorkerMsg::Done(Box::new(done)),
+                        Ok(Err(message)) => WorkerMsg::Failed { generation, message },
                         Err(p) => WorkerMsg::Failed {
                             generation,
                             message: p

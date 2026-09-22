@@ -846,11 +846,11 @@ pub fn catalog() -> Vec<CommandInfo> {
         info(&MoveCmd::new(0, ring.clone(), 0), Some('G'), Icon::Move),
         info(&RotateCmd::new(0, ring.clone(), 0), Some('R'), Icon::Rotate),
         info(&ScaleCmd::new(0, Operation::Sphere { radius_mm: 1.0 }, [0.0; 3]).expect("a sphere scales"), Some('S'), Icon::Scale),
-        info(&PlaceCmd::new(0, ring), None, Icon::CadPlace),
+        info(&PlaceCmd::new(0, ring), Some('P'), Icon::CadPlace),
         info(&AddPrimitiveCmd::new(Primitive::Box, 0), None, Icon::CadBox),
         info(&AddPrimitiveCmd::new(Primitive::Cylinder, 0), None, Icon::CadCylinder),
         info(&AddPrimitiveCmd::new(Primitive::Sphere, 0), None, Icon::CadSphere),
-        info(&AttachCmd::new(0, Attach::Separate), None, Icon::CadUnion),
+        info(&AttachCmd::new(0, Attach::Separate), Some('J'), Icon::CadUnion),
     ]
 }
 
