@@ -11,6 +11,7 @@ use cadkernel::brep::{self, Body, make, mesh::TessellationTolerance};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 pub mod assembly;
+pub mod edit;
 pub mod examples;
 pub mod measure;
 pub mod step;

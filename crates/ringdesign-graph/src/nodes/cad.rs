@@ -1,13 +1,17 @@
 //! CAD features return designs so desktop, CLI, and manufacturing all build
 //! the same source program. Node identities double as stable feature names.
 use crate::{
-    graph::{Graph, Mode, Node, NodeId},
+    graph::{Graph, GraphError, Mode, Node, NodeId},
     registry::{Category, EvalCtx, Inputs, NodeError, NodeSpec, Outputs, PinSpec, Registry},
-    value::{Value, ValueKind},
+    value::{Literal, Value, ValueKind},
 };
 use ringdesign_core::{
     RingDesign,
-    cad::{Document, Feature, Operation},
+    cad::{
+        Document, Feature, Operation,
+        edit::{Applied, CadEdit},
+    },
+    sketch::Id,
 };
 
 fn source(_: &mut EvalCtx<'_>, n: &Node, _: &Inputs) -> Result<Outputs, NodeError> {
@@ -295,6 +299,377 @@ pub fn append(g: &mut Graph, operation: Operation) -> Result<NodeId, crate::grap
     g.connect(id, "design", sink, crate::eval::OUTPUT_DESIGN_PIN)?;
     Ok(id)
 }
+/// The document fields the lift writes through `design.set` nodes.
+const OUTPUTS: &str = "/cad/outputs";
+const JOINTS: &str = "/cad/joints";
+const THROUGH: &str = "/cad/through";
+/// The document field a node writes, if it is one of the lift's property nodes.
+fn property_of(n: &Node) -> Option<&'static str> {
+    if n.kind != "design.set" {
+        return None;
+    }
+    match n.inputs.get("pointer") {
+        Some(Literal::Text(p)) => [OUTPUTS, JOINTS, THROUGH].into_iter().find(|k| k == p),
+        _ => None,
+    }
+}
+fn is_feature(g: &Graph, id: NodeId) -> bool {
+    g.node(id).is_some_and(|n| n.kind == "cad.feature")
+}
+fn is_property(g: &Graph, id: NodeId) -> bool {
+    g.node(id).and_then(property_of).is_some()
+}
+/// A refusal naming a node whose effect on the document is only known by evaluating it.
+fn unreadable(id: NodeId, what: impl std::fmt::Display) -> GraphError {
+    GraphError::at(id, format!("{what}; edit it in the graph"))
+}
+/// The JSON a literal hands an item pin; `None` for an expression, or a list the node would run per item.
+fn literal_json(l: &Literal) -> Option<serde_json::Value> {
+    Some(match l {
+        Literal::Null => serde_json::Value::Null,
+        Literal::Bool(b) => serde_json::json!(b),
+        Literal::Int(i) => serde_json::json!(i),
+        Literal::Number(x) => serde_json::json!(x),
+        Literal::Text(s) => serde_json::json!(s),
+        Literal::Json(v) => v.clone(),
+        Literal::List(_) | Literal::Expr(_) => return None,
+    })
+}
+/// The nodes a design passes through by `design` wires to the sink (else the last node), source first.
+fn design_chain(g: &Graph) -> Vec<NodeId> {
+    let end = g
+        .nodes
+        .iter()
+        .find(|n| n.kind == crate::eval::OUTPUT_KIND)
+        .map(|n| n.id)
+        .or_else(|| g.nodes.last().map(|n| n.id));
+    let mut chain = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    let mut at = end;
+    while let Some(id) = at {
+        if !seen.insert(id) {
+            break;
+        }
+        chain.push(id);
+        at = g.wire_into(id, "design").map(|w| w.from);
+    }
+    chain.reverse();
+    chain
+}
+/// The feature a chain's `cad.feature` node appends, read as the node evaluates it.
+fn chain_feature(g: &Graph, n: &Node) -> Result<Feature, GraphError> {
+    if g.wire_into(n.id, "operation").is_some() {
+        return Err(unreadable(n.id, "this feature takes its operation from a wire"));
+    }
+    if n.inputs.get("operation").is_some_and(|l| *l != Literal::Null) {
+        return Err(unreadable(n.id, "this feature takes its operation from its pin"));
+    }
+    if g.wire_into(n.id, "enabled").is_some() {
+        return Err(unreadable(n.id, "this feature is suppressed by a wire"));
+    }
+    let pin = match n.inputs.get("enabled") {
+        None => true,
+        Some(Literal::Bool(b)) => *b,
+        Some(Literal::Int(i)) => *i != 0,
+        Some(Literal::Number(x)) => *x != 0.0,
+        Some(_) => return Err(unreadable(n.id, "this feature's enabled pin holds no boolean")),
+    };
+    let mut f: Feature = serde_json::from_value(n.params.clone()).map_err(|e| GraphError::at(n.id, format!("CAD feature: {e}")))?;
+    f.id = n.id.0;
+    f.enabled &= pin;
+    Ok(f)
+}
+/// The document field a chain's `design.set` node writes and its value; a write elsewhere under `/cad` is refused.
+fn chain_property(g: &Graph, n: &Node) -> Result<Option<(&'static str, serde_json::Value)>, GraphError> {
+    if g.wire_into(n.id, "pointer").is_some() {
+        return Err(unreadable(n.id, "this node writes a field a wire names"));
+    }
+    let Some(pointer) = property_of(n) else {
+        return match n.inputs.get("pointer") {
+            Some(Literal::Text(p)) if p == "/cad" || p.starts_with("/cad/") => Err(unreadable(n.id, format!("this node writes {p} whole"))),
+            _ => Ok(None),
+        };
+    };
+    if let Some(v) = n.params.get("json_value") {
+        return Ok(Some((pointer, v.clone())));
+    }
+    if g.wire_into(n.id, "value").is_some() {
+        return Err(unreadable(n.id, format!("{pointer} comes from a wire")));
+    }
+    let value = n.inputs.get("value").and_then(literal_json).ok_or_else(|| GraphError::at(n.id, format!("{pointer} carries no value")))?;
+    Ok(Some((pointer, value)))
+}
+/// The document a graph's design chain encodes, and the chain's nodes.
+struct Chain {
+    nodes: Vec<NodeId>,
+    doc: Document,
+}
+fn read_chain(g: &Graph) -> Result<Chain, GraphError> {
+    let nodes = design_chain(g);
+    let mut doc = Document::default();
+    for &id in &nodes {
+        let n = g.node(id).ok_or_else(|| GraphError::at(id, "no such node"))?;
+        if n.kind == "cad.feature" {
+            doc.append(chain_feature(g, n)?).map_err(|e| GraphError::at(id, e.to_string()))?;
+        } else if n.kind == "design.set" {
+            let Some((pointer, value)) = chain_property(g, n)? else { continue };
+            let parse = |e: serde_json::Error| GraphError::at(id, format!("{pointer}: {e}"));
+            match pointer {
+                OUTPUTS => doc.outputs = serde_json::from_value(value).map_err(parse)?,
+                JOINTS => doc.joints = serde_json::from_value(value).map_err(parse)?,
+                _ => doc.through = serde_json::from_value(value).map_err(parse)?,
+            }
+        }
+    }
+    Ok(Chain { nodes, doc })
+}
+/// The document a graph evaluates to, read off its nodes; empty where the evaluated design has none.
+pub fn document(g: &Graph) -> Result<Document, GraphError> {
+    read_chain(g).map(|c| c.doc)
+}
+/// The output a chain node hands its design on: the one its wire into `to` uses, else `design`.
+fn design_out(g: &Graph, from: NodeId, to: Option<NodeId>) -> String {
+    to.and_then(|to| g.wire_into(to, "design"))
+        .filter(|w| w.from == from)
+        .map_or_else(|| "design".into(), |w| w.out.clone())
+}
+/// Wires `node` into the chain directly after `pred`.
+fn insert_after(g: &mut Graph, nodes: &mut Vec<NodeId>, pred: NodeId, node: NodeId) -> Result<(), GraphError> {
+    let i = nodes.iter().position(|n| *n == pred).ok_or_else(|| GraphError::at(pred, "not on the design chain"))?;
+    let out = design_out(g, pred, nodes.get(i + 1).copied());
+    if let Some(&next) = nodes.get(i + 1) {
+        g.connect(node, "design", next, "design")?;
+    }
+    g.connect(pred, out, node, "design")?;
+    let pos = g.node(pred).map(|n| n.pos).unwrap_or_default();
+    if let Some(n) = g.node_mut(node) {
+        n.pos = [pos[0] + 220.0, pos[1]];
+    }
+    nodes.insert(i + 1, node);
+    Ok(())
+}
+/// Takes `node` out of the chain and wires its neighbours together.
+fn splice_out(g: &mut Graph, nodes: &mut Vec<NodeId>, node: NodeId) -> Result<(), GraphError> {
+    let i = nodes.iter().position(|n| *n == node).ok_or_else(|| GraphError::at(node, "not on the design chain"))?;
+    let up = g.disconnect(node, "design");
+    if let Some(&down) = nodes.get(i + 1) {
+        g.disconnect(down, "design");
+        if let Some(up) = up {
+            g.connect(up.from, up.out, down, "design")?;
+        }
+    }
+    nodes.remove(i);
+    Ok(())
+}
+/// Where an added feature goes: after the last feature, else before the first property node or the sink.
+fn feature_end(g: &Graph, nodes: &[NodeId]) -> Option<NodeId> {
+    if let Some(last) = nodes.iter().rev().find(|id| is_feature(g, **id)) {
+        return Some(*last);
+    }
+    let stop = nodes
+        .iter()
+        .position(|id| is_property(g, *id) || g.node(*id).is_some_and(|n| n.kind == crate::eval::OUTPUT_KIND))
+        .unwrap_or(nodes.len());
+    stop.checked_sub(1).map(|k| nodes[k])
+}
+/// The edited document an edit leaves, judged before the graph is touched.
+struct Plan {
+    nodes: Vec<NodeId>,
+    doc: Document,
+    applied: Applied,
+}
+fn plan(g: &Graph, edit: &CadEdit) -> Result<Plan, GraphError> {
+    let Chain { nodes, mut doc } = read_chain(g)?;
+    if nodes.is_empty() {
+        return Err(GraphError::global("Graph needs a design source"));
+    }
+    if let CadEdit::Add { feature, .. } = edit {
+        if feature.id != 0 && doc.feature(feature.id).is_none() && g.contains(NodeId(feature.id)) {
+            return Err(GraphError::at(NodeId(feature.id), format!("Feature identity #{} names another node", feature.id)));
+        }
+    }
+    let applied = doc.apply(edit).map_err(|e| GraphError::global(e.to_string()))?;
+    Ok(Plan { nodes, doc, applied })
+}
+/// Rewires the chain and rewrites its params to encode a planned edit.
+fn encode(g: &mut Graph, plan: Plan, edit: &CadEdit) -> Result<Applied, GraphError> {
+    let Plan { mut nodes, mut doc, mut applied } = plan;
+    match edit {
+        CadEdit::Add { feature, after } => {
+            let node = g.add("cad.feature")?;
+            let node = if feature.id == 0 {
+                node
+            } else {
+                g.node_mut(node).expect("added").id = NodeId(feature.id);
+                g.next_id = g.next_id.max(feature.id + 1);
+                NodeId(feature.id)
+            };
+            // Renames the document's placeholder id to the node's id.
+            let placed = applied.id.expect("an add names its feature");
+            for f in doc.features.iter_mut().filter(|f| f.id == placed) {
+                f.id = node.0;
+            }
+            for o in doc.outputs.iter_mut().filter(|o| **o == placed) {
+                *o = node.0;
+            }
+            applied.id = Some(node.0);
+            let pred = match after {
+                Some(a) => NodeId(*a),
+                None => feature_end(g, &nodes).ok_or_else(|| GraphError::global("Graph needs a design source"))?,
+            };
+            insert_after(g, &mut nodes, pred, node)?;
+            if !g.nodes.iter().any(|n| n.kind == crate::eval::OUTPUT_KIND) {
+                // Feeds a new sink from the chain's last feature or property node.
+                let end = *nodes.iter().rev().find(|id| is_feature(g, **id) || is_property(g, **id)).expect("the chain holds the new node");
+                let sink = g.add(crate::eval::OUTPUT_KIND)?;
+                g.connect(end, "design", sink, crate::eval::OUTPUT_DESIGN_PIN)?;
+                let at = nodes.iter().position(|n| *n == end).expect("on the chain") + 1;
+                nodes.truncate(at);
+                nodes.push(sink);
+            }
+        }
+        CadEdit::Remove { id } => {
+            splice_out(g, &mut nodes, NodeId(*id))?;
+            g.remove(NodeId(*id))?;
+        }
+        CadEdit::Move { id, after } => {
+            let node = NodeId(*id);
+            let at = nodes.iter().position(|n| *n == node).ok_or_else(|| GraphError::at(node, "not on the design chain"))?;
+            let source = at.checked_sub(1).map(|k| nodes[k]).ok_or_else(|| GraphError::at(node, "has no design source"))?;
+            splice_out(g, &mut nodes, node)?;
+            let pred = match after {
+                Some(a) => NodeId(*a),
+                None => nodes
+                    .iter()
+                    .position(|n| is_feature(g, *n))
+                    .and_then(|i| i.checked_sub(1))
+                    .map_or(source, |k| nodes[k]),
+            };
+            insert_after(g, &mut nodes, pred, node)?;
+        }
+        _ => {}
+    }
+    settle_properties(g, &mut nodes, &doc)?;
+    write_features(g, &doc, edit)?;
+    Ok(applied)
+}
+/// Keeps one property node per field after the last feature, patched or added as the document needs; none once empty.
+fn settle_properties(g: &mut Graph, nodes: &mut Vec<NodeId>, doc: &Document) -> Result<(), GraphError> {
+    let found: Vec<(NodeId, &'static str)> = nodes.iter().filter_map(|id| g.node(*id).and_then(property_of).map(|p| (*id, p))).collect();
+    let mut kept = Vec::new();
+    for (i, (id, pointer)) in found.iter().enumerate() {
+        // Drops every property node once no feature is left, and any a later node of its field overwrites.
+        if doc.features.is_empty() || found[i + 1..].iter().any(|(_, p)| p == pointer) {
+            splice_out(g, nodes, *id)?;
+            g.remove(*id)?;
+        } else {
+            kept.push((*id, *pointer));
+        }
+    }
+    let Some(last) = nodes.iter().rposition(|id| is_feature(g, *id)).map(|i| nodes[i]) else {
+        return Ok(());
+    };
+    // Moves property nodes that precede a feature to after the last feature, in order.
+    let mut anchor = last;
+    for (id, _) in &kept {
+        let at = nodes.iter().position(|n| n == id).expect("kept on the chain");
+        let end = nodes.iter().position(|n| *n == last).expect("the last feature is on the chain");
+        if at < end {
+            splice_out(g, nodes, *id)?;
+            insert_after(g, nodes, anchor, *id)?;
+            anchor = *id;
+        }
+    }
+    let mut replay = Document::default();
+    for f in &doc.features {
+        replay.append(f.clone()).map_err(|e| GraphError::at(NodeId(f.id), e.to_string()))?;
+    }
+    let json = |v: Result<serde_json::Value, serde_json::Error>| v.map_err(|e| GraphError::global(e.to_string()));
+    for (pointer, value, needed) in [
+        (OUTPUTS, json(serde_json::to_value(&doc.outputs))?, doc.outputs != replay.outputs),
+        (JOINTS, json(serde_json::to_value(&doc.joints))?, !doc.joints.is_empty()),
+        (THROUGH, json(serde_json::to_value(doc.through))?, doc.through.is_some()),
+    ] {
+        if let Some((id, _)) = kept.iter().find(|(_, p)| *p == pointer) {
+            let n = g.node_mut(*id).expect("kept on the chain");
+            if n.params.get("json_value") != Some(&value) {
+                if !n.params.is_object() {
+                    n.params = serde_json::json!({});
+                }
+                n.params.as_object_mut().expect("an object").insert("json_value".into(), value);
+            }
+        } else if needed {
+            let pred = nodes
+                .iter()
+                .rev()
+                .find(|id| is_feature(g, **id) || is_property(g, **id))
+                .copied()
+                .expect("the document has a feature");
+            let id = g.add("design.set")?;
+            g.set_input(id, "pointer", Literal::Text(pointer.into()))?;
+            g.node_mut(id).expect("added").params = serde_json::json!({ "json_value": value });
+            insert_after(g, nodes, pred, id)?;
+        }
+    }
+    Ok(())
+}
+/// Rewrites each feature node's params; the `enabled` pin follows when the edit switches it or it holds a literal.
+fn write_features(g: &mut Graph, doc: &Document, edit: &CadEdit) -> Result<(), GraphError> {
+    for f in &doc.features {
+        let id = NodeId(f.id);
+        let value = serde_json::to_value(f).map_err(|e| GraphError::at(id, e.to_string()))?;
+        let n = g
+            .node_mut(id)
+            .filter(|n| n.kind == "cad.feature")
+            .ok_or_else(|| GraphError::at(id, "no CAD feature node carries this feature"))?;
+        if n.params != value {
+            n.params = value;
+        }
+        let switched = matches!(edit, CadEdit::Enable { id: target, .. } if *target == f.id);
+        if switched || n.inputs.contains_key("enabled") {
+            n.inputs.insert("enabled".into(), Literal::Bool(f.enabled));
+        }
+    }
+    Ok(())
+}
+/// Runs `f` on the graph, or leaves the graph as it was when `f` fails.
+fn transact<T>(g: &mut Graph, f: impl FnOnce(&mut Graph) -> Result<T, GraphError>) -> Result<T, GraphError> {
+    let before = g.clone();
+    let result = f(g);
+    if result.is_err() {
+        *g = before;
+    }
+    result
+}
+/// Applies a [`CadEdit`] to a graph's CAD chain so it evaluates to what [`Document::apply`] gives, or leaves it untouched.
+pub fn apply_edit(g: &mut Graph, edit: &CadEdit) -> Result<Applied, GraphError> {
+    let plan = plan(g, edit)?;
+    transact(g, |g| encode(g, plan, edit))
+}
+/// Removes a feature and everything that reads it through the graph, dependents first; the ids removed.
+pub fn remove_with_dependents(g: &mut Graph, id: Id) -> Result<Vec<Id>, GraphError> {
+    let removed = read_chain(g)?.doc.remove_with_dependents(id).map_err(|e| GraphError::global(e.to_string()))?;
+    transact(g, |g| {
+        for r in &removed {
+            let edit = CadEdit::Remove { id: *r };
+            let plan = plan(g, &edit)?;
+            encode(g, plan, &edit)?;
+        }
+        Ok(removed)
+    })
+}
+/// The one edit funnel: edits a graph-driven design's graph for the worker to evaluate, else a plain design's document.
+pub fn edit_design(d: &mut RingDesign, edit: &CadEdit) -> anyhow::Result<Applied> {
+    use serde::Deserialize;
+    let Some(json) = d.graph.as_ref() else {
+        return d.apply_cad_edit(edit);
+    };
+    let mut g = Graph::deserialize(json).map_err(|e| anyhow::anyhow!("The design's graph would not read: {e}"))?;
+    let plan = plan(&g, edit)?;
+    let applied = encode(&mut g, plan, edit)?;
+    d.graph = Some(serde_json::to_value(&g)?);
+    Ok(applied)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -368,5 +743,149 @@ mod tests {
         };
         assert_eq!(stone(&d), stone(&resized.design));
         assert!(g.nodes.iter().any(|n| n.kind == "design.resize"));
+    }
+    #[test]
+    fn a_graph_built_by_append_takes_edits_and_grows_property_nodes_only_when_it_must() {
+        let reg = Registry::builtin();
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let mut ev = crate::eval::Evaluator::new();
+        let mut g = start(&RingDesign::default()).unwrap();
+        let a = append(&mut g, Operation::Box { size: [4.0; 3] }).unwrap();
+        let b = append(&mut g, Operation::Sphere { radius_mm: 1.5 }).unwrap();
+        assert_eq!(document(&g).unwrap().outputs, vec![a.0, b.0]);
+        assert!(!g.nodes.iter().any(|n| n.kind == "design.set"));
+        // An add at the end keeps the replayed outputs: no property node is needed.
+        let cyl = Feature { id: 0, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, component: Default::default() };
+        let c = apply_edit(&mut g, &CadEdit::Add { feature: cyl.clone(), after: None }).unwrap().id.unwrap();
+        assert!(!g.nodes.iter().any(|n| n.kind == "design.set"));
+        // One in the middle pushes its id last in the outputs, which only a property node can say.
+        let d = apply_edit(&mut g, &CadEdit::Add { feature: cyl, after: Some(a.0) }).unwrap().id.unwrap();
+        let doc = document(&g).unwrap();
+        assert_eq!(doc.features.iter().map(|f| f.id).collect::<Vec<_>>(), vec![a.0, d, b.0, c]);
+        assert_eq!(doc.outputs, vec![a.0, b.0, c, d]);
+        assert_eq!(g.nodes.iter().filter(|n| n.kind == "design.set").count(), 1);
+        let out = crate::eval::evaluate_design(&mut ev, &g, &reg, &lib, 0).unwrap();
+        assert_eq!(serde_json::to_value(&out.design.cad).unwrap(), serde_json::to_value(Some(&doc)).unwrap());
+        // Suppression rides the pin as well as the params.
+        apply_edit(&mut g, &CadEdit::Enable { id: d, enabled: false }).unwrap();
+        assert_eq!(g.node(NodeId(d)).unwrap().inputs.get("enabled"), Some(&crate::value::Literal::Bool(false)));
+        assert!(!document(&g).unwrap().feature(d).unwrap().enabled);
+        apply_edit(&mut g, &CadEdit::Enable { id: d, enabled: true }).unwrap();
+        assert!(document(&g).unwrap().feature(d).unwrap().enabled);
+        // Emptying the document takes its property nodes with it, and the graph still evaluates.
+        for id in [d, c, b.0, a.0] {
+            apply_edit(&mut g, &CadEdit::Remove { id }).unwrap();
+        }
+        assert!(g.nodes.iter().all(|n| n.kind != "design.set" && n.kind != "cad.feature"));
+        let out = crate::eval::evaluate_design(&mut ev, &g, &reg, &lib, 0).unwrap();
+        assert!(out.design.cad.is_none());
+        let e = apply_edit(&mut g, &CadEdit::Rename { id: a.0, name: "x".into() }).unwrap_err();
+        assert!(e.message.contains("No feature"), "{e}");
+    }
+    #[test]
+    fn a_chain_read_only_by_evaluating_refuses_every_edit_and_names_the_node() {
+        let boxed = || {
+            let mut g = start(&RingDesign::default()).unwrap();
+            let a = append(&mut g, Operation::Box { size: [4.0; 3] }).unwrap();
+            (g, a)
+        };
+        let mut cases = Vec::new();
+        let (mut g, a) = boxed();
+        let src = g.add("design.get").unwrap();
+        g.connect(src, "value", a, "operation").unwrap();
+        cases.push((g, a, a, "takes its operation from a wire"));
+        let (mut g, a) = boxed();
+        let sphere = serde_json::to_value(Operation::Sphere { radius_mm: 1.0 }).unwrap();
+        g.set_input(a, "operation", Literal::Json(sphere)).unwrap();
+        cases.push((g, a, a, "takes its operation from its pin"));
+        let (mut g, a) = boxed();
+        let src = g.add("design.get").unwrap();
+        g.connect(src, "value", a, "enabled").unwrap();
+        cases.push((g, a, a, "suppressed by a wire"));
+        let (mut g, a) = boxed();
+        g.set_input(a, "enabled", Literal::Text("no".into())).unwrap();
+        cases.push((g, a, a, "holds no boolean"));
+        let (mut g, a) = boxed();
+        let whole = append_property(&mut g, "/cad", serde_json::to_value(Document::default()).unwrap()).unwrap();
+        cases.push((g, a, whole, "writes /cad whole"));
+        let (mut g, a) = boxed();
+        let outputs = append_property(&mut g, OUTPUTS, serde_json::json!([a.0])).unwrap();
+        g.node_mut(outputs).unwrap().params = serde_json::Value::Null;
+        let src = g.add("design.get").unwrap();
+        g.connect(src, "value", outputs, "value").unwrap();
+        cases.push((g, a, outputs, "/cad/outputs comes from a wire"));
+        for (mut g, feature, blamed, expected) in cases {
+            let before = g.clone();
+            let e = apply_edit(&mut g, &CadEdit::Rename { id: feature.0, name: "x".into() }).unwrap_err();
+            assert!(e.message.contains(expected) && e.message.ends_with("edit it in the graph"), "{e}");
+            assert_eq!(e.node, Some(blamed), "{e}");
+            assert_eq!(g, before);
+        }
+    }
+    #[test]
+    fn an_asked_for_identity_is_kept_unless_another_node_carries_it() {
+        let mut g = start(&RingDesign::default()).unwrap();
+        append(&mut g, Operation::Box { size: [4.0; 3] }).unwrap();
+        let sink = g.nodes.iter().find(|n| n.kind == crate::eval::OUTPUT_KIND).unwrap().id;
+        let mut post = Feature { id: sink.0, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, component: Default::default() };
+        let before = g.clone();
+        let e = apply_edit(&mut g, &CadEdit::Add { feature: post.clone(), after: None }).unwrap_err();
+        assert!(e.message.contains("names another node"), "{e}");
+        assert_eq!(g, before);
+        post.id = 40;
+        assert_eq!(apply_edit(&mut g, &CadEdit::Add { feature: post, after: None }).unwrap().id, Some(40));
+        assert!(g.node(NodeId(40)).is_some_and(|n| n.kind == "cad.feature") && g.next_id == 41);
+        assert!(document(&g).unwrap().outputs.ends_with(&[40]));
+    }
+    #[test]
+    fn the_lifts_property_nodes_stay_one_per_field_after_the_last_feature() {
+        let reg = Registry::builtin();
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let d = ringdesign_core::cad::examples::design("two-part-signet").unwrap();
+        let mut g = from_document(&d).unwrap();
+        // Adds a second joints node and a part after it, as the CAD pane's buttons do.
+        append_property(&mut g, JOINTS, serde_json::json!([])).unwrap();
+        let post = append(&mut g, Operation::Cylinder { radius_mm: 0.5, height_mm: 3.0 }).unwrap();
+        let mut doc = document(&g).unwrap();
+        assert!(doc.joints.is_empty());
+        assert_eq!(doc.outputs, vec![1, 2, post.0]);
+        let rename = CadEdit::Rename { id: 1, name: "Hoop".into() };
+        doc.apply(&rename).unwrap();
+        apply_edit(&mut g, &rename).unwrap();
+        let chain = design_chain(&g);
+        let fields: Vec<_> = chain.iter().filter_map(|id| g.node(*id).and_then(property_of)).collect();
+        assert_eq!(fields, vec![OUTPUTS, THROUGH, JOINTS], "the stale joints node is gone and the rest follow the part");
+        let last = chain.iter().rposition(|id| is_feature(&g, *id)).unwrap();
+        assert!(chain.iter().position(|id| is_property(&g, *id)).unwrap() > last);
+        let out = crate::eval::evaluate_design(&mut crate::eval::Evaluator::new(), &g, &reg, &lib, 0).unwrap();
+        assert_eq!(serde_json::to_string(&out.design.cad).unwrap(), serde_json::to_string(&Some(&doc)).unwrap());
+    }
+    #[test]
+    fn rewiring_keeps_the_output_a_design_leaves_by() {
+        let mut g = start(&RingDesign::default()).unwrap();
+        let a = append(&mut g, Operation::Box { size: [4.0; 3] }).unwrap();
+        let b = append(&mut g, Operation::Sphere { radius_mm: 1.5 }).unwrap();
+        // Heads the chain with an output named `ring`, as a cluster may.
+        let src = g.nodes[0].id;
+        g.connect(src, "ring", a, "design").unwrap();
+        let wire = |g: &Graph, to: NodeId| g.wire_into(to, "design").map(|w| (w.from, w.out.clone()));
+        apply_edit(&mut g, &CadEdit::Move { id: b.0, after: None }).unwrap();
+        assert_eq!(wire(&g, b), Some((src, "ring".into())));
+        assert_eq!(wire(&g, a), Some((b, "design".into())));
+        apply_edit(&mut g, &CadEdit::Remove { id: b.0 }).unwrap();
+        assert_eq!(wire(&g, a), Some((src, "ring".into())));
+    }
+    #[test]
+    fn an_add_on_a_bare_source_grows_the_sink_append_would() {
+        let reg = Registry::builtin();
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let mut g = start(&RingDesign::default()).unwrap();
+        let post = Feature { id: 0, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, component: Default::default() };
+        let id = apply_edit(&mut g, &CadEdit::Add { feature: post, after: None }).unwrap().id.unwrap();
+        let sink = g.nodes.iter().find(|n| n.kind == crate::eval::OUTPUT_KIND).unwrap().id;
+        assert_eq!(g.wire_into(sink, crate::eval::OUTPUT_DESIGN_PIN).unwrap().from, NodeId(id));
+        let out = crate::eval::evaluate_design(&mut crate::eval::Evaluator::new(), &g, &reg, &lib, 0).unwrap();
+        let doc = out.design.cad.as_ref().unwrap();
+        assert_eq!((doc.features.len(), doc.outputs.clone()), (1, vec![id]));
     }
 }
