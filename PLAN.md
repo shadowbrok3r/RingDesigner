@@ -339,6 +339,51 @@ worktrees, then verified, measured and committed by the integrator.
   pane through the funnel, G/R/S/Place/Attach/add in the viewport with the dimension bar and a
   moving ghost, box select, the worker holding the cache; and M8's sketch core in parallel.
 
+### Batch 5 status — 2026-09-22 (on master: `eee2f15`, `bfc7e30`, `bff0c43`, fixes `3d27332`-`725b594`)
+
+- **M4's feature timeline** (`workbench::timeline`, `panels::timeline`): one chip per feature with
+  its status — Ok, Suppressed, Failed and Skipped with the evaluation's words, and Pending whenever
+  the document moved since the evaluation, so a stale red or green is never shown. Click selects
+  the part, double-click edits it, a drag reorders (a drop the funnel would refuse shows the
+  funnel's own reason and applies nothing), the rollback marker drags, and the menu has Rename,
+  Suppress, Delete (refused with the dependents named), Delete with dependents, Roll back, Isolate
+  and Move earlier/later. A strip under the Ring viewport, a list in the CAD pane (which edits a
+  pending candidate's draft instead of discarding it); Delete over the strip removes the chip.
+  60 features: `chips()` 18-20 µs, `show()` 58-85 µs a frame.
+- **M5 in the Ring viewport** (`gui::command`, `workbench::command::ring`): G, R, S, P (place under
+  the pointer), J (cycle Join/Cut/Separate), Shift+A (add Box/Cylinder/Sphere at the click), X/Y/Z
+  locks read as the ring's axes, typed values in the dimension bar, a ghost drawn under a model
+  matrix (no upload per frame), the Escape ladder, right-click cancels, B for box select (left to
+  right a window, right to left a crossing, Shift adds, Ctrl removes), a tool rail, palette
+  entries, and `every_command_has_an_icon_a_rail_slot_a_palette_entry_and_a_key`. A pointer sample
+  costs 5.7 µs mean and 28 µs worst on a 646k-face build; the band surface the ring frame is read
+  on is built at the first key press after the band changes (34 ms preview, 220 ms export). The
+  worker keeps a `cad::Cache`, but a warm part move is 68.5 ms against 72.3 cold: the csg joins
+  dominate.
+- **M8's sketch core** (`sketch::{edit, region, solid}`): split, trim, offset (lines stay lines,
+  arcs stay arcs), corner fillet and chamfer, mirror, rectangular and polar patterns; regions with
+  holes by even-odd nesting (a washer extrudes at −0.040%, two squares are two lumps); a sketch on a
+  part's face takes the face's own frame (area centroid, longest straight edge, outward normal),
+  is re-found by signature and moves with the face — a post on a box rises 0.5 mm when the box
+  grows 1 about its centre. The kernel's planegcs port was measured and not adopted: LGPL, its
+  constraints are `Rc` (not `Send`), and it brings a second nalgebra; it would lift the 128-point
+  solver cap (about 30 fillets in one sketch).
+- **Integration fixes**: sketching on a box's face dropped the box, because output bookkeeping
+  read `sources()`; it reads `Operation::consumes()` now. Undo during a live command ends the
+  command and takes back nothing else (the command used to commit over what Undo restored); the
+  Escape router skips while a command or box holds the viewport; a graph edit that only moves
+  nodes no longer rebuilds the ring; the lift lists nodes in id order, which the editor's first
+  frame used to re-sort into a spurious edit after every Convert.
+- Verified: core 548, workbench 91, gui 74, graph 81 + 6 (the three Nocturne tests red as
+  before), graph-ui 26, mcp 43, cli 5, configurator 5, script 5, android 132 host tests, wasm clean,
+  zero warnings across the workspace (the machine's `-Awarnings` is gone, 65fbfdd).
+- Open: the band surface for the ring frame is built on the UI thread; a Sketch feature has no
+  cache slot; which regions a `Profile::Feature` extrudes is a schema decision
+  (`regions: Option<Vec<usize>>`); a sketch strip on a driven design lags its graph by one build.
+- In flight: M11's core verdict for parts; batch 6 — M6 (gizmo, ring dial, click-drag primitives,
+  shared grips), M8's UI (sketching in the Ring viewport) and M10 (gem-driven builders and the
+  three-gesture solitaire), on hooks pre-cut in `5f1f6c4`.
+
 ### M2 detail
 
 **Measured 2026-09-21 (`examples/join_probe.rs`)**: a traced kernel cylinder dropped onto the built
