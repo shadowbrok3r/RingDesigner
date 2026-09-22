@@ -1,8 +1,4 @@
-//! Parts made from a stone by name — the stone itself, claw heads, bezels, baskets, seat burs and
-//! halos — each built in the stone's own frame (girdle plane at `z = 0`, table up, `x` along the
-//! stone's length) from the solids [`crate::setting`] makes for made seats, then seated by the
-//! stone's placement. A builder's value is a mesh: every face names the patch it lies on ("Claw 3",
-//! "Bearing"), its creases are its edges, and it meets the band through `csg` like any part.
+//! Parts built round a stone by name — stone, claw head, bezel, basket, seat bur, halo — as named meshes in its frame.
 use super::{Attach, Component, ComponentRole, Feature, Operation, Placement, Stage, SurfaceKind};
 use crate::csg::{Op, P3, Solid};
 use crate::gem::{Gem, GemCut, GemForm};
@@ -237,8 +233,7 @@ pub struct Seat {
     pub through_mm: Option<f64>,
 }
 
-/// What a builder made: its named solid, the kind of surface each patch reads as, its creases, the stone
-/// it was made for and, for a stone, where it meets the metal. In the stone's own frame until placed.
+/// What a builder made: named solid, patch kinds, creases, the stone's gem and, for a stone, its seat.
 #[derive(Clone, Debug)]
 pub struct Made {
     pub key: String,
@@ -383,8 +378,7 @@ pub fn creases(solid: &Solid, min_deg: f64) -> Vec<Vec<P3>> {
     lines
 }
 
-/// Where the girdle stands over the metal for the setting preset or builder `key`: claws, baskets and halos
-/// hold the culet [`CULET_CLEAR_MM`] clear, a bezel sinks its base [`BEZEL_SINK_MM`] into the metal.
+/// Where setting `key` stands the girdle over the metal: the culet clear under claws, a bezel's base sunk.
 pub fn stand_off_mm(key: &str, gem: Gem) -> f64 {
     match key {
         BEZEL | "bezel" => setting::collet_depth_mm(gem) - BEZEL_SINK_MM,
@@ -392,8 +386,7 @@ pub fn stand_off_mm(key: &str, gem: Gem) -> f64 {
     }
 }
 
-/// Where a flat-bottomed bezel meets the metal under its wall, read round its plan: wholly over metal, its lowest
-/// point, so the whole base sinks and the seam closes round it; overhanging the band, its highest, where it sits.
+/// The metal under a bezel's wall: its lowest point when the wall is wholly over metal, else its highest.
 fn under_wall(gem: Gem, wall: f64, floor: setting::Floor) -> Option<f64> {
     let plan = setting::Plan::of(gem);
     let metal: Vec<Option<f64>> = (0..32)
@@ -407,9 +400,7 @@ fn under_wall(gem: Gem, wall: f64, floor: setting::Floor) -> Option<f64> {
     if metal.iter().all(Option::is_some) { found.reduce(f64::min) } else { found.reduce(f64::max) }
 }
 
-/// What builder `key` makes for `gem` with `params`, in the stone's own frame: `seat` says where the metal is under
-/// the girdle's centre, and `floor`, when there is a surface, where it is under any point of the girdle plane, so
-/// claws and a bezel's wall reach it wherever they stand.
+/// What builder `key` makes for `gem` in the stone's frame, over metal at `seat` and wherever `floor` finds it.
 pub fn build(key: &str, gem: Gem, params: &Json, seat: Seat, floor: Option<setting::Floor>) -> Result<Made> {
     let who = label(key);
     ensure!(spec(key).is_some(), "No builder called {key}; choose {}", SPECS.iter().map(|s| s.key).collect::<Vec<_>>().join(", "));
@@ -469,9 +460,7 @@ fn at_arc(pts: &[[f64; 2]], arc: &[f64], frac: f64) -> [f64; 2] {
     [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t]
 }
 
-/// Melee in small collets (or claw heads) round the stone's own outline grown by the gap, at equal arc length,
-/// counted as `pave::halo` counts accents — the perimeter over the melee's footprint and bridge, at least six —
-/// and tied by a rail under their bases.
+/// Melee in collets or claw heads round the grown outline at equal arc length, counted by `pave::halo`'s rule, tied by a rail.
 fn halo(gem: Gem, v: &Values) -> Result<Made> {
     let melee = Gem::calibrated(GemCut::Round, v.f("melee_mm"));
     let footprint = melee.w_mm + 0.7;
@@ -600,8 +589,7 @@ pub fn feature_on(id: Id, name: &str, key: &str, on: Id, params: Json) -> Featur
     Feature { id, name: name.into(), enabled: true, operation: Operation::Builder { key: key.into(), on: Some(on), params }, component: component(key) }
 }
 
-/// What setting preset `key` adds round stone `stone`: its head or bezel (and a halo) joined to the band, then the
-/// seat bur cut from it — staged Bench under sand, because a seat is cut after the pour. Each takes an id from `next`.
+/// The features setting preset `key` adds round stone `stone`: head (and halo) joined, seat bur cut and Bench under sand.
 pub fn setting_features(key: &str, stone: Id, gem: Gem, sand: bool, next: &mut dyn FnMut() -> Id) -> Result<Vec<Feature>> {
     let mut out = Vec::new();
     let (head_key, name, params) = match key {
@@ -782,6 +770,40 @@ mod tests {
     }
 
     #[test]
+    fn the_cache_keys_a_setting_on_its_params_and_its_stone_and_a_sand_pattern_leaves_the_seat_to_the_bench() {
+        let lib = AlphaLibrary::builtin();
+        let d = solitaire();
+        let surface = crate::mesh::try_build(&court(), &lib, params()).unwrap().mesh;
+        let never = AtomicBool::new(false);
+        let cache = std::sync::Mutex::new(cad::Cache::default());
+        let memo = cad::Memo::new(&cache).with_epoch(cad::surface_epoch(&surface));
+        let ctx = BuildCtx::new(&never).with_surface(&surface);
+        let tally = || { let c = cache.lock().unwrap(); (c.hits(), c.misses()) };
+        // Cold: stone, head and bur built, and each tessellated (a builder's mesh is its own at every chord).
+        cad::evaluate_memo(&d, &lib, params(), &ctx, memo).unwrap();
+        assert_eq!(tally(), (0, 6));
+        cad::evaluate_memo(&d, &lib, params(), &ctx, memo).unwrap();
+        assert_eq!(tally(), (6, 6), "an unchanged document builds nothing");
+        // Six claws rebuild the head alone; the stone and the bur answer.
+        let mut six = d.clone();
+        six.cad.as_mut().unwrap().apply(&CadEdit::Operation { id: 3, operation: Operation::Builder { key: CLAW.into(), on: Some(2), params: json!({ "prongs": 6 }) } }).unwrap();
+        cad::evaluate_memo(&six, &lib, params(), &ctx, memo).unwrap();
+        assert_eq!(tally(), (10, 8));
+        // A moved stone rebuilds everything built round it.
+        let mut moved = d.clone();
+        moved.cad.as_mut().unwrap().apply(&CadEdit::Placement { id: 2, placement: Placement::ring(60.0, 2.8) }).unwrap();
+        cad::evaluate_memo(&moved, &lib, params(), &ctx, memo).unwrap();
+        assert_eq!(tally(), (10, 14));
+        // Under sand the seat is cut after the pour, so the pattern carries the head alone; lost wax cuts it in place.
+        let pattern = crate::mesh::try_build_pattern(&d, &lib, params()).unwrap();
+        assert_eq!((pattern.parts.joined, pattern.parts.cut, pattern.parts.references), (1, 0, 1));
+        let mut wax = d.clone();
+        wax.draft.process = crate::castability::CastProcess::LostWax;
+        let wax = crate::mesh::try_build_pattern(&wax, &lib, params()).unwrap();
+        assert_eq!((wax.parts.joined, wax.parts.cut), (1, 1));
+    }
+
+    #[test]
     fn six_claws_a_bezel_a_basket_and_a_halo_build_round_the_stone_and_join_the_band() {
         let lib = AlphaLibrary::builtin();
         for (key, joins, patches) in [
@@ -813,8 +835,7 @@ mod tests {
     fn a_halo_seats_its_melee_at_equal_arc_length_by_the_pave_rule() {
         let gem = Gem::calibrated(GemCut::Round, 6.5);
         let made = build(HALO, gem, &json!({}), Seat::default(), None).unwrap();
-        // 1.3 mm melee, a fifth of the centre; footprint 2.0; ring 3.25 + 0.3 + 1.0 = 4.55 round; pitch 2.25:
-        // floor(2π 4.55 / 2.25) = floor(12.71) = 12.
+        // 1.3 mm melee on a 4.55 mm ring (3.25 + 0.3 gap + 1.0) at a 2.25 mm pitch: floor(2π 4.55 / 2.25) = 12.
         assert_eq!(made.stations.len(), 12);
         assert_eq!(made.count("Collet "), 12);
         assert!(made.named.names.iter().any(|n| n == "Halo rail"));

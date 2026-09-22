@@ -200,8 +200,7 @@ pub fn sweep(plan: &Plan, section: &[Station], around: usize) -> Solid {
     out
 }
 
-/// [`sweep`] with the section interval behind each face: face `k` spans stations `seg[k]` and `seg[k] + 1`,
-/// the last of a ring wrapping to the first.
+/// [`sweep`] with each face's section interval: face `k` spans stations `seg[k]` and `seg[k] + 1`, a ring wrapping.
 pub fn sweep_traced(plan: &Plan, section: &[Station], around: usize) -> (Solid, Vec<u32>) {
     let solid = sweep(plan, section, around);
     let n = around.max(8);
@@ -285,8 +284,7 @@ impl Named {
         self.combine(other, Op::Union)
     }
 
-    /// `other` joined on, cut away or kept in common, each face keeping the patch it lies on; the solid is
-    /// [`csg::combine`]'s own bytes, and patches of the same name are one.
+    /// `other` joined, cut or intersected, each face keeping its patch; the solid is [`csg::combine`]'s own bytes.
     pub fn combine(self, other: &Named, op: Op) -> Result<Self, Snag> {
         let t = csg::combine_traced(&self.solid, &other.solid, op, None)?;
         let mut out = Self { solid: Solid::default(), patch: Vec::new(), names: self.names };
@@ -559,8 +557,7 @@ pub fn collet(gem: Gem) -> Solid {
     collet_named(gem, collet_wall_mm(gem), collet_lip(gem), -collet_depth(gem)).solid
 }
 
-/// [`collet`] with its wall, lip share and base height chosen, and its rim, wall, base, inner wall,
-/// bearing, girdle seat and lip named. A base below the collet's own depth lengthens the wall to it.
+/// [`collet`] with its wall, lip share and base height chosen, each interval of its section named.
 pub fn collet_named(gem: Gem, wall: f64, lip: f64, base_z: f64) -> Named {
     let plan = Plan::of(gem);
     let (c, p, g) = (gem.crown_mm(), gem.pavilion_mm(), girdle_half(gem));
@@ -598,8 +595,7 @@ pub const FOOT_SINK_MM: f64 = 0.5;
 /// How far below the head's own base a claw may lengthen to find metal, mm.
 pub const CLAW_REACH_MM: f64 = 6.0;
 
-/// [`claw_head`] with its wire and rails chosen, every claw and rail named, and each claw reaching past the
-/// metal `floor` finds under its own foot; the stone's notch in a claw is the claw's.
+/// [`claw_head`] with its wire and rails chosen, every claw and rail named, each claw reaching the metal `floor` finds.
 pub fn claw_head_named(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor: Option<Floor>) -> Result<Named, Snag> {
     let head = Named::union_all(claw_parts_named(gem, prongs, wire_mm, rails, floor))?;
     let mut head = head.notched(&envelope(gem, 0.02))?;
@@ -627,9 +623,7 @@ pub fn claw_count(gem: Gem, prongs: u32) -> u32 {
     if prongs >= 3 { prongs } else if plan.pow < 1.8 || (plan.a / plan.b > 1.25 && plan.pow < 3.0) { 6 } else { 4 }
 }
 
-/// [`claw_parts`] with the wire and the rails chosen, each part named: claws first, then rails from the base up.
-/// Where `floor` finds metal under a claw's foot deeper than the head's own base, the claw lengthens to reach
-/// [`FOOT_SINK_MM`] past it.
+/// [`claw_parts`] with the wire, rails and floor chosen, each part named: claws first, then rails from the base up.
 pub fn claw_parts_named(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor: Option<Floor>) -> Vec<Named> {
     let plan = Plan::of(gem);
     let (c, p, g) = (gem.crown_mm(), gem.pavilion_mm(), girdle_half(gem));
@@ -659,8 +653,7 @@ pub fn claw_parts_named(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor
         let arc_end = [run_from[0] + 0.15 * d * turn.sin(), run_from[1] - 0.15 * d * turn.cos()];
         let start = [arc_end[0] - bend * (turn.cos() - lean.cos()), arc_end[1] - bend * (turn.sin() + lean.sin())];
         let base_z = (-depth - 0.8).min(start[1] - 0.4);
-        // Down the claw's own line, whose foot moves in as it lengthens, until the inner edge of its foot enters
-        // metal from above; a claw with none within reach keeps its own length and is held by its rails.
+        // Lengthens the claw down its own line until its foot's inner edge is FOOT_SINK_MM into metal, else keeps it.
         let base_z = floor.map_or(base_z, |floor| {
             let inner = |z: f64| {
                 let foot = start[0] - (start[1] - z) * PRONG_LEAN - 0.60 * d;
@@ -669,7 +662,7 @@ pub fn claw_parts_named(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor
             let mut z = base_z;
             while z > base_z - CLAW_REACH_MM {
                 if let Some(metal) = floor(inner(z)).filter(|metal| z <= metal - FOOT_SINK_MM) {
-                    // Found only far below the top, the foot came down beside a wall rather than onto metal.
+                    // Metal met only far below its top means the foot came down beside it.
                     return if z >= metal - FOOT_SINK_MM - 0.5 { z } else { base_z };
                 }
                 z -= 0.05;

@@ -2,11 +2,13 @@
 use ringdesign_core::{
     AlphaLibrary, BuildParams, RingDesign,
     cad::{
-        self, Attach, Boolean, Component, ComponentRole, Document, Feature, Operation, Placement, Stage,
+        self, Attach, Boolean, Component, ComponentRole, Document, Feature, Operation, Placement, Stage, builders,
         edit::{Applied, CadEdit},
     },
+    gem::{Gem, GemCut},
     sketch::Id,
 };
+use serde_json::json;
 use ringdesign_graph::{
     eval::{Evaluator, OUTPUT_DESIGN_PIN, OUTPUT_KIND, Targets},
     graph::Graph,
@@ -37,8 +39,11 @@ fn band_and_cylinder() -> RingDesign {
     d
 }
 fn documents() -> Vec<(String, RingDesign)> {
-    let mut all: Vec<(String, RingDesign)> =
-        cad::examples::NAMES.iter().map(|n| (n.to_string(), cad::examples::design(n).unwrap())).collect();
+    let mut all: Vec<(String, RingDesign)> = cad::examples::NAMES
+        .iter()
+        .chain(cad::examples::SET_STONES)
+        .map(|n| (n.to_string(), cad::examples::design(n).unwrap()))
+        .collect();
     all.push(("band+cylinder".into(), band_and_cylinder()));
     all
 }
@@ -50,7 +55,12 @@ fn edits_for(name: &str, doc: &Document) -> Vec<CadEdit> {
     let mut edits = vec![
         CadEdit::Add { feature: cylinder("Added"), after: None },
         CadEdit::Add { feature: cylinder("Added first"), after: Some(first) },
-        CadEdit::Move { id: leaf, after: None },
+    ];
+    // A leaf that reads a source, as a setting reads its stone, cannot move ahead of it.
+    if doc.sources_of(leaf).is_empty() {
+        edits.push(CadEdit::Move { id: leaf, after: None });
+    }
+    edits.extend([
         CadEdit::Rename { id: first, name: "Renamed".into() },
         CadEdit::Operation { id: leaf, operation: Operation::Sphere { radius_mm: 1.5 } },
         CadEdit::Placement { id: leaf, placement: Placement::ring(45.0, 0.5) },
@@ -64,7 +74,7 @@ fn edits_for(name: &str, doc: &Document) -> Vec<CadEdit> {
         CadEdit::Outputs { outputs: doc.outputs.iter().rev().copied().collect() },
         CadEdit::Through { through: Some(first) },
         CadEdit::Through { through: None },
-    ];
+    ]);
     if doc.features.len() > 1 {
         edits.push(CadEdit::Move { id: first, after: Some(leaf) });
         edits.push(CadEdit::Remove { id: leaf });
@@ -85,6 +95,18 @@ fn edits_for(name: &str, doc: &Document) -> Vec<CadEdit> {
         }
         // Removes the shank and its joint to the head.
         "two-part-signet" => edits.push(CadEdit::Remove { id: 1 }),
+        // Six claws for four, the stone moved round the ring and suppressed, the head removed, a halo added round the stone.
+        "claw-solitaire" => {
+            let height = builders::stand_off_mm("claw4", Gem::calibrated(GemCut::Round, 6.5));
+            edits.extend([
+                CadEdit::Operation { id: 3, operation: Operation::Builder { key: builders::CLAW.into(), on: Some(2), params: json!({ "prongs": 6 }) } },
+                CadEdit::Placement { id: 2, placement: Placement::ring(60.0, height) },
+                CadEdit::Enable { id: 2, enabled: false },
+                CadEdit::Remove { id: 3 },
+                CadEdit::Add { feature: builders::feature_on(0, "Halo", builders::HALO, 2, json!({ "melee_mm": 1.2 })), after: Some(3) },
+                CadEdit::Operation { id: 4, operation: Operation::Builder { key: builders::BUR.into(), on: Some(2), params: json!({ "through": false }) } },
+            ]);
+        }
         "band+cylinder" => {
             edits.push(CadEdit::Attach { id: 2, attach: Attach::Cut });
             edits.push(CadEdit::Enable { id: 1, enabled: false });
@@ -177,7 +199,7 @@ fn every_edit_gives_the_same_document_through_the_graph_and_the_document() {
             count += 1;
         }
     }
-    assert_eq!(count, 101, "edits swept");
+    assert_eq!(count, 122, "edits swept");
 }
 
 #[test]
@@ -213,6 +235,42 @@ fn a_sequence_of_edits_keeps_the_two_appliers_in_step() {
         }
         assert!(landed >= 12 && landed + refused == edits_for(&name, base.cad.as_ref().unwrap()).len(), "{name}: {landed} landed, {refused} refused");
     }
+}
+
+#[test]
+fn a_solitaire_built_round_its_stone_round_trips_byte_for_byte_through_both_appliers() {
+    let lib = AlphaLibrary::builtin();
+    let base = cad::examples::design("claw-solitaire").unwrap();
+    let g = graph_cad::from_document(&base).unwrap();
+    // The lift reads back the document it was made from, and evaluates to it, through a JSON round trip too.
+    assert_eq!(serde_json::to_string(&graph_cad::document(&g).unwrap()).unwrap(), serde_json::to_string(base.cad.as_ref().unwrap()).unwrap());
+    assert_eq!(cad_bytes(&evaluate(&g).unwrap()), cad_bytes(&base));
+    let reread: Graph = serde_json::from_str(&serde_json::to_string(&g).unwrap()).unwrap();
+    assert_eq!(cad_bytes(&evaluate(&reread).unwrap()), cad_bytes(&base));
+    // A halo setting's features, added as one sequence on each side, land as the same bytes.
+    let gem = Gem::calibrated(GemCut::Round, 6.5);
+    let mut n = 10;
+    let halo = builders::setting_features("halo", 2, gem, true, &mut || { n += 1; n }).unwrap();
+    let mut plain = base.clone();
+    let mut g = g;
+    for f in halo {
+        let edit = CadEdit::Add { feature: f, after: None };
+        let (p, a) = (plain.apply_cad_edit(&edit).unwrap(), graph_cad::apply_edit(&mut g, &edit).unwrap());
+        assert_eq!((p.id, p.label), (a.id, a.label));
+    }
+    let out = evaluate(&g).unwrap();
+    assert_eq!(cad_bytes(&out), cad_bytes(&plain));
+    // Both evaluate to the same parts: the stone, the two heads, the halo and the two burs.
+    let parts = |d: &RingDesign| {
+        let e = cad::evaluate(d, &lib, params()).unwrap();
+        assert!(e.failures().is_empty(), "{:?}", e.failures());
+        e.components.iter().map(|c| (c.id, c.made.as_ref().map(|m| m.key.clone()), c.mesh.faces.len())).collect::<Vec<_>>()
+    };
+    let (a, b) = (parts(&plain), parts(&out));
+    assert_eq!(a, b);
+    let keys: Vec<Option<String>> = a.iter().map(|(_, k, _)| k.clone()).collect();
+    let key = |k: &str| Some(k.to_string());
+    assert_eq!(keys, [key("stone"), key("head.claw"), key("seat.bur"), key("head.claw"), key("halo"), key("seat.bur")]);
 }
 
 #[test]

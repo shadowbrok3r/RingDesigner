@@ -102,8 +102,7 @@ pub enum Operation {
         translation: [f64; 3],
         rotation_deg: [f64; 3],
     },
-    /// A part [`builders`] makes from a stone: `key` names the builder, `on` the stone feature it stands
-    /// on (read, never consumed), `params` its settings, each defaulting from the stone's gem.
+    /// A part a [`builders`] builder makes: `key` names it, `on` the stone it stands on (read, not consumed), `params` its settings.
     Builder {
         key: String,
         #[serde(default)]
@@ -938,10 +937,7 @@ impl Value {
         }
     }
 }
-/// One output part as evaluated. A part a builder made has no kernel body: `body` is empty and `made` carries
-/// its value, whose tessellation is its own mesh — an `Option` beside the body rather than an enum in its place,
-/// so everything that reads a kernel body (STEP, the CAD pane's edge picks, sketches on faces) keeps its type and
-/// finds nothing to read.
+/// One output part as evaluated; a part a builder made has an empty `body` and its value in `made`.
 #[derive(Clone, Debug)]
 pub struct EvaluatedComponent {
     pub id: Id,
@@ -1163,8 +1159,7 @@ fn regions_of(p: &Profile, sketch: &Sketch) -> Result<Vec<crate::sketch::Region>
         Profile::Inline(_) => Ok(vec![sketch.profile_region()?]),
     }
 }
-/// A value as a named `csg` solid: a builder's own, or a kernel body tessellated at the export chord with each
-/// face ordinal its patch, so a boolean with a mesh keeps every face's name whatever the preview's resolution.
+/// A value as a named csg solid: a builder's own, or a kernel body tessellated at the export chord, a patch per face.
 fn named_of(value: &Value) -> Result<crate::setting::Named> {
     match value {
         Value::Mesh(m) => Ok(m.named.clone()),
@@ -1744,7 +1739,7 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
                 None => (0u8, s).hash(&mut h),
             }
         }
-        // A builder reads where the metal is under its stone and how far the bore lies below it.
+        // Builders read the surface under their stone and the bore below it.
         if f.component.placement != Placement::Free || matches!(f.operation, Operation::Builder { .. }) {
             surface_epoch.hash(&mut h);
             design.inner_radius_mm().to_bits().hash(&mut h);
@@ -1758,8 +1753,7 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
     sigs
 }
 
-/// Why a feature is not attempted: the first of its sources that failed, was skipped, or was suppressed
-/// without passing a body through, named.
+/// The first source that failed, was skipped, or was suppressed without passing a body through, named.
 fn skipped_by(op: &Operation, status: &BTreeMap<Id, FeatureStatus>, doc: &Document, passed: impl Fn(Id) -> bool) -> Option<String> {
     for s in op.sources() {
         let why = match status.get(&s) {
@@ -1843,21 +1837,17 @@ fn build_feature(
     Ok(Built { value, frame, attach, notes })
 }
 
-/// A stone turned a quarter about its seat's normal: a Ring placement's `x` runs along the finger, and a
-/// stone's length, `spin` zero, runs round the ring as a height-field seat's does.
+/// The seat frame turned a quarter about its normal, so a stone's length runs round the ring at `spin` zero.
 fn stone_frame(seat: &brep::Placement) -> brep::Placement {
     brep::Placement { x_axis: seat.y_axis, y_axis: seat.x_axis.map(|v| -v), z_axis: seat.z_axis, origin: seat.origin }
 }
 
 /// How far over a stone's girdle plane a floor probe starts down, mm.
 const PROBE_ABOVE_MM: f64 = 8.0;
-/// How far below the metal under a stone's centre a floor probe still reads metal, mm: the band round the stone,
-/// never the ring's far side through the finger hole.
+/// How far below the metal under a stone's centre a floor probe still reads metal, mm.
 const PROBE_BELOW_MM: f64 = 6.0;
 
-/// The surface round a stone, in the stone's own frame and bucketed over its girdle plane, so a probe straight
-/// down reads only the faces over its point. Nothing deeper than `below` counts, so a probe past the band's edge
-/// finds nothing rather than the far side of the ring.
+/// The surface round a stone in its own frame, bucketed over its girdle plane for straight-down probes above `below`.
 struct Ground {
     faces: Vec<[[f64; 3]; 3]>,
     lo: [f64; 2],
@@ -1932,8 +1922,7 @@ impl Ground {
     }
 }
 
-/// Where the metal is under a stone standing in `frame`: dropped onto the built surface along the stone's own
-/// axis, else the placement's stand-off, and how far a pilot runs from the girdle to open air past the bore.
+/// Where the metal is under a stone in `frame`, and how far a pilot runs from its girdle past the bore.
 fn seat_at(frame: &brep::Placement, placement: &Placement, design: &RingDesign, surface: Option<&Mesh>) -> builders::Seat {
     let (o, z) = (frame.origin, frame.z_axis);
     let dropped = surface.and_then(|mesh| Ground::new(mesh, frame, 1.0, -PROBE_ABOVE_MM).floor([0.0, 0.0]));
@@ -1948,8 +1937,7 @@ fn seat_at(frame: &brep::Placement, placement: &Placement, design: &RingDesign, 
     builders::Seat { surface_z, through_mm }
 }
 
-/// A builder's part: a stone seated by its own placement, or a setting built round the stone it stands on, in that
-/// stone's frame and reading its gem and where the metal is under it.
+/// A builder's part: a stone seated by its own placement, or a setting made in the frame of the stone it stands on.
 #[allow(clippy::too_many_arguments)]
 fn build_made(
     f: &Feature,

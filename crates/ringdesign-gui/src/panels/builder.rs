@@ -1,6 +1,4 @@
-//! The inspector for a part a builder makes: the stone it stands on, then every parameter the builder's
-//! schema names, each drawn with its own widget, unit and range. A parameter the part leaves unset is sized
-//! from its stone at evaluation, and says so.
+//! The inspector for a part a builder makes: its stone, then each schema parameter with its widget, unit and range.
 use crate::theme;
 use ringdesign_core::cad::builders::{self, Kind, Param};
 use ringdesign_core::gem::{Gem, GemCut};
