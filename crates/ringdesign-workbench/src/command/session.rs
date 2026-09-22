@@ -44,7 +44,7 @@ pub struct Dimension {
 }
 
 /// A degree of freedom the pointer can be restricted to.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Axis {
     Theta,
     Across,

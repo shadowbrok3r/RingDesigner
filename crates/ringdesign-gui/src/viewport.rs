@@ -1368,7 +1368,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
 
     if app.band_paint { ringdesign_workbench::paint_preview::draw(ui,rect,|p|proj.at(p)); }
 
-    if active && app.visual.tool == Tool::Select && !took.live && !took.boxing {
+    // A hot gizmo handle stands in for the scene's hover.
+    if active && app.visual.tool == Tool::Select && !took.live && !took.boxing && app.command.gizmo_hot().is_none() {
         app.hovered_node = None;
         // The scene answers first; a band under the pointer falls through to the layer caption and
         // the node highlight it always had.

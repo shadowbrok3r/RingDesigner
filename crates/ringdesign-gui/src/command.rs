@@ -1,17 +1,19 @@
-//! The Ring viewport's command session: hotkeys, the snapped pointer, the ghost, the dimension bar, the rail and box select.
+//! The Ring viewport's command session: hotkeys, the snapped pointer, the ghost, the dimension bar, the rail, box select,
+//! the ring-frame gizmo with the ring dial and the part's grips, and the press-drag-release of an added primitive.
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use egui::{Event, EventFilter, Id, Key, Pos2, Rect};
 use ringdesign_core::cad::edit::CadEdit;
-use ringdesign_core::cad::{Attach, Component, Feature, Operation};
+use ringdesign_core::cad::{Attach, Component, Feature, Operation, Placement};
 use ringdesign_core::interaction::pick::{Filter, Ray};
 use ringdesign_core::{BuildResult, Mesh, sketch::Id as FeatureId};
 use ringdesign_workbench::command::{
-    AddPrimitiveCmd, Affine, AttachCmd, Axis, BandSurface, DimEvent, DimensionBar, Effect, Grid, MoveCmd, Outcome, PlaceCmd, Primitive, Probe,
-    Reading, RotateCmd, ScaleCmd, Session, SnapGeometry, SnapHit, Snapper, StepInput, ViewCommand, catalog, placed_ghost, unit_ghost,
+    AddPrimitiveCmd, Affine, AttachCmd, Axis, BandSurface, DimEvent, DimensionBar, Effect, Grid, GripCmd, MoveCmd, Outcome, PlaceCmd, Primitive,
+    Probe, Reading, RotateCmd, ScaleCmd, Session, SnapGeometry, SnapHit, Snapper, StepInput, ViewCommand, catalog, placed_ghost, unit_ghost,
     unit_mesh,
 };
+use ringdesign_workbench::gizmo::{self, Gizmo, Handle, Layout};
 use ringdesign_workbench::icons::Icon;
 use ringdesign_workbench::viewport::{Mods, Sel, box_planes};
 use ringdesign_workbench::visual::Tool;
@@ -30,6 +32,18 @@ pub const RAIL_W: f32 = 46.0;
 const LINGER: Duration = Duration::from_secs(3);
 /// A box smaller than this on either side is a click.
 const MIN_BOX_PX: f32 = 3.0;
+
+/// A gizmo handle held down: the handle, the gizmo as it stood at the press, and how the drag has gone.
+struct GizmoDrag {
+    handle: Handle,
+    /// The gizmo as it stood at the press, which the drag is read against.
+    gizmo: Gizmo,
+    press: Pos2,
+    /// The pointer has left the press point.
+    moved: bool,
+    /// The command ended mid-drag; the rest of the press is swallowed.
+    ended: bool,
+}
 
 /// What the preview buffer holds.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -70,6 +84,12 @@ pub struct CommandState {
     box_from: Option<Pos2>,
     /// The Shift+A menu opens on the next draw.
     open_menu: bool,
+    /// The gizmo handle being dragged.
+    gizmo_drag: Option<GizmoDrag>,
+    /// The gizmo handle under the pointer.
+    gizmo_hot: Option<Handle>,
+    /// An added primitive's press on the ring, held down: the step it began on.
+    add_press: Option<usize>,
 }
 
 impl Default for CommandState {
@@ -91,7 +111,22 @@ impl Default for CommandState {
             anchor: None,
             box_from: None,
             open_menu: false,
+            gizmo_drag: None,
+            gizmo_hot: None,
+            add_press: None,
         }
+    }
+}
+
+impl CommandState {
+    /// The gizmo handle under the pointer, which the viewport's own hover stands aside for.
+    pub fn gizmo_hot(&self) -> Option<Handle> {
+        self.gizmo_hot
+    }
+
+    /// Whether a press in the viewport belongs to a gizmo handle or to an added primitive.
+    pub fn holds_press(&self) -> bool {
+        self.gizmo_drag.is_some() || self.add_press.is_some()
     }
 }
 
@@ -100,6 +135,11 @@ impl CommandState {
     /// The band surface the ring frame was last read on, by address.
     pub fn band_surface(&self) -> Option<usize> {
         self.band.as_ref().and_then(|(_, _, b)| b.as_ref()).map(|b| Arc::as_ptr(b) as usize)
+    }
+
+    /// The handle being dragged.
+    pub fn dragging(&self) -> Option<Handle> {
+        self.gizmo_drag.as_ref().filter(|d| !d.ended).map(|d| d.handle)
     }
 }
 
@@ -475,7 +515,7 @@ fn axis_for(cmd: &dyn ViewCommand, key: Key) -> Option<Axis> {
 fn axis_hint(cmd: &dyn ViewCommand) -> Option<&'static str> {
     let dims = cmd.dimensions();
     let has = |k: &str| dims.iter().any(|d| d.key == k);
-    if primitive(cmd.key()).is_some() {
+    if primitive(cmd.key()).is_some() || cmd.key() == "grip" {
         None
     } else if has("theta") {
         Some("X θ · Y height · Z across")
@@ -505,7 +545,27 @@ pub fn input(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Re
     {
         app.command.anchor = Some(p);
     }
-    // The bar first: a field being typed in takes its own keys.
+    let mut took = Took::default();
+    let free = ui.input(|i| i.modifiers.command);
+    // The pointer before the bar: a gizmo handle, then an added primitive's press, then the live command's hover.
+    let gizmo = gizmo_input(app, ui, pane, rect, response, hover, free);
+    let add = !gizmo && add_input(app, ui, pane, rect, response, free);
+    if gizmo || add {
+        took.click = true;
+        took.drag = true;
+    }
+    if app.command.session.is_live()
+        && !gizmo
+        && let Some(pos) = hover
+    {
+        let build = app.build.as_ref().map(build_key).unwrap_or(0);
+        let step = app.command.session.command().map_or(0, |c| c.step());
+        let moved = app.command.pointer.as_ref().is_none_or(|(p, b, s, _)| p.distance(pos) > 0.25 || *b != build || *s != step);
+        if moved {
+            sample(app, pane, rect, pos, free);
+        }
+    }
+    // Then the bar: a field being typed in takes its own keys.
     if app.command.session.is_live() {
         let mut dims = app.command.session.dimensions();
         let anchor = app.command.anchor.unwrap_or(rect.center());
@@ -524,19 +584,9 @@ pub fn input(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Re
     if owns_keys {
         keys_of_frame(app, ui, hover.is_some() || response.contains_pointer());
     }
-    let mut took = Took::default();
-    // The pointer, then a click where it lands; the right button cancels.
-    if app.command.session.is_live() {
-        let free = ui.input(|i| i.modifiers.command);
-        if let Some(pos) = hover {
-            let build = app.build.as_ref().map(build_key).unwrap_or(0);
-            let step = app.command.session.command().map_or(0, |c| c.step());
-            let moved = app.command.pointer.as_ref().is_none_or(|(p, b, s, _)| p.distance(pos) > 0.25 || *b != build || *s != step);
-            if moved {
-                sample(app, pane, rect, pos, free);
-            }
-        }
-        if response.clicked() {
+    // A click where the pointer landed; the right button cancels.
+    if app.command.session.is_live() && !gizmo {
+        if response.clicked() && !add {
             if let Some(pos) = response.interact_pointer_pos() {
                 sample(app, pane, rect, pos, free);
             }
@@ -549,6 +599,7 @@ pub fn input(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Re
         if response.secondary_clicked() {
             let out = app.command.session.feed(StepInput::Cancel);
             outcome(app, out);
+            app.command.add_press = None;
             took.secondary = true;
         }
     }
@@ -574,9 +625,190 @@ pub fn input(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Re
         }
     }
     hold_keys(app, &ctx, id);
-    took.live = app.command.session.is_live();
+    took.live = app.command.session.is_live() || gizmo;
     took.boxing = app.command.box_armed;
     took
+}
+
+/// The world ray under a screen point of the pane.
+fn ray_at(app: &RingDesignerApp, pane: usize, rect: Rect, p: Pos2) -> Ray {
+    let (o, d) = app.panes[pane].camera.ray(rect, p);
+    Ray { origin: o.map(f64::from), direction: d.map(f64::from) }
+}
+
+/// The chosen part and its gizmo: one part chosen, nothing live, the Select tool out and no sketch drawn.
+fn gizmo_of(app: &mut RingDesignerApp) -> Option<(FeatureId, Gizmo)> {
+    if app.command.session.is_live() || app.command.box_armed || app.visual.tool != Tool::Select || crate::sketch_mode::active(app) {
+        return None;
+    }
+    let id = app.selection.one_part()?;
+    let f = feature(app, id)?;
+    if matches!(f.operation, Operation::Band | Operation::Sketch { .. }) {
+        return None;
+    }
+    let build = app.build.clone()?;
+    let band = band_for(app, &build);
+    let part = build.parts.evaluated.as_ref().and_then(|e| e.components.iter().find(|c| c.id == id));
+    let gizmo = match &f.component.placement {
+        placement @ Placement::Ring { .. } => {
+            let g = Gizmo::on_ring(&app.design, band.as_deref(), placement, 0.0)?;
+            let reach_mm = part.map_or(0.0, |c| gizmo::reach(&c.mesh, g.origin));
+            Gizmo { reach_mm, ..g }
+        }
+        Placement::Free => {
+            let (lo, hi) = part?.mesh.bounds()?;
+            let centre = [(lo.0 + hi.0) as f64 * 0.5, (lo.1 + hi.1) as f64 * 0.5, (lo.2 + hi.2) as f64 * 0.5];
+            Gizmo::free(centre, part.map_or(0.0, |c| gizmo::reach(&c.mesh, centre)))
+        }
+    };
+    Some((id, gizmo.with_grips(&f.operation)))
+}
+
+/// The gizmo on the pane's screen.
+fn layout_of(app: &RingDesignerApp, pane: usize, rect: Rect, gizmo: &Gizmo) -> Layout {
+    on_screen(app, pane, rect, |view| gizmo.layout(view))
+}
+
+/// What a handle's drag does, for the status line.
+fn hint(handle: Handle) -> &'static str {
+    match handle {
+        Handle::Move(_) => "drag along the arrow · type a distance · Esc or right-click cancels",
+        Handle::Turn(_) => "drag round the ring · type degrees · Esc or right-click cancels",
+        Handle::Dial => "drag round the ring on the 5° grid, Ctrl for free · type θ · Esc or right-click cancels",
+        Handle::Grip(_) => "drag the grip · type a size · Esc or right-click cancels",
+    }
+}
+
+/// Starts the command a handle drags, locked to the handle, and reads the press as its first pointer.
+fn start_drag(app: &mut RingDesignerApp, pane: usize, rect: Rect, id: FeatureId, gizmo: Gizmo, handle: Handle, at: Pos2, free: bool) {
+    let Some(f) = feature(app, id) else { return };
+    let fresh = app.design.cad.as_ref().map_or(1, |d| d.fresh_id());
+    let (cmd, lock): (Box<dyn ViewCommand>, Option<Axis>) = match handle {
+        Handle::Move(axis) => (Box::new(MoveCmd::of(&f, fresh)), Some(axis)),
+        Handle::Turn(axis) => (Box::new(RotateCmd::of(&f, fresh).about(gizmo.pivot())), Some(axis)),
+        Handle::Dial => (Box::new(PlaceCmd::new(f.id, f.component.placement.clone())), Some(Axis::Theta)),
+        Handle::Grip(i) => match gizmo.grips.get(i).and_then(|g| GripCmd::new(f.id, f.operation.clone(), g.grip.key, &gizmo.frame)) {
+            Some(c) => (Box::new(c), None),
+            None => return,
+        },
+    };
+    let ray = ray_at(app, pane, rect, at);
+    let st = &mut app.command;
+    st.session.start(cmd);
+    if let Some(axis) = lock {
+        st.session.feed(StepInput::Lock(axis));
+    }
+    st.target = Some(f);
+    st.pivot = None;
+    st.lock = lock;
+    st.pointer = None;
+    st.linger = None;
+    st.box_armed = false;
+    st.gizmo_hot = None;
+    st.bar.reset();
+    st.bar.prefer(gizmo.key(handle));
+    // The drag is measured from where the handle was taken.
+    if let Some(token) = gizmo.token(handle, ray, (!free).then_some(GRID.theta_deg)) {
+        st.session.feed(token);
+    }
+    st.gizmo_drag = Some(GizmoDrag { handle, gizmo, press: at, moved: false, ended: false });
+    let status = format!("{} · {}", app.command.session.prompt(), hint(handle));
+    app.set_status(status);
+    if let Some(build) = app.build.clone() {
+        band_for(app, &build);
+    }
+}
+
+/// A gizmo handle's drag, or a press on one; whether this frame's press is the gizmo's.
+fn gizmo_input(app: &mut RingDesignerApp, ui: &egui::Ui, pane: usize, rect: Rect, response: &egui::Response, hover: Option<Pos2>, free: bool) -> bool {
+    if let Some(mut drag) = app.command.gizmo_drag.take() {
+        let (released, down, secondary, pos) = ui.input(|i| (i.pointer.primary_released(), i.pointer.primary_down(), i.pointer.secondary_pressed(), i.pointer.interact_pos()));
+        drag.ended |= !app.command.session.is_live();
+        if !drag.ended && secondary {
+            let out = app.command.session.feed(StepInput::Cancel);
+            outcome(app, out);
+            drag.ended = true;
+        }
+        if !drag.ended
+            && let Some(p) = pos
+        {
+            drag.moved |= p.distance(drag.press) > 2.0;
+            let ray = ray_at(app, pane, rect, p);
+            if let Some(token) = drag.gizmo.token(drag.handle, ray, (!free).then_some(GRID.theta_deg)) {
+                let out = app.command.session.feed(token);
+                outcome(app, out);
+            }
+        }
+        if down && !released {
+            app.command.gizmo_drag = Some(drag);
+            return true;
+        }
+        if !drag.ended && app.command.session.is_live() {
+            let typed = app.command.session.dimensions().iter().any(|d| d.locked);
+            if drag.moved || typed {
+                let out = app.command.session.enter();
+                outcome(app, out);
+            } else {
+                // Taken and let go in place: nothing changes.
+                app.command.session.feed(StepInput::Cancel);
+                app.command.target = None;
+                app.set_status(format!("{}: {}", drag.gizmo.label(drag.handle), hint(drag.handle)));
+            }
+        }
+        return true;
+    }
+    // A press with Shift or Alt held goes to the selection, handle or not.
+    let selecting = ui.input(|i| i.modifiers.shift || i.modifiers.alt);
+    let Some((id, gizmo)) = gizmo_of(app).filter(|_| !selecting) else {
+        app.command.gizmo_hot = None;
+        return false;
+    };
+    let layout = layout_of(app, pane, rect, &gizmo);
+    app.command.gizmo_hot = hover.and_then(|p| layout.hit(p));
+    let (pressed, origin) = ui.input(|i| (i.pointer.primary_pressed(), i.pointer.press_origin()));
+    let Some(at) = origin.filter(|o| pressed && response.hovered() && rect.contains(*o)) else { return false };
+    let Some(handle) = layout.hit(at) else { return false };
+    start_drag(app, pane, rect, id, gizmo, handle, at, free);
+    app.command.gizmo_drag.is_some()
+}
+
+/// An added primitive's press: at the first step it seats the base and its drag and release size it; later it is the step's click.
+fn add_input(app: &mut RingDesignerApp, ui: &egui::Ui, pane: usize, rect: Rect, response: &egui::Response, free: bool) -> bool {
+    let Some(step) = app.command.session.command().filter(|c| primitive(c.key()).is_some()).map(|c| c.step()) else {
+        app.command.add_press = None;
+        return false;
+    };
+    let (pressed, released, origin, pos) = ui.input(|i| (i.pointer.primary_pressed(), i.pointer.primary_released(), i.pointer.press_origin(), i.pointer.interact_pos()));
+    let Some(began) = app.command.add_press else {
+        let Some(at) = origin.filter(|o| pressed && response.hovered() && rect.contains(*o)) else { return false };
+        if step == 0 {
+            sample(app, pane, rect, at, free);
+            let out = app.command.session.feed(StepInput::Click);
+            let seated = matches!(out, Outcome::NextStep);
+            outcome(app, out);
+            if !seated {
+                return false;
+            }
+        }
+        app.command.add_press = Some(step);
+        return true;
+    };
+    if let Some(p) = pos {
+        let build = app.build.as_ref().map(build_key).unwrap_or(0);
+        let moved = app.command.pointer.as_ref().is_none_or(|(q, b, _, _)| q.distance(p) > 0.25 || *b != build);
+        if moved {
+            sample(app, pane, rect, p, free);
+        }
+    }
+    if released || !ui.input(|i| i.pointer.primary_down()) {
+        app.command.add_press = None;
+        // A plain click that seated the base leaves the size to the pointer; any other release is the step's click.
+        if (began > 0 || !response.clicked()) && app.command.session.is_live() {
+            let out = app.command.session.feed(StepInput::Click);
+            outcome(app, out);
+        }
+    }
+    true
 }
 
 /// Gives the viewport the keys while a command is live or a box is armed, and takes them back after.
@@ -630,7 +862,7 @@ fn keys_of_frame(app: &mut RingDesignerApp, ui: &egui::Ui, over: bool) {
         app.command.box_from = None;
         app.set_status("Box select put away");
     }
-    if !over || app.visual.tool != Tool::Select {
+    if !over || app.visual.tool != Tool::Select || app.command.holds_press() {
         return;
     }
     if take(ui, Key::A, true) {
@@ -745,6 +977,7 @@ pub fn draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, response:
     }
     ghost(app);
     add_menu(app, ui, pane);
+    gizmo_draw(app, ui, pane, rect, painter);
     if let Some(from) = app.command.box_from
         && let Some(to) = ui.input(|i| i.pointer.latest_pos())
     {
@@ -764,8 +997,9 @@ pub fn draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, response:
     }
     let Some(cmd) = app.command.session.command() else { return };
     let preview = cmd.preview();
-    // The anchor and the pointer the command reads from.
-    if let [a, b, ..] = preview.ghost.as_slice() {
+    let turning = app.command.gizmo_drag.as_ref().is_some_and(|d| matches!(d.handle, Handle::Turn(_)));
+    // The anchor and the pointer the command reads from; a turning ring draws its own sweep.
+    if let (false, [a, b, ..]) = (turning, preview.ghost.as_slice()) {
         let (pa, pb) = (proj.at(a.map(|v| v as f32)), proj.at(b.map(|v| v as f32)));
         painter.extend(egui::Shape::dashed_line(&[pa, pb], egui::Stroke::new(1.2, theme::ACCENT), 5.0, 4.0));
         painter.circle_filled(pa, 3.0, theme::ACCENT);
@@ -784,6 +1018,56 @@ pub fn draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, response:
     }
     let anchor = app.command.anchor.unwrap_or(rect.center());
     caption(painter, rect, anchor, &lines);
+}
+
+/// Runs `f` with the pane's screen as the gizmo reads it.
+fn on_screen<R>(app: &RingDesignerApp, pane: usize, rect: Rect, f: impl FnOnce(&gizmo::View) -> R) -> R {
+    let camera = app.panes[pane].camera;
+    let proj = camera.projector(rect);
+    let (view, ray) = ringdesign_workbench::hover::view_scale(rect.center(), &|p| camera.ray(rect, p));
+    let project = |p: [f64; 3]| proj.at(p.map(|v| v as f32));
+    f(&gizmo::View { project: &project, forward: ray.direction, px_per_mm: view.px_per_mm })
+}
+
+/// The gizmo over the metal: the dragged handle alone while one is held, else every handle of the chosen part, each named for a reader.
+fn gizmo_draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Rect, painter: &egui::Painter) {
+    if let Some(drag) = app.command.gizmo_drag.as_ref().filter(|d| !d.ended) {
+        let (handle, mut gizmo) = (drag.handle, drag.gizmo.clone());
+        let preview = app.command.session.preview().unwrap_or_default();
+        // The dial's marker rides the angle being previewed.
+        if let (Handle::Dial, Some(d), Some(theta)) = (handle, gizmo.dial.as_mut(), preview.placement.as_ref().and_then(Placement::theta_deg)) {
+            d.theta_deg = theta;
+        }
+        on_screen(app, pane, rect, |view| {
+            gizmo::paint(painter, &gizmo.layout(view).only(handle), None, Some(handle));
+            if let [from, to, ..] = preview.ghost.as_slice() {
+                gizmo::paint_sweep(painter, &gizmo, handle, *from, *to, view);
+            }
+        });
+        ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+        return;
+    }
+    let Some((_, gizmo)) = gizmo_of(app) else { return };
+    let layout = layout_of(app, pane, rect, &gizmo);
+    let hot = app.command.gizmo_hot;
+    gizmo::paint(painter, &layout, hot, None);
+    // Each handle a hover-only widget at its anchor, while an accessibility tree is being built.
+    if ui.ctx().accesskit_node_builder(ui.id(), |_| ()).is_some() {
+        for handle in layout.handles() {
+            let (Some(at), label) = (layout.anchor(handle), gizmo.label(handle)) else { continue };
+            let r = ui.interact(Rect::from_center_size(at, egui::Vec2::splat(12.0)), ui.id().with(("gizmo-handle", pane, label.as_str())), egui::Sense::hover());
+            r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, label.as_str()));
+        }
+    }
+    if let Some(h) = hot {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
+        let text = match h {
+            Handle::Grip(i) => gizmo.grips.get(i).map_or_else(String::new, |g| format!("{} {}", g.grip.label, g.grip.unit.format(g.grip.value))),
+            _ => gizmo.label(h).trim_start_matches("Gizmo: ").to_owned(),
+        };
+        let overlay = rect.with_min_x(rect.left() + RAIL_W);
+        ringdesign_workbench::hover::caption(painter, overlay, &text, ringdesign_workbench::hover::AQUA);
+    }
 }
 
 /// The live command's words by the pointer: its prompt, its numbers and locks, and its keys.

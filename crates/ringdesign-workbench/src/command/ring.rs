@@ -197,6 +197,21 @@ impl Affine {
         std::array::from_fn(|r| self.0[r][0] * p[0] + self.0[r][1] * p[1] + self.0[r][2] * p[2] + self.0[r][3])
     }
 
+    /// A direction through the linear part alone.
+    pub fn turn(&self, v: [f64; 3]) -> [f64; 3] {
+        std::array::from_fn(|r| self.0[r][0] * v[0] + self.0[r][1] * v[1] + self.0[r][2] * v[2])
+    }
+
+    /// Where the map takes the origin.
+    pub fn origin(&self) -> [f64; 3] {
+        [self.0[0][3], self.0[1][3], self.0[2][3]]
+    }
+
+    /// Column `i` of the linear part: where the map sends that unit axis.
+    pub fn axis(&self, i: usize) -> [f64; 3] {
+        std::array::from_fn(|r| self.0[r][i.min(2)])
+    }
+
     /// The linear part's cofactors: the inverse transpose times the determinant, which carries normals.
     pub fn cofactors(&self) -> [[f64; 3]; 3] {
         let m = &self.0;
@@ -354,6 +369,51 @@ pub fn on_view_plane(ray: Ray, at: [f64; 3]) -> Option<[f64; 3]> {
     }
     let t = dot(sub(at, ray.origin), ray.direction) / dd;
     Some(std::array::from_fn(|k| ray.origin[k] + ray.direction[k] * t))
+}
+
+fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
+    let l = dot(v, v).sqrt();
+    (l > 1e-12 && l.is_finite()).then(|| v.map(|x| x / l))
+}
+
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+}
+
+/// How far along the line through `at` in direction `dir` its point nearest a camera ray lies; `None` when the ray runs along it.
+pub fn along_line(ray: Ray, at: [f64; 3], dir: [f64; 3]) -> Option<f64> {
+    let (u, v) = (unit(dir)?, unit(ray.direction)?);
+    let w = sub(at, ray.origin);
+    let (b, d, e) = (dot(u, v), dot(u, w), dot(v, w));
+    let denom = 1.0 - b * b;
+    (denom > 1e-6).then(|| (b * e - d) / denom)
+}
+
+/// Where a camera ray crosses the plane through `at` square to `normal`; `None` when it runs within a degree of the plane.
+pub fn on_plane(ray: Ray, at: [f64; 3], normal: [f64; 3]) -> Option<[f64; 3]> {
+    let (n, d) = (unit(normal)?, unit(ray.direction)?);
+    let across = dot(d, n);
+    if across.abs() < 0.0175 {
+        return None;
+    }
+    let s = dot(sub(at, ray.origin), n) / across;
+    Some(std::array::from_fn(|k| ray.origin[k] + d[k] * s))
+}
+
+/// Two unit vectors square to `axis` and to each other, with `u × v` along it.
+pub fn plane_basis(axis: [f64; 3]) -> ([f64; 3], [f64; 3]) {
+    let n = unit(axis).unwrap_or([0.0, 0.0, 1.0]);
+    let seed = if n[0].abs() < 0.9 { [1.0, 0.0, 0.0] } else { [0.0, 1.0, 0.0] };
+    let d = dot(seed, n);
+    let u = unit(std::array::from_fn(|k| seed[k] - n[k] * d)).unwrap_or([0.0, 1.0, 0.0]);
+    (u, cross(n, u))
+}
+
+/// The angle of `p` about `axis` through `centre` in degrees, counted the way a right-handed turn about the axis runs.
+pub fn angle_about(p: [f64; 3], centre: [f64; 3], axis: [f64; 3]) -> f64 {
+    let (u, v) = plane_basis(axis);
+    let w = sub(p, centre);
+    dot(w, v).atan2(dot(w, u)).to_degrees()
 }
 
 /// Everything one pointer sample is read against.
