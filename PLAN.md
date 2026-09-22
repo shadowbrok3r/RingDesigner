@@ -187,12 +187,13 @@ does not Apply" (covered by the Enter-never-applies pin instead).
 The tool's dimension fields are real `egui::TextEdit`s in an `Area` by the cursor, one per free
 dimension (a cylinder: radius, height; an extrude: height, taper; a sketch line: length, angle).
 Typing a digit while the tool is live focuses the first field and starts its text. **Tab moves to
-the next field and Shift+Tab back, inside the tool only**: egui moves focus on Tab in
-`Memory::begin_pass`, before any UI runs, so a field cannot consume the key late — each field
-registers `ui.memory_mut(|m| m.set_focus_lock_filter(id, EventFilter { tab: true, ..}))` (what
-`TextEdit::lock_focus(true)` does) so egui leaves focus alone and delivers the Tab event, and the
-tool reads `Event::Key { key: Tab, .. }` from `input_mut` and calls `request_focus` on the next of
-its own ids. A field with text is a locked degree of freedom (the mouse stops driving it);
+the next field and Shift+Tab back, inside the tool only**: egui moves focus on Tab (and surrenders
+it on Escape) in `Memory::begin_pass`, before any UI runs, so a field cannot consume the key late.
+egui **0.36.2** (emilk/egui#8530, 2026-09-08) adds `TextEdit::event_filter(EventFilter { tab: true,
+escape: true, .. })` for exactly this: the field keeps focus and receives the Tab/Escape events, and
+the tool reads `Event::Key { key: Tab, .. }` from `input_mut` and calls `request_focus` on the next
+of its own ids. Logan is bumping the vendored `patches/egui` (0.36.0 + the numeric-input policy) to
+0.36.2 for it; on 0.36.0 the same thing is `set_focus_lock_filter` by hand. A field with text is a locked degree of freedom (the mouse stops driving it);
 **Enter** commits the step, Escape empties the field first, then leaves the step. The same fields
 answer to AccessKit so kittest and `egui_drive.py` can type into them.
 
