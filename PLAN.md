@@ -266,6 +266,24 @@ answer to AccessKit so kittest and `egui_drive.py` can type into them.
   `manufacturing::prepare`'s `uses_band` still counts the Band id in `outputs`; the csg input
   census costs ~12 ms per 786k faces per combine.
 
+### Phase 3 status — 2026-09-22 (on master: `b97fe3d`, `8ce5558`)
+
+- **`Component.blend_mm` reaches the build**: after a Join or Cut, `parts::resolve` reads every
+  seam loop off the traced boolean, beads each (`blend::bead_seam`, the non-compacting variant, so
+  every bead vertex names the part) and lays it in through the same chain; a bead that fails is a
+  note, never a failed build; `Resolved` counts beads and clamped stations. `csg::combine_unchecked`
+  skips the census on a chained output: Oriel's `setting::apply` 428 → 207 ms preview,
+  2723 → 892 ms export. Measured: a 1.5 mm bezel sunk 0.5 beads clean (0/192 clamped); a 3 mm
+  bezel overhanging a 4 mm band pinches at four corners (135/303) — a stone is sized to its face.
+- **M3's pick scene** (`interaction::{bvh, pick}`): one BVH over the built ring; faces, edges and
+  vertices of parts answer from their placed traces (face ownership by origin + centroid on the
+  part's own tessellation), stones by path, the band by (θ, v); ranking vertex < edge < face <
+  part < stone < band, occlusion-tested. Measured: scene build 7–9 ms at preview, 81–84 ms at
+  export (780k faces); a pick 2–3 µs; box select 0.3 / 3 ms. Open: CAD-only rings have no origin
+  provenance (`parts::assembled`), seat solids and stamps read as Band.
+- In flight: the Ring viewport's hover pre-highlight, selection and per-selection right-click
+  menus on the pick scene (`m3-viewport-select`).
+
 ### M2 detail
 
 **Measured 2026-09-21 (`examples/join_probe.rs`)**: a traced kernel cylinder dropped onto the built
