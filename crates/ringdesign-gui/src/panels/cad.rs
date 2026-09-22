@@ -55,6 +55,12 @@ impl Drop for Live {
 pub enum CadRequest {
     /// A new feature, optionally anchored at a ring angle and radial height.
     Add { operation: Operation, anchor: Option<(f64, f64)> },
+    /// A modifier on `part`'s edge, signed against the evaluated body before it is added.
+    Modify { operation: Operation, part: u64, edge: usize },
+    /// Choose a feature in the tree, from the Ring viewport's menu.
+    Select { feature: u64 },
+    /// Show one part alone.
+    Isolate { feature: u64 },
     Preview,
     Apply,
     Discard,
@@ -227,8 +233,14 @@ pub fn add_starter(app: &mut RingDesignerApp, label: &str, anchor: Option<(f64, 
         ask(app, CadRequest::Add { operation, anchor });
     }
 }
+/// Add the modifier called `label` (Fillet or Chamfer) on `part`'s edge, signed by the pane.
+pub fn add_modifier(app: &mut RingDesignerApp, label: &str, part: u64, edge: usize) {
+    if let Some(operation) = cad_tools::starters(part, 0).into_iter().find(|op| op.label() == label) {
+        ask(app, CadRequest::Modify { operation, part, edge });
+    }
+}
 /// Starters that make sense seated on the ring's surface.
-pub const PLACEABLE: [&str; 6] = ["Box", "Cylinder", "Sphere", "Extrude", "Sweep", "Loft"];
+pub const PLACEABLE: [&str; 6] = ringdesign_workbench::viewport::menu::PLACEABLE;
 pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
     let state = &app.cad;
     ui.strong("CAD candidate");
@@ -533,13 +545,35 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     };
     let mut g = state.draft.clone().unwrap_or_else(|| original.clone());
     let (mut preview_requested, mut apply_requested, mut discard_requested) = (false, false, false);
+    let mut isolate_requested = false;
     for request in std::mem::take(&mut state.requests) {
         match request {
             CadRequest::Add { operation, anchor } => add_feature(&mut state, &mut g, operation, anchor),
+            CadRequest::Modify { mut operation, part, edge } => {
+                state.edge = Some((part, edge));
+                if let Operation::Fillet { edges, .. } | Operation::Chamfer { edges, .. } = &mut operation {
+                    *edges = vec![signed_edge(&state, part, edge)];
+                }
+                add_feature(&mut state, &mut g, operation, None);
+            }
+            CadRequest::Select { feature } => {
+                state.selected = Some(NodeId(feature));
+                state.tab = 0;
+                state.edge = None;
+            }
+            CadRequest::Isolate { feature } => {
+                state.selected = Some(NodeId(feature));
+                state.isolated = Some(feature);
+                state.tab = 0;
+                isolate_requested = true;
+            }
             CadRequest::Preview => preview_requested = true,
             CadRequest::Apply => apply_requested = true,
             CadRequest::Discard => discard_requested = true,
         }
+    }
+    if isolate_requested {
+        upload(&mut state, true);
     }
     let before = hash(&(&g, state.rollback));
     ui.horizontal_wrapped(|ui| {
