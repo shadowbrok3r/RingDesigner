@@ -225,6 +225,12 @@ impl Selection {
         self.items.iter().any(|s| s.is(e))
     }
 
+    /// The one part every chosen item is on, the part itself or its faces, edges and vertices; `None` for anything else.
+    pub fn one_part(&self) -> Option<Id> {
+        let first = self.items.first()?.feature()?;
+        self.items.iter().all(|s| s.feature() == Some(first)).then_some(first)
+    }
+
     /// Whether the focus channel must be restaged: something changed, or the mesh under it did.
     pub fn needs_stage(&mut self, mesh_key: usize) -> bool {
         let due = self.dirty || self.staged_for != mesh_key;
@@ -492,6 +498,25 @@ mod tests {
         assert!(s.hover.is_none());
         s.clear();
         assert!(s.items.is_empty());
+    }
+
+    #[test]
+    fn one_part_is_chosen_by_its_faces_edges_and_vertices_and_nothing_else_mixes_in() {
+        let mut s = Selection::default();
+        assert_eq!(s.one_part(), None);
+        s.click(Some(Sel::Face { feature: 3, face: 1 }), Mods::default());
+        assert_eq!(s.one_part(), Some(3));
+        s.click(Some(Sel::Edge { feature: 3, edge: 2 }), Mods { shift: true, ..Default::default() });
+        s.click(Some(Sel::Vertex { feature: 3, vertex: 0 }), Mods { shift: true, ..Default::default() });
+        s.click(Some(Sel::Part(3)), Mods { shift: true, ..Default::default() });
+        assert_eq!(s.one_part(), Some(3), "a part and its own faces, edges and vertices are one part");
+        s.click(Some(Sel::Part(4)), Mods { shift: true, ..Default::default() });
+        assert_eq!(s.one_part(), None, "two parts are not one");
+        s.click(Some(Sel::Part(3)), Mods::default());
+        s.click(Some(Sel::BandPoint { theta_deg: 90.0, v_mm: 0.0, world: [0.0, 10.0, 0.0] }), Mods { shift: true, ..Default::default() });
+        assert_eq!(s.one_part(), None, "a band point beside it is not a part");
+        s.click(Some(Sel::Stone(vec![0])), Mods::default());
+        assert_eq!(s.one_part(), None);
     }
 
     #[test]

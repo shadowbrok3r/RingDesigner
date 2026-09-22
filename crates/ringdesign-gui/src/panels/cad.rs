@@ -1275,6 +1275,7 @@ fn serve(app: &mut RingDesignerApp, state: &mut CadState, g: &mut Graph, origina
 }
 
 fn direct_handles(ui: &mut egui::Ui, rect: egui::Rect, state: &CadState, g: &mut Graph) {
+    use ringdesign_workbench::{command::Unit, grips::{self, Grip}};
     let Some(id) = state.selected else {
         return;
     };
@@ -1297,223 +1298,75 @@ fn direct_handles(ui: &mut egui::Ui, rect: egui::Rect, state: &CadState, g: &mut
     let painter = ui.painter_at(rect);
     let placement = feature.component.placement.clone();
     let world = |p: [f64; 3]| placement.world(&view.design, p).unwrap_or(p).map(|v| v as f32);
-    let grip = |label: &str,
-                value: &mut f64,
-                start: [f64; 3],
-                end: [f64; 3],
-                direction: [f64; 3],
-                gain: f64,
-                minimum: f64,
-                units: &str| {
-        let a = projector.at(world(start));
-        let b = projector.at(world(end));
+    // One grip drawn and dragged on screen: the value it would set, when a drag moved it.
+    let grip = |spec: &Grip| -> Option<f64> {
+        let a = projector.at(world(spec.start));
+        let b = projector.at(world(spec.at));
         if !rect.contains(b) {
-            return;
+            return None;
         }
-        let unit = projector.at(world(std::array::from_fn(|k| end[k] + direction[k]))) - b;
-        let len = unit.length();
-        if len < 2.0 {
-            return;
+        let unit = projector.at(world(std::array::from_fn(|k| spec.at[k] + spec.direction[k]))) - b;
+        if unit.length() < 2.0 {
+            return None;
         }
         painter.line_segment([a, b], Stroke::new(1.0, theme::INFO));
         painter.circle_filled(b, 5.0, theme::INFO);
-        let grip_id = ui.id().with(("dimension_grip", id.0, label));
-        let response = ui.interact(
-            egui::Rect::from_center_size(b, vec2(16.0, 16.0)),
-            grip_id,
-            egui::Sense::drag(),
-        );
+        let grip_id = ui.id().with(("dimension_grip", id.0, spec.label));
+        let response = ui.interact(egui::Rect::from_center_size(b, vec2(16.0, 16.0)), grip_id, egui::Sense::drag());
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, format!("Dimension grip: {}", spec.label)));
         if response.hovered() || response.dragged() {
             ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
-            painter.text(b + vec2(10., -12.), egui::Align2::LEFT_BOTTOM,
-                format!("{label} {value:.3} {units}"), egui::FontId::proportional(12.), theme::TEXT);
+            painter.text(b + vec2(10., -12.), egui::Align2::LEFT_BOTTOM, format!("{} {:.3} {}", spec.label, spec.value, spec.unit.suffix()), egui::FontId::proportional(12.), theme::TEXT);
         }
-        type Drag = (f64, egui::Pos2, egui::Vec2, f64);
-        if response.drag_started() {
-            if let Some(origin) = ui.input(|i| i.pointer.press_origin()) {
-                ui.ctx()
-                    .data_mut(|d| d.insert_temp(grip_id, (*value, origin, unit, gain)));
-            }
+        type Drag = (f64, egui::Pos2, egui::Vec2);
+        if response.drag_started()
+            && let Some(origin) = ui.input(|i| i.pointer.press_origin())
+        {
+            ui.ctx().data_mut(|d| d.insert_temp(grip_id, (spec.value, origin, unit)));
         }
-        if response.dragged() {
-            if let (Some((initial, origin, axis, gain)), Some(pointer)) = (
-                ui.ctx().data(|d| d.get_temp::<Drag>(grip_id)),
-                response.interact_pointer_pos(),
-            ) {
-                *value = (initial
-                    + ((pointer - origin).dot(axis) / axis.length_sq()) as f64 * gain)
-                    .max(minimum);
-            }
+        let mut dragged = None;
+        if response.dragged()
+            && let (Some((initial, origin, axis)), Some(pointer)) = (ui.ctx().data(|d| d.get_temp::<Drag>(grip_id)), response.interact_pointer_pos())
+        {
+            // The pointer's move along the grip's screen axis, in millimetres along its line.
+            dragged = Some(spec.dragged(initial, f64::from((pointer - origin).dot(axis) / axis.length_sq())));
         }
         if response.drag_stopped() {
             ui.ctx().data_mut(|d| d.remove::<Drag>(grip_id));
         }
         response.on_hover_text("Drag to change this source dimension. Numeric fields accept exact values; Preview/Enter evaluates, Escape cancels.");
+        dragged
     };
-    let handle = |label, value: &mut f64, start, end, direction, gain| {
-        grip(label, value, start, end, direction, gain, 0.001, "mm");
-    };
-    match &mut feature.operation {
-        Operation::Box { size } => {
-            for axis in 0..3 {
-                let mut start = [0.0; 3];
-                let mut end = [0.0; 3];
-                let mut direction = [0.0; 3];
-                start[axis] = -size[axis] / 2.0;
-                end[axis] = size[axis] / 2.0;
-                direction[axis] = 1.0;
-                handle(
-                    ["Width X", "Length Y", "Height Z"][axis],
-                    &mut size[axis],
-                    start,
-                    end,
-                    direction,
-                    2.0,
-                );
-            }
+    // The operation's own grips, from the list the Ring viewport shows too.
+    for spec in grips::grips(&feature.operation) {
+        if let Some(value) = grip(&spec)
+            && let Some(op) = grips::with(&feature.operation, spec.key, value)
+        {
+            feature.operation = op;
         }
-        Operation::Cylinder {
-            radius_mm,
-            height_mm,
-        } => {
-            let r = *radius_mm;
-            let h = *height_mm;
-            handle(
-                "Radius",
-                radius_mm,
-                [0.0; 3],
-                [r, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                1.0,
-            );
-            handle(
-                "Height",
-                height_mm,
-                [0.0, 0.0, -h / 2.0],
-                [0.0, 0.0, h / 2.0],
-                [0.0, 0.0, 1.0],
-                2.0,
-            );
-        }
-        Operation::Sphere { radius_mm } => {
-            let r = *radius_mm;
-            handle(
-                "Radius",
-                radius_mm,
-                [0.0; 3],
-                [r, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                1.0,
-            );
-        }
-        Operation::Torus { major_mm, minor_mm } => {
-            let a = *major_mm;
-            let b = *minor_mm;
-            handle(
-                "Major radius",
-                major_mm,
-                [0.0; 3],
-                [a, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                1.0,
-            );
-            handle(
-                "Tube radius",
-                minor_mm,
-                [a, 0.0, 0.0],
-                [a + b, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                1.0,
-            );
-        }
-        Operation::TwistedRing {
-            major_mm,
-            radial_mm,
-            axial_mm,
-            ..
-        } => {
-            let (r, radial, axial) = (*major_mm, *radial_mm, *axial_mm);
-            handle(
-                "Major radius",
-                major_mm,
-                [0.0; 3],
-                [r, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                1.0,
-            );
-            handle(
-                "Radial thickness",
-                radial_mm,
-                [r - radial / 2.0, 0.0, 0.0],
-                [r + radial / 2.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                2.0,
-            );
-            handle(
-                "Band width",
-                axial_mm,
-                [r, 0.0, -axial / 2.0],
-                [r, 0.0, axial / 2.0],
-                [0.0, 0.0, 1.0],
-                2.0,
-            );
-        }
-        Operation::Transform { translation, .. } => {
-            let base = *translation;
-            for axis in 0..3 {
-                let mut end = base;
-                let mut direction = [0.0; 3];
-                end[axis] += 4.0;
-                direction[axis] = 1.0;
-                grip(
-                    ["Position X", "Position Y", "Position Z"][axis],
-                    &mut translation[axis],
-                    base,
-                    end,
-                    direction,
-                    1.0,
-                    f64::NEG_INFINITY,
-                    "mm",
-                );
-            }
-        }
-        Operation::Extrude {
-            sketch, height_mm, ..
-        } => {
-            // Only a sketch drawn here on its own plane has a plane the panel can read.
-            if let Some(plane) = sketch.sketch_mut().filter(|s| s.plane.on_face.is_none()).map(|s| s.plane.clone()) {
-                if let Some(normal) = plane.plane().ok().and_then(|p| p.normal()) {
-                    let base = plane.origin;
-                    let end = std::array::from_fn(|i| base[i] + normal[i] * *height_mm);
-                    handle("Extrusion", height_mm, base, end, normal, 1.0);
-                }
-            }
-        }
-        _ => {}
     }
     if let Placement::Ring { theta_deg, height_mm, .. } = &mut feature.component.placement {
         let height = *height_mm;
         let radius = view.design.inner_radius_mm() + view.design.profile.thickness_mm + height;
-        grip(
-            "Ring position",
-            theta_deg,
-            [0.0; 3],
-            [0.0, 2.0, 0.0],
-            [0.0, 1.0, 0.0],
-            180.0 / (std::f64::consts::PI * radius.max(0.001)),
-            f64::NEG_INFINITY,
-            "°",
-        );
-        grip(
-            "Radial placement",
-            height_mm,
-            [0.0, 0.0, -height],
-            [0.0; 3],
-            [0.0, 0.0, 1.0],
-            1.0,
-            f64::NEG_INFINITY,
-            "mm",
-        );
+        let round = Grip {
+            key: "theta",
+            label: "Ring position",
+            unit: Unit::Deg,
+            value: *theta_deg,
+            start: [0.0; 3],
+            at: [0.0, 2.0, 0.0],
+            direction: [0.0, 1.0, 0.0],
+            gain: 180.0 / (std::f64::consts::PI * radius.max(0.001)),
+            minimum: f64::NEG_INFINITY,
+            position: true,
+        };
+        if let Some(v) = grip(&round) {
+            *theta_deg = v;
+        }
+        let out = Grip { key: "height", label: "Radial placement", unit: Unit::Mm, value: height, start: [0.0, 0.0, -height], at: [0.0; 3], direction: [0.0, 0.0, 1.0], gain: 1.0, minimum: f64::NEG_INFINITY, position: true };
+        if let Some(v) = grip(&out) {
+            *height_mm = v;
+        }
     }
     node.params = serde_json::to_value(feature).unwrap();
 }

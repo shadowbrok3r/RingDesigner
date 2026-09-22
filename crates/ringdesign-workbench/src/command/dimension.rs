@@ -19,6 +19,8 @@ pub struct DimensionBar {
     texts: Vec<(&'static str, String)>,
     /// The widget holding the keys for the tool while no field does; focus there counts as none.
     host: Option<Id>,
+    /// The field a number typed with nothing focused starts in; the first field when unset.
+    first: Option<&'static str>,
 }
 impl Default for DimensionBar {
     fn default() -> Self {
@@ -59,7 +61,7 @@ fn cursor_to_end(ctx: &Context, id: Id, text: &str) {
 
 impl DimensionBar {
     pub fn new(id_salt: impl egui::AsId) -> Self {
-        Self { id: Id::new(id_salt), texts: Vec::new(), host: None }
+        Self { id: Id::new(id_salt), texts: Vec::new(), host: None, first: None }
     }
     /// Names the widget that holds the keys for the tool, so a number typed while it has focus still starts the first field.
     pub fn set_host(&mut self, host: Option<Id>) {
@@ -89,6 +91,11 @@ impl DimensionBar {
     }
     pub fn reset(&mut self) {
         self.texts.clear();
+        self.first = None;
+    }
+    /// Names the field a number typed with nothing focused starts in, as a dragged handle's own dimension.
+    pub fn prefer(&mut self, key: Option<&'static str>) {
+        self.first = key;
     }
     /// Whether one of the fields holds keyboard focus, so the viewport leaves the keys alone.
     pub fn has_focus(&self, ctx: &Context) -> bool {
@@ -128,7 +135,10 @@ impl DimensionBar {
                 .map(|at| (at, cur, false)),
             // egui acted on an Escape before the field's filter landed and dropped its focus.
             (None, Some(cur)) if input.iter().any(|e| pressed(e, Key::Escape)) => Some((0, cur, false)),
-            (None, _) if ctx.memory(|m| m.focused()).is_none_or(|f| Some(f) == self.host) => input.iter().position(starts_a_number).map(|at| (at, 0, true)),
+            (None, _) if ctx.memory(|m| m.focused()).is_none_or(|f| Some(f) == self.host) => {
+                let start = self.first.and_then(|k| dims.iter().position(|d| d.key == k)).unwrap_or(0);
+                input.iter().position(starts_a_number).map(|at| (at, start, true))
+            }
             _ => None,
         };
         if focused.is_some() || takeover.is_some() {
@@ -154,7 +164,7 @@ impl DimensionBar {
         if let Some((at, start, fresh)) = takeover {
             let (mut cur, mut moved) = (start, fresh);
             if fresh {
-                self.text_mut(dims[0].key).clear();
+                self.text_mut(dims[start].key).clear();
             }
             for e in &input[at..] {
                 let text = self.text_mut(dims[cur].key);
@@ -473,6 +483,30 @@ mod tests {
         h.state().bar.focus_field(&h.ctx, "height");
         h.run_steps(2);
         assert_eq!(focused(&h), ["Height (mm)"]);
+    }
+
+    #[test]
+    fn a_preferred_field_takes_the_first_typed_number_and_a_reset_forgets_it() {
+        let host = Id::new("viewport");
+        let mut h = hosted(Some(host));
+        h.state_mut().bar.prefer(Some("height"));
+        h.ctx.memory_mut(|m| m.request_focus(host));
+        h.run_steps(2);
+        h.event(Event::Text("3".into()));
+        h.run_steps(2);
+        assert_eq!(focused(&h), ["Height (mm)"], "the dragged handle's own field starts");
+        assert_eq!(typed(&h), [DimEvent::Typed { key: "height", value: 3.0 }]);
+        // A name the step does not carry falls back to the first field.
+        let mut h = hosted(Some(host));
+        h.state_mut().bar.prefer(Some("spin"));
+        h.ctx.memory_mut(|m| m.request_focus(host));
+        h.run_steps(2);
+        h.event(Event::Text("2".into()));
+        h.run_steps(2);
+        assert_eq!(focused(&h), ["Radius (mm)"]);
+        h.state_mut().bar.prefer(Some("height"));
+        h.state_mut().bar.reset();
+        assert_eq!(h.state().bar.first, None);
     }
 
     #[test]

@@ -1,6 +1,8 @@
-//! Move, rotate and scale in the ring frame, place on the ring, click-drag primitives and the attach cycle.
+//! Move, rotate and scale in the ring frame, place on the ring, click-drag primitives, the attach cycle and grip drags.
+use super::ring::{Affine, angle_about, transform};
 use super::session::{Axis, CommandInfo, Dimension, Effect, Outcome, Preview, StepInfo, StepInput, Unit, ViewCommand};
 use super::snap::wrap360;
+use crate::grips::{self, Grip};
 use crate::icons::Icon;
 use ringdesign_core::cad::{Attach, Component, Feature, Operation, Placement};
 
@@ -227,6 +229,13 @@ impl ViewCommand for MoveCmd {
     }
 }
 
+/// A gizmo ring's centre and the world axis each of a turn's three dimensions is about, in their order.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Pivot {
+    pub centre: [f64; 3],
+    pub axes: [[f64; 3]; 3],
+}
+
 /// R: spin a seated part about its normal, lean it along (tilt) or across (cant) the ring; a free part turns about a world axis.
 pub struct RotateCmd {
     feature: u64,
@@ -239,6 +248,8 @@ pub struct RotateCmd {
     sweep: [f64; 3],
     lock: Option<Axis>,
     dofs: Vec<Dof>,
+    /// Read the pointer as its angle about these axes instead of off the ring frame.
+    pivot: Option<Pivot>,
 }
 impl RotateCmd {
     /// A free part's turn becomes a new `Transform` feature numbered `fresh_id`.
@@ -256,11 +267,15 @@ impl RotateCmd {
             ],
         };
         let component = Component::default();
-        Self { feature, base, fresh_id, component, anchor: None, world: [0.0; 3], sweep: [0.0; 3], lock: None, dofs }
+        Self { feature, base, fresh_id, component, anchor: None, world: [0.0; 3], sweep: [0.0; 3], lock: None, dofs, pivot: None }
     }
     /// Turns a document feature; a free part keeps its component on the `Transform` that turns it.
     pub fn of(f: &Feature, fresh_id: u64) -> Self {
         Self { component: f.component.clone(), ..Self::new(f.id, f.component.placement.clone(), fresh_id) }
+    }
+    /// Reads the pointer as its angle about the pivot's axes, as a gizmo ring is dragged; a free part then turns about the pivot's centre.
+    pub fn about(self, pivot: Pivot) -> Self {
+        Self { pivot: Some(pivot), ..self }
     }
     /// The axis the pointer turns: the lock, else spin on the ring and z in the world.
     fn active(&self) -> Axis {
@@ -277,6 +292,9 @@ impl RotateCmd {
     }
     /// Degrees swept since the anchor: round the seat (spin), toward the pointer (tilt, cant), or round each world axis (free).
     fn sweeps(&self, a: Anchor, now: Anchor) -> [f64; 3] {
+        if let Some(p) = self.pivot {
+            return std::array::from_fn(|k| wrap180(angle_about(now.world, p.centre, p.axes[k]) - angle_about(a.world, p.centre, p.axes[k])));
+        }
         let deg = |from: f64, to: f64| wrap180((to - from).to_degrees());
         match self.base {
             Placement::Ring { theta_deg, across_mm, .. } => {
@@ -309,7 +327,15 @@ impl RotateCmd {
                     cant_deg: wrap180(cant_deg + v(2)),
                 },
             },
-            Placement::Free => Effect::Add { feature: wrapped(self.fresh_id, self.feature, &self.component, [0.0; 3], [v(0), v(1), v(2)]) },
+            Placement::Free => {
+                let rotation = [v(0), v(1), v(2)];
+                // About a pivot the turn carries its centre back to where it was.
+                let translation = self.pivot.map_or([0.0; 3], |p| {
+                    let turned = transform([0.0; 3], rotation).apply(p.centre);
+                    std::array::from_fn(|k| p.centre[k] - turned[k])
+                });
+                Effect::Add { feature: wrapped(self.fresh_id, self.feature, &self.component, translation, rotation) }
+            }
         }
     }
 }
@@ -835,6 +861,84 @@ impl ViewCommand for AttachCmd {
             Attach::Cut => "Cut",
         };
         Preview { caption: format!("Attach: {name}"), ..Preview::default() }
+    }
+}
+
+/// Drags one size grip of a part along its line; a typed value replaces the drag.
+pub struct GripCmd {
+    feature: u64,
+    op: Operation,
+    grip: Grip,
+    /// The grip and the unit direction it moves along, in the world.
+    at: [f64; 3],
+    direction: [f64; 3],
+    /// How far along the line the pointer was when the drag began, and where.
+    anchor: Option<(f64, [f64; 3])>,
+    world: [f64; 3],
+    dof: Dof,
+}
+impl GripCmd {
+    /// `frame` carries the part's own frame into the world; `None` for an operation without the grip.
+    pub fn new(feature: u64, op: Operation, key: &str, frame: &Affine) -> Option<Self> {
+        let grip = grips::grips(&op).into_iter().find(|g| g.key == key)?;
+        let at = frame.apply(grip.at);
+        let d = frame.turn(grip.direction);
+        let len = d.iter().map(|v| v * v).sum::<f64>().sqrt();
+        if !(len > 1e-12) {
+            return None;
+        }
+        let direction = d.map(|v| v / len);
+        let dof = Dof { key: grip.key, label: grip.label, unit: grip.unit, axis: Axis::Height, positive: grip.minimum > 0.0, pointer: grip.value, typed: None };
+        Some(Self { feature, op, grip, at, direction, anchor: None, world: at, dof })
+    }
+    fn value(&self) -> f64 {
+        self.dof.value().max(self.grip.minimum)
+    }
+    fn operation(&self) -> Operation {
+        grips::with(&self.op, self.grip.key, self.value()).unwrap_or_else(|| self.op.clone())
+    }
+}
+impl ViewCommand for GripCmd {
+    fn key(&self) -> &'static str {
+        "grip"
+    }
+    fn title(&self) -> String {
+        self.grip.label.into()
+    }
+    fn step(&self) -> usize {
+        0
+    }
+    fn steps(&self) -> Vec<StepInfo> {
+        vec![StepInfo { name: "Grip", prompt: "Drag the grip along its line; type a value; release or Enter sets it" }]
+    }
+    fn dimensions(&self) -> Vec<Dimension> {
+        vec![self.dof.dimension()]
+    }
+    fn feed(&mut self, input: &StepInput) -> Outcome {
+        if let Some(o) = edit(std::slice::from_mut(&mut self.dof), input) {
+            return o;
+        }
+        match *input {
+            StepInput::Pointer { world, .. } => {
+                let along: f64 = (0..3).map(|k| (world[k] - self.at[k]) * self.direction[k]).sum();
+                let (from, _) = *self.anchor.get_or_insert((along, world));
+                self.dof.pointer = self.grip.dragged(self.grip.value, along - from);
+                self.world = world;
+                Outcome::Continue
+            }
+            StepInput::Click | StepInput::Confirm => Outcome::Commit(vec![Effect::Operation { feature: self.feature, operation: self.operation() }]),
+            StepInput::Lock(_) | StepInput::Unlock => Outcome::Refused("A grip moves along its own line".into()),
+            StepInput::Back | StepInput::Cancel => Outcome::Cancelled,
+            StepInput::Typed { .. } | StepInput::Cleared { .. } => Outcome::Continue,
+        }
+    }
+    fn preview(&self) -> Preview {
+        Preview {
+            placement: None,
+            operation: Some(self.operation()),
+            ghost: self.anchor.map(|(_, press)| vec![press, self.world]).unwrap_or_default(),
+            caption: format!("{} {}", self.grip.label, self.grip.unit.format(self.value())),
+        }
     }
 }
 
