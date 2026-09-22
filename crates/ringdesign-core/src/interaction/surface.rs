@@ -9,6 +9,17 @@ pub const MAX_REPEATS: u32 = 128;
 /// Mirroring doubles the entry count; every copy must fit the field evaluator.
 pub const MAX_STAMP_COPIES: u32 = crate::field::MAX_DECALS as u32 / 2;
 
+/// What every surface tool says to a ring that is CAD parts with no procedural shank.
+pub const PARTS_ONLY: &str = "This ring is CAD parts only; add a Procedural shank to paint on a band.";
+
+/// True when the CAD document carries features and none of them is the procedural band.
+pub fn replaces_band(d: &RingDesign) -> bool {
+    d.cad.as_ref().is_some_and(|doc| {
+        !doc.features.is_empty()
+            && !doc.features.iter().any(|f| matches!(f.operation, crate::cad::Operation::Band))
+    })
+}
+
 /// Unwrap a picked angle around its neighbour, so 359 -> 1 draws across the seam.
 pub fn near_turn(turn: f64, neighbour: f64) -> f64 {
     neighbour + (turn - neighbour + 0.5).rem_euclid(1.0) - 0.5
@@ -21,8 +32,11 @@ pub fn apply_path(
     engrave: bool,
     target: Option<usize>,
 ) -> Result<usize, String> {
-    if d.graph.is_some() || d.cad.is_some() {
+    if d.graph.is_some() {
         return Err("Bake the driven design before editing surface paths.".into());
+    }
+    if replaces_band(d) {
+        return Err(PARTS_ONLY.into());
     }
     if !(2..=crate::curve::MAX_CURVE_POINTS).contains(&curve.points.len())
         || curve.points.iter().flatten().any(|v| !v.is_finite())

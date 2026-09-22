@@ -203,3 +203,88 @@ fn a_graph_driven_design_keeps_its_graph_after_a_cad_apply() {
     h.run_steps(3);
     assert!(h.query_all_by_label_contains("Driven by the graph").next().is_some(), "the Design panel says so");
 }
+
+/// Create → Procedural shank, then Create → Cylinder, previewed with Enter and applied with Ctrl+Enter.
+fn create_and_apply_a_shank_with_a_cylinder(h: &mut Harness<'static, RingDesignerApp>) {
+    h.state_mut().switch_desktop(crate::dock::Desktop::Cad);
+    h.run_steps(4);
+    h.get_by_label("Create").click();
+    h.run_steps(3);
+    h.get_by_label("Procedural shank").click();
+    h.run_steps(4);
+    h.get_by_label("Create").click();
+    h.run_steps(3);
+    h.get_by_label("Cylinder").click();
+    h.run_steps(4);
+    h.key_press(egui::Key::Enter);
+    h.run_steps(3);
+    wait_until_previewed(h);
+    press_ctrl_enter(h);
+}
+/// Open the Ring viewport's tool menu on the Model desktop and say whether Paint 3D is offered.
+fn paint_offered(h: &mut Harness<'static, RingDesignerApp>) -> bool {
+    use egui_kittest::kittest::NodeT;
+    let app = h.state_mut();
+    app.switch_desktop(crate::dock::Desktop::Model);
+    app.set_layout(crate::pane::Layout::Single);
+    app.visual.select(ringdesign_workbench::visual::Tool::Select);
+    h.run_steps(3);
+    // The menu button carries the current tool's name and sits on the viewport's footer.
+    h.query_all_by_label(ringdesign_workbench::visual::Tool::Select.label())
+        .filter(|n| n.accesskit_node().role() == egui::accesskit::Role::Button)
+        .max_by(|a, b| a.rect().bottom().total_cmp(&b.rect().bottom()))
+        .expect("the tool menu button")
+        .click();
+    h.run_steps(3);
+    let offered = !h.get_by_label("Paint 3D").accesskit_node().is_disabled();
+    h.key_press(egui::Key::Escape);
+    h.run_steps(2);
+    offered
+}
+/// Show the unrolled editor in the first pane and say whether it unrolls the band.
+fn unrolled_available(h: &mut Harness<'static, RingDesignerApp>) -> bool {
+    let app = h.state_mut();
+    app.set_layout(crate::pane::Layout::SplitV);
+    app.panes[0].kind = crate::pane::PaneKind::Unrolled;
+    h.run_steps(3);
+    h.query_all_by_label(ringdesign_workbench::cad_tools::PARTS_ONLY).next().is_none()
+}
+
+#[test]
+fn parts_beside_a_procedural_shank_keep_the_surface_tools_and_start_joined() {
+    use ringdesign_core::cad::{Attach, Operation};
+    let mut h = harness();
+    create_and_apply_a_shank_with_a_cylinder(&mut h);
+    {
+        let app = h.state();
+        assert_eq!(app.cad.last_error(), None);
+        assert!(app.design.graph.is_none(), "a plain design stays plain");
+        let doc = app.design.cad.as_ref().expect("the applied document");
+        let names: Vec<_> = doc.features.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, ["Procedural shank", "Cylinder"]);
+        assert!(matches!(doc.features[0].operation, Operation::Band));
+        assert_eq!(doc.features[0].component.attach, Attach::Separate, "the shank is the band, not a part on it");
+        assert_eq!(doc.features[1].component.attach, Attach::Join, "a part beside a procedural shank starts joined");
+        assert!(!ringdesign_workbench::cad_tools::replaces_band(&app.design));
+    }
+    assert!(paint_offered(&mut h), "Paint 3D stays on the tool menu beside CAD parts");
+    assert_eq!(h.state().surface_edit_reason(), None);
+    assert!(unrolled_available(&mut h), "the unrolled editor still unrolls the band");
+}
+
+#[test]
+fn a_ring_of_parts_only_refuses_the_surface_tools_and_says_why() {
+    use ringdesign_core::cad::Attach;
+    let mut h = harness();
+    create_and_apply_a_cylinder(&mut h);
+    {
+        let app = h.state();
+        assert_eq!(app.cad.last_error(), None);
+        let doc = app.design.cad.as_ref().expect("the applied document");
+        assert_eq!(doc.features[0].component.attach, Attach::Separate, "with no shank there is nothing to join");
+        assert!(ringdesign_workbench::cad_tools::replaces_band(&app.design));
+    }
+    assert!(!paint_offered(&mut h), "a ring of parts only has no band to paint");
+    assert_eq!(h.state().surface_edit_reason(), Some(ringdesign_workbench::cad_tools::PARTS_ONLY));
+    assert!(!unrolled_available(&mut h), "and nothing to unroll");
+}

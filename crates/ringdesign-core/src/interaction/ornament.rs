@@ -100,13 +100,13 @@ pub fn apply(
     mut decal: Decal,
     op: Operation,
 ) -> Result<Target, String> {
-    if d.graph.is_some()
-        || d.cad.is_some()
-        || picking::live_ancestor(&d.layers, &target.path).is_some()
-    {
+    if d.graph.is_some() || picking::live_ancestor(&d.layers, &target.path).is_some() {
         return Err(
             "Bake the generated design or group before editing individual ornaments.".into(),
         );
+    }
+    if super::surface::replaces_band(d) {
+        return Err(super::surface::PARTS_ONLY.into());
     }
     let ctx = d.field_context();
     if [
