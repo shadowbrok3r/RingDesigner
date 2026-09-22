@@ -2231,6 +2231,25 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   signatures and the surface epoch makes a warm edit of the gallery's last
   feature 35.1 → 2.3 ms at preview; the boolean resolve into the band is not
   cached and is what a part edit now costs (34 ms preview, 377 ms export).
+- **`sources()` is what a feature reads; `consumes()` is what it replaces.**
+  Ordering, removal checks, cache signatures and skips read `sources()`,
+  which includes the face a sketch lies on; the output list reads
+  `consumes()`, which never does — or sketching on a box's face drops the box.
+- **The viewport models through one session.** `workbench::command::Session`
+  takes every input as a `StepInput` token and answers with an `Outcome`;
+  the GUI (`gui::command`) turns keys, the pointer and the dimension bar into
+  tokens and a `Commit` into funnel edits — one History entry per command, the
+  ghost drawn under a model matrix until the rebuild lands. Escape backs out
+  one level at a time and never touches committed work; Undo while a command
+  is live ends the command and takes back nothing else, because a command
+  that outlived an Undo commits over what it restored.
+- **Ids on a driven design are the graph's.** A feature's id is its node's
+  id, so `Document::fresh_id` can hand out an id another node already
+  carries; the funnel asks the graph for a fresh one instead. And moving
+  nodes on the canvas is layout, not an edit: History ignores a change that
+  only moves graph nodes (`history::graph_layout_only`), and the app skips
+  the rebuild for it — or every Convert and every add costs an Undo step
+  that only moves nodes back.
 
 ## Python: `crates/ringdesign-py`
 
