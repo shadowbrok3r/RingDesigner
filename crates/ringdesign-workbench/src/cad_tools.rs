@@ -1,7 +1,7 @@
 //! Shared, inspectable CAD creation tools. Solid evaluation remains in core.
 use crate::icons::Icon;
 use ringdesign_core::{
-    cad::{Boolean, EdgeRef, FaceRef, Operation, Placement},
+    cad::{Attach, Boolean, Component, EdgeRef, FaceRef, Operation, Placement, Stage},
     sketch::{Geometry, Sketch, Workplane},
 };
 pub fn icon(op: &Operation) -> Icon {
@@ -330,4 +330,39 @@ pub fn placement(ui: &mut egui::Ui, p: &mut Placement) {
         crate::controls::named(ui, "Tilt along the ring °", "Tilt", |ui| ui.add(egui::DragValue::new(tilt_deg).speed(0.5).max_decimals(2)));
         crate::controls::named(ui, "Cant across the band °", "Cant", |ui| ui.add(egui::DragValue::new(cant_deg).speed(0.5).max_decimals(2)));
     }
+}
+
+/// How a part meets the band and when it is added; the seam bead only where it joins or cuts.
+pub fn attachment(ui: &mut egui::Ui, c: &mut Component) {
+    const STONE: &str = "A reference stone is never metal";
+    if c.reference {
+        ui.label("Reference stone: never metal, so it stands beside the band unjoined.");
+    }
+    ui.add_enabled_ui(!c.reference, |ui| {
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Attach");
+            for (attach, label, hint) in [
+                (Attach::Separate, "Separate", "Kept beside the band as its own solid"),
+                (Attach::Join, "Join", "United into the band; the pattern and the verdict see one solid"),
+                (Attach::Cut, "Cut", "Subtracted from the band"),
+            ] {
+                ui.selectable_value(&mut c.attach, attach, label).on_hover_text(hint).on_disabled_hover_text(STONE);
+            }
+        });
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Stage");
+            for (stage, label, hint) in [
+                (Stage::Cast, "Cast", "Cast in the pattern"),
+                (Stage::Bench, "Bench", "Added at the bench after the pour; never in a sand pattern"),
+            ] {
+                ui.selectable_value(&mut c.stage, stage, label).on_hover_text(hint).on_disabled_hover_text(STONE);
+            }
+        });
+        if c.attaches() {
+            crate::controls::named(ui, "Seam blend mm", "Seam blend", |ui| {
+                ui.add(egui::DragValue::new(&mut c.blend_mm).range(0.0..=1.5).speed(0.01).max_decimals(2).suffix(" mm"))
+                    .on_hover_text("Radius of the bead laid along the seam where the part meets the band; 0 lays none")
+            });
+        }
+    });
 }
