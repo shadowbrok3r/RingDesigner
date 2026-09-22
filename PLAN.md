@@ -255,6 +255,11 @@ answer to AccessKit so kittest and `egui_drive.py` can type into them.
   corners by pinching (fold guard), and beads 20 random bezels round the Court band clean (0 of
   3831 stations clamped, ≤ 196 ms debug). Known limit: a wire lying on a low dome closes its wedge
   and clamps to the 0.02 mm floor; sink it 0.4 mm or stand it up.
+- **Verified live** (`851c0de`): File ▸ New, CAD workspace, right-click the band ▸ Add here ▸ Cylinder —
+  the procedural shank comes with the first part, the cylinder seats where the click landed, the
+  CAD pane previews the whole ring, and after Apply the Model workspace shows one fused mesh
+  (668.7 mm³, Castable, "1 CAD part stands on the band … (1 joined, 0 cut, 0 separate)") with the
+  Design panel editable and Paint 3D offered. H2 and the exclusive mode are gone.
 - Open (phase 3): wire `Component.blend_mm` into `parts::resolve` (the bead must keep the part's
   origin provenance — `fillet_junction` compacts its result today); `launch()` still seeds a Band
   when a design has no CAD document; `assembly::inspect` no longer sees a band component;
