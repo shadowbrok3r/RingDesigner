@@ -8,7 +8,13 @@ use cadkernel::{
 use nalgebra::{DMatrix, DVector};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+pub mod edit;
 pub mod exchange;
+pub mod region;
+pub mod solid;
+pub use edit::Pattern;
+pub use region::Region;
+pub use solid::FaceFrame;
 
 pub type Id = u64;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -17,7 +23,9 @@ pub struct Workplane {
     pub origin: [f64; 3],
     pub x: [f64; 3],
     pub y: [f64; 3],
-    /// Taken from a planar face of an earlier feature; `origin` and `x` are then projected onto it.
+    /// Laid on a planar face of an earlier feature: `origin`, `x` and `y` are then read in the
+    /// face's own frame ([`FaceFrame`]: origin at its centroid, x along its longest straight
+    /// edge, z out of the solid), so the default workplane lies on the face at its centroid.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub on_face: Option<FaceAnchor>,
 }
@@ -402,77 +410,13 @@ impl Sketch {
     }
     /// The solved profile as one closed loop in joining order, or the reason it is not one.
     pub fn profile_curves(&self) -> Result<Vec<Curve>> {
-        let solved = self.solve()?.sketch;
-        let key = |id: Id| -> Result<[i64; 2]> {
-            Ok(solved.at(id)?.map(|v| (v * 1e6).round() as i64))
-        };
-        let mut closed = Vec::new();
-        let mut open = Vec::new();
-        for e in solved.entities.iter().filter(|e| !e.construction) {
-            let curves = solved.curves_of(e)?;
-            match e.geometry.ends() {
-                Some((a, b)) if key(a)? != key(b)? => open.push((a, b, curves)),
-                _ => closed.push(curves),
-            }
-        }
+        let mut loops = region::loops(&self.solve()?.sketch)?;
         ensure!(
-            !closed.is_empty() || !open.is_empty(),
-            "Sketch has no profile geometry"
-        );
-        // The kernel sweeps arcs, never a whole circle: hand it two halves.
-        let mut chains: Vec<Vec<Curve>> = closed
-            .into_iter()
-            .map(|curves| {
-                curves
-                    .into_iter()
-                    .flat_map(|c| match c {
-                        Curve::Circle(circle) => {
-                            let half = |from: f64| {
-                                Curve::Arc(Arc {
-                                    centre: circle.centre,
-                                    radius: circle.radius,
-                                    start_angle: from,
-                                    end_angle: from + std::f64::consts::PI,
-                                })
-                            };
-                            vec![half(0.0), half(std::f64::consts::PI)]
-                        }
-                        other => vec![other],
-                    })
-                    .collect()
-            })
-            .collect();
-        while !open.is_empty() {
-            let (start, mut end, mut chain) = open.remove(0);
-            while key(end)? != key(start)? {
-                let at = key(end)?;
-                let mut next = None;
-                for (i, (a, b, _)) in open.iter().enumerate() {
-                    if key(*a)? == at || key(*b)? == at {
-                        next = Some(i);
-                        break;
-                    }
-                }
-                let Some(i) = next else {
-                    bail!("Sketch profile is open at point #{end}; join it to close the loop");
-                };
-                let (a, b, mut curves) = open.remove(i);
-                if key(a)? == at {
-                    end = b;
-                } else {
-                    curves.reverse();
-                    end = a;
-                }
-                chain.extend(curves);
-            }
-            chains.push(chain);
-        }
-        ensure!(
-            chains.len() == 1,
+            loops.len() == 1,
             "Sketch has {} separate loops; a profile is one closed loop. Delete the others or mark them Construction",
-            chains.len()
+            loops.len()
         );
-        Ok(chains.remove(0))
+        Ok(loops.remove(0).curves)
     }
     fn residuals(&self) -> Result<Vec<f64>> {
         let mut r = Vec::new();
@@ -514,16 +458,19 @@ impl Sketch {
     pub fn solve(&self) -> Result<Solution> {
         self.validate()?;
         let mut s = self.clone();
+        // A point no constraint names has no residual to move it, so it is no variable.
+        let named: BTreeSet<Id> = s.constraints.iter().flat_map(Constraint::points).collect();
+        let loose = s.points.iter().filter(|p| !p.fixed && !named.contains(&p.id)).count();
         let vars: Vec<_> = s
             .points
             .iter()
             .enumerate()
-            .filter(|(_, p)| !p.fixed)
+            .filter(|(_, p)| !p.fixed && named.contains(&p.id))
             .flat_map(|(i, _)| [(i, 0), (i, 1)])
             .collect();
         ensure!(
             vars.len() <= 256,
-            "Constraint solver supports 128 movable points per sketch"
+            "Constraint solver supports 128 constrained movable points per sketch"
         );
         for iteration in 0..80 {
             let r = DVector::from_vec(s.residuals()?);
@@ -546,7 +493,7 @@ impl Sketch {
                 return Ok(Solution {
                     sketch: s,
                     residual_mm: residual,
-                    remaining_dof: vars.len().saturating_sub(rank),
+                    remaining_dof: vars.len().saturating_sub(rank) + 2 * loose,
                     iterations: iteration,
                 });
             }
@@ -699,6 +646,23 @@ mod tests {
         assert_eq!(Sketch::circle(2.0).profile_curves().unwrap().len(), 2, "a circle sweeps as two arcs");
         s.remove_point(p[2]);
         assert_eq!((s.points.len(), s.entities.len()), (2, 1));
+    }
+    #[test]
+    fn loose_points_are_no_solver_variables_but_still_count_as_freedom() {
+        // A rectangle plus a free point: the point adds two degrees of freedom and no variables.
+        let mut s = Sketch::rectangle(8.0, 6.0);
+        s.point([20.0, 20.0]);
+        let solved = s.solve().unwrap();
+        assert_eq!((solved.remaining_dof, solved.iterations), (2, 0));
+        // Three hundred unconstrained points solve at once, where the cap once counted every one.
+        let mut many = Sketch::default();
+        let ids: Vec<Id> = (0..300).map(|i| many.point([(i as f64 * 0.1).cos() * 5.0, (i as f64 * 0.1).sin() * 5.0])).collect();
+        many.entity(Geometry::Polyline { points: ids, closed: false });
+        assert_eq!(many.solve().unwrap().remaining_dof, 600);
+        // One region with no holes is the single loop the old profile gave, curve for curve.
+        for s in [Sketch::rectangle(3.0, 2.0), Sketch::circle(1.5)] {
+            assert_eq!(s.profile_region().unwrap().outer, s.profile_curves().unwrap());
+        }
     }
     #[test]
     fn workplane_roundtrip_and_sketch_persistence() {
