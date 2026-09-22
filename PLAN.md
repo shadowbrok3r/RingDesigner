@@ -176,11 +176,14 @@ does not Apply" (covered by the Enter-never-applies pin instead).
   Feature}` on extrude/revolve/sweep/twist/loft, and `Workplane::on_face` (a `FaceAnchor` whose
   plane is the face's own, outward normal, origin and x projected onto it).
 - Open: `Component` attach/stage/blend (additive, with M2), `csg::Solid` from a trace, spikes R1/R4.
-- Known red, pre-existing (fails on the tree before this work): graph integration test
-  `stock_masterworks_match_their_sources_with_native_maps_and_casting_modes` — the bundled
+- Known red, pre-existing (fails on the tree before this work), three graph integration tests
+  with one cause: `imported_bases::stock_masterworks_match_their_sources_with_native_maps_and_casting_modes`
+  ("nocturne lost portable source data") and `showcase_templates::{showcase_graphs_reproduce_source_and_geometry_without_a_user_library,
+  showcase_face_size_and_layer_edits_survive_evaluation_and_reload}` — the bundled
   `graphs/templates/nocturne-imported.graph.json` no longer matches
   `showcase/stock-masterworks/nocturne/design.ring.json`; regenerate one from the other
-  (`showcase_templates --write`) when the Reptilia batch is reviewed.
+  (`showcase_templates --write`) when the Reptilia batch is reviewed. `cargo test` stops at the
+  first failing test binary, so run the graph suite with `--no-fail-fast` to see all three.
 
 ### Dimension entry (M4/M5 design note)
 
@@ -296,6 +299,35 @@ answer to AccessKit so kittest and `egui_drive.py` can type into them.
   tool measures). Open: box select is in the scene but not on a drag; CAD-only rings still read
   as band (fixed by `m4-feature-status`); until its first evaluation lands, the CAD pane says
   "Parameters changed — preview to evaluate this candidate" when nothing has changed.
+
+### Batch 4 status — 2026-09-22 (on master: `3d48634`, `a8ec71c`, `acda446`)
+
+The three agents hit the model's usage limit before committing; they were resumed in their
+worktrees, then verified, measured and committed by the integrator.
+
+- **M4's edit funnel** (`603cbe0`, `core::cad::edit`, graph `nodes::cad`): one `CadEdit`
+  (Add, Remove, Move, Enable, Rename, Operation, Component, Placement, Attach, Stage, Blend,
+  Outputs, Through). `Document::apply` validates before it mutates and names the features it
+  refuses on; the graph's `apply_edit` reads the chain back into a document, applies the edit
+  there and re-encodes it, transactionally; `edit_design` dispatches plain vs driven. Every edit
+  kind gives the same document byte for byte through both, on every example (`tests/cad_edits.rs`).
+  Cost on the 7-feature gallery: 0.03-0.24 µs on the document, ~57 µs on a graph, ~105 µs on a
+  driven design's stored graph.
+- **M4's per-feature status and cache** (`d04c0bd`): `FeatureStatus::{Ok, Suppressed,
+  Failed(msg), Skipped(reason)}` on every `FeatureReport`; evaluation carries on past a failure
+  and skips only what reads it. `cad::Cache` + `Memo { cache, surface_epoch }` through
+  `evaluate_memo` / `parts::resolve_with`: a warm edit of the gallery's last feature 35.1 → 2.3 ms
+  at preview, 89.5 → 4.6 ms at export. The boolean resolve that joins parts into the band is not
+  cached and now dominates a part edit (34 ms preview, 377 ms export on the Court band). CAD-only
+  rings carry `Mesh.origin` per part and their evaluation, so they pick like the rest.
+- **M5's command core** (`f56d8b8`, `workbench::command`): `Session` + `ViewCommand` over one
+  token vocabulary (`StepInput`), `Outcome::Commit(Vec<Effect>)` as data for the funnel, the
+  escape ladder, `catalog()`; Move/Rotate/Scale/Place/AddPrimitive/Attach in the ring frame with
+  axis locks and typed values; the `DimensionBar` on `TextEdit::event_filter` with Tab and
+  Shift+Tab kept inside the bar, pinned by kittests with decoy buttons; the tiered `Snapper`.
+- Next (batch 5): the GUI takes them — the feature timeline on the Ring viewport and in the CAD
+  pane through the funnel, G/R/S/Place/Attach/add in the viewport with the dimension bar and a
+  moving ghost, box select, the worker holding the cache; and M8's sketch core in parallel.
 
 ### M2 detail
 
