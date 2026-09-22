@@ -77,14 +77,38 @@ pub fn inspect(d: &RingDesign, e: &Evaluated) -> Vec<PairReport> {
             reports.push(PairReport {a:a.id,b:b.id,interference_mm3:interference,required_clearance_mm:required,clearance_estimate_mm:Some(lower),note:format!("{note}. Clearance is an AABB lower bound: a bound below the target requires closer inspection.")});
         }
     }
+    // The band is an anchor with no body here: a part joined to or cut from it meets it in the
+    // build's resolve stage, on the swept mesh, which no B-rep intersection can measure.
+    if let Some(band) = e.band {
+        for c in e.components.iter().filter(|c| !c.settings.reference && c.attach != super::Attach::Separate) {
+            let how = match c.attach {
+                super::Attach::Join => "joined to",
+                super::Attach::Cut => "cut from",
+                super::Attach::Separate => continue,
+            };
+            reports.push(PairReport {
+                a: band,
+                b: c.id,
+                interference_mm3: None,
+                required_clearance_mm: 0.0,
+                clearance_estimate_mm: None,
+                note: format!("{} is {how} the procedural shank: the attachment is judged by the build (the resolve stage on the swept band), not by B-rep intersection.", c.name),
+            });
+        }
+    }
     reports
 }
 pub fn manifest(d: &RingDesign, e: &Evaluated) -> serde_json::Value {
+    // Attachments are to the band, so a ring of parts only lists none.
+    let attachments = d.cad.as_ref().map(|doc| {
+        let listed = if doc.band().is_some() { doc.attachments() } else { Vec::new() };
+        listed.into_iter().map(|(id, attach, stage)| json!({"id": id, "attach": attach, "stage": stage})).collect::<Vec<_>>()
+    });
     let parts=e.components.iter().map(|c|{
         let bytes=crate::stl::to_stl_binary(&c.mesh,&c.name);let mass=if c.settings.reference {None} else {crate::metal::find(&c.settings.material).map(|m|c.mesh.volume_mm3()*m.density/1000.0)};
         json!({"id":c.id,"name":c.name,"settings":c.settings,"units":"millimeter","stage":"nominal","volume_mm3":c.mesh.volume_mm3(),"grams":mass,"bounds":c.mesh.bounds().map(|(lo,hi)|[[lo.0,lo.1,lo.2],[hi.0,hi.1,hi.2]]),"geometry_fingerprint":format!("{:016x}",fingerprint(&bytes[80..])),"mesh":c.mesh.validate(),"local_wall":(!c.settings.reference).then(||super::measure::thickness(&c.mesh,c.settings.manufacturing.as_ref().map_or(d.draft.min_section_mm,|s|s.recipe.min_section_mm)))})
     }).collect::<Vec<_>>();
-    json!({"format":"ringdesigner-assembly-v1","design":d.name,"nominal_size":d.size.display(),"units":"millimeter","components":parts,"pairs":inspect(d,e),"joints":d.cad.as_ref().map(|c|&c.joints),"features":e.features,"limits":["Components remain separate; total volume sums overlaps","Clearance bounds do not prove a seat fits a stone","A component recipe does not alter its nominal mesh; pattern files are separately identified"]})
+    json!({"format":"ringdesigner-assembly-v1","design":d.name,"nominal_size":d.size.display(),"units":"millimeter","components":parts,"pairs":inspect(d,e),"joints":d.cad.as_ref().map(|c|&c.joints),"band":e.band,"attachments":attachments,"features":e.features,"limits":["Components remain separate; total volume sums overlaps","Clearance bounds do not prove a seat fits a stone","A component recipe does not alter its nominal mesh; pattern files are separately identified","Attachments to the procedural shank are resolved by the build, not measured here"]})
 }
 fn threemf(e: &Evaluated, name: &str) -> Vec<u8> {
     let mut xml = format!(
@@ -319,5 +343,41 @@ mod tests {
         let zip = threemf(&e, "Test");
         assert!(zip.windows(12).any(|w| w == b"objectid=\"1\""));
         assert!(!zip.windows(12).any(|w| w == b"objectid=\"2\""));
+    }
+    #[test]
+    fn a_part_on_the_band_is_judged_by_the_build_and_the_manifest_lists_the_attachments() {
+        use crate::cad::{Attach, Boolean, Stage};
+        let mut doc = Document::default();
+        let add = |doc: &mut Document, id, operation, component| {
+            doc.append(Feature { id, name: format!("Part {id}"), enabled: true, operation, component }).unwrap();
+        };
+        add(&mut doc, 0, Operation::Band, Component::default());
+        add(&mut doc, 1, Operation::Cylinder { radius_mm: 2.0, height_mm: 1.0 }, Component { attach: Attach::Join, ..Default::default() });
+        add(&mut doc, 2, Operation::Cylinder { radius_mm: 1.0, height_mm: 4.0 }, Component::default());
+        add(&mut doc, 3, Operation::Boolean { a: 0, b: 2, kind: Boolean::Subtract }, Component { stage: Stage::Bench, ..Default::default() });
+        add(&mut doc, 4, Operation::Sphere { radius_mm: 1.0 }, Component { reference: true, attach: Attach::Join, ..Default::default() });
+        let mut d = RingDesign::default();
+        d.cad = Some(doc);
+        let e = super::super::evaluate(&d, &AlphaLibrary::builtin(), BuildParams::default()).unwrap();
+        assert_eq!(e.band, Some(0));
+        let r = inspect(&d, &e);
+        // Three components pair among themselves, then the joined collar and the cut pilot against the band; the reference stone never.
+        let against_band: Vec<&PairReport> = r.iter().filter(|p| p.a == 0).collect();
+        assert_eq!(against_band.iter().map(|p| p.b).collect::<Vec<_>>(), vec![1, 3]);
+        assert!(against_band.iter().all(|p| p.interference_mm3.is_none() && p.clearance_estimate_mm.is_none()));
+        assert!(against_band[0].note.contains("joined to the procedural shank") && against_band[0].note.contains("judged by the build"), "{}", against_band[0].note);
+        assert!(against_band[1].note.contains("cut from the procedural shank"), "{}", against_band[1].note);
+        assert_eq!(r.len(), 3 + 2);
+        let m = manifest(&d, &e);
+        assert_eq!(m["band"], 0);
+        assert_eq!(m["attachments"], serde_json::json!([{"id": 1, "attach": "join", "stage": "cast"}, {"id": 3, "attach": "cut", "stage": "bench"}]));
+        assert_eq!(m["features"][0]["status"], "Ok");
+        assert!(m["limits"].as_array().unwrap().iter().any(|l| l.as_str().unwrap().contains("resolved by the build")));
+        // A ring of parts only has no band row and no attachments.
+        let solo = crate::cad::examples::design("gallery").unwrap();
+        let e = super::super::evaluate(&solo, &AlphaLibrary::builtin(), BuildParams::default()).unwrap();
+        assert!(inspect(&solo, &e).iter().all(|p| p.interference_mm3.is_some() || p.note.contains("unresolved") || p.note.contains("manual")));
+        let m = manifest(&solo, &e);
+        assert!(m["band"].is_null() && m["attachments"].as_array().unwrap().is_empty());
     }
 }

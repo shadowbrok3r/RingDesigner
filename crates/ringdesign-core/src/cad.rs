@@ -9,7 +9,9 @@ use crate::{
 use anyhow::{Context, Result, ensure};
 use cadkernel::brep::{self, Body, make, mesh::TessellationTolerance};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
+use std::hash::{Hash, Hasher};
+use std::sync::{Arc, Mutex};
 pub mod assembly;
 pub mod examples;
 pub mod measure;
@@ -901,6 +903,44 @@ pub struct Evaluated {
     /// The `Band` feature the parts are anchored on; `None` when the document is the whole ring.
     pub band: Option<Id>,
 }
+impl Evaluated {
+    /// The status the evaluation gave feature `id`.
+    pub fn status_of(&self, id: Id) -> Option<&FeatureStatus> {
+        self.features.iter().find(|r| r.id == id).map(|r| &r.status)
+    }
+    /// Every failed feature with its message, in document order; a skipped feature is not a failure.
+    pub fn failures(&self) -> Vec<(Id, &str)> {
+        self.features
+            .iter()
+            .filter_map(|r| match &r.status {
+                FeatureStatus::Failed(message) => Some((r.id, message.as_str())),
+                _ => None,
+            })
+            .collect()
+    }
+    /// The first failure as one line, `Feature #3 — Fillet: <message>`.
+    pub fn first_error(&self) -> Option<String> {
+        self.features.iter().find_map(|r| match &r.status {
+            FeatureStatus::Failed(message) => Some(format!("Feature #{} — {}: {message}", r.id, r.name)),
+            _ => None,
+        })
+    }
+}
+/// What became of a feature in an evaluation.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub enum FeatureStatus {
+    Ok,
+    Suppressed,
+    /// Refused or broken, with the message; it built nothing.
+    Failed(String),
+    /// Not attempted because a source failed or was skipped; names it.
+    Skipped(String),
+}
+impl FeatureStatus {
+    pub fn is_ok(&self) -> bool {
+        matches!(self, Self::Ok)
+    }
+}
 #[derive(Clone, Debug, Serialize)]
 pub struct FeatureReport {
     pub id: Id,
@@ -911,6 +951,8 @@ pub struct FeatureReport {
     /// What the evaluation had to say about the feature, such as a reference found again.
     #[serde(default)]
     pub notes: Vec<String>,
+    /// Built, suppressed, failed with a message, or skipped behind a failure.
+    pub status: FeatureStatus,
 }
 
 fn positive(value: f64, name: &str) -> Result<f64> {
@@ -1276,6 +1318,10 @@ fn body_for(
 pub const MAX_ANALYTIC_BOOLEAN_FACES: usize = 500;
 /// The error text of an evaluation stopped through its `BuildCtx`.
 pub const CANCELLED: &str = "CAD evaluation cancelled";
+/// Bodies and tessellations a default [`Cache`] holds before the least recently used is dropped.
+pub const CACHE_ENTRIES: usize = 512;
+/// Estimated bytes a default [`Cache`] holds before the least recently used entry is dropped.
+pub const CACHE_BYTES: usize = 256 << 20;
 
 /// Cooperative stop for a running evaluation, polled between features and tessellations, and the
 /// built surface a ring placement drops onto.
@@ -1284,26 +1330,328 @@ pub struct BuildCtx<'a> {
     /// The band as built, for `Placement::Ring` to seat parts on; `None` falls back to the reference crest.
     pub surface: Option<&'a Mesh>,
 }
-impl BuildCtx<'_> {
+impl<'a> BuildCtx<'a> {
+    pub fn new(cancel: &'a std::sync::atomic::AtomicBool) -> Self {
+        Self { cancel, surface: None }
+    }
+    pub fn with_surface(self, surface: &'a Mesh) -> Self {
+        Self { surface: Some(surface), ..self }
+    }
     fn check(&self) -> Result<()> {
         ensure!(!self.cancel.load(std::sync::atomic::Ordering::Relaxed), CANCELLED);
         Ok(())
     }
 }
 
-pub fn evaluate(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<Evaluated> {
-    let never = std::sync::atomic::AtomicBool::new(false);
-    evaluate_with(design, lib, params, &BuildCtx { cancel: &never, surface: None })
+/// The cache an evaluation reads and fills, and the epoch of the surface it seats ring placements on.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Memo<'a> {
+    /// Bodies and tessellations remembered by recipe signature; `None` builds everything.
+    pub cache: Option<&'a Mutex<Cache>>,
+    /// Identity of the surface ring placements drop onto, hashed into their signatures.
+    pub surface_epoch: u64,
+}
+impl<'a> Memo<'a> {
+    pub fn new(cache: &'a Mutex<Cache>) -> Self {
+        Self { cache: Some(cache), surface_epoch: 0 }
+    }
+    pub fn with_epoch(self, surface_epoch: u64) -> Self {
+        Self { surface_epoch, ..self }
+    }
 }
 
+/// One feature as built: its placed body, seat frame, band attachment and reference notes.
+#[derive(Clone, Debug)]
+struct Built {
+    body: Body,
+    frame: Option<brep::Placement>,
+    attach: Option<Attach>,
+    notes: Vec<String>,
+}
+/// One body tessellated at one chord.
+#[derive(Debug)]
+struct Tessellated {
+    mesh: Mesh,
+    trace: PartTrace,
+    edges: Vec<Vec<[f64; 3]>>,
+}
+impl Tessellated {
+    /// Heap the arrays reserve.
+    fn bytes(&self) -> usize {
+        fn heap<T>(v: &Vec<T>) -> usize {
+            v.capacity() * std::mem::size_of::<T>()
+        }
+        let (m, t) = (&self.mesh, &self.trace);
+        heap(&m.vertices)
+            + heap(&m.normals)
+            + heap(&m.faces)
+            + heap(&m.corner_normals)
+            + heap(&m.origin)
+            + heap(&t.tri_face)
+            + heap(&t.positions)
+            + heap(&t.face_kind)
+            + heap(&t.vertices)
+            + heap(&self.edges)
+            + self.edges.iter().map(heap).sum::<usize>()
+    }
+}
+/// A body's kernel arenas, estimated high per face, edge and vertex.
+fn body_bytes(body: &Body) -> usize {
+    body.faces.len() * 1024 + body.edges.len() * 256 + body.vertices.len() * 64
+}
+/// A remembered body or tessellation.
+#[derive(Clone, Debug)]
+enum Slot {
+    Body(Arc<Result<Built, String>>),
+    Mesh(Arc<Tessellated>),
+}
+/// A body by recipe signature, or a tessellation by body signature and chord bucket.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum Key {
+    Body(u64),
+    Mesh(u64, u8),
+}
+/// Bodies (failures included) and tessellations by recipe signature, LRU-bounded by entries and estimated bytes.
+#[derive(Debug)]
+pub struct Cache {
+    slots: HashMap<Key, (Slot, usize)>,
+    /// Least recently used first.
+    order: VecDeque<Key>,
+    bytes: usize,
+    max_entries: usize,
+    max_bytes: usize,
+    hits: u64,
+    misses: u64,
+}
+impl Default for Cache {
+    fn default() -> Self {
+        Self::with_limits(CACHE_ENTRIES, CACHE_BYTES)
+    }
+}
+impl Cache {
+    /// A cache of at most `entries` bodies and tessellations and about `bytes` of them.
+    pub fn with_limits(entries: usize, bytes: usize) -> Self {
+        Self { slots: HashMap::new(), order: VecDeque::new(), bytes: 0, max_entries: entries, max_bytes: bytes, hits: 0, misses: 0 }
+    }
+    /// Lookups answered from the cache, bodies and tessellations together.
+    pub fn hits(&self) -> u64 {
+        self.hits
+    }
+    /// Lookups that had to build.
+    pub fn misses(&self) -> u64 {
+        self.misses
+    }
+    /// Bodies and tessellations held.
+    pub fn len(&self) -> usize {
+        self.slots.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.slots.is_empty()
+    }
+    /// Estimated bytes held.
+    pub fn bytes(&self) -> usize {
+        self.bytes
+    }
+    /// Drop every entry and zero the counters; the limits stay.
+    pub fn clear(&mut self) {
+        *self = Self::with_limits(self.max_entries, self.max_bytes);
+    }
+    fn get(&mut self, key: Key) -> Option<Slot> {
+        let Some((slot, _)) = self.slots.get(&key) else {
+            self.misses += 1;
+            return None;
+        };
+        let slot = slot.clone();
+        self.hits += 1;
+        if let Some(i) = self.order.iter().position(|k| *k == key) {
+            self.order.remove(i);
+            self.order.push_back(key);
+        }
+        Some(slot)
+    }
+    fn keep(&mut self, key: Key, slot: Slot, bytes: usize) {
+        if let Some((_, old)) = self.slots.remove(&key) {
+            self.bytes -= old;
+            self.order.retain(|k| *k != key);
+        }
+        // An entry over the whole byte bound is not kept, and evicts nothing.
+        if bytes > self.max_bytes || self.max_entries == 0 {
+            return;
+        }
+        self.slots.insert(key, (slot, bytes));
+        self.bytes += bytes;
+        self.order.push_back(key);
+        while self.order.len() > self.max_entries || self.bytes > self.max_bytes {
+            let Some(old) = self.order.pop_front() else { break };
+            if let Some((_, b)) = self.slots.remove(&old) {
+                self.bytes -= b;
+            }
+        }
+    }
+    fn body(&mut self, sig: u64) -> Option<Arc<Result<Built, String>>> {
+        match self.get(Key::Body(sig))? {
+            Slot::Body(built) => Some(built),
+            Slot::Mesh(_) => None,
+        }
+    }
+    fn keep_body(&mut self, sig: u64, built: Arc<Result<Built, String>>) {
+        let bytes = 64 + match &*built {
+            Ok(b) => body_bytes(&b.body) + b.notes.iter().map(String::len).sum::<usize>(),
+            Err(message) => message.len(),
+        };
+        self.keep(Key::Body(sig), Slot::Body(built), bytes);
+    }
+    fn mesh(&mut self, key: (u64, u8)) -> Option<Arc<Tessellated>> {
+        match self.get(Key::Mesh(key.0, key.1))? {
+            Slot::Mesh(t) => Some(t),
+            Slot::Body(_) => None,
+        }
+    }
+    fn keep_mesh(&mut self, key: (u64, u8), tessellated: Arc<Tessellated>) {
+        let bytes = 64 + tessellated.bytes();
+        self.keep(Key::Mesh(key.0, key.1), Slot::Mesh(tessellated), bytes);
+    }
+}
+
+/// A hash of every vertex, normal and face a ring placement's ray drop reads.
+pub fn surface_epoch(mesh: &Mesh) -> u64 {
+    let mut x: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut fold = |word: u64| x = (x ^ word).wrapping_mul(0x0000_0100_0000_01b3);
+    fold(mesh.vertices.len() as u64);
+    fold(mesh.normals.len() as u64);
+    fold(mesh.faces.len() as u64);
+    for v in mesh.vertices.iter().chain(&mesh.normals) {
+        fold(u64::from(v.0.to_bits()) | u64::from(v.1.to_bits()) << 32);
+        fold(u64::from(v.2.to_bits()));
+    }
+    for f in &mesh.faces {
+        fold(u64::from(f[0]) | u64::from(f[1]) << 32);
+        fold(u64::from(f[2]));
+    }
+    x
+}
+
+/// Per feature, a hash of what builds its body: operation, enabled, placement, sources' hashes, and the surface, radii or steps it reads.
+fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_epoch: u64) -> BTreeMap<Id, u64> {
+    let mut sigs = BTreeMap::new();
+    for f in &doc.features {
+        let mut h = std::hash::DefaultHasher::new();
+        serde_json::to_vec(&(f.enabled, &f.operation, &f.component.placement)).unwrap_or_default().hash(&mut h);
+        for s in f.operation.sources() {
+            match sigs.get(&s) {
+                Some(v) => (1u8, *v).hash(&mut h),
+                None => (0u8, s).hash(&mut h),
+            }
+        }
+        if f.component.placement != Placement::Free {
+            surface_epoch.hash(&mut h);
+            design.inner_radius_mm().to_bits().hash(&mut h);
+            design.profile.thickness_mm.to_bits().hash(&mut h);
+        }
+        if matches!(f.operation, Operation::TwistedRing { .. }) {
+            (params.theta_steps, params.profile_steps).hash(&mut h);
+        }
+        sigs.insert(f.id, h.finish());
+    }
+    sigs
+}
+
+/// Why a feature is not attempted: the first of its sources that failed or was skipped, named.
+fn skipped_by(op: &Operation, status: &BTreeMap<Id, FeatureStatus>, doc: &Document) -> Option<String> {
+    for s in op.sources() {
+        let why = match status.get(&s) {
+            Some(FeatureStatus::Failed(_)) => "failed",
+            Some(FeatureStatus::Skipped(_)) => "was skipped",
+            _ => continue,
+        };
+        let name = doc.features.iter().find(|f| f.id == s).map(|f| f.name.as_str()).unwrap_or_default();
+        return Some(format!("source #{s} {name} {why}"));
+    }
+    None
+}
+
+/// One enabled feature's body, validated and seated; a boolean against the band is its other operand with an attachment.
+fn build_feature(
+    f: &Feature,
+    design: &RingDesign,
+    ctx: &BuildCtx,
+    params: BuildParams,
+    band: Option<Id>,
+    bodies: &BTreeMap<Id, Body>,
+    sketches: &BTreeMap<Id, Sketch>,
+    frames: &BTreeMap<Id, brep::Placement>,
+) -> Result<Built> {
+    let mut notes = Vec::new();
+    let mut frame = None;
+    let mut attach = None;
+    let against_band = match &f.operation {
+        Operation::Boolean { a, b, kind } if band.is_some_and(|id| id == *a || id == *b) => Some((*a, *b, *kind)),
+        _ => None,
+    };
+    let mut body = if let Some((a, b, kind)) = against_band {
+        let band_id = band.unwrap_or_default();
+        ensure!(a != b, "Boolean sources must be different");
+        let other = if a == band_id { b } else { a };
+        attach = Some(match kind {
+            Boolean::Union => Attach::Join,
+            Boolean::Subtract => {
+                ensure!(
+                    a == band_id,
+                    "subtracting the procedural shank from a part is not supported; subtract the part from the shank to cut it"
+                );
+                Attach::Cut
+            }
+            Boolean::Intersect => anyhow::bail!(
+                "intersecting with the procedural shank is not supported; Union joins a part to it and Subtract cuts one from it"
+            ),
+        });
+        frame = frames.get(&other).cloned();
+        bodies
+            .get(&other)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("source feature #{other} is unavailable or suppressed"))?
+    } else {
+        body_for(&f.operation, bodies, sketches, frames, params, &mut notes)?
+    };
+    let faults = body.validate();
+    ensure!(faults.is_empty(), "generated invalid topology: {faults:?}");
+    if f.component.placement != Placement::Free {
+        let seat = f.component.placement.frame_on(design, ctx.surface)?;
+        body = maybe(brep::transform(&body, &seat), "Ring placement")?;
+        frame = Some(seat);
+    }
+    Ok(Built { body, frame, attach, notes })
+}
+
+pub fn evaluate(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<Evaluated> {
+    let never = std::sync::atomic::AtomicBool::new(false);
+    evaluate_with(design, lib, params, &BuildCtx::new(&never))
+}
+
+/// [`evaluate_memo`] with nothing remembered.
 pub fn evaluate_with(
     design: &RingDesign,
     lib: &AlphaLibrary,
     params: BuildParams,
     ctx: &BuildCtx,
 ) -> Result<Evaluated> {
+    evaluate_memo(design, lib, params, ctx, Memo::default())
+}
+
+/// Evaluate the document feature by feature: a failure stays on its feature and skips what it feeds; `Err` for an unreadable document, a raised flag, or nothing at all.
+pub fn evaluate_memo(
+    design: &RingDesign,
+    lib: &AlphaLibrary,
+    params: BuildParams,
+    ctx: &BuildCtx,
+    memo: Memo,
+) -> Result<Evaluated> {
     let doc = design.cad.as_ref().context("No CAD features")?;
     ensure!(doc.features.len() <= 256, "Too many CAD features");
+    let mut ids = BTreeSet::new();
+    for f in &doc.features {
+        ensure!(ids.insert(f.id), "Duplicate feature #{}", f.id);
+    }
     ensure!(
         doc.through
             .is_none_or(|id| doc.features.iter().any(|f| f.id == id)),
@@ -1326,6 +1674,9 @@ pub fn evaluate_with(
         );
     }
     let _ = lib;
+    let chord = if params.theta_steps >= 512 { 0.015 } else { 0.04 };
+    let bucket = u8::from(params.theta_steps >= 512);
+    let sigs = signatures(doc, design, params, memo.surface_epoch);
     let mut bodies = BTreeMap::new();
     let mut sketches: BTreeMap<Id, Sketch> = BTreeMap::new();
     let mut metadata = BTreeMap::new();
@@ -1334,13 +1685,22 @@ pub fn evaluate_with(
     // The attachment a boolean against the band stands for, by the boolean's id.
     let mut attached: BTreeMap<Id, Attach> = BTreeMap::new();
     let mut band: Option<Id> = None;
-    let mut reports = Vec::new();
-    let mut ids = BTreeSet::new();
+    let mut reports: Vec<FeatureReport> = Vec::new();
+    let mut status: BTreeMap<Id, FeatureStatus> = BTreeMap::new();
     let mut available_outputs = Vec::new();
     for f in &doc.features {
         ctx.check()?;
-        ensure!(ids.insert(f.id), "Duplicate feature #{}", f.id);
+        let mut report = FeatureReport {
+            id: f.id,
+            name: f.name.clone(),
+            faces: 0,
+            edges: 0,
+            suppressed: !f.enabled,
+            notes: Vec::new(),
+            status: FeatureStatus::Ok,
+        };
         if !f.enabled {
+            // A suppressed feature passes its first source's body and frame through.
             if let Some(id) = f.operation.sources().first() {
                 if let Some(body) = bodies.get(id).cloned() {
                     bodies.insert(f.id, body);
@@ -1350,104 +1710,59 @@ pub fn evaluate_with(
                     }
                 }
             }
-            reports.push(FeatureReport {
-                id: f.id,
-                name: f.name.clone(),
-                faces: 0,
-                edges: 0,
-                suppressed: true,
-                notes: Vec::new(),
-            });
+            report.status = FeatureStatus::Suppressed;
+        } else if let Some(why) = skipped_by(&f.operation, &status, doc) {
+            report.status = FeatureStatus::Skipped(why);
         } else if let Operation::Sketch { sketch } = &f.operation {
-            sketch
-                .validate()
-                .with_context(|| format!("Feature #{} — {}", f.id, f.name))?;
-            sketches.insert(f.id, sketch.clone());
-            metadata.insert(f.id, f);
-            reports.push(FeatureReport {
-                id: f.id,
-                name: f.name.clone(),
-                faces: 0,
-                edges: 0,
-                suppressed: false,
-                notes: Vec::new(),
-            });
+            match sketch.validate() {
+                Ok(()) => {
+                    sketches.insert(f.id, sketch.clone());
+                    metadata.insert(f.id, f);
+                }
+                Err(e) => report.status = FeatureStatus::Failed(format!("{e:#}")),
+            }
         } else if matches!(f.operation, Operation::Band) {
             // The band is an anchor: it builds no body, and a boolean against it is an attachment.
-            ensure!(band.is_none(), "Feature #{} — {}: a document carries one procedural shank", f.id, f.name);
-            band = Some(f.id);
-            metadata.insert(f.id, f);
-            reports.push(FeatureReport {
-                id: f.id,
-                name: f.name.clone(),
-                faces: 0,
-                edges: 0,
-                suppressed: false,
-                notes: Vec::new(),
-            });
-        } else {
-            let mut notes = Vec::new();
-            let against_band = match &f.operation {
-                Operation::Boolean { a, b, kind } if band.is_some_and(|id| id == *a || id == *b) => Some((*a, *b, *kind)),
-                _ => None,
-            };
-            let mut body = if let Some((a, b, kind)) = against_band {
-                let band_id = band.unwrap_or_default();
-                ensure!(a != b, "Feature #{} — {}: Boolean sources must be different", f.id, f.name);
-                let other = if a == band_id { b } else { a };
-                let attach = match kind {
-                    Boolean::Union => Attach::Join,
-                    Boolean::Subtract => {
-                        ensure!(
-                            a == band_id,
-                            "Feature #{} — {}: subtracting the procedural shank from a part is not supported; subtract the part from the shank to cut it",
-                            f.id,
-                            f.name
-                        );
-                        Attach::Cut
-                    }
-                    Boolean::Intersect => anyhow::bail!(
-                        "Feature #{} — {}: intersecting with the procedural shank is not supported; Union joins a part to it and Subtract cuts one from it",
-                        f.id,
-                        f.name
-                    ),
-                };
-                let body = bodies
-                    .get(&other)
-                    .cloned()
-                    .ok_or_else(|| anyhow::anyhow!("Feature #{} — {}: source feature #{other} is unavailable or suppressed", f.id, f.name))?;
-                attached.insert(f.id, attach);
-                if let Some(frame) = frames.get(&other).cloned() {
-                    frames.insert(f.id, frame);
-                }
-                body
+            if band.is_some() {
+                report.status = FeatureStatus::Failed("a document carries one procedural shank".into());
             } else {
-                body_for(&f.operation, &bodies, &sketches, &frames, params, &mut notes)
-                    .with_context(|| format!("Feature #{} — {}", f.id, f.name))?
-            };
-            ensure!(
-                body.validate().is_empty(),
-                "Feature #{} — {} generated invalid topology: {:?}",
-                f.id,
-                f.name,
-                body.validate()
-            );
-            if f.component.placement != Placement::Free {
-                let frame = f.component.placement.frame_on(design, ctx.surface)?;
-                body = maybe(brep::transform(&body, &frame), "Ring placement")?;
-                frames.insert(f.id, frame);
+                band = Some(f.id);
+                metadata.insert(f.id, f);
             }
-            reports.push(FeatureReport {
-                id: f.id,
-                name: f.name.clone(),
-                faces: body.faces.len(),
-                edges: body.edges.len(),
-                suppressed: false,
-                notes,
-            });
-            bodies.insert(f.id, body);
-            metadata.insert(f.id, f);
+        } else {
+            let sig = sigs[&f.id];
+            let remembered = memo.cache.and_then(|c| c.lock().ok()?.body(sig));
+            let outcome = match remembered {
+                Some(outcome) => outcome,
+                None => {
+                    let outcome = Arc::new(
+                        build_feature(f, design, ctx, params, band, &bodies, &sketches, &frames).map_err(|e| format!("{e:#}")),
+                    );
+                    if let Some(Ok(mut c)) = memo.cache.map(Mutex::lock) {
+                        c.keep_body(sig, outcome.clone());
+                    }
+                    outcome
+                }
+            };
+            match &*outcome {
+                Ok(built) => {
+                    report.faces = built.body.faces.len();
+                    report.edges = built.body.edges.len();
+                    report.notes = built.notes.clone();
+                    if let Some(frame) = built.frame {
+                        frames.insert(f.id, frame);
+                    }
+                    if let Some(attach) = built.attach {
+                        attached.insert(f.id, attach);
+                    }
+                    bodies.insert(f.id, built.body.clone());
+                    metadata.insert(f.id, f);
+                }
+                Err(message) => report.status = FeatureStatus::Failed(message.clone()),
+            }
         }
+        status.insert(f.id, report.status.clone());
+        reports.push(report);
         for id in f.operation.sources() {
             available_outputs.retain(|v| *v != id);
         }
@@ -1470,37 +1785,49 @@ pub fn evaluate_with(
             continue;
         };
         let f = metadata[id];
-        let (mesh, trace) = tessellate_traced(
-            body,
-            if params.theta_steps >= 512 {
-                0.015
-            } else {
-                0.04
+        let key = (sigs[id], bucket);
+        let remembered = memo.cache.and_then(|c| c.lock().ok()?.mesh(key));
+        let tessellated = match remembered {
+            Some(t) => t,
+            None => match tessellate_traced(body, chord) {
+                Ok((mesh, trace)) => {
+                    let edges = if body.edges.len() <= 512 {
+                        body.edges
+                            .iter()
+                            .map(|(key, _)| brep::edge_points(body, key, 0.02).unwrap_or_default())
+                            .collect()
+                    } else {
+                        Vec::new()
+                    };
+                    let t = Arc::new(Tessellated { mesh, trace, edges });
+                    if let Some(Ok(mut c)) = memo.cache.map(Mutex::lock) {
+                        c.keep_mesh(key, t.clone());
+                    }
+                    t
+                }
+                Err(e) => {
+                    if let Some(r) = reports.iter_mut().find(|r| r.id == *id) {
+                        r.status = FeatureStatus::Failed(format!("{e:#}"));
+                    }
+                    continue;
+                }
             },
-        )
-        .with_context(|| format!("Feature #{id} — {}", f.name))?;
-        let edges = if body.edges.len() <= 512 {
-            body.edges
-                .iter()
-                .map(|(key, _)| brep::edge_points(body, key, 0.02).unwrap_or_default())
-                .collect()
-        } else {
-            Vec::new()
         };
         components.push(EvaluatedComponent {
             id: *id,
             name: f.name.clone(),
             settings: f.component.clone(),
             body: body.clone(),
-            mesh,
-            edges,
-            trace,
+            mesh: tessellated.mesh.clone(),
+            edges: tessellated.edges.clone(),
+            trace: tessellated.trace.clone(),
             attach: attached.get(id).copied().unwrap_or(f.component.attach),
             stage: f.component.stage,
         });
     }
-    // A band with nothing on it yet is a ring; a document with neither is not.
-    ensure!(!components.is_empty() || band.is_some(), "No active CAD components");
+    // Nothing built, nothing failed and no band is not a ring.
+    let failed = reports.iter().any(|r| matches!(r.status, FeatureStatus::Failed(_) | FeatureStatus::Skipped(_)));
+    ensure!(!components.is_empty() || band.is_some() || failed, "No active CAD components");
     Ok(Evaluated {
         components,
         features: reports,
@@ -1791,10 +2118,10 @@ mod tests {
             radius_mm: 1.0,
         }]);
         let before = serde_json::to_string(&d).unwrap();
-        let err = evaluate(&d, &AlphaLibrary::builtin(), BuildParams::default())
-            .err()
-            .unwrap();
-        assert!(format!("{err:#}").contains("#99"));
+        let e = evaluate(&d, &AlphaLibrary::builtin(), BuildParams::default()).unwrap();
+        assert!(e.components.is_empty());
+        assert_eq!(e.failures().len(), 1);
+        assert!(e.first_error().unwrap().contains("#99"), "{:?}", e.first_error());
         assert_eq!(before, serde_json::to_string(&d).unwrap());
     }
     #[test]
@@ -1958,9 +2285,10 @@ mod tests {
             closed: true,
         });
         let error = evaluate(&design(vec![extrude(s)]), &lib, BuildParams::default())
-            .err()
+            .unwrap()
+            .first_error()
             .unwrap();
-        assert!(format!("{error:#}").contains("2 separate loops"), "{error:#}");
+        assert!(error.contains("2 separate loops"), "{error}");
     }
     #[test]
     fn a_traced_tessellation_names_the_face_and_kind_behind_every_triangle() {
@@ -2096,8 +2424,12 @@ mod tests {
         let mut off = doc.clone();
         off.features[0].enabled = false;
         d.cad = Some(off);
-        let error = format!("{:#}", evaluate(&d, &lib, BuildParams::default()).err().unwrap());
+        let e = evaluate(&d, &lib, BuildParams::default()).unwrap();
+        let error = e.first_error().unwrap();
         assert!(error.contains("Sketch feature #1 is unavailable"), "{error}");
+        assert_eq!(e.status_of(1), Some(&FeatureStatus::Suppressed));
+        assert_eq!(e.failures().iter().map(|(id, _)| *id).collect::<Vec<_>>(), vec![2, 3]);
+        assert!(e.components.is_empty());
         // A sketch on the top face of a box extrudes outward from that face, wherever the box stands.
         let mut doc = Document::default();
         add(&mut doc, 1, Operation::Box { size: [6.0, 6.0, 4.0] });
@@ -2145,8 +2477,10 @@ mod tests {
             profile_steps: 96,
             ..BuildParams::default()
         };
-        let error = evaluate(&d, &AlphaLibrary::builtin(), params).err().unwrap();
-        assert!(format!("{error:#}").contains("faceted solid"), "{error:#}");
+        let e = evaluate(&d, &AlphaLibrary::builtin(), params).unwrap();
+        let error = e.first_error().unwrap();
+        assert!(error.contains("faceted solid"), "{error}");
+        assert!(matches!(e.status_of(3), Some(FeatureStatus::Failed(_))));
         assert!(started.elapsed().as_secs() < 20, "{:?}", started.elapsed());
     }
     #[test]
@@ -2170,10 +2504,12 @@ mod tests {
         let d = design(vec![Operation::Band, cylinder(), boolean(1, 2, Boolean::Subtract)]);
         assert_eq!(evaluate(&d, &lib, BuildParams::default()).unwrap().components[0].attach, Attach::Cut);
         let d = design(vec![Operation::Band, cylinder(), boolean(2, 1, Boolean::Subtract)]);
-        let error = format!("{:#}", evaluate(&d, &lib, BuildParams::default()).err().unwrap());
-        assert!(error.contains("subtracting the procedural shank"), "{error}");
+        let e = evaluate(&d, &lib, BuildParams::default()).unwrap();
+        let error = e.first_error().unwrap();
+        assert!(error.starts_with("Feature #3 — Subtract: subtracting the procedural shank"), "{error}");
+        assert!(e.components.is_empty() && e.band == Some(1));
         let d = design(vec![Operation::Band, cylinder(), boolean(1, 2, Boolean::Intersect)]);
-        let error = format!("{:#}", evaluate(&d, &lib, BuildParams::default()).err().unwrap());
+        let error = evaluate(&d, &lib, BuildParams::default()).unwrap().first_error().unwrap();
         assert!(error.contains("intersecting with the procedural shank"), "{error}");
         // A plain part beside the band keeps its component's own attach; a band alone is a ring with nothing on it.
         let mut d = design(vec![Operation::Band, cylinder()]);
@@ -2286,6 +2622,189 @@ mod tests {
             let e = evaluate(&d, &AlphaLibrary::builtin(), BuildParams::default()).unwrap();
             assert!(!e.components.is_empty(), "{name}");
             assert!(e.components.iter().all(|c| c.mesh.volume_mm3() > 0.001), "{name}");
+            assert!(e.failures().is_empty() && e.features.iter().all(|r| r.status.is_ok()), "{name}: {:?}", e.failures());
         }
+    }
+    #[test]
+    fn a_failed_feature_keeps_its_failure_and_takes_only_what_stands_on_it() {
+        let lib = AlphaLibrary::builtin();
+        let d = design(vec![
+            Operation::Band,
+            Operation::Cylinder { radius_mm: 3.0, height_mm: 2.5 },
+            Operation::Fillet { source: 2, edges: vec![EdgeRef::bare(999)], radius_mm: 0.3 },
+            Operation::Box { size: [4.0; 3] },
+            Operation::Chamfer { source: 3, edges: vec![EdgeRef::bare(0)], base_face: FaceRef::bare(0), distance_mm: 0.2 },
+        ]);
+        let e = evaluate(&d, &lib, BuildParams::default()).unwrap();
+        assert_eq!(e.band, Some(1));
+        assert_eq!(e.status_of(1), Some(&FeatureStatus::Ok));
+        assert_eq!(e.status_of(2), Some(&FeatureStatus::Ok));
+        assert_eq!(e.status_of(4), Some(&FeatureStatus::Ok));
+        let Some(FeatureStatus::Failed(message)) = e.status_of(3) else { panic!("{:?}", e.status_of(3)) };
+        assert_eq!(message, "Edge 999 is unavailable; reselect after changing the source");
+        let Some(FeatureStatus::Skipped(why)) = e.status_of(5) else { panic!("{:?}", e.status_of(5)) };
+        assert_eq!(why, "source #3 Fillet failed");
+        assert!(e.features.iter().all(|r| !r.suppressed && r.notes.is_empty()));
+        assert_eq!(e.features.iter().filter(|r| r.status.is_ok()).count(), 3);
+        // The box is the one output left standing; the skipped chamfer holds no body.
+        assert_eq!(e.components.iter().map(|c| c.id).collect::<Vec<_>>(), vec![4]);
+        assert!((e.components[0].mesh.volume_mm3() - 64.0).abs() < 1e-6);
+        assert_eq!(e.failures(), vec![(3, "Edge 999 is unavailable; reselect after changing the source")]);
+        assert_eq!(e.first_error().unwrap(), "Feature #3 — Fillet: Edge 999 is unavailable; reselect after changing the source");
+        assert_eq!(e.status_of(9), None);
+        // A sketch on a failed feature's face is skipped, and so is what sweeps it.
+        let mut sketch = Sketch::rectangle(2.0, 2.0);
+        sketch.plane.on_face = Some(crate::sketch::FaceAnchor { feature: 2, face: FaceRef::bare(0) });
+        let d = design(vec![
+            Operation::Box { size: [6.0; 3] },
+            Operation::Fillet { source: 1, edges: vec![EdgeRef::bare(999)], radius_mm: 0.3 },
+            Operation::Sketch { sketch },
+            Operation::Extrude { sketch: Profile::Feature { feature: 3 }, height_mm: 1.0, draft_deg: 0.0 },
+            Operation::Sphere { radius_mm: 1.0 },
+        ]);
+        let e = evaluate(&d, &lib, BuildParams::default()).unwrap();
+        assert_eq!(e.status_of(3), Some(&FeatureStatus::Skipped("source #2 Fillet failed".into())));
+        assert_eq!(e.status_of(4), Some(&FeatureStatus::Skipped("source #3 Sketch was skipped".into())));
+        assert_eq!((e.failures().len(), e.components.iter().map(|c| c.id).collect::<Vec<_>>()), (1, vec![5]));
+        // A document whose only body failed is still an evaluation, with the failure on the feature.
+        let d = design(vec![Operation::Fillet { source: 99, edges: vec![EdgeRef::bare(0)], radius_mm: 1.0 }]);
+        let e = evaluate(&d, &lib, BuildParams::default()).unwrap();
+        assert!(e.components.is_empty() && e.band.is_none() && e.failures().len() == 1);
+        // Document-level faults are still refused outright: a duplicate id, a missing output.
+        let mut dup = design(vec![Operation::Box { size: [4.0; 3] }, Operation::Sphere { radius_mm: 1.0 }]);
+        dup.cad.as_mut().unwrap().features[1].id = 1;
+        assert!(evaluate(&dup, &lib, BuildParams::default()).unwrap_err().to_string().contains("Duplicate feature #1"));
+        let mut gone = design(vec![Operation::Box { size: [4.0; 3] }]);
+        gone.cad.as_mut().unwrap().outputs.push(7);
+        assert!(evaluate(&gone, &lib, BuildParams::default()).unwrap_err().to_string().contains("missing feature"));
+        // A second procedural shank is a failed feature, not a failed document.
+        let e = evaluate(&design(vec![Operation::Band, Operation::Band]), &lib, BuildParams::default()).unwrap();
+        assert_eq!((e.band, e.failures().len()), (Some(1), 1));
+        // An empty document is not a ring.
+        let e = evaluate(&design(vec![]), &lib, BuildParams::default()).unwrap_err().to_string();
+        assert_eq!(e, "No active CAD components");
+        // The status travels in the serialized report.
+        let report: serde_json::Value = serde_json::to_value(&evaluate(&d, &lib, BuildParams::default()).unwrap().features).unwrap();
+        assert_eq!(report[0]["status"]["Failed"].as_str().unwrap(), "Source feature #99 is unavailable or suppressed");
+    }
+    #[test]
+    fn the_cache_reuses_unchanged_features_and_rebuilds_downstream_of_an_edit() {
+        let lib = AlphaLibrary::builtin();
+        let params = BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() };
+        let never = std::sync::atomic::AtomicBool::new(false);
+        let ctx = BuildCtx::new(&never);
+        let cache = Mutex::new(Cache::default());
+        let memo = Memo::new(&cache);
+        let tally = |cache: &Mutex<Cache>| {
+            let c = cache.lock().unwrap();
+            (c.hits(), c.misses())
+        };
+        let counts = || tally(&cache);
+        let mut d = design(vec![
+            Operation::Box { size: [8.0; 3] },
+            Operation::Fillet { source: 1, edges: vec![EdgeRef::bare(0)], radius_mm: 0.5 },
+            Operation::Cylinder { radius_mm: 2.0, height_mm: 3.0 },
+        ]);
+        // Cold: three bodies and two tessellations built.
+        let a = evaluate_memo(&d, &lib, params, &ctx, memo).unwrap();
+        assert_eq!(counts(), (0, 5));
+        assert_eq!(cache.lock().unwrap().len(), 5);
+        // Warm, unchanged: every lookup answers, and the result is the same bytes.
+        let b = evaluate_memo(&d, &lib, params, &ctx, memo).unwrap();
+        assert_eq!(counts(), (5, 5));
+        assert!(a.components.iter().zip(&b.components).all(|(p, q)| p.mesh.vertices == q.mesh.vertices && p.mesh.faces == q.mesh.faces));
+        assert_eq!(a.features.len(), b.features.len());
+        // Editing the fillet rebuilds and re-tessellates it alone: the box and the cylinder answer.
+        d.cad.as_mut().unwrap().features[1].operation = Operation::Fillet { source: 1, edges: vec![EdgeRef::bare(0)], radius_mm: 0.8 };
+        let c = evaluate_memo(&d, &lib, params, &ctx, memo).unwrap();
+        assert_eq!(counts(), (8, 7));
+        assert!(c.components[0].mesh.volume_mm3() < b.components[0].mesh.volume_mm3());
+        // Editing the box invalidates the fillet standing on it; the cylinder still answers.
+        d.cad.as_mut().unwrap().features[0].operation = Operation::Box { size: [9.0; 3] };
+        evaluate_memo(&d, &lib, params, &ctx, memo).unwrap();
+        assert_eq!(counts(), (10, 10));
+        // A rename, a material and an attachment build nothing, and the component carries the new ones.
+        let post = &mut d.cad.as_mut().unwrap().features[2];
+        post.name = "post".into();
+        post.component.material = "Gold 18k".into();
+        post.component.attach = Attach::Cut;
+        let renamed = evaluate_memo(&d, &lib, params, &ctx, memo).unwrap();
+        assert_eq!(counts(), (15, 10));
+        let c = renamed.components.iter().find(|c| c.id == 3).unwrap();
+        assert_eq!((c.name.as_str(), c.settings.material.as_str(), c.attach), ("post", "Gold 18k", Attach::Cut));
+        // An export chord re-tessellates every output and rebuilds no body.
+        let export = BuildParams { theta_steps: 1024, profile_steps: 384, ..params };
+        evaluate_memo(&d, &lib, export, &ctx, memo).unwrap();
+        assert_eq!(counts(), (18, 12));
+        // Without a cache the same document evaluates to the same components.
+        let plain = evaluate_with(&d, &lib, export, &ctx).unwrap();
+        let cached = evaluate_memo(&d, &lib, export, &ctx, memo).unwrap();
+        assert!(plain.components.iter().zip(&cached.components).all(|(p, q)| p.mesh.vertices == q.mesh.vertices && p.trace.tri_face == q.trace.tri_face));
+        // A failure is remembered too, and a feature skipped behind it is never looked up.
+        let mut broken = design(vec![
+            Operation::Box { size: [8.0; 3] },
+            Operation::Fillet { source: 1, edges: vec![EdgeRef::bare(999)], radius_mm: 0.5 },
+            Operation::Chamfer { source: 2, edges: vec![EdgeRef::bare(0)], base_face: FaceRef::bare(0), distance_mm: 0.2 },
+        ]);
+        let fresh = Mutex::new(Cache::default());
+        let memo = Memo::new(&fresh);
+        let e = evaluate_memo(&broken, &lib, params, &ctx, memo).unwrap();
+        assert!(matches!(e.status_of(2), Some(FeatureStatus::Failed(_))) && matches!(e.status_of(3), Some(FeatureStatus::Skipped(_))));
+        assert_eq!(tally(&fresh), (0, 2));
+        evaluate_memo(&broken, &lib, params, &ctx, memo).unwrap();
+        assert_eq!(tally(&fresh), (2, 2));
+        // A ring placement is re-seated on a new surface epoch and not otherwise.
+        broken.cad.as_mut().unwrap().features.truncate(1);
+        broken.cad.as_mut().unwrap().outputs = vec![1];
+        broken.cad.as_mut().unwrap().features[0].component.placement = Placement::ring(90.0, 0.5);
+        let seated = Mutex::new(Cache::default());
+        let on = Memo::new(&seated).with_epoch(1);
+        evaluate_memo(&broken, &lib, params, &ctx, on).unwrap();
+        evaluate_memo(&broken, &lib, params, &ctx, on).unwrap();
+        assert_eq!(tally(&seated), (2, 2));
+        evaluate_memo(&broken, &lib, params, &ctx, on.with_epoch(2)).unwrap();
+        assert_eq!(tally(&seated), (2, 4));
+        // The epoch is the surface's own: bit-identical meshes agree, a moved vertex does not.
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let built = crate::mesh::try_build(&court, &lib, params).unwrap();
+        let again = crate::mesh::try_build(&court, &lib, params).unwrap();
+        assert_eq!(surface_epoch(&built.mesh), surface_epoch(&again.mesh));
+        let mut moved = built.mesh.clone();
+        moved.vertices[7].1 += 1e-3;
+        assert_ne!(surface_epoch(&built.mesh), surface_epoch(&moved));
+        assert_ne!(surface_epoch(&built.mesh), surface_epoch(&Mesh::default()));
+        // The entries are bounded, least recently used out first: a hit keeps an entry in.
+        let mut c = Cache::default();
+        for i in 0..(CACHE_ENTRIES as u64 + 3) {
+            c.keep_body(i, Arc::new(Err(String::new())));
+        }
+        assert_eq!(c.len(), CACHE_ENTRIES);
+        assert!(c.body(0).is_none() && c.body(3).is_some());
+        c.keep_body(9_000, Arc::new(Err(String::new())));
+        assert!(c.body(3).is_some() && c.body(4).is_none() && c.len() == CACHE_ENTRIES);
+        c.clear();
+        assert!(c.is_empty() && c.bytes() == 0 && c.hits() == 0);
+        // The bytes are bounded too, and an entry over the whole bound is not kept and evicts nothing.
+        let mut c = Cache::with_limits(8, 1000);
+        let failure = |n: usize| Arc::new(Err("x".repeat(n)));
+        c.keep_body(1, failure(400));
+        c.keep_body(2, failure(400));
+        assert_eq!((c.len(), c.bytes()), (2, 928));
+        c.keep_body(3, failure(400));
+        assert!(c.body(1).is_none() && c.body(2).is_some() && c.body(3).is_some() && c.bytes() == 928);
+        c.keep_body(4, failure(2000));
+        assert!(c.body(4).is_none() && c.len() == 2 && c.bytes() == 928);
+        // A real tessellation is sized from its arrays.
+        let mut c = Cache::default();
+        let e = evaluate(&design(vec![Operation::Box { size: [4.0; 3] }]), &lib, params).unwrap();
+        let box_ = &e.components[0];
+        let t = Arc::new(Tessellated { mesh: box_.mesh.clone(), trace: box_.trace.clone(), edges: box_.edges.clone() });
+        let arrays = t.bytes();
+        assert!(arrays >= box_.mesh.faces.len() * 12 + box_.mesh.vertices.len() * 12, "{arrays}");
+        c.keep_mesh((7, 0), t);
+        assert_eq!(c.bytes(), 64 + arrays);
+        // The GUI worker holds one across threads.
+        fn shared<T: Send + Sync>() {}
+        shared::<Mutex<Cache>>();
     }
 }
