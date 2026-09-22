@@ -53,6 +53,7 @@ pub mod render;
 pub mod reptile;
 pub mod setstone;
 pub mod setting;
+pub mod parts;
 pub mod sizing;
 pub mod spec;
 pub mod stl;
@@ -304,6 +305,12 @@ impl RingDesign {
                 Err(err) => log::warn!("could not unpack embedded alpha {}: {err}", e.name),
             }
         }
+    }
+
+    /// Whether the ring is the swept band: no CAD document, or one whose parts stand on a
+    /// `Band` feature. A document without one is the whole ring and builds through the kernel.
+    pub fn band_is_procedural(&self) -> bool {
+        self.cad.as_ref().is_none_or(|doc| !doc.replaces_band())
     }
 
     /// Inner (finger-hole) radius in mm.

@@ -1046,6 +1046,7 @@ pub fn build(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<
         reference: d.reference_loop(),
         spacing: crate::adaptive::Spacing::uniform(params.theta_steps.clamp(24, 4096)),
         solids: Default::default(),
+        parts: Default::default(),
     })
 }
 

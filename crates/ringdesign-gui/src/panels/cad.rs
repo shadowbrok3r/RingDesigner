@@ -330,7 +330,7 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
                     d.cad = Some(doc);
                 }
                 d.cad.as_mut().unwrap().through = None;
-                let evaluated = cad::evaluate_with(&d, &lib, params, &cad::BuildCtx { cancel: &cancel })?;
+                let evaluated = cad::evaluate_with(&d, &lib, params, &cad::BuildCtx { cancel: &cancel, surface: None })?;
                 let pairs = cad::assembly::inspect(&d, &evaluated);
                 let walls = evaluated
                     .components
