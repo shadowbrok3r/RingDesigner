@@ -65,6 +65,8 @@ struct MenuHit {
     part: u64,
     point: Option<[f32; 3]>,
     edge: Option<usize>,
+    /// The built ring itself rather than a part: the band is an anchor with no component.
+    band: bool,
 }
 pub struct CadState {
     draft: Option<Graph>,
@@ -414,6 +416,15 @@ fn has_band(g: &Graph) -> bool {
 /// Append one feature to the candidate and select it; an anchor seats it on the ring.
 /// A new solid beside a procedural shank starts joined to it.
 fn add_feature(state: &mut CadState, g: &mut Graph, operation: Operation, anchor: Option<(f64, f64)>) {
+    // The first solid added to a plain ring brings the procedural shank with it, so the part stands
+    // beside the band instead of replacing it; a ring already made of parts only stays that way.
+    let body = operation.sources().is_empty() && !matches!(operation, Operation::Band | Operation::Sketch { .. });
+    if body && !g.nodes.iter().any(|n| n.kind == "cad.feature") {
+        if let Err(e) = graph_cad::append(g, Operation::Band) {
+            state.error = Some(e.to_string());
+            return;
+        }
+    }
     let shank = has_band(g);
     match graph_cad::append(g, operation) {
         Ok(id) => {
@@ -524,13 +535,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let (mut preview_requested, mut apply_requested, mut discard_requested) = (false, false, false);
     for request in std::mem::take(&mut state.requests) {
         match request {
-            CadRequest::Add { operation, anchor } => {
-                // A part seated on the ring needs the ring beside it.
-                if anchor.is_some() && !g.nodes.iter().any(|n| n.kind == "cad.feature") {
-                    add_feature(&mut state, &mut g, Operation::Band, None);
-                }
-                add_feature(&mut state, &mut g, operation, anchor);
-            }
+            CadRequest::Add { operation, anchor } => add_feature(&mut state, &mut g, operation, anchor),
             CadRequest::Preview => preview_requested = true,
             CadRequest::Apply => apply_requested = true,
             CadRequest::Discard => discard_requested = true,
@@ -1033,10 +1038,17 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
         if response.secondary_clicked() {
             let under = response.interact_pointer_pos().and_then(|pos| pick(&state, pos));
-            state.menu_hit = match (under, nearest) {
-                (Some((part, point)), edge) => Some(MenuHit { part, point: Some(point), edge: edge.filter(|(id, _, _)| *id == part).map(|(_, e, _)| e) }),
-                (None, Some((part, edge, _))) => Some(MenuHit { part, point: None, edge: Some(edge) }),
-                (None, None) => None,
+            // With no part under the cursor the built ring answers, so a part can still be added on the band.
+            let on_ring = under.is_none().then(|| response.interact_pointer_pos().and_then(|pos| {
+                let built = state.view.as_ref()?.built.as_ref()?;
+                let (origin, direction) = state.camera.ray(rect, pos);
+                ringdesign_core::interaction::picking::raycast(&built.mesh, origin, direction).map(|(_, point)| point)
+            })).flatten();
+            state.menu_hit = match (under, nearest, on_ring) {
+                (Some((part, point)), edge, _) => Some(MenuHit { part, point: Some(point), edge: edge.filter(|(id, _, _)| *id == part).map(|(_, e, _)| e), band: false }),
+                (None, Some((part, edge, _)), _) => Some(MenuHit { part, point: None, edge: Some(edge), band: false }),
+                (None, None, Some(point)) => Some(MenuHit { part: 0, point: Some(point), edge: None, band: true }),
+                (None, None, None) => None,
             };
         }
         let hit = state.menu_hit;
@@ -1046,7 +1058,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         response.context_menu(|ui| {
             ui.set_min_width(190.);
             if let Some(hit) = hit {
-                ui.weak(part_name.as_deref().unwrap_or("Component"));
+                ui.weak(if hit.band { "Band" } else { part_name.as_deref().unwrap_or("Component") });
                 if let (Some(point), Some(radius)) = (hit.point, ring_radius) {
                     ui.menu_button((Icon::Add.image(ui, 18.), "Add here"), |ui| {
                         for op in cad_tools::starters(0, 0).into_iter().filter(|op| PLACEABLE.contains(&op.label())) {
@@ -1071,12 +1083,12 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         }
                     }
                 }
-                if ui.button((Icon::Panel.image(ui, 18.), "Select feature")).clicked() {
+                if !hit.band && ui.button((Icon::Panel.image(ui, 18.), "Select feature")).clicked() {
                     state.selected = Some(NodeId(hit.part));
                     state.tab = 0;
                     ui.close();
                 }
-                if ui.button((Icon::Layers.image(ui, 18.), "Isolate")).clicked() {
+                if !hit.band && ui.button((Icon::Layers.image(ui, 18.), "Isolate")).clicked() {
                     state.isolated = Some(hit.part);
                     refit = true;
                     ui.close();

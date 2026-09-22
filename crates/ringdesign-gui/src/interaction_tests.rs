@@ -161,8 +161,8 @@ fn a_plain_design_stays_plain_after_a_cad_apply() {
         assert!(app.design.graph.is_none() && !app.graph_driven(), "a plain design stays plain");
         let doc = app.design.cad.as_ref().expect("the applied document");
         let names: Vec<_> = doc.features.iter().map(|f| f.name.as_str()).collect();
-        assert_eq!(names, ["Cylinder"]);
-        assert_eq!(doc.outputs, vec![selected]);
+        assert_eq!(names, ["Procedural shank", "Cylinder"], "the first part brings the band with it");
+        assert!(doc.outputs.contains(&selected));
         assert_eq!(app.cad.selected_feature(), Some(selected), "the selection survives the re-lift");
     }
     let chosen = h.get_all_by_label("Cylinder")
@@ -197,7 +197,7 @@ fn a_graph_driven_design_keeps_its_graph_after_a_cad_apply() {
         let g: ringdesign_graph::graph::Graph = serde_json::from_value(after).unwrap();
         let feature = g.nodes.iter().find(|n| n.kind == "cad.feature" && n.id.0 == selected).expect("the feature node");
         assert_eq!(feature.params["name"], "Cylinder");
-        assert_eq!(app.design.cad.as_ref().map(|d| d.features.len()), Some(1));
+        assert_eq!(app.design.cad.as_ref().map(|d| d.features.len()), Some(2), "the shank came with the first part");
     }
     h.state_mut().switch_desktop(crate::dock::Desktop::Model);
     h.run_steps(3);
@@ -274,13 +274,20 @@ fn parts_beside_a_procedural_shank_keep_the_surface_tools_and_start_joined() {
 
 #[test]
 fn a_ring_of_parts_only_refuses_the_surface_tools_and_says_why() {
-    use ringdesign_core::cad::Attach;
+    use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation};
     let mut h = harness();
-    create_and_apply_a_cylinder(&mut h);
+    // A ring of parts only cannot be made from the menus any more; it is what a CAD-only document is.
+    {
+        let app = h.state_mut();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Cylinder".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 4.0, height_mm: 3.0 }, component: Component::default() }).unwrap();
+        app.design.cad = Some(doc);
+        app.mark_dirty();
+    }
+    h.run_steps(4);
     {
         let app = h.state();
-        assert_eq!(app.cad.last_error(), None);
-        let doc = app.design.cad.as_ref().expect("the applied document");
+        let doc = app.design.cad.as_ref().expect("the document");
         assert_eq!(doc.features[0].component.attach, Attach::Separate, "with no shank there is nothing to join");
         assert!(ringdesign_workbench::cad_tools::replaces_band(&app.design));
     }
