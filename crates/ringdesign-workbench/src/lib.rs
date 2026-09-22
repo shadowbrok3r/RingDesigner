@@ -7,6 +7,7 @@ pub mod feedback;
 pub mod templates;
 pub mod icons;
 pub mod cad_tools;
+pub mod command;
 pub mod controls;
 pub mod paint_preview;
 pub mod navigation;
