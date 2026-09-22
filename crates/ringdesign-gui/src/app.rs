@@ -8,8 +8,10 @@ use std::time::{Duration, Instant};
 use ringdesign_core::alpha::AlphaLibrary;
 use ringdesign_core::castability::{self, CastReport};
 use ringdesign_core::field::{Layer, LayerEntry};
+use ringdesign_core::interaction::pick::PickScene;
 use ringdesign_core::mesh::{BuildParams, BuildResult};
 use ringdesign_core::{RingDesign, library};
+use ringdesign_workbench::viewport::Selection;
 use ringdesign_graph::eval::{Evaluator, evaluate_design};
 use ringdesign_graph::graph::{Graph, GraphError, NodeId as GraphNodeId};
 use ringdesign_graph::registry::Registry;
@@ -176,6 +178,10 @@ pub struct RingDesignerApp {
     pub lib: Arc<AlphaLibrary>,
 
     pub build: Option<Arc<BuildResult>>,
+    /// The pick scene over `build`, rebuilt with it; what the Ring viewport hovers and selects through.
+    pub pick_scene: Option<Arc<PickScene>>,
+    /// What the Ring viewport has chosen and is hovering.
+    pub selection: Selection,
     pub cast: Option<CastReport>,
     pub field: Option<ringdesign_core::castability::FieldReport>,
     pub stones: Option<ringdesign_core::stones::StonesReport>,
@@ -346,6 +352,8 @@ impl RingDesignerApp {
             mould_camera: None,
             lib: Arc::new(lib),
             build: None,
+            pick_scene: None,
+            selection: Selection::default(),
             cast: None,
             field: None,
             stones: None,
@@ -623,6 +631,8 @@ impl RingDesignerApp {
                             self.status = format!("Graph: {}", self.graph_errors.join("; "));
                         }
                     }
+                    // The pick scene follows the mesh on screen, over the design as evaluated.
+                    self.pick_scene = self.build.as_ref().map(|b| Arc::new(PickScene::build(b, &self.design)));
                     self.refresh_sections();
                     ctx.request_repaint();
                 }
@@ -815,6 +825,7 @@ impl RingDesignerApp {
 
     pub fn clear_selection(&mut self) {
         self.hovered_node = None;
+        self.selection.clear();
         self.pins.clear();
         self.selected_node = None;
         if let Some(ed) = &mut self.graph_ed { ed.selected = None; }

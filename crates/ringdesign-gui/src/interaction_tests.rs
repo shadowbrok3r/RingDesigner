@@ -295,3 +295,106 @@ fn a_ring_of_parts_only_refuses_the_surface_tools_and_says_why() {
     assert_eq!(h.state().surface_edit_reason(), Some(ringdesign_workbench::cad_tools::PARTS_ONLY));
     assert!(!unrolled_available(&mut h), "and nothing to unroll");
 }
+
+/// Step until the first build lands; the worker builds off-thread.
+fn wait_for_build(h: &mut Harness<'static, RingDesignerApp>) {
+    let start = std::time::Instant::now();
+    while h.state().build.is_none() || h.state().is_building() {
+        h.run_steps(3);
+        assert!(start.elapsed() < std::time::Duration::from_secs(30), "the ring never built");
+        std::thread::sleep(std::time::Duration::from_millis(30));
+    }
+}
+/// A press and release at `pos` with the modifiers held across both.
+fn click_at(h: &mut Harness<'static, RingDesignerApp>, pos: egui::Pos2, button: egui::PointerButton, modifiers: egui::Modifiers) {
+    h.event(egui::Event::ModifiersChanged(modifiers));
+    h.event(egui::Event::PointerMoved(pos));
+    h.event(egui::Event::PointerButton { pos, button, pressed: true, modifiers });
+    h.run_steps(1);
+    h.event(egui::Event::PointerButton { pos, button, pressed: false, modifiers });
+    h.run_steps(2);
+    h.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
+    h.run_steps(1);
+}
+fn viewport_label(h: &Harness<'static, RingDesignerApp>) -> String {
+    use egui_kittest::kittest::NodeT;
+    h.query_all_by_label_contains("Ring viewport").next().expect("the Ring viewport").accesskit_node().label().unwrap_or_default()
+}
+
+#[test]
+fn the_ring_viewport_names_what_it_hovers_and_the_modifiers_build_the_selection() {
+    use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation, Placement, Stage};
+    let mut h = harness();
+    let pane = {
+        let app = h.state_mut();
+        app.switch_desktop(crate::dock::Desktop::Model);
+        app.set_layout(crate::pane::Layout::Single);
+        let pane = app.visible_panes()[0];
+        app.panes[pane].kind = crate::pane::PaneKind::Solid;
+        let mut doc = Document::default();
+        doc.append(Feature { id: 0, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        doc.append(Feature {
+            id: 1,
+            name: "Cylinder".into(),
+            enabled: true,
+            operation: Operation::Cylinder { radius_mm: 1.5, height_mm: 2.5 },
+            component: Component { attach: Attach::Join, stage: Stage::Cast, placement: Placement::ring(90.0, 0.25), ..Default::default() },
+        })
+        .unwrap();
+        app.design.cad = Some(doc);
+        app.rebuild_now();
+        pane
+    };
+    wait_for_build(&mut h);
+    assert!(h.state().pick_scene.as_ref().is_some_and(|s| s.parts() == 1), "the scene names the cylinder");
+    // Look straight down the cylinder's axis: the eye at +y, the top face square on.
+    {
+        let app = h.state_mut();
+        let bounds = app.build.as_ref().and_then(|b| b.mesh.bounds());
+        app.panes[pane].turn = None;
+        let cam = &mut app.panes[pane].camera;
+        cam.yaw = std::f32::consts::FRAC_PI_2;
+        cam.pitch = 0.0;
+        cam.roll = 0.0;
+        cam.fit(bounds);
+    }
+    h.run_steps(3);
+    let rect = h.query_all_by_label_contains("Ring viewport").next().expect("the Ring viewport").rect();
+    let (centre, band) = {
+        let app = h.state();
+        let proj = app.panes[pane].camera.projector(rect);
+        let c = app.build.as_ref().unwrap().parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 1).unwrap();
+        let (lo, hi) = c.mesh.bounds().unwrap();
+        let centre = proj.at([(lo.0 + hi.0) * 0.5, hi.1, (lo.2 + hi.2) * 0.5]);
+        let r = (app.design.inner_radius_mm() + app.design.profile.thickness_mm) as f32;
+        let (s, co) = 70f32.to_radians().sin_cos();
+        (centre, proj.at([r * co, r * s, 0.0]))
+    };
+    h.hover_at(centre);
+    h.run_steps(3);
+    let label = viewport_label(&h);
+    assert!(label.contains("hovering Cylinder face"), "{label}");
+    assert!(h.state().selection.items.is_empty());
+    // A right-click there offers the part's items.
+    click_at(&mut h, centre, egui::PointerButton::Secondary, egui::Modifiers::NONE);
+    assert!(h.query_by_label("Edit feature").is_some(), "the part's feature is offered");
+    assert!(h.query_all_by_label_contains("Attach").next().is_some(), "and its attachment");
+    assert!(h.query_by_label("Fit view").is_some());
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    assert!(!egui::Popup::is_any_open(&h.ctx));
+    // A click chooses the face; Shift-click on the band adds a point; Escape clears both.
+    click_at(&mut h, centre, egui::PointerButton::Primary, egui::Modifiers::NONE);
+    assert_eq!(h.state().selection.items.len(), 1, "{:?}", h.state().selection.items);
+    assert!(matches!(h.state().selection.items[0], ringdesign_workbench::viewport::Sel::Face { feature: 1, .. }));
+    click_at(&mut h, band, egui::PointerButton::Primary, egui::Modifiers::SHIFT);
+    assert_eq!(h.state().selection.items.len(), 2, "{:?}", h.state().selection.items);
+    assert!(matches!(h.state().selection.items[1], ringdesign_workbench::viewport::Sel::BandPoint { .. }));
+    h.hover_at(band);
+    h.run_steps(3);
+    assert!(viewport_label(&h).contains("2 selected"), "{}", viewport_label(&h));
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    assert!(h.state().selection.items.is_empty(), "Escape clears the selection");
+    assert!(!viewport_label(&h).contains("selected"));
+}

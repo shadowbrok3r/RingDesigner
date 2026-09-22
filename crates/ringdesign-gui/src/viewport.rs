@@ -15,6 +15,14 @@ use ringdesign_core::mesh::{Mesh, Vec3};
 use crate::app::RingDesignerApp;
 use crate::camera::Projector;
 use crate::theme;
+use ringdesign_workbench::viewport::{MenuAction, MenuItem, Mods, Sel};
+
+/// How far from the pointer a part's vertex or edge still answers, in pixels.
+pub const APERTURE_PX: f32 = 8.0;
+/// The chosen entities' tint and strength: the theme's selection violet.
+pub const SELECT_TINT: [f32; 4] = [0.80, 0.57, 0.85, 0.55];
+/// The hovered entity's tint and strength: the hover cue's aqua.
+pub const HOVER_TINT: [f32; 4] = [0.40, 0.85, 0.83, 0.55];
 
 /// Floats per vertex: position(3), normal(3), draft colour(3), wall colour(3).
 const FLOATS_PER_VERTEX: usize = 12;
@@ -26,6 +34,7 @@ layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec3 a_color;
 layout(location = 3) in vec3 a_color2;
 layout(location = 4) in float a_focus;
+layout(location = 5) in vec2 a_select;
 
 uniform mat4 u_mvp;
 uniform mat3 u_normal_matrix;
@@ -37,10 +46,12 @@ out float v_obj_nz;
 out vec3 v_world;
 out float v_cavity;
 out float v_focus;
+out vec2 v_select;
 
 void main() {
     gl_Position = u_mvp * vec4(a_position, 1.0);
     v_focus = a_focus;
+    v_select = a_select;
     v_normal = u_normal_matrix * a_normal;
     v_color = a_color;
     v_color2 = a_color2;
@@ -61,8 +72,11 @@ in float v_obj_nz;
 in vec3 v_world;
 in float v_cavity;
 in float v_focus;
+in vec2 v_select;
 uniform vec4 u_clip_plane;
 uniform vec4 u_focus;
+uniform vec4 u_select;
+uniform vec4 u_hover;
 
 uniform int u_mode;
 uniform vec3 u_light_dir;
@@ -108,6 +122,15 @@ void main() {
         float lit = 0.62 + 0.38 * max(dot(n, l), 0.0);
         color = mix(color, u_focus.rgb * lit, focus);
     }
+    // The selection over that, and the hover over both: two channels so a
+    // chosen face and the one under the pointer crossfade instead of banding.
+    float chosen = clamp(v_select.x, 0.0, 1.0) * u_select.a;
+    float hovered = clamp(v_select.y, 0.0, 1.0) * u_hover.a;
+    if (chosen > 0.0 || hovered > 0.0) {
+        float lit = 0.62 + 0.38 * max(dot(n, l), 0.0);
+        color = mix(color, u_select.rgb * lit, chosen);
+        color = mix(color, u_hover.rgb * lit, hovered);
+    }
 
     frag_color = vec4(color, u_alpha);
 }
@@ -142,6 +165,8 @@ struct GpuResources {
     cutter_vbo: glow::NativeBuffer,
     /// One float a staged vertex: how far the chosen node reaches it.
     focus_vbo: glow::NativeBuffer,
+    /// Two floats a staged vertex: chosen, and under the pointer.
+    select_vbo: glow::NativeBuffer,
 }
 
 pub struct GpuMeshRenderer {
@@ -158,6 +183,9 @@ pub struct GpuMeshRenderer {
     focus_pending: Option<Vec<f32>>,
     /// The uploaded channel covers the uploaded mesh vertex for vertex.
     focus_live: bool,
+    /// The selection channel awaiting upload, two floats a staged vertex; `Some(empty)` clears it.
+    select_pending: Option<Vec<f32>>,
+    select_live: bool,
     depth_checked: bool,
 }
 
@@ -179,6 +207,8 @@ impl Default for GpuMeshRenderer {
             cutter_pending: None,
             focus_pending: None,
             focus_live: false,
+            select_pending: None,
+            select_live: false,
             depth_checked: false,
         }
     }
@@ -280,6 +310,28 @@ impl GpuMeshRenderer {
         self.focus_pending = Some(weights);
     }
 
+    /// The selection channel in the emitted vertex order: `(chosen, hovered)` a vertex from the
+    /// `0 / 1 / 2` weights `viewport::tint` gives, the same faces skipped as [`stage_focus`].
+    pub fn stage_select(mesh: &Mesh, weight: &[f32]) -> Vec<f32> {
+        let mut data = Vec::with_capacity(mesh.faces.len() * 6);
+        for face in &mesh.faces {
+            if face.iter().any(|&vi| !mesh.vertices.get(vi as usize).is_some_and(|p| p.is_finite())) {
+                continue;
+            }
+            for &vi in face {
+                let w = weight.get(vi as usize).copied().unwrap_or(0.0);
+                data.push(if w >= 0.5 && w < 1.5 { 1.0 } else { 0.0 });
+                data.push(if w >= 1.5 { 1.0 } else { 0.0 });
+            }
+        }
+        data
+    }
+
+    /// Queue a selection channel staged by [`stage_select`]. Empty clears it.
+    pub fn prepare_select(&mut self, weights: Vec<f32>) {
+        self.select_pending = Some(weights);
+    }
+
     /// Queue the stone-preview triangles built by [`crate::gems`]. An empty
     /// buffer clears them.
     pub fn prepare_gems(&mut self, verts: Vec<f32>) {
@@ -336,6 +388,8 @@ impl GpuMeshRenderer {
         show_gems: bool,
         clip_plane: [f32; 4],
         focus: [f32; 4],
+        select: [f32; 4],
+        hover: [f32; 4],
     ) {
         unsafe { self.ensure_resources(gl) };
         let Some(res) = self.resources else { return };
@@ -343,6 +397,7 @@ impl GpuMeshRenderer {
         if let Some(verts) = self.pending.take() {
             // A channel staged for the last mesh says nothing about this one.
             self.focus_live = false;
+            self.select_live = false;
             self.vertex_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
             unsafe {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.vbo));
@@ -355,6 +410,16 @@ impl GpuMeshRenderer {
             if self.focus_live {
                 unsafe {
                     gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.focus_vbo));
+                    gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&weights), glow::STATIC_DRAW);
+                    gl.bind_buffer(glow::ARRAY_BUFFER, None);
+                }
+            }
+        }
+        if let Some(weights) = self.select_pending.take() {
+            self.select_live = !weights.is_empty() && weights.len() as i32 == self.vertex_count * 2;
+            if self.select_live {
+                unsafe {
+                    gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.select_vbo));
                     gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&weights), glow::STATIC_DRAW);
                     gl.bind_buffer(glow::ARRAY_BUFFER, None);
                 }
@@ -442,10 +507,24 @@ impl GpuMeshRenderer {
                 gl.disable_vertex_attrib_array(4);
                 gl.vertex_attrib_1_f32(4, 0.0);
             }
+            // The selection rides its own buffer on attribute 5, gated the same way.
+            let chosen = self.select_live && (select[3] > 0.0 || hover[3] > 0.0);
+            let select_loc = gl.get_uniform_location(res.program, "u_select");
+            let hover_loc = gl.get_uniform_location(res.program, "u_hover");
+            gl.uniform_4_f32_slice(select_loc.as_ref(), &if chosen { select } else { [0.0; 4] });
+            gl.uniform_4_f32_slice(hover_loc.as_ref(), &if chosen { hover } else { [0.0; 4] });
+            if chosen {
+                gl.enable_vertex_attrib_array(5);
+            } else {
+                gl.disable_vertex_attrib_array(5);
+                gl.vertex_attrib_2_f32(5, 0.0, 0.0);
+            }
 
             gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
             gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
             gl.uniform_4_f32_slice(focus_loc.as_ref(), &[0.0; 4]);
+            gl.uniform_4_f32_slice(select_loc.as_ref(), &[0.0; 4]);
+            gl.uniform_4_f32_slice(hover_loc.as_ref(), &[0.0; 4]);
 
             // The cutters: through the metal, since a tool sits inside what it removes.
             if self.cutter_count > 0 {
@@ -590,6 +669,7 @@ impl GpuMeshRenderer {
         let cutter_vao = unsafe { gl.create_vertex_array() }.expect("create cutter VAO");
         let cutter_vbo = unsafe { gl.create_buffer() }.expect("create cutter VBO");
         let focus_vbo = unsafe { gl.create_buffer() }.expect("create focus VBO");
+        let select_vbo = unsafe { gl.create_buffer() }.expect("create select VBO");
 
         unsafe {
             for (vao, vbo) in [(vao, vbo), (gem_vao, gem_vbo), (ghost_vao, ghost_vbo), (cutter_vao, cutter_vbo)] {
@@ -609,6 +689,8 @@ impl GpuMeshRenderer {
             gl.bind_vertex_array(Some(vao));
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(focus_vbo));
             gl.vertex_attrib_pointer_f32(4, 1, glow::FLOAT, false, std::mem::size_of::<f32>() as i32, 0);
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(select_vbo));
+            gl.vertex_attrib_pointer_f32(5, 2, glow::FLOAT, false, 2 * std::mem::size_of::<f32>() as i32, 0);
 
             gl.bind_vertex_array(None);
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
@@ -626,6 +708,7 @@ impl GpuMeshRenderer {
             cutter_vao,
             cutter_vbo,
             focus_vbo,
+            select_vbo,
         });
     }
 
@@ -643,10 +726,13 @@ impl GpuMeshRenderer {
                 gl.delete_vertex_array(res.cutter_vao);
                 gl.delete_buffer(res.cutter_vbo);
                 gl.delete_buffer(res.focus_vbo);
+                gl.delete_buffer(res.select_vbo);
             }
         }
         self.focus_pending = None;
         self.focus_live = false;
+        self.select_pending = None;
+        self.select_live = false;
         self.vertex_count = 0;
         self.pending = None;
         self.gem_count = 0;
@@ -970,35 +1056,32 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         ui.ctx().request_repaint();
     }
     if response.secondary_clicked() {
+        // What the menu is about: the best pick under the pointer, with the band's own raycast as
+        // the fallback before the first scene is built.
         let camera = app.panes[pane].camera;
-        app.cad.ring_menu_hit = response.interact_pointer_pos().zip(app.build.as_ref()).and_then(|(pos, b)| {
-            let (origin, direction) = camera.ray(rect, pos);
-            ringdesign_core::interaction::picking::raycast(&b.mesh, origin, direction).map(|(_, point)| point)
+        let under = response.interact_pointer_pos().and_then(|pos| {
+            let ray = |p: egui::Pos2| camera.ray(rect, p);
+            match (&app.pick_scene, &app.build) {
+                (Some(scene), _) => ringdesign_workbench::hover::pick_at(scene, pos, &ray, APERTURE_PX, app.selection.filter).into_iter().next(),
+                (None, Some(b)) => {
+                    let (origin, direction) = ray(pos);
+                    ringdesign_core::interaction::picking::raycast(&b.mesh, origin, direction).map(|(face, point)| ringdesign_core::interaction::pick::Pick {
+                        entity: ringdesign_core::interaction::pick::Entity::Band,
+                        world: point.map(f64::from),
+                        normal: b.mesh.face_normal(&b.mesh.faces[face]).unwrap_or([0.0, 0.0, 1.0]),
+                        depth: 0.0,
+                        px: 0.0,
+                    })
+                }
+                (None, None) => None,
+            }
         });
+        app.selection.under = under;
+        app.cad.ring_menu_hit = app.selection.under.as_ref().map(|p| p.world.map(|v| v as f32));
     }
     response.context_menu(|ui| {
         ui.set_min_width(190.);
-        if let Some(point) = app.cad.ring_menu_hit {
-            ui.menu_button((ringdesign_workbench::icons::Icon::Add.image(ui, 18.), "Add CAD part here"), |ui| {
-                for label in crate::panels::cad::PLACEABLE {
-                    if ui.button(label).clicked() {
-                        let (x, y) = (point[0] as f64, point[1] as f64);
-                        let radius = app.design.inner_radius_mm() + app.design.profile.thickness_mm;
-                        crate::panels::cad::add_starter(app, label, Some((y.atan2(x).to_degrees(), x.hypot(y) - radius)));
-                        ui.close();
-                    }
-                }
-            });
-        }
-        if ui.button((ringdesign_workbench::icons::Icon::Fit.image(ui, 18.), "Fit view")).clicked() {
-            let bounds = app.build.as_ref().and_then(|b| b.mesh.bounds());
-            app.panes[pane].camera.fit(bounds);
-            ui.close();
-        }
-        if ui.button((ringdesign_workbench::icons::Icon::Workshop.image(ui, 18.), "Open CAD workspace")).clicked() {
-            app.focus(crate::pane::PaneKind::Cad);
-            ui.close();
-        }
+        show_menu(app, ui, pane);
     });
     let shift = ui.input(|i| i.modifiers.shift);
     let explicit_navigation = shift || ui.input(|i| i.pointer.middle_down() || i.multi_touch().is_some_and(|m| m.num_touches >= 2));
@@ -1048,7 +1131,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     if response.clicked() && (!active || app.visual.tool == Tool::Select) {
         if let Some(pos) = response.interact_pointer_pos() {
             app.active_pane = pane;
-            probe_click(app, camera, rect, pos, ui.input(|i| i.modifiers.shift));
+            let mods = ui.input(|i| ringdesign_workbench::viewport::Mods { shift: i.modifiers.shift, ctrl: i.modifiers.command, alt: i.modifiers.alt });
+            select_click(app, camera, rect, pos, mods);
         }
     }
 
@@ -1077,6 +1161,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         };
         let clip_plane = if active { app.visual.clip() } else { [0.0; 4] };
         let focus = if mould_active { [0.0; 4] } else { app.node_focus.tint };
+        let (select, hover) = if mould_active { ([0.0; 4], [0.0; 4]) } else { (SELECT_TINT, HOVER_TINT) };
 
         let callback = egui_glow::CallbackFn::new(move |info, glow_painter| {
             if let Ok(mut r) = renderer.lock() {
@@ -1095,6 +1180,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                     show_gems,
                     clip_plane,
                     focus,
+                    select,
+                    hover,
                 );
             }
         });
@@ -1163,16 +1250,60 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
 
     if active && app.visual.tool == Tool::Select {
         app.hovered_node = None;
-        if let Some(build) = &app.build {
-            let hit = ringdesign_workbench::hover::show(ui, rect, &response, &app.design, &app.lib, &build.mesh,
-                |p| camera.ray(rect,p), |p| proj.at(p), |hit| {
-                    let layer = ringdesign_workbench::focus::layer_behind(&app.design,&app.lib,hit);
-                    if app.graph_driven() { layer.and_then(|i| app.node_for_layer(i)).map(|id| app.graph_ed.as_ref().and_then(|ed| ed.card(id)).map_or("Graph feature".into(), |card| card.title.clone())) }
-                    else if app.design.band_is_procedural() { Some(layer.map_or("Band / shape".into(), |i| app.design.layers.layers[i].name.clone())) } else { None }
-                });
-            app.hovered_node = hit.and_then(|hit| ringdesign_workbench::focus::layer_behind(&app.design,&app.lib,&hit)).and_then(|i| app.node_for_layer(i));
+        // The scene answers first; a band under the pointer falls through to the layer caption and
+        // the node highlight it always had.
+        let picks = app.pick_scene.clone().and_then(|scene| ringdesign_workbench::hover::picks(ui, rect, &response, &scene, |p| camera.ray(rect, p), APERTURE_PX, app.selection.filter));
+        let on_band = picks.as_ref().is_none_or(|p| p.first().is_none_or(|p| p.entity == ringdesign_core::interaction::pick::Entity::Band));
+        app.selection.hovered(picks.unwrap_or_default());
+        if on_band {
+            if let Some(build) = &app.build {
+                let hit = ringdesign_workbench::hover::show(ui, rect, &response, &app.design, &app.lib, &build.mesh,
+                    |p| camera.ray(rect,p), |p| proj.at(p), |hit| {
+                        let layer = ringdesign_workbench::focus::layer_behind(&app.design,&app.lib,hit);
+                        if app.graph_driven() { layer.and_then(|i| app.node_for_layer(i)).map(|id| app.graph_ed.as_ref().and_then(|ed| ed.card(id)).map_or("Graph feature".into(), |card| card.title.clone())) }
+                        else if app.design.band_is_procedural() { Some(layer.map_or("Band / shape".into(), |i| app.design.layers.layers[i].name.clone())) } else { None }
+                    });
+                app.hovered_node = hit.and_then(|hit| ringdesign_workbench::focus::layer_behind(&app.design,&app.lib,&hit)).and_then(|i| app.node_for_layer(i));
+            }
+        } else if let Some(h) = &app.selection.hover {
+            let (at, of) = app.selection.depth();
+            let mut text = ringdesign_workbench::viewport::label(&h.entity, &app.design, app.build.as_deref());
+            if of > 1 {
+                text = format!("{text} · Tab {}/{of}", at + 1);
+            }
+            ringdesign_workbench::hover::caption(&painter, rect, &text, ringdesign_workbench::hover::AQUA);
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+        if response.hovered() && app.selection.stack().len() > 1 && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab)) {
+            app.selection.cycle();
+        }
+    } else if active {
+        app.selection.hovered(Vec::new());
+    }
+    // The selection's channel, restaged when it or the mesh changes; the node focus keeps its own.
+    if let Some(build) = &app.build {
+        let key = Arc::as_ptr(build) as usize;
+        if app.selection.needs_stage(key) {
+            let weights = ringdesign_workbench::viewport::tint(&app.selection, build);
+            let staged = if weights.is_empty() { Vec::new() } else { GpuMeshRenderer::stage_select(&build.mesh, &weights) };
+            if let Ok(mut r) = app.renderer.lock() {
+                r.prepare_select(staged);
+            }
+            ui.ctx().request_repaint();
         }
     }
+    draw_selection(app, &painter, &proj, rect);
+    let label = {
+        let mut s = String::from("Ring viewport");
+        if let Some(h) = &app.selection.hover {
+            s.push_str(&format!(" · hovering {}", ringdesign_workbench::viewport::label(&h.entity, &app.design, app.build.as_deref())));
+        }
+        if !app.selection.items.is_empty() {
+            s.push_str(&format!(" · {} selected", app.selection.items.len()));
+        }
+        s
+    };
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, label.clone()));
 
     if active && app.panes[pane].navigation.magnifier && !floating_blocked && !navigating {
         if let Some((contact, reach)) = app.visual.placement_focus(ui, rect) {
@@ -1265,7 +1396,7 @@ pub fn candidate_view(
     let callback = egui_glow::CallbackFn::new(move |info,glow_painter| {
         if let Ok(mut r) = renderer.lock() {
             r.paint(glow_painter.gl(),info,&mvp,&normal,0,base_color,roughness,
-                light_dir,ambient,wire,[0.3,0.3,0.3],show_gems,[0.;4],[0.;4]);
+                light_dir,ambient,wire,[0.3,0.3,0.3],show_gems,[0.;4],[0.;4],[0.;4],[0.;4]);
         }
     });
     painter.add(egui::PaintCallback {rect,callback:Arc::new(callback)});
@@ -1555,6 +1686,163 @@ fn probe_click(
     );
     app.set_status(text.clone());
     app.probe = Some((world, text));
+}
+
+/// A click on the Select tool: the picks under the pointer join the hover stack, the modifiers
+/// decide what the choice does to the selection, and a plain click on the band keeps the readout
+/// and the layer selection it always had.
+fn select_click(app: &mut RingDesignerApp, camera: crate::camera::OrbitCamera, rect: egui::Rect, pos: egui::Pos2, mods: Mods) {
+    let Some(scene) = app.pick_scene.clone() else {
+        if !mods.shift && !mods.ctrl {
+            probe_click(app, camera, rect, pos, false);
+        }
+        return;
+    };
+    let ray = |p: egui::Pos2| camera.ray(rect, p);
+    let picks = ringdesign_workbench::hover::pick_at(&scene, pos, &ray, APERTURE_PX, app.selection.filter);
+    app.selection.hovered(picks);
+    let (origin, direction) = ray(pos);
+    let chart = app.build.as_ref().and_then(|b| ringdesign_core::interaction::picking::hit(&app.design, &app.lib, &b.mesh, origin, direction)).map(|h| (h.theta_deg, h.v_mm));
+    app.selection.choose(mods, |w| chart.unwrap_or_else(|| (w[1].atan2(w[0]).to_degrees(), 0.0)));
+    let plain = !mods.shift && !mods.ctrl;
+    match app.selection.items.last() {
+        None if plain => app.clear_selection(),
+        Some(Sel::BandPoint { .. }) if plain => probe_click(app, camera, rect, pos, false),
+        Some(sel) => {
+            let what = ringdesign_workbench::viewport::selection::describe(sel, &app.design, app.build.as_deref());
+            let n = app.selection.items.len();
+            app.set_status(if n > 1 { format!("{what} · {n} selected") } else { what });
+        }
+        None => {}
+    }
+}
+
+/// The right-click menu: what the selection can do, said by `context_items` and drawn with its icons.
+fn show_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
+    let under = app.selection.under.clone();
+    let items = ringdesign_workbench::viewport::context_items(&app.selection, under.as_ref(), &app.design);
+    if let Some(heading) = ringdesign_workbench::viewport::heading(&app.selection, under.as_ref(), &app.design) {
+        ui.weak(heading);
+    }
+    let mut chosen: Option<MenuAction> = None;
+    let mut i = 0;
+    while i < items.len() {
+        match items[i].submenu {
+            Some(sub) => {
+                let end = items[i..].iter().position(|x| x.submenu != Some(sub)).map_or(items.len(), |k| i + k);
+                let group = &items[i..end];
+                let icon = group.iter().find(|x| x.checked).map_or(group[0].icon, |x| x.icon);
+                ui.menu_button((icon.image(ui, 18.), sub), |ui| {
+                    ui.set_min_width(170.);
+                    for item in group {
+                        if menu_button(ui, item) {
+                            chosen = Some(item.action.clone());
+                            ui.close();
+                        }
+                    }
+                });
+                i = end;
+            }
+            None => {
+                if menu_button(ui, &items[i]) {
+                    chosen = Some(items[i].action.clone());
+                    ui.close();
+                }
+                i += 1;
+            }
+        }
+    }
+    if let Some(action) = chosen {
+        act(app, pane, action);
+    }
+}
+
+fn menu_button(ui: &mut egui::Ui, item: &MenuItem) -> bool {
+    let button = egui::Button::selectable(item.checked, (item.icon.image(ui, 18.), item.label.as_str()));
+    ui.add_enabled(item.enabled, button).on_hover_text(item.hint).on_disabled_hover_text(item.hint).clicked()
+}
+
+/// Route a menu action: parts and edges go to the CAD pane, attachment and stage edit a plain
+/// design in place, the rest is the view.
+fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
+    use crate::panels::cad::{self, CadRequest};
+    match action {
+        MenuAction::AddPartHere { theta_deg, height_mm, label } => cad::add_starter(app, label, Some((theta_deg, height_mm))),
+        MenuAction::EditFeature(id) => {
+            app.selection.click(Some(Sel::Part(id)), Mods::default());
+            cad::ask(app, CadRequest::Select { feature: id });
+        }
+        MenuAction::Attach(id, attach) => set_component(app, id, "attachment", |c| c.attach = attach),
+        MenuAction::Stage(id, stage) => set_component(app, id, "stage", |c| c.stage = stage),
+        MenuAction::FilletEdge { feature, edge } => cad::add_modifier(app, "Fillet", feature, edge as usize),
+        MenuAction::ChamferEdge { feature, edge } => cad::add_modifier(app, "Chamfer", feature, edge as usize),
+        MenuAction::IsolateInCad(id) => cad::ask(app, CadRequest::Isolate { feature: id }),
+        MenuAction::FitView => {
+            let bounds = app.build.as_ref().and_then(|b| b.mesh.bounds());
+            app.panes[pane].camera.fit(bounds);
+        }
+        MenuAction::OpenCad => app.focus(crate::pane::PaneKind::Cad),
+        MenuAction::ToggleWire => app.show_wireframe = !app.show_wireframe,
+        MenuAction::ToggleGrid => app.show_grid = !app.show_grid,
+    }
+}
+
+/// Edit a part's component on a plain design, as one history entry; a graph-driven design is
+/// refused with a status, since its parts are nodes.
+fn set_component(app: &mut RingDesignerApp, id: u64, what: &str, edit: impl FnOnce(&mut ringdesign_core::cad::Component)) {
+    if app.graph_driven() {
+        app.set_status(format!("Driven by the graph — change the {what} on the feature's node or in the CAD pane"));
+        return;
+    }
+    let Some(feature) = app.design.cad.as_mut().and_then(|d| d.features.iter_mut().find(|f| f.id == id)) else {
+        app.set_status(format!("Part #{id} is not in the design"));
+        return;
+    };
+    if feature.component.reference {
+        app.set_status("A reference stone is never metal");
+        return;
+    }
+    edit(&mut feature.component);
+    let name = feature.name.clone();
+    app.history.commit(&app.design);
+    app.mark_dirty();
+    app.set_status(format!("{name}: {what} changed"));
+}
+
+/// The chosen and hovered edges, vertices and band points, drawn over the ring.
+fn draw_selection(app: &RingDesignerApp, painter: &egui::Painter, proj: &Projector, rect: egui::Rect) {
+    let Some(build) = app.build.as_deref() else { return };
+    let evaluated = build.parts.evaluated.as_ref();
+    let mark = |sel: &Sel, color: egui::Color32, width: f32| match sel {
+        Sel::Edge { feature, edge } => {
+            if let Some(poly) = evaluated.and_then(|e| e.components.iter().find(|c| c.id == *feature)).and_then(|c| c.edges.get(*edge as usize)) {
+                let points: Vec<egui::Pos2> = poly.iter().map(|p| proj.at([p[0] as f32, p[1] as f32, p[2] as f32])).collect();
+                painter.add(egui::Shape::line(points, egui::Stroke::new(width, color)));
+            }
+        }
+        Sel::Vertex { feature, vertex } => {
+            if let Some(v) = evaluated.and_then(|e| e.components.iter().find(|c| c.id == *feature)).and_then(|c| c.trace.vertices.get(*vertex as usize)) {
+                let p = proj.at([v[0] as f32, v[1] as f32, v[2] as f32]);
+                if rect.contains(p) {
+                    painter.circle_stroke(p, 5.0, egui::Stroke::new(width, color));
+                }
+            }
+        }
+        Sel::BandPoint { world, .. } => {
+            let p = proj.at([world[0] as f32, world[1] as f32, world[2] as f32]);
+            if rect.contains(p) {
+                painter.circle_stroke(p, 4.0, egui::Stroke::new(width, color));
+            }
+        }
+        _ => {}
+    };
+    for item in &app.selection.items {
+        mark(item, theme::SELECT, 2.0);
+    }
+    // A hovered band point already has the pointer's own cue.
+    if let Some(h) = app.selection.hover.as_ref().filter(|h| h.entity != ringdesign_core::interaction::pick::Entity::Band) {
+        mark(&Sel::of(h, |w| (w[1].atan2(w[0]).to_degrees(), 0.0)), ringdesign_workbench::hover::AQUA, 2.5);
+    }
 }
 
 /// Where a cross-section view is cutting, drawn on the ring it cuts.
