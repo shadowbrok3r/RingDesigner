@@ -1031,7 +1031,7 @@ pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut c
     let stone_of = |vertex: usize| spans.iter().find(|(end, _)| vertex < *end).map_or(0, |(_, s)| *s);
     let origin: Vec<u32> = (0..solid.v.len()).map(|v| if v < band_vertices { v as u32 } else { crate::mesh::SOLID_VERTEX + stone_of(v) }).collect();
     let band_faces = mesh.faces.len();
-    *mesh = into_mesh(solid, &mesh.normals, origin);
+    *mesh = crate::parts::into_mesh(solid, &mesh.normals, origin);
     out.faces = mesh.faces.len().saturating_sub(band_faces);
     out.ms = clock.ms();
     out
@@ -1063,83 +1063,6 @@ fn first_hit(faces: &[[P3; 3]], origin: P3, dir: P3) -> Option<f64> {
     best
 }
 
-/// The resolved solid as a mesh: the band keeps the normals it was swept with, and every face a solid
-/// touched gets corner normals that hold a crease wherever its neighbours turn more than `CREASE_DEG`.
-fn into_mesh(mut solid: Solid, band_normals: &[crate::Vec3], origin: Vec<u32>) -> crate::Mesh {
-    const CREASE_DEG: f64 = 38.0;
-    // Twenty nanometres: a face with no edge and no height under it keeps an area f32 can still hold.
-    csg::clean(&mut solid, 2e-5);
-    let map = solid.compact();
-    let mut from = vec![u32::MAX; solid.v.len()];
-    for (old, new) in map.iter().enumerate() {
-        if *new != u32::MAX { from[*new as usize] = origin[old]; }
-    }
-    let n = solid.v.len();
-    let sub = |a: P3, b: P3| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-    let cross = |a: P3, b: P3| [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-    let dot = |a: P3, b: P3| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-    let unit = |a: P3| { let l = dot(a, a).sqrt(); if l > 1e-300 { [a[0] / l, a[1] / l, a[2] / l] } else { [0.0, 0.0, 1.0] } };
-    let face_n: Vec<P3> = solid.f.iter().map(|f| {
-        let [a, b, c] = f.map(|i| solid.v[i as usize]);
-        unit(cross(sub(b, a), sub(c, a)))
-    }).collect();
-    let angle_at = |f: &[u32; 3], k: usize| {
-        let (p, q, r) = (solid.v[f[k] as usize], solid.v[f[(k + 1) % 3] as usize], solid.v[f[(k + 2) % 3] as usize]);
-        dot(unit(sub(q, p)), unit(sub(r, p))).clamp(-1.0, 1.0).acos()
-    };
-    let is_band = |v: u32| from[v as usize] < crate::mesh::SOLID_VERTEX;
-    // Faces round each vertex a solid made.
-    let mut start = vec![0u32; n + 1];
-    for f in &solid.f { for &v in f { if !is_band(v) { start[v as usize + 1] += 1; } } }
-    for i in 0..n { start[i + 1] += start[i]; }
-    let mut fill = start.clone();
-    let mut around = vec![0u32; start[n] as usize];
-    for (fi, f) in solid.f.iter().enumerate() {
-        for &v in f {
-            if !is_band(v) {
-                around[fill[v as usize] as usize] = fi as u32;
-                fill[v as usize] += 1;
-            }
-        }
-    }
-    let cos_crease = CREASE_DEG.to_radians().cos();
-    let to_v3 = |p: P3| crate::Vec3(p[0] as f32, p[1] as f32, p[2] as f32);
-    let mut normals = vec![crate::Vec3(0.0, 0.0, 1.0); n];
-    for v in 0..n {
-        if is_band(v as u32) {
-            normals[v] = band_normals.get(from[v] as usize).copied().unwrap_or(crate::Vec3(0.0, 0.0, 1.0));
-        } else {
-            let mut sum = [0.0; 3];
-            for &fi in &around[start[v] as usize..start[v + 1] as usize] {
-                let f = &solid.f[fi as usize];
-                let k = f.iter().position(|x| *x as usize == v).unwrap_or(0);
-                let w = angle_at(f, k);
-                sum = [sum[0] + face_n[fi as usize][0] * w, sum[1] + face_n[fi as usize][1] * w, sum[2] + face_n[fi as usize][2] * w];
-            }
-            normals[v] = to_v3(unit(sum));
-        }
-    }
-    let mut corner_normals = Vec::new();
-    for (fi, f) in solid.f.iter().enumerate() {
-        if f.iter().all(|v| is_band(*v)) { continue; }
-        let mine = face_n[fi];
-        let corners = std::array::from_fn(|k| {
-            let v = f[k];
-            if is_band(v) { return normals[v as usize]; }
-            let mut sum = [0.0; 3];
-            for &gi in &around[start[v as usize] as usize..start[v as usize + 1] as usize] {
-                let theirs = face_n[gi as usize];
-                if dot(mine, theirs) < cos_crease { continue; }
-                let g = &solid.f[gi as usize];
-                let w = angle_at(g, g.iter().position(|x| *x == v).unwrap_or(0));
-                sum = [sum[0] + theirs[0] * w, sum[1] + theirs[1] * w, sum[2] + theirs[2] * w];
-            }
-            to_v3(unit(if dot(sum, sum) > 1e-20 { sum } else { mine }))
-        });
-        corner_normals.push((fi as u32, corners));
-    }
-    crate::Mesh { vertices: solid.v.iter().map(|p| to_v3(*p)).collect(), normals, faces: solid.f, corner_normals, origin: from }
-}
 
 #[cfg(test)]
 mod tests {

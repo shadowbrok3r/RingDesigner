@@ -472,8 +472,8 @@ impl ImportedBase {
     pub fn attach(d: &mut RingDesign, source: Arc<Source>) -> Result<()> {
         source.validate()?;
         ensure!(
-            d.cad.is_none(),
-            "Bake the CAD assembly before changing its base"
+            d.band_is_procedural(),
+            "A ring of CAD parts only has no band to change; add a Procedural shank first"
         );
         let previous = d.clone();
         let chart = d
@@ -1047,6 +1047,7 @@ pub fn build(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<
         reference: d.reference_loop(),
         spacing: crate::adaptive::Spacing::uniform(params.theta_steps.clamp(24, 4096)),
         solids: Default::default(),
+        parts: Default::default(),
     })
 }
 

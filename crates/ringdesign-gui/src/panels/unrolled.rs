@@ -115,7 +115,10 @@ struct FieldCache {
 }
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
-    if app.design.cad.as_ref().is_some_and(|d|!d.features.iter().any(|f|matches!(f.operation,ringdesign_core::cad::Operation::Band))) {ui.label("This CAD model has no procedural shank to unroll. Edit its source sketch in CAD.");return;}
+    if ringdesign_workbench::cad_tools::replaces_band(&app.design) {
+        ui.label(ringdesign_workbench::cad_tools::PARTS_ONLY);
+        return;
+    }
     let ctx = app.design.field_context();
     let (rect, response) =
         ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());

@@ -319,6 +319,8 @@ pub struct BuildResult {
     pub spacing: Spacing,
     /// What the seats' pre-made solids did to the mesh.
     pub solids: crate::setting::Applied,
+    /// What the CAD parts did to the mesh, after the seats and stamps.
+    pub parts: crate::parts::Resolved,
 }
 
 /// Build the ring mesh from a design.
@@ -346,18 +348,32 @@ pub fn build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Bu
 /// Fallible entry for document-driven geometry. Legacy callers keep `build`;
 /// interactive workers catch its failure and retain the last successful mesh.
 pub fn try_build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::Result<BuildResult> {
-    if design.cad.is_none() {
+    let never = std::sync::atomic::AtomicBool::new(false);
+    try_build_with(design, lib, params, &never)
+}
+
+/// [`try_build`] with a flag that stops the CAD stage — evaluation and every boolean — soon after it
+/// is raised; the sweep itself runs to its end. A procedural band is swept, its seats and stamps
+/// resolved, and its CAD parts joined, cut or set beside it; a document without a `Band` feature is
+/// the whole ring and comes out of the kernel alone.
+pub fn try_build_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, cancel: &std::sync::atomic::AtomicBool) -> anyhow::Result<BuildResult> {
+    if design.band_is_procedural() {
         let mut built = if design.imported_base.is_some() { crate::imported_base::build(design,lib,params)? } else { build_band(design,lib,params) };
         resolve_solids(design, lib, &mut built);
+        if design.cad.is_some() {
+            let ctx = crate::cad::BuildCtx { cancel, surface: None };
+            built.parts = crate::parts::resolve(design, lib, params, &ctx, &mut built)?;
+        }
         return Ok(built);
     }
     let started=BuildClock::start();
-    let evaluated=crate::cad::evaluate(design,lib,params)?;
-    let mesh=crate::cad::combined(&evaluated,false);
+    let evaluated=crate::cad::evaluate_with(design,lib,params,&crate::cad::BuildCtx { cancel, surface: None })?;
+    let (mesh, notes)=crate::parts::assembled(&evaluated, Some(cancel))?;
     anyhow::ensure!(!mesh.faces.is_empty(),"The design contains only reference components");
     let (lo,hi)=mesh.bounds().unwrap();let bounds_mm=[(hi.0-lo.0) as f64,(hi.1-lo.1) as f64,(hi.2-lo.2) as f64];let volume=mesh.volume_mm3();
     let report=Report {validation:mesh.validate(),volume_mm3:volume,surface_area_mm2:mesh.surface_area_mm2(),bounds_mm,inner_diameter_mm:measured_bore_diameter_mm(&mesh,design.size.inner_diameter_mm()),outer_diameter_mm:bounds_mm[0].max(bounds_mm[1]),band_width_mm:bounds_mm[2],max_relief_mm:0.0,min_relief_mm:0.0,metals:metal_table(volume),build_ms:started.ms(),refine:None,quality:mesh.quality()};
-    Ok(BuildResult {mesh,report,reference:design.reference_loop(),spacing:Spacing::uniform(params.theta_steps.clamp(24,4096)),solids:Default::default()})
+    let parts = crate::parts::Resolved { notes, ..Default::default() };
+    Ok(BuildResult {mesh,report,reference:design.reference_loop(),spacing:Spacing::uniform(params.theta_steps.clamp(24,4096)),solids:Default::default(),parts})
 }
 
 /// The mesh a mould is made from rather than the finished ring: bench-only layers off, and under sand
@@ -504,7 +520,7 @@ pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
         quality: mesh.quality(),
     };
 
-    BuildResult { mesh, report, reference, spacing, solids: Default::default() }
+    BuildResult { mesh, report, reference, spacing, solids: Default::default(), parts: Default::default() }
 }
 
 /// Build by refining the `(u, s)` domain to a tolerance rather than sweeping a
@@ -552,6 +568,7 @@ fn build_refined(
         // sample of the same surface.
         spacing: Spacing::uniform(params.theta_steps.max(1)),
         solids: Default::default(),
+        parts: Default::default(),
     }
 }
 

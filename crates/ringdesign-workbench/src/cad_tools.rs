@@ -1,9 +1,25 @@
 //! Shared, inspectable CAD creation tools. Solid evaluation remains in core.
 use crate::icons::Icon;
 use ringdesign_core::{
+    RingDesign,
     cad::{Attach, Boolean, Component, EdgeRef, FaceRef, Operation, Placement, Stage},
     sketch::{Geometry, Sketch, Workplane},
 };
+pub use ringdesign_core::interaction::surface::PARTS_ONLY;
+/// True when the CAD parts stand in for the band: features, none of them `Operation::Band`.
+pub fn replaces_band(d: &RingDesign) -> bool {
+    ringdesign_core::interaction::surface::replaces_band(d)
+}
+/// The design with every part kept beside the band, so a preview skips the joins and cuts.
+pub fn without_joins(d: &RingDesign) -> RingDesign {
+    let mut d = d.clone();
+    if let Some(doc) = d.cad.as_mut() {
+        for f in &mut doc.features {
+            f.component.attach = Attach::Separate;
+        }
+    }
+    d
+}
 pub fn icon(op: &Operation) -> Icon {
     use Operation::*;
     match op {
@@ -218,6 +234,31 @@ pub fn example_button(ui: &mut egui::Ui, name: &str) -> egui::Response {
 mod tests {
     use super::*;
     #[test]
+    fn parts_replace_the_band_only_without_a_procedural_shank_and_a_preview_can_unjoin_them() {
+        use ringdesign_core::{RingDesign, cad::{Document, Feature}};
+        let feature = |id, operation: Operation, attach| Feature {
+            id,
+            name: operation.label().into(),
+            enabled: true,
+            operation,
+            component: Component { attach, ..Default::default() },
+        };
+        let cylinder = || Operation::Cylinder { radius_mm: 2.0, height_mm: 3.0 };
+        let mut d = RingDesign::default();
+        assert!(!replaces_band(&d), "no parts, so the band stands");
+        let mut doc = Document::default();
+        doc.append(feature(1, cylinder(), Attach::Join)).unwrap();
+        d.cad = Some(doc.clone());
+        assert!(replaces_band(&d), "a cylinder alone is the whole ring");
+        doc.append(feature(2, Operation::Band, Attach::Separate)).unwrap();
+        d.cad = Some(doc);
+        assert!(!replaces_band(&d), "a procedural shank keeps the band");
+        let stock = without_joins(&d);
+        let attaches: Vec<_> = stock.cad.as_ref().unwrap().features.iter().map(|f| f.component.attach).collect();
+        assert_eq!(attaches, [Attach::Separate, Attach::Separate]);
+        assert_eq!(d.cad.as_ref().unwrap().features[0].component.attach, Attach::Join, "the design itself keeps its joins");
+    }
+    #[test]
     fn every_create_menu_starter_builds_a_closed_positive_volume_solid() {
         use ringdesign_core::{
             AlphaLibrary, BuildParams, RingDesign,
@@ -255,17 +296,21 @@ mod tests {
                 })
                 .unwrap();
             }
+            let band = matches!(doc.features[0].operation, Operation::Band);
             d.cad = Some(doc);
-            let evaluated = cad::evaluate(
-                &d,
-                &lib,
-                BuildParams {
-                    theta_steps: 64,
-                    profile_steps: 48,
-                    ..Default::default()
-                },
-            )
-            .unwrap_or_else(|e| panic!("{label}: {e:#}"));
+            let params = BuildParams {
+                theta_steps: 64,
+                profile_steps: 48,
+                ..Default::default()
+            };
+            // The procedural shank is the band itself, an anchor with no body of its own: it is
+            // judged by the ring it builds.
+            if band {
+                let built = ringdesign_core::mesh::try_build(&d, &lib, params).unwrap_or_else(|e| panic!("{label}: {e:#}"));
+                assert!(built.report.validation.watertight && built.mesh.volume_mm3() > 1.0, "{label}: no band");
+                continue;
+            }
+            let evaluated = cad::evaluate(&d, &lib, params).unwrap_or_else(|e| panic!("{label}: {e:#}"));
             assert!(!evaluated.components.is_empty(), "{label} has no output");
             for c in evaluated.components {
                 assert!(c.mesh.volume_mm3() > 0.001, "{label}: empty solid");
@@ -343,7 +388,7 @@ pub fn attachment(ui: &mut egui::Ui, c: &mut Component) {
             ui.label("Attach");
             for (attach, label, hint) in [
                 (Attach::Separate, "Separate", "Kept beside the band as its own solid"),
-                (Attach::Join, "Join", "United into the band; the pattern and the verdict see one solid"),
+                (Attach::Join, "Join", "United into the band; the pattern and the verdict see one solid. A part seated on a procedural shank starts joined"),
                 (Attach::Cut, "Cut", "Subtracted from the band"),
             ] {
                 ui.selectable_value(&mut c.attach, attach, label).on_hover_text(hint).on_disabled_hover_text(STONE);

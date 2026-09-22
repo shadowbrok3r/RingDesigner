@@ -1078,7 +1078,9 @@ pub fn analyze_field(
         notes: Vec::new(),
     };
 
-    if design.cad.is_some() {
+    // A document that is the whole ring has no field to sample; parts standing on the band are
+    // stock added after the field, like made settings, and the band is judged as itself.
+    if !design.band_is_procedural() {
         return FieldReport {verdict:Verdict::Marginal,notes:vec!["CAD solids require mesh-space manufacturing inspection; band-field measurements do not apply".into()],..empty};
     }
 
@@ -1253,6 +1255,22 @@ pub fn analyze_field(
             "Thinnest wall {thinnest:.2} mm at {thinnest_at:.0} deg is under the {min_section:.1} mm {medium} reliably fills."
         ));
     }
+    // CAD parts are stock added to the band after the field, like made settings: counted, not judged.
+    if let Some(doc) = &design.cad {
+        let parts = doc.attachments();
+        if !parts.is_empty() {
+            let count = |a: crate::cad::Attach| parts.iter().filter(|p| p.1 == a).count();
+            let n = parts.len();
+            notes.push(format!(
+                "{n} CAD part{} stand{} on the band after the field is judged ({} joined, {} cut, {} separate): the verdict reads the band and its relief, not the parts.",
+                if n == 1 { "" } else { "s" },
+                if n == 1 { "s" } else { "" },
+                count(crate::cad::Attach::Join),
+                count(crate::cad::Attach::Cut),
+                count(crate::cad::Attach::Separate),
+            ));
+        }
+    }
 
     FieldReport {
         verdict,
@@ -1360,7 +1378,12 @@ pub fn pattern_parts(design: &RingDesign) -> (std::borrow::Cow<'_, RingDesign>, 
             }
         }
     }
-    if !any(&design.layers, sand) && !design.stamps.iter().any(|s| s.bench) {
+    // A CAD part staged for the bench is soldered on or cut in after a sand pour; lost wax casts it in place.
+    let bench_parts = sand
+        && design.cad.as_ref().is_some_and(|doc| {
+            doc.attachments().iter().any(|(_, _, stage)| *stage == crate::cad::Stage::Bench)
+        });
+    if !any(&design.layers, sand) && !design.stamps.iter().any(|s| s.bench) && !bench_parts {
         return (std::borrow::Cow::Borrowed(design), Vec::new(), Vec::new());
     }
     let mut pattern = design.clone();
@@ -1371,6 +1394,9 @@ pub fn pattern_parts(design: &RingDesign) -> (std::borrow::Cow<'_, RingDesign>, 
         if s.bench { layers.push(s.name.clone()); }
         !s.bench
     });
+    if let Some(doc) = &mut pattern.cad {
+        seats.extend(doc.leave_bench_parts_out(sand));
+    }
     (std::borrow::Cow::Owned(pattern), layers, seats)
 }
 

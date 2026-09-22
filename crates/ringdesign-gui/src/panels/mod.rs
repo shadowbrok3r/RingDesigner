@@ -1409,7 +1409,7 @@ fn status_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             ui.weak("CAD candidate; see feature inspection");
         } else if !app.is_current() {
             ui.weak("Geometry report pending or unavailable");
-        } else if app.design.cad.is_some() {
+        } else if !app.design.band_is_procedural() {
             ui.weak("CAD components — use Casting for release inspection");
         } else {
             let verdict = app

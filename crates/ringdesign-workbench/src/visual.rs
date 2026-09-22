@@ -301,8 +301,12 @@ impl Visual {
             }
             Tool::Select => {}
             Tool::Paint | Tool::Stamp => {
-                if d.graph.is_some() || d.cad.is_some() {
+                if d.graph.is_some() {
                     ui.label("Use an editable procedural ring for surface artwork.");
+                    return;
+                }
+                if crate::cad_tools::replaces_band(d) {
+                    ui.label(crate::cad_tools::PARTS_ONLY);
                     return;
                 }
                 if self.tool == Tool::Stamp {

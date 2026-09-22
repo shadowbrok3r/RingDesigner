@@ -65,8 +65,12 @@ impl TransformTool {
         }
     }
     pub fn controls(&mut self, ui: &mut egui::Ui, d: &RingDesign) {
-        if d.graph.is_some() || d.cad.is_some() {
+        if d.graph.is_some() {
             ui.label("Bake the driven design to edit individual ornaments.");
+            return;
+        }
+        if crate::cad_tools::replaces_band(d) {
+            ui.label(crate::cad_tools::PARTS_ONLY);
             return;
         }
         let targets = ornament::targets(d);
@@ -152,7 +156,7 @@ impl TransformTool {
         ray: impl Fn(Pos2) -> ([f32; 3], [f32; 3]),
         pointer: Pointer,
     ) -> Rect {
-        if d.graph.is_some() || d.cad.is_some() {
+        if d.graph.is_some() || crate::cad_tools::replaces_band(d) {
             return Rect::NOTHING;
         }
         if pointer.navigating {

@@ -28,7 +28,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         ui.weak(if app.is_building() {"Design changed — rebuilding the report…"} else {&app.status});
         return;
     }
-    if app.design.cad.is_some() {
+    if !app.design.band_is_procedural() {
         ui.strong("CAD solid dimensions");
         if let Some(build)=&app.build {ui.label(format!("{:.2} × {:.2} × {:.2} mm",build.report.bounds_mm[0],build.report.bounds_mm[1],build.report.bounds_mm[2]));ui.label(format!("{:.2} mm³",build.report.volume_mm3));ui.label(format!("{} triangles; closed: {}",build.report.validation.triangle_count,build.report.validation.watertight));}
         ui.weak("Inspect each component with its manufacturing recipe. General solids do not have a procedural band wall report.");
