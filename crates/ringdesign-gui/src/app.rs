@@ -260,6 +260,8 @@ pub struct RingDesignerApp {
     pub library_filter: String,
     /// Clip-and-tile window for harvesting a fragment out of an imported alpha.
     pub alpha_editor: AlphaEditor,
+    /// Generated-texture window, toggled from the library panel.
+    pub texture: crate::comfy_texture::TextureGen,
     /// Inscriptions window, toggled from the library panel.
     pub text_editor_open: bool,
     /// Parameterized-generator window, toggled from the library panel.
@@ -299,14 +301,7 @@ pub struct RingDesignerApp {
 
 impl RingDesignerApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let mut lib = AlphaLibrary::builtin();
-        for dir in library::alpha_dirs() {
-            match lib.load_dir(&dir) {
-                Ok(n) if n > 0 => log::info!("loaded {n} alphas from {}", dir.display()),
-                Ok(_) => {}
-                Err(e) => log::warn!("alpha library {}: {e}", dir.display()),
-            }
-        }
+        let mut lib = AlphaLibrary::installed();
 
         let design = cc
             .storage
@@ -404,6 +399,7 @@ impl RingDesignerApp {
             selected_layer: None,
             library_filter: String::new(),
             alpha_editor: AlphaEditor::default(),
+            texture: Default::default(),
             text_editor_open: false,
             recipe_editor_open: false,
             status: "Ready".into(),

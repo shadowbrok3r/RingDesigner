@@ -1,6 +1,6 @@
 # Numeric touch policy
 
-Vendored from crates.io `egui` 0.36.0, under its original MIT / Apache-2.0 licenses.
+Vendored from crates.io `egui` 0.36.2, under its original MIT / Apache-2.0 licenses.
 
 The numeric interaction change is `style::Interaction::drag_value_dragging`, default
 `true`. RingDesigner's Android theme sets it to `false`: inactive numeric fields

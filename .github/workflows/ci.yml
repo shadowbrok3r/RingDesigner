@@ -42,6 +42,45 @@ jobs:
       - name: Test the workspace
         run: cargo test --workspace --locked
 
+  # Windows only built on a `desktop-v*` tag, so anything that breaks it — the
+  # resource script, the manifest, the static CRT — surfaced at release time.
+  # This builds the shipped executable on every push instead.
+  windows:
+    name: the windows executable
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: windows
+      # `+crt-static` comes from .cargo/config.toml, and build.rs compiles the
+      # icon, manifest and version block into the .exe.
+      - name: Build the executable
+        run: cargo build -p ringdesign-gui --release --locked --target x86_64-pc-windows-msvc
+      - name: It carries its resources and no runtime dependency
+        shell: pwsh
+        run: |
+          $exe = "target/x86_64-pc-windows-msvc/release/ringdesigner.exe"
+          $info = (Get-Item $exe).VersionInfo
+          if (-not $info.ProductName) { throw "no version block — build.rs did not run" }
+          "$($info.ProductName) $($info.FileVersion), $((Get-Item $exe).Length) bytes"
+          # A static CRT leaves no vcruntime/msvcp import. dumpbin is in the
+          # runner's MSVC toolchain.
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
+          $dumpbin = Get-ChildItem "$vs/VC/Tools/MSVC" -Recurse -Filter dumpbin.exe |
+                     Where-Object { $_.FullName -like "*Hostx64/x64*" } | Select-Object -First 1
+          $imports = & $dumpbin.FullName /dependents $exe
+          $imports
+          if ($imports -match "vcruntime|msvcp") { throw "the CRT is not static" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ringdesigner-windows-x86_64
+          path: target/x86_64-pc-windows-msvc/release/ringdesigner.exe
+
   wasm:
     name: the wasm door
     runs-on: ubuntu-latest

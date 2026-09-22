@@ -16,6 +16,7 @@ parallel = ["ringdesign-core/parallel"]
 kernel-manifold = ["dep:ringdesign-solid", "ringdesign-solid/manifold"]
 
 [dependencies]
+ringdesign-assets.workspace = true
 ringdesign-core = { path = "../ringdesign-core", default-features = false }
 ringdesign-solid = { path = "../ringdesign-solid", optional = true }
 serde.workspace = true

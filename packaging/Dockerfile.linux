@@ -1,0 +1,30 @@
+# A Linux build whose glibc floor is low enough to reach other people's
+# machines. A binary built on this workstation needs glibc 2.44, which no
+# mainstream distribution ships — Ubuntu 24.04 is 2.39, Debian 12 is 2.36 —
+# so it runs nowhere but here. Bookworm's 2.36 clears everything current.
+#
+# The GL, X11 and Wayland packages are here because a GUI cannot be statically
+# linked: glutin dlopens libGL/libEGL and winit needs the client libraries.
+# What the image fixes is the version floor, not the dependency.
+FROM debian:bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential ca-certificates curl pkg-config \
+        libgl1-mesa-dev libegl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev \
+        libxi-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
+        libssl-dev libfontconfig1-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG RUST_VERSION=1.97.1
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
+ENV PATH=/root/.cargo/bin:$PATH
+
+# The repo's .cargo/config.toml asks for clang and mold, neither of which is
+# here, and cwd is the mounted repo so cargo reads it. RUSTFLAGS replaces the
+# config's flags outright — the per-target variable does not, and a build
+# script picked up `-fuse-ld=/usr/bin/mold` through it.
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=cc \
+    RUSTFLAGS=-Awarnings
+
+WORKDIR /src

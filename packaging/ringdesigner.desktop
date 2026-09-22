@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=RingDesigner
+GenericName=Ring Design
+Comment=Procedural ring design for two-part sand casting
+Exec=ringdesigner %f
+Icon=ringdesigner
+Terminal=false
+Categories=Graphics;3DGraphics;Engineering;
+MimeType=application/x-ringdesigner-design;
+StartupWMClass=ringdesigner
+Keywords=jewellery;jewelry;ring;signet;casting;CAD;

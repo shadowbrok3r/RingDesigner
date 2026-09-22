@@ -41,17 +41,10 @@ impl DesignEngine {
         }
     }
 
-    /// Built-in patterns plus every alpha found in the standard directories.
+    /// Built-in patterns, the bundled alpha library, and every alpha in the
+    /// user's own directory.
     pub fn with_disk_library() -> Self {
-        let mut lib = AlphaLibrary::builtin();
-        for dir in library::alpha_dirs() {
-            match lib.load_dir(&dir) {
-                Ok(n) if n > 0 => log::info!("loaded {n} alphas from {}", dir.display()),
-                Ok(_) => {}
-                Err(e) => log::warn!("alpha library {}: {e}", dir.display()),
-            }
-        }
-        Self::new(lib)
+        Self::new(AlphaLibrary::installed())
     }
 
     pub fn shared(lib: AlphaLibrary) -> SharedEngine {

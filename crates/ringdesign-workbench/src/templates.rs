@@ -11,13 +11,18 @@ pub struct Template {
     pub description: &'static str,
     source: Source,
 }
+/// `Design` names a bundled `.ring.json`; the document is decompressed only
+/// when that template is chosen, not to list it in a menu.
 enum Source { Graph(&'static TemplateGraph), Starter(&'static ringdesign_core::templates::Template), Design(&'static str) }
 impl Template {
     pub fn instantiate(&self, reg: &Registry, lib: &AlphaLibrary) -> anyhow::Result<RingDesign> {
         match &self.source {
             Source::Graph(graph) => Ok(graph.instantiate(reg, lib)?),
             Source::Starter(template) => Ok(template.design()),
-            Source::Design(json) => Ok(ringdesign_graph::templates::refine_sources(&serde_json::from_str(json)?)),
+            Source::Design(slug) => {
+                let asset = ringdesign_assets::find(ringdesign_assets::DESIGNS, slug).expect("bundled design");
+                Ok(ringdesign_graph::templates::refine_sources(&serde_json::from_str(&asset.text())?))
+            }
         }
     }
 }
@@ -38,14 +43,14 @@ pub fn collections() -> &'static [Collection] {
             group("Reptilia collection", &["ecdysis-reptilia", "tessera-reptilia", "lorica-reptilia", "ophidian-reptilia", "varanus-reptilia"], "Sculpted reptile skins with editable artwork and geometry."),
             group("Stock masterworks", &["nocturne-imported", "solstice-imported", "aurelia-imported", "vesper-imported", "saurian-imported", "zenith-imported", "caiman-imported"], "Authored ornament on calibrated imported signet stock."),
             Collection { name: "Workshop collection", templates: vec![
-                Template { name: "Aster — cushion seal", slug: "aster-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", source: Source::Design(include_str!("../../../showcase/workshop-collection/aster/design.ring.json")) },
-                Template { name: "Tide — twelve reeds", slug: "tide-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", source: Source::Design(include_str!("../../../showcase/workshop-collection/tide/design.ring.json")) },
-                Template { name: "Lantern — pierced octagonal signet", slug: "lantern-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", source: Source::Design(include_str!("../../../showcase/workshop-collection/lantern/design.ring.json")) },
-                Template { name: "Aureole — half-turn ribbon", slug: "aureole-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", source: Source::Design(include_str!("../../../showcase/workshop-collection/aureole/design.ring.json")) },
+                Template { name: "Aster — cushion seal", slug: "aster-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", source: Source::Design("aster-workshop") },
+                Template { name: "Tide — twelve reeds", slug: "tide-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", source: Source::Design("tide-workshop") },
+                Template { name: "Lantern — pierced octagonal signet", slug: "lantern-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", source: Source::Design("lantern-workshop") },
+                Template { name: "Aureole — half-turn ribbon", slug: "aureole-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", source: Source::Design("aureole-workshop") },
             ] },
             {
                 let mut atelier = group("Atelier designs", &["aster-atelier", "thalassa", "oriel"], "Complete authored designs with their artwork and settings.");
-                atelier.templates.push(Template { name: "Aster — original botanical signet", slug: "aster-botanical", description: "The original botanical sand signet.", source: Source::Design(include_str!("../../../showcase/aster/design.ring.json")) });
+                atelier.templates.push(Template { name: "Aster — original botanical signet", slug: "aster-botanical", description: "The original botanical sand signet.", source: Source::Design("aster-botanical") });
                 atelier
             },
             group("Original masterwork signets", &["nocturne", "solstice"], "Original sculpted designs, before the stock-based editions."),

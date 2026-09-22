@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "crates/ringdesign-assets",
     "crates/ringdesign-core",
     "crates/ringdesign-gui",
     "crates/ringdesign-mcp",
@@ -25,6 +26,7 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+ringdesign-assets = { path = "crates/ringdesign-assets" }
 ringdesign-core = { path = "crates/ringdesign-core" }
 ringdesign-mcp = { path = "crates/ringdesign-mcp" }
 ringdesign-graph = { path = "crates/ringdesign-graph" }
@@ -39,6 +41,7 @@ serde_json = { version = "1.0.151", features = ["float_roundtrip"] }
 anyhow = "1.0.104"
 log = "0.4.33"
 rayon = "1.12"
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
 parking_lot = "0.12"
 schemars = "1.2"
 
@@ -53,20 +56,28 @@ tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "sync", "ne
 hyper-util = { version = "0.1.20", features = ["tokio", "server-auto", "service"] }
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "bmp", "gif"] }
 
-eframe = { version = "0.36.0", default-features = false, features = [
+eframe = { version = "0.36.2", default-features = false, features = [
     "persistence",
     "default_fonts",
     "glow",
     "x11",
     "wayland",
 ] }
-egui = { version = "0.36.0", features = ["rayon", "serde"] }
-egui_glow = "0.36.0"
+egui = { version = "0.36.2", features = ["rayon", "serde"] }
+egui_glow = "0.36.2"
 egui-phosphor = "0.12.0"
 egui_tiles = "0.17.0"
 egui-snarl = { version = "0.11.0", features = ["serde"] }
 rfd = "0.17.2"
 env_logger = "0.11.11"
+
+# Windows resources: the icon, the manifest and the version block, compiled
+# into the .exe by ringdesign-gui's build script.
+embed-resource = "3"
+
+# Compile-time .env loading for ringdesign-gui's build script, the same way
+# the Mastertech `database` crate does it.
+dotenvy = "0.15"
 
 # Upstream egui-phosphor still pins egui 0.35; this fork tracks 0.36.
 # egui-snarl and egui-scale likewise, vendored under patches/ (see patches/README.md).

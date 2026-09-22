@@ -2,7 +2,7 @@
 //!
 //! Each template in `ringdesign_core::templates` is re-expressed here with
 //! the same nodes a user would wire, and the result is committed under
-//! `graphs/templates/` and bundled with `include_str!`. The golden test
+//! `graphs/templates/` and compiled in through `ringdesign-assets`. The golden test
 //! evaluates every bundled graph and holds the design it produces to the
 //! code template byte for byte, and holds the committed file to what the
 //! builder produces — so neither the registry nor the files can drift.
@@ -17,12 +17,21 @@ use crate::value::Literal;
 pub struct TemplateGraph {
     pub name: &'static str,
     pub slug: &'static str,
-    pub json: &'static str,
 }
 
 impl TemplateGraph {
+    /// The template's document, decompressed out of the bundle on demand.
+    /// The artwork these carry as base64 is 99 MB across the catalogue and
+    /// 27 MB deflated, so it is decoded for the one template chosen and not
+    /// held resident for the menu that lists them all.
+    pub fn json(&self) -> std::borrow::Cow<'static, str> {
+        ringdesign_assets::find(ringdesign_assets::GRAPHS, self.slug)
+            .expect("every catalogued template is bundled")
+            .text()
+    }
+
     pub fn load(&self) -> Graph {
-        crate::file::load_graph_str(self.json, None).expect("bundled graph parses")
+        crate::file::load_graph_str(&self.json(), None).expect("bundled graph parses")
     }
 
     /// Start a project from the whole template, including its title and
@@ -43,7 +52,7 @@ impl TemplateGraph {
 macro_rules! bundled {
     ($($name:literal => $slug:literal),* $(,)?) => {
         pub static BUNDLED: &[TemplateGraph] = &[$(
-            TemplateGraph { name: $name, slug: $slug, json: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/templates/", $slug, ".graph.json")) },
+            TemplateGraph { name: $name, slug: $slug },
         )*];
     };
 }
@@ -63,34 +72,34 @@ bundled! {
 /// Authored showcase designs, with the artwork embedded and each layer
 /// exposed as nodes. Kept separate from the small procedural starters.
 pub static SHOWCASE: &[TemplateGraph] = &[
-    TemplateGraph { name: "Nocturne — original night garden", slug: "nocturne", json: include_str!("../../../graphs/templates/nocturne.graph.json") },
-    TemplateGraph { name: "Solstice — original sun seal", slug: "solstice", json: include_str!("../../../graphs/templates/solstice.graph.json") },
-    TemplateGraph { name: "Aster Atelier", slug: "aster-atelier", json: include_str!("../../../graphs/templates/aster-atelier.graph.json") },
-    TemplateGraph { name: "Thalassa", slug: "thalassa", json: include_str!("../../../graphs/templates/thalassa.graph.json") },
+    TemplateGraph { name: "Nocturne — original night garden", slug: "nocturne" },
+    TemplateGraph { name: "Solstice — original sun seal", slug: "solstice" },
+    TemplateGraph { name: "Aster Atelier", slug: "aster-atelier" },
+    TemplateGraph { name: "Thalassa", slug: "thalassa" },
     // No guard rails: lost wax, made settings throughout. Its sand counterpart is Saurian, on stock.
-    TemplateGraph { name: "Oriel — jewelled lantern", slug: "oriel", json: include_str!("../../../graphs/templates/oriel.graph.json") },
+    TemplateGraph { name: "Oriel — jewelled lantern", slug: "oriel" },
 ];
 
 /// Metadata only: menus must not parse megabytes of embedded artwork on
 /// every frame. Load just the selected template.
 pub static IMPORTED: &[TemplateGraph] = &[
-    TemplateGraph { name: "Nocturne — night garden", slug: "nocturne-imported", json: include_str!("../../../graphs/templates/nocturne-imported.graph.json") },
-    TemplateGraph { name: "Solstice — sun seal", slug: "solstice-imported", json: include_str!("../../../graphs/templates/solstice-imported.graph.json") },
-    TemplateGraph { name: "Aurelia — sovereign sun", slug: "aurelia-imported", json: include_str!("../../../graphs/templates/aurelia-imported.graph.json") },
-    TemplateGraph { name: "Vesper — celestial reliquary", slug: "vesper-imported", json: include_str!("../../../graphs/templates/vesper-imported.graph.json") },
+    TemplateGraph { name: "Nocturne — night garden", slug: "nocturne-imported" },
+    TemplateGraph { name: "Solstice — sun seal", slug: "solstice-imported" },
+    TemplateGraph { name: "Aurelia — sovereign sun", slug: "aurelia-imported" },
+    TemplateGraph { name: "Vesper — celestial reliquary", slug: "vesper-imported" },
     // One theme each, face to palm, on the factory's own signets and held to two-part sand.
-    TemplateGraph { name: "Saurian — beaded skin", slug: "saurian-imported", json: include_str!("../../../graphs/templates/saurian-imported.graph.json") },
-    TemplateGraph { name: "Zenith — the hunter's belt", slug: "zenith-imported", json: include_str!("../../../graphs/templates/zenith-imported.graph.json") },
-    TemplateGraph { name: "Caiman — armoured hide", slug: "caiman-imported", json: include_str!("../../../graphs/templates/caiman-imported.graph.json") },
+    TemplateGraph { name: "Saurian — beaded skin", slug: "saurian-imported" },
+    TemplateGraph { name: "Zenith — the hunter's belt", slug: "zenith-imported" },
+    TemplateGraph { name: "Caiman — armoured hide", slug: "caiman-imported" },
 ];
 /// The Reptilia collection: full-ring skins, with subtractive bench detail kept
 /// separate from the supported casting relief. Artwork is embedded in each graph.
 pub static REPTILIA: &[TemplateGraph] = &[
-    TemplateGraph { name: "Ecdysis — ventral scales", slug: "ecdysis-reptilia", json: include_str!("../../../graphs/templates/ecdysis-reptilia.graph.json") },
-    TemplateGraph { name: "Tessera — shield mosaic", slug: "tessera-reptilia", json: include_str!("../../../graphs/templates/tessera-reptilia.graph.json") },
-    TemplateGraph { name: "Lorica — crocodile armour", slug: "lorica-reptilia", json: include_str!("../../../graphs/templates/lorica-reptilia.graph.json") },
-    TemplateGraph { name: "Ophidian — amethyst serpent", slug: "ophidian-reptilia", json: include_str!("../../../graphs/templates/ophidian-reptilia.graph.json") },
-    TemplateGraph { name: "Varanus — sovereign scales", slug: "varanus-reptilia", json: include_str!("../../../graphs/templates/varanus-reptilia.graph.json") },
+    TemplateGraph { name: "Ecdysis — ventral scales", slug: "ecdysis-reptilia" },
+    TemplateGraph { name: "Tessera — shield mosaic", slug: "tessera-reptilia" },
+    TemplateGraph { name: "Lorica — crocodile armour", slug: "lorica-reptilia" },
+    TemplateGraph { name: "Ophidian — amethyst serpent", slug: "ophidian-reptilia" },
+    TemplateGraph { name: "Varanus — sovereign scales", slug: "varanus-reptilia" },
 ];
 pub fn catalog() -> impl Iterator<Item = &'static TemplateGraph> {
     BUNDLED.iter().chain(SHOWCASE).chain(IMPORTED).chain(REPTILIA)
@@ -144,33 +153,30 @@ mod refinement_tests {
     }
 }
 
-/// The bundled starter graph the editor opens on: size, section, shank,
-/// an empty stack and the output, with the design panel's knobs exposed.
-pub static SIMPLE: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/simple.graph.json"));
-
 /// Bundled clusters: graphs with exposed inputs and outputs, usable as
 /// one node. A user-dir cluster of the same name wins. The vine needs the
 /// kernel, so a build without it does not list a cluster it cannot run.
 #[cfg(not(feature = "kernel-manifold"))]
-pub static BUNDLED_CLUSTERS: &[(&str, &str)] = &[("Signet", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/clusters/signet.cluster.json")))];
+pub static BUNDLED_CLUSTERS: &[(&str, &str)] = &[("Signet", "signet")];
 #[cfg(feature = "kernel-manifold")]
-pub static BUNDLED_CLUSTERS: &[(&str, &str)] = &[
-    ("Signet", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/clusters/signet.cluster.json"))),
-    ("Vine semi-mount", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/clusters/vine-semi-mount.cluster.json"))),
-];
+pub static BUNDLED_CLUSTERS: &[(&str, &str)] = &[("Signet", "signet"), ("Vine semi-mount", "vine-semi-mount")];
 
 /// Bundled presets for the bundled clusters.
-pub static BUNDLED_PRESETS: &[(&str, &str)] = &[
-    ("Heart signet", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/presets/heart-signet.preset.json"))),
-    ("Cushion signet", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../graphs/presets/cushion-signet.preset.json"))),
-];
+pub static BUNDLED_PRESETS: &[(&str, &str)] = &[("Heart signet", "heart-signet"), ("Cushion signet", "cushion-signet")];
+
+/// A bundled cluster's or preset's document by the slug the tables above
+/// carry. The tables hold slugs rather than text so the menus that read them
+/// stay the size of their names.
+pub fn bundled_json(family: &'static [ringdesign_assets::Asset], slug: &str) -> std::borrow::Cow<'static, str> {
+    ringdesign_assets::find(family, slug).expect("bundled document").text()
+}
 
 pub fn bundled_clusters() -> Vec<Graph> {
-    BUNDLED_CLUSTERS.iter().filter_map(|(_, json)| crate::file::load_graph_str(json, None).ok()).collect()
+    BUNDLED_CLUSTERS.iter().filter_map(|(_, slug)| crate::file::load_graph_str(&bundled_json(ringdesign_assets::CLUSTERS, slug), None).ok()).collect()
 }
 
 pub fn bundled_presets() -> Vec<crate::file::Preset> {
-    BUNDLED_PRESETS.iter().filter_map(|(_, json)| crate::file::load_preset_str(json).ok()).collect()
+    BUNDLED_PRESETS.iter().filter_map(|(_, slug)| crate::file::load_preset_str(&bundled_json(ringdesign_assets::GRAPH_PRESETS, slug)).ok()).collect()
 }
 
 /// The signet construction as a cluster: one Width reaches the section,
@@ -295,8 +301,10 @@ pub fn graph(name: &str) -> Option<Graph> {
     catalog().find(|t| t.name == name).map(TemplateGraph::load)
 }
 
+/// The bundled starter graph the editor opens on: size, section, shank,
+/// an empty stack and the output, with the design panel's knobs exposed.
 pub fn simple() -> Graph {
-    crate::file::load_graph_str(SIMPLE, None).expect("bundled graph parses")
+    crate::file::load_graph_str(&ringdesign_assets::simple_graph(), None).expect("bundled graph parses")
 }
 
 /// The builders the committed files come from.
@@ -677,7 +685,7 @@ mod tests {
         let code: Vec<_> = ringdesign_core::templates::all().iter().collect();
         assert_eq!(BUNDLED.len(), code.len(), "every code template has a graph");
         for t in BUNDLED {
-            let bundled = crate::file::load_graph_str(t.json, Some(&reg)).unwrap_or_else(|e| panic!("{}: {e}", t.name));
+            let bundled = crate::file::load_graph_str(&t.json(), Some(&reg)).unwrap_or_else(|e| panic!("{}: {e}", t.name));
             let mut built = build(t.name).unwrap();
             arrange(&mut built);
             assert_eq!(bundled, built, "{}: the committed file has drifted from its builder — rerun with RD_WRITE_TEMPLATE_GRAPHS=1", t.name);

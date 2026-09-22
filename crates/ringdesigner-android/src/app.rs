@@ -296,7 +296,7 @@ impl RingApp {
             last_preview_at: Instant::now(),
             workshop: Default::default(),
             design: RingDesign::default(),
-            lib: Arc::new(AlphaLibrary::builtin()),
+            lib: Arc::new(AlphaLibrary::installed()),
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
             pane: RingPane::default(),
             worker: None,

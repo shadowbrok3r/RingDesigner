@@ -1,8 +1,13 @@
 //! RingDesigner — procedural sand-castable ring design.
 
+// A GUI launched from Explorer must not raise a console behind its window.
+// Debug keeps one, because that is where env_logger writes.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod alpha_editor;
 mod app;
 mod camera;
+mod comfy_texture;
 mod dock;
 mod export;
 mod gems;
@@ -77,6 +82,14 @@ impl RingDesignerApp {
     }
 }
 
+/// The taskbar and title-bar icon, rasterized from the bundled SVG. Windows
+/// also carries it in the `.exe`'s resources (`build.rs`) so Explorer shows it
+/// before the process runs.
+fn app_icon() -> eframe::egui::IconData {
+    let edge = ringdesign_assets::APP_ICON_EDGE;
+    eframe::egui::IconData { rgba: ringdesign_assets::app_icon_rgba(), width: edge, height: edge }
+}
+
 fn main() -> eframe::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
@@ -88,6 +101,7 @@ fn main() -> eframe::Result<()> {
                 .with_app_id(session::APP_ID)
                 .with_inner_size([1600.0, 980.0])
                 .with_min_inner_size([1100.0, 700.0])
+                .with_icon(app_icon())
                 .with_drag_and_drop(true),
             // eframe asks for a 0-bit depth buffer by default, which leaves the
             // window with no depth attachment at all: GL_DEPTH_TEST then does

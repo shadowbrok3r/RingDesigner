@@ -15,6 +15,7 @@ ui-shot = ["egui_kittest/wgpu", "egui_kittest/snapshot"]
 kernel = ["ringdesign-graph/kernel-manifold", "ringdesign-script/kernel"]
 
 [dependencies]
+ringdesign-assets.workspace = true
 ringdesign-core.workspace = true
 ringdesign-workbench = { path = "../ringdesign-workbench", features = ["glow"] }
 ringdesign-mcp.workspace = true
@@ -40,6 +41,14 @@ sha2 = "0.10.9"
 semver = "1.0.28"
 tempfile = "3.27"
 self-replace = "1.5"
+
+# Not gated on cfg(windows): for a build dependency that cfg is the HOST, so
+# gating it left a Linux-to-Windows cross-build with no resource compiler and
+# an .exe carrying no icon, manifest or version block. build.rs decides by
+# CARGO_CFG_TARGET_OS instead.
+[build-dependencies]
+dotenvy.workspace = true
+embed-resource.workspace = true
 
 [dev-dependencies]
 egui_kittest = { version = "0.36", features = ["eframe"] }

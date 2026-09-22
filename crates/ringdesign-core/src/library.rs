@@ -253,31 +253,20 @@ pub fn load_design_str(text: &str) -> anyhow::Result<RingDesign> {
     Ok(design)
 }
 
-/// Alphas bundled with the source tree: `<workspace>/assets/alphas`.
-pub fn bundled_alpha_dir() -> Option<PathBuf> {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .and_then(|p| p.parent())
-        .map(|p| p.join("assets").join("alphas"))
-        .filter(|p| p.is_dir())
-}
-
 /// The user's own alpha library in the platform data directory. This is where
 /// imports land and where a converted collection belongs.
 pub fn user_alpha_dir() -> PathBuf {
     data_root().join("alphas")
 }
 
-/// Every directory scanned at startup, bundled first so a user file of the same
-/// name wins.
+/// Every directory scanned at startup.
+///
+/// The bundled alphas used to be a directory here too, found through the
+/// source tree's path as of the build — which existed on one machine. They are
+/// compiled in now ([`crate::AlphaLibrary::load_bundled`]), and what is left is
+/// the user's own, loaded after them so a file of the same name wins.
 pub fn alpha_dirs() -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    out.extend(bundled_alpha_dir());
-    let user = user_alpha_dir();
-    if !out.contains(&user) {
-        out.push(user);
-    }
-    out
+    vec![user_alpha_dir()]
 }
 
 /// Where an import writes by default.
@@ -313,9 +302,34 @@ pub fn outline_dir() -> PathBuf {
     data_root().join("outlines")
 }
 
-/// Every saved signet plan, sorted by name.
+/// Every signet plan the program offers: the bundled factory ones, then the
+/// user's own, which shadow a bundled plan of the same name. Sorted by name.
 pub fn list_outlines() -> Vec<crate::CustomOutline> {
-    list_outlines_in(&outline_dir())
+    let bundled = ringdesign_assets::OUTLINES
+        .iter()
+        .filter_map(|a| asset_from_str::<crate::CustomOutline>(&a.text(), Path::new(a.file)))
+        .filter(|o| o.r.len() == 720 && o.r.iter().all(|v| v.is_finite() && *v > 0.0));
+    overlay(bundled, list_outlines_in(&outline_dir()), |o| o.name.clone())
+}
+
+/// The user's own entries laid over the bundled ones, keyed by `key`, sorted
+/// by that key. A jeweller's file of a bundled name replaces it rather than
+/// appearing twice.
+fn overlay<T>(
+    bundled: impl Iterator<Item = T>,
+    user: Vec<T>,
+    key: impl Fn(&T) -> String,
+) -> Vec<T> {
+    let mut out: Vec<T> = bundled.collect();
+    for item in user {
+        let k = key(&item);
+        match out.iter().position(|b| key(b) == k) {
+            Some(i) => out[i] = item,
+            None => out.push(item),
+        }
+    }
+    out.sort_by_key(&key);
+    out
 }
 
 /// [`list_outlines`] from an explicit directory.
@@ -386,10 +400,15 @@ pub fn save_profile_in(
     Ok(path)
 }
 
-/// Every saved profile, by name, sorted. Unreadable files are skipped —
-/// one bad import must not hide the rest of the library.
+/// Every profile the program offers: the bundled factory sections, then the
+/// user's own, which shadow a bundled section of the same name. Sorted by
+/// name. Unreadable files are skipped — one bad import must not hide the rest
+/// of the library.
 pub fn list_profiles() -> Vec<(String, crate::BandProfile)> {
-    list_profiles_in(&profile_dir())
+    let bundled = ringdesign_assets::PROFILES.iter().filter_map(|a| {
+        Some((a.name.to_string(), asset_from_str::<crate::BandProfile>(&a.text(), Path::new(a.file))?))
+    });
+    overlay(bundled, list_profiles_in(&profile_dir()), |(name, _)| name.clone())
 }
 
 /// [`list_profiles`] from an explicit directory.
@@ -421,6 +440,44 @@ pub fn list_profiles_in(dir: &Path) -> Vec<(String, crate::BandProfile)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The factory library travels in the binary, so an install on a machine
+    /// that has never run the harvest tools still has it. Before this it was
+    /// written into the data root by `tools/harvest/`, and a copied binary
+    /// came up with the procedural patterns and nothing else.
+    #[test]
+    fn the_factory_library_is_bundled_not_installed() {
+        let mut lib = crate::AlphaLibrary::builtin();
+        let builtins = lib.len();
+        let added = lib.load_bundled();
+        assert_eq!(added, ringdesign_assets::ALPHAS.len(), "every bundled alpha decoded");
+        assert_eq!(lib.len(), builtins + added, "a bundled name collided with a builtin");
+        for name in ["crack-01", "hatch-00", "pattern-01", "scale-01"] {
+            assert!(lib.get(name).is_some(), "{name} is missing from the bundle");
+        }
+
+        let profiles = list_profiles();
+        assert!(profiles.iter().any(|(n, _)| n == "CG Round"), "factory sections are bundled");
+        assert!(list_outlines().iter().any(|o| o.name == "CG Clover"), "factory plans are bundled");
+
+        // A user file of a bundled name shadows it rather than doubling it.
+        let dir = std::env::temp_dir().join("ringdesign-overlay-test");
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut mine = crate::BandProfile::default();
+        mine.apply_style(crate::ProfileStyle::KnifeEdge);
+        save_profile_in(&dir, "CG Round", &mine).unwrap();
+        let merged = overlay(
+            ringdesign_assets::PROFILES.iter().filter_map(|a| {
+                Some((a.name.to_string(), asset_from_str::<crate::BandProfile>(&a.text(), Path::new(a.file))?))
+            }),
+            list_profiles_in(&dir),
+            |(name, _): &(String, crate::BandProfile)| name.clone(),
+        );
+        assert_eq!(merged.iter().filter(|(n, _)| n == "CG Round").count(), 1);
+        assert_eq!(merged.iter().find(|(n, _)| n == "CG Round").unwrap().1.style, crate::ProfileStyle::KnifeEdge);
+        assert_eq!(merged.len(), ringdesign_assets::PROFILES.len());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn a_saved_profile_is_a_shape_never_a_size() {

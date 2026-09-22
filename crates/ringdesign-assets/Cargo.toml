@@ -1,0 +1,17 @@
+[package]
+name = "ringdesign-assets"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+description = "Every bundled asset, compiled into the binary."
+# Not a native library: the key is how the build script hands the generated
+# Windows .ico to ringdesign-gui's, which is what `DEP_*` is for.
+links = "ringdesign_assets"
+
+[dependencies]
+flate2.workspace = true
+
+[build-dependencies]
+flate2.workspace = true
+resvg = { version = "0.48.1", default-features = false }
+image = { workspace = true, features = ["ico"] }

@@ -15,7 +15,7 @@ fn showcase_graphs_reproduce_source_and_geometry_without_a_user_library() {
     let reg = Registry::builtin();
     for template in templates::SHOWCASE {
         let original = source(template.slug);
-        let graph = file::load_graph_str(template.json, Some(&reg)).unwrap();
+        let graph = file::load_graph_str(&template.json(), Some(&reg)).unwrap();
         assert!(graph.validate(Some(&reg)).is_empty(), "{}", template.name);
         // Load/reload is part of the contract, including nested Json inputs.
         let graph = file::load_graph_str(&file::graph_to_string(&graph).unwrap(), Some(&reg)).unwrap();

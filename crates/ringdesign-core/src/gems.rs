@@ -100,11 +100,10 @@ fn place(gem: Gem, frame: &crate::stones::StoneFrame, out: &mut Vec<f32>) {
 /// the sparkle is per-face normals under the viewport's key light.
 type Tri = ([f64; 3], [f64; 3], [f64; 3]);
 
-/// True faceted meshes, loaded once per cut from
-/// [`crate::library::gem_mesh_dir`] when the user has installed them
-/// (`<cut>.obj`, unit-normalized at load: girdle at z = 0, unit extents per
-/// axis, x along the ring). Absent files fall back to the procedural
-/// brilliant below — the app ships no gem geometry of its own.
+/// True faceted meshes, loaded once per cut: the bundled `<cut>.obj`, or the
+/// user's own of that name in [`crate::library::gem_mesh_dir`], which wins.
+/// Unit-normalized at load: girdle at z = 0, unit extents per axis, x along
+/// the ring. A cut with neither falls back to the procedural brilliant below.
 fn true_facets(cut: GemCut) -> Option<&'static [Tri]> {
     use std::collections::HashMap;
     use std::sync::OnceLock;
@@ -129,7 +128,11 @@ fn true_facets(cut: GemCut) -> Option<&'static [Tri]> {
                 GemCut::Hexagon => "hexagonal",
                 GemCut::HalfMoon => "half-moon",
             };
-            if let Some(tris) = load_gem_obj(&dir.join(format!("{file}.obj"))) {
+            let user = parse_gem_obj(&std::fs::read_to_string(dir.join(format!("{file}.obj"))).unwrap_or_default());
+            let tris = user.or_else(|| {
+                parse_gem_obj(&ringdesign_assets::find(ringdesign_assets::GEMS, file)?.text())
+            });
+            if let Some(tris) = tris {
                 map.insert(cut, tris);
             }
         }
@@ -142,8 +145,7 @@ fn true_facets(cut: GemCut) -> Option<&'static [Tri]> {
 /// extents about the centre, the girdle (widest slab) at z = 0, and the
 /// source's width axis swapped onto `y` so `x` runs along the ring like the
 /// procedural facets. Returns `None` on anything unreadable.
-fn load_gem_obj(path: &std::path::Path) -> Option<Vec<Tri>> {
-    let text = std::fs::read_to_string(path).ok()?;
+fn parse_gem_obj(text: &str) -> Option<Vec<Tri>> {
     let mut verts: Vec<[f64; 3]> = Vec::new();
     let mut faces: Vec<Vec<usize>> = Vec::new();
     for line in text.lines() {
@@ -362,13 +364,9 @@ mod tests {
     /// extents, girdle (widest slab) at z = 0, width axis swapped onto y.
     #[test]
     fn a_gem_obj_normalizes_to_the_preview_frame() {
-        let dir = std::env::temp_dir().join("ringdesign-gem-obj-test");
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("t.obj");
         // A lozenge: wide slab at z = 1 (the girdle), apexes above and below,
         // long in source-X (width axis), short in source-Y.
-        std::fs::write(
-            &path,
+        let tris = parse_gem_obj(
             "v 2 0 1
 v -2 0 1
 v 0 1 1
@@ -385,8 +383,7 @@ f 4 2 6
 f 1 4 6
 ",
         )
-        .unwrap();
-        let tris = load_gem_obj(&path).expect("parses");
+        .expect("parses");
         assert_eq!(tris.len(), 8);
         let mut lo = [f64::MAX; 3];
         let mut hi = [f64::MIN; 3];
@@ -408,7 +405,6 @@ f 1 4 6
         // Source X (span 4) was the long axis; after the swap it is y.
         assert!(girdle_pts > 0, "widest slab sits at z = 0 on the y axis");
         assert!(hi[2] > 0.6, "the taller apex is above the girdle");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

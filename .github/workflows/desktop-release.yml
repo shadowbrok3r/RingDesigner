@@ -45,7 +45,13 @@ jobs:
               assert os.environ['GITHUB_REF_NAME'] == f'desktop-v{version}', 'Tag must match the desktop Cargo version'
           PY
       - run: cargo test -p ringdesign-gui --locked
+      # The texture server's address and key are compiled in (build.rs). Unset
+      # secrets leave them empty, which builds fine and ships without the
+      # feature rather than failing — but a published release wants them.
       - run: cargo build -p ringdesign-gui --release --locked --target ${{ matrix.target }}
+        env:
+          COMFY_GATE_URL: ${{ secrets.COMFY_GATE_URL }}
+          COMFY_GATE_KEY: ${{ secrets.COMFY_GATE_KEY }}
       - name: Package executable and checksum
         shell: bash
         env:

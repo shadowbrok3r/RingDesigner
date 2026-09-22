@@ -32,3 +32,9 @@ __pycache__/
 /tools/venv/
 /crates/ringdesign-configurator/dist/
 /.claude/launch.json
+
+# The built packages a jeweller receives.
+/dist/
+
+# Texture-gate credentials, read at build time and compiled in. Never tracked.
+/.env

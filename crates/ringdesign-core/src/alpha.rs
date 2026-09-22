@@ -1649,6 +1649,45 @@ impl AlphaLibrary {
         }
         Ok(added)
     }
+
+    /// Load every alpha compiled into the binary. Returns how many were added.
+    ///
+    /// These used to be read from `<workspace>/assets/alphas` through a path
+    /// baked in at compile time, so an installed copy found nothing and the
+    /// whole library came up empty on any machine but the one it was built on.
+    pub fn load_bundled(&mut self) -> usize {
+        let mut added = 0;
+        for asset in ringdesign_assets::ALPHAS {
+            if self.entries.len() >= MAX_LIBRARY_ENTRIES {
+                log::warn!("library full at {MAX_LIBRARY_ENTRIES} entries, skipped the rest of the bundle");
+                break;
+            }
+            match Alpha::from_bytes(asset.name, &asset.bytes()) {
+                Ok(a) => {
+                    self.insert(a);
+                    added += 1;
+                }
+                Err(e) => log::warn!("skipping bundled alpha {}: {e}", asset.name),
+            }
+        }
+        added
+    }
+
+    /// The built-in patterns, every bundled alpha, and every alpha in the
+    /// user's own directory — which wins on a name collision, because
+    /// [`insert`](Self::insert) replaces.
+    pub fn installed() -> Self {
+        let mut lib = Self::builtin();
+        lib.load_bundled();
+        for dir in crate::library::alpha_dirs() {
+            match lib.load_dir(&dir) {
+                Ok(n) if n > 0 => log::info!("loaded {n} alphas from {}", dir.display()),
+                Ok(_) => {}
+                Err(e) => log::warn!("alpha library {}: {e}", dir.display()),
+            }
+        }
+        lib
+    }
 }
 
 #[cfg(test)]
@@ -2630,21 +2669,18 @@ mod tests {
             );
         }
 
-        // `library::alpha_dir()` at run time, not `env!("HOME")` at compile
-        // time — that baked one developer's home directory into the binary.
+        // The user's directory over the bundle, the order the app loads in.
         let dirs = crate::library::alpha_dirs();
-        let picks = [
-            "ornament-a-01.png",
-            "ornament-a-02.png",
-            "ornament-a-03.png",
-            "scale-01.png",
-            "crack-01.png",
-            "crack-07.png",
-        ];
-        println!("== imported alphas from {dirs:?} ==");
+        let picks = ["ornament-a-01", "ornament-a-02", "ornament-a-03", "scale-01", "crack-01", "crack-07"];
+        println!("== library alphas ==");
         let mut real = 0;
         for name in picks {
-            let Some(a) = dirs.iter().find_map(|d| Alpha::load(d.join(name)).ok()) else {
+            let from_disk = dirs.iter().find_map(|d| Alpha::load(d.join(format!("{name}.png"))).ok());
+            let bundled = || {
+                let asset = ringdesign_assets::find(ringdesign_assets::ALPHAS, name)?;
+                Alpha::from_bytes(name, &asset.bytes()).ok()
+            };
+            let Some(a) = from_disk.or_else(bundled) else {
                 println!("{name:28} MISSING");
                 continue;
             };
@@ -2676,7 +2712,7 @@ mod tests {
         // found the first time it ran. Measure them when they are there, say
         // so when they are not, and gate only on what is reproducible.
         if real == 0 {
-            println!("no imported alphas on this machine — builtins only");
+            println!("no library alphas on this machine — builtins only");
         }
         assert!(worst_after < 1e-9, "mirror_tile left a seam: {worst_after}");
     }

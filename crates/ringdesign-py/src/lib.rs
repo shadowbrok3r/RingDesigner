@@ -112,12 +112,10 @@ pub struct Library {
 
 #[pymethods]
 impl Library {
-    /// Builtins and every alpha in the user's folder.
+    /// Builtins, the bundled library, and every alpha in the user's folder.
     #[new]
     fn new() -> Self {
-        let mut lib = AlphaLibrary::builtin();
-        let _ = lib.load_dir(library::user_alpha_dir());
-        Self { lib: Arc::new(lib) }
+        Self { lib: Arc::new(AlphaLibrary::installed()) }
     }
 
     /// The builtins alone.

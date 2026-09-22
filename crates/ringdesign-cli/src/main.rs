@@ -403,8 +403,7 @@ mod graph {
             let out = Path::new(&args[3]);
             anyhow::ensure!(!out.exists(), "{} already exists; choose a new graph file", out.display());
             let mut d = load(path)?;
-            let mut lib = AlphaLibrary::builtin();
-            lib.load_dir(library::user_alpha_dir())?;
+            let mut lib = AlphaLibrary::installed();
             d.unpack_embedded(&mut lib);
             d.bake_all(&mut lib);
             // Capture imported library art too, while preserving the saved
@@ -483,10 +482,7 @@ mod graph {
                     }
                     anyhow::bail!("the graph does not validate");
                 }
-                let mut lib = AlphaLibrary::builtin();
-                if let Err(e) = lib.load_dir(library::user_alpha_dir()) {
-                    eprintln!("note: user alphas not loaded: {e}");
-                }
+                let mut lib = AlphaLibrary::installed();
                 let mut ev = Evaluator::with_exprs(ringdesign_script::engine());
                 let result = evaluate_design(&mut ev, &g, &reg, &lib, 0).map_err(|e| anyhow::anyhow!("{e}"))?;
                 for n in &result.notes {

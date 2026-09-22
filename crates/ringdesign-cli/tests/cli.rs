@@ -12,7 +12,7 @@ fn graph_eval_writes_a_design_that_check_reads_with_the_same_verdict() {
     let dir = std::env::temp_dir().join(format!("ringdesign-cli-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let graph = dir.join("court.graph.json");
-    std::fs::write(&graph, ringdesign_graph::templates::BUNDLED.iter().find(|t| t.name == "Court band").unwrap().json).unwrap();
+    std::fs::write(&graph, ringdesign_graph::templates::BUNDLED.iter().find(|t| t.name == "Court band").unwrap().json().as_bytes()).unwrap();
     let out = dir.join("court.ring.json");
 
     let o = bin().args(["graph", "describe", graph.to_str().unwrap()]).output().unwrap();

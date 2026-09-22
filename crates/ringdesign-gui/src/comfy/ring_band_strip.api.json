@@ -1,0 +1,343 @@
+{
+ "prompt": {
+  "2": {
+   "class_type": "CheckpointLoaderSimple",
+   "inputs": {
+    "ckpt_name": "SDXL/albedobaseXL_v31Large.safetensors"
+   }
+  },
+  "3": {
+   "class_type": "LoraLoader",
+   "inputs": {
+    "lora_name": "SDXL/sdxl_lora_heightmap.safetensors",
+    "strength_model": 0.0,
+    "strength_clip": 0.0,
+    "model": [
+     "2",
+     0
+    ],
+    "clip": [
+     "2",
+     1
+    ]
+   }
+  },
+  "4": {
+   "class_type": "LoraLoader",
+   "inputs": {
+    "lora_name": "SDXL/BAS-RELIEF.safetensors",
+    "strength_model": 0.8,
+    "strength_clip": 0.8,
+    "model": [
+     "3",
+     0
+    ],
+    "clip": [
+     "3",
+     1
+    ]
+   }
+  },
+  "5": {
+   "class_type": "LoraLoader",
+   "inputs": {
+    "lora_name": "SDXL/texture-synthesis-topdown-base-condensed.safetensors",
+    "strength_model": 0.0,
+    "strength_clip": 0.0,
+    "model": [
+     "4",
+     0
+    ],
+    "clip": [
+     "4",
+     1
+    ]
+   }
+  },
+  "6": {
+   "class_type": "SeamlessTile",
+   "inputs": {
+    "tiling": "x_only",
+    "copy_model": "Make a copy",
+    "model": [
+     "5",
+     0
+    ]
+   }
+  },
+  "7": {
+   "class_type": "MakeCircularVAE",
+   "inputs": {
+    "tiling": "x_only",
+    "copy_vae": "Make a copy",
+    "vae": [
+     "2",
+     2
+    ]
+   }
+  },
+  "8": {
+   "class_type": "CLIPTextEncode",
+   "inputs": {
+    "text": "BAS-RELIEF page, seamless tileable grayscale bas-relief height map, continuous frieze of norse runes and interlaced serpents, ornamental ring band, white is raised, black is recessed, orthographic front view, flat even ambient lighting, crisp sharp edges, highly detailed displacement map",
+    "clip": [
+     "5",
+     1
+    ]
+   }
+  },
+  "9": {
+   "class_type": "CLIPTextEncode",
+   "inputs": {
+    "text": "perspective, vanishing point, horizon, vignette, cast shadows, directional lighting, lighting gradient, hotspot, specular glare, depth of field, blurry, border, frame, text, watermark, signature, logo, jpeg artifacts, photo of an object, hands",
+    "clip": [
+     "5",
+     1
+    ]
+   }
+  },
+  "10": {
+   "class_type": "EmptyLatentImage",
+   "inputs": {
+    "width": 1728,
+    "height": 576,
+    "batch_size": 1
+   }
+  },
+  "11": {
+   "class_type": "KSampler",
+   "inputs": {
+    "seed": 20260919,
+    "steps": 30,
+    "cfg": 5.0,
+    "sampler_name": "dpmpp_2m_sde",
+    "scheduler": "karras",
+    "denoise": 1.0,
+    "model": [
+     "6",
+     0
+    ],
+    "positive": [
+     "8",
+     0
+    ],
+    "negative": [
+     "9",
+     0
+    ],
+    "latent_image": [
+     "10",
+     0
+    ]
+   }
+  },
+  "12": {
+   "class_type": "VAEDecode",
+   "inputs": {
+    "samples": [
+     "11",
+     0
+    ],
+    "vae": [
+     "7",
+     0
+    ]
+   }
+  },
+  "13": {
+   "class_type": "ImageDesaturate+",
+   "inputs": {
+    "factor": 1.0,
+    "method": "luminance (Rec.709)",
+    "image": [
+     "12",
+     0
+    ]
+   }
+  },
+  "14": {
+   "class_type": "ImageConcanate",
+   "inputs": {
+    "direction": "right",
+    "match_image_size": true,
+    "image1": [
+     "12",
+     0
+    ],
+    "image2": [
+     "12",
+     0
+    ]
+   }
+  },
+  "15": {
+   "class_type": "ImageConcanate",
+   "inputs": {
+    "direction": "right",
+    "match_image_size": true,
+    "image1": [
+     "14",
+     0
+    ],
+    "image2": [
+     "12",
+     0
+    ]
+   }
+  },
+  "16": {
+   "class_type": "ImageCrop",
+   "inputs": {
+    "width": 3456,
+    "height": 576,
+    "x": 864,
+    "y": 0,
+    "image": [
+     "15",
+     0
+    ]
+   }
+  },
+  "17": {
+   "class_type": "LoadDA3Model",
+   "inputs": {
+    "model_name": "depth_anything_3_mono_large.safetensors",
+    "weight_dtype": "default"
+   }
+  },
+  "18": {
+   "class_type": "DA3Inference",
+   "inputs": {
+    "resolution": 2520,
+    "resize_method": "upper_bound_resize",
+    "mode": "mono",
+    "da3_model": [
+     "17",
+     0
+    ],
+    "image": [
+     "16",
+     0
+    ]
+   }
+  },
+  "19": {
+   "class_type": "DA3Render",
+   "inputs": {
+    "output": "depth",
+    "output.normalization": "min_max",
+    "output.apply_sky_clip": false,
+    "da3_geometry": [
+     "18",
+     0
+    ]
+   }
+  },
+  "20": {
+   "class_type": "ImageCrop",
+   "inputs": {
+    "width": 1728,
+    "height": 576,
+    "x": 864,
+    "y": 0,
+    "image": [
+     "19",
+     0
+    ]
+   }
+  },
+  "21": {
+   "class_type": "TileableHeightCombine",
+   "inputs": {
+    "tiling": "x_only",
+    "invert": false,
+    "detail_strength": 0.35,
+    "detail_radius": 6.0,
+    "clip_percent": 0.1,
+    "form": [
+     "20",
+     0
+    ],
+    "detail": [
+     "12",
+     0
+    ]
+   }
+  },
+  "22": {
+   "class_type": "SaveImageAdvanced",
+   "inputs": {
+    "filename_prefix": "shadowbroker_531d823e-4a3b-46c8-9550-2e8d5b7d6637/texture/ring_band_strip_height16",
+    "format": "png",
+    "format.bit_depth": "16-bit",
+    "format.input_color_space": "sRGB",
+    "images": [
+     "21",
+     0
+    ]
+   }
+  },
+  "23": {
+   "class_type": "SaveImageAdvanced",
+   "inputs": {
+    "filename_prefix": "shadowbroker_531d823e-4a3b-46c8-9550-2e8d5b7d6637/texture/ring_band_strip_relief16",
+    "format": "png",
+    "format.bit_depth": "16-bit",
+    "format.input_color_space": "sRGB",
+    "images": [
+     "13",
+     0
+    ]
+   }
+  },
+  "24": {
+   "class_type": "SaveImage",
+   "inputs": {
+    "filename_prefix": "shadowbroker_531d823e-4a3b-46c8-9550-2e8d5b7d6637/texture/ring_band_strip_color",
+    "images": [
+     "12",
+     0
+    ]
+   }
+  },
+  "25": {
+   "class_type": "ImageConcanate",
+   "inputs": {
+    "direction": "right",
+    "match_image_size": true,
+    "image1": [
+     "21",
+     0
+    ],
+    "image2": [
+     "21",
+     0
+    ]
+   }
+  },
+  "26": {
+   "class_type": "ImageConcanate",
+   "inputs": {
+    "direction": "right",
+    "match_image_size": true,
+    "image1": [
+     "25",
+     0
+    ],
+    "image2": [
+     "21",
+     0
+    ]
+   }
+  },
+  "27": {
+   "class_type": "PreviewImage",
+   "inputs": {
+    "images": [
+     "26",
+     0
+    ]
+   }
+  }
+ }
+}

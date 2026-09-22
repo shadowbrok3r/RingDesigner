@@ -14,6 +14,7 @@ const SIZES: [usize; 3] = [128, 256, 512];
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     editor_window(app, ui);
+    texture_window(app, ui);
     text_window(app, ui);
     recipe_window(app, ui);
 
@@ -73,6 +74,89 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 }
 
 /// Inscriptions: text entries carried by the design, rasterized to tiles.
+/// Describe a texture, let the rig write the prompt, render it into the
+/// library. The prompt is a separate step from the render because a render
+/// costs ten times as much and the writer is sampled at temperature 0.4, so
+/// the same idea gives a different prompt every time.
+fn texture_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    use crate::comfy_texture::Preset;
+    if !app.texture.open {
+        return;
+    }
+    let ctx = ui.ctx().clone();
+    let mut open = app.texture.open;
+    let mut write = false;
+    let mut render = false;
+    egui::Window::new(format!("{} Generate a texture", icon::SPARKLE))
+        .open(&mut open)
+        .default_width(380.0)
+        .show(&ctx, |ui| {
+            let busy = app.texture.busy();
+            ui.horizontal(|ui| {
+                ui.label("Idea");
+                ui.add(
+                    egui::TextEdit::singleline(&mut app.texture.idea)
+                        .desired_width(f32::INFINITY)
+                        .hint_text("a snake scale texture"),
+                );
+            });
+            ui.horizontal(|ui| {
+                write = ui
+                    .add_enabled(!busy && !app.texture.idea.trim().is_empty(), egui::Button::new("Write prompt"))
+                    .on_hover_text("The rig's own model turns the idea into a height-map prompt (~4s)")
+                    .clicked();
+                egui::ComboBox::from_id_salt("texture_preset")
+                    .selected_text(app.texture.preset.label())
+                    .width(200.0)
+                    .show_ui(ui, |ui| {
+                        for p in [Preset::TileSquare, Preset::RingBand] {
+                            ui.selectable_value(&mut app.texture.preset, p, p.label());
+                        }
+                    });
+            });
+
+            ui.add_space(4.0);
+            ui.label(egui::RichText::new("Prompt — edit before rendering").small().color(theme::TEXT_DIM));
+            ui.add(
+                egui::TextEdit::multiline(&mut app.texture.prompt)
+                    .desired_width(f32::INFINITY)
+                    .desired_rows(4),
+            );
+
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.label("Name");
+                ui.add(egui::TextEdit::singleline(&mut app.texture.name).desired_width(150.0));
+                ui.checkbox(&mut app.texture.invert, "Invert")
+                    .on_hover_text("Black raised instead of white");
+            });
+            ui.horizontal(|ui| {
+                render = ui
+                    .add_enabled(!busy && !app.texture.prompt.trim().is_empty(), egui::Button::new(format!("{} Render", icon::PLAY)))
+                    .on_hover_text("~30s. The height map lands in the library as a tile.")
+                    .clicked();
+                if busy {
+                    ui.spinner();
+                }
+            });
+            if !app.texture.status.is_empty() {
+                ui.label(egui::RichText::new(&app.texture.status).small().color(theme::TEXT_DIM));
+            }
+        });
+    app.texture.open = open;
+    if write {
+        app.texture.write_prompt(&ctx);
+    }
+    if render {
+        app.texture.render(&ctx);
+    }
+    if let Some(alpha) = app.texture.poll(&ctx) {
+        app.forget_thumbnail(&alpha.name);
+        app.library_mut().insert(alpha);
+        app.mark_dirty();
+    }
+}
+
 fn text_window(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     use ringdesign_core::text::{TextAlpha, TextFont};
     if !app.text_editor_open {
@@ -326,6 +410,19 @@ fn source_row(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             crate::export::import_alphas(app);
             app.mark_dirty();
         }
+        if ui
+            .add_enabled(
+                crate::comfy_texture::Gate::is_configured(),
+                egui::Button::new(format!("{} Generate…", icon::SPARKLE))
+                    .selected(app.texture.open),
+            )
+            .on_hover_text("Describe a texture and the rig renders it as a seamless height map.")
+            .on_disabled_hover_text("This build carries no texture server")
+            .clicked()
+        {
+            app.texture.open = !app.texture.open;
+        }
+
         if ui
             .button(format!("{} Import SVG…", icon::BEZIER_CURVE))
             .on_hover_text(

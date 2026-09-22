@@ -6,6 +6,7 @@ use crate::{AlphaLibrary, BuildParams, Mesh, ProfileLoop, ProfileSample, RingDes
 use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
 use std::{
+    borrow::Cow,
     collections::HashMap,
     sync::{Arc, Mutex, OnceLock},
 };
@@ -1062,11 +1063,18 @@ pub struct Preset {
     /// The table's outline as radii at 48 even bearings, largest 1.0, so a
     /// picker can draw the head without loading its mesh.
     pub plan: &'static [f32],
-    pub json: &'static str,
 }
 impl Preset {
+    /// The master file, decompressed out of the bundle on demand. Twenty
+    /// masters are 8.8 MB of JSON and a picker only ever opens one.
+    pub fn json(&self) -> Cow<'static, str> {
+        ringdesign_assets::find(ringdesign_assets::BASES, self.id)
+            .expect("every preset is bundled")
+            .text()
+    }
+
     pub fn load(&self) -> Result<Arc<Source>> {
-        Source::from_json(self.json)
+        Source::from_json(&self.json())
     }
 
     /// The name inside the master file, which is how a design's attached
@@ -1080,7 +1088,7 @@ impl Preset {
         format!("{} · {:.0} × {:.0} mm · {}", self.name, self.face_mm.0, self.face_mm.1, self.id)
     }
 }
-macro_rules! presets {($($id:literal => $name:literal, $l:literal, $w:literal, [$($r:literal),*]);* $(;)?)=>{pub static PRESETS:&[Preset]=&[$(Preset{id:$id,name:$name,face_mm:($l,$w),plan:&[$($r),*],json:include_str!(concat!("../../../bases/signets/",$id,".ringbase.json"))}),*];};}
+macro_rules! presets {($($id:literal => $name:literal, $l:literal, $w:literal, [$($r:literal),*]);* $(;)?)=>{pub static PRESETS:&[Preset]=&[$(Preset{id:$id,name:$name,face_mm:($l,$w),plan:&[$($r),*]}),*];};}
 presets! {
     "001" => "Cushion", 20.0, 20.0, [0.822,0.840,0.859,0.902,0.955,1.000,0.998,0.964,0.914,0.868,0.837,0.820,0.819,0.837,0.865,0.910,0.963,0.996,1.000,0.958,0.906,0.862,0.841,0.823,0.821,0.830,0.859,0.903,0.958,0.991,0.993,0.950,0.897,0.856,0.836,0.822,0.823,0.835,0.865,0.909,0.963,0.992,0.991,0.944,0.897,0.861,0.832,0.819];
     "002" => "Kite", 14.0, 25.0, [0.571,0.577,0.588,0.603,0.622,0.656,0.698,0.729,0.796,0.850,0.924,0.987,0.985,0.921,0.847,0.794,0.743,0.696,0.655,0.631,0.601,0.587,0.576,0.570,0.571,0.578,0.590,0.605,0.635,0.659,0.702,0.749,0.800,0.854,0.928,0.996,1.000,0.926,0.870,0.798,0.746,0.699,0.658,0.633,0.604,0.589,0.578,0.571];

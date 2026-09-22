@@ -936,12 +936,13 @@ which is the two-smooth-surfaces read a signet wants. The GUI picker and
 MCP apply the suggestion on outline change; the dome slider overrides it. `a_drawn_outline_makes_a_head_that
 _pulls` pins it with a deliberately hostile plan (an asymmetric clipped
 star): containment to 1e-5, field-clean, and a JSON round-trip that must
-not carry the derived table. The library half lives in
-`library::outline_dir()` (`<name>.outline.json`); applying one **copies**
-it into the design. 19 factory signet plans decoded from
-presets (`tools/harvest/outline_export.py`) ship there as user assets —
-clover, rosette, star, butterfly, escutcheon and the rest — every one
-fielding 0.000% on a bare head.
+not carry the derived table. The library half is `library::list_outlines()`
+— the 19 bundled factory plans decoded from the CrossGems presets
+(`tools/harvest/outline_export.py`), then the user's own
+`library::outline_dir()` (`<name>.outline.json`) laid over them by name;
+applying one **copies** it into the design. Clover, rosette, star,
+butterfly, escutcheon and the rest, every one fielding 0.000% on a bare
+head.
 
 #### Outlines have to survive being turned into a silhouette
 
@@ -1117,8 +1118,9 @@ pins both directions. On top of that:
 
 ### The profile library is user-extensible
 
-`library::profile_dir()` (designs sibling `profiles/`) holds saved
-cross-sections, one `<name>.profile.json` each. `save_profile` /
+`library::list_profiles()` is the bundled factory sections with the user's
+own — `library::profile_dir()`, the designs sibling `profiles/`, one
+`<name>.profile.json` each — laid over them by name. `save_profile` /
 `list_profiles` (+ `_in` variants for tests) round-trip the full
 `BandProfile`; `BandProfile::apply_shape` applies one while keeping the
 band's own width and thickness — **a profile is a section, never a size**.
@@ -1134,8 +1136,9 @@ manifest `examples/import_profiles.rs` consumes. 16 of the 23 import
 under their true names (`CG Round` … `CG Tapered Smooth`, stepped Triple/
 Second Floor silhouettes included); the 7 skips are honest — flat crowns
 our squared presets already are, and multi-crest valleys a single-crest
-band cannot be. Imported sections, like every profile asset, live only in
-the user dir. `examples/profile_gallery.rs` renders the whole saved
+band cannot be. Those 68 sections are bundled (see **Everything ships
+inside the binary**); a user file of the same name shadows one.
+`examples/profile_gallery.rs` renders the whole saved
 library on one band as a contact sheet — the Saved picker at a glance and
 the roundtrip check in one image.
 
@@ -2832,6 +2835,144 @@ none of them in `compose`:
 
 `.claude/launch.json` (ignored) carries a `build-a-ring-web` entry for the
 in-app browser preview.
+
+### The texture gate travels in the binary too
+
+`comfy_texture.rs` reaches the ComfyUI rig through comfy-gate: an idea is
+written into a height-map prompt by the model on the rig (~4 s), the prompt
+is shown and editable, and rendering it (~30 s) returns a 16-bit PNG that
+`Alpha::from_png16` turns into a library tile. The library panel's
+**Generate…** opens it; the two steps are separate because a render costs
+ten times the prompt and the writer is sampled at temperature 0.4, so the
+same idea never writes twice.
+
+`build.rs` compiles the gate's address and key in — the same shape the
+Mastertech `database` crate uses: a `.env` read with `dotenvy`, the process
+environment filling what it does not carry, and `cargo:rustc-env` under the
+key's own name so the code says `env!("COMFY_GATE_KEY")`. Files are looked
+for at `COMFY_ENV_FILE`, then `<workspace>/.env`, then
+`~/.config/ringdesigner/comfy.env`. Unlike that crate **nothing is
+required**: an empty value means the feature is off at run time
+(`Gate::is_configured` greys the button), so a build with neither — every CI
+build — succeeds and says so with a `cargo:warning`. `desktop-release.yml`
+passes `secrets.COMFY_GATE_KEY`, or a published release ships without it.
+`COMFY_GATE_KEY` in the *run-time* environment still wins, which points a
+different rig at the app with no rebuild.
+
+**The key is baked on purpose and it is not a secret.** It belongs to a gate
+account that owns nothing, can read only its own renders, and may run one
+workflow — the server refuses any other graph, any other model file, and a
+block list over the prompt. That is what makes it safe in a binary anyone
+can run `strings` over, and the reason is the whole justification: nothing
+else about this program may be credentialed this way.
+
+One thing worth knowing about compiling a value in: **a constant nothing
+reads is not in the binary.** The bake was written and verified emitting
+both values, and the key was still absent from the executable, because
+`comfy_texture` is a private module of a binary crate and nothing called
+`Gate::installed()` — so the module, the literal and all of it were dead-code
+eliminated. Grep the built artifact, not the build log.
+
+## Everything ships inside the binary
+
+One jeweller's install is one file. `crates/ringdesign-assets` holds every
+asset the program has — 342 alphas, 68 factory profiles, 19 signet plans,
+20 true gem meshes, 26 graph templates, the clusters and presets, 20
+`.ringbase.json` masters, five showcase designs and the app icon — as one
+deflated blob with a generated index, decoded per asset on first read.
+Nothing is looked up in a source tree at run time.
+
+It replaced two mechanisms that both only worked on the machine that built
+them. `library::bundled_alpha_dir()` resolved `<workspace>/assets/alphas`
+through `env!("CARGO_MANIFEST_DIR")` and then `.filter(|p| p.is_dir())`, so
+on a copied binary it silently returned `None`; and the factory profiles,
+plans and gem meshes were never in the repo at all — they were written into
+`~/.local/share/ringdesigner/` by the harvest tools and the app read them
+from there. An installed copy had the 16 procedural patterns and nothing
+else.
+
+The user's library still wins. `AlphaLibrary::installed()` loads the
+builtins, then the bundle, then the data root's own directory, and
+`insert` replaces by name; `list_profiles` and `list_outlines` lay the
+user's files over the bundled ones through `library::overlay`; a gem cut
+takes the user's `<cut>.obj` before the bundled one. So an imported alpha
+or a saved section of a bundled name shadows it, which is the behaviour
+`alpha_dirs()` used to give by ordering two directories.
+
+**Deflate, not zstd**, and not because of the ratio: `flate2`'s pure-Rust
+backend is already in the lock through `image`, and a C codec has to be
+cross-compiled for the Windows target too. Compression is kept per asset
+only where it pays (`WORTH_COMPRESSING`, 0.95), so a PNG is stored as it
+is. What that buys, measured by the build script:
+
+| family | files | on disk | in the binary |
+| --- | --- | --- | --- |
+| graph templates | 26 | 98.98 MB | 26.92 MB |
+| signet bases | 20 | 8.82 MB | 3.23 MB |
+| alphas | 342 | 12.18 MB | 12.10 MB |
+| showcase designs | 5 | 1.21 MB | 0.58 MB |
+| profiles, outlines, gems | 107 | 0.42 MB | 0.10 MB |
+
+The templates are the whole story: they carry their artwork as base64 PNG
+inside JSON, which deflates to a quarter. `TemplateGraph::json` and
+`Preset::json` became methods returning `Cow` for the same reason the menu
+was metadata-only already — a picker lists 26 names and opens one. Each
+family is its own `include_bytes!` blob rather than all of them being one,
+so a target that never touches a family does not link it; core and the
+configurator still pass `cargo check --no-default-features --target
+wasm32-unknown-unknown`.
+
+The stripped `ringdesigner` binary went **155.6 MB to 89.6 MB** across this
+change, and the smaller one is the one that ships the library at all.
+
+**The app icon is one SVG** (`bundled/icon/ringdesigner.svg`): a signet
+ring cut by its parting line, cope lit and drag in shadow. The assets build
+script rasterizes it into the payload as straight RGBA for the window icon
+(no decoder in the path, every platform), into a seven-size `.ico` that
+`ringdesign-gui/build.rs` compiles into the Windows executable's resources,
+and into loose PNGs for a Linux hicolor theme. One source, so the taskbar
+and the title bar cannot drift.
+
+`packaging/package.sh linux|linux-portable|windows|both` builds and lays out
+what is sent. Windows is genuinely one file: `+crt-static` in
+`.cargo/config.toml` for the MSVC target means no runtime to install, and
+the built `.exe` imports nothing but system DLLs. `cargo xwin` cross-builds
+it from here; `ci.yml` builds it on `windows-latest` on every push, because
+before that Windows was only built on a `desktop-v*` tag and anything that
+broke it surfaced at release.
+
+Three things the executable needs that a build alone does not give it:
+
+- **A build script's `cfg(windows)` is the host, not the target.** Both the
+  `#[cfg(windows)]` around the resource code and the
+  `[target.'cfg(windows)'.build-dependencies]` that supplied
+  `embed-resource` were false in a Linux-to-Windows cross-build, so it
+  succeeded and produced an `.exe` with no icon, no manifest and no version
+  block — silently, because nothing was compiled to fail. `build.rs` reads
+  `CARGO_CFG_TARGET_OS` and the build dependency is unconditional.
+- **`windows_subsystem = "windows"`**, or a GUI launched from Explorer
+  raises a console behind its window. Release only: debug keeps the console
+  because that is where `env_logger` writes.
+- **The manifest is `asInvoker`**, deliberately — the template this came
+  from asked for `requireAdministrator`, which would put a UAC prompt on
+  every launch and stop Explorer dropping a `.ring.json` onto the window.
+
+A `.cargo/config.toml` in the repo reaches every machine that builds it.
+The Linux `linker = "clang"` / `-fuse-ld=mold` block that lived there broke
+the CI runner and the portable-build container, neither of which has mold;
+a linker preference is per-machine and belongs in `~/.cargo/config.toml`.
+
+Linux is a tarball — binary, `.desktop`, icons, an `install.sh` that writes
+only into `~/.local` — because **a GUI cannot be statically linked there**:
+glutin dlopens libGL/libEGL and winit needs the X11/Wayland client
+libraries. What can be fixed is the **glibc floor**, and it has to be:
+built on this workstation the binary demands glibc 2.44, which no
+mainstream distribution ships — Ubuntu 24.04 is 2.39, Debian 12 is 2.36 —
+so it runs on this machine and nowhere else. `linux-portable` builds the
+same source in `packaging/Dockerfile.linux` (Debian bookworm, measured floor glibc 2.35)
+and packages that binary instead; `linux` is the fast local build, for
+testing. `package.sh` prints the floor of whatever it just made, so a
+package that would not open on a jeweller's machine says so.
 
 ## Running the tests
 
