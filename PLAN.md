@@ -325,6 +325,16 @@ worktrees, then verified, measured and committed by the integrator.
   escape ladder, `catalog()`; Move/Rotate/Scale/Place/AddPrimitive/Attach in the ring frame with
   axis locks and typed values; the `DimensionBar` on `TextEdit::event_filter` with Tab and
   Shift+Tab kept inside the bar, pinned by kittests with decoy buttons; the tiered `Snapper`.
+- **Integration** (`b7507f6`, `2a460e7`, `ede8c95`): `gui::cad_edit::apply` is the app's one road
+  for a committed CAD edit (the viewport's Attach and Stage use it, now on driven designs too);
+  `mesh::try_build_memo` lets a worker keep a `cad::Cache`. Two defects found driving the app:
+  "Convert design to graph" carried a CAD document as one `design.set` at `/cad`, which the funnel
+  cannot read, so every edit of a converted design was refused — the lift now chains the document
+  as `cad.feature` nodes (`nodes::cad::chain_document`); and Undo of a funnel edit on a driven
+  design took back only the build's splice, because the funnel's entry was committed before the
+  evaluated document arrived — the funnel now carries the document the edited graph reads as.
+  Both pinned (lift test over every CAD example; a kittest with the Graph workspace open). The
+  Android crate still builds and its 132 host tests pass.
 - Next (batch 5): the GUI takes them — the feature timeline on the Ring viewport and in the CAD
   pane through the funnel, G/R/S/Place/Attach/add in the viewport with the dimension bar and a
   moving ghost, box select, the worker holding the cache; and M8's sketch core in parallel.
