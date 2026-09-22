@@ -454,6 +454,46 @@ fn a_cad_edit_through_the_funnel_is_one_undo_step_and_lands_in_a_driven_designs_
 }
 
 #[test]
+fn a_part_added_to_a_driven_design_takes_an_id_its_graph_can_give() {
+    use ringdesign_core::cad::{Attach, Component, Feature, Operation, Placement, edit::CadEdit};
+    let mut h = harness();
+    {
+        let app = h.state_mut();
+        app.design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        app.convert_to_graph();
+        assert!(app.graph_driven(), "{}", app.status);
+        app.history.commit(&app.design);
+    }
+    let taken = |h: &Harness<'static, RingDesignerApp>, id: u64| {
+        let g: ringdesign_graph::graph::Graph = serde_json::from_value(h.state().design.graph.clone().unwrap()).unwrap();
+        g.node(ringdesign_graph::graph::NodeId(id)).is_some()
+    };
+    assert!(taken(&h, 1) && taken(&h, 2), "the lifted band's nodes hold the ids a first part asks for");
+    // The first part on a ring brings the shank at id 1 and takes id 2, as the viewport's add does.
+    let shank = Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() };
+    let post = Feature {
+        id: 2,
+        name: "Cylinder".into(),
+        enabled: true,
+        operation: Operation::Cylinder { radius_mm: 1.5, height_mm: 3.0 },
+        component: Component { attach: Attach::Join, placement: Placement::ring(95.0, 0.0), ..Default::default() },
+    };
+    let entries = h.state().history.present();
+    let applied = crate::cad_edit::apply(h.state_mut(), &[CadEdit::Add { feature: shank, after: None }, CadEdit::Add { feature: post, after: None }]).unwrap();
+    assert_eq!(h.state().history.present(), entries + 1, "one undo step");
+    let ids: Vec<u64> = applied.iter().filter_map(|a| a.id).collect();
+    assert_eq!(ids.len(), 2);
+    let doc = h.state().design.cad.clone().expect("the graph's document");
+    assert_eq!(doc.features.iter().map(|f| (f.id, f.name.as_str())).collect::<Vec<_>>(), [(ids[0], "Procedural shank"), (ids[1], "Cylinder")]);
+    assert!(ids.iter().all(|id| *id > 2), "fresh ids above the graph's own: {ids:?}");
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    assert_eq!(h.state().build.as_ref().unwrap().parts.joined, 1, "{}", h.state().status);
+    h.state_mut().undo();
+    assert!(h.state().design.cad.is_none(), "Undo takes both back");
+}
+
+#[test]
 fn undo_takes_back_a_funnel_edit_on_a_driven_design_while_the_graph_pane_is_open() {
     use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation, Placement, Stage, edit::CadEdit};
     let mut h = harness();

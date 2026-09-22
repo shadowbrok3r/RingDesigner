@@ -140,8 +140,18 @@ impl History {
     /// [`is_pending`](Self::is_pending) reports and what a caller that only
     /// draws on demand schedules its next frame from.
     pub fn commit(&mut self, design: &RingDesign) -> Option<String> {
+        self.commit_named(design, None)
+    }
+
+    /// [`commit`](Self::commit) under a name the caller already has, such as a CAD edit's own label.
+    pub fn commit_as(&mut self, design: &RingDesign, label: &str) -> Option<String> {
+        self.commit_named(design, Some(label))
+    }
+
+    fn commit_named(&mut self, design: &RingDesign, name: Option<&str>) -> Option<String> {
         self.touched = None;
-        let label = describe(&self.baseline, design)?;
+        let described = describe(&self.baseline, design)?;
+        let label = name.map_or(described, str::to_owned);
         self.past.push(Snapshot {
             label: label.clone(),
             design: self.baseline.clone(),
@@ -232,8 +242,26 @@ impl History {
 
 // --- Naming an edit --------------------------------------------------------
 
+/// Whether two stored graphs differ only in where their nodes sit.
+pub fn graph_layout_only(a: Option<&Value>, b: Option<&Value>) -> bool {
+    let (Some(Value::Object(a)), Some(Value::Object(b))) = (a, b) else { return false };
+    let same_node = |x: &Value, y: &Value| match (x.as_object(), y.as_object()) {
+        (Some(x), Some(y)) => x.len() == y.len() && x.iter().all(|(k, v)| k == "pos" || y.get(k) == Some(v)),
+        _ => x == y,
+    };
+    a.len() == b.len()
+        && a.iter().all(|(k, va)| match (k.as_str(), b.get(k)) {
+            (_, None) => false,
+            ("nodes", Some(vb)) => match (va.as_array(), vb.as_array()) {
+                (Some(na), Some(nb)) => na.len() == nb.len() && na.iter().zip(nb).all(|(x, y)| same_node(x, y)),
+                _ => va == vb,
+            },
+            (_, Some(vb)) => va == vb,
+        })
+}
+
 /// Name the first field that moved between two designs, or `None` when nothing
-/// did.
+/// did — graph nodes moving on the canvas included, which is layout and not an edit.
 fn describe(old: &RingDesign, new: &RingDesign) -> Option<String> {
     let (a, b) = (
         serde_json::to_value(old).ok()?,
@@ -241,6 +269,12 @@ fn describe(old: &RingDesign, new: &RingDesign) -> Option<String> {
     );
     if a == b {
         return None;
+    }
+    if let (Value::Object(x), Value::Object(y)) = (&a, &b) {
+        let rest = x.len() == y.len() && x.iter().all(|(k, v)| k == "graph" || y.get(k) == Some(v));
+        if rest && graph_layout_only(x.get("graph"), y.get("graph")) {
+            return None;
+        }
     }
     let mut path: Vec<String> = Vec::new();
     match first_difference(&a, &b, &mut path, 0) {
@@ -422,6 +456,40 @@ mod tests {
         c.graph = Some(serde_json::json!({"name": "g", "nodes": [{"id": 1, "kind": "int"}]}));
         assert_eq!(describe(&b, &c).as_deref(), Some("Graph edited"));
         assert_eq!(describe(&b, &a).as_deref(), Some("Baked the graph"));
+    }
+
+    #[test]
+    fn moving_graph_nodes_is_layout_and_never_an_entry_of_its_own() {
+        let graph = |x: f64, kind: &str| serde_json::json!({"name": "g", "nodes": [{"id": 1, "kind": "number", "pos": [0.0, 0.0]}, {"id": 2, "kind": kind, "pos": [x, 40.0]}], "next_id": 3});
+        let (a, moved, retyped) = (graph(120.0, "int"), graph(260.0, "int"), graph(120.0, "number"));
+        assert!(graph_layout_only(Some(&a), Some(&moved)));
+        let mut renamed = a.clone();
+        renamed["name"] = "h".into();
+        assert!(!graph_layout_only(Some(&a), Some(&retyped)) && !graph_layout_only(Some(&a), Some(&renamed)));
+        assert!(!graph_layout_only(None, Some(&a)) && !graph_layout_only(Some(&a), None));
+        let mut before = design();
+        before.graph = Some(a);
+        let mut h = History::new(&before);
+        let mut arranged = before.clone();
+        arranged.graph = Some(moved);
+        assert_eq!(h.commit(&arranged), None, "an arrange is not an edit");
+        let mut edited = arranged.clone();
+        edited.profile.width_mm = 6.5;
+        assert!(h.commit(&edited).is_some());
+        assert_eq!(h.present(), 1);
+        let back = h.undo().expect("the edit undoes");
+        assert_eq!(back.profile.width_mm, before.profile.width_mm, "one Undo takes back the edit, not the arrange");
+    }
+
+    #[test]
+    fn a_named_commit_keeps_its_name_and_still_records_nothing_for_no_change() {
+        let a = design();
+        let mut h = History::new(&a);
+        assert_eq!(h.commit_as(&a, "Place Cylinder"), None);
+        let mut b = a.clone();
+        b.profile.width_mm = 6.5;
+        assert_eq!(h.commit_as(&b, "Place Cylinder").as_deref(), Some("Place Cylinder"));
+        assert_eq!(h.undo_label(), Some("Place Cylinder"));
     }
 
     fn design() -> RingDesign {

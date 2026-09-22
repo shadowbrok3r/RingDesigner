@@ -158,25 +158,6 @@ fn load_prices() -> std::collections::HashMap<String, f64> {
         .unwrap_or_default()
 }
 
-/// Whether two stored graphs differ only in where their nodes sit.
-fn layout_only(a: Option<&serde_json::Value>, b: Option<&serde_json::Value>) -> bool {
-    use serde_json::Value;
-    let (Some(Value::Object(a)), Some(Value::Object(b))) = (a, b) else { return false };
-    let same_node = |x: &Value, y: &Value| match (x.as_object(), y.as_object()) {
-        (Some(x), Some(y)) => x.len() == y.len() && x.iter().all(|(k, v)| k == "pos" || y.get(k) == Some(v)),
-        _ => x == y,
-    };
-    a.len() == b.len()
-        && a.iter().all(|(k, va)| match (k.as_str(), b.get(k)) {
-            (_, None) => false,
-            ("nodes", Some(vb)) => match (va.as_array(), vb.as_array()) {
-                (Some(na), Some(nb)) => na.len() == nb.len() && na.iter().zip(nb).all(|(x, y)| same_node(x, y)),
-                _ => va == vb,
-            },
-            (_, Some(vb)) => va == vb,
-        })
-}
-
 /// Quiet period after the last edit before a rebuild fires.
 const DEBOUNCE: Duration = Duration::from_millis(90);
 
@@ -1215,7 +1196,7 @@ impl RingDesignerApp {
     pub fn graph_changed(&mut self) {
         let Some(ed) = &self.graph_ed else { return };
         let json = serde_json::to_value(ed.graph()).ok();
-        let moved_only = layout_only(self.design.graph.as_ref(), json.as_ref());
+        let moved_only = ringdesign_core::history::graph_layout_only(self.design.graph.as_ref(), json.as_ref());
         self.design.graph = json.clone();
         self.graph_json = json;
         if !moved_only {
@@ -1544,28 +1525,3 @@ impl Worker {
     }
 }
 
-#[cfg(test)]
-mod layout_tests {
-    use super::layout_only;
-
-    #[test]
-    fn a_moved_node_is_layout_and_anything_else_is_an_edit() {
-        let design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
-        let reg = ringdesign_script::registry();
-        let g = ringdesign_graph::lift::from_design(&design, &reg, &ringdesign_core::AlphaLibrary::builtin()).unwrap();
-        let before = serde_json::to_value(&g).unwrap();
-        let mut moved = g.clone();
-        moved.nodes[1].pos = [moved.nodes[1].pos[0] + 120.0, -40.0];
-        assert!(layout_only(Some(&before), Some(&serde_json::to_value(&moved).unwrap())));
-        let mut renamed = moved.clone();
-        renamed.nodes[1].label = Some("Renamed".into());
-        assert!(!layout_only(Some(&before), Some(&serde_json::to_value(&renamed).unwrap())));
-        let mut fewer = g.clone();
-        fewer.nodes.pop();
-        assert!(!layout_only(Some(&before), Some(&serde_json::to_value(&fewer).unwrap())));
-        let mut named = g.clone();
-        named.name.push('!');
-        assert!(!layout_only(Some(&before), Some(&serde_json::to_value(&named).unwrap())));
-        assert!(!layout_only(None, Some(&before)) && !layout_only(Some(&before), None));
-    }
-}

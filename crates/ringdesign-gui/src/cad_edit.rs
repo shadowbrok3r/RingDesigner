@@ -8,8 +8,9 @@ pub fn apply(app: &mut RingDesignerApp, edits: &[CadEdit]) -> Result<Vec<Applied
         return Ok(Vec::new());
     }
     let mut next = app.design.clone();
+    let edits = fresh_where_taken(&next, edits);
     let mut applied = Vec::with_capacity(edits.len());
-    for edit in edits {
+    for edit in &edits {
         match ringdesign_graph::nodes::cad::edit_design(&mut next, edit) {
             Ok(a) => applied.push(a),
             Err(e) => {
@@ -38,7 +39,38 @@ pub fn apply(app: &mut RingDesignerApp, edits: &[CadEdit]) -> Result<Vec<Applied
         app.sync_graph();
     }
     app.mark_dirty();
-    app.history.commit(&app.design);
-    app.set_status(applied.iter().map(|a| a.label.as_str()).collect::<Vec<_>>().join(" · "));
+    let label = applied.iter().map(|a| a.label.as_str()).collect::<Vec<_>>().join(" · ");
+    app.history.commit_as(&app.design, &label);
+    app.set_status(label);
     Ok(applied)
+}
+
+/// Adds whose asked-for id another node of a driven design's graph carries, asking for a fresh id instead.
+fn fresh_where_taken(design: &ringdesign_core::RingDesign, edits: &[CadEdit]) -> Vec<CadEdit> {
+    let mut edits = edits.to_vec();
+    if !edits.iter().any(|e| matches!(e, CadEdit::Add { .. })) {
+        return edits;
+    }
+    let Some(g) = design.graph.as_ref().and_then(|j| serde_json::from_value::<ringdesign_graph::graph::Graph>(j.clone()).ok()) else {
+        return edits;
+    };
+    let features: std::collections::HashSet<u64> =
+        ringdesign_graph::nodes::cad::document(&g).map(|d| d.features.iter().map(|f| f.id).collect()).unwrap_or_default();
+    let mut taken: std::collections::HashSet<u64> = g.nodes.iter().map(|n| n.id.0).collect();
+    // The graph applier adds a node at its next id for every add, then renames it to an asked-for id.
+    let mut next_id = g.next_id;
+    for edit in &mut edits {
+        let CadEdit::Add { feature, .. } = edit else { continue };
+        if feature.id != 0 && taken.contains(&feature.id) && !features.contains(&feature.id) {
+            feature.id = 0;
+        }
+        if feature.id == 0 {
+            taken.insert(next_id);
+            next_id += 1;
+        } else {
+            taken.insert(feature.id);
+            next_id = (next_id + 1).max(feature.id + 1);
+        }
+    }
+    edits
 }
