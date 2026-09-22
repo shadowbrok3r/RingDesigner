@@ -2298,17 +2298,9 @@ fn blend_span(from: (f64, f64), to: (f64, f64), t: f64) -> (f64, f64) {
     (from.0 + (to.0 - from.0) * t, from.1 + (to.1 - from.1) * t)
 }
 
-/// The head that owns this angle: the strongest presence wins, and its face,
-/// crest span and take-off softness carry the section. Presences cross far
-/// from both faces, where every read has converged to the shank and the
-/// switch changes nothing.
-fn pick_dominant(reads: &[HeadAt]) -> HeadAt {
-    reads[dominant_index(reads)]
-}
-
-/// Which head owns this angle. Separate from [`pick_dominant`] because the
-/// *construction* has to come from the same head as the section does: a toi et
-/// moi can carry a lofted oval beside a cut-dome clover, and reading
+/// Which head owns this angle: the strongest presence, then the furthest crest.
+/// The section and its *construction* both come from that head: a toi et moi
+/// can carry a lofted oval beside a cut-dome clover, and reading
 /// `self.head.mix()` built the second head's whole arc with the first head's
 /// construction — a dome where a loft was asked for, or the reverse.
 fn dominant_index(reads: &[HeadAt]) -> usize {

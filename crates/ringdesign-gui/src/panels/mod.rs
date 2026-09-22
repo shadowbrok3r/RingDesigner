@@ -9,6 +9,7 @@ pub mod library;
 pub mod node;
 pub mod report;
 pub mod section;
+pub mod timeline;
 pub mod unrolled;
 
 use egui_phosphor::regular as icon;
@@ -324,6 +325,11 @@ impl egui_tiles::Behavior<usize> for ViewportBehavior<'_> {
             egui::Panel::bottom(egui::Id::new(("viewport-footer", i)))
                 .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(egui::Margin::symmetric(6, 5)).stroke(egui::Stroke::new(1., theme::HAIRLINE)))
                 .show(ui, |ui| viewport_footer(app, ui, i));
+            if timeline::shown(app) {
+                egui::Panel::bottom(egui::Id::new(("viewport-timeline", i)))
+                    .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(egui::Margin::symmetric(6, 3)))
+                    .show(ui, |ui| timeline::bar(app, ui, i));
+            }
         }
         if app.panes[i].kind == PaneKind::Unrolled {
             egui::Panel::top(egui::Id::new(("surface-context", i)))

@@ -538,6 +538,28 @@ mod tests {
     }
 
     #[test]
+    fn a_memo_build_is_the_plain_build_and_a_second_one_reuses_every_part() {
+        let lib = AlphaLibrary::builtin();
+        let d = with_parts(template("Court band"), vec![
+            part(1, "bezel", cylinder(3.0, 2.5), Attach::Join, Stage::Cast, Placement::ring(90.0, 1.25)),
+            part(2, "pilot", cylinder(1.2, 12.0), Attach::Cut, Stage::Cast, Placement::ring(90.0, 0.0)),
+        ]);
+        let never = AtomicBool::new(false);
+        let plain = crate::mesh::try_build_with(&d, &lib, params(), &never).unwrap();
+        let cache = std::sync::Mutex::new(cad::Cache::default());
+        let first = crate::mesh::try_build_memo(&d, &lib, params(), &never, Memo::new(&cache)).unwrap();
+        assert!(first.mesh.vertices == plain.mesh.vertices && first.mesh.faces == plain.mesh.faces);
+        let (hits, misses) = { let c = cache.lock().unwrap(); (c.hits(), c.misses()) };
+        assert_eq!(hits, 0);
+        assert!(misses > 0);
+        let again = crate::mesh::try_build_memo(&d, &lib, params(), &never, Memo::new(&cache)).unwrap();
+        assert!(again.mesh.vertices == plain.mesh.vertices && again.mesh.faces == plain.mesh.faces);
+        let c = cache.lock().unwrap();
+        assert_eq!(c.misses(), misses, "an unchanged design builds nothing twice");
+        assert!(c.hits() >= misses, "{} hits for {misses} entries", c.hits());
+    }
+
+    #[test]
     fn a_joined_cylinder_is_one_watertight_solid_with_the_band_and_names_its_feature() {
         let lib = AlphaLibrary::builtin();
         let court = template("Court band");

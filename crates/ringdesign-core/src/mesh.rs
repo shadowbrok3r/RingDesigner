@@ -357,17 +357,22 @@ pub fn try_build(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -
 /// resolved, and its CAD parts joined, cut or set beside it; a document without a `Band` feature is
 /// the whole ring and comes out of the kernel alone.
 pub fn try_build_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, cancel: &std::sync::atomic::AtomicBool) -> anyhow::Result<BuildResult> {
+    try_build_memo(design, lib, params, cancel, crate::cad::Memo::default())
+}
+
+/// [`try_build_with`] reading and filling a CAD memo, so features and tessellations an edit left alone come from its cache.
+pub fn try_build_memo(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, cancel: &std::sync::atomic::AtomicBool, memo: crate::cad::Memo) -> anyhow::Result<BuildResult> {
     if design.band_is_procedural() {
         let mut built = if design.imported_base.is_some() { crate::imported_base::build(design,lib,params)? } else { build_band(design,lib,params) };
         resolve_solids(design, lib, &mut built);
         if design.cad.is_some() {
-            let ctx = crate::cad::BuildCtx { cancel, surface: None };
-            built.parts = crate::parts::resolve(design, lib, params, &ctx, &mut built)?;
+            let ctx = crate::cad::BuildCtx::new(cancel);
+            built.parts = crate::parts::resolve_with(design, lib, params, &ctx, memo, &mut built)?;
         }
         return Ok(built);
     }
     let started=BuildClock::start();
-    let evaluated=crate::cad::evaluate_with(design,lib,params,&crate::cad::BuildCtx::new(cancel))?;
+    let evaluated=crate::cad::evaluate_memo(design,lib,params,&crate::cad::BuildCtx::new(cancel),memo)?;
     let (mesh, mut parts)=crate::parts::assembled(evaluated, Some(cancel))?;
     anyhow::ensure!(!mesh.faces.is_empty(),"The design contains only reference components");
     let (lo,hi)=mesh.bounds().unwrap();let bounds_mm=[(hi.0-lo.0) as f64,(hi.1-lo.1) as f64,(hi.2-lo.2) as f64];let volume=mesh.volume_mm3();

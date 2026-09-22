@@ -16,6 +16,7 @@ use crate::app::RingDesignerApp;
 use crate::camera::Projector;
 use crate::theme;
 use ringdesign_workbench::viewport::{MenuAction, MenuItem, Mods, Sel};
+use ringdesign_core::cad::edit::CadEdit;
 
 /// How far from the pointer a part's vertex or edge still answers, in pixels.
 pub const APERTURE_PX: f32 = 8.0;
@@ -1759,8 +1760,8 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
             app.selection.click(Some(Sel::Part(id)), Mods::default());
             cad::ask(app, CadRequest::Select { feature: id });
         }
-        MenuAction::Attach(id, attach) => set_component(app, id, "attachment", |c| c.attach = attach),
-        MenuAction::Stage(id, stage) => set_component(app, id, "stage", |c| c.stage = stage),
+        MenuAction::Attach(id, attach) => set_component(app, id, CadEdit::Attach { id, attach }),
+        MenuAction::Stage(id, stage) => set_component(app, id, CadEdit::Stage { id, stage }),
         MenuAction::FilletEdge { feature, edge } => cad::add_modifier(app, "Fillet", feature, edge as usize),
         MenuAction::ChamferEdge { feature, edge } => cad::add_modifier(app, "Chamfer", feature, edge as usize),
         MenuAction::IsolateInCad(id) => cad::ask(app, CadRequest::Isolate { feature: id }),
@@ -1774,26 +1775,13 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
     }
 }
 
-/// Edit a part's component on a plain design, as one history entry; a graph-driven design is
-/// refused with a status, since its parts are nodes.
-fn set_component(app: &mut RingDesignerApp, id: u64, what: &str, edit: impl FnOnce(&mut ringdesign_core::cad::Component)) {
-    if app.graph_driven() {
-        app.set_status(format!("Driven by the graph — change the {what} on the feature's node or in the CAD pane"));
-        return;
-    }
-    let Some(feature) = app.design.cad.as_mut().and_then(|d| d.features.iter_mut().find(|f| f.id == id)) else {
-        app.set_status(format!("Part #{id} is not in the design"));
-        return;
-    };
-    if feature.component.reference {
+/// Changes a part's attachment or stage through the edit funnel; a reference part is never metal.
+fn set_component(app: &mut RingDesignerApp, id: u64, edit: CadEdit) {
+    if app.design.cad.as_ref().and_then(|d| d.feature(id)).is_some_and(|f| f.component.reference) {
         app.set_status("A reference stone is never metal");
         return;
     }
-    edit(&mut feature.component);
-    let name = feature.name.clone();
-    app.history.commit(&app.design);
-    app.mark_dirty();
-    app.set_status(format!("{name}: {what} changed"));
+    let _ = crate::cad_edit::apply(app, &[edit]);
 }
 
 /// The chosen and hovered edges, vertices and band points, drawn over the ring.

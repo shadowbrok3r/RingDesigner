@@ -1,7 +1,7 @@
 //! Native interaction regressions observed through eframe inspection.
 use crate::app::RingDesignerApp;
 use egui_kittest::{Harness, kittest::Queryable};
-fn harness() -> Harness<'static, RingDesignerApp> {
+pub(crate) fn harness() -> Harness<'static, RingDesignerApp> {
     Harness::builder()
         .with_size([1100., 700.])
         .build_eframe(|cc| {
@@ -104,7 +104,7 @@ fn a_workspace_always_shows_its_own_view() {
 }
 
 /// Step the harness until the Apply button enables; the evaluation runs on a worker thread.
-fn wait_until_previewed(h: &mut Harness<'static, RingDesignerApp>) {
+pub(crate) fn wait_until_previewed(h: &mut Harness<'static, RingDesignerApp>) {
     use egui_kittest::kittest::NodeT;
     let start = std::time::Instant::now();
     loop {
@@ -119,7 +119,7 @@ fn wait_until_previewed(h: &mut Harness<'static, RingDesignerApp>) {
     }
 }
 /// Ctrl+Enter held across a frame: egui keeps only the last modifier change of a frame.
-fn press_ctrl_enter(h: &mut Harness<'static, RingDesignerApp>) {
+pub(crate) fn press_ctrl_enter(h: &mut Harness<'static, RingDesignerApp>) {
     let key = |pressed| egui::Event::Key {
         key: egui::Key::Enter,
         pressed,
@@ -135,7 +135,7 @@ fn press_ctrl_enter(h: &mut Harness<'static, RingDesignerApp>) {
     h.run_steps(2);
 }
 /// Create → Cylinder on the CAD desktop, previewed with Enter and applied with Ctrl+Enter.
-fn create_and_apply_a_cylinder(h: &mut Harness<'static, RingDesignerApp>) -> u64 {
+pub(crate) fn create_and_apply_a_cylinder(h: &mut Harness<'static, RingDesignerApp>) -> u64 {
     h.state_mut().switch_desktop(crate::dock::Desktop::Cad);
     h.run_steps(4);
     h.get_by_label("Create").click();
@@ -297,7 +297,7 @@ fn a_ring_of_parts_only_refuses_the_surface_tools_and_says_why() {
 }
 
 /// Step until the first build lands; the worker builds off-thread.
-fn wait_for_build(h: &mut Harness<'static, RingDesignerApp>) {
+pub(crate) fn wait_for_build(h: &mut Harness<'static, RingDesignerApp>) {
     let start = std::time::Instant::now();
     while h.state().build.is_none() || h.state().is_building() {
         h.run_steps(3);
@@ -306,7 +306,7 @@ fn wait_for_build(h: &mut Harness<'static, RingDesignerApp>) {
     }
 }
 /// A press and release at `pos` with the modifiers held across both.
-fn click_at(h: &mut Harness<'static, RingDesignerApp>, pos: egui::Pos2, button: egui::PointerButton, modifiers: egui::Modifiers) {
+pub(crate) fn click_at(h: &mut Harness<'static, RingDesignerApp>, pos: egui::Pos2, button: egui::PointerButton, modifiers: egui::Modifiers) {
     h.event(egui::Event::ModifiersChanged(modifiers));
     h.event(egui::Event::PointerMoved(pos));
     h.event(egui::Event::PointerButton { pos, button, pressed: true, modifiers });
@@ -316,7 +316,7 @@ fn click_at(h: &mut Harness<'static, RingDesignerApp>, pos: egui::Pos2, button: 
     h.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
     h.run_steps(1);
 }
-fn viewport_label(h: &Harness<'static, RingDesignerApp>) -> String {
+pub(crate) fn viewport_label(h: &Harness<'static, RingDesignerApp>) -> String {
     use egui_kittest::kittest::NodeT;
     h.query_all_by_label_contains("Ring viewport").next().expect("the Ring viewport").accesskit_node().label().unwrap_or_default()
 }
@@ -397,4 +397,58 @@ fn the_ring_viewport_names_what_it_hovers_and_the_modifiers_build_the_selection(
     h.run_steps(3);
     assert!(h.state().selection.items.is_empty(), "Escape clears the selection");
     assert!(!viewport_label(&h).contains("selected"));
+}
+
+#[test]
+fn a_cad_edit_through_the_funnel_is_one_undo_step_and_lands_in_a_driven_designs_graph() {
+    use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation, Placement, Stage, edit::CadEdit};
+    let mut h = harness();
+    {
+        let app = h.state_mut();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 5, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        doc.append(Feature {
+            id: 1,
+            name: "Cylinder".into(),
+            enabled: true,
+            operation: Operation::Cylinder { radius_mm: 1.5, height_mm: 2.5 },
+            component: Component { attach: Attach::Join, stage: Stage::Cast, placement: Placement::ring(90.0, 0.25), ..Default::default() },
+        })
+        .unwrap();
+        doc.append(Feature { id: 2, name: "Lift".into(), enabled: true, operation: Operation::Transform { source: 1, translation: [0.0, 0.0, 0.5], rotation_deg: [0.0; 3] }, component: Component::default() }).unwrap();
+        app.design.cad = Some(doc);
+        app.history.commit(&app.design);
+    }
+    let feature = |h: &Harness<'static, RingDesignerApp>, id: u64| h.state().design.cad.as_ref().and_then(|d| d.feature(id)).cloned().unwrap();
+    // A refusal names the dependent and leaves the design and the history alone.
+    let entries = h.state().history.present();
+    let refused = crate::cad_edit::apply(h.state_mut(), &[CadEdit::Remove { id: 1 }]).unwrap_err();
+    assert!(refused.contains("#2 Lift"), "{refused}");
+    assert_eq!(h.state().history.present(), entries);
+    assert_eq!(h.state().design.cad.as_ref().unwrap().features.len(), 3);
+    // Two edits in one call are one undo step.
+    let applied = crate::cad_edit::apply(h.state_mut(), &[CadEdit::Rename { id: 2, name: "Post".into() }, CadEdit::Attach { id: 2, attach: Attach::Cut }]).unwrap();
+    assert_eq!(applied.len(), 2);
+    assert_eq!(h.state().history.present(), entries + 1);
+    assert_eq!((feature(&h, 2).name.as_str(), feature(&h, 2).component.attach), ("Post", Attach::Cut));
+    h.state_mut().undo();
+    assert_eq!((feature(&h, 2).name.as_str(), feature(&h, 2).component.attach), ("Lift", Attach::Separate));
+    // A driven design takes the edit on its graph; the document is the worker's to evaluate.
+    {
+        let app = h.state_mut();
+        let g = ringdesign_graph::nodes::cad::from_document(&app.design).unwrap();
+        app.set_graph(g);
+        app.history.commit(&app.design);
+    }
+    let entries = h.state().history.present();
+    crate::cad_edit::apply(h.state_mut(), &[CadEdit::Enable { id: 2, enabled: false }]).unwrap();
+    assert_eq!(h.state().history.present(), entries + 1);
+    let graph = |h: &Harness<'static, RingDesignerApp>| -> Document {
+        let g: ringdesign_graph::graph::Graph = serde_json::from_value(h.state().design.graph.clone().expect("still driven")).unwrap();
+        ringdesign_graph::nodes::cad::document(&g).unwrap()
+    };
+    assert!(!graph(&h).feature(2).unwrap().enabled);
+    assert_eq!(h.state().status, "Suppress Lift");
+    h.state_mut().undo();
+    assert!(graph(&h).feature(2).unwrap().enabled);
 }

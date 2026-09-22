@@ -7,6 +7,7 @@
 mod alpha_editor;
 mod app;
 mod camera;
+mod cad_edit;
 mod comfy_texture;
 mod dock;
 mod export;
@@ -23,6 +24,10 @@ mod swatch;
 mod ui_tests;
 #[cfg(test)]
 mod interaction_tests;
+#[cfg(test)]
+mod timeline_tests;
+#[cfg(test)]
+mod command_tests;
 
 use app::RingDesignerApp;
 

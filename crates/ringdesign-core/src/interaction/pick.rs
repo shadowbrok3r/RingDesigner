@@ -4,7 +4,7 @@
 //! vertices and edges within the aperture that lie on that surface and are not behind it.
 //! Box selection is x-ray: a part and its faces, edges and vertices are judged on the part's own
 //! placed geometry, whole; the band on the fused faces it owns; a stone on its facets.
-use super::bvh::{self, Bvh, cross, dist2, dot, sub};
+use super::bvh::{Bvh, cross, dist2, dot, sub};
 use crate::{AlphaLibrary, BuildResult, Mesh, RingDesign, sketch::Id};
 use std::collections::HashMap;
 
@@ -530,6 +530,7 @@ fn segment_touches(planes: &[[f64; 4]; 4], a: [f64; 3], b: [f64; 3]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::interaction::bvh;
     use crate::{
         BuildParams,
         cad::{Attach, Component, Document, Feature, Operation, Placement, Stage},
