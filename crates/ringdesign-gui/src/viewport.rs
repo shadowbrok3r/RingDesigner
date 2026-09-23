@@ -1079,7 +1079,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                 .id(egui::Id::new("direct-viewport-inspector"))
                 .open(&mut open)
                 .default_width(180.0).min_width(150.0)
-                .default_pos(ui.max_rect().right_top() - egui::vec2(315.0, -180.0))
+                .pivot(egui::Align2::RIGHT_TOP)
+                .default_pos(ui.max_rect().right_top() + egui::vec2(-12.0, 44.0))
                 .constrain_to(ui.ctx().content_rect())
                 .resizable(true)
                 .show(ui.ctx(), |ui| {

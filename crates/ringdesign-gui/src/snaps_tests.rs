@@ -312,6 +312,17 @@ fn a_claw_heads_ghost_carried_off_the_parting_line_turns_its_drag_flank_to_the_u
 }
 
 #[test]
+fn the_tool_inspector_opens_against_the_viewports_right_edge_clear_of_its_middle() {
+    let mut h = harness();
+    ring_with(&mut h, Vec::new());
+    h.state_mut().visual.select(Tool::Measure);
+    h.run_steps(3);
+    let view = viewport_rect(&h);
+    let r = h.ctx.memory(|m| m.area_rect(egui::Id::new("direct-viewport-inspector"))).expect("the inspector is open");
+    assert!(r.right() <= view.right() && r.right() >= view.right() - 30.0 && r.left() > view.center().x, "{r:?} in {view:?}");
+}
+
+#[test]
 fn measure_between_two_posts_top_vertices_reads_their_true_distance() {
     let mut h = harness();
     let boxed = |id, theta| post(id, "Box", Operation::Box { size: [1.5, 1.5, 2.0] }, Placement::ring(theta, 0.0));
