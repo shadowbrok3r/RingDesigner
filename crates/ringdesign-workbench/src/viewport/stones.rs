@@ -48,6 +48,26 @@ mod tests {
 }
 
 /// Stones to seat on a planar face of a part.
-pub fn face_items(_feature: Id, _face: u32) -> Vec<MenuItem> {
-    Vec::new()
+pub fn face_items(feature: Id, face: u32) -> Vec<MenuItem> {
+    STONES
+        .iter()
+        .map(|s| {
+            MenuItem::new(s.label, Icon::Stones, MenuAction::AddStoneOnFace { feature, face, key: s.key }, "A reference stone seated on this face where the click landed, its culet clear of it; it rides the part when the part moves or grows")
+                .under("Add stone here")
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod face_tests {
+    use super::*;
+
+    #[test]
+    fn a_face_offers_every_stone_preset_under_add_stone_here() {
+        let items = face_items(4, 2);
+        assert_eq!(items.len(), STONES.len());
+        assert!(items.iter().all(|i| i.submenu == Some("Add stone here") && i.enabled && i.icon == Icon::Stones));
+        assert_eq!(items.iter().map(|i| i.label.as_str()).collect::<Vec<_>>(), band_items(0.0, 0.0).iter().map(|i| i.label.as_str()).collect::<Vec<_>>());
+        assert_eq!(items[3].action, MenuAction::AddStoneOnFace { feature: 4, face: 2, key: "princess-5" });
+    }
 }

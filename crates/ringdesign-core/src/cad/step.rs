@@ -1,7 +1,8 @@
 //! STEP AP214 B-rep export. Analytic curves/surfaces stay analytic; faceted
 //! source features remain planar faces. No triangle mesh is substituted for
 //! an unsupported surface. The source graph remains the editable project.
-use super::Evaluated;
+use super::{Attach, Evaluated, EvaluatedComponent};
+use crate::{AlphaLibrary, BuildParams, Mesh, RingDesign, sketch::Id};
 use anyhow::{Context, Result, ensure};
 use cadkernel::{
     brep::{Body, Curve3, Surface},
@@ -331,8 +332,90 @@ impl Writer {
         }
         Ok(out)
     }
+    /// One FACETED_BREP per edge-connected shell of a closed mesh, each triangle a planar face bounded by a poly loop.
+    fn faceted(&mut self, mesh: &Mesh, name: &str) -> Result<Vec<usize>> {
+        let mut out = Vec::new();
+        for shell in shells(mesh) {
+            let mut points: HashMap<u32, usize> = HashMap::new();
+            let mut faces = Vec::with_capacity(shell.len());
+            for fi in shell {
+                let f = mesh.faces[fi];
+                let mut ids = [0usize; 3];
+                for (k, v) in f.iter().enumerate() {
+                    ids[k] = match points.get(v) {
+                        Some(p) => *p,
+                        None => {
+                            let p = mesh.vertices.get(*v as usize).context("A faceted face names a missing vertex")?;
+                            let id = self.point([p.0 as f64, p.1 as f64, p.2 as f64])?;
+                            points.insert(*v, id);
+                            id
+                        }
+                    };
+                }
+                let normal = mesh.face_normal(&f).unwrap_or_else(|| {
+                    let n = f.iter().filter_map(|v| mesh.normals.get(*v as usize)).fold([0.0; 3], |s, n| [s[0] + n.0 as f64, s[1] + n.1 as f64, s[2] + n.2 as f64]);
+                    if crate::mesh::norm(n) > 1e-12 { n } else { [0.0, 0.0, 1.0] }
+                });
+                let direction = self.direction(normal)?;
+                let axis = self.add(format!("AXIS2_PLACEMENT_3D('',#{},#{direction},$)", ids[0]));
+                let plane = self.add(format!("PLANE('',#{axis})"));
+                let polygon = self.add(format!("POLY_LOOP('',{})", refs(&ids)));
+                let bound = self.add(format!("FACE_OUTER_BOUND('',#{polygon},.T.)"));
+                faces.push(self.add(format!("FACE_SURFACE('',(#{bound}),#{plane},.T.)")));
+            }
+            let shell = self.add(format!("CLOSED_SHELL('',{})", refs(&faces)));
+            out.push(self.add(format!("FACETED_BREP({},#{shell})", label(name))));
+        }
+        Ok(out)
+    }
+}
+/// The faces of `mesh` grouped into shells that share edges, each in face order.
+fn shells(mesh: &Mesh) -> Vec<Vec<usize>> {
+    fn root(parent: &mut [usize], mut i: usize) -> usize {
+        while parent[i] != i {
+            parent[i] = parent[parent[i]];
+            i = parent[i];
+        }
+        i
+    }
+    let mut parent: Vec<usize> = (0..mesh.faces.len()).collect();
+    let mut first: HashMap<(u32, u32), usize> = HashMap::new();
+    for (fi, f) in mesh.faces.iter().enumerate() {
+        for k in 0..3 {
+            let (a, b) = (f[k], f[(k + 1) % 3]);
+            match first.entry((a.min(b), a.max(b))) {
+                std::collections::hash_map::Entry::Occupied(e) => {
+                    let (x, y) = (root(&mut parent, *e.get()), root(&mut parent, fi));
+                    parent[x.max(y)] = x.min(y);
+                }
+                std::collections::hash_map::Entry::Vacant(e) => {
+                    e.insert(fi);
+                }
+            }
+        }
+    }
+    let mut groups: Vec<Vec<usize>> = Vec::new();
+    let mut slot: HashMap<usize, usize> = HashMap::new();
+    for fi in 0..mesh.faces.len() {
+        let r = root(&mut parent, fi);
+        let g = *slot.entry(r).or_insert_with(|| {
+            groups.push(Vec::new());
+            groups.len() - 1
+        });
+        groups[g].push(fi);
+    }
+    groups
+}
+/// A closed mesh a STEP file carries as faceted solids, one per shell.
+pub struct Faceted<'a> {
+    pub name: String,
+    pub mesh: &'a Mesh,
 }
 pub fn export(e: &Evaluated, name: &str) -> Result<String> {
+    export_with(e, name, &|c| !c.settings.reference, &[])
+}
+/// STEP of the kernel bodies `keep` admits as analytic solids beside `faceted` meshes as faceted ones.
+pub fn export_with(e: &Evaluated, name: &str, keep: &dyn Fn(&EvaluatedComponent) -> bool, faceted: &[Faceted]) -> Result<String> {
     let mut w = Writer::default();
     let app = w.add("APPLICATION_CONTEXT('automotive_design')".into());
     w.add(format!(
@@ -361,22 +444,40 @@ pub fn export(e: &Evaluated, name: &str) -> Result<String> {
     let geometry=w.add(format!("(GEOMETRIC_REPRESENTATION_CONTEXT(3) GLOBAL_UNCERTAINTY_ASSIGNED_CONTEXT((#{uncertainty})) GLOBAL_UNIT_ASSIGNED_CONTEXT((#{mm},#{angle},#{solid_angle})) REPRESENTATION_CONTEXT('',''))"));
     let mut bodies = Vec::new();
     // A builder's part is a mesh with no B-rep to write.
-    for c in e.components.iter().filter(|c| !c.settings.reference && c.made.is_none()) {
+    for c in e.components.iter().filter(|c| keep(c) && c.made.is_none()) {
         bodies.extend(
             w.body(&c.body, &c.name)
                 .with_context(|| format!("STEP component #{} {}", c.id, c.name))?,
         );
     }
-    ensure!(!bodies.is_empty(), "No metal solids to export");
-    let rep = w.add(format!(
-        "ADVANCED_BREP_SHAPE_REPRESENTATION({}, {},#{geometry})",
-        label(name),
-        refs(&bodies)
-    ));
-    w.add(format!("SHAPE_DEFINITION_REPRESENTATION(#{shape},#{rep})"));
+    let mut facets = Vec::new();
+    for f in faceted {
+        facets.extend(w.faceted(f.mesh, &f.name).with_context(|| format!("STEP faceted solid {}", f.name))?);
+    }
+    ensure!(!bodies.is_empty() || !facets.is_empty(), "No metal solids to export");
+    if facets.is_empty() {
+        let rep = w.add(format!(
+            "ADVANCED_BREP_SHAPE_REPRESENTATION({}, {},#{geometry})",
+            label(name),
+            refs(&bodies)
+        ));
+        w.add(format!("SHAPE_DEFINITION_REPRESENTATION(#{shape},#{rep})"));
+    } else {
+        // One representation per kind of solid, each related to the product's own.
+        let origin = w.axis(Plane::from_axes([0.0; 3], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]))?;
+        let main = w.add(format!("SHAPE_REPRESENTATION({},(#{origin}),#{geometry})", label(name)));
+        w.add(format!("SHAPE_DEFINITION_REPRESENTATION(#{shape},#{main})"));
+        if !bodies.is_empty() {
+            let rep = w.add(format!("ADVANCED_BREP_SHAPE_REPRESENTATION({},{},#{geometry})", label(name), refs(&bodies)));
+            w.add(format!("SHAPE_REPRESENTATION_RELATIONSHIP('','',#{rep},#{main})"));
+        }
+        let rep = w.add(format!("FACETED_BREP_SHAPE_REPRESENTATION({},{},#{geometry})", label(name), refs(&facets)));
+        w.add(format!("SHAPE_REPRESENTATION_RELATIONSHIP('','',#{rep},#{main})"));
+    }
+    let description = if facets.is_empty() { "RingDesigner analytic feature export" } else { "RingDesigner ring export: analytic parts and faceted solids" };
     // Leave the optional timestamp unspecified for reproducible exports.
     let mut out = format!(
-        "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('RingDesigner analytic feature export'),'2;1');\nFILE_NAME({},'',(''),(''),'RingDesigner','RingDesigner','');\nFILE_SCHEMA(('AUTOMOTIVE_DESIGN'));\nENDSEC;\nDATA;\n",
+        "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('{description}'),'2;1');\nFILE_NAME({},'',(''),(''),'RingDesigner','RingDesigner','');\nFILE_SCHEMA(('AUTOMOTIVE_DESIGN'));\nENDSEC;\nDATA;\n",
         label(name)
     );
     for (index, record) in w.records.into_iter().enumerate() {
@@ -384,6 +485,229 @@ pub fn export(e: &Evaluated, name: &str) -> Result<String> {
     }
     out.push_str("ENDSEC;\nEND-ISO-10303-21;\n");
     Ok(out)
+}
+/// The whole ring as STEP: kernel parts the band does not fuse as analytic solids, the band and every other part faceted.
+pub fn ring(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name: &str) -> Result<String> {
+    let metal = |c: &EvaluatedComponent| !c.settings.reference;
+    let Some(doc) = &design.cad else {
+        let built = crate::mesh::try_build(design, lib, params)?;
+        let none = Evaluated { components: Vec::new(), features: Vec::new(), band: None, planes: Vec::new() };
+        return export_with(&none, name, &metal, &[Faceted { name: name.to_string(), mesh: &built.mesh }]);
+    };
+    if doc.replaces_band() {
+        let e = super::evaluate(design, lib, params)?;
+        let made: Vec<Faceted> = e.components.iter().filter(|c| metal(c) && c.made.is_some()).map(|c| Faceted { name: c.name.clone(), mesh: &c.mesh }).collect();
+        return export_with(&e, name, &metal, &made);
+    }
+    // Kernel parts joined to the band are built beside it, so each stays its own analytic solid.
+    let before = super::evaluate(design, lib, params)?;
+    let analytic: Vec<Id> = before.components.iter().filter(|c| metal(c) && c.made.is_none() && c.attach == Attach::Join).map(|c| c.id).collect();
+    let mut apart = design.clone();
+    for f in apart.cad.iter_mut().flat_map(|d| d.features.iter_mut()).filter(|f| analytic.contains(&f.id)) {
+        f.component.attach = Attach::Separate;
+    }
+    let built = crate::mesh::try_build(&apart, lib, params)?;
+    let e = built.parts.evaluated.as_ref().context("The ring's parts were not evaluated")?;
+    let objects = crate::threemf::objects(&built, name);
+    let made = |id: Id| e.components.iter().any(|c| c.id == id && c.made.is_some());
+    let faceted: Vec<Faceted> = objects.iter().filter(|o| o.feature.is_none_or(made)).map(|o| Faceted { name: o.name.clone(), mesh: o.mesh.as_ref() }).collect();
+    export_with(e, name, &|c| metal(c) && c.attach == Attach::Separate, &faceted)
+}
+/// A solid a STEP file holds, as [`read_solids`] finds it.
+#[derive(Clone, Debug)]
+pub struct Found {
+    pub name: String,
+    /// A FACETED_BREP, rather than an analytic MANIFOLD_SOLID_BREP or BREP_WITH_VOIDS.
+    pub faceted: bool,
+    pub faces: usize,
+    /// A faceted solid's facets, points shared by record.
+    pub mesh: Option<Mesh>,
+}
+/// One parameter of a STEP record, as far as reading solids needs.
+#[derive(Clone, Debug)]
+enum Arg {
+    Ref(usize),
+    Text(String),
+    Number(f64),
+    List(Vec<Arg>),
+    Other,
+}
+impl Arg {
+    fn reference(&self) -> Option<usize> {
+        if let Arg::Ref(r) = self { Some(*r) } else { None }
+    }
+    fn list(&self) -> &[Arg] {
+        if let Arg::List(v) = self { v } else { &[] }
+    }
+}
+struct Cursor<'a> {
+    s: &'a [u8],
+    at: usize,
+}
+impl Cursor<'_> {
+    fn skip(&mut self) {
+        while self.s.get(self.at).is_some_and(|c| c.is_ascii_whitespace()) {
+            self.at += 1;
+        }
+    }
+    fn peek(&mut self) -> Result<u8> {
+        self.skip();
+        self.s.get(self.at).copied().context("STEP data ends inside a record")
+    }
+    fn take_while(&mut self, keep: impl Fn(u8) -> bool) -> &str {
+        let start = self.at;
+        while self.s.get(self.at).is_some_and(|c| keep(*c)) {
+            self.at += 1;
+        }
+        std::str::from_utf8(&self.s[start..self.at]).unwrap_or("")
+    }
+    fn expect(&mut self, c: u8) -> Result<()> {
+        ensure!(self.peek()? == c, "STEP expected '{}' at byte {}", c as char, self.at);
+        self.at += 1;
+        Ok(())
+    }
+    fn arg(&mut self) -> Result<Arg> {
+        match self.peek()? {
+            b'#' => {
+                self.at += 1;
+                Ok(Arg::Ref(self.take_while(|c| c.is_ascii_digit()).parse()?))
+            }
+            b'\'' => {
+                self.at += 1;
+                let mut text = Vec::new();
+                loop {
+                    let c = *self.s.get(self.at).context("STEP text runs to the end")?;
+                    self.at += 1;
+                    if c == b'\'' {
+                        if self.s.get(self.at) != Some(&b'\'') {
+                            break;
+                        }
+                        self.at += 1;
+                    }
+                    text.push(c);
+                }
+                Ok(Arg::Text(String::from_utf8_lossy(&text).into_owned()))
+            }
+            b'(' => {
+                self.at += 1;
+                let mut items = Vec::new();
+                if self.peek()? == b')' {
+                    self.at += 1;
+                    return Ok(Arg::List(items));
+                }
+                loop {
+                    items.push(self.arg()?);
+                    match self.peek()? {
+                        b',' => self.at += 1,
+                        b')' => {
+                            self.at += 1;
+                            return Ok(Arg::List(items));
+                        }
+                        c => anyhow::bail!("STEP list holds '{}' at byte {}", c as char, self.at),
+                    }
+                }
+            }
+            b'.' => {
+                self.at += 1;
+                self.take_while(|c| c != b'.');
+                self.expect(b'.')?;
+                Ok(Arg::Other)
+            }
+            b'$' | b'*' => {
+                self.at += 1;
+                Ok(Arg::Other)
+            }
+            c if c == b'-' || c == b'+' || c.is_ascii_digit() => Ok(Arg::Number(self.take_while(|c| c.is_ascii_digit() || b"+-.eE".contains(&c)).parse()?)),
+            c if c.is_ascii_alphabetic() => {
+                self.take_while(|c| c.is_ascii_alphanumeric() || c == b'_');
+                self.arg()?;
+                Ok(Arg::Other)
+            }
+            c => anyhow::bail!("STEP holds '{}' at byte {}", c as char, self.at),
+        }
+    }
+}
+/// Every solid a STEP file's data section holds, in record order: analytic ones counted by face, faceted ones read back as meshes.
+pub fn read_solids(text: &str) -> Result<Vec<Found>> {
+    let data = text.find("DATA;").context("STEP file has no data section")? + "DATA;".len();
+    let mut c = Cursor { s: text.as_bytes(), at: data };
+    let mut records: HashMap<usize, (String, Vec<Arg>)> = HashMap::new();
+    let mut order = Vec::new();
+    while c.peek()? == b'#' {
+        c.at += 1;
+        let id: usize = c.take_while(|c| c.is_ascii_digit()).parse()?;
+        c.expect(b'=')?;
+        let record = if c.peek()? == b'(' {
+            // A complex entity: typed parts side by side, which no solid is.
+            c.at += 1;
+            while c.peek()? != b')' {
+                c.take_while(|c| c.is_ascii_alphanumeric() || c == b'_');
+                c.arg()?;
+            }
+            c.at += 1;
+            (String::new(), Vec::new())
+        } else {
+            let kind = c.take_while(|c| c.is_ascii_alphanumeric() || c == b'_').to_string();
+            let Arg::List(args) = c.arg()? else { anyhow::bail!("STEP record #{id} has no parameters") };
+            (kind, args)
+        };
+        c.expect(b';')?;
+        records.insert(id, record);
+        order.push(id);
+    }
+    let get = |id: Option<usize>, kind: &str| -> Result<&Vec<Arg>> {
+        let id = id.context("STEP expected a reference")?;
+        let (k, args) = records.get(&id).with_context(|| format!("STEP names a missing record #{id}"))?;
+        ensure!(k == kind, "STEP record #{id} is {k}, not {kind}");
+        Ok(args)
+    };
+    let mut found = Vec::new();
+    for id in order {
+        let (kind, args) = &records[&id];
+        let faceted = match kind.as_str() {
+            "FACETED_BREP" => true,
+            "MANIFOLD_SOLID_BREP" | "BREP_WITH_VOIDS" => false,
+            _ => continue,
+        };
+        let name = match args.first() {
+            Some(Arg::Text(t)) => t.clone(),
+            _ => String::new(),
+        };
+        let faces = get(args.get(1).and_then(Arg::reference), "CLOSED_SHELL")?.get(1).map(Arg::list).unwrap_or_default();
+        let mesh = if faceted {
+            let mut mesh = Mesh::default();
+            let mut index: HashMap<usize, u32> = HashMap::new();
+            for face in faces {
+                let surface = get(face.reference(), "FACE_SURFACE")?;
+                let bound = get(surface.get(1).and_then(|b| b.list().first()).and_then(Arg::reference), "FACE_OUTER_BOUND")?;
+                let polygon = get(bound.get(1).and_then(Arg::reference), "POLY_LOOP")?;
+                let mut corners = Vec::new();
+                for p in polygon.get(1).map(Arg::list).unwrap_or_default() {
+                    let point = p.reference().context("A poly loop names a point by reference")?;
+                    let v = match index.get(&point) {
+                        Some(v) => *v,
+                        None => {
+                            let xyz: Vec<f64> = get(Some(point), "CARTESIAN_POINT")?.get(1).map(Arg::list).unwrap_or_default().iter().filter_map(|a| if let Arg::Number(n) = a { Some(*n) } else { None }).collect();
+                            ensure!(xyz.len() == 3, "STEP point #{point} is not three numbers");
+                            mesh.vertices.push(crate::mesh::Vec3(xyz[0] as f32, xyz[1] as f32, xyz[2] as f32));
+                            index.insert(point, mesh.vertices.len() as u32 - 1);
+                            mesh.vertices.len() as u32 - 1
+                        }
+                    };
+                    corners.push(v);
+                }
+                ensure!(corners.len() >= 3, "A STEP facet has {} corners", corners.len());
+                for k in 1..corners.len() - 1 {
+                    mesh.faces.push([corners[0], corners[k], corners[k + 1]]);
+                }
+            }
+            Some(mesh)
+        } else {
+            None
+        };
+        found.push(Found { name, faceted, faces: faces.len(), mesh });
+    }
+    Ok(found)
 }
 #[cfg(test)]
 mod tests {
@@ -402,5 +726,56 @@ mod tests {
         assert!(text.contains("ADVANCED_FACE"));
         assert!(text.contains("Shop''s signet"));
         assert!(!text.contains("TRIANGULATED_FACE_SET"));
+        // The reader finds both parts, analytic, and the file keeps its one representation.
+        let solids = read_solids(&text).unwrap();
+        assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Shank", false), ("Separate signet head", false)]);
+        assert!(solids.iter().all(|s| s.faces > 0 && s.mesh.is_none()));
+        assert!(!text.contains("FACETED_BREP") && !text.contains("SHAPE_REPRESENTATION_RELATIONSHIP"));
+    }
+
+    /// The claw solitaire with a post joined to the band and a spacer kept beside it.
+    fn solitaire_with_parts() -> RingDesign {
+        use crate::cad::{Component, Feature, Operation, Placement};
+        let mut d = super::super::examples::design("claw-solitaire").unwrap();
+        let doc = d.cad.as_mut().unwrap();
+        let post = Component { attach: Attach::Join, placement: Placement::ring(200.0, 0.6), ..Component::default() };
+        doc.append(Feature { id: 5, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 0.8, height_mm: 2.0 }, component: post }).unwrap();
+        let spacer = Component { placement: Placement::ring(270.0, 2.0), ..Component::default() };
+        doc.append(Feature { id: 6, name: "Spacer".into(), enabled: true, operation: Operation::Box { size: [1.5, 1.5, 1.5] }, component: spacer }).unwrap();
+        d
+    }
+
+    #[test]
+    fn the_whole_ring_carries_its_kernel_parts_analytic_and_its_band_faceted() {
+        let lib = crate::AlphaLibrary::builtin();
+        let params = crate::BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() };
+        let d = solitaire_with_parts();
+        let text = ring(&d, &lib, params, "Claw solitaire").unwrap();
+        assert_eq!(text, ring(&d, &lib, params, "Claw solitaire").unwrap(), "the same ring writes the same file");
+        let count = |entity: &str| text.matches(&format!("={entity}(")).count();
+        // The post and the spacer are analytic; the band, with its head joined and its seat cut, is one faceted shell; the stone is not metal.
+        assert_eq!((count("MANIFOLD_SOLID_BREP"), count("FACETED_BREP"), count("CLOSED_SHELL")), (2, 1, 3));
+        assert_eq!((count("SHAPE_REPRESENTATION"), count("ADVANCED_BREP_SHAPE_REPRESENTATION"), count("FACETED_BREP_SHAPE_REPRESENTATION")), (1, 1, 1));
+        assert_eq!((count("SHAPE_DEFINITION_REPRESENTATION"), count("SHAPE_REPRESENTATION_RELATIONSHIP")), (1, 2));
+        let solids = read_solids(&text).unwrap();
+        assert_eq!(
+            solids.iter().map(|s| (s.name.as_str(), s.faceted, s.faces)).collect::<Vec<_>>(),
+            [("Post", false, 3), ("Spacer", false, 6), ("Claw solitaire", true, count("FACE_SURFACE"))]
+        );
+        // Read back, the faceted band is closed and holds exactly the metal the build put in it.
+        let band = solids[2].mesh.as_ref().unwrap();
+        let v = band.validate();
+        assert!(v.watertight, "{v:?}");
+        let mut apart = d.clone();
+        apart.cad.as_mut().unwrap().features.iter_mut().find(|f| f.id == 5).unwrap().component.attach = Attach::Separate;
+        let built = crate::mesh::try_build(&apart, &lib, params).unwrap();
+        let object = &crate::threemf::objects(&built, "Claw solitaire")[0];
+        assert_eq!(band.faces.len(), object.mesh.faces.len());
+        assert!((band.volume_mm3() - object.mesh.volume_mm3()).abs() < 1e-6 * object.mesh.volume_mm3(), "{} against {}", band.volume_mm3(), object.mesh.volume_mm3());
+        assert_eq!(count("FACE_SURFACE"), count("POLY_LOOP"));
+        // A ring of parts only keeps every kernel part analytic and nothing faceted but what a builder made.
+        let gallery = super::super::examples::design("gallery").unwrap();
+        let text = ring(&gallery, &lib, params, "Gallery").unwrap();
+        assert_eq!(text, export(&super::super::evaluate(&gallery, &lib, params).unwrap(), "Gallery").unwrap());
     }
 }

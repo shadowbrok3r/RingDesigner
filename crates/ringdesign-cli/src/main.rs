@@ -51,7 +51,7 @@ const USAGE: &str = "usage:
   ringdesign cad example <twisted-band|two-part-signet|solitaire|inlay-band|gallery> --out <design.ring.json>
   ringdesign cad check <design.ring.json>
   ringdesign cad export <design.ring.json> --out <new-directory>
-  ringdesign cad step <design.ring.json> --out <model.step>
+  ringdesign cad step <design.ring.json> --out <model.step> [--band]
   ringdesign cad resize <design.ring.json> --bores 17.3,18.1,19.0 --out <new-directory>
   ringdesign cad profile-import <profile.svg|profile.dxf> --out <sketch.json>
   ringdesign cad profile-export <sketch.json> --out <profile.svg|profile.dxf>
@@ -60,7 +60,7 @@ const USAGE: &str = "usage:
   ringdesign casting export <design.json> --out <new-directory> [--recipe recipe.json] [--diagnostic]
   ringdesign casting repair <design.json> --repair half|side|bench|square|parting [--layer index] --out <new-design.json>
   ringdesign export <design.json> [options]
-  ringdesign check  <design.json>
+  ringdesign check  <design.json> [--sizes 5:9:0.5 | 6,7,8]
   ringdesign graph eval     <graph.json> [--set Name=value]* [--preset name] [--out design.ring.json] [--run-sinks]
   ringdesign graph check    <graph.json> [--set Name=value]*
   ringdesign graph describe <graph.json>
@@ -93,7 +93,7 @@ fn run(args: &[String]) -> anyhow::Result<()> {
     design.bake_all(&mut lib);
 
     match cmd {
-        "check" => check(&design, &lib),
+        "check" => check(&design, &lib, &args[2..]),
         "export" => export(design_path, design, &lib, &args[2..]),
         other => anyhow::bail!("unknown command {other:?}"),
     }
@@ -116,8 +116,23 @@ fn carries_parts(design: &RingDesign) -> bool {
     design.band_is_procedural() && design.cad.as_ref().is_some_and(|doc| !doc.attachments().is_empty())
 }
 
+/// [`check_one`] at the design's own size, or at every size `--sizes` names.
+fn check(design: &RingDesign, lib: &AlphaLibrary, opts: &[String]) -> anyhow::Result<()> {
+    let sizes = match opts {
+        [] => vec![design.size.0],
+        [flag, spec] if flag == "--sizes" => parse_sizes(spec)?,
+        _ => anyhow::bail!("check takes --sizes 5:9:0.5 or a comma list, or nothing"),
+    };
+    for size in sizes {
+        let mut d = design.clone();
+        d.size = RingSize(size);
+        check_one(&d, lib)?;
+    }
+    Ok(())
+}
+
 /// The field verdict, its CAD parts judged on a Preview build, and the stones checks, printed plainly.
-fn check(design: &RingDesign, lib: &AlphaLibrary) -> anyhow::Result<()> {
+fn check_one(design: &RingDesign, lib: &AlphaLibrary) -> anyhow::Result<()> {
     if let Some(base) = &design.imported_base { base.validate_shape(design)?; }
     let (_, theta, profile) = ringdesign_core::BuildParams::PRESETS.iter().find(|p| p.0 == "Preview").copied().unwrap_or(("Preview", 384, 144));
     let params = ringdesign_core::BuildParams { theta_steps: theta, profile_steps: profile, refine: None, ..design.build };
@@ -147,6 +162,13 @@ fn check(design: &RingDesign, lib: &AlphaLibrary) -> anyhow::Result<()> {
         };
         println!("  part {} — {:?}, {:?}: {read}", p.label, p.attach, p.stage);
     }
+    if let Some(b) = &built {
+        let r = &b.parts;
+        println!("  {} parts resolved: {} joined, {} cut, {} separate; {} stones set as parts", r.joined + r.cut + r.separate, r.joined, r.cut, r.separate, r.references);
+        for n in &r.notes {
+            println!("  ! {n}");
+        }
+    }
     if let Some(s) = stones::report(design, f.parting_z_mm) {
         println!("  {} stones, {:.2} ct total", s.stone_count, s.total_carats);
         for seat in &s.seats {
@@ -156,6 +178,34 @@ fn check(design: &RingDesign, lib: &AlphaLibrary) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+/// One size of a run: the design resized, its pattern as built, the field verdict with the parts poured in it, and the checks that move with size.
+struct SizeRun {
+    design: RingDesign,
+    built: ringdesign_core::mesh::BuildResult,
+    field: ringdesign_core::castability::FieldReport,
+    dfm: Vec<ringdesign_core::dfm::DfmFinding>,
+    stones: Option<stones::StonesReport>,
+    stone_warnings: usize,
+}
+
+/// `base` at `size`: its CAD parts re-seated on that size's band, its builders keeping their stones' sizes.
+fn size_run(base: &RingDesign, lib: &AlphaLibrary, size: f64, params: ringdesign_core::BuildParams) -> anyhow::Result<SizeRun> {
+    let mut d = base.clone();
+    d.size = RingSize(size);
+    if let Some(base) = &d.imported_base {
+        base.validate_shape(&d)?;
+    }
+    // Mesh files are patterns: under sand, made settings and bench parts left out and a raised mark for each.
+    let built = ringdesign_core::mesh::try_build_pattern(&d, lib, params)?;
+    // The verdict is the pattern's as written: its field, and the CAD parts poured with it.
+    let field = judged_field_report(&d, lib, &d.draft, 192, 128, carries_parts(&d).then_some(&built));
+    // Circumference grows 20% from a 5 to a 9, so a tiling's cell pitch and a run's stone bridges move with the size.
+    let dfm = ringdesign_core::dfm::findings_in(&d, lib);
+    let stones = stones::report(&d, field.parting_z_mm);
+    let stone_warnings = stones.as_ref().map(|s| s.seats.iter().map(|c| c.warnings.len()).sum()).unwrap_or(0);
+    Ok(SizeRun { design: d, built, field, dfm, stones, stone_warnings })
 }
 
 fn export(
@@ -226,29 +276,16 @@ fn export(
     let scale = shrink.map(|m| (m, metal::pattern_scale(m.shrink_pct)));
     let slug = slug(&base.name);
     let mut manifest = String::from(
-        "size,file,format,bytes,triangles,watertight,verdict,undercut_pct,thinnest_wall_mm,volume_mm3,dfm_findings,stone_warnings\n",
+        "size,file,format,bytes,triangles,watertight,verdict,undercut_pct,thinnest_wall_mm,volume_mm3,dfm_findings,stone_warnings,parts,part_notes\n",
     );
 
     for &size in &sizes {
-        let mut d = base.clone();
-        d.size = RingSize(size);
-        if let Some(base) = &d.imported_base { base.validate_shape(&d)?; }
-        // Mesh files are patterns — under sand, made settings and bench parts left out and a raised mark
-        // for each; GLB is the finished ring, and only built when asked for and different.
-        let built = ringdesign_core::mesh::try_build_pattern(&d, lib, params)?;
-        // The verdict is the pattern's as written: its field, and the CAD parts poured with it.
-        let f = judged_field_report(&d, lib, &d.draft, 192, 128, carries_parts(&d).then_some(&built));
-        // The run used to gate on the field verdict alone. Both of the other
-        // checks move with the size: circumference grows 20% from a 5 to a 9,
-        // so a tiling's cell pitch changes and a run's stone bridges close.
-        let dfm = ringdesign_core::dfm::findings_in(&d, lib);
-        let stones_at = stones::report(&d, f.parting_z_mm);
-        let stone_warnings: usize = stones_at
-            .as_ref()
-            .map(|s| s.seats.iter().map(|c| c.warnings.len()).sum())
-            .unwrap_or(0);
-        let finished = if formats.iter().any(|f| f == "glb") && ringdesign_core::setting::any(&d) { Some(try_build(&d, lib, params)?.mesh) } else { None };
+        let SizeRun { design: d, built, field: f, dfm, stones: stones_at, stone_warnings } = size_run(&base, lib, size, params)?;
+        // GLB is the finished ring, built only when asked for and different from the pattern.
+        let finished = if formats.iter().any(|f| f == "glb") && (ringdesign_core::setting::any(&d) || carries_parts(&d)) { Some(try_build(&d, lib, params)?.mesh) } else { None };
         let v = built.report.validation;
+        let resolved = &built.parts;
+        let parts = resolved.joined + resolved.cut + resolved.separate;
         let (mesh, name) = match scale {
             Some((m, k)) => (
                 built.mesh.scaled(k),
@@ -257,11 +294,12 @@ fn export(
             None => (built.mesh.clone(), d.name.clone()),
         };
         println!(
-            "size {:>4}  {}  {} tris{}{}{}",
+            "size {:>4}  {}  {} tris{}{}{}{}",
             d.size.display(),
             f.verdict.label(),
             v.triangle_count,
             if v.watertight { "" } else { "  NOT WATERTIGHT" },
+            if parts == 0 { String::new() } else { format!("  {parts} parts") },
             if dfm.is_empty() { String::new() } else { format!("  {} DFM", dfm.len()) },
             if stone_warnings == 0 {
                 String::new()
@@ -269,6 +307,9 @@ fn export(
                 format!("  {stone_warnings} stone")
             }
         );
+        for note in &resolved.notes {
+            println!("        {note}");
+        }
         for finding in &dfm {
             println!("        {}: {}", finding.label, finding.message);
         }
@@ -313,11 +354,17 @@ fn export(
                         ),
                         None => d.size.display(),
                     };
-                    threemf::write_3mf(&file, &mesh, &name, &label)?
+                    // The band with its joined and cut parts is one object, each separate part its own.
+                    let objects = threemf::objects(&built, &name);
+                    let objects: Vec<threemf::Object> = match scale {
+                        Some((_, k)) => objects.iter().map(|o| o.scaled(k)).collect(),
+                        None => objects,
+                    };
+                    threemf::write_3mf_objects(&file, &objects, &name, &label)?
                 }
             };
             manifest.push_str(&format!(
-                "{},{},{},{},{},{},{:?},{:.4},{:.2},{:.2},{},{}\n",
+                "{},{},{},{},{},{},{:?},{:.4},{:.2},{:.2},{},{},{},{}\n",
                 d.size.display(),
                 file.file_name().unwrap_or_default().to_string_lossy(),
                 fmt,
@@ -329,7 +376,9 @@ fn export(
                 f.thinnest_wall_mm,
                 built.report.volume_mm3,
                 dfm.len(),
-                stone_warnings
+                stone_warnings,
+                parts,
+                resolved.notes.len()
             ));
         }
     }
@@ -401,6 +450,52 @@ mod tests {
     fn slugs_are_filename_safe() {
         assert_eq!(slug("My Heart / Signet!"), "my-heart-signet");
         assert_eq!(slug("***"), "ring");
+    }
+
+    #[test]
+    fn the_claw_solitaire_runs_five_sizes_each_head_on_its_stone_and_every_size_watertight() {
+        use ringdesign_core::cad::{self, builders};
+        use ringdesign_core::gem::{Gem, GemCut};
+        let base = cad::examples::design("claw-solitaire").unwrap();
+        let lib = AlphaLibrary::builtin();
+        let params = ringdesign_core::BuildParams { theta_steps: 256, profile_steps: 128, refine: None, ..base.build };
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        let stand = builders::stand_off_mm("claw4", gem);
+        let mut rows = Vec::new();
+        for size in [5.0, 6.0, 7.0, 8.0, 9.0] {
+            let run = size_run(&base, &lib, size, params).unwrap();
+            let b = &run.built;
+            assert!(b.report.validation.watertight, "size {size}: {:?}", b.report.validation);
+            // Under sand the head is poured with the band and the seat bur waits for the bench.
+            assert_eq!((b.parts.joined, b.parts.cut, b.parts.references), (1, 0, 1), "size {size}: {:?}", b.parts.notes);
+            assert!(b.parts.notes.is_empty(), "size {size}: {:?}", b.parts.notes);
+            let e = b.parts.evaluated.as_ref().unwrap();
+            let part = |id| e.components.iter().find(|c| c.id == id).unwrap();
+            let (stone, head) = (part(2), part(3));
+            // The stone keeps its size and stands its claws' stand-off over this size's own band.
+            assert_eq!(stone.made.as_ref().and_then(|m| m.gem), Some(gem), "size {size}");
+            let (hit, n) = cad::surface_hit(b.band.as_ref().unwrap(), 90.0, 0.0).unwrap();
+            let off: f64 = (0..3).map(|k| (stone.frame.origin[k] - hit[k]) * n[k]).sum();
+            assert!((off - stand).abs() < 0.01, "size {size}: girdle {off:.4} mm over the band against {stand:.4}");
+            // The head stands in its stone's frame and its claws reach into this band, not the finger hole.
+            assert_eq!(head.frame, stone.frame, "size {size}");
+            let f = stone.frame;
+            let low = head.trace.positions.iter().map(|p| (0..3).map(|k| (p[k] - f.origin[k]) * f.z_axis[k]).sum::<f64>()).fold(f64::MAX, f64::min);
+            // Measured: the feet end 4.42-4.47 mm under the girdle, 5.02 over the finger hole at every size.
+            let bore = f.origin[0].hypot(f.origin[1]) - run.design.inner_radius_mm();
+            assert!(low < -stand && -low < bore, "size {size}: claws end {low:.3} mm under the girdle, the band at {:.3}, the bore at {:.3}", -stand, -bore);
+            // Judged with the build: the head is read at the parting plane, the same verdict at every size.
+            assert!(run.field.parts.iter().any(|p| p.feature == 3 && p.judged), "size {size}: {:?}", run.field.parts);
+            rows.push((run.field.verdict, head.mesh.volume_mm3(), stone.frame.origin[0].hypot(stone.frame.origin[1]) - run.design.inner_radius_mm()));
+        }
+        assert!(rows.iter().all(|r| r.0 == rows[0].0), "{rows:?}");
+        // One head made at every size: its volume within a hundredth, the girdle over the bore within a hundredth of a millimetre.
+        let spread = |k: fn(&(ringdesign_core::castability::Verdict, f64, f64)) -> f64| {
+            let v: Vec<f64> = rows.iter().map(k).collect();
+            v.iter().cloned().fold(f64::MIN, f64::max) - v.iter().cloned().fold(f64::MAX, f64::min)
+        };
+        assert!(spread(|r| r.1) < 0.01 * rows[2].1, "{rows:?}");
+        assert!(spread(|r| r.2) < 0.01, "{rows:?}");
     }
 }
 

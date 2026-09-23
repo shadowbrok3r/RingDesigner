@@ -104,7 +104,7 @@ pub enum Operation {
         translation: [f64; 3],
         rotation_deg: [f64; 3],
     },
-    /// A part a [`builders`] builder makes: `key` names it, `on` the stone it stands on (read, not consumed), `params` its settings.
+    /// A part a [`builders`] builder makes: `key` names it, `on` what it stands on (read, not consumed), `params` its settings.
     Builder {
         key: String,
         #[serde(default)]
@@ -485,6 +485,299 @@ impl Placement {
         Ok(std::array::from_fn(|k| f.origin[k] + f.x_axis[k] * p[0] + f.y_axis[k] * p[1] + f.z_axis[k] * p[2]))
     }
 }
+/// A stone's seat on a planar face of the part its builder's `on` names: offsets along [`FaceSeat::axes`], girdle height off it, spin about its normal.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct FaceSeat {
+    pub face: FaceRef,
+    #[serde(default)]
+    pub u_mm: f64,
+    #[serde(default)]
+    pub v_mm: f64,
+    #[serde(default)]
+    pub height_mm: f64,
+    #[serde(default)]
+    pub spin_deg: f64,
+}
+impl FaceSeat {
+    /// The key a stone builder's parameters carry its seat under.
+    pub const KEY: &'static str = "seat";
+    /// The seat a stone builder's parameters carry, if any; refused when it does not read or its numbers are not finite.
+    pub fn of(params: &serde_json::Value) -> Result<Option<Self>> {
+        let Some(v) = params.get(Self::KEY).filter(|v| !v.is_null()) else { return Ok(None) };
+        let seat: Self = serde_json::from_value(v.clone()).context("Stone seat: expected a face and four numbers")?;
+        ensure!(
+            [seat.u_mm, seat.v_mm, seat.height_mm, seat.spin_deg].iter().all(|v| v.is_finite() && v.abs() < 1000.0),
+            "Stone seat: a seat on a face needs finite numbers"
+        );
+        Ok(Some(seat))
+    }
+    /// `params` with this seat written in.
+    pub fn write(&self, params: &mut serde_json::Value) {
+        if !params.is_object() {
+            *params = serde_json::json!({});
+        }
+        if let (Some(map), Ok(v)) = (params.as_object_mut(), serde_json::to_value(self)) {
+            map.insert(Self::KEY.into(), v);
+        }
+    }
+    /// Along and across `face` of a part seated by `part`: the part's axis lying most nearly on the face, flattened, and the normal crossed with it.
+    pub fn axes(face: &crate::sketch::FaceFrame, part: &brep::Placement) -> [[f64; 3]; 2] {
+        let n = face.normal;
+        let mut best: Option<(f64, [f64; 3])> = None;
+        for axis in [part.x_axis, part.y_axis, part.z_axis] {
+            let d = (0..3).map(|k| axis[k] * n[k]).sum::<f64>();
+            let flat: [f64; 3] = std::array::from_fn(|k| axis[k] - n[k] * d);
+            let len = crate::mesh::norm(flat);
+            if best.is_none_or(|(b, _)| len > b + 1e-6) {
+                best = Some((len, flat));
+            }
+        }
+        let x = best.filter(|(len, _)| *len > 1e-6).map_or(face.x, |(len, v)| v.map(|c| c / len));
+        [x, crate::mesh::cross(n, x)]
+    }
+    /// The frame a part stands by on `face` of a part seated by `part`: z along the normal from its centroid, x turned `spin_deg` from the first axis.
+    pub fn frame(&self, face: &crate::sketch::FaceFrame, part: &brep::Placement) -> brep::Placement {
+        let [along, across] = Self::axes(face, part);
+        let (s, c) = self.spin_deg.to_radians().sin_cos();
+        let x: [f64; 3] = std::array::from_fn(|k| along[k] * c + across[k] * s);
+        let y: [f64; 3] = std::array::from_fn(|k| across[k] * c - along[k] * s);
+        let origin = std::array::from_fn(|k| face.origin[k] + along[k] * self.u_mm + across[k] * self.v_mm + face.normal[k] * self.height_mm);
+        brep::Placement { x_axis: x, y_axis: y, z_axis: face.normal, origin }
+    }
+    /// A seat on planar face `face` of part `c` where `at` projects onto it (its centroid without one), `height_mm` off it, signed in the part's frame.
+    pub fn on(c: &EvaluatedComponent, face: u32, at: Option<[f64; 3]>, height_mm: f64) -> Result<Self> {
+        let body = match &c.made {
+            Some(m) => anyhow::bail!("A stone sits on a kernel part's planar face; #{} {} is {}", c.id, c.name, Value::mesh_words(m)),
+            None => &c.body,
+        };
+        let who = format!("#{} {}", c.id, c.name);
+        let key = body.faces.iter().nth(face as usize).map(|(k, _)| k).ok_or_else(|| anyhow::anyhow!("{who} has no face {face}"))?;
+        let frame = planar_face_frame(body, key, face as usize, &who)?;
+        let [along, across] = Self::axes(&frame, &c.frame);
+        let (u_mm, v_mm) = at.map_or((0.0, 0.0), |p| {
+            let d: [f64; 3] = std::array::from_fn(|k| p[k] - frame.origin[k]);
+            let on = |axis: [f64; 3]| (0..3).map(|k| d[k] * axis[k]).sum::<f64>();
+            (on(along), on(across))
+        });
+        Ok(Self { face: FaceRef::signed(body, face as usize, &c.frame), u_mm, v_mm, height_mm, spin_deg: 0.0 })
+    }
+}
+/// The own frame of face `key` of `body`, face `ordinal` of part `who`, refused by name when it is not planar.
+fn planar_face_frame(body: &Body, key: brep::FaceKey, ordinal: usize, who: &str) -> Result<crate::sketch::FaceFrame> {
+    let kind = SurfaceKind::of(body.faces.get(key).and_then(|f| body.surfaces.get(f.surface)));
+    ensure!(
+        kind == SurfaceKind::Plane,
+        "Face {ordinal} of {who} is a {} face; a stone sits on a planar one",
+        format!("{kind:?}").to_lowercase()
+    );
+    let profile = brep::planar_face_profile(body, key).ok_or_else(|| anyhow::anyhow!("Face {ordinal} of {who} has no boundary the kernel can read"))?;
+    crate::sketch::FaceFrame::of(&profile).with_context(|| format!("Face {ordinal} of {who}"))
+}
+/// The frame a stone standing on `seat` of part `on` takes from that part as built, its face found again by signature.
+fn face_seat_frame(
+    seat: &FaceSeat,
+    on: Id,
+    values: &BTreeMap<Id, Value>,
+    frames: &BTreeMap<Id, brep::Placement>,
+    who: &dyn Fn(Id) -> String,
+    notes: &mut Vec<String>,
+) -> Result<brep::Placement> {
+    let body = match values.get(&on) {
+        Some(Value::Brep(body)) => body,
+        Some(Value::Mesh(m)) => anyhow::bail!("A stone sits on a kernel part's planar face; {} is {}", who(on), Value::mesh_words(m)),
+        None => anyhow::bail!("Source feature #{on} is unavailable or suppressed"),
+    };
+    let frame = frames.get(&on).copied().unwrap_or(brep::Placement::IDENTITY);
+    let key = resolve_face(body, &seat.face, &frame, notes).with_context(|| format!("The face the stone stands on, of {}", who(on)))?;
+    let ordinal = body.faces.iter().position(|(k, _)| k == key).unwrap_or(seat.face.ordinal);
+    Ok(seat.frame(&planar_face_frame(body, key, ordinal, &who(on))?, &frame))
+}
+/// A reference stone feature for `gem` standing on `seat`, a planar face of part `on`.
+pub fn stone_on_face(id: Id, gem: crate::gem::Gem, on: Id, seat: &FaceSeat) -> Feature {
+    let mut f = builders::stone_feature(id, gem, Placement::Free);
+    if let Operation::Builder { on: stands, params, .. } = &mut f.operation {
+        *stands = Some(on);
+        seat.write(params);
+    }
+    f
+}
+#[cfg(test)]
+mod placement_tests {
+    use super::*;
+    use crate::gem::{Gem, GemCut};
+
+    const PLATE: Id = 2;
+    const STONE: Id = 3;
+
+    fn params() -> BuildParams {
+        BuildParams { theta_steps: 256, profile_steps: 128, refine: None, ..BuildParams::default() }
+    }
+    fn gem() -> Gem {
+        Gem::calibrated(GemCut::Round, 3.0)
+    }
+    /// The Court band with a plate of `size` joined at `theta`, and whatever else `more` adds.
+    fn plated(size: [f64; 3], theta: f64, more: Vec<Feature>) -> RingDesign {
+        let mut d = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        let component = Component { attach: Attach::Join, placement: Placement::ring(theta, 0.0), ..Component::default() };
+        doc.append(Feature { id: PLATE, name: "Plate".into(), enabled: true, operation: Operation::Box { size }, component }).unwrap();
+        for f in more {
+            doc.append(f).unwrap();
+        }
+        d.cad = Some(doc);
+        d
+    }
+    fn built(d: &RingDesign) -> crate::mesh::BuildResult {
+        crate::mesh::try_build(d, &AlphaLibrary::builtin(), params()).unwrap()
+    }
+    fn part(b: &crate::mesh::BuildResult, id: Id) -> EvaluatedComponent {
+        b.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == id).unwrap_or_else(|| panic!("#{id}: {:?}", b.parts.notes)).clone()
+    }
+    /// The plate's face whose outward normal points furthest from the finger's axis.
+    fn top(plate: &EvaluatedComponent) -> u32 {
+        let out = |f: u32| {
+            let key = plate.body.faces.iter().nth(f as usize).unwrap().0;
+            planar_face_frame(&plate.body, key, f as usize, "plate").map_or(f64::MIN, |fr| {
+                let r = fr.origin[0].hypot(fr.origin[1]);
+                (fr.normal[0] * fr.origin[0] + fr.normal[1] * fr.origin[1]) / r
+            })
+        };
+        (0..plate.body.faces.len() as u32).max_by(|a, b| out(*a).total_cmp(&out(*b))).unwrap()
+    }
+    fn gap(a: [f64; 3], b: [f64; 3]) -> f64 {
+        (0..3).map(|k| (a[k] - b[k]).powi(2)).sum::<f64>().sqrt()
+    }
+
+    #[test]
+    fn a_stone_on_a_plates_top_rides_the_plate_when_it_moves_or_grows() {
+        let size = [4.0, 6.0, 2.0];
+        let bare = built(&plated(size, 90.0, vec![]));
+        let plate = part(&bare, PLATE);
+        let face = top(&plate);
+        let h = builders::stand_off_mm("claw4", gem());
+        // Seated 0.4 mm round the ring from the face's centre, its girdle the claws' stand-off over it.
+        let key = plate.body.faces.iter().nth(face as usize).unwrap().0;
+        let own = planar_face_frame(&plate.body, key, face as usize, "plate").unwrap();
+        let [_, round] = FaceSeat::axes(&own, &plate.frame);
+        let at: [f64; 3] = std::array::from_fn(|k| own.origin[k] + round[k] * 0.4);
+        let seat = FaceSeat::on(&plate, face, Some(at), h).unwrap();
+        assert!(seat.face.signature.is_some() && seat.u_mm.abs() < 1e-9 && (seat.v_mm - 0.4).abs() < 1e-9, "{seat:?}");
+        let stone = stone_on_face(STONE, gem(), PLATE, &seat);
+        assert_eq!(stone.operation.sources(), vec![PLATE], "the plate is the stone's source, so the funnel and the cache see it");
+        let on = |size, theta| {
+            let b = built(&plated(size, theta, vec![stone.clone()]));
+            assert!(b.report.validation.watertight && b.parts.notes.is_empty(), "{:?} {:?}", b.report.validation, b.parts.notes);
+            assert_eq!((b.parts.joined, b.parts.references), (1, 1));
+            (part(&b, STONE), part(&b, PLATE))
+        };
+        let (s0, p0) = on(size, 90.0);
+        let face0 = planar_face_frame(&p0.body, key, face as usize, "plate").unwrap();
+        let [_, round0] = FaceSeat::axes(&face0, &p0.frame);
+        let expect: [f64; 3] = std::array::from_fn(|k| face0.origin[k] + round0[k] * 0.4 + face0.normal[k] * h);
+        assert!(gap(s0.frame.origin, expect) < 1e-9, "{:?} against {expect:?}", s0.frame.origin);
+        assert!(gap(s0.frame.z_axis, face0.normal) < 1e-12, "the stone's table faces along the face's normal");
+        assert_eq!(s0.made.as_ref().and_then(|m| m.seat).map(|s| s.surface_z), Some(-h), "the metal under the girdle is the face");
+        // The plate moved 25° round the ring carries the stone with it.
+        let (s1, _) = on(size, 65.0);
+        let turn = |p: [f64; 3], deg: f64| {
+            let (s, c) = deg.to_radians().sin_cos();
+            [p[0] * c - p[1] * s, p[0] * s + p[1] * c, p[2]]
+        };
+        // Measured 0.00055 mm: the swept band's facets at the two angles.
+        let rode = gap(s1.frame.origin, turn(s0.frame.origin, -25.0));
+        assert!(rode < 2e-3, "{rode:.5} mm off the plate's own turn");
+        // The plate grown a millimetre about its centre lifts its top, and the stone, half of it.
+        let (s2, _) = on([4.0, 6.0, 3.0], 90.0);
+        let lift: [f64; 3] = std::array::from_fn(|k| s2.frame.origin[k] - s0.frame.origin[k]);
+        assert!(gap(lift, face0.normal.map(|v| v * 0.5)) < 1e-9, "{lift:?}");
+        // Grown across the band past its length, the face's longest edge turns a quarter; the stone keeps its bearing and its place.
+        let (s3, p3) = on([6.5, 6.0, 2.0], 90.0);
+        let face3 = planar_face_frame(&p3.body, key, face as usize, "plate").unwrap();
+        let swing = (0..3).map(|k| face3.x[k] * face0.x[k]).sum::<f64>();
+        assert!(swing.abs() < 1e-9, "the longest edge ran round the ring and now runs across it: {swing}");
+        assert!(gap(s3.frame.x_axis, s0.frame.x_axis) < 1e-9 && gap(s3.frame.origin, s0.frame.origin) < 1e-9, "{:?} against {:?}", s3.frame, s0.frame);
+    }
+
+    #[test]
+    fn claws_round_a_stone_on_a_plate_stand_on_the_plate_not_the_band_under_it() {
+        let size = [4.0, 6.0, 2.0];
+        let plate = part(&built(&plated(size, 90.0, vec![])), PLATE);
+        let h = builders::stand_off_mm("claw4", gem());
+        let seat = FaceSeat::on(&plate, top(&plate), None, h).unwrap();
+        let mut next = 4;
+        let settings = builders::setting_features("claw4", STONE, gem(), false, &mut || {
+            next += 1;
+            next - 1
+        })
+        .unwrap();
+        let mut more = vec![stone_on_face(STONE, gem(), PLATE, &seat)];
+        more.extend(settings);
+        let b = built(&plated(size, 90.0, more));
+        assert!(b.report.validation.watertight, "{:?} {:?}", b.report.validation, b.parts.notes);
+        assert_eq!((b.parts.joined, b.parts.cut, b.parts.references), (2, 1, 1), "{:?}", b.parts.notes);
+        let (stone, head) = (part(&b, STONE), part(&b, 4));
+        assert_eq!(head.frame, stone.frame, "the head stands in its stone's frame");
+        let f = stone.frame;
+        let low = head.trace.positions.iter().map(|p| (0..3).map(|k| (p[k] - f.origin[k]) * f.z_axis[k]).sum::<f64>()).fold(f64::MAX, f64::min);
+        // The feet end 0.90 mm into the plate; read off the band alone they ran through it to 1.70.
+        assert!((low + h + 0.90).abs() < 0.02, "the claws end {low:.3} mm under the girdle, over a plate top at {:.3}", -h);
+    }
+
+    #[test]
+    fn a_ray_down_a_swept_meridian_lands_on_the_near_surface_not_across_the_finger_hole() {
+        // Size 9 on a 256-step sweep: the ray at 90° slipped through the crest seam onto the far side's bore.
+        let mut d = examples::design("claw-solitaire").unwrap();
+        d.size = crate::sizing::RingSize(9.0);
+        let params = BuildParams { theta_steps: 256, profile_steps: 128, refine: None, ..d.build };
+        let band = crate::mesh::try_build_pattern(&d, &AlphaLibrary::builtin(), params).unwrap().band.unwrap();
+        // The pattern's band carries the bench bur's drill mark at 90°, so the crest there stands proud.
+        let (crest, mark) = (d.inner_radius_mm() + d.profile.thickness_mm, 0.3);
+        for theta in [0.0, 90.0, 180.0, 270.0] {
+            let (hit, n) = surface_hit(&band, theta, 0.0).unwrap();
+            let (s, c) = f64::to_radians(theta).sin_cos();
+            let along = hit[0] * c + hit[1] * s;
+            assert!(along > crest - 0.01 && along < crest + mark && n[0] * c + n[1] * s > 0.98, "{theta}°: {hit:?} {n:?} against a crest at {crest:.4}");
+        }
+    }
+
+    #[test]
+    fn a_stone_asks_for_a_planar_face_and_a_free_placement_by_name() {
+        let plate = part(&built(&plated([4.0, 6.0, 2.0], 90.0, vec![])), PLATE);
+        let mut d = plated([4.0, 6.0, 2.0], 90.0, vec![]);
+        let post = Feature { id: 4, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, component: Component { placement: Placement::ring(200.0, 0.5), attach: Attach::Join, ..Component::default() } };
+        d.cad.as_mut().unwrap().append(post).unwrap();
+        let cylinder = part(&built(&d), 4);
+        let side = (0..cylinder.body.faces.len() as u32).find(|f| cylinder.trace.face_kind[*f as usize] == SurfaceKind::Cylinder).unwrap();
+        let refused = FaceSeat::on(&cylinder, side, None, 1.0).unwrap_err().to_string();
+        assert_eq!(refused, format!("Face {side} of #4 Post is a cylinder face; a stone sits on a planar one"));
+        let seat = FaceSeat::on(&plate, top(&plate), None, 1.0).unwrap();
+        let mut stone = stone_on_face(STONE, gem(), PLATE, &seat);
+        stone.component.placement = Placement::ring(90.0, 1.0);
+        let e = evaluate(&plated([4.0, 6.0, 2.0], 90.0, vec![stone]), &AlphaLibrary::builtin(), params()).unwrap();
+        assert_eq!(e.first_error().unwrap(), "Feature #3 — Round 3 mm: A stone on a face of #2 Plate stands where that face is; its placement stays free");
+        // A seat reads back from the parameters it was written into, and a malformed one is refused.
+        let mut params = builders::stone_params(gem());
+        seat.write(&mut params);
+        assert_eq!(FaceSeat::of(&params).unwrap(), Some(seat));
+        params[FaceSeat::KEY]["u_mm"] = serde_json::json!(f64::NAN.to_string());
+        assert!(FaceSeat::of(&params).is_err());
+    }
+
+    #[test]
+    fn a_bare_seat_is_signed_at_commit_in_the_frame_its_part_was_seated_by() {
+        let b = built(&plated([4.0, 6.0, 2.0], 90.0, vec![]));
+        let plate = part(&b, PLATE);
+        let signed = FaceSeat::on(&plate, top(&plate), None, 1.0).unwrap();
+        let bare = FaceSeat { face: FaceRef::bare(signed.face.ordinal), ..signed.clone() };
+        let mut op = stone_on_face(STONE, gem(), PLATE, &bare).operation;
+        let e = b.parts.evaluated.as_ref().unwrap();
+        assert_eq!(sign_refs(&mut op, e), 1);
+        let Operation::Builder { params, .. } = &op else { unreachable!() };
+        assert_eq!(FaceSeat::of(params).unwrap(), Some(signed));
+        assert_eq!(sign_refs(&mut op, e), 0, "a signed seat is left as it is");
+    }
+}
 /// Where a radial ray in the finger's plane at `theta_deg`, `z = across_mm`, first meets the
 /// surface from outside, with the smooth outward normal there (the face's own when the mesh
 /// carries no vertex normals). A ray exactly on the crest loop slips between the faces that
@@ -496,8 +789,9 @@ pub fn surface_hit(mesh: &Mesh, theta_deg: f64, across_mm: f64) -> Option<([f64;
     let far = (lo.0.abs().max(hi.0.abs()) as f64).hypot(lo.1.abs().max(hi.1.abs()) as f64) + 1.0;
     let (sin, cos) = theta_deg.to_radians().sin_cos();
     let direction = [(-cos) as f32, (-sin) as f32, 0.0];
-    for dz in [1e-4, -1e-4, 0.0, 1e-3, -1e-3] {
-        let origin = [(far * cos) as f32, (far * sin) as f32, (across_mm + dz) as f32];
+    // Rays along a swept meridian can slip between its faces, so the last tries step off it sideways.
+    for (dz, side) in [(1e-4, 0.0), (-1e-4, 0.0), (0.0, 0.0), (1e-3, 0.0), (-1e-3, 0.0), (1e-4, 1e-4), (-1e-4, -1e-4), (1e-3, -1e-3)] {
+        let origin = [(far * cos - side * sin) as f32, (far * sin + side * cos) as f32, (across_mm + dz) as f32];
         let Some((face, p)) = crate::interaction::picking::raycast(mesh, origin, direction) else {
             continue;
         };
@@ -508,6 +802,10 @@ pub fn surface_hit(mesh: &Mesh, theta_deg: f64, across_mm: f64) -> Option<([f64;
             continue;
         }
         let p = p.map(f64::from);
+        // A hit past the finger's axis came through the surface at theta, not onto it.
+        if p[0] * cos + p[1] * sin <= 0.0 {
+            continue;
+        }
         let mut n = facet;
         if mesh.normals.len() == mesh.vertices.len() {
             // Barycentric weights of the hit in its triangle.
@@ -853,6 +1151,16 @@ pub fn sign_refs(op: &mut Operation, e: &Evaluated) -> usize {
     }
     for anchor in anchors {
         signed += face(&mut anchor.face, anchor.feature);
+    }
+    // A stone's seat names a face of the part its builder stands on.
+    if let Operation::Builder { on: Some(part), params, .. } = op {
+        if let Ok(Some(mut seat)) = FaceSeat::of(params) {
+            let n = face(&mut seat.face, *part);
+            if n > 0 {
+                seat.write(params);
+            }
+            signed += n;
+        }
     }
     signed
 }
@@ -1930,7 +2238,7 @@ fn build_feature(
     scope: &Scope,
 ) -> Result<Built> {
     if let Operation::Builder { key, on, params: settings } = &f.operation {
-        return build_made(f, key, *on, settings, design, ctx, values, frames, who);
+        return build_made(f, key, *on, settings, design, ctx, values, frames, who, scope.doc);
     }
     if let Operation::Pattern { source, kind } = &f.operation {
         return pattern::build(f, *source, kind, design, ctx, values, frames, who, scope);
@@ -2081,12 +2389,17 @@ impl Ground {
 
 /// Where the metal is under a stone in `frame`, and how far a pilot runs from its girdle past the bore.
 fn seat_at(frame: &brep::Placement, placement: &Placement, design: &RingDesign, surface: Option<&Mesh>) -> builders::Seat {
-    let (o, z) = (frame.origin, frame.z_axis);
     let dropped = surface.and_then(|mesh| Ground::new(mesh, frame, 1.0, -PROBE_ABOVE_MM).floor([0.0, 0.0]));
     let surface_z = dropped.unwrap_or(match placement {
         Placement::Ring { height_mm, .. } => -height_mm,
         Placement::Free => 0.0,
     });
+    seat_over(frame, surface_z, design)
+}
+
+/// A stone in `frame` over metal `surface_z` down its axis, and how far a pilot runs from its girdle past the bore.
+fn seat_over(frame: &brep::Placement, surface_z: f64, design: &RingDesign) -> builders::Seat {
+    let (o, z) = (frame.origin, frame.z_axis);
     let s: [f64; 3] = std::array::from_fn(|k| o[k] + z[k] * surface_z);
     let r = s[0].hypot(s[1]);
     let outward = if r > 1e-9 { (z[0] * s[0] + z[1] * s[1]) / r } else { 0.0 };
@@ -2094,7 +2407,14 @@ fn seat_at(frame: &brep::Placement, placement: &Placement, design: &RingDesign, 
     builders::Seat { surface_z, through_mm }
 }
 
-/// A builder's part: a stone seated by its own placement, or a setting made in the frame of the stone it stands on.
+/// The part stone `stone` sits on a face of, tessellated where it stands.
+fn stood_on(doc: &Document, stone: Id, values: &BTreeMap<Id, Value>) -> Option<Mesh> {
+    let Operation::Builder { on: Some(part), .. } = &doc.feature(stone)?.operation else { return None };
+    tessellate(values.get(part)?.brep()?, 0.04).ok()
+}
+
+/// A builder's part: a stone seated by its own placement or on a part's face, or a setting made in the frame of the stone it stands on.
+#[allow(clippy::too_many_arguments)]
 fn build_made(
     f: &Feature,
     key: &str,
@@ -2105,10 +2425,12 @@ fn build_made(
     values: &BTreeMap<Id, Value>,
     frames: &BTreeMap<Id, brep::Placement>,
     who: &dyn Fn(Id) -> String,
+    doc: &Document,
 ) -> Result<Built> {
     let spec = builders::spec(key).ok_or_else(|| {
         anyhow::anyhow!("No builder called {key}; choose {}", builders::SPECS.iter().map(|s| s.key).collect::<Vec<_>>().join(", "))
     })?;
+    let mut notes = Vec::new();
     let (gem, frame, seat) = if spec.on_stone {
         let stone = on.ok_or_else(|| anyhow::anyhow!("{} is built round a stone; choose the stone it stands on", spec.label))?;
         ensure!(f.component.placement == Placement::Free, "{} stands in its stone's frame; move the stone to move it", spec.label);
@@ -2119,8 +2441,13 @@ fn build_made(
         };
         let gem = made.gem.ok_or_else(|| anyhow::anyhow!("{} carries no gem", who(stone)))?;
         (gem, frames.get(&stone).copied().unwrap_or(brep::Placement::IDENTITY), made.seat.unwrap_or_default())
+    } else if let Some(part) = on {
+        let gem = builders::gem_of(settings)?;
+        ensure!(f.component.placement == Placement::Free, "A stone on a face of {} stands where that face is; its placement stays free", who(part));
+        let seat = FaceSeat::of(settings)?.ok_or_else(|| anyhow::anyhow!("A stone standing on {} names no face of it to sit on", who(part)))?;
+        let frame = face_seat_frame(&seat, part, values, frames, who, &mut notes)?;
+        (gem, frame, seat_over(&frame, -seat.height_mm, design))
     } else {
-        ensure!(on.is_none(), "A stone stands on the ring, not on another part");
         let gem = builders::gem_of(settings)?;
         let frame = match &f.component.placement {
             Placement::Free => brep::Placement::IDENTITY,
@@ -2128,15 +2455,17 @@ fn build_made(
         };
         (gem, frame, seat_at(&frame, &f.component.placement, design, ctx.surface))
     };
-    // Claws and a bezel's wall reach the metal wherever they stand, read off the surface round the stone's axis.
-    let ground = match (spec.on_stone, ctx.surface) {
-        (true, Some(mesh)) => Some(Ground::new(mesh, &frame, gem.l_mm.max(gem.w_mm) * 0.5 + 3.0, seat.surface_z - PROBE_BELOW_MM)),
-        _ => None,
-    };
-    let probe = |p: [f64; 2]| ground.as_ref().and_then(|g| g.floor(p));
-    let floor: Option<crate::setting::Floor> = ground.as_ref().filter(|g| !g.faces.is_empty()).map(|_| &probe as crate::setting::Floor);
+    // Claws and a bezel's wall reach the metal wherever they stand: the band, and the part their stone sits on.
+    let (reach, below) = (gem.l_mm.max(gem.w_mm) * 0.5 + 3.0, seat.surface_z - PROBE_BELOW_MM);
+    let mut grounds = Vec::new();
+    if spec.on_stone {
+        grounds.extend(ctx.surface.map(|mesh| Ground::new(mesh, &frame, reach, below)));
+        grounds.extend(on.and_then(|stone| stood_on(doc, stone, values)).map(|mesh| Ground::new(&mesh, &frame, reach, below)));
+    }
+    let probe = |p: [f64; 2]| grounds.iter().filter_map(|g| g.floor(p)).reduce(f64::max);
+    let floor: Option<crate::setting::Floor> = grounds.iter().any(|g| !g.faces.is_empty()).then_some(&probe as crate::setting::Floor);
     let made = builders::build(key, gem, settings, seat, floor)?;
-    Ok(Built { value: Value::Mesh(Arc::new(made.placed(&frame))), frame: Some(frame), attach: None, notes: Vec::new() })
+    Ok(Built { value: Value::Mesh(Arc::new(made.placed(&frame))), frame: Some(frame), attach: None, notes })
 }
 
 pub fn evaluate(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<Evaluated> {

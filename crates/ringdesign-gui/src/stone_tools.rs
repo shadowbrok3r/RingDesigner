@@ -2,8 +2,9 @@
 use crate::app::RingDesignerApp;
 use ringdesign_core::{
     RingDesign,
-    cad::{Component, ComponentRole, Feature, Operation, Placement, builders, edit::CadEdit},
+    cad::{self, Component, ComponentRole, FaceSeat, Feature, Operation, Placement, builders, edit::CadEdit},
     gem::Gem,
+    interaction::pick::Entity,
     sketch::Id,
 };
 use ringdesign_workbench::viewport::{Sel, selection::Mods};
@@ -57,8 +58,8 @@ pub fn setting(app: &mut RingDesignerApp, part: Option<u64>, stone: Option<Vec<u
     let mut edits = Vec::new();
     let (stone_id, gem) = match (part, stone) {
         (Some(id), _) => match stone_part(&app.design, id, key) {
-            Ok((gem, placement)) => {
-                edits.extend(placement.map(|placement| CadEdit::Placement { id, placement }));
+            Ok((gem, held)) => {
+                edits.extend(held);
                 (id, gem)
             }
             Err(why) => {
@@ -94,8 +95,8 @@ pub fn setting(app: &mut RingDesignerApp, part: Option<u64>, stone: Option<Vec<u
     }
 }
 
-/// The gem of stone part `id`, and the placement that stands it where setting `key` holds it when it stands on the ring.
-fn stone_part(design: &RingDesign, id: Id, key: &str) -> Result<(Gem, Option<Placement>), String> {
+/// The gem of stone part `id`, and the edit that stands it where setting `key` holds it, on the ring or on a part's face.
+fn stone_part(design: &RingDesign, id: Id, key: &str) -> Result<(Gem, Option<CadEdit>), String> {
     let f = design.cad.as_ref().and_then(|d| d.feature(id)).ok_or_else(|| format!("No part #{id}"))?;
     let Operation::Builder { key: builder, params, .. } = &f.operation else {
         return Err(format!("#{id} {} is not a stone", f.name));
@@ -104,14 +105,22 @@ fn stone_part(design: &RingDesign, id: Id, key: &str) -> Result<(Gem, Option<Pla
         return Err(format!("#{id} {} is not a stone", f.name));
     }
     let gem = builders::gem_of(params).map_err(|e| format!("{e:#}"))?;
-    let placement = match f.component.placement.clone() {
-        Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } => {
-            let held = builders::stand_off_mm(key, gem);
-            ((held - height_mm).abs() > 1e-9).then_some(Placement::Ring { theta_deg, across_mm, height_mm: held, spin_deg, tilt_deg, cant_deg })
-        }
-        Placement::Free => None,
+    let held = builders::stand_off_mm(key, gem);
+    let edit = match f.component.placement.clone() {
+        Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } => ((held - height_mm).abs() > 1e-9)
+            .then_some(CadEdit::Placement { id, placement: Placement::Ring { theta_deg, across_mm, height_mm: held, spin_deg, tilt_deg, cant_deg } }),
+        Placement::Free => match FaceSeat::of(params).map_err(|e| format!("{e:#}"))? {
+            Some(seat) if (held - seat.height_mm).abs() > 1e-9 => {
+                let mut operation = f.operation.clone();
+                if let Operation::Builder { params, .. } = &mut operation {
+                    FaceSeat { height_mm: held, ..seat }.write(params);
+                }
+                Some(CadEdit::Operation { id, operation })
+            }
+            _ => None,
+        },
     };
-    Ok((gem, placement))
+    Ok((gem, edit))
 }
 
 /// A height-field stone as a ring placement at its own girdle frame, read against the ring as last built, and its gem.
@@ -127,7 +136,29 @@ fn seat_stone(app: &RingDesignerApp, path: &[usize]) -> Option<(Placement, Gem)>
     Some((Placement::Ring { theta_deg: st.theta_deg, across_mm, height_mm, spin_deg: st.rot_deg(), tilt_deg: 0.0, cant_deg: 0.0 }, st.gem))
 }
 
-/// Seats a reference stone named by `key` on a planar face of a part.
-pub fn add_stone_on_face(app: &mut RingDesignerApp, _feature: u64, _face: u32, _key: &'static str) {
-    app.set_status("Stones on a part's face arrive with M13");
+/// Seats a reference stone named by `key` on planar face `face` of part `feature`, where the right-click landed on it.
+pub fn add_stone_on_face(app: &mut RingDesignerApp, feature: u64, face: u32, key: &'static str) {
+    let Some(preset) = builders::stone_preset(key) else {
+        app.set_status(format!("No stone called {key}"));
+        return;
+    };
+    let gem = preset.gem();
+    let part = app.build.as_ref().and_then(|b| b.parts.evaluated.as_ref()).and_then(|e| e.components.iter().find(|c| c.id == feature)).cloned();
+    let Some(part) = part else {
+        app.set_status(format!("Part #{feature} is not in the ring as built yet"));
+        return;
+    };
+    let at = app.selection.under.as_ref().filter(|p| p.entity == Entity::Face { feature, face }).map(|p| p.world);
+    let seat = match FaceSeat::on(&part, face, at, builders::stand_off_mm("claw4", gem)) {
+        Ok(seat) => seat,
+        Err(e) => {
+            app.set_status(format!("{e:#}"));
+            return;
+        }
+    };
+    let id = fresh_ids(&app.design)();
+    let edits = [CadEdit::Add { feature: cad::stone_on_face(id, gem, feature, &seat), after: None }];
+    if crate::cad_edit::apply(app, &edits).is_ok() {
+        app.selection.click(Some(Sel::Part(id)), Mods::default());
+    }
 }
