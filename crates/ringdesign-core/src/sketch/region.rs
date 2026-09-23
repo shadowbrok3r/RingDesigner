@@ -2,6 +2,7 @@
 use super::{Id, Sketch};
 use anyhow::{Result, bail, ensure};
 use cadkernel::geom2d::{self, Arc, Curve, Tolerance};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::f64::consts::{PI, TAU};
 
@@ -41,7 +42,52 @@ pub struct Region {
     pub holes: Vec<Vec<Curve>>,
     /// The entities bounding it, outer loop first, each once.
     pub entities: Vec<Id>,
+    /// How many of `entities` run round the outer loop.
+    pub rim: usize,
 }
+
+/// One region of a sketch, named so it survives edits: the region whose outer loop runs through
+/// `entity`, else the one holding `at`. An entity outlives a dimension that moves or resizes its
+/// loop, and the point outlives an entity trimmed away and redrawn; a loop that has become a
+/// hole matches neither, and is refused rather than taken for the region round it.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct RegionRef {
+    /// An entity on the region's outer loop.
+    pub entity: Id,
+    /// A point inside the region, in the sketch's own coordinates.
+    pub at: [f64; 2],
+}
+
+impl RegionRef {
+    /// The name of `region` with `at` inside it: its outer loop's first entity and that point.
+    pub fn at(region: &Region, at: [f64; 2]) -> Option<Self> {
+        (region.contains(at) && region.rim > 0).then(|| Self { entity: region.entities[0], at })
+    }
+    /// The name of `region` with a point well inside it.
+    pub fn of(region: &Region) -> Option<Self> {
+        Self::at(region, region.inside()?)
+    }
+    /// Which of `regions` this names, and whether only its point found it.
+    pub fn position(&self, regions: &[Region]) -> Option<(usize, bool)> {
+        if let Some(i) = regions.iter().position(|r| r.entities[..r.rim].contains(&self.entity)) {
+            return Some((i, false));
+        }
+        regions.iter().position(|r| r.contains(self.at)).map(|i| (i, true))
+    }
+    /// The region of `regions` this names, and a note when only its point found it.
+    pub fn find(&self, mut regions: Vec<Region>) -> Result<(Region, Option<String>)> {
+        let [x, y] = self.at;
+        match self.position(&regions) {
+            Some((i, false)) => Ok((regions.swap_remove(i), None)),
+            Some((i, true)) => {
+                let note = format!("Region found again by its point ({x:.3}, {y:.3}): #{} no longer runs round one", self.entity);
+                Ok((regions.swap_remove(i), Some(note)))
+            }
+            None => bail!("No region of the sketch runs round #{} or holds ({x:.3}, {y:.3}); pick the region again", self.entity),
+        }
+    }
+}
+
 impl Region {
     /// Every loop, outer first, as the kernel's region builders take them.
     pub fn loops(&self) -> Vec<Vec<Curve>> {
@@ -66,6 +112,10 @@ impl Sketch {
     /// touch are refused with the place they meet.
     pub fn profile_regions(&self) -> Result<Vec<Region>> {
         regions(loops(&self.solve()?.sketch)?)
+    }
+    /// The region `pick` names among the solved profile's, and a note when only its point found it.
+    pub fn region_of(&self, pick: &RegionRef) -> Result<(Region, Option<String>)> {
+        pick.find(self.profile_regions()?)
     }
     /// The one region an inline profile sweeps, holes allowed.
     pub fn profile_region(&self) -> Result<Region> {
@@ -320,7 +370,8 @@ pub(super) fn regions(loops: Vec<Loop>) -> Result<Vec<Region>> {
     let mut index = vec![usize::MAX; n];
     for i in (0..n).filter(|i| depth[*i] % 2 == 0) {
         index[i] = out.len();
-        out.push(Region { outer: loops[i].curves.clone(), holes: Vec::new(), entities: distinct(loops[i].entities.clone()) });
+        let entities = distinct(loops[i].entities.clone());
+        out.push(Region { outer: loops[i].curves.clone(), holes: Vec::new(), rim: entities.len(), entities });
     }
     for i in (0..n).filter(|i| depth[*i] % 2 == 1) {
         let parent = parents[i].iter().copied().find(|j| depth[*j] + 1 == depth[i]);
@@ -449,6 +500,103 @@ fn arc_moments(c: [f64; 2], r: f64, a0: f64, s: f64) -> [f64; 3] {
 mod tests {
     use super::*;
     use crate::sketch::{Geometry, Sketch};
+
+    /// Two held rectangles on the section plane: 2 x 2 at x 5..7, 3 x 3 at x 10..13; their bottoms.
+    fn two_rectangles() -> (Sketch, Id, Id) {
+        let mut s = Sketch { plane: crate::sketch::Workplane::section(), ..Sketch::default() };
+        let a = s.add_rectangle([5.0, 0.0], [7.0, 2.0], false).unwrap();
+        let b = s.add_rectangle([10.0, 0.0], [13.0, 3.0], false).unwrap();
+        (s, a[0], b[0])
+    }
+
+    #[test]
+    fn a_region_is_named_by_its_rim_and_found_again_by_its_point_never_by_the_loop_round_it() {
+        let (mut s, a, b) = two_rectangles();
+        let regions = s.profile_regions().unwrap();
+        let of = |regions: &[Region], e: Id| regions.iter().find(|r| r.entities.contains(&e)).cloned().unwrap();
+        let (left, right) = (of(&regions, a), of(&regions, b));
+        let pick = RegionRef::of(&right).unwrap();
+        assert!(right.entities[..right.rim].contains(&pick.entity) && right.contains(pick.at) && !left.contains(pick.at));
+        assert!(RegionRef::at(&right, [6.0, 1.0]).is_none(), "a point outside is no name for it");
+        // Moved clear of its point, the region is still the one its rim names.
+        let corners: Vec<Id> = s.entities.iter().filter(|e| right.entities.contains(&e.id)).flat_map(|e| e.geometry.points()).collect();
+        let shift = |s: &mut Sketch, dx: f64| s.points.iter_mut().filter(|p| corners.contains(&p.id)).for_each(|p| p.xy[0] += dx);
+        shift(&mut s, 10.0);
+        let (found, note) = s.region_of(&pick).unwrap();
+        assert!(note.is_none() && (found.area() - 9.0).abs() < 1e-9 && found.contains([21.5, 1.5]));
+        // Its bottom redrawn as a new line: the rim no longer names it and the point is not in it, so it is refused.
+        let (p, q) = match s.entities.iter().find(|e| e.id == b).unwrap().geometry { Geometry::Line { a, b } => (a, b), _ => unreachable!() };
+        s.remove_entity(b);
+        let redrawn = s.add_line(p, q, false).unwrap();
+        assert_ne!(redrawn, b);
+        let e = s.region_of(&pick).unwrap_err().to_string();
+        assert!(e.contains(&format!("runs round #{b}")) && e.contains("pick the region again"), "{e}");
+        // Moved back over its point, it is found again, and says how.
+        shift(&mut s, -10.0);
+        let (found, note) = s.region_of(&pick).unwrap();
+        assert!((found.area() - 9.0).abs() < 1e-9 && found.entities.contains(&redrawn));
+        assert!(note.unwrap().contains("found again by its point"));
+        // A loop drawn round the left rectangle makes it a hole: neither its rim nor its point names a region now.
+        let left_pick = RegionRef::of(&left).unwrap();
+        s.add_rectangle([4.0, -1.0], [8.0, 3.0], false).unwrap();
+        let e = s.region_of(&left_pick).unwrap_err().to_string();
+        assert!(e.contains("No region of the sketch"), "{e}");
+        // The profile that carries a pick reads and writes as its own shape, and older shapes read as before.
+        use crate::cad::Profile;
+        let profile = Profile::Region { feature: 3, region: pick };
+        let json = serde_json::to_value(&profile).unwrap();
+        assert_eq!(json, serde_json::json!({ "feature": 3, "region": { "entity": pick.entity, "at": pick.at } }));
+        assert_eq!(serde_json::from_value::<Profile>(json).unwrap(), profile);
+        assert_eq!(serde_json::from_value::<Profile>(serde_json::json!({ "feature": 3 })).unwrap(), Profile::Feature { feature: 3 });
+        let inline = serde_json::to_value(Sketch::rectangle(2.0, 1.0)).unwrap();
+        assert!(matches!(serde_json::from_value::<Profile>(inline).unwrap(), Profile::Inline(_)));
+    }
+
+    #[test]
+    fn one_region_of_several_extrudes_or_revolves_alone() {
+        use crate::cad::{Component, Document, Feature, FeatureStatus, Operation, Profile, evaluate};
+        use crate::{AlphaLibrary, BuildParams, RingDesign};
+        let (s, a, b) = two_rectangles();
+        let regions = s.profile_regions().unwrap();
+        let pick = |e: Id| RegionRef::of(regions.iter().find(|r| r.entities.contains(&e)).unwrap()).unwrap();
+        let feature = |id, operation| Feature { id, name: format!("#{id}"), enabled: true, operation, component: Component::default() };
+        let design = |sketch: &Sketch, operation: Operation| {
+            let mut doc = Document::default();
+            doc.append(feature(1, Operation::Sketch { sketch: sketch.clone() })).unwrap();
+            doc.append(feature(2, operation)).unwrap();
+            RingDesign { cad: Some(doc), ..RingDesign::default() }
+        };
+        let (lib, params) = (AlphaLibrary::builtin(), BuildParams::default());
+        let extrude = |from: Profile| Operation::Extrude { sketch: from, height_mm: 1.5, draft_deg: 0.0 };
+        // The whole sketch is two lumps; the right region alone is one, its own area times the height.
+        for (from, lumps, volume) in [(Profile::Feature { feature: 1 }, 2, (4.0 + 9.0) * 1.5), (Profile::Region { feature: 1, region: pick(b) }, 1, 9.0 * 1.5)] {
+            let e = evaluate(&design(&s, extrude(from)), &lib, params).unwrap();
+            assert!(e.failures().is_empty(), "{:?}", e.failures());
+            let c = &e.components[0];
+            assert!(c.mesh.validate().watertight && c.body.roots.len() == lumps);
+            assert!((c.mesh.volume_mm3() - volume).abs() < 1e-6, "{} against {volume}", c.mesh.volume_mm3());
+        }
+        // The left region turned a full turn about the finger's axis: a washer 5 to 7 mm out, 2 mm tall.
+        let turn = Operation::Revolve { sketch: Profile::Region { feature: 1, region: pick(a) }, pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0 };
+        let e = evaluate(&design(&s, turn), &lib, params).unwrap();
+        assert!(e.failures().is_empty(), "{:?}", e.failures());
+        let expected = std::f64::consts::PI * (49.0 - 25.0) * 2.0;
+        let v = e.components[0].mesh.volume_mm3();
+        assert!((v / expected - 1.0).abs() < 0.005, "{v} against {expected}");
+        // Its rim redrawn, the region is found by its point and the feature says so; made a hole, the feature fails by name.
+        let mut redrawn = s.clone();
+        let (p, q) = match redrawn.entities.iter().find(|e| e.id == b).unwrap().geometry { Geometry::Line { a, b } => (a, b), _ => unreachable!() };
+        redrawn.remove_entity(b);
+        redrawn.add_line(p, q, false).unwrap();
+        let e = evaluate(&design(&redrawn, extrude(Profile::Region { feature: 1, region: pick(b) })), &lib, params).unwrap();
+        let report = e.features.iter().find(|f| f.id == 2).unwrap();
+        assert!(report.status.is_ok() && report.notes.iter().any(|n| n.contains("Sketch #1: Region found again by its point")), "{:?}", report.notes);
+        let mut holed = s.clone();
+        holed.add_rectangle([9.0, -1.0], [14.0, 4.0], false).unwrap();
+        let e = evaluate(&design(&holed, extrude(Profile::Region { feature: 1, region: pick(b) })), &lib, params).unwrap();
+        let status = &e.features.iter().find(|f| f.id == 2).unwrap().status;
+        assert!(matches!(status, FeatureStatus::Failed(m) if m.contains("Sketch #1") && m.contains("pick the region again")), "{status:?}");
+    }
 
     fn square(s: &mut Sketch, lo: [f64; 2], side: f64) -> Id {
         let p = [lo, [lo[0] + side, lo[1]], [lo[0] + side, lo[1] + side], [lo[0], lo[1] + side]].map(|p| s.point(p));

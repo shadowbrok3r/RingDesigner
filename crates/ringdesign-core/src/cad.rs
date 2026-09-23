@@ -111,10 +111,14 @@ pub enum Operation {
         params: serde_json::Value,
     },
 }
-/// The closed profile a feature sweeps: drawn in the feature, or a `Sketch` feature named by id.
+/// The closed profile a feature sweeps: drawn in the feature, a `Sketch` feature named by id, or
+/// one region of it. Untagged, so a region (`feature` and `region` keys) is tried before a whole
+/// sketch (`feature` alone), and every file written before regions reads as it always did.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum Profile {
+    /// One region of a `Sketch` feature; extrude and revolve sweep it alone.
+    Region { feature: Id, region: crate::sketch::RegionRef },
     Feature { feature: Id },
     Inline(Sketch),
 }
@@ -126,20 +130,27 @@ impl From<Sketch> for Profile {
 impl Profile {
     pub fn feature(&self) -> Option<Id> {
         match self {
-            Self::Feature { feature } => Some(*feature),
+            Self::Feature { feature } | Self::Region { feature, .. } => Some(*feature),
             Self::Inline(_) => None,
+        }
+    }
+    /// The one region this profile names, when it names one.
+    pub fn region(&self) -> Option<&crate::sketch::RegionRef> {
+        match self {
+            Self::Region { region, .. } => Some(region),
+            _ => None,
         }
     }
     pub fn sketch_mut(&mut self) -> Option<&mut Sketch> {
         match self {
             Self::Inline(sketch) => Some(sketch),
-            Self::Feature { .. } => None,
+            Self::Feature { .. } | Self::Region { .. } => None,
         }
     }
     /// The features this profile reads: the sketch it names, or the face its own plane sits on.
     pub fn dependencies(&self) -> Vec<Id> {
         match self {
-            Self::Feature { feature } => vec![*feature],
+            Self::Feature { feature } | Self::Region { feature, .. } => vec![*feature],
             Self::Inline(sketch) => sketch.plane.on_face.iter().map(|a| a.feature).collect(),
         }
     }
@@ -1085,7 +1096,7 @@ fn rotate_place(translation: [f64; 3], degrees: [f64; 3]) -> Result<brep::Placem
 fn profile<'a>(p: &'a Profile, sketches: &'a BTreeMap<Id, Sketch>) -> Result<&'a Sketch> {
     match p {
         Profile::Inline(sketch) => Ok(sketch),
-        Profile::Feature { feature } => sketches
+        Profile::Feature { feature } | Profile::Region { feature, .. } => sketches
             .get(feature)
             .ok_or_else(|| anyhow::anyhow!("Sketch feature #{feature} is unavailable or suppressed")),
     }
@@ -1154,10 +1165,16 @@ fn laid(
     out.plane = crate::sketch::Workplane { origin: plane.origin, x: plane.x_axis, y: plane.y_axis, on_face: None };
     Ok(out)
 }
-/// The regions a profile sweeps: every one a `Sketch` feature holds, the single one of an inline sketch.
-fn regions_of(p: &Profile, sketch: &Sketch) -> Result<Vec<crate::sketch::Region>> {
+/// The regions a profile sweeps: every one a `Sketch` feature holds, the one it names, or the
+/// single one of an inline sketch; a region found again only by its point says so in `notes`.
+fn regions_of(p: &Profile, sketch: &Sketch, notes: &mut Vec<String>) -> Result<Vec<crate::sketch::Region>> {
     match p {
         Profile::Feature { .. } => sketch.profile_regions(),
+        Profile::Region { feature, region } => {
+            let (found, note) = sketch.region_of(region).with_context(|| format!("Sketch #{feature}"))?;
+            notes.extend(note.map(|n| format!("Sketch #{feature}: {n}")));
+            Ok(vec![found])
+        }
         Profile::Inline(_) => Ok(vec![sketch.profile_region()?]),
     }
 }
@@ -1314,7 +1331,7 @@ fn body_for(
             );
             crate::sketch::solid::extrude(
                 p,
-                &regions_of(from, sketch)?,
+                &regions_of(from, sketch, notes)?,
                 p.normal().unwrap().map(|v| v * h),
                 draft_deg.to_radians(),
             )
@@ -1334,7 +1351,7 @@ fn body_for(
             let sketch = profile(from, sketches)?;
             crate::sketch::solid::revolve(
                 plane_of(sketch, values, frames, notes)?,
-                &regions_of(from, sketch)?,
+                &regions_of(from, sketch, notes)?,
                 *pivot,
                 *axis,
                 degrees.to_radians(),

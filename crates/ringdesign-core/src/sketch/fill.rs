@@ -103,6 +103,15 @@ impl Region {
     pub fn triangles(&self, chord_mm: f64) -> Vec<[[f64; 2]; 3]> {
         triangulate(&self.polygons(chord_mm))
     }
+    /// A point well inside the region: the centroid of its largest fill triangle.
+    pub fn inside(&self) -> Option<[f64; 2]> {
+        let start = self.outer.first()?.point_at(0.0);
+        let reach = self.outer.iter().flat_map(|c| [c.point_at(0.0), c.point_at(0.5)]).fold(0.0_f64, |m, p| m.max(distance(p, start)));
+        let area = |t: &[[f64; 2]; 3]| ((t[1][0] - t[0][0]) * (t[2][1] - t[0][1]) - (t[2][0] - t[0][0]) * (t[1][1] - t[0][1])).abs();
+        let biggest = self.triangles((reach * 1e-3).max(1e-4)).into_iter().max_by(|a, b| area(a).total_cmp(&area(b)))?;
+        let c = [(biggest[0][0] + biggest[1][0] + biggest[2][0]) / 3.0, (biggest[0][1] + biggest[1][1] + biggest[2][1]) / 3.0];
+        self.contains(c).then_some(c)
+    }
 }
 
 /// The world boundary loops of the face of `body` lying in `plane` and facing its way, preferring one holding its origin.

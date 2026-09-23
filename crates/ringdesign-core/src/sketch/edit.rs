@@ -10,7 +10,7 @@ use std::f64::consts::TAU;
 
 /// Positions within this of each other are one point.
 const SAME_MM: f64 = 1e-7;
-/// Most copies one pattern lays down; the sketch's own 512-entity cap still applies after.
+/// Most copies one pattern lays down; the sketch's own [`super::MAX_ITEMS`] cap still applies after.
 const MAX_COPIES: usize = 511;
 
 type V = [f64; 2];

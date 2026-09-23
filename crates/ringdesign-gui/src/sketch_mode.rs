@@ -2,7 +2,7 @@
 use egui::{Color32, Event, EventFilter, Id, Key, KeyboardShortcut, Modifiers, Pos2, Rect, Stroke};
 use ringdesign_core::cad::edit::CadEdit;
 use ringdesign_core::cad::{self, Attach, Component, Feature, Operation, Profile};
-use ringdesign_core::sketch::{Region, Sketch, Workplane, anchor, fill};
+use ringdesign_core::sketch::{Region, RegionRef, Sketch, Workplane, anchor, fill};
 use ringdesign_workbench::command::{DimEvent, Dimension, DimensionBar, Unit};
 use ringdesign_workbench::icons::Icon;
 use ringdesign_workbench::sketch_tools::{self, Escaped, Input, Outcome, Snap, SnapCache, Tool, Tools, Underlay};
@@ -123,8 +123,11 @@ struct Live {
     pointer: Option<(Pos2, [f64; 2], Option<Snap>)>,
     anchor: Option<Pos2>,
     hovered: Option<usize>,
-    /// The region under the last right-click.
+    /// The region under the last right-click, and where on the plane the click landed.
     menu_region: Option<usize>,
+    menu_at: Option<[f64; 2]>,
+    /// The one region the solid being set up sweeps; `None` sweeps every region.
+    region_pick: Option<RegionRef>,
     solid: Option<SolidStep>,
     solid_typed: Vec<(&'static str, f64)>,
     asking: bool,
@@ -156,11 +159,19 @@ impl Live {
         }
     }
     fn prompt(&self) -> String {
+        let what = if self.region_pick.is_some() { " this region" } else { "" };
         match &self.solid {
-            Some(SolidStep::Extrude) => "Extrude: type the height and draft; Enter makes it, Escape puts it away".into(),
-            Some(SolidStep::PickAxis) => "Revolve: click a line of the sketch, or one of its axes, to turn about".into(),
-            Some(SolidStep::Revolve { axis, .. }) => format!("Revolve about {axis}: type the angle; Enter makes it"),
+            Some(SolidStep::Extrude) => format!("Extrude{what}: type the height and draft; Enter makes it, Escape puts it away"),
+            Some(SolidStep::PickAxis) => format!("Revolve{what}: click a line of the sketch, or one of its axes, to turn about"),
+            Some(SolidStep::Revolve { axis, .. }) => format!("Revolve{what} about {axis}: type the angle; Enter makes it"),
             None => self.tools.prompt(),
+        }
+    }
+    /// The profile the solid being set up sweeps: the picked region, else every region.
+    fn profile(&self) -> Profile {
+        match self.region_pick {
+            Some(region) => Profile::Region { feature: self.feature, region },
+            None => Profile::Feature { feature: self.feature },
         }
     }
     /// Whether the feature holds a sketch of its own that other features sweep.
@@ -394,6 +405,8 @@ fn enter(app: &mut RingDesignerApp, pane: usize, feature: u64, sketch: Sketch, k
         anchor: None,
         hovered: None,
         menu_region: None,
+        menu_at: None,
+        region_pick: None,
         solid: None,
         solid_typed: Vec::new(),
         asking: false,
@@ -498,11 +511,11 @@ fn sketch_of(op: &Operation) -> Option<&Sketch> {
         Operation::Sketch { sketch } => Some(sketch),
         Operation::Extrude { sketch, .. } | Operation::Revolve { sketch, .. } | Operation::Sweep { sketch, .. } | Operation::Twist { sketch, .. } => match sketch {
             Profile::Inline(s) => Some(s),
-            Profile::Feature { .. } => None,
+            Profile::Feature { .. } | Profile::Region { .. } => None,
         },
         Operation::Loft { sections } => sections.first().and_then(|p| match p {
             Profile::Inline(s) => Some(s),
-            Profile::Feature { .. } => None,
+            Profile::Feature { .. } | Profile::Region { .. } => None,
         }),
         _ => None,
     }
@@ -593,6 +606,7 @@ fn escape(app: &mut RingDesignerApp) {
     }
     if live.solid.take().is_some() {
         live.solid_typed.clear();
+        live.region_pick = None;
         let prompt = live.prompt();
         app.set_status(prompt);
         return;
@@ -641,15 +655,14 @@ fn shank_for_body(app: &RingDesignerApp) -> (Vec<CadEdit>, Attach) {
 fn commit_solid(app: &mut RingDesignerApp) {
     let Some(live) = app.sketch.live.as_deref() else { return };
     let Some(frame) = live.frame else { return };
-    let feature = live.feature;
     let operation = match &live.solid {
         Some(SolidStep::Extrude) => {
             let height_mm = live.typed("height").unwrap_or(1.0);
             let draft_deg = live.typed("draft").unwrap_or(0.0);
-            Operation::Extrude { sketch: Profile::Feature { feature }, height_mm, draft_deg }
+            Operation::Extrude { sketch: live.profile(), height_mm, draft_deg }
         }
         Some(SolidStep::Revolve { pivot, dir, .. }) => Operation::Revolve {
-            sketch: Profile::Feature { feature },
+            sketch: live.profile(),
             pivot: frame.point(*pivot),
             axis: frame.vector(*dir),
             degrees: live.typed("angle").unwrap_or(360.0),
@@ -1023,6 +1036,7 @@ pub fn input(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Re
         }
         if let Some(live) = app.sketch.live.as_deref_mut() {
             live.menu_region = live.hovered;
+            live.menu_at = live.pointer.map(|(_, raw, _)| raw);
         }
     }
     response.context_menu(|ui| menu(app, ui, pane));
@@ -1069,28 +1083,23 @@ fn menu(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     let Some(live) = app.sketch.live.as_deref() else { return };
     let region = live.menu_region;
     let solids = live.is_sketch_feature(app);
+    // The region under the click, named by its rim and the point clicked in it.
+    let pick = region.zip(live.menu_at).and_then(|(i, at)| RegionRef::at(&live.regions.as_ref()?.1.get(i)?.region, at));
     if let Some(i) = region {
         ui.weak(format!("Region {} of the sketch", i + 1));
         let why = (!solids).then_some("A sketch drawn inside a feature already makes its solid");
-        let hint = why.unwrap_or("Push the sketch's regions out along the plane's normal: type the height and draft");
-        if ui.add_enabled(why.is_none(), egui::Button::image_and_text(Icon::CadExtrude.image(ui, 18.0), "Extrude")).on_hover_text(hint).on_disabled_hover_text(hint).clicked() {
-            if let Some(live) = app.sketch.live.as_deref_mut() {
-                live.solid = Some(SolidStep::Extrude);
-                live.solid_typed.clear();
-                live.bar.reset();
-                let prompt = live.prompt();
-                app.set_status(prompt);
+        let items = [
+            (Icon::CadExtrude, "Extrude", SolidStep::Extrude, false, "Push the sketch's regions out along the plane's normal: type the height and draft"),
+            (Icon::CadExtrude, "Extrude this region", SolidStep::Extrude, true, "Push this region alone out along the plane's normal; it stays this region as the sketch changes"),
+            (Icon::CadRevolve, "Revolve…", SolidStep::PickAxis, false, "Turn the sketch's regions about a line you click next"),
+            (Icon::CadRevolve, "Revolve this region…", SolidStep::PickAxis, true, "Turn this region alone about a line you click next"),
+        ];
+        for (icon, label, step, alone, hint) in items {
+            let hint = why.unwrap_or(hint);
+            if ui.add_enabled(why.is_none() && (!alone || pick.is_some()), egui::Button::image_and_text(icon.image(ui, 18.0), label)).on_hover_text(hint).on_disabled_hover_text(hint).clicked() {
+                begin_solid(app, step, if alone { pick } else { None });
+                ui.close();
             }
-            ui.close();
-        }
-        if ui.add_enabled(why.is_none(), egui::Button::image_and_text(Icon::CadRevolve.image(ui, 18.0), "Revolve…")).on_hover_text("Turn the sketch's regions about a line you click next").clicked() {
-            if let Some(live) = app.sketch.live.as_deref_mut() {
-                live.solid = Some(SolidStep::PickAxis);
-                live.solid_typed.clear();
-                let prompt = live.prompt();
-                app.set_status(prompt);
-            }
-            ui.close();
         }
         ui.separator();
     }
@@ -1106,6 +1115,17 @@ fn menu(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         leave_or_ask(app);
         ui.close();
     }
+}
+
+/// Starts setting up a solid from the sketch: every region, or the one `pick` names.
+fn begin_solid(app: &mut RingDesignerApp, step: SolidStep, pick: Option<RegionRef>) {
+    let Some(live) = app.sketch.live.as_deref_mut() else { return };
+    live.solid = Some(step);
+    live.region_pick = pick;
+    live.solid_typed.clear();
+    live.bar.reset();
+    let prompt = live.prompt();
+    app.set_status(prompt);
 }
 
 /// One toolbar button: its mark, its name to a reader and its tooltip.
@@ -1386,7 +1406,8 @@ pub fn draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, response:
             let p = f.point(uv);
             proj.at(std::array::from_fn(|k| (p[k] + f.n[k] * h) as f32))
         };
-        for v in views {
+        let swept = |v: &RegionView| live.region_pick.is_none_or(|p| v.region.entities[..v.region.rim].contains(&p.entity));
+        for v in views.iter().filter(|v| swept(v)) {
             for poly in &v.polygons {
                 let mut top: Vec<Pos2> = poly.iter().map(|p| up(*p)).collect();
                 top.extend(top.first().copied());

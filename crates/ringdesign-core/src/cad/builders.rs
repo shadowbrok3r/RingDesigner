@@ -240,7 +240,7 @@ pub struct Made {
     pub named: Named,
     /// The surface each patch reads as, by patch index.
     pub kinds: Vec<SurfaceKind>,
-    /// Polylines along every edge whose faces turn at least [`CREASE_DEG`].
+    /// Polylines along every edge whose faces turn at least [`CREASE_DEG`], a sampled round's own facets aside ([`creases`]).
     pub creases: Vec<Vec<P3>>,
     pub gem: Option<Gem>,
     pub seat: Option<Seat>,
@@ -293,7 +293,7 @@ impl Made {
         let (open, repeated) = named.solid.open_edges();
         ensure!(open == 0 && repeated == 0 && !named.solid.is_empty(), "{} did not close ({open} open edges, {repeated} repeated)", label(key));
         let kinds = named.names.iter().map(|n| kind_of(n)).collect();
-        let creases = creases(&named.solid, CREASE_DEG);
+        let creases = creases(&named, CREASE_DEG);
         Ok(Made { key: key.to_string(), named, kinds, creases, gem, seat: None, stations: Vec::new() })
     }
 }
@@ -315,8 +315,19 @@ fn kind_of(name: &str) -> SurfaceKind {
     }
 }
 
-/// Polylines along every edge of a closed solid whose two faces turn at least `min_deg`; none past 20 000 such edges.
-pub fn creases(solid: &Solid, min_deg: f64) -> Vec<Vec<P3>> {
+/// Largest turn a facet of a sampled round makes: a round sampled with eight sides or more.
+pub const FACET_MAX_DEG: f64 = 45.0;
+
+/// Polylines along every edge of a closed named solid whose two faces turn at least `min_deg`;
+/// none past 20 000 such edges. A patch is a sampled round when most of its own turns under
+/// [`FACET_MAX_DEG`] repeat, within a tenth, on the next line across a face — a rail's ten
+/// sides each turn 36° — and inside it a turn like those is a facet, not a crease, down to the
+/// stubs a join retriangulates. Measured on the heads (`the_dihedral_census_of_the_heads`): every
+/// rail facet goes and nothing else does — the stone's notch in a claw turns 44.7° and up beside
+/// flat faces, a bezel's rim corner 37.6° between corners of 45.0° and 56.6°, and every edge
+/// between two patches keeps the plain rule.
+pub fn creases(named: &Named, min_deg: f64) -> Vec<Vec<P3>> {
+    let solid = &named.solid;
     let unit = |f: &[u32; 3]| {
         let [a, b, c] = f.map(|i| solid.v[i as usize]);
         let (e, g) = ([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
@@ -332,11 +343,59 @@ pub fn creases(solid: &Solid, min_deg: f64) -> Vec<Vec<P3>> {
             by_edge.entry((a.min(b), a.max(b))).or_default().push(i);
         }
     }
-    let cos = min_deg.to_radians().cos();
     let dot = |a: P3, b: P3| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    let turn: HashMap<(u32, u32), f64> = by_edge
+        .iter()
+        .filter(|(_, fs)| fs.len() == 2)
+        .map(|(e, fs)| (*e, dot(normals[fs[0]], normals[fs[1]]).clamp(-1.0, 1.0).acos().to_degrees()))
+        .collect();
+    let mut around: HashMap<u32, Vec<u32>> = HashMap::new();
+    for &(a, b) in by_edge.keys() {
+        around.entry(a).or_default().push(b);
+        around.entry(b).or_default().push(a);
+    }
+    let direction = |a: u32, b: u32| {
+        let (p, q) = (solid.v[a as usize], solid.v[b as usize]);
+        let d = [q[0] - p[0], q[1] - p[1], q[2] - p[2]];
+        let l = dot(d, d).sqrt().max(1e-300);
+        d.map(|v| v / l)
+    };
+    // Whether the turn `t` of edge `e` comes again on the line through face `f`'s third corner, along `e`.
+    let repeats = |e: (u32, u32), f: usize, t: f64| {
+        let Some(&c) = solid.f[f].iter().find(|v| **v != e.0 && **v != e.1) else { return false };
+        let along = direction(e.0, e.1);
+        let next = around.get(&c).into_iter().flatten().filter(|x| **x != e.0 && **x != e.1).map(|x| (dot(direction(c, *x), along).abs(), *x)).max_by(|a, b| a.0.total_cmp(&b.0));
+        next.is_some_and(|(cos, x)| cos >= 0.9 && turn.get(&(c.min(x), c.max(x))).is_some_and(|u| (u - t).abs() <= 0.1 * t))
+    };
+    // Each patch's own turns in the facet range, and those of them that repeat across a face.
+    let inside = |fs: &[usize]| named.patch.get(fs[0]).filter(|p| named.patch.get(fs[1]) == Some(*p)).copied();
+    let mut own: HashMap<u32, (usize, Vec<f64>)> = HashMap::new();
+    for (e, fs) in by_edge.iter().filter(|(_, fs)| fs.len() == 2) {
+        let (Some(p), Some(&t)) = (inside(fs), turn.get(e)) else { continue };
+        if t >= min_deg && t < FACET_MAX_DEG {
+            let entry = own.entry(p).or_default();
+            entry.0 += 1;
+            if repeats(*e, fs[0], t) || repeats(*e, fs[1], t) {
+                entry.1.push(t);
+            }
+        }
+    }
+    // A sampled round's facet turn: the middle repeating turn, where most of the patch's turns repeat.
+    let facet: HashMap<u32, f64> = own
+        .into_iter()
+        .filter(|(_, (all, rep))| 2 * rep.len() > *all)
+        .map(|(p, (_, mut rep))| {
+            rep.sort_by(f64::total_cmp);
+            (p, rep[rep.len() / 2])
+        })
+        .collect();
     let mut edges: Vec<(u32, u32)> = by_edge
         .iter()
-        .filter(|(_, fs)| fs.len() == 2 && dot(normals[fs[0]], normals[fs[1]]) < cos)
+        .filter(|(e, fs)| {
+            let Some(&t) = turn.get(e) else { return false };
+            let sampled = inside(fs).and_then(|p| facet.get(&p)).is_some_and(|f| (t - f).abs() <= 0.1 * f);
+            t >= min_deg && !sampled
+        })
         .map(|(e, _)| *e)
         .collect();
     if edges.len() > 20_000 {
@@ -688,6 +747,184 @@ mod tests {
         }
         let used: HashSet<usize> = s.f.iter().flatten().map(|v| find(&mut root, *v as usize)).collect();
         used.len()
+    }
+
+    /// The edge between two vertices as the bits of its ends, lower first.
+    fn segment(named: &Named, a: u32, b: u32) -> [[u64; 3]; 2] {
+        let (p, q) = (named.solid.v[a as usize].map(f64::to_bits), named.solid.v[b as usize].map(f64::to_bits));
+        if p <= q { [p, q] } else { [q, p] }
+    }
+    /// Every edge the crease rule keeps, as [`segment`]s.
+    fn crease_segments(named: &Named) -> HashSet<[[u64; 3]; 2]> {
+        creases(named, CREASE_DEG)
+            .iter()
+            .flat_map(|l| l.windows(2).map(|w| {
+                let (p, q) = (w[0].map(f64::to_bits), w[1].map(f64::to_bits));
+                if p <= q { [p, q] } else { [q, p] }
+            }))
+            .collect()
+    }
+    /// Every edge two faces share, with the angle between their normals in degrees and the two faces.
+    fn dihedrals(s: &Solid) -> Vec<((u32, u32), f64, [usize; 2])> {
+        let normal = |f: &[u32; 3]| {
+            let [a, b, c] = f.map(|i| s.v[i as usize]);
+            let (e, g) = ([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
+            let n = [e[1] * g[2] - e[2] * g[1], e[2] * g[0] - e[0] * g[2], e[0] * g[1] - e[1] * g[0]];
+            let l = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt().max(1e-300);
+            n.map(|v| v / l)
+        };
+        let mut by_edge: HashMap<(u32, u32), Vec<usize>> = HashMap::new();
+        for (i, f) in s.f.iter().enumerate() {
+            for k in 0..3 {
+                let (a, b) = (f[k], f[(k + 1) % 3]);
+                by_edge.entry((a.min(b), a.max(b))).or_default().push(i);
+            }
+        }
+        by_edge
+            .into_iter()
+            .filter(|(_, fs)| fs.len() == 2)
+            .map(|(e, fs)| {
+                let (n, m) = (normal(&s.f[fs[0]]), normal(&s.f[fs[1]]));
+                let dot = (n[0] * m[0] + n[1] * m[1] + n[2] * m[2]).clamp(-1.0, 1.0);
+                (e, dot.acos().to_degrees(), [fs[0], fs[1]])
+            })
+            .collect()
+    }
+
+    /// The dihedrals of the heads' edges by kind — tube facets, joins between parts, the stone's notch; run `--ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn the_dihedral_census_of_the_heads() {
+        let bins = [0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 60.0, 90.0, 180.1];
+        let census = |label: &str, plain: Option<&Named>, named: &Named| {
+            let known: HashSet<[u64; 3]> = plain.map(|p| p.solid.v.iter().map(|q| q.map(f64::to_bits)).collect()).unwrap_or_default();
+            let mut classes: Vec<(&str, Vec<usize>, f64, f64)> = ["facet", "join", "notch"].iter().map(|c| (*c, vec![0; bins.len() - 1], f64::INFINITY, 0.0)).collect();
+            for ((a, b), deg, [f, g]) in dihedrals(&named.solid) {
+                let fresh = plain.is_some() && [a, b].iter().any(|v| !known.contains(&named.solid.v[*v as usize].map(f64::to_bits)));
+                let class = if fresh { 2 } else if named.patch[f] == named.patch[g] { 0 } else { 1 };
+                let bin = bins.windows(2).position(|w| deg >= w[0] && deg < w[1]).unwrap_or(bins.len() - 2);
+                let c = &mut classes[class];
+                c.1[bin] += 1;
+                if deg >= 5.0 {
+                    c.2 = c.2.min(deg);
+                }
+                c.3 = c.3.max(deg);
+            }
+            for (class, counts, lo, hi) in classes.iter().filter(|c| c.1.iter().sum::<usize>() > 0) {
+                let row: Vec<String> = counts.iter().zip(bins.windows(2)).filter(|(n, _)| **n > 0).map(|(n, w)| format!("{:.0}-{:.0}°: {n}", w[0], w[1])).collect();
+                eprintln!("{label:<22} {class:<6} {:>5} edges, turning {lo:.1}..{hi:.1}°  [{}]", counts.iter().sum::<usize>(), row.join(", "));
+            }
+            // Distinct turns at and past 30° between each pair of patches, to the tenth of a degree, and how many the rule keeps.
+            let kept = crease_segments(named);
+            let mut turns: std::collections::BTreeMap<(String, i64), (usize, usize)> = std::collections::BTreeMap::new();
+            for ((a, b), deg, [f, g]) in dihedrals(&named.solid).into_iter().filter(|e| e.1 >= 30.0) {
+                let (p, q) = (named.face_name(f).unwrap_or("?"), named.face_name(g).unwrap_or("?"));
+                let pair = if p <= q { format!("{p}|{q}") } else { format!("{q}|{p}") };
+                let e = turns.entry((pair, (deg * 10.0).round() as i64)).or_default();
+                e.0 += 1;
+                e.1 += usize::from(kept.contains(&segment(named, a, b)));
+            }
+            let mut by_pair: std::collections::BTreeMap<String, (Vec<String>, usize, usize)> = std::collections::BTreeMap::new();
+            for ((pair, tenth), (n, k)) in turns {
+                let e = by_pair.entry(pair).or_default();
+                e.0.push(format!("{:.1}°x{n}", tenth as f64 / 10.0));
+                e.1 += n;
+                e.2 += k;
+            }
+            for (pair, (list, n, k)) in by_pair {
+                let shown: Vec<String> = list.iter().take(8).cloned().collect();
+                eprintln!("    {pair:<28} creases {k:>4} of {n:>4}; {} kinds: {}", list.len(), shown.join(" "));
+            }
+        };
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        let wire = setting::prong_wire_mm(gem);
+        for (label, prongs, rails) in [("claw head, 4", 4, Rails::Seat), ("claw head, 6", 6, Rails::Seat), ("basket, 3 rails", 4, Rails::Basket(3))] {
+            let plain = Named::union_all(setting::claw_parts_named(gem, prongs, wire, rails, None)).unwrap();
+            let head = setting::claw_head_named(gem, prongs, wire, rails, None).unwrap();
+            census(label, Some(&plain), &head);
+        }
+        census("bezel", None, &setting::collet_named(gem, setting::collet_wall_mm(gem), setting::collet_lip(gem), -setting::collet_depth_mm(gem)));
+        census("stone", None, &setting::envelope_named(gem, 0.0));
+        for (label, melee_mm) in [("halo melee head 1.3", 1.3), ("halo melee head 2.0", 2.0)] {
+            let melee = Gem::calibrated(GemCut::Round, melee_mm);
+            let wire = setting::prong_wire_mm(melee);
+            let plain = Named::union_all(setting::claw_parts_named(melee, 4, wire, Rails::Seat, None)).unwrap();
+            census(label, Some(&plain), &setting::claw_head_named(melee, 4, wire, Rails::Seat, None).unwrap());
+        }
+        let seat = Seat { surface_z: -1.0, through_mm: None };
+        for style in ["Claw", "Bezel"] {
+            let made = build(HALO, gem, &json!({ "style": style }), seat, None).unwrap();
+            census(&format!("halo, {style}"), None, &made.named);
+        }
+    }
+
+    #[test]
+    fn a_rails_facets_are_no_creases_and_a_hover_on_a_claws_side_lands_on_the_claw() {
+        use crate::interaction::pick::{Entity, Filter, PickScene, Ray, ViewScale};
+        let lib = AlphaLibrary::builtin();
+        let d = set("claw4");
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        let head = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 3).unwrap().clone();
+        let made = head.made.clone().unwrap();
+        let patch = |name: &str| made.named.names.iter().position(|n| n == name).unwrap() as u32;
+        // Not one of a rail's own facets is a crease; every turn of 30° and more elsewhere is.
+        let kept = crease_segments(&made.named);
+        let (mut rails, mut others) = ((0, 0), (0, 0));
+        for ((a, b), t, [f, g]) in dihedrals(&made.named.solid).into_iter().filter(|e| e.1 >= CREASE_DEG) {
+            let rail = made.named.patch[f] == made.named.patch[g] && made.named.face_name(f).is_some_and(|n| n.ends_with("rail"));
+            let count = if rail { &mut rails } else { &mut others };
+            count.0 += 1;
+            count.1 += usize::from(kept.contains(&segment(&made.named, a, b)));
+            assert!(!rail || (t - 36.0).abs() < 0.2, "a rail facet turns 36°: {t}");
+        }
+        assert!(rails.0 > 1000 && rails.1 == 0, "rail facets {rails:?}");
+        assert!(others.0 > 700 && others.1 == others.0, "every other turn stays a crease: {others:?}");
+        assert_eq!(head.edges, made.creases);
+        // The same build with every turn of 30° a crease, as the rule stood.
+        let mut plain = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        let old: Vec<Vec<[f64; 3]>> = dihedrals(&made.named.solid).into_iter().filter(|e| e.1 >= CREASE_DEG).map(|((a, b), _, _)| vec![made.named.solid.v[a as usize], made.named.solid.v[b as usize]]).collect();
+        plain.parts.evaluated.as_mut().unwrap().components.iter_mut().find(|c| c.id == 3).unwrap().edges = old;
+        let (now, then) = (PickScene::build(&built, &d), PickScene::build(&plain, &d));
+        // Claw 1's outer side, looked at square on at the Ring viewport's 8 px aperture and 20 px/mm.
+        let claw = patch("Claw 1");
+        let v = &made.named.solid.v;
+        let faces: Vec<usize> = (0..made.named.solid.f.len()).filter(|f| made.named.patch[*f] == claw).collect();
+        let n = faces.len() as f64;
+        let centre: P3 = std::array::from_fn(|k| faces.iter().map(|f| made.named.solid.f[*f].iter().map(|i| v[*i as usize][k]).sum::<f64>() / 3.0).sum::<f64>() / n);
+        let (o, up) = (head.frame.origin, head.frame.z_axis);
+        let dot = |a: P3, b: P3| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        let out: P3 = {
+            let d: P3 = std::array::from_fn(|k| centre[k] - o[k]);
+            let flat: P3 = std::array::from_fn(|k| d[k] - up[k] * dot(d, up));
+            let l = dot(flat, flat).sqrt();
+            flat.map(|x| x / l)
+        };
+        let right: P3 = [up[1] * out[2] - up[2] * out[1], up[2] * out[0] - up[0] * out[2], up[0] * out[1] - up[1] * out[0]];
+        let view = ViewScale { right, up, px_per_mm: 20.0 };
+        let facing: Vec<P3> = faces
+            .iter()
+            .filter_map(|f| {
+                let [a, b, c] = made.named.solid.f[*f].map(|i| v[i as usize]);
+                let n = { let (e, g) = ([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]); [e[1] * g[2] - e[2] * g[1], e[2] * g[0] - e[0] * g[2], e[0] * g[1] - e[1] * g[0]] };
+                let l = dot(n, n).sqrt();
+                (l > 1e-12 && dot(n, out) / l > 0.6).then(|| std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0))
+            })
+            .collect();
+        let hovered = |scene: &PickScene, at: P3| {
+            let ray = Ray { origin: std::array::from_fn(|k| at[k] + out[k] * 25.0), direction: out.map(|x| -x) };
+            scene.pick(ray, &view, 8.0, Filter::default()).into_iter().next().map(|p| p.entity)
+        };
+        let on_claw = |scene: &PickScene| facing.iter().filter(|p| hovered(scene, **p) == Some(Entity::Face { feature: 3, face: claw })).count();
+        // Measured: 137 of 170 hovers land on the claw against 118; the rest are within reach of its foot's rim and the rails' joins.
+        let (now_n, then_n) = (on_claw(&now), on_claw(&then));
+        assert!(now_n >= then_n + 15 && 5 * now_n >= 4 * facing.len(), "{now_n} and {then_n} of {} hovers land on the claw", facing.len());
+        // A quarter millimetre over the gallery rail, where the rail's top facet used to answer first.
+        let height = |p: &P3| dot(std::array::from_fn(|k| p[k] - o[k]), up);
+        let rail = patch("Gallery rail");
+        let top = (0..made.named.solid.f.len()).filter(|f| made.named.patch[*f] == rail).flat_map(|f| made.named.solid.f[f]).map(|i| height(&v[i as usize])).fold(f64::MIN, f64::max);
+        let over = facing.iter().min_by(|a, b| (height(a) - top - 0.25).abs().total_cmp(&(height(b) - top - 0.25).abs())).unwrap();
+        assert_eq!(hovered(&now, *over), Some(Entity::Face { feature: 3, face: claw }));
+        assert!(matches!(hovered(&then, *over), Some(Entity::Edge { feature: 3, .. })));
     }
 
     #[test]

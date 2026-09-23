@@ -6,9 +6,10 @@ pub const NAMES: &[&str] = &[
     "solitaire",
     "inlay-band",
     "gallery",
+    "claw-solitaire",
 ];
-/// Examples built round a stone on the procedural band, kept apart from [`NAMES`].
-pub const SET_STONES: &[&str] = &["claw-solitaire"];
+/// Examples kept out of the gallery; every example is in [`NAMES`] now.
+pub const SET_STONES: &[&str] = &[];
 pub fn design(name: &str) -> Result<RingDesign> {
     let mut d = RingDesign::default();
     d.name = name.into();
@@ -221,6 +222,25 @@ pub fn design(name: &str) -> Result<RingDesign> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// The claw solitaire's gallery preview, as `examples/cad_thumbnails.rs` draws the rest, into the
+    /// directory `RD_CAD_THUMBS` names: the band with its head joined and its seat cut, and the stone.
+    #[test]
+    #[ignore]
+    fn the_claw_solitaire_draws_its_gallery_preview() {
+        let Some(dest) = std::env::var_os("RD_CAD_THUMBS") else { return };
+        let d = design("claw-solitaire").unwrap();
+        let built = crate::mesh::try_build(&d, &AlphaLibrary::builtin(), BuildParams::default()).unwrap();
+        let mut mesh = built.mesh.clone();
+        for c in built.parts.evaluated.iter().flat_map(|e| &e.components).filter(|c| c.settings.reference) {
+            let offset = mesh.vertices.len() as u32;
+            mesh.vertices.extend_from_slice(&c.mesh.vertices);
+            mesh.normals.extend_from_slice(&c.mesh.normals);
+            mesh.faces.extend(c.mesh.faces.iter().map(|f| f.map(|v| v + offset)));
+        }
+        mesh.corner_normals.clear();
+        mesh.origin.clear();
+        crate::render::write_png(std::path::Path::new(&dest).join("claw-solitaire.png"), &mesh, 0.55, 1.12, 160, [0.76, 0.80, 0.87]).unwrap();
+    }
     #[test]
     fn sample_projects_are_evaluable_and_keep_reference_identity() {
         for name in NAMES {
