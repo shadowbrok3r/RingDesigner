@@ -537,6 +537,47 @@ worktrees, then verified, measured and committed by the integrator.
   ring with the caption and the Instances field, type 4, Enter → "Ring array of Cylinder" on the
   timeline, three copies at 90° steps, one History entry "Add Ring array of Cylinder".
 
+### Batch 9 status — 2026-09-23 (on master: `m12-shared-renderer`, `m13-cutters`, `m13-occt-spike` merged, and their integration)
+
+- **M12's renderer half** (`workbench::render`): one GL renderer both apps draw through, its shaders
+  written once with the header and precision chosen per context (GL 3.3 core, GLES 3.0), every mode
+  kept — studio shading and the shade modes, the wall heatmap, the focus and select channels, the
+  preview under a model matrix, the cutters ghost, the gems, the clip plane, wireframe. At an exact
+  camera pose the only pixels that changed on either app are the new edges; the desktop's paint cost
+  is unchanged (411-547 µs p50), the emulator's rose 12-19 µs (its GL calls are pipe round trips).
+- **The crisp B-rep edge pass**: every kernel part's edges and every builder's creases drawn as
+  screen-space quads (six vertices a segment, a width in points, no wide lines, which GLES ignores),
+  lifted 3 px toward the eye and depth-tested, with the chosen and hovered edges in their own colours
+  through the same pass and a faint half where metal hides them; a kernel part's seams are left out
+  (`cad::seams`), and a Part edges switch sits on both apps (the phone's saved in its prefs). 3.3-4.9
+  µs of GPU a frame for the claw solitaire's 1004 segments; staging 46-58 µs and upload 0.45-3.6 ms
+  once per build.
+- **M13's cutters**: `cutter.pierce` (round, oval, marquise, heart and drop; through or blind; a
+  bright-cut chamfer) removes within 0.1% of its area times the wall it crosses; `cutter.azure` cuts
+  4-8 windows under a stone clear of the claws, rails and pilot, refusing a stone too small by name;
+  `shank.cathedral` raises two arches from the shoulders to the head's gallery rail and follows the
+  head it meets. Under sand a side-face piercing casts clean (0.000 mm², Cast), a crown piercing
+  locks 8.63 mm² at -88° and azures 59.9 mm² (both Bench), and shoulders default Bench (clean on the
+  parting line, 8.04 mm² at -84° 0.8 mm off it). Right-click the band ▸ Cut here, a stone ▸ Azures
+  or Cathedral shoulders, on both apps. A builder's head is one of its sources.
+- **M13's OpenCascade spike**: go, as a child process (`occt-worker`, one JSON request in, one
+  response out, a timeout and crash isolation) behind the off-by-default `kernel-occt`: filleting a
+  part's edges matched to ours within 2e-15 mm (B-rep volumes exact), the torus-and-cylinder junction
+  the pure kernel refuses (154 ms at preview, 2.5 s at export), shelling a head, and a bought signet's
+  STEP (five closed solids in 1.8 s within 0.12% of the vendor STL). The result lives in the design
+  as `Operation::Stored` — a packed mesh of about 9.8 bytes a triangle with its recipe and a digest
+  for "Run again" — which every build renders and judges with no OpenCascade. **No-go for the
+  Windows release as it stands**: the prebuilt OCCT links the dynamic CRT against our static one.
+- Verified: core 630 + golden, workbench 168 (glow), gui 126, graph 84 + 8 + 2 + 3, graph-ui 26, mcp
+  43, cli 3 + 5, occt 2, configurator 5, script 5, phone 152, assets 4; wasm, NDK arm64 and the
+  locked workspace clean with zero warnings; the desktop live-checked (edges drawn, seams gone).
+- Open: the sand pattern seats a stone on its own bench parts' raised marks (+0.259 mm and 23.65° on
+  the claw solitaire), which is why shoulders default Bench; the CAD pane's view draws no edges; edge
+  staging runs on the UI thread; OpenCascade's LGPL and one-file shipping are Logan's call (it stays a
+  separate worker), the Windows CRT needs OCCT built from source with the static CRT or a separate
+  worker, and a Stored feature needs a `format_version` step and paired releases (0.6.0 and 0.29.0
+  refuse it); a driven design carries a stored mesh twice.
+
 ### Batch 8 status — 2026-09-23 (on master: `m12-phone-cad`, `batch7-fixes`, `m13-first-cut` merged, and their integration)
 
 - **M12's interaction half, the phone models by touch** (`workbench::touch::{funnel, gesture, hit,
