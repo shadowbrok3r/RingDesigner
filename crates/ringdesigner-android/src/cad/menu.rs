@@ -16,7 +16,6 @@ pub fn not_here(action: &MenuAction) -> Option<&'static str> {
         MenuAction::SketchOnFace { .. } | MenuAction::SketchOnPlane { .. } => "Not on the phone yet: sketch on the desktop, and the design file brings the sketch here",
         MenuAction::IsolateInCad(_) => NO_ISOLATE,
         MenuAction::ToggleGrid => "The phone's view has no ground grid",
-        MenuAction::AddStoneOnFace { .. } => "Not on the phone yet: stones on a part's face are set on the desktop",
         _ => return None,
     })
 }
@@ -92,11 +91,13 @@ pub struct Menu {
     pub rect: Rect,
     /// Whether the popup hangs below the finger, settled when it is first drawn.
     pub below: Option<bool>,
+    /// The point on the ring under the finger, when the menu is for what lies there.
+    pub world: Option<[f64; 3]>,
 }
 
 impl Menu {
     pub fn new(at: Pos2, heading: Option<String>, items: Vec<MenuItem>) -> Self {
-        Self { at, heading, items, page: None, rect: Rect::NOTHING, below: None }
+        Self { at, heading, items, page: None, rect: Rect::NOTHING, below: None, world: None }
     }
 }
 
@@ -234,14 +235,17 @@ mod tests {
         assert_eq!(off, ["Sketch on this face", "Isolate in CAD", "Grid"]);
         assert!(items.iter().any(|i| i.enabled && i.action == MenuAction::PressPull { feature: 3, face: 1 }));
         let top = rows(&items, None);
-        assert!(top.contains(&Row::Sub { name: "Pattern", first: 2, count: 4 }), "{top:?}");
+        let stones = ringdesign_core::cad::builders::STONES.len();
+        assert!(top.contains(&Row::Sub { name: "Add stone here", first: 1, count: stones }), "{top:?}");
+        assert!(items[1..=stones].iter().all(|i| i.enabled && matches!(i.action, MenuAction::AddStoneOnFace { feature: 3, face: 1, .. })));
+        assert!(top.contains(&Row::Sub { name: "Pattern", first: 2 + stones, count: 4 }), "{top:?}");
         let attach = rows(&items, Some("Attach"));
         let ticked: Vec<&str> = attach.iter().filter_map(|r| match r {
             Row::Item(k) if items[*k].checked => Some(items[*k].label.as_str()),
             _ => None,
         }).collect();
         assert_eq!(ticked, ["Join"]);
-        assert_eq!(not_here(&MenuAction::AddStoneOnFace { feature: 3, face: 1, key: "round-5" }).map(|s| s.starts_with("Not on the phone yet")), Some(true));
+        assert_eq!(not_here(&MenuAction::AddStoneOnFace { feature: 3, face: 1, key: "round-5" }), None, "a stone on a part's face is set here too");
         assert_eq!(not_here(&MenuAction::Attach(3, Attach::Cut)), None);
         let Some(Row::Sub { first, count, .. }) = top.iter().find(|r| matches!(r, Row::Sub { name: "Attach", .. })).copied() else { panic!("{top:?}") };
         assert_eq!(closed_because(&items[first..first + count]), None, "a metal part's attachments open");

@@ -159,6 +159,8 @@ pub struct Cad {
     /// The build the scene and the band came with.
     build_key: usize,
     requests: Vec<Request>,
+    /// The point on the ring under the finger that opened the last menu a row was chosen from.
+    pressed: Option<[f64; 3]>,
 }
 
 impl Cad {
@@ -342,7 +344,9 @@ impl Cad {
             let h = ringdesign_core::interaction::picking::hit(v.design, v.lib, mesh, origin, direction)?;
             Some(format!("Band at {:.0}° · wall {:.2} mm · relief {:+.2} mm", h.theta_deg, h.radial_wall_mm, h.relief_mm))
         });
-        self.menu = Some(menu::Menu::new(p, heading, items));
+        let mut menu = menu::Menu::new(p, heading, items);
+        menu.world = under.map(|u| u.world);
+        self.menu = Some(menu);
     }
 
     /// Draws the chosen edges and vertices, the pins, the gizmo, a live command's ghost and bars, and the menu, serving its row.
@@ -365,7 +369,7 @@ impl Cad {
         let chosen = self.menu.as_mut().and_then(|m| menu::show(ui.ctx(), m, v.rect));
         match chosen {
             Some(menu::Choice::Act(action)) => {
-                self.menu = None;
+                self.pressed = self.menu.take().and_then(|m| m.world);
                 self.act(v, action);
             }
             Some(menu::Choice::Close) => self.menu = None,
@@ -413,6 +417,10 @@ impl Cad {
         let request = match action {
             MenuAction::AddPartHere { theta_deg, height_mm, label } => touch::parts::part_here(design, label, theta_deg, height_mm).map(|(edits, id)| edit(edits, Then::Part(id))),
             MenuAction::AddStone { theta_deg, key, .. } => touch::parts::stone_here(design, theta_deg, key).map(|(edits, id)| edit(edits, Then::Part(id))),
+            MenuAction::AddStoneOnFace { feature, face, key } => {
+                let built = v.build.and_then(|b| b.0.parts.evaluated.as_ref());
+                touch::parts::stone_on_face(design, built, feature, face, self.pressed.take(), key).map(|(edits, id)| edit(edits, Then::Part(id)))
+            }
             MenuAction::Setting { part, stone, key } => touch::parts::setting(design, v.build.map(|b| &b.0.mesh), part, stone.as_deref(), key).map(|(edits, head)| edit(edits, head.map_or(Then::Keep, Then::Part))),
             MenuAction::Attach(id, attach) => reference_refused(design, id).map(|()| edit(vec![CadEdit::Attach { id, attach }], Then::Keep)),
             MenuAction::Stage(id, stage) => reference_refused(design, id).map(|()| edit(vec![CadEdit::Stage { id, stage }], Then::Keep)),
@@ -442,7 +450,7 @@ impl Cad {
                 let c = ctx!(self, v);
                 self.live.press_pull(&c, feature, face).map(Request::Status)
             }
-            MenuAction::IsolateInCad(_) | MenuAction::ToggleGrid | MenuAction::SketchOnFace { .. } | MenuAction::SketchOnPlane { .. } | MenuAction::AddStoneOnFace { .. } => {
+            MenuAction::IsolateInCad(_) | MenuAction::ToggleGrid | MenuAction::SketchOnFace { .. } | MenuAction::SketchOnPlane { .. } => {
                 unreachable!("not_here answered for it")
             }
         };

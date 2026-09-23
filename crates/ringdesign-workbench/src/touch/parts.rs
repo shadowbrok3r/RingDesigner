@@ -71,6 +71,16 @@ pub fn stone_here(design: &RingDesign, theta_deg: f64, key: &str) -> Result<(Vec
     Ok((edits, id))
 }
 
+/// Stone `key` seated on planar face `face` of part `feature` of the ring as built, where `at` falls on it or at its centroid: edits, stone id.
+pub fn stone_on_face(design: &RingDesign, built: Option<&Evaluated>, feature: Id, face: u32, at: Option<[f64; 3]>, key: &str) -> Result<(Vec<CadEdit>, Id), String> {
+    let preset = builders::stone_preset(key).ok_or_else(|| format!("No stone called {key}"))?;
+    let gem = preset.gem();
+    let part = built.and_then(|e| e.components.iter().find(|c| c.id == feature)).ok_or_else(|| format!("Part #{feature} is not in the ring as built yet"))?;
+    let seat = ringdesign_core::cad::FaceSeat::on(part, face, at, builders::stand_off_mm("claw4", gem)).map_err(|e| format!("{e:#}"))?;
+    let id = fresh_ids(design)();
+    Ok((vec![CadEdit::Add { feature: ringdesign_core::cad::stone_on_face(id, gem, feature, &seat), after: None }], id))
+}
+
 /// Setting `key` round stone part `part`, or round height-field stone `stone` first seated as a part on `mesh`: edits, head id.
 pub fn setting(design: &RingDesign, mesh: Option<&Mesh>, part: Option<Id>, stone: Option<&[usize]>, key: &str) -> Result<(Vec<CadEdit>, Option<Id>), String> {
     builders::setting_preset(key).ok_or_else(|| format!("No setting called {key}"))?;

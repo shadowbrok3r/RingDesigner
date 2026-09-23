@@ -170,6 +170,42 @@ impl Bench {
     }
 }
 
+#[test]
+fn a_stone_on_a_parts_face_takes_the_pressed_point_and_builds_on_the_part() {
+    use ringdesign_core::cad::{FaceSeat, FeatureStatus, builders};
+    let mut d = court();
+    let mut history = History::new(&d);
+    let (edits, plate) = touch::parts::part_here(&d, "Box", 90.0, 0.0).unwrap();
+    commit(&mut d, &mut history, &edits, None).unwrap();
+    let mut b = Bench::new(d);
+    let c = b.built.evaluated().unwrap().components.iter().find(|c| c.id == plate).cloned().unwrap();
+    let face = (0..c.body.faces.len() as u32).find(|f| FaceSeat::on(&c, *f, None, 0.0).is_ok()).expect("a box has planar faces");
+    // Pressed at the part's own origin, off the face's middle.
+    let at = c.frame.origin;
+    let d = b.d.clone();
+    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true };
+    b.cad.pressed = Some(at);
+    b.cad.act(&v, MenuAction::AddStoneOnFace { feature: plate, face, key: "round-5" });
+    assert!(b.cad.pressed.is_none(), "the press is spent");
+    let (edits, then) = b.edits().remove(0);
+    let [CadEdit::Add { feature, .. }] = edits.as_slice() else { panic!("{edits:?}") };
+    let Operation::Builder { key, on, params } = &feature.operation else { panic!("{:?}", feature.operation) };
+    assert_eq!((key.as_str(), *on, then), (builders::STONE, Some(plate), Then::Part(feature.id)));
+    let gem = builders::stone_preset("round-5").unwrap().gem();
+    let pressed = FaceSeat::on(&c, face, Some(at), builders::stand_off_mm("claw4", gem)).unwrap();
+    let middle = FaceSeat::on(&c, face, None, builders::stand_off_mm("claw4", gem)).unwrap();
+    assert_eq!(FaceSeat::of(params).unwrap(), Some(pressed.clone()), "seated where the finger pressed");
+    assert_ne!(pressed, middle);
+    // Committed and built, the stone stands on the plate.
+    let mut d = b.d.clone();
+    let mut history = History::new(&d);
+    let done = commit(&mut d, &mut history, &edits, None).unwrap().unwrap();
+    assert_eq!(done.label, "Add Round 5 mm");
+    let b = Bench::new(d);
+    let e = b.built.evaluated().unwrap();
+    assert_eq!(e.status_of(feature.id), Some(&FeatureStatus::Ok), "{:?}", e.features);
+}
+
 /// The plain band with a 6.5 mm round standing at 68° in four claws.
 fn set_stone() -> (RingDesign, Id) {
     let mut d = RingDesign::default();
