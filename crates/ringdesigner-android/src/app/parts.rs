@@ -40,6 +40,11 @@ impl RingApp {
                     }
                     self.tab = Tab::Workshop;
                 }
+                Request::EndMeasure => {
+                    self.visual.select(ringdesign_workbench::visual::Tool::Select);
+                    self.status = "Measure put away".into();
+                }
+                Request::Prefs => self.save_prefs(),
             }
         }
     }

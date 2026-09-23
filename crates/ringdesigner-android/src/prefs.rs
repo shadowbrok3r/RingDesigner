@@ -35,6 +35,8 @@ pub struct Prefs {
     pub wireframe: bool,
     /// Every CAD part's edges drawn over the metal.
     pub part_edges: bool,
+    /// The work planes drawn over the ring, each named.
+    pub work_planes: bool,
     pub navigation: ringdesign_workbench::navigation::Settings,
     pub preview_quality: crate::ring::PreviewQuality,
     pub finish: usize,
@@ -70,6 +72,7 @@ impl Default for Prefs {
             shade: 0,
             wireframe: false,
             part_edges: true,
+            work_planes: true,
             navigation: Default::default(),
             preview_quality: Default::default(),
             finish: 0,
@@ -229,6 +232,9 @@ mod tests {
         assert_eq!(p.sync_host, "host.ts.net");
         assert_eq!(p.brush_depth, Prefs::default().brush_depth);
         assert!(p.show_gems, "and a default that is not false survives");
+        assert!(p.work_planes, "a file from before the switch draws the work planes");
+        let hidden: Prefs = serde_json::from_str(r#"{"work_planes":false}"#).expect("loads");
+        assert!(!hidden.work_planes && hidden.part_edges);
     }
 
     #[test]
