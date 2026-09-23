@@ -4,10 +4,11 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     AlphaLibrary, BORE_TOL_MM, BoreTrace, CastProcess, DRAG_FRACTION, DraftSettings, FaceClass, FieldReport,
-    NOT_CASTABLE_FRACTION, NOT_JUDGED_HERE, RingDesign, Verdict, attributed_field_report, marks, read_face,
+    NOT_CASTABLE_FRACTION, NOT_JUDGED_HERE, RingDesign, VERTICAL_TOL_DEG, Verdict, attributed_field_report, draft_angle, marks,
+    read_face,
 };
 use crate::cad::{Attach, Stage};
-use crate::mesh::BuildResult;
+use crate::mesh::{BuildResult, Vec3};
 use crate::sketch::Id;
 
 /// Undercut on a part under this is below anything sand holds, mm²: reported, never gating.
@@ -16,6 +17,13 @@ pub const PART_NOISE_MM2: f64 = 0.005;
 pub(super) const SILHOUETTE_MM: f64 = 0.005;
 /// Lean a facet spanning the parting plane may show as its own chord, past half the preview chord's 8.6° step, degrees.
 pub(super) const SILHOUETTE_DEG: f64 = 5.0;
+
+/// Whether a facet's lean is its chord's alone: every corner off the parting plane faces into its own mould half.
+pub(super) fn chord_lean(corners: [[f64; 3]; 3], normals: [Vec3; 3], parting: f64) -> bool {
+    corners.iter().zip(normals).all(|(p, n)| {
+        (p[2] - parting).abs() <= SILHOUETTE_MM || draft_angle([f64::from(n.0), f64::from(n.1), f64::from(n.2)], p[2], parting) >= -VERTICAL_TOL_DEG
+    })
+}
 
 /// One CAD part as the verdict read it off a built ring.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -175,7 +183,8 @@ fn judge_with(field: &mut FieldReport, design: &RingDesign, built: &BuildResult,
         let owners = crate::interaction::pick::part_owners(built);
         let trace = BoreTrace::of(mesh);
         let bore_limit = design.inner_radius_mm().max(0.0) + BORE_TOL_MM;
-        for (f, owner) in mesh.faces.iter().zip(&owners) {
+        let mut cursor = 0;
+        for (i, (f, owner)) in mesh.faces.iter().zip(&owners).enumerate() {
             let Some(t) = owner.and_then(|p| tallies.get_mut(p as usize)).filter(|t| t.judged) else { continue };
             let Some(r) = read_face(mesh, f, parting, min_draft, bore_limit, &trace) else { continue };
             t.total += r.area;
@@ -187,7 +196,11 @@ fn judge_with(field: &mut FieldReport, design: &RingDesign, built: &BuildResult,
                     t.undercut += r.area;
                     let Some((a, b, c)) = mesh.triangle(f) else { continue };
                     let (lo, hi) = (a[2].min(b[2]).min(c[2]), a[2].max(b[2]).max(c[2]));
-                    if lo <= parting + SILHOUETTE_MM && hi >= parting - SILHOUETTE_MM && r.draft > -SILHOUETTE_DEG {
+                    if lo <= parting + SILHOUETTE_MM
+                        && hi >= parting - SILHOUETTE_MM
+                        && r.draft > -SILHOUETTE_DEG
+                        && chord_lean([a, b, c], mesh.face_normals(i, &mut cursor), parting)
+                    {
                         t.silhouette += r.area;
                         continue;
                     }
@@ -666,6 +679,60 @@ mod tests {
         let (built, f) = judged(&court_post());
         let auto = super::super::analyze(&built.mesh, &court_post().draft, court_post().inner_radius_mm());
         assert!((auto.parting_z_mm - f.parting_z_mm).abs() < 0.01, "{} {}", auto.parting_z_mm, f.parting_z_mm);
+    }
+
+    /// Area of the part of a triangle above the plane at `z`, or below it.
+    fn area_beyond(tri: [[f64; 3]; 3], z: f64, above: bool) -> f64 {
+        let inside = |p: &[f64; 3]| if above { p[2] >= z } else { p[2] <= z };
+        let mut poly: Vec<[f64; 3]> = Vec::new();
+        for k in 0..3 {
+            let (p, q) = (tri[k], tri[(k + 1) % 3]);
+            if inside(&p) {
+                poly.push(p);
+            }
+            if inside(&p) != inside(&q) {
+                let t = (z - p[2]) / (q[2] - p[2]);
+                poly.push(std::array::from_fn(|i| p[i] + (q[i] - p[i]) * t));
+            }
+        }
+        let sub = |a: [f64; 3], b: [f64; 3]| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+        (1..poly.len().saturating_sub(1)).map(|k| 0.5 * crate::mesh::norm(crate::mesh::cross(sub(poly[k], poly[0]), sub(poly[k + 1], poly[0])))).sum()
+    }
+
+    /// A flat wall leaning back across the parting plane locks over its far half; only a curved wall's chord is forgiven there.
+    #[test]
+    fn a_flat_wall_leaning_back_across_the_parting_plane_locks_where_a_curved_walls_chord_does_not() {
+        const SPIN: f64 = 3.0;
+        let block = |spin: f64| {
+            let place = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 1.0 - SINK, spin_deg: spin, tilt_deg: 0.0, cant_deg: 0.0 };
+            with_part(band(), "Block", Operation::Box { size: [2.0, 2.0, 2.0] }, Attach::Join, Stage::Cast, place)
+        };
+        // Square to the ring its walls round the ring stand along the pull.
+        let (_, square) = judged(&block(0.0));
+        assert!(square.parts[0].undercut_area_mm2 < 5e-4, "{:?}", square.parts[0]);
+        // Turned about the radius those walls lean 3°, each facing its own mould half on one side of the plane only.
+        let (built, f) = judged(&block(SPIN));
+        let p = &f.parts[0];
+        let owners = crate::interaction::pick::part_owners(&built);
+        let (mut truth, mut spanning) = (0.0, 0.0);
+        for (face, owner) in built.mesh.faces.iter().zip(&owners) {
+            let (Some(_), Some(n), Some((a, b, c))) = (owner, built.mesh.face_normal(face), built.mesh.triangle(face)) else { continue };
+            if (n[2].abs() - SPIN.to_radians().sin()).abs() > 0.01 {
+                continue;
+            }
+            // A wall facing up locks below the plane, one facing down above it.
+            truth += area_beyond([a, b, c], f.parting_z_mm, n[2] < 0.0);
+            if a[2].min(b[2]).min(c[2]) < f.parting_z_mm && a[2].max(b[2]).max(c[2]) > f.parting_z_mm {
+                spanning += area_beyond([a, b, c], f64::NEG_INFINITY, true);
+            }
+        }
+        let locking = p.undercut_area_mm2 - p.silhouette_mm2;
+        eprintln!("block turned {SPIN}°: {locking:.4} mm² locking, {:.4} forgiven, against {truth:.4} leaning back ({spanning:.4} on facets across the plane)", p.silhouette_mm2);
+        assert!(truth > 2.0, "each wall stands about 1.6 mm proud: {truth}");
+        assert!(p.silhouette_mm2 < PART_NOISE_MM2, "a flat wall's lean is its own, not its chord's: {p:?}");
+        // Each facet is judged whole on its centroid's side, so a facet across the plane is all or none of its share.
+        assert!((locking - truth).abs() <= spanning + 1e-6, "{locking} against {truth}");
+        assert!(p.undercut_at.is_some_and(|s| s.side == PartingSide::Both) && f.notes.iter().any(|n| n.contains("Block")), "{p:?}");
     }
 
     /// A seam bead is the part's own metal: the verdict judges it with the part, and the pick names it.
