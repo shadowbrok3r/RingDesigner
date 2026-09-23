@@ -12,6 +12,7 @@ use ringdesign_core::interaction::pick::PickScene;
 use ringdesign_core::mesh::{BuildParams, BuildResult};
 use ringdesign_core::{RingDesign, library};
 use ringdesign_workbench::command::BandSurface;
+use ringdesign_workbench::render::{self, StagedEdges};
 use ringdesign_workbench::viewport::Selection;
 use ringdesign_workbench::viewport::pins::Pin;
 use ringdesign_graph::eval::{Evaluator, evaluate_design};
@@ -46,6 +47,12 @@ pub struct Workspace {
     pub show_grid: bool,
     #[serde(default = "default_true")]
     pub show_gems: bool,
+    /// Every CAD part's edges over the metal: the Display menu's Part edges.
+    #[serde(default = "default_true")]
+    pub show_part_edges: bool,
+    /// The work planes drawn over the ring.
+    #[serde(default = "default_true")]
+    pub show_work_planes: bool,
     /// Resolve made settings into the preview as they are edited.
     #[serde(default = "default_true")]
     pub live_cuts: bool,
@@ -104,6 +111,8 @@ impl Default for Workspace {
             show_wireframe: false,
             show_grid: true,
             show_gems: true,
+            show_part_edges: true,
+            show_work_planes: true,
             live_cuts: true,
             show_cutters: false,
             shrink_metal: None,
@@ -135,6 +144,8 @@ impl RingDesignerApp {
             show_wireframe: self.show_wireframe,
             show_grid: self.show_grid,
             show_gems: self.show_gems,
+            show_part_edges: crate::viewport::show_edges(&self.egui_ctx),
+            show_work_planes: !self.command.planes.hidden,
             live_cuts: self.live_cuts,
             show_cutters: self.show_cutters,
             shrink_metal: self.shrink_metal,
@@ -365,6 +376,8 @@ impl RingDesignerApp {
         ws.panes.resize_with(4, || Pane::defaults().remove(0));
         ws.panes.truncate(4);
         ws.active_pane = ws.active_pane.min(ws.layout.count() - 1);
+        // The Part edges switch lives in egui's data, where the viewports and the Display menu read it.
+        cc.egui_ctx.data_mut(|d| d.insert_persisted(egui::Id::new(crate::viewport::EDGES_SHOWN), ws.show_part_edges));
 
         let design_for_history = design.clone();
         let mut app = Self {
@@ -462,6 +475,7 @@ impl RingDesignerApp {
             last_build_valid: false,
             generation: 0,
         };
+        app.command.planes.hidden = !ws.show_work_planes;
         app.restore_desktop_view();
         app.mark_dirty();
         app
@@ -604,18 +618,11 @@ impl RingDesignerApp {
                             r.validation.triangle_count, r.volume_mm3, r.build_ms
                         ),
                     };
+                    let build = Arc::new(done.result);
+                    // The worker staged every buffer; the UI thread only hands them over for upload.
                     if let Ok(mut r) = self.renderer.lock() {
-                        let cad=done.graph.as_ref().map_or(!self.design.band_is_procedural(),|g|!g.design.band_is_procedural());
-                        if cad {r.prepare_cad(&done.result.mesh);} else {
-                        r.prepare_upload(
-                            &done.result.mesh,
-                            Some(&done.cast),
-                            (
-                                self.design.inner_radius_mm(),
-                                self.design.draft.min_section_mm,
-                            ),
-                        );
-                        }
+                        r.prepare_staged(std::mem::take(&mut done.metal));
+                        r.prepare_edges(&build, std::mem::take(&mut done.edges));
                         r.prepare_gems(std::mem::take(&mut done.gems));
                         r.prepare_cutters(std::mem::take(&mut done.cutters));
                     }
@@ -624,12 +631,12 @@ impl RingDesignerApp {
                     // on every edit.
                     if self.fit_pending {
                         self.fit_pending = false;
-                        let bounds = done.result.mesh.bounds();
+                        let bounds = build.mesh.bounds();
                         for pane in &mut self.panes {
                             pane.camera.fit(bounds);
                         }
                     }
-                    self.build = Some(Arc::new(done.result));
+                    self.build = Some(build);
                     crate::command::band_landed(self, done.band.take());
                     self.node_focus.mesh_generation = done.generation;
                     self.node_focus.mesh_params = Some(done.params);
@@ -663,7 +670,7 @@ impl RingDesignerApp {
                         }
                     }
                     // The pick scene follows the mesh on screen, over the design as evaluated.
-                    self.pick_scene = self.build.as_ref().map(|b| Arc::new(PickScene::build(b, &self.design)));
+                    self.pick_scene = Some(done.pick);
                     self.refresh_sections();
                     ctx.request_repaint();
                 }
@@ -720,10 +727,10 @@ impl RingDesignerApp {
         }
     }
 
-    /// Reslice every pane showing a cross-section.
+    /// Reslice every cross-section on screen; one out of sight is resliced by the layout that shows it.
     pub fn refresh_sections(&mut self) {
-        for i in 0..self.panes.len() {
-            if self.panes[i].kind == PaneKind::Section {
+        for i in self.visible_panes() {
+            if self.panes.get(i).is_some_and(|p| p.kind == PaneKind::Section) {
                 self.refresh_section(i);
             }
         }
@@ -807,6 +814,7 @@ impl RingDesignerApp {
         self.node_focus.aim_pending = self.selected_node.is_some();
         self.band_paint = false;
         self.visual.select(ringdesign_workbench::visual::Tool::Select);
+        self.refresh_sections();
     }
 
     /// A stored layout can have lost the workspace's own view; put it back in a visible pane.
@@ -1388,6 +1396,12 @@ struct Done {
     gems: Vec<f32>,
     /// The seats' cutters as a ghost, empty unless asked for.
     cutters: Vec<f32>,
+    /// The metal staged for upload: draft classes and the wall heatmap baked in, or a CAD-only ring's creases.
+    metal: Vec<f32>,
+    /// Every drawn part's edges staged for the edge pass.
+    edges: StagedEdges,
+    /// The pick scene over `result`, over the design as evaluated.
+    pick: Arc<PickScene>,
     graph: Option<GraphDone>,
     /// The ring frame over the build's band, the one before it when the band did not change.
     band: Option<Arc<BandSurface>>,
@@ -1520,40 +1534,53 @@ impl Worker {
                                 }
                             }
                         });
-                        // The verdict itself comes from the surface, at a fixed
-                        // sampling so it cannot wobble with preview quality; any
-                        // undercut arrives located and blamed.
-                        let mut field = match field_from_graph {
-                            Some(f) => f,
-                            None => castability::attributed_field_report(&job.design, &job.lib, &job.design.draft, 192, 128),
-                        };
-                        // Parts are judged only on a build that joins them; with live cuts off they keep the design-only note.
-                        if job.live_cuts {
-                            castability::judge_parts(&mut field, &job.design, &result);
-                        }
-                        // The draft colours paint at the verdict's own parting plane.
-                        let cast = castability::analyze_at(
-                            &result.mesh,
-                            &job.design.draft,
-                            job.design.inner_radius_mm(),
-                            field.parting_z_mm,
-                        );
-                        let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
-                        let hot_spot = castability::modulus_scan(&job.design, &job.lib, 64)
-                            .into_iter()
-                            .max_by(|a, b| a.1.total_cmp(&b.1));
-                        let mut gems = crate::gems::preview_vertices(&job.design, &job.lib);
-                        // Stones set as CAD parts draw with the preview stones: never metal, never exported.
-                        for c in result.parts.evaluated.iter().flat_map(|e| &e.components).filter(|c| c.settings.reference) {
-                            let t = crate::gems::GEM_TINT;
-                            for f in &c.mesh.faces {
-                                let n = c.mesh.face_normal(f).unwrap_or([0.0, 0.0, 1.0]).map(|v| v as f32);
-                                for &i in f {
-                                    let p = c.mesh.vertices[i as usize];
-                                    gems.extend_from_slice(&[p.0, p.1, p.2, n[0], n[1], n[2], t[0], t[1], t[2], t[0], t[1], t[2]]);
+                        // The pick scene builds on its own thread beside the verdict and the staging, which never read it.
+                        let (pick, field, cast, stones, hot_spot, gems, metal, edges) = std::thread::scope(|s| {
+                            let pick = s.spawn(|| PickScene::build(&result, &job.design));
+                            // The verdict itself comes from the surface, at a fixed
+                            // sampling so it cannot wobble with preview quality; any
+                            // undercut arrives located and blamed.
+                            let mut field = match field_from_graph {
+                                Some(f) => f,
+                                None => castability::attributed_field_report(&job.design, &job.lib, &job.design.draft, 192, 128),
+                            };
+                            // Parts are judged only on a build that joins them; with live cuts off they keep the design-only note.
+                            if job.live_cuts {
+                                castability::judge_parts(&mut field, &job.design, &result);
+                            }
+                            // The draft colours paint at the verdict's own parting plane.
+                            let cast = castability::analyze_at(
+                                &result.mesh,
+                                &job.design.draft,
+                                job.design.inner_radius_mm(),
+                                field.parting_z_mm,
+                            );
+                            let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
+                            let hot_spot = castability::modulus_scan(&job.design, &job.lib, 64)
+                                .into_iter()
+                                .max_by(|a, b| a.1.total_cmp(&b.1));
+                            let mut gems = crate::gems::preview_vertices(&job.design, &job.lib);
+                            // Stones set as CAD parts draw with the preview stones: never metal, never exported.
+                            for c in result.parts.evaluated.iter().flat_map(|e| &e.components).filter(|c| c.settings.reference) {
+                                let t = crate::gems::GEM_TINT;
+                                for f in &c.mesh.faces {
+                                    let n = c.mesh.face_normal(f).unwrap_or([0.0, 0.0, 1.0]).map(|v| v as f32);
+                                    for &i in f {
+                                        let p = c.mesh.vertices[i as usize];
+                                        gems.extend_from_slice(&[p.0, p.1, p.2, n[0], n[1], n[2], t[0], t[1], t[2], t[0], t[1], t[2]]);
+                                    }
                                 }
                             }
-                        }
+                            let metal = if job.design.band_is_procedural() {
+                                render::stage_mesh(&result.mesh, Some(&cast), (job.design.inner_radius_mm(), job.design.draft.min_section_mm))
+                            } else {
+                                render::stage_cad(&result.mesh)
+                            };
+                            let edges = result.parts.evaluated.as_ref().map(render::stage_edges).unwrap_or_default();
+                            // A panic building the scene fails this build, as one here does.
+                            let pick = pick.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
+                            (Arc::new(pick), field, cast, stones, hot_spot, gems, metal, edges)
+                        });
                         Ok(Done {
                             generation,
                             params: job.params,
@@ -1564,6 +1591,9 @@ impl Worker {
                             stones,
                             gems,
                             cutters,
+                            metal,
+                            edges,
+                            pick,
                             graph: graph_done,
                             band,
                         })
