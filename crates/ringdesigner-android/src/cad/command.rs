@@ -687,7 +687,7 @@ impl Live {
         let y = if top { shown.bottom() + 6.0 } else { (shown.top() - 6.0 - tall).max(c.rect.top() + 4.0) };
         // The bar draws 18 points right of and below its anchor.
         let anchor = egui::pos2(c.rect.left() + 8.0, y) - egui::vec2(18.0, 18.0);
-        for e in self.bar.show(&ctx, anchor, &mut dims) {
+        for e in self.bar.show(&ctx, anchor, c.rect, &mut dims) {
             let o = match e {
                 DimEvent::Typed { key, value } => self.session.feed(StepInput::Typed { key, value }),
                 DimEvent::Cleared { key } => self.session.feed(StepInput::Cleared { key }),

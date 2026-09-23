@@ -123,7 +123,9 @@ fn write(job: &ExportJob) -> Result<String, Box<dyn std::error::Error>> {
                 None => (out.mesh.clone(), job.design.name.clone()),
             };
             let bytes = if job.kind == ExportKind::ThreeMf {
-                ringdesign_core::threemf::write_3mf(&job.path, &mesh, &name, &job.design.size.display())?
+                let k = job.shrink.as_ref().map_or(1.0, |(pct, _)| metal::pattern_scale(*pct));
+                let objects: Vec<ringdesign_core::threemf::Object> = ringdesign_core::threemf::objects(&out, &name).iter().map(|o| o.scaled(k)).collect();
+                ringdesign_core::threemf::write_3mf_objects(&job.path, &objects, &name, &job.design.size.display())?
             } else {
                 ringdesign_core::stl::write_stl(&job.path, &mesh, &name)?
             };
