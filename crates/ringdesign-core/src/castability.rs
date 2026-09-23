@@ -711,10 +711,10 @@ pub fn modulus_scan(
     bins: usize,
 ) -> Vec<(f64, f64)> {
     let n = bins.clamp(8, 720);
-    (0..n)
-        .map(|k| {
-            let theta = k as f64 / n as f64 * 360.0;
-            let s = section_at(design, lib, theta, 128);
+    ring_sections(design, lib, n, 128, build_spacing(design, lib).as_ref())
+        .into_iter()
+        .map(|s| {
+            let theta = s.theta_deg;
             let pts = &s.points;
             let m = if pts.len() >= 3 {
                 let mut area = 0.0;
@@ -747,10 +747,10 @@ pub fn parting_line(
     profile_steps: usize,
 ) -> Vec<[f64; 3]> {
     let n = theta_steps.clamp(16, 4096);
-    (0..n)
-        .map(|k| {
-            let theta = k as f64 / n as f64 * 360.0;
-            let s = section_at(design, lib, theta, profile_steps.clamp(32, 1024));
+    ring_sections(design, lib, n, profile_steps.clamp(32, 1024), build_spacing(design, lib).as_ref())
+        .into_iter()
+        .map(|s| {
+            let theta = s.theta_deg;
             let mut best: Option<&SectionPoint> = None;
             let max_r = s
                 .points
@@ -836,11 +836,12 @@ pub fn section_at(
     theta_deg: f64,
     steps: usize,
 ) -> Section {
-    let spacing = design
-        .build
-        .adaptive
-        .then(|| Spacing::compute(design, &design.field_context(), lib, 1));
-    section_at_spaced(design, lib, theta_deg, steps, spacing.as_ref())
+    section_at_spaced(design, lib, theta_deg, steps, build_spacing(design, lib).as_ref())
+}
+
+/// The spacing the build samples at, when the design builds adaptively.
+fn build_spacing(design: &RingDesign, lib: &AlphaLibrary) -> Option<Spacing> {
+    design.build.adaptive.then(|| Spacing::compute(design, &design.field_context(), lib, 1))
 }
 
 /// [`section_at`] against a spacing the caller already computed.
@@ -857,10 +858,10 @@ pub fn section_at_spaced(
     section_with(design, lib, theta_deg, steps, spacing, &design.reference_loop(), &design.field_context())
 }
 
-/// `t_n` sections evenly round the ring, against one reference loop and field context.
-fn ring_sections(design: &RingDesign, lib: &AlphaLibrary, t_n: usize, steps: usize) -> Vec<Section> {
+/// `t_n` sections evenly round the ring, against one reference loop, field context and spacing.
+fn ring_sections(design: &RingDesign, lib: &AlphaLibrary, t_n: usize, steps: usize, spacing: Option<&Spacing>) -> Vec<Section> {
     let (reference, ctx) = (design.reference_loop(), design.field_context());
-    let one = |i: usize| section_with(design, lib, i as f64 / t_n as f64 * 360.0, steps, None, &reference, &ctx);
+    let one = |i: usize| section_with(design, lib, i as f64 / t_n as f64 * 360.0, steps, spacing, &reference, &ctx);
     #[cfg(feature = "parallel")]
     let sections = (0..t_n).into_par_iter().map(one).collect();
     #[cfg(not(feature = "parallel"))]
@@ -1145,7 +1146,7 @@ pub fn analyze_field(
         return FieldReport {verdict:Verdict::Marginal,notes:vec!["CAD solids require mesh-space manufacturing inspection; band-field measurements do not apply".into()],..empty};
     }
 
-    let sections = ring_sections(design, lib, t_n, profile_steps);
+    let sections = ring_sections(design, lib, t_n, profile_steps, None);
     let p_n = sections[0].points.len();
     if p_n < 3 || sections.iter().any(|s| s.points.len() != p_n) {
         return empty;
@@ -1510,7 +1511,7 @@ fn field_undercuts(
     t_n: usize,
     p_n: usize,
 ) -> Vec<(f64, f64, f64, f64)> {
-    let sections = ring_sections(design, lib, t_n, p_n);
+    let sections = ring_sections(design, lib, t_n, p_n, None);
     let rows = sections[0].points.len();
     if rows < 3 || sections.iter().any(|s| s.points.len() != rows) {
         return Vec::new();
@@ -1708,10 +1709,13 @@ mod tests {
         use crate::alpha::AlphaLibrary;
         let lib = AlphaLibrary::builtin();
         let d = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
-        let (reference, ctx) = (d.reference_loop(), d.field_context());
-        let (one, shared) = (super::section_at_spaced(&d, &lib, 37.5, 128, None), super::section_with(&d, &lib, 37.5, 128, None, &reference, &ctx));
+        // Shared and fanned out, in order, each section is the one the single-section entry point gives.
         let bits = |s: &super::Section| s.points.iter().map(|p| (p.r.to_bits(), p.z.to_bits(), p.draft_deg.to_bits())).collect::<Vec<_>>();
-        assert!(!one.points.is_empty() && bits(&one) == bits(&shared));
+        let ring = super::ring_sections(&d, &lib, 24, 128, None);
+        for (k, shared) in ring.iter().enumerate() {
+            let one = super::section_at_spaced(&d, &lib, k as f64 * 15.0, 128, None);
+            assert!(!one.points.is_empty() && shared.theta_deg == one.theta_deg && bits(shared) == bits(&one), "section {k}");
+        }
         let time = |f: &dyn Fn()| {
             f();
             let started = std::time::Instant::now();
