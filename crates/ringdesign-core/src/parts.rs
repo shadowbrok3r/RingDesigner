@@ -360,11 +360,13 @@ fn swept_normals(mesh: &Mesh) -> Vec<Vec3> {
     table
 }
 
+/// Turn between neighbouring faces of a part past which its corner normals hold a crease, degrees.
+pub(crate) const CREASE_DEG: f64 = 38.0;
+
 /// The resolved solid as a mesh: band vertices keep the normals they were swept with, every
 /// vertex a solid made shades from its faces, and every face a solid touches gets corner normals
 /// that hold a crease wherever its neighbours turn more than `CREASE_DEG`.
 pub(crate) fn into_mesh(mut solid: Solid, band_normals: &[Vec3], origin: Vec<u32>) -> Mesh {
-    const CREASE_DEG: f64 = 38.0;
     // Twenty nanometres: a face with no edge and no height under it keeps an area f32 can still hold.
     csg::clean(&mut solid, 2e-5);
     let map = solid.compact();

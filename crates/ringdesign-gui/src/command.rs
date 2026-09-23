@@ -814,7 +814,8 @@ fn gizmo_of(app: &mut RingDesignerApp) -> Option<(FeatureId, Gizmo)> {
     let gizmo = match &f.component.placement {
         placement @ Placement::Ring { .. } => {
             let g = Gizmo::on_ring(&app.design, band.as_deref(), placement, 0.0)?;
-            let reach_mm = part.map_or(0.0, |c| gizmo::reach(&c.mesh, g.origin));
+            // Reach about the part's built origin.
+            let reach_mm = part.map_or(0.0, |c| gizmo::reach(&c.mesh, c.frame.origin));
             Gizmo { reach_mm, ..g }
         }
         Placement::Free => {

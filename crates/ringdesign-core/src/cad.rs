@@ -2481,7 +2481,8 @@ fn build_made(
     }
     let probe = |p: [f64; 2]| grounds.iter().filter_map(|g| g.floor(p)).reduce(f64::max);
     let floor: Option<crate::setting::Floor> = grounds.iter().any(|g| !g.faces.is_empty()).then_some(&probe as crate::setting::Floor);
-    let made = builders::build(key, gem, settings, seat, floor)?;
+    let bore = builders::Bore::of(design, &frame);
+    let made = builders::build_in(key, gem, settings, seat, floor, Some(&bore))?;
     Ok(Built { value: Value::Mesh(Arc::new(made.placed(&frame))), frame: Some(frame), attach: None, notes })
 }
 

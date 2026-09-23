@@ -4,7 +4,7 @@ use super::judge::PART_NOISE_MM2;
 use super::{BORE_TOL_MM, BoreTrace, FaceClass, RingDesign, read_face};
 use crate::interaction::bvh::Bvh;
 use crate::mesh::{Mesh, Vec3};
-use super::judge::{SILHOUETTE_DEG, SILHOUETTE_MM};
+use super::judge::{SILHOUETTE_DEG, SILHOUETTE_MM, chord_lean};
 use std::sync::{Arc, OnceLock};
 
 /// Radial lines round the ring the band's crossings are read on.
@@ -274,7 +274,9 @@ impl GhostJudge {
         };
         let mut out = GhostRead { classes: Vec::with_capacity(placed.faces.len()), ..Default::default() };
         let mut worst = 0.0f64;
-        for f in &placed.faces {
+        // Facets across the plane leaning less than a chord can, with their area and draft, for the corner test.
+        let mut across: Vec<(usize, f64, f64)> = Vec::new();
+        for (fi, f) in placed.faces.iter().enumerate() {
             // A cut leaves walls only where it runs through the band's metal.
             let share = match (inside_out.then(|| self.radial()).flatten(), placed.triangle(f)) {
                 (Some((band, radial)), Some((a, b, c))) => self.share_in_band(band, radial, [a, b, c], MAX_SPLITS),
@@ -294,7 +296,7 @@ impl GhostJudge {
                         lo <= self.parting_z + SILHOUETTE_MM && hi >= self.parting_z - SILHOUETTE_MM
                     });
                     if spans && r.draft > -SILHOUETTE_DEG {
-                        out.silhouette_mm2 += r.area;
+                        across.push((fi, r.area, r.draft));
                     } else {
                         out.undercut_mm2 += r.area;
                         worst = worst.min(r.draft);
@@ -306,8 +308,86 @@ impl GhostJudge {
             }
             out.classes.push(r.class);
         }
+        if !across.is_empty() {
+            let corners = Corners::of(&placed);
+            for (fi, area, draft) in across {
+                let chord = placed.triangle(&placed.faces[fi]).is_some_and(|(a, b, c)| chord_lean([a, b, c], corners.at(fi), self.parting_z));
+                if chord {
+                    out.silhouette_mm2 += area;
+                } else {
+                    out.undercut_mm2 += area;
+                    worst = worst.min(draft);
+                }
+            }
+        }
         out.worst_deg = worst;
         out
+    }
+}
+
+/// A mesh's corner normals as a resolved part's are: each corner averages the faces round it within the crease angle of its own, weighted by their angle there.
+struct Corners<'a> {
+    mesh: &'a Mesh,
+    normals: Vec<Option<[f64; 3]>>,
+    /// Faces round each vertex, `around[start[v]..start[v + 1]]`.
+    start: Vec<u32>,
+    around: Vec<u32>,
+}
+
+impl<'a> Corners<'a> {
+    fn of(mesh: &'a Mesh) -> Self {
+        let n = mesh.vertices.len();
+        let mut start = vec![0u32; n + 1];
+        for f in &mesh.faces {
+            for &v in f.iter().filter(|v| (**v as usize) < n) {
+                start[v as usize + 1] += 1;
+            }
+        }
+        for i in 0..n {
+            start[i + 1] += start[i];
+        }
+        let mut fill = start.clone();
+        let mut around = vec![0u32; start[n] as usize];
+        for (fi, f) in mesh.faces.iter().enumerate() {
+            for &v in f.iter().filter(|v| (**v as usize) < n) {
+                around[fill[v as usize] as usize] = fi as u32;
+                fill[v as usize] += 1;
+            }
+        }
+        Self { mesh, normals: mesh.faces.iter().map(|f| mesh.face_normal(f)).collect(), start, around }
+    }
+
+    /// The three corner normals of face `fi`; its own normal where a corner has nothing to average.
+    fn at(&self, fi: usize) -> [Vec3; 3] {
+        let cos_crease = crate::parts::CREASE_DEG.to_radians().cos();
+        let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        let mine = self.normals[fi].unwrap_or([0.0, 0.0, 1.0]);
+        let face = self.mesh.faces[fi];
+        std::array::from_fn(|k| {
+            let v = face[k] as usize;
+            let mut sum = [0.0; 3];
+            for &g in self.around.get(self.start[v] as usize..self.start[v + 1] as usize).unwrap_or(&[]) {
+                let Some(theirs) = self.normals[g as usize].filter(|t| dot(mine, *t) >= cos_crease) else { continue };
+                let w = self.angle_at(g as usize, v as u32);
+                sum = std::array::from_fn(|i| sum[i] + theirs[i] * w);
+            }
+            let len = dot(sum, sum).sqrt();
+            let n = if len > 1e-12 { sum.map(|c| c / len) } else { mine };
+            Vec3(n[0] as f32, n[1] as f32, n[2] as f32)
+        })
+    }
+
+    /// Face `fi`'s interior angle at vertex `v`, radians.
+    fn angle_at(&self, fi: usize, v: u32) -> f64 {
+        let f = self.mesh.faces[fi];
+        let Some(k) = f.iter().position(|x| *x == v) else { return 0.0 };
+        let Some((a, b, c)) = self.mesh.triangle(&[f[k], f[(k + 1) % 3], f[(k + 2) % 3]]) else { return 0.0 };
+        let unit = |p: [f64; 3]| {
+            let l = (p[0] * p[0] + p[1] * p[1] + p[2] * p[2]).sqrt();
+            if l > 1e-300 { p.map(|c| c / l) } else { p }
+        };
+        let (e1, e2) = (unit([b[0] - a[0], b[1] - a[1], b[2] - a[2]]), unit([c[0] - a[0], c[1] - a[1], c[2] - a[2]]));
+        (e1[0] * e2[0] + e1[1] * e2[1] + e1[2] * e2[2]).clamp(-1.0, 1.0).acos()
     }
 }
 
@@ -325,6 +405,20 @@ mod tests {
     const IDENTITY: [[f64; 4]; 3] = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]];
     fn lifted(dz: f64) -> [[f64; 4]; 3] {
         [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, dz]]
+    }
+
+    #[test]
+    fn a_flat_wall_leaning_back_across_the_plane_locks_in_the_ghost_as_in_the_verdict() {
+        let d = RingDesign::default();
+        let judge = GhostJudge::new(&d, None, 0.0);
+        let post = cube([-1.0, 12.0, -1.0], [1.0, 14.0, 1.0]);
+        // Turned 3° about the ring's radius, each wall facing round the ring leans back over its far half.
+        let (s, c) = 3f64.to_radians().sin_cos();
+        let turned = [[c, 0.0, s, 0.0], [0.0, 1.0, 0.0, 0.0], [-s, 0.0, c, 0.0]];
+        let read = judge.read(&post, &turned, false);
+        // Its own lean, not a chord's: the triangle across the plane on each wall's far side locks, 2 mm² apiece.
+        assert!(read.silhouette_mm2 < 1e-9 && (read.undercut_mm2 - 4.0).abs() < 1e-5 && (read.worst_deg + 3.0).abs() < 1e-4, "{read:?}");
+        assert!(read.locks());
     }
 
     #[test]
