@@ -46,3 +46,8 @@ mod tests {
         assert!(setting_items(None, None).is_empty(), "nothing to set");
     }
 }
+
+/// Stones to seat on a planar face of a part.
+pub fn face_items(_feature: Id, _face: u32) -> Vec<MenuItem> {
+    Vec::new()
+}

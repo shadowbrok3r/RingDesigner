@@ -126,3 +126,8 @@ fn seat_stone(app: &RingDesignerApp, path: &[usize]) -> Option<(Placement, Gem)>
         .map_or(stand_off, |(hit, n)| (0..3).map(|k| (frame.girdle[k] - hit[k]) * n[k]).sum());
     Some((Placement::Ring { theta_deg: st.theta_deg, across_mm, height_mm, spin_deg: st.rot_deg(), tilt_deg: 0.0, cant_deg: 0.0 }, st.gem))
 }
+
+/// Seats a reference stone named by `key` on a planar face of a part.
+pub fn add_stone_on_face(app: &mut RingDesignerApp, _feature: u64, _face: u32, _key: &'static str) {
+    app.set_status("Stones on a part's face arrive with M13");
+}

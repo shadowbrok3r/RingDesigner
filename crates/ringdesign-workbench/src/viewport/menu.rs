@@ -42,6 +42,8 @@ pub enum MenuAction {
     Pattern { feature: Id, key: &'static str },
     /// A planar face of a part pushed or pulled along its normal.
     PressPull { feature: Id, face: u32 },
+    /// A reference stone seated on a planar face of a part; `key` names the stone.
+    AddStoneOnFace { feature: Id, face: u32, key: &'static str },
 }
 
 #[derive(Clone, Debug)]
@@ -158,6 +160,9 @@ pub fn context_items(sel: &Selection, under: Option<&Pick>, design: &RingDesign)
             const STONE: &str = "A reference stone is never metal";
             if let Some(face) = face {
                 items.push(MenuItem::new("Sketch on this face", Icon::CadSketch, MenuAction::SketchOnFace { feature: id, face }, "A new sketch lying on this face, moving with it"));
+                if !reference {
+                    items.extend(super::stones::face_items(id, face));
+                }
             }
             if reference {
                 items.extend(super::stones::setting_items(Some(id), None));

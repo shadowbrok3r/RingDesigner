@@ -12,6 +12,7 @@ pub mod command;
 pub mod gizmo;
 pub mod grips;
 pub mod sketch_tools;
+pub mod touch;
 pub mod controls;
 pub mod paint_preview;
 pub mod navigation;

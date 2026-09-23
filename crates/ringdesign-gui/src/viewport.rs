@@ -1950,6 +1950,7 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
         MenuAction::ClearPins => crate::ring_snaps::clear_pins(app),
         MenuAction::Pattern { feature, key } => crate::patterns::start(app, pane, feature, key),
         MenuAction::PressPull { feature, face } => crate::patterns::press_pull(app, pane, feature, face),
+        MenuAction::AddStoneOnFace { feature, face, key } => crate::stone_tools::add_stone_on_face(app, feature, face, key),
     }
 }
 
