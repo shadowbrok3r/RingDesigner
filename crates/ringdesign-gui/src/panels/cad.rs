@@ -10,7 +10,9 @@ use crate::{
 use egui::{Stroke, vec2};
 use ringdesign_workbench::{
     cad_tools,
+    command::{DimEvent, DimensionBar},
     icons::{self, Icon},
+    sketch_tools::{self, Input, Outcome, SnapCache, Tool, Underlay},
     timeline::{self, Action},
     viewport::{Mods, Sel},
 };
@@ -124,6 +126,11 @@ pub struct CadState {
     section_offset: f64,
     /// Show the evaluated parts alone instead of the whole built ring.
     parts_only: bool,
+    /// The editing tools the canvas shares with the Ring viewport's sketch mode, and the feature they edit.
+    shared: sketch_tools::Tools,
+    shared_for: Option<NodeId>,
+    shared_escape: bool,
+    bar: DimensionBar,
 }
 impl Default for CadState {
     fn default() -> Self {
@@ -171,6 +178,10 @@ impl Default for CadState {
             section_axis: 2,
             section_offset: 0.0,
             parts_only: false,
+            shared: sketch_tools::Tools::default(),
+            shared_for: None,
+            shared_escape: false,
+            bar: DimensionBar::new("cad-sketch-dimensions"),
         }
     }
 }
@@ -178,13 +189,18 @@ impl CadState {
     /// Escape from the global shortcut router: backs out of pending sketch picks, then a history
     /// rollback. It never discards the candidate.
     pub fn cancel_shortcut(&mut self) -> bool {
+        if self.tab == 1 && self.tool >= CANVAS_TOOLS.len() && (self.shared.busy() || !self.shared.chosen_entities.is_empty()) {
+            self.shared_escape = true;
+            return true;
+        }
         let editing = self.rollback.is_some() || !self.pending.is_empty();
         self.escape_requested |= editing;
         editing
     }
     /// Delete from the global shortcut router: the selected sketch point or entity.
     pub fn delete_shortcut(&mut self) -> bool {
-        let editing = self.tab == 1 && (self.point.is_some() || self.entity.is_some());
+        let chosen = !self.shared.chosen_points.is_empty() || !self.shared.chosen_entities.is_empty();
+        let editing = self.tab == 1 && (self.point.is_some() || self.entity.is_some() || chosen);
         self.delete_requested |= editing;
         editing
     }
@@ -203,6 +219,28 @@ impl CadState {
     #[cfg_attr(not(test), allow(dead_code))]
     pub fn last_error(&self) -> Option<&str> {
         self.error.as_deref()
+    }
+}
+#[cfg(test)]
+impl CadState {
+    /// Chooses `feature` and opens its sketch on the canvas.
+    pub fn open_sketch(&mut self, feature: u64) {
+        self.selected = Some(NodeId(feature));
+        self.tab = 1;
+    }
+    /// Where a sketch point shows on the canvas drawn in `rect`.
+    pub fn canvas_point(&self, rect: egui::Rect, xy: [f64; 2]) -> egui::Pos2 {
+        rect.center() + self.sketch_pan + vec2(xy[0] as f32, -xy[1] as f32) * self.sketch_scale
+    }
+    /// What the shared tool asks for next, and what the pane last said.
+    pub fn tool_words(&self) -> (String, String) {
+        (self.shared.prompt(), self.message.clone())
+    }
+    /// The sketch the candidate holds in `feature`.
+    pub fn candidate_sketch(&self, feature: u64) -> Option<Sketch> {
+        let n = self.draft.as_ref()?.node(NodeId(feature))?;
+        let mut f: Feature = serde_json::from_value(n.params.clone()).ok()?;
+        f.operation.sketch_mut().cloned()
     }
 }
 fn hash<T: serde::Serialize>(v: &T) -> u64 {
@@ -632,6 +670,13 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 .on_disabled_hover_text("Select a sketch, extrusion, revolve, sweep, twist or loft feature first.").clicked() {
                 state.tab = 1; ui.close();
             }
+            let committed = state.selected.is_some_and(|id| app.design.cad.as_ref().and_then(|d| d.feature(id.0)).is_some_and(|f| f.operation.clone().sketch_mut().is_some()));
+            if ui.add_enabled(editable && committed, egui::Button::new((Icon::View.image(ui, 18.), "Draw in the Ring viewport")))
+                .on_hover_text("Sketch it where it lies on the ring, the ring drawn under it")
+                .on_disabled_hover_text("Apply the sketch first: the Ring viewport draws the sketch the design holds").clicked() {
+                if let Some(id) = state.selected { crate::sketch_mode::start_in_ring(app, id.0); }
+                ui.close();
+            }
             if ui.button("Return to solid view").clicked() { state.tab = 0; ui.close(); }
         });
         ui.menu_button((Icon::Panel.image(ui, 18.), "Inspect"), |ui| {
@@ -877,7 +922,13 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             if g.wire_into(id, "operation").is_none() {
                 if let Some(n) = g.node_mut(id) {
                     if let Ok(mut f) = serde_json::from_value::<Feature>(n.params.clone()) {
-                        if let Some(sketch) = f.operation.sketch_mut() { sketch_canvas(ui, sketch, &mut state); }
+                        if let Some(sketch) = f.operation.sketch_mut() {
+                            if state.shared_for != Some(id) {
+                                state.shared.reset();
+                                state.shared_for = Some(id);
+                            }
+                            sketch_canvas(ui, sketch, &mut state);
+                        }
                         n.params = serde_json::to_value(f).unwrap();
                     }
                 }
@@ -1933,18 +1984,29 @@ fn sketch_controls(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
             s.constraints.pop();
         }
     });
-    let tools = ["Select", "Line", "Polyline", "Circle", "Arc", "Cubic"];
     ui.horizontal_wrapped(|ui| {
-        ui.menu_button((Icon::CadSketch.image(ui, 18.), format!("Tool: {}", tools[state.tool])), |ui| {
-            for (i, label) in tools.iter().enumerate() {
-                if ui.selectable_value(&mut state.tool, i, *label).clicked() {
+        ui.menu_button((Icon::CadSketch.image(ui, 18.), format!("Tool: {}", tool_label(state.tool))), |ui| {
+            for i in 0..CANVAS_TOOLS.len() + Tool::EDITING.len() {
+                let label = tool_label(i);
+                let r = match shared_tool(i) {
+                    Some(t) => ui.add(egui::Button::selectable(state.tool == i, (t.icon().image(ui, 18.), label))).on_hover_text(t.hint()),
+                    None => ui.selectable_label(state.tool == i, label),
+                };
+                if r.clicked() {
+                    state.tool = i;
                     state.pending.clear();
+                    if let Some(t) = shared_tool(i) {
+                        state.shared.set_tool(t);
+                    }
                     ui.close();
                 }
             }
         });
         ui.checkbox(&mut state.construction, "Construction");
     });
+    if shared_tool(state.tool).is_some() {
+        ui.weak(state.shared.prompt());
+    }
     ringdesign_workbench::controls::row(ui, "Grid", |ui| { ui.add(egui::DragValue::new(&mut s.grid_mm).range(0.01..=10.0).speed(0.01).suffix(" mm")); });
     ringdesign_workbench::controls::row(ui, "Constraint", |ui| {
         egui::ComboBox::from_id_salt("constraint_kind")
@@ -1983,11 +2045,11 @@ fn sketch_canvas(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
     );
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, "Sketch canvas"));
     if std::mem::take(&mut state.delete_requested) {
-        if let Some(id) = state.entity.take() {
-            s.remove_entity(id);
-        } else if let Some(id) = state.point.take() {
-            s.remove_point(id);
-        }
+        let mut points = std::mem::take(&mut state.shared.chosen_points);
+        let mut entities = std::mem::take(&mut state.shared.chosen_entities);
+        points.extend(state.point.take());
+        entities.extend(state.entity.take());
+        sketch_tools::delete(s, &points, &entities);
         state.pending.clear();
     }
     if response.hovered() {
@@ -2037,7 +2099,7 @@ fn sketch_canvas(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
                 points.clone(),
                 Stroke::new(
                     if e.construction { 1.0 } else { 2.0 },
-                    if state.entity == Some(e.id) {
+                    if state.entity == Some(e.id) || state.shared.is_chosen(e.id) {
                         theme::WARN
                     } else if e.construction {
                         theme::TEXT_DIM
@@ -2048,6 +2110,15 @@ fn sketch_canvas(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
             ));
             drawn.push((e.id, points));
         }
+    }
+    for a in sketch_tools::annotations(s) {
+        let (p, q) = (map(a.from), map(a.to));
+        let along = (q - p).normalized();
+        painter.text(p + (q - p) * 0.5 + vec2(-along.y, along.x) * 12.0, egui::Align2::CENTER_CENTER, &a.text, egui::FontId::proportional(11.0), theme::INFO);
+    }
+    if shared_tool(state.tool).is_some() {
+        shared_canvas(ui, s, state, &response, rect, &map, &inverse);
+        return;
     }
     // The shape being drawn, with a rubber band to the cursor.
     if state.tool != 0 && !state.pending.is_empty() {
@@ -2184,6 +2255,99 @@ fn sketch_canvas(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
             finish_polyline(s, state, false);
         }
     }
+}
+
+/// The canvas's own drawing tools; the editing tools it shares with sketch mode follow them in its list.
+const CANVAS_TOOLS: [&str; 6] = ["Select", "Line", "Polyline", "Circle", "Arc", "Cubic"];
+
+/// The shared tool at place `i` of the canvas's list, past its own drawing tools.
+fn shared_tool(i: usize) -> Option<Tool> {
+    i.checked_sub(CANVAS_TOOLS.len()).and_then(|k| Tool::EDITING.get(k).copied())
+}
+
+fn tool_label(i: usize) -> &'static str {
+    shared_tool(i).map_or_else(|| CANVAS_TOOLS.get(i).copied().unwrap_or("Select"), Tool::label)
+}
+
+/// Says what a shared tool did on the pane's message line.
+fn say(state: &mut CadState, out: Outcome) {
+    if let Outcome::Edited(words) | Outcome::Refused(words) = out {
+        state.message = words;
+    }
+}
+
+/// The canvas under a shared editing tool: the pointer snapped and fed, clicks, typed values, keys and the preview.
+fn shared_canvas(
+    ui: &mut egui::Ui,
+    s: &mut Sketch,
+    state: &mut CadState,
+    response: &egui::Response,
+    rect: egui::Rect,
+    map: &impl Fn([f64; 2]) -> egui::Pos2,
+    inverse: &impl Fn(egui::Pos2) -> [f64; 2],
+) {
+    let painter = ui.painter_at(rect);
+    let reach = 8.0 / f64::from(state.sketch_scale.max(1e-3));
+    let pointer = response.hover_pos().or_else(|| response.interact_pointer_pos());
+    if let Some(pos) = pointer {
+        let raw = inverse(pos);
+        let under = Underlay::default();
+        let snapped = sketch_tools::snap(s, &under, &SnapCache::of(s, &under), raw, reach, Some(s.grid_mm));
+        state.shared.feed(s, Input::Pointer { raw, snapped, reach });
+        if let Some(snap) = snapped {
+            painter.circle_stroke(map(snap.xy), 7.0, Stroke::new(1.0, theme::INFO));
+            painter.text(map(snap.xy) + vec2(10.0, 10.0), egui::Align2::LEFT_TOP, snap.kind.label(), egui::FontId::proportional(12.0), theme::INFO);
+        }
+    }
+    if response.dragged_by(egui::PointerButton::Primary) || response.dragged_by(egui::PointerButton::Middle) {
+        state.sketch_pan += response.drag_delta();
+    }
+    if response.clicked() {
+        // A click on the canvas releases whatever held the keys.
+        if let Some(f) = ui.ctx().memory(|m| m.focused()) {
+            ui.ctx().memory_mut(|m| m.surrender_focus(f));
+        }
+        let add = ui.input(|i| i.modifiers.shift);
+        let out = state.shared.feed(s, Input::Click { add });
+        say(state, out);
+    }
+    let mut dims = state.shared.dimensions(s);
+    if !dims.is_empty() {
+        let anchor = pointer.unwrap_or(rect.center());
+        state.bar.set_host(Some(response.id));
+        for e in state.bar.show(ui.ctx(), anchor, &mut dims) {
+            let out = match e {
+                DimEvent::Typed { key, value } => state.shared.feed(s, Input::Typed { key, value }),
+                DimEvent::Cleared { key } => state.shared.feed(s, Input::Cleared { key }),
+                DimEvent::Confirm => state.shared.feed(s, Input::Confirm),
+                DimEvent::Escape => {
+                    state.shared.escape(s);
+                    Outcome::Continue
+                }
+                DimEvent::Focused { .. } => Outcome::Continue,
+            };
+            say(state, out);
+        }
+    }
+    if !ui.ctx().egui_wants_keyboard_input() && ui.input(|i| i.key_pressed(egui::Key::Enter) && !i.modifiers.any()) {
+        let out = state.shared.feed(s, Input::Confirm);
+        say(state, out);
+    }
+    if std::mem::take(&mut state.shared_escape) {
+        state.shared.escape(s);
+    }
+    let preview = state.shared.preview(s);
+    for stroke in &preview.strokes {
+        painter.add(egui::Shape::line(stroke.iter().map(|p| map(*p)).collect(), Stroke::new(1.0, theme::INFO)));
+    }
+    for stroke in &preview.ghost {
+        painter.add(egui::Shape::line(stroke.iter().map(|p| map(*p)).collect(), Stroke::new(2.0, theme::INFO)));
+    }
+    for m in &preview.marks {
+        painter.circle_stroke(map(*m), 5.0, Stroke::new(1.5, theme::INFO));
+    }
+    let words = if preview.caption.is_empty() { state.shared.prompt() } else { format!("{} · {}", state.shared.prompt(), preview.caption) };
+    painter.text(rect.left_top() + vec2(12.0, 12.0), egui::Align2::LEFT_TOP, words, egui::FontId::proportional(12.0), theme::TEXT);
 }
 
 fn finish_polyline(s: &mut Sketch, state: &mut CadState, closed: bool) {

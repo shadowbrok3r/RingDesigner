@@ -8,11 +8,18 @@ use cadkernel::{
 use nalgebra::{DMatrix, DVector};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+pub mod anchor;
+pub mod dimension;
+pub mod draw;
 pub mod edit;
 pub mod exchange;
+pub mod fill;
+pub mod query;
 pub mod region;
 pub mod solid;
+pub use dimension::{Held, Measure};
 pub use edit::Pattern;
+pub use query::Near;
 pub use region::Region;
 pub use solid::FaceFrame;
 
