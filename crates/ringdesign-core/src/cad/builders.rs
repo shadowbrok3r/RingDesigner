@@ -1,4 +1,4 @@
-//! Parts built round a stone by name — stone, claw head, bezel, basket, seat bur, halo — as named meshes in its frame.
+//! Parts built by name — stone, claw head, bezel, basket, seat bur, halo, azures, shoulders, piercing — as named meshes in their frames.
 use super::{Attach, Component, ComponentRole, Feature, Operation, Placement, Stage, SurfaceKind};
 use crate::csg::{Op, P3, Solid};
 use crate::gem::{Gem, GemCut, GemForm};
@@ -8,6 +8,8 @@ use anyhow::{Result, bail, ensure};
 use serde::Serialize;
 use serde_json::{Value as Json, json};
 use std::collections::{HashMap, HashSet};
+
+pub mod cutters;
 
 /// The stone itself: a reference part, never metal.
 pub const STONE: &str = "stone";
@@ -21,6 +23,16 @@ pub const BASKET: &str = "head.basket";
 pub const BUR: &str = "seat.bur";
 /// A ring of melee round the stone.
 pub const HALO: &str = "halo";
+/// A shaped hole through the band along its surface normal.
+pub const PIERCE: &str = "cutter.pierce";
+/// Windows cut up through the band under a stone, round its axis.
+pub const AZURE: &str = "cutter.azure";
+/// Wire arches from the band's shoulders to a head's gallery rail.
+pub const CATHEDRAL: &str = "shank.cathedral";
+/// The parameter a builder made round a stone's head names that head's feature by.
+pub const HEAD: &str = "head";
+/// The builders that are a stone's head: what azures keep clear of and cathedral shoulders meet.
+pub const HEADS: &[&str] = &[CLAW, BASKET, BEZEL];
 
 /// Dihedral at and above which a builder's edge is a crease, degrees.
 pub const CREASE_DEG: f64 = 30.0;
@@ -52,6 +64,9 @@ pub const SPECS: &[Spec] = &[
     Spec { key: BASKET, label: "Basket", role: ComponentRole::Head, attach: Attach::Join, reference: false, on_stone: true, hint: "The claw head's claws tied by gallery rails from the base up to just under the girdle, so the pavilion sits in a cage" },
     Spec { key: BUR, label: "Seat bur", role: ComponentRole::Setting, attach: Attach::Cut, reference: false, on_stone: true, hint: "What the setter cuts under the stone: the whole bur where the girdle sits in the metal, else room for the pavilion and a pilot" },
     Spec { key: HALO, label: "Halo", role: ComponentRole::Setting, attach: Attach::Join, reference: false, on_stone: true, hint: "Melee in small collets or claw heads round the stone at equal arc length, tied by a rail under them" },
+    Spec { key: PIERCE, label: "Piercing", role: ComponentRole::Other, attach: Attach::Cut, reference: false, on_stone: false, hint: "A shaped hole cut through the band along its surface normal — round, oval, marquise, heart or drop — through to open air or blind to a depth, with a bright-cut chamfer at its rim" },
+    Spec { key: AZURE, label: "Azures", role: ComponentRole::Setting, attach: Attach::Cut, reference: false, on_stone: true, hint: "Round or teardrop windows cut up through the band under a stone round its axis, clear of its seat and its head's claws and rails, letting light in from below" },
+    Spec { key: CATHEDRAL, label: "Cathedral shoulders", role: ComponentRole::Shank, attach: Attach::Join, reference: false, on_stone: true, hint: "Two wire arches rising from the band's shoulders either side of the stone to the underside of its head's gallery rail, joined to both" },
 ];
 
 /// The builder called `key`.
@@ -62,6 +77,16 @@ pub fn spec(key: &str) -> Option<&'static Spec> {
 /// What a builder is called; "Builder" for a key no builder answers to.
 pub fn label(key: &str) -> &'static str {
     spec(key).map_or("Builder", |s| s.label)
+}
+
+/// The head a builder's parameters name under [`HEAD`]: a feature it reads besides the stone it stands on.
+pub fn head_param(params: &Json) -> Option<Id> {
+    params.get(HEAD).and_then(Json::as_u64)
+}
+
+/// The first enabled head built round stone `stone` in `doc`: its claws, basket or bezel.
+pub fn head_on(doc: &super::Document, stone: Id) -> Option<&Feature> {
+    doc.features.iter().find(|f| f.enabled && matches!(&f.operation, Operation::Builder { key, on: Some(s), .. } if *s == stone && HEADS.contains(&key.as_str())))
 }
 
 /// A part's component as its builder adds it.
@@ -143,6 +168,27 @@ pub fn schema(key: &str, gem: Gem) -> Vec<Param> {
             whole("count", "Melee count", 0.0, 60.0, 0),
             number("drop_mm", "Drop", "mm", -1.0, 3.0, 0.0),
             Param { key: "style", label: "Melee setting", unit: "", min: 0.0, max: 0.0, kind: Kind::Choice(STYLES), default: json!("Bezel") },
+        ],
+        PIERCE => vec![
+            Param { key: "shape", label: "Shape", unit: "", min: 0.0, max: 0.0, kind: Kind::Choice(cutters::PIERCE_SHAPES), default: json!("Round") },
+            number("width_mm", "Width", "mm", 0.3, 8.0, 1.6),
+            number("length_mm", "Length", "mm", 0.3, 12.0, 1.6),
+            number("turn_deg", "Turn", "°", -180.0, 180.0, 0.0),
+            Param { key: "through", label: "Through", unit: "", min: 0.0, max: 1.0, kind: Kind::Flag, default: json!(true) },
+            number("depth_mm", "Depth", "mm", 0.1, 10.0, 1.0),
+            number("chamfer_mm", "Bright cut", "mm", 0.0, 0.5, 0.12),
+        ],
+        AZURE => vec![
+            Param { key: "shape", label: "Shape", unit: "", min: 0.0, max: 0.0, kind: Kind::Choice(cutters::AZURE_SHAPES), default: json!("Teardrop") },
+            whole("count", "Windows", 3.0, 12.0, 6),
+            number("size_mm", "Size", "mm", 0.0, 4.0, 0.0),
+            number("radius_mm", "Radius", "mm", 0.0, 15.0, 0.0),
+            number("turn_deg", "Turn", "°", -180.0, 180.0, 0.0),
+        ],
+        CATHEDRAL => vec![
+            number("spread_deg", "Spread", "°", 12.0, 75.0, cutters::SPREAD_DEG),
+            number("rise", "Rise", "", 0.15, 1.2, cutters::RISE),
+            number("wire_mm", "Wire", "mm", 0.4, 2.0, cutters::arch_wire_mm(gem)),
         ],
         _ => Vec::new(),
     }
@@ -306,9 +352,9 @@ pub fn frame_of(p: &cadkernel::brep::Placement) -> crate::csg::Frame {
 /// The surface a patch reads as, by its name.
 fn kind_of(name: &str) -> SurfaceKind {
     match name {
-        "Table" | "Base" | "Back" | "Bed" => SurfaceKind::Plane,
+        "Table" | "Base" | "Back" | "Bed" | "Floor" => SurfaceKind::Plane,
         "Girdle" | "Girdle wall" | "Girdle seat" | "Wall" | "Inner wall" | "Pilot" | "Clearance" => SurfaceKind::Cylinder,
-        "Pavilion" | "Crown" | "Bearing" | "Bevel" | "Lip" | "Relief" | "Rim" => SurfaceKind::Cone,
+        "Pavilion" | "Crown" | "Bearing" | "Bevel" | "Lip" | "Relief" | "Rim" | "Bright cut" => SurfaceKind::Cone,
         "Dome" => SurfaceKind::Sphere,
         n if n.ends_with("rail") || n.starts_with("Gallery rail") => SurfaceKind::Torus,
         _ => SurfaceKind::Freeform,
@@ -466,6 +512,18 @@ const BORE_STEPS: usize = 96;
 /// Heights a bore profile holds between the band's edges.
 const BORE_ROWS: usize = 256;
 
+/// Whether `q`, an `(r, z)` point, lies inside a closed section outline: an odd count of crossings to its outer side.
+fn inside_section(s: &[[f64; 2]], q: [f64; 2]) -> bool {
+    let mut inside = false;
+    for i in 0..s.len() {
+        let (a, b) = (s[i], s[(i + 1) % s.len()]);
+        if (a[1] > q[1]) != (b[1] > q[1]) && q[0] < a[0] + (q[1] - a[1]) * (b[0] - a[0]) / (b[1] - a[1]) {
+            inside = !inside;
+        }
+    }
+    inside
+}
+
 /// The finger hole's radius against height along the finger: the innermost crossing of one section.
 struct BoreProfile {
     z0: f64,
@@ -503,7 +561,10 @@ impl BoreProfile {
     }
 }
 
-/// The finger hole seen from a builder's frame: the band's own bore at each ring angle, or the ring size's where parts are the ring.
+/// How far apart a probe along a line reads the band's metal before it bisects an edge, mm.
+const PROBE_STEP_MM: f64 = 0.05;
+
+/// The finger hole and the band's sections seen from a builder's frame; the ring size's bore where parts are the ring.
 pub struct Bore<'a> {
     design: Option<&'a crate::RingDesign>,
     frame: cadkernel::brep::Placement,
@@ -512,6 +573,7 @@ pub struct Bore<'a> {
     /// One section serves every ring angle.
     uniform: bool,
     profiles: std::cell::RefCell<HashMap<i64, Option<BoreProfile>>>,
+    sections: std::cell::RefCell<HashMap<i64, Option<std::rc::Rc<Vec<[f64; 2]>>>>>,
 }
 
 impl<'a> Bore<'a> {
@@ -519,7 +581,92 @@ impl<'a> Bore<'a> {
     pub fn of(design: &'a crate::RingDesign, frame: &cadkernel::brep::Placement) -> Self {
         let band = design.band_is_procedural().then_some(design);
         let uniform = design.imported_base.is_none() && design.shank.kind == crate::profile::ShankKind::Uniform && design.profile.morph.is_none();
-        Self { design: band, frame: *frame, nominal: design.inner_radius_mm(), reference: band.map(|d| d.reference_loop()), uniform, profiles: Default::default() }
+        Self {
+            design: band,
+            frame: *frame,
+            nominal: design.inner_radius_mm(),
+            reference: band.map(|d| d.reference_loop()),
+            uniform,
+            profiles: Default::default(),
+            sections: Default::default(),
+        }
+    }
+
+    /// The frame the part is made in.
+    pub fn frame(&self) -> &cadkernel::brep::Placement {
+        &self.frame
+    }
+
+    /// The design whose band is procedural; `None` where the parts are the ring.
+    pub fn design(&self) -> Option<&'a crate::RingDesign> {
+        self.design
+    }
+
+    /// The band's section at ring angle `theta_deg` as `(r, z)` corners round it; one serves every angle of a uniform band.
+    fn section(&self, theta_deg: f64) -> Option<std::rc::Rc<Vec<[f64; 2]>>> {
+        let design = self.design?;
+        let bin = if self.uniform { 0 } else { (theta_deg / BORE_BIN_DEG).round() as i64 };
+        self.sections
+            .borrow_mut()
+            .entry(bin)
+            .or_insert_with(|| {
+                let s = design.section_at(bin as f64 * BORE_BIN_DEG, BORE_STEPS, None, self.reference.as_ref());
+                (s.pts.len() >= 3).then(|| std::rc::Rc::new(s.pts.iter().map(|p| [p.r, p.z]).collect()))
+            })
+            .clone()
+    }
+
+    /// Whether world point `w` lies in the band's metal, read off its section at `w`'s ring angle.
+    pub fn metal_at(&self, w: P3) -> bool {
+        self.section(w[1].atan2(w[0]).to_degrees()).is_some_and(|s| inside_section(&s, [w[0].hypot(w[1]), w[2]]))
+    }
+
+    /// Radii at which the band's section at ring angle `theta_deg` crosses height `z` along the finger, in order.
+    pub fn crossings(&self, theta_deg: f64, z: f64) -> Vec<f64> {
+        let Some(s) = self.section(theta_deg) else { return Vec::new() };
+        let mut out: Vec<f64> = (0..s.len())
+            .filter_map(|i| {
+                let (a, b) = (s[i], s[(i + 1) % s.len()]);
+                ((a[1] > z) != (b[1] > z)).then(|| a[0] + (z - a[1]) * (b[0] - a[0]) / (b[1] - a[1]))
+            })
+            .collect();
+        out.sort_by(f64::total_cmp);
+        out
+    }
+
+    /// The band's reach along the finger at ring angle `theta_deg`: its section's lowest and highest `z`.
+    pub fn z_extent(&self, theta_deg: f64) -> Option<(f64, f64)> {
+        let s = self.section(theta_deg)?;
+        Some(s.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), p| (lo.min(p[1]), hi.max(p[1]))))
+    }
+
+    /// Where the line from frame point `p` along unit `d` first enters the band's metal between `t0` and `t1`, and leaves it.
+    pub fn first_metal(&self, p: P3, d: P3, t0: f64, t1: f64) -> Option<(f64, f64)> {
+        let f = &self.frame;
+        let metal = |t: f64| self.metal_at(f.point([p[0] + d[0] * t, p[1] + d[1] * t, p[2] + d[2] * t]));
+        let edge = |mut lo: f64, mut hi: f64, at_lo: bool| {
+            for _ in 0..24 {
+                let mid = 0.5 * (lo + hi);
+                if metal(mid) == at_lo { lo = mid } else { hi = mid }
+            }
+            0.5 * (lo + hi)
+        };
+        let steps = (((t1 - t0) / PROBE_STEP_MM).ceil().max(1.0) as usize).min(8192);
+        let (mut before, mut was) = (t0, metal(t0));
+        let mut entered = was.then_some(t0);
+        for k in 1..=steps {
+            let t = t0 + (t1 - t0) * k as f64 / steps as f64;
+            let now = metal(t);
+            if now != was {
+                let x = edge(before, t, was);
+                match entered {
+                    Some(start) if !now => return Some((start, x)),
+                    _ => entered = Some(x),
+                }
+            }
+            (before, was) = (t, now);
+        }
+        entered.map(|start| (start, t1))
     }
 
     /// Radial metal between point `p` of the frame and the finger hole, mm; negative inside it.
@@ -614,6 +761,9 @@ pub fn build_in(key: &str, gem: Gem, params: &Json, seat: Seat, floor: Option<se
             }
         }
         HALO => return halo(gem, &v, wall),
+        PIERCE => return Made::of(key, cutters::pierce(&v, bore)?, None),
+        AZURE => return cutters::azure(gem, &v, params, seat, floor, bore, wall),
+        CATHEDRAL => cutters::cathedral(gem, &v, params, seat, floor, bore, wall)?,
         _ => unreachable!("checked above"),
     };
     let mut made = Made::of(key, named, Some(gem))?;

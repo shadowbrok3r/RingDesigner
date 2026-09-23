@@ -48,6 +48,8 @@ mod snaps_tests;
 mod pattern_tests;
 #[cfg(test)]
 mod sweep_tests;
+#[cfg(test)]
+mod cutter_tests;
 
 use app::RingDesignerApp;
 
