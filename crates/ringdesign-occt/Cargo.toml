@@ -3,9 +3,29 @@ name = "ringdesign-occt"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "OpenCascade for RingDesigner in a child process: fillets, shells, junctions and STEP import, returned as meshes"
 
 [features]
-## OpenCascade through cadrum, desktop only.
-kernel-occt = []
+## OpenCascade through cadrum: the first build fetches its prebuilt static OCCT 8.0.1 (46 MB on Linux) or reads OCCT_ROOT.
+kernel-occt = ["dep:cadrum"]
+
+[[bin]]
+name = "occt-worker"
+path = "src/bin/occt-worker.rs"
+required-features = ["kernel-occt"]
+
+[[example]]
+name = "junction_probe"
+required-features = ["kernel-occt"]
 
 [dependencies]
+ringdesign-core.workspace = true
+cadkernel = { git = "https://github.com/HakanSeven12/cadkernel.git", rev = "920ff591028ab4ba13648b920d9d333ec3b7d44b", default-features = false, features = ["brep", "offset"] }
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+cadrum = { version = "=0.8.20", default-features = false, optional = true }
+
+[dev-dependencies]
+base64 = "0.22"
+flate2.workspace = true

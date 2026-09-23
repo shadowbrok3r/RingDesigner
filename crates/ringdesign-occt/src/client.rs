@@ -1,0 +1,170 @@
+//! One request run in a worker process with a timeout; a crash, a hang or garbage comes back as a [`Failure`].
+use crate::protocol::{MARKER, Request, Response};
+use std::io::{Read, Write};
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
+
+/// The environment variable that names the worker program, over the one beside the executable.
+pub const WORKER_ENV: &str = "RINGDESIGN_OCCT_WORKER";
+/// The worker program's name beside the executable.
+pub const WORKER_NAME: &str = "occt-worker";
+/// The argument a host binary that also serves as its own worker answers to.
+pub const WORKER_FLAG: &str = "--occt-worker";
+/// How much of a worker's stderr a failure carries, bytes.
+const STDERR_TAIL: usize = 2048;
+
+/// Why a request came back without a response.
+#[derive(Debug)]
+pub enum Failure {
+    /// No worker where one was looked for.
+    Missing(PathBuf),
+    /// The worker would not start.
+    Spawn(String),
+    /// It ran past the timeout and was killed.
+    Timeout(Duration),
+    /// It died without answering: how it ended and the tail of its stderr.
+    Crashed { status: String, stderr: String },
+    /// It answered something that is not a response.
+    Garbled(String),
+}
+
+impl std::fmt::Display for Failure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Missing(p) => write!(f, "OpenCascade's worker is not at {}", p.display()),
+            Self::Spawn(e) => write!(f, "OpenCascade's worker would not start: {e}"),
+            Self::Timeout(t) => write!(f, "OpenCascade ran past {:.1} s and was stopped", t.as_secs_f64()),
+            Self::Crashed { status, stderr } if stderr.is_empty() => write!(f, "OpenCascade's worker died ({status})"),
+            Self::Crashed { status, stderr } => write!(f, "OpenCascade's worker died ({status}): {stderr}"),
+            Self::Garbled(e) => write!(f, "OpenCascade's worker answered nonsense: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for Failure {}
+
+/// A worker program and the arguments it is started with.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Worker {
+    pub program: PathBuf,
+    pub args: Vec<String>,
+}
+
+impl Worker {
+    pub fn at(program: impl Into<PathBuf>) -> Self {
+        Self { program: program.into(), args: Vec::new() }
+    }
+
+    /// [`WORKER_ENV`] when it is set, else [`WORKER_NAME`] beside the running executable.
+    pub fn locate() -> Result<Self, Failure> {
+        let program = match std::env::var_os(WORKER_ENV) {
+            Some(p) => PathBuf::from(p),
+            None => std::env::current_exe()
+                .map_err(|e| Failure::Spawn(e.to_string()))?
+                .with_file_name(format!("{WORKER_NAME}{}", std::env::consts::EXE_SUFFIX)),
+        };
+        if !program.is_file() {
+            return Err(Failure::Missing(program));
+        }
+        Ok(Self::at(program))
+    }
+
+    /// The running executable answering [`WORKER_FLAG`], for a host that dispatches to `kernel::serve` itself.
+    pub fn this_executable() -> Result<Self, Failure> {
+        let program = std::env::current_exe().map_err(|e| Failure::Spawn(e.to_string()))?;
+        Ok(Self { program, args: vec![WORKER_FLAG.to_string()] })
+    }
+
+    /// `request` run in a fresh worker, killed once `timeout` passes.
+    pub fn run(&self, request: &Request, timeout: Duration) -> Result<Response, Failure> {
+        let input = serde_json::to_vec(request).map_err(|e| Failure::Spawn(e.to_string()))?;
+        let mut child = Command::new(&self.program)
+            .args(&self.args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| Failure::Spawn(format!("{}: {e}", self.program.display())))?;
+        let mut stdin = child.stdin.take().ok_or_else(|| Failure::Spawn("no stdin".into()))?;
+        let mut stdout = child.stdout.take().ok_or_else(|| Failure::Spawn("no stdout".into()))?;
+        let mut stderr = child.stderr.take().ok_or_else(|| Failure::Spawn("no stderr".into()))?;
+        // Stdin, stdout and stderr each on a thread of its own.
+        let writer = std::thread::spawn(move || {
+            let _ = stdin.write_all(&input);
+        });
+        let reader = std::thread::spawn(move || {
+            let mut out = Vec::new();
+            let _ = stdout.read_to_end(&mut out);
+            out
+        });
+        let errors = std::thread::spawn(move || {
+            let mut err = Vec::new();
+            let _ = stderr.read_to_end(&mut err);
+            err
+        });
+        let started = Instant::now();
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) if started.elapsed() >= timeout => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    // The pipe threads are left to end when their pipes close.
+                    drop((writer, reader, errors));
+                    return Err(Failure::Timeout(timeout));
+                }
+                Ok(None) => std::thread::sleep(Duration::from_millis(2)),
+                Err(e) => return Err(Failure::Spawn(e.to_string())),
+            }
+        };
+        let _ = writer.join();
+        let out = reader.join().unwrap_or_default();
+        let err = errors.join().unwrap_or_default();
+        let tail = {
+            let text = String::from_utf8_lossy(&err);
+            let text = text.trim();
+            let start = text.char_indices().rev().nth(STDERR_TAIL).map_or(0, |(i, _)| i);
+            text[start..].to_string()
+        };
+        let text = String::from_utf8_lossy(&out);
+        let Some(at) = text.rfind(MARKER) else {
+            return Err(if status.success() { Failure::Garbled("no response".into()) } else { Failure::Crashed { status: status.to_string(), stderr: tail } });
+        };
+        match serde_json::from_str::<Response>(text[at + MARKER.len()..].trim()) {
+            Ok(response) => Ok(response),
+            Err(_) if !status.success() => Err(Failure::Crashed { status: status.to_string(), stderr: tail }),
+            Err(e) => Err(Failure::Garbled(e.to_string())),
+        }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    /// A shell script standing in for the worker.
+    fn script(body: &str) -> Worker {
+        Worker { program: "/bin/sh".into(), args: vec!["-c".into(), body.into()] }
+    }
+
+    #[test]
+    fn a_hang_a_crash_and_nonsense_come_back_as_failures_not_as_the_callers() {
+        let hang = script("sleep 30").run(&Request::Ping, Duration::from_millis(300));
+        assert!(matches!(hang, Err(Failure::Timeout(_))), "{hang:?}");
+        let crash = script("cat > /dev/null; echo 'Standard_Failure: boom' >&2; kill -SEGV $$").run(&Request::Ping, Duration::from_secs(5));
+        let Err(Failure::Crashed { status, stderr }) = crash else { panic!("{crash:?}") };
+        assert!(status.contains("SIGSEGV") && stderr == "Standard_Failure: boom", "{status} {stderr}");
+        let nonsense = script(&format!("cat > /dev/null; echo '{MARKER}'; echo '{{\"outcome\":\"sideways\"}}'")).run(&Request::Ping, Duration::from_secs(5));
+        assert!(matches!(nonsense, Err(Failure::Garbled(_))), "{nonsense:?}");
+        let missing = Worker::at("/nowhere/occt-worker").run(&Request::Ping, Duration::from_secs(5));
+        assert!(matches!(missing, Err(Failure::Spawn(_))), "{missing:?}");
+    }
+
+    #[test]
+    fn what_opencascade_prints_before_the_answer_is_skipped() {
+        let answer = serde_json::to_string(&Response::Refused { message: "no".into() }).unwrap();
+        let chatty = script(&format!("cat > /dev/null; echo '*** Warning: STEP header'; echo '{MARKER}'; echo '{answer}'"));
+        assert_eq!(chatty.run(&Request::Ping, Duration::from_secs(5)).unwrap(), Response::Refused { message: "no".into() });
+    }
+}

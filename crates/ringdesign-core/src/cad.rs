@@ -19,6 +19,7 @@ pub mod examples;
 pub mod measure;
 pub mod pattern;
 pub mod step;
+pub mod stored;
 pub use pattern::{MirrorPlane, PatternKind, PlaneBase, WorkPlane};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -129,6 +130,13 @@ pub enum Operation {
         face: FaceRef,
         distance_mm: f64,
     },
+    /// A closed mesh another kernel made, kept in the file: it replaces `sources` and stands in the frame the first was seated by.
+    Stored {
+        recipe: stored::Recipe,
+        #[serde(default)]
+        sources: Vec<Id>,
+        mesh: stored::Packed,
+    },
 }
 /// The closed profile a feature sweeps: drawn in the feature, a `Sketch` feature named by id, or
 /// one region of it. Untagged, so a region (`feature` and `region` keys) is tried before a whole
@@ -202,6 +210,7 @@ impl Operation {
             Self::Pattern { kind, .. } => kind.label(),
             Self::Plane { .. } => "Work plane",
             Self::PressPull { .. } => "Press-pull",
+            Self::Stored { recipe, .. } => recipe.label(),
         }
     }
     /// Whether the feature builds a body of its own: a sketch and a work plane do not.
@@ -227,6 +236,7 @@ impl Operation {
             }
             Self::Loft { sections } => sections.iter().flat_map(Profile::dependencies).collect(),
             Self::Sketch { sketch } => sketch.plane.on_face.iter().map(|a| a.feature).collect(),
+            Self::Stored { sources, .. } => sources.clone(),
             _ => vec![],
         }
     }
@@ -244,6 +254,7 @@ impl Operation {
             | Self::Sweep { sketch, .. }
             | Self::Twist { sketch, .. } => sketch.feature().into_iter().collect(),
             Self::Loft { sections } => sections.iter().filter_map(Profile::feature).collect(),
+            Self::Stored { sources, .. } => sources.clone(),
             _ => vec![],
         }
     }
@@ -1913,6 +1924,7 @@ fn body_for(
         }
         Operation::Pattern { .. } => anyhow::bail!("A pattern is built from its source's copies"),
         Operation::Plane { .. } => anyhow::bail!("A work plane has no body of its own"),
+        Operation::Stored { .. } => anyhow::bail!("A stored mesh is read from the file, not built by the kernel"),
     };
     body.map(Value::Brep)
 }
@@ -2259,6 +2271,9 @@ fn build_feature(
     }
     if let Operation::Pattern { source, kind } = &f.operation {
         return pattern::build(f, *source, kind, design, ctx, values, frames, who, scope);
+    }
+    if let Operation::Stored { recipe, sources, mesh } = &f.operation {
+        return stored::build(f, recipe, sources, mesh, design, ctx, values, frames, who, scope.doc);
     }
     let mut notes = Vec::new();
     let mut frame = None;
