@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use ringdesign_core::alpha::AlphaLibrary;
+use ringdesign_core::castability::ghost::GhostJudge;
 use ringdesign_core::castability::{self, CastReport};
 use ringdesign_core::field::{Layer, LayerEntry};
 use ringdesign_core::interaction::pick::PickScene;
@@ -83,8 +84,8 @@ pub struct Workspace {
     pub panes: Vec<Pane>,
     pub active_pane: usize,
     pub mcp_port: u16,
-    /// Pins dropped on the ring, by the design file they were dropped on; an unsaved design's under "".
-    #[serde(default)]
+    /// Pins a workspace kept by design file before the design carried them, an unsaved design's under ""; each moves into its design when that is opened.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub pins: BTreeMap<String, Vec<Pin>>,
 }
 
@@ -144,7 +145,7 @@ impl RingDesignerApp {
             show_wireframe: self.show_wireframe,
             show_grid: self.show_grid,
             show_gems: self.show_gems,
-            show_part_edges: crate::viewport::show_edges(&self.egui_ctx),
+            show_part_edges: self.show_part_edges,
             show_work_planes: !self.command.planes.hidden,
             live_cuts: self.live_cuts,
             show_cutters: self.show_cutters,
@@ -161,25 +162,55 @@ impl RingDesignerApp {
             panes: self.panes.clone(),
             active_pane: self.active_pane,
             mcp_port: self.mcp_port,
-            pins: self.pins.clone(),
+            pins: self.legacy_pins.clone(),
         }
     }
 
     /// The pins of the design in hand.
     pub fn pins(&self) -> &[Pin] {
-        self.pins.get(&self.pin_key()).map_or(&[], Vec::as_slice)
+        &self.design.pins
     }
 
-    /// The pins of the design in hand, to add to or clear.
+    /// The pins of the design in hand, to add to or clear: an edit of the design, settled into the history like any other.
     pub fn pins_mut(&mut self) -> &mut Vec<Pin> {
-        let key = self.pin_key();
-        self.pins.entry(key).or_default()
+        self.history.touch();
+        &mut self.design.pins
     }
 
-    /// The design file pins are kept under.
+    /// The key a workspace kept a design file's pins under.
     fn pin_key(&self) -> String {
         self.document_path.as_ref().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
     }
+
+    /// Moves the pins the workspace kept for the design's file into the design, when it was just opened and carries none of its own.
+    fn carry_legacy_pins(&mut self) {
+        self.pins_path = self.document_path.clone();
+        let Some(pins) = self.legacy_pins.remove(&self.pin_key()) else { return };
+        // A design carried on under a new file name keeps its own, and the file it replaced takes its pins with it.
+        if pins.is_empty() || !self.design.pins.is_empty() || self.history.can_undo() || self.history.can_redo() {
+            return;
+        }
+        self.design.pins = pins;
+        // They were always this design's: the opened file is where the timeline starts.
+        self.history.reset(&self.design);
+    }
+
+    /// The design as the session keeps it: versioned by the library's writer, or a refused newer one kept as it came until the design is edited.
+    pub fn session_design(&self) -> anyhow::Result<String> {
+        if let Some(kept) = &self.refused_session {
+            return Ok(kept.clone());
+        }
+        let mut design = self.design.clone();
+        design.embed_alphas(&self.lib);
+        library::design_json(&design)
+    }
+}
+
+/// The status line's word on a session design the library's ladder refused, naming it.
+fn refused(text: &str, error: &anyhow::Error) -> String {
+    let name = serde_json::from_str::<serde_json::Value>(text).ok().and_then(|v| v.get("name")?.as_str().map(str::to_owned));
+    let name = name.map_or_else(|| "The last session's design".to_owned(), |n| format!("The last session's design \"{n}\""));
+    format!("{name} did not reopen: {error:#}. A new design is open; the session keeps the old one until you edit.")
 }
 
 /// Per-gram metal prices, read from `prices.json` beside the designs
@@ -326,8 +357,16 @@ pub struct RingDesignerApp {
     pub node_focus: NodeFocus,
     pub selected_node: Option<GraphNodeId>,
 
-    /// Pins dropped on the ring, by the design file they belong to.
-    pub pins: BTreeMap<String, Vec<Pin>>,
+    /// Pins an older workspace kept by design file, each moved into its design when that design is opened.
+    legacy_pins: BTreeMap<String, Vec<Pin>>,
+    /// The design file whose kept pins were last looked for.
+    pins_path: Option<std::path::PathBuf>,
+    /// Every CAD part's edges over the metal, in the Ring viewport and the CAD pane alike.
+    pub show_part_edges: bool,
+    /// A session design the library's ladder refused, kept as it came and written back until the design is edited.
+    refused_session: Option<String>,
+    /// Said on the status line again once the next build lands, where the build's own line would cover it.
+    notice: Option<String>,
 
     /// Embedded MCP server, `None` until the user starts it.
     pub mcp: Option<McpHost>,
@@ -348,11 +387,13 @@ impl RingDesignerApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let mut lib = AlphaLibrary::installed();
 
-        let design = cc
-            .storage
-            .and_then(|s| s.get_string(DESIGN_STORAGE_KEY))
-            .and_then(|j| serde_json::from_str::<RingDesign>(&j).ok())
-            .unwrap_or_default();
+        // The session's design comes back through the files' own ladder; one it refuses is said by name and kept.
+        let session = cc.storage.and_then(|s| s.get_string(DESIGN_STORAGE_KEY));
+        let (design, refused_session) = match session.map(|text| (library::load_design_str(&text), text)) {
+            Some((Ok(d), _)) => (d, None),
+            Some((Err(e), text)) => (RingDesign::default(), Some((refused(&text, &e), text))),
+            None => (RingDesign::default(), None),
+        };
         // `open_design_path` unpacks first and bakes second. This path only
         // baked, so a design restored by restarting the app came back without
         // the embedded art it was saved with — the strokes and imported masks
@@ -376,8 +417,6 @@ impl RingDesignerApp {
         ws.panes.resize_with(4, || Pane::defaults().remove(0));
         ws.panes.truncate(4);
         ws.active_pane = ws.active_pane.min(ws.layout.count() - 1);
-        // The Part edges switch lives in egui's data, where the viewports and the Display menu read it.
-        cc.egui_ctx.data_mut(|d| d.insert_persisted(egui::Id::new(crate::viewport::EDGES_SHOWN), ws.show_part_edges));
 
         let design_for_history = design.clone();
         let mut app = Self {
@@ -462,7 +501,11 @@ impl RingDesignerApp {
             graph_effects: BTreeMap::new(),
             node_focus: NodeFocus::default(),
             selected_node: None,
-            pins: ws.pins,
+            legacy_pins: ws.pins,
+            pins_path: None,
+            show_part_edges: ws.show_part_edges,
+            refused_session: None,
+            notice: None,
 
             mcp: None,
             mcp_port: ws.mcp_port,
@@ -477,7 +520,13 @@ impl RingDesignerApp {
         };
         app.command.planes.hidden = !ws.show_work_planes;
         app.restore_desktop_view();
+        app.carry_legacy_pins();
         app.mark_dirty();
+        if let Some((said, text)) = refused_session {
+            app.status = said.clone();
+            app.notice = Some(said);
+            app.refused_session = Some(text);
+        }
         app
     }
 
@@ -527,6 +576,9 @@ impl RingDesignerApp {
     /// Queue a rebuild after the debounce window and publish the design to the
     /// MCP engine.
     pub fn mark_dirty(&mut self) {
+        // An edit is the user moving on from a refused session design.
+        self.refused_session = None;
+        self.notice = None;
         self.visual.invalidate();
         // A layer that reads a distance field and has not got one falls back
         // to brightness-as-height without a word, so turning "Crisp edge" on
@@ -563,6 +615,8 @@ impl RingDesignerApp {
 
     /// Queue a rebuild without pushing the design back to the MCP engine.
     fn queue_rebuild(&mut self) {
+        self.refused_session = None;
+        self.notice = None;
         self.visual.invalidate();
         self.dirty_at = Some(Instant::now());
         self.history.touch();
@@ -581,6 +635,10 @@ impl RingDesignerApp {
     /// Poll the worker, fire debounced rebuilds, and refresh the section slice.
     pub fn tick(&mut self, ctx: &egui::Context) {
         self.sync_graph();
+        // A design opened from another file takes the pins an older workspace kept for that file.
+        if self.document_path != self.pins_path {
+            self.carry_legacy_pins();
+        }
         if self.mcp.as_mut().is_some_and(|h| h.poll(&mut self.design)) {
             if self
                 .selected_layer
@@ -618,13 +676,22 @@ impl RingDesignerApp {
                             r.validation.triangle_count, r.volume_mm3, r.build_ms
                         ),
                     };
+                    if let Some(said) = self.notice.take() {
+                        self.status = said;
+                    }
                     let build = Arc::new(done.result);
+                    // The selection's channel as the worker staged it holds while the selection lights the same as at dispatch.
+                    let selected = self.selection.tints_as(&done.selection).then(|| std::mem::take(&mut done.select));
                     // The worker staged every buffer; the UI thread only hands them over for upload.
                     if let Ok(mut r) = self.renderer.lock() {
                         r.prepare_staged(std::mem::take(&mut done.metal));
                         r.prepare_edges(&build, std::mem::take(&mut done.edges));
                         r.prepare_gems(std::mem::take(&mut done.gems));
                         r.prepare_cutters(std::mem::take(&mut done.cutters));
+                        if let Some(select) = selected {
+                            r.prepare_select(select);
+                            self.selection.staged(Arc::as_ptr(&build) as usize);
+                        }
                     }
                     // Fit only on the first build of a design; a rebuild that
                     // re-framed the view would stomp the user's own framing
@@ -637,7 +704,7 @@ impl RingDesignerApp {
                         }
                     }
                     self.build = Some(build);
-                    crate::command::band_landed(self, done.band.take());
+                    crate::command::band_landed(self, done.band.take(), done.judge.take());
                     self.node_focus.mesh_generation = done.generation;
                     self.node_focus.mesh_params = Some(done.params);
                     self.visual.mesh_changed();
@@ -652,10 +719,12 @@ impl RingDesignerApp {
                                 self.thumbs.clear();
                             }
                             // The evaluated design, under whatever the graph
-                            // has become since the job was queued.
+                            // has become since the job was queued, and the pins as they stand.
                             let graph = self.design.graph.take();
+                            let pins = std::mem::take(&mut self.design.pins);
                             self.design = gd.design;
                             self.design.graph = graph;
+                            self.design.pins = pins;
                         }
                         self.graph_errors = gd.errors.iter().map(ToString::to_string).collect();
                         if gd.ok {
@@ -720,6 +789,7 @@ impl RingDesignerApp {
             graph: self.design.graph.as_ref().and_then(|j| serde_json::from_value::<Graph>(j.clone()).ok()),
             live_cuts: self.live_cuts,
             show_cutters: self.show_cutters,
+            selection: self.selection.clone(),
         };
         if self.worker.jobs.send(job).is_err() {
             self.in_flight = false;
@@ -1256,7 +1326,10 @@ impl RingDesignerApp {
     /// Lift the design into a graph that evaluates back to it exactly, and
     /// show it.
     pub fn convert_to_graph(&mut self) {
-        match ringdesign_graph::lift::from_design(&self.design, &self.graph_reg, &self.lib) {
+        // Pins are references on the ring, not something the graph builds: the design keeps them beside it.
+        let mut lifted = self.design.clone();
+        lifted.pins.clear();
+        match ringdesign_graph::lift::from_design(&lifted, &self.graph_reg, &self.lib) {
             Ok(g) => {
                 self.design.graph = serde_json::to_value(&g).ok();
                 self.sync_graph();
@@ -1356,6 +1429,9 @@ impl RingDesignerApp {
 
 // --- Background build worker -----------------------------------------------
 
+/// What a ghost's judge reads: the band's epoch, then the parting plane, the draft floor and the bore radius as bits.
+type JudgeKey = (u64, u64, u64, u64);
+
 struct Job {
     generation: u64,
     design: RingDesign,
@@ -1367,6 +1443,8 @@ struct Job {
     live_cuts: bool,
     /// Stage the seats' cutters as a ghost.
     show_cutters: bool,
+    /// The Ring viewport's selection at dispatch, whose channel is staged over the new build.
+    selection: Selection,
 }
 
 /// What evaluating a job's graph produced.
@@ -1405,6 +1483,11 @@ struct Done {
     graph: Option<GraphDone>,
     /// The ring frame over the build's band, the one before it when the band did not change.
     band: Option<Arc<BandSurface>>,
+    /// The carried ghost's judge over that band at the verdict's parting plane, its radial lines laid out on the ring frame's tree.
+    judge: Option<Arc<GhostJudge>>,
+    /// The selection the job was dispatched with, and its channel staged over the new mesh.
+    selection: Selection,
+    select: Vec<f32>,
 }
 
 /// The highlight a chosen graph node casts on the ring, and what it was
@@ -1457,8 +1540,9 @@ impl Worker {
                 // CAD bodies and tessellations an edit leaves alone come back from here on the next build.
                 let cache = Mutex::new(ringdesign_core::cad::Cache::default());
                 let never = std::sync::atomic::AtomicBool::new(false);
-                // The last band's ring frame, by the band's epoch.
+                // The last band's ring frame, by the band's epoch, and the ghost's judge over it, by what it reads.
                 let mut last_band: Option<(u64, Arc<BandSurface>)> = None;
+                let mut last_judge: Option<(JudgeKey, Arc<GhostJudge>)> = None;
                 while let Ok(mut job) = jobs_rx.recv() {
                     // Skip stale work: only the newest queued job matters.
                     while let Ok(newer) = jobs_rx.try_recv() {
@@ -1482,6 +1566,7 @@ impl Worker {
                                     d.graph = job.design.graph.clone();
                                     d.manufacturing = job.design.manufacturing.clone();
                                     d.casting_trials = job.design.casting_trials.clone();
+                                    d.pins = job.design.pins.clone();
                                     let values = out
                                         .report
                                         .values
@@ -1522,21 +1607,28 @@ impl Worker {
                             ringdesign_core::mesh::try_build_memo(&stock, &job.lib, job.params, &never, memo)
                         }
                         .map_err(|e| format!("{e:#}"))?;
-                        // A design with parts gets its ring frame over the build's own band; an unchanged band keeps its surface.
-                        let band = result.band.clone().filter(|_| job.design.cad.is_some()).map(|mesh| {
-                            let epoch = ringdesign_core::cad::surface_epoch(&mesh);
-                            match &last_band {
-                                Some((e, surface)) if *e == epoch => surface.clone(),
-                                _ => {
-                                    let surface = Arc::new(BandSurface::shared(mesh));
-                                    last_band = Some((epoch, surface.clone()));
-                                    surface
-                                }
-                            }
-                        });
-                        // The pick scene builds on its own thread beside the verdict and the staging, which never read it.
-                        let (pick, field, cast, stones, hot_spot, gems, metal, edges) = std::thread::scope(|s| {
+                        // The pick scene, the ring frame and the selection's channel build on threads of their own beside the verdict and the staging, which read none of them.
+                        let (pick, band, judge, select, field, cast, stones, hot_spot, gems, metal, edges) = std::thread::scope(|s| {
                             let pick = s.spawn(|| PickScene::build(&result, &job.design));
+                            // Every design's ring frame over the build's own band; an unchanged band keeps its surface.
+                            let last_band = &mut last_band;
+                            let band = s.spawn(|| {
+                                result.band.clone().map(|mesh| {
+                                    let epoch = ringdesign_core::cad::surface_epoch(&mesh);
+                                    match &*last_band {
+                                        Some((e, surface)) if *e == epoch => (epoch, surface.clone()),
+                                        _ => {
+                                            let surface = Arc::new(BandSurface::shared(mesh));
+                                            *last_band = Some((epoch, surface.clone()));
+                                            (epoch, surface)
+                                        }
+                                    }
+                                })
+                            });
+                            let select = s.spawn(|| {
+                                let weights = ringdesign_workbench::viewport::tint(&job.selection, &result);
+                                if weights.is_empty() { Vec::new() } else { render::stage_select(&result.mesh, &weights) }
+                            });
                             // The verdict itself comes from the surface, at a fixed
                             // sampling so it cannot wobble with preview quality; any
                             // undercut arrives located and blamed.
@@ -1548,6 +1640,21 @@ impl Worker {
                             if job.live_cuts {
                                 castability::judge_parts(&mut field, &job.design, &result);
                             }
+                            // The carried ghost's judge reads the band through the ring frame's own tree at the verdict's parting plane; the same band and plane keep the last one.
+                            let band = band.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
+                            let parting = field.parting_z_mm;
+                            let judge = band.clone().map(|(epoch, surface)| {
+                                let key: JudgeKey = (epoch, parting.to_bits(), job.design.draft.min_draft_deg.to_bits(), job.design.inner_radius_mm().to_bits());
+                                let (last_judge, design) = (&mut last_judge, &job.design);
+                                s.spawn(move || match &*last_judge {
+                                    Some((k, judge)) if *k == key => judge.clone(),
+                                    _ => {
+                                        let judge = Arc::new(GhostJudge::prepared_with(design, Some(surface.shared_mesh().clone()), Some(surface.tree().clone()), parting));
+                                        *last_judge = Some((key, judge.clone()));
+                                        judge
+                                    }
+                                })
+                            });
                             // The draft colours paint at the verdict's own parting plane.
                             let cast = castability::analyze_at(
                                 &result.mesh,
@@ -1577,9 +1684,11 @@ impl Worker {
                                 render::stage_cad(&result.mesh)
                             };
                             let edges = result.parts.evaluated.as_ref().map(render::stage_edges).unwrap_or_default();
-                            // A panic building the scene fails this build, as one here does.
+                            // A panic on any of them fails this build, as one here does.
                             let pick = pick.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
-                            (Arc::new(pick), field, cast, stones, hot_spot, gems, metal, edges)
+                            let judge = judge.map(|j| j.join().unwrap_or_else(|p| std::panic::resume_unwind(p)));
+                            let select = select.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
+                            (Arc::new(pick), band.map(|(_, surface)| surface), judge, select, field, cast, stones, hot_spot, gems, metal, edges)
                         });
                         Ok(Done {
                             generation,
@@ -1596,6 +1705,9 @@ impl Worker {
                             pick,
                             graph: graph_done,
                             band,
+                            judge,
+                            selection: job.selection,
+                            select,
                         })
                     }));
                     // A panic inside a cache update leaves it poisoned; it starts again empty.

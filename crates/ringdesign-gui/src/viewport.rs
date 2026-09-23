@@ -21,6 +21,12 @@ pub use render::{HOVER_TINT, SELECT_TINT, wall_color};
 /// How far from the pointer a part's vertex or edge still answers, in pixels.
 pub const APERTURE_PX: f32 = 8.0;
 
+#[cfg(test)]
+thread_local! {
+    /// How many times the Ring viewport staged the selection's channel on the UI thread, for the tests to read.
+    pub(crate) static SELECT_STAGED_HERE: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 /// The desktop's handle on the shared renderer, under the names the app calls it by.
 pub struct GpuMeshRenderer {
     inner: MeshRenderer,
@@ -195,14 +201,6 @@ fn paint_callback(rect: egui::Rect, renderer: Arc<Mutex<GpuMeshRenderer>>, frame
         }
     });
     egui::PaintCallback { rect, callback: Arc::new(paint) }
-}
-
-/// The persisted switch for every part's edges in the Ring viewport, on until set off.
-pub const EDGES_SHOWN: &str = "ring-viewport-part-edges";
-
-/// Whether the Ring viewport draws every part's edges; the chosen and hovered edges draw either way.
-pub fn show_edges(ctx: &egui::Context) -> bool {
-    ctx.data_mut(|d| *d.get_persisted_mut_or(egui::Id::new(EDGES_SHOWN), true))
 }
 
 /// The chosen edges and the edge under the pointer, as the edge pass lights them.
@@ -585,7 +583,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             focus: if mould_active { [0.0; 4] } else { app.node_focus.tint },
             select: if mould_active { [0.0; 4] } else { SELECT_TINT },
             hover: if mould_active { [0.0; 4] } else { HOVER_TINT },
-            edges: !mould_active && show_edges(ui.ctx()),
+            edges: !mould_active && app.show_part_edges,
             ..Frame::new(mvp, normal_matrix)
         };
         if renderer.lock().is_ok_and(|r| r.timed()) {
@@ -696,10 +694,12 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
         }
     }
-    // The selection's channel, restaged when it or the mesh changes; the node focus keeps its own.
+    // The selection's channel, restaged when it changes; a new build brings its own from the worker while the selection held still.
     if let Some(build) = &app.build {
         let key = Arc::as_ptr(build) as usize;
         if app.selection.needs_stage(key) {
+            #[cfg(test)]
+            SELECT_STAGED_HERE.with(|c| c.set(c.get() + 1));
             let weights = ringdesign_workbench::viewport::tint(&app.selection, build);
             let staged = if weights.is_empty() { Vec::new() } else { GpuMeshRenderer::stage_select(&build.mesh, &weights) };
             if let Ok(mut r) = app.renderer.lock() {

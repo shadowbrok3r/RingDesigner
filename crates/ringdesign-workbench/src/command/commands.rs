@@ -5,7 +5,7 @@ use super::snap::{RingPoint, wrap360};
 use crate::gizmo::{Dial, Gizmo, Handle};
 use crate::grips::{self, Grip};
 use crate::icons::Icon;
-use ringdesign_core::cad::{Attach, Component, EvaluatedComponent, FaceSeat, Feature, Operation, Placement, builders};
+use ringdesign_core::cad::{Attach, Component, Document, EvaluatedComponent, FaceSeat, Feature, Operation, Placement, builders};
 
 /// One degree of freedom: the pointer's value unless a typed one holds it.
 #[derive(Clone, Debug)]
@@ -81,6 +81,14 @@ fn wrapped(id: u64, source: u64, component: &Component, translation: [f64; 3], r
 }
 fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+/// The stone `f` is built round, when `f` is a builder part standing on one: G, R, P and the gizmo on `f` act on that stone and `f` follows it.
+pub fn moved_by<'a>(doc: &'a Document, f: &Feature) -> Option<&'a Feature> {
+    let Operation::Builder { key, on: Some(stone), .. } = &f.operation else { return None };
+    let s = doc.feature(*stone)?;
+    let is_stone = matches!(&s.operation, Operation::Builder { key, .. } if key == builders::STONE);
+    (key != builders::STONE && is_stone).then_some(s)
 }
 
 /// A stone standing on a part's face as the build seated it: its feature, its seat, and the face's own axes at the stone.
@@ -1146,6 +1154,17 @@ mod tests {
     use super::*;
     use crate::command::session::Session;
     use ringdesign_core::RingDesign;
+
+    #[test]
+    fn a_head_its_seat_and_its_azures_move_by_the_stone_they_are_built_round_and_nothing_else_does() {
+        let d = ringdesign_core::cad::examples::design("claw-solitaire").unwrap();
+        let mut doc = d.cad.unwrap();
+        doc.append(builders::feature_on(5, "Azures", builders::AZURE, 2, serde_json::json!({}))).unwrap();
+        // A builder named on something that is not a stone moves by itself.
+        doc.append(builders::feature_on(6, "Stray head", builders::CLAW, 5, serde_json::json!({}))).unwrap();
+        let by = |id: u64| moved_by(&doc, doc.feature(id).unwrap()).map(|s| s.id);
+        assert_eq!([1, 2, 3, 4, 5, 6].map(by), [None, None, Some(2), Some(2), Some(2), None]);
+    }
 
     /// The pointer on a 9.5 mm crest at `theta`, `across` along the finger, `height` off the surface.
     fn pointer(theta: f64, across: f64, height: f64) -> StepInput {

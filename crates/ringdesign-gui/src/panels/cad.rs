@@ -1127,7 +1127,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             notes.push((theme::TEXT_DIM, format!("Selected component #{id}, edge {edge} • Add Fillet or Chamfer to use it")));
         }
         state.display.finish=app.finish; state.display.polish=app.polish; state.display.light=app.light; state.display.show_gems=app.show_gems;
-        let edges_shown = crate::viewport::show_edges(ui.ctx());
+        let edges_shown = app.show_part_edges;
         if edges_shown != state.edges_shown {
             state.edges_shown = edges_shown;
             upload(&mut state, false);

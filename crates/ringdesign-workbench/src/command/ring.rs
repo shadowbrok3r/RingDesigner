@@ -29,7 +29,7 @@ fn at(v: Vec3) -> [f64; 3] {
 /// The band built without its parts, with a tree and each vertex's faces, for `surface_hit` on a small patch.
 pub struct BandSurface {
     mesh: Arc<Mesh>,
-    bvh: Bvh,
+    bvh: Arc<Bvh>,
     /// Past every vertex's radius, where `surface_hit` starts its rays.
     far: f64,
     /// The mesh's bounding corners, which give a patch the same `far` as the whole.
@@ -69,12 +69,17 @@ impl BandSurface {
                 }
             }
         }
-        let bvh = Bvh::build(&mesh);
+        let bvh = Arc::new(Bvh::build(&mesh));
         Self { mesh, bvh, far, corners: [lo, hi], first, incident }
     }
 
     pub fn mesh(&self) -> &Mesh {
         &self.mesh
+    }
+
+    /// The tree over the band, for a reader of the same band to share rather than build again.
+    pub fn tree(&self) -> &Arc<Bvh> {
+        &self.bvh
     }
 
     /// The band this surface reads, as the build shares it.
