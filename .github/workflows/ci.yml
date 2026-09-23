@@ -72,7 +72,8 @@ jobs:
           # runner's MSVC toolchain.
           $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
           $dumpbin = Get-ChildItem "$vs/VC/Tools/MSVC" -Recurse -Filter dumpbin.exe |
-                     Where-Object { $_.FullName -like "*Hostx64/x64*" } | Select-Object -First 1
+                     Where-Object { $_.FullName -match 'Hostx64[\\/]x64' } | Select-Object -First 1
+          if (-not $dumpbin) { throw "no x64 dumpbin under $vs" }
           $imports = & $dumpbin.FullName /dependents $exe
           $imports
           if ($imports -match "vcruntime|msvcp") { throw "the CRT is not static" }
