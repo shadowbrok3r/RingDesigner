@@ -126,6 +126,7 @@ fn the_ring_viewport_strip_suppresses_through_the_funnel_undoes_and_does_the_sam
     let before = h.state().design.graph.clone();
     menu(&mut h, "Cylinder · ok", "Suppress");
     assert_ne!(h.state().design.graph, before, "the graph took the edit");
+    assert!(h.query_by_label("Cylinder · suppressed").is_some(), "the funnel carries the graph's document: no build of lag");
     settle(&mut h);
     assert!(h.state().graph_driven(), "still driven");
     assert_eq!(serde_json::to_value(h.state().design.cad.as_ref().unwrap()).unwrap(), plain, "the graph evaluates to the plain edit's document");
