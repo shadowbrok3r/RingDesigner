@@ -108,6 +108,67 @@ fn check_and_the_size_run_judge_the_parts_a_build_carries() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// The claw solitaire, renamed, with a 1.5 mm spacer kept beside the band at the palm.
+fn solitaire_and_spacer() -> ringdesign_core::RingDesign {
+    use ringdesign_core::cad::{Component, Feature, Operation, Placement};
+    let mut d = ringdesign_core::cad::examples::design("claw-solitaire").unwrap();
+    d.name = "Solitaire".into();
+    let spacer = Component { placement: Placement::ring(270.0, 2.0), ..Component::default() };
+    d.cad.as_mut().unwrap().append(Feature { id: 5, name: "Spacer".into(), enabled: true, operation: Operation::Box { size: [1.5, 1.5, 1.5] }, component: spacer }).unwrap();
+    d
+}
+
+/// The names of the objects a store-only 3MF package's model holds.
+fn objects_in(package: &[u8]) -> Vec<String> {
+    let text = String::from_utf8_lossy(package);
+    let model = &text[text.find("<model").unwrap()..text.find("</model>").unwrap()];
+    model.split("<object ").skip(1).map(|o| { let at = o.find("name=\"").unwrap() + 6; o[at..at + o[at..].find('"').unwrap()].to_string() }).collect()
+}
+
+#[test]
+fn a_size_run_with_parts_reseats_them_per_size_and_packs_each_separate_part_as_its_own_object() {
+    let dir = std::env::temp_dir().join(format!("ring-size-run-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("solitaire.ring.json");
+    ringdesign_core::library::save_design(&path, &solitaire_and_spacer()).unwrap();
+    let out = dir.join("run");
+    let o = bin().args(["export", path.to_str().unwrap(), "--sizes", "5:9:1", "--formats", "stl,3mf", "--steps", "192x96", "--out", out.to_str().unwrap()]).output().unwrap();
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let manifest = std::fs::read_to_string(out.join("solitaire_manifest.csv")).unwrap();
+    let mut rows = manifest.lines();
+    assert!(rows.next().unwrap().ends_with(",volume_mm3,dfm_findings,stone_warnings,parts,part_notes"), "{manifest}");
+    let rows: Vec<Vec<&str>> = rows.map(|r| r.split(',').collect()).collect();
+    assert_eq!(rows.len(), 10, "{manifest}");
+    // Every size watertight with its head joined and its spacer beside it, nothing left out, one verdict.
+    for r in &rows {
+        assert_eq!((r[5], r[12], r[13]), ("true", "2", "0"), "{manifest}");
+        assert_eq!(r[6], rows[0][6], "{manifest}");
+    }
+    // The band grows with the size and the parts come along.
+    let volume = |size: &str| rows.iter().find(|r| r[0] == format!("US {size}") && r[2] == "3mf").unwrap()[9].parse::<f64>().unwrap();
+    assert!(volume("5") < volume("7") && volume("7") < volume("9"), "{manifest}");
+    for size in ["5", "7", "9"] {
+        let package = std::fs::read(out.join(format!("solitaire_size{size}.3mf"))).unwrap();
+        assert_eq!(objects_in(&package), ["Solitaire", "Spacer"], "size {size}");
+    }
+    // Check runs each size and says what its parts did.
+    let o = bin().args(["check", path.to_str().unwrap(), "--sizes", "5,9"]).output().unwrap();
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let text = String::from_utf8_lossy(&o.stdout).to_string();
+    assert!(text.contains("Solitaire  size US 5  —") && text.contains("Solitaire  size US 9  —"), "{text}");
+    assert_eq!(text.matches("3 parts resolved: 1 joined, 1 cut, 1 separate; 1 stones set as parts").count(), 2, "{text}");
+    // STEP with the band: the spacer analytic, the band with its head and seat faceted, the stone left out.
+    let step = dir.join("solitaire.step");
+    let o = bin().args(["cad", "step", path.to_str().unwrap(), "--out", step.to_str().unwrap(), "--band"]).output().unwrap();
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let text = String::from_utf8_lossy(&o.stdout).to_string();
+    assert!(text.starts_with("STEP solids: 1 analytic, 1 faceted"), "{text}");
+    let solids = ringdesign_core::cad::step::read_solids(&std::fs::read_to_string(&step).unwrap()).unwrap();
+    assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Spacer", false), ("Solitaire", true)]);
+    assert!(solids[1].mesh.as_ref().unwrap().validate().watertight);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn editable_cad_roundtrip_exports_components_and_resized_manufacturing_reports() {
     let dir=std::env::temp_dir().join(format!("ring-cad-cli-{}-{}",std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));

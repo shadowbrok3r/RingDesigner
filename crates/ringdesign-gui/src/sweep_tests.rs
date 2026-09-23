@@ -426,3 +426,84 @@ fn two_hundred_held_rectangles_hold_a_dimension_inside_a_frame() {
     let moved: Vec<usize> = (0..800).filter(|i| s.points[*i].xy != before.points[*i].xy).collect();
     assert!(!moved.is_empty() && moved.iter().all(|i| *i >= 796), "only the dimensioned rectangle moves: {moved:?}");
 }
+
+/// Part `id` as the ring was last built.
+fn built_part(h: &Harness<'static, RingDesignerApp>, id: u64) -> cad::EvaluatedComponent {
+    let built = h.state().build.clone().unwrap();
+    built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == id).unwrap_or_else(|| panic!("#{id}: {:?}", built.parts.notes)).clone()
+}
+
+/// Right-clicks `at` and chooses `item` from `submenu`.
+fn submenu_item(h: &mut Harness<'static, RingDesignerApp>, at: Pos2, submenu: &str, item: &str) {
+    h.hover_at(at);
+    h.run_steps(2);
+    click_at(h, at, PointerButton::Secondary, Modifiers::NONE);
+    h.get_by_label(&format!("{submenu} ⏵")).click();
+    h.run_steps(3);
+    h.get_by_label(item).click();
+    h.run_steps(3);
+}
+
+#[test]
+fn a_stone_added_on_a_boxs_top_takes_a_setting_there_and_rides_the_box_round_the_ring() {
+    use ringdesign_core::cad::{FaceSeat, builders, edit::CadEdit};
+    use ringdesign_core::gem::{Gem, GemCut};
+    let mut h = harness();
+    let pane = court_with_a_box(&mut h);
+    let start = h.state().history.present();
+    // The middle of the box's top, as built.
+    let points: Vec<[f64; 3]> = built_part(&h, BOX).mesh.vertices.iter().map(|v| [f64::from(v.0), f64::from(v.1), f64::from(v.2)]).collect();
+    let reach = points.iter().map(|p| p[1]).fold(f64::NEG_INFINITY, f64::max);
+    let top: Vec<&[f64; 3]> = points.iter().filter(|p| (p[1] - reach).abs() < 0.5).collect();
+    let middle: [f64; 3] = std::array::from_fn(|k| top.iter().map(|p| p[k]).sum::<f64>() / top.len() as f64);
+    // Right-click the top: Add stone here, Round 5 mm. One commit, the stone chosen, standing on the box.
+    let at = screen(&h, pane, middle);
+    submenu_item(&mut h, at, "Add stone here", "Round 5 mm");
+    assert_eq!(h.state().history.present(), start + 1, "{}", h.state().status);
+    let stone = h.state().design.cad.as_ref().unwrap().features.last().unwrap().clone();
+    let Operation::Builder { key, on, params } = &stone.operation else { panic!("{stone:?}") };
+    let seat = FaceSeat::of(params).unwrap().expect("a seat on the face");
+    assert_eq!((key.as_str(), *on, stone.component.placement.clone()), (cad::builders::STONE, Some(BOX), Placement::Free));
+    assert!(seat.face.signature.is_some(), "the face is signed in the box's frame");
+    assert_eq!(h.state().selection.items.last(), Some(&ringdesign_workbench::viewport::Sel::Part(stone.id)));
+    // Built, its girdle stands the claws' stand-off over the top, where the click landed.
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let gem = Gem::calibrated(GemCut::Round, 5.0);
+    let f = built_part(&h, stone.id).frame;
+    let d: [f64; 3] = std::array::from_fn(|k| f.origin[k] - middle[k]);
+    let up: f64 = (0..3).map(|k| d[k] * f.z_axis[k]).sum();
+    let aside = ((0..3).map(|k| d[k] * d[k]).sum::<f64>() - up * up).max(0.0).sqrt();
+    assert!((up - builders::stand_off_mm("claw4", gem)).abs() < 1e-3 && aside < 0.1, "{up:.4} over the top, {aside:.4} aside of the click");
+    // Right-click the stone itself: Setting, Four claws. The head and its seat are one commit and resolve on the box.
+    let table: [f64; 3] = std::array::from_fn(|k| f.origin[k] + f.z_axis[k] * 0.4);
+    let at = screen(&h, pane, table);
+    submenu_item(&mut h, at, "Setting", "Four claws");
+    assert_eq!(h.state().history.present(), start + 2, "{}", h.state().status);
+    let is_head = |f: &&Feature| matches!(&f.operation, Operation::Builder { key, on: Some(s), .. } if key == builders::CLAW && *s == stone.id);
+    let head = h.state().design.cad.as_ref().unwrap().features.iter().find(is_head).cloned().expect("a head on the stone");
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    {
+        let b = h.state().build.clone().unwrap();
+        assert_eq!((b.parts.joined, b.parts.cut, b.parts.references), (2, 1, 1), "{:?}", b.parts.notes);
+        assert!(b.report.validation.watertight, "{:?}", b.report.validation);
+    }
+    assert_eq!(built_part(&h, head.id).frame, built_part(&h, stone.id).frame);
+    // The box slid ten degrees round the ring carries the stone, and the head with it.
+    let before = built_part(&h, stone.id).frame.origin;
+    crate::cad_edit::apply(h.state_mut(), &[CadEdit::Placement { id: BOX, placement: Placement::ring(80.0, 0.0) }]).unwrap();
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let after = built_part(&h, stone.id).frame.origin;
+    let (s, c) = (-10f64).to_radians().sin_cos();
+    let turned = [before[0] * c - before[1] * s, before[0] * s + before[1] * c, before[2]];
+    let off = (0..3).map(|k| (after[k] - turned[k]).powi(2)).sum::<f64>().sqrt();
+    assert!(off < 2e-3, "{off:.5} mm off the box's own turn");
+    assert_eq!(built_part(&h, head.id).frame, built_part(&h, stone.id).frame);
+    // Undo takes back the move, the setting and the stone, one gesture each.
+    for _ in 0..3 {
+        h.state_mut().undo();
+    }
+    assert_eq!(h.state().design.cad.as_ref().unwrap().features.len(), 2, "the band and the box alone");
+}

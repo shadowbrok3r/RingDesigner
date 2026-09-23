@@ -2,7 +2,7 @@
 use crate::icons::Icon;
 use ringdesign_core::{
     RingDesign,
-    cad::{Attach, Boolean, Component, EdgeRef, FaceRef, MirrorPlane, Operation, PatternKind, Placement, PlaneBase, Stage},
+    cad::{Attach, Boolean, Component, EdgeRef, FaceRef, FaceSeat, MirrorPlane, Operation, PatternKind, Placement, PlaneBase, Stage},
     sketch::{Geometry, Sketch, Workplane},
 };
 pub use ringdesign_core::interaction::surface::PARTS_ONLY;
@@ -401,6 +401,71 @@ pub fn placement(ui: &mut egui::Ui, p: &mut Placement) {
         crate::controls::named(ui, "Spin °", "Spin", |ui| ui.add(egui::DragValue::new(spin_deg).speed(0.5).max_decimals(2)));
         crate::controls::named(ui, "Tilt along the ring °", "Tilt", |ui| ui.add(egui::DragValue::new(tilt_deg).speed(0.5).max_decimals(2)));
         crate::controls::named(ui, "Cant across the band °", "Cant", |ui| ui.add(egui::DragValue::new(cant_deg).speed(0.5).max_decimals(2)));
+    }
+}
+
+/// Where a part stands: a stone on a part's face by its seat there, anything else by [`placement`]; `true` when the face seat moved.
+pub fn seat(ui: &mut egui::Ui, p: &mut Placement, op: &mut Operation) -> bool {
+    match op {
+        Operation::Builder { on: Some(on), params, .. } if FaceSeat::of(params).is_ok_and(|s| s.is_some()) => face_seat(ui, *on, params),
+        _ => {
+            placement(ui, p);
+            false
+        }
+    }
+}
+
+/// A stone's seat on a face of part `on`: offsets along and across the face, stand-off and spin; `true` when a value moved.
+pub fn face_seat(ui: &mut egui::Ui, on: u64, params: &mut serde_json::Value) -> bool {
+    let Ok(Some(mut seat)) = FaceSeat::of(params) else { return false };
+    let before = seat.clone();
+    ui.label(format!("On face {} of #{on}, riding it when the part moves or grows", seat.face.ordinal)).on_hover_text("Along runs with the part's own axis that lies on the face; across is square to it on the face");
+    crate::controls::named(ui, "Along the face mm", "Along the face", |ui| ui.add(egui::DragValue::new(&mut seat.u_mm).speed(0.05).max_decimals(3)));
+    crate::controls::named(ui, "Across the face mm", "Across the face", |ui| ui.add(egui::DragValue::new(&mut seat.v_mm).speed(0.05).max_decimals(3)));
+    crate::controls::named(ui, "Stand-off mm", "Stand-off", |ui| ui.add(egui::DragValue::new(&mut seat.height_mm).speed(0.05).max_decimals(3)));
+    crate::controls::named(ui, "Spin °", "Spin", |ui| ui.add(egui::DragValue::new(&mut seat.spin_deg).speed(0.5).max_decimals(2)));
+    let moved = seat != before;
+    if moved {
+        seat.write(params);
+    }
+    moved
+}
+
+#[cfg(test)]
+mod seat_tests {
+    use super::*;
+    use egui_kittest::{Harness, kittest::Queryable};
+    use ringdesign_core::cad::builders;
+    use ringdesign_core::gem::{Gem, GemCut};
+
+    #[test]
+    fn a_stone_on_a_face_shows_its_seat_and_a_ring_part_its_placement() {
+        let gem = Gem::calibrated(GemCut::Round, 5.0);
+        let on = FaceSeat { face: FaceRef::bare(4), u_mm: 0.5, v_mm: -0.25, height_mm: 2.4, spin_deg: 0.0 };
+        let stone = ringdesign_core::cad::stone_on_face(3, gem, 2, &on);
+        let state = (stone.component.placement.clone(), stone.operation.clone(), false);
+        let mut h = Harness::builder().with_size([400.0, 300.0]).build_ui_state(
+            |ui, (p, op, moved): &mut (Placement, Operation, bool)| {
+                *moved |= seat(ui, p, op);
+            },
+            state,
+        );
+        h.run_steps(2);
+        let shown = |h: &Harness<'_, (Placement, Operation, bool)>, label: &str| h.get_by_label(label).value().and_then(|v| v.parse::<f64>().ok());
+        assert_eq!(shown(&h, "Along the face"), Some(0.5));
+        assert_eq!(shown(&h, "Across the face"), Some(-0.25));
+        assert_eq!(shown(&h, "Stand-off"), Some(2.4));
+        assert!(h.query_by_label("Seat on the ring").is_none(), "a face stone's placement stays free");
+        assert!(!h.state().2, "drawing moves nothing");
+        let ring = builders::stone_feature(3, gem, Placement::ring(90.0, 2.4));
+        let mut h = Harness::builder().with_size([400.0, 300.0]).build_ui_state(
+            |ui, (p, op, moved): &mut (Placement, Operation, bool)| {
+                *moved |= seat(ui, p, op);
+            },
+            (ring.component.placement.clone(), ring.operation.clone(), false),
+        );
+        h.run_steps(2);
+        assert!(h.query_by_label("Seat on the ring").is_some() && h.query_by_label("Along the face").is_none());
     }
 }
 

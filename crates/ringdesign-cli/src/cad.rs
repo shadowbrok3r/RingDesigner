@@ -9,10 +9,12 @@ pub fn run(args: &[String]) -> Result<()> {
         .context("CAD command needs a source file or example name")?;
     let mut output = None;
     let mut bores = None;
+    let mut band = false;
     let mut flags = args[2..].iter();
     while let Some(flag) = flags.next() {
         match flag.as_str() {
             "--out" => output = Some(PathBuf::from(flags.next().context("--out needs a path")?)),
+            "--band" => band = true,
             "--bores" => {
                 bores = Some(
                     flags
@@ -91,10 +93,19 @@ pub fn run(args: &[String]) -> Result<()> {
                 "step" => {
                     let path = output.context("STEP export needs --out model.step")?;
                     ensure!(!path.exists(), "Output already exists");
-                    let e = cad::evaluate(&d, &lib, params)?;
-                    let text = cad::step::export(&e, &d.name)?;
+                    let text = if band {
+                        cad::step::ring(&d, &lib, params, &d.name)?
+                    } else {
+                        cad::step::export(&cad::evaluate(&d, &lib, params)?, &d.name)?
+                    };
+                    // The file read back names every solid it carries.
+                    let solids = cad::step::read_solids(&text)?;
                     ringdesign_core::library::write_atomic(&path, text.as_bytes())?;
-                    println!("Analytic STEP solids: {}", path.display());
+                    let faceted = solids.iter().filter(|s| s.faceted).count();
+                    println!("STEP solids: {} analytic, {faceted} faceted: {}", solids.len() - faceted, path.display());
+                    for s in &solids {
+                        println!("  {} — {} faces{}", s.name, s.faces, if s.faceted { ", faceted" } else { "" });
+                    }
                 }
                 "calibrate" => {
                     let recipe = d
