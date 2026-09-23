@@ -114,6 +114,8 @@ impl Dock {
         let (left, right) = match desktop {
             Desktop::Graph => (vec![], vec![ToolKind::Node]),
             Desktop::Surface => (vec![ToolKind::Layers], vec![ToolKind::Library]),
+            // Parts are judged as they are built, so the verdict stands beside the CAD pane.
+            Desktop::Cad => (vec![], vec![ToolKind::Report]),
             _ => (vec![], vec![]),
         };
         Self {
@@ -285,6 +287,10 @@ mod tests {
             assert_eq!(d.layout, Layout::Single, "{desktop:?}");
             assert_eq!(d.panes[0].kind, desktop.pane(), "{desktop:?}");
         }
+        // The CAD pane's parts are judged as they are built: the Report stands on its right, and nothing else is docked.
+        let cad = DesktopLayout::new(Desktop::Cad);
+        assert_eq!((tools_on(&cad.dock, Side::Left), tools_on(&cad.dock, Side::Right)), (Default::default(), ["Report"].into()));
+        assert!(cad.dock.is_open(ToolKind::Report));
     }
 
     #[test]

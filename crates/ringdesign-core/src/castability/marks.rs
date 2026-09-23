@@ -3,12 +3,12 @@
 use serde::{Deserialize, Serialize};
 
 use super::{AlphaLibrary, FIELD_NOISE_DEG, FaceClass, RingDesign, analyze_field, classify, draft_angle};
-use crate::cad::{Attach, Component, Document, Feature, Operation, Placement, Profile, Stage};
+use crate::cad::{Attach, Component, Document, Feature, Operation, Placement, Profile, Stage, pattern::FaceOutline};
 use crate::field::{Blend, FieldContext, Layer, LayerEntry, SeatPadLayer};
 use crate::interaction::picking;
 use crate::mesh::{Displacer, cross, norm, sub};
 use crate::profile::ProfileLoop;
-use crate::sketch::{FaceAnchor, Id, Sketch, Workplane};
+use crate::sketch::{FaceAnchor, FaceFrame, Id, Sketch, Workplane};
 
 /// Undercut a dot may add where it stands, past the field's own noise lean, before the field is said to blame it, mm².
 const BLAME_MM2: f64 = 0.002;
@@ -66,7 +66,25 @@ impl LocatingMark {
             Attach::Cut => ("is drilled at the bench", "drill mark", "hole's centre", "at its centre"),
             _ => ("is soldered on after the pour", "locating mark", "part's foot", "at its foot"),
         };
-        if self.on.is_some() {
+        if self.on.is_some() && self.on_parting_line {
+            let off = self.foot_across_mm - self.across_mm;
+            format!(
+                "{} {who}: the pattern carries a raised {what} on {}'s face on the parting line at {:.0}°, {:.1} mm across; the {centre} is {:.1} mm toward the {} edge (a dot there leaned to {:.0}° over {:.2} mm²).",
+                self.label,
+                self.on_label,
+                self.theta_deg,
+                self.diameter_mm,
+                off.abs(),
+                if off >= 0.0 { "high" } else { "low" },
+                self.foot_worst_deg,
+                self.foot_undercut_mm2
+            )
+        } else if self.on.is_some() && self.foot_undercut_mm2 > BLAME_MM2 && self.foot_worst_deg < -FIELD_NOISE_DEG {
+            format!(
+                "{} {who}: the pattern carries a raised {what} on {}'s face {at}, {:.0}°, {:.1} mm across; it leans to {:.0}° over {:.2} mm² there, and that face does not reach the parting line to take it.",
+                self.label, self.on_label, self.theta_deg, self.diameter_mm, self.foot_worst_deg, self.foot_undercut_mm2
+            )
+        } else if self.on.is_some() {
             format!("{} {who}: the pattern carries a raised {what} on {}'s face {at}, {:.0}°, {:.1} mm across.", self.label, self.on_label, self.theta_deg, self.diameter_mm)
         } else if self.on_parting_line {
             let off = self.foot_across_mm - self.across_mm;
@@ -149,10 +167,10 @@ pub(super) fn place(design: &RingDesign, pattern: &mut RingDesign, lib: &AlphaLi
     let min_draft = settings.min_draft_deg.max(0.0);
     let mut evaluated = None;
     let mut marks = Vec::new();
-    // Dots already standing on parts' faces: the part, where on its face, and how wide.
-    let mut dots: Vec<(Id, [f64; 2], f64)> = Vec::new();
+    // Dots already standing on parts' faces: the part, the foot on its face they stand for, and the mark that stood them.
+    let mut dots: Vec<(Id, [f64; 2], LocatingMark)> = Vec::new();
     for (id, attach) in bench {
-        if let Some(mark) = on_part(doc, id, attach, design, pattern, lib, &mut evaluated, &mut dots) {
+        if let Some(mark) = on_part(doc, id, attach, design, pattern, lib, parting, &mut evaluated, &mut dots) {
             marks.push(mark);
             continue;
         }
@@ -191,8 +209,54 @@ const DOT_SINK_MM: f64 = 0.05;
 /// Draft on the wall of a dot standing on a part's face, degrees.
 const DOT_DRAFT_DEG: f64 = 30.0;
 
+/// Sides round a dot on a part's face as its walls are judged.
+const DOT_SIDES: usize = 48;
+
+/// What a dot on a part's face stands above it, centred at `at` on `face`: its drafted wall and its top, wound outward.
+fn dot_on_face(at: [f64; 3], face: &FaceFrame, diameter_mm: f64) -> crate::Mesh {
+    let (tan, rise) = (DOT_DRAFT_DEG.to_radians().tan(), DOT_RISE * diameter_mm);
+    let (r0, r1) = (0.5 * diameter_mm - DOT_SINK_MM * tan, 0.5 * diameter_mm - (DOT_SINK_MM + rise) * tan);
+    let point = |r: f64, a: f64, h: f64| {
+        let (s, c) = a.sin_cos();
+        let p: [f64; 3] = std::array::from_fn(|k| at[k] + r * (c * face.x[k] + s * face.y[k]) + h * face.normal[k]);
+        crate::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)
+    };
+    let n = DOT_SIDES as u32;
+    let mut mesh = crate::Mesh::default();
+    for (r, h) in [(r0, 0.0), (r1, rise)] {
+        mesh.vertices.extend((0..DOT_SIDES).map(|k| point(r, std::f64::consts::TAU * k as f64 / DOT_SIDES as f64, h)));
+    }
+    mesh.vertices.push(point(0.0, 0.0, rise));
+    for k in 0..n {
+        let j = (k + 1) % n;
+        mesh.faces.extend([[k, j, n + j], [k, n + j, n + k], [2 * n, n + k, n + j]]);
+    }
+    mesh
+}
+
+/// Undercut a dot of `diameter_mm` centred at `at` on `face` stands with its walls at the parting plane, and the worst draft over them.
+fn dot_undercut(pattern: &RingDesign, at: [f64; 3], face: &FaceFrame, diameter_mm: f64, parting_z: f64) -> (f64, f64) {
+    let read = super::ghost::GhostJudge::new(pattern, None, parting_z).read(&dot_on_face(at, face, diameter_mm), &[[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]], false);
+    (read.undercut_mm2, read.worst_deg)
+}
+
+/// Where `face` crosses the parting plane nearest `foot`, walking straight down its slope; `None` when the face lies along the plane or its
+/// boundary stops short of it.
+fn parting_on_face(foot: [f64; 3], face: &FaceFrame, outline: &FaceOutline, parting_z: f64) -> Option<[f64; 3]> {
+    let n = face.normal;
+    // Up the finger's axis within the face; its own z is how far a step along it climbs.
+    let slope: [f64; 3] = std::array::from_fn(|k| [0.0, 0.0, 1.0][k] - n[2] * n[k]);
+    if slope[2] < 1e-6 {
+        return None;
+    }
+    let t = (parting_z - foot[2]) / slope[2];
+    let at = std::array::from_fn(|k| foot[k] + slope[k] * t);
+    outline.holds(at).then_some(at)
+}
+
 /// The mark for bench part `id` when its stone stands on the face of a part the pattern pours joined: a dot extruded from that
-/// face under the stone's axis, added to `pattern`'s parts once for every part standing there; `None` for a part on the band.
+/// face under the stone's axis, or on the parting line where the face crosses it when a dot at the foot would lean, added to
+/// `pattern`'s parts once for every part standing there; `None` for a part on the band.
 #[allow(clippy::too_many_arguments)]
 fn on_part(
     doc: &Document,
@@ -201,8 +265,9 @@ fn on_part(
     design: &RingDesign,
     pattern: &mut RingDesign,
     lib: &AlphaLibrary,
+    parting: f64,
     evaluated: &mut Option<Option<crate::cad::Evaluated>>,
-    dots: &mut Vec<(Id, [f64; 2], f64)>,
+    dots: &mut Vec<(Id, [f64; 2], LocatingMark)>,
 ) -> Option<LocatingMark> {
     let (_, part, seat) = crate::cad::face_stone(doc, id)?;
     let poured = pattern.cad.as_ref()?.attachments().into_iter().any(|(p, a, s)| p == part && a == Attach::Join && s == Stage::Cast);
@@ -219,6 +284,11 @@ fn on_part(
         [along(face.x), along(face.y)]
     };
     let at = on_face(foot);
+    let name = label(doc, id);
+    // Two parts at one stone share its dot, wherever it went.
+    if let Some((_, _, first)) = dots.iter().find(|(p, q, m)| *p == part && (q[0] - at[0]).hypot(q[1] - at[1]) < 0.5 * m.diameter_mm) {
+        return Some(LocatingMark { feature: id, label: name, attach, ..first.clone() });
+    }
     // The bench part's reach across the face, in the face's own plane.
     let width = e.components.iter().find(|c| c.id == id).map_or(2.0, |c| {
         let (lo, hi) = c.mesh.vertices.iter().map(|v| on_face([f64::from(v.0), f64::from(v.1), f64::from(v.2)])).fold(([f64::MAX; 2], [f64::MIN; 2]), |(lo, hi), p| {
@@ -226,35 +296,37 @@ fn on_part(
         });
         (hi[0] - lo[0]).min(hi[1] - lo[1]).max(0.0)
     });
-    // Two parts at one stone share its dot.
-    let shared = dots.iter().find(|(p, q, d)| *p == part && (q[0] - at[0]).hypot(q[1] - at[1]) < 0.5 * d).map(|(_, _, d)| *d);
-    let diameter_mm = shared.unwrap_or((0.4 * width).clamp(0.6, 1.0));
-    let theta_deg = foot[1].atan2(foot[0]).to_degrees().rem_euclid(360.0);
+    let diameter_mm = (0.4 * width).clamp(0.6, 1.0);
+    // Judged at the foot; a dot that would lean there moves onto the parting line where the face crosses it, as a band's does.
+    let (foot_undercut_mm2, foot_worst_deg) = dot_undercut(pattern, foot, &face, diameter_mm, parting);
+    let blamed = foot_undercut_mm2 > BLAME_MM2 && foot_worst_deg < -FIELD_NOISE_DEG;
+    let outline = FaceOutline::of_seat(&seat, host).ok();
+    let moved = outline.as_ref().filter(|_| blamed).and_then(|o| parting_on_face(foot, &face, o, parting));
+    let stands = moved.unwrap_or(foot);
+    let theta_deg = stands[1].atan2(stands[0]).to_degrees().rem_euclid(360.0);
     let mark = LocatingMark {
         feature: id,
-        label: label(doc, id),
+        label: name,
         attach,
         theta_deg,
         foot_across_mm: foot[2],
-        across_mm: foot[2],
-        v_mm: picking::v_at(pattern, lib, theta_deg, PATCH_PROFILE, None, foot[2]),
+        across_mm: stands[2],
+        v_mm: picking::v_at(pattern, lib, theta_deg, PATCH_PROFILE, None, stands[2]),
         diameter_mm,
-        on_parting_line: false,
-        foot_undercut_mm2: 0.0,
-        foot_worst_deg: 0.0,
+        on_parting_line: moved.is_some(),
+        foot_undercut_mm2,
+        foot_worst_deg,
         on: Some(part),
         on_label: label(doc, part),
     };
-    if shared.is_some() {
-        return Some(mark);
-    }
-    let plane =Workplane { origin: [at[0], at[1], -DOT_SINK_MM], on_face: Some(FaceAnchor { feature: part, face: seat.face.clone() }), ..Workplane::default() };
+    let dot = on_face(stands);
+    let plane = Workplane { origin: [dot[0], dot[1], -DOT_SINK_MM], on_face: Some(FaceAnchor { feature: part, face: seat.face.clone() }), ..Workplane::default() };
     let sketch = Sketch { name: "Mark".into(), plane, ..Sketch::circle(0.5 * diameter_mm) };
     let operation = Operation::Extrude { sketch: Profile::Inline(sketch), height_mm: DOT_SINK_MM + DOT_RISE * diameter_mm, draft_deg: DOT_DRAFT_DEG };
     let doc = pattern.cad.as_mut()?;
     let component = Component { attach: Attach::Join, stage: Stage::Cast, ..Component::default() };
     doc.append(Feature { id: doc.fresh_id(), name: mark.layer_name(), enabled: true, operation, component }).ok()?;
-    dots.push((part, at, diameter_mm));
+    dots.push((part, at, mark.clone()));
     Some(mark)
 }
 
@@ -543,6 +615,72 @@ mod tests {
         let p = crate::castability::pattern_parts(&soldered, &lib);
         assert!(p.marks.len() == 3 && p.marks.iter().all(|m| m.on.is_none()), "{:?}", p.marks);
         assert!(!p.design.cad.as_ref().unwrap().features.iter().any(|f| f.name.contains(" mark: ")));
+    }
+
+    /// The Court band with a `size` plate joined on its top `across` along the finger and poured, a 3 mm stone on the plate's top `off` up the
+    /// finger from the top's middle, and the stone's four-claw head and seat left to the bench.
+    fn stone_off_centre(size: [f64; 3], across: f64, off: f64) -> RingDesign {
+        use crate::cad::{FaceSeat, builders, face_signature, stone_on_face};
+        let lib = AlphaLibrary::builtin();
+        let mut d = templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut doc = Document::default();
+        let feature = |id, name: &str, operation, component| crate::cad::Feature { id, name: name.into(), enabled: true, operation, component };
+        doc.append(feature(1, "Procedural shank", Operation::Band, Component::default())).unwrap();
+        let placement = Placement::Ring { theta_deg: 90.0, across_mm: across, height_mm: 0.65, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        doc.append(feature(2, "Plate", Operation::Box { size }, Component { attach: Attach::Join, stage: Stage::Cast, placement, ..Default::default() })).unwrap();
+        d.cad = Some(doc.clone());
+        let e = crate::cad::evaluate(&d, &lib, crate::BuildParams { theta_steps: 256, profile_steps: 128, ..Default::default() }).unwrap();
+        let host = e.components.iter().find(|c| c.id == 2).unwrap();
+        let top = (0..host.body.faces.len()).find(|i| face_signature(&host.body, *i, &host.frame).is_some_and(|s| s.normal[2] > 0.99)).unwrap() as u32;
+        let face = FaceSeat::on(host, top, None, 0.0).unwrap().face_of(host).unwrap();
+        let gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Round, 3.0);
+        let seat = FaceSeat::on(host, top, Some([face.origin[0], face.origin[1], face.origin[2] + off]), builders::stand_off_mm("claw4", gem)).unwrap();
+        doc.append(stone_on_face(3, gem, 2, &seat)).unwrap();
+        let mut next = 3;
+        for f in builders::setting_features("claw4", 3, gem, true, &mut || {
+            next += 1;
+            next
+        })
+        .unwrap()
+        {
+            doc.append(f).unwrap();
+        }
+        d.cad = Some(doc);
+        d
+    }
+
+    #[test]
+    fn a_dot_on_a_plate_moves_onto_the_parting_line_where_the_plate_crosses_it_and_says_it_leans_where_the_plate_does_not() {
+        let lib = AlphaLibrary::builtin();
+        let params = crate::BuildParams { theta_steps: 256, profile_steps: 128, ..Default::default() };
+        // A plate whose top runs 2 mm either side of the parting plane, its stone 1.2 mm up the finger: a dot there stands wholly in the cope.
+        let d = stone_off_centre([4.0, 6.0, 1.5], 0.0, 1.2);
+        let p = crate::castability::pattern_parts(&d, &lib);
+        assert_eq!(p.marks.iter().map(|m| (m.feature, m.on, m.on_parting_line)).collect::<Vec<_>>(), [(4, Some(2), true), (5, Some(2), true)], "{:?}", p.marks);
+        let m = &p.marks[0];
+        eprintln!("a dot at the foot, {:.3} mm up the finger, leaned to {:.1}° over {:.3} mm²; it stands at {:.4} mm instead", m.foot_across_mm, m.foot_worst_deg, m.foot_undercut_mm2, m.across_mm);
+        assert!((m.foot_across_mm - 1.2).abs() < 1e-6 && m.across_mm.abs() < 0.05, "{m:?}");
+        assert!(m.foot_undercut_mm2 > 0.1 && m.foot_worst_deg < -30.0, "{m:?}");
+        assert_eq!((p.marks[1].across_mm, p.marks[1].diameter_mm), (m.across_mm, m.diameter_mm), "the seat shares the head's dot where it went");
+        let note = m.note();
+        assert!(note.contains("on Box \"Plate\" (#2)'s face on the parting line at 90°") && note.contains("1.2 mm toward the high edge"), "{note}");
+        // Poured, the dot straddles the plane and its walls pull clean: judged with the pattern's parts, it adds nothing.
+        let pattern = crate::mesh::try_build_pattern(&d, &lib, params).unwrap();
+        let dot = p.design.cad.as_ref().unwrap().features.iter().find(|f| f.name.contains(" mark: ")).unwrap().id;
+        let built = pattern.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == dot).unwrap();
+        let (lo, hi) = built.mesh.bounds().unwrap();
+        assert!(lo.2 < -0.2 && hi.2 > 0.2, "the dot runs {} to {} along the finger", lo.2, hi.2);
+        let field = crate::castability::judged_field_report(&p.design, &lib, &p.design.draft, 192, 128, Some(&pattern));
+        let verdict = field.parts.iter().find(|v| v.feature == dot).expect("the dot is judged with the pattern's parts");
+        eprintln!("the dot on the parting line: {:.4} mm² undercut of its {:.3} mm²", verdict.undercut_area_mm2, verdict.total_area_mm2);
+        assert!(verdict.undercut_area_mm2 < BLAME_MM2, "{verdict:?}");
+        // A plate standing 0.4 to 2 mm up the finger never reaches the parting line: the dot stays at the foot and says it leans there.
+        let d = stone_off_centre([1.6, 6.0, 1.5], 1.2, 0.0);
+        let p = crate::castability::pattern_parts(&d, &lib);
+        let m = &p.marks[0];
+        assert!(m.on == Some(2) && !m.on_parting_line && m.across_mm == m.foot_across_mm && m.foot_across_mm > 0.9, "{m:?}");
+        assert!(m.foot_undercut_mm2 > 0.1 && m.foot_worst_deg < -30.0, "{m:?}");
+        assert!(m.note().contains("that face does not reach the parting line"), "{}", m.note());
     }
 
     /// Relief elsewhere in the dot's own sections is not the dot's lean: the patch is read over the rows the dot reaches, and costs a patch.

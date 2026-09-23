@@ -275,6 +275,77 @@ pub fn motions(kind: &PatternKind, design: &RingDesign, surface: Option<&Mesh>, 
     }
 }
 
+/// How near a face's own boundary a foot still stands on it, in the face plane's units, mm.
+const ON_FACE_MM: f64 = 1e-6;
+
+/// A planar face of a part as built, with its boundary in its own plane: what a copy or a mark standing on the face stays inside.
+#[derive(Clone, Debug)]
+pub struct FaceOutline {
+    profile: brep::PlanarFaceProfile,
+}
+
+impl FaceOutline {
+    /// Face `face` of `body`, a part seated by `frame`, found again by signature.
+    fn of(body: &Body, frame: &brep::Placement, face: &FaceRef, notes: &mut Vec<String>) -> Result<Self> {
+        let key = resolve_face(body, face, frame, notes).context("The face a stone stands on")?;
+        let profile = brep::planar_face_profile(body, key).ok_or_else(|| anyhow!("Face {} has no boundary the kernel can read", face.ordinal))?;
+        Ok(Self { profile })
+    }
+
+    /// The face a stone on `seat` stands on, of part `c` as built.
+    pub fn of_seat(seat: &super::FaceSeat, c: &EvaluatedComponent) -> Result<Self> {
+        if let Some(m) = &c.made {
+            bail!("A stone sits on a kernel part's planar face; #{} {} is {}", c.id, c.name, Value::mesh_words(m));
+        }
+        Self::of(&c.body, &c.frame, &seat.face, &mut Vec::new())
+    }
+
+    /// Whether `p`, dropped along the face's normal onto its plane, falls within its boundary and outside its holes; on the edge is on it.
+    pub fn holds(&self, p: [f64; 3]) -> bool {
+        use cadkernel::geom2d::{Tolerance, contains, distance_to};
+        let Some(uv) = self.profile.plane.project(p) else { return false };
+        let tol = Tolerance::new(ON_FACE_MM);
+        let mut loops = self.profile.loops.iter();
+        let inside = loops.next().is_some_and(|outer| contains(outer, uv, tol));
+        inside && !loops.any(|hole| contains(hole, uv, tol) && !hole.iter().any(|c| distance_to(c, uv) <= ON_FACE_MM))
+    }
+}
+
+/// One copy of a pattern: the motion carrying its source there, its turn, and whether it is left out for standing off its face.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Instance {
+    pub motion: Motion,
+    /// Degrees round the ring or the part it turns about from the source; 0 for a mirror.
+    pub angle_deg: f64,
+    /// Its foot falls off the face the stone it carries stands on: the copy is left out.
+    pub off_face: bool,
+}
+
+/// Every copy of `kind` carried by `motions`, none of them off a face.
+fn instances(kind: &PatternKind, motions: Vec<Motion>) -> Result<Vec<Instance>> {
+    let angles = if matches!(kind, PatternKind::Mirror { .. }) { vec![0.0; motions.len()] } else { kind.angles()? };
+    Ok(motions.into_iter().zip(angles).map(|(motion, angle_deg)| Instance { motion, angle_deg, off_face: false }).collect())
+}
+
+/// Each copy of a ring array of a part in `frame`, a stone on `face` or what is built round it: its motion, and whether its foot, the stone's
+/// foot on the face carried there, falls outside `outline`.
+pub fn face_instances(kind: &PatternKind, frame: &Motion, face: &FaceFrame, outline: &FaceOutline) -> Result<Vec<Instance>> {
+    let n = face.normal;
+    let height = dot(std::array::from_fn(|k| frame.origin[k] - face.origin[k]), n);
+    let foot: [f64; 3] = std::array::from_fn(|k| frame.origin[k] - n[k] * height);
+    let angles = kind.angles()?;
+    Ok(face_motions(kind, frame, face)?
+        .into_iter()
+        .zip(angles)
+        .map(|(motion, angle_deg)| Instance { motion, angle_deg, off_face: !outline.holds(motion.point(foot)) })
+        .collect())
+}
+
+/// What a copy left out for standing off its face is said as, on the pattern's status and under its ghost.
+pub fn off_face_note(i: &Instance, host: &str) -> String {
+    format!("The copy {:.1}° round the ring stands off the face of {host} it would be dropped onto: left out", i.angle_deg)
+}
+
 /// The motions carrying a part in `frame`, a stone on `face` or what is built round it, onto each copy of a ring array:
 /// each copy turned round the finger's axis and dropped along the face's normal back onto it, its bearing kept in the face.
 pub fn face_motions(kind: &PatternKind, frame: &Motion, face: &FaceFrame) -> Result<Vec<Motion>> {
@@ -297,17 +368,24 @@ pub fn face_motions(kind: &PatternKind, frame: &Motion, face: &FaceFrame) -> Res
         .collect()
 }
 
-/// The motions a pattern of `source` carries it by, as the evaluation places its copies, read off `e`, the parts as built on `surface`.
-pub fn copy_motions(design: &RingDesign, surface: Option<&Mesh>, e: &super::Evaluated, source: Id, kind: &PatternKind) -> Result<Vec<Motion>> {
+/// Every copy a pattern of `source` would stand, as the evaluation places them, read off `e`, the parts as built on `surface`: those it leaves
+/// out for standing off their face among them.
+pub fn copy_instances(design: &RingDesign, surface: Option<&Mesh>, e: &super::Evaluated, source: Id, kind: &PatternKind) -> Result<Vec<Instance>> {
     let doc = design.cad.as_ref().context("No CAD features")?;
     let frame_of = |id: Id| e.components.iter().find(|c| c.id == id).map(|c| c.frame).or_else(|| e.planes.iter().find(|p| p.id == id).map(WorkPlane::placement));
     if let (PatternKind::Ring { .. }, Some((stone, part, seat))) = (kind, super::face_stone(doc, source)) {
         let c = e.components.iter().find(|c| c.id == part).ok_or_else(|| anyhow!("Part #{part} a stone stands on did not build"))?;
         let at = frame_of(stone).ok_or_else(|| anyhow!("Stone #{stone} did not build"))?;
-        return face_motions(kind, &at, &seat.face_of(c)?);
+        return face_instances(kind, &at, &seat.face_of(c)?, &FaceOutline::of_seat(&seat, c)?);
     }
     let seat = seat_of(doc, source).map(|(_, p)| p.frame_on(design, surface).map(|used| (p, used))).transpose()?;
-    motions(kind, design, surface, seat.as_ref().map(|(p, used)| (p, used)), &frame_of)
+    instances(kind, motions(kind, design, surface, seat.as_ref().map(|(p, used)| (p, used)), &frame_of)?)
+}
+
+/// The motions a pattern of `source` carries it by, as the evaluation places its copies, read off `e`, the parts as built on `surface`:
+/// a copy left out for standing off its face has none.
+pub fn copy_motions(design: &RingDesign, surface: Option<&Mesh>, e: &super::Evaluated, source: Id, kind: &PatternKind) -> Result<Vec<Motion>> {
+    Ok(copy_instances(design, surface, e, source, kind)?.into_iter().filter(|i| !i.off_face).map(|i| i.motion).collect())
 }
 
 /// A pattern of `source`: its tessellation carried onto each copy's seat, as one mesh part.
@@ -337,12 +415,18 @@ pub(super) fn build(
     let value = values.get(&source).ok_or_else(|| anyhow!("Source feature #{source} is unavailable or suppressed"))?;
     let frame_of = |id: Id| frames.get(&id).copied();
     let mut notes = Vec::new();
-    // A stone on a part's face, and what is built round it, is dropped back onto that face; a seated source onto the band.
+    // A stone on a part's face, and what is built round it, is dropped back onto that face, a copy whose foot falls off it left out
+    // and named; a seated source is dropped onto the band.
     let motions = match (kind, super::face_stone(scope.doc, source)) {
         (PatternKind::Ring { .. }, Some((stone, part, seat))) => {
-            let (face, _) = super::stood_face(&seat, part, values, frames, who, &mut notes)?;
+            let (face, part_frame) = super::stood_face(&seat, part, values, frames, who, &mut notes)?;
             let at = frames.get(&stone).copied().ok_or_else(|| anyhow!("{} has no seat to array from", who(stone)))?;
-            face_motions(kind, &at, &face)?
+            let Some(Value::Brep(body)) = values.get(&part) else { bail!("{} has no face a stone can stand on", who(part)) };
+            let outline = FaceOutline::of(body, &part_frame, &seat.face, &mut Vec::new())?;
+            let (kept, off): (Vec<Instance>, Vec<Instance>) = face_instances(kind, &at, &face, &outline)?.into_iter().partition(|i| !i.off_face);
+            notes.extend(off.iter().map(|i| off_face_note(i, &who(part))));
+            ensure!(!kept.is_empty(), "Every copy of {} stands off the face of {} it would be dropped onto; take a smaller span or fewer copies", who(source), who(part));
+            kept.into_iter().map(|i| i.motion).collect()
         }
         _ => {
             let seat = match seat_of(scope.doc, source) {
@@ -813,6 +897,55 @@ mod tests {
         assert!(built.report.validation.watertight && built.parts.notes.is_empty(), "{:?} {:?}", built.report.validation, built.parts.notes);
         assert_eq!((built.parts.joined, built.parts.references), (3, 2));
         assert_eq!(pieces(&built.mesh), 1);
+    }
+
+    #[test]
+    fn a_face_arrays_copy_whose_foot_falls_off_the_plate_is_left_out_and_named_and_one_with_none_left_fails() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        let surface = bare(&court, &lib);
+        let plate = feature(2, "Plate", Operation::Box { size: [4.0, 14.0, 1.5] }, joined(Placement::ring(90.0, 0.65)));
+        let alone = on(&with(court.clone(), vec![band(), plate.clone()]), &lib, &surface);
+        let host = component(&alone, 2);
+        let top = face_along(&host.body, &host.frame, [0.0, 0.0, 1.0]) as u32;
+        let gem = Gem::calibrated(GemCut::Round, 1.5);
+        let stood = cad::FaceSeat::on(host, top, None, builders::stand_off_mm("claw4", gem)).unwrap();
+        let claws = builders::feature_on(4, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }));
+        // Four heads 24° apart over 72°: the stone 12.9 mm from the finger's axis, the second copy's foot lands 9.6 mm along a plate 7 mm either side.
+        let kind = PatternKind::Ring { count: 4, span_deg: 72.0 };
+        let heads = feature(6, "Heads", Operation::Pattern { source: 4, kind: kind.clone() }, joined(Placement::Free));
+        let d = with(court.clone(), vec![band(), plate.clone(), cad::stone_on_face(3, gem, 2, &stood), claws.clone(), heads]);
+        let e = on(&d, &lib, &surface);
+        assert!(e.failures().is_empty(), "{:?}", e.failures());
+        let face = stood.face_of(component(&e, 2)).unwrap();
+        let outline = FaceOutline::of_seat(&stood, component(&e, 2)).unwrap();
+        let along = component(&e, 2).frame.y_axis;
+        let at = |mm: f64| std::array::from_fn(|k| face.origin[k] + along[k] * mm);
+        assert_eq!([0.0, 6.9, 7.1, -7.1].map(|mm| outline.holds(at(mm))), [true, true, false, false], "the top is 14 mm round the ring");
+        let all = copy_instances(&d, Some(&surface), &e, 4, &kind).unwrap();
+        let foot = |i: &Instance| {
+            let frame = component(&e, 3).frame;
+            let h = dot(sub(frame.origin, face.origin), face.normal);
+            dot(sub(i.motion.point(sub(frame.origin, face.normal.map(|v| v * h))), face.origin), along)
+        };
+        eprintln!("heads at {:?}°: feet {:?} mm along the plate's top", all.iter().map(|i| i.angle_deg).collect::<Vec<_>>(), all.iter().map(|i| (foot(i) * 1000.0).round() / 1000.0).collect::<Vec<_>>());
+        assert_eq!(all.iter().map(|i| (i.angle_deg, i.off_face)).collect::<Vec<_>>(), [(24.0, false), (48.0, true), (72.0, true)]);
+        assert!(foot(&all[0]).abs() < 6.0 && foot(&all[1]).abs() > 7.0);
+        assert_eq!(copy_motions(&d, Some(&surface), &e, 4, &kind).unwrap(), [all[0].motion], "the ghost's motions are the kept copy's");
+        // Built, the heads' pattern carries the one copy left on the plate, and its status names the two it left out.
+        let report = e.features.iter().find(|r| r.id == 6).unwrap();
+        assert_eq!(report.status, FeatureStatus::Ok);
+        assert_eq!(report.notes.iter().filter(|n| n.contains("stands off the face of")).map(|n| n.split('°').next().unwrap().to_owned()).collect::<Vec<_>>(), ["The copy 48.0", "The copy 72.0"], "{:?}", report.notes);
+        let made = component(&e, 6).made.clone().unwrap();
+        assert!(made.named.names.iter().all(|n| n.starts_with("Copy 1, ")), "one copy: {:?}", made.named.names.first());
+        let (head, n) = (centroid(&component(&e, 4).trace.positions), &face.normal);
+        assert!(dist(copy_centroid(&made, "Copy 1, "), all[0].motion.point(head)) < 1e-9 && n[2].abs() < 1.0);
+        // A single copy 90° round is off the plate: the pattern has nothing left to stand and fails by name.
+        let lone = PatternKind::Ring { count: 2, span_deg: 90.0 };
+        let heads = feature(6, "Heads", Operation::Pattern { source: 4, kind: lone }, joined(Placement::Free));
+        let d = with(court, vec![band(), plate, cad::stone_on_face(3, gem, 2, &stood), claws, heads]);
+        let why = failed(&on(&d, &lib, &surface), 6);
+        assert!(why.starts_with("Every copy of") && why.contains("stands off the face of"), "{why}");
     }
 
     #[test]

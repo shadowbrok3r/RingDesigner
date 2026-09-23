@@ -238,6 +238,18 @@ impl Selection {
         self.staged_for = mesh_key;
         due
     }
+
+    /// Whether `other` lights the ring as this does: the same choice and the same thing hovered, a band point at the same place.
+    pub fn tints_as(&self, other: &Selection) -> bool {
+        let hovered = |s: &Selection| s.hover.as_ref().map(|h| Sel::of(h, |_| (0.0, 0.0)));
+        self.items == other.items && hovered(self) == hovered(other)
+    }
+
+    /// Notes the channel as staged for the mesh keyed `mesh_key` by someone else, the build's worker, for the selection as it stands.
+    pub fn staged(&mut self, mesh_key: usize) {
+        self.dirty = false;
+        self.staged_for = mesh_key;
+    }
 }
 
 /// The planes through the rays under a rectangle's corners, taken round it, as `a·x + b·y + c·z + d ≥ 0` inside.
@@ -534,6 +546,34 @@ mod tests {
         assert!(!s.needs_stage(2), "the same hover again is not a change");
         s.click(Some(Sel::Part(1)), Mods::default());
         assert!(s.needs_stage(2));
+    }
+
+    #[test]
+    fn a_channel_staged_by_the_worker_for_the_selection_as_it_stands_is_not_staged_again() {
+        let mut s = Selection::default();
+        s.click(Some(Sel::Part(1)), Mods::default());
+        s.hovered(vec![face(2)]);
+        assert!(s.needs_stage(1));
+        let dispatched = s.clone();
+        assert!(s.tints_as(&dispatched));
+        // The same face under the pointer again, from a new scene, still lights the same.
+        s.hovered(vec![Pick { depth: 3.0, ..face(2) }]);
+        assert!(s.tints_as(&dispatched));
+        // A new build lands with the worker's channel: nothing restages for it, and the next mesh does.
+        s.staged(2);
+        assert!(!s.needs_stage(2));
+        assert!(s.needs_stage(3));
+        // Another face hovered, another part chosen or the band hovered elsewhere: each lights differently.
+        s.hovered(vec![face(3)]);
+        assert!(!s.tints_as(&dispatched));
+        s.hovered(vec![face(2)]);
+        s.click(Some(Sel::Part(4)), Mods { shift: true, ..Default::default() });
+        assert!(!s.tints_as(&dispatched));
+        let mut on_band = Selection::default();
+        on_band.hovered(vec![band()]);
+        let mut moved = on_band.clone();
+        moved.hovered(vec![Pick { world: [0.5, 10.0, 0.0], ..band() }]);
+        assert!(on_band.tints_as(&on_band.clone()) && !moved.tints_as(&on_band), "a band point's disc lights where the pointer is");
     }
 
     #[test]

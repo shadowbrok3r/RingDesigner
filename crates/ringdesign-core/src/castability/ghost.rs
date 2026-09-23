@@ -47,7 +47,7 @@ struct Crossings {
 
 /// The band's metal along radial lines from the finger's axis, each line cast once when first read.
 struct Radial {
-    tree: Bvh,
+    tree: Arc<Bvh>,
     z0: f64,
     rows: usize,
     /// Nearest and furthest radius of the band's surface.
@@ -57,12 +57,13 @@ struct Radial {
 }
 
 impl Radial {
-    fn of(band: &Mesh) -> Self {
+    /// The radial lines over `band`, cast through `tree`, a tree built over that band.
+    fn of(band: &Mesh, tree: Arc<Bvh>) -> Self {
         let (lo, hi) = band.bounds().unwrap_or_default();
         let rows = ((f64::from(hi.2 - lo.2) * ROWS_PER_MM).ceil() as usize + 1).min(MAX_ROWS);
         let radius = |v: &Vec3| f64::from(v.0).hypot(f64::from(v.1));
         let (r_min, r_max) = band.vertices.iter().map(radius).fold((f64::INFINITY, 0.0f64), |(a, b), r| (a.min(r), b.max(r)));
-        Self { tree: Bvh::build(band), z0: f64::from(lo.2), rows, r_min, r_max, cells: (0..rows * COLUMNS).map(|_| OnceLock::new()).collect() }
+        Self { tree, z0: f64::from(lo.2), rows, r_min, r_max, cells: (0..rows * COLUMNS).map(|_| OnceLock::new()).collect() }
     }
 
     /// Every crossing of the line at `theta_deg` and `z`, outward from the axis.
@@ -210,10 +211,30 @@ impl GhostJudge {
         }
     }
 
+    /// [`GhostJudge::shared`] with the band's radial lines laid out now, their tree built on the caller's thread rather than on the first cut read.
+    pub fn prepared(design: &RingDesign, band: Option<Arc<Mesh>>, parting_z_mm: f64) -> Self {
+        let tree = band.as_deref().map(|b| Arc::new(Bvh::build(b)));
+        Self::prepared_with(design, band, tree, parting_z_mm)
+    }
+
+    /// [`GhostJudge::prepared`] over a tree the caller already built on `band`, such as the ring frame's own.
+    pub fn prepared_with(design: &RingDesign, band: Option<Arc<Mesh>>, tree: Option<Arc<Bvh>>, parting_z_mm: f64) -> Self {
+        let judge = Self::shared(design, band, parting_z_mm);
+        if let (Some(band), Some(tree)) = (judge.band.as_deref(), tree) {
+            let _ = judge.radial.set(Radial::of(band, tree));
+        }
+        judge
+    }
+
+    /// Whether a cut read finds the band's radial lines laid out, so it builds no tree of its own.
+    pub fn is_prepared(&self) -> bool {
+        self.band.is_none() || self.radial.get().is_some()
+    }
+
     /// The band and its radial crossings, laid out on first use; `None` without a band.
     fn radial(&self) -> Option<(&Mesh, &Radial)> {
         let band = self.band.as_deref()?;
-        Some((band, self.radial.get_or_init(|| Radial::of(band))))
+        Some((band, self.radial.get_or_init(|| Radial::of(band, Arc::new(Bvh::build(band))))))
     }
 
     /// Whether `p` lies in the band's metal, read off the radial line through it; `None` without a band.
@@ -540,6 +561,45 @@ mod tests {
         // A depth linear across a face: a lone corner's share is its depth squared over its differences to the others.
         assert_eq!([linear_share([1.0, -1.0, -1.0]), linear_share([1.0, 1.0, -1.0]), linear_share([-1.0, -2.0, -0.5]), linear_share([0.5, 2.0, 1.0])], [0.25, 0.75, 0.0, 1.0]);
         assert!((linear_share([2.0, -1.0, -1.0]) - 4.0 / 9.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn a_prepared_judge_reads_a_cut_as_the_lazy_one_does_with_its_tree_built_before_the_first_read() {
+        use std::time::Instant;
+        let lib = crate::AlphaLibrary::builtin();
+        let mut band = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        band.profile.width_mm = 6.0;
+        let solitaire = RingDesign { cad: crate::cad::examples::design("claw-solitaire").unwrap().cad, ..band };
+        for (name, params) in [("preview", crate::BuildParams { theta_steps: 384, profile_steps: 144, ..crate::BuildParams::default() }), ("export", crate::BuildParams { theta_steps: 1024, profile_steps: 320, ..crate::BuildParams::default() })] {
+            let built = crate::mesh::try_build(&solitaire, &lib, params).unwrap();
+            let bur = &built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 4).unwrap().mesh;
+            let lazy = GhostJudge::shared(&solitaire, built.band.clone(), 0.0);
+            assert!(!lazy.is_prepared(), "the lazy judge lays its lines out on the first cut read");
+            let t = Instant::now();
+            let from_lazy = lazy.read(bur, &IDENTITY, true);
+            let lazy_ms = t.elapsed().as_secs_f64() * 1e3;
+            assert!(lazy.is_prepared());
+            let t = Instant::now();
+            let prepared = GhostJudge::prepared(&solitaire, built.band.clone(), 0.0);
+            let prepare_ms = t.elapsed().as_secs_f64() * 1e3;
+            assert!(prepared.is_prepared(), "the tree is built before any read");
+            let t = Instant::now();
+            let from_prepared = prepared.read(bur, &IDENTITY, true);
+            let read_ms = t.elapsed().as_secs_f64() * 1e3;
+            assert_eq!(from_prepared, from_lazy, "{name}: the same walls, classes and areas either way");
+            // A tree built over the same band by someone else, as the ring frame's, is shared rather than built again.
+            let tree = std::sync::Arc::new(Bvh::build(built.band.as_deref().unwrap()));
+            let t = Instant::now();
+            let shared = GhostJudge::prepared_with(&solitaire, built.band.clone(), Some(tree), 0.0);
+            let shared_ms = t.elapsed().as_secs_f64() * 1e3;
+            assert_eq!(shared.read(bur, &IDENTITY, true), from_lazy);
+            eprintln!(
+                "{name}: the seat bur's first cut read {lazy_ms:.1} ms lazily; prepared off the reading thread {prepare_ms:.1} ms, then its first read {read_ms:.1} ms; over a shared tree the judge costs {shared_ms:.2} ms"
+            );
+        }
+        // Without a band there is nothing to lay out, and a judge reads every face.
+        let bare = GhostJudge::prepared(&solitaire, None, 0.0);
+        assert!(bare.is_prepared() && bare.in_band([0.0, 9.0, 0.0]).is_none());
     }
 }
 

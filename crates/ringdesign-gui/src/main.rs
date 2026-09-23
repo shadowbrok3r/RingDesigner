@@ -97,10 +97,8 @@ impl eframe::App for RingDesignerApp {
 
 impl RingDesignerApp {
     fn persist_session(&self, storage: &mut dyn eframe::Storage) -> anyhow::Result<()> {
-        let mut design = self.design.clone();
-        design.embed_alphas(&self.lib);
-        // Serialize the whole session successfully before touching any stored part.
-        let design = serde_json::to_string(&design)?;
+        // Serialize the whole session successfully before touching any stored part; the design at its format version.
+        let design = self.session_design()?;
         let dock = serde_json::to_string(&self.dock)?;
         let workspace = serde_json::to_string(&self.workspace())?;
         storage.set_string(app::DESIGN_STORAGE_KEY, design);

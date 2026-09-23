@@ -612,12 +612,11 @@ fn the_cad_pane_draws_its_parts_edges_unless_they_are_isolated_or_exploded() {
     assert!(h.state().cad.edge_runs().0.is_empty());
     h.state_mut().cad.explode_by(0.0);
     assert_eq!(h.state().cad.edge_runs().0, every);
-    // The Part edges switch is the Ring viewport's and the pane's alike.
-    let switch = egui::Id::new(crate::viewport::EDGES_SHOWN);
-    h.ctx.data_mut(|d| d.insert_persisted(switch, false));
+    // The Part edges switch is the Ring viewport's and the pane's alike: one field on the app.
+    h.state_mut().show_part_edges = false;
     h.run_steps(2);
     assert!(h.state().cad.edge_runs().0.is_empty());
-    h.ctx.data_mut(|d| d.insert_persisted(switch, true));
+    h.state_mut().show_part_edges = true;
     h.run_steps(2);
     assert_eq!(h.state().cad.edge_runs().0, every);
     assert_eq!(h.state().cad.parts().iter().map(|(id, _)| *id).collect::<Vec<_>>(), [2, 3]);
@@ -656,12 +655,14 @@ fn relaunch(storage: MemoryStorage) -> Harness<'static, RingDesignerApp> {
 fn the_part_edges_and_work_plane_switches_come_back_with_the_workspace() {
     let mut h = harness([1600., 980.]);
     h.run_steps(3);
-    assert!(crate::viewport::show_edges(&h.ctx) && !h.state().command.planes.hidden, "both on to begin with");
+    assert!(h.state().show_part_edges && !h.state().command.planes.hidden, "both on to begin with");
     h.get_by_label("Display").click();
     h.run_steps(3);
     h.get_by_label("Part edges").click();
     h.run_steps(3);
-    assert!(!crate::viewport::show_edges(&h.ctx), "the Display menu turned the edges off");
+    assert!(!h.state().show_part_edges, "the Display menu turned the edges off");
+    // One store: nothing of the switch lives in egui's own data any more.
+    assert_eq!(h.ctx.data_mut(|d| d.get_persisted::<bool>(egui::Id::new("ring-viewport-part-edges"))), None);
     h.state_mut().command.planes.hidden = true;
     h.state_mut().show_wireframe = true;
     let mut storage = MemoryStorage::default();
@@ -679,10 +680,121 @@ fn the_part_edges_and_work_plane_switches_come_back_with_the_workspace() {
     older.0.insert(key.into(), json.to_string());
 
     let restored = relaunch(storage);
-    assert!(!crate::viewport::show_edges(&restored.ctx), "the edges stay off after a restart");
+    assert!(!restored.state().show_part_edges, "the edges stay off after a restart");
     assert!(restored.state().command.planes.hidden, "and the work planes hidden");
     assert!(restored.state().show_wireframe, "as the wireframe does");
     let upgraded = relaunch(older);
-    assert!(crate::viewport::show_edges(&upgraded.ctx) && !upgraded.state().command.planes.hidden, "an older workspace opens with both on");
+    assert!(upgraded.state().show_part_edges && !upgraded.state().command.planes.hidden, "an older workspace opens with both on");
     assert!(upgraded.state().show_wireframe);
+}
+
+/// The session's stored design, parsed.
+fn stored_design(storage: &MemoryStorage) -> serde_json::Value {
+    serde_json::from_str(&storage.0[crate::app::DESIGN_STORAGE_KEY]).unwrap()
+}
+
+#[test]
+fn the_session_design_travels_the_files_ladder_and_a_newer_one_is_refused_by_name_and_kept() {
+    let mut h = harness([1600., 980.]);
+    h.state_mut().design.name = "Session ring".into();
+    h.state_mut().design.pins.push(ringdesign_workbench::viewport::pins::Pin::at([0.0, 10.65, 0.5], 1));
+    let mut storage = MemoryStorage::default();
+    h.state().persist_session(&mut storage).unwrap();
+    // Written at the version the files take, a design without a stored mesh at the one 0.6.0 reads.
+    let written = stored_design(&storage);
+    assert_eq!(written["format_version"], u64::from(ringdesign_core::library::PLAIN_FORMAT_VERSION));
+    assert_eq!(written["pins"][0]["name"], "Pin 1");
+    let back = relaunch(storage);
+    assert_eq!((back.state().design.name.as_str(), back.state().design.pins.len()), ("Session ring", 1));
+    // A session an older build wrote carries no version; it climbs the ladder from 0.
+    let mut older = written.clone();
+    older.as_object_mut().unwrap().remove("format_version");
+    let mut store = MemoryStorage::default();
+    store.0.insert(crate::app::DESIGN_STORAGE_KEY.into(), older.to_string());
+    assert_eq!(relaunch(store).state().design.name, "Session ring");
+    // One from a newer build is refused by name on the status line, and a new design opens in its place.
+    let mut newer = written.clone();
+    newer["format_version"] = serde_json::json!(ringdesign_core::library::FORMAT_VERSION + 1);
+    let text = newer.to_string();
+    let mut store = MemoryStorage::default();
+    store.0.insert(crate::app::DESIGN_STORAGE_KEY.into(), text.clone());
+    let mut refused = relaunch(store);
+    let status = refused.state().status.clone();
+    assert!(status.starts_with("The last session's design \"Session ring\" did not reopen") && status.contains(&format!("format version {}", ringdesign_core::library::FORMAT_VERSION + 1)) && status.contains("newer RingDesigner"), "{status}");
+    assert_eq!(refused.state().design.name, ringdesign_core::RingDesign::default().name);
+    // The status line keeps saying so past the first build, and the session keeps the refused design until the new one is edited.
+    refused.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut refused);
+    assert_eq!(refused.state().status, status);
+    let mut again = MemoryStorage::default();
+    refused.state().persist_session(&mut again).unwrap();
+    assert_eq!(again.0[crate::app::DESIGN_STORAGE_KEY], text, "kept byte for byte");
+    refused.state_mut().design.name = "Fresh".into();
+    refused.state_mut().mark_dirty();
+    refused.state().persist_session(&mut again).unwrap();
+    assert_eq!(stored_design(&again)["name"], "Fresh");
+}
+
+#[test]
+fn pins_a_workspace_kept_by_file_move_into_the_design_when_it_opens_and_travel_with_it() {
+    use ringdesign_workbench::viewport::pins::Pin;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("pinned.ring.json");
+    let d = ringdesign_core::RingDesign { name: "Pinned".into(), ..Default::default() };
+    ringdesign_core::library::save_design(&path, &d).unwrap();
+    let (kept, unsaved) = (vec![Pin::at([0.0, 10.65, 0.0], 1), Pin::at([10.65, 0.0, 0.5], 2)], vec![Pin::at([0.0, -10.65, 0.0], 1)]);
+    // A workspace as the last build wrote it: pins by file, the unsaved design's under "".
+    let h = harness([1600., 980.]);
+    let mut storage = MemoryStorage::default();
+    h.state().persist_session(&mut storage).unwrap();
+    let mut ws: serde_json::Value = serde_json::from_str(&storage.0[crate::app::WORKSPACE_STORAGE_KEY]).unwrap();
+    assert!(ws.get("pins").is_none(), "a workspace with nothing left to carry writes no pins");
+    let by_file = |entries: &[(&str, &Vec<Pin>)]| serde_json::Value::Object(entries.iter().map(|(k, v)| (k.to_string(), serde_json::to_value(v).unwrap())).collect());
+    let file = path.to_string_lossy().into_owned();
+    ws["pins"] = by_file(&[(file.as_str(), &kept), ("", &unsaved)]);
+    storage.0.insert(crate::app::WORKSPACE_STORAGE_KEY.into(), ws.to_string());
+    let mut h = relaunch(storage);
+    // The unsaved design in the session takes its own at once, as the design it always was: nothing to undo.
+    assert_eq!(h.state().design.pins, unsaved);
+    assert!(!h.state().history.can_undo());
+    // Opening the file carries its pins into it, once; the design is what the Measure tool and the snaps read, and saves with them.
+    crate::export::open_design_path(h.state_mut(), &path);
+    h.run_steps(2);
+    assert_eq!((h.state().design.name.as_str(), h.state().pins()), ("Pinned", kept.as_slice()));
+    assert!(h.state().workspace().pins.is_empty(), "nothing left in the workspace to carry");
+    ringdesign_core::library::save_design(&path, &h.state().design).unwrap();
+    assert_eq!(ringdesign_core::library::load_design(&path).unwrap().pins, kept);
+    // A pin dropped now is an edit of the design, settled into the history.
+    let pin = Pin::at([-10.65, 0.0, 0.0], ringdesign_workbench::viewport::pins::next_number(h.state().pins()));
+    h.state_mut().pins_mut().push(pin);
+    let pinned = h.state().design.clone();
+    h.state_mut().history.commit(&pinned);
+    assert_eq!(h.state().pins().last().map(|p| p.name.as_str()), Some("Pin 3"));
+    h.state_mut().undo();
+    assert_eq!(h.state().pins(), kept.as_slice(), "Undo takes the pin back");
+    // A file that carries pins of its own keeps them over any the workspace held for it.
+    let mut storage = MemoryStorage::default();
+    h.state().persist_session(&mut storage).unwrap();
+    let mut ws: serde_json::Value = serde_json::from_str(&storage.0[crate::app::WORKSPACE_STORAGE_KEY]).unwrap();
+    ws["pins"] = by_file(&[(file.as_str(), &unsaved)]);
+    storage.0.insert(crate::app::WORKSPACE_STORAGE_KEY.into(), ws.to_string());
+    let mut h = relaunch(storage);
+    crate::export::open_design_path(h.state_mut(), &path);
+    h.run_steps(2);
+    assert_eq!(h.state().pins(), kept.as_slice());
+    assert!(h.state().workspace().pins.is_empty());
+}
+
+#[test]
+fn the_cad_workspace_docks_the_report_beside_its_pane() {
+    let mut h = harness([1600., 980.]);
+    h.state_mut().switch_desktop(Desktop::Cad);
+    h.run_steps(3);
+    let right = |h: &Harness<'static, RingDesignerApp>| h.state().dock.tree(crate::dock::Side::Right).tiles.iter().filter_map(|(_, t)| if let egui_tiles::Tile::Pane(p) = t { Some(*p) } else { None }).collect::<Vec<_>>();
+    assert_eq!(right(&h), [crate::dock::ToolKind::Report]);
+    // Restoring the workspace's default puts it back where it was closed from.
+    h.state_mut().dock.close(crate::dock::ToolKind::Report);
+    h.state_mut().restore_default_layout();
+    h.run_steps(2);
+    assert_eq!(right(&h), [crate::dock::ToolKind::Report]);
 }

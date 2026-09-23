@@ -423,6 +423,73 @@ fn a_ring_array_of_a_head_on_a_stone_on_a_plate_builds_each_copy_on_the_plate_wh
 }
 
 #[test]
+fn an_arrays_ghost_shows_a_copy_off_the_plate_refused_and_the_built_pattern_leaves_it_out_by_name() {
+    use ringdesign_core::cad::{FaceSeat, FeatureStatus, stone_on_face};
+    let mut h = harness();
+    // A plate 14 mm round the ring on the top, a 1.5 mm stone on its top, and the stone's four-claw head.
+    let plate = part(2, "Plate", Operation::Box { size: [4.0, 14.0, 1.5] }, Placement::ring(90.0, 0.65));
+    let mut d = court();
+    let mut first = Document::default();
+    first.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+    first.append(plate.clone()).unwrap();
+    d.cad = Some(first);
+    let e = ringdesign_core::cad::evaluate(&d, &ringdesign_core::AlphaLibrary::builtin(), ringdesign_core::BuildParams::default()).unwrap();
+    let host = e.components.iter().find(|c| c.id == 2).unwrap();
+    let top = (0..host.body.faces.len()).find(|i| face_signature(&host.body, *i, &host.frame).is_some_and(|s| s.normal[2] > 0.99)).unwrap() as u32;
+    let gem = Gem::calibrated(GemCut::Round, 1.5);
+    let seat = FaceSeat::on(host, top, None, builders::stand_off_mm("claw4", gem)).unwrap();
+    let head = builders::feature_on(4, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }));
+    let pane = ring_with(&mut h, vec![plate, stone_on_face(3, gem, 2, &seat), head]);
+    let source = component_mesh(&h, 4);
+    let per = source.vertices.len();
+    let draft = |h: &Harness<'static, RingDesignerApp>| h.state().renderer.lock().unwrap().staged_preview().1;
+    let array = |h: &mut Harness<'static, RingDesignerApp>, count: &str, span: &str| {
+        crate::patterns::start(h.state_mut(), pane, 4, keys::RING_ARRAY);
+        h.run_steps(2);
+        h.hover_at(beside(h));
+        h.run_steps(2);
+        text(h, count);
+        press(h, Key::Tab);
+        text(h, span);
+        h.state().command.session.preview().unwrap().caption
+    };
+    // Three over 24° all stand on the plate: the ghost is plain metal and says nothing of the face.
+    let caption = array(&mut h, "3", "24");
+    assert!(!caption.contains("left out") && !draft(&h), "{caption}");
+    assert_eq!(staged().vertices.len(), 2 * per);
+    crate::command::cancel(h.state_mut());
+    h.run_steps(2);
+    assert!(!draft(&h) && staged().vertices.is_empty(), "a cancelled ghost goes, colours and all");
+    // Four over 72°: the copies 48° and 72° round would stand past the plate's end; the ghost draws them red and says which.
+    let caption = array(&mut h, "4", "72");
+    assert_eq!(caption, "Array round the ring: 4 in all over 72°, a copy every 24.0° · 2 copies stand off the face of #2 Plate, left out: 48°, 72°");
+    assert_eq!(staged().vertices.len(), 3 * per, "every copy is drawn, the refused ones among them");
+    assert!(draft(&h), "in the draft colours: kept green, refused red");
+    press(&mut h, Key::Enter);
+    let added = doc(&h).features.last().cloned().unwrap();
+    assert!(matches!(&added.operation, Operation::Pattern { source: 4, kind: PatternKind::Ring { count: 4, span_deg } } if *span_deg == 72.0), "{:?}", added.operation);
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    // Built, the pattern stands the one copy the plate carries, and its status names the two it left out.
+    let b = h.state().build.clone().unwrap();
+    let evaluated = b.parts.evaluated.as_ref().unwrap();
+    let report = evaluated.features.iter().find(|r| r.id == added.id).unwrap().clone();
+    assert_eq!(report.status, FeatureStatus::Ok);
+    let off: Vec<&String> = report.notes.iter().filter(|n| n.contains("stands off the face of #2 Plate")).collect();
+    assert_eq!(off.len(), 2, "{:?}", report.notes);
+    assert!(off[0].starts_with("The copy 48.0°") && off[1].starts_with("The copy 72.0°"), "{off:?}");
+    let kind = PatternKind::Ring { count: 4, span_deg: 72.0 };
+    let kept = ringdesign_core::cad::pattern::copy_motions(&h.state().design, b.band.as_deref(), evaluated, 4, &kind).unwrap();
+    assert_eq!(kept.len(), 1);
+    let carried: Vec<ringdesign_core::Vec3> = source.vertices.iter().map(|v| {
+        let p = kept[0].point([v.0 as f64, v.1 as f64, v.2 as f64]);
+        ringdesign_core::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)
+    }).collect();
+    let built = component_mesh(&h, added.id);
+    assert!(farthest(&carried, &built.vertices) < 1e-4 && farthest(&built.vertices, &carried) < 1e-4, "the one copy built is the one the ghost kept");
+}
+
+#[test]
 fn a_work_plane_is_drawn_named_and_right_clicked_to_sketch_on_or_mirror_the_chosen_part_across() {
     use egui_kittest::kittest::NodeT;
     use ringdesign_core::cad::PlaneBase;

@@ -601,6 +601,224 @@ fn g_r_and_the_gizmo_on_a_stone_on_a_plate_edit_its_seat_and_the_head_on_it_foll
     assert_eq!(seat(&h), spun);
 }
 
+/// The claw solitaire on the Court band, built and settled: the stone #2, its four-claw head #3 and its seat bur #4.
+fn claw_solitaire(h: &mut Harness<'static, RingDesignerApp>) -> usize {
+    let pane = ring_view(h);
+    {
+        let app = h.state_mut();
+        let court = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        app.design = ringdesign_core::RingDesign { cad: ringdesign_core::cad::examples::design("claw-solitaire").unwrap().cad, ..court };
+        app.history.commit(&app.design);
+        app.rebuild_now();
+    }
+    wait_for_build(h);
+    look_down_at_the_top(h, pane);
+    pane
+}
+
+/// Feature `id` of the document.
+fn feature_of(h: &Harness<'static, RingDesignerApp>, id: u64) -> Feature {
+    h.state().design.cad.as_ref().and_then(|d| d.feature(id)).cloned().unwrap_or_else(|| panic!("#{id}"))
+}
+
+/// Chooses part `id` alone.
+fn choose(h: &mut Harness<'static, RingDesignerApp>, id: u64) {
+    h.state_mut().selection.click(Some(Sel::Part(id)), ringdesign_workbench::viewport::Mods::default());
+    h.run_steps(2);
+}
+
+#[test]
+fn g_r_p_and_the_gizmo_on_a_claw_head_move_its_stone_and_the_head_follows_as_one_undo_step_each() {
+    let mut h = harness();
+    let pane = claw_solitaire(&mut h);
+    let (stone, head) = (frame_of(&h, 2), frame_of(&h, 3));
+    assert_eq!(stone, head, "the head is built in its stone's frame");
+    let features = h.state().design.cad.as_ref().unwrap().features.len();
+    let head_at_first = serde_json::to_value(feature_of(&h, 3)).unwrap();
+    choose(&mut h, 3);
+    // The head wears its stone's gizmo: round the ring, across the band and its spin; never the world's axes.
+    for (label, shown) in [("Gizmo: move round the ring", true), ("Gizmo: move across the band", true), ("Gizmo: spin", true), ("Gizmo: move along X", false)] {
+        assert_eq!(h.query_by_label(label).is_some(), shown, "{label}");
+    }
+    // G with 12 typed turns the stone 12° round the ring: an edit of the stone's placement, never a Transform round the head.
+    let over = viewport_rect(&h).center();
+    h.hover_at(over);
+    h.run_steps(2);
+    let entries = h.state().history.present();
+    press(&mut h, Key::G);
+    assert_eq!(live(&h), Some("move"));
+    assert!(h.state().command.session.preview().unwrap().caption.starts_with("Move Δθ"), "{}", h.state().command.session.preview().unwrap().caption);
+    // The ghost carried is the head's own mesh.
+    let head_mesh = h.state().build.as_ref().unwrap().parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 3).unwrap().mesh.clone();
+    let staged = h.state().renderer.lock().unwrap().staged_preview().0.map(<[f32]>::len);
+    assert_eq!(staged, Some(crate::viewport::GpuMeshRenderer::stage_part(&head_mesh).len()), "the ghost is the head");
+    text(&mut h, "12");
+    press(&mut h, Key::Enter);
+    assert_eq!(live(&h), None);
+    assert_eq!(feature_of(&h, 2).component.placement.theta_deg(), Some(102.0));
+    assert_eq!(serde_json::to_value(feature_of(&h, 3)).unwrap(), head_at_first, "the head itself is not edited");
+    assert_eq!(h.state().design.cad.as_ref().unwrap().features.len(), features, "no Transform wraps it");
+    assert_eq!(h.state().history.present(), entries + 1, "one command is one undo step");
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let (stone2, head2) = (frame_of(&h, 2), frame_of(&h, 3));
+    let round = |o: [f64; 3]| o[1].atan2(o[0]).to_degrees();
+    eprintln!("G 12 on the head: its stone and the head stand at {:.6}° round the ring, from {:.6}°", round(head2[0]), round(head[0]));
+    assert_eq!(head2, stone2, "the head follows its stone");
+    assert!((round(head2[0]) - 102.0).abs() < 1e-3 && (round(head[0]) - 90.0).abs() < 1e-3);
+    // R with 30 typed spins the stone on its seat, and the head with it.
+    choose(&mut h, 3);
+    h.hover_at(over);
+    h.run_steps(2);
+    press(&mut h, Key::R);
+    assert_eq!(live(&h), Some("rotate"));
+    text(&mut h, "30");
+    press(&mut h, Key::Enter);
+    let spun = feature_of(&h, 2).component.placement;
+    assert!(matches!(spun, Placement::Ring { theta_deg: 102.0, spin_deg: 30.0, .. }), "{spun:?}");
+    assert_eq!(h.state().design.cad.as_ref().unwrap().features.len(), features);
+    // S says the head is sized by its stone.
+    press(&mut h, Key::S);
+    assert_eq!(live(&h), None);
+    assert_eq!(h.state().status, "#3 Four-claw head is sized by its stone: size #2 Round 6.5 mm and it follows");
+    // P seats the stone under the pointer; Escape leaves it where it was.
+    press(&mut h, Key::P);
+    assert_eq!(live(&h), Some("place"));
+    press(&mut h, Key::Escape);
+    assert_eq!(feature_of(&h, 2).component.placement, spun);
+    // The round-the-ring arrow on the head, dragged 30 px, moves the stone round the ring as one undo step.
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    choose(&mut h, 3);
+    let entries = h.state().history.present();
+    let arrow = h.get_by_label("Gizmo: move round the ring").rect().center();
+    let o = frame_of(&h, 2)[0].map(|v| v as f32);
+    let way = (screen(&h, pane, [o[0] - 0.2 * o[1], o[1] + 0.2 * o[0], o[2]]) - screen(&h, pane, o)).normalized();
+    drag(&mut h, arrow, arrow + way * 30.0);
+    let dragged = feature_of(&h, 2).component.placement;
+    let (Placement::Ring { theta_deg: t0, .. }, Placement::Ring { theta_deg: t1, spin_deg, .. }) = (&spun, &dragged) else { panic!("{dragged:?}") };
+    assert!((t1 - t0).abs() > 1.0 && *spin_deg == 30.0, "{spun:?} -> {dragged:?}");
+    assert_eq!(h.state().history.present(), entries + 1);
+    assert_eq!(h.state().design.cad.as_ref().unwrap().features.len(), features);
+    assert!(h.state().command.dragging().is_none());
+    h.state_mut().undo();
+    assert_eq!(feature_of(&h, 2).component.placement, spun);
+}
+
+#[test]
+fn g_and_the_face_gizmo_on_a_head_round_a_stone_on_a_plate_slide_the_stone_on_the_plate() {
+    let mut h = harness();
+    let _pane = stone_on_plate(&mut h);
+    let stone = frame_of(&h, STONE);
+    let (before, features) = (seat(&h), h.state().design.cad.as_ref().unwrap().features.len());
+    choose(&mut h, 4);
+    // The head wears the face's gizmo of the stone it is built round.
+    for (label, shown) in [("Gizmo: slide along the face", true), ("Gizmo: slide across the face", true), ("Gizmo: spin on the face", true), ("Gizmo: move along X", false)] {
+        assert_eq!(h.query_by_label(label).is_some(), shown, "{label}");
+    }
+    let over = viewport_rect(&h).center();
+    h.hover_at(over);
+    h.run_steps(2);
+    let entries = h.state().history.present();
+    press(&mut h, Key::G);
+    assert_eq!(live(&h), Some("move"));
+    assert!(h.state().command.session.preview().unwrap().caption.starts_with("Move Δalong"), "{}", h.state().command.session.preview().unwrap().caption);
+    text(&mut h, "0.4");
+    press(&mut h, Key::Enter);
+    let moved = seat(&h);
+    assert_eq!((moved.u_mm - before.u_mm, moved.v_mm, moved.height_mm, moved.spin_deg), (0.4, before.v_mm, before.height_mm, before.spin_deg));
+    assert_eq!(h.state().design.cad.as_ref().unwrap().features.len(), features, "no Transform wraps the head");
+    assert_eq!(h.state().history.present(), entries + 1);
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let (stone2, head2) = (frame_of(&h, STONE), frame_of(&h, 4));
+    let expected: [f64; 3] = std::array::from_fn(|k| stone[0][k] + 0.4 * stone[1][k]);
+    eprintln!("G 0.4 on the head round a stone on a plate: the stone stands {:.6} mm from where it was", (0..3).map(|k| (stone2[0][k] - stone[0][k]).powi(2)).sum::<f64>().sqrt());
+    assert!((0..3).all(|k| (stone2[0][k] - expected[k]).abs() < 1e-6) && head2 == stone2, "{stone2:?} {head2:?} against {expected:?}");
+    // P and S on the head say why not, naming the stone.
+    choose(&mut h, 4);
+    press(&mut h, Key::P);
+    assert_eq!(live(&h), None);
+    assert_eq!(h.state().status, "#4 Four-claw head follows #3 Round 3 mm, which stands on a part's face: G slides it on the face, R spins it");
+    press(&mut h, Key::S);
+    assert_eq!(h.state().status, "#4 Four-claw head is sized by its stone: size #3 Round 3 mm and it follows");
+}
+
+#[test]
+fn a_claw_heads_ghost_carried_off_the_parting_line_is_the_head_read_where_its_stone_takes_it() {
+    use ringdesign_core::FaceClass;
+    use ringdesign_core::cad::builders;
+    const HEAD: u64 = 4;
+    let mut h = harness();
+    let pane = ring_view(&mut h);
+    {
+        let app = h.state_mut();
+        let mut d = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        d.profile.width_mm = 8.0;
+        d.profile.thickness_mm = 2.5;
+        let gem = builders::stone_preset("round-5").unwrap().gem();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        doc.append(builders::stone_feature(3, gem, Placement::ring(60.0, builders::stand_off_mm("claw4", gem)))).unwrap();
+        doc.append(builders::feature_on(HEAD, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }))).unwrap();
+        d.cad = Some(doc);
+        app.design = d;
+        app.history.commit(&app.design);
+        app.rebuild_now();
+    }
+    wait_for_build(&mut h);
+    look_down_at_the_top(&mut h, pane);
+    choose(&mut h, HEAD);
+    // Looking down −y at the top, the finger's axis runs up the screen: the head's across arrow carries its stone along it.
+    let press_at = h.get_by_label("Gizmo: move across the band").rect().center();
+    let px = screen(&h, pane, [0.0, 0.0, 0.0]).distance(screen(&h, pane, [0.0, 0.0, 1.0]));
+    let to = press_at + egui::vec2(0.0, -2.0 * px);
+    h.event(Event::PointerMoved(press_at));
+    h.event(Event::PointerButton { pos: press_at, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE });
+    h.run_steps(1);
+    assert_eq!(live(&h), Some("move"));
+    let rest = h.state().command.ghost_read().cloned().expect("the taken head is read where it stands");
+    for k in 1..=6 {
+        h.event(Event::PointerMoved(press_at + (to - press_at) * (k as f32 / 6.0)));
+        h.run_steps(1);
+    }
+    let read = h.state().command.ghost_read().cloned().expect("the carried head is read");
+    let preview = h.state().command.session.preview().unwrap();
+    let Some(Placement::Ring { theta_deg, across_mm, .. }) = preview.placement else { panic!("the head moves by its stone's seat: {preview:?}") };
+    assert!(preview.operation.is_none() && theta_deg == 60.0 && (across_mm - 2.0).abs() < 0.05, "{theta_deg} {across_mm}");
+    let build = h.state().build.clone().unwrap();
+    let head = build.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == HEAD).unwrap().mesh.clone();
+    let under = |r: &ringdesign_core::castability::ghost::GhostRead| r.classes.iter().filter(|c| **c == FaceClass::Undercut).count();
+    eprintln!("the head carried 2 mm off the parting line by its stone: {} of {} faces lock, {:.2} mm² at {:.0}°, from {} faces and {:.2} mm² where it stood", under(&read), head.faces.len(), read.undercut_mm2, read.worst_deg, under(&rest), rest.undercut_mm2);
+    // What is read is the head's own mesh carried by its stone's move, judged at the verdict's parting plane.
+    let band = ringdesign_workbench::command::BandSurface::shared(build.band.clone().unwrap());
+    let model = ringdesign_workbench::command::placed_ghost(&h.state().design, Some(&band), &feature_of(&h, 3), &preview).expect("the stone's move as a map");
+    let parting = h.state().field.as_ref().map_or(0.0, |f| f.parting_z_mm);
+    let direct = ringdesign_core::castability::ghost::GhostJudge::shared(&h.state().design, build.band.clone(), parting).read(&head, &model.0, false);
+    assert_eq!(read, direct, "the ghost is the head, carried where its stone goes");
+    assert!(read.locks() && under(&read) != under(&rest) && (read.undercut_mm2 - rest.undercut_mm2).abs() > 1.0, "{read:?}");
+    let said = h.state().command.ghost_caption().unwrap();
+    assert!(said.starts_with(&format!("Ghost would lock {:.1} mm² at {:.0}°", read.undercut_mm2, read.worst_deg)), "{said}");
+    assert!(crate::interaction_tests::viewport_label(&h).contains(&said));
+    // The ghost is staged in the draft colours, its locking faces red.
+    {
+        let renderer = h.state().renderer.clone();
+        let r = renderer.lock().unwrap();
+        let (Some(verts), true) = r.staged_preview() else { panic!("the ghost shades by class") };
+        let red = FaceClass::Undercut.rgb();
+        assert_eq!(verts.chunks(12).filter(|v| v[6..9] == red).count(), 3 * under(&read));
+    }
+    // Carried back to where it stood it reads as it did, and Escape leaves the stone where it was.
+    for k in (0..=6).rev() {
+        h.event(Event::PointerMoved(press_at + (to - press_at) * (k as f32 / 6.0)));
+        h.run_steps(1);
+    }
+    let back = h.state().command.ghost_read().cloned().unwrap();
+    assert!((back.undercut_mm2 - rest.undercut_mm2).abs() < 1e-6, "{} against {}", back.undercut_mm2, rest.undercut_mm2);
+    press(&mut h, Key::Escape);
+    assert!(h.state().command.ghost_caption().is_none(), "no command, no caption");
+}
+
 /// The Court band with three posts joined on its top, one of them moved to `last_theta`.
 fn three_posts(last_theta: f64) -> ringdesign_core::RingDesign {
     let mut d = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
@@ -724,6 +942,89 @@ fn the_pointer_path_and_the_ghost_on_an_export_build() {
             ghost_total / n as f64,
             staged.len() * 4 / 1024,
             carried.mesh.faces.len()
+        );
+    }
+}
+
+#[test]
+fn a_landed_build_brings_its_ring_frame_its_ghosts_judge_and_the_selections_channel_from_the_worker() {
+    let mut h = harness();
+    ring_view(&mut h);
+    // A plain band: the worker builds its ring frame too, so a first command or a Measure click has nothing left to build.
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    assert!(h.state().command.band_surface().is_some(), "the worker built the ring frame of a design without parts");
+    assert!(h.state().command.judge().is_some_and(|(_, prepared)| prepared), "and the ghost's judge over it, its lines laid out");
+    // The claw solitaire with its head chosen: the viewport stages the channel once for the choice.
+    claw_solitaire(&mut h);
+    choose(&mut h, 3);
+    let here = || crate::viewport::SELECT_STAGED_HERE.with(|c| c.get());
+    let (judge, staged) = (h.state().command.judge(), here());
+    // A rebuild with the choice held still lands with the worker's channel: the viewport stages nothing for it.
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    h.run_steps(3);
+    assert_eq!(here(), staged, "the landed build's channel came from the worker");
+    let (again, prepared) = h.state().command.judge().expect("a judge with the build");
+    assert!(prepared);
+    assert_eq!(Some(again), judge.map(|(j, _)| j), "an unchanged band and plane keep the judge, and every line it has cast");
+    // A choice made while the build is in flight is staged here, once, as before.
+    h.state_mut().rebuild_now();
+    choose(&mut h, 4);
+    wait_for_build(&mut h);
+    h.run_steps(3);
+    assert!(here() > staged, "a moved selection restages on the UI thread");
+}
+
+/// The UI thread's share of a landed build and of a command's first frame on the claw solitaire, before this change and after; run `--ignored --nocapture`.
+#[test]
+#[ignore]
+fn the_ui_threads_share_of_a_landed_build_on_the_claw_solitaire_measured() {
+    use ringdesign_core::castability::ghost::GhostJudge;
+    use ringdesign_core::interaction::pick::{Entity, Pick};
+    use ringdesign_core::{AlphaLibrary, BuildParams, mesh};
+    use ringdesign_workbench::command::BandSurface;
+    use ringdesign_workbench::viewport::{Selection, tint};
+    use std::time::Instant;
+    let lib = AlphaLibrary::builtin();
+    let court = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+    let design = ringdesign_core::RingDesign { cad: ringdesign_core::cad::examples::design("claw-solitaire").unwrap().cad, ..court };
+    let best = |times: Vec<f64>| times.into_iter().fold(f64::MAX, f64::min);
+    let timed = |f: &mut dyn FnMut()| {
+        let t = Instant::now();
+        f();
+        t.elapsed().as_secs_f64() * 1e3
+    };
+    let identity = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]];
+    for (name, params) in [("preview 384x144", BuildParams { theta_steps: 384, profile_steps: 144, ..Default::default() }), ("export 1024x320", BuildParams { theta_steps: 1024, profile_steps: 320, ..Default::default() })] {
+        let built = mesh::try_build(&design, &lib, params).unwrap();
+        let band = built.band.clone().unwrap();
+        let bur = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 4).unwrap().mesh.clone();
+        // The ring frame: master's UI thread built it, tree and all, for any design without parts on its first command or Measure click.
+        let frame_ms = best((0..3).map(|_| timed(&mut || drop(BandSurface::shared(band.clone())))).collect());
+        let surface = std::sync::Arc::new(BandSurface::shared(band.clone()));
+        let frame_after_ms = best((0..20).map(|_| timed(&mut || drop(std::hint::black_box(surface.clone())))).collect());
+        // The seat bur carried as a ghost: master's first cut read built the band's tree on the UI thread.
+        let lazy_ms = best((0..3).map(|_| timed(&mut || drop(std::hint::black_box(GhostJudge::shared(&design, Some(band.clone()), 0.0).read(&bur, &identity, true))))).collect());
+        let judge_ms = best((0..3).map(|_| timed(&mut || drop(GhostJudge::prepared_with(&design, Some(band.clone()), Some(surface.tree().clone()), 0.0)))).collect());
+        let read_after_ms = best(
+            (0..3)
+                .map(|_| {
+                    let j = GhostJudge::prepared_with(&design, Some(band.clone()), Some(surface.tree().clone()), 0.0);
+                    timed(&mut || drop(std::hint::black_box(j.read(&bur, &identity, true))))
+                })
+                .collect(),
+        );
+        // The selection's channel with the head chosen and one of its faces hovered: master staged it on the UI thread for every landed build.
+        let mut sel = Selection::default();
+        sel.click(Some(Sel::Part(3)), ringdesign_workbench::viewport::Mods::default());
+        let c3 = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 3).unwrap();
+        let face = c3.trace.tri_face.first().copied().unwrap_or(0);
+        sel.hovered(vec![Pick { entity: Entity::Face { feature: 3, face }, world: c3.frame.origin, normal: c3.frame.z_axis, depth: 1.0, px: 0.0 }]);
+        let tint_ms = best((0..3).map(|_| timed(&mut || drop(std::hint::black_box(crate::viewport::GpuMeshRenderer::stage_select(&built.mesh, &tint(&sel, &built)))))).collect());
+        eprintln!(
+            "{name} ({} faces), the UI thread before → after: ring frame {frame_ms:.1} → {frame_after_ms:.4} ms (built on the worker beside the verdict); the bur's first cut read {lazy_ms:.1} → {read_after_ms:.2} ms (the judge {judge_ms:.2} ms on the worker over the frame's own tree); the selection's channel {tint_ms:.2} → 0 ms a landed build",
+            built.mesh.faces.len()
         );
     }
 }

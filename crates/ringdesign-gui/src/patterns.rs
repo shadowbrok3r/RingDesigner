@@ -2,7 +2,7 @@
 use std::sync::{Arc, Mutex};
 
 use ringdesign_core::{
-    BuildResult, Mesh, Vec3,
+    BuildResult, FaceClass, Mesh, Vec3,
     cad::{Attach, EvaluatedComponent, Feature, MirrorPlane, Operation, PatternKind, builders, edit::CadEdit, pattern},
     sketch::Id,
 };
@@ -156,25 +156,42 @@ fn begin(app: &mut RingDesignerApp, pane: usize, mut cmd: Ghosted) {
     app.set_status(prompt);
 }
 
-/// What a ghost is drawn from: the command as it stands, read for its triangles in the world.
-type Stage = Box<dyn Fn(&dyn ViewCommand) -> Option<Mesh>>;
+/// What a ghost shows: its triangles in the world, which of them belong to a copy the pattern would leave out, and what it says of those.
+#[derive(Default)]
+struct Shown {
+    mesh: Mesh,
+    /// Per face: part of a copy left out.
+    refused: Vec<bool>,
+    note: Option<String>,
+}
 
-/// The part's mesh carried onto every copy a pattern command would add, each where the build puts it: a seated part dropped onto the band again at its copy's angle.
+/// What a ghost is drawn from: the command as it stands, read for its triangles in the world.
+type Stage = Box<dyn Fn(&dyn ViewCommand) -> Option<Shown>>;
+
+/// The part's mesh carried onto every copy a pattern command would add, each where the build puts it: a seated part dropped onto the band
+/// again at its copy's angle, and a copy whose foot falls off the face it stands on shown refused.
 fn copies_ghost(app: &RingDesignerApp, build: &BuildResult, source_id: Id, source: Mesh) -> Stage {
     let (design, surface, evaluated) = (app.design.clone(), build.band.clone(), build.parts.evaluated.clone());
+    let host = design.cad.as_ref().and_then(|d| d.feature(ringdesign_core::cad::face_stone(d, source_id)?.1)).map(|f| format!("#{} {}", f.id, f.name));
     Box::new(move |cmd| {
         let Some(Operation::Pattern { kind, .. }) = cmd.preview().operation else { return None };
-        // The motions the evaluation itself places the copies by.
-        let motions = pattern::copy_motions(&design, surface.as_deref(), evaluated.as_ref()?, source_id, &kind).ok()?;
-        let mut out = Mesh::default();
-        for m in motions {
-            let base = out.vertices.len() as u32;
-            out.vertices.extend(source.vertices.iter().map(|v| {
+        // The copies the evaluation itself would place, and those it would leave out.
+        let copies = pattern::copy_instances(&design, surface.as_deref(), evaluated.as_ref()?, source_id, &kind).ok()?;
+        let mut out = Shown::default();
+        for i in &copies {
+            let (m, base) = (i.motion, out.mesh.vertices.len() as u32);
+            out.mesh.vertices.extend(source.vertices.iter().map(|v| {
                 let p = m.point([v.0 as f64, v.1 as f64, v.2 as f64]);
                 Vec3(p[0] as f32, p[1] as f32, p[2] as f32)
             }));
             let flip = m.reflects();
-            out.faces.extend(source.faces.iter().map(|f| if flip { [f[0] + base, f[2] + base, f[1] + base] } else { f.map(|i| i + base) }));
+            out.mesh.faces.extend(source.faces.iter().map(|f| if flip { [f[0] + base, f[2] + base, f[1] + base] } else { f.map(|i| i + base) }));
+            out.refused.extend(std::iter::repeat_n(i.off_face, source.faces.len()));
+        }
+        let off: Vec<String> = copies.iter().filter(|i| i.off_face).map(|i| format!("{:.0}°", i.angle_deg)).collect();
+        if !off.is_empty() {
+            let host = host.as_deref().unwrap_or("its part");
+            out.note = Some(format!("{} off the face of {host}, left out: {}", if off.len() == 1 { "1 copy stands".to_owned() } else { format!("{} copies stand", off.len()) }, off.join(", ")));
         }
         Some(out)
     })
@@ -218,7 +235,7 @@ fn face_ghost(c: &EvaluatedComponent, face: u32, normal: [f64; 3]) -> Stage {
                 }
             }
         }
-        Some(out)
+        Some(Shown { mesh: out, ..Shown::default() })
     })
 }
 
@@ -229,28 +246,39 @@ pub struct Ghosted {
     stage: Stage,
     /// What the staged ghost was drawn for.
     shown: Option<String>,
+    /// What the staged ghost says of the copies it shows refused.
+    note: Option<String>,
     committed: bool,
 }
 
 impl Ghosted {
     fn new(cmd: impl ViewCommand + 'static, renderer: Arc<Mutex<GpuMeshRenderer>>, stage: Stage) -> Self {
-        Self { cmd: Box::new(cmd), renderer, stage, shown: None, committed: false }
+        Self { cmd: Box::new(cmd), renderer, stage, shown: None, note: None, committed: false }
     }
 
-    /// Stages the ghost again when the preview has moved on since it was drawn.
+    /// Stages the ghost again when the preview has moved on since it was drawn: plain, or with the copies left out in the undercut red.
     fn restage(&mut self) {
         let preview = self.cmd.preview();
         let key = format!("{:?} {:?}", preview.operation, preview.placement);
         if self.shown.as_ref() == Some(&key) {
             return;
         }
-        let mesh = (self.stage)(self.cmd.as_ref()).unwrap_or_default();
+        let shown = (self.stage)(self.cmd.as_ref()).unwrap_or_default();
+        let refusing = shown.refused.iter().any(|r| *r);
         if let Ok(mut r) = self.renderer.lock() {
-            r.prepare_preview(GpuMeshRenderer::stage_part(&mesh));
-            r.set_preview_model((!mesh.faces.is_empty()).then(|| crate::command::gl_model(&Affine::IDENTITY)));
+            let verts = if refusing {
+                let classes: Vec<FaceClass> = shown.refused.iter().map(|off| if *off { FaceClass::Undercut } else { FaceClass::Good }).collect();
+                GpuMeshRenderer::stage_part_classes(&shown.mesh, &classes)
+            } else {
+                GpuMeshRenderer::stage_part(&shown.mesh)
+            };
+            r.prepare_preview(verts);
+            r.set_preview_model((!shown.mesh.faces.is_empty()).then(|| crate::command::gl_model(&Affine::IDENTITY)));
+            r.set_preview_draft(refusing);
         }
+        self.note = shown.note;
         #[cfg(test)]
-        STAGED.with(|s| *s.borrow_mut() = mesh);
+        STAGED.with(|s| *s.borrow_mut() = shown.mesh);
         self.shown = Some(key);
     }
 
@@ -258,10 +286,12 @@ impl Ghosted {
         if let Ok(mut r) = self.renderer.lock() {
             r.prepare_preview(Vec::new());
             r.set_preview_model(None);
+            r.set_preview_draft(false);
         }
         #[cfg(test)]
         STAGED.with(|s| *s.borrow_mut() = Mesh::default());
         self.shown = None;
+        self.note = None;
     }
 }
 
@@ -299,6 +329,10 @@ impl ViewCommand for Ghosted {
         out
     }
     fn preview(&self) -> Preview {
-        self.cmd.preview()
+        let mut p = self.cmd.preview();
+        if let Some(note) = &self.note {
+            p.caption = format!("{} · {note}", p.caption);
+        }
+        p
     }
 }

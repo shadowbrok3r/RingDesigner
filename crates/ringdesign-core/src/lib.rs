@@ -54,6 +54,7 @@ pub mod reptile;
 pub mod setstone;
 pub mod setting;
 pub mod parts;
+pub mod pins;
 pub mod sizing;
 pub mod spec;
 pub mod stl;
@@ -124,6 +125,9 @@ pub struct RingDesign {
     /// with true walls and a crisp silhouette, which the height field cannot hold at any resolution.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub stamps: Vec<setting::Stamp>,
+    /// Named points on the ring the snaps and Measure read from; the file carries them and the geometry never reads them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pins: Vec<pins::Pin>,
 }
 
 /// One imported alpha embedded in the design file.
@@ -155,6 +159,7 @@ impl Default for RingDesign {
             recipes: Vec::new(),
             graph: None,
             stamps: Vec::new(),
+            pins: Vec::new(),
         }
     }
 }
