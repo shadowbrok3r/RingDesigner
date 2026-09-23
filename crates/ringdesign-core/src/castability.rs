@@ -8,6 +8,8 @@
 //! at least the minimum draft angle. A face whose normal leans back *toward*
 //! the parting plane is an undercut and will lock in the sand.
 
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::adaptive::Spacing;
@@ -855,6 +857,17 @@ pub fn section_at_spaced(
     section_with(design, lib, theta_deg, steps, spacing, &design.reference_loop(), &design.field_context())
 }
 
+/// `t_n` sections evenly round the ring, against one reference loop and field context.
+fn ring_sections(design: &RingDesign, lib: &AlphaLibrary, t_n: usize, steps: usize) -> Vec<Section> {
+    let (reference, ctx) = (design.reference_loop(), design.field_context());
+    let one = |i: usize| section_with(design, lib, i as f64 / t_n as f64 * 360.0, steps, None, &reference, &ctx);
+    #[cfg(feature = "parallel")]
+    let sections = (0..t_n).into_par_iter().map(one).collect();
+    #[cfg(not(feature = "parallel"))]
+    let sections = (0..t_n).map(one).collect();
+    sections
+}
+
 /// [`section_at_spaced`] against the design's reference loop and field context, built once for many sections.
 fn section_with(
     design: &RingDesign,
@@ -1132,10 +1145,7 @@ pub fn analyze_field(
         return FieldReport {verdict:Verdict::Marginal,notes:vec!["CAD solids require mesh-space manufacturing inspection; band-field measurements do not apply".into()],..empty};
     }
 
-    let (reference, ctx) = (design.reference_loop(), design.field_context());
-    let sections: Vec<Section> = (0..t_n)
-        .map(|i| section_with(design, lib, i as f64 / t_n as f64 * 360.0, profile_steps, None, &reference, &ctx))
-        .collect();
+    let sections = ring_sections(design, lib, t_n, profile_steps);
     let p_n = sections[0].points.len();
     if p_n < 3 || sections.iter().any(|s| s.points.len() != p_n) {
         return empty;
@@ -1500,9 +1510,7 @@ fn field_undercuts(
     t_n: usize,
     p_n: usize,
 ) -> Vec<(f64, f64, f64, f64)> {
-    let (reference, ctx) = (design.reference_loop(), design.field_context());
-    let sections: Vec<Section> =
-        (0..t_n).map(|i| section_with(design, lib, i as f64 / t_n as f64 * 360.0, p_n, None, &reference, &ctx)).collect();
+    let sections = ring_sections(design, lib, t_n, p_n);
     let rows = sections[0].points.len();
     if rows < 3 || sections.iter().any(|s| s.points.len() != rows) {
         return Vec::new();
