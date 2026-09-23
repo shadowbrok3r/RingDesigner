@@ -376,6 +376,8 @@ pub struct Done {
     pub scene: Option<Arc<ringdesign_core::interaction::pick::PickScene>>,
     /// The ring frame parts are seated on, over the build's own band; `None` without parts.
     pub band: Option<Arc<ringdesign_workbench::command::BandSurface>>,
+    /// The carried ghost's judge over that band, its radial lines laid out on the worker; settled builds only.
+    pub judge: Option<Arc<ringdesign_core::castability::ghost::GhostJudge>>,
     pub bounds: Option<(Vec3, Vec3)>,
     pub triangles: usize,
     pub volume_mm3: f64,
@@ -623,6 +625,15 @@ impl Worker {
                             }
                         }
                     });
+                    // The ghost's judge reads the band through the ring frame's own tree, at the verdict's parting plane.
+                    let judge = band.as_ref().zip(field.as_ref()).map(|(surface, f)| {
+                        Arc::new(ringdesign_core::castability::ghost::GhostJudge::prepared_with(
+                            &job.design,
+                            Some(surface.shared_mesh().clone()),
+                            Some(surface.tree().clone()),
+                            f.parting_z_mm,
+                        ))
+                    });
                     let build = Arc::new(out);
                     let done = Done {
                         generation: job.generation,
@@ -633,6 +644,7 @@ impl Worker {
                         build,
                         scene,
                         band,
+                        judge,
                         triangles: report.validation.triangle_count,
                         volume_mm3: report.volume_mm3,
                         build_ms: report.build_ms,

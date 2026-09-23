@@ -479,6 +479,9 @@ impl Visual {
                     if study.investment {
                         ui.colored_label(egui::Color32::from_rgb(239,179,104),"Investment pattern: this pull study illustrates geometry; the mould is expendable.");
                     }
+                    for note in &study.notes {
+                        ui.small(note);
+                    }
                     ui.small("Translucent sampled cavity surfaces. Red markers locate trapped regions; review repairs in Workshop.");
                 }
             }

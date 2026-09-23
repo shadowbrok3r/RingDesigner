@@ -455,7 +455,9 @@ fn chip(ui: &mut Ui, c: &Chip, vertical: bool) -> Response {
     let room = if vertical { (ui.available_width() - fixed).max(24.0) } else { MAX_NAME };
     let galley = one_line(ui, &c.name, ui.visuals().text_color().gamma_multiply(alpha), room);
     let width = if vertical { ui.available_width().max(fixed + 24.0) } else { fixed + galley.size().x };
-    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, chip_height(ui)), Sense::click_and_drag());
+    // A finger's drag scrolls the strip; a pointer's drag reorders the chip.
+    let sense = if ui.input(|i| i.any_touches()) { Sense::click() } else { Sense::click_and_drag() };
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, chip_height(ui)), sense);
     let name_rect = Rect::from_min_size(Pos2::new(rect.left() + PAD + ICON + GAP, rect.center().y - galley.size().y * 0.5), galley.size());
     if ui.is_rect_visible(rect) {
         let v = ui.visuals();

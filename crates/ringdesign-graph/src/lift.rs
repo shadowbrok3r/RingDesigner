@@ -315,6 +315,14 @@ pub fn diff(got: &serde_json::Value, want: &serde_json::Value, path: &str, out: 
 
 /// Lift `d` into a graph whose evaluation reproduces it exactly.
 pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result<Graph, GraphError> {
+    // Pins are references on the ring, not something the graph builds.
+    let unpinned;
+    let d = if d.pins.is_empty() {
+        d
+    } else {
+        unpinned = RingDesign { pins: Vec::new(), ..d.clone() };
+        &unpinned
+    };
     let mut g = Graph::new(&d.name, Mode::SandRing);
     let cad = d.cad.as_ref().filter(|doc| !doc.features.is_empty());
     // A CAD feature's id is its node's id, so every other node is numbered above them.

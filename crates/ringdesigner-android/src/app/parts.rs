@@ -78,6 +78,12 @@ impl RingApp {
                     self.status = "Measure put away".into();
                 }
                 Request::Prefs => self.save_prefs(),
+                Request::Pins(pins) => {
+                    self.history.commit(&self.design);
+                    self.design.pins = pins;
+                    self.history.commit_as(&self.design, "Pins");
+                    self.autosave();
+                }
             }
         }
     }

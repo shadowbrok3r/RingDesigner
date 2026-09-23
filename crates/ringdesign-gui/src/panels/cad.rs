@@ -780,6 +780,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     let mut applied = view.design.clone();
                     applied.manufacturing = app.design.manufacturing.clone();
                     applied.casting_trials = app.design.casting_trials.clone();
+                    applied.pins = app.design.pins.clone();
                     app.design = applied;
                 }
                 app.set_graph(g.clone());

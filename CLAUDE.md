@@ -187,6 +187,17 @@ timestamps, deterministic bytes) so `unit="millimeter"` and the design's
 name and size travel with the mesh; no zip dependency was bought for a
 container three files big.
 
+A design carrying an `Operation::Stored` mesh is written at format 6
+(`library::format_version_for`), everything else still at 5, so an older
+build keeps opening a plain design and refuses a stored one by name. A 6
+file holds every packed mesh **once**, in a top-level `stored_meshes` table
+keyed by content digest, and each occurrence — the document's and the
+graph's `cad.feature` params — is a `{"stored_mesh": digest}` reference
+resolved on load. A driven design carried each mesh twice before; the
+table halves such a file (15.4 MB to 7.7 MB at 786k triangles), and the
+writer falls back to inline meshes if the file would not reopen bit for
+bit. The session a desktop restores goes through the same ladder.
+
 ### Refined builds: a tolerance instead of a step count
 
 `BuildParams::refine` swaps the swept grid for a quadtree over the `(u, s)`
@@ -1311,7 +1322,10 @@ emits one line per distinct seat.
   depth stack and Escape clears. Right-click offers what the selection can
   do (`workbench::viewport::menu::context_items`). A click on the band
   still reads θ/v/relief/wall/class and makes the topmost contributing
-  layer the selection; distances are the Measure tool's two taps.
+  layer the selection; distances are the Measure tool's two taps. Its pins
+  travel in the design (`RingDesign::pins`, core `pins::Pin`), not the
+  workspace: the lift leaves them out, and every graph evaluation on both
+  apps and MCP carries them over.
 - **Channel set** (`pave::channel_set`): two rails flanking a recessed
   channel, one Group gated to the wider side face — the only place a
   channel's walls stand parallel to the pull. It is honestly a *thick-band*
@@ -1362,7 +1376,20 @@ the pour, all hand-rolled in core with tests:
   skirt around a seat. A stone keeps flat facets, because there the facets
   are the point.
 
-The CLI speaks all of them: `--formats stl,obj,3mf,glb,ply`.
+The CLI speaks all of them: `--formats stl,obj,3mf,glb,ply,step`.
+
+A ring carrying CAD parts leaves whole and a part comes in. OBJ writes one
+named object per `threemf::objects` object — the band with its joined and
+cut parts, each Separate part its own — as 3MF always did. STEP
+(`cad::step::ring`; File > Export STEP…, MCP `export_step`) writes analytic
+parts exactly and the band and faceted parts as faceted solids, always the
+finished ring at nominal size, never a shrunk pattern. File > Import part…
+(MCP `import_part`) takes STL and OBJ through the solid crate's readers
+(welded, refused unless watertight) and STEP through `step::read_solids`,
+which reads faceted solids only and names the exact ones it leaves out;
+under `kernel-occt` the OpenCascade worker reads any STEP. The part lands
+as an `Operation::Stored` component joined at the top of the ring, its
+recipe naming the file.
 `Report.quality` (`Mesh::quality`) carries worst-triangle statistics — min
 corner angle, aspect, degenerate count — on the report panel and the sheet.
 
@@ -2259,6 +2286,17 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   true surface, turned past vertical either side; a flat wall leaning back
   across the plane carries its own lean and locks — before the rule, a
   block turned 3° forgave 0.81 of its 3.18 mm² of real undercut.
+- **The ring is the casting.** `manufacturing::prepare`, the mould study and
+  the casting inspect pour the band with every Join and Cut part by default
+  (`manufacturing::Casting::Ring`). The Band anchor sits in
+  `Document::outputs` beside every part, so reading the outputs as
+  components refused every band-plus-part design. A Separate part is its own
+  casting, poured only when chosen and otherwise named as not in this
+  pattern; a reference stone never is.
+- **A head moves by its stone.** G, R and the gizmo on a builder part act on
+  the stone it is built round — its ring placement, or its `FaceSeat` on a
+  part's face — and the head follows. A Transform wrapped round a head would
+  leave the stone where it was.
 
 ## Python: `crates/ringdesign-py`
 

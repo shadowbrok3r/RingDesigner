@@ -297,8 +297,11 @@ impl Live {
     }
 
     /// A new build is on screen: a lingering ghost may go.
-    pub fn landed(&mut self, build: &Built) {
+    pub fn landed(&mut self, build: &Built, judge: Option<Arc<GhostJudge>>) {
         self.build = build.key();
+        if let Some(judge) = judge {
+            self.tint.judge = Some((self.build, judge));
+        }
     }
 
     /// The part the live command carries.
@@ -863,7 +866,7 @@ impl Live {
             return judge.clone();
         }
         let parting = c.field.map_or(0.0, |f| f.parting_z_mm);
-        let judge = Arc::new(GhostJudge::new(c.design, c.band.map(|b| b.mesh()), parting));
+        let judge = Arc::new(GhostJudge::shared(c.design, c.band.map(|b| b.shared_mesh().clone()), parting));
         self.tint.judge = Some((build.key(), judge.clone()));
         judge
     }

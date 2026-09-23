@@ -1326,10 +1326,7 @@ impl RingDesignerApp {
     /// Lift the design into a graph that evaluates back to it exactly, and
     /// show it.
     pub fn convert_to_graph(&mut self) {
-        // Pins are references on the ring, not something the graph builds: the design keeps them beside it.
-        let mut lifted = self.design.clone();
-        lifted.pins.clear();
-        match ringdesign_graph::lift::from_design(&lifted, &self.graph_reg, &self.lib) {
+        match ringdesign_graph::lift::from_design(&self.design, &self.graph_reg, &self.lib) {
             Ok(g) => {
                 self.design.graph = serde_json::to_value(&g).ok();
                 self.sync_graph();

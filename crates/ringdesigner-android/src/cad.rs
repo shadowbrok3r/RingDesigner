@@ -97,6 +97,8 @@ pub enum Request {
     Pan { by: egui::Vec2, rect: Rect },
     /// Part `Some(id)` shown alone on the ring, or the whole ring again.
     Isolate(Option<Id>),
+    /// The design's measure pins, the whole list as it now stands.
+    Pins(Vec<Pin>),
 }
 
 /// What to choose once an edit lands.
@@ -163,7 +165,7 @@ macro_rules! ctx {
             build: $v.build,
             band: $s.band.as_ref(),
             field: $v.field,
-            pins: &$s.pins,
+            pins: &$v.design.pins,
             selection: &$s.selection,
             gizmo: !$v.measuring && !$s.boxing.on,
         }
@@ -182,7 +184,6 @@ pub struct Cad {
     owner: Owner,
     pub menu: Option<menu::Menu>,
     pub live: command::Live,
-    pub pins: Vec<Pin>,
     pub measuring: measure::Measuring,
     pub boxing: boxes::Boxing,
     pub planes: planes::Planes,
@@ -203,7 +204,7 @@ pub struct Cad {
 
 impl Cad {
     /// A new build landed with its scene and ring frame; choices whose part or plane is gone are let go.
-    pub fn landed(&mut self, build: &Built, scene: Option<Arc<PickScene>>, band: Option<Arc<BandSurface>>, design: &RingDesign) {
+    pub fn landed(&mut self, build: &Built, scene: Option<Arc<PickScene>>, band: Option<Arc<BandSurface>>, judge: Option<Arc<ringdesign_core::castability::ghost::GhostJudge>>, design: &RingDesign) {
         self.scene = scene;
         self.band = band;
         self.build_key = build.key();
@@ -223,7 +224,7 @@ impl Cad {
         if self.planes.menu.as_ref().is_some_and(|m| plane_gone(m.plane)) {
             self.planes.menu = None;
         }
-        self.live.landed(build);
+        self.live.landed(build, judge);
     }
 
     /// The pick scene over the build on screen.
@@ -587,7 +588,7 @@ impl Cad {
                 _ => {}
             }
         }
-        for pin in &self.pins {
+        for pin in &v.design.pins {
             let p = at(pin.world);
             if v.rect.contains(p) {
                 painter.circle(p, 5.0, crate::theme::AQUA, egui::Stroke::new(1.5, egui::Color32::BLACK));
@@ -632,14 +633,16 @@ impl Cad {
             MenuAction::FitView => Ok(Request::FitView),
             MenuAction::ToggleWire => Ok(Request::ToggleWire),
             MenuAction::PinHere { world } => {
-                let pin = Pin::at(world, ringdesign_workbench::viewport::pins::next_number(&self.pins));
+                let mut pins = v.design.pins.clone();
+                let pin = Pin::at(world, ringdesign_workbench::viewport::pins::next_number(&pins));
                 let said = format!("{} at {:.0}°", pin.name, pin.theta_deg);
-                self.pins.push(pin);
+                pins.push(pin);
+                self.requests.push(Request::Pins(pins));
                 Ok(Request::Status(said))
             }
             MenuAction::ClearPins => {
-                let n = self.pins.len();
-                self.pins.clear();
+                let n = v.design.pins.len();
+                self.requests.push(Request::Pins(Vec::new()));
                 Ok(Request::Status(format!("{n} pin{} taken off the ring", if n == 1 { "" } else { "s" })))
             }
             MenuAction::Pattern { feature, key } => self.pattern(v, feature, key),

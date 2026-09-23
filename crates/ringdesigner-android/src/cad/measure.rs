@@ -54,7 +54,7 @@ impl Cad {
     /// What a tap at `p` measures from: a pin in reach, else the finest thing under the finger, a band point snapped to the ring's features unless free.
     fn measure_pick(&mut self, v: &View, p: Pos2) -> Option<Picked> {
         let proj = v.camera.projector(v.rect);
-        if let Some(pin) = touch::measure::pin_at(&self.pins, |w| proj.at(w.map(|x| x as f32)), p, touch::FINGER_PT) {
+        if let Some(pin) = touch::measure::pin_at(&v.design.pins, |w| proj.at(w.map(|x| x as f32)), p, touch::FINGER_PT) {
             return Some(pin);
         }
         let build = v.build?;

@@ -81,7 +81,7 @@ fn a_tap_chooses_the_post_the_same_spot_walks_down_to_its_face_and_the_band_lets
     let d = posted();
     let (built, scene, band) = build(&d);
     let mut cad = Cad::default();
-    cad.landed(&built, scene, band, &d);
+    cad.landed(&built, scene, band, None, &d);
     let camera = camera(&built);
     let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(420.0, 600.0));
     let lib = AlphaLibrary::builtin();
@@ -133,7 +133,7 @@ impl Bench {
     fn new(d: RingDesign) -> Self {
         let (built, scene, band) = build(&d);
         let mut cad = Cad::default();
-        cad.landed(&built, scene, band, &d);
+        cad.landed(&built, scene, band, None, &d);
         let camera = camera(&built);
         Self { d, built, cad, camera, lib: AlphaLibrary::builtin(), ctx: egui::Context::default(), renderer: Default::default(), time: 1.0, rect: RECT, measuring: false }
     }

@@ -181,18 +181,22 @@ impl Workshop {
             });
         number(ui, "Shrink %", &mut setup.recipe.shrink_pct);
         if let Some(doc) = &d.cad {
+            let band = doc.band().is_some();
+            let apart: Vec<u64> = doc
+                .attachments()
+                .into_iter()
+                .filter(|(_, a, _)| *a == ringdesign_core::cad::Attach::Separate)
+                .map(|(id, ..)| id)
+                .collect();
+            let whole = if band { "The ring: band with its joined and cut parts" } else { "Automatic (one metal part)" };
             egui::ComboBox::from_id_salt("component")
-                .selected_text(
-                    setup
-                        .component
-                        .map_or("Select component".into(), |id| format!("Component #{id}")),
-                )
+                .selected_text(setup.component.map_or(whole.into(), |id| format!("Component #{id}")))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut setup.component, None, "Automatic (one metal part)");
+                    ui.selectable_value(&mut setup.component, None, whole);
                     for f in doc
                         .features
                         .iter()
-                        .filter(|f| doc.outputs.contains(&f.id) && !f.component.reference)
+                        .filter(|f| doc.outputs.contains(&f.id) && !f.component.reference && (!band || apart.contains(&f.id)))
                     {
                         ui.selectable_value(&mut setup.component, Some(f.id), &f.name);
                     }

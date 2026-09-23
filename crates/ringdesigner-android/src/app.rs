@@ -421,7 +421,6 @@ impl RingApp {
         self.can_compare = false;
         self.editor.hold_before = false;
         self.end_cad();
-        self.cad.pins.clear();
         self.design = design;
         self.editor.reset_selection();
         self.probe_info = None;
@@ -611,6 +610,7 @@ impl RingApp {
                         next.name = self.design.name.clone();
                         next.manufacturing = self.design.manufacturing.clone();
                         next.casting_trials = self.design.casting_trials.clone();
+                        next.pins = self.design.pins.clone();
                         self.design = next;
                     }
                     self.graph.apply(&GraphDone {
@@ -666,7 +666,7 @@ impl RingApp {
                     r.set_pending_ghost(done.ghost);
                 }
                 let built = crate::cad::Built(done.build);
-                self.cad.landed(&built, done.scene, done.band, &self.design);
+                self.cad.landed(&built, done.scene, done.band, done.judge, &self.design);
                 self.preview_mesh = Some(built);
                 self.visual.mesh_changed();
                 if let Some(cast) = done.cast {

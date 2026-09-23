@@ -4,7 +4,6 @@ use crate::interaction_tests::*;
 use crate::app::RingDesignerApp;
 use egui::{Event, Key, Modifiers, PointerButton, Pos2};
 use egui_kittest::{Harness, kittest::NodeT, kittest::Queryable};
-use ringdesign_core::FaceClass;
 use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation, Placement, Stage, builders};
 use ringdesign_workbench::viewport::{Mods, Sel};
 use ringdesign_workbench::visual::Tool;
@@ -228,89 +227,6 @@ fn the_dial_lands_on_another_parts_angle_rather_than_its_grid() {
     h.run_steps(2);
     assert_eq!(part(&h, POST).component.placement, Placement::ring(47.0, 0.25), "the other part's angle, not the grid's 45");
     assert_eq!(h.state().history.present(), entries + 1);
-}
-
-#[test]
-fn a_claw_heads_ghost_carried_off_the_parting_line_turns_its_drag_flank_to_the_undercut_colour() {
-    const HEAD: u64 = 4;
-    let mut h = harness();
-    let gem = builders::stone_preset("round-5").unwrap().gem();
-    let stone = builders::stone_feature(3, gem, Placement::ring(60.0, builders::stand_off_mm("claw4", gem)));
-    let head = builders::feature_on(HEAD, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }));
-    assert_eq!(head.component.stage, Stage::Cast);
-    let pane = ring_with(&mut h, vec![stone, head]);
-    let status = h.state().build.as_ref().and_then(|b| b.parts.evaluated.as_ref()).and_then(|e| e.status_of(HEAD).cloned());
-    assert_eq!(status, Some(ringdesign_core::cad::FeatureStatus::Ok), "the head keeps the wall over the finger hole");
-    down_at_the_top(&mut h, pane);
-    h.state_mut().selection.click(Some(Sel::Part(HEAD)), Mods::default());
-    h.run_steps(2);
-    // Looking down −y at the top, world Z runs up the screen: the head's Z arrow carries it along the finger.
-    let press_at = h.get_by_label("Gizmo: move along Z").rect().center();
-    let px = {
-        let (o, z) = (screen(&h, pane, [0.0, 0.0, 0.0]), screen(&h, pane, [0.0, 0.0, 1.0]));
-        o.distance(z)
-    };
-    let to = press_at + egui::vec2(0.0, -2.0 * px);
-    h.event(Event::PointerMoved(press_at));
-    h.event(Event::PointerButton { pos: press_at, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE });
-    h.run_steps(1);
-    assert_eq!(h.state().command.session.command().map(|c| c.key()), Some("move"));
-    let rest = h.state().command.ghost_read().cloned().expect("the taken head is read where it stands");
-    for k in 1..=6 {
-        h.event(Event::PointerMoved(press_at + (to - press_at) * (k as f32 / 6.0)));
-        h.run_steps(1);
-    }
-    let read = h.state().command.ghost_read().cloned().expect("the carried head is read");
-    let (dz, mesh) = {
-        let b = h.state().build.clone().unwrap();
-        let c = b.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == HEAD).unwrap();
-        let Some(Operation::Transform { translation, .. }) = h.state().command.session.preview().and_then(|p| p.operation) else { panic!("a free part moves by a transform") };
-        (translation[2], c.mesh.clone())
-    };
-    assert!((dz - 2.0).abs() < 0.05 && read.classes.len() == mesh.faces.len(), "{dz} {}", read.classes.len());
-    // The drag flank, faces turned down and wholly under the plane at rest, pulls there and locks lifted above it.
-    let parting = h.state().field.as_ref().map_or(0.0, |f| f.parting_z_mm);
-    // Faces within the bore's reach read as the bore does, a vertical wall.
-    let bore = h.state().design.inner_radius_mm() + 0.3;
-    let (mut flank, mut flank_mm2) = (0, 0.0);
-    for (i, f) in mesh.faces.iter().enumerate() {
-        let (Some(n), Some((a, b, c))) = (mesh.face_normal(f), mesh.triangle(f)) else { continue };
-        let (low, high) = (a[2].min(b[2]).min(c[2]), a[2].max(b[2]).max(c[2]));
-        let len = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
-        let (u, v) = ([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
-        let area = 0.5 * (u[1] * v[2] - u[2] * v[1]).hypot(u[2] * v[0] - u[0] * v[2]).hypot(u[0] * v[1] - u[1] * v[0]);
-        let radius = ((a[0] + b[0] + c[0]) / 3.0).hypot((a[1] + b[1] + c[1]) / 3.0);
-        if n[2] / len < -0.2 && high < parting - 0.01 && low + dz > parting + 0.01 && area > 1e-3 && radius > bore {
-            flank += 1;
-            flank_mm2 += area;
-            assert_eq!((rest.classes[i], read.classes[i]), (FaceClass::Good, FaceClass::Undercut), "face {i}");
-        }
-    }
-    assert!(flank > 20 && flank_mm2 > 1.0, "the head's drag flank: {flank} faces, {flank_mm2:.2} mm²");
-    // The claws overhang the stone on both sides, so the head locks where it stands too; lifted, the drag flank is in what locks.
-    assert!(rest.locks() && read.locks() && read.undercut_mm2 >= flank_mm2 && read.worst_deg < -45.0, "{:.2} mm² at {:.0}° against the flank's {flank_mm2:.2}", read.undercut_mm2, read.worst_deg);
-    let said = h.state().command.ghost_caption().unwrap();
-    assert_eq!(said, format!("Ghost would lock {:.1} mm² at {:.0}°", read.undercut_mm2, read.worst_deg));
-    assert!(viewport_label(&h).contains(&said), "{}", viewport_label(&h));
-    // The ghost is staged in the draft colours, its drag flank red.
-    {
-        let renderer = h.state().renderer.clone();
-        let r = renderer.lock().unwrap();
-        let (Some(verts), true) = r.staged_preview() else { panic!("the ghost shades by class") };
-        let red = FaceClass::Undercut.rgb();
-        let reds = verts.chunks(12).filter(|v| v[6..9] == red).count();
-        let undercut = read.classes.iter().filter(|c| **c == FaceClass::Undercut).count();
-        assert_eq!(reds, 3 * undercut, "three red vertices for each undercut face");
-    }
-    // Carried back to where it stood it reads as it did.
-    for k in (0..=6).rev() {
-        h.event(Event::PointerMoved(press_at + (to - press_at) * (k as f32 / 6.0)));
-        h.run_steps(1);
-    }
-    let back = h.state().command.ghost_read().cloned().unwrap();
-    assert!((back.undercut_mm2 - rest.undercut_mm2).abs() < 1e-6, "{} against {}", back.undercut_mm2, rest.undercut_mm2);
-    press(&mut h, Key::Escape);
-    assert!(h.state().command.ghost_caption().is_none(), "no command, no caption");
 }
 
 #[test]

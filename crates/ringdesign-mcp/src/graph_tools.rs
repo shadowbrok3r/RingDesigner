@@ -634,6 +634,7 @@ impl RingDesignServer {
             Ok(out) => {
                 let mut d = (*out.design).clone();
                 d.graph = e.design().graph.clone();
+                d.pins = e.design().pins.clone();
                 e.set_design(d);
                 self.touch();
                 Ok(Json(GraphEvalResult {
