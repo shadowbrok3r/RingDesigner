@@ -3,12 +3,12 @@
 use serde::{Deserialize, Serialize};
 
 use super::{AlphaLibrary, FIELD_NOISE_DEG, FaceClass, RingDesign, analyze_field, classify, draft_angle};
-use crate::cad::{Attach, Document, Operation, Placement, Stage};
+use crate::cad::{Attach, Component, Document, Feature, Operation, Placement, Profile, Stage};
 use crate::field::{Blend, FieldContext, Layer, LayerEntry, SeatPadLayer};
 use crate::interaction::picking;
 use crate::mesh::{Displacer, cross, norm, sub};
 use crate::profile::ProfileLoop;
-use crate::sketch::Id;
+use crate::sketch::{FaceAnchor, Id, Sketch, Workplane};
 
 /// Undercut a dot may add where it stands, past the field's own noise lean, before the field is said to blame it, mm².
 const BLAME_MM2: f64 = 0.002;
@@ -43,6 +43,12 @@ pub struct LocatingMark {
     pub foot_undercut_mm2: f64,
     /// Worst draft over that patch with the dot at the foot, degrees.
     pub foot_worst_deg: f64,
+    /// The poured part whose face carries the dot, where the part left to the bench stands on it rather than on the band.
+    #[serde(default)]
+    pub on: Option<Id>,
+    /// That part as the report names it.
+    #[serde(default)]
+    pub on_label: String,
 }
 
 impl LocatingMark {
@@ -60,7 +66,9 @@ impl LocatingMark {
             Attach::Cut => ("is drilled at the bench", "drill mark", "hole's centre", "at its centre"),
             _ => ("is soldered on after the pour", "locating mark", "part's foot", "at its foot"),
         };
-        if self.on_parting_line {
+        if self.on.is_some() {
+            format!("{} {who}: the pattern carries a raised {what} on {}'s face {at}, {:.0}°, {:.1} mm across.", self.label, self.on_label, self.theta_deg, self.diameter_mm)
+        } else if self.on_parting_line {
             let off = self.foot_across_mm - self.across_mm;
             format!(
                 "{} {who}: {what} on the parting line at {:.0}°; the {centre} is {:.1} mm toward the {} edge (a dot there leaned to {:.0}° over {:.2} mm²).",
@@ -141,7 +149,13 @@ pub(super) fn place(design: &RingDesign, pattern: &mut RingDesign, lib: &AlphaLi
     let min_draft = settings.min_draft_deg.max(0.0);
     let mut evaluated = None;
     let mut marks = Vec::new();
+    // Dots already standing on parts' faces: the part, where on its face, and how wide.
+    let mut dots: Vec<(Id, [f64; 2], f64)> = Vec::new();
     for (id, attach) in bench {
+        if let Some(mark) = on_part(doc, id, attach, design, pattern, lib, &mut evaluated, &mut dots) {
+            marks.push(mark);
+            continue;
+        }
         let Some(foot) = foot_of(doc, id, design, lib, &mut evaluated) else { continue };
         let mut mark = LocatingMark {
             feature: id,
@@ -155,6 +169,8 @@ pub(super) fn place(design: &RingDesign, pattern: &mut RingDesign, lib: &AlphaLi
             on_parting_line: false,
             foot_undercut_mm2: 0.0,
             foot_worst_deg: 0.0,
+            on: None,
+            on_label: String::new(),
         };
         (mark.foot_undercut_mm2, mark.foot_worst_deg) = added_undercut(pattern, lib, &mark, parting, min_draft);
         if mark.foot_undercut_mm2 > BLAME_MM2 && mark.foot_worst_deg < -FIELD_NOISE_DEG {
@@ -164,8 +180,82 @@ pub(super) fn place(design: &RingDesign, pattern: &mut RingDesign, lib: &AlphaLi
         }
         marks.push(mark);
     }
-    pattern.layers.layers.extend(marks.iter().map(LocatingMark::entry));
+    pattern.layers.layers.extend(marks.iter().filter(|m| m.on.is_none()).map(LocatingMark::entry));
     marks
+}
+
+/// Height of a dot on a part's face over the face, as a share of its width: the band's dot's.
+const DOT_RISE: f64 = 0.25;
+/// How far a dot on a part's face sinks into it, so the two meet in metal rather than on a plane, mm.
+const DOT_SINK_MM: f64 = 0.05;
+/// Draft on the wall of a dot standing on a part's face, degrees.
+const DOT_DRAFT_DEG: f64 = 30.0;
+
+/// The mark for bench part `id` when its stone stands on the face of a part the pattern pours joined: a dot extruded from that
+/// face under the stone's axis, added to `pattern`'s parts once for every part standing there; `None` for a part on the band.
+#[allow(clippy::too_many_arguments)]
+fn on_part(
+    doc: &Document,
+    id: Id,
+    attach: Attach,
+    design: &RingDesign,
+    pattern: &mut RingDesign,
+    lib: &AlphaLibrary,
+    evaluated: &mut Option<Option<crate::cad::Evaluated>>,
+    dots: &mut Vec<(Id, [f64; 2], f64)>,
+) -> Option<LocatingMark> {
+    let (_, part, seat) = crate::cad::face_stone(doc, id)?;
+    let poured = pattern.cad.as_ref()?.attachments().into_iter().any(|(p, a, s)| p == part && a == Attach::Join && s == Stage::Cast);
+    if !poured {
+        return None;
+    }
+    let e = evaluated.get_or_insert_with(|| evaluate(design, lib)).as_ref()?;
+    let host = e.components.iter().find(|c| c.id == part)?;
+    let face = seat.face_of(host).ok()?;
+    let foot = seat.foot(&face, &host.frame);
+    let on_face = |p: [f64; 3]| {
+        let d = sub(p, face.origin);
+        let along = |a: [f64; 3]| d[0] * a[0] + d[1] * a[1] + d[2] * a[2];
+        [along(face.x), along(face.y)]
+    };
+    let at = on_face(foot);
+    // The bench part's reach across the face, in the face's own plane.
+    let width = e.components.iter().find(|c| c.id == id).map_or(2.0, |c| {
+        let (lo, hi) = c.mesh.vertices.iter().map(|v| on_face([f64::from(v.0), f64::from(v.1), f64::from(v.2)])).fold(([f64::MAX; 2], [f64::MIN; 2]), |(lo, hi), p| {
+            ([lo[0].min(p[0]), lo[1].min(p[1])], [hi[0].max(p[0]), hi[1].max(p[1])])
+        });
+        (hi[0] - lo[0]).min(hi[1] - lo[1]).max(0.0)
+    });
+    // Two parts at one stone share its dot.
+    let shared = dots.iter().find(|(p, q, d)| *p == part && (q[0] - at[0]).hypot(q[1] - at[1]) < 0.5 * d).map(|(_, _, d)| *d);
+    let diameter_mm = shared.unwrap_or((0.4 * width).clamp(0.6, 1.0));
+    let theta_deg = foot[1].atan2(foot[0]).to_degrees().rem_euclid(360.0);
+    let mark = LocatingMark {
+        feature: id,
+        label: label(doc, id),
+        attach,
+        theta_deg,
+        foot_across_mm: foot[2],
+        across_mm: foot[2],
+        v_mm: picking::v_at(pattern, lib, theta_deg, PATCH_PROFILE, None, foot[2]),
+        diameter_mm,
+        on_parting_line: false,
+        foot_undercut_mm2: 0.0,
+        foot_worst_deg: 0.0,
+        on: Some(part),
+        on_label: label(doc, part),
+    };
+    if shared.is_some() {
+        return Some(mark);
+    }
+    let plane =Workplane { origin: [at[0], at[1], -DOT_SINK_MM], on_face: Some(FaceAnchor { feature: part, face: seat.face.clone() }), ..Workplane::default() };
+    let sketch = Sketch { name: "Mark".into(), plane, ..Sketch::circle(0.5 * diameter_mm) };
+    let operation = Operation::Extrude { sketch: Profile::Inline(sketch), height_mm: DOT_SINK_MM + DOT_RISE * diameter_mm, draft_deg: DOT_DRAFT_DEG };
+    let doc = pattern.cad.as_mut()?;
+    let component = Component { attach: Attach::Join, stage: Stage::Cast, ..Component::default() };
+    doc.append(Feature { id: doc.fresh_id(), name: mark.layer_name(), enabled: true, operation, component }).ok()?;
+    dots.push((part, at, diameter_mm));
+    Some(mark)
 }
 
 /// Where a part meets the band and how wide it stands there.
@@ -364,6 +454,95 @@ mod tests {
         doc.append(feature(3, "Post", Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, post)).unwrap();
         d.cad = Some(doc);
         d
+    }
+
+    /// The Court band with a 4 x 6 x 1.5 mm plate joined on its top, staged `plate`, a 3 mm stone on the plate's top, and its four-claw head and seat left to the bench.
+    fn plated_solitaire(plate: Stage) -> RingDesign {
+        use crate::cad::{FaceSeat, builders, face_signature, stone_on_face};
+        let lib = AlphaLibrary::builtin();
+        let mut d = templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut doc = Document::default();
+        let feature = |id, name: &str, operation, component| crate::cad::Feature { id, name: name.into(), enabled: true, operation, component };
+        doc.append(feature(1, "Procedural shank", Operation::Band, Component::default())).unwrap();
+        let on = Component { attach: Attach::Join, stage: plate, placement: Placement::ring(90.0, 0.65), ..Default::default() };
+        doc.append(feature(2, "Plate", Operation::Box { size: [4.0, 6.0, 1.5] }, on)).unwrap();
+        d.cad = Some(doc.clone());
+        let e = crate::cad::evaluate(&d, &lib, crate::BuildParams { theta_steps: 256, profile_steps: 128, ..Default::default() }).unwrap();
+        let host = e.components.iter().find(|c| c.id == 2).unwrap();
+        let top = (0..host.body.faces.len()).find(|i| face_signature(&host.body, *i, &host.frame).is_some_and(|s| s.normal[2] > 0.99)).unwrap() as u32;
+        let gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Round, 3.0);
+        let seat = FaceSeat::on(host, top, None, builders::stand_off_mm("claw4", gem)).unwrap();
+        doc.append(stone_on_face(3, gem, 2, &seat)).unwrap();
+        let mut next = 3;
+        for f in builders::setting_features("claw4", 3, gem, true, &mut || {
+            next += 1;
+            next
+        })
+        .unwrap()
+        {
+            doc.append(f).unwrap();
+        }
+        d.cad = Some(doc);
+        d
+    }
+
+    #[test]
+    fn a_bench_head_on_a_stone_on_a_plate_leaves_its_mark_on_the_plates_top_and_not_in_the_band_under_it() {
+        use crate::cad::FaceSeat;
+        let lib = AlphaLibrary::builtin();
+        let params = crate::BuildParams { theta_steps: 256, profile_steps: 128, ..Default::default() };
+        let d = plated_solitaire(Stage::Cast);
+        let p = crate::castability::pattern_parts(&d, &lib);
+        assert_eq!(p.parts, vec!["Four-claw head".to_string(), "Seat bur".to_string()]);
+        // Both marks stand on the plate, and the band carries none.
+        assert_eq!(p.marks.iter().map(|m| (m.feature, m.attach, m.on)).collect::<Vec<_>>(), [(4, Attach::Join, Some(2)), (5, Attach::Cut, Some(2))]);
+        assert!(p.marks.iter().all(|m| m.diameter_mm == 1.0 && !m.on_parting_line && m.theta_deg == 90.0), "the seat shares its head's dot: {:?}", p.marks);
+        assert!(!p.design.layers.layers.iter().any(|e| e.name.contains(" mark: ")), "no dot in the band under the plate");
+        let note = p.marks[0].note();
+        assert!(note.starts_with("Claw head \"Four-claw head\" (#4) is soldered on after the pour: the pattern carries a raised locating mark on Box \"Plate\" (#2)'s face at its foot, 90°"), "{note}");
+        // One dot for the head and its seat alike, extruded from the plate's top face.
+        let dots: Vec<&crate::cad::Feature> = p.design.cad.as_ref().unwrap().features.iter().filter(|f| f.name.contains(" mark: ")).collect();
+        assert_eq!(dots.len(), 1, "{:?}", dots.iter().map(|f| &f.name).collect::<Vec<_>>());
+        let dot_id = dots[0].id;
+        assert!(matches!(&dots[0].operation, Operation::Extrude { sketch: crate::cad::Profile::Inline(s), .. } if s.plane.on_face.as_ref().is_some_and(|a| a.feature == 2)));
+        // The pattern pours the band, the plate and the dot on it; the stone stands where the finished ring stands it.
+        let pattern = crate::mesh::try_build_pattern(&d, &lib, params).unwrap();
+        let finished = crate::mesh::try_build(&d, &lib, params).unwrap();
+        assert!(pattern.parts.notes.is_empty() && pattern.report.validation.watertight, "{:?} {:?}", pattern.parts.notes, pattern.report.validation);
+        assert_eq!((pattern.parts.joined, pattern.parts.cut, pattern.parts.features.clone()), (2, 0, vec![2, dot_id]));
+        let e = pattern.parts.evaluated.as_ref().unwrap();
+        let part = |b: &crate::mesh::BuildResult, id| b.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == id).unwrap().clone();
+        assert_eq!(part(&pattern, 3).frame, part(&finished, 3).frame);
+        let Operation::Builder { params: stone, .. } = &d.cad.as_ref().unwrap().feature(3).unwrap().operation else { unreachable!() };
+        let seat = FaceSeat::of(stone).unwrap().unwrap();
+        let host = part(&pattern, 2);
+        let face = seat.face_of(&host).unwrap();
+        let foot = seat.foot(&face, &host.frame);
+        let dot = e.components.iter().find(|c| c.id == dot_id).unwrap();
+        let up = |v: &crate::Vec3| (f64::from(v.0) - face.origin[0]) * face.normal[0] + (f64::from(v.1) - face.origin[1]) * face.normal[1] + (f64::from(v.2) - face.origin[2]) * face.normal[2];
+        let d_mm = p.marks[0].diameter_mm;
+        let (low, high) = dot.mesh.vertices.iter().map(up).fold((f64::MAX, f64::MIN), |(a, b), h| (a.min(h), b.max(h)));
+        assert!((low + DOT_SINK_MM).abs() < 1e-6 && (high - DOT_RISE * d_mm).abs() < 1e-6, "the dot runs {low:.4} to {high:.4} mm off the plate's top");
+        let centre = dot.mesh.vertices.iter().fold([0.0; 3], |s, v| [s[0] + f64::from(v.0), s[1] + f64::from(v.1), s[2] + f64::from(v.2)]).map(|s| s / dot.mesh.vertices.len() as f64);
+        let off = sub(sub(centre, foot), face.normal.map(|n| n * up(&crate::Vec3(centre[0] as f32, centre[1] as f32, centre[2] as f32))));
+        assert!(norm(off) < 1e-3, "the dot stands {:.5} mm off the stone's axis", norm(off));
+        // What it adds is the frustum over the plate's top: 1 mm across at its foot, drafted 30° to 0.25 mm high.
+        let mut plain = p.design.into_owned();
+        plain.cad.as_mut().unwrap().features.retain(|f| f.id != dot_id);
+        plain.cad.as_mut().unwrap().outputs.retain(|id| *id != dot_id);
+        let bare = crate::mesh::try_build_poured(&plain, &d, &lib, params).unwrap();
+        let (t, rise) = (DOT_DRAFT_DEG.to_radians().tan(), DOT_RISE * d_mm);
+        let (r0, r1) = (0.5 * d_mm - DOT_SINK_MM * t, 0.5 * d_mm - (DOT_SINK_MM + rise) * t);
+        let frustum = std::f64::consts::PI * rise / 3.0 * (r0 * r0 + r0 * r1 + r1 * r1);
+        let added = pattern.report.volume_mm3 - bare.report.volume_mm3;
+        eprintln!("the dot on the plate adds {added:.4} mm³ against a {frustum:.4} mm³ frustum; the band under the plate is untouched");
+        assert!((added / frustum - 1.0).abs() < 0.05, "{added} against {frustum}");
+        assert_eq!(crate::cad::surface_epoch(pattern.band.as_deref().unwrap()), crate::cad::surface_epoch(finished.band.as_deref().unwrap()));
+        // A plate soldered on after the pour carries nothing in the pattern: its own mark and its head's stand on the band.
+        let soldered = plated_solitaire(Stage::Bench);
+        let p = crate::castability::pattern_parts(&soldered, &lib);
+        assert!(p.marks.len() == 3 && p.marks.iter().all(|m| m.on.is_none()), "{:?}", p.marks);
+        assert!(!p.design.cad.as_ref().unwrap().features.iter().any(|f| f.name.contains(" mark: ")));
     }
 
     /// Relief elsewhere in the dot's own sections is not the dot's lean: the patch is read over the rows the dot reaches, and costs a patch.

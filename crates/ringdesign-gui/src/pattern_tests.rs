@@ -362,6 +362,67 @@ fn an_arrays_ghost_on_a_signets_shoulders_stands_where_its_copies_are_built() {
 }
 
 #[test]
+fn a_ring_array_of_a_head_on_a_stone_on_a_plate_builds_each_copy_on_the_plate_where_copy_motions_stands_it() {
+    use ringdesign_core::cad::{FaceSeat, pattern, stone_on_face};
+    let mut h = harness();
+    // A plate 14 mm round the ring on the top, a 1.5 mm stone on its top, and the stone's four-claw head.
+    let plate = part(2, "Plate", Operation::Box { size: [4.0, 14.0, 1.5] }, Placement::ring(90.0, 0.65));
+    let mut d = court();
+    let mut first = Document::default();
+    first.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+    first.append(plate.clone()).unwrap();
+    d.cad = Some(first);
+    let e = ringdesign_core::cad::evaluate(&d, &ringdesign_core::AlphaLibrary::builtin(), ringdesign_core::BuildParams::default()).unwrap();
+    let host = e.components.iter().find(|c| c.id == 2).unwrap();
+    let top = (0..host.body.faces.len()).find(|i| face_signature(&host.body, *i, &host.frame).is_some_and(|s| s.normal[2] > 0.99)).unwrap() as u32;
+    let gem = Gem::calibrated(GemCut::Round, 1.5);
+    let seat = FaceSeat::on(host, top, None, builders::stand_off_mm("claw4", gem)).unwrap();
+    let head = builders::feature_on(4, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }));
+    let pane = ring_with(&mut h, vec![plate, stone_on_face(3, gem, 2, &seat), head]);
+    // Three heads 12° apart, typed in the bar.
+    crate::patterns::start(h.state_mut(), pane, 4, keys::RING_ARRAY);
+    h.run_steps(2);
+    assert_eq!(live(&h), Some("array"));
+    let ghost_ready = staged().vertices.len();
+    h.hover_at(beside(&h));
+    h.run_steps(2);
+    text(&mut h, "3");
+    press(&mut h, Key::Tab);
+    text(&mut h, "24");
+    assert_eq!(h.state().command.session.preview().unwrap().caption, "Array round the ring: 3 in all over 24°, a copy every 12.0°");
+    let ghost = staged();
+    press(&mut h, Key::Enter);
+    let array = doc(&h).features.last().cloned().unwrap();
+    assert!(matches!(&array.operation, Operation::Pattern { source: 4, kind: PatternKind::Ring { count: 3, span_deg } } if *span_deg == 24.0), "{:?}", array.operation);
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let b = h.state().build.clone().unwrap();
+    assert!(b.report.validation.watertight && b.parts.notes.is_empty(), "{:?} {:?}", b.report.validation, b.parts.notes);
+    let evaluated = b.parts.evaluated.as_ref().unwrap();
+    // Each copy is the head carried by the motion `copy_motions` reads off the build: dropped back onto the plate, square to its top.
+    let kind = PatternKind::Ring { count: 3, span_deg: 24.0 };
+    let motions = pattern::copy_motions(&h.state().design, b.band.as_deref(), evaluated, 4, &kind).unwrap();
+    let source = component_mesh(&h, 4);
+    let carried: Vec<ringdesign_core::Vec3> = motions.iter().flat_map(|m| source.vertices.iter().map(|v| {
+        let p = m.point([v.0 as f64, v.1 as f64, v.2 as f64]);
+        ringdesign_core::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)
+    })).collect();
+    let built = component_mesh(&h, array.id);
+    let (there, back) = (farthest(&carried, &built.vertices), farthest(&built.vertices, &carried));
+    let stone = evaluated.components.iter().find(|c| c.id == 3).unwrap().frame;
+    let tilts: Vec<f64> = motions
+        .iter()
+        .map(|m| {
+            let z = m.vector(stone.z_axis);
+            (0..3).map(|k| z[k] * stone.z_axis[k]).sum::<f64>().clamp(-1.0, 1.0).acos().to_degrees()
+        })
+        .collect();
+    eprintln!("ring array of a head on a plate: built within {there:.6} mm of copy_motions ({back:.6} back); its copies lean {tilts:?}° off the plate's normal; the ghost as staged stood {:.4} mm off the built copies over {ghost_ready} vertices", farthest(&ghost.vertices, &built.vertices));
+    assert!(there < 1e-4 && back < 1e-4, "{there} {back}");
+    assert!(tilts.len() == 2 && tilts.iter().all(|t| *t < 1e-6), "every copy's table faces along the plate's normal: {tilts:?}");
+}
+
+#[test]
 fn a_work_plane_is_drawn_named_and_right_clicked_to_sketch_on_or_mirror_the_chosen_part_across() {
     use egui_kittest::kittest::NodeT;
     use ringdesign_core::cad::PlaneBase;

@@ -10,6 +10,7 @@ use ringdesign_core::castability::CastProcess;
 use ringdesign_core::castability::ghost::{GhostJudge, GhostRead};
 use ringdesign_core::interaction::pick::{Filter, Ray, ViewScale};
 use ringdesign_core::{BuildResult, Mesh, sketch::Id as FeatureId};
+use ringdesign_workbench::command::commands::FaceHold;
 use ringdesign_workbench::command::{
     AddPrimitiveCmd, Affine, AttachCmd, Axis, BandSurface, DimEvent, DimensionBar, Dofs, Effect, Grid, GripCmd, MoveCmd, Outcome, PlaceCmd,
     Primitive, Probe, Reading, RingFeatures, RingPoint, RotateCmd, ScaleCmd, Scene, Session, SnapGeometry, SnapHit, Snapper, StepInput,
@@ -66,6 +67,8 @@ pub struct CommandState {
     pub box_armed: bool,
     /// The part the live command acts on, as the document held it when the command started.
     target: Option<Feature>,
+    /// That part when it is a stone standing on a part's face, held as the build seated it.
+    face: Option<FaceHold>,
     /// Where a scale is dragged from: the part's centre.
     pivot: Option<[f64; 3]>,
     /// The axis X, Y or Z last locked, so a second press unlocks it.
@@ -109,6 +112,7 @@ impl Default for CommandState {
             snapper: Snapper { grid: Some(GRID), crest: true, ..Snapper::default() },
             box_armed: false,
             target: None,
+            face: None,
             pivot: None,
             lock: None,
             band: None,
@@ -248,6 +252,17 @@ fn feature(app: &RingDesignerApp, id: FeatureId) -> Option<Feature> {
     app.design.cad.as_ref()?.feature(id).cloned()
 }
 
+/// Whether `f` is a stone standing on a part's face, which slides and spins by its seat.
+fn on_face(f: &Feature) -> bool {
+    matches!(&f.operation, Operation::Builder { key, on: Some(_), params } if key == ringdesign_core::cad::builders::STONE && ringdesign_core::cad::FaceSeat::of(params).is_ok_and(|s| s.is_some()))
+}
+
+/// The stone `f` held where the last build seated it, when it stands on a part's face.
+fn face_hold(app: &RingDesignerApp, f: &Feature) -> Option<FaceHold> {
+    let c = app.build.as_ref()?.parts.evaluated.as_ref()?.components.iter().find(|c| c.id == f.id)?;
+    FaceHold::of(f, c)
+}
+
 /// Why the catalog command `key` cannot start now; `None` when it can.
 pub fn blocked(app: &RingDesignerApp, key: &str) -> Option<String> {
     if !needs_part(key) {
@@ -274,6 +289,14 @@ pub fn blocked(app: &RingDesignerApp, key: &str) -> Option<String> {
     }
     if key == "scale" && ScaleCmd::new(f.id, f.operation.clone(), [0.0; 3]).is_none() {
         return Some(format!("{} has no size to scale", f.operation.label()));
+    }
+    if on_face(&f) {
+        if key == "place" {
+            return Some(format!("#{} {} stands on a part's face: G slides it on the face, R spins it", f.id, f.name));
+        }
+        if matches!(key, "move" | "rotate") && face_hold(app, &f).is_none() {
+            return Some(format!("#{} {} did not build; mend it on the timeline first", f.id, f.name));
+        }
     }
     None
 }
@@ -346,15 +369,19 @@ pub fn start(app: &mut RingDesignerApp, key: &str) -> bool {
     let fresh = app.design.cad.as_ref().map_or(1, |d| d.fresh_id());
     let target = selected_part(app).and_then(|id| feature(app, id)).filter(|_| needs_part(key));
     let pivot = target.as_ref().and_then(|f| centre_of(app, f.id));
-    let cmd: Box<dyn ViewCommand> = match (key, &target) {
-        ("move", Some(f)) => Box::new(MoveCmd::of(f, fresh)),
-        ("rotate", Some(f)) => Box::new(RotateCmd::of(f, fresh)),
-        ("scale", Some(f)) => match ScaleCmd::new(f.id, f.operation.clone(), pivot.unwrap_or([0.0; 3])) {
+    // A stone standing on a part's face slides and spins by its seat.
+    let face = target.as_ref().filter(|f| on_face(f)).and_then(|f| face_hold(app, f));
+    let cmd: Box<dyn ViewCommand> = match (key, &target, face.clone()) {
+        ("move", Some(_), Some(hold)) => Box::new(MoveCmd::on_face(hold)),
+        ("rotate", Some(_), Some(hold)) => Box::new(RotateCmd::on_face(hold)),
+        ("move", Some(f), _) => Box::new(MoveCmd::of(f, fresh)),
+        ("rotate", Some(f), _) => Box::new(RotateCmd::of(f, fresh)),
+        ("scale", Some(f), _) => match ScaleCmd::new(f.id, f.operation.clone(), pivot.unwrap_or([0.0; 3])) {
             Some(c) => Box::new(c),
             None => return false,
         },
-        ("place", Some(f)) => Box::new(PlaceCmd::new(f.id, f.component.placement.clone())),
-        ("attach", Some(f)) => {
+        ("place", Some(f), _) => Box::new(PlaceCmd::new(f.id, f.component.placement.clone())),
+        ("attach", Some(f), _) => {
             // One press steps the part on to its next attachment and commits it.
             let (id, attach) = (f.id, f.component.attach);
             let st = &mut app.command;
@@ -364,7 +391,7 @@ pub fn start(app: &mut RingDesignerApp, key: &str) -> bool {
             outcome(app, out);
             return true;
         }
-        (k, None) if primitive(k).is_some() => {
+        (k, None, _) if primitive(k).is_some() => {
             // A plain ring's first part brings its shank with it; the shank takes id 1.
             let empty = app.design.cad.as_ref().is_none_or(|d| d.features.is_empty());
             Box::new(AddPrimitiveCmd::new(primitive(k).unwrap_or(Primitive::Box), if empty { 2 } else { fresh }))
@@ -374,6 +401,7 @@ pub fn start(app: &mut RingDesignerApp, key: &str) -> bool {
     let st = &mut app.command;
     st.session.start(cmd);
     st.target = target;
+    st.face = face.filter(|_| matches!(key, "move" | "rotate"));
     st.pivot = pivot;
     st.lock = None;
     st.pointer = None;
@@ -404,6 +432,7 @@ fn outcome(app: &mut RingDesignerApp, out: Outcome) {
         Outcome::Refused(why) => app.set_status(why),
         Outcome::Cancelled => {
             app.command.target = None;
+            app.command.face = None;
             app.command.linger = None;
             app.set_status("Cancelled; nothing changed");
         }
@@ -455,6 +484,14 @@ fn commit(app: &mut RingDesignerApp, effects: Vec<Effect>) {
         app.command.linger = None;
     }
     app.command.target = None;
+    app.command.face = None;
+}
+
+/// Where the live command reads the pointer on a stone's face, while it slides or spins one: the plane of its girdle.
+fn face_plane(st: &CommandState) -> Option<Reading> {
+    let cmd = st.session.command()?;
+    let h = st.face.as_ref().filter(|_| matches!(cmd.key(), "move" | "rotate"))?;
+    Some(Reading::Face { at: h.origin, normal: h.normal })
 }
 
 /// Ends a live command whose part has left the document.
@@ -463,6 +500,7 @@ fn drop_orphan(app: &mut RingDesignerApp) {
     if gone && app.command.session.is_live() {
         app.command.session.feed(StepInput::Cancel);
         app.command.target = None;
+        app.command.face = None;
         app.set_status("The part the command was carrying is gone");
     }
 }
@@ -591,6 +629,9 @@ fn snaps_for(app: &mut RingDesignerApp, build: &Arc<BuildResult>) {
 /// How the live command reads the pointer: sizes on the view plane through their anchor, the rest on the metal.
 fn reading(st: &CommandState) -> Reading {
     let Some(cmd) = st.session.command() else { return Reading::Surface };
+    if let Some(on_face) = face_plane(st) {
+        return on_face;
+    }
     match cmd.key() {
         "scale" => st.pivot.map_or(Reading::Surface, |at| Reading::Plane { at }),
         "press-pull" => cmd.preview().ghost.first().map_or(Reading::Surface, |at| Reading::Plane { at: *at }),
@@ -679,6 +720,8 @@ fn axis_hint(cmd: &dyn ViewCommand) -> Option<&'static str> {
         None
     } else if has("theta") {
         Some("X θ · Y height · Z across")
+    } else if has("u") {
+        Some("X along · Y across · Z off the face")
     } else if has("spin") {
         Some("X cant · Y spin · Z tilt")
     } else if has("x") || has("factor") {
@@ -818,6 +861,11 @@ fn gizmo_of(app: &mut RingDesignerApp) -> Option<(FeatureId, Gizmo)> {
             let reach_mm = part.map_or(0.0, |c| gizmo::reach(&c.mesh, c.frame.origin));
             Gizmo { reach_mm, ..g }
         }
+        // A stone on a part's face gets the face's own arrows, its spin, and the dial through its foot.
+        Placement::Free if on_face(&f) => {
+            let (c, hold) = (part?, face_hold(app, &f)?);
+            return Some((id, hold.gizmo(gizmo::reach(&c.mesh, hold.origin))));
+        }
         Placement::Free => {
             let (lo, hi) = part?.mesh.bounds()?;
             let centre = [(lo.0 + hi.0) as f64 * 0.5, (lo.1 + hi.1) as f64 * 0.5, (lo.2 + hi.2) as f64 * 0.5];
@@ -846,12 +894,18 @@ fn hint(handle: Handle) -> &'static str {
 fn start_drag(app: &mut RingDesignerApp, pane: usize, rect: Rect, id: FeatureId, gizmo: Gizmo, handle: Handle, at: Pos2, free: bool) {
     let Some(f) = feature(app, id) else { return };
     let fresh = app.design.cad.as_ref().map_or(1, |d| d.fresh_id());
-    let (cmd, lock): (Box<dyn ViewCommand>, Option<Axis>) = match handle {
-        Handle::Move(axis) => (Box::new(MoveCmd::of(&f, fresh)), Some(axis)),
-        Handle::Turn(axis) => (Box::new(RotateCmd::of(&f, fresh).about(gizmo.pivot())), Some(axis)),
-        Handle::Dial => (Box::new(PlaceCmd::new(f.id, f.component.placement.clone())), Some(Axis::Theta)),
-        Handle::Grip(i) => match gizmo.grips.get(i).and_then(|g| GripCmd::new(f.id, f.operation.clone(), g.grip.key, &gizmo.frame)) {
-            Some(c) => (Box::new(c), None),
+    let face = Some(&f).filter(|f| on_face(f)).and_then(|f| face_hold(app, f));
+    let (cmd, lock, prefer): (Box<dyn ViewCommand>, Option<Axis>, Option<&'static str>) = match (handle, &face) {
+        // A stone on a part's face: its seat slides along, across and off the face, spins on it, and rides the dial.
+        (_, Some(hold)) => match hold.drag(handle) {
+            Some((cmd, lock, key)) => (cmd, lock, Some(key)),
+            None => return,
+        },
+        (Handle::Move(axis), None) => (Box::new(MoveCmd::of(&f, fresh)), Some(axis), gizmo.key(handle)),
+        (Handle::Turn(axis), None) => (Box::new(RotateCmd::of(&f, fresh).about(gizmo.pivot())), Some(axis), gizmo.key(handle)),
+        (Handle::Dial, None) => (Box::new(PlaceCmd::new(f.id, f.component.placement.clone())), Some(Axis::Theta), gizmo.key(handle)),
+        (Handle::Grip(i), None) => match gizmo.grips.get(i).and_then(|g| GripCmd::new(f.id, f.operation.clone(), g.grip.key, &gizmo.frame)) {
+            Some(c) => (Box::new(c), None, gizmo.key(handle)),
             None => return,
         },
     };
@@ -861,6 +915,7 @@ fn start_drag(app: &mut RingDesignerApp, pane: usize, rect: Rect, id: FeatureId,
         st.session.feed(StepInput::Lock(axis));
     }
     st.target = Some(f);
+    st.face = face;
     st.pivot = None;
     st.lock = lock;
     st.pointer = None;
@@ -870,7 +925,7 @@ fn start_drag(app: &mut RingDesignerApp, pane: usize, rect: Rect, id: FeatureId,
     st.tint.at = None;
     st.tint.read = None;
     st.bar.reset();
-    st.bar.prefer(gizmo.key(handle));
+    st.bar.prefer(prefer);
     // The drag is measured from where the handle was taken.
     feed_drag(app, pane, rect, at, &gizmo, handle, free);
     app.command.gizmo_drag = Some(GizmoDrag { handle, gizmo, press: at, moved: false, ended: false });
@@ -927,6 +982,7 @@ fn gizmo_input(app: &mut RingDesignerApp, ui: &egui::Ui, pane: usize, rect: Rect
                 // Taken and let go in place: nothing changes.
                 app.command.session.feed(StepInput::Cancel);
                 app.command.target = None;
+                app.command.face = None;
                 app.set_status(format!("{}: {}", drag.gizmo.label(drag.handle), hint(drag.handle)));
             }
         }
@@ -1099,7 +1155,14 @@ fn ghost(app: &mut RingDesignerApp) {
     let key = app.command.session.command().map(|c| c.key()).unwrap_or_default();
     let (want, model) = match (primitive(key), &app.command.target) {
         (Some(kind), _) => (Staged::Unit(kind), unit_ghost(&app.design, band.as_deref(), &preview)),
-        (None, Some(t)) => (Staged::Part { build: build_key(&build), feature: t.id }, placed_ghost(&app.design, band.as_deref(), t, &preview)),
+        (None, Some(t)) => {
+            // A stone on a part's face rides its seat on that face.
+            let model = match &app.command.face {
+                Some(hold) => hold.ghost(&preview),
+                None => placed_ghost(&app.design, band.as_deref(), t, &preview),
+            };
+            (Staged::Part { build: build_key(&build), feature: t.id }, model)
+        }
         (None, None) => return,
     };
     if let Staged::Unit(kind) = want {
@@ -1265,8 +1328,9 @@ fn gizmo_draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: R
     if let Some(drag) = app.command.gizmo_drag.as_ref().filter(|d| !d.ended) {
         let (handle, mut gizmo) = (drag.handle, drag.gizmo.clone());
         let preview = app.command.session.preview().unwrap_or_default();
-        // The dial's marker rides the angle being previewed.
-        if let (Handle::Dial, Some(d), Some(theta)) = (handle, gizmo.dial.as_mut(), preview.placement.as_ref().and_then(Placement::theta_deg)) {
+        // The dial's marker rides the angle being previewed, or the pointer on it while a stone slides on a face.
+        let riding = preview.placement.as_ref().and_then(Placement::theta_deg).or_else(|| app.command.face.as_ref().and(preview.ghost.get(1)).map(|w| w[1].atan2(w[0]).to_degrees().rem_euclid(360.0)));
+        if let (Handle::Dial, Some(d), Some(theta)) = (handle, gizmo.dial.as_mut(), riding) {
             d.theta_deg = theta;
         }
         on_screen(app, pane, rect, |view| {
@@ -1278,9 +1342,18 @@ fn gizmo_draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: R
         ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
         return;
     }
-    let Some((_, gizmo)) = gizmo_of(app) else {
+    let Some((id, gizmo)) = gizmo_of(app) else {
         app.command.gizmo_hot = None;
         return;
+    };
+    let on_a_face = feature(app, id).is_some_and(|f| on_face(&f));
+    let label = |handle: Handle| match (on_a_face, handle) {
+        (true, Handle::Move(Axis::X)) => "Gizmo: slide along the face".to_owned(),
+        (true, Handle::Move(Axis::Y)) => "Gizmo: slide across the face".to_owned(),
+        (true, Handle::Move(_)) => "Gizmo: lift off the face".to_owned(),
+        (true, Handle::Turn(_)) => "Gizmo: spin on the face".to_owned(),
+        (true, Handle::Dial) => "Gizmo: slide round the shank on the face".to_owned(),
+        _ => gizmo.label(handle),
     };
     let layout = layout_of(app, pane, rect, &gizmo);
     let hot = app.command.gizmo_hot;
@@ -1288,7 +1361,7 @@ fn gizmo_draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: R
     // Each handle a hover-only widget at its anchor, while an accessibility tree is being built.
     if ui.ctx().accesskit_node_builder(ui.id(), |_| ()).is_some() {
         for handle in layout.handles() {
-            let (Some(at), label) = (layout.anchor(handle), gizmo.label(handle)) else { continue };
+            let (Some(at), label) = (layout.anchor(handle), label(handle)) else { continue };
             let r = ui.interact(Rect::from_center_size(at, egui::Vec2::splat(12.0)), ui.id().with(("gizmo-handle", pane, label.as_str())), egui::Sense::hover());
             r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, label.as_str()));
         }
@@ -1297,7 +1370,7 @@ fn gizmo_draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: R
         ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
         let text = match h {
             Handle::Grip(i) => gizmo.grips.get(i).map_or_else(String::new, |g| format!("{} {}", g.grip.label, g.grip.unit.format(g.grip.value))),
-            _ => gizmo.label(h).trim_start_matches("Gizmo: ").to_owned(),
+            _ => label(h).trim_start_matches("Gizmo: ").to_owned(),
         };
         let overlay = rect.with_min_x(rect.left() + RAIL_W);
         ringdesign_workbench::hover::caption(painter, overlay, &text, ringdesign_workbench::hover::AQUA);

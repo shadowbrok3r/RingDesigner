@@ -1068,9 +1068,26 @@ pub fn cut_stage(axis: P3, sand: bool) -> Stage {
     if !sand || unit(axis)[2].abs() >= ALONG_PULL_DEG.to_radians().cos() { Stage::Cast } else { Stage::Bench }
 }
 
-/// The stage shoulders default to: Bench with the head they meet under sand, Cast under lost wax.
+/// Farthest a stone's girdle centre may stand off the parting plane for cathedral shoulders under it to pour clean in sand, mm.
+pub const SHOULDER_PARTING_MM: f64 = 0.005;
+
+/// The stage shoulders under a stone whose girdle centre stands at `stone_z_mm` default to: Cast under lost wax, and in sand
+/// Cast within [`SHOULDER_PARTING_MM`] of the parting plane at `parting_z_mm`, else Bench with the head they meet.
+pub fn shoulder_stage_at(stone_z_mm: f64, parting_z_mm: f64, sand: bool) -> Stage {
+    if !sand || (stone_z_mm - parting_z_mm).abs() <= SHOULDER_PARTING_MM { Stage::Cast } else { Stage::Bench }
+}
+
+/// [`shoulder_stage_at`] where the stone's seat is not known: Bench in sand, Cast under lost wax.
 pub fn shoulder_stage(sand: bool) -> Stage {
-    if sand { Stage::Bench } else { Stage::Cast }
+    shoulder_stage_at(f64::INFINITY, 0.0, sand)
+}
+
+/// [`shoulder_stage_at`] for `design`, its stone's girdle centre at `stone` as built, against the parting plane its draft names, else
+/// the band's mid-plane; a stone not yet built is the bench's.
+pub fn shoulder_stage_for(design: &RingDesign, stone: Option<[f64; 3]>) -> Stage {
+    let d = &design.draft;
+    let parting = if !d.auto_parting && d.parting_z_mm.is_finite() { d.parting_z_mm } else { 0.0 };
+    shoulder_stage_at(stone.map_or(f64::INFINITY, |p| p[2]), parting, super::sand(design))
 }
 
 /// Rounded to the hundredth, as the inspector shows it.

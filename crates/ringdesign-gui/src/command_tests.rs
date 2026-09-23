@@ -491,6 +491,116 @@ fn a_pick_at_the_top_of_the_ring_reads_ninety_degrees_on_the_crest_with_no_stand
     assert!((p.theta_deg - 90.0).abs() < 1e-9 && (p.across_mm - 0.5).abs() < 1e-12 && (p.height_mm - 1.25).abs() < 1e-9, "{p:?}");
 }
 
+/// The stone's id in the plate design.
+const STONE: u64 = 3;
+
+/// A 4 x 6 x 1.5 mm plate joined on the top of the ring, a 3 mm stone on the plate's top and the stone's four-claw head, built and settled.
+fn stone_on_plate(h: &mut Harness<'static, RingDesignerApp>) -> usize {
+    use ringdesign_core::cad::{FaceSeat, builders, face_signature, stone_on_face};
+    let pane = ring_view(h);
+    {
+        let app = h.state_mut();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        let plate = Component { attach: Attach::Join, stage: Stage::Cast, placement: Placement::ring(90.0, 0.65), ..Default::default() };
+        doc.append(Feature { id: 2, name: "Plate".into(), enabled: true, operation: Operation::Box { size: [4.0, 6.0, 1.5] }, component: plate }).unwrap();
+        let mut d = app.design.clone();
+        d.cad = Some(doc.clone());
+        let e = ringdesign_core::cad::evaluate(&d, &ringdesign_core::AlphaLibrary::builtin(), ringdesign_core::BuildParams::default()).unwrap();
+        let host = e.components.iter().find(|c| c.id == 2).unwrap();
+        let top = (0..host.body.faces.len()).find(|i| face_signature(&host.body, *i, &host.frame).is_some_and(|s| s.normal[2] > 0.99)).unwrap() as u32;
+        let gem = ringdesign_core::gem::Gem::calibrated(ringdesign_core::gem::GemCut::Round, 3.0);
+        let seat = FaceSeat::on(host, top, None, builders::stand_off_mm("claw4", gem)).unwrap();
+        doc.append(stone_on_face(STONE, gem, 2, &seat)).unwrap();
+        doc.append(builders::feature_on(4, "Four-claw head", builders::CLAW, STONE, serde_json::json!({ "prongs": 4 }))).unwrap();
+        app.design.cad = Some(doc);
+        app.history.commit(&app.design);
+        app.rebuild_now();
+    }
+    wait_for_build(h);
+    look_down_at_the_top(h, pane);
+    pane
+}
+
+/// Part `id`'s frame as the last build seated it: its origin and its axes.
+fn frame_of(h: &Harness<'static, RingDesignerApp>, id: u64) -> [[f64; 3]; 4] {
+    let c = h.state().build.as_ref().unwrap().parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == id).unwrap_or_else(|| panic!("#{id} built")).frame;
+    [c.origin, c.x_axis, c.y_axis, c.z_axis]
+}
+
+fn seat(h: &Harness<'static, RingDesignerApp>) -> ringdesign_core::cad::FaceSeat {
+    let Some(Operation::Builder { params, .. }) = h.state().design.cad.as_ref().and_then(|d| d.feature(STONE)).map(|f| f.operation.clone()) else { panic!("the stone") };
+    ringdesign_core::cad::FaceSeat::of(&params).unwrap().expect("a seat on the plate")
+}
+
+#[test]
+fn g_r_and_the_gizmo_on_a_stone_on_a_plate_edit_its_seat_and_the_head_on_it_follows() {
+    let mut h = harness();
+    let pane = stone_on_plate(&mut h);
+    let (stone, head) = (frame_of(&h, STONE), frame_of(&h, 4));
+    assert_eq!(stone, head, "the head stands in its stone's frame");
+    let (before, features) = (seat(&h), h.state().design.cad.as_ref().unwrap().features.len());
+    h.state_mut().selection.click(Some(Sel::Part(STONE)), ringdesign_workbench::viewport::Mods::default());
+    h.run_steps(2);
+    // The stone's gizmo is the face's own: along and across it, spun on it; looking down onto the plate its normal points at the eye.
+    for (label, shown) in [("Gizmo: slide along the face", true), ("Gizmo: slide across the face", true), ("Gizmo: lift off the face", false), ("Gizmo: spin on the face", true), ("Gizmo: move along X", false)] {
+        assert_eq!(h.query_by_label(label).is_some(), shown, "{label}");
+    }
+    let entries = h.state().history.present();
+    // G with 0.4 typed slides the seat 0.4 mm along the face: an edit of the stone, never a Transform wrapped round it.
+    let over = viewport_rect(&h).center();
+    h.hover_at(over);
+    h.run_steps(2);
+    press(&mut h, Key::G);
+    assert_eq!(live(&h), Some("move"));
+    assert!(h.state().command.session.preview().unwrap().caption.starts_with("Move Δalong"), "{}", h.state().command.session.preview().unwrap().caption);
+    text(&mut h, "0.4");
+    assert_eq!(h.get_by_label("Δalong (mm)").value().as_deref(), Some("0.4"));
+    press(&mut h, Key::Enter);
+    assert_eq!(live(&h), None);
+    let moved = seat(&h);
+    assert_eq!((moved.u_mm - before.u_mm, moved.v_mm, moved.height_mm, moved.spin_deg), (0.4, before.v_mm, before.height_mm, before.spin_deg));
+    assert_eq!(h.state().design.cad.as_ref().unwrap().features.len(), features, "no Transform wraps the stone");
+    assert_eq!(h.state().history.present(), entries + 1, "one command is one undo step");
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    // Built again the stone stands 0.4 mm along the face, its bearing kept, and its head with it.
+    let (stone2, head2) = (frame_of(&h, STONE), frame_of(&h, 4));
+    let along: [f64; 3] = std::array::from_fn(|k| stone[1][k]);
+    let expected: [f64; 3] = std::array::from_fn(|k| stone[0][k] + 0.4 * along[k]);
+    assert!((0..3).all(|k| (stone2[0][k] - expected[k]).abs() < 1e-6) && stone2[1..] == stone[1..], "{stone2:?} against {expected:?}");
+    assert_eq!(head2, stone2, "the head follows its stone");
+    // R with 30 typed spins it on the face.
+    h.state_mut().selection.click(Some(Sel::Part(STONE)), ringdesign_workbench::viewport::Mods::default());
+    h.hover_at(over);
+    h.run_steps(2);
+    press(&mut h, Key::R);
+    assert_eq!(live(&h), Some("rotate"));
+    text(&mut h, "30");
+    press(&mut h, Key::Enter);
+    assert_eq!((seat(&h).spin_deg, seat(&h).u_mm), (30.0, moved.u_mm));
+    // Placing it on the ring is refused by name: it stands where the plate's face is.
+    press(&mut h, Key::P);
+    assert_eq!(live(&h), None);
+    assert_eq!(h.state().status, "#3 Round 3 mm stands on a part's face: G slides it on the face, R spins it");
+    // The along arrow dragged 30 px slides it along the face alone, as one undo step.
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    h.state_mut().selection.click(Some(Sel::Part(STONE)), ringdesign_workbench::viewport::Mods::default());
+    h.run_steps(2);
+    let (spun, entries) = (seat(&h), h.state().history.present());
+    let arrow = h.get_by_label("Gizmo: slide along the face").rect().center();
+    let o = stone2[0].map(|v| v as f32);
+    let way = (screen(&h, pane, [o[0] + along[0] as f32, o[1] + along[1] as f32, o[2] + along[2] as f32]) - screen(&h, pane, o)).normalized();
+    drag(&mut h, arrow, arrow + way * 30.0);
+    let dragged = seat(&h);
+    assert!((dragged.u_mm - spun.u_mm).abs() > 0.2 && dragged.v_mm == spun.v_mm && dragged.spin_deg == spun.spin_deg, "{spun:?} -> {dragged:?}");
+    assert_eq!(h.state().history.present(), entries + 1);
+    assert_eq!(h.state().design.cad.as_ref().unwrap().features.len(), features);
+    h.state_mut().undo();
+    assert_eq!(seat(&h), spun);
+}
+
 /// The Court band with three posts joined on its top, one of them moved to `last_theta`.
 fn three_posts(last_theta: f64) -> ringdesign_core::RingDesign {
     let mut d = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
