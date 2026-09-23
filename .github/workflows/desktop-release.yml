@@ -39,8 +39,9 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
-          import os, tomllib
-          version = tomllib.load(open('crates/ringdesign-gui/Cargo.toml', 'rb'))['package']['version']
+          import os, re
+          # The package version, from the manifest's first version line.
+          version = re.search(r'^version\s*=\s*"([^"]+)"', open('crates/ringdesign-gui/Cargo.toml').read(), re.M).group(1)
           if os.environ['GITHUB_REF_TYPE'] == 'tag':
               assert os.environ['GITHUB_REF_NAME'] == f'desktop-v{version}', 'Tag must match the desktop Cargo version'
           PY
