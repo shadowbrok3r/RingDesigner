@@ -15,6 +15,7 @@ use crate::alpha::AlphaLibrary;
 use crate::mesh::{Mesh, cross, norm, sub};
 use crate::RingDesign;
 
+pub mod ghost;
 mod judge;
 mod marks;
 pub use judge::{PartSpan, PartVerdict, PartingSide, judge_parts, judged_field_report};

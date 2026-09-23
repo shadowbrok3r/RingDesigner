@@ -1,7 +1,8 @@
 //! The ring frame under the pointer: the band parts seat on, a pointer's (θ, across, height), and a ghost's matrix.
 use super::commands::Primitive;
-use super::session::{Preview, StepInput};
-use super::snap::{RingPoint, SnapGeometry, Snapper};
+use super::session::{Outcome, Preview, Session, StepInput};
+use super::snap::{RingPoint, SnapGeometry, SnapHit, Snapper};
+use std::sync::Arc;
 use ringdesign_core::{
     AlphaLibrary, BuildParams, Mesh, RingDesign, Vec3,
     cad::{self, Component, Document, Feature, Operation, Placement},
@@ -27,7 +28,7 @@ fn at(v: Vec3) -> [f64; 3] {
 
 /// The band built without its parts, with a tree and each vertex's faces, for `surface_hit` on a small patch.
 pub struct BandSurface {
-    mesh: Mesh,
+    mesh: Arc<Mesh>,
     bvh: Bvh,
     /// Past every vertex's radius, where `surface_hit` starts its rays.
     far: f64,
@@ -40,6 +41,11 @@ pub struct BandSurface {
 
 impl BandSurface {
     pub fn new(mesh: Mesh) -> Self {
+        Self::shared(Arc::new(mesh))
+    }
+
+    /// The surface over a band the build already holds, without copying it.
+    pub fn shared(mesh: Arc<Mesh>) -> Self {
         let (lo, hi) = mesh.bounds().unwrap_or_default();
         let far = (lo.0.abs().max(hi.0.abs()) as f64).hypot(lo.1.abs().max(hi.1.abs()) as f64) + 1.0;
         let mut first = vec![0u32; mesh.vertices.len() + 1];
@@ -69,6 +75,17 @@ impl BandSurface {
 
     pub fn mesh(&self) -> &Mesh {
         &self.mesh
+    }
+
+    /// The band this surface reads, as the build shares it.
+    pub fn shared_mesh(&self) -> &Arc<Mesh> {
+        &self.mesh
+    }
+
+    /// Where a ring point stands in the world: its seat on the band, out along the normal by its height.
+    pub fn world(&self, p: RingPoint) -> Option<[f64; 3]> {
+        let (hit, n) = self.hit(p.theta_deg, p.across_mm)?;
+        Some(std::array::from_fn(|k| hit[k] + n[k] * p.height_mm))
     }
 
     /// The faces around the first hits of `surface_hit`'s rays at (θ, across), in mesh order, within the mesh's bounds.
@@ -163,6 +180,39 @@ pub fn ring_point(world: [f64; 3], surface: Option<&BandSurface>, nominal_r: f64
         None => world[0].hypot(world[1]) - nominal_r,
     };
     p
+}
+
+/// An angle in [-180, 180).
+fn wrap180(deg: f64) -> f64 {
+    (deg + 180.0).rem_euclid(360.0) - 180.0
+}
+
+/// Feeds `raw`, snaps where the live command lands its part on the ring, and feeds the pointer shifted by that snap.
+pub fn land(session: &mut Session, raw: StepInput, snap: &dyn Fn(RingPoint) -> Option<SnapHit>) -> Outcome {
+    let out = session.feed(raw.clone());
+    if !matches!(out, Outcome::Continue) {
+        return out;
+    }
+    let StepInput::Pointer { world, normal, theta_deg, across_mm, height_mm, dragging, .. } = raw else { return out };
+    let Some(Placement::Ring { theta_deg: t, across_mm: a, height_mm: h, .. }) = session.preview().and_then(|p| p.placement) else { return out };
+    let landing = RingPoint { theta_deg: t, across_mm: a, height_mm: h };
+    let Some(hit) = snap(landing) else { return out };
+    // A command that seats where it points takes the snapped point; one carrying a part keeps the pointer's.
+    let pointed = wrap180(theta_deg - t).abs() < 1e-9 && (across_mm - a).abs() < 1e-9;
+    let (theta_deg, across_mm) = if pointed {
+        (hit.ring.theta_deg, hit.ring.across_mm)
+    } else {
+        (theta_deg + wrap180(hit.ring.theta_deg - t), across_mm + (hit.ring.across_mm - a))
+    };
+    session.feed(StepInput::Pointer {
+        world: if pointed { hit.world } else { world },
+        normal,
+        theta_deg,
+        across_mm,
+        height_mm: height_mm + (hit.ring.height_mm - h),
+        snapped: Some(hit),
+        dragging,
+    })
 }
 
 /// An affine map `p' = L p + t` as three rows of `[L | t]`.
@@ -613,6 +663,84 @@ mod tests {
         let unit = unit_mesh(Primitive::Cylinder).unwrap();
         let (lo, hi) = unit.bounds().unwrap();
         assert!((hi.0 - 1.0).abs() < 1e-3 && (lo.2 + 0.5).abs() < 1e-3 && (hi.2 - 0.5).abs() < 1e-3, "{lo:?} {hi:?}");
+    }
+
+    /// The pointer on the band at (θ, across), read as the viewport reads it.
+    fn on_band(band: &BandSurface, theta: f64, across: f64) -> StepInput {
+        let (world, normal) = band.hit(theta, across).unwrap();
+        let p = ring_point(world, Some(band), 0.0);
+        StepInput::Pointer { world, normal, theta_deg: p.theta_deg, across_mm: p.across_mm, height_mm: p.height_mm, snapped: None, dragging: false }
+    }
+
+    #[test]
+    fn a_move_lands_its_part_on_the_palm_rather_than_the_pointer_and_says_so() {
+        use crate::command::snap::{Dofs, RingFeatures, Scene};
+        use crate::command::{Effect, MoveCmd, Outcome, Session};
+        let d = court();
+        let band = BandSurface::new(mesh::build(&d, &AlphaLibrary::builtin(), params()).mesh);
+        let features = RingFeatures::of(&d, 0.0);
+        let snapper = Snapper { grid: Some(Grid { theta_deg: 5.0, across_mm: 0.5, height_mm: 0.5 }), crest: true, ..Snapper::default() };
+        // Down the finger at 20 px/mm.
+        let view = ViewScale { right: [1.0, 0.0, 0.0], up: [0.0, 1.0, 0.0], px_per_mm: 20.0 };
+        let world_of = |p: RingPoint| band.world(p);
+        let scene = Scene { view, aperture_px: 8.0, geometry: SnapGeometry::default(), features: &features, design: Some(&d), world_of: &world_of };
+        let snap = |p: RingPoint| snapper.snap_ring(band.world(p)?, p, Dofs::ALL, &scene);
+        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let target = Feature { id: 3, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.5, height_mm: 2.5 }, component: Component { placement: seat, ..Component::default() } };
+        let mut s = Session::default();
+        s.start(Box::new(MoveCmd::of(&target, 9)));
+        // Taken at 100° and carried 181.2° on, the part would stand at 271.2°: 1.2° off the palm, which it takes.
+        assert!(matches!(land(&mut s, on_band(&band, 100.0, 0.0), &snap), Outcome::Continue));
+        land(&mut s, on_band(&band, 281.2, 0.1), &snap);
+        let p = s.preview().unwrap();
+        assert!(p.caption.ends_with(" · palm 270.0° · parting line"), "{}", p.caption);
+        let Outcome::Commit(e) = s.enter() else { panic!() };
+        let [Effect::Placement { placement, .. }] = e.as_slice() else { panic!("{e:?}") };
+        assert_eq!(*placement, Placement::Ring { theta_deg: 270.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0 }, "exactly, its stand-off kept");
+        // Off every feature the grid lands it instead, on the grid's own angle rather than the pointer's step.
+        s.start(Box::new(MoveCmd::of(&target, 9)));
+        land(&mut s, on_band(&band, 100.0, 0.0), &snap);
+        land(&mut s, on_band(&band, 123.4, 0.0), &snap);
+        let Outcome::Commit(e) = s.enter() else { panic!() };
+        assert!(matches!(e.as_slice(), [Effect::Placement { placement: Placement::Ring { theta_deg, across_mm, .. }, .. }] if *theta_deg == 115.0 && *across_mm == 0.0), "{e:?}");
+    }
+
+    #[test]
+    fn the_dial_and_the_round_the_ring_arrow_land_on_another_parts_angle() {
+        use crate::command::snap::{Dofs, RingFeatures, Scene};
+        use crate::command::{Axis, MoveCmd, PlaceCmd, Session};
+        let d = court();
+        let band = BandSurface::new(mesh::build(&d, &AlphaLibrary::builtin(), params()).mesh);
+        let mut features = RingFeatures::of(&d, 0.0);
+        features.angles.push((47.0, "Post B".into()));
+        let view = ViewScale { right: [1.0, 0.0, 0.0], up: [0.0, 1.0, 0.0], px_per_mm: 20.0 };
+        let world_of = |p: RingPoint| band.world(p);
+        let scene = Scene { view, aperture_px: 8.0, geometry: SnapGeometry::default(), features: &features, design: Some(&d), world_of: &world_of };
+        let dial = Snapper { grid: Some(Grid { theta_deg: 5.0, across_mm: 0.0, height_mm: 0.0 }), ..Snapper::default() };
+        let snap = |p: RingPoint| dial.snap_ring(band.world(p)?, p, Dofs::THETA, &scene);
+        let base = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        // The dial's pointer: its angle, on the dial at the part's across and stand-off.
+        let dialled = |theta: f64| StepInput::Pointer { world: [0.0; 3], normal: [0.0, 0.0, 1.0], theta_deg: theta, across_mm: 0.0, height_mm: 0.25, snapped: None, dragging: true };
+        let mut s = Session::default();
+        s.start(Box::new(PlaceCmd::new(2, base.clone())));
+        s.feed(StepInput::Lock(Axis::Theta));
+        land(&mut s, dialled(46.6), &snap);
+        let p = s.preview().unwrap();
+        assert_eq!((p.placement.as_ref().and_then(Placement::theta_deg), p.caption.contains(" · Post B 47.0°")), (Some(47.0), true), "{}", p.caption);
+        land(&mut s, dialled(61.3), &snap);
+        assert_eq!(s.preview().unwrap().placement.as_ref().and_then(Placement::theta_deg), Some(60.0), "then the dial's 5° grid");
+        // The arrow has no grid: near the other part it lands on it, anywhere else it follows the pointer.
+        let arrow = Snapper { grid: None, ..dial };
+        let snap = |p: RingPoint| arrow.snap_ring(band.world(p)?, p, Dofs::THETA, &scene);
+        let target = Feature { id: 2, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.5, height_mm: 2.5 }, component: Component { placement: base, ..Component::default() } };
+        s.start(Box::new(MoveCmd::of(&target, 9)));
+        s.feed(StepInput::Lock(Axis::Theta));
+        land(&mut s, on_band(&band, 90.0, 0.0), &snap);
+        land(&mut s, on_band(&band, 47.4, 0.0), &snap);
+        assert_eq!(s.preview().unwrap().placement.as_ref().and_then(Placement::theta_deg), Some(47.0));
+        land(&mut s, on_band(&band, 61.3, 0.0), &snap);
+        let free = s.preview().unwrap().placement.as_ref().and_then(Placement::theta_deg).unwrap();
+        assert!((free - 61.3).abs() < 1e-3 && !s.preview().unwrap().caption.contains("Post B"), "{free}");
     }
 
     #[test]

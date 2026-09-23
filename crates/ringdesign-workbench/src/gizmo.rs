@@ -5,7 +5,7 @@
 //! it round the shank; a free part gets the world's X, Y and Z. Arrows and rings keep their screen
 //! size and stand clear of the part on screen; its size grips stand on the part.
 use crate::command::snap::wrap360;
-use crate::command::{Affine, Axis, BandSurface, Pivot, StepInput, along_line, on_plane, plane_basis, seat};
+use crate::command::{Affine, Axis, BandSurface, Dofs, Pivot, StepInput, along_line, on_plane, plane_basis, seat};
 use crate::grips::{self, Grip};
 use egui::{Align2, Color32, FontId, Painter, Pos2, Shape, Stroke};
 use ringdesign_core::{
@@ -196,6 +196,16 @@ impl Gizmo {
             Handle::Turn(a) => format!("Gizmo: turn about {}", a.key().to_uppercase()),
             Handle::Dial => "Gizmo: slide round the shank".into(),
             Handle::Grip(i) => format!("Grip: {}", self.grips.get(i).map_or("size", |g| g.grip.label)),
+        }
+    }
+
+    /// The ring coordinate a handle's drag lands the part on, which the snaps may set; `None` for a turn, a grip or a free part's arrow.
+    pub fn dofs(&self, handle: Handle) -> Option<Dofs> {
+        match handle {
+            Handle::Move(Axis::Theta) | Handle::Dial => Some(Dofs::THETA),
+            Handle::Move(Axis::Across) => Some(Dofs::ACROSS),
+            Handle::Move(Axis::Height) => Some(Dofs::HEIGHT),
+            Handle::Move(_) | Handle::Turn(_) | Handle::Grip(_) => None,
         }
     }
 
@@ -756,6 +766,41 @@ mod tests {
         let edge = Camera::new([0.0, -1.0, 0.0], [0.0, 0.0, 1.0], g.origin);
         assert!(edge.layout(&g).dial.is_none() && edge.layout(&g).anchor(Handle::Dial).is_none());
         assert!(dial.theta_at(edge.ray(edge.project(g.origin)), Some(5.0)).is_none());
+    }
+
+    #[test]
+    fn the_dial_lands_on_another_parts_angle_before_its_grid_and_ctrl_frees_it() {
+        use crate::command::snap::{Grid, RingFeatures, RingPoint, Scene, SnapGeometry, Snapper};
+        use crate::command::land;
+        use ringdesign_core::interaction::pick::ViewScale;
+        let d = court();
+        let b = band(&d);
+        let base = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let g = Gizmo::on_ring(&d, Some(&b), &base, 1.95).unwrap();
+        assert_eq!([g.dofs(Handle::Dial), g.dofs(Handle::Move(Axis::Across)), g.dofs(Handle::Turn(Axis::Spin))], [Some(Dofs::THETA), Some(Dofs::ACROSS), None]);
+        let mut features = RingFeatures::of(&d, 0.0);
+        features.angles.push((47.0, "Post B".into()));
+        let world_of = |p: RingPoint| b.world(p);
+        let cam = Camera::new([0.0, 0.0, -1.0], [0.0, 1.0, 0.0], [0.0, 0.0, 0.0]);
+        let scene = Scene { view: ViewScale { right: cam.right, up: cam.up, px_per_mm: PX }, aperture_px: 8.0, geometry: SnapGeometry::default(), features: &features, design: Some(&d), world_of: &world_of };
+        let snapper = Snapper { grid: Some(Grid { theta_deg: 5.0, across_mm: 0.0, height_mm: 0.0 }), ..Snapper::default() };
+        let snap = |p: RingPoint| snapper.snap_ring(b.world(p)?, p, g.dofs(Handle::Dial)?, &scene);
+        let dial = g.dial.unwrap();
+        let at = |deg: f64| cam.ray(cam.project(dial.point(deg)));
+        let mut s = Session::default();
+        s.start(Box::new(PlaceCmd::new(2, base)));
+        s.feed(StepInput::Lock(Axis::Theta));
+        land(&mut s, g.token(Handle::Dial, at(90.0), None).unwrap(), &snap);
+        land(&mut s, g.token(Handle::Dial, at(46.7), None).unwrap(), &snap);
+        let p = s.preview().unwrap();
+        assert_eq!(p.placement.as_ref().and_then(Placement::theta_deg), Some(47.0), "the other part's angle, not the grid's 45: {}", p.caption);
+        assert!(p.caption.contains("Post B 47.0°"), "{}", p.caption);
+        // Ctrl feeds the dial's pointer unsnapped.
+        s.feed(g.token(Handle::Dial, at(46.7), None).unwrap());
+        let free = s.preview().unwrap().placement.as_ref().and_then(Placement::theta_deg).unwrap();
+        assert!((free - 46.7).abs() < 1e-3, "{free}");
+        land(&mut s, g.token(Handle::Dial, at(52.9), None).unwrap(), &snap);
+        assert_eq!(placement_of(s.enter()), Placement::Ring { theta_deg: 55.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 }, "off every part the 5° grid");
     }
 
     #[test]

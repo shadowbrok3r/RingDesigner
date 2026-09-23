@@ -1,5 +1,6 @@
 //! Direct viewport tools: shared controls, cached inspection, and source edits.
 mod canvas;
+pub mod measure;
 mod path;
 mod transform;
 pub use canvas::{Edit, Pointer};
@@ -74,6 +75,8 @@ pub struct Visual {
     pub transform: transform::TransformTool,
     pub arrangement: ringdesign_core::interaction::surface::Arrangement,
     pub(super) measure: Vec<[f64; 3]>,
+    /// The Ring viewport's measurement between picks.
+    pub measurement: measure::Measure,
     pub brush: Brush,
     pub plane: Plane,
     pub gap_mm: f64,
@@ -112,6 +115,7 @@ impl Default for Visual {
             transform: Default::default(),
             arrangement: Default::default(),
             measure: Vec::new(),
+            measurement: Default::default(),
             brush: Brush::default(),
             plane: Plane::default(),
             gap_mm: 0.4,
@@ -172,6 +176,7 @@ impl Visual {
         self.stamp_contact = Default::default();
         self.path.invalidate();
         self.measure.clear();
+        self.measurement.clear();
         self.study = None;
         self.receiver = None;
         self.busy = false;
@@ -277,6 +282,18 @@ impl Visual {
         match self.tool {
             Tool::Transform => self.transform.controls(ui, d),
             Tool::Path => self.path.controls(ui, d),
+            Tool::Measure if !self.measurement.picks.is_empty() => {
+                ui.label("A vertex, an edge, a face, a stone or a pin measures as itself; a band point snaps to the ring's features, Ctrl frees it. Shift adds a third pick and its angle. Esc clears.");
+                for p in &self.measurement.picks {
+                    ui.small(p.label());
+                }
+                for r in self.measurement.readings() {
+                    ui.colored_label(egui::Color32::from_rgb(43, 226, 214), r.line());
+                }
+                if ui.button("Clear measurement").clicked() {
+                    self.measurement.clear();
+                }
+            }
             Tool::Measure => {
                 ui.label("Tap two points on the ring to measure their straight-line distance. Tap again to start a new measurement.");
                 if let [a, b] = self.measure.as_slice() {
