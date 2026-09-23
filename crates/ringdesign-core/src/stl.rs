@@ -96,26 +96,43 @@ fn finite_or_origin(v: crate::mesh::Vec3) -> crate::mesh::Vec3 {
 
 /// Write an OBJ with smooth vertex normals, returning the byte count.
 pub fn write_obj(path: impl AsRef<Path>, mesh: &Mesh, name: &str) -> anyhow::Result<usize> {
+    write_obj_objects(path, &[crate::threemf::Object { name: name.to_string(), feature: None, mesh: std::borrow::Cow::Borrowed(mesh) }])
+}
+
+/// OBJ text with one named `o` group per object in order, vertex and normal indices running on across them.
+pub fn to_obj_objects(objects: &[crate::threemf::Object]) -> String {
     use std::fmt::Write;
-    let mut s = String::with_capacity(mesh.vertices.len() * 40 + mesh.faces.len() * 30);
-    let _ = writeln!(s, "o {name}");
-    for v in &mesh.vertices {
-        let v = finite_or_origin(*v);
-        let _ = writeln!(s, "v {} {} {}", v.0, v.1, v.2);
-    }
-    for n in &mesh.normals {
-        let n = finite_or_origin(*n);
-        let _ = writeln!(s, "vn {} {} {}", n.0, n.1, n.2);
-    }
-    let has_normals = mesh.normals.len() == mesh.vertices.len();
-    for f in whole_faces(mesh) {
-        let (a, b, c) = (f[0] + 1, f[1] + 1, f[2] + 1);
-        if has_normals {
-            let _ = writeln!(s, "f {a}//{a} {b}//{b} {c}//{c}");
-        } else {
-            let _ = writeln!(s, "f {a} {b} {c}");
+    let mut s = String::with_capacity(objects.iter().map(|o| o.mesh.vertices.len() * 40 + o.mesh.faces.len() * 30).sum());
+    // Faces name their normals only when every object carries one per vertex, so the two index runs stay in step.
+    let has_normals = objects.iter().all(|o| o.mesh.normals.len() == o.mesh.vertices.len());
+    let mut base = 0u32;
+    for object in objects {
+        let mesh = &object.mesh;
+        let _ = writeln!(s, "o {}", object.name.replace(['\n', '\r'], " "));
+        for v in &mesh.vertices {
+            let v = finite_or_origin(*v);
+            let _ = writeln!(s, "v {} {} {}", v.0, v.1, v.2);
         }
+        for n in &mesh.normals {
+            let n = finite_or_origin(*n);
+            let _ = writeln!(s, "vn {} {} {}", n.0, n.1, n.2);
+        }
+        for f in whole_faces(mesh) {
+            let (a, b, c) = (base + f[0] + 1, base + f[1] + 1, base + f[2] + 1);
+            if has_normals {
+                let _ = writeln!(s, "f {a}//{a} {b}//{b} {c}//{c}");
+            } else {
+                let _ = writeln!(s, "f {a} {b} {c}");
+            }
+        }
+        base += mesh.vertices.len() as u32;
     }
+    s
+}
+
+/// Write named objects as one OBJ, returning the byte count.
+pub fn write_obj_objects(path: impl AsRef<Path>, objects: &[crate::threemf::Object]) -> anyhow::Result<usize> {
+    let s = to_obj_objects(objects);
     std::fs::write(path, s.as_bytes())?;
     Ok(s.len())
 }
@@ -395,6 +412,61 @@ mod tests {
         assert!(s.trim_end().ends_with("endsolid grammar"));
         assert_eq!(s.matches("facet normal").count(), mesh.faces.len());
         assert_eq!(s.matches("vertex").count(), mesh.faces.len() * 3);
+    }
+
+    /// Every `o` group of an OBJ as its name and its own mesh, indices taken back to the group's first vertex.
+    fn read_obj_objects(text: &str) -> Vec<(String, Mesh)> {
+        let mut out: Vec<(String, Mesh, u32)> = Vec::new();
+        let mut seen = 0u32;
+        for line in text.lines() {
+            let mut it = line.split_whitespace();
+            match it.next() {
+                Some("o") => out.push((line[2..].to_string(), Mesh::default(), seen)),
+                Some("v") => {
+                    let c: Vec<f32> = it.map(|t| t.parse().unwrap()).collect();
+                    out.last_mut().unwrap().1.vertices.push(Vec3(c[0], c[1], c[2]));
+                    seen += 1;
+                }
+                Some("f") => {
+                    let (_, m, base) = out.last_mut().unwrap();
+                    let i: Vec<u32> = it.map(|t| t.split('/').next().unwrap().parse::<u32>().unwrap() - 1 - *base).collect();
+                    m.faces.push([i[0], i[1], i[2]]);
+                }
+                _ => {}
+            }
+        }
+        out.into_iter().map(|(name, mesh, _)| (name, mesh)).collect()
+    }
+
+    #[test]
+    fn an_obj_carries_one_named_object_per_package_object_and_one_object_writes_as_it_always_has() {
+        let d = crate::threemf::tests::parted();
+        let built = mesh::try_build(&d, &crate::AlphaLibrary::builtin(), BuildParams { theta_steps: 192, profile_steps: 96, ..Default::default() }).unwrap();
+        let objects = crate::threemf::objects(&built, "Court band");
+        let text = to_obj_objects(&objects);
+        let read = read_obj_objects(&text);
+        // The band with its joined post and cut pilot, then the spacer; the stone is never metal.
+        assert_eq!(read.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), ["Court band", "Spacer"]);
+        assert_eq!(text.lines().filter(|l| l.starts_with("o ")).count(), 2);
+        for (name, m) in &read {
+            let v = m.validate();
+            assert!(v.watertight, "{name}: {v:?}");
+        }
+        assert_eq!(read.iter().map(|(_, m)| m.faces.len()).sum::<usize>(), built.mesh.faces.len());
+        assert_eq!(text.lines().filter(|l| l.starts_with("vn ")).count(), text.lines().filter(|l| l.starts_with("v ")).count());
+        assert!((read[1].1.volume_mm3() - 3.375).abs() < 1e-4, "{}", read[1].1.volume_mm3());
+        let total: f64 = read.iter().map(|(_, m)| m.volume_mm3()).sum();
+        assert!((total - built.report.volume_mm3).abs() < 1e-3 * built.report.volume_mm3, "{total} against {}", built.report.volume_mm3);
+        // One object writes the file write_obj has always written.
+        let mesh = Mesh {
+            vertices: vec![Vec3(0.0, 0.0, 0.0), Vec3(1.0, 0.0, 0.0), Vec3(0.0, 1.5, 0.0), Vec3(0.0, 0.0, 2.0)],
+            faces: vec![[0, 2, 1], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
+            ..Default::default()
+        };
+        let path = std::env::temp_dir().join(format!("ringdesign-obj-objects-{}.obj", std::process::id()));
+        write_obj(&path, &mesh, "Tetra").unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "o Tetra\nv 0 0 0\nv 1 0 0\nv 0 1.5 0\nv 0 0 2\nf 1 3 2\nf 1 2 4\nf 2 3 4\nf 3 1 4\n");
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

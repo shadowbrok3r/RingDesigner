@@ -11,6 +11,8 @@ pub struct Study {
     pub lower: Vec<[[f64; 3]; 3]>,
     pub scale: f64,
     pub investment: bool,
+    /// Every part cast on its own and so not in this pattern, one line each.
+    pub notes: Vec<String>,
 }
 pub fn build(d: &RingDesign, lib: &AlphaLibrary) -> anyhow::Result<Study> {
     let setup = d
@@ -41,6 +43,7 @@ pub fn build(d: &RingDesign, lib: &AlphaLibrary) -> anyhow::Result<Study> {
         lower,
         scale: prepared.scale,
         investment: setup.recipe.process == crate::castability::CastProcess::LostWax,
+        notes: prepared.notes,
     })
 }
 pub fn translated(p: [f64; 3], pull: [f64; 3], opening: f64, upper: bool) -> [f64; 3] {

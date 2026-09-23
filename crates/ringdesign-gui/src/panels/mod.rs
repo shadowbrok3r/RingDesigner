@@ -624,6 +624,8 @@ pub(crate) enum Command {
     ExportObj,
     Export3mf,
     ExportGlb,
+    ExportStep,
+    ImportPart,
     RenderPng,
     TurntableGif,
     CastingSheet,
@@ -723,6 +725,8 @@ impl Command {
         Command::ExportObj,
         Command::Export3mf,
         Command::ExportGlb,
+        Command::ExportStep,
+        Command::ImportPart,
         Command::RenderPng,
         Command::TurntableGif,
         Command::CastingSheet,
@@ -786,6 +790,8 @@ impl Command {
             Command::ExportObj => "Export OBJ…",
             Command::Export3mf => "Export 3MF…",
             Command::ExportGlb => "Export GLB…",
+            Command::ExportStep => "Export STEP…",
+            Command::ImportPart => "Import part (STL, OBJ, STEP)…",
             Command::RenderPng => "Render PNG…",
             Command::TurntableGif => "Turntable GIF…",
             Command::CastingSheet => "Casting sheet…",
@@ -840,6 +846,8 @@ impl Command {
             Command::ExportObj => export::export_obj(app),
             Command::Export3mf => export::export_3mf(app),
             Command::ExportGlb => export::export_glb(app),
+            Command::ExportStep => export::export_step(app),
+            Command::ImportPart => export::import_part(app),
             Command::RenderPng => export::export_render(app),
             Command::TurntableGif => export::export_turntable(app),
             Command::CastingSheet => export::export_spec(app),
@@ -1125,6 +1133,13 @@ fn file_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 export::open_design(app);
                 ui.close();
             }
+            if atelier_button(ui, Icon::Files, "Import part…")
+                .on_hover_text("An STL, OBJ or STEP solid, kept in the design and joined at the top of the ring")
+                .clicked()
+            {
+                export::import_part(app);
+                ui.close();
+            }
             ui.menu_button(format!("{} Recent", icon::CLOCK), |ui| {
                 if app.recent.is_empty() {
                     ui.weak("Nothing opened or saved yet");
@@ -1158,6 +1173,13 @@ fn file_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             });
             if atelier_button(ui, Icon::Save, "Save As…").clicked() {
                 export::save_design(app);
+                ui.close();
+            }
+            if atelier_button(ui, Icon::Export, "Export STEP…")
+                .on_hover_text("The whole ring for CAD programs: parts exact, the band and meshes faceted")
+                .clicked()
+            {
+                export::export_step(app);
                 ui.close();
             }
 
@@ -1197,6 +1219,13 @@ fn export_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             }
             if atelier_button(ui, Icon::Export, "Export OBJ…").clicked() {
                 export::export_obj(app);
+                ui.close();
+            }
+            if atelier_button(ui, Icon::Export, "Export STEP…")
+                .on_hover_text("The whole ring for CAD programs: every part the kernel built exact, the band and the builders' meshes as faceted solids.")
+                .clicked()
+            {
+                export::export_step(app);
                 ui.close();
             }
             if atelier_button(ui, Icon::Casting, "Casting sheet…")

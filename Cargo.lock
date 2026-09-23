@@ -5133,6 +5133,7 @@ dependencies = [
  "ringdesign-core",
  "ringdesign-graph",
  "ringdesign-script",
+ "ringdesign-solid",
  "rmcp",
  "schemars",
  "serde",

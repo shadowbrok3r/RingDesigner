@@ -12,9 +12,12 @@ mod tests;
 pub mod trials;
 
 use crate::castability::{CastProcess, SandProcess};
+use crate::cad::{Attach, Document, Operation, Stage};
 #[cfg(test)]
 use crate::Layer;
+use crate::sketch::Id;
 use crate::{AlphaLibrary, BuildParams, Mesh, RingDesign};
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -178,7 +181,7 @@ impl Channel {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Setup {
-    /// Inspect/export one CAD component; None selects the sole metal component.
+    /// The CAD part to cast: on a band None, its anchor or a joined or cut part casts the ring, any other part casts alone.
     pub component: Option<u64>,
     pub recipe: Recipe,
     pub pull: [f64; 3],
@@ -292,12 +295,103 @@ impl Setup {
     }
 }
 
+/// What a pattern pours.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Casting {
+    /// The band with every part joined to it or cut from it.
+    #[default]
+    Ring,
+    /// One CAD part on its own, standing where the finished ring stands it.
+    Part(Id),
+}
+
 pub struct Prepared {
     pub design: RingDesign,
     pub mesh: Mesh,
     pub build: crate::mesh::Report,
     pub scale: f64,
     pub bench_layers: Vec<String>,
+    /// What the pattern pours.
+    pub casting: Casting,
+    /// Every part cast on its own and so not in this pattern, one line each.
+    pub notes: Vec<String>,
+}
+
+/// The outputs the ring pours: every part joined to or cut from the band, in output order.
+fn ring_parts(doc: &Document) -> Vec<Id> {
+    let listed: std::collections::HashMap<Id, Attach> = doc.attachments().into_iter().map(|(id, attach, _)| (id, attach)).collect();
+    doc.outputs
+        .iter()
+        .copied()
+        .filter(|id| {
+            doc.feature(*id).is_some_and(|f| {
+                !f.component.reference && f.operation.has_body() && !matches!(f.operation, Operation::Band) && listed.get(id).copied().unwrap_or(f.component.attach) != Attach::Separate
+            })
+        })
+        .collect()
+}
+
+/// What a band's pattern pours for `component`: the ring for none, the band's anchor or a ring part; anything else alone.
+fn chosen(doc: &Document, component: Option<Id>) -> anyhow::Result<Casting> {
+    let Some(id) = component else { return Ok(Casting::Ring) };
+    anyhow::ensure!(doc.feature(id).is_some_and(|f| !f.component.reference), "Selected casting component is missing or a reference stone");
+    Ok(if doc.band() == Some(id) || ring_parts(doc).contains(&id) { Casting::Ring } else { Casting::Part(id) })
+}
+
+/// The document's outputs cut down to the ring, and a line for every separate part left out.
+fn keep_ring(doc: &mut Document) -> Vec<String> {
+    let ring = ring_parts(doc);
+    let apart = doc
+        .outputs
+        .iter()
+        .filter_map(|id| doc.feature(*id))
+        .filter(|f| f.enabled && !f.component.reference && f.operation.has_body() && !matches!(f.operation, Operation::Band) && !ring.contains(&f.id))
+        .map(|f| format!("#{} {} is its own casting and not in this pattern: choose it as the casting component to prepare it", f.id, f.name))
+        .collect();
+    doc.outputs = ring;
+    apart
+}
+
+/// The document's one output part `id`, set beside the band and poured.
+fn cast_alone(doc: &mut Document, id: Id) {
+    doc.outputs = vec![id];
+    if let Some(f) = doc.feature_mut(id) {
+        f.component.attach = Attach::Separate;
+        f.component.stage = Stage::Cast;
+    }
+}
+
+/// The closed shell part `id` stands as in `built`, on its own.
+fn part_mesh(built: &crate::mesh::BuildResult, id: Id, who: &str) -> anyhow::Result<Mesh> {
+    crate::threemf::objects(built, who)
+        .into_iter()
+        .find(|o| o.feature == Some(id))
+        .map(|o| o.mesh.into_owned())
+        .with_context(|| format!("{who} did not build as a part of its own: {}", built.parts.notes.join("; ")))
+}
+
+/// A build report for `mesh` alone, measured the way a ring of parts reports its assembly.
+fn report_of(mesh: &Mesh, nominal_bore_mm: f64, build_ms: u128) -> crate::mesh::Report {
+    let (lo, hi) = mesh.bounds().unwrap_or_default();
+    let bounds_mm = [(hi.0 - lo.0) as f64, (hi.1 - lo.1) as f64, (hi.2 - lo.2) as f64];
+    let volume = mesh.volume_mm3();
+    let reach = mesh.vertices.iter().filter(|v| v.is_finite()).map(|v| (v.0 as f64).hypot(v.1 as f64)).fold(f64::MAX, f64::min);
+    crate::mesh::Report {
+        validation: mesh.validate(),
+        volume_mm3: volume,
+        surface_area_mm2: mesh.surface_area_mm2(),
+        bounds_mm,
+        inner_diameter_mm: if reach.is_finite() && reach > 0.0 { 2.0 * reach } else { nominal_bore_mm },
+        outer_diameter_mm: bounds_mm[0].max(bounds_mm[1]),
+        band_width_mm: bounds_mm[2],
+        max_relief_mm: 0.0,
+        min_relief_mm: 0.0,
+        metals: crate::metal::metal_table(volume),
+        build_ms,
+        refine: None,
+        quality: mesh.quality(),
+    }
 }
 
 /// Nominal-to-pattern conversion. No saved geometry is ever scaled in place.
@@ -348,33 +442,53 @@ fn prepare_with_library(
         "Bore allowance closes the finger hole"
     );
     let mut pattern = d.clone();
+    let mut casting = Casting::Ring;
+    let mut notes = Vec::new();
+    let stock = setup.radial_stock_mm + setup.axial_stock_mm + setup.bore_stock_mm;
     if let Some(doc) = &mut pattern.cad {
-        if let Some(id) = setup.component {
-            anyhow::ensure!(
-                doc.features
-                    .iter()
-                    .any(|f| f.id == id && !f.component.reference),
-                "Selected casting component is missing or a reference stone"
-            );
-            doc.outputs = vec![id];
+        if doc.band().is_some() {
+            casting = chosen(doc, setup.component)?;
+            match casting {
+                Casting::Ring => notes = keep_ring(doc),
+                Casting::Part(id) => {
+                    let who = doc.feature(id).map_or_else(|| format!("#{id}"), |f| format!("#{id} {}", f.name));
+                    // Profile stock goes on the swept band, which a part cast alone leaves behind.
+                    anyhow::ensure!(stock == 0.0, "Profile stock goes on the band, and this pattern casts {who} on its own; model stock into it explicitly");
+                    cast_alone(doc, id);
+                }
+            }
         } else {
-            doc.outputs.retain(|id| {
-                doc.features
-                    .iter()
-                    .any(|f| f.id == *id && !f.component.reference)
-            });
+            if let Some(id) = setup.component {
+                anyhow::ensure!(
+                    doc.features
+                        .iter()
+                        .any(|f| f.id == id && !f.component.reference),
+                    "Selected casting component is missing or a reference stone"
+                );
+                doc.outputs = vec![id];
+            } else {
+                doc.outputs.retain(|id| {
+                    doc.features
+                        .iter()
+                        .any(|f| f.id == *id && !f.component.reference)
+                });
+                anyhow::ensure!(
+                    doc.outputs.len() == 1,
+                    "Select one CAD component in the casting recipe"
+                );
+            }
+            casting = Casting::Part(doc.outputs[0]);
             anyhow::ensure!(
-                doc.outputs.len() == 1,
-                "Select one CAD component in the casting recipe"
+                stock == 0.0,
+                "Profile stock requires a procedural shank; model stock into this CAD component explicitly"
             );
         }
-        // Profile stock goes on the swept band, which is there whenever the document anchors on one.
-        let band_stock = doc.band().is_some();
-        anyhow::ensure!(
-            band_stock || setup.radial_stock_mm + setup.axial_stock_mm + setup.bore_stock_mm == 0.0,
-            "Profile stock requires a procedural shank; model stock into this CAD component explicitly"
-        );
     }
+    // A part cast alone off a band is cut out of a build that seats it where the finished ring does.
+    let alone = match casting {
+        Casting::Part(id) if d.band_is_procedural() => Some(id),
+        _ => None,
+    };
     pattern.size.0 -= 2.0 * std::f64::consts::PI * setup.bore_stock_mm / 2.55;
     anyhow::ensure!(
         pattern.size.0 >= crate::sizing::MIN_SIZE,
@@ -386,21 +500,37 @@ fn prepare_with_library(
     pattern.draft.min_draft_deg = setup.recipe.min_draft_deg;
     pattern.draft.min_section_mm = setup.recipe.min_section_mm;
     pattern.draft.min_detail_mm = setup.recipe.min_detail_mm;
-    // What the pattern leaves to the bench, by the one rule the live verdict uses.
-    let left = crate::castability::pattern_parts(&pattern, lib);
-    let mut bench_layers = left.layers;
-    bench_layers.extend(left.seats.into_iter().map(|s| format!("{s} (setting)")));
-    bench_layers.extend(left.parts.into_iter().map(|s| format!("{s} (part)")));
-    let pattern = left.design.into_owned();
+    // What the pattern leaves to the bench, by the one rule the live verdict uses; nothing for a part cast alone.
+    let (pattern, bench_layers) = if alone.is_some() {
+        (pattern, Vec::new())
+    } else {
+        let left = crate::castability::pattern_parts(&pattern, lib);
+        let mut bench_layers = left.layers;
+        bench_layers.extend(left.seats.into_iter().map(|s| format!("{s} (setting)")));
+        bench_layers.extend(left.parts.into_iter().map(|s| format!("{s} (part)")));
+        (left.design.into_owned(), bench_layers)
+    };
     // Parts stand where the finished ring has them, sunk into any stock and never on the pattern's marks.
+    let clock = crate::mesh::BuildClock::start();
     let out = crate::mesh::try_build_poured(&pattern, d, lib, params)?;
     let scale = setup.scale();
+    let (mesh, build) = match alone {
+        Some(id) => {
+            let who = pattern.cad.as_ref().and_then(|doc| doc.feature(id)).map_or_else(|| format!("#{id}"), |f| format!("#{id} {}", f.name));
+            let own = part_mesh(&out, id, &who)?;
+            let report = report_of(&own, d.size.inner_diameter_mm(), clock.ms());
+            (own, report)
+        }
+        None => (out.mesh.clone(), out.report.clone()),
+    };
     let prepared = Prepared {
         design: pattern,
-        mesh: out.mesh.scaled(scale),
-        build: out.report.clone(),
+        mesh: mesh.scaled(scale),
+        build,
         scale,
         bench_layers,
+        casting,
+        notes,
     };
     Ok((prepared, out))
 }
@@ -425,22 +555,25 @@ pub fn inspect(
     let lib = resolved.as_ref();
     let (prepared, built) = prepare_with_library(d, lib, setup, params)?;
     let release = release::analyze(&prepared.mesh, setup)?;
+    // The band is judged by its field only when it is what the pattern pours.
+    let ring = d.band_is_procedural() && prepared.casting == Casting::Ring;
     // The pattern's CAD parts are judged on the build the pattern was cut from.
-    let field = d.band_is_procedural().then(|| {
+    let field = ring.then(|| {
         let mut f = crate::castability::analyze_field(&prepared.design, lib, &prepared.design.draft, 192, 128);
         crate::castability::judge_parts(&mut f, &prepared.design, &built);
         f
     });
-    let local_wall = (!d.band_is_procedural()).then(|| {
+    let local_wall = (!ring).then(|| {
         crate::cad::measure::thickness(
             &prepared.mesh.scaled(1.0 / prepared.scale),
             setup.recipe.min_section_mm,
         )
     });
-    let details = if d.band_is_procedural() {
+    let details = if ring {
         crate::dfm::findings_in(&prepared.design, lib)
             .into_iter()
             .map(|f| format!("{}: {}", f.label, f.message))
+            .chain(prepared.notes.iter().cloned())
             .collect()
     } else {
         vec!["CAD component: inspect local wall and detail dimensions; the band-only radial wall and ornament checks do not apply".into()]
@@ -455,7 +588,7 @@ pub fn inspect(
         .sum::<f64>()
         / prepared.scale.powi(3)
         * density;
-    let scan = if d.band_is_procedural() {
+    let scan = if ring {
         crate::castability::modulus_scan(&prepared.design, lib, 64)
     } else {
         Vec::new()

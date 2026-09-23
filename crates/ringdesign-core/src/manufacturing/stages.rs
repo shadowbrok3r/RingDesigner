@@ -1,6 +1,6 @@
 //! Manufacturing stages are derived from source parameters, never repeatedly
 //! scaled in place. As-cast is the recipe's ideal uniform-shrink prediction.
-use super::{Setup, prepare_with_library, source_library};
+use super::{Casting, Setup, cast_alone, part_mesh, prepare_with_library, source_library};
 use crate::{AlphaLibrary, BuildParams, Mesh, RingDesign};
 
 pub struct Stages {
@@ -20,10 +20,21 @@ pub fn evaluate(
     let lib = resolved.as_ref();
     let (prepared, _) = prepare_with_library(d, lib, setup, params)?;
     let mut nominal = d.clone();
+    let alone = match prepared.casting {
+        Casting::Part(id) if d.band_is_procedural() => Some(id),
+        _ => None,
+    };
     if let Some(doc) = &mut nominal.cad {
-        doc.outputs = prepared.design.cad.as_ref().unwrap().outputs.clone();
+        match alone {
+            Some(id) => cast_alone(doc, id),
+            None => doc.outputs = prepared.design.cad.as_ref().unwrap().outputs.clone(),
+        }
     }
-    let nominal = crate::mesh::try_build(&nominal, lib, params)?.mesh;
+    let built = crate::mesh::try_build(&nominal, lib, params)?;
+    let nominal = match alone {
+        Some(id) => part_mesh(&built, id, &format!("#{id}"))?,
+        None => built.mesh,
+    };
     let as_cast = prepared.mesh.scaled(1.0 / prepared.scale);
     Ok(Stages {finished:nominal.clone(),nominal,pattern:prepared.mesh,as_cast,notes:vec![
         "Nominal and finished show the intended final dimensions and ornament".into(),

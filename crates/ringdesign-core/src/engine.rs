@@ -168,10 +168,18 @@ impl DesignEngine {
         stl::write_stl(path, &built.mesh, &name)
     }
 
+    /// The band with its joined and cut parts as one named object, each separate part as its own.
     pub fn export_obj(&mut self, path: impl AsRef<Path>) -> anyhow::Result<usize> {
         let built = self.ensure_built();
         let name = self.design.name.clone();
-        stl::write_obj(path, &built.mesh, &name)
+        stl::write_obj_objects(path, &crate::threemf::objects(&built, &name))
+    }
+
+    /// The whole ring as STEP: kernel parts exact, the band and every part a builder made as faceted solids.
+    pub fn export_step(&self, path: impl AsRef<Path>) -> anyhow::Result<usize> {
+        let text = crate::cad::step::ring(&self.design, &self.lib, self.design.build, &self.design.name)?;
+        library::write_atomic(path, text.as_bytes())?;
+        Ok(text.len())
     }
 
     pub fn export_glb(&mut self, path: impl AsRef<Path>) -> anyhow::Result<usize> {
@@ -245,6 +253,30 @@ mod tests {
         let sec = e.section(90.0, 128);
         assert!(!sec.points.is_empty());
         assert_eq!(sec.undercut_count, 0);
+    }
+
+    #[test]
+    fn obj_and_step_carry_the_ring_and_each_separate_part() {
+        let dir = std::env::temp_dir().join(format!("ringdesign_engine_parts_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut e = DesignEngine::new(AlphaLibrary::builtin());
+        let mut d = crate::threemf::tests::parted();
+        d.name = "Parted".into();
+        d.build = BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() };
+        e.set_design(d);
+        let obj = dir.join("parted.obj");
+        e.export_obj(&obj).unwrap();
+        let text = std::fs::read_to_string(&obj).unwrap();
+        assert_eq!(text.lines().filter(|l| l.starts_with("o ")).collect::<Vec<_>>(), ["o Parted", "o Spacer"]);
+        let step = dir.join("parted.step");
+        let bytes = e.export_step(&step).unwrap();
+        let text = std::fs::read_to_string(&step).unwrap();
+        assert_eq!(text.len(), bytes);
+        // The joined post and the spacer exact, the band with the post's seat and the pilot's hole faceted; the stone is not metal.
+        let solids = crate::cad::step::read_solids(&text).unwrap();
+        assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Post", false), ("Spacer", false), ("Parted", true)]);
+        assert!(solids[2].mesh.as_ref().unwrap().validate().watertight);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

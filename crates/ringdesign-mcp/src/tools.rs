@@ -871,6 +871,23 @@ pub struct PathParams {
     pub path: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ImportPartParams {
+    /// Absolute path to an STL, OBJ or STEP file.
+    pub path: String,
+}
+
+/// What an import added to the design.
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ImportResult {
+    pub generation: u64,
+    /// The feature id the part landed as.
+    pub id: u64,
+    pub name: String,
+    /// What reading the file had to say, such as exact STEP solids left behind.
+    pub notes: Vec<String>,
+}
+
 // --- Helpers ---------------------------------------------------------------
 
 /// Lowercase alphanumerics only, so "Half Round" and "half_round" match.
@@ -2416,7 +2433,7 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Write the current mesh as a Wavefront OBJ with smooth vertex normals, building first if the design changed. `path` is optional and defaults to a temp file named after the design. Returns the path and the byte count. OBJ carries the design name as the object name; use STL for the caster and OBJ for anything that wants the shading normals."
+        description = "Write the current mesh as a Wavefront OBJ with smooth vertex normals, building first if the design changed. `path` is optional and defaults to a temp file named after the design. Returns the path and the byte count. The band with its joined and cut CAD parts is one object named after the design, and each separate part is an object of its own named after its feature, the same split 3MF makes; a reference stone is never in it. Use STL for the caster and OBJ for anything that wants the shading normals or the parts apart."
     )]
     async fn export_obj(
         &self,
@@ -2464,6 +2481,63 @@ impl RingDesignServer {
         let bytes =
             bytes.map_err(|err| ErrorData::internal_error(format!("write {path}: {err}"), None))?;
         Ok(Json(ExportResult { path, bytes }))
+    }
+
+    #[tool(
+        description = "Write the whole ring as a STEP AP214 file for CAD programs, at the design's stored resolution. `path` is optional and defaults to a temp file named after the design. Every CAD part the kernel built is an exact B-rep solid of its own — planes, cylinders, tori and splines, never triangles — including a part joined to the band, which is written beside it; the swept band, with its cut parts and every part a builder made joined to or cut from it, is a closed faceted solid, as is each separate part a builder made; reference stones are left out. The file is the finished ring at nominal size, not a shrink-scaled pattern. Returns the path and the byte count."
+    )]
+    async fn export_step(
+        &self,
+        Parameters(p): Parameters<ExportParams>,
+    ) -> Result<Json<ExportResult>, ErrorData> {
+        let (design, lib) = {
+            let e = self.engine.lock();
+            (e.design().clone(), e.library_arc())
+        };
+        let path = p.path.unwrap_or_else(|| default_export_path(&design.name, "step"));
+        let written = path.clone();
+        let bytes = tokio::task::spawn_blocking(move || -> anyhow::Result<usize> {
+            let text = ringdesign_core::cad::step::ring(&design, &lib, design.build, &design.name)?;
+            ringdesign_core::library::write_atomic(&written, text.as_bytes())?;
+            Ok(text.len())
+        })
+        .await
+        .map_err(|err| ErrorData::internal_error(format!("STEP worker: {err}"), None))?
+        .map_err(|err| ErrorData::internal_error(format!("write {path}: {err:#}"), None))?;
+        Ok(Json(ExportResult { path, bytes }))
+    }
+
+    #[tool(
+        description = "Import a part from an STL, OBJ or STEP file into the design as a stored CAD part: the mesh is kept in the design file, so it renders, joins and is judged with no other program. It lands at the top of the ring — theta 90°, on the band's mid-plane, its own origin on the surface and its own +Z along the surface normal — joined to the band; a design with no CAD parts gets its procedural shank as the anchor first. STL and OBJ must be closed solids and are refused by name otherwise. From STEP the faceted solids are read here and the exact (B-rep) solids need the OpenCascade build of the app, so they are named in the notes as left out. Returns the new feature's id, which the CAD edits and the GUI's G, R and gizmo move."
+    )]
+    async fn import_part(
+        &self,
+        Parameters(p): Parameters<ImportPartParams>,
+    ) -> Result<Json<ImportResult>, ErrorData> {
+        let path = std::path::PathBuf::from(&p.path);
+        let (feature, notes) = tokio::task::spawn_blocking(move || crate::import::part_file(&path))
+            .await
+            .map_err(|err| ErrorData::internal_error(format!("Import worker: {err}"), None))?
+            .map_err(|err| ErrorData::invalid_params(format!("{err:#}"), None))?;
+        let name = feature.name.clone();
+        let mut e = self.engine.lock();
+        let mut d = e.design().clone();
+        let mut id = None;
+        for edit in ringdesign_core::cad::stored::import_edits(&d, feature) {
+            let applied = ringdesign_graph::nodes::cad::edit_design(&mut d, &edit).map_err(|err| ErrorData::invalid_params(format!("{err:#}"), None))?;
+            id = applied.id.or(id);
+        }
+        // A driven design carries the document its edited graph evaluates to.
+        if let Some(json) = &d.graph {
+            let g: ringdesign_graph::graph::Graph = serde_json::from_value(json.clone()).map_err(|err| ErrorData::internal_error(format!("The design's graph would not read: {err}"), None))?;
+            let doc = ringdesign_graph::nodes::cad::document(&g).map_err(|err| ErrorData::internal_error(err.message, None))?;
+            d.cad = (!doc.features.is_empty()).then_some(doc);
+        }
+        e.set_design(d);
+        let generation = e.generation();
+        drop(e);
+        self.touch();
+        Ok(Json(ImportResult { generation, id: id.unwrap_or_default(), name, notes }))
     }
 
     #[tool(
@@ -3356,6 +3430,8 @@ mod tests {
             "export_obj",
             "export_3mf",
             "export_glb",
+            "export_step",
+            "import_part",
             "export_stone_map",
             "save_design",
             "load_design",
@@ -3363,7 +3439,7 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing tool {expected}: {names:?}");
         }
-        assert_eq!(names.len(), 36, "{names:?}");
+        assert_eq!(names.len(), 38, "{names:?}");
         for t in &tools {
             let d = t.description.as_ref().unwrap_or_else(|| panic!("{} has no description", t.name));
             assert!(d.len() > 120, "{} has a thin description", t.name);
@@ -3375,6 +3451,112 @@ mod tests {
             );
             assert!(t.output_schema.is_some(), "{} has no output schema", t.name);
         }
+    }
+
+    /// A closed `n`-sided cylinder of radius `r` along z from `z0` to `z0 + h`, wound outward.
+    fn cylinder_mesh(r: f64, h: f64, z0: f64, n: u32) -> ringdesign_core::Mesh {
+        use ringdesign_core::Vec3;
+        let at = |k: u32, z: f64| {
+            let a = f64::from(k) * std::f64::consts::TAU / f64::from(n);
+            Vec3((r * a.cos()) as f32, (r * a.sin()) as f32, z as f32)
+        };
+        let mut m = ringdesign_core::Mesh { vertices: vec![Vec3(0.0, 0.0, z0 as f32), Vec3(0.0, 0.0, (z0 + h) as f32)], ..Default::default() };
+        for k in 0..n {
+            m.vertices.push(at(k, z0));
+            m.vertices.push(at(k, z0 + h));
+        }
+        for k in 0..n {
+            let (b0, t0, b1, t1) = (2 + 2 * k, 3 + 2 * k, 2 + 2 * ((k + 1) % n), 3 + 2 * ((k + 1) % n));
+            m.faces.extend([[0, b1, b0], [1, t0, t1], [b0, b1, t1], [b0, t1, t0]]);
+        }
+        m
+    }
+
+    #[tokio::test]
+    async fn a_part_imported_into_a_driven_design_lands_in_its_graph_and_the_file_carries_its_mesh_once() {
+        use ringdesign_core::cad::Operation;
+        let dir = std::env::temp_dir().join(format!("ringdesign_mcp_driven_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = RingDesignServer::new(DesignEngine::shared(AlphaLibrary::builtin()));
+        let mut court = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        court.graph = Some(serde_json::to_value(ringdesign_graph::nodes::cad::start(&court).unwrap()).unwrap());
+        s.engine.lock().set_design(court);
+        let stl = dir.join("post.stl");
+        ringdesign_core::stl::write_stl(&stl, &cylinder_mesh(0.8, 2.0, -0.02, 256), "post").unwrap();
+        let r = s.import_part(Parameters(ImportPartParams { path: stl.to_string_lossy().into_owned() })).await.unwrap().0;
+        let d = s.engine.lock().design().clone();
+        // The graph carries the shank and the part as feature nodes, and the document it evaluates to carries them too.
+        let g: ringdesign_graph::graph::Graph = serde_json::from_value(d.graph.clone().unwrap()).unwrap();
+        let from_graph = ringdesign_graph::nodes::cad::document(&g).unwrap();
+        assert_eq!(from_graph.features.iter().map(|f| f.operation.label()).collect::<Vec<_>>(), ["Procedural shank", "Imported solid"]);
+        let doc = d.cad.as_ref().unwrap();
+        assert!(matches!(doc.feature(r.id).map(|f| &f.operation), Some(Operation::Stored { .. })), "{:?}", doc.features);
+        // Saved, the mesh both of them carry is in the file once and reopens bit for bit.
+        let Some(Operation::Stored { mesh, .. }) = doc.feature(r.id).map(|f| &f.operation) else { panic!() };
+        let text = ringdesign_core::library::design_json(&d).unwrap();
+        assert_eq!(text.matches(&mesh.data[..64]).count(), 1);
+        let back = ringdesign_core::library::load_design_str(&text).unwrap();
+        assert_eq!(serde_json::to_string(&back).unwrap(), serde_json::to_string(&d).unwrap());
+        let inline = serde_json::to_string_pretty(&d).unwrap().len();
+        eprintln!("driven import: {} bytes with the table against {inline} inline, packed stream {} bytes", text.len(), mesh.data.len());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn an_stl_post_imports_joins_the_band_and_the_ring_goes_out_as_step_and_comes_back() {
+        use ringdesign_core::cad::Operation;
+        let dir = std::env::temp_dir().join(format!("ringdesign_mcp_import_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let s = RingDesignServer::new(DesignEngine::shared(AlphaLibrary::builtin()));
+        let mut court = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        court.build = BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() };
+        s.engine.lock().set_design(court.clone());
+        let bare = s.engine.lock().report().volume_mm3;
+        // A post with its foot 0.02 mm under z = 0, written as the caster's STL.
+        let post = cylinder_mesh(0.8, 2.0, -0.02, 64);
+        let stl = dir.join("post.stl");
+        ringdesign_core::stl::write_stl(&stl, &post, "post").unwrap();
+        let r = s.import_part(Parameters(ImportPartParams { path: stl.to_string_lossy().into_owned() })).await.unwrap().0;
+        assert_eq!((r.name.as_str(), r.notes.len()), ("post", 0));
+        let d = s.engine.lock().design().clone();
+        let doc = d.cad.as_ref().unwrap();
+        assert_eq!(doc.features.iter().map(|f| f.operation.label()).collect::<Vec<_>>(), ["Procedural shank", "Imported solid"]);
+        let part = doc.feature(r.id).unwrap();
+        let Operation::Stored { recipe, .. } = &part.operation else { panic!() };
+        assert_eq!(recipe.params, serde_json::json!({ "file": "post.stl", "format": "stl" }));
+        // Joined at the top of the Court band, the ring grows by the post to within a percent.
+        let built = s.engine.lock().mesh();
+        assert!(built.report.validation.watertight && built.parts.joined == 1, "{:?} {:?}", built.report.validation, built.parts.notes);
+        let grown = built.report.volume_mm3 - bare;
+        assert!((grown - post.volume_mm3()).abs() < 0.01 * post.volume_mm3(), "{grown} against {}", post.volume_mm3());
+        // An open STL is refused by name and changes nothing.
+        let mut open = post.clone();
+        open.faces.pop();
+        let bad = dir.join("open.stl");
+        ringdesign_core::stl::write_stl(&bad, &open, "open").unwrap();
+        let generation = s.engine.lock().generation();
+        let err = expect_err(s.import_part(Parameters(ImportPartParams { path: bad.to_string_lossy().into_owned() })).await);
+        assert!(err.message.contains("open.stl is not a closed solid: 3 open and 0 non-manifold edges"), "{}", err.message);
+        assert_eq!(s.engine.lock().generation(), generation);
+        // The ring goes out as one faceted solid, the imported post inside it, and an OBJ of one object.
+        let obj = dir.join("court.obj");
+        s.export_obj(Parameters(ExportParams { path: Some(obj.to_string_lossy().into_owned()) })).await.unwrap();
+        let text = std::fs::read_to_string(&obj).unwrap();
+        assert_eq!(text.lines().filter(|l| l.starts_with("o ")).collect::<Vec<_>>(), [format!("o {}", court.name)]);
+        let step = dir.join("court.step");
+        s.export_step(Parameters(ExportParams { path: Some(step.to_string_lossy().into_owned()) })).await.unwrap();
+        let solids = ringdesign_core::cad::step::read_solids(&std::fs::read_to_string(&step).unwrap()).unwrap();
+        assert_eq!(solids.iter().map(|x| (x.name.as_str(), x.faceted)).collect::<Vec<_>>(), [(court.name.as_str(), true)]);
+        let exported = solids[0].mesh.as_ref().unwrap().volume_mm3();
+        assert!((exported - built.report.volume_mm3).abs() < 5e-3 * built.report.volume_mm3, "{exported} against {}", built.report.volume_mm3);
+        // Imported back, the STEP's ring is a stored part of the same metal.
+        let back = s.import_part(Parameters(ImportPartParams { path: step.to_string_lossy().into_owned() })).await.unwrap().0;
+        let d = s.engine.lock().design().clone();
+        let Operation::Stored { mesh, recipe, .. } = &d.cad.as_ref().unwrap().feature(back.id).unwrap().operation else { panic!() };
+        assert_eq!((back.name.as_str(), recipe.params["format"].as_str()), ("court", Some("step")));
+        let packed = mesh.made().unwrap().solid().volume();
+        assert!((packed - exported).abs() < 5e-3 * exported, "{packed} against {exported}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]

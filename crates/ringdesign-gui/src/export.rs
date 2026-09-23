@@ -81,6 +81,11 @@ impl ExportJob {
         ringdesign_core::mesh::try_build_pattern(&self.design, &self.lib, self.params).unwrap_or_else(|_| self.build())
     }
 
+    /// The factor the chosen metal's shrink cuts a pattern oversize by; 1 for nominal.
+    fn scale(&self) -> f64 {
+        self.shrink.and_then(|i| metal::METALS.get(i)).map_or(1.0, |m| metal::pattern_scale(m.shrink_pct))
+    }
+
     /// The mesh to write and the name to stamp it with: scaled oversize by
     /// the chosen metal's shrink, and *named* as such — a scaled file
     /// mistaken for nominal is a ring that comes out a size small.
@@ -172,16 +177,51 @@ pub fn export_obj(app: &mut RingDesignerApp) {
     let job = ExportJob::snapshot(app);
     spawn_export(app, "OBJ", move || {
         let out = job.build_pattern();
-        let (mesh, name) = job.pattern(&out.mesh);
-        match stl::write_obj(&path, &mesh, &name) {
+        let (_, name) = job.pattern(&ringdesign_core::Mesh::default());
+        // The band with its joined and cut parts is one object, each separate part its own.
+        let objects: Vec<threemf::Object> = threemf::objects(&out, &name).iter().map(|o| o.scaled(job.scale())).collect();
+        match stl::write_obj_objects(&path, &objects) {
             Ok(bytes) => format!(
-                "Wrote {} • {} tris • {:.1} KB{}",
+                "Wrote {} • {} object{} • {} tris • {:.1} KB{}",
                 path.display(),
+                objects.len(),
+                if objects.len() == 1 { "" } else { "s" },
                 out.report.validation.triangle_count,
                 bytes as f64 / 1024.0,
                 job.caveats(&out)
             ),
             Err(e) => format!("OBJ export failed: {e}"),
+        }
+    });
+}
+
+pub fn export_step(app: &mut RingDesignerApp) {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("STEP", &["step", "stp"])
+        .set_directory(dir("exports"))
+        .set_file_name(format!("{}.step", slug(&app.design.name)))
+        .save_file()
+    else {
+        return;
+    };
+    export_step_to(app, path);
+}
+
+/// The whole ring as STEP at `path`, built and written off the UI thread.
+pub(crate) fn export_step_to(app: &mut RingDesignerApp, path: PathBuf) {
+    let job = ExportJob::snapshot(app);
+    spawn_export(app, "STEP", move || {
+        match ringdesign_core::cad::step::ring(&job.design, &job.lib, job.params, &job.design.name) {
+            Ok(text) => {
+                let exact = text.matches("=MANIFOLD_SOLID_BREP(").count() + text.matches("=BREP_WITH_VOIDS(").count();
+                let faceted = text.matches("=FACETED_BREP(").count();
+                let nominal = if job.shrink.is_some() { " • nominal size, STEP is never scaled for shrink" } else { "" };
+                match library::write_atomic(&path, text.as_bytes()) {
+                    Ok(()) => format!("Wrote {} • {exact} exact and {faceted} faceted solid{} • {:.1} KB{nominal}", path.display(), if exact + faceted == 1 { "" } else { "s" }, text.len() as f64 / 1024.0),
+                    Err(e) => format!("STEP export failed: {e}"),
+                }
+            }
+            Err(e) => format!("STEP export failed: {e:#}"),
         }
     });
 }
@@ -211,8 +251,7 @@ pub fn export_3mf(app: &mut RingDesignerApp) {
             None => job.design.size.display(),
         };
         let (_, name) = job.pattern(&ringdesign_core::Mesh::default());
-        let k = job.shrink.and_then(|i| metal::METALS.get(i)).map_or(1.0, |m| metal::pattern_scale(m.shrink_pct));
-        let objects: Vec<threemf::Object> = threemf::objects(&out, &name).iter().map(|o| o.scaled(k)).collect();
+        let objects: Vec<threemf::Object> = threemf::objects(&out, &name).iter().map(|o| o.scaled(job.scale())).collect();
         match threemf::write_3mf_objects(&path, &objects, &name, &size) {
             Ok(bytes) => format!(
                 "Wrote {} • {} tris • {:.1} KB • units mm stated{}",
@@ -482,6 +521,47 @@ fn adopt_template(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign
     app.arrange_graph();
     app.mark_dirty();
     app.set_status(format!("New design from template: {name}"));
+}
+
+/// Import a part from STL, OBJ or STEP onto the ring.
+pub fn import_part(app: &mut RingDesignerApp) {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("Part: STL, OBJ or STEP", ringdesign_mcp::import::EXTENSIONS)
+        .set_directory(dir("exports"))
+        .pick_file()
+    else {
+        return;
+    };
+    import_part_path(app, &path);
+}
+
+/// The part `path` holds, standing at the top of the ring, joined and chosen: one History entry, or a status saying why not.
+pub(crate) fn import_part_path(app: &mut RingDesignerApp, path: &std::path::Path) {
+    let (feature, notes) = match read_part(path) {
+        Ok(read) => read,
+        Err(why) => {
+            app.set_status(why);
+            return;
+        }
+    };
+    let name = feature.name.clone();
+    let edits = ringdesign_core::cad::stored::import_edits(&app.design, feature);
+    // A refused edit has said why on the status line already.
+    let Ok(applied) = crate::cad_edit::apply(app, &edits) else { return };
+    if let Some(id) = applied.last().and_then(|a| a.id) {
+        app.selection.click(Some(ringdesign_workbench::viewport::Sel::Part(id)), ringdesign_workbench::viewport::selection::Mods::default());
+    }
+    let said: String = notes.iter().map(|n| format!(" • {n}")).collect();
+    app.set_status(format!("Imported {name} at the top of the ring, joined: G moves it, R turns it{said}"));
+}
+
+/// A part file as a stored feature: STEP through OpenCascade where this build carries it, everything else as the MCP import reads it.
+fn read_part(path: &std::path::Path) -> Result<(ringdesign_core::cad::Feature, Vec<String>), String> {
+    #[cfg(feature = "kernel-occt")]
+    if ringdesign_mcp::import::is_step(path) {
+        return crate::occt::import_step(path);
+    }
+    ringdesign_mcp::import::part_file(path).map_err(|e| format!("{e:#}"))
 }
 
 /// Import SVG files: the text travels in the design, the raster in the library.
