@@ -1829,6 +1829,24 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             vector(ui, "Rotation XYZ degrees", rotation_deg);
         }
         Operation::Builder { key, on, params } => crate::panels::builder::ui(ui, key, on, params, tree),
+        Operation::Pattern { source: id, kind } => {
+            source(ui, "Source", id, tree);
+            match kind {
+                cad::PatternKind::Ring { count, span_deg } | cad::PatternKind::About { count, span_deg, .. } => {
+                    ui.add(egui::DragValue::new(count).range(2..=cad::pattern::MAX_PATTERN_COUNT).prefix("Instances "));
+                    number(ui, "Span degrees", span_deg);
+                }
+                cad::PatternKind::Mirror { .. } => {
+                    ui.weak("One reflected copy; what it reflects across is in Advanced source.");
+                }
+            }
+        }
+        Operation::Plane { offset_mm, .. } => number(ui, "Offset mm", offset_mm),
+        Operation::PressPull { source: id, face, distance_mm } => {
+            source(ui, "Source", id, tree);
+            face_ref(ui, "Face", face);
+            number(ui, "Distance mm", distance_mm);
+        }
     }
 }
 fn component_ui(ui: &mut egui::Ui, f: &mut Feature) {

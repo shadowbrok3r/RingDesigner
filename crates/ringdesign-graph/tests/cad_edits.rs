@@ -2,7 +2,7 @@
 use ringdesign_core::{
     AlphaLibrary, BuildParams, RingDesign,
     cad::{
-        self, Attach, Boolean, Component, ComponentRole, Document, Feature, Operation, Placement, Stage, builders,
+        self, Attach, Boolean, Component, ComponentRole, Document, FaceRef, Feature, MirrorPlane, Operation, PatternKind, Placement, PlaneBase, Stage, builders,
         edit::{Applied, CadEdit},
     },
     gem::{Gem, GemCut},
@@ -38,6 +38,44 @@ fn band_and_cylinder() -> RingDesign {
     d.cad = Some(doc);
     d
 }
+/// The box the patterns document pulls: seated at 300°, and the top face of it signed in that seat.
+fn pulled_box() -> (Feature, FaceRef) {
+    let mut block = feature(5, "Block", Operation::Box { size: [2.0, 2.0, 1.0] });
+    block.component.placement = Placement::ring(300.0, 0.3);
+    block.component.attach = Attach::Join;
+    let mut d = RingDesign::default();
+    let mut doc = Document::default();
+    doc.append(block.clone()).unwrap();
+    d.cad = Some(doc);
+    let e = cad::evaluate(&d, &AlphaLibrary::builtin(), params()).unwrap();
+    let c = &e.components[0];
+    let top = (0..c.body.faces.len()).find(|i| cad::face_signature(&c.body, *i, &c.frame).is_some_and(|s| s.normal[2] > 0.99)).unwrap();
+    (block, FaceRef::signed(&c.body, top, &c.frame))
+}
+/// A band, bezel, stone, prong and box carrying two arrays, a work plane, a mirror across it and a press-pull.
+fn band_and_patterns() -> RingDesign {
+    let mut d = band_and_cylinder();
+    let doc = d.cad.as_mut().unwrap();
+    let gem = Gem::calibrated(GemCut::Round, 5.0);
+    doc.append(builders::stone_feature(3, gem, Placement::ring(200.0, builders::stand_off_mm("claw4", gem)))).unwrap();
+    let mut prong = feature(4, "Prong", Operation::Cylinder { radius_mm: 0.4, height_mm: 3.0 });
+    prong.component.placement = Placement::ring(213.0, 1.0);
+    prong.component.attach = Attach::Join;
+    doc.append(prong).unwrap();
+    let (block, top) = pulled_box();
+    doc.append(block).unwrap();
+    let joined = |id, name: &str, operation| {
+        let mut f = feature(id, name, operation);
+        f.component.attach = Attach::Join;
+        f
+    };
+    doc.append(feature(6, "Section at 90°", Operation::Plane { base: PlaneBase::Section { theta_deg: 90.0 }, offset_mm: 0.0 })).unwrap();
+    doc.append(joined(7, "Ring array of Bezel", Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } })).unwrap();
+    doc.append(joined(8, "Prongs", Operation::Pattern { source: 4, kind: PatternKind::About { part: 3, count: 6, span_deg: 360.0 } })).unwrap();
+    doc.append(joined(9, "Mirror of Block", Operation::Pattern { source: 5, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 6 } } })).unwrap();
+    doc.append(joined(10, "Pull", Operation::PressPull { source: 5, face: top, distance_mm: 0.4 })).unwrap();
+    d
+}
 fn documents() -> Vec<(String, RingDesign)> {
     let mut all: Vec<(String, RingDesign)> = cad::examples::NAMES
         .iter()
@@ -45,6 +83,7 @@ fn documents() -> Vec<(String, RingDesign)> {
         .map(|n| (n.to_string(), cad::examples::design(n).unwrap()))
         .collect();
     all.push(("band+cylinder".into(), band_and_cylinder()));
+    all.push(("band+patterns".into(), band_and_patterns()));
     all
 }
 /// One edit of every kind that applies to the document, each keeping it evaluable.
@@ -110,6 +149,18 @@ fn edits_for(name: &str, doc: &Document) -> Vec<CadEdit> {
         "band+cylinder" => {
             edits.push(CadEdit::Attach { id: 2, attach: Attach::Cut });
             edits.push(CadEdit::Enable { id: 1, enabled: false });
+        }
+        // Each pattern, plane and pull edited once, then the prongs suppressed.
+        "band+patterns" => {
+            let (_, top) = pulled_box();
+            edits.extend([
+                CadEdit::Operation { id: 7, operation: Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 4, span_deg: 180.0 } } },
+                CadEdit::Operation { id: 9, operation: Operation::Pattern { source: 5, kind: PatternKind::Mirror { plane: MirrorPlane::Band } } },
+                CadEdit::Operation { id: 6, operation: Operation::Plane { base: PlaneBase::Parting, offset_mm: 0.5 } },
+                CadEdit::Add { feature: feature(0, "Over the top", Operation::Plane { base: PlaneBase::Face { feature: 5, face: top.clone() }, offset_mm: 0.2 }), after: Some(5) },
+                CadEdit::Operation { id: 10, operation: Operation::PressPull { source: 5, face: top, distance_mm: -0.3 } },
+                CadEdit::Enable { id: 8, enabled: false },
+            ]);
         }
         _ => {}
     }
@@ -199,7 +250,7 @@ fn every_edit_gives_the_same_document_through_the_graph_and_the_document() {
             count += 1;
         }
     }
-    assert_eq!(count, 122, "edits swept");
+    assert_eq!(count, 143, "edits swept");
 }
 
 #[test]
@@ -271,6 +322,51 @@ fn a_solitaire_built_round_its_stone_round_trips_byte_for_byte_through_both_appl
     let keys: Vec<Option<String>> = a.iter().map(|(_, k, _)| k.clone()).collect();
     let key = |k: &str| Some(k.to_string());
     assert_eq!(keys, [key("stone"), key("head.claw"), key("seat.bur"), key("head.claw"), key("halo"), key("seat.bur")]);
+}
+
+#[test]
+fn patterns_work_planes_and_a_press_pull_round_trip_byte_for_byte_through_both_appliers() {
+    let lib = AlphaLibrary::builtin();
+    let base = band_and_patterns();
+    let g = graph_cad::from_document(&base).unwrap();
+    // The lift reads back the document it was made from, and evaluates to it, through a JSON round trip too.
+    assert_eq!(serde_json::to_string(&graph_cad::document(&g).unwrap()).unwrap(), serde_json::to_string(base.cad.as_ref().unwrap()).unwrap());
+    assert_eq!(cad_bytes(&evaluate(&g).unwrap()), cad_bytes(&base));
+    let reread: Graph = serde_json::from_str(&serde_json::to_string(&g).unwrap()).unwrap();
+    assert_eq!(cad_bytes(&evaluate(&reread).unwrap()), cad_bytes(&base));
+    // Every kind added, edited and removed as one sequence on each side lands as the same bytes.
+    let mut plain = base.clone();
+    let mut g = g;
+    let edits = [
+        CadEdit::Add { feature: feature(20, "Half ring", Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 3, span_deg: 180.0 } }), after: None },
+        CadEdit::Add { feature: feature(21, "Section at 30°", Operation::Plane { base: PlaneBase::Section { theta_deg: 30.0 }, offset_mm: 0.25 }), after: None },
+        CadEdit::Add { feature: feature(22, "Mirror of Prong", Operation::Pattern { source: 4, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 21 } } }), after: None },
+        CadEdit::Add { feature: feature(23, "Mirror through the head", Operation::Pattern { source: 2, kind: PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg: 90.0 } } }), after: None },
+        CadEdit::Operation { id: 20, operation: Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 5, span_deg: 240.0 } } },
+        CadEdit::Operation { id: 8, operation: Operation::Pattern { source: 4, kind: PatternKind::About { part: 3, count: 4, span_deg: 360.0 } } },
+        CadEdit::Remove { id: 23 },
+    ];
+    for edit in &edits {
+        let (p, a) = (plain.apply_cad_edit(edit).unwrap(), graph_cad::apply_edit(&mut g, edit).unwrap());
+        assert_eq!((p.id, &p.label), (a.id, &a.label), "{edit:?}");
+    }
+    let out = evaluate(&g).unwrap();
+    assert_eq!(cad_bytes(&out), cad_bytes(&plain));
+    assert_eq!(serde_json::to_string(&graph_cad::document(&g).unwrap()).unwrap(), serde_json::to_string(plain.cad.as_ref().unwrap()).unwrap());
+    // Both evaluate to the same parts and planes, every feature built.
+    let parts = |d: &RingDesign| {
+        let e = cad::evaluate(d, &lib, params()).unwrap();
+        assert!(e.failures().is_empty(), "{:?}", e.failures());
+        (e.components.iter().map(|c| (c.id, c.mesh.faces.len())).collect::<Vec<_>>(), e.planes.iter().map(|p| p.id).collect::<Vec<_>>())
+    };
+    let (a, b) = (parts(&plain), parts(&out));
+    assert_eq!(a, b);
+    assert_eq!(a.0.iter().map(|(id, _)| *id).collect::<Vec<_>>(), vec![2, 3, 4, 7, 8, 9, 10, 20, 22]);
+    assert_eq!(a.1, vec![6, 21]);
+    // A plane cannot be an output on either side.
+    let refused = CadEdit::Outputs { outputs: vec![2, 6] };
+    let (p, q) = (plain.apply_cad_edit(&refused).unwrap_err().to_string(), graph_cad::apply_edit(&mut g, &refused).unwrap_err().to_string());
+    assert_eq!((p.as_str(), q.as_str()), ("#6 Section at 90° is a work plane and has no body to output", "#6 Section at 90° is a work plane and has no body to output"));
 }
 
 #[test]
