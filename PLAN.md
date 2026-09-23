@@ -573,6 +573,11 @@ worktrees, then verified, measured and committed by the integrator.
 - Verified: core 613 + golden, workbench 151, gui 122, graph 84 + 8 + 2 + 3, graph-ui 26, mcp 43,
   cli 3 + 5, configurator 5, script 5, phone 151, assets 4; wasm, NDK arm64 and the locked workspace
   check clean with zero warnings; the desktop app smoke-run on a restored claw-set design.
+- **Released 2026-09-23**: desktop 0.6.0 on GitHub (`desktop-v0.6.0`: Windows MSVC, both Macs and
+  Linux, each with its checksum; the GUI suite green on all four runners) and Android 0.29.0 on the
+  app store. The first tag found two bugs in never-run CI steps: the release's version check needed
+  Python 3.11's `tomllib` (the Ubuntu 22.04 runner has 3.10), and the Windows job's static-CRT check
+  looked for `Hostx64/x64` in a backslashed path.
 - Open: G/R on a face stone wraps it in a Transform (it should edit the seat's u/v/spin); a bench
   head standing on a plate leaves its mark under the plate; a ring array of a face stone re-drops
   onto the band; the assembly STEP and OBJ are still one body; the work-plane switch is not saved; a
