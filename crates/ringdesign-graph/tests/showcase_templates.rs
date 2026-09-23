@@ -1,13 +1,14 @@
 use ringdesign_core::{AlphaLibrary, BuildParams, RingDesign, build, library};
 use ringdesign_graph::{eval::{Evaluator, evaluate_design}, file, lift, registry::Registry, templates, value::Literal};
 
+/// The showcase source as its template carries it: only the artwork that reaches a layer or mask.
 fn source(slug: &str) -> RingDesign {
     let dir = if matches!(slug, "nocturne" | "solstice") {
         format!("showcase/masterwork-signets/{slug}")
     } else {
         format!("showcase/{slug}")
     };
-    library::load_design(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(dir).join("design.ring.json")).unwrap()
+    templates::refine_sources(&library::load_design(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(dir).join("design.ring.json")).unwrap())
 }
 
 #[test]

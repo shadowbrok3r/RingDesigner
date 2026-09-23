@@ -89,14 +89,15 @@ fn stock_masterworks_match_their_sources_with_native_maps_and_casting_modes() {
     assert_eq!(templates::IMPORTED.len(), 7);
     for t in templates::IMPORTED {
         let slug = t.slug.strip_suffix("-imported").unwrap();
-        let source = library::load_design(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../..")
-                .join(format!(
-                    "showcase/stock-masterworks/{slug}/design.ring.json"
-                )),
-        )
-        .unwrap();
+        // A template carries only the artwork that reaches a layer or mask.
+        let source = templates::refine_sources(
+            &library::load_design(
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../..")
+                    .join(format!("showcase/stock-masterworks/{slug}/design.ring.json")),
+            )
+            .unwrap(),
+        );
         let mut project = t.instantiate(&reg, &AlphaLibrary::default()).unwrap();
         let graph =
             file::load_graph_str(&project.graph.take().unwrap().to_string(), Some(&reg)).unwrap();
