@@ -272,7 +272,9 @@ thinnest outer-to-bore wall over the finger hole into the verdict against
 lock). The GUI banner, the MCP `castability` tool's `field` block and the
 worker all read it; `analyze` stays for painting faces in the viewport. The
 retired rule was "judge castability from a swept build" — nothing needs
-judging from any build now.
+judging from any build now. Its sections share one reference loop and one
+field context and fan out through rayon (`ring_sections`): the Court band at
+192x128 is 5 ms, where rebuilding both per section cost 110.
 
 `adaptive.rs` was the earlier attempt at the same goal by redistributing the
 same number of sample *lines*. It is kept, default off, and its module doc
@@ -2250,6 +2252,13 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   only moves graph nodes (`history::graph_layout_only`), and the app skips
   the rebuild for it — or every Convert and every add costs an Undo step
   that only moves nodes back.
+- **A part facet crossing the parting plane is forgiven only as a chord.**
+  The verdict excuses such a facet's small lean only when every corner off
+  the plane faces its own mould half by its corner normal
+  (`castability::judge::chord_lean`): on a curved wall the corners carry the
+  true surface, turned past vertical either side; a flat wall leaning back
+  across the plane carries its own lean and locks — before the rule, a
+  block turned 3° forgave 0.81 of its 3.18 mm² of real undercut.
 
 ## Python: `crates/ringdesign-py`
 

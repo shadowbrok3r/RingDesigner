@@ -537,6 +537,31 @@ worktrees, then verified, measured and committed by the integrator.
   ring with the caption and the Instances field, type 4, Enter → "Ring array of Cylinder" on the
   timeline, three copies at 90° steps, one History entry "Add Ring array of Cylinder".
 
+### On master while batch 8 ran — 2026-09-22/23 (`6f7b097` through `309c42d`)
+
+- **The dimension bar stays in its view** and the pointer under it still drives the command: the
+  bar holds inside the viewport's rect (the caption's own rule), the Ring viewport and sketch mode
+  read the pointer under it while the bar follows only the viewport's hover, so it holds still for
+  a click. A move carried under the bar lands there (pinned; without the read it stayed at 90°).
+- **A flat wall leaning back across the parting plane locks** (`castability::judge::chord_lean`):
+  a spanning facet is forgiven as chord only when its corner normals off the plane face their own
+  mould half. A 2 mm block turned 3° locks 2.39 mm² against 3.18 leaning back; the old rule forgave
+  0.81 of it. A seam bead's 0.0121 mm² of chord is still forgiven. The ghost keeps the old rule
+  until batch 8's `ghost.rs` lands.
+- **The verdict is 20x faster**: every section rebuilt the design's reference loop and field
+  context (0.5 ms); they are built once and the sections fan out through rayon, bit-identical
+  (pinned over 24 angles). The Court band at 192x128: 110 → 5.2 ms; the settled pass's hot-spot
+  scan 35 → 1.0 ms; the parting-line export 305 → 4.4 ms.
+- **A bench part's mark reads its own patch**: the rows the dot reaches, sections built once for
+  both passes. 94 → 13-15 ms a mark, and relief elsewhere round the section no longer blames the
+  dot (a boss 2.3 mm down the dome read -63° into a dot standing clean on the crest).
+- **Polish**: the tool inspector opens against the viewport's right edge (it stood over the ring in
+  small windows); a pattern shows no gizmo of its own and G/R/S/P on it say "follows its source:
+  move \"Cylinder\"" (a drag would have wrapped it in a Transform); a driven design's strip shows a
+  funnel edit before the rebuild (pinned — the funnel's carried document closed batch 5's one-build
+  lag). A Sketch feature needs no cache slot: laying it is a validation and a plane, and its regions
+  are solved inside the features that read it, which the body cache keys by signature.
+
 ### M2 detail
 
 **Measured 2026-09-21 (`examples/join_probe.rs`)**: a traced kernel cylinder dropped onto the built
