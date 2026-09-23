@@ -1,16 +1,14 @@
-//! GPU mesh renderer and the 3D viewport.
-//!
-//! The mesh is uploaded once per rebuild as non-indexed triangles carrying
-//! position, smooth normal, and the draft class colour, then drawn with a
-//! single `glDrawArrays` per frame.
+//! The 3D viewport, drawn through the renderer the desktop and the phone share
+//! (`ringdesign_workbench::render`): the app keeps its camera and UI and hands it buffers.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use egui_glow::glow;
-use glow::HasContext;
 
 use ringdesign_core::castability::{CastReport, FaceClass};
+use ringdesign_core::interaction::pick::Entity;
 use ringdesign_core::mesh::{Mesh, Vec3};
+use ringdesign_workbench::render::{self, EdgeKey, Frame, Look, MeshRenderer, Shade};
 
 use crate::app::RingDesignerApp;
 use crate::camera::Projector;
@@ -18,912 +16,185 @@ use crate::theme;
 use ringdesign_workbench::viewport::{MenuAction, MenuItem, Mods, Sel};
 use ringdesign_core::cad::edit::CadEdit;
 
+pub use render::{HOVER_TINT, SELECT_TINT, wall_color};
+
 /// How far from the pointer a part's vertex or edge still answers, in pixels.
 pub const APERTURE_PX: f32 = 8.0;
-/// The chosen entities' tint and strength: the theme's selection violet.
-pub const SELECT_TINT: [f32; 4] = [0.80, 0.57, 0.85, 0.55];
-/// The hovered entity's tint and strength: the hover cue's aqua.
-pub const HOVER_TINT: [f32; 4] = [0.40, 0.85, 0.83, 0.55];
-/// A live command's ghost: the hover aqua, and its opacity.
-pub const PREVIEW_TINT: [f32; 4] = [0.40, 0.85, 0.83, 0.45];
-/// A ghost painted by its draft classes, opacity.
-const DRAFT_GHOST_ALPHA: f32 = 0.6;
 
-/// Floats per vertex: position(3), normal(3), draft colour(3), wall colour(3).
-const FLOATS_PER_VERTEX: usize = 12;
-
-const VERTEX_SHADER: &str = r#"#version 330 core
-
-layout(location = 0) in vec3 a_position;
-layout(location = 1) in vec3 a_normal;
-layout(location = 2) in vec3 a_color;
-layout(location = 3) in vec3 a_color2;
-layout(location = 4) in float a_focus;
-layout(location = 5) in vec2 a_select;
-
-uniform mat4 u_mvp;
-uniform mat3 u_normal_matrix;
-
-out vec3 v_normal;
-out vec3 v_color;
-out vec3 v_color2;
-out float v_obj_nz;
-out vec3 v_world;
-out float v_cavity;
-out float v_focus;
-out vec2 v_select;
-
-void main() {
-    gl_Position = u_mvp * vec4(a_position, 1.0);
-    v_focus = a_focus;
-    v_select = a_select;
-    v_normal = u_normal_matrix * a_normal;
-    v_color = a_color;
-    v_color2 = a_color2;
-    // Object-space axial share of the normal: which mould half owns the face.
-    v_obj_nz = a_normal.z;
-    v_world = a_position;
-    // Approximate bore occlusion; assessment colours do not use it.
-    v_cavity = smoothstep(0.0, 0.55, -dot(a_normal.xy, normalize(a_position.xy + vec2(0.000001))));
-}
-"#;
-
-const FRAGMENT_SHADER: &str = r#"#version 330 core
-
-in vec3 v_normal;
-in vec3 v_color;
-in vec3 v_color2;
-in float v_obj_nz;
-in vec3 v_world;
-in float v_cavity;
-in float v_focus;
-in vec2 v_select;
-uniform vec4 u_clip_plane;
-uniform vec4 u_focus;
-uniform vec4 u_select;
-uniform vec4 u_hover;
-
-uniform int u_mode;
-uniform vec3 u_light_dir;
-uniform vec3 u_base_color;
-uniform float u_ambient;
-uniform float u_alpha;
-
-out vec4 frag_color;
-
-// STUDIO_MATERIAL
-
-void main() {
-    if (dot(vec4(v_world, 1.0), u_clip_plane) > 0.00001) discard;
-    vec3 n = normalize(v_normal);
-    vec3 eye = vec3(0.0, 0.0, 1.0);
-    vec3 l = normalize(u_light_dir);
-    vec3 color;
-
-    if (u_mode == 5) {
-        color = studio_gem(n, v_color, l, u_ambient);
-    } else if (u_mode == 4) {
-        // Cope in cool blue, drag in warm sand, the parting band bright.
-        float lambert = max(dot(n, l), 0.0);
-        vec3 half_c = v_obj_nz > 0.0 ? vec3(0.42, 0.62, 0.82) : vec3(0.80, 0.62, 0.38);
-        float band = 1.0 - smoothstep(0.035, 0.09, abs(v_obj_nz));
-        color = mix(half_c, vec3(1.0, 0.92, 0.25), band) * (0.72 + 0.28 * lambert);
-    } else if (u_mode == 3) {
-        float lambert = max(dot(n, l), 0.0);
-        color = v_color2 * (0.74 + 0.26 * lambert);
-    } else if (u_mode == 2) {
-        color = n * 0.5 + 0.5;
-    } else if (u_mode == 1) {
-        float lambert = max(dot(n, l), 0.0);
-        color = v_color * (0.74 + 0.26 * lambert);
-    } else {
-        color = studio_metal(n, u_base_color, l, u_ambient, v_cavity);
-    }
-
-    // The chosen graph node's reach: its tint over whatever the mode drew,
-    // a little of the key light kept so relief still reads under it.
-    float focus = clamp(v_focus, 0.0, 1.0) * u_focus.a;
-    if (focus > 0.0) {
-        float lit = 0.62 + 0.38 * max(dot(n, l), 0.0);
-        color = mix(color, u_focus.rgb * lit, focus);
-    }
-    // The selection over that, and the hover over both: two channels so a
-    // chosen face and the one under the pointer crossfade instead of banding.
-    float chosen = clamp(v_select.x, 0.0, 1.0) * u_select.a;
-    float hovered = clamp(v_select.y, 0.0, 1.0) * u_hover.a;
-    if (chosen > 0.0 || hovered > 0.0) {
-        float lit = 0.62 + 0.38 * max(dot(n, l), 0.0);
-        color = mix(color, u_select.rgb * lit, chosen);
-        color = mix(color, u_hover.rgb * lit, hovered);
-    }
-
-    frag_color = vec4(color, u_alpha);
-}
-"#;
-
-const WIREFRAME_FRAGMENT_SHADER: &str = r#"#version 330 core
-
-uniform vec3 u_wire_color;
-in vec3 v_world;
-in float v_cavity;
-uniform vec4 u_clip_plane;
-
-out vec4 frag_color;
-
-void main() {
-    if (dot(vec4(v_world, 1.0), u_clip_plane) > 0.00001) discard;
-    frag_color = vec4(u_wire_color, 0.55);
-}
-"#;
-
-#[derive(Clone, Copy)]
-struct GpuResources {
-    program: glow::NativeProgram,
-    wire_program: glow::NativeProgram,
-    vao: glow::NativeVertexArray,
-    vbo: glow::NativeBuffer,
-    gem_vao: glow::NativeVertexArray,
-    gem_vbo: glow::NativeBuffer,
-    ghost_vao: glow::NativeVertexArray,
-    ghost_vbo: glow::NativeBuffer,
-    cutter_vao: glow::NativeVertexArray,
-    cutter_vbo: glow::NativeBuffer,
-    /// A live command's ghost: staged once, moved by a model matrix.
-    preview_vao: glow::NativeVertexArray,
-    preview_vbo: glow::NativeBuffer,
-    /// One float a staged vertex: how far the chosen node reaches it.
-    focus_vbo: glow::NativeBuffer,
-    /// Two floats a staged vertex: chosen, and under the pointer.
-    select_vbo: glow::NativeBuffer,
-}
-
+/// The desktop's handle on the shared renderer, under the names the app calls it by.
 pub struct GpuMeshRenderer {
-    resources: Option<GpuResources>,
-    vertex_count: i32,
-    pending: Option<Vec<f32>>,
-    gem_count: i32,
-    gem_pending: Option<Vec<f32>>,
-    ghost_count: i32,
-    ghost_pending: Option<Vec<f32>>,
-    cutter_count: i32,
-    cutter_pending: Option<Vec<f32>>,
-    preview_count: i32,
-    preview_pending: Option<Vec<f32>>,
-    /// Where the ghost stands: its column-major model matrix and the normals' 3x3; `None` hides it.
-    preview_model: Option<([f32; 16], [f32; 9])>,
-    /// The ghost shades in its staged draft colours rather than the hover aqua.
-    preview_draft: bool,
-    /// A focus channel awaiting upload; `Some(empty)` clears it.
-    focus_pending: Option<Vec<f32>>,
-    /// The uploaded channel covers the uploaded mesh vertex for vertex.
-    focus_live: bool,
-    /// The selection channel awaiting upload, two floats a staged vertex; `Some(empty)` clears it.
-    select_pending: Option<Vec<f32>>,
-    select_live: bool,
-    depth_checked: bool,
+    inner: MeshRenderer,
+    /// Paint times, gathered while `RD_RENDER_STATS` is set.
+    timings: Option<render::Timings>,
 }
-
-// glow handles are u32 integers on native, safe to send across threads.
-unsafe impl Send for GpuMeshRenderer {}
-unsafe impl Sync for GpuMeshRenderer {}
 
 impl Default for GpuMeshRenderer {
     fn default() -> Self {
-        Self {
-            resources: None,
-            vertex_count: 0,
-            pending: None,
-            gem_count: 0,
-            gem_pending: None,
-            ghost_count: 0,
-            ghost_pending: None,
-            cutter_count: 0,
-            cutter_pending: None,
-            preview_count: 0,
-            preview_pending: None,
-            preview_model: None,
-            preview_draft: false,
-            focus_pending: None,
-            focus_live: false,
-            select_pending: None,
-            select_live: false,
-            depth_checked: false,
-        }
+        let mut inner = MeshRenderer::new(Look::DESKTOP);
+        let timing = render::Timing::from_env(std::env::var("RD_RENDER_STATS").ok().as_deref());
+        inner.set_timing(timing);
+        Self { inner, timings: (timing != render::Timing::Off).then(render::Timings::default) }
     }
-}
-
-/// Column-major `a · b` for 4x4 matrices.
-fn mul4(a: &[f32; 16], b: &[f32; 16]) -> [f32; 16] {
-    std::array::from_fn(|i| {
-        let (col, row) = (i / 4, i % 4);
-        (0..4).map(|k| a[k * 4 + row] * b[col * 4 + k]).sum()
-    })
-}
-
-/// Column-major `a · b` for 3x3 matrices.
-fn mul3(a: &[f32; 9], b: &[f32; 9]) -> [f32; 9] {
-    std::array::from_fn(|i| {
-        let (col, row) = (i / 3, i % 3);
-        (0..3).map(|k| a[k * 3 + row] * b[col * 3 + k]).sum()
-    })
 }
 
 impl GpuMeshRenderer {
-    /// Flatten the mesh into an interleaved vertex buffer awaiting upload.
-    ///
-    /// `wall` is `(inner_radius_mm, min_section_mm)` for the wall-thickness
-    /// heatmap colours, baked alongside the draft-class colours so switching
-    /// shade modes never re-uploads.
+    /// Flattens the mesh with its draft classes and the wall heatmap of
+    /// `wall = (inner_radius_mm, min_section_mm)` baked in, awaiting upload.
     pub fn prepare_upload(&mut self, mesh: &Mesh, cast: Option<&CastReport>, wall: (f64, f64)) {
-        let (inner_r, min_section) = wall;
-        let mut data: Vec<f32> = Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
-
-        let mut hard = 0;
-        'faces: for (i, face) in mesh.faces.iter().enumerate() {
-            // A solid's faces keep their creases; the band shades from its own vertex normals.
-            let corners = mesh.face_normals(i, &mut hard);
-            let rgb = match cast {
-                Some(c) => c.classes.get(i).map_or([1.0; 3], |k| k.rgb()),
-                None => [1.0; 3],
-            };
-
-            let mut tri = [[0.0f32; FLOATS_PER_VERTEX]; 3];
-            for (k, &vi) in face.iter().enumerate() {
-                let Some(p) = mesh.vertices.get(vi as usize).filter(|p| p.is_finite()) else {
-                    continue 'faces;
-                };
-                let n = corners[k];
-                // Radial metal under this vertex; the bore itself (facing
-                // inward) is not a wall and sits out in neutral grey.
-                let r = (p.0 as f64).hypot(p.1 as f64);
-                let inward = (n.0 as f64 * p.0 as f64 + n.1 as f64 * p.1 as f64) < 0.0;
-                let w = if inward {
-                    WALL_NEUTRAL
-                } else {
-                    wall_color(r - inner_r, min_section)
-                };
-                tri[k] = [
-                    p.0, p.1, p.2, n.0, n.1, n.2, rgb[0], rgb[1], rgb[2], w[0], w[1], w[2],
-                ];
-            }
-            for v in &tri {
-                data.extend_from_slice(v);
-            }
-        }
-
-        self.pending = Some(data);
+        self.inner.set_mesh(render::stage_mesh(mesh, cast, wall));
     }
 
-    /// Preserve sharp CAD corners while keeping smooth analytic faces smooth.
+    /// A CAD-only ring: sharp corners stay sharp while smooth faces stay smooth.
     pub fn prepare_cad(&mut self, mesh: &Mesh) {
-        let mut display = Mesh::default();
-        for face in &mesh.faces {
-            let Some(normal) = mesh.face_normal(face) else {
-                continue;
-            };
-            let first = display.vertices.len() as u32;
-            for &id in face {
-                let Some(p) = mesh.vertices.get(id as usize) else {
-                    continue;
-                };
-                let smooth = mesh.normals.get(id as usize).copied().unwrap_or(Vec3(
-                    normal[0] as f32,
-                    normal[1] as f32,
-                    normal[2] as f32,
-                ));
-                let dot = smooth.0 as f64 * normal[0]
-                    + smooth.1 as f64 * normal[1]
-                    + smooth.2 as f64 * normal[2];
-                display.vertices.push(*p);
-                display.normals.push(if dot > 0.94 {
-                    smooth
-                } else {
-                    Vec3(normal[0] as f32, normal[1] as f32, normal[2] as f32)
-                });
-            }
-            display.faces.push([first, first + 1, first + 2]);
-        }
-        self.prepare_upload(&display, None, (0.0, 0.0));
+        self.inner.set_mesh(render::stage_cad(mesh));
     }
 
-    /// Per-vertex weights in the order [`prepare_upload`](Self::prepare_upload)
-    /// emits vertices — the same faces skipped, so the two stay vertex for vertex.
+    /// Per-vertex weights in the order [`prepare_upload`](Self::prepare_upload) emits vertices.
     pub fn stage_focus(mesh: &Mesh, weight: &[f32]) -> Vec<f32> {
-        let mut data = Vec::with_capacity(mesh.faces.len() * 3);
-        for face in &mesh.faces {
-            if face.iter().any(|&vi| !mesh.vertices.get(vi as usize).is_some_and(|p| p.is_finite())) {
-                continue;
-            }
-            data.extend(face.iter().map(|&vi| weight.get(vi as usize).copied().unwrap_or(0.0)));
-        }
-        data
+        render::stage_focus(mesh, weight)
     }
 
-    /// Queue a focus channel staged for the mesh on screen. Empty clears it.
+    /// Queues a focus channel staged for the mesh on screen; empty clears it.
     pub fn prepare_focus(&mut self, weights: Vec<f32>) {
-        self.focus_pending = Some(weights);
+        self.inner.set_focus(weights);
     }
 
-    /// The selection channel in the emitted vertex order: `(chosen, hovered)` a vertex from the
-    /// `0 / 1 / 2` weights `viewport::tint` gives, the same faces skipped as [`stage_focus`].
+    /// The selection channel, `(chosen, hovered)` a vertex from `viewport::tint`'s weights.
     pub fn stage_select(mesh: &Mesh, weight: &[f32]) -> Vec<f32> {
-        let mut data = Vec::with_capacity(mesh.faces.len() * 6);
-        for face in &mesh.faces {
-            if face.iter().any(|&vi| !mesh.vertices.get(vi as usize).is_some_and(|p| p.is_finite())) {
-                continue;
-            }
-            for &vi in face {
-                let w = weight.get(vi as usize).copied().unwrap_or(0.0);
-                data.push(if w >= 0.5 && w < 1.5 { 1.0 } else { 0.0 });
-                data.push(if w >= 1.5 { 1.0 } else { 0.0 });
-            }
-        }
-        data
+        render::stage_select(mesh, weight)
     }
 
-    /// Queue a selection channel staged by [`stage_select`]. Empty clears it.
+    /// Queues a selection channel staged by [`stage_select`](Self::stage_select); empty clears it.
     pub fn prepare_select(&mut self, weights: Vec<f32>) {
-        self.select_pending = Some(weights);
+        self.inner.set_select(weights);
     }
 
-    /// Queue the stone-preview triangles built by [`crate::gems`]. An empty
-    /// buffer clears them.
+    /// Queues the stone previews; empty clears them.
     pub fn prepare_gems(&mut self, verts: Vec<f32>) {
-        self.gem_pending = Some(verts);
+        self.inner.set_gems(verts);
     }
 
-    /// Queue the pinned comparison mesh, in the same layout. Empty clears it.
     /// The seats' cutters, drawn through the metal; empty clears them.
     pub fn prepare_cutters(&mut self, verts: Vec<f32>) {
-        self.cutter_pending = Some(verts);
+        self.inner.set_cutters(verts);
     }
 
+    /// The pinned comparison design; empty clears it.
     pub fn prepare_ghost(&mut self, verts: Vec<f32>) {
-        self.ghost_pending = Some(verts);
+        self.inner.set_comparison(verts);
     }
 
-    /// Queue a live command's ghost in its own coordinates. Empty clears it.
+    /// A live command's ghost in its own coordinates; empty clears it.
     pub fn prepare_preview(&mut self, verts: Vec<f32>) {
-        self.preview_pending = Some(verts);
+        self.inner.set_preview(verts);
     }
 
-    /// Where the queued ghost stands: model matrix and normal matrix, column-major; `None` hides it.
+    /// Where the ghost stands: model matrix and normal matrix, column-major; `None` hides it.
     pub fn set_preview_model(&mut self, model: Option<([f32; 16], [f32; 9])>) {
-        self.preview_model = model;
+        self.inner.set_preview_model(model);
     }
 
     /// Whether the ghost shades in its staged draft colours.
     pub fn set_preview_draft(&mut self, draft: bool) {
-        self.preview_draft = draft;
+        self.inner.set_preview_draft(draft);
     }
 
     /// The ghost's vertices awaiting upload, and whether it shades by draft class.
     #[cfg(test)]
     pub fn staged_preview(&self) -> (Option<&[f32]>, bool) {
-        (self.preview_pending.as_deref(), self.preview_draft)
+        let (verts, _, draft) = self.inner.preview_state();
+        (verts, draft)
     }
 
-    /// A part's tessellation in the interleaved layout, a vertex normal kept only within 20° of its facet's.
+    /// A part's tessellation, a vertex normal kept only within 20° of its facet's.
     pub fn stage_part(mesh: &Mesh) -> Vec<f32> {
-        Self::stage_part_colored(mesh, |_| [1.0; 3])
+        render::stage_part(mesh)
     }
 
     /// [`stage_part`](Self::stage_part) with every face in its draft class's colour.
-    pub fn stage_part_classes(mesh: &Mesh, classes: &[ringdesign_core::FaceClass]) -> Vec<f32> {
-        Self::stage_part_colored(mesh, |i| classes.get(i).map_or([1.0; 3], |k| k.rgb()))
+    pub fn stage_part_classes(mesh: &Mesh, classes: &[FaceClass]) -> Vec<f32> {
+        render::stage_part_classes(mesh, classes)
     }
 
-    /// A part's tessellation with face `i` in `color(i)`.
-    fn stage_part_colored(mesh: &Mesh, color: impl Fn(usize) -> [f32; 3]) -> Vec<f32> {
-        let mut data = Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
-        for (i, face) in mesh.faces.iter().enumerate() {
-            let Some(facet) = mesh.face_normal(face) else { continue };
-            let facet = Vec3(facet[0] as f32, facet[1] as f32, facet[2] as f32);
-            let Some(points) = face.iter().map(|&vi| mesh.vertices.get(vi as usize).filter(|p| p.is_finite()).copied()).collect::<Option<Vec<_>>>() else { continue };
-            let [r, g, b] = color(i);
-            for (p, &vi) in points.iter().zip(face) {
-                let n = match mesh.normals.get(vi as usize) {
-                    Some(n) if n.is_finite() && n.0 * facet.0 + n.1 * facet.1 + n.2 * facet.2 > 0.94 => *n,
-                    _ => facet,
-                };
-                data.extend_from_slice(&[p.0, p.1, p.2, n.0, n.1, n.2, r, g, b, 1.0, 1.0, 1.0]);
-            }
-        }
-        data
+    /// A mesh in neutral colours; the pass that draws it supplies its own tint.
+    pub fn stage_plain(mesh: &Mesh) -> Vec<f32> {
+        render::stage_plain(mesh)
     }
 
-    /// Flatten a mesh into the interleaved layout with neutral colours — the
-    /// ghost pass supplies its own tint.
-    pub fn stage_plain(mesh: &ringdesign_core::Mesh) -> Vec<f32> {
-        let mut data = Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
-        'faces: for face in &mesh.faces {
-            let mut tri = [[0.0f32; FLOATS_PER_VERTEX]; 3];
-            for (k, &vi) in face.iter().enumerate() {
-                let Some(p) = mesh.vertices.get(vi as usize).filter(|p| p.is_finite()) else {
-                    continue 'faces;
-                };
-                let n = match mesh.normals.get(vi as usize) {
-                    Some(n) if n.is_finite() => *n,
-                    _ => ringdesign_core::Vec3(0.0, 0.0, 1.0),
-                };
-                tri[k] = [p.0, p.1, p.2, n.0, n.1, n.2, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-            }
-            for v in &tri {
-                data.extend_from_slice(v);
-            }
+    /// Keeps the edge pass on the build on screen and the chosen and hovered edges.
+    pub fn sync_edges(&mut self, build: &Arc<ringdesign_core::BuildResult>, chosen: &[EdgeKey], hovered: Option<EdgeKey>) -> bool {
+        let key = Arc::as_ptr(build) as usize;
+        let fresh = self.inner.edges_key() != Some(key);
+        let start = (fresh && self.timings.is_some()).then(std::time::Instant::now);
+        let staged = self.inner.sync_edges(key, build.parts.evaluated.as_ref(), chosen, hovered);
+        if let Some(start) = start {
+            eprintln!("render-stats stage-edges runs={} us={:.0}", self.inner.edge_runs().len(), start.elapsed().as_secs_f32() * 1e6);
         }
-        data
+        staged
     }
 
-    /// Draw the mesh. Called from inside the paint callback.
-    fn paint(
-        &mut self,
-        gl: &glow::Context,
-        info: egui::PaintCallbackInfo,
-        mvp: &[f32; 16],
-        normal_matrix: &[f32; 9],
-        mode: i32,
-        base_color: [f32; 3],
-        roughness: f32,
-        light_dir: [f32; 3],
-        ambient: f32,
-        wireframe: bool,
-        wire_color: [f32; 3],
-        show_gems: bool,
-        clip_plane: [f32; 4],
-        focus: [f32; 4],
-        select: [f32; 4],
-        hover: [f32; 4],
-    ) {
-        unsafe { self.ensure_resources(gl) };
-        let Some(res) = self.resources else { return };
-
-        if let Some(verts) = self.pending.take() {
-            // A channel staged for the last mesh says nothing about this one.
-            self.focus_live = false;
-            self.select_live = false;
-            self.vertex_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
-            unsafe {
-                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.vbo));
-                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
-                gl.bind_buffer(glow::ARRAY_BUFFER, None);
+    /// Draws the frame, then says once what the context turned out to be.
+    fn paint(&mut self, gl: &glow::Context, info: &egui::PaintCallbackInfo, frame: &Frame) {
+        let before = self.inner.stats().frames;
+        self.inner.paint(gl, info, frame);
+        for note in self.inner.take_notes() {
+            match note {
+                render::GlNote::Ready { version, profile } => log::info!("ring renderer: {version} ({profile:?})"),
+                render::GlNote::Depth(bits) if bits <= 0 => log::warn!(
+                    "no depth buffer on the default framebuffer ({bits} bits): the ring will draw \
+                     see-through. NativeOptions::depth_buffer must be non-zero."
+                ),
+                render::GlNote::Depth(bits) => log::info!("depth buffer: {bits} bits"),
+                render::GlNote::Failed(e) => log::error!("ring renderer: {e}"),
             }
         }
-        if let Some(weights) = self.focus_pending.take() {
-            self.focus_live = !weights.is_empty() && weights.len() as i32 == self.vertex_count;
-            if self.focus_live {
-                unsafe {
-                    gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.focus_vbo));
-                    gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&weights), glow::STATIC_DRAW);
-                    gl.bind_buffer(glow::ARRAY_BUFFER, None);
-                }
+        let stats = self.inner.stats();
+        if let Some(t) = self.timings.as_mut().filter(|_| stats.frames > before) {
+            if let Some(line) = t.record(&stats) {
+                eprintln!("{line}");
             }
         }
-        if let Some(weights) = self.select_pending.take() {
-            self.select_live = !weights.is_empty() && weights.len() as i32 == self.vertex_count * 2;
-            if self.select_live {
-                unsafe {
-                    gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.select_vbo));
-                    gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&weights), glow::STATIC_DRAW);
-                    gl.bind_buffer(glow::ARRAY_BUFFER, None);
-                }
-            }
-        }
-        if let Some(verts) = self.cutter_pending.take() {
-            self.cutter_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
-            unsafe {
-                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.cutter_vbo));
-                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
-                gl.bind_buffer(glow::ARRAY_BUFFER, None);
-            }
-        }
-        if let Some(verts) = self.ghost_pending.take() {
-            self.ghost_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
-            unsafe {
-                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.ghost_vbo));
-                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
-                gl.bind_buffer(glow::ARRAY_BUFFER, None);
-            }
-        }
-        if let Some(verts) = self.gem_pending.take() {
-            self.gem_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
-            unsafe {
-                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.gem_vbo));
-                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
-                gl.bind_buffer(glow::ARRAY_BUFFER, None);
-            }
-        }
-        if let Some(verts) = self.preview_pending.take() {
-            self.preview_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
-            unsafe {
-                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.preview_vbo));
-                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::DYNAMIC_DRAW);
-                gl.bind_buffer(glow::ARRAY_BUFFER, None);
-            }
-        }
-
-        if self.vertex_count == 0 {
-            return;
-        }
-
-        self.warn_if_no_depth_buffer(gl);
-
-        unsafe {
-            let vp = info.viewport_in_pixels();
-            gl.viewport(vp.left_px, vp.from_bottom_px, vp.width_px, vp.height_px);
-            let clip = info.clip_rect_in_pixels();
-            gl.scissor(
-                clip.left_px,
-                clip.from_bottom_px,
-                clip.width_px,
-                clip.height_px,
-            );
-
-            gl.enable(glow::DEPTH_TEST);
-            gl.depth_mask(true);
-            gl.depth_func(glow::LESS);
-            gl.enable(glow::CULL_FACE);
-            gl.cull_face(glow::BACK);
-            gl.enable(glow::SCISSOR_TEST);
-            gl.clear(glow::DEPTH_BUFFER_BIT);
-
-            gl.use_program(Some(res.program));
-            gl.bind_vertex_array(Some(res.vao));
-
-            let loc = gl.get_uniform_location(res.program, "u_mvp");
-            gl.uniform_matrix_4_f32_slice(loc.as_ref(), false, mvp);
-            let loc = gl.get_uniform_location(res.program, "u_normal_matrix");
-            gl.uniform_matrix_3_f32_slice(loc.as_ref(), false, normal_matrix);
-            let loc = gl.get_uniform_location(res.program, "u_mode");
-            gl.uniform_1_i32(loc.as_ref(), mode);
-            let loc = gl.get_uniform_location(res.program, "u_light_dir");
-            gl.uniform_3_f32(loc.as_ref(), light_dir[0], light_dir[1], light_dir[2]);
-            let loc = gl.get_uniform_location(res.program, "u_base_color");
-            gl.uniform_3_f32(loc.as_ref(), base_color[0], base_color[1], base_color[2]);
-            let loc = gl.get_uniform_location(res.program, "u_ambient");
-            gl.uniform_1_f32(loc.as_ref(), ambient);
-            let loc = gl.get_uniform_location(res.program, "u_roughness");
-            gl.uniform_1_f32(loc.as_ref(), roughness);
-            let loc = gl.get_uniform_location(res.program, "u_alpha");
-            gl.uniform_1_f32(loc.as_ref(), 1.0);
-            let loc = gl.get_uniform_location(res.program, "u_clip_plane");
-            gl.uniform_4_f32_slice(loc.as_ref(), &clip_plane);
-            // Without a channel the attribute is a constant zero: no buffer
-            // is read, so a stale one can never be read past its end.
-            let lit = self.focus_live && focus[3] > 0.0;
-            let focus_loc = gl.get_uniform_location(res.program, "u_focus");
-            gl.uniform_4_f32_slice(focus_loc.as_ref(), &if lit { focus } else { [0.0; 4] });
-            if lit {
-                gl.enable_vertex_attrib_array(4);
-            } else {
-                gl.disable_vertex_attrib_array(4);
-                gl.vertex_attrib_1_f32(4, 0.0);
-            }
-            // The selection rides its own buffer on attribute 5, gated the same way.
-            let chosen = self.select_live && (select[3] > 0.0 || hover[3] > 0.0);
-            let select_loc = gl.get_uniform_location(res.program, "u_select");
-            let hover_loc = gl.get_uniform_location(res.program, "u_hover");
-            gl.uniform_4_f32_slice(select_loc.as_ref(), &if chosen { select } else { [0.0; 4] });
-            gl.uniform_4_f32_slice(hover_loc.as_ref(), &if chosen { hover } else { [0.0; 4] });
-            if chosen {
-                gl.enable_vertex_attrib_array(5);
-            } else {
-                gl.disable_vertex_attrib_array(5);
-                gl.vertex_attrib_2_f32(5, 0.0, 0.0);
-            }
-
-            gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
-            gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
-            gl.uniform_4_f32_slice(focus_loc.as_ref(), &[0.0; 4]);
-            gl.uniform_4_f32_slice(select_loc.as_ref(), &[0.0; 4]);
-            gl.uniform_4_f32_slice(hover_loc.as_ref(), &[0.0; 4]);
-
-            // The cutters: through the metal, since a tool sits inside what it removes.
-            if self.cutter_count > 0 {
-                gl.use_program(Some(res.program));
-                let loc = gl.get_uniform_location(res.program, "u_mode");
-                gl.uniform_1_i32(loc.as_ref(), 0);
-                let loc = gl.get_uniform_location(res.program, "u_base_color");
-                gl.uniform_3_f32(loc.as_ref(), 1.0, 0.34, 0.62);
-                let loc = gl.get_uniform_location(res.program, "u_alpha");
-                gl.uniform_1_f32(loc.as_ref(), 0.34);
-                gl.enable(glow::BLEND);
-                gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-                gl.depth_mask(false);
-                gl.disable(glow::DEPTH_TEST);
-                gl.bind_vertex_array(Some(res.cutter_vao));
-                gl.draw_arrays(glow::TRIANGLES, 0, self.cutter_count);
-                gl.enable(glow::DEPTH_TEST);
-                gl.depth_mask(true);
-                gl.disable(glow::BLEND);
-                gl.bind_vertex_array(Some(res.vao));
-                let loc = gl.get_uniform_location(res.program, "u_alpha");
-                gl.uniform_1_f32(loc.as_ref(), 1.0);
-            }
-
-            // The pinned comparison ghost: last, translucent, no depth
-            // writes, so it reads as a spectre around the live metal.
-            if self.ghost_count > 0 {
-                gl.use_program(Some(res.program));
-                let loc = gl.get_uniform_location(res.program, "u_mode");
-                gl.uniform_1_i32(loc.as_ref(), 0);
-                let loc = gl.get_uniform_location(res.program, "u_base_color");
-                gl.uniform_3_f32(loc.as_ref(), 0.62, 0.72, 0.84);
-                let loc = gl.get_uniform_location(res.program, "u_alpha");
-                gl.uniform_1_f32(loc.as_ref(), 0.28);
-                gl.enable(glow::BLEND);
-                gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-                gl.depth_mask(false);
-                gl.bind_vertex_array(Some(res.ghost_vao));
-                gl.draw_arrays(glow::TRIANGLES, 0, self.ghost_count);
-                gl.depth_mask(true);
-                gl.disable(glow::BLEND);
-                gl.bind_vertex_array(Some(res.vao));
-                let loc = gl.get_uniform_location(res.program, "u_alpha");
-                gl.uniform_1_f32(loc.as_ref(), 1.0);
-                let loc = gl.get_uniform_location(res.program, "u_mode");
-                gl.uniform_1_i32(loc.as_ref(), mode);
-                let loc = gl.get_uniform_location(res.program, "u_base_color");
-                gl.uniform_3_f32(loc.as_ref(), base_color[0], base_color[1], base_color[2]);
-            }
-
-            // A live command's ghost: its own buffer under a model matrix, translucent and depth-tested.
-            if let (true, Some((model, normal))) = (self.preview_count > 0, self.preview_model) {
-                gl.use_program(Some(res.program));
-                let mvp_loc = gl.get_uniform_location(res.program, "u_mvp");
-                gl.uniform_matrix_4_f32_slice(mvp_loc.as_ref(), false, &mul4(mvp, &model));
-                let normal_loc = gl.get_uniform_location(res.program, "u_normal_matrix");
-                gl.uniform_matrix_3_f32_slice(normal_loc.as_ref(), false, &mul3(normal_matrix, &normal));
-                // Mode 1 shades the staged draft colours.
-                let loc = gl.get_uniform_location(res.program, "u_mode");
-                gl.uniform_1_i32(loc.as_ref(), if self.preview_draft { 1 } else { 0 });
-                let loc = gl.get_uniform_location(res.program, "u_base_color");
-                gl.uniform_3_f32(loc.as_ref(), PREVIEW_TINT[0], PREVIEW_TINT[1], PREVIEW_TINT[2]);
-                let alpha_loc = gl.get_uniform_location(res.program, "u_alpha");
-                gl.uniform_1_f32(alpha_loc.as_ref(), if self.preview_draft { DRAFT_GHOST_ALPHA } else { PREVIEW_TINT[3] });
-                let clip_loc = gl.get_uniform_location(res.program, "u_clip_plane");
-                gl.uniform_4_f32_slice(clip_loc.as_ref(), &[0.0; 4]);
-                gl.enable(glow::BLEND);
-                gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-                gl.depth_mask(false);
-                gl.bind_vertex_array(Some(res.preview_vao));
-                gl.draw_arrays(glow::TRIANGLES, 0, self.preview_count);
-                gl.depth_mask(true);
-                gl.disable(glow::BLEND);
-                gl.bind_vertex_array(Some(res.vao));
-                gl.uniform_matrix_4_f32_slice(mvp_loc.as_ref(), false, mvp);
-                gl.uniform_matrix_3_f32_slice(normal_loc.as_ref(), false, normal_matrix);
-                gl.uniform_1_f32(alpha_loc.as_ref(), 1.0);
-                gl.uniform_4_f32_slice(clip_loc.as_ref(), &clip_plane);
-                let loc = gl.get_uniform_location(res.program, "u_mode");
-                gl.uniform_1_i32(loc.as_ref(), mode);
-                let loc = gl.get_uniform_location(res.program, "u_base_color");
-                gl.uniform_3_f32(loc.as_ref(), base_color[0], base_color[1], base_color[2]);
-            }
-
-            if wireframe {
-                gl.use_program(Some(res.wire_program));
-                let loc = gl.get_uniform_location(res.wire_program, "u_mvp");
-                gl.uniform_matrix_4_f32_slice(loc.as_ref(), false, mvp);
-                let loc = gl.get_uniform_location(res.wire_program, "u_wire_color");
-                let clip_loc = gl.get_uniform_location(res.wire_program, "u_clip_plane");
-                gl.uniform_4_f32_slice(clip_loc.as_ref(), &clip_plane);
-                gl.uniform_3_f32(loc.as_ref(), wire_color[0], wire_color[1], wire_color[2]);
-
-                gl.enable(glow::BLEND);
-                gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-                gl.enable(glow::POLYGON_OFFSET_LINE);
-                gl.polygon_offset(-1.0, -1.0);
-                gl.polygon_mode(glow::FRONT_AND_BACK, glow::LINE);
-                gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
-
-                gl.disable(glow::POLYGON_OFFSET_LINE);
-                gl.polygon_mode(glow::FRONT_AND_BACK, glow::FILL);
-                gl.disable(glow::BLEND);
-            }
-
-            // Stones ride on top: same program in the dielectric mode with
-            // their own tint, flat facet normals doing the sparkle. Preview
-            // only — they are not in the mesh and never export.
-            if show_gems && self.gem_count > 0 {
-                gl.use_program(Some(res.program));
-                let loc = gl.get_uniform_location(res.program, "u_mode");
-                gl.uniform_1_i32(loc.as_ref(), 5);
-                let loc = gl.get_uniform_location(res.program, "u_base_color");
-                gl.uniform_3_f32(
-                    loc.as_ref(),
-                    crate::gems::GEM_TINT[0],
-                    crate::gems::GEM_TINT[1],
-                    crate::gems::GEM_TINT[2],
-                );
-                gl.bind_vertex_array(Some(res.gem_vao));
-                gl.draw_arrays(glow::TRIANGLES, 0, self.gem_count);
-            }
-
-            gl.bind_vertex_array(None);
-            gl.use_program(None);
-            gl.disable(glow::DEPTH_TEST);
-            gl.disable(glow::CULL_FACE);
-            gl.disable(glow::SCISSOR_TEST);
-        }
-    }
-
-    /// Depth testing is silently a no-op on a window with no depth attachment,
-    /// which reads as a see-through ring rather than as an error. Checked once.
-    fn warn_if_no_depth_buffer(&mut self, gl: &glow::Context) {
-        if self.depth_checked {
-            return;
-        }
-        self.depth_checked = true;
-        let bits = unsafe {
-            gl.get_framebuffer_attachment_parameter_i32(
-                glow::FRAMEBUFFER,
-                glow::DEPTH,
-                glow::FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE,
-            )
-        };
-        if bits <= 0 {
-            log::warn!(
-                "no depth buffer on the default framebuffer ({bits} bits): the ring will draw \
-                 see-through. NativeOptions::depth_buffer must be non-zero."
-            );
-        } else {
-            log::info!("depth buffer: {bits} bits");
-        }
-    }
-
-    unsafe fn ensure_resources(&mut self, gl: &glow::Context) {
-        if self.resources.is_some() {
-            return;
-        }
-
-        let program = unsafe {
-            compile_program(
-                gl,
-                VERTEX_SHADER,
-                &FRAGMENT_SHADER
-                    .replace("// STUDIO_MATERIAL", ringdesign_core::render::STUDIO_GLSL),
-            )
-        };
-        let wire_program = unsafe { compile_program(gl, VERTEX_SHADER, WIREFRAME_FRAGMENT_SHADER) };
-        let vao = unsafe { gl.create_vertex_array() }.expect("create VAO");
-        let vbo = unsafe { gl.create_buffer() }.expect("create VBO");
-        let gem_vao = unsafe { gl.create_vertex_array() }.expect("create gem VAO");
-        let gem_vbo = unsafe { gl.create_buffer() }.expect("create gem VBO");
-        let ghost_vao = unsafe { gl.create_vertex_array() }.expect("create ghost VAO");
-        let ghost_vbo = unsafe { gl.create_buffer() }.expect("create ghost VBO");
-        let cutter_vao = unsafe { gl.create_vertex_array() }.expect("create cutter VAO");
-        let cutter_vbo = unsafe { gl.create_buffer() }.expect("create cutter VBO");
-        let preview_vao = unsafe { gl.create_vertex_array() }.expect("create preview VAO");
-        let preview_vbo = unsafe { gl.create_buffer() }.expect("create preview VBO");
-        let focus_vbo = unsafe { gl.create_buffer() }.expect("create focus VBO");
-        let select_vbo = unsafe { gl.create_buffer() }.expect("create select VBO");
-
-        unsafe {
-            for (vao, vbo) in [(vao, vbo), (gem_vao, gem_vbo), (ghost_vao, ghost_vbo), (cutter_vao, cutter_vbo), (preview_vao, preview_vbo)] {
-                gl.bind_vertex_array(Some(vao));
-                gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
-
-                let f = std::mem::size_of::<f32>() as i32;
-                let stride = FLOATS_PER_VERTEX as i32 * f;
-                for (loc, offset) in [(0, 0), (1, 3 * f), (2, 6 * f), (3, 9 * f)] {
-                    gl.enable_vertex_attrib_array(loc);
-                    gl.vertex_attrib_pointer_f32(loc, 3, glow::FLOAT, false, stride, offset);
-                }
-            }
-
-            // The focus channel rides the ring's VAO from a buffer of its
-            // own, so a highlight is one small upload and never a re-stage.
-            gl.bind_vertex_array(Some(vao));
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(focus_vbo));
-            gl.vertex_attrib_pointer_f32(4, 1, glow::FLOAT, false, std::mem::size_of::<f32>() as i32, 0);
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(select_vbo));
-            gl.vertex_attrib_pointer_f32(5, 2, glow::FLOAT, false, 2 * std::mem::size_of::<f32>() as i32, 0);
-
-            gl.bind_vertex_array(None);
-            gl.bind_buffer(glow::ARRAY_BUFFER, None);
-        }
-
-        self.resources = Some(GpuResources {
-            program,
-            wire_program,
-            vao,
-            vbo,
-            gem_vao,
-            gem_vbo,
-            ghost_vao,
-            ghost_vbo,
-            cutter_vao,
-            cutter_vbo,
-            preview_vao,
-            preview_vbo,
-            focus_vbo,
-            select_vbo,
-        });
     }
 
     pub fn destroy(&mut self, gl: &glow::Context) {
-        if let Some(res) = self.resources.take() {
-            unsafe {
-                gl.delete_program(res.program);
-                gl.delete_program(res.wire_program);
-                gl.delete_vertex_array(res.vao);
-                gl.delete_buffer(res.vbo);
-                gl.delete_vertex_array(res.gem_vao);
-                gl.delete_buffer(res.gem_vbo);
-                gl.delete_vertex_array(res.ghost_vao);
-                gl.delete_buffer(res.ghost_vbo);
-                gl.delete_vertex_array(res.cutter_vao);
-                gl.delete_buffer(res.cutter_vbo);
-                gl.delete_vertex_array(res.preview_vao);
-                gl.delete_buffer(res.preview_vbo);
-                gl.delete_buffer(res.focus_vbo);
-                gl.delete_buffer(res.select_vbo);
-            }
-        }
-        self.preview_count = 0;
-        self.preview_pending = None;
-        self.preview_model = None;
-        self.focus_pending = None;
-        self.focus_live = false;
-        self.select_pending = None;
-        self.select_live = false;
-        self.vertex_count = 0;
-        self.pending = None;
-        self.gem_count = 0;
-        self.gem_pending = None;
-        self.ghost_count = 0;
-        self.ghost_pending = None;
-        self.cutter_count = 0;
-        self.cutter_pending = None;
+        self.inner.destroy(gl);
+    }
+
+    /// Whether paints are being timed, which keeps the viewport repainting.
+    pub fn timed(&self) -> bool {
+        self.timings.is_some()
     }
 }
 
-unsafe fn compile_program(
-    gl: &glow::Context,
-    vert_src: &str,
-    frag_src: &str,
-) -> glow::NativeProgram {
-    let program = unsafe { gl.create_program() }.expect("create program");
-
-    let mut shaders = Vec::with_capacity(2);
-    for (kind, src, what) in [
-        (glow::VERTEX_SHADER, vert_src, "vertex"),
-        (glow::FRAGMENT_SHADER, frag_src, "fragment"),
-    ] {
-        let shader = unsafe { gl.create_shader(kind) }.expect("create shader");
-        unsafe {
-            gl.shader_source(shader, src);
-            gl.compile_shader(shader);
+/// Queues a draw of `renderer` into `rect`.
+fn paint_callback(rect: egui::Rect, renderer: Arc<Mutex<GpuMeshRenderer>>, frame: Frame) -> egui::PaintCallback {
+    let paint = egui_glow::CallbackFn::new(move |info, painter| {
+        if let Ok(mut r) = renderer.lock() {
+            r.paint(painter.gl(), &info, &frame);
         }
-        if !unsafe { gl.get_shader_compile_status(shader) } {
-            panic!("{what} shader error: {}", unsafe {
-                gl.get_shader_info_log(shader)
-            });
-        }
-        unsafe { gl.attach_shader(program, shader) };
-        shaders.push(shader);
-    }
-
-    unsafe { gl.link_program(program) };
-    if !unsafe { gl.get_program_link_status(program) } {
-        panic!("program link error: {}", unsafe {
-            gl.get_program_info_log(program)
-        });
-    }
-
-    for shader in shaders {
-        unsafe {
-            gl.detach_shader(program, shader);
-            gl.delete_shader(shader);
-        }
-    }
-
-    program
+    });
+    egui::PaintCallback { rect, callback: Arc::new(paint) }
 }
 
-fn as_u8_slice<T: Copy>(data: &[T]) -> &[u8] {
-    unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, std::mem::size_of_val(data)) }
+/// The persisted switch for every part's edges in the Ring viewport, on until set off.
+pub const EDGES_SHOWN: &str = "ring-viewport-part-edges";
+
+/// Whether the Ring viewport draws every part's edges; the chosen and hovered edges draw either way.
+pub fn show_edges(ctx: &egui::Context) -> bool {
+    ctx.data_mut(|d| *d.get_persisted_mut_or(egui::Id::new(EDGES_SHOWN), true))
+}
+
+/// The chosen edges and the edge under the pointer, as the edge pass lights them.
+fn lit_edges(app: &RingDesignerApp) -> (Vec<EdgeKey>, Option<EdgeKey>) {
+    let chosen = app.selection.items.iter().filter_map(|s| match s {
+        Sel::Edge { feature, edge } => Some((*feature, *edge)),
+        _ => None,
+    });
+    let hovered = app.selection.hover.as_ref().and_then(|h| match h.entity {
+        Entity::Edge { feature, edge } => Some((feature, edge)),
+        _ => None,
+    });
+    (chosen.collect(), hovered)
 }
 
 // --- Metal finishes and lighting -------------------------------------------
@@ -1020,49 +291,16 @@ impl ShadeMode {
         }
     }
 
-    fn gl_mode(self) -> i32 {
+    fn gl_mode(self) -> Shade {
         match self {
-            ShadeMode::Metal => 0,
-            ShadeMode::Draft => 1,
-            ShadeMode::Wall => 3,
-            ShadeMode::Halves => 4,
-            ShadeMode::Normals => 2,
+            ShadeMode::Metal => Shade::Metal,
+            ShadeMode::Draft => Shade::Draft,
+            ShadeMode::Wall => Shade::Wall,
+            ShadeMode::Halves => Shade::Halves,
+            ShadeMode::Normals => Shade::Normals,
         }
     }
 }
-
-/// Wall-heatmap colour for a radial thickness, linear RGB.
-///
-/// Red at the minimum fill section and under, amber to twice it, then easing
-/// through green into a quiet blue-grey for comfortably thick metal.
-pub fn wall_color(thickness_mm: f64, min_section_mm: f64) -> [f32; 3] {
-    let m = min_section_mm.max(0.05);
-    let t = (thickness_mm / m).max(0.0);
-    let lerp3 = |a: [f32; 3], b: [f32; 3], k: f64| {
-        let k = k.clamp(0.0, 1.0) as f32;
-        [
-            a[0] + (b[0] - a[0]) * k,
-            a[1] + (b[1] - a[1]) * k,
-            a[2] + (b[2] - a[2]) * k,
-        ]
-    };
-    const RED: [f32; 3] = [0.93, 0.27, 0.36];
-    const AMBER: [f32; 3] = [0.95, 0.76, 0.24];
-    const GREEN: [f32; 3] = [0.32, 0.78, 0.45];
-    const THICK: [f32; 3] = [0.36, 0.55, 0.72];
-    if t <= 1.0 {
-        RED
-    } else if t <= 2.0 {
-        lerp3(RED, AMBER, t - 1.0)
-    } else if t <= 3.5 {
-        lerp3(AMBER, GREEN, (t - 2.0) / 1.5)
-    } else {
-        lerp3(GREEN, THICK, (t - 3.5) / 2.5)
-    }
-}
-
-/// Bore and inward faces sit out of the heatmap in a neutral grey.
-pub const WALL_NEUTRAL: [f32; 3] = [0.42, 0.42, 0.45];
 
 // --- Viewport --------------------------------------------------------------
 
@@ -1308,50 +546,31 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
 
     if app.build.is_some() {
         let (mvp, normal_matrix) = camera.matrices(rect);
-        let mode = shade.gl_mode();
-        let base_color =
-            ringdesign_core::render::METAL_FINISHES[app.finish.min(FINISHES.len() - 1)].1;
-        let roughness = ringdesign_core::render::POLISHES[app.polish.min(2)].1;
         let rig = &LIGHT_RIGS[app.light.min(LIGHT_RIGS.len() - 1)];
-        let (light_dir, ambient) = (rig.dir, rig.ambient);
-        let wireframe = app.show_wireframe;
-        let wire_color = rgb_of(theme::TEXT_DIM);
-        let show_gems = app.show_gems;
         let renderer = if mould_active {
             app.mould_renderer.clone()
         } else {
             app.renderer.clone()
         };
-        let clip_plane = if active { app.visual.clip() } else { [0.0; 4] };
-        let focus = if mould_active { [0.0; 4] } else { app.node_focus.tint };
-        let (select, hover) = if mould_active { ([0.0; 4], [0.0; 4]) } else { (SELECT_TINT, HOVER_TINT) };
-
-        let callback = egui_glow::CallbackFn::new(move |info, glow_painter| {
-            if let Ok(mut r) = renderer.lock() {
-                r.paint(
-                    glow_painter.gl(),
-                    info,
-                    &mvp,
-                    &normal_matrix,
-                    mode,
-                    base_color,
-                    roughness,
-                    light_dir,
-                    ambient,
-                    wireframe,
-                    wire_color,
-                    show_gems,
-                    clip_plane,
-                    focus,
-                    select,
-                    hover,
-                );
-            }
-        });
-        painter.add(egui::PaintCallback {
-            rect,
-            callback: Arc::new(callback),
-        });
+        let frame = Frame {
+            shade: shade.gl_mode(),
+            base_color: ringdesign_core::render::METAL_FINISHES[app.finish.min(FINISHES.len() - 1)].1,
+            roughness: ringdesign_core::render::POLISHES[app.polish.min(2)].1,
+            light_dir: rig.dir,
+            ambient: rig.ambient,
+            wire: app.show_wireframe.then(|| rgb_of(theme::TEXT_DIM)),
+            gems: app.show_gems,
+            clip_plane: if active { app.visual.clip() } else { [0.0; 4] },
+            focus: if mould_active { [0.0; 4] } else { app.node_focus.tint },
+            select: if mould_active { [0.0; 4] } else { SELECT_TINT },
+            hover: if mould_active { [0.0; 4] } else { HOVER_TINT },
+            edges: !mould_active && show_edges(ui.ctx()),
+            ..Frame::new(mvp, normal_matrix)
+        };
+        if renderer.lock().is_ok_and(|r| r.timed()) {
+            ui.ctx().request_repaint();
+        }
+        painter.add(paint_callback(rect, renderer, frame));
         // What the chosen graph node does, said on the ring it is shown on.
         if let Some(words) = app.node_words() {
             let galley = painter.layout_no_wrap(words, egui::FontId::proportional(12.0), egui::Color32::from_rgb(255, 110, 168));
@@ -1465,6 +684,11 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             if let Ok(mut r) = app.renderer.lock() {
                 r.prepare_select(staged);
             }
+            ui.ctx().request_repaint();
+        }
+        // The edge pass follows the build on screen and the chosen and hovered edges.
+        let (chosen, hovered) = lit_edges(app);
+        if app.renderer.lock().is_ok_and(|mut r| r.sync_edges(build, &chosen, hovered)) {
             ui.ctx().request_repaint();
         }
     }
@@ -1584,18 +808,17 @@ pub fn candidate_view(
             painter.line_segment([project.at([v,-extent,0.]),project.at([v,extent,0.])],stroke);
         }
     }
-    let wire = display.wire;
-    let base_color = ringdesign_core::render::METAL_FINISHES[display.finish.min(FINISHES.len()-1)].1;
-    let roughness = ringdesign_core::render::POLISHES[display.polish.min(2)].1;
-    let rig=&LIGHT_RIGS[display.light.min(LIGHT_RIGS.len()-1)];
-    let (light_dir,ambient,show_gems)=(rig.dir,rig.ambient,display.show_gems);
-    let callback = egui_glow::CallbackFn::new(move |info,glow_painter| {
-        if let Ok(mut r) = renderer.lock() {
-            r.paint(glow_painter.gl(),info,&mvp,&normal,0,base_color,roughness,
-                light_dir,ambient,wire,[0.3,0.3,0.3],show_gems,[0.;4],[0.;4],[0.;4],[0.;4]);
-        }
-    });
-    painter.add(egui::PaintCallback {rect,callback:Arc::new(callback)});
+    let rig = &LIGHT_RIGS[display.light.min(LIGHT_RIGS.len() - 1)];
+    let frame = Frame {
+        base_color: ringdesign_core::render::METAL_FINISHES[display.finish.min(FINISHES.len() - 1)].1,
+        roughness: ringdesign_core::render::POLISHES[display.polish.min(2)].1,
+        light_dir: rig.dir,
+        ambient: rig.ambient,
+        wire: display.wire.then_some([0.3, 0.3, 0.3]),
+        gems: display.show_gems,
+        ..Frame::new(mvp, normal)
+    };
+    painter.add(paint_callback(rect, renderer, frame));
     draw_axes(&painter,&project,rect);
     painter.text(rect.left_bottom()+egui::vec2(12.,-14.),egui::Align2::LEFT_BOTTOM,
         "Orthographic · Drag orbit · Shift / middle drag pan · Scroll zoom",
@@ -1999,17 +1222,11 @@ fn set_component(app: &mut RingDesignerApp, id: u64, edit: CadEdit) {
     let _ = crate::cad_edit::apply(app, &[edit]);
 }
 
-/// The chosen and hovered edges, vertices and band points, drawn over the ring.
+/// The chosen and hovered vertices and band points, drawn over the ring; the edge pass lights the edges.
 fn draw_selection(app: &RingDesignerApp, painter: &egui::Painter, proj: &Projector, rect: egui::Rect) {
     let Some(build) = app.build.as_deref() else { return };
     let evaluated = build.parts.evaluated.as_ref();
     let mark = |sel: &Sel, color: egui::Color32, width: f32| match sel {
-        Sel::Edge { feature, edge } => {
-            if let Some(poly) = evaluated.and_then(|e| e.components.iter().find(|c| c.id == *feature)).and_then(|c| c.edges.get(*edge as usize)) {
-                let points: Vec<egui::Pos2> = poly.iter().map(|p| proj.at([p[0] as f32, p[1] as f32, p[2] as f32])).collect();
-                painter.add(egui::Shape::line(points, egui::Stroke::new(width, color)));
-            }
-        }
         Sel::Vertex { feature, vertex } => {
             if let Some(v) = evaluated.and_then(|e| e.components.iter().find(|c| c.id == *feature)).and_then(|c| c.trace.vertices.get(*vertex as usize)) {
                 let p = proj.at([v[0] as f32, v[1] as f32, v[2] as f32]);
