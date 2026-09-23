@@ -418,6 +418,39 @@ pub fn tube(path: &[P3], radii: &[f64], around: usize, dome: (bool, bool)) -> So
     out
 }
 
+/// A closed solid through anticlockwise rings of equal count from the top down, each end fanned from its own point, with each face's interval: band `k`, then `rings.len() - 1` for the top fan and `rings.len()` for the bottom.
+pub fn loft_traced(rings: &[Vec<P3>], top: P3, bottom: P3) -> (Solid, Vec<u32>) {
+    let n = rings.first().map_or(0, Vec::len);
+    let mut out = Solid::default();
+    let mut seg = Vec::new();
+    if n < 3 || rings.len() < 2 || rings.iter().any(|r| r.len() != n) {
+        return (out, seg);
+    }
+    for r in rings {
+        out.v.extend_from_slice(r);
+    }
+    let at = |r: usize, i: usize| (r * n + i % n) as u32;
+    for r in 0..rings.len() - 1 {
+        for i in 0..n {
+            out.f.push([at(r, i), at(r + 1, i), at(r + 1, i + 1)]);
+            out.f.push([at(r, i), at(r + 1, i + 1), at(r, i + 1)]);
+            seg.extend([r as u32; 2]);
+        }
+    }
+    let last = rings.len() - 1;
+    let (t, b) = (out.v.len() as u32, out.v.len() as u32 + 1);
+    out.v.extend([top, bottom]);
+    for i in 0..n {
+        out.f.push([t, at(0, i), at(0, i + 1)]);
+        seg.push(last as u32);
+    }
+    for i in 0..n {
+        out.f.push([at(last, i), b, at(last, i + 1)]);
+        seg.push(rings.len() as u32);
+    }
+    (out, seg)
+}
+
 /// A ball, for a bead.
 pub fn ball(centre: P3, r: f64, rings: usize) -> Solid {
     let section: Vec<Station> = (0..=rings).map(|k| {
