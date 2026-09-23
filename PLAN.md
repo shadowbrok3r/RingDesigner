@@ -537,6 +537,67 @@ worktrees, then verified, measured and committed by the integrator.
   ring with the caption and the Instances field, type 4, Enter → "Ring array of Cylinder" on the
   timeline, three copies at 90° steps, one History entry "Add Ring array of Cylinder".
 
+### Batch 11 status — 2026-09-23 (on master: `m13-exports`, `desktop-rest`, `m12-phone-sketch` merged, integration `58392c8`)
+
+- **The ring is the casting** (`manufacturing::Casting::{Ring, Part}`): `prepare`, the mould study and
+  the casting inspect refused every band-plus-part design ("Select one CAD component…", reproduced
+  on the claw solitaire, a Join post, and a post beside a Separate spacer) because the Band anchor's
+  id sits in `outputs` beside every part. The band with every Join and Cut part is now the default
+  casting; a Separate part is poured only when chosen and otherwise named as not in the pattern.
+  The Court band with a post pours +3.8989 mm³ against the post's 4.0212; the recipe's combo reads
+  "The ring…" and lists only Separate parts beside it.
+- **A ring leaves whole and a part comes in**: OBJ writes one named object per `threemf::objects`
+  object; Export STEP… (`cad::step::ring`, off the UI thread), CLI `--formats step` and MCP
+  `export_step`, with the band and builder parts in the assembly package's STEP too — read back
+  exactly (band 604.0818 against 604.0818 built). File ▸ Import part… and MCP `import_part` take STL
+  and OBJ (welded, refused unless watertight) and STEP (its faceted solids by `read_solids`; the
+  OpenCascade worker reads any under `kernel-occt`) as an `Operation::Stored` part joined at the
+  top: an STL post of 4.0148 mm³ grows the band by 4.0089. Shell on a part under `kernel-occt`.
+- **A stored mesh is written once**: format 6 (still unreleased) keeps a top-level `stored_meshes`
+  table by digest and a reference at each occurrence, so a driven design halves (15.44 to 7.72 MB at
+  786k triangles; the save's own reload check costs 35 ms there, reopening 3.2 ms); a plain design
+  still writes 5, byte-identical.
+- **Nothing heavy on the desktop's UI thread**: the worker builds the ring frame for every design
+  (19.4 to 0 ms at preview, 139.5 to 0 at export), the ghost's judge through that frame's tree (a
+  seat bur's first cut read 24.5 to 3.8 ms, 151.5 to 4.3) and the selection tint (1.3 and 6.2 to 0).
+  Part edges lives in `app.show_part_edges` alone, the session goes through the format ladder, and
+  the CAD desktop docks the Report.
+- **A head moves by its stone** (`commands::moved_by`): G, R, P and the gizmo on a builder part act on
+  its stone's ring placement or `FaceSeat`, and S says the head is sized by its stone. Live: G 12 on
+  the claw solitaire's head took stone and head 12° round as one "Place Round 6.5 mm" entry.
+- **Face arrays and part marks tell the truth**: a face pattern's copy whose foot falls off its face
+  is left out and named (4 copies over 72° on a 14 mm plate lose the 48° and 72° ones) and the
+  desktop ghost shows it refused; a bench part's mark on a plate crossing the parting plane moves
+  onto it (−59.8° over 0.361 mm² to 0.0000 mm²).
+- **Pins travel with the file** (`RingDesign::pins`, core `pins::Pin`, no format step): the desktop
+  carries a workspace's pins into a design on open; the lift leaves them out, and both apps and MCP
+  carry them over every graph evaluation.
+- **The phone sketches by touch** (`workbench::touch::sketch::Pad`): Sketch on a flat face or plane
+  squares the camera over the ring, draws polylines, rectangles, circles, arcs and fillets with snaps
+  and typed dimensions, and finishes as an Extrude (a drag or a typed height) or a Revolve, one
+  History entry (a 2 × 1.5 × 0.8 box on a face adds 2.4 mm³). Work planes are made by touch (on a
+  face with an offset, at an angle through the axis); a status line sits under the ring; Findings
+  lists the verdict's parts; Isolate shows a part alone as its own closed solid; the pick scene
+  builds beside staging (a Detailed build 914.5 to 832.5 ms on rdsmoke); pins live in the design and
+  the worker builds the ghost's judge on settled builds.
+- Verified: core 652, workbench 177 (191 with glow), gui 141, graph 97, graph-ui 26, mcp 45, cli 10,
+  configurator 5, script 5, occt 2, solid 1, assets 4, phone 164; NDK arm64, wasm, `kernel-occt` and
+  the locked workspace clean with zero warnings; the desktop live-checked (a session saved before the
+  ladder restored intact, Export STEP… and Import part… in their menus, G on the claw head moving
+  its stone); the phone's sketch, planes, status line and Findings on rdsmoke from the branch build.
+- Closed: batch 10's list but the numeric keyboard and OpenCascade's decisions; from older lists
+  the refused band-plus-part manufacturing, one-body OBJ, STEP from the app, part import, the ring
+  frame and cut ghost on the UI thread (both apps), the phone's per-part Findings, Isolate and
+  serial pick scene, pins outside the file, and the CAD desktop's empty docks.
+- Open: the phone's numeric keyboard (EguiMobile's bridge asks only for text; that repo also serves
+  the wirelab plugin); OpenCascade's LGPL and Windows shipping; its STEP import blocks the UI thread
+  (2.6 s on a whole ring) and the default build's leaves exact solids out; seat solids and stamps
+  pick as the band; the twisted sweep stays disabled (the kernel leaves open edges); joins and cuts
+  into the band are not cached; a rolled-back document ignores `outputs`; the phone's sketch has no
+  Trim, Offset, Chamfer or Mirror, Finish only joins, isolation holds one part and its array ghost
+  does not show refused copies; a stored CAD desktop layout keeps its old empty docks until Restore
+  default layout; the phone's menu avoidance no longer pans a close-up (a deliberate change).
+
 ### Batch 10 status — 2026-09-23 (on master: `m13-seats`, `m12-phone-rest`, `desktop-polish` merged, integration `59c1578`)
 
 - **The sand pattern seats every part where the finished ring does** (`mesh::try_build_poured`,
