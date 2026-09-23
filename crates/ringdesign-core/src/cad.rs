@@ -998,6 +998,18 @@ impl FaceRef {
         Self { ordinal, signature: face_signature(body, ordinal, frame) }
     }
 }
+/// Which of the body's edges, in order, are seams: every coedge of one bounds the same face, where a periodic surface closes on itself.
+pub fn seams(body: &Body) -> Vec<bool> {
+    body.edges
+        .iter()
+        .map(|(_, edge)| {
+            let mut faces = edge.coedges.iter().filter_map(|c| body.coedges.get(*c)).filter_map(|c| body.loops.get(c.owner)).map(|l| l.owner);
+            let Some(first) = faces.next() else { return false };
+            let rest: Vec<_> = faces.collect();
+            !rest.is_empty() && rest.iter().all(|f| *f == first)
+        })
+        .collect()
+}
 /// The signature of the edge at `ordinal`, with its geometry taken back through `frame`.
 pub fn edge_signature(body: &Body, ordinal: usize, frame: &brep::Placement) -> Option<EdgeSignature> {
     let (key, edge) = body.edges.iter().nth(ordinal)?;

@@ -89,17 +89,28 @@ pub fn drawn(c: &EvaluatedComponent) -> bool {
     !c.settings.reference && c.attach != Attach::Cut
 }
 
-/// Every drawn part's edges as quads.
+/// Every drawn part's edges as quads, a kernel part's seams left out.
 pub fn stage_edges(evaluated: &Evaluated) -> StagedEdges {
-    stage_polylines(evaluated.components.iter().filter(|c| drawn(c)).map(|c| (c.id, c.edges.as_slice())))
+    let parts: Vec<(Id, &[Vec<[f64; 3]>], Vec<bool>)> = evaluated
+        .components
+        .iter()
+        .filter(|c| drawn(c))
+        .map(|c| (c.id, c.edges.as_slice(), if c.made.is_none() { ringdesign_core::cad::seams(&c.body) } else { Vec::new() }))
+        .collect();
+    stage_where(parts.iter().map(|(id, edges, _)| (*id, *edges)), |id, i| parts.iter().any(|(p, _, seams)| *p == id && seams.get(i).copied().unwrap_or(false)))
 }
 
 /// Polylines as quads, one run per polyline under its feature and index.
 pub fn stage_polylines<'a>(parts: impl IntoIterator<Item = (Id, &'a [Vec<[f64; 3]>])>) -> StagedEdges {
+    stage_where(parts, |_, _| false)
+}
+
+/// Polylines as quads, but for those `skip` names by feature and index.
+fn stage_where<'a>(parts: impl IntoIterator<Item = (Id, &'a [Vec<[f64; 3]>])>, skip: impl Fn(Id, usize) -> bool) -> StagedEdges {
     let mut out = StagedEdges::default();
     let mut segments = 0usize;
     for (id, polylines) in parts {
-        for (i, poly) in polylines.iter().enumerate() {
+        for (i, poly) in polylines.iter().enumerate().filter(|(i, _)| !skip(id, *i)) {
             let first = out.verts.len() / EDGE_FLOATS;
             for w in poly.windows(2) {
                 if !usable(w[0], w[1]) {
@@ -241,6 +252,24 @@ mod tests {
             assert!(on_mesh(&v[..3]) && on_mesh(&v[3..6]), "segment at vertex {i} is off the head");
         }
         println!("claw head: {} creases, {} segments, {} bytes", staged.runs.len(), staged.segments(), staged.bytes());
+    }
+
+    #[test]
+    fn a_cylinders_seam_is_left_out_and_its_rims_are_drawn() {
+        let mut d = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut doc = cad::Document::default();
+        doc.append(cad::Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: cad::Operation::Band, component: cad::Component::default() }).unwrap();
+        let post = cad::Component { attach: Attach::Join, placement: cad::Placement::ring(90.0, 0.5), ..Default::default() };
+        doc.append(cad::Feature { id: 2, name: "Post".into(), enabled: true, operation: cad::Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, component: post }).unwrap();
+        d.cad = Some(doc);
+        let built = ringdesign_core::mesh::try_build(&d, &ringdesign_core::AlphaLibrary::default(), ringdesign_core::mesh::BuildParams { theta_steps: 192, profile_steps: 96, ..Default::default() }).unwrap();
+        let e = built.parts.evaluated.as_ref().unwrap();
+        let c = e.components.iter().find(|c| c.id == 2).unwrap();
+        let seams = cad::seams(&c.body);
+        assert_eq!(seams.iter().filter(|s| **s).count(), 1, "one seam down the side: {seams:?}");
+        let drawn: Vec<u32> = stage_edges(e).runs.iter().filter(|r| r.key.0 == 2).map(|r| r.key.1).collect();
+        assert_eq!(drawn.len(), c.edges.len() - 1);
+        assert!(drawn.iter().all(|i| !seams[*i as usize]));
     }
 
     #[test]
