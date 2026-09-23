@@ -953,6 +953,8 @@ pub struct EvaluatedComponent {
     pub stage: Stage,
     /// What a builder made, placed where the part stands; `None` for a kernel body.
     pub made: Option<Arc<builders::Made>>,
+    /// The frame the build seated the body by, which references to its faces and edges are signed in.
+    pub frame: brep::Placement,
 }
 impl EvaluatedComponent {
     /// The kernel body, unless a builder made the part as a mesh.
@@ -2169,6 +2171,7 @@ pub fn evaluate_memo(
                     attach: attached.get(id).copied().unwrap_or(f.component.attach),
                     stage: f.component.stage,
                     made: Some(made.clone()),
+                    frame: frames.get(id).copied().unwrap_or(brep::Placement::IDENTITY),
                 });
                 continue;
             }
@@ -2212,6 +2215,7 @@ pub fn evaluate_memo(
             attach: attached.get(id).copied().unwrap_or(f.component.attach),
             stage: f.component.stage,
             made: None,
+            frame: frames.get(id).copied().unwrap_or(brep::Placement::IDENTITY),
         });
     }
     // Nothing built, nothing failed and no band is not a ring.

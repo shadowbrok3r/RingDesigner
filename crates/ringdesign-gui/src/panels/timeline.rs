@@ -52,8 +52,12 @@ pub fn route(app: &mut RingDesignerApp, doc: &Document, actions: Vec<Action>) {
         match action {
             Action::Select(id) => app.selection.click(Some(Sel::Part(id)), Mods::default()),
             Action::Edit(id) => {
-                app.selection.click(Some(Sel::Part(id)), Mods::default());
-                cad::ask(app, CadRequest::Select { feature: id });
+                // A sketch opens where it lies, in the Ring viewport; anything else in the CAD pane.
+                let sketch = doc.feature(id).is_some_and(|f| matches!(f.operation, ringdesign_core::cad::Operation::Sketch { .. }));
+                if !(sketch && crate::sketch_mode::start_in_ring(app, id)) {
+                    app.selection.click(Some(Sel::Part(id)), Mods::default());
+                    cad::ask(app, CadRequest::Select { feature: id });
+                }
             }
             Action::Isolate(id) => cad::ask(app, CadRequest::Isolate { feature: id }),
             edit => match timeline::edits(doc, &edit) {

@@ -665,3 +665,28 @@ fn sketch_mode_frame_cost_with_two_hundred_entities() {
     );
 }
 
+
+#[test]
+fn the_toolbar_undo_while_sketching_takes_back_the_stroke_and_leaves_the_document_alone() {
+    let mut h = harness();
+    let pane = court_with_a_box(&mut h);
+    sketch_on_the_top(&mut h, pane);
+    let entries = h.state().history.present();
+    tool(&mut h, "Rectangle");
+    let (a, b) = (on_plane(&h, pane, [-2.0, -1.5]), on_plane(&h, pane, [2.0, 1.5]));
+    tap(&mut h, a);
+    tap(&mut h, b);
+    assert_eq!(working(&h).entities.len(), 4, "{}", h.state().status);
+    // What the Undo button and the Edit menu call.
+    h.state_mut().undo();
+    h.run_steps(2);
+    assert!(crate::sketch_mode::active(h.state()), "still sketching");
+    assert_eq!(working(&h).entities.len(), 0, "the rectangle is taken back inside the sketch");
+    assert_eq!(h.state().history.present(), entries, "the document's history is untouched");
+    h.state_mut().redo();
+    h.run_steps(2);
+    assert_eq!(working(&h).entities.len(), 4, "and redo puts it back");
+    h.state_mut().jump_history(0);
+    assert_eq!(h.state().history.present(), entries, "a history jump waits until the sketch is finished or left");
+    assert!(h.state().status.contains("Finish or leave the sketch"), "{}", h.state().status);
+}

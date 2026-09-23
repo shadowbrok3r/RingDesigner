@@ -458,8 +458,7 @@ fn signed_edge(state: &CadState, part: u64, edge: usize) -> EdgeRef {
         .as_ref()
         .and_then(|v| {
             let c = v.evaluated.components.iter().find(|c| c.id == part)?;
-            let frame = c.settings.placement.frame(&v.design).ok()?;
-            Some(EdgeRef::signed(&c.body, edge, &frame))
+            Some(EdgeRef::signed(c.brep()?, edge, &c.frame))
         })
         .unwrap_or_else(|| EdgeRef::bare(edge))
 }

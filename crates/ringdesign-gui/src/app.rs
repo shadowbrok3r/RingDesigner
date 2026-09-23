@@ -837,7 +837,7 @@ impl RingDesignerApp {
 
     /// Takes back the last edit; with a viewport command live, takes back the command instead.
     pub fn undo(&mut self) {
-        if crate::command::cancel(self) {
+        if crate::command::cancel(self) || crate::sketch_mode::undo(self) {
             return;
         }
         self.history.commit(&self.design);
@@ -848,6 +848,9 @@ impl RingDesignerApp {
 
     pub fn redo(&mut self) {
         crate::command::cancel(self);
+        if crate::sketch_mode::redo(self) {
+            return;
+        }
         self.history.commit(&self.design);
         if let Some(d) = self.history.redo() {
             self.apply_history(d, "Redo");
@@ -855,6 +858,10 @@ impl RingDesignerApp {
     }
 
     pub fn jump_history(&mut self, index: usize) {
+        if crate::sketch_mode::active(self) {
+            self.set_status("Finish or leave the sketch before stepping through the history");
+            return;
+        }
         crate::command::cancel(self);
         if let Some(d) = self.history.jump_to(index) {
             self.apply_history(d, "History");

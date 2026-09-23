@@ -2,13 +2,11 @@
 use egui::{Color32, Event, EventFilter, Id, Key, KeyboardShortcut, Modifiers, Pos2, Rect, Stroke};
 use ringdesign_core::cad::edit::CadEdit;
 use ringdesign_core::cad::{self, Attach, Component, Feature, Operation, Profile};
-use ringdesign_core::Mesh;
 use ringdesign_core::sketch::{Region, Sketch, Workplane, anchor, fill};
 use ringdesign_workbench::command::{DimEvent, Dimension, DimensionBar, Unit};
 use ringdesign_workbench::icons::Icon;
 use ringdesign_workbench::sketch_tools::{self, Escaped, Input, Outcome, Snap, SnapCache, Tool, Tools, Underlay};
 use ringdesign_workbench::viewport::{Mods, Sel};
-use std::sync::Arc;
 
 use crate::app::RingDesignerApp;
 use crate::camera::Projector;
@@ -178,8 +176,6 @@ impl Live {
 #[derive(Default)]
 pub struct SketchMode {
     live: Option<Box<Live>>,
-    /// The band swept without parts, which the build seats parts on, by the band's inputs.
-    band: Option<(u64, Option<Arc<Mesh>>)>,
 }
 
 impl SketchMode {
@@ -231,6 +227,35 @@ impl SketchMode {
     }
 }
 
+/// Takes back the live sketch's own last edit, or backs a busy tool out; false when no sketch is live.
+pub fn undo(app: &mut RingDesignerApp) -> bool {
+    let nothing = {
+        let Some(live) = app.sketch.live.as_deref_mut() else { return false };
+        if live.tools.busy() {
+            live.tools.escape(&live.working);
+            false
+        } else {
+            !live.tools.undo(&mut live.working)
+        }
+    };
+    if nothing {
+        app.set_status("Nothing to undo in this sketch; finish or leave it to undo the document");
+    }
+    true
+}
+
+/// Puts back the live sketch's last undone edit; false when no sketch is live.
+pub fn redo(app: &mut RingDesignerApp) -> bool {
+    let nothing = {
+        let Some(live) = app.sketch.live.as_deref_mut() else { return false };
+        !live.tools.redo(&mut live.working)
+    };
+    if nothing {
+        app.set_status("Nothing to redo in this sketch");
+    }
+    true
+}
+
 /// Whether a sketch is being drawn in the Ring viewport.
 pub fn active(app: &RingDesignerApp) -> bool {
     app.sketch.is_live()
@@ -258,8 +283,7 @@ pub fn start_on_face(app: &mut RingDesignerApp, pane: usize, feature: u64, face:
         app.set_status(format!("Feature #{feature} is not a part on the ring to sketch on"));
         return;
     };
-    let band = bare_band(app);
-    let anchor = match anchor::on_face(&app.design, band.as_deref(), feature, &c.body, face as usize) {
+    let anchor = match anchor::on_face(&c.frame, feature, &c.body, face as usize) {
         Ok(a) => a,
         Err(e) => {
             app.set_status(format!("{e:#}"));
@@ -394,9 +418,7 @@ fn refresh_frame(app: &mut RingDesignerApp) {
     if live.frame.is_some() && live.build == key {
         return;
     }
-    let band = if live.working.plane.on_face.is_some() { bare_band(app) } else { None };
-    let Some(live) = app.sketch.live.as_deref() else { return };
-    let resolved = resolve(app, &live.working, band.as_deref());
+    let resolved = resolve(app, &live.working);
     let cut = |frame: &Frame| -> Vec<[[f64; 2]; 2]> {
         let (Some(build), Ok(plane)) = (app.build.as_ref(), frame.workplane().plane()) else { return Vec::new() };
         fill::slice(&build.mesh, &plane)
@@ -422,8 +444,8 @@ fn refresh_frame(app: &mut RingDesignerApp) {
     }
 }
 
-/// The world plane `sketch` lies on and the face it is drawn over, read off the build on screen seated on `band`.
-fn resolve(app: &RingDesignerApp, sketch: &Sketch, band: Option<&Mesh>) -> Result<(Frame, Vec<Vec<[f64; 3]>>), String> {
+/// The world plane `sketch` lies on and the face it is drawn over, read off the build on screen.
+fn resolve(app: &RingDesignerApp, sketch: &Sketch) -> Result<(Frame, Vec<Vec<[f64; 3]>>), String> {
     let Some(anchor) = &sketch.plane.on_face else {
         let p = sketch.plane.plane().map_err(|e| format!("{e:#}"))?;
         return Frame::new(p.origin, p.x_axis, p.y_axis).map(|f| (f, Vec::new())).ok_or_else(|| "The sketch's plane has no normal".to_string());
@@ -435,40 +457,10 @@ fn resolve(app: &RingDesignerApp, sketch: &Sketch, band: Option<&Mesh>) -> Resul
         .as_ref()
         .and_then(|e| e.components.iter().find(|c| c.id == anchor.feature))
         .ok_or_else(|| format!("Sketch face: feature #{} is not a part on the ring", anchor.feature))?;
-    let p = anchor::plane(&app.design, band, sketch, &c.body, &mut Vec::new()).map_err(|e| format!("{e:#}"))?;
+    let p = anchor::plane(sketch, &c.body, &c.frame, &mut Vec::new()).map_err(|e| format!("{e:#}"))?;
     let face = fill::face_outline(&c.body, &p, 0.01).unwrap_or_default();
     let frame = Frame::new(p.origin, p.x_axis, p.y_axis).ok_or("The face's plane has no normal")?;
     Ok((frame, face))
-}
-
-/// The band swept without parts, seats or stamps, as the build seats parts on it; `None` when the document replaces the band.
-fn bare_band(app: &mut RingDesignerApp) -> Option<Arc<Mesh>> {
-    if !app.design.band_is_procedural() {
-        return None;
-    }
-    let mut bare = ringdesign_core::setting::without_solids(&app.design);
-    bare.cad = None;
-    bare.graph = None;
-    let mut params = app.preview_params;
-    if app.as_cast {
-        params.soften_mm = app.design.draft.min_detail_mm;
-    }
-    let key = {
-        use std::hash::{Hash, Hasher};
-        let mut h = std::collections::hash_map::DefaultHasher::new();
-        serde_json::to_vec(&bare).unwrap_or_default().hash(&mut h);
-        serde_json::to_vec(&params).unwrap_or_default().hash(&mut h);
-        (Arc::as_ptr(&app.lib) as usize).hash(&mut h);
-        h.finish()
-    };
-    if let Some((k, band)) = &app.sketch.band
-        && *k == key
-    {
-        return band.clone();
-    }
-    let band = ringdesign_core::mesh::try_build(&bare, &app.lib, params).ok().map(|b| Arc::new(b.mesh));
-    app.sketch.band = Some((key, band.clone()));
-    band
 }
 
 /// Eases the pane's camera to look straight at the sketch's plane, its y up the screen and its centre in the middle.
@@ -964,16 +956,10 @@ pub fn input(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Re
         let out = live.tools.delete_chosen(&mut live.working);
         report(app, out);
     }
-    if let Some(live) = app.sketch.live.as_deref_mut() {
-        if claimed.undo {
-            if live.tools.busy() {
-                live.tools.escape(&live.working);
-            } else if !live.tools.undo(&mut live.working) {
-                app.set_status("Nothing to undo in this sketch; finish or leave it to undo the document");
-            }
-        } else if claimed.redo && !live.tools.redo(&mut live.working) {
-            app.set_status("Nothing to redo in this sketch");
-        }
+    if claimed.undo {
+        undo(app);
+    } else if claimed.redo {
+        redo(app);
     }
     if !app.sketch.is_live() {
         return took;

@@ -1,56 +1,28 @@
-//! A sketch anchored to a face of a part as the build seats it: the frame the part's references are
-//! signed in, a picked face signed there, and the plane an anchored sketch lies on.
+//! A sketch anchored to a face of a part as the build seats it: a picked face signed in the frame
+//! the build seated its part by (`EvaluatedComponent::frame`), and the plane an anchored sketch lies on.
 use super::{FaceAnchor, Sketch, Workplane};
-use crate::cad::{self, FaceRef, Operation, Placement};
-use crate::{Mesh, RingDesign};
+use crate::cad::{self, FaceRef};
 use anyhow::Result;
 use cadkernel::brep::{self, Body};
 
-/// The frame the build seats `feature` by: its ring placement on `surface`, an attached part's, a suppressed feature's source's, else none.
-pub fn seat_frame(design: &RingDesign, surface: Option<&Mesh>, feature: u64) -> brep::Placement {
-    let Some(doc) = &design.cad else { return brep::Placement::IDENTITY };
-    let band = doc.features.iter().find(|f| f.enabled && matches!(f.operation, Operation::Band)).map(|f| f.id);
-    let mut id = feature;
-    for _ in 0..=doc.features.len() {
-        let Some(f) = doc.feature(id) else { break };
-        let next = if !f.enabled {
-            f.operation.consumes().first().copied()
-        } else if f.component.placement != Placement::Free {
-            return f.component.placement.frame_on(design, surface).unwrap_or(brep::Placement::IDENTITY);
-        } else {
-            match f.operation {
-                Operation::Boolean { a, b, .. } if band.is_some_and(|x| x == a || x == b) => Some(if band == Some(a) { b } else { a }),
-                _ => None,
-            }
-        };
-        match next {
-            Some(n) => id = n,
-            None => break,
-        }
-    }
-    brep::Placement::IDENTITY
-}
-
-/// Face `face` of `feature`'s built `body` signed in that frame; refused in the core's words when it will not carry a sketch.
-pub fn on_face(design: &RingDesign, surface: Option<&Mesh>, feature: u64, body: &Body, face: usize) -> Result<FaceAnchor> {
-    let frame = seat_frame(design, surface, feature);
-    let anchor = FaceAnchor { feature, face: FaceRef::signed(body, face, &frame) };
+/// Face `face` of `feature`'s built `body` signed in `frame`, the one the build seated it by; refused in the core's words when it will not carry a sketch.
+pub fn on_face(frame: &brep::Placement, feature: u64, body: &Body, face: usize) -> Result<FaceAnchor> {
+    let anchor = FaceAnchor { feature, face: FaceRef::signed(body, face, frame) };
     let probe = Sketch { plane: Workplane { on_face: Some(anchor.clone()), ..Workplane::default() }, ..Sketch::default() };
-    cad::sketch_plane(&probe, body, &frame, &mut Vec::new())?;
+    cad::sketch_plane(&probe, body, frame, &mut Vec::new())?;
     Ok(anchor)
 }
 
-/// The world plane `sketch` lies on, read off the built `body` it is anchored to, with any refinding said in `notes`.
-pub fn plane(design: &RingDesign, surface: Option<&Mesh>, sketch: &Sketch, body: &Body, notes: &mut Vec<String>) -> Result<cadkernel::space::Plane> {
-    let frame = sketch.plane.on_face.as_ref().map_or(brep::Placement::IDENTITY, |a| seat_frame(design, surface, a.feature));
-    cad::sketch_plane(sketch, body, &frame, notes)
+/// The world plane `sketch` lies on, read off the built `body` it is anchored to in `frame`, with any refinding said in `notes`.
+pub fn plane(sketch: &Sketch, body: &Body, frame: &brep::Placement, notes: &mut Vec<String>) -> Result<cadkernel::space::Plane> {
+    cad::sketch_plane(sketch, body, frame, notes)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cad::{Attach, Boolean, Component, Document, Feature, Profile, evaluate_with, BuildCtx};
-    use crate::{AlphaLibrary, BuildParams, ProfileStyle};
+    use crate::cad::{Attach, Boolean, Component, Document, Feature, Operation, Placement, Profile, evaluate_with, BuildCtx};
+    use crate::{AlphaLibrary, BuildParams, ProfileStyle, RingDesign};
 
     fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
         a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
@@ -77,7 +49,10 @@ mod tests {
         d.cad = Some(doc);
         let never = std::sync::atomic::AtomicBool::new(false);
         let evaluate = |d: &RingDesign| evaluate_with(d, &lib, params, &BuildCtx::new(&never).with_surface(&band.mesh)).unwrap();
-        let body = evaluate(&d).components.iter().find(|c| c.id == 2).unwrap().body.clone();
+        let seated = evaluate(&d).components.into_iter().find(|c| c.id == 2).unwrap();
+        // The evaluation records the frame it seated the part by: the built surface's, not the reference crest's.
+        assert!(seated.frame == built);
+        let body = seated.body.clone();
         let faces: Vec<_> = body.faces.iter().map(|(k, _)| k).collect();
         let outward = |i: usize| brep::planar_face_profile(&body, faces[i]).map(|p| p.outward);
         let top = (0..faces.len()).max_by(|i, j| {
@@ -88,12 +63,11 @@ mod tests {
         let n = outward(top).unwrap();
         assert!(dot(n, built.z_axis) > 1.0 - 1e-9, "the top looks along the seat's normal");
         // The frame is the build's own, so the ordinal holds and nothing is found again.
-        assert!(seat_frame(&d, Some(&band.mesh), 2) == built);
-        let anchor = on_face(&d, Some(&band.mesh), 2, &body, top).unwrap();
+        let anchor = on_face(&seated.frame, 2, &body, top).unwrap();
         let mut notes = Vec::new();
         let mut square = Sketch::rectangle(1.0, 1.0);
         square.plane.on_face = Some(anchor);
-        let p = plane(&d, Some(&band.mesh), &square, &body, &mut notes).unwrap();
+        let p = plane(&square, &body, &seated.frame, &mut notes).unwrap();
         assert!(notes.is_empty() && dot(p.normal().unwrap(), n) > 1.0 - 1e-9, "{notes:?}");
         // A square on it, extruded half a millimetre, stands on the top.
         let stand = |square: &Sketch| {
@@ -116,13 +90,14 @@ mod tests {
         let e = stand(&stale);
         assert!(e.failures().iter().any(|(id, why)| *id == 3 && why.contains("no longer")), "{:?}", e.failures());
         assert!(!e.components.iter().any(|c| c.id == 4));
-        // A boolean against the band seats as the part it attaches; a feature made from a part keeps no seat.
-        let doc = d.cad.as_mut().unwrap();
-        doc.append(feature(5, Operation::Boolean { a: 1, b: 2, kind: Boolean::Union }, Component::default())).unwrap();
-        doc.append(feature(6, Operation::Fillet { source: 2, edges: Vec::new(), radius_mm: 0.1 }, Component::default())).unwrap();
-        assert!(seat_frame(&d, Some(&band.mesh), 5) == built);
-        assert!(seat_frame(&d, Some(&band.mesh), 6) == brep::Placement::IDENTITY);
-        d.cad.as_mut().unwrap().features.iter_mut().find(|f| f.id == 6).unwrap().enabled = false;
-        assert!(seat_frame(&d, Some(&band.mesh), 6) == built, "a suppressed feature passes its source's seat through");
+        // A boolean against the band seats as the part it attaches, and a suppressed feature passes its source's seat through.
+        let frame_of = |d: &RingDesign, id: u64| evaluate(d).components.into_iter().find(|c| c.id == id).map(|c| c.frame);
+        let mut joined = d.clone();
+        joined.cad.as_mut().unwrap().append(feature(5, Operation::Boolean { a: 1, b: 2, kind: Boolean::Union }, Component::default())).unwrap();
+        assert!(frame_of(&joined, 5) == Some(built));
+        let mut suppressed = d.clone();
+        suppressed.cad.as_mut().unwrap().append(feature(6, Operation::Transform { source: 2, translation: [0.0; 3], rotation_deg: [0.0; 3] }, Component::default())).unwrap();
+        suppressed.cad.as_mut().unwrap().features.iter_mut().find(|f| f.id == 6).unwrap().enabled = false;
+        assert!(frame_of(&suppressed, 6) == Some(built));
     }
 }

@@ -1432,6 +1432,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         if app.command.box_armed {
             s.push_str(" · box select armed");
         }
+        if crate::sketch_mode::active(app) {
+            s.push_str(" · sketching");
+        }
         s
     };
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, label.clone()));
