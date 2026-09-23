@@ -184,7 +184,7 @@ impl DesignEngine {
         let built = self.ensure_built();
         let name = self.design.name.clone();
         let size = self.design.size.display();
-        crate::threemf::write_3mf(path, &built.mesh, &name, &size)
+        crate::threemf::write_3mf_objects(path, &crate::threemf::objects(&built, &name), &name, &size)
     }
 
     pub fn save_design(&self, path: impl AsRef<Path>) -> anyhow::Result<()> {

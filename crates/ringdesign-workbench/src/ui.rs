@@ -501,7 +501,7 @@ impl Workshop {
                         ui.selectable_value(&mut f.component.material, m.name.into(), m.name);
                     }
                 });
-            cad_tools::placement(ui, &mut f.component.placement);
+            cad_tools::seat(ui, &mut f.component.placement, &mut f.operation);
             cad_tools::attachment(ui, &mut f.component);
             ui.text_edit_multiline(&mut f.component.bench_notes);
             if ui

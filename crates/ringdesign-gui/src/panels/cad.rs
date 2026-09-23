@@ -1886,7 +1886,7 @@ fn component_ui(ui: &mut egui::Ui, f: &mut Feature) {
                 ui.selectable_value(&mut c.material, m.name.to_string(), m.name);
             }
         });
-    cad_tools::placement(ui, &mut c.placement);
+    cad_tools::seat(ui, &mut c.placement, &mut f.operation);
     cad_tools::attachment(ui, c);
     if c.reference {
         let id = c.stone_id.get_or_insert_with(|| format!("stone-{}", f.id));

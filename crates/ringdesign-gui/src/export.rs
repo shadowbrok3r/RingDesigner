@@ -210,8 +210,10 @@ pub fn export_3mf(app: &mut RingDesignerApp) {
             ),
             None => job.design.size.display(),
         };
-        let (mesh, name) = job.pattern(&out.mesh);
-        match threemf::write_3mf(&path, &mesh, &name, &size) {
+        let (_, name) = job.pattern(&ringdesign_core::Mesh::default());
+        let k = job.shrink.and_then(|i| metal::METALS.get(i)).map_or(1.0, |m| metal::pattern_scale(m.shrink_pct));
+        let objects: Vec<threemf::Object> = threemf::objects(&out, &name).iter().map(|o| o.scaled(k)).collect();
+        match threemf::write_3mf_objects(&path, &objects, &name, &size) {
             Ok(bytes) => format!(
                 "Wrote {} • {} tris • {:.1} KB • units mm stated{}",
                 path.display(),

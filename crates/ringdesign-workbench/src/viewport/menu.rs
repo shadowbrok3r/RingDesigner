@@ -320,8 +320,10 @@ mod tests {
         let items = context_items(&sel, Some(&face), &d);
         assert_eq!(heading(&sel, Some(&face), &d).as_deref(), Some("Face 1 of Bezel"));
         assert_eq!(items[0].action, MenuAction::SketchOnFace { feature: 3, face: 1 });
-        assert_eq!(items[1].action, MenuAction::PressPull { feature: 3, face: 1 });
-        assert_eq!(items.len(), 17, "a face has the part's items, a sketch on it, a press-pull and the patterns");
+        let stones = ringdesign_core::cad::builders::STONES.len();
+        assert!(items[1..=stones].iter().all(|i| i.submenu == Some("Add stone here") && matches!(i.action, MenuAction::AddStoneOnFace { feature: 3, face: 1, .. })));
+        assert_eq!(items[1 + stones].action, MenuAction::PressPull { feature: 3, face: 1 });
+        assert_eq!(items.len(), 17 + stones, "a face has the part's items, a sketch on it, the stones it can seat, a press-pull and the patterns");
         assert!(!items.iter().any(|i| matches!(i.action, MenuAction::FilletEdge { .. })));
     }
 
