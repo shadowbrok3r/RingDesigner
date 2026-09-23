@@ -1,11 +1,13 @@
-//! Touch input shared by the apps: gesture classification, touch-sized hit areas, box select, Measure, work planes and the CAD edit funnel's platform-free half.
+//! Touch input shared by the apps: gesture classification, touch-sized hit areas, box select, Measure, work planes, sketching, a part shown alone and the CAD edit funnel's platform-free half.
 pub mod boxes;
 pub mod funnel;
 pub mod gesture;
 pub mod hit;
+pub mod isolate;
 pub mod measure;
 pub mod parts;
 pub mod planes;
+pub mod sketch;
 
 pub use funnel::{Prepared, prepare};
 pub use gesture::{Contact, Gesture, Phase, Signal, Tracker};

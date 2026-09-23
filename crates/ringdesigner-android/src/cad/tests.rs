@@ -442,7 +442,7 @@ fn the_commands_bars_stand_away_from_the_finger_and_never_overlap_even_when_the_
     b.step(Vec::new());
     b.step(Vec::new());
     let areas = |b: &Bench| {
-        let [_, caption, fields, _] = super::areas().map(|id| b.ctx.memory(|m| m.area_rect(id)));
+        let [_, caption, fields, _, _, _] = super::areas().map(|id| b.ctx.memory(|m| m.area_rect(id)));
         (caption.expect("the caption is drawn"), fields.expect("the fields are drawn"))
     };
     let (caption, fields) = areas(&b);
@@ -503,7 +503,10 @@ fn a_long_press_opens_the_posts_menu_and_its_rows_serve_attach_and_refuse_what_t
     assert!(matches!(edits[0].as_slice(), [CadEdit::Attach { id: 2, attach: Attach::Cut }]));
     assert_eq!(edits.len(), 1, "the post stands on the band's mid-plane, so its mirror across it is refused: {asked:?}");
     assert!(asked.iter().any(|r| matches!(r, Request::Status(s) if s.contains("stands on that plane"))));
-    assert!(asked.iter().any(|r| matches!(r, Request::Status(s) if s.starts_with("Not on the phone yet"))));
+    // A sketch on the band where it was pressed opens square to it.
+    assert!(b.cad.sketching());
+    assert!(asked.iter().any(|r| matches!(r, Request::Look(_))));
+    assert!(asked.iter().any(|r| matches!(r, Request::Status(s) if s.starts_with("Sketching · Select"))), "{asked:?}");
 }
 
 #[test]
@@ -733,14 +736,13 @@ fn a_work_plane_is_drawn_chosen_by_a_tap_and_held_for_its_menu_which_mirrors_the
     assert_eq!(b.cad.planes.chosen, Some(3));
     assert_eq!(b.cad.selection.items, [Sel::Part(2)], "choosing a plane leaves the parts as they were");
     assert!(b.said().last().is_some_and(|s| s.starts_with("Work plane Section at 0°")));
-    // Held, it opens its own menu: sketching greyed until the phone sketches, the mirror offered, hiding.
+    // Held, it opens its own menu: a sketch on it, the mirror offered, hiding.
     assert!(b.hold(edge));
     let m = b.cad.planes.menu.clone().expect("the plane's menu is open");
     assert!(b.cad.menu.is_none(), "not the ring's menu");
     assert_eq!(m.heading, "Work plane: Section at 0°");
     let rows: Vec<(&str, bool)> = m.rows.iter().map(|r| (r.label, r.enabled)).collect();
-    assert_eq!(rows, [("Sketch on this plane", false), ("Mirror the chosen part across it", true), ("Hide work planes", true)]);
-    assert_eq!(m.rows[0].hint, menu::NO_SKETCH);
+    assert_eq!(rows, [("Sketch on this plane", true), ("Mirror the chosen part across it", true), ("Hide work planes", true)]);
     assert_eq!(m.rows[1].hint, "Cylinder reflected across Section at 0°, one new Mirror feature");
     let drawn = b.ctx.memory(|mem| mem.area_rect(menu::area())).expect("the menu is drawn");
     assert!(RECT.contains_rect(drawn), "{drawn:?}");
@@ -791,4 +793,153 @@ fn a_work_plane_is_drawn_chosen_by_a_tap_and_held_for_its_menu_which_mirrors_the
     assert!(!rows[1].enabled && rows[1].hint == "Choose a part on the ring first, then hold the plane");
     b.cad.selection.click(Some(Sel::Part(3)), Mods::default());
     assert!(planes::mirrorable(&b.d, &b.cad.selection, 3).is_err());
+}
+
+/// The planar face of part `id` facing out along +y, the ring's top.
+fn top_face(built: &Built, id: Id) -> u32 {
+    let c = built.evaluated().unwrap().components.iter().find(|c| c.id == id).unwrap();
+    (0..c.trace.face_kind.len() as u32).find(|f| ringdesign_core::cad::pattern::planar_face(c, *f).is_ok_and(|(_, _, n)| n[1] > 0.99)).expect("the part has a face on top")
+}
+
+#[test]
+fn a_sketch_on_the_posts_end_squares_the_view_draws_by_taps_and_extrudes_as_one_undo_step() {
+    use ringdesign_workbench::{sketch_tools::Tool, touch::sketch::Make};
+    let mut b = Bench::new(posted());
+    b.step(Vec::new());
+    let face = top_face(&b.built, 2);
+    // Held, the post's end offers a sketch on it and a work plane on it.
+    assert!(b.hold(b.post()));
+    let m = b.cad.menu.clone().expect("the post's menu is open");
+    assert!(m.items.iter().any(|i| i.enabled && i.action == MenuAction::SketchOnFace { feature: 2, face }));
+    assert!(m.extras.iter().any(|x| x.enabled && x.act == menu::Extra::PlaneOnFace { feature: 2, face }), "{:?}", m.extras);
+    // Its row chosen, the popup is gone by the time a finger comes back to the ring.
+    b.cad.menu = None;
+    b.step(Vec::new());
+    b.cad.take_requests();
+    let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
+    let lib = AlphaLibrary::builtin();
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    b.cad.act(&v, MenuAction::SketchOnFace { feature: 2, face });
+    assert!(b.cad.sketching());
+    // The view turns square to the face, its normal toward the eye.
+    let look = b.cad.take_requests().into_iter().find_map(|r| if let Request::Look(p) = r { Some(p) } else { None }).expect("the camera turns");
+    b.camera.set_pose(look);
+    let frame = *b.cad.sketch().unwrap().pad.frame().expect("the face's plane is read");
+    let (_, forward) = b.camera.ray(RECT, RECT.center());
+    assert!((0..3).map(|k| f64::from(forward[k]) * frame.n[k]).sum::<f64>() < -0.999, "looking straight at the face: {forward:?}");
+    let proj = b.camera.projector(RECT);
+    let centre = proj.at(frame.origin.map(|x| x as f32));
+    assert!((centre - RECT.center()).length() < 1.0, "the face mid-view: {centre:?}");
+    // Two taps through the camera draw a 1 × 1 mm square on the face; each tap is the sketch's.
+    let screen = |uv: [f64; 2]| proj.at(frame.point(uv).map(|x| x as f32));
+    b.cad.sketch_mut().unwrap().pad.set_tool(Tool::Rectangle);
+    assert!(b.tap(screen([-0.5, -0.5])).tap);
+    b.tap(screen([0.5, 0.5]));
+    assert_eq!(b.cad.sketch().unwrap().pad.working.entities.len(), 4);
+    let said = b.said();
+    assert!(said.iter().any(|s| s.starts_with("Rectangle 1.000 × 1.000")), "{said:?}");
+    // A finger held on the ring keeps the view from turning; a drag from nothing in Select pans it.
+    b.cad.sketch_mut().unwrap().pad.set_tool(Tool::Select);
+    assert!(b.drag(screen([-1.2, -1.0]), screen([-0.9, -0.8]), 3), "every step of the drag is the sketch's");
+    let pans = b.cad.take_requests().into_iter().filter(|r| matches!(r, Request::Pan { .. })).count();
+    assert!(pans >= 3, "{pans} pans");
+    // Finish finds the region; the view tilts to watch an extrusion rise.
+    let pad = &mut b.cad.sketch_mut().unwrap().pad;
+    assert!(matches!(pad.finish(), ringdesign_workbench::sketch_tools::Outcome::Edited(_)));
+    pad.make(Make::Extrude);
+    b.step(Vec::new());
+    let tilt = b.cad.take_requests().into_iter().find_map(|r| if let Request::Look(p) = r { Some(p) } else { None }).expect("the camera tilts");
+    b.camera.set_pose(tilt);
+    // Its arrow rises under the finger by all the finger moved along it, the slop before the drag included.
+    let (grab, lift) = {
+        let v = View { rect: RECT, camera: &b.camera, design: &b.d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
+        let (foot, tip) = Cad::arrow(b.cad.sketch_mut().unwrap(), &v, sketch::px_per_mm(&v)).expect("the arrow stands on the extrusion");
+        let grab = foot.lerp(tip, 0.5);
+        (grab, grab + (tip - foot).normalized() * 40.0)
+    };
+    let reach = |b: &mut Bench, p: Pos2| {
+        let (o, d) = b.camera.ray(RECT, p);
+        let pad = &mut b.cad.sketch_mut().unwrap().pad;
+        let (n, foot) = (pad.frame().unwrap().n, pad.anchor().unwrap());
+        ringdesign_workbench::command::along_line(ringdesign_core::interaction::pick::Ray { origin: o.map(f64::from), direction: d.map(f64::from) }, foot, n).unwrap()
+    };
+    let want = reach(&mut b, lift) - reach(&mut b, grab);
+    let before = b.cad.sketch().unwrap().pad.height_mm();
+    assert!(b.drag(grab, lift, 4), "the arrow holds the view");
+    let rose = b.cad.sketch().unwrap().pad.height_mm() - before;
+    assert!(want > 0.2 && (rose - want).abs() <= 0.026, "rose {rose:.3} mm under a finger that moved {want:.3} mm along the arrow");
+    // Typed 0.6 high, the extrusion leaves as one funnel commit.
+    b.cad.sketch_mut().unwrap().pad.typed("height", 0.6);
+    b.cad.sketch_commit(&v);
+    let Some(Request::Edit { edits, then }) = b.cad.take_requests().into_iter().find(|r| matches!(r, Request::Edit { .. })) else { panic!("finishing is an edit") };
+    assert_eq!(then, Then::LastAdded);
+    assert!(b.cad.sketching(), "the sketch stays until its edit lands");
+    let mut d = b.d.clone();
+    let mut history = History::new(&d);
+    let done = commit(&mut d, &mut history, &edits, b.built.evaluated()).unwrap().unwrap();
+    assert_eq!(done.label, "Add Sketch · Add Extrude");
+    assert_eq!(history.timeline().len(), 2, "one undo step");
+    // Landed, the sketch closes, the camera turns back to where it opened, and a post shown alone lets the ring back round the new solid.
+    b.cad.isolated = Some(2);
+    b.cad.edit_landed(true);
+    assert!(!b.cad.sketching());
+    assert_eq!(b.cad.isolated, None);
+    assert!(b.cad.take_requests().iter().any(|r| matches!(r, Request::Look(p) if *p == camera.pose())), "back to the view the sketch opened from");
+    // Built, the square stands 0.6 mm proud of the post's end: 0.6 mm³ of its own, joined into the ring.
+    let extrude = done.applied.last().and_then(|a| a.id).unwrap();
+    let after = Bench::new(d);
+    let c = after.built.evaluated().unwrap().components.iter().find(|c| c.id == extrude).expect("the extrusion built");
+    assert!((c.mesh.volume_mm3() - 0.6).abs() < 1e-3, "{}", c.mesh.volume_mm3());
+    let grew = after.built.volume_mm3() - b.built.volume_mm3();
+    assert!((grew - 0.6).abs() < 0.01, "{grew}");
+}
+
+#[test]
+fn a_work_plane_by_touch_waits_on_the_face_for_its_offset_and_a_part_is_asked_to_stand_alone() {
+    let mut b = Bench::new(posted());
+    b.step(Vec::new());
+    let face = top_face(&b.built, 2);
+    let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
+    let lib = AlphaLibrary::builtin();
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    // The Actions button's menu for a chosen face offers the plane too, and a curved face refuses one by name.
+    let chosen = Sel::Face { feature: 2, face };
+    assert!(menu::extras(None, Some(&chosen), b.built.evaluated(), None).iter().any(|x| x.enabled && x.act == menu::Extra::PlaneOnFace { feature: 2, face }));
+    let post = b.built.evaluated().unwrap().components.iter().find(|c| c.id == 2).unwrap();
+    let side = (0..post.trace.face_kind.len() as u32).find(|f| post.trace.face_kind[*f as usize] == ringdesign_core::cad::SurfaceKind::Cylinder).unwrap();
+    let curved = menu::extras(None, Some(&Sel::Face { feature: 2, face: side }), b.built.evaluated(), None);
+    assert!(!curved[0].enabled && curved[0].hint.ends_with("is a cylinder; a work plane lies on a flat face"), "{:?}", curved[0].hint);
+    b.cad.extra(&v, menu::Extra::PlaneOnFace { feature: 2, face });
+    assert!(b.cad.live.is_live());
+    assert_eq!(b.cad.live.session.command().map(|c| c.key()), Some("work-plane"));
+    assert_eq!(b.cad.live.session.dimensions()[0].key, "offset");
+    let prompt = b.cad.live.session.prompt();
+    assert!(prompt.starts_with("Work plane: drag the arrow") && b.said().contains(&prompt), "the status line says what the bar does: {prompt}");
+    // Typed and done, it is one new Plane feature on the post's end, 0.4 mm off it.
+    b.cad.live.session.feed(ringdesign_workbench::command::StepInput::Typed { key: "offset", value: 0.4 });
+    let ringdesign_workbench::command::Outcome::Commit(effects) = b.cad.live.session.enter() else { panic!("Done makes the plane") };
+    let (edits, _) = touch::parts::effect_edits(&b.d, effects);
+    let [CadEdit::Add { feature, .. }] = edits.as_slice() else { panic!("{edits:?}") };
+    assert!(matches!(&feature.operation, Operation::Plane { base: ringdesign_core::cad::PlaneBase::Face { feature: 2, .. }, offset_mm } if (*offset_mm - 0.4).abs() < 1e-12));
+    assert_eq!(feature.name, "On Cylinder +0.40 mm");
+    // Landed, the plane is chosen on the planes layer and the part choice is left as it was; a body is chosen as a part.
+    let mut landed = b.d.clone();
+    let done = commit(&mut landed, &mut History::new(&b.d), &edits, None).unwrap().unwrap();
+    let plane = done.applied.last().and_then(|a| a.id).unwrap();
+    b.cad.selection.click(Some(chosen.clone()), Mods::default());
+    b.cad.choose_made(&landed, plane);
+    assert_eq!((b.cad.planes.chosen, b.cad.selection.items.clone()), (Some(plane), vec![chosen]));
+    b.cad.choose_made(&landed, 2);
+    assert_eq!(b.cad.selection.items, [Sel::Part(2)]);
+    // At an angle through the axis it waits for the keyboard.
+    b.cad.extra(&v, menu::Extra::PlaneAtAngle { theta_deg: 35.0 });
+    assert_eq!((b.cad.live.session.dimensions()[0].key, b.cad.live.session.dimensions()[0].value), ("angle", 35.0));
+    b.cad.live.cancel(&mut Vec::new());
+    // Isolate in CAD asks the app to show the post alone; Show all brings the ring back.
+    b.cad.act(&v, MenuAction::IsolateInCad(2));
+    assert!(b.cad.take_requests().iter().any(|r| matches!(r, Request::Isolate(Some(2)))));
+    b.cad.isolated = Some(2);
+    assert!(menu::extras(None, None, b.built.evaluated(), b.cad.isolated).iter().any(|x| x.act == menu::Extra::ShowAll));
+    b.cad.extra(&v, menu::Extra::ShowAll);
+    assert!(b.cad.take_requests().iter().any(|r| matches!(r, Request::Isolate(None))));
 }

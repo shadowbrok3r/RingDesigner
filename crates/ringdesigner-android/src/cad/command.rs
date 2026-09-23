@@ -291,9 +291,9 @@ impl Live {
         self.hold.is_some()
     }
 
-    /// How far a live press-pull has taken its face, mm.
+    /// How far a live press-pull has taken its face, or a work plane stands off its face, mm.
     fn pulled(&self) -> f64 {
-        self.session.dimensions().iter().find(|d| d.key == "distance").map_or(0.0, |d| d.value)
+        self.session.dimensions().iter().find(|d| matches!(d.key, "distance" | "offset")).map_or(0.0, |d| d.value)
     }
 
     /// A new build is on screen: a lingering ghost may go.
@@ -630,10 +630,31 @@ impl Live {
         Ok(format!("{}: drag the arrow out or in and lift, or type a distance", self.session.prompt()))
     }
 
+    /// Starts a work plane by touch: on a face its arrow drags the offset or the keyboard types it, through the axis it waits for its angle.
+    pub fn plane(&mut self, c: &Ctx, cmd: touch::planes::PlaneCmd) -> String {
+        let (along, key) = (cmd.along(), cmd.key());
+        self.start(Box::new(cmd), None, None);
+        self.pull = along;
+        self.watch = along.map(|(centre, _)| centre).or_else(|| c.build.and_then(|b| b.bounds()).map(|(lo, hi)| [f64::from(lo.0 + hi.0) * 0.5, f64::from(hi.1), 0.0]));
+        if along.is_none() {
+            self.focus = Some(key);
+        }
+        self.bar.prefer(Some(key));
+        self.session.prompt()
+    }
+
     /// Draws the ghost, the gizmo or the handle held, the press-pull's arrow, the snap landed on, and the bars.
     pub fn draw(&mut self, ui: &mut egui::Ui, c: &Ctx, renderer: &Mutex<GpuMeshRenderer>, out: &mut Vec<Request>) {
         self.ghost(c, renderer);
         let painter = ui.painter_at(c.rect);
+        // A work plane being made stands where Done would put it.
+        if let (Some(cmd), Some(build)) = (self.session.command().filter(|cmd| cmd.key() == "work-plane"), c.build)
+            && let Some(op) = cmd.preview().operation
+            && let Some(corners) = touch::planes::preview_shape(&op, self.pull, &build.0)
+        {
+            let points: Vec<Pos2> = corners.iter().map(|p| c.project(*p)).collect();
+            painter.add(egui::Shape::convex_polygon(points, crate::theme::AQUA.gamma_multiply(0.14), egui::Stroke::new(2.0, crate::theme::AQUA)));
+        }
         match &self.hold {
             Some((Held::Handle { handle, gizmo }, _)) => {
                 let mut gizmo = (**gizmo).clone();

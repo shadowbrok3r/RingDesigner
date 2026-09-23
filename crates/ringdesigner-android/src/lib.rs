@@ -25,6 +25,7 @@ pub mod reel;
 pub mod ring;
 pub mod similar;
 pub mod sketch;
+pub mod status;
 pub mod stones;
 pub mod util;
 pub mod viewport;

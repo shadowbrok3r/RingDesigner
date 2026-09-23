@@ -15,8 +15,10 @@ use ringdesign_workbench::{
 pub enum Routed {
     /// Choose the part, as a tap on it would.
     Choose(Id),
-    /// Open the feature's numbers, which on the phone live on the Workshop's CAD tab.
+    /// Open the feature's numbers, which on the phone live on the Workshop's CAD tab; a sketch opens on the ring.
     Edit(Id),
+    /// Show the part alone on the ring.
+    Isolate(Id),
     /// Edits for the funnel, in the order it must apply them.
     Commit(Vec<CadEdit>),
     /// Something to say instead: a refusal, or what the phone does not do yet.
@@ -48,7 +50,7 @@ pub fn route(doc: &Document, actions: Vec<Action>) -> Vec<Routed> {
         match action {
             Action::Select(id) => out.push(Routed::Choose(id)),
             Action::Edit(id) => out.push(Routed::Edit(id)),
-            Action::Isolate(_) => out.push(Routed::Say(super::menu::NO_ISOLATE.into())),
+            Action::Isolate(id) => out.push(Routed::Isolate(id)),
             edit => match timeline::edits(doc, &edit) {
                 Ok(e) => edits.extend(e),
                 Err(reason) => {
@@ -90,7 +92,7 @@ mod tests {
         assert_eq!(refused, [Routed::Say("Delete Post: 1 feature depends on this: Fillet".into())]);
         let Routed::Commit(both) = &route(&d, vec![Action::DeleteWithDependents(2)])[0] else { panic!() };
         assert_eq!(both.iter().map(CadEdit::label).collect::<Vec<_>>(), ["Remove #3", "Remove #2"], "the reader goes first");
-        assert_eq!(route(&d, vec![Action::Isolate(2), Action::Edit(2)]), [Routed::Say(crate::cad::menu::NO_ISOLATE.into()), Routed::Edit(2)]);
+        assert_eq!(route(&d, vec![Action::Isolate(2), Action::Edit(2)]), [Routed::Isolate(2), Routed::Edit(2)]);
     }
 
     #[test]

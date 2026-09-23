@@ -52,10 +52,13 @@ impl MenuAvoidance {
 
 /// Translation with the most visible projected ring area, preferring the
 /// smallest movement on ties. Scale and orientation are deliberately unchanged.
-/// Overlapping menus count once. If the whole ring cannot fit, expose as much
-/// as possible without zooming away from the user's chosen detail level.
+/// Overlapping menus count once. A ring the view cannot hold whole is a
+/// close-up and is left where it was framed.
 pub fn clearance(view: Rect, ring: Rect, overlays: &[Rect]) -> Vec2 {
     if !view.is_positive() || !ring.is_positive() || !ring.is_finite() {
+        return Vec2::ZERO;
+    }
+    if ring.width() > view.width() || ring.height() > view.height() {
         return Vec2::ZERO;
     }
     let obstacles: Vec<_> = overlays
@@ -151,15 +154,14 @@ mod tests {
     }
 
     #[test]
-    fn overlapping_menus_and_impossible_fit_remain_finite() {
+    fn overlapping_menus_count_once_and_a_close_up_is_never_panned() {
         let menu = rect(0., 0., 250., 220.);
         assert_eq!(union_area(&[menu, menu]), menu.area());
-        let shift = clearance(
-            rect(0., 0., 320., 200.),
-            rect(-100., -80., 500., 350.),
-            &[menu, menu],
-        );
-        assert!(shift.is_finite());
+        assert_eq!(clearance(rect(0., 0., 320., 200.), rect(-100., -80., 500., 350.), &[menu, menu]), Vec2::ZERO);
+        // A part framed close at the ring's rim: the ring's box reaches far past the view, and the keyboard's bar would have centred the bore.
+        let view = rect(0., 0., 420., 520.);
+        let ring = rect(-900., 200., 2300., 2300.);
+        assert_eq!(clearance(view, ring, &[rect(0., 440., 420., 80.)]), Vec2::ZERO);
     }
 
     #[test]

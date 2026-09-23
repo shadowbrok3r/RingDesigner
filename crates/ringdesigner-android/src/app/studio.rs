@@ -8,7 +8,7 @@ use ringdesign_workbench::visual::{Pointer as VisualPointer, Tool as VisualTool}
 
 impl RingApp {
     pub(super) fn clear_viewport_selection(&mut self) {
-        let isolated = self.editor.isolate;
+        let isolated = self.editor.isolate || self.cad.isolated.take().is_some();
         self.cad.clear();
         self.editor.reset_selection();
         self.probe_info = None;
@@ -210,6 +210,23 @@ impl RingApp {
         });
     }
 
+    /// The status line under the ring: what the app last said, lit while fresh; a tap shows it whole or cuts it back to one row.
+    fn status_line(&mut self, ui: &mut egui::Ui) {
+        let now = ui.input(|i| i.time);
+        let fresh = self.status_seen.fresh(&self.status, now);
+        let color = if fresh { crate::theme::AQUA_BRIGHT } else { crate::theme::INK_DIM };
+        let text = egui::RichText::new(&self.status).size(12.0).color(color);
+        let label = if self.status_seen.open { egui::Label::new(text).wrap() } else { egui::Label::new(text).truncate() };
+        let r = ui.add(label.sense(egui::Sense::click()));
+        editor::layout::record(ui, "viewport/status", r.rect);
+        if r.clicked() {
+            self.status_seen.open = !self.status_seen.open;
+        }
+        if let Some(left) = self.status_seen.fades_in(now) {
+            ui.ctx().request_repaint_after(Duration::from_secs_f64(left));
+        }
+    }
+
     pub(super) fn zoom_controls(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             for (label, factor) in [("Zoom out", 1.0 / 1.2), ("Zoom in", 1.2)] {
@@ -363,7 +380,12 @@ impl RingApp {
     pub(super) fn studio_ui(&mut self, ui: &mut egui::Ui, host: &Host) {
         crate::theme::ambience(ui.ctx());
         if !egui::Popup::is_any_open(ui.ctx()) && !ringdesign_graph_ui::alpha_picker::is_open(ui.ctx()) && !ringdesign_workbench::feedback::is_open(ui.ctx()) && !ui.ctx().egui_wants_keyboard_input() && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
-            self.clear_viewport_selection();
+            // While sketching the back key steps back through the sketch instead.
+            if self.cad.sketching() {
+                self.cad.sketch_back();
+            } else {
+                self.clear_viewport_selection();
+            }
         }
         let safe = ui.available_rect_before_wrap();
         crate::theme::set_content_bounds(ui.ctx(), safe);
@@ -846,10 +868,18 @@ impl RingApp {
                 } else {
                     self.dfm_sheet(ui);
                 }
+                let mut chosen = None;
                 if let Some(report) = &self.field {
                     for note in &report.notes {
                         ui.label(note);
                     }
+                    chosen = crate::report::parts_section(ui, &crate::report::part_rows(report));
+                }
+                // A part's line chosen: the part is chosen on the ring, and the status says how it reads.
+                if let Some(id) = chosen.filter(|id| self.design.cad.as_ref().is_some_and(|d| d.feature(*id).is_some())) {
+                    self.cad.choose(id);
+                    let note = self.field.as_ref().and_then(|f| f.parts.iter().find(|p| p.feature == id)).map(|p| p.note.clone());
+                    self.status = note.unwrap_or_else(|| format!("#{id} chosen"));
                 }
                 if ui.button("Detailed mould analysis & repairs").clicked() {
                     self.tab = Tab::Workshop;
@@ -1006,6 +1036,12 @@ impl RingApp {
             .show(ui, |ui| {
                 use ringdesign_workbench::icons::{self, Icon};
                 ui.horizontal(|ui| {
+                    // A live sketch owns the ring: its own bars carry every action.
+                    if self.tab == Tab::Ring && self.cad.sketching() {
+                        ui.add(Icon::CadSketch.image(ui, 16.));
+                        ui.add(egui::Label::new(egui::RichText::new("Sketching · one finger draws · two fingers pan and zoom").small().color(crate::theme::AQUA)).truncate());
+                        return;
+                    }
                     let selected = self.editor.selection.is_some() || self.selected_layer.is_some() || self.graph.shown.is_some() || self.visual.tool != VisualTool::Select || self.editor.mode == Mode::Shape && self.editor.guides && self.editor.handles_active || !self.cad.selection.items.is_empty();
                     let clear = ui.add_enabled_ui(selected, |ui| icons::button(ui, Icon::Close, "Clear", false, egui::vec2(62.,28.))).inner;
                     editor::layout::record(ui, "viewport/Clear", clear.rect);
@@ -1055,6 +1091,11 @@ impl RingApp {
             egui::Panel::bottom(egui::Id::new("viewport-feature-strip"))
                 .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(4, 2)))
                 .show(ui, |ui| self.feature_strip(ui));
+        }
+        if self.tab == Tab::Ring {
+            egui::Panel::bottom(egui::Id::new("viewport-status-line"))
+                .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(8, 2)))
+                .show(ui, |ui| self.status_line(ui));
         }
         let rect = ui.available_rect_before_wrap();
         self.floating_tools(ui.ctx(), rect, host);
@@ -1165,6 +1206,7 @@ impl RingApp {
             .unwrap_or(self.design.draft.parting_z_mm);
         let (changed, stone_pick) = if !floating_blocked
             && !graph_sheet
+            && !self.cad.sketching()
             && matches!(self.visual.tool, VisualTool::Select | VisualTool::Clearance)
         {
             editor::overlay::draw(
@@ -1267,7 +1309,7 @@ impl RingApp {
             let project=self.pane.camera.projector(view.rect);
             ringdesign_workbench::paint_preview::draw(ui,view.rect,|p|project.at(p));
         }
-        if !floating_blocked && self.visual.tool == VisualTool::Select {
+        if !floating_blocked && !self.cad.sketching() && self.visual.tool == VisualTool::Select {
             if let Some(mesh) = &self.preview_mesh {
                 let camera = self.pane.camera; let project = camera.projector(view.rect);
                 ringdesign_workbench::hover::show(ui, view.rect, &view.response, &self.design, &self.lib, mesh,
@@ -1362,6 +1404,8 @@ impl RingApp {
             "Before latest edit — release to return".to_string()
         } else if self.editor.isolate {
             "Isolated layer preview · full design preserved".to_string()
+        } else if let Some(id) = self.cad.isolated {
+            format!("{} alone · full design preserved", self.design.cad.as_ref().and_then(|d| d.feature(id)).map_or_else(|| format!("#{id}"), |f| f.name.clone()))
         } else if self.editor.check_pending {
             "Updating shape / checking…".to_string()
         } else if self.dfm_pending {

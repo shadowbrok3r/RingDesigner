@@ -78,7 +78,7 @@ pub fn rows(design: &RingDesign, selection: &Selection, plane: Id) -> Vec<Row> {
         Err(why) => why.clone(),
     };
     vec![
-        Row { icon: Icon::CadSketch, label: "Sketch on this plane", act: Act::Sketch, enabled: false, hint: menu::NO_SKETCH.to_string() },
+        Row { icon: Icon::CadSketch, label: "Sketch on this plane", act: Act::Sketch, enabled: true, hint: "A new sketch lying on this plane, drawn by one finger".to_string() },
         Row { icon: Icon::Mirror, label: "Mirror the chosen part across it", act: Act::Mirror, enabled: mirror.is_ok(), hint },
         Row { icon: Icon::Guides, label: "Hide work planes", act: Act::Hide, enabled: true, hint: "Stop drawing the work planes; the View menu shows them again".to_string() },
     ]
@@ -136,7 +136,7 @@ impl Cad {
         self.planes.chosen = Some(id);
         self.walk.forget();
         let name = name_of(v.design, id);
-        self.status(format!("Work plane {name}: hold it to mirror the chosen part across it"));
+        self.status(format!("Work plane {name}: hold it to sketch on it or mirror the chosen part across it"));
     }
 
     /// Opens plane `id`'s menu under the finger at `p`.
@@ -164,7 +164,7 @@ impl Cad {
     /// Serves a plane menu's row: a mirror leaves as a request for the funnel, hiding asks for the setting to be kept.
     pub(super) fn plane_act(&mut self, v: &View, plane: Id, act: Act) {
         match act {
-            Act::Sketch => self.status(menu::NO_SKETCH),
+            Act::Sketch => self.start_sketch(v, touch::sketch::Place::Plane(plane)),
             Act::Hide => {
                 self.planes.hidden = true;
                 self.planes.chosen = None;
