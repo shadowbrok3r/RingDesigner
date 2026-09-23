@@ -26,6 +26,11 @@ fn post(id: u64, theta: f64) -> Feature {
 
 /// A built Ring viewport of the Court band carrying `features`, seen straight down onto the ring's top.
 fn ring_with(h: &mut Harness<'static, RingDesignerApp>, features: Vec<Feature>) -> usize {
+    ring_on(h, court(), features)
+}
+
+/// A built Ring viewport of `base` carrying `features`, seen straight down onto the ring's top.
+fn ring_on(h: &mut Harness<'static, RingDesignerApp>, base: RingDesign, features: Vec<Feature>) -> usize {
     let pane = {
         let app = h.state_mut();
         app.switch_desktop(crate::dock::Desktop::Model);
@@ -38,7 +43,7 @@ fn ring_with(h: &mut Harness<'static, RingDesignerApp>, features: Vec<Feature>) 
         for f in features {
             doc.append(f).unwrap();
         }
-        app.design = RingDesign { cad: Some(doc), ..court() };
+        app.design = RingDesign { cad: Some(doc), ..base };
         app.history.commit(&app.design);
         app.rebuild_now();
         pane
@@ -312,4 +317,120 @@ fn press_pull_sizes_a_seated_box_from_its_top_pushes_a_side_through_the_kernel_a
     click_at(&mut h, at, PointerButton::Secondary, Modifiers::NONE);
     assert!(h.query_by_label("Press-pull").is_some() && h.query_by_label("Pattern ⏵").is_some(), "the face's menu offers press-pull and the patterns");
     press(&mut h, Key::Escape);
+}
+
+/// The furthest any vertex of `a` stands from its nearest vertex of `b`, mm.
+fn farthest(a: &[ringdesign_core::Vec3], b: &[ringdesign_core::Vec3]) -> f64 {
+    let d = |p: &ringdesign_core::Vec3, q: &ringdesign_core::Vec3| ((p.0 - q.0) as f64).hypot((p.1 - q.1) as f64).hypot((p.2 - q.2) as f64);
+    a.iter().map(|p| b.iter().map(|q| d(p, q)).fold(f64::INFINITY, f64::min)).fold(0.0, f64::max)
+}
+
+#[test]
+fn an_arrays_ghost_on_a_signets_shoulders_stands_where_its_copies_are_built() {
+    let mut h = harness();
+    let heart = ringdesign_core::templates::all().iter().find(|t| t.name == "Heart signet").unwrap().design();
+    // A post on the shoulder at 45°: six round the ring stand on the shoulders, the head's edge and the shank.
+    let pane = ring_on(&mut h, heart, vec![post(2, 45.0)]);
+    let source = component_mesh(&h, 2);
+    let per = source.vertices.len();
+    crate::patterns::start(h.state_mut(), pane, 2, keys::RING_ARRAY);
+    h.run_steps(2);
+    assert_eq!(live(&h), Some("array"));
+    let ghost = staged();
+    assert_eq!(ghost.vertices.len(), 5 * per);
+    h.hover_at(beside(&h));
+    h.run_steps(2);
+    press(&mut h, Key::Enter);
+    let array = doc(&h).features.last().cloned().unwrap();
+    assert!(matches!(&array.operation, Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 6, .. } }), "{:?}", array.operation);
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let built = component_mesh(&h, array.id);
+    // Each copy the ghost showed against the copies built, vertex to nearest vertex both ways.
+    let (shown, kept) = (farthest(&ghost.vertices, &built.vertices), farthest(&built.vertices, &ghost.vertices));
+    // The same copies turned rigidly round the finger, as the ghost used to carry them.
+    let turned: Vec<ringdesign_core::Vec3> = (1..6)
+        .flat_map(|k| {
+            let (s, c) = (60.0f64 * k as f64).to_radians().sin_cos();
+            source.vertices.iter().map(move |v| ringdesign_core::Vec3((c * v.0 as f64 - s * v.1 as f64) as f32, (s * v.0 as f64 + c * v.1 as f64) as f32, v.2))
+        })
+        .collect();
+    let rigid = farthest(&turned, &built.vertices);
+    eprintln!("ring array of 6 on a heart signet's shoulder: the ghost stands within {shown:.5} mm of the built copies ({kept:.5} back); turned rigidly it stood {rigid:.3} mm off");
+    assert!(shown < 0.02 && kept < 0.02, "{shown} {kept}");
+    assert!(rigid > 0.2, "the signet's shoulders must be where rigid copies miss: {rigid}");
+}
+
+#[test]
+fn a_work_plane_is_drawn_named_and_right_clicked_to_sketch_on_or_mirror_the_chosen_part_across() {
+    use egui_kittest::kittest::NodeT;
+    use ringdesign_core::cad::PlaneBase;
+    let mut h = harness();
+    let plane = part(3, "Section at 0°", Operation::Plane { base: PlaneBase::Section { theta_deg: 0.0 }, offset_mm: 0.0 }, Placement::Free);
+    let parting = part(4, "Parting", Operation::Plane { base: PlaneBase::Parting, offset_mm: 0.0 }, Placement::Free);
+    let planes = [plane, parting].map(|p| Feature { component: Component::default(), ..p });
+    let pane = ring_with(&mut h, [vec![post(2, 90.0)], planes.to_vec()].concat());
+    let start = h.state().history.present();
+    // Seen from over the top the section through 0° faces the camera: a rectangle wider than the ring, named at its corner.
+    assert!(h.query_by_label("Work plane: Section at 0°").is_some(), "the plane is drawn and named");
+    let shapes = crate::viewport::plane_shapes(h.state());
+    assert_eq!(shapes.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(), ["Section at 0°", "Parting"]);
+    assert!(h.query_by_label("Work plane: Parting").is_some());
+    let corners = shapes[0].corners.map(|c| screen(&h, pane, c.map(|v| v as f32)));
+    // Its lower edge under the band on screen, clear of the chosen part's gizmo over the top.
+    let edge = corners[0] + (corners[1] - corners[0]) * 0.8;
+    h.hover_at(edge);
+    h.run_steps(2);
+    assert!(viewport_label(&h).contains("work plane Section at 0° under the pointer"), "{}", viewport_label(&h));
+    // With nothing chosen its menu sketches on it; the mirror waits for a part.
+    click_at(&mut h, edge, PointerButton::Secondary, Modifiers::NONE);
+    let mirror = h.get_by_label("Mirror the chosen part across it");
+    assert!(mirror.accesskit_node().is_disabled());
+    assert!(h.query_by_label("Sketch on this plane").is_some() && h.query_by_label("Hide work planes").is_some());
+    press(&mut h, Key::Escape);
+    // A click on its outline chooses the plane and leaves the parts as they were.
+    click_at(&mut h, edge, PointerButton::Primary, Modifiers::NONE);
+    assert_eq!(h.state().command.planes.chosen, Some(3));
+    assert!(h.state().status.starts_with("Work plane Section at 0°"), "{}", h.state().status);
+    // Choose the post, then mirror it across the plane: one Mirror feature, one undo step.
+    // The parting plane is seen edge on, a line through the post: the post still takes the pointer.
+    let top = top_of(&h, pane, 2);
+    click_at(&mut h, top, PointerButton::Primary, Modifiers::NONE);
+    assert_eq!(h.state().selection.items.iter().filter_map(Sel::feature).last(), Some(2));
+    assert_eq!(h.state().command.planes.chosen, None, "choosing anything else lets the plane go");
+    click_at(&mut h, edge, PointerButton::Secondary, Modifiers::NONE);
+    h.get_by_label("Mirror the chosen part across it").click();
+    h.run_steps(3);
+    let mirror = doc(&h).features.last().cloned().unwrap();
+    assert!(matches!(&mirror.operation, Operation::Pattern { source: 2, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 3 } } }), "{:?}", mirror.operation);
+    assert_eq!(h.state().history.present(), start + 1);
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let (a, m) = (centroid(&component_mesh(&h, 2).vertices), centroid(&component_mesh(&h, mirror.id).vertices));
+    assert!((a[0] - m[0]).abs() < 1e-3 && (a[1] + m[1]).abs() < 1e-3 && (a[2] - m[2]).abs() < 1e-3 && a[1] > 9.0, "reflected across y = 0: {a:?} {m:?}");
+    // Its menu starts a sketch lying on it.
+    click_at(&mut h, edge, PointerButton::Secondary, Modifiers::NONE);
+    h.get_by_label("Sketch on this plane").click();
+    h.run_steps(3);
+    assert!(crate::sketch_mode::active(h.state()), "a sketch is live");
+    let sketch = doc(&h).features.last().cloned().unwrap();
+    let Operation::Sketch { sketch: drawn } = &sketch.operation else { panic!("{:?}", sketch.operation) };
+    assert_eq!(drawn.plane.on_face.as_ref().map(|a| a.feature), Some(3), "it lies on the plane");
+    assert_eq!(h.state().history.present(), start + 2);
+    let n = h.state().sketch.normal().expect("the sketch's plane");
+    assert!(n[0].abs() < 1e-9 && (n[1].abs() - 1.0).abs() < 1e-9 && n[2].abs() < 1e-9, "{n:?}");
+    crate::sketch_mode::finish(h.state_mut());
+    h.run_steps(2);
+    // Hidden, it is neither drawn nor taken; the ring's own menu shows it again.
+    h.state_mut().command.planes.hidden = true;
+    h.run_steps(2);
+    assert!(h.query_by_label("Work plane: Section at 0°").is_none() && h.query_by_label("Work plane: Parting").is_none());
+    h.hover_at(edge);
+    h.run_steps(2);
+    assert_eq!(h.state().command.planes.hot, None);
+    let away = beside(&h);
+    click_at(&mut h, away, PointerButton::Secondary, Modifiers::NONE);
+    h.get_by_label("Work planes").click();
+    h.run_steps(3);
+    assert!(!h.state().command.planes.hidden && h.query_by_label("Work plane: Section at 0°").is_some());
 }

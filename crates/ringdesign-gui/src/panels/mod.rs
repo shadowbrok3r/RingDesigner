@@ -657,6 +657,8 @@ pub(crate) enum Command {
     ToolAddCylinder,
     ToolAddSphere,
     ToolAttach,
+    ToolArray,
+    ToolPressPull,
 }
 
 /// The strip over a panel whose design is driven by a graph.
@@ -754,6 +756,8 @@ impl Command {
         Command::ToolAddCylinder,
         Command::ToolAddSphere,
         Command::ToolAttach,
+        Command::ToolArray,
+        Command::ToolPressPull,
     ];
 
     /// The viewport command catalog key an entry starts, as its hotkey and its rail slot start it.
@@ -767,6 +771,8 @@ impl Command {
             Command::ToolAddCylinder => "add-cylinder",
             Command::ToolAddSphere => "add-sphere",
             Command::ToolAttach => "attach",
+            Command::ToolArray => "array",
+            Command::ToolPressPull => "press-pull",
             _ => return None,
         })
     }
@@ -813,6 +819,8 @@ impl Command {
             Command::ToolAddCylinder => "Add a cylinder on the ring  (Shift+A)",
             Command::ToolAddSphere => "Add a sphere on the ring  (Shift+A)",
             Command::ToolAttach => "Cycle Join / Cut / Separate  (J)",
+            Command::ToolArray => "Array the selected part round the ring  (A)",
+            Command::ToolPressPull => "Press-pull the selected face  (Q)",
         }
     }
 
@@ -879,7 +887,9 @@ impl Command {
             | Command::ToolAddBox
             | Command::ToolAddCylinder
             | Command::ToolAddSphere
-            | Command::ToolAttach => {
+            | Command::ToolAttach
+            | Command::ToolArray
+            | Command::ToolPressPull => {
                 if let Some(key) = self.tool() {
                     crate::command::start(app, key);
                 }

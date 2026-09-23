@@ -136,7 +136,7 @@ pub enum Operation {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum Profile {
-    /// One region of a `Sketch` feature; extrude and revolve sweep it alone.
+    /// One region of a `Sketch` feature, swept alone; a twisted sweep or a loft takes its rim and refuses its holes.
     Region { feature: Id, region: crate::sketch::RegionRef },
     Feature { feature: Id },
     Inline(Sketch),
@@ -1262,6 +1262,14 @@ fn regions_of(p: &Profile, sketch: &Sketch, notes: &mut Vec<String>) -> Result<V
         Profile::Inline(_) => Ok(vec![sketch.profile_region()?]),
     }
 }
+/// The one closed loop a twisted sweep or a loft section takes: the named region's rim, refused with holes in it, else the profile's own loop.
+fn region_loop(p: &Profile, sketch: &Sketch, what: &str, notes: &mut Vec<String>) -> Result<Vec<cadkernel::geom2d::Curve>> {
+    let Profile::Region { feature, .. } = p else { return sketch.profile_curves() };
+    let region = regions_of(p, sketch, notes)?.into_iter().next().context("A region profile names no region")?;
+    let holes = region.holes.len();
+    ensure!(holes == 0, "{what}: the region of sketch #{feature} has {holes} hole{}; it takes one closed loop", if holes == 1 { "" } else { "s" });
+    Ok(region.outer)
+}
 /// A value as a named csg solid: a builder's own, or a kernel body tessellated at the export chord, a patch per face.
 fn named_of(value: &Value) -> Result<crate::setting::Named> {
     match value {
@@ -1441,17 +1449,23 @@ fn body_for(
                 degrees.to_radians(),
             )
         }
-        Operation::Sweep { sketch, path } => {
+        Operation::Sweep { sketch: from, path } => {
             ensure!(
                 path.len() >= 2 && path.len() <= 128,
                 "Sweep needs 2–128 path stations"
             );
             coords(path)?;
-            let sketch = profile(sketch, sketches)?;
+            let sketch = profile(from, sketches)?;
+            let plane = plane_of(sketch, values, frames, notes)?;
+            // One region of several sweeps its own loops, holes and all; any other profile is its one closed loop.
+            let wires = match from {
+                Profile::Region { .. } => regions_of(from, sketch, notes)?.into_iter().flat_map(|r| r.loops()).collect(),
+                _ => vec![sketch.profile_curves()?],
+            };
             maybe(
                 brep::sweep_path(
-                    plane_of(sketch, values, frames, notes)?,
-                    &[sketch.profile_curves()?],
+                    plane,
+                    &wires,
                     brep::SweepPath::Polyline3d {
                         points: path,
                         closed: false,
@@ -1462,7 +1476,7 @@ fn body_for(
             )
         }
         Operation::Twist {
-            sketch,
+            sketch: from,
             path,
             degrees,
             end_scale,
@@ -1472,11 +1486,13 @@ fn body_for(
                 "Twist exceeds ten turns"
             );
             positive(*end_scale, "End scale")?;
-            let sketch = profile(sketch, sketches)?;
+            let sketch = profile(from, sketches)?;
+            let plane = plane_of(sketch, values, frames, notes)?;
+            let outline = region_loop(from, sketch, "Twisted sweep", notes)?;
             maybe(
                 brep::sweep_along_deformed(
-                    plane_of(sketch, values, frames, notes)?,
-                    &sketch.profile_curves()?,
+                    plane,
+                    &outline,
                     plane_of(path, values, frames, notes)?,
                     &path.solved_curves()?,
                     0.0,
@@ -1495,7 +1511,8 @@ fn body_for(
                 .iter()
                 .map(|p| {
                     let s = profile(p, sketches)?;
-                    Ok((plane_of(s, values, frames, notes)?, s.profile_curves()?))
+                    let plane = plane_of(s, values, frames, notes)?;
+                    Ok((plane, region_loop(p, s, "Loft", notes)?))
                 })
                 .collect::<Result<Vec<_>>>()?;
             ensure!(
@@ -2708,6 +2725,53 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn a_sweep_a_twist_and_a_loft_take_one_region_of_several() {
+        use crate::sketch::{Geometry, RegionRef, Workplane};
+        let lib = AlphaLibrary::builtin();
+        // Three regions on the plane z = 0: a 2 mm square, a 3 mm square, and a 6 mm square round a 2 mm hole.
+        let mut s = Sketch::default();
+        s.add_rectangle([1.0, 1.0], [3.0, 3.0], false).unwrap();
+        let three = s.add_rectangle([5.0, -1.5], [8.0, 1.5], false).unwrap()[0];
+        let framed = s.add_rectangle([10.0, 10.0], [16.0, 16.0], false).unwrap()[0];
+        s.add_rectangle([12.0, 12.0], [14.0, 14.0], false).unwrap();
+        let regions = s.profile_regions().unwrap();
+        assert_eq!(regions.len(), 3);
+        let pick = |e: Id| Profile::Region { feature: 1, region: RegionRef::of(regions.iter().find(|r| r.entities[..r.rim].contains(&e)).unwrap()).unwrap() };
+        // The sketch as feature #1 and `op` as #2: #2's volume and whether it closed, or why it failed.
+        let run = |op: Operation| -> std::result::Result<(f64, bool), String> {
+            let e = evaluate(&design(vec![Operation::Sketch { sketch: s.clone() }, op]), &lib, BuildParams::default()).unwrap();
+            match e.status_of(2) {
+                Some(FeatureStatus::Ok) => e.components.iter().find(|c| c.id == 2).map(|c| (c.mesh.volume_mm3(), c.mesh.validate().watertight)).ok_or_else(|| "no part".into()),
+                other => Err(format!("{other:?}")),
+            }
+        };
+        let near = |got: std::result::Result<(f64, bool), String>, want: f64| {
+            let (v, closed) = got.unwrap_or_else(|e| panic!("{e}"));
+            assert!(closed && (v - want).abs() < 1e-3 * want, "{v} against {want}");
+        };
+        // Swept 4 mm up the finger: the 3 mm square alone, and the framed square with its hole kept.
+        let up = vec![[0.0; 3], [0.0, 0.0, 4.0]];
+        near(run(Operation::Sweep { sketch: pick(three), path: up.clone() }), 9.0 * 4.0);
+        near(run(Operation::Sweep { sketch: pick(framed), path: up.clone() }), (36.0 - 4.0) * 4.0);
+        // The whole sketch is four loops, which a sweep never took.
+        assert!(run(Operation::Sweep { sketch: Profile::Feature { feature: 1 }, path: up }).unwrap_err().contains("4 separate loops"));
+        // Twisted along a 5 mm line up the finger without a turn: the 3 mm square's prism.
+        let mut line = Sketch { plane: Workplane::section(), ..Sketch::default() };
+        let (a, b) = (line.point([0.0, 0.0]), line.point([0.0, 5.0]));
+        line.entity(Geometry::Line { a, b });
+        let twist = |from: Profile| Operation::Twist { sketch: from, path: line.clone(), degrees: 0.0, end_scale: 1.0 };
+        near(run(twist(pick(three))), 9.0 * 5.0);
+        let holed = run(twist(pick(framed))).unwrap_err();
+        assert!(holed.contains("Twisted sweep: the region of sketch #1 has 1 hole; it takes one closed loop"), "{holed}");
+        // Lofted from the 3 mm square to the same square 5 mm over it: a prism again.
+        let mut top = Sketch::rectangle(3.0, 3.0);
+        top.plane.origin = [6.5, 0.0, 5.0];
+        near(run(Operation::Loft { sections: vec![pick(three), top.clone().into()] }), 9.0 * 5.0);
+        let holed = run(Operation::Loft { sections: vec![pick(framed), top.into()] }).unwrap_err();
+        assert!(holed.contains("Loft: the region of sketch #1 has 1 hole; it takes one closed loop"), "{holed}");
+    }
+
     #[test]
     fn subtract_overlapping_boxes_and_half_twist_are_closed() {
         let d = design(vec![
