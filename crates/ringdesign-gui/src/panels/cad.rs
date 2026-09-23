@@ -12,6 +12,7 @@ use ringdesign_workbench::{
     cad_tools,
     command::{DimEvent, DimensionBar},
     icons::{self, Icon},
+    render::{self, EdgeRun, StagedEdges},
     sketch_tools::{self, Input, Outcome, SnapCache, Tool, Underlay},
     timeline::{self, Action},
     viewport::{Mods, Sel},
@@ -126,6 +127,8 @@ pub struct CadState {
     section_offset: f64,
     /// Show the evaluated parts alone instead of the whole built ring.
     parts_only: bool,
+    /// The Part edges switch as the view's edges were last staged.
+    edges_shown: bool,
     /// The editing tools the canvas shares with the Ring viewport's sketch mode, and the feature they edit.
     shared: sketch_tools::Tools,
     shared_for: Option<NodeId>,
@@ -180,6 +183,7 @@ impl Default for CadState {
             section_axis: 2,
             section_offset: 0.0,
             parts_only: false,
+            edges_shown: true,
             shared: sketch_tools::Tools::default(),
             shared_for: None,
             shared_escape: false,
@@ -255,6 +259,20 @@ impl CadState {
     pub fn candidate_operation(&self, feature: u64) -> Option<Operation> {
         let n = self.draft.as_ref()?.node(NodeId(feature))?;
         serde_json::from_value::<Feature>(n.params.clone()).ok().map(|f| f.operation)
+    }
+    /// The edge runs the view's renderer holds, and every drawn part's runs in the view's evaluation once there is one.
+    pub fn edge_runs(&self) -> (Vec<EdgeRun>, Option<Vec<EdgeRun>>) {
+        let held = self.renderer.lock().map(|r| r.staged_edges().1.to_vec()).unwrap_or_default();
+        (held, self.view.as_ref().map(|v| render::stage_edges(&v.evaluated).runs))
+    }
+    /// The evaluated parts' ids and names.
+    pub fn parts(&self) -> Vec<(u64, String)> {
+        self.view.as_ref().map_or_else(Vec::new, |v| v.evaluated.components.iter().map(|c| (c.id, c.name.clone())).collect())
+    }
+    /// Spreads the parts `mm` apart, as the Display menu's Explode field does.
+    pub fn explode_by(&mut self, mm: f64) {
+        self.explode = mm;
+        upload(self, false);
     }
 }
 fn hash<T: serde::Serialize>(v: &T) -> u64 {
@@ -561,6 +579,7 @@ fn upload(state: &mut CadState, fit: bool) {
     if fit {
         state.camera.fit(metal.bounds());
     }
+    let edges = view_edges(view, whole.is_some(), state);
     if let Ok(mut r) = state.renderer.lock() {
         r.prepare_cad(metal);
         let mut stones = GpuMeshRenderer::stage_plain(&gems);
@@ -568,7 +587,36 @@ fn upload(state: &mut CadState, fit: bool) {
             stones.extend_from_slice(&view.gems);
         }
         r.prepare_gems(stones);
+        r.prepare_view_edges(state.view_key as usize, edges);
     }
+}
+
+/// The view's parts' edges for the edge pass: none while a part is isolated, the parts are exploded or the Part edges
+/// switch is off; drawn alone, only the shown parts'.
+fn view_edges(view: &View, whole: bool, state: &CadState) -> StagedEdges {
+    if !state.edges_shown || state.isolated.is_some() || state.explode > 0.0 {
+        return StagedEdges::default();
+    }
+    let staged = render::stage_edges(&view.evaluated);
+    if whole {
+        return staged;
+    }
+    keep_runs(staged, |id| view.evaluated.components.iter().any(|c| c.id == id && c.settings.visible))
+}
+
+/// `staged` with only the runs of the parts `keep` names, renumbered.
+fn keep_runs(staged: StagedEdges, keep: impl Fn(u64) -> bool) -> StagedEdges {
+    if staged.runs.iter().all(|r| keep(r.key.0)) {
+        return staged;
+    }
+    let floats = render::edges::EDGE_FLOATS;
+    let mut out = StagedEdges { dropped: staged.dropped, ..StagedEdges::default() };
+    for run in staged.runs.iter().filter(|r| keep(r.key.0)) {
+        let first = (out.verts.len() / floats) as u32;
+        out.verts.extend_from_slice(&staged.verts[run.first as usize * floats..(run.first + run.count) as usize * floats]);
+        out.runs.push(EdgeRun { first, ..*run });
+    }
+    out
 }
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let mut state = std::mem::take(&mut app.cad);
@@ -1079,6 +1127,11 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             notes.push((theme::TEXT_DIM, format!("Selected component #{id}, edge {edge} • Add Fillet or Chamfer to use it")));
         }
         state.display.finish=app.finish; state.display.polish=app.polish; state.display.light=app.light; state.display.show_gems=app.show_gems;
+        let edges_shown = crate::viewport::show_edges(ui.ctx());
+        if edges_shown != state.edges_shown {
+            state.edges_shown = edges_shown;
+            upload(&mut state, false);
+        }
         let (rect, response) =
             crate::viewport::candidate_view(ui, state.renderer.clone(), &mut state.camera, &mut state.display, app.design.shank.head.theta_deg as f32);
         state.canvas = rect;

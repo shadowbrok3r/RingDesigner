@@ -49,6 +49,21 @@ impl GpuMeshRenderer {
         self.inner.set_mesh(render::stage_cad(mesh));
     }
 
+    /// Queues metal another thread staged with [`render::stage_mesh`] or [`render::stage_cad`].
+    pub fn prepare_staged(&mut self, verts: Vec<f32>) {
+        self.inner.set_mesh(verts);
+    }
+
+    /// Queues `build`'s edges staged by [`render::stage_edges`], so the next [`sync_edges`](Self::sync_edges) finds them current.
+    pub fn prepare_edges(&mut self, build: &Arc<ringdesign_core::BuildResult>, staged: render::StagedEdges) {
+        self.inner.set_edges(staged, Arc::as_ptr(build) as usize);
+    }
+
+    /// Queues edges staged for a view this renderer keys by `key` rather than by a build; empty draws none.
+    pub fn prepare_view_edges(&mut self, key: usize, staged: render::StagedEdges) {
+        self.inner.set_edges(staged, key);
+    }
+
     /// Per-vertex weights in the order [`prepare_upload`](Self::prepare_upload) emits vertices.
     pub fn stage_focus(mesh: &Mesh, weight: &[f32]) -> Vec<f32> {
         render::stage_focus(mesh, weight)
@@ -119,6 +134,12 @@ impl GpuMeshRenderer {
     /// A mesh in neutral colours; the pass that draws it supplies its own tint.
     pub fn stage_plain(mesh: &Mesh) -> Vec<f32> {
         render::stage_plain(mesh)
+    }
+
+    /// The build the edges were staged for, and each edge's run in them.
+    #[cfg(test)]
+    pub fn staged_edges(&self) -> (Option<usize>, &[render::EdgeRun]) {
+        (self.inner.edges_key(), self.inner.edge_runs())
     }
 
     /// Keeps the edge pass on the build on screen and the chosen and hovered edges.

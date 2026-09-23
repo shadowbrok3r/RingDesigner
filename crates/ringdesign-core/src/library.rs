@@ -31,7 +31,8 @@ pub fn data_root() -> PathBuf {
 
 /// File extension for saved designs.
 pub const DESIGN_EXT: &str = "ring.json";
-/// Version stamped into saved design files; files without one are version 0.
+/// The newest version this build reads and stamps into saved design files; files without one are version 0.
+/// A file is stamped with the oldest version that carries it, [`format_version_for`].
 ///
 /// Additive fields with compatible defaults do not require a bump. Version 2
 /// changes what defines the solid: a CAD assembly can replace the cached band.
@@ -40,7 +41,16 @@ pub const DESIGN_EXT: &str = "ring.json";
 /// migration changes no values. Version 3 also protects imported base geometry
 /// from being discarded by an older app. Every version has a migration step.
 // Version 4 protects the sand-support surface and high-resolution embedded maps.
-pub const FORMAT_VERSION: u32 = 5;
+// Version 6 protects a stored mesh, which no earlier build can parse; a design without one is still written at 5.
+pub const FORMAT_VERSION: u32 = 6;
+
+/// The version a design without a stored mesh is written at, so builds that read up to it still open the file.
+pub const PLAIN_FORMAT_VERSION: u32 = 5;
+
+/// The version `design` is written at: the newest when it carries a stored mesh, in its document or in its graph.
+pub fn format_version_for(design: &RingDesign) -> u32 {
+    if crate::cad::stored::carried_by(design) { FORMAT_VERSION } else { PLAIN_FORMAT_VERSION }
+}
 
 /// Version stamped into saved profile and outline files.
 ///
@@ -113,7 +123,7 @@ fn asset_from_str<T: serde::de::DeserializeOwned>(
 const VERSION_KEY: &str = "format_version";
 
 /// `MIGRATIONS[n]` rewrites a version-`n` document in place to version `n + 1`.
-static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1, migrate_v1_to_v2, migrate_v2_to_v3, migrate_v3_to_v4, migrate_v4_to_v5];
+static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1, migrate_v1_to_v2, migrate_v2_to_v3, migrate_v3_to_v4, migrate_v4_to_v5, migrate_v5_to_v6];
 
 /// Version 0 predates the version field; the document already has v1's shape.
 fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
@@ -159,6 +169,8 @@ fn migrate_v4_to_v5(doc: &mut serde_json::Value) {
         }
     }
 }
+/// Version 6 only fences a stored mesh off from older readers; a version-5 document has the same shape.
+fn migrate_v5_to_v6(_doc: &mut serde_json::Value) {}
 
 /// Serialization wrapper that puts the version key ahead of the design fields.
 #[derive(serde::Serialize)]
@@ -168,9 +180,9 @@ struct VersionedDesign<'a> {
     design: &'a RingDesign,
 }
 
-/// The design document as versioned JSON text.
+/// The design document as versioned JSON text, at the oldest version that carries it.
 pub fn design_json(design: &RingDesign) -> anyhow::Result<String> {
-    let doc = VersionedDesign { format_version: FORMAT_VERSION, design };
+    let doc = VersionedDesign { format_version: format_version_for(design), design };
     Ok(serde_json::to_string_pretty(&doc)?)
 }
 
@@ -231,18 +243,23 @@ pub fn load_design(path: impl AsRef<Path>) -> anyhow::Result<RingDesign> {
 
 /// Parse a design document, migrating older versions up to [`FORMAT_VERSION`].
 pub fn load_design_str(text: &str) -> anyhow::Result<RingDesign> {
+    read_design(text, FORMAT_VERSION)
+}
+
+/// [`load_design_str`] as a build that reads up to version `newest` runs it.
+fn read_design(text: &str, newest: u32) -> anyhow::Result<RingDesign> {
     let mut doc: serde_json::Value = serde_json::from_str(text)?;
     let version = match doc.get(VERSION_KEY) {
         Some(v) => v.as_u64().ok_or_else(|| anyhow::anyhow!("Invalid design format version"))?,
         None => 0,
     };
-    if version > u64::from(FORMAT_VERSION) {
+    if version > u64::from(newest) {
         anyhow::bail!(
-            "design file is format version {version}, but this build reads up to {FORMAT_VERSION} \
+            "design file is format version {version}, but this build reads up to {newest} \
              — it was saved by a newer RingDesigner"
         );
     }
-    for step in &MIGRATIONS[version as usize..] {
+    for step in &MIGRATIONS[version as usize..newest as usize] {
         step(&mut doc);
     }
     if let Some(obj) = doc.as_object_mut() {
@@ -571,7 +588,71 @@ mod tests {
             &text[..60.min(text.len())]
         );
         let doc: serde_json::Value = serde_json::from_str(&text).unwrap();
-        assert_eq!(doc["format_version"], u64::from(FORMAT_VERSION));
+        assert_eq!(doc["format_version"], u64::from(PLAIN_FORMAT_VERSION), "a design without a stored mesh stays readable by a build that reads up to 5");
+    }
+
+    /// A closed tetrahedron packed as another kernel would hand it over.
+    fn stored_feature(id: u64) -> crate::cad::Feature {
+        use crate::cad::{Component, Feature, Operation, SurfaceKind, stored::{Packed, Recipe}};
+        let positions = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let mesh = Packed::encode(&positions, &[[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]], &[0, 0, 0, 0], &[SurfaceKind::Freeform]).unwrap();
+        let recipe = Recipe { kernel: "occt".into(), op: "import".into(), ..Recipe::default() };
+        Feature { id, name: recipe.label().into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh }, component: Component::default() }
+    }
+
+    /// A design at every version before the last reads through each step to the one this build writes.
+    #[test]
+    fn every_older_version_climbs_the_ladder_to_the_last() {
+        use crate::cad::{Component, Document, Feature, Operation, Placement};
+        let mut design = RingDesign { name: "Ladder".into(), ..RingDesign::default() };
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        let post = Component { placement: Placement::ring(90.0, 0.25), ..Component::default() };
+        doc.append(Feature { id: 2, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, component: post }).unwrap();
+        design.cad = Some(doc);
+        design.graph = Some(serde_json::json!({ "name": "g", "mode": "Free", "nodes": [{ "id": 3, "kind": "cad.feature", "params": { "id": 3, "name": "Head", "enabled": true, "operation": { "Sphere": { "radius_mm": 2.0 } }, "component": { "placement": { "kind": "free" } } } }] }));
+        let want = serde_json::to_value(&design).unwrap();
+        for version in 0..FORMAT_VERSION {
+            let mut doc = want.clone();
+            doc[VERSION_KEY] = version.into();
+            let read = load_design_str(&doc.to_string()).unwrap_or_else(|e| panic!("version {version}: {e}"));
+            assert_eq!(serde_json::to_value(&read).unwrap(), want, "version {version} reads as the design it holds");
+        }
+        // The last step itself rewrites nothing: version 6 only fences a stored mesh off from older readers.
+        let mut doc = want.clone();
+        migrate_v5_to_v6(&mut doc);
+        assert_eq!(doc, want);
+        // A design that gained a stored mesh after a version-5 save climbs to 6 on its next save and reads back whole.
+        design.cad.as_mut().unwrap().append(stored_feature(4)).unwrap();
+        let text = design_json(&design).unwrap();
+        assert_eq!(serde_json::from_str::<serde_json::Value>(&text).unwrap()[VERSION_KEY], u64::from(FORMAT_VERSION));
+        assert_eq!(serde_json::to_value(load_design_str(&text).unwrap()).unwrap(), serde_json::to_value(&design).unwrap());
+    }
+
+    /// A build that reads up to 5 fails to parse a stored mesh; written at 6, the file is refused by name instead.
+    #[test]
+    fn a_stored_mesh_is_written_at_six_and_a_build_reading_up_to_five_refuses_it_by_name() {
+        let plain = RingDesign::default();
+        let mut in_document = RingDesign::default();
+        let mut doc = crate::cad::Document::default();
+        doc.append(stored_feature(1)).unwrap();
+        in_document.cad = Some(doc);
+        // A driven design carries the mesh in its graph's feature node too; a graph alone is enough to need 6.
+        let node = serde_json::json!({ "id": 7, "kind": "cad.feature", "params": serde_json::to_value(stored_feature(7)).unwrap() });
+        let in_graph = RingDesign { graph: Some(serde_json::json!({ "name": "g", "mode": "Free", "nodes": [node] })), ..RingDesign::default() };
+        let in_cluster = RingDesign { graph: Some(serde_json::json!({ "name": "g", "nodes": [{ "id": 1, "kind": "cluster", "params": { "graph": { "nodes": [node] } } }] })), ..RingDesign::default() };
+        assert_eq!(format_version_for(&plain), PLAIN_FORMAT_VERSION);
+        for (name, design) in [("document", &in_document), ("graph", &in_graph), ("cluster", &in_cluster)] {
+            assert_eq!(format_version_for(design), FORMAT_VERSION, "a stored mesh in the {name}");
+            let text = design_json(design).unwrap();
+            let older = read_design(&text, PLAIN_FORMAT_VERSION).unwrap_err().to_string();
+            assert!(older.contains("format version 6") && older.contains("newer RingDesigner"), "{name}: {older}");
+            let read = load_design_str(&text).unwrap();
+            assert_eq!(serde_json::to_string(&read).unwrap(), serde_json::to_string(design).unwrap(), "{name}: this build reads it back bit for bit");
+        }
+        // The same older build still opens every design without one.
+        let text = design_json(&plain).unwrap();
+        assert!(read_design(&text, PLAIN_FORMAT_VERSION).is_ok());
     }
 
     #[test]

@@ -217,6 +217,21 @@ impl Packed {
     }
 }
 
+/// Whether `design` carries a stored mesh: in its document, or anywhere in its graph, clusters included.
+pub fn carried_by(design: &RingDesign) -> bool {
+    let in_document = design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(f.operation, super::Operation::Stored { .. })));
+    in_document || design.graph.as_ref().is_some_and(in_json)
+}
+
+/// Whether `v` holds a stored mesh anywhere: an object keyed `Stored` over a recipe and the mesh.
+fn in_json(v: &serde_json::Value) -> bool {
+    match v {
+        serde_json::Value::Object(map) => map.get("Stored").is_some_and(|s| s.get("recipe").is_some() && s.get("mesh").is_some()) || map.values().any(in_json),
+        serde_json::Value::Array(items) => items.iter().any(in_json),
+        _ => false,
+    }
+}
+
 /// `v` with every object's keys in order, so a digest does not hang on how a map was built.
 fn canonical(v: &serde_json::Value, out: &mut String) {
     match v {
@@ -454,10 +469,13 @@ mod tests {
         assert!(rode < 2e-3, "{rode}");
         let e1 = evaluate(&turned, &lib, params()).unwrap();
         assert!(e1.features.iter().all(|r| r.notes.is_empty()), "a move is not a change: {:?}", e1.features);
-        // The file reopens bit for bit, stored mesh and all.
+        // The file reopens bit for bit, stored mesh and all, at the version an older build refuses by name.
         let text = serde_json::to_string(&d).unwrap();
         let back: RingDesign = serde_json::from_str(&text).unwrap();
         assert_eq!(serde_json::to_string(&back).unwrap(), text);
+        let saved = crate::library::design_json(&d).unwrap();
+        assert!(carried_by(&d) && saved.contains(&format!("\"format_version\": {}", crate::library::FORMAT_VERSION)), "{}", &saved[..60]);
+        assert_eq!(serde_json::to_string(&crate::library::load_design_str(&saved).unwrap()).unwrap(), text);
     }
 
     #[test]

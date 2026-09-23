@@ -423,3 +423,266 @@ fn session_save_keeps_unsaved_design_and_workspace_before_restart() {
     assert_eq!(workspace.desktop, Desktop::Graph);
     assert!(workspace.desktops.contains_key(&Desktop::Model));
 }
+
+/// The claw solitaire on one Ring viewport, built at `params`.
+fn claw_solitaire(params: ringdesign_core::BuildParams) -> Harness<'static, RingDesignerApp> {
+    let mut h = harness([1600., 980.]);
+    {
+        let app = h.state_mut();
+        app.switch_desktop(Desktop::Model);
+        app.set_layout(Layout::Single);
+        let pane = app.visible_panes()[0];
+        app.panes[pane].kind = PaneKind::Solid;
+        app.design = ringdesign_core::cad::examples::design("claw-solitaire").expect("the claw solitaire");
+        app.preview_params = params;
+        app.history.commit(&app.design);
+    }
+    h
+}
+
+/// Ticks until a fresh build lands: the landing tick's time, the median of the idle ticks that follow, and the time from dispatch to landed.
+fn land(h: &mut Harness<'static, RingDesignerApp>) -> (std::time::Duration, std::time::Duration, std::time::Duration) {
+    let ctx = h.ctx.clone();
+    let at = |h: &Harness<'static, RingDesignerApp>| h.state().build.as_ref().map(|b| std::sync::Arc::as_ptr(b) as usize);
+    let before = at(h);
+    h.state_mut().rebuild_now();
+    let start = std::time::Instant::now();
+    let landing = loop {
+        let t = std::time::Instant::now();
+        h.state_mut().tick(&ctx);
+        let dt = t.elapsed();
+        if !h.state().is_building() && at(h) != before {
+            break dt;
+        }
+        assert!(start.elapsed() < std::time::Duration::from_secs(90), "the ring never built: {}", h.state().status);
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    };
+    let latency = start.elapsed();
+    assert!(h.state().is_current(), "{}", h.state().status);
+    let mut idle: Vec<std::time::Duration> = (0..15)
+        .map(|_| {
+            let t = std::time::Instant::now();
+            h.state_mut().tick(&ctx);
+            t.elapsed()
+        })
+        .collect();
+    idle.sort();
+    (landing, idle[idle.len() / 2], latency)
+}
+
+/// What one build costs the UI thread on the claw solitaire, printed with `--nocapture`: the landing tick over an idle
+/// one and the first frame's edge sync. The worker stages the metal and the edges and builds the pick scene, so a build
+/// lands with its edges current and the first frame restages none.
+#[test]
+fn a_build_lands_staged_and_the_ui_thread_only_uploads() {
+    use ringdesign_workbench::render;
+    let ws = crate::app::Workspace::default();
+    for (name, params) in [("preview", ws.preview_params), ("export", ws.export_params)] {
+        let mut h = claw_solitaire(params);
+        land(&mut h);
+        let mut rows = Vec::new();
+        let mut latencies = Vec::new();
+        for _ in 0..3 {
+            let (landing, idle, latency) = land(&mut h);
+            latencies.push(latency);
+            let build = h.state().build.clone().expect("a build");
+            let key = std::sync::Arc::as_ptr(&build) as usize;
+            let e = build.parts.evaluated.as_ref().expect("the parts are evaluated");
+            {
+                let r = h.state().renderer.lock().unwrap();
+                let (staged_for, runs) = r.staged_edges();
+                assert_eq!(staged_for, Some(key), "the edges arrive with the build, before a frame is drawn");
+                assert_eq!(runs, render::stage_edges(e).runs.as_slice(), "the worker's edges are the ones the pass stages");
+            }
+            let t = std::time::Instant::now();
+            h.state().renderer.lock().unwrap().sync_edges(&build, &[], None);
+            let sync = t.elapsed();
+            assert_eq!(h.state().renderer.lock().unwrap().staged_edges().0, Some(key), "nothing restaged");
+            let scene = h.state().pick_scene.clone().expect("the pick scene");
+            assert_eq!(scene.faces(), build.mesh.faces.len(), "the pick scene is over the build on screen");
+            rows.push((landing.saturating_sub(idle), idle, sync));
+        }
+        rows.sort_by_key(|r| r.0);
+        let (landing, idle, sync) = rows[1];
+        latencies.sort();
+        let latency = latencies[1];
+        assert_eq!(h.state().panes[3].kind, PaneKind::Section);
+        assert!(h.state().panes[3].section.is_none(), "a section out of sight is not resliced by a build");
+        h.state_mut().set_layout(Layout::Quad);
+        assert!(h.state().panes[3].section.is_some(), "the layout that shows it reslices it");
+        let app = h.state();
+        let build = app.build.clone().unwrap();
+        let e = build.parts.evaluated.as_ref().expect("the parts are evaluated");
+        let t = std::time::Instant::now();
+        let edges = render::stage_edges(e);
+        let stage_edges = t.elapsed();
+        let t = std::time::Instant::now();
+        let metal = render::stage_mesh(&build.mesh, app.cast.as_ref(), (app.design.inner_radius_mm(), app.design.draft.min_section_mm));
+        let stage_mesh = t.elapsed();
+        let t = std::time::Instant::now();
+        let scene = ringdesign_core::interaction::pick::PickScene::build(&build, &app.design);
+        let pick = t.elapsed();
+        // With a part chosen, the first frame after a build still restages its tint on the UI thread.
+        let head = e.components.iter().find(|c| c.name == "Four-claw head").expect("the head").id;
+        let mut chosen = ringdesign_workbench::viewport::Selection::default();
+        chosen.click(Some(ringdesign_workbench::viewport::Sel::Part(head)), ringdesign_workbench::viewport::Mods::default());
+        let t = std::time::Instant::now();
+        let weights = ringdesign_workbench::viewport::tint(&chosen, &build);
+        let tinted = crate::viewport::GpuMeshRenderer::stage_select(&build.mesh, &weights);
+        let tint = t.elapsed();
+        assert!(!tinted.is_empty());
+        println!(
+            "claw solitaire at {name} ({} tris): dispatch to landed {:.1} ms, landing {:.2} ms over an idle tick of {:.3} ms, first frame's edge sync {:.1} us, \
+             a chosen part's tint {:.2} ms; on the worker: stage_mesh {:.2} ms ({} floats), pick scene {:.2} ms ({} faces), stage_edges {:.1} us ({} segments, {} bytes)",
+            build.mesh.faces.len(),
+            latency.as_secs_f64() * 1e3,
+            landing.as_secs_f64() * 1e3,
+            idle.as_secs_f64() * 1e3,
+            sync.as_secs_f64() * 1e6,
+            tint.as_secs_f64() * 1e3,
+            stage_mesh.as_secs_f64() * 1e3,
+            metal.len(),
+            pick.as_secs_f64() * 1e3,
+            scene.faces(),
+            stage_edges.as_secs_f64() * 1e6,
+            edges.segments(),
+            edges.bytes(),
+        );
+    }
+}
+
+/// Steps until the CAD pane has evaluated and staged its view.
+fn wait_for_cad_view(h: &mut Harness<'static, RingDesignerApp>) {
+    let start = std::time::Instant::now();
+    while h.state().cad.edge_runs().1.is_none() {
+        h.run_steps(3);
+        assert!(h.state().cad.last_error().is_none(), "{:?}", h.state().cad.last_error());
+        assert!(start.elapsed() < std::time::Duration::from_secs(30), "the CAD pane never evaluated");
+        std::thread::sleep(std::time::Duration::from_millis(30));
+    }
+    h.run_steps(2);
+}
+
+#[test]
+fn the_cad_pane_draws_its_parts_edges_unless_they_are_isolated_or_exploded() {
+    use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation, Placement};
+    let mut h = harness([1600., 980.]);
+    {
+        let app = h.state_mut();
+        let mut d = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        let post = Component { attach: Attach::Join, placement: Placement::ring(90.0, 0.25), ..Component::default() };
+        doc.append(Feature { id: 2, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.5, height_mm: 2.5 }, component: post }).unwrap();
+        let hidden = Component { placement: Placement::ring(270.0, 0.5), visible: false, ..Component::default() };
+        doc.append(Feature { id: 3, name: "Block".into(), enabled: true, operation: Operation::Box { size: [2.0, 2.0, 1.5] }, component: hidden }).unwrap();
+        d.cad = Some(doc);
+        app.design = d;
+        app.history.commit(&app.design);
+        app.switch_desktop(Desktop::Cad);
+    }
+    wait_for_cad_view(&mut h);
+    let (held, every) = h.state().cad.edge_runs();
+    let every = every.expect("the view's evaluation");
+    let of = |id: u64| every.iter().filter(|r| r.key.0 == id).count();
+    assert!(of(2) > 0 && of(3) > 0, "both parts have edges: {every:?}");
+    assert_eq!(held, every, "the whole ring shows every part's edges, a hidden part's metal and all");
+    // Drawn alone, the hidden block takes its edges with it and the rest are renumbered into one buffer.
+    h.get_by_label("Parts only").click();
+    h.run_steps(3);
+    let post: Vec<_> = every.iter().filter(|r| r.key.0 == 2).map(|r| r.key).collect();
+    let alone = h.state().cad.edge_runs().0;
+    assert_eq!(alone.iter().map(|r| r.key).collect::<Vec<_>>(), post);
+    assert_eq!(alone[0].first, 0);
+    assert!(alone.windows(2).all(|w| w[1].first == w[0].first + w[0].count), "contiguous: {alone:?}");
+    h.get_by_label("Parts only").click();
+    h.run_steps(3);
+    assert_eq!(h.state().cad.edge_runs().0, every);
+    // Isolated from the Ring viewport's menu: none, then all of them back from the pane's Display menu.
+    crate::panels::cad::ask(h.state_mut(), crate::panels::cad::CadRequest::Isolate { feature: 2 });
+    h.run_steps(3);
+    assert!(h.state().cad.edge_runs().0.is_empty(), "an isolated part is drawn without the pass");
+    h.get_by_label("Display").click();
+    h.run_steps(3);
+    h.get_by_label("Show all components").click();
+    h.run_steps(3);
+    assert_eq!(h.state().cad.edge_runs().0, every);
+    // Exploded parts leave their edges behind, so the pass draws none until they close up.
+    h.state_mut().cad.explode_by(1.5);
+    assert!(h.state().cad.edge_runs().0.is_empty());
+    h.state_mut().cad.explode_by(0.0);
+    assert_eq!(h.state().cad.edge_runs().0, every);
+    // The Part edges switch is the Ring viewport's and the pane's alike.
+    let switch = egui::Id::new(crate::viewport::EDGES_SHOWN);
+    h.ctx.data_mut(|d| d.insert_persisted(switch, false));
+    h.run_steps(2);
+    assert!(h.state().cad.edge_runs().0.is_empty());
+    h.ctx.data_mut(|d| d.insert_persisted(switch, true));
+    h.run_steps(2);
+    assert_eq!(h.state().cad.edge_runs().0, every);
+    assert_eq!(h.state().cad.parts().iter().map(|(id, _)| *id).collect::<Vec<_>>(), [2, 3]);
+}
+
+/// A session store held in memory.
+#[derive(Default)]
+struct MemoryStorage(std::collections::HashMap<String, String>);
+impl eframe::Storage for MemoryStorage {
+    fn get_string(&self, key: &str) -> Option<String> {
+        self.0.get(key).cloned()
+    }
+    fn set_string(&mut self, key: &str, value: String) {
+        self.0.insert(key.into(), value);
+    }
+    fn remove_string(&mut self, key: &str) {
+        self.0.remove(key);
+    }
+    fn flush(&mut self) {}
+}
+
+/// The app launched on a saved session.
+fn relaunch(storage: MemoryStorage) -> Harness<'static, RingDesignerApp> {
+    let storage: &'static MemoryStorage = Box::leak(Box::new(storage));
+    Harness::builder().with_size([1600., 980.]).build_eframe(move |cc| {
+        cc.storage = Some(storage);
+        crate::theme::install(&cc.egui_ctx);
+        let mut app = RingDesignerApp::new(cc);
+        app.updater.automatic = false;
+        app.auto_rebuild = false;
+        app
+    })
+}
+
+#[test]
+fn the_part_edges_and_work_plane_switches_come_back_with_the_workspace() {
+    let mut h = harness([1600., 980.]);
+    h.run_steps(3);
+    assert!(crate::viewport::show_edges(&h.ctx) && !h.state().command.planes.hidden, "both on to begin with");
+    h.get_by_label("Display").click();
+    h.run_steps(3);
+    h.get_by_label("Part edges").click();
+    h.run_steps(3);
+    assert!(!crate::viewport::show_edges(&h.ctx), "the Display menu turned the edges off");
+    h.state_mut().command.planes.hidden = true;
+    h.state_mut().show_wireframe = true;
+    let mut storage = MemoryStorage::default();
+    h.state().persist_session(&mut storage).unwrap();
+    let key = crate::app::WORKSPACE_STORAGE_KEY;
+    let saved: crate::app::Workspace = serde_json::from_str(&storage.0[key]).unwrap();
+    assert_eq!((saved.show_part_edges, saved.show_work_planes, saved.show_wireframe), (false, false, true));
+
+    // The same session as a build from before the two switches were kept would have saved it.
+    let mut json: serde_json::Value = serde_json::from_str(&storage.0[key]).unwrap();
+    for gone in ["show_part_edges", "show_work_planes"] {
+        json.as_object_mut().unwrap().remove(gone);
+    }
+    let mut older = MemoryStorage::default();
+    older.0.insert(key.into(), json.to_string());
+
+    let restored = relaunch(storage);
+    assert!(!crate::viewport::show_edges(&restored.ctx), "the edges stay off after a restart");
+    assert!(restored.state().command.planes.hidden, "and the work planes hidden");
+    assert!(restored.state().show_wireframe, "as the wireframe does");
+    let upgraded = relaunch(older);
+    assert!(crate::viewport::show_edges(&upgraded.ctx) && !upgraded.state().command.planes.hidden, "an older workspace opens with both on");
+    assert!(upgraded.state().show_wireframe);
+}
