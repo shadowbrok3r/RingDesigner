@@ -5,14 +5,17 @@ use std::time::{Duration, Instant};
 
 use egui::{Event, EventFilter, Id, Key, Pos2, Rect};
 use ringdesign_core::cad::edit::CadEdit;
-use ringdesign_core::cad::{Attach, Component, Feature, Operation, Placement};
-use ringdesign_core::interaction::pick::{Filter, Ray};
+use ringdesign_core::cad::{Attach, Component, Feature, Operation, Placement, Stage};
+use ringdesign_core::castability::CastProcess;
+use ringdesign_core::castability::ghost::{GhostJudge, GhostRead};
+use ringdesign_core::interaction::pick::{Filter, Ray, ViewScale};
 use ringdesign_core::{BuildResult, Mesh, sketch::Id as FeatureId};
 use ringdesign_workbench::command::{
-    AddPrimitiveCmd, Affine, AttachCmd, Axis, BandSurface, DimEvent, DimensionBar, Effect, Grid, GripCmd, MoveCmd, Outcome, PlaceCmd, Primitive,
-    Probe, Reading, RotateCmd, ScaleCmd, Session, SnapGeometry, SnapHit, Snapper, StepInput, ViewCommand, catalog, placed_ghost, unit_ghost,
-    unit_mesh,
+    AddPrimitiveCmd, Affine, AttachCmd, Axis, BandSurface, DimEvent, DimensionBar, Dofs, Effect, Grid, GripCmd, MoveCmd, Outcome, PlaceCmd,
+    Primitive, Probe, Reading, RingFeatures, RingPoint, RotateCmd, ScaleCmd, Scene, Session, SnapGeometry, SnapHit, Snapper, StepInput,
+    ViewCommand, catalog, land, placed_ghost, unit_ghost, unit_mesh,
 };
+use ringdesign_workbench::viewport::pins::Pin;
 use ringdesign_workbench::gizmo::{self, Gizmo, Handle, Layout};
 use ringdesign_workbench::icons::Icon;
 use ringdesign_workbench::viewport::{Mods, Sel, box_planes};
@@ -67,10 +70,14 @@ pub struct CommandState {
     pivot: Option<[f64; 3]>,
     /// The axis X, Y or Z last locked, so a second press unlocks it.
     lock: Option<Axis>,
-    /// The band the ring frame is read on, by build and by the band's own inputs; `None` inside for parts only.
-    band: Option<(usize, u64, Option<Arc<BandSurface>>)>,
+    /// The band the ring frame is read on, by the build it came with; `None` inside for a ring of parts only.
+    band: Option<(usize, Option<Arc<BandSurface>>)>,
     /// Part vertices and edges to snap to, by build and carried part.
     snaps: Option<(usize, Option<FeatureId>, Vec<[f64; 3]>, Vec<Vec<[f64; 3]>>)>,
+    /// The ring's own snap targets, by build, carried part and pins.
+    features: Option<(usize, Option<FeatureId>, u64, Arc<RingFeatures>)>,
+    /// The carried ghost's castability.
+    tint: Tint,
     /// Unit box, cylinder and sphere for an add's ghost.
     units: [Option<Mesh>; 3],
     staged: Option<Staged>,
@@ -104,6 +111,8 @@ impl Default for CommandState {
             lock: None,
             band: None,
             snaps: None,
+            features: None,
+            tint: Tint::default(),
             units: [None, None, None],
             staged: None,
             linger: None,
@@ -118,6 +127,16 @@ impl Default for CommandState {
     }
 }
 
+/// The carried ghost read for castability: the judge by build, where the ghost was read, and what it says.
+#[derive(Default)]
+struct Tint {
+    judge: Option<(usize, Arc<GhostJudge>)>,
+    at: Option<(Staged, Affine)>,
+    read: Option<GhostRead>,
+    /// What the part's stage and the process add to the caption.
+    note: &'static str,
+}
+
 impl CommandState {
     /// The gizmo handle under the pointer, which the viewport's own hover stands aside for.
     pub fn gizmo_hot(&self) -> Option<Handle> {
@@ -128,13 +147,29 @@ impl CommandState {
     pub fn holds_press(&self) -> bool {
         self.gizmo_drag.is_some() || self.add_press.is_some()
     }
+
+    /// What the carried ghost would do in the sand where it stands, while a command carries one.
+    pub fn ghost_caption(&self) -> Option<String> {
+        let read = self.tint.read.as_ref().filter(|_| self.session.is_live())?;
+        Some(format!("Ghost {}{}", read.caption(), self.tint.note))
+    }
 }
 
 #[cfg(test)]
 impl CommandState {
     /// The band surface the ring frame was last read on, by address.
     pub fn band_surface(&self) -> Option<usize> {
-        self.band.as_ref().and_then(|(_, _, b)| b.as_ref()).map(|b| Arc::as_ptr(b) as usize)
+        self.band.as_ref().and_then(|(_, b)| b.as_ref()).map(|b| Arc::as_ptr(b) as usize)
+    }
+
+    /// The carried ghost's castability as last read.
+    pub fn ghost_read(&self) -> Option<&GhostRead> {
+        self.tint.read.as_ref()
+    }
+
+    /// The last pointer sample's snap.
+    pub fn snapped(&self) -> Option<&SnapHit> {
+        self.pointer.as_ref().and_then(|(_, _, _, s)| s.as_ref())
     }
 
     /// The handle being dragged.
@@ -294,11 +329,10 @@ pub fn start(app: &mut RingDesignerApp, key: &str) -> bool {
     st.linger = None;
     st.box_armed = false;
     st.bar.reset();
+    st.tint.at = None;
+    st.tint.read = None;
     let prompt = st.session.prompt();
     app.set_status(prompt);
-    if let Some(build) = app.build.clone() {
-        band_for(app, &build);
-    }
     true
 }
 
@@ -382,46 +416,108 @@ fn drop_orphan(app: &mut RingDesignerApp) {
     }
 }
 
-/// The band for this build: its own mesh without parts, else a sweep without them kept while the band's inputs hold.
+/// The ring frame the worker read on the build that just landed.
+pub fn band_landed(app: &mut RingDesignerApp, band: Option<Arc<BandSurface>>) {
+    let at = app.build.as_ref().map(build_key).unwrap_or(0);
+    app.command.band = Some((at, band));
+}
+
+/// The ring frame for this build: the worker's, else the surface over the band the build swept, read here once.
 fn band_for(app: &mut RingDesignerApp, build: &Arc<BuildResult>) -> Option<Arc<BandSurface>> {
     let at = build_key(build);
-    if let Some((b, _, band)) = &app.command.band
+    if let Some((b, band)) = &app.command.band
         && *b == at
+        && (band.is_some() || build.band.is_none())
     {
         return band.clone();
     }
-    let mut bare = ringdesign_core::setting::without_solids(&app.design);
-    bare.cad = None;
-    bare.graph = None;
-    let mut params = app.preview_params;
-    if app.as_cast {
-        params.soften_mm = app.design.draft.min_detail_mm;
-    }
-    let bare_band = build.parts.features.is_empty();
-    let key = {
-        use std::hash::{Hash, Hasher};
-        let mut h = std::collections::hash_map::DefaultHasher::new();
-        serde_json::to_vec(&bare).unwrap_or_default().hash(&mut h);
-        serde_json::to_vec(&params).unwrap_or_default().hash(&mut h);
-        (Arc::as_ptr(&app.lib) as usize, app.design.band_is_procedural(), bare_band.then_some(at)).hash(&mut h);
-        h.finish()
-    };
-    if let Some((_, k, band)) = &app.command.band
-        && *k == key
-    {
-        let band = band.clone();
-        app.command.band = Some((at, key, band.clone()));
-        return band;
-    }
-    let band = if !app.design.band_is_procedural() {
-        None
-    } else if bare_band {
-        Some(Arc::new(BandSurface::new(build.mesh.clone())))
-    } else {
-        ringdesign_core::mesh::try_build(&bare, &app.lib, params).ok().map(|b| Arc::new(BandSurface::new(b.mesh)))
-    };
-    app.command.band = Some((at, key, band.clone()));
+    let band = build.band.clone().map(|mesh| Arc::new(BandSurface::shared(mesh)));
+    app.command.band = Some((at, band.clone()));
     band
+}
+
+/// A hash of the pins, which the ring's features are kept by.
+fn pins_key(pins: &[Pin]) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    for p in pins {
+        p.name.hash(&mut h);
+        p.world.map(f64::to_bits).hash(&mut h);
+    }
+    h.finish()
+}
+
+/// The ring's own snap targets for this build, less the carried part: named angles, the parting line, side faces, stones, parts and pins.
+fn features_for(app: &mut RingDesignerApp, build: &Arc<BuildResult>) -> Arc<RingFeatures> {
+    let at = build_key(build);
+    let carried = app.command.target.as_ref().map(|f| f.id);
+    let pins = pins_key(app.pins());
+    if let Some((b, c, p, f)) = &app.command.features
+        && (*b, *c, *p) == (at, carried, pins)
+    {
+        return f.clone();
+    }
+    let parting = app.field.as_ref().map_or(0.0, |f| f.parting_z_mm);
+    let features = RingFeatures::of(&app.design, parting)
+        .with_stones(&app.design)
+        .with_parts(build.parts.evaluated.as_ref(), carried)
+        .with_points(app.pins().iter().map(Pin::target));
+    let features = Arc::new(features);
+    app.command.features = Some((at, carried, pins, features.clone()));
+    features
+}
+
+/// Where a point of the band snaps among the ring's features and the parts' own points, off the grid: what Measure reads.
+pub fn snap_band_point(app: &mut RingDesignerApp, build: &Arc<BuildResult>, world: [f64; 3], view: ViewScale) -> Option<SnapHit> {
+    let band = band_for(app, build);
+    snaps_for(app, build);
+    let features = features_for(app, build);
+    let (design, st) = (&app.design, &app.command);
+    let (vertices, edges) = st.snaps.as_ref().map_or((&[][..], &[][..]), |(_, _, v, e)| (v.as_slice(), e.as_slice()));
+    let nominal = design.inner_radius_mm() + design.profile.thickness_mm;
+    let world_of = |p: RingPoint| band.as_deref().and_then(|b| b.world(p));
+    let scene = Scene { view, aperture_px: APERTURE_PX, geometry: SnapGeometry { vertices, edges }, features: &features, design: Some(design), world_of: &world_of };
+    let ring = ringdesign_workbench::command::ring_point(world, band.as_deref(), nominal);
+    Snapper { grid: None, ..st.snapper }.snap_ring(world, ring, Dofs::ALL, &scene)
+}
+
+/// The ring coordinates the live command lands its part on, when it lands one: a seated part's move, a place, an add's centre.
+fn landing_dofs(app: &RingDesignerApp) -> Option<Dofs> {
+    let cmd = app.command.session.command()?;
+    let seated = app.command.target.as_ref().is_some_and(|f| matches!(f.component.placement, Placement::Ring { .. }));
+    match cmd.key() {
+        "move" if seated => Some(Dofs::of(app.command.lock)),
+        "place" => Some(Dofs::of(app.command.lock)),
+        k if primitive(k).is_some() && cmd.step() == 0 => Some(Dofs::ALL),
+        _ => None,
+    }
+}
+
+/// Feeds `token` to the live command, landing its part on the best snap of `dofs` over the ring's features; the hit it landed on.
+fn feed_landed(app: &mut RingDesignerApp, build: &Arc<BuildResult>, token: StepInput, view: ViewScale, dofs: Dofs, snapper: Snapper) -> (Outcome, Option<SnapHit>) {
+    let band = band_for(app, build);
+    snaps_for(app, build);
+    let features = features_for(app, build);
+    let (design, st) = (&app.design, &mut app.command);
+    let (vertices, edges) = st.snaps.as_ref().map_or((&[][..], &[][..]), |(_, _, v, e)| (v.as_slice(), e.as_slice()));
+    let nominal = design.inner_radius_mm() + design.profile.thickness_mm;
+    let world_of = |p: RingPoint| match band.as_deref() {
+        Some(b) => b.world(p),
+        None => {
+            let (s, c) = p.theta_deg.to_radians().sin_cos();
+            let r = nominal + p.height_mm;
+            Some([r * c, r * s, p.across_mm])
+        }
+    };
+    let scene = Scene { view, aperture_px: APERTURE_PX, geometry: SnapGeometry { vertices, edges }, features: &features, design: Some(design), world_of: &world_of };
+    let hit = std::cell::RefCell::new(None);
+    let snap = |p: RingPoint| {
+        let h = snapper.snap_ring(world_of(p)?, p, dofs, &scene);
+        hit.replace(h.clone());
+        h
+    };
+    let out = land(&mut st.session, token, &snap);
+    (out, hit.take())
 }
 
 /// Part vertices and edges the pointer may snap to: every part's but the carried one's.
@@ -451,7 +547,7 @@ fn reading(st: &CommandState) -> Reading {
     }
 }
 
-/// Reads the pointer at `pos` into the live command; `free` leaves the snaps off.
+/// Reads the pointer at `pos` into the live command, landing a carried part on the ring's snaps; `free` leaves the snaps off.
 fn sample(app: &mut RingDesignerApp, pane: usize, rect: Rect, pos: Pos2, free: bool) {
     let (Some(scene), Some(build)) = (app.pick_scene.clone(), app.build.clone()) else { return };
     let band = band_for(app, &build);
@@ -460,23 +556,35 @@ fn sample(app: &mut RingDesignerApp, pane: usize, rect: Rect, pos: Pos2, free: b
     let at = |p: Pos2| camera.ray(rect, p);
     let (view, ray) = ringdesign_workbench::hover::view_scale(pos, &at);
     let picks = scene.pick(ray, &view, 0.0, Filter { vertices: false, edges: false, ..Filter::default() });
-    let st = &app.command;
-    let (vertices, edges) = st.snaps.as_ref().map_or((&[][..], &[][..]), |(_, _, v, e)| (v.as_slice(), e.as_slice()));
-    let probe = Probe {
-        design: &app.design,
-        surface: band.as_deref(),
-        snapper: (!free).then_some(st.snapper),
-        geometry: SnapGeometry { vertices, edges },
-        view,
-        aperture_px: APERTURE_PX,
-        carried: st.target.as_ref().map(|f| f.id),
+    let lands = landing_dofs(app).filter(|_| !free && reading(&app.command) == Reading::Surface);
+    let token = {
+        let st = &app.command;
+        let (vertices, edges) = st.snaps.as_ref().map_or((&[][..], &[][..]), |(_, _, v, e)| (v.as_slice(), e.as_slice()));
+        let probe = Probe {
+            design: &app.design,
+            surface: band.as_deref(),
+            snapper: (!free && lands.is_none()).then_some(st.snapper),
+            geometry: SnapGeometry { vertices, edges },
+            view,
+            aperture_px: APERTURE_PX,
+            carried: st.target.as_ref().map(|f| f.id),
+        };
+        probe.token(reading(st), &picks, ray)
     };
-    let Some(token) = probe.token(reading(st), &picks, ray) else { return };
-    let snap = match &token {
-        StepInput::Pointer { snapped, .. } => snapped.clone(),
-        _ => None,
+    let Some(token) = token else { return };
+    let (out, snap) = match lands {
+        Some(dofs) => {
+            let snapper = app.command.snapper;
+            feed_landed(app, &build, token, view, dofs, snapper)
+        }
+        None => {
+            let snap = match &token {
+                StepInput::Pointer { snapped, .. } => snapped.clone(),
+                _ => None,
+            };
+            (app.command.session.feed(token), snap)
+        }
     };
-    let out = app.command.session.feed(token);
     let step = app.command.session.command().map_or(0, |c| c.step());
     app.command.pointer = Some((pos, build_key(&build), step, snap));
     outcome(app, out);
@@ -692,7 +800,6 @@ fn start_drag(app: &mut RingDesignerApp, pane: usize, rect: Rect, id: FeatureId,
             None => return,
         },
     };
-    let ray = ray_at(app, pane, rect, at);
     let st = &mut app.command;
     st.session.start(cmd);
     if let Some(axis) = lock {
@@ -705,18 +812,33 @@ fn start_drag(app: &mut RingDesignerApp, pane: usize, rect: Rect, id: FeatureId,
     st.linger = None;
     st.box_armed = false;
     st.gizmo_hot = None;
+    st.tint.at = None;
+    st.tint.read = None;
     st.bar.reset();
     st.bar.prefer(gizmo.key(handle));
     // The drag is measured from where the handle was taken.
-    if let Some(token) = gizmo.token(handle, ray, (!free).then_some(GRID.theta_deg)) {
-        st.session.feed(token);
-    }
-    st.gizmo_drag = Some(GizmoDrag { handle, gizmo, press: at, moved: false, ended: false });
+    feed_drag(app, pane, rect, at, &gizmo, handle, free);
+    app.command.gizmo_drag = Some(GizmoDrag { handle, gizmo, press: at, moved: false, ended: false });
     let status = format!("{} · {}", app.command.session.prompt(), hint(handle));
     app.set_status(status);
-    if let Some(build) = app.build.clone() {
-        band_for(app, &build);
-    }
+}
+
+/// Feeds a gizmo drag's pointer at `at`: an arrow or the dial lands the part on the ring's snaps, the dial on its 5° grid too.
+fn feed_drag(app: &mut RingDesignerApp, pane: usize, rect: Rect, at: Pos2, gizmo: &Gizmo, handle: Handle, free: bool) -> Option<Outcome> {
+    let token = gizmo.token(handle, ray_at(app, pane, rect, at), None)?;
+    let (out, snap) = match (gizmo.dofs(handle), app.build.clone(), free) {
+        (Some(dofs), Some(build), false) => {
+            let camera = app.panes[pane].camera;
+            let (view, _) = ringdesign_workbench::hover::view_scale(at, &|p| camera.ray(rect, p));
+            let grid = (handle == Handle::Dial).then_some(Grid { theta_deg: GRID.theta_deg, across_mm: 0.0, height_mm: 0.0 });
+            let snapper = Snapper { grid, ..app.command.snapper };
+            feed_landed(app, &build, token, view, dofs, snapper)
+        }
+        _ => (app.command.session.feed(token), None),
+    };
+    let key = app.build.as_ref().map(build_key).unwrap_or(0);
+    app.command.pointer = Some((at, key, 0, snap));
+    Some(out)
 }
 
 /// A gizmo handle's drag, or a press on one; whether this frame's press is the gizmo's.
@@ -733,9 +855,7 @@ fn gizmo_input(app: &mut RingDesignerApp, ui: &egui::Ui, pane: usize, rect: Rect
             && let Some(p) = pos
         {
             drag.moved |= p.distance(drag.press) > 2.0;
-            let ray = ray_at(app, pane, rect, p);
-            if let Some(token) = drag.gizmo.token(drag.handle, ray, (!free).then_some(GRID.theta_deg)) {
-                let out = app.command.session.feed(token);
+            if let Some(out) = feed_drag(app, pane, rect, p, &drag.gizmo, drag.handle, free) {
                 outcome(app, out);
             }
         }
@@ -909,9 +1029,12 @@ fn ghost(app: &mut RingDesignerApp) {
         if done && (app.command.staged.is_some() || app.command.linger.is_some()) {
             app.command.staged = None;
             app.command.linger = None;
+            app.command.tint.read = None;
+            app.command.tint.at = None;
             if let Ok(mut r) = app.renderer.lock() {
                 r.prepare_preview(Vec::new());
                 r.set_preview_model(None);
+                r.set_preview_draft(false);
             }
         }
         return;
@@ -924,22 +1047,52 @@ fn ghost(app: &mut RingDesignerApp) {
         (None, Some(t)) => (Staged::Part { build: build_key(&build), feature: t.id }, placed_ghost(&app.design, band.as_deref(), t, &preview)),
         (None, None) => return,
     };
-    if app.command.staged != Some(want) {
-        let verts = match want {
-            Staged::Unit(kind) => {
-                let slot = &mut app.command.units[unit_slot(kind)];
-                if slot.is_none() {
-                    *slot = unit_mesh(kind);
-                }
-                slot.as_ref().map(GpuMeshRenderer::stage_part).unwrap_or_default()
+    if let Staged::Unit(kind) = want {
+        let slot = &mut app.command.units[unit_slot(kind)];
+        if slot.is_none() {
+            *slot = unit_mesh(kind);
+        }
+    }
+    let part = match want {
+        Staged::Part { feature, .. } => build.parts.evaluated.as_ref().and_then(|e| e.components.iter().find(|c| c.id == feature)),
+        Staged::Unit(_) => None,
+    };
+    // A reference stone is not read.
+    let judge = (part.is_none_or(|c| !c.settings.reference) && model.is_some()).then(|| judge_for(app, &build, band.as_deref()));
+    let mesh: Option<&Mesh> = match want {
+        Staged::Unit(kind) => app.command.units[unit_slot(kind)].as_ref(),
+        Staged::Part { .. } => part.map(|c| &c.mesh),
+    };
+    let mut restage = app.command.staged != Some(want);
+    let tinted = match (mesh, model, judge) {
+        (Some(mesh), Some(m), Some(judge)) => {
+            if app.command.tint.at != Some((want, m)) {
+                let read = judge.read(mesh, &m.0, part.is_some_and(|c| c.attach == Attach::Cut));
+                restage |= app.command.tint.read.as_ref().is_none_or(|r| r.classes != read.classes);
+                app.command.tint.read = Some(read);
+                app.command.tint.at = Some((want, m));
+                let sand = app.design.draft.process == CastProcess::SandTwoPart;
+                app.command.tint.note = match (sand, part.map(|c| c.stage)) {
+                    (false, _) => " (lost wax: read, not judged)",
+                    (true, Some(Stage::Bench)) => " (bench: soldered on after the pour)",
+                    _ => "",
+                };
             }
-            Staged::Part { feature, .. } => build
-                .parts
-                .evaluated
-                .as_ref()
-                .and_then(|e| e.components.iter().find(|c| c.id == feature))
-                .map(|c| GpuMeshRenderer::stage_part(&c.mesh))
-                .unwrap_or_default(),
+            true
+        }
+        _ => {
+            restage |= app.command.tint.read.is_some();
+            app.command.tint.read = None;
+            app.command.tint.at = None;
+            false
+        }
+    };
+    // Staged again when the part changes or the classes painting it do.
+    if restage {
+        let verts = match (mesh, app.command.tint.read.as_ref()) {
+            (Some(mesh), Some(read)) => GpuMeshRenderer::stage_part_classes(mesh, &read.classes),
+            (Some(mesh), None) => GpuMeshRenderer::stage_part(mesh),
+            (None, _) => Vec::new(),
         };
         if let Ok(mut r) = app.renderer.lock() {
             r.prepare_preview(verts);
@@ -948,7 +1101,22 @@ fn ghost(app: &mut RingDesignerApp) {
     }
     if let Ok(mut r) = app.renderer.lock() {
         r.set_preview_model(model.as_ref().map(gl_model));
+        r.set_preview_draft(tinted);
     }
+}
+
+/// The ghost's judge for this build: the field verdict's parting plane and the band's bore.
+fn judge_for(app: &mut RingDesignerApp, build: &Arc<BuildResult>, band: Option<&BandSurface>) -> Arc<GhostJudge> {
+    let at = build_key(build);
+    if let Some((b, judge)) = &app.command.tint.judge
+        && *b == at
+    {
+        return judge.clone();
+    }
+    let parting = app.field.as_ref().map_or(0.0, |f| f.parting_z_mm);
+    let judge = Arc::new(GhostJudge::new(&app.design, band.map(BandSurface::mesh), parting));
+    app.command.tint.judge = Some((at, judge.clone()));
+    judge
 }
 
 /// A map as the renderer takes it: the column-major 4x4 and the normals' column-major 3x3.
@@ -1012,9 +1180,16 @@ pub fn draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, response:
             painter.text(p + egui::vec2(8.0, -8.0), egui::Align2::LEFT_BOTTOM, &snap.label, egui::FontId::proportional(11.0), theme::ACCENT);
         }
     }
-    let mut lines = vec![app.command.session.prompt(), preview.caption.clone()];
+    let aqua = ringdesign_workbench::hover::AQUA;
+    let mut lines = vec![(app.command.session.prompt(), aqua), (preview.caption.clone(), theme::TEXT)];
+    // What the carried ghost would do in the sand, in the draft colours' own red and green.
+    if let (Some(text), Some(read)) = (app.command.ghost_caption(), app.command.tint.read.as_ref()) {
+        let class = if read.locks() { ringdesign_core::FaceClass::Undercut } else { ringdesign_core::FaceClass::Good };
+        let [r, g, b] = class.rgb().map(|c| (c * 255.0).round() as u8);
+        lines.push((text, egui::Color32::from_rgb(r, g, b)));
+    }
     if let Some(hint) = axis_hint(cmd) {
-        lines.push(format!("{hint} · Ctrl frees the snap · Esc backs out"));
+        lines.push((format!("{hint} · Ctrl frees the snap · Esc backs out"), aqua));
     }
     let anchor = app.command.anchor.unwrap_or(rect.center());
     caption(painter, rect, anchor, &lines);
@@ -1073,10 +1248,10 @@ fn gizmo_draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: R
     }
 }
 
-/// The live command's words by the pointer: its prompt, its numbers and locks, and its keys.
-fn caption(painter: &egui::Painter, rect: Rect, anchor: Pos2, lines: &[String]) {
+/// The live command's words by the pointer: its prompt, its numbers and locks, what its ghost would do, and its keys.
+fn caption(painter: &egui::Painter, rect: Rect, anchor: Pos2, lines: &[(String, egui::Color32)]) {
     let font = egui::FontId::proportional(12.0);
-    let galleys: Vec<_> = lines.iter().filter(|l| !l.is_empty()).enumerate().map(|(i, l)| painter.layout_no_wrap(l.clone(), font.clone(), if i == 1 { theme::TEXT } else { ringdesign_workbench::hover::AQUA })).collect();
+    let galleys: Vec<_> = lines.iter().filter(|(l, _)| !l.is_empty()).map(|(l, c)| painter.layout_no_wrap(l.clone(), font.clone(), *c)).collect();
     let width = galleys.iter().map(|g| g.size().x).fold(0.0, f32::max);
     let height: f32 = galleys.iter().map(|g| g.size().y + 2.0).sum();
     let mut at = egui::pos2((anchor.x + 18.0).min(rect.right() - width - 8.0).max(rect.left() + 8.0), (anchor.y - 10.0 - height).max(rect.top() + 6.0));

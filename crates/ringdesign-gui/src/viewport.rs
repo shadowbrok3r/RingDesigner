@@ -26,6 +26,8 @@ pub const SELECT_TINT: [f32; 4] = [0.80, 0.57, 0.85, 0.55];
 pub const HOVER_TINT: [f32; 4] = [0.40, 0.85, 0.83, 0.55];
 /// A live command's ghost: the hover aqua, and its opacity.
 pub const PREVIEW_TINT: [f32; 4] = [0.40, 0.85, 0.83, 0.45];
+/// A ghost painted by its draft classes, opacity.
+const DRAFT_GHOST_ALPHA: f32 = 0.6;
 
 /// Floats per vertex: position(3), normal(3), draft colour(3), wall colour(3).
 const FLOATS_PER_VERTEX: usize = 12;
@@ -189,6 +191,8 @@ pub struct GpuMeshRenderer {
     preview_pending: Option<Vec<f32>>,
     /// Where the ghost stands: its column-major model matrix and the normals' 3x3; `None` hides it.
     preview_model: Option<([f32; 16], [f32; 9])>,
+    /// The ghost shades in its staged draft colours rather than the hover aqua.
+    preview_draft: bool,
     /// A focus channel awaiting upload; `Some(empty)` clears it.
     focus_pending: Option<Vec<f32>>,
     /// The uploaded channel covers the uploaded mesh vertex for vertex.
@@ -218,6 +222,7 @@ impl Default for GpuMeshRenderer {
             preview_count: 0,
             preview_pending: None,
             preview_model: None,
+            preview_draft: false,
             focus_pending: None,
             focus_live: false,
             select_pending: None,
@@ -387,19 +392,41 @@ impl GpuMeshRenderer {
         self.preview_model = model;
     }
 
+    /// Whether the ghost shades in its staged draft colours.
+    pub fn set_preview_draft(&mut self, draft: bool) {
+        self.preview_draft = draft;
+    }
+
+    /// The ghost's vertices awaiting upload, and whether it shades by draft class.
+    #[cfg(test)]
+    pub fn staged_preview(&self) -> (Option<&[f32]>, bool) {
+        (self.preview_pending.as_deref(), self.preview_draft)
+    }
+
     /// A part's tessellation in the interleaved layout, a vertex normal kept only within 20° of its facet's.
     pub fn stage_part(mesh: &Mesh) -> Vec<f32> {
+        Self::stage_part_colored(mesh, |_| [1.0; 3])
+    }
+
+    /// [`stage_part`](Self::stage_part) with every face in its draft class's colour.
+    pub fn stage_part_classes(mesh: &Mesh, classes: &[ringdesign_core::FaceClass]) -> Vec<f32> {
+        Self::stage_part_colored(mesh, |i| classes.get(i).map_or([1.0; 3], |k| k.rgb()))
+    }
+
+    /// A part's tessellation with face `i` in `color(i)`.
+    fn stage_part_colored(mesh: &Mesh, color: impl Fn(usize) -> [f32; 3]) -> Vec<f32> {
         let mut data = Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
-        for face in &mesh.faces {
+        for (i, face) in mesh.faces.iter().enumerate() {
             let Some(facet) = mesh.face_normal(face) else { continue };
             let facet = Vec3(facet[0] as f32, facet[1] as f32, facet[2] as f32);
             let Some(points) = face.iter().map(|&vi| mesh.vertices.get(vi as usize).filter(|p| p.is_finite()).copied()).collect::<Option<Vec<_>>>() else { continue };
+            let [r, g, b] = color(i);
             for (p, &vi) in points.iter().zip(face) {
                 let n = match mesh.normals.get(vi as usize) {
                     Some(n) if n.is_finite() && n.0 * facet.0 + n.1 * facet.1 + n.2 * facet.2 > 0.94 => *n,
                     _ => facet,
                 };
-                data.extend_from_slice(&[p.0, p.1, p.2, n.0, n.1, n.2, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
+                data.extend_from_slice(&[p.0, p.1, p.2, n.0, n.1, n.2, r, g, b, 1.0, 1.0, 1.0]);
             }
         }
         data
@@ -647,12 +674,13 @@ impl GpuMeshRenderer {
                 gl.uniform_matrix_4_f32_slice(mvp_loc.as_ref(), false, &mul4(mvp, &model));
                 let normal_loc = gl.get_uniform_location(res.program, "u_normal_matrix");
                 gl.uniform_matrix_3_f32_slice(normal_loc.as_ref(), false, &mul3(normal_matrix, &normal));
+                // Mode 1 shades the staged draft colours.
                 let loc = gl.get_uniform_location(res.program, "u_mode");
-                gl.uniform_1_i32(loc.as_ref(), 0);
+                gl.uniform_1_i32(loc.as_ref(), if self.preview_draft { 1 } else { 0 });
                 let loc = gl.get_uniform_location(res.program, "u_base_color");
                 gl.uniform_3_f32(loc.as_ref(), PREVIEW_TINT[0], PREVIEW_TINT[1], PREVIEW_TINT[2]);
                 let alpha_loc = gl.get_uniform_location(res.program, "u_alpha");
-                gl.uniform_1_f32(alpha_loc.as_ref(), PREVIEW_TINT[3]);
+                gl.uniform_1_f32(alpha_loc.as_ref(), if self.preview_draft { DRAFT_GHOST_ALPHA } else { PREVIEW_TINT[3] });
                 let clip_loc = gl.get_uniform_location(res.program, "u_clip_plane");
                 gl.uniform_4_f32_slice(clip_loc.as_ref(), &[0.0; 4]);
                 gl.enable(glow::BLEND);
@@ -1333,7 +1361,13 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     draw_section_marker(app, &painter, &proj);
     draw_legend(app, shade, &painter, overlay);
     draw_probe(app, &painter, &proj, rect);
-    if active && !floating_blocked {
+    if !follow_node {
+        crate::ring_snaps::draw_pins(app, &painter, &proj, rect);
+    }
+    // Measure picks off the pick scene here; every other tool draws itself.
+    if active && !floating_blocked && app.visual.tool == Tool::Measure {
+        crate::ring_snaps::measure(app, ui, pane, rect, &response, &painter, &proj);
+    } else if active && !floating_blocked {
         if let Some(build) = app.build.clone() {
             let camera = app.panes[pane].camera;
             let proj = camera.projector(rect);
@@ -1428,6 +1462,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
         if let Some(c) = app.command.session.command() {
             s.push_str(&format!(" · {} live", c.title()));
+        }
+        if let Some(ghost) = app.command.ghost_caption() {
+            s.push_str(&format!(" · {ghost}"));
         }
         if app.command.box_armed {
             s.push_str(" · box select armed");

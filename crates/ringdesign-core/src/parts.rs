@@ -179,8 +179,11 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
         return Ok(out);
     }
     let clock = crate::mesh::BuildClock::start();
-    let memo = if memo.cache.is_some() { memo.with_epoch(cad::surface_epoch(&built.mesh)) } else { memo };
-    let evaluated = cad::evaluate_memo(design, lib, params, &BuildCtx::new(ctx.cancel).with_surface(&built.mesh), memo)?;
+    // Parts are seated on the band as swept, before the seats' solids and stamps.
+    let band = built.band.clone();
+    let surface: &Mesh = band.as_deref().unwrap_or(&built.mesh);
+    let memo = if memo.cache.is_some() { memo.with_epoch(cad::surface_epoch(surface)) } else { memo };
+    let evaluated = cad::evaluate_memo(design, lib, params, &BuildCtx::new(ctx.cancel).with_surface(surface), memo)?;
     out.notes = status_notes(&evaluated);
     out.first = (built.solids.paths.len() + design.stamps.len()) as u32;
     let (mut joins, mut cuts, mut separates) = (Vec::new(), Vec::new(), Vec::new());

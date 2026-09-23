@@ -321,6 +321,17 @@ pub struct BuildResult {
     pub solids: crate::setting::Applied,
     /// What the CAD parts did to the mesh, after the seats and stamps.
     pub parts: crate::parts::Resolved,
+    /// The band as swept, before seats' solids, stamps and parts, which parts are seated on; `None` for a ring of parts only.
+    pub band: Option<std::sync::Arc<Mesh>>,
+}
+
+thread_local! {
+    static SWEEPS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Bands swept on the calling thread so far.
+pub fn sweeps() -> u64 {
+    SWEEPS.with(std::cell::Cell::get)
 }
 
 /// Build the ring mesh from a design.
@@ -364,6 +375,7 @@ pub fn try_build_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildPara
 pub fn try_build_memo(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, cancel: &std::sync::atomic::AtomicBool, memo: crate::cad::Memo) -> anyhow::Result<BuildResult> {
     if design.band_is_procedural() {
         let mut built = if design.imported_base.is_some() { crate::imported_base::build(design,lib,params)? } else { build_band(design,lib,params) };
+        built.band = Some(std::sync::Arc::new(built.mesh.clone()));
         resolve_solids(design, lib, &mut built);
         if design.cad.is_some() {
             let ctx = crate::cad::BuildCtx::new(cancel);
@@ -378,7 +390,7 @@ pub fn try_build_memo(design: &RingDesign, lib: &AlphaLibrary, params: BuildPara
     let (lo,hi)=mesh.bounds().unwrap();let bounds_mm=[(hi.0-lo.0) as f64,(hi.1-lo.1) as f64,(hi.2-lo.2) as f64];let volume=mesh.volume_mm3();
     let report=Report {validation:mesh.validate(),volume_mm3:volume,surface_area_mm2:mesh.surface_area_mm2(),bounds_mm,inner_diameter_mm:measured_bore_diameter_mm(&mesh,design.size.inner_diameter_mm()),outer_diameter_mm:bounds_mm[0].max(bounds_mm[1]),band_width_mm:bounds_mm[2],max_relief_mm:0.0,min_relief_mm:0.0,metals:metal_table(volume),build_ms:started.ms(),refine:None,quality:mesh.quality()};
     parts.ms = started.ms();
-    Ok(BuildResult {mesh,report,reference:design.reference_loop(),spacing:Spacing::uniform(params.theta_steps.clamp(24,4096)),solids:Default::default(),parts})
+    Ok(BuildResult {mesh,report,reference:design.reference_loop(),spacing:Spacing::uniform(params.theta_steps.clamp(24,4096)),solids:Default::default(),parts,band:None})
 }
 
 /// The mesh a mould is made from rather than the finished ring: bench-only layers off, and under sand
@@ -408,6 +420,7 @@ fn resolve_solids(design: &RingDesign, lib: &AlphaLibrary, built: &mut BuildResu
 
 pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> BuildResult {
     let started = BuildClock::start();
+    SWEEPS.with(|s| s.set(s.get() + 1));
     if let Some(rp) = params.refine {
         return build_refined(design, lib, params, rp, started);
     }
@@ -525,7 +538,7 @@ pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
         quality: mesh.quality(),
     };
 
-    BuildResult { mesh, report, reference, spacing, solids: Default::default(), parts: Default::default() }
+    BuildResult { mesh, report, reference, spacing, solids: Default::default(), parts: Default::default(), band: None }
 }
 
 /// Build by refining the `(u, s)` domain to a tolerance rather than sweeping a
@@ -574,6 +587,7 @@ fn build_refined(
         spacing: Spacing::uniform(params.theta_steps.max(1)),
         solids: Default::default(),
         parts: Default::default(),
+        band: None,
     }
 }
 
@@ -1457,6 +1471,55 @@ mod tests {
             detail > even + 96 / 10,
             "detail-driven spacing gave the surface {detail} of 96, equal-arc gave {even}"
         );
+    }
+
+    #[test]
+    fn the_build_keeps_the_swept_band_and_seats_parts_on_it_under_a_stamp() {
+        use crate::cad::{Attach, Component, Document, Feature, Operation, Placement};
+        let lib = AlphaLibrary::builtin();
+        let params = BuildParams { theta_steps: 192, profile_steps: 96, ..Default::default() };
+        let mut d = RingDesign::default();
+        let crest_v = d.reference_loop().crest_v_mm;
+        let disc: Vec<[f64; 2]> = (0..32).map(|i| (f64::from(i) / 32.0 * std::f64::consts::TAU).sin_cos()).map(|(s, c)| [1.2 * c, 1.2 * s]).collect();
+        d.stamps.push(crate::setting::Stamp {
+            name: "Disc".into(),
+            theta_deg: TOP_DEG,
+            v_mm: crest_v,
+            rot_deg: 0.0,
+            outline: disc,
+            height_mm: 0.4,
+            sink_mm: 0.2,
+            draft_deg: 0.0,
+            cut: false,
+            bench: false,
+            along_pull: false,
+        });
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        let post = Component { attach: Attach::Join, placement: Placement::ring(TOP_DEG, 0.0), ..Component::default() };
+        doc.append(Feature { id: 2, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 0.5, height_mm: 2.0 }, component: post }).unwrap();
+        d.cad = Some(doc);
+        let before = sweeps();
+        let built = try_build(&d, &lib, params).unwrap();
+        assert_eq!(sweeps() - before, 1, "one sweep a build");
+        assert_eq!((built.solids.stamped, built.parts.joined), (1, 1));
+        let band = built.band.clone().expect("a procedural band is kept");
+        let swept = build_band(&d, &lib, params).mesh;
+        assert_eq!((band.vertices.as_slice(), band.faces.as_slice()), (swept.vertices.as_slice(), swept.faces.as_slice()), "the band is the sweep itself");
+        // The post stands on the band under the stamp, not on the stamp's top 0.4 mm above it.
+        let (hit, _) = crate::cad::surface_hit(&band, TOP_DEG, 0.0).unwrap();
+        let frame = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 2).unwrap().frame;
+        assert!((0..3).all(|k| (frame.origin[k] - hit[k]).abs() < 1e-9), "{:?} vs {hit:?}", frame.origin);
+        // The post is centred on its seat: its top stands half its height over the band, not over the stamp.
+        let (over, _) = crate::cad::surface_hit(&built.mesh, TOP_DEG, 0.0).unwrap();
+        let top = over[0].hypot(over[1]) - hit[0].hypot(hit[1]);
+        assert!((top - 1.0).abs() < 0.01, "{top}");
+        // A ring the kernel builds whole has no band.
+        let mut whole = RingDesign::default();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Stud".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 4.0, height_mm: 3.0 }, component: Component::default() }).unwrap();
+        whole.cad = Some(doc);
+        assert!(try_build(&whole, &lib, params).unwrap().band.is_none());
     }
 
     #[test]

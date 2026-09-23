@@ -1,7 +1,7 @@
 //! Move, rotate and scale in the ring frame, place on the ring, click-drag primitives, the attach cycle and grip drags.
 use super::ring::{Affine, angle_about, transform};
 use super::session::{Axis, CommandInfo, Dimension, Effect, Outcome, Preview, StepInfo, StepInput, Unit, ViewCommand};
-use super::snap::wrap360;
+use super::snap::{RingPoint, wrap360};
 use crate::grips::{self, Grip};
 use crate::icons::Icon;
 use ringdesign_core::cad::{Attach, Component, Feature, Operation, Placement};
@@ -63,6 +63,9 @@ fn dist(a: [f64; 3], b: [f64; 3]) -> f64 {
 fn lock_note(lock: Option<Axis>) -> String {
     lock.map(|a| format!(" · {} locked", a.key())).unwrap_or_default()
 }
+fn snap_note(snapped: &Option<String>) -> String {
+    snapped.as_ref().map(|s| format!(" · {s}")).unwrap_or_default()
+}
 fn locks_only(title: &str, dofs: &[Dof]) -> Outcome {
     let names: Vec<_> = dofs.iter().map(|d| d.axis.key()).collect();
     Outcome::Refused(format!("{title} locks {}", names.join(", ")))
@@ -75,6 +78,9 @@ fn wrapped(id: u64, source: u64, component: &Component, translation: [f64; 3], r
     let operation = Operation::Transform { source, translation, rotation_deg };
     Feature { id, name: operation.label().into(), enabled: true, operation, component: component.clone() }
 }
+
+/// Within this many mm or degrees a moved value reads as where it began or where it snapped.
+const SETTLE: f64 = 1e-4;
 
 /// Where the pointer was when a command first saw it.
 #[derive(Clone, Copy, Debug)]
@@ -103,6 +109,9 @@ pub struct MoveCmd {
     delta: [f64; 3],
     lock: Option<Axis>,
     dofs: Vec<Dof>,
+    /// What the landing last snapped to, and where.
+    snapped: Option<String>,
+    landed: Option<RingPoint>,
 }
 impl MoveCmd {
     /// A free part's move becomes a new `Transform` feature numbered `fresh_id`.
@@ -120,7 +129,7 @@ impl MoveCmd {
             ],
         };
         let free = FreeMove::Wrap(Component::default());
-        Self { feature, base, fresh_id, free, anchor: None, world: [0.0; 3], delta: [0.0; 3], lock: None, dofs }
+        Self { feature, base, fresh_id, free, anchor: None, world: [0.0; 3], delta: [0.0; 3], lock: None, dofs, snapped: None, landed: None }
     }
     /// Moves a document feature: a free `Transform` is edited in place, any other free part keeps its component.
     pub fn of(f: &Feature, fresh_id: u64) -> Self {
@@ -138,13 +147,19 @@ impl MoveCmd {
     }
     fn effect(&self) -> Effect {
         let v = |i: usize| self.dofs[i].value();
+        // A value within `SETTLE` of where it began, or of where the landing snapped, takes that value.
+        let settle = |value: f64, from: f64, k: usize| {
+            let landed = self.landed.map(|p| [p.theta_deg, p.across_mm, p.height_mm][k]);
+            let off = |at: f64| if k == 0 { wrap180(value - at) } else { value - at };
+            std::iter::once(from).chain(landed).find(|at| off(*at).abs() < SETTLE).unwrap_or(value)
+        };
         match (&self.base, &self.free) {
             (Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg }, _) => Effect::Placement {
                 feature: self.feature,
                 placement: Placement::Ring {
-                    theta_deg: wrap360(theta_deg + v(0)),
-                    across_mm: across_mm + v(1),
-                    height_mm: height_mm + v(2),
+                    theta_deg: settle(wrap360(theta_deg + v(0)), *theta_deg, 0),
+                    across_mm: settle(across_mm + v(1), *across_mm, 1),
+                    height_mm: settle(height_mm + v(2), *height_mm, 2),
                     spin_deg: *spin_deg,
                     tilt_deg: *tilt_deg,
                     cant_deg: *cant_deg,
@@ -185,13 +200,15 @@ impl ViewCommand for MoveCmd {
             return o;
         }
         match *input {
-            StepInput::Pointer { world, theta_deg, across_mm, height_mm, .. } => {
+            StepInput::Pointer { world, theta_deg, across_mm, height_mm, ref snapped, .. } => {
                 let a = *self.anchor.get_or_insert(Anchor { world, theta: theta_deg, across: across_mm, height: height_mm });
                 self.delta = match self.base {
                     Placement::Ring { .. } => [wrap180(theta_deg - a.theta), across_mm - a.across, height_mm - a.height],
                     Placement::Free => std::array::from_fn(|k| world[k] - a.world[k]),
                 };
                 self.world = world;
+                self.snapped = snapped.as_ref().map(|s| s.label.clone());
+                self.landed = snapped.as_ref().map(|s| s.ring);
                 self.apply_lock();
                 Outcome::Continue
             }
@@ -224,7 +241,7 @@ impl ViewCommand for MoveCmd {
         if let Some(a) = self.anchor {
             p.ghost = vec![a.world, self.world];
         }
-        p.caption = format!("Move {}{}", caption(&self.dofs), lock_note(self.lock));
+        p.caption = format!("Move {}{}{}", caption(&self.dofs), snap_note(&self.snapped), lock_note(self.lock));
         p
     }
 }
@@ -658,6 +675,8 @@ pub struct AddPrimitiveCmd {
     centre: Option<[f64; 3]>,
     world: [f64; 3],
     dofs: Vec<Dof>,
+    /// What the centre last snapped to.
+    snapped: Option<String>,
 }
 const MIN_DRAG_MM: f64 = 0.05;
 impl AddPrimitiveCmd {
@@ -669,7 +688,7 @@ impl AddPrimitiveCmd {
             Dof::size(Axis::X, "radius", if kind == Primitive::Box { "Half-size" } else { "Radius" }, 1.0),
             Dof::size(Axis::Z, "height", "Height", 1.0),
         ];
-        Self { kind, id, step: 0, centre: None, world: [0.0; 3], dofs }
+        Self { kind, id, step: 0, centre: None, world: [0.0; 3], dofs, snapped: None }
     }
     fn has_height(&self) -> bool {
         self.kind != Primitive::Sphere
@@ -749,13 +768,14 @@ impl ViewCommand for AddPrimitiveCmd {
             return o;
         }
         match *input {
-            StepInput::Pointer { world, theta_deg, across_mm, .. } => {
+            StepInput::Pointer { world, theta_deg, across_mm, ref snapped, .. } => {
                 self.world = world;
                 match (self.step, self.centre) {
                     (0, _) => {
                         self.centre = Some(world);
                         self.dofs[0].pointer = theta_deg;
                         self.dofs[1].pointer = across_mm;
+                        self.snapped = snapped.as_ref().map(|s| s.label.clone());
                     }
                     (n, Some(c)) => self.dofs[if n == 1 { 2 } else { 3 }].pointer = dist(world, c).max(MIN_DRAG_MM),
                     (_, None) => {}
@@ -799,7 +819,7 @@ impl ViewCommand for AddPrimitiveCmd {
             placement: Some(self.placement()),
             operation: Some(self.operation()),
             ghost: self.centre.into_iter().chain((self.step > 0).then_some(self.world)).collect(),
-            caption: format!("{} {size} at {:.1}°", self.title(), wrap360(self.dofs[0].value())),
+            caption: format!("{} {size} at {:.1}°{}", self.title(), wrap360(self.dofs[0].value()), snap_note(&self.snapped)),
         }
     }
 }

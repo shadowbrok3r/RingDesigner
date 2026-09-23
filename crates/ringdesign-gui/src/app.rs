@@ -11,7 +11,9 @@ use ringdesign_core::field::{Layer, LayerEntry};
 use ringdesign_core::interaction::pick::PickScene;
 use ringdesign_core::mesh::{BuildParams, BuildResult};
 use ringdesign_core::{RingDesign, library};
+use ringdesign_workbench::command::BandSurface;
 use ringdesign_workbench::viewport::Selection;
+use ringdesign_workbench::viewport::pins::Pin;
 use ringdesign_graph::eval::{Evaluator, evaluate_design};
 use ringdesign_graph::graph::{Graph, GraphError, NodeId as GraphNodeId};
 use ringdesign_graph::registry::Registry;
@@ -74,6 +76,9 @@ pub struct Workspace {
     pub panes: Vec<Pane>,
     pub active_pane: usize,
     pub mcp_port: u16,
+    /// Pins dropped on the ring, by the design file they were dropped on; an unsaved design's under "".
+    #[serde(default)]
+    pub pins: BTreeMap<String, Vec<Pin>>,
 }
 
 fn default_true() -> bool {
@@ -114,6 +119,7 @@ impl Default for Workspace {
             panes: Pane::defaults(),
             active_pane: 0,
             mcp_port: ringdesign_mcp::DEFAULT_PORT,
+            pins: BTreeMap::new(),
         }
     }
 }
@@ -144,7 +150,24 @@ impl RingDesignerApp {
             panes: self.panes.clone(),
             active_pane: self.active_pane,
             mcp_port: self.mcp_port,
+            pins: self.pins.clone(),
         }
+    }
+
+    /// The pins of the design in hand.
+    pub fn pins(&self) -> &[Pin] {
+        self.pins.get(&self.pin_key()).map_or(&[], Vec::as_slice)
+    }
+
+    /// The pins of the design in hand, to add to or clear.
+    pub fn pins_mut(&mut self) -> &mut Vec<Pin> {
+        let key = self.pin_key();
+        self.pins.entry(key).or_default()
+    }
+
+    /// The design file pins are kept under.
+    fn pin_key(&self) -> String {
+        self.document_path.as_ref().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
     }
 }
 
@@ -292,6 +315,9 @@ pub struct RingDesignerApp {
     pub node_focus: NodeFocus,
     pub selected_node: Option<GraphNodeId>,
 
+    /// Pins dropped on the ring, by the design file they belong to.
+    pub pins: BTreeMap<String, Vec<Pin>>,
+
     /// Embedded MCP server, `None` until the user starts it.
     pub mcp: Option<McpHost>,
     pub mcp_port: u16,
@@ -423,6 +449,7 @@ impl RingDesignerApp {
             graph_effects: BTreeMap::new(),
             node_focus: NodeFocus::default(),
             selected_node: None,
+            pins: ws.pins,
 
             mcp: None,
             mcp_port: ws.mcp_port,
@@ -603,6 +630,7 @@ impl RingDesignerApp {
                         }
                     }
                     self.build = Some(Arc::new(done.result));
+                    crate::command::band_landed(self, done.band.take());
                     self.node_focus.mesh_generation = done.generation;
                     self.node_focus.mesh_params = Some(done.params);
                     self.visual.mesh_changed();
@@ -822,6 +850,12 @@ impl RingDesignerApp {
     }
 
     pub fn clear_selection(&mut self) {
+        // Clears Measure's picks first, keeping the tool.
+        if self.visual.tool == ringdesign_workbench::visual::Tool::Measure && !self.visual.measurement.picks.is_empty() {
+            self.visual.measurement.clear();
+            self.set_status("Measurement cleared");
+            return;
+        }
         self.hovered_node = None;
         self.selection.clear();
         self.selected_node = None;
@@ -1355,6 +1389,8 @@ struct Done {
     /// The seats' cutters as a ghost, empty unless asked for.
     cutters: Vec<f32>,
     graph: Option<GraphDone>,
+    /// The ring frame over the build's band, the one before it when the band did not change.
+    band: Option<Arc<BandSurface>>,
 }
 
 /// The highlight a chosen graph node casts on the ring, and what it was
@@ -1407,6 +1443,8 @@ impl Worker {
                 // CAD bodies and tessellations an edit leaves alone come back from here on the next build.
                 let cache = Mutex::new(ringdesign_core::cad::Cache::default());
                 let never = std::sync::atomic::AtomicBool::new(false);
+                // The last band's ring frame, by the band's epoch.
+                let mut last_band: Option<(u64, Arc<BandSurface>)> = None;
                 while let Ok(mut job) = jobs_rx.recv() {
                     // Skip stale work: only the newest queued job matters.
                     while let Ok(newer) = jobs_rx.try_recv() {
@@ -1470,6 +1508,18 @@ impl Worker {
                             ringdesign_core::mesh::try_build_memo(&stock, &job.lib, job.params, &never, memo)
                         }
                         .map_err(|e| format!("{e:#}"))?;
+                        // A design with parts gets its ring frame over the build's own band; an unchanged band keeps its surface.
+                        let band = result.band.clone().filter(|_| job.design.cad.is_some()).map(|mesh| {
+                            let epoch = ringdesign_core::cad::surface_epoch(&mesh);
+                            match &last_band {
+                                Some((e, surface)) if *e == epoch => surface.clone(),
+                                _ => {
+                                    let surface = Arc::new(BandSurface::shared(mesh));
+                                    last_band = Some((epoch, surface.clone()));
+                                    surface
+                                }
+                            }
+                        });
                         // The verdict itself comes from the surface, at a fixed
                         // sampling so it cannot wobble with preview quality; any
                         // undercut arrives located and blamed.
@@ -1515,6 +1565,7 @@ impl Worker {
                             gems,
                             cutters,
                             graph: graph_done,
+                            band,
                         })
                     }));
                     // A panic inside a cache update leaves it poisoned; it starts again empty.
