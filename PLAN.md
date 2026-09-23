@@ -477,6 +477,61 @@ worktrees, then verified, measured and committed by the integrator.
   builds on the UI thread, now when a part is first chosen; the phone has none of the M3–M10
   viewport tools yet (M12).
 
+### Batch 7 status — 2026-09-22 (on master: `m7-ring-snaps`, `m9-patterns`, `batch6-sweep` merged, and their integration)
+
+- **M7, snapping to the ring** (`workbench::command::snap`, `castability::ghost`,
+  `visual::measure`, `viewport::pins`): a command lands a part on ten tiers of targets, ring
+  features before the grid — pins, stone stations, side-face boundaries and centre lines, named
+  angles (the top, the sides, the palm, a signet's head, every other part's theta), the parting
+  line, part vertices, midpoints and edges, the grid — snapping where the part lands rather than
+  where the pointer is, each labelled, Ctrl to free; the gizmo's dial and arrows use them. While a
+  part is carried its ghost is painted by the draft class each face would have at the field's
+  parting plane and the caption says what it would do ("Ghost would lock 2.1 mm² at -35°"): 0.22
+  ms a frame on a 7,692-face claw head. Measure reads between any two picks — vertices, edges,
+  faces, band points, stones — with a dimension line, Shift chaining a third. Pins (right-click
+  the band ▸ Pin here) are references the snaps and Measure read; they live in the workspace, by
+  design file, so they never dirty the design. **The ring frame comes from the build**:
+  `BuildResult.band` is the band as swept before seats, stamps and parts, the surface parts are
+  seated on, so choosing a part no longer sweeps a band on the UI thread (14–16 ms sweep + 19 ms
+  tree at preview, 94–121 + 131 ms at export); the worker builds the tree per band change on CAD
+  designs. A part over a stamp or a seat's solid now sits on the band, not on top of them.
+- **M9, patterns, work planes, press-pull** (`cad::pattern`, `workbench::command::pattern`):
+  `Operation::Pattern { source, kind }` — round the ring (an integer count closes on itself),
+  round a stone or part (its frame's axis: "six prongs from one"), or a mirror (across the band's
+  mid-plane, through the finger axis at a theta, or across a work plane) — is one mesh component
+  of placed copies of the source's tessellation, a seated source re-dropped onto the band at each
+  copy's own angle, the source staying its own output. `Operation::Plane` is a work plane (a
+  section, the plane square to the band, the parting plane, a planar face, each offset); sketches
+  lie on one and mirrors use one. Press-pull on a planar face edits a primitive's size where the
+  face maps to one and otherwise pushes the face through the kernel. Every bare face or edge
+  reference is signed in its part's seat frame when it is committed (`cad::sign_refs`). Measured:
+  six prongs at 60° steps to 1e-6, one watertight piece; three heads each stand off the built
+  surface within 0.02 mm of the source; a mirror keeps its volume to 1e-9 and both copies are
+  judged; a press-pulled box top adds exactly its area × the distance; a fillet survives the
+  box's resize within 3% of the analytic round; the two appliers agree over 143 edits. Twelve
+  posts cost 109 ms at preview and 1.38 s at export; three claw heads 225 ms and 2.12 s.
+- **The batch-6 sweep**: the sketch solver solves independent systems apart, each by damped
+  Gauss-Newton on one sparse LDLᵀ per step — thirty held rectangles 4.39 → 0.13 ms, two hundred
+  (800 points) 0.68 ms, caps now 512 points to a system, 1024 items, 2048 constraints.
+  `Profile::Region { feature, region: RegionRef { entity, at } }` extrudes or revolves one region
+  of several, found again by its entity, else by its point, else failed by name; the sketch
+  mode's region menu and the CAD pane's picker offer it. A builder's tube facets no longer count
+  as creases (a claw head's 2714 edges past 30° keep 1004; its notch, a bezel's lip and the stone's
+  table stay), so a hover lands on a claw's face. The CAD pane's canvas holds still when a
+  candidate becomes a draft (its banners now overlay it), and the claw solitaire is in the gallery.
+- **Integration**: an edge's menu still leads with Fillet and Chamfer, the patterns after them;
+  press-pull reads the pointer on the view plane through the face; bare references are also
+  signed when the CAD pane adds a feature (against the evaluation from before it consumes its
+  source); a sketch on a work plane opens in the Ring viewport; `SET_STONES` is gone.
+- Open: an array's ghost uses world motions, so on a modulated band the committed copies can
+  differ from what it showed; work planes are not drawn or pickable in the viewport; pins do not
+  travel with the file; a Cut part's ghost over-reports faces outside the band; array and
+  press-pull are in the right-click menu only (not the catalog or the rail); Sweep, Twist and
+  Loft ignore a Region profile; **the four-claw builder on a 5 mm round at 60° on the default
+  band reaches into the finger hole** (faces at r 8.61 mm inside the 8.65 mm bore) — the claws'
+  reach to the band needs the bore as its floor; the floating tool inspector covers the viewport's
+  middle in small windows.
+
 ### M2 detail
 
 **Measured 2026-09-21 (`examples/join_probe.rs`)**: a traced kernel cylinder dropped onto the built
