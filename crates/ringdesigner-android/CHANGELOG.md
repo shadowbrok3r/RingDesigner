@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.29.0 — 2026-09-23
+
+- The ring view models CAD parts by touch. Tap a part to choose it and tap the same spot again to reach its faces and edges; long-press for its menu; drag the handles to slide it round the ring, across the band or off the surface, or to turn it, with a live preview and exact values typed in the bar beside it. Every change is one undo step.
+- A strip of the design's features sits under the ring. Its menu renames, suppresses, deletes and rolls back.
+- Long-press the band to add a stone, then long-press the stone for four or six claws, a bezel, a basket or a halo. A stone also sits on the flat face of a part, where you pressed. Arrays round the ring or round a stone, and mirrors, come from a part's menu.
+- CAD parts join or cut the band itself, and the castability check judges their faces at the parting line. A setting whose claws would break into the finger hole is refused by name.
+- The castability check runs about twenty times faster.
+- 3MF exports carry each separate part as its own object.
+
 ## 0.28.0 — 2026-09-19
 
 - CAD Workshop groups creation and modification tools into menus with dedicated colored SVG icons and real example thumbnails. Missing source prerequisites and the unsupported generic twisted sweep are explicitly disabled.
