@@ -614,7 +614,6 @@ mod tests {
             let mut edits = vec![
                 CadEdit::Add { feature: cylinder("Added"), after: None },
                 CadEdit::Add { feature: cylinder("Added first"), after: Some(first) },
-                CadEdit::Move { id: leaf, after: None },
                 CadEdit::Rename { id: first, name: "Renamed".into() },
                 CadEdit::Operation { id: leaf, operation: Operation::Sphere { radius_mm: 1.5 } },
                 CadEdit::Placement { id: leaf, placement: Placement::ring(45.0, 0.5) },
@@ -626,6 +625,10 @@ mod tests {
                 CadEdit::Through { through: Some(first) },
                 CadEdit::Through { through: None },
             ];
+            // A leaf that reads a source, as a setting reads its stone, cannot move ahead of it.
+            if doc.sources_of(leaf).is_empty() {
+                edits.push(CadEdit::Move { id: leaf, after: None });
+            }
             if doc.features.len() > 1 {
                 edits.push(CadEdit::Move { id: first, after: Some(leaf) });
                 edits.push(CadEdit::Remove { id: leaf });

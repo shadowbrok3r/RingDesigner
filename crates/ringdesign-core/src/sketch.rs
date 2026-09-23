@@ -1,11 +1,10 @@
 //! Editable millimeter sketches. Constraint solutions are candidates: a failed
 //! solve never changes the source sketch. Angles are counterclockwise degrees.
-use anyhow::{Result, bail, ensure};
+use anyhow::{Result, ensure};
 use cadkernel::{
     geom2d::{Arc, Circle, Curve, Line, NurbsCurve},
     space::Plane,
 };
-use nalgebra::{DMatrix, DVector};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 pub mod anchor;
@@ -17,13 +16,18 @@ pub mod fill;
 pub mod query;
 pub mod region;
 pub mod solid;
+pub mod solver;
 pub use dimension::{Held, Measure};
 pub use edit::Pattern;
 pub use query::Near;
-pub use region::Region;
+pub use region::{Region, RegionRef};
 pub use solid::FaceFrame;
 
 pub type Id = u64;
+/// Most points, and most entities, one sketch holds.
+pub const MAX_ITEMS: usize = 1024;
+/// Most constraints one sketch holds: a held rectangle carries six for its four points.
+pub const MAX_CONSTRAINTS: usize = 2048;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct Workplane {
@@ -244,11 +248,12 @@ impl Sketch {
         id
     }
     pub fn at(&self, id: Id) -> Result<[f64; 2]> {
-        self.points
-            .iter()
-            .find(|p| p.id == id)
-            .map(|p| p.xy)
-            .ok_or_else(|| anyhow::anyhow!("Sketch point #{id} is missing"))
+        // Points are pushed in id order, so bisection finds one; a file written out of order is searched through.
+        let found = match self.points.binary_search_by_key(&id, |p| p.id) {
+            Ok(i) => Some(&self.points[i]),
+            Err(_) => self.points.iter().find(|p| p.id == id),
+        };
+        found.map(|p| p.xy).ok_or_else(|| anyhow::anyhow!("Sketch point #{id} is missing"))
     }
     pub fn rectangle(width: f64, height: f64) -> Self {
         let mut s = Self::default();
@@ -300,8 +305,8 @@ impl Sketch {
     pub fn validate(&self) -> Result<()> {
         self.plane.plane()?;
         ensure!(
-            self.points.len() <= 512 && self.entities.len() <= 512 && self.constraints.len() <= 512,
-            "Sketch exceeds 512 points, entities, or constraints"
+            self.points.len() <= MAX_ITEMS && self.entities.len() <= MAX_ITEMS && self.constraints.len() <= MAX_CONSTRAINTS,
+            "Sketch exceeds {MAX_ITEMS} points or entities, or {MAX_CONSTRAINTS} constraints"
         );
         ensure!(
             self.grid_mm.is_finite() && self.grid_mm > 0.0,
@@ -319,8 +324,7 @@ impl Sketch {
             ensure!(ids.insert(e.id), "Duplicate sketch identity");
             self.curves_of(e)?;
         }
-        self.residuals()?;
-        Ok(())
+        solver::check(self, &solver::index_of(self))
     }
     pub fn curves_of(&self, e: &Entity) -> Result<Vec<Curve>> {
         let line = |a, b| -> Result<Curve> {
@@ -425,114 +429,10 @@ impl Sketch {
         );
         Ok(loops.remove(0).curves)
     }
-    fn residuals(&self) -> Result<Vec<f64>> {
-        let mut r = Vec::new();
-        for c in &self.constraints {
-            match *c {
-                Constraint::Horizontal(a, b) => r.push(self.at(a)?[1] - self.at(b)?[1]),
-                Constraint::Vertical(a, b) => r.push(self.at(a)?[0] - self.at(b)?[0]),
-                Constraint::Coincident(a, b) => {
-                    let a = self.at(a)?;
-                    let b = self.at(b)?;
-                    r.extend([a[0] - b[0], a[1] - b[1]]);
-                }
-                Constraint::Distance { a, b, mm } => {
-                    ensure!(
-                        mm.is_finite() && mm >= 0.0 && mm < 10000.0,
-                        "Invalid dimensional constraint"
-                    );
-                    r.push(distance(self.at(a)?, self.at(b)?) - mm);
-                }
-                Constraint::Symmetry { a, b, center } => {
-                    let a = self.at(a)?;
-                    let b = self.at(b)?;
-                    let c = self.at(center)?;
-                    r.extend([(a[0] + b[0]) * 0.5 - c[0], (a[1] + b[1]) * 0.5 - c[1]]);
-                }
-                Constraint::Tangent { a, b, center, at } => {
-                    let a = self.at(a)?;
-                    let b = self.at(b)?;
-                    let c = self.at(center)?;
-                    let p = self.at(at)?;
-                    let len = distance(a, b).max(1e-8);
-                    r.push(((b[0] - a[0]) * (p[0] - c[0]) + (b[1] - a[1]) * (p[1] - c[1])) / len);
-                    r.push(((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) / len);
-                }
-            }
-        }
-        Ok(r)
-    }
+    /// Solves every independent system of constraints apart ([`solver`]); refused, the sketch is unchanged.
     pub fn solve(&self) -> Result<Solution> {
         self.validate()?;
-        let mut s = self.clone();
-        // A point no constraint names has no residual to move it, so it is no variable.
-        let named: BTreeSet<Id> = s.constraints.iter().flat_map(Constraint::points).collect();
-        let loose = s.points.iter().filter(|p| !p.fixed && !named.contains(&p.id)).count();
-        let vars: Vec<_> = s
-            .points
-            .iter()
-            .enumerate()
-            .filter(|(_, p)| !p.fixed && named.contains(&p.id))
-            .flat_map(|(i, _)| [(i, 0), (i, 1)])
-            .collect();
-        ensure!(
-            vars.len() <= 256,
-            "Constraint solver supports 128 constrained movable points per sketch"
-        );
-        for iteration in 0..80 {
-            let r = DVector::from_vec(s.residuals()?);
-            let residual = r.amax();
-            let mut jac = DMatrix::zeros(r.len(), vars.len());
-            for (j, &(point, axis)) in vars.iter().enumerate() {
-                s.points[point].xy[axis] += 1e-5;
-                let perturbed = s.residuals()?;
-                s.points[point].xy[axis] -= 1e-5;
-                for k in 0..r.len() {
-                    jac[(k, j)] = (perturbed[k] - r[k]) / 1e-5;
-                }
-            }
-            if residual < 1e-6 {
-                let rank = if jac.nrows() == 0 || jac.ncols() == 0 {
-                    0
-                } else {
-                    jac.svd(false, false).rank(1e-5)
-                };
-                return Ok(Solution {
-                    sketch: s,
-                    residual_mm: residual,
-                    remaining_dof: vars.len().saturating_sub(rank) + 2 * loose,
-                    iterations: iteration,
-                });
-            }
-            if vars.is_empty() {
-                break;
-            }
-            let jt = jac.transpose();
-            let normal = &jt * &jac + DMatrix::identity(vars.len(), vars.len()) * 1e-7;
-            let Some(delta) = normal.lu().solve(&(-jt * r)) else {
-                bail!("Constraint system is singular");
-            };
-            let old = s.clone();
-            let score = residual;
-            let mut accepted = false;
-            for factor in [1.0, 0.5, 0.25, 0.125, 0.0625] {
-                s = old.clone();
-                for (j, &(point, axis)) in vars.iter().enumerate() {
-                    s.points[point].xy[axis] += delta[j] * factor;
-                }
-                if DVector::from_vec(s.residuals()?).amax() < score {
-                    accepted = true;
-                    break;
-                }
-            }
-            if !accepted {
-                break;
-            }
-        }
-        bail!(
-            "Constraints conflict or did not converge (residual {:.6} mm); original sketch is unchanged",
-            DVector::from_vec(s.residuals()?).amax()
-        )
+        solver::solve(self)
     }
     /// Candidate snaps are geometric aids; using one does not silently add a constraint.
     pub fn snap(&self, cursor: [f64; 2], anchor: Option<[f64; 2]>, radius: f64) -> Option<Snap> {
@@ -670,6 +570,123 @@ mod tests {
         for s in [Sketch::rectangle(3.0, 2.0), Sketch::circle(1.5)] {
             assert_eq!(s.profile_region().unwrap().outer, s.profile_curves().unwrap());
         }
+    }
+    /// `n` rectangles 2 x 1.5 mm, twenty to a row, each held square with its width and height dimensioned.
+    pub(super) fn held_rectangles(n: usize) -> Sketch {
+        let mut s = Sketch::default();
+        for i in 0..n {
+            let (x, y) = ((i % 20) as f64 * 3.0, (i / 20) as f64 * 3.0);
+            let p = [[x, y], [x + 2.0, y], [x + 2.0, y + 1.5], [x, y + 1.5]].map(|xy| s.point(xy));
+            for k in 0..4 {
+                s.entity(Geometry::Line { a: p[k], b: p[(k + 1) % 4] });
+            }
+            s.constraints.extend([
+                Constraint::Horizontal(p[0], p[1]),
+                Constraint::Vertical(p[1], p[2]),
+                Constraint::Horizontal(p[2], p[3]),
+                Constraint::Vertical(p[3], p[0]),
+                Constraint::Distance { a: p[0], b: p[1], mm: 2.0 },
+                Constraint::Distance { a: p[1], b: p[2], mm: 1.5 },
+            ]);
+        }
+        s
+    }
+    /// `n` points, 1 mm treads and risers alternating, the first fixed and the rest knocked by up to 0.2 mm.
+    pub(super) fn staircase(n: usize) -> Sketch {
+        let mut seed = 7u64;
+        let mut noise = || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            ((seed >> 11) as f64 / (1u64 << 53) as f64 - 0.5) * 0.4
+        };
+        let mut s = Sketch::default();
+        let mut exact = [0.0, 0.0];
+        let mut prev = s.point(exact);
+        s.points[0].fixed = true;
+        for i in 0..n - 1 {
+            exact[i % 2] += 1.0;
+            let next = s.point([exact[0] + noise(), exact[1] + noise()]);
+            s.constraints.push(if i % 2 == 0 { Constraint::Horizontal(prev, next) } else { Constraint::Vertical(prev, next) });
+            s.constraints.push(Constraint::Distance { a: prev, b: next, mm: 1.0 });
+            prev = next;
+        }
+        s
+    }
+    /// The solver's cost on held rectangles and a staircase; run `--ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn the_solver_at_scale() {
+        let best = |f: &mut dyn FnMut() -> Result<String>| {
+            let mut ms = f64::INFINITY;
+            let mut out = String::new();
+            for _ in 0..5 {
+                let t = std::time::Instant::now();
+                let r = f();
+                ms = ms.min(t.elapsed().as_secs_f64() * 1e3);
+                out = match r {
+                    Ok(s) => s,
+                    Err(e) => format!("refused: {e}"),
+                };
+            }
+            (ms, out)
+        };
+        for n in [1, 30, 50, 200] {
+            let s = held_rectangles(n);
+            let (solve_ms, solved) = best(&mut || s.solve().map(|r| format!("{} DOF, {} iterations", r.remaining_dof, r.iterations)));
+            let bottom = Measure::Length { a: s.points[0].id, b: s.points[1].id };
+            let (edit_ms, edited) = best(&mut || {
+                let mut t = s.clone();
+                t.dimension(&bottom, 2.5).map(|h| format!("{} DOF, {} iterations", h.remaining_dof, h.iterations))
+            });
+            eprintln!("{n} held rectangles ({} points): solve {solve_ms:.3} ms ({solved}); a dimension {edit_ms:.3} ms ({edited})", s.points.len());
+        }
+        let s = held_rectangles(200);
+        let (ms, regions) = best(&mut || s.profile_regions().map(|r| format!("{} regions", r.len())));
+        eprintln!("200 held rectangles: profile_regions {ms:.3} ms ({regions})");
+        // A corner of the last rectangle dragged, as the sketch tools hold it while they solve.
+        let mut s = held_rectangles(200);
+        let dragged = s.points.len() - 2;
+        s.points[dragged].xy[0] += 0.3;
+        s.points[dragged].fixed = true;
+        let (ms, solved) = best(&mut || s.solve().map(|r| format!("{} DOF, {} iterations", r.remaining_dof, r.iterations)));
+        eprintln!("200 held rectangles, one corner dragged 0.3 mm: solve {ms:.3} ms ({solved})");
+        for n in [64, 512] {
+            let s = staircase(n);
+            let (ms, solved) = best(&mut || s.solve().map(|r| format!("residual {:.1e} mm, {} DOF, {} iterations", r.residual_mm, r.remaining_dof, r.iterations)));
+            eprintln!("{n}-point staircase: solve {ms:.3} ms ({solved})");
+        }
+        let s = lattice(16, 32);
+        let (ms, solved) = best(&mut || s.solve().map(|r| format!("residual {:.1e} mm, {} DOF, {} iterations", r.residual_mm, r.remaining_dof, r.iterations)));
+        eprintln!("16 x 32 lattice ({} points, {} constraints): solve {ms:.3} ms ({solved})", s.points.len(), s.constraints.len());
+    }
+    /// A `w` x `h` grid of points 1 mm apart, every edge held level or plumb and 1 mm long, the first fixed and the rest knocked.
+    pub(super) fn lattice(w: usize, h: usize) -> Sketch {
+        let mut seed = 11u64;
+        let mut noise = || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            ((seed >> 11) as f64 / (1u64 << 53) as f64 - 0.5) * 0.2
+        };
+        let mut s = Sketch::default();
+        let mut ids = Vec::new();
+        for j in 0..h {
+            for i in 0..w {
+                ids.push(s.point([i as f64 + noise(), j as f64 + noise()]));
+            }
+        }
+        s.points[0].fixed = true;
+        for j in 0..h {
+            for i in 0..w {
+                let here = ids[j * w + i];
+                if i + 1 < w {
+                    let next = ids[j * w + i + 1];
+                    s.constraints.extend([Constraint::Horizontal(here, next), Constraint::Distance { a: here, b: next, mm: 1.0 }]);
+                }
+                if j + 1 < h {
+                    let up = ids[(j + 1) * w + i];
+                    s.constraints.extend([Constraint::Vertical(here, up), Constraint::Distance { a: here, b: up, mm: 1.0 }]);
+                }
+            }
+        }
+        s
     }
     #[test]
     fn workplane_roundtrip_and_sketch_persistence() {

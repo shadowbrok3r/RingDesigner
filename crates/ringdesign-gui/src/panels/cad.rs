@@ -20,7 +20,7 @@ use ringdesign_core::{
     BuildParams, RingDesign,
     cad::{self, Attach, Boolean, EdgeRef, Evaluated, FaceRef, Feature, Operation, Placement, Profile, edit::CadEdit},
     mesh::BuildResult,
-    sketch::{Constraint, Geometry, Sketch},
+    sketch::{Constraint, Geometry, RegionRef, Sketch},
 };
 use ringdesign_graph::{
     graph::{Graph, NodeId},
@@ -131,6 +131,8 @@ pub struct CadState {
     shared_for: Option<NodeId>,
     shared_escape: bool,
     bar: DimensionBar,
+    /// Where the 3D canvas was last laid out.
+    canvas: egui::Rect,
 }
 impl Default for CadState {
     fn default() -> Self {
@@ -182,6 +184,7 @@ impl Default for CadState {
             shared_for: None,
             shared_escape: false,
             bar: DimensionBar::new("cad-sketch-dimensions"),
+            canvas: egui::Rect::NOTHING,
         }
     }
 }
@@ -241,6 +244,17 @@ impl CadState {
         let n = self.draft.as_ref()?.node(NodeId(feature))?;
         let mut f: Feature = serde_json::from_value(n.params.clone()).ok()?;
         f.operation.sketch_mut().cloned()
+    }
+    /// The 3D canvas's rect and its scale at the centre in pixels per millimetre.
+    pub fn canvas_scale(&self) -> (egui::Rect, f64) {
+        let rect = self.canvas;
+        let (view, _) = ringdesign_workbench::hover::view_scale(rect.center(), &|p| self.camera.ray(rect, p));
+        (rect, view.px_per_mm)
+    }
+    /// The operation the candidate holds in `feature`.
+    pub fn candidate_operation(&self, feature: u64) -> Option<Operation> {
+        let n = self.draft.as_ref()?.node(NodeId(feature))?;
+        serde_json::from_value::<Feature>(n.params.clone()).ok().map(|f| f.operation)
     }
 }
 fn hash<T: serde::Serialize>(v: &T) -> u64 {
@@ -807,6 +821,20 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         })
         .collect::<Vec<_>>();
     if state.selected.is_none() { state.selected = tree.first().map(|(id, _)| *id); }
+    // The candidate's sketch features, read only while an extrusion or revolution is chosen, for its profile to take one region of.
+    let sweeps = state.selected.and_then(|id| g.node(id)).is_some_and(|n| ["Extrude", "Revolve"].iter().any(|k| n.params["operation"].get(k).is_some()));
+    let sketches: Vec<(u64, Sketch)> = if sweeps {
+        g.nodes
+            .iter()
+            .filter(|n| n.kind == "cad.feature")
+            .filter_map(|n| match serde_json::from_value::<Feature>(n.params.clone()).ok()?.operation {
+                Operation::Sketch { sketch } => Some((n.id.0, sketch)),
+                _ => None,
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
     egui::Panel::left(ui.id().with("cad-inspector"))
         .resizable(true).default_size(280.).size_range(230.0..=460.)
         .frame(egui::Frame::new().inner_margin(8).fill(theme::PANEL))
@@ -832,7 +860,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         ui.checkbox(&mut f.enabled,"Enabled");
                         ui.weak(cad_tools::hint(&f.operation));
                         match state.tab {
-                            0=>{if bound_operation {ui.weak("Operation is bound to a graph input; edit its upstream parameters in Graph.");} else {operation_ui(ui,&mut f.operation,&tree);}},
+                            0=>{if bound_operation {ui.weak("Operation is bound to a graph input; edit its upstream parameters in Graph.");} else {operation_ui(ui,&mut f.operation,&tree,&sketches);}},
                             1=>{if bound_operation {ui.weak("Sketch is controlled by the connected operation input");} else if let Some(sketch)=f.operation.sketch_mut() {sketch_controls(ui,sketch,&mut state);} else {ui.weak("Select an extrusion, revolution, sweep, or loft to edit its sketch");}},
                             2=>component_ui(ui,&mut f),
                             _=>{
@@ -941,11 +969,13 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         section_ui(ui, &mut state);
     }
     if state.tab != 1 && state.tab != 6 {
+        // Laid over the canvas once it is placed, so a note coming or going never resizes it under a drag.
+        let mut notes: Vec<(egui::Color32, String)> = Vec::new();
         if let Some((color, text)) = stale_banner(&state, current, "Parameters changed — preview to evaluate this candidate") {
-            ui.colored_label(color, text);
+            notes.push((color, text.into()));
         }
         if let Some(e) = state.view.as_ref().and_then(|v| v.build_error.as_deref()) {
-            ui.colored_label(theme::WARN, e);
+            notes.push((theme::WARN, e.into()));
         }
         let mut redraw = false;
         egui::Panel::bottom(ui.id().with("cad-view-footer"))
@@ -1042,13 +1072,13 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             }
         }
         if let Some((id, edge)) = state.edge {
-            ui.weak(format!(
-                "Selected component #{id}, edge {edge} • Add Fillet or Chamfer to use it"
-            ));
+            notes.push((theme::TEXT_DIM, format!("Selected component #{id}, edge {edge} • Add Fillet or Chamfer to use it")));
         }
         state.display.finish=app.finish; state.display.polish=app.polish; state.display.light=app.light; state.display.show_gems=app.show_gems;
         let (rect, response) =
             crate::viewport::candidate_view(ui, state.renderer.clone(), &mut state.camera, &mut state.display, app.design.shank.head.theta_deg as f32);
+        state.canvas = rect;
+        overlay_notes(ui, rect, &notes);
         let project = state.camera.projector(rect);
         let mut nearest = None;
         let mut hovered_edge = Vec::new();
@@ -1193,6 +1223,19 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         state.draft = Some(g);
     }
     app.cad = state;
+}
+
+/// `notes` on a plate over the top of the canvas at `rect`, taking none of its room.
+fn overlay_notes(ui: &mut egui::Ui, rect: egui::Rect, notes: &[(egui::Color32, String)]) {
+    if notes.is_empty() {
+        return;
+    }
+    let mut over = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink(8.0)).layout(egui::Layout::top_down(egui::Align::Min)));
+    egui::Frame::new().fill(theme::FLOAT.gamma_multiply(0.9)).corner_radius(4).inner_margin(6).show(&mut over, |ui| {
+        for (color, text) in notes {
+            ui.add(egui::Label::new(egui::RichText::new(text).color(*color)).selectable(false));
+        }
+    });
 }
 
 /// What the viewer says while its evaluation is not of the candidate shown: that the first one is on its
@@ -1558,12 +1601,18 @@ fn vector(ui: &mut egui::Ui, label: &str, v: &mut [f64; 3]) {
     }
 }
 
-/// Where a profile comes from: drawn in this feature, or a Sketch feature earlier in the tree.
-fn profile_source(ui: &mut egui::Ui, label: &str, profile: &mut Profile, tree: &[(NodeId, String)]) {
+/// Where a profile comes from: drawn in this feature, a Sketch feature earlier in the tree, or,
+/// where `sketches` lists the tree's sketches, one region of one that holds several.
+fn profile_source(ui: &mut egui::Ui, label: &str, profile: &mut Profile, tree: &[(NodeId, String)], sketches: Option<&[(u64, Sketch)]>) {
     let current = profile.feature();
-    let shown = match current {
-        None => "Drawn in this feature".to_string(),
-        Some(id) => format!("Sketch #{id}"),
+    let regions_of = |id: u64| sketches.and_then(|s| s.iter().find(|(f, _)| *f == id)).and_then(|(_, s)| s.profile_regions().ok());
+    let shown = match &*profile {
+        Profile::Inline(_) => "Drawn in this feature".to_string(),
+        Profile::Feature { feature } => format!("Sketch #{feature}"),
+        Profile::Region { feature, region } => match regions_of(*feature).and_then(|r| region.position(&r).map(|(i, _)| (i, r.len()))) {
+            Some((i, n)) => format!("Sketch #{feature} · region {} of {n}", i + 1),
+            None => format!("Sketch #{feature} · one region"),
+        },
     };
     ringdesign_workbench::controls::row(ui, label, |ui| {
         egui::ComboBox::from_id_salt(("profile-source", label))
@@ -1573,8 +1622,22 @@ fn profile_source(ui: &mut egui::Ui, label: &str, profile: &mut Profile, tree: &
                     *profile = Sketch::rectangle(8.0, 6.0).into();
                 }
                 for (id, name) in tree {
-                    if ui.selectable_label(current == Some(id.0), format!("#{} {name}", id.0)).clicked() {
+                    let whole = matches!(profile, Profile::Feature { feature } if *feature == id.0);
+                    if ui.selectable_label(whole, format!("#{} {name}", id.0)).clicked() {
                         *profile = Profile::Feature { feature: id.0 };
+                    }
+                    let Some(regions) = regions_of(id.0).filter(|r| r.len() > 1) else { continue };
+                    let picked = match &*profile {
+                        Profile::Region { feature, region } if *feature == id.0 => region.position(&regions).map(|(i, _)| i),
+                        _ => None,
+                    };
+                    for (k, r) in regions.iter().enumerate() {
+                        let words = format!("#{} {name} · region {} of {} ({:.2} mm²)", id.0, k + 1, regions.len(), r.area());
+                        if ui.selectable_label(picked == Some(k), words).clicked()
+                            && let Some(region) = RegionRef::of(r)
+                        {
+                            *profile = Profile::Region { feature: id.0, region };
+                        }
                     }
                 }
             });
@@ -1633,7 +1696,7 @@ fn face_refs(ui: &mut egui::Ui, label: &str, list: &mut Vec<FaceRef>) {
         }
     });
 }
-fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]) {
+fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)], sketches: &[(u64, Sketch)]) {
     ui.strong(op.label());
     match op {
         Operation::Band => {
@@ -1671,7 +1734,7 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             height_mm,
             draft_deg,
         } => {
-            profile_source(ui, "Profile", sketch, tree);
+            profile_source(ui, "Profile", sketch, tree, Some(sketches));
             number(ui, "Height mm", height_mm);
             number(ui, "Taper degrees", draft_deg);
         }
@@ -1681,13 +1744,13 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             axis,
             degrees,
         } => {
-            profile_source(ui, "Profile", sketch, tree);
+            profile_source(ui, "Profile", sketch, tree, Some(sketches));
             vector(ui, "Axis origin mm", pivot);
             vector(ui, "Axis direction", axis);
             number(ui, "Revolution degrees", degrees);
         }
         Operation::Sweep { sketch, path } => {
-            profile_source(ui, "Section", sketch, tree);
+            profile_source(ui, "Section", sketch, tree, None);
             for (i, p) in path.iter_mut().enumerate() {
                 vector(ui, &format!("Station {i} mm"), p);
             }
@@ -1705,7 +1768,7 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
         }
         Operation::Loft { sections } => {
             for (i, p) in sections.iter_mut().enumerate() {
-                profile_source(ui, &format!("Section {i}"), p, tree);
+                profile_source(ui, &format!("Section {i}"), p, tree, None);
                 if let Some(s) = p.sketch_mut() {
                     vector(ui, &format!("Section {i} origin mm"), &mut s.plane.origin);
                 }
