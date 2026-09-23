@@ -1715,6 +1715,7 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             vector(ui, "Translation mm", translation);
             vector(ui, "Rotation XYZ degrees", rotation_deg);
         }
+        Operation::Builder { key, on, params } => crate::panels::builder::ui(ui, key, on, params, tree),
     }
 }
 fn component_ui(ui: &mut egui::Ui, f: &mut Feature) {

@@ -13,6 +13,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 pub mod assembly;
+pub mod builders;
 pub mod edit;
 pub mod examples;
 pub mod measure;
@@ -101,6 +102,14 @@ pub enum Operation {
         translation: [f64; 3],
         rotation_deg: [f64; 3],
     },
+    /// A part a [`builders`] builder makes: `key` names it, `on` the stone it stands on (read, not consumed), `params` its settings.
+    Builder {
+        key: String,
+        #[serde(default)]
+        on: Option<Id>,
+        #[serde(default)]
+        params: serde_json::Value,
+    },
 }
 /// The closed profile a feature sweeps: drawn in the feature, or a `Sketch` feature named by id.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -159,10 +168,12 @@ impl Operation {
             Self::Chamfer { .. } => "Chamfer",
             Self::Shell { .. } => "Shell",
             Self::Transform { .. } => "Place component",
+            Self::Builder { key, .. } => builders::label(key),
         }
     }
     pub fn sources(&self) -> Vec<Id> {
         match self {
+            Self::Builder { on, .. } => on.iter().copied().collect(),
             Self::Boolean { a, b, .. } => vec![*a, *b],
             Self::Fillet { source, .. }
             | Self::Chamfer { source, .. }
@@ -884,11 +895,55 @@ impl Document {
         names
     }
 }
+/// What a feature evaluates to: a kernel body, or the mesh a builder made.
+#[derive(Clone, Debug)]
+pub enum Value {
+    Brep(Body),
+    Mesh(Arc<builders::Made>),
+}
+impl Value {
+    /// The kernel body, when there is one.
+    pub fn brep(&self) -> Option<&Body> {
+        match self {
+            Self::Brep(b) => Some(b),
+            Self::Mesh(_) => None,
+        }
+    }
+    /// What a builder made, when a builder made it.
+    pub fn made(&self) -> Option<&Arc<builders::Made>> {
+        match self {
+            Self::Mesh(m) => Some(m),
+            Self::Brep(_) => None,
+        }
+    }
+    /// Faces as the part names them: the body's faces, or the mesh's patches.
+    pub fn faces(&self) -> usize {
+        match self {
+            Self::Brep(b) => b.faces.len(),
+            Self::Mesh(m) => m.named.names.len(),
+        }
+    }
+    /// Edges as the part names them: the body's edges, or the mesh's creases.
+    pub fn edges(&self) -> usize {
+        match self {
+            Self::Brep(b) => b.edges.len(),
+            Self::Mesh(m) => m.creases.len(),
+        }
+    }
+    fn bytes(&self) -> usize {
+        match self {
+            Self::Brep(b) => body_bytes(b),
+            Self::Mesh(m) => m.named.solid.v.len() * 24 + m.named.solid.f.len() * 16 + m.creases.iter().map(|l| l.len() * 24).sum::<usize>(),
+        }
+    }
+}
+/// One output part as evaluated; a part a builder made has an empty `body` and its value in `made`.
 #[derive(Clone, Debug)]
 pub struct EvaluatedComponent {
     pub id: Id,
     pub name: String,
     pub settings: Component,
+    /// The kernel body; empty for a part a builder made.
     pub body: Body,
     pub mesh: Mesh,
     pub edges: Vec<Vec<[f64; 3]>>,
@@ -896,6 +951,14 @@ pub struct EvaluatedComponent {
     /// How the part meets the band: its component's own, or what a boolean against the band said.
     pub attach: Attach,
     pub stage: Stage,
+    /// What a builder made, placed where the part stands; `None` for a kernel body.
+    pub made: Option<Arc<builders::Made>>,
+}
+impl EvaluatedComponent {
+    /// The kernel body, unless a builder made the part as a mesh.
+    pub fn brep(&self) -> Option<&Body> {
+        self.made.is_none().then_some(&self.body)
+    }
 }
 /// What the tessellation knows about the body it came from, so a triangle answers to a face and
 /// a hover can name an edge or a vertex. Ordinals index the body's own iteration order.
@@ -909,11 +972,17 @@ pub struct PartTrace {
     pub face_kind: Vec<SurfaceKind>,
     /// The body's vertices, for snapping.
     pub vertices: Vec<[f64; 3]>,
+    /// What each face ordinal is called, for a part a builder made ("Claw 3", "Bearing"); empty for a kernel body.
+    pub patches: Vec<String>,
 }
 impl PartTrace {
     /// The face ordinal a triangle came from, if it has one.
     pub fn face_of(&self, triangle: usize) -> Option<u32> {
         self.tri_face.get(triangle).copied().filter(|f| *f != u32::MAX)
+    }
+    /// The name of face ordinal `face`, when a builder named it.
+    pub fn patch(&self, face: u32) -> Option<&str> {
+        self.patches.get(face as usize).map(String::as_str)
     }
 }
 #[derive(Clone, Debug)]
@@ -953,7 +1022,7 @@ pub enum FeatureStatus {
     Suppressed,
     /// Refused or broken, with the message; it built nothing.
     Failed(String),
-    /// Not attempted because a source failed or was skipped; names it.
+    /// Not attempted because a source failed, was skipped, or was suppressed and passed nothing through; names it.
     Skipped(String),
 }
 impl FeatureStatus {
@@ -1023,16 +1092,22 @@ fn profile<'a>(p: &'a Profile, sketches: &'a BTreeMap<Id, Sketch>) -> Result<&'a
 /// an earlier feature it is anchored to, found again by signature when the source has changed.
 fn plane_of(
     sketch: &Sketch,
-    bodies: &BTreeMap<Id, Body>,
+    values: &BTreeMap<Id, Value>,
     frames: &BTreeMap<Id, brep::Placement>,
     notes: &mut Vec<String>,
 ) -> Result<cadkernel::space::Plane> {
     let Some(anchor) = &sketch.plane.on_face else {
         return sketch.plane.plane();
     };
-    let body = bodies
-        .get(&anchor.feature)
-        .ok_or_else(|| anyhow::anyhow!("Sketch face: feature #{} is unavailable or suppressed", anchor.feature))?;
+    let body = match values.get(&anchor.feature) {
+        Some(Value::Brep(body)) => body,
+        Some(Value::Mesh(m)) => anyhow::bail!(
+            "Sketch face: feature #{} is a {} a builder made, a mesh; sketch on a kernel part's planar face",
+            anchor.feature,
+            builders::label(&m.key).to_lowercase()
+        ),
+        None => anyhow::bail!("Sketch face: feature #{} is unavailable or suppressed", anchor.feature),
+    };
     let frame = frames.get(&anchor.feature).copied().unwrap_or(brep::Placement::IDENTITY);
     sketch_plane(sketch, body, &frame, notes)
 }
@@ -1064,7 +1139,7 @@ pub fn sketch_plane(
 /// A sketch validated and, when it lies on a face, laid onto that face's plane in world millimetres.
 fn laid(
     sketch: &Sketch,
-    bodies: &BTreeMap<Id, Body>,
+    values: &BTreeMap<Id, Value>,
     frames: &BTreeMap<Id, brep::Placement>,
     notes: &mut Vec<String>,
 ) -> Result<Sketch> {
@@ -1072,7 +1147,7 @@ fn laid(
     if sketch.plane.on_face.is_none() {
         return Ok(sketch.clone());
     }
-    let plane = plane_of(sketch, bodies, frames, notes)?;
+    let plane = plane_of(sketch, values, frames, notes)?;
     let mut out = sketch.clone();
     out.plane = crate::sketch::Workplane { origin: plane.origin, x: plane.x_axis, y: plane.y_axis, on_face: None };
     Ok(out)
@@ -1084,18 +1159,40 @@ fn regions_of(p: &Profile, sketch: &Sketch) -> Result<Vec<crate::sketch::Region>
         Profile::Inline(_) => Ok(vec![sketch.profile_region()?]),
     }
 }
+/// A value as a named csg solid: a builder's own, or a kernel body tessellated at the export chord, a patch per face.
+fn named_of(value: &Value) -> Result<crate::setting::Named> {
+    match value {
+        Value::Mesh(m) => Ok(m.named.clone()),
+        Value::Brep(body) => {
+            let (mesh, trace) = tessellate_traced(body, 0.015)?;
+            let faces = trace.face_kind.len() as u32;
+            let patch = trace.tri_face.iter().map(|f| if *f == u32::MAX { faces } else { *f }).collect();
+            let mut names: Vec<String> = (0..faces).map(|k| format!("Face {k}")).collect();
+            names.push("Seam".into());
+            Ok(crate::setting::Named { solid: crate::csg::Solid { v: trace.positions, f: mesh.faces }, patch, names })
+        }
+    }
+}
+/// The placement `outer` after `inner`: `inner` first, then `outer`.
+fn compose(outer: &brep::Placement, inner: &brep::Placement) -> brep::Placement {
+    let turn = |v: [f64; 3]| -> [f64; 3] { std::array::from_fn(|k| outer.x_axis[k] * v[0] + outer.y_axis[k] * v[1] + outer.z_axis[k] * v[2]) };
+    let o = turn(inner.origin);
+    brep::Placement { x_axis: turn(inner.x_axis), y_axis: turn(inner.y_axis), z_axis: turn(inner.z_axis), origin: std::array::from_fn(|k| outer.origin[k] + o[k]) }
+}
 fn body_for(
     op: &Operation,
-    bodies: &BTreeMap<Id, Body>,
+    values: &BTreeMap<Id, Value>,
     sketches: &BTreeMap<Id, Sketch>,
     frames: &BTreeMap<Id, brep::Placement>,
     params: BuildParams,
+    who: &dyn Fn(Id) -> String,
     notes: &mut Vec<String>,
-) -> Result<Body> {
-    let source = |id: &Id| {
-        bodies
-            .get(id)
-            .ok_or_else(|| anyhow::anyhow!("Source feature #{id} is unavailable or suppressed"))
+) -> Result<Value> {
+    let value = |id: &Id| values.get(id).ok_or_else(|| anyhow::anyhow!("Source feature #{id} is unavailable or suppressed"));
+    // A kernel operation reads kernel bodies; a part a builder made is a mesh, refused by name.
+    let source = |id: &Id| match value(id)? {
+        Value::Brep(body) => Ok(body),
+        Value::Mesh(_) => Err(anyhow::anyhow!("{} works on kernel bodies, and {} is a mesh a builder made", op.label(), who(*id))),
     };
     // References are signed in the source part's own frame, so the placement its body was seated by is taken back off.
     let frame_of = |id: &Id| -> brep::Placement { frames.get(id).cloned().unwrap_or(brep::Placement::IDENTITY) };
@@ -1103,9 +1200,10 @@ fn body_for(
         ensure!(!refs.is_empty(), "Select at least one edge");
         refs.iter().map(|r| resolve_edge(body, r, frame, notes)).collect()
     }
-    match op {
+    let body: Result<Body> = match op {
         // The band is the anchor the parts stand on, never a kernel body: it is joined in the mesh stage.
         Operation::Band => anyhow::bail!("The procedural shank is not a body; parts are joined to it after the build"),
+        Operation::Builder { key, .. } => anyhow::bail!("{} is built round its stone, not by the kernel", builders::label(key)),
         Operation::Box { size } => {
             for x in size {
                 positive(*x, "Box dimension")?;
@@ -1206,7 +1304,7 @@ fn body_for(
             draft_deg,
         } => {
             let sketch = profile(from, sketches)?;
-            let p = plane_of(sketch, bodies, frames, notes)?;
+            let p = plane_of(sketch, values, frames, notes)?;
             let h = positive(*height_mm, "Height")?;
             ensure!(
                 draft_deg.is_finite() && draft_deg.abs() < 80.0,
@@ -1233,7 +1331,7 @@ fn body_for(
             ensure!(crate::mesh::norm(*axis) > 1e-8, "Revolution axis is zero");
             let sketch = profile(from, sketches)?;
             crate::sketch::solid::revolve(
-                plane_of(sketch, bodies, frames, notes)?,
+                plane_of(sketch, values, frames, notes)?,
                 &regions_of(from, sketch)?,
                 *pivot,
                 *axis,
@@ -1249,7 +1347,7 @@ fn body_for(
             let sketch = profile(sketch, sketches)?;
             maybe(
                 brep::sweep_path(
-                    plane_of(sketch, bodies, frames, notes)?,
+                    plane_of(sketch, values, frames, notes)?,
                     &[sketch.profile_curves()?],
                     brep::SweepPath::Polyline3d {
                         points: path,
@@ -1274,9 +1372,9 @@ fn body_for(
             let sketch = profile(sketch, sketches)?;
             maybe(
                 brep::sweep_along_deformed(
-                    plane_of(sketch, bodies, frames, notes)?,
+                    plane_of(sketch, values, frames, notes)?,
                     &sketch.profile_curves()?,
-                    plane_of(path, bodies, frames, notes)?,
+                    plane_of(path, values, frames, notes)?,
                     &path.solved_curves()?,
                     0.0,
                     degrees.to_radians(),
@@ -1294,7 +1392,7 @@ fn body_for(
                 .iter()
                 .map(|p| {
                     let s = profile(p, sketches)?;
-                    Ok((plane_of(s, bodies, frames, notes)?, s.profile_curves()?))
+                    Ok((plane_of(s, values, frames, notes)?, s.profile_curves()?))
                 })
                 .collect::<Result<Vec<_>>>()?;
             ensure!(
@@ -1305,6 +1403,18 @@ fn body_for(
         }
         Operation::Boolean { a, b, kind } => {
             ensure!(a != b, "Boolean sources must be different");
+            let (va, vb) = (value(a)?, value(b)?);
+            if va.made().is_some() || vb.made().is_some() {
+                // A mesh operand goes through csg, every face keeping the patch it came from.
+                let op = match kind {
+                    Boolean::Union => crate::csg::Op::Union,
+                    Boolean::Subtract => crate::csg::Op::Subtract,
+                    Boolean::Intersect => crate::csg::Op::Intersect,
+                };
+                let named = builders::combined(&named_of(va)?, &named_of(vb)?, op).with_context(|| format!("{} of {} and {}", op_label(*kind), who(*a), who(*b)))?;
+                let gem = va.made().and_then(|m| m.gem).or_else(|| vb.made().and_then(|m| m.gem));
+                return Ok(Value::Mesh(Arc::new(builders::Made::of(op_label(*kind), named, gem)?)));
+            }
             for id in [a, b] {
                 let faces = source(id)?.faces.len();
                 ensure!(
@@ -1365,10 +1475,18 @@ fn body_for(
             source: id,
             translation,
             rotation_deg,
-        } => maybe(
-            brep::transform(source(id)?, &rotate_place(*translation, *rotation_deg)?),
-            "Placement",
-        ),
+        } => match value(id)? {
+            Value::Mesh(m) => return Ok(Value::Mesh(Arc::new(m.placed(&rotate_place(*translation, *rotation_deg)?)))),
+            Value::Brep(body) => maybe(brep::transform(body, &rotate_place(*translation, *rotation_deg)?), "Placement"),
+        },
+    };
+    body.map(Value::Brep)
+}
+fn op_label(kind: Boolean) -> &'static str {
+    match kind {
+        Boolean::Union => "Union",
+        Boolean::Subtract => "Subtract",
+        Boolean::Intersect => "Intersect",
     }
 }
 
@@ -1420,10 +1538,10 @@ impl<'a> Memo<'a> {
     }
 }
 
-/// One feature as built: its placed body, seat frame, band attachment and reference notes.
+/// One feature as built: its placed value, seat frame, band attachment and reference notes.
 #[derive(Clone, Debug)]
 struct Built {
-    body: Body,
+    value: Value,
     frame: Option<brep::Placement>,
     attach: Option<Attach>,
     notes: Vec<String>,
@@ -1435,7 +1553,23 @@ struct Tessellated {
     trace: PartTrace,
     edges: Vec<Vec<[f64; 3]>>,
 }
+/// The tessellation bucket a builder's mesh is kept under: it is its own at every chord.
+const MESH_BUCKET: u8 = 2;
 impl Tessellated {
+    /// A builder's part as a component's mesh: its own faces, each naming its patch, and its creases for edges.
+    fn of_made(made: &builders::Made) -> Self {
+        let s = made.solid();
+        let mut mesh = Mesh { vertices: s.v.iter().map(|p| Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), faces: s.f.clone(), ..Mesh::default() };
+        mesh.normals = normals(&mesh);
+        let trace = PartTrace {
+            tri_face: made.named.patch.clone(),
+            positions: s.v.clone(),
+            face_kind: made.kinds.clone(),
+            vertices: made.corners(),
+            patches: made.named.names.clone(),
+        };
+        Self { mesh, trace, edges: made.creases.clone() }
+    }
     /// Heap the arrays reserve.
     fn bytes(&self) -> usize {
         fn heap<T>(v: &Vec<T>) -> usize {
@@ -1451,6 +1585,8 @@ impl Tessellated {
             + heap(&t.positions)
             + heap(&t.face_kind)
             + heap(&t.vertices)
+            + heap(&t.patches)
+            + t.patches.iter().map(String::capacity).sum::<usize>()
             + heap(&self.edges)
             + self.edges.iter().map(heap).sum::<usize>()
     }
@@ -1556,7 +1692,7 @@ impl Cache {
     }
     fn keep_body(&mut self, sig: u64, built: Arc<Result<Built, String>>) {
         let bytes = 64 + match &*built {
-            Ok(b) => body_bytes(&b.body) + b.notes.iter().map(String::len).sum::<usize>(),
+            Ok(b) => b.value.bytes() + b.notes.iter().map(String::len).sum::<usize>(),
             Err(message) => message.len(),
         };
         self.keep(Key::Body(sig), Slot::Body(built), bytes);
@@ -1603,7 +1739,8 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
                 None => (0u8, s).hash(&mut h),
             }
         }
-        if f.component.placement != Placement::Free {
+        // Builders read the surface under their stone and the bore below it.
+        if f.component.placement != Placement::Free || matches!(f.operation, Operation::Builder { .. }) {
             surface_epoch.hash(&mut h);
             design.inner_radius_mm().to_bits().hash(&mut h);
             design.profile.thickness_mm.to_bits().hash(&mut h);
@@ -1616,12 +1753,13 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
     sigs
 }
 
-/// Why a feature is not attempted: the first of its sources that failed or was skipped, named.
-fn skipped_by(op: &Operation, status: &BTreeMap<Id, FeatureStatus>, doc: &Document) -> Option<String> {
+/// The first source that failed, was skipped, or was suppressed without passing a body through, named.
+fn skipped_by(op: &Operation, status: &BTreeMap<Id, FeatureStatus>, doc: &Document, passed: impl Fn(Id) -> bool) -> Option<String> {
     for s in op.sources() {
         let why = match status.get(&s) {
             Some(FeatureStatus::Failed(_)) => "failed",
             Some(FeatureStatus::Skipped(_)) => "was skipped",
+            Some(FeatureStatus::Suppressed) if !passed(s) => "was suppressed",
             _ => continue,
         };
         let name = doc.features.iter().find(|f| f.id == s).map(|f| f.name.as_str()).unwrap_or_default();
@@ -1637,10 +1775,14 @@ fn build_feature(
     ctx: &BuildCtx,
     params: BuildParams,
     band: Option<Id>,
-    bodies: &BTreeMap<Id, Body>,
+    values: &BTreeMap<Id, Value>,
     sketches: &BTreeMap<Id, Sketch>,
     frames: &BTreeMap<Id, brep::Placement>,
+    who: &dyn Fn(Id) -> String,
 ) -> Result<Built> {
+    if let Operation::Builder { key, on, params: settings } = &f.operation {
+        return build_made(f, key, *on, settings, design, ctx, values, frames, who);
+    }
     let mut notes = Vec::new();
     let mut frame = None;
     let mut attach = None;
@@ -1648,7 +1790,13 @@ fn build_feature(
         Operation::Boolean { a, b, kind } if band.is_some_and(|id| id == *a || id == *b) => Some((*a, *b, *kind)),
         _ => None,
     };
-    let mut body = if let Some((a, b, kind)) = against_band {
+    // A moved stone keeps its own frame, moved with it, for what is built round it.
+    if let Operation::Transform { source, translation, rotation_deg } = &f.operation {
+        if let (Some(Value::Mesh(_)), Some(inner)) = (values.get(source), frames.get(source)) {
+            frame = Some(compose(&rotate_place(*translation, *rotation_deg)?, inner));
+        }
+    }
+    let mut value = if let Some((a, b, kind)) = against_band {
         let band_id = band.unwrap_or_default();
         ensure!(a != b, "Boolean sources must be different");
         let other = if a == band_id { b } else { a };
@@ -1666,21 +1814,171 @@ fn build_feature(
             ),
         });
         frame = frames.get(&other).cloned();
-        bodies
+        values
             .get(&other)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("source feature #{other} is unavailable or suppressed"))?
     } else {
-        body_for(&f.operation, bodies, sketches, frames, params, &mut notes)?
+        body_for(&f.operation, values, sketches, frames, params, who, &mut notes)?
     };
-    let faults = body.validate();
-    ensure!(faults.is_empty(), "generated invalid topology: {faults:?}");
+    if let Value::Brep(body) = &value {
+        let faults = body.validate();
+        ensure!(faults.is_empty(), "generated invalid topology: {faults:?}");
+    }
     if f.component.placement != Placement::Free {
         let seat = f.component.placement.frame_on(design, ctx.surface)?;
-        body = maybe(brep::transform(&body, &seat), "Ring placement")?;
-        frame = Some(seat);
+        (value, frame) = match value {
+            Value::Brep(body) => (Value::Brep(maybe(brep::transform(&body, &seat), "Ring placement")?), Some(seat)),
+            // A mesh's own frame, a stone's, moves with it.
+            Value::Mesh(m) => (Value::Mesh(Arc::new(m.placed(&seat))), Some(frame.map_or(seat, |inner| compose(&seat, &inner)))),
+        };
     }
-    Ok(Built { body, frame, attach, notes })
+    Ok(Built { value, frame, attach, notes })
+}
+
+/// The seat frame turned a quarter about its normal, so a stone's length runs round the ring at `spin` zero.
+fn stone_frame(seat: &brep::Placement) -> brep::Placement {
+    brep::Placement { x_axis: seat.y_axis, y_axis: seat.x_axis.map(|v| -v), z_axis: seat.z_axis, origin: seat.origin }
+}
+
+/// How far over a stone's girdle plane a floor probe starts down, mm.
+const PROBE_ABOVE_MM: f64 = 8.0;
+/// How far below the metal under a stone's centre a floor probe still reads metal, mm.
+const PROBE_BELOW_MM: f64 = 6.0;
+
+/// The surface round a stone in its own frame, bucketed over its girdle plane for straight-down probes above `below`.
+struct Ground {
+    faces: Vec<[[f64; 3]; 3]>,
+    lo: [f64; 2],
+    cell: f64,
+    cols: usize,
+    rows: usize,
+    buckets: Vec<Vec<u32>>,
+    below: f64,
+}
+impl Ground {
+    fn new(mesh: &Mesh, frame: &brep::Placement, radius: f64, below: f64) -> Self {
+        let local = |p: [f64; 3]| -> [f64; 3] {
+            let d: [f64; 3] = std::array::from_fn(|k| p[k] - frame.origin[k]);
+            let along = |axis: [f64; 3]| (0..3).map(|k| d[k] * axis[k]).sum::<f64>();
+            [along(frame.x_axis), along(frame.y_axis), along(frame.z_axis)]
+        };
+        let faces: Vec<[[f64; 3]; 3]> = mesh
+            .faces
+            .iter()
+            .filter_map(|f| {
+                let (a, b, c) = mesh.triangle(f)?;
+                let t = [local(a), local(b), local(c)];
+                let near = t.iter().any(|p| p[0].hypot(p[1]) < radius) && t.iter().any(|p| p[2] > below);
+                near.then_some(t)
+            })
+            .collect();
+        let cell = 0.25;
+        let lo = [-radius - cell, -radius - cell];
+        let cols = ((2.0 * radius) / cell).ceil() as usize + 3;
+        let mut buckets = vec![Vec::new(); cols * cols];
+        for (i, t) in faces.iter().enumerate() {
+            let (x0, x1) = (t.iter().map(|p| p[0]).fold(f64::MAX, f64::min), t.iter().map(|p| p[0]).fold(f64::MIN, f64::max));
+            let (y0, y1) = (t.iter().map(|p| p[1]).fold(f64::MAX, f64::min), t.iter().map(|p| p[1]).fold(f64::MIN, f64::max));
+            let span = |v0: f64, v1: f64, o: f64| (((v0 - o) / cell).floor().max(0.0) as usize, (((v1 - o) / cell).floor().max(0.0) as usize).min(cols - 1));
+            let ((c0, c1), (r0, r1)) = (span(x0, x1, lo[0]), span(y0, y1, lo[1]));
+            for r in r0..=r1.max(r0) {
+                for c in c0..=c1.max(c0) {
+                    if let Some(b) = buckets.get_mut(r * cols + c) {
+                        b.push(i as u32);
+                    }
+                }
+            }
+        }
+        Self { faces, lo, cell, cols, rows: cols, buckets, below }
+    }
+
+    /// The highest metal straight under point `p` of the girdle plane, in the stone's frame.
+    fn floor(&self, p: [f64; 2]) -> Option<f64> {
+        let (c, r) = (((p[0] - self.lo[0]) / self.cell).floor(), ((p[1] - self.lo[1]) / self.cell).floor());
+        if c < 0.0 || r < 0.0 || c as usize >= self.cols || r as usize >= self.rows {
+            return None;
+        }
+        let mut best: Option<f64> = None;
+        for &i in &self.buckets[r as usize * self.cols + c as usize] {
+            let [a, b, t] = self.faces[i as usize];
+            let det = (b[0] - a[0]) * (t[1] - a[1]) - (t[0] - a[0]) * (b[1] - a[1]);
+            if det.abs() < 1e-18 {
+                continue;
+            }
+            let u = ((p[0] - a[0]) * (t[1] - a[1]) - (t[0] - a[0]) * (p[1] - a[1])) / det;
+            let v = ((b[0] - a[0]) * (p[1] - a[1]) - (p[0] - a[0]) * (b[1] - a[1])) / det;
+            const SLACK: f64 = 1e-9;
+            if u < -SLACK || v < -SLACK || u + v > 1.0 + SLACK {
+                continue;
+            }
+            let z = a[2] + (b[2] - a[2]) * u + (t[2] - a[2]) * v;
+            if z <= PROBE_ABOVE_MM && z > self.below && best.is_none_or(|h| z > h) {
+                best = Some(z);
+            }
+        }
+        best
+    }
+}
+
+/// Where the metal is under a stone in `frame`, and how far a pilot runs from its girdle past the bore.
+fn seat_at(frame: &brep::Placement, placement: &Placement, design: &RingDesign, surface: Option<&Mesh>) -> builders::Seat {
+    let (o, z) = (frame.origin, frame.z_axis);
+    let dropped = surface.and_then(|mesh| Ground::new(mesh, frame, 1.0, -PROBE_ABOVE_MM).floor([0.0, 0.0]));
+    let surface_z = dropped.unwrap_or(match placement {
+        Placement::Ring { height_mm, .. } => -height_mm,
+        Placement::Free => 0.0,
+    });
+    let s: [f64; 3] = std::array::from_fn(|k| o[k] + z[k] * surface_z);
+    let r = s[0].hypot(s[1]);
+    let outward = if r > 1e-9 { (z[0] * s[0] + z[1] * s[1]) / r } else { 0.0 };
+    let through_mm = (outward > 0.75).then(|| -surface_z + (r - design.inner_radius_mm()).max(0.0) / outward + 0.6);
+    builders::Seat { surface_z, through_mm }
+}
+
+/// A builder's part: a stone seated by its own placement, or a setting made in the frame of the stone it stands on.
+fn build_made(
+    f: &Feature,
+    key: &str,
+    on: Option<Id>,
+    settings: &serde_json::Value,
+    design: &RingDesign,
+    ctx: &BuildCtx,
+    values: &BTreeMap<Id, Value>,
+    frames: &BTreeMap<Id, brep::Placement>,
+    who: &dyn Fn(Id) -> String,
+) -> Result<Built> {
+    let spec = builders::spec(key).ok_or_else(|| {
+        anyhow::anyhow!("No builder called {key}; choose {}", builders::SPECS.iter().map(|s| s.key).collect::<Vec<_>>().join(", "))
+    })?;
+    let (gem, frame, seat) = if spec.on_stone {
+        let stone = on.ok_or_else(|| anyhow::anyhow!("{} is built round a stone; choose the stone it stands on", spec.label))?;
+        ensure!(f.component.placement == Placement::Free, "{} stands in its stone's frame; move the stone to move it", spec.label);
+        let made = match values.get(&stone) {
+            Some(Value::Mesh(m)) if m.key == builders::STONE => m,
+            Some(_) => anyhow::bail!("{} is not a stone; a {} is built round a stone part", who(stone), spec.label.to_lowercase()),
+            None => anyhow::bail!("source feature #{stone} is unavailable or suppressed"),
+        };
+        let gem = made.gem.ok_or_else(|| anyhow::anyhow!("{} carries no gem", who(stone)))?;
+        (gem, frames.get(&stone).copied().unwrap_or(brep::Placement::IDENTITY), made.seat.unwrap_or_default())
+    } else {
+        ensure!(on.is_none(), "A stone stands on the ring, not on another part");
+        let gem = builders::gem_of(settings)?;
+        let frame = match &f.component.placement {
+            Placement::Free => brep::Placement::IDENTITY,
+            p => stone_frame(&p.frame_on(design, ctx.surface)?),
+        };
+        (gem, frame, seat_at(&frame, &f.component.placement, design, ctx.surface))
+    };
+    // Claws and a bezel's wall reach the metal wherever they stand, read off the surface round the stone's axis.
+    let ground = match (spec.on_stone, ctx.surface) {
+        (true, Some(mesh)) => Some(Ground::new(mesh, &frame, gem.l_mm.max(gem.w_mm) * 0.5 + 3.0, seat.surface_z - PROBE_BELOW_MM)),
+        _ => None,
+    };
+    let probe = |p: [f64; 2]| ground.as_ref().and_then(|g| g.floor(p));
+    let floor: Option<crate::setting::Floor> = ground.as_ref().filter(|g| !g.faces.is_empty()).map(|_| &probe as crate::setting::Floor);
+    let made = builders::build(key, gem, settings, seat, floor)?;
+    Ok(Built { value: Value::Mesh(Arc::new(made.placed(&frame))), frame: Some(frame), attach: None, notes: Vec::new() })
 }
 
 pub fn evaluate(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<Evaluated> {
@@ -1737,7 +2035,8 @@ pub fn evaluate_memo(
     let chord = if params.theta_steps >= 512 { 0.015 } else { 0.04 };
     let bucket = u8::from(params.theta_steps >= 512);
     let sigs = signatures(doc, design, params, memo.surface_epoch);
-    let mut bodies = BTreeMap::new();
+    let who = |id: Id| doc.feature(id).map_or_else(|| format!("#{id}"), |f| format!("#{id} {}", f.name));
+    let mut values: BTreeMap<Id, Value> = BTreeMap::new();
     let mut sketches: BTreeMap<Id, Sketch> = BTreeMap::new();
     let mut metadata = BTreeMap::new();
     // The placement each body was seated by, which its references are signed in.
@@ -1762,8 +2061,8 @@ pub fn evaluate_memo(
         if !f.enabled {
             // A suppressed feature passes the first body it consumes, and that body's frame, through.
             if let Some(id) = f.operation.consumes().first() {
-                if let Some(body) = bodies.get(id).cloned() {
-                    bodies.insert(f.id, body);
+                if let Some(value) = values.get(id).cloned() {
+                    values.insert(f.id, value);
                     metadata.insert(f.id, f);
                     if let Some(frame) = frames.get(id).cloned() {
                         frames.insert(f.id, frame);
@@ -1771,11 +2070,11 @@ pub fn evaluate_memo(
                 }
             }
             report.status = FeatureStatus::Suppressed;
-        } else if let Some(why) = skipped_by(&f.operation, &status, doc) {
+        } else if let Some(why) = skipped_by(&f.operation, &status, doc, |s| values.contains_key(&s) || sketches.contains_key(&s)) {
             report.status = FeatureStatus::Skipped(why);
         } else if let Operation::Sketch { sketch } = &f.operation {
             // A sketch on a face takes its plane from the face as built now, so what sweeps it follows the face.
-            match laid(sketch, &bodies, &frames, &mut report.notes) {
+            match laid(sketch, &values, &frames, &mut report.notes) {
                 Ok(sketch) => {
                     sketches.insert(f.id, sketch);
                     metadata.insert(f.id, f);
@@ -1797,7 +2096,7 @@ pub fn evaluate_memo(
                 Some(outcome) => outcome,
                 None => {
                     let outcome = Arc::new(
-                        build_feature(f, design, ctx, params, band, &bodies, &sketches, &frames).map_err(|e| format!("{e:#}")),
+                        build_feature(f, design, ctx, params, band, &values, &sketches, &frames, &who).map_err(|e| format!("{e:#}")),
                     );
                     if let Some(Ok(mut c)) = memo.cache.map(Mutex::lock) {
                         c.keep_body(sig, outcome.clone());
@@ -1807,8 +2106,8 @@ pub fn evaluate_memo(
             };
             match &*outcome {
                 Ok(built) => {
-                    report.faces = built.body.faces.len();
-                    report.edges = built.body.edges.len();
+                    report.faces = built.value.faces();
+                    report.edges = built.value.edges();
                     report.notes = built.notes.clone();
                     if let Some(frame) = built.frame {
                         frames.insert(f.id, frame);
@@ -1816,7 +2115,7 @@ pub fn evaluate_memo(
                     if let Some(attach) = built.attach {
                         attached.insert(f.id, attach);
                     }
-                    bodies.insert(f.id, built.body.clone());
+                    values.insert(f.id, built.value.clone());
                     metadata.insert(f.id, f);
                 }
                 Err(message) => report.status = FeatureStatus::Failed(message.clone()),
@@ -1827,7 +2126,7 @@ pub fn evaluate_memo(
         for id in f.operation.consumes() {
             available_outputs.retain(|v| *v != id);
         }
-        if bodies.contains_key(&f.id) {
+        if values.contains_key(&f.id) {
             available_outputs.push(f.id);
         }
         if doc.through == Some(f.id) {
@@ -1842,10 +2141,38 @@ pub fn evaluate_memo(
     let mut components = Vec::new();
     for id in output {
         ctx.check()?;
-        let Some(body) = bodies.get(id) else {
+        let Some(value) = values.get(id) else {
             continue;
         };
         let f = metadata[id];
+        let body = match value {
+            Value::Brep(body) => body,
+            Value::Mesh(made) => {
+                // A builder's mesh is its own tessellation, whatever the chord.
+                let key = (sigs[id], MESH_BUCKET);
+                let remembered = memo.cache.and_then(|c| c.lock().ok()?.mesh(key));
+                let tessellated = remembered.unwrap_or_else(|| {
+                    let t = Arc::new(Tessellated::of_made(made));
+                    if let Some(Ok(mut c)) = memo.cache.map(Mutex::lock) {
+                        c.keep_mesh(key, t.clone());
+                    }
+                    t
+                });
+                components.push(EvaluatedComponent {
+                    id: *id,
+                    name: f.name.clone(),
+                    settings: f.component.clone(),
+                    body: Body::new(),
+                    mesh: tessellated.mesh.clone(),
+                    edges: tessellated.edges.clone(),
+                    trace: tessellated.trace.clone(),
+                    attach: attached.get(id).copied().unwrap_or(f.component.attach),
+                    stage: f.component.stage,
+                    made: Some(made.clone()),
+                });
+                continue;
+            }
+        };
         let key = (sigs[id], bucket);
         let remembered = memo.cache.and_then(|c| c.lock().ok()?.mesh(key));
         let tessellated = match remembered {
@@ -1884,6 +2211,7 @@ pub fn evaluate_memo(
             trace: tessellated.trace.clone(),
             attach: attached.get(id).copied().unwrap_or(f.component.attach),
             stage: f.component.stage,
+            made: None,
         });
     }
     // Nothing built, nothing failed and no band is not a ring.
@@ -1994,7 +2322,7 @@ pub fn tessellate_traced(body: &Body, chord_mm: f64) -> Result<(Mesh, PartTrace)
         .iter()
         .map(|(_, v)| v.point)
         .collect();
-    Ok((mesh, PartTrace { tri_face, positions: precise, face_kind, vertices }))
+    Ok((mesh, PartTrace { tri_face, positions: precise, face_kind, vertices, patches: Vec::new() }))
 }
 /// The kernel can refine one side of a shared spline boundary more than the
 /// planar cap, leaving triangular slivers between two chord approximations.
@@ -2481,15 +2809,16 @@ mod tests {
         let inline: Operation = serde_json::from_str(r#"{"Extrude":{"sketch":{"name":"x","points":[],"entities":[]},"height_mm":1.0,"draft_deg":0.0}}"#).unwrap();
         let Operation::Extrude { sketch: Profile::Inline(s), .. } = inline else { panic!("an inline sketch stays inline") };
         assert_eq!(s.name, "x");
-        // A disabled sketch takes its extrusion down with it, by name.
+        // A disabled sketch takes its extrusions down with it, by name: skipped, since nothing failed.
         let mut off = doc.clone();
         off.features[0].enabled = false;
         d.cad = Some(off);
         let e = evaluate(&d, &lib, BuildParams::default()).unwrap();
-        let error = e.first_error().unwrap();
-        assert!(error.contains("Sketch feature #1 is unavailable"), "{error}");
         assert_eq!(e.status_of(1), Some(&FeatureStatus::Suppressed));
-        assert_eq!(e.failures().iter().map(|(id, _)| *id).collect::<Vec<_>>(), vec![2, 3]);
+        for id in [2, 3] {
+            assert_eq!(e.status_of(id), Some(&FeatureStatus::Skipped("source #1 Sketch was suppressed".into())));
+        }
+        assert!(e.failures().is_empty() && e.first_error().is_none());
         assert!(e.components.is_empty());
         // A sketch on the top face of a box extrudes outward from that face, wherever the box stands.
         let mut doc = Document::default();

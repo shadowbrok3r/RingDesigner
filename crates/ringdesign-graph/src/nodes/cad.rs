@@ -290,13 +290,17 @@ pub fn append(g: &mut Graph, operation: Operation) -> Result<NodeId, crate::grap
         })
         .or_else(|| g.nodes.last().map(|n| n.id))
         .ok_or_else(|| crate::graph::GraphError::global("Graph needs a design source"))?;
-    let mut component = operation
-        .sources()
-        .first()
-        .and_then(|source| g.node(NodeId(*source)))
-        .and_then(|n| serde_json::from_value::<Feature>(n.params.clone()).ok())
-        .map(|f| f.component)
-        .unwrap_or_default();
+    // A part built round a stone takes its builder's own component, never the stone's.
+    let mut component = match &operation {
+        Operation::Builder { key, .. } => ringdesign_core::cad::builders::component(key),
+        _ => operation
+            .sources()
+            .first()
+            .and_then(|source| g.node(NodeId(*source)))
+            .and_then(|n| serde_json::from_value::<Feature>(n.params.clone()).ok())
+            .map(|f| f.component)
+            .unwrap_or_default(),
+    };
     component.placement = ringdesign_core::cad::Placement::Free;
     if matches!(
         operation,
@@ -723,6 +727,23 @@ mod tests {
             serde_json::to_value(&d.cad.as_ref().unwrap().features[0]).unwrap()
         );
         assert_eq!(g, before);
+    }
+    #[test]
+    fn a_builder_appended_round_a_stone_takes_its_own_component_never_the_stones() {
+        use ringdesign_core::cad::{Attach, ComponentRole, builders};
+        let d = ringdesign_core::cad::examples::design("claw-solitaire").unwrap();
+        let mut g = from_document(&d).unwrap();
+        let id = append(&mut g, Operation::Builder { key: builders::HALO.into(), on: Some(2), params: serde_json::json!({}) }).unwrap();
+        let f: Feature = serde_json::from_value(g.node(id).unwrap().params.clone()).unwrap();
+        assert_eq!((f.component.reference, f.component.attach, f.component.role), (false, Attach::Join, ComponentRole::Setting));
+        assert_eq!(f.name, "Halo");
+        let reg = Registry::builtin();
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let out = crate::eval::evaluate_design(&mut crate::eval::Evaluator::new(), &g, &reg, &lib, 0).unwrap();
+        let doc = out.design.cad.clone().unwrap();
+        assert_eq!(doc.features.iter().map(|f| f.id).collect::<Vec<_>>(), vec![1, 2, 3, 4, id.0]);
+        assert_eq!(doc.dependents(2), vec![3, 4, id.0], "every setting reads its stone");
+        assert!(doc.outputs.contains(&2), "and the stone stays a part beside them");
     }
     #[test]
     fn features_recompute_and_suppression_is_persistent() {
