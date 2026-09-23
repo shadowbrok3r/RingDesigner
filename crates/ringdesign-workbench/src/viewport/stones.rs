@@ -70,4 +70,27 @@ mod face_tests {
         assert_eq!(items.iter().map(|i| i.label.as_str()).collect::<Vec<_>>(), band_items(0.0, 0.0).iter().map(|i| i.label.as_str()).collect::<Vec<_>>());
         assert_eq!(items[3].action, MenuAction::AddStoneOnFace { feature: 4, face: 2, key: "princess-5" });
     }
+
+    #[test]
+    fn a_parts_face_menu_carries_the_stones_between_the_sketch_and_press_pull() {
+        use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation};
+        use ringdesign_core::interaction::pick::{Entity, Pick};
+        let mut d = ringdesign_core::RingDesign::default();
+        let mut doc = Document::default();
+        let mut add = |id, operation, component| doc.append(Feature { id, name: format!("Part {id}"), enabled: true, operation, component }).unwrap();
+        add(0, Operation::Band, Component::default());
+        add(3, Operation::Cylinder { radius_mm: 2.0, height_mm: 2.0 }, Component { attach: Attach::Join, ..Default::default() });
+        add(4, Operation::Sphere { radius_mm: 1.0 }, Component { reference: true, ..Default::default() });
+        d.cad = Some(doc);
+        let face = |feature| Pick { entity: Entity::Face { feature, face: 1 }, world: [0.0, 10.0, 0.0], normal: [0.0, 1.0, 0.0], depth: 1.0, px: 0.0 };
+        let sel = super::super::selection::Selection::default();
+        let items = super::super::menu::context_items(&sel, Some(&face(3)), &d);
+        let n = STONES.len();
+        assert_eq!(items[0].action, MenuAction::SketchOnFace { feature: 3, face: 1 });
+        assert!(items[1..=n].iter().all(|i| i.submenu == Some("Add stone here") && matches!(i.action, MenuAction::AddStoneOnFace { feature: 3, face: 1, .. })));
+        assert_eq!(items[1 + n].action, MenuAction::PressPull { feature: 3, face: 1 });
+        assert_eq!(items.len(), 17 + n);
+        let on_stone = super::super::menu::context_items(&sel, Some(&face(4)), &d);
+        assert!(!on_stone.iter().any(|i| matches!(i.action, MenuAction::AddStoneOnFace { .. })), "a reference stone's face seats no stone");
+    }
 }
