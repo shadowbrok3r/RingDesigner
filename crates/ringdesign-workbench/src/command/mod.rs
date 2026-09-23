@@ -1,6 +1,7 @@
 //! The command session every viewport tool runs through: tokens in, effects out, typed dimensions, snaps.
 pub mod commands;
 pub mod dimension;
+pub mod pattern;
 pub mod ring;
 pub mod session;
 pub mod snap;

@@ -1909,6 +1909,10 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
         MenuAction::SketchOnPlane { theta_deg, across_mm } => crate::sketch_mode::start_on_plane(app, pane, theta_deg, across_mm),
         MenuAction::AddStone { theta_deg, height_mm, key } => crate::stone_tools::add_stone(app, theta_deg, height_mm, key),
         MenuAction::Setting { part, stone, key } => crate::stone_tools::setting(app, part, stone, key),
+        MenuAction::PinHere { world } => crate::ring_snaps::pin_here(app, pane, world),
+        MenuAction::ClearPins => crate::ring_snaps::clear_pins(app),
+        MenuAction::Pattern { feature, key } => crate::patterns::start(app, pane, feature, key),
+        MenuAction::PressPull { feature, face } => crate::patterns::press_pull(app, pane, feature, face),
     }
 }
 

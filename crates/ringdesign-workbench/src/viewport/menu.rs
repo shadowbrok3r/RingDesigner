@@ -34,6 +34,14 @@ pub enum MenuAction {
     AddStone { theta_deg: f64, height_mm: f64, key: &'static str },
     /// A made setting round a stone: a reference part, or a height-field stone by its layer path.
     Setting { part: Option<Id>, stone: Option<Vec<usize>>, key: &'static str },
+    /// A reference pin dropped on the ring where the click landed.
+    PinHere { world: [f64; 3] },
+    /// Every pin taken off the ring.
+    ClearPins,
+    /// A pattern of a part: an array or a mirror, named by `key`.
+    Pattern { feature: Id, key: &'static str },
+    /// A planar face of a part pushed or pulled along its normal.
+    PressPull { feature: Id, face: u32 },
 }
 
 #[derive(Clone, Debug)]
@@ -141,6 +149,7 @@ pub fn context_items(sel: &Selection, under: Option<&Pick>, design: &RingDesign)
             }
             items.extend(super::stones::band_items(theta_deg, height_mm));
             items.push(MenuItem::new("Sketch on a plane here", Icon::CadSketch, MenuAction::SketchOnPlane { theta_deg, across_mm: world[2] }, "A new sketch on a plane through this point of the band"));
+            items.extend(super::pins::band_items(world));
         }
         Subject::Feature { id, edge, face } => {
             let feature = design.cad.as_ref().and_then(|d| d.features.iter().find(|f| f.id == id));
@@ -153,6 +162,7 @@ pub fn context_items(sel: &Selection, under: Option<&Pick>, design: &RingDesign)
             if reference {
                 items.extend(super::stones::setting_items(Some(id), None));
             }
+            items.extend(super::patterns::part_items(id, face, reference));
             if let Some(edge) = edge {
                 items.push(MenuItem::new("Fillet this edge", Icon::CadFillet, MenuAction::FilletEdge { feature: id, edge }, "Round the edge with a new Fillet feature on this part"));
                 items.push(MenuItem::new("Chamfer this edge", Icon::CadChamfer, MenuAction::ChamferEdge { feature: id, edge }, "Bevel the edge with a new Chamfer feature on this part"));

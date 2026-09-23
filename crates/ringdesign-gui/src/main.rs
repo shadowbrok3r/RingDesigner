@@ -16,9 +16,11 @@ mod gems;
 mod mcp_host;
 mod pane;
 mod panels;
+mod patterns;
 mod theme;
 mod viewport;
 mod updater;
+mod ring_snaps;
 mod session;
 mod sketch_mode;
 mod stone_tools;
@@ -37,6 +39,12 @@ mod gizmo_tests;
 mod sketch_tests;
 #[cfg(test)]
 mod stone_tests;
+#[cfg(test)]
+mod snaps_tests;
+#[cfg(test)]
+mod pattern_tests;
+#[cfg(test)]
+mod sweep_tests;
 
 use app::RingDesignerApp;
 
