@@ -537,6 +537,49 @@ worktrees, then verified, measured and committed by the integrator.
   ring with the caption and the Instances field, type 4, Enter → "Ring array of Cylinder" on the
   timeline, three copies at 90° steps, one History entry "Add Ring array of Cylinder".
 
+### Batch 8 status — 2026-09-23 (on master: `m12-phone-cad`, `batch7-fixes`, `m13-first-cut` merged, and their integration)
+
+- **M12's interaction half, the phone models by touch** (`workbench::touch::{funnel, gesture, hit,
+  parts}`, the phone's `cad`): a tap chooses a part and a second tap on the spot walks down to its
+  faces and edges, the choice tints the metal (attribute 5), a long press opens `context_items` as a
+  thumb-high popup (what the phone lacks greyed with its reason), the timeline strip sits under the
+  ring with its chip menu, one finger drags a gizmo handle through the desktop's commands with the
+  ghost under a model matrix, typed values go through the dimension bar and the soft keyboard, a lift
+  commits one History entry, and every edit leaves through one funnel (`touch::prepare`, the steps of
+  `cad_edit::apply`). Verified on the s26ultra emulator; two fingers are host-tested only (adb cannot
+  inject them). A stone seats on a part's face where the finger pressed.
+- **Batch 7's open items closed**: every builder's reach is floored by the bore with `MIN_WALL_MM`
+  kept (`builders::build_in` + `Bore`), and a setting that cannot keep it is refused by name ("Base
+  rail would reach 0.61 mm into the finger hole") — the old four-claw builder broke the wall in 31 of
+  56 cases on the default band, the worst 0.80 mm in, and 27 of 56 on the Court band, 1.26 mm; the
+  array ghost re-drops like the evaluation (0.00000 mm against the old rigid 2.486 on a heart's
+  shoulder); work planes are drawn, named, picked on screen and carry Sketch on this plane and Mirror
+  the chosen part across it; array (A) and press-pull (Q) are on the rail and the palette; Sweep,
+  Twist and Loft take one region; a Cut part's ghost counts only the faces inside the band (a 1 mm
+  pilot 2.299 mm² of walls against the built ring's 2.299, where every face read 3.140).
+- **M13's first cut**: size runs re-seat CAD parts on each size's band and judge each with its
+  build (the claw solitaire 5 to 9 by halves: 9 sizes in 7.3 s, all watertight); 3MF carries the band
+  with its joined and cut parts as one object and each Separate part as its own (the app, the phone,
+  the engine and the CLI); a stone sits on a part's planar face (`FaceSeat` in the stone builder's
+  params: moving the plate 25° carries it within 0.00055 mm, a plate 1 mm thicker lifts it 0.500);
+  `cad step --band` writes the band as a closed faceted solid beside the analytic parts (FreeCAD
+  1.1.3 reads the claw solitaire as two valid solids).
+- **Integration**: the claw fix reached the app only once `build_made` called `build_in` with the
+  bore (a claw ghost test that sank its stone flush at 60° on the thin default band is now refused,
+  so it seats the stone at the gestures' stand-off); the ghost forgives a facet across the plane
+  only as a chord (crease-aware corner normals, the verdict's `chord_lean`); the desktop gizmo
+  measures its reach about the part as built (the phone's fix); the three Nocturne tests compare with
+  the source as curated (`templates::refine_sources`) and the graph crate is green.
+- Verified: core 613 + golden, workbench 151, gui 122, graph 84 + 8 + 2 + 3, graph-ui 26, mcp 43,
+  cli 3 + 5, configurator 5, script 5, phone 151, assets 4; wasm, NDK arm64 and the locked workspace
+  check clean with zero warnings; the desktop app smoke-run on a restored claw-set design.
+- Open: G/R on a face stone wraps it in a Transform (it should edit the seat's u/v/spin); a bench
+  head standing on a plate leaves its mark under the plate; a ring array of a face stone re-drops
+  onto the band; the assembly STEP and OBJ are still one body; the work-plane switch is not saved; a
+  cut ghost builds its band tree on the UI thread (about 20 ms at preview); the phone needs a numeric
+  keyboard (EguiMobile's bridge asks only for text) and has no sketching, box select, Measure or
+  drawn work planes yet; the phone's pick scene adds about 144 ms to a Detailed build.
+
 ### On master while batch 8 ran — 2026-09-22/23 (`6f7b097` through `309c42d`)
 
 - **The dimension bar stays in its view** and the pointer under it still drives the command: the
