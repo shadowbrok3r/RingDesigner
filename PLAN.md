@@ -530,7 +530,12 @@ worktrees, then verified, measured and committed by the integrator.
   Loft ignore a Region profile; **the four-claw builder on a 5 mm round at 60° on the default
   band reaches into the finger hole** (faces at r 8.61 mm inside the 8.65 mm bore) — the claws'
   reach to the band needs the bore as its floor; the floating tool inspector covers the viewport's
-  middle in small windows.
+  middle in small windows. Seen live: the dimension bar anchored at the pointer spills past the
+  viewport's right edge; a pattern part (placed Free, following its source) shows a world-axes
+  gizmo whose drag would wrap it in a Transform.
+- **Verified live**: right-click a post ▸ Pattern ▸ Array round the ring…, the six ghosts round the
+  ring with the caption and the Instances field, type 4, Enter → "Ring array of Cylinder" on the
+  timeline, three copies at 90° steps, one History entry "Add Ring array of Cylinder".
 
 ### M2 detail
 
