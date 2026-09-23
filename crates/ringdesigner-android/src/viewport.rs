@@ -38,6 +38,7 @@ layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec3 a_color;
 layout(location = 3) in vec3 a_wall;
 layout(location = 4) in float a_focus;
+layout(location = 5) in vec2 a_select;
 
 uniform mat4 u_mvp;
 uniform mat3 u_normal_matrix;
@@ -50,10 +51,12 @@ out float v_obj_nz;
 out vec3 v_world;
 out float v_cavity;
 out float v_focus;
+out vec2 v_select;
 
 void main() {
     gl_Position = u_mvp * vec4(a_position, 1.0);
     v_focus = a_focus;
+    v_select = a_select;
     v_normal = u_normal_matrix * a_normal;
     v_color = a_color;
     v_wall = a_wall;
@@ -77,8 +80,11 @@ in float v_obj_nz;
 in vec3 v_world;
 in float v_cavity;
 in float v_focus;
+in vec2 v_select;
 uniform vec4 u_clip_plane;
 uniform vec4 u_focus;
+uniform vec4 u_select;
+uniform vec4 u_hover;
 uniform float u_alpha;
 
 uniform int u_mode;
@@ -131,6 +137,14 @@ void main() {
         float lit = 0.62 + 0.38 * max(dot(n, l), 0.0);
         color = mix(color, u_focus.rgb * lit, focus);
     }
+    // The chosen parts over that, and what the finger rests on over both.
+    float chosen = clamp(v_select.x, 0.0, 1.0) * u_select.a;
+    float hovered = clamp(v_select.y, 0.0, 1.0) * u_hover.a;
+    if (chosen > 0.0 || hovered > 0.0) {
+        float lit = 0.62 + 0.38 * max(dot(n, l), 0.0);
+        color = mix(color, u_select.rgb * lit, chosen);
+        color = mix(color, u_hover.rgb * lit, hovered);
+    }
 
     if (u_wire_px > 0.0) {
         vec3 w = fwidth(v_bary) * u_wire_px;
@@ -139,7 +153,7 @@ void main() {
         color = mix(color, u_wire_color, edge * 0.55);
     }
 
-    frag_color = vec4(color, 1.0);
+    frag_color = vec4(color, u_alpha);
 }
 "#;
 
@@ -169,6 +183,8 @@ struct Uniforms {
     wire_px: Option<glow::NativeUniformLocation>,
     clip_plane: Option<glow::NativeUniformLocation>,
     focus: Option<glow::NativeUniformLocation>,
+    select: Option<glow::NativeUniformLocation>,
+    hover: Option<glow::NativeUniformLocation>,
     alpha: Option<glow::NativeUniformLocation>,
 }
 
@@ -180,10 +196,24 @@ struct GpuResources {
     gem_vbo: glow::NativeBuffer,
     ghost_vao: glow::NativeVertexArray,
     ghost_vbo: glow::NativeBuffer,
+    /// A live command's ghost: staged once, moved by a model matrix.
+    preview_vao: glow::NativeVertexArray,
+    preview_vbo: glow::NativeBuffer,
     /// One float a staged vertex: how far the chosen node reaches it.
     focus_vbo: glow::NativeBuffer,
+    /// Two floats a staged vertex: chosen, and under the finger.
+    select_vbo: glow::NativeBuffer,
     uniforms: Uniforms,
 }
+
+/// The chosen parts' tint and strength: the desktop's selection violet.
+pub const SELECT_TINT: [f32; 4] = [0.80, 0.57, 0.85, 0.55];
+/// What the finger rests on: the hover cue's aqua.
+pub const HOVER_TINT: [f32; 4] = [0.40, 0.85, 0.83, 0.55];
+/// A live command's ghost: the hover aqua, and its opacity.
+pub const PREVIEW_TINT: [f32; 4] = [0.40, 0.85, 0.83, 0.45];
+/// A ghost painted by its draft classes, opacity.
+const DRAFT_GHOST_ALPHA: f32 = 0.6;
 
 #[derive(Default)]
 pub struct GpuMeshRenderer {
@@ -191,16 +221,42 @@ pub struct GpuMeshRenderer {
     vertex_count: i32,
     gem_count: i32,
     ghost_count: i32,
+    preview_count: i32,
     pending: Option<Vec<f32>>,
     pending_gems: Option<Vec<f32>>,
     pending_ghost: Option<Vec<f32>>,
+    /// A live command's ghost awaiting upload; `Some(empty)` clears it.
+    pending_preview: Option<Vec<f32>>,
+    /// Where the ghost stands: its column-major model matrix and the normals' 3x3; `None` hides it.
+    preview_model: Option<([f32; 16], [f32; 9])>,
+    /// The ghost shades in its staged draft colours rather than the aqua.
+    preview_draft: bool,
     /// A focus channel awaiting upload; `Some(empty)` clears it.
     pending_focus: Option<Vec<f32>>,
     /// The uploaded focus channel covers the uploaded mesh vertex for vertex.
     focus_live: bool,
+    /// The selection channel awaiting upload, two floats a staged vertex; `Some(empty)` clears it.
+    pending_select: Option<Vec<f32>>,
+    select_live: bool,
     depth_checked: bool,
     /// Set once if the shaders will not build, so the pane can say so instead of drawing nothing.
     pub failed: Option<String>,
+}
+
+/// Column-major `a · b` for 4x4 matrices.
+fn mul4(a: &[f32; 16], b: &[f32; 16]) -> [f32; 16] {
+    std::array::from_fn(|i| {
+        let (col, row) = (i / 4, i % 4);
+        (0..4).map(|k| a[k * 4 + row] * b[col * 4 + k]).sum()
+    })
+}
+
+/// Column-major `a · b` for 3x3 matrices.
+fn mul3(a: &[f32; 9], b: &[f32; 9]) -> [f32; 9] {
+    std::array::from_fn(|i| {
+        let (col, row) = (i / 3, i % 3);
+        (0..3).map(|k| a[k * 3 + row] * b[col * 3 + k]).sum()
+    })
 }
 
 // glow handles are u32 integers on native, safe to send across threads.
@@ -290,6 +346,81 @@ impl GpuMeshRenderer {
         self.focus_live || self.pending_focus.as_ref().is_some_and(|w| !w.is_empty())
     }
 
+    /// The selection channel in [`stage`](Self::stage)'s vertex order: `(chosen, under the finger)` from `viewport::tint`'s weights.
+    pub fn stage_select(mesh: &Mesh, weight: &[f32]) -> Vec<f32> {
+        let mut data = Vec::with_capacity(mesh.faces.len() * 6);
+        for face in &mesh.faces {
+            if face.iter().any(|&vi| !mesh.vertices.get(vi as usize).is_some_and(|p| p.is_finite())) {
+                continue;
+            }
+            for &vi in face {
+                let w = weight.get(vi as usize).copied().unwrap_or(0.0);
+                data.push(if (0.5..1.5).contains(&w) { 1.0 } else { 0.0 });
+                data.push(if w >= 1.5 { 1.0 } else { 0.0 });
+            }
+        }
+        data
+    }
+
+    /// Queue a selection channel built by [`stage_select`](Self::stage_select). Empty clears it.
+    pub fn set_pending_select(&mut self, weights: Vec<f32>) {
+        self.pending_select = Some(weights);
+    }
+
+    /// Whether a selection tint is uploaded or on its way.
+    pub fn has_select(&self) -> bool {
+        self.select_live || self.pending_select.as_ref().is_some_and(|w| !w.is_empty())
+    }
+
+    /// Queue a live command's ghost in its own coordinates, staged by [`stage_part`](Self::stage_part). Empty clears it.
+    pub fn set_pending_preview(&mut self, verts: Vec<f32>) {
+        self.pending_preview = Some(verts);
+    }
+
+    /// Where the ghost stands: model matrix and normal matrix, column-major; `None` hides it.
+    pub fn set_preview_model(&mut self, model: Option<([f32; 16], [f32; 9])>) {
+        self.preview_model = model;
+    }
+
+    /// Whether the ghost shades in its staged draft colours.
+    pub fn set_preview_draft(&mut self, draft: bool) {
+        self.preview_draft = draft;
+    }
+
+    /// The ghost as it stands: its vertices awaiting upload, where it is drawn, and whether it shades by draft class.
+    pub fn preview_state(&self) -> (Option<&[f32]>, Option<([f32; 16], [f32; 9])>, bool) {
+        (self.pending_preview.as_deref(), self.preview_model, self.preview_draft)
+    }
+
+    /// A part's tessellation in the interleaved layout, a vertex normal kept only within 20° of its facet's.
+    pub fn stage_part(mesh: &Mesh) -> Vec<f32> {
+        Self::stage_part_colored(mesh, |_| [1.0; 3])
+    }
+
+    /// [`stage_part`](Self::stage_part) with every face in its draft class's colour.
+    pub fn stage_part_classes(mesh: &Mesh, classes: &[ringdesign_core::FaceClass]) -> Vec<f32> {
+        Self::stage_part_colored(mesh, |i| classes.get(i).map_or([1.0; 3], |k| k.rgb()))
+    }
+
+    /// A part's tessellation with face `i` in `color(i)`.
+    fn stage_part_colored(mesh: &Mesh, color: impl Fn(usize) -> [f32; 3]) -> Vec<f32> {
+        let mut data = Vec::with_capacity(mesh.faces.len() * 3 * FLOATS_PER_VERTEX);
+        for (i, face) in mesh.faces.iter().enumerate() {
+            let Some(facet) = mesh.face_normal(face) else { continue };
+            let facet = ringdesign_core::mesh::Vec3(facet[0] as f32, facet[1] as f32, facet[2] as f32);
+            let Some(points) = face.iter().map(|&vi| mesh.vertices.get(vi as usize).filter(|p| p.is_finite()).copied()).collect::<Option<Vec<_>>>() else { continue };
+            let [r, g, b] = color(i);
+            for (p, &vi) in points.iter().zip(face) {
+                let n = match mesh.normals.get(vi as usize) {
+                    Some(n) if n.is_finite() && n.0 * facet.0 + n.1 * facet.1 + n.2 * facet.2 > 0.94 => *n,
+                    _ => facet,
+                };
+                data.extend_from_slice(&[p.0, p.1, p.2, n.0, n.1, n.2, r, g, b, 1.0, 1.0, 1.0]);
+            }
+        }
+        data
+    }
+
     pub fn has_mesh(&self) -> bool {
         self.vertex_count > 0 || self.pending.is_some()
     }
@@ -317,6 +448,7 @@ impl GpuMeshRenderer {
             self.vertex_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
             // A channel staged for the last mesh says nothing about this one.
             self.focus_live = false;
+            self.select_live = false;
             unsafe {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.vbo));
                 gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::STATIC_DRAW);
@@ -331,6 +463,24 @@ impl GpuMeshRenderer {
                     gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&weights), glow::STATIC_DRAW);
                     gl.bind_buffer(glow::ARRAY_BUFFER, None);
                 }
+            }
+        }
+        if let Some(weights) = self.pending_select.take() {
+            self.select_live = !weights.is_empty() && weights.len() as i32 == self.vertex_count * 2;
+            if self.select_live {
+                unsafe {
+                    gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.select_vbo));
+                    gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&weights), glow::STATIC_DRAW);
+                    gl.bind_buffer(glow::ARRAY_BUFFER, None);
+                }
+            }
+        }
+        if let Some(verts) = self.pending_preview.take() {
+            self.preview_count = (verts.len() / FLOATS_PER_VERTEX) as i32;
+            unsafe {
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(res.preview_vbo));
+                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, as_u8_slice(&verts), glow::DYNAMIC_DRAW);
+                gl.bind_buffer(glow::ARRAY_BUFFER, None);
             }
         }
         if let Some(verts) = self.pending_gems.take() {
@@ -383,6 +533,7 @@ impl GpuMeshRenderer {
             gl.uniform_3_f32(u.wire_color.as_ref(), wire_color[0], wire_color[1], wire_color[2]);
             gl.uniform_1_f32(u.wire_px.as_ref(), if wireframe { WIRE_PX } else { 0.0 });
             gl.uniform_4_f32_slice(u.clip_plane.as_ref(), &clip_plane);
+            gl.uniform_1_f32(u.alpha.as_ref(), 1.0);
             // Without a channel the attribute is a constant zero: no buffer
             // is read, so a stale one can never be read past its end.
             let lit = self.focus_live && focus[3] > 0.0;
@@ -393,8 +544,20 @@ impl GpuMeshRenderer {
                 gl.disable_vertex_attrib_array(4);
                 gl.vertex_attrib_1_f32(4, 0.0);
             }
+            // The selection rides its own buffer on attribute 5, gated the same way.
+            let chosen = self.select_live;
+            gl.uniform_4_f32_slice(u.select.as_ref(), &if chosen { SELECT_TINT } else { [0.0; 4] });
+            gl.uniform_4_f32_slice(u.hover.as_ref(), &if chosen { HOVER_TINT } else { [0.0; 4] });
+            if chosen {
+                gl.enable_vertex_attrib_array(5);
+            } else {
+                gl.disable_vertex_attrib_array(5);
+                gl.vertex_attrib_2_f32(5, 0.0, 0.0);
+            }
 
             gl.draw_arrays(glow::TRIANGLES, 0, self.vertex_count);
+            gl.uniform_4_f32_slice(u.select.as_ref(), &[0.0; 4]);
+            gl.uniform_4_f32_slice(u.hover.as_ref(), &[0.0; 4]);
 
             // Stones ride in a second buffer with the same program: dielectric
             // shading, their own tint, whatever the ring's mode is.
@@ -409,6 +572,32 @@ impl GpuMeshRenderer {
                 );
                 gl.bind_vertex_array(Some(res.gem_vao));
                 gl.draw_arrays(glow::TRIANGLES, 0, self.gem_count);
+            }
+
+            // A live command's ghost: its own buffer under a model matrix, translucent and depth-tested, both sides drawn.
+            if let (true, Some((model, normal))) = (self.preview_count > 0 && !wireframe, self.preview_model) {
+                gl.uniform_4_f32_slice(u.focus.as_ref(), &[0.0; 4]);
+                gl.uniform_matrix_4_f32_slice(u.mvp.as_ref(), false, &mul4(mvp, &model));
+                gl.uniform_matrix_3_f32_slice(u.normal_matrix.as_ref(), false, &mul3(normal_matrix, &normal));
+                // Mode 1 shades the staged draft colours.
+                gl.uniform_1_i32(u.mode.as_ref(), if self.preview_draft { 1 } else { 0 });
+                gl.uniform_3_f32(u.base_color.as_ref(), PREVIEW_TINT[0], PREVIEW_TINT[1], PREVIEW_TINT[2]);
+                gl.uniform_1_f32(u.alpha.as_ref(), if self.preview_draft { DRAFT_GHOST_ALPHA } else { PREVIEW_TINT[3] });
+                gl.uniform_4_f32_slice(u.clip_plane.as_ref(), &[0.0; 4]);
+                gl.uniform_1_f32(u.wire_px.as_ref(), 0.0);
+                gl.disable(glow::CULL_FACE);
+                gl.enable(glow::BLEND);
+                gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+                gl.depth_mask(false);
+                gl.bind_vertex_array(Some(res.preview_vao));
+                gl.draw_arrays(glow::TRIANGLES, 0, self.preview_count);
+                gl.depth_mask(true);
+                gl.disable(glow::BLEND);
+                gl.enable(glow::CULL_FACE);
+                gl.uniform_matrix_4_f32_slice(u.mvp.as_ref(), false, mvp);
+                gl.uniform_matrix_3_f32_slice(u.normal_matrix.as_ref(), false, normal_matrix);
+                gl.uniform_1_f32(u.alpha.as_ref(), 1.0);
+                gl.uniform_4_f32_slice(u.clip_plane.as_ref(), &clip_plane);
             }
 
             // The cutters' ghost: over everything, blended, writing no depth — the tool is inside
@@ -510,6 +699,14 @@ impl GpuMeshRenderer {
             self.failed = Some("could not create VAO/VBO".into());
             return;
         };
+        let (Some(preview_vao), Some(preview_vbo), Some(select_vbo)) = (
+            unsafe { gl.create_vertex_array() }.ok(),
+            unsafe { gl.create_buffer() }.ok(),
+            unsafe { gl.create_buffer() }.ok(),
+        ) else {
+            self.failed = Some("could not create the ghost's VAO/VBO".into());
+            return;
+        };
 
         let uniforms = unsafe {
             Uniforms {
@@ -524,6 +721,8 @@ impl GpuMeshRenderer {
                 wire_px: gl.get_uniform_location(program, "u_wire_px"),
                 clip_plane: gl.get_uniform_location(program, "u_clip_plane"),
                 focus: gl.get_uniform_location(program, "u_focus"),
+                select: gl.get_uniform_location(program, "u_select"),
+                hover: gl.get_uniform_location(program, "u_hover"),
                 alpha: gl.get_uniform_location(program, "u_alpha"),
             }
         };
@@ -531,7 +730,7 @@ impl GpuMeshRenderer {
         unsafe {
             let f = std::mem::size_of::<f32>() as i32;
             let stride = FLOATS_PER_VERTEX as i32 * f;
-            for (va, vb) in [(vao, vbo), (gem_vao, gem_vbo), (ghost_vao, ghost_vbo)] {
+            for (va, vb) in [(vao, vbo), (gem_vao, gem_vbo), (ghost_vao, ghost_vbo), (preview_vao, preview_vbo)] {
                 gl.bind_vertex_array(Some(va));
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(vb));
                 for (loc, offset) in [(0, 0), (1, 3 * f), (2, 6 * f), (3, 9 * f)] {
@@ -546,11 +745,14 @@ impl GpuMeshRenderer {
             gl.bind_vertex_array(Some(vao));
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(focus_vbo));
             gl.vertex_attrib_pointer_f32(4, 1, glow::FLOAT, false, f, 0);
+            // The selection likewise, two floats a vertex on attribute 5.
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(select_vbo));
+            gl.vertex_attrib_pointer_f32(5, 2, glow::FLOAT, false, 2 * f, 0);
             gl.bind_vertex_array(None);
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
         }
 
-        self.resources = Some(GpuResources { program, vao, vbo, gem_vao, gem_vbo, ghost_vao, ghost_vbo, focus_vbo, uniforms });
+        self.resources = Some(GpuResources { program, vao, vbo, gem_vao, gem_vbo, ghost_vao, ghost_vbo, preview_vao, preview_vbo, focus_vbo, select_vbo, uniforms });
     }
 }
 

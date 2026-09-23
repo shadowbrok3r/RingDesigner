@@ -371,8 +371,12 @@ pub struct Done {
     pub gems: Vec<f32>,
     /// The seats' cutters as a ghost, empty unless asked for.
     pub ghost: Vec<f32>,
-    /// The built mesh, kept for the tap probe's raycast.
-    pub mesh: Arc<ringdesign_core::mesh::Mesh>,
+    /// The build on screen: its mesh, kept for the tap probe's raycast, and the parts it was made of.
+    pub build: Arc<ringdesign_core::BuildResult>,
+    /// One pick scene over the build, for a design with parts or stones to choose.
+    pub scene: Option<Arc<ringdesign_core::interaction::pick::PickScene>>,
+    /// The ring frame parts are seated on, over the build's own band; `None` without parts.
+    pub band: Option<Arc<ringdesign_workbench::command::BandSurface>>,
     pub bounds: Option<(Vec3, Vec3)>,
     pub triangles: usize,
     pub volume_mm3: f64,
@@ -423,6 +427,20 @@ impl Default for Cuts {
     }
 }
 
+/// Stones set as CAD parts, drawn with the preview stones: never metal, never exported.
+pub fn stones_as_parts(build: &ringdesign_core::BuildResult, gems: &mut Vec<f32>) {
+    let t = ringdesign_core::gems::GEM_TINT;
+    for c in build.parts.evaluated.iter().flat_map(|e| &e.components).filter(|c| c.settings.reference) {
+        for f in &c.mesh.faces {
+            let n = c.mesh.face_normal(f).unwrap_or([0.0, 0.0, 1.0]).map(|v| v as f32);
+            for &i in f {
+                let Some(p) = c.mesh.vertices.get(i as usize) else { continue };
+                gems.extend_from_slice(&[p.0, p.1, p.2, n[0], n[1], n[2], t[0], t[1], t[2], t[0], t[1], t[2]]);
+            }
+        }
+    }
+}
+
 pub struct Worker {
     jobs: Sender<Job>,
     pub done: Receiver<Done>,
@@ -459,6 +477,8 @@ impl Worker {
             .name("ring-build".into())
             .spawn(move || {
                 let mut runner = crate::graph::GraphRunner::new();
+                // The last band's ring frame, by the band's epoch.
+                let mut last_band: Option<(u64, Arc<ringdesign_workbench::command::BandSurface>)> = None;
                 while let Ok(mut job) = jobs_rx.recv() {
                     // Skip stale work: only the newest queued job matters.
                     while let Ok(newer) = jobs_rx.try_recv() {
@@ -530,11 +550,27 @@ impl Worker {
                     };
                     // Isolation is a rendering operation. All reports above use
                     // the complete source; exports never receive this copy.
-                    let out = if view_layer.is_some() {
+                    let mut out = if view_layer.is_some() {
                         ringdesign_core::mesh::build(&visible, &job.lib, job.params)
                     } else {
                         out
                     };
+                    // A design with parts keeps the band they stand on as its ring frame; one without drops the copy.
+                    let parts = job.design.cad.is_some();
+                    if !parts {
+                        out.band = None;
+                    }
+                    let band = out.band.clone().map(|mesh| {
+                        let epoch = ringdesign_core::cad::surface_epoch(&mesh);
+                        match &last_band {
+                            Some((e, surface)) if *e == epoch => surface.clone(),
+                            _ => {
+                                let surface = Arc::new(ringdesign_workbench::command::BandSurface::shared(mesh));
+                                last_band = Some((epoch, surface.clone()));
+                                surface
+                            }
+                        }
+                    });
                     let verts = GpuMeshRenderer::stage(
                         &out.mesh,
                         if view_layer.is_some() {
@@ -547,19 +583,27 @@ impl Worker {
                             job.design.draft.min_section_mm,
                         ),
                     );
-                    let gems = if job.gems {
+                    let mut gems = if job.gems {
                         ringdesign_core::gems::preview_vertices(&visible, &job.lib)
                     } else {
                         Vec::new()
                     };
-                    let mesh = Arc::new(out.mesh);
+                    if job.gems {
+                        stones_as_parts(&out, &mut gems);
+                    }
+                    // Parts and stones are chosen through one scene over what is on screen; a plain band needs none.
+                    let choosable = parts || !ringdesign_core::setstone::set_stones(&visible).is_empty();
+                    let scene = choosable.then(|| Arc::new(ringdesign_core::interaction::pick::PickScene::build(&out, &visible)));
+                    let build = Arc::new(out);
                     let done = Done {
                         generation: job.generation,
                         verts,
                         gems,
                         ghost,
-                        bounds: mesh.bounds(),
-                        mesh: mesh.clone(),
+                        bounds: build.mesh.bounds(),
+                        build,
+                        scene,
+                        band,
                         triangles: report.validation.triangle_count,
                         volume_mm3: report.volume_mm3,
                         build_ms: report.build_ms,

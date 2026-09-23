@@ -9,6 +9,7 @@ use ringdesign_workbench::visual::{Pointer as VisualPointer, Tool as VisualTool}
 impl RingApp {
     pub(super) fn clear_viewport_selection(&mut self) {
         let isolated = self.editor.isolate;
+        self.cad.clear();
         self.editor.reset_selection();
         self.probe_info = None;
         self.camera_turn = None;
@@ -26,7 +27,7 @@ impl RingApp {
     fn clear_opened_menus(&mut self, ctx: &egui::Context, view: egui::Rect, manual: bool) {
         let overlays: Vec<_> = ctx.memory(|m| {
             m.areas().visible_layer_ids().into_iter()
-                .filter(|layer| layer.order == egui::Order::Foreground)
+                .filter(|layer| layer.order == egui::Order::Foreground && !crate::cad::areas().contains(&layer.id))
                 .filter_map(|layer| m.area_rect(layer.id).map(|rect| (layer.id, rect)))
                 .collect()
         });
@@ -982,12 +983,13 @@ impl RingApp {
         if self.visual.wants_repaint() {
             ui.ctx().request_repaint();
         }
+        let mut cad_menu_asked = false;
         egui::Panel::bottom(egui::Id::new("viewport-selection-bar"))
             .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(4,3)).stroke(egui::Stroke::new(1., crate::theme::AQUA.gamma_multiply(0.45))))
             .show(ui, |ui| {
                 use ringdesign_workbench::icons::{self, Icon};
                 ui.horizontal(|ui| {
-                    let selected = self.editor.selection.is_some() || self.selected_layer.is_some() || self.graph.shown.is_some() || self.visual.tool != VisualTool::Select || self.editor.mode == Mode::Shape && self.editor.guides && self.editor.handles_active;
+                    let selected = self.editor.selection.is_some() || self.selected_layer.is_some() || self.graph.shown.is_some() || self.visual.tool != VisualTool::Select || self.editor.mode == Mode::Shape && self.editor.guides && self.editor.handles_active || !self.cad.selection.items.is_empty();
                     let clear = ui.add_enabled_ui(selected, |ui| icons::button(ui, Icon::Close, "Clear", false, egui::vec2(62.,28.))).inner;
                     editor::layout::record(ui, "viewport/Clear", clear.rect);
                     if clear.clicked() { self.clear_viewport_selection(); }
@@ -996,10 +998,26 @@ impl RingApp {
                         editor::layout::record(ui, "viewport/Cutters", cutters.rect);
                         if cutters.clicked() { self.cuts.ghost = false; self.request_view_update(); self.save_prefs(); }
                     }
-                    ui.add(Icon::Select.image(ui, 16.));
-                    ui.add(egui::Label::new(egui::RichText::new("Drag to orbit · pinch to zoom").small().color(crate::theme::INK_DIM)).truncate());
+                    if let Some(chosen) = self.cad.selection.items.last().cloned() {
+                        // Opens the chosen part's menu, as a long press on it does.
+                        let actions = icons::button(ui, Icon::More, "Actions", self.cad.menu.is_some(), egui::vec2(0., 28.));
+                        editor::layout::record(ui, "viewport/Actions", actions.rect);
+                        if actions.clicked() {
+                            cad_menu_asked = true;
+                        }
+                        let what = ringdesign_workbench::viewport::selection::describe(&chosen, &self.design, self.preview_mesh.as_ref().map(|b| b.0.as_ref()));
+                        ui.add(egui::Label::new(egui::RichText::new(what).small().color(crate::theme::AQUA)).truncate());
+                    } else {
+                        ui.add(Icon::Select.image(ui, 16.));
+                        ui.add(egui::Label::new(egui::RichText::new("Drag to orbit · pinch to zoom · hold for the menu").small().color(crate::theme::INK_DIM)).truncate());
+                    }
                 });
             });
+        if self.tab == Tab::Ring && self.design.cad.as_ref().is_some_and(|d| !d.features.is_empty()) {
+            egui::Panel::bottom(egui::Id::new("viewport-feature-strip"))
+                .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(4, 2)))
+                .show(ui, |ui| self.feature_strip(ui));
+        }
         let rect = ui.available_rect_before_wrap();
         self.floating_tools(ui.ctx(), rect, host);
         if self.tab == Tab::Band && !self.pane.navigation.locked
@@ -1062,16 +1080,28 @@ impl RingApp {
                 explicit_navigation, accepted && !floating_blocked)
         });
         let navigating = explicit_navigation || self.visual.navigating();
-        let blocked = floating_blocked
-            || visual_blocked
-            || (self.visual.tool == VisualTool::Select
-                && editor::overlay::blocks_orbit(
-                    &self.editor,
-                    &self.design,
-                    &self.pane.camera,
-                    rect,
-                    pointer,
-                ));
+        let overlay_blocked = self.visual.tool == VisualTool::Select
+            && editor::overlay::blocks_orbit(&self.editor, &self.design, &self.pane.camera, rect, pointer);
+        let blocked = floating_blocked || visual_blocked || overlay_blocked;
+        let graph_sheet = self.editor.sheet == Some(Sheet::Graph);
+        let mut covered = self.editor.floating_rects.clone();
+        covered.push(nav.rect);
+        let cad_view = crate::cad::View {
+            rect,
+            camera: &self.pane.camera,
+            design: &self.design,
+            lib: &self.lib,
+            build: self.preview_mesh.as_ref(),
+            field: self.field.as_ref(),
+            covered: &covered,
+            active: self.tab == Tab::Ring && self.visual.tool == VisualTool::Select && !mould_active && !graph_sheet && !self.editor.hold_before && self.reel.is_none() && !visual_blocked && !overlay_blocked,
+        };
+        let cad_active = cad_view.active;
+        let took = self.cad.frame(ui, &cad_view);
+        if cad_menu_asked {
+            self.cad.open_for_choice(&cad_view);
+        }
+        let blocked = blocked || took.hold;
         let renderer = if mould_active {
             &self.mould_renderer
         } else if self.editor.hold_before {
@@ -1092,7 +1122,6 @@ impl RingApp {
             .as_ref()
             .map(|f| f.parting_z_mm)
             .unwrap_or(self.design.draft.parting_z_mm);
-        let graph_sheet = self.editor.sheet == Some(Sheet::Graph);
         let (changed, stone_pick) = if !floating_blocked
             && !graph_sheet
             && matches!(self.visual.tool, VisualTool::Select | VisualTool::Clearance)
@@ -1126,6 +1155,7 @@ impl RingApp {
             self.editor.active_field = "Stone width".into();
         } else if view.response.clicked()
             && !blocked
+            && !took.tap
             && !self.editor.hold_before
             && matches!(self.visual.tool, VisualTool::Select | VisualTool::Clearance)
         {
@@ -1209,10 +1239,26 @@ impl RingApp {
             }
         }
         if let Some((origin, direction)) = view.probe {
-            if self.visual.tool == VisualTool::Select && !blocked && !graph_sheet {
+            if self.visual.tool == VisualTool::Select && !blocked && !graph_sheet && !took.long_press && self.cad.menu.is_none() && !cad_active {
                 self.probe(origin, direction);
             }
         }
+        // The chosen parts, the gizmo, a live command and the menu, over the ring and its own overlays.
+        if self.tab == Tab::Ring && !mould_active {
+            let view_rect = view.rect;
+            let cad_view = crate::cad::View {
+                rect: view_rect,
+                camera: &self.pane.camera,
+                design: &self.design,
+                lib: &self.lib,
+                build: self.preview_mesh.as_ref(),
+                field: self.field.as_ref(),
+                covered: &[],
+                active: true,
+            };
+            self.cad.draw(ui, &cad_view, &self.renderer);
+        }
+        self.serve_cad(host);
         if !self.editor.hold_before && !floating_blocked {
             if let Some(mesh) = self.preview_mesh.clone() {
                 let camera = self.pane.camera;

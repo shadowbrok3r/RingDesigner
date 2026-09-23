@@ -19,6 +19,7 @@ use ringdesign_core::tiling::TilingLayer;
 
 mod files;
 mod floating;
+mod parts;
 mod studio;
 
 use crate::bench;
@@ -132,8 +133,10 @@ pub struct RingApp {
     dfm: Vec<ringdesign_core::dfm::DfmFinding>,
     dfm_pending: bool,
     dfm_generation: u64,
-    /// The settled preview mesh, kept for the tap probe's raycast.
-    preview_mesh: Option<std::sync::Arc<ringdesign_core::mesh::Mesh>>,
+    /// The settled preview build: its mesh for the tap probe's raycast, and the parts it was made of.
+    preview_mesh: Option<crate::cad::Built>,
+    /// The desktop Ring viewport's CAD tools by touch: the choice, the menu, the gizmo and the live command.
+    cad: crate::cad::Cad,
     /// Last long-press readout, shown as a chip until dismissed.
     probe_info: Option<String>,
     show_gems: bool,
@@ -308,6 +311,7 @@ impl RingApp {
             dfm_pending: false,
             dfm_generation: 0,
             preview_mesh: None,
+            cad: crate::cad::Cad::default(),
             probe_info: None,
             show_gems: true,
             cuts: Default::default(),
@@ -409,6 +413,8 @@ impl RingApp {
         self.graph.shown = None;
         self.can_compare = false;
         self.editor.hold_before = false;
+        self.end_cad();
+        self.cad.pins.clear();
         self.design = design;
         self.editor.reset_selection();
         self.probe_info = None;
@@ -438,6 +444,7 @@ impl RingApp {
         self.probe_info = None;
         self.editor.check_pending = true;
         self.live_requested = true;
+        self.end_cad();
         self.design = design;
         self.editor.reset_selection();
         let lib = Arc::make_mut(&mut self.lib);
@@ -612,7 +619,7 @@ impl RingApp {
                     self.editor.selection = crate::editor::picking::hit(
                         &self.design,
                         &self.lib,
-                        &done.mesh,
+                        &done.build.mesh,
                         hit.ray.0,
                         hit.ray.1,
                     );
@@ -622,7 +629,9 @@ impl RingApp {
                     r.set_pending_gems(done.gems);
                     r.set_pending_ghost(done.ghost);
                 }
-                self.preview_mesh = Some(done.mesh);
+                let built = crate::cad::Built(done.build);
+                self.cad.landed(&built, done.scene, done.band, &self.design);
+                self.preview_mesh = Some(built);
                 self.visual.mesh_changed();
                 if let Some(cast) = done.cast {
                     self.editor.check_pending = self.dirty_at.is_some();
@@ -734,7 +743,11 @@ impl RingApp {
         } else if let Some(l) = &undo {
             r.response.clone().on_hover_text(format!("Undo {l}"));
         }
-        if r.clicked() {
+        if r.clicked() && self.cad.live.is_live() {
+            let mut said = Vec::new();
+            self.cad.live.cancel(&mut said);
+            self.status = "Ended the live command; nothing undone".into();
+        } else if r.clicked() {
             // An immediate tap must undo the edit still in the 400 ms settle
             // window, rather than doing nothing or undoing an older snapshot.
             self.history.commit(&self.design);
@@ -1771,7 +1784,7 @@ impl RingApp {
                     design,
                     lib: self.lib.clone(),
                     params,
-                    mesh: mesh.clone(),
+                    mesh: Arc::new(mesh.0.mesh.clone()),
                     effect: effect.clone(),
                     view_yaw: self.pane.camera.yaw,
                 }) {
