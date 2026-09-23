@@ -13,8 +13,11 @@ default = []
 ui-shot = ["egui_kittest/wgpu", "egui_kittest/snapshot"]
 ## Free mode's solid kernel (Manifold, C++ via cmake on first build).
 kernel = ["ringdesign-graph/kernel-manifold", "ringdesign-script/kernel"]
+## OpenCascade for fillets, shells and STEP import (desktop only).
+kernel-occt = ["dep:ringdesign-occt", "ringdesign-occt/kernel-occt"]
 
 [dependencies]
+ringdesign-occt = { path = "../ringdesign-occt", optional = true }
 ringdesign-assets.workspace = true
 ringdesign-core.workspace = true
 ringdesign-workbench = { path = "../ringdesign-workbench", features = ["glow"] }

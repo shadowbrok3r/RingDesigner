@@ -44,6 +44,10 @@ pub enum MenuAction {
     PressPull { feature: Id, face: u32 },
     /// A reference stone seated on a planar face of a part; `key` names the stone.
     AddStoneOnFace { feature: Id, face: u32, key: &'static str },
+    /// A cutter builder `key` placed where the click landed on the band.
+    CutHere { theta_deg: f64, across_mm: f64, key: &'static str },
+    /// A builder `key` built under a reference stone.
+    UnderStone { stone: Id, key: &'static str },
 }
 
 #[derive(Clone, Debug)]
@@ -150,6 +154,7 @@ pub fn context_items(sel: &Selection, under: Option<&Pick>, design: &RingDesign)
                 items.push(MenuItem::new(label, Icon::Add, MenuAction::AddPartHere { theta_deg, height_mm, label }, "A new part seated where the click landed, joined to the band").under("Add CAD part here"));
             }
             items.extend(super::stones::band_items(theta_deg, height_mm));
+            items.extend(super::cutters::band_items(theta_deg, world[2]));
             items.push(MenuItem::new("Sketch on a plane here", Icon::CadSketch, MenuAction::SketchOnPlane { theta_deg, across_mm: world[2] }, "A new sketch on a plane through this point of the band"));
             items.extend(super::pins::band_items(world));
         }
@@ -166,6 +171,7 @@ pub fn context_items(sel: &Selection, under: Option<&Pick>, design: &RingDesign)
             }
             if reference {
                 items.extend(super::stones::setting_items(Some(id), None));
+                items.extend(super::cutters::stone_items(id));
             }
             if let Some(edge) = edge {
                 items.push(MenuItem::new("Fillet this edge", Icon::CadFillet, MenuAction::FilletEdge { feature: id, edge }, "Round the edge with a new Fillet feature on this part"));

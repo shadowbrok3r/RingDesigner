@@ -10,10 +10,13 @@ mod camera;
 mod cad_edit;
 mod command;
 mod comfy_texture;
+mod cutter_tools;
 mod dock;
 mod export;
 mod gems;
 mod mcp_host;
+#[cfg(feature = "kernel-occt")]
+mod occt;
 mod pane;
 mod panels;
 mod patterns;

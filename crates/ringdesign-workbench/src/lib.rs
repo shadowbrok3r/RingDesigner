@@ -18,6 +18,8 @@ pub mod paint_preview;
 pub mod navigation;
 #[cfg(feature = "glow")]
 pub mod loupe;
+#[cfg(feature = "glow")]
+pub mod render;
 pub mod job;
 mod ui;
 pub mod visual;

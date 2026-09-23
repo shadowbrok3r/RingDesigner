@@ -450,7 +450,12 @@ impl Cad {
                 let c = ctx!(self, v);
                 self.live.press_pull(&c, feature, face).map(Request::Status)
             }
-            MenuAction::IsolateInCad(_) | MenuAction::ToggleGrid | MenuAction::SketchOnFace { .. } | MenuAction::SketchOnPlane { .. } => {
+            MenuAction::IsolateInCad(_)
+            | MenuAction::ToggleGrid
+            | MenuAction::SketchOnFace { .. }
+            | MenuAction::SketchOnPlane { .. }
+            | MenuAction::CutHere { .. }
+            | MenuAction::UnderStone { .. } => {
                 unreachable!("not_here answered for it")
             }
         };

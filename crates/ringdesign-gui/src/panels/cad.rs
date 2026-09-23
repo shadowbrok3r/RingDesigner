@@ -1227,6 +1227,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         state.draft = Some(g);
     }
     app.cad = state;
+    #[cfg(feature = "kernel-occt")]
+    crate::occt::cad_pane(app, ui);
 }
 
 /// `notes` on a plate over the top of the canvas at `rect`, taking none of its room.

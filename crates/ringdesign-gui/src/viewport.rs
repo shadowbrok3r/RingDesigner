@@ -1985,6 +1985,8 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
         MenuAction::Pattern { feature, key } => crate::patterns::start(app, pane, feature, key),
         MenuAction::PressPull { feature, face } => crate::patterns::press_pull(app, pane, feature, face),
         MenuAction::AddStoneOnFace { feature, face, key } => crate::stone_tools::add_stone_on_face(app, feature, face, key),
+        MenuAction::CutHere { theta_deg, across_mm, key } => crate::cutter_tools::cut_here(app, theta_deg, across_mm, key),
+        MenuAction::UnderStone { stone, key } => crate::cutter_tools::under_stone(app, stone, key),
     }
 }
 

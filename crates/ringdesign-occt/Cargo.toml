@@ -1,0 +1,11 @@
+[package]
+name = "ringdesign-occt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+## OpenCascade through cadrum, desktop only.
+kernel-occt = []
+
+[dependencies]

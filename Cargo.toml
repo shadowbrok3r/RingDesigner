@@ -14,6 +14,7 @@ members = [
     "crates/ringdesign-cli",
     "crates/ringdesign-py",
     "crates/ringdesign-solid",
+    "crates/ringdesign-occt",
     # The phone app; builds on egui-mobile from the EguiMobile repo as a git dependency.
     "crates/ringdesigner-android",
 ]

@@ -16,6 +16,7 @@ pub fn not_here(action: &MenuAction) -> Option<&'static str> {
         MenuAction::SketchOnFace { .. } | MenuAction::SketchOnPlane { .. } => "Not on the phone yet: sketch on the desktop, and the design file brings the sketch here",
         MenuAction::IsolateInCad(_) => NO_ISOLATE,
         MenuAction::ToggleGrid => "The phone's view has no ground grid",
+        MenuAction::CutHere { .. } | MenuAction::UnderStone { .. } => "Not on the phone yet: cutters and shoulders are built on the desktop",
         _ => return None,
     })
 }
