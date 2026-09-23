@@ -389,6 +389,10 @@ worktrees, then verified, measured and committed by the integrator.
   History treats a change that only moves graph nodes as no edit; and History named a CAD edit by
   its first changed field ("Across 0 mm -> 0.50 mm") — funnel commits carry the edit's own label.
 
+- Open: the band surface for the ring frame is built on the UI thread; a Sketch feature has no
+  cache slot; which regions a `Profile::Feature` extrudes is a schema decision
+  (`regions: Option<Vec<usize>>`); a sketch strip on a driven design lags its graph by one build.
+
 ### M11 status — 2026-09-22 (core half on master: `75cc5ec`, merged in the batch-6 window)
 
 - **The verdict judges the parts a ring pours with** (`castability::judge_parts`,
@@ -422,12 +426,56 @@ worktrees, then verified, measured and committed by the integrator.
 - Open: the phone lists no parts (its notes carry them); placing a bench part's mark costs a
   design-only verdict 94 ms; the silhouette rule reads a fan-triangulated flat face touching the
   plane as silhouette.
-- Open: the band surface for the ring frame is built on the UI thread; a Sketch feature has no
-  cache slot; which regions a `Profile::Feature` extrudes is a schema decision
-  (`regions: Option<Vec<usize>>`); a sketch strip on a driven design lags its graph by one build.
-- In flight: M11's core verdict for parts; batch 6 — M6 (gizmo, ring dial, click-drag primitives,
-  shared grips), M8's UI (sketching in the Ring viewport) and M10 (gem-driven builders and the
-  three-gesture solitaire), on hooks pre-cut in `5f1f6c4`.
+
+### Batch 6 status — 2026-09-22 (on master: `m6-gizmo`, `m10-gem-builders`, `m8-sketch-ui` merged, integration `6e88026` and after)
+
+- **M6, the gizmo** (`workbench::{gizmo, grips}`, `gui::command`): with one part chosen, arrows
+  round the ring, across the band and off the surface and rings for spin, tilt and cant, in the
+  ring's own frame (a free part gets world axes); the **ring dial** at the part's crest radius
+  slides it round the shank on a 5° grid (Ctrl frees it); Shift+A primitives also take
+  press-drag-release then a lift for the height; the CAD pane's parameter grips moved into
+  `workbench::grips` and show on the chosen part in the Ring viewport too. Every drag is a command:
+  ghost, caption and dimension bar as the hotkeys have them, one History entry on release, Escape
+  or the right button cancels, and a press on a handle never orbits or reselects. A gizmo frame
+  costs 7-9 µs to seat, 6 to lay out, 0.8 to hit-test, 12 to paint; a drag frame 7 µs mean and
+  21 µs worst on a 650k-face build. Verified live: the dial slid a post round the shank as one
+  "Place Cylinder" entry.
+- **M8, sketching where the profile lives** (`gui::sketch_mode`, `workbench::sketch_tools`,
+  `sketch::{draw, dimension, query, fill, anchor}`): "Sketch on this face" anchors a Sketch
+  feature to a planar face of a part; "Sketch on a plane here" takes the plane square to the band
+  at the click (a toggle turns it to the section through the finger's axis). The camera looks
+  along the plane, the ring stays as the underlay with the face outline lit, and the toolbar draws
+  lines, rectangles, circles and three-point arcs, trims, offsets, fillets and chamfers corners,
+  mirrors, deletes and dimensions (a typed value is a constraint and the solver runs), with snaps
+  to ends, middles, centres, crossings, the face's edges and corners, the plane's axes and the
+  grid, point drags that hold the constraints, in-sketch undo, and an Escape ladder that asks
+  before it drops strokes. Finish is one History entry; a region's right-click extrudes or revolves
+  it, and a part extruded on a face moves with the face. The CAD pane's canvas uses the same
+  tools. 200 entities cost 1.7 ms a frame; a dimension solves in 0.02 ms on one rectangle.
+- **M10, gem-driven builders** (`cad::builders`, `Operation::Builder { key, on, params }`, a
+  mesh-valued `cad::Value`): a stone, claw heads (4 and 6), a bezel, a basket, a seat bur and a
+  halo, each seated on its stone's frame with parameters defaulted from the gem and a schema the
+  inspector reads (`panels::builder`), faces named by patch ("Claw 3 of Four-claw head"). The
+  solitaire in three gestures: right-click the band ▸ Add stone here (8 presets), right-click the
+  stone ▸ Setting (Four claws, Six claws, Bezel, Basket, Halo), each one funnel commit; a
+  height-field stone takes a setting the same way. Measured on the Court band: the head is 45.19
+  mm³ and joining it adds 44.80 (its feet share 0.39 with the band), the bur takes 5.78, the 6.5 mm
+  stone is 1.04 ct, the ring stays one piece; a halo seats 12 melee of 1.3 mm on equal 2.355 mm
+  chords; a solitaire builds in 80 ms at preview and 549 ms at export.
+- **Integration**: every evaluated part records the frame the build seated it by
+  (`EvaluatedComponent::frame`), and sketch anchors and fillet-edge references are signed in it —
+  sketch mode no longer sweeps a band of its own, and edges on a part seated on a leaning flank no
+  longer retarget. Stones set as parts are drawn with the gem previews and picked as parts. With
+  M11 judging parts, the Setting gesture stages a head and its seat Bench under sand (a cast claw
+  head locks the mould by name, pinned) and the pattern carries a locating mark and a drill mark.
+  STEP skips builder parts; the toolbar's Undo and Redo work inside a live sketch and a History jump
+  waits for it; double-clicking a Sketch chip reopens it in the Ring viewport.
+- Open: the sketch solver refuses past 128 constrained points (about 32 held rectangles); extruding
+  one region of several needs a schema field; builder rails count as creases at the 30° threshold,
+  so a hover lands on edges before faces; the CAD pane's first grip drag lands off the pointer (its
+  scale changes when a candidate becomes a draft); the bare band the ring frame is read on still
+  builds on the UI thread, now when a part is first chosen; the phone has none of the M3–M10
+  viewport tools yet (M12).
 
 ### M2 detail
 
