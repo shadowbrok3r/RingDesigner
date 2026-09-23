@@ -306,6 +306,18 @@ impl RingApp {
             }
             ui.checkbox(&mut self.pane.wireframe, "Mesh edges");
             ui.checkbox(&mut self.pane.edges, "Part edges");
+            let mut planes = !self.cad.planes.hidden;
+            if ui
+                .checkbox(&mut planes, "Work planes")
+                .on_hover_text("Draw the work planes over the ring, each named; tap one to choose it, hold it for its menu")
+                .changed()
+            {
+                self.cad.planes.hidden = !planes;
+                if !planes {
+                    self.cad.planes.chosen = None;
+                }
+                self.save_prefs();
+            }
             if ui.checkbox(&mut self.show_gems, "Show stones").changed() {
                 self.request_view_update();
             }
@@ -711,7 +723,11 @@ impl RingApp {
                         self.editor.isolate = false;
                         self.request_view_update();
                     }
-                    self.visual.controls(ui, &self.design, &self.lib);
+                    if self.visual.tool == VisualTool::Measure {
+                        self.cad.measure_controls(ui);
+                    } else {
+                        self.visual.controls(ui, &self.design, &self.lib);
+                    }
                     if let Some(layer) = self.visual.apply_controls(&mut self.design) {
                         self.selected_layer = Some(layer);
                         self.mark_dirty();
@@ -999,6 +1015,20 @@ impl RingApp {
                         editor::layout::record(ui, "viewport/Cutters", cutters.rect);
                         if cutters.clicked() { self.cuts.ghost = false; self.request_view_update(); self.save_prefs(); }
                     }
+                    // Box select: a one-finger drag draws a box while it is on.
+                    if self.tab == Tab::Ring && (self.cad.scene().is_some() || self.cad.boxing.on) {
+                        let boxing = icons::button(ui, Icon::Single, "Box", self.cad.boxing.on, egui::vec2(0., 28.));
+                        editor::layout::record(ui, "viewport/Box", boxing.rect);
+                        if boxing.clicked() {
+                            self.cad.boxing.toggle();
+                            if self.cad.boxing.on {
+                                self.visual.select(VisualTool::Select);
+                                self.status = "Box select: drag left to right for a window, right to left for a crossing".into();
+                            } else {
+                                self.status = "Box select put away: a drag turns the ring again".into();
+                            }
+                        }
+                    }
                     if let Some(chosen) = self.cad.selection.items.last().cloned() {
                         // Opens the chosen part's menu, as a long press on it does.
                         let actions = icons::button(ui, Icon::More, "Actions", self.cad.menu.is_some(), egui::vec2(0., 28.));
@@ -1009,8 +1039,15 @@ impl RingApp {
                         let what = ringdesign_workbench::viewport::selection::describe(&chosen, &self.design, self.preview_mesh.as_ref().map(|b| b.0.as_ref()));
                         ui.add(egui::Label::new(egui::RichText::new(what).small().color(crate::theme::AQUA)).truncate());
                     } else {
+                        let hint = if self.visual.tool == VisualTool::Measure {
+                            "Tap to measure · drag to orbit · pinch to zoom"
+                        } else if self.cad.boxing.on {
+                            "Drag a box · pinch to zoom · hold for the menu"
+                        } else {
+                            "Drag to orbit · pinch to zoom · hold for the menu"
+                        };
                         ui.add(Icon::Select.image(ui, 16.));
-                        ui.add(egui::Label::new(egui::RichText::new("Drag to orbit · pinch to zoom · hold for the menu").small().color(crate::theme::INK_DIM)).truncate());
+                        ui.add(egui::Label::new(egui::RichText::new(hint).small().color(crate::theme::INK_DIM)).truncate());
                     }
                 });
             });
@@ -1075,7 +1112,9 @@ impl RingApp {
         let accepted = crate::paint::accepts(crate::paint::Tool::from_code(self.probe.tool), self.visual.stylus_only);
         let camera = self.pane.camera;
         let projector = camera.projector(rect);
-        let visual_blocked = self.preview_mesh.as_ref().is_some_and(|mesh| {
+        // Measure's taps go to the CAD layer; a drag still turns the ring.
+        let measuring = self.visual.tool == VisualTool::Measure;
+        let visual_blocked = !measuring && self.preview_mesh.as_ref().is_some_and(|mesh| {
             self.visual.route_pointer(ui, rect, mesh,
                 |p| projector.at(p.map(|v| v as f32)), |p| camera.ray(rect, p),
                 explicit_navigation, accepted && !floating_blocked)
@@ -1095,7 +1134,8 @@ impl RingApp {
             build: self.preview_mesh.as_ref(),
             field: self.field.as_ref(),
             covered: &covered,
-            active: self.tab == Tab::Ring && self.visual.tool == VisualTool::Select && !mould_active && !graph_sheet && !self.editor.hold_before && self.reel.is_none() && !visual_blocked && !overlay_blocked,
+            active: self.tab == Tab::Ring && matches!(self.visual.tool, VisualTool::Select | VisualTool::Measure) && !mould_active && !graph_sheet && !self.editor.hold_before && self.reel.is_none() && !visual_blocked && !overlay_blocked,
+            measuring,
         };
         let cad_active = cad_view.active;
         let took = self.cad.frame(ui, &cad_view);
@@ -1254,13 +1294,14 @@ impl RingApp {
                 lib: &self.lib,
                 build: self.preview_mesh.as_ref(),
                 field: self.field.as_ref(),
-                covered: &[],
+                covered: &covered,
                 active: true,
+                measuring,
             };
             self.cad.draw(ui, &cad_view, &self.renderer);
         }
         self.serve_cad(host);
-        if !self.editor.hold_before && !floating_blocked {
+        if !self.editor.hold_before && !floating_blocked && !measuring {
             if let Some(mesh) = self.preview_mesh.clone() {
                 let camera = self.pane.camera;
                 let project = camera.projector(view.rect);

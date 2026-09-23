@@ -379,6 +379,7 @@ impl RingApp {
         self.dfm_pending = true;
         self.dfm_generation = 0;
         self.visual.invalidate();
+        self.cad.measuring.measure.clear();
         self.capture_before();
         self.probe_info = None;
         if let Some(Layer::Tiling(t)) = self
@@ -469,6 +470,7 @@ impl RingApp {
         self.pane.shade = ShadeMode::ALL[p.shade];
         self.pane.wireframe = p.wireframe;
         self.pane.edges = p.part_edges;
+        self.cad.planes.hidden = !p.work_planes;
         self.pane.navigation = p.navigation;
         self.preview_quality = p.preview_quality;
         self.pane.finish = p
@@ -508,6 +510,7 @@ impl RingApp {
             .unwrap_or(0);
         self.prefs.wireframe = self.pane.wireframe;
         self.prefs.part_edges = self.pane.edges;
+        self.prefs.work_planes = !self.cad.planes.hidden;
         self.prefs.navigation = self.pane.navigation;
         self.prefs.preview_quality = self.preview_quality;
         self.prefs.finish = self.pane.finish;

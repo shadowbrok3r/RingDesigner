@@ -9,11 +9,13 @@ use ringdesign_workbench::{
 
 /// Isolating a part is the desktop CAD pane's.
 pub const NO_ISOLATE: &str = "Not on the phone yet: isolating a part is on the desktop's CAD pane";
+/// Sketching is the desktop's.
+pub const NO_SKETCH: &str = "Not on the phone yet: sketch on the desktop, and the design file brings the sketch here";
 
 /// Why the phone cannot serve `action` yet; `None` for one it serves.
 pub fn not_here(action: &MenuAction) -> Option<&'static str> {
     Some(match action {
-        MenuAction::SketchOnFace { .. } | MenuAction::SketchOnPlane { .. } => "Not on the phone yet: sketch on the desktop, and the design file brings the sketch here",
+        MenuAction::SketchOnFace { .. } | MenuAction::SketchOnPlane { .. } => NO_SKETCH,
         MenuAction::IsolateInCad(_) => NO_ISOLATE,
         MenuAction::ToggleGrid => "The phone's view has no ground grid",
         _ => return None,
@@ -109,24 +111,22 @@ pub enum Choice {
 }
 
 /// A row's button: its mark and its words, a thumb high across the menu.
-fn row(ui: &mut egui::Ui, icon: Icon, label: &str, checked: bool, enabled: bool, width: f32) -> egui::Response {
+pub(super) fn row(ui: &mut egui::Ui, icon: Icon, label: &str, checked: bool, enabled: bool, width: f32) -> egui::Response {
     let button = egui::Button::selectable(checked, (icon.image(ui, 22.0), label)).min_size(egui::vec2(width, touch::TARGET_PT)).frame_when_inactive(true);
     ui.add_enabled(enabled, button)
 }
 
-/// Draws the menu by the finger, kept inside `view`; the choice a row made.
-pub fn show(ctx: &egui::Context, menu: &mut Menu, view: Rect) -> Option<Choice> {
+/// A popup of `rows` thumb-high rows under `heading` by the finger at `at`, kept inside `view`, its rows laid out by `body` at the width it passes; the popup's rect.
+pub(super) fn popup(ctx: &egui::Context, at: Pos2, below: &mut Option<bool>, heading: Option<&str>, rows: usize, view: Rect, body: impl FnOnce(&mut egui::Ui, f32)) -> Rect {
     let width = (view.width() - 32.0).clamp(180.0, 300.0);
-    let page = rows(&menu.items, menu.page);
-    let tall = menu.heading.is_some() as usize as f32 * 22.0 + page.len() as f32 * (touch::TARGET_PT + 4.0) + 20.0;
+    let tall = heading.is_some() as usize as f32 * 22.0 + rows as f32 * (touch::TARGET_PT + 4.0) + 20.0;
     // Opens below the finger when its first page fits, else above it, and stays there as its pages change.
-    let below = *menu.below.get_or_insert(menu.at.y + tall <= view.bottom());
-    let (pivot, at) = if below { (egui::Align2::LEFT_TOP, menu.at + egui::vec2(-width * 0.25, 12.0)) } else { (egui::Align2::LEFT_BOTTOM, menu.at + egui::vec2(-width * 0.25, -12.0)) };
-    let mut chosen = None;
+    let below = *below.get_or_insert(at.y + tall <= view.bottom());
+    let (pivot, pos) = if below { (egui::Align2::LEFT_TOP, at + egui::vec2(-width * 0.25, 12.0)) } else { (egui::Align2::LEFT_BOTTOM, at + egui::vec2(-width * 0.25, -12.0)) };
     let area = egui::Area::new(area())
         .order(egui::Order::Foreground)
         .pivot(pivot)
-        .fixed_pos(at)
+        .fixed_pos(pos)
         .constrain_to(view.shrink(4.0))
         .show(ctx, |ui| {
             // Lets a page grow past the size the area last drew at.
@@ -136,47 +136,57 @@ pub fn show(ctx: &egui::Context, menu: &mut Menu, view: Rect) -> Option<Choice> 
                 ui.spacing_mut().item_spacing.y = 4.0;
                 ui.spacing_mut().interact_size.y = touch::TARGET_PT;
                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
-                if let Some(h) = &menu.heading {
+                if let Some(h) = heading {
                     ui.label(egui::RichText::new(h).size(12.0).color(crate::theme::INK_DIM));
                 }
-                egui::ScrollArea::vertical().max_height((view.height() - 48.0).max(touch::TARGET_PT * 2.0)).show(ui, |ui| {
-                    for r in &page {
-                        match *r {
-                            Row::Back => {
-                                if row(ui, Icon::Collapse, "Back", false, true, width).clicked() {
-                                    menu.page = None;
-                                }
-                            }
-                            Row::Sub { name, first, count } => {
-                                let group = &menu.items[first..first + count];
-                                let icon = group.iter().find(|x| x.checked).map_or(group[0].icon, |x| x.icon);
-                                let label = format!("{name}…");
-                                let closed = closed_because(group);
-                                if row(ui, icon, &label, false, closed.is_none(), width).clicked() {
-                                    menu.page = Some(name);
-                                }
-                                if let Some(why) = closed {
-                                    ui.label(egui::RichText::new(why).size(11.0).color(crate::theme::INK_DIM));
-                                }
-                            }
-                            Row::Item(k) => {
-                                let item = &menu.items[k];
-                                if row(ui, item.icon, &item.label, item.checked, item.enabled, width).clicked() {
-                                    chosen = Some(Choice::Act(item.action.clone()));
-                                }
-                                if !item.enabled {
-                                    ui.label(egui::RichText::new(item.hint).size(11.0).color(crate::theme::INK_DIM));
-                                }
-                            }
-                        }
-                    }
-                    if row(ui, Icon::Close, "Close", false, true, width).clicked() {
-                        chosen = Some(Choice::Close);
-                    }
-                });
+                egui::ScrollArea::vertical().max_height((view.height() - 48.0).max(touch::TARGET_PT * 2.0)).show(ui, |ui| body(ui, width));
             });
         });
-    menu.rect = area.response.rect;
+    area.response.rect
+}
+
+/// Draws the menu by the finger, kept inside `view`; the choice a row made.
+pub fn show(ctx: &egui::Context, menu: &mut Menu, view: Rect) -> Option<Choice> {
+    let page = rows(&menu.items, menu.page);
+    let mut chosen = None;
+    let mut page_to = menu.page;
+    let items = &menu.items;
+    menu.rect = popup(ctx, menu.at, &mut menu.below, menu.heading.as_deref(), page.len(), view, |ui, width| {
+        for r in &page {
+            match *r {
+                Row::Back => {
+                    if row(ui, Icon::Collapse, "Back", false, true, width).clicked() {
+                        page_to = None;
+                    }
+                }
+                Row::Sub { name, first, count } => {
+                    let group = &items[first..first + count];
+                    let icon = group.iter().find(|x| x.checked).map_or(group[0].icon, |x| x.icon);
+                    let label = format!("{name}…");
+                    let closed = closed_because(group);
+                    if row(ui, icon, &label, false, closed.is_none(), width).clicked() {
+                        page_to = Some(name);
+                    }
+                    if let Some(why) = closed {
+                        ui.label(egui::RichText::new(why).size(11.0).color(crate::theme::INK_DIM));
+                    }
+                }
+                Row::Item(k) => {
+                    let item = &items[k];
+                    if row(ui, item.icon, &item.label, item.checked, item.enabled, width).clicked() {
+                        chosen = Some(Choice::Act(item.action.clone()));
+                    }
+                    if !item.enabled {
+                        ui.label(egui::RichText::new(item.hint).size(11.0).color(crate::theme::INK_DIM));
+                    }
+                }
+            }
+        }
+        if row(ui, Icon::Close, "Close", false, true, width).clicked() {
+            chosen = Some(Choice::Close);
+        }
+    });
+    menu.page = page_to;
     chosen
 }
 

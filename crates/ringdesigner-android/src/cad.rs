@@ -1,6 +1,10 @@
-//! The desktop Ring viewport's CAD tools by touch: picking, the depth walk, the long-press menu, the strip, the gizmo, [`commit`].
+//! The desktop Ring viewport's CAD tools by touch: picking, the depth walk, the long-press menu, the strip, the gizmo, Measure, box select, work planes, [`commit`].
+pub mod bar;
+pub mod boxes;
 pub mod command;
+pub mod measure;
 pub mod menu;
+pub mod planes;
 pub mod strip;
 
 use std::sync::Arc;
@@ -21,15 +25,15 @@ use ringdesign_core::{
 };
 use ringdesign_workbench::{
     command::BandSurface,
-    touch::{self, DepthWalk, Signal, Tracker},
+    touch::{self, DepthWalk, Signal, Tracker, boxes::BoxOp},
     viewport::{MenuAction, Mods, Sel, Selection, patterns as keys, pins::Pin},
 };
 
 use crate::camera::OrbitCamera;
 
-/// The areas the CAD layer draws over the ring: its menu, a live command's caption and its dimension fields.
-pub fn areas() -> [egui::Id; 3] {
-    [menu::area(), command::caption_area(), command::fields_area()]
+/// The areas the CAD layer draws over the ring: its menus, a live command's caption and its dimension fields, and a mode's bar.
+pub fn areas() -> [egui::Id; 4] {
+    [menu::area(), command::caption_area(), command::fields_area(), bar::area()]
 }
 
 /// A settled build on screen: the mesh the view draws, with the parts it was made of.
@@ -81,6 +85,10 @@ pub enum Request {
     ToggleWire,
     /// The phone's feature editor, the Workshop's CAD tab.
     OpenWorkshop,
+    /// The Measure tool put away for Select.
+    EndMeasure,
+    /// A setting the app remembers changed, as the work planes' switch.
+    Prefs,
 }
 
 /// What to choose once an edit lands.
@@ -124,8 +132,10 @@ pub struct View<'a> {
     pub field: Option<&'a FieldReport>,
     /// Presses landing on these belong to what is drawn over the ring: the navigator, the floating tools.
     pub covered: &'a [Rect],
-    /// Whether the view takes CAD gestures this frame: the Select tool out and nothing else holding the ring.
+    /// Whether the view takes CAD gestures this frame: the Select or Measure tool out and nothing else holding the ring.
     pub active: bool,
+    /// The Measure tool is out: a tap measures instead of choosing.
+    pub measuring: bool,
 }
 
 impl View<'_> {
@@ -138,9 +148,20 @@ impl View<'_> {
 /// A live command's view of the ring, borrowed field by field so the command itself stays free to change.
 macro_rules! ctx {
     ($s:ident, $v:expr) => {
-        command::Ctx { rect: $v.rect, camera: $v.camera, design: $v.design, build: $v.build, band: $s.band.as_ref(), field: $v.field, pins: &$s.pins, selection: &$s.selection }
+        $crate::cad::command::Ctx {
+            rect: $v.rect,
+            camera: $v.camera,
+            design: $v.design,
+            build: $v.build,
+            band: $s.band.as_ref(),
+            field: $v.field,
+            pins: &$s.pins,
+            selection: &$s.selection,
+            gizmo: !$v.measuring && !$s.boxing.on,
+        }
     };
 }
+pub(crate) use ctx;
 
 /// The CAD layer over the phone's ring view.
 #[derive(Default)]
@@ -154,6 +175,9 @@ pub struct Cad {
     pub menu: Option<menu::Menu>,
     pub live: command::Live,
     pub pins: Vec<Pin>,
+    pub measuring: measure::Measuring,
+    pub boxing: boxes::Boxing,
+    pub planes: planes::Planes,
     scene: Option<Arc<PickScene>>,
     band: Option<Arc<BandSurface>>,
     /// The build the scene and the band came with.
@@ -164,7 +188,7 @@ pub struct Cad {
 }
 
 impl Cad {
-    /// A new build landed with its scene and ring frame; choices whose part is gone are let go.
+    /// A new build landed with its scene and ring frame; choices whose part or plane is gone are let go.
     pub fn landed(&mut self, build: &Built, scene: Option<Arc<PickScene>>, band: Option<Arc<BandSurface>>, design: &RingDesign) {
         self.scene = scene;
         self.band = band;
@@ -177,6 +201,13 @@ impl Cad {
             for s in kept {
                 self.selection.click(Some(s), Mods { shift: true, ..Mods::default() });
             }
+        }
+        let plane_gone = |id: Id| doc.and_then(|d| d.feature(id)).is_none();
+        if self.planes.chosen.is_some_and(plane_gone) {
+            self.planes.chosen = None;
+        }
+        if self.planes.menu.as_ref().is_some_and(|m| plane_gone(m.plane)) {
+            self.planes.menu = None;
         }
         self.live.landed(build);
     }
@@ -200,11 +231,15 @@ impl Cad {
         self.requests.push(Request::Status(text.into()));
     }
 
-    /// Lets go of every choice, the depth walk and an open menu.
+    /// Lets go of every choice, the depth walk, an open menu, the chosen plane and the measurement.
     pub fn clear(&mut self) {
         self.selection.clear();
         self.walk.forget();
         self.menu = None;
+        self.planes.chosen = None;
+        self.planes.menu = None;
+        self.measuring.measure.clear();
+        self.measuring.missed = false;
     }
 
     /// Chooses part `id` alone, as a tap on it would.
@@ -244,53 +279,90 @@ impl Cad {
             ui.ctx().request_repaint_after(Duration::from_millis(40));
         }
         let mut took = Took::default();
+        // A live command ends when Measure or box select takes the ring.
+        let boxing = self.boxing.on && !v.measuring;
+        if (v.measuring || boxing) && self.live.is_live() {
+            self.live.cancel(&mut self.requests);
+        }
         for signal in signals {
             match signal {
                 Signal::Press(p) => {
                     let over = ui.ctx().layer_id_at(p).is_some_and(|layer| layer != ui.layer_id());
-                    self.owner = if !v.active || !v.rect.contains(p) || over || v.covered.iter().any(|r| r.contains(p)) { Owner::Elsewhere } else { Owner::Ring };
-                    if self.owner == Owner::Ring && self.menu.take().is_some() {
+                    self.owner = if !v.active || !v.rect.contains(p) || over || v.covered.iter().any(|r| r.contains(p)) { Owner::Elsewhere } else { Owner::Ring };                    if self.owner == Owner::Ring {
                         // A press on the ring beside an open menu closes it and goes no further.
-                        self.owner = Owner::Swallowed;
+                        let ring_menu = self.menu.take().is_some();
+                        let plane_menu = self.planes.menu.take().is_some();
+                        if ring_menu || plane_menu {
+                            self.owner = Owner::Swallowed;
+                        }
                     }
                     if self.owner == Owner::Ring {
-                        let c = ctx!(self, v);
-                        self.live.press(p, &c, &mut self.requests);
+                        if boxing {
+                            self.boxing.press();
+                        } else if !v.measuring {
+                            let c = ctx!(self, v);
+                            self.live.press(p, &c, &mut self.requests);
+                        }
                     }
                 }
-                Signal::DragStart { at, .. } | Signal::DragMove { at } if self.owner == Owner::Ring => {
-                    let c = ctx!(self, v);
-                    self.live.drag(at, &c, &mut self.requests);
-                }
-                Signal::DragEnd { at } if self.owner == Owner::Ring => {
-                    let c = ctx!(self, v);
-                    self.live.release(at, true, &c, &mut self.requests);
-                }
-                Signal::Tap(p) => match self.owner {
-                    Owner::Elsewhere => {}
-                    Owner::Swallowed => took.tap = true,
-                    Owner::Ring if self.live.tap_through() => took.tap = self.tap(v, p),
-                    Owner::Ring if self.live.holding() => {
+                Signal::DragStart { from, at } if self.owner == Owner::Ring => {
+                    if !self.boxing.start(from, at) {
                         let c = ctx!(self, v);
-                        self.live.release(p, false, &c, &mut self.requests);
-                        took.tap = true;
+                        self.live.drag(at, &c, &mut self.requests);
                     }
-                    Owner::Ring if self.live.is_live() => took.tap = true,
-                    Owner::Ring => took.tap = self.tap(v, p),
+                }
+                Signal::DragMove { at } if self.owner == Owner::Ring => {
+                    if !self.boxing.follow(at) {
+                        let c = ctx!(self, v);
+                        self.live.drag(at, &c, &mut self.requests);
+                    }
+                }
+                Signal::DragEnd { at } if self.owner == Owner::Ring => match self.boxing.lift(at) {
+                    Some(d) => {
+                        let said = self.finish_box(v, d);
+                        self.status(said);
+                    }
+                    None => {
+                        let c = ctx!(self, v);
+                        self.live.release(at, true, &c, &mut self.requests);
+                    }
                 },
+                Signal::Tap(p) => {
+                    self.boxing.let_go();
+                    match self.owner {
+                        Owner::Elsewhere => {}
+                        Owner::Swallowed => took.tap = true,
+                        Owner::Ring if v.measuring => took.tap = self.measure_tap(v, p),
+                        Owner::Ring if self.live.tap_through() => took.tap = self.tap(ui.painter(), v, p),
+                        Owner::Ring if self.live.holding() => {
+                            let c = ctx!(self, v);
+                            self.live.release(p, false, &c, &mut self.requests);
+                            took.tap = true;
+                        }
+                        Owner::Ring if self.live.is_live() => took.tap = true,
+                        Owner::Ring => took.tap = self.tap(ui.painter(), v, p),
+                    }
+                }
                 Signal::LongPress(p) if self.owner == Owner::Ring && !self.live.is_live() => {
-                    self.open_menu(v, p);
+                    self.boxing.let_go();
+                    let on_part = self.picks(v, p).first().is_some_and(|k| is_part(&k.entity));
+                    match self.plane_at(ui.painter(), v, p, on_part).filter(|_| !v.measuring) {
+                        Some(plane) => self.open_plane_menu(v, plane, p),
+                        None => self.open_menu(v, p),
+                    }
                     took.long_press = true;
                 }
                 Signal::Released if self.owner != Owner::Elsewhere => {
                     // A lift after a long press is not a tap, whatever the view's own click says.
                     took.tap = true;
+                    self.boxing.let_go();
                     if !self.live.tap_through() && self.live.holding() {
                         let c = ctx!(self, v);
                         self.live.release(v.rect.center(), false, &c, &mut self.requests);
                     }
                 }
                 Signal::Pinch | Signal::Cancel => {
+                    self.boxing.let_go();
                     if self.live.holding() {
                         self.live.let_go(&mut self.requests);
                     }
@@ -298,31 +370,51 @@ impl Cad {
                 _ => {}
             }
         }
-        took.hold = self.live.holding();
+        took.hold = self.live.holding() || self.boxing.holding();
         took
     }
 
-    /// Chooses the part, face, edge or vertex under a tap at `p`, one deeper on the same spot; whether the tap was taken.
-    fn tap(&mut self, v: &View, p: Pos2) -> bool {
+    /// Chooses the plane, part, face, edge or vertex under a tap at `p`, one deeper on the same spot; with box select on, its op adds or takes away; whether the tap was taken.
+    fn tap(&mut self, painter: &egui::Painter, v: &View, p: Pos2) -> bool {
         let picks = self.picks(v, p);
-        let cad = picks.first().is_some_and(|k| matches!(k.entity, Entity::Part { .. } | Entity::Face { .. } | Entity::Edge { .. } | Entity::Vertex { .. }));
+        let cad = picks.first().is_some_and(|k| is_part(&k.entity));
+        if let Some(plane) = self.plane_at(painter, v, p, cad) {
+            self.choose_plane(v, plane);
+            return true;
+        }
+        self.planes.chosen = None;
+        let op = if self.boxing.on { self.boxing.op } else { BoxOp::Replace };
         if !cad {
             self.walk.forget();
-            self.selection.clear();
+            if op == BoxOp::Replace {
+                self.selection.clear();
+            }
             return false;
         }
-        let at = self.walk.tap(p, &picks).unwrap_or(0);
+        let at = if op == BoxOp::Replace {
+            self.walk.tap(p, &picks).unwrap_or(0)
+        } else {
+            self.walk.forget();
+            0
+        };
         let sel = Sel::of(&picks[at], |w| (w[1].atan2(w[0]).to_degrees(), 0.0));
-        self.selection.click(Some(sel.clone()), Mods::default());
+        self.selection.click(Some(sel.clone()), op.mods());
         self.selection.hovered(Vec::new());
         let (depth, of) = self.walk.depth();
         let what = ringdesign_workbench::viewport::selection::describe(&sel, v.design, v.build.map(|b| b.0.as_ref()));
-        self.status(if of > 1 { format!("{what} · {} of {of}: tap the same spot for the next", depth + 1) } else { what });
+        let n = self.selection.items.len();
+        self.status(match op {
+            BoxOp::Add => format!("{what} added · {n} chosen"),
+            BoxOp::Remove => format!("{what} taken out · {n} chosen"),
+            BoxOp::Replace if of > 1 => format!("{what} · {} of {of}: tap the same spot for the next", depth + 1),
+            BoxOp::Replace => what,
+        });
         true
     }
 
     /// Opens the menu for the last thing chosen, as the selection bar's button asks, at the middle of the ring.
     pub fn open_for_choice(&mut self, v: &View) {
+        self.planes.menu = None;
         if self.menu.is_some() {
             self.menu = None;
             return;
@@ -334,6 +426,7 @@ impl Cad {
 
     /// Opens the menu for what lies under the finger at `p`.
     fn open_menu(&mut self, v: &View, p: Pos2) {
+        self.planes.menu = None;
         let picks = self.picks(v, p);
         let under = touch::menu_pick(&picks, &self.selection.items).or_else(|| if self.scene.is_none() { Self::band_pick(v, p) } else { None });
         let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&self.selection, under.as_ref(), v.design));
@@ -349,10 +442,11 @@ impl Cad {
         self.menu = Some(menu);
     }
 
-    /// Draws the chosen edges and vertices, the pins, the gizmo, a live command's ghost and bars, and the menu, serving its row.
+    /// Draws the work planes, the chosen edges and vertices, the pins, the gizmo, a live command's ghost and bars, a measurement or a box and its mode's bar, and the menus, serving their rows.
     pub fn draw(&mut self, ui: &mut egui::Ui, v: &View, renderer: &std::sync::Mutex<crate::viewport::GpuMeshRenderer>) {
         let projector = v.camera.projector(v.rect);
         let painter = ui.painter_at(v.rect);
+        self.draw_planes(&painter, v);
         self.draw_marks(&painter, v, &projector);
         if let Some(build) = v.build
             && self.selection.needs_stage(build.key())
@@ -373,6 +467,17 @@ impl Cad {
         }
         let c = ctx!(self, v);
         self.live.draw(ui, &c, renderer, &mut self.requests);
+        if v.measuring {
+            self.draw_measure(&painter, v);
+        }
+        self.draw_box(&painter);
+        if !self.live.is_live() {
+            if v.measuring {
+                self.measure_bar(ui.ctx(), v);
+            } else if self.boxing.on {
+                self.box_bar(ui.ctx(), v);
+            }
+        }
         let chosen = self.menu.as_mut().and_then(|m| menu::show(ui.ctx(), m, v.rect));
         match chosen {
             Some(menu::Choice::Act(action)) => {
@@ -380,6 +485,15 @@ impl Cad {
                 self.act(v, action);
             }
             Some(menu::Choice::Close) => self.menu = None,
+            None => {}
+        }
+        match self.planes.menu.as_mut().and_then(|m| planes::show(ui.ctx(), m, v.rect)) {
+            Some(planes::Choice::Act(act)) => {
+                if let Some(m) = self.planes.menu.take() {
+                    self.plane_act(v, m.plane, act);
+                }
+            }
+            Some(planes::Choice::Close) => self.planes.menu = None,
             None => {}
         }
     }
@@ -494,6 +608,11 @@ impl Cad {
             _ => Err(format!("No pattern called {key}")),
         }
     }
+}
+
+/// Whether a pick is a part or one of its faces, edges or vertices.
+fn is_part(e: &Entity) -> bool {
+    matches!(e, Entity::Part { .. } | Entity::Face { .. } | Entity::Edge { .. } | Entity::Vertex { .. })
 }
 
 /// The chosen edges and the edge under the finger, as the edge pass lights them.

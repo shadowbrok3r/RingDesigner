@@ -62,6 +62,8 @@ pub struct Ctx<'a> {
     pub field: Option<&'a FieldReport>,
     pub pins: &'a [Pin],
     pub selection: &'a Selection,
+    /// Whether the chosen part's gizmo stands on it: not while Measure or box select holds the ring.
+    pub gizmo: bool,
 }
 
 impl Ctx<'_> {
@@ -217,12 +219,13 @@ fn pins_key(pins: &[Pin]) -> u64 {
 
 /// The chosen part and its gizmo: one part chosen and nothing live.
 pub fn gizmo_of(c: &Ctx, live: &Live) -> Option<(Id, Gizmo)> {
-    if live.session.is_live() || live.hold.is_some() {
+    if !c.gizmo || live.session.is_live() || live.hold.is_some() {
         return None;
     }
     let id = c.selection.one_part()?;
     let f = c.feature(id)?;
-    if matches!(f.operation, Operation::Band | Operation::Sketch { .. }) {
+    // Bands, sketches and patterns carry no gizmo; a pattern follows its source.
+    if matches!(f.operation, Operation::Band | Operation::Sketch { .. } | Operation::Pattern { .. }) {
         return None;
     }
     let band = c.band.map(|b| b.as_ref());
@@ -503,6 +506,25 @@ impl Live {
         };
         let o = land(session, token, &snap);
         (o, hit.take())
+    }
+
+    /// Where a point of the band at `world` snaps among the ring's features, the pins and the parts' own points, off the grid: what Measure reads.
+    pub fn snap_band_point(&mut self, c: &Ctx, build: &Built, world: [f64; 3], view: ViewScale) -> Option<SnapHit> {
+        self.snaps_for(build);
+        let features = self.features_for(c, build);
+        let (vertices, edges) = self.snaps.as_ref().map_or((&[][..], &[][..]), |(_, _, v, e)| (v.as_slice(), e.as_slice()));
+        let band = c.band.map(|b| b.as_ref());
+        // Without the bare band the point is read on the ring as built, at no height off it.
+        let ring = match band {
+            Some(b) => ringdesign_workbench::command::ring_point(world, Some(b), c.design.inner_radius_mm() + c.design.profile.thickness_mm),
+            None => RingPoint::of_world(world, 0.0),
+        };
+        let world_of = |p: RingPoint| match band {
+            Some(b) => b.world(p),
+            None => ringdesign_core::cad::surface_hit(&build.0.mesh, p.theta_deg, p.across_mm).map(|(hit, n)| std::array::from_fn(|k| hit[k] + n[k] * p.height_mm)),
+        };
+        let scene = Scene { view, aperture_px: touch::APERTURE_PT, geometry: SnapGeometry { vertices, edges }, features: &features, design: Some(c.design), world_of: &world_of };
+        Snapper { grid: None, ..self.snapper }.snap_ring(world, ring, Dofs::ALL, &scene)
     }
 
     /// Part vertices and edges a carried part may snap to: every part's but its own.

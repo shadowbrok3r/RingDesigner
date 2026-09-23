@@ -87,7 +87,13 @@ impl RingApp {
                             self.editor.isolate = false;
                             self.request_view_update();
                         }
-                        self.editor.palette = Some(Palette::Properties);
+                        // Measure opens no palette; its bar stands over the ring.
+                        if tool == Tool::Measure {
+                            self.editor.palette = None;
+                            self.status = "Measure: tap two points on the ring; a third chains on".into();
+                        } else {
+                            self.editor.palette = Some(Palette::Properties);
+                        }
                     }
                 }
                 if button(ui, "Layers", self.editor.palette == Some(Palette::Layers)).clicked() {

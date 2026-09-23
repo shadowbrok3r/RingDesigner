@@ -85,7 +85,7 @@ fn a_tap_chooses_the_post_the_same_spot_walks_down_to_its_face_and_the_band_lets
     let camera = camera(&built);
     let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(420.0, 600.0));
     let lib = AlphaLibrary::builtin();
-    let v = View { rect, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true };
+    let v = View { rect, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
     let post = built.evaluated().unwrap().components.iter().find(|c| c.id == 2).unwrap();
     let (lo, hi) = post.mesh.bounds().unwrap();
     let top = camera.projector(rect).at([(lo.0 + hi.0) * 0.5, (lo.1 + hi.1) * 0.5, (lo.2 + hi.2) * 0.5]);
@@ -123,6 +123,8 @@ struct Bench {
     time: f64,
     /// The view the frames run in; the keyboard rising shortens it.
     rect: egui::Rect,
+    /// The Measure tool is out.
+    measuring: bool,
 }
 
 const RECT: egui::Rect = egui::Rect { min: egui::Pos2::ZERO, max: egui::pos2(420.0, 600.0) };
@@ -133,20 +135,49 @@ impl Bench {
         let mut cad = Cad::default();
         cad.landed(&built, scene, band, &d);
         let camera = camera(&built);
-        Self { d, built, cad, camera, lib: AlphaLibrary::builtin(), ctx: egui::Context::default(), renderer: Default::default(), time: 1.0, rect: RECT }
+        Self { d, built, cad, camera, lib: AlphaLibrary::builtin(), ctx: egui::Context::default(), renderer: Default::default(), time: 1.0, rect: RECT, measuring: false }
     }
     fn view(&self) -> View<'_> {
-        View { rect: RECT, camera: &self.camera, design: &self.d, lib: &self.lib, build: Some(&self.built), field: None, covered: &[], active: true }
+        View { rect: RECT, camera: &self.camera, design: &self.d, lib: &self.lib, build: Some(&self.built), field: None, covered: &[], active: true, measuring: self.measuring }
     }
     /// One frame with `events`, a tenth of a second after the last.
     fn step(&mut self, events: Vec<Event>) -> Took {
         self.time += 0.1;
-        let v = View { rect: self.rect, camera: &self.camera, design: &self.d, lib: &self.lib, build: Some(&self.built), field: None, covered: &[], active: true };
+        let v = View { rect: self.rect, camera: &self.camera, design: &self.d, lib: &self.lib, build: Some(&self.built), field: None, covered: &[], active: true, measuring: self.measuring };
         frame(&self.ctx, &mut self.cad, &v, events, self.time, &self.renderer)
     }
     fn tap(&mut self, p: Pos2) -> Took {
         self.step(vec![touch(1, TouchPhase::Start, p)]);
         self.step(vec![touch(1, TouchPhase::End, p)])
+    }
+    /// A finger held still at `p` past the long press, then lifted: whether the press opened a menu.
+    fn hold(&mut self, p: Pos2) -> bool {
+        self.step(vec![touch(1, TouchPhase::Start, p)]);
+        let mut long = false;
+        for _ in 0..5 {
+            long |= self.step(Vec::new()).long_press;
+        }
+        self.step(vec![touch(1, TouchPhase::End, p)]);
+        long
+    }
+    /// One finger dragged from `from` to `to` in `n` steps: whether the CAD layer held the ring at every step.
+    fn drag(&mut self, from: Pos2, to: Pos2, n: usize) -> bool {
+        let mut held = self.step(vec![touch(1, TouchPhase::Start, from)]).hold;
+        for k in 1..=n {
+            held &= self.step(vec![touch(1, TouchPhase::Move, from.lerp(to, k as f32 / n as f32))]).hold;
+        }
+        self.step(vec![touch(1, TouchPhase::End, to)]);
+        held
+    }
+    /// A finger's tap on a button drawn over the ring, as a touch screen reports it: the touch and the pointer it drives.
+    fn press_button(&mut self, p: Pos2) {
+        let button = |pressed: bool| Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        self.step(vec![Event::PointerMoved(p), button(true), touch(1, TouchPhase::Start, p)]);
+        self.step(vec![button(false), touch(1, TouchPhase::End, p), Event::PointerGone]);
+    }
+    /// Statuses the CAD layer said since the last call.
+    fn said(&mut self) -> Vec<String> {
+        self.cad.take_requests().into_iter().filter_map(|r| if let Request::Status(s) = r { Some(s) } else { None }).collect()
     }
     /// Where the post's middle lands on screen.
     fn post(&self) -> Pos2 {
@@ -156,7 +187,7 @@ impl Bench {
     }
     /// A point well along one of the chosen part's arrows on screen, and the way out along it.
     fn arrow(&self, handle: Handle) -> (Pos2, egui::Vec2) {
-        let c = command::Ctx { rect: RECT, camera: &self.camera, design: &self.d, build: Some(&self.built), band: self.cad.band(), field: None, pins: &[], selection: &self.cad.selection };
+        let c = command::Ctx { rect: RECT, camera: &self.camera, design: &self.d, build: Some(&self.built), band: self.cad.band(), field: None, pins: &[], selection: &self.cad.selection, gizmo: true };
         let (_, g) = command::gizmo_of(&c, &self.cad.live).expect("one part chosen, nothing live");
         let layout = command::layout(&c, &g);
         let (_, mark) = layout.marks.iter().find(|(h, _)| *h == handle).expect("the handle is drawn");
@@ -183,7 +214,7 @@ fn a_stone_on_a_parts_face_takes_the_pressed_point_and_builds_on_the_part() {
     // Pressed at the part's own origin, off the face's middle.
     let at = c.frame.origin;
     let d = b.d.clone();
-    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true };
+    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
     b.cad.pressed = Some((at, [0.0, 0.0, 1.0]));
     b.cad.act(&v, MenuAction::AddStoneOnFace { feature: plate, face, key: "round-5" });
     assert!(b.cad.pressed.is_none(), "the press is spent");
@@ -252,7 +283,7 @@ fn a_ring_array_from_the_menu_waits_for_its_count_and_commits_one_pattern() {
     let mut b = Bench::new(posted());
     b.cad.choose(2);
     let d = b.d.clone();
-    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true };
+    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
     b.cad.act(&v, MenuAction::Pattern { feature: 2, key: keys::RING_ARRAY });
     assert!(b.cad.live.is_live(), "the array waits for how many");
     assert!(b.edits().is_empty());
@@ -311,7 +342,7 @@ fn the_gizmo_keeps_its_parts_own_reach_while_a_moved_placement_waits_for_its_reb
     let mut b = Bench::new(posted());
     b.cad.choose(2);
     let reach = |b: &Bench| {
-        let c = command::Ctx { rect: RECT, camera: &b.camera, design: &b.d, build: Some(&b.built), band: b.cad.band(), field: None, pins: &[], selection: &b.cad.selection };
+        let c = command::Ctx { rect: RECT, camera: &b.camera, design: &b.d, build: Some(&b.built), band: b.cad.band(), field: None, pins: &[], selection: &b.cad.selection, gizmo: true };
         command::gizmo_of(&c, &b.cad.live).expect("the post is chosen").1.reach_mm
     };
     let before = reach(&b);
@@ -370,7 +401,7 @@ fn the_commands_bars_stand_away_from_the_finger_and_never_overlap_even_when_the_
     b.step(Vec::new());
     b.step(Vec::new());
     let areas = |b: &Bench| {
-        let [_, caption, fields] = super::areas().map(|id| b.ctx.memory(|m| m.area_rect(id)));
+        let [_, caption, fields, _] = super::areas().map(|id| b.ctx.memory(|m| m.area_rect(id)));
         (caption.expect("the caption is drawn"), fields.expect("the fields are drawn"))
     };
     let (caption, fields) = areas(&b);
@@ -422,7 +453,7 @@ fn a_long_press_opens_the_posts_menu_and_its_rows_serve_attach_and_refuse_what_t
     let took = b.step(vec![touch(1, TouchPhase::End, at)]);
     assert!(took.tap, "the lift after a long press is no tap");
     let d = b.d.clone();
-    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true };
+    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
     b.cad.act(&v, MenuAction::Attach(2, Attach::Cut));
     b.cad.act(&v, MenuAction::Pattern { feature: 2, key: keys::MIRROR_BAND });
     b.cad.act(&v, MenuAction::SketchOnPlane { theta_deg: 0.0, across_mm: 0.0 });
@@ -451,7 +482,7 @@ fn a_stone_added_on_the_band_is_drawn_with_the_stones_and_its_setting_is_built_r
     let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&b.cad.selection, None, &b.d));
     let four = items.iter().find(|i| i.label == "Four claws").expect("a chosen stone offers its settings").action.clone();
     let d = b.d.clone();
-    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true };
+    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
     b.cad.act(&v, four);
     let (edits, then) = b.edits().remove(0);
     let names: Vec<String> = edits.iter().filter_map(|e| if let CadEdit::Add { feature, .. } = e { Some(feature.name.clone()) } else { None }).collect();
@@ -462,4 +493,261 @@ fn a_stone_added_on_the_band_is_drawn_with_the_stones_and_its_setting_is_built_r
     let mut gems = Vec::new();
     crate::ring::stones_as_parts(&b.built.0, &mut gems);
     assert_eq!(gems.len(), stone.mesh.faces.len() * 3 * 12, "it is drawn with the preview stones");
+}
+
+#[test]
+fn a_measure_tap_reads_wherever_the_finger_meets_metal_and_says_so_where_it_meets_none() {
+    let mut b = Bench::new(two_posts());
+    b.measuring = true;
+    b.camera = OrbitCamera::default();
+    b.camera.fit(b.built.bounds());
+    let (mut on, mut off) = (0, 0);
+    // A grid over the 3/4 view above the Measure bar: through the opening and past the rim a finger meets nothing.
+    for iy in 0..16 {
+        for ix in 0..16 {
+            let p = egui::pos2(60.0 + ix as f32 * 20.0, 150.0 + iy as f32 * 18.0);
+            b.cad.measuring.measure.clear();
+            b.tap(p);
+            let said = b.said();
+            let (o, d) = b.camera.ray(RECT, p);
+            let read = b.cad.measuring.measure.picks.len();
+            if ringdesign_core::interaction::picking::raycast(&b.built.0.mesh, o, d).is_some() {
+                on += 1;
+                assert_eq!(read, 1, "a tap on the metal at {p:?} read nothing: {said:?}");
+            } else if read == 0 {
+                off += 1;
+                assert_eq!(said, ["Nothing under the finger to measure"], "{p:?}");
+                assert!(b.cad.measuring.missed, "the bar says so at {p:?}");
+            }
+        }
+    }
+    assert!(on >= 40 && off >= 40, "{on} taps on the metal, {off} off it");
+}
+
+/// The band's surface point at `theta_deg` and `across_mm`, and where it lands on screen.
+fn crest(b: &Bench, theta_deg: f64, across_mm: f64) -> ([f64; 3], Pos2) {
+    let (hit, _) = ringdesign_core::cad::surface_hit(&b.built.0.mesh, theta_deg, across_mm).expect("the band is there");
+    (hit, b.camera.projector(RECT).at(hit.map(|x| x as f32)))
+}
+
+fn apart(a: [f64; 3], b: [f64; 3]) -> f64 {
+    (0..3).map(|k| (a[k] - b[k]).powi(2)).sum::<f64>().sqrt()
+}
+
+#[test]
+fn measure_taps_read_two_band_points_a_third_chains_to_a_corner_and_the_bars_clear_empties_it() {
+    let mut b = Bench::new(posted());
+    b.measuring = true;
+    b.cad.measuring.free = true;
+    // Twice as close, the post's end is wider than a finger's aperture and reads as its face rather than its rim.
+    b.camera.zoom *= 2.0;
+    let (a, pa) = crest(&b, 70.0, 0.0);
+    let (c, pc) = crest(&b, 110.0, 0.0);
+    let took = b.tap(pa);
+    assert!(took.tap, "the tap is Measure's");
+    assert_eq!(b.said(), ["From the band: tap the second"]);
+    b.tap(pc);
+    let r = b.cad.measuring.measure.readings();
+    // 40° of a 10.5 mm crest apart, read where the fingers landed: the chord between the two hits.
+    let chord = apart(a, c);
+    assert!(r.len() == 1 && r[0].what == "Distance" && (r[0].distance_mm - chord).abs() < 0.01, "{r:?} against {chord}");
+    assert!(chord > 7.0 && chord < 7.4, "{chord}");
+    assert_eq!(b.said(), [r[0].line()]);
+    // A third tap, on the post's end, chains on from the second: the plane's drop and the corner at the second point.
+    b.tap(b.post());
+    let r = b.cad.measuring.measure.readings();
+    assert_eq!(r.iter().map(|r| r.what).collect::<Vec<_>>(), ["Distance", "To the plane", "Corner"]);
+    assert!(matches!(b.cad.measuring.measure.picks[2], ringdesign_workbench::visual::measure::Picked::Face { flat: true, .. }), "the post's end is read by its plane");
+    // A fourth starts again.
+    b.tap(pa);
+    assert_eq!(b.cad.measuring.measure.picks.len(), 1);
+    // A drag turns the ring and measures nothing.
+    assert!(!b.drag(pc, pc + vec2(90.0, 10.0), 4), "a drag is the ring's while measuring");
+    assert_eq!(b.cad.measuring.measure.picks.len(), 1);
+    // The bar's Clear empties it, and the tap on the bar measures nothing.
+    let bar = b.ctx.memory(|m| m.area_rect(bar::area())).expect("the Measure bar is drawn");
+    assert!(RECT.contains_rect(bar), "{bar:?}");
+    b.press_button(egui::pos2(bar.left() + 40.0, bar.bottom() - 29.0));
+    assert!(b.cad.measuring.measure.picks.is_empty(), "{:?}", b.cad.measuring.measure.picks);
+    assert!(b.said().iter().any(|s| s == "Measurement cleared"));
+    // Snapped, a band point off the crest lands on the ring's line there and is named by it.
+    b.cad.measuring.free = false;
+    let (off, p) = crest(&b, 70.0, 0.3);
+    b.tap(p);
+    let snapped = b.cad.measuring.measure.picks[0].clone();
+    // The band's surface is read a tenth of a micron off the line, where its ray cannot slip between faces.
+    assert!(off[2] > 0.25 && snapped.at()[2].abs() < 1e-3, "{off:?} snapped to {:?}", snapped.at());
+    assert_ne!(snapped.label(), "the band");
+    assert!(!b.cad.live.is_live() && b.cad.selection.items.is_empty(), "Measure chooses nothing");
+}
+
+/// The Court band with two small posts joined at 80° and 100°.
+fn two_posts() -> RingDesign {
+    let mut d = court();
+    let mut history = History::new(&d);
+    for theta in [80.0, 100.0] {
+        let (edits, _) = touch::parts::part_here(&d, "Cylinder", theta, 0.0).unwrap();
+        commit(&mut d, &mut history, &edits, None).unwrap();
+    }
+    for id in [2, 3] {
+        commit(&mut d, &mut history, &[CadEdit::Operation { id, operation: Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 } }], None).unwrap();
+    }
+    d
+}
+
+/// Where part `id`'s middle lands on screen.
+fn middle(b: &Bench, id: Id) -> Pos2 {
+    let c = b.built.evaluated().unwrap().components.iter().find(|c| c.id == id).unwrap();
+    let (lo, hi) = c.mesh.bounds().unwrap();
+    b.camera.projector(RECT).at([(lo.0 + hi.0) * 0.5, (lo.1 + hi.1) * 0.5, (lo.2 + hi.2) * 0.5])
+}
+
+#[test]
+fn box_select_draws_a_window_or_a_crossing_by_one_finger_and_its_op_replaces_adds_or_takes_away() {
+    use ringdesign_workbench::touch::boxes::BoxOp;
+    let mut b = Bench::new(two_posts());
+    // Close enough that a finger's box fits round one post and clear of the other.
+    b.camera.zoom *= 2.5;
+    let (p2, p3) = (middle(&b, 2), middle(&b, 3));
+    assert!((p2 - p3).length() > 90.0, "the posts stand apart on screen: {p2:?} {p3:?}");
+    let round = |p: Pos2| (p - vec2(40.0, 40.0), p + vec2(40.0, 40.0));
+    // Off, a drag is the ring's.
+    let (from, to) = round(p2);
+    assert!(!b.drag(from, to, 4));
+    assert!(b.cad.selection.items.is_empty());
+    b.cad.boxing.toggle();
+    // Left to right round the post at 80°: a window that holds it whole, the ring held while the finger draws.
+    assert!(b.drag(from, to, 5), "the finger holds the ring while it draws the box");
+    assert_eq!(b.cad.selection.items, [Sel::Part(2)]);
+    assert_eq!(b.said(), ["Window box: 1 selected"]);
+    // Add: a window round the other joins it.
+    b.cad.boxing.op = BoxOp::Add;
+    let (from, to) = round(p3);
+    b.drag(from, to, 5);
+    assert_eq!(b.cad.selection.items, [Sel::Part(2), Sel::Part(3)]);
+    // Remove, right to left over the first post's middle: a crossing touches it and takes it out.
+    b.cad.boxing.op = BoxOp::Remove;
+    b.drag(p2 + vec2(10.0, 6.0), p2 - vec2(10.0, 6.0), 3);
+    assert_eq!(b.cad.selection.items, [Sel::Part(3)]);
+    // Replace, right to left across both middles: a crossing takes both.
+    b.cad.boxing.op = BoxOp::Replace;
+    let (left, right) = if p2.x < p3.x { (p2, p3) } else { (p3, p2) };
+    b.drag(right + vec2(0.0, -6.0), left + vec2(0.0, 6.0), 5);
+    let mut chosen = b.cad.selection.items.clone();
+    chosen.sort_by_key(|s| s.feature());
+    assert_eq!(chosen, [Sel::Part(2), Sel::Part(3)]);
+    assert_eq!(b.said().last().map(String::as_str), Some("Crossing box: 2 selected"));
+    // The same box left to right is a window that holds neither whole: Replace clears.
+    b.drag(left + vec2(0.0, -6.0), right + vec2(0.0, 6.0), 5);
+    assert!(b.cad.selection.items.is_empty(), "{:?}", b.cad.selection.items);
+    // A second finger drops the box unfinished and the pinch is the camera's.
+    b.cad.selection.click(Some(Sel::Part(2)), Mods::default());
+    let (from, to) = round(p3);
+    b.step(vec![touch(1, TouchPhase::Start, from)]);
+    b.step(vec![touch(1, TouchPhase::Move, from.lerp(to, 0.5))]);
+    assert!(!b.step(vec![touch(2, TouchPhase::Start, to + vec2(0.0, 150.0))]).hold);
+    b.step(vec![touch(1, TouchPhase::End, to), touch(2, TouchPhase::End, to + vec2(0.0, 150.0))]);
+    assert_eq!(b.cad.selection.items, [Sel::Part(2)], "nothing boxed");
+    // With Add, a tap adds the part under it rather than walking down it.
+    b.cad.boxing.op = BoxOp::Add;
+    b.tap(p3);
+    assert_eq!(b.cad.selection.items, [Sel::Part(2), Sel::Part(3)]);
+    // While it is on, the chosen parts carry no gizmo to take the drag.
+    let c = command::Ctx { rect: RECT, camera: &b.camera, design: &b.d, build: Some(&b.built), band: b.cad.band(), field: None, pins: &[], selection: &b.cad.selection, gizmo: !b.cad.boxing.on };
+    assert!(command::gizmo_of(&c, &b.cad.live).is_none());
+    b.cad.boxing.toggle();
+    assert!(!b.drag(from, to, 4), "put away, a drag turns the ring again");
+}
+
+/// The post and a work plane through 0°, which faces a camera over the ring's top.
+fn posted_with_plane() -> RingDesign {
+    use ringdesign_core::cad::{Component, Feature, PlaneBase};
+    let mut d = posted();
+    let mut history = History::new(&d);
+    let plane = Feature { id: 3, name: "Section at 0°".into(), enabled: true, operation: Operation::Plane { base: PlaneBase::Section { theta_deg: 0.0 }, offset_mm: 0.0 }, component: Component::default() };
+    commit(&mut d, &mut history, &[CadEdit::Add { feature: plane, after: None }], None).unwrap();
+    d
+}
+
+#[test]
+fn a_work_plane_is_drawn_chosen_by_a_tap_and_held_for_its_menu_which_mirrors_the_chosen_post_across_it() {
+    use ringdesign_core::cad::{MirrorPlane, PatternKind};
+    let mut b = Bench::new(posted_with_plane());
+    b.step(Vec::new());
+    let shapes = touch::planes::shapes(&b.d, &b.built.0);
+    assert_eq!(shapes.iter().map(|s| (s.id, s.name.as_str())).collect::<Vec<_>>(), [(3, "Section at 0°")]);
+    let proj = b.camera.projector(RECT);
+    let corners = shapes[0].corners.map(|c| proj.at(c.map(|x| x as f32)));
+    // Its lower edge runs under the band on screen, clear of the post over the top.
+    let edge = corners[0] + (corners[1] - corners[0]) * 0.8;
+    assert!(RECT.contains(edge) && (edge - b.post()).length() > 60.0, "{edge:?}");
+    // Tilted over the top, the post stands 9 points from the plane's lower edge on screen, and the part under the finger outranks the outline.
+    let gap = (b.post().y - corners[0].y).abs();
+    assert!(gap < touch::planes::REACH_PT, "{gap}");
+    b.tap(b.post());
+    assert_eq!(b.cad.selection.items, [Sel::Part(2)]);
+    assert_eq!(b.cad.planes.chosen, None);
+    b.said();
+    assert!(b.tap(edge).tap);
+    assert_eq!(b.cad.planes.chosen, Some(3));
+    assert_eq!(b.cad.selection.items, [Sel::Part(2)], "choosing a plane leaves the parts as they were");
+    assert!(b.said().last().is_some_and(|s| s.starts_with("Work plane Section at 0°")));
+    // Held, it opens its own menu: sketching greyed until the phone sketches, the mirror offered, hiding.
+    assert!(b.hold(edge));
+    let m = b.cad.planes.menu.clone().expect("the plane's menu is open");
+    assert!(b.cad.menu.is_none(), "not the ring's menu");
+    assert_eq!(m.heading, "Work plane: Section at 0°");
+    let rows: Vec<(&str, bool)> = m.rows.iter().map(|r| (r.label, r.enabled)).collect();
+    assert_eq!(rows, [("Sketch on this plane", false), ("Mirror the chosen part across it", true), ("Hide work planes", true)]);
+    assert_eq!(m.rows[0].hint, menu::NO_SKETCH);
+    assert_eq!(m.rows[1].hint, "Cylinder reflected across Section at 0°, one new Mirror feature");
+    let drawn = b.ctx.memory(|mem| mem.area_rect(menu::area())).expect("the menu is drawn");
+    assert!(RECT.contains_rect(drawn), "{drawn:?}");
+    // A press on the ring beside it closes it and does nothing else.
+    b.tap(b.post());
+    assert!(b.cad.planes.menu.is_none() && b.cad.selection.items == [Sel::Part(2)]);
+    // Its mirror row: one Mirror feature of the post across the plane.
+    let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &b.lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    b.cad.plane_act(&v, 3, planes::Act::Mirror);
+    let requests = b.cad.take_requests();
+    let Some(Request::Edit { edits, then }) = requests.into_iter().next() else { panic!("the mirror is an edit") };
+    let [CadEdit::Add { feature, .. }] = edits.as_slice() else { panic!("{edits:?}") };
+    assert!(matches!(&feature.operation, Operation::Pattern { source: 2, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 3 } } }), "{:?}", feature.operation);
+    assert_eq!(then, Then::LastAdded);
+    // Through the funnel it is one undo step, and the copy stands across y = 0 from the post, under the ring.
+    let mut d = b.d.clone();
+    let mut history = History::new(&d);
+    let done = commit(&mut d, &mut history, &edits, b.built.evaluated()).unwrap().unwrap();
+    assert_eq!(history.timeline().len(), 2, "{}", done.label);
+    let mirror = done.applied.last().and_then(|a| a.id).unwrap();
+    let after = Bench::new(d);
+    let centre = |id: Id| {
+        let c = after.built.evaluated().unwrap().components.iter().find(|c| c.id == id).unwrap();
+        let n = c.mesh.vertices.len() as f64;
+        c.mesh.vertices.iter().fold([0.0; 3], |s, v| [s[0] + f64::from(v.0) / n, s[1] + f64::from(v.1) / n, s[2] + f64::from(v.2) / n])
+    };
+    let (post, copy) = (centre(2), centre(mirror));
+    assert!((post[0] - copy[0]).abs() < 1e-3 && (post[1] + copy[1]).abs() < 1e-3 && (post[2] - copy[2]).abs() < 1e-3 && post[1] > 9.0, "{post:?} {copy:?}");
+    // The copy follows its source: chosen, it carries no gizmo of its own, where the post does.
+    let mut after = after;
+    for (id, has) in [(mirror, false), (2, true)] {
+        after.cad.choose(id);
+        let c = command::Ctx { rect: RECT, camera: &after.camera, design: &after.d, build: Some(&after.built), band: after.cad.band(), field: None, pins: &[], selection: &after.cad.selection, gizmo: true };
+        assert_eq!(command::gizmo_of(&c, &after.cad.live).is_some(), has, "#{id}");
+    }
+    // Hidden, it is neither drawn nor taken, and the app is asked to keep the switch.
+    b.cad.plane_act(&v, 3, planes::Act::Hide);
+    assert!(b.cad.planes.hidden && b.cad.planes.chosen.is_none());
+    assert!(b.cad.take_requests().iter().any(|r| matches!(r, Request::Prefs)));
+    b.tap(edge);
+    assert_eq!(b.cad.planes.chosen, None);
+    b.hold(edge);
+    assert!(b.cad.planes.menu.is_none(), "a hold there never opens the plane's menu");
+    // With no part chosen the mirror waits for one, and the plane is never its own mirror.
+    b.cad.clear();
+    let rows = planes::rows(&b.d, &b.cad.selection, 3);
+    assert!(!rows[1].enabled && rows[1].hint == "Choose a part on the ring first, then hold the plane");
+    b.cad.selection.click(Some(Sel::Part(3)), Mods::default());
+    assert!(planes::mirrorable(&b.d, &b.cad.selection, 3).is_err());
 }
