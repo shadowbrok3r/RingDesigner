@@ -36,7 +36,7 @@ impl RingApp {
         self.editor.floating_rects.clear();
         self.editor.floating_dragging = false;
         self.editor.hold_before = false;
-        if self.tab != Tab::Ring || self.editor.sheet == Some(Sheet::Graph) || viewport.width() < 160.0 || viewport.height() < 64.0 {
+        if self.tab != Tab::Ring || self.cad.sketching() || self.editor.sheet == Some(Sheet::Graph) || viewport.width() < 160.0 || viewport.height() < 64.0 {
             return;
         }
         let bounds = crate::theme::content_bounds(ctx).shrink(4.0);

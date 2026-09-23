@@ -29,9 +29,9 @@ pub fn fresh_ids(design: &RingDesign) -> impl FnMut() -> Id + use<> {
     }
 }
 
-/// Whether a feature builds a body of its own, as a plain ring's first part does.
+/// Whether a feature builds a body of its own, as a plain ring's first part does: a sketch, a work plane and the band do not.
 pub fn is_body(f: &Feature) -> bool {
-    f.operation.sources().is_empty() && !matches!(f.operation, Operation::Band | Operation::Sketch { .. })
+    f.operation.sources().is_empty() && f.operation.has_body() && !matches!(f.operation, Operation::Band)
 }
 
 /// The procedural shank a plain ring's first part brings with it, so the part stands beside the band.

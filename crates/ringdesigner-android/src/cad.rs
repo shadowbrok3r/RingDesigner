@@ -1,10 +1,11 @@
-//! The desktop Ring viewport's CAD tools by touch: picking, the depth walk, the long-press menu, the strip, the gizmo, Measure, box select, work planes, [`commit`].
+//! The desktop Ring viewport's CAD tools by touch: picking, the depth walk, the long-press menu, the strip, the gizmo, Measure, box select, work planes, sketching, [`commit`].
 pub mod bar;
 pub mod boxes;
 pub mod command;
 pub mod measure;
 pub mod menu;
 pub mod planes;
+pub mod sketch;
 pub mod strip;
 
 use std::sync::Arc;
@@ -31,9 +32,10 @@ use ringdesign_workbench::{
 
 use crate::camera::OrbitCamera;
 
-/// The areas the CAD layer draws over the ring: its menus, a live command's caption and its dimension fields, and a mode's bar.
-pub fn areas() -> [egui::Id; 4] {
-    [menu::area(), command::caption_area(), command::fields_area(), bar::area()]
+/// The areas the CAD layer draws over the ring: its menus, a live command's caption and its dimension fields, a mode's bar, and a sketch's tools and fields.
+pub fn areas() -> [egui::Id; 6] {
+    let [tools, fields] = sketch::areas();
+    [menu::area(), command::caption_area(), command::fields_area(), bar::area(), tools, fields]
 }
 
 /// A settled build on screen: the mesh the view draws, with the parts it was made of.
@@ -89,6 +91,12 @@ pub enum Request {
     EndMeasure,
     /// A setting the app remembers changed, as the work planes' switch.
     Prefs,
+    /// The camera eased to a pose, as a sketch squares the view to its plane.
+    Look(ringdesign_workbench::focus::Pose),
+    /// The view panned by a finger's travel over `rect`.
+    Pan { by: egui::Vec2, rect: Rect },
+    /// Part `Some(id)` shown alone on the ring, or the whole ring again.
+    Isolate(Option<Id>),
 }
 
 /// What to choose once an edit lands.
@@ -185,6 +193,12 @@ pub struct Cad {
     requests: Vec<Request>,
     /// The point on the ring under the finger that opened the last menu a row was chosen from, with the surface's normal there.
     pressed: Option<([f64; 3], [f64; 3])>,
+    /// The sketch being drawn, which takes the ring's gestures while it lives.
+    sketch: Option<Box<sketch::Live>>,
+    /// A Sketch feature to open on the next frame over the ring.
+    open_pending: Option<Id>,
+    /// The part shown alone on the ring, as the app last said.
+    pub isolated: Option<Id>,
 }
 
 impl Cad {
@@ -248,6 +262,17 @@ impl Cad {
         self.walk.forget();
     }
 
+    /// Chooses what a landed edit made: a work plane on the planes layer, anything else as a part.
+    pub fn choose_made(&mut self, design: &RingDesign, id: Id) {
+        let plane = design.cad.as_ref().and_then(|d| d.feature(id)).is_some_and(|f| matches!(f.operation, ringdesign_core::cad::Operation::Plane { .. }));
+        if plane {
+            self.planes.chosen = Some(id);
+            self.walk.forget();
+        } else {
+            self.choose(id);
+        }
+    }
+
     /// Everything under the finger at `p`, whole parts first.
     fn picks(&self, v: &View, p: Pos2) -> Vec<Pick> {
         let Some(scene) = &self.scene else { return Vec::new() };
@@ -277,6 +302,13 @@ impl Cad {
         signals.extend(self.tracker.settle(touching));
         if self.tracker.waiting() {
             ui.ctx().request_repaint_after(Duration::from_millis(40));
+        }
+        if let Some(id) = self.open_pending.take() {
+            self.open_sketch(v, id);
+        }
+        // A live sketch takes every gesture on the ring.
+        if self.sketch.is_some() {
+            return self.sketch_gestures(ui, v, signals);
         }
         let mut took = Took::default();
         // A live command ends when Measure or box select takes the ring.
@@ -421,7 +453,9 @@ impl Cad {
         }
         let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&self.selection, None, v.design));
         let heading = ringdesign_workbench::viewport::heading(&self.selection, None, v.design);
-        self.menu = Some(menu::Menu::new(v.rect.center(), heading, items));
+        let mut menu = menu::Menu::new(v.rect.center(), heading, items);
+        menu.extras = menu::extras(None, self.selection.items.last(), v.build.and_then(Built::evaluated), self.isolated);
+        self.menu = Some(menu);
     }
 
     /// Opens the menu for what lies under the finger at `p`.
@@ -438,8 +472,34 @@ impl Cad {
             Some(format!("Band at {:.0}° · wall {:.2} mm · relief {:+.2} mm", h.theta_deg, h.radial_wall_mm, h.relief_mm))
         });
         let mut menu = menu::Menu::new(p, heading, items);
+        menu.extras = menu::extras(under.as_ref(), self.selection.items.last(), v.build.and_then(Built::evaluated), self.isolated);
         menu.under = under.map(|u| (u.world, u.normal));
         self.menu = Some(menu);
+    }
+
+    /// Serves one of the phone's own menu rows: a work plane waits for its number, the whole ring comes back.
+    fn extra(&mut self, v: &View, e: menu::Extra) {
+        match e {
+            menu::Extra::PlaneOnFace { feature, face } => {
+                let part = v.design.cad.as_ref().and_then(|d| d.feature(feature)).map(|f| f.name.clone());
+                let c = v.build.and_then(Built::evaluated).and_then(|e| e.components.iter().find(|c| c.id == feature));
+                let (Some(name), Some(c)) = (part, c) else { return self.status(format!("Part #{feature} is not on the ring as built")) };
+                match ringdesign_core::cad::pattern::planar_face(c, face) {
+                    Ok((signed, centre, normal)) => {
+                        let cx = ctx!(self, v);
+                        let said = self.live.plane(&cx, touch::planes::PlaneCmd::on_face(feature, signed, centre, normal, &name));
+                        self.status(said);
+                    }
+                    Err(e) => self.status(format!("{e:#}")),
+                }
+            }
+            menu::Extra::PlaneAtAngle { theta_deg } => {
+                let cx = ctx!(self, v);
+                let said = self.live.plane(&cx, touch::planes::PlaneCmd::at_angle(theta_deg));
+                self.status(said);
+            }
+            menu::Extra::ShowAll => self.requests.push(Request::Isolate(None)),
+        }
     }
 
     /// Draws the work planes, the chosen edges and vertices, the pins, the gizmo, a live command's ghost and bars, a measurement or a box and its mode's bar, and the menus, serving their rows.
@@ -447,6 +507,16 @@ impl Cad {
         let projector = v.camera.projector(v.rect);
         let painter = ui.painter_at(v.rect);
         self.draw_planes(&painter, v);
+        if self.sketch.is_some() {
+            if let Some(build) = v.build {
+                let (chosen, hovered) = lit_edges(&self.selection);
+                if renderer.lock().is_ok_and(|mut r| r.sync_edges(&build.0, &chosen, hovered)) {
+                    ui.ctx().request_repaint();
+                }
+            }
+            self.draw_sketch(ui, v);
+            return;
+        }
         self.draw_marks(&painter, v, &projector);
         if let Some(build) = v.build
             && self.selection.needs_stage(build.key())
@@ -483,6 +553,10 @@ impl Cad {
             Some(menu::Choice::Act(action)) => {
                 self.pressed = self.menu.take().and_then(|m| m.under);
                 self.act(v, action);
+            }
+            Some(menu::Choice::Extra(e)) => {
+                self.menu = None;
+                self.extra(v, e);
             }
             Some(menu::Choice::Close) => self.menu = None,
             None => {}
@@ -573,9 +647,16 @@ impl Cad {
                 let c = ctx!(self, v);
                 self.live.press_pull(&c, feature, face).map(Request::Status)
             }
-            MenuAction::IsolateInCad(_) | MenuAction::ToggleGrid | MenuAction::SketchOnFace { .. } | MenuAction::SketchOnPlane { .. } => {
-                unreachable!("not_here answered for it")
+            MenuAction::SketchOnFace { feature, face } => {
+                self.start_sketch(v, touch::sketch::Place::Face { feature, face });
+                return;
             }
+            MenuAction::SketchOnPlane { theta_deg, across_mm } => {
+                self.start_sketch(v, touch::sketch::Place::Tangent { theta_deg, across_mm });
+                return;
+            }
+            MenuAction::IsolateInCad(id) => Ok(Request::Isolate(Some(id))),
+            MenuAction::ToggleGrid => unreachable!("not_here answered for it"),
         };
         match request {
             Ok(r) => self.requests.push(r),

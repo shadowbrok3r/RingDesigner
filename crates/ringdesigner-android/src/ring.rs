@@ -397,6 +397,20 @@ pub struct Done {
     pub params: BuildParams,
     /// The mesh shows one isolated layer rather than the design.
     pub isolated: bool,
+    /// The part the mesh shows alone, when one was asked for and it stands on the ring.
+    pub alone: Option<ringdesign_core::sketch::Id>,
+    /// Why the part asked for could not be shown alone.
+    pub alone_note: Option<String>,
+    /// Where the worker's time went, milliseconds.
+    pub timings: Timings,
+}
+
+/// A build's time on the worker, milliseconds: the whole job, the vertex buffer and stones staged, and the pick scene.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Timings {
+    pub worker_ms: f64,
+    pub stage_ms: f64,
+    pub scene_ms: f64,
 }
 
 struct Job {
@@ -407,6 +421,7 @@ struct Job {
     analyze: bool,
     gems: bool,
     view_layer: Option<usize>,
+    view_part: Option<ringdesign_core::sketch::Id>,
     cuts: Cuts,
 }
 
@@ -483,6 +498,7 @@ impl Worker {
                     while let Ok(newer) = jobs_rx.try_recv() {
                         job = newer;
                     }
+                    let clock = std::time::Instant::now();
                     // A graph-driven design is evaluated first; a failed
                     // evaluation builds the last good design instead.
                     let mut graph = runner.run(&job.design, &job.lib);
@@ -512,28 +528,6 @@ impl Worker {
                         Ok(out) => out,
                         Err(e) => { let _ = error_tx.send((job.generation, e.to_string())); ctx.request_repaint(); continue; }
                     };
-                    // The verdict first, its CAD parts judged on this build; the draft colours then paint at its plane.
-                    let field = job.analyze.then(|| {
-                        let mut f = field_from_graph.unwrap_or_else(|| {
-                            castability::attributed_field_report(
-                                &job.design,
-                                &job.lib,
-                                &job.design.draft,
-                                160,
-                                112,
-                            )
-                        });
-                        castability::judge_parts(&mut f, &job.design, &out);
-                        f
-                    });
-                    let cast = field.as_ref().map(|f| {
-                        castability::analyze_at(
-                            &out.mesh,
-                            &job.design.draft,
-                            job.design.inner_radius_mm(),
-                            f.parting_z_mm,
-                        )
-                    });
                     let report = out.report.clone();
                     let view_layer = job
                         .view_layer
@@ -547,15 +541,74 @@ impl Worker {
                     } else {
                         std::borrow::Cow::Borrowed(&job.design)
                     };
-                    // Isolation is a rendering operation. All reports above use
-                    // the complete source; exports never receive this copy.
-                    let mut out = if view_layer.is_some() {
-                        ringdesign_core::mesh::build(&visible, &job.lib, job.params)
-                    } else {
-                        out
-                    };
-                    // A design with parts keeps the band they stand on as its ring frame; one without drops the copy.
+                    // Isolation is a rendering operation: the reports read the complete source, and exports never see these copies.
+                    let layer_build = view_layer.is_some().then(|| ringdesign_core::mesh::build(&visible, &job.lib, job.params));
                     let parts = job.design.cad.is_some();
+                    let (alone, alone_note) = match job.view_part.filter(|_| view_layer.is_none() && parts) {
+                        Some(id) => match ringdesign_workbench::touch::isolate::alone(&out, id) {
+                            Ok(b) => (Some(b), None),
+                            Err(why) => (None, Some(why)),
+                        },
+                        None => (None, None),
+                    };
+                    let plain = view_layer.is_some() || alone.is_some();
+                    // Parts and stones are chosen through one scene over what is on screen; a plain band needs none.
+                    let choosable = parts || !ringdesign_core::setstone::set_stones(&visible).is_empty();
+                    let (field, cast, verts, gems, scene, stage_ms, scene_ms) = std::thread::scope(|s| {
+                        let display = alone.as_ref().or(layer_build.as_ref()).unwrap_or(&out);
+                        // The pick scene builds on its own thread beside the verdict and the staging, which never read it.
+                        let picking = s.spawn(|| {
+                            let clock = std::time::Instant::now();
+                            let scene = choosable.then(|| Arc::new(ringdesign_core::interaction::pick::PickScene::build(display, &visible)));
+                            (scene, clock.elapsed().as_secs_f64() * 1e3)
+                        });
+                        // The verdict first, its CAD parts judged on the whole build; the draft colours then paint at its plane.
+                        let field = job.analyze.then(|| {
+                            let mut f = field_from_graph.unwrap_or_else(|| {
+                                castability::attributed_field_report(
+                                    &job.design,
+                                    &job.lib,
+                                    &job.design.draft,
+                                    160,
+                                    112,
+                                )
+                            });
+                            castability::judge_parts(&mut f, &job.design, &out);
+                            f
+                        });
+                        let cast = field.as_ref().map(|f| {
+                            castability::analyze_at(
+                                &out.mesh,
+                                &job.design.draft,
+                                job.design.inner_radius_mm(),
+                                f.parting_z_mm,
+                            )
+                        });
+                        let staging = std::time::Instant::now();
+                        let verts = GpuMeshRenderer::stage(
+                            &display.mesh,
+                            if plain { None } else { cast.as_ref() },
+                            (
+                                job.design.inner_radius_mm(),
+                                job.design.draft.min_section_mm,
+                            ),
+                        );
+                        let mut gems = if job.gems && alone.is_none() {
+                            ringdesign_core::gems::preview_vertices(&visible, &job.lib)
+                        } else {
+                            Vec::new()
+                        };
+                        if job.gems && alone.is_none() {
+                            stones_as_parts(display, &mut gems);
+                        }
+                        let stage_ms = staging.elapsed().as_secs_f64() * 1e3;
+                        // A panic building the scene fails this build, as one here does.
+                        let (scene, scene_ms) = picking.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
+                        (field, cast, verts, gems, scene, stage_ms, scene_ms)
+                    });
+                    let alone_id = alone.as_ref().and(job.view_part);
+                    let mut out = alone.or(layer_build).unwrap_or(out);
+                    // A design with parts keeps the band they stand on as its ring frame; one without drops the copy.
                     if !parts {
                         out.band = None;
                     }
@@ -570,29 +623,6 @@ impl Worker {
                             }
                         }
                     });
-                    let verts = GpuMeshRenderer::stage(
-                        &out.mesh,
-                        if view_layer.is_some() {
-                            None
-                        } else {
-                            cast.as_ref()
-                        },
-                        (
-                            job.design.inner_radius_mm(),
-                            job.design.draft.min_section_mm,
-                        ),
-                    );
-                    let mut gems = if job.gems {
-                        ringdesign_core::gems::preview_vertices(&visible, &job.lib)
-                    } else {
-                        Vec::new()
-                    };
-                    if job.gems {
-                        stones_as_parts(&out, &mut gems);
-                    }
-                    // Parts and stones are chosen through one scene over what is on screen; a plain band needs none.
-                    let choosable = parts || !ringdesign_core::setstone::set_stones(&visible).is_empty();
-                    let scene = choosable.then(|| Arc::new(ringdesign_core::interaction::pick::PickScene::build(&out, &visible)));
                     let build = Arc::new(out);
                     let done = Done {
                         generation: job.generation,
@@ -612,6 +642,9 @@ impl Worker {
                         graph,
                         params: job.params,
                         isolated: view_layer.is_some(),
+                        alone: alone_id,
+                        alone_note,
+                        timings: Timings { worker_ms: clock.elapsed().as_secs_f64() * 1e3, stage_ms, scene_ms },
                     };
                     if done_tx.send(done).is_err() {
                         break;
@@ -638,6 +671,7 @@ impl Worker {
         analyze: bool,
         gems: bool,
         view_layer: Option<usize>,
+        view_part: Option<ringdesign_core::sketch::Id>,
         cuts: Cuts,
     ) -> bool {
         self.jobs
@@ -649,6 +683,7 @@ impl Worker {
                 analyze,
                 gems,
                 view_layer,
+                view_part,
                 cuts,
             })
             .is_ok()

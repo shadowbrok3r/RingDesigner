@@ -172,6 +172,10 @@ pub struct RingApp {
     /// Cut exports oversize for this metal's shrink; None is nominal.
     shrink_metal: Option<usize>,
     status: String,
+    /// The status line under the ring: when its words changed, and whether it is open whole.
+    status_seen: crate::status::Line,
+    /// The part the mesh on screen shows alone, which the camera was last fitted to.
+    shown_alone: Option<u64>,
     dirty_at: Option<Instant>,
     generation: u64,
 
@@ -329,6 +333,8 @@ impl RingApp {
             as_cast: false,
             shrink_metal: None,
             status: "starting".into(),
+            status_seen: Default::default(),
+            shown_alone: None,
             dirty_at: None,
             generation: 0,
             data_root: None,
@@ -579,6 +585,7 @@ impl RingApp {
             analyze,
             self.show_gems,
             view_layer,
+            self.cad.isolated,
             self.cuts,
         ) {
             self.status = "build worker stopped".into();
@@ -612,9 +619,33 @@ impl RingApp {
                     });
                 }
                 self.preview_in_flight = false;
-                if self.fit_next || self.preview_mesh.is_none() {
+                // A part that cannot stand alone lets the whole ring back and says why.
+                let alone_note = done.alone_note.clone();
+                if alone_note.is_some() {
+                    self.cad.isolated = None;
+                }
+                if done.cast.is_some() {
+                    let t = done.timings;
+                    log::info!(
+                        "ring build landed: dispatch to landed {:.1} ms · worker {:.1} · mesh {} · stage {:.1} · scene {:.1} · {} tris",
+                        self.last_preview_at.elapsed().as_secs_f64() * 1e3,
+                        t.worker_ms,
+                        done.build_ms,
+                        t.stage_ms,
+                        t.scene_ms,
+                        done.triangles
+                    );
+                }
+                // A part shown alone, or the whole ring again, is framed as it arrives.
+                if self.fit_next || self.preview_mesh.is_none() || done.alone != self.shown_alone {
                     self.pane.camera.fit(done.bounds);
+                    if done.alone != self.shown_alone {
+                        self.pane.camera.pan = [0.0; 2];
+                        self.pane.camera.zoom = 1.0;
+                        self.camera_turn = None;
+                    }
                     self.fit_next = false;
+                    self.shown_alone = done.alone;
                 }
                 self.preview_gems = done.gems.clone();
                 self.node_focus.mesh_generation = done.generation;
@@ -677,6 +708,9 @@ impl RingApp {
                 } else {
                     self.status = format!("{} tris · {} ms", done.triangles, done.build_ms);
                 }
+                if let Some(why) = alone_note {
+                    self.status = why;
+                }
                 ctx.request_repaint();
             }
             while let Some((generation, findings)) = worker.poll_detail() {
@@ -737,10 +771,12 @@ impl RingApp {
         let history_button = |ui: &mut egui::Ui, icon, available: bool| {
             ui.add_enabled_ui(available, |ui| ringdesign_workbench::icons::compact(ui, icon, false)).inner
         };
+        // While a sketch is drawn, the header's undo and redo step through its strokes.
+        let sketch = self.cad.sketch().map(|l| (l.pad.tools.can_undo(), l.pad.tools.can_redo()));
         let r = history_button(
             ui,
             ringdesign_workbench::icons::Icon::Undo,
-            pending || undo.is_some(),
+            sketch.map_or(pending || undo.is_some(), |(back, _)| back),
         );
         crate::editor::layout::record(ui, "header/Undo", r.rect);
         if pending {
@@ -748,7 +784,9 @@ impl RingApp {
         } else if let Some(l) = &undo {
             r.response.clone().on_hover_text(format!("Undo {l}"));
         }
-        if r.clicked() && self.cad.live.is_live() {
+        if r.clicked() && sketch.is_some() {
+            self.status = if self.cad.sketch_undo() { "Took back the sketch's last edit".into() } else { "Nothing to take back in this sketch".into() };
+        } else if r.clicked() && self.cad.live.is_live() {
             let mut said = Vec::new();
             self.cad.live.cancel(&mut said);
             self.status = "Ended the live command; nothing undone".into();
@@ -765,13 +803,15 @@ impl RingApp {
         let r = history_button(
             ui,
             ringdesign_workbench::icons::Icon::Redo,
-            !pending && redo.is_some(),
+            sketch.map_or(!pending && redo.is_some(), |(_, again)| again),
         );
         crate::editor::layout::record(ui, "header/Redo", r.rect);
         if let Some(l) = &redo {
             r.response.clone().on_hover_text(format!("Redo {l}"));
         }
-        if r.clicked() {
+        if r.clicked() && sketch.is_some() {
+            self.status = if self.cad.sketch_redo() { "Put the sketch's edit back".into() } else { "Nothing to put back in this sketch".into() };
+        } else if r.clicked() {
             // A fresh edit invalidates the old redo branch, even during settle.
             self.history.commit(&self.design);
             if let Some(d) = self.history.redo() {

@@ -176,13 +176,117 @@ fn stones_section(ui: &mut egui::Ui, stones: Option<&StonesReport>) {
     }
 }
 
+/// How the verdict read one CAD part.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PartRead {
+    /// Judged against the ring's parting plane and clean.
+    Clean,
+    /// Judged, and it locks the mould somewhere.
+    Locks,
+    /// Not judged: beside the band, or soldered on at the bench after a sand pour.
+    Aside,
+}
+
+impl PartRead {
+    pub fn color(self) -> egui::Color32 {
+        use ringdesign_core::castability::FaceClass;
+        let rgb = |c: FaceClass| {
+            let [r, g, b] = c.rgb().map(|v| (v * 255.0).round() as u8);
+            egui::Color32::from_rgb(r, g, b)
+        };
+        match self {
+            Self::Clean => rgb(FaceClass::Good),
+            Self::Locks => rgb(FaceClass::Undercut),
+            Self::Aside => crate::theme::INK_DIM,
+        }
+    }
+}
+
+/// One CAD part's line in Findings: the part, how the verdict read it, and its words.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PartRow {
+    pub feature: ringdesign_core::sketch::Id,
+    pub read: PartRead,
+    pub note: String,
+}
+
+/// The field verdict's line for every CAD part, in the verdict's order.
+pub fn part_rows(field: &ringdesign_core::castability::FieldReport) -> Vec<PartRow> {
+    field
+        .parts
+        .iter()
+        .map(|p| PartRow {
+            feature: p.feature,
+            read: if !p.judged {
+                PartRead::Aside
+            } else if p.undercut_at.is_some() {
+                PartRead::Locks
+            } else {
+                PartRead::Clean
+            },
+            note: p.note.clone(),
+        })
+        .collect()
+}
+
+/// Draws the parts' lines, each a thumb-high row with its colour; the part a tap chose.
+pub fn parts_section(ui: &mut egui::Ui, rows: &[PartRow]) -> Option<ringdesign_core::sketch::Id> {
+    if rows.is_empty() {
+        return None;
+    }
+    let mut chosen = None;
+    ui.add_space(4.0);
+    ui.label(egui::RichText::new("CAD parts — read off the built ring; tap one to choose it").small().weak());
+    for row in rows {
+        let r = ui
+            .horizontal(|ui| {
+                let (dot, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+                ui.painter().circle_filled(dot.center(), 5.0, row.read.color());
+                ui.add(egui::Label::new(egui::RichText::new(&row.note).small()).wrap().sense(egui::Sense::click()))
+            })
+            .inner;
+        if r.clicked() {
+            chosen = Some(row.feature);
+        }
+    }
+    chosen
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use ringdesign_core::{
+        AlphaLibrary, BuildParams, castability,
+        cad::{Attach, Component, Document, Feature, Operation, Placement},
+        mesh, templates,
+    };
+
     /// The trade quotes in pennyweight and the core reports grams; a wrong
     /// constant here is a wrong quote, silently.
     #[test]
     fn grams_convert_to_pennyweight_at_the_trade_constant() {
         let g = 15.55173840;
         assert!((g / super::GRAMS_PER_DWT - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn findings_list_every_part_as_the_verdict_read_it_on_the_parting_line_off_it_and_beside_the_band() {
+        let mut d = templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        let post = |attach, theta, across| Component { attach, placement: Placement::Ring { theta_deg: theta, across_mm: across, height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 }, ..Component::default() };
+        let cylinder = || Operation::Cylinder { radius_mm: 0.6, height_mm: 1.5 };
+        doc.append(Feature { id: 2, name: "On the line".into(), enabled: true, operation: cylinder(), component: post(Attach::Join, 90.0, 0.0) }).unwrap();
+        doc.append(Feature { id: 3, name: "Off the line".into(), enabled: true, operation: cylinder(), component: post(Attach::Join, 150.0, 1.5) }).unwrap();
+        doc.append(Feature { id: 4, name: "Beside".into(), enabled: true, operation: cylinder(), component: post(Attach::Separate, 210.0, 0.0) }).unwrap();
+        d.cad = Some(doc);
+        let lib = AlphaLibrary::builtin();
+        let built = mesh::build(&d, &lib, BuildParams { theta_steps: 256, profile_steps: 96, refine: None, ..BuildParams::default() });
+        let mut field = castability::attributed_field_report(&d, &lib, &d.draft, 96, 64);
+        castability::judge_parts(&mut field, &d, &built);
+        let rows = part_rows(&field);
+        assert_eq!(rows.iter().map(|r| (r.feature, r.read)).collect::<Vec<_>>(), [(2, PartRead::Clean), (3, PartRead::Locks), (4, PartRead::Aside)], "{rows:#?}");
+        assert!(rows.iter().all(|r| !r.note.is_empty()));
+        assert_ne!(PartRead::Clean.color(), PartRead::Locks.color());
     }
 }
