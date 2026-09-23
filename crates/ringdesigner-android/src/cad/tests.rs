@@ -184,7 +184,7 @@ fn a_stone_on_a_parts_face_takes_the_pressed_point_and_builds_on_the_part() {
     let at = c.frame.origin;
     let d = b.d.clone();
     let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true };
-    b.cad.pressed = Some(at);
+    b.cad.pressed = Some((at, [0.0, 0.0, 1.0]));
     b.cad.act(&v, MenuAction::AddStoneOnFace { feature: plate, face, key: "round-5" });
     assert!(b.cad.pressed.is_none(), "the press is spent");
     let (edits, then) = b.edits().remove(0);

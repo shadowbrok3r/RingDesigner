@@ -5,7 +5,7 @@ use super::selection::{Sel, Selection, feature_name};
 use crate::icons::Icon;
 use ringdesign_core::{
     RingDesign,
-    cad::{Attach, Stage},
+    cad::{Attach, Operation, Stage},
     interaction::pick::{Entity, Pick},
     sketch::Id,
 };
@@ -174,8 +174,10 @@ pub fn context_items(sel: &Selection, under: Option<&Pick>, design: &RingDesign)
                 items.extend(super::cutters::stone_items(id));
             }
             if let Some(edge) = edge {
-                items.push(MenuItem::new("Fillet this edge", Icon::CadFillet, MenuAction::FilletEdge { feature: id, edge }, "Round the edge with a new Fillet feature on this part"));
-                items.push(MenuItem::new("Chamfer this edge", Icon::CadChamfer, MenuAction::ChamferEdge { feature: id, edge }, "Bevel the edge with a new Chamfer feature on this part"));
+                const MESH: &str = "Built as a mesh: only a kernel part's edges round or bevel";
+                let kernel = feature.is_some_and(|f| !matches!(f.operation, Operation::Builder { .. } | Operation::Stored { .. } | Operation::Pattern { .. }));
+                items.push(MenuItem::new("Fillet this edge", Icon::CadFillet, MenuAction::FilletEdge { feature: id, edge }, "Round the edge with a new Fillet feature on this part").only_if(kernel, MESH));
+                items.push(MenuItem::new("Chamfer this edge", Icon::CadChamfer, MenuAction::ChamferEdge { feature: id, edge }, "Bevel the edge with a new Chamfer feature on this part").only_if(kernel, MESH));
             }
             items.extend(super::patterns::part_items(id, face, reference));
             items.push(MenuItem::new("Edit feature", Icon::Panel, MenuAction::EditFeature(id), "Open the part in the CAD pane with its parameters"));
@@ -260,7 +262,9 @@ mod tests {
         }
         let stones: Vec<_> = items.iter().filter(|i| i.submenu == Some("Add stone here")).collect();
         assert_eq!(stones.len(), ringdesign_core::cad::builders::STONES.len());
-        let tail: Vec<_> = items.iter().skip(adds.len() + stones.len()).map(|i| i.action.clone()).collect();
+        let cuts: Vec<_> = items.iter().filter(|i| i.submenu == Some(super::super::cutters::CUT_HERE)).collect();
+        assert_eq!(cuts.len(), super::super::cutters::PIERCE_KEYS.len());
+        let tail: Vec<_> = items.iter().skip(adds.len() + stones.len() + cuts.len()).map(|i| i.action.clone()).collect();
         let sketch = MenuAction::SketchOnPlane { theta_deg: 90.0, across_mm: 0.0 };
         let pin = MenuAction::PinHere { world: [0.0, radius + 0.5, 0.0] };
         assert_eq!(tail, [sketch, pin, MenuAction::ClearPins, MenuAction::FitView, MenuAction::OpenCad, MenuAction::ToggleWire, MenuAction::ToggleGrid]);

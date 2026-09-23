@@ -305,6 +305,7 @@ impl RingApp {
                 }
             }
             ui.checkbox(&mut self.pane.wireframe, "Mesh edges");
+            ui.checkbox(&mut self.pane.edges, "Part edges");
             if ui.checkbox(&mut self.show_gems, "Show stones").changed() {
                 self.request_view_update();
             }

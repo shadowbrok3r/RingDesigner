@@ -205,6 +205,7 @@ pub fn seat_of(doc: &Document, id: Id) -> Option<(Id, Placement)> {
         at = match &f.operation {
             Operation::Fillet { source, .. } | Operation::Chamfer { source, .. } | Operation::Shell { source, .. } | Operation::PressPull { source, .. } => *source,
             Operation::Builder { on: Some(stone), .. } => *stone,
+            Operation::Stored { sources, .. } => *sources.first()?,
             Operation::Boolean { a, b, .. } if band.is_some_and(|x| x == *a || x == *b) => {
                 if band == Some(*a) {
                     *b

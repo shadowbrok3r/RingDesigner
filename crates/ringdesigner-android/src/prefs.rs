@@ -33,6 +33,8 @@ pub struct Prefs {
     /// and lives in the viewport, which has no business knowing about serde.
     pub shade: usize,
     pub wireframe: bool,
+    /// Every CAD part's edges drawn over the metal.
+    pub part_edges: bool,
     pub navigation: ringdesign_workbench::navigation::Settings,
     pub preview_quality: crate::ring::PreviewQuality,
     pub finish: usize,
@@ -67,6 +69,7 @@ impl Default for Prefs {
             stylus_only: false,
             shade: 0,
             wireframe: false,
+            part_edges: true,
             navigation: Default::default(),
             preview_quality: Default::default(),
             finish: 0,

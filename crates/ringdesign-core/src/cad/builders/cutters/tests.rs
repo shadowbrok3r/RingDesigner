@@ -581,10 +581,11 @@ fn cathedral_shoulders_read_the_head_they_meet_and_follow_it_when_it_changes() {
     let rise = (-g - 0.35 * p) - (-0.45 * (p + 0.2));
     let moved = top(&basket) - claws;
     assert!((moved - rise).abs() < 0.03, "the arches' tops rose {moved:.4} mm with the rail's {rise:.4}");
-    // A head suppressed leaves the arches nothing to meet, and says which.
+    // The head is a source: suppressed, the arches are skipped with it and say which.
     let mut off = d.clone();
     off.cad.as_mut().unwrap().apply(&cad::edit::CadEdit::Enable { id: 3, enabled: false }).unwrap();
-    assert_eq!(status(&off, 10), FeatureStatus::Failed("Cathedral shoulders: #3 Four-claw head is suppressed".into()));
+    assert_eq!(status(&off, 10), FeatureStatus::Skipped("source #3 Four-claw head was suppressed".into()));
+    assert!(d.cad.as_ref().unwrap().features.iter().find(|f| f.id == 10).is_some_and(|f| f.operation.sources().contains(&3)));
 }
 
 /// Where the sand pattern seats a stone against the finished ring: `cargo test -p ringdesign-core pattern_stone_probe -- --ignored --nocapture`.

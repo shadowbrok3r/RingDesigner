@@ -219,7 +219,7 @@ impl Operation {
     }
     pub fn sources(&self) -> Vec<Id> {
         match self {
-            Self::Builder { on, .. } => on.iter().copied().collect(),
+            Self::Builder { on, params, .. } => on.iter().copied().chain(builders::head_param(params)).collect(),
             Self::Boolean { a, b, .. } => vec![*a, *b],
             Self::Pattern { source, kind } => std::iter::once(*source).chain(kind.reads()).collect(),
             Self::Plane { base, .. } => base.reads(),
@@ -1313,7 +1313,11 @@ impl Value {
     }
     /// What a mesh value is, in a refusal's words: copies a pattern placed, or a builder's part.
     fn mesh_words(m: &builders::Made) -> &'static str {
-        if m.key == pattern::PATTERN { "a mesh of placed copies" } else { "a mesh a builder made" }
+        match m.key.as_str() {
+            pattern::PATTERN => "a mesh of placed copies",
+            stored::STORED => "a mesh another kernel made",
+            _ => "a mesh a builder made",
+        }
     }
     /// Faces as the part names them: the body's faces, or the mesh's patches.
     pub fn faces(&self) -> usize {

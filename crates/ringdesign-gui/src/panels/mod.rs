@@ -1321,6 +1321,12 @@ fn viewport_footer(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             ui.add_enabled_ui(app.stones.as_ref().is_some_and(|report| report.stone_count > 0), |ui| {
                 if icons::button(ui, Icon::Stones, "Stones", app.show_gems, egui::vec2(160.,28.)).clicked() { app.show_gems = !app.show_gems; }
             }).response.on_disabled_hover_text("This design has no stones");
+            let edges = crate::viewport::show_edges(ui.ctx());
+            let part_edges = icons::button(ui, Icon::CadBox, "Part edges", edges, egui::vec2(160.,28.));
+            if part_edges.clicked() {
+                ui.ctx().data_mut(|d| d.insert_persisted(egui::Id::new(crate::viewport::EDGES_SHOWN), !edges));
+            }
+            part_edges.response.on_hover_text("Every CAD part's edges and every builder's creases over the metal; a chosen or hovered edge shows either way");
             let mut changed = false;
             if icons::button(ui, Icon::Cutters, "Live cuts", app.live_cuts, egui::vec2(160.,28.)).clicked() { app.live_cuts = !app.live_cuts; changed = true; }
             if icons::button(ui, Icon::Cutters, "Cutters", app.show_cutters, egui::vec2(160.,28.)).clicked() { app.show_cutters = !app.show_cutters; changed = true; }

@@ -16,7 +16,6 @@ pub fn not_here(action: &MenuAction) -> Option<&'static str> {
         MenuAction::SketchOnFace { .. } | MenuAction::SketchOnPlane { .. } => "Not on the phone yet: sketch on the desktop, and the design file brings the sketch here",
         MenuAction::IsolateInCad(_) => NO_ISOLATE,
         MenuAction::ToggleGrid => "The phone's view has no ground grid",
-        MenuAction::CutHere { .. } | MenuAction::UnderStone { .. } => "Not on the phone yet: cutters and shoulders are built on the desktop",
         _ => return None,
     })
 }
@@ -92,13 +91,13 @@ pub struct Menu {
     pub rect: Rect,
     /// Whether the popup hangs below the finger, settled when it is first drawn.
     pub below: Option<bool>,
-    /// The point on the ring under the finger, when the menu is for what lies there.
-    pub world: Option<[f64; 3]>,
+    /// The point on the ring under the finger and the surface's normal there, when the menu is for what lies there.
+    pub under: Option<([f64; 3], [f64; 3])>,
 }
 
 impl Menu {
     pub fn new(at: Pos2, heading: Option<String>, items: Vec<MenuItem>) -> Self {
-        Self { at, heading, items, page: None, rect: Rect::NOTHING, below: None, world: None }
+        Self { at, heading, items, page: None, rect: Rect::NOTHING, below: None, under: None }
     }
 }
 
@@ -218,8 +217,9 @@ mod tests {
             Row::Sub { name, count, .. } => Some((*name, *count)),
             _ => None,
         }).collect();
-        assert_eq!(subs, [("Add CAD part here", 6), ("Add stone here", ringdesign_core::cad::builders::STONES.len())]);
-        assert_eq!(top.len(), 2 + 7, "two folded submenus, then the sketch, two pin rows and four view rows");
+        let cuts = ringdesign_workbench::viewport::cutters::PIERCE_KEYS.len();
+        assert_eq!(subs, [("Add CAD part here", 6), ("Add stone here", ringdesign_core::cad::builders::STONES.len()), ("Cut here", cuts)]);
+        assert_eq!(top.len(), 3 + 7, "three folded submenus, then the sketch, two pin rows and four view rows");
         // The stones' page: the way back, then every preset, each served here.
         let stones = rows(&items, Some("Add stone here"));
         assert_eq!(stones[0], Row::Back);
@@ -258,7 +258,7 @@ mod tests {
         let under = pick(Entity::Band, [0.0, 9.5, 0.0]);
         let items = phone_items(context_items(&Selection::default(), Some(&under), &d));
         let view = Rect::from_min_size(Pos2::ZERO, egui::vec2(420.0, 1000.0));
-        let mut menu = Menu::new(egui::pos2(200.0, 600.0), Some("Band at 90°".into()), items);
+        let mut menu = Menu::new(egui::pos2(200.0, 700.0), Some("Band at 90°".into()), items);
         let ctx = egui::Context::default();
         // An area is sized from its last pass, so a few passes let a new page settle.
         let draw = |menu: &mut Menu| {
@@ -270,16 +270,16 @@ mod tests {
             }
             menu.rect
         };
-        // Nine rows do not fit under a finger 600 points down a 1000-point view, so the list hangs above it.
+        // Ten rows do not fit under a finger 700 points down a 1000-point view, so the list hangs above it.
         let list = draw(&mut menu);
         assert_eq!(menu.below, Some(false));
-        assert!((list.bottom() - 588.0).abs() < 1.0, "{list:?}");
-        // All nine rows and Close stand at once, not scrolled inside egui's 400-point first guess at an area.
-        assert!(list.height() > 9.0 * (touch::TARGET_PT + 4.0), "{list:?}");
+        assert!((list.bottom() - 688.0).abs() < 1.0, "{list:?}");
+        // All ten rows and Close stand at once, not scrolled inside egui's 400-point first guess at an area.
+        assert!(list.height() > 10.0 * (touch::TARGET_PT + 4.0), "{list:?}");
         // The parts' page would fit beneath; it keeps the list's side instead of jumping under the finger.
         menu.page = Some("Add CAD part here");
         let page = draw(&mut menu);
-        assert!(page.height() < list.height() && (page.bottom() - 588.0).abs() < 1.0, "{list:?} then {page:?}");
+        assert!(page.height() < list.height() && (page.bottom() - 688.0).abs() < 1.0, "{list:?} then {page:?}");
     }
 
     #[test]
