@@ -537,6 +537,57 @@ worktrees, then verified, measured and committed by the integrator.
   ring with the caption and the Instances field, type 4, Enter → "Ring array of Cylinder" on the
   timeline, three copies at 90° steps, one History entry "Add Ring array of Cylinder".
 
+### Batch 10 status — 2026-09-23 (on master: `m13-seats`, `m12-phone-rest`, `desktop-polish` merged, integration `59c1578`)
+
+- **The sand pattern seats every part where the finished ring does** (`mesh::try_build_poured`,
+  which `try_build_pattern` and `manufacturing::prepare` now build through): parts stand on the
+  finished ring's band, never on their own raised marks. The claw solitaire's stone went from
+  +0.259 mm and 23.65° off to 0.000 mm and 0.00°, with azures and shoulders from +0.378 mm and
+  29.50°; nothing fails or is skipped, and every part's frame equals the finished ring's to 1e-6.
+  The pattern build costs 11-34 ms more than the finished one at 256×128 (a second sweep).
+- **Shoulders stage by where their stone sits** (`cutters::shoulder_stage_for`): Cast within
+  `SHOULDER_PARTING_MM` (0.005 mm) of the parting plane, Bench off it — 0.0001 mm² on the plane,
+  1.03 mm² 0.1 mm off, 8.04 mm² 0.8 mm off. Right-click a stone ▸ Cathedral shoulders reads the
+  built stone's frame on both apps.
+- **A stone on a part's face is edited on the face** (`commands::FaceHold`): G slides it along,
+  across and off the face (typed values exact to 1e-9), R spins it, the face gizmo's arrows, ring and
+  dial drive the seat, and the head built round it follows — no Transform, one undo step; P says why
+  it is refused. A ring array of such a stone drops every copy back onto the plate (0.8045 mm over
+  it, 0° lean at 12° and 24°, where copies had sunk 0.307 mm and leaned 24°), and the array ghost on
+  both apps is the evaluation's own motions (`pattern::copy_motions`; it stood 1.19 mm off). A bench
+  head on a plate leaves its locating dot on the plate's top (0.1262 mm³ against the frustum's
+  0.1264), not in the band under it.
+- **The phone measures, box-selects and shows work planes by touch**
+  (`workbench::touch::{measure, boxes, planes}`): taps pair and a third chains to the corner (7.0-7.4
+  mm between two band taps 40° apart), a window or crossing box with Replace, Add or Remove, a plane
+  taken by its outline or name with a long-press menu (Mirror is one undo step, the copy lands at
+  (x, −y, z) to 1e-3), and Work planes in its prefs. A 16×16 sweep of taps over the 3/4 view reads
+  every tap on metal and names every miss.
+- **The desktop lands a build in under half a millisecond**: the worker prepares the mesh buffer, the
+  edges and the pick scene (beside the castability checks), so the UI thread only uploads — 34.5 ms
+  to 0.12-0.40 ms at preview, 176 ms to 0.32-0.53 ms at export; dispatch to landed went 190 to
+  157-167 ms at preview, and hidden section panes are no longer resliced. The CAD pane draws its
+  parts' edges, Part edges and Work planes come back with the workspace, and `cad_edit::apply` goes
+  through `workbench::touch::funnel::prepare`.
+- **Format 6 only for a stored mesh** (`library::format_version_for`, `cad::stored::carried_by`): a
+  design carrying `Operation::Stored` in its document or anywhere in its graph writes 6, and a reader
+  stopping at 5 refuses it as saved by a newer RingDesigner; everything else still writes 5, so
+  desktop 0.6.0 and phone 0.29.0 keep opening it.
+- Verified: core 636 + golden, workbench 179, gui 130, graph 84 + 8 + 2 + 3, graph-ui 26, mcp 43,
+  cli 3 + 5, occt 2, configurator 5, script 5, phone 160, assets 4, solid 1; wasm, NDK arm64 and the
+  locked workspace clean with zero warnings; the desktop live-checked (a graph parameter's rebuild
+  landed through the worker, 6.0 to 6.7 mm wide, posts clean on the wider band); the phone's three
+  tools on the rdsmoke emulator from the branch build.
+- Closed from earlier lists: face-stone G/R, its array and the bench mark under the plate (batch 8);
+  the stone seated on the pattern's own marks, shoulders defaulting Bench, the CAD pane without
+  edges, edge staging on the UI thread and the `format_version` step (batch 9).
+- Open: a part's mark on a plate face off the parting line is never moved onto it; G on a head built
+  round a stone still wraps a Transform; face arrays drop copies past the face's edge unchecked; the
+  selection tint re-stages on the UI thread (4.5 ms at export); the Part edges switch lives in egui's
+  data, mirrored into the workspace; a session design bypasses the version ladder; the phone has no
+  sketching, work-plane creation, status line or numeric keyboard; a driven design still carries a
+  stored mesh twice; OpenCascade's LGPL and Windows shipping remain Logan's call.
+
 ### Batch 9 status — 2026-09-23 (on master: `m12-shared-renderer`, `m13-cutters`, `m13-occt-spike` merged, and their integration)
 
 - **M12's renderer half** (`workbench::render`): one GL renderer both apps draw through, its shaders
