@@ -852,11 +852,22 @@ pub fn section_at_spaced(
     steps: usize,
     spacing: Option<&Spacing>,
 ) -> Section {
+    section_with(design, lib, theta_deg, steps, spacing, &design.reference_loop(), &design.field_context())
+}
+
+/// [`section_at_spaced`] against the design's reference loop and field context, built once for many sections.
+fn section_with(
+    design: &RingDesign,
+    lib: &AlphaLibrary,
+    theta_deg: f64,
+    steps: usize,
+    spacing: Option<&Spacing>,
+    reference: &crate::profile::ProfileLoop,
+    ctx: &crate::field::FieldContext,
+) -> Section {
     let n = steps.clamp(24, 4096);
     let inner_r = design.inner_radius_mm();
-    let reference = design.reference_loop();
-    let ctx = design.field_context();
-    let loop_i = design.section_at(theta_deg, n, spacing.map(|s| &s.v), Some(&reference));
+    let loop_i = design.section_at(theta_deg, n, spacing.map(|s| &s.v), Some(reference));
     if loop_i.len() < 3 {
         return Section { theta_deg, ..Default::default() };
     }
@@ -868,7 +879,7 @@ pub fn section_at_spaced(
     let mut points: Vec<SectionPoint> = Vec::with_capacity(loop_i.len());
     let displacer = crate::mesh::Displacer {
         stack: &design.layers,
-        ctx: &ctx,
+        ctx,
         lib,
         soften_mm: 0.0,
         inner_r,
@@ -1121,10 +1132,9 @@ pub fn analyze_field(
         return FieldReport {verdict:Verdict::Marginal,notes:vec!["CAD solids require mesh-space manufacturing inspection; band-field measurements do not apply".into()],..empty};
     }
 
+    let (reference, ctx) = (design.reference_loop(), design.field_context());
     let sections: Vec<Section> = (0..t_n)
-        .map(|i| {
-            section_at_spaced(design, lib, i as f64 / t_n as f64 * 360.0, profile_steps, None)
-        })
+        .map(|i| section_with(design, lib, i as f64 / t_n as f64 * 360.0, profile_steps, None, &reference, &ctx))
         .collect();
     let p_n = sections[0].points.len();
     if p_n < 3 || sections.iter().any(|s| s.points.len() != p_n) {
@@ -1490,8 +1500,9 @@ fn field_undercuts(
     t_n: usize,
     p_n: usize,
 ) -> Vec<(f64, f64, f64, f64)> {
+    let (reference, ctx) = (design.reference_loop(), design.field_context());
     let sections: Vec<Section> =
-        (0..t_n).map(|i| section_at_spaced(design, lib, i as f64 / t_n as f64 * 360.0, p_n, None)).collect();
+        (0..t_n).map(|i| section_with(design, lib, i as f64 / t_n as f64 * 360.0, p_n, None, &reference, &ctx)).collect();
     let rows = sections[0].points.len();
     if rows < 3 || sections.iter().any(|s| s.points.len() != rows) {
         return Vec::new();
@@ -1683,6 +1694,34 @@ mod bench_stage_tests {
 
 #[cfg(test)]
 mod tests {
+    /// Every section of the verdict reads one reference loop and one field context, built once.
+    #[test]
+    fn the_field_verdict_builds_its_reference_and_context_once() {
+        use crate::alpha::AlphaLibrary;
+        let lib = AlphaLibrary::builtin();
+        let d = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let (reference, ctx) = (d.reference_loop(), d.field_context());
+        let (one, shared) = (super::section_at_spaced(&d, &lib, 37.5, 128, None), super::section_with(&d, &lib, 37.5, 128, None, &reference, &ctx));
+        let bits = |s: &super::Section| s.points.iter().map(|p| (p.r.to_bits(), p.z.to_bits(), p.draft_deg.to_bits())).collect::<Vec<_>>();
+        assert!(!one.points.is_empty() && bits(&one) == bits(&shared));
+        let time = |f: &dyn Fn()| {
+            f();
+            let started = std::time::Instant::now();
+            for _ in 0..3 {
+                f();
+            }
+            started.elapsed().as_secs_f64() * 1e3 / 3.0
+        };
+        let field_ms = time(&|| {
+            let _ = super::analyze_field(&d, &lib, &d.draft, 192, 128);
+        });
+        let rebuilt_ms = 192.0 * time(&|| {
+            let _ = (d.reference_loop(), d.field_context());
+        });
+        eprintln!("field verdict at 192x128 {field_ms:.1} ms; a reference and context per section would cost {rebuilt_ms:.1} ms on their own");
+        assert!(field_ms < rebuilt_ms, "{field_ms} ms against {rebuilt_ms}");
+    }
+
     #[test]
     fn the_parting_line_rides_the_widest_silhouette_and_the_svg_writes() {
         use crate::alpha::AlphaLibrary;
