@@ -290,9 +290,10 @@ pub fn append(g: &mut Graph, operation: Operation) -> Result<NodeId, crate::grap
         })
         .or_else(|| g.nodes.last().map(|n| n.id))
         .ok_or_else(|| crate::graph::GraphError::global("Graph needs a design source"))?;
-    // A part built round a stone takes its builder's own component, never the stone's.
+    // A part built round a stone takes its builder's own component, never the stone's; a work plane takes the default.
     let mut component = match &operation {
         Operation::Builder { key, .. } => ringdesign_core::cad::builders::component(key),
+        Operation::Plane { .. } => Default::default(),
         _ => operation
             .sources()
             .first()
@@ -744,6 +745,28 @@ mod tests {
         assert_eq!(doc.features.iter().map(|f| f.id).collect::<Vec<_>>(), vec![1, 2, 3, 4, id.0]);
         assert_eq!(doc.dependents(2), vec![3, 4, id.0], "every setting reads its stone");
         assert!(doc.outputs.contains(&2), "and the stone stays a part beside them");
+    }
+    #[test]
+    fn a_pattern_appended_takes_its_sources_component_and_a_work_plane_takes_none() {
+        use ringdesign_core::cad::{Attach, ComponentRole, FaceRef, MirrorPlane, PatternKind, Placement, PlaneBase};
+        let d = ringdesign_core::cad::examples::design("claw-solitaire").unwrap();
+        let mut g = from_document(&d).unwrap();
+        let array = append(&mut g, Operation::Pattern { source: 3, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } }).unwrap();
+        let plane = append(&mut g, Operation::Plane { base: PlaneBase::Section { theta_deg: 90.0 }, offset_mm: 0.0 }).unwrap();
+        let mirror = append(&mut g, Operation::Pattern { source: 3, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: plane.0 } } }).unwrap();
+        let on_face = append(&mut g, Operation::Plane { base: PlaneBase::Face { feature: 3, face: FaceRef::bare(0) }, offset_mm: 0.2 }).unwrap();
+        let feature = |id: NodeId| serde_json::from_value::<Feature>(g.node(id).unwrap().params.clone()).unwrap();
+        let (a, p, m, f) = (feature(array), feature(plane), feature(mirror), feature(on_face));
+        assert_eq!((a.name.as_str(), a.component.attach, a.component.role, a.component.placement.clone()), ("Ring array", Attach::Join, ComponentRole::Head, Placement::Free));
+        assert_eq!((m.name.as_str(), m.component.attach), ("Mirror", Attach::Join));
+        assert_eq!((p.name.as_str(), p.component.attach, f.component.attach, f.component.role), ("Work plane", Attach::Separate, Attach::Separate, ComponentRole::Other));
+        let reg = Registry::builtin();
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let out = crate::eval::evaluate_design(&mut crate::eval::Evaluator::new(), &g, &reg, &lib, 0).unwrap();
+        let doc = out.design.cad.clone().unwrap();
+        assert!(doc.outputs.contains(&array.0) && doc.outputs.contains(&mirror.0) && doc.outputs.contains(&3), "{:?}", doc.outputs);
+        assert!(!doc.outputs.contains(&plane.0) && !doc.outputs.contains(&on_face.0), "a work plane has no body to output");
+        assert_eq!(doc.dependents(plane.0), vec![mirror.0]);
     }
     #[test]
     fn features_recompute_and_suppression_is_persistent() {

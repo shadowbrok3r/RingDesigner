@@ -17,7 +17,9 @@ pub mod builders;
 pub mod edit;
 pub mod examples;
 pub mod measure;
+pub mod pattern;
 pub mod step;
+pub use pattern::{MirrorPlane, PatternKind, PlaneBase, WorkPlane};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Boolean {
@@ -110,6 +112,23 @@ pub enum Operation {
         #[serde(default)]
         params: serde_json::Value,
     },
+    /// Copies of `source` placed again, as one part of their own; the source stays a part beside them.
+    Pattern {
+        source: Id,
+        kind: PatternKind,
+    },
+    /// A plane with no body, for sketches to lie on and mirrors to reflect across.
+    Plane {
+        base: PlaneBase,
+        #[serde(default)]
+        offset_mm: f64,
+    },
+    /// A planar face of a kernel part moved along its outward normal: out for a positive distance, in for a negative one.
+    PressPull {
+        source: Id,
+        face: FaceRef,
+        distance_mm: f64,
+    },
 }
 /// The closed profile a feature sweeps: drawn in the feature, or a `Sketch` feature named by id.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -169,15 +188,25 @@ impl Operation {
             Self::Shell { .. } => "Shell",
             Self::Transform { .. } => "Place component",
             Self::Builder { key, .. } => builders::label(key),
+            Self::Pattern { kind, .. } => kind.label(),
+            Self::Plane { .. } => "Work plane",
+            Self::PressPull { .. } => "Press-pull",
         }
+    }
+    /// Whether the feature builds a body of its own: a sketch and a work plane do not.
+    pub fn has_body(&self) -> bool {
+        !matches!(self, Self::Sketch { .. } | Self::Plane { .. })
     }
     pub fn sources(&self) -> Vec<Id> {
         match self {
             Self::Builder { on, .. } => on.iter().copied().collect(),
             Self::Boolean { a, b, .. } => vec![*a, *b],
+            Self::Pattern { source, kind } => std::iter::once(*source).chain(kind.reads()).collect(),
+            Self::Plane { base, .. } => base.reads(),
             Self::Fillet { source, .. }
             | Self::Chamfer { source, .. }
             | Self::Shell { source, .. }
+            | Self::PressPull { source, .. }
             | Self::Transform { source, .. } => vec![*source],
             Self::Extrude { sketch, .. } | Self::Revolve { sketch, .. } | Self::Sweep { sketch, .. } => sketch.dependencies(),
             Self::Twist { sketch, path, .. } => {
@@ -190,14 +219,14 @@ impl Operation {
             _ => vec![],
         }
     }
-    /// The sources whose bodies this feature takes the place of among the outputs: every source
-    /// but the faces its sketches lie on, which are read and stay parts of their own.
+    /// The sources this feature replaces among the outputs: never a sketch's face, a pattern's part or a plane's face.
     pub fn consumes(&self) -> Vec<Id> {
         match self {
             Self::Boolean { a, b, .. } => vec![*a, *b],
             Self::Fillet { source, .. }
             | Self::Chamfer { source, .. }
             | Self::Shell { source, .. }
+            | Self::PressPull { source, .. }
             | Self::Transform { source, .. } => vec![*source],
             Self::Extrude { sketch, .. }
             | Self::Revolve { sketch, .. }
@@ -779,6 +808,43 @@ fn resolve_face(body: &Body, r: &FaceRef, frame: &brep::Placement, notes: &mut V
         ),
     }
 }
+/// Signs every bare face and edge reference in `op` in the seated frame of the part `e` built; the number signed.
+pub fn sign_refs(op: &mut Operation, e: &Evaluated) -> usize {
+    let part = |id: Id| e.components.iter().find(|c| c.id == id).and_then(|c| Some((c.brep()?, c.frame)));
+    let edge = |r: &mut EdgeRef, id: Id| -> usize {
+        let Some((body, frame)) = part(id).filter(|_| r.signature.is_none()) else { return 0 };
+        r.signature = edge_signature(body, r.ordinal, &frame);
+        usize::from(r.signature.is_some())
+    };
+    let face = |r: &mut FaceRef, id: Id| -> usize {
+        let Some((body, frame)) = part(id).filter(|_| r.signature.is_none()) else { return 0 };
+        r.signature = face_signature(body, r.ordinal, &frame);
+        usize::from(r.signature.is_some())
+    };
+    let mut signed = 0;
+    let mut anchors: Vec<&mut crate::sketch::FaceAnchor> = Vec::new();
+    match op {
+        Operation::Fillet { source, edges, .. } => signed += edges.iter_mut().map(|r| edge(r, *source)).sum::<usize>(),
+        Operation::Chamfer { source, edges, base_face, .. } => signed += edges.iter_mut().map(|r| edge(r, *source)).sum::<usize>() + face(base_face, *source),
+        Operation::Shell { source, open_faces, .. } => signed += open_faces.iter_mut().map(|r| face(r, *source)).sum::<usize>(),
+        Operation::PressPull { source, face: r, .. } => signed += face(r, *source),
+        Operation::Plane { base: PlaneBase::Face { feature, face: r }, .. } => signed += face(r, *feature),
+        Operation::Sketch { sketch } => anchors.extend(sketch.plane.on_face.as_mut()),
+        Operation::Extrude { sketch, .. } | Operation::Revolve { sketch, .. } | Operation::Sweep { sketch, .. } => {
+            anchors.extend(sketch.sketch_mut().and_then(|s| s.plane.on_face.as_mut()));
+        }
+        Operation::Twist { sketch, path, .. } => {
+            anchors.extend(sketch.sketch_mut().and_then(|s| s.plane.on_face.as_mut()));
+            anchors.extend(path.plane.on_face.as_mut());
+        }
+        Operation::Loft { sections } => anchors.extend(sections.iter_mut().filter_map(|p| p.sketch_mut()?.plane.on_face.as_mut())),
+        _ => {}
+    }
+    for anchor in anchors {
+        signed += face(&mut anchor.face, anchor.feature);
+    }
+    signed
+}
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ComponentRole {
     Shank,
@@ -842,8 +908,8 @@ impl Document {
         for id in f.operation.consumes() {
             self.outputs.retain(|v| *v != id);
         }
-        // A sketch has no body to output.
-        if !matches!(f.operation, Operation::Sketch { .. }) {
+        // A sketch or a work plane has no body to output.
+        if f.operation.has_body() {
             self.outputs.push(f.id);
         }
         self.features.push(f);
@@ -855,8 +921,7 @@ impl Document {
     }
     /// Whether the document is the whole ring: no enabled `Band` feature, and a feature that builds a body.
     pub fn replaces_band(&self) -> bool {
-        self.band().is_none()
-            && self.features.iter().any(|f| f.enabled && !matches!(f.operation, Operation::Sketch { .. }))
+        self.band().is_none() && self.features.iter().any(|f| f.enabled && f.operation.has_body())
     }
     /// How each output part meets the band, read off the document: a boolean against the band is the
     /// attachment it stands for, anything else its component's own. Reference parts are left out.
@@ -865,7 +930,7 @@ impl Document {
         self.outputs
             .iter()
             .filter_map(|id| self.features.iter().find(|f| f.id == *id && f.enabled))
-            .filter(|f| !f.component.reference && !matches!(f.operation, Operation::Sketch { .. } | Operation::Band))
+            .filter(|f| !f.component.reference && f.operation.has_body() && !matches!(f.operation, Operation::Band))
             .map(|f| {
                 let attach = match &f.operation {
                     Operation::Boolean { a, b, kind } if band.is_some_and(|band| band == *a || band == *b) => match kind {
@@ -915,6 +980,10 @@ impl Value {
             Self::Mesh(m) => Some(m),
             Self::Brep(_) => None,
         }
+    }
+    /// What a mesh value is, in a refusal's words: copies a pattern placed, or a builder's part.
+    fn mesh_words(m: &builders::Made) -> &'static str {
+        if m.key == pattern::PATTERN { "a mesh of placed copies" } else { "a mesh a builder made" }
     }
     /// Faces as the part names them: the body's faces, or the mesh's patches.
     pub fn faces(&self) -> usize {
@@ -993,8 +1062,14 @@ pub struct Evaluated {
     pub features: Vec<FeatureReport>,
     /// The `Band` feature the parts are anchored on; `None` when the document is the whole ring.
     pub band: Option<Id>,
+    /// Every work plane built, in document order.
+    pub planes: Vec<WorkPlane>,
 }
 impl Evaluated {
+    /// The work plane feature `id` built.
+    pub fn plane(&self, id: Id) -> Option<&WorkPlane> {
+        self.planes.iter().find(|p| p.id == id)
+    }
     /// The status the evaluation gave feature `id`.
     pub fn status_of(&self, id: Id) -> Option<&FeatureStatus> {
         self.features.iter().find(|r| r.id == id).map(|r| &r.status)
@@ -1103,12 +1178,21 @@ fn plane_of(
     };
     let body = match values.get(&anchor.feature) {
         Some(Value::Brep(body)) => body,
+        Some(Value::Mesh(m)) if m.key == pattern::PATTERN => anyhow::bail!(
+            "Sketch face: feature #{} is {}; sketch on a kernel part's planar face",
+            anchor.feature,
+            Value::mesh_words(m)
+        ),
         Some(Value::Mesh(m)) => anyhow::bail!(
             "Sketch face: feature #{} is a {} a builder made, a mesh; sketch on a kernel part's planar face",
             anchor.feature,
             builders::label(&m.key).to_lowercase()
         ),
-        None => anyhow::bail!("Sketch face: feature #{} is unavailable or suppressed", anchor.feature),
+        // A work plane holds a frame and no body.
+        None => match frames.get(&anchor.feature) {
+            Some(plane) => return pattern::on_plane(sketch, plane),
+            None => anyhow::bail!("Sketch face: feature #{} is unavailable or suppressed", anchor.feature),
+        },
     };
     let frame = frames.get(&anchor.feature).copied().unwrap_or(brep::Placement::IDENTITY);
     sketch_plane(sketch, body, &frame, notes)
@@ -1194,7 +1278,7 @@ fn body_for(
     // A kernel operation reads kernel bodies; a part a builder made is a mesh, refused by name.
     let source = |id: &Id| match value(id)? {
         Value::Brep(body) => Ok(body),
-        Value::Mesh(_) => Err(anyhow::anyhow!("{} works on kernel bodies, and {} is a mesh a builder made", op.label(), who(*id))),
+        Value::Mesh(m) => Err(anyhow::anyhow!("{} works on kernel bodies, and {} is {}", op.label(), who(*id), Value::mesh_words(m))),
     };
     // References are signed in the source part's own frame, so the placement its body was seated by is taken back off.
     let frame_of = |id: &Id| -> brep::Placement { frames.get(id).cloned().unwrap_or(brep::Placement::IDENTITY) };
@@ -1481,6 +1565,12 @@ fn body_for(
             Value::Mesh(m) => return Ok(Value::Mesh(Arc::new(m.placed(&rotate_place(*translation, *rotation_deg)?)))),
             Value::Brep(body) => maybe(brep::transform(body, &rotate_place(*translation, *rotation_deg)?), "Placement"),
         },
+        Operation::PressPull { source: id, face, distance_mm } => {
+            let b = source(id)?;
+            pattern::press_pull(b, face, *distance_mm, &frame_of(id), notes)
+        }
+        Operation::Pattern { .. } => anyhow::bail!("A pattern is built from its source's copies"),
+        Operation::Plane { .. } => anyhow::bail!("A work plane has no body of its own"),
     };
     body.map(Value::Brep)
 }
@@ -1596,6 +1686,37 @@ impl Tessellated {
 /// A body's kernel arenas, estimated high per face, edge and vertex.
 fn body_bytes(body: &Body) -> usize {
     body.faces.len() * 1024 + body.edges.len() * 256 + body.vertices.len() * 64
+}
+/// A value tessellated at `chord`, remembered under its recipe signature.
+fn tessellated(value: &Value, sig: u64, bucket: u8, chord: f64, memo: Memo) -> Result<Arc<Tessellated>> {
+    let key = (sig, if value.made().is_some() { MESH_BUCKET } else { bucket });
+    if let Some(t) = memo.cache.and_then(|c| c.lock().ok()?.mesh(key)) {
+        return Ok(t);
+    }
+    let t = Arc::new(match value {
+        Value::Mesh(made) => Tessellated::of_made(made),
+        Value::Brep(body) => {
+            let (mesh, trace) = tessellate_traced(body, chord)?;
+            let edges = if body.edges.len() <= 512 {
+                body.edges.iter().map(|(key, _)| brep::edge_points(body, key, 0.02).unwrap_or_default()).collect()
+            } else {
+                Vec::new()
+            };
+            Tessellated { mesh, trace, edges }
+        }
+    });
+    if let Some(Ok(mut c)) = memo.cache.map(Mutex::lock) {
+        c.keep_mesh(key, t.clone());
+    }
+    Ok(t)
+}
+/// The document, cache, recipe signatures and chord one feature's build reads beyond its sources.
+struct Scope<'a> {
+    doc: &'a Document,
+    memo: Memo<'a>,
+    sigs: &'a BTreeMap<Id, u64>,
+    chord: f64,
+    bucket: u8,
 }
 /// A remembered body or tessellation.
 #[derive(Clone, Debug)]
@@ -1741,14 +1862,22 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
                 None => (0u8, s).hash(&mut h),
             }
         }
-        // Builders read the surface under their stone and the bore below it.
-        if f.component.placement != Placement::Free || matches!(f.operation, Operation::Builder { .. }) {
+        // Builders, patterns and tangent planes read the surface and the bore below it.
+        let reads_surface = matches!(
+            f.operation,
+            Operation::Builder { .. } | Operation::Pattern { .. } | Operation::Plane { base: PlaneBase::Tangent { .. }, .. }
+        );
+        if f.component.placement != Placement::Free || reads_surface {
             surface_epoch.hash(&mut h);
             design.inner_radius_mm().to_bits().hash(&mut h);
             design.profile.thickness_mm.to_bits().hash(&mut h);
         }
         if matches!(f.operation, Operation::TwistedRing { .. }) {
             (params.theta_steps, params.profile_steps).hash(&mut h);
+        }
+        // A pattern's copies are its source's tessellation at this build's chord.
+        if matches!(f.operation, Operation::Pattern { .. }) {
+            (params.theta_steps >= 512).hash(&mut h);
         }
         sigs.insert(f.id, h.finish());
     }
@@ -1781,9 +1910,13 @@ fn build_feature(
     sketches: &BTreeMap<Id, Sketch>,
     frames: &BTreeMap<Id, brep::Placement>,
     who: &dyn Fn(Id) -> String,
+    scope: &Scope,
 ) -> Result<Built> {
     if let Operation::Builder { key, on, params: settings } = &f.operation {
         return build_made(f, key, *on, settings, design, ctx, values, frames, who);
+    }
+    if let Operation::Pattern { source, kind } = &f.operation {
+        return pattern::build(f, *source, kind, design, ctx, values, frames, who, scope);
     }
     let mut notes = Vec::new();
     let mut frame = None;
@@ -1792,11 +1925,17 @@ fn build_feature(
         Operation::Boolean { a, b, kind } if band.is_some_and(|id| id == *a || id == *b) => Some((*a, *b, *kind)),
         _ => None,
     };
-    // A moved stone keeps its own frame, moved with it, for what is built round it.
+    // A moved part's frame moves with it.
     if let Operation::Transform { source, translation, rotation_deg } = &f.operation {
-        if let (Some(Value::Mesh(_)), Some(inner)) = (values.get(source), frames.get(source)) {
+        if let Some(inner) = frames.get(source) {
             frame = Some(compose(&rotate_place(*translation, *rotation_deg)?, inner));
         }
+    }
+    // A part reshaped where it stands keeps the frame its source was seated by.
+    if let Operation::Fillet { source, .. } | Operation::Chamfer { source, .. } | Operation::Shell { source, .. } | Operation::PressPull { source, .. } =
+        &f.operation
+    {
+        frame = frames.get(source).copied();
     }
     let mut value = if let Some((a, b, kind)) = against_band {
         let band_id = band.unwrap_or_default();
@@ -2037,11 +2176,13 @@ pub fn evaluate_memo(
     let chord = if params.theta_steps >= 512 { 0.015 } else { 0.04 };
     let bucket = u8::from(params.theta_steps >= 512);
     let sigs = signatures(doc, design, params, memo.surface_epoch);
+    let scope = Scope { doc, memo, sigs: &sigs, chord, bucket };
     let who = |id: Id| doc.feature(id).map_or_else(|| format!("#{id}"), |f| format!("#{id} {}", f.name));
     let mut values: BTreeMap<Id, Value> = BTreeMap::new();
     let mut sketches: BTreeMap<Id, Sketch> = BTreeMap::new();
+    let mut planes: Vec<WorkPlane> = Vec::new();
     let mut metadata = BTreeMap::new();
-    // The placement each body was seated by, which its references are signed in.
+    // The frame each body was seated by, and each work plane's own.
     let mut frames: BTreeMap<Id, brep::Placement> = BTreeMap::new();
     // The attachment a boolean against the band stands for, by the boolean's id.
     let mut attached: BTreeMap<Id, Attach> = BTreeMap::new();
@@ -2072,8 +2213,18 @@ pub fn evaluate_memo(
                 }
             }
             report.status = FeatureStatus::Suppressed;
-        } else if let Some(why) = skipped_by(&f.operation, &status, doc, |s| values.contains_key(&s) || sketches.contains_key(&s)) {
+        } else if let Some(why) = skipped_by(&f.operation, &status, doc, |s| values.contains_key(&s) || sketches.contains_key(&s) || frames.contains_key(&s)) {
             report.status = FeatureStatus::Skipped(why);
+        } else if let Operation::Plane { base, offset_mm } = &f.operation {
+            // A work plane builds a frame and no body.
+            match pattern::work_plane(f.id, base, *offset_mm, design, ctx.surface, &values, &frames, &mut report.notes) {
+                Ok(plane) => {
+                    frames.insert(f.id, plane.placement());
+                    planes.push(plane);
+                    metadata.insert(f.id, f);
+                }
+                Err(e) => report.status = FeatureStatus::Failed(format!("{e:#}")),
+            }
         } else if let Operation::Sketch { sketch } = &f.operation {
             // A sketch on a face takes its plane from the face as built now, so what sweeps it follows the face.
             match laid(sketch, &values, &frames, &mut report.notes) {
@@ -2098,7 +2249,7 @@ pub fn evaluate_memo(
                 Some(outcome) => outcome,
                 None => {
                     let outcome = Arc::new(
-                        build_feature(f, design, ctx, params, band, &values, &sketches, &frames, &who).map_err(|e| format!("{e:#}")),
+                        build_feature(f, design, ctx, params, band, &values, &sketches, &frames, &who, &scope).map_err(|e| format!("{e:#}")),
                     );
                     if let Some(Ok(mut c)) = memo.cache.map(Mutex::lock) {
                         c.keep_body(sig, outcome.clone());
@@ -2147,74 +2298,26 @@ pub fn evaluate_memo(
             continue;
         };
         let f = metadata[id];
-        let body = match value {
-            Value::Brep(body) => body,
-            Value::Mesh(made) => {
-                // A builder's mesh is its own tessellation, whatever the chord.
-                let key = (sigs[id], MESH_BUCKET);
-                let remembered = memo.cache.and_then(|c| c.lock().ok()?.mesh(key));
-                let tessellated = remembered.unwrap_or_else(|| {
-                    let t = Arc::new(Tessellated::of_made(made));
-                    if let Some(Ok(mut c)) = memo.cache.map(Mutex::lock) {
-                        c.keep_mesh(key, t.clone());
-                    }
-                    t
-                });
-                components.push(EvaluatedComponent {
-                    id: *id,
-                    name: f.name.clone(),
-                    settings: f.component.clone(),
-                    body: Body::new(),
-                    mesh: tessellated.mesh.clone(),
-                    edges: tessellated.edges.clone(),
-                    trace: tessellated.trace.clone(),
-                    attach: attached.get(id).copied().unwrap_or(f.component.attach),
-                    stage: f.component.stage,
-                    made: Some(made.clone()),
-                    frame: frames.get(id).copied().unwrap_or(brep::Placement::IDENTITY),
-                });
+        let tessellated = match tessellated(value, sigs[id], bucket, chord, memo) {
+            Ok(t) => t,
+            Err(e) => {
+                if let Some(r) = reports.iter_mut().find(|r| r.id == *id) {
+                    r.status = FeatureStatus::Failed(format!("{e:#}"));
+                }
                 continue;
             }
-        };
-        let key = (sigs[id], bucket);
-        let remembered = memo.cache.and_then(|c| c.lock().ok()?.mesh(key));
-        let tessellated = match remembered {
-            Some(t) => t,
-            None => match tessellate_traced(body, chord) {
-                Ok((mesh, trace)) => {
-                    let edges = if body.edges.len() <= 512 {
-                        body.edges
-                            .iter()
-                            .map(|(key, _)| brep::edge_points(body, key, 0.02).unwrap_or_default())
-                            .collect()
-                    } else {
-                        Vec::new()
-                    };
-                    let t = Arc::new(Tessellated { mesh, trace, edges });
-                    if let Some(Ok(mut c)) = memo.cache.map(Mutex::lock) {
-                        c.keep_mesh(key, t.clone());
-                    }
-                    t
-                }
-                Err(e) => {
-                    if let Some(r) = reports.iter_mut().find(|r| r.id == *id) {
-                        r.status = FeatureStatus::Failed(format!("{e:#}"));
-                    }
-                    continue;
-                }
-            },
         };
         components.push(EvaluatedComponent {
             id: *id,
             name: f.name.clone(),
             settings: f.component.clone(),
-            body: body.clone(),
+            body: value.brep().cloned().unwrap_or_else(Body::new),
             mesh: tessellated.mesh.clone(),
             edges: tessellated.edges.clone(),
             trace: tessellated.trace.clone(),
             attach: attached.get(id).copied().unwrap_or(f.component.attach),
             stage: f.component.stage,
-            made: None,
+            made: value.made().cloned(),
             frame: frames.get(id).copied().unwrap_or(brep::Placement::IDENTITY),
         });
     }
@@ -2225,6 +2328,7 @@ pub fn evaluate_memo(
         components,
         features: reports,
         band,
+        planes,
     })
 }
 

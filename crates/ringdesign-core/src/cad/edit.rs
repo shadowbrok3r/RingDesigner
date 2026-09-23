@@ -94,8 +94,13 @@ pub struct Applied {
     /// The history label, with the target named.
     pub label: String,
 }
-fn is_sketch(f: &Feature) -> bool {
-    matches!(f.operation, Operation::Sketch { .. })
+/// What a feature without a body of its own is, when it has none.
+fn bodiless(f: &Feature) -> Option<&'static str> {
+    match f.operation {
+        Operation::Sketch { .. } => Some("a sketch"),
+        Operation::Plane { .. } => Some("a work plane"),
+        _ => None,
+    }
 }
 /// Refuses a placement the build could not seat: any value that is not a finite number.
 fn check_placement(who: &str, p: &Placement) -> Result<()> {
@@ -176,7 +181,7 @@ impl Document {
     /// Puts a source back in the outputs when no feature consumes it any more.
     fn release(&mut self, source: Id) {
         let consumed = self.features.iter().any(|g| g.operation.consumes().contains(&source));
-        let body = self.feature(source).is_some_and(|f| !is_sketch(f));
+        let body = self.feature(source).is_some_and(|f| bodiless(f).is_none());
         if !consumed && body && !self.outputs.contains(&source) {
             self.outputs.push(source);
         }
@@ -244,7 +249,9 @@ impl Document {
                 for (i, id) in outputs.iter().enumerate() {
                     self.known(*id)?;
                     ensure!(!outputs[..i].contains(id), "Outputs list {} twice", self.who(*id));
-                    ensure!(!is_sketch(self.feature(*id).unwrap()), "{} is a sketch and has no body to output", self.who(*id));
+                    if let Some(what) = bodiless(self.feature(*id).unwrap()) {
+                        bail!("{} is {what} and has no body to output", self.who(*id));
+                    }
                 }
                 self.outputs = outputs.clone();
                 None
@@ -279,7 +286,7 @@ impl Document {
         for s in f.operation.consumes() {
             self.outputs.retain(|v| *v != s);
         }
-        if !is_sketch(&f) {
+        if bodiless(&f).is_none() {
             self.outputs.push(f.id);
         }
         let id = f.id;
@@ -362,11 +369,11 @@ impl Document {
             ensure!(p < pos, "{}: source {} comes after it; move it first", self.who(id), self.who(*s));
         }
         let mut f = self.feature(id).unwrap().clone();
-        let was_sketch = is_sketch(&f);
+        let was_bodiless = bodiless(&f).is_some();
         let old_sources = self.sources_of(id);
         f.operation = operation;
         self.one_band(&f, id)?;
-        let now_sketch = is_sketch(&f);
+        let now_bodiless = bodiless(&f).is_some();
         let consumed = f.operation.consumes();
         *self.feature_mut(id).unwrap() = f;
         for s in &consumed {
@@ -377,10 +384,10 @@ impl Document {
                 self.release(s);
             }
         }
-        if was_sketch && !now_sketch && !self.outputs.contains(&id) {
+        if was_bodiless && !now_bodiless && !self.outputs.contains(&id) {
             self.outputs.push(id);
         }
-        if now_sketch {
+        if now_bodiless {
             self.outputs.retain(|v| *v != id);
         }
         Ok(())

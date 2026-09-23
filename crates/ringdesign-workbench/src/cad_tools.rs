@@ -2,7 +2,7 @@
 use crate::icons::Icon;
 use ringdesign_core::{
     RingDesign,
-    cad::{Attach, Boolean, Component, EdgeRef, FaceRef, Operation, Placement, Stage},
+    cad::{Attach, Boolean, Component, EdgeRef, FaceRef, MirrorPlane, Operation, PatternKind, Placement, PlaneBase, Stage},
     sketch::{Geometry, Sketch, Workplane},
 };
 pub use ringdesign_core::interaction::surface::PARTS_ONLY;
@@ -45,6 +45,10 @@ pub fn icon(op: &Operation) -> Icon {
         Shell { .. } => Icon::CadShell,
         Transform { .. } => Icon::CadPlace,
         Builder { key, .. } => if key == ringdesign_core::cad::builders::STONE { Icon::Stones } else { Icon::NodeHead },
+        Pattern { kind: PatternKind::Mirror { .. }, .. } => Icon::Mirror,
+        Pattern { .. } => Icon::Pattern,
+        Plane { .. } => Icon::Section,
+        PressPull { .. } => Icon::Raise,
     }
 }
 pub fn hint(op: &Operation) -> &'static str {
@@ -76,6 +80,11 @@ pub fn hint(op: &Operation) -> &'static str {
         }
         Transform { .. } => "Move or rotate an existing solid without modifying its source recipe.",
         Builder { key, .. } => ringdesign_core::cad::builders::spec(key).map_or("A part built round a stone.", |s| s.hint),
+        Pattern { kind: PatternKind::Ring { .. }, .. } => "Copies of the part round the finger, each dropped onto the band at its own angle; the part stays beside them.",
+        Pattern { kind: PatternKind::About { .. }, .. } => "Copies of the part round a stone's axis or another part's: six prongs from one.",
+        Pattern { kind: PatternKind::Mirror { .. }, .. } => "The part reflected across the band, through the head, or across a work plane, as a part of its own.",
+        Plane { .. } => "A plane with no body: through the finger's axis, square to the band, the parting plane or a part's face. Sketches lie on it; mirrors reflect across it.",
+        PressPull { .. } => "Push or pull a planar face of a part along its normal; its neighbours follow it.",
     }
 }
 /// Keep tools with a known invalid default out of the creation path.
@@ -116,6 +125,10 @@ pub fn starters(source: u64, second: u64) -> Vec<Operation> {
         },
         Operation::Sketch {
             sketch: Sketch::rectangle(8.0, 6.0),
+        },
+        Operation::Plane {
+            base: PlaneBase::Section { theta_deg: 90.0 },
+            offset_mm: 0.0,
         },
         Operation::Extrude {
             sketch: Sketch::rectangle(8.0, 6.0).into(),
@@ -176,6 +189,14 @@ pub fn starters(source: u64, second: u64) -> Vec<Operation> {
             source,
             translation: [0.0, 0.0, 5.0],
             rotation_deg: [0.0; 3],
+        },
+        Operation::Pattern {
+            source,
+            kind: PatternKind::Ring { count: 6, span_deg: 360.0 },
+        },
+        Operation::Pattern {
+            source,
+            kind: PatternKind::Mirror { plane: MirrorPlane::Band },
         },
     ]
 }
@@ -274,7 +295,7 @@ mod tests {
             let label = op.label();
             let mut d = RingDesign::default();
             let mut doc = Document::default();
-            let sketch = matches!(op, Operation::Sketch { .. });
+            let (sketch, plane) = (matches!(op, Operation::Sketch { .. }), matches!(op, Operation::Plane { .. }));
             doc.append(Feature {
                 id: 1,
                 name: label.into(),
@@ -283,17 +304,20 @@ mod tests {
                 component: Default::default(),
             })
             .unwrap();
-            // A sketch has no body of its own; the starter is judged by what extrudes from it.
-            if sketch {
+            // A sketch or a work plane has no body of its own; the starter is judged by what extrudes from it or off it.
+            let profile = if plane {
+                let mut on = Sketch::rectangle(2.0, 2.0);
+                on.plane.on_face = Some(ringdesign_core::sketch::FaceAnchor { feature: 1, face: FaceRef::bare(0) });
+                Some(ringdesign_core::cad::Profile::Inline(on))
+            } else {
+                sketch.then_some(ringdesign_core::cad::Profile::Feature { feature: 1 })
+            };
+            if let Some(sketch) = profile {
                 doc.append(Feature {
                     id: 2,
                     name: "Extrude".into(),
                     enabled: true,
-                    operation: Operation::Extrude {
-                        sketch: ringdesign_core::cad::Profile::Feature { feature: 1 },
-                        height_mm: 2.0,
-                        draft_deg: 0.0,
-                    },
+                    operation: Operation::Extrude { sketch, height_mm: 2.0, draft_deg: 0.0 },
                     component: Default::default(),
                 })
                 .unwrap();

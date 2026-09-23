@@ -736,6 +736,17 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
         Operation::Boolean {a,b,..} => { ui.label(format!("Solids #{a} and #{b}. Change references in Feature source.")); }
         Operation::Band => { ui.weak("Uses the ring's fit, profile and ornament."); }
         Operation::Builder { .. } => { ui.weak("Built round its stone; edit its settings in Feature source."); }
+        Operation::Pattern { kind, .. } => match kind {
+            cad::PatternKind::Ring { count, span_deg } | cad::PatternKind::About { count, span_deg, .. } => {
+                crate::controls::row(ui, "Instances", |ui| {
+                    ui.add(egui::DragValue::new(count).range(2..=cad::pattern::MAX_PATTERN_COUNT));
+                });
+                number(ui, "Span °", span_deg);
+            }
+            cad::PatternKind::Mirror { .. } => { ui.weak("One reflected copy; change what it reflects across in Feature source."); }
+        },
+        Operation::Plane { offset_mm, .. } => number(ui, "Offset mm", offset_mm),
+        Operation::PressPull { distance_mm, .. } => number(ui, "Distance mm", distance_mm),
     }
     if let Some(sketch) = op.sketch_mut() {
         ui.collapsing("Sketch points and workplane", |ui| {
