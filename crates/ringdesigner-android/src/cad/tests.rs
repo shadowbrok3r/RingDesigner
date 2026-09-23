@@ -338,6 +338,47 @@ fn a_finger_drags_the_round_the_ring_arrow_the_ghost_follows_and_the_lift_commit
 }
 
 #[test]
+fn a_stone_on_a_plates_face_slides_by_its_seat_under_the_finger() {
+    use ringdesign_core::cad::{FaceSeat, builders};
+    let mut d = court();
+    let mut history = History::new(&d);
+    let (edits, plate) = touch::parts::part_here(&d, "Box", 90.0, 0.0).unwrap();
+    commit(&mut d, &mut history, &edits, None).unwrap();
+    let b = Bench::new(d.clone());
+    let c = b.built.evaluated().unwrap().components.iter().find(|c| c.id == plate).cloned().unwrap();
+    // The plate's top: the planar face turned most nearly along the part's own z.
+    let outward = |f: u32| FaceSeat::on(&c, f, None, 0.0).ok().and_then(|s| s.face_of(&c).ok()).map(|fr| (0..3).map(|k| fr.normal[k] * c.frame.z_axis[k]).sum::<f64>());
+    let top = (0..c.body.faces.len() as u32).filter_map(|f| outward(f).map(|w| (f, w))).max_by(|a, b| a.1.total_cmp(&b.1)).unwrap().0;
+    let (edits, stone) = touch::parts::stone_on_face(&d, b.built.evaluated(), plate, top, None, "round-5").unwrap();
+    commit(&mut d, &mut history, &edits, None).unwrap();
+    let mut b = Bench::new(d);
+    b.cad.choose(stone);
+    let features = b.d.cad.as_ref().unwrap().features.len();
+    let seat_of = |op: &Operation| match op {
+        Operation::Builder { params, .. } => FaceSeat::of(params).ok().flatten(),
+        _ => None,
+    };
+    let before = seat_of(&b.d.cad.as_ref().unwrap().feature(stone).unwrap().operation).expect("seated on the plate");
+    let (on, out) = b.arrow(Handle::Move(Axis::X));
+    b.step(vec![touch(1, TouchPhase::Start, on)]);
+    let mut at = on;
+    for _ in 0..6 {
+        at += out * 8.0;
+        b.step(vec![touch(1, TouchPhase::Move, at)]);
+    }
+    b.step(vec![touch(1, TouchPhase::End, at)]);
+    let edits = b.edits();
+    assert_eq!(edits.len(), 1, "one lift, one undo step");
+    // The seat slides along the face: its operation is edited, nothing is wrapped in a Transform.
+    let [CadEdit::Operation { id, operation }] = edits[0].0.as_slice() else { panic!("{:?}", edits[0]) };
+    assert!(*id == stone && matches!(operation, Operation::Builder { key, .. } if key == builders::STONE));
+    let seat = seat_of(operation).expect("still on the face");
+    assert_eq!(seat.face.ordinal, before.face.ordinal);
+    assert!((seat.u_mm - before.u_mm).abs() > 0.2 && (seat.v_mm - before.v_mm).abs() < 1e-6 && seat.height_mm == before.height_mm, "{before:?} then {seat:?}");
+    assert_eq!(b.d.cad.as_ref().unwrap().features.len(), features);
+}
+
+#[test]
 fn the_gizmo_keeps_its_parts_own_reach_while_a_moved_placement_waits_for_its_rebuild() {
     let mut b = Bench::new(posted());
     b.cad.choose(2);

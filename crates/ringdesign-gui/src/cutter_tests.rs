@@ -182,7 +182,7 @@ fn a_stone_takes_azures_and_cathedral_shoulders_from_its_right_click() {
     menu(&mut h, table, None, "Cathedral shoulders");
     assert_eq!(names(&h).last().map(String::as_str), Some("Cathedral shoulders"), "{}", h.state().status);
     let arches = doc(&h).features[5].clone();
-    assert_eq!((arches.component.attach, arches.component.stage), (Attach::Join, Stage::Bench), "under sand the shoulders go to the bench with their head");
+    assert_eq!((arches.component.attach, arches.component.stage), (Attach::Join, Stage::Cast), "a stone on the parting line: the arches pour clean under sand");
     assert_eq!(h.state().history.present(), start + 2);
     let b = rebuilt(&mut h);
     assert_eq!((b.parts.joined, b.parts.cut), (2, 2));

@@ -17,7 +17,7 @@ use ringdesign_core::{
 };
 use ringdesign_workbench::command::pattern::{ArrayCmd, PressPullCmd};
 use ringdesign_workbench::command::{
-    Affine, Axis, BandSurface, DimEvent, DimensionBar, Dofs, Grid, GripCmd, MoveCmd, Outcome, PlaceCmd, RingFeatures, RingPoint, RotateCmd, Scene, Session, SnapGeometry, SnapHit, Snapper, StepInput, ViewCommand, along_line, land, placed_ghost,
+    Affine, Axis, BandSurface, DimEvent, DimensionBar, commands::FaceHold, Dofs, Grid, GripCmd, MoveCmd, Outcome, PlaceCmd, RingFeatures, RingPoint, RotateCmd, Scene, Session, SnapGeometry, SnapHit, Snapper, StepInput, ViewCommand, along_line, land, placed_ghost,
 };
 use ringdesign_workbench::gizmo::{self, Gizmo, Handle, Layout};
 use ringdesign_workbench::touch;
@@ -156,6 +156,8 @@ pub struct Live {
     watch: Option<[f64; 3]>,
     /// Whether the command's bars stand at the view's top, settled when they are first drawn.
     bars_top: Option<bool>,
+    /// The stone on a part's face the live command slides or spins by its seat.
+    face: Option<FaceHold>,
 }
 
 impl Default for Live {
@@ -179,6 +181,7 @@ impl Default for Live {
             finger: None,
             watch: None,
             bars_top: None,
+            face: None,
         }
     }
 }
@@ -237,11 +240,15 @@ pub fn gizmo_of(c: &Ctx, live: &Live) -> Option<(Id, Gizmo)> {
             let reach_mm = part.map_or(0.0, |x| gizmo::reach(&x.mesh, x.frame.origin));
             Gizmo { reach_mm, ..g }
         }
-        Placement::Free => {
-            let (lo, hi) = part?.mesh.bounds()?;
-            let centre = [(lo.0 + hi.0) as f64 * 0.5, (lo.1 + hi.1) as f64 * 0.5, (lo.2 + hi.2) as f64 * 0.5];
-            Gizmo::free(centre, part.map_or(0.0, |x| gizmo::reach(&x.mesh, centre)))
-        }
+        Placement::Free => match part.and_then(|x| FaceHold::of(&f, x)) {
+            // A stone on a part's face gets the face's own arrows, its spin, and the dial through its foot.
+            Some(hold) => return Some((id, hold.gizmo(part.map_or(0.0, |x| gizmo::reach(&x.mesh, hold.origin))))),
+            None => {
+                let (lo, hi) = part?.mesh.bounds()?;
+                let centre = [(lo.0 + hi.0) as f64 * 0.5, (lo.1 + hi.1) as f64 * 0.5, (lo.2 + hi.2) as f64 * 0.5];
+                Gizmo::free(centre, part.map_or(0.0, |x| gizmo::reach(&x.mesh, centre)))
+            }
+        },
     };
     Some((id, g.with_grips(&f.operation)))
 }
@@ -318,6 +325,7 @@ impl Live {
     fn start(&mut self, cmd: Box<dyn ViewCommand>, target: Option<Feature>, own: Option<OwnGhost>) {
         self.session.start(cmd);
         self.target = target;
+        self.face = None;
         self.own = own.map(|g| (g, None));
         self.hold = None;
         self.pull = None;
@@ -433,21 +441,28 @@ impl Live {
     fn start_drag(&mut self, c: &Ctx, id: Id, gizmo: Gizmo, handle: Handle, at: Pos2, out: &mut Vec<Request>) {
         let Some(f) = c.feature(id) else { return };
         let fresh = c.design.cad.as_ref().map_or(1, |d| d.fresh_id());
-        let (cmd, lock): (Box<dyn ViewCommand>, Option<Axis>) = match handle {
-            Handle::Move(axis) => (Box::new(MoveCmd::of(&f, fresh)), Some(axis)),
-            Handle::Turn(axis) => (Box::new(RotateCmd::of(&f, fresh).about(gizmo.pivot())), Some(axis)),
-            Handle::Dial => (Box::new(PlaceCmd::new(f.id, f.component.placement.clone())), Some(Axis::Theta)),
-            Handle::Grip(i) => match gizmo.grips.get(i).and_then(|g| GripCmd::new(f.id, f.operation.clone(), g.grip.key, &gizmo.frame)) {
-                Some(cmd) => (Box::new(cmd), None),
+        let face = c.component(id).and_then(|x| FaceHold::of(&f, x));
+        let (cmd, lock, prefer): (Box<dyn ViewCommand>, Option<Axis>, Option<&'static str>) = match (&face, handle) {
+            // A stone on a part's face: its seat slides along, across and off the face, spins on it, and rides the dial.
+            (Some(hold), _) => match hold.drag(handle) {
+                Some((cmd, lock, key)) => (cmd, lock, Some(key)),
+                None => return,
+            },
+            (None, Handle::Move(axis)) => (Box::new(MoveCmd::of(&f, fresh)), Some(axis), gizmo.key(handle)),
+            (None, Handle::Turn(axis)) => (Box::new(RotateCmd::of(&f, fresh).about(gizmo.pivot())), Some(axis), gizmo.key(handle)),
+            (None, Handle::Dial) => (Box::new(PlaceCmd::new(f.id, f.component.placement.clone())), Some(Axis::Theta), gizmo.key(handle)),
+            (None, Handle::Grip(i)) => match gizmo.grips.get(i).and_then(|g| GripCmd::new(f.id, f.operation.clone(), g.grip.key, &gizmo.frame)) {
+                Some(cmd) => (Box::new(cmd), None, gizmo.key(handle)),
                 None => return,
             },
         };
         self.start(cmd, Some(f), None);
+        self.face = face;
         self.watch = Some(gizmo.origin);
         if let Some(axis) = lock {
             self.session.feed(StepInput::Lock(axis));
         }
-        self.bar.prefer(gizmo.key(handle));
+        self.bar.prefer(prefer);
         // The drag is measured from where the handle was taken.
         self.feed_handle(c, &gizmo, handle, at, out);
         self.hold = Some((Held::Handle { handle, gizmo: Box::new(gizmo) }, false));
@@ -581,6 +596,7 @@ impl Live {
 
     fn ended(&mut self) {
         self.target = None;
+        self.face = None;
         self.hold = None;
         self.pull = None;
         self.focus = None;
@@ -589,7 +605,7 @@ impl Live {
 
     /// Starts copies of `f` round the ring, or round stone `about`, waiting for how many.
     pub fn array(&mut self, c: &Ctx, f: Feature, attach: Attach, about: Option<Id>) -> String {
-        let ghost = c.build.zip(c.component(f.id)).map(|(b, comp)| copies_ghost(b, comp.mesh.clone()));
+        let ghost = c.build.zip(c.component(f.id)).map(|(b, comp)| copies_ghost(c.design, b, f.id, comp.mesh.clone()));
         let watch = c.component(f.id).map(|comp| comp.frame.origin);
         self.start(Box::new(ArrayCmd::new(0, f, attach, about)), None, ghost);
         self.watch = watch;
@@ -769,7 +785,11 @@ impl Live {
         let (Some(preview), Some(target)) = (self.session.preview(), self.target.clone()) else { return };
         let band = c.band.map(|b| b.as_ref());
         let want = Staged::Part { build: build.key(), feature: target.id };
-        let model = placed_ghost(c.design, band, &target, &preview);
+        // A stone on a part's face rides its seat on that face.
+        let model = match &self.face {
+            Some(hold) => hold.ghost(&preview),
+            None => placed_ghost(c.design, band, &target, &preview),
+        };
         let part = c.component(target.id);
         // A reference stone is not read.
         let judge = (part.is_some_and(|x| !x.settings.reference) && model.is_some()).then(|| self.judge_for(c, build));
@@ -828,13 +848,12 @@ impl Live {
     }
 }
 
-/// The part's mesh carried onto every copy a pattern command would add.
-fn copies_ghost(build: &Built, source: Mesh) -> OwnGhost {
-    let frames: Vec<(Id, _)> = build.evaluated().iter().flat_map(|e| e.components.iter().map(|c| (c.id, c.frame)).chain(e.planes.iter().map(|p| (p.id, p.placement())))).collect();
+/// The part's mesh carried onto every copy a pattern command would add, by the motions the evaluation places them with.
+fn copies_ghost(design: &RingDesign, build: &Built, source_id: Id, source: Mesh) -> OwnGhost {
+    let (design, surface, evaluated) = (design.clone(), build.0.band.clone(), build.0.parts.evaluated.clone());
     Box::new(move |cmd| {
         let Some(Operation::Pattern { kind, .. }) = cmd.preview().operation else { return None };
-        let frame_of = |id: Id| frames.iter().find(|(f, _)| *f == id).map(|(_, p)| *p);
-        let motions = pattern::world_motions(&kind, &frame_of).ok()?;
+        let motions = pattern::copy_motions(&design, surface.as_deref(), evaluated.as_ref()?, source_id, &kind).ok()?;
         let mut out = Mesh::default();
         for m in motions {
             let base = out.vertices.len() as u32;

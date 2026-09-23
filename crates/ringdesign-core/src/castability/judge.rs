@@ -155,7 +155,7 @@ fn judge_with(field: &mut FieldReport, design: &RingDesign, built: &BuildResult,
         .map(|&id| {
             let c = e.components.iter().find(|c| c.id == id);
             let name = c.map_or_else(String::new, |c| c.name.clone());
-            let label = design.cad.as_ref().map_or_else(|| format!("\"{name}\" (#{id})"), |doc| marks::label(doc, id));
+            let label = design.cad.as_ref().filter(|doc| doc.feature(id).is_some()).map_or_else(|| format!("\"{name}\" (#{id})"), |doc| marks::label(doc, id));
             let (attach, stage) = c.map_or((Attach::Separate, Stage::Cast), |c| (c.attach, c.stage));
             (id, label, name, attach, stage)
         })

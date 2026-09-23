@@ -161,18 +161,11 @@ type Stage = Box<dyn Fn(&dyn ViewCommand) -> Option<Mesh>>;
 
 /// The part's mesh carried onto every copy a pattern command would add, each where the build puts it: a seated part dropped onto the band again at its copy's angle.
 fn copies_ghost(app: &RingDesignerApp, build: &BuildResult, source_id: Id, source: Mesh) -> Stage {
-    let frames: Vec<(Id, _)> = build.parts.evaluated.iter().flat_map(|e| e.components.iter().map(|c| (c.id, c.frame)).chain(e.planes.iter().map(|p| (p.id, p.placement())))).collect();
-    let design = app.design.clone();
-    let surface = build.band.clone();
-    // The seat as the evaluation reads it: the placement, and the frame it stood by on the band.
-    let seat = app.design.cad.as_ref().and_then(|doc| pattern::seat_of(doc, source_id)).and_then(|(_, p)| {
-        let used = p.frame_on(&design, surface.as_deref()).ok()?;
-        Some((p, used))
-    });
+    let (design, surface, evaluated) = (app.design.clone(), build.band.clone(), build.parts.evaluated.clone());
     Box::new(move |cmd| {
         let Some(Operation::Pattern { kind, .. }) = cmd.preview().operation else { return None };
-        let frame_of = |id: Id| frames.iter().find(|(f, _)| *f == id).map(|(_, p)| *p);
-        let motions = pattern::motions(&kind, &design, surface.as_deref(), seat.as_ref().map(|(p, used)| (p, used)), &frame_of).ok()?;
+        // The motions the evaluation itself places the copies by.
+        let motions = pattern::copy_motions(&design, surface.as_deref(), evaluated.as_ref()?, source_id, &kind).ok()?;
         let mut out = Mesh::default();
         for m in motions {
             let base = out.vertices.len() as u32;

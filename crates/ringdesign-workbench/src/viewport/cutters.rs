@@ -91,7 +91,7 @@ pub fn under_stone(design: &RingDesign, built: Option<&Evaluated>, stone: Id, ke
         cutters::azure_feature(id, stone, head, *count, cutters::cut_stage(axis, sand))
     } else if key == CATHEDRAL {
         let head = head.ok_or_else(|| format!("{named} carries no head for cathedral shoulders to meet: set it in claws, a basket or a bezel first"))?;
-        cutters::cathedral_feature(id, stone, head, cutters::shoulder_stage(sand))
+        cutters::cathedral_feature(id, stone, head, cutters::shoulder_stage_for(design, frame.map(|f| f.origin)))
     } else {
         return Err(format!("No builder under a stone called {key}"));
     };
@@ -177,6 +177,23 @@ mod tests {
         // Too near the edge, refused with the band's own words; an unknown key by name.
         assert_eq!(cut_here(&court(), 90.0, 1.7, None, "round").unwrap_err(), "Too near the band's edge to pierce here: 0.30 mm from it");
         assert_eq!(cut_here(&court(), 90.0, 0.0, None, "star").unwrap_err(), "No piercing called star");
+    }
+
+    #[test]
+    fn shoulders_round_a_stone_on_the_parting_line_are_cast_and_off_it_go_to_the_bench() {
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        let build = |d: &RingDesign| {
+            ringdesign_core::mesh::try_build(d, &ringdesign_core::AlphaLibrary::default(), ringdesign_core::mesh::BuildParams { theta_steps: 192, profile_steps: 96, ..Default::default() }).unwrap()
+        };
+        let d = stone(true);
+        let on = build(&d);
+        let (edits, _) = under_stone(&d, on.parts.evaluated.as_ref(), 2, CATHEDRAL).unwrap();
+        assert_eq!(added(&edits)[0].component.stage, Stage::Cast, "the stone's girdle on the parting line: the arches pour clean");
+        let mut off = d.clone();
+        let placement = Placement::Ring { theta_deg: 90.0, across_mm: 1.0, height_mm: builders::stand_off_mm("claw4", gem), spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        off.cad.as_mut().unwrap().features.iter_mut().find(|f| f.id == 2).unwrap().component.placement = placement;
+        let (edits, _) = under_stone(&off, build(&off).parts.evaluated.as_ref(), 2, CATHEDRAL).unwrap();
+        assert_eq!(added(&edits)[0].component.stage, Stage::Bench, "a millimetre along the finger the arches lock and go to the bench");
     }
 
     #[test]

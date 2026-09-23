@@ -392,7 +392,8 @@ fn prepare_with_library(
     bench_layers.extend(left.seats.into_iter().map(|s| format!("{s} (setting)")));
     bench_layers.extend(left.parts.into_iter().map(|s| format!("{s} (part)")));
     let pattern = left.design.into_owned();
-    let out = crate::mesh::try_build(&pattern, lib, params)?;
+    // Parts stand where the finished ring has them, sunk into any stock and never on the pattern's marks.
+    let out = crate::mesh::try_build_poured(&pattern, d, lib, params)?;
     let scale = setup.scale();
     let prepared = Prepared {
         design: pattern,
