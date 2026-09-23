@@ -1853,6 +1853,9 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             face_ref(ui, "Face", face);
             number(ui, "Distance mm", distance_mm);
         }
+        Operation::Stored { recipe, mesh, .. } => {
+            ui.weak(format!("{} triangles {} made; run it again where {} is to change it.", mesh.triangles, recipe.kernel_name(), recipe.kernel_name()));
+        }
     }
 }
 fn component_ui(ui: &mut egui::Ui, f: &mut Feature) {

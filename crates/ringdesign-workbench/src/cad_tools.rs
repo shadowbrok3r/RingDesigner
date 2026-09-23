@@ -49,6 +49,12 @@ pub fn icon(op: &Operation) -> Icon {
         Pattern { .. } => Icon::Pattern,
         Plane { .. } => Icon::Section,
         PressPull { .. } => Icon::Raise,
+        Stored { recipe, .. } => match recipe.op.as_str() {
+            "fillet" => Icon::CadFillet,
+            "shell" => Icon::CadShell,
+            "junction" => Icon::CadUnion,
+            _ => Icon::Files,
+        },
     }
 }
 pub fn hint(op: &Operation) -> &'static str {
@@ -85,6 +91,7 @@ pub fn hint(op: &Operation) -> &'static str {
         Pattern { kind: PatternKind::Mirror { .. }, .. } => "The part reflected across the band, through the head, or across a work plane, as a part of its own.",
         Plane { .. } => "A plane with no body: through the finger's axis, square to the band, the parting plane or a part's face. Sketches lie on it; mirrors reflect across it.",
         PressPull { .. } => "Push or pull a planar face of a part along its normal; its neighbours follow it.",
+        Stored { .. } => "A mesh another kernel made, kept in the file so every build shows and judges it; run it again where that kernel is to change it.",
     }
 }
 /// Keep tools with a known invalid default out of the creation path.

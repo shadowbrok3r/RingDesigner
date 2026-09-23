@@ -70,6 +70,7 @@ fn nudge(op: &mut Operation) {
         Operation::PressPull { distance_mm, .. } => *distance_mm *= 1.05,
         Operation::Plane { offset_mm, .. } => *offset_mm += 0.1,
         Operation::Band | Operation::Sketch { .. } | Operation::Loft { .. } | Operation::Boolean { .. } | Operation::Builder { .. } | Operation::Pattern { .. } => {}
+        Operation::Stored { .. } => {}
     }
 }
 

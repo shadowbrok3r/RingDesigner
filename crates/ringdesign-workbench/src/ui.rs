@@ -747,6 +747,7 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
         },
         Operation::Plane { offset_mm, .. } => number(ui, "Offset mm", offset_mm),
         Operation::PressPull { distance_mm, .. } => number(ui, "Distance mm", distance_mm),
+        Operation::Stored { recipe, mesh, .. } => { ui.weak(format!("{} triangles {} made; run it again where {} is to change it.", mesh.triangles, recipe.kernel_name(), recipe.kernel_name())); }
     }
     if let Some(sketch) = op.sketch_mut() {
         ui.collapsing("Sketch points and workplane", |ui| {
