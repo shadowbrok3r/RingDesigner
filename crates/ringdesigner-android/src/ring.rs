@@ -20,7 +20,7 @@ use ringdesign_core::castability::{self, CastReport, FieldReport};
 use ringdesign_core::mesh::{BuildParams, Vec3};
 
 use crate::camera::OrbitCamera;
-use crate::viewport::{GpuMeshRenderer, ShadeMode, paint_callback};
+use crate::viewport::{GpuMeshRenderer, PaneLook, ShadeMode, paint_callback};
 
 /// Lightweight mesh while editing. Settled previews use the selected detail tier.
 pub const PREVIEW: BuildParams = BuildParams {
@@ -99,6 +99,8 @@ pub struct RingPane {
     pub clip_plane: [f32; 4],
     /// Tint and strength of the chosen node's highlight; zero strength is off.
     pub focus: [f32; 4],
+    /// Every part's edges over the metal; a chosen edge draws either way.
+    pub edges: bool,
     /// The two-finger twist in hand.
     pub twist: Twist,
 }
@@ -165,6 +167,7 @@ impl Default for RingPane {
             actual_size: false,
             clip_plane: [0.0; 4],
             focus: [0.0; 4],
+            edges: true,
             twist: Twist::default(),
         }
     }
@@ -194,7 +197,7 @@ impl RingPane {
             .rect_filled(rect, 0.0, egui::Color32::from_rgb(18, 18, 20));
 
         if let Ok(r) = renderer.lock() {
-            if let Some(err) = r.failed.as_ref() {
+            if let Some(err) = r.failed() {
                 ui.painter().text(
                     rect.center(),
                     egui::Align2::CENTER_CENTER,
@@ -225,7 +228,7 @@ impl RingPane {
         }
 
         let moved = !lock_orbit && self.handle_touch(ui, &response, rect);
-        if moved {
+        if moved || renderer.lock().is_ok_and(|r| r.timed()) {
             ui.ctx().request_repaint();
         }
         let probe_ray = response
@@ -244,20 +247,16 @@ impl RingPane {
         }
 
         let (mvp, normal_matrix) = self.camera.matrices(rect);
-        paint_callback(
-            ui,
-            rect,
-            renderer.clone(),
-            mvp,
-            normal_matrix,
-            self.shade,
-            ringdesign_core::render::METAL_FINISHES[self.finish.min(6)].1,
-            ringdesign_core::render::POLISHES[self.polish.min(2)].1,
-            self.wireframe,
-            [0.10, 0.10, 0.12],
-            self.clip_plane,
-            self.focus,
-        );
+        let look = PaneLook {
+            shade: self.shade,
+            base_color: ringdesign_core::render::METAL_FINISHES[self.finish.min(6)].1,
+            roughness: ringdesign_core::render::POLISHES[self.polish.min(2)].1,
+            wire: self.wireframe.then_some([0.10, 0.10, 0.12]),
+            clip_plane: self.clip_plane,
+            focus: self.focus,
+            edges: self.edges,
+        };
+        paint_callback(ui, rect, renderer.clone(), mvp, normal_matrix, look);
         ViewResponse {
             response,
             rect,

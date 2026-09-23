@@ -364,6 +364,13 @@ impl Cad {
             }
             ui.ctx().request_repaint();
         }
+        // The edge pass follows the build on screen and the chosen and pressed edges.
+        if let Some(build) = v.build {
+            let (chosen, hovered) = lit_edges(&self.selection);
+            if renderer.lock().is_ok_and(|mut r| r.sync_edges(&build.0, &chosen, hovered)) {
+                ui.ctx().request_repaint();
+            }
+        }
         let c = ctx!(self, v);
         self.live.draw(ui, &c, renderer, &mut self.requests);
         let chosen = self.menu.as_mut().and_then(|m| menu::show(ui.ctx(), m, v.rect));
@@ -377,18 +384,13 @@ impl Cad {
         }
     }
 
-    /// The chosen edges and vertices, a chosen band point, and the pins, drawn over the ring.
+    /// The chosen vertices and the pins, drawn over the ring; the edge pass lights the chosen edges.
     fn draw_marks(&self, painter: &egui::Painter, v: &View, proj: &crate::camera::Projector) {
         let at = |p: [f64; 3]| proj.at(p.map(|x| x as f32));
         let evaluated = v.build.and_then(Built::evaluated);
         let color = egui::Color32::from_rgb(204, 146, 217);
         for item in &self.selection.items {
             match item {
-                Sel::Edge { feature, edge } => {
-                    if let Some(poly) = evaluated.and_then(|e| e.components.iter().find(|c| c.id == *feature)).and_then(|c| c.edges.get(*edge as usize)) {
-                        painter.add(egui::Shape::line(poly.iter().map(|p| at(*p)).collect(), egui::Stroke::new(3.0, color)));
-                    }
-                }
                 Sel::Vertex { feature, vertex } => {
                     if let Some(p) = evaluated.and_then(|e| e.components.iter().find(|c| c.id == *feature)).and_then(|c| c.trace.vertices.get(*vertex as usize)) {
                         painter.circle_stroke(at(*p), 7.0, egui::Stroke::new(3.0, color));
@@ -490,6 +492,19 @@ impl Cad {
             _ => Err(format!("No pattern called {key}")),
         }
     }
+}
+
+/// The chosen edges and the edge under the finger, as the edge pass lights them.
+fn lit_edges(selection: &Selection) -> (Vec<ringdesign_workbench::render::EdgeKey>, Option<ringdesign_workbench::render::EdgeKey>) {
+    let chosen = selection.items.iter().filter_map(|s| match s {
+        Sel::Edge { feature, edge } => Some((*feature, *edge)),
+        _ => None,
+    });
+    let hovered = selection.hover.as_ref().and_then(|h| match h.entity {
+        Entity::Edge { feature, edge } => Some((feature, edge)),
+        _ => None,
+    });
+    (chosen.collect(), hovered)
 }
 
 /// Refuses to make a reference stone metal.
