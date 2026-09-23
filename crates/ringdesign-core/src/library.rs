@@ -41,7 +41,7 @@ pub const DESIGN_EXT: &str = "ring.json";
 /// migration changes no values. Version 3 also protects imported base geometry
 /// from being discarded by an older app. Every version has a migration step.
 // Version 4 protects the sand-support surface and high-resolution embedded maps.
-// Version 6 protects a stored mesh, which no earlier build can parse; a design without one is still written at 5.
+// Version 6 protects a stored mesh, which no earlier build can parse, and keeps each one once in the file's table; a design without one is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
 /// The version a design without a stored mesh is written at, so builds that read up to it still open the file.
@@ -172,18 +172,115 @@ fn migrate_v4_to_v5(doc: &mut serde_json::Value) {
 /// Version 6 only fences a stored mesh off from older readers; a version-5 document has the same shape.
 fn migrate_v5_to_v6(_doc: &mut serde_json::Value) {}
 
-/// Serialization wrapper that puts the version key ahead of the design fields.
+/// The key a version-6 file keeps each of its stored meshes under once, by content digest.
+const STORED_MESHES: &str = "stored_meshes";
+
+/// Serialization wrapper that puts the version key ahead of the design fields and the stored meshes after them.
 #[derive(serde::Serialize)]
 struct VersionedDesign<'a> {
     format_version: u32,
     #[serde(flatten)]
     design: &'a RingDesign,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stored_meshes: Option<Table<'a>>,
+}
+
+/// A file's stored meshes by digest, each written in full.
+struct Table<'a>(&'a std::collections::BTreeMap<String, crate::cad::stored::Packed>);
+
+impl serde::Serialize for Table<'_> {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = s.serialize_map(Some(self.0.len()))?;
+        for (key, mesh) in self.0 {
+            map.serialize_entry(key, &crate::cad::stored::Whole(mesh))?;
+        }
+        map.end()
+    }
 }
 
 /// The design document as versioned JSON text, at the oldest version that carries it.
 pub fn design_json(design: &RingDesign) -> anyhow::Result<String> {
-    let doc = VersionedDesign { format_version: format_version_for(design), design };
-    Ok(serde_json::to_string_pretty(&doc)?)
+    let format_version = format_version_for(design);
+    let inline = || -> anyhow::Result<String> { Ok(serde_json::to_string_pretty(&VersionedDesign { format_version, design, stored_meshes: None })?) };
+    if format_version < FORMAT_VERSION {
+        return inline();
+    }
+    // Every stored mesh once in the file's table, the document's and the graph's copies each a reference into it.
+    let Some((table, graph)) = stored_table(design) else { return inline() };
+    let mut shared = design.clone();
+    shared.graph = graph;
+    let text = {
+        let _references = crate::cad::stored::ByReference::new();
+        serde_json::to_string_pretty(&VersionedDesign { format_version, design: &shared, stored_meshes: Some(Table(&table)) })?
+    };
+    // The writer's own reload check: a file that would not reopen bit for bit is written with its meshes inline.
+    let reopens = read_design(&text, FORMAT_VERSION).ok().and_then(|back| serde_json::to_string(&back).ok()) == serde_json::to_string(design).ok();
+    if reopens { Ok(text) } else { inline() }
+}
+
+/// Every stored mesh `design` carries, by digest, and its graph with each mesh there a reference; `None` when two meshes share a digest.
+fn stored_table(design: &RingDesign) -> Option<(std::collections::BTreeMap<String, crate::cad::stored::Packed>, Option<serde_json::Value>)> {
+    let mut table = std::collections::BTreeMap::new();
+    let mut keep = |mesh: crate::cad::stored::Packed| -> Option<String> {
+        let key = mesh.digest();
+        match table.get(&key) {
+            Some(held) if *held != mesh => None,
+            Some(_) => Some(key),
+            None => {
+                table.insert(key.clone(), mesh);
+                Some(key)
+            }
+        }
+    };
+    for f in design.cad.iter().flat_map(|doc| &doc.features) {
+        if let crate::cad::Operation::Stored { mesh, .. } = &f.operation {
+            keep(mesh.clone())?;
+        }
+    }
+    let mut graph = design.graph.clone();
+    if let Some(g) = &mut graph {
+        refer(g, &mut keep)?;
+    }
+    Some((table, graph))
+}
+
+/// The mesh object of a stored operation `v` holds directly: `{"Stored": {"recipe": …, "mesh": …}}`.
+fn stored_mesh_of(v: &mut serde_json::Value) -> Option<&mut serde_json::Value> {
+    let stored = v.as_object_mut()?.get_mut("Stored")?.as_object_mut()?;
+    if !stored.contains_key("recipe") {
+        return None;
+    }
+    stored.get_mut("mesh")
+}
+
+/// Every stored mesh written in full in `v` swapped for its reference, each handed to `keep`; `None` when `keep` refuses one.
+fn refer(v: &mut serde_json::Value, keep: &mut impl FnMut(crate::cad::stored::Packed) -> Option<String>) -> Option<()> {
+    if let Some(mesh) = stored_mesh_of(v)
+        && let Ok(packed) = serde_json::from_value::<crate::cad::stored::Packed>(mesh.clone())
+    {
+        *mesh = serde_json::json!({ crate::cad::stored::REFERENCE_KEY: keep(packed)? });
+    }
+    match v {
+        serde_json::Value::Object(map) => map.values_mut().try_for_each(|item| refer(item, keep)),
+        serde_json::Value::Array(items) => items.iter_mut().try_for_each(|item| refer(item, keep)),
+        _ => Some(()),
+    }
+}
+
+/// Every reference in `v` to the file's table swapped for the mesh it names; refused by name when one is not there.
+fn resolve(v: &mut serde_json::Value, table: &serde_json::Map<String, serde_json::Value>) -> anyhow::Result<()> {
+    if let Some(mesh) = stored_mesh_of(v)
+        && let Some(key) = mesh.get(crate::cad::stored::REFERENCE_KEY).and_then(serde_json::Value::as_str)
+    {
+        let held = table.get(key).ok_or_else(|| anyhow::anyhow!("Stored mesh {key} is not in the file's table"))?;
+        *mesh = held.clone();
+    }
+    match v {
+        serde_json::Value::Object(map) => map.values_mut().try_for_each(|item| resolve(item, table)),
+        serde_json::Value::Array(items) => items.iter_mut().try_for_each(|item| resolve(item, table)),
+        _ => Ok(()),
+    }
 }
 
 pub fn save_design(path: impl AsRef<Path>, design: &RingDesign) -> anyhow::Result<()> {
@@ -264,6 +361,15 @@ fn read_design(text: &str, newest: u32) -> anyhow::Result<RingDesign> {
     }
     if let Some(obj) = doc.as_object_mut() {
         obj.remove(VERSION_KEY);
+    }
+    // A version-6 file keeps each stored mesh once; every reference to it takes it back.
+    if version >= 6 {
+        let table = match doc.as_object_mut().and_then(|obj| obj.remove(STORED_MESHES)) {
+            Some(serde_json::Value::Object(table)) => table,
+            Some(_) => anyhow::bail!("The file's stored meshes are not a table"),
+            None => serde_json::Map::new(),
+        };
+        resolve(&mut doc, &table)?;
     }
     let design: RingDesign = serde_json::from_value(doc)?;
     if let Some(base) = &design.imported_base { base.validate_design(&design)?; }
@@ -653,6 +759,137 @@ mod tests {
         // The same older build still opens every design without one.
         let text = design_json(&plain).unwrap();
         assert!(read_design(&text, PLAIN_FORMAT_VERSION).is_ok());
+    }
+
+    /// The wrapper every file was written with before the table: the version first, the design's own fields after it.
+    #[derive(serde::Serialize)]
+    struct Inline<'a> {
+        format_version: u32,
+        #[serde(flatten)]
+        design: &'a RingDesign,
+    }
+
+    /// The Court band as a closed mesh, packed as another kernel would hand it over.
+    fn band_packed() -> crate::cad::stored::Packed {
+        band_packed_at(96, 48)
+    }
+
+    /// [`band_packed`] swept `theta` by `profile`.
+    fn band_packed_at(theta: usize, profile: usize) -> crate::cad::stored::Packed {
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mesh = crate::mesh::build(&court, &crate::AlphaLibrary::builtin(), crate::BuildParams { theta_steps: theta, profile_steps: profile, refine: None, ..Default::default() }).mesh;
+        let positions: Vec<[f64; 3]> = mesh.vertices.iter().map(|v| [v.0 as f64, v.1 as f64, v.2 as f64]).collect();
+        crate::cad::stored::Packed::encode(&positions, &mesh.faces, &vec![0; mesh.faces.len()], &[crate::cad::SurfaceKind::Freeform]).unwrap()
+    }
+
+    /// A design driven by its graph that carries one stored mesh, as the lift writes one: in its document and in the graph's feature node.
+    fn driven_with(mesh: crate::cad::stored::Packed) -> RingDesign {
+        use crate::cad::{Component, Document, Feature, Operation, stored::Recipe};
+        let recipe = Recipe { kernel: "occt".into(), op: "import".into(), params: serde_json::json!({ "file": "band.step" }), digest: String::new() };
+        let stored = Feature { id: 7, name: recipe.label().into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh }, component: Component::default() };
+        let mut doc = Document::default();
+        doc.append(stored.clone()).unwrap();
+        let node = serde_json::json!({ "id": 7, "kind": "cad.feature", "params": serde_json::to_value(&stored).unwrap() });
+        RingDesign { name: "Driven".into(), cad: Some(doc), graph: Some(serde_json::json!({ "name": "g", "mode": "Free", "nodes": [node] })), ..RingDesign::default() }
+    }
+
+    #[test]
+    fn a_stored_mesh_is_written_once_and_reopens_bit_for_bit() {
+        let mesh = band_packed();
+        let design = driven_with(mesh.clone());
+        let inline = serde_json::to_string_pretty(&Inline { format_version: FORMAT_VERSION, design: &design }).unwrap();
+        let text = design_json(&design).unwrap();
+        // One table entry, two references to it, the packed stream once in the file.
+        let doc: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(doc[VERSION_KEY], u64::from(FORMAT_VERSION));
+        assert!(text.trim_start().starts_with("{\n  \"format_version\": 6"), "{}", &text[..60]);
+        assert_eq!(doc[STORED_MESHES].as_object().unwrap().keys().collect::<Vec<_>>(), [&mesh.digest()]);
+        assert_eq!(text.matches(&format!("\"{}\": \"{}\"", crate::cad::stored::REFERENCE_KEY, mesh.digest())).count(), 2);
+        assert_eq!(text.matches(&mesh.data[..64]).count(), 1);
+        assert_eq!(inline.matches(&mesh.data[..64]).count(), 2);
+        // The file shrinks by the copy it no longer carries.
+        let ratio = text.len() as f64 / inline.len() as f64;
+        eprintln!("driven stored design: {} bytes inline, {} with the table ({:.3}), packed stream {} bytes", inline.len(), text.len(), ratio, mesh.data.len());
+        assert!(ratio > 0.49 && ratio < 0.52, "{ratio}");
+        // It reopens bit for bit, graph and document both, and a build reading up to 5 refuses it by name.
+        let back = load_design_str(&text).unwrap();
+        assert_eq!(serde_json::to_string(&back).unwrap(), serde_json::to_string(&design).unwrap());
+        let older = read_design(&text, PLAIN_FORMAT_VERSION).unwrap_err().to_string();
+        assert!(older.contains("format version 6") && older.contains("newer RingDesigner"), "{older}");
+        // A file written inline still reads, and a reference the table does not hold is refused by name.
+        assert_eq!(serde_json::to_string(&load_design_str(&inline).unwrap()).unwrap(), serde_json::to_string(&design).unwrap());
+        let mut broken = doc.clone();
+        broken[STORED_MESHES] = serde_json::json!({});
+        let refused = load_design_str(&broken.to_string()).unwrap_err().to_string();
+        assert_eq!(refused, format!("Stored mesh {} is not in the file's table", mesh.digest()));
+    }
+
+    /// Timings for the report: `cargo test -p ringdesign-core measured_stored_saves -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "timings only"]
+    fn measured_stored_saves() {
+        for (theta, profile) in [(96, 48), (512, 192), (1024, 384)] {
+            let design = driven_with(band_packed_at(theta, profile));
+            let started = std::time::Instant::now();
+            let inline = serde_json::to_string_pretty(&Inline { format_version: FORMAT_VERSION, design: &design }).unwrap();
+            let before = started.elapsed();
+            let started = std::time::Instant::now();
+            let text = design_json(&design).unwrap();
+            let after = started.elapsed();
+            let started = std::time::Instant::now();
+            load_design_str(&text).unwrap();
+            let load = started.elapsed();
+            eprintln!(
+                "{theta}x{profile}: {} triangles, {} bytes inline in {before:.1?}, {} with the table in {after:.1?} ({:.3}), reopened in {load:.1?}",
+                theta * profile * 2,
+                inline.len(),
+                text.len(),
+                text.len() as f64 / inline.len() as f64
+            );
+        }
+    }
+
+    #[test]
+    fn meshes_the_same_share_one_entry_and_meshes_that_differ_keep_their_own() {
+        use crate::cad::{Operation, SurfaceKind, stored::Packed};
+        let mut design = driven_with(band_packed());
+        let small = Packed::encode(&[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], &[[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]], &[0, 0, 0, 0], &[SurfaceKind::Freeform]).unwrap();
+        let doc = design.cad.as_mut().unwrap();
+        for (id, mesh) in [(8, band_packed()), (9, small.clone())] {
+            let mut f = doc.features[0].clone();
+            f.id = id;
+            if let Operation::Stored { mesh: m, .. } = &mut f.operation {
+                *m = mesh;
+            }
+            doc.append(f).unwrap();
+        }
+        let text = design_json(&design).unwrap();
+        let doc: serde_json::Value = serde_json::from_str(&text).unwrap();
+        let mut keys: Vec<String> = doc[STORED_MESHES].as_object().unwrap().keys().cloned().collect();
+        keys.sort();
+        let mut want = vec![band_packed().digest(), small.digest()];
+        want.sort();
+        assert_eq!(keys, want);
+        assert_eq!(text.matches(&format!("\"{}\": ", crate::cad::stored::REFERENCE_KEY)).count(), 4);
+        assert_eq!(serde_json::to_string(&load_design_str(&text).unwrap()).unwrap(), serde_json::to_string(&design).unwrap());
+    }
+
+    #[test]
+    fn a_design_without_a_stored_mesh_is_written_at_five_as_it_always_was() {
+        use crate::cad::{Attach, Component, Document, Feature, Operation, Placement};
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut parted = court.clone();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        doc.append(Feature { id: 2, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 0.8, height_mm: 2.0 }, component: Component { attach: Attach::Join, placement: Placement::ring(90.0, 0.9), ..Component::default() } }).unwrap();
+        parted.cad = Some(doc);
+        let mut driven = parted.clone();
+        driven.graph = Some(serde_json::json!({ "name": "g", "mode": "Free", "nodes": [{ "id": 3, "kind": "cad.feature", "params": { "id": 3, "name": "Head", "enabled": true, "operation": { "Sphere": { "radius_mm": 2.0 } } } }] }));
+        for (name, d) in [("default", RingDesign::default()), ("court", court), ("parted", parted), ("driven", driven)] {
+            let text = design_json(&d).unwrap();
+            assert_eq!(text, serde_json::to_string_pretty(&Inline { format_version: PLAIN_FORMAT_VERSION, design: &d }).unwrap(), "{name}");
+            assert!(!text.contains(STORED_MESHES), "{name}");
+        }
     }
 
     #[test]

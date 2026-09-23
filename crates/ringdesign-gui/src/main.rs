@@ -50,6 +50,7 @@ mod pattern_tests;
 mod sweep_tests;
 #[cfg(test)]
 mod cutter_tests;
+#[cfg(test)] mod export_tests;
 
 use app::RingDesignerApp;
 

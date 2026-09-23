@@ -56,8 +56,8 @@ const USAGE: &str = "usage:
   ringdesign cad profile-import <profile.svg|profile.dxf> --out <sketch.json>
   ringdesign cad profile-export <sketch.json> --out <profile.svg|profile.dxf>
   ringdesign cad calibrate <design.ring.json> [--out <dataset.csv|dataset.json>]
-  ringdesign casting check <design.json> [--recipe recipe.json] [--pull x,y,z] [--parting mm] [--pitch mm] [--json]
-  ringdesign casting export <design.json> --out <new-directory> [--recipe recipe.json] [--diagnostic]
+  ringdesign casting check <design.json> [--recipe recipe.json] [--component id] [--pull x,y,z] [--parting mm] [--pitch mm] [--json]
+  ringdesign casting export <design.json> --out <new-directory> [--recipe recipe.json] [--component id] [--diagnostic]
   ringdesign casting repair <design.json> --repair half|side|bench|square|parting [--layer index] --out <new-design.json>
   ringdesign export <design.json> [options]
   ringdesign check  <design.json> [--sizes 5:9:0.5 | 6,7,8]
@@ -68,7 +68,8 @@ const USAGE: &str = "usage:
 
 options:
   --sizes 5:9:0.5 | 6,7,8   sizes to run (default: the design's own)
-  --formats stl,obj,3mf,glb,ply,stonemap   files per size (default: stl); stonemap is the setter's SVG
+  --formats stl,obj,3mf,glb,ply,step,stonemap   files per size (default: stl); step is the finished
+                            ring at nominal size, parts exact; stonemap is the setter's SVG
   --shrink <metal>          cut patterns oversize for this metal's shrink
                             (sterling, bronze, 14k, ... — see the app's table)
   --out <dir>               output directory (default: beside the design)
@@ -231,8 +232,8 @@ fn export(
             "--formats" => {
                 formats = value()?.split(',').map(|s| s.trim().to_lowercase()).collect();
                 for f in &formats {
-                    if !matches!(f.as_str(), "stl" | "obj" | "3mf" | "glb" | "ply" | "stonemap") {
-                        anyhow::bail!("unknown format {f:?} (stl, obj, 3mf, glb, ply, stonemap)");
+                    if !matches!(f.as_str(), "stl" | "obj" | "3mf" | "glb" | "ply" | "step" | "stonemap") {
+                        anyhow::bail!("unknown format {f:?} (stl, obj, 3mf, glb, ply, step, stonemap)");
                     }
                 }
             }
@@ -330,6 +331,9 @@ fn export(
             };
             let file = if fmt == "stonemap" {
                 out_dir.join(format!("{slug}_size{}_stones.svg", fmt_size(size)))
+            } else if fmt == "step" {
+                // STEP is the finished ring at nominal size, never a shrink-scaled pattern.
+                out_dir.join(format!("{slug}_size{}.step", fmt_size(size)))
             } else {
                 out_dir.join(format!("{slug}_size{}{}.{fmt}", fmt_size(size), tag))
             };
@@ -338,7 +342,16 @@ fn export(
                     ringdesign_core::stonemap::write_stone_map_svg(&file, &d, stones_at.as_ref())?
                 }
                 "stl" => stl::write_stl(&file, &mesh, &name)?,
-                "obj" => stl::write_obj(&file, &mesh, &name)?,
+                "obj" => {
+                    // The band with its joined and cut parts is one object, each separate part its own.
+                    let objects: Vec<threemf::Object> = threemf::objects(&built, &name).iter().map(|o| o.scaled(scale.map_or(1.0, |(_, k)| k))).collect();
+                    stl::write_obj_objects(&file, &objects)?
+                }
+                "step" => {
+                    let text = ringdesign_core::cad::step::ring(&d, lib, params, &d.name)?;
+                    library::write_atomic(&file, text.as_bytes())?;
+                    text.len()
+                }
                 "glb" => ringdesign_core::gltf::write_glb(&file, finished.as_ref().unwrap_or(&mesh), &name, ringdesign_core::render::GOLD)?,
                 "ply" => stl::write_ply(&file, &mesh, &name)?,
                 _ => {

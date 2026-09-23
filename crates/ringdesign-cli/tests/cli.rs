@@ -170,6 +170,64 @@ fn a_size_run_with_parts_reseats_them_per_size_and_packs_each_separate_part_as_i
 }
 
 #[test]
+fn casting_check_casts_the_ring_of_a_band_with_parts_and_a_separate_part_alone() {
+    use ringdesign_core::cad::{Component, Feature, Operation, Placement, Stage};
+    let dir = std::env::temp_dir().join(format!("ring-casting-parts-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut d = post_band(Stage::Cast);
+    // Centred on the parting plane, the post pulls both ways.
+    d.cad.as_mut().unwrap().features[1].component.placement = Placement::ring(90.0, 0.6);
+    let spacer = Component { placement: Placement::ring(270.0, 2.0), ..Component::default() };
+    d.cad.as_mut().unwrap().append(Feature { id: 4, name: "Spacer".into(), enabled: true, operation: Operation::Box { size: [1.5; 3] }, component: spacer }).unwrap();
+    let path = dir.join("parts.ring.json");
+    ringdesign_core::library::save_design(&path, &d).unwrap();
+    let check = |extra: &[&str]| -> serde_json::Value {
+        let o = bin().args(["casting", "check", path.to_str().unwrap(), "--json"]).args(extra).output().unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+        serde_json::from_slice(&o.stdout).unwrap()
+    };
+    // The ring by default and for the post; the spacer named as its own casting.
+    for extra in [&[][..], &["--component", "3"][..]] {
+        let r = check(extra);
+        assert_eq!(r["casting"], "ring", "{extra:?}");
+        assert_eq!(r["not_in_pattern"], serde_json::json!(["#4 Spacer is its own casting and not in this pattern: choose it as the casting component to prepare it"]), "{extra:?}");
+    }
+    // The spacer chosen is poured alone: a 1.5 mm cube scaled for the shrink.
+    let r = check(&["--component", "4"]);
+    assert_eq!(r["casting"], serde_json::json!({ "part": 4 }));
+    let volume = r["source_build"]["volume_mm3"].as_f64().unwrap();
+    assert!((volume - 3.375).abs() < 1e-3, "{volume}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_size_run_writes_each_part_as_an_obj_object_and_the_ring_as_step() {
+    let dir = std::env::temp_dir().join(format!("ring-obj-step-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("solitaire.ring.json");
+    ringdesign_core::library::save_design(&path, &solitaire_and_spacer()).unwrap();
+    let out = dir.join("run");
+    let o = bin().args(["export", path.to_str().unwrap(), "--sizes", "6,8", "--formats", "obj,step", "--steps", "192x96", "--out", out.to_str().unwrap()]).output().unwrap();
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let manifest = std::fs::read_to_string(out.join("solitaire_manifest.csv")).unwrap();
+    assert_eq!(manifest.lines().skip(1).map(|r| r.split(',').nth(2).unwrap()).collect::<Vec<_>>(), ["obj", "step", "obj", "step"], "{manifest}");
+    for size in ["6", "8"] {
+        // The band with its head joined and its seat cut, then the spacer; the stone is never metal.
+        let obj = std::fs::read_to_string(out.join(format!("solitaire_size{size}.obj"))).unwrap();
+        assert_eq!(obj.lines().filter(|l| l.starts_with("o ")).collect::<Vec<_>>(), ["o Solitaire", "o Spacer"], "size {size}");
+        // The spacer exact, the band faceted and closed.
+        let step = std::fs::read_to_string(out.join(format!("solitaire_size{size}.step"))).unwrap();
+        let solids = ringdesign_core::cad::step::read_solids(&step).unwrap();
+        assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Spacer", false), ("Solitaire", true)], "size {size}");
+        assert!(solids[1].mesh.as_ref().unwrap().validate().watertight, "size {size}");
+    }
+    // The bigger size's band carries more metal.
+    let band = |size: &str| ringdesign_core::cad::step::read_solids(&std::fs::read_to_string(out.join(format!("solitaire_size{size}.step"))).unwrap()).unwrap()[1].mesh.as_ref().unwrap().volume_mm3();
+    assert!(band("8") > band("6"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn editable_cad_roundtrip_exports_components_and_resized_manufacturing_reports() {
     let dir=std::env::temp_dir().join(format!("ring-cad-cli-{}-{}",std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
     std::fs::create_dir(&dir).unwrap();let design=dir.join("signet.ring.json");

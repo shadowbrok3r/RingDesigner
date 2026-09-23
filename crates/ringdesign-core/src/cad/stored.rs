@@ -61,7 +61,7 @@ impl Recipe {
 }
 
 /// A mesh packed for the file: positions on a 10 nm grid as zigzag varint deltas, triangles as corner deltas, faces as runs, under base64.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Packed {
     pub vertices: u32,
     pub triangles: u32,
@@ -69,6 +69,59 @@ pub struct Packed {
     pub faces: Vec<SurfaceKind>,
     /// Base64 of the packed stream.
     pub data: Arc<str>,
+}
+
+/// The key a reference into a design file's table of stored meshes carries in place of the mesh.
+pub const REFERENCE_KEY: &str = "stored_mesh";
+
+thread_local! {
+    /// While set, a packed mesh serializes as its reference into the file's table.
+    static BY_REFERENCE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Every packed mesh serialized on this thread while the guard lives is written as its reference.
+pub(crate) struct ByReference(bool);
+
+impl ByReference {
+    pub(crate) fn new() -> Self {
+        Self(BY_REFERENCE.with(|c| c.replace(true)))
+    }
+}
+
+impl Drop for ByReference {
+    fn drop(&mut self) {
+        BY_REFERENCE.with(|c| c.set(self.0));
+    }
+}
+
+/// The packed mesh's fields as the file writes them in full.
+#[derive(Serialize)]
+struct Fields<'a> {
+    vertices: u32,
+    triangles: u32,
+    faces: &'a [SurfaceKind],
+    data: &'a str,
+}
+
+/// A packed mesh written in full whatever the thread's reference switch says.
+pub(crate) struct Whole<'a>(pub(crate) &'a Packed);
+
+impl Serialize for Whole<'_> {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let p = self.0;
+        Fields { vertices: p.vertices, triangles: p.triangles, faces: &p.faces, data: &p.data }.serialize(s)
+    }
+}
+
+impl Serialize for Packed {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        if BY_REFERENCE.with(std::cell::Cell::get) {
+            let mut map = serde::Serializer::serialize_map(s, Some(1))?;
+            serde::ser::SerializeMap::serialize_entry(&mut map, REFERENCE_KEY, &self.digest())?;
+            return serde::ser::SerializeMap::end(map);
+        }
+        Whole(self).serialize(s)
+    }
 }
 
 /// A packed mesh read back: positions on the grid, triangles, and the face behind each.
@@ -163,6 +216,23 @@ impl Packed {
         })
     }
 
+    /// 16 hex digits of FNV-1a over the counts, the face kinds and the packed stream: the mesh's key in a file's table.
+    pub fn digest(&self) -> String {
+        fn eat(h: &mut u64, bytes: &[u8]) {
+            for b in bytes {
+                *h = (*h ^ u64::from(*b)).wrapping_mul(0x0000_0100_0000_01b3);
+            }
+        }
+        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+        eat(&mut h, &self.vertices.to_le_bytes());
+        eat(&mut h, &self.triangles.to_le_bytes());
+        for k in &self.faces {
+            eat(&mut h, format!("{k:?};").as_bytes());
+        }
+        eat(&mut h, self.data.as_bytes());
+        format!("{h:016x}")
+    }
+
     /// The mesh as packed, positions on the grid; refused by name when the stream does not read.
     pub fn decode(&self) -> Result<Unpacked> {
         let (nv, nt) = (self.vertices as usize, self.triangles as usize);
@@ -215,6 +285,60 @@ impl Packed {
         let creases = builders::creases(&named, builders::CREASE_DEG);
         Ok(builders::Made { key: STORED.to_string(), named, kinds: u.kinds, creases, gem: None, seat: None, stations: Vec::new() })
     }
+}
+
+/// Where an imported part lands: at the top of the ring, on the band's mid-plane, standing on the surface.
+pub fn import_placement() -> Placement {
+    Placement::ring(crate::profile::TOP_DEG, 0.0)
+}
+
+/// Closed solids from `file` as one stored part named for it, joined at the top of the ring; refused by the file's name when one is open.
+pub fn imported(file: &str, format: &str, solids: &[crate::Mesh]) -> Result<Feature> {
+    ensure!(!solids.is_empty(), "{file} holds no solid");
+    let (mut positions, mut triangles, mut face_of) = (Vec::new(), Vec::new(), Vec::new());
+    for (k, solid) in solids.iter().enumerate() {
+        let v = solid.validate();
+        ensure!(v.watertight && !solid.faces.is_empty(), "{file} is not a closed solid: {} open and {} non-manifold edges", v.boundary_edges, v.non_manifold_edges);
+        let base = positions.len() as u32;
+        positions.extend(solid.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]));
+        triangles.extend(solid.faces.iter().map(|f| f.map(|i| i + base)));
+        face_of.extend(std::iter::repeat_n(k as u32, solid.faces.len()));
+    }
+    let mesh = Packed::encode(&positions, &triangles, &face_of, &vec![SurfaceKind::Freeform; solids.len()]).with_context(|| format!("{file} will not pack"))?;
+    imported_packed(file, "file", serde_json::json!({ "file": file, "format": format }), mesh)
+}
+
+/// A packed mesh read from `file` by `kernel` as one stored part named for it, joined at the top of the ring; refused when it is open.
+pub fn imported_packed(file: &str, kernel: &str, params: serde_json::Value, mesh: Packed) -> Result<Feature> {
+    mesh.made().with_context(|| format!("{file} does not close once packed"))?;
+    let recipe = Recipe { kernel: kernel.into(), op: "import".into(), params, digest: String::new() };
+    let stem = std::path::Path::new(file).file_stem().and_then(|s| s.to_str()).filter(|s| !s.trim().is_empty());
+    let name = stem.map_or_else(|| recipe.label().to_string(), str::to_string);
+    let component = super::Component { attach: super::Attach::Join, placement: import_placement(), ..super::Component::default() };
+    Ok(Feature { id: 0, name, enabled: true, operation: super::Operation::Stored { recipe, sources: Vec::new(), mesh }, component })
+}
+
+/// Packed meshes as one, their faces numbered on after one another.
+pub fn merged(meshes: &[&Packed]) -> Result<Packed> {
+    let (mut positions, mut triangles, mut face_of, mut kinds) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    for mesh in meshes {
+        let u = mesh.decode()?;
+        let (base, faces) = (positions.len() as u32, kinds.len() as u32);
+        positions.extend(u.positions);
+        triangles.extend(u.triangles.iter().map(|t| t.map(|i| i + base)));
+        face_of.extend(u.face_of.iter().map(|f| f + faces));
+        kinds.extend(u.kinds);
+    }
+    Packed::encode(&positions, &triangles, &face_of, &kinds)
+}
+
+/// The edits that bring `part` into `design`: a procedural shank first when the design has no parts yet, so the part stands on the band.
+pub fn import_edits(design: &RingDesign, part: Feature) -> Vec<super::edit::CadEdit> {
+    use super::edit::CadEdit;
+    let first = design.cad.as_ref().is_none_or(|doc| doc.features.is_empty());
+    let shank = super::Component { role: super::ComponentRole::Shank, ..super::Component::default() };
+    let band = Feature { id: 0, name: "Procedural shank".into(), enabled: true, operation: super::Operation::Band, component: shank };
+    first.then_some(CadEdit::Add { feature: band, after: None }).into_iter().chain(std::iter::once(CadEdit::Add { feature: part, after: None })).collect()
 }
 
 /// Whether `design` carries a stored mesh: in its document, or anywhere in its graph, clusters included.
@@ -491,6 +615,74 @@ mod tests {
         assert!(r.status.is_ok(), "{:?}", r.status);
         assert_eq!(r.notes, ["#2 Plate changed after OpenCascade made this mesh; it stands as made until it runs again where OpenCascade is"]);
         assert_eq!(e.components.len(), 1);
+    }
+
+    /// A closed `n`-sided cylinder of radius `r` along z from `z0` to `z0 + h`, wound outward.
+    fn cylinder_mesh(r: f64, h: f64, z0: f64, n: u32) -> crate::Mesh {
+        let at = |k: u32, z: f64| {
+            let a = f64::from(k) * std::f64::consts::TAU / f64::from(n);
+            crate::Vec3((r * a.cos()) as f32, (r * a.sin()) as f32, z as f32)
+        };
+        let mut m = crate::Mesh { vertices: vec![crate::Vec3(0.0, 0.0, z0 as f32), crate::Vec3(0.0, 0.0, (z0 + h) as f32)], ..Default::default() };
+        for k in 0..n {
+            m.vertices.push(at(k, z0));
+            m.vertices.push(at(k, z0 + h));
+        }
+        for k in 0..n {
+            let (b0, t0, b1, t1) = (2 + 2 * k, 3 + 2 * k, 2 + 2 * ((k + 1) % n), 3 + 2 * ((k + 1) % n));
+            m.faces.extend([[0, b1, b0], [1, t0, t1], [b0, b1, t1], [b0, t1, t0]]);
+        }
+        m
+    }
+
+    #[test]
+    fn an_imported_solid_stands_at_the_top_joined_and_grows_the_band_by_its_own_volume() {
+        let lib = AlphaLibrary::builtin();
+        let post = cylinder_mesh(0.8, 2.0, -0.02, 64);
+        assert!(post.validate().watertight);
+        let f = imported("posts/post.stl", "stl", std::slice::from_ref(&post)).unwrap();
+        let Operation::Stored { recipe, sources, mesh } = &f.operation else { panic!() };
+        assert_eq!((f.name.as_str(), recipe.op.as_str(), recipe.label(), sources.len()), ("post", "import", "Imported solid", 0));
+        assert_eq!(recipe.params, serde_json::json!({ "file": "posts/post.stl", "format": "stl" }));
+        assert_eq!((f.component.attach, &f.component.placement), (Attach::Join, &Placement::ring(90.0, 0.0)));
+        assert_eq!((mesh.vertices as usize, mesh.triangles as usize), (post.vertices.len(), post.faces.len()));
+        // A plain ring takes its procedural shank with the part; a ring anchored on its band takes the part alone.
+        let mut court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let bare = crate::mesh::try_build(&court, &lib, params()).unwrap();
+        let edits = import_edits(&court, f.clone());
+        assert_eq!(edits.len(), 2);
+        for edit in &edits {
+            court.apply_cad_edit(edit).unwrap();
+        }
+        assert_eq!(import_edits(&court, f.clone()).len(), 1);
+        let built = crate::mesh::try_build(&court, &lib, params()).unwrap();
+        assert!(built.report.validation.watertight && built.parts.notes.is_empty(), "{:?} {:?}", built.report.validation, built.parts.notes);
+        assert_eq!(built.parts.joined, 1);
+        // Its foot is sunk 0.02 mm into the crown, so the band grows by the post less a sliver.
+        let grown = built.report.volume_mm3 - bare.report.volume_mm3;
+        eprintln!("imported post: {:.4} mm³ of its own, the band grew {grown:.4}", post.volume_mm3());
+        assert!((grown - post.volume_mm3()).abs() < 0.01 * post.volume_mm3(), "{grown} against {}", post.volume_mm3());
+        // An open solid is refused by the file's name, and so is a file with nothing in it.
+        let mut open = post.clone();
+        open.faces.pop();
+        assert_eq!(imported("open.stl", "stl", &[open]).unwrap_err().to_string(), "open.stl is not a closed solid: 3 open and 0 non-manifold edges");
+        assert_eq!(imported("empty.obj", "obj", &[]).unwrap_err().to_string(), "empty.obj holds no solid");
+    }
+
+    #[test]
+    fn packed_meshes_merge_with_their_faces_numbered_on() {
+        let tetra = |dx: f64| {
+            let positions = [[dx, 0.0, 0.0], [dx + 1.0, 0.0, 0.0], [dx, 1.0, 0.0], [dx, 0.0, 1.0]];
+            Packed::encode(&positions, &[[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]], &[0, 0, 1, 1], &[SurfaceKind::Plane, SurfaceKind::Freeform]).unwrap()
+        };
+        let m = merged(&[&tetra(0.0), &tetra(3.0)]).unwrap();
+        let u = m.decode().unwrap();
+        assert_eq!((u.positions.len(), u.triangles.len(), u.kinds.len()), (8, 8, 4));
+        assert_eq!(u.face_of, [0, 0, 1, 1, 2, 2, 3, 3]);
+        assert_eq!((u.triangles[4], u.kinds[2]), ([4, 6, 5], SurfaceKind::Plane));
+        assert!((m.made().unwrap().solid().volume() - 1.0 / 3.0).abs() < 1e-9);
+        let f = imported_packed("two.step", "occt", serde_json::json!({ "file": "two.step" }), m).unwrap();
+        assert_eq!((f.name.as_str(), f.operation.label()), ("two", "Imported solid"));
     }
 
     #[test]

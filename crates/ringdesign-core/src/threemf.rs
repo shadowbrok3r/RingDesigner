@@ -268,7 +268,7 @@ pub fn write_3mf_objects(path: impl AsRef<Path>, objects: &[Object], name: &str,
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::alpha::AlphaLibrary;
     use crate::mesh::{build, BuildParams};
@@ -393,7 +393,7 @@ mod tests {
     }
 
     /// The Court band carrying a joined post, a cut pilot, a spacer kept beside it and a reference stone.
-    fn parted() -> RingDesign {
+    pub(crate) fn parted() -> RingDesign {
         use crate::cad::{Attach, Component, Document, Feature, Operation, Placement, builders};
         let mut d = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
         let mut doc = Document::default();

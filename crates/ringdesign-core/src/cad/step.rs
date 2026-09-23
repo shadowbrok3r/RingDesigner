@@ -709,6 +709,39 @@ pub fn read_solids(text: &str) -> Result<Vec<Found>> {
     }
     Ok(found)
 }
+/// The faceted solids a STEP file holds as welded meshes and a line for each exact solid left for OpenCascade; refused by name when none.
+pub fn faceted_meshes(text: &str, file: &str) -> Result<(Vec<Mesh>, Vec<String>)> {
+    let solids = read_solids(text).with_context(|| format!("{file} does not read as STEP"))?;
+    let exact: Vec<String> = solids.iter().filter(|s| !s.faceted).map(|s| if s.name.is_empty() { "unnamed".to_string() } else { s.name.clone() }).collect();
+    let meshes: Vec<Mesh> = solids.into_iter().filter_map(|s| s.mesh).map(|m| welded(&m)).collect();
+    ensure!(
+        !meshes.is_empty(),
+        "{file} holds no faceted solid; its {} exact solid(s) ({}) read only where OpenCascade is",
+        exact.len(),
+        exact.join(", ")
+    );
+    let notes = exact.iter().map(|name| format!("{file}: the exact solid {name} reads only where OpenCascade is, and was left out")).collect();
+    Ok((meshes, notes))
+}
+
+/// `mesh` with every corner at one position made one vertex.
+fn welded(mesh: &Mesh) -> Mesh {
+    let mut index: HashMap<[u32; 3], u32> = HashMap::new();
+    let mut out = Mesh::default();
+    let remap: Vec<u32> = mesh
+        .vertices
+        .iter()
+        .map(|v| {
+            *index.entry([v.0.to_bits(), v.1.to_bits(), v.2.to_bits()]).or_insert_with(|| {
+                out.vertices.push(*v);
+                out.vertices.len() as u32 - 1
+            })
+        })
+        .collect();
+    out.faces = mesh.faces.iter().map(|f| f.map(|i| remap[i as usize])).filter(|f| f[0] != f[1] && f[1] != f[2] && f[0] != f[2]).collect();
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -731,6 +764,43 @@ mod tests {
         assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Shank", false), ("Separate signet head", false)]);
         assert!(solids.iter().all(|s| s.faces > 0 && s.mesh.is_none()));
         assert!(!text.contains("FACETED_BREP") && !text.contains("SHAPE_REPRESENTATION_RELATIONSHIP"));
+    }
+
+    #[test]
+    fn a_ring_written_as_step_imports_back_as_its_faceted_solids() {
+        use crate::cad::{Component, Document, Feature, Operation, Placement};
+        let lib = crate::AlphaLibrary::builtin();
+        let params = crate::BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() };
+        let mut d = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        let post = Component { attach: Attach::Join, placement: Placement::ring(90.0, 0.9), ..Component::default() };
+        doc.append(Feature { id: 2, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 0.8, height_mm: 2.0 }, component: post }).unwrap();
+        d.cad = Some(doc);
+        let text = ring(&d, &lib, params, "Court").unwrap();
+        // The band comes back faceted and closed, holding what the build put in it; the exact post waits for OpenCascade.
+        let (meshes, notes) = faceted_meshes(&text, "court.step").unwrap();
+        assert_eq!(notes, ["court.step: the exact solid Post reads only where OpenCascade is, and was left out"]);
+        assert_eq!(meshes.len(), 1);
+        assert!(meshes[0].validate().watertight);
+        let mut apart = d.clone();
+        apart.cad.as_mut().unwrap().features[1].component.attach = Attach::Separate;
+        let built = crate::mesh::try_build(&apart, &lib, params).unwrap();
+        let band = crate::threemf::objects(&built, "Court").remove(0);
+        let (read, want) = (meshes[0].volume_mm3(), band.mesh.volume_mm3());
+        assert!((read - want).abs() < 5e-3 * want, "{read} against {want}");
+        // Imported, it packs as one closed part of the same metal.
+        let f = super::super::stored::imported("court.step", "step", &meshes).unwrap();
+        let Operation::Stored { mesh, .. } = &f.operation else { panic!() };
+        let packed = mesh.made().unwrap().solid().volume();
+        eprintln!("court STEP back: {read:.4} mm³ faceted against {want:.4} built, {packed:.4} packed");
+        assert!((packed - want).abs() < 5e-3 * want, "{packed} against {want}");
+        // A file of exact solids only is refused by name.
+        let gallery = super::super::examples::design("gallery").unwrap();
+        let exact = export(&super::super::evaluate(&gallery, &lib, params).unwrap(), "Gallery").unwrap();
+        let refused = faceted_meshes(&exact, "gallery.step").unwrap_err().to_string();
+        assert!(refused.starts_with("gallery.step holds no faceted solid; its 6 exact solid(s) (Gallery lower ring, Raise upper ring, Gallery strut 1,"), "{refused}");
+        assert!(refused.ends_with(") read only where OpenCascade is"), "{refused}");
     }
 
     /// The claw solitaire with a post joined to the band and a spacer kept beside it.

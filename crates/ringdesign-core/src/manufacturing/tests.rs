@@ -266,6 +266,129 @@ fn investment_sheet_does_not_instruct_sand_withdrawal() {
     assert!(!sheet.contains("Lift the upper mold straight"));
 }
 
+/// The Court band with a procedural shank and `more` parts on it.
+fn court_with(more: Vec<crate::cad::Feature>) -> RingDesign {
+    use crate::cad::{Component, Document, Feature, Operation};
+    let mut d = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+    let mut doc = Document::default();
+    doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+    for f in more {
+        doc.append(f).unwrap();
+    }
+    d.cad = Some(doc);
+    d
+}
+
+/// A 1.6 mm post joined to the top of the band, its foot 0.1 mm into the crown.
+fn post() -> crate::cad::Feature {
+    use crate::cad::{Attach, Component, Feature, Operation, Placement};
+    let component = Component { attach: Attach::Join, placement: Placement::ring(90.0, 0.9), ..Component::default() };
+    Feature { id: 2, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 0.8, height_mm: 2.0 }, component }
+}
+
+/// A 1.5 mm cube kept beside the band at the palm.
+fn spacer() -> crate::cad::Feature {
+    use crate::cad::{Component, Feature, Operation, Placement};
+    let component = Component { placement: Placement::ring(270.0, 2.0), ..Component::default() };
+    Feature { id: 3, name: "Spacer".into(), enabled: true, operation: Operation::Box { size: [1.5; 3] }, component }
+}
+
+#[test]
+fn a_band_with_parts_casts_the_ring_and_names_a_separate_part_as_its_own_casting() {
+    let lib = AlphaLibrary::builtin();
+    let setup = Setup::default();
+    let claw = crate::cad::examples::design("claw-solitaire").unwrap();
+    let bare = prepare(&court_with(Vec::new()), &lib, &setup, params()).unwrap();
+    let with_post = prepare(&court_with(vec![post()]), &lib, &setup, params()).unwrap();
+    let both = court_with(vec![post(), spacer()]);
+    let with_spacer = prepare(&both, &lib, &setup, params()).unwrap();
+    // The ring is the band with every joined and cut part; the anchor, the stone and the separate spacer are not outputs of it.
+    assert_eq!(with_post.design.cad.as_ref().unwrap().outputs, vec![2]);
+    assert_eq!(with_spacer.design.cad.as_ref().unwrap().outputs, vec![2]);
+    assert!(with_post.notes.is_empty() && with_post.casting == Casting::Ring, "{:?}", with_post.notes);
+    assert_eq!(with_spacer.notes, vec!["#3 Spacer is its own casting and not in this pattern: choose it as the casting component to prepare it".to_string()]);
+    // The spacer changes nothing poured: the same band and post, vertex for vertex.
+    assert!(with_spacer.mesh.vertices == with_post.mesh.vertices && with_spacer.mesh.faces == with_post.mesh.faces);
+    let post_mm3 = std::f64::consts::PI * 0.64 * 2.0;
+    let added = with_post.build.volume_mm3 - bare.build.volume_mm3;
+    eprintln!("ring casting: bare {:.4} mm³, with the post {:.4} (+{added:.4} of {post_mm3:.4})", bare.build.volume_mm3, with_post.build.volume_mm3);
+    assert!(added > 0.9 * post_mm3 && added < post_mm3, "added {added:.4} of {post_mm3:.4}");
+    assert!(with_post.mesh.validate().watertight);
+    // The claw solitaire pours its band with the head joined; the bur waits for the bench under sand and the stone is never metal.
+    let p = prepare(&claw, &lib, &setup, params()).unwrap();
+    eprintln!("claw solitaire ring casting: {:.4} mm³ poured, {} faces, bench {:?}", p.build.volume_mm3, p.mesh.faces.len(), p.bench_layers);
+    assert_eq!(p.design.cad.as_ref().unwrap().outputs, vec![3]);
+    assert_eq!(p.bench_layers, vec!["Seat bur (part)".to_string()]);
+    assert!(p.notes.is_empty() && p.mesh.validate().watertight, "{:?}", p.notes);
+    // The mould study and the casting inspection read the same pattern, parts judged on the build it was cut from.
+    for (name, d, part) in [("claw solitaire", &claw, 3), ("post", &court_with(vec![post()]), 2), ("post and spacer", &both, 2)] {
+        let study = crate::interaction::mould::build(d, &lib).unwrap_or_else(|e| panic!("{name}: {e:#}"));
+        let seen = prepare(d, &lib, &setup, BuildParams { theta_steps: 192, profile_steps: 96, ..Default::default() }).unwrap();
+        assert!((study.pattern.volume_mm3() - seen.mesh.volume_mm3()).abs() < 1e-9, "{name}");
+        assert_eq!(study.notes, seen.notes, "{name}");
+        let i = inspect(d, &lib, &setup, params()).unwrap_or_else(|e| panic!("{name}: {e:#}"));
+        let field = i.field.as_ref().unwrap_or_else(|| panic!("{name}: the ring is judged by the field"));
+        assert!(field.parts.iter().any(|p| p.feature == part && p.judged), "{name}: {:?}", field.parts);
+        assert!(i.local_wall.is_none(), "{name}");
+    }
+    let i = inspect(&both, &lib, &setup, params()).unwrap();
+    assert!(i.details.iter().any(|d| d.starts_with("#3 Spacer is its own casting")), "{:?}", i.details);
+    let package = package::files(&both, &lib, &setup, params(), true).unwrap();
+    assert_eq!(package.report["casting"], "ring");
+    assert_eq!(package.report["not_in_pattern"], serde_json::json!(["#3 Spacer is its own casting and not in this pattern: choose it as the casting component to prepare it"]));
+    let sheet = package.entries.iter().find(|e| e.name == "molding-sheet.html").unwrap();
+    assert!(String::from_utf8_lossy(&sheet.data).contains("#3 Spacer is its own casting"));
+}
+
+#[test]
+fn a_chosen_separate_part_is_cast_alone_and_a_chosen_ring_member_casts_the_ring() {
+    let lib = AlphaLibrary::builtin();
+    let both = court_with(vec![post(), spacer()]);
+    let ring = prepare(&both, &lib, &Setup::default(), params()).unwrap();
+    // The band's anchor and a joined part each stand for the ring.
+    for id in [1, 2] {
+        let p = prepare(&both, &lib, &Setup { component: Some(id), ..Setup::default() }, params()).unwrap();
+        assert_eq!((p.casting, &p.design.cad.as_ref().unwrap().outputs), (Casting::Ring, &vec![2]), "#{id}");
+        assert!(p.mesh.vertices == ring.mesh.vertices, "#{id}");
+    }
+    // The spacer chosen is poured alone, standing where the finished ring stands it: a 1.5 mm cube and nothing of the band.
+    let setup = Setup { component: Some(3), ..Setup::default() };
+    let p = prepare(&both, &lib, &setup, params()).unwrap();
+    assert_eq!((p.casting, &p.design.cad.as_ref().unwrap().outputs), (Casting::Part(3), &vec![3]));
+    assert!(p.notes.is_empty() && p.bench_layers.is_empty());
+    let cube = 3.375 * setup.scale().powi(3);
+    assert!((p.mesh.volume_mm3() - cube).abs() < 1e-3, "{} against {cube}", p.mesh.volume_mm3());
+    assert!((p.build.volume_mm3 - 3.375).abs() < 1e-3 && p.mesh.validate().watertight && p.mesh.faces.len() == 12, "{:?}", p.build.validation);
+    let finished = crate::mesh::try_build(&both, &lib, params()).unwrap();
+    let own = crate::threemf::objects(&finished, "Court band").into_iter().find(|o| o.feature == Some(3)).unwrap();
+    let low = |m: &crate::Mesh| m.bounds().unwrap().0;
+    let (a, b) = (low(&own.mesh), low(&p.mesh.scaled(1.0 / p.scale)));
+    assert!((a.0 - b.0).abs() < 1e-5 && (a.1 - b.1).abs() < 1e-5 && (a.2 - b.2).abs() < 1e-5, "{a:?} against {b:?}");
+    // Inspected as a CAD component: a local wall, no band field, no hot spot.
+    let i = inspect(&both, &lib, &setup, params()).unwrap();
+    assert!(i.field.is_none() && i.local_wall.is_some() && i.hot_spot.is_none());
+    assert!((i.ring_grams - p.build.volume_mm3 * crate::metal::find("Silver 925").unwrap().density / 1000.0).abs() < 1e-9);
+    let study = crate::interaction::mould::build(&RingDesign { manufacturing: Some(setup.clone()), ..both.clone() }, &lib).unwrap();
+    assert!((study.pattern.volume_mm3() - cube).abs() < 1e-3);
+    // Its stages are the cube too: nominal and as-cast one size, the pattern the shrink over it.
+    let s = stages::evaluate(&both, &lib, &setup, params()).unwrap();
+    assert!((s.nominal.volume_mm3() - 3.375).abs() < 1e-3 && (s.as_cast.volume_mm3() - 3.375).abs() < 1e-3, "{}", s.nominal.volume_mm3());
+    // Profile stock goes on the band, which this pattern does not pour; a stone and a stranger are refused by name.
+    let stock = prepare(&both, &lib, &Setup { radial_stock_mm: 0.1, ..setup.clone() }, params()).err().unwrap().to_string();
+    assert_eq!(stock, "Profile stock goes on the band, and this pattern casts #3 Spacer on its own; model stock into it explicitly");
+    let claw = crate::cad::examples::design("claw-solitaire").unwrap();
+    for id in [2, 99] {
+        let refused = prepare(&claw, &lib, &Setup { component: Some(id), ..Setup::default() }, params()).err().unwrap().to_string();
+        assert_eq!(refused, "Selected casting component is missing or a reference stone", "#{id}");
+    }
+    // A ring of parts only still casts the one component it is asked for.
+    let gallery = crate::cad::examples::design("gallery").unwrap();
+    let refused = prepare(&gallery, &lib, &Setup::default(), params()).err().unwrap().to_string();
+    assert_eq!(refused, "Select one CAD component in the casting recipe");
+    let one = prepare(&gallery, &lib, &Setup { component: Some(1), ..Setup::default() }, params()).unwrap();
+    assert_eq!((one.casting, &one.design.cad.as_ref().unwrap().outputs), (Casting::Part(1), &vec![1]));
+}
+
 #[test]
 fn recipe_persistence_and_failed_production_export_leave_no_package() {
     let root = std::env::temp_dir().join(format!(

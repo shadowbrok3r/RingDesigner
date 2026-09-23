@@ -287,17 +287,24 @@ pub fn files(
         name: "assembly-nominal.3mf".into(),
         data: threemf(&evaluated, &d.name),
     });
-    // STEP carries kernel bodies; a part a builder made is a mesh and rides in the STL and 3MF files only.
+    // STEP carries the whole ring: kernel bodies exact, the band and every part a builder made as faceted solids.
     let metal = evaluated.components.iter().filter(|c| !c.settings.reference);
-    if metal.clone().any(|c| c.made.is_none()) {
+    let band = d.band_is_procedural();
+    if band || metal.clone().next().is_some() {
         entries.push(crate::threemf::Entry {
             name: "assembly-nominal.step".into(),
-            data: super::step::export(&evaluated, &d.name)?.into_bytes(),
+            data: super::step::ring(d, lib, params, &d.name)?.into_bytes(),
         });
     }
-    let meshes: Vec<String> = metal.filter(|c| c.made.is_some()).map(|c| format!("#{} {}", c.id, escape(&c.name))).collect();
+    // On a band a builder's joined or cut part is inside the band's own faceted solid.
+    let apart = |c: &&super::EvaluatedComponent| c.made.is_some() && (!band || c.attach == super::Attach::Separate);
+    let meshes: Vec<String> = band
+        .then(|| "the band, with its cuts and the parts builders made on it".to_string())
+        .into_iter()
+        .chain(metal.filter(apart).map(|c| format!("#{} {}", c.id, escape(&c.name))))
+        .collect();
     if !meshes.is_empty() {
-        write!(sheet, "<p>Made as meshes by their builders, so in the STL and 3MF files and not in STEP: {}.</p>", meshes.join(", "))?;
+        write!(sheet, "<p>In the STEP file each kernel part is an exact solid of its own, and these are faceted, as built: {}.</p>", meshes.join("; "))?;
     }
     entries.push(crate::threemf::Entry {
         name: "manifest.json".into(),
@@ -360,6 +367,42 @@ mod tests {
         assert!(zip.windows(12).any(|w| w == b"objectid=\"1\""));
         assert!(!zip.windows(12).any(|w| w == b"objectid=\"2\""));
     }
+    #[test]
+    fn the_assembly_step_carries_the_band_and_every_part_a_builder_made() {
+        use crate::cad::{Attach, Placement, builders};
+        use crate::gem::{Gem, GemCut};
+        let lib = AlphaLibrary::builtin();
+        let params = BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() };
+        // The claw solitaire with a loose bezel round a second stone and a spacer, both kept beside the band.
+        let mut d = crate::cad::examples::design("claw-solitaire").unwrap();
+        let doc = d.cad.as_mut().unwrap();
+        let gem = Gem::calibrated(GemCut::Round, 3.0);
+        doc.append(builders::stone_feature(5, gem, Placement::ring(270.0, builders::stand_off_mm("bezel", gem)))).unwrap();
+        let mut bezel = builders::feature_on(6, "Loose bezel", builders::BEZEL, 5, serde_json::json!({}));
+        bezel.component.attach = Attach::Separate;
+        doc.append(bezel).unwrap();
+        let spacer = Component { placement: Placement::ring(180.0, 2.0), ..Component::default() };
+        doc.append(Feature { id: 7, name: "Spacer".into(), enabled: true, operation: Operation::Box { size: [1.5; 3] }, component: spacer }).unwrap();
+        let package = files(&d, &lib, params).unwrap();
+        let step = package.entries.iter().find(|e| e.name == "assembly-nominal.step").expect("a STEP file");
+        let solids = crate::cad::step::read_solids(std::str::from_utf8(&step.data).unwrap()).unwrap();
+        // The spacer exact; the band with its head and seat, and the loose bezel, faceted; neither stone is metal.
+        assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Spacer", false), ("claw-solitaire", true), ("Loose bezel", true)]);
+        assert_eq!(solids[0].faces, 6);
+        let built = crate::mesh::try_build(&d, &lib, params).unwrap();
+        let objects = crate::threemf::objects(&built, &d.name);
+        for s in solids.iter().filter(|s| s.faceted) {
+            let read = s.mesh.as_ref().unwrap();
+            assert!(read.validate().watertight, "{}", s.name);
+            let o = objects.iter().find(|o| o.name == s.name).unwrap_or_else(|| panic!("no object {}", s.name));
+            let (a, b) = (read.volume_mm3(), o.mesh.volume_mm3());
+            eprintln!("assembly STEP {}: {a:.4} mm³ read back against {b:.4} built", s.name);
+            assert!((a - b).abs() < 5e-3 * b, "{}: {a} against {b}", s.name);
+        }
+        let sheet = package.entries.iter().find(|e| e.name == "assembly-sheet.html").unwrap();
+        assert!(String::from_utf8_lossy(&sheet.data).contains("these are faceted, as built: the band, with its cuts and the parts builders made on it; #6 Loose bezel."));
+    }
+
     #[test]
     fn a_part_on_the_band_is_judged_by_the_build_and_the_manifest_lists_the_attachments() {
         use crate::cad::{Attach, Boolean, Stage};

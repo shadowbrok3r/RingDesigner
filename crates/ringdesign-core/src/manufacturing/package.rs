@@ -36,6 +36,7 @@ pub fn report(
         "diagnostic_only":diagnostic,"pattern_fingerprint":format!("{:016x}",fingerprint(&stl[80..])),"units":"millimeter",
         "setup":setup,"pattern_scale":i.prepared.scale,"release":i.release,"radial_wall_mm":i.field.as_ref().map(|f|f.thinnest_wall_mm),
         "radial_wall_limit_mm":setup.recipe.min_section_mm,"sampled_local_wall":i.local_wall,"detail_findings":i.details,"bench_layers":i.prepared.bench_layers,
+        "casting":i.prepared.casting,"not_in_pattern":i.prepared.notes,
         "geometry":{"validation":mesh.validate(),"volume_mm3":mesh.volume_mm3(),"surface_area_mm2":mesh.surface_area_mm2(),"bounds_mm":bounds},
         "source_build":i.prepared.build,"cast_ring_grams":i.ring_grams,"estimated_channel_grams":i.channel_grams,
         "estimated_charge_grams":i.ring_grams+i.channel_grams,"feeding_proxy":i.hot_spot,

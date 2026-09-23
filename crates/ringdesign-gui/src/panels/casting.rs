@@ -85,6 +85,9 @@ impl Default for CastingState {
     }
 }
 
+/// The casting a band's pattern pours unless a separate part is chosen.
+const RING_CASTING: &str = "The ring: band with its joined and cut parts";
+
 fn color(s: Status) -> Color32 {
     match s {
         Status::Blocked | Status::Invalid => theme::BAD,
@@ -232,6 +235,13 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
             ui.label(name);
         }
     }
+    if !i.prepared.notes.is_empty() {
+        ui.separator();
+        ui.strong("Cast on their own");
+        for note in &i.prepared.notes {
+            ui.label(note);
+        }
+    }
 }
 fn spawn(
     state: &mut CastingState,
@@ -276,18 +286,23 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     match state.tab {
         0 => {
             if let Some(doc) = &app.design.cad {
+                // On a band the ring is one casting and each separate part another; a ring of parts casts one part at a time.
+                let band = doc.band().is_some();
+                let apart: Vec<u64> = doc.attachments().into_iter().filter(|(_, attach, _)| *attach == ringdesign_core::cad::Attach::Separate).map(|(id, ..)| id).collect();
                 egui::ComboBox::from_id_salt("casting_component")
-                    .selected_text(
-                        setup
-                            .component
-                            .and_then(|id| doc.features.iter().find(|f| f.id == id))
-                            .map_or("Select component", |f| f.name.as_str()),
-                    )
+                    .selected_text(match setup.component.and_then(|id| doc.features.iter().find(|f| f.id == id)) {
+                        Some(f) => f.name.as_str(),
+                        None if band => RING_CASTING,
+                        None => "Select component",
+                    })
                     .show_ui(ui, |ui| {
+                        if band && ui.selectable_value(&mut setup.component, None, RING_CASTING).changed() {
+                            changed = true;
+                        }
                         for f in doc
                             .features
                             .iter()
-                            .filter(|f| doc.outputs.contains(&f.id) && !f.component.reference)
+                            .filter(|f| doc.outputs.contains(&f.id) && !f.component.reference && (!band || apart.contains(&f.id)))
                         {
                             if ui
                                 .selectable_value(&mut setup.component, Some(f.id), &f.name)
