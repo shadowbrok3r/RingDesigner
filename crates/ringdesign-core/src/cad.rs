@@ -552,8 +552,22 @@ impl FaceSeat {
         let (s, c) = self.spin_deg.to_radians().sin_cos();
         let x: [f64; 3] = std::array::from_fn(|k| along[k] * c + across[k] * s);
         let y: [f64; 3] = std::array::from_fn(|k| across[k] * c - along[k] * s);
-        let origin = std::array::from_fn(|k| face.origin[k] + along[k] * self.u_mm + across[k] * self.v_mm + face.normal[k] * self.height_mm);
+        let foot = self.foot(face, part);
+        let origin = std::array::from_fn(|k| foot[k] + face.normal[k] * self.height_mm);
         brep::Placement { x_axis: x, y_axis: y, z_axis: face.normal, origin }
+    }
+    /// Where the seat meets `face` of a part seated by `part`, under the girdle's centre, in the world.
+    pub fn foot(&self, face: &crate::sketch::FaceFrame, part: &brep::Placement) -> [f64; 3] {
+        let [along, across] = Self::axes(face, part);
+        std::array::from_fn(|k| face.origin[k] + along[k] * self.u_mm + across[k] * self.v_mm)
+    }
+    /// The seat's face on part `c` as built, found again by signature: its own frame, centroid and outward normal.
+    pub fn face_of(&self, c: &EvaluatedComponent) -> Result<crate::sketch::FaceFrame> {
+        let who = format!("#{} {}", c.id, c.name);
+        if let Some(m) = &c.made {
+            anyhow::bail!("A stone sits on a kernel part's planar face; {who} is {}", Value::mesh_words(m));
+        }
+        seat_face(&c.body, &c.frame, &self.face, &who, &mut Vec::new())
     }
     /// A seat on planar face `face` of part `c` where `at` projects onto it (its centroid without one), `height_mm` off it, signed in the part's frame.
     pub fn on(c: &EvaluatedComponent, face: u32, at: Option<[f64; 3]>, height_mm: f64) -> Result<Self> {
@@ -584,6 +598,29 @@ fn planar_face_frame(body: &Body, key: brep::FaceKey, ordinal: usize, who: &str)
     let profile = brep::planar_face_profile(body, key).ok_or_else(|| anyhow::anyhow!("Face {ordinal} of {who} has no boundary the kernel can read"))?;
     crate::sketch::FaceFrame::of(&profile).with_context(|| format!("Face {ordinal} of {who}"))
 }
+/// Face `face` of part `who`, its `body` seated by `frame`, found again by signature and read as a plane: its own frame.
+fn seat_face(body: &Body, frame: &brep::Placement, face: &FaceRef, who: &str, notes: &mut Vec<String>) -> Result<crate::sketch::FaceFrame> {
+    let key = resolve_face(body, face, frame, notes).with_context(|| format!("The face the stone stands on, of {who}"))?;
+    let ordinal = body.faces.iter().position(|(k, _)| k == key).unwrap_or(face.ordinal);
+    planar_face_frame(body, key, ordinal, who)
+}
+/// The face a stone on `seat` of part `on` stands on, as built, and the frame that part was seated by.
+fn stood_face(
+    seat: &FaceSeat,
+    on: Id,
+    values: &BTreeMap<Id, Value>,
+    frames: &BTreeMap<Id, brep::Placement>,
+    who: &dyn Fn(Id) -> String,
+    notes: &mut Vec<String>,
+) -> Result<(crate::sketch::FaceFrame, brep::Placement)> {
+    let body = match values.get(&on) {
+        Some(Value::Brep(body)) => body,
+        Some(Value::Mesh(m)) => anyhow::bail!("A stone sits on a kernel part's planar face; {} is {}", who(on), Value::mesh_words(m)),
+        None => anyhow::bail!("Source feature #{on} is unavailable or suppressed"),
+    };
+    let frame = frames.get(&on).copied().unwrap_or(brep::Placement::IDENTITY);
+    Ok((seat_face(body, &frame, &seat.face, &who(on), notes)?, frame))
+}
 /// The frame a stone standing on `seat` of part `on` takes from that part as built, its face found again by signature.
 fn face_seat_frame(
     seat: &FaceSeat,
@@ -593,15 +630,24 @@ fn face_seat_frame(
     who: &dyn Fn(Id) -> String,
     notes: &mut Vec<String>,
 ) -> Result<brep::Placement> {
-    let body = match values.get(&on) {
-        Some(Value::Brep(body)) => body,
-        Some(Value::Mesh(m)) => anyhow::bail!("A stone sits on a kernel part's planar face; {} is {}", who(on), Value::mesh_words(m)),
-        None => anyhow::bail!("Source feature #{on} is unavailable or suppressed"),
-    };
-    let frame = frames.get(&on).copied().unwrap_or(brep::Placement::IDENTITY);
-    let key = resolve_face(body, &seat.face, &frame, notes).with_context(|| format!("The face the stone stands on, of {}", who(on)))?;
-    let ordinal = body.faces.iter().position(|(k, _)| k == key).unwrap_or(seat.face.ordinal);
-    Ok(seat.frame(&planar_face_frame(body, key, ordinal, &who(on))?, &frame))
+    let (face, frame) = stood_face(seat, on, values, frames, who, notes)?;
+    Ok(seat.frame(&face, &frame))
+}
+/// The stone standing on a part's face that `id` is, or is built round through its `on`: the stone, the part and its seat.
+pub fn face_stone(doc: &Document, id: Id) -> Option<(Id, Id, FaceSeat)> {
+    let mut at = id;
+    for _ in 0..32 {
+        let f = doc.feature(at)?;
+        at = match &f.operation {
+            Operation::Builder { key, on: Some(part), params } if key == builders::STONE => {
+                return FaceSeat::of(params).ok().flatten().map(|seat| (f.id, *part, seat));
+            }
+            Operation::Builder { on: Some(stone), .. } => *stone,
+            Operation::Fillet { source, .. } | Operation::Chamfer { source, .. } | Operation::Shell { source, .. } | Operation::PressPull { source, .. } => *source,
+            _ => return None,
+        };
+    }
+    None
 }
 /// A reference stone feature for `gem` standing on `seat`, a planar face of part `on`.
 pub fn stone_on_face(id: Id, gem: crate::gem::Gem, on: Id, seat: &FaceSeat) -> Feature {
@@ -741,8 +787,9 @@ mod placement_tests {
         let mut d = examples::design("claw-solitaire").unwrap();
         d.size = crate::sizing::RingSize(9.0);
         let params = BuildParams { theta_steps: 256, profile_steps: 128, refine: None, ..d.build };
-        let band = crate::mesh::try_build_pattern(&d, &AlphaLibrary::builtin(), params).unwrap().band.unwrap();
-        // The pattern's band carries the bench bur's drill mark at 90°, so the crest there stands proud.
+        let lib = AlphaLibrary::builtin();
+        let band = crate::mesh::try_build(&crate::castability::casting_pattern(&d, &lib).0, &lib, params).unwrap().band.unwrap();
+        // The pattern's own band carries the bench bur's drill mark at 90°, so the crest there stands proud.
         let (crest, mark) = (d.inner_radius_mm() + d.profile.thickness_mm, 0.3);
         for theta in [0.0, 90.0, 180.0, 270.0] {
             let (hit, n) = surface_hit(&band, theta, 0.0).unwrap();

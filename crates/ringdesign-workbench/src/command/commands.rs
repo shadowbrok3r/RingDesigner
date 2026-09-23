@@ -2,9 +2,10 @@
 use super::ring::{Affine, angle_about, transform};
 use super::session::{Axis, CommandInfo, Dimension, Effect, Outcome, Preview, StepInfo, StepInput, Unit, ViewCommand};
 use super::snap::{RingPoint, wrap360};
+use crate::gizmo::{Dial, Gizmo, Handle};
 use crate::grips::{self, Grip};
 use crate::icons::Icon;
-use ringdesign_core::cad::{Attach, Component, Feature, Operation, Placement};
+use ringdesign_core::cad::{Attach, Component, EvaluatedComponent, FaceSeat, Feature, Operation, Placement, builders};
 
 /// One degree of freedom: the pointer's value unless a typed one holds it.
 #[derive(Clone, Debug)]
@@ -78,6 +79,119 @@ fn wrapped(id: u64, source: u64, component: &Component, translation: [f64; 3], r
     let operation = Operation::Transform { source, translation, rotation_deg };
     Feature { id, name: operation.label().into(), enabled: true, operation, component: component.clone() }
 }
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+/// A stone standing on a part's face as the build seated it: its feature, its seat, and the face's own axes at the stone.
+#[derive(Clone, Debug)]
+pub struct FaceHold {
+    pub feature: Feature,
+    pub seat: FaceSeat,
+    /// The girdle's centre in the world.
+    pub origin: [f64; 3],
+    /// Along the face as the seat's `u` runs, in the world.
+    pub along: [f64; 3],
+    /// Across the face as the seat's `v` runs, in the world.
+    pub across: [f64; 3],
+    /// The face's outward normal, which the stone's table faces along.
+    pub normal: [f64; 3],
+}
+
+impl FaceHold {
+    /// `f` held where its build `c` seated it, when it is a stone standing on a part's face.
+    pub fn of(f: &Feature, c: &EvaluatedComponent) -> Option<Self> {
+        let Operation::Builder { key, on: Some(_), params } = &f.operation else { return None };
+        if key != builders::STONE || c.id != f.id {
+            return None;
+        }
+        let seat = FaceSeat::of(params).ok()??;
+        let (s, co) = seat.spin_deg.to_radians().sin_cos();
+        let (x, y) = (c.frame.x_axis, c.frame.y_axis);
+        let along = std::array::from_fn(|k| x[k] * co - y[k] * s);
+        let across = std::array::from_fn(|k| x[k] * s + y[k] * co);
+        Some(Self { feature: f.clone(), seat, origin: c.frame.origin, along, across, normal: c.frame.z_axis })
+    }
+
+    /// Where the seat meets the face, under the girdle's centre.
+    pub fn foot(&self) -> [f64; 3] {
+        std::array::from_fn(|k| self.origin[k] - self.normal[k] * self.seat.height_mm)
+    }
+
+    /// The seat slid `du` along and `dv` across the face, lifted `dh` off it and spun `dspin` degrees about its normal.
+    pub fn moved(&self, du: f64, dv: f64, dh: f64, dspin: f64) -> FaceSeat {
+        let s = &self.seat;
+        FaceSeat { face: s.face.clone(), u_mm: s.u_mm + du, v_mm: s.v_mm + dv, height_mm: s.height_mm + dh, spin_deg: wrap180(s.spin_deg + dspin) }
+    }
+
+    /// The stone's builder standing on `seat`.
+    pub fn operation(&self, seat: &FaceSeat) -> Operation {
+        let mut op = self.feature.operation.clone();
+        if let Operation::Builder { params, .. } = &mut op {
+            seat.write(params);
+        }
+        op
+    }
+
+    /// The seat a stone's builder operation carries.
+    pub fn seat_in(op: &Operation) -> Option<FaceSeat> {
+        match op {
+            Operation::Builder { params, .. } => FaceSeat::of(params).ok().flatten(),
+            _ => None,
+        }
+    }
+
+    /// The stone's frame standing on `seat` of the face as held.
+    fn frame(&self, seat: &FaceSeat) -> Affine {
+        let (s, c) = seat.spin_deg.to_radians().sin_cos();
+        let x = std::array::from_fn(|k| self.along[k] * c + self.across[k] * s);
+        let y = std::array::from_fn(|k| self.across[k] * c - self.along[k] * s);
+        let foot = self.foot();
+        let (du, dv) = (seat.u_mm - self.seat.u_mm, seat.v_mm - self.seat.v_mm);
+        let origin = std::array::from_fn(|k| foot[k] + self.along[k] * du + self.across[k] * dv + self.normal[k] * seat.height_mm);
+        Affine::frame(x, y, self.normal, origin)
+    }
+
+    /// The map carrying the stone as held to where `seat` stands it.
+    pub fn map(&self, seat: &FaceSeat) -> Option<Affine> {
+        Some(self.frame(seat).mul(&self.frame(&self.seat).inverse()?))
+    }
+
+    /// The map carrying the stone to where a command's preview stands it.
+    pub fn ghost(&self, preview: &Preview) -> Option<Affine> {
+        self.map(&Self::seat_in(preview.operation.as_ref()?)?)
+    }
+
+    /// The gizmo on the stone: arrows along, across and off the face, the ring spinning it on the face, and the dial round the finger through its foot.
+    pub fn gizmo(&self, reach_mm: f64) -> Gizmo {
+        let foot = self.foot();
+        Gizmo {
+            origin: self.origin,
+            frame: self.frame(&self.seat),
+            arrows: vec![(Axis::X, self.along), (Axis::Y, self.across), (Axis::Z, self.normal)],
+            rings: vec![(Axis::Spin, self.normal)],
+            dial: Some(Dial { z: foot[2], radius: foot[0].hypot(foot[1]), theta_deg: wrap360(foot[1].atan2(foot[0]).to_degrees()), height_mm: 0.0 }),
+            grips: Vec::new(),
+            reach_mm,
+            height_mm: 0.0,
+        }
+    }
+
+    /// The command a drag of the face gizmo's `handle` runs, the axis it locks, and the dimension a number typed during it goes to.
+    pub fn drag(&self, handle: Handle) -> Option<(Box<dyn ViewCommand>, Option<Axis>, &'static str)> {
+        Some(match handle {
+            Handle::Move(axis) => (Box::new(MoveCmd::on_face(self.clone())), Some(axis), match axis {
+                Axis::X => "u",
+                Axis::Y => "v",
+                _ => "height",
+            }),
+            Handle::Turn(_) => (Box::new(RotateCmd::on_face(self.clone())), Some(Axis::Spin), "spin"),
+            // Round the finger through the foot, dropped along the normal onto the face.
+            Handle::Dial => (Box::new(MoveCmd::on_face(self.clone())), None, "u"),
+            Handle::Grip(_) => return None,
+        })
+    }
+}
 
 /// Within this many mm or degrees a moved value reads as where it began or where it snapped.
 const SETTLE: f64 = 1e-4;
@@ -112,8 +226,19 @@ pub struct MoveCmd {
     /// What the landing last snapped to, and where.
     snapped: Option<String>,
     landed: Option<RingPoint>,
+    /// A stone standing on a part's face, which slides on that face.
+    face: Option<FaceHold>,
 }
 impl MoveCmd {
+    /// Slides a stone standing on a part's face along and across it, lifts it off it on a locked normal, and writes its seat.
+    pub fn on_face(hold: FaceHold) -> Self {
+        let dofs = vec![
+            Dof::new(Axis::X, "u", "Δalong", Unit::Mm, 0.0),
+            Dof::new(Axis::Y, "v", "Δacross", Unit::Mm, 0.0),
+            Dof::new(Axis::Z, "height", "Δheight", Unit::Mm, 0.0),
+        ];
+        Self { face: Some(hold.clone()), dofs, ..Self::new(hold.feature.id, Placement::Free, hold.feature.id) }
+    }
     /// A free part's move becomes a new `Transform` feature numbered `fresh_id`.
     pub fn new(feature: u64, base: Placement, fresh_id: u64) -> Self {
         let dofs = match base {
@@ -129,7 +254,7 @@ impl MoveCmd {
             ],
         };
         let free = FreeMove::Wrap(Component::default());
-        Self { feature, base, fresh_id, free, anchor: None, world: [0.0; 3], delta: [0.0; 3], lock: None, dofs, snapped: None, landed: None }
+        Self { feature, base, fresh_id, free, anchor: None, world: [0.0; 3], delta: [0.0; 3], lock: None, dofs, snapped: None, landed: None, face: None }
     }
     /// Moves a document feature: a free `Transform` is edited in place, any other free part keeps its component.
     pub fn of(f: &Feature, fresh_id: u64) -> Self {
@@ -141,12 +266,18 @@ impl MoveCmd {
         cmd
     }
     fn apply_lock(&mut self) {
+        // Unlocked, a stone on a face slides on it and keeps its height.
+        let sliding = self.face.is_some();
         for (i, d) in self.dofs.iter_mut().enumerate() {
-            d.pointer = if self.lock.is_none_or(|l| l == d.axis) { self.delta[i] } else { 0.0 };
+            let follows = self.lock.map_or(!(sliding && d.axis == Axis::Z), |l| l == d.axis);
+            d.pointer = if follows { self.delta[i] } else { 0.0 };
         }
     }
     fn effect(&self) -> Effect {
         let v = |i: usize| self.dofs[i].value();
+        if let Some(h) = &self.face {
+            return Effect::Operation { feature: self.feature, operation: h.operation(&h.moved(v(0), v(1), v(2), 0.0)) };
+        }
         // A value within `SETTLE` of where it began, or of where the landing snapped, takes that value.
         let settle = |value: f64, from: f64, k: usize| {
             let landed = self.landed.map(|p| [p.theta_deg, p.across_mm, p.height_mm][k]);
@@ -202,9 +333,11 @@ impl ViewCommand for MoveCmd {
         match *input {
             StepInput::Pointer { world, theta_deg, across_mm, height_mm, ref snapped, .. } => {
                 let a = *self.anchor.get_or_insert(Anchor { world, theta: theta_deg, across: across_mm, height: height_mm });
-                self.delta = match self.base {
-                    Placement::Ring { .. } => [wrap180(theta_deg - a.theta), across_mm - a.across, height_mm - a.height],
-                    Placement::Free => std::array::from_fn(|k| world[k] - a.world[k]),
+                let d: [f64; 3] = std::array::from_fn(|k| world[k] - a.world[k]);
+                self.delta = match (&self.face, &self.base) {
+                    (Some(h), _) => [dot(d, h.along), dot(d, h.across), dot(d, h.normal)],
+                    (None, Placement::Ring { .. }) => [wrap180(theta_deg - a.theta), across_mm - a.across, height_mm - a.height],
+                    (None, Placement::Free) => d,
                 };
                 self.world = world;
                 self.snapped = snapped.as_ref().map(|s| s.label.clone());
@@ -267,8 +400,16 @@ pub struct RotateCmd {
     dofs: Vec<Dof>,
     /// Read the pointer as its angle about these axes instead of off the ring frame.
     pivot: Option<Pivot>,
+    /// A stone standing on a part's face, which spins on that face.
+    face: Option<FaceHold>,
 }
 impl RotateCmd {
+    /// Spins a stone standing on a part's face about the face's normal through its girdle's centre, and writes its seat.
+    pub fn on_face(hold: FaceHold) -> Self {
+        let pivot = Pivot { centre: hold.origin, axes: [hold.normal; 3] };
+        let dofs = vec![Dof::new(Axis::Spin, "spin", "Δspin", Unit::Deg, 0.0)];
+        Self { pivot: Some(pivot), face: Some(hold.clone()), dofs, ..Self::new(hold.feature.id, Placement::Free, hold.feature.id) }
+    }
     /// A free part's turn becomes a new `Transform` feature numbered `fresh_id`.
     pub fn new(feature: u64, base: Placement, fresh_id: u64) -> Self {
         let dofs = match base {
@@ -284,7 +425,7 @@ impl RotateCmd {
             ],
         };
         let component = Component::default();
-        Self { feature, base, fresh_id, component, anchor: None, world: [0.0; 3], sweep: [0.0; 3], lock: None, dofs, pivot: None }
+        Self { feature, base, fresh_id, component, anchor: None, world: [0.0; 3], sweep: [0.0; 3], lock: None, dofs, pivot: None, face: None }
     }
     /// Turns a document feature; a free part keeps its component on the `Transform` that turns it.
     pub fn of(f: &Feature, fresh_id: u64) -> Self {
@@ -294,9 +435,10 @@ impl RotateCmd {
     pub fn about(self, pivot: Pivot) -> Self {
         Self { pivot: Some(pivot), ..self }
     }
-    /// The axis the pointer turns: the lock, else spin on the ring and z in the world.
+    /// The axis the pointer turns: the lock, else spin on the ring or on a face and z in the world.
     fn active(&self) -> Axis {
         self.lock.unwrap_or(match self.base {
+            _ if self.face.is_some() => Axis::Spin,
             Placement::Ring { .. } => Axis::Spin,
             Placement::Free => Axis::Z,
         })
@@ -332,6 +474,9 @@ impl RotateCmd {
     }
     fn effect(&self) -> Effect {
         let v = |i: usize| self.dofs[i].value();
+        if let Some(h) = &self.face {
+            return Effect::Operation { feature: self.feature, operation: h.operation(&h.moved(0.0, 0.0, 0.0, v(0))) };
+        }
         match self.base {
             Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } => Effect::Placement {
                 feature: self.feature,
@@ -408,7 +553,8 @@ impl ViewCommand for RotateCmd {
         match self.effect() {
             Effect::Placement { placement, .. } => p.placement = Some(placement),
             Effect::Add { feature } => p.operation = Some(feature.operation),
-            Effect::Operation { .. } | Effect::Attach { .. } | Effect::Stage { .. } => {}
+            Effect::Operation { operation, .. } => p.operation = Some(operation),
+            Effect::Attach { .. } | Effect::Stage { .. } => {}
         }
         if let Some(a) = self.anchor {
             p.ghost = vec![a.world, self.world];
@@ -1340,6 +1486,165 @@ mod tests {
         s.escape();
         assert_eq!(s.command().unwrap().step(), 0);
         assert!(matches!(s.escape(), Outcome::Cancelled));
+    }
+
+    /// The Court band with a 4 x 6 x 1.5 mm plate joined on its top, a 3 mm stone on the plate's top 0.4 mm round the ring from its centre, and the stone's four-claw head.
+    fn stone_on_plate() -> RingDesign {
+        use ringdesign_core::cad::{Document, face_signature, stone_on_face};
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let mut d = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut doc = Document::default();
+        let feature = |id, name: &str, operation, component| Feature { id, name: name.into(), enabled: true, operation, component };
+        doc.append(feature(1, "Procedural shank", Operation::Band, Component::default())).unwrap();
+        let plate = Component { attach: Attach::Join, placement: Placement::ring(90.0, 0.65), ..Component::default() };
+        doc.append(feature(2, "Plate", Operation::Box { size: [4.0, 6.0, 1.5] }, plate)).unwrap();
+        d.cad = Some(doc.clone());
+        let e = ringdesign_core::cad::evaluate(&d, &lib, ringdesign_core::BuildParams::default()).unwrap();
+        let host = e.components.iter().find(|c| c.id == 2).unwrap();
+        let top = (0..host.body.faces.len()).find(|i| face_signature(&host.body, *i, &host.frame).is_some_and(|s| s.normal[2] > 0.99)).unwrap() as u32;
+        let gem = ringdesign_core::gem::Gem::calibrated(ringdesign_core::gem::GemCut::Round, 3.0);
+        let seat = FaceSeat { v_mm: 0.4, ..FaceSeat::on(host, top, None, builders::stand_off_mm("claw4", gem)).unwrap() };
+        doc.append(stone_on_face(3, gem, 2, &seat)).unwrap();
+        doc.append(builders::feature_on(4, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }))).unwrap();
+        d.cad = Some(doc);
+        d
+    }
+    /// The design evaluated, and the stone's and its head's frames as built.
+    fn built_frames(d: &RingDesign) -> (ringdesign_core::cad::Evaluated, Affine, Affine) {
+        let e = ringdesign_core::cad::evaluate(d, &ringdesign_core::AlphaLibrary::builtin(), ringdesign_core::BuildParams::default()).unwrap();
+        assert!(e.failures().is_empty(), "{:?}", e.failures());
+        let frame = |id| {
+            let f = e.components.iter().find(|c| c.id == id).unwrap().frame;
+            Affine::frame(f.x_axis, f.y_axis, f.z_axis, f.origin)
+        };
+        let (stone, head) = (frame(3), frame(4));
+        (e, stone, head)
+    }
+    fn close3(a: [f64; 3], b: [f64; 3], tol: f64) -> bool {
+        (0..3).all(|k| (a[k] - b[k]).abs() <= tol)
+    }
+    /// The one effect a commit makes.
+    fn one(o: Outcome) -> Effect {
+        let mut e = effects(o);
+        assert_eq!(e.len(), 1, "{e:?}");
+        e.remove(0)
+    }
+    fn plus(p: [f64; 3], terms: &[([f64; 3], f64)]) -> [f64; 3] {
+        std::array::from_fn(|k| p[k] + terms.iter().map(|(v, s)| v[k] * s).sum::<f64>())
+    }
+
+    #[test]
+    fn g_and_r_on_a_stone_on_a_face_edit_its_seat_and_the_head_built_on_it_follows() {
+        let d = stone_on_plate();
+        let (e, stone, head) = built_frames(&d);
+        let f = d.cad.as_ref().unwrap().feature(3).unwrap().clone();
+        let hold = FaceHold::of(&f, e.components.iter().find(|c| c.id == 3).unwrap()).expect("a stone on a face");
+        // The hold reads the face's own axes back off the stone as built, and stands it where the build did.
+        assert!(close3(hold.foot(), plus(hold.origin, &[(hold.normal, -hold.seat.height_mm)]), 0.0));
+        assert!(dot(hold.along, hold.across).abs() < 1e-12 && dot(hold.along, hold.normal).abs() < 1e-12 && (dot(hold.along, hold.along) - 1.0).abs() < 1e-12);
+        let held = hold.map(&hold.seat).unwrap();
+        assert!(close3(held.apply(hold.origin), hold.origin, 1e-12) && close3(held.turn(hold.normal), hold.normal, 1e-12));
+        assert!(FaceHold::of(&d.cad.as_ref().unwrap().feature(4).unwrap().clone(), e.components.iter().find(|c| c.id == 4).unwrap()).is_none(), "a head is no stone");
+        // G slides the stone along and across the face with the pointer and keeps its height; typed along, it goes exactly there.
+        let at = |w: [f64; 3]| StepInput::Pointer { world: w, normal: hold.normal, theta_deg: 90.0, across_mm: 0.0, height_mm: 0.0, snapped: None, dragging: false };
+        let mut s = Session::default();
+        s.start(Box::new(MoveCmd::on_face(hold.clone())));
+        s.feed(at(hold.origin));
+        s.feed(at(plus(hold.origin, &[(hold.along, 0.3), (hold.across, -0.1), (hold.normal, 0.5)])));
+        let dims = |s: &Session| s.dimensions().into_iter().map(|d| (d.key, (d.value * 1e9).round() / 1e9)).collect::<Vec<_>>();
+        assert_eq!(dims(&s), [("u", 0.3), ("v", -0.1), ("height", 0.0)]);
+        assert_eq!(s.preview().unwrap().caption, "Move Δalong 0.30 mm · Δacross -0.10 mm · Δheight 0.00 mm");
+        assert!(matches!(s.feed(StepInput::Lock(Axis::Z)), Outcome::Continue));
+        assert_eq!(dims(&s), [("u", 0.0), ("v", 0.0), ("height", 0.5)], "locked to the normal it lifts off the face");
+        s.feed(StepInput::Unlock);
+        s.feed(StepInput::Typed { key: "u", value: 0.4 });
+        let ghost = hold.ghost(&s.preview().unwrap()).unwrap();
+        let Effect::Operation { feature: 3, operation } = one(s.enter()) else { panic!("the seat is edited, the stone is never wrapped in a Transform") };
+        let seat = FaceHold::seat_in(&operation).unwrap();
+        assert!((seat.u_mm - hold.seat.u_mm - 0.4).abs() < 1e-12 && (seat.v_mm - hold.seat.v_mm + 0.1).abs() < 1e-12, "{seat:?}");
+        assert_eq!((seat.height_mm, seat.spin_deg, &seat.face), (hold.seat.height_mm, 0.0, &hold.seat.face));
+        // Built again, the stone stands 0.4 mm along and 0.1 mm back across the face, as its ghost showed, and its head stands in its frame.
+        let mut moved = d.clone();
+        moved.cad.as_mut().unwrap().apply(&ringdesign_core::cad::edit::CadEdit::Operation { id: 3, operation }).unwrap();
+        let (_, stone2, head2) = built_frames(&moved);
+        let expected = plus(stone.origin(), &[(hold.along, 0.4), (hold.across, -0.1)]);
+        assert!(close3(stone2.origin(), expected, 1e-9), "{:?} against {expected:?}", stone2.origin());
+        assert!(close3(ghost.apply(stone.origin()), stone2.origin(), 1e-9) && (0..3).all(|i| close3(stone2.axis(i), stone.axis(i), 1e-12)));
+        assert_eq!(head2, stone2, "the head is built in its stone's frame");
+        assert!(close3(head2.origin(), plus(head.origin(), &[(hold.along, 0.4), (hold.across, -0.1)]), 1e-9));
+        // R spins it on the face: a quarter turn of the pointer about the normal through the girdle's centre is 90° of seat.
+        let mut r = RotateCmd::on_face(hold.clone());
+        r.feed(&at(plus(hold.origin, &[(hold.along, 1.0)])));
+        r.feed(&at(plus(hold.origin, &[(hold.across, 1.0)])));
+        assert_eq!(values(&r).iter().map(|v| (v.0, (v.1 * 1e9).round() / 1e9)).collect::<Vec<_>>(), [("spin", 90.0)]);
+        assert!(matches!(r.feed(&StepInput::Lock(Axis::Tilt)), Outcome::Refused(m) if m == "Rotate locks spin"));
+        let ghost = hold.ghost(&r.preview()).unwrap();
+        let Effect::Operation { feature: 3, operation } = one(r.feed(&StepInput::Confirm)) else { panic!() };
+        let seat = FaceHold::seat_in(&operation).unwrap();
+        assert!((seat.spin_deg - 90.0).abs() < 1e-9 && seat.u_mm == hold.seat.u_mm && seat.v_mm == hold.seat.v_mm);
+        let mut spun = d.clone();
+        spun.cad.as_mut().unwrap().apply(&ringdesign_core::cad::edit::CadEdit::Operation { id: 3, operation }).unwrap();
+        let (_, stone3, head3) = built_frames(&spun);
+        assert!(close3(stone3.origin(), stone.origin(), 1e-9) && close3(stone3.axis(0), stone.axis(1), 1e-9) && close3(stone3.axis(1), stone.axis(0).map(|v| -v), 1e-9), "{stone3:?}");
+        assert!(close3(ghost.turn(stone.axis(0)), stone3.axis(0), 1e-9));
+        assert_eq!(head3, stone3);
+    }
+
+    #[test]
+    fn the_face_gizmos_arrows_ring_and_dial_drive_the_seat_and_the_dial_drops_the_turned_foot_onto_the_face() {
+        use crate::command::ring::{along_line, on_plane};
+        use ringdesign_core::interaction::pick::Ray;
+        let d = stone_on_plate();
+        let (e, _, _) = built_frames(&d);
+        let f = d.cad.as_ref().unwrap().feature(3).unwrap().clone();
+        let hold = FaceHold::of(&f, e.components.iter().find(|c| c.id == 3).unwrap()).unwrap();
+        let g = hold.gizmo(2.0);
+        assert_eq!(g.arrows, vec![(Axis::X, hold.along), (Axis::Y, hold.across), (Axis::Z, hold.normal)]);
+        assert_eq!((g.rings.clone(), g.origin), (vec![(Axis::Spin, hold.normal)], hold.origin));
+        let foot = hold.foot();
+        let dial = g.dial.unwrap();
+        assert!(close3(dial.point(dial.theta_deg), foot, 1e-9), "the dial runs through the stone's foot");
+        // The along arrow: a camera ray crossing its line 0.25 mm on reads 0.25 mm of seat.
+        let (cmd, lock, key) = hold.drag(Handle::Move(Axis::X)).unwrap();
+        assert_eq!((cmd.key(), lock, key), ("move", Some(Axis::X), "u"));
+        let mut s = Session::default();
+        s.start(cmd);
+        s.feed(StepInput::Lock(Axis::X));
+        let aim = |p: [f64; 3]| Ray { origin: plus(p, &[(hold.normal, 30.0)]), direction: hold.normal.map(|v| -v) };
+        let seen = |p: [f64; 3]| {
+            let t = along_line(aim(p), g.origin, hold.along).unwrap();
+            StepInput::Pointer { world: plus(g.origin, &[(hold.along, t)]), normal: hold.along, theta_deg: 0.0, across_mm: 0.0, height_mm: 0.0, snapped: None, dragging: true }
+        };
+        s.feed(seen(plus(g.origin, &[(hold.along, 0.5), (hold.across, 0.2)])));
+        s.feed(seen(plus(g.origin, &[(hold.along, 0.75), (hold.across, 0.9)])));
+        let Effect::Operation { operation, .. } = one(s.enter()) else { panic!() };
+        let seat = FaceHold::seat_in(&operation).unwrap();
+        assert!((seat.u_mm - hold.seat.u_mm - 0.25).abs() < 1e-9 && seat.v_mm == hold.seat.v_mm, "{seat:?}");
+        // The ring spins it about the face's normal.
+        let (cmd, lock, key) = hold.drag(Handle::Turn(Axis::Spin)).unwrap();
+        assert_eq!((cmd.key(), lock, key), ("rotate", Some(Axis::Spin), "spin"));
+        let mut s = Session::default();
+        s.start(cmd);
+        let on_ring = |p: [f64; 3]| StepInput::Pointer { world: on_plane(aim(p), g.origin, hold.normal).unwrap(), normal: hold.normal, theta_deg: 0.0, across_mm: 0.0, height_mm: 0.0, snapped: None, dragging: true };
+        s.feed(on_ring(plus(g.origin, &[(hold.along, 1.0)])));
+        s.feed(on_ring(plus(g.origin, &[(hold.along, -1.0), (hold.across, 1e-9)])));
+        let Effect::Operation { operation, .. } = one(s.enter()) else { panic!() };
+        assert!((FaceHold::seat_in(&operation).unwrap().spin_deg.abs() - 180.0).abs() < 1e-6);
+        // The dial slides the stone round the finger: its foot turned 5° and dropped along the normal back onto the face.
+        let (cmd, lock, _) = hold.drag(Handle::Dial).unwrap();
+        assert_eq!((cmd.key(), lock), ("move", None));
+        let mut s = Session::default();
+        s.start(cmd);
+        let dialled = |deg: f64| StepInput::Pointer { world: dial.point(deg), normal: [0.0, 0.0, 1.0], theta_deg: deg, across_mm: dial.z, height_mm: 0.0, snapped: None, dragging: true };
+        s.feed(dialled(dial.theta_deg));
+        s.feed(dialled(dial.theta_deg + 5.0));
+        let Effect::Operation { operation, .. } = one(s.enter()) else { panic!() };
+        let seat = FaceHold::seat_in(&operation).unwrap();
+        let turned = dial.point(dial.theta_deg + 5.0);
+        let dropped = plus(turned, &[(hold.normal, -dot(std::array::from_fn(|k| turned[k] - foot[k]), hold.normal))]);
+        let landed = plus(foot, &[(hold.along, seat.u_mm - hold.seat.u_mm), (hold.across, seat.v_mm - hold.seat.v_mm)]);
+        assert!(close3(landed, dropped, 1e-9) && seat.height_mm == hold.seat.height_mm, "{landed:?} against {dropped:?}");
+        assert!(hold.drag(Handle::Grip(0)).is_none());
     }
 
     #[test]

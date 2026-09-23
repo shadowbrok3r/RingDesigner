@@ -542,23 +542,26 @@ fn under_sand_a_hole_along_the_pull_casts_one_across_it_locks_and_shoulders_on_t
 fn at_the_stages_they_default_to_the_ring_pours_clean_and_the_pattern_marks_where_the_bench_cuts() {
     let (band, gem) = (court(), round(6.5));
     let pierce = pierce_feature(11, Shape::Heart, &pierce_at(&band, 30.0, 0.0, None, Shape::Heart).unwrap());
-    let d = solitaire(&band, gem, "claw4", vec![azure_feature(10, 2, Some(3), 6, cut_stage([1.0, 0.0, 0.0], true)), cathedral_feature(12, 2, 3, shoulder_stage(true)), pierce]);
+    // The stone stands on the top of the ring across the band's mid-plane, where the parting line runs: its shoulders pour.
+    let shoulders = shoulder_stage_at(0.0, 0.0, true);
+    assert_eq!(shoulders, Stage::Cast);
+    let d = solitaire(&band, gem, "claw4", vec![azure_feature(10, 2, Some(3), 6, cut_stage([1.0, 0.0, 0.0], true)), cathedral_feature(12, 2, 3, shoulders), pierce]);
     let built = build(&d);
     watertight(&built);
     assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
     let f = judged_field_report(&d, &AlphaLibrary::builtin(), &d.draft, 192, 128, Some(&built));
     assert_eq!(f.verdict, crate::castability::Verdict::Castable, "{:?}", f.notes);
-    for (id, what) in [
-        (10, "Azures \"6 azures\" (#10) is drilled at the bench"),
-        (11, "Piercing \"Heart piercing\" (#11) is drilled at the bench"),
-        (12, "Cathedral shoulders \"Cathedral shoulders\" (#12) is soldered on after the pour"),
-    ] {
+    for (id, what) in [(10, "Azures \"6 azures\" (#10) is drilled at the bench"), (11, "Piercing \"Heart piercing\" (#11) is drilled at the bench")] {
         assert!(!f.parts.iter().find(|p| p.feature == id).unwrap().judged, "#{id} is left to the bench");
         assert!(f.notes.iter().any(|n| n.starts_with(what)), "{what}: {:?}", f.notes);
     }
-    // The sand pattern pours the band alone: the head, its seat, the windows, the shoulders and the piercing come after.
+    let arches = f.parts.iter().find(|p| p.feature == 12).unwrap();
+    assert!(arches.judged && arches.undercut_area_mm2 - arches.silhouette_mm2 < PART_NOISE_MM2, "{arches:?}");
+    // The sand pattern pours the band and the shoulders: the head, its seat, the windows and the piercing come after.
     let pattern = crate::mesh::try_build_pattern(&d, &AlphaLibrary::builtin(), params()).unwrap();
-    assert_eq!((pattern.parts.joined, pattern.parts.cut), (0, 0));
+    assert!(pattern.parts.notes.is_empty(), "{:?}", pattern.parts.notes);
+    assert_eq!((pattern.parts.joined, pattern.parts.cut, pattern.parts.features.clone()), (1, 0, vec![12]));
+    watertight(&pattern);
     eprintln!("{}", f.notes.join("\n"));
 }
 
@@ -603,6 +606,62 @@ fn pattern_stone_probe() {
         let tilt = dot(a.z_axis, b.z_axis).clamp(-1.0, 1.0).acos().to_degrees();
         eprintln!("{label:<28} the stone sits {lift:+.3} mm and {tilt:.2}° off in the pattern; pattern notes {:?}", pattern.parts.notes);
     }
+}
+
+/// Cast shoulders under a bench head, their stone `off_mm` off the field's parting plane: what they lock poured and on the finished ring, the pattern's verdict, and the parts it joins.
+fn shoulders_locking(off_mm: f64) -> (f64, f64, crate::castability::Verdict, usize) {
+    let gem = round(6.5);
+    let mut wide = court();
+    (wide.profile.width_mm, wide.profile.thickness_mm) = (6.0, 2.5);
+    let lib = AlphaLibrary::builtin();
+    let parting = crate::castability::attributed_field_report(&wide, &lib, &wide.draft, 192, 128).parting_z_mm;
+    let mut d = solitaire(&wide, gem, "claw4", vec![cathedral_feature(10, 2, 3, Stage::Cast)]);
+    if let Some(Placement::Ring { across_mm, .. }) = d.cad.as_mut().unwrap().features.iter_mut().find(|f| f.id == 2).map(|f| &mut f.component.placement) {
+        *across_mm = parting + off_mm;
+    }
+    let pattern = crate::mesh::try_build_pattern(&d, &lib, params()).unwrap();
+    assert!(pattern.parts.notes.is_empty(), "{off_mm}: {:?}", pattern.parts.notes);
+    let read = |b: &BuildResult| {
+        let f = judged_field_report(&d, &lib, &d.draft, 192, 128, Some(b));
+        let p = f.parts.iter().find(|p| p.feature == 10).unwrap_or_else(|| panic!("{off_mm}: the shoulders are judged"));
+        assert!(p.judged, "{off_mm}: {p:?}");
+        (p.undercut_area_mm2 - p.silhouette_mm2, f.verdict)
+    };
+    let ((poured, verdict), (finished, _)) = (read(&pattern), read(&build(&d)));
+    (poured, finished, verdict, pattern.parts.joined)
+}
+
+#[test]
+fn cast_shoulders_pour_clean_only_on_the_parting_line_and_default_to_the_bench_off_it() {
+    use crate::castability::Verdict;
+    // Poured against finished, mm² locking: 0.000 mm off 0.0001 / 0.0001, 0.004 mm 0.0011 / 0.0014, 0.1 mm 1.40 / 1.03, 0.8 mm 9.84 / 8.04.
+    for (off, clean) in [(0.0, true), (0.004, true), (0.1, false), (0.8, false)] {
+        let (poured, finished, verdict, joined) = shoulders_locking(off);
+        eprintln!("shoulders {off:.3} mm off the parting plane: {poured:.4} mm² poured, {finished:.4} on the finished ring, {verdict:?}");
+        assert_eq!(joined, 1, "{off}: the shoulders pour with the band, their head soldered on after");
+        let stage = shoulder_stage_at(off, 0.0, true);
+        if clean {
+            assert!(poured < PART_NOISE_MM2 && finished < PART_NOISE_MM2 && verdict == Verdict::Castable, "{off}: {poured} {finished} {verdict:?}");
+            assert_eq!(stage, Stage::Cast, "{off}");
+        } else {
+            assert!(poured > 1.0 && finished > 1.0 && verdict != Verdict::Castable, "{off}: {poured} {finished} {verdict:?}");
+            assert_eq!(stage, Stage::Bench, "{off}");
+        }
+    }
+    // Just past the tolerance it is off the line; lost wax casts them anywhere; an unknown seat is the bench's.
+    assert_eq!((shoulder_stage_at(SHOULDER_PARTING_MM + 1e-4, 0.0, true), shoulder_stage_at(-0.3, -0.3 + 1e-4, true)), (Stage::Bench, Stage::Cast));
+    assert_eq!((shoulder_stage_at(0.8, 0.0, false), shoulder_stage_at(f64::NAN, 0.0, true)), (Stage::Cast, Stage::Bench));
+    assert_eq!((shoulder_stage(true), shoulder_stage(false)), (Stage::Bench, Stage::Cast));
+    // Read off a design as built: the Court band's stone on its crest casts them, one not yet built leaves them to the bench.
+    let mut d = solitaire(&court(), round(6.5), "claw4", vec![]);
+    let stone = part(&build(&d), 2).frame.origin;
+    assert!(stone[2].abs() < 1e-3, "{stone:?}");
+    assert_eq!((shoulder_stage_for(&d, Some(stone)), shoulder_stage_for(&d, None)), (Stage::Cast, Stage::Bench));
+    // A parting plane the draft names 0.4 mm up the finger leaves the same stone off it; lost wax casts them wherever it stands.
+    (d.draft.auto_parting, d.draft.parting_z_mm) = (false, 0.4);
+    assert_eq!(shoulder_stage_for(&d, Some(stone)), Stage::Bench);
+    d.draft.process = crate::castability::CastProcess::LostWax;
+    assert_eq!(shoulder_stage_for(&d, Some(stone)), Stage::Cast);
 }
 
 /// Build costs for the report: `cargo test -p ringdesign-core measured_cutters -- --ignored --nocapture`.

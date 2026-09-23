@@ -321,7 +321,8 @@ pub struct BuildResult {
     pub solids: crate::setting::Applied,
     /// What the CAD parts did to the mesh, after the seats and stamps.
     pub parts: crate::parts::Resolved,
-    /// The band as swept, before seats' solids, stamps and parts, which parts are seated on; `None` for a ring of parts only.
+    /// The band as swept, before seats' solids, stamps and parts, which parts are seated on; a pattern's is its
+    /// finished ring's, without the pattern's own marks; `None` for a ring of parts only.
     pub band: Option<std::sync::Arc<Mesh>>,
 }
 
@@ -371,10 +372,21 @@ pub fn try_build_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildPara
     try_build_memo(design, lib, params, cancel, crate::cad::Memo::default())
 }
 
+/// The band as swept: an imported base's own build, else the procedural sweep.
+fn swept(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::Result<BuildResult> {
+    if design.imported_base.is_some() { crate::imported_base::build(design, lib, params) } else { Ok(build_band(design, lib, params)) }
+}
+
+/// Whether two designs sweep the same band: the same base, size, section, shank and layers.
+fn same_band(a: &RingDesign, b: &RingDesign) -> bool {
+    let key = |d: &RingDesign| serde_json::to_vec(&(&d.imported_base, &d.size, &d.profile, &d.shank, &d.layers)).ok();
+    key(a).is_some_and(|k| key(b).is_some_and(|l| k == l))
+}
+
 /// [`try_build_with`] reading and filling a CAD memo, so features and tessellations an edit left alone come from its cache.
 pub fn try_build_memo(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, cancel: &std::sync::atomic::AtomicBool, memo: crate::cad::Memo) -> anyhow::Result<BuildResult> {
     if design.band_is_procedural() {
-        let mut built = if design.imported_base.is_some() { crate::imported_base::build(design,lib,params)? } else { build_band(design,lib,params) };
+        let mut built = swept(design, lib, params)?;
         built.band = Some(std::sync::Arc::new(built.mesh.clone()));
         resolve_solids(design, lib, &mut built);
         if design.cad.is_some() {
@@ -394,9 +406,24 @@ pub fn try_build_memo(design: &RingDesign, lib: &AlphaLibrary, params: BuildPara
 }
 
 /// The mesh a mould is made from rather than the finished ring: bench-only layers off, and under sand
-/// every made setting and bench part left out with a raised mark in its place. Mesh exports write this.
+/// every made setting and bench part left out with a raised mark in its place, every part standing
+/// where the finished ring stands it. Mesh exports write this.
 pub fn try_build_pattern(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::Result<BuildResult> {
-    try_build(&crate::castability::casting_pattern(design, lib).0, lib, params)
+    try_build_poured(&crate::castability::casting_pattern(design, lib).0, design, lib, params)
+}
+
+/// [`try_build`] of `pattern` with its CAD parts seated on `finished`'s band as swept, where the finished
+/// ring seats them: never on the pattern's own raised marks. `band` is that seat.
+pub fn try_build_poured(pattern: &RingDesign, finished: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::Result<BuildResult> {
+    if !pattern.band_is_procedural() || !finished.band_is_procedural() || pattern.cad.is_none() || same_band(pattern, finished) {
+        return try_build(pattern, lib, params);
+    }
+    let mut built = swept(pattern, lib, params)?;
+    built.band = Some(std::sync::Arc::new(swept(finished, lib, params)?.mesh));
+    resolve_solids(pattern, lib, &mut built);
+    let never = std::sync::atomic::AtomicBool::new(false);
+    built.parts = crate::parts::resolve_with(pattern, lib, params, &crate::cad::BuildCtx::new(&never), crate::cad::Memo::default(), &mut built)?;
+    Ok(built)
 }
 
 /// Place every seat's pre-made solid on the built band and resolve it, then measure what is left.
@@ -1520,6 +1547,72 @@ mod tests {
         doc.append(Feature { id: 1, name: "Stud".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 4.0, height_mm: 3.0 }, component: Component::default() }).unwrap();
         whole.cad = Some(doc);
         assert!(try_build(&whole, &lib, params).unwrap().band.is_none());
+    }
+
+    /// The Court band's 6.5 mm claw solitaire under sand, its head and seat left to the bench, then `more`.
+    fn bench_solitaire(more: Vec<crate::cad::Feature>) -> RingDesign {
+        use crate::cad::{Component, Document, Feature, Operation, Placement, builders};
+        let gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Round, 6.5);
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        doc.append(builders::stone_feature(2, gem, Placement::ring(TOP_DEG, builders::stand_off_mm("claw4", gem)))).unwrap();
+        let mut next = 2;
+        let head = builders::setting_features("claw4", 2, gem, true, &mut || {
+            next += 1;
+            next
+        })
+        .unwrap();
+        for f in head.into_iter().chain(more) {
+            doc.append(f).unwrap();
+        }
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        RingDesign { cad: Some(doc), ..court }
+    }
+
+    #[test]
+    fn the_sand_pattern_seats_every_part_where_the_finished_ring_does_and_never_on_its_own_marks() {
+        use crate::cad::{Stage, builders::cutters};
+        let lib = AlphaLibrary::builtin();
+        let params = BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() };
+        for (label, d) in [
+            ("claw solitaire", bench_solitaire(vec![])),
+            ("with shoulders", bench_solitaire(vec![cutters::cathedral_feature(10, 2, 3, Stage::Cast)])),
+            ("with azures and shoulders", bench_solitaire(vec![cutters::azure_feature(11, 2, Some(3), 6, Stage::Bench), cutters::cathedral_feature(10, 2, 3, Stage::Cast)])),
+        ] {
+            let started = std::time::Instant::now();
+            let finished = try_build(&d, &lib, params).unwrap();
+            let finished_ms = started.elapsed().as_secs_f64() * 1e3;
+            let started = std::time::Instant::now();
+            let pattern = try_build_pattern(&d, &lib, params).unwrap();
+            eprintln!("{label}: finished ring built in {finished_ms:.1} ms, its sand pattern with the second sweep in {:.1} ms", started.elapsed().as_secs_f64() * 1e3);
+            // The pattern's own band carries the bench parts' raised marks; its parts stand on the finished ring's.
+            let marks = crate::castability::pattern_parts(&d, &lib).marks.len();
+            let own = try_build(&crate::castability::casting_pattern(&d, &lib).0, &lib, params).unwrap();
+            let epoch = |b: &BuildResult| crate::cad::surface_epoch(b.band.as_deref().unwrap());
+            assert!(marks >= 2 && epoch(&own) != epoch(&finished), "{label}: {marks} marks");
+            assert_eq!(epoch(&pattern), epoch(&finished), "{label}: seated on the finished ring's band");
+            // The head builds on its stone in the pattern as in the finished ring, so nothing it feeds is skipped.
+            assert!(pattern.parts.notes.is_empty() && finished.parts.notes.is_empty(), "{label}: {:?}", pattern.parts.notes);
+            let (f, p) = (finished.parts.evaluated.as_ref().unwrap(), pattern.parts.evaluated.as_ref().unwrap());
+            assert!(p.components.iter().any(|c| c.id == 2), "{label}: the stone is in the pattern's evaluation");
+            // Every part, those left to the bench among them, stands on the pattern's seat where it stands on the finished ring's.
+            let never = std::sync::atomic::AtomicBool::new(false);
+            let every = crate::cad::evaluate_with(&d, &lib, params, &crate::cad::BuildCtx::new(&never).with_surface(pattern.band.as_deref().unwrap())).unwrap();
+            assert_eq!(every.components.len(), f.components.len(), "{label}");
+            for c in p.components.iter().chain(&every.components) {
+                let g = f.components.iter().find(|g| g.id == c.id).unwrap();
+                let gap = [(c.frame.origin, g.frame.origin), (c.frame.x_axis, g.frame.x_axis), (c.frame.y_axis, g.frame.y_axis), (c.frame.z_axis, g.frame.z_axis)]
+                    .iter()
+                    .flat_map(|(a, b)| (0..3).map(move |k| (a[k] - b[k]).abs()))
+                    .fold(0.0, f64::max);
+                assert!(gap < 1e-6, "{label}: #{} {} stands {gap:e} off the finished ring's", c.id, c.name);
+            }
+            // The bench head and seat are left out; cast shoulders pour with the band.
+            let cast: Vec<u64> = p.components.iter().filter(|c| !c.settings.reference).map(|c| c.id).collect();
+            assert_eq!(cast, if label == "claw solitaire" { vec![] } else { vec![10] }, "{label}");
+            assert_eq!((pattern.parts.joined, pattern.parts.cut), (cast.len(), 0), "{label}");
+            assert!(pattern.report.validation.watertight, "{label}: {:?}", pattern.report.validation);
+        }
     }
 
     #[test]

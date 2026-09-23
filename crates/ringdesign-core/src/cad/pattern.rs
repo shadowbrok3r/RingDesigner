@@ -193,7 +193,7 @@ pub fn reflect(origin: [f64; 3], normal: [f64; 3]) -> Motion {
     Motion { x_axis: m([1.0, 0.0, 0.0]), y_axis: m([0.0, 1.0, 0.0]), z_axis: m([0.0, 0.0, 1.0]), origin: n.map(|v| v * off) }
 }
 
-/// The Ring placement seating `id` and the feature carrying it, through modifiers, band booleans and settings.
+/// The Ring placement seating `id` and the feature carrying it, through modifiers, band booleans and settings; a stone on a part's face has none.
 pub fn seat_of(doc: &Document, id: Id) -> Option<(Id, Placement)> {
     let band = doc.band();
     let mut at = id;
@@ -204,6 +204,7 @@ pub fn seat_of(doc: &Document, id: Id) -> Option<(Id, Placement)> {
         }
         at = match &f.operation {
             Operation::Fillet { source, .. } | Operation::Chamfer { source, .. } | Operation::Shell { source, .. } | Operation::PressPull { source, .. } => *source,
+            Operation::Builder { key, on: Some(_), .. } if key == super::builders::STONE => return None,
             Operation::Builder { on: Some(stone), .. } => *stone,
             Operation::Stored { sources, .. } => *sources.first()?,
             Operation::Boolean { a, b, .. } if band.is_some_and(|x| x == *a || x == *b) => {
@@ -274,6 +275,41 @@ pub fn motions(kind: &PatternKind, design: &RingDesign, surface: Option<&Mesh>, 
     }
 }
 
+/// The motions carrying a part in `frame`, a stone on `face` or what is built round it, onto each copy of a ring array:
+/// each copy turned round the finger's axis and dropped along the face's normal back onto it, its bearing kept in the face.
+pub fn face_motions(kind: &PatternKind, frame: &Motion, face: &FaceFrame) -> Result<Vec<Motion>> {
+    let n = face.normal;
+    let off = |p: [f64; 3]| dot(std::array::from_fn(|k| p[k] - face.origin[k]), n);
+    let height = off(frame.origin);
+    let back = inverse(frame);
+    kind.angles()?
+        .into_iter()
+        .map(|a| {
+            let turn = turn_about([0.0; 3], [0.0, 0.0, 1.0], a);
+            let o = turn.point(frame.origin);
+            let drop = off(o) - height;
+            let x = turn.vector(frame.x_axis);
+            let along = dot(x, n);
+            let x = unit(std::array::from_fn(|k| x[k] - n[k] * along)).ok_or_else(|| anyhow!("A copy {a:.1}° round the ring would stand on edge to the face it is dropped onto"))?;
+            let at = Motion { x_axis: x, y_axis: cross(n, x), z_axis: n, origin: std::array::from_fn(|k| o[k] - n[k] * drop) };
+            Ok(then(&at, &back))
+        })
+        .collect()
+}
+
+/// The motions a pattern of `source` carries it by, as the evaluation places its copies, read off `e`, the parts as built on `surface`.
+pub fn copy_motions(design: &RingDesign, surface: Option<&Mesh>, e: &super::Evaluated, source: Id, kind: &PatternKind) -> Result<Vec<Motion>> {
+    let doc = design.cad.as_ref().context("No CAD features")?;
+    let frame_of = |id: Id| e.components.iter().find(|c| c.id == id).map(|c| c.frame).or_else(|| e.planes.iter().find(|p| p.id == id).map(WorkPlane::placement));
+    if let (PatternKind::Ring { .. }, Some((stone, part, seat))) = (kind, super::face_stone(doc, source)) {
+        let c = e.components.iter().find(|c| c.id == part).ok_or_else(|| anyhow!("Part #{part} a stone stands on did not build"))?;
+        let at = frame_of(stone).ok_or_else(|| anyhow!("Stone #{stone} did not build"))?;
+        return face_motions(kind, &at, &seat.face_of(c)?);
+    }
+    let seat = seat_of(doc, source).map(|(_, p)| p.frame_on(design, surface).map(|used| (p, used))).transpose()?;
+    motions(kind, design, surface, seat.as_ref().map(|(p, used)| (p, used)), &frame_of)
+}
+
 /// A pattern of `source`: its tessellation carried onto each copy's seat, as one mesh part.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn build(
@@ -299,16 +335,26 @@ pub(super) fn build(
         bail!("{} has no body to copy", who(source));
     }
     let value = values.get(&source).ok_or_else(|| anyhow!("Source feature #{source} is unavailable or suppressed"))?;
-    let seat = match seat_of(scope.doc, source) {
-        Some((_, p)) => Some((p.frame_on(design, ctx.surface)?, p)),
-        None => None,
-    };
     let frame_of = |id: Id| frames.get(&id).copied();
-    let motions = motions(kind, design, ctx.surface, seat.as_ref().map(|(used, p)| (p, used)), &frame_of)?;
+    let mut notes = Vec::new();
+    // A stone on a part's face, and what is built round it, is dropped back onto that face; a seated source onto the band.
+    let motions = match (kind, super::face_stone(scope.doc, source)) {
+        (PatternKind::Ring { .. }, Some((stone, part, seat))) => {
+            let (face, _) = super::stood_face(&seat, part, values, frames, who, &mut notes)?;
+            let at = frames.get(&stone).copied().ok_or_else(|| anyhow!("{} has no seat to array from", who(stone)))?;
+            face_motions(kind, &at, &face)?
+        }
+        _ => {
+            let seat = match seat_of(scope.doc, source) {
+                Some((_, p)) => Some((p.frame_on(design, ctx.surface)?, p)),
+                None => None,
+            };
+            motions(kind, design, ctx.surface, seat.as_ref().map(|(used, p)| (p, used)), &frame_of)?
+        }
+    };
     let t = tessellated(value, scope.sigs.get(&source).copied().unwrap_or_default(), scope.bucket, scope.chord, scope.memo)?;
     let faces = t.mesh.faces.len() * motions.len();
     ensure!(faces <= MAX_PATTERN_FACES, "{} copies of {} would carry {faces} faces, past {MAX_PATTERN_FACES}; take fewer copies or a lighter part", motions.len(), who(source));
-    let mut notes = Vec::new();
     let made = copies(&t, value, &motions, kind, &mut notes)?;
     Ok(Built { value: Value::Mesh(Arc::new(made)), frame: None, attach: None, notes })
 }
@@ -713,6 +759,60 @@ mod tests {
             assert!((stand_off - stand).abs() < 0.02, "head {} at {theta}°: its stone's girdle {stand_off:.4} off the band against {stand:.4}", k + 1);
             assert!(dist(copy_centroid(&made, &format!("Copy {}, ", k + 1)), m.point(head)) < 1e-9);
         }
+    }
+
+    #[test]
+    fn a_ring_array_of_a_stone_on_a_plate_drops_each_copy_back_onto_the_plate_and_not_onto_the_band() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        let surface = bare(&court, &lib);
+        // A plate 14 mm round the ring on the top of the Court band, its foot 0.1 mm into the crown.
+        let seat = Placement::ring(90.0, 0.65);
+        let plate = feature(2, "Plate", Operation::Box { size: [4.0, 14.0, 1.5] }, joined(seat.clone()));
+        let alone = on(&with(court.clone(), vec![band(), plate.clone()]), &lib, &surface);
+        let host = component(&alone, 2);
+        let top = face_along(&host.body, &host.frame, [0.0, 0.0, 1.0]) as u32;
+        let gem = Gem::calibrated(GemCut::Round, 1.5);
+        let h = builders::stand_off_mm("claw4", gem);
+        let stood = cad::FaceSeat::on(host, top, None, h).unwrap();
+        let claws = builders::feature_on(4, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }));
+        // Three stones 12° apart, the first the plate's own, and their heads.
+        let kind = PatternKind::Ring { count: 3, span_deg: 24.0 };
+        let stones = feature(5, "Stones", Operation::Pattern { source: 3, kind: kind.clone() }, Component { reference: true, ..Component::default() });
+        let heads = feature(6, "Heads", Operation::Pattern { source: 4, kind: kind.clone() }, joined(Placement::Free));
+        let d = with(court.clone(), vec![band(), plate, cad::stone_on_face(3, gem, 2, &stood), claws, stones, heads]);
+        assert_eq!(seat_of(d.cad.as_ref().unwrap(), 4), None, "a stone on a face has no seat of its own on the band");
+        let e = on(&d, &lib, &surface);
+        assert!(e.failures().is_empty(), "{:?}", e.failures());
+        let face = stood.face_of(component(&e, 2)).unwrap();
+        let (n, frame) = (face.normal, component(&e, 3).frame);
+        let height = |p: [f64; 3]| dot(sub(p, face.origin), n);
+        let moved = face_motions(&kind, &frame, &face).unwrap();
+        // The ghost reads the evaluation's own motions off the parts as built.
+        assert_eq!(copy_motions(&d, Some(&surface), &e, 4, &kind).unwrap(), moved);
+        assert_eq!(copy_motions(&d, Some(&surface), &e, 3, &kind).unwrap(), moved);
+        // Carried by the plate's seat dropped onto the band, as they were, each copy leaned off the plate's top.
+        let old = motions(&kind, &d, Some(&surface), Some((&seat, &component(&e, 2).frame)), &|_| None).unwrap();
+        let (stone_copies, head_copies) = (component(&e, 5).made.clone().unwrap(), component(&e, 6).made.clone().unwrap());
+        let (stone, head) = (centroid(&component(&e, 3).trace.positions), centroid(&component(&e, 4).trace.positions));
+        for (k, (m, was)) in moved.iter().zip(&old).enumerate() {
+            let (o, z) = (m.point(frame.origin), m.vector(frame.z_axis));
+            let (wo, wz) = (was.point(frame.origin), was.vector(frame.z_axis));
+            let lean = |z: [f64; 3]| dot(z, n).clamp(-1.0, 1.0).acos().to_degrees();
+            eprintln!("copy {} at {}°: {:.6} mm over the plate, leaning {:.4}°; riding the plate's seat it stood {:.4} mm over it, leaning {:.2}°", k + 1, 12 * (k + 1), height(o), lean(z), height(wo), lean(wz));
+            assert!((height(o) - h).abs() < 1e-9 && lean(z) < 1e-6, "copy {}: {:.6} over the plate", k + 1, height(o));
+            assert!((height(wo) - h).abs() > 0.2 && lean(wz) > 11.0, "copy {}: the plate's seat carried it {:.4} over the plate at {:.2}°", k + 1, height(wo), lean(wz));
+            // Its foot is on the plate's top, inside the plate's 14 mm, and the copies are the source carried by these motions.
+            let foot = m.point(sub(frame.origin, n.map(|v| v * h)));
+            assert!(height(foot).abs() < 1e-9 && dot(sub(foot, face.origin), component(&e, 2).frame.y_axis).abs() < 6.0, "{foot:?}");
+            assert!(dist(copy_centroid(&stone_copies, &format!("Copy {}, ", k + 1)), m.point(stone)) < 1e-9);
+            assert!(dist(copy_centroid(&head_copies, &format!("Copy {}, ", k + 1)), m.point(head)) < 1e-9);
+        }
+        // Built, every head's claws reach the plate: one piece of metal.
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        assert!(built.report.validation.watertight && built.parts.notes.is_empty(), "{:?} {:?}", built.report.validation, built.parts.notes);
+        assert_eq!((built.parts.joined, built.parts.references), (3, 2));
+        assert_eq!(pieces(&built.mesh), 1);
     }
 
     #[test]

@@ -409,6 +409,8 @@ pub enum Reading {
     Surface,
     /// Where the camera ray crosses the plane through `at` square to the view: a size dragged on screen.
     Plane { at: [f64; 3] },
+    /// Where the camera ray crosses the plane through `at` square to `normal`: a stone slid or spun on a part's face.
+    Face { at: [f64; 3], normal: [f64; 3] },
 }
 
 /// Where a camera ray crosses the plane through `at` square to it.
@@ -508,6 +510,7 @@ impl Probe<'_> {
                 let len = dot(ray.direction, ray.direction).sqrt();
                 (on_view_plane(ray, at)?, ray.direction.map(|v| -v / len), None)
             }
+            Reading::Face { at, normal } => (on_plane(ray, at, normal)?, normal, None),
             Reading::Surface => {
                 let (world, normal) = self.under(picks, ray)?;
                 let ring = ring_point(world, self.surface, self.nominal_r());
