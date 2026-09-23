@@ -235,10 +235,12 @@ fn a_claw_heads_ghost_carried_off_the_parting_line_turns_its_drag_flank_to_the_u
     const HEAD: u64 = 4;
     let mut h = harness();
     let gem = builders::stone_preset("round-5").unwrap().gem();
-    let stone = builders::stone_feature(3, gem, Placement::ring(60.0, 0.0));
+    let stone = builders::stone_feature(3, gem, Placement::ring(60.0, builders::stand_off_mm("claw4", gem)));
     let head = builders::feature_on(HEAD, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }));
     assert_eq!(head.component.stage, Stage::Cast);
     let pane = ring_with(&mut h, vec![stone, head]);
+    let status = h.state().build.as_ref().and_then(|b| b.parts.evaluated.as_ref()).and_then(|e| e.status_of(HEAD).cloned());
+    assert_eq!(status, Some(ringdesign_core::cad::FeatureStatus::Ok), "the head keeps the wall over the finger hole");
     down_at_the_top(&mut h, pane);
     h.state_mut().selection.click(Some(Sel::Part(HEAD)), Mods::default());
     h.run_steps(2);
