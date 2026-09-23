@@ -459,19 +459,147 @@ fn under_wall(gem: Gem, wall: f64, floor: setting::Floor) -> Option<f64> {
     if metal.iter().all(Option::is_some) { found.reduce(f64::min) } else { found.reduce(f64::max) }
 }
 
+/// Ring angle a bore profile is read at, degrees.
+const BORE_BIN_DEG: f64 = 1.0;
+/// Samples round the section a bore is read off.
+const BORE_STEPS: usize = 96;
+/// Heights a bore profile holds between the band's edges.
+const BORE_ROWS: usize = 256;
+
+/// The finger hole's radius against height along the finger: the innermost crossing of one section.
+struct BoreProfile {
+    z0: f64,
+    dz: f64,
+    r: Vec<f64>,
+}
+
+impl BoreProfile {
+    fn of(section: &crate::ProfileLoop) -> Option<Self> {
+        let pts: Vec<[f64; 2]> = section.pts.iter().map(|p| [p.r, p.z]).collect();
+        let (lo, hi) = section.z_range();
+        if pts.len() < 3 || !(hi > lo) {
+            return None;
+        }
+        let dz = (hi - lo) / (BORE_ROWS - 1) as f64;
+        let r = (0..BORE_ROWS)
+            .map(|i| {
+                let z = (lo + dz * i as f64).clamp(lo + 1e-9, hi - 1e-9);
+                (0..pts.len())
+                    .filter_map(|j| {
+                        let (a, b) = (pts[j], pts[(j + 1) % pts.len()]);
+                        ((a[1] - z) * (b[1] - z) <= 0.0 && a[1] != b[1]).then(|| a[0] + (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]))
+                    })
+                    .fold(f64::INFINITY, f64::min)
+            })
+            .collect::<Vec<f64>>();
+        r.iter().all(|v| v.is_finite()).then_some(Self { z0: lo, dz, r })
+    }
+
+    /// The radius at height `z`, held at the band's edges beyond them.
+    fn at(&self, z: f64) -> f64 {
+        let t = ((z - self.z0) / self.dz).clamp(0.0, (self.r.len() - 1) as f64);
+        let i = (t.floor() as usize).min(self.r.len() - 2);
+        self.r[i] + (self.r[i + 1] - self.r[i]) * (t - i as f64)
+    }
+}
+
+/// The finger hole seen from a builder's frame: the band's own bore at each ring angle, or the ring size's where parts are the ring.
+pub struct Bore<'a> {
+    design: Option<&'a crate::RingDesign>,
+    frame: cadkernel::brep::Placement,
+    nominal: f64,
+    reference: Option<crate::ProfileLoop>,
+    /// One section serves every ring angle.
+    uniform: bool,
+    profiles: std::cell::RefCell<HashMap<i64, Option<BoreProfile>>>,
+}
+
+impl<'a> Bore<'a> {
+    /// The bore of `design` in `frame`, the frame a builder's part is made in.
+    pub fn of(design: &'a crate::RingDesign, frame: &cadkernel::brep::Placement) -> Self {
+        let band = design.band_is_procedural().then_some(design);
+        let uniform = design.imported_base.is_none() && design.shank.kind == crate::profile::ShankKind::Uniform && design.profile.morph.is_none();
+        Self { design: band, frame: *frame, nominal: design.inner_radius_mm(), reference: band.map(|d| d.reference_loop()), uniform, profiles: Default::default() }
+    }
+
+    /// Radial metal between point `p` of the frame and the finger hole, mm; negative inside it.
+    pub fn clearance(&self, p: P3) -> f64 {
+        let w = self.frame.point(p);
+        w[0].hypot(w[1]) - self.radius(w[1].atan2(w[0]).to_degrees(), w[2])
+    }
+
+    /// The hole's radius at ring angle `theta_deg` and height `z` along the finger.
+    pub fn radius(&self, theta_deg: f64, z: f64) -> f64 {
+        let Some(design) = self.design else { return self.nominal };
+        let bin = if self.uniform { 0 } else { (theta_deg / BORE_BIN_DEG).round() as i64 };
+        let mut profiles = self.profiles.borrow_mut();
+        let profile = profiles.entry(bin).or_insert_with(|| BoreProfile::of(&design.section_at(bin as f64 * BORE_BIN_DEG, BORE_STEPS, None, self.reference.as_ref())));
+        profile.as_ref().map_or(self.nominal, |p| p.at(z))
+    }
+}
+
+/// A builder's refusal said with its name: a part that would not resolve, or one that cannot keep the wall over the finger.
+fn refused(who: &str, e: setting::HeadSnag) -> anyhow::Error {
+    match e {
+        setting::HeadSnag::Csg(s) => anyhow::anyhow!("{who} would not resolve: {s}"),
+        other => anyhow::anyhow!("{who}: {other}"),
+    }
+}
+
+/// A collet whose base rises only as far as the wall over the finger needs, else refused.
+fn walled_collet(gem: Gem, wall_mm: f64, lip: f64, base_z: f64, wall: setting::Wall) -> std::result::Result<Named, setting::HeadSnag> {
+    let make = |z: f64| setting::collet_named(gem, wall_mm, lip, z);
+    let thinnest = |z: f64| setting::thinnest_wall(&make(z).solid, wall);
+    let keep = crate::mesh::MIN_WALL_MM;
+    if thinnest(base_z) >= keep {
+        return Ok(make(base_z));
+    }
+    // A collet reaches its own depth below the girdle whatever the metal does.
+    let top = -setting::collet_depth_mm(gem);
+    let highest = thinnest(top);
+    if highest < keep {
+        return Err(setting::HeadSnag::Breaks { part: "Collet".into(), wall_mm: highest });
+    }
+    let (mut lo, mut hi) = (base_z, top);
+    for _ in 0..24 {
+        let mid = 0.5 * (lo + hi);
+        if thinnest(mid) >= keep {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    Ok(make(hi))
+}
+
 /// What builder `key` makes for `gem` in the stone's frame, over metal at `seat` and wherever `floor` finds it.
 pub fn build(key: &str, gem: Gem, params: &Json, seat: Seat, floor: Option<setting::Floor>) -> Result<Made> {
+    build_in(key, gem, params, seat, floor, None)
+}
+
+/// [`build`] with `bore` as the floor of every metal part's reach: the wall over the finger kept, else the part refused by name.
+pub fn build_in(key: &str, gem: Gem, params: &Json, seat: Seat, floor: Option<setting::Floor>, bore: Option<&Bore>) -> Result<Made> {
     let who = label(key);
     ensure!(spec(key).is_some(), "No builder called {key}; choose {}", SPECS.iter().map(|s| s.key).collect::<Vec<_>>().join(", "));
     let v = Values::of(key, gem, params)?;
     let snag = |e: crate::csg::Snag| anyhow::anyhow!("{who} would not resolve: {e}");
+    let clearance = bore.map(|b| move |p: P3| b.clearance(p));
+    let wall: Option<setting::Wall> = clearance.as_ref().map(|c| c as setting::Wall);
     let named = match key {
         STONE => setting::envelope_named(gem, 0.0),
-        CLAW => setting::claw_head_named(gem, v.n("prongs"), v.f("wire_mm"), Rails::Seat, floor).map_err(snag)?,
-        BASKET => setting::claw_head_named(gem, v.n("prongs"), v.f("wire_mm"), Rails::Basket(v.n("rails")), floor).map_err(snag)?,
+        CLAW | BASKET => {
+            let rails = if key == CLAW { Rails::Seat } else { Rails::Basket(v.n("rails")) };
+            match wall {
+                Some(w) => setting::claw_head_within(gem, v.n("prongs"), v.f("wire_mm"), rails, floor, w).map_err(|e| refused(who, e))?,
+                None => setting::claw_head_named(gem, v.n("prongs"), v.f("wire_mm"), rails, floor).map_err(snag)?,
+            }
+        }
         BEZEL => {
             let metal = floor.and_then(|f| under_wall(gem, v.f("wall_mm"), f)).unwrap_or(seat.surface_z).min(seat.surface_z);
-            setting::collet_named(gem, v.f("wall_mm"), v.f("lip"), metal - BEZEL_SINK_MM)
+            match wall {
+                Some(w) => walled_collet(gem, v.f("wall_mm"), v.f("lip"), metal - BEZEL_SINK_MM, w).map_err(|e| refused(who, e))?,
+                None => setting::collet_named(gem, v.f("wall_mm"), v.f("lip"), metal - BEZEL_SINK_MM),
+            }
         }
         BUR => {
             let fit = Fit { surface_z: seat.surface_z, through_mm: seat.through_mm.filter(|_| v.b("through")), prongs: 0 };
@@ -485,7 +613,7 @@ pub fn build(key: &str, gem: Gem, params: &Json, seat: Seat, floor: Option<setti
                 }
             }
         }
-        HALO => return halo(gem, &v),
+        HALO => return halo(gem, &v, wall),
         _ => unreachable!("checked above"),
     };
     let mut made = Made::of(key, named, Some(gem))?;
@@ -520,7 +648,7 @@ fn at_arc(pts: &[[f64; 2]], arc: &[f64], frac: f64) -> [f64; 2] {
 }
 
 /// Melee in collets or claw heads round the grown outline at equal arc length, counted by `pave::halo`'s rule, tied by a rail.
-fn halo(gem: Gem, v: &Values) -> Result<Made> {
+fn halo(gem: Gem, v: &Values, wall: Option<setting::Wall>) -> Result<Made> {
     let melee = Gem::calibrated(GemCut::Round, v.f("melee_mm"));
     let footprint = melee.w_mm + 0.7;
     let grow = v.f("gap_mm") + footprint * 0.5;
@@ -557,6 +685,9 @@ fn halo(gem: Gem, v: &Values) -> Result<Made> {
         setting::Station { s: 1.0, o: offset + r * t.sin(), z: rail_z + r * t.cos() }
     }).collect();
     parts.push(Named::whole(setting::sweep(&plan, &section, 128), "Halo rail"));
+    if let Some(snag) = wall.and_then(|w| setting::breaks_wall(&parts, w)) {
+        return Err(refused(label(HALO), snag));
+    }
     let named = Named::union_all(parts).map_err(|e| anyhow::anyhow!("Halo would not resolve: {e}"))?;
     let mut made = Made::of(HALO, named, Some(gem))?;
     made.stations = stations;
@@ -1303,6 +1434,80 @@ mod tests {
                 let ms = started.elapsed().as_secs_f64() * 1e3;
                 eprintln!("{label:<16} {key:<12} ring {ms:>7.1} ms, parts {:>5} ms, {} faces, open {} non-manifold {}", built.parts.ms, built.mesh.faces.len(), built.report.validation.boundary_edges, built.report.validation.non_manifold_edges);
             }
+        }
+    }
+
+    /// Radial metal between world point `w` and the band's own bore: the first face a ray from the finger's axis meets going out at its height, else the ring size.
+    fn mesh_wall(band: &crate::Mesh, bvh: &crate::interaction::bvh::Bvh, nominal: f64, w: P3) -> f64 {
+        let r = w[0].hypot(w[1]);
+        let out = if r > 1e-9 { [w[0] / r, w[1] / r, 0.0] } else { [1.0, 0.0, 0.0] };
+        r - bvh.ray(band, [0.0, 0.0, w[2]], out).map_or(nominal, |(_, t)| t)
+    }
+
+    #[test]
+    fn no_builder_reaches_into_the_finger_hole_and_a_stone_no_claw_can_hold_is_refused_by_name() {
+        use crate::interaction::bvh::Bvh;
+        let lib = AlphaLibrary::builtin();
+        let keep = crate::mesh::MIN_WALL_MM;
+        let never = AtomicBool::new(false);
+        let four = json!({ "prongs": 4 });
+        let settings: [(&str, Json); 5] = [(CLAW, four.clone()), (CLAW, json!({ "prongs": 6 })), (BASKET, json!({})), (BEZEL, json!({})), (HALO, json!({}))];
+        for (band_name, band) in [("default", RingDesign::default()), ("Court", court())] {
+            let surface = crate::mesh::try_build(&band, &lib, params()).unwrap().mesh;
+            let bvh = Bvh::build(&surface);
+            let nominal = band.inner_radius_mm();
+            let (mut made_ok, mut refusals, mut broke_before, mut four_claws) = (0, 0, 0, 0);
+            let (mut thinnest, mut deepest_before) = (f64::INFINITY, f64::INFINITY);
+            // Round the ring from 0° to 180°, across the band, and leaning 20° either way at 60°.
+            let seats: Vec<(f64, f64, f64)> = [0.0, 60.0, 90.0, 180.0].into_iter().flat_map(|t| [0.0, 1.2, 2.2].map(|a| (t, a, 0.0))).chain([(60.0, 0.0, 20.0), (60.0, 1.2, -20.0)]).collect();
+            for w in [3.0, 5.0, 6.5, 8.0] {
+                let gem = Gem::calibrated(GemCut::Round, w);
+                for &(theta, across, tilt) in &seats {
+                    for (key, p) in &settings {
+                        // The stone as the build seats it: its frame and the metal under it.
+                        let placement = Placement::Ring { theta_deg: theta, across_mm: across, height_mm: stand_off_mm(key, gem), spin_deg: 0.0, tilt_deg: tilt, cant_deg: 0.0 };
+                        let mut doc = Document::default();
+                        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+                        doc.append(stone_feature(2, gem, placement)).unwrap();
+                        let d = RingDesign { cad: Some(doc), ..band.clone() };
+                        let e = cad::evaluate_with(&d, &lib, params(), &BuildCtx::new(&never).with_surface(&surface)).unwrap();
+                        let stone = e.components.iter().find(|c| c.id == 2).unwrap();
+                        let (frame, seat) = (stone.frame, stone.made.as_ref().unwrap().seat.unwrap());
+                        // Straight down the stone's axis from over its girdle, as the build's ground probe reads the metal.
+                        let floor = |q: [f64; 2]| bvh.ray(&surface, frame.point([q[0], q[1], 8.0]), frame.z_axis.map(|v| -v)).map(|(_, t)| 8.0 - t);
+                        let worst = |made: &Made| made.placed(&frame).solid().v.iter().map(|v| mesh_wall(&surface, &bvh, nominal, *v)).fold(f64::INFINITY, f64::min);
+                        // As the four claws stood, lengthened to the metal whatever lay under it.
+                        if *p == four
+                            && let Ok(old) = build(key, gem, p, seat, Some(&floor))
+                        {
+                            four_claws += 1;
+                            let t = worst(&old);
+                            if t < keep - 0.01 {
+                                broke_before += 1;
+                                deepest_before = deepest_before.min(t);
+                            }
+                        }
+                        let bore = Bore::of(&d, &frame);
+                        match build_in(key, gem, p, seat, Some(&floor), Some(&bore)) {
+                            Ok(made) => {
+                                let t = worst(&made);
+                                assert!(t >= keep - 0.01, "{band_name} {key} {p} {w} mm at {theta}° across {across} tilted {tilt}°: {t:.3} mm of wall");
+                                thinnest = thinnest.min(t);
+                                made_ok += 1;
+                            }
+                            Err(e) => {
+                                let why = e.to_string();
+                                assert!(why.starts_with(label(key)) && (why.contains("wall over the finger") || why.contains("into the finger hole")), "{band_name} {key} {w} mm across {across}: {why}");
+                                // Centred and upright, only an 8 mm stone whose four claws all stand past the Court band's 4 mm is refused.
+                                assert!(across > 0.0 || tilt != 0.0 || (band_name == "Court" && w == 8.0 && (*key == BASKET || *p == four)), "{band_name} {key} {p} {w} mm centred: {why}");
+                                refusals += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            eprintln!("{band_name}: {made_ok} built keeping {thinnest:.3} mm or more, {refusals} refused by name; four claws before: {broke_before} of {four_claws} broke the {keep} mm wall, the deepest {deepest_before:.3} mm");
+            assert!(broke_before > 0 && refusals > 0, "{band_name}");
         }
     }
 }

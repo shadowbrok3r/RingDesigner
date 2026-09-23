@@ -362,7 +362,7 @@ fn a_key_with_nothing_chosen_says_so_and_starts_nothing() {
     let at = crest(&h, pane, 60.0);
     h.hover_at(at);
     h.run_steps(2);
-    for key in [Key::G, Key::R, Key::S, Key::P, Key::J] {
+    for key in [Key::G, Key::R, Key::S, Key::P, Key::J, Key::A, Key::Q] {
         press(&mut h, key);
         assert_eq!(live(&h), None);
         assert_eq!(h.state().status, "Select a part first: click one on the ring");
@@ -371,11 +371,60 @@ fn a_key_with_nothing_chosen_says_so_and_starts_nothing() {
 }
 
 #[test]
+fn q_pulls_the_chosen_flat_face_and_a_arrays_the_chosen_part_as_the_menu_does() {
+    let mut h = harness();
+    let pane = band_and_cylinder(&mut h);
+    let top = select_post(&mut h, pane);
+    assert!(matches!(h.state().selection.items.last(), Some(Sel::Face { feature: POST, .. })), "{:?}", h.state().selection.items);
+    let entries = h.state().history.present();
+    h.hover_at(top);
+    h.run_steps(2);
+    // Q on the chosen top: the press-pull the face's menu starts, sizing the cylinder.
+    press(&mut h, Key::Q);
+    assert_eq!(live(&h), Some("press-pull"));
+    text(&mut h, "0.5");
+    assert_eq!(h.state().command.session.preview().unwrap().caption, "Press-pull out 0.50 mm · sizes Cylinder");
+    press(&mut h, Key::Enter);
+    assert_eq!(live(&h), None);
+    assert_eq!(h.state().history.present(), entries + 1, "one press-pull, one undo step");
+    let sized = post(&h);
+    assert!(matches!(sized.operation, Operation::Cylinder { height_mm, .. } if (height_mm - 3.0).abs() < 1e-12), "{:?}", sized.operation);
+    assert!(matches!(sized.component.placement, Placement::Ring { height_mm, .. } if (height_mm - 0.5).abs() < 1e-12), "{:?}", sized.component.placement);
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    // A on the same part: the array round the ring, six by default, its ghost five copies of the part.
+    let top = select_post(&mut h, pane);
+    h.hover_at(top);
+    h.run_steps(2);
+    press(&mut h, Key::A);
+    assert_eq!(live(&h), Some("array"));
+    assert_eq!(h.state().command.session.preview().unwrap().caption, "Array round the ring: 6 in all, a copy every 60.0°");
+    let per = h.state().build.as_ref().unwrap().parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == POST).unwrap().mesh.vertices.len();
+    assert_eq!(crate::patterns::STAGED.with(|s| s.borrow().vertices.len()), 5 * per);
+    while live(&h).is_some() {
+        press(&mut h, Key::Escape);
+    }
+    assert_eq!(h.state().history.present(), entries + 1, "a cancelled array adds nothing");
+    // The cylinder's curved side chosen: Q says why and starts nothing.
+    let side = h.state().build.as_ref().unwrap().parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == POST).unwrap().trace.face_kind.iter().position(|k| *k != ringdesign_core::cad::SurfaceKind::Plane).unwrap() as u32;
+    h.state_mut().selection.click(Some(Sel::Face { feature: POST, face: side }), ringdesign_workbench::viewport::Mods::default());
+    h.hover_at(top);
+    h.run_steps(2);
+    press(&mut h, Key::Q);
+    assert_eq!(live(&h), None);
+    assert_eq!(h.state().status, format!("Press-pull moves flat faces; face {side} of #2 Cylinder is curved"));
+    // With the part chosen rather than a face, Q asks for a face.
+    h.state_mut().selection.click(Some(Sel::Part(POST)), ringdesign_workbench::viewport::Mods::default());
+    press(&mut h, Key::Q);
+    assert_eq!((live(&h), h.state().status.as_str()), (None, "Choose a flat face of the part: click one on the ring"));
+}
+
+#[test]
 fn every_command_has_an_icon_a_rail_slot_a_palette_entry_and_a_key() {
     use crate::panels::Command;
     let mut h = harness();
     let pane = band_and_cylinder(&mut h);
-    let catalog = ringdesign_workbench::command::catalog();
+    let catalog = ringdesign_workbench::command::commands::rail();
     let slot = |c: &ringdesign_workbench::command::CommandInfo| crate::command::rail_label(&c.title, c.key);
     let rail = |h: &Harness<'static, RingDesignerApp>, label: &str| {
         h.query_all_by_label(label).find(|n| n.accesskit_node().role() == egui::accesskit::Role::Button).map(|n| !n.accesskit_node().is_disabled())

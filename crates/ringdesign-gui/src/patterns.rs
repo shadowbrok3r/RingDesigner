@@ -53,12 +53,12 @@ pub fn start(app: &mut RingDesignerApp, pane: usize, feature: u64, key: &'static
     let attach = c.attach;
     match key {
         keys::RING_ARRAY => {
-            let ghost = copies_ghost(&build, c.mesh.clone());
+            let ghost = copies_ghost(app, &build, f.id, c.mesh.clone());
             begin(app, pane, Ghosted::new(ArrayCmd::new(0, f, attach, None), app.renderer.clone(), ghost));
         }
         keys::STONE_ARRAY => match stone_by(app, &build, &f, c) {
             Some(stone) => {
-                let ghost = copies_ghost(&build, c.mesh.clone());
+                let ghost = copies_ghost(app, &build, f.id, c.mesh.clone());
                 begin(app, pane, Ghosted::new(ArrayCmd::new(0, f, attach, Some(stone)), app.renderer.clone(), ghost));
             }
             None => app.set_status(format!("#{} {} stands on no stone and by none within {STONE_REACH_MM} mm; set a stone first", f.id, f.name)),
@@ -85,6 +85,16 @@ pub fn press_pull(app: &mut RingDesignerApp, pane: usize, feature: u64, face: u3
     };
     let ghost = face_ghost(c, face, normal);
     begin(app, pane, Ghosted::new(PressPullCmd::new(f, signed, c.attach, centre, normal, 0), app.renderer.clone(), ghost));
+}
+
+/// Adds the mirror of part `feature` across work plane `plane` as one funnel commit and chooses it.
+pub fn mirror_across(app: &mut RingDesignerApp, feature: Id, plane: Id) {
+    let (f, build) = match part(app, feature) {
+        Ok(p) => p,
+        Err(why) => return app.set_status(why),
+    };
+    let attach = component(&build, feature).map_or(f.component.attach, |c| c.attach);
+    mirror(app, &f, attach, MirrorPlane::Plane { feature: plane });
 }
 
 /// Adds the mirror of `f` across `plane` as one funnel commit and chooses it; a part standing on the plane is its own mirror.
@@ -149,13 +159,20 @@ fn begin(app: &mut RingDesignerApp, pane: usize, mut cmd: Ghosted) {
 /// What a ghost is drawn from: the command as it stands, read for its triangles in the world.
 type Stage = Box<dyn Fn(&dyn ViewCommand) -> Option<Mesh>>;
 
-/// The part's mesh carried onto every copy a pattern command would add.
-fn copies_ghost(build: &BuildResult, source: Mesh) -> Stage {
+/// The part's mesh carried onto every copy a pattern command would add, each where the build puts it: a seated part dropped onto the band again at its copy's angle.
+fn copies_ghost(app: &RingDesignerApp, build: &BuildResult, source_id: Id, source: Mesh) -> Stage {
     let frames: Vec<(Id, _)> = build.parts.evaluated.iter().flat_map(|e| e.components.iter().map(|c| (c.id, c.frame)).chain(e.planes.iter().map(|p| (p.id, p.placement())))).collect();
+    let design = app.design.clone();
+    let surface = build.band.clone();
+    // The seat as the evaluation reads it: the placement, and the frame it stood by on the band.
+    let seat = app.design.cad.as_ref().and_then(|doc| pattern::seat_of(doc, source_id)).and_then(|(_, p)| {
+        let used = p.frame_on(&design, surface.as_deref()).ok()?;
+        Some((p, used))
+    });
     Box::new(move |cmd| {
         let Some(Operation::Pattern { kind, .. }) = cmd.preview().operation else { return None };
         let frame_of = |id: Id| frames.iter().find(|(f, _)| *f == id).map(|(_, p)| *p);
-        let motions = pattern::world_motions(&kind, &frame_of).ok()?;
+        let motions = pattern::motions(&kind, &design, surface.as_deref(), seat.as_ref().map(|(p, used)| (p, used)), &frame_of).ok()?;
         let mut out = Mesh::default();
         for m in motions {
             let base = out.vertices.len() as u32;

@@ -589,15 +589,87 @@ pub fn claw_head(gem: Gem, prongs: u32) -> Result<Solid, Snag> {
 
 /// The height of the metal under a point of the stone's girdle plane, in the stone's frame; `None` where there is none.
 pub type Floor<'a> = &'a dyn Fn([f64; 2]) -> Option<f64>;
+/// Radial metal between a point of the stone's frame and the finger hole, mm; negative inside the hole.
+pub type Wall<'a> = &'a dyn Fn(P3) -> f64;
 
 /// How far a claw's foot reaches past the metal under it, mm.
 pub const FOOT_SINK_MM: f64 = 0.5;
 /// How far below the head's own base a claw may lengthen to find metal, mm.
 pub const CLAW_REACH_MM: f64 = 6.0;
+/// Margin a claw's sampled foot keeps over the wall, for the rim between its samples, mm.
+const FOOT_WALL_SLACK_MM: f64 = 0.01;
+
+/// How a head's claws met the band: those that found metal under their feet, and those the wall over the finger stopped first.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Reach {
+    pub reached: u32,
+    pub walled: u32,
+}
+
+/// Why a made part cannot stand where its stone is.
+#[derive(Clone, Debug, PartialEq)]
+pub enum HeadSnag {
+    /// Its parts would not join or take the stone's notch.
+    Csg(Snag),
+    /// No claw finds the band before the wall over the finger.
+    NoReach,
+    /// A part would stand inside the wall over the finger, leaving `wall_mm` of metal; negative is inside the hole.
+    Breaks { part: String, wall_mm: f64 },
+}
+
+impl std::fmt::Display for HeadSnag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let wall = crate::mesh::MIN_WALL_MM;
+        match self {
+            Self::Csg(s) => write!(f, "would not resolve: {s}"),
+            Self::NoReach => write!(f, "no claw reaches the band without breaking the {wall} mm wall over the finger; seat the stone further onto the band or choose a smaller one"),
+            Self::Breaks { part, wall_mm } if *wall_mm < 0.0 => {
+                write!(f, "{part} would reach {:.2} mm into the finger hole; seat the stone further onto the band or choose a smaller one", -wall_mm)
+            }
+            Self::Breaks { part, wall_mm } => {
+                write!(f, "{part} would thin the wall over the finger to {wall_mm:.2} mm, under its {wall} mm; seat the stone further onto the band or choose a smaller one")
+            }
+        }
+    }
+}
+
+impl From<Snag> for HeadSnag {
+    fn from(s: Snag) -> Self {
+        Self::Csg(s)
+    }
+}
+
+/// The thinnest wall any vertex of `solid` leaves over the finger, mm.
+pub fn thinnest_wall(solid: &Solid, wall: Wall) -> f64 {
+    solid.v.iter().map(|p| wall(*p)).fold(f64::INFINITY, f64::min)
+}
+
+/// The first of `parts` that stands inside the wall over the finger, by name.
+pub fn breaks_wall(parts: &[Named], wall: Wall) -> Option<HeadSnag> {
+    parts.iter().find_map(|p| {
+        let w = thinnest_wall(&p.solid, wall);
+        (w < crate::mesh::MIN_WALL_MM).then(|| HeadSnag::Breaks { part: p.names.first().cloned().unwrap_or_else(|| "A part".into()), wall_mm: w })
+    })
+}
 
 /// [`claw_head`] with its wire and rails chosen, every claw and rail named, each claw reaching the metal `floor` finds.
 pub fn claw_head_named(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor: Option<Floor>) -> Result<Named, Snag> {
     let head = Named::union_all(claw_parts_named(gem, prongs, wire_mm, rails, floor))?;
+    let mut head = head.notched(&envelope(gem, 0.02))?;
+    head.compact();
+    Ok(head)
+}
+
+/// [`claw_head_named`] floored by the wall over the finger: claws stop or shorten at it, and a head that cannot keep it is refused.
+pub fn claw_head_within(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor: Option<Floor>, wall: Wall) -> Result<Named, HeadSnag> {
+    let (parts, reach) = claw_parts_reach(gem, prongs, wire_mm, rails, floor, Some(wall));
+    if floor.is_some() && reach.reached == 0 && reach.walled > 0 {
+        return Err(HeadSnag::NoReach);
+    }
+    if let Some(snag) = breaks_wall(&parts, wall) {
+        return Err(snag);
+    }
+    let head = Named::union_all(parts)?;
     let mut head = head.notched(&envelope(gem, 0.02))?;
     head.compact();
     Ok(head)
@@ -625,6 +697,12 @@ pub fn claw_count(gem: Gem, prongs: u32) -> u32 {
 
 /// [`claw_parts`] with the wire, rails and floor chosen, each part named: claws first, then rails from the base up.
 pub fn claw_parts_named(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor: Option<Floor>) -> Vec<Named> {
+    claw_parts_reach(gem, prongs, wire_mm, rails, floor, None).0
+}
+
+/// [`claw_parts_named`] with each claw's reach floored by `wall` when there is one, and how the claws met the band.
+pub fn claw_parts_reach(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor: Option<Floor>, wall: Option<Wall>) -> (Vec<Named>, Reach) {
+    let mut met = Reach::default();
     let plan = Plan::of(gem);
     let (c, p, g) = (gem.crown_mm(), gem.pavilion_mm(), girdle_half(gem));
     let d = wire_mm;
@@ -652,23 +730,51 @@ pub fn claw_parts_named(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor
         let run_from = [lift * slope.sin(), g + lift * slope.cos() + 0.04];
         let arc_end = [run_from[0] + 0.15 * d * turn.sin(), run_from[1] - 0.15 * d * turn.cos()];
         let start = [arc_end[0] - bend * (turn.cos() - lean.cos()), arc_end[1] - bend * (turn.sin() + lean.sin())];
-        let base_z = (-depth - 0.8).min(start[1] - 0.4);
-        // Lengthens the claw down its own line until its foot's inner edge is FOOT_SINK_MM into metal, else keeps it.
-        let base_z = floor.map_or(base_z, |floor| {
+        let own = (-depth - 0.8).min(start[1] - 0.4);
+        // The least wall the foot's rim and centre leave over the finger with the claw's base at `z`.
+        let foot_wall = |wall: Wall, z: f64| {
+            let foot = start[0] - (start[1] - z) * PRONG_LEAN;
+            let c = [o[0] + n[0] * foot, o[1] + n[1] * foot, z];
+            let l = PRONG_LEAN.hypot(1.0);
+            let (u, v) = ([n[0] / l, n[1] / l, -PRONG_LEAN / l], [-n[1], n[0], 0.0]);
+            let r = 0.60 * d;
+            (0..24)
+                .map(|k| {
+                    let (s, co) = (TAU * k as f64 / 24.0).sin_cos();
+                    wall(std::array::from_fn(|i| c[i] + r * (u[i] * co + v[i] * s)))
+                })
+                .fold(wall(c), f64::min)
+        };
+        let keeps = |z: f64| wall.is_none_or(|w| foot_wall(w, z) >= crate::mesh::MIN_WALL_MM + FOOT_WALL_SLACK_MM);
+        // Lengthens the claw down its own line until its foot's inner edge is FOOT_SINK_MM into metal, else keeps it; the wall stops it first.
+        let mut base_z = own;
+        if let Some(floor) = floor {
             let inner = |z: f64| {
                 let foot = start[0] - (start[1] - z) * PRONG_LEAN - 0.60 * d;
                 [o[0] + n[0] * foot, o[1] + n[1] * foot]
             };
-            let mut z = base_z;
-            while z > base_z - CLAW_REACH_MM {
+            let mut z = own;
+            while z > own - CLAW_REACH_MM {
+                if !keeps(z) {
+                    met.walled += 1;
+                    break;
+                }
                 if let Some(metal) = floor(inner(z)).filter(|metal| z <= metal - FOOT_SINK_MM) {
                     // Metal met only far below its top means the foot came down beside it.
-                    return if z >= metal - FOOT_SINK_MM - 0.5 { z } else { base_z };
+                    if z >= metal - FOOT_SINK_MM - 0.5 {
+                        base_z = z;
+                        met.reached += 1;
+                    }
+                    break;
                 }
                 z -= 0.05;
             }
-            base_z
-        });
+        }
+        // A foot already inside the wall is shortened up its own line to it.
+        let top = start[1] - 0.4;
+        while base_z < top && !keeps(base_z) {
+            base_z = (base_z + 0.05).min(top);
+        }
         let foot = start[0] - (start[1] - base_z) * PRONG_LEAN;
         let steps = (((start[1] - base_z) / 0.3).ceil() as usize).max(2);
         let (mut line, mut rs): (Vec<[f64; 2]>, Vec<f64>) = (0..steps).map(|k| {
@@ -711,7 +817,7 @@ pub fn claw_parts_named(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor
             }
         }
     }
-    parts
+    (parts, met)
 }
 
 /// Everything a seat of this kind adds and cuts, made once per stone and fit and kept.
@@ -1626,6 +1732,38 @@ mod tests {
         assert!(low(&reaching.solid) < low(&own.solid) - 2.0 - FOOT_SINK_MM + 0.1, "{} against {}", low(&reaching.solid), low(&own.solid));
         let nothing = |_: [f64; 2]| None;
         assert!(same(&claw_head_named(gem, 4, prong_wire_mm(gem), Rails::Seat, Some(&nothing)).unwrap().solid, &own.solid));
+    }
+
+    #[test]
+    fn the_wall_over_the_finger_is_the_floor_of_every_claws_reach() {
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        let wire = prong_wire_mm(gem);
+        let keep = crate::mesh::MIN_WALL_MM;
+        let low = |s: &Solid| s.v.iter().map(|p| p[2]).fold(f64::MAX, f64::min);
+        // The finger hole 5.5 mm under the girdle, flat: a point keeps its height over that of metal.
+        let hole = |p: P3| p[2] + 5.5;
+        // Metal 4.2 mm down: the claws sink their feet half a millimetre into it and keep the wall.
+        let shallow = |_: [f64; 2]| Some(-4.2);
+        let (_, met) = claw_parts_reach(gem, 4, wire, Rails::Seat, Some(&shallow), Some(&hole));
+        assert_eq!(met, Reach { reached: 4, walled: 0 });
+        let head = claw_head_within(gem, 4, wire, Rails::Seat, Some(&shallow), &hole).unwrap();
+        let bottom = low(&head.solid);
+        assert!(bottom >= -5.5 + keep && bottom < -4.2 - FOOT_SINK_MM, "{bottom}");
+        // Metal 4.6 mm down: a foot half a millimetre into it would leave under the wall, so the wall stops every claw first.
+        let deep = |_: [f64; 2]| Some(-4.6);
+        let (_, met) = claw_parts_reach(gem, 4, wire, Rails::Seat, Some(&deep), Some(&hole));
+        assert_eq!(met, Reach { reached: 0, walled: 4 });
+        assert_eq!(claw_head_within(gem, 4, wire, Rails::Seat, Some(&deep), &hole).unwrap_err(), HeadSnag::NoReach);
+        // Floored by nothing, the same claws went down past the wall.
+        let through = low(&claw_head_named(gem, 4, wire, Rails::Seat, Some(&deep)).unwrap().solid);
+        assert!(through < -5.5 + keep - 0.2, "{through}");
+        // A hole under the head's own base rail: the claws shorten, and the rail refuses the head by name.
+        let near = |p: P3| p[2] + 3.6;
+        let Err(HeadSnag::Breaks { part, wall_mm }) = claw_head_within(gem, 4, wire, Rails::Seat, None, &near) else { panic!("the base rail stands in the wall") };
+        assert_eq!(part, "Base rail");
+        assert!(wall_mm < keep && wall_mm > 0.0, "{wall_mm}");
+        eprintln!("claws over metal 4.2 mm down end at {bottom:.3}; over 4.6 mm, unfloored, at {through:.3}; the base rail leaves {wall_mm:.3} mm");
+        assert!(HeadSnag::Breaks { part, wall_mm: -0.25 }.to_string().starts_with("Base rail would reach 0.25 mm into the finger hole"));
     }
 }
 

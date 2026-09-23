@@ -13,7 +13,7 @@ use ringdesign_core::{BuildResult, Mesh, sketch::Id as FeatureId};
 use ringdesign_workbench::command::{
     AddPrimitiveCmd, Affine, AttachCmd, Axis, BandSurface, DimEvent, DimensionBar, Dofs, Effect, Grid, GripCmd, MoveCmd, Outcome, PlaceCmd,
     Primitive, Probe, Reading, RingFeatures, RingPoint, RotateCmd, ScaleCmd, Scene, Session, SnapGeometry, SnapHit, Snapper, StepInput,
-    ViewCommand, catalog, land, placed_ghost, unit_ghost, unit_mesh,
+    ViewCommand, land, placed_ghost, unit_ghost, unit_mesh,
 };
 use ringdesign_workbench::viewport::pins::Pin;
 use ringdesign_workbench::gizmo::{self, Gizmo, Handle, Layout};
@@ -97,6 +97,8 @@ pub struct CommandState {
     gizmo_hot: Option<Handle>,
     /// An added primitive's press on the ring, held down: the step it began on.
     add_press: Option<usize>,
+    /// The work planes drawn over the ring, and which of them the pointer, a click and a right-click took.
+    pub planes: crate::viewport::PlaneView,
 }
 
 impl Default for CommandState {
@@ -123,6 +125,7 @@ impl Default for CommandState {
             gizmo_drag: None,
             gizmo_hot: None,
             add_press: None,
+            planes: crate::viewport::PlaneView::default(),
         }
     }
 }
@@ -227,6 +230,8 @@ pub fn keys(key: &str) -> Option<&'static str> {
         "scale" => "S",
         "place" => "P",
         "attach" => "J",
+        "array" => "A",
+        "press-pull" => "Q",
         "add-box" => "Shift+A, Box",
         "add-cylinder" => "Shift+A, Cylinder",
         "add-sphere" => "Shift+A, Sphere",
@@ -261,10 +266,49 @@ pub fn blocked(app: &RingDesignerApp, key: &str) -> Option<String> {
         let from = feature(app, *source).map_or_else(|| format!("#{source}"), |s| format!("\"{}\"", s.name));
         return Some(format!("{} follows its source: move {from} and its copies follow", f.name));
     }
+    if key == "array" && f.component.reference {
+        return Some("A reference stone is patterned with its setting; pattern the setting instead".into());
+    }
+    if key == "press-pull" {
+        return press_pull_blocked(app, &f);
+    }
     if key == "scale" && ScaleCmd::new(f.id, f.operation.clone(), [0.0; 3]).is_none() {
         return Some(format!("{} has no size to scale", f.operation.label()));
     }
     None
+}
+
+/// Why press-pull cannot start on the chosen face of `f`; `None` when the last thing chosen is a flat face of a kernel part.
+fn press_pull_blocked(app: &RingDesignerApp, f: &Feature) -> Option<String> {
+    let Some(Sel::Face { face, .. }) = app.selection.items.last() else {
+        return Some("Choose a flat face of the part: click one on the ring".into());
+    };
+    if f.component.reference {
+        return Some("A reference stone is never metal".into());
+    }
+    let c = app.build.as_ref().and_then(|b| b.parts.evaluated.as_ref()).and_then(|e| e.components.iter().find(|c| c.id == f.id));
+    match c {
+        None => Some(format!("#{} {} did not build; mend it on the timeline first", f.id, f.name)),
+        Some(c) if c.made.is_some() => Some(format!("Press-pull moves a kernel part's faces; #{} {} is a mesh a builder made", f.id, f.name)),
+        Some(c) if c.trace.face_kind.get(*face as usize) != Some(&ringdesign_core::cad::SurfaceKind::Plane) => {
+            Some(format!("Press-pull moves flat faces; face {face} of #{} {} is curved", f.id, f.name))
+        }
+        Some(_) => None,
+    }
+}
+
+/// Starts an array round the ring on the chosen part, or press-pull on the chosen face, as the right-click menu starts them.
+fn start_reshape(app: &mut RingDesignerApp, key: &str) -> bool {
+    let pane = app.active_pane;
+    match (key, app.selection.items.last().cloned()) {
+        ("press-pull", Some(Sel::Face { feature, face })) => crate::patterns::press_pull(app, pane, feature, face),
+        ("array", _) => {
+            let Some(id) = selected_part(app) else { return false };
+            crate::patterns::start(app, pane, id, ringdesign_workbench::viewport::patterns::RING_ARRAY);
+        }
+        _ => return false,
+    }
+    app.command.session.is_live()
 }
 
 /// Makes a Ring viewport the active pane, opening one when none is on screen.
@@ -295,6 +339,9 @@ pub fn start(app: &mut RingDesignerApp, key: &str) -> bool {
     ring_pane(app);
     if app.visual.tool != Tool::Select {
         app.visual.select(Tool::Select);
+    }
+    if matches!(key, "array" | "press-pull") {
+        return start_reshape(app, key);
     }
     let fresh = app.design.cad.as_ref().map_or(1, |d| d.fresh_id());
     let target = selected_part(app).and_then(|id| feature(app, id)).filter(|_| needs_part(key));
@@ -995,7 +1042,7 @@ fn keys_of_frame(app: &mut RingDesignerApp, ui: &egui::Ui, over: bool) {
     if take(ui, Key::A, true) {
         app.command.open_menu = true;
     }
-    for (key, name) in [(Key::G, "move"), (Key::R, "rotate"), (Key::S, "scale"), (Key::P, "place"), (Key::J, "attach")] {
+    for (key, name) in [(Key::G, "move"), (Key::R, "rotate"), (Key::S, "scale"), (Key::P, "place"), (Key::J, "attach"), (Key::A, "array"), (Key::Q, "press-pull")] {
         if take(ui, key, false) {
             start(app, name);
         }
@@ -1121,7 +1168,8 @@ fn judge_for(app: &mut RingDesignerApp, build: &Arc<BuildResult>, band: Option<&
         return judge.clone();
     }
     let parting = app.field.as_ref().map_or(0.0, |f| f.parting_z_mm);
-    let judge = Arc::new(GhostJudge::new(&app.design, band.map(BandSurface::mesh), parting));
+    // The surface came from this build's band, which the judge shares rather than copies.
+    let judge = Arc::new(GhostJudge::shared(&app.design, band.and(build.band.clone()), parting));
     app.command.tint.judge = Some((at, judge.clone()));
     judge
 }
@@ -1298,9 +1346,9 @@ pub fn rail_label(title: &str, key: &str) -> String {
     format!("{title}  ({})", keys(key).unwrap_or(""))
 }
 
-/// The tool rail: every catalog command as its mark, down the viewport's left edge.
+/// The tool rail: every command the rail carries as its mark, down the viewport's left edge.
 fn rail(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Rect) {
-    let entries = catalog();
+    let entries = ringdesign_workbench::command::commands::rail();
     let side = 30.0;
     let height = entries.len() as f32 * (side + 2.0) + 12.0;
     let top = (rect.center().y - height * 0.5).max(rect.top() + 8.0);

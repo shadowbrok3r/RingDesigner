@@ -978,6 +978,23 @@ pub fn catalog() -> Vec<CommandInfo> {
     ]
 }
 
+/// The commands that repeat or reshape a chosen part, with their hotkeys and marks: an array round the ring, and press-pull on a chosen face.
+pub fn reshaping() -> Vec<CommandInfo> {
+    use super::pattern::{ArrayCmd, PressPullCmd};
+    let part = Feature { id: 0, name: String::new(), enabled: true, operation: Operation::Box { size: [1.0; 3] }, component: Component::default() };
+    let info = |c: &dyn ViewCommand, hotkey, icon| CommandInfo { key: c.key(), title: c.title(), hotkey, steps: c.steps(), icon };
+    let face = ringdesign_core::cad::FaceRef::bare(0);
+    vec![
+        info(&ArrayCmd::new(0, part.clone(), Attach::Join, None), Some('A'), Icon::Array),
+        info(&PressPullCmd::new(part, face, Attach::Join, [0.0; 3], [0.0, 0.0, 1.0], 0), Some('Q'), Icon::Raise),
+    ]
+}
+
+/// Every command the tool rail carries, in its order: the catalog's, then those that repeat or reshape a part.
+pub fn rail() -> Vec<CommandInfo> {
+    catalog().into_iter().chain(reshaping()).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1027,6 +1044,18 @@ mod tests {
     }
     fn close(a: f64, b: f64) -> bool {
         (a - b).abs() < 1e-9
+    }
+
+    #[test]
+    fn the_rail_carries_the_catalog_then_the_array_and_press_pull_each_with_its_own_key_and_mark() {
+        let rail = rail();
+        let rows: Vec<(&str, &str, Option<char>, Icon)> = rail.iter().skip(catalog().len()).map(|c| (c.key, c.title.as_str(), c.hotkey, c.icon)).collect();
+        assert_eq!(rows, [("array", "Array round the ring", Some('A'), Icon::Array), ("press-pull", "Press-pull", Some('Q'), Icon::Raise)]);
+        let keys: std::collections::HashSet<char> = rail.iter().filter_map(|c| c.hotkey).collect();
+        assert_eq!(keys.len(), rail.iter().filter(|c| c.hotkey.is_some()).count(), "no two commands share a key");
+        let marks: std::collections::HashSet<Icon> = rail.iter().map(|c| c.icon).collect();
+        assert_eq!(marks.len(), rail.len(), "every command on the rail has its own mark");
+        assert!(rail.iter().all(|c| !c.steps.is_empty()));
     }
 
     #[test]

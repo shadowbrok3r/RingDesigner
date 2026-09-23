@@ -1200,7 +1200,15 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     } else {
         crate::command::Took::default()
     };
+    // Work planes answer the pointer where their outline or name is, as the gizmo's handles do.
+    let planes = if follow_node || app.command.planes.hidden { Vec::new() } else { plane_shapes(app) };
+    let plane_proj = app.panes[pane].camera.projector(rect);
+    let plane_painter = ui.painter_at(rect);
+    let plane_pointer = active && !took.live && !took.boxing && !sketching && app.visual.tool == Tool::Select && app.command.gizmo_hot().is_none();
+    let plane_under = |pos: Option<egui::Pos2>| pos.filter(|_| plane_pointer).and_then(|p| plane_at(&planes, &plane_proj, &plane_painter, p));
+    app.command.planes.hot = plane_under(response.hover_pos());
     if response.secondary_clicked() && !took.secondary {
+        app.command.planes.menu = plane_under(response.interact_pointer_pos());
         // What the menu is about: the best pick under the pointer, with the band's own raycast as
         // the fallback before the first scene is built.
         let camera = app.panes[pane].camera;
@@ -1227,7 +1235,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     if !took.secondary && !took.live {
         response.context_menu(|ui| {
             ui.set_min_width(190.);
-            show_menu(app, ui, pane);
+            match app.command.planes.menu {
+                Some(plane) => plane_menu(app, ui, pane, plane),
+                None => show_menu(app, ui, pane),
+            }
         });
     }
     let shift = ui.input(|i| i.modifiers.shift);
@@ -1278,8 +1289,13 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     if response.clicked() && !took.click && (!active || app.visual.tool == Tool::Select) {
         if let Some(pos) = response.interact_pointer_pos() {
             app.active_pane = pane;
-            let mods = ui.input(|i| ringdesign_workbench::viewport::Mods { shift: i.modifiers.shift, ctrl: i.modifiers.command, alt: i.modifiers.alt });
-            select_click(app, camera, rect, pos, mods);
+            if let Some(plane) = plane_under(Some(pos)) {
+                choose_plane(app, &planes, plane);
+            } else {
+                app.command.planes.chosen = None;
+                let mods = ui.input(|i| ringdesign_workbench::viewport::Mods { shift: i.modifiers.shift, ctrl: i.modifiers.command, alt: i.modifiers.alt });
+                select_click(app, camera, rect, pos, mods);
+            }
         }
     }
 
@@ -1404,7 +1420,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     if app.band_paint { ringdesign_workbench::paint_preview::draw(ui,rect,|p|proj.at(p)); }
 
     // A hot gizmo handle stands in for the scene's hover.
-    if active && app.visual.tool == Tool::Select && !took.live && !took.boxing && app.command.gizmo_hot().is_none() {
+    if active && app.visual.tool == Tool::Select && !took.live && !took.boxing && app.command.gizmo_hot().is_none() && app.command.planes.hot.is_none() {
         app.hovered_node = None;
         // The scene answers first; a band under the pointer falls through to the layer caption and
         // the node highlight it always had.
@@ -1435,6 +1451,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
     } else if active {
         app.selection.hovered(Vec::new());
+        if let Some(s) = app.command.planes.hot.and_then(|id| planes.iter().find(|s| s.id == id)) {
+            ringdesign_workbench::hover::caption(&painter, overlay, &format!("Work plane: {} · right-click to sketch on it or mirror across it", s.name), ringdesign_workbench::hover::AQUA);
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
     }
     // The selection's channel, restaged when it or the mesh changes; the node focus keeps its own.
     if let Some(build) = &app.build {
@@ -1449,6 +1469,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
     }
     draw_selection(app, &painter, &proj, rect);
+    draw_planes(app, ui, pane, &planes, &painter, &proj);
     if !follow_node {
         crate::command::draw(app, ui, pane, &response, &painter, &proj, active);
         crate::sketch_mode::draw(app, ui, pane, &response, &painter, &proj, active);
@@ -1460,6 +1481,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
         if !app.selection.items.is_empty() {
             s.push_str(&format!(" · {} selected", app.selection.items.len()));
+        }
+        if let Some(plane) = app.command.planes.hot.and_then(|id| planes.iter().find(|p| p.id == id)) {
+            s.push_str(&format!(" · work plane {} under the pointer", plane.name));
         }
         if let Some(c) = app.command.session.command() {
             s.push_str(&format!(" · {} live", c.title()));
@@ -1911,6 +1935,15 @@ fn show_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             }
         }
     }
+    // The work planes' switch, when the build carries any.
+    if app.build.as_ref().and_then(|b| b.parts.evaluated.as_ref()).is_some_and(|e| !e.planes.is_empty()) {
+        let shown = !app.command.planes.hidden;
+        let button = egui::Button::selectable(shown, (ringdesign_workbench::icons::Icon::Guides.image(ui, 18.), "Work planes"));
+        if ui.add(button).on_hover_text("Draw the work planes over the ring, each named; right-click one to sketch on it or mirror across it").clicked() {
+            app.command.planes.hidden = shown;
+            ui.close();
+        }
+    }
     if let Some(action) = chosen {
         act(app, pane, action);
     }
@@ -2057,5 +2090,181 @@ fn draw_probe(app: &RingDesignerApp, painter: &egui::Painter, proj: &Projector, 
             painter.rect_filled(bg, 3.0, theme::PANEL.gamma_multiply(0.9));
             painter.galley(at, galley, theme::TEXT);
         }
+    }
+}
+
+// --- Work planes --------------------------------------------------------------
+
+/// How far past the ring a plane through it reaches, mm.
+const PLANE_MARGIN_MM: f64 = 1.5;
+/// Half the side of a plane laid square to the band or on a face, mm.
+const PLANE_PATCH_MM: f64 = 3.0;
+/// How near a plane's outline the pointer must come to take it, points.
+const PLANE_REACH_PX: f32 = 6.0;
+/// Thinner than this on screen a plane is seen edge on, and only its name takes the pointer, points.
+const PLANE_EDGE_ON_PX: f32 = 18.0;
+
+/// The Ring viewport's work planes: whether they are drawn, the one under the pointer, the one chosen, and the one a right-click opened on.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PlaneView {
+    pub hidden: bool,
+    pub hot: Option<u64>,
+    pub chosen: Option<u64>,
+    pub menu: Option<u64>,
+}
+
+/// A work plane as the viewport draws it: its feature, its name and its rectangle's corners in the world.
+#[derive(Clone, Debug)]
+pub struct PlaneShape {
+    pub id: u64,
+    pub name: String,
+    pub corners: [[f64; 3]; 4],
+}
+
+/// Every enabled work plane the last build carries: a plane through the ring spans it, one on the band or a face is a patch round its origin.
+pub fn plane_shapes(app: &RingDesignerApp) -> Vec<PlaneShape> {
+    use ringdesign_core::cad::{Operation, PlaneBase};
+    let (Some(build), Some(doc)) = (app.build.as_deref(), app.design.cad.as_ref()) else { return Vec::new() };
+    let Some(e) = build.parts.evaluated.as_ref() else { return Vec::new() };
+    let (lo, hi) = build.mesh.bounds().unwrap_or_default();
+    let reach = f64::from(lo.0.abs().max(hi.0.abs()).max(lo.1.abs()).max(hi.1.abs())) + PLANE_MARGIN_MM;
+    e.planes
+        .iter()
+        .filter_map(|p| {
+            let f = doc.feature(p.id).filter(|f| f.enabled)?;
+            let Operation::Plane { base, .. } = &f.operation else { return None };
+            let (x, y) = match base {
+                PlaneBase::Section { .. } => ([-reach, reach], [f64::from(lo.2) - PLANE_MARGIN_MM - p.origin[2], f64::from(hi.2) + PLANE_MARGIN_MM - p.origin[2]]),
+                PlaneBase::Parting => ([-reach, reach], [-reach, reach]),
+                PlaneBase::Tangent { .. } | PlaneBase::Face { .. } => ([-PLANE_PATCH_MM, PLANE_PATCH_MM], [-PLANE_PATCH_MM, PLANE_PATCH_MM]),
+            };
+            let at = |u: f64, v: f64| std::array::from_fn(|k| p.origin[k] + p.x[k] * u + p.y[k] * v);
+            Some(PlaneShape { id: p.id, name: f.name.clone(), corners: [at(x[0], y[0]), at(x[1], y[0]), at(x[1], y[1]), at(x[0], y[1])] })
+        })
+        .collect()
+}
+
+/// A plane's corners on screen.
+fn plane_screen(shape: &PlaneShape, proj: &Projector) -> [egui::Pos2; 4] {
+    shape.corners.map(|c| proj.at(c.map(|v| v as f32)))
+}
+
+/// Where a plane's name is written: over its top corner on screen, the left of two level ones.
+fn plane_label(painter: &egui::Painter, shape: &PlaneShape, pts: &[egui::Pos2; 4], color: egui::Color32) -> (egui::Rect, Arc<egui::Galley>) {
+    let top = pts.iter().copied().fold(pts[0], |a, b| if b.y < a.y - 0.5 || ((b.y - a.y).abs() <= 0.5 && b.x < a.x) { b } else { a });
+    let galley = painter.layout_no_wrap(shape.name.clone(), egui::FontId::proportional(11.0), color);
+    let at = top + egui::vec2(4.0, -4.0 - galley.size().y);
+    (egui::Rect::from_min_size(at, galley.size()), galley)
+}
+
+/// Whether a plane's rectangle on screen is thinner than [`PLANE_EDGE_ON_PX`] across: its area over its longer side.
+fn edge_on(pts: &[egui::Pos2; 4]) -> bool {
+    let (u, v) = (pts[1] - pts[0], pts[3] - pts[0]);
+    let longest = u.length().max(v.length());
+    longest <= f32::EPSILON || (u.x * v.y - u.y * v.x).abs() / longest < PLANE_EDGE_ON_PX
+}
+
+/// Distance from `p` to the segment from `a` to `b`, points.
+fn to_segment(p: egui::Pos2, a: egui::Pos2, b: egui::Pos2) -> f32 {
+    let (ab, ap) = (b - a, p - a);
+    let t = if ab.length_sq() > 1e-9 { (ap.dot(ab) / ab.length_sq()).clamp(0.0, 1.0) } else { 0.0 };
+    (a + ab * t).distance(p)
+}
+
+/// The plane whose outline or name lies under `pos`, the nearest of those within reach; a plane seen edge on answers by its name alone.
+fn plane_at(shapes: &[PlaneShape], proj: &Projector, painter: &egui::Painter, pos: egui::Pos2) -> Option<u64> {
+    shapes
+        .iter()
+        .filter_map(|s| {
+            let pts = plane_screen(s, proj);
+            // Seen edge on the outline is a line across the ring, and leaves the pointer to the ring.
+            let edge = if edge_on(&pts) { f32::INFINITY } else { (0..4).map(|i| to_segment(pos, pts[i], pts[(i + 1) % 4])).fold(f32::INFINITY, f32::min) };
+            let (label, _) = plane_label(painter, s, &pts, theme::TEXT);
+            let d = if label.expand(2.0).contains(pos) { 0.0 } else { edge };
+            (d <= PLANE_REACH_PX).then_some((s.id, d))
+        })
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(id, _)| id)
+}
+
+/// Every plane as a translucent rectangle with its name, the one under the pointer and the chosen one lit, each named for a reader.
+fn draw_planes(app: &RingDesignerApp, ui: &egui::Ui, pane: usize, shapes: &[PlaneShape], painter: &egui::Painter, proj: &Projector) {
+    let view = app.command.planes;
+    let reader = ui.ctx().accesskit_node_builder(ui.id(), |_| ()).is_some();
+    for s in shapes {
+        let pts = plane_screen(s, proj);
+        let lit = view.hot == Some(s.id) || view.menu == Some(s.id);
+        let chosen = view.chosen == Some(s.id);
+        let color = if chosen { theme::SELECT } else { ringdesign_workbench::hover::AQUA };
+        let (fill, width, line) = if lit || chosen { (0.14, 2.0, 1.0) } else { (0.06, 1.2, 0.6) };
+        painter.add(egui::Shape::convex_polygon(pts.to_vec(), color.gamma_multiply(fill), egui::Stroke::new(width, color.gamma_multiply(line))));
+        let (rect, galley) = plane_label(painter, s, &pts, color);
+        painter.rect_filled(rect.expand2(egui::vec2(3.0, 1.0)), 3.0, egui::Color32::from_black_alpha(150));
+        painter.galley(rect.min, galley, color);
+        if reader {
+            let r = ui.interact(rect, ui.id().with(("work-plane", pane, s.id)), egui::Sense::hover());
+            let label = format!("Work plane: {}", s.name);
+            r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, label.as_str()));
+        }
+    }
+}
+
+/// Chooses work plane `id`, leaving the chosen parts as they are.
+fn choose_plane(app: &mut RingDesignerApp, shapes: &[PlaneShape], id: u64) {
+    app.command.planes.chosen = Some(id);
+    let name = shapes.iter().find(|s| s.id == id).map_or_else(|| format!("#{id}"), |s| s.name.clone());
+    app.set_status(format!("Work plane {name}: right-click it to sketch on it or mirror the chosen part across it"));
+}
+
+/// The right-click menu on a work plane: sketch on it, mirror the chosen part across it, or hide the planes.
+fn plane_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, plane: u64) {
+    use ringdesign_workbench::icons::Icon;
+    let doc = app.design.cad.as_ref();
+    let name = doc.and_then(|d| d.feature(plane)).map_or_else(|| format!("#{plane}"), |f| f.name.clone());
+    ui.weak(format!("Work plane: {name}"));
+    let part = crate::command::selected_part(app).filter(|id| *id != plane).and_then(|id| doc?.feature(id).cloned());
+    let hint = match &part {
+        None => "Choose a part on the ring first, then right-click the plane".to_string(),
+        Some(f) if f.component.reference => "A reference stone is patterned with its setting; choose the setting".to_string(),
+        Some(f) if !f.operation.has_body() => format!("{} has no body to mirror", f.name),
+        Some(f) => format!("{} reflected across {name}, one new Mirror feature", f.name),
+    };
+    let mirrorable = part.as_ref().filter(|f| !f.component.reference && f.operation.has_body()).map(|f| f.id);
+    let button = |ui: &mut egui::Ui, icon: Icon, label: &str| egui::Button::image_and_text(icon.image(ui, 18.), label.to_string());
+    let sketch = button(ui, Icon::CadSketch, "Sketch on this plane");
+    if ui.add(sketch).on_hover_text("A new sketch lying on this plane, drawn in the Ring viewport").clicked() {
+        ui.close();
+        sketch_on_work_plane(app, pane, plane);
+    }
+    let mirror = button(ui, Icon::Mirror, "Mirror the chosen part across it");
+    if ui.add_enabled(mirrorable.is_some(), mirror).on_hover_text(&hint).on_disabled_hover_text(&hint).clicked() {
+        ui.close();
+        if let Some(id) = mirrorable {
+            crate::patterns::mirror_across(app, id, plane);
+        }
+    }
+    let hide = button(ui, Icon::Guides, "Hide work planes");
+    if ui.add(hide).on_hover_text("Stop drawing the work planes; the right-click menu on the ring shows them again").clicked() {
+        ui.close();
+        app.command.planes.hidden = true;
+        app.command.planes.menu = None;
+    }
+}
+
+/// Adds a Sketch feature lying on work plane `plane` through the funnel and starts drawing it.
+fn sketch_on_work_plane(app: &mut RingDesignerApp, pane: usize, plane: u64) {
+    use ringdesign_core::cad::{Component, FaceRef, Feature, Operation};
+    use ringdesign_core::sketch::{FaceAnchor, Sketch};
+    if crate::sketch_mode::active(app) {
+        app.set_status("Finish or leave the sketch being drawn first");
+        return;
+    }
+    crate::command::cancel(app);
+    let mut sketch = Sketch { name: "Sketch".into(), ..Sketch::default() };
+    sketch.plane.on_face = Some(FaceAnchor { feature: plane, face: FaceRef::bare(0) });
+    let feature = Feature { id: 0, name: "Sketch".into(), enabled: true, operation: Operation::Sketch { sketch }, component: Component::default() };
+    let Ok(applied) = crate::cad_edit::apply(app, &[CadEdit::Add { feature, after: None }]) else { return };
+    if let Some(id) = applied.first().and_then(|a| a.id) {
+        crate::sketch_mode::start_on_feature(app, pane, id);
     }
 }

@@ -85,6 +85,7 @@ pub enum Icon {
     CadShell,
     CadPlace,
     CadSketch,
+    Array,
 
     // Graph node marks: one per kind of node the add-node menu offers.
     NodeAbs,
@@ -250,6 +251,7 @@ impl Icon {
         Self::CadShell,
         Self::CadPlace,
         Self::CadSketch,
+        Self::Array,
             Self::NodeAbs,
         Self::NodeAdd,
         Self::NodeAngle,
@@ -413,6 +415,7 @@ impl Icon {
             Self::CadShell => include_str!("../assets/icons/cad-shell.svg"),
             Self::CadPlace => include_str!("../assets/icons/cad-place.svg"),
             Self::CadSketch => include_str!("../assets/icons/cad-sketch.svg"),
+            Self::Array => include_str!("../assets/icons/array.svg"),
 
             Self::NodeAbs => include_str!("../assets/icons/node-abs.svg"),
             Self::NodeAdd => include_str!("../assets/icons/node-add.svg"),
@@ -522,7 +525,7 @@ impl Icon {
         use Icon::*;
         let rgb = match self {
             CadBand | CadBox | CadCylinder | CadSphere | CadTorus | CadTwistedRing | CadExtrude | CadRevolve | CadSweep | CadTwist | CadLoft | Shape | Surface | Stamp | Raise | Engrave | Mould => [232, 191, 112],
-            CadUnion | CadSubtract | CadIntersect | CadFillet | CadChamfer | CadShell | Stones | Graph | Pattern | Layers | Duplicate => [190, 161, 255],
+            CadUnion | CadSubtract | CadIntersect | CadFillet | CadChamfer | CadShell | Stones | Graph | Pattern | Layers | Duplicate | Array => [190, 161, 255],
             Files | Save | Export | History | Guide | Help => [123, 188, 245],
             Check | Casting | Workshop => [111, 211, 156],
             Delete | Close => [241, 135, 158],
@@ -875,6 +878,12 @@ impl Icon {
                 "Slide the ornament along the ring surface.",
                 "Drag its centre or enter angle and across-band position.",
                 "Use to align a motif without rebuilding it.",
+            ),
+            Array => (
+                "Array",
+                "Copies of the chosen part round the ring, each dropped onto the band at its own angle.",
+                "Press A or pick it on the rail, type how many and over what span, then Enter.",
+                "Use for posts, prongs and repeats round the shank; the right-click menu also arrays round a stone.",
             ),
             Raise | Engrave => (
                 "Relief direction",
