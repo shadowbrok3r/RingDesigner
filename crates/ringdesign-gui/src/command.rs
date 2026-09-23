@@ -663,9 +663,11 @@ pub fn input(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Re
         took.click = true;
         took.drag = true;
     }
+    // The live command reads the pointer under the dimension bar too; the bar holds still there so a field can be clicked.
+    let reading = hover.or_else(|| ui.input(|i| (!i.pointer.any_down()).then(|| i.pointer.hover_pos()).flatten()).filter(|p| rect.contains(*p) && app.command.bar.covers(&ctx, *p)));
     if app.command.session.is_live()
         && !gizmo
-        && let Some(pos) = hover
+        && let Some(pos) = reading
     {
         let build = app.build.as_ref().map(build_key).unwrap_or(0);
         let step = app.command.session.command().map_or(0, |c| c.step());
@@ -678,7 +680,7 @@ pub fn input(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Re
     if app.command.session.is_live() {
         let mut dims = app.command.session.dimensions();
         let anchor = app.command.anchor.unwrap_or(rect.center());
-        for e in app.command.bar.show(&ctx, anchor, &mut dims) {
+        for e in app.command.bar.show(&ctx, anchor, rect, &mut dims) {
             let out = match e {
                 DimEvent::Typed { key, value } => app.command.session.feed(StepInput::Typed { key, value }),
                 DimEvent::Cleared { key } => app.command.session.feed(StepInput::Cleared { key }),

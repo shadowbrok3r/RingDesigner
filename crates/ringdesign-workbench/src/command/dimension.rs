@@ -1,7 +1,7 @@
 //! The dimension bar: one `TextEdit` per live dimension by the pointer, owning Tab and Escape inside the tool.
 use super::session::Dimension;
 use egui::text::{CCursor, CCursorRange};
-use egui::{Area, Context, Event, EventFilter, FocusDirection, Frame, Id, Key, Order, Pos2, TextEdit, WidgetInfo};
+use egui::{Area, Context, Event, EventFilter, FocusDirection, Frame, Id, Key, Order, Pos2, Rect, TextEdit, Vec2, WidgetInfo};
 
 /// What the fields did this frame, for the session to feed.
 #[derive(Clone, Debug, PartialEq)]
@@ -52,6 +52,13 @@ fn starts_a_number(e: &Event) -> bool {
 fn from_keyboard(e: &Event) -> bool {
     matches!(e, Event::Key { .. } | Event::Text(_) | Event::Paste(_))
 }
+/// The bar's corner: below right of the anchor, held inside `bounds`.
+fn place(anchor: Pos2, size: Vec2, bounds: Rect) -> Pos2 {
+    const GAP: f32 = 18.0;
+    const MARGIN: f32 = 8.0;
+    let hold = |v: f32, extent: f32, lo: f32, hi: f32| v.min(hi - MARGIN - extent).max(lo + MARGIN);
+    Pos2::new(hold(anchor.x + GAP, size.x, bounds.left(), bounds.right()), hold(anchor.y + GAP, size.y, bounds.top(), bounds.bottom()))
+}
 /// Puts the field's cursor after its last character, as typing into it expects.
 fn cursor_to_end(ctx: &Context, id: Id, text: &str) {
     let mut state = TextEdit::load_state(ctx, id).unwrap_or_default();
@@ -97,13 +104,17 @@ impl DimensionBar {
     pub fn prefer(&mut self, key: Option<&'static str>) {
         self.first = key;
     }
+    /// Whether the bar is the topmost layer at `p`: the view it stands over still reads the pointer there.
+    pub fn covers(&self, ctx: &Context, p: Pos2) -> bool {
+        ctx.layer_id_at(p) == Some(egui::LayerId::new(Order::Foreground, self.id.with("area")))
+    }
     /// Whether one of the fields holds keyboard focus, so the viewport leaves the keys alone.
     pub fn has_focus(&self, ctx: &Context) -> bool {
         ctx.memory(|m| m.focused()).is_some_and(|f| self.texts.iter().any(|(k, _)| self.field_id(k) == f))
     }
 
-    /// Draws one field per dimension, mirrors their text into `dims`, and returns what they did this frame.
-    pub fn show(&mut self, ctx: &Context, anchor: Pos2, dims: &mut [Dimension]) -> Vec<DimEvent> {
+    /// Draws one field per dimension beside `anchor` and inside `bounds`, mirrors their text into `dims`, and returns what they did this frame.
+    pub fn show(&mut self, ctx: &Context, anchor: Pos2, bounds: Rect, dims: &mut [Dimension]) -> Vec<DimEvent> {
         self.texts.retain(|(k, _)| dims.iter().any(|d| d.key == *k));
         let n = dims.len();
         if n == 0 {
@@ -155,7 +166,7 @@ impl DimensionBar {
             });
         }
         let field_enter = focused.is_some() && input[..takeover.map_or(input.len(), |t| t.0)].iter().any(plain_enter);
-        self.draw(ctx, anchor, dims, &ids);
+        self.draw(ctx, anchor, bounds, dims, &ids);
         if field_enter {
             ctx.input_mut(|i| i.events.retain(|e| !plain_enter(e)));
         }
@@ -233,9 +244,11 @@ impl DimensionBar {
         events
     }
 
-    fn draw(&mut self, ctx: &Context, anchor: Pos2, dims: &[Dimension], ids: &[Id]) {
+    fn draw(&mut self, ctx: &Context, anchor: Pos2, bounds: Rect, dims: &[Dimension], ids: &[Id]) {
         let filter = EventFilter { tab: true, escape: true, horizontal_arrows: true, vertical_arrows: true };
-        Area::new(self.id.with("area")).order(Order::Foreground).fixed_pos(anchor + egui::vec2(18.0, 18.0)).show(ctx, |ui| {
+        let area = self.id.with("area");
+        let size = ctx.memory(|m| m.area_rect(area)).map_or(Vec2::ZERO, |r| r.size());
+        Area::new(area).order(Order::Foreground).fixed_pos(place(anchor, size, bounds)).show(ctx, |ui| {
             Frame::popup(ui.style()).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     for (d, id) in dims.iter().zip(ids) {
@@ -275,6 +288,7 @@ mod tests {
         events: Vec<DimEvent>,
         committed: Vec<Effect>,
         host: Option<Id>,
+        anchor: egui::Pos2,
     }
     /// A decoy button either side of the bar, and a real cylinder waiting at its radius step.
     fn harness() -> Harness<'static, App> {
@@ -296,7 +310,7 @@ mod tests {
         assert!(matches!(session.feed(StepInput::Click), Outcome::NextStep));
         let mut bar = DimensionBar::default();
         bar.set_host(host);
-        let app = App { session, bar, events: vec![], committed: vec![], host };
+        let app = App { session, bar, events: vec![], committed: vec![], host, anchor: egui::pos2(40.0, 60.0) };
         let mut h = Harness::builder().with_size([640.0, 320.0]).build_ui_state(
             |ui, app: &mut App| {
                 let _ = ui.button("Before");
@@ -305,7 +319,7 @@ mod tests {
                     ui.interact(rect, id, egui::Sense::click());
                 }
                 let mut dims = app.session.dimensions();
-                let events = app.bar.show(ui.ctx(), egui::pos2(40.0, 60.0), &mut dims);
+                let events = app.bar.show(ui.ctx(), app.anchor, VIEW, &mut dims);
                 for e in &events {
                     let out = match e {
                         DimEvent::Typed { key, value } => app.session.feed(StepInput::Typed { key, value: *value }),
@@ -326,6 +340,7 @@ mod tests {
         h.run_steps(2);
         h
     }
+    const VIEW: Rect = Rect { min: egui::pos2(0.0, 0.0), max: egui::pos2(640.0, 320.0) };
     const LABELS: [&str; 6] = ["Before", "θ (°)", "Across (mm)", "Radius (mm)", "Height (mm)", "After"];
     fn focused(h: &Harness<'_, App>) -> Vec<&'static str> {
         LABELS.into_iter().filter(|l| h.query_by_label(l).is_some_and(|n| n.is_focused())).collect()
@@ -507,6 +522,23 @@ mod tests {
         h.state_mut().bar.prefer(Some("height"));
         h.state_mut().bar.reset();
         assert_eq!(h.state().bar.first, None);
+    }
+
+    #[test]
+    fn the_bar_stands_below_right_of_the_pointer_and_inside_the_view() {
+        let mut h = harness();
+        let rect = |h: &Harness<'_, App>| h.ctx.memory(|m| m.area_rect(h.state().bar.id.with("area"))).expect("the bar is shown");
+        let r = rect(&h);
+        assert_eq!(r.min, egui::pos2(58.0, 78.0), "below right of the pointer where there is room");
+        // By the view's bottom right corner it holds to the view's edges, half a pixel for the area's rounding.
+        h.state_mut().anchor = egui::pos2(600.0, 300.0);
+        h.run_steps(2);
+        let r = rect(&h);
+        assert!(VIEW.shrink(7.5).contains_rect(r), "{r:?}");
+        assert!((r.max.x - 632.0).abs() <= 0.5 && (r.max.y - 312.0).abs() <= 0.5, "{r:?}");
+        // Wider than the view it holds to the view's left edge.
+        assert_eq!(place(egui::pos2(630.0, 10.0), egui::vec2(900.0, 30.0), VIEW), egui::pos2(8.0, 28.0));
+        assert!(h.state().bar.covers(&h.ctx, r.center()) && !h.state().bar.covers(&h.ctx, egui::pos2(20.0, 20.0)));
     }
 
     #[test]

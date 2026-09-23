@@ -2399,7 +2399,7 @@ fn shared_canvas(
     if !dims.is_empty() {
         let anchor = pointer.unwrap_or(rect.center());
         state.bar.set_host(Some(response.id));
-        for e in state.bar.show(ui.ctx(), anchor, &mut dims) {
+        for e in state.bar.show(ui.ctx(), anchor, rect, &mut dims) {
             let out = match e {
                 DimEvent::Typed { key, value } => state.shared.feed(s, Input::Typed { key, value }),
                 DimEvent::Cleared { key } => state.shared.feed(s, Input::Cleared { key }),

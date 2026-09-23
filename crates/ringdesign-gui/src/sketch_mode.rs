@@ -937,7 +937,7 @@ pub fn input(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Re
     let mut dims = live.dimensions();
     if !dims.is_empty() {
         let anchor = live.anchor.unwrap_or(rect.center());
-        for e in live.bar.show(&ctx, anchor, &mut dims) {
+        for e in live.bar.show(&ctx, anchor, rect, &mut dims) {
             let Some(live) = app.sketch.live.as_deref_mut() else { break };
             match e {
                 DimEvent::Typed { key, value } if live.solid.is_some() => {
@@ -982,9 +982,11 @@ pub fn input(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Re
     if !app.sketch.is_live() {
         return took;
     }
-    // The pointer, then a click where it lands; Ctrl frees the snap.
+    // The pointer, under the dimension bar too, then a click where it lands; Ctrl frees the snap.
     let free = ui.input(|i| i.modifiers.command);
-    if let Some(pos) = hover {
+    let under_bar = |p: &Pos2| rect.contains(*p) && app.sketch.live.as_ref().is_some_and(|l| l.bar.covers(&ctx, *p));
+    let reading = hover.or_else(|| ui.input(|i| (!i.pointer.any_down()).then(|| i.pointer.hover_pos()).flatten()).filter(under_bar));
+    if let Some(pos) = reading {
         let moved = app.sketch.live.as_ref().and_then(|l| l.pointer).is_none_or(|(p, ..)| p.distance(pos) > 0.25);
         if moved {
             sample(app, pane, rect, pos, free);

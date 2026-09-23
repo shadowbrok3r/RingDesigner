@@ -152,6 +152,31 @@ fn a_g_move_near_the_palm_lands_the_part_on_270_and_says_so() {
 }
 
 #[test]
+fn a_move_reads_the_pointer_under_the_dimension_bar_and_the_bar_holds_still_there() {
+    let mut h = harness();
+    let pane = ring_with(&mut h, Vec::new());
+    down_the_finger(&mut h, pane);
+    h.state_mut().selection.click(Some(Sel::Part(POST)), Mods::default());
+    h.run_steps(2);
+    hover_side(&mut h, pane, 90.0);
+    press(&mut h, Key::G);
+    hover_side(&mut h, pane, 90.0);
+    let bar = |h: &Harness<'static, RingDesignerApp>| h.ctx.memory(|m| m.area_rect(egui::Id::new("ring-viewport-dimensions").with("area"))).expect("the bar is shown");
+    let (view, r) = (viewport_rect(&h), bar(&h));
+    assert!(view.contains_rect(r.shrink(0.5)), "the bar stands inside the view: {r:?} in {view:?}");
+    // Carried to a point of the band well inside the bar, clear of egui's 5 px search radius at its edge, snaps freed:
+    // the part lands there and the bar stays put.
+    let theta = (91..180).map(f64::from).find(|t| r.shrink(8.0).contains(on_the_side(&h, pane, *t))).expect("the band passes under the bar");
+    h.event(Event::ModifiersChanged(Modifiers::COMMAND));
+    hover_side(&mut h, pane, theta);
+    h.event(Event::ModifiersChanged(Modifiers::NONE));
+    assert_eq!(bar(&h), r, "the bar holds still under the pointer");
+    let at = h.state().command.session.preview().and_then(|p| p.placement).and_then(|p| p.theta_deg()).unwrap();
+    assert!((at - theta).abs() < 1.0, "landed at {at}° for the band at {theta}°");
+    press(&mut h, Key::Escape);
+}
+
+#[test]
 fn a_part_dragged_near_a_stone_station_lands_on_it() {
     let mut h = harness();
     let gem = builders::stone_preset("round-5").unwrap().gem();
