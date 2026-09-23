@@ -257,6 +257,10 @@ pub fn blocked(app: &RingDesignerApp, key: &str) -> Option<String> {
     if key == "attach" && f.component.reference {
         return Some("A reference stone is never metal".into());
     }
+    if let (Operation::Pattern { source, .. }, "move" | "rotate" | "scale" | "place") = (&f.operation, key) {
+        let from = feature(app, *source).map_or_else(|| format!("#{source}"), |s| format!("\"{}\"", s.name));
+        return Some(format!("{} follows its source: move {from} and its copies follow", f.name));
+    }
     if key == "scale" && ScaleCmd::new(f.id, f.operation.clone(), [0.0; 3]).is_none() {
         return Some(format!("{} has no size to scale", f.operation.label()));
     }
@@ -754,7 +758,7 @@ fn gizmo_of(app: &mut RingDesignerApp) -> Option<(FeatureId, Gizmo)> {
     }
     let id = app.selection.one_part()?;
     let f = feature(app, id)?;
-    if matches!(f.operation, Operation::Band | Operation::Sketch { .. }) {
+    if matches!(f.operation, Operation::Band | Operation::Sketch { .. } | Operation::Pattern { .. }) {
         return None;
     }
     let build = app.build.clone()?;

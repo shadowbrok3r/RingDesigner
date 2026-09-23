@@ -135,6 +135,40 @@ fn seat_origin(h: &Harness<'static, RingDesignerApp>) -> [f64; 3] {
     [0.0, r + 0.25, 0.0]
 }
 
+/// A pattern's copies follow its source: choosing the pattern shows no gizmo, and its keys point at the source.
+#[test]
+fn a_pattern_shows_no_gizmo_and_its_move_keys_point_at_its_source() {
+    let mut h = harness();
+    band_and_cylinder(&mut h);
+    {
+        let app = h.state_mut();
+        let source = app.design.cad.as_ref().and_then(|d| d.feature(POST)).cloned().unwrap();
+        let kind = ringdesign_core::cad::pattern::PatternKind::Ring { count: 4, span_deg: 360.0 };
+        let array = ringdesign_workbench::command::pattern::pattern_feature(3, &source, Attach::Join, kind);
+        app.design.cad.as_mut().unwrap().append(array).unwrap();
+        app.history.commit(&app.design);
+        app.rebuild_now();
+    }
+    wait_for_build(&mut h);
+    let handles = |h: &Harness<'static, RingDesignerApp>| h.query_all_by_label_contains("Gizmo:").count();
+    h.state_mut().selection.click(Some(Sel::Part(POST)), Mods::default());
+    h.run_steps(3);
+    assert!(handles(&h) > 0, "the source keeps its gizmo");
+    h.state_mut().selection.click(Some(Sel::Part(3)), Mods::default());
+    h.run_steps(3);
+    assert_eq!(handles(&h), 0, "a pattern has no gizmo of its own");
+    let before = document(&h);
+    h.hover_at(viewport_rect(&h).center());
+    h.run_steps(2);
+    for key in [Key::G, Key::R, Key::P] {
+        h.key_press(key);
+        h.run_steps(2);
+        assert_eq!(live(&h), None);
+        assert_eq!(h.state().status, "Ring array of Cylinder follows its source: move \"Cylinder\" and its copies follow");
+    }
+    assert_eq!(document(&h), before, "nothing wrapped in a transform");
+}
+
 #[test]
 fn dragging_the_round_the_ring_arrow_moves_the_post_by_the_axis_projection_as_one_undo_step() {
     let mut h = harness();
