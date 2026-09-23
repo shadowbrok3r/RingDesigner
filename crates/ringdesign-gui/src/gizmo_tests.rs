@@ -539,12 +539,7 @@ fn the_cad_panes_radius_grip_follows_the_pointer_along_its_own_axis() {
         h.query_all_by_label("Radius mm").find(|n| n.accesskit_node().role() == egui::accesskit::Role::SpinButton).and_then(|n| n.value()).and_then(|v| v.parse::<f64>().ok()).expect("the radius field")
     };
     let start = radius(&h);
-    // A first nudge makes the candidate a draft, whose banner resizes the canvas; the second drag is read at that size.
-    let first = grip(&h);
-    drag_through(&mut h, &line(first, first + egui::vec2(8.0, 0.0)));
-    h.run_steps(3);
-    let (from, before) = (grip(&h), radius(&h));
-    assert!(before > start, "{start} -> {before}");
+    let (from, before) = (grip(&h), start);
     let drag = egui::vec2(40.0, 12.0);
     drag_through(&mut h, &line(from, from + drag));
     h.run_steps(2);

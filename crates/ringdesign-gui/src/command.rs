@@ -542,6 +542,7 @@ fn reading(st: &CommandState) -> Reading {
     let Some(cmd) = st.session.command() else { return Reading::Surface };
     match cmd.key() {
         "scale" => st.pivot.map_or(Reading::Surface, |at| Reading::Plane { at }),
+        "press-pull" => cmd.preview().ghost.first().map_or(Reading::Surface, |at| Reading::Plane { at: *at }),
         k if primitive(k).is_some() && cmd.step() > 0 => cmd.preview().ghost.first().map_or(Reading::Surface, |at| Reading::Plane { at: *at }),
         _ => Reading::Surface,
     }

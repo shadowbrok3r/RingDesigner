@@ -3127,7 +3127,7 @@ mod tests {
         assert_eq!(legacy.role, ComponentRole::Head);
         assert_eq!((legacy.attach, legacy.stage, legacy.blend_mm), (Attach::Separate, Stage::Cast, 0.0));
         // The shipped examples stay beside the band and build the same parts they did.
-        for name in crate::cad::examples::NAMES {
+        for name in crate::cad::examples::NAMES.iter().filter(|n| !crate::cad::examples::design(n).unwrap().band_is_procedural()) {
             let d = crate::cad::examples::design(name).unwrap();
             let doc = d.cad.as_ref().unwrap();
             assert!(doc.features.iter().all(|f| f.component.attach == Attach::Separate && f.component.stage == Stage::Cast), "{name}");

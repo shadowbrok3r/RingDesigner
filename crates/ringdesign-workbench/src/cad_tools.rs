@@ -226,6 +226,7 @@ pub fn example_button(ui: &mut egui::Ui, name: &str) -> egui::Response {
             include_bytes!("../assets/cad/solitaire.png"),
         ),
         "inlay-band" => ("Inlay band", include_bytes!("../assets/cad/inlay-band.png")),
+        "claw-solitaire" => ("Claw solitaire", include_bytes!("../assets/cad/claw-solitaire.png")),
         "gallery" => ("Open gallery", include_bytes!("../assets/cad/gallery.png")),
         _ => return ui.button(name),
     };

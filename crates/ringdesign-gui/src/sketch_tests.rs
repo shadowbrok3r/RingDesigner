@@ -617,7 +617,7 @@ fn sketch_mode_frame_cost_with_two_hundred_entities() {
     let mut s = rectangles(50);
     s.constraints.clear();
     assert_eq!(s.entities.len(), 200);
-    assert!(rectangles(50).profile_regions().is_err(), "the solver's 128-point cap refuses fifty held rectangles");
+    assert!(rectangles(50).profile_regions().is_ok(), "fifty rectangles are fifty systems, each solved on its own");
     let under = Underlay::default();
     let cache_ms = best(5, &mut || drop(SnapCache::of(&s, &under)));
     let regions_ms = best(5, &mut || drop(s.profile_regions().unwrap()));
@@ -630,7 +630,7 @@ fn sketch_mode_frame_cost_with_two_hundred_entities() {
         }
     }) * 10.0;
     let draw_ms = best(5, &mut || drop(s.entities.iter().map(|e| s.polylines(e.id, 0.01)).collect::<Vec<_>>()));
-    // A dimension's solve, within the solver's 128 movable points and past them.
+    // A dimension's solve over 30 and 50 rectangles, each a system of its own.
     let solve = |n: usize| {
         let (mut t, mut s) = (Tools::default(), rectangles(n));
         t.set_tool(Tool::Dimension);

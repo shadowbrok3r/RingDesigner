@@ -8,8 +8,6 @@ pub const NAMES: &[&str] = &[
     "gallery",
     "claw-solitaire",
 ];
-/// Examples kept out of the gallery; every example is in [`NAMES`] now.
-pub const SET_STONES: &[&str] = &[];
 pub fn design(name: &str) -> Result<RingDesign> {
     let mut d = RingDesign::default();
     d.name = name.into();
@@ -214,7 +212,7 @@ pub fn design(name: &str) -> Result<RingDesign> {
             bur.component.stage = Stage::Bench;
             doc.append(bur)?;
         }
-        _ => anyhow::bail!("Unknown CAD example {name}; choose {}", NAMES.iter().chain(SET_STONES).copied().collect::<Vec<_>>().join(", ")),
+        _ => anyhow::bail!("Unknown CAD example {name}; choose {}", NAMES.iter().copied().collect::<Vec<_>>().join(", ")),
     }
     d.cad = Some(doc);
     Ok(d)

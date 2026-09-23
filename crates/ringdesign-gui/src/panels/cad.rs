@@ -485,7 +485,11 @@ fn has_band(g: &Graph) -> bool {
 }
 /// Append one feature to the candidate and select it; an anchor seats it on the ring.
 /// A new solid beside a procedural shank starts joined to it.
-fn add_feature(state: &mut CadState, g: &mut Graph, operation: Operation, anchor: Option<(f64, f64)>) {
+fn add_feature(state: &mut CadState, g: &mut Graph, mut operation: Operation, anchor: Option<(f64, f64)>) {
+    // Bare face and edge references are signed against the evaluation from before the feature consumes its source.
+    if let Some(v) = &state.view {
+        cad::sign_refs(&mut operation, &v.evaluated);
+    }
     // The first solid added to a plain ring brings the procedural shank with it, so the part stands
     // beside the band instead of replacing it; a ring already made of parts only stays that way.
     let body = operation.sources().is_empty() && !matches!(operation, Operation::Band | Operation::Sketch { .. });

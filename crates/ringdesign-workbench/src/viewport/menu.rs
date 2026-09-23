@@ -162,11 +162,11 @@ pub fn context_items(sel: &Selection, under: Option<&Pick>, design: &RingDesign)
             if reference {
                 items.extend(super::stones::setting_items(Some(id), None));
             }
-            items.extend(super::patterns::part_items(id, face, reference));
             if let Some(edge) = edge {
                 items.push(MenuItem::new("Fillet this edge", Icon::CadFillet, MenuAction::FilletEdge { feature: id, edge }, "Round the edge with a new Fillet feature on this part"));
                 items.push(MenuItem::new("Chamfer this edge", Icon::CadChamfer, MenuAction::ChamferEdge { feature: id, edge }, "Bevel the edge with a new Chamfer feature on this part"));
             }
+            items.extend(super::patterns::part_items(id, face, reference));
             items.push(MenuItem::new("Edit feature", Icon::Panel, MenuAction::EditFeature(id), "Open the part in the CAD pane with its parameters"));
             let attach = component.map(|c| c.attach).unwrap_or_default();
             for (value, label, icon, hint) in [
@@ -251,7 +251,8 @@ mod tests {
         assert_eq!(stones.len(), ringdesign_core::cad::builders::STONES.len());
         let tail: Vec<_> = items.iter().skip(adds.len() + stones.len()).map(|i| i.action.clone()).collect();
         let sketch = MenuAction::SketchOnPlane { theta_deg: 90.0, across_mm: 0.0 };
-        assert_eq!(tail, [sketch, MenuAction::FitView, MenuAction::OpenCad, MenuAction::ToggleWire, MenuAction::ToggleGrid]);
+        let pin = MenuAction::PinHere { world: [0.0, radius + 0.5, 0.0] };
+        assert_eq!(tail, [sketch, pin, MenuAction::ClearPins, MenuAction::FitView, MenuAction::OpenCad, MenuAction::ToggleWire, MenuAction::ToggleGrid]);
         assert!(items.iter().all(|i| i.enabled));
         // With nothing under and nothing chosen only the view items remain.
         assert_eq!(context_items(&sel, None, &d).len(), 4);
@@ -267,7 +268,11 @@ mod tests {
         assert_eq!(
             labels(&items),
             [
-                (None, "Edit feature".to_string()),
+                (Some("Pattern"), "Array round the ring…".to_string()),
+                (Some("Pattern"), "Array round its stone…".into()),
+                (Some("Pattern"), "Mirror across the band".into()),
+                (Some("Pattern"), "Mirror through the head".into()),
+                (None, "Edit feature".into()),
                 (Some("Attach"), "Separate".into()),
                 (Some("Attach"), "Join".into()),
                 (Some("Attach"), "Cut".into()),
@@ -280,10 +285,10 @@ mod tests {
                 (None, "Grid".into()),
             ]
         );
-        assert_eq!(items[0].action, MenuAction::EditFeature(3));
+        assert_eq!(items[4].action, MenuAction::EditFeature(3));
         let ticked: Vec<_> = items.iter().filter(|i| i.checked).map(|i| i.action.clone()).collect();
         assert_eq!(ticked, [MenuAction::Attach(3, Attach::Join), MenuAction::Stage(3, Stage::Cast)]);
-        assert_eq!(items[6].action, MenuAction::IsolateInCad(3));
+        assert_eq!(items[10].action, MenuAction::IsolateInCad(3));
         assert!(items.iter().all(|i| i.enabled));
         // A reference stone cannot be attached or staged.
         let stone = pick(Entity::Part { feature: 4 }, [0.0, 10.0, 0.0]);
@@ -303,13 +308,15 @@ mod tests {
         assert_eq!(items[0].action, MenuAction::FilletEdge { feature: 3, edge: 2 });
         assert_eq!(items[0].icon, Icon::CadFillet);
         assert_eq!(items[1].action, MenuAction::ChamferEdge { feature: 3, edge: 2 });
-        assert_eq!(items[2].action, MenuAction::EditFeature(3));
-        assert_eq!(items.len(), 13);
+        assert_eq!(items[2].action, MenuAction::Pattern { feature: 3, key: crate::viewport::patterns::RING_ARRAY });
+        assert_eq!(items[6].action, MenuAction::EditFeature(3));
+        assert_eq!(items.len(), 17);
         let face = pick(Entity::Face { feature: 3, face: 1 }, [0.0, 10.0, 0.0]);
         let items = context_items(&sel, Some(&face), &d);
         assert_eq!(heading(&sel, Some(&face), &d).as_deref(), Some("Face 1 of Bezel"));
         assert_eq!(items[0].action, MenuAction::SketchOnFace { feature: 3, face: 1 });
-        assert_eq!(items.len(), 12, "a face has the part's items and a sketch on it");
+        assert_eq!(items[1].action, MenuAction::PressPull { feature: 3, face: 1 });
+        assert_eq!(items.len(), 17, "a face has the part's items, a sketch on it, a press-pull and the patterns");
         assert!(!items.iter().any(|i| matches!(i.action, MenuAction::FilletEdge { .. })));
     }
 

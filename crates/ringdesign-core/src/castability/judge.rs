@@ -13,9 +13,9 @@ use crate::sketch::Id;
 /// Undercut on a part under this is below anything sand holds, mm²: reported, never gating.
 pub const PART_NOISE_MM2: f64 = 0.005;
 /// A part facet reaching this close to the parting plane spans it, mm.
-const SILHOUETTE_MM: f64 = 0.005;
+pub(super) const SILHOUETTE_MM: f64 = 0.005;
 /// Lean a facet spanning the parting plane may show as its own chord, past half the preview chord's 8.6° step, degrees.
-const SILHOUETTE_DEG: f64 = 5.0;
+pub(super) const SILHOUETTE_DEG: f64 = 5.0;
 
 /// One CAD part as the verdict read it off a built ring.
 #[derive(Clone, Debug, Serialize, Deserialize)]

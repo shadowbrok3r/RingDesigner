@@ -8,7 +8,18 @@ pub fn apply(app: &mut RingDesignerApp, edits: &[CadEdit]) -> Result<Vec<Applied
         return Ok(Vec::new());
     }
     let mut next = app.design.clone();
-    let edits = fresh_where_taken(&next, edits);
+    let mut edits = fresh_where_taken(&next, edits);
+    // Bare face and edge references are signed in the frame each part was seated by.
+    if let Some(e) = app.build.as_ref().and_then(|b| b.parts.evaluated.as_ref()) {
+        for edit in &mut edits {
+            let op = match edit {
+                CadEdit::Add { feature, .. } => &mut feature.operation,
+                CadEdit::Operation { operation, .. } => operation,
+                _ => continue,
+            };
+            ringdesign_core::cad::sign_refs(op, e);
+        }
+    }
     let mut applied = Vec::with_capacity(edits.len());
     for edit in &edits {
         match ringdesign_graph::nodes::cad::edit_design(&mut next, edit) {

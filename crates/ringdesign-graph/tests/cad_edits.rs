@@ -79,7 +79,6 @@ fn band_and_patterns() -> RingDesign {
 fn documents() -> Vec<(String, RingDesign)> {
     let mut all: Vec<(String, RingDesign)> = cad::examples::NAMES
         .iter()
-        .chain(cad::examples::SET_STONES)
         .map(|n| (n.to_string(), cad::examples::design(n).unwrap()))
         .collect();
     all.push(("band+cylinder".into(), band_and_cylinder()));

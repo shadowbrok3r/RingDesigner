@@ -464,6 +464,11 @@ fn resolve(app: &RingDesignerApp, sketch: &Sketch) -> Result<(Frame, Vec<Vec<[f6
         return Frame::new(p.origin, p.x_axis, p.y_axis).map(|f| (f, Vec::new())).ok_or_else(|| "The sketch's plane has no normal".to_string());
     };
     let build = app.build.as_ref().ok_or("The ring has not built yet")?;
+    if let Some(plane) = build.parts.evaluated.as_ref().and_then(|e| e.plane(anchor.feature)) {
+        let p = ringdesign_core::cad::pattern::sketch_on_work_plane(sketch, plane).map_err(|e| format!("{e:#}"))?;
+        let frame = Frame::new(p.origin, p.x_axis, p.y_axis).ok_or("The work plane has no normal")?;
+        return Ok((frame, Vec::new()));
+    }
     let c = build
         .parts
         .evaluated

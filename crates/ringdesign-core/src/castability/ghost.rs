@@ -3,11 +3,7 @@
 use super::judge::PART_NOISE_MM2;
 use super::{BORE_TOL_MM, BoreTrace, FaceClass, RingDesign, read_face};
 use crate::mesh::{Mesh, Vec3};
-
-/// An undercut facet reaching this close to the parting plane spans it, mm.
-const SILHOUETTE_MM: f64 = 0.005;
-/// Lean a facet spanning the parting plane may show as its own chord, degrees.
-const SILHOUETTE_DEG: f64 = 5.0;
+use super::judge::{SILHOUETTE_DEG, SILHOUETTE_MM};
 
 /// The parting plane, the draft floor and the bore a ghost is read against.
 pub struct GhostJudge {
