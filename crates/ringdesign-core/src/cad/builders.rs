@@ -600,13 +600,19 @@ pub fn setting_features(key: &str, stone: Id, gem: Gem, sand: bool, next: &mut d
         "halo" => (CLAW, "Four-claw head", json!({ "prongs": 4 })),
         _ => bail!("No setting called {key}; choose {}", SETTINGS.iter().map(|s| s.key).collect::<Vec<_>>().join(", ")),
     };
-    out.push(feature_on(next(), name, head_key, stone, params));
+    // Under sand a made setting is soldered on and its seat drilled after the pour; lost wax casts both in place.
+    let stage = if sand { Stage::Bench } else { Stage::Cast };
+    let mut head = feature_on(next(), name, head_key, stone, params);
+    head.component.stage = stage;
+    out.push(head);
     if key == "halo" {
-        out.push(feature_on(next(), "Halo", HALO, stone, json!({})));
+        let mut halo = feature_on(next(), "Halo", HALO, stone, json!({}));
+        halo.component.stage = stage;
+        out.push(halo);
     }
     if !(gem.form == GemForm::Cabochon && key != "bezel") {
         let mut bur = feature_on(next(), "Seat bur", BUR, stone, json!({ "through": key != "bezel" }));
-        bur.component.stage = if sand { Stage::Bench } else { Stage::Cast };
+        bur.component.stage = stage;
         out.push(bur);
     }
     Ok(out)
@@ -682,6 +688,59 @@ mod tests {
         }
         let used: HashSet<usize> = s.f.iter().flatten().map(|v| find(&mut root, *v as usize)).collect();
         used.len()
+    }
+
+    #[test]
+    fn under_sand_a_setting_is_soldered_on_after_the_pour_and_its_pattern_marks_the_spot() {
+        use crate::castability::{Verdict, judged_field_report};
+        let lib = AlphaLibrary::builtin();
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        let mut n = 10;
+        for (sand, stage) in [(true, Stage::Bench), (false, Stage::Cast)] {
+            for key in ["claw4", "claw6", "bezel", "basket", "halo"] {
+                let made = setting_features(key, 2, gem, sand, &mut || { n += 1; n }).unwrap();
+                assert!(made.iter().all(|f| f.component.stage == stage), "{key} under sand {sand}");
+            }
+        }
+        // Staged Bench the head and its seat leave the pour and the pattern marks where each goes.
+        let d = set("claw4");
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        let f = judged_field_report(&d, &lib, &d.draft, 192, 128, Some(&built));
+        assert_ne!(f.verdict, Verdict::NotCastable, "{:?}", f.notes);
+        assert!(f.notes.iter().any(|n| n.contains("is soldered on after the pour")), "{:?}", f.notes);
+        assert!(f.notes.iter().any(|n| n.contains("is drilled at the bench")), "{:?}", f.notes);
+        // Cast in the pattern, the same head's claws and rails lock the mould, and the verdict names it.
+        let mut cast = d.clone();
+        for feat in &mut cast.cad.as_mut().unwrap().features {
+            if feat.id == 3 {
+                feat.component.stage = Stage::Cast;
+            }
+        }
+        let built = crate::mesh::try_build(&cast, &lib, params()).unwrap();
+        let f = judged_field_report(&cast, &lib, &cast.draft, 192, 128, Some(&built));
+        let head = f.parts.iter().find(|p| p.feature == 3).expect("the head is judged");
+        assert!(head.judged && head.undercut_area_mm2 - head.silhouette_mm2 > 1.0, "{head:?}");
+        assert!(head.note.contains("stage it Bench"), "{}", head.note);
+        assert_ne!(f.verdict, Verdict::Castable);
+    }
+
+    #[test]
+    fn a_stone_set_as_a_part_is_picked_as_one_and_a_heads_faces_answer_by_patch() {
+        use crate::interaction::pick::{Entity, Filter, PickScene, Ray, ViewScale};
+        let lib = AlphaLibrary::builtin();
+        let d = set("claw4");
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        let scene = PickScene::build(&built, &d);
+        let stone = d.cad.as_ref().unwrap().feature(2).unwrap().component.placement.frame_on(&d, Some(&built.mesh)).unwrap();
+        let above: [f64; 3] = std::array::from_fn(|k| stone.origin[k] + 20.0 * stone.z_axis[k]);
+        let view = ViewScale { right: stone.x_axis, up: stone.y_axis, px_per_mm: 40.0 };
+        let down = Ray { origin: above, direction: stone.z_axis.map(|v| -v) };
+        let picks = scene.pick(down, &view, 6.0, Filter::default());
+        assert_eq!(picks.first().map(|p| &p.entity), Some(&Entity::Part { feature: 2 }), "{picks:?}");
+        // Every face of the head names the patch it belongs to.
+        let head = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 3).unwrap();
+        let names: HashSet<&str> = (0..head.mesh.faces.len() as u32).filter_map(|f| head.trace.patch(head.trace.face_of(f as usize)?)).collect();
+        assert!((1..=4).all(|k| names.iter().any(|n| *n == format!("Claw {k}"))), "{names:?}");
     }
 
     #[test]

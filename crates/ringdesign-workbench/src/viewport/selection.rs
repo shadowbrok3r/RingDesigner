@@ -396,6 +396,9 @@ pub fn label(entity: &Entity, design: &RingDesign, built: Option<&BuildResult>) 
         Entity::Band => "the band".into(),
         Entity::Part { feature } => feature_name(*feature, design, built),
         Entity::Face { feature, face } => {
+            if let Some(patch) = built.and_then(|b| component(b, *feature)).and_then(|c| c.trace.patch(*face)) {
+                return format!("{patch} of {}", feature_name(*feature, design, built));
+            }
             let kind = built.and_then(|b| component(b, *feature)).and_then(|c| c.trace.face_kind.get(*face as usize)).map(|k| format!(" ({})", format!("{k:?}").to_lowercase())).unwrap_or_default();
             format!("{} face {face}{kind}", feature_name(*feature, design, built))
         }

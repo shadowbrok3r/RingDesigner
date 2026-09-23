@@ -110,6 +110,8 @@ pub struct PickScene {
     ordinal: Vec<u32>,
     parts: Vec<Part>,
     stones: Option<Stones>,
+    /// Reference parts — stones set as CAD parts — which are never metal but are chosen like parts.
+    loose: Option<(Mesh, Bvh, Vec<Id>)>,
 }
 
 /// Class order a pick is ranked by, before screen distance and depth.
@@ -122,6 +124,22 @@ fn rank(e: &Entity) -> u8 {
         Entity::Stone { .. } => 4,
         Entity::Band => 5,
     }
+}
+
+/// A build's reference parts as one mesh, each face naming its feature.
+fn reference_parts(built: &BuildResult) -> Option<(Mesh, Bvh, Vec<Id>)> {
+    let mut mesh = Mesh::default();
+    let mut owner = Vec::new();
+    for c in built.parts.evaluated.iter().flat_map(|e| &e.components).filter(|c| c.settings.reference) {
+        let base = mesh.vertices.len() as u32;
+        mesh.vertices.extend_from_slice(&c.mesh.vertices);
+        mesh.faces.extend(c.mesh.faces.iter().map(|f| f.map(|i| i + base)));
+        owner.extend(std::iter::repeat_n(c.id, c.mesh.faces.len()));
+    }
+    (!mesh.faces.is_empty()).then(|| {
+        let bvh = Bvh::build(&mesh);
+        (mesh, bvh, owner)
+    })
 }
 
 /// Every CAD part of a build that is metal, on its own placed tessellation.
@@ -202,7 +220,7 @@ impl PickScene {
         let bvh = Bvh::build(&mesh);
         let parts = placed_parts(built);
         let (owner, ordinal) = owners(src, &built.parts, &parts);
-        Self { mesh, bvh, owner, ordinal, parts, stones: stones_of(design) }
+        Self { mesh, bvh, owner, ordinal, parts, stones: stones_of(design), loose: reference_parts(built) }
     }
 
     /// Faces the fused mesh holds.
@@ -248,6 +266,14 @@ impl PickScene {
         let mut out = Vec::new();
         // Metal always hides what is behind it; stones left out of the filter are not in the scene.
         let metal = self.bvh.ray(&self.mesh, o, dir);
+        if let Some((mesh, bvh, owner)) = self.loose.as_ref().filter(|_| filter.parts) {
+            if let Some((f, t)) = bvh.ray(mesh, o, dir).filter(|(_, t)| metal.is_none_or(|(_, m)| *t < m)) {
+                let world: [f64; 3] = std::array::from_fn(|k| o[k] + dir[k] * t);
+                let normal = mesh.face_normal(&mesh.faces[f]).unwrap_or([0.0, 0.0, 1.0]);
+                out.push(Pick { entity: Entity::Part { feature: owner[f] }, world, normal, depth: t, px: 0.0 });
+                return out;
+            }
+        }
         let stone = self.stones.as_ref().filter(|_| filter.stones).and_then(|s| s.bvh.ray(&s.mesh, o, dir).map(|(f, t)| (s, f, t)));
         match (metal, stone) {
             (Some((_, t)), Some((s, sf, st))) if st < t => self.stone_pick(s, sf, st, o, dir, &mut out),

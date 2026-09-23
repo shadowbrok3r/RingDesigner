@@ -237,7 +237,9 @@ mod tests {
             }
             other => panic!("{other:?}"),
         }
-        let tail: Vec<_> = items.iter().skip(adds.len()).map(|i| i.action.clone()).collect();
+        let stones: Vec<_> = items.iter().filter(|i| i.submenu == Some("Add stone here")).collect();
+        assert_eq!(stones.len(), ringdesign_core::cad::builders::STONES.len());
+        let tail: Vec<_> = items.iter().skip(adds.len() + stones.len()).map(|i| i.action.clone()).collect();
         let sketch = MenuAction::SketchOnPlane { theta_deg: 90.0, across_mm: 0.0 };
         assert_eq!(tail, [sketch, MenuAction::FitView, MenuAction::OpenCad, MenuAction::ToggleWire, MenuAction::ToggleGrid]);
         assert!(items.iter().all(|i| i.enabled));
@@ -302,12 +304,14 @@ mod tests {
     }
 
     #[test]
-    fn a_stone_adds_nothing_and_the_last_chosen_thing_stands_in_for_an_empty_right_click() {
+    fn a_stone_offers_its_settings_and_the_last_chosen_thing_stands_in_for_an_empty_right_click() {
         let d = design();
         let mut sel = Selection::default();
         let stone = pick(Entity::Stone { path: vec![0] }, [0.0, 10.0, 0.0]);
         let items = context_items(&sel, Some(&stone), &d);
-        assert_eq!(items.len(), 4);
+        let settings = ringdesign_core::cad::builders::SETTINGS.len();
+        assert_eq!(items.len(), 4 + settings);
+        assert!(items[..settings].iter().all(|i| i.submenu == Some("Setting")));
         assert_eq!(heading(&sel, Some(&stone), &d).as_deref(), Some("Stone"));
         sel.click(Some(Sel::Edge { feature: 3, edge: 0 }), Mods::default());
         let items = context_items(&sel, None, &d);

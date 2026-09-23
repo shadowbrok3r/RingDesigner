@@ -360,7 +360,8 @@ pub fn export(e: &Evaluated, name: &str) -> Result<String> {
     ));
     let geometry=w.add(format!("(GEOMETRIC_REPRESENTATION_CONTEXT(3) GLOBAL_UNCERTAINTY_ASSIGNED_CONTEXT((#{uncertainty})) GLOBAL_UNIT_ASSIGNED_CONTEXT((#{mm},#{angle},#{solid_angle})) REPRESENTATION_CONTEXT('',''))"));
     let mut bodies = Vec::new();
-    for c in e.components.iter().filter(|c| !c.settings.reference) {
+    // A builder's part is a mesh with no B-rep to write.
+    for c in e.components.iter().filter(|c| !c.settings.reference && c.made.is_none()) {
         bodies.extend(
             w.body(&c.body, &c.name)
                 .with_context(|| format!("STEP component #{} {}", c.id, c.name))?,

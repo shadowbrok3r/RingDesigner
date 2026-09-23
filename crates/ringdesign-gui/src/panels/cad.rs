@@ -304,8 +304,8 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
         ui.label(format!(
             "{:.2} mm³ • {} faces • {} edges",
             c.mesh.volume_mm3(),
-            c.body.faces.len(),
-            c.body.edges.len()
+            c.brep().map_or(c.trace.patches.len(), |b| b.faces.len()),
+            c.brep().map_or(c.edges.len(), |b| b.edges.len())
         ));
         let w = &v.walls[index];
         ui.label(format!(
