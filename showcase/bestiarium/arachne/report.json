@@ -8,7 +8,7 @@
     448
   ],
   "triangles": 1504894,
-  "build_s": 6.528596003,
+  "build_s": 7.090534963,
   "watertight": true,
   "boundary_edges": 0,
   "non_manifold_edges": 0,
@@ -341,6 +341,16 @@
   "clamp_bite_mm": null,
   "dfm_findings": [],
   "stones_reported": 2,
+  "metal_inside_stones": [
+    [
+      "Carapace, garnet in its collet",
+      0
+    ],
+    [
+      "Abdomen, onyx in its collet",
+      0
+    ]
+  ],
   "stones_previewed": 2,
   "stone_carats": 2.8318159099825717,
   "stone_warnings": [],

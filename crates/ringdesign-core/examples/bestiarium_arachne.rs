@@ -687,6 +687,7 @@ struct Report {
     clamp_bite_mm: Option<f64>,
     dfm_findings: Vec<String>,
     stones_reported: u32,
+    metal_inside_stones: Vec<(String, usize)>,
     stones_previewed: usize,
     stone_carats: f64,
     stone_warnings: Vec<String>,
@@ -852,6 +853,27 @@ fn crossings(d: &RingDesign, built: &mesh::BuildResult) -> (Vec<(String, usize)>
     (parts, seats)
 }
 
+/// Metal vertices standing inside each cabochon, 0.03 mm in from its surface: the stones must sit clear.
+fn metal_in_stones(d: &RingDesign, built: &mesh::BuildResult) -> Vec<(String, usize)> {
+    ringdesign_core::stones::stone_frames(d)
+        .into_iter()
+        .map(|(st, f)| {
+            let (a, b, h) = (st.gem.l_mm * 0.5 - 0.03, st.gem.w_mm * 0.5 - 0.03, st.gem.depth_mm() - 0.03);
+            let inside = built
+                .mesh
+                .vertices
+                .iter()
+                .filter(|p| {
+                    let q = sub3([p.0 as f64, p.1 as f64, p.2 as f64], f.girdle);
+                    let (x, y, z) = (dot(q, f.long), dot(q, f.short), dot(q, f.normal));
+                    z > 0.03 && z < h && (x / a).powi(2) + (y / b).powi(2) < 1.0 - (z / h).powi(2)
+                })
+                .count();
+            (st.label, inside)
+        })
+        .collect()
+}
+
 /// The legs' narrowest section, and the narrowest left standing clear of the cheek.
 fn leg_sections() -> (f64, f64) {
     // Exposed tarsus radius just short of the sunk tip.
@@ -946,6 +968,7 @@ fn main() -> Result<()> {
         clamp_bite_mm: None,
         dfm_findings: findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect(),
         stones_reported: stones_report.as_ref().map_or(0, |s| s.stone_count),
+        metal_inside_stones: metal_in_stones(&d, &built),
         stones_previewed: previewed,
         stone_carats: stones_report.as_ref().map_or(0.0, |s| s.total_carats),
         stone_warnings: warnings,
@@ -964,6 +987,7 @@ fn main() -> Result<()> {
         && report.thinnest_wall_mm >= 0.8
         && report.dfm_findings.is_empty()
         && report.stones_reported as usize == report.stones_previewed
+        && report.metal_inside_stones.iter().all(|(_, n)| *n == 0)
         && report.cold_reload_identical != Some(false);
     std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report)?)?;
     std::fs::write(out.join("mesh.json"), serde_json::to_vec_pretty(&built.report)?)?;
@@ -989,6 +1013,9 @@ fn main() -> Result<()> {
         report.solids_notes.len(),
         report.parts_notes.len()
     );
+    for (stone, n) in &report.metal_inside_stones {
+        println!("    {stone}: {n} metal vertices inside the stone");
+    }
     for f in &report.dfm_findings {
         println!("    dfm: {f}");
     }
