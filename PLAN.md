@@ -537,6 +537,55 @@ worktrees, then verified, measured and committed by the integrator.
   ring with the caption and the Instances field, type 4, Enter → "Ring array of Cylinder" on the
   timeline, three copies at 90° steps, one History entry "Add Ring array of Cylinder".
 
+### Batch 12 status — 2026-09-24 (on master: `desktop-picks`, `m13-sweeps`, `m12-phone-tools` merged, integration `dc71b18`)
+
+- **Every piece of metal answers the pointer as itself**: a made seat's solid and a struck stamp pick
+  as `Entity::Seat` (by the stone's layer path) and `Entity::Stamp` (by index), claimed off the
+  mesh's origin ranges (7,787 faces in 1.5 ms at preview, 8,424 in 5.1 ms at export; a design with
+  neither skips it). A seat offers its layer, Live cuts and Show cutters; a stamp offers Edit
+  stamp… (name, angle, across, turn, height, sink), Attach, Stage and Delete — each one History
+  entry, the Delete key too — on both apps; placement commands land on the bare band behind them.
+  Live on Zenith: the crescent reads "hovering stamp "Beside the hunter: crescent, cut at the bench""
+  and offers its rows.
+- **OpenCascade's STEP import runs off the UI thread**: a pending slot polled each frame (three
+  frames ran through a 1.5 s read), the status line counting, and Cancel killing the worker
+  (`Worker::run_cancellable`, `Failure::Cancelled`; a sleeping 30 s worker stops at once). A stored
+  CAD desktop with the old empty docks gains the Report once (`Dock::catch_up`); a rolled-back
+  document pours the ring it evaluates to (387.16 mm³: the bare band's 387.14 and a 0.027 mark,
+  where the spacer and the bench post were poured with it).
+- **The twisted sweep is our own** (`cad::twist::sweep`): closed at every twist from −720° to 720°,
+  area × length to 0.5% (−0.046% for the 720° starter, −0.18% over ten turns), crossing-checked,
+  its faces named, corners mitred; both Create menus offer it again, and a twisted post joins the
+  Court band (+9.20 mm³, 29.7 ms at preview, 352 at export).
+- **Our own exact STEP comes back without OpenCascade** (`step::read_meshes`, `solid_meshes`:
+  plane, cylinder, cone, sphere and torus faces, units read): fourteen exact example parts back to
+  +0.0000%, the claw solitaire's 7.9 MB file whole in 113 ms, a bought signet's B-spline solids
+  named; the CLI's `cad step` prints volumes and `cad import` adds a part; MCP, the desktop and the
+  phone import through it.
+- **The phone's CAD tools reach the desktop's**: Trim, Offset, Chamfer and Mirror on the sketch bar;
+  Finish offers Join, Cut (an offset frame 1 mm deep took 512.0 to 507.0 mm³, one Undo) and
+  Separate; several parts isolated at once and taken out one by one; the bar folds above the
+  keyboard; refused array copies drawn red; STEP in the Share menu on the preview grid (37.7 MB —
+  the share bridge copies through one Java array and threw OutOfMemoryError at 217 MB, so a file
+  over 128 MB is kept and said); Import part from the app's folders and Downloads up to 32 MB.
+- Verified: core 661, workbench 191 (205 with glow), gui 145, graph 97, graph-ui 26, mcp 45, cli
+  11, configurator 5, script 5, occt 3, solid 1, assets 4, phone 175; NDK arm64, wasm, `kernel-occt`
+  and the locked workspace clean with zero warnings; the desktop live-checked on Zenith; the phone's
+  tools on rdsmoke from the branch build.
+- Closed: batch 11's seats and stamps picking as the band, the disabled twisted sweep, the blocking
+  OpenCascade import, exact solids left out of the default import, the phone's missing sketch
+  tools, Finish only joining, isolation of one part, the phone's silent refused copies, rolled-back
+  outputs and the CAD desktop's stale docks.
+- Open: Trim leaves a T-junction the whole-sketch profile reads as open (it chains endpoints; both
+  apps); a cut sketch extrudes up from a lowered plane because Extrude refuses a negative height;
+  the default build's big STEP import still blocks (3.6 s on 137 MB); the desktop's STEP at its
+  export grid runs about 340 bytes a face (~220 MB on 655k faces); the phone has no system file
+  picker, its revolve cut's pivot stays in world coordinates, a cut on a Separate part carves only
+  the band, Fit view frames the whole ring and the zoom pivot drifts; egui-android's media-store
+  copy reads a file whole, leaves its pending row on failure and cannot say it failed (EguiMobile);
+  a chosen stamp's index goes stale across Undo; the stamp and tool inspectors open on the same
+  spot; a seat run lights whole on hover; batch 11's numeric keyboard and OpenCascade decisions.
+
 ### Batch 11 status — 2026-09-23 (on master: `m13-exports`, `desktop-rest`, `m12-phone-sketch` merged, integration `58392c8`)
 
 - **The ring is the casting** (`manufacturing::Casting::{Ring, Part}`): `prepare`, the mould study and
