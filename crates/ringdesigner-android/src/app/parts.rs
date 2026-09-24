@@ -53,14 +53,7 @@ impl RingApp {
                     };
                 }
                 Request::Status(text) => self.status = text,
-                Request::FitView => {
-                    if let Some(mesh) = &self.preview_mesh {
-                        self.pane.camera.fit(mesh.bounds());
-                    }
-                    self.pane.camera.zoom = 1.0;
-                    self.pane.camera.pan = [0.0; 2];
-                    self.pane.actual_size = false;
-                }
+                Request::FitView => self.fit_view(),
                 Request::ToggleWire => {
                     self.pane.wireframe = !self.pane.wireframe;
                     self.save_prefs();
@@ -117,6 +110,20 @@ impl RingApp {
                 }
             }
         }
+    }
+
+    /// Eases the view onto the chosen parts, else the parts shown alone, else the whole ring, the pivot moved onto their middle.
+    fn fit_view(&mut self) {
+        let Some(built) = self.preview_mesh.clone() else { return };
+        let Some((bounds, framed)) = ringdesign_workbench::touch::view::framed(&built.0, &self.design, &self.cad.selection.items, &self.cad.isolated) else { return };
+        let camera = &mut self.pane.camera;
+        if let Some(ring) = built.bounds() {
+            camera.refit(ring);
+        }
+        let to = camera.framing(bounds);
+        self.camera_turn = Some(crate::focus::Turn::new(camera.pose(), to));
+        self.pane.actual_size = false;
+        self.status = framed.said();
     }
 
     /// Part `id` added to the parts shown alone on the ring.

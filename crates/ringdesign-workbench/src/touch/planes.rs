@@ -58,14 +58,16 @@ pub fn shapes(design: &RingDesign, built: &BuildResult) -> Vec<Shape> {
         .collect()
 }
 
-/// Makes one work plane by touch: on a planar face of a part, moved along its normal by a drag or a typed offset, or through the finger's axis at a typed angle.
+/// Makes one work plane by touch: on a planar face of a part, square to the band at a point on it or on the parting plane, each moved along its normal by a drag or a typed offset, or through the finger's axis at a typed angle.
 #[derive(Clone, Debug)]
 pub struct PlaneCmd {
     base: PlaneBase,
-    /// The face's centre and outward normal, a drag along which reads the offset.
+    /// Where the arrow stands and the normal it points along, a drag along which reads the offset.
     along: Option<([f64; 3], [f64; 3])>,
     /// Where along the normal the drag was taken.
     anchor: Option<f64>,
+    /// The offset a drag counts from.
+    start: f64,
     value: f64,
     typed: bool,
     /// The part the face belongs to, which names the plane.
@@ -75,13 +77,26 @@ pub struct PlaneCmd {
 impl PlaneCmd {
     /// A plane on planar face `face` of part `feature` called `part`, the face centred at `centre` with outward `normal`.
     pub fn on_face(feature: Id, face: FaceRef, centre: [f64; 3], normal: [f64; 3], part: &str) -> Self {
-        Self { base: PlaneBase::Face { feature, face }, along: Some((centre, normal)), anchor: None, value: 0.0, typed: false, part: part.into() }
+        Self { base: PlaneBase::Face { feature, face }, along: Some((centre, normal)), anchor: None, start: 0.0, value: 0.0, typed: false, part: part.into() }
     }
 
     /// A plane through the finger's axis at `theta_deg` round the ring, read on 0–360° as the band's readout is.
     pub fn at_angle(theta_deg: f64) -> Self {
         let theta_deg = theta_deg.rem_euclid(360.0);
-        Self { base: PlaneBase::Section { theta_deg }, along: None, anchor: None, value: theta_deg, typed: false, part: String::new() }
+        Self { base: PlaneBase::Section { theta_deg }, along: None, anchor: None, start: theta_deg, value: theta_deg, typed: false, part: String::new() }
+    }
+
+    /// A plane square to the band at `at`, a point pressed on it with the surface's outward `normal` there.
+    pub fn tangent(at: [f64; 3], normal: [f64; 3]) -> Self {
+        let theta_deg = at[1].atan2(at[0]).to_degrees().rem_euclid(360.0);
+        let base = PlaneBase::Tangent { theta_deg, across_mm: at[2] };
+        Self { base, along: Some((at, unit(normal).unwrap_or([0.0, 0.0, 1.0]))), anchor: None, start: 0.0, value: 0.0, typed: false, part: String::new() }
+    }
+
+    /// The parting plane, world z = 0, stood `offset_mm` off it; its arrow rises through `at` along the finger's axis.
+    pub fn parting(at: [f64; 3], offset_mm: f64) -> Self {
+        let offset_mm = if offset_mm.is_finite() { offset_mm.clamp(-MAX_OFFSET_MM, MAX_OFFSET_MM) } else { 0.0 };
+        Self { base: PlaneBase::Parting, along: Some(([at[0], at[1], 0.0], [0.0, 0.0, 1.0])), anchor: None, start: offset_mm, value: offset_mm, typed: false, part: String::new() }
     }
 
     /// The field its number is typed into.
@@ -105,10 +120,36 @@ impl PlaneCmd {
     /// What the plane is called in the document.
     pub fn name(&self) -> String {
         match &self.base {
-            PlaneBase::Section { .. } => format!("Section at {:.0}°", self.value),
-            _ if self.value.abs() < 1e-9 => format!("On {}", self.part),
-            _ => format!("On {} {:+.2} mm", self.part, self.value),
+            PlaneBase::Section { .. } => self.base_name(),
+            _ if self.value.abs() < 1e-9 => self.base_name(),
+            _ => format!("{} {:+.2} mm", self.base_name(), self.value),
         }
+    }
+
+    /// What the plane is laid on, without its offset.
+    fn base_name(&self) -> String {
+        match &self.base {
+            PlaneBase::Section { .. } => format!("Section at {:.0}°", self.value),
+            PlaneBase::Tangent { theta_deg, .. } => format!("Tangent at {theta_deg:.0}°"),
+            PlaneBase::Parting => "Parting".into(),
+            PlaneBase::Face { .. } => format!("On {}", self.part),
+        }
+    }
+}
+
+fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
+    let l = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+    (l > 1e-12 && l.is_finite()).then(|| v.map(|x| x / l))
+}
+
+/// The in-plane axes of a plane square to the band at `theta_deg` with normal `n`: round the ring, then `n × x`, as the build lays them.
+fn tangent_axes(theta_deg: f64, n: [f64; 3]) -> ([f64; 3], [f64; 3]) {
+    let (s, c) = theta_deg.to_radians().sin_cos();
+    let round = [-s, c, 0.0];
+    let d = round[0] * n[0] + round[1] * n[1] + round[2] * n[2];
+    match unit(std::array::from_fn(|k| round[k] - n[k] * d)) {
+        Some(x) => (x, [n[1] * x[2] - n[2] * x[1], n[2] * x[0] - n[0] * x[2], n[0] * x[1] - n[1] * x[0]]),
+        None => plane_basis(n),
     }
 }
 
@@ -123,7 +164,12 @@ impl ViewCommand for PlaneCmd {
         0
     }
     fn steps(&self) -> Vec<StepInfo> {
-        let prompt = if self.along.is_some() { "drag the arrow or type the offset from the face, then Done" } else { "type the angle round the ring, then Done" };
+        let prompt = match &self.base {
+            PlaneBase::Section { .. } => "type the angle round the ring, then Done",
+            PlaneBase::Tangent { .. } => "drag the arrow or type the offset off the band, then Done",
+            PlaneBase::Parting => "drag the arrow or type the height off the parting plane, then Done",
+            PlaneBase::Face { .. } => "drag the arrow or type the offset from the face, then Done",
+        };
         vec![StepInfo { name: "Work plane", prompt }]
     }
     fn dimensions(&self) -> Vec<Dimension> {
@@ -136,7 +182,7 @@ impl ViewCommand for PlaneCmd {
                 if let (Some((centre, normal)), false) = (self.along, self.typed) {
                     let along: f64 = (0..3).map(|k| (world[k] - centre[k]) * normal[k]).sum();
                     let from = *self.anchor.get_or_insert(along);
-                    self.value = (((along - from) / OFFSET_STEP_MM).round() * OFFSET_STEP_MM).clamp(-MAX_OFFSET_MM, MAX_OFFSET_MM);
+                    self.value = (self.start + ((along - from) / OFFSET_STEP_MM).round() * OFFSET_STEP_MM).clamp(-MAX_OFFSET_MM, MAX_OFFSET_MM);
                 }
                 Outcome::Continue
             }
@@ -163,25 +209,33 @@ impl ViewCommand for PlaneCmd {
         }
     }
     fn preview(&self) -> Preview {
-        let caption = match self.along {
-            Some(_) => format!("{} · {:+.2} mm off the face", self.name(), self.value),
-            None => self.name(),
+        let caption = match (&self.base, self.along) {
+            (PlaneBase::Section { .. }, _) | (_, None) => self.name(),
+            (PlaneBase::Tangent { .. }, Some(_)) => format!("{} · {:+.2} mm off the band", self.base_name(), self.value),
+            (PlaneBase::Parting, Some(_)) => format!("{} · z {:+.2} mm", self.base_name(), self.value),
+            (PlaneBase::Face { .. }, Some(_)) => format!("{} · {:+.2} mm off the face", self.base_name(), self.value),
         };
         Preview { operation: Some(self.operation()), caption, ..Preview::default() }
     }
 }
 
-/// The rectangle a work plane `operation` stands as over `built` before the build has it: a face's plane round `along`'s centre moved along its normal, a section through the ring.
+/// The rectangle a work plane `operation` stands as over `built` before the build has it: a plane on a face or square to the band round `along`'s point moved along its normal, the parting plane or a section through the ring.
 pub fn preview_shape(operation: &Operation, along: Option<([f64; 3], [f64; 3])>, built: &BuildResult) -> Option<[[f64; 3]; 4]> {
     let Operation::Plane { base, offset_mm } = operation else { return None };
+    let moved = |centre: [f64; 3], normal: [f64; 3]| std::array::from_fn(|k| centre[k] + normal[k] * offset_mm);
     let (origin, x, y) = match (base, along) {
         (PlaneBase::Section { theta_deg }, _) => {
             let (s, c) = theta_deg.to_radians().sin_cos();
             ([0.0; 3], [c, s, 0.0], [0.0, 0.0, 1.0])
         }
+        (PlaneBase::Parting, _) => ([0.0, 0.0, *offset_mm], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]),
+        (PlaneBase::Tangent { theta_deg, .. }, Some((centre, normal))) => {
+            let (x, y) = tangent_axes(*theta_deg, normal);
+            (moved(centre, normal), x, y)
+        }
         (_, Some((centre, normal))) => {
             let (x, y) = plane_basis(normal);
-            (std::array::from_fn(|k| centre[k] + normal[k] * offset_mm), x, y)
+            (moved(centre, normal), x, y)
         }
         _ => return None,
     };
@@ -330,7 +384,9 @@ mod tests {
         let (edits, added) = crate::touch::parts::effect_edits(&d, effects.clone());
         assert!(added && edits.len() == 1);
         let plain = templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
-        assert_eq!(crate::touch::parts::effect_edits(&plain, effects).0.len(), 1, "a plane is no body, so it brings no shank");
+        let (first, _) = crate::touch::parts::effect_edits(&plain, effects);
+        use ringdesign_core::cad::edit::CadEdit;
+        assert!(matches!(&first[..], [CadEdit::Add { feature: shank, .. }, CadEdit::Add { .. }] if matches!(shank.operation, Operation::Band)), "a plain ring's first plane brings its shank, or the ring would not build: {first:?}");
         let p = crate::touch::prepare(&d, &edits, built.parts.evaluated.as_ref()).unwrap().unwrap();
         assert_eq!(p.label, "Add On Block +0.50 mm");
         let id = p.applied[0].id.unwrap();
@@ -354,6 +410,73 @@ mod tests {
         let [Effect::Add { feature }] = &effects[..] else { panic!("{effects:?}") };
         assert_eq!(feature.name, "Section at 30°");
         assert!(matches!(feature.operation, Operation::Plane { base: PlaneBase::Section { theta_deg }, offset_mm } if theta_deg == 30.0 && offset_mm == 0.0));
+    }
+
+    #[test]
+    fn a_touch_lays_a_plane_square_to_the_band_where_it_pressed_and_one_on_the_parting_plane_each_offset_by_a_drag_or_a_number() {
+        use crate::command::Session;
+        let d = templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let params = BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..BuildParams::default() };
+        let built = mesh::build(&d, &AlphaLibrary::builtin(), params);
+        // Pressed on the band 60° round and half a millimetre across.
+        let (at, n) = ringdesign_core::cad::surface_hit(&built.mesh, 60.0, 0.5).expect("the band is there");
+        let cmd = PlaneCmd::tangent(at, n);
+        assert_eq!((cmd.key(), cmd.name()), ("offset", "Tangent at 60°".to_string()));
+        let op = cmd.operation();
+        assert!(matches!(op, Operation::Plane { base: PlaneBase::Tangent { theta_deg, across_mm }, offset_mm } if (theta_deg - 60.0).abs() < 1e-4 && (across_mm - 0.5).abs() < 1e-3 && offset_mm == 0.0), "{op:?} from {at:?}");
+        let mut s = Session::default();
+        s.start(Box::new(cmd));
+        s.feed(StepInput::Typed { key: "offset", value: 0.3 });
+        assert_eq!(s.preview().unwrap().caption, "Tangent at 60° · +0.30 mm off the band");
+        let op = s.preview().unwrap().operation.unwrap();
+        let corners = preview_shape(&op, Some((at, n)), &built).unwrap();
+        let off = |p: [f64; 3]| (0..3).map(|k| (p[k] - at[k]) * n[k]).sum::<f64>();
+        assert!(corners.iter().all(|p| (off(*p) - 0.3).abs() < 1e-9), "the patch stands 0.3 mm off the band: {corners:?}");
+        let Outcome::Commit(effects) = s.enter() else { panic!("Done makes the plane") };
+        let (edits, added) = crate::touch::parts::effect_edits(&d, effects);
+        assert!(added && edits.len() == 2, "the plain ring's first plane brings its shank: {edits:?}");
+        let p = crate::touch::prepare(&d, &edits, None).unwrap().unwrap();
+        assert_eq!(p.label, "Add Procedural shank · Add Tangent at 60° +0.30 mm");
+        let id = p.applied.last().and_then(|a| a.id).unwrap();
+        let after = mesh::build(&p.design, &AlphaLibrary::builtin(), params);
+        let plane = *after.parts.evaluated.as_ref().unwrap().plane(id).expect("the plane builds");
+        // The build lays it where the preview drew it, the pressed point 0.3 mm out along the band's normal, to its own ray's 0.1 µm step along the finger.
+        let want: [f64; 3] = std::array::from_fn(|k| at[k] + n[k] * 0.3);
+        assert!((0..3).all(|k| (plane.origin[k] - want[k]).abs() < 2e-4), "{plane:?} against {want:?}");
+        assert!((0..3).map(|k| plane.normal[k] * n[k]).sum::<f64>() > 0.999999);
+        let centre: [f64; 3] = std::array::from_fn(|k| corners.iter().map(|c| c[k]).sum::<f64>() / 4.0);
+        assert!((0..3).all(|k| (centre[k] - want[k]).abs() < 1e-9));
+        let x = [corners[1][0] - corners[0][0], corners[1][1] - corners[0][1], corners[1][2] - corners[0][2]];
+        assert!(((0..3).map(|k| x[k] * plane.x[k]).sum::<f64>() - 2.0 * PATCH_MM).abs() < 1e-6, "the patch's sides run round the ring as the plane's own x: {x:?} {:?}", plane.x);
+        // On the parting plane: a drag up the finger's axis counts from where it was taken, in twentieths of a millimetre.
+        let mut s = Session::default();
+        s.start(Box::new(PlaneCmd::parting(at, 0.0)));
+        let up = |z: f64| StepInput::Pointer { world: [at[0], at[1], z], normal: [0.0, 0.0, 1.0], theta_deg: 60.0, across_mm: z, height_mm: 0.0, snapped: None, dragging: true };
+        s.feed(up(0.12));
+        s.feed(up(0.63));
+        assert_eq!((s.dimensions()[0].key, s.dimensions()[0].value), ("offset", 0.5));
+        let op = s.preview().unwrap().operation.unwrap();
+        let corners = preview_shape(&op, None, &built).unwrap();
+        assert!(corners.iter().all(|c| (c[2] - 0.5).abs() < 1e-12), "{corners:?}");
+        let reach = corners.iter().map(|c| c[0].abs().max(c[1].abs())).fold(0.0, f64::max);
+        assert!(reach > 10.0, "it spans the ring: {reach}");
+        let Outcome::Commit(effects) = s.enter() else { panic!() };
+        let (edits, _) = crate::touch::parts::effect_edits(&d, effects);
+        let p = crate::touch::prepare(&d, &edits, None).unwrap().unwrap();
+        assert_eq!(p.label, "Add Procedural shank · Add Parting +0.50 mm");
+        let id = p.applied.last().and_then(|a| a.id).unwrap();
+        let after = mesh::build(&p.design, &AlphaLibrary::builtin(), params);
+        let plane = *after.parts.evaluated.as_ref().unwrap().plane(id).unwrap();
+        assert_eq!((plane.origin, plane.normal), ([0.0, 0.0, 0.5], [0.0, 0.0, 1.0]));
+        // Where the verdict parts a mould off z = 0, the plane starts there and a drag counts on from it.
+        let raised = PlaneCmd::parting(at, 0.3);
+        assert_eq!((raised.name(), raised.dimensions()[0].value), ("Parting +0.30 mm".to_string(), 0.3));
+        let mut s = Session::default();
+        s.start(Box::new(raised));
+        s.feed(up(0.0));
+        s.feed(up(0.2));
+        assert!((s.dimensions()[0].value - 0.5).abs() < 1e-12, "{:?}", s.dimensions());
+        assert_eq!(PlaneCmd::parting(at, 0.0).name(), "Parting");
     }
 
     fn drawn(corners: [Pos2; 4]) -> Drawn {

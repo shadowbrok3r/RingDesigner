@@ -213,7 +213,7 @@ pub fn copies(design: &RingDesign, surface: Option<&Mesh>, evaluated: &Evaluated
     Some(out)
 }
 
-/// A command's effects as funnel edits and whether one adds a part; a first body brings its shank, a ring of parts keeps it apart.
+/// A command's effects as funnel edits and whether one adds a part; a plain ring's first feature, a work plane or a sketch included, brings its shank, a ring of parts keeps a body apart.
 pub fn effect_edits(design: &RingDesign, effects: Vec<Effect>) -> (Vec<CadEdit>, bool) {
     let mut edits = Vec::new();
     let mut added = false;
@@ -225,7 +225,7 @@ pub fn effect_edits(design: &RingDesign, effects: Vec<Effect>) -> (Vec<CadEdit>,
             Effect::Stage { feature, stage } => edits.push(CadEdit::Stage { id: feature, stage }),
             Effect::Add { mut feature } => {
                 let doc = design.cad.as_ref();
-                if doc.is_none_or(|d| d.features.is_empty()) && is_body(&feature) {
+                if doc.is_none_or(|d| d.features.is_empty()) && !matches!(feature.operation, Operation::Band) {
                     let id = if feature.id == 1 { 2 } else { 1 };
                     let component = Component { role: ComponentRole::Shank, ..Component::default() };
                     edits.push(CadEdit::Add { feature: Feature { id, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component }, after: None });

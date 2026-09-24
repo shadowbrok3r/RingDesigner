@@ -17,7 +17,7 @@ use ringdesign_core::{
 };
 use ringdesign_workbench::command::pattern::{ArrayCmd, PressPullCmd};
 use ringdesign_workbench::command::{
-    Affine, Axis, BandSurface, DimEvent, DimensionBar, commands::FaceHold, Dofs, Grid, GripCmd, MoveCmd, Outcome, PlaceCmd, RingFeatures, RingPoint, RotateCmd, Scene, Session, SnapGeometry, SnapHit, Snapper, StepInput, ViewCommand, along_line, land, placed_ghost,
+    Affine, Axis, BandSurface, DimEvent, DimensionBar, commands::FaceHold, Dofs, Grid, GripCmd, MoveCmd, Outcome, PlaceCmd, Primitive, RingFeatures, RingPoint, RotateCmd, Scene, Session, SnapGeometry, SnapHit, Snapper, StepInput, ViewCommand, along_line, land, placed_ghost, unit_ghost, unit_mesh,
 };
 use ringdesign_workbench::gizmo::{self, Gizmo, Handle, Layout};
 use ringdesign_workbench::touch;
@@ -100,6 +100,8 @@ enum Held {
     Handle { handle: Handle, gizmo: Box<Gizmo> },
     /// A press-pull's arrow.
     Pull,
+    /// A primitive being dragged out: its size, then its height.
+    Size,
 }
 
 /// What the preview buffer holds.
@@ -109,6 +111,14 @@ enum Staged {
     Part { build: usize, feature: Id },
     /// A menu command's own ghost, already in the world.
     Own,
+    /// A primitive at unit size, carried to the add's size and seat by the model matrix.
+    Unit(Primitive),
+}
+
+/// A primitive being dragged out, and its unit tessellation the ghost is drawn from.
+struct Adding {
+    kind: Primitive,
+    unit: Option<Mesh>,
 }
 
 /// A menu command's ghost, drawn from the command as it stands: its triangles in the world, the copies a pattern would leave out refused.
@@ -165,6 +175,8 @@ pub struct Live {
     bars_top: Option<bool>,
     /// The stone on a part's face the live command slides or spins by its seat.
     face: Option<FaceHold>,
+    /// The primitive the live command drags out.
+    adding: Option<Adding>,
 }
 
 impl Default for Live {
@@ -189,6 +201,7 @@ impl Default for Live {
             watch: None,
             bars_top: None,
             face: None,
+            adding: None,
         }
     }
 }
@@ -341,6 +354,7 @@ impl Live {
         self.session.start(cmd);
         self.target = target;
         self.face = None;
+        self.adding = None;
         self.own = own.map(|stage| Own { stage, shown: None, note: None });
         self.hold = None;
         self.pull = None;
@@ -354,7 +368,7 @@ impl Live {
         self.bar.reset();
     }
 
-    /// A first finger at `p`: a gizmo handle or a live press-pull's arrow takes it and holds the view.
+    /// A first finger at `p`: a gizmo handle or a live press-pull's arrow takes it and holds the view, and a primitive being dragged out takes any.
     pub fn press(&mut self, p: Pos2, c: &Ctx, out: &mut Vec<Request>) {
         self.finger = Some(p);
         if self.session.is_live() {
@@ -364,6 +378,9 @@ impl Live {
                     self.hold = Some((Held::Pull, false));
                     self.feed_pull(c, p, out);
                 }
+            }
+            if self.adding.is_some() {
+                self.hold = Some((Held::Size, false));
             }
             return;
         }
@@ -403,20 +420,34 @@ impl Live {
             }
             Held::Handle { handle, gizmo } => self.feed_handle(c, &gizmo, handle, at, out),
             Held::Pull => self.feed_pull(c, at, out),
+            Held::Size => self.feed_size(c, at, out),
         }
     }
 
-    /// The held finger lifted at `at`: a drag or a typed value commits as one undo step, a tap waits for a number in the bar.
+    /// Whether a finger holds a primitive being dragged out.
+    pub fn sizing(&self) -> bool {
+        matches!(self.hold, Some((Held::Size, _)))
+    }
+
+    /// The held finger lifted at `at`: a drag or a typed value commits as one undo step, a tap waits for a number in the bar, and a primitive's size or height lands there and its next step or the part follows.
     pub fn release(&mut self, at: Pos2, moved: bool, c: &Ctx, out: &mut Vec<Request>) {
         let Some((held, dragged)) = self.hold.take() else { return };
         if !self.session.is_live() {
+            return;
+        }
+        if matches!(held, Held::Size) {
+            self.feed_size(c, at, out);
+            if self.session.is_live() {
+                let o = self.session.feed(StepInput::Click);
+                self.outcome(o, Some(c.design), out);
+            }
             return;
         }
         if moved {
             match &held {
                 Held::Handle { handle, gizmo } => self.feed_handle(c, gizmo, *handle, at, out),
                 Held::Pull => self.feed_pull(c, at, out),
-                Held::Armed { .. } => {}
+                Held::Armed { .. } | Held::Size => {}
             }
         }
         let typed = self.session.dimensions().iter().any(|d| d.locked);
@@ -429,6 +460,7 @@ impl Live {
         self.focus = match &held {
             Held::Handle { handle, gizmo } | Held::Armed { handle, gizmo, .. } => gizmo.key(*handle),
             Held::Pull => Some("distance"),
+            Held::Size => None,
         };
         if let Some(key) = self.focus {
             self.bar.prefer(Some(key));
@@ -449,7 +481,29 @@ impl Live {
             }
             // A press-pull outlives its arrow's drag.
             Held::Pull => out.push(Request::Status("Two fingers: the face let go; drag its arrow again or type a distance".into())),
+            // So does a primitive being dragged out: its size stays as the last lift left it.
+            Held::Size => {}
         }
+    }
+
+    /// Starts dragging out a `kind` seated at `at` on the ring, `normal` the surface's there: a drag sizes it and its lift goes on to the height, a second lift or Done adds it.
+    pub fn add_primitive(&mut self, c: &Ctx, kind: Primitive, at: [f64; 3], normal: [f64; 3]) -> Result<String, String> {
+        let cmd = touch::primitive::start(c.design, kind, at, normal, c.band.map(|b| b.as_ref()))?;
+        let title = cmd.title();
+        self.start(Box::new(cmd), None, None);
+        self.adding = Some(Adding { kind, unit: unit_mesh(kind) });
+        self.watch = Some(at);
+        self.bar.prefer(Some("radius"));
+        let height = if kind == Primitive::Sphere { "" } else { ", then its height the same way" };
+        Ok(format!("{title}: drag its size out from where you pressed and lift{height}; or type them in the bar, then Done"))
+    }
+
+    /// Feeds a primitive being dragged out the finger at `at`: its distance from the seat on the view plane, in steps.
+    fn feed_size(&mut self, c: &Ctx, at: Pos2, out: &mut Vec<Request>) {
+        let Some(centre) = self.session.command().and_then(touch::primitive::centre) else { return };
+        let Some(token) = touch::primitive::size_token(c.ray(at), centre) else { return };
+        let o = self.session.feed(token);
+        self.outcome(o, Some(c.design), out);
     }
 
     /// Starts the command a handle drags, locked to the handle, and reads the press as its first pointer.
@@ -612,6 +666,7 @@ impl Live {
     fn ended(&mut self) {
         self.target = None;
         self.face = None;
+        self.adding = None;
         self.hold = None;
         self.pull = None;
         self.focus = None;
@@ -780,7 +835,8 @@ impl Live {
             self.bar.focus_field(&ctx, key);
         }
         if done && self.session.is_live() {
-            let o = self.session.enter();
+            // Done adds a primitive being dragged out as it stands, whatever step it is on.
+            let o = if self.adding.is_some() { touch::primitive::finish(&mut self.session) } else { self.session.enter() };
             self.outcome(o, Some(c.design), out);
         } else if cancel && self.session.is_live() {
             let o = self.session.feed(StepInput::Cancel);
@@ -804,6 +860,24 @@ impl Live {
                     r.set_preview_model(None);
                     r.set_preview_draft(false);
                 }
+            }
+            return;
+        }
+        // A primitive being dragged out: its unit tessellation staged once, carried to the size and seat it previews by the model matrix.
+        if let Some(adding) = &self.adding {
+            let Some(preview) = self.session.preview() else { return };
+            let want = Staged::Unit(adding.kind);
+            if self.staged != Some(want) {
+                let verts = adding.unit.as_ref().map(GpuMeshRenderer::stage_part).unwrap_or_default();
+                if let Ok(mut r) = renderer.lock() {
+                    r.set_pending_preview(verts);
+                    r.set_preview_draft(false);
+                }
+                self.staged = Some(want);
+            }
+            let model = unit_ghost(c.design, c.band.map(|b| b.as_ref()), &preview);
+            if let Ok(mut r) = renderer.lock() {
+                r.set_preview_model(model.as_ref().map(gl_model));
             }
             return;
         }

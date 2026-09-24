@@ -1,20 +1,22 @@
-//! Box select on the phone's ring: a mode in which one finger draws a box instead of turning the ring.
+//! Box select on the phone's ring: a mode in which one finger draws a box instead of turning the ring, taking whole parts or only their faces, edges or vertices.
 use egui::Pos2;
 use egui_mobile::egui;
 use ringdesign_core::interaction::pick::Ray;
 use ringdesign_workbench::{
     icons::Icon,
-    touch::boxes::{BoxOp, Drag},
+    touch::boxes::{BoxOp, Drag, Takes},
 };
 
 use super::{Cad, View, bar};
 
-/// Box select's switch, what a box does, and the box a finger holds.
+/// Box select's switch, what a box does and takes, and the box a finger holds.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Boxing {
     /// A one-finger drag on the ring draws a box.
     pub on: bool,
     pub op: BoxOp,
+    /// What a box takes, and a tap while box select is on.
+    pub takes: Takes,
     /// A finger is down on the ring and may yet draw a box.
     pressed: bool,
     drag: Option<Drag>,
@@ -76,11 +78,20 @@ impl Boxing {
     }
 }
 
-/// What the box bar's buttons do after the ops, in their order.
-const DONE: usize = BoxOp::ALL.len();
+/// The box bar's groups: what a box does to the choice, what it takes, then Done.
+const OPS: usize = 0;
+const TAKES: usize = 1;
+
+/// What a box of `takes` said it caught: whole parts plainly, a class of a part's entities by name.
+pub fn caught_words(kind: &str, takes: Takes, n: usize) -> String {
+    match takes {
+        Takes::Parts => format!("{kind} box: {n} selected"),
+        t => format!("{kind} box of {}: {n} selected", t.label().to_lowercase()),
+    }
+}
 
 impl Cad {
-    /// Chooses what the box `d` takes, as its op says; what it says.
+    /// Chooses what the box `d` takes, as its op and what it takes say; what it says.
     pub(super) fn finish_box(&mut self, v: &View, d: Drag) -> String {
         if !d.sized() {
             return "Box select: drag further for a box".into();
@@ -92,11 +103,11 @@ impl Cad {
             let (o, dir) = v.ray(p);
             Ray { origin: o.map(f64::from), direction: dir.map(f64::from) }
         };
-        let caught = d.catch(&scene, ray, self.selection.filter);
+        let caught = d.catch(&scene, ray, self.boxing.takes.filter());
         self.selection.boxed(&caught, self.boxing.op.mods());
         self.walk.forget();
         self.planes.chosen = None;
-        format!("{} box: {} selected", d.kind(), self.selection.items.len())
+        caught_words(d.kind(), self.boxing.takes, self.selection.items.len())
     }
 
     /// The box under the finger: a window drawn solid, a crossing dashed.
@@ -115,26 +126,34 @@ impl Cad {
         painter.text(r.left_top() + egui::vec2(4.0, -4.0), egui::Align2::LEFT_BOTTOM, d.kind(), egui::FontId::proportional(12.0), aqua);
     }
 
-    /// The box bar at the ring's foot: how to draw a box, what it does to the choice, and Done.
+    /// The box bar at the ring's foot: how to draw a box, what it does to the choice, what it takes, and Done.
     pub(super) fn box_bar(&mut self, ctx: &egui::Context, v: &View) {
         let lines = [
             ("Box select: drag left to right for a window, right to left for a crossing".to_string(), crate::theme::AQUA),
-            (format!("{} chosen · pinch still zooms", self.selection.items.len()), crate::theme::INK_DIM),
+            (format!("{} chosen · takes {} · pinch still zooms", self.selection.items.len(), self.boxing.takes.label().to_lowercase()), crate::theme::INK_DIM),
         ];
         let icons = [Icon::Select, Icon::Add, Icon::Delete];
-        let mut buttons: Vec<bar::Button> = BoxOp::ALL.iter().zip(icons).map(|(op, icon)| bar::Button { icon, label: op.label(), checked: self.boxing.op == *op, enabled: true }).collect();
-        buttons.push(bar::Button { icon: Icon::Check, label: "Done", checked: false, enabled: true });
-        match bar::show(ctx, v.rect, v.covered, &lines, &buttons) {
-            Some(DONE) => {
-                self.boxing.toggle();
-                self.status("Box select put away: a drag turns the ring again");
-            }
-            Some(i) => {
+        let ops: Vec<bar::Button> = BoxOp::ALL.iter().zip(icons).map(|(op, icon)| bar::Button { icon, label: op.label(), checked: self.boxing.op == *op, enabled: true }).collect();
+        let mut takes: Vec<bar::Button> = Takes::ALL.iter().map(|t| bar::Button { icon: t.icon(), label: t.label(), checked: self.boxing.takes == *t, enabled: true }).collect();
+        takes.push(bar::Button { icon: Icon::Check, label: "Done", checked: false, enabled: true });
+        match bar::show_groups(ctx, v.rect, v.covered, &lines, &[&ops, &takes]) {
+            Some((OPS, i)) => {
                 if let Some(op) = BoxOp::ALL.get(i) {
                     self.boxing.op = *op;
                 }
             }
-            None => {}
+            Some((TAKES, i)) => match Takes::ALL.get(i) {
+                Some(t) => {
+                    self.boxing.takes = *t;
+                    self.walk.forget();
+                    self.status(format!("Box select takes {}: a box or a tap chooses only those", t.label().to_lowercase()));
+                }
+                None => {
+                    self.boxing.toggle();
+                    self.status("Box select put away: a drag turns the ring again");
+                }
+            },
+            _ => {}
         }
     }
 }

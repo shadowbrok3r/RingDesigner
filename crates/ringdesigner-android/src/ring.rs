@@ -103,6 +103,8 @@ pub struct RingPane {
     pub edges: bool,
     /// The two-finger twist in hand.
     pub twist: Twist,
+    /// Where the fingers of the two-finger gesture in hand last stood.
+    pinched: Option<egui::Pos2>,
 }
 
 /// A pinch is never quite straight, so a twist turns nothing until the
@@ -169,19 +171,20 @@ impl Default for RingPane {
             focus: [0.0; 4],
             edges: true,
             twist: Twist::default(),
+            pinched: None,
         }
     }
 }
 
 impl RingPane {
-    /// Draw the pane. Returns whether the camera moved (keep repainting) and
-    /// the world ray under a long-press, for the tap probe.
+    /// Draws the pane, a pinch leaving the pivot on `pivot`'s metal when one is given; the response and the world ray under a long press, for the tap probe.
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
         renderer: &Arc<Mutex<GpuMeshRenderer>>,
         px_per_mm: Option<f32>,
         lock_orbit: bool,
+        pivot: Option<&ringdesign_core::Mesh>,
     ) -> ViewResponse {
         let (rect, response) =
             ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
@@ -227,7 +230,7 @@ impl RingPane {
             }
         }
 
-        let moved = !lock_orbit && self.handle_touch(ui, &response, rect);
+        let moved = !lock_orbit && self.handle_touch(ui, &response, rect, pivot);
         if moved || renderer.lock().is_ok_and(|r| r.timed()) {
             ui.ctx().request_repaint();
         }
@@ -264,24 +267,30 @@ impl RingPane {
         }
     }
 
-    /// One finger orbits, two pinch-zoom and pan. Returns whether anything changed.
-    fn handle_touch(&mut self, ui: &egui::Ui, response: &egui::Response, rect: egui::Rect) -> bool {
+    /// One finger orbits; two zoom, pan and twist about the metal under them, and leave the pivot on the ring when they lift. Returns whether anything changed.
+    fn handle_touch(&mut self, ui: &egui::Ui, response: &egui::Response, rect: egui::Rect, pivot: Option<&ringdesign_core::Mesh>) -> bool {
         let multi = pinch_in(ui, rect);
         if let Some(mt) = multi {
             // A second finger takes the gesture from the orbit outright, so a pinch never also
-            // spins the ring.
+            // spins the ring. What lay under the fingers stays under them as they zoom, twist and travel.
+            let (held, _) = self.camera.ray(rect, mt.center_pos - mt.translation_delta);
             if (mt.zoom_delta - 1.0).abs() > 1e-4 {
                 self.camera.zoom_by_factor(mt.zoom_delta);
-            }
-            if mt.translation_delta != egui::Vec2::ZERO {
-                self.camera.pan_by(mt.translation_delta, rect);
             }
             // Two fingers turning about each other roll the view, which is
             // the one way to stand the ring on its head: pitch stops at the poles.
             if !self.navigation.locked {
                 self.twist.advance(&mut self.camera.roll, Some(mt.rotation_delta));
             }
+            self.camera.keep_under(held, mt.center_pos, rect);
+            self.pinched = Some(mt.center_pos);
             return true;
+        }
+        // The fingers lifted: the orbit turns about the metal they zoomed in on from now on, before a twist settles about it.
+        if let Some(at) = self.pinched.take()
+            && let Some(mesh) = pivot
+        {
+            self.settle_pivot(mesh, rect, at);
         }
         let settling = self.twist.advance(&mut self.camera.roll, None);
         if response.dragged() {
@@ -293,6 +302,21 @@ impl RingPane {
             return true;
         }
         settling
+    }
+
+    /// Leaves the pivot on the metal of `mesh` under fingers that lifted at `at`, else under the view's middle, else on the middle's ray at the pivot's depth; nothing on screen moves.
+    pub fn settle_pivot(&mut self, mesh: &ringdesign_core::Mesh, rect: egui::Rect, at: egui::Pos2) {
+        let clock = std::time::Instant::now();
+        let ray = |p: egui::Pos2| {
+            let (o, d) = self.camera.ray(rect, p);
+            ringdesign_core::interaction::pick::Ray { origin: o.map(f64::from), direction: d.map(f64::from) }
+        };
+        let found = ringdesign_workbench::touch::view::pivot_after_pinch(mesh, ray(at), ray(rect.center()));
+        match found {
+            Some(p) => self.camera.pivot_on(p.map(|v| v as f32)),
+            None => self.camera.pivot_to_middle(rect),
+        }
+        log::info!("pinch pivot {:?} over {} tris in {:.1} ms", self.camera.target, mesh.faces.len(), clock.elapsed().as_secs_f64() * 1e3);
     }
 }
 
@@ -796,6 +820,77 @@ mod tests {
         }
         assert!(seen[0].is_some_and(|z| z > 1.0), "a pinch on the ring zooms it: {:?}", seen[0]);
         assert_eq!(seen[1], None, "a pinch on the sheet below leaves the ring alone");
+    }
+
+    #[test]
+    fn a_pinch_keeps_the_metal_under_the_fingers_and_leaves_the_pivot_on_it() {
+        use ringdesign_core::{AlphaLibrary, templates};
+        let d = templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let built = ringdesign_core::mesh::build(&d, &AlphaLibrary::builtin(), BuildParams { theta_steps: 192, profile_steps: 96, refine: None, ..BuildParams::default() });
+        let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400.0, 800.0));
+        let mut pane = RingPane::default();
+        pane.camera.fit(built.mesh.bounds());
+        // The metal the fingers come down on: the crest of the band's near side, off the middle of the view.
+        let (start, metal) = (200..300)
+            .step_by(5)
+            .find_map(|theta| {
+                let (p, _) = ringdesign_core::cad::surface_hit(&built.mesh, f64::from(theta), 0.0)?;
+                let p = p.map(|v| v as f32);
+                let at = pane.camera.projector(rect).at(p);
+                let (o, dir) = pane.camera.ray(rect, at);
+                let (_, first) = ringdesign_core::interaction::picking::raycast(&built.mesh, o, dir)?;
+                let seen = (0..3).map(|i| (first[i] - p[i]).powi(2)).sum::<f32>().sqrt() < 0.05;
+                (seen && (at - rect.center()).length() > 60.0 && rect.shrink(80.0).contains(at)).then_some((at, first))
+            })
+            .expect("the band's near side is in view");
+        let ctx = egui::Context::default();
+        let touch = |id: u64, phase: egui::TouchPhase, pos: egui::Pos2| egui::Event::Touch { device_id: egui::TouchDeviceId(1), id: egui::TouchId(id), phase, pos, force: None };
+        let run = |pane: &mut RingPane, events: Vec<egui::Event>, pivot: Option<&ringdesign_core::Mesh>| {
+            let input = egui::RawInput { events, screen_rect: Some(rect), ..Default::default() };
+            let mut out = ctx.run_ui(input, |ui| {
+                let (_, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
+                pane.handle_touch(ui, &response, rect, pivot);
+            });
+            out.textures_delta.clear();
+        };
+        let press = |pressed| egui::Event::PointerButton { pos: start, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        // Two fingers 40 pt either side of the metal, spreading to 140 while their middle travels 60 right and 30 up.
+        let fingers = |k: f32| (start + egui::vec2(60.0, -30.0) * k, 40.0 + 100.0 * k);
+        run(&mut pane, vec![touch(0, egui::TouchPhase::Start, start - egui::vec2(40.0, 0.0)), egui::Event::PointerMoved(start), press(true), touch(1, egui::TouchPhase::Start, start + egui::vec2(40.0, 0.0))], None);
+        run(&mut pane, Vec::new(), None);
+        let (mut old, mut last) = (pane.camera, (start, 40.0));
+        for k in 1..=10 {
+            let (c, h) = fingers(k as f32 / 10.0);
+            run(&mut pane, vec![touch(0, egui::TouchPhase::Move, c - egui::vec2(h, 0.0)), touch(1, egui::TouchPhase::Move, c + egui::vec2(h, 0.0))], None);
+            let under = pane.camera.projector(rect).at(metal);
+            assert!((under - c).length() < 0.5, "step {k}: the metal stands at {under:?}, the fingers at {c:?}");
+            // As it was read before: a zoom about the middle of the view, then the fingers' travel.
+            old.zoom_by_factor(h / last.1);
+            old.pan_by(c - last.0, rect);
+            last = (c, h);
+        }
+        assert!((pane.camera.zoom - 3.5).abs() < 0.01, "{}", pane.camera.zoom);
+        let (c, _) = fingers(1.0);
+        // Read the old way the metal runs out 2.5 times its offset from the middle of the view, less the travel the zooms stretched.
+        let drifted = (old.projector(rect).at(metal) - c).length();
+        let stretched: f32 = (1..=10).map(|k| 140.0 / (40.0 + 10.0 * k as f32)).sum();
+        let expected = ((start - rect.center()) * 2.5 + egui::vec2(6.0, -3.0) * (stretched - 10.0)).length();
+        assert!((drifted - expected).abs() < 1.0 && drifted > 100.0, "read the old way the metal ends {drifted} pt from the fingers, {expected} expected");
+        // The fingers lift: the pivot lands on the metal they held, and nothing on screen moves.
+        run(&mut pane, vec![touch(0, egui::TouchPhase::End, c), touch(1, egui::TouchPhase::End, c), press(false), egui::Event::PointerGone], Some(&built.mesh));
+        let pivot = pane.camera.target;
+        let off = (0..3).map(|i| (pivot[i] - metal[i]).powi(2)).sum::<f32>().sqrt();
+        assert!(off < 0.05, "the pivot {pivot:?} against the metal {metal:?}");
+        assert!((pane.camera.projector(rect).at(metal) - c).length() < 0.5);
+        // A turn now keeps that metal where it stands; about the ring's middle it would have swung away.
+        let mut kept = pane.camera;
+        kept.orbit(egui::vec2(-80.0, 30.0));
+        assert!((kept.projector(rect).at(metal) - c).length() < 0.5);
+        let mut swung = pane.camera;
+        swung.pivot_home();
+        swung.orbit(egui::vec2(-80.0, 30.0));
+        let away = (swung.projector(rect).at(metal) - c).length();
+        assert!(away > 100.0, "about the ring's middle the metal swings {away} pt");
     }
 
     #[test]

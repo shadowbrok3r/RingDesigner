@@ -1,10 +1,53 @@
-//! Box select by one finger: left to right a window, right to left a crossing, the catch replacing, joining or leaving the choice.
+//! Box select by one finger: left to right a window, right to left a crossing, the catch replacing, joining or leaving the choice, and whole parts or only their faces, edges or vertices taken.
+use crate::icons::Icon;
 use crate::viewport::{Mods, box_planes};
 use egui::{Pos2, Rect};
 use ringdesign_core::interaction::pick::{Entity, Filter, PickScene, Ray};
 
 /// A box narrower or shorter than this on screen takes nothing, points.
 pub const MIN_BOX_PT: f32 = 6.0;
+
+/// What a box takes: whole parts with the stones, seats and stamps beside them, or only the faces, edges or vertices of parts.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Takes {
+    #[default]
+    Parts,
+    Faces,
+    Edges,
+    Vertices,
+}
+
+impl Takes {
+    pub const ALL: [Self; 4] = [Self::Parts, Self::Faces, Self::Edges, Self::Vertices];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Parts => "Parts",
+            Self::Faces => "Faces",
+            Self::Edges => "Edges",
+            Self::Vertices => "Vertices",
+        }
+    }
+
+    pub fn icon(self) -> Icon {
+        match self {
+            Self::Parts => Icon::CadBox,
+            Self::Faces => Icon::Surface,
+            Self::Edges => Icon::Wire,
+            Self::Vertices => Icon::Measure,
+        }
+    }
+
+    /// The pick classes it keeps.
+    pub fn filter(self) -> Filter {
+        match self {
+            Self::Parts => Filter { parts: true, stones: true, made: true, ..Filter::none() },
+            Self::Faces => Filter { faces: true, ..Filter::none() },
+            Self::Edges => Filter { edges: true, ..Filter::none() },
+            Self::Vertices => Filter { vertices: true, ..Filter::none() },
+        }
+    }
+}
 
 /// What a box does to the choice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -156,5 +199,40 @@ mod tests {
         assert_eq!(s.items, [Sel::Part(2)]);
         assert_eq!(BoxOp::ALL.map(BoxOp::label), ["Replace", "Add", "Remove"]);
         assert_eq!(BoxOp::default(), BoxOp::Replace);
+    }
+
+    #[test]
+    fn a_box_takes_whole_parts_or_only_their_faces_edges_or_vertices() {
+        let d = posts();
+        let built = mesh::build(&d, &AlphaLibrary::builtin(), BuildParams { theta_steps: 256, profile_steps: 96, refine: None, ..BuildParams::default() });
+        let scene = PickScene::build(&built, &d);
+        let c = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 2).unwrap();
+        let (faces, edges, vertices) = (c.trace.face_kind.len(), c.edges.len(), c.trace.vertices.len());
+        // A 1 × 2 mm cylinder: a side and two ends, its two rims and their seams' ends.
+        assert_eq!((faces, edges), (3, 3), "vertices {vertices}");
+        let x = c.frame.origin[0];
+        let window = Drag { from: screen(x - 1.6, 1.6), to: screen(x + 1.6, -1.6) };
+        let take = |t: Takes| window.catch(&scene, ray, t.filter());
+        assert_eq!(take(Takes::Parts), [Entity::Part { feature: 2 }]);
+        assert_eq!(take(Takes::Faces), (0..faces as u32).map(|face| Entity::Face { feature: 2, face }).collect::<Vec<_>>());
+        assert_eq!(take(Takes::Edges), (0..edges as u32).map(|edge| Entity::Edge { feature: 2, edge }).collect::<Vec<_>>());
+        assert_eq!(take(Takes::Vertices), (0..vertices as u32).map(|vertex| Entity::Vertex { feature: 2, vertex }).collect::<Vec<_>>());
+        // Whatever the scene gives holds the part with everything of it; the choice keeps the part alone.
+        let all = window.catch(&scene, ray, Filter::default());
+        assert_eq!(all.len(), 1 + faces + edges + vertices, "{all:?}");
+        let mut s = Selection::default();
+        s.boxed(&all, BoxOp::Replace.mods());
+        assert_eq!(s.items, [Sel::Part(2)]);
+        // Taking faces, the choice is the faces themselves.
+        s.boxed(&take(Takes::Faces), BoxOp::Replace.mods());
+        assert_eq!(s.items, (0..faces as u32).map(|face| Sel::Face { feature: 2, face }).collect::<Vec<_>>());
+        // A crossing over both posts' middles takes the faces of both it touches, and the band never.
+        let crossing = Drag { from: screen(x + 0.5, 0.4), to: screen(-x - 0.5, -0.4) };
+        let touched = crossing.catch(&scene, ray, Takes::Faces.filter());
+        assert!(touched.iter().any(|e| matches!(e, Entity::Face { feature: 2, .. })) && touched.iter().any(|e| matches!(e, Entity::Face { feature: 3, .. })), "{touched:?}");
+        assert!(touched.iter().all(|e| matches!(e, Entity::Face { .. })));
+        assert_eq!(Takes::ALL.map(Takes::label), ["Parts", "Faces", "Edges", "Vertices"]);
+        assert_eq!(Takes::default(), Takes::Parts);
+        assert!(!Takes::Parts.filter().band && Takes::Parts.filter().stones && Takes::Parts.filter().made);
     }
 }
