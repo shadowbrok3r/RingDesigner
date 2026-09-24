@@ -7,8 +7,8 @@
     1536,
     448
   ],
-  "triangles": 1431802,
-  "build_s": 5.541594269,
+  "triangles": 1504894,
+  "build_s": 6.528596003,
   "watertight": true,
   "boundary_edges": 0,
   "non_manifold_edges": 0,
@@ -27,11 +27,19 @@
       0
     ],
     [
+      "Leg I trochanter, low side",
+      0
+    ],
+    [
       "Leg I knee, low side",
       0
     ],
     [
       "Leg I ankle, low side",
+      0
+    ],
+    [
+      "Leg I metatarsus, low side",
       0
     ],
     [
@@ -47,11 +55,19 @@
       0
     ],
     [
+      "Leg I trochanter, high side",
+      0
+    ],
+    [
       "Leg I knee, high side",
       0
     ],
     [
       "Leg I ankle, high side",
+      0
+    ],
+    [
+      "Leg I metatarsus, high side",
       0
     ],
     [
@@ -67,11 +83,19 @@
       0
     ],
     [
+      "Leg II trochanter, low side",
+      0
+    ],
+    [
       "Leg II knee, low side",
       0
     ],
     [
       "Leg II ankle, low side",
+      0
+    ],
+    [
+      "Leg II metatarsus, low side",
       0
     ],
     [
@@ -87,11 +111,19 @@
       0
     ],
     [
+      "Leg II trochanter, high side",
+      0
+    ],
+    [
       "Leg II knee, high side",
       0
     ],
     [
       "Leg II ankle, high side",
+      0
+    ],
+    [
+      "Leg II metatarsus, high side",
       0
     ],
     [
@@ -107,11 +139,19 @@
       0
     ],
     [
+      "Leg III trochanter, low side",
+      0
+    ],
+    [
       "Leg III knee, low side",
       0
     ],
     [
       "Leg III ankle, low side",
+      0
+    ],
+    [
+      "Leg III metatarsus, low side",
       0
     ],
     [
@@ -127,11 +167,19 @@
       0
     ],
     [
+      "Leg III trochanter, high side",
+      0
+    ],
+    [
       "Leg III knee, high side",
       0
     ],
     [
       "Leg III ankle, high side",
+      0
+    ],
+    [
+      "Leg III metatarsus, high side",
       0
     ],
     [
@@ -147,11 +195,19 @@
       0
     ],
     [
+      "Leg IV trochanter, low side",
+      0
+    ],
+    [
       "Leg IV knee, low side",
       0
     ],
     [
       "Leg IV ankle, low side",
+      0
+    ],
+    [
+      "Leg IV metatarsus, low side",
       0
     ],
     [
@@ -167,6 +223,10 @@
       0
     ],
     [
+      "Leg IV trochanter, high side",
+      0
+    ],
+    [
       "Leg IV knee, high side",
       0
     ],
@@ -175,7 +235,19 @@
       0
     ],
     [
+      "Leg IV metatarsus, high side",
+      0
+    ],
+    [
       "Abdomen belly",
+      0
+    ],
+    [
+      "Pedicel",
+      0
+    ],
+    [
+      "Spinnerets",
       0
     ]
   ],
@@ -191,58 +263,75 @@
   ],
   "solids_notes": [],
   "parts_notes": [],
-  "parts_joined": 41,
+  "parts_joined": 59,
   "field_verdict": "Castable",
   "field_notes": [
-    "Lost wax: 3.63% of the surface would undercut a two-part pull (worst 50.5 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Undercut 176–4° on the crest: 39.1 mm² leaning to 46° — caused by \"Orb web across the palm\"; muting it clears it.",
-    "Undercut 137–158° on the crest: 1.5 mm² leaning to 43° — caused by \"Dragline to the palm web\"; muting it clears it.",
+    "Lost wax: 4.09% of the surface would undercut a two-part pull (worst 50.5 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Undercut 153–27° on the crest: 45.2 mm² leaning to 46° — caused by \"Orb web across the palm\"; muting it clears it.",
+    "Undercut 135–135° on the crest: 0.2 mm² leaning to 3° — caused by \"Orb web across the palm\"; muting it clears it.",
     "2 made settings cast in place with the ring; the field judges the band under them.",
-    "Measured with the ring as built: 41 CAD parts (41 joined, 0 cut), 394.4 mm² of part surface; under lost wax they are reported, never gating.",
-    "Lost wax: Twisted sweep \"Leg I femur, low side\" (#2) would undercut a two-part pull over 6.3 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Measured with the ring as built: 59 CAD parts (59 joined, 0 cut), 403.5 mm² of part surface; under lost wax they are reported, never gating.",
+    "Lost wax: Twisted sweep \"Leg I femur, low side\" (#2) would undercut a two-part pull over 5.2 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
     "Lost wax: Twisted sweep \"Leg I tibia, low side\" (#3) would undercut a two-part pull over 6.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Twisted sweep \"Leg I tarsus, low side\" (#4) would undercut a two-part pull over 2.6 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Sphere \"Leg I knee, low side\" (#6) would undercut a two-part pull over 0.8 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Sphere \"Leg I ankle, low side\" (#8) would undercut a two-part pull over 0.4 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg I femur, high side\" (#9) would undercut a two-part pull over 6.3 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg I tibia, high side\" (#10) would undercut a two-part pull over 6.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg I tarsus, high side\" (#11) would undercut a two-part pull over 2.4 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg I knee, high side\" (#12) would undercut a two-part pull over 0.8 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg I ankle, high side\" (#13) would undercut a two-part pull over 0.3 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Twisted sweep \"Leg II femur, low side\" (#14) would undercut a two-part pull over 5.5 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Twisted sweep \"Leg II tibia, low side\" (#15) would undercut a two-part pull over 3.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Twisted sweep \"Leg II tarsus, low side\" (#16) would undercut a two-part pull over 1.8 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Sphere \"Leg II knee, low side\" (#18) would undercut a two-part pull over 0.7 mm² (worst -53°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Sphere \"Leg II ankle, low side\" (#20) would undercut a two-part pull over 0.5 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg II femur, high side\" (#21) would undercut a two-part pull over 5.5 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg II tibia, high side\" (#22) would undercut a two-part pull over 3.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg II tarsus, high side\" (#23) would undercut a two-part pull over 1.8 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg II knee, high side\" (#24) would undercut a two-part pull over 0.7 mm² (worst -53°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg II ankle, high side\" (#25) would undercut a two-part pull over 0.5 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Twisted sweep \"Leg III femur, low side\" (#26) would undercut a two-part pull over 5.1 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Twisted sweep \"Leg III tibia, low side\" (#27) would undercut a two-part pull over 3.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Twisted sweep \"Leg III tarsus, low side\" (#28) would undercut a two-part pull over 1.0 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Sphere \"Leg III knee, low side\" (#30) would undercut a two-part pull over 0.7 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Sphere \"Leg III ankle, low side\" (#32) would undercut a two-part pull over 0.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg III femur, high side\" (#33) would undercut a two-part pull over 5.1 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg III tibia, high side\" (#34) would undercut a two-part pull over 3.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg III tarsus, high side\" (#35) would undercut a two-part pull over 0.9 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg III knee, high side\" (#36) would undercut a two-part pull over 0.7 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg III ankle, high side\" (#37) would undercut a two-part pull over 0.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Twisted sweep \"Leg IV femur, low side\" (#38) would undercut a two-part pull over 5.4 mm² (worst -60°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Twisted sweep \"Leg IV tibia, low side\" (#39) would undercut a two-part pull over 5.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Twisted sweep \"Leg IV tarsus, low side\" (#40) would undercut a two-part pull over 1.6 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Sphere \"Leg IV knee, low side\" (#42) would undercut a two-part pull over 0.8 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Sphere \"Leg IV ankle, low side\" (#44) would undercut a two-part pull over 0.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg IV femur, high side\" (#45) would undercut a two-part pull over 5.4 mm² (worst -60°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg IV tibia, high side\" (#46) would undercut a two-part pull over 5.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg IV tarsus, high side\" (#47) would undercut a two-part pull over 1.3 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg IV knee, high side\" (#48) would undercut a two-part pull over 0.8 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"Leg IV ankle, high side\" (#49) would undercut a two-part pull over 0.3 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is."
+    "Lost wax: Twisted sweep \"Leg I tarsus, low side\" (#4) would undercut a two-part pull over 2.3 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg I trochanter, low side\" (#6) would undercut a two-part pull over 1.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg I knee, low side\" (#8) would undercut a two-part pull over 0.8 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg I ankle, low side\" (#10) would undercut a two-part pull over 0.4 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg I metatarsus, low side\" (#12) would undercut a two-part pull over 0.3 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg I femur, high side\" (#13) would undercut a two-part pull over 5.2 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg I tibia, high side\" (#14) would undercut a two-part pull over 6.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg I tarsus, high side\" (#15) would undercut a two-part pull over 2.2 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg I trochanter, high side\" (#16) would undercut a two-part pull over 1.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg I knee, high side\" (#17) would undercut a two-part pull over 0.8 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg I ankle, high side\" (#18) would undercut a two-part pull over 0.3 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg I metatarsus, high side\" (#19) would undercut a two-part pull over 0.3 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Leg II femur, low side\" (#20) would undercut a two-part pull over 4.4 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Leg II tibia, low side\" (#21) would undercut a two-part pull over 3.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Leg II tarsus, low side\" (#22) would undercut a two-part pull over 1.6 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg II trochanter, low side\" (#24) would undercut a two-part pull over 1.2 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg II knee, low side\" (#26) would undercut a two-part pull over 0.7 mm² (worst -53°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg II ankle, low side\" (#28) would undercut a two-part pull over 0.5 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg II metatarsus, low side\" (#30) would undercut a two-part pull over 0.2 mm² (worst -56°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg II femur, high side\" (#31) would undercut a two-part pull over 4.4 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg II tibia, high side\" (#32) would undercut a two-part pull over 3.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg II tarsus, high side\" (#33) would undercut a two-part pull over 1.5 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg II trochanter, high side\" (#34) would undercut a two-part pull over 1.2 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg II knee, high side\" (#35) would undercut a two-part pull over 0.7 mm² (worst -53°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg II ankle, high side\" (#36) would undercut a two-part pull over 0.5 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg II metatarsus, high side\" (#37) would undercut a two-part pull over 0.2 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Leg III femur, low side\" (#38) would undercut a two-part pull over 4.0 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Leg III tibia, low side\" (#39) would undercut a two-part pull over 3.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Leg III tarsus, low side\" (#40) would undercut a two-part pull over 1.0 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg III trochanter, low side\" (#42) would undercut a two-part pull over 1.2 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg III knee, low side\" (#44) would undercut a two-part pull over 0.7 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg III ankle, low side\" (#46) would undercut a two-part pull over 0.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg III metatarsus, low side\" (#48) would undercut a two-part pull over 0.0 mm² (worst -14°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg III femur, high side\" (#49) would undercut a two-part pull over 4.0 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg III tibia, high side\" (#50) would undercut a two-part pull over 3.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg III tarsus, high side\" (#51) would undercut a two-part pull over 0.9 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg III trochanter, high side\" (#52) would undercut a two-part pull over 1.2 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg III knee, high side\" (#53) would undercut a two-part pull over 0.7 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg III ankle, high side\" (#54) would undercut a two-part pull over 0.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg III metatarsus, high side\" (#55) would undercut a two-part pull over 0.0 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Leg IV femur, low side\" (#56) would undercut a two-part pull over 4.3 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Leg IV tibia, low side\" (#57) would undercut a two-part pull over 5.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Leg IV tarsus, low side\" (#58) would undercut a two-part pull over 1.6 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg IV trochanter, low side\" (#60) would undercut a two-part pull over 1.2 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg IV knee, low side\" (#62) would undercut a two-part pull over 0.8 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg IV ankle, low side\" (#64) would undercut a two-part pull over 0.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg IV metatarsus, low side\" (#66) would undercut a two-part pull over 0.0 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg IV femur, high side\" (#67) would undercut a two-part pull over 4.3 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg IV tibia, high side\" (#68) would undercut a two-part pull over 5.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg IV tarsus, high side\" (#69) would undercut a two-part pull over 1.4 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg IV trochanter, high side\" (#70) would undercut a two-part pull over 1.2 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg IV knee, high side\" (#71) would undercut a two-part pull over 0.8 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg IV ankle, high side\" (#72) would undercut a two-part pull over 0.4 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg IV metatarsus, high side\" (#73) would undercut a two-part pull over 0.0 mm² (worst -13°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Spinnerets\" (#76) would undercut a two-part pull over 0.0 mm² (worst -3°) — fine for investment, but this pattern cannot move to sand as-is."
   ],
-  "parts_undercut_mm2": 104.94295334786922,
-  "parts_area_mm2": 394.36527535093876,
-  "undercut_percent": 9.651985802611728,
+  "parts_undercut_mm2": 105.77266654463624,
+  "parts_area_mm2": 403.54160003707324,
+  "undercut_percent": 9.960999708274104,
   "worst_draft_deg": -89.98152715862544,
   "thinnest_wall_mm": 1.8854746664150568,
   "thinnest_wall_theta_deg": 264.375,
@@ -259,12 +348,11 @@
   "layers": [
     "Orb web on both cheeks",
     "Orb web across the palm",
-    "Dragline to the palm web",
     "Carapace, garnet in its collet",
     "Abdomen, onyx in its collet"
   ],
-  "cad_features": 50,
-  "grams_18k": 19.151913708720553,
+  "cad_features": 76,
+  "grams_18k": 19.361423069742795,
   "cold_reload_identical": true,
   "gates_passed": true
 }

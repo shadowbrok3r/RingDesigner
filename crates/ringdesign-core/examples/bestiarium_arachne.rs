@@ -7,7 +7,6 @@ use ringdesign_core::{
     cad::{Attach, Component, Document, Feature, MirrorPlane, Operation, PatternKind, Placement},
     castability::{self, CastProcess},
     csg, dfm, library, manufacturing as mf,
-    curve::{CurveLayer, WireProfile},
     field::{Decal, DecalLayer, SeatPadLayer, SeatStyle, SideFacePick, VGate},
     gem::{Gem, GemCut},
     mesh, profile::ShankKey, render, stl,
@@ -24,8 +23,11 @@ const ABDOMEN_DEG: f64 = 108.0;
 const WEB: &str = "Orb web";
 const PALM_WEB: &str = "Palm orb web";
 const PALM_DEG: f64 = 270.0;
+/// The waist between the two body parts, and the spinnerets behind the abdomen on the web's crest thread.
+const PEDICEL_DEG: f64 = 78.6;
+const SPINNERET_DEG: f64 = 140.0;
 /// Half the palm web's reach round the ring and across the crown, chart mm.
-const PALM_WEB_HALF: [f64; 2] = [21.5, 2.8];
+const PALM_WEB_HALF: [f64; 2] = [26.9, 2.8];
 
 type P2 = [f64; 2];
 type P3 = [f64; 3];
@@ -74,7 +76,7 @@ fn onyx() -> Gem {
     g
 }
 
-/// The cephalothorax: a garnet in its collet on a low carapace the legs spring from.
+/// The cephalothorax seat: a garnet cabochon in a collet on a domed pad.
 fn carapace(ctx: &ringdesign_core::FieldContext) -> SeatPadLayer {
     let mut seat = SeatPadLayer {
         theta_deg: CARAPACE_DEG,
@@ -93,7 +95,7 @@ fn carapace(ctx: &ringdesign_core::FieldContext) -> SeatPadLayer {
     seat
 }
 
-/// The abdomen: an onyx oval cabochon in its collet on a pedestal.
+/// The abdomen seat: an onyx oval cabochon in a collet on a domed pad.
 fn abdomen(ctx: &ringdesign_core::FieldContext) -> SeatPadLayer {
     let mut seat = SeatPadLayer {
         theta_deg: ABDOMEN_DEG,
@@ -110,8 +112,7 @@ fn abdomen(ctx: &ringdesign_core::FieldContext) -> SeatPadLayer {
     seat
 }
 
-/// The orb web tile: radial threads across the face and capture threads that climb one row
-/// per tile, so round the ring they run as one spiral; every thread sags toward the hub.
+/// The cheek web tile: radials across the face, capture threads sagging toward the hub and climbing one row per tile.
 fn web_svg(cell_w: f64, cell_h: f64, radials: usize, pitch: f64) -> String {
     let (radial_w, spiral_w) = (0.34, 0.30);
     let mut s = format!(
@@ -158,9 +159,7 @@ fn web(d: &mut RingDesign) -> Result<()> {
     Ok(())
 }
 
-/// The palm's orb web in chart millimetres: a hub on the crest, radials to the crest's two ends and to
-/// anchors on both band edges, capture threads round the hub sagging toward it between radials long
-/// enough to hold them, and past the orb only the long anchor lines fanning up the shoulders.
+/// The palm orb web in chart mm: a hub, radials to the crest ends and to edge anchors, capture threads round the hub.
 fn palm_web_svg(half: [f64; 2]) -> String {
     let [l, h] = half;
     let (radial_w, capture_w, hub_r) = (0.36, 0.32, 0.55);
@@ -168,10 +167,10 @@ fn palm_web_svg(half: [f64; 2]) -> String {
         r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="{:.4} {:.4} {:.4} {:.4}" width="{:.4}" height="{:.4}"><rect x="{:.4}" y="{:.4}" width="{:.4}" height="{:.4}" fill="#fff"/><g fill="none" stroke="#000" stroke-linecap="round">"##,
         -l, -h, 2.0 * l, 2.0 * h, 2.0 * l, 2.0 * h, -l, -h, 2.0 * l, 2.0 * h
     );
-    // Radials: the crest both ways to an anchor inside the web's reach, and anchors on each edge a little past the crown.
-    let crest_end = l - 0.45;
+    // Radials to the crest ends and to anchors just past both band edges.
+    let crest_end = l - 0.35;
     let mut ends: Vec<[f64; 2]> = vec![[crest_end, 0.0], [-crest_end, 0.0]];
-    for u in [0.95, 2.7, 5.4, 9.2, 14.0, 19.5] {
+    for u in [0.95, 2.7, 5.4, 9.2, 12.4, 16.2, 20.0, 24.2] {
         for (su, sv) in [(1.0, 1.0), (-1.0, 1.0), (1.0, -1.0), (-1.0, -1.0)] {
             ends.push([su * u, sv * h * 1.08]);
         }
@@ -202,7 +201,7 @@ fn palm_web_svg(half: [f64; 2]) -> String {
     s
 }
 
-/// The palm's orb web on the crown, and the dragline the weaver pays out from under her abdomen to it.
+/// Adds the palm orb web, its crest threads running up to the carapace in front and past the spinnerets behind.
 fn palm(d: &mut RingDesign) -> Result<()> {
     let ctx = d.field_context();
     d.svgs.push(SvgAlpha { name: PALM_WEB.into(), svg: palm_web_svg(PALM_WEB_HALF), invert: false });
@@ -210,27 +209,8 @@ fn palm(d: &mut RingDesign) -> Result<()> {
     let mut e = LayerEntry::new("Orb web across the palm", Layer::Decals(DecalLayer { alpha: PALM_WEB.into(), decals: vec![stamp], feather_mm: 0.05, invert: false }));
     e.blend = Blend::Max;
     d.layers.layers.push(e);
-    // The dragline: from under the abdomen's tail along the crest to the palm web's end.
-    let reach = PALM_WEB_HALF[0] / ctx.circumference_mm * 360.0;
-    let (from, to) = (ABDOMEN_DEG + 20.0, PALM_DEG - reach + 1.0);
-    let m = ctx.crest_v_mm;
-    let line = CurveLayer {
-        points: vec![[from / 360.0, m], [(0.6 * from + 0.4 * to) / 360.0, m + 0.35], [(0.25 * from + 0.75 * to) / 360.0, m - 0.25], [to / 360.0, m]],
-        repeats_around: 1,
-        closed: false,
-        width_mm: 0.5,
-        height_mm: 0.3,
-        profile: WireProfile::Round,
-        taper: 0.08,
-        mirror_v: false,
-    };
-    let mut e = LayerEntry::new("Dragline to the palm web", Layer::Curve(line));
-    e.blend = Blend::Max;
-    d.layers.layers.push(e);
     Ok(())
 }
-
-// ---- The band's own sections, read in the world ------------------------------------------------
 
 fn dot(a: P3, b: P3) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
@@ -277,7 +257,7 @@ impl Bare {
     }
 }
 
-/// A part's frame on the ring: origin and its three axes, as the build seats it.
+/// A part frame on the ring: origin and axes, as the build seats it.
 #[derive(Clone, Copy)]
 struct Frame {
     o: P3,
@@ -297,9 +277,12 @@ impl Frame {
     fn world(&self, p: P2) -> P3 {
         std::array::from_fn(|k| self.o[k] + self.x[k] * p[0] + self.z[k] * p[1])
     }
+    /// A world point in this frame's own coordinates.
+    fn local(&self, w: P3) -> P3 {
+        let d = sub3(w, self.o);
+        [dot(d, self.x), dot(d, self.y), dot(d, self.z)]
+    }
 }
-
-// ---- Legs ----------------------------------------------------------------------------------------
 
 fn sub3(a: P3, b: P3) -> P3 {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
@@ -338,24 +321,17 @@ fn add(p: P2, v: P2, k: f64) -> P2 {
     [p[0] + v[0] * k, p[1] + v[1] * k]
 }
 
-impl Frame {
-    /// A world point in this frame's own coordinates.
-    fn local(&self, w: P3) -> P3 {
-        let d = sub3(w, self.o);
-        [dot(d, self.x), dot(d, self.y), dot(d, self.z)]
-    }
-}
-
-/// How one leg stands.
+/// One leg's placement and shape.
 #[derive(Clone, Copy)]
 struct LegSpec {
     name: &'static str,
     /// Turn of the leg's upright plane round the carapace's normal; negative reaches forward.
     spin_deg: f64,
-    /// The knee: its share of the way out from the coxa to the ankle (past 1 it stands outside the foot),
-    /// its rise over the higher of the two, and the direction the tibia leaves it in.
+    /// Knee position as a share of the way from the coxa to the ankle; past 1 it stands outside the foot.
     knee_share: f64,
+    /// Knee height over the higher of the coxa's end and the ankle.
     knee_rise_mm: f64,
+    /// Direction the tibia leaves the knee in.
     knee_out_deg: f64,
     /// Degrees round the ring the tarsus runs along the cheek from the ankle, signed.
     run_deg: f64,
@@ -363,11 +339,11 @@ struct LegSpec {
     foot_share: f64,
 }
 
-/// Where the coxa leaves the carapace and how it rises, in the leg's upright plane.
+/// Coxa root, direction and length in the leg's upright plane.
 const ROOT: P2 = [2.4, -0.95];
 const COXA_DEG: f64 = 50.0;
 const COXA_MM: f64 = 0.7;
-/// Section radii: each piece starts full at its joint and narrows into the next, the way a spider's leg segments do.
+/// Section radii at the root, femur end, knee, tibia end, ankle and tip.
 const ROOT_MM: f64 = 0.72;
 const FEMUR_END_MM: f64 = 0.5;
 const KNEE_MM: f64 = 0.6;
@@ -387,7 +363,6 @@ struct Segment {
     path: Sketch,
     section: Sketch,
     end_scale: f64,
-    blend_mm: f64,
 }
 
 /// One leg in the carapace's frame: femur, tibia and tarsus, and the knuckles at the knee and the ankle.
@@ -438,8 +413,7 @@ fn cubic(a: P2, da: f64, b: P2, h: f64) -> [P2; 4] {
     [a, add(a, dir(da), h * span), add(b, dir(2.0 * chord - da), -h * span), b]
 }
 
-/// Of the handle lengths that keep a cubic gentler than `radius` can follow and `clear` of the band over
-/// `window`, the one nearest 0.4 of the span.
+/// The cubic with handles nearest 0.4 of the span that bends gentler than `radius` and clears the band over `window`.
 fn gentle(f: &Frame, bare: &Bare, a: P2, da: f64, b: P2, radius: [f64; 2], window: [f64; 2]) -> Option<[P2; 4]> {
     (0..=24)
         .map(|k| 0.22 + 0.02 * k as f64)
@@ -469,8 +443,7 @@ fn section_at(at: P3, along: P3, radius: f64) -> Sketch {
     s
 }
 
-/// Solves one leg against the band: femur up to a high knee, tibia down to an ankle past the band's
-/// edge, and a tarsus laid along the cheek to a foot sunk in it.
+/// Solves one leg: femur to a high knee, tibia to an ankle past the band's edge, tarsus along the cheek.
 fn solve_leg(spec: &LegSpec, frame: &Frame, bare: &Bare) -> Result<Leg> {
     let f = frame.spun(spec.spin_deg);
     let (sa, ca) = spec.spin_deg.to_radians().sin_cos();
@@ -495,7 +468,7 @@ fn solve_leg(spec: &LegSpec, frame: &Frame, bare: &Bare) -> Result<Leg> {
     let mut tibia_path = Sketch { name: "Tibia path".into(), plane: upright, ..Sketch::default() };
     let pts = tibia.map(|q| tibia_path.point(q));
     tibia_path.entity(Geometry::Bezier { points: pts });
-    // The tarsus: a circular arc from the ankle through the cheek's middle to the foot, sinking as it runs.
+    // Tarsus: a circular arc from the ankle through the cheek's middle to the sunk foot.
     let a_world = f.world(ankle);
     let a_theta = a_world[1].atan2(a_world[0]).to_degrees();
     let (_, edge, bore) = bare.cheek(a_theta);
@@ -525,6 +498,9 @@ fn solve_leg(spec: &LegSpec, frame: &Frame, bare: &Bare) -> Result<Leg> {
     let mut tarsus_path = Sketch { name: "Tarsus path".into(), plane: Workplane { origin: centre, x: u, y: v, on_face: None }, ..Sketch::default() };
     let (o, s0, s1) = (tarsus_path.point([0.0, 0.0]), tarsus_path.point([r, 0.0]), tarsus_path.point([r * af.cos(), r * af.sin()]));
     tarsus_path.entity(Geometry::Arc { center: o, start: s0, end: s1 });
+    // Metatarsus joint, part way along the tarsus.
+    let (sm, cm) = (0.42 * af).sin_cos();
+    let metatarsus: P3 = std::array::from_fn(|k| centre[k] + r * (cm * u[k] + sm * v[k]));
     let c = COXA_DEG.to_radians();
     let mut femur_section = Sketch::circle(ROOT_MM);
     femur_section.plane = Workplane { origin: lift(ROOT), x: [-sa, ca, 0.0], y: [-c.sin() * ca, -c.sin() * sa, c.cos()], on_face: None };
@@ -537,16 +513,21 @@ fn solve_leg(spec: &LegSpec, frame: &Frame, bare: &Bare) -> Result<Leg> {
     );
     Ok(Leg {
         segments: vec![
-            Segment { name: "femur", path: femur_path, section: femur_section, end_scale: FEMUR_END_MM / ROOT_MM, blend_mm: 0.0 },
-            Segment { name: "tibia", path: tibia_path, section: section_at(lift(knee), lift_dir(spec.knee_out_deg), KNEE_MM * 0.97), end_scale: TIBIA_END_MM / (KNEE_MM * 0.97), blend_mm: 0.0 },
-            Segment { name: "tarsus", path: tarsus_path, section: section_at(al, v, ANKLE_MM * 0.97), end_scale: TIP_MM / (ANKLE_MM * 0.97), blend_mm: 0.0 },
+            Segment { name: "femur", path: femur_path, section: femur_section, end_scale: FEMUR_END_MM / ROOT_MM },
+            Segment { name: "tibia", path: tibia_path, section: section_at(lift(knee), lift_dir(spec.knee_out_deg), KNEE_MM * 0.97), end_scale: TIBIA_END_MM / (KNEE_MM * 0.97) },
+            Segment { name: "tarsus", path: tarsus_path, section: section_at(al, v, ANKLE_MM * 0.97), end_scale: TIP_MM / (ANKLE_MM * 0.97) },
         ],
-        knuckles: vec![("knee", lift(knee), KNEE_MM), ("ankle", al, ANKLE_MM)],
+        knuckles: vec![
+            ("trochanter", lift(trochanter), ROOT_MM * 1.02),
+            ("knee", lift(knee), KNEE_MM),
+            ("ankle", al, ANKLE_MM),
+            ("metatarsus", metatarsus, (ANKLE_MM + (TIP_MM - ANKLE_MM) * 0.42) * 1.12),
+        ],
     })
 }
 
 fn legs(d: &mut RingDesign, lib: &AlphaLibrary) -> Result<()> {
-    // The band as swept, which parts are seated on: the carapace's frame read off it.
+    // The carapace frame, read off the band as swept.
     let swept = mesh::try_build(d, lib, draft_params())?;
     let surface = swept.band.clone().context("The band did not sweep")?;
     let seat = Placement::ring(CARAPACE_DEG, 0.0).frame_on(d, Some(&surface))?;
@@ -570,30 +551,27 @@ fn legs(d: &mut RingDesign, lib: &AlphaLibrary) -> Result<()> {
         Ok(id)
     };
     let at = Placement::ring(CARAPACE_DEG, 0.0);
-    let part = |blend_mm: f64, placement: Placement| Component { attach: Attach::Join, blend_mm, placement, ..Component::default() };
+    let part = |placement: Placement| Component { attach: Attach::Join, placement, ..Component::default() };
     for spec in &specs {
         let leg = solve_leg(spec, &frame, &bare)?;
         let mut outputs = Vec::new();
         for s in leg.segments {
             let op = Operation::Twist { sketch: s.section.into(), path: s.path, degrees: 0.0, end_scale: s.end_scale };
-            outputs.push((append(doc, format!("{} {}, low side", spec.name, s.name), op, part(s.blend_mm, at.clone()))?, s.blend_mm));
+            outputs.push(append(doc, format!("{} {}, low side", spec.name, s.name), op, part(at.clone()))?);
         }
         for (joint, centre, radius) in leg.knuckles {
             let ball = append(doc, format!("{} {joint} knuckle", spec.name), Operation::Sphere { radius_mm: radius }, Component::default())?;
             let moved = Operation::Transform { source: ball, translation: centre, rotation_deg: [0.0; 3] };
-            outputs.push((append(doc, format!("{} {joint}, low side", spec.name), moved, part(0.0, at.clone()))?, 0.0));
+            outputs.push(append(doc, format!("{} {joint}, low side", spec.name), moved, part(at.clone()))?);
         }
-        for (source, blend) in outputs {
+        for source in outputs {
             let name = doc.feature(source).map(|f| f.name.replace("low side", "high side")).unwrap_or_default();
-            append(doc, name, Operation::Pattern { source, kind: PatternKind::Mirror { plane: MirrorPlane::Band } }, part(blend, Placement::Free))?;
+            append(doc, name, Operation::Pattern { source, kind: PatternKind::Mirror { plane: MirrorPlane::Band } }, part(Placement::Free))?;
         }
     }
     Ok(())
 }
 
-// ---- The abdomen's belly -------------------------------------------------------------------------
-
-/// A closed polygonal ellipse on the part's horizontal plane at height `z`.
 /// A closed polygonal ellipse on the part's horizontal plane at height `z`.
 fn ellipse(a: f64, b: f64, z: f64) -> Sketch {
     let mut s = Sketch { name: "Abdomen row".into(), plane: Workplane { origin: [0.0, 0.0, z], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], on_face: None }, ..Sketch::default() };
@@ -611,18 +589,16 @@ fn ellipse(a: f64, b: f64, z: f64) -> Sketch {
 const BELLY_SIDES: usize = 144;
 const BELLY_ROWS: usize = 14;
 
-/// The abdomen's belly: one lofted body under the onyx's collet, leaving its wall at the collet's foot,
-/// swelling past the band's edges and falling back into the band. It stops under the stone's back, so
-/// the stone's own pocket stays the collet's.
+/// The abdomen's belly: a lofted body from the collet's wall under the stone's back, swelling and falling into the band.
 fn abdomen_body(d: &mut RingDesign) -> Result<()> {
     let doc = d.cad.get_or_insert_with(Document::default);
     let next = doc.features.iter().map(|f| f.id).max().unwrap_or(0) + 1;
     let gem = onyx();
     let wall = ringdesign_core::setting::collet_wall_mm(gem);
-    // The collet's own wall just under the stone's back; the part's x runs across the band and y round the ring.
+    // The collet wall's plan just under the stone's back; x across the band, y round the ring.
     let (a, b) = (gem.w_mm * 0.5 + 0.03 + 0.78 * wall, gem.l_mm * 0.5 + 0.03 + 0.78 * wall);
     let (top, bottom, widest, swell, foot) = (0.26, -2.3, 0.4, 0.14, 0.34);
-    // Scale of the collet's plan down the belly: out to the swell, then round and in to the foot.
+    // Plan scale down the belly: out to the swell, then round in to the foot.
     let scale = |t: f64| {
         if t <= widest {
             1.0 + swell * (0.5 * PI * t / widest).sin()
@@ -631,7 +607,7 @@ fn abdomen_body(d: &mut RingDesign) -> Result<()> {
             foot + (1.0 + swell - foot) * (1.0 - u * u).max(0.0).sqrt()
         }
     };
-    // Rows from the bottom up, the way the loft runs along their planes' normal.
+    // Rows bottom up, along their planes' normal.
     let sections = (0..BELLY_ROWS)
         .rev()
         .map(|i| {
@@ -640,8 +616,20 @@ fn abdomen_body(d: &mut RingDesign) -> Result<()> {
             ellipse(a * scale(t), b * scale(t), top + (bottom - top) * t).into()
         })
         .collect();
-    let component = Component { attach: Attach::Join, blend_mm: 0.0, placement: Placement::ring(ABDOMEN_DEG, 0.0), ..Component::default() };
+    let component = Component { attach: Attach::Join, placement: Placement::ring(ABDOMEN_DEG, 0.0), ..Component::default() };
     doc.append(Feature { id: next, name: "Abdomen belly".into(), enabled: true, operation: Operation::Loft { sections }, component })?;
+    Ok(())
+}
+
+/// The pedicel knot between carapace and abdomen, and the spinneret nub the dragline leaves from.
+fn nubs(d: &mut RingDesign) -> Result<()> {
+    let doc = d.cad.get_or_insert_with(Document::default);
+    let mut next = doc.features.iter().map(|f| f.id).max().unwrap_or(0) + 1;
+    for (name, theta, radius, height) in [("Pedicel", PEDICEL_DEG, 0.95, 0.35), ("Spinnerets", SPINNERET_DEG, 0.62, 0.12)] {
+        let component = Component { attach: Attach::Join, placement: Placement::ring(theta, height), ..Component::default() };
+        doc.append(Feature { id: next, name: name.into(), enabled: true, operation: Operation::Sphere { radius_mm: radius }, component })?;
+        next += 1;
+    }
     Ok(())
 }
 
@@ -661,6 +649,7 @@ fn author() -> Result<(RingDesign, AlphaLibrary)> {
     d.bake_all(&mut lib);
     legs(&mut d, &lib)?;
     abdomen_body(&mut d)?;
+    nubs(&mut d)?;
     Ok((d, lib))
 }
 
@@ -685,7 +674,7 @@ struct Report {
     parts_joined: usize,
     field_verdict: String,
     field_notes: Vec<String>,
-    /// The CAD parts read against a two-part pull on the built ring: reported under lost wax, never gating.
+    /// Undercut read on the CAD parts against a two-part pull; reported under lost wax, never gating.
     parts_undercut_mm2: f64,
     parts_area_mm2: f64,
     undercut_percent: f64,
@@ -794,7 +783,7 @@ fn side_by_side(path: &Path, left: &[u8], right: &[u8], edge: usize) -> Result<(
     Ok(())
 }
 
-/// Studio-gold renders with the stones set: the named views, a close-up of the spider, and the bare stock against the finished ring.
+/// Studio-gold renders with stones: named views, a spider close-up, and bare stock against the finished ring.
 fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult, edge: usize) -> Result<()> {
     let gems = stones(d, lib);
     let stone_parts = || {
@@ -819,7 +808,7 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
     ] {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
     }
-    // The close-up frames on the spider, the metal within reach of its two stones, and draws the whole ring.
+    // The close-up frames on the metal round the stones and draws the whole ring.
     let frames = ringdesign_core::stones::stone_frames(d);
     let centre: P3 = std::array::from_fn(|k| frames.iter().map(|(_, f)| f.girdle[k]).sum::<f64>() / frames.len().max(1) as f64);
     let spider = crop(&built.mesh, centre, 11.0);
@@ -865,7 +854,7 @@ fn crossings(d: &RingDesign, built: &mesh::BuildResult) -> (Vec<(String, usize)>
 
 /// The legs' narrowest section, and the narrowest left standing clear of the cheek.
 fn leg_sections() -> (f64, f64) {
-    // The tip is sunk TIP_EMBED_MM into the cheek; what stands clear of it is the tarsus a little before.
+    // Exposed tarsus radius just short of the sunk tip.
     let exposed = TIP_MM + (ANKLE_MM - TIP_MM) * 0.12;
     (2.0 * TIP_MM, 2.0 * exposed)
 }

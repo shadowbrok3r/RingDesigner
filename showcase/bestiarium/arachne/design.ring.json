@@ -226,7 +226,7 @@
               {
                 "theta_deg": 270.0,
                 "v_mm": 4.388769596654569,
-                "size_mm": 43.0,
+                "size_mm": 53.8,
                 "rotation_deg": 0.0,
                 "height_mm": 0.3,
                 "flip": false
@@ -234,52 +234,6 @@
             ],
             "feather_mm": 0.05,
             "invert": false
-          }
-        }
-      },
-      {
-        "name": "Dragline to the palm web",
-        "enabled": true,
-        "blend": "Max",
-        "opacity": 1.0,
-        "soft_mm": 0.3,
-        "window": {
-          "enabled": false,
-          "theta_deg": 90.0,
-          "span_deg": 90.0,
-          "fade_deg": 12.0,
-          "invert": false,
-          "v_gate": "Off"
-        },
-        "mask": null,
-        "remap": "Off",
-        "layer": {
-          "Curve": {
-            "points": [
-              [
-                0.35555555555555557,
-                4.388769596654569
-              ],
-              [
-                0.39057804655996364,
-                4.738769596654569
-              ],
-              [
-                0.42122272618882084,
-                4.138769596654569
-              ],
-              [
-                0.44311178306657595,
-                4.388769596654569
-              ]
-            ],
-            "repeats_around": 1,
-            "closed": false,
-            "width_mm": 0.5,
-            "height_mm": 0.3,
-            "profile": "Round",
-            "taper": 0.08,
-            "mirror_v": false
           }
         }
       },
@@ -977,6 +931,72 @@
       },
       {
         "id": 5,
+        "name": "Leg I trochanter knuckle",
+        "enabled": true,
+        "operation": {
+          "Sphere": {
+            "radius_mm": 0.7343999999999999
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 6,
+        "name": "Leg I trochanter, low side",
+        "enabled": true,
+        "operation": {
+          "Transform": {
+            "source": 5,
+            "translation": [
+              1.5936725571727384,
+              -2.3627167298541907,
+              -0.41376888981671534
+            ],
+            "rotation_deg": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 64.0,
+            "across_mm": 0.0,
+            "height_mm": 0.0,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 7,
         "name": "Leg I knee knuckle",
         "enabled": true,
         "operation": {
@@ -1001,12 +1021,12 @@
         }
       },
       {
-        "id": 6,
+        "id": 8,
         "name": "Leg I knee, low side",
         "enabled": true,
         "operation": {
           "Transform": {
-            "source": 5,
+            "source": 7,
             "translation": [
               3.0977580090526042,
               -4.592615114119127,
@@ -1042,7 +1062,7 @@
         }
       },
       {
-        "id": 7,
+        "id": 9,
         "name": "Leg I ankle knuckle",
         "enabled": true,
         "operation": {
@@ -1067,12 +1087,12 @@
         }
       },
       {
-        "id": 8,
+        "id": 10,
         "name": "Leg I ankle, low side",
         "enabled": true,
         "operation": {
           "Transform": {
-            "source": 7,
+            "source": 9,
             "translation": [
               4.019616834398328,
               -5.959327027055702,
@@ -1108,7 +1128,73 @@
         }
       },
       {
-        "id": 9,
+        "id": 11,
+        "name": "Leg I metatarsus knuckle",
+        "enabled": true,
+        "operation": {
+          "Sphere": {
+            "radius_mm": 0.44822400000000007
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 12,
+        "name": "Leg I metatarsus, low side",
+        "enabled": true,
+        "operation": {
+          "Transform": {
+            "source": 11,
+            "translation": [
+              3.4758093787836395,
+              -7.386165585690918,
+              -5.426161148579068
+            ],
+            "rotation_deg": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 64.0,
+            "across_mm": 0.0,
+            "height_mm": 0.0,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 13,
         "name": "Leg I femur, high side",
         "enabled": true,
         "operation": {
@@ -1138,7 +1224,7 @@
         }
       },
       {
-        "id": 10,
+        "id": 14,
         "name": "Leg I tibia, high side",
         "enabled": true,
         "operation": {
@@ -1168,7 +1254,7 @@
         }
       },
       {
-        "id": 11,
+        "id": 15,
         "name": "Leg I tarsus, high side",
         "enabled": true,
         "operation": {
@@ -1198,8 +1284,8 @@
         }
       },
       {
-        "id": 12,
-        "name": "Leg I knee, high side",
+        "id": 16,
+        "name": "Leg I trochanter, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
@@ -1228,8 +1314,8 @@
         }
       },
       {
-        "id": 13,
-        "name": "Leg I ankle, high side",
+        "id": 17,
+        "name": "Leg I knee, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
@@ -1258,7 +1344,67 @@
         }
       },
       {
-        "id": 14,
+        "id": 18,
+        "name": "Leg I ankle, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 10,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 19,
+        "name": "Leg I metatarsus, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 12,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 20,
         "name": "Leg II femur, low side",
         "enabled": true,
         "operation": {
@@ -1442,7 +1588,7 @@
         }
       },
       {
-        "id": 15,
+        "id": 21,
         "name": "Leg II tibia, low side",
         "enabled": true,
         "operation": {
@@ -1608,7 +1754,7 @@
         }
       },
       {
-        "id": 16,
+        "id": 22,
         "name": "Leg II tarsus, low side",
         "enabled": true,
         "operation": {
@@ -1763,7 +1909,73 @@
         }
       },
       {
-        "id": 17,
+        "id": 23,
+        "name": "Leg II trochanter knuckle",
+        "enabled": true,
+        "operation": {
+          "Sphere": {
+            "radius_mm": 0.7343999999999999
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 24,
+        "name": "Leg II trochanter, low side",
+        "enabled": true,
+        "operation": {
+          "Transform": {
+            "source": 23,
+            "translation": [
+              2.642428856492146,
+              -1.0676105579264308,
+              -0.41376888981671534
+            ],
+            "rotation_deg": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 64.0,
+            "across_mm": 0.0,
+            "height_mm": 0.0,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 25,
         "name": "Leg II knee knuckle",
         "enabled": true,
         "operation": {
@@ -1788,12 +2000,12 @@
         }
       },
       {
-        "id": 18,
+        "id": 26,
         "name": "Leg II knee, low side",
         "enabled": true,
         "operation": {
           "Transform": {
-            "source": 17,
+            "source": 25,
             "translation": [
               4.664772977290901,
               -1.8846906203926703,
@@ -1829,7 +2041,7 @@
         }
       },
       {
-        "id": 19,
+        "id": 27,
         "name": "Leg II ankle knuckle",
         "enabled": true,
         "operation": {
@@ -1854,12 +2066,12 @@
         }
       },
       {
-        "id": 20,
+        "id": 28,
         "name": "Leg II ankle, low side",
         "enabled": true,
         "operation": {
           "Transform": {
-            "source": 19,
+            "source": 27,
             "translation": [
               4.300087971900962,
               -1.7373483140462993,
@@ -1895,128 +2107,74 @@
         }
       },
       {
-        "id": 21,
+        "id": 29,
+        "name": "Leg II metatarsus knuckle",
+        "enabled": true,
+        "operation": {
+          "Sphere": {
+            "radius_mm": 0.44822400000000007
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 30,
+        "name": "Leg II metatarsus, low side",
+        "enabled": true,
+        "operation": {
+          "Transform": {
+            "source": 29,
+            "translation": [
+              3.778564071416149,
+              -3.061613206344159,
+              -2.7988322167780577
+            ],
+            "rotation_deg": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 64.0,
+            "across_mm": 0.0,
+            "height_mm": 0.0,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 31,
         "name": "Leg II femur, high side",
-        "enabled": true,
-        "operation": {
-          "Pattern": {
-            "source": 14,
-            "kind": {
-              "mirror": {
-                "plane": "band"
-              }
-            }
-          }
-        },
-        "component": {
-          "role": "Other",
-          "material": "Silver 925",
-          "manufacturing": null,
-          "visible": true,
-          "reference": false,
-          "stone_id": null,
-          "bench_notes": "",
-          "placement": {
-            "kind": "free"
-          },
-          "attach": "join",
-          "stage": "cast",
-          "blend_mm": 0.0
-        }
-      },
-      {
-        "id": 22,
-        "name": "Leg II tibia, high side",
-        "enabled": true,
-        "operation": {
-          "Pattern": {
-            "source": 15,
-            "kind": {
-              "mirror": {
-                "plane": "band"
-              }
-            }
-          }
-        },
-        "component": {
-          "role": "Other",
-          "material": "Silver 925",
-          "manufacturing": null,
-          "visible": true,
-          "reference": false,
-          "stone_id": null,
-          "bench_notes": "",
-          "placement": {
-            "kind": "free"
-          },
-          "attach": "join",
-          "stage": "cast",
-          "blend_mm": 0.0
-        }
-      },
-      {
-        "id": 23,
-        "name": "Leg II tarsus, high side",
-        "enabled": true,
-        "operation": {
-          "Pattern": {
-            "source": 16,
-            "kind": {
-              "mirror": {
-                "plane": "band"
-              }
-            }
-          }
-        },
-        "component": {
-          "role": "Other",
-          "material": "Silver 925",
-          "manufacturing": null,
-          "visible": true,
-          "reference": false,
-          "stone_id": null,
-          "bench_notes": "",
-          "placement": {
-            "kind": "free"
-          },
-          "attach": "join",
-          "stage": "cast",
-          "blend_mm": 0.0
-        }
-      },
-      {
-        "id": 24,
-        "name": "Leg II knee, high side",
-        "enabled": true,
-        "operation": {
-          "Pattern": {
-            "source": 18,
-            "kind": {
-              "mirror": {
-                "plane": "band"
-              }
-            }
-          }
-        },
-        "component": {
-          "role": "Other",
-          "material": "Silver 925",
-          "manufacturing": null,
-          "visible": true,
-          "reference": false,
-          "stone_id": null,
-          "bench_notes": "",
-          "placement": {
-            "kind": "free"
-          },
-          "attach": "join",
-          "stage": "cast",
-          "blend_mm": 0.0
-        }
-      },
-      {
-        "id": 25,
-        "name": "Leg II ankle, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
@@ -2045,7 +2203,187 @@
         }
       },
       {
-        "id": 26,
+        "id": 32,
+        "name": "Leg II tibia, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 21,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 33,
+        "name": "Leg II tarsus, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 22,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 34,
+        "name": "Leg II trochanter, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 24,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 35,
+        "name": "Leg II knee, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 26,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 36,
+        "name": "Leg II ankle, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 28,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 37,
+        "name": "Leg II metatarsus, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 30,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 38,
         "name": "Leg III femur, low side",
         "enabled": true,
         "operation": {
@@ -2229,7 +2567,7 @@
         }
       },
       {
-        "id": 27,
+        "id": 39,
         "name": "Leg III tibia, low side",
         "enabled": true,
         "operation": {
@@ -2395,7 +2733,7 @@
         }
       },
       {
-        "id": 28,
+        "id": 40,
         "name": "Leg III tarsus, low side",
         "enabled": true,
         "operation": {
@@ -2550,7 +2888,73 @@
         }
       },
       {
-        "id": 29,
+        "id": 41,
+        "name": "Leg III trochanter knuckle",
+        "enabled": true,
+        "operation": {
+          "Sphere": {
+            "radius_mm": 0.7343999999999999
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 42,
+        "name": "Leg III trochanter, low side",
+        "enabled": true,
+        "operation": {
+          "Transform": {
+            "source": 41,
+            "translation": [
+              2.787673052498548,
+              0.5925381990992665,
+              -0.41376888981671534
+            ],
+            "rotation_deg": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 64.0,
+            "across_mm": 0.0,
+            "height_mm": 0.0,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 43,
         "name": "Leg III knee knuckle",
         "enabled": true,
         "operation": {
@@ -2575,12 +2979,12 @@
         }
       },
       {
-        "id": 30,
+        "id": 44,
         "name": "Leg III knee, low side",
         "enabled": true,
         "operation": {
           "Transform": {
-            "source": 29,
+            "source": 43,
             "translation": [
               4.825430904615753,
               1.0256770016613888,
@@ -2616,7 +3020,7 @@
         }
       },
       {
-        "id": 31,
+        "id": 45,
         "name": "Leg III ankle knuckle",
         "enabled": true,
         "operation": {
@@ -2641,12 +3045,12 @@
         }
       },
       {
-        "id": 32,
+        "id": 46,
         "name": "Leg III ankle, low side",
         "enabled": true,
         "operation": {
           "Transform": {
-            "source": 31,
+            "source": 45,
             "translation": [
               4.457966373906093,
               0.9475700044780553,
@@ -2682,12 +3086,78 @@
         }
       },
       {
-        "id": 33,
+        "id": 47,
+        "name": "Leg III metatarsus knuckle",
+        "enabled": true,
+        "operation": {
+          "Sphere": {
+            "radius_mm": 0.44822400000000007
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 48,
+        "name": "Leg III metatarsus, low side",
+        "enabled": true,
+        "operation": {
+          "Transform": {
+            "source": 47,
+            "translation": [
+              4.086055562790497,
+              2.1671583588129217,
+              -2.675929129759081
+            ],
+            "rotation_deg": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 64.0,
+            "across_mm": 0.0,
+            "height_mm": 0.0,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 49,
         "name": "Leg III femur, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
-            "source": 26,
+            "source": 38,
             "kind": {
               "mirror": {
                 "plane": "band"
@@ -2712,12 +3182,12 @@
         }
       },
       {
-        "id": 34,
+        "id": 50,
         "name": "Leg III tibia, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
-            "source": 27,
+            "source": 39,
             "kind": {
               "mirror": {
                 "plane": "band"
@@ -2742,12 +3212,12 @@
         }
       },
       {
-        "id": 35,
+        "id": 51,
         "name": "Leg III tarsus, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
-            "source": 28,
+            "source": 40,
             "kind": {
               "mirror": {
                 "plane": "band"
@@ -2772,12 +3242,42 @@
         }
       },
       {
-        "id": 36,
+        "id": 52,
+        "name": "Leg III trochanter, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 42,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 53,
         "name": "Leg III knee, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
-            "source": 30,
+            "source": 44,
             "kind": {
               "mirror": {
                 "plane": "band"
@@ -2802,12 +3302,12 @@
         }
       },
       {
-        "id": 37,
+        "id": 54,
         "name": "Leg III ankle, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
-            "source": 32,
+            "source": 46,
             "kind": {
               "mirror": {
                 "plane": "band"
@@ -2832,7 +3332,37 @@
         }
       },
       {
-        "id": 38,
+        "id": 55,
+        "name": "Leg III metatarsus, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 48,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 56,
         "name": "Leg IV femur, low side",
         "enabled": true,
         "operation": {
@@ -3016,7 +3546,7 @@
         }
       },
       {
-        "id": 39,
+        "id": 57,
         "name": "Leg IV tibia, low side",
         "enabled": true,
         "operation": {
@@ -3182,7 +3712,7 @@
         }
       },
       {
-        "id": 40,
+        "id": 58,
         "name": "Leg IV tarsus, low side",
         "enabled": true,
         "operation": {
@@ -3337,7 +3867,73 @@
         }
       },
       {
-        "id": 41,
+        "id": 59,
+        "name": "Leg IV trochanter knuckle",
+        "enabled": true,
+        "operation": {
+          "Sphere": {
+            "radius_mm": 0.7343999999999999
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 60,
+        "name": "Leg IV trochanter, low side",
+        "enabled": true,
+        "operation": {
+          "Transform": {
+            "source": 59,
+            "translation": [
+              2.1179265813594204,
+              1.9069896593819204,
+              -0.41376888981671534
+            ],
+            "rotation_deg": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 64.0,
+            "across_mm": 0.0,
+            "height_mm": 0.0,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 61,
         "name": "Leg IV knee knuckle",
         "enabled": true,
         "operation": {
@@ -3362,12 +3958,12 @@
         }
       },
       {
-        "id": 42,
+        "id": 62,
         "name": "Leg IV knee, low side",
         "enabled": true,
         "operation": {
           "Transform": {
-            "source": 41,
+            "source": 61,
             "translation": [
               3.7775141051057015,
               3.401288977629309,
@@ -3403,7 +3999,7 @@
         }
       },
       {
-        "id": 43,
+        "id": 63,
         "name": "Leg IV ankle knuckle",
         "enabled": true,
         "operation": {
@@ -3428,12 +4024,12 @@
         }
       },
       {
-        "id": 44,
+        "id": 64,
         "name": "Leg IV ankle, low side",
         "enabled": true,
         "operation": {
           "Transform": {
-            "source": 43,
+            "source": 63,
             "translation": [
               4.558496469221598,
               4.104488656804551,
@@ -3469,12 +4065,78 @@
         }
       },
       {
-        "id": 45,
+        "id": 65,
+        "name": "Leg IV metatarsus knuckle",
+        "enabled": true,
+        "operation": {
+          "Sphere": {
+            "radius_mm": 0.44822400000000007
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 66,
+        "name": "Leg IV metatarsus, low side",
+        "enabled": true,
+        "operation": {
+          "Transform": {
+            "source": 65,
+            "translation": [
+              4.107746617238329,
+              5.646737049383175,
+              -4.3274434551177965
+            ],
+            "rotation_deg": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 64.0,
+            "across_mm": 0.0,
+            "height_mm": 0.0,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 67,
         "name": "Leg IV femur, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
-            "source": 38,
+            "source": 56,
             "kind": {
               "mirror": {
                 "plane": "band"
@@ -3499,12 +4161,12 @@
         }
       },
       {
-        "id": 46,
+        "id": 68,
         "name": "Leg IV tibia, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
-            "source": 39,
+            "source": 57,
             "kind": {
               "mirror": {
                 "plane": "band"
@@ -3529,12 +4191,12 @@
         }
       },
       {
-        "id": 47,
+        "id": 69,
         "name": "Leg IV tarsus, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
-            "source": 40,
+            "source": 58,
             "kind": {
               "mirror": {
                 "plane": "band"
@@ -3559,12 +4221,42 @@
         }
       },
       {
-        "id": 48,
+        "id": 70,
+        "name": "Leg IV trochanter, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 60,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 71,
         "name": "Leg IV knee, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
-            "source": 42,
+            "source": 62,
             "kind": {
               "mirror": {
                 "plane": "band"
@@ -3589,12 +4281,12 @@
         }
       },
       {
-        "id": 49,
+        "id": 72,
         "name": "Leg IV ankle, high side",
         "enabled": true,
         "operation": {
           "Pattern": {
-            "source": 44,
+            "source": 64,
             "kind": {
               "mirror": {
                 "plane": "band"
@@ -3619,7 +4311,37 @@
         }
       },
       {
-        "id": 50,
+        "id": 73,
+        "name": "Leg IV metatarsus, high side",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 66,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 74,
         "name": "Abdomen belly",
         "enabled": true,
         "operation": {
@@ -22325,6 +23047,68 @@
           "stage": "cast",
           "blend_mm": 0.0
         }
+      },
+      {
+        "id": 75,
+        "name": "Pedicel",
+        "enabled": true,
+        "operation": {
+          "Sphere": {
+            "radius_mm": 0.95
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 78.6,
+            "across_mm": 0.0,
+            "height_mm": 0.35,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 76,
+        "name": "Spinnerets",
+        "enabled": true,
+        "operation": {
+          "Sphere": {
+            "radius_mm": 0.62
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 140.0,
+            "across_mm": 0.0,
+            "height_mm": 0.12,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
       }
     ],
     "outputs": [
@@ -22334,25 +23118,23 @@
       4,
       6,
       8,
-      9,
       10,
-      11,
       12,
       13,
       14,
       15,
       16,
+      17,
       18,
+      19,
       20,
       21,
       22,
-      23,
       24,
-      25,
       26,
-      27,
       28,
       30,
+      31,
       32,
       33,
       34,
@@ -22364,12 +23146,32 @@
       40,
       42,
       44,
-      45,
       46,
-      47,
       48,
       49,
-      50
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      60,
+      62,
+      64,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76
     ],
     "joints": [],
     "through": null
@@ -22382,7 +23184,7 @@
     },
     {
       "name": "Palm orb web",
-      "png": "iVBORw0KGgoAAAANSUhEUgAABAAAAACFEAAAAACw1AlkAAB9m0lEQVR4Ae3AA6AkWZbG8f937o3IzKdyS2Oubdu2bdu2bdu2bWmMnpZKr54yMyLu+Xa3anqmhztr1S/4L3T8+Gu/9nu/92d/9m//9l//tW3btm3btm3btm3btm3btm3btm3btm3btm3btm3btm3btm3btm1fvPhbv/Vd3/VZn/Var/XSL83/CA9+8Fu/9Wd/9m//tm3btm3btm3btm3btm3btm3btm3btm3btm3btv1Xf/VVX/Ve7/XSL83/CMePv/d7//RP27Zt27Zt27Zt27Zt27Zt27Zt23/1Vx/1UQ9+MP8NXuM19vdt27Zt27Zt27Zt27Y/67OOH+c/wZu/uW3btm3btm3b3/Vd/Bt89mfbtm3btm3btm3b9md9Fv8Kn/VZtm3btm3btm3btv3Zn82/wXd9l23btm3btm3bb/7m/Cc4fvyrvsq2bdu2bdu2bdu2bXt//zVeg/8GD37wR33UX/2Vbdu2bdu2bdu2bdu2bdu2bdu2/dM//d7vffw4/yO89Eu/13t91Vf91V/Ztm3btm3btm3btm3btm3btm3btm3btm3btm3bv/3bn/3Zb/3WD34w/yO89Eu/1mt91md913f91m9dvGjbtm3btm3btm3btm3btm3btm3btm3btm3btm3btm3btm3btm3bf/3Xv/3bn/3Z7/3er/3ax4/zXwfx3+alX/r48dd+7Qc/+MEPfumXPnaM/3R//de33vrXf33rrbfe+ju/w3+7l37p137tl37pl37pl3op/kPs7v71X//2b//2b//N3+zu8t/s+PG3fuu3fuu3eiv+lf76r7/7u3/mZ269lf9iv/mbr/M6vFC7u5/92V/zNfyHu+22m2/m+fju736f9+Ff6bd/+7Veixfir//6fd7nr/+af9FLv/R3fddLvzQvxM/8zFu/Nf9K3/Vd7/3ePB+3337LLfyH+6iP+uzPPn6cF+q3fut1X5f/Yg9+8Fu91Xu/90u/NP9KP/MzP/3TP/3Tu7v8Nzt+/LVe66Vf+rVf+6Vf+vhx/kP8zd/89V//9V//9m//9V/z3+61XuvBD37wg1/6pR/84Jd+af7TXbr0139966233vrbv727+9d/zX8PxP8Ix4+/9Eu/9EsfP/7ar/3gBz/oQfyn293967/+67/e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"
+      "png": "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"
     }
   ],
   "texts": [],
@@ -22394,7 +23196,7 @@
     },
     {
       "name": "Palm orb web",
-      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-21.5000 -2.8000 43.0000 5.6000\" width=\"43.0000\" height=\"5.6000\"><rect x=\"-21.5000\" y=\"-2.8000\" width=\"43.0000\" height=\"5.6000\" fill=\"#fff\"/><g fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\"><line x1=\"0\" y1=\"0\" x2=\"-19.5000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-14.0000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-9.2000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-5.4000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-2.7000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-0.9500\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"0.9500\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"2.7000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"5.4000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"9.2000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"14.0000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"19.5000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"21.0500\" y2=\"0.0000\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"19.5000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"14.0000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"9.2000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"5.4000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"2.7000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"0.9500\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-0.9500\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-2.7000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-5.4000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-9.2000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-14.0000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-19.5000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-21.0500\" y2=\"0.0000\" stroke-width=\"0.36\"/><path d=\"M-1.1364 -0.1762 Q-0.7008 -0.1299 -1.1241 -0.2428\" stroke-width=\"0.32\"/><path d=\"M-1.1241 -0.2428 Q-0.6871 -0.1866 -1.0925 -0.3591\" stroke-width=\"0.32\"/><path d=\"M-1.0925 -0.3591 Q-0.6497 -0.2855 -1.0034 -0.5619\" stroke-width=\"0.32\"/><path d=\"M-1.0034 -0.5619 Q-0.5485 -0.4401 -0.7659 -0.8578\" stroke-width=\"0.32\"/><path d=\"M-0.7659 -0.8578 Q-0.3443 -0.6060 -0.3447 -1.0971\" stroke-width=\"0.32\"/><path d=\"M-0.3447 -1.0971 Q0.0000 -0.6802 0.3447 -1.0971\" stroke-width=\"0.32\"/><path d=\"M0.3447 -1.0971 Q0.3443 -0.6060 0.7659 -0.8578\" stroke-width=\"0.32\"/><path d=\"M0.7659 -0.8578 Q0.5485 -0.4401 1.0034 -0.5619\" stroke-width=\"0.32\"/><path d=\"M1.0034 -0.5619 Q0.6497 -0.2855 1.0925 -0.3591\" stroke-width=\"0.32\"/><path d=\"M1.0925 -0.3591 Q0.6871 -0.1866 1.1241 -0.2428\" stroke-width=\"0.32\"/><path d=\"M1.1241 -0.2428 Q0.7008 -0.1299 1.1364 -0.1762\" stroke-width=\"0.32\"/><path d=\"M1.1364 -0.1762 Q0.7088 -0.0546 1.1500 0.0000\" stroke-width=\"0.32\"/><path d=\"M1.1500 0.0000 Q0.7088 0.0546 1.1364 0.1762\" stroke-width=\"0.32\"/><path d=\"M1.1364 0.1762 Q0.7008 0.1299 1.1241 0.2428\" stroke-width=\"0.32\"/><path d=\"M1.1241 0.2428 Q0.6871 0.1866 1.0925 0.3591\" stroke-width=\"0.32\"/><path d=\"M1.0925 0.3591 Q0.6497 0.2855 1.0034 0.5619\" stroke-width=\"0.32\"/><path d=\"M1.0034 0.5619 Q0.5485 0.4401 0.7659 0.8578\" stroke-width=\"0.32\"/><path d=\"M0.7659 0.8578 Q0.3443 0.6060 0.3447 1.0971\" stroke-width=\"0.32\"/><path d=\"M0.3447 1.0971 Q0.0000 0.6802 -0.3447 1.0971\" stroke-width=\"0.32\"/><path d=\"M-0.3447 1.0971 Q-0.3443 0.6060 -0.7659 0.8578\" stroke-width=\"0.32\"/><path d=\"M-0.7659 0.8578 Q-0.5485 0.4401 -1.0034 0.5619\" stroke-width=\"0.32\"/><path d=\"M-1.0034 0.5619 Q-0.6497 0.2855 -1.0925 0.3591\" stroke-width=\"0.32\"/><path d=\"M-1.0925 0.3591 Q-0.6871 0.1866 -1.1241 0.2428\" stroke-width=\"0.32\"/><path d=\"M-1.1241 0.2428 Q-0.7008 0.1299 -1.1364 0.1762\" stroke-width=\"0.32\"/><path d=\"M-1.1364 0.1762 Q-0.7088 0.0546 -1.1500 0.0000\" stroke-width=\"0.32\"/><path d=\"M-1.1500 0.0000 Q-0.7088 -0.0546 -1.1364 -0.1762\" stroke-width=\"0.32\"/><path d=\"M-1.7293 -0.2682 Q-1.0664 -0.1977 -1.7106 -0.3695\" stroke-width=\"0.32\"/><path d=\"M-1.7106 -0.3695 Q-1.0456 -0.2839 -1.6625 -0.5465\" stroke-width=\"0.32\"/><path d=\"M-1.6625 -0.5465 Q-0.9887 -0.4345 -1.5269 -0.8551\" stroke-width=\"0.32\"/><path d=\"M-1.5269 -0.8551 Q-0.8346 -0.6697 -1.1655 -1.3054\" stroke-width=\"0.32\"/><path d=\"M-1.1655 -1.3054 Q-0.5239 -0.9222 -0.5245 -1.6696\" stroke-width=\"0.32\"/><path d=\"M-0.5245 -1.6696 Q0.0000 -1.0351 0.5245 -1.6696\" stroke-width=\"0.32\"/><path d=\"M0.5245 -1.6696 Q0.5239 -0.9222 1.1655 -1.3054\" stroke-width=\"0.32\"/><path d=\"M1.1655 -1.3054 Q0.8346 -0.6697 1.5269 -0.8551\" stroke-width=\"0.32\"/><path d=\"M1.5269 -0.8551 Q0.9887 -0.4345 1.6625 -0.5465\" stroke-width=\"0.32\"/><path d=\"M1.6625 -0.5465 Q1.0456 -0.2839 1.7106 -0.3695\" stroke-width=\"0.32\"/><path d=\"M1.7106 -0.3695 Q1.0664 -0.1977 1.7293 -0.2682\" stroke-width=\"0.32\"/><path d=\"M1.7293 -0.2682 Q1.0786 -0.0831 1.7500 0.0000\" stroke-width=\"0.32\"/><path d=\"M1.7500 0.0000 Q1.0786 0.0831 1.7293 0.2682\" stroke-width=\"0.32\"/><path d=\"M1.7293 0.2682 Q1.0664 0.1977 1.7106 0.3695\" stroke-width=\"0.32\"/><path d=\"M1.7106 0.3695 Q1.0456 0.2839 1.6625 0.5465\" stroke-width=\"0.32\"/><path d=\"M1.6625 0.5465 Q0.9887 0.4345 1.5269 0.8551\" stroke-width=\"0.32\"/><path d=\"M1.5269 0.8551 Q0.8346 0.6697 1.1655 1.3054\" stroke-width=\"0.32\"/><path d=\"M1.1655 1.3054 Q0.5239 0.9222 0.5245 1.6696\" stroke-width=\"0.32\"/><path d=\"M0.5245 1.6696 Q0.0000 1.0351 -0.5245 1.6696\" stroke-width=\"0.32\"/><path d=\"M-0.5245 1.6696 Q-0.5239 0.9222 -1.1655 1.3054\" stroke-width=\"0.32\"/><path d=\"M-1.1655 1.3054 Q-0.8346 0.6697 -1.5269 0.8551\" stroke-width=\"0.32\"/><path d=\"M-1.5269 0.8551 Q-0.9887 0.4345 -1.6625 0.5465\" stroke-width=\"0.32\"/><path d=\"M-1.6625 0.5465 Q-1.0456 0.2839 -1.7106 0.3695\" stroke-width=\"0.32\"/><path d=\"M-1.7106 0.3695 Q-1.0664 0.1977 -1.7293 0.2682\" stroke-width=\"0.32\"/><path d=\"M-1.7293 0.2682 Q-1.0786 0.0831 -1.7500 0.0000\" stroke-width=\"0.32\"/><path d=\"M-1.7500 0.0000 Q-1.0786 -0.0831 -1.7293 -0.2682\" stroke-width=\"0.32\"/><path d=\"M-2.3717 -0.3678 Q-1.4624 -0.2711 -2.3459 -0.5067\" stroke-width=\"0.32\"/><path d=\"M-2.3459 -0.5067 Q-1.4340 -0.3894 -2.2800 -0.7494\" stroke-width=\"0.32\"/><path d=\"M-2.2800 -0.7494 Q-1.3559 -0.5958 -2.0940 -1.1726\" stroke-width=\"0.32\"/><path d=\"M-2.0940 -1.1726 Q-1.1447 -0.9185 -1.5984 -1.7903\" stroke-width=\"0.32\"/><path d=\"M-1.5984 -1.7903 Q-0.7185 -1.2648 -0.7193 -2.2897\" stroke-width=\"0.32\"/><path d=\"M-0.7193 -2.2897 Q0.0000 -1.4196 0.7193 -2.2897\" stroke-width=\"0.32\"/><path d=\"M0.7193 -2.2897 Q0.7185 -1.2648 1.5984 -1.7903\" stroke-width=\"0.32\"/><path d=\"M1.5984 -1.7903 Q1.1447 -0.9185 2.0940 -1.1726\" stroke-width=\"0.32\"/><path d=\"M2.0940 -1.1726 Q1.3559 -0.5958 2.2800 -0.7494\" stroke-width=\"0.32\"/><path d=\"M2.2800 -0.7494 Q1.4340 -0.3894 2.3459 -0.5067\" stroke-width=\"0.32\"/><path d=\"M2.3459 -0.5067 Q1.4624 -0.2711 2.3717 -0.3678\" stroke-width=\"0.32\"/><path d=\"M2.3717 -0.3678 Q1.4792 -0.1140 2.4000 0.0000\" stroke-width=\"0.32\"/><path d=\"M2.4000 0.0000 Q1.4792 0.1140 2.3717 0.3678\" stroke-width=\"0.32\"/><path d=\"M2.3717 0.3678 Q1.4624 0.2711 2.3459 0.5067\" stroke-width=\"0.32\"/><path d=\"M2.3459 0.5067 Q1.4340 0.3894 2.2800 0.7494\" stroke-width=\"0.32\"/><path d=\"M2.2800 0.7494 Q1.3559 0.5958 2.0940 1.1726\" stroke-width=\"0.32\"/><path d=\"M2.0940 1.1726 Q1.1447 0.9185 1.5984 1.7903\" stroke-width=\"0.32\"/><path d=\"M1.5984 1.7903 Q0.7185 1.2648 0.7193 2.2897\" stroke-width=\"0.32\"/><path d=\"M0.7193 2.2897 Q0.0000 1.4196 -0.7193 2.2897\" stroke-width=\"0.32\"/><path d=\"M-0.7193 2.2897 Q-0.7185 1.2648 -1.5984 1.7903\" stroke-width=\"0.32\"/><path d=\"M-1.5984 1.7903 Q-1.1447 0.9185 -2.0940 1.1726\" stroke-width=\"0.32\"/><path d=\"M-2.0940 1.1726 Q-1.3559 0.5958 -2.2800 0.7494\" stroke-width=\"0.32\"/><path d=\"M-2.2800 0.7494 Q-1.4340 0.3894 -2.3459 0.5067\" stroke-width=\"0.32\"/><path d=\"M-2.3459 0.5067 Q-1.4624 0.2711 -2.3717 0.3678\" stroke-width=\"0.32\"/><path d=\"M-2.3717 0.3678 Q-1.4792 0.1140 -2.4000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-2.4000 0.0000 Q-1.4792 -0.1140 -2.3717 -0.3678\" stroke-width=\"0.32\"/><path d=\"M-3.1128 -0.4827 Q-1.9195 -0.3558 -3.0790 -0.6651\" stroke-width=\"0.32\"/><path d=\"M-3.0790 -0.6651 Q-1.8822 -0.5111 -2.9925 -0.9836\" stroke-width=\"0.32\"/><path d=\"M-2.9925 -0.9836 Q-1.7797 -0.7820 -2.7484 -1.5391\" stroke-width=\"0.32\"/><path d=\"M-2.7484 -1.5391 Q-1.5024 -1.2055 -2.0979 -2.3497\" stroke-width=\"0.32\"/><path d=\"M-2.0979 -2.3497 Q-0.9430 -1.6600 -0.9441 -3.0052\" stroke-width=\"0.32\"/><path d=\"M-0.9441 -3.0052 Q0.0000 -1.8632 0.9441 -3.0052\" stroke-width=\"0.32\"/><path d=\"M0.9441 -3.0052 Q0.9430 -1.6600 2.0979 -2.3497\" stroke-width=\"0.32\"/><path d=\"M2.0979 -2.3497 Q1.5024 -1.2055 2.7484 -1.5391\" stroke-width=\"0.32\"/><path d=\"M2.7484 -1.5391 Q1.7797 -0.7820 2.9925 -0.9836\" stroke-width=\"0.32\"/><path d=\"M2.9925 -0.9836 Q1.8822 -0.5111 3.0790 -0.6651\" stroke-width=\"0.32\"/><path d=\"M3.0790 -0.6651 Q1.9195 -0.3558 3.1128 -0.4827\" stroke-width=\"0.32\"/><path d=\"M3.1128 -0.4827 Q1.9415 -0.1496 3.1500 0.0000\" stroke-width=\"0.32\"/><path d=\"M3.1500 0.0000 Q1.9415 0.1496 3.1128 0.4827\" stroke-width=\"0.32\"/><path d=\"M3.1128 0.4827 Q1.9195 0.3558 3.0790 0.6651\" stroke-width=\"0.32\"/><path d=\"M3.0790 0.6651 Q1.8822 0.5111 2.9925 0.9836\" stroke-width=\"0.32\"/><path d=\"M2.9925 0.9836 Q1.7797 0.7820 2.7484 1.5391\" stroke-width=\"0.32\"/><path d=\"M2.7484 1.5391 Q1.5024 1.2055 2.0979 2.3497\" stroke-width=\"0.32\"/><path d=\"M2.0979 2.3497 Q0.9430 1.6600 0.9441 3.0052\" stroke-width=\"0.32\"/><path d=\"M0.9441 3.0052 Q0.0000 1.8632 -0.9441 3.0052\" stroke-width=\"0.32\"/><path d=\"M-0.9441 3.0052 Q-0.9430 1.6600 -2.0979 2.3497\" stroke-width=\"0.32\"/><path d=\"M-2.0979 2.3497 Q-1.5024 1.2055 -2.7484 1.5391\" stroke-width=\"0.32\"/><path d=\"M-2.7484 1.5391 Q-1.7797 0.7820 -2.9925 0.9836\" stroke-width=\"0.32\"/><path d=\"M-2.9925 0.9836 Q-1.8822 0.5111 -3.0790 0.6651\" stroke-width=\"0.32\"/><path d=\"M-3.0790 0.6651 Q-1.9195 0.3558 -3.1128 0.4827\" stroke-width=\"0.32\"/><path d=\"M-3.1128 0.4827 Q-1.9415 0.1496 -3.1500 0.0000\" stroke-width=\"0.32\"/><path d=\"M-3.1500 0.0000 Q-1.9415 -0.1496 -3.1128 -0.4827\" stroke-width=\"0.32\"/><path d=\"M-3.9528 -0.6130 Q-2.4374 -0.4518 -3.9098 -0.8445\" stroke-width=\"0.32\"/><path d=\"M-3.9098 -0.8445 Q-2.3900 -0.6490 -3.8000 -1.2490\" stroke-width=\"0.32\"/><path d=\"M-3.8000 -1.2490 Q-2.2599 -0.9931 -3.4900 -1.9544\" stroke-width=\"0.32\"/><path d=\"M-3.4900 -1.9544 Q-1.9078 -1.5308 -2.6641 -2.9838\" stroke-width=\"0.32\"/><path d=\"M2.6641 -2.9838 Q1.9078 -1.5308 3.4900 -1.9544\" stroke-width=\"0.32\"/><path d=\"M3.4900 -1.9544 Q2.2599 -0.9931 3.8000 -1.2490\" stroke-width=\"0.32\"/><path d=\"M3.8000 -1.2490 Q2.3900 -0.6490 3.9098 -0.8445\" stroke-width=\"0.32\"/><path d=\"M3.9098 -0.8445 Q2.4374 -0.4518 3.9528 -0.6130\" stroke-width=\"0.32\"/><path d=\"M3.9528 -0.6130 Q2.4654 -0.1900 4.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M4.0000 0.0000 Q2.4654 0.1900 3.9528 0.6130\" stroke-width=\"0.32\"/><path d=\"M3.9528 0.6130 Q2.4374 0.4518 3.9098 0.8445\" stroke-width=\"0.32\"/><path d=\"M3.9098 0.8445 Q2.3900 0.6490 3.8000 1.2490\" stroke-width=\"0.32\"/><path d=\"M3.8000 1.2490 Q2.2599 0.9931 3.4900 1.9544\" stroke-width=\"0.32\"/><path d=\"M3.4900 1.9544 Q1.9078 1.5308 2.6641 2.9838\" stroke-width=\"0.32\"/><path d=\"M-2.6641 2.9838 Q-1.9078 1.5308 -3.4900 1.9544\" stroke-width=\"0.32\"/><path d=\"M-3.4900 1.9544 Q-2.2599 0.9931 -3.8000 1.2490\" stroke-width=\"0.32\"/><path d=\"M-3.8000 1.2490 Q-2.3900 0.6490 -3.9098 0.8445\" stroke-width=\"0.32\"/><path d=\"M-3.9098 0.8445 Q-2.4374 0.4518 -3.9528 0.6130\" stroke-width=\"0.32\"/><path d=\"M-3.9528 0.6130 Q-2.4654 0.1900 -4.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-4.0000 0.0000 Q-2.4654 -0.1900 -3.9528 -0.6130\" stroke-width=\"0.32\"/><path d=\"M-4.9409 -0.7662 Q-3.0468 -0.5648 -4.8873 -1.0557\" stroke-width=\"0.32\"/><path d=\"M-4.8873 -1.0557 Q-2.9876 -0.8113 -4.7500 -1.5613\" stroke-width=\"0.32\"/><path d=\"M-4.7500 -1.5613 Q-2.8249 -1.2413 -4.3625 -2.4430\" stroke-width=\"0.32\"/><path d=\"M4.3625 -2.4430 Q2.8249 -1.2413 4.7500 -1.5613\" stroke-width=\"0.32\"/><path d=\"M4.7500 -1.5613 Q2.9876 -0.8113 4.8873 -1.0557\" stroke-width=\"0.32\"/><path d=\"M4.8873 -1.0557 Q3.0468 -0.5648 4.9409 -0.7662\" stroke-width=\"0.32\"/><path d=\"M4.9409 -0.7662 Q3.0817 -0.2375 5.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M5.0000 0.0000 Q3.0817 0.2375 4.9409 0.7662\" stroke-width=\"0.32\"/><path d=\"M4.9409 0.7662 Q3.0468 0.5648 4.8873 1.0557\" stroke-width=\"0.32\"/><path d=\"M4.8873 1.0557 Q2.9876 0.8113 4.7500 1.5613\" stroke-width=\"0.32\"/><path d=\"M4.7500 1.5613 Q2.8249 1.2413 4.3625 2.4430\" stroke-width=\"0.32\"/><path d=\"M-4.3625 2.4430 Q-2.8249 1.2413 -4.7500 1.5613\" stroke-width=\"0.32\"/><path d=\"M-4.7500 1.5613 Q-2.9876 0.8113 -4.8873 1.0557\" stroke-width=\"0.32\"/><path d=\"M-4.8873 1.0557 Q-3.0468 0.5648 -4.9409 0.7662\" stroke-width=\"0.32\"/><path d=\"M-4.9409 0.7662 Q-3.0817 0.2375 -5.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-5.0000 0.0000 Q-3.0817 -0.2375 -4.9409 -0.7662\" stroke-width=\"0.32\"/><path d=\"M-6.0279 -0.9348 Q-3.7170 -0.6890 -5.9625 -1.2879\" stroke-width=\"0.32\"/><path d=\"M-5.9625 -1.2879 Q-3.6448 -0.9897 -5.7950 -1.9048\" stroke-width=\"0.32\"/><path d=\"M-5.7950 -1.9048 Q-3.4464 -1.5144 -5.3223 -2.9805\" stroke-width=\"0.32\"/><path d=\"M5.3223 -2.9805 Q3.4464 -1.5144 5.7950 -1.9048\" stroke-width=\"0.32\"/><path d=\"M5.7950 -1.9048 Q3.6448 -0.9897 5.9625 -1.2879\" stroke-width=\"0.32\"/><path d=\"M5.9625 -1.2879 Q3.7170 -0.6890 6.0279 -0.9348\" stroke-width=\"0.32\"/><path d=\"M6.0279 -0.9348 Q3.7597 -0.2898 6.1000 0.0000\" stroke-width=\"0.32\"/><path d=\"M6.1000 0.0000 Q3.7597 0.2898 6.0279 0.9348\" stroke-width=\"0.32\"/><path d=\"M6.0279 0.9348 Q3.7170 0.6890 5.9625 1.2879\" stroke-width=\"0.32\"/><path d=\"M5.9625 1.2879 Q3.6448 0.9897 5.7950 1.9048\" stroke-width=\"0.32\"/><path d=\"M5.7950 1.9048 Q3.4464 1.5144 5.3223 2.9805\" stroke-width=\"0.32\"/><path d=\"M-5.3223 2.9805 Q-3.4464 1.5144 -5.7950 1.9048\" stroke-width=\"0.32\"/><path d=\"M-5.7950 1.9048 Q-3.6448 0.9897 -5.9625 1.2879\" stroke-width=\"0.32\"/><path d=\"M-5.9625 1.2879 Q-3.7170 0.6890 -6.0279 0.9348\" stroke-width=\"0.32\"/><path d=\"M-6.0279 0.9348 Q-3.7597 0.2898 -6.1000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-6.1000 0.0000 Q-3.7597 -0.2898 -6.0279 -0.9348\" stroke-width=\"0.32\"/><path d=\"M-7.2138 -1.1187 Q-4.4483 -0.8246 -7.1354 -1.5413\" stroke-width=\"0.32\"/><path d=\"M-7.1354 -1.5413 Q-4.3618 -1.1844 -6.9350 -2.2795\" stroke-width=\"0.32\"/><path d=\"M6.9350 -2.2795 Q4.3618 -1.1844 7.1354 -1.5413\" stroke-width=\"0.32\"/><path d=\"M7.1354 -1.5413 Q4.4483 -0.8246 7.2138 -1.1187\" stroke-width=\"0.32\"/><path d=\"M7.2138 -1.1187 Q4.4993 -0.3468 7.3000 0.0000\" stroke-width=\"0.32\"/><path d=\"M7.3000 0.0000 Q4.4993 0.3468 7.2138 1.1187\" stroke-width=\"0.32\"/><path d=\"M7.2138 1.1187 Q4.4483 0.8246 7.1354 1.5413\" stroke-width=\"0.32\"/><path d=\"M7.1354 1.5413 Q4.3618 1.1844 6.9350 2.2795\" stroke-width=\"0.32\"/><path d=\"M-6.9350 2.2795 Q-4.3618 1.1844 -7.1354 1.5413\" stroke-width=\"0.32\"/><path d=\"M-7.1354 1.5413 Q-4.4483 0.8246 -7.2138 1.1187\" stroke-width=\"0.32\"/><path d=\"M-7.2138 1.1187 Q-4.4993 0.3468 -7.3000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-7.3000 0.0000 Q-4.4993 -0.3468 -7.2138 -1.1187\" stroke-width=\"0.32\"/><path d=\"M-8.4984 -1.3179 Q-5.2404 -0.9714 -8.4061 -1.8157\" stroke-width=\"0.32\"/><path d=\"M-8.4061 -1.8157 Q-5.1386 -1.3954 -8.1700 -2.6854\" stroke-width=\"0.32\"/><path d=\"M8.1700 -2.6854 Q5.1386 -1.3954 8.4061 -1.8157\" stroke-width=\"0.32\"/><path d=\"M8.4061 -1.8157 Q5.2404 -0.9714 8.4984 -1.3179\" stroke-width=\"0.32\"/><path d=\"M8.4984 -1.3179 Q5.3005 -0.4086 8.6000 0.0000\" stroke-width=\"0.32\"/><path d=\"M8.6000 0.0000 Q5.3005 0.4086 8.4984 1.3179\" stroke-width=\"0.32\"/><path d=\"M8.4984 1.3179 Q5.2404 0.9714 8.4061 1.8157\" stroke-width=\"0.32\"/><path d=\"M8.4061 1.8157 Q5.1386 1.3954 8.1700 2.6854\" stroke-width=\"0.32\"/><path d=\"M-8.1700 2.6854 Q-5.1386 1.3954 -8.4061 1.8157\" stroke-width=\"0.32\"/><path d=\"M-8.4061 1.8157 Q-5.2404 0.9714 -8.4984 1.3179\" stroke-width=\"0.32\"/><path d=\"M-8.4984 1.3179 Q-5.3005 0.4086 -8.6000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-8.6000 0.0000 Q-5.3005 -0.4086 -8.4984 -1.3179\" stroke-width=\"0.32\"/><path d=\"M-9.8819 -1.5325 Q-6.0935 -1.1296 -9.7746 -2.1113\" stroke-width=\"0.32\"/><path d=\"M9.7746 -2.1113 Q6.0935 -1.1296 9.8819 -1.5325\" stroke-width=\"0.32\"/><path d=\"M9.8819 -1.5325 Q6.1634 -0.4751 10.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M10.0000 0.0000 Q6.1634 0.4751 9.8819 1.5325\" stroke-width=\"0.32\"/><path d=\"M9.8819 1.5325 Q6.0935 1.1296 9.7746 2.1113\" stroke-width=\"0.32\"/><path d=\"M-9.7746 2.1113 Q-6.0935 1.1296 -9.8819 1.5325\" stroke-width=\"0.32\"/><path d=\"M-9.8819 1.5325 Q-6.1634 0.4751 -10.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-10.0000 0.0000 Q-6.1634 -0.4751 -9.8819 -1.5325\" stroke-width=\"0.32\"/></g><circle cx=\"0\" cy=\"0\" r=\"0.55\" fill=\"#000\"/><circle cx=\"21.0500\" cy=\"0\" r=\"0.32\" fill=\"#000\"/><circle cx=\"-21.0500\" cy=\"0\" r=\"0.32\" fill=\"#000\"/></svg>",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-26.9000 -2.8000 53.8000 5.6000\" width=\"53.8000\" height=\"5.6000\"><rect x=\"-26.9000\" y=\"-2.8000\" width=\"53.8000\" height=\"5.6000\" fill=\"#fff\"/><g fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\"><line x1=\"0\" y1=\"0\" x2=\"-24.2000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-20.0000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-16.2000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-12.4000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-9.2000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-5.4000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-2.7000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-0.9500\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"0.9500\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"2.7000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"5.4000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"9.2000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"12.4000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"16.2000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"20.0000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"24.2000\" y2=\"-3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"26.5500\" y2=\"0.0000\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"24.2000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"20.0000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"16.2000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"12.4000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"9.2000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"5.4000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"2.7000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"0.9500\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-0.9500\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-2.7000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-5.4000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-9.2000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-12.4000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-16.2000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-20.0000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-24.2000\" y2=\"3.0240\" stroke-width=\"0.36\"/><line x1=\"0\" y1=\"0\" x2=\"-26.5500\" y2=\"0.0000\" stroke-width=\"0.36\"/><path d=\"M-1.1411 -0.1426 Q-0.7062 -0.0975 -1.1371 -0.1719\" stroke-width=\"0.32\"/><path d=\"M-1.1371 -0.1719 Q-0.7029 -0.1187 -1.1305 -0.2110\" stroke-width=\"0.32\"/><path d=\"M-1.1305 -0.2110 Q-0.6968 -0.1499 -1.1173 -0.2725\" stroke-width=\"0.32\"/><path d=\"M-1.1173 -0.2725 Q-0.6850 -0.1958 -1.0925 -0.3591\" stroke-width=\"0.32\"/><path d=\"M-1.0925 -0.3591 Q-0.6497 -0.2855 -1.0034 -0.5619\" stroke-width=\"0.32\"/><path d=\"M-1.0034 -0.5619 Q-0.5485 -0.4401 -0.7659 -0.8578\" stroke-width=\"0.32\"/><path d=\"M-0.7659 -0.8578 Q-0.3443 -0.6060 -0.3447 -1.0971\" stroke-width=\"0.32\"/><path d=\"M-0.3447 -1.0971 Q0.0000 -0.6802 0.3447 -1.0971\" stroke-width=\"0.32\"/><path d=\"M0.3447 -1.0971 Q0.3443 -0.6060 0.7659 -0.8578\" stroke-width=\"0.32\"/><path d=\"M0.7659 -0.8578 Q0.5485 -0.4401 1.0034 -0.5619\" stroke-width=\"0.32\"/><path d=\"M1.0034 -0.5619 Q0.6497 -0.2855 1.0925 -0.3591\" stroke-width=\"0.32\"/><path d=\"M1.0925 -0.3591 Q0.6850 -0.1958 1.1173 -0.2725\" stroke-width=\"0.32\"/><path d=\"M1.1173 -0.2725 Q0.6968 -0.1499 1.1305 -0.2110\" stroke-width=\"0.32\"/><path d=\"M1.1305 -0.2110 Q0.7029 -0.1187 1.1371 -0.1719\" stroke-width=\"0.32\"/><path d=\"M1.1371 -0.1719 Q0.7062 -0.0975 1.1411 -0.1426\" stroke-width=\"0.32\"/><path d=\"M1.1411 -0.1426 Q0.7102 -0.0442 1.1500 0.0000\" stroke-width=\"0.32\"/><path d=\"M1.1500 0.0000 Q0.7102 0.0442 1.1411 0.1426\" stroke-width=\"0.32\"/><path d=\"M1.1411 0.1426 Q0.7062 0.0975 1.1371 0.1719\" stroke-width=\"0.32\"/><path d=\"M1.1371 0.1719 Q0.7029 0.1187 1.1305 0.2110\" stroke-width=\"0.32\"/><path d=\"M1.1305 0.2110 Q0.6968 0.1499 1.1173 0.2725\" stroke-width=\"0.32\"/><path d=\"M1.1173 0.2725 Q0.6850 0.1958 1.0925 0.3591\" stroke-width=\"0.32\"/><path d=\"M1.0925 0.3591 Q0.6497 0.2855 1.0034 0.5619\" stroke-width=\"0.32\"/><path d=\"M1.0034 0.5619 Q0.5485 0.4401 0.7659 0.8578\" stroke-width=\"0.32\"/><path d=\"M0.7659 0.8578 Q0.3443 0.6060 0.3447 1.0971\" stroke-width=\"0.32\"/><path d=\"M0.3447 1.0971 Q0.0000 0.6802 -0.3447 1.0971\" stroke-width=\"0.32\"/><path d=\"M-0.3447 1.0971 Q-0.3443 0.6060 -0.7659 0.8578\" stroke-width=\"0.32\"/><path d=\"M-0.7659 0.8578 Q-0.5485 0.4401 -1.0034 0.5619\" stroke-width=\"0.32\"/><path d=\"M-1.0034 0.5619 Q-0.6497 0.2855 -1.0925 0.3591\" stroke-width=\"0.32\"/><path d=\"M-1.0925 0.3591 Q-0.6850 0.1958 -1.1173 0.2725\" stroke-width=\"0.32\"/><path d=\"M-1.1173 0.2725 Q-0.6968 0.1499 -1.1305 0.2110\" stroke-width=\"0.32\"/><path d=\"M-1.1305 0.2110 Q-0.7029 0.1187 -1.1371 0.1719\" stroke-width=\"0.32\"/><path d=\"M-1.1371 0.1719 Q-0.7062 0.0975 -1.1411 0.1426\" stroke-width=\"0.32\"/><path d=\"M-1.1411 0.1426 Q-0.7102 0.0442 -1.1500 0.0000\" stroke-width=\"0.32\"/><path d=\"M-1.1500 0.0000 Q-0.7102 -0.0442 -1.1411 -0.1426\" stroke-width=\"0.32\"/><path d=\"M-1.7365 -0.2170 Q-1.0747 -0.1484 -1.7303 -0.2616\" stroke-width=\"0.32\"/><path d=\"M-1.7303 -0.2616 Q-1.0697 -0.1807 -1.7203 -0.3211\" stroke-width=\"0.32\"/><path d=\"M-1.7203 -0.3211 Q-1.0603 -0.2281 -1.7002 -0.4146\" stroke-width=\"0.32\"/><path d=\"M-1.7002 -0.4146 Q-1.0424 -0.2979 -1.6625 -0.5465\" stroke-width=\"0.32\"/><path d=\"M-1.6625 -0.5465 Q-0.9887 -0.4345 -1.5269 -0.8551\" stroke-width=\"0.32\"/><path d=\"M-1.5269 -0.8551 Q-0.8346 -0.6697 -1.1655 -1.3054\" stroke-width=\"0.32\"/><path d=\"M-1.1655 -1.3054 Q-0.5239 -0.9222 -0.5245 -1.6696\" stroke-width=\"0.32\"/><path d=\"M-0.5245 -1.6696 Q0.0000 -1.0351 0.5245 -1.6696\" stroke-width=\"0.32\"/><path d=\"M0.5245 -1.6696 Q0.5239 -0.9222 1.1655 -1.3054\" stroke-width=\"0.32\"/><path d=\"M1.1655 -1.3054 Q0.8346 -0.6697 1.5269 -0.8551\" stroke-width=\"0.32\"/><path d=\"M1.5269 -0.8551 Q0.9887 -0.4345 1.6625 -0.5465\" stroke-width=\"0.32\"/><path d=\"M1.6625 -0.5465 Q1.0424 -0.2979 1.7002 -0.4146\" stroke-width=\"0.32\"/><path d=\"M1.7002 -0.4146 Q1.0603 -0.2281 1.7203 -0.3211\" stroke-width=\"0.32\"/><path d=\"M1.7203 -0.3211 Q1.0697 -0.1807 1.7303 -0.2616\" stroke-width=\"0.32\"/><path d=\"M1.7303 -0.2616 Q1.0747 -0.1484 1.7365 -0.2170\" stroke-width=\"0.32\"/><path d=\"M1.7365 -0.2170 Q1.0808 -0.0673 1.7500 0.0000\" stroke-width=\"0.32\"/><path d=\"M1.7500 0.0000 Q1.0808 0.0673 1.7365 0.2170\" stroke-width=\"0.32\"/><path d=\"M1.7365 0.2170 Q1.0747 0.1484 1.7303 0.2616\" stroke-width=\"0.32\"/><path d=\"M1.7303 0.2616 Q1.0697 0.1807 1.7203 0.3211\" stroke-width=\"0.32\"/><path d=\"M1.7203 0.3211 Q1.0603 0.2281 1.7002 0.4146\" stroke-width=\"0.32\"/><path d=\"M1.7002 0.4146 Q1.0424 0.2979 1.6625 0.5465\" stroke-width=\"0.32\"/><path d=\"M1.6625 0.5465 Q0.9887 0.4345 1.5269 0.8551\" stroke-width=\"0.32\"/><path d=\"M1.5269 0.8551 Q0.8346 0.6697 1.1655 1.3054\" stroke-width=\"0.32\"/><path d=\"M1.1655 1.3054 Q0.5239 0.9222 0.5245 1.6696\" stroke-width=\"0.32\"/><path d=\"M0.5245 1.6696 Q0.0000 1.0351 -0.5245 1.6696\" stroke-width=\"0.32\"/><path d=\"M-0.5245 1.6696 Q-0.5239 0.9222 -1.1655 1.3054\" stroke-width=\"0.32\"/><path d=\"M-1.1655 1.3054 Q-0.8346 0.6697 -1.5269 0.8551\" stroke-width=\"0.32\"/><path d=\"M-1.5269 0.8551 Q-0.9887 0.4345 -1.6625 0.5465\" stroke-width=\"0.32\"/><path d=\"M-1.6625 0.5465 Q-1.0424 0.2979 -1.7002 0.4146\" stroke-width=\"0.32\"/><path d=\"M-1.7002 0.4146 Q-1.0603 0.2281 -1.7203 0.3211\" stroke-width=\"0.32\"/><path d=\"M-1.7203 0.3211 Q-1.0697 0.1807 -1.7303 0.2616\" stroke-width=\"0.32\"/><path d=\"M-1.7303 0.2616 Q-1.0747 0.1484 -1.7365 0.2170\" stroke-width=\"0.32\"/><path d=\"M-1.7365 0.2170 Q-1.0808 0.0673 -1.7500 0.0000\" stroke-width=\"0.32\"/><path d=\"M-1.7500 0.0000 Q-1.0808 -0.0673 -1.7365 -0.2170\" stroke-width=\"0.32\"/><path d=\"M-2.3815 -0.2976 Q-1.4739 -0.2035 -2.3730 -0.3588\" stroke-width=\"0.32\"/><path d=\"M-2.3730 -0.3588 Q-1.4670 -0.2478 -2.3592 -0.4404\" stroke-width=\"0.32\"/><path d=\"M-2.3592 -0.4404 Q-1.4542 -0.3128 -2.3317 -0.5686\" stroke-width=\"0.32\"/><path d=\"M-2.3317 -0.5686 Q-1.4296 -0.4086 -2.2800 -0.7494\" stroke-width=\"0.32\"/><path d=\"M-2.2800 -0.7494 Q-1.3559 -0.5958 -2.0940 -1.1726\" stroke-width=\"0.32\"/><path d=\"M-2.0940 -1.1726 Q-1.1447 -0.9185 -1.5984 -1.7903\" stroke-width=\"0.32\"/><path d=\"M-1.5984 -1.7903 Q-0.7185 -1.2648 -0.7193 -2.2897\" stroke-width=\"0.32\"/><path d=\"M-0.7193 -2.2897 Q0.0000 -1.4196 0.7193 -2.2897\" stroke-width=\"0.32\"/><path d=\"M0.7193 -2.2897 Q0.7185 -1.2648 1.5984 -1.7903\" stroke-width=\"0.32\"/><path d=\"M1.5984 -1.7903 Q1.1447 -0.9185 2.0940 -1.1726\" stroke-width=\"0.32\"/><path d=\"M2.0940 -1.1726 Q1.3559 -0.5958 2.2800 -0.7494\" stroke-width=\"0.32\"/><path d=\"M2.2800 -0.7494 Q1.4296 -0.4086 2.3317 -0.5686\" stroke-width=\"0.32\"/><path d=\"M2.3317 -0.5686 Q1.4542 -0.3128 2.3592 -0.4404\" stroke-width=\"0.32\"/><path d=\"M2.3592 -0.4404 Q1.4670 -0.2478 2.3730 -0.3588\" stroke-width=\"0.32\"/><path d=\"M2.3730 -0.3588 Q1.4739 -0.2035 2.3815 -0.2976\" stroke-width=\"0.32\"/><path d=\"M2.3815 -0.2976 Q1.4823 -0.0923 2.4000 0.0000\" stroke-width=\"0.32\"/><path d=\"M2.4000 0.0000 Q1.4823 0.0923 2.3815 0.2976\" stroke-width=\"0.32\"/><path d=\"M2.3815 0.2976 Q1.4739 0.2035 2.3730 0.3588\" stroke-width=\"0.32\"/><path d=\"M2.3730 0.3588 Q1.4670 0.2478 2.3592 0.4404\" stroke-width=\"0.32\"/><path d=\"M2.3592 0.4404 Q1.4542 0.3128 2.3317 0.5686\" stroke-width=\"0.32\"/><path d=\"M2.3317 0.5686 Q1.4296 0.4086 2.2800 0.7494\" stroke-width=\"0.32\"/><path d=\"M2.2800 0.7494 Q1.3559 0.5958 2.0940 1.1726\" stroke-width=\"0.32\"/><path d=\"M2.0940 1.1726 Q1.1447 0.9185 1.5984 1.7903\" stroke-width=\"0.32\"/><path d=\"M1.5984 1.7903 Q0.7185 1.2648 0.7193 2.2897\" stroke-width=\"0.32\"/><path d=\"M0.7193 2.2897 Q0.0000 1.4196 -0.7193 2.2897\" stroke-width=\"0.32\"/><path d=\"M-0.7193 2.2897 Q-0.7185 1.2648 -1.5984 1.7903\" stroke-width=\"0.32\"/><path d=\"M-1.5984 1.7903 Q-1.1447 0.9185 -2.0940 1.1726\" stroke-width=\"0.32\"/><path d=\"M-2.0940 1.1726 Q-1.3559 0.5958 -2.2800 0.7494\" stroke-width=\"0.32\"/><path d=\"M-2.2800 0.7494 Q-1.4296 0.4086 -2.3317 0.5686\" stroke-width=\"0.32\"/><path d=\"M-2.3317 0.5686 Q-1.4542 0.3128 -2.3592 0.4404\" stroke-width=\"0.32\"/><path d=\"M-2.3592 0.4404 Q-1.4670 0.2478 -2.3730 0.3588\" stroke-width=\"0.32\"/><path d=\"M-2.3730 0.3588 Q-1.4739 0.2035 -2.3815 0.2976\" stroke-width=\"0.32\"/><path d=\"M-2.3815 0.2976 Q-1.4823 0.0923 -2.4000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-2.4000 0.0000 Q-1.4823 -0.0923 -2.3815 -0.2976\" stroke-width=\"0.32\"/><path d=\"M-3.1257 -0.3906 Q-1.9345 -0.2671 -3.1146 -0.4709\" stroke-width=\"0.32\"/><path d=\"M-3.1146 -0.4709 Q-1.9254 -0.3252 -3.0965 -0.5780\" stroke-width=\"0.32\"/><path d=\"M-3.0965 -0.5780 Q-1.9086 -0.4105 -3.0603 -0.7463\" stroke-width=\"0.32\"/><path d=\"M-3.0603 -0.7463 Q-1.8764 -0.5363 -2.9925 -0.9836\" stroke-width=\"0.32\"/><path d=\"M-2.9925 -0.9836 Q-1.7797 -0.7820 -2.7484 -1.5391\" stroke-width=\"0.32\"/><path d=\"M-2.7484 -1.5391 Q-1.5024 -1.2055 -2.0979 -2.3497\" stroke-width=\"0.32\"/><path d=\"M-2.0979 -2.3497 Q-0.9430 -1.6600 -0.9441 -3.0052\" stroke-width=\"0.32\"/><path d=\"M-0.9441 -3.0052 Q0.0000 -1.8632 0.9441 -3.0052\" stroke-width=\"0.32\"/><path d=\"M0.9441 -3.0052 Q0.9430 -1.6600 2.0979 -2.3497\" stroke-width=\"0.32\"/><path d=\"M2.0979 -2.3497 Q1.5024 -1.2055 2.7484 -1.5391\" stroke-width=\"0.32\"/><path d=\"M2.7484 -1.5391 Q1.7797 -0.7820 2.9925 -0.9836\" stroke-width=\"0.32\"/><path d=\"M2.9925 -0.9836 Q1.8764 -0.5363 3.0603 -0.7463\" stroke-width=\"0.32\"/><path d=\"M3.0603 -0.7463 Q1.9086 -0.4105 3.0965 -0.5780\" stroke-width=\"0.32\"/><path d=\"M3.0965 -0.5780 Q1.9254 -0.3252 3.1146 -0.4709\" stroke-width=\"0.32\"/><path d=\"M3.1146 -0.4709 Q1.9345 -0.2671 3.1257 -0.3906\" stroke-width=\"0.32\"/><path d=\"M3.1257 -0.3906 Q1.9455 -0.1211 3.1500 0.0000\" stroke-width=\"0.32\"/><path d=\"M3.1500 0.0000 Q1.9455 0.1211 3.1257 0.3906\" stroke-width=\"0.32\"/><path d=\"M3.1257 0.3906 Q1.9345 0.2671 3.1146 0.4709\" stroke-width=\"0.32\"/><path d=\"M3.1146 0.4709 Q1.9254 0.3252 3.0965 0.5780\" stroke-width=\"0.32\"/><path d=\"M3.0965 0.5780 Q1.9086 0.4105 3.0603 0.7463\" stroke-width=\"0.32\"/><path d=\"M3.0603 0.7463 Q1.8764 0.5363 2.9925 0.9836\" stroke-width=\"0.32\"/><path d=\"M2.9925 0.9836 Q1.7797 0.7820 2.7484 1.5391\" stroke-width=\"0.32\"/><path d=\"M2.7484 1.5391 Q1.5024 1.2055 2.0979 2.3497\" stroke-width=\"0.32\"/><path d=\"M2.0979 2.3497 Q0.9430 1.6600 0.9441 3.0052\" stroke-width=\"0.32\"/><path d=\"M0.9441 3.0052 Q0.0000 1.8632 -0.9441 3.0052\" stroke-width=\"0.32\"/><path d=\"M-0.9441 3.0052 Q-0.9430 1.6600 -2.0979 2.3497\" stroke-width=\"0.32\"/><path d=\"M-2.0979 2.3497 Q-1.5024 1.2055 -2.7484 1.5391\" stroke-width=\"0.32\"/><path d=\"M-2.7484 1.5391 Q-1.7797 0.7820 -2.9925 0.9836\" stroke-width=\"0.32\"/><path d=\"M-2.9925 0.9836 Q-1.8764 0.5363 -3.0603 0.7463\" stroke-width=\"0.32\"/><path d=\"M-3.0603 0.7463 Q-1.9086 0.4105 -3.0965 0.5780\" stroke-width=\"0.32\"/><path d=\"M-3.0965 0.5780 Q-1.9254 0.3252 -3.1146 0.4709\" stroke-width=\"0.32\"/><path d=\"M-3.1146 0.4709 Q-1.9345 0.2671 -3.1257 0.3906\" stroke-width=\"0.32\"/><path d=\"M-3.1257 0.3906 Q-1.9455 0.1211 -3.1500 0.0000\" stroke-width=\"0.32\"/><path d=\"M-3.1500 0.0000 Q-1.9455 -0.1211 -3.1257 -0.3906\" stroke-width=\"0.32\"/><path d=\"M-3.9691 -0.4960 Q-2.4565 -0.3391 -3.9550 -0.5980\" stroke-width=\"0.32\"/><path d=\"M-3.9550 -0.5980 Q-2.4450 -0.4129 -3.9321 -0.7340\" stroke-width=\"0.32\"/><path d=\"M-3.9321 -0.7340 Q-2.4236 -0.5213 -3.8861 -0.9477\" stroke-width=\"0.32\"/><path d=\"M-3.8861 -0.9477 Q-2.3827 -0.6810 -3.8000 -1.2490\" stroke-width=\"0.32\"/><path d=\"M-3.8000 -1.2490 Q-2.2599 -0.9931 -3.4900 -1.9544\" stroke-width=\"0.32\"/><path d=\"M-3.4900 -1.9544 Q-1.9078 -1.5308 -2.6641 -2.9838\" stroke-width=\"0.32\"/><path d=\"M2.6641 -2.9838 Q1.9078 -1.5308 3.4900 -1.9544\" stroke-width=\"0.32\"/><path d=\"M3.4900 -1.9544 Q2.2599 -0.9931 3.8000 -1.2490\" stroke-width=\"0.32\"/><path d=\"M3.8000 -1.2490 Q2.3827 -0.6810 3.8861 -0.9477\" stroke-width=\"0.32\"/><path d=\"M3.8861 -0.9477 Q2.4236 -0.5213 3.9321 -0.7340\" stroke-width=\"0.32\"/><path d=\"M3.9321 -0.7340 Q2.4450 -0.4129 3.9550 -0.5980\" stroke-width=\"0.32\"/><path d=\"M3.9550 -0.5980 Q2.4565 -0.3391 3.9691 -0.4960\" stroke-width=\"0.32\"/><path d=\"M3.9691 -0.4960 Q2.4704 -0.1538 4.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M4.0000 0.0000 Q2.4704 0.1538 3.9691 0.4960\" stroke-width=\"0.32\"/><path d=\"M3.9691 0.4960 Q2.4565 0.3391 3.9550 0.5980\" stroke-width=\"0.32\"/><path d=\"M3.9550 0.5980 Q2.4450 0.4129 3.9321 0.7340\" stroke-width=\"0.32\"/><path d=\"M3.9321 0.7340 Q2.4236 0.5213 3.8861 0.9477\" stroke-width=\"0.32\"/><path d=\"M3.8861 0.9477 Q2.3827 0.6810 3.8000 1.2490\" stroke-width=\"0.32\"/><path d=\"M3.8000 1.2490 Q2.2599 0.9931 3.4900 1.9544\" stroke-width=\"0.32\"/><path d=\"M3.4900 1.9544 Q1.9078 1.5308 2.6641 2.9838\" stroke-width=\"0.32\"/><path d=\"M-2.6641 2.9838 Q-1.9078 1.5308 -3.4900 1.9544\" stroke-width=\"0.32\"/><path d=\"M-3.4900 1.9544 Q-2.2599 0.9931 -3.8000 1.2490\" stroke-width=\"0.32\"/><path d=\"M-3.8000 1.2490 Q-2.3827 0.6810 -3.8861 0.9477\" stroke-width=\"0.32\"/><path d=\"M-3.8861 0.9477 Q-2.4236 0.5213 -3.9321 0.7340\" stroke-width=\"0.32\"/><path d=\"M-3.9321 0.7340 Q-2.4450 0.4129 -3.9550 0.5980\" stroke-width=\"0.32\"/><path d=\"M-3.9550 0.5980 Q-2.4565 0.3391 -3.9691 0.4960\" stroke-width=\"0.32\"/><path d=\"M-3.9691 0.4960 Q-2.4704 0.1538 -4.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-4.0000 0.0000 Q-2.4704 -0.1538 -3.9691 -0.4960\" stroke-width=\"0.32\"/><path d=\"M-4.9614 -0.6200 Q-3.0706 -0.4239 -4.9438 -0.7475\" stroke-width=\"0.32\"/><path d=\"M-4.9438 -0.7475 Q-3.0563 -0.5161 -4.9151 -0.9175\" stroke-width=\"0.32\"/><path d=\"M-4.9151 -0.9175 Q-3.0295 -0.6517 -4.8576 -1.1846\" stroke-width=\"0.32\"/><path d=\"M-4.8576 -1.1846 Q-2.9784 -0.8512 -4.7500 -1.5613\" stroke-width=\"0.32\"/><path d=\"M-4.7500 -1.5613 Q-2.8249 -1.2413 -4.3625 -2.4430\" stroke-width=\"0.32\"/><path d=\"M4.3625 -2.4430 Q2.8249 -1.2413 4.7500 -1.5613\" stroke-width=\"0.32\"/><path d=\"M4.7500 -1.5613 Q2.9784 -0.8512 4.8576 -1.1846\" stroke-width=\"0.32\"/><path d=\"M4.8576 -1.1846 Q3.0295 -0.6517 4.9151 -0.9175\" stroke-width=\"0.32\"/><path d=\"M4.9151 -0.9175 Q3.0563 -0.5161 4.9438 -0.7475\" stroke-width=\"0.32\"/><path d=\"M4.9438 -0.7475 Q3.0706 -0.4239 4.9614 -0.6200\" stroke-width=\"0.32\"/><path d=\"M4.9614 -0.6200 Q3.0880 -0.1922 5.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M5.0000 0.0000 Q3.0880 0.1922 4.9614 0.6200\" stroke-width=\"0.32\"/><path d=\"M4.9614 0.6200 Q3.0706 0.4239 4.9438 0.7475\" stroke-width=\"0.32\"/><path d=\"M4.9438 0.7475 Q3.0563 0.5161 4.9151 0.9175\" stroke-width=\"0.32\"/><path d=\"M4.9151 0.9175 Q3.0295 0.6517 4.8576 1.1846\" stroke-width=\"0.32\"/><path d=\"M4.8576 1.1846 Q2.9784 0.8512 4.7500 1.5613\" stroke-width=\"0.32\"/><path d=\"M4.7500 1.5613 Q2.8249 1.2413 4.3625 2.4430\" stroke-width=\"0.32\"/><path d=\"M-4.3625 2.4430 Q-2.8249 1.2413 -4.7500 1.5613\" stroke-width=\"0.32\"/><path d=\"M-4.7500 1.5613 Q-2.9784 0.8512 -4.8576 1.1846\" stroke-width=\"0.32\"/><path d=\"M-4.8576 1.1846 Q-3.0295 0.6517 -4.9151 0.9175\" stroke-width=\"0.32\"/><path d=\"M-4.9151 0.9175 Q-3.0563 0.5161 -4.9438 0.7475\" stroke-width=\"0.32\"/><path d=\"M-4.9438 0.7475 Q-3.0706 0.4239 -4.9614 0.6200\" stroke-width=\"0.32\"/><path d=\"M-4.9614 0.6200 Q-3.0880 0.1922 -5.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-5.0000 0.0000 Q-3.0880 -0.1922 -4.9614 -0.6200\" stroke-width=\"0.32\"/><path d=\"M-6.0529 -0.7564 Q-3.7462 -0.5172 -6.0314 -0.9120\" stroke-width=\"0.32\"/><path d=\"M-6.0314 -0.9120 Q-3.7286 -0.6297 -5.9964 -1.1193\" stroke-width=\"0.32\"/><path d=\"M-5.9964 -1.1193 Q-3.6960 -0.7950 -5.9263 -1.4453\" stroke-width=\"0.32\"/><path d=\"M-5.9263 -1.4453 Q-3.6336 -1.0385 -5.7950 -1.9048\" stroke-width=\"0.32\"/><path d=\"M-5.7950 -1.9048 Q-3.4464 -1.5144 -5.3223 -2.9805\" stroke-width=\"0.32\"/><path d=\"M5.3223 -2.9805 Q3.4464 -1.5144 5.7950 -1.9048\" stroke-width=\"0.32\"/><path d=\"M5.7950 -1.9048 Q3.6336 -1.0385 5.9263 -1.4453\" stroke-width=\"0.32\"/><path d=\"M5.9263 -1.4453 Q3.6960 -0.7950 5.9964 -1.1193\" stroke-width=\"0.32\"/><path d=\"M5.9964 -1.1193 Q3.7286 -0.6297 6.0314 -0.9120\" stroke-width=\"0.32\"/><path d=\"M6.0314 -0.9120 Q3.7462 -0.5172 6.0529 -0.7564\" stroke-width=\"0.32\"/><path d=\"M6.0529 -0.7564 Q3.7674 -0.2345 6.1000 0.0000\" stroke-width=\"0.32\"/><path d=\"M6.1000 0.0000 Q3.7674 0.2345 6.0529 0.7564\" stroke-width=\"0.32\"/><path d=\"M6.0529 0.7564 Q3.7462 0.5172 6.0314 0.9120\" stroke-width=\"0.32\"/><path d=\"M6.0314 0.9120 Q3.7286 0.6297 5.9964 1.1193\" stroke-width=\"0.32\"/><path d=\"M5.9964 1.1193 Q3.6960 0.7950 5.9263 1.4453\" stroke-width=\"0.32\"/><path d=\"M5.9263 1.4453 Q3.6336 1.0385 5.7950 1.9048\" stroke-width=\"0.32\"/><path d=\"M5.7950 1.9048 Q3.4464 1.5144 5.3223 2.9805\" stroke-width=\"0.32\"/><path d=\"M-5.3223 2.9805 Q-3.4464 1.5144 -5.7950 1.9048\" stroke-width=\"0.32\"/><path d=\"M-5.7950 1.9048 Q-3.6336 1.0385 -5.9263 1.4453\" stroke-width=\"0.32\"/><path d=\"M-5.9263 1.4453 Q-3.6960 0.7950 -5.9964 1.1193\" stroke-width=\"0.32\"/><path d=\"M-5.9964 1.1193 Q-3.7286 0.6297 -6.0314 0.9120\" stroke-width=\"0.32\"/><path d=\"M-6.0314 0.9120 Q-3.7462 0.5172 -6.0529 0.7564\" stroke-width=\"0.32\"/><path d=\"M-6.0529 0.7564 Q-3.7674 0.2345 -6.1000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-6.1000 0.0000 Q-3.7674 -0.2345 -6.0529 -0.7564\" stroke-width=\"0.32\"/><path d=\"M-7.2437 -0.9052 Q-4.4831 -0.6189 -7.2180 -1.0914\" stroke-width=\"0.32\"/><path d=\"M-7.2180 -1.0914 Q-4.4621 -0.7536 -7.1760 -1.3395\" stroke-width=\"0.32\"/><path d=\"M-7.1760 -1.3395 Q-4.4231 -0.9514 -7.0921 -1.7296\" stroke-width=\"0.32\"/><path d=\"M-7.0921 -1.7296 Q-4.3484 -1.2428 -6.9350 -2.2795\" stroke-width=\"0.32\"/><path d=\"M6.9350 -2.2795 Q4.3484 -1.2428 7.0921 -1.7296\" stroke-width=\"0.32\"/><path d=\"M7.0921 -1.7296 Q4.4231 -0.9514 7.1760 -1.3395\" stroke-width=\"0.32\"/><path d=\"M7.1760 -1.3395 Q4.4621 -0.7536 7.2180 -1.0914\" stroke-width=\"0.32\"/><path d=\"M7.2180 -1.0914 Q4.4831 -0.6189 7.2437 -0.9052\" stroke-width=\"0.32\"/><path d=\"M7.2437 -0.9052 Q4.5085 -0.2806 7.3000 0.0000\" stroke-width=\"0.32\"/><path d=\"M7.3000 0.0000 Q4.5085 0.2806 7.2437 0.9052\" stroke-width=\"0.32\"/><path d=\"M7.2437 0.9052 Q4.4831 0.6189 7.2180 1.0914\" stroke-width=\"0.32\"/><path d=\"M7.2180 1.0914 Q4.4621 0.7536 7.1760 1.3395\" stroke-width=\"0.32\"/><path d=\"M7.1760 1.3395 Q4.4231 0.9514 7.0921 1.7296\" stroke-width=\"0.32\"/><path d=\"M7.0921 1.7296 Q4.3484 1.2428 6.9350 2.2795\" stroke-width=\"0.32\"/><path d=\"M-6.9350 2.2795 Q-4.3484 1.2428 -7.0921 1.7296\" stroke-width=\"0.32\"/><path d=\"M-7.0921 1.7296 Q-4.4231 0.9514 -7.1760 1.3395\" stroke-width=\"0.32\"/><path d=\"M-7.1760 1.3395 Q-4.4621 0.7536 -7.2180 1.0914\" stroke-width=\"0.32\"/><path d=\"M-7.2180 1.0914 Q-4.4831 0.6189 -7.2437 0.9052\" stroke-width=\"0.32\"/><path d=\"M-7.2437 0.9052 Q-4.5085 0.2806 -7.3000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-7.3000 0.0000 Q-4.5085 -0.2806 -7.2437 -0.9052\" stroke-width=\"0.32\"/><path d=\"M-8.5336 -1.0664 Q-5.2815 -0.7291 -8.5033 -1.2857\" stroke-width=\"0.32\"/><path d=\"M-8.5033 -1.2857 Q-5.2568 -0.8878 -8.4540 -1.5781\" stroke-width=\"0.32\"/><path d=\"M-8.4540 -1.5781 Q-5.2108 -1.1209 -8.3551 -2.0376\" stroke-width=\"0.32\"/><path d=\"M-8.3551 -2.0376 Q-5.1228 -1.4641 -8.1700 -2.6854\" stroke-width=\"0.32\"/><path d=\"M8.1700 -2.6854 Q5.1228 -1.4641 8.3551 -2.0376\" stroke-width=\"0.32\"/><path d=\"M8.3551 -2.0376 Q5.2108 -1.1209 8.4540 -1.5781\" stroke-width=\"0.32\"/><path d=\"M8.4540 -1.5781 Q5.2568 -0.8878 8.5033 -1.2857\" stroke-width=\"0.32\"/><path d=\"M8.5033 -1.2857 Q5.2815 -0.7291 8.5336 -1.0664\" stroke-width=\"0.32\"/><path d=\"M8.5336 -1.0664 Q5.3114 -0.3306 8.6000 0.0000\" stroke-width=\"0.32\"/><path d=\"M8.6000 0.0000 Q5.3114 0.3306 8.5336 1.0664\" stroke-width=\"0.32\"/><path d=\"M8.5336 1.0664 Q5.2815 0.7291 8.5033 1.2857\" stroke-width=\"0.32\"/><path d=\"M8.5033 1.2857 Q5.2568 0.8878 8.4540 1.5781\" stroke-width=\"0.32\"/><path d=\"M8.4540 1.5781 Q5.2108 1.1209 8.3551 2.0376\" stroke-width=\"0.32\"/><path d=\"M8.3551 2.0376 Q5.1228 1.4641 8.1700 2.6854\" stroke-width=\"0.32\"/><path d=\"M-8.1700 2.6854 Q-5.1228 1.4641 -8.3551 2.0376\" stroke-width=\"0.32\"/><path d=\"M-8.3551 2.0376 Q-5.2108 1.1209 -8.4540 1.5781\" stroke-width=\"0.32\"/><path d=\"M-8.4540 1.5781 Q-5.2568 0.8878 -8.5033 1.2857\" stroke-width=\"0.32\"/><path d=\"M-8.5033 1.2857 Q-5.2815 0.7291 -8.5336 1.0664\" stroke-width=\"0.32\"/><path d=\"M-8.5336 1.0664 Q-5.3114 0.3306 -8.6000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-8.6000 0.0000 Q-5.3114 -0.3306 -8.5336 -1.0664\" stroke-width=\"0.32\"/><path d=\"M-9.9228 -1.2399 Q-6.1412 -0.8478 -9.8876 -1.4950\" stroke-width=\"0.32\"/><path d=\"M-9.8876 -1.4950 Q-6.1125 -1.0323 -9.8302 -1.8350\" stroke-width=\"0.32\"/><path d=\"M-9.8302 -1.8350 Q-6.0591 -1.3033 -9.7153 -2.3693\" stroke-width=\"0.32\"/><path d=\"M9.7153 -2.3693 Q6.0591 -1.3033 9.8302 -1.8350\" stroke-width=\"0.32\"/><path d=\"M9.8302 -1.8350 Q6.1125 -1.0323 9.8876 -1.4950\" stroke-width=\"0.32\"/><path d=\"M9.8876 -1.4950 Q6.1412 -0.8478 9.9228 -1.2399\" stroke-width=\"0.32\"/><path d=\"M9.9228 -1.2399 Q6.1761 -0.3844 10.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M10.0000 0.0000 Q6.1761 0.3844 9.9228 1.2399\" stroke-width=\"0.32\"/><path d=\"M9.9228 1.2399 Q6.1412 0.8478 9.8876 1.4950\" stroke-width=\"0.32\"/><path d=\"M9.8876 1.4950 Q6.1125 1.0323 9.8302 1.8350\" stroke-width=\"0.32\"/><path d=\"M9.8302 1.8350 Q6.0591 1.3033 9.7153 2.3693\" stroke-width=\"0.32\"/><path d=\"M-9.7153 2.3693 Q-6.0591 1.3033 -9.8302 1.8350\" stroke-width=\"0.32\"/><path d=\"M-9.8302 1.8350 Q-6.1125 1.0323 -9.8876 1.4950\" stroke-width=\"0.32\"/><path d=\"M-9.8876 1.4950 Q-6.1412 0.8478 -9.9228 1.2399\" stroke-width=\"0.32\"/><path d=\"M-9.9228 1.2399 Q-6.1761 0.3844 -10.0000 0.0000\" stroke-width=\"0.32\"/><path d=\"M-10.0000 0.0000 Q-6.1761 -0.3844 -9.9228 -1.2399\" stroke-width=\"0.32\"/></g><circle cx=\"0\" cy=\"0\" r=\"0.55\" fill=\"#000\"/><circle cx=\"26.5500\" cy=\"0\" r=\"0.32\" fill=\"#000\"/><circle cx=\"-26.5500\" cy=\"0\" r=\"0.32\" fill=\"#000\"/></svg>",
       "invert": false
     }
   ],
