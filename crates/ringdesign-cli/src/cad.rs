@@ -115,16 +115,21 @@ pub fn run(args: &[String]) -> Result<()> {
                 "step" => {
                     let path = output.context("STEP export needs --out model.step")?;
                     ensure!(!path.exists(), "Output already exists");
-                    let text = if band {
-                        cad::step::ring(&d, &lib, params, &d.name)?
+                    let (text, said) = if band {
+                        let sized = cad::step::ring_sized(&d, &lib, params, cad::step::BAND_TOLERANCE_MM, &d.name)?;
+                        let said = sized.summary();
+                        (sized.text, Some(said))
                     } else {
-                        cad::step::export(&cad::evaluate(&d, &lib, params)?, &d.name)?
+                        (cad::step::export(&cad::evaluate(&d, &lib, params)?, &d.name)?, None)
                     };
                     // Every solid read back as an import reads it.
                     let solids = cad::step::read_meshes(&text)?;
                     ringdesign_core::library::write_atomic(&path, text.as_bytes())?;
                     let faceted = solids.iter().filter(|s| s.faceted).count();
                     println!("STEP solids: {} analytic, {faceted} faceted: {}", solids.len() - faceted, path.display());
+                    if let Some(said) = said {
+                        println!("  {said}");
+                    }
                     for s in &solids {
                         let kind = if s.faceted { "faceted" } else { "exact" };
                         match &s.mesh {

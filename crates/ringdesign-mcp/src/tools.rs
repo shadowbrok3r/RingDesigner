@@ -391,6 +391,26 @@ pub struct ExportResult {
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
+pub struct StepExportResult {
+    pub path: String,
+    pub bytes: usize,
+    /// The file's exact and faceted solids, its size and its band, as the desktop's status line says them.
+    pub summary: String,
+    /// How the band's facets were sized; absent for a ring of parts alone.
+    pub band: Option<StepBand>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct StepBand {
+    /// Triangles of the band's solid as the export build made it, with the seats, stamps and parts it carries.
+    pub built_facets: usize,
+    /// Triangles of it the file holds.
+    pub written_facets: usize,
+    /// The farthest any vertex of the export build stands from the written band, mm.
+    pub deviation_mm: f64,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct FileResult {
     pub path: String,
     pub generation: u64,
@@ -2484,27 +2504,29 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Write the whole ring as a STEP AP214 file for CAD programs, at the design's stored resolution. `path` is optional and defaults to a temp file named after the design. Every CAD part the kernel built is an exact B-rep solid of its own — planes, cylinders, tori and splines, never triangles — including a part joined to the band, which is written beside it; the swept band, with its cut parts and every part a builder made joined to or cut from it, is a closed faceted solid, as is each separate part a builder made; reference stones are left out. The file is the finished ring at nominal size, not a shrink-scaled pattern. Returns the path and the byte count."
+        description = "Write the whole ring as a STEP AP214 file for CAD programs, at the design's stored resolution. `path` is optional and defaults to a temp file named after the design. Every CAD part the kernel built is an exact B-rep solid of its own — planes, cylinders, tori and splines, never triangles — including a part joined to the band, which is written beside it; the swept band, with its cut parts and every part a builder made joined to or cut from it, is a closed faceted solid, as is each separate part a builder made; reference stones are left out. The band's facets are collapsed while every vertex of the build stays within 0.01 mm of what is written, which keeps the file a small fraction of the build's size. The file is the finished ring at nominal size, not a shrink-scaled pattern. Returns the path, the byte count, a one-line summary of its solids, size and band, and the band's facets before and after with the deviation."
     )]
     async fn export_step(
         &self,
         Parameters(p): Parameters<ExportParams>,
-    ) -> Result<Json<ExportResult>, ErrorData> {
+    ) -> Result<Json<StepExportResult>, ErrorData> {
+        use ringdesign_core::cad::step;
         let (design, lib) = {
             let e = self.engine.lock();
             (e.design().clone(), e.library_arc())
         };
         let path = p.path.unwrap_or_else(|| default_export_path(&design.name, "step"));
         let written = path.clone();
-        let bytes = tokio::task::spawn_blocking(move || -> anyhow::Result<usize> {
-            let text = ringdesign_core::cad::step::ring(&design, &lib, design.build, &design.name)?;
-            ringdesign_core::library::write_atomic(&written, text.as_bytes())?;
-            Ok(text.len())
+        let sized = tokio::task::spawn_blocking(move || -> anyhow::Result<step::Sized> {
+            let sized = step::ring_sized(&design, &lib, design.build, step::BAND_TOLERANCE_MM, &design.name)?;
+            ringdesign_core::library::write_atomic(&written, sized.text.as_bytes())?;
+            Ok(sized)
         })
         .await
         .map_err(|err| ErrorData::internal_error(format!("STEP worker: {err}"), None))?
         .map_err(|err| ErrorData::internal_error(format!("write {path}: {err:#}"), None))?;
-        Ok(Json(ExportResult { path, bytes }))
+        let band = sized.band.map(|b| StepBand { built_facets: b.built, written_facets: b.written, deviation_mm: b.deviation_mm });
+        Ok(Json(StepExportResult { path, bytes: sized.text.len(), summary: sized.summary(), band }))
     }
 
     #[tool(
@@ -3544,7 +3566,13 @@ mod tests {
         let text = std::fs::read_to_string(&obj).unwrap();
         assert_eq!(text.lines().filter(|l| l.starts_with("o ")).collect::<Vec<_>>(), [format!("o {}", court.name)]);
         let step = dir.join("court.step");
-        s.export_step(Parameters(ExportParams { path: Some(step.to_string_lossy().into_owned()) })).await.unwrap();
+        let written = s.export_step(Parameters(ExportParams { path: Some(step.to_string_lossy().into_owned()) })).await.unwrap().0;
+        // The band's facets collapsed within 0.01 mm of every vertex the build had, and the reply says so.
+        let band = written.band.as_ref().unwrap();
+        eprintln!("MCP STEP: {} ({} bytes)", written.summary, written.bytes);
+        assert!(band.written_facets * 2 < band.built_facets && band.deviation_mm <= ringdesign_core::cad::step::BAND_TOLERANCE_MM, "{band:?}");
+        assert!(written.summary.starts_with("0 exact and 1 faceted solid • ") && written.summary.contains(&format!("every vertex of the export build within {:.3} mm", band.deviation_mm)), "{}", written.summary);
+        assert_eq!(written.bytes, std::fs::metadata(&step).unwrap().len() as usize);
         let solids = ringdesign_core::cad::step::read_solids(&std::fs::read_to_string(&step).unwrap()).unwrap();
         assert_eq!(solids.iter().map(|x| (x.name.as_str(), x.faceted)).collect::<Vec<_>>(), [(court.name.as_str(), true)]);
         let exported = solids[0].mesh.as_ref().unwrap().volume_mm3();

@@ -585,6 +585,42 @@ pub struct Sized {
     /// Metal the faceted solids enclose, mm³.
     pub faceted_volume_mm3: f64,
 }
+impl Sized {
+    /// Exact solids and faceted solids the file holds.
+    pub fn solids(&self) -> (usize, usize) {
+        let exact = self.text.matches("=MANIFOLD_SOLID_BREP(").count() + self.text.matches("=BREP_WITH_VOIDS(").count();
+        (exact, self.text.matches("=FACETED_BREP(").count())
+    }
+    /// The file's solids, its size and its band, as the desktop's status line says them.
+    pub fn summary(&self) -> String {
+        let (exact, faceted) = self.solids();
+        format!("{exact} exact and {faceted} faceted solid{} • {} • {}", if exact + faceted == 1 { "" } else { "s" }, size_words(self.text.len()), band_words(self.band.as_ref()))
+    }
+}
+/// A file's size in the unit that reads.
+pub fn size_words(bytes: usize) -> String {
+    if bytes >= 1 << 20 { format!("{:.1} MB", bytes as f64 / 1048576.0) } else { format!("{:.1} KB", bytes as f64 / 1024.0) }
+}
+/// `n` with its thousands grouped.
+fn grouped(n: usize) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+/// What a STEP file's band holds: its facets, and how near every vertex of the export build stands to them.
+pub fn band_words(band: Option<&BandFacets>) -> String {
+    match band {
+        Some(b) if b.written < b.built => format!("band {} facets from {}, every vertex of the export build within {:.3} mm", grouped(b.written), grouped(b.built), b.deviation_mm),
+        Some(b) => format!("band {} facets as the export build made them", grouped(b.written)),
+        None => "no band: every part as it was built".into(),
+    }
+}
 /// The farthest any vertex of `truth` stands from the faces of `mesh`, mm, looked for out to `reach`.
 fn deviation_mm(truth: &Mesh, mesh: &Mesh, reach: f64) -> f64 {
     let bvh = crate::interaction::bvh::Bvh::build(mesh);
@@ -1217,6 +1253,13 @@ mod tests {
         let (v_was, v_now) = (band_was.volume_mm3(), band_now.volume_mm3());
         assert!((v_now / v_was - 1.0).abs() < 0.005, "{v_now} against {v_was}");
         assert!((sized.faceted_volume_mm3 - v_now).abs() < 1e-3 * v_now, "{} against {v_now}", sized.faceted_volume_mm3);
+        // What every writer says of it: the post and the spacer exact, the band faceted, the size and the deviation.
+        assert_eq!(sized.solids(), (2, 1));
+        let said = sized.summary();
+        let want = format!("2 exact and 1 faceted solids • {} • band {} facets from {}, every vertex of the export build within {:.3} mm", size_words(sized.text.len()), grouped(b.written), grouped(b.built), b.deviation_mm);
+        assert_eq!(said, want);
+        assert_eq!((size_words(1536), size_words(3 << 20), grouped(1_234_567), grouped(999)), ("1.5 KB".into(), "3.0 MB".into(), "1,234,567".into(), "999".into()));
+        assert_eq!(band_words(None), "no band: every part as it was built");
     }
 
     #[test]
