@@ -488,7 +488,7 @@ pub fn export_with(e: &Evaluated, name: &str, keep: &dyn Fn(&EvaluatedComponent)
     out.push_str("ENDSEC;\nEND-ISO-10303-21;\n");
     Ok(out)
 }
-/// The whole ring as STEP: kernel parts the band does not fuse as analytic solids, the band and every other part faceted.
+/// The whole ring as STEP: kernel parts no cut carves as analytic solids, the band and every other part faceted as built.
 pub fn ring(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name: &str) -> Result<String> {
     ring_built(design, lib, params, name, None).map(|w| w.text)
 }
@@ -534,28 +534,29 @@ fn ring_built(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name
         let made: Vec<Faceted> = e.components.iter().filter(|c| metal(c) && c.made.is_some()).map(|c| Faceted { name: c.name.clone(), mesh: &c.mesh }).collect();
         return Ok(written(export_with(&e, name, &metal, &made)?, &made, 0, None));
     }
-    // Kernel parts joined to the band are built beside it, uncarved, so each stays its own analytic solid.
+    // Kernel parts joined to the band are built beside it, so each stays its own solid.
     let before = super::evaluate(design, lib, params)?;
-    let analytic: Vec<Id> = before.components.iter().filter(|c| metal(c) && c.made.is_none() && c.attach == Attach::Join).map(|c| c.id).collect();
+    let joined: Vec<Id> = before.components.iter().filter(|c| metal(c) && c.made.is_none() && c.attach == Attach::Join).map(|c| c.id).collect();
     let mut apart = design.clone();
-    for f in apart.cad.iter_mut().flat_map(|d| d.features.iter_mut()).filter(|f| analytic.contains(&f.id)) {
+    for f in apart.cad.iter_mut().flat_map(|d| d.features.iter_mut()).filter(|f| joined.contains(&f.id)) {
         f.component.attach = Attach::Separate;
     }
-    let never = std::sync::atomic::AtomicBool::new(false);
-    let built = crate::mesh::try_build_keeping(&apart, lib, params, &never, super::Memo::default(), &analytic)?;
+    let built = crate::mesh::try_build(&apart, lib, params)?;
     let e = built.parts.evaluated.as_ref().context("The ring's parts were not evaluated")?;
     let objects = crate::threemf::objects(&built, name);
-    let made = |id: Id| e.components.iter().any(|c| c.id == id && c.made.is_some());
+    // A made part, and a kernel part a cut carved, is written as the build left it; one a cut consumed has no object.
+    let carved = &built.parts.carved;
+    let as_built = |id: Id| carved.contains(&id) || e.components.iter().any(|c| c.id == id && c.made.is_some());
     // The band's own object, with its joined and cut parts, is the one no feature names.
     let band = objects.iter().find(|o| o.feature.is_none());
     let small = band.zip(collapse).and_then(|(o, tol)| collapsed(o.mesh.as_ref(), tol));
     let faceted: Vec<Faceted> = objects
         .iter()
-        .filter(|o| o.feature.is_none_or(made))
+        .filter(|o| o.feature.is_none_or(as_built))
         .map(|o| Faceted { name: o.name.clone(), mesh: match (&small, o.feature) { (Some((m, _)), None) => m, _ => o.mesh.as_ref() } })
         .collect();
     let band_facets = small.as_ref().map(|(m, _)| m.faces.len()).or(band.map(|o| o.mesh.faces.len())).unwrap_or(0);
-    let text = export_with(e, name, &|c| metal(c) && c.attach == Attach::Separate, &faceted)?;
+    let text = export_with(e, name, &|c| metal(c) && c.attach == Attach::Separate && !carved.contains(&c.id), &faceted)?;
     Ok(written(text, &faceted, band_facets, small.as_ref().map(|(_, c)| *c)))
 }
 /// How near a STEP file's faceted band stands to every vertex of the export build, mm.
@@ -1288,34 +1289,70 @@ mod tests {
         assert!(parts.band.is_none() && parts.facets == 0);
     }
 
-    #[test]
-    fn a_cut_through_a_joined_post_carves_the_band_and_leaves_the_exact_post_whole() {
+    /// The Court band with a post of `attach` 0.6 mm off its top, a pilot cut through the post into the band, and `more`.
+    fn court_with(attach: Attach, more: Vec<crate::cad::Feature>) -> RingDesign {
         use crate::cad::{Component, Document, Feature, Operation, Placement};
-        let lib = crate::AlphaLibrary::builtin();
-        let params = crate::BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() };
-        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut d = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
         let mut doc = Document::default();
         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
-        let pilot = Feature { id: 3, name: "Pilot".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 0.4, height_mm: 3.0 }, component: Component { attach: Attach::Cut, placement: Placement::ring(90.0, 0.0), ..Component::default() } };
-        let mut bored = court.clone();
-        bored.cad = Some(doc.clone());
-        bored.cad.as_mut().unwrap().append(pilot.clone()).unwrap();
         // A name carrying a record's own text is counted as the one solid it names.
-        let post = Component { attach: Attach::Join, placement: Placement::ring(90.0, 0.6), ..Component::default() };
+        let post = Component { attach, placement: Placement::ring(90.0, 0.6), ..Component::default() };
         doc.append(Feature { id: 2, name: "Post =FACETED_BREP(".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 0.8, height_mm: 2.0 }, component: post }).unwrap();
-        doc.append(pilot).unwrap();
-        let mut d = court;
+        let pilot = Component { attach: Attach::Cut, placement: Placement::ring(90.0, 0.0), ..Component::default() };
+        doc.append(Feature { id: 3, name: "Pilot".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 0.4, height_mm: 3.0 }, component: pilot }).unwrap();
+        for f in more {
+            doc.append(f).unwrap();
+        }
         d.cad = Some(doc);
+        d
+    }
+
+    #[test]
+    fn a_post_a_cut_bores_is_written_as_the_build_bored_it_joined_or_set_apart() {
+        let lib = crate::AlphaLibrary::builtin();
+        let params = crate::BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() };
+        let built = crate::mesh::try_build(&court_with(Attach::Separate, Vec::new()), &lib, params).unwrap();
+        let objects = crate::threemf::objects(&built, "Court");
+        let (band, bored) = (objects[0].mesh.volume_mm3(), objects[1].mesh.volume_mm3());
+        assert!((bored - 3.061).abs() < 1e-3, "the 4.020 mm³ post less the pilot's bore: {bored:.4}");
+        for attach in [Attach::Join, Attach::Separate] {
+            let sized = ring_sized(&court_with(attach, Vec::new()), &lib, params, BAND_TOLERANCE_MM, "Court").unwrap();
+            assert_eq!(sized.solids(), (0, 2), "{attach:?}");
+            assert!(sized.summary().starts_with("0 exact and 2 faceted solids • "), "{}", sized.summary());
+            let solids = read_meshes(&sized.text).unwrap();
+            assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Court", true), ("Post =FACETED_BREP(", true)]);
+            let (court, post) = (solids[0].mesh.as_ref().unwrap(), solids[1].mesh.as_ref().unwrap());
+            assert!(court.validate().watertight && post.validate().watertight, "{attach:?}: {:?} {:?}", court.validate(), post.validate());
+            assert!((post.volume_mm3() / bored - 1.0).abs() < 1e-4, "{attach:?}: the post as bored, {} against {bored}", post.volume_mm3());
+            assert!((court.volume_mm3() / band - 1.0).abs() < 0.005, "{attach:?}: the band as bored, {} against {band}", court.volume_mm3());
+        }
+    }
+
+    #[test]
+    fn a_part_set_apart_a_cut_consumes_is_not_written_and_one_it_misses_stays_exact() {
+        use crate::cad::{Component, Feature, Operation, Placement};
+        let lib = crate::AlphaLibrary::builtin();
+        let params = crate::BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() };
+        let apart = |id, name: &str, size, attach, theta, height| Feature {
+            id,
+            name: name.into(),
+            enabled: true,
+            operation: Operation::Box { size: [size; 3] },
+            component: Component { attach, placement: Placement::ring(theta, height), ..Component::default() },
+        };
+        // A 1 mm bead inside a 3 mm clearance cut 5 mm off the top, and a spacer on the palm no cut reaches.
+        let d = court_with(Attach::Join, vec![
+            apart(4, "bead", 1.0, Attach::Separate, 90.0, 5.0),
+            apart(5, "clearance", 3.0, Attach::Cut, 90.0, 5.0),
+            apart(6, "Spacer", 1.5, Attach::Separate, 270.0, 2.0),
+        ]);
+        let built = crate::mesh::try_build(&d, &lib, params).unwrap();
+        assert_eq!(built.parts.notes, ["bead: the cut clearance consumed it whole"]);
+        assert_eq!(built.parts.carved, [4]);
         let sized = ring_sized(&d, &lib, params, BAND_TOLERANCE_MM, "Court").unwrap();
-        assert_eq!(sized.solids(), (1, 1));
-        assert!(sized.summary().starts_with("1 exact and 1 faceted solids • "), "{}", sized.summary());
+        assert_eq!(sized.solids(), (1, 2));
         let solids = read_meshes(&sized.text).unwrap();
-        assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Post =FACETED_BREP(", false), ("Court", true)]);
-        // The band comes back closed, bored by the pilot and carrying nothing of the post.
-        let band = solids[1].mesh.as_ref().unwrap();
-        assert!(band.validate().watertight, "{:?}", band.validate());
-        let want = crate::mesh::try_build(&bored, &lib, params).unwrap().report.volume_mm3;
-        assert!((band.volume_mm3() / want - 1.0).abs() < 0.005, "{} against {want}", band.volume_mm3());
+        assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Spacer", false), ("Court", true), ("Post =FACETED_BREP(", true)]);
     }
 
     /// The claw solitaire with a post joined to the band and a spacer kept beside it.

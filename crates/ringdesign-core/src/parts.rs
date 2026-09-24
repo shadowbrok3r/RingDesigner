@@ -28,6 +28,8 @@ pub struct Resolved {
     pub cut: usize,
     /// Parts set apart: appended as closed shells of their own, or noted where a cut consumed one whole.
     pub separate: usize,
+    /// The parts set apart that a cut carved or consumed whole, by feature id.
+    pub carved: Vec<Id>,
     /// Reference parts passed over.
     pub references: usize,
     /// Seam loops beaded with a part's fillet.
@@ -176,11 +178,6 @@ fn status_notes(e: &cad::Evaluated) -> Vec<String> {
 /// is read between parts and inside each boolean. Nothing happens when the document is the whole
 /// ring or the band is empty. A memo's cache is keyed on the built band's [`cad::surface_epoch`].
 pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx: &BuildCtx, memo: Memo, built: &mut BuildResult) -> Result<Resolved> {
-    resolve_keeping(design, lib, params, ctx, memo, built, &[])
-}
-
-/// [`resolve_with`] appending the separate parts `uncut` names as they were built, carved by no cut.
-pub(crate) fn resolve_keeping(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx: &BuildCtx, memo: Memo, built: &mut BuildResult, uncut: &[Id]) -> Result<Resolved> {
     let mut out = Resolved::default();
     let Some(doc) = &design.cad else { return Ok(out) };
     if doc.replaces_band() || built.mesh.faces.is_empty() {
@@ -294,7 +291,7 @@ pub(crate) fn resolve_keeping(design: &RingDesign, lib: &AlphaLibrary, params: B
             continue;
         }
         out.separate += 1;
-        let reaching: Vec<&Part> = if uncut.contains(&out.features[p.index as usize]) { Vec::new() } else { cuts.iter().filter(|c| meets(&p.solid, &c.solid)).collect() };
+        let reaching: Vec<&Part> = cuts.iter().filter(|c| meets(&p.solid, &c.solid)).collect();
         if reaching.is_empty() {
             chain.solid.push(&p.solid);
             chain.origin.extend(std::iter::repeat_n(SOLID_VERTEX + base + p.index, p.solid.v.len()));
@@ -302,11 +299,12 @@ pub(crate) fn resolve_keeping(design: &RingDesign, lib: &AlphaLibrary, params: B
         }
         // A cut reaching a part set apart carves it as well as the band, every vertex it makes naming the part.
         let mut apart = Chain { solid: p.solid.clone(), origin: vec![SOLID_VERTEX + base + p.index; p.solid.v.len()], vouched: false, cancel: ctx.cancel };
-        let mut consumed = false;
+        let (mut carved, mut consumed) = (false, false);
         for c in reaching {
             check(ctx.cancel)?;
             match apart.combine(&c.solid, Op::Subtract) {
                 Ok(t) => {
+                    carved |= t.parent.iter().any(|f| matches!(f, Parent::B(_)));
                     let faces = vec![c.index; c.solid.f.len()];
                     let beads = apart.beads(&t, &c.solid, false, &[c], &faces, &mut out.notes, &mut touched)?;
                     apart.take(t, &vec![p.index; c.solid.f.len()], p.index, base);
@@ -320,6 +318,9 @@ pub(crate) fn resolve_keeping(design: &RingDesign, lib: &AlphaLibrary, params: B
                 }
                 Err(e) => out.notes.push(format!("{}: could not be cut from {} ({e})", c.name, p.name)),
             }
+        }
+        if carved || consumed {
+            out.carved.push(out.features[p.index as usize]);
         }
         if !consumed {
             chain.solid.push(&apart.solid);
@@ -693,7 +694,7 @@ mod tests {
         let carved = crate::mesh::try_build(&with_parts(court, with_cut), &lib, params()).unwrap();
         assert!(carved.report.validation.watertight, "{:?} {:?}", carved.report.validation, carved.parts.notes);
         assert!(!carved.parts.notes.iter().any(|n| n.contains("could not be cut from top block")), "{:?}", carved.parts.notes);
-        assert_eq!(carved.parts.separate, 2);
+        assert_eq!((carved.parts.separate, carved.parts.carved.as_slice()), (2, &[1][..]), "the top block is carved and the palm block is not");
         let taken = plain.report.volume_mm3 - carved.report.volume_mm3;
         assert!((taken - 2.4).abs() < 1e-3, "2 × 1.5 × 0.8 = 2.4 mm³ out of the top block: {taken:.5}");
         // Every vertex the pocket makes names the block it carves, so the block leaves as one closed object and the band as another.
@@ -729,6 +730,7 @@ mod tests {
         let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
         assert_eq!((built.parts.cut, built.parts.separate), (1, 1));
         assert_eq!(built.parts.notes, ["bead: the cut clearance consumed it whole"]);
+        assert_eq!(built.parts.carved, [1]);
         assert!(!built.mesh.origin.contains(&built.parts.origin_of(0)), "nothing of the bead is left");
         assert!(built.report.validation.watertight);
         assert!((built.report.volume_mm3 - bare.report.volume_mm3).abs() < 1e-6, "{} against {}", built.report.volume_mm3, bare.report.volume_mm3);
@@ -771,13 +773,7 @@ mod tests {
         let post = objects[1].mesh.volume_mm3();
         let bored = std::f64::consts::PI * (0.64 * 2.0 - 0.16 * 1.9);
         assert!((post / bored - 1.0).abs() < 0.03, "{post:.4} of {bored:.4} mm³");
-        // Kept whole, as the STEP writer keeps a joined part it writes exact, the post is the cylinder as built.
-        let never = AtomicBool::new(false);
-        let kept = crate::mesh::try_build_keeping(&d, &lib, params(), &never, Memo::default(), &[1]).unwrap();
-        let objects = crate::threemf::objects(&kept, "Court");
-        assert!(objects[1].mesh.validate().watertight);
-        let (post, whole) = (objects[1].mesh.volume_mm3(), std::f64::consts::PI * 0.64 * 2.0);
-        assert!((post / whole - 1.0).abs() < 0.03, "{post:.4} of {whole:.4} mm³");
+        assert_eq!(built.parts.carved, [1]);
     }
 
     #[test]
