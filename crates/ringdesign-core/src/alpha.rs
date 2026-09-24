@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 use std::f64::consts::{PI, TAU};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
@@ -1487,10 +1488,11 @@ fn guilloche_weave(x: f64, y: f64) -> f64 {
 }
 
 /// Named collection of alphas. Layers reference entries by name so a saved
-/// design survives the library being reordered.
+/// design survives the library being reordered. Entries are shared, so a clone
+/// copies names and pointers, never texels.
 #[derive(Clone, Debug, Default)]
 pub struct AlphaLibrary {
-    entries: Vec<Alpha>,
+    entries: Vec<Arc<Alpha>>,
     index: HashMap<String, usize>,
     /// Distance fields, keyed by the alpha they were derived from.
     ///
@@ -1523,6 +1525,11 @@ impl AlphaLibrary {
     pub const MAX_ENTRIES: usize = 4096;
 
     pub fn insert(&mut self, alpha: Alpha) {
+        self.insert_shared(Arc::new(alpha));
+    }
+
+    /// [`insert`](Self::insert) an alpha another library already holds, without copying it.
+    pub fn insert_shared(&mut self, alpha: Arc<Alpha>) {
         // Keep the derived-field index in step, so the hot path is one lookup
         // on the base name with nothing allocated.
         if let Some(base) = alpha.name.strip_suffix(SDF_SUFFIX) {
@@ -1567,11 +1574,22 @@ impl AlphaLibrary {
             .enumerate()
             .map(|(i, a)| (a.name.clone(), i))
             .collect();
+        self.sdf_index = self
+            .entries
+            .iter()
+            .enumerate()
+            .filter_map(|(i, a)| Some((a.name.strip_suffix(SDF_SUFFIX)?.to_string(), i)))
+            .collect();
         true
     }
 
+    /// Every entry this library holds that `before` does not hold as the same shared alpha: what was inserted since `before` was cloned from it.
+    pub fn changed_since<'a>(&'a self, before: &'a AlphaLibrary) -> impl Iterator<Item = &'a Arc<Alpha>> + 'a {
+        self.entries.iter().filter(move |a| before.index.get(&a.name).is_none_or(|&i| !Arc::ptr_eq(&before.entries[i], a)))
+    }
+
     pub fn get(&self, name: &str) -> Option<&Alpha> {
-        self.index.get(name).and_then(|&i| self.entries.get(i))
+        self.index.get(name).and_then(|&i| self.entries.get(i)).map(|a| &**a)
     }
 
     /// The distance field derived from `base`, without building its name.
@@ -1579,11 +1597,11 @@ impl AlphaLibrary {
     /// `get(&sdf_name(base))` allocates a `String` per call, and the caller is
     /// `TilingLayer::height` — once per sample.
     pub fn sdf_of(&self, base: &str) -> Option<&Alpha> {
-        self.sdf_index.get(base).and_then(|&i| self.entries.get(i))
+        self.sdf_index.get(base).and_then(|&i| self.entries.get(i)).map(|a| &**a)
     }
 
     pub fn get_index(&self, i: usize) -> Option<&Alpha> {
-        self.entries.get(i)
+        self.entries.get(i).map(|a| &**a)
     }
 
     pub fn position(&self, name: &str) -> Option<usize> {
@@ -1599,7 +1617,7 @@ impl AlphaLibrary {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Alpha> {
-        self.entries.iter()
+        self.entries.iter().map(|a| &**a)
     }
 
     pub fn names(&self) -> Vec<String> {
@@ -3077,5 +3095,32 @@ mod sdf_index_tests {
         lib.insert(redrawn.signed_distance_px());
         let again = lib.sdf_of("probe").expect("still found after a re-bake");
         assert_eq!(again.data, lib.get(&sdf_name("probe")).unwrap().data);
+    }
+
+    #[test]
+    fn a_clone_shares_every_texel_names_what_was_inserted_since_and_a_removal_keeps_the_fields_found() {
+        let square = |name: &str, v: f32| Alpha::new(name, 4, 4, vec![v; 16]);
+        let mut lib = AlphaLibrary::default();
+        for (name, v) in [("a", 0.1), ("b", 0.2), ("probe", 0.3)] {
+            lib.insert(square(name, v));
+        }
+        lib.insert(Alpha::new(sdf_name("probe"), 4, 4, vec![0.7; 16]));
+        let before = lib.clone();
+        assert!(std::ptr::eq(lib.get("probe").unwrap(), before.get("probe").unwrap()), "a clone copies pointers, not texels");
+        assert_eq!(lib.changed_since(&before).count(), 0);
+        lib.insert(square("b", 0.5));
+        lib.insert(square("new", 0.6));
+        let changed: Vec<&str> = lib.changed_since(&before).map(|a| a.name.as_str()).collect();
+        assert_eq!(changed, ["b", "new"]);
+        let mut merged = before.clone();
+        for a in lib.changed_since(&before) {
+            merged.insert_shared(a.clone());
+        }
+        assert!(std::ptr::eq(merged.get("new").unwrap(), lib.get("new").unwrap()));
+        assert_eq!(merged.get("b").unwrap().data, vec![0.5; 16]);
+        // A removal ahead of the field shifts it down; the field is still the one found.
+        assert!(lib.remove("a"));
+        assert_eq!(lib.sdf_of("probe").unwrap().name, sdf_name("probe"));
+        assert_eq!(lib.sdf_of("probe").unwrap().data, vec![0.7; 16]);
     }
 }
