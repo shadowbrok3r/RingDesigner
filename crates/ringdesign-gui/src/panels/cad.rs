@@ -643,11 +643,11 @@ fn chosen_part(state: &CadState, id: u64) -> Option<((ringdesign_core::Vec3, rin
     None
 }
 
-/// Eases the view onto the part chosen in the history as drawn when there is one, else all the metal drawn, the pivot moved onto its middle.
-fn fit_view(state: &mut CadState) -> Option<ringdesign_workbench::touch::view::Framed> {
+/// Eases the view onto the part chosen in the history as drawn when `chosen` and there is one, else all the metal drawn, the pivot moved onto its middle.
+fn fit_view(state: &mut CadState, chosen: bool) -> Option<ringdesign_workbench::touch::view::Framed> {
     use ringdesign_workbench::touch::view::Framed;
     let shown = upload(state, false)?;
-    let part = state.selected.and_then(|id| chosen_part(state, id.0));
+    let part = state.selected.filter(|_| chosen).and_then(|id| chosen_part(state, id.0));
     let alone = state.isolated.and_then(|id| drawn_part(state, id));
     state.camera.refit(shown);
     let (bounds, framed) = match (part, alone) {
@@ -1100,7 +1100,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             notes.push((theme::WARN, e.into()));
         }
         let mut redraw = false;
-        let mut fit_chosen = false;
+        let mut fit_all = false;
         egui::Panel::bottom(ui.id().with("cad-view-footer"))
             .frame(egui::Frame::new().inner_margin(6).fill(theme::PANEL)).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -1118,7 +1118,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     }
                     ui.checkbox(&mut state.display.navigation.locked, "Lock orbit (drag to pan)");
                 });
-                if icons::compact(ui,Icon::Fit,false).clicked() { fit_chosen = true; }
+                if icons::compact(ui,Icon::Fit,false).clicked() { fit_all = true; }
                 if icons::compact(ui,Icon::Wire,state.display.wire).clicked() {state.display.wire = !state.display.wire;}
                 if icons::compact(ui,Icon::Grid,state.display.grid).clicked() {state.display.grid = !state.display.grid;}
                 let ring_built = state.view.as_ref().is_some_and(|v| v.built.is_some());
@@ -1148,7 +1148,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             });
         });
         if redraw { upload(&mut state, true); }
-        if fit_chosen && let Some(framed) = fit_view(&mut state) { app.set_status(framed.said()); }
+        if fit_all && let Some(framed) = fit_view(&mut state, false) { app.set_status(framed.said()); }
         if state.tab == 2 && state.view_key == current && state.rollback.is_none() {
             if let Some(view) = &state.view {
                 egui::CollapsingHeader::new("Interference and assembly clearance").show(ui, |ui| {
@@ -1345,7 +1345,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             ui.checkbox(&mut state.display.grid, "Grid");
         });
         if refit { upload(&mut state, true); }
-        if fit && let Some(framed) = fit_view(&mut state) { app.set_status(framed.said()); }
+        if fit && let Some(framed) = fit_view(&mut state, true) { app.set_status(framed.said()); }
         if matches!(state.tab, 0 | 2) && state.rollback.is_none() {
             direct_handles(ui, rect, &state, &mut g);
         }

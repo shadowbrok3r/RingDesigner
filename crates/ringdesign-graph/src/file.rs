@@ -20,9 +20,9 @@ use crate::value::Literal;
 pub const GRAPH_EXT: &str = "graph.json";
 pub const CLUSTER_EXT: &str = "cluster.json";
 pub const PRESET_EXT: &str = "preset.json";
-/// The newest version this build reads; version 2 fences an in-plane revolution off from older readers.
+/// The newest version this build reads; version 2 fences an in-plane revolution, and a cut on a ring of parts alone, off from older readers.
 pub const GRAPH_FORMAT_VERSION: u32 = 2;
-/// The version a file without an in-plane revolution is written at.
+/// The version a file without an in-plane revolution or a cut on a ring of parts alone is written at.
 pub const PLAIN_GRAPH_FORMAT_VERSION: u32 = 1;
 /// The oldest version whose nodes this build reads as they stand: a node's own migration runs only on files older than it.
 pub const NODE_SHAPE_VERSION: u32 = 1;
@@ -34,27 +34,28 @@ static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1, migrate_v
 /// Version 0 is a bare `Graph` with no version key at all.
 fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
 
-/// Version 2 only fences an in-plane revolution off from older readers; a version-1 document has the same shape.
+/// Version 2 only fences an in-plane revolution and a cut on a ring of parts alone off from older readers; a version-1 document has the same shape.
 fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
 
-/// Whether a literal holds a revolution read in its sketch's plane.
-fn literal_turns_in_plane(l: &Literal) -> bool {
+/// Whether a literal holds what an older reader must be fenced from: a revolution read in its sketch's plane, or a cut on a ring of parts alone.
+fn literal_fenced(l: &Literal) -> bool {
     match l {
-        Literal::Json(v) => ringdesign_core::cad::turns_in_plane_json(v),
-        Literal::List(items) => items.iter().any(literal_turns_in_plane),
+        Literal::Json(v) => ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::parts::cuts_apart_json(v),
+        Literal::List(items) => items.iter().any(literal_fenced),
         _ => false,
     }
 }
 
-/// The version `g` is written at: the newest when a node carries a revolution read in its sketch's plane.
+/// The version `g` is written at: the newest when a node carries a revolution read in its sketch's plane, or its `cad.feature` nodes, or a cluster's, make a ring of parts alone carrying a cut.
 pub fn graph_version_for(g: &Graph) -> u32 {
-    let turns = g.nodes.iter().any(|n| ringdesign_core::cad::turns_in_plane_json(&n.params) || n.inputs.values().any(literal_turns_in_plane));
-    if turns { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
+    let features = g.nodes.iter().filter(|n| n.kind == "cad.feature").map(|n| &n.params);
+    let nested = |n: &Node| ringdesign_core::cad::turns_in_plane_json(&n.params) || ringdesign_core::parts::cuts_apart_json(&n.params) || n.inputs.values().any(literal_fenced);
+    if ringdesign_core::parts::features_cut_apart(features) || g.nodes.iter().any(nested) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
 }
 
-/// The version `p` is written at: the newest when a value carries a revolution read in its sketch's plane.
+/// The version `p` is written at: the newest when a value carries a revolution read in its sketch's plane or a ring of parts alone carrying a cut.
 pub fn preset_version_for(p: &Preset) -> u32 {
-    if p.values.values().any(literal_turns_in_plane) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
+    if p.values.values().any(literal_fenced) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
 }
 
 /// The version of a graph or preset document, refused by `kind` when it is newer than `reads_up_to`.
@@ -340,6 +341,53 @@ mod tests {
         let text = preset_to_string(&preset(turn(true))).unwrap();
         assert!(text.contains("\"format_version\": 2"));
         assert_eq!(load_preset_str(&text).unwrap(), preset(turn(true)));
+        let older = read_preset(&text, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
+        assert_eq!(older, "preset file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner");
+    }
+
+    #[test]
+    fn a_cut_on_a_ring_of_parts_alone_fences_its_graph_cluster_and_preset_at_two_and_a_banded_one_stays_at_one() {
+        use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation};
+        let reg = Registry::builtin();
+        let feature = |id: u64, name: &str, operation: Operation, attach: Attach| Feature { id, name: name.into(), enabled: true, operation, component: Component { attach, ..Component::default() } };
+        let parts = |band: bool| {
+            let mut doc = Document::default();
+            let shank = band.then(|| feature(1, "Procedural shank", Operation::Band, Attach::Separate));
+            for f in shank.into_iter().chain([feature(2, "Block", Operation::Box { size: [4.0, 3.0, 2.0] }, Attach::Separate), feature(3, "Pocket", Operation::Box { size: [2.0, 1.5, 1.6] }, Attach::Cut)]) {
+                doc.append(f).unwrap();
+            }
+            ringdesign_core::RingDesign { cad: Some(doc), ..ringdesign_core::RingDesign::default() }
+        };
+        assert!(ringdesign_core::parts::cuts_apart(&parts(false)) && !ringdesign_core::parts::cuts_apart(&parts(true)));
+        let alone = crate::nodes::cad::from_document(&parts(false)).unwrap();
+        let banded = crate::nodes::cad::from_document(&parts(true)).unwrap();
+        // Beside a band the cut carves the band, which every reader knows: written at 1, as version 1 always wrote it.
+        let text = graph_to_string(&banded).unwrap();
+        assert_eq!(text, serde_json::to_string_pretty(&Versioned { format_version: 1, doc: &banded }).unwrap());
+        assert_eq!(read_graph(&text, Some(&reg), PLAIN_GRAPH_FORMAT_VERSION).unwrap(), banded);
+        // Alone, in the graph's feature nodes or inside a cluster, it is written at 2, round-trips byte for byte, and a build reading up to 1 refuses it.
+        let mut in_cluster = Graph::new("Parts cluster", Mode::Free);
+        let c = in_cluster.add("cluster").unwrap();
+        in_cluster.node_mut(c).unwrap().params = serde_json::json!({ "graph": serde_json::to_value(&alone).unwrap() });
+        for (name, g) in [("nodes", &alone), ("cluster", &in_cluster)] {
+            assert_eq!(graph_version_for(g), GRAPH_FORMAT_VERSION, "{name}");
+            let text = graph_to_string(g).unwrap();
+            assert!(text.contains("\"format_version\": 2"), "{name}");
+            let back = load_graph_str(&text, Some(&reg)).unwrap();
+            assert_eq!(&back, g, "{name}");
+            assert_eq!(graph_to_string(&back).unwrap(), text, "{name}");
+            let older = read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
+            assert_eq!(older, "graph file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner", "{name}");
+        }
+        // A design carrying the graph alone is fenced at the design's own newest version.
+        let driven = ringdesign_core::RingDesign { graph: Some(serde_json::to_value(&alone).unwrap()), ..ringdesign_core::RingDesign::default() };
+        assert_eq!(library::format_version_for(&driven), library::FORMAT_VERSION);
+        // A preset carrying the document on a value is fenced the same way; the banded one is written at 1.
+        let preset = |band: bool| Preset { name: "Parts".into(), cluster: "Parts cluster".into(), values: [("Document".to_string(), Literal::Json(serde_json::to_value(parts(band).cad).unwrap()))].into_iter().collect(), doc: String::new() };
+        assert!(preset_to_string(&preset(true)).unwrap().contains("\"format_version\": 1"));
+        let text = preset_to_string(&preset(false)).unwrap();
+        assert!(text.contains("\"format_version\": 2"));
+        assert_eq!(load_preset_str(&text).unwrap(), preset(false));
         let older = read_preset(&text, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
         assert_eq!(older, "preset file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner");
     }

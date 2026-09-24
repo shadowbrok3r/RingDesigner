@@ -605,9 +605,36 @@ pub fn carvable(design: &RingDesign) -> bool {
     design.band_is_procedural() || design.cad.as_ref().is_some_and(|d| d.attachments().iter().any(|(_, attach, _)| *attach != Attach::Cut))
 }
 
-/// Whether `design` is a ring of parts alone carrying a cut.
+/// Whether `design` is a ring of parts alone carrying a cut, in its document or anywhere in its graph, clusters included.
 pub fn cuts_apart(design: &RingDesign) -> bool {
-    !design.band_is_procedural() && design.cad.as_ref().is_some_and(|d| d.attachments().iter().any(|(_, attach, _)| *attach == Attach::Cut))
+    let in_document = !design.band_is_procedural() && design.cad.as_ref().is_some_and(|d| d.attachments().iter().any(|(_, attach, _)| *attach == Attach::Cut));
+    in_document || design.graph.as_ref().is_some_and(cuts_apart_json)
+}
+
+/// Whether features given as their JSON hold an enabled cut and no enabled band.
+pub fn features_cut_apart<'a>(features: impl IntoIterator<Item = &'a serde_json::Value>) -> bool {
+    use serde_json::Value;
+    let (mut band, mut cut) = (false, false);
+    for f in features.into_iter().filter(|f| f.get("enabled").and_then(Value::as_bool) != Some(false)) {
+        band |= f.get("operation").and_then(Value::as_str) == Some("Band");
+        let component = |key: &str| f.get("component").and_then(|c| c.get(key));
+        cut |= component("attach").and_then(Value::as_str) == Some("cut") && component("reference").and_then(Value::as_bool) != Some(true);
+    }
+    cut && !band
+}
+
+/// Whether `v` holds a ring of parts alone carrying a cut anywhere: a list of features, or of graph nodes whose `cad.feature` params are features, with a cut and no band.
+pub fn cuts_apart_json(v: &serde_json::Value) -> bool {
+    use serde_json::Value;
+    match v {
+        Value::Array(items) => {
+            let feature = |x: &'_ Value| -> bool { x.get("operation").is_some() && x.get("component").is_some() };
+            let listed = items.iter().filter_map(|x| if x.get("kind").and_then(Value::as_str) == Some("cad.feature") { x.get("params") } else { Some(x).filter(|x| feature(x)) });
+            features_cut_apart(listed) || items.iter().any(cuts_apart_json)
+        }
+        Value::Object(map) => map.values().any(cuts_apart_json),
+        _ => false,
+    }
 }
 
 /// A CAD-only ring's components as one mesh: parts whose boxes meet are united so a shank and the
@@ -1115,6 +1142,17 @@ mod tests {
         let text = crate::library::design_json(&d).unwrap();
         assert!(text.contains("\"format_version\": 6"));
         assert_eq!(serde_json::to_value(&crate::library::load_design_str(&text).unwrap().cad).unwrap(), serde_json::to_value(&d.cad).unwrap());
+        // Carried only by its graph's feature nodes, or by a cluster inside it, it is fenced the same; beside a band it is not.
+        let nodes = |features: &[Feature]| serde_json::json!({ "name": "Parts", "nodes": features.iter().map(|f| serde_json::json!({ "id": f.id, "kind": "cad.feature", "params": f })).collect::<Vec<_>>() });
+        let features = d.cad.as_ref().unwrap().features.clone();
+        let banded = [vec![part(9, "Procedural shank", Operation::Band, Attach::Separate, Stage::Cast, Placement::Free)], features.clone()].concat();
+        let cluster = serde_json::json!({ "name": "Outer", "nodes": [{ "id": 1, "kind": "cluster", "params": { "graph": nodes(&features) } }] });
+        for (name, graph, fenced) in [("nodes", nodes(&features), true), ("cluster", cluster, true), ("banded", nodes(&banded), false), ("uncut", nodes(&features[..1]), false)] {
+            let driven = RingDesign { graph: Some(graph), ..RingDesign::default() };
+            assert_eq!(cuts_apart(&driven), fenced, "{name}");
+            let version = if fenced { crate::library::FORMAT_VERSION } else { crate::library::PLAIN_FORMAT_VERSION };
+            assert_eq!(crate::library::format_version_for(&driven), version, "{name}");
+        }
         let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
         assert!(built.report.validation.watertight, "{:?} {:?}", built.report.validation, built.parts.notes);
         assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);

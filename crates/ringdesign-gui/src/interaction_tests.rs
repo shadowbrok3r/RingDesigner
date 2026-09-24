@@ -1501,13 +1501,20 @@ fn the_cad_panes_fit_view_frames_the_part_a_history_pick_became() {
     wait_for_cad(&mut h);
     assert!(h.state().cad.drawn_bounds(3).is_none(), "the box is consumed by its move");
     let (mid, r) = ball(h.state().cad.drawn_bounds(4).expect("the raised stud as drawn"));
-    // The box chosen in the history frames the stud it became, from the footer.
+    let build = h.state().build.clone().unwrap();
+    let (ring_mid, _) = ball(build.mesh.bounds().unwrap());
+    // The box chosen in the history frames the stud it became, from the canvas's menu.
     h.state_mut().cad.choose_feature(3);
-    cad_footer_fit(&mut h);
+    cad_fit_from_menu(&mut h, &build.mesh);
     assert_eq!(h.state().status, "Fit view: Stud raised, as chosen");
     let (cam, _) = h.state().cad.view_camera();
     assert!(near(cam.target, mid, 1e-4) && cam.pan[0].abs() < 1e-4 && cam.pan[1].abs() < 1e-4, "{:?} {:?} against {mid:?}", cam.target, cam.pan);
     assert!((cam.half_extent() - 1.15 * r).abs() < 1e-3, "{} for {r}", cam.half_extent());
+    // The footer's Fit brings all the metal back with the box still chosen.
+    cad_footer_fit(&mut h);
+    assert_eq!(h.state().status, "Fit view: the whole ring");
+    let (cam, _) = h.state().cad.view_camera();
+    assert!((cam.zoom - 1.0).abs() < 1e-4 && near(cam.target, ring_mid, 0.05), "{} {:?} against {ring_mid:?}", cam.zoom, cam.target);
 }
 
 #[test]
@@ -1549,13 +1556,7 @@ fn the_cad_panes_fit_view_frames_the_chosen_part_else_all_the_metal_shown() {
     let (cam, _) = h.state().cad.view_camera();
     assert!(near(cam.target, ring_mid, 0.05) && cam.pan[0].abs() < 1e-4 && cam.pan[1].abs() < 1e-4, "{:?} {:?} against {ring_mid:?}", cam.target, cam.pan);
     assert!((cam.zoom - framed).abs() < 1e-4);
-    // The footer's Fit frames the part chosen in the history as the canvas's does.
-    cad_footer_fit(&mut h);
-    assert_eq!(h.state().status, "Fit view: Post, as chosen");
-    let (cam, _) = h.state().cad.view_camera();
-    assert!(near(cam.target, mid, 1e-4) && (cam.zoom - framed).abs() < 1e-4, "{:?} {}", cam.target, cam.zoom);
-    // With the shank chosen it brings all the metal back: zoom 1 about its middle.
-    h.state_mut().cad.choose_feature(1);
+    // The footer's Fit brings all the metal back, the post still chosen: zoom 1 about its middle.
     cad_footer_fit(&mut h);
     assert_eq!(h.state().status, "Fit view: the whole ring");
     let (cam, _) = h.state().cad.view_camera();
