@@ -21,9 +21,13 @@ pub struct Template {
     source: Source,
 }
 /// `Design` names a bundled `.ring.json`; the document is decompressed only
-/// when that template is chosen, not to list it in a menu.
-#[derive(Clone, Copy)]
-enum Source { Graph(&'static TemplateGraph), Document(&'static Graph), Starter(&'static ringdesign_core::templates::Template), Design(&'static str) }
+/// when that template is chosen, not to list it in a menu. `File` is a design file on disk.
+#[derive(Clone)]
+enum Source { Graph(&'static TemplateGraph), Document(&'static Graph), Starter(&'static ringdesign_core::templates::Template), Design(&'static str), File(std::path::PathBuf) }
+
+/// What an open is called: a template's name, or a file's.
+pub type Name = std::borrow::Cow<'static, str>;
+
 impl Template {
     /// A template made from a graph document already read, opened like a bundled template graph.
     pub fn document(name: &'static str, slug: &'static str, graph: &'static Graph) -> Self {
@@ -33,27 +37,38 @@ impl Template {
     /// The template's design, made on the calling thread with expression pins run.
     pub fn instantiate(&self, reg: &Registry, lib: &AlphaLibrary) -> anyhow::Result<RingDesign> {
         let lib = Arc::new(lib.clone());
-        Ok(opened(self.source, reg, &lib, Arc::new(|_| {}), &Arc::default())?.design)
+        Ok(opened(self.source.clone(), reg, &lib, Arc::new(|_| {}), &Arc::default())?.design)
     }
 
     /// Opens this template on a thread of its own against `lib`, calling `wake` whenever it gets further; poll the [`Opening`] for the design.
     pub fn open(&'static self, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, wake: impl Fn() + Send + Sync + 'static) -> Opening {
-        open(self.name, self.source, reg, lib, wake)
+        open(self.name.into(), self.source.clone(), reg, lib, false, wake)
+    }
+
+    /// [`open`](Self::open), measuring the design's detail findings on the thread too, for a host that reads them on its UI thread.
+    pub fn open_measured(&'static self, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, wake: impl Fn() + Send + Sync + 'static) -> Opening {
+        open(self.name.into(), self.source.clone(), reg, lib, true, wake)
     }
 
     /// What [`open`](Self::open) does on its thread, on the calling one: telling `progress` each stage and stopping once `cancel` is set.
     pub fn instantiate_with(&self, reg: &Registry, lib: &Arc<AlphaLibrary>, progress: &Arc<Progress>, cancel: &Arc<AtomicBool>) -> anyhow::Result<Opened> {
         let progress = progress.clone();
-        opened(self.source, reg, lib, Arc::new(move |stage| progress.set(stage)), cancel)
+        opened(self.source.clone(), reg, lib, Arc::new(move |stage| progress.set(stage)), cancel)
     }
 }
 
 /// [`Template::open`] for a bundled template graph, opened as its graph even where a starter of its name exists.
 pub fn open_graph(graph: &'static TemplateGraph, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, wake: impl Fn() + Send + Sync + 'static) -> Opening {
-    open(graph.name, Source::Graph(graph), reg, lib, wake)
+    open(graph.name.into(), Source::Graph(graph), reg, lib, false, wake)
 }
 
-fn open(name: &'static str, source: Source, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, wake: impl Fn() + Send + Sync + 'static) -> Opening {
+/// A design file read, migrated and its artwork baked onto `lib` on a thread of its own, named by its file; `measured` as in [`Template::open_measured`].
+pub fn open_file(path: std::path::PathBuf, lib: Arc<AlphaLibrary>, measured: bool, wake: impl Fn() + Send + Sync + 'static) -> Opening {
+    let name = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
+    open(name.into(), Source::File(path), Arc::new(Registry::empty()), lib, measured, wake)
+}
+
+fn open(name: Name, source: Source, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, measured: bool, wake: impl Fn() + Send + Sync + 'static) -> Opening {
     let progress = Arc::new(Progress::default());
     let cancelled = Arc::new(AtomicBool::new(false));
     let finished = Arc::new(AtomicBool::new(false));
@@ -66,7 +81,15 @@ fn open(name: &'static str, source: Source, reg: Arc<Registry>, lib: Arc<AlphaLi
         woken();
     });
     let spawned = std::thread::Builder::new().name("template-open".into()).spawn(move || {
-        let opened = opened(source, &reg, &lib, set, &stop);
+        let opened = opened(source, &reg, &lib, set.clone(), &stop).and_then(|o| {
+            if measured {
+                anyhow::ensure!(!stop.load(Ordering::Relaxed), ringdesign_graph::eval::CANCELLED);
+                set(Stage::Measuring);
+                // Fills the detail measure's content cache before the design lands.
+                ringdesign_core::dfm::findings_in(&o.design, &o.after);
+            }
+            Ok(o)
+        });
         if !stop.load(Ordering::Relaxed) {
             let _ = tx.send(opened.map_err(|e| format!("{e:#}")));
         }
@@ -110,6 +133,10 @@ fn opened(source: Source, reg: &Registry, lib: &Arc<AlphaLibrary>, set: Arc<dyn 
             let asset = ringdesign_assets::find(ringdesign_assets::DESIGNS, slug).ok_or_else(|| anyhow::anyhow!("{slug} is not bundled"))?;
             ringdesign_graph::templates::refine_sources(&serde_json::from_str(&asset.text())?)
         }
+        Source::File(path) => {
+            set(Stage::Reading);
+            ringdesign_core::library::load_design(&path)?
+        }
     };
     anyhow::ensure!(!stop.load(Ordering::Relaxed), stopped());
     let mut baked = (**lib).clone();
@@ -124,6 +151,8 @@ pub enum Stage {
     Reading,
     Evaluating { done: usize, of: usize },
     Baking { done: usize, of: usize },
+    /// Measuring the design's detail against the sand's floor.
+    Measuring,
     /// Landed, and its ring is being built.
     Building,
 }
@@ -139,14 +168,14 @@ impl From<Step> for Stage {
 }
 
 impl Stage {
-    /// Share of the whole open done, 0 to 1, weighted by `template_open_probe`: reading is at most a tenth of an open,
-    /// the graph up to a third, the bake up to a third and the first build the rest.
+    /// Share of the whole open done, 0 to 1, weighted by `template_open_probe`'s phases.
     pub fn fraction(self) -> f32 {
         let share = |done: usize, of: usize| done.min(of) as f32 / of.max(1) as f32;
         match self {
             Stage::Reading => 0.05,
             Stage::Evaluating { done, of } => 0.1 + 0.3 * share(done, of),
             Stage::Baking { done, of } => 0.4 + 0.35 * share(done, of),
+            Stage::Measuring => 0.78,
             Stage::Building => 0.8,
         }
     }
@@ -158,6 +187,7 @@ impl Stage {
             Stage::Evaluating { done, of } => format!("running its graph, node {} of {of}", (done + 1).min(of.max(1))),
             Stage::Baking { of: 0, .. } => "baking artwork".into(),
             Stage::Baking { done, of } => format!("baking artwork {} / {of}", done.min(of)),
+            Stage::Measuring => "measuring its detail".into(),
             Stage::Building => "building the ring".into(),
         }
     }
@@ -200,8 +230,8 @@ impl Progress {
 
 /// A template being opened off the UI thread; dropping it stops the thread between nodes or bakes and discards what it made.
 pub struct Opening {
-    /// The template's name.
-    pub name: &'static str,
+    /// The template's name, or the file's.
+    pub name: Name,
     progress: Arc<Progress>,
     answer: mpsc::Receiver<Result<Opened, String>>,
     cancelled: Arc<AtomicBool>,
@@ -306,7 +336,7 @@ pub fn progress(ui: &mut Ui, name: &str, progress: &Progress) -> egui::Response 
 #[derive(Default)]
 pub struct Slot {
     opening: Option<(Opening, bool)>,
-    building: Option<(&'static str, u64, Arc<Progress>)>,
+    building: Option<(Name, u64, Arc<Progress>)>,
 }
 
 /// What a frame's poll of a [`Slot`] found.
@@ -321,7 +351,7 @@ pub enum Polled {
 
 /// A template that landed over the host's library.
 pub struct Landing {
-    pub name: &'static str,
+    pub name: Name,
     pub design: RingDesign,
     /// The host's library with the template's artwork baked in.
     pub lib: Arc<AlphaLibrary>,
@@ -340,8 +370,8 @@ impl Slot {
     }
 
     /// Stops the template opening; what it makes is dropped. Its name, when one was.
-    pub fn cancel(&mut self) -> Option<&'static str> {
-        self.opening.take().map(|(opening, _)| opening.name)
+    pub fn cancel(&mut self) -> Option<Name> {
+        self.opening.take().map(|(opening, _)| opening.name.clone())
     }
 
     /// Whether a template is opening.
@@ -357,12 +387,12 @@ impl Slot {
     /// A template that landed, baked onto `current`, or where the one opening has got.
     pub fn poll(&mut self, current: &Arc<AlphaLibrary>) -> Polled {
         let Some((opening, _)) = &self.opening else { return Polled::Idle };
-        let Some(answer) = opening.poll() else { return Polled::Waiting(opening.progress().words(opening.name)) };
+        let Some(answer) = opening.poll() else { return Polled::Waiting(opening.progress().words(&opening.name)) };
         let Some((opening, flag)) = self.opening.take() else { return Polled::Idle };
         match answer {
             Ok(opened) => {
                 let (design, lib, seed) = opened.land(current);
-                Polled::Landed(Landing { name: opening.name, design, lib, seed, flag, progress: opening.progress() })
+                Polled::Landed(Landing { name: opening.name.clone(), design, lib, seed, flag, progress: opening.progress() })
             }
             Err(e) => Polled::Failed(format!("could not open {}: {e}", opening.name)),
         }
@@ -371,7 +401,7 @@ impl Slot {
     /// `landing` is shown once a build after `generation` lands.
     pub fn building(&mut self, landing: &Landing, generation: u64) {
         landing.progress.set(Stage::Building);
-        self.building = Some((landing.name, generation, landing.progress.clone()));
+        self.building = Some((landing.name.clone(), generation, landing.progress.clone()));
     }
 
     /// A build of `generation` landed or failed.
@@ -382,16 +412,16 @@ impl Slot {
     }
 
     /// The template the plate names and how far it has got, while one is opening or building.
-    pub fn shown(&self) -> Option<(&'static str, Arc<Progress>)> {
+    pub fn shown(&self) -> Option<(Name, Arc<Progress>)> {
         match (&self.opening, &self.building) {
-            (Some((opening, _)), _) => Some((opening.name, opening.progress())),
-            (None, Some((name, _, progress))) => Some((name, progress.clone())),
+            (Some((opening, _)), _) => Some((opening.name.clone(), opening.progress())),
+            (None, Some((name, _, progress))) => Some((name.clone(), progress.clone())),
             (None, None) => None,
         }
     }
 
     /// The touch plate, centred under the top of `bounds`: the bar and, while it opens, a finger-sized Cancel that stops it. The name it stopped.
-    pub fn plate(&mut self, ctx: &egui::Context, bounds: egui::Rect) -> Option<&'static str> {
+    pub fn plate(&mut self, ctx: &egui::Context, bounds: egui::Rect) -> Option<Name> {
         let (name, told) = self.shown()?;
         let building = told.stage() == Stage::Building;
         let width = (bounds.width() - 32.0).clamp(160.0, 420.0);
@@ -403,7 +433,7 @@ impl Slot {
             .show(ctx, |ui| {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     ui.set_width(width);
-                    ui.add_sized([width, 28.0], |ui: &mut Ui| progress(ui, name, &told));
+                    ui.add_sized([width, 28.0], |ui: &mut Ui| progress(ui, &name, &told));
                     if !building {
                         cancel = ui.add_sized([width, crate::touch::TARGET_PT], egui::Button::new("Cancel")).clicked();
                     }
@@ -645,7 +675,7 @@ mod tests {
         slot.start(template.open(reg, lib, || {}), false);
         let finished = slot.finished().unwrap();
         let mut h = egui_kittest::Harness::builder().with_size([400.0, 800.0]).build_ui_state(
-            |ui, (slot, stopped): &mut (Slot, Option<&'static str>)| {
+            |ui, (slot, stopped): &mut (Slot, Option<Name>)| {
                 let rect = ui.ctx().content_rect();
                 if let Some(name) = slot.plate(ui.ctx(), rect) {
                     *stopped = Some(name);
@@ -659,7 +689,7 @@ mod tests {
         assert!(cancel.rect().height() >= crate::touch::TARGET_PT - 0.5 && cancel.rect().top() >= bar.bottom(), "a finger-sized Cancel under the bar");
         cancel.click();
         h.run_steps(2);
-        assert_eq!(h.state().1, Some("Caiman — armoured hide"));
+        assert_eq!(h.state().1, Some("Caiman — armoured hide".into()));
         assert!(!h.state().0.is_opening() && h.query_by_label("Cancel").is_none());
         let started = std::time::Instant::now();
         while !finished.load(Ordering::Relaxed) {
@@ -704,7 +734,7 @@ mod tests {
 
     #[test]
     fn the_fraction_never_falls_and_the_words_say_where_it_is() {
-        let stages = [Stage::Reading, Stage::Evaluating { done: 0, of: 40 }, Stage::Evaluating { done: 39, of: 40 }, Stage::Baking { done: 0, of: 7 }, Stage::Baking { done: 7, of: 7 }, Stage::Building];
+        let stages = [Stage::Reading, Stage::Evaluating { done: 0, of: 40 }, Stage::Evaluating { done: 39, of: 40 }, Stage::Baking { done: 0, of: 7 }, Stage::Baking { done: 7, of: 7 }, Stage::Measuring, Stage::Building];
         assert!(stages.windows(2).all(|w| w[0].fraction() < w[1].fraction()), "{stages:?}");
         assert_eq!(Stage::Evaluating { done: 39, of: 40 }.words(), "running its graph, node 40 of 40");
         assert_eq!(Stage::Evaluating { done: 0, of: 0 }.fraction(), 0.1);

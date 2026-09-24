@@ -460,13 +460,48 @@ pub fn save_design(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    match library::save_design_embedded(&path, &app.design, &app.lib) {
-        Ok(()) => {
+    save_design_to(app, path);
+}
+
+/// Writes the design as it stands to `path` on a thread of its own; the document takes the path when the write lands.
+pub(crate) fn save_design_to(app: &mut RingDesignerApp, path: std::path::PathBuf) {
+    let (design, lib) = (app.design.clone(), app.lib.clone());
+    let (tx, rx) = std::sync::mpsc::channel();
+    let wake = app.egui_ctx.clone();
+    let target = path.clone();
+    let spawned = std::thread::Builder::new().name("design-save".into()).spawn(move || {
+        let _ = tx.send((target, library::save_design_embedded(&path, &design, &lib).map_err(|e| format!("{e:#}"))));
+        wake.request_repaint();
+    });
+    match spawned {
+        Ok(_) => {
+            app.saving = Some(rx);
+            app.set_status("Saving…");
+        }
+        Err(e) => app.set_status(format!("Save failed: {e}")),
+    }
+}
+
+/// Takes in a save that has landed: the document takes its path, or the status line says why it failed.
+pub(crate) fn poll_save(app: &mut RingDesignerApp) {
+    let Some(rx) = &app.saving else { return };
+    let landed = match rx.try_recv() {
+        Ok(landed) => landed,
+        Err(std::sync::mpsc::TryRecvError::Empty) => return,
+        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+            app.saving = None;
+            app.set_status("Save failed: the thread writing it stopped");
+            return;
+        }
+    };
+    app.saving = None;
+    match landed {
+        (path, Ok(())) => {
             app.document_path = Some(path.clone());
             app.push_recent(&path);
             app.set_status(format!("Saved {}", path.display()));
         }
-        Err(e) => app.set_status(format!("Save failed: {e}")),
+        (_, Err(e)) => app.set_status(format!("Save failed: {e}")),
     }
 }
 
@@ -478,31 +513,41 @@ pub fn open_design(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    open_design_path(app, &path);
+    app.open_file(path);
 }
 
-/// Load a design file directly — the Recent menu's entry point.
+/// Load a design file on the UI thread — the Recent menu's and the command line's entry point; the dialog's opens off it.
 pub fn open_design_path(app: &mut RingDesignerApp, path: &std::path::Path) {
     match library::load_design(path) {
         Ok(d) => {
-            d.unpack_embedded(app.library_mut());
-            d.bake_all(app.library_mut());
-            let named = app.stamps_named();
-            app.design = d;
-            app.follow_stamps(named);
-            // A different file is a different session; the old timeline does
-            // not describe it.
-            app.history.reset(&app.design.clone());
-            app.selected_layer = None;
-            app.fit_pending = true;
-            app.fit_keeps_view = false;
-            app.mark_dirty();
-            app.document_path = Some(path.to_path_buf());
-            app.push_recent(path);
-            app.set_status(format!("Opened {}", path.display()));
+            let mut lib = app.lib.clone();
+            {
+                let baked = std::sync::Arc::make_mut(&mut lib);
+                d.unpack_embedded(baked);
+                d.bake_all(baked);
+            }
+            adopt_file(app, d, lib, path);
         }
         Err(e) => app.set_status(format!("Open failed: {e}")),
     }
+}
+
+/// The design read from `path` as the open document, with `lib`, the library its artwork is already baked into.
+pub(crate) fn adopt_file(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, lib: std::sync::Arc<ringdesign_core::AlphaLibrary>, path: &std::path::Path) {
+    app.adopt_library(lib);
+    let named = app.stamps_named();
+    app.design = design;
+    app.follow_stamps(named);
+    // A different file is a different session; the old timeline does
+    // not describe it.
+    app.history.reset(&app.design);
+    app.selected_layer = None;
+    app.fit_pending = true;
+    app.fit_keeps_view = false;
+    app.mark_dirty();
+    app.document_path = Some(path.to_path_buf());
+    app.push_recent(path);
+    app.set_status(format!("Opened {}", path.display()));
 }
 
 /// Start a template from the shared collection library, opened off the UI thread.
@@ -511,20 +556,18 @@ pub fn load_catalog_template(app: &mut RingDesignerApp, t: &'static ringdesign_w
 }
 
 /// The opened template as the new design, with `lib`, the library its artwork is already baked into.
-pub(crate) fn adopt_template(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, lib: std::sync::Arc<ringdesign_core::AlphaLibrary>, name: &str) {
-    if !std::sync::Arc::ptr_eq(&app.lib, &lib) {
-        app.lib = lib;
-        app.clear_thumbnails();
-    }
+/// `graph` is the design's graph as the open parsed it, when it did.
+pub(crate) fn adopt_template(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, lib: std::sync::Arc<ringdesign_core::AlphaLibrary>, name: &str, graph: Option<&ringdesign_graph::graph::Graph>) {
+    app.adopt_library(lib);
     app.document_path = None;
     let named = app.stamps_named();
     app.design = design;
     app.follow_stamps(named);
-    app.history.reset(&app.design.clone());
+    app.history.reset(&app.design);
     app.selected_layer = None;
     app.fit_pending = true;
     app.fit_keeps_view = false;
-    app.sync_graph();
+    app.sync_graph_parsed(graph);
     app.arrange_graph();
     app.mark_dirty();
     app.set_status(format!("New design from template: {name}"));
@@ -640,8 +683,7 @@ pub(crate) fn pane_canvases(app: &RingDesignerApp, ctx: &egui::Context) -> Vec<(
         .collect()
 }
 
-/// Where the template plate stands and how wide: across the top of a ring view's canvas between its tool rail and its
-/// navigator, clear of every view's strips, else in the middle of the largest canvas.
+/// Where the template plate stands and how wide: atop a ring view's canvas between its rail and navigator, else mid the largest canvas.
 pub(crate) fn template_plate_spot(app: &RingDesignerApp, ctx: &egui::Context) -> (egui::Pos2, egui::Align2, f32) {
     let canvases = pane_canvases(app, ctx);
     let solid = |i: usize| app.panes.get(i).is_some_and(|p| p.kind == PaneKind::Solid);
@@ -668,8 +710,8 @@ pub(crate) fn template_plate_spot(app: &RingDesignerApp, ctx: &egui::Context) ->
 pub(crate) fn template_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
     use ringdesign_workbench::templates::{self, Stage};
     let (name, progress) = match (&app.opening, &app.opened_building) {
-        (Some((opening, _)), _) => (opening.name, opening.progress()),
-        (None, Some((name, _, progress))) => (*name, progress.clone()),
+        (Some((opening, _)), _) => (opening.name.clone(), opening.progress()),
+        (None, Some((name, _, progress))) => (name.clone(), progress.clone()),
         (None, None) => return,
     };
     let building = progress.stage() == Stage::Building;
@@ -684,7 +726,7 @@ pub(crate) fn template_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
                 ui.horizontal(|ui| {
                     ui.set_width(width - 20.0);
                     let bar = if building { width - 20.0 } else { width - 110.0 };
-                    ui.add_sized([bar, ui.spacing().interact_size.y], |ui: &mut egui::Ui| templates::progress(ui, name, &progress));
+                    ui.add_sized([bar, ui.spacing().interact_size.y], |ui: &mut egui::Ui| templates::progress(ui, &name, &progress));
                     if !building {
                         cancel = ui.button("Cancel").on_hover_text("Stop opening the template; the design on screen stays").clicked();
                     }

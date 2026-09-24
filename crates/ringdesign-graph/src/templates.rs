@@ -62,16 +62,13 @@ impl TemplateGraph {
     /// Start a project from the whole template, including its title and
     /// manufacturing setup. Attaching just the graph to the old project
     /// lets the hosts' metadata-preserving rebuild overwrite those fields.
-    ///
-    /// Expression pins need an engine this crate does not carry; a host that
-    /// has one opens through [`open`](Self::open) with it attached.
+    /// Expression pins need an engine this crate does not carry: [`open`](Self::open) takes an evaluator with one attached.
     pub fn instantiate(&self, reg: &crate::registry::Registry, lib: &ringdesign_core::AlphaLibrary) -> Result<ringdesign_core::RingDesign, GraphError> {
         let never = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         self.open(reg, lib, &mut crate::eval::Evaluator::new(), std::sync::Arc::new(|_| {}), &never).map(|o| o.design)
     }
 
-    /// [`instantiate`](Self::instantiate) with `ev`, keyed by `lib`'s revision, telling `step` how far it has got and
-    /// stopping between nodes and between bakes once `cancel` is set; `ev` keeps the evaluation's cache and nothing else.
+    /// [`instantiate`](Self::instantiate) with `ev` keyed by `lib`'s revision, telling `step` each step and stopping between nodes and bakes once `cancel` is set.
     pub fn open(
         &self,
         reg: &crate::registry::Registry,

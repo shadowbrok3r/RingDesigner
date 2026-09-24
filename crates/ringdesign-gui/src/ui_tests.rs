@@ -406,6 +406,39 @@ fn a_template_with_an_expression_pin_opens_from_the_menu_path() {
 }
 
 #[test]
+fn a_design_file_saves_and_opens_off_the_ui_thread() {
+    let dir = std::env::temp_dir().join(format!("open-save-{}", std::process::id()));
+    let path = dir.join("saved.ring.json");
+    let mut h = harness([1600., 980.]);
+    h.state_mut().design.name = "Written off the UI thread".into();
+    crate::export::save_design_to(h.state_mut(), path.clone());
+    assert!(h.state().saving.is_some() && h.state().document_path.is_none(), "the document takes the path once the write lands");
+    let start = std::time::Instant::now();
+    while h.state().saving.is_some() {
+        h.run_steps(1);
+        assert!(start.elapsed().as_secs() < 60, "the save never landed");
+    }
+    assert_eq!(h.state().document_path.as_deref(), Some(path.as_path()), "{}", h.state().status);
+    assert_eq!(ringdesign_core::library::load_design(&path).unwrap().name, "Written off the UI thread");
+    h.state_mut().design.name = "Edited since".into();
+    h.state_mut().document_path = None;
+    h.state_mut().open_file(path.clone());
+    h.run_steps(1);
+    assert_eq!(h.state().design.name, "Edited since", "the design on screen stays until the file lands");
+    crate::interaction_tests::wait_for_template(&mut h);
+    assert_eq!(h.state().design.name, "Written off the UI thread");
+    assert_eq!(h.state().document_path.as_deref(), Some(path.as_path()));
+    assert!(!h.state().history.can_undo(), "a file opened is a new timeline");
+    // One that does not read says so and leaves the design alone.
+    std::fs::write(dir.join("broken.ring.json"), "{ not a design").unwrap();
+    h.state_mut().open_file(dir.join("broken.ring.json"));
+    crate::interaction_tests::wait_for_template(&mut h);
+    assert!(h.state().status.starts_with("Open failed"), "{}", h.state().status);
+    assert_eq!(h.state().design.name, "Written off the UI thread");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn the_template_plate_stands_clear_of_every_views_controls() {
     use egui::containers::panel::PanelState;
     for layout in [Layout::Single, Layout::Quad] {
@@ -435,6 +468,108 @@ fn the_template_plate_stands_clear_of_every_views_controls() {
             }
         }
         drop(h);
+    }
+}
+
+/// Milliseconds `f` holds the calling thread.
+fn ms<T>(f: impl FnOnce() -> T) -> (f64, T) {
+    let t = std::time::Instant::now();
+    let out = f();
+    (t.elapsed().as_secs_f64() * 1e3, out)
+}
+
+/// The UI thread's cost of the heavy operations on the heaviest designs: `cargo test --release -p ringdesign-gui ui_thread_costs -- --ignored --nocapture --test-threads=1`.
+#[test]
+#[ignore = "a timing table for release builds"]
+fn ui_thread_costs_on_heavy_designs() {
+    let dir = std::env::temp_dir().join(format!("ui-costs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut rows: Vec<(String, f64)> = Vec::new();
+    // The template menu, opened cold: every collection's thumbnail, then every entry's in one collection.
+    let mut h = harness([1600., 980.]);
+    h.run_steps(3);
+    h.get_by_label("File").click();
+    h.run_steps(2);
+    h.get_by_label_contains("New from template").click();
+    let (open_menu, _) = ms(|| h.run_steps(1));
+    rows.push(("template menu, first open".into(), open_menu));
+    h.get_by_label_contains("Stock masterworks").click();
+    let (open_group, _) = ms(|| h.run_steps(1));
+    rows.push(("template menu, first open of a collection".into(), open_group));
+    let (again, _) = ms(|| h.run_steps(1));
+    rows.push(("template menu, a frame after".into(), again));
+    drop(h);
+    for slug in ["caiman-imported", "nocturne"] {
+        let mut h = harness([1600., 980.]);
+        crate::export::load_catalog_template(h.state_mut(), template(slug));
+        let mut slowest: f64 = 0.0;
+        while h.state().opening.is_some() || h.state().opened_building.is_some() {
+            let (t, _) = ms(|| h.run_steps(1));
+            slowest = slowest.max(t);
+        }
+        rows.push((format!("{slug}: slowest frame while it opened, landed and built"), slowest));
+        crate::interaction_tests::wait_for_build(&mut h);
+        let idle: Vec<f64> = (0..10).map(|_| ms(|| h.run_steps(1)).0).collect();
+        rows.push((format!("{slug}: idle frame (median)"), { let mut i = idle.clone(); i.sort_by(f64::total_cmp); i[5] }));
+        let path = dir.join(format!("{slug}.ring.json"));
+        let (save, saved) = ms(|| ringdesign_core::library::save_design_embedded(&path, &h.state().design, &h.state().lib));
+        saved.unwrap();
+        rows.push((format!("{slug}: the writing a save does ({:.1} MB)", std::fs::metadata(&path).unwrap().len() as f64 / 1e6), save));
+        let (save, _) = ms(|| crate::export::save_design_to(h.state_mut(), path.clone()));
+        rows.push((format!("{slug}: save and save-as, on the UI thread"), save));
+        let start = std::time::Instant::now();
+        while h.state().saving.is_some() {
+            h.run_steps(1);
+            assert!(start.elapsed().as_secs() < 60, "the save never landed");
+        }
+        assert!(h.state().status.starts_with("Saved "), "{}", h.state().status);
+        let (snapshot, copy) = ms(|| (h.state().design.clone(), h.state().lib.clone()));
+        drop(copy);
+        rows.push((format!("{slug}: export snapshot"), snapshot));
+        let (session, _) = ms(|| h.state().session_design().unwrap());
+        rows.push((format!("{slug}: session save"), session));
+        let (open, _) = ms(|| crate::export::open_design_path(h.state_mut(), &path));
+        rows.push((format!("{slug}: open design file, Recent and --open"), open));
+        let (tick, _) = ms(|| h.run_steps(1));
+        rows.push((format!("{slug}: first frame after opening the file"), tick));
+        let (open, _) = ms(|| h.state_mut().open_file(path.clone()));
+        rows.push((format!("{slug}: open design file, the dialog, on the UI thread"), open));
+        let mut slowest: f64 = 0.0;
+        while h.state().opening.is_some() || h.state().opened_building.is_some() {
+            slowest = slowest.max(ms(|| h.run_steps(1)).0);
+        }
+        rows.push((format!("{slug}: slowest frame while the file opened, landed and built"), slowest));
+        h.state_mut().rebuild_now();
+        crate::interaction_tests::wait_for_build(&mut h);
+        // An edit, committed as the history commits a settled one.
+        h.state_mut().design.name.push_str(" edited");
+        h.state_mut().mark_dirty();
+        let (commit, _) = ms(|| {
+            let app = h.state_mut();
+            app.history.commit(&app.design)
+        });
+        rows.push((format!("{slug}: history snapshot of a settled edit"), commit));
+        let (undo, _) = ms(|| h.state_mut().undo());
+        rows.push((format!("{slug}: undo"), undo));
+        let (redo, _) = ms(|| h.state_mut().redo());
+        rows.push((format!("{slug}: redo"), redo));
+        if h.state().design.graph.is_some() {
+            h.state_mut().graph_json = None;
+            let (sync, _) = ms(|| h.state_mut().sync_graph());
+            rows.push((format!("{slug}: graph sync"), sync));
+            let (arrange, _) = ms(|| h.state_mut().arrange_graph());
+            rows.push((format!("{slug}: arrange"), arrange));
+            let (same, _) = ms(|| h.state_mut().sync_graph());
+            rows.push((format!("{slug}: graph sync, nothing moved"), same));
+        }
+        let (dispatch, _) = ms(|| h.state_mut().rebuild_now());
+        rows.push((format!("{slug}: dispatch a build"), dispatch));
+        crate::interaction_tests::wait_for_build(&mut h);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+    println!("| UI thread | ms |\n| --- | --- |");
+    for (what, t) in rows {
+        println!("| {what} | {t:.1} |");
     }
 }
 

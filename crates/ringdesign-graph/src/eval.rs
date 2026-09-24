@@ -537,10 +537,7 @@ pub struct DesignOut {
 /// Evaluate the design a graph is for and judge it. The design is what
 /// feeds the output sink's `design` input, or, without a sink, the last
 /// single design any node produced.
-///
-/// `baked_library` is `None` when `lib` already holds the design's artwork.
-/// Unchanged artwork is shared rather than rasterized again, and the verdict
-/// is reused while the design and the library's content stand.
+/// `baked_library` is `None` when `lib` already holds the design's artwork; the verdict is reused while the design and the library's content stand.
 pub fn evaluate_design(ev: &mut Evaluator, g: &Graph, reg: &Registry, lib: &AlphaLibrary, lib_epoch: u64) -> Result<DesignOut, GraphError> {
     let (design, report) = design_of(ev, g, reg, lib, lib_epoch)?;
     Ok(judge(ev, design, report, g, lib))

@@ -46,15 +46,15 @@ fn sources(design: &ringdesign_core::RingDesign, lib: &AlphaLibrary) {
 }
 
 fn main() -> anyhow::Result<()> {
-    let detail = std::env::args().any(|a| a == "--sources");
+    let per_source = std::env::args().any(|a| a == "--sources");
     let only: Vec<String> = std::env::args().skip(1).filter(|a| a != "--sources").collect();
     let reg = Registry::builtin();
     let t = Instant::now();
     let lib = Arc::new(AlphaLibrary::installed());
     println!("installed library: {} alphas in {:.0} ms", lib.len(), ms(t));
     let params = BuildParams { theta_steps: 384, profile_steps: 144, ..Default::default() };
-    println!("| template | MB | unpack | read | evaluate | bake | bake again | first build | first verdict | rebuild | artwork Mtexels |");
-    println!("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+    println!("| template | MB | unpack | read | evaluate | bake | bake again | detail | detail again | first build | first verdict | rebuild | artwork Mtexels |");
+    println!("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
     let never = Arc::new(AtomicBool::new(false));
     for template in templates::catalog().filter(|t| only.is_empty() || only.iter().any(|s| s == t.slug)) {
         let t = Instant::now();
@@ -78,6 +78,12 @@ fn main() -> anyhow::Result<()> {
         let bake_again = ms(t);
         let baked = Arc::new(baked);
         let t = Instant::now();
+        ringdesign_core::dfm::findings_in(&design, &baked);
+        let detail = ms(t);
+        let t = Instant::now();
+        ringdesign_core::dfm::findings_in(&design, &baked);
+        let detail_again = ms(t);
+        let t = Instant::now();
         mesh::try_build(&design, &baked, params)?;
         let build = ms(t);
         // The build worker takes the open's evaluation for its first build, then evaluates against the same base.
@@ -90,12 +96,12 @@ fn main() -> anyhow::Result<()> {
         let rebuild = ms(t);
         assert!(again.baked_library.is_none() && Arc::ptr_eq(&again.design, &design), "{}: a rebuild of an unchanged graph reuses everything", template.slug);
         println!(
-            "| {} | {:.1} | {unpack:.0} | {read:.0} | {evaluate:.0} | {bake:.0} | {bake_again:.1} | {build:.0} | {verdict:.0} | {rebuild:.1} | {:.2} |",
+            "| {} | {:.1} | {unpack:.0} | {read:.0} | {evaluate:.0} | {bake:.0} | {bake_again:.1} | {detail:.0} | {detail_again:.1} | {build:.0} | {verdict:.0} | {rebuild:.1} | {:.2} |",
             template.slug,
             json.len() as f64 / 1e6,
             texels as f64 / 1e6,
         );
-        if detail {
+        if per_source {
             sources(&design, &lib);
         }
     }

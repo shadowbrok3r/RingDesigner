@@ -127,6 +127,8 @@ pub struct RingApp {
     renderer: Arc<Mutex<GpuMeshRenderer>>,
     pane: RingPane,
     worker: Option<Worker>,
+    /// Writes design files off the UI thread.
+    saver: Option<crate::worker::Saver>,
     tab: Tab,
 
     cast: Option<CastReport>,
@@ -320,6 +322,7 @@ impl RingApp {
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
             pane: RingPane::default(),
             worker: None,
+            saver: None,
             tab: Tab::Ring,
             cast: None,
             field: None,
@@ -451,20 +454,27 @@ impl RingApp {
         if self.design.shank.kind == ringdesign_core::ShankKind::Signet {
             self.frame_head(true);
         }
-        match baked {
-            Some(lib) => self.lib = lib,
-            None => {
-                let lib = Arc::make_mut(&mut self.lib);
-                self.design.unpack_embedded(lib);
-                self.design.bake_all(lib);
-            }
+        let lib = baked.or_else(|| ringdesign_graph::eval::baked(&self.design, &self.lib));
+        if let Some(lib) = lib {
+            self.adopt_library(lib);
         }
-        self.thumbs.clear();
         self.picked_alpha = None;
         // A row index from the old stack would point at a different layer.
         self.selected_layer = None;
         self.history.reset(&self.design);
         self.mark_dirty();
+    }
+
+    /// Takes `lib` as the library, forgetting the previews of only the alphas it changed.
+    fn adopt_library(&mut self, lib: Arc<AlphaLibrary>) {
+        if Arc::ptr_eq(&self.lib, &lib) {
+            return;
+        }
+        let changed: Vec<String> = lib.changed_since(&self.lib).map(|a| a.name.clone()).collect();
+        self.lib = lib;
+        for name in changed {
+            self.thumbs.forget(&name);
+        }
     }
 
     /// Put a design the history handed back on screen without recording it as a
@@ -483,10 +493,9 @@ impl RingApp {
         let before = std::mem::replace(&mut self.design, design);
         self.stamp_window = crate::cad::stamp_after(self.stamp_window, &before.stamps, &self.design.stamps);
         self.editor.reset_selection();
-        let lib = Arc::make_mut(&mut self.lib);
-        self.design.unpack_embedded(lib);
-        self.design.bake_all(lib);
-        self.thumbs.clear();
+        if let Some(lib) = ringdesign_graph::eval::baked(&self.design, &self.lib) {
+            self.adopt_library(lib);
+        }
         self.selected_layer = None;
         self.dirty_at = Some(Instant::now());
         self.status = what.to_string();
@@ -578,13 +587,52 @@ impl RingApp {
         self.packs = crate::npu::scan_many(&[mine.as_path(), shared.as_path()]);
     }
 
+    /// Writes the design to the autosave off the UI thread.
     fn autosave(&self) {
         let Some(root) = self.data_root.as_ref() else {
             return;
         };
-        let path = root.join(AUTOSAVE);
-        if let Err(e) = library::save_design(&path, &self.design) {
-            log::warn!("autosave {}: {e}", path.display());
+        self.save_to(root.join(AUTOSAVE), crate::worker::Purpose::Autosave);
+    }
+
+    /// Queues the design as it stands to be written to `path`; [`poll_saves`](Self::poll_saves) says how it went.
+    fn save_to(&self, path: std::path::PathBuf, purpose: crate::worker::Purpose) {
+        match &self.saver {
+            Some(saver) => saver.save(path, self.design.clone(), purpose),
+            None => {
+                if let Err(e) = library::save_design(&path, &self.design) {
+                    log::warn!("save {}: {e}", path.display());
+                }
+            }
+        }
+    }
+
+    /// Takes in the writes that have landed: a save is said, a copy goes on to Downloads, an autosave only logs a failure.
+    fn poll_saves(&mut self, host: &Host) {
+        use crate::worker::Purpose;
+        while let Some(saved) = self.saver.as_ref().and_then(|s| s.poll()) {
+            match (saved.purpose, saved.result) {
+                (Purpose::Autosave, Ok(())) => {}
+                (Purpose::Autosave, Err(e)) => log::warn!("autosave {}: {e}", saved.path.display()),
+                (Purpose::Save, Ok(())) => {
+                    self.prefs.push_recent(&saved.path.to_string_lossy());
+                    self.save_prefs();
+                    self.status = format!("saved {}", saved.path.display());
+                    host.haptic(Haptic::Success);
+                }
+                (Purpose::Downloads, Ok(())) => {
+                    let name = saved.path.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+                    self.status = match host.save_to_gallery(saved.path.to_string_lossy().into_owned(), name, "application/json") {
+                        Some(folder) => format!("copy saved to {folder}"),
+                        None => "could not write to Downloads".into(),
+                    };
+                    host.haptic(Haptic::Success);
+                }
+                (Purpose::Save | Purpose::Downloads, Err(e)) => {
+                    self.status = format!("save failed: {e}");
+                    host.haptic(Haptic::Error);
+                }
+            }
         }
     }
 
@@ -635,8 +683,10 @@ impl RingApp {
                 if let Some(mut g) = done.graph {
                     if g.ok {
                         if let Some(lib) = g.baked_library.take() {
+                            for name in lib.changed_since(&self.lib).map(|a| a.name.clone()).collect::<Vec<_>>() {
+                                self.thumbs.forget(&name);
+                            }
                             self.lib = lib;
-                            self.thumbs.clear();
                         }
                         let mut next = g.design;
                         next.name = self.design.name.clone();
@@ -3354,6 +3404,8 @@ impl EguiApp for RingApp {
         }
         self.worker = Some(Worker::spawn(ctx.clone()));
         let wake = ctx.clone();
+        self.saver = Some(crate::worker::Saver::spawn(move || wake.request_repaint()));
+        let wake = ctx.clone();
         self.node_focus.worker = Some(crate::focus::Worker::spawn(move || wake.request_repaint(), crate::focus::stage));
         self.history.reset(&self.design);
         if self.design.shank.kind == ringdesign_core::ShankKind::Signet {
@@ -3373,7 +3425,16 @@ impl EguiApp for RingApp {
     fn on_pause(&mut self, _host: &Host) {
         // Keep a queued check alive so it can finish when the app resumes.
         self.history.commit(&self.design);
-        self.autosave();
+        if let Some(root) = self.data_root.as_ref() {
+            let path = root.join(AUTOSAVE);
+            let flushed = match &self.saver {
+                Some(saver) => saver.flush(&path, &self.design),
+                None => library::save_design(&path, &self.design).map_err(|e| format!("{e:#}")),
+            };
+            if let Err(e) = flushed {
+                log::warn!("autosave {}: {e}", path.display());
+            }
+        }
         self.save_prefs();
         log::info!("on_pause: design and prefs flushed");
     }
@@ -3399,6 +3460,7 @@ impl EguiApp for RingApp {
         self.sync_node_focus(ui.ctx());
         self.poll_share(host);
         self.poll_exports(host);
+        self.poll_saves(host);
         self.poll_import(host);
         self.poll_generate(host);
 

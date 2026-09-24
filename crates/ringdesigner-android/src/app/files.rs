@@ -75,15 +75,8 @@ impl RingApp {
                 host.haptic(Haptic::Warning);
             } else {
                 self.overwrite_warned = None;
-                self.status = match library::save_design(&path, &self.design) {
-                    Ok(()) => {
-                        self.prefs.push_recent(&path.to_string_lossy());
-                        self.save_prefs();
-                        format!("saved {}", path.display())
-                    }
-                    Err(e) => format!("save failed: {e}"),
-                };
-                host.haptic(Haptic::Success);
+                self.status = format!("saving {}…", path.display());
+                self.save_to(path, crate::worker::Purpose::Save);
             }
         }
         if file_action(ui, "Save a copy to Downloads")
@@ -92,20 +85,9 @@ impl RingApp {
         {
             let name = format!("{}.ring.json", slug(&self.design.name));
             let copies = root.join("exports");
-            let path = copies.join(&name);
             let _ = std::fs::create_dir_all(&copies);
-            self.status = match library::save_design(&path, &self.design) {
-                Ok(()) => match host.save_to_gallery(
-                    path.to_string_lossy().into_owned(),
-                    name,
-                    "application/json",
-                ) {
-                    Some(folder) => format!("copy saved to {folder}"),
-                    None => "could not write to Downloads".into(),
-                },
-                Err(e) => format!("save failed: {e}"),
-            };
-            host.haptic(Haptic::Success);
+            self.status = "saving a copy…".into();
+            self.save_to(copies.join(&name), crate::worker::Purpose::Downloads);
         }
         if file_action(ui, "Copy design as JSON").clicked() {
             if let Ok(json) = serde_json::to_string_pretty(&self.design) {

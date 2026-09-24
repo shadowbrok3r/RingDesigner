@@ -254,9 +254,7 @@ impl RingDesign {
         out
     }
 
-    /// Rasterizes `sources`, and when `fields` is set every distance field the stack reads, on every core, a field
-    /// derived straight after the source it reads; inserts the rasters in order, then the fields. Tells `progress`
-    /// each unit done of all of them. The rasters inserted, or `None` once `cancel` is set, `lib` then part-baked.
+    /// Rasterizes `sources` and, with `fields`, the stack's distance fields on every core, each field after its source, inserting rasters then fields; the rasters, or `None` once `cancel` is set.
     fn bake_pipeline(
         &self,
         sources: &[Artwork<'_>],
@@ -320,9 +318,7 @@ impl RingDesign {
         self.artwork(true, true).len() + self.sdf_sources().len()
     }
 
-    /// [`unpack_embedded`](Self::unpack_embedded) then [`bake_all`](Self::bake_all), on every core, telling `progress`
-    /// each source and field done of all of them; the rasters it inserted, in order, or `None` once `cancel` is set,
-    /// `lib` then part-baked.
+    /// [`unpack_embedded`](Self::unpack_embedded) then [`bake_all`](Self::bake_all) on every core, telling `progress` each unit done; the rasters inserted, or `None` once `cancel` is set.
     pub fn unpack_and_bake_observed(
         &self,
         lib: &mut AlphaLibrary,

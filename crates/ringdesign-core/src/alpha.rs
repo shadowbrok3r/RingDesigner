@@ -492,18 +492,12 @@ impl Alpha {
     /// seamless. `None` for an empty or single-phase mask. Cached by content.
     pub fn min_feature_px(&self) -> Option<(f64, f64)> {
         use std::collections::HashMap;
-        use std::hash::{Hash, Hasher};
         use std::sync::{Mutex, OnceLock};
         static CACHE: OnceLock<Mutex<HashMap<u64, Option<(f64, f64)>>>> = OnceLock::new();
         if self.is_empty() {
             return None;
         }
-        let mut h = std::hash::DefaultHasher::new();
-        (self.width, self.height).hash(&mut h);
-        for v in &self.data {
-            v.to_bits().hash(&mut h);
-        }
-        let key = h.finish();
+        let key = self.content_key();
         let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
         if let Some(hit) = cache.lock().ok().and_then(|c| c.get(&key).copied()) {
             return hit;
@@ -516,6 +510,22 @@ impl Alpha {
             c.insert(key, got);
         }
         got
+    }
+
+    /// A 64-bit digest of the size and every sample, folded sixteen bytes at a time through a 128-bit multiply.
+    pub fn content_key(&self) -> u64 {
+        const P0: u64 = 0xa076_1d64_78bd_642f;
+        const P1: u64 = 0xe703_7ed1_a0b4_28db;
+        let mum = |a: u64, b: u64| {
+            let r = (a as u128).wrapping_mul(b as u128);
+            (r as u64) ^ ((r >> 64) as u64)
+        };
+        let word = |s: &[f32], i: usize| u64::from(s.get(i).map_or(0, |v| v.to_bits())) | (u64::from(s.get(i + 1).map_or(0, |v| v.to_bits())) << 32);
+        let mut h = mum(self.width as u64 ^ P0, self.height as u64 ^ P1) ^ self.data.len() as u64;
+        for chunk in self.data.chunks(4) {
+            h = mum(word(chunk, 0) ^ P0, word(chunk, 2) ^ h ^ P1);
+        }
+        mum(h ^ P0, self.data.len() as u64 ^ P1)
     }
 
     fn measure_features(&self) -> Option<(f64, f64)> {
@@ -534,8 +544,10 @@ impl Alpha {
             g
         };
         let ground: Vec<bool> = ink.iter().map(|&b| !b).collect();
-        let d_ink = dist_to(&ground);
-        let d_ground = dist_to(&ink);
+        #[cfg(feature = "parallel")]
+        let (d_ink, d_ground) = rayon::join(|| dist_to(&ground), || dist_to(&ink));
+        #[cfg(not(feature = "parallel"))]
+        let (d_ink, d_ground) = (dist_to(&ground), dist_to(&ink));
         // Share of a phase (centre tile) that an opening by disc radius r removes.
         let loss = |phase: &[bool], d: &[f32], r: f32| -> f64 {
             let eroded: Vec<bool> = d.iter().map(|&v| v >= r).collect();
@@ -566,7 +578,11 @@ impl Alpha {
             }
             2.0 * hi as f64
         };
-        Some((feature(&ink, &d_ink), feature(&ground, &d_ground)))
+        #[cfg(feature = "parallel")]
+        let (ink_px, gap_px) = rayon::join(|| feature(&ink, &d_ink), || feature(&ground, &d_ground));
+        #[cfg(not(feature = "parallel"))]
+        let (ink_px, gap_px) = (feature(&ink, &d_ink), feature(&ground, &d_ground));
+        Some((ink_px, gap_px))
     }
 }
 
