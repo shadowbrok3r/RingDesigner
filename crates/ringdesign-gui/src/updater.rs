@@ -14,7 +14,7 @@ const API: &str = "https://api.github.com/repos/shadowbrok3r/RingDesigner/releas
 const MAX_BINARY: u64 = 512 * 1024 * 1024;
 pub static RESTART: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 /// Said beside Install when the running build carries OpenCascade.
-pub const OCCT_WARNING: &str = "This build carries OpenCascade and the update may not: after it, Fillet, Shell and the junction stay greyed and STEP files read only what RingDesigner reads itself, until an occt-worker stands beside the app.";
+pub const OCCT_WARNING: &str = "This build carries OpenCascade and the update may not: after it, Fillet, Shell and the junction stay greyed and STEP files read only what RingDesigner reads itself, until an occt-worker stands beside the app. The copy of the worker it unpacked is removed with the install.";
 
 #[derive(Clone, Debug, Deserialize)]
 struct Release {
@@ -204,6 +204,10 @@ impl Updater {
                 verify_native(ready.file.path())?;
                 self_replace::self_replace(ready.file.path())
                     .context("Cannot replace the executable; install in a writable folder")?;
+                let pruned = prune_unpacked(&crate::occt_embedded::root());
+                if pruned > 0 {
+                    log::info!("Removed {pruned} unpacked OpenCascade worker{} the installed build may not carry", if pruned == 1 { "" } else { "s" });
+                }
                 Ok(())
             })();
             let _ = tx.send(match result {
@@ -213,6 +217,16 @@ impl Updater {
             ctx.request_repaint();
         });
     }
+}
+
+/// Removes every OpenCascade worker unpacked under `root`, best effort, and says how many went.
+pub fn prune_unpacked(root: &std::path::Path) -> usize {
+    let Ok(entries) = std::fs::read_dir(root.join("occt")) else { return 0 };
+    entries
+        .flatten()
+        .filter(|e| e.file_name().to_str().is_some_and(|n| n.len() == 64 && n.bytes().all(|b| b.is_ascii_hexdigit())))
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()) && std::fs::remove_dir_all(e.path()).is_ok())
+        .count()
 }
 
 fn asset_name(os: &str, arch: &str) -> Option<String> {
@@ -425,6 +439,27 @@ mod tests {
             assert_eq!(h.query_by_label(OCCT_WARNING).is_some(), carries);
         }
     }
+    #[test]
+    fn an_install_prunes_the_opencascade_workers_earlier_builds_unpacked() {
+        let root = std::env::temp_dir().join(format!("ringdesigner-prune-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let (old, other) = ("d23e82e8".repeat(8), "ab".repeat(32));
+        for sha in [&old, &other] {
+            std::fs::create_dir_all(root.join("occt").join(sha)).unwrap();
+            std::fs::write(root.join("occt").join(sha).join("occt-worker"), b"\x7fELF").unwrap();
+        }
+        // What is not an unpacked worker's folder stays.
+        std::fs::write(root.join("occt").join("notes.txt"), b"kept").unwrap();
+        std::fs::create_dir_all(root.join("occt").join("short")).unwrap();
+        assert_eq!(prune_unpacked(&root), 2);
+        let mut left: Vec<String> = std::fs::read_dir(root.join("occt")).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        left.sort();
+        assert_eq!(left, ["notes.txt", "short"]);
+        assert_eq!(prune_unpacked(&root), 0);
+        assert_eq!(prune_unpacked(&root.join("nowhere")), 0);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
     #[test]
     fn a_stopped_worker_releases_controls_for_retry() {
         let mut updater = Updater::new(false);

@@ -7,9 +7,9 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-/// The environment variable that names the worker program, over the one beside the executable.
+/// The environment variable that names the worker program, over the one beside the executable; a relative path is read from the executable's folder.
 pub const WORKER_ENV: &str = "RINGDESIGN_OCCT_WORKER";
-/// The name a host's build reads its worker from, read at run time as well when [`WORKER_ENV`] is unset.
+/// The name a host's build reads its worker from, read at run time as well when [`WORKER_ENV`] is unset, a relative path from the executable's folder.
 pub const WORKER_ENV_ALIAS: &str = "RINGDESIGNER_OCCT_WORKER";
 /// The worker program's name beside the executable.
 pub const WORKER_NAME: &str = "occt-worker";
@@ -65,6 +65,14 @@ pub enum Found {
     Embedded { unpacked: bool },
 }
 
+/// `path` as it stands when absolute or when there is no `folder`, else read from `folder`.
+fn anchored(path: PathBuf, folder: Option<&std::path::Path>) -> PathBuf {
+    match folder {
+        Some(folder) if path.is_relative() => folder.join(path),
+        _ => path,
+    }
+}
+
 /// [`WORKER_NAME`] beside the running executable, whether or not it is there.
 fn beside_executable() -> Result<PathBuf, Failure> {
     let exe = std::env::current_exe().map_err(|e| Failure::Spawn(e.to_string()))?;
@@ -90,10 +98,12 @@ impl Locator {
         Self::from_vars(embedded, root, |var| std::env::var_os(var))
     }
 
-    /// [`Locator::from_env`] with the variables read through `var`; an empty value counts as unset.
+    /// [`Locator::from_env`] with the variables read through `var`; an empty value counts as unset, a relative path is read from the executable's folder.
     pub fn from_vars(embedded: Embedded, root: PathBuf, var: impl Fn(&str) -> Option<std::ffi::OsString>) -> Self {
-        let named = [WORKER_ENV, WORKER_ENV_ALIAS].into_iter().find_map(|name| var(name).filter(|v| !v.is_empty()).map(|v| (name, PathBuf::from(v))));
-        Self { named, beside: beside_executable().ok(), embedded, root }
+        let beside = beside_executable().ok();
+        let folder = beside.as_ref().and_then(|b| b.parent());
+        let named = [WORKER_ENV, WORKER_ENV_ALIAS].into_iter().find_map(|name| var(name).filter(|v| !v.is_empty()).map(|v| (name, anchored(PathBuf::from(v), folder))));
+        Self { named, beside, embedded, root }
     }
 
     /// Only the worker at `program`, as [`WORKER_ENV`] would name it.
@@ -262,6 +272,21 @@ mod tests {
         let stopped = script("sleep 30").run_cancellable(&Request::Ping, Duration::from_secs(60), &cancel);
         assert!(matches!(stopped, Err(Failure::Cancelled)), "{stopped:?}");
         assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
+    }
+
+    #[test]
+    fn a_relative_worker_path_is_read_from_the_executables_folder_wherever_the_app_starts() {
+        let folder = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
+        let named = |path: &str| Locator::from_vars(Embedded::NONE, PathBuf::new(), move |var| (var == WORKER_ENV_ALIAS).then(|| path.into())).named;
+        assert_eq!(named("occt-embed/linux/occt-worker"), Some((WORKER_ENV_ALIAS, folder.join("occt-embed/linux/occt-worker"))));
+        assert_eq!(named("../bin/occt-worker"), Some((WORKER_ENV_ALIAS, folder.join("../bin/occt-worker"))));
+        assert_eq!(named("/opt/occt-worker"), Some((WORKER_ENV_ALIAS, PathBuf::from("/opt/occt-worker"))));
+        // Found where the executable is, not where the process was started.
+        let beside = Locator::from_vars(Embedded::NONE, PathBuf::new(), |_| None).beside.unwrap();
+        let name = beside.file_name().unwrap().to_str().unwrap().to_string();
+        let relative = Locator::from_vars(Embedded::NONE, PathBuf::new(), move |var| (var == WORKER_ENV).then(|| name.clone().into())).named.unwrap();
+        assert_eq!(relative, (WORKER_ENV, beside));
+        assert_eq!(anchored(PathBuf::from("w"), None), PathBuf::from("w"));
     }
 
     #[test]
