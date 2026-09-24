@@ -428,6 +428,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         ringdesign_workbench::navigation::show(ui, rect, ui.id().with(("desktop-view", pane)),
             &mut app.panes[pane].navigation, [camera.yaw, camera.pitch, camera.roll], head)
     };
+    #[cfg(test)]
+    ui.ctx().data_mut(|d| d.insert_temp(navigator_key(Some(pane)), nav.controls.clone()));
     if let Some(action) = nav.action {
         let angles = action.apply([camera.yaw, camera.pitch, camera.roll], head);
         if action.recentres() {
@@ -793,9 +795,12 @@ pub fn candidate_view(
     let (rect, response) = ui.allocate_exact_size(available, egui::Sense::click_and_drag());
     let nav = ringdesign_workbench::navigation::show_camera(ui,rect,ui.id().with("cad-cube"),
         &mut display.navigation,[camera.yaw,camera.pitch,camera.roll],head);
+    #[cfg(test)]
+    ui.ctx().data_mut(|d| d.insert_temp(navigator_key(None), nav.controls.clone()));
     if let Some(action) = nav.action {
         let angles = action.apply([camera.yaw,camera.pitch,camera.roll],head);
         if action.recentres() {
+            camera.pivot_home();
             let from = camera.pose();
             display.turn = Some(ringdesign_workbench::focus::Turn::new(from,
                 ringdesign_workbench::focus::Pose { yaw:angles[0],pitch:angles[1],roll:angles[2],pan:[0.;2],..from }));
@@ -1247,6 +1252,18 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
         MenuAction::EditStamp(index) => app.stamp_inspector = Some(index),
         MenuAction::Stamp { index, edit } => stamp_edit(app, index, &edit),
     }
+}
+
+/// Where the navigator's controls stood last frame, keyed by the Ring pane they drew in, or `None` for a candidate view.
+#[cfg(test)]
+pub(crate) fn navigator_key(pane: Option<usize>) -> egui::Id {
+    egui::Id::new(("navigator-controls", pane))
+}
+
+/// The navigator's controls as last drawn over the Ring pane `pane`, or over a candidate view for `None`.
+#[cfg(test)]
+pub(crate) fn navigator_controls(ctx: &egui::Context, pane: Option<usize>) -> Vec<(&'static str, egui::Rect)> {
+    ctx.data(|d| d.get_temp::<Vec<(&'static str, egui::Rect)>>(navigator_key(pane))).unwrap_or_default()
 }
 
 /// Eases the pane onto the chosen parts, seats, stamps and stones, else the whole ring, the pivot moved onto their middle.

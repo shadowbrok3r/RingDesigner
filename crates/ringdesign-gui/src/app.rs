@@ -791,6 +791,10 @@ impl RingDesignerApp {
                         self.fit_pending = false;
                         let bounds = build.mesh.bounds();
                         for pane in &mut self.panes {
+                            // Frames the new ring whole: no turn, zoom 1, centred on its middle.
+                            pane.turn = None;
+                            pane.camera.zoom = 1.0;
+                            pane.camera.centre_home();
                             pane.camera.fit(bounds);
                         }
                     }

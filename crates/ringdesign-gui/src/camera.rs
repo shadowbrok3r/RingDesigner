@@ -106,6 +106,12 @@ impl OrbitCamera {
         self.home.unwrap_or(self.target)
     }
 
+    /// Orbits the ring's own middle again, centred on it.
+    pub fn centre_home(&mut self) {
+        self.target = self.home();
+        self.pan = [0.0; 2];
+    }
+
     /// Orbits the ring's own middle again without moving the picture.
     pub fn pivot_home(&mut self) {
         self.pivot_on(self.home());
@@ -596,6 +602,11 @@ mod tests {
         back.pivot_home();
         assert_eq!(back.target, home);
         assert!(apart(back.projector(r).at([4.0, 3.0, 1.0]), still) < 0.01, "home again without a jump");
+        // Centred on home instead, the ring's middle stands in the middle of the view.
+        let mut centred = cam;
+        centred.centre_home();
+        assert_eq!((centred.target, centred.pan), (home, [0.0; 2]));
+        assert!(apart(centred.projector(r).at(home), r.center()) < 0.01);
         // Stored and restored, the pivoted camera still knows its home.
         let mut stored: OrbitCamera = serde_json::from_str(&serde_json::to_string(&cam).unwrap()).unwrap();
         assert_eq!(stored.target, [0.0, 10.9, 0.0]);
