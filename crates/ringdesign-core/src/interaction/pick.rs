@@ -1081,7 +1081,7 @@ mod tests {
             let t = std::f64::consts::TAU * f64::from(i) / 40.0;
             [1.2 * t.cos(), 1.2 * t.sin()]
         });
-        d.stamps.push(crate::setting::Stamp { name: "Disc".into(), theta_deg: 270.0, v_mm: v, rot_deg: 0.0, outline: disc.collect(), height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false });
+        d.stamps.push(crate::setting::Stamp { name: "Disc".into(), theta_deg: 270.0, v_mm: v, rot_deg: 0.0, outline: disc.collect(), height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: Default::default() });
         d
     }
 

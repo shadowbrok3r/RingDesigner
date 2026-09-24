@@ -142,6 +142,8 @@ mod tests {
             cut: false,
             bench: false,
             along_pull: false,
+            tier: 0,
+            top: Default::default(),
         };
         let mut d = RingDesign::default();
         d.name = "Stamped".into();

@@ -148,7 +148,7 @@ mod tests {
     fn a_scrolling_window_squeezed_further_asks_for_the_frame_that_fits_it_and_then_for_none() {
         let ctx = egui::Context::default();
         crate::theme::apply(&ctx);
-        let mut stamp = Stamp { name: "Moon".into(), theta_deg: 44.6, v_mm: 8.01, rot_deg: 180.0, outline: vec![[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]], height_mm: 0.34, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false };
+        let mut stamp = Stamp { name: "Moon".into(), theta_deg: 44.6, v_mm: 8.01, rot_deg: 180.0, outline: vec![[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]], height_mm: 0.34, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: Default::default() };
         let navigator = Rect::from_min_size(pos2(270.0, 110.0), vec2(140.0, 190.0));
         let mut pass = |view: Rect| {
             let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(420.0, 900.0))), ..Default::default() };
@@ -177,7 +177,7 @@ mod tests {
     fn with_the_keypad_up_the_window_stays_clear_of_the_navigator_and_scrolls_to_the_focused_field() {
         let ctx = egui::Context::default();
         crate::theme::apply(&ctx);
-        let mut stamp = Stamp { name: "Moon".into(), theta_deg: 44.6, v_mm: 8.01, rot_deg: 180.0, outline: vec![[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]], height_mm: 0.34, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false };
+        let mut stamp = Stamp { name: "Moon".into(), theta_deg: 44.6, v_mm: 8.01, rot_deg: 180.0, outline: vec![[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]], height_mm: 0.34, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: Default::default() };
         let navigator = Rect::from_min_size(pos2(270.0, 110.0), vec2(140.0, 190.0));
         let mut pass = |view: Rect, events: Vec<egui::Event>| {
             let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(420.0, 900.0))), events, ..Default::default() };
@@ -218,7 +218,7 @@ mod tests {
     fn with_the_rail_expanded_and_the_keypad_up_the_window_stands_under_the_navigator_over_the_rail_under_a_later_palette_and_its_close_button_takes_the_tap() {
         let ctx = egui::Context::default();
         crate::theme::apply(&ctx);
-        let mut stamp = Stamp { name: "Moon".into(), theta_deg: 44.6, v_mm: 8.01, rot_deg: 180.0, outline: vec![[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]], height_mm: 0.34, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false };
+        let mut stamp = Stamp { name: "Moon".into(), theta_deg: 44.6, v_mm: 8.01, rot_deg: 180.0, outline: vec![[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]], height_mm: 0.34, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: Default::default() };
         let vt = 80.0;
         let navigator = Rect::from_min_size(pos2(298.0, vt + 10.0), vec2(106.0, 173.0));
         let mut rail = (Rect::NOTHING, egui::LayerId::background());

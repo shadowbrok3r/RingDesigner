@@ -922,15 +922,312 @@ pub struct Stamp {
     /// wall tucks one edge under it: measured 0.35 mm on a factory signet's cheek.
     #[serde(default)]
     pub along_pull: bool,
+    /// Made against the band as swept at 0, against the ring with every lower tier applied above it.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub tier: u8,
+    /// The shape of its top over `height_mm`; on a cut, of its floor under `sink_mm`.
+    #[serde(default, skip_serializing_if = "StampTop::is_flat")]
+    pub top: StampTop,
+}
+
+fn is_zero(v: &u8) -> bool {
+    *v == 0
+}
+
+/// The shape of a stamp's top over its eaves at `height_mm`, in the outline's plane.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub enum StampTop {
+    /// One height everywhere: the surface followed at `height_mm`.
+    #[default]
+    Flat,
+    /// Two planes meeting `rise_mm` over the eaves in a ridge through the origin along `axis_deg`.
+    Gable { rise_mm: f64, axis_deg: f64 },
+    /// A ridge from `from` (`rise_mm` high) to `to` (`end_mm`), falling to the eaves at the outline's furthest reach.
+    Ridge { rise_mm: f64, from: [f64; 2], to: [f64; 2], end_mm: f64 },
+    /// A cone from the outline to an apex `apex_mm` over `at`, blunted to a flat `tip_mm` across.
+    Cone { apex_mm: f64, at: [f64; 2], tip_mm: f64 },
+    /// A dome from the outline to `crown_mm` over the origin.
+    Dome { crown_mm: f64 },
+    /// A top falling along `axis_deg` from `height_mm` at the outline's back to `tip_mm` at its front.
+    Taper { axis_deg: f64, tip_mm: f64 },
+}
+
+impl StampTop {
+    pub fn is_flat(&self) -> bool {
+        *self == StampTop::Flat
+    }
+
+    /// The same top with every length scaled by `k`.
+    pub fn scaled(&self, k: f64) -> StampTop {
+        let s = |p: [f64; 2]| [p[0] * k, p[1] * k];
+        match *self {
+            StampTop::Flat => StampTop::Flat,
+            StampTop::Gable { rise_mm, axis_deg } => StampTop::Gable { rise_mm: rise_mm * k, axis_deg },
+            StampTop::Ridge { rise_mm, from, to, end_mm } => StampTop::Ridge { rise_mm: rise_mm * k, from: s(from), to: s(to), end_mm: end_mm * k },
+            StampTop::Cone { apex_mm, at, tip_mm } => StampTop::Cone { apex_mm: apex_mm * k, at: s(at), tip_mm: tip_mm * k },
+            StampTop::Dome { crown_mm } => StampTop::Dome { crown_mm: crown_mm * k },
+            StampTop::Taper { axis_deg, tip_mm } => StampTop::Taper { axis_deg, tip_mm: tip_mm * k },
+        }
+    }
+
+    /// The same top reflected across the outline's `y` axis.
+    pub fn mirrored(&self) -> StampTop {
+        let m = |p: [f64; 2]| [-p[0], p[1]];
+        match *self {
+            StampTop::Flat => StampTop::Flat,
+            StampTop::Gable { rise_mm, axis_deg } => StampTop::Gable { rise_mm, axis_deg: -axis_deg },
+            StampTop::Ridge { rise_mm, from, to, end_mm } => StampTop::Ridge { rise_mm, from: m(from), to: m(to), end_mm },
+            StampTop::Cone { apex_mm, at, tip_mm } => StampTop::Cone { apex_mm, at: m(at), tip_mm },
+            StampTop::Dome { crown_mm } => StampTop::Dome { crown_mm },
+            StampTop::Taper { axis_deg, tip_mm } => StampTop::Taper { axis_deg: 180.0 - axis_deg, tip_mm },
+        }
+    }
+}
+
+/// A top read against one outline.
+struct Shape<'a> {
+    top: StampTop,
+    outline: &'a [[f64; 2]],
+    height: f64,
+    /// The point the ridge line, apex or crown passes through.
+    shift: [f64; 2],
+    /// The outline's reach either side of a gable, from a ridge, or back and front along a taper.
+    reach: [f64; 2],
+}
+
+impl<'a> Shape<'a> {
+    fn new(top: StampTop, outline: &'a [[f64; 2]], height: f64, shift: [f64; 2]) -> Self {
+        let mut reach: [f64; 2] = [0.0, 0.0];
+        match top {
+            StampTop::Gable { axis_deg, .. } => {
+                let n = [-axis_deg.to_radians().sin(), axis_deg.to_radians().cos()];
+                for p in outline {
+                    let d = (p[0] - shift[0]) * n[0] + (p[1] - shift[1]) * n[1];
+                    if d > 0.0 { reach[0] = reach[0].max(d) } else { reach[1] = reach[1].max(-d) }
+                }
+            }
+            StampTop::Ridge { from, to, .. } => {
+                reach[0] = outline.iter().map(|p| segment_distance(*p, from, to).0).fold(0.0, f64::max);
+            }
+            StampTop::Taper { axis_deg, .. } => {
+                let a = [axis_deg.to_radians().cos(), axis_deg.to_radians().sin()];
+                let proj = outline.iter().map(|p| p[0] * a[0] + p[1] * a[1]);
+                reach = [proj.clone().fold(f64::MAX, f64::min), proj.fold(f64::MIN, f64::max)];
+            }
+            _ => {}
+        }
+        Self { top, outline, height, shift, reach }
+    }
+
+    /// Height of the top over the eaves at plan point `p`, mm.
+    fn lift(&self, p: [f64; 2]) -> f64 {
+        match self.top {
+            StampTop::Flat => 0.0,
+            StampTop::Gable { rise_mm, axis_deg } => {
+                let n = [-axis_deg.to_radians().sin(), axis_deg.to_radians().cos()];
+                let d = (p[0] - self.shift[0]) * n[0] + (p[1] - self.shift[1]) * n[1];
+                let side = if d > 0.0 { self.reach[0] } else { self.reach[1] };
+                rise_mm * (1.0 - d.abs() / side.max(1e-9)).max(0.0)
+            }
+            StampTop::Ridge { rise_mm, from, to, end_mm } => {
+                let (dist, t) = segment_distance(p, from, to);
+                (rise_mm + (end_mm - rise_mm) * t) * (1.0 - dist / self.reach[0].max(1e-9)).max(0.0)
+            }
+            StampTop::Cone { apex_mm, tip_mm, .. } => {
+                let c = self.shift;
+                let r = (p[0] - c[0]).hypot(p[1] - c[1]);
+                if r < 1e-12 {
+                    return apex_mm;
+                }
+                let Some(reach) = ray_reach(self.outline, c, [(p[0] - c[0]) / r, (p[1] - c[1]) / r]) else { return 0.0 };
+                let flat = (0.5 * tip_mm).clamp(0.0, 0.9 * reach);
+                apex_mm * (1.0 - ((r - flat) / (reach - flat).max(1e-9)).clamp(0.0, 1.0))
+            }
+            StampTop::Dome { crown_mm } => {
+                let c = self.shift;
+                let r = (p[0] - c[0]).hypot(p[1] - c[1]);
+                if r < 1e-12 {
+                    return crown_mm;
+                }
+                let Some(reach) = ray_reach(self.outline, c, [(p[0] - c[0]) / r, (p[1] - c[1]) / r]) else { return 0.0 };
+                let rho = (r / reach.max(1e-9)).min(1.0);
+                crown_mm * (1.0 - rho * rho)
+            }
+            StampTop::Taper { axis_deg, tip_mm } => {
+                let a = [axis_deg.to_radians().cos(), axis_deg.to_radians().sin()];
+                let u = ((p[0] * a[0] + p[1] * a[1] - self.reach[0]) / (self.reach[1] - self.reach[0]).max(1e-9)).clamp(0.0, 1.0);
+                (tip_mm.max(0.0) - self.height) * u
+            }
+        }
+    }
+
+    /// The points and lines the cap must hold for this top.
+    fn creases(&self) -> Creases {
+        let mut out = Creases::default();
+        let inside = |p: [f64; 2]| inside_polygon(self.outline, p) && edge_distance(self.outline, p) > 2e-3;
+        match self.top {
+            StampTop::Flat | StampTop::Taper { .. } => {}
+            StampTop::Gable { axis_deg, .. } => {
+                let a = [axis_deg.to_radians().cos(), axis_deg.to_radians().sin()];
+                for (t0, t1) in inside_runs(self.outline, self.shift, a, f64::MIN, f64::MAX) {
+                    out.line([self.shift[0] + a[0] * t0, self.shift[1] + a[1] * t0], [self.shift[0] + a[0] * t1, self.shift[1] + a[1] * t1]);
+                }
+            }
+            StampTop::Ridge { from, to, .. } => {
+                let d = [to[0] - from[0], to[1] - from[1]];
+                let l = d[0].hypot(d[1]);
+                if l > 1e-9 {
+                    let a = [d[0] / l, d[1] / l];
+                    for (t0, t1) in inside_runs(self.outline, from, a, 0.0, l) {
+                        out.line([from[0] + a[0] * t0, from[1] + a[1] * t0], [from[0] + a[0] * t1, from[1] + a[1] * t1]);
+                    }
+                } else if inside(from) {
+                    out.points.push(from);
+                }
+            }
+            StampTop::Dome { .. } => {
+                if inside(self.shift) {
+                    out.points.push(self.shift);
+                }
+            }
+            StampTop::Cone { tip_mm, .. } => {
+                let c = self.shift;
+                if !inside(c) {
+                    return out;
+                }
+                out.points.push(c);
+                let n = self.outline.len();
+                let corners: Vec<[f64; 2]> = (0..n).filter_map(|i| {
+                    let (p, v, q) = (self.outline[(i + n - 1) % n], self.outline[i], self.outline[(i + 1) % n]);
+                    let (e0, e1) = (unit2([v[0] - p[0], v[1] - p[1]]), unit2([q[0] - v[0], q[1] - v[1]]));
+                    ((e0[0] * e1[0] + e0[1] * e1[1]).clamp(-1.0, 1.0).acos() > 20f64.to_radians()).then_some(v)
+                }).collect();
+                let mut dirs: Vec<f64> = (0..16).map(|k| TAU * k as f64 / 16.0).collect();
+                for v in &corners {
+                    let d = (v[1] - c[1]).atan2(v[0] - c[0]).rem_euclid(TAU);
+                    dirs.retain(|a| { let g = (a - d).rem_euclid(TAU); g.min(TAU - g) > 5f64.to_radians() });
+                    dirs.push(d);
+                }
+                let flat = 0.5 * tip_mm;
+                let mut ring = Vec::new();
+                if flat > 1e-3 {
+                    for a in &dirs {
+                        let u = [a.cos(), a.sin()];
+                        if let Some(reach) = ray_reach(self.outline, c, u) {
+                            let r = flat.min(0.9 * reach);
+                            ring.push(([c[0] + u[0] * r, c[1] + u[1] * r], *a));
+                        }
+                    }
+                }
+                out.points.extend(ring.iter().map(|(p, _)| *p));
+                for v in corners {
+                    let (len, u) = ((v[0] - c[0]).hypot(v[1] - c[1]), unit2([v[0] - c[0], v[1] - c[1]]));
+                    let end = [c[0] + u[0] * (len - 2e-3), c[1] + u[1] * (len - 2e-3)];
+                    if len > 5e-3 && !crosses_outline(self.outline, c, end) {
+                        out.line(c, end);
+                    }
+                }
+            }
+        }
+        out.points.retain(|p| inside(*p));
+        out.lines.retain(|(a, b)| inside(*a) && inside(*b) && !crosses_outline(self.outline, *a, *b));
+        out
+    }
+}
+
+/// Vertices and edges a cap must carry inside its outline.
+#[derive(Default)]
+struct Creases {
+    points: Vec<[f64; 2]>,
+    lines: Vec<([f64; 2], [f64; 2])>,
+}
+
+impl Creases {
+    fn line(&mut self, a: [f64; 2], b: [f64; 2]) {
+        let l = (b[0] - a[0]).hypot(b[1] - a[1]);
+        if l > 4e-3 {
+            let u = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
+            self.lines.push(([a[0] + u[0] * 1e-3, a[1] + u[1] * 1e-3], [b[0] - u[0] * 1e-3, b[1] - u[1] * 1e-3]));
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.points.is_empty() && self.lines.is_empty()
+    }
+}
+
+/// Distance from `p` to segment `a`–`b`, and the nearest point's parameter along it.
+fn segment_distance(p: [f64; 2], a: [f64; 2], b: [f64; 2]) -> (f64, f64) {
+    let (ex, ey) = (b[0] - a[0], b[1] - a[1]);
+    let t = (((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / (ex * ex + ey * ey).max(1e-18)).clamp(0.0, 1.0);
+    ((p[0] - a[0] - ex * t).hypot(p[1] - a[1] - ey * t), t)
+}
+
+/// Distance from `p` to the nearest edge of `outline`.
+fn edge_distance(outline: &[[f64; 2]], p: [f64; 2]) -> f64 {
+    let n = outline.len();
+    (0..n).map(|i| segment_distance(p, outline[i], outline[(i + 1) % n]).0).fold(f64::MAX, f64::min)
+}
+
+/// Distance along a ray from `c` in unit direction `u` to the outline.
+fn ray_reach(outline: &[[f64; 2]], c: [f64; 2], u: [f64; 2]) -> Option<f64> {
+    let n = outline.len();
+    let mut best: Option<f64> = None;
+    for i in 0..n {
+        let (a, b) = (outline[i], outline[(i + 1) % n]);
+        let e = [b[0] - a[0], b[1] - a[1]];
+        let den = u[0] * e[1] - u[1] * e[0];
+        if den.abs() < 1e-15 {
+            continue;
+        }
+        let w = [a[0] - c[0], a[1] - c[1]];
+        let s = (w[0] * e[1] - w[1] * e[0]) / den;
+        let t = (w[0] * u[1] - w[1] * u[0]) / den;
+        if s > 1e-12 && (-1e-12..=1.0 + 1e-12).contains(&t) && best.is_none_or(|x| s < x) {
+            best = Some(s);
+        }
+    }
+    best
+}
+
+/// The stretches `[t0, t1]` of the line `a + t·u` that lie inside the outline, within `lo..hi`.
+fn inside_runs(outline: &[[f64; 2]], a: [f64; 2], u: [f64; 2], lo: f64, hi: f64) -> Vec<(f64, f64)> {
+    let n = outline.len();
+    let side = |p: [f64; 2]| (p[0] - a[0]) * u[1] - (p[1] - a[1]) * u[0];
+    let mut ts: Vec<f64> = (0..n).filter_map(|i| {
+        let (p, q) = (outline[i], outline[(i + 1) % n]);
+        let (sp, sq) = (side(p), side(q));
+        ((sp > 0.0) != (sq > 0.0)).then(|| {
+            let f = sp / (sp - sq);
+            let x = [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
+            (x[0] - a[0]) * u[0] + (x[1] - a[1]) * u[1]
+        })
+    }).collect();
+    ts.sort_by(f64::total_cmp);
+    ts.chunks_exact(2).filter_map(|w| {
+        let (t0, t1) = (w[0].max(lo), w[1].min(hi));
+        (t1 > t0).then_some((t0, t1))
+    }).collect()
+}
+
+/// Whether the segment `a`–`b` properly crosses any edge of the outline.
+fn crosses_outline(outline: &[[f64; 2]], a: [f64; 2], b: [f64; 2]) -> bool {
+    let n = outline.len();
+    let orient = |p: [f64; 2], q: [f64; 2], r: [f64; 2]| (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+    (0..n).any(|i| {
+        let (c, d) = (outline[i], outline[(i + 1) % n]);
+        let (d1, d2, d3, d4) = (orient(c, d, a), orient(c, d, b), orient(a, b, c), orient(a, b, d));
+        d1 * d2 < 0.0 && d3 * d4 < 0.0
+    })
 }
 
 /// The most outline points a stamp may carry.
-pub const MAX_STAMP_POINTS: usize = 512;
+pub const MAX_STAMP_POINTS: usize = 1024;
 
 impl Stamp {
     /// Where the stamp stands: its origin on the bare surface, `z` out of the metal, `x` its outline's own.
     pub fn frame(&self, design: &crate::RingDesign, ctx: &crate::FieldContext) -> csg::Frame {
-        let (point, mut normal, mut along, mut across) = crate::stones::surface_frame(design, ctx, self.theta_deg, self.v_mm);
+        let (point, mut normal, mut along, mut across) = surface_at(design, ctx, self.theta_deg, self.v_mm);
         if self.along_pull && normal[2].abs() > 0.25 {
             normal = [0.0, 0.0, normal[2].signum()];
             let flat = [along[0], along[1], 0.0];
@@ -964,16 +1261,35 @@ impl Stamp {
         if !(3..=MAX_STAMP_POINTS).contains(&n) { return None; }
         let cap = cap_faces(&self.outline, 10.0, &[])?;
         let flat: Vec<f64> = vec![0.0; cap.0.len()];
-        Some(self.assemble(&cap.0, &cap.1, &flat))
+        let shape = Shape::new(self.top, &self.outline, self.height_mm, self.top_anchor());
+        Some(self.assemble(&cap.0, &cap.1, &flat, &shape))
+    }
+
+    /// The point the top's ridge line, apex or crown passes through.
+    fn top_anchor(&self) -> [f64; 2] {
+        match self.top {
+            StampTop::Cone { at, .. } => at,
+            StampTop::Ridge { from, .. } => from,
+            _ => [0.0, 0.0],
+        }
+    }
+
+    /// Tier 0 with a flat top.
+    pub fn is_plain(&self) -> bool {
+        self.tier == 0 && self.top.is_flat()
     }
 
     /// Closed solid from cap points, their triangles and the surface height under each.
-    fn assemble(&self, points: &[[f64; 2]], tris: &[[u32; 3]], surface: &[f64]) -> Solid {
+    fn assemble(&self, points: &[[f64; 2]], tris: &[[u32; 3]], surface: &[f64], shape: &Shape) -> Solid {
         let n = self.outline.len();
         let count = points.len() as u32;
         let lean = if self.cut { 0.0 } else { (self.height_mm + self.sink_mm).max(0.0) * self.draft_deg.clamp(0.0, 30.0).to_radians().tan() };
+        let flat = self.top.is_flat();
         let mut out = Solid::default();
-        for (p, z) in points.iter().zip(surface) { out.v.push([p[0], p[1], z + self.height_mm]); }
+        for (p, z) in points.iter().zip(surface) {
+            let top = z + self.height_mm;
+            out.v.push([p[0], p[1], if flat || self.cut { top } else { top + shape.lift(*p) }]);
+        }
         for (i, (p, z)) in points.iter().zip(surface).enumerate() {
             let mut q = *p;
             if i < n && lean > 0.0 {
@@ -988,7 +1304,8 @@ impl Stamp {
                     q = [p[0] + m[0] * k, p[1] + m[1] * k];
                 }
             }
-            out.v.push([q[0], q[1], z - self.sink_mm]);
+            let floor = z - self.sink_mm;
+            out.v.push([q[0], q[1], if flat || !self.cut { floor } else { floor - shape.lift(*p) }]);
         }
         for t in tris {
             out.f.push(*t);
@@ -1002,12 +1319,19 @@ impl Stamp {
         out
     }
 
-    /// The stamp standing on the band: every cap point dropped onto the mesh beneath it.
+    /// The stamp with every cap point dropped onto the solid beneath it.
     fn solid(&self, frame: &csg::Frame, band: &Solid) -> Result<Solid, String> {
+        if let StampTop::Cone { at, .. } = self.top {
+            if !inside_polygon(&self.outline, at) {
+                return Err("its cone's apex stands outside its outline".into());
+            }
+        }
         // A bench stamp never meets the sand. Split, its edges would lie on its blank's own split, and the
         // two solids meeting edge on edge leave zero-length slivers in the join.
         if self.bench {
-            return self.stand(frame, band, &[]);
+            let shape = Shape::new(self.top, &self.outline, self.height_mm, self.top_anchor());
+            let creases = shape.creases();
+            return self.stand(frame, band, &[], &creases, &shape);
         }
         // No wall may straddle the parting plane: a facet that does faces the wrong mould half over part
         // of its length, by half its own turn — 0.035 mm of undercut on an eighty-sided moon. So the
@@ -1038,11 +1362,36 @@ impl Stamp {
             let (p, q) = (split[*a], split[*b]);
             (p[0] - q[0]).hypot(p[1] - q[1]) > 1e-6 && inside_polygon(&split, [0.5 * (p[0] + q[0]), 0.5 * (p[1] + q[1])])
         }).collect();
-        let this = Stamp { outline: split, ..self.clone() };
-        this.stand(frame, band, &chords)
+        // Snaps a ridge, apex or crown within 3 * OVER of the chord onto it.
+        let mut anchor = self.top_anchor();
+        let mut top = self.top;
+        let mut on_chord = false;
+        let g2 = frame.x[2] * frame.x[2] + frame.y[2] * frame.y[2];
+        if !chords.is_empty() && g2 > 0.25 && !top.is_flat() {
+            let off = height(anchor);
+            let parallel = match top {
+                StampTop::Gable { axis_deg, .. } => (axis_deg.to_radians().cos() * frame.x[2] + axis_deg.to_radians().sin() * frame.y[2]).abs() < 1e-6,
+                StampTop::Ridge { from, to, .. } => ((to[0] - from[0]) * frame.x[2] + (to[1] - from[1]) * frame.y[2]).abs() < 1e-6 * (to[0] - from[0]).hypot(to[1] - from[1]).max(1e-3),
+                StampTop::Cone { .. } | StampTop::Dome { .. } => true,
+                _ => false,
+            };
+            if parallel && off.abs() < 3.0 * OVER {
+                let delta = [-frame.x[2] * off / g2, -frame.y[2] * off / g2];
+                anchor = [anchor[0] + delta[0], anchor[1] + delta[1]];
+                if let StampTop::Ridge { from, to, .. } = &mut top {
+                    *from = [from[0] + delta[0], from[1] + delta[1]];
+                    *to = [to[0] + delta[0], to[1] + delta[1]];
+                }
+                on_chord = true;
+            }
+        }
+        let this = Stamp { outline: split, top, ..self.clone() };
+        let shape = Shape::new(this.top, &this.outline, this.height_mm, anchor);
+        let creases = if on_chord && matches!(this.top, StampTop::Gable { .. } | StampTop::Ridge { .. }) { Creases::default() } else { shape.creases() };
+        this.stand(frame, band, &chords, &creases, &shape)
     }
 
-    fn stand(&self, frame: &csg::Frame, band: &Solid, chords: &[(usize, usize)]) -> Result<Solid, String> {
+    fn stand(&self, frame: &csg::Frame, band: &Solid, chords: &[(usize, usize)], creases: &Creases, shape: &Shape) -> Result<Solid, String> {
         let n = self.outline.len();
         if !(3..=MAX_STAMP_POINTS).contains(&n) { return Err(format!("needs 3 to {MAX_STAMP_POINTS} outline points")); }
         let area: f64 = (0..n).map(|i| { let (a, b) = (self.outline[i], self.outline[(i + 1) % n]); a[0] * b[1] - b[0] * a[1] }).sum();
@@ -1052,7 +1401,9 @@ impl Stamp {
             let t = f.map(|k| band.v[k as usize]);
             t.iter().any(|q| (0..3).map(|k| (q[k] - frame.origin[k]).powi(2)).sum::<f64>() < reach * reach).then_some(t)
         }).collect();
-        let (points, tris) = cap_faces(&self.outline, (reach / 14.0).clamp(0.12, 0.35), chords).ok_or("its outline will not triangulate")?;
+        let pitch = (reach / 14.0).clamp(0.12, 0.35);
+        let cap = if creases.is_empty() { cap_faces(&self.outline, pitch, chords) } else { cap_faces_with(&self.outline, pitch, chords, creases) };
+        let (points, tris) = cap.ok_or("its outline will not triangulate")?;
         const ABOVE: f64 = 8.0;
         let down = [-frame.z[0], -frame.z[1], -frame.z[2]];
         let mut surface = Vec::with_capacity(points.len());
@@ -1060,7 +1411,7 @@ impl Stamp {
             let hit = first_hit(&near, frame.point([p[0], p[1], ABOVE]), down).ok_or("it runs off the edge of the surface it stands on")?;
             surface.push(ABOVE - hit);
         }
-        Ok(self.assemble(&points, &tris, &surface).placed(frame))
+        Ok(self.assemble(&points, &tris, &surface, shape).placed(frame))
     }
 }
 
@@ -1102,6 +1453,424 @@ pub fn crescent_cutter(radius: f64, lit: f64, horn: f64, margin: f64) -> Vec<[f6
     out
 }
 
+/// An outline's convex hull as a blank, and per bay a cutter closed `margin` past the hull, stopping 0.01 mm short of its corners.
+pub fn hull_and_bays(outline: &[[f64; 2]], margin: f64) -> (Vec<[f64; 2]>, Vec<Vec<[f64; 2]>>) {
+    const SHY: f64 = 0.01;
+    let n = outline.len();
+    if n < 3 {
+        return (outline.to_vec(), Vec::new());
+    }
+    let cross = |o: [f64; 2], a: [f64; 2], b: [f64; 2]| (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    let mut order: Vec<usize> = (0..n).collect();
+    order.sort_by(|a, b| outline[*a][0].total_cmp(&outline[*b][0]).then(outline[*a][1].total_cmp(&outline[*b][1])));
+    let mut hull: Vec<usize> = Vec::new();
+    for pass in [false, true] {
+        let start = hull.len();
+        let seq: Vec<usize> = if pass { order.iter().rev().copied().collect() } else { order.clone() };
+        for i in seq {
+            while hull.len() >= start + 2 && cross(outline[hull[hull.len() - 2]], outline[hull[hull.len() - 1]], outline[i]) <= 0.0 {
+                hull.pop();
+            }
+            hull.push(i);
+        }
+        hull.pop();
+    }
+    hull.sort_unstable();
+    hull.dedup();
+    let h = hull.len();
+    let mut blank = Vec::new();
+    let mut bays = Vec::new();
+    let m = margin.max(0.02);
+    for k in 0..h {
+        let (i, j) = (hull[k], hull[(k + 1) % h]);
+        let (a, b) = (outline[i], outline[j]);
+        let steps = ((a[0] - b[0]).hypot(a[1] - b[1]) / crate::outline::STEP).ceil().max(1.0) as usize;
+        blank.extend((0..steps).map(|q| {
+            let f = q as f64 / steps as f64;
+            [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]
+        }));
+        let chain: Vec<[f64; 2]> = (0..).map(|q| outline[(i + q) % n]).take((j + n - i) % n + 1).collect();
+        let c = chain.len();
+        if c < 3 || chain.iter().map(|p| segment_distance(*p, a, b).0).fold(0.0, f64::max) < 1e-3 {
+            continue;
+        }
+        let shy = |p: [f64; 2], q: [f64; 2]| {
+            let l = (q[0] - p[0]).hypot(q[1] - p[1]);
+            let t = SHY.min(0.3 * l) / l.max(1e-12);
+            [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]
+        };
+        let e = unit2([b[0] - a[0], b[1] - a[1]]);
+        let out = [e[1] * m, -e[0] * m];
+        let mut bay = vec![shy(b, chain[c - 2])];
+        bay.extend(chain[1..c - 1].iter().rev());
+        bay.extend([shy(a, chain[1]), [a[0] + out[0], a[1] + out[1]], [b[0] + out[0], b[1] + out[1]]]);
+        bays.push(bay);
+    }
+    (blank, bays)
+}
+
+/// Which way a row of stamps runs round the ring.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum RowPath {
+    /// Where the section crosses the parting plane, solved per station.
+    PartingLine,
+    /// At one chart `v`.
+    ChartV { v_mm: f64 },
+    /// `frac` of the way across a side face from its low-`v` end; the high-`v` face if `high`.
+    SideFace { high: bool, frac: f64 },
+}
+
+/// A row of one stamp struck along a path round the ring.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct StampRow {
+    /// The stamp each station strikes, its name the row's family; its angle and `v` are ignored.
+    pub stamp: Stamp,
+    pub path: RowPath,
+    /// Ring angles of the first and last centres, degrees.
+    pub from_deg: f64,
+    pub to_deg: f64,
+    pub count: u32,
+    /// Scale lost by the last stamp, 0 to 0.85, as a raised cosine along the path at a constant gap.
+    #[serde(default)]
+    pub taper: f64,
+    /// Drops stations whose stamp comes within this of a fold in the path, mm; 0 keeps all.
+    #[serde(default)]
+    pub fold_clear_mm: f64,
+    /// Also strikes the row reflected about the head.
+    #[serde(default)]
+    pub mirror_shoulders: bool,
+}
+
+/// The most stations a row strikes.
+pub const MAX_ROW_STAMPS: u32 = 400;
+
+/// The row's stamps, named "Thorn, 3", or "Thorn, left 3" and "Thorn, right 3" when mirrored.
+pub fn stamp_row(design: &crate::RingDesign, row: &StampRow) -> Vec<Stamp> {
+    let ctx = design.field_context();
+    let span = row.to_deg - row.from_deg;
+    let side_v = match row.path {
+        RowPath::SideFace { high, frac } => {
+            let Some(faces) = ctx.side_faces_std() else { return Vec::new() };
+            let Some((a, b)) = (if high { faces.high } else { faces.low }) else { return Vec::new() };
+            Some(a + (b - a) * frac.clamp(0.0, 1.0))
+        }
+        _ => None,
+    };
+    let v_at = |theta: f64, guess: f64| -> f64 {
+        match row.path {
+            RowPath::PartingLine => parting_v(design, &ctx, theta, guess).unwrap_or(guess),
+            RowPath::ChartV { v_mm } => v_mm,
+            RowPath::SideFace { .. } => side_v.unwrap_or(guess),
+        }
+    };
+    // Path samples every half degree, with arc length.
+    let samples = ((span.abs() / 0.5).ceil() as usize).clamp(4, 2880);
+    let mut guess = ctx.crest_v_mm;
+    let mut path: Vec<(f64, f64, [f64; 3])> = Vec::with_capacity(samples + 1);
+    for k in 0..=samples {
+        let theta = row.from_deg + span * k as f64 / samples as f64;
+        let v = v_at(theta, guess);
+        guess = v;
+        path.push((theta, v, surface_point(design, &ctx, theta, v)));
+    }
+    let mut arc = vec![0.0];
+    for w in path.windows(2) {
+        let (p, q) = (w[0].2, w[1].2);
+        arc.push(arc[arc.len() - 1] + ((p[0] - q[0]).powi(2) + (p[1] - q[1]).powi(2) + (p[2] - q[2]).powi(2)).sqrt());
+    }
+    let total = arc[arc.len() - 1];
+    // Full-size reach behind and ahead along the path.
+    let (rs, rc) = row.stamp.rot_deg.to_radians().sin_cos();
+    let along = row.stamp.outline.iter().map(|p| p[0] * rc - p[1] * rs);
+    let (back, front) = (along.clone().fold(f64::MAX, f64::min).min(0.0), along.fold(f64::MIN, f64::max).max(0.0));
+    let taper = row.taper.clamp(0.0, 0.85);
+    let scale = |s: f64| 1.0 - taper * 0.5 * (1.0 - (PI * (s / total.max(1e-9)).clamp(0.0, 1.0)).cos());
+    let count = row.count.clamp(1, MAX_ROW_STAMPS) as usize;
+    let stations: Vec<f64> = if count == 1 {
+        vec![0.0]
+    } else if taper <= 0.0 {
+        (0..count).map(|k| total * k as f64 / (count - 1) as f64).collect()
+    } else {
+        // Bisects the edge-to-edge gap that lands the last centre on the path's end.
+        let lay = |gap: f64| -> Vec<f64> {
+            let mut s = vec![0.0];
+            for _ in 1..count {
+                let prev = s[s.len() - 1];
+                let mut next = prev + front * scale(prev) - back * scale(prev) + gap;
+                for _ in 0..30 {
+                    next = prev + front * scale(prev) - back * scale(next) + gap;
+                }
+                s.push(next);
+            }
+            s
+        };
+        let (mut lo, mut hi) = (-(front - back), total.max(1e-6));
+        for _ in 0..80 {
+            let mid = 0.5 * (lo + hi);
+            if lay(mid)[count - 1] > total { hi = mid } else { lo = mid }
+        }
+        lay(0.5 * (lo + hi))
+    };
+    let folds = if row.fold_clear_mm > 0.0 { path_folds(&path.iter().map(|p| p.2).collect::<Vec<_>>(), &arc) } else { Vec::new() };
+    let theta_at = |s: f64| -> f64 {
+        let j = arc.partition_point(|a| *a <= s).clamp(1, arc.len() - 1);
+        let f = ((s - arc[j - 1]) / (arc[j] - arc[j - 1]).max(1e-15)).clamp(0.0, 1.0);
+        path[j - 1].0 + (path[j].0 - path[j - 1].0) * f
+    };
+    let guess_at = |s: f64| -> f64 {
+        let j = arc.partition_point(|a| *a <= s).clamp(1, arc.len() - 1);
+        path[j].1
+    };
+    let mut kept = Vec::new();
+    for s in stations {
+        let k = scale(s);
+        if folds.iter().any(|f| *f >= s + back * k - row.fold_clear_mm && *f <= s + front * k + row.fold_clear_mm) {
+            continue;
+        }
+        let theta = theta_at(s);
+        let mut stamp = row.stamp.clone();
+        stamp.theta_deg = theta;
+        stamp.v_mm = v_at(theta, guess_at(s));
+        if (k - 1.0).abs() > 0.0 {
+            stamp.outline = stamp.outline.iter().map(|p| [p[0] * k, p[1] * k]).collect();
+            stamp.height_mm *= k;
+            stamp.top = stamp.top.scaled(k);
+        }
+        kept.push(stamp);
+    }
+    let family = row.stamp.name.clone();
+    let side = |theta: f64| if crate::field::wrap_delta(theta - crate::profile::TOP_DEG, 360.0) > 0.0 { "right" } else { "left" };
+    let mut out = Vec::with_capacity(kept.len() * 2);
+    for (i, s) in kept.iter().enumerate() {
+        let mut first = s.clone();
+        first.name = if row.mirror_shoulders { format!("{family}, {} {}", side(s.theta_deg), i + 1) } else { format!("{family}, {}", i + 1) };
+        out.push(first);
+    }
+    if row.mirror_shoulders {
+        for (i, s) in kept.iter().enumerate() {
+            let theta = (2.0 * crate::profile::TOP_DEG - s.theta_deg).rem_euclid(360.0);
+            let mut m = s.clone();
+            m.theta_deg = theta;
+            m.v_mm = v_at(theta, s.v_mm);
+            m.rot_deg = -s.rot_deg;
+            m.outline = s.outline.iter().rev().map(|p| [-p[0], p[1]]).collect();
+            m.top = s.top.mirrored();
+            m.name = format!("{family}, {} {}", side(theta), i + 1);
+            out.push(m);
+        }
+    }
+    out
+}
+
+/// Arc positions where the path turns more than 12 degrees per mm, read over 0.4 mm either side.
+fn path_folds(points: &[[f64; 3]], arc: &[f64]) -> Vec<f64> {
+    let at = |s: f64| -> [f64; 3] {
+        let j = arc.partition_point(|a| *a <= s).clamp(1, arc.len() - 1);
+        let f = ((s - arc[j - 1]) / (arc[j] - arc[j - 1]).max(1e-15)).clamp(0.0, 1.0);
+        std::array::from_fn(|k| points[j - 1][k] + (points[j][k] - points[j - 1][k]) * f)
+    };
+    let total = arc[arc.len() - 1];
+    let mut out = Vec::new();
+    let mut s = 0.4;
+    while s <= total - 0.4 {
+        let (p, q, r) = (at(s - 0.4), at(s), at(s + 0.4));
+        let (u, w): ([f64; 3], [f64; 3]) = (std::array::from_fn(|k| q[k] - p[k]), std::array::from_fn(|k| r[k] - q[k]));
+        let dot = u[0] * w[0] + u[1] * w[1] + u[2] * w[2];
+        let len = (u.iter().map(|x| x * x).sum::<f64>() * w.iter().map(|x| x * x).sum::<f64>()).sqrt().max(1e-12);
+        if (dot / len).clamp(-1.0, 1.0).acos().to_degrees() > 12.0 * 0.8 {
+            out.push(s);
+        }
+        s += 0.1;
+    }
+    out
+}
+
+/// The bare surface point at a chart point.
+fn surface_point(design: &crate::RingDesign, ctx: &crate::FieldContext, theta_deg: f64, v_mm: f64) -> [f64; 3] {
+    surface_at(design, ctx, theta_deg, v_mm).0
+}
+
+/// Point, normal and tangents of the bare surface at a chart point, interpolated on a swept band.
+fn surface_at(design: &crate::RingDesign, ctx: &crate::FieldContext, theta_deg: f64, v_mm: f64) -> ([f64; 3], [f64; 3], [f64; 3], [f64; 3]) {
+    if design.imported_base.is_some() {
+        return crate::stones::surface_frame(design, ctx, theta_deg, v_mm);
+    }
+    let ([r, z], [nr, nz]) = section_point(design, ctx, theta_deg, v_mm);
+    let l = nr.hypot(nz).max(1e-12);
+    let (nr, nz) = (nr / l, nz / l);
+    let (sin, cos) = theta_deg.to_radians().sin_cos();
+    ([r * cos, r * sin, z], [nr * cos, nr * sin, nz], [-sin, cos, 0.0], [-nz * cos, -nz * sin, nr])
+}
+
+/// Reference-snapped surface samples `(v, r, z, nr, nz)` at a ring angle, and section arc per chart mm.
+fn surface_samples(design: &crate::RingDesign, ctx: &crate::FieldContext, theta_deg: f64) -> (Vec<[f64; 5]>, f64) {
+    let reference = design.reference_loop();
+    let l = design.section_at(theta_deg, crate::profile::REFERENCE_PROFILE_STEPS, None, Some(&reference));
+    let mut s: Vec<[f64; 5]> = l.pts.iter().filter(|p| p.surface).map(|p| [p.v_mm, p.r, p.z, p.nr, p.nz]).collect();
+    s.sort_by(|a, b| a[0].total_cmp(&b[0]));
+    (s, l.surface_len_mm / ctx.band_v_len_mm.max(1e-9))
+}
+
+/// The swept section's `(r, z)` and outward normal at chart `v`, between its samples.
+fn section_point(design: &crate::RingDesign, ctx: &crate::FieldContext, theta_deg: f64, v_mm: f64) -> ([f64; 2], [f64; 2]) {
+    let (s, k) = surface_samples(design, ctx, theta_deg);
+    match s.len() {
+        0 => return ([ctx.crest_radius_mm, 0.0], [1.0, 0.0]),
+        1 => return ([s[0][1], s[0][2]], [s[0][3], s[0][4]]),
+        _ => {}
+    }
+    let target = v_mm * k;
+    let j = s.partition_point(|p| p[0] <= target).clamp(1, s.len() - 1);
+    let (a, b) = (s[j - 1], s[j]);
+    let f = ((target - a[0]) / (b[0] - a[0]).max(1e-15)).clamp(0.0, 1.0);
+    let at = |i: usize| a[i] + (b[i] - a[i]) * f;
+    ([at(1), at(2)], [at(3), at(4)])
+}
+
+/// Chart `v` where the section at `theta_deg` crosses the parting plane, nearest the reference crest.
+pub fn crest_v(design: &crate::RingDesign, theta_deg: f64) -> Option<f64> {
+    let ctx = design.field_context();
+    parting_v(design, &ctx, theta_deg, ctx.crest_v_mm)
+}
+
+/// The chart `v` nearest `guess` at which the section at `theta_deg` crosses the parting plane.
+fn parting_v(design: &crate::RingDesign, ctx: &crate::FieldContext, theta_deg: f64, guess: f64) -> Option<f64> {
+    if design.imported_base.is_some() {
+        let z = |v: f64| crate::stones::surface_frame(design, ctx, theta_deg, v).0[2];
+        let (lo_v, hi_v) = (0.0, ctx.band_v_len_mm);
+        let z0 = z(guess);
+        if z0 == 0.0 {
+            return Some(guess);
+        }
+        let mut bracket = None;
+        for k in 1..400 {
+            for dir in [1.0, -1.0] {
+                let v = guess + dir * 0.02 * k as f64;
+                if bracket.is_none() && (lo_v..=hi_v).contains(&v) && z(v).signum() != z0.signum() {
+                    bracket = Some((v - dir * 0.02, v));
+                }
+            }
+            if bracket.is_some() {
+                break;
+            }
+        }
+        let (mut a, mut b) = bracket?;
+        let za = z(a);
+        for _ in 0..60 {
+            let mid = 0.5 * (a + b);
+            if z(mid).signum() == za.signum() { a = mid } else { b = mid }
+        }
+        return Some(0.5 * (a + b));
+    }
+    let (s, k) = surface_samples(design, ctx, theta_deg);
+    let target = guess * k;
+    let mut best: Option<(f64, f64)> = None;
+    for w in s.windows(2) {
+        let (a, b) = (w[0], w[1]);
+        let v = if a[2] == 0.0 {
+            a[0]
+        } else if a[2] * b[2] < 0.0 {
+            a[0] + (b[0] - a[0]) * a[2] / (a[2] - b[2])
+        } else {
+            continue;
+        };
+        if best.is_none_or(|(_, d)| (v - target).abs() < d) {
+            best = Some((v, (v - target).abs()));
+        }
+    }
+    best.map(|(v, _)| v / k.max(1e-9))
+}
+
+impl Stamp {
+    /// Checks each plan line along the pull meets it in one stretch across the parting line with a top never rising away from it; `Err` lists offending outline points.
+    pub fn parting_monotone(&self, design: &crate::RingDesign) -> Result<(), Vec<usize>> {
+        let o = &self.outline;
+        let n = o.len();
+        if self.bench {
+            return Ok(());
+        }
+        if n < 3 {
+            return Err((0..n).collect());
+        }
+        let ctx = design.field_context();
+        let frame = self.frame(design, &ctx);
+        let g = [frame.x[2], frame.y[2]];
+        let slope = g[0].hypot(g[1]);
+        if slope < 0.1 {
+            return Ok(());
+        }
+        let (d, e) = ([g[0] / slope, g[1] / slope], [-g[1] / slope, g[0] / slope]);
+        let t0 = -frame.origin[2] / slope;
+        let s_of = |p: [f64; 2]| p[0] * e[0] + p[1] * e[1];
+        let t_of = |p: [f64; 2]| p[0] * d[0] + p[1] * d[1];
+        let shape = Shape::new(self.top, o, self.height_mm, self.top_anchor());
+        let lift = |s: f64, t: f64| shape.lift([e[0] * s + d[0] * t, e[1] * s + d[1] * t]);
+        let falls = |s: f64, from: f64, to: f64| {
+            let steps = (((to - from).abs() / 0.02).ceil() as usize).max(8);
+            let mut last = lift(s, from);
+            (1..=steps).all(|k| {
+                let h = lift(s, from + (to - from) * k as f64 / steps as f64);
+                let ok = h <= last + 1e-7;
+                last = h;
+                ok
+            })
+        };
+        let mut bad = std::collections::BTreeSet::new();
+        for i in 0..n {
+            let (sa, sb) = (s_of(o[i]), s_of(o[(i + 1) % n]));
+            if (sa - sb).abs() < 1e-9 {
+                continue;
+            }
+            let s = 0.5 * (sa + sb);
+            let mut hits: Vec<(f64, usize)> = (0..n).filter_map(|j| {
+                let (p, q) = (o[j], o[(j + 1) % n]);
+                let (sp, sq) = (s_of(p), s_of(q));
+                ((sp > s) != (sq > s)).then(|| (t_of(p) + (t_of(q) - t_of(p)) * (s - sp) / (sq - sp), j))
+            }).collect();
+            hits.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let ok = !self.cut
+                && hits.len() == 2
+                && hits[0].0 <= t0 + 1e-9
+                && hits[1].0 >= t0 - 1e-9
+                && (self.top.is_flat() || (falls(s, t0, hits[1].0) && falls(s, t0, hits[0].0)));
+            if !ok {
+                bad.extend(hits.iter().map(|h| h.1));
+                bad.insert(i);
+            }
+        }
+        if bad.is_empty() { Ok(()) } else { Err(bad.into_iter().collect()) }
+    }
+
+    /// The hull blank followed by one bench cut per bay, on the same tier.
+    pub fn cast_as_hull(&self, margin: f64) -> Vec<Stamp> {
+        let (hull, bays) = hull_and_bays(&self.outline, margin);
+        let rise = {
+            let shape = Shape::new(self.top, &self.outline, self.height_mm, self.top_anchor());
+            hull.iter().map(|p| shape.lift(*p)).fold(0.0, f64::max).max(match self.top {
+                StampTop::Gable { rise_mm, .. } | StampTop::Ridge { rise_mm, .. } => rise_mm,
+                StampTop::Cone { apex_mm, .. } => apex_mm,
+                StampTop::Dome { crown_mm } => crown_mm,
+                _ => 0.0,
+            })
+        };
+        let mut out = vec![Stamp { outline: hull, ..self.clone() }];
+        for (k, bay) in bays.into_iter().enumerate() {
+            out.push(Stamp {
+                name: format!("{}: bay {}, cut at the bench", self.name, k + 1),
+                outline: bay,
+                height_mm: self.height_mm + rise + 0.3,
+                sink_mm: -0.02,
+                draft_deg: 0.0,
+                cut: true,
+                bench: true,
+                top: StampTop::Flat,
+                ..self.clone()
+            });
+        }
+        out
+    }
+}
+
 fn unit2(v: [f64; 2]) -> [f64; 2] {
     let l = v[0].hypot(v[1]).max(1e-12);
     [v[0] / l, v[1] / l]
@@ -1122,6 +1891,11 @@ fn inside_polygon(poly: &[[f64; 2]], p: [f64; 2]) -> bool {
 /// A polygon's cap: its own points first and in order, then a grid of inner points `pitch` apart so the
 /// cap can follow a curved surface, triangulated with the outline held as edges.
 fn cap_faces(outline: &[[f64; 2]], pitch: f64, chords: &[(usize, usize)]) -> Option<(Vec<[f64; 2]>, Vec<[u32; 3]>)> {
+    cap_faces_with(outline, pitch, chords, &Creases::default())
+}
+
+/// [`cap_faces`] also holding a top's crease points as vertices and crease lines as non-outline edges.
+fn cap_faces_with(outline: &[[f64; 2]], pitch: f64, chords: &[(usize, usize)], creases: &Creases) -> Option<(Vec<[f64; 2]>, Vec<[u32; 3]>)> {
     use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
     let n = outline.len();
     let mut cdt = ConstrainedDelaunayTriangulation::<Point2<f64>>::new();
@@ -1139,6 +1913,13 @@ fn cap_faces(outline: &[[f64; 2]], pitch: f64, chords: &[(usize, usize)]) -> Opt
         if !cdt.can_add_constraint(a, b) { return None; }
         cdt.add_constraint(a, b);
     }
+    for p in &creases.points {
+        let h = cdt.insert(Point2::new(p[0], p[1])).ok()?;
+        if let std::collections::hash_map::Entry::Vacant(v) = index.entry(h) {
+            v.insert(points.len() as u32);
+            points.push(*p);
+        }
+    }
     // Chords are held as edges too, but are not the outline: crossing one is still inside. Each carries
     // points at the cap's pitch, or its top would run straight across the dome it spans and sag under it.
     let mut chord_edges = std::collections::HashSet::new();
@@ -1146,8 +1927,22 @@ fn cap_faces(outline: &[[f64; 2]], pitch: f64, chords: &[(usize, usize)]) -> Opt
         let (pa, pb) = (outline[*a], outline[*b]);
         let steps = (((pb[0] - pa[0]).hypot(pb[1] - pa[1]) / pitch).ceil() as usize).max(1);
         let mut run = vec![handles[*a]];
+        // Crease points lying on the chord join its run in order.
+        let (ex, ey) = (pb[0] - pa[0], pb[1] - pa[1]);
+        let len2 = (ex * ex + ey * ey).max(1e-18);
+        let mut on: Vec<(f64, [f64; 2])> = creases.points.iter().filter_map(|p| {
+            let t = ((p[0] - pa[0]) * ex + (p[1] - pa[1]) * ey) / len2;
+            (t > 1e-9 && t < 1.0 - 1e-9 && segment_distance(*p, pa, pb).0 < 1e-9).then_some((t, *p))
+        }).collect();
+        on.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut next = on.iter().peekable();
+        let len = len2.sqrt();
         for k in 1..steps {
             let t = k as f64 / steps as f64;
+            while let Some((_, pc)) = next.next_if(|(tc, _)| *tc <= t) {
+                run.push(cdt.insert(Point2::new(pc[0], pc[1])).ok()?);
+            }
+            if on.iter().any(|(tc, _)| (tc - t).abs() * len < 1e-6) { continue; }
             let q = [pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t];
             let h = cdt.insert(Point2::new(q[0], q[1])).ok()?;
             if let std::collections::hash_map::Entry::Vacant(v) = index.entry(h) {
@@ -1156,6 +1951,9 @@ fn cap_faces(outline: &[[f64; 2]], pitch: f64, chords: &[(usize, usize)]) -> Opt
             }
             run.push(h);
         }
+        for (_, pc) in next {
+            run.push(cdt.insert(Point2::new(pc[0], pc[1])).ok()?);
+        }
         run.push(handles[*b]);
         for w in run.windows(2) {
             if w[0] == w[1] || !cdt.can_add_constraint(w[0], w[1]) { return None; }
@@ -1163,13 +1961,37 @@ fn cap_faces(outline: &[[f64; 2]], pitch: f64, chords: &[(usize, usize)]) -> Opt
             chord_edges.insert((w[0].min(w[1]), w[0].max(w[1])));
         }
     }
+    // Crease lines subdivided at the pitch, split where they cross a chord.
+    for (pa, pb) in &creases.lines {
+        let steps = (((pb[0] - pa[0]).hypot(pb[1] - pa[1]) / pitch).ceil() as usize).max(1);
+        let mut run = Vec::with_capacity(steps + 1);
+        for k in 0..=steps {
+            let t = k as f64 / steps as f64;
+            let q = [pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t];
+            run.push(cdt.insert(Point2::new(q[0], q[1])).ok()?);
+        }
+        run.dedup();
+        for w in run.windows(2) {
+            cdt.add_constraint_and_split(w[0], w[1], |p| p);
+        }
+    }
+    for v in cdt.fixed_vertices() {
+        if let std::collections::hash_map::Entry::Vacant(e) = index.entry(v) {
+            let p = cdt.vertex(v).position();
+            e.insert(points.len() as u32);
+            points.push([p.x, p.y]);
+        }
+    }
     let (lo, hi) = outline.iter().fold(([f64::MAX; 2], [f64::MIN; 2]), |(lo, hi), p| ([lo[0].min(p[0]), lo[1].min(p[1])], [hi[0].max(p[0]), hi[1].max(p[1])]));
-    let segments: Vec<([f64; 2], [f64; 2])> = (0..n).map(|i| (outline[i], outline[(i + 1) % n])).chain(chords.iter().map(|(a, b)| (outline[*a], outline[*b]))).collect();
+    let segments: Vec<([f64; 2], [f64; 2])> = (0..n).map(|i| (outline[i], outline[(i + 1) % n]))
+        .chain(chords.iter().map(|(a, b)| (outline[*a], outline[*b])))
+        .chain(creases.lines.iter().copied())
+        .collect();
     let clear = |p: [f64; 2]| segments.iter().all(|&(a, b)| {
         let (ex, ey) = (b[0] - a[0], b[1] - a[1]);
         let t = (((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / (ex * ex + ey * ey).max(1e-18)).clamp(0.0, 1.0);
         (p[0] - a[0] - ex * t).hypot(p[1] - a[1] - ey * t) > pitch * 0.45
-    });
+    }) && creases.points.iter().all(|c| (p[0] - c[0]).hypot(p[1] - c[1]) > pitch * 0.45);
     let (mut y, mut row) = (lo[1] + pitch * 0.5, 0);
     while y < hi[1] && points.len() < 6000 {
         let mut x = lo[0] + pitch * if row % 2 == 0 { 0.5 } else { 1.0 };
@@ -1186,12 +2008,18 @@ fn cap_faces(outline: &[[f64; 2]], pitch: f64, chords: &[(usize, usize)]) -> Opt
     // Inside is read off the outline itself: a face against a hull edge the outline does not own is
     // outside, and crossing any outline edge flips it. A centroid test cannot be trusted here — a point
     // split onto a chord lands a hair inside it, and the sliver between them has its centroid on the line.
+    // An outline edge joins two outline points and is not a chord.
+    let on_outline = |v: spade::handles::FixedVertexHandle| index.get(&v).is_some_and(|i| (*i as usize) < n);
+    let outline_edge = |a: spade::handles::FixedVertexHandle, b: spade::handles::FixedVertexHandle, constraint: bool| {
+        constraint && on_outline(a) && on_outline(b) && !chord_edges.contains(&(a.min(b), a.max(b)))
+    };
     let mut inside = std::collections::HashMap::new();
     let mut queue = std::collections::VecDeque::new();
     for e in cdt.convex_hull() {
         if let Some(f) = e.face().as_inner().or_else(|| e.rev().face().as_inner()) {
             if let std::collections::hash_map::Entry::Vacant(v) = inside.entry(f.fix()) {
-                v.insert(cdt.is_constraint_edge(e.as_undirected().fix()));
+                let [a, b] = e.vertices().map(|v| v.fix());
+                v.insert(outline_edge(a, b, cdt.is_constraint_edge(e.as_undirected().fix())));
                 queue.push_back(f.fix());
             }
         }
@@ -1201,9 +2029,9 @@ fn cap_faces(outline: &[[f64; 2]], pitch: f64, chords: &[(usize, usize)]) -> Opt
         for e in cdt.face(f).adjacent_edges() {
             let Some(next) = e.rev().face().as_inner() else { continue };
             let [a, b] = e.vertices().map(|v| v.fix());
-            let outline_edge = cdt.is_constraint_edge(e.as_undirected().fix()) && !chord_edges.contains(&(a.min(b), a.max(b)));
+            let flips = outline_edge(a, b, cdt.is_constraint_edge(e.as_undirected().fix()));
             if let std::collections::hash_map::Entry::Vacant(v) = inside.entry(next.fix()) {
-                v.insert(if outline_edge { !here } else { here });
+                v.insert(if flips { !here } else { here });
                 queue.push_back(next.fix());
             }
         }
@@ -1415,21 +2243,40 @@ pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut c
             Err(e) => out.notes.push(format!("{}: a bead could not be raised ({e})", stones[*i].0.label)),
         }
     }
-    // Stamps stand on the band as it was swept, so each is made against it before anything is joined.
-    let stamps: Vec<(usize, Solid)> = design.stamps.iter().enumerate().filter_map(|(k, s)| match s.solid(&s.frame(design, &ctx), &solid) {
-        Ok(made) => Some((k, made)),
-        Err(why) => { out.notes.push(format!("{}: {why}", s.name)); None }
-    }).collect();
-    for (op, pick) in [(Op::Union, 0usize), (Op::Subtract, 1)] {
-        for (k, made) in stamps.iter().filter(|(k, _)| design.stamps[*k].cut == (pick == 1)) {
-            match chain(&solid, made, op, vouched) {
+    let mut tiers: Vec<u8> = design.stamps.iter().map(|s| s.tier).collect();
+    tiers.sort_unstable();
+    tiers.dedup();
+    let make = |tier: u8, on: &Solid, notes: &mut Vec<String>| -> Vec<(usize, Solid)> {
+        design.stamps.iter().enumerate().filter(|(_, s)| s.tier == tier).filter_map(|(k, s)| match s.solid(&s.frame(design, &ctx), on) {
+            Ok(made) => Some((k, made)),
+            Err(why) => { notes.push(format!("{}: {why}", s.name)); None }
+        }).collect()
+    };
+    let strike = |made: &[(usize, Solid)], op: Op, solid: &mut Solid, vouched: &mut bool, spans: &mut Vec<(usize, u32)>, out: &mut Applied| {
+        let cut = op == Op::Subtract;
+        for (k, part) in made.iter().filter(|(k, _)| design.stamps[*k].cut == cut) {
+            match chain(solid, part, op, *vouched) {
                 Ok(next) => {
-                    solid = next;
-                    vouched = true;
+                    *solid = next;
+                    *vouched = true;
                     spans.push((solid.v.len(), (stones.len() + k) as u32));
                     out.stamped += 1;
                 }
-                Err(e) => out.notes.push(format!("{}: could not be {} ({e})", design.stamps[*k].name, if pick == 0 { "joined to the band" } else { "cut" })),
+                Err(e) => out.notes.push(format!("{}: could not be {} ({e})", design.stamps[*k].name, if cut { "cut" } else { "joined to the band" })),
+            }
+        }
+    };
+    // The lowest tier is made against the band as swept.
+    let first = tiers.first().map_or_else(Vec::new, |t| make(*t, &solid, &mut out.notes));
+    for (op, pick) in [(Op::Union, 0usize), (Op::Subtract, 1)] {
+        strike(&first, op, &mut solid, &mut vouched, &mut spans, &mut out);
+        if pick == 1 {
+            // Each higher tier is made against the ring as struck so far.
+            for &tier in tiers.iter().skip(1) {
+                let made = make(tier, &solid, &mut out.notes);
+                for op in [Op::Union, Op::Subtract] {
+                    strike(&made, op, &mut solid, &mut vouched, &mut spans, &mut out);
+                }
             }
         }
         for (i, p, frame, label) in &placed {
@@ -1663,7 +2510,7 @@ mod tests {
         let boundary: std::collections::HashSet<(u32, u32)> = uses.keys().copied().filter(|(a, b)| !uses.contains_key(&(*b, *a))).collect();
         let want: std::collections::HashSet<(u32, u32)> = (0..n).map(|i| (i, (i + 1) % n)).collect();
         assert_eq!(boundary, want);
-        let stamp = Stamp { name: "Dent".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline, height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false };
+        let stamp = Stamp { name: "Dent".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline, height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat };
         assert_eq!(stamp.prism().unwrap().open_edges(), (0, 0));
     }
 
@@ -1684,7 +2531,7 @@ mod tests {
         assert!((area(&moon_outline(1.6, 0.5, 0.85)) - 0.5 * PI * 2.56).abs() < 0.03);
         assert!(area(&moon_outline(1.6, 0.25, 0.85)) > 0.0 && area(&crescent_cutter(1.6, 0.25, 0.85, 0.2)) > 0.0);
         // A half moon cast as a blank, and the bench's cut that leaves the crescent.
-        let blank = Stamp { name: "Half moon".into(), theta_deg: 60.0, v_mm: v, rot_deg: 0.0, outline: moon_outline(1.6, 0.5, 0.85), height_mm: 0.45, sink_mm: 0.35, draft_deg: 0.0, cut: false, bench: false, along_pull: false };
+        let blank = Stamp { name: "Half moon".into(), theta_deg: 60.0, v_mm: v, rot_deg: 0.0, outline: moon_outline(1.6, 0.5, 0.85), height_mm: 0.45, sink_mm: 0.35, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat };
         let cut = Stamp { name: "Crescent cut".into(), outline: crescent_cutter(1.6, 0.25, 0.85, 0.2), height_mm: 0.8, sink_mm: -0.02, cut: true, bench: true, ..blank.clone() };
         d.stamps = vec![blank, cut];
         let finished = crate::mesh::try_build(&d, &lib, params).unwrap();
@@ -1738,6 +2585,315 @@ mod tests {
         d.stamps[0].outline = moon_outline(9.0, 1.0, 0.85);
         let off = crate::mesh::try_build(&d, &lib, params).unwrap();
         assert!(off.solids.notes.iter().any(|n| n.contains("Half moon")) && off.report.validation.watertight, "{:?}", off.solids.notes);
+    }
+
+    fn plain(name: &str, theta_deg: f64, v_mm: f64, outline: Vec<[f64; 2]>, height_mm: f64) -> Stamp {
+        Stamp { name: name.into(), theta_deg, v_mm, rot_deg: 0.0, outline, height_mm, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat }
+    }
+
+    fn crest_band() -> crate::RingDesign {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 7.0;
+        d.profile.thickness_mm = 2.4;
+        d
+    }
+
+    fn strike() -> crate::BuildParams {
+        crate::BuildParams { theta_steps: 384, profile_steps: 192, ..Default::default() }
+    }
+
+    #[test]
+    fn a_plain_stamp_reads_and_writes_as_it_did_and_a_shaped_one_is_fenced() {
+        use crate::library::{format_version_for, FORMAT_VERSION, PLAIN_FORMAT_VERSION};
+        let mut d = crest_band();
+        let v = d.field_context().crest_v_mm;
+        let flat = plain("Disc", 90.0, v, crate::outline::circle(1.6), 0.4);
+        let json = serde_json::to_value(&flat).unwrap();
+        assert!(json.get("tier").is_none() && json.get("top").is_none(), "{json}");
+        let old: Stamp = serde_json::from_str(r#"{"name":"Old","theta_deg":90.0,"v_mm":1.0,"outline":[[0,0],[1,0],[0,1]],"height_mm":0.3,"sink_mm":0.2}"#).unwrap();
+        assert!(old.is_plain());
+        d.stamps = vec![flat.clone()];
+        assert_eq!(format_version_for(&d), PLAIN_FORMAT_VERSION);
+        let cone = StampTop::Cone { apex_mm: 0.6, at: [0.1, 0.0], tip_mm: 0.3 };
+        for shaped in [Stamp { tier: 1, ..flat.clone() }, Stamp { top: cone, ..flat.clone() }] {
+            d.stamps = vec![flat.clone(), shaped.clone()];
+            assert_eq!(format_version_for(&d), FORMAT_VERSION, "an older build would strike {shaped:?} flat, on the band");
+            let back = crate::library::load_design_str(&crate::library::design_json(&d).unwrap()).unwrap();
+            assert_eq!(back.stamps, d.stamps);
+        }
+        assert_eq!(serde_json::to_value(cone).unwrap(), serde_json::json!({"Cone": {"apex_mm": 0.6, "at": [0.1, 0.0], "tip_mm": 0.3}}));
+    }
+
+    #[test]
+    fn a_cone_on_the_crest_and_a_tier_on_a_stamp_pull_clean() {
+        use crate::manufacturing::{inspect, release, Setup};
+        let mut d = crest_band();
+        let ctx = d.field_context();
+        let (v, crest) = (crest_v(&d, 90.0).unwrap(), ctx.crest_radius_mm);
+        let lib = crate::AlphaLibrary::builtin();
+        let bare = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        let thorn = Stamp { top: StampTop::Cone { apex_mm: 0.7, at: [0.0, 0.0], tip_mm: 0.3 }, ..plain("Thorn", 60.0, v, crate::outline::circle(1.6), 0.25) };
+        let plate = plain("Plate", 120.0, v, crate::outline::circle(3.2), 0.35);
+        let keel = Stamp { tier: 1, top: StampTop::Gable { rise_mm: 0.25, axis_deg: 0.0 }, ..plain("Plate: keel", 120.0, v, crate::outline::keel(2.2, 1.2, 0.18), 0.3) };
+        d.stamps = vec![thorn, plate, keel];
+        for s in &d.stamps {
+            assert_eq!(s.parting_monotone(&d), Ok(()), "{}", s.name);
+        }
+        let built = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        assert!(built.solids.notes.is_empty(), "{:?}", built.solids.notes);
+        assert_eq!(built.solids.stamped, 3);
+        assert!(built.report.validation.watertight, "{:?}", built.report.validation);
+        assert_eq!(built.report.quality.degenerate_faces, 0);
+        // The thorn rises to its blunted apex, and the keel stands on the plate rather than on the band.
+        let reach = |theta: f64| built.mesh.vertices.iter().filter(|p| {
+            let a = (p.1 as f64).atan2(p.0 as f64).to_degrees().rem_euclid(360.0);
+            (a - theta).abs() < 6.0
+        }).map(|p| (p.0 as f64).hypot(p.1 as f64)).fold(0.0, f64::max);
+        let (tip, top) = (reach(60.0) - crest, reach(120.0) - crest);
+        assert!((tip - 0.95).abs() < 0.02, "the thorn stands {tip:.3} over the crest");
+        assert!((top - 0.90).abs() < 0.03, "the keel's ridge stands {top:.3} over the crest, on the plate");
+        let volume = built.report.volume_mm3 - bare.report.volume_mm3;
+        let flat = PI * 0.8 * 0.8 * 0.25 + PI * 1.6 * 1.6 * 0.35;
+        // The cone over its disc and the gabled keel on the plate: 1.43 mm³ measured over the flat stamps.
+        assert!(volume > flat + 1.1 && volume < flat + 1.7, "{volume:.3} over the flat stamps' {flat:.3}");
+        // Every poured face above the parting line faces up, and every one below it down.
+        let m = &built.mesh;
+        for f in m.faces.iter().filter(|f| f.iter().any(|v| m.origin[*v as usize] >= crate::mesh::SOLID_VERTEX)) {
+            let [a, b, c] = f.map(|v| m.vertices[v as usize]);
+            let n = crate::mesh::cross([(b.0 - a.0) as f64, (b.1 - a.1) as f64, (b.2 - a.2) as f64], [(c.0 - a.0) as f64, (c.1 - a.1) as f64, (c.2 - a.2) as f64]);
+            let mid = (a.2 + b.2 + c.2) as f64 / 3.0;
+            let area = 0.5 * (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+            assert!(area < 1e-5 || mid.abs() < 1e-3 || mid.signum() * n[2] / (2.0 * area) >= -1e-3, "a stamp face tips into its own mould half at z {mid}, area {area:.2e}");
+        }
+        // Judged as Caiman's horns are: the field, and rays pulled out of the sand at two pitches.
+        let setup = Setup::from_design(&d);
+        let inspection = inspect(&d, &lib, &setup, strike()).unwrap();
+        assert_eq!(inspection.field.as_ref().unwrap().verdict, crate::castability::Verdict::Castable);
+        assert!(inspection.release.obstructions.is_empty() && inspection.release.unresolved_rays == 0, "{:?}", inspection.release.obstructions);
+        let fine = Setup { sample_pitch_mm: 0.075, ..setup.clone() };
+        let rel = release::analyze(&inspection.prepared.mesh, &fine).unwrap();
+        assert!(rel.obstructions.is_empty() && rel.unresolved_rays == 0, "{:?}", rel.obstructions);
+        assert!(crate::dfm::findings_in(&d, &lib).is_empty());
+        // A cone whose apex stands outside its outline is refused by name.
+        d.stamps[0].top = StampTop::Cone { apex_mm: 0.7, at: [2.0, 0.0], tip_mm: 0.3 };
+        let off = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        assert!(off.solids.notes.iter().any(|n| n.starts_with("Thorn: its cone's apex")), "{:?}", off.solids.notes);
+    }
+
+    #[test]
+    fn a_crease_is_an_edge_of_the_cap_and_the_cap_stays_whole() {
+        let corners: [[f64; 2]; 4] = [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]];
+        let square: Vec<[f64; 2]> = (0..4).flat_map(|i| {
+            let (c, n) = (corners[i], corners[(i + 1) % 4]);
+            (0..20).map(move |k| { let f = k as f64 / 20.0; [c[0] + (n[0] - c[0]) * f, c[1] + (n[1] - c[1]) * f] })
+        }).collect();
+        // A chord across the middle, and a crease crossing it and two more from a point beside it.
+        let chords = [(70, 30)];
+        let creases = Creases { points: vec![[0.3, 0.2]], lines: vec![([0.0, -0.8], [0.0, 0.8]), ([0.3, 0.2], [0.9, 0.9]), ([0.3, 0.2], [-0.9, 0.9])] };
+        let (points, tris) = cap_faces_with(&square, 0.2, &chords, &creases).unwrap();
+        let covered: f64 = tris.iter().map(|t| crate::outline::area(&t.map(|i| points[i as usize]))).sum();
+        assert!((covered - 4.0).abs() < 1e-9, "{covered}");
+        let mut uses = std::collections::HashMap::new();
+        for t in &tris { for k in 0..3 { *uses.entry((t[k], t[(k + 1) % 3])).or_insert(0) += 1; } }
+        assert!(uses.values().all(|n| *n == 1));
+        let n = square.len() as u32;
+        let boundary: std::collections::HashSet<(u32, u32)> = uses.keys().copied().filter(|(a, b)| !uses.contains_key(&(*b, *a))).collect();
+        assert_eq!(boundary, (0..n).map(|i| (i, (i + 1) % n)).collect());
+        // Every crease is carried by edges: no triangle straddles one.
+        for &(a, b) in &creases.lines {
+            for t in &tris {
+                let side: Vec<f64> = t.iter().map(|i| { let p = points[*i as usize]; (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) }).collect();
+                let c = t.iter().map(|i| points[*i as usize]).fold([0.0, 0.0], |s, p| [s[0] + p[0] / 3.0, s[1] + p[1] / 3.0]);
+                let (_, along) = segment_distance(c, a, b);
+                if along > 0.05 && along < 0.95 {
+                    assert!(!(side.iter().any(|s| *s > 1e-9) && side.iter().any(|s| *s < -1e-9)), "a triangle straddles the crease {a:?}-{b:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn shaped_tops_straddling_the_parting_line_crease_and_pull() {
+        use crate::manufacturing::{inspect, Setup};
+        let mut d = crest_band();
+        let ctx = d.field_context();
+        let (v, crest) = (crest_v(&d, 90.0).unwrap(), ctx.crest_radius_mm);
+        let lib = crate::AlphaLibrary::builtin();
+        let keel = || crate::outline::keel(2.4, 1.3, 0.18);
+        d.stamps = vec![
+            Stamp { top: StampTop::Cone { apex_mm: 0.5, at: [0.3, 0.0], tip_mm: 0.0 }, ..plain("Horn", 40.0, v, keel(), 0.2) },
+            Stamp { top: StampTop::Gable { rise_mm: 0.3, axis_deg: 90.0 }, ..plain("Saddle", 90.0, v, crate::outline::circle(1.8), 0.25) },
+            Stamp { top: StampTop::Ridge { rise_mm: 0.35, from: [-0.6, 0.0], to: [0.6, 0.0], end_mm: 0.1 }, ..plain("Rib", 140.0, v, keel(), 0.2) },
+            Stamp { top: StampTop::Cone { apex_mm: 0.3, at: [0.0, 0.2], tip_mm: 0.2 }, bench: true, ..plain("Bench boss", 200.0, v, keel(), 0.2) },
+        ];
+        assert_eq!(d.stamps[0].frame(&d, &ctx).origin[2], 0.0, "placed exactly on the parting line");
+        for s in &d.stamps[..3] {
+            assert_eq!(s.parting_monotone(&d), Ok(()), "{}", s.name);
+        }
+        let built = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        assert!(built.solids.notes.is_empty(), "{:?}", built.solids.notes);
+        assert!(built.report.validation.watertight && built.solids.stamped == 4, "{:?}", built.report.validation);
+        assert_eq!(built.report.quality.degenerate_faces, 0);
+        let reach = |theta: f64| built.mesh.vertices.iter().filter(|p| {
+            let a = (p.1 as f64).atan2(p.0 as f64).to_degrees().rem_euclid(360.0);
+            (a - theta).abs() < 6.0
+        }).map(|p| (p.0 as f64).hypot(p.1 as f64)).fold(0.0, f64::max) - crest;
+        for (theta, want) in [(40.0, 0.7), (90.0, 0.55), (140.0, 0.55), (200.0, 0.5)] {
+            assert!((reach(theta) - want).abs() < 0.03, "{theta}: {} against {want}", reach(theta));
+        }
+        let inspection = inspect(&d, &lib, &Setup::from_design(&d), strike()).unwrap();
+        assert!(inspection.release.obstructions.is_empty() && inspection.release.unresolved_rays == 0, "{:?}", inspection.release.obstructions);
+    }
+
+    #[test]
+    fn parting_monotone_reads_the_margin_and_the_top() {
+        let mut d = crest_band();
+        let v = crest_v(&d, 90.0).unwrap();
+        let holly = crate::outline::leaf(crate::outline::Margin::Holly { spines: 3, depth_mm: 0.5, lean_deg: 20.0 }, 5.2, 3.0);
+        let along = plain("Holly", 90.0, v, holly.clone(), 0.4);
+        assert_eq!(along.parting_monotone(&d), Ok(()));
+        let across = Stamp { rot_deg: 90.0, ..along.clone() };
+        assert!(across.parting_monotone(&d).is_err(), "spines laid across the parting line hook back over it");
+        let moon = |lit: f64, rot: f64| Stamp { rot_deg: rot, ..plain("Moon", 90.0, v, moon_outline(1.2, lit, 0.85), 0.4) };
+        assert_eq!(moon(0.5, 0.0).parting_monotone(&d), Ok(()));
+        for rot in [0.0, 90.0, 180.0] {
+            assert!(moon(0.25, rot).parting_monotone(&d).is_err(), "a crescent at {rot}");
+        }
+        let off = plain("Off the crest", 90.0, v + 1.2, crate::outline::circle(1.2), 0.3);
+        assert!(off.parting_monotone(&d).is_err());
+        let cone = |at: [f64; 2]| Stamp { top: StampTop::Cone { apex_mm: 0.6, at, tip_mm: 0.2 }, ..plain("Cone", 90.0, v, crate::outline::circle(1.6), 0.2) };
+        assert_eq!(cone([0.3, 0.0]).parting_monotone(&d), Ok(()));
+        assert!(cone([0.0, 0.4]).parting_monotone(&d).is_err(), "an apex off the parting line rises away from it");
+        let shaped = |top: StampTop| Stamp { top, ..plain("Shaped", 90.0, v, crate::outline::keel(2.4, 1.2, 0.2), 0.3) };
+        assert_eq!(shaped(StampTop::Gable { rise_mm: 0.3, axis_deg: 0.0 }).parting_monotone(&d), Ok(()));
+        assert_eq!(shaped(StampTop::Gable { rise_mm: 0.3, axis_deg: 90.0 }).parting_monotone(&d), Ok(()));
+        assert_eq!(shaped(StampTop::Taper { axis_deg: 0.0, tip_mm: 0.1 }).parting_monotone(&d), Ok(()));
+        assert!(shaped(StampTop::Taper { axis_deg: 90.0, tip_mm: 0.1 }).parting_monotone(&d).is_err());
+        assert_eq!(shaped(StampTop::Dome { crown_mm: 0.3 }).parting_monotone(&d), Ok(()));
+        let pit = Stamp { cut: true, ..plain("Pit", 90.0, v, crate::outline::circle(1.0), 0.3) };
+        assert!(pit.parting_monotone(&d).is_err());
+        assert_eq!(Stamp { bench: true, ..pit }.parting_monotone(&d), Ok(()));
+        // On a side face every wall stands along the pull, whatever the outline.
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.thickness_mm = 3.0;
+        d.profile.flatten_sides();
+        let ctx = d.field_context();
+        let (a, b) = ctx.side_faces_std().unwrap().high.unwrap();
+        let side = Stamp { along_pull: true, ..moon(0.25, 0.0) };
+        assert_eq!(Stamp { v_mm: 0.5 * (a + b), ..side }.parting_monotone(&d), Ok(()));
+    }
+
+    #[test]
+    fn a_row_grades_holds_its_gap_mirrors_and_follows_the_parting_line() {
+        let mut d = crest_band();
+        let ctx = d.field_context();
+        let (v, r) = (ctx.crest_v_mm, ctx.crest_radius_mm);
+        let proto = plain("Thorn", 0.0, 0.0, crate::outline::keel(1.2, 0.6, 0.12), 0.3);
+        let row = StampRow { stamp: proto, path: RowPath::ChartV { v_mm: v }, from_deg: 100.0, to_deg: 160.0, count: 8, taper: 0.5, fold_clear_mm: 0.0, mirror_shoulders: true };
+        let s = stamp_row(&d, &row);
+        assert_eq!(s.len(), 16);
+        let half = |st: &Stamp| st.outline.iter().map(|p| p[0]).fold(f64::MIN, f64::max);
+        assert!((s[0].theta_deg - 100.0).abs() < 1e-6 && (s[7].theta_deg - 160.0).abs() < 1e-6);
+        assert!((half(&s[0]) - 0.6).abs() < 1e-9 && (half(&s[7]) - 0.3).abs() < 1e-9, "graded from full size to half");
+        let gaps: Vec<f64> = s[..8].windows(2).map(|w| r * (w[1].theta_deg - w[0].theta_deg).to_radians() - half(&w[0]) - half(&w[1])).collect();
+        let spread = gaps.iter().fold(f64::MIN, |m, g| m.max(*g)) - gaps.iter().fold(f64::MAX, |m, g| m.min(*g));
+        assert!(spread < 2e-3 && gaps[0] > 0.1, "one gap down the whole row: {gaps:?}");
+        assert!(s[..8].windows(2).all(|w| half(&w[1]) < half(&w[0])));
+        for (k, (a, b)) in s[..8].iter().zip(&s[8..]).enumerate() {
+            assert_eq!(a.name, format!("Thorn, right {}", k + 1));
+            assert_eq!(b.name, format!("Thorn, left {}", k + 1));
+            assert!((b.theta_deg - (180.0 - a.theta_deg)).abs() < 1e-9);
+            let n = a.outline.len();
+            assert!((0..n).all(|i| b.outline[i] == [-a.outline[n - 1 - i][0], a.outline[n - 1 - i][1]]));
+            assert!(crate::outline::area(&b.outline) > 0.0);
+        }
+        // On a wave the parting line leaves the reference crest, and the row rides it exactly.
+        d.shank.kind = crate::ShankKind::Wave;
+        d.shank.amount = 0.7;
+        let ctx = d.field_context();
+        let wave = stamp_row(&d, &StampRow { path: RowPath::PartingLine, from_deg: 0.0, to_deg: 300.0, count: 11, taper: 0.0, mirror_shoulders: false, ..row.clone() });
+        assert_eq!(wave.len(), 11);
+        for st in &wave {
+            assert!(section_point(&d, &ctx, st.theta_deg, st.v_mm).0[1].abs() < 1e-9, "{} stands off the parting line", st.name);
+            assert!(st.parting_monotone(&d).is_ok(), "{}", st.name);
+        }
+        let wander = wave.iter().map(|st| (st.v_mm - ctx.crest_v_mm).abs()).fold(0.0, f64::max);
+        assert!(wander > 0.3, "the wave carries the parting line {wander:.3} mm off the reference crest");
+        let names: Vec<_> = wave.iter().map(|st| st.name.clone()).collect();
+        assert_eq!(names[10], "Thorn, 11");
+        // Across a side face the row stands on the face, square to the pull.
+        let mut flat = crate::RingDesign::default();
+        flat.profile.apply_style(crate::ProfileStyle::Flat);
+        flat.profile.thickness_mm = 3.0;
+        flat.profile.flatten_sides();
+        let fctx = flat.field_context();
+        let (a, b) = fctx.side_faces_std().unwrap().high.unwrap();
+        let side = stamp_row(&flat, &StampRow { path: RowPath::SideFace { high: true, frac: 0.5 }, taper: 0.0, mirror_shoulders: false, ..row.clone() });
+        assert_eq!(side.len(), 8);
+        for st in &side {
+            assert!((st.v_mm - 0.5 * (a + b)).abs() < 1e-9);
+            assert!(st.frame(&flat, &fctx).z[2].abs() > 0.95);
+        }
+        // A fold is where the path turns faster than the ring's own round.
+        let path = |bend: bool| -> (Vec<[f64; 3]>, Vec<f64>) {
+            let pts: Vec<[f64; 3]> = (0..200).map(|i| {
+                let s = i as f64 * 0.05;
+                match (bend, s > 5.0) {
+                    (true, true) => [5.0, s - 5.0, 0.0],
+                    (true, false) => [s, 0.0, 0.0],
+                    _ => { let t = s / 9.0; [9.0 * t.sin(), 9.0 * (1.0 - t.cos()), 0.0] }
+                }
+            }).collect();
+            let mut arc = vec![0.0];
+            for w in pts.windows(2) { arc.push(arc[arc.len() - 1] + ((w[1][0] - w[0][0]).powi(2) + (w[1][1] - w[0][1]).powi(2)).sqrt()); }
+            (pts, arc)
+        };
+        let (round, arc) = path(false);
+        assert!(path_folds(&round, &arc).is_empty());
+        let (bent, arc) = path(true);
+        let folds = path_folds(&bent, &arc);
+        assert!(!folds.is_empty() && folds.iter().all(|f| (f - 5.0).abs() < 0.6), "{folds:?}");
+    }
+
+    #[test]
+    fn a_concave_outline_casts_as_its_hull_and_the_bench_cuts_its_bays() {
+        let holly = crate::outline::leaf(crate::outline::Margin::Holly { spines: 3, depth_mm: 0.5, lean_deg: 20.0 }, 6.0, 3.6);
+        let (hull, bays) = hull_and_bays(&holly, 0.2);
+        assert_eq!(bays.len(), 6, "three bays a side between the spines and the tip");
+        assert!(crate::outline::check(&hull).is_ok());
+        let area = crate::outline::area;
+        for bay in &bays {
+            assert!(area(bay) > 0.0 && crate::outline::self_crossing(bay).is_none());
+        }
+        // Hull area less the bays' area inside it is the leaf's.
+        let over: f64 = bays.iter().map(|b| {
+            let (p, q) = (b[b.len() - 2], b[b.len() - 1]);
+            area(b) - 0.2 * (p[0] - q[0]).hypot(p[1] - q[1])
+        }).sum();
+        assert!((area(&hull) - over - area(&holly)).abs() < 0.03, "{} - {over} against {}", area(&hull), area(&holly));
+        let (_, crescent) = hull_and_bays(&moon_outline(1.6, 0.25, 0.85), 0.2);
+        assert_eq!(crescent.len(), 1);
+        let mut d = crest_band();
+        d.profile.width_mm = 7.5;
+        let v = crest_v(&d, 90.0).unwrap();
+        let lib = crate::AlphaLibrary::builtin();
+        let bare = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        d.stamps = plain("Holly", 90.0, v, holly.clone(), 0.4).cast_as_hull(0.2);
+        assert_eq!(d.stamps.len(), 7);
+        assert!(d.stamps[1..].iter().all(|s| s.cut && s.bench && s.name.starts_with("Holly: bay")));
+        assert_eq!(d.stamps[0].parting_monotone(&d), Ok(()));
+        let finished = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        assert!(finished.solids.notes.is_empty(), "{:?}", finished.solids.notes);
+        assert_eq!(finished.solids.stamped, 7);
+        assert!(finished.report.validation.watertight, "{:?}", finished.report.validation);
+        assert_eq!(finished.report.quality.degenerate_faces, 0);
+        let pattern = crate::mesh::try_build_pattern(&d, &lib, strike()).unwrap();
+        assert!(pattern.report.validation.watertight && pattern.solids.stamped == 1);
+        let (cast, cut) = (pattern.report.volume_mm3 - bare.report.volume_mm3, finished.report.volume_mm3 - bare.report.volume_mm3);
+        let (want_cast, want_cut) = (area(&hull) * 0.4, area(&holly) * 0.4);
+        assert!((cast - want_cast).abs() < 0.12 * want_cast, "the blank: {cast:.3} against {want_cast:.3}");
+        assert!((cut - want_cut).abs() < 0.15 * want_cut, "the leaf the bench leaves: {cut:.3} against {want_cut:.3}");
     }
 
     #[test]

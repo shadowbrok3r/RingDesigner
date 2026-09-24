@@ -67,6 +67,7 @@ pub mod text;
 pub mod threemf;
 pub mod tiling;
 pub mod interaction;
+pub mod outline;
 
 pub use alpha::{Alpha, AlphaLibrary};
 pub use castability::{CastReport, DraftSettings, FaceClass, Section};

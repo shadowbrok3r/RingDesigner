@@ -108,7 +108,7 @@ mod tests {
         crate::theme::apply(&ctx);
         let mut focus = Focus::default();
         let (mut value, mut size, mut name) = (0.35_f64, 7.0_f64, String::from("Band"));
-        let mut stamp = ringdesign_core::setting::Stamp { name: "Moon".into(), theta_deg: 270.0, v_mm: 0.0, rot_deg: 0.0, outline: vec![[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]], height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false };
+        let mut stamp = ringdesign_core::setting::Stamp { name: "Moon".into(), theta_deg: 270.0, v_mm: 0.0, rot_deg: 0.0, outline: vec![[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]], height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: Default::default() };
         let rects = Cell::new([egui::Rect::NOTHING; 4]);
         let mut draw = |root: &mut egui::Ui| {
             egui::CentralPanel::default().show(root, |ui| {
