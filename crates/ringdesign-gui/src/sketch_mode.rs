@@ -675,8 +675,8 @@ fn shank_for_body(app: &RingDesignerApp) -> (Vec<CadEdit>, Attach) {
     (vec![CadEdit::Add { feature: shank, after: None }], Attach::Join)
 }
 
-/// Why a ring of parts alone takes no cut.
-const ALL_PARTS: &str = "The ring is all parts: a cut has no band to carve";
+/// Why a ring of parts alone with no metal among them takes no cut.
+const ALL_PARTS: &str = "The ring is all parts and none of them metal: a cut has nothing to carve";
 
 /// Makes the extrusion or revolution being set up, with any unfinished strokes, as one edit: a cut
 /// extrusion runs from the plane down into the metal, and a cut revolution turns into it about a
@@ -715,12 +715,13 @@ fn commit_solid(app: &mut RingDesignerApp) {
     let chosen = live.attach;
     let dirty = live.working != live.base;
     let (shank, fallback) = shank_for_body(app);
-    // A ring of parts alone has no band to join to or carve.
+    // A ring of parts alone has no band to join to; a cut carves the parts it reaches.
     let attach = match (fallback, chosen) {
-        (Attach::Separate, Attach::Cut) => {
+        (Attach::Separate, Attach::Cut) if !ringdesign_core::parts::carvable(&app.design) => {
             app.set_status(ALL_PARTS);
             return;
         }
+        (Attach::Separate, Attach::Cut) => Attach::Cut,
         (Attach::Separate, _) => Attach::Separate,
         (_, chosen) => chosen,
     };
@@ -934,8 +935,8 @@ fn keys(app: &mut RingDesignerApp, ui: &egui::Ui) {
     }
     if live.solid.is_some() && take(ui, Key::J, false) {
         let next = match live.attach {
-            Attach::Join => Attach::Cut,
-            Attach::Cut => Attach::Separate,
+            Attach::Join if ringdesign_core::parts::carvable(&app.design) => Attach::Cut,
+            Attach::Join | Attach::Cut => Attach::Separate,
             Attach::Separate => Attach::Join,
         };
         set_attach(app, next);
@@ -1206,17 +1207,19 @@ fn begin_solid(app: &mut RingDesignerApp, step: SolidStep, pick: Option<RegionRe
     app.set_status(prompt);
 }
 
-/// Chooses how the solid being set up meets the ring; a cut is refused on a ring that is all parts, where there is no band to carve.
+/// Chooses how the solid being set up meets the ring; a cut is refused where no metal is there to carve.
 fn set_attach(app: &mut RingDesignerApp, attach: Attach) {
-    if attach == Attach::Cut && app.design.cad.as_ref().is_some_and(|d| d.replaces_band()) {
+    if attach == Attach::Cut && !ringdesign_core::parts::carvable(&app.design) {
         app.set_status(ALL_PARTS);
         return;
     }
+    let band = app.design.band_is_procedural();
     let Some(live) = app.sketch.live.as_deref_mut() else { return };
     live.attach = attach;
     let words = match attach {
         Attach::Join => "Join: the solid is united with the band and what is joined to it",
-        Attach::Cut => "Cut: the solid carves into the band and the part it stands on",
+        Attach::Cut if band => "Cut: the solid carves into the band and the part it stands on",
+        Attach::Cut => "Cut: the solid carves into every part it reaches",
         Attach::Separate => "Separate: the solid stands apart as a casting of its own",
     };
     let said = format!("{words} · {}", live.prompt());
@@ -1237,7 +1240,7 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Rect
     let (tool, construction, chosen) = (live.tools.tool, live.tools.construction, !live.tools.chosen_entities.is_empty() || !live.tools.chosen_points.is_empty());
     let (can_undo, can_redo, kind) = (live.tools.can_undo(), live.tools.can_redo(), live.kind);
     let solid = live.solid.is_some().then_some(live.attach);
-    let can_cut = !app.design.cad.as_ref().is_some_and(|d| d.replaces_band());
+    let can_cut = ringdesign_core::parts::carvable(&app.design);
     let mut chosen_tool = None;
     let mut action: Option<&'static str> = None;
     let left = rect.left() + crate::command::RAIL_W + 6.0;

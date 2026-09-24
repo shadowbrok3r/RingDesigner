@@ -25,12 +25,19 @@ fn ring_view(h: &mut Harness<'static, RingDesignerApp>) -> usize {
 
 /// The Court band with `part` joined at the top of the ring, built and settled in the history.
 fn court_with(h: &mut Harness<'static, RingDesignerApp>, part: Operation) -> usize {
+    ring_of(h, part, true)
+}
+
+/// `part` at the top of the Court band, on its procedural shank when `band` and as the whole ring when not, built and settled in the history.
+fn ring_of(h: &mut Harness<'static, RingDesignerApp>, part: Operation, band: bool) -> usize {
     let pane = ring_view(h);
     {
         let app = h.state_mut();
         let mut d = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
         let mut doc = Document::default();
-        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        if band {
+            doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        }
         doc.append(Feature {
             id: BOX,
             name: part.label().into(),
@@ -596,6 +603,46 @@ fn a_cut_runs_from_the_face_it_was_drawn_on_into_the_metal_and_takes_its_area_ti
     assert!((taken - 3.0).abs() < 1e-3, "2 × 1.5 × 1 = 3 mm³ out of the box: {taken}");
     let (low, high) = heights(&h, cut.id, origin, n);
     assert!((low + 1.0).abs() < 1e-3 && (high - ringdesign_core::cad::CUT_CLEAR_MM).abs() < 1e-3, "the tool runs {low} to {high} along the face's normal");
+}
+
+#[test]
+fn a_cut_drawn_on_a_ring_of_parts_alone_carves_the_part_it_reaches() {
+    let mut h = harness();
+    let pane = ring_of(&mut h, Operation::Box { size: [8.0, 6.0, 2.0] }, false);
+    assert!(!h.state().design.band_is_procedural(), "the box is the whole ring");
+    let before = h.state().build.as_ref().unwrap().mesh.volume_mm3();
+    assert!((before - 96.0).abs() < 1e-6, "{before}");
+    sketch_on_the_top(&mut h, pane);
+    let mut rect = Sketch { plane: working(&h).plane, ..Sketch::default() };
+    rect.add_rectangle([-1.0, -0.75], [1.0, 0.75], false).unwrap();
+    h.state_mut().sketch.set_working(rect);
+    h.run_steps(2);
+    region_menu(&mut h, pane, [0.5, 0.5], "Extrude");
+    // The toolbar's Cut is offered on the ring of parts, and J steps through it.
+    assert!(!h.get_by_label("Cut").accesskit_node().is_disabled(), "a part is there to carve");
+    h.get_by_label("Cut").click();
+    h.run_steps(2);
+    assert!(h.state().status.starts_with("Cut: the solid carves into every part it reaches"), "{}", h.state().status);
+    for want in ["Separate:", "Join:", "Cut:"] {
+        press(&mut h, Key::J);
+        assert!(h.state().status.starts_with(want), "{want} · {}", h.state().status);
+    }
+    text(&mut h, "1");
+    press(&mut h, Key::Enter);
+    assert!(!h.state().sketch.is_live(), "{}", h.state().status);
+    let doc = h.state().design.cad.clone().unwrap();
+    assert!(doc.band().is_none(), "no shank is added to a ring of parts");
+    let cut = doc.features.last().cloned().unwrap();
+    assert_eq!((cut.name.as_str(), cut.component.attach), ("Extrude cut", Attach::Cut));
+    assert_eq!(ringdesign_core::library::format_version_for(&h.state().design), ringdesign_core::library::FORMAT_VERSION);
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let built = h.state().build.clone().unwrap();
+    assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
+    assert_eq!((built.parts.cut, built.parts.carved.as_slice()), (1, &[BOX][..]));
+    assert!(built.report.validation.watertight, "{:?}", built.report.validation);
+    let taken = before - built.mesh.volume_mm3();
+    assert!((taken - 3.0).abs() < 1e-3, "2 × 1.5 × 1 = 3 mm³ out of the box: {taken}");
 }
 
 #[test]
