@@ -13,16 +13,22 @@ use ringdesign_core::RingDesign;
 
 use crate::ring::{EXPORT, METAL_TINT, PREVIEW};
 
-/// A file handed to the share sheet and not yet answered: its name and what its export said.
+/// A file handed to the share sheet and not yet answered: its name, what its export said, and whether the Workshop asked.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Sharing {
     pub name: String,
     pub said: String,
+    pub workshop: bool,
 }
 
 impl Sharing {
     pub fn new(name: impl Into<String>, said: impl Into<String>) -> Self {
-        Self { name: name.into(), said: said.into() }
+        Self { name: name.into(), said: said.into(), workshop: false }
+    }
+
+    /// The same share, asked for by the Workshop.
+    pub fn from_workshop(self) -> Self {
+        Self { workshop: true, ..self }
     }
 
     /// `lead` with what the export said after it.
@@ -35,12 +41,73 @@ impl Sharing {
         self.then_said(format!("sharing {}", self.name))
     }
 
-    /// The status line once the system answers, the outcome first: the folder the copy landed in with the sheet open, or why nothing was shared.
+    /// The status line once the system answers: the folder the copy landed in, or why nothing was shared.
     pub fn answered(&self, outcome: &Result<String, String>) -> String {
         match outcome {
             Ok(folder) => self.then_said(format!("{} saved to {folder} and handed to the share sheet", self.name)),
             Err(why) => self.then_said(format!("{} not shared: {why}", self.name)),
         }
+    }
+}
+
+/// A file waiting for the share sheet: where it is, its type, and how it is named on the status line.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Share {
+    pub path: PathBuf,
+    pub mime: String,
+    pub sharing: Sharing,
+}
+
+/// What the system said of one share.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Answer {
+    /// The outcome said against its own file.
+    pub line: String,
+    /// The status line: every answer of this run of shares, first to last.
+    pub status: String,
+    pub ok: bool,
+    pub workshop: bool,
+}
+
+/// Files for the share sheet, handed over one at a time, each outcome said against the file it answers.
+#[derive(Debug, Default)]
+pub struct Shares {
+    waiting: std::collections::VecDeque<Share>,
+    handed: Option<Sharing>,
+    answers: Vec<String>,
+}
+
+impl Shares {
+    pub fn push(&mut self, share: Share) {
+        self.waiting.push_back(share);
+    }
+
+    /// Whether a share waits for the sheet or for its outcome.
+    pub fn busy(&self) -> bool {
+        self.handed.is_some() || !self.waiting.is_empty()
+    }
+
+    /// The next file to hand the share sheet once none awaits its outcome, with the status line to show.
+    pub fn next(&mut self) -> Option<(Share, String)> {
+        if self.handed.is_some() {
+            return None;
+        }
+        let share = self.waiting.pop_front()?;
+        self.handed = Some(share.sharing.clone());
+        let status = self.answers.iter().cloned().chain([share.sharing.pending()]).collect::<Vec<_>>().join("; ");
+        Some((share, status))
+    }
+
+    /// `outcome` said against the share it answers; one with no share handed is said of "the file".
+    pub fn answer(&mut self, outcome: &Result<String, String>) -> Answer {
+        let sharing = self.handed.take().unwrap_or_else(|| Sharing::new("the file", ""));
+        let line = sharing.answered(outcome);
+        self.answers.push(line.clone());
+        let status = self.answers.join("; ");
+        if self.waiting.is_empty() {
+            self.answers.clear();
+        }
+        Answer { line, status, ok: outcome.is_ok(), workshop: sharing.workshop }
     }
 }
 
@@ -148,6 +215,8 @@ pub struct ExportDone {
     pub name: String,
     pub status: String,
     pub ok: bool,
+    /// A STEP file's band as written.
+    pub band: Option<ringdesign_core::cad::step::BandFacets>,
 }
 
 /// Builds and writes the file; the caller shares it.
@@ -157,15 +226,14 @@ pub fn run(job: ExportJob) -> ExportDone {
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| format!("ring{}", job.kind.ext()));
-    let result = write(&job).map_err(|e| e.to_string());
-    let (ok, status) = match result {
-        Ok(s) => (true, s),
-        Err(e) => (false, format!("{} failed: {e}", job.kind.label())),
+    let (ok, status, band) = match write(&job) {
+        Ok((s, band)) => (true, s, band),
+        Err(e) => (false, format!("{} failed: {e}", job.kind.label()), None),
     };
-    ExportDone { kind: job.kind, path: job.path, name, status, ok }
+    ExportDone { kind: job.kind, path: job.path, name, status, ok, band }
 }
 
-fn write(job: &ExportJob) -> Result<String, Box<dyn std::error::Error>> {
+fn write(job: &ExportJob) -> Result<(String, Option<ringdesign_core::cad::step::BandFacets>), Box<dyn std::error::Error>> {
     use ringdesign_core::metal;
     if let Some(dir) = job.path.parent() {
         std::fs::create_dir_all(dir)?;
@@ -179,7 +247,7 @@ fn write(job: &ExportJob) -> Result<String, Box<dyn std::error::Error>> {
         let faceted = text.matches("=FACETED_BREP(").count();
         ringdesign_core::library::write_atomic(&job.path, text.as_bytes())?;
         let s = if exact + faceted == 1 { "" } else { "s" };
-        return Ok(format!("STEP · {exact} exact and {faceted} faceted solid{s} · {} · {:.1} MB", band_words(sized.band.as_ref()), text.len() as f64 / 1048576.0));
+        return Ok((format!("STEP · {exact} exact and {faceted} faceted solid{s} · {} · {:.1} MB", band_words(sized.band.as_ref()), text.len() as f64 / 1048576.0), sized.band));
     }
     // Mesh files are patterns: under sand the made settings are left out and each seat carries its drill
     // mark. Everything else shows the finished ring.
@@ -189,7 +257,7 @@ fn write(job: &ExportJob) -> Result<String, Box<dyn std::error::Error>> {
         ringdesign_core::mesh::try_build(&job.design, &job.lib, job.params)?
     };
     let mb = |bytes: usize| bytes as f64 / 1048576.0;
-    Ok(match job.kind {
+    let status = match job.kind {
         ExportKind::Stl | ExportKind::ThreeMf => {
             let (mesh, name) = match &job.shrink {
                 Some((pct, metal)) => (
@@ -241,7 +309,8 @@ fn write(job: &ExportJob) -> Result<String, Box<dyn std::error::Error>> {
             "stone map".into()
         }
         ExportKind::Step => unreachable!("written above, before any mesh is built"),
-    })
+    };
+    Ok((status, None))
 }
 
 /// Runs the job on its own thread; the receiver yields once.
@@ -340,6 +409,7 @@ mod tests {
 
     #[test]
     fn a_step_is_collapsed_from_the_export_grid_and_says_its_band_and_size() {
+        use ringdesign_core::cad::step;
         let grid = |p: BuildParams| (p.theta_steps, p.profile_steps);
         assert_eq!(grid(ExportKind::Step.params()), grid(EXPORT));
         assert_eq!(grid(ExportKind::Turntable.params()), grid(PREVIEW));
@@ -362,16 +432,16 @@ mod tests {
         let bytes = std::fs::metadata(&done.path).map_or(0, |m| m.len());
         eprintln!("{} ({bytes} bytes, {:.1} s)", done.status, started.elapsed().as_secs_f64());
         assert!(done.ok, "{}", done.status);
-        // Measured: 5,922 facets from 655,360 and 1.8 MB, where the preview grid's uncollapsed band wrote 34.9 MB and the export grid's 217 MB.
-        assert!(done.status.starts_with("STEP · 1 exact and 1 faceted solids · band ") && done.status.contains(" facets from 655,360, every vertex within 0.010 mm · "), "{}", done.status);
-        let facets: usize = done.status.split("band ").nth(1).and_then(|s| s.split(' ').next()).map(|s| s.replace(',', "")).and_then(|s| s.parse().ok()).unwrap();
-        assert!((5_000..8_000).contains(&facets), "{facets}");
+        let band = done.band.unwrap();
+        assert!(band.deviation_mm <= step::BAND_TOLERANCE_MM, "{band:?}");
+        assert_eq!(band.built, 655_360);
+        assert!((5_000..8_000).contains(&band.written), "{band:?}");
         assert!((1_000_000..2_500_000).contains(&bytes), "{bytes}");
-        assert!(done.status.ends_with(&format!(" · {:.1} MB", bytes as f64 / 1048576.0)), "{}", done.status);
+        assert_eq!(done.status, format!("STEP · 1 exact and 1 faceted solids · {} · {:.1} MB", band_words(Some(&band)), bytes as f64 / 1048576.0));
         // The file reads back: the post exact, the band one closed faceted solid.
         let text = std::fs::read_to_string(&done.path).unwrap();
         let (meshes, _) = ringdesign_core::cad::step::faceted_meshes(&text, "court.step").unwrap();
-        assert!(meshes.len() == 1 && meshes[0].validate().watertight && meshes[0].faces.len() == facets);
+        assert!(meshes.len() == 1 && meshes[0].validate().watertight && meshes[0].faces.len() == band.written);
         let _ = std::fs::remove_dir_all(dir);
     }
 
@@ -388,5 +458,41 @@ mod tests {
         assert_eq!(design.answered(&Ok("Download".into())), "Court.ring.json saved to Download and handed to the share sheet");
         assert_eq!(grouped(655_360), "655,360");
         assert_eq!(grouped(999), "999");
+    }
+
+    fn share(name: &str, said: &str) -> Share {
+        Share { path: PathBuf::from("/exports").join(name), mime: "model/stl".into(), sharing: Sharing::new(name, said) }
+    }
+
+    #[test]
+    fn shares_go_to_the_sheet_one_at_a_time_and_each_outcome_names_its_own_file() {
+        let mut shares = Shares::default();
+        assert!(!shares.busy() && shares.next().is_none());
+        // Two exports land in the same frame: only the first is handed over.
+        shares.push(share("a.stl", "STL · 2.0 MB"));
+        shares.push(share("b.step", "STEP · 1.8 MB"));
+        let (a, status) = shares.next().unwrap();
+        assert_eq!((a.path.to_str(), status.as_str()), (Some("/exports/a.stl"), "sharing a.stl · STL · 2.0 MB"));
+        assert!(shares.next().is_none(), "b waits for a's outcome");
+        // a's outcome is taken before b is handed over, and names a.
+        let told = shares.answer(&Ok("Download".into()));
+        assert_eq!(told.line, "a.stl saved to Download and handed to the share sheet · STL · 2.0 MB");
+        assert_eq!(told.status, told.line);
+        assert!(told.ok && !told.workshop);
+        // b's pending line keeps a's outcome in front of it, and b's answer both.
+        let (b, status) = shares.next().unwrap();
+        assert_eq!(b.sharing.name, "b.step");
+        assert_eq!(status, "a.stl saved to Download and handed to the share sheet · STL · 2.0 MB; sharing b.step · STEP · 1.8 MB");
+        let told = shares.answer(&Err("no Java environment to share from".into()));
+        assert_eq!(told.line, "b.step not shared: no Java environment to share from · STEP · 1.8 MB");
+        assert_eq!(told.status, "a.stl saved to Download and handed to the share sheet · STL · 2.0 MB; b.step not shared: no Java environment to share from · STEP · 1.8 MB");
+        assert!(!told.ok && !shares.busy());
+        // The run is over: the next share starts a fresh line.
+        shares.push(Share { sharing: Sharing::new("c.glb", "").from_workshop(), ..share("c.glb", "") });
+        assert_eq!(shares.next().unwrap().1, "sharing c.glb");
+        let told = shares.answer(&Ok("Download".into()));
+        assert_eq!((told.status.as_str(), told.workshop), ("c.glb saved to Download and handed to the share sheet", true));
+        // An outcome with no share handed over is still said.
+        assert_eq!(shares.answer(&Ok("Pictures".into())).line, "the file saved to Pictures and handed to the share sheet");
     }
 }

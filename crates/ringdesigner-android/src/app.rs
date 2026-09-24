@@ -23,7 +23,6 @@ mod parts;
 mod studio;
 
 use crate::bench;
-use crate::keypad::Numeric;
 use crate::canvas::{self, CanvasInput, Domain, View};
 use crate::editor::{Editor, Mode, Sheet};
 use crate::export::{self, ExportDone, ExportKind};
@@ -248,8 +247,10 @@ pub struct RingApp {
     camera_turn: Option<crate::focus::Turn>,
     /// Exports in flight, one thread each; none is ever dropped as stale.
     exports: Vec<std::sync::mpsc::Receiver<ExportDone>>,
-    /// The latest file handed to the share sheet, until the system says where it went or why it did not.
-    sharing: Option<export::Sharing>,
+    /// Files for the share sheet, handed over one per frame once the last one is answered.
+    shares: export::Shares,
+    /// Which focused field takes numbers.
+    keys: crate::keypad::Focus,
     /// A part file being read for import, off the UI thread.
     importing: Option<std::sync::mpsc::Receiver<crate::import::Read>>,
     /// The part files on offer and when they were listed.
@@ -387,7 +388,8 @@ impl RingApp {
             node_focus: NodeFocus::default(),
             camera_turn: None,
             exports: Vec::new(),
-            sharing: None,
+            shares: export::Shares::default(),
+            keys: crate::keypad::Focus::default(),
             importing: None,
             part_files: (None, Vec::new()),
         }
@@ -998,7 +1000,7 @@ impl RingApp {
             ui.label(egui::RichText::new("ring").weak());
             let mut size = self.design.size.0;
             if ui
-                .add(egui::Slider::new(&mut size, 3.0..=13.0).step_by(0.25).text("US size")).numeric()
+                .add(egui::Slider::new(&mut size, 3.0..=13.0).step_by(0.25).text("US size"))
                 .changed()
             {
                 let next = RingSize::new(size);
@@ -1064,21 +1066,19 @@ impl RingApp {
                     }
                 });
             dirty |= ui
-                .add(egui::Slider::new(&mut self.design.profile.width_mm, 2.0..=18.0).text("width mm")).numeric()
+                .add(egui::Slider::new(&mut self.design.profile.width_mm, 2.0..=18.0).text("width mm"))
                 .changed();
             dirty |= ui
                 .add(
                     egui::Slider::new(&mut self.design.profile.thickness_mm, 1.0..=5.0)
                         .text("thickness mm"),
                 )
-                .numeric()
                 .changed();
             dirty |= ui
                 .add(
                     egui::Slider::new(&mut self.design.profile.comfort_fit_mm, 0.0..=0.6)
                         .text("comfort fit mm"),
                 )
-                .numeric()
                 .changed();
             if ui
                 .button("Draw the section")
@@ -1124,11 +1124,11 @@ impl RingApp {
                     }
                 });
             dirty |= ui
-                .add(egui::Slider::new(&mut self.design.shank.amount, 0.0..=1.0).text("amount")).numeric()
+                .add(egui::Slider::new(&mut self.design.shank.amount, 0.0..=1.0).text("amount"))
                 .changed();
             if matches!(self.design.shank.kind, ShankKind::Wave | ShankKind::Twist) {
                 let mut waves = self.design.shank.waves as i32;
-                if ui.add(egui::Slider::new(&mut waves, 1..=6).text("waves")).numeric().changed() {
+                if ui.add(egui::Slider::new(&mut waves, 1..=6).text("waves")).changed() {
                     self.design.shank.waves = waves.max(1) as u32;
                     dirty = true;
                 }
@@ -1161,35 +1161,30 @@ impl RingApp {
                         egui::Slider::new(&mut self.design.shank.head.length_mm, 6.0..=20.0)
                             .text("face length mm"),
                     )
-                    .numeric()
                     .changed();
                 dirty |= ui
                     .add(
                         egui::Slider::new(&mut self.design.shank.head.rise_mm, 0.0..=2.2)
                             .text("rise mm"),
                     )
-                    .numeric()
                     .changed();
                 dirty |= ui
                     .add(
                         egui::Slider::new(&mut self.design.shank.head.rim_round_mm, 0.0..=2.0)
                             .text("rim round mm"),
                     )
-                    .numeric()
                     .changed();
                 dirty |= ui
                     .add(
                         egui::Slider::new(&mut self.design.shank.head.table_dome_mm, 0.0..=3.0)
                             .text("table dome mm"),
                     )
-                    .numeric()
                     .changed();
                 dirty |= ui
                     .add(
                         egui::Slider::new(&mut self.design.shank.head.dome, 0.0..=1.0)
                             .text("cut dome"),
                     )
-                    .numeric()
                     .on_hover_text(
                         "1 cuts the face from a swollen dome: no pinched corners, no \
                          prism walls. Concave outlines (heart, shield) soften there.",
@@ -1228,11 +1223,10 @@ impl RingApp {
                             egui::Slider::new(&mut h.length_mm, 5.0..=16.0)
                                 .text("second face mm"),
                         )
-                        .numeric()
                         .changed();
                     let mut sep = h.theta_deg - self.design.shank.head.theta_deg;
                     if ui
-                        .add(egui::Slider::new(&mut sep, 24.0..=110.0).text("separation deg")).numeric()
+                        .add(egui::Slider::new(&mut sep, 24.0..=110.0).text("separation deg"))
                         .changed()
                     {
                         self.design.shank.head.theta_deg = TOP_DEG - sep * 0.5;
@@ -1257,7 +1251,6 @@ impl RingApp {
                                         .range(0.0..=360.0)
                                         .suffix(" deg"),
                                 )
-                                .numeric()
                                 .changed();
                             dirty |= ui
                                 .add(
@@ -1266,7 +1259,6 @@ impl RingApp {
                                         .range(0.3..=3.0)
                                         .prefix("w "),
                                 )
-                                .numeric()
                                 .changed();
                             dirty |= ui
                                 .add(
@@ -1275,7 +1267,6 @@ impl RingApp {
                                         .range(0.3..=3.0)
                                         .prefix("t "),
                                 )
-                                .numeric()
                                 .changed();
                             dirty |= ui
                                 .add(
@@ -1284,7 +1275,6 @@ impl RingApp {
                                         .range(0.0..=2.5)
                                         .prefix("c "),
                                 )
-                                .numeric()
                                 .changed();
                             if ui.small_button("x").clicked() {
                                 remove = Some(i);
@@ -2036,7 +2026,6 @@ impl RingApp {
                                 .range(1..=120)
                                 .suffix(" copies"),
                         )
-                        .numeric()
                         .changed()
                 {
                     self.set_repeats(TILE_ALPHA, self.tile_repeats);
@@ -2699,7 +2688,7 @@ impl RingApp {
         }
     }
 
-    fn workshop_tab(&mut self, ui: &mut egui::Ui, host: &Host) {
+    fn workshop_tab(&mut self, ui: &mut egui::Ui) {
         let before = self.design.clone();
         let events = self.workshop.show(ui, &mut self.design, &self.lib);
         if events.changed {
@@ -2731,8 +2720,8 @@ impl RingApp {
             })();
             match result {
                 Ok(path) => {
-                    self.share(host, &path, &file.name, &file.mime, "");
                     self.workshop.message = format!("sharing {}", file.name);
+                    self.share(export::Share { path, mime: file.mime, sharing: export::Sharing::new(file.name, "").from_workshop() });
                 }
                 Err(e) => self.workshop.message = format!("Export delivery failed: {e}"),
             }
@@ -3052,7 +3041,7 @@ impl RingApp {
                 }
             }
             if ui.button("Share").clicked() {
-                self.share(host, &f.path, &f.file_name, "application/json", "");
+                self.share(export::Share { path: f.path.clone(), mime: "application/json".into(), sharing: export::Sharing::new(&f.file_name, "") });
             }
             if ui.small_button("Rename").clicked() {
                 self.renaming = Some((f.path.clone(), f.stem.clone()));
@@ -3190,7 +3179,7 @@ impl RingApp {
         });
         for done in landed {
             if done.ok {
-                self.share(host, &done.path, &done.name, done.kind.mime(), &done.status);
+                self.share(export::Share { path: done.path, mime: done.kind.mime().into(), sharing: export::Sharing::new(done.name, done.status) });
             } else {
                 self.status = done.status;
                 host.haptic(Haptic::Error);
@@ -3198,20 +3187,31 @@ impl RingApp {
         }
     }
 
-    /// Hands the file at `path` to the share sheet as `name`, the status line saying so after `said` until the system answers.
-    fn share(&mut self, host: &Host, path: &std::path::Path, name: &str, mime: &str, said: &str) {
-        host.share_media(path.to_string_lossy().into_owned(), name.to_owned(), mime.to_owned());
-        let sharing = export::Sharing::new(name, said);
-        self.status = sharing.pending();
-        self.sharing = Some(sharing);
+    /// Queues `share` for the share sheet.
+    fn share(&mut self, share: export::Share) {
+        self.shares.push(share);
     }
 
-    /// Puts the last share's outcome on the status line: the folder its copy landed in, or why nothing was shared.
+    /// Hands the next queued file to the share sheet once the last one is answered, the status line saying so.
+    fn hand_share(&mut self, host: &Host, ctx: &egui::Context) {
+        if let Some((share, status)) = self.shares.next() {
+            host.share_media(share.path.to_string_lossy().into_owned(), share.sharing.name, share.mime);
+            self.status = status;
+        }
+        if self.shares.busy() {
+            ctx.request_repaint();
+        }
+    }
+
+    /// Puts the handed share's outcome on the status line, and on the Workshop's when it asked.
     fn poll_share(&mut self, host: &Host) {
         let Some(outcome) = host.take_share_outcome() else { return };
-        let sharing = self.sharing.take().unwrap_or_else(|| export::Sharing::new("the file", ""));
-        self.status = sharing.answered(&outcome);
-        host.haptic(if outcome.is_ok() { Haptic::Success } else { Haptic::Error });
+        let told = self.shares.answer(&outcome);
+        if told.workshop {
+            self.workshop.message = told.line;
+        }
+        self.status = told.status;
+        host.haptic(if told.ok { Haptic::Success } else { Haptic::Error });
     }
 
     fn bench_tab(&mut self, ui: &mut egui::Ui, host: &Host) {
@@ -3355,8 +3355,8 @@ impl EguiApp for RingApp {
         }
         self.graph.sync(&self.design);
         self.sync_node_focus(ui.ctx());
-        self.poll_exports(host);
         self.poll_share(host);
+        self.poll_exports(host);
         self.poll_import(host);
         self.poll_generate(host);
 
@@ -3385,6 +3385,8 @@ impl EguiApp for RingApp {
         ) {
             ui.ctx().request_repaint_after(delay);
         }
+        self.hand_share(host, ui.ctx());
+        self.keys.pass(ui.ctx());
     }
 }
 

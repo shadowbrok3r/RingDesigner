@@ -1375,28 +1375,34 @@ fn a_focused_dimension_field_asks_for_the_number_keypad_in_the_frame_it_holds_th
     let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.pressed = Some((at, n));
     b.cad.act(&v, MenuAction::AddPartHere { theta_deg: 90.0, height_mm: 0.0, label: "Cylinder" });
-    let kind = |b: &mut Bench, focus: bool| {
+    let radius = egui::Id::new("phone-ring-dimensions").with("radius");
+    let kind = |b: &mut Bench, events: Vec<egui::Event>| {
         b.time += 0.1;
-        let input = egui::RawInput { time: Some(b.time), screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(420.0, 800.0))), ..Default::default() };
+        let input = egui::RawInput { time: Some(b.time), screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(420.0, 800.0))), events, ..Default::default() };
         let mut kind = KeyboardKind::Text;
         let mut out = b.ctx.run_ui(input, |ui| {
             let (_, _) = ui.allocate_exact_size(RECT.size(), egui::Sense::click_and_drag());
             b.cad.frame(ui, &v);
             b.cad.draw(ui, &v, &b.renderer);
-            if focus {
-                ui.ctx().memory_mut(|m| m.request_focus(egui::Id::new("phone-ring-dimensions").with("radius")));
-                super::keypad(ui.ctx());
-            }
             kind = requested(ui.ctx());
         });
         out.textures_delta.clear();
-        kind
+        (kind, b.ctx.memory(|m| m.has_focus(radius)))
     };
-    assert_eq!(kind(&mut b, false), KeyboardKind::Text, "nothing holds the keyboard");
-    assert_eq!(kind(&mut b, true), KeyboardKind::Number, "the radius field, as a tap on it gives it the keyboard");
-    assert_eq!(kind(&mut b, false), KeyboardKind::Number, "drawn again with the field still focused");
-    b.ctx.memory_mut(|m| m.surrender_focus(egui::Id::new("phone-ring-dimensions").with("radius")));
-    assert_eq!(kind(&mut b, false), KeyboardKind::Text);
+    // The bar's first pass only measures it.
+    for _ in 0..2 {
+        assert_eq!(kind(&mut b, Vec::new()), (KeyboardKind::Text, false), "nothing holds the keyboard");
+    }
+    // A tap on the radius field: the pass that gives it focus is the one that asks for numbers.
+    let at = b.ctx.read_response(radius).unwrap().rect.center();
+    let touch = |pressed: bool| vec![egui::Event::PointerMoved(at), egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE }];
+    let passes = [kind(&mut b, touch(true)), kind(&mut b, touch(false))];
+    let focused = passes.iter().position(|(_, f)| *f).expect("the tap focuses the field");
+    assert_eq!(passes[focused].0, KeyboardKind::Number, "the pass the tap focuses the field in, {passes:?}");
+    assert!(passes[..focused].iter().all(|(k, _)| *k == KeyboardKind::Text));
+    assert_eq!(kind(&mut b, Vec::new()), (KeyboardKind::Number, true), "drawn again with the field still focused");
+    b.ctx.memory_mut(|m| m.surrender_focus(radius));
+    assert_eq!(kind(&mut b, Vec::new()), (KeyboardKind::Text, false));
 }
 
 #[test]
@@ -1431,7 +1437,7 @@ fn the_stamp_window_follows_its_stamp_across_undo_and_redo() {
     let redone = history.redo().unwrap();
     window = stamp_after(window, &undone.stamps, &redone.stamps);
     assert_eq!(window, Some(0));
-    // A window on the moon closes when an Undo takes the moon away.
+    // A window on the moon closes when the Redo takes the moon away.
     assert_eq!(stamp_after(Some(0), &undone.stamps, &redone.stamps), None);
     assert_eq!(stamp_after(None, &undone.stamps, &redone.stamps), None);
 }

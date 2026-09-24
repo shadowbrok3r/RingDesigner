@@ -170,8 +170,7 @@ impl OrbitCamera {
         ringdesign_workbench::focus::Pose { pan: [0.0; 2], zoom, ..self.pose() }
     }
 
-    /// Fit view on `built`: the ring's bounds taken as its own, the pivot moved onto what [`framed`](ringdesign_workbench::touch::view::framed) frames,
-    /// and the pose that frames it with what it is; `None` for an empty build.
+    /// Takes the ring's bounds as its own and moves the pivot onto what `framed` frames; the pose that frames it and what it is, `None` for an empty build.
     pub fn fit_view(
         &mut self,
         built: &ringdesign_core::BuildResult,
@@ -184,6 +183,13 @@ impl OrbitCamera {
             self.refit(ring);
         }
         Some((self.framing(bounds), framed))
+    }
+
+    /// Centres on `bounds` at zoom 1 with no pan.
+    pub fn fit_whole(&mut self, bounds: Option<(Vec3, Vec3)>) {
+        self.fit(bounds);
+        self.zoom = 1.0;
+        self.pan = [0.0; 2];
     }
 
     /// Takes `bounds` as the ring's own without moving the picture: the radius it is framed by and the middle a named view orbits.
@@ -482,6 +488,17 @@ mod tests {
         assert!((cam.target[0] - 1.0).abs() < 1e-6);
         assert!((cam.target[1] + 1.0).abs() < 1e-6);
         assert!((cam.target[2] - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn fit_whole_centres_on_the_bounds_at_zoom_one_with_no_pan() {
+        let mut cam = OrbitCamera { zoom: 3.5, pan: [40.0, -12.0], ..OrbitCamera::default() };
+        cam.fit_whole(Some((Vec3(-2.0, -4.0, -1.0), Vec3(4.0, 2.0, 3.0))));
+        assert_eq!((cam.target, cam.zoom, cam.pan), ([1.0, -1.0, 1.0], 1.0, [0.0; 2]));
+        // With no bounds the zoom and pan still reset.
+        let mut cam = OrbitCamera { zoom: 0.4, pan: [5.0, 5.0], ..OrbitCamera::default() };
+        cam.fit_whole(None);
+        assert_eq!((cam.zoom, cam.pan), (1.0, [0.0; 2]));
     }
 
     #[test]

@@ -486,8 +486,7 @@ impl Live {
         }
     }
 
-    /// Starts dragging out a `kind` seated at `at` on the ring, `normal` the surface's there: a drag sizes it and its lift goes on to the height, a second lift or Done adds it.
-    /// The seat lands on the ring's snaps under the finger, grid and crest included, as a click does on the desktop.
+    /// Starts dragging out a `kind` seated on the ring's snap under `at`, else at `at`, `normal` the surface's there: a drag sizes it, its lift goes on to the height, a second lift or Done adds it.
     pub fn add_primitive(&mut self, c: &Ctx, kind: Primitive, at: [f64; 3], normal: [f64; 3]) -> Result<String, String> {
         let band = c.band.map(|b| b.as_ref());
         let (cmd, hit) = match c.build {

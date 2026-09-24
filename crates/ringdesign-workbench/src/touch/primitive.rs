@@ -15,8 +15,7 @@ pub fn kind(label: &str) -> Option<Primitive> {
     }
 }
 
-/// The add of `kind` seated at `at` on `design`'s ring, `normal` the surface's there and `band` the surface parts are seated on, waiting for its size; a plain ring's first part takes id 2, leaving 1 to its shank.
-/// The seat lands on the ring point `snap` gives for where it would sit, as a click on the desktop does, and keeps the pressed point where it gives none.
+/// The add of `kind` seated on `design`'s ring at the point `snap` gives for `at`, else at `at`, waiting for its size; `normal` is the surface's there, `band` the surface parts sit on, and a plain ring's first part takes id 2.
 pub fn start(design: &RingDesign, kind: Primitive, at: [f64; 3], normal: [f64; 3], band: Option<&BandSurface>, snap: &dyn Fn(RingPoint) -> Option<SnapHit>) -> Result<AddPrimitiveCmd, String> {
     let empty = design.cad.as_ref().is_none_or(|d| d.features.is_empty());
     let id = if empty { 2 } else { crate::touch::parts::fresh_ids(design)() };

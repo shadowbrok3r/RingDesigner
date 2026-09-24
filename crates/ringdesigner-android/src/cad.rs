@@ -43,7 +43,7 @@ pub fn keypad(ctx: &egui::Context) -> bool {
     crate::keypad::fields(ctx, &[command::fields_area(), sketch::fields_area()])
 }
 
-/// The stamp window's stamp once the design's stamps go from `before` to `after`, found by what it is: an Undo or Redo keeps the window on its stamp, or closes it when the stamp is gone.
+/// The stamp window's stamp once the stamps go from `before` to `after`: the same stamp found again, `None` once it is gone.
 pub fn stamp_after(window: Option<usize>, before: &[ringdesign_core::setting::Stamp], after: &[ringdesign_core::setting::Stamp]) -> Option<usize> {
     window.and_then(|k| ringdesign_workbench::viewport::made::follow(before, after, k))
 }

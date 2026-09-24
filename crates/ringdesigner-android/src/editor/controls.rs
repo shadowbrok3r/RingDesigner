@@ -105,7 +105,7 @@ pub fn field(
                 if response.clicked() {
                     *active = label.into();
                 }
-                let value_response = crate::keypad::number(ui.add_sized(
+                let value_response = ui.add_sized(
                     [86.0, 32.0],
                     egui::DragValue::new(value)
                         .range(range.clone())
@@ -113,7 +113,7 @@ pub fn field(
                         .speed(if unit.is_empty() { 0.01 } else { 0.02 })
                         .max_decimals(2)
                         .suffix(unit),
-                ));
+                );
                 super::layout::record(ui, format!("value/{label}"), value_response.rect);
                 if value_response.has_focus() {
                     value_response.scroll_to_me(Some(egui::Align::Center));
