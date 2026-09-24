@@ -2048,7 +2048,7 @@ pub fn turns_in_plane(design: &RingDesign) -> bool {
     in_document || design.graph.as_ref().is_some_and(turns_in_plane_json)
 }
 /// Whether `v` holds a revolution read in its plane anywhere: an object keyed `Revolve` whose `in_plane` is true.
-fn turns_in_plane_json(v: &serde_json::Value) -> bool {
+pub fn turns_in_plane_json(v: &serde_json::Value) -> bool {
     match v {
         serde_json::Value::Object(map) => {
             map.get("Revolve").and_then(|r| r.get("in_plane")).and_then(serde_json::Value::as_bool) == Some(true) || map.values().any(turns_in_plane_json)
