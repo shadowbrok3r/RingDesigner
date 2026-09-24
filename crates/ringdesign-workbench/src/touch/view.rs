@@ -71,9 +71,10 @@ fn item_box(built: &BuildResult, design: &RingDesign, item: &Sel) -> Option<((Ve
             let c = built.parts.evaluated.as_ref()?.components.iter().find(|c| c.id == *id)?;
             Some((c.mesh.bounds()?, feature_name(*id, design, Some(built))))
         }
-        Sel::Seat(path) => {
+        Sel::Seat { path, station } => {
             let solids = &built.solids;
-            let b = fused(&|o| solids.stone_of(o).is_some_and(|s| solids.paths[s] == *path))?;
+            let stations = ringdesign_core::interaction::pick::seat_stations(&solids.paths);
+            let b = fused(&|o| solids.stone_of(o).is_some_and(|s| solids.paths[s] == *path && stations[s] == *station))?;
             Some((b, "the seat".into()))
         }
         Sel::Stamp(index) => {
