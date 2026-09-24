@@ -84,6 +84,28 @@ pub fn edit(design: &mut RingDesign, index: usize, edit: &StampEdit) -> Result<S
     })
 }
 
+/// Where stamp `index` of `before` stands in `after`, found by what it is: unchanged in place; else the stamp equal to it,
+/// equals told apart by their order; else in place when the list kept its length and the stamp there its name or its
+/// outline, which is an edit of it; else the one stamp of its name and outline. `None` when it is gone.
+pub fn follow(before: &[Stamp], after: &[Stamp], index: usize) -> Option<usize> {
+    let stamp = before.get(index)?;
+    if after.get(index) == Some(stamp) {
+        return Some(index);
+    }
+    let rank = before[..index].iter().filter(|s| *s == stamp).count();
+    if let Some(i) = after.iter().enumerate().filter(|(_, s)| *s == stamp).map(|(i, _)| i).nth(rank) {
+        return Some(i);
+    }
+    if before.len() == after.len() && (after[index].name == stamp.name || after[index].outline == stamp.outline) {
+        return Some(index);
+    }
+    let mut alike = after.iter().enumerate().filter(|(_, s)| s.name == stamp.name && s.outline == stamp.outline).map(|(i, _)| i);
+    match (alike.next(), alike.next()) {
+        (Some(i), None) => Some(i),
+        _ => None,
+    }
+}
+
 /// What the stamp inspector did this frame.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Inspected {
@@ -147,7 +169,7 @@ mod tests {
     fn a_seat_offers_its_layer_and_the_switches_ticked_as_they_stand() {
         let d = design();
         let sel = Selection::default();
-        let under = pick(Entity::Seat { path: vec![0] });
+        let under = pick(Entity::Seat { path: vec![0], station: 0 });
         let items = context_items_in(&sel, Some(&under), &d, Switches { live_cuts: true, show_cutters: false });
         assert_eq!(crate::viewport::heading(&sel, Some(&under), &d).as_deref(), Some("Claw head on Centre"));
         assert_eq!(
@@ -189,6 +211,40 @@ mod tests {
         d.graph = Some(serde_json::json!({}));
         let driven = context_items_in(&sel, Some(&under), &d, Switches::default());
         assert!(driven[..6].iter().all(|i| !i.enabled && i.hint == DRIVEN));
+    }
+
+    #[test]
+    fn a_stamp_is_followed_across_an_undo_by_what_it_is_and_let_go_when_gone() {
+        let (moon, star, sun) = (disc("Moon"), disc("Star"), disc("Sun"));
+        let all = vec![moon.clone(), star.clone(), sun.clone()];
+        let less = vec![moon.clone(), sun.clone()];
+        // A deletion undone: each stamp back to its own place.
+        assert_eq!((follow(&less, &all, 0), follow(&less, &all, 1)), (Some(0), Some(2)));
+        // Redone: the deleted one is gone and the one after it moves down.
+        assert_eq!((follow(&all, &less, 1), follow(&all, &less, 2)), (None, Some(1)));
+        // An edit of the stamp itself undone keeps its place, moved or renamed.
+        let mut moved = all.clone();
+        moved[1].theta_deg += 20.0;
+        let mut renamed = all.clone();
+        renamed[1].name = "Venus".into();
+        assert_eq!((follow(&moved, &all, 1), follow(&renamed, &all, 1)), (Some(1), Some(1)));
+        // Another design of the same length names none of them.
+        let other: Vec<Stamp> = ["A", "B", "C"].iter().map(|n| Stamp { outline: disc(n).outline[..6].to_vec(), ..disc(n) }).collect();
+        assert_eq!(follow(&all, &other, 1), None);
+        // Twins keep their order, and a place past the end is nothing.
+        let twins = vec![moon.clone(), moon.clone(), star.clone()];
+        assert_eq!((follow(&twins, &twins, 1), follow(&twins, &[moon.clone(), star.clone()], 1)), (Some(1), Some(0)));
+        assert_eq!(follow(&all, &all, 7), None);
+        // The selection follows too: a stamp gone is let go, one moved is chosen where it went, and a hover on a stamp is let go.
+        let mut s = Selection::default();
+        s.click(Some(crate::viewport::Sel::Stamp(2)), crate::viewport::Mods::default());
+        s.click(Some(crate::viewport::Sel::Stamp(1)), crate::viewport::Mods { shift: true, ..Default::default() });
+        s.click(Some(crate::viewport::Sel::Part(4)), crate::viewport::Mods { shift: true, ..Default::default() });
+        s.hovered(vec![pick(Entity::Stamp { index: 2 })]);
+        s.under = Some(pick(Entity::Stamp { index: 1 }));
+        s.follow_stamps(&all, &less);
+        assert_eq!(s.items, [crate::viewport::Sel::Stamp(1), crate::viewport::Sel::Part(4)]);
+        assert!(s.hover.is_none() && s.stack().is_empty() && s.under.is_none());
     }
 
     #[test]

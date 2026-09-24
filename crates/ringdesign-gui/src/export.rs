@@ -207,23 +207,59 @@ pub fn export_step(app: &mut RingDesignerApp) {
     export_step_to(app, path);
 }
 
-/// The whole ring as STEP at `path`, built and written off the UI thread.
+/// The whole ring as STEP at `path`, built and written off the UI thread, its band's facets held to
+/// [`step::BAND_TOLERANCE_MM`](ringdesign_core::cad::step::BAND_TOLERANCE_MM) of every vertex of the export build.
 pub(crate) fn export_step_to(app: &mut RingDesignerApp, path: PathBuf) {
+    use ringdesign_core::cad::step;
     let job = ExportJob::snapshot(app);
     spawn_export(app, "STEP", move || {
-        match ringdesign_core::cad::step::ring(&job.design, &job.lib, job.params, &job.design.name) {
-            Ok(text) => {
+        match step::ring_sized(&job.design, &job.lib, job.params, step::BAND_TOLERANCE_MM, &job.design.name) {
+            Ok(sized) => {
+                let text = &sized.text;
                 let exact = text.matches("=MANIFOLD_SOLID_BREP(").count() + text.matches("=BREP_WITH_VOIDS(").count();
                 let faceted = text.matches("=FACETED_BREP(").count();
                 let nominal = if job.shrink.is_some() { " • nominal size, STEP is never scaled for shrink" } else { "" };
                 match library::write_atomic(&path, text.as_bytes()) {
-                    Ok(()) => format!("Wrote {} • {exact} exact and {faceted} faceted solid{} • {:.1} KB{nominal}", path.display(), if exact + faceted == 1 { "" } else { "s" }, text.len() as f64 / 1024.0),
+                    Ok(()) => format!(
+                        "Wrote {} • {exact} exact and {faceted} faceted solid{} • {} • {}{nominal}",
+                        path.display(),
+                        if exact + faceted == 1 { "" } else { "s" },
+                        size_words(text.len()),
+                        band_words(sized.band.as_ref())
+                    ),
                     Err(e) => format!("STEP export failed: {e}"),
                 }
             }
             Err(e) => format!("STEP export failed: {e:#}"),
         }
     });
+}
+
+/// A file's size in the unit that reads.
+pub(crate) fn size_words(bytes: usize) -> String {
+    if bytes >= 1 << 20 { format!("{:.1} MB", bytes as f64 / 1048576.0) } else { format!("{:.1} KB", bytes as f64 / 1024.0) }
+}
+
+/// `n` with its thousands grouped.
+pub(crate) fn grouped(n: usize) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// What a STEP file's band holds: its facets, and how near every vertex of the export build stands to them.
+fn band_words(band: Option<&ringdesign_core::cad::step::BandFacets>) -> String {
+    match band {
+        Some(b) if b.written < b.built => format!("band {} facets from {}, every vertex of the export build within {:.3} mm", grouped(b.written), grouped(b.built), b.deviation_mm),
+        Some(b) => format!("band {} facets as the export build made them", grouped(b.written)),
+        None => "no band: every part as it was built".into(),
+    }
 }
 
 pub fn export_3mf(app: &mut RingDesignerApp) {
@@ -486,7 +522,9 @@ pub fn open_design_path(app: &mut RingDesignerApp, path: &std::path::Path) {
         Ok(d) => {
             d.unpack_embedded(app.library_mut());
             d.bake_all(app.library_mut());
+            let named = app.stamps_named();
             app.design = d;
+            app.follow_stamps(named);
             // A different file is a different session; the old timeline does
             // not describe it.
             app.history.reset(&app.design.clone());
@@ -513,7 +551,9 @@ fn adopt_template(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign
     design.unpack_embedded(app.library_mut());
     design.bake_all(app.library_mut());
     app.document_path = None;
+    let named = app.stamps_named();
     app.design = design;
+    app.follow_stamps(named);
     app.history.reset(&app.design.clone());
     app.selected_layer = None;
     app.fit_pending = true;
@@ -535,13 +575,32 @@ pub fn import_part(app: &mut RingDesignerApp) {
     import_part_path(app, &path);
 }
 
-/// The part `path` holds, joined at the top of the ring and chosen, one History entry; OpenCascade reads a STEP file off the UI thread.
+/// Part files up to this many bytes are read on the UI thread: measured in release at 13 ms or less in every format, inside a frame.
+pub(crate) const SYNC_IMPORT_BYTES: u64 = 1 << 20;
+
+/// What reads a part file, by its extension.
+fn reader_of(path: &std::path::Path) -> &'static str {
+    match path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).as_deref() {
+        Some("stl") => "the STL reader",
+        Some("obj") => "the OBJ reader",
+        _ => "the STEP reader",
+    }
+}
+
+/// The part `path` holds, joined at the top of the ring and chosen, one History entry; a file over [`SYNC_IMPORT_BYTES`], and any STEP OpenCascade reads, is read off the UI thread.
 pub(crate) fn import_part_path(app: &mut RingDesignerApp, path: &std::path::Path) {
+    let file = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
     #[cfg(feature = "kernel-occt")]
     if ringdesign_mcp::import::is_step(path) {
-        let file = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
         let path = path.to_path_buf();
         app.start_import(file, "OpenCascade", move |cancel| crate::occt::import_step(&path, cancel));
+        return;
+    }
+    // Only a file known to be over the threshold goes to the slot.
+    if std::fs::metadata(path).is_ok_and(|m| m.len() > SYNC_IMPORT_BYTES) {
+        let reader = reader_of(path);
+        let path = path.to_path_buf();
+        app.start_import(file, reader, move |_| ringdesign_mcp::import::part_file(&path).map_err(|e| format!("{e:#}")));
         return;
     }
     match ringdesign_mcp::import::part_file(path) {

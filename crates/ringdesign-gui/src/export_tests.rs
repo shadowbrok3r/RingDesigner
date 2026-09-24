@@ -141,9 +141,25 @@ fn export_step_writes_the_ring_off_the_ui_thread_and_it_imports_back() {
     assert!(status.starts_with(&format!("Wrote {} • 1 exact and 1 faceted solids", step.display())), "{status}");
     let solids = ringdesign_core::cad::step::read_solids(&std::fs::read_to_string(&step).unwrap()).unwrap();
     assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Post", false), ("Court", true)]);
-    // Imported back, the faceted band and the exact post come in together as one stored part.
+    // The line says the file's size, the band's facets and how near every vertex of the export build stands to them.
+    let band = solids[1].mesh.as_ref().unwrap();
+    let size = crate::export::size_words(std::fs::metadata(&step).unwrap().len() as usize);
+    assert!(status.contains(&format!(" • {size} • band {} facets from ", crate::export::grouped(band.faces.len()))), "{status}");
+    let within: f64 = status.split("every vertex of the export build within ").nth(1).and_then(|s| s.strip_suffix(" mm")).and_then(|s| s.parse().ok()).unwrap_or_else(|| panic!("{status}"));
+    assert!(within <= ringdesign_core::cad::step::BAND_TOLERANCE_MM, "{status}");
+    let built = ringdesign_core::cad::step::read_solids(&ringdesign_core::cad::step::ring(&d, &h.state().lib, h.state().export_params, "Court").unwrap()).unwrap();
+    let as_built = built[1].mesh.as_ref().unwrap();
+    assert!(band.faces.len() * 2 < as_built.faces.len() && band.validate().watertight, "{} of {} facets", band.faces.len(), as_built.faces.len());
+    assert!((band.volume_mm3() / as_built.volume_mm3() - 1.0).abs() < 0.01, "{} against {}", band.volume_mm3(), as_built.volume_mm3());
+    // Imported back, the faceted band and the exact post come in together as one stored part, from the slot when the file is big.
     let start = h.state().history.present();
     crate::export::import_part_path(h.state_mut(), &step);
+    let waited = std::time::Instant::now();
+    while h.state().importing.is_some() {
+        h.run_steps(1);
+        assert!(waited.elapsed() < std::time::Duration::from_secs(60), "the STEP never landed");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
     assert_eq!(h.state().history.present(), start + 1, "{}", h.state().status);
     assert!(h.state().status.ends_with("Imported court at the top of the ring, joined: G moves it, R turns it"), "{}", h.state().status);
     let d = doc(&h);
@@ -154,5 +170,116 @@ fn export_step_writes_the_ring_off_the_ui_thread_and_it_imports_back() {
     let whole: f64 = meshed.iter().map(|m| m.mesh.as_ref().unwrap().volume_mm3()).sum();
     let packed = mesh.made().unwrap().solid().volume();
     assert!((packed - whole).abs() < 5e-3 * whole, "{packed} against {whole}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A closed post of radius `r` and height `h` from `z0`, `around` sides and `rows` rings of them up its wall, wound outward.
+fn post_grid(r: f64, h: f64, z0: f64, around: u32, rows: u32) -> Mesh {
+    let at = |k: u32, j: u32| {
+        let a = f64::from(k) * std::f64::consts::TAU / f64::from(around);
+        Vec3((r * a.cos()) as f32, (r * a.sin()) as f32, (z0 + h * f64::from(j) / f64::from(rows)) as f32)
+    };
+    let mut m = Mesh { vertices: vec![Vec3(0.0, 0.0, z0 as f32), Vec3(0.0, 0.0, (z0 + h) as f32)], ..Default::default() };
+    for j in 0..=rows {
+        for k in 0..around {
+            m.vertices.push(at(k, j));
+        }
+    }
+    let v = |k: u32, j: u32| 2 + j * around + k % around;
+    for k in 0..around {
+        m.faces.push([0, v(k + 1, 0), v(k, 0)]);
+        m.faces.push([1, v(k, rows), v(k + 1, rows)]);
+        for j in 0..rows {
+            m.faces.push([v(k, j), v(k + 1, j), v(k + 1, j + 1)]);
+            m.faces.push([v(k, j), v(k + 1, j + 1), v(k, j + 1)]);
+        }
+    }
+    m
+}
+
+#[test]
+fn a_part_file_over_a_megabyte_is_read_off_the_ui_thread_and_one_under_it_on_the_spot() {
+    use egui_kittest::kittest::Queryable;
+    let dir = scratch("big-import");
+    let mut h = harness();
+    showing(&mut h, court());
+    let start = h.state().history.present();
+    // 102,912 facets: a 5 MB STL, where a megabyte reads in 13 ms or less in release in any format.
+    let post = post_grid(0.8, 2.0, -0.02, 256, 200);
+    let big = dir.join("post.stl");
+    ringdesign_core::stl::write_stl(&big, &post, "post").unwrap();
+    let bytes = std::fs::metadata(&big).unwrap().len();
+    assert!(bytes > 4 * crate::export::SYNC_IMPORT_BYTES, "{bytes}");
+    let asked = std::time::Instant::now();
+    crate::export::import_part_path(h.state_mut(), &big);
+    // It takes the slot at once: nothing is imported yet, and the status line says what reads what.
+    assert!(asked.elapsed() < std::time::Duration::from_millis(100), "asking returns at once: {:?}", asked.elapsed());
+    assert_eq!(h.state().importing.as_ref().map(|p| (p.file.as_str(), p.reader)), Some(("post.stl", "the STL reader")));
+    assert!(h.state().status.starts_with("Reading post.stl in the STL reader… "), "{}", h.state().status);
+    assert_eq!(h.state().history.present(), start);
+    let (mut frames, mut plate) = (0, false);
+    while h.state().importing.is_some() {
+        h.run_steps(1);
+        frames += 1;
+        plate |= h.state().importing.is_some() && h.query_by_label("Cancel import").is_some();
+        assert!(asked.elapsed() < std::time::Duration::from_secs(60), "the part never landed");
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(plate && frames > 1, "the window drew {frames} frames with the plate up while it read");
+    // It lands joined at the top and chosen, one undo step.
+    let d = doc(&h);
+    assert_eq!(d.features.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["Procedural shank", "post"]);
+    assert_eq!(h.state().history.present(), start + 1);
+    assert_eq!(h.state().selection.items, vec![Sel::Part(d.features[1].id)]);
+    assert!(h.state().status.starts_with("Imported post at the top of the ring, joined"), "{}", h.state().status);
+    // Cancelled, whatever the reader finds is dropped: no undo step, no part.
+    let again = dir.join("again.stl");
+    std::fs::copy(&big, &again).unwrap();
+    crate::export::import_part_path(h.state_mut(), &again);
+    h.run_steps(1);
+    h.get_by_label("Cancel import").click();
+    h.run_steps(2);
+    assert!(h.state().importing.is_none());
+    assert_eq!(h.state().status, "Stopped reading again.stl: nothing was imported");
+    std::thread::sleep(std::time::Duration::from_millis(1500));
+    h.run_steps(3);
+    assert_eq!((h.state().history.present(), doc(&h).features.len()), (start + 1, 2));
+    // A file under the megabyte lands on the spot, as it always did.
+    let small = dir.join("small.stl");
+    ringdesign_core::stl::write_stl(&small, &cylinder_mesh(0.5, 1.0, -0.02, 32), "small").unwrap();
+    crate::export::import_part_path(h.state_mut(), &small);
+    assert!(h.state().importing.is_none());
+    assert_eq!((h.state().history.present(), doc(&h).features.len()), (start + 2, 3));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Each reader's time on part files of rising size: `cargo test --release -p ringdesign-gui -- --ignored import_read_times --nocapture`.
+#[test]
+#[ignore]
+fn import_read_times() {
+    let dir = scratch("read-times");
+    let time = |path: &std::path::Path| {
+        let bytes = std::fs::metadata(path).unwrap().len() as f64 / 1048576.0;
+        let started = std::time::Instant::now();
+        let read = ringdesign_mcp::import::part_file(path);
+        let ms = started.elapsed().as_secs_f64() * 1e3;
+        assert!(read.is_ok(), "{}: {:?}", path.display(), read.err());
+        eprintln!("{}: {bytes:.2} MB in {ms:.1} ms, {:.1} ms a MB", path.file_name().unwrap().to_string_lossy(), ms / bytes);
+    };
+    let lib = ringdesign_core::AlphaLibrary::builtin();
+    for (t, p) in [(48, 32), (96, 48), (192, 96), (384, 144), (512, 192), (1024, 320)] {
+        let params = BuildParams { theta_steps: t, profile_steps: p, refine: None, ..Default::default() };
+        let ring = ringdesign_core::mesh::build(&court(), &lib, params).mesh;
+        let stl = dir.join(format!("court-{t}x{p}.stl"));
+        ringdesign_core::stl::write_stl(&stl, &ring, "court").unwrap();
+        time(&stl);
+        let obj = dir.join(format!("court-{t}x{p}.obj"));
+        ringdesign_core::stl::write_obj(&obj, &ring, "court").unwrap();
+        time(&obj);
+        let text = ringdesign_core::cad::step::ring(&court(), &lib, params, "Court").unwrap();
+        let step = dir.join(format!("court-{t}x{p}.step"));
+        std::fs::write(&step, text).unwrap();
+        time(&step);
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }

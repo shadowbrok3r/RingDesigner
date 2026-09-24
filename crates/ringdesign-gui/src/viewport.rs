@@ -473,7 +473,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         let under = response.interact_pointer_pos().and_then(|pos| {
             let ray = |p: egui::Pos2| camera.ray(rect, p);
             match (&app.pick_scene, &app.build) {
-                (Some(scene), _) => ringdesign_workbench::hover::pick_at(scene, pos, &ray, APERTURE_PX, app.selection.filter).into_iter().next(),
+                (Some(scene), _) => app.picks_now(ringdesign_workbench::hover::pick_at(scene, pos, &ray, APERTURE_PX, app.selection.filter)).into_iter().next(),
                 (None, Some(b)) => {
                     let (origin, direction) = ray(pos);
                     ringdesign_core::interaction::picking::raycast(&b.mesh, origin, direction).map(|(face, point)| ringdesign_core::interaction::pick::Pick {
@@ -663,7 +663,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         app.hovered_node = None;
         // The scene answers first; a band under the pointer falls through to the layer caption and
         // the node highlight it always had.
-        let picks = app.pick_scene.clone().and_then(|scene| ringdesign_workbench::hover::picks(ui, rect, &response, &scene, |p| camera.ray(rect, p), APERTURE_PX, app.selection.filter));
+        let picks = app.pick_scene.clone().and_then(|scene| ringdesign_workbench::hover::picks(ui, rect, &response, &scene, |p| camera.ray(rect, p), APERTURE_PX, app.selection.filter)).map(|p| app.picks_now(p));
         let on_band = picks.as_ref().is_none_or(|p| p.first().is_none_or(|p| p.entity == ringdesign_core::interaction::pick::Entity::Band));
         app.selection.hovered(picks.unwrap_or_default());
         if on_band {
@@ -1127,7 +1127,7 @@ fn select_click(app: &mut RingDesignerApp, camera: crate::camera::OrbitCamera, r
         return;
     };
     let ray = |p: egui::Pos2| camera.ray(rect, p);
-    let picks = ringdesign_workbench::hover::pick_at(&scene, pos, &ray, APERTURE_PX, app.selection.filter);
+    let picks = app.picks_now(ringdesign_workbench::hover::pick_at(&scene, pos, &ray, APERTURE_PX, app.selection.filter));
     app.selection.hovered(picks);
     let (origin, direction) = ray(pos);
     let chart = app.build.as_ref().and_then(|b| ringdesign_core::interaction::picking::hit(&app.design, &app.lib, &b.mesh, origin, direction)).map(|h| (h.theta_deg, h.v_mm));
@@ -1301,8 +1301,8 @@ fn stamp_inspector(app: &mut RingDesignerApp, ui: &egui::Ui) {
         .frame(egui::Frame::window(ui.style()).fill(theme::FLOAT))
         .open(&mut open)
         .default_width(220.0)
-        .pivot(egui::Align2::RIGHT_TOP)
-        .default_pos(ui.max_rect().right_top() + egui::vec2(-12.0, 44.0))
+        .pivot(egui::Align2::RIGHT_BOTTOM)
+        .default_pos(ui.max_rect().right_bottom() + egui::vec2(-12.0, -30.0))
         .constrain_to(ui.ctx().content_rect())
         .resizable(false)
         .show(ui.ctx(), |ui| {

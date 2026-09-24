@@ -640,11 +640,11 @@ fn a_claw_head_on_a_seat_and_a_struck_stamp_answer_the_pointer_as_themselves() {
     h.hover_at(claw);
     h.run_steps(3);
     assert!(viewport_label(&h).contains("hovering claw head on Centre"), "{}", viewport_label(&h));
-    assert_eq!(h.state().selection.hover.as_ref().map(|p| p.entity.clone()), Some(Entity::Seat { path: vec![0] }));
+    assert_eq!(h.state().selection.hover.as_ref().map(|p| p.entity.clone()), Some(Entity::Seat { path: vec![0], station: 0 }));
     assert_eq!(lit(&h, 2.0), head_vertices, "the hover lights every vertex the head's solid made");
     // A click chooses it and names it.
     click_at(&mut h, claw, egui::PointerButton::Primary, egui::Modifiers::NONE);
-    assert_eq!(h.state().selection.items, [Sel::Seat(vec![0])]);
+    assert_eq!(h.state().selection.items, [Sel::Seat { path: vec![0], station: 0 }]);
     assert_eq!(h.state().status, "claw head on Centre");
     // Its menu: its layer and the view's switches, ticked as they stand.
     click_at(&mut h, claw, egui::PointerButton::Secondary, egui::Modifiers::NONE);
@@ -822,5 +822,157 @@ fn a_slow_part_import_keeps_the_window_live_says_so_can_be_cancelled_and_lands_a
     }
     assert!(h.state().status.contains("missing.stl"), "{}", h.state().status);
     assert_eq!(h.state().history.present(), start + 1);
+}
+
+/// A 5 × 2.2 mm low dome with three discs struck round the palm: Moon at 240°, Disc at 270°, Star at 300°.
+fn three_stamps() -> ringdesign_core::RingDesign {
+    let mut d = claw_seat_and_stamp();
+    d.layers.layers.clear();
+    let disc = d.stamps[0].clone();
+    d.stamps = [("Moon", 240.0), ("Disc", 270.0), ("Star", 300.0)].into_iter().map(|(name, theta_deg)| ringdesign_core::setting::Stamp { name: name.into(), theta_deg, ..disc.clone() }).collect();
+    d
+}
+
+#[test]
+fn a_chosen_stamp_and_its_inspector_follow_undo_and_redo_by_what_the_stamp_is() {
+    use ringdesign_core::interaction::pick::Entity;
+    use ringdesign_workbench::viewport::{Mods, Sel, StampEdit};
+    let mut h = harness();
+    let pane = on_one_ring_view(&mut h, three_stamps());
+    let names = |h: &Harness<'static, RingDesignerApp>| h.state().design.stamps.iter().map(|s| s.name.clone()).collect::<Vec<_>>();
+    let chosen = |h: &Harness<'static, RingDesignerApp>| (h.state().selection.items.clone(), h.state().stamp_inspector);
+    // Star chosen and in its inspector, Moon deleted: Star moves down one, inspector and all.
+    {
+        let app = h.state_mut();
+        app.selection.click(Some(Sel::Stamp(2)), Mods::default());
+        app.stamp_inspector = Some(2);
+        crate::viewport::stamp_edit(app, 0, &StampEdit::Delete);
+    }
+    assert_eq!((names(&h), chosen(&h)), (vec!["Disc".to_string(), "Star".into()], (vec![Sel::Stamp(1)], Some(1))));
+    // Before the ring is built again the scene on screen still numbers the three: over Star it names Star where Star now is, over Moon nothing.
+    let rect = face(&mut h, pane, -std::f32::consts::FRAC_PI_2);
+    let over = |h: &Harness<'static, RingDesignerApp>, theta_deg: f64| {
+        let app = h.state();
+        let r = app.design.inner_radius_mm() + app.design.profile.thickness_mm + 0.4;
+        let (s, c) = theta_deg.to_radians().sin_cos();
+        app.panes[pane].camera.projector(rect).at([(r * c) as f32, (r * s) as f32, 0.0])
+    };
+    assert_eq!(h.state().pick_stamps.len(), 3, "the scene is the one built before the deletion");
+    h.hover_at(over(&h, 300.0));
+    h.run_steps(3);
+    assert_eq!(h.state().selection.hover.as_ref().map(|p| p.entity.clone()), Some(Entity::Stamp { index: 1 }));
+    assert!(viewport_label(&h).contains("hovering stamp \"Star\""), "{}", viewport_label(&h));
+    h.hover_at(over(&h, 240.0));
+    h.run_steps(3);
+    assert!(!matches!(h.state().selection.hover.as_ref().map(|p| &p.entity), Some(Entity::Stamp { .. })), "Moon is gone: {:?}", h.state().selection.hover);
+    // Undone, Moon is back before it and Star is still the one chosen and inspected.
+    h.state_mut().undo();
+    h.run_steps(2);
+    assert_eq!((names(&h), chosen(&h)), (vec!["Moon".to_string(), "Disc".into(), "Star".into()], (vec![Sel::Stamp(2)], Some(2))), "Star, not Disc");
+    assert_eq!(h.get_by_label("Stamp name").value().as_deref(), Some("Star"), "the inspector shows Star");
+    // Redone, both follow it back down; Moon chosen where the undo brings it back is let go when the redo takes it.
+    h.state_mut().redo();
+    assert_eq!(chosen(&h), (vec![Sel::Stamp(1)], Some(1)));
+    h.state_mut().undo();
+    {
+        let app = h.state_mut();
+        app.selection.click(Some(Sel::Stamp(0)), Mods::default());
+        app.stamp_inspector = Some(0);
+    }
+    h.state_mut().redo();
+    h.run_steps(2);
+    assert_eq!(chosen(&h), (vec![], None), "a stamp gone is let go");
+    // An edit of the stamp itself undone keeps it chosen in its place.
+    h.state_mut().undo();
+    {
+        let app = h.state_mut();
+        app.selection.click(Some(Sel::Stamp(2)), Mods::default());
+        app.stamp_inspector = Some(2);
+        app.design.stamps[2].theta_deg = 310.0;
+        app.design.stamps[2].name = "Evening star".into();
+        let design = app.design.clone();
+        app.history.commit_as(&design, "Edit stamp \"Evening star\"");
+    }
+    h.state_mut().undo();
+    h.run_steps(2);
+    assert_eq!((h.state().design.stamps[2].theta_deg, chosen(&h)), (300.0, (vec![Sel::Stamp(2)], Some(2))));
+    // The Delete key after the undo takes the stamp chosen, not the one standing at its old place.
+    h.key_press(egui::Key::Delete);
+    h.run_steps(3);
+    assert_eq!(names(&h), ["Moon", "Disc"]);
+    assert_eq!(h.state().history.undo_label(), Some("Delete stamp \"Star\""));
+}
+
+#[test]
+fn the_stamp_inspector_and_the_tool_inspector_open_apart() {
+    let mut h = harness();
+    on_one_ring_view(&mut h, three_stamps());
+    h.state_mut().visual.select(ringdesign_workbench::visual::Tool::Measure);
+    h.state_mut().stamp_inspector = Some(1);
+    h.run_steps(3);
+    let view = h.query_all_by_label_contains("Ring viewport").next().expect("the Ring viewport").rect();
+    let area = |id: &str| h.ctx.memory(|m| m.area_rect(egui::Id::new(id))).unwrap_or_else(|| panic!("{id} is open"));
+    let (tool, stamp) = (area("direct-viewport-inspector"), area("stamp-inspector"));
+    assert!(!tool.intersects(stamp), "{tool:?} and {stamp:?}");
+    for r in [tool, stamp] {
+        assert!(view.contains_rect(r), "{r:?} in {view:?}");
+    }
+    assert!(stamp.right() >= view.right() - 30.0 && stamp.bottom() >= view.bottom() - 60.0, "the stamp's at the lower right: {stamp:?} in {view:?}");
+}
+
+/// Six flush-cut stones in a run round a 5 × 2.2 mm low dome, on layer "Row".
+fn flush_row() -> ringdesign_core::RingDesign {
+    use ringdesign_core::field::{Layer, LayerEntry, SeatRunLayer};
+    let mut d = claw_seat_and_stamp();
+    d.layers.layers.clear();
+    d.stamps.clear();
+    let mut run = SeatRunLayer { count: 6, ..SeatRunLayer::default() };
+    run.seat.v_mm = d.field_context().crest_v_mm;
+    run.seat.solid = ringdesign_core::setting::SolidKind::Flush;
+    d.layers.layers.push(LayerEntry::new("Row", Layer::SeatRun(run)));
+    d
+}
+
+#[test]
+fn each_station_of_a_seat_run_lights_and_chooses_alone_and_its_menu_names_the_runs_layer() {
+    use ringdesign_core::interaction::pick::Entity;
+    use ringdesign_workbench::viewport::{Sel, tint};
+    let mut h = harness();
+    let pane = on_one_ring_view(&mut h, flush_row());
+    h.state_mut().selection.filter.stones = false;
+    let build = h.state().build.clone().unwrap();
+    assert_eq!(build.solids.paths, vec![vec![0usize]; 6], "{:?}", build.solids.notes);
+    let own = |i: usize| build.mesh.origin.iter().filter(|o| build.solids.stone_of(**o) == Some(i)).count();
+    let lit = |h: &Harness<'static, RingDesignerApp>, weight: f32| tint(&h.state().selection, h.state().build.as_ref().unwrap()).iter().filter(|w| **w == weight).count();
+    // Down onto the top: the station nearest the eye, then its neighbour round the ring.
+    let rect = face(&mut h, pane, std::f32::consts::FRAC_PI_2);
+    let frames = ringdesign_core::stones::stone_frames(&h.state().design);
+    let mut by_height: Vec<usize> = (0..frames.len()).collect();
+    by_height.sort_by(|a, b| frames[*b].1.girdle[1].total_cmp(&frames[*a].1.girdle[1]));
+    let at = |h: &Harness<'static, RingDesignerApp>, k: usize| h.state().panes[pane].camera.projector(rect).at(frames[k].1.girdle.map(|v| v as f32));
+    let top = by_height[0];
+    h.hover_at(at(&h, top));
+    h.run_steps(3);
+    assert_eq!(h.state().selection.hover.as_ref().map(|p| p.entity.clone()), Some(Entity::Seat { path: vec![0], station: top as u32 }));
+    assert_eq!(lit(&h, 2.0), own(top), "the hover lights its own station's bur, not the run's");
+    assert!(own(top) * 5 < (0..6).map(own).sum::<usize>());
+    assert!(viewport_label(&h).contains(&format!("hovering flush cut {} on Row", top + 1)), "{}", viewport_label(&h));
+    let spot = at(&h, top);
+    click_at(&mut h, spot, egui::PointerButton::Primary, egui::Modifiers::NONE);
+    assert_eq!(h.state().selection.items, [Sel::Seat { path: vec![0], station: top as u32 }]);
+    assert_eq!(h.state().status, format!("flush cut {} on Row", top + 1));
+    // Its menu still chooses the run's layer.
+    click_at(&mut h, spot, egui::PointerButton::Secondary, egui::Modifiers::NONE);
+    assert!(h.query_by_label(&format!("Flush cut {} on Row", top + 1)).is_some(), "the menu names the station");
+    h.get_by_label("Select layer \"Row\"").click();
+    h.run_steps(3);
+    assert_eq!(h.state().selected_layer, Some(0));
+    assert_eq!(h.state().status, "Layer \"Row\" chosen in the Layers tool");
+    // The next station round the ring answers as itself.
+    let next = by_height[1];
+    h.hover_at(at(&h, next));
+    h.run_steps(3);
+    assert_eq!(h.state().selection.hover.as_ref().map(|p| p.entity.clone()), Some(Entity::Seat { path: vec![0], station: next as u32 }));
+    assert_eq!((lit(&h, 2.0), lit(&h, 1.0)), (own(next), own(top)), "the hovered station and the chosen one, each alone");
 }
 

@@ -9,6 +9,7 @@ use cadkernel::{
     space::Plane,
 };
 use std::collections::HashMap;
+mod decimate;
 mod lift;
 
 fn logical(v: bool) -> &'static str {
@@ -489,16 +490,49 @@ pub fn export_with(e: &Evaluated, name: &str, keep: &dyn Fn(&EvaluatedComponent)
 }
 /// The whole ring as STEP: kernel parts the band does not fuse as analytic solids, the band and every other part faceted.
 pub fn ring(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name: &str) -> Result<String> {
+    ring_built(design, lib, params, name, None).map(|w| w.text)
+}
+/// What a ring's STEP file holds beside its text.
+struct Written {
+    text: String,
+    /// Faceted triangles written.
+    facets: usize,
+    /// Metal the faceted solids enclose, mm³.
+    volume_mm3: f64,
+    /// Triangles of the band's faceted solid as written, with the seats, stamps and parts it carries.
+    band_facets: usize,
+    /// When the band's solid was collapsed: its triangles and vertices before, and the farthest of those vertices from it, mm.
+    collapsed: Option<(usize, usize, f64)>,
+}
+/// The band's solid collapsed to within `tolerance_mm` of every vertex it had, and what it was; `None` when no collapse held.
+fn collapsed(solid: &Mesh, tolerance_mm: f64) -> Option<(Mesh, (usize, usize, f64))> {
+    let out = decimate::decimated(solid, tolerance_mm)?;
+    let far = deviation_mm(solid, &out, DEVIATION_REACH_MM);
+    Some((out, (solid.faces.len(), solid.vertices.len(), far)))
+}
+/// [`ring`] with what it wrote faceted, the band's solid collapsed to within `collapse` mm of every vertex it had when asked.
+fn ring_built(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name: &str, collapse: Option<f64>) -> Result<Written> {
     let metal = |c: &EvaluatedComponent| !c.settings.reference;
+    let written = |text: String, faceted: &[Faceted], band_facets: usize, collapsed: Option<(usize, usize, f64)>| Written {
+        text,
+        facets: faceted.iter().map(|f| f.mesh.faces.len()).sum(),
+        volume_mm3: faceted.iter().map(|f| f.mesh.volume_mm3()).sum(),
+        band_facets,
+        collapsed,
+    };
     let Some(doc) = &design.cad else {
         let built = crate::mesh::try_build(design, lib, params)?;
         let none = Evaluated { components: Vec::new(), features: Vec::new(), band: None, planes: Vec::new() };
-        return export_with(&none, name, &metal, &[Faceted { name: name.to_string(), mesh: &built.mesh }]);
+        let small = collapse.and_then(|tol| collapsed(&built.mesh, tol));
+        let solid = small.as_ref().map_or(&built.mesh, |(m, _)| m);
+        let faceted = [Faceted { name: name.to_string(), mesh: solid }];
+        let text = export_with(&none, name, &metal, &faceted)?;
+        return Ok(written(text, &faceted, solid.faces.len(), small.as_ref().map(|(_, c)| *c)));
     };
     if doc.replaces_band() {
         let e = super::evaluate(design, lib, params)?;
         let made: Vec<Faceted> = e.components.iter().filter(|c| metal(c) && c.made.is_some()).map(|c| Faceted { name: c.name.clone(), mesh: &c.mesh }).collect();
-        return export_with(&e, name, &metal, &made);
+        return Ok(written(export_with(&e, name, &metal, &made)?, &made, 0, None));
     }
     // Kernel parts joined to the band are built beside it, so each stays its own analytic solid.
     let before = super::evaluate(design, lib, params)?;
@@ -511,8 +545,72 @@ pub fn ring(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name: 
     let e = built.parts.evaluated.as_ref().context("The ring's parts were not evaluated")?;
     let objects = crate::threemf::objects(&built, name);
     let made = |id: Id| e.components.iter().any(|c| c.id == id && c.made.is_some());
-    let faceted: Vec<Faceted> = objects.iter().filter(|o| o.feature.is_none_or(made)).map(|o| Faceted { name: o.name.clone(), mesh: o.mesh.as_ref() }).collect();
-    export_with(e, name, &|c| metal(c) && c.attach == Attach::Separate, &faceted)
+    // The band's own object, with its joined and cut parts, is the one no feature names.
+    let band = objects.iter().find(|o| o.feature.is_none());
+    let small = band.zip(collapse).and_then(|(o, tol)| collapsed(o.mesh.as_ref(), tol));
+    let faceted: Vec<Faceted> = objects
+        .iter()
+        .filter(|o| o.feature.is_none_or(made))
+        .map(|o| Faceted { name: o.name.clone(), mesh: match (&small, o.feature) { (Some((m, _)), None) => m, _ => o.mesh.as_ref() } })
+        .collect();
+    let band_facets = small.as_ref().map(|(m, _)| m.faces.len()).or(band.map(|o| o.mesh.faces.len())).unwrap_or(0);
+    let text = export_with(e, name, &|c| metal(c) && c.attach == Attach::Separate, &faceted)?;
+    Ok(written(text, &faceted, band_facets, small.as_ref().map(|(_, c)| *c)))
+}
+/// How near a STEP file's faceted band stands to every vertex of the export build, mm.
+pub const BAND_TOLERANCE_MM: f64 = 0.01;
+/// How far out a vertex's nearest facet is looked for, mm; one farther reads as this.
+const DEVIATION_REACH_MM: f64 = 1.0;
+/// How a sized STEP file's band stands to the build it came from.
+#[derive(Clone, Copy, Debug)]
+pub struct BandFacets {
+    /// The build the band comes from: the export build, less a refinement an imported base cannot take.
+    pub params: BuildParams,
+    /// Triangles of the band's solid as that build made it, with the seats, stamps and parts it carries.
+    pub built: usize,
+    /// Triangles of it written: collapsed to the tolerance, or as built when no collapse held.
+    pub written: usize,
+    /// The farthest any vertex of the built solid stands from the written one, mm.
+    pub deviation_mm: f64,
+    /// Vertices it was measured at.
+    pub samples: usize,
+}
+/// A ring written as STEP with its band's facets sized.
+pub struct Sized {
+    pub text: String,
+    /// How the band was sized; `None` for a ring of parts alone.
+    pub band: Option<BandFacets>,
+    /// Faceted triangles the file carries: the band with the parts joined to it, and every faceted part.
+    pub facets: usize,
+    /// Metal the faceted solids enclose, mm³.
+    pub faceted_volume_mm3: f64,
+}
+/// The farthest any vertex of `truth` stands from the faces of `mesh`, mm, looked for out to `reach`.
+fn deviation_mm(truth: &Mesh, mesh: &Mesh, reach: f64) -> f64 {
+    let bvh = crate::interaction::bvh::Bvh::build(mesh);
+    let far = |v: &crate::mesh::Vec3| {
+        let p = [v.0 as f64, v.1 as f64, v.2 as f64];
+        bvh.nearest(mesh, p, reach).map_or(reach, |(_, q)| crate::interaction::bvh::dist2(p, q).sqrt())
+    };
+    #[cfg(feature = "parallel")]
+    {
+        use rayon::prelude::*;
+        truth.vertices.par_iter().map(far).reduce(|| 0.0, f64::max)
+    }
+    #[cfg(not(feature = "parallel"))]
+    truth.vertices.iter().map(far).fold(0.0, f64::max)
+}
+/// [`ring`] at `export` with the band's solid collapsed while every vertex it had stays within `tolerance_mm` of what is
+/// written; an imported base, which cannot refine, at `export`'s sweep. A ring of parts alone is [`ring`] at `export`.
+pub fn ring_sized(design: &RingDesign, lib: &AlphaLibrary, export: BuildParams, tolerance_mm: f64, name: &str) -> Result<Sized> {
+    let params = if design.imported_base.is_some() { BuildParams { refine: None, ..export } } else { export };
+    let procedural = design.band_is_procedural();
+    let w = ring_built(design, lib, params, name, procedural.then_some(tolerance_mm))?;
+    let band = procedural.then(|| match w.collapsed {
+        Some((built, samples, far)) => BandFacets { params, built, written: w.band_facets, deviation_mm: far, samples },
+        None => BandFacets { params, built: w.band_facets, written: w.band_facets, deviation_mm: 0.0, samples: 0 },
+    });
+    Ok(Sized { text: w.text, band, facets: w.facets, faceted_volume_mm3: w.volume_mm3 })
 }
 /// A solid a STEP file holds, as [`read_solids`] finds it.
 #[derive(Clone, Debug)]
@@ -1041,6 +1139,105 @@ mod tests {
         // A comment between records reads as space.
         let commented = vendor.replacen("DATA;\n", "DATA;\n/* written by hand */\n", 1);
         assert_eq!(read_meshes(&commented).unwrap().iter().filter(|s| s.mesh.is_ok()).count(), 1);
+    }
+
+    /// Zenith as the showcase saved it, its art in the library.
+    fn zenith() -> (RingDesign, crate::AlphaLibrary) {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../showcase/stock-masterworks/zenith/design.ring.json");
+        let mut lib = crate::AlphaLibrary::builtin();
+        let d = crate::library::load_design(&path).unwrap();
+        d.unpack_embedded(&mut lib);
+        d.bake_all(&mut lib);
+        (d, lib)
+    }
+
+    /// The export build's STEP against the sized one, timed: `cargo test --release -p ringdesign-core -- --ignored step_sizes --nocapture`.
+    #[test]
+    #[ignore]
+    fn step_sizes() {
+        let export = crate::BuildParams { theta_steps: 1024, profile_steps: 320, refine: None, ..Default::default() };
+        let (zenith, zenith_lib) = zenith();
+        let braided = crate::templates::all().iter().find(|t| t.name == "Braided band").unwrap().design();
+        let rings = [
+            ("Claw solitaire", super::super::examples::design("claw-solitaire").unwrap(), crate::AlphaLibrary::builtin()),
+            ("Braided band", braided, crate::AlphaLibrary::builtin()),
+            ("Zenith", zenith, zenith_lib),
+        ];
+        let file = std::env::temp_dir().join(format!("step-sizes-{}.step", std::process::id()));
+        for (name, d, lib) in &rings {
+            let started = std::time::Instant::now();
+            let old = ring_built(d, lib, export, name, None).unwrap();
+            crate::library::write_atomic(&file, old.text.as_bytes()).unwrap();
+            let old_ms = started.elapsed().as_secs_f64() * 1e3;
+            eprintln!("{name}, the export build as built: {:.1} MB, {} facets, {old_ms:.0} ms, faceted volume {:.4} mm3", old.text.len() as f64 / 1048576.0, old.facets, old.volume_mm3);
+            drop(old);
+            for tolerance in [0.02, BAND_TOLERANCE_MM] {
+                let started = std::time::Instant::now();
+                let sized = ring_sized(d, lib, export, tolerance, name).unwrap();
+                crate::library::write_atomic(&file, sized.text.as_bytes()).unwrap();
+                let ms = started.elapsed().as_secs_f64() * 1e3;
+                let b = sized.band.unwrap();
+                eprintln!(
+                    "{name}, sized to {tolerance} mm: {:.1} MB, {} facets ({} of the band's {}), {ms:.0} ms, within {:.4} mm at {} points, faceted volume {:.4} mm3",
+                    sized.text.len() as f64 / 1048576.0,
+                    sized.facets,
+                    b.written,
+                    b.built,
+                    b.deviation_mm,
+                    b.samples,
+                    sized.faceted_volume_mm3
+                );
+            }
+        }
+        let _ = std::fs::remove_file(&file);
+    }
+
+    #[test]
+    fn a_sized_step_holds_its_band_within_the_tolerance_of_every_vertex_the_export_build_had() {
+        let lib = crate::AlphaLibrary::builtin();
+        let params = crate::BuildParams { theta_steps: 256, profile_steps: 128, refine: None, ..Default::default() };
+        let d = solitaire_with_parts();
+        let whole = ring(&d, &lib, params, "Claw solitaire").unwrap();
+        let sized = ring_sized(&d, &lib, params, BAND_TOLERANCE_MM, "Claw solitaire").unwrap();
+        let b = sized.band.unwrap();
+        eprintln!("claw solitaire at 256 x 128: {:.0} KB as built, {:.0} KB sized; the band {} facets of {}, within {:.4} mm at {} points", whole.len() as f64 / 1024.0, sized.text.len() as f64 / 1024.0, b.written, b.built, b.deviation_mm, b.samples);
+        // The same solids in the same order; the analytic parts untouched, the band's facets far fewer.
+        let (was, now) = (read_solids(&whole).unwrap(), read_solids(&sized.text).unwrap());
+        let names = |s: &[Found]| s.iter().map(|s| (s.name.clone(), s.faceted)).collect::<Vec<_>>();
+        assert_eq!(names(&now), names(&was));
+        assert_eq!((now[0].faces, now[1].faces), (was[0].faces, was[1].faces));
+        let (band_was, band_now) = (was[2].mesh.as_ref().unwrap(), now[2].mesh.as_ref().unwrap());
+        assert_eq!((b.built, b.written, b.params.theta_steps), (band_was.faces.len(), band_now.faces.len(), 256));
+        assert!(b.written * 5 < b.built && sized.text.len() * 5 < whole.len(), "{} of {} facets", b.written, b.built);
+        // Every vertex the build had stands within the tolerance of the file's band, measured again from the files.
+        assert!(b.samples > 0 && b.deviation_mm <= BAND_TOLERANCE_MM, "{b:?}");
+        let far = deviation_mm(band_was, band_now, DEVIATION_REACH_MM);
+        assert!(far <= BAND_TOLERANCE_MM + 1e-5, "{far}");
+        assert!(band_now.validate().watertight);
+        let (v_was, v_now) = (band_was.volume_mm3(), band_now.volume_mm3());
+        assert!((v_now / v_was - 1.0).abs() < 0.005, "{v_now} against {v_was}");
+        assert!((sized.faceted_volume_mm3 - v_now).abs() < 1e-3 * v_now, "{} against {v_now}", sized.faceted_volume_mm3);
+    }
+
+    #[test]
+    fn an_imported_base_is_sized_at_its_sweep_where_a_refined_export_build_is_refused() {
+        let mut d = RingDesign::default();
+        crate::imported_base::ImportedBase::attach(&mut d, crate::imported_base::PRESETS[1].load().unwrap()).unwrap();
+        let lib = crate::AlphaLibrary::builtin();
+        let refined = crate::BuildParams { theta_steps: 192, profile_steps: 96, refine: Some(crate::refine::RefineParams::default()), ..Default::default() };
+        assert!(ring(&d, &lib, refined, "Stock").is_err(), "an imported base takes no refinement");
+        let sized = ring_sized(&d, &lib, refined, BAND_TOLERANCE_MM, "Stock").unwrap();
+        let b = sized.band.unwrap();
+        assert!(b.params.refine.is_none() && b.params.theta_steps == 192, "{:?}", b.params);
+        assert!(b.written * 2 < b.built && b.deviation_mm <= BAND_TOLERANCE_MM, "{b:?}");
+        let solids = read_solids(&sized.text).unwrap();
+        assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Stock", true)]);
+        let mesh = solids[0].mesh.as_ref().unwrap();
+        assert!(mesh.validate().watertight && mesh.faces.len() == b.written);
+        // A ring of parts alone has no band to size.
+        let gallery = super::super::examples::design("gallery").unwrap();
+        let parts = ring_sized(&gallery, &lib, crate::BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() }, BAND_TOLERANCE_MM, "Gallery").unwrap();
+        assert!(parts.band.is_none() && parts.facets == 0);
     }
 
     /// The claw solitaire with a post joined to the band and a spacer kept beside it.
