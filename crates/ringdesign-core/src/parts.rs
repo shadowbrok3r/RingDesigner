@@ -26,7 +26,7 @@ pub struct Resolved {
     pub joined: usize,
     /// Parts subtracted from the band.
     pub cut: usize,
-    /// Parts appended as closed shells of their own.
+    /// Parts set apart: appended as closed shells of their own, or noted where a cut consumed one whole.
     pub separate: usize,
     /// Reference parts passed over.
     pub references: usize,
@@ -93,11 +93,10 @@ impl Chain<'_> {
 
     /// Every seam loop of `t`, the boolean of the running solid with `tool`, whose part asks for a
     /// fillet, beaded against `t`'s faces; `parts` are the tool's parts and `face_part` the part index
-    /// behind each tool face. A bead that fails, or a part whose blend finds no seam long enough to
-    /// follow, is a note; a raised flag is the error.
-    fn beads<'p>(&self, t: &Traced, tool: &Solid, concave: bool, parts: &[&'p Part], face_part: &[u32], notes: &mut Vec<String>) -> Result<Vec<(&'p Part, blend::Bead)>> {
+    /// behind each tool face. Each part a seam reached is added to `touched`; a bead that fails is a
+    /// note, and a raised flag is the error.
+    fn beads<'p>(&self, t: &Traced, tool: &Solid, concave: bool, parts: &[&'p Part], face_part: &[u32], notes: &mut Vec<String>, touched: &mut Vec<u32>) -> Result<Vec<(&'p Part, blend::Bead)>> {
         let mut out = Vec::new();
-        let mut touched = Vec::new();
         for seam in blend::seams(t, &self.solid, tool, concave) {
             let Some(&bf) = seam.b_faces.first() else { continue };
             let index = face_part.get(bf as usize).copied().unwrap_or(parts[0].index);
@@ -118,21 +117,18 @@ impl Chain<'_> {
                 }
             }
         }
-        for p in parts.iter().filter(|p| p.blend_mm > 0.0 && !touched.contains(&p.index)) {
-            notes.push(format!("{}: its fillet found no seam long enough to follow", p.name));
-        }
         Ok(out)
     }
 
     /// Lay each bead into the running solid, a union into a concave junction or a subtraction off a
-    /// convex rim, every bead vertex named for its part.
-    fn lay(&mut self, beads: Vec<(&Part, blend::Bead)>, op: Op, base: u32, out: &mut Resolved) -> Result<()> {
+    /// convex rim, every bead vertex named for `owner`, or for its own part when `None`.
+    fn lay(&mut self, beads: Vec<(&Part, blend::Bead)>, op: Op, base: u32, owner: Option<u32>, out: &mut Resolved) -> Result<()> {
         for (part, bead) in beads {
             match self.combine(&bead.solid, op) {
                 Ok(t) => {
                     let na = self.solid.v.len();
                     self.origin.truncate(na);
-                    self.origin.resize(t.solid.v.len(), SOLID_VERTEX + base + part.index);
+                    self.origin.resize(t.solid.v.len(), SOLID_VERTEX + base + owner.unwrap_or(part.index));
                     self.solid = t.solid;
                     csg::clean(&mut self.solid, CLEAN_MM);
                     out.beads += 1;
@@ -147,6 +143,13 @@ impl Chain<'_> {
             }
         }
         Ok(())
+    }
+}
+
+/// A note for each of `parts` whose fillet no seam in `touched` reached.
+fn unfollowed<'p>(parts: impl IntoIterator<Item = &'p Part>, touched: &[u32], notes: &mut Vec<String>) {
+    for p in parts.into_iter().filter(|p| p.blend_mm > 0.0 && !touched.contains(&p.index)) {
+        notes.push(format!("{}: its fillet found no seam long enough to follow", p.name));
     }
 }
 
@@ -168,11 +171,16 @@ fn status_notes(e: &cad::Evaluated) -> Vec<String> {
 }
 
 /// Evaluate the design's CAD parts against the built band and resolve them into it: joins first,
-/// clustered so touching parts become one tool, then cuts, then separate shells appended. A part
-/// that will not resolve is left out and said; the flag is read between parts and inside each
-/// boolean. Nothing happens when the document is the whole ring or the band is empty. A memo's
-/// cache is keyed on the built band's [`cad::surface_epoch`].
+/// clustered so touching parts become one tool, then cuts, then separate shells appended, each
+/// carved by every cut its box meets. A part that will not resolve is left out and said; the flag
+/// is read between parts and inside each boolean. Nothing happens when the document is the whole
+/// ring or the band is empty. A memo's cache is keyed on the built band's [`cad::surface_epoch`].
 pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx: &BuildCtx, memo: Memo, built: &mut BuildResult) -> Result<Resolved> {
+    resolve_keeping(design, lib, params, ctx, memo, built, &[])
+}
+
+/// [`resolve_with`] appending the separate parts `uncut` names as they were built, carved by no cut.
+pub(crate) fn resolve_keeping(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx: &BuildCtx, memo: Memo, built: &mut BuildResult, uncut: &[Id]) -> Result<Resolved> {
     let mut out = Resolved::default();
     let Some(doc) = &design.cad else { return Ok(out) };
     if doc.replaces_band() || built.mesh.faces.is_empty() {
@@ -228,9 +236,11 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
             Ok((tool, face_part)) => match chain.combine(&tool, Op::Union) {
                 Ok(t) => {
                     let parts: Vec<&Part> = group.iter().map(|g| &joins[*g]).collect();
-                    let beads = chain.beads(&t, &tool, true, &parts, &face_part, &mut out.notes)?;
+                    let mut touched = Vec::new();
+                    let beads = chain.beads(&t, &tool, true, &parts, &face_part, &mut out.notes, &mut touched)?;
+                    unfollowed(parts.iter().copied(), &touched, &mut out.notes);
                     chain.take(t, &face_part, joins[group[0]].index, base);
-                    chain.lay(beads, Op::Union, base, &mut out)?;
+                    chain.lay(beads, Op::Union, base, None, &mut out)?;
                     out.joined += group.len();
                 }
                 Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
@@ -246,9 +256,11 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
                     match chain.combine(&p.solid, Op::Union) {
                         Ok(t) => {
                             let own = vec![p.index; p.solid.f.len()];
-                            let beads = chain.beads(&t, &p.solid, true, &[p], &own, &mut out.notes)?;
+                            let mut touched = Vec::new();
+                            let beads = chain.beads(&t, &p.solid, true, &[p], &own, &mut out.notes, &mut touched)?;
+                            unfollowed([p], &touched, &mut out.notes);
                             chain.take(t, &own, p.index, base);
-                            chain.lay(beads, Op::Union, base, &mut out)?;
+                            chain.lay(beads, Op::Union, base, None, &mut out)?;
                             out.joined += 1;
                         }
                         Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
@@ -258,14 +270,16 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
             }
         }
     }
+    // The cuts whose fillet found a seam, in the band or in a part set apart.
+    let mut touched = Vec::new();
     for p in &cuts {
         check(ctx.cancel)?;
         match chain.combine(&p.solid, Op::Subtract) {
             Ok(t) => {
                 let own = vec![p.index; p.solid.f.len()];
-                let beads = chain.beads(&t, &p.solid, false, &[p], &own, &mut out.notes)?;
+                let beads = chain.beads(&t, &p.solid, false, &[p], &own, &mut out.notes, &mut touched)?;
                 chain.take(t, &own, p.index, base);
-                chain.lay(beads, Op::Subtract, base, &mut out)?;
+                chain.lay(beads, Op::Subtract, base, None, &mut out)?;
                 out.cut += 1;
             }
             Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
@@ -279,27 +293,40 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
             out.notes.push(format!("{}: left out, {}", p.name, Snag::Unclosed { open, repeated }));
             continue;
         }
-        // A cut reaching a part set apart carves it as well as the band.
-        let mut solid = p.solid.clone();
-        let mut origin = vec![SOLID_VERTEX + base + p.index; solid.v.len()];
-        for c in &cuts {
-            if !meets(&solid, &c.solid) {
-                continue;
-            }
+        out.separate += 1;
+        let reaching: Vec<&Part> = if uncut.contains(&out.features[p.index as usize]) { Vec::new() } else { cuts.iter().filter(|c| meets(&p.solid, &c.solid)).collect() };
+        if reaching.is_empty() {
+            chain.solid.push(&p.solid);
+            chain.origin.extend(std::iter::repeat_n(SOLID_VERTEX + base + p.index, p.solid.v.len()));
+            continue;
+        }
+        // A cut reaching a part set apart carves it as well as the band, every vertex it makes naming the part.
+        let mut apart = Chain { solid: p.solid.clone(), origin: vec![SOLID_VERTEX + base + p.index; p.solid.v.len()], vouched: false, cancel: ctx.cancel };
+        let mut consumed = false;
+        for c in reaching {
             check(ctx.cancel)?;
-            match csg::combine_traced(&solid, &c.solid, Op::Subtract, cancel) {
+            match apart.combine(&c.solid, Op::Subtract) {
                 Ok(t) => {
-                    extend_origin(&mut origin, &t, solid.v.len(), &vec![c.index; c.solid.f.len()], c.index, base);
-                    solid = t.solid;
+                    let faces = vec![c.index; c.solid.f.len()];
+                    let beads = apart.beads(&t, &c.solid, false, &[c], &faces, &mut out.notes, &mut touched)?;
+                    apart.take(t, &vec![p.index; c.solid.f.len()], p.index, base);
+                    apart.lay(beads, Op::Subtract, base, Some(p.index), &mut out)?;
                 }
                 Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
+                Err(Snag::Empty) => {
+                    out.notes.push(format!("{}: the cut {} consumed it whole", p.name, c.name));
+                    consumed = true;
+                    break;
+                }
                 Err(e) => out.notes.push(format!("{}: could not be cut from {} ({e})", c.name, p.name)),
             }
         }
-        chain.solid.push(&solid);
-        chain.origin.extend(origin);
-        out.separate += 1;
+        if !consumed {
+            chain.solid.push(&apart.solid);
+            chain.origin.extend(apart.origin);
+        }
     }
+    unfollowed(cuts.iter(), &touched, &mut out.notes);
     if out.joined + out.cut + out.separate == 0 {
         out.ms = clock.ms();
         return Ok(out);
@@ -658,7 +685,7 @@ mod tests {
         let lib = AlphaLibrary::builtin();
         let court = template("Court band");
         let block = |id, name: &str, theta| part(id, name, Operation::Box { size: [4.0, 3.0, 2.0] }, Attach::Separate, Stage::Cast, Placement::ring(theta, 5.0));
-        // Two blocks set apart 4 to 6 mm off the top and the palm; a 2 × 1.5 pocket running from 1.3 mm over the top block to 0.8 mm into it.
+        // Two blocks set apart 4 to 6 mm off the top and the palm; a 2 × 1.5 pocket standing 0.5 mm over the top block and 0.8 mm into it.
         let apart = vec![block(1, "top block", 90.0), block(2, "palm block", 270.0)];
         let plain = crate::mesh::try_build(&with_parts(court.clone(), apart.clone()), &lib, params()).unwrap();
         let mut with_cut = apart.clone();
@@ -669,7 +696,13 @@ mod tests {
         assert_eq!(carved.parts.separate, 2);
         let taken = plain.report.volume_mm3 - carved.report.volume_mm3;
         assert!((taken - 2.4).abs() < 1e-3, "2 × 1.5 × 0.8 = 2.4 mm³ out of the top block: {taken:.5}");
-        assert!(carved.mesh.origin.contains(&carved.parts.origin_of(2)), "the pocket's walls name the cut");
+        // Every vertex the pocket makes names the block it carves, so the block leaves as one closed object and the band as another.
+        assert!(!carved.mesh.origin.contains(&carved.parts.origin_of(2)), "the pocket misses the band and names nothing");
+        let objects = crate::threemf::objects(&carved, "Court");
+        let named: Vec<(&str, bool, f64)> = objects.iter().map(|o| (o.name.as_str(), o.mesh.validate().watertight, o.mesh.volume_mm3())).collect();
+        assert_eq!(named.iter().map(|(n, w, _)| (*n, *w)).collect::<Vec<_>>(), [("Court", true), ("top block", true), ("palm block", true)], "{named:?}");
+        assert!((named[1].2 - 21.6).abs() < 1e-3 && (named[2].2 - 24.0).abs() < 1e-3, "24 mm³ less the 2.4 mm³ pocket, and 24 whole: {named:?}");
+        assert!((named[0].2 - plain.report.volume_mm3 + 48.0).abs() < 1e-3, "the band object holds the band alone: {named:?}");
         // The palm block, which the pocket's box never meets, keeps its vertices and faces bit for bit.
         let own = |b: &crate::mesh::BuildResult, index: u32| {
             let o = b.parts.origin_of(index);
@@ -681,6 +714,70 @@ mod tests {
         let (palm, faces) = own(&carved, 1);
         assert_eq!((palm.len(), faces.len()), (8, 12));
         assert_eq!(own(&plain, 1), (palm, faces));
+    }
+
+    #[test]
+    fn a_cut_that_swallows_a_part_set_apart_takes_it_away_and_says_so() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        let bare = crate::mesh::try_build(&court, &lib, params()).unwrap();
+        // A 1 mm cube set apart 5 mm off the top, inside a 3 mm cube cut that never reaches the band.
+        let d = with_parts(court, vec![
+            part(1, "bead", Operation::Box { size: [1.0; 3] }, Attach::Separate, Stage::Cast, Placement::ring(90.0, 5.0)),
+            part(2, "clearance", Operation::Box { size: [3.0; 3] }, Attach::Cut, Stage::Cast, Placement::ring(90.0, 5.0)),
+        ]);
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        assert_eq!((built.parts.cut, built.parts.separate), (1, 1));
+        assert_eq!(built.parts.notes, ["bead: the cut clearance consumed it whole"]);
+        assert!(!built.mesh.origin.contains(&built.parts.origin_of(0)), "nothing of the bead is left");
+        assert!(built.report.validation.watertight);
+        assert!((built.report.volume_mm3 - bare.report.volume_mm3).abs() < 1e-6, "{} against {}", built.report.volume_mm3, bare.report.volume_mm3);
+    }
+
+    #[test]
+    fn a_cut_lays_its_fillet_on_the_seam_it_carves_in_a_part_set_apart() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        let block = part(1, "block", Operation::Box { size: [4.0, 3.0, 2.0] }, Attach::Separate, Stage::Cast, Placement::ring(90.0, 5.0));
+        let mut pocket = part(2, "pocket", Operation::Box { size: [2.0, 1.5, 1.3] }, Attach::Cut, Stage::Cast, Placement::ring(90.0, 5.85));
+        let sharp = crate::mesh::try_build(&with_parts(court.clone(), vec![block.clone(), pocket.clone()]), &lib, params()).unwrap();
+        pocket.component.blend_mm = 0.2;
+        let built = crate::mesh::try_build(&with_parts(court, vec![block, pocket]), &lib, params()).unwrap();
+        assert!(built.report.validation.watertight, "{:?} {:?}", built.report.validation, built.parts.notes);
+        assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
+        assert_eq!(built.parts.beads, 1, "one bead round the pocket's rim in the block");
+        // A 0.2 mm round off a right-angled rim takes (1 − π/4)·0.2² of section along the 7 mm rim.
+        let rounded = sharp.report.volume_mm3 - built.report.volume_mm3;
+        let expected = (1.0 - std::f64::consts::FRAC_PI_4) * 0.04 * 7.0;
+        assert!(rounded > 0.5 * expected && rounded < 1.5 * expected, "rounded {rounded:.4} of {expected:.4} mm³");
+        let objects = crate::threemf::objects(&built, "Court");
+        assert_eq!(objects.iter().map(|o| (o.name.as_str(), o.mesh.validate().watertight)).collect::<Vec<_>>(), [("Court", true), ("block", true)]);
+    }
+
+    #[test]
+    fn a_cut_through_a_post_set_apart_leaves_a_closed_post_and_a_closed_band() {
+        let lib = AlphaLibrary::builtin();
+        let d = with_parts(template("Court band"), vec![
+            part(1, "Post", cylinder(0.8, 2.0), Attach::Separate, Stage::Cast, Placement::ring(90.0, 0.6)),
+            part(2, "Pilot", cylinder(0.4, 3.0), Attach::Cut, Stage::Cast, Placement::ring(90.0, 0.0)),
+        ]);
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        assert!(built.report.validation.watertight && built.parts.notes.is_empty(), "{:?} {:?}", built.report.validation, built.parts.notes);
+        let objects = crate::threemf::objects(&built, "Court");
+        assert_eq!(objects.iter().map(|o| (o.name.as_str(), o.mesh.validate().watertight)).collect::<Vec<_>>(), [("Court", true), ("Post", true)]);
+        // The pilot bores the post 1.9 mm up from its foot: its faces are the post's, and none strays into the band.
+        let whole: f64 = objects.iter().map(|o| o.mesh.volume_mm3()).sum();
+        assert!((whole - built.report.volume_mm3).abs() < 1e-6);
+        let post = objects[1].mesh.volume_mm3();
+        let bored = std::f64::consts::PI * (0.64 * 2.0 - 0.16 * 1.9);
+        assert!((post / bored - 1.0).abs() < 0.03, "{post:.4} of {bored:.4} mm³");
+        // Kept whole, as the STEP writer keeps a joined part it writes exact, the post is the cylinder as built.
+        let never = AtomicBool::new(false);
+        let kept = crate::mesh::try_build_keeping(&d, &lib, params(), &never, Memo::default(), &[1]).unwrap();
+        let objects = crate::threemf::objects(&kept, "Court");
+        assert!(objects[1].mesh.validate().watertight);
+        let (post, whole) = (objects[1].mesh.volume_mm3(), std::f64::consts::PI * 0.64 * 2.0);
+        assert!((post / whole - 1.0).abs() < 0.03, "{post:.4} of {whole:.4} mm³");
     }
 
     #[test]

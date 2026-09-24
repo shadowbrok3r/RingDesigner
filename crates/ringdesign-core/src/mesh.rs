@@ -385,13 +385,18 @@ fn same_band(a: &RingDesign, b: &RingDesign) -> bool {
 
 /// [`try_build_with`] reading and filling a CAD memo, so features and tessellations an edit left alone come from its cache.
 pub fn try_build_memo(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, cancel: &std::sync::atomic::AtomicBool, memo: crate::cad::Memo) -> anyhow::Result<BuildResult> {
+    try_build_keeping(design, lib, params, cancel, memo, &[])
+}
+
+/// [`try_build_memo`] with the separate parts `uncut` names appended as built, carved by no cut.
+pub(crate) fn try_build_keeping(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, cancel: &std::sync::atomic::AtomicBool, memo: crate::cad::Memo, uncut: &[crate::sketch::Id]) -> anyhow::Result<BuildResult> {
     if design.band_is_procedural() {
         let mut built = swept(design, lib, params)?;
         built.band = Some(std::sync::Arc::new(built.mesh.clone()));
         resolve_solids(design, lib, &mut built);
         if design.cad.is_some() {
             let ctx = crate::cad::BuildCtx::new(cancel);
-            built.parts = crate::parts::resolve_with(design, lib, params, &ctx, memo, &mut built)?;
+            built.parts = crate::parts::resolve_keeping(design, lib, params, &ctx, memo, &mut built, uncut)?;
         }
         return Ok(built);
     }

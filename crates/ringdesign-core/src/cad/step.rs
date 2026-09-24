@@ -534,14 +534,15 @@ fn ring_built(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name
         let made: Vec<Faceted> = e.components.iter().filter(|c| metal(c) && c.made.is_some()).map(|c| Faceted { name: c.name.clone(), mesh: &c.mesh }).collect();
         return Ok(written(export_with(&e, name, &metal, &made)?, &made, 0, None));
     }
-    // Kernel parts joined to the band are built beside it, so each stays its own analytic solid.
+    // Kernel parts joined to the band are built beside it, uncarved, so each stays its own analytic solid.
     let before = super::evaluate(design, lib, params)?;
     let analytic: Vec<Id> = before.components.iter().filter(|c| metal(c) && c.made.is_none() && c.attach == Attach::Join).map(|c| c.id).collect();
     let mut apart = design.clone();
     for f in apart.cad.iter_mut().flat_map(|d| d.features.iter_mut()).filter(|f| analytic.contains(&f.id)) {
         f.component.attach = Attach::Separate;
     }
-    let built = crate::mesh::try_build(&apart, lib, params)?;
+    let never = std::sync::atomic::AtomicBool::new(false);
+    let built = crate::mesh::try_build_keeping(&apart, lib, params, &never, super::Memo::default(), &analytic)?;
     let e = built.parts.evaluated.as_ref().context("The ring's parts were not evaluated")?;
     let objects = crate::threemf::objects(&built, name);
     let made = |id: Id| e.components.iter().any(|c| c.id == id && c.made.is_some());
@@ -586,10 +587,14 @@ pub struct Sized {
     pub faceted_volume_mm3: f64,
 }
 impl Sized {
-    /// Exact solids and faceted solids the file holds.
+    /// Exact solids and faceted solids the file holds, counted by record.
     pub fn solids(&self) -> (usize, usize) {
-        let exact = self.text.matches("=MANIFOLD_SOLID_BREP(").count() + self.text.matches("=BREP_WITH_VOIDS(").count();
-        (exact, self.text.matches("=FACETED_BREP(").count())
+        let Ok((records, _)) = parse(&self.text) else { return (0, 0) };
+        records.values().fold((0, 0), |(exact, faceted), r| match r.kind.as_str() {
+            "MANIFOLD_SOLID_BREP" | "BREP_WITH_VOIDS" => (exact + 1, faceted),
+            "FACETED_BREP" => (exact, faceted + 1),
+            _ => (exact, faceted),
+        })
     }
     /// The file's solids, its size and its band, as the desktop's status line says them.
     pub fn summary(&self) -> String {
@@ -602,7 +607,7 @@ pub fn size_words(bytes: usize) -> String {
     if bytes >= 1 << 20 { format!("{:.1} MB", bytes as f64 / 1048576.0) } else { format!("{:.1} KB", bytes as f64 / 1024.0) }
 }
 /// `n` with its thousands grouped.
-fn grouped(n: usize) -> String {
+pub fn grouped(n: usize) -> String {
     let digits = n.to_string();
     let mut out = String::new();
     for (i, c) in digits.chars().enumerate() {
@@ -1281,6 +1286,36 @@ mod tests {
         let gallery = super::super::examples::design("gallery").unwrap();
         let parts = ring_sized(&gallery, &lib, crate::BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() }, BAND_TOLERANCE_MM, "Gallery").unwrap();
         assert!(parts.band.is_none() && parts.facets == 0);
+    }
+
+    #[test]
+    fn a_cut_through_a_joined_post_carves_the_band_and_leaves_the_exact_post_whole() {
+        use crate::cad::{Component, Document, Feature, Operation, Placement};
+        let lib = crate::AlphaLibrary::builtin();
+        let params = crate::BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() };
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        let pilot = Feature { id: 3, name: "Pilot".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 0.4, height_mm: 3.0 }, component: Component { attach: Attach::Cut, placement: Placement::ring(90.0, 0.0), ..Component::default() } };
+        let mut bored = court.clone();
+        bored.cad = Some(doc.clone());
+        bored.cad.as_mut().unwrap().append(pilot.clone()).unwrap();
+        // A name carrying a record's own text is counted as the one solid it names.
+        let post = Component { attach: Attach::Join, placement: Placement::ring(90.0, 0.6), ..Component::default() };
+        doc.append(Feature { id: 2, name: "Post =FACETED_BREP(".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 0.8, height_mm: 2.0 }, component: post }).unwrap();
+        doc.append(pilot).unwrap();
+        let mut d = court;
+        d.cad = Some(doc);
+        let sized = ring_sized(&d, &lib, params, BAND_TOLERANCE_MM, "Court").unwrap();
+        assert_eq!(sized.solids(), (1, 1));
+        assert!(sized.summary().starts_with("1 exact and 1 faceted solids • "), "{}", sized.summary());
+        let solids = read_meshes(&sized.text).unwrap();
+        assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Post =FACETED_BREP(", false), ("Court", true)]);
+        // The band comes back closed, bored by the pilot and carrying nothing of the post.
+        let band = solids[1].mesh.as_ref().unwrap();
+        assert!(band.validate().watertight, "{:?}", band.validate());
+        let want = crate::mesh::try_build(&bored, &lib, params).unwrap().report.volume_mm3;
+        assert!((band.volume_mm3() / want - 1.0).abs() < 0.005, "{} against {want}", band.volume_mm3());
     }
 
     /// The claw solitaire with a post joined to the band and a spacer kept beside it.
