@@ -24,8 +24,11 @@ struct Job {
 }
 type Shared = Arc<Mutex<Job>>;
 
-/// The part the Ring viewport has chosen edges of, with those edges; `None` unless they are all one part's.
+/// The part the Ring viewport has chosen edges of, with those edges, or with nothing chosen there the edge the CAD canvas picked; `None` unless they are all one part's.
 fn chosen_edges(app: &RingDesignerApp) -> Option<(Id, Vec<usize>)> {
+    if app.selection.items.is_empty() {
+        return app.cad.picked_edge().map(|(part, edge)| (part, vec![edge]));
+    }
     let mut part = None;
     let mut edges = Vec::new();
     for item in &app.selection.items {
@@ -572,6 +575,15 @@ mod tests {
             assert!(h.get_by_label(label).accesskit_node().is_disabled(), "{label}");
         }
         assert!(h.query_by_label("Fuse torus and cylinder with OpenCascade").is_none(), "offered only beside a torus");
+        // With nothing chosen in the Ring viewport, the edge the CAD canvas picked is the one offered.
+        h.state_mut().selection.items.clear();
+        h.state_mut().cad.pick_edge(2, 0);
+        h.run_steps(3);
+        assert!(h.query_by_label("Fillet 1 edge with OpenCascade").is_some() && h.query_by_label_contains("with OpenCascade, 1 face open").is_none());
+        assert_eq!(super::chosen_edges(h.state()), Some((2, vec![0])));
+        h.state_mut().selection.items = vec![Sel::Face { feature: 2, face: 0 }];
+        h.run_steps(3);
+        assert!(h.query_by_label("Fillet 1 edge with OpenCascade").is_none(), "the Ring viewport's choice wins");
     }
 
     #[test]

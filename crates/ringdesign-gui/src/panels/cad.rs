@@ -193,6 +193,14 @@ impl Default for CadState {
     }
 }
 impl CadState {
+    /// The edge the canvas has picked, as its part and that part's edge.
+    pub(crate) fn picked_edge(&self) -> Option<(u64, usize)> {
+        self.edge
+    }
+    #[cfg(test)]
+    pub(crate) fn pick_edge(&mut self, part: u64, edge: usize) {
+        self.edge = Some((part, edge));
+    }
     /// The 3D canvas as laid out this frame, above the view's footer; `None` on the tabs that draw none.
     pub(crate) fn canvas(&self) -> Option<egui::Rect> {
         (!matches!(self.tab, 1 | 6) && self.canvas.is_positive()).then_some(self.canvas)
