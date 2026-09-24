@@ -58,7 +58,9 @@ pub enum Operation {
     },
     Extrude {
         sketch: Profile,
+        /// Out of the sketch's plane along its normal when positive, into the side behind it when negative.
         height_mm: f64,
+        /// Wall taper; positive narrows the far end, whichever way the extrusion runs.
         draft_deg: f64,
     },
     Revolve {
@@ -1523,6 +1525,14 @@ fn positive(value: f64, name: &str) -> Result<f64> {
     );
     Ok(value)
 }
+/// An extrusion's height: out along its plane's normal when positive, against it, below the plane, when negative.
+fn either_way(value: f64, name: &str) -> Result<f64> {
+    ensure!(
+        value.is_finite() && value.abs() > 1e-5 && value.abs() < 10000.0,
+        "{name} must be off its plane by more than 0.00001 mm and less than 10000 mm, either way"
+    );
+    Ok(value)
+}
 fn coords(values: &[[f64; 3]]) -> Result<()> {
     ensure!(
         values
@@ -1637,7 +1647,7 @@ fn laid(
 /// single one of an inline sketch; a region found again only by its point says so in `notes`.
 fn regions_of(p: &Profile, sketch: &Sketch, notes: &mut Vec<String>) -> Result<Vec<crate::sketch::Region>> {
     match p {
-        Profile::Feature { .. } => sketch.profile_regions(),
+        Profile::Feature { .. } => sketch.sweep_regions(),
         Profile::Region { feature, region } => {
             let (found, note) = sketch.region_of(region).with_context(|| format!("Sketch #{feature}"))?;
             notes.extend(note.map(|n| format!("Sketch #{feature}: {n}")));
@@ -1674,6 +1684,8 @@ fn compose(outer: &brep::Placement, inner: &brep::Placement) -> brep::Placement 
     let o = turn(inner.origin);
     brep::Placement { x_axis: turn(inner.x_axis), y_axis: turn(inner.y_axis), z_axis: turn(inner.z_axis), origin: std::array::from_fn(|k| outer.origin[k] + o[k]) }
 }
+/// The body `op` builds; `cut` when its part is cut from the band, which starts an extrusion running below its plane [`CUT_CLEAR_MM`] above it.
+#[allow(clippy::too_many_arguments)]
 fn body_for(
     op: &Operation,
     values: &BTreeMap<Id, Value>,
@@ -1681,6 +1693,7 @@ fn body_for(
     frames: &BTreeMap<Id, brep::Placement>,
     params: BuildParams,
     who: &dyn Fn(Id) -> String,
+    cut: bool,
     notes: &mut Vec<String>,
 ) -> Result<Value> {
     let value = |id: &Id| values.get(id).ok_or_else(|| anyhow::anyhow!("Source feature #{id} is unavailable or suppressed"));
@@ -1800,15 +1813,18 @@ fn body_for(
         } => {
             let sketch = profile(from, sketches)?;
             let p = plane_of(sketch, values, frames, notes)?;
-            let h = positive(*height_mm, "Height")?;
+            let h = either_way(*height_mm, "Height")?;
             ensure!(
                 draft_deg.is_finite() && draft_deg.abs() < 80.0,
                 "Draft must be below 80 degrees"
             );
+            let n = p.normal().context("Sketch plane has no normal")?;
+            let lift = if cut && h < 0.0 { CUT_CLEAR_MM } else { 0.0 };
+            let base = cadkernel::space::Plane::from_axes(std::array::from_fn(|k| p.origin[k] + n[k] * lift), p.x_axis, p.y_axis);
             crate::sketch::solid::extrude(
-                p,
+                base,
                 &regions_of(from, sketch, notes)?,
-                p.normal().unwrap().map(|v| v * h),
+                n.map(|v| v * (h - lift)),
                 draft_deg.to_radians(),
             )
         }
@@ -2007,6 +2023,13 @@ pub fn part_chord(params: BuildParams) -> f64 {
 pub const MAX_ANALYTIC_BOOLEAN_FACES: usize = 500;
 /// The error text of an evaluation stopped through its `BuildCtx`.
 pub const CANCELLED: &str = "CAD evaluation cancelled";
+/// How far above its plane a cut extrusion running below it starts, mm: a tool face lying in the
+/// metal's own face leaves a skin of it over the cut, and this much air never touches the face.
+pub const CUT_CLEAR_MM: f64 = 0.05;
+/// Whether `f`'s part is cut from the band, which clears an extrusion running below its plane off it.
+fn cuts(f: &Feature) -> bool {
+    f.component.attach == Attach::Cut && !f.component.reference
+}
 /// Bodies and tessellations a default [`Cache`] holds before the least recently used is dropped.
 pub const CACHE_ENTRIES: usize = 512;
 /// Estimated bytes a default [`Cache`] holds before the least recently used entry is dropped.
@@ -2298,6 +2321,10 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
         if matches!(f.operation, Operation::Pattern { .. } | Operation::Twist { .. }) {
             (params.theta_steps >= 512).hash(&mut h);
         }
+        // An extrusion running below its plane clears the plane when it cuts.
+        if matches!(f.operation, Operation::Extrude { height_mm, .. } if height_mm < 0.0) {
+            cuts(f).hash(&mut h);
+        }
         sigs.insert(f.id, h.finish());
     }
     sigs
@@ -2382,7 +2409,7 @@ fn build_feature(
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("source feature #{other} is unavailable or suppressed"))?
     } else {
-        body_for(&f.operation, values, sketches, frames, params, who, &mut notes)?
+        body_for(&f.operation, values, sketches, frames, params, who, cuts(f), &mut notes)?
     };
     if let Value::Brep(body) = &value {
         let faults = body.validate();
@@ -3840,6 +3867,85 @@ mod sketch_tests {
     }
     fn extrude(from: Profile, height_mm: f64) -> Operation {
         Operation::Extrude { sketch: from, height_mm, draft_deg: 0.0 }
+    }
+
+    #[test]
+    fn an_extrusion_runs_either_way_off_its_plane_and_a_cut_below_it_clears_the_face_it_was_drawn_on() {
+        let lib = AlphaLibrary::builtin();
+        let params = BuildParams::default();
+        let solid = |op: Operation| {
+            let e = evaluate(&design_of(vec![feature(1, op.clone())], vec![1]), &lib, params).unwrap();
+            assert!(e.failures().is_empty(), "{:?} {op:?}", e.failures());
+            let m = e.components[0].mesh.clone();
+            let z: Vec<f64> = e.components[0].trace.positions.iter().map(|p| p[2]).collect();
+            (m.validate().watertight, m.volume_mm3(), z.iter().copied().fold(f64::INFINITY, f64::min), z.iter().copied().fold(f64::NEG_INFINITY, f64::max))
+        };
+        // A 2 × 1.5 rectangle, a washer and a drafted disc run the same volume down as up, mirrored in the plane.
+        let mut washer = Sketch::circle(3.0);
+        let (c, rim) = (washer.point([0.0, 0.0]), washer.point([2.0, 0.0]));
+        washer.entity(Geometry::Circle { center: c, rim });
+        let shapes = [(Sketch::rectangle(2.0, 1.5), 0.0), (Sketch::rectangle(2.0, 1.5), 5.0), (washer, 0.0), (Sketch::circle(1.0), 8.0)];
+        for (s, draft) in shapes {
+            let up = solid(Operation::Extrude { sketch: s.clone().into(), height_mm: 1.2, draft_deg: draft });
+            let down = solid(Operation::Extrude { sketch: s.into(), height_mm: -1.2, draft_deg: draft });
+            assert!(up.0 && down.0, "{up:?} {down:?}");
+            assert!((up.1 - down.1).abs() < 1e-9 * up.1.max(1.0), "the same solid either way: {} against {}", up.1, down.1);
+            assert!(up.2.abs() < 1e-9 && (up.3 - 1.2).abs() < 1e-9 && (down.2 + 1.2).abs() < 1e-9 && down.3.abs() < 1e-9, "{up:?} {down:?}");
+        }
+        assert!((solid(extrude(Sketch::rectangle(2.0, 1.5).into(), -1.0)).1 - 3.0).abs() < 1e-9);
+        let flat = evaluate(&design_of(vec![feature(1, extrude(Sketch::rectangle(2.0, 1.5).into(), 0.0))], vec![1]), &lib, params).unwrap();
+        assert!(flat.failures().iter().any(|(_, why)| why.contains("Height must be off its plane")), "{:?}", flat.failures());
+        // A saved extrusion reads and writes as it always did, and one below its plane keeps its sign.
+        let saved = r#"{"Extrude":{"sketch":{"feature":2},"height_mm":0.8,"draft_deg":0.0}}"#;
+        let op: Operation = serde_json::from_str(saved).unwrap();
+        assert!(matches!(op, Operation::Extrude { height_mm, .. } if height_mm == 0.8));
+        assert_eq!(serde_json::to_string(&op).unwrap(), saved, "bit for bit");
+        let below = serde_json::to_string(&extrude(Profile::Feature { feature: 2 }, -0.8)).unwrap();
+        assert_eq!(below, saved.replace("0.8", "-0.8"));
+        // A block joined to the Court band, and a 2 × 1.5 rectangle on its top face cut 1 mm into it.
+        let params = BuildParams { theta_steps: 192, profile_steps: 96, refine: None, ..BuildParams::default() };
+        let mut d = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut block = feature(2, Operation::Box { size: [6.0, 4.0, 2.0] });
+        block.component = Component { attach: Attach::Join, placement: Placement::ring(90.0, 0.0), ..Component::default() };
+        d.cad = Some(design_of(vec![feature(1, Operation::Band), block], vec![1, 2]).cad.unwrap());
+        let built = crate::mesh::build(&d, &lib, params);
+        let c = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 2).unwrap().clone();
+        let top = face_along(&c.body, &c.frame, [0.0, 0.0, 1.0]);
+        let mut rect = Sketch::rectangle(2.0, 1.5);
+        rect.plane.on_face = Some(FaceAnchor { feature: 2, face: FaceRef::signed(&c.body, top, &c.frame) });
+        let plane = sketch_plane(&rect, &c.body, &c.frame, &mut Vec::new()).unwrap();
+        let n = plane.normal().unwrap();
+        let cut = |attach: Attach| {
+            let mut d = d.clone();
+            let doc = d.cad.as_mut().unwrap();
+            doc.append(feature(3, Operation::Sketch { sketch: rect.clone() })).unwrap();
+            let mut f = feature(4, extrude(Profile::Feature { feature: 3 }, -1.0));
+            f.component.attach = attach;
+            doc.append(f).unwrap();
+            crate::mesh::build(&d, &lib, params)
+        };
+        let after = cut(Attach::Cut);
+        assert_eq!(after.parts.cut, 1, "{:?}", after.parts.notes);
+        let taken = built.mesh.volume_mm3() - after.mesh.volume_mm3();
+        assert!((taken - 3.0).abs() < 1e-6, "2 × 1.5 × 1 = 3 mm³ out of the block: {taken}");
+        assert!(after.mesh.validate().watertight);
+        // Nothing of the metal is left lying in the face over the cut's mouth.
+        let skin = after.mesh.faces.iter().filter(|f| {
+            let q: Vec<[f64; 3]> = f.iter().map(|i| after.mesh.vertices[*i as usize]).map(|v| [f64::from(v.0), f64::from(v.1), f64::from(v.2)]).collect();
+            let centre: [f64; 3] = std::array::from_fn(|k| (q[0][k] + q[1][k] + q[2][k]) / 3.0 - plane.origin[k]);
+            q.iter().all(|p| dot(sub(*p, plane.origin), n).abs() < 1e-4) && dot(centre, plane.x_axis).abs() < 0.95 && dot(centre, plane.y_axis).abs() < 0.7
+        });
+        assert_eq!(skin.count(), 0, "the cut opens through the face it was drawn on");
+        // The cut's tool starts its clearance above the face; the same extrusion joined starts on it.
+        let reach = |built: &crate::mesh::BuildResult| {
+            let tool = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 4).unwrap();
+            let h: Vec<f64> = tool.trace.positions.iter().map(|p| dot(sub(*p, plane.origin), n)).collect();
+            (h.iter().copied().fold(f64::INFINITY, f64::min), h.iter().copied().fold(f64::NEG_INFINITY, f64::max))
+        };
+        let (low, high) = reach(&after);
+        assert!((low + 1.0).abs() < 1e-9 && (high - CUT_CLEAR_MM).abs() < 1e-9, "{low} .. {high}");
+        let (low, high) = reach(&cut(Attach::Join));
+        assert!((low + 1.0).abs() < 1e-9 && high.abs() < 1e-9, "{low} .. {high}");
     }
 
     #[test]

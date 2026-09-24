@@ -13,6 +13,7 @@ pub mod draw;
 pub mod edit;
 pub mod exchange;
 pub mod fill;
+mod graph;
 pub mod query;
 pub mod region;
 pub mod solid;
@@ -128,16 +129,6 @@ impl Geometry {
             Self::Circle { center, rim } => vec![*center, *rim],
             Self::Arc { center, start, end } => vec![*center, *start, *end],
             Self::Bezier { points } => points.to_vec(),
-        }
-    }
-    /// The two ends a neighbour joins; `None` for geometry that closes on itself.
-    fn ends(&self) -> Option<(Id, Id)> {
-        match self {
-            Self::Line { a, b } => Some((*a, *b)),
-            Self::Polyline { closed: true, .. } | Self::Circle { .. } => None,
-            Self::Polyline { points, .. } => Some((*points.first()?, *points.last()?)),
-            Self::Arc { start, end, .. } => Some((*start, *end)),
-            Self::Bezier { points } => Some((points[0], points[3])),
         }
     }
 }
