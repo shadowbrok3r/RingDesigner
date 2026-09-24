@@ -112,17 +112,14 @@ pub fn show(ctx: &egui::Context, m: &mut PlaneMenu, view: Rect) -> Option<Choice
 }
 
 impl Cad {
-    /// Every plane the build on screen carries, on screen with its name's size: none while hidden.
+    /// Every plane the build on screen carries, on screen with its name, the names clear of what covers the view and of each other: none while hidden.
     pub(super) fn drawn_planes(&self, painter: &egui::Painter, v: &View) -> Vec<(Drawn, String)> {
         let Some(build) = v.build.filter(|_| !self.planes.hidden) else { return Vec::new() };
         let proj = v.camera.projector(v.rect);
-        touch::planes::shapes(v.design, &build.0)
-            .into_iter()
-            .map(|s| {
-                let size = painter.layout_no_wrap(s.name.clone(), egui::FontId::proportional(NAME_PT), crate::theme::INK).size();
-                (Drawn::new(&s, |w| proj.at(w.map(|x| x as f32)), size, v.rect, v.covered), s.name)
-            })
-            .collect()
+        let shapes = touch::planes::shapes(v.design, &build.0);
+        let sized: Vec<_> = shapes.iter().map(|s| (s, painter.layout_no_wrap(s.name.clone(), egui::FontId::proportional(NAME_PT), crate::theme::INK).size())).collect();
+        let drawn = touch::planes::lay_out(&sized, |w| proj.at(w.map(|x| x as f32)), v.rect, v.covered);
+        drawn.into_iter().zip(shapes).map(|(d, s)| (d, s.name)).collect()
     }
 
     /// The plane a finger at `p` takes: by its name, or by its outline unless `on_part` says a part lies under the finger.

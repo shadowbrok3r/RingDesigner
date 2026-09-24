@@ -6,6 +6,7 @@ pub mod measure;
 pub mod menu;
 pub mod planes;
 pub mod sketch;
+pub mod stamp;
 pub mod strip;
 
 use std::sync::Arc;

@@ -1344,7 +1344,7 @@ impl RingApp {
                 switches: ringdesign_workbench::viewport::Switches { live_cuts: self.cuts.live, show_cutters: self.cuts.ghost },
             };
             self.cad.draw(ui, &cad_view, &self.renderer);
-            self.stamp_window(ui.ctx(), view_rect);
+            self.stamp_window(ui.ctx(), view_rect, &covered);
         }
         self.serve_cad(host);
         if !self.editor.hold_before && !floating_blocked && !measuring {
