@@ -82,9 +82,20 @@ pub fn blocks(markdown: &str) -> Vec<Block<'_>> {
     out
 }
 
-/// `text` with emphasis, code ticks and link brackets taken out.
+/// `text` with emphasis, code ticks and the brackets round a link taken out.
 fn plain(text: &str) -> String {
-    text.replace("**", "").replace('`', "").replace(['<', '>'], "")
+    let text = text.replace("**", "").replace('`', "");
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text.as_str();
+    while let Some(at) = rest.find("<http") {
+        out.push_str(&rest[..at]);
+        let link = &rest[at + 1..];
+        let end = link.find('>').unwrap_or(link.len());
+        out.push_str(&link[..end]);
+        rest = link.get(end + 1..).unwrap_or("");
+    }
+    out.push_str(rest);
+    out
 }
 
 /// What this build carries of OpenCascade, in a line.
@@ -180,6 +191,8 @@ mod tests {
         assert!(carried.contains("The releases published on GitHub, which the in-app updater installs, do not"), "{carried}");
         let prose = blocks.iter().find_map(|b| if let Block::Text(t) = b { t.contains("RingDesigner's desktop app makes use of").then_some(t.as_str()) } else { None }).unwrap();
         assert!(!prose.contains("**"), "{prose}");
+        assert!(blocks.iter().any(|b| matches!(b, Block::Text(t) if t.contains("under Tools > Licences."))), "the menu path keeps its >");
+        assert_eq!(plain("see <https://example.org/a> and `x` > **y**"), "see https://example.org/a and x > y");
     }
 
     #[test]
