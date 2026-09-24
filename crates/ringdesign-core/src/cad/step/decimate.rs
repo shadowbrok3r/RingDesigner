@@ -3,13 +3,45 @@
 //! whenever that face moves, so the bound is checked at every collapse rather than estimated.
 use crate::Mesh;
 use crate::interaction::bvh::{closest_on_triangle, cross, dist2, dot, sub};
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
+use std::collections::VecDeque;
 
 /// A collapse is refused when a face it moves turns further than this, as a cosine: 60°.
 const TURN_COS: f64 = 0.5;
 /// A collapse is refused when a face it moves would span less than this, mm², twice over.
 const DEGENERATE: f64 = 1e-10;
+/// Cost buckets a quarter octave wide, from 2⁻⁶⁴ up.
+const BUCKETS: usize = 512;
+
+/// A collapse offered: `(from, to, from's version, to's version)`.
+type Offer = (u32, u32, u32, u32);
+
+/// Offers by cost, cheapest bucket first and in arrival order within one: a queue whose every push and pop costs the same.
+struct Buckets {
+    slots: Vec<VecDeque<Offer>>,
+    lowest: usize,
+}
+
+impl Buckets {
+    fn new() -> Self {
+        Self { slots: vec![VecDeque::new(); BUCKETS], lowest: BUCKETS }
+    }
+
+    fn push(&mut self, cost: f64, offer: Offer) {
+        let b = if cost > 0.0 { (cost.log2() * 4.0 + 256.0).clamp(1.0, (BUCKETS - 1) as f64) as usize } else { 0 };
+        self.slots[b].push_back(offer);
+        self.lowest = self.lowest.min(b);
+    }
+
+    fn pop(&mut self) -> Option<Offer> {
+        while self.lowest < BUCKETS {
+            if let Some(offer) = self.slots[self.lowest].pop_front() {
+                return Some(offer);
+            }
+            self.lowest += 1;
+        }
+        None
+    }
+}
 
 /// `mesh` with edges collapsed while every vertex it had stays within `tolerance_mm` of a face left, and
 /// closed as it came; `None` when it came open or nothing would collapse.
@@ -49,8 +81,7 @@ struct Collapser {
     /// The removed vertices each face answers for.
     orphans: Vec<Vec<u32>>,
     tol2: f64,
-    /// `(cost bits, from, to, from's version, to's version)`, cheapest first.
-    heap: BinaryHeap<Reverse<(u64, u32, u32, u32, u32)>>,
+    queue: Buckets,
 }
 
 impl Collapser {
@@ -76,7 +107,7 @@ impl Collapser {
             }
         }
         let n = p.len();
-        let mut c = Self { p, faces, alive: vec![true; mesh.faces.len()], around, gone: vec![false; n], version: vec![0; n], quadric, orphans: vec![Vec::new(); mesh.faces.len()], tol2: tolerance_mm * tolerance_mm, heap: BinaryHeap::new() };
+        let mut c = Self { p, faces, alive: vec![true; mesh.faces.len()], around, gone: vec![false; n], version: vec![0; n], quadric, orphans: vec![Vec::new(); mesh.faces.len()], tol2: tolerance_mm * tolerance_mm, queue: Buckets::new() };
         for f in 0..c.faces.len() {
             let t = c.faces[f];
             for k in 0..3 {
@@ -98,12 +129,12 @@ impl Collapser {
         }
         let cost = quadric_at(&q, self.p[to as usize]).max(0.0);
         if cost.is_finite() {
-            self.heap.push(Reverse((cost.to_bits(), from, to, self.version[from as usize], self.version[to as usize])));
+            self.queue.push(cost, (from, to, self.version[from as usize], self.version[to as usize]));
         }
     }
 
     fn run(&mut self) {
-        while let Some(Reverse((_, from, to, vf, vt))) = self.heap.pop() {
+        while let Some((from, to, vf, vt)) = self.queue.pop() {
             let (u, v) = (from as usize, to as usize);
             if self.gone[u] || self.gone[v] || self.version[u] != vf || self.version[v] != vt {
                 continue;
@@ -258,6 +289,18 @@ mod tests {
             assert!(far <= tolerance * 1.0001, "{far} against {tolerance}");
             assert!(out.faces.len() * 4 < dense.faces.len(), "{} of {}", out.faces.len(), dense.faces.len());
             assert!((after - before).abs() < tolerance * dense.surface_area_mm2(), "{after} against {before}");
+        }
+    }
+
+    /// The collapse alone on an export sweep: `cargo test --release -p ringdesign-core -- --ignored collapse_time --nocapture`.
+    #[test]
+    #[ignore]
+    fn collapse_time() {
+        let dense = band(1024, 320);
+        for tolerance in [0.02, 0.01] {
+            let started = std::time::Instant::now();
+            let out = decimated(&dense, tolerance).unwrap();
+            eprintln!("{tolerance} mm: {} to {} faces in {:.0} ms", dense.faces.len(), out.faces.len(), started.elapsed().as_secs_f64() * 1e3);
         }
     }
 
