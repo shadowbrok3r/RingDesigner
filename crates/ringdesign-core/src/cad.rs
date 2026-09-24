@@ -20,6 +20,7 @@ pub mod measure;
 pub mod pattern;
 pub mod step;
 pub mod stored;
+pub mod twist;
 pub use pattern::{MirrorPlane, PatternKind, PlaneBase, WorkPlane};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -1375,6 +1376,7 @@ impl Value {
         match m.key.as_str() {
             pattern::PATTERN => "a mesh of placed copies",
             stored::STORED => "a mesh another kernel made",
+            twist::TWIST => "a twisted sweep's mesh",
             _ => "a mesh a builder made",
         }
     }
@@ -1571,7 +1573,7 @@ fn plane_of(
     };
     let body = match values.get(&anchor.feature) {
         Some(Value::Brep(body)) => body,
-        Some(Value::Mesh(m)) if m.key == pattern::PATTERN => anyhow::bail!(
+        Some(Value::Mesh(m)) if builders::spec(&m.key).is_none() => anyhow::bail!(
             "Sketch face: feature #{} is {}; sketch on a kernel part's planar face",
             anchor.feature,
             Value::mesh_words(m)
@@ -1871,18 +1873,9 @@ fn body_for(
             let sketch = profile(from, sketches)?;
             let plane = plane_of(sketch, values, frames, notes)?;
             let outline = region_loop(from, sketch, "Twisted sweep", notes)?;
-            maybe(
-                brep::sweep_along_deformed(
-                    plane,
-                    &outline,
-                    plane_of(path, values, frames, notes)?,
-                    &path.solved_curves()?,
-                    0.0,
-                    degrees.to_radians(),
-                    *end_scale,
-                ),
-                "Twisted sweep (polygon sections)",
-            )
+            let along = plane_of(path, values, frames, notes)?;
+            let made = twist::sweep(plane, &outline, along, &path.solved_curves()?, degrees.to_radians(), *end_scale, part_chord(params))?;
+            return Ok(Value::Mesh(Arc::new(made)));
         }
         Operation::Loft { sections } => {
             ensure!(
@@ -1997,6 +1990,15 @@ fn op_label(kind: Boolean) -> &'static str {
         Boolean::Subtract => "Subtract",
         Boolean::Intersect => "Intersect",
     }
+}
+
+/// Chord a part is tessellated at in a preview build, mm.
+pub const PREVIEW_CHORD_MM: f64 = 0.04;
+/// Chord a part is tessellated at in an export build, mm.
+pub const EXPORT_CHORD_MM: f64 = 0.015;
+/// The chord `params` tessellates parts at: the export one from 512 steps round the ring.
+pub fn part_chord(params: BuildParams) -> f64 {
+    if params.theta_steps >= 512 { EXPORT_CHORD_MM } else { PREVIEW_CHORD_MM }
 }
 
 /// Largest operand the analytic boolean accepts. Measured by `examples/kernel_probe.rs` on a
@@ -2292,8 +2294,8 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
         if matches!(f.operation, Operation::TwistedRing { .. }) {
             (params.theta_steps, params.profile_steps).hash(&mut h);
         }
-        // A pattern's copies are its source's tessellation at this build's chord.
-        if matches!(f.operation, Operation::Pattern { .. }) {
+        // A pattern's copies are its source's tessellation at this build's chord, and a twisted sweep is cut to it.
+        if matches!(f.operation, Operation::Pattern { .. } | Operation::Twist { .. }) {
             (params.theta_steps >= 512).hash(&mut h);
         }
         sigs.insert(f.id, h.finish());
@@ -2615,7 +2617,7 @@ pub fn evaluate_memo(
         );
     }
     let _ = lib;
-    let chord = if params.theta_steps >= 512 { 0.015 } else { 0.04 };
+    let chord = part_chord(params);
     let bucket = u8::from(params.theta_steps >= 512);
     let sigs = signatures(doc, design, params, memo.surface_epoch);
     let scope = Scope { doc, memo, sigs: &sigs, chord, bucket };

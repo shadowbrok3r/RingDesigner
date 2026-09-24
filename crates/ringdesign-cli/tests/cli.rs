@@ -228,6 +228,64 @@ fn a_size_run_writes_each_part_as_an_obj_object_and_the_ring_as_step() {
 }
 
 #[test]
+fn a_step_the_binary_writes_comes_back_in_through_the_reader_it_names_its_solids_with() {
+    use ringdesign_core::cad::{Attach, Operation};
+    let dir = std::env::temp_dir().join(format!("ring-step-import-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let run = |args: &[&str]| {
+        let o = bin().args(args).output().unwrap();
+        assert!(o.status.success(), "{args:?}: {}", String::from_utf8_lossy(&o.stderr));
+        String::from_utf8_lossy(&o.stdout).to_string()
+    };
+    let s = |p: &std::path::Path| p.to_str().unwrap().to_string();
+    // The metal each solid line says the file reads back as.
+    let volumes = |text: &str| -> Vec<f64> {
+        text.lines().filter_map(|l| l.split("reads back closed at ").nth(1)?.strip_suffix(" mm³")?.parse().ok()).collect()
+    };
+    let imported = |text: &str| -> f64 { text.split(" triangles, ").nth(1).unwrap().split(" mm³").next().unwrap().parse().unwrap() };
+    // The gallery's six parts are all exact: every one reads back without OpenCascade.
+    let gallery = dir.join("gallery.ring.json");
+    run(&["cad", "example", "gallery", "--out", &s(&gallery)]);
+    let exact = dir.join("gallery.step");
+    let text = run(&["cad", "step", &s(&gallery), "--out", &s(&exact)]);
+    assert!(text.starts_with("STEP solids: 6 analytic, 0 faceted"), "{text}");
+    assert!(text.contains("  Gallery lower ring — exact, reads back closed at 28.38"), "{text}");
+    let parts = volumes(&text);
+    assert_eq!(parts.len(), 6, "{text}");
+    let court = dir.join("court.ring.json");
+    ringdesign_core::library::save_design(&court, &ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design()).unwrap();
+    let out = dir.join("court-gallery.ring.json");
+    let text = run(&["cad", "import", &s(&court), "--part", &s(&exact), "--out", &s(&out)]);
+    assert!(text.starts_with("Imported gallery: ") && text.contains(" joined at the top of the ring"), "{text}");
+    let whole: f64 = parts.iter().sum();
+    assert!((imported(&text) / whole - 1.0).abs() < 1e-3, "{text}: against {whole}");
+    let d = ringdesign_core::library::load_design(&out).unwrap();
+    let doc = d.cad.as_ref().unwrap();
+    assert!(matches!(doc.features[0].operation, Operation::Band), "a plain band gets its procedural shank first");
+    let part = &doc.features[1];
+    assert!(matches!(&part.operation, Operation::Stored { recipe, .. } if recipe.op == "import" && recipe.params["format"] == "step"));
+    assert_eq!(part.component.attach, Attach::Join);
+    // The ring with its band faceted and its spacer exact comes back whole, into a design its graph drives.
+    let solitaire = dir.join("solitaire.ring.json");
+    ringdesign_core::library::save_design(&solitaire, &solitaire_and_spacer()).unwrap();
+    let ring = dir.join("solitaire.step");
+    let text = run(&["cad", "step", &s(&solitaire), "--out", &s(&ring), "--band"]);
+    assert!(text.starts_with("STEP solids: 1 analytic, 1 faceted"), "{text}");
+    assert!(text.contains("  Spacer — exact, reads back closed at 3.3750 mm³"), "{text}");
+    let parts = volumes(&text);
+    assert_eq!(parts.len(), 2, "{text}");
+    let out = dir.join("gallery-solitaire.ring.json");
+    let text = run(&["cad", "import", &s(&gallery), "--part", &s(&ring), "--out", &s(&out)]);
+    assert!((imported(&text) / parts.iter().sum::<f64>() - 1.0).abs() < 1e-3, "{text}");
+    let d = ringdesign_core::library::load_design(&out).unwrap();
+    let stored = |f: &ringdesign_core::cad::Feature| matches!(f.operation, Operation::Stored { .. });
+    assert!(d.cad.as_ref().unwrap().features.iter().any(stored), "the evaluated document carries the part");
+    let graph = serde_json::to_string(d.graph.as_ref().unwrap()).unwrap();
+    assert!(graph.contains("\"Stored\""), "and so does the graph that drives it");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn editable_cad_roundtrip_exports_components_and_resized_manufacturing_reports() {
     let dir=std::env::temp_dir().join(format!("ring-cad-cli-{}-{}",std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
     std::fs::create_dir(&dir).unwrap();let design=dir.join("signet.ring.json");

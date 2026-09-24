@@ -52,6 +52,7 @@ const USAGE: &str = "usage:
   ringdesign cad check <design.ring.json>
   ringdesign cad export <design.ring.json> --out <new-directory>
   ringdesign cad step <design.ring.json> --out <model.step> [--band]
+  ringdesign cad import <design.ring.json> --part <part.step|part.stl|part.obj> --out <new.ring.json>
   ringdesign cad resize <design.ring.json> --bores 17.3,18.1,19.0 --out <new-directory>
   ringdesign cad profile-import <profile.svg|profile.dxf> --out <sketch.json>
   ringdesign cad profile-export <sketch.json> --out <profile.svg|profile.dxf>
@@ -101,7 +102,11 @@ fn run(args: &[String]) -> anyhow::Result<()> {
 }
 
 fn load(path: &str) -> anyhow::Result<RingDesign> {
-    let source=library::load_design(path).map_err(|e| anyhow::anyhow!("{path}: {e}"))?;
+    evaluated(library::load_design(path).map_err(|e| anyhow::anyhow!("{path}: {e}"))?)
+}
+
+/// A design as its graph evaluates it, the graph and the workshop's records kept; a plain design as it is.
+fn evaluated(source: RingDesign) -> anyhow::Result<RingDesign> {
     if let Some(json)=&source.graph {
         let g=serde_json::from_value(json.clone())?;
         let mut lib=AlphaLibrary::builtin();source.unpack_embedded(&mut lib);source.bake_all(&mut lib);

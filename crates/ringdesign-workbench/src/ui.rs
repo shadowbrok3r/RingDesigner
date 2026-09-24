@@ -433,9 +433,9 @@ impl Workshop {
                     let first = d.cad.as_ref().and_then(|doc|doc.features.get(self.feature)).map(|f|f.id).or(ids.last().copied()).unwrap_or(0);
                     let second = ids.iter().rev().copied().find(|id|*id != first).unwrap_or(0);
                     for op in cad_tools::starters(first,second).into_iter().filter(|op|cad_tools::modify(op)==modify) {
-                        let valid = cad_tools::unavailable(&op).is_none() && (!modify || (ids.contains(&first) && (!matches!(op,Operation::Boolean{..}) || second != 0)));
+                        let valid = !modify || (ids.contains(&first) && (!matches!(op,Operation::Boolean{..}) || second != 0));
                         let response = ui.add_enabled(valid,egui::Button::new((cad_tools::icon(&op).image(ui,20.),op.label())))
-                            .on_hover_text(cad_tools::hint(&op)).on_disabled_hover_text(cad_tools::unavailable(&op).unwrap_or("Create the source solids first; booleans need two different solids."));
+                            .on_hover_text(cad_tools::hint(&op)).on_disabled_hover_text("Create the source solids first; booleans need two different solids.");
                         if response.clicked() {
                             let doc = d.cad.get_or_insert_with(Default::default);
                             let id = doc.features.iter().map(|f|f.id).max().unwrap_or(0)+1;
