@@ -63,9 +63,46 @@ impl<'a> Part<'a> {
         Self { mesh, tint, gem: false, smooth: true, studio: true, roughness: POLISHES[0].1 as f64 }
     }
 
+    /// Stones in the neutral tint.
     pub fn stone(mesh: &'a Mesh) -> Self {
-        Self { mesh, tint: crate::gems::GEM_TINT, gem: true, smooth: false, studio: true, roughness: 0.06 }
+        Self::tinted_stone(mesh, crate::gems::GEM_TINT)
     }
+
+    /// Stones in their own colour, [`crate::gems::tint_of`] as the preview draws them.
+    pub fn tinted_stone(mesh: &'a Mesh, tint: [f32; 3]) -> Self {
+        Self { mesh, tint, gem: true, smooth: false, studio: true, roughness: 0.06 }
+    }
+}
+
+/// A finished ring as a picture shows it: the metal as built, heads joined and seats cut, and every stone it
+/// sets, one loose-triangle mesh per stone colour.
+pub struct Finished {
+    pub metal: Mesh,
+    pub stones: Vec<(Mesh, [f32; 3])>,
+}
+
+impl Finished {
+    /// The metal in `tint`, framing the picture, then the stones in their own colours.
+    pub fn parts(&self, tint: [f32; 3]) -> Vec<Part<'_>> {
+        std::iter::once(Part::metal(&self.metal, tint)).chain(self.stones.iter().map(|(m, t)| Part::tinted_stone(m, *t))).collect()
+    }
+
+    /// Triangles over every stone.
+    pub fn stone_faces(&self) -> usize {
+        self.stones.iter().map(|(m, _)| m.faces.len()).sum()
+    }
+}
+
+/// `design` built at `params` and dressed with its stones: the seats' and the CAD parts' alike.
+pub fn finished(design: &crate::RingDesign, lib: &crate::AlphaLibrary, params: crate::BuildParams) -> anyhow::Result<Finished> {
+    let built = crate::mesh::try_build(design, lib, params)?;
+    Ok(finished_from(design, lib, built))
+}
+
+/// [`finished`] of a build already made.
+pub fn finished_from(design: &crate::RingDesign, lib: &crate::AlphaLibrary, built: crate::BuildResult) -> Finished {
+    let stones = crate::gems::built_meshes(design, lib, &built);
+    Finished { metal: built.mesh, stones }
 }
 
 // --- The studio, as the viewports' shader has it -------------------------------------------------
@@ -530,6 +567,35 @@ mod tests {
         write_png(&png, &out.mesh, 0.55, 1.12, 96, GOLD).unwrap();
         assert!(std::fs::metadata(&png).unwrap().len() > 500);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod finished_tests {
+    use super::*;
+
+    /// Pixels a green stone paints and gold never does.
+    fn green(img: &[u8]) -> usize {
+        img.chunks_exact(3).filter(|p| p[1] as i32 > p[0] as i32 + 30 && p[1] as i32 > p[2] as i32 + 30).count()
+    }
+
+    #[test]
+    fn the_claw_solitaires_thumbnail_shows_its_stone_in_its_own_colour() {
+        let mut d = crate::cad::examples::design("claw-solitaire").unwrap();
+        let stone = d.cad.as_mut().unwrap().features.iter_mut().find(|f| f.id == 2).unwrap();
+        if let crate::cad::Operation::Builder { params, .. } = &mut stone.operation {
+            params[crate::cad::builders::TINT] = serde_json::json!([0.1, 0.9, 0.2]);
+        }
+        let lib = crate::AlphaLibrary::builtin();
+        let f = finished(&d, &lib, crate::BuildParams { theta_steps: 128, profile_steps: 64, ..Default::default() }).unwrap();
+        assert_eq!(f.stones.len(), 1, "one stone, one colour");
+        assert_eq!(f.stones[0].1, [0.1, 0.9, 0.2]);
+        assert!(f.stone_faces() >= 32);
+        let img = render_parts_ss(&f.parts(GOLD), 0.55, 1.12, 160, 160, 1);
+        let bare = render_parts_ss(&f.parts(GOLD)[..1], 0.55, 1.12, 160, 160, 1);
+        let (with, without) = (green(&img), green(&bare));
+        assert_eq!(without, 0, "gold paints no green");
+        assert!(with > 150, "the stone shows: {with} green pixels of a 160 px thumbnail");
     }
 }
 

@@ -53,6 +53,8 @@ pub struct SeatCheck {
     pub carats_override: Option<f64>,
     /// Shared-prong runs only: (pairs, post diameter mm, proud mm).
     pub shared_prongs: Option<(u32, f64, f64)>,
+    /// CAD stones only: the made setting that holds them — their head, or the halo their melee sit in.
+    pub made: Option<String>,
     pub warnings: Vec<String>,
 }
 
@@ -158,25 +160,34 @@ impl StonesReport {
 /// voice*. Both thresholds now come off the design's floor.
 pub const TIGHT_MULTIPLE: f64 = 1.5;
 
-/// Every seat in the design, checked. `None` when the stack carries no seats.
+/// Every seat in the design, checked, and every stone its CAD parts carry. `None` when it sets neither.
 ///
 /// `parting_z_mm` is the plane the draft numbers are signed against — pass
 /// the cast report's when there is one; 0 is the crest plane every profile
 /// puts its crest on by construction.
 pub fn report(design: &RingDesign, parting_z_mm: f64) -> Option<StonesReport> {
+    report_of(design, parting_z_mm, crate::setstone::set_stones(design))
+}
+
+/// [`report`] with the CAD stones read where `built` stands them.
+pub fn report_built(design: &RingDesign, parting_z_mm: f64, built: &crate::mesh::BuildResult) -> Option<StonesReport> {
+    report_of(design, parting_z_mm, crate::setstone::set_stones_built(design, built))
+}
+
+fn report_of(design: &RingDesign, parting_z_mm: f64, stations: Vec<SetStone>) -> Option<StonesReport> {
     let ctx = design.field_context();
     let inner_r = design.inner_radius_mm();
     let crest_r = ctx.crest_radius_mm;
 
     let mut acc = Acc::default();
     walk(design, &ctx, inner_r, crest_r, parting_z_mm, &design.layers, "", &mut acc);
-    let Acc { seats } = acc;
+    let Acc { mut seats } = acc;
+    seats.extend(cad_checks(design, &ctx, inner_r, parting_z_mm, &stations));
     if seats.is_empty() {
         return None;
     }
     // Every stone in its own right, from the one record every consumer
     // reads; the census measures them against each other.
-    let stations = crate::setstone::set_stones(design);
     let stone_count = seats.iter().filter(|s| s.gem.is_some()).map(|s| s.count).sum();
     let total_carats = seats.iter().map(|s| s.carats()).sum();
     let (crowding, tight_pairs, closest) =
@@ -333,16 +344,110 @@ fn walk(
 /// Every stone the design sets with its girdle frame, in the order the
 /// record lists them.
 pub fn stone_frames(design: &RingDesign) -> Vec<(SetStone, StoneFrame)> {
+    frames_of(design, crate::setstone::set_stones(design))
+}
+
+/// [`stone_frames`] with the CAD stones read where `built` stands them.
+pub fn stone_frames_built(design: &RingDesign, built: &crate::mesh::BuildResult) -> Vec<(SetStone, StoneFrame)> {
+    frames_of(design, crate::setstone::set_stones_built(design, built))
+}
+
+/// Each of `stones` with its girdle frame on `design`.
+pub fn frames_of(design: &RingDesign, stones: Vec<SetStone>) -> Vec<(SetStone, StoneFrame)> {
     let ctx = design.field_context();
     let inner_r = design.inner_radius_mm();
     let crest_r = ctx.crest_radius_mm;
-    crate::setstone::set_stones(design)
+    stones
         .into_iter()
         .map(|st| {
             let f = frame_at(design, &ctx, inner_r, crest_r, &st);
             (st, f)
         })
         .collect()
+}
+
+/// One line per CAD feature and stone size: where its stones sit on the band, the metal under their pavilions,
+/// and the made setting that holds them.
+fn cad_checks(design: &RingDesign, ctx: &FieldContext, inner_r: f64, parting_z: f64, stations: &[SetStone]) -> Vec<SeatCheck> {
+    let mut groups: Vec<(crate::sketch::Id, Gem, Vec<&SetStone>)> = Vec::new();
+    for st in stations {
+        let Some(feature) = st.cad_feature() else { continue };
+        let same = |g: &Gem| g.cut == st.gem.cut && g.form == st.gem.form && (g.w_mm - st.gem.w_mm).abs() < 1e-9 && (g.l_mm - st.gem.l_mm).abs() < 1e-9;
+        match groups.iter_mut().find(|(f, g, _)| *f == feature && same(g)) {
+            Some(group) => group.2.push(st),
+            None => groups.push((feature, st.gem, vec![st])),
+        }
+    }
+    let doc = design.cad.as_ref();
+    groups
+        .into_iter()
+        .map(|(feature, gem, members)| {
+            let made = doc.and_then(|d| made_by(d, feature, 0));
+            let (mut side, mut worst_draft, mut clearance, mut depth) = (true, f64::MAX, f64::MAX, f64::MAX);
+            for st in &members {
+                let b = base_at(design, inner_r, ctx.crest_radius_mm, ctx, st.theta_deg, st.v_mm);
+                side &= b.nz.abs().asin().to_degrees() >= SIDE_FACE_MIN_DRAFT_DEG;
+                let (sin, cos) = st.theta_deg.to_radians().sin_cos();
+                worst_draft = worst_draft.min(draft_angle([b.nr * cos, b.nr * sin, b.nz], b.z, parting_z));
+                let half = st.seat.stone_half_v_mm(gem);
+                clearance = clearance.min(b.along - half).min(b.surface_len - b.along - half);
+                let through = if b.nz.abs() > b.nr.abs() { b.width } else { b.r - inner_r };
+                depth = depth.min(through - MIN_WALL_MM + st.stand_off_mm());
+            }
+            let footing = if side { SeatFooting::SideFace } else { SeatFooting::Crown(worst_draft) };
+            let mut warnings = Vec::new();
+            if made.is_none() {
+                warnings.push("no setting holds this stone; add claws, a basket or a bezel round it".into());
+            }
+            let need = gem.pavilion_mm();
+            if need > depth {
+                warnings.push(format!(
+                    "culet needs {need:.2} mm; {depth:.2} mm before the {MIN_WALL_MM} mm wall — raise the stone or take a shallower one"
+                ));
+            }
+            SeatCheck {
+                label: members[0].label.clone(),
+                style: if made.as_ref().is_some_and(|(_, key)| *key == crate::cad::builders::BEZEL) { SeatStyle::Bezel } else { SeatStyle::Boss },
+                count: members.len() as u32,
+                seat_diameter_mm: gem.w_mm,
+                gem: Some(gem),
+                footing,
+                edge_clearance_mm: clearance,
+                depth_available_mm: depth,
+                bridge_mm: None,
+                carats_override: None,
+                shared_prongs: None,
+                made: made.map(|(name, _)| name),
+                warnings,
+            }
+        })
+        .collect()
+}
+
+/// The made setting holding the stones feature `id` carries, and its builder: a stone's head, a halo, a head a
+/// pattern copies.
+fn made_by(doc: &crate::cad::Document, id: crate::sketch::Id, depth: u32) -> Option<(String, &'static str)> {
+    use crate::cad::{builders, Operation};
+    let f = doc.feature(id)?;
+    let key_of = |key: &str| builders::spec(key).map(|s| s.key);
+    match &f.operation {
+        Operation::Builder { key, .. } if key == builders::STONE => {
+            let head = builders::head_on(doc, id)?;
+            let Operation::Builder { key, .. } = &head.operation else { return None };
+            Some((head.name.clone(), key_of(key)?))
+        }
+        Operation::Builder { key, .. } if key == builders::HALO || builders::HEADS.contains(&key.as_str()) => Some((f.name.clone(), key_of(key)?)),
+        Operation::Pattern { source, .. }
+        | Operation::Fillet { source, .. }
+        | Operation::Chamfer { source, .. }
+        | Operation::Shell { source, .. }
+        | Operation::PressPull { source, .. }
+            if depth < 16 =>
+        {
+            made_by(doc, *source, depth + 1)
+        }
+        _ => None,
+    }
 }
 
 /// Every stone against every other, in millimetres of real metal.
@@ -490,6 +595,12 @@ fn frame_at(
     crest_r: f64,
     st: &SetStone,
 ) -> StoneFrame {
+    let semi = (st.gem.l_mm * 0.5, st.gem.w_mm * 0.5);
+    let n = st.gem.cut.plan_pow();
+    let reach = if n <= 2.0 { semi.0 } else { (semi.0 * semi.0 + semi.1 * semi.1).sqrt() };
+    if let Some(f) = st.frame {
+        return StoneFrame { girdle: f.origin, normal: f.z_axis, long: f.x_axis, short: f.y_axis, semi, plan_pow: n, reach, pavilion: st.gem.pavilion_mm() };
+    }
     let b = base_at(design, inner_r, crest_r, ctx, st.theta_deg, st.v_mm);
     let (sin, cos) = st.theta_deg.to_radians().sin_cos();
     let mut normal = [b.nr * cos, b.nr * sin, b.nz];
@@ -519,9 +630,6 @@ fn frame_at(
         -t[1] * rs + across[1] * rc,
         -t[2] * rs + across[2] * rc,
     ];
-    let semi = (st.gem.l_mm * 0.5, st.gem.w_mm * 0.5);
-    let n = st.gem.cut.plan_pow();
-    let reach = if n <= 2.0 { semi.0 } else { (semi.0 * semi.0 + semi.1 * semi.1).sqrt() };
     StoneFrame {
         girdle,
         normal,
@@ -707,6 +815,7 @@ fn check_seat(
         bridge_mm: None,
         carats_override: None,
         shared_prongs: None,
+        made: None,
         warnings,
     }
 }

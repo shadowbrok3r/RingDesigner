@@ -312,6 +312,11 @@ impl Gem {
             format!("{:.1}x{:.1} mm {} ({:.2} ct)", self.l_mm, self.w_mm, name, self.carats())
         }
     }
+
+    /// The preview colour when it is one: three finite components from 0 to 1.
+    pub fn tint(&self) -> Option<[f32; 3]> {
+        self.preview_tint.filter(|rgb| rgb.iter().all(|v| v.is_finite() && (0.0..=1.0).contains(v)))
+    }
 }
 
 /// Metal a flat-backed stone still wants under it, mm — the setter's bed,

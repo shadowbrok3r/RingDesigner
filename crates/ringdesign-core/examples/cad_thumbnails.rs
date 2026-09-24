@@ -1,29 +1,15 @@
-//! Regenerate the actual CAD example previews used by both applications.
-use ringdesign_core::{AlphaLibrary, BuildParams, Mesh, cad, render};
+//! Regenerate the actual CAD example previews used by both applications: the finished metal in studio gold,
+//! stones set.
+use ringdesign_core::{AlphaLibrary, BuildParams, cad, render};
 fn main() -> anyhow::Result<()> {
     let dest = std::env::args().nth(1).expect("output directory");
     std::fs::create_dir_all(&dest)?;
     let lib = AlphaLibrary::builtin();
     for name in cad::examples::NAMES {
         let design = cad::examples::design(name)?;
-        let evaluated = cad::evaluate(&design, &lib, BuildParams::default())?;
-        let mut mesh = Mesh::default();
-        for c in evaluated.components.iter().filter(|c| c.settings.visible) {
-            let offset = mesh.vertices.len() as u32;
-            mesh.vertices.extend_from_slice(&c.mesh.vertices);
-            mesh.normals.extend_from_slice(&c.mesh.normals);
-            mesh.faces
-                .extend(c.mesh.faces.iter().map(|f| f.map(|v| v + offset)));
-        }
-        render::write_png(
-            format!("{dest}/{name}.png"),
-            &mesh,
-            0.55,
-            1.12,
-            160,
-            [0.76, 0.80, 0.87],
-        )?;
-        println!("{name}: {} triangles", mesh.faces.len());
+        let finished = render::finished(&design, &lib, BuildParams::default())?;
+        render::write_png_parts(format!("{dest}/{name}.png"), &finished.parts(render::GOLD), 0.55, 1.12, 160)?;
+        println!("{name}: {} triangles, {} of stones", finished.metal.faces.len(), finished.stone_faces());
     }
     Ok(())
 }

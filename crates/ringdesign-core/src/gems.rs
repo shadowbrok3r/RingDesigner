@@ -16,13 +16,71 @@ use crate::render as raster;
 /// Diamond-ish preview tint; the shader's key light and specular do the rest.
 pub const GEM_TINT: [f32; 3] = [0.72, 0.82, 0.92];
 
+/// Floats per preview vertex: position, normal, colour, second colour.
+const STRIDE: usize = 12;
+
+/// The colour a stone is drawn in: its own, else the neutral tint. The preview and the software renderer both read it.
+pub fn tint_of(gem: Gem) -> [f32; 3] {
+    gem.tint().unwrap_or(GEM_TINT)
+}
+
 /// Interleaved `position(3) normal(3) color(3) color2(3)` triangles for every
-/// stone, matching the ring buffer's layout.
+/// stone the layer stack's seats carry, matching the ring buffer's layout.
+/// Stones the CAD parts carry stand where a build puts them: [`built_vertices`].
 pub fn preview_vertices(design: &RingDesign, _lib: &AlphaLibrary) -> Vec<f32> {
     if design.imported_base.as_ref().is_some_and(|b|b.bare) { return Vec::new(); }
     let mut out = Vec::new();
-    for (st, frame) in crate::stones::stone_frames(design) {
+    for (st, frame) in crate::stones::frames_of(design, crate::setstone::seat_stones(design)) {
         place(st.gem, &frame, &mut out);
+    }
+    out
+}
+
+/// Every stone of `built`: the seats' as [`preview_vertices`] draws them, every stone the CAD parts carry where
+/// the build stands it, and a reference part that records no stone as its own mesh.
+pub fn built_vertices(design: &RingDesign, _lib: &AlphaLibrary, built: &crate::mesh::BuildResult) -> Vec<f32> {
+    let bare = design.imported_base.as_ref().is_some_and(|b| b.bare);
+    let mut out = Vec::new();
+    let stones = crate::stones::stone_frames_built(design, built);
+    for (st, frame) in &stones {
+        if !(bare && st.frame.is_none()) {
+            place(st.gem, frame, &mut out);
+        }
+    }
+    let recorded: std::collections::HashSet<crate::sketch::Id> = stones.iter().filter_map(|(st, _)| st.cad_feature()).collect();
+    for c in built.parts.evaluated.iter().flat_map(|e| &e.components).filter(|c| c.settings.reference && !recorded.contains(&c.id)) {
+        let tint = c.made.as_ref().and_then(|m| m.gem).map_or(GEM_TINT, tint_of);
+        for f in &c.mesh.faces {
+            let n = c.mesh.face_normal(f).unwrap_or([0.0, 0.0, 1.0]).map(|v| v as f32);
+            for &i in f {
+                let Some(p) = c.mesh.vertices.get(i as usize) else { continue };
+                out.extend_from_slice(&[p.0, p.1, p.2, n[0], n[1], n[2], tint[0], tint[1], tint[2], tint[0], tint[1], tint[2]]);
+            }
+        }
+    }
+    out
+}
+
+/// [`built_vertices`] as one loose-triangle mesh per colour, for the software renderer.
+pub fn built_meshes(design: &RingDesign, lib: &AlphaLibrary, built: &crate::mesh::BuildResult) -> Vec<(crate::mesh::Mesh, [f32; 3])> {
+    let v = built_vertices(design, lib, built);
+    let mut out: Vec<(crate::mesh::Mesh, [f32; 3])> = Vec::new();
+    for tri in v.chunks_exact(3 * STRIDE) {
+        let tint = [tri[6], tri[7], tri[8]];
+        let k = match out.iter().position(|(_, t)| *t == tint) {
+            Some(k) => k,
+            None => {
+                out.push((crate::mesh::Mesh::default(), tint));
+                out.len() - 1
+            }
+        };
+        let m = &mut out[k].0;
+        let base = m.vertices.len() as u32;
+        for c in tri.chunks_exact(STRIDE) {
+            m.vertices.push(crate::mesh::Vec3(c[0], c[1], c[2]));
+            m.normals.push(crate::mesh::Vec3(c[3], c[4], c[5]));
+        }
+        m.faces.push([base, base + 1, base + 2]);
     }
     out
 }
@@ -38,7 +96,6 @@ pub fn preview_mesh(design: &RingDesign, lib: &AlphaLibrary) -> Option<crate::me
     if v.is_empty() {
         return None;
     }
-    const STRIDE: usize = 12;
     let n = v.len() / STRIDE;
     let mut m = crate::mesh::Mesh {
         vertices: Vec::with_capacity(n),
@@ -62,9 +119,7 @@ pub fn preview_mesh(design: &RingDesign, lib: &AlphaLibrary) -> Option<crate::me
 /// that chart coordinate or rotate a stone onto a bezel's pocket wall.
 fn place(gem: Gem, frame: &crate::stones::StoneFrame, out: &mut Vec<f32>) {
     let (centre, n, t, b) = (frame.girdle, frame.normal, frame.long, frame.short);
-    let tint = gem.preview_tint
-        .filter(|rgb| rgb.iter().all(|v| v.is_finite() && (0.0..=1.0).contains(v)))
-        .unwrap_or(GEM_TINT);
+    let tint = tint_of(gem);
 
     for (p0, p1, p2) in facets(gem) {
         let world = |p: [f64; 3]| -> [f64; 3] {
