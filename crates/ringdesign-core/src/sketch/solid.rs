@@ -112,15 +112,29 @@ impl Workplane {
 }
 
 /// Every region extruded along `direction` with a draft of `draft_rad` (positive narrows the far
-/// end), holes included, as one body with a lump per region.
+/// end), holes included, as one body with a lump per region; `direction` may run against the
+/// plane's normal as well as along it.
 pub fn extrude(plane: Plane, regions: &[Region], direction: [f64; 3], draft_rad: f64) -> Result<Body> {
+    let n = plane.normal().context("Extrusion plane has no normal")?;
+    // Every loop wound counter-clockwise about the way the extrusion runs, as the kernel tapers it.
+    let along = dot(direction, n) >= 0.0;
+    let wind = !along || draft_rad != 0.0;
+    let wound = |l: &Vec<Curve>| if wind { winding(l, if along { 1.0 } else { -1.0 }) } else { l.clone() };
     swept(regions, "Extrusion", |r| {
         if r.holes.is_empty() {
-            brep::extrude_tapered(plane, &r.outer, direction, draft_rad)
+            brep::extrude_tapered(plane, &wound(&r.outer), direction, draft_rad)
         } else {
-            brep::extrude_region_tapered(plane, &r.loops(), direction, draft_rad)
+            brep::extrude_region_tapered(plane, &r.loops().iter().map(wound).collect::<Vec<_>>(), direction, draft_rad)
         }
     })
+}
+
+/// Loop `l` walked so its signed area has the sign of `sign`: as it is, or its curves in the reverse order.
+fn winding(l: &[Curve], sign: f64) -> Vec<Curve> {
+    match region::loop_moments(l, [0.0; 2]) {
+        Some(m) if m[0] * sign < 0.0 => l.iter().rev().cloned().collect(),
+        _ => l.to_vec(),
+    }
 }
 
 /// Every region revolved `angle_rad` about the axis through `pivot`, holes included, as one body

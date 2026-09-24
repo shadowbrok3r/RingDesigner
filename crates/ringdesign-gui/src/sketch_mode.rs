@@ -130,6 +130,10 @@ struct Live {
     region_pick: Option<RegionRef>,
     solid: Option<SolidStep>,
     solid_typed: Vec<(&'static str, f64)>,
+    /// How the solid being set up meets the ring: joined, cut into the metal, or standing apart.
+    attach: Attach,
+    /// Why every region at once would not sweep as one solid, read with the regions.
+    apart: Option<(u64, Option<String>)>,
     asking: bool,
     dragging: Option<u64>,
     /// How far a pick reaches at the last pointer sample, in millimetres.
@@ -145,6 +149,10 @@ impl Live {
     fn typed(&self, key: &str) -> Option<f64> {
         self.solid_typed.iter().rev().find(|(k, _)| *k == key).map(|(_, v)| *v)
     }
+    /// Whether the solid being set up cuts into the metal.
+    fn cutting(&self) -> bool {
+        self.attach == Attach::Cut
+    }
     /// The fields a dimension bar shows: the solid's while one is being made, else the tool's.
     fn dimensions(&self) -> Vec<Dimension> {
         let field = |key: &'static str, label: &'static str, unit: Unit, default: f64| {
@@ -152,7 +160,7 @@ impl Live {
             Dimension { key, label, unit, value: typed.unwrap_or(default), locked: typed.is_some() }
         };
         match &self.solid {
-            Some(SolidStep::Extrude) => vec![field("height", "Height", Unit::Mm, 1.0), field("draft", "Draft", Unit::Deg, 0.0)],
+            Some(SolidStep::Extrude) => vec![field("height", if self.cutting() { "Depth" } else { "Height" }, Unit::Mm, 1.0), field("draft", "Draft", Unit::Deg, 0.0)],
             Some(SolidStep::Revolve { .. }) => vec![field("angle", "Angle", Unit::Deg, 360.0)],
             Some(SolidStep::PickAxis) => Vec::new(),
             None => self.tools.dimensions(&self.working),
@@ -161,11 +169,23 @@ impl Live {
     fn prompt(&self) -> String {
         let what = if self.region_pick.is_some() { " this region" } else { "" };
         match &self.solid {
-            Some(SolidStep::Extrude) => format!("Extrude{what}: type the height and draft; Enter makes it, Escape puts it away"),
+            Some(SolidStep::Extrude) if self.cutting() => format!("Cut{what}: type the depth into the metal and the draft; Enter makes it, J joins, cuts or sets it apart"),
+            Some(SolidStep::Extrude) => format!("Extrude{what}: type the height and draft; Enter makes it, J joins, cuts or sets it apart"),
             Some(SolidStep::PickAxis) => format!("Revolve{what}: click a line of the sketch, or one of its axes, to turn about"),
-            Some(SolidStep::Revolve { axis, .. }) => format!("Revolve{what} about {axis}: type the angle; Enter makes it"),
+            Some(SolidStep::Revolve { axis, .. }) if self.cutting() => format!("Cut{what} by revolving about {axis}: type the angle into the metal; Enter makes it"),
+            Some(SolidStep::Revolve { axis, .. }) => format!("Revolve{what} about {axis}: type the angle; Enter makes it, J joins, cuts or sets it apart"),
             None => self.tools.prompt(),
         }
+    }
+    /// Why every region at once would not sweep as one solid, at the version drawn; `None` when it would.
+    fn apart(&self) -> Option<&str> {
+        self.apart.as_ref().filter(|(v, _)| *v == self.version()).and_then(|(_, why)| why.as_deref())
+    }
+    /// Which of the regions the solid sweeps alone, when one is picked.
+    fn picked(&self) -> Option<usize> {
+        let views = &self.regions.as_ref()?.1;
+        let regions: Vec<Region> = views.iter().map(|v| v.region.clone()).collect();
+        self.region_pick?.position(&regions).map(|(i, _)| i)
     }
     /// The profile the solid being set up sweeps: the picked region, else every region.
     fn profile(&self) -> Profile {
@@ -409,6 +429,8 @@ fn enter(app: &mut RingDesignerApp, pane: usize, feature: u64, sketch: Sketch, k
         region_pick: None,
         solid: None,
         solid_typed: Vec::new(),
+        attach: Attach::Join,
+        apart: None,
         asking: false,
         dragging: None,
         reach: 0.2,
@@ -656,31 +678,56 @@ fn shank_for_body(app: &RingDesignerApp) -> (Vec<CadEdit>, Attach) {
     (vec![CadEdit::Add { feature: shank, after: None }], Attach::Join)
 }
 
-/// Makes the extrusion or revolution being set up, with any unfinished strokes, as one edit.
+/// Why a ring of parts alone takes no cut.
+const ALL_PARTS: &str = "The ring is all parts: a cut has no band to carve";
+
+/// Makes the extrusion or revolution being set up, with any unfinished strokes, as one edit: a cut
+/// extrusion runs from the plane down into the metal, and a cut revolution turns into it.
 fn commit_solid(app: &mut RingDesignerApp) {
     let Some(live) = app.sketch.live.as_deref() else { return };
     let Some(frame) = live.frame else { return };
+    if live.region_pick.is_none()
+        && let Some(why) = live.apart()
+    {
+        let words = format!("{why}; right-click one region to make it alone");
+        app.set_status(words);
+        return;
+    }
+    let cut = live.cutting();
     let operation = match &live.solid {
         Some(SolidStep::Extrude) => {
-            let height_mm = live.typed("height").unwrap_or(1.0);
+            let height = live.typed("height").unwrap_or(1.0);
             let draft_deg = live.typed("draft").unwrap_or(0.0);
-            Operation::Extrude { sketch: live.profile(), height_mm, draft_deg }
+            Operation::Extrude { sketch: live.profile(), height_mm: if cut { -height } else { height }, draft_deg }
         }
-        Some(SolidStep::Revolve { pivot, dir, .. }) => Operation::Revolve {
-            sketch: live.profile(),
-            pivot: frame.point(*pivot),
-            axis: frame.vector(*dir),
-            degrees: live.typed("angle").unwrap_or(360.0),
-        },
+        Some(SolidStep::Revolve { pivot, dir, .. }) => {
+            let axis = frame.vector(*dir);
+            Operation::Revolve {
+                sketch: live.profile(),
+                pivot: frame.point(*pivot),
+                axis: if cut { axis.map(|v| -v) } else { axis },
+                degrees: live.typed("angle").unwrap_or(360.0),
+            }
+        }
         _ => return,
     };
+    let chosen = live.attach;
     let dirty = live.working != live.base;
-    let label = operation.label().to_string();
+    let (shank, fallback) = shank_for_body(app);
+    // A ring of parts alone has no band to join to or carve.
+    let attach = match (fallback, chosen) {
+        (Attach::Separate, Attach::Cut) => {
+            app.set_status(ALL_PARTS);
+            return;
+        }
+        (Attach::Separate, _) => Attach::Separate,
+        (_, chosen) => chosen,
+    };
+    let label = if attach == Attach::Cut { format!("{} cut", operation.label()) } else { operation.label().to_string() };
     let mut edits = Vec::new();
     if dirty && let Some((id, sketch)) = with_working(app) {
         edits.push(CadEdit::Operation { id, operation: sketch });
     }
-    let (shank, attach) = shank_for_body(app);
     edits.extend(shank);
     edits.push(CadEdit::Add { feature: Feature { id: 0, name: label.clone(), enabled: true, operation, component: Component { attach, ..Component::default() } }, after: None });
     let Ok(applied) = crate::cad_edit::apply(app, &edits) else { return };
@@ -690,25 +737,32 @@ fn commit_solid(app: &mut RingDesignerApp) {
     leave(app, &format!("{label} made from the sketch"));
 }
 
-/// The axis a revolve turns about: a line of the sketch under the pointer, else the plane's own axis nearest it.
+/// The axis a revolve turns about: a line of the sketch under the pointer, else the plane's own axis
+/// nearest it; directed so a positive turn swings the region it sweeps out of the plane toward its normal.
 fn pick_axis(live: &Live) -> Option<([f64; 2], [f64; 2], String)> {
     let (_, raw, _) = live.pointer?;
     let reach = live.reach;
+    let mut picked = None;
     if let Some(near) = live.working.nearest_entity(raw, reach) {
         let line = live.working.polylines(near.entity, 0.01).into_iter().flatten().collect::<Vec<_>>();
         if let [a, .., b] = line.as_slice() {
             let d = [b[0] - a[0], b[1] - a[1]];
             let l = d[0].hypot(d[1]);
             if l > 1e-9 && line.len() == 2 {
-                return Some((*a, [d[0] / l, d[1] / l], format!("line #{}", near.entity)));
+                picked = Some((*a, [d[0] / l, d[1] / l], format!("line #{}", near.entity)));
             }
         }
     }
     let (to_y, to_x) = (raw[0].abs(), raw[1].abs());
-    if to_y.min(to_x) > reach * 3.0 {
-        return None;
+    if picked.is_none() && to_y.min(to_x) <= reach * 3.0 {
+        picked = Some(if to_y <= to_x { ([0.0; 2], [0.0, 1.0], "the sketch's y axis".into()) } else { ([0.0; 2], [1.0, 0.0], "the sketch's x axis".into()) });
     }
-    Some(if to_y <= to_x { ([0.0; 2], [0.0, 1.0], "the sketch's y axis".into()) } else { ([0.0; 2], [1.0, 0.0], "the sketch's x axis".into()) })
+    let (pivot, dir, axis) = picked?;
+    let views = live.regions.as_ref().map(|(_, v, _)| v.as_slice()).unwrap_or_default();
+    let swept = live.picked().and_then(|i| views.get(i)).or_else(|| views.iter().max_by(|a, b| a.region.area().total_cmp(&b.region.area())));
+    let w = swept.and_then(|v| v.region.inside()).map_or([0.0; 2], |p| [p[0] - pivot[0], p[1] - pivot[1]]);
+    let dir = if dir[0] * w[1] - dir[1] * w[0] < 0.0 { [-dir[0], -dir[1]] } else { dir };
+    Some((pivot, dir, axis))
 }
 
 /// What the plugin claimed for the sketch before the app's own shortcuts read the pass's keys.
@@ -811,7 +865,9 @@ fn caches(live: &mut Live, chord: f64) {
             ),
             Err(e) => (Vec::new(), Some(format!("{e:#}"))),
         };
+        let apart = if views.len() > 1 { live.working.sweep_regions().err().map(|e| format!("{e:#}")) } else { None };
         live.regions = Some((version, views, error));
+        live.apart = Some((version, apart));
     }
 }
 
@@ -874,6 +930,15 @@ fn keys(app: &mut RingDesignerApp, ui: &egui::Ui) {
         } else if take(ui, Key::Tab, true) {
             live.bar.focus_field(ui.ctx(), last.key);
         }
+    }
+    if live.solid.is_some() && take(ui, Key::J, false) {
+        let next = match live.attach {
+            Attach::Join => Attach::Cut,
+            Attach::Cut => Attach::Separate,
+            Attach::Separate => Attach::Join,
+        };
+        set_attach(app, next);
+        return;
     }
     if take(ui, Key::X, false) {
         match live.tools.toggle_construction(&mut live.working) {
@@ -1090,8 +1155,10 @@ fn menu(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     let Some(live) = app.sketch.live.as_deref() else { return };
     let region = live.menu_region;
     let solids = live.is_sketch_feature(app);
-    // The region under the click, named by its rim and the point clicked in it.
-    let pick = region.zip(live.menu_at).and_then(|(i, at)| RegionRef::at(&live.regions.as_ref()?.1.get(i)?.region, at));
+    // The region under the click, named by a side only it runs along and the point clicked in it.
+    let regions: Vec<Region> = live.regions.as_ref().map(|(_, v, _)| v.iter().map(|v| v.region.clone()).collect()).unwrap_or_default();
+    let pick = region.zip(live.menu_at).and_then(|(i, at)| RegionRef::among(&regions, i, at));
+    let apart = live.apart().map(|why| format!("{why}; make one region at a time"));
     if let Some(i) = region {
         ui.weak(format!("Region {} of the sketch", i + 1));
         let why = (!solids).then_some("A sketch drawn inside a feature already makes its solid");
@@ -1102,8 +1169,9 @@ fn menu(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             (Icon::CadRevolve, "Revolve this region…", SolidStep::PickAxis, true, "Turn this region alone about a line you click next"),
         ];
         for (icon, label, step, alone, hint) in items {
-            let hint = why.unwrap_or(hint);
-            if ui.add_enabled(why.is_none() && (!alone || pick.is_some()), egui::Button::image_and_text(icon.image(ui, 18.0), label)).on_hover_text(hint).on_disabled_hover_text(hint).clicked() {
+            let hint = why.or(apart.as_deref().filter(|_| !alone)).unwrap_or(hint);
+            let offered = why.is_none() && if alone { pick.is_some() } else { apart.is_none() };
+            if ui.add_enabled(offered, egui::Button::image_and_text(icon.image(ui, 18.0), label)).on_hover_text(hint).on_disabled_hover_text(hint).clicked() {
                 begin_solid(app, step, if alone { pick } else { None });
                 ui.close();
             }
@@ -1124,15 +1192,34 @@ fn menu(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     }
 }
 
-/// Starts setting up a solid from the sketch: every region, or the one `pick` names.
+/// Starts setting up a solid from the sketch: every region, or the one `pick` names; joined to the band, or apart on a ring of parts alone.
 fn begin_solid(app: &mut RingDesignerApp, step: SolidStep, pick: Option<RegionRef>) {
+    let (_, attach) = shank_for_body(app);
     let Some(live) = app.sketch.live.as_deref_mut() else { return };
     live.solid = Some(step);
     live.region_pick = pick;
+    live.attach = attach;
     live.solid_typed.clear();
     live.bar.reset();
     let prompt = live.prompt();
     app.set_status(prompt);
+}
+
+/// Chooses how the solid being set up meets the ring; a cut is refused on a ring that is all parts, where there is no band to carve.
+fn set_attach(app: &mut RingDesignerApp, attach: Attach) {
+    if attach == Attach::Cut && app.design.cad.as_ref().is_some_and(|d| d.replaces_band()) {
+        app.set_status(ALL_PARTS);
+        return;
+    }
+    let Some(live) = app.sketch.live.as_deref_mut() else { return };
+    live.attach = attach;
+    let words = match attach {
+        Attach::Join => "Join: the solid is united with the band and what is joined to it",
+        Attach::Cut => "Cut: the solid carves into the band and the part it stands on",
+        Attach::Separate => "Separate: the solid stands apart as a casting of its own",
+    };
+    let said = format!("{words} · {}", live.prompt());
+    app.set_status(said);
 }
 
 /// One toolbar button: its mark, its name to a reader and its tooltip.
@@ -1148,6 +1235,8 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Rect
     let Some(live) = app.sketch.live.as_deref() else { return };
     let (tool, construction, chosen) = (live.tools.tool, live.tools.construction, !live.tools.chosen_entities.is_empty() || !live.tools.chosen_points.is_empty());
     let (can_undo, can_redo, kind) = (live.tools.can_undo(), live.tools.can_redo(), live.kind);
+    let solid = live.solid.is_some().then_some(live.attach);
+    let can_cut = !app.design.cad.as_ref().is_some_and(|d| d.replaces_band());
     let mut chosen_tool = None;
     let mut action: Option<&'static str> = None;
     let left = rect.left() + crate::command::RAIL_W + 6.0;
@@ -1197,6 +1286,23 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Rect
                         }
                         _ => {}
                     }
+                    if let Some(attach) = solid {
+                        ui.separator();
+                        let ways = [
+                            (Icon::CadUnion, "Join", Attach::Join, "Join (J): the solid is united with the band and what is joined to it", true),
+                            (Icon::CadSubtract, "Cut", Attach::Cut, if can_cut { "Cut (J): the solid carves into the metal, down from the plane it was drawn on" } else { ALL_PARTS }, can_cut),
+                            (Icon::CadPlace, "Separate", Attach::Separate, "Separate (J): the solid stands apart as a casting of its own", true),
+                        ];
+                        for (icon, label, of, tip, enabled) in ways {
+                            if tool_button(ui, icon, label, tip, attach == of, enabled) {
+                                action = Some(match of {
+                                    Attach::Join => "join",
+                                    Attach::Cut => "cut",
+                                    Attach::Separate => "separate",
+                                });
+                            }
+                        }
+                    }
                     ui.separator();
                     if tool_button(ui, Icon::Check, "Finish sketch", "Finish: commit the sketch as one edit and leave sketch mode", false, true) {
                         action = Some("finish");
@@ -1234,6 +1340,9 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Rect
             }
         }
         Some("look") => look_at(app, pane),
+        Some("join") => set_attach(app, Attach::Join),
+        Some("cut") => set_attach(app, Attach::Cut),
+        Some("separate") => set_attach(app, Attach::Separate),
         Some("section") | Some("tangent") => switch_plane(app, pane, action == Some("section")),
         Some("finish") => {
             finish(app);
@@ -1406,15 +1515,16 @@ pub fn draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, response:
             painter.add(egui::Shape::mesh(mesh));
         }
     }
-    // The extrusion being set up, as its outline at the base and at its height.
+    // The extrusion being set up, as its outline at the base and at its height, below the plane for a cut.
     if let (Some(SolidStep::Extrude), Some((_, views, _))) = (&live.solid, &live.regions) {
-        let h = live.typed("height").unwrap_or(1.0);
+        let h = live.typed("height").unwrap_or(1.0) * if live.cutting() { -1.0 } else { 1.0 };
         let up = |uv: [f64; 2]| {
             let p = f.point(uv);
             proj.at(std::array::from_fn(|k| (p[k] + f.n[k] * h) as f32))
         };
-        let swept = |v: &RegionView| live.region_pick.is_none_or(|p| v.region.entities[..v.region.rim].contains(&p.entity));
-        for v in views.iter().filter(|v| swept(v)) {
+        let picked = live.picked();
+        let swept = |i: usize| live.region_pick.is_none() || picked == Some(i);
+        for v in views.iter().enumerate().filter(|(i, _)| swept(*i)).map(|(_, v)| v) {
             for poly in &v.polygons {
                 let mut top: Vec<Pos2> = poly.iter().map(|p| up(*p)).collect();
                 top.extend(top.first().copied());

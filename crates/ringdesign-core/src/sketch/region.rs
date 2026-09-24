@@ -1,15 +1,18 @@
-//! The closed loops a sketch draws and the regions they bound, nested even-odd.
+//! The closed loops a sketch draws and the regions they bound, nested even-odd; where its curves
+//! branch, the faces they divide the plane into.
+use super::graph::{Graph, Key};
 use super::{Id, Sketch};
 use anyhow::{Result, bail, ensure};
 use cadkernel::geom2d::{self, Arc, Curve, Tolerance};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::f64::consts::{PI, TAU};
 
 /// Linear tolerance loops are tested against each other at: the kernel's own for region loops.
 pub const CROSSING_MM: f64 = 1e-9;
-/// How far a crossing may sit from a shared corner and still be that corner: the chain key's grid.
-const JOINT_MM: f64 = 1e-6;
+/// How far a crossing may sit from a shared corner and still be that corner, and how near another
+/// curve an end must lie to join it: the chain key's grid.
+pub(super) const JOINT_MM: f64 = 1e-6;
 
 /// One closed loop in joining order.
 #[derive(Clone, Debug)]
@@ -67,9 +70,29 @@ impl RegionRef {
     pub fn of(region: &Region) -> Option<Self> {
         Self::at(region, region.inside()?)
     }
-    /// Which of `regions` this names, and whether only its point found it.
+    /// The name of region `i` of `regions` with `at` inside it: the first entity of its outer loop no
+    /// other region's outer loop runs through, so regions sharing a curve keep names of their own.
+    pub fn among(regions: &[Region], i: usize, at: [f64; 2]) -> Option<Self> {
+        let r = regions.get(i)?;
+        let mut name = Self::at(r, at)?;
+        let own = |e: &Id| regions.iter().enumerate().all(|(j, o)| j == i || !o.entities[..o.rim].contains(e));
+        if let Some(e) = r.entities[..r.rim].iter().find(|e| own(e)) {
+            name.entity = *e;
+        }
+        Some(name)
+    }
+    /// Which of `regions` this names, and whether only its point found it; of several regions whose
+    /// outer loops run through the entity, the one holding the point, else the nearest to it.
     pub fn position(&self, regions: &[Region]) -> Option<(usize, bool)> {
-        if let Some(i) = regions.iter().position(|r| r.entities[..r.rim].contains(&self.entity)) {
+        let rims: Vec<usize> = (0..regions.len()).filter(|&i| regions[i].entities[..regions[i].rim].contains(&self.entity)).collect();
+        if let [i] = rims.as_slice() {
+            return Some((*i, false));
+        }
+        if let Some(&i) = rims.iter().find(|&&i| regions[i].contains(self.at)) {
+            return Some((i, false));
+        }
+        let off = |i: usize| regions[i].outer.iter().map(|c| geom2d::distance_to(c, self.at)).fold(f64::INFINITY, f64::min);
+        if let Some(&i) = rims.iter().min_by(|a, b| off(**a).total_cmp(&off(**b))) {
             return Some((i, false));
         }
         regions.iter().position(|r| r.contains(self.at)).map(|i| (i, true))
@@ -107,10 +130,21 @@ impl Region {
 }
 
 impl Sketch {
-    /// Every region the solved profile bounds: closed loops nested even-odd, so a loop inside a
-    /// loop is a hole and a loop inside that hole is a region of its own. Loops that cross or
-    /// touch are refused with the place they meet.
+    /// Every region the solved profile bounds, which a pick chooses among: closed loops nested
+    /// even-odd, so a loop inside a loop is a hole and a loop inside that hole is a region of its
+    /// own; where the curves branch, each face they close off, so a line across a rectangle makes
+    /// two. An end lying on another curve joins it there. Curves that cross or touch elsewhere are
+    /// refused with the place they meet.
     pub fn profile_regions(&self) -> Result<Vec<Region>> {
+        let graph = Graph::build(&self.solve()?.sketch)?;
+        if graph.branch().is_some() {
+            return graph.cells();
+        }
+        regions(graph.loops()?)
+    }
+    /// Every region the whole profile sweeps at once: closed loops nested even-odd, refused where
+    /// the curves branch, since regions sharing a curve do not sweep as one solid.
+    pub fn sweep_regions(&self) -> Result<Vec<Region>> {
         regions(loops(&self.solve()?.sketch)?)
     }
     /// The region `pick` names among the solved profile's, and a note when only its point found it.
@@ -119,7 +153,7 @@ impl Sketch {
     }
     /// The one region an inline profile sweeps, holes allowed.
     pub fn profile_region(&self) -> Result<Region> {
-        let mut regions = self.profile_regions()?;
+        let mut regions = self.sweep_regions()?;
         ensure!(
             regions.len() == 1,
             "Sketch has {} separate loops; a profile is one closed loop with any holes inside it. Delete the others, mark them Construction, or draw it as a Sketch feature to sweep every region",
@@ -130,29 +164,27 @@ impl Sketch {
     /// The entities of the closed loop `entity` runs through, as drawn, in joining order.
     pub fn loop_through(&self, entity: Id) -> Result<Vec<Id>> {
         ensure!(self.entities.iter().any(|e| e.id == entity), "Sketch entity #{entity} is missing");
-        let key = |id: Id| -> Result<[i64; 2]> { Ok(self.at(id)?.map(|v| (v * 1e6).round() as i64)) };
-        // The entities joined to this one end to end, and nothing else.
-        let mut picked = std::collections::BTreeSet::from([entity]);
-        let mut ends = std::collections::BTreeSet::new();
+        let mut drawn = self.clone();
+        for e in &mut drawn.entities {
+            e.construction = false;
+        }
+        // The entities joined to this one on loops, at their ends or where an end lands on one, and nothing else.
+        let graph = Graph::build(&drawn)?;
+        let mut picked = BTreeSet::from([entity]);
+        let mut ends: BTreeSet<Key> = BTreeSet::new();
         loop {
             let before = picked.len();
-            for e in &self.entities {
-                let Some((a, b)) = e.geometry.ends() else { continue };
-                let (a, b) = (key(a)?, key(b)?);
-                if picked.contains(&e.id) || ends.contains(&a) || ends.contains(&b) {
-                    picked.insert(e.id);
-                    ends.extend([a, b]);
+            for p in graph.pieces.iter().zip(&graph.alive).filter(|(_, alive)| **alive).map(|(p, _)| p) {
+                if picked.contains(&p.entity) || p.ends.iter().any(|k| ends.contains(k)) {
+                    picked.insert(p.entity);
+                    ends.extend(p.ends);
                 }
             }
             if picked.len() == before {
                 break;
             }
         }
-        let mut drawn = self.clone();
         drawn.entities.retain(|e| picked.contains(&e.id));
-        for e in &mut drawn.entities {
-            e.construction = false;
-        }
         let found = loops(&drawn)?.into_iter().find(|l| l.entities.contains(&entity));
         let Some(found) = found else {
             bail!("Sketch entity #{entity} is not part of a closed loop");
@@ -173,7 +205,7 @@ pub(super) fn distinct(ids: Vec<Id>) -> Vec<Id> {
 }
 
 /// A whole circle as two half arcs; the kernel sweeps arcs, never a whole circle.
-fn halves(c: Curve) -> Vec<Curve> {
+pub(super) fn halves(c: Curve) -> Vec<Curve> {
     match c {
         Curve::Circle(circle) => {
             let half = |from: f64| {
@@ -185,72 +217,18 @@ fn halves(c: Curve) -> Vec<Curve> {
     }
 }
 
-/// Every closed loop of the sketch's profile geometry in joining order, or where one fails to close.
+/// Every closed loop of the sketch's profile geometry in joining order, or where one fails to close:
+/// an end lying on another curve joins it there, a cut's overhang is left out, and a point three
+/// curves still on loops meet at is refused.
 pub(super) fn loops(solved: &Sketch) -> Result<Vec<Loop>> {
-    let key = |id: Id| -> Result<[i64; 2]> { Ok(solved.at(id)?.map(|v| (v * 1e6).round() as i64)) };
-    let mut closed = Vec::new();
-    let mut open = Vec::new();
-    for e in solved.entities.iter().filter(|e| !e.construction) {
-        let curves = solved.curves_of(e)?;
-        match e.geometry.ends() {
-            Some((a, b)) if key(a)? != key(b)? => open.push((a, b, curves, e.id)),
-            _ => closed.push((curves, e.id)),
-        }
-    }
-    ensure!(!closed.is_empty() || !open.is_empty(), "Sketch has no profile geometry");
-    let mut degree: BTreeMap<[i64; 2], (usize, Id)> = BTreeMap::new();
-    for (a, b, _, _) in &open {
-        for id in [*a, *b] {
-            degree.entry(key(id)?).or_insert((0, id)).0 += 1;
-        }
-    }
-    if let Some((n, id)) = degree.values().find(|(n, _)| *n > 2) {
-        bail!("Sketch point #{id} joins {n} curves; a profile loop passes through a point once. Trim the extra curve or mark it Construction");
-    }
-    let mut out: Vec<Loop> = closed
-        .into_iter()
-        .map(|(curves, id)| {
-            let curves: Vec<Curve> = curves.into_iter().flat_map(halves).collect();
-            Loop { forward: vec![true; curves.len()], entities: vec![id; curves.len()], curves }
-        })
-        .collect();
-    while !open.is_empty() {
-        let (start, mut end, curves, id) = open.remove(0);
-        let mut chain = Loop { forward: vec![true; curves.len()], entities: vec![id; curves.len()], curves };
-        while key(end)? != key(start)? {
-            let at = key(end)?;
-            let mut next = None;
-            for (i, (a, b, _, _)) in open.iter().enumerate() {
-                if key(*a)? == at || key(*b)? == at {
-                    next = Some(i);
-                    break;
-                }
-            }
-            let Some(i) = next else {
-                bail!("Sketch profile is open at point #{end}; join it to close the loop");
-            };
-            let (a, b, mut curves, id) = open.remove(i);
-            let forward = key(a)? == at;
-            if forward {
-                end = b;
-            } else {
-                curves.reverse();
-                end = a;
-            }
-            chain.forward.extend(std::iter::repeat_n(forward, curves.len()));
-            chain.entities.extend(std::iter::repeat_n(id, curves.len()));
-            chain.curves.extend(curves);
-        }
-        out.push(chain);
-    }
-    Ok(out)
+    Graph::build(solved)?.loops()
 }
 
 /// A box around a curve, padded, never smaller than the curve.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Bounds {
-    lo: [f64; 2],
-    hi: [f64; 2],
+    pub(super) lo: [f64; 2],
+    pub(super) hi: [f64; 2],
 }
 impl Bounds {
     pub(super) fn of(c: &Curve) -> Self {
@@ -289,7 +267,7 @@ impl Bounds {
     pub(super) fn meets(&self, o: &Self) -> bool {
         (0..2).all(|k| self.lo[k] <= o.hi[k] && o.lo[k] <= self.hi[k])
     }
-    fn holds(&self, p: [f64; 2]) -> bool {
+    pub(super) fn holds(&self, p: [f64; 2]) -> bool {
         (0..2).all(|k| self.lo[k] <= p[k] && p[k] <= self.hi[k])
     }
 }
@@ -647,7 +625,7 @@ mod tests {
         square(&mut s, [0.0, 0.0], 2.0);
         square(&mut s, [2.0, 2.0], 2.0);
         assert!(s.profile_regions().err().unwrap().to_string().contains("meet at (2.0000, 2.0000)"));
-        // A loop crossing itself, and a point three curves meet at, are named.
+        // A loop crossing itself is named where it crosses; a line hanging off a corner by its free end.
         let mut s = Sketch::default();
         let p = [[0.0, 0.0], [4.0, 4.0], [4.0, 0.0], [0.0, 4.0]].map(|p| s.point(p));
         s.entity(Geometry::Polyline { points: p.to_vec(), closed: true });
@@ -660,7 +638,12 @@ mod tests {
         s.entity(Geometry::Line { a: p[2], b: p[0] });
         s.entity(Geometry::Line { a: p[0], b: p[3] });
         let error = s.profile_regions().err().unwrap().to_string();
+        assert!(error.contains(&format!("open at point #{}", p[3])), "{error}");
+        // Closed back to the triangle's far corner, the corner three curves meet at is named when the whole sketch sweeps.
+        s.entity(Geometry::Line { a: p[3], b: p[1] });
+        let error = s.sweep_regions().err().unwrap().to_string();
         assert!(error.contains(&format!("point #{} joins 3 curves", p[0])), "{error}");
+        assert_eq!(s.profile_regions().unwrap().len(), 2, "and a pick chooses between its two triangles");
     }
 
     #[test]
