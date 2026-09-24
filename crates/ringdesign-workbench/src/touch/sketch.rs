@@ -1723,7 +1723,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs parts::resolve to cut the parts set apart as well as the band"]
     fn a_cut_standing_on_a_part_set_apart_carves_it_as_well_as_the_band() {
         // The box set apart from the band, as a casting of its own.
         let mut d = boxed();

@@ -279,8 +279,25 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
             out.notes.push(format!("{}: left out, {}", p.name, Snag::Unclosed { open, repeated }));
             continue;
         }
-        chain.solid.push(&p.solid);
-        chain.origin.extend(std::iter::repeat_n(SOLID_VERTEX + base + p.index, p.solid.v.len()));
+        // A cut reaching a part set apart carves it as well as the band.
+        let mut solid = p.solid.clone();
+        let mut origin = vec![SOLID_VERTEX + base + p.index; solid.v.len()];
+        for c in &cuts {
+            if !meets(&solid, &c.solid) {
+                continue;
+            }
+            check(ctx.cancel)?;
+            match csg::combine_traced(&solid, &c.solid, Op::Subtract, cancel) {
+                Ok(t) => {
+                    extend_origin(&mut origin, &t, solid.v.len(), &vec![c.index; c.solid.f.len()], c.index, base);
+                    solid = t.solid;
+                }
+                Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
+                Err(e) => out.notes.push(format!("{}: could not be cut from {} ({e})", c.name, p.name)),
+            }
+        }
+        chain.solid.push(&solid);
+        chain.origin.extend(origin);
         out.separate += 1;
     }
     if out.joined + out.cut + out.separate == 0 {
@@ -303,6 +320,14 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
     r.quality = mesh.quality();
     out.ms = clock.ms();
     Ok(out)
+}
+
+/// Whether the boxes round two solids meet.
+fn meets(a: &Solid, b: &Solid) -> bool {
+    match (a.bounds(), b.bounds()) {
+        (Some((alo, ahi)), Some((blo, bhi))) => (0..3).all(|k| alo[k] <= bhi[k] && blo[k] <= ahi[k]),
+        _ => false,
+    }
 }
 
 fn check(cancel: &AtomicBool) -> Result<()> {
@@ -626,6 +651,36 @@ mod tests {
         let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
         assert_eq!((built.parts.references, built.parts.separate), (1, 0));
         assert!((built.report.volume_mm3 - bare.report.volume_mm3).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_cut_carves_every_part_set_apart_its_box_meets_and_leaves_the_rest_bit_for_bit() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        let block = |id, name: &str, theta| part(id, name, Operation::Box { size: [4.0, 3.0, 2.0] }, Attach::Separate, Stage::Cast, Placement::ring(theta, 5.0));
+        // Two blocks set apart 4 to 6 mm off the top and the palm; a 2 × 1.5 pocket running from 1.3 mm over the top block to 0.8 mm into it.
+        let apart = vec![block(1, "top block", 90.0), block(2, "palm block", 270.0)];
+        let plain = crate::mesh::try_build(&with_parts(court.clone(), apart.clone()), &lib, params()).unwrap();
+        let mut with_cut = apart.clone();
+        with_cut.push(part(3, "pocket", Operation::Box { size: [2.0, 1.5, 1.3] }, Attach::Cut, Stage::Cast, Placement::ring(90.0, 5.85)));
+        let carved = crate::mesh::try_build(&with_parts(court, with_cut), &lib, params()).unwrap();
+        assert!(carved.report.validation.watertight, "{:?} {:?}", carved.report.validation, carved.parts.notes);
+        assert!(!carved.parts.notes.iter().any(|n| n.contains("could not be cut from top block")), "{:?}", carved.parts.notes);
+        assert_eq!(carved.parts.separate, 2);
+        let taken = plain.report.volume_mm3 - carved.report.volume_mm3;
+        assert!((taken - 2.4).abs() < 1e-3, "2 × 1.5 × 0.8 = 2.4 mm³ out of the top block: {taken:.5}");
+        assert!(carved.mesh.origin.contains(&carved.parts.origin_of(2)), "the pocket's walls name the cut");
+        // The palm block, which the pocket's box never meets, keeps its vertices and faces bit for bit.
+        let own = |b: &crate::mesh::BuildResult, index: u32| {
+            let o = b.parts.origin_of(index);
+            let ids: Vec<usize> = (0..b.mesh.vertices.len()).filter(|v| b.mesh.origin[*v] == o).collect();
+            let local: std::collections::HashMap<u32, usize> = ids.iter().enumerate().map(|(k, v)| (*v as u32, k)).collect();
+            let faces: Vec<[usize; 3]> = b.mesh.faces.iter().filter(|f| f.iter().all(|v| local.contains_key(v))).map(|f| f.map(|v| local[&v])).collect();
+            (ids.iter().map(|v| b.mesh.vertices[*v]).collect::<Vec<_>>(), faces)
+        };
+        let (palm, faces) = own(&carved, 1);
+        assert_eq!((palm.len(), faces.len()), (8, 12));
+        assert_eq!(own(&plain, 1), (palm, faces));
     }
 
     #[test]
