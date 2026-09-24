@@ -1929,7 +1929,6 @@ impl Worker {
                         // The pick scene, the ring frame and the selection's channel build on threads of their own beside the verdict and the staging, which read none of them.
                         let (pick, band, judge, select, field, cast, stones, hot_spot, gems, metal, edges, dfm) = std::thread::scope(|s| {
                             let pick = s.spawn(|| PickScene::build(&result, &job.design));
-                            let dfm = s.spawn(|| ringdesign_core::dfm::findings_in(&job.design, &job.lib));
                             // Every design's ring frame over the build's own band; an unchanged band keeps its surface.
                             let last_band = &mut last_band;
                             let band = s.spawn(|| {
@@ -1983,6 +1982,7 @@ impl Worker {
                                 field.parting_z_mm,
                             );
                             let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
+                            let dfm = ringdesign_core::dfm::findings_in(&job.design, &job.lib);
                             let hot_spot = castability::modulus_scan(&job.design, &job.lib, 64)
                                 .into_iter()
                                 .max_by(|a, b| a.1.total_cmp(&b.1));
@@ -2008,7 +2008,6 @@ impl Worker {
                             let pick = pick.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
                             let judge = judge.map(|j| j.join().unwrap_or_else(|p| std::panic::resume_unwind(p)));
                             let select = select.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
-                            let dfm = dfm.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
                             (Arc::new(pick), band.map(|(_, surface)| surface), judge, select, field, cast, stones, hot_spot, gems, metal, edges, dfm)
                         });
                         Ok(Done {

@@ -585,6 +585,107 @@ fn stretch_cached(key: u64, build: impl FnOnce() -> (Vec<f32>, Vec<f32>)) -> Sta
 }
 
 #[cfg(test)]
+mod shared_bake_tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+    /// A drawing, an inscription, SVG art and a recipe, with the drawing read through a bevelled tiling.
+    fn artful(tag: &str) -> RingDesign {
+        let mut d = RingDesign::default();
+        let mut drawn = DrawnAlpha::new(format!("Drawn {tag}"), 64, 32);
+        let mut stroke = drawn::Stroke::new(0.1, 0.3, false);
+        stroke.push(0.2, 0.5, 1.0);
+        stroke.push(0.8, 0.5, 1.0);
+        drawn.strokes.push(stroke);
+        d.drawn.push(drawn);
+        d.texts.push(text::TextAlpha { name: format!("Text {tag}"), text: "Ab".into(), ..Default::default() });
+        d.svgs.push(svg::SvgAlpha { name: format!("Svg {tag}"), svg: r#"<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="9"/></svg>"#.into(), invert: false });
+        d.recipes.push(alpha::ProcRecipe { name: format!("Recipe {tag}"), ..Default::default() });
+        let ctx = d.field_context();
+        let mut tiling = tiling::TilingLayer::default_for(format!("Drawn {tag}"), &ctx);
+        tiling.edge_mm = 0.2;
+        d.layers.layers.push(LayerEntry::new("Bevelled", Layer::Tiling(tiling)));
+        d
+    }
+
+    #[test]
+    fn a_source_baked_once_is_shared_after_and_a_library_holding_it_is_left_as_it_was() {
+        let design = artful("shared");
+        let (mut first, mut second) = (AlphaLibrary::builtin(), AlphaLibrary::builtin());
+        let before = first.revision();
+        design.unpack_embedded(&mut first);
+        design.bake_all(&mut first);
+        assert_ne!(first.revision(), before);
+        design.bake_all(&mut second);
+        for name in ["Drawn shared", "Text shared", "Svg shared", "Recipe shared", "Drawn shared##sdf"] {
+            let (a, b) = (first.get_shared(name).expect(name), second.get_shared(name).expect(name));
+            assert!(Arc::ptr_eq(a, b), "{name} is one raster in both libraries");
+        }
+        let held = first.revision();
+        design.bake_all(&mut first);
+        assert_eq!(first.revision(), held, "baking what a library already holds changes nothing");
+        // A drawing redrawn is a new raster, and its field follows it.
+        let mut redrawn = design.clone();
+        redrawn.drawn[0].strokes[0].push(0.5, 0.9, 1.0);
+        redrawn.bake_all(&mut first);
+        assert_ne!(first.revision(), held);
+        assert!(!Arc::ptr_eq(first.get_shared("Drawn shared").unwrap(), second.get_shared("Drawn shared").unwrap()));
+        assert!(!Arc::ptr_eq(first.get_shared("Drawn shared##sdf").unwrap(), second.get_shared("Drawn shared##sdf").unwrap()));
+        assert!(Arc::ptr_eq(first.get_shared("Svg shared").unwrap(), second.get_shared("Svg shared").unwrap()));
+    }
+
+    #[test]
+    fn an_observed_bake_counts_every_source_and_field_and_stops_when_cancelled() {
+        let design = artful("observed");
+        assert_eq!(design.bake_units(), 5);
+        let (seen, top) = (AtomicUsize::new(0), AtomicUsize::new(0));
+        let mut lib = AlphaLibrary::builtin();
+        let baked = design
+            .unpack_and_bake_observed(&mut lib, &|done, of| {
+                seen.fetch_add(1, Ordering::Relaxed);
+                top.fetch_max(done, Ordering::Relaxed);
+                assert_eq!(of, 5);
+            }, &AtomicBool::new(false))
+            .expect("not cancelled");
+        assert_eq!((seen.into_inner(), top.into_inner()), (6, 5), "the size, then one per unit");
+        assert_eq!(baked.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(), ["Drawn observed", "Text observed", "Svg observed", "Recipe observed"]);
+        assert!(lib.sdf_of("Drawn observed").is_some());
+        let mut untouched = AlphaLibrary::builtin();
+        let revision = untouched.revision();
+        assert!(artful("stopped").unpack_and_bake_observed(&mut untouched, &|_, _| {}, &AtomicBool::new(true)).is_none());
+        assert_eq!(untouched.revision(), revision, "a bake cancelled before it starts inserts nothing");
+    }
+
+    #[test]
+    fn the_revision_moves_only_when_the_content_does() {
+        let mut lib = AlphaLibrary::default();
+        assert_eq!(lib.revision(), 0);
+        let a = Arc::new(Alpha::new("a", 2, 2, vec![0.5; 4]));
+        lib.insert_shared(a.clone());
+        let one = lib.revision();
+        assert_ne!(one, 0);
+        lib.insert_shared(a.clone());
+        assert_eq!(lib.revision(), one, "the alpha it holds, inserted again");
+        let copy = lib.clone();
+        assert_eq!(copy.revision(), one);
+        lib.insert(Alpha::new("a", 2, 2, vec![0.5; 4]));
+        assert_ne!(lib.revision(), one, "equal texels in a new alpha are a change");
+        let two = lib.revision();
+        assert!(lib.remove("a") && lib.revision() != two);
+        assert_eq!(copy.revision(), one, "a clone keeps its own");
+    }
+
+    #[test]
+    fn a_mask_measured_on_several_threads_at_once_reads_one_measure() {
+        let mask = Alpha::new("stripes", 48, 48, (0..48 * 48).map(|i| if (i % 48) / 6 % 2 == 0 { 1.0 } else { 0.0 }).collect());
+        let got: Vec<Option<(f64, f64)>> = std::thread::scope(|s| (0..6).map(|_| s.spawn(|| mask.min_feature_px())).collect::<Vec<_>>().into_iter().map(|t| t.join().unwrap()).collect());
+        assert!(got[0].is_some() && got.iter().all(|g| *g == got[0]), "{got:?}");
+        assert_eq!(mask.min_feature_px(), got[0]);
+    }
+}
+
+#[cfg(test)]
 mod losing_work_tests {
     use super::*;
 

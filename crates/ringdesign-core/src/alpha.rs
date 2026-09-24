@@ -492,24 +492,42 @@ impl Alpha {
     /// seamless. `None` for an empty or single-phase mask. Cached by content.
     pub fn min_feature_px(&self) -> Option<(f64, f64)> {
         use std::collections::HashMap;
-        use std::sync::{Mutex, OnceLock};
-        static CACHE: OnceLock<Mutex<HashMap<u64, Option<(f64, f64)>>>> = OnceLock::new();
+        use std::sync::{Condvar, Mutex, OnceLock};
+        /// Measured masks by content, `None` while one thread measures it and the others wait.
+        type Measured = HashMap<u64, Option<Option<(f64, f64)>>>;
+        static CACHE: OnceLock<(Mutex<Measured>, Condvar)> = OnceLock::new();
         if self.is_empty() {
             return None;
         }
         let key = self.content_key();
-        let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-        if let Some(hit) = cache.lock().ok().and_then(|c| c.get(&key).copied()) {
-            return hit;
-        }
-        let got = self.measure_features();
-        if let Ok(mut c) = cache.lock() {
-            if c.len() > 512 {
-                c.clear();
+        let (cache, landed) = CACHE.get_or_init(Default::default);
+        let mut held = cache.lock().unwrap_or_else(|e| e.into_inner());
+        loop {
+            match held.get(&key) {
+                Some(Some(hit)) => return *hit,
+                Some(None) => held = landed.wait(held).unwrap_or_else(|e| e.into_inner()),
+                None => break,
             }
-            c.insert(key, got);
         }
-        got
+        if held.len() > 512 {
+            held.retain(|_, v| v.is_none());
+        }
+        held.insert(key, None);
+        drop(held);
+        let got = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.measure_features()));
+        let mut held = cache.lock().unwrap_or_else(|e| e.into_inner());
+        match got {
+            Ok(got) => {
+                held.insert(key, Some(got));
+                landed.notify_all();
+                got
+            }
+            Err(panic) => {
+                held.remove(&key);
+                landed.notify_all();
+                std::panic::resume_unwind(panic)
+            }
+        }
     }
 
     /// A 64-bit digest of the size and every sample, folded sixteen bytes at a time through a 128-bit multiply.
@@ -631,7 +649,7 @@ impl Bakes {
             }
             let freed = match key {
                 Ok(k) => self.rasters.remove(&k).map(|e| e.0.data.len()),
-                Err(k) => self.fields.remove(&k).map(|e| e.1.data.len()),
+                Err(k) => self.fields.remove(&k).map(|e| e.0.data.len() + e.1.data.len()),
             };
             self.texels = self.texels.saturating_sub(freed.unwrap_or(0));
         }
@@ -703,7 +721,7 @@ pub fn shared_sdf(source: &Arc<Alpha>) -> Arc<Alpha> {
     if let Some(raced) = bakes.fields.get(&key) {
         return raced.1.clone();
     }
-    bakes.texels += made.data.len();
+    bakes.texels += source.data.len() + made.data.len();
     bakes.fields.insert(key, (source.clone(), made.clone(), now));
     bakes.trim();
     made
@@ -758,21 +776,28 @@ fn edt_squared(grid: &mut [f32], w: usize, h: usize) {
         }
     };
 
-    // Columns into a column-major copy, then rows back into the grid; each line is independent.
-    let mut columns = vec![0.0f32; w * h];
-    each_line(&mut columns, h, &scratch, |(f, d, v, z), x, out| {
-        for y in 0..h {
-            f[y] = grid[y * w + x];
+    // Columns a band at a time into a column-major copy, scattered back; then every row in place.
+    const BAND: usize = 256;
+    let mut band = vec![0.0f32; BAND.min(w) * h];
+    for x0 in (0..w).step_by(BAND) {
+        let cols = BAND.min(w - x0);
+        each_line(&mut band[..cols * h], h, &scratch, |(f, d, v, z), k, out| {
+            for y in 0..h {
+                f[y] = grid[y * w + x0 + k];
+            }
+            pass(f, d, h, v, z);
+            out.copy_from_slice(&d[..h]);
+        });
+        for (y, row) in grid.chunks_mut(w).enumerate() {
+            for (k, value) in row[x0..x0 + cols].iter_mut().enumerate() {
+                *value = band[k * h + y];
+            }
         }
-        pass(f, d, h, v, z);
-        out.copy_from_slice(&d[..h]);
-    });
-    each_line(grid, w, &scratch, |(f, d, v, z), y, out| {
-        for x in 0..w {
-            f[x] = columns[x * h + y];
-        }
+    }
+    each_line(grid, w, &scratch, |(f, d, v, z), _, row| {
+        f[..w].copy_from_slice(row);
         pass(f, d, w, v, z);
-        out.copy_from_slice(&d[..w]);
+        row.copy_from_slice(&d[..w]);
     });
 }
 

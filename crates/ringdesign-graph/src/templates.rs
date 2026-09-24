@@ -709,6 +709,30 @@ mod tests {
     }
 
     #[test]
+    fn a_rebuild_of_an_unchanged_graph_runs_bakes_and_judges_nothing_again() {
+        use std::sync::Arc;
+        let reg = Registry::builtin();
+        let lib = Arc::new(AlphaLibrary::builtin());
+        let graph = catalog().find(|t| t.slug == "nocturne").unwrap().load();
+        let mut ev = Evaluator::new();
+        let first = crate::eval::evaluate_design_onto(&mut ev, &graph, &reg, &lib, &lib).unwrap();
+        let held = first.baked_library.clone().expect("its artwork, baked");
+        // The host takes the baked library; the next build evaluates against the one before it and bakes onto the host's.
+        let again = crate::eval::evaluate_design_onto(&mut ev, &graph, &reg, &lib, &held).unwrap();
+        assert!(again.report.ran().is_empty(), "every node from the cache: {:?}", again.report.ran());
+        assert!(again.baked_library.is_none(), "the host's library already holds the artwork");
+        assert!(Arc::ptr_eq(&again.design, &first.design));
+        assert_eq!(format!("{:?}", again.field), format!("{:?}", first.field));
+        // A phone-style evaluation keyed by the library it is handed settles the same way after one pass.
+        let mut phone = Evaluator::new();
+        let epoch = |l: &Arc<AlphaLibrary>| Arc::as_ptr(l) as usize as u64;
+        let landed = evaluate_design(&mut phone, &graph, &reg, &held, epoch(&held)).unwrap();
+        assert!(landed.baked_library.is_none());
+        let settled = evaluate_design(&mut phone, &graph, &reg, &held, epoch(&held)).unwrap();
+        assert!(settled.report.ran().is_empty() && settled.baked_library.is_none() && Arc::ptr_eq(&settled.design, &landed.design));
+    }
+
+    #[test]
     fn a_cancel_stops_an_open_between_nodes_and_between_bakes() {
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::{Arc, Mutex};
