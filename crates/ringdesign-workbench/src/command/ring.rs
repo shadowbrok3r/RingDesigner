@@ -2,6 +2,7 @@
 use super::commands::Primitive;
 use super::session::{Outcome, Preview, Session, StepInput};
 use super::snap::{RingPoint, SnapGeometry, SnapHit, Snapper};
+use crate::grips::Rise;
 use std::sync::Arc;
 use ringdesign_core::{
     AlphaLibrary, BuildParams, Mesh, RingDesign, Vec3,
@@ -340,6 +341,8 @@ pub fn seat(design: &RingDesign, surface: Option<&BandSurface>, placement: &Plac
 /// A primitive's new size over its old along the part's own axes; `None` for an operation with no size.
 fn size_ratio(old: &Operation, new: &Operation) -> Option<[f64; 3]> {
     let ratio = |a: f64, b: f64| (a > 0.0 && b.is_finite()).then(|| b / a);
+    // An extrusion's depth over its old, both running the same way from the plane.
+    let depth = |a: f64, b: f64| (a.signum() == b.signum()).then(|| ratio(a.abs(), b.abs())).flatten();
     Some(match (old, new) {
         (Operation::Box { size: a }, Operation::Box { size: b }) => [ratio(a[0], b[0])?, ratio(a[1], b[1])?, ratio(a[2], b[2])?],
         (Operation::Cylinder { radius_mm: r0, height_mm: h0 }, Operation::Cylinder { radius_mm: r1, height_mm: h1 }) => {
@@ -352,13 +355,33 @@ fn size_ratio(old: &Operation, new: &Operation) -> Option<[f64; 3]> {
             let reach = ratio(m0 + n0, m1 + n1)?;
             [reach, reach, ratio(*n0, *n1)?]
         }
-        (Operation::Extrude { height_mm: a, .. }, Operation::Extrude { height_mm: b, .. }) => [1.0, 1.0, ratio(*a, *b)?],
+        (Operation::Extrude { height_mm: a, .. }, Operation::Extrude { height_mm: b, .. }) => [1.0, 1.0, depth(*a, *b)?],
         _ => return None,
     })
 }
 
-/// The map carrying `target`'s placed tessellation to `preview`: a new seat, a new transform, or a new size about its seat.
+/// The map stretching a part by `s` along `rise`'s normal about its plane, in the part's own frame.
+fn stretch(rise: &Rise, s: f64) -> Affine {
+    let (n, k) = (rise.normal, s - 1.0);
+    let lift = k * dot(rise.origin, n);
+    Affine(std::array::from_fn(|r| {
+        let mut row = [0.0; 4];
+        for (c, v) in row.iter_mut().take(3).enumerate() {
+            *v = if r == c { 1.0 } else { 0.0 } + k * n[r] * n[c];
+        }
+        row[3] = -lift * n[r];
+        row
+    }))
+}
+
+/// The map carrying `target`'s placed tessellation to `preview`: a new seat, a new transform, or a new size about its seat;
+/// an extrusion drawn on a plane of its own grows along that plane's normal.
 pub fn placed_ghost(design: &RingDesign, surface: Option<&BandSurface>, target: &Feature, preview: &Preview) -> Option<Affine> {
+    placed_ghost_on(design, surface, target, preview, crate::grips::rise(design, &target.operation))
+}
+
+/// [`placed_ghost`] with an extrusion growing from `rise`.
+pub fn placed_ghost_on(design: &RingDesign, surface: Option<&BandSurface>, target: &Feature, preview: &Preview, rise: Option<Rise>) -> Option<Affine> {
     let current = seat(design, surface, &target.component.placement)?;
     if let Some(p) = &preview.placement {
         return Some(seat(design, surface, p)?.mul(&current.inverse()?));
@@ -374,7 +397,11 @@ pub fn placed_ghost(design: &RingDesign, surface: Option<&BandSurface>, target: 
         }
         Some(op) => {
             let s = size_ratio(&target.operation, op)?;
-            Some(current.mul(&Affine::scale(s)).mul(&current.inverse()?))
+            let about = match (&target.operation, rise) {
+                (Operation::Extrude { .. }, Some(r)) => stretch(&r, s[2]),
+                _ => Affine::scale(s),
+            };
+            Some(current.mul(&about).mul(&current.inverse()?))
         }
         None => Some(Affine::IDENTITY),
     }
@@ -671,6 +698,25 @@ mod tests {
         let unit = unit_mesh(Primitive::Cylinder).unwrap();
         let (lo, hi) = unit.bounds().unwrap();
         assert!((hi.0 - 1.0).abs() < 1e-3 && (lo.2 + 0.5).abs() < 1e-3 && (hi.2 - 0.5).abs() < 1e-3, "{lo:?} {hi:?}");
+    }
+
+    #[test]
+    fn a_cut_resized_draws_its_ghost_grown_from_its_plane() {
+        use ringdesign_core::sketch::{Sketch, Workplane};
+        let d = court();
+        let mut sketch = Sketch::rectangle(2.0, 1.0);
+        sketch.plane = Workplane { origin: [0.0, 0.0, 1.0], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], on_face: None };
+        let pocket = |h: f64| Operation::Extrude { sketch: sketch.clone().into(), height_mm: h, draft_deg: 0.0 };
+        let cut = Feature { id: 4, name: "Pocket".into(), enabled: true, operation: pocket(-1.0), component: Component { attach: Attach::Cut, ..Component::default() } };
+        let preview = |h: f64| Preview { operation: Some(pocket(h)), ..Preview::default() };
+        // Twice as deep, its floor falls from a millimetre under the plane to two, and the plane holds.
+        let m = placed_ghost(&d, None, &cut, &preview(-2.0)).expect("a deeper cut draws a ghost");
+        assert!(close3(m.apply([0.3, 0.2, 0.0]), [0.3, 0.2, -1.0], 1e-12) && close3(m.apply([0.3, 0.2, 1.0]), [0.3, 0.2, 1.0], 1e-12));
+        // A boss the same way: its top rises from the plane.
+        let boss = Feature { operation: pocket(1.0), ..cut.clone() };
+        let m = placed_ghost(&d, None, &boss, &preview(1.5)).unwrap();
+        assert!(close3(m.apply([0.0, 0.0, 2.0]), [0.0, 0.0, 2.5], 1e-12));
+        assert!(placed_ghost(&d, None, &cut, &preview(2.0)).is_none(), "a cut turned into a boss has no size to scale by");
     }
 
     /// The pointer on the band at (θ, across), read as the viewport reads it.

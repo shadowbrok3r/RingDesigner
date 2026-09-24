@@ -1,6 +1,10 @@
 //! Parameter grips: the handles a primitive's size is dragged by, in the part's own frame.
 use crate::command::Unit;
-use ringdesign_core::cad::{Operation, Profile};
+use ringdesign_core::{
+    BuildResult, RingDesign,
+    cad::{Operation, Profile},
+    sketch::Sketch,
+};
 
 /// The smallest size a grip drags a dimension down to.
 pub const MIN_SIZE_MM: f64 = 0.001;
@@ -43,8 +47,52 @@ fn unit(axis: usize) -> [f64; 3] {
     std::array::from_fn(|k| if k == axis { 1.0 } else { 0.0 })
 }
 
+/// The plane an extrusion rises from, in its part's own frame: a point on it and its unit normal.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Rise {
+    pub origin: [f64; 3],
+    pub normal: [f64; 3],
+}
+
+/// The sketch an extrusion sweeps: drawn in place, or held by the `Sketch` feature its profile names.
+fn extruded<'a>(design: &'a RingDesign, op: &'a Operation) -> Option<&'a Sketch> {
+    let Operation::Extrude { sketch, .. } = op else { return None };
+    match sketch {
+        Profile::Inline(s) => Some(s),
+        Profile::Feature { feature } | Profile::Region { feature, .. } => match &design.cad.as_ref()?.feature(*feature)?.operation {
+            Operation::Sketch { sketch } => Some(sketch),
+            _ => None,
+        },
+    }
+}
+
+/// The plane an extrusion drawn on a plane of its own rises from; `None` for a sketch on a face or a work plane.
+fn own(sketch: &Sketch) -> Option<Rise> {
+    if sketch.plane.on_face.is_some() {
+        return None;
+    }
+    let p = sketch.plane.plane().ok()?;
+    Some(Rise { origin: p.origin, normal: p.normal()? })
+}
+
+/// The plane extrusion `op` rises from when its sketch lies on a plane of its own, drawn in place or in the `Sketch` feature it names.
+pub fn rise(design: &RingDesign, op: &Operation) -> Option<Rise> {
+    own(extruded(design, op)?)
+}
+
+/// [`rise`], a sketch on a part's face or a work plane read off the ring as `built`.
+pub fn rise_on(design: &RingDesign, built: &BuildResult, op: &Operation) -> Option<Rise> {
+    let (frame, _) = crate::touch::sketch::frame_of(extruded(design, op)?, built).ok()?;
+    Some(Rise { origin: frame.origin, normal: frame.n })
+}
+
 /// The grips of an operation in its part's own frame; empty for one with no size of its own.
 pub fn grips(op: &Operation) -> Vec<Grip> {
+    grips_on(op, None)
+}
+
+/// [`grips`], an extrusion whose sketch lies in another feature or on a face rising from `rise`.
+pub fn grips_on(op: &Operation, rise: Option<Rise>) -> Vec<Grip> {
     match op {
         Operation::Box { size } => (0..3)
             .map(|axis| {
@@ -74,10 +122,12 @@ pub fn grips(op: &Operation) -> Vec<Grip> {
                 Grip { key, label, unit: Unit::Mm, value: translation[axis], start: *translation, at, direction: unit(axis), gain: 1.0, minimum: f64::NEG_INFINITY, position: true }
             })
             .collect(),
-        Operation::Extrude { sketch: Profile::Inline(sketch), height_mm, .. } if sketch.plane.on_face.is_none() => {
-            // Only a sketch drawn in the feature on its own plane has a plane to read here.
-            let Some(normal) = sketch.plane.plane().ok().and_then(|p| p.normal()) else { return Vec::new() };
-            let base = sketch.plane.origin;
+        Operation::Extrude { sketch, height_mm, .. } => {
+            let found = match sketch {
+                Profile::Inline(s) => own(s).or(rise),
+                Profile::Feature { .. } | Profile::Region { .. } => rise,
+            };
+            let Some(Rise { origin: base, normal }) = found else { return Vec::new() };
             let at = std::array::from_fn(|k| base[k] + normal[k] * height_mm);
             // A cut runs against the normal: the grip sizes its depth and moves the way it runs.
             let direction = if *height_mm < 0.0 { normal.map(|v| -v) } else { normal };

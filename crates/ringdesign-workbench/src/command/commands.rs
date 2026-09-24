@@ -1056,6 +1056,10 @@ impl GripCmd {
     /// `frame` carries the part's own frame into the world; `None` for an operation without the grip.
     pub fn new(feature: u64, op: Operation, key: &str, frame: &Affine) -> Option<Self> {
         let grip = grips::grips(&op).into_iter().find(|g| g.key == key)?;
+        Self::of(feature, op, grip, frame)
+    }
+    /// Drags `grip`, one of `op`'s as a gizmo laid it out; `None` when `frame` flattens its line.
+    pub fn of(feature: u64, op: Operation, grip: Grip, frame: &Affine) -> Option<Self> {
         let at = frame.apply(grip.at);
         let d = frame.turn(grip.direction);
         let len = d.iter().map(|v| v * v).sum::<f64>().sqrt();

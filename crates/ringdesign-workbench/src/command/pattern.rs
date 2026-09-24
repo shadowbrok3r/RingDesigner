@@ -1,5 +1,6 @@
 //! Commands that repeat or reshape a part: arrays, mirrors and press-pull.
 use super::session::{Dimension, Effect, Outcome, Preview, StepInfo, StepInput, Unit, ViewCommand};
+use crate::grips::Rise;
 use ringdesign_core::cad::{
     Attach, Component, FaceRef, Feature, Operation, PatternKind, Placement, Profile,
     pattern::{MAX_PATTERN_COUNT, MAX_PULL_MM, MIN_PULL_MM},
@@ -147,14 +148,22 @@ pub enum Pull {
 
 /// The parameter a pull on `face` of `f` sizes; `None` for a face only the kernel can push.
 pub fn pull_of(f: &Feature, face: &FaceRef) -> Option<Pull> {
+    pull_on(f, face, None)
+}
+
+/// [`pull_of`], an extrusion whose sketch lies in another feature or on a face rising from `rise`.
+pub fn pull_on(f: &Feature, face: &FaceRef, rise: Option<Rise>) -> Option<Pull> {
     let n = face.signature.as_ref()?.normal;
     let upright = matches!(f.component.placement, Placement::Ring { tilt_deg, cant_deg, .. } if tilt_deg == 0.0 && cant_deg == 0.0);
     let along_z = n[2].abs() > 1.0 - 1e-6;
     match &f.operation {
         Operation::Box { .. } if upright && along_z => Some(Pull::BoxSize { axis: 2, sign: n[2].signum() }),
         Operation::Cylinder { .. } if upright && along_z => Some(Pull::CylinderHeight { sign: n[2].signum() }),
-        Operation::Extrude { sketch: Profile::Inline(s), height_mm, .. } if s.plane.on_face.is_none() => {
-            let normal = s.plane.plane().ok()?.normal()?;
+        Operation::Extrude { sketch, height_mm, .. } => {
+            let normal = match sketch {
+                Profile::Inline(s) if s.plane.on_face.is_none() => s.plane.plane().ok()?.normal()?,
+                _ => rise?.normal,
+            };
             (dot(normal, n) * height_mm.signum() > 1.0 - 1e-6).then_some(Pull::ExtrudeHeight)
         }
         _ => None,
@@ -190,6 +199,11 @@ impl PressPullCmd {
     pub fn new(target: Feature, face: FaceRef, attach: Attach, centre: [f64; 3], normal: [f64; 3], fresh_id: Id) -> Self {
         let pull = pull_of(&target, &face);
         Self { target, face, attach, centre, normal, fresh_id, pull, anchor: None, pointer: 0.0, typed: None }
+    }
+    /// The same pull on an extrusion rising from `rise`, so its far face sizes it wherever its sketch lies.
+    pub fn rising_from(self, rise: Option<Rise>) -> Self {
+        let pull = pull_on(&self.target, &self.face, rise);
+        Self { pull, ..self }
     }
     /// How far the face goes out along its normal; negative pushes it in.
     pub fn distance(&self) -> f64 {

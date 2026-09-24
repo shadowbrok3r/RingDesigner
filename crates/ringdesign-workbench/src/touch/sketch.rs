@@ -142,21 +142,27 @@ pub fn start(built: &BuildResult, place: Place) -> Result<(Sketch, [f64; 2]), St
     Ok((sketch, centre))
 }
 
-/// The world plane `sketch` lies on and the loops of the face under it, read off the ring as `built`.
-pub fn resolve(sketch: &Sketch, built: &BuildResult) -> Result<(Frame, Vec<Vec<[f64; 3]>>), String> {
+/// The world plane `sketch` lies on and the part whose face it lies on, read off the ring as `built`.
+pub fn frame_of<'b>(sketch: &Sketch, built: &'b BuildResult) -> Result<(Frame, Option<&'b cad::EvaluatedComponent>), String> {
     let Some(anchor) = &sketch.plane.on_face else {
         let p = sketch.plane.plane().map_err(|e| format!("{e:#}"))?;
-        return Frame::new(p.origin, p.x_axis, p.y_axis).map(|f| (f, Vec::new())).ok_or_else(|| "The sketch's plane has no normal".to_string());
+        return Frame::new(p.origin, p.x_axis, p.y_axis).map(|f| (f, None)).ok_or_else(|| "The sketch's plane has no normal".to_string());
     };
     let e = built.parts.evaluated.as_ref().ok_or("The ring has no parts built to sketch on")?;
     if let Some(plane) = e.plane(anchor.feature) {
         let p = cad::pattern::sketch_on_work_plane(sketch, plane).map_err(|e| format!("{e:#}"))?;
-        return Frame::new(p.origin, p.x_axis, p.y_axis).map(|f| (f, Vec::new())).ok_or_else(|| "The work plane has no normal".to_string());
+        return Frame::new(p.origin, p.x_axis, p.y_axis).map(|f| (f, None)).ok_or_else(|| "The work plane has no normal".to_string());
     }
     let c = e.components.iter().find(|c| c.id == anchor.feature).ok_or_else(|| format!("Sketch face: feature #{} is not a part on the ring", anchor.feature))?;
     let p = anchor::plane(sketch, &c.body, &c.frame, &mut Vec::new()).map_err(|e| format!("{e:#}"))?;
-    let face = fill::face_outline(&c.body, &p, 0.01).unwrap_or_default();
     let frame = Frame::new(p.origin, p.x_axis, p.y_axis).ok_or("The face's plane has no normal")?;
+    Ok((frame, Some(c)))
+}
+
+/// The world plane `sketch` lies on and the loops of the face under it, read off the ring as `built`.
+pub fn resolve(sketch: &Sketch, built: &BuildResult) -> Result<(Frame, Vec<Vec<[f64; 3]>>), String> {
+    let (frame, on) = frame_of(sketch, built)?;
+    let face = on.zip(frame.workplane().plane().ok()).and_then(|(c, p)| fill::face_outline(&c.body, &p, 0.01)).unwrap_or_default();
     Ok((frame, face))
 }
 
@@ -1605,6 +1611,11 @@ mod tests {
         let taken = before - after.mesh.volume_mm3();
         assert!((taken - 0.737).abs() < 0.01, "a 1 mm disc cut 0.3 mm into the crest takes {taken:.4} mm³");
         assert!(after.report.validation.watertight);
+        // Drawn on a plane of its own, the cut's sketch says where it rises without the ring as built.
+        let op = &p.design.cad.as_ref().unwrap().features.iter().find(|f| matches!(f.operation, Operation::Extrude { .. })).unwrap().operation;
+        let own = crate::grips::rise(&p.design, op).expect("a tangent plane of its own");
+        assert_eq!(Some(own), crate::grips::rise_on(&p.design, &after, op));
+        assert!(sub(own.origin, pad.frame().unwrap().origin).iter().all(|v| v.abs() < 1e-9), "{own:?}");
         // Set apart, the same disc stands out of the plane as a casting of its own.
         assert!(matches!(pad.set_attach(&d, Attach::Separate), Outcome::Edited(w) if w.starts_with("Separate:")));
         let p = prepare(&d, &pad.edits(&d).unwrap(), None).unwrap().unwrap();
@@ -1738,6 +1749,49 @@ mod tests {
         assert!((taken - 2.4).abs() < 1e-3, "2 × 1.5 × 0.8 = 2.4 mm³ out of the box standing apart: {taken}");
         assert!(after.report.validation.watertight);
         assert_eq!(skin(&after.mesh, pad.frame().unwrap(), |uv| uv[0].abs() < 0.95 && (uv[1] - 0.25).abs() < 0.7), 0);
+    }
+
+    #[test]
+    fn a_sketch_made_cut_grips_its_depth_and_its_floor_pulls_it_deeper() {
+        use crate::command::pattern::{PressPullCmd, Pull};
+        use crate::command::{Affine, Effect, GripCmd, Outcome as Step, StepInput, ViewCommand, placed_ghost_on};
+        use crate::grips::{grips, grips_on, rise, rise_on};
+        let d = boxed();
+        let (built, mut pad) = extruding(&d);
+        pad.set_attach(&d, Attach::Cut);
+        pad.typed("height", 0.8);
+        let p = prepare(&d, &pad.edits(&d).unwrap(), built.parts.evaluated.as_ref()).unwrap().unwrap();
+        let cut = p.design.cad.as_ref().unwrap().feature(p.applied[1].id.unwrap()).unwrap().clone();
+        assert!(matches!(cut.operation, Operation::Extrude { sketch: Profile::Feature { .. }, height_mm, .. } if height_mm == -0.8));
+        let after = mesh::build(&p.design, &AlphaLibrary::builtin(), params());
+        let f = *pad.frame().unwrap();
+        let near = |a: [f64; 3], b: [f64; 3]| sub(a, b).iter().all(|v| v.abs() < 1e-9);
+        // Its sketch lies on the box's face, so only the ring as built says where the cut rises from.
+        assert_eq!(rise(&p.design, &cut.operation), None);
+        let r = rise_on(&p.design, &after, &cut.operation).expect("the face is on the ring");
+        assert!(near(r.origin, f.origin) && near(r.normal, f.n), "{r:?}");
+        // Its grip stands on the floor 0.8 mm under the face and moves down into the metal.
+        assert!(grips(&cut.operation).is_empty());
+        let g = grips_on(&cut.operation, Some(r)).remove(0);
+        let floor: [f64; 3] = std::array::from_fn(|k| f.origin[k] - 0.8 * f.n[k]);
+        assert!(g.value == 0.8 && near(g.at, floor) && near(g.direction, f.n.map(|v| -v)), "{g:?}");
+        // Typed to 1.3 mm it deepens the cut, its ghost carrying the floor down while the face holds.
+        let mut grip = GripCmd::of(cut.id, cut.operation.clone(), g, &Affine::IDENTITY).unwrap();
+        grip.feed(&StepInput::Typed { key: "height", value: 1.3 });
+        let m = placed_ghost_on(&p.design, None, &cut, &grip.preview(), Some(r)).expect("a cut's resize draws a ghost");
+        assert!(near(m.apply(floor), std::array::from_fn(|k| f.origin[k] - 1.3 * f.n[k])) && near(m.apply(f.origin), f.origin));
+        let deeper = |o: Step| matches!(o, Step::Commit(e) if matches!(e.as_slice(), [Effect::Operation { operation: Operation::Extrude { height_mm, .. }, .. }] if (*height_mm + 1.3).abs() < 1e-12));
+        assert!(deeper(grip.feed(&StepInput::Confirm)));
+        // Its floor pulled 0.5 mm out along its own normal grows the cut to 1.3 mm instead of adding a kernel press-pull.
+        let c = after.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == cut.id).unwrap();
+        let (signed, centre, normal) = (0..c.trace.face_kind.len() as u32).filter_map(|i| cad::pattern::planar_face(c, i).ok()).find(|(_, _, n)| dot(*n, f.n) < -0.99).expect("the cut's floor");
+        assert!((dot(sub(centre, f.origin), f.n) + 0.8).abs() < 1e-6, "{centre:?}");
+        let blind = PressPullCmd::new(cut.clone(), signed, Attach::Cut, centre, normal, 9);
+        assert_eq!(blind.pull(), None, "without the plane the pull is the kernel's");
+        let mut pull = blind.rising_from(Some(r));
+        assert_eq!(pull.pull(), Some(Pull::ExtrudeHeight));
+        pull.feed(&StepInput::Typed { key: "distance", value: 0.5 });
+        assert!(deeper(pull.feed(&StepInput::Confirm)));
     }
 
     #[test]

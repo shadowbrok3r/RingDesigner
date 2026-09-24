@@ -319,6 +319,55 @@ fn press_pull_sizes_a_seated_box_from_its_top_pushes_a_side_through_the_kernel_a
     press(&mut h, Key::Escape);
 }
 
+#[test]
+fn press_pull_on_the_floor_of_a_cut_sketched_on_a_face_deepens_the_cut() {
+    let mut h = harness();
+    let pane = ring_with(&mut h, vec![part(2, "Block", Operation::Box { size: [4.0, 3.0, 2.0] }, Placement::ring(90.0, 0.0))]);
+    // A 2 × 1.5 pocket sketched on the block's top face and cut 0.5 mm into it, the way both apps make one.
+    let top = face_along(&h, 2, [0.0, 0.0, 1.0]);
+    let built = h.state().build.clone().unwrap();
+    let c = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 2).unwrap();
+    let mut sketch = ringdesign_core::sketch::Sketch::rectangle(2.0, 1.5);
+    sketch.plane.on_face = Some(ringdesign_core::sketch::anchor::on_face(&c.frame, 2, &c.body, top as usize).unwrap());
+    let pocket = Operation::Extrude { sketch: ringdesign_core::cad::Profile::Feature { feature: 3 }, height_mm: -0.5, draft_deg: 0.0 };
+    {
+        let app = h.state_mut();
+        let doc = app.design.cad.as_mut().unwrap();
+        doc.append(Feature { id: 3, name: "Sketch".into(), enabled: true, operation: Operation::Sketch { sketch }, component: Component::default() }).unwrap();
+        doc.append(Feature { id: 4, name: "Extrude cut".into(), enabled: true, operation: pocket, component: Component { attach: Attach::Cut, ..Component::default() } }).unwrap();
+        app.history.commit(&app.design);
+        app.rebuild_now();
+    }
+    wait_for_build(&mut h);
+    let before = h.state().build.as_ref().unwrap().mesh.volume_mm3();
+    // Chosen and seen from the side, its gizmo carries a grip on its depth, read from the face its sketch lies on.
+    h.state_mut().panes[pane].camera.yaw = 0.0;
+    h.state_mut().selection.click(Some(Sel::Part(4)), ringdesign_workbench::viewport::Mods::default());
+    h.run_steps(3);
+    assert!(h.query_by_label("Grip: Extrusion").is_some(), "the cut's depth has a grip");
+    h.state_mut().selection.click(None, ringdesign_workbench::viewport::Mods::default());
+    h.state_mut().panes[pane].camera.yaw = std::f32::consts::FRAC_PI_2;
+    h.run_steps(2);
+    let start = h.state().history.present();
+    // Its floor faces down into the block; pulled 0.3 mm out it deepens the cut in one step, no kernel press-pull added.
+    let floor = face_along(&h, 4, [0.0, -1.0, 0.0]);
+    crate::patterns::press_pull(h.state_mut(), pane, 4, floor);
+    h.run_steps(2);
+    assert_eq!(live(&h), Some("press-pull"));
+    h.hover_at(beside(&h));
+    h.run_steps(2);
+    text(&mut h, "0.3");
+    press(&mut h, Key::Enter);
+    assert_eq!((live(&h), h.state().history.present()), (None, start + 1));
+    let d = doc(&h);
+    assert!(matches!(d.feature(4).unwrap().operation, Operation::Extrude { height_mm, .. } if (height_mm + 0.8).abs() < 1e-12), "{:?}", d.feature(4).unwrap().operation);
+    assert!(!d.features.iter().any(|f| matches!(f.operation, Operation::PressPull { .. })));
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let taken = before - h.state().build.as_ref().unwrap().mesh.volume_mm3();
+    assert!((taken - 2.0 * 1.5 * 0.3).abs() < 1e-3, "0.3 mm more of a 2 × 1.5 pocket: {taken:.4} mm³");
+}
+
 /// The furthest any vertex of `a` stands from its nearest vertex of `b`, mm.
 fn farthest(a: &[ringdesign_core::Vec3], b: &[ringdesign_core::Vec3]) -> f64 {
     let d = |p: &ringdesign_core::Vec3, q: &ringdesign_core::Vec3| ((p.0 - q.0) as f64).hypot((p.1 - q.1) as f64).hypot((p.2 - q.2) as f64);
