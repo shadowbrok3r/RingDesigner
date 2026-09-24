@@ -72,7 +72,7 @@ pub fn hint(op: &Operation) -> &'static str {
         Extrude { .. } => "Give a closed sketch depth, optionally tapering the walls.",
         Revolve { .. } => "Rotate a closed sketch about an axis. Edit the profile in Sketch.",
         Sweep { .. } => "Carry a closed section along a 3D path. Edit the stations in Properties.",
-        Twist { .. } => "Twist a polygon section along a planar path, optionally scaling its end.",
+        Twist { .. } => "Twist a closed section along a planar path, optionally scaling its end. The section stands square to the path at its start.",
         Loft { .. } => "Join matching closed sections. Move each station to shape the transition.",
         Boolean { .. } => {
             "Combine two different earlier solids. Consumes the source components; Preview checks the intersection."
@@ -93,11 +93,6 @@ pub fn hint(op: &Operation) -> &'static str {
         PressPull { .. } => "Push or pull a planar face of a part along its normal; its neighbours follow it.",
         Stored { .. } => "A mesh another kernel made, kept in the file so every build shows and judges it; run it again where that kernel is to change it.",
     }
-}
-/// Keep tools with a known invalid default out of the creation path.
-/// Existing source remains inspectable and Preview reports the kernel error.
-pub fn unavailable(op: &Operation) -> Option<&'static str> {
-    matches!(op,Operation::Twist{..}).then_some("Twisted sweep is unavailable: the solid kernel currently leaves open tessellation edges. Twisted ring is supported.")
 }
 pub fn modify(op: &Operation) -> bool {
     !op.sources().is_empty()
@@ -296,10 +291,7 @@ mod tests {
             cad::{self, Document, Feature},
         };
         let lib = AlphaLibrary::builtin();
-        for op in starters(0, 0)
-            .into_iter()
-            .filter(|op| !modify(op) && unavailable(op).is_none())
-        {
+        for op in starters(0, 0).into_iter().filter(|op| !modify(op)) {
             let label = op.label();
             let mut d = RingDesign::default();
             let mut doc = Document::default();

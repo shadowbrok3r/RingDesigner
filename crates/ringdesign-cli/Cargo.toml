@@ -17,5 +17,6 @@ kernel = ["ringdesign-graph/kernel-manifold", "ringdesign-script/kernel"]
 ringdesign-core.workspace = true
 ringdesign-graph.workspace = true
 ringdesign-script.workspace = true
+ringdesign-solid.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true

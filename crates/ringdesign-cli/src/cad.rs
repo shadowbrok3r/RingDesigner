@@ -3,17 +3,19 @@ use ringdesign_core::{AlphaLibrary, BuildParams, cad, manufacturing as mf, sketc
 use std::path::PathBuf;
 
 pub fn run(args: &[String]) -> Result<()> {
-    let command=args.first().map(String::as_str).context("CAD expects example, check, export, step, resize, profile-import, profile-export, or calibrate")?;
+    let command=args.first().map(String::as_str).context("CAD expects example, check, export, step, import, resize, profile-import, profile-export, or calibrate")?;
     let input = args
         .get(1)
         .context("CAD command needs a source file or example name")?;
     let mut output = None;
     let mut bores = None;
     let mut band = false;
+    let mut part = None;
     let mut flags = args[2..].iter();
     while let Some(flag) = flags.next() {
         match flag.as_str() {
             "--out" => output = Some(PathBuf::from(flags.next().context("--out needs a path")?)),
+            "--part" => part = Some(PathBuf::from(flags.next().context("--part needs a path")?)),
             "--band" => band = true,
             "--bores" => {
                 bores = Some(
@@ -37,6 +39,26 @@ pub fn run(args: &[String]) -> Result<()> {
             d.graph = Some(serde_json::to_value(g)?);
             ringdesign_core::library::save_design(&path, &d)?;
             println!("Editable CAD example: {}", path.display());
+        }
+        "import" => {
+            let path = output.context("Import needs --out design.ring.json")?;
+            ensure!(!path.exists(), "Output already exists");
+            let part = part.context("Import needs --part part.step, part.stl or part.obj")?;
+            let (feature, notes) = part_file(&part)?;
+            let mut d = ringdesign_core::library::load_design(input).map_err(|e| anyhow::anyhow!("{input}: {e}"))?;
+            let name = feature.name.clone();
+            let cad::Operation::Stored { mesh, .. } = &feature.operation else { anyhow::bail!("{name} did not come in as a stored part") };
+            let (triangles, volume) = (mesh.triangles, mesh.made()?.solid().volume());
+            for edit in cad::stored::import_edits(&d, feature) {
+                ringdesign_graph::nodes::cad::edit_design(&mut d, &edit)?;
+            }
+            // A graph-driven design is evaluated with the part in its graph.
+            let d = super::evaluated(d)?;
+            ringdesign_core::library::save_design(&path, &d)?;
+            println!("Imported {name}: {triangles} triangles, {volume:.4} mm³, joined at the top of the ring: {}", path.display());
+            for n in notes {
+                println!("  {n}");
+            }
         }
         "profile-import" => {
             let path = output.context("Import needs --out sketch.json")?;
@@ -98,13 +120,17 @@ pub fn run(args: &[String]) -> Result<()> {
                     } else {
                         cad::step::export(&cad::evaluate(&d, &lib, params)?, &d.name)?
                     };
-                    // The file read back names every solid it carries.
-                    let solids = cad::step::read_solids(&text)?;
+                    // Every solid read back as an import reads it.
+                    let solids = cad::step::read_meshes(&text)?;
                     ringdesign_core::library::write_atomic(&path, text.as_bytes())?;
                     let faceted = solids.iter().filter(|s| s.faceted).count();
                     println!("STEP solids: {} analytic, {faceted} faceted: {}", solids.len() - faceted, path.display());
                     for s in &solids {
-                        println!("  {} — {} faces{}", s.name, s.faces, if s.faceted { ", faceted" } else { "" });
+                        let kind = if s.faceted { "faceted" } else { "exact" };
+                        match &s.mesh {
+                            Ok(mesh) => println!("  {} — {kind}, reads back closed at {:.4} mm³", s.name, mesh.volume_mm3()),
+                            Err(why) => println!("  {} — {kind}, reads only where OpenCascade is: {why}", s.name),
+                        }
                     }
                 }
                 "calibrate" => {
@@ -153,4 +179,21 @@ pub fn run(args: &[String]) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// A part file as a stored feature and what reading it said: STEP by the core's reader, its exact solids through cadkernel; STL and OBJ by the solid crate's readers.
+fn part_file(path: &std::path::Path) -> Result<(cad::Feature, Vec<String>)> {
+    let file = path.file_name().and_then(|n| n.to_str()).unwrap_or("The file").to_string();
+    let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).unwrap_or_default();
+    let (format, solids, notes) = match ext.as_str() {
+        "step" | "stp" => {
+            let text = std::fs::read_to_string(path).with_context(|| format!("{file} could not be read"))?;
+            let (meshes, notes) = cad::step::solid_meshes(&text, &file)?;
+            ("step", meshes, notes)
+        }
+        "stl" => ("stl", vec![ringdesign_solid::io::read_stl(path).with_context(|| format!("{file} does not read as STL"))?], Vec::new()),
+        "obj" => ("obj", vec![ringdesign_solid::io::read_obj(path).with_context(|| format!("{file} does not read as OBJ"))?], Vec::new()),
+        _ => anyhow::bail!("{file}: a part comes in as STEP, STL or OBJ"),
+    };
+    Ok((cad::stored::imported(&file, format, &solids)?, notes))
 }

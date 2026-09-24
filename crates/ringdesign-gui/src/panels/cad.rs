@@ -697,9 +697,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     .or(ids.last().copied()).unwrap_or(0);
                 let second = ids.iter().rev().copied().find(|id| *id != previous).unwrap_or(0);
                 for mut op in cad_tools::starters(previous, second).into_iter().filter(|op| cad_tools::modify(op) == modify) {
-                    let valid = cad_tools::unavailable(&op).is_none() && (!modify || (ids.contains(&previous)
-                        && (!matches!(op, Operation::Boolean {..}) || second != 0)));
-                    let hint = if let Some(reason) = cad_tools::unavailable(&op) {reason} else if valid { cad_tools::hint(&op) } else if matches!(op, Operation::Boolean {..}) {
+                    let valid = !modify || (ids.contains(&previous)
+                        && (!matches!(op, Operation::Boolean {..}) || second != 0));
+                    let hint = if valid { cad_tools::hint(&op) } else if matches!(op, Operation::Boolean {..}) {
                         "Create two different solids before using a boolean."
                     } else { "Create or select a solid first." };
                     if ui.add_enabled(valid, egui::Button::new((cad_tools::icon(&op).image(ui, 20.), op.label())))
