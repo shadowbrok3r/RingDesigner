@@ -267,8 +267,8 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
             }
         }
     }
-    // The cuts whose fillet found a seam, in the band or in a part set apart.
-    let mut touched = Vec::new();
+    // The cuts whose fillet found a seam, in the band or in a part set apart, and those the band refused.
+    let (mut touched, mut refused) = (Vec::new(), Vec::new());
     for p in &cuts {
         check(ctx.cancel)?;
         match chain.combine(&p.solid, Op::Subtract) {
@@ -280,7 +280,10 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
                 out.cut += 1;
             }
             Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
-            Err(e) => out.notes.push(format!("{}: could not be cut from the band ({e})", p.name)),
+            Err(e) => {
+                refused.push(p.index);
+                out.notes.push(format!("{}: could not be cut from the band ({e})", p.name));
+            }
         }
     }
     for p in &separates {
@@ -327,7 +330,7 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
             chain.origin.extend(apart.origin);
         }
     }
-    unfollowed(cuts.iter(), &touched, &mut out.notes);
+    unfollowed(cuts.iter().filter(|c| !refused.contains(&c.index)), &touched, &mut out.notes);
     if out.joined + out.cut + out.separate == 0 {
         out.ms = clock.ms();
         return Ok(out);
