@@ -14,7 +14,7 @@ use ringdesign_workbench::command::commands::{FaceHold, moved_by};
 use ringdesign_workbench::command::{
     AddPrimitiveCmd, Affine, AttachCmd, Axis, BandSurface, DimEvent, DimensionBar, Dofs, Effect, Grid, GripCmd, MoveCmd, Outcome, PlaceCmd,
     Primitive, Probe, Reading, RingFeatures, RingPoint, RotateCmd, ScaleCmd, Scene, Session, SnapGeometry, SnapHit, Snapper, StepInput,
-    ViewCommand, land, placed_ghost, unit_ghost, unit_mesh,
+    ViewCommand, land, placed_ghost_on, unit_ghost, unit_mesh,
 };
 use ringdesign_workbench::viewport::pins::Pin;
 use ringdesign_workbench::gizmo::{self, Gizmo, Handle, Layout};
@@ -925,7 +925,8 @@ fn gizmo_of(app: &mut RingDesignerApp) -> Option<(FeatureId, Gizmo)> {
             Gizmo::free(centre, part.map_or(0.0, |c| gizmo::reach(&c.mesh, centre)))
         }
     };
-    Some((id, gizmo.with_grips(&f.operation)))
+    let rise = ringdesign_workbench::grips::rise_on(&app.design, &build, &f.operation);
+    Some((id, gizmo.with_grips_on(&f.operation, rise)))
 }
 
 /// The gizmo on the pane's screen.
@@ -959,7 +960,7 @@ fn start_drag(app: &mut RingDesignerApp, pane: usize, rect: Rect, id: FeatureId,
         (Handle::Move(axis), None) => (Box::new(MoveCmd::of(&target, fresh)), Some(axis), gizmo.key(handle)),
         (Handle::Turn(axis), None) => (Box::new(RotateCmd::of(&target, fresh).about(gizmo.pivot())), Some(axis), gizmo.key(handle)),
         (Handle::Dial, None) => (Box::new(PlaceCmd::new(target.id, target.component.placement.clone())), Some(Axis::Theta), gizmo.key(handle)),
-        (Handle::Grip(i), None) => match gizmo.grips.get(i).and_then(|g| GripCmd::new(f.id, f.operation.clone(), g.grip.key, &gizmo.frame)) {
+        (Handle::Grip(i), None) => match gizmo.grips.get(i).and_then(|g| GripCmd::of(f.id, f.operation.clone(), g.grip.clone(), &gizmo.frame)) {
             Some(c) => (Box::new(c), None, gizmo.key(handle)),
             None => return,
         },
@@ -1216,7 +1217,7 @@ fn ghost(app: &mut RingDesignerApp) {
             // A stone on a part's face rides its seat on that face; a part built round a stone rides the stone's move.
             let model = match &app.command.face {
                 Some(hold) => hold.ghost(&preview),
-                None => placed_ghost(&app.design, band.as_deref(), t, &preview),
+                None => placed_ghost_on(&app.design, band.as_deref(), t, &preview, ringdesign_workbench::grips::rise_on(&app.design, &build, &t.operation)),
             };
             (Staged::Part { build: build_key(&build), feature: app.command.carried.unwrap_or(t.id) }, model)
         }

@@ -20,14 +20,49 @@ use crate::value::Literal;
 pub const GRAPH_EXT: &str = "graph.json";
 pub const CLUSTER_EXT: &str = "cluster.json";
 pub const PRESET_EXT: &str = "preset.json";
-pub const GRAPH_FORMAT_VERSION: u32 = 1;
+/// The newest version this build reads; version 2 fences an in-plane revolution off from older readers.
+pub const GRAPH_FORMAT_VERSION: u32 = 2;
+/// The version a file without an in-plane revolution is written at.
+pub const PLAIN_GRAPH_FORMAT_VERSION: u32 = 1;
 const VERSION_KEY: &str = "format_version";
 
 /// One step per version, index `v` taking a version-`v` document to `v + 1`.
-static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1];
+static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1, migrate_v1_to_v2];
 
 /// Version 0 is a bare `Graph` with no version key at all.
 fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
+
+/// Version 2 only fences an in-plane revolution off from older readers; a version-1 document has the same shape.
+fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
+
+/// Whether a literal holds a revolution read in its sketch's plane.
+fn literal_turns_in_plane(l: &Literal) -> bool {
+    match l {
+        Literal::Json(v) => ringdesign_core::cad::turns_in_plane_json(v),
+        Literal::List(items) => items.iter().any(literal_turns_in_plane),
+        _ => false,
+    }
+}
+
+/// The version `g` is written at: the newest when a node carries a revolution read in its sketch's plane.
+pub fn graph_version_for(g: &Graph) -> u32 {
+    let turns = g.nodes.iter().any(|n| ringdesign_core::cad::turns_in_plane_json(&n.params) || n.inputs.values().any(literal_turns_in_plane));
+    if turns { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
+}
+
+/// The version `p` is written at: the newest when a value carries a revolution read in its sketch's plane.
+pub fn preset_version_for(p: &Preset) -> u32 {
+    if p.values.values().any(literal_turns_in_plane) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
+}
+
+/// The version of a graph or preset document, refused by `kind` when it is newer than `reads_up_to`.
+fn version_of(doc: &serde_json::Value, kind: &str, reads_up_to: u32) -> anyhow::Result<u32> {
+    let version = doc.get(VERSION_KEY).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+    if version > reads_up_to {
+        anyhow::bail!("{kind} file is format version {version}, but this build reads up to {reads_up_to} — it was saved by a newer RingDesigner");
+    }
+    Ok(version)
+}
 
 #[derive(Serialize)]
 struct Versioned<'a, T: Serialize> {
@@ -49,7 +84,7 @@ pub fn preset_dir() -> PathBuf {
 }
 
 pub fn graph_to_string(g: &Graph) -> anyhow::Result<String> {
-    Ok(serde_json::to_string_pretty(&Versioned { format_version: GRAPH_FORMAT_VERSION, doc: g })?)
+    Ok(serde_json::to_string_pretty(&Versioned { format_version: graph_version_for(g), doc: g })?)
 }
 
 pub fn save_graph(path: impl AsRef<Path>, g: &Graph) -> anyhow::Result<()> {
@@ -65,13 +100,13 @@ pub fn save_graph(path: impl AsRef<Path>, g: &Graph) -> anyhow::Result<()> {
 /// Read a graph file, walking it up the ladder, then giving every node
 /// its kind's own migration when a registry is at hand.
 pub fn load_graph_str(text: &str, reg: Option<&Registry>) -> anyhow::Result<Graph> {
+    read_graph(text, reg, GRAPH_FORMAT_VERSION)
+}
+
+/// [`load_graph_str`] as a build reading up to `reads_up_to` would.
+fn read_graph(text: &str, reg: Option<&Registry>, reads_up_to: u32) -> anyhow::Result<Graph> {
     let mut doc: serde_json::Value = serde_json::from_str(text)?;
-    let version = doc.get(VERSION_KEY).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-    if version > GRAPH_FORMAT_VERSION {
-        anyhow::bail!(
-            "graph file is format version {version}, but this build reads up to {GRAPH_FORMAT_VERSION} — it was saved by a newer RingDesigner"
-        );
-    }
+    let version = version_of(&doc, "graph", reads_up_to)?;
     for step in &MIGRATIONS[version as usize..] {
         step(&mut doc);
     }
@@ -195,15 +230,17 @@ impl Preset {
 }
 
 pub fn preset_to_string(p: &Preset) -> anyhow::Result<String> {
-    Ok(serde_json::to_string_pretty(&Versioned { format_version: GRAPH_FORMAT_VERSION, doc: p })?)
+    Ok(serde_json::to_string_pretty(&Versioned { format_version: preset_version_for(p), doc: p })?)
 }
 
 pub fn load_preset_str(text: &str) -> anyhow::Result<Preset> {
+    read_preset(text, GRAPH_FORMAT_VERSION)
+}
+
+/// [`load_preset_str`] as a build reading up to `reads_up_to` would.
+fn read_preset(text: &str, reads_up_to: u32) -> anyhow::Result<Preset> {
     let mut doc: serde_json::Value = serde_json::from_str(text)?;
-    let version = doc.get(VERSION_KEY).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-    if version > GRAPH_FORMAT_VERSION {
-        anyhow::bail!("preset file is format version {version}, but this build reads up to {GRAPH_FORMAT_VERSION} — it was saved by a newer RingDesigner");
-    }
+    version_of(&doc, "preset", reads_up_to)?;
     if let Some(obj) = doc.as_object_mut() {
         obj.remove(VERSION_KEY);
     }
@@ -260,6 +297,49 @@ mod tests {
     #[test]
     fn every_version_has_a_migration_step() {
         assert_eq!(MIGRATIONS.len(), GRAPH_FORMAT_VERSION as usize, "one step per version, none skipped");
+    }
+
+    /// A revolution about the finger's axis, its line read in its sketch's plane or in the world.
+    fn turn(in_plane: bool) -> serde_json::Value {
+        serde_json::json!({ "Revolve": { "sketch": { "feature": 1 }, "pivot": [-10.0, 0.0, 0.0], "axis": [0.0, 1.0, 0.0], "degrees": 360.0, "in_plane": in_plane } })
+    }
+
+    #[test]
+    fn an_in_plane_revolution_fences_its_graph_cluster_and_preset_at_two_and_the_rest_stay_at_one() {
+        let reg = Registry::builtin();
+        let mut plain = Graph::new("Turned", Mode::Free);
+        let n = plain.add("cad.feature").unwrap();
+        plain.node_mut(n).unwrap().params = serde_json::json!({ "id": 2, "name": "Shank", "enabled": true, "operation": turn(false) });
+        // Without one the file is what version 1 always wrote, byte for byte, and a build reading up to 1 opens it.
+        let text = graph_to_string(&plain).unwrap();
+        assert_eq!(text, serde_json::to_string_pretty(&Versioned { format_version: 1, doc: &plain }).unwrap());
+        assert_eq!(read_graph(&text, Some(&reg), PLAIN_GRAPH_FORMAT_VERSION).unwrap(), plain);
+        // In a node's params, on its operation pin, or inside a cluster, it is written at 2, reads back whole, and a build reading up to 1 refuses it by name.
+        let mut in_params = plain.clone();
+        in_params.nodes[0].params["operation"] = turn(true);
+        let mut on_pin = plain.clone();
+        on_pin.nodes[0].inputs.insert("operation".into(), Literal::Json(turn(true)));
+        let mut in_cluster = Graph::new("Turned cluster", Mode::Free);
+        let c = in_cluster.add("cluster").unwrap();
+        in_cluster.node_mut(c).unwrap().params = serde_json::json!({ "graph": serde_json::to_value(&in_params).unwrap() });
+        for (name, g) in [("params", &in_params), ("pin", &on_pin), ("cluster", &in_cluster)] {
+            assert_eq!(graph_version_for(g), GRAPH_FORMAT_VERSION, "{name}");
+            let text = graph_to_string(g).unwrap();
+            assert!(text.contains("\"format_version\": 2"), "{name}");
+            assert_eq!(&load_graph_str(&text, Some(&reg)).unwrap(), g, "{name}");
+            let older = read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
+            assert_eq!(older, "graph file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner", "{name}");
+        }
+        // A preset carrying one on a value is fenced the same way; one without is written at 1.
+        let preset = |op: serde_json::Value| Preset { name: "Turned".into(), cluster: "Turned cluster".into(), values: [("Operation".to_string(), Literal::Json(op))].into_iter().collect(), doc: String::new() };
+        let text = preset_to_string(&preset(turn(false))).unwrap();
+        assert!(text.contains("\"format_version\": 1"));
+        assert_eq!(read_preset(&text, PLAIN_GRAPH_FORMAT_VERSION).unwrap(), preset(turn(false)));
+        let text = preset_to_string(&preset(turn(true))).unwrap();
+        assert!(text.contains("\"format_version\": 2"));
+        assert_eq!(load_preset_str(&text).unwrap(), preset(turn(true)));
+        let older = read_preset(&text, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
+        assert_eq!(older, "preset file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner");
     }
 
     #[test]

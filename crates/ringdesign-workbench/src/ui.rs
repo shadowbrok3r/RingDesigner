@@ -707,10 +707,12 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
             pivot,
             axis,
             degrees,
+            in_plane,
             ..
         } => {
-            xyz(ui, "Pivot mm", pivot);
-            xyz(ui, "Axis", axis);
+            let (at, along) = if *in_plane { ("Axis origin in the sketch's plane mm", "Axis direction in the sketch's plane") } else { ("Pivot mm", "Axis") };
+            xyz(ui, at, pivot);
+            xyz(ui, along, axis);
             number(ui, "Revolution °", degrees);
         }
         Operation::Transform {

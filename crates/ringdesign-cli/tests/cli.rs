@@ -163,6 +163,9 @@ fn a_size_run_with_parts_reseats_them_per_size_and_packs_each_separate_part_as_i
     assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
     let text = String::from_utf8_lossy(&o.stdout).to_string();
     assert!(text.starts_with("STEP solids: 1 analytic, 1 faceted"), "{text}");
+    // The band's facets are sized, and the second line says how far from the build they stand.
+    let said = text.lines().nth(1).unwrap();
+    assert!(said.starts_with("  1 exact and 1 faceted solids • ") && said.contains(" facets from ") && said.contains("every vertex of the export build within 0.0"), "{text}");
     let solids = ringdesign_core::cad::step::read_solids(&std::fs::read_to_string(&step).unwrap()).unwrap();
     assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Spacer", false), ("Solitaire", true)]);
     assert!(solids[1].mesh.as_ref().unwrap().validate().watertight);
@@ -209,6 +212,11 @@ fn a_size_run_writes_each_part_as_an_obj_object_and_the_ring_as_step() {
     let out = dir.join("run");
     let o = bin().args(["export", path.to_str().unwrap(), "--sizes", "6,8", "--formats", "obj,step", "--steps", "192x96", "--out", out.to_str().unwrap()]).output().unwrap();
     assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    // Each size's STEP says its solids, its size and how near its sized band stands to the build.
+    let text = String::from_utf8_lossy(&o.stdout).to_string();
+    let said: Vec<&str> = text.lines().filter(|l| l.starts_with("        step: ")).collect();
+    assert_eq!(said.len(), 2, "{text}");
+    assert!(said.iter().all(|l| l.starts_with("        step: 1 exact and 1 faceted solids • ") && l.contains("every vertex of the export build within 0.0")), "{text}");
     let manifest = std::fs::read_to_string(out.join("solitaire_manifest.csv")).unwrap();
     assert_eq!(manifest.lines().skip(1).map(|r| r.split(',').nth(2).unwrap()).collect::<Vec<_>>(), ["obj", "step", "obj", "step"], "{manifest}");
     for size in ["6", "8"] {

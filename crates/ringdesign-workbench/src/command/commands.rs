@@ -605,7 +605,8 @@ impl ScaleCmd {
             Operation::Torus { major_mm, minor_mm } => {
                 vec![d(Axis::X, "minor", "Minor", *minor_mm, XYZ), d(Axis::Y, "major", "Major", *major_mm, &[])]
             }
-            Operation::Extrude { height_mm, .. } => vec![d(Axis::Z, "height", "Height", *height_mm, &[Axis::Z])],
+            // A cut runs against its plane's normal: its size is the depth, its sign kept apart.
+            Operation::Extrude { height_mm, .. } => vec![d(Axis::Z, "height", "Height", height_mm.abs(), &[Axis::Z])],
             _ => return None,
         };
         let (dofs, base) = dims.into_iter().unzip();
@@ -628,7 +629,7 @@ impl ScaleCmd {
             Operation::Cylinder { .. } => Operation::Cylinder { radius_mm: v(0), height_mm: v(1) },
             Operation::Sphere { .. } => Operation::Sphere { radius_mm: v(0) },
             Operation::Torus { .. } => Operation::Torus { minor_mm: v(0), major_mm: v(1) },
-            Operation::Extrude { sketch, draft_deg, .. } => Operation::Extrude { sketch: sketch.clone(), height_mm: v(0), draft_deg: *draft_deg },
+            Operation::Extrude { sketch, height_mm, draft_deg } => Operation::Extrude { sketch: sketch.clone(), height_mm: height_mm.signum() * v(0), draft_deg: *draft_deg },
             other => other.clone(),
         }
     }
@@ -1055,6 +1056,10 @@ impl GripCmd {
     /// `frame` carries the part's own frame into the world; `None` for an operation without the grip.
     pub fn new(feature: u64, op: Operation, key: &str, frame: &Affine) -> Option<Self> {
         let grip = grips::grips(&op).into_iter().find(|g| g.key == key)?;
+        Self::of(feature, op, grip, frame)
+    }
+    /// Drags `grip`, one of `op`'s as a gizmo laid it out; `None` when `frame` flattens its line.
+    pub fn of(feature: u64, op: Operation, grip: Grip, frame: &Affine) -> Option<Self> {
         let at = frame.apply(grip.at);
         let d = frame.turn(grip.direction);
         let len = d.iter().map(|v| v * v).sum::<f64>().sqrt();
@@ -1396,6 +1401,15 @@ mod tests {
         let mut e = ScaleCmd::new(5, Operation::Extrude { sketch: sketch.into(), height_mm: 2.0, draft_deg: 3.0 }, [0.0; 3]).unwrap();
         assert!(matches!(e.feed(&StepInput::Lock(Axis::X)), Outcome::Refused(m) if m == "Extrude has no size along x"));
         assert!(matches!(e.feed(&StepInput::Lock(Axis::Spin)), Outcome::Refused(m) if m == "Scale locks x, y or z"));
+        // A cut 1 mm into the metal scales its depth and stays a cut: twice is −2, typed 0.4 is −0.4.
+        let mut cut = ScaleCmd::new(5, Operation::Extrude { sketch: ringdesign_core::cad::Profile::Feature { feature: 4 }, height_mm: -1.0, draft_deg: 3.0 }, [0.0; 3]).unwrap();
+        assert_eq!(values(&cut), [("factor", 1.0, false), ("height", 1.0, false)]);
+        assert!(matches!(cut.preview().operation, Some(Operation::Extrude { height_mm, .. }) if height_mm == -1.0), "{:?}", cut.preview().operation);
+        cut.feed(&StepInput::Typed { key: "factor", value: 2.0 });
+        assert!(matches!(cut.preview().operation, Some(Operation::Extrude { height_mm, draft_deg, .. }) if height_mm == -2.0 && draft_deg == 3.0), "{:?}", cut.preview().operation);
+        cut.feed(&StepInput::Typed { key: "height", value: 0.4 });
+        let e = effects(cut.feed(&StepInput::Confirm));
+        assert!(matches!(e.as_slice(), [Effect::Operation { feature: 5, operation: Operation::Extrude { height_mm, .. } }] if *height_mm == -0.4), "{e:?}");
         let mut tiny = ScaleCmd::new(5, Operation::Sphere { radius_mm: 1.0 }, [0.0; 3]).unwrap();
         tiny.feed(&at([1.0, 0.0, 0.0]));
         tiny.feed(&at([0.0, 0.0, 0.0]));

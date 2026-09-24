@@ -177,7 +177,7 @@ impl DesignEngine {
 
     /// The whole ring as STEP: kernel parts exact, the band and every part a builder made as faceted solids.
     pub fn export_step(&self, path: impl AsRef<Path>) -> anyhow::Result<usize> {
-        let text = crate::cad::step::ring(&self.design, &self.lib, self.design.build, &self.design.name)?;
+        let text = crate::cad::step::ring_sized(&self.design, &self.lib, self.design.build, crate::cad::step::BAND_TOLERANCE_MM, &self.design.name)?.text;
         library::write_atomic(path, text.as_bytes())?;
         Ok(text.len())
     }

@@ -46,9 +46,6 @@ impl Frame {
     fn point(&self, uv: [f64; 2]) -> [f64; 3] {
         std::array::from_fn(|k| self.origin[k] + self.x[k] * uv[0] + self.y[k] * uv[1])
     }
-    fn vector(&self, uv: [f64; 2]) -> [f64; 3] {
-        std::array::from_fn(|k| self.x[k] * uv[0] + self.y[k] * uv[1])
-    }
     fn local(&self, p: [f64; 3]) -> [f64; 2] {
         let d: [f64; 3] = std::array::from_fn(|k| p[k] - self.origin[k]);
         [dot(d, self.x), dot(d, self.y)]
@@ -682,10 +679,13 @@ fn shank_for_body(app: &RingDesignerApp) -> (Vec<CadEdit>, Attach) {
 const ALL_PARTS: &str = "The ring is all parts: a cut has no band to carve";
 
 /// Makes the extrusion or revolution being set up, with any unfinished strokes, as one edit: a cut
-/// extrusion runs from the plane down into the metal, and a cut revolution turns into it.
+/// extrusion runs from the plane down into the metal, and a cut revolution turns into it about a
+/// line read in the sketch's plane, so it moves with the face the sketch lies on.
 fn commit_solid(app: &mut RingDesignerApp) {
     let Some(live) = app.sketch.live.as_deref() else { return };
-    let Some(frame) = live.frame else { return };
+    if live.frame.is_none() {
+        return;
+    }
     if live.region_pick.is_none()
         && let Some(why) = live.apart()
     {
@@ -701,12 +701,13 @@ fn commit_solid(app: &mut RingDesignerApp) {
             Operation::Extrude { sketch: live.profile(), height_mm: if cut { -height } else { height }, draft_deg }
         }
         Some(SolidStep::Revolve { pivot, dir, .. }) => {
-            let axis = frame.vector(*dir);
+            let sign = if cut { -1.0 } else { 1.0 };
             Operation::Revolve {
                 sketch: live.profile(),
-                pivot: frame.point(*pivot),
-                axis: if cut { axis.map(|v| -v) } else { axis },
+                pivot: [pivot[0], pivot[1], 0.0],
+                axis: [dir[0] * sign, dir[1] * sign, 0.0],
                 degrees: live.typed("angle").unwrap_or(360.0),
+                in_plane: true,
             }
         }
         _ => return,

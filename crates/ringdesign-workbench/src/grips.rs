@@ -1,6 +1,10 @@
 //! Parameter grips: the handles a primitive's size is dragged by, in the part's own frame.
 use crate::command::Unit;
-use ringdesign_core::cad::{Operation, Profile};
+use ringdesign_core::{
+    BuildResult, RingDesign,
+    cad::{Operation, Profile},
+    sketch::Sketch,
+};
 
 /// The smallest size a grip drags a dimension down to.
 pub const MIN_SIZE_MM: f64 = 0.001;
@@ -43,8 +47,52 @@ fn unit(axis: usize) -> [f64; 3] {
     std::array::from_fn(|k| if k == axis { 1.0 } else { 0.0 })
 }
 
+/// The plane an extrusion rises from, in its part's own frame: a point on it and its unit normal.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Rise {
+    pub origin: [f64; 3],
+    pub normal: [f64; 3],
+}
+
+/// The sketch an extrusion sweeps: drawn in place, or held by the `Sketch` feature its profile names.
+fn extruded<'a>(design: &'a RingDesign, op: &'a Operation) -> Option<&'a Sketch> {
+    let Operation::Extrude { sketch, .. } = op else { return None };
+    match sketch {
+        Profile::Inline(s) => Some(s),
+        Profile::Feature { feature } | Profile::Region { feature, .. } => match &design.cad.as_ref()?.feature(*feature)?.operation {
+            Operation::Sketch { sketch } => Some(sketch),
+            _ => None,
+        },
+    }
+}
+
+/// The plane an extrusion drawn on a plane of its own rises from; `None` for a sketch on a face or a work plane.
+fn own(sketch: &Sketch) -> Option<Rise> {
+    if sketch.plane.on_face.is_some() {
+        return None;
+    }
+    let p = sketch.plane.plane().ok()?;
+    Some(Rise { origin: p.origin, normal: p.normal()? })
+}
+
+/// The plane extrusion `op` rises from when its sketch lies on a plane of its own, drawn in place or in the `Sketch` feature it names.
+pub fn rise(design: &RingDesign, op: &Operation) -> Option<Rise> {
+    own(extruded(design, op)?)
+}
+
+/// [`rise`], a sketch on a part's face or a work plane read off the ring as `built`.
+pub fn rise_on(design: &RingDesign, built: &BuildResult, op: &Operation) -> Option<Rise> {
+    let (frame, _) = crate::touch::sketch::frame_of(extruded(design, op)?, built).ok()?;
+    Some(Rise { origin: frame.origin, normal: frame.n })
+}
+
 /// The grips of an operation in its part's own frame; empty for one with no size of its own.
 pub fn grips(op: &Operation) -> Vec<Grip> {
+    grips_on(op, None)
+}
+
+/// [`grips`], an extrusion whose sketch lies in another feature or on a face rising from `rise`.
+pub fn grips_on(op: &Operation, rise: Option<Rise>) -> Vec<Grip> {
     match op {
         Operation::Box { size } => (0..3)
             .map(|axis| {
@@ -74,12 +122,16 @@ pub fn grips(op: &Operation) -> Vec<Grip> {
                 Grip { key, label, unit: Unit::Mm, value: translation[axis], start: *translation, at, direction: unit(axis), gain: 1.0, minimum: f64::NEG_INFINITY, position: true }
             })
             .collect(),
-        Operation::Extrude { sketch: Profile::Inline(sketch), height_mm, .. } if sketch.plane.on_face.is_none() => {
-            // Only a sketch drawn in the feature on its own plane has a plane to read here.
-            let Some(normal) = sketch.plane.plane().ok().and_then(|p| p.normal()) else { return Vec::new() };
-            let base = sketch.plane.origin;
+        Operation::Extrude { sketch, height_mm, .. } => {
+            let found = match sketch {
+                Profile::Inline(s) => own(s).or(rise),
+                Profile::Feature { .. } | Profile::Region { .. } => rise,
+            };
+            let Some(Rise { origin: base, normal }) = found else { return Vec::new() };
             let at = std::array::from_fn(|k| base[k] + normal[k] * height_mm);
-            vec![Grip::size("height", "Extrusion", *height_mm, base, at, normal, 1.0)]
+            // A cut runs against the normal: the grip sizes its depth and moves the way it runs.
+            let direction = if *height_mm < 0.0 { normal.map(|v| -v) } else { normal };
+            vec![Grip::size("height", "Extrusion", height_mm.abs(), base, at, direction, 1.0)]
         }
         _ => Vec::new(),
     }
@@ -93,7 +145,11 @@ pub fn with(op: &Operation, key: &str, value: f64) -> Option<Operation> {
         (Operation::Box { size }, "y") => &mut size[1],
         (Operation::Box { size }, "z") => &mut size[2],
         (Operation::Cylinder { radius_mm, .. }, "radius") | (Operation::Sphere { radius_mm }, "radius") => radius_mm,
-        (Operation::Cylinder { height_mm, .. }, "height") | (Operation::Extrude { height_mm, .. }, "height") => height_mm,
+        (Operation::Cylinder { height_mm, .. }, "height") => height_mm,
+        (Operation::Extrude { height_mm, .. }, "height") => {
+            *height_mm = height_mm.signum() * value;
+            return Some(op);
+        }
         (Operation::Torus { major_mm, .. }, "major") | (Operation::TwistedRing { major_mm, .. }, "major") => major_mm,
         (Operation::Torus { minor_mm, .. }, "minor") => minor_mm,
         (Operation::TwistedRing { radial_mm, .. }, "radial") => radial_mm,
@@ -156,6 +212,18 @@ mod tests {
         let g = grips(&op);
         assert_eq!(g.len(), 1);
         assert_eq!((g[0].key, g[0].start, g[0].at, g[0].direction), ("height", [0.0, 0.0, 1.0], [0.0, 0.0, 3.0], [0.0, 0.0, 1.0]));
+        // A cut 1 mm into the plane grips its depth on the far side, and a drag out 0.5 deepens it to −1.5.
+        let mut cut = op.clone();
+        if let Operation::Extrude { height_mm, .. } = &mut cut {
+            *height_mm = -1.0;
+        }
+        let g = &grips(&cut)[0];
+        assert_eq!((g.value, g.start, g.at, g.direction), (1.0, [0.0, 0.0, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, -1.0]));
+        let line: f64 = (0..3).map(|k| (g.at[k] - g.start[k]) * g.direction[k]).sum();
+        assert_eq!(line, g.value, "the dimension line is as long as the depth");
+        assert!(matches!(with(&cut, "height", g.dragged(g.value, 0.5)), Some(Operation::Extrude { height_mm, .. }) if height_mm == -1.5));
+        assert!(matches!(with(&cut, "height", g.dragged(g.value, -5.0)), Some(Operation::Extrude { height_mm, .. }) if height_mm == -MIN_SIZE_MM), "a drag in stops at the minimum and stays a cut");
+        assert!(matches!(with(&op, "height", 3.0), Some(Operation::Extrude { height_mm, .. }) if height_mm == 3.0));
         let named = Operation::Extrude { sketch: Profile::Feature { feature: 4 }, height_mm: 2.0, draft_deg: 0.0 };
         assert!(grips(&named).is_empty(), "a named sketch's plane lives in another feature");
         for op in [Operation::Band, Operation::Fillet { source: 1, edges: vec![], radius_mm: 0.3 }, Operation::Sketch { sketch: Sketch::default() }] {

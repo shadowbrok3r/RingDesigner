@@ -84,7 +84,8 @@ pub fn press_pull(app: &mut RingDesignerApp, pane: usize, feature: u64, face: u3
         Err(e) => return app.set_status(format!("{e:#}")),
     };
     let ghost = face_ghost(c, face, normal);
-    begin(app, pane, Ghosted::new(PressPullCmd::new(f, signed, c.attach, centre, normal, 0), app.renderer.clone(), ghost));
+    let rise = ringdesign_workbench::grips::rise_on(&app.design, &build, &f.operation);
+    begin(app, pane, Ghosted::new(PressPullCmd::new(f, signed, c.attach, centre, normal, 0).rising_from(rise), app.renderer.clone(), ghost));
 }
 
 /// Adds the mirror of part `feature` across work plane `plane` as one funnel commit and chooses it.

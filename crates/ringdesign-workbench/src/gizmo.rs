@@ -164,9 +164,14 @@ impl Gizmo {
     }
 
     /// The part's size grips carried into the world by its frame; position grips are the arrows' work.
-    pub fn with_grips(mut self, op: &Operation) -> Self {
+    pub fn with_grips(self, op: &Operation) -> Self {
+        self.with_grips_on(op, None)
+    }
+
+    /// [`Self::with_grips`], an extrusion whose sketch lies in another feature or on a face rising from `rise`.
+    pub fn with_grips_on(mut self, op: &Operation, rise: Option<grips::Rise>) -> Self {
         let frame = self.frame;
-        self.grips = grips::grips(op)
+        self.grips = grips::grips_on(op, rise)
             .into_iter()
             .filter(|g| !g.position)
             .filter_map(|grip| {

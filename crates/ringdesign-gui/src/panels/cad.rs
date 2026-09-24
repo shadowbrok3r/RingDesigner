@@ -1803,10 +1803,12 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             pivot,
             axis,
             degrees,
+            in_plane,
         } => {
             profile_source(ui, "Profile", sketch, tree, Some(sketches));
-            vector(ui, "Axis origin mm", pivot);
-            vector(ui, "Axis direction", axis);
+            let (origin, direction) = if *in_plane { ("Axis origin in the sketch's plane mm", "Axis direction in the sketch's plane") } else { ("Axis origin mm", "Axis direction") };
+            vector(ui, origin, pivot);
+            vector(ui, direction, axis);
             number(ui, "Revolution degrees", degrees);
         }
         Operation::Sweep { sketch, path } => {

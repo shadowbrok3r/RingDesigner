@@ -136,10 +136,10 @@ fn main() {
         s
     };
     sweep("revolve section (size, radius, angle)", vec![
-        Operation::Revolve { sketch: section(2.0, 5.0, 10.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0 },
-        Operation::Revolve { sketch: section(2.0, 5.0, 14.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0 },
-        Operation::Revolve { sketch: section(4.0, 2.0, 10.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0 },
-        Operation::Revolve { sketch: section(2.0, 5.0, 10.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 180.0 },
+        Operation::Revolve { sketch: section(2.0, 5.0, 10.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0, in_plane: false },
+        Operation::Revolve { sketch: section(2.0, 5.0, 14.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0, in_plane: false },
+        Operation::Revolve { sketch: section(4.0, 2.0, 10.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0, in_plane: false },
+        Operation::Revolve { sketch: section(2.0, 5.0, 10.0).into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 180.0, in_plane: false },
     ]);
     let top = |w: f64, h: f64, z: f64| {
         let mut s = Sketch::rectangle(w, h);

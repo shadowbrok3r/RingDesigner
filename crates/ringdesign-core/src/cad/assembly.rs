@@ -204,7 +204,7 @@ pub fn files(
     params: BuildParams,
 ) -> Result<mf::package::Package> {
     let evaluated = super::evaluate(d, lib, params)?;
-    let manifest = manifest(d, &evaluated);
+    let mut manifest = manifest(d, &evaluated);
     let mut entries = Vec::new();
     let mut sheet = format!(
         "<!doctype html><meta charset=\"utf-8\"><title>{}</title><style>body{{font:15px system-ui;margin:24px}}table{{border-collapse:collapse}}td,th{{padding:8px;border:1px solid #bbb}}</style><h1>{}</h1><p>Nominal assembly • {} • all dimensions millimeters</p><table><tr><th>Component</th><th>Material</th><th>Dimensions</th><th>Bench instructions</th></tr>",
@@ -287,14 +287,19 @@ pub fn files(
         name: "assembly-nominal.3mf".into(),
         data: threemf(&evaluated, &d.name),
     });
-    // STEP carries the whole ring: kernel bodies exact, the band and every part a builder made as faceted solids.
+    // STEP carries the whole ring: kernel bodies exact, the band and every part a builder made as faceted solids, the band's facets sized.
     let metal = evaluated.components.iter().filter(|c| !c.settings.reference);
     let band = d.band_is_procedural();
+    let mut step = None;
     if band || metal.clone().next().is_some() {
-        entries.push(crate::threemf::Entry {
-            name: "assembly-nominal.step".into(),
-            data: super::step::ring(d, lib, params, &d.name)?.into_bytes(),
+        let sized = super::step::ring_sized(d, lib, params, super::step::BAND_TOLERANCE_MM, &d.name)?;
+        manifest["step"] = json!({
+            "summary": sized.summary(),
+            "bytes": sized.text.len(),
+            "band": sized.band.map(|b| json!({"built_facets": b.built, "written_facets": b.written, "deviation_mm": b.deviation_mm})),
         });
+        step = Some(sized.summary());
+        entries.push(crate::threemf::Entry { name: "assembly-nominal.step".into(), data: sized.text.into_bytes() });
     }
     // On a band a builder's joined or cut part is inside the band's own faceted solid.
     let apart = |c: &&super::EvaluatedComponent| c.made.is_some() && (!band || c.attach == super::Attach::Separate);
@@ -304,7 +309,10 @@ pub fn files(
         .chain(metal.filter(apart).map(|c| format!("#{} {}", c.id, escape(&c.name))))
         .collect();
     if !meshes.is_empty() {
-        write!(sheet, "<p>In the STEP file each kernel part is an exact solid of its own, and these are faceted, as built: {}.</p>", meshes.join("; "))?;
+        write!(sheet, "<p>In the STEP file each kernel part is an exact solid of its own, and these are faceted: {}.</p>", meshes.join("; "))?;
+    }
+    if let Some(said) = step {
+        write!(sheet, "<p>assembly-nominal.step: {}.</p>", escape(&said))?;
     }
     entries.push(crate::threemf::Entry {
         name: "manifest.json".into(),
@@ -400,7 +408,18 @@ mod tests {
             assert!((a - b).abs() < 5e-3 * b, "{}: {a} against {b}", s.name);
         }
         let sheet = package.entries.iter().find(|e| e.name == "assembly-sheet.html").unwrap();
-        assert!(String::from_utf8_lossy(&sheet.data).contains("these are faceted, as built: the band, with its cuts and the parts builders made on it; #6 Loose bezel."));
+        let sheet = String::from_utf8_lossy(&sheet.data).to_string();
+        assert!(sheet.contains("these are faceted: the band, with its cuts and the parts builders made on it; #6 Loose bezel."), "{sheet}");
+        // The band's facets sized within 0.01 mm of the build, said on the sheet and in the manifest.
+        let said = &package.report["step"];
+        let band = &said["band"];
+        let (built, written, deviation) = (band["built_facets"].as_u64().unwrap(), band["written_facets"].as_u64().unwrap(), band["deviation_mm"].as_f64().unwrap());
+        eprintln!("assembly STEP: {}", said["summary"]);
+        assert!(written * 2 < built && deviation <= crate::cad::step::BAND_TOLERANCE_MM, "{band}");
+        assert_eq!(said["bytes"].as_u64().unwrap() as usize, step.data.len());
+        let summary = said["summary"].as_str().unwrap();
+        assert!(summary.starts_with("1 exact and 2 faceted solids • ") && summary.contains("every vertex of the export build within"), "{summary}");
+        assert!(sheet.contains(&format!("<p>assembly-nominal.step: {}.</p>", escape(summary))), "{sheet}");
     }
 
     #[test]

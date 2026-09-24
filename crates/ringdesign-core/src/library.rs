@@ -41,15 +41,17 @@ pub const DESIGN_EXT: &str = "ring.json";
 /// migration changes no values. Version 3 also protects imported base geometry
 /// from being discarded by an older app. Every version has a migration step.
 // Version 4 protects the sand-support surface and high-resolution embedded maps.
-// Version 6 protects a stored mesh, which no earlier build can parse, and keeps each one once in the file's table; a design without one is still written at 5.
+// Version 6 protects a stored mesh, which no earlier build can parse, and keeps each one once in the file's table;
+// it also protects a revolution whose line is read in its sketch's plane, which an earlier build would turn about the world's line.
+// A design with neither is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
-/// The version a design without a stored mesh is written at, so builds that read up to it still open the file.
+/// The version a design without a stored mesh or an in-plane revolution is written at, so builds that read up to it still open the file.
 pub const PLAIN_FORMAT_VERSION: u32 = 5;
 
-/// The version `design` is written at: the newest when it carries a stored mesh, in its document or in its graph.
+/// The version `design` is written at: the newest when it carries a stored mesh or a revolution read in its sketch's plane, in its document or in its graph.
 pub fn format_version_for(design: &RingDesign) -> u32 {
-    if crate::cad::stored::carried_by(design) { FORMAT_VERSION } else { PLAIN_FORMAT_VERSION }
+    if crate::cad::stored::carried_by(design) || crate::cad::turns_in_plane(design) { FORMAT_VERSION } else { PLAIN_FORMAT_VERSION }
 }
 
 /// Version stamped into saved profile and outline files.
@@ -169,7 +171,7 @@ fn migrate_v4_to_v5(doc: &mut serde_json::Value) {
         }
     }
 }
-/// Version 6 only fences a stored mesh off from older readers; a version-5 document has the same shape.
+/// Version 6 only fences a stored mesh and an in-plane revolution off from older readers; a version-5 document has the same shape.
 fn migrate_v5_to_v6(_doc: &mut serde_json::Value) {}
 
 /// The key a version-6 file keeps each of its stored meshes under once, by content digest.
@@ -203,7 +205,8 @@ impl serde::Serialize for Table<'_> {
 pub fn design_json(design: &RingDesign) -> anyhow::Result<String> {
     let format_version = format_version_for(design);
     let inline = || -> anyhow::Result<String> { Ok(serde_json::to_string_pretty(&VersionedDesign { format_version, design, stored_meshes: None })?) };
-    if format_version < FORMAT_VERSION {
+    // Only a stored mesh earns the table; a design fenced at 6 for anything else is written inline.
+    if !crate::cad::stored::carried_by(design) {
         return inline();
     }
     // Every stored mesh once in the file's table, the document's and the graph's copies each a reference into it.
@@ -874,6 +877,53 @@ mod tests {
         assert_eq!(serde_json::to_string(&load_design_str(&text).unwrap()).unwrap(), serde_json::to_string(&design).unwrap());
     }
 
+    /// A shank turned about the finger's axis: read in the world, or in its XZ section's own plane.
+    fn turned(in_plane: bool) -> crate::cad::Feature {
+        use crate::cad::{Component, Feature, Operation};
+        use crate::sketch::{Sketch, Workplane};
+        let mut section = Sketch::rectangle(2.0, 2.0);
+        section.plane = Workplane { origin: [10.0, 0.0, 0.0], ..Workplane::section() };
+        let (pivot, axis) = if in_plane { ([-10.0, 0.0, 0.0], [0.0, 1.0, 0.0]) } else { ([0.0; 3], [0.0, 0.0, 1.0]) };
+        Feature { id: 2, name: "Shank".into(), enabled: true, operation: Operation::Revolve { sketch: section.into(), pivot, axis, degrees: 360.0, in_plane }, component: Component::default() }
+    }
+
+    /// A build that reads up to 5 would turn an in-plane line about the world's; written at 6, it is refused by name, and no table is written.
+    #[test]
+    fn a_revolution_read_in_its_plane_is_written_at_six_without_a_stored_mesh_table() {
+        let mut in_document = RingDesign { name: "Turned".into(), ..RingDesign::default() };
+        let mut doc = crate::cad::Document::default();
+        doc.append(turned(true)).unwrap();
+        in_document.cad = Some(doc);
+        let node = serde_json::json!({ "id": 2, "kind": "cad.feature", "params": serde_json::to_value(turned(true)).unwrap() });
+        let in_graph = RingDesign { graph: Some(serde_json::json!({ "name": "g", "mode": "Free", "nodes": [node] })), ..RingDesign::default() };
+        let in_cluster = RingDesign { graph: Some(serde_json::json!({ "name": "g", "nodes": [{ "id": 1, "kind": "cluster", "params": { "graph": { "nodes": [node] } } }] })), ..RingDesign::default() };
+        for (name, design) in [("document", &in_document), ("graph", &in_graph), ("cluster", &in_cluster)] {
+            assert!(crate::cad::turns_in_plane(design) && !crate::cad::stored::carried_by(design), "{name}");
+            assert_eq!(format_version_for(design), FORMAT_VERSION, "an in-plane revolution in the {name}");
+            let text = design_json(design).unwrap();
+            assert_eq!(text, serde_json::to_string_pretty(&Inline { format_version: FORMAT_VERSION, design }).unwrap(), "{name}: written inline");
+            assert!(!text.contains(STORED_MESHES), "{name}");
+            let older = read_design(&text, PLAIN_FORMAT_VERSION).unwrap_err().to_string();
+            assert!(older.contains("format version 6") && older.contains("newer RingDesigner"), "{name}: {older}");
+            assert_eq!(serde_json::to_string(&load_design_str(&text).unwrap()).unwrap(), serde_json::to_string(design).unwrap(), "{name}: read back bit for bit");
+        }
+        // Both lines turn the same ring; the world's is written at 5 as it always was.
+        let lib = crate::AlphaLibrary::builtin();
+        let volume = |d: &RingDesign| crate::cad::evaluate(d, &lib, crate::BuildParams::default()).unwrap().components[0].mesh.volume_mm3();
+        let mut world = in_document.clone();
+        world.cad.as_mut().unwrap().features[0] = turned(false);
+        assert_eq!(volume(&world), volume(&in_document));
+        let v = volume(&world);
+        assert!((v / (std::f64::consts::PI * (11.0f64.powi(2) - 9.0f64.powi(2)) * 2.0) - 1.0).abs() < 0.01, "{v}");
+        assert!(!crate::cad::turns_in_plane(&world));
+        assert_eq!(design_json(&world).unwrap(), serde_json::to_string_pretty(&Inline { format_version: PLAIN_FORMAT_VERSION, design: &world }).unwrap());
+        // A stored mesh beside it still earns the table.
+        in_document.cad.as_mut().unwrap().append(stored_feature(3)).unwrap();
+        let text = design_json(&in_document).unwrap();
+        assert!(text.contains(STORED_MESHES) && text.contains(r#""in_plane": true"#));
+        assert_eq!(serde_json::to_string(&load_design_str(&text).unwrap()).unwrap(), serde_json::to_string(&in_document).unwrap());
+    }
+
     #[test]
     fn a_design_without_a_stored_mesh_is_written_at_five_as_it_always_was() {
         use crate::cad::{Attach, Component, Document, Feature, Operation, Placement};
@@ -885,7 +935,11 @@ mod tests {
         parted.cad = Some(doc);
         let mut driven = parted.clone();
         driven.graph = Some(serde_json::json!({ "name": "g", "mode": "Free", "nodes": [{ "id": 3, "kind": "cad.feature", "params": { "id": 3, "name": "Head", "enabled": true, "operation": { "Sphere": { "radius_mm": 2.0 } } } }] }));
-        for (name, d) in [("default", RingDesign::default()), ("court", court), ("parted", parted), ("driven", driven)] {
+        let mut turned_in_world = RingDesign::default();
+        let mut doc = Document::default();
+        doc.append(turned(false)).unwrap();
+        turned_in_world.cad = Some(doc);
+        for (name, d) in [("default", RingDesign::default()), ("court", court), ("parted", parted), ("driven", driven), ("turned in the world", turned_in_world)] {
             let text = design_json(&d).unwrap();
             assert_eq!(text, serde_json::to_string_pretty(&Inline { format_version: PLAIN_FORMAT_VERSION, design: &d }).unwrap(), "{name}");
             assert!(!text.contains(STORED_MESHES), "{name}");

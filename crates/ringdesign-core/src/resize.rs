@@ -134,13 +134,16 @@ pub fn candidate(d: &RingDesign, bore_mm: f64, policy: &Policy) -> Result<Candid
                     pivot,
                     axis,
                     degrees,
+                    in_plane,
                 } if f.component.role == crate::cad::ComponentRole::Shank => {
                     let Some(sketch) = sketch.sketch_mut() else {
                         anyhow::bail!("Shank revolution must draw its section in the feature to resize automatically");
                     };
+                    // The origin's Z axis: the section's own y axis when the line is read in its plane.
+                    let along = if *in_plane { [0.0, 1.0, 0.0] } else { [0.0, 0.0, 1.0] };
                     ensure!(
                         *pivot == [0.0; 3]
-                            && *axis == [0.0, 0.0, 1.0]
+                            && *axis == along
                             && *degrees == 360.0
                             && sketch.plane == crate::sketch::Workplane::section(),
                         "Shank revolution must use the origin's Z axis and XZ section to resize automatically"
@@ -199,6 +202,38 @@ mod tests {
         assert_eq!(candidate.design.shank.head.length_mm, old);
         assert!(!candidate.notes.is_empty());
         assert_ne!(candidate.design.size, d.size);
+    }
+    #[test]
+    fn a_shank_revolution_read_in_its_section_resizes_as_the_world_one_does_and_another_line_is_refused() {
+        use crate::cad::{Component, ComponentRole, Document, Feature};
+        use crate::sketch::{Geometry, Sketch, Workplane};
+        let shank = |axis: [f64; 3], in_plane: bool| {
+            let mut s = Sketch::default();
+            let points = [[9.1, -1.0], [11.1, -1.0], [11.1, 1.0], [9.1, 1.0]].iter().map(|p| s.point(*p)).collect();
+            s.entity(Geometry::Polyline { points, closed: true });
+            s.plane = Workplane::section();
+            let operation = Operation::Revolve { sketch: s.into(), pivot: [0.0; 3], axis, degrees: 360.0, in_plane };
+            let mut doc = Document::default();
+            doc.append(Feature { id: 1, name: "Shank".into(), enabled: true, operation, component: Component { role: ComponentRole::Shank, ..Component::default() } }).unwrap();
+            RingDesign { cad: Some(doc), ..RingDesign::default() }
+        };
+        let volume = |d: &RingDesign| crate::cad::evaluate(d, &crate::AlphaLibrary::builtin(), crate::BuildParams::default()).unwrap().components[0].mesh.volume_mm3();
+        let bore = |d: &RingDesign| match &d.cad.as_ref().unwrap().features[0].operation {
+            Operation::Revolve { sketch: crate::cad::Profile::Inline(s), .. } => s.points.iter().map(|p| p.xy[0]).fold(f64::INFINITY, f64::min),
+            other => panic!("{other:?}"),
+        };
+        // The section's y axis read in its own plane is the finger's axis: both lines fit the bore to 18.123 and turn the same metal.
+        let (world, local) = (shank([0.0, 0.0, 1.0], false), shank([0.0, 1.0, 0.0], true));
+        assert_eq!(volume(&world), volume(&local));
+        let (world, local) = (candidate(&world, 18.123, &Policy::default()).unwrap().design, candidate(&local, 18.123, &Policy::default()).unwrap().design);
+        assert!((bore(&world) - 9.0615).abs() < 1e-9 && bore(&local) == bore(&world), "{} {}", bore(&world), bore(&local));
+        let v = volume(&local);
+        assert!(v == volume(&world) && (v / (std::f64::consts::PI * (11.0615f64.powi(2) - 9.0615f64.powi(2)) * 2.0) - 1.0).abs() < 0.01, "{v}");
+        // Read in the plane, the world's Z is the section's normal: a line off the finger, refused as the world's Y is.
+        for (axis, in_plane) in [([0.0, 0.0, 1.0], true), ([0.0, 1.0, 0.0], false)] {
+            let refused = candidate(&shank(axis, in_plane), 18.123, &Policy::default()).err().expect("refused").to_string();
+            assert_eq!(refused, "Shank revolution must use the origin's Z axis and XZ section to resize automatically", "{axis:?} {in_plane}");
+        }
     }
     #[test]
     fn cad_bore_uses_actual_shank_geometry_even_if_size_metadata_differs() {

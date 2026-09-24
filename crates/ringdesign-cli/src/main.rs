@@ -353,9 +353,11 @@ fn export(
                     stl::write_obj_objects(&file, &objects)?
                 }
                 "step" => {
-                    let text = ringdesign_core::cad::step::ring(&d, lib, params, &d.name)?;
-                    library::write_atomic(&file, text.as_bytes())?;
-                    text.len()
+                    use ringdesign_core::cad::step;
+                    let sized = step::ring_sized(&d, lib, params, step::BAND_TOLERANCE_MM, &d.name)?;
+                    library::write_atomic(&file, sized.text.as_bytes())?;
+                    println!("        step: {}", sized.summary());
+                    sized.text.len()
                 }
                 "glb" => ringdesign_core::gltf::write_glb(&file, finished.as_ref().unwrap_or(&mesh), &name, ringdesign_core::render::GOLD)?,
                 "ply" => stl::write_ply(&file, &mesh, &name)?,
