@@ -1670,6 +1670,25 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "needs parts::resolve to cut the parts set apart as well as the band"]
+    fn a_cut_standing_on_a_part_set_apart_carves_it_as_well_as_the_band() {
+        // The box set apart from the band, as a casting of its own.
+        let mut d = boxed();
+        d.cad.as_mut().unwrap().features.iter_mut().find(|f| f.id == 2).unwrap().component.attach = Attach::Separate;
+        let (built, mut pad) = extruding(&d);
+        assert_eq!((built.parts.separate, built.parts.joined), (1, 0));
+        pad.set_attach(&d, Attach::Cut);
+        pad.typed("height", 0.8);
+        let p = prepare(&d, &pad.edits(&d).unwrap(), built.parts.evaluated.as_ref()).unwrap().unwrap();
+        let after = mesh::build(&p.design, &AlphaLibrary::builtin(), params());
+        assert_eq!((after.parts.separate, after.parts.cut), (1, 1), "{:?}", after.parts.notes);
+        let taken = built.mesh.volume_mm3() - after.mesh.volume_mm3();
+        assert!((taken - 2.4).abs() < 1e-3, "2 × 1.5 × 0.8 = 2.4 mm³ out of the box standing apart: {taken}");
+        assert!(after.report.validation.watertight);
+        assert_eq!(skin(&after.mesh, pad.frame().unwrap(), |uv| uv[0].abs() < 0.95 && (uv[1] - 0.25).abs() < 0.7), 0);
+    }
+
+    #[test]
     fn regions_sharing_a_curve_are_made_one_at_a_time_and_a_tap_names_each_by_its_own_side() {
         let d = boxed();
         let (built, mut pad) = on_top(&d);
