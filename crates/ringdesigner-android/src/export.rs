@@ -111,28 +111,6 @@ impl Shares {
     }
 }
 
-/// `n` with its thousands grouped.
-fn grouped(n: usize) -> String {
-    let digits = n.to_string();
-    let mut out = String::new();
-    for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i) % 3 == 0 {
-            out.push(',');
-        }
-        out.push(c);
-    }
-    out
-}
-
-/// What a sized STEP file's band holds: its facets, and how near every vertex of the build stands to them.
-fn band_words(band: Option<&ringdesign_core::cad::step::BandFacets>) -> String {
-    match band {
-        Some(b) if b.written < b.built => format!("band {} facets from {}, every vertex within {:.3} mm", grouped(b.written), grouped(b.built), b.deviation_mm),
-        Some(b) => format!("band {} facets as built", grouped(b.written)),
-        None => "no band".into(),
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ExportKind {
     Stl,
@@ -242,12 +220,10 @@ fn write(job: &ExportJob) -> Result<(String, Option<ringdesign_core::cad::step::
     if job.kind == ExportKind::Step {
         use ringdesign_core::cad::step;
         let sized = step::ring_sized(&job.design, &job.lib, job.params, step::BAND_TOLERANCE_MM, &job.design.name)?;
-        let text = &sized.text;
-        let exact = text.matches("=MANIFOLD_SOLID_BREP(").count() + text.matches("=BREP_WITH_VOIDS(").count();
-        let faceted = text.matches("=FACETED_BREP(").count();
-        ringdesign_core::library::write_atomic(&job.path, text.as_bytes())?;
+        ringdesign_core::library::write_atomic(&job.path, sized.text.as_bytes())?;
+        let (exact, faceted) = sized.solids();
         let s = if exact + faceted == 1 { "" } else { "s" };
-        return Ok((format!("STEP · {exact} exact and {faceted} faceted solid{s} · {} · {:.1} MB", band_words(sized.band.as_ref()), text.len() as f64 / 1048576.0), sized.band));
+        return Ok((format!("STEP · {exact} exact and {faceted} faceted solid{s} · {} · {}", step::band_words(sized.band.as_ref()), step::size_words(sized.text.len())), sized.band));
     }
     // Mesh files are patterns: under sand the made settings are left out and each seat carries its drill
     // mark. Everything else shows the finished ring.
@@ -396,8 +372,8 @@ mod tests {
         let done = run(job);
         assert!(done.ok, "{}", done.status);
         assert_eq!(done.name, "ring.step");
-        assert!(done.status.starts_with("STEP · 1 exact and 1 faceted solids · ") && done.status.ends_with(" MB"), "{}", done.status);
         let text = std::fs::read_to_string(&done.path).unwrap();
+        assert!(done.status.starts_with("STEP · 1 exact and 1 faceted solids · ") && done.status.ends_with(&step::size_words(text.len())), "{}", done.status);
         assert!(text.starts_with("ISO-10303-21;"));
         // Read back, the band is one faceted solid and the post the exact one beside it.
         let solids = step::read_solids(&text).unwrap();
@@ -437,7 +413,7 @@ mod tests {
         assert_eq!(band.built, 655_360);
         assert!((5_000..8_000).contains(&band.written), "{band:?}");
         assert!((1_000_000..2_500_000).contains(&bytes), "{bytes}");
-        assert_eq!(done.status, format!("STEP · 1 exact and 1 faceted solids · {} · {:.1} MB", band_words(Some(&band)), bytes as f64 / 1048576.0));
+        assert_eq!(done.status, format!("STEP · 1 exact and 1 faceted solids · {} · {}", step::band_words(Some(&band)), step::size_words(bytes as usize)));
         // The file reads back: the post exact, the band one closed faceted solid.
         let text = std::fs::read_to_string(&done.path).unwrap();
         let (meshes, _) = ringdesign_core::cad::step::faceted_meshes(&text, "court.step").unwrap();
@@ -456,8 +432,8 @@ mod tests {
         let design = Sharing::new("Court.ring.json", "");
         assert_eq!(design.pending(), "sharing Court.ring.json");
         assert_eq!(design.answered(&Ok("Download".into())), "Court.ring.json saved to Download and handed to the share sheet");
-        assert_eq!(grouped(655_360), "655,360");
-        assert_eq!(grouped(999), "999");
+        assert_eq!(ringdesign_core::cad::step::grouped(655_360), "655,360");
+        assert_eq!(ringdesign_core::cad::step::grouped(999), "999");
     }
 
     fn share(name: &str, said: &str) -> Share {
