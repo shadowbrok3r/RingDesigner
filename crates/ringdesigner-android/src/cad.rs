@@ -95,8 +95,10 @@ pub enum Request {
     Look(ringdesign_workbench::focus::Pose),
     /// The view panned by a finger's travel over `rect`.
     Pan { by: egui::Vec2, rect: Rect },
-    /// Part `Some(id)` shown alone on the ring, or the whole ring again.
+    /// Part `Some(id)` added to the parts shown alone on the ring, or the whole ring again.
     Isolate(Option<Id>),
+    /// Part `id` taken out of the parts shown alone; the whole ring again once none is left.
+    TakeOut(Id),
     /// The design's measure pins, the whole list as it now stands.
     Pins(Vec<Pin>),
 }
@@ -198,8 +200,8 @@ pub struct Cad {
     sketch: Option<Box<sketch::Live>>,
     /// A Sketch feature to open on the next frame over the ring.
     open_pending: Option<Id>,
-    /// The part shown alone on the ring, as the app last said.
-    pub isolated: Option<Id>,
+    /// The parts shown alone on the ring, as the app last said; none for the whole ring.
+    pub isolated: Vec<Id>,
 }
 
 impl Cad {
@@ -452,10 +454,10 @@ impl Cad {
             self.menu = None;
             return;
         }
-        let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&self.selection, None, v.design));
+        let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&self.selection, None, v.design), &self.isolated);
         let heading = ringdesign_workbench::viewport::heading(&self.selection, None, v.design);
         let mut menu = menu::Menu::new(v.rect.center(), heading, items);
-        menu.extras = menu::extras(None, self.selection.items.last(), v.build.and_then(Built::evaluated), self.isolated);
+        menu.extras = menu::extras(None, self.selection.items.last(), v.build.and_then(Built::evaluated), &self.isolated);
         self.menu = Some(menu);
     }
 
@@ -464,7 +466,7 @@ impl Cad {
         self.planes.menu = None;
         let picks = self.picks(v, p);
         let under = touch::menu_pick(&picks, &self.selection.items).or_else(|| if self.scene.is_none() { Self::band_pick(v, p) } else { None });
-        let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&self.selection, under.as_ref(), v.design));
+        let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&self.selection, under.as_ref(), v.design), &self.isolated);
         let on_band = under.as_ref().is_some_and(|u| u.entity == Entity::Band);
         let heading = ringdesign_workbench::viewport::heading(&self.selection, under.as_ref(), v.design).or_else(|| {
             let mesh = v.build.filter(|_| on_band)?;
@@ -473,7 +475,7 @@ impl Cad {
             Some(format!("Band at {:.0}° · wall {:.2} mm · relief {:+.2} mm", h.theta_deg, h.radial_wall_mm, h.relief_mm))
         });
         let mut menu = menu::Menu::new(p, heading, items);
-        menu.extras = menu::extras(under.as_ref(), self.selection.items.last(), v.build.and_then(Built::evaluated), self.isolated);
+        menu.extras = menu::extras(under.as_ref(), self.selection.items.last(), v.build.and_then(Built::evaluated), &self.isolated);
         menu.under = under.map(|u| (u.world, u.normal));
         self.menu = Some(menu);
     }
@@ -500,6 +502,7 @@ impl Cad {
                 self.status(said);
             }
             menu::Extra::ShowAll => self.requests.push(Request::Isolate(None)),
+            menu::Extra::TakeOut(id) => self.requests.push(Request::TakeOut(id)),
         }
     }
 

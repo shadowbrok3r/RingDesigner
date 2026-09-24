@@ -27,6 +27,10 @@ const MIN_REACH_MM: f64 = 3.0;
 const MIN_FACE_REACH_MM: f64 = 1.0;
 /// Lines and axes take this share of a finger's reach, so a tap between them lands on the grid.
 pub const LINE_SHARE: f64 = 0.4;
+/// A cut's tool stands this far proud of the plane it was drawn on, so none of its faces lies on the metal's, mm.
+pub const CUT_CLEAR_MM: f64 = 0.05;
+/// Why a ring of parts alone takes no cut.
+const ALL_PARTS: &str = "The ring is all parts: a cut has no band to carve";
 
 fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
@@ -40,6 +44,12 @@ fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
 }
 fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+
+/// `plane` moved `depth` against its own normal, its axes kept: in the frame it is read in when anchored, in the world when not.
+fn lowered(plane: &Workplane, depth: f64) -> Workplane {
+    let n = unit(cross(plane.x, plane.y)).unwrap_or([0.0, 0.0, 1.0]);
+    Workplane { origin: std::array::from_fn(|k| plane.origin[k] - n[k] * depth), ..plane.clone() }
 }
 
 /// A sketch's plane in the world: its origin, unit axes, and the normal `x × y` out of it.
@@ -267,17 +277,32 @@ pub struct Look {
     pub reach_mm: f64,
 }
 
-/// Phrases a desktop prompt speaks that a finger does differently.
-const TOUCH_WORDS: [(&str, &str); 8] = [
+/// Phrases a desktop prompt or refusal speaks that a finger does differently.
+const TOUCH_WORDS: [(&str, &str); 10] = [
     ("Shift adds, Delete removes", "tap again to let it go, drag a point to move it"),
     ("the first point or C closes, Escape ends it open", "the first point or Close loop closes it, Back ends it open"),
     ("move out or in", "drag out or in"),
+    ("Move off the loop", "Tap or drag off the loop"),
     ("then press Enter", "then Done"),
     ("Enter or a click", "Done or a tap"),
     ("click or Enter", "a tap or Done"),
     ("Enter holds it", "Done holds it"),
     ("click", "tap"),
+    ("Click", "Tap"),
 ];
+
+/// `words` as a finger does what they ask.
+fn touch_words(words: String) -> String {
+    TOUCH_WORDS.iter().fold(words, |w, (desk, touch)| w.replace(desk, touch))
+}
+
+/// A tool's outcome with a refusal said in a finger's words.
+fn by_finger(out: Outcome) -> Outcome {
+    match out {
+        Outcome::Refused(why) => Outcome::Refused(touch_words(why)),
+        other => other,
+    }
+}
 
 /// A sketch drawn by touch.
 pub struct Pad {
@@ -296,6 +321,8 @@ pub struct Pad {
     pub centre: [f64; 2],
     /// The region the solid sweeps alone; `None` sweeps every region.
     pub pick: Option<RegionRef>,
+    /// How the solid meets the ring: joined, cut into the metal, or standing apart.
+    pub attach: Attach,
     /// The finger's last place on the plane and what it settled on.
     pub pointer: Option<([f64; 2], Option<Snap>)>,
     frame: Option<Frame>,
@@ -326,6 +353,7 @@ impl Pad {
             stage: Stage::Draw,
             centre,
             pick: None,
+            attach: Attach::Join,
             pointer: None,
             frame: None,
             face: Vec::new(),
@@ -480,7 +508,7 @@ impl Pad {
         self.aim(xy, px_per_mm);
         // In Select a tap on something toggles it and a tap on nothing lets everything go.
         let add = self.tools.tool == Tool::Select && sketch_tools::pick(&self.working, xy, reach).is_some();
-        self.tools.feed(&mut self.working, Input::Click { add })
+        by_finger(self.tools.feed(&mut self.working, Input::Click { add }))
     }
 
     /// Deletes the curve under `xy`, else the point, as one undo step.
@@ -549,7 +577,7 @@ impl Pad {
             Some(Held::Aim) => {
                 self.aim(at, px_per_mm);
                 self.held = None;
-                self.tools.feed(&mut self.working, Input::Click { add: false })
+                by_finger(self.tools.feed(&mut self.working, Input::Click { add: false }))
             }
             None => Outcome::Continue,
         }
@@ -570,7 +598,7 @@ impl Pad {
 
     /// Closes the line being drawn back to its first point.
     pub fn close(&mut self) -> Outcome {
-        self.tools.feed(&mut self.working, Input::Close)
+        by_finger(self.tools.feed(&mut self.working, Input::Close))
     }
 
     pub fn undo(&mut self) -> bool {
@@ -587,6 +615,7 @@ impl Pad {
     pub fn typed(&mut self, key: &'static str, value: f64) -> Outcome {
         let amount = match (&self.stage, key) {
             (Stage::Extrude, "height") if value > 0.0 && value <= MAX_HEIGHT_MM => &mut self.height,
+            (Stage::Extrude, "height") if self.cutting() => return Outcome::Refused(format!("A cut goes more than 0 and at most {MAX_HEIGHT_MM} mm deep")),
             (Stage::Extrude, "height") => return Outcome::Refused(format!("An extrusion stands more than 0 and at most {MAX_HEIGHT_MM} mm high")),
             (Stage::Extrude, "draft") if value.abs() < 80.0 => &mut self.draft,
             (Stage::Extrude, "draft") => return Outcome::Refused("Draft must be below 80 degrees".into()),
@@ -617,14 +646,14 @@ impl Pad {
         if self.stage != Stage::Draw {
             return Outcome::Continue;
         }
-        self.tools.feed(&mut self.working, Input::Confirm)
+        by_finger(self.tools.feed(&mut self.working, Input::Confirm))
     }
 
     /// The numbers the stage in hand takes, for the dimension bar.
     pub fn dimensions(&self) -> Vec<Dimension> {
         match &self.stage {
             Stage::Draw => self.tools.dimensions(&self.working),
-            Stage::Extrude => vec![self.height.dimension("height", "Height", Unit::Mm), self.draft.dimension("draft", "Draft", Unit::Deg)],
+            Stage::Extrude => vec![self.height.dimension("height", if self.cutting() { "Depth" } else { "Height" }, Unit::Mm), self.draft.dimension("draft", "Draft", Unit::Deg)],
             Stage::Revolve { .. } => vec![self.degrees.dimension("angle", "Angle", Unit::Deg)],
             Stage::Offer | Stage::Axis => Vec::new(),
         }
@@ -740,18 +769,60 @@ impl Pad {
         }
     }
 
-    /// Reads the solid's number off a finger's ray: an extrusion's height moved as far along the normal as the finger has moved since it took the arrow, a revolution's angle round its axis where the finger stands; false when a typed number holds it.
+    /// Chooses how the solid meets the ring; a cut is refused on a ring that is all parts, where there is no band to carve.
+    pub fn set_attach(&mut self, design: &RingDesign, attach: Attach) -> Outcome {
+        if attach == Attach::Cut && design.cad.as_ref().is_some_and(|d| d.replaces_band()) {
+            return Outcome::Refused(ALL_PARTS.into());
+        }
+        self.attach = attach;
+        self.grip = None;
+        Outcome::Edited(
+            match attach {
+                Attach::Join => "Join: the solid is united with the band and what is joined to it",
+                Attach::Cut => "Cut: the solid carves into the band and the part it stands on",
+                Attach::Separate => "Separate: the solid stands apart as a casting of its own",
+            }
+            .into(),
+        )
+    }
+
+    /// Whether the solid being set cuts into the metal.
+    pub fn cutting(&self) -> bool {
+        self.attach == Attach::Cut
+    }
+
+    /// The way an extrusion grows from the plane: out along its normal, against it into the metal for a cut.
+    pub fn rise(&self) -> Option<[f64; 3]> {
+        let n = self.frame?.n;
+        Some(if self.cutting() { n.map(|v| -v) } else { n })
+    }
+
+    /// The line a revolution turns about in the world, signed so a positive turn swings a cut into the metal: its pivot and axis.
+    pub fn revolution(&self) -> Option<([f64; 3], [f64; 3])> {
+        let f = self.frame?;
+        let Stage::Revolve { pivot, dir, .. } = &self.stage else { return None };
+        let a = f.vector(*dir);
+        Some((f.point(*pivot), if self.cutting() { a.map(|v| -v) } else { a }))
+    }
+
+    /// How deep a cut extrusion's sketch lies under the plane it was drawn on; `None` for any other solid.
+    fn floor(&self) -> Option<f64> {
+        (self.stage == Stage::Extrude && self.cutting()).then_some(self.height.value)
+    }
+
+    /// Reads the solid's number off a finger's ray: an extrusion's height moved as far along its rise as the finger has moved since it took the arrow, a revolution's angle round its axis where the finger stands; false when a typed number holds it.
     pub fn pull(&mut self, ray: Ray) -> bool {
-        let (Some(frame), Some(base)) = (self.frame, self.anchor()) else { return false };
+        let Some(base) = self.anchor() else { return false };
         match self.stage.clone() {
             Stage::Extrude if !self.height.typed => {
-                let Some(t) = along_line(ray, base, frame.n) else { return false };
+                let Some(rise) = self.rise() else { return false };
+                let Some(t) = along_line(ray, base, rise) else { return false };
                 let grip = *self.grip.get_or_insert(self.height.value - t);
                 self.height.value = (((t + grip) / HEIGHT_STEP_MM).round() * HEIGHT_STEP_MM).clamp(HEIGHT_STEP_MM, MAX_HEIGHT_MM);
                 true
             }
-            Stage::Revolve { pivot, dir, .. } if !self.degrees.typed => {
-                let (p0, a) = (frame.point(pivot), frame.vector(dir));
+            Stage::Revolve { .. } if !self.degrees.typed => {
+                let Some((p0, a)) = self.revolution() else { return false };
                 let Some(hit) = on_plane(ray, base, a) else { return false };
                 let Some(deg) = turned(p0, a, base, hit) else { return false };
                 let snapped = (deg / ANGLE_STEP_DEG).round() * ANGLE_STEP_DEG;
@@ -778,46 +849,73 @@ impl Pad {
     }
 
     /// The operation the solid being set makes of sketch feature `sketch`; `None` while no solid is set.
+    /// A cut extrusion rises from its sketch at the floor to [`CUT_CLEAR_MM`] past the plane it was drawn on, its walls opening toward it by the draft.
     pub fn solid(&self, sketch: Id) -> Option<Operation> {
-        let frame = self.frame?;
+        self.frame?;
         let profile = match self.pick {
             Some(region) => Profile::Region { feature: sketch, region },
             None => Profile::Feature { feature: sketch },
         };
         match &self.stage {
+            Stage::Extrude if self.cutting() => Some(Operation::Extrude { sketch: profile, height_mm: self.height.value + CUT_CLEAR_MM, draft_deg: -self.draft.value }),
             Stage::Extrude => Some(Operation::Extrude { sketch: profile, height_mm: self.height.value, draft_deg: self.draft.value }),
-            Stage::Revolve { pivot, dir, .. } => Some(Operation::Revolve { sketch: profile, pivot: frame.point(*pivot), axis: frame.vector(*dir), degrees: self.degrees.value }),
+            Stage::Revolve { .. } => {
+                let (pivot, axis) = self.revolution()?;
+                Some(Operation::Revolve { sketch: profile, pivot, axis, degrees: self.degrees.value })
+            }
             _ => None,
         }
     }
 
-    /// What finishing leaves `design` as, one funnel commit: the sketch added or its feature replaced, then the solid the stage sets; empty when nothing changes.
+    /// What finishing leaves `design` as, one funnel commit: the sketch added or its feature replaced, then the solid the stage sets, attached as chosen; empty when nothing changes.
+    /// A cut extrusion reads its sketch at the floor it carves to; a sketch another feature already reads keeps its plane, and the cut reads a copy of it there.
     pub fn edits(&self, design: &RingDesign) -> Result<Vec<CadEdit>, String> {
         let mut next = fresh_ids(design);
         let mut edits = Vec::new();
+        let floor = self.floor();
+        let at_floor = |s: &Sketch| match floor {
+            Some(depth) => Sketch { plane: lowered(&s.plane, depth), ..s.clone() },
+            None => s.clone(),
+        };
         let id = match self.feature {
             Some(id) => {
-                let f = design.cad.as_ref().and_then(|d| d.feature(id)).ok_or_else(|| format!("Sketch #{id} left the document"))?;
+                let doc = design.cad.as_ref();
+                let f = doc.and_then(|d| d.feature(id)).ok_or_else(|| format!("Sketch #{id} left the document"))?;
+                let read = floor.is_some() && doc.is_some_and(|d| d.features.iter().any(|g| g.id != id && g.operation.sources().contains(&id)));
+                let own = if read { self.working.clone() } else { at_floor(&self.working) };
                 let mut operation = f.operation.clone();
                 let Some(sketch) = operation.sketch_mut() else { return Err(format!("{} holds no sketch", f.name)) };
-                if *sketch != self.working {
-                    *sketch = self.working.clone();
+                if *sketch != own {
+                    *sketch = own;
                     edits.push(CadEdit::Operation { id, operation });
                 }
-                id
+                if read {
+                    let copy = next();
+                    let feature = Feature { id: copy, name: format!("{} at the cut's floor", f.name), enabled: true, operation: Operation::Sketch { sketch: at_floor(&self.working) }, component: Component::default() };
+                    edits.push(CadEdit::Add { feature, after: None });
+                    copy
+                } else {
+                    id
+                }
             }
             None if self.working.entities.is_empty() => return Ok(Vec::new()),
             None => {
                 let id = next();
-                let feature = Feature { id, name: "Sketch".into(), enabled: true, operation: Operation::Sketch { sketch: self.working.clone() }, component: Component::default() };
+                let feature = Feature { id, name: "Sketch".into(), enabled: true, operation: Operation::Sketch { sketch: at_floor(&self.working) }, component: Component::default() };
                 edits.push(CadEdit::Add { feature, after: None });
                 id
             }
         };
         if let Some(operation) = self.solid(id) {
-            let (shank, attach) = shank_for_body(design, &mut next);
+            let (shank, fallback) = shank_for_body(design, &mut next);
+            // A ring of parts alone has no band to join to or carve.
+            let attach = match (fallback, self.attach) {
+                (Attach::Separate, Attach::Cut) => return Err(ALL_PARTS.into()),
+                (Attach::Separate, _) => Attach::Separate,
+                (_, chosen) => chosen,
+            };
             edits.extend(shank);
-            let name = operation.label().to_string();
+            let name = if attach == Attach::Cut { format!("{} cut", operation.label()) } else { operation.label().to_string() };
             edits.push(CadEdit::Add { feature: Feature { id: next(), name, enabled: true, operation, component: Component { attach, ..Component::default() } }, after: None });
         }
         Ok(edits)
@@ -829,10 +927,7 @@ impl Pad {
         match self.stage.clone() {
             Stage::Draw if self.erase => "Erase: tap a curve or a point to delete it".into(),
             Stage::Draw => {
-                let mut words = self.tools.prompt();
-                for (desk, touch) in TOUCH_WORDS {
-                    words = words.replace(desk, touch);
-                }
+                let mut words = touch_words(self.tools.prompt());
                 let drawing = matches!(self.tools.tool, Tool::Line | Tool::Rectangle | Tool::Circle | Tool::Arc);
                 if drawing && !self.tools.busy() {
                     words.push_str(", or drag from it");
@@ -844,8 +939,10 @@ impl Pad {
                 Ok([_]) => "Extrude or Revolve the region, or keep the sketch".into(),
                 Ok(_) => format!("Extrude or Revolve{}, or keep the sketch; tap a region to make it alone", if what.is_empty() { " every region" } else { what }),
             },
+            Stage::Extrude if self.cutting() => format!("Cut{what}: drag the arrow into the metal or type the depth, then Extrude"),
             Stage::Extrude => format!("Extrude{what}: drag the arrow or type the height, then Extrude"),
             Stage::Axis => format!("Revolve{what}: tap a straight line of the sketch, or near one of its axes, to turn about"),
+            Stage::Revolve { axis, .. } if self.cutting() => format!("Cut{what} by revolving about {axis}: drag round into the metal or type the angle, then Revolve"),
             Stage::Revolve { axis, .. } => format!("Revolve{what} about {axis}: drag round or type the angle, then Revolve"),
         }
     }
@@ -861,14 +958,14 @@ impl Pad {
             Stage::Extrude => {
                 let (s, c) = EXTRUDE_TILT_DEG.to_radians().sin_cos();
                 let base = self.anchor().unwrap_or(square.centre);
-                let h = self.height.value;
+                let (h, rise) = (self.height.value, self.rise().unwrap_or(f.n));
                 let eye = std::array::from_fn(|k| f.n[k] * c - f.y[k] * s);
                 let up = std::array::from_fn(|k| f.n[k] * s + f.y[k] * c);
-                let centre = std::array::from_fn(|k| base[k] + f.n[k] * h * 0.5);
+                let centre = std::array::from_fn(|k| base[k] + rise[k] * h * 0.5);
                 Some(Look { eye, up, centre, reach_mm: reach.max(h) })
             }
-            Stage::Revolve { pivot, dir, .. } => {
-                let (p0, a) = (f.point(pivot), f.vector(dir));
+            Stage::Revolve { .. } => {
+                let (p0, a) = self.revolution()?;
                 let base = self.anchor().unwrap_or(square.centre);
                 let foot: [f64; 3] = std::array::from_fn(|k| p0[k] + a[k] * dot(sub(base, p0), a));
                 let side = unit(sub(base, foot)).unwrap_or(f.y);
@@ -1288,5 +1385,271 @@ mod tests {
         assert!(again.dirty());
         let edits = again.edits(&p.design).unwrap();
         assert!(matches!(&edits[..], [CadEdit::Operation { id, operation: Operation::Sketch { sketch } }] if *id == sketch_id && sketch.entities.len() == 2));
+    }
+
+    /// Every point the sketch's curves pass through, in plane coordinates.
+    fn traced(s: &Sketch) -> Vec<[f64; 2]> {
+        s.entities.iter().flat_map(|e| s.polylines(e.id, 0.01)).flatten().collect()
+    }
+
+    /// The areas of the regions the pad's sketch bounds, smallest first.
+    fn areas(pad: &mut Pad) -> Vec<f64> {
+        let mut a: Vec<f64> = pad.regions().unwrap().iter().map(Region::area).collect();
+        a.sort_by(f64::total_cmp);
+        a
+    }
+
+    /// A 2 × 2 mm square about the face's centre, by two taps.
+    fn square(pad: &mut Pad) {
+        pad.set_tool(Tool::Rectangle);
+        tap(pad, [-1.0, -1.0]);
+        tap(pad, [1.0, 1.0]);
+    }
+
+    #[test]
+    fn trim_cuts_the_span_a_tap_lands_on_back_to_its_crossing() {
+        let (_, mut pad) = on_top(&boxed());
+        // A line across and one up the y axis, each left open by Back, crossing at (0, 0.5).
+        pad.set_tool(Tool::Line);
+        for (a, b) in [([-2.0, 0.5], [2.0, 0.5]), ([0.0, -1.5], [0.0, 1.5])] {
+            tap(&mut pad, a);
+            tap(&mut pad, b);
+            assert_eq!(pad.escape(), Escaped::Step);
+        }
+        let reach = |pad: &Pad| traced(&pad.working).iter().map(|p| p[0]).fold(f64::MIN, f64::max);
+        assert!((reach(&pad) - 2.0).abs() < 1e-9);
+        pad.set_tool(Tool::Trim);
+        assert_eq!(pad.prompt(), "Trim: tap the span to cut away");
+        // A tap on nothing says so in a finger's words and trims nothing.
+        assert_eq!(tap(&mut pad, [2.5, -1.8]), Outcome::Refused("Tap on the span of a curve to trim".into()));
+        // A tap on the right arm takes it back to the crossing; the left arm and the upright stay.
+        assert!(matches!(tap(&mut pad, [1.4, 0.55]), Outcome::Edited(w) if w == "Trimmed"));
+        assert!(reach(&pad).abs() < 1e-9, "nothing reaches past the crossing now: {}", reach(&pad));
+        let left = traced(&pad.working).iter().map(|p| p[0]).fold(f64::MAX, f64::min);
+        assert!((left + 2.0).abs() < 1e-9, "{left}");
+        assert!(pad.undo(), "a trim is one undo step");
+        assert!((reach(&pad) - 2.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn offset_takes_its_loop_from_a_tap_and_its_distance_from_a_second_tap_a_drag_or_the_keyboard() {
+        let (_, mut pad) = on_top(&boxed());
+        square(&mut pad);
+        pad.set_tool(Tool::Offset);
+        assert_eq!(tap(&mut pad, [2.5, 1.9]), Outcome::Refused("Tap a curve of a closed loop to offset".into()));
+        // A tap on the square's right edge takes its loop and waits for how far.
+        assert_eq!(tap(&mut pad, [1.02, 0.3]), Outcome::Continue);
+        assert!(pad.tools.busy());
+        assert_eq!(pad.dimensions()[0].key, "distance");
+        assert_eq!(pad.prompt(), "Offset: drag out or in, or type the distance; a tap or Done makes it");
+        // A second tap half a millimetre outside, where the grid holds it, makes the loop there.
+        assert!(matches!(tap(&mut pad, [1.5, 0.3]), Outcome::Edited(w) if w == "Offset 0.500 mm"));
+        assert_eq!(areas(&mut pad), [5.0], "a 3 mm square round the 2 mm one: one frame, the first square its hole");
+        // Typed: a quarter millimetre inside the first square, a region again inside its hole.
+        tap(&mut pad, [1.02, 0.3]);
+        assert_eq!(pad.typed("distance", -0.25), Outcome::Continue);
+        assert!(matches!(pad.confirm(), Outcome::Edited(w) if w == "Offset -0.250 mm"));
+        assert_eq!(areas(&mut pad), [2.25, 5.0]);
+        // Dragged: out from the 3 mm square's edge, lifted where the grid holds it half a millimetre off.
+        assert_eq!(tap(&mut pad, [1.52, 0.3]), Outcome::Continue);
+        assert!(pad.drag_start([1.52, 0.3], [1.8, 0.3], PX), "a busy offset takes the drag");
+        pad.drag_move([2.1, 0.3], PX);
+        assert!(!pad.tools.preview(&pad.working).ghost.is_empty(), "the offset follows the finger");
+        assert!(matches!(pad.drag_end([2.02, 0.3], PX), Outcome::Edited(w) if w == "Offset 0.500 mm"));
+        assert_eq!(areas(&mut pad), [1.75, 7.0], "a 4 mm square round the 3 mm one: the frames nest by turns");
+    }
+
+    #[test]
+    fn chamfer_takes_its_corner_from_a_tap_and_its_distance_from_the_keyboard() {
+        let (_, mut pad) = on_top(&boxed());
+        square(&mut pad);
+        pad.set_tool(Tool::Chamfer);
+        assert_eq!(tap(&mut pad, [0.0, 2.2]), Outcome::Refused("Tap a corner where two lines meet".into()));
+        assert_eq!(tap(&mut pad, [0.98, 1.02]), Outcome::Continue);
+        assert_eq!(pad.dimensions()[0].key, "distance");
+        assert_eq!(pad.prompt(), "Chamfer corner: type the distance; Done or a tap cuts the corner");
+        assert_eq!(pad.typed("distance", 0.5), Outcome::Continue);
+        assert!(matches!(pad.confirm(), Outcome::Edited(w) if w == "Chamfer 0.500 mm"));
+        let area = areas(&mut pad)[0];
+        assert!((area - (4.0 - 0.125)).abs() < 1e-9, "the corner's half-millimetre triangle is gone: {area}");
+        assert_eq!(pad.working.entities.len(), 5, "four sides and the chamfer across the corner");
+    }
+
+    #[test]
+    fn mirror_takes_its_curves_from_taps_then_done_then_its_line_from_a_tap() {
+        let (_, mut pad) = on_top(&boxed());
+        // A right triangle left of the y axis, closed on its first point.
+        pad.set_tool(Tool::Line);
+        for p in [[-2.0, -1.0], [-1.0, -1.0], [-1.0, 0.5]] {
+            tap(&mut pad, p);
+        }
+        assert!(matches!(tap(&mut pad, [-2.0, -1.0]), Outcome::Edited(w) if w == "Closed the loop"));
+        // A construction line up the y axis to mirror in.
+        pad.tools.construction = true;
+        tap(&mut pad, [0.0, -1.5]);
+        tap(&mut pad, [0.0, 1.5]);
+        pad.escape();
+        pad.tools.construction = false;
+        pad.set_tool(Tool::Mirror);
+        assert_eq!(pad.prompt(), "Mirror: tap the curves to mirror, then Done");
+        assert_eq!(pad.confirm(), Outcome::Refused("Tap the curves to mirror first".into()));
+        // A tap on each of the triangle's sides chooses it.
+        for p in [[-1.5, -1.0], [-1.0, -0.2], [-1.5, -0.25]] {
+            assert_eq!(tap(&mut pad, p), Outcome::Continue);
+        }
+        assert_eq!(pad.tools.chosen_entities.len(), 3);
+        assert_eq!(pad.confirm(), Outcome::Continue, "Done asks for the line");
+        assert_eq!(pad.prompt(), "Mirror: tap the line to mirror in");
+        assert!(matches!(tap(&mut pad, [0.0, 1.0]), Outcome::Edited(w) if w == "Mirrored 3 curves"));
+        // The copy stands across the axis: two triangles of 0.75 mm² each.
+        assert_eq!(areas(&mut pad), [0.75, 0.75]);
+        let right = traced(&pad.working).iter().map(|p| p[0]).fold(f64::MIN, f64::max);
+        assert!((right - 2.0).abs() < 1e-9, "{right}");
+        assert!(pad.tools.chosen_entities.is_empty() && !pad.tools.busy());
+    }
+
+    /// The pad on the box's top with a 2 × 1.5 mm rectangle on it, finished and set to extrude.
+    fn extruding(d: &RingDesign) -> (BuildResult, Pad) {
+        let (built, mut pad) = on_top(d);
+        pad.set_tool(Tool::Rectangle);
+        tap(&mut pad, [-1.0, -0.5]);
+        pad.typed("width", 2.0);
+        pad.typed("height", 1.5);
+        pad.confirm();
+        pad.finish();
+        assert_eq!(pad.make(Make::Extrude), Outcome::Continue);
+        (built, pad)
+    }
+
+    #[test]
+    fn a_cut_extrusion_carves_the_part_it_stands_on_by_its_depth_as_one_commit() {
+        let d = boxed();
+        let (built, mut pad) = extruding(&d);
+        let before = built.mesh.volume_mm3();
+        let n = pad.frame().unwrap().n;
+        assert_eq!(pad.rise(), Some(n), "joined, the arrow points out of the face");
+        assert!(matches!(pad.set_attach(&d, Attach::Cut), Outcome::Edited(w) if w.starts_with("Cut:")));
+        assert_eq!(pad.rise(), Some(n.map(|v| -v)), "cut, it points into the box");
+        assert_eq!(pad.dimensions()[0].label, "Depth");
+        assert_eq!(pad.prompt(), "Cut: drag the arrow into the metal or type the depth, then Extrude");
+        // A finger along the arrow deepens the cut by as far as it moves.
+        let base = pad.anchor().unwrap();
+        let side = pad.frame().unwrap().x;
+        let ray = |depth: f64| Ray { origin: std::array::from_fn(|k| base[k] - n[k] * depth + side[k] * 30.0), direction: side.map(|v| -v) };
+        assert!(pad.pull(ray(0.4)) && pad.pull(ray(0.65)));
+        assert!((pad.height_mm() - 1.25).abs() < 1e-9, "{}", pad.height_mm());
+        pad.pull_end();
+        assert_eq!(pad.typed("height", 0.5), Outcome::Continue);
+        let edits = pad.edits(&d).unwrap();
+        let p = prepare(&d, &edits, built.parts.evaluated.as_ref()).unwrap().unwrap();
+        assert_eq!(p.label, "Add Sketch · Add Extrude cut", "one commit, one undo step");
+        let doc = p.design.cad.as_ref().unwrap();
+        let (sketch, cut) = (p.applied[0].id.unwrap(), p.applied[1].id.unwrap());
+        // The sketch lies at the cut's floor, still on the box's face; the cut rises from it past the face.
+        let Operation::Sketch { sketch: s } = &doc.feature(sketch).unwrap().operation else { panic!() };
+        assert!(s.plane.on_face.is_some() && s.plane.origin == [0.0, 0.0, -0.5], "{:?}", s.plane);
+        let f = doc.feature(cut).unwrap();
+        assert_eq!(f.component.attach, Attach::Cut);
+        assert!(matches!(f.operation, Operation::Extrude { height_mm, .. } if (height_mm - 0.5 - CUT_CLEAR_MM).abs() < 1e-12));
+        let after = mesh::build(&p.design, &AlphaLibrary::builtin(), params());
+        assert_eq!((after.parts.joined, after.parts.cut), (1, 1), "{:?}", after.parts.notes);
+        let c = after.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == cut).expect("the cut built");
+        let face = pad.frame().unwrap().origin;
+        let rise = |p: &ringdesign_core::Vec3| dot(sub([p.0 as f64, p.1 as f64, p.2 as f64], face), n);
+        let (low, high) = c.mesh.vertices.iter().map(rise).fold((f64::MAX, f64::MIN), |(l, h), r| (l.min(r), h.max(r)));
+        assert!((low + 0.5).abs() < 1e-4 && (high - CUT_CLEAR_MM).abs() < 1e-4, "the tool runs {low} to {high} along the face's normal");
+        let taken = before - after.mesh.volume_mm3();
+        assert!((taken - 1.5).abs() < 0.015, "2 × 1.5 × 0.5 = 1.5 mm³ carved out of the box: {taken}");
+        assert!(after.report.validation.watertight);
+    }
+
+    #[test]
+    fn a_cut_on_the_band_carves_into_it_and_a_separate_solid_stands_apart() {
+        let d = court();
+        let built = mesh::build(&d, &AlphaLibrary::builtin(), params());
+        let before = built.mesh.volume_mm3();
+        let place = Place::Tangent { theta_deg: 90.0, across_mm: 0.0 };
+        let (sketch, centre) = start(&built, place).unwrap();
+        let mut pad = Pad::new(None, sketch, centre, Some(place));
+        pad.read(&built);
+        pad.set_tool(Tool::Circle);
+        tap(&mut pad, [0.0, 0.0]);
+        tap(&mut pad, [1.0, 0.0]);
+        pad.finish();
+        pad.make(Make::Extrude);
+        pad.typed("height", 0.3);
+        pad.set_attach(&d, Attach::Cut);
+        let edits = pad.edits(&d).unwrap();
+        let names: Vec<&str> = edits.iter().filter_map(|e| if let CadEdit::Add { feature, .. } = e { Some(feature.name.as_str()) } else { None }).collect();
+        assert_eq!(names, ["Sketch", "Procedural shank", "Extrude cut"], "a plain band gains its shank before the cut");
+        let p = prepare(&d, &edits, None).unwrap().unwrap();
+        let after = mesh::build(&p.design, &AlphaLibrary::builtin(), params());
+        assert_eq!(after.parts.cut, 1, "{:?}", after.parts.notes);
+        // The disc's 0.94 mm³ to 0.3 mm under the crest, less what the dome falls away under the plane.
+        let taken = before - after.mesh.volume_mm3();
+        assert!((taken - 0.737).abs() < 0.01, "a 1 mm disc cut 0.3 mm into the crest takes {taken:.4} mm³");
+        assert!(after.report.validation.watertight);
+        // Set apart, the same disc stands out of the plane as a casting of its own.
+        assert!(matches!(pad.set_attach(&d, Attach::Separate), Outcome::Edited(w) if w.starts_with("Separate:")));
+        let p = prepare(&d, &pad.edits(&d).unwrap(), None).unwrap().unwrap();
+        let apart = mesh::build(&p.design, &AlphaLibrary::builtin(), params());
+        assert_eq!((apart.parts.separate, apart.parts.cut, apart.parts.joined), (1, 0, 0));
+        let own = std::f64::consts::PI * 0.3;
+        let grew = apart.mesh.volume_mm3() - before;
+        assert!((grew - own).abs() < 0.02 * own, "π × 1² × 0.3 = {own:.4} mm³ beside the band: {grew}");
+        // A ring that is all parts has no band to carve.
+        let mut parts_only = boxed();
+        parts_only.cad.as_mut().unwrap().features.retain(|f| !matches!(f.operation, Operation::Band));
+        assert_eq!(pad.set_attach(&parts_only, Attach::Cut), Outcome::Refused(ALL_PARTS.into()));
+    }
+
+    #[test]
+    fn a_revolution_cut_turns_into_the_metal_and_a_cut_from_a_sketch_already_read_takes_a_copy_at_its_floor() {
+        let d = boxed();
+        let (_, mut pad) = on_top(&d);
+        pad.set_tool(Tool::Rectangle);
+        tap(&mut pad, [0.5, -0.5]);
+        tap(&mut pad, [1.5, 0.5]);
+        pad.finish();
+        pad.make(Make::Revolve);
+        tap(&mut pad, [0.05, 1.7]);
+        let (pivot, axis) = pad.revolution().unwrap();
+        pad.set_attach(&d, Attach::Cut);
+        assert_eq!(pad.revolution(), Some((pivot, axis.map(|v| -v))), "a cut turns the other way round the same line");
+        let Some(Operation::Revolve { axis: cut_axis, .. }) = pad.solid(7) else { panic!() };
+        assert_eq!(cut_axis, axis.map(|v| -v));
+        // A positive turn of the cut swings the region into the box, against the face's normal.
+        let f = *pad.frame().unwrap();
+        let base = pad.anchor().unwrap();
+        assert!(dot(cross(cut_axis, sub(base, pivot)), f.n) < 0.0);
+        // Half a turn carves a half ring of the region round the y axis out of the box.
+        pad.typed("angle", 180.0);
+        let built = mesh::build(&d, &AlphaLibrary::builtin(), params());
+        let p = prepare(&d, &pad.edits(&d).unwrap(), built.parts.evaluated.as_ref()).unwrap().unwrap();
+        let after = mesh::build(&p.design, &AlphaLibrary::builtin(), params());
+        let taken = built.mesh.volume_mm3() - after.mesh.volume_mm3();
+        assert_eq!(after.parts.cut, 1, "{:?}", after.parts.notes);
+        assert!((taken - std::f64::consts::PI).abs() < 0.01, "π/2 × (1.5² − 0.5²) × 1 = π mm³ out of the box: {taken:.4}");
+        // A sketch an extrusion already reads keeps its plane; the cut reads a copy of it at its floor.
+        let (built, mut first) = extruding(&d);
+        first.typed("height", 0.8);
+        let p = prepare(&d, &first.edits(&d).unwrap(), built.parts.evaluated.as_ref()).unwrap().unwrap();
+        let (sketch_id, joined) = (p.applied[0].id.unwrap(), p.applied[1].id.unwrap());
+        let Operation::Sketch { sketch } = p.design.cad.as_ref().unwrap().feature(sketch_id).unwrap().operation.clone() else { panic!() };
+        let mut again = Pad::new(Some(sketch_id), sketch.clone(), [0.0; 2], None);
+        again.read(&mesh::build(&p.design, &AlphaLibrary::builtin(), params()));
+        again.finish();
+        again.make(Make::Extrude);
+        again.set_attach(&p.design, Attach::Cut);
+        again.typed("height", 0.3);
+        let edits = again.edits(&p.design).unwrap();
+        let [CadEdit::Add { feature: copy, .. }, CadEdit::Add { feature: cut, .. }] = &edits[..] else { panic!("{edits:?}") };
+        assert_eq!(copy.name, "Sketch at the cut's floor");
+        assert!(matches!(&copy.operation, Operation::Sketch { sketch: s } if s.plane.origin == [0.0, 0.0, -0.3] && s.entities == sketch.entities));
+        assert!(matches!(&cut.operation, Operation::Extrude { sketch: Profile::Feature { feature }, .. } if *feature == copy.id));
+        let q = prepare(&p.design, &edits, None).unwrap().unwrap();
+        let doc = q.design.cad.as_ref().unwrap();
+        assert!(matches!(&doc.feature(sketch_id).unwrap().operation, Operation::Sketch { sketch: s } if *s == sketch), "the drawn sketch keeps its plane");
+        assert!(matches!(&doc.feature(joined).unwrap().operation, Operation::Extrude { sketch: Profile::Feature { feature }, .. } if *feature == sketch_id));
     }
 }

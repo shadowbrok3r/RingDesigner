@@ -43,6 +43,8 @@ local-clip = { git = "https://github.com/shadowbrok3r/ios-egui", optional = true
 local-sd = { git = "https://github.com/shadowbrok3r/ios-egui", optional = true }
 # The geometry, unchanged.
 ringdesign-core.workspace = true
+# STL and OBJ readers for File import; pure Rust without its `manifold` feature.
+ringdesign-solid.workspace = true
 ringdesign-workbench = { path = "../ringdesign-workbench", features = ["glow"] }
 # The recipe graph: runtime, the snarl editor (on the root's egui-snarl patch), and the rhai nodes.
 ringdesign-graph.workspace = true

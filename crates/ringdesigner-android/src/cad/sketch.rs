@@ -2,7 +2,7 @@
 use egui::{Color32, Pos2, Rect, Stroke};
 use egui_mobile::egui;
 use ringdesign_core::{
-    cad::Operation,
+    cad::{Attach, Operation},
     interaction::pick::Ray,
     sketch::{Id, Region},
 };
@@ -19,8 +19,12 @@ use ringdesign_workbench::{
 
 use super::{Built, Cad, Request, Then, Took, View, bar};
 
-/// The drawing tools on the sketch's bar, in order; Erase follows them.
-pub const TOOLS: [Tool; 7] = [Tool::Select, Tool::Line, Tool::Rectangle, Tool::Circle, Tool::Arc, Tool::Fillet, Tool::Dimension];
+/// The drawing and editing tools on the sketch's bar, in order; Erase follows them.
+pub const TOOLS: [Tool; 11] = Tool::ALL;
+/// A view shorter than this, as with the keyboard up, keeps the tools to one row that scrolls, and only while drawing, points.
+pub const ROW_VIEW_PT: f32 = 420.0;
+/// A view shorter than this leaves no room for the tools beside the stage's bar and fields, points.
+pub const TOOLS_VIEW_PT: f32 = 240.0;
 /// How much the metal under a sketch is dimmed.
 const DIM_ALPHA: u8 = 110;
 /// A drawn curve's chord on screen, points.
@@ -60,9 +64,10 @@ enum Finger {
 }
 
 /// Which view the stage wants, so a stage change turns the camera once.
-fn view_key(stage: &Stage) -> &'static str {
-    match stage {
+fn view_key(pad: &Pad) -> &'static str {
+    match pad.stage {
         Stage::Draw | Stage::Offer | Stage::Axis => "square",
+        Stage::Extrude if pad.cutting() => "cut",
         Stage::Extrude => "extrude",
         Stage::Revolve { .. } => "revolve",
     }
@@ -192,22 +197,18 @@ impl Cad {
         let Some(look) = live.pad.look() else { return };
         let cam = v.camera;
         let pose = touch::sketch::look_along(cam.pose(), cam.target, cam.half_extent() * cam.zoom, look.eye, look.up, look.centre, look.reach_mm);
-        live.looked = Some(view_key(&live.pad.stage));
+        live.looked = Some(view_key(&live.pad));
         self.requests.push(Request::Look(pose));
     }
 
-    /// A funnel commit the sketch sent has landed or been refused: landed, the sketch closes and a new solid brings back a ring shown one part alone; refused, drawing goes on.
+    /// A funnel commit the sketch sent has landed or been refused: landed, the sketch closes; refused, drawing goes on.
     pub fn edit_landed(&mut self, ok: bool) {
         let Some(live) = self.sketch.as_mut().filter(|l| l.closing) else { return };
         if !ok {
             live.closing = false;
             return;
         }
-        let solid = live.pad.solid(0).is_some();
         self.close_sketch();
-        if solid {
-            self.isolated = None;
-        }
     }
 
     /// Ends the sketch without keeping what it drew.
@@ -255,7 +256,7 @@ impl Cad {
         if live.pad.stage != Stage::Extrude {
             return None;
         }
-        let n = live.pad.frame()?.n;
+        let n = live.pad.rise()?;
         let base = live.pad.anchor()?;
         let h = live.pad.height_mm();
         let proj = v.camera.projector(v.rect);
@@ -349,9 +350,13 @@ impl Cad {
                         Finger::Down => {
                             if let Some(xy) = on_plane(p) {
                                 let out = live.pad.tap(xy, px);
-                                // A corner chosen for a round waits for its radius on the keyboard.
-                                if out == Outcome::Continue && live.pad.tools.tool == Tool::Fillet && live.pad.tools.busy() {
-                                    live.focus = Some("radius");
+                                // A corner chosen for a round or a bevel waits for its size on the keyboard.
+                                if out == Outcome::Continue && live.pad.tools.busy() {
+                                    live.focus = match live.pad.tools.tool {
+                                        Tool::Fillet => Some("radius"),
+                                        Tool::Chamfer => Some("distance"),
+                                        _ => live.focus,
+                                    };
                                 }
                                 said.push(words(out, &mut live.pad));
                             }
@@ -457,8 +462,9 @@ impl Cad {
             }
             match live.pad.stage.clone() {
                 Stage::Extrude => {
-                    let h = live.pad.height_mm();
-                    let up = |uv: [f64; 2]| world(std::array::from_fn(|k| frame.point(uv)[k] + frame.n[k] * h));
+                    // A cut's far end is its floor, under the plane.
+                    let (h, rise) = (live.pad.height_mm(), live.pad.rise().unwrap_or(frame.n));
+                    let up = |uv: [f64; 2]| world(std::array::from_fn(|k| frame.point(uv)[k] + rise[k] * h));
                     for r in &swept {
                         for poly in r.polygons(chord) {
                             let mut top: Vec<Pos2> = poly.iter().map(|p| up(*p)).collect();
@@ -477,7 +483,8 @@ impl Cad {
                     }
                 }
                 Stage::Revolve { pivot, dir, .. } => {
-                    let (p0, a) = (frame.point(pivot), frame.vector(dir));
+                    // A cut turns the other way round the same line, into the metal.
+                    let (p0, a) = live.pad.revolution().unwrap_or((frame.point(pivot), frame.vector(dir)));
                     let far = 40.0;
                     let ends = [frame.point([pivot[0] - dir[0] * far, pivot[1] - dir[1] * far]), frame.point([pivot[0] + dir[0] * far, pivot[1] + dir[1] * far])];
                     painter.extend(egui::Shape::dashed_line(&[world(ends[0]), world(ends[1])], Stroke::new(1.8, crate::theme::AQUA), 7.0, 5.0));
@@ -500,64 +507,58 @@ impl Cad {
         self.serve_sketch(v, services);
         // A stage that wants another view turns the camera to it once.
         if let Some(live) = self.sketch.as_mut() {
-            let want = view_key(&live.pad.stage);
+            let want = view_key(&live.pad);
             if live.pad.frame().is_some() && live.looked != Some(want) {
                 self.sketch_look(v);
             }
         }
     }
 
-    /// The tools at the view's top, the stage's bar at its foot and the dimension fields over it; what their buttons asked for.
+    /// The tools at the view's top, the stage's bar at its foot and the dimension fields between; what their buttons asked for.
+    /// As the keyboard shortens the view the tools keep to one scrolling row, and only while drawing, and give up their room before the bar and fields do.
     fn sketch_bars(&mut self, ui: &mut egui::Ui, v: &View) -> Vec<Ask> {
         let mut asked = Vec::new();
         let Some(live) = self.sketch.as_mut() else { return asked };
         let ctx = ui.ctx().clone();
-        // The tools, a thumb high, wrapping clear of the navigator.
+        let drawing = live.pad.stage == Stage::Draw && !live.asking;
+        // The tools, a thumb high, clear of the navigator.
         let right = v.covered.iter().filter(|r| r.top() < v.rect.top() + 120.0 && r.left() > v.rect.center().x).map(|r| r.left()).fold(v.rect.right(), f32::min);
         let width = (right - v.rect.left() - 16.0).max(TOOL_PT * 4.0);
-        let drawing = live.pad.stage == Stage::Draw && !live.asking;
-        egui::Area::new(tools_area()).order(egui::Order::Foreground).fixed_pos(v.rect.left_top() + egui::vec2(8.0, 8.0)).constrain_to(v.rect).show(&ctx, |ui| {
-            egui::Frame::popup(ui.style()).fill(Color32::from_rgba_unmultiplied(12, 12, 18, 232)).inner_margin(4).show(ui, |ui| {
-                ui.set_max_width(width);
-                ui.spacing_mut().item_spacing = egui::vec2(3.0, 3.0);
-                ui.horizontal_wrapped(|ui| {
-                    let tool = |ui: &mut egui::Ui, icon: Icon, name: &str, on: bool, enabled: bool| {
-                        let b = egui::Button::image(icon.image(ui, 22.0)).selected(on).min_size(egui::vec2(TOOL_PT, TOOL_PT)).frame_when_inactive(true);
-                        let r = ui.add_enabled(enabled, b);
-                        r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, name));
-                        r.clicked()
-                    };
-                    for t in TOOLS {
-                        if tool(ui, t.icon(), &format!("{} tool", t.label()), drawing && !live.pad.erase && live.pad.tools.tool == t, drawing) {
-                            asked.push(Ask::Tool(t));
-                        }
+        let row = v.rect.height() < ROW_VIEW_PT;
+        let mut tools_bottom = v.rect.top();
+        if !row || drawing && v.rect.height() >= TOOLS_VIEW_PT {
+            let specs = tool_buttons(&live.pad, drawing);
+            let buttons = |ui: &mut egui::Ui, asked: &mut Vec<Ask>| {
+                for t in &specs {
+                    if t.gap {
+                        ui.separator();
                     }
-                    if tool(ui, Icon::Delete, "Erase tool", drawing && live.pad.erase, drawing) {
-                        asked.push(Ask::Erase);
+                    let b = egui::Button::image(t.icon.image(ui, 22.0)).selected(t.on).min_size(egui::vec2(TOOL_PT, TOOL_PT)).frame_when_inactive(true);
+                    let r = ui.add_enabled(t.enabled, b);
+                    r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, t.enabled, &t.name));
+                    if r.clicked() {
+                        asked.push(t.ask.clone());
                     }
-                    ui.separator();
-                    if tool(ui, Icon::Undo, "Undo sketch edit", false, drawing && live.pad.tools.can_undo()) {
-                        asked.push(Ask::Undo);
-                    }
-                    if tool(ui, Icon::Redo, "Redo sketch edit", false, drawing && live.pad.tools.can_redo()) {
-                        asked.push(Ask::Redo);
-                    }
-                    if tool(ui, Icon::Guides, "Construction", live.pad.tools.construction, drawing) {
-                        asked.push(Ask::Construction);
-                    }
-                    if tool(ui, Icon::View, "Look at the sketch", false, true) {
-                        asked.push(Ask::Look);
-                    }
-                    if matches!(live.pad.place, Some(Place::Tangent { .. } | Place::Section { .. })) && tool(ui, Icon::Section, "Switch plane", false, drawing) {
-                        asked.push(Ask::Switch);
+                }
+            };
+            let shown = egui::Area::new(tools_area()).order(egui::Order::Foreground).fixed_pos(v.rect.left_top() + egui::vec2(8.0, 8.0)).constrain_to(v.rect).show(&ctx, |ui| {
+                egui::Frame::popup(ui.style()).fill(Color32::from_rgba_unmultiplied(12, 12, 18, 232)).inner_margin(4).show(ui, |ui| {
+                    ui.set_max_width(width);
+                    ui.spacing_mut().item_spacing = egui::vec2(3.0, 3.0);
+                    if row {
+                        egui::ScrollArea::horizontal().id_salt("phone-sketch-tool-row").show(ui, |ui| ui.horizontal(|ui| buttons(ui, &mut asked)));
+                    } else {
+                        ui.horizontal_wrapped(|ui| buttons(ui, &mut asked));
                     }
                 });
             });
-        });
+            tools_bottom = shown.response.rect.bottom();
+        }
         // The stage's words and buttons at the view's foot.
         let mut lines = vec![(live.pad.prompt(), crate::theme::AQUA)];
         let caption = match live.pad.stage {
             Stage::Draw => live.pad.tools.preview(&live.pad.working).caption,
+            Stage::Extrude if live.pad.cutting() => format!("Depth {:.2} mm", live.pad.height_mm()),
             Stage::Extrude => format!("Height {:.2} mm", live.pad.height_mm()),
             Stage::Revolve { .. } => format!("Angle {:.0}°", live.pad.degrees()),
             _ => String::new(),
@@ -570,50 +571,19 @@ impl Cad {
         {
             lines.push((why.to_string(), crate::theme::PINK_BRIGHT));
         }
-        let b = |icon: Icon, label: &'static str, enabled: bool| bar::Button { icon, label, checked: false, enabled };
-        let regions = live.pad.regions().is_ok_and(|r| !r.is_empty());
-        let (buttons, asks): (Vec<bar::Button>, Vec<Ask>) = if live.asking {
+        if live.asking {
             lines = vec![("This sketch has strokes not yet kept: keep them, drop them, or go on drawing".into(), crate::theme::PINK_BRIGHT)];
-            vec![(b(Icon::Save, "Keep", true), Ask::Keep), (b(Icon::Delete, "Drop", true), Ask::Drop), (b(Icon::CadSketch, "Draw on", true), Ask::DrawOn)].into_iter().unzip()
-        } else {
-            match live.pad.stage {
-                Stage::Draw => {
-                    let busy = live.pad.tools.busy();
-                    let chain = busy && live.pad.tools.tool == Tool::Line;
-                    let mut row = Vec::new();
-                    if chain {
-                        row.push((b(Icon::Path, "Close loop", true), Ask::Close));
-                    }
-                    if busy {
-                        row.push((b(Icon::Check, "Done", true), Ask::Confirm));
-                        row.push((b(Icon::Collapse, "Back", true), Ask::Back));
-                    }
-                    row.push((b(Icon::CadSketch, "Finish", true), Ask::Finish));
-                    row.push((b(Icon::Close, "Leave", true), Ask::Leave));
-                    row.into_iter().unzip()
-                }
-                Stage::Offer => vec![
-                    (b(Icon::CadExtrude, "Extrude", regions), Ask::Make(Make::Extrude)),
-                    (b(Icon::CadRevolve, "Revolve", regions), Ask::Make(Make::Revolve)),
-                    (b(Icon::Save, "Keep sketch", true), Ask::Keep),
-                    (b(Icon::Collapse, "Back", true), Ask::Back),
-                ]
-                .into_iter()
-                .unzip(),
-                Stage::Extrude => vec![(b(Icon::Check, "Extrude", true), Ask::Keep), (b(Icon::Collapse, "Back", true), Ask::Back)].into_iter().unzip(),
-                Stage::Axis => vec![(b(Icon::Collapse, "Back", true), Ask::Back)].into_iter().unzip(),
-                Stage::Revolve { .. } => vec![(b(Icon::Check, "Revolve", true), Ask::Keep), (b(Icon::Collapse, "Back", true), Ask::Back)].into_iter().unzip(),
-            }
-        };
+        }
+        let (buttons, asks): (Vec<bar::Button>, Vec<Ask>) = stage_buttons(live, v.design).into_iter().unzip();
         if let Some(i) = bar::show(&ctx, v.rect, v.covered, &lines, &buttons) {
             asked.push(asks[i].clone());
         }
-        // The fields stand over the bar, and never above the view.
+        // The fields stand over the bar and under the tools, and never above the view.
         let mut dims = live.pad.dimensions();
         if !dims.is_empty() {
             let shown = ctx.memory(|m| m.area_rect(bar::area())).unwrap_or(v.rect);
             let tall = ctx.memory(|m| m.area_rect(fields_area())).map_or(FIELDS_PT, |r| r.height());
-            let y = (shown.top() - 6.0 - tall).max(v.rect.top() + 4.0);
+            let y = (shown.top() - 6.0 - tall).max(tools_bottom + 4.0).max(v.rect.top() + 4.0);
             let anchor = egui::pos2(v.rect.left() + 8.0, y) - egui::vec2(18.0, 18.0);
             for e in live.bar.show(&ctx, anchor, v.rect, &mut dims) {
                 asked.push(match e {
@@ -635,7 +605,7 @@ impl Cad {
     }
 
     /// Serves what the sketch's buttons and fields asked for.
-    fn serve_sketch(&mut self, v: &View, asked: Vec<Ask>) {
+    pub(super) fn serve_sketch(&mut self, v: &View, asked: Vec<Ask>) {
         for ask in asked {
             let Some(live) = self.sketch.as_mut() else { return };
             let said = match ask {
@@ -700,6 +670,10 @@ impl Cad {
                 }
                 Ask::Make(m) => {
                     let out = live.pad.make(m);
+                    Some(words(out, &mut live.pad))
+                }
+                Ask::Attach(a) => {
+                    let out = live.pad.set_attach(v.design, a);
                     Some(words(out, &mut live.pad))
                 }
                 Ask::Keep => {
@@ -769,7 +743,7 @@ impl Cad {
 
 /// What a sketch's button or field asked for.
 #[derive(Clone, Debug, PartialEq)]
-enum Ask {
+pub(super) enum Ask {
     Tool(Tool),
     Erase,
     Undo,
@@ -782,6 +756,8 @@ enum Ask {
     Back,
     Finish,
     Make(Make),
+    /// How the solid being set meets the ring.
+    Attach(Attach),
     /// Keep what is drawn: the sketch alone, or with the solid being set.
     Keep,
     Drop,
@@ -791,6 +767,79 @@ enum Ask {
     Cleared(&'static str),
     /// Enter in a field: the step's numbers made while drawing, the solid made while one is set.
     FieldDone,
+}
+
+/// One of the sketch's tool buttons: its mark, its name, whether it is lit and offered, what it asks for, and whether a gap stands before it.
+pub(super) struct ToolButton {
+    pub icon: Icon,
+    pub name: String,
+    pub on: bool,
+    pub enabled: bool,
+    pub ask: Ask,
+    pub gap: bool,
+}
+
+/// The sketch's tool buttons in order: every drawing and editing tool and Erase, then undo, redo, construction, the look and, on the band, the plane switch.
+pub(super) fn tool_buttons(pad: &Pad, drawing: bool) -> Vec<ToolButton> {
+    let button = |icon: Icon, name: String, on: bool, enabled: bool, ask: Ask| ToolButton { icon, name, on, enabled, ask, gap: false };
+    let mut out: Vec<ToolButton> = TOOLS.iter().map(|t| button(t.icon(), format!("{} tool", t.label()), drawing && !pad.erase && pad.tools.tool == *t, drawing, Ask::Tool(*t))).collect();
+    out.push(button(Icon::Delete, "Erase tool".into(), drawing && pad.erase, drawing, Ask::Erase));
+    out.push(ToolButton { gap: true, ..button(Icon::Undo, "Undo sketch edit".into(), false, drawing && pad.tools.can_undo(), Ask::Undo) });
+    out.push(button(Icon::Redo, "Redo sketch edit".into(), false, drawing && pad.tools.can_redo(), Ask::Redo));
+    out.push(button(Icon::Guides, "Construction".into(), pad.tools.construction, drawing, Ask::Construction));
+    out.push(button(Icon::View, "Look at the sketch".into(), false, true, Ask::Look));
+    if matches!(pad.place, Some(Place::Tangent { .. } | Place::Section { .. })) {
+        out.push(button(Icon::Section, "Switch plane".into(), false, drawing, Ask::Switch));
+    }
+    out
+}
+
+/// The buttons at the view's foot for the stage in hand, and what each asks for; a solid being set offers Join, Cut and Separate, the one chosen ticked.
+pub(super) fn stage_buttons(live: &mut Live, design: &ringdesign_core::RingDesign) -> Vec<(bar::Button, Ask)> {
+    let b = |icon: Icon, label: &'static str, enabled: bool| bar::Button { icon, label, checked: false, enabled };
+    if live.asking {
+        return vec![(b(Icon::Save, "Keep", true), Ask::Keep), (b(Icon::Delete, "Drop", true), Ask::Drop), (b(Icon::CadSketch, "Draw on", true), Ask::DrawOn)];
+    }
+    let regions = live.pad.regions().is_ok_and(|r| !r.is_empty());
+    match live.pad.stage {
+        Stage::Draw => {
+            let busy = live.pad.tools.busy();
+            let chain = busy && live.pad.tools.tool == Tool::Line;
+            // Mirror's curves, once chosen, wait for Done before the line to mirror them in.
+            let mirror = !busy && live.pad.tools.tool == Tool::Mirror && !live.pad.tools.chosen_entities.is_empty();
+            let mut row = Vec::new();
+            if chain {
+                row.push((b(Icon::Path, "Close loop", true), Ask::Close));
+            }
+            if busy || mirror {
+                row.push((b(Icon::Check, "Done", true), Ask::Confirm));
+                row.push((b(Icon::Collapse, "Back", true), Ask::Back));
+            }
+            row.push((b(Icon::CadSketch, "Finish", true), Ask::Finish));
+            row.push((b(Icon::Close, "Leave", true), Ask::Leave));
+            row
+        }
+        Stage::Offer => vec![
+            (b(Icon::CadExtrude, "Extrude", regions), Ask::Make(Make::Extrude)),
+            (b(Icon::CadRevolve, "Revolve", regions), Ask::Make(Make::Revolve)),
+            (b(Icon::Save, "Keep sketch", true), Ask::Keep),
+            (b(Icon::Collapse, "Back", true), Ask::Back),
+        ],
+        Stage::Extrude | Stage::Revolve { .. } => {
+            let attach = live.pad.attach;
+            let cut = !design.cad.as_ref().is_some_and(|d| d.replaces_band());
+            let way = |icon: Icon, label: &'static str, of: Attach, enabled: bool| (bar::Button { icon, label, checked: attach == of, enabled }, Ask::Attach(of));
+            let make = if live.pad.stage == Stage::Extrude { "Extrude" } else { "Revolve" };
+            vec![
+                way(Icon::CadUnion, "Join", Attach::Join, true),
+                way(Icon::CadSubtract, "Cut", Attach::Cut, cut),
+                way(Icon::CadPlace, "Separate", Attach::Separate, true),
+                (b(Icon::Check, make, true), Ask::Keep),
+                (b(Icon::Collapse, "Back", true), Ask::Back),
+            ]
+        }
+        Stage::Axis => vec![(b(Icon::Collapse, "Back", true), Ask::Back)],
+    }
 }
 
 /// The plane's grid over the view, its axes lit.
@@ -843,7 +892,8 @@ pub fn areas() -> [egui::Id; 2] {
     [tools_area(), fields_area()]
 }
 
-/// A screen rect the sketch's tools cover, for a test to read.
-pub fn tools_rect(ctx: &egui::Context) -> Option<Rect> {
-    ctx.memory(|m| m.area_rect(tools_area()))
+/// The screen rect area `id` covered in the last pass, when it was drawn there, for a test to read.
+pub fn drawn_rect(ctx: &egui::Context, id: egui::Id) -> Option<Rect> {
+    let layer = egui::LayerId::new(egui::Order::Foreground, id);
+    ctx.memory(|m| m.areas().visible_last_frame(&layer).then(|| m.area_rect(id)).flatten())
 }

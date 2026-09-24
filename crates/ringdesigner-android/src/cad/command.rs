@@ -6,7 +6,7 @@ use std::time::Instant;
 use egui::{Pos2, Rect};
 use egui_mobile::egui;
 use ringdesign_core::{
-    Mesh, RingDesign, Vec3,
+    FaceClass, Mesh, RingDesign, Vec3,
     cad::{Attach, EvaluatedComponent, Feature, Operation, Placement, Stage, pattern},
     castability::{
         CastProcess, FieldReport,
@@ -111,8 +111,15 @@ enum Staged {
     Own,
 }
 
-/// A menu command's ghost, drawn from the command as it stands.
-type OwnGhost = Box<dyn Fn(&dyn ViewCommand) -> Option<Mesh>>;
+/// A menu command's ghost, drawn from the command as it stands: its triangles in the world, the copies a pattern would leave out refused.
+type OwnGhost = Box<dyn Fn(&dyn ViewCommand) -> Option<touch::parts::Copies>>;
+
+/// A menu command's own ghost: how to draw it, what it was last drawn for, and what it says of the copies it shows refused.
+struct Own {
+    stage: OwnGhost,
+    shown: Option<String>,
+    note: Option<String>,
+}
 
 /// The carried ghost read for castability: the judge by build, where it was read, and what it says.
 #[derive(Default)]
@@ -135,7 +142,7 @@ pub struct Live {
     hold: Option<(Held, bool)>,
     /// A press-pull's face: its centre and outward normal.
     pull: Option<([f64; 3], [f64; 3])>,
-    own: Option<(OwnGhost, Option<String>)>,
+    own: Option<Own>,
     /// Part vertices and edges to snap to, by build and carried part.
     snaps: Option<(usize, Option<Id>, Vec<[f64; 3]>, Vec<Vec<[f64; 3]>>)>,
     /// The ring's own snap targets, by build, carried part and pins.
@@ -314,6 +321,11 @@ impl Live {
         self.tint.read.as_ref()
     }
 
+    /// What a menu command's ghost says of the copies it shows refused.
+    pub fn ghost_note(&self) -> Option<&str> {
+        self.own.as_ref().and_then(|o| o.note.as_deref())
+    }
+
     /// Ends a live command without committing it; whether one was live.
     pub fn cancel(&mut self, out: &mut Vec<Request>) -> bool {
         if !self.session.is_live() {
@@ -329,7 +341,7 @@ impl Live {
         self.session.start(cmd);
         self.target = target;
         self.face = None;
-        self.own = own.map(|g| (g, None));
+        self.own = own.map(|stage| Own { stage, shown: None, note: None });
         self.hold = None;
         self.pull = None;
         self.linger = None;
@@ -700,9 +712,14 @@ impl Live {
         let preview = self.session.preview().unwrap_or_default();
         let mut lines = vec![(self.session.prompt(), crate::theme::AQUA), (preview.caption.clone(), crate::theme::INK)];
         if let Some(read) = self.tint.read.as_ref() {
-            let class = if read.locks() { ringdesign_core::FaceClass::Undercut } else { ringdesign_core::FaceClass::Good };
+            let class = if read.locks() { FaceClass::Undercut } else { FaceClass::Good };
             let [r, g, b] = class.rgb().map(|v| (v * 255.0).round() as u8);
             lines.push((format!("Ghost {}{}", read.caption(), self.tint.note), egui::Color32::from_rgb(r, g, b)));
+        }
+        // What a pattern's ghost says of the copies it shows refused, in their colour.
+        if let Some(note) = self.ghost_note() {
+            let [r, g, b] = FaceClass::Undercut.rgb().map(|v| (v * 255.0).round() as u8);
+            lines.push((note.to_string(), egui::Color32::from_rgb(r, g, b)));
         }
         let mut done = false;
         let mut cancel = false;
@@ -790,18 +807,27 @@ impl Live {
             }
             return;
         }
-        if let Some((stage, shown)) = &mut self.own {
+        if let Some(own) = &mut self.own {
             let Some(cmd) = self.session.command() else { return };
             let preview = cmd.preview();
             let key = format!("{:?} {:?}", preview.operation, preview.placement);
-            if shown.as_ref() != Some(&key) {
-                let mesh = stage(cmd).unwrap_or_default();
+            if own.shown.as_ref() != Some(&key) {
+                let shown = (own.stage)(cmd).unwrap_or_default();
+                // Copies left out are drawn in the undercut red, the rest plain.
+                let refusing = shown.refused.iter().any(|r| *r);
                 if let Ok(mut r) = renderer.lock() {
-                    r.set_pending_preview(GpuMeshRenderer::stage_part(&mesh));
-                    r.set_preview_model((!mesh.faces.is_empty()).then(|| gl_model(&Affine::IDENTITY)));
-                    r.set_preview_draft(false);
+                    let verts = if refusing {
+                        let classes: Vec<FaceClass> = shown.refused.iter().map(|off| if *off { FaceClass::Undercut } else { FaceClass::Good }).collect();
+                        GpuMeshRenderer::stage_part_classes(&shown.mesh, &classes)
+                    } else {
+                        GpuMeshRenderer::stage_part(&shown.mesh)
+                    };
+                    r.set_pending_preview(verts);
+                    r.set_preview_model((!shown.mesh.faces.is_empty()).then(|| gl_model(&Affine::IDENTITY)));
+                    r.set_preview_draft(refusing);
                 }
-                *shown = Some(key);
+                own.note = shown.note;
+                own.shown = Some(key);
                 self.staged = Some(Staged::Own);
             }
             return;
@@ -872,23 +898,12 @@ impl Live {
     }
 }
 
-/// The part's mesh carried onto every copy a pattern command would add, by the motions the evaluation places them with.
+/// The part's mesh carried onto every copy a pattern command would add, as the evaluation places them, the copies it would leave out for standing off their face refused.
 fn copies_ghost(design: &RingDesign, build: &Built, source_id: Id, source: Mesh) -> OwnGhost {
     let (design, surface, evaluated) = (design.clone(), build.0.band.clone(), build.0.parts.evaluated.clone());
     Box::new(move |cmd| {
         let Some(Operation::Pattern { kind, .. }) = cmd.preview().operation else { return None };
-        let motions = pattern::copy_motions(&design, surface.as_deref(), evaluated.as_ref()?, source_id, &kind).ok()?;
-        let mut out = Mesh::default();
-        for m in motions {
-            let base = out.vertices.len() as u32;
-            out.vertices.extend(source.vertices.iter().map(|v| {
-                let p = m.point([v.0 as f64, v.1 as f64, v.2 as f64]);
-                Vec3(p[0] as f32, p[1] as f32, p[2] as f32)
-            }));
-            let flip = m.reflects();
-            out.faces.extend(source.faces.iter().map(|f| if flip { [f[0] + base, f[2] + base, f[1] + base] } else { f.map(|i| i + base) }));
-        }
-        Some(out)
+        touch::parts::copies(&design, surface.as_deref(), evaluated.as_ref()?, source_id, &source, &kind)
     })
 }
 
@@ -930,6 +945,6 @@ fn face_ghost(c: &EvaluatedComponent, face: u32, normal: [f64; 3]) -> OwnGhost {
                 }
             }
         }
-        Some(out)
+        Some(touch::parts::Copies { mesh: out, ..Default::default() })
     })
 }

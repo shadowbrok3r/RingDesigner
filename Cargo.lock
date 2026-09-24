@@ -5242,6 +5242,7 @@ dependencies = [
  "ringdesign-graph",
  "ringdesign-graph-ui",
  "ringdesign-script",
+ "ringdesign-solid",
  "ringdesign-workbench",
  "serde",
  "serde_json",
