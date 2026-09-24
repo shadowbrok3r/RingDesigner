@@ -358,7 +358,7 @@ pub struct RingDesignerApp {
     pub graph_inline_edit: bool,
     /// Pane the toolbar's view controls act on.
     pub active_pane: usize,
-    /// Frame the next completed build. Set on new/open, never on rebuilds.
+    /// Frame the next completed build: set on new and open, and on the construction guide's rebuilds.
     pub fit_pending: bool,
     /// The pending fit keeps each pane's zoom and its pan about the ring's middle.
     pub fit_keeps_view: bool,

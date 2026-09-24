@@ -494,6 +494,7 @@ pub fn open_design_path(app: &mut RingDesignerApp, path: &std::path::Path) {
             app.history.reset(&app.design.clone());
             app.selected_layer = None;
             app.fit_pending = true;
+            app.fit_keeps_view = false;
             app.mark_dirty();
             app.document_path = Some(path.to_path_buf());
             app.push_recent(path);
@@ -521,6 +522,7 @@ fn adopt_template(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign
     app.history.reset(&app.design.clone());
     app.selected_layer = None;
     app.fit_pending = true;
+    app.fit_keeps_view = false;
     app.sync_graph();
     app.arrange_graph();
     app.mark_dirty();
