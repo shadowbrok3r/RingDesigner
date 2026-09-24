@@ -3,6 +3,9 @@ use super::session::Dimension;
 use egui::text::{CCursor, CCursorRange};
 use egui::{Area, Context, Event, EventFilter, FocusDirection, Frame, Id, Key, Order, Pos2, Rect, TextEdit, Vec2, WidgetInfo};
 
+/// A field's width, points: held whatever width the bar's area had last frame.
+const FIELD_W: f32 = 72.0;
+
 /// What the fields did this frame, for the session to feed.
 #[derive(Clone, Debug, PartialEq)]
 pub enum DimEvent {
@@ -258,7 +261,7 @@ impl DimensionBar {
                         ui.label(d.label);
                         let text = self.text_mut(d.key);
                         let was = text.clone();
-                        let out = TextEdit::singleline(text).id(*id).desired_width(72.0).hint_text(hint.as_str()).event_filter(filter).show(ui);
+                        let out = TextEdit::singleline(text).id(*id).desired_width(FIELD_W).min_size(Vec2::new(FIELD_W, 0.0)).hint_text(hint.as_str()).event_filter(filter).show(ui);
                         let now = text.clone();
                         out.response.response.widget_info(|| WidgetInfo {
                             label: Some(name.clone()),
@@ -296,8 +299,14 @@ mod tests {
     }
     /// The same, with a focusable widget standing in for the viewport that holds the tool's keys.
     fn hosted(host: Option<Id>) -> Harness<'static, App> {
+        let mut session = centring(Primitive::Cylinder);
+        assert!(matches!(session.feed(StepInput::Click), Outcome::NextStep));
+        built(session, host)
+    }
+    /// A primitive at its centre step, the pointer on the ring's top.
+    fn centring(kind: Primitive) -> Session {
         let mut session = Session::default();
-        session.start(Box::new(AddPrimitiveCmd::new(Primitive::Cylinder, 7)));
+        session.start(Box::new(AddPrimitiveCmd::new(kind, 7)));
         session.feed(StepInput::Pointer {
             world: [0.0, 9.5, 0.0],
             normal: [0.0, 1.0, 0.0],
@@ -307,7 +316,10 @@ mod tests {
             snapped: None,
             dragging: false,
         });
-        assert!(matches!(session.feed(StepInput::Click), Outcome::NextStep));
+        session
+    }
+    /// The bar over `session` between the decoys, two frames run.
+    fn built(session: Session, host: Option<Id>) -> Harness<'static, App> {
         let mut bar = DimensionBar::default();
         bar.set_host(host);
         let app = App { session, bar, events: vec![], committed: vec![], host, anchor: egui::pos2(40.0, 60.0) };
@@ -539,6 +551,42 @@ mod tests {
         // Wider than the view it holds to the view's left edge.
         assert_eq!(place(egui::pos2(630.0, 10.0), egui::vec2(900.0, 30.0), VIEW), egui::pos2(8.0, 28.0));
         assert!(h.state().bar.covers(&h.ctx, r.center()) && !h.state().bar.covers(&h.ctx, egui::pos2(20.0, 20.0)));
+    }
+
+    /// Every text the last frame painted, as it reads on screen.
+    fn painted(h: &Harness<'_, App>) -> Vec<String> {
+        fn walk(shape: &egui::Shape, out: &mut Vec<String>) {
+            match shape {
+                egui::Shape::Text(t) => out.push(t.galley.rows.iter().map(|r| r.text()).collect()),
+                egui::Shape::Vec(v) => v.iter().for_each(|s| walk(s, out)),
+                _ => {}
+            }
+        }
+        let mut out = Vec::new();
+        h.output().shapes.iter().for_each(|c| walk(&c.shape, &mut out));
+        out
+    }
+
+    #[test]
+    fn the_size_step_shows_every_value_whole_after_a_narrower_centre_step() {
+        // The centre step's θ and Across draw first; the click brings the size and Height, whose labels are wider.
+        for (kind, size) in [(Primitive::Box, "Half-size"), (Primitive::Cylinder, "Radius")] {
+            let mut h = built(centring(kind), None);
+            assert_eq!(h.get_by_label("Across (mm)").rect().width(), FIELD_W);
+            assert!(matches!(h.state_mut().session.feed(StepInput::Click), Outcome::NextStep));
+            h.run_steps(4);
+            // Held to the centre step's width, Height's hint read "1…" on the box and "1.0…" on the cylinder's 40-point field.
+            let shown = painted(&h);
+            assert!(!shown.iter().any(|t| t.contains('…')), "nothing cut short: {shown:?}");
+            for text in [size, "1.00 mm", "Height"] {
+                assert_eq!(shown.iter().filter(|t| *t == text).count(), if text == "1.00 mm" { 2 } else { 1 }, "{text} reads whole in {shown:?}");
+            }
+            for label in [format!("{size} (mm)"), "Height (mm)".into()] {
+                assert_eq!(h.get_by_label(&label).rect().width(), FIELD_W, "{label} holds its width");
+            }
+            let bar = h.ctx.memory(|m| m.area_rect(h.state().bar.id.with("area"))).unwrap();
+            assert!(bar.width() > 2.0 * FIELD_W + 80.0, "the bar grew to hold both fields and their labels: {bar:?}");
+        }
     }
 
     #[test]

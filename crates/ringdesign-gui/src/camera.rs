@@ -48,6 +48,7 @@ pub struct OrbitCamera {
     pub pitch: f32,
     /// Zoom factor: 1.0 frames the model exactly.
     pub zoom: f32,
+    /// What the camera orbits and the view's window is centred on less the pan: the ring's middle until a fit moves it.
     pub target: [f32; 3],
     pub pan: [f32; 2],
     /// Radius of the fitted bounding sphere, mm.
@@ -55,6 +56,9 @@ pub struct OrbitCamera {
     /// Turn about the view axis, radians: what lets the ring be seen upside down.
     #[serde(default)]
     pub roll: f32,
+    /// The fitted bounds' middle, which a named view orbits; `None` while the target has never left it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    home: Option<[f32; 3]>,
 }
 
 impl Default for OrbitCamera {
@@ -68,28 +72,79 @@ impl Default for OrbitCamera {
             pan: [0.0; 2],
             radius: 12.0,
             roll: 0.0,
+            home: None,
         }
     }
+}
+
+/// The middle of a box and the radius of the sphere round it, mm.
+fn sphere(min: Vec3, max: Vec3) -> ([f32; 3], f32) {
+    let ext = [max.0 - min.0, max.1 - min.1, max.2 - min.2];
+    ([(min.0 + max.0) * 0.5, (min.1 + max.1) * 0.5, (min.2 + max.2) * 0.5], 0.5 * dot(ext, ext).sqrt())
 }
 
 impl OrbitCamera {
     /// Recentre on new bounds, keeping the current orientation and zoom.
     pub fn fit(&mut self, bounds: Option<(Vec3, Vec3)>) {
         let Some((min, max)) = bounds else { return };
-        self.target = [
-            (min.0 + max.0) * 0.5,
-            (min.1 + max.1) * 0.5,
-            (min.2 + max.2) * 0.5,
-        ];
-        let ext = [max.0 - min.0, max.1 - min.1, max.2 - min.2];
-        let r = 0.5 * (ext[0] * ext[0] + ext[1] * ext[1] + ext[2] * ext[2]).sqrt();
+        let (centre, r) = sphere(min, max);
+        self.target = centre;
+        self.home = Some(centre);
         self.radius = r.max(1.0);
     }
 
     pub fn reset(&mut self) {
-        let keep_radius = self.radius;
+        let keep = (self.radius, self.home());
         *self = Self::default();
-        self.radius = keep_radius;
+        self.radius = keep.0;
+        self.target = keep.1;
+        self.home = Some(keep.1);
+    }
+
+    /// The middle a named view orbits.
+    fn home(&self) -> [f32; 3] {
+        self.home.unwrap_or(self.target)
+    }
+
+    /// Orbits the ring's own middle again without moving the picture.
+    pub fn pivot_home(&mut self) {
+        self.pivot_on(self.home());
+    }
+
+    /// The view's right, up and forward in the world.
+    fn axes(&self) -> ([f32; 3], [f32; 3], [f32; 3]) {
+        let f = normalize(sub(self.target, self.eye()));
+        let s = normalize(cross(f, self.up()));
+        (s, cross(s, f), f)
+    }
+
+    /// Orbits `point` from now on without moving the picture: the pan takes up the difference.
+    pub fn pivot_on(&mut self, point: [f32; 3]) {
+        if !point.iter().all(|v| v.is_finite()) {
+            return;
+        }
+        self.home = Some(self.home());
+        let (s, u, _) = self.axes();
+        let d = sub(point, self.target);
+        self.pan = [self.pan[0] - dot(d, s), self.pan[1] - dot(d, u)];
+        self.target = point;
+    }
+
+    /// Moves the pivot onto the middle of `bounds` without moving the picture; the pose that then frames them, the look kept, centred, their sphere filling the view's shorter side.
+    pub fn framing(&mut self, bounds: (Vec3, Vec3)) -> ringdesign_workbench::focus::Pose {
+        let (centre, r) = sphere(bounds.0, bounds.1);
+        self.pivot_on(centre);
+        let zoom = (self.radius / r.max(1e-3)).clamp(0.15, 24.0);
+        ringdesign_workbench::focus::Pose { pan: [0.0; 2], zoom, ..self.pose() }
+    }
+
+    /// Takes `bounds` as the ring's own without moving the picture: the radius it is framed by and the middle a named view orbits.
+    pub fn refit(&mut self, bounds: (Vec3, Vec3)) {
+        let (centre, r) = sphere(bounds.0, bounds.1);
+        let r = r.max(1.0);
+        self.zoom = (self.zoom * r / self.radius.max(1e-3)).clamp(0.15, 24.0);
+        self.radius = r;
+        self.home = Some(centre);
     }
 
     /// The pose as the shared focus and navigator maths hold it.
@@ -114,6 +169,7 @@ impl OrbitCamera {
         let (yaw, pitch) = view.angles();
         self.yaw = yaw;
         self.pitch = pitch;
+        self.target = self.home();
         self.pan = [0.0, 0.0];
         self.roll = 0.0;
     }
@@ -473,6 +529,86 @@ mod tests {
         let before = up.projector(r).at(head);
         up.orbit(egui::vec2(10.0, 0.0));
         assert!(up.projector(r).at(head).x > before.x, "the head follows a drag to the right");
+    }
+
+    /// A camera fitted to a ring 25 mm across, turned to the three-quarter view.
+    fn ringed() -> OrbitCamera {
+        let mut cam = OrbitCamera::default();
+        cam.fit(Some((Vec3(-11., -11., -3.), Vec3(11., 12.5, 3.))));
+        cam
+    }
+
+    fn apart(a: egui::Pos2, b: egui::Pos2) -> f32 {
+        (a - b).length()
+    }
+
+    /// A 2 × 1 × 2 block at the ring's top, its sphere 1.5 mm round.
+    const BLOCK: (Vec3, Vec3) = (Vec3(-1.0, 10.4, -1.0), Vec3(1.0, 11.4, 1.0));
+
+    #[test]
+    fn a_fit_moves_the_pivot_without_a_jump_centres_what_it_frames_and_turns_about_it() {
+        let r = rect();
+        let mut cam = ringed();
+        cam.zoom = 3.0;
+        cam.pan = [4.0, -2.5];
+        let middle = [0.0, 10.9, 0.0];
+        let probes = [[0.0, 0.0, 0.0], [10.0, 2.0, -1.0], middle, [-5.0, -9.0, 2.0]];
+        let before = probes.map(|p| cam.projector(r).at(p));
+        let to = cam.framing(BLOCK);
+        assert_eq!(cam.target, middle);
+        for (p, was) in probes.iter().zip(before) {
+            assert!(apart(cam.projector(r).at(*p), was) < 0.01, "{p:?} moved from {was:?}");
+        }
+        cam.set_pose(to);
+        assert!(apart(cam.projector(r).at(middle), r.center()) < 0.01);
+        // Its 1.5 mm sphere spans the shorter side less the 15% margin: 600 pt / 2 / 1.15 = 261 pt from the middle.
+        let (s, _, _) = cam.axes();
+        let reach = 1.5 * apart(cam.projector(r).at([s[0], 10.9 + s[1], s[2]]), r.center());
+        assert!((reach - 300.0 / 1.15).abs() < 0.5, "{reach}");
+        assert_eq!((to.yaw, to.pitch, to.roll), (ringed().yaw, ringed().pitch, 0.0), "the look is kept");
+        // A turn holds the block where it stands; about the ring's middle it would swing away.
+        let mut turned = cam;
+        turned.orbit(egui::vec2(60.0, 25.0));
+        assert!(apart(turned.projector(r).at(middle), r.center()) < 0.05);
+        let mut about_ring = cam;
+        about_ring.pivot_home();
+        assert!(apart(about_ring.projector(r).at(middle), r.center()) < 0.01);
+        about_ring.orbit(egui::vec2(60.0, 25.0));
+        assert!(apart(about_ring.projector(r).at(middle), r.center()) > 150.0);
+        // A speck is framed at the camera's closest, not past it.
+        assert_eq!(ringed().framing((Vec3(0.0, 10.0, 0.0), Vec3(0.01, 10.01, 0.01))).zoom, 24.0);
+        // New bounds for the ring keep the picture while the radius follows them.
+        let mut grown = ringed();
+        let was = grown.projector(r).at([5.0, 5.0, 1.0]);
+        grown.refit((Vec3(-16., -16., -3.), Vec3(16., 17., 3.)));
+        assert!(apart(grown.projector(r).at([5.0, 5.0, 1.0]), was) < 0.01);
+        assert!((grown.half_extent() - ringed().half_extent()).abs() < 1e-4);
+    }
+
+    #[test]
+    fn a_named_view_orbits_the_rings_middle_again_and_a_stored_camera_keeps_it() {
+        let r = rect();
+        let mut cam = ringed();
+        cam.framing(BLOCK);
+        let home = [0.0, 0.75, 0.0];
+        let mut back = cam;
+        let still = back.projector(r).at([4.0, 3.0, 1.0]);
+        back.pivot_home();
+        assert_eq!(back.target, home);
+        assert!(apart(back.projector(r).at([4.0, 3.0, 1.0]), still) < 0.01, "home again without a jump");
+        // Stored and restored, the pivoted camera still knows its home.
+        let mut stored: OrbitCamera = serde_json::from_str(&serde_json::to_string(&cam).unwrap()).unwrap();
+        assert_eq!(stored.target, [0.0, 10.9, 0.0]);
+        stored.set_view(StandardView::Face);
+        assert_eq!((stored.target, stored.pan), (home, [0.0; 2]));
+        cam.reset();
+        assert_eq!((cam.target, cam.pan, cam.zoom), (home, [0.0; 2], 1.0));
+        // A camera stored before homes were kept has never left its middle.
+        let mut json = serde_json::to_value(ringed()).unwrap();
+        json.as_object_mut().unwrap().remove("home");
+        let mut old: OrbitCamera = serde_json::from_value(json).unwrap();
+        old.set_view(StandardView::Edge);
+        assert_eq!(old.target, home);
     }
 
     #[test]

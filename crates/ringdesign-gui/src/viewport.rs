@@ -431,8 +431,13 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     if let Some(action) = nav.action {
         let angles = action.apply([camera.yaw, camera.pitch, camera.roll], head);
         if action.recentres() {
-            // A view from the cube eases in, as a chosen node's does.
-            let from = camera.pose();
+            // A view from the cube eases in, as a chosen node's does, about the ring's own middle again.
+            let cam = &mut app.panes[pane].camera;
+            if let Some(ring) = app.build.as_ref().and_then(|b| b.mesh.bounds()) {
+                cam.refit(ring);
+            }
+            cam.pivot_home();
+            let from = cam.pose();
             app.panes[pane].turn = Some(ringdesign_workbench::focus::Turn::new(from, ringdesign_workbench::focus::Pose { yaw: angles[0], pitch: angles[1], roll: angles[2], pan: [0.0; 2], ..from }));
         } else {
             app.panes[pane].turn = None;
@@ -1215,10 +1220,7 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
         MenuAction::FilletEdge { feature, edge } => cad::add_modifier(app, "Fillet", feature, edge as usize),
         MenuAction::ChamferEdge { feature, edge } => cad::add_modifier(app, "Chamfer", feature, edge as usize),
         MenuAction::IsolateInCad(id) => cad::ask(app, CadRequest::Isolate { feature: id }),
-        MenuAction::FitView => {
-            let bounds = app.build.as_ref().and_then(|b| b.mesh.bounds());
-            app.panes[pane].camera.fit(bounds);
-        }
+        MenuAction::FitView => fit_view(app, pane),
         MenuAction::OpenCad => app.focus(crate::pane::PaneKind::Cad),
         MenuAction::ToggleWire => app.show_wireframe = !app.show_wireframe,
         MenuAction::ToggleGrid => app.show_grid = !app.show_grid,
@@ -1245,6 +1247,19 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
         MenuAction::EditStamp(index) => app.stamp_inspector = Some(index),
         MenuAction::Stamp { index, edit } => stamp_edit(app, index, &edit),
     }
+}
+
+/// Eases the pane onto the chosen parts, seats, stamps and stones, else the whole ring, the pivot moved onto their middle.
+pub(crate) fn fit_view(app: &mut RingDesignerApp, pane: usize) {
+    let Some(build) = app.build.clone() else { return };
+    let Some((bounds, framed)) = ringdesign_workbench::touch::view::framed(&build, &app.design, &app.selection.items, &[]) else { return };
+    let Some(p) = app.panes.get_mut(pane) else { return };
+    if let Some(ring) = build.mesh.bounds() {
+        p.camera.refit(ring);
+    }
+    let to = p.camera.framing(bounds);
+    p.turn = Some(ringdesign_workbench::focus::Turn::new(p.camera.pose(), to));
+    app.set_status(framed.said());
 }
 
 /// The layer a seat's made solid stands on, chosen in the Layers tool, or its node on a driven design.
