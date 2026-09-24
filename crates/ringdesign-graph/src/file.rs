@@ -24,6 +24,8 @@ pub const PRESET_EXT: &str = "preset.json";
 pub const GRAPH_FORMAT_VERSION: u32 = 2;
 /// The version a file without an in-plane revolution is written at.
 pub const PLAIN_GRAPH_FORMAT_VERSION: u32 = 1;
+/// The oldest version whose nodes this build reads as they stand: a node's own migration runs only on files older than it.
+pub const NODE_SHAPE_VERSION: u32 = 1;
 const VERSION_KEY: &str = "format_version";
 
 /// One step per version, index `v` taking a version-`v` document to `v + 1`.
@@ -114,7 +116,7 @@ fn read_graph(text: &str, reg: Option<&Registry>, reads_up_to: u32) -> anyhow::R
         obj.remove(VERSION_KEY);
     }
     let mut g: Graph = serde_json::from_value(doc)?;
-    if version < GRAPH_FORMAT_VERSION {
+    if version < NODE_SHAPE_VERSION {
         if let Some(reg) = reg {
             for node in &mut g.nodes {
                 if let Some(f) = reg.get(&node.kind).and_then(|s| s.migrate) {
@@ -340,6 +342,38 @@ mod tests {
         assert_eq!(load_preset_str(&text).unwrap(), preset(turn(true)));
         let older = read_preset(&text, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
         assert_eq!(older, "preset file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner");
+    }
+
+    /// Marks the node it migrates with the version the file had.
+    fn mark(node: &mut Node, from: u32) {
+        node.params = serde_json::json!({ "migrated_from": from });
+    }
+
+    #[test]
+    fn a_nodes_migration_runs_on_an_older_file_and_never_on_a_current_one() {
+        let mut reg = Registry::builtin();
+        reg.register(crate::registry::NodeSpec::new("test.shaped", "Shaped", crate::registry::Category::Util).migrate(mark)).unwrap();
+        let mut g = Graph::new("Shaped", Mode::Free);
+        let n = g.add("test.shaped").unwrap();
+        g.node_mut(n).unwrap().params = serde_json::json!({ "kept": true });
+        // A plain file and one fenced at 2 read back as written, and write back byte for byte.
+        let plain = graph_to_string(&g).unwrap();
+        assert!(plain.contains("\"format_version\": 1"));
+        let back = load_graph_str(&plain, Some(&reg)).unwrap();
+        assert_eq!(back, g);
+        assert_eq!(graph_to_string(&back).unwrap(), plain);
+        let mut turned = g.clone();
+        let t = turned.add("cad.feature").unwrap();
+        turned.node_mut(t).unwrap().params = serde_json::json!({ "id": 2, "name": "Shank", "enabled": true, "operation": turn(true) });
+        let fenced = graph_to_string(&turned).unwrap();
+        assert!(fenced.contains("\"format_version\": 2"));
+        let back = load_graph_str(&fenced, Some(&reg)).unwrap();
+        assert_eq!(back, turned);
+        assert_eq!(graph_to_string(&back).unwrap(), fenced);
+        // A bare version-0 file is older than the shapes this build writes, and its node is migrated.
+        let bare = serde_json::to_string(&g).unwrap();
+        let migrated = load_graph_str(&bare, Some(&reg)).unwrap();
+        assert_eq!(migrated.nodes[0].params, serde_json::json!({ "migrated_from": 0 }));
     }
 
     #[test]
