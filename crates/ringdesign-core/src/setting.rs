@@ -1248,15 +1248,19 @@ fn crosses_outline(outline: &[[f64; 2]], a: [f64; 2], b: [f64; 2]) -> bool {
 /// The most outline points a stamp may carry.
 pub const MAX_STAMP_POINTS: usize = 1024;
 
+/// The most outline points a format-5 build strikes.
+pub const PLAIN_MAX_STAMP_POINTS: usize = 512;
+
 impl Stamp {
     /// Where the stamp stands: its origin on the bare surface, `z` out of the metal, `x` its outline's own.
     pub fn frame(&self, design: &crate::RingDesign, ctx: &crate::FieldContext) -> csg::Frame {
         self.frame_on(&BareSurface::new(design, ctx))
     }
 
-    /// [`Stamp::frame`] read off a surface already sampled.
+    /// [`Stamp::frame`] read off a surface already sampled; in a design of plain stamps, at the nearest sample as a format-5 build reads it.
     fn frame_on(&self, surface: &BareSurface) -> csg::Frame {
-        let (point, mut normal, mut along, mut across) = surface.at(self.theta_deg, self.v_mm);
+        let (point, mut normal, mut along, mut across) =
+            if self.is_plain() && !surface.shaped() { surface.nearest_at(self.theta_deg, self.v_mm) } else { surface.at(self.theta_deg, self.v_mm) };
         if self.along_pull && normal[2].abs() > 0.25 {
             normal = [0.0, 0.0, normal[2].signum()];
             let flat = [along[0], along[1], 0.0];
@@ -1303,9 +1307,9 @@ impl Stamp {
         }
     }
 
-    /// Tier 0 with a flat top.
+    /// Tier 0, a flat top and at most [`PLAIN_MAX_STAMP_POINTS`] outline points: what a format-5 build strikes.
     pub fn is_plain(&self) -> bool {
-        self.tier == 0 && self.top.is_flat()
+        self.tier == 0 && self.top.is_flat() && self.outline.len() <= PLAIN_MAX_STAMP_POINTS
     }
 
     /// Closed solid from cap points, their triangles and the surface height under each.
@@ -1573,7 +1577,7 @@ pub struct StampRow {
 /// The most stations a row strikes.
 pub const MAX_ROW_STAMPS: u32 = 400;
 
-/// The row's stamps, named "Thorn, 3", or "Thorn, left 3" and "Thorn, right 3" when mirrored.
+/// The row's stamps, named "Thorn, 3"; mirrored, each side numbered outward from the head, less any reflection in the row's own span or meeting its original.
 pub fn stamp_row(design: &crate::RingDesign, row: &StampRow) -> Vec<Stamp> {
     let ctx = design.field_context();
     let surface = BareSurface::new(design, &ctx);
@@ -1666,30 +1670,76 @@ pub fn stamp_row(design: &crate::RingDesign, row: &StampRow) -> Vec<Stamp> {
             stamp.height_mm *= k;
             stamp.top = stamp.top.scaled(k);
         }
+        if kept.iter().any(|o: &Stamp| crate::field::wrap_delta(o.theta_deg - stamp.theta_deg, 360.0).abs() < 1e-9 && (o.v_mm - stamp.v_mm).abs() < 1e-9) {
+            continue;
+        }
         kept.push(stamp);
     }
     let family = row.stamp.name.clone();
-    let side = |theta: f64| if crate::field::wrap_delta(theta - crate::profile::TOP_DEG, 360.0) > 0.0 { "right" } else { "left" };
-    let mut out = Vec::with_capacity(kept.len() * 2);
-    for (i, s) in kept.iter().enumerate() {
-        let mut first = s.clone();
-        first.name = if row.mirror_shoulders { format!("{family}, {} {}", side(s.theta_deg), i + 1) } else { format!("{family}, {}", i + 1) };
-        out.push(first);
-    }
-    if row.mirror_shoulders {
-        for (i, s) in kept.iter().enumerate() {
-            let theta = (2.0 * crate::profile::TOP_DEG - s.theta_deg).rem_euclid(360.0);
-            let mut m = s.clone();
-            m.theta_deg = theta;
-            m.v_mm = v_at(theta, s.v_mm);
-            m.rot_deg = -s.rot_deg;
-            m.outline = s.outline.iter().rev().map(|p| [-p[0], p[1]]).collect();
-            m.top = s.top.mirrored();
-            m.name = format!("{family}, {} {}", side(theta), i + 1);
-            out.push(m);
+    if !row.mirror_shoulders {
+        for (i, s) in kept.iter_mut().enumerate() {
+            s.name = format!("{family}, {}", i + 1);
         }
+        return kept;
+    }
+    let covered = |theta: f64| -> bool {
+        if span.abs() >= 360.0 {
+            return true;
+        }
+        let d = if span >= 0.0 { theta - row.from_deg } else { row.from_deg - theta }.rem_euclid(360.0);
+        d <= span.abs() + 1e-9 || d >= 360.0 - 1e-9
+    };
+    let mut out = kept.clone();
+    for s in &kept {
+        let theta = (2.0 * crate::profile::TOP_DEG - s.theta_deg).rem_euclid(360.0);
+        if covered(theta) {
+            continue;
+        }
+        let mut m = s.clone();
+        m.theta_deg = theta;
+        m.v_mm = v_at(theta, s.v_mm);
+        m.rot_deg = -s.rot_deg;
+        m.outline = s.outline.iter().rev().map(|p| [-p[0], p[1]]).collect();
+        m.top = s.top.mirrored();
+        if plans_meet(s, &s.frame_on(&surface), &m, &m.frame_on(&surface)) {
+            continue;
+        }
+        out.push(m);
+    }
+    // Each side numbered outward from the head.
+    let offset = |s: &Stamp| crate::field::wrap_delta(s.theta_deg - crate::profile::TOP_DEG, 360.0);
+    let side = |d: f64| if d.abs() < 1e-9 { "head" } else if d > 0.0 { "right" } else { "left" };
+    let heads = out.iter().filter(|s| side(offset(s)) == "head").count();
+    let mut order: Vec<usize> = (0..out.len()).collect();
+    order.sort_by(|a, b| offset(&out[*a]).abs().total_cmp(&offset(&out[*b]).abs()));
+    let mut counts = std::collections::HashMap::new();
+    for i in order {
+        let label = side(offset(&out[i]));
+        let k = counts.entry(label).or_insert(0usize);
+        *k += 1;
+        out[i].name = if label == "head" && heads == 1 { format!("{family}, head") } else { format!("{family}, {label} {k}") };
     }
     out
+}
+
+/// Whether two placed stamps' plans overlap, drawn into the first one's plane.
+fn plans_meet(a: &Stamp, fa: &csg::Frame, b: &Stamp, fb: &csg::Frame) -> bool {
+    let d = (0..3).map(|k| (fa.origin[k] - fb.origin[k]).powi(2)).sum::<f64>().sqrt();
+    if a.outline.len() < 3 || b.outline.len() < 3 || d > plan_reach(a) + plan_reach(b) {
+        return false;
+    }
+    let other = drawn_into(fa, b, fb);
+    // A point just inside an outline's first edge.
+    let within = |o: &[[f64; 2]]| {
+        let (p, q) = (o[0], o[1]);
+        let e = unit2([q[0] - p[0], q[1] - p[1]]);
+        [0.5 * (p[0] + q[0]) - 1e-4 * e[1], 0.5 * (p[1] + q[1]) + 1e-4 * e[0]]
+    };
+    inside_polygon(&other, within(&a.outline))
+        || inside_polygon(&a.outline, within(&other))
+        || other.iter().any(|q| inside_polygon(&a.outline, *q))
+        || a.outline.iter().any(|q| inside_polygon(&other, *q))
+        || (0..other.len()).any(|i| crosses_outline(&a.outline, other[i], other[(i + 1) % other.len()]))
 }
 
 /// Arc positions where the path turns more than 12 degrees per mm, read over 0.4 mm either side.
@@ -1718,41 +1768,110 @@ fn path_folds(points: &[[f64; 3]], arc: &[f64]) -> Vec<f64> {
 /// Sections the bare surface keeps for reuse.
 const SECTIONS_KEPT: usize = 64;
 
+/// Bare-surface points kept across calls.
+const POINTS_KEPT: usize = 4096;
+
+/// Section steps a plain stamp's frame reads, as [`crate::stones::surface_frame`] does.
+const PLAIN_SECTION_STEPS: usize = 192;
+
+/// A bare-surface point: position, outward normal, the ring's tangent and the section's.
+type SurfacePoint = ([f64; 3], [f64; 3], [f64; 3], [f64; 3]);
+
+/// Surface samples `(v, r, z, nr, nz)` with arc per chart mm, or with surface length for a plain read.
+type Samples = std::rc::Rc<(Vec<[f64; 5]>, f64)>;
+
+/// Bare-surface points by band key, chart point and whether read off the nearest plain sample.
+fn kept_point(key: (u64, u64, u64, bool), make: impl FnOnce() -> SurfacePoint) -> SurfacePoint {
+    type Kept = (std::collections::HashMap<(u64, u64, u64, bool), SurfacePoint>, std::collections::VecDeque<(u64, u64, u64, bool)>);
+    static KEPT: std::sync::Mutex<Option<Kept>> = std::sync::Mutex::new(None);
+    if let Some(hit) = KEPT.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|(m, _)| m.get(&key).copied()) {
+        return hit;
+    }
+    let made = make();
+    let mut guard = KEPT.lock().unwrap_or_else(|e| e.into_inner());
+    let (map, order) = guard.get_or_insert_with(Default::default);
+    if map.insert(key, made).is_none() {
+        order.push_back(key);
+        while order.len() > POINTS_KEPT {
+            if let Some(old) = order.pop_front() {
+                map.remove(&old);
+            }
+        }
+    }
+    made
+}
+
 /// A design's bare surface at chart points, read against one reference section, its latest sections kept by angle and modulation.
 pub(crate) struct BareSurface<'a> {
     design: &'a crate::RingDesign,
     ctx: &'a crate::FieldContext,
     reference: std::cell::OnceCell<crate::profile::ProfileLoop>,
-    sections: std::cell::RefCell<Vec<(u64, String, std::rc::Rc<(Vec<[f64; 5]>, f64)>)>>,
+    band: std::cell::OnceCell<Option<u64>>,
+    shaped: std::cell::OnceCell<bool>,
+    sections: std::cell::RefCell<Vec<(u64, bool, String, Samples)>>,
 }
 
 impl<'a> BareSurface<'a> {
     pub(crate) fn new(design: &'a crate::RingDesign, ctx: &'a crate::FieldContext) -> Self {
-        Self { design, ctx, reference: Default::default(), sections: Default::default() }
+        Self { design, ctx, reference: Default::default(), band: Default::default(), shaped: Default::default(), sections: Default::default() }
     }
 
-    /// Reference-snapped surface samples `(v, r, z, nr, nz)` at a ring angle, and section arc per chart mm.
-    fn samples(&self, theta_deg: f64) -> std::rc::Rc<(Vec<[f64; 5]>, f64)> {
-        let (design, steps) = (self.design, crate::profile::REFERENCE_PROFILE_STEPS);
+    /// Whether the design carries a stamp a format-5 build cannot strike.
+    fn shaped(&self) -> bool {
+        *self.shaped.get_or_init(|| self.design.stamps.iter().any(|s| !s.is_plain()))
+    }
+
+    /// Hash of everything the bare surface is made from; `None` when the band cannot be serialized.
+    fn band_key(&self) -> Option<u64> {
+        *self.band.get_or_init(|| {
+            use std::hash::{Hash, Hasher};
+            let d = self.design;
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            serde_json::to_vec(&(&d.profile, &d.shank)).ok()?.hash(&mut h);
+            d.inner_radius_mm().to_bits().hash(&mut h);
+            if let Some(b) = &d.imported_base {
+                b.source.fingerprint().hash(&mut h);
+                serde_json::to_vec(&b.chart).ok()?.hash(&mut h);
+                (b.bare, b.sand_envelope).hash(&mut h);
+            }
+            Some(h.finish())
+        })
+    }
+
+    /// Reference-snapped surface samples `(v, r, z, nr, nz)` at a ring angle sorted by `v`, and section arc per chart mm.
+    fn samples(&self, theta_deg: f64) -> Samples {
+        self.section(theta_deg, false)
+    }
+
+    /// A swept section's surface samples kept by angle and modulation print: reference-snapped by `v`, or `plain` as [`crate::stones::surface_frame`] reads them.
+    fn section(&self, theta_deg: f64, plain: bool) -> Samples {
+        let design = self.design;
         let reference = self.reference.get_or_init(|| design.reference_loop());
         if design.imported_base.is_some() {
-            return std::rc::Rc::new(self.read(&design.section_at(theta_deg, steps, None, Some(reference))));
+            return std::rc::Rc::new(self.read(&design.section_at(theta_deg, crate::profile::REFERENCE_PROFILE_STEPS, None, Some(reference))));
         }
         let angle = theta_deg.to_bits();
-        if let Some(kept) = self.sections.borrow().iter().find(|(a, ..)| *a == angle).map(|(.., s)| s.clone()) {
+        if let Some(kept) = self.sections.borrow().iter().find(|(a, p, ..)| *a == angle && *p == plain).map(|(.., s)| s.clone()) {
             return kept;
         }
-        // What [`crate::RingDesign::section_at`] makes of a swept band, kept by the exact print of its modulation.
+        // What [`crate::RingDesign::section_at`] makes of a swept band.
         let inner = design.inner_radius_mm();
         let m = design.modulation_at(theta_deg, inner, reference.crest_radius_mm);
         let key = format!("{m:?}");
-        let found = self.sections.borrow().iter().find(|(_, k, _)| *k == key).map(|(.., s)| s.clone());
-        let made = found.unwrap_or_else(|| std::rc::Rc::new(self.read(&design.profile.sample_spaced(inner, steps, &m, None, Some(reference)))));
+        let found = self.sections.borrow().iter().find(|(_, p, k, _)| *p == plain && *k == key).map(|(.., s)| s.clone());
+        let made = found.unwrap_or_else(|| {
+            std::rc::Rc::new(if plain {
+                let l = design.profile.sample_spaced(inner, PLAIN_SECTION_STEPS, &m, None, None);
+                (l.pts.iter().filter(|p| p.surface).map(|p| [p.v_mm, p.r, p.z, p.nr, p.nz]).collect(), l.surface_len_mm)
+            } else {
+                self.read(&design.profile.sample_spaced(inner, crate::profile::REFERENCE_PROFILE_STEPS, &m, None, Some(reference)))
+            })
+        });
         let mut kept = self.sections.borrow_mut();
         if kept.len() >= SECTIONS_KEPT {
             kept.remove(0);
         }
-        kept.push((angle, key, made.clone()));
+        kept.push((angle, plain, key, made.clone()));
         made
     }
 
@@ -1781,15 +1900,48 @@ impl<'a> BareSurface<'a> {
     }
 
     /// Point, normal and tangents of the bare surface at a chart point, interpolated on a swept band.
-    fn at(&self, theta_deg: f64, v_mm: f64) -> ([f64; 3], [f64; 3], [f64; 3], [f64; 3]) {
-        if self.design.imported_base.is_some() {
-            return crate::stones::surface_frame(self.design, self.ctx, theta_deg, v_mm);
+    fn at(&self, theta_deg: f64, v_mm: f64) -> SurfacePoint {
+        self.kept(theta_deg, v_mm, false, || {
+            if self.design.imported_base.is_some() {
+                return crate::stones::surface_frame(self.design, self.ctx, theta_deg, v_mm);
+            }
+            let ([r, z], [nr, nz]) = self.section_point(theta_deg, v_mm);
+            let l = nr.hypot(nz).max(1e-12);
+            let (nr, nz) = (nr / l, nz / l);
+            let (sin, cos) = theta_deg.to_radians().sin_cos();
+            ([r * cos, r * sin, z], [nr * cos, nr * sin, nz], [-sin, cos, 0.0], [-nz * cos, -nz * sin, nr])
+        })
+    }
+
+    /// [`crate::stones::surface_frame`] bit for bit: on a swept band the nearest sample of a [`PLAIN_SECTION_STEPS`] section.
+    fn nearest_at(&self, theta_deg: f64, v_mm: f64) -> SurfacePoint {
+        self.kept(theta_deg, v_mm, true, || {
+            if self.design.imported_base.is_some() {
+                return crate::stones::surface_frame(self.design, self.ctx, theta_deg, v_mm);
+            }
+            let samples = self.section(theta_deg, true);
+            let target = (v_mm / self.ctx.band_v_len_mm.max(1e-9)).clamp(0.0, 1.0) * samples.1;
+            let mut best: Option<&[f64; 5]> = None;
+            let mut best_d = f64::MAX;
+            for p in &samples.0 {
+                let d = (p[0] - target).abs();
+                if d < best_d {
+                    best_d = d;
+                    best = Some(p);
+                }
+            }
+            let [_, r, z, nr, nz] = best.copied().unwrap_or([0.0, self.design.inner_radius_mm(), 0.0, 1.0, 0.0]);
+            let (sin, cos) = theta_deg.to_radians().sin_cos();
+            ([r * cos, r * sin, z], [nr * cos, nr * sin, nz], [-sin, cos, 0.0], [-nz * cos, -nz * sin, nr])
+        })
+    }
+
+    /// A surface point from the cross-call store, made and kept on a miss.
+    fn kept(&self, theta_deg: f64, v_mm: f64, plain: bool, make: impl FnOnce() -> SurfacePoint) -> SurfacePoint {
+        match self.band_key() {
+            Some(band) => kept_point((band, theta_deg.to_bits(), v_mm.to_bits(), plain), make),
+            None => make(),
         }
-        let ([r, z], [nr, nz]) = self.section_point(theta_deg, v_mm);
-        let l = nr.hypot(nz).max(1e-12);
-        let (nr, nz) = (nr / l, nz / l);
-        let (sin, cos) = theta_deg.to_radians().sin_cos();
-        ([r * cos, r * sin, z], [nr * cos, nr * sin, nz], [-sin, cos, 0.0], [-nz * cos, -nz * sin, nr])
     }
 
     /// The chart `v` nearest `guess` at which the section at `theta_deg` crosses the parting plane.
@@ -2818,6 +2970,38 @@ mod tests {
             assert_eq!(back.stamps, d.stamps);
         }
         assert_eq!(serde_json::to_value(cone).unwrap(), serde_json::json!({"Cone": {"apex_mm": 0.6, "at": [0.1, 0.0], "tip_mm": 0.3}}));
+        // A format-5 build refuses an outline past 512 points, so a flat tier-0 stamp carrying one is fenced too.
+        let ring = |n: usize| (0..n).map(|i| { let t = 2.0 * PI * i as f64 / n as f64; [1.2 * t.cos(), 1.2 * t.sin()] }).collect::<Vec<_>>();
+        let spiral = crate::outline::spiral(2.5, 0.5, 2.8, 0.4, 0.7);
+        assert_eq!(spiral.len(), 540);
+        for (outline, version) in [(ring(512), PLAIN_FORMAT_VERSION), (ring(513), FORMAT_VERSION), (spiral, FORMAT_VERSION)] {
+            let n = outline.len();
+            d.stamps = vec![Stamp { outline, ..flat.clone() }];
+            assert_eq!(format_version_for(&d), version, "a flat stamp of {n} points");
+        }
+    }
+
+    #[test]
+    fn a_design_of_plain_stamps_stands_them_where_a_format_5_build_did() {
+        let heart = crate::templates::all().iter().find(|t| t.name == "Heart signet").unwrap().design();
+        for d in [crest_band(), heart] {
+            let ctx = d.field_context();
+            let surface = BareSurface::new(&d, &ctx);
+            for i in 0..50 {
+                let (theta, v) = (7.3 * i as f64, ctx.band_v_len_mm * (i % 10) as f64 / 9.0);
+                assert_eq!(surface.nearest_at(theta, v), crate::stones::surface_frame(&d, &ctx, theta, v), "{} at {theta} deg, {v:.3} mm", d.name);
+            }
+        }
+        let mut d = crest_band();
+        let ctx = d.field_context();
+        d.stamps = vec![plain("Plate", 90.0, ctx.crest_v_mm, crate::outline::circle(2.4), 0.3)];
+        let z = d.stamps[0].frame(&d, &ctx).origin[2];
+        assert!((z + 0.043380).abs() < 1e-6, "a plain design's plate stands {z:.6} mm off the parting line, where a format-5 build put it at -0.043380");
+        // A design only a format-6 build opens reads every stamp between the samples, so a tier stands concentric on its plate.
+        d.stamps.push(Stamp { tier: 1, ..plain("Boss", 90.0, ctx.crest_v_mm, crate::outline::circle(1.2), 0.2) });
+        let (plate, boss) = (d.stamps[0].frame(&d, &ctx), d.stamps[1].frame(&d, &ctx));
+        assert_eq!(plate.origin[2], 0.0);
+        assert_eq!(plate.origin, boss.origin);
     }
 
     #[test]
@@ -3006,6 +3190,10 @@ mod tests {
         let v = crest_v(&d, 90.0).unwrap();
         let holly = crate::outline::leaf(crate::outline::Margin::Holly { spines: 3, depth_mm: 0.5, lean_deg: 20.0 }, 5.2, 3.0);
         let along = plain("Holly", 90.0, v, holly.clone(), 0.4);
+        // Struck where a format-5 build strikes it, 0.043 mm off the parting line, its tip hooks back over the line.
+        assert_eq!(along.parting_monotone(&d), Err(vec![56, 57]));
+        // A design carrying a tier is read between the samples, exactly on the line.
+        d.stamps = vec![Stamp { tier: 1, ..plain("Palm stud", 270.0, v, crate::outline::circle(0.8), 0.2) }];
         assert_eq!(along.parting_monotone(&d), Ok(()));
         let across = Stamp { rot_deg: 90.0, ..along.clone() };
         assert!(across.parting_monotone(&d).is_err(), "spines laid across the parting line hook back over it");
@@ -3108,6 +3296,45 @@ mod tests {
         let (bent, arc) = path(true);
         let folds = path_folds(&bent, &arc);
         assert!(!folds.is_empty() && folds.iter().all(|f| (f - 5.0).abs() < 0.6), "{folds:?}");
+    }
+
+    #[test]
+    fn a_mirrored_row_across_the_head_strikes_each_station_once() {
+        let d = crest_band();
+        let row = |from_deg: f64, to_deg: f64, count: u32, mirror_shoulders: bool, outline: Vec<[f64; 2]>| {
+            let stamp = plain("Thorn", 0.0, 0.0, outline, 0.3);
+            stamp_row(&d, &StampRow { stamp, path: RowPath::PartingLine, from_deg, to_deg, count, taper: 0.0, fold_clear_mm: 0.0, mirror_shoulders })
+        };
+        let keel = || crate::outline::keel(1.2, 0.6, 0.12);
+        let distinct = |s: &[Stamp]| {
+            let names: std::collections::HashSet<&str> = s.iter().map(|st| st.name.as_str()).collect();
+            let apart = |a: &Stamp, b: &Stamp| crate::field::wrap_delta(a.theta_deg - b.theta_deg, 360.0).abs() > 1e-6 || (a.v_mm - b.v_mm).abs() > 1e-6;
+            names.len() == s.len() && s.iter().enumerate().all(|(i, a)| s[..i].iter().all(|b| apart(a, b)))
+        };
+        // Across the head every reflection lands on the row itself, and is left out.
+        let across = row(60.0, 120.0, 5, true, keel());
+        let names: Vec<&str> = across.iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(names, ["Thorn, left 2", "Thorn, left 1", "Thorn, head", "Thorn, right 1", "Thorn, right 2"]);
+        let mut struck = d.clone();
+        struck.stamps = across;
+        let built = crate::mesh::try_build(&struck, &crate::AlphaLibrary::builtin(), strike()).unwrap();
+        assert_eq!((built.solids.stamped, built.report.quality.degenerate_faces), (5, 0), "{:?}", built.solids.notes);
+        // From the head outward: the head struck once, each side numbered on its own, right k mirrored as left k.
+        let half = row(90.0, 118.0, 6, true, keel());
+        assert!(half.len() == 11 && distinct(&half), "{:?}", half.iter().map(|s| (&s.name, s.theta_deg)).collect::<Vec<_>>());
+        assert_eq!(half[0].name, "Thorn, head");
+        for k in 1..=5 {
+            let (r, l) = (&half[k], &half[5 + k]);
+            assert_eq!([r.name.clone(), l.name.clone()], [format!("Thorn, right {k}"), format!("Thorn, left {k}")]);
+            assert!((l.theta_deg - (180.0 - r.theta_deg)).abs() < 1e-9);
+        }
+        // A stamp reaching over the head would meet its own reflection, so it is struck once.
+        let wide = row(92.0, 150.0, 5, true, crate::outline::circle(2.0));
+        assert!(wide.len() == 9 && distinct(&wide) && wide.iter().all(|s| (s.theta_deg - 88.0).abs() > 1e-6));
+        // A full turn ends where it starts, and strikes that station once.
+        let turn = row(0.0, 360.0, 13, false, keel());
+        assert!(turn.len() == 12 && distinct(&turn));
+        assert_eq!(turn[11].name, "Thorn, 12");
     }
 
     #[test]

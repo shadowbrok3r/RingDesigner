@@ -388,7 +388,7 @@ mod tests {
         assert!(findings(&sq).iter().any(|f| f.label == "Plate"), "the same boss on the plate's own face leaves a 0.08 mm ledge");
     }
 
-    /// 24 gabled keels on 24 plates cost a few times their judging on one tier, on a plain band and on a signet's modulated one.
+    /// 24 gabled keels on 24 plates cost a few times one tier on a band first seen, plain or a signet's, and near one tier judged again.
     #[test]
     fn tiered_stamps_are_judged_at_the_cost_of_their_frames() {
         use crate::setting::{Stamp, StampTop};
@@ -398,8 +398,9 @@ mod tests {
         band.profile.thickness_mm = 2.4;
         let signet = crate::templates::all().iter().find(|t| t.name == "Heart signet").unwrap().design();
         for base in [band, signet] {
-            let rows = |tiered: bool| {
+            let rows = |tiered: bool, salt: u32| {
                 let mut d = base.clone();
+                d.profile.width_mm += 1e-9 * salt as f64;
                 d.draft.min_detail_mm = 0.3;
                 let v = d.field_context().crest_v_mm;
                 for k in 0..24 {
@@ -415,13 +416,19 @@ mod tests {
                 }
                 d
             };
-            let time = |d: &RingDesign| (0..3).map(|_| {
+            let judge = |d: &RingDesign| {
                 let t = std::time::Instant::now();
                 assert!(findings(d).iter().all(|f| f.layer != STAMP));
                 t.elapsed().as_secs_f64()
-            }).fold(f64::MAX, f64::min);
-            let (flat, tiered) = (time(&rows(false)), time(&rows(true)));
-            assert!(tiered < 4.0 * flat + 0.04, "{}: {:.1} ms tiered against {:.1} ms on one tier", base.name, tiered * 1e3, flat * 1e3);
+            };
+            let flat = (0..3).map(|_| judge(&rows(false, 0))).fold(f64::MAX, f64::min);
+            // A band a hair wider each call, none of its surface kept yet.
+            let first = (1..=3).map(|k| judge(&rows(true, k))).fold(f64::MAX, f64::min);
+            assert!(first < 4.0 * flat + 0.04, "{}: {:.2} ms tiered against {:.2} ms on one tier", base.name, first * 1e3, flat * 1e3);
+            let again = rows(true, 0);
+            judge(&again);
+            let warm = (0..5).map(|_| judge(&again)).fold(f64::MAX, f64::min);
+            assert!(warm < 2.0 * flat + 0.002, "{}: {:.2} ms judged again against {:.2} ms on one tier", base.name, warm * 1e3, flat * 1e3);
         }
     }
 
