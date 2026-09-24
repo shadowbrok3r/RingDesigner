@@ -1344,8 +1344,8 @@ impl RingApp {
                 switches: ringdesign_workbench::viewport::Switches { live_cuts: self.cuts.live, show_cutters: self.cuts.ghost },
             };
             self.cad.draw(ui, &cad_view, &self.renderer);
-            let (floating, layers) = (self.editor.floating_rects.clone(), self.editor.floating_layers.clone());
-            self.stamp_window(ui.ctx(), view_rect, crate::cad::stamp::Over { floating: &floating, layers: &layers, fixed: &[nav.rect] });
+            let floating = self.editor.floating_rects.clone();
+            self.stamp_window(ui.ctx(), view_rect, crate::cad::stamp::Over { floating: &floating, rail: self.editor.rail_layer, fixed: &[nav.rect] });
         }
         self.serve_cad(host);
         if !self.editor.hold_before && !floating_blocked && !measuring {

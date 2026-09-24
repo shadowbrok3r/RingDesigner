@@ -235,8 +235,8 @@ pub struct Editor {
     pub menu_avoidance: visibility::MenuAvoidance,
     pub palette: Option<workspace::Palette>,
     pub floating_rects: Vec<egui::Rect>,
-    /// The floating tools' layers, as `floating_rects` lists them.
-    pub floating_layers: Vec<egui::LayerId>,
+    /// The Tools rail's layer while it is shown.
+    pub rail_layer: Option<egui::LayerId>,
     pub floating_dragging: bool,
     pub reset_workspace: bool,
     pub mode: Mode,
@@ -268,7 +268,7 @@ impl Default for Editor {
             menu_avoidance: visibility::MenuAvoidance::default(),
             palette: None,
             floating_rects: Vec::new(),
-            floating_layers: Vec::new(),
+            rail_layer: None,
             floating_dragging: false,
             reset_workspace: false,
             mode: Mode::Shape,

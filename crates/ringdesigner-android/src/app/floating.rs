@@ -34,7 +34,7 @@ impl RingApp {
         host: &Host,
     ) {
         self.editor.floating_rects.clear();
-        self.editor.floating_layers.clear();
+        self.editor.rail_layer = None;
         self.editor.floating_dragging = false;
         self.editor.hold_before = false;
         if self.tab != Tab::Ring || self.cad.sketching() || self.editor.sheet == Some(Sheet::Graph) || viewport.width() < 160.0 || viewport.height() < 64.0 {
@@ -133,7 +133,7 @@ impl RingApp {
         );
         self.editor.workspace.rail_position = rail_position;
         self.editor.floating_rects.push(rail.rect);
-        self.editor.floating_layers.push(rail.layer);
+        self.editor.rail_layer = Some(rail.layer);
         self.editor.floating_dragging |= rail.dragging;
         if rail.close {
             self.editor.workspace.rail_collapsed = !collapsed;
@@ -219,7 +219,6 @@ impl RingApp {
         );
         self.editor.workspace.palette_position = palette_position;
         self.editor.floating_rects.push(panel.rect);
-        self.editor.floating_layers.push(panel.layer);
         self.editor.floating_dragging |= panel.dragging;
         if panel.close {
             self.editor.palette = None;
