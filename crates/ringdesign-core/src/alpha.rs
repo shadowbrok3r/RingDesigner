@@ -578,15 +578,135 @@ pub fn sdf_name(name: &str) -> String {
     format!("{name}{SDF_SUFFIX}")
 }
 
+/// Texels the shared bakes keep before the least recently used go.
+pub const BAKE_CACHE_TEXELS: usize = 48 << 20;
+
+/// Rasters baked from design sources by content digest, and distance fields by the shared alpha they read.
+#[derive(Default)]
+struct Bakes {
+    rasters: HashMap<u64, (Arc<Alpha>, u64)>,
+    fields: HashMap<usize, (Arc<Alpha>, Arc<Alpha>, u64)>,
+    texels: usize,
+    clock: u64,
+}
+
+impl Bakes {
+    fn shared() -> std::sync::MutexGuard<'static, Bakes> {
+        static BAKES: std::sync::OnceLock<std::sync::Mutex<Bakes>> = std::sync::OnceLock::new();
+        BAKES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn tick(&mut self) -> u64 {
+        self.clock += 1;
+        self.clock
+    }
+
+    /// Drops the least recently used entries until the kept texels are under three quarters of the cap.
+    fn trim(&mut self) {
+        if self.texels <= BAKE_CACHE_TEXELS {
+            return;
+        }
+        let mut ages: Vec<(u64, Result<u64, usize>)> =
+            self.rasters.iter().map(|(k, e)| (e.1, Ok(*k))).chain(self.fields.iter().map(|(k, e)| (e.2, Err(*k)))).collect();
+        ages.sort_unstable_by_key(|a| a.0);
+        for (_, key) in ages {
+            if self.texels <= BAKE_CACHE_TEXELS / 4 * 3 {
+                break;
+            }
+            let freed = match key {
+                Ok(k) => self.rasters.remove(&k).map(|e| e.0.data.len()),
+                Err(k) => self.fields.remove(&k).map(|e| e.1.data.len()),
+            };
+            self.texels = self.texels.saturating_sub(freed.unwrap_or(0));
+        }
+    }
+}
+
+/// Feeds serialized bytes to a hasher.
+struct DigestWriter(std::hash::DefaultHasher);
+
+impl std::io::Write for DigestWriter {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        std::hash::Hasher::write(&mut self.0, bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Content digest of a baked source: `kind`, then the source serialized.
+pub fn source_key<T: Serialize + ?Sized>(kind: &str, source: &T) -> u64 {
+    use std::hash::Hasher;
+    let mut w = DigestWriter(std::hash::DefaultHasher::new());
+    w.0.write(kind.as_bytes());
+    w.0.write_u8(0);
+    if serde_json::to_writer(&mut w, source).is_err() {
+        w.0.write_u8(1);
+    }
+    w.0.finish()
+}
+
+/// The alpha baked from the source `key` names, else `make`'s, kept for the next bake of the same source; `None` when `make` has none.
+pub fn shared_bake(key: u64, make: impl FnOnce() -> Option<Alpha>) -> Option<Arc<Alpha>> {
+    {
+        let mut bakes = Bakes::shared();
+        let now = bakes.tick();
+        if let Some(hit) = bakes.rasters.get_mut(&key) {
+            hit.1 = now;
+            return Some(hit.0.clone());
+        }
+    }
+    let made = Arc::new(make()?);
+    let mut bakes = Bakes::shared();
+    let now = bakes.tick();
+    if let Some(raced) = bakes.rasters.get(&key) {
+        return Some(raced.0.clone());
+    }
+    bakes.texels += made.data.len();
+    bakes.rasters.insert(key, (made.clone(), now));
+    bakes.trim();
+    Some(made)
+}
+
+/// The signed-distance field of `source`, derived once per shared alpha.
+pub fn shared_sdf(source: &Arc<Alpha>) -> Arc<Alpha> {
+    let key = Arc::as_ptr(source) as usize;
+    {
+        let mut bakes = Bakes::shared();
+        let now = bakes.tick();
+        if let Some(hit) = bakes.fields.get_mut(&key) {
+            hit.2 = now;
+            return hit.1.clone();
+        }
+    }
+    let made = Arc::new(source.signed_distance_px());
+    let mut bakes = Bakes::shared();
+    let now = bakes.tick();
+    if let Some(raced) = bakes.fields.get(&key) {
+        return raced.1.clone();
+    }
+    bakes.texels += made.data.len();
+    bakes.fields.insert(key, (source.clone(), made.clone(), now));
+    bakes.trim();
+    made
+}
+
+/// Texels the shared bakes hold now.
+pub fn bake_cache_texels() -> usize {
+    Bakes::shared().texels
+}
+
 /// In-place exact squared Euclidean distance transform (Felzenszwalb &
 /// Huttenlocher): a 1D lower-envelope pass down every column, then along
 /// every row.
 fn edt_squared(grid: &mut [f32], w: usize, h: usize) {
+    if w == 0 || h == 0 {
+        return;
+    }
     let n = w.max(h);
-    let mut f = vec![0.0f32; n];
-    let mut d = vec![0.0f32; n];
-    let mut v = vec![0usize; n];
-    let mut z = vec![0.0f32; n + 1];
+    let scratch = || (vec![0.0f32; n], vec![0.0f32; n], vec![0usize; n], vec![0.0f32; n + 1]);
 
     let pass = |f: &[f32], d: &mut [f32], n: usize, v: &mut [usize], z: &mut [f32]| {
         let mut k = 0usize;
@@ -622,19 +742,37 @@ fn edt_squared(grid: &mut [f32], w: usize, h: usize) {
         }
     };
 
-    for x in 0..w {
+    // Columns into a column-major copy, then rows back into the grid; each line is independent.
+    let mut columns = vec![0.0f32; w * h];
+    each_line(&mut columns, h, &scratch, |(f, d, v, z), x, out| {
         for y in 0..h {
             f[y] = grid[y * w + x];
         }
-        pass(&f, &mut d, h, &mut v, &mut z);
-        for y in 0..h {
-            grid[y * w + x] = d[y];
+        pass(f, d, h, v, z);
+        out.copy_from_slice(&d[..h]);
+    });
+    each_line(grid, w, &scratch, |(f, d, v, z), y, out| {
+        for x in 0..w {
+            f[x] = columns[x * h + y];
         }
+        pass(f, d, w, v, z);
+        out.copy_from_slice(&d[..w]);
+    });
+}
+
+/// `each` over every `len`-long line of `data` with its index, one scratch per worker, on every core under `parallel`.
+fn each_line<S: Send>(data: &mut [f32], len: usize, scratch: &(impl Fn() -> S + Sync + Send), each: impl Fn(&mut S, usize, &mut [f32]) + Sync + Send) {
+    #[cfg(feature = "parallel")]
+    {
+        use rayon::prelude::*;
+        data.par_chunks_mut(len).enumerate().for_each_init(scratch, |s, (i, line)| each(s, i, line));
     }
-    for y in 0..h {
-        f[..w].copy_from_slice(&grid[y * w..y * w + w]);
-        pass(&f, &mut d, w, &mut v, &mut z);
-        grid[y * w..y * w + w].copy_from_slice(&d[..w]);
+    #[cfg(not(feature = "parallel"))]
+    {
+        let mut s = scratch();
+        for (i, line) in data.chunks_mut(len).enumerate() {
+            each(&mut s, i, line);
+        }
     }
 }
 
@@ -1503,6 +1641,14 @@ pub struct AlphaLibrary {
     /// build (the mesh, the attributed field report, the modulus scan, the
     /// section view, the stones report), so the multiplier is real.
     sdf_index: HashMap<String, usize>,
+    /// Content version: fresh on every change, carried by a clone.
+    revision: u64,
+}
+
+/// Next library content version; 0 is the empty library's.
+fn next_revision() -> u64 {
+    static REVISIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    REVISIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 impl AlphaLibrary {
@@ -1528,45 +1674,44 @@ impl AlphaLibrary {
         self.insert_shared(Arc::new(alpha));
     }
 
-    /// [`insert`](Self::insert) an alpha another library already holds, without copying it.
+    /// [`insert`](Self::insert) an alpha another library already holds, without copying it; the one already held under its name leaves the library unchanged.
     pub fn insert_shared(&mut self, alpha: Arc<Alpha>) {
+        if let Some(&i) = self.index.get(&alpha.name) {
+            if !Arc::ptr_eq(&self.entries[i], &alpha) {
+                self.entries[i] = alpha;
+                self.revision = next_revision();
+            }
+            return;
+        }
+        if self.entries.len() >= Self::MAX_ENTRIES {
+            log::warn!("alpha library is full at {} entries; dropping {:?}", Self::MAX_ENTRIES, alpha.name);
+            return;
+        }
         // Keep the derived-field index in step, so the hot path is one lookup
         // on the base name with nothing allocated.
         if let Some(base) = alpha.name.strip_suffix(SDF_SUFFIX) {
-            let base = base.to_string();
-            match self.index.get(&alpha.name).copied() {
-                Some(i) => {
-                    self.entries[i] = alpha;
-                    return;
-                }
-                None => {
-                    if self.entries.len() < Self::MAX_ENTRIES {
-                        self.sdf_index.insert(base, self.entries.len());
-                    }
-                }
-            }
+            self.sdf_index.insert(base.to_string(), self.entries.len());
         }
-        match self.index.get(&alpha.name).copied() {
-            Some(i) => self.entries[i] = alpha,
-            None => {
-                if self.entries.len() >= Self::MAX_ENTRIES {
-                    log::warn!(
-                        "alpha library is full at {} entries; dropping {:?}",
-                        Self::MAX_ENTRIES,
-                        alpha.name
-                    );
-                    return;
-                }
-                self.index.insert(alpha.name.clone(), self.entries.len());
-                self.entries.push(alpha);
-            }
-        }
+        self.index.insert(alpha.name.clone(), self.entries.len());
+        self.entries.push(alpha);
+        self.revision = next_revision();
+    }
+
+    /// A content version: two libraries reading the same revision hold the same alphas, and every change takes a new one.
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    /// The shared alpha under `name`, for inserting into another library without copying it.
+    pub fn get_shared(&self, name: &str) -> Option<&Arc<Alpha>> {
+        self.index.get(name).and_then(|&i| self.entries.get(i))
     }
 
     pub fn remove(&mut self, name: &str) -> bool {
         let Some(i) = self.index.get(name).copied() else {
             return false;
         };
+        self.revision = next_revision();
         self.entries.remove(i);
         self.index = self
             .entries

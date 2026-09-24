@@ -117,10 +117,8 @@ pub struct RingApp {
     preview_gems: Vec<f32>,
     fit_next: bool,
     preview_in_flight: bool,
-    /// A template being opened off the UI thread, and whether it lands as a new design on the Ring tab.
-    opening: Option<(ringdesign_workbench::templates::Opening, bool)>,
-    /// The template that landed and the last generation dispatched before it, until a later build lands.
-    opened_building: Option<(&'static str, u64)>,
+    /// The template opening off the UI thread, flagged when it lands as a new design on the Ring tab, and the one that landed until a later build shows it.
+    templates: ringdesign_workbench::templates::Slot,
     live_requested: bool,
     last_preview_at: Instant,
     workshop: ringdesign_workbench::Workshop,
@@ -313,8 +311,7 @@ impl RingApp {
             preview_gems: Vec::new(),
             fit_next: true,
             preview_in_flight: false,
-            opening: None,
-            opened_building: None,
+            templates: Default::default(),
             live_requested: false,
             last_preview_at: Instant::now(),
             workshop: Default::default(),
@@ -628,15 +625,13 @@ impl RingApp {
         if let Some(worker) = self.worker.as_ref() {
             while let Ok((generation, error)) = worker.errors.try_recv() {
                 if generation == self.generation { self.preview_in_flight = false; self.status = error; }
-                if self.opened_building.is_some_and(|(_, g)| generation > g) { self.opened_building = None; }
+                self.templates.built(generation);
             }
             while let Some(done) = worker.poll() {
                 if done.generation != self.generation {
                     continue;
                 }
-                if self.opened_building.is_some_and(|(_, g)| done.generation > g) {
-                    self.opened_building = None;
-                }
+                self.templates.built(done.generation);
                 if let Some(mut g) = done.graph {
                     if g.ok {
                         if let Some(lib) = g.baked_library.take() {
@@ -3152,11 +3147,10 @@ impl RingApp {
         self.status = format!("started from {what}");
     }
 
-    /// Opens `opening`'s template off the UI thread in place of any still opening; it lands as a new design on the Ring tab when `new_design` is set, else where the app stands.
+    /// Opens `opening`'s template off the UI thread in place of any still opening, which stops; it lands as a new design on the Ring tab when `new_design` is set, else where the app stands.
     fn start_opening(&mut self, opening: ringdesign_workbench::templates::Opening, new_design: bool) {
         self.status = format!("opening {}", opening.name);
-        self.opening = Some((opening, new_design));
-        self.opened_building = None;
+        self.templates.start(opening, new_design);
     }
 
     /// The wake a template being opened calls as it gets further.
@@ -3167,55 +3161,24 @@ impl RingApp {
 
     /// Takes in a template that has opened, its artwork already baked, and shows how far one still opening has got.
     fn poll_template(&mut self, ctx: &egui::Context) {
-        let landed = self.opening.as_ref().and_then(|(opening, _)| opening.poll());
-        if let Some(opened) = landed {
-            let Some((opening, new_design)) = self.opening.take() else { return };
-            match opened {
-                Ok(opened) => {
-                    let lib = opened.library_for(&self.lib);
-                    self.adopt_with(opened.design, Some(lib));
-                    self.status = format!("started from {}", opening.name);
-                    self.graph.sync(&self.design);
-                    if let Some(editor) = &mut self.graph.ed {
-                        editor.arrange(&self.graph.reg);
-                    }
-                    if new_design {
-                        self.show_new_design();
-                    }
-                    self.opened_building = Some((opening.name, self.generation));
+        use ringdesign_workbench::templates::Polled;
+        match self.templates.poll(&self.lib) {
+            Polled::Idle => {}
+            Polled::Waiting(words) | Polled::Failed(words) => self.status = words,
+            Polled::Landed(mut landing) => {
+                self.adopt_with(std::mem::take(&mut landing.design), Some(landing.lib.clone()));
+                self.status = format!("started from {}", landing.name);
+                self.graph.sync(&self.design);
+                if let Some(editor) = &mut self.graph.ed {
+                    editor.arrange(&self.graph.reg);
                 }
-                Err(e) => self.status = format!("could not open {}: {e}", opening.name),
+                if landing.flag {
+                    self.show_new_design();
+                }
+                self.templates.building(&landing, self.generation);
             }
         }
-        self.template_plate(ctx);
-    }
-
-    /// The plate over the screen while a template opens and until a build shows it: how far it has got, and Cancel while it is still opening.
-    fn template_plate(&mut self, ctx: &egui::Context) {
-        use ringdesign_workbench::templates::{self, Stage};
-        let (name, stage) = match (&self.opening, self.opened_building) {
-            (Some((opening, _)), _) => (opening.name, opening.stage()),
-            (None, Some((name, _))) => (name, Stage::Building),
-            (None, None) => return,
-        };
-        let bounds = crate::theme::content_bounds(ctx);
-        let width = (bounds.width() - 32.0).clamp(160.0, 420.0);
-        let mut cancel = false;
-        egui::Area::new(egui::Id::new("template-open"))
-            .order(egui::Order::Foreground)
-            .pivot(egui::Align2::CENTER_TOP)
-            .fixed_pos(bounds.center_top() + egui::vec2(0.0, 64.0))
-            .show(ctx, |ui| {
-                egui::Frame::popup(ui.style()).show(ui, |ui| {
-                    ui.set_width(width);
-                    ui.add_sized([width, 28.0], |ui: &mut egui::Ui| templates::progress(ui, name, stage));
-                    if stage != Stage::Building {
-                        cancel = ui.add_sized([width, ringdesign_workbench::touch::TARGET_PT], egui::Button::new("Cancel")).clicked();
-                    }
-                });
-            });
-        if cancel {
-            self.opening = None;
+        if let Some(name) = self.templates.plate(ctx, crate::theme::content_bounds(ctx)) {
             self.status = format!("stopped opening {name}: the design is unchanged");
         }
     }

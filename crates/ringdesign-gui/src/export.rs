@@ -6,6 +6,7 @@ use ringdesign_core::castability::Verdict;
 use ringdesign_core::{library, metal, stl, threemf};
 
 use crate::app::RingDesignerApp;
+use crate::pane::PaneKind;
 
 /// Everything an export job needs, snapshotted so the build and the write
 /// can run off the UI thread while the app keeps painting.
@@ -509,11 +510,12 @@ pub fn load_catalog_template(app: &mut RingDesignerApp, t: &'static ringdesign_w
     app.open_template(t, false);
 }
 
-/// The opened template as the new design, its artwork already baked into the library it brings.
-pub(crate) fn adopt_template(app: &mut RingDesignerApp, opened: ringdesign_workbench::templates::Opened, name: &str) {
-    app.lib = opened.library_for(&app.lib);
-    app.clear_thumbnails();
-    let design = opened.design;
+/// The opened template as the new design, with `lib`, the library its artwork is already baked into.
+pub(crate) fn adopt_template(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, lib: std::sync::Arc<ringdesign_core::AlphaLibrary>, name: &str) {
+    if !std::sync::Arc::ptr_eq(&app.lib, &lib) {
+        app.lib = lib;
+        app.clear_thumbnails();
+    }
     app.document_path = None;
     let named = app.stamps_named();
     app.design = design;
@@ -612,25 +614,78 @@ pub(crate) fn import_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
     }
 }
 
-/// The plate over the view while a template opens and until its first build lands: how far it has got, and Cancel while it is still opening.
+/// Widest the template plate stands.
+const TEMPLATE_PLATE_W: f32 = 420.0;
+
+/// The canvas of each view on screen: its tile less the strips its controls stand in, as laid out last frame.
+pub(crate) fn pane_canvases(app: &RingDesignerApp, ctx: &egui::Context) -> Vec<(usize, egui::Rect)> {
+    let tiles = &app.viewport_layout.tree.tiles;
+    let strip = |name: &'static str, i: usize| egui::containers::panel::PanelState::load(ctx, egui::Id::new((name, i))).map(|s| s.outer_rect);
+    tiles
+        .iter()
+        .filter_map(|(id, tile)| match tile {
+            egui_tiles::Tile::Pane(i) => Some((*i, tiles.rect(*id)?)),
+            _ => None,
+        })
+        .map(|(i, tile)| {
+            let mut canvas = tile;
+            for top in ["pane_head", "surface-context"].into_iter().filter_map(|n| strip(n, i)).filter(|r| tile.intersects(*r)) {
+                canvas.min.y = canvas.min.y.max(top.bottom());
+            }
+            for foot in ["viewport-footer", "viewport-timeline"].into_iter().filter_map(|n| strip(n, i)).filter(|r| tile.intersects(*r)) {
+                canvas.max.y = canvas.max.y.min(foot.top());
+            }
+            (i, canvas)
+        })
+        .collect()
+}
+
+/// Where the template plate stands and how wide: across the top of a ring view's canvas between its tool rail and its
+/// navigator, clear of every view's strips, else in the middle of the largest canvas.
+pub(crate) fn template_plate_spot(app: &RingDesignerApp, ctx: &egui::Context) -> (egui::Pos2, egui::Align2, f32) {
+    let canvases = pane_canvases(app, ctx);
+    let solid = |i: usize| app.panes.get(i).is_some_and(|p| p.kind == PaneKind::Solid);
+    let pick = canvases
+        .iter()
+        .filter(|(i, _)| solid(*i))
+        .max_by_key(|(i, c)| (*i == app.active_pane, (c.area() as i64)))
+        .or_else(|| canvases.iter().max_by_key(|(_, c)| c.area() as i64));
+    let Some(&(i, canvas)) = pick else {
+        return (ctx.content_rect().center(), egui::Align2::CENTER_CENTER, TEMPLATE_PLATE_W);
+    };
+    // Clear of the tool rail on the left and the navigator's 110 pt on the right.
+    let (left, right) = (canvas.left() + crate::command::RAIL_W + 8.0, canvas.right() - 118.0);
+    let room = right - left;
+    if solid(i) && room >= 260.0 {
+        let below = if crate::sketch_mode::active(app) { 48.0 } else { 8.0 };
+        let width = room.min(TEMPLATE_PLATE_W);
+        return (egui::pos2(0.5 * (left + right), canvas.top() + below), egui::Align2::CENTER_TOP, width);
+    }
+    (canvas.center(), egui::Align2::CENTER_CENTER, (canvas.width() - 16.0).clamp(200.0, TEMPLATE_PLATE_W))
+}
+
+/// The plate over a view's canvas while a template opens and until its first build lands: how far it has got, and Cancel while it is still opening.
 pub(crate) fn template_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
     use ringdesign_workbench::templates::{self, Stage};
-    let (name, stage) = match (&app.opening, app.opened_building) {
-        (Some((opening, _)), _) => (opening.name, opening.stage()),
-        (None, Some((name, _))) => (name, Stage::Building),
+    let (name, progress) = match (&app.opening, &app.opened_building) {
+        (Some((opening, _)), _) => (opening.name, opening.progress()),
+        (None, Some((name, _, progress))) => (*name, progress.clone()),
         (None, None) => return,
     };
+    let building = progress.stage() == Stage::Building;
+    let (at, pivot, width) = template_plate_spot(app, ctx);
     let mut cancel = false;
     egui::Area::new(egui::Id::new("template-open"))
         .order(egui::Order::Foreground)
-        .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -84.0))
+        .pivot(pivot)
+        .fixed_pos(at)
         .show(ctx, |ui| {
             egui::Frame::new().fill(crate::theme::FLOAT).corner_radius(6).inner_margin(egui::Margin::symmetric(10, 6)).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.set_width(420.0);
-                    let bar = if stage == Stage::Building { 420.0 } else { 330.0 };
-                    ui.add_sized([bar, ui.spacing().interact_size.y], |ui: &mut egui::Ui| templates::progress(ui, name, stage));
-                    if stage != Stage::Building {
+                    ui.set_width(width - 20.0);
+                    let bar = if building { width - 20.0 } else { width - 110.0 };
+                    ui.add_sized([bar, ui.spacing().interact_size.y], |ui: &mut egui::Ui| templates::progress(ui, name, &progress));
+                    if !building {
                         cancel = ui.button("Cancel").on_hover_text("Stop opening the template; the design on screen stays").clicked();
                     }
                 });

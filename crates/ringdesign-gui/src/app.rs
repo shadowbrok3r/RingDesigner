@@ -16,7 +16,7 @@ use ringdesign_workbench::command::BandSurface;
 use ringdesign_workbench::render::{self, StagedEdges};
 use ringdesign_workbench::viewport::Selection;
 use ringdesign_workbench::viewport::pins::Pin;
-use ringdesign_graph::eval::{Evaluator, evaluate_design};
+use ringdesign_graph::eval::Evaluator;
 use ringdesign_graph::graph::{Graph, GraphError, NodeId as GraphNodeId};
 use ringdesign_graph::registry::Registry;
 use ringdesign_graph_ui::Editor;
@@ -331,8 +331,12 @@ pub struct RingDesignerApp {
     pub importing: Option<PendingImport>,
     /// A template being opened off the UI thread, and whether it lands in the graph pane.
     pub opening: Option<(ringdesign_workbench::templates::Opening, bool)>,
-    /// The template that landed and the build generation that shows it, until that build lands.
-    pub opened_building: Option<(&'static str, u64)>,
+    /// The template that landed, the build generation that shows it and how far its open has got, until that build lands.
+    pub opened_building: Option<(&'static str, u64, Arc<ringdesign_workbench::templates::Progress>)>,
+    /// The evaluation a landed template brought, for the build that shows it.
+    pub(crate) seed: Option<Box<ringdesign_workbench::templates::Seed>>,
+    /// `design.graph` parsed, as `graph_json` last saw it: what a build is handed.
+    graph_parsed: Option<Arc<Graph>>,
     /// Where OpenCascade's worker is looked for: read from the environment at start, set per harness in tests.
     pub occt: ringdesign_occt::client::Locator,
     /// The stamp whose inspector is open, by its index in the design's stamps.
@@ -505,6 +509,8 @@ impl RingDesignerApp {
             importing: None,
             opening: None,
             opened_building: None,
+            seed: None,
+            graph_parsed: None,
             occt: crate::occt_embedded::locator(),
             stamp_inspector: None,
             palette_open: false,
@@ -642,7 +648,7 @@ impl RingDesignerApp {
         self.status = self.importing.as_ref().map(PendingImport::words).unwrap_or_default();
     }
 
-    /// Opens `template` on a thread of its own, in place of any template still opening; it lands as a new design, in the graph pane when `graph_pane` is set.
+    /// Opens `template` on a thread of its own, in place of any template still opening, which stops; it lands as a new design, in the graph pane when `graph_pane` is set.
     pub fn open_template(&mut self, template: &'static ringdesign_workbench::templates::Template, graph_pane: bool) {
         let wake = self.egui_ctx.clone();
         let opening = template.open(self.graph_reg.clone(), self.lib.clone(), move || wake.request_repaint());
@@ -658,33 +664,39 @@ impl RingDesignerApp {
         }
     }
 
-    /// Takes in a template that has opened, building it at once, or shows how far it has got.
+    /// Takes in a template that has opened, building it at once with the evaluation it brought, or says how far it has got.
     fn poll_template(&mut self, ctx: &egui::Context) {
-        let Some((opening, _)) = &self.opening else {
-            crate::export::template_plate(self, ctx);
-            return;
-        };
-        let Some(opened) = opening.poll() else {
-            crate::export::template_plate(self, ctx);
-            return;
-        };
-        let Some((opening, graph_pane)) = self.opening.take() else { return };
-        let name = opening.name;
-        match opened {
-            Ok(opened) => {
-                crate::export::adopt_template(self, opened, name);
-                if graph_pane {
-                    if self.design.graph.is_none() {
-                        self.convert_to_graph();
-                    }
-                    self.show_graph_pane();
+        let landed = self.opening.as_ref().and_then(|(opening, _)| opening.poll());
+        match landed {
+            None => {
+                if let Some((opening, _)) = &self.opening {
+                    self.status = opening.progress().words(opening.name);
                 }
-                self.rebuild_now();
-                self.opened_building = Some((name, self.generation));
-                crate::export::template_plate(self, ctx);
             }
-            Err(e) => self.set_status(format!("Could not open template {name}: {e}")),
+            Some(opened) => {
+                let Some((opening, graph_pane)) = self.opening.take() else { return };
+                let name = opening.name;
+                match opened {
+                    Ok(opened) => {
+                        let (design, lib, seed) = opened.land(&self.lib);
+                        crate::export::adopt_template(self, design, lib, name);
+                        if graph_pane {
+                            if self.design.graph.is_none() {
+                                self.convert_to_graph();
+                            }
+                            self.show_graph_pane();
+                        }
+                        self.seed = seed.map(Box::new);
+                        self.rebuild_now();
+                        let progress = opening.progress();
+                        progress.set(ringdesign_workbench::templates::Stage::Building);
+                        self.opened_building = Some((name, self.generation, progress));
+                    }
+                    Err(e) => self.set_status(format!("Could not open template {name}: {e}")),
+                }
+            }
         }
+        crate::export::template_plate(self, ctx);
     }
 
     /// Stops waiting for the part being read: what it reads is dropped when it lands.
@@ -801,7 +813,7 @@ impl RingDesignerApp {
         match self.worker.done.try_recv() {
             Ok(WorkerMsg::Failed { generation, message }) => {
                 self.in_flight = false;
-                if self.opened_building.is_some_and(|(_, g)| generation >= g) {
+                if self.opened_building.as_ref().is_some_and(|(_, g, _)| generation >= *g) {
                     self.opened_building = None;
                 }
                 if generation == self.generation {
@@ -814,7 +826,7 @@ impl RingDesignerApp {
             }
             Ok(WorkerMsg::Done(mut done)) => {
                 self.in_flight = false;
-                if self.opened_building.is_some_and(|(_, g)| done.generation >= g) {
+                if self.opened_building.as_ref().is_some_and(|(_, g, _)| done.generation >= *g) {
                     self.opened_building = None;
                 }
                 if done.generation == self.generation && self.dirty_at.is_none() {
@@ -921,8 +933,7 @@ impl RingDesignerApp {
 
         // Diffed against the last committed design, so an edit is recorded
         // however it arrived — a panel, an MCP client, a loaded file.
-        let design = self.design.clone();
-        self.history.commit_if_settled(&design);
+        self.history.commit_if_settled(&self.design);
 
         if let Some(at) = self.dirty_at {
             if self.auto_rebuild && !self.in_flight && at.elapsed() >= DEBOUNCE {
@@ -950,12 +961,18 @@ impl RingDesignerApp {
         if self.as_cast {
             params.soften_mm = self.design.draft.min_detail_mm;
         }
+        let graph = self.parsed_graph();
+        // The graph's JSON can run to megabytes of embedded artwork, and the worker is handed it parsed.
+        let json = self.design.graph.take();
+        let design = self.design.clone();
+        self.design.graph = json;
         let job = Job {
             generation: self.generation,
-            design: self.design.clone(),
+            design,
             lib: self.lib.clone(),
             params,
-            graph: self.design.graph.as_ref().and_then(|j| serde_json::from_value::<Graph>(j.clone()).ok()),
+            graph,
+            seed: self.seed.take(),
             live_cuts: self.live_cuts,
             show_cutters: self.show_cutters,
             selection: self.selection.clone(),
@@ -1407,6 +1424,7 @@ impl RingDesignerApp {
         }
         self.graph_json = self.design.graph.clone();
         let parsed = self.design.graph.as_ref().and_then(|j| serde_json::from_value::<Graph>(j.clone()).ok());
+        self.graph_parsed = parsed.clone().map(Arc::new);
         match parsed {
             Some(g) => {
                 match &mut self.graph_ed {
@@ -1526,11 +1544,23 @@ impl RingDesignerApp {
         let Some(ed) = &self.graph_ed else { return };
         let json = serde_json::to_value(ed.graph()).ok();
         let moved_only = ringdesign_core::history::graph_layout_only(self.design.graph.as_ref(), json.as_ref());
+        if !moved_only {
+            self.graph_parsed = json.is_some().then(|| Arc::new(ed.graph().clone()));
+        }
         self.design.graph = json.clone();
         self.graph_json = json;
         if !moved_only {
             self.mark_dirty();
         }
+    }
+
+    /// The design's graph parsed, synced first when `design.graph` has moved since the editor saw it.
+    fn parsed_graph(&mut self) -> Option<Arc<Graph>> {
+        self.design.graph.as_ref()?;
+        if self.design.graph != self.graph_json {
+            self.sync_graph();
+        }
+        self.graph_parsed.clone()
     }
 
     /// Lift the design into a graph that evaluates back to it exactly, and
@@ -1639,13 +1669,20 @@ impl RingDesignerApp {
 /// What a ghost's judge reads: the band's epoch, then the parting plane, the draft floor and the bore radius as bits.
 type JudgeKey = (u64, u64, u64, u64);
 
+/// How many graph evaluations the build worker has run, for the tests to read.
+#[cfg(test)]
+pub(crate) static GRAPH_EVALUATIONS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
 struct Job {
     generation: u64,
+    /// The design without its graph's JSON, which the worker never reads.
     design: RingDesign,
     lib: Arc<AlphaLibrary>,
     params: BuildParams,
     /// The design's graph, evaluated before the build when present.
-    graph: Option<Graph>,
+    graph: Option<Arc<Graph>>,
+    /// A landed template's evaluation of that graph, taken in place of evaluating it again.
+    seed: Option<Box<ringdesign_workbench::templates::Seed>>,
     /// Resolve made settings into the preview mesh.
     live_cuts: bool,
     /// Stage the seats' cutters as a ghost.
@@ -1752,27 +1789,51 @@ impl Worker {
                 // The last band's ring frame, by the band's epoch, and the ghost's judge over it, by what it reads.
                 let mut last_band: Option<(u64, Arc<BandSurface>)> = None;
                 let mut last_judge: Option<(JudgeKey, Arc<GhostJudge>)> = None;
+                // The revision of the library the host holds after the last evaluation, and the library that evaluation ran against.
+                let mut base: Option<(u64, Arc<AlphaLibrary>)> = None;
                 while let Ok(mut job) = jobs_rx.recv() {
-                    // Skip stale work: only the newest queued job matters.
-                    while let Ok(newer) = jobs_rx.try_recv() {
+                    // Skip stale work: only the newest queued job matters; a seed a skipped job carried still counts.
+                    while let Ok(mut newer) = jobs_rx.try_recv() {
+                        newer.seed = newer.seed.or(job.seed.take());
                         job = newer;
                     }
                     let generation = job.generation;
+                    // A landed template's evaluation seeds the cache the next evaluations run from.
+                    let mut evaluated = None;
+                    if let Some(seed) = job.seed.take().map(|s| *s) {
+                        let fits = job.graph.as_deref().is_some_and(|g| *g == seed.graph);
+                        if fits {
+                            evaluator = seed.evaluator;
+                            base = Some((job.lib.revision(), seed.base));
+                            evaluated = Some((seed.design, seed.report));
+                        }
+                    }
                     // One panic used to end the session's rebuilding: the
                     // thread died, `jobs_tx.send` failed from then on, and
                     // the app went quietly read-only. Now it is one failed
                     // build with a message.
                     let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Done, String> {
-                        // A graph-driven design is evaluated first; the library's
-                        // identity is its epoch, so a replaced library re-runs it.
+                        // A graph-driven design is evaluated first, against the library before its own artwork
+                        // while the host holds what the last evaluation baked, keyed by that library's revision.
                         let mut graph_done = None;
                         let mut field_from_graph = None;
                         if let Some(g) = &job.graph {
-                            let epoch = Arc::as_ptr(&job.lib) as usize as u64;
-                            match evaluate_design(&mut evaluator, g, &reg, &job.lib, epoch) {
+                            let against = match &base {
+                                Some((revision, lib)) if *revision == job.lib.revision() => lib.clone(),
+                                _ => job.lib.clone(),
+                            };
+                            let out = match evaluated.take() {
+                                Some((design, report)) => Ok(ringdesign_graph::eval::judge(&mut evaluator, design, report, g, &job.lib)),
+                                None => {
+                                    #[cfg(test)]
+                                    GRAPH_EVALUATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                    ringdesign_graph::eval::evaluate_design_onto(&mut evaluator, g, &reg, &against, &job.lib)
+                                }
+                            };
+                            match out {
                                 Ok(out) => {
+                                    base = Some((out.baked_library.as_ref().unwrap_or(&job.lib).revision(), against));
                                     let mut d = (*out.design).clone();
-                                    d.graph = job.design.graph.clone();
                                     d.manufacturing = job.design.manufacturing.clone();
                                     d.casting_trials = job.design.casting_trials.clone();
                                     d.pins = job.design.pins.clone();

@@ -278,18 +278,164 @@ fn file_menu_has_preview_collections_and_opens_the_selected_template() {
     assert_eq!(h.state().design.name, before);
     h.run_steps(1);
     assert!(h.state().opening.is_some());
-    assert!(h.query_by_label_contains("Opening Ecdysis — ventral scales: ").is_some());
+    assert!(h.query_all_by_label_contains("Opening Ecdysis — ventral scales — ").any(|n| n.accesskit_node().role() == egui::accesskit::Role::ProgressIndicator), "the plate says how far it has got");
+    assert!(h.state().status.starts_with("Opening Ecdysis — ventral scales — "), "and so does the status line: {}", h.state().status);
     crate::interaction_tests::wait_for_template(&mut h);
     assert!(h.state().design.name.starts_with("Ecdysis"));
     // Landed, it builds at once and says so until the build shows it.
     assert!(h.state().is_building() && h.state().opened_building.is_some());
-    assert!(h.query_by_label("Opening Ecdysis — ventral scales: building the ring").is_some());
+    assert!(h.query_by_label("Opening Ecdysis — ventral scales — building the ring").is_some());
     crate::interaction_tests::wait_for_build(&mut h);
     h.run_steps(2);
     assert!(h.state().opened_building.is_none() && h.query_by_label_contains("Opening Ecdysis").is_none());
     assert!(h.state().design.graph.is_some());
     assert!(h.state().document_path.is_none());
     assert!(!h.state().graph_ed.as_ref().unwrap().graph().nodes.iter().any(|n| n.kind == "head"));
+}
+
+/// The catalogue entry `slug`.
+fn template(slug: &str) -> &'static ringdesign_workbench::templates::Template {
+    ringdesign_workbench::templates::collections().iter().flat_map(|c| &c.templates).find(|t| t.slug == slug).expect(slug)
+}
+
+/// How far the open on screen has got, before and after it lands.
+fn open_fraction(app: &RingDesignerApp) -> Option<f32> {
+    match (&app.opening, &app.opened_building) {
+        (Some((opening, _)), _) => Some(opening.progress().fraction()),
+        (None, Some((_, _, progress))) => Some(progress.fraction()),
+        (None, None) => None,
+    }
+}
+
+#[test]
+fn a_template_opens_while_the_old_design_stays_live_and_its_first_build_takes_the_open_evaluation() {
+    use std::sync::atomic::Ordering;
+    let mut h = harness([1600., 980.]);
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    crate::export::load_catalog_template(h.state_mut(), template("nocturne"));
+    let mut read = vec![open_fraction(h.state()).expect("a plate from the first frame")];
+    h.run_steps(1);
+    read.extend(open_fraction(h.state()));
+    // The design on screen stays live: an edit made while the template opens lands and builds.
+    assert!(h.state().opening.is_some());
+    h.state_mut().design.name = "Edited while it opened".into();
+    h.state_mut().mark_dirty();
+    h.state_mut().rebuild_now();
+    assert_eq!(h.state().design.name, "Edited while it opened");
+    let evaluations = crate::app::GRAPH_EVALUATIONS.load(Ordering::Relaxed);
+    let start = std::time::Instant::now();
+    while h.state().opening.is_some() {
+        h.run_steps(1);
+        read.extend(open_fraction(h.state()));
+        assert!(start.elapsed().as_secs() < 60, "the template never opened");
+    }
+    assert!(h.state().design.name.starts_with("Nocturne"));
+    assert!(h.state().seed.is_none(), "the first build took the open's evaluation");
+    while h.state().opened_building.is_some() {
+        h.run_steps(1);
+        read.extend(open_fraction(h.state()));
+        assert!(start.elapsed().as_secs() < 60, "the template never built");
+    }
+    assert!(read.windows(2).all(|w| w[0] <= w[1]), "the bar never falls back: {read:?}");
+    assert!(h.state().is_current(), "{}", h.state().status);
+    assert_eq!(crate::app::GRAPH_EVALUATIONS.load(Ordering::Relaxed), evaluations, "the first build evaluated nothing again");
+    // A rebuild evaluates against the library the open ran on, whose cache the open left warm.
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    assert!(h.state().is_current(), "{}", h.state().status);
+    assert_eq!(crate::app::GRAPH_EVALUATIONS.load(Ordering::Relaxed), evaluations + 1);
+}
+
+#[test]
+fn a_library_that_moved_while_a_template_opened_gets_the_template_artwork_baked_onto_it() {
+    use ringdesign_core::alpha::Alpha;
+    let mut h = harness([1600., 980.]);
+    let evaluations = crate::app::GRAPH_EVALUATIONS.load(std::sync::atomic::Ordering::Relaxed);
+    crate::export::load_catalog_template(h.state_mut(), template("nocturne"));
+    // The old design redraws one of the template's own sources and adds one of its own while it opens.
+    h.state_mut().library_mut().insert(Alpha::new("Palmette", 2, 2, vec![0.5; 4]));
+    h.state_mut().library_mut().insert(Alpha::new("Mine", 2, 2, vec![0.25; 4]));
+    crate::interaction_tests::wait_for_template(&mut h);
+    let lib = h.state().lib.clone();
+    assert_eq!(lib.get("Mine").map(|a| a.data.clone()), Some(vec![0.25; 4]));
+    let palmette = lib.get("Palmette").expect("the template's own art");
+    assert_eq!((palmette.width, palmette.height), (1024, 1024), "baked again onto the library as it stands");
+    crate::interaction_tests::wait_for_build(&mut h);
+    assert!(h.state().is_current(), "{}", h.state().status);
+    assert!(crate::app::GRAPH_EVALUATIONS.load(std::sync::atomic::Ordering::Relaxed) > evaluations, "an evaluation against a library that moved is made again, not carried over");
+    let mut fresh = ringdesign_core::AlphaLibrary::builtin();
+    h.state().design.unpack_embedded(&mut fresh);
+    h.state().design.bake_all(&mut fresh);
+    assert_eq!(fresh.get("Palmette").map(|a| &a.data), Some(&palmette.data));
+    assert!(lib.sdf_of("Palmette").is_some_and(|f| f.data == fresh.sdf_of("Palmette").unwrap().data), "its field follows the template's art");
+}
+
+#[test]
+fn choosing_another_template_stops_the_first_and_only_the_second_lands() {
+    let mut h = harness([1600., 980.]);
+    crate::export::load_catalog_template(h.state_mut(), template("caiman-imported"));
+    let first = h.state().opening.as_ref().unwrap().0.finished();
+    h.run_steps(1);
+    crate::export::load_catalog_template(h.state_mut(), template("court-band"));
+    let start = std::time::Instant::now();
+    while !first.load(std::sync::atomic::Ordering::Relaxed) {
+        h.run_steps(1);
+        assert!(start.elapsed().as_secs() < 60, "the first open never stopped");
+    }
+    crate::interaction_tests::wait_for_template(&mut h);
+    crate::interaction_tests::wait_for_build(&mut h);
+    h.run_steps(3);
+    assert_eq!(h.state().design.name, "Court band");
+    assert!(h.state().opening.is_none() && h.state().opened_building.is_none());
+}
+
+#[test]
+fn a_template_with_an_expression_pin_opens_from_the_menu_path() {
+    let mut g = ringdesign_graph::templates::graph("Court band").unwrap();
+    g.set_input(ringdesign_graph::graph::NodeId(1), "width_mm", ringdesign_graph::value::Literal::expr("2.5 + 2.0")).unwrap();
+    let t: &'static _ = Box::leak(Box::new(ringdesign_workbench::templates::Template::document("Court band by expression", "court-band-expression", Box::leak(Box::new(g)))));
+    let mut h = harness([1600., 980.]);
+    h.state_mut().open_template(t, true);
+    crate::interaction_tests::wait_for_template(&mut h);
+    assert_eq!(h.state().design.profile.width_mm, 4.5, "{}", h.state().status);
+    crate::interaction_tests::wait_for_build(&mut h);
+    assert!(h.state().is_current(), "{}", h.state().status);
+    assert!(h.state().graph_errors.is_empty(), "{:?}", h.state().graph_errors);
+    assert_eq!(h.state().design.profile.width_mm, 4.5);
+}
+
+#[test]
+fn the_template_plate_stands_clear_of_every_views_controls() {
+    use egui::containers::panel::PanelState;
+    for layout in [Layout::Single, Layout::Quad] {
+        let mut h = claw_solitaire(crate::app::Workspace::default().preview_params);
+        h.state_mut().set_layout(layout);
+        for pane in &mut h.state_mut().panes {
+            pane.kind = PaneKind::Solid;
+        }
+        h.run_steps(3);
+        assert!(crate::panels::timeline::shown(h.state()), "the claw solitaire shows its CAD timeline");
+        crate::export::load_catalog_template(h.state_mut(), template("caiman-imported"));
+        h.run_steps(2);
+        let bar = h.query_all_by_label_contains("Opening Caiman — armoured hide").find(|n| n.accesskit_node().role() == egui::accesskit::Role::ProgressIndicator).expect("the plate").rect();
+        let cancel = h.get_all_by_label("Cancel").map(|n| n.rect()).find(|r| r.center().y > bar.top() && r.center().y < bar.bottom()).expect("the plate's Cancel");
+        let plate = bar.union(cancel);
+        let canvases = crate::export::pane_canvases(h.state(), &h.ctx);
+        assert_eq!(canvases.len(), layout.count(), "{layout:?}");
+        for (i, canvas) in &canvases {
+            for strip in ["pane_head", "viewport-footer", "viewport-timeline"] {
+                let rect = PanelState::load(&h.ctx, egui::Id::new((strip, *i))).expect(strip).outer_rect;
+                assert!(!rect.intersects(plate), "{layout:?}: the plate {plate:?} covers pane {i}'s {strip} {rect:?}");
+            }
+            if canvas.intersects(plate) {
+                assert!(canvas.contains_rect(plate), "{layout:?}: the plate {plate:?} straddles pane {i}'s canvas {canvas:?}");
+                assert!(plate.right() <= canvas.right() - 110.0, "{layout:?}: clear of the navigator");
+                assert!(plate.left() >= canvas.left() + crate::command::RAIL_W, "{layout:?}: clear of the tool rail");
+            }
+        }
+        drop(h);
+    }
 }
 
 #[test]

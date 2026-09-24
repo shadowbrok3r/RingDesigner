@@ -26,8 +26,22 @@ pub enum Step {
     Reading,
     /// Running its nodes: `done` of the `of` its design needs.
     Evaluating { done: usize, of: usize },
-    /// Baking the design's artwork into the library.
-    Baking,
+    /// Baking the design's artwork into the library: `done` of `of` sources and distance fields.
+    Baking { done: usize, of: usize },
+}
+
+/// A template graph opened: the design, the evaluation that made it, and its artwork baked.
+pub struct OpenedGraph {
+    /// The design, carrying its graph.
+    pub design: ringdesign_core::RingDesign,
+    /// The design as the evaluation produced it, without the graph.
+    pub evaluated: std::sync::Arc<ringdesign_core::RingDesign>,
+    pub report: crate::eval::EvalReport,
+    pub graph: Graph,
+    /// Every artwork raster the bake inserted, in order.
+    pub artwork: Vec<std::sync::Arc<ringdesign_core::Alpha>>,
+    /// The library with the artwork baked in; `None` when that left it as it was.
+    pub library: Option<std::sync::Arc<ringdesign_core::AlphaLibrary>>,
 }
 
 impl TemplateGraph {
@@ -48,28 +62,60 @@ impl TemplateGraph {
     /// Start a project from the whole template, including its title and
     /// manufacturing setup. Attaching just the graph to the old project
     /// lets the hosts' metadata-preserving rebuild overwrite those fields.
+    ///
+    /// Expression pins need an engine this crate does not carry; a host that
+    /// has one opens through [`open`](Self::open) with it attached.
     pub fn instantiate(&self, reg: &crate::registry::Registry, lib: &ringdesign_core::AlphaLibrary) -> Result<ringdesign_core::RingDesign, GraphError> {
-        self.open(reg, lib, std::sync::Arc::new(|_| {})).map(|(design, _)| design)
+        let never = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        self.open(reg, lib, &mut crate::eval::Evaluator::new(), std::sync::Arc::new(|_| {}), &never).map(|o| o.design)
     }
 
-    /// [`instantiate`](Self::instantiate), telling `step` how far it has got, with `lib` as the design's artwork baked into it (`None` when it carries none).
-    pub fn open(&self, reg: &crate::registry::Registry, lib: &ringdesign_core::AlphaLibrary, step: std::sync::Arc<dyn Fn(Step) + Send + Sync>) -> Result<(ringdesign_core::RingDesign, Option<std::sync::Arc<ringdesign_core::AlphaLibrary>>), GraphError> {
+    /// [`instantiate`](Self::instantiate) with `ev`, keyed by `lib`'s revision, telling `step` how far it has got and
+    /// stopping between nodes and between bakes once `cancel` is set; `ev` keeps the evaluation's cache and nothing else.
+    pub fn open(
+        &self,
+        reg: &crate::registry::Registry,
+        lib: &ringdesign_core::AlphaLibrary,
+        ev: &mut crate::eval::Evaluator,
+        step: std::sync::Arc<dyn Fn(Step) + Send + Sync>,
+        cancel: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Result<OpenedGraph, GraphError> {
         step(Step::Reading);
-        let graph = self.load();
-        let mut ev = crate::eval::Evaluator::new();
-        let evaluating = step.clone();
-        ev.progress = Some(std::sync::Arc::new(move |done, of| evaluating(Step::Evaluating { done, of })));
-        let (design, report) = crate::eval::design_of(&mut ev, &graph, reg, lib, 0)?;
-        let notes = report.notes(&graph);
-        if !notes.is_empty() {
-            return Err(GraphError { node: None, message: notes.join("; ") });
-        }
-        step(Step::Baking);
-        let baked = crate::eval::baked(&design, lib);
-        let mut design = (*design).clone();
-        design.graph = Some(serde_json::to_value(&graph).map_err(|e| GraphError { node: None, message: e.to_string() })?);
-        Ok((design, baked))
+        open_document(self.load(), reg, lib, ev, step, cancel)
     }
+}
+
+/// [`TemplateGraph::open`] for a graph already read.
+pub fn open_document(
+    graph: Graph,
+    reg: &crate::registry::Registry,
+    lib: &ringdesign_core::AlphaLibrary,
+    ev: &mut crate::eval::Evaluator,
+    step: std::sync::Arc<dyn Fn(Step) + Send + Sync>,
+    cancel: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+) -> Result<OpenedGraph, GraphError> {
+    use std::sync::atomic::Ordering;
+    let cancelled = || GraphError::global(crate::eval::CANCELLED);
+    if cancel.load(Ordering::Relaxed) {
+        return Err(cancelled());
+    }
+    let evaluating = step.clone();
+    ev.progress = Some(std::sync::Arc::new(move |done, of| evaluating(Step::Evaluating { done, of })));
+    ev.cancel = Some(cancel.clone());
+    let evaluated = crate::eval::design_of(ev, &graph, reg, lib, lib.revision());
+    (ev.progress, ev.cancel) = (None, None);
+    let (evaluated, report) = evaluated?;
+    let notes = report.notes(&graph);
+    if !notes.is_empty() {
+        return Err(GraphError { node: None, message: notes.join("; ") });
+    }
+    let mut baked = lib.clone();
+    let baking = |done, of| step(Step::Baking { done, of });
+    let artwork = evaluated.unpack_and_bake_observed(&mut baked, &baking, cancel).ok_or_else(cancelled)?;
+    let library = (baked.revision() != lib.revision()).then(|| std::sync::Arc::new(baked));
+    let mut design = (*evaluated).clone();
+    design.graph = Some(serde_json::to_value(&graph).map_err(|e| GraphError { node: None, message: e.to_string() })?);
+    Ok(OpenedGraph { design, evaluated, report, graph, artwork, library })
 }
 
 macro_rules! bundled {
@@ -639,22 +685,66 @@ mod tests {
         let template = catalog().find(|t| t.slug == "aster-atelier").unwrap();
         let steps = Arc::new(Mutex::new(Vec::new()));
         let seen = steps.clone();
-        let (design, baked) = template.open(&reg, &lib, Arc::new(move |step| seen.lock().unwrap().push(step))).unwrap();
+        let never = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut ev = Evaluator::new();
+        let opened = template.open(&reg, &lib, &mut ev, Arc::new(move |step| seen.lock().unwrap().push(step)), &never).unwrap();
         let steps = steps.lock().unwrap().clone();
         let of = match steps[1] { Step::Evaluating { of, .. } => of, other => panic!("{other:?}") };
+        let units = opened.evaluated.bake_units();
+        assert_eq!(units, 6, "aster-atelier's artwork and fields");
         let mut want = vec![Step::Reading];
         want.extend((0..of).map(|done| Step::Evaluating { done, of }));
-        want.push(Step::Baking);
-        assert_eq!(steps, want);
+        assert_eq!(steps[..want.len()], want[..]);
+        let mut baking: Vec<usize> = steps[want.len()..].iter().map(|s| match s { Step::Baking { done, of } if *of == units => *done, other => panic!("{other:?}") }).collect();
+        baking.sort();
+        assert_eq!(baking, (0..=units).collect::<Vec<_>>(), "the bake's size, then one step per source and field");
+        assert!(ev.progress.is_none() && ev.cancel.is_none() && ev.cached_nodes() == of, "the evaluator keeps its cache and nothing else");
         let graph = template.load();
         let out = crate::eval::evaluate_design(&mut crate::eval::Evaluator::new(), &graph, &reg, &lib, 0).unwrap();
         let mut evaluated = (*out.design).clone();
         evaluated.graph = Some(serde_json::to_value(&graph).unwrap());
-        assert_eq!(serde_json::to_value(&design).unwrap(), serde_json::to_value(&evaluated).unwrap());
-        let (baked, theirs) = (baked.expect("its artwork"), out.baked_library.unwrap());
+        assert_eq!(serde_json::to_value(&opened.design).unwrap(), serde_json::to_value(&evaluated).unwrap());
+        let (baked, theirs) = (opened.library.expect("its artwork"), out.baked_library.unwrap());
         let names = |l: &ringdesign_core::AlphaLibrary| l.changed_since(&lib).map(|a| (a.name.clone(), a.data.clone())).collect::<Vec<_>>();
         assert!(!names(&baked).is_empty());
         assert_eq!(names(&baked), names(&theirs));
+        assert_eq!(opened.artwork.iter().map(|a| a.name.clone()).collect::<Vec<_>>(), baked.changed_since(&lib).filter(|a| !a.name.ends_with(ringdesign_core::alpha::SDF_SUFFIX)).map(|a| a.name.clone()).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn a_cancel_stops_an_open_between_nodes_and_between_bakes() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::{Arc, Mutex};
+        let reg = Registry::builtin();
+        let lib = AlphaLibrary::builtin();
+        let template = catalog().find(|t| t.slug == "nocturne").unwrap();
+        for (at, stops) in [(Step::Evaluating { done: 3, of: 0 }, "evaluating"), (Step::Baking { done: 1, of: 0 }, "baking")] {
+            let cancel = Arc::new(AtomicBool::new(false));
+            let (flag, seen) = (cancel.clone(), Arc::new(Mutex::new(Vec::new())));
+            let log = seen.clone();
+            let step = Arc::new(move |s: Step| {
+                log.lock().unwrap().push(s);
+                let reached = match (s, at) {
+                    (Step::Evaluating { done, .. }, Step::Evaluating { done: d, .. }) => done >= d,
+                    (Step::Baking { done, .. }, Step::Baking { done: d, .. }) => done >= d,
+                    _ => false,
+                };
+                if reached {
+                    flag.store(true, Ordering::Relaxed);
+                }
+            });
+            let mut ev = Evaluator::new();
+            let err = template.open(&reg, &lib, &mut ev, step, &cancel).err().expect(stops);
+            assert_eq!(err.message, crate::eval::CANCELLED, "{stops}");
+            let seen = seen.lock().unwrap();
+            match at {
+                Step::Evaluating { done, .. } => {
+                    assert_eq!(seen.last(), Some(&Step::Evaluating { done, of: match seen[1] { Step::Evaluating { of, .. } => of, _ => 0 } }), "no node runs past the cancel");
+                    assert!(ev.cached_nodes() <= done + 1);
+                }
+                _ => assert!(seen.iter().any(|s| matches!(s, Step::Baking { done, .. } if *done > 0)), "the cancel came from inside the bake"),
+            }
+        }
     }
     use crate::eval::{Evaluator, evaluate_design};
     use crate::registry::Registry;
