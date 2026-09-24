@@ -3,8 +3,19 @@ use super::session::Dimension;
 use egui::text::{CCursor, CCursorRange};
 use egui::{Area, Context, Event, EventFilter, FocusDirection, Frame, Id, Key, Order, Pos2, Rect, TextEdit, Vec2, WidgetInfo};
 
-/// A field's width, points: held whatever width the bar's area had last frame.
+/// A field's least width, points: held whatever width the bar's area had last frame.
 const FIELD_W: f32 = 72.0;
+/// Room a field keeps past its widest text for the caret, points.
+const CARET_W: f32 = 2.0;
+/// A field's margin round its text.
+const FIELD_MARGIN: egui::Margin = egui::Margin::symmetric(4, 2);
+
+/// The width that shows each of `texts` whole in a field, never under [`FIELD_W`].
+fn field_width(ui: &egui::Ui, texts: &[&str]) -> f32 {
+    let font = egui::FontSelection::Default.resolve(ui.style());
+    let widest = texts.iter().map(|t| ui.fonts_mut(|f| f.layout_no_wrap((*t).to_owned(), font.clone(), egui::Color32::PLACEHOLDER).size().x)).fold(0.0, f32::max);
+    (widest + FIELD_MARGIN.sum().x + CARET_W).ceil().max(FIELD_W)
+}
 
 /// What the fields did this frame, for the session to feed.
 #[derive(Clone, Debug, PartialEq)]
@@ -261,7 +272,8 @@ impl DimensionBar {
                         ui.label(d.label);
                         let text = self.text_mut(d.key);
                         let was = text.clone();
-                        let out = TextEdit::singleline(text).id(*id).desired_width(FIELD_W).min_size(Vec2::new(FIELD_W, 0.0)).hint_text(hint.as_str()).event_filter(filter).show(ui);
+                        let width = field_width(ui, &[hint.as_str(), text.as_str()]);
+                        let out = TextEdit::singleline(text).id(*id).margin(FIELD_MARGIN).desired_width(width).min_size(Vec2::new(width, 0.0)).hint_text(hint.as_str()).event_filter(filter).show(ui);
                         let now = text.clone();
                         out.response.response.widget_info(|| WidgetInfo {
                             label: Some(name.clone()),
@@ -587,6 +599,37 @@ mod tests {
             let bar = h.ctx.memory(|m| m.area_rect(h.state().bar.id.with("area"))).unwrap();
             assert!(bar.width() > 2.0 * FIELD_W + 80.0, "the bar grew to hold both fields and their labels: {bar:?}");
         }
+    }
+
+    /// How wide `text` lays out in the fields' font, points.
+    fn text_width(h: &Harness<'_, App>, text: &str) -> f32 {
+        let font = egui::FontSelection::Default.resolve(&h.ctx.global_style());
+        h.ctx.fonts_mut(|f| f.layout_no_wrap(text.to_owned(), font, egui::Color32::PLACEHOLDER).size().x)
+    }
+
+    #[test]
+    fn a_three_digit_value_widens_its_field_and_reads_whole() {
+        let mut session = Session::default();
+        session.start(Box::new(AddPrimitiveCmd::new(Primitive::Cylinder, 7)));
+        session.feed(StepInput::Pointer { world: [0.0, 9.5, -123.45], normal: [0.0, 1.0, 0.0], theta_deg: 90.0, across_mm: -123.45, height_mm: 0.0, snapped: None, dragging: false });
+        let mut h = built(session, None);
+        h.run_steps(2);
+        let shown = painted(&h);
+        assert!(shown.iter().any(|t| t == "-123.45 mm") && !shown.iter().any(|t| t.contains('…')), "the hint reads whole: {shown:?}");
+        // Measured, the hint and its margin and caret are wider than the floor; the field takes that width.
+        let need = text_width(&h, "-123.45 mm") + FIELD_MARGIN.sum().x + CARET_W;
+        let across = h.get_by_label("Across (mm)").rect().width();
+        assert!(need > FIELD_W && across >= need && across < need + 1.0, "Across is {across} for a hint needing {need}");
+        assert_eq!(h.get_by_label("θ (°)").rect().width(), FIELD_W, "a short value keeps the floor");
+        // A longer value typed in widens the field again, to the wider of the value and the hint it now prints.
+        h.get_by_label("Across (mm)").click();
+        h.run_steps(2);
+        h.get_by_label("Across (mm)").type_text("-1234.567");
+        h.run_steps(3);
+        assert_eq!(value(&h, "Across (mm)"), "-1234.567");
+        let need = text_width(&h, "-1234.57 mm").max(text_width(&h, "-1234.567")) + FIELD_MARGIN.sum().x + CARET_W;
+        let across = h.get_by_label("Across (mm)").rect().width();
+        assert!(across >= need && across < need + 1.0, "Across is {across} for a value needing {need}");
     }
 
     #[test]
