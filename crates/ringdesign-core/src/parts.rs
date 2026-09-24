@@ -47,20 +47,42 @@ pub struct Resolved {
     pub first: u32,
     /// The feature id behind each part index, in the order the origin counts them.
     pub features: Vec<Id>,
+    /// The walls a cut carved in a part set apart, by slot after the parts: the part's index and the cut's.
+    pub pockets: Vec<(u32, u32)>,
     /// The evaluation the parts came from, placed on the built surface, for inspectors that need
     /// the bodies, edges and traces without evaluating again.
     pub evaluated: Option<cad::Evaluated>,
 }
 
 impl Resolved {
-    /// The feature an origin value names, when it is a part's.
+    /// The part an origin value belongs to, when it is a part's: a pocket's walls belong to the part they are carved in.
     pub fn feature_of(&self, origin: u32) -> Option<Id> {
-        let i = origin.checked_sub(SOLID_VERTEX.checked_add(self.first)?)? as usize;
-        self.features.get(i).copied()
+        self.index_of(origin, false).and_then(|i| self.features.get(i as usize)).copied()
+    }
+    /// The feature that made an origin value: a pocket's walls name the cut that carved them, anything else its part.
+    pub fn named_of(&self, origin: u32) -> Option<Id> {
+        self.index_of(origin, true).and_then(|i| self.features.get(i as usize)).copied()
     }
     /// The origin value the part at `index` writes.
     pub fn origin_of(&self, index: u32) -> u32 {
         SOLID_VERTEX + self.first + index
+    }
+    /// The part index an origin value counts, a pocket's read as its cut's when `cut`.
+    fn index_of(&self, origin: u32, cut: bool) -> Option<u32> {
+        let i = origin.checked_sub(SOLID_VERTEX.checked_add(self.first)?)? as usize;
+        if i < self.features.len() {
+            return Some(i as u32);
+        }
+        let (part, by) = *self.pockets.get(i - self.features.len())?;
+        Some(if cut { by } else { part })
+    }
+    /// The index the walls `cut` carves in `part` are named by, its slot taken on first use.
+    fn pocket(&mut self, part: u32, cut: u32) -> u32 {
+        let slot = self.pockets.iter().position(|p| *p == (part, cut)).unwrap_or_else(|| {
+            self.pockets.push((part, cut));
+            self.pockets.len() - 1
+        });
+        (self.features.len() + slot) as u32
     }
 }
 
@@ -94,16 +116,17 @@ impl Chain<'_> {
     }
 
     /// Every seam loop of `t`, the boolean of the running solid with `tool`, whose part asks for a
-    /// fillet, beaded against `t`'s faces; `parts` are the tool's parts and `face_part` the part index
-    /// behind each tool face. Each part a seam reached is added to `touched`; a bead that fails is a
-    /// note, and a raised flag is the error.
-    fn beads<'p>(&self, t: &Traced, tool: &Solid, concave: bool, parts: &[&'p Part], face_part: &[u32], notes: &mut Vec<String>, touched: &mut Vec<u32>) -> Result<Vec<(&'p Part, blend::Bead)>> {
+    /// fillet and `buried` passes over, beaded against `t`'s faces; `parts` are the tool's parts and
+    /// `face_part` the part index behind each tool face. Each part a seam reached is added to
+    /// `touched`; a bead that fails is a note, and a raised flag is the error.
+    #[allow(clippy::too_many_arguments)]
+    fn beads<'p>(&self, t: &Traced, tool: &Solid, concave: bool, parts: &[&'p Part], face_part: &[u32], buried: &dyn Fn(&[P3]) -> bool, notes: &mut Vec<String>, touched: &mut Vec<u32>) -> Result<Vec<(&'p Part, blend::Bead)>> {
         let mut out = Vec::new();
         for seam in blend::seams(t, &self.solid, tool, concave) {
             let Some(&bf) = seam.b_faces.first() else { continue };
             let index = face_part.get(bf as usize).copied().unwrap_or(parts[0].index);
             let part = parts.iter().copied().find(|p| p.index == index).unwrap_or(parts[0]);
-            if part.blend_mm <= 0.0 {
+            if part.blend_mm <= 0.0 || buried(&seam.points) {
                 continue;
             }
             match blend::bead_seam(t, &seam, part.blend_mm, Some(self.cancel)) {
@@ -178,6 +201,33 @@ fn status_notes(e: &cad::Evaluated) -> Vec<String> {
 /// is read between parts and inside each boolean. Nothing happens when the document is the whole
 /// ring or the band is empty. A memo's cache is keyed on the built band's [`cad::surface_epoch`].
 pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx: &BuildCtx, memo: Memo, built: &mut BuildResult) -> Result<Resolved> {
+    resolve_inner(design, lib, params, ctx, memo, built, &[])
+}
+
+/// [`crate::mesh::try_build`] with the parts `clones` set apart for joined ones, a cut's fillet laid on no seam the joined build buries.
+pub(crate) fn build_clones(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, clones: &[Id]) -> Result<BuildResult> {
+    if clones.is_empty() || !design.band_is_procedural() {
+        return crate::mesh::try_build(design, lib, params);
+    }
+    let mut bare = design.clone();
+    bare.cad = None;
+    let mut built = crate::mesh::try_build(&bare, lib, params)?;
+    let never = AtomicBool::new(false);
+    built.parts = resolve_inner(design, lib, params, &BuildCtx::new(&never), Memo::default(), &mut built, clones)?;
+    Ok(built)
+}
+
+/// Seam points sampled for whether a seam lies buried in other metal.
+const BURIED_SAMPLES: usize = 8;
+
+/// Whether every sampled point of `seam` lies inside one of `solids`.
+fn buried_in(seam: &[P3], solids: &[&Solid]) -> bool {
+    let step = (seam.len() / BURIED_SAMPLES).max(1);
+    !seam.is_empty() && seam.iter().step_by(step).all(|p| solids.iter().any(|s| csg::inside(s, *p) == Some(true)))
+}
+
+/// [`resolve_with`] with the separate parts `clones` standing in for joined ones.
+fn resolve_inner(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, ctx: &BuildCtx, memo: Memo, built: &mut BuildResult, clones: &[Id]) -> Result<Resolved> {
     let mut out = Resolved::default();
     let Some(doc) = &design.cad else { return Ok(out) };
     if doc.replaces_band() || built.mesh.faces.is_empty() {
@@ -225,6 +275,7 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
         cancel: ctx.cancel,
     };
     let base = out.first;
+    let open = |_: &[P3]| false;
     let refs: Vec<&Solid> = joins.iter().map(|p| &p.solid).collect();
     for group in csg::cluster(&refs, CLUSTER_PAD_MM) {
         check(ctx.cancel)?;
@@ -234,7 +285,7 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
                 Ok(t) => {
                     let parts: Vec<&Part> = group.iter().map(|g| &joins[*g]).collect();
                     let mut touched = Vec::new();
-                    let beads = chain.beads(&t, &tool, true, &parts, &face_part, &mut out.notes, &mut touched)?;
+                    let beads = chain.beads(&t, &tool, true, &parts, &face_part, &open, &mut out.notes, &mut touched)?;
                     unfollowed(parts.iter().copied(), &touched, &mut out.notes);
                     chain.take(t, &face_part, joins[group[0]].index, base);
                     chain.lay(beads, Op::Union, base, None, &mut out)?;
@@ -254,7 +305,7 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
                         Ok(t) => {
                             let own = vec![p.index; p.solid.f.len()];
                             let mut touched = Vec::new();
-                            let beads = chain.beads(&t, &p.solid, true, &[p], &own, &mut out.notes, &mut touched)?;
+                            let beads = chain.beads(&t, &p.solid, true, &[p], &own, &open, &mut out.notes, &mut touched)?;
                             unfollowed([p], &touched, &mut out.notes);
                             chain.take(t, &own, p.index, base);
                             chain.lay(beads, Op::Union, base, None, &mut out)?;
@@ -267,6 +318,11 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
             }
         }
     }
+    // The stand-ins for joined parts, and the band as joined.
+    let stand_ins: Vec<&Part> = separates.iter().filter(|p| clones.contains(&out.features[p.index as usize])).collect();
+    let joined_band = (!stand_ins.is_empty() && cuts.iter().any(|c| c.blend_mm > 0.0)).then(|| chain.solid.clone());
+    let stand_in_solids: Vec<&Solid> = stand_ins.iter().map(|p| &p.solid).collect();
+    let in_stand_ins = |seam: &[P3]| !stand_in_solids.is_empty() && buried_in(seam, &stand_in_solids);
     // The cuts whose fillet found a seam, in the band or in a part set apart, and those the band refused.
     let (mut touched, mut refused) = (Vec::new(), Vec::new());
     for p in &cuts {
@@ -274,7 +330,7 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
         match chain.combine(&p.solid, Op::Subtract) {
             Ok(t) => {
                 let own = vec![p.index; p.solid.f.len()];
-                let beads = chain.beads(&t, &p.solid, false, &[p], &own, &mut out.notes, &mut touched)?;
+                let beads = chain.beads(&t, &p.solid, false, &[p], &own, &in_stand_ins, &mut out.notes, &mut touched)?;
                 chain.take(t, &own, p.index, base);
                 chain.lay(beads, Op::Subtract, base, None, &mut out)?;
                 out.cut += 1;
@@ -300,18 +356,24 @@ pub fn resolve_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams
             chain.origin.extend(std::iter::repeat_n(SOLID_VERTEX + base + p.index, p.solid.v.len()));
             continue;
         }
-        // A cut reaching a part set apart carves it as well as the band, every vertex it makes naming the part.
+        // A stand-in's seams buried in the joined band or another stand-in carry no fillet.
+        let stand_in = stand_ins.iter().any(|q| q.index == p.index);
+        let others: Vec<&Solid> = stand_ins.iter().filter(|q| q.index != p.index).map(|q| &q.solid).chain(joined_band.as_ref()).collect();
+        let buried = |seam: &[P3]| stand_in && buried_in(seam, &others);
+        // A cut reaching a part set apart carves it as well as the band; the walls it makes belong to the part and name the cut.
         let mut apart = Chain { solid: p.solid.clone(), origin: vec![SOLID_VERTEX + base + p.index; p.solid.v.len()], vouched: false, cancel: ctx.cancel };
         let (mut carved, mut consumed) = (false, false);
         for c in reaching {
             check(ctx.cancel)?;
             match apart.combine(&c.solid, Op::Subtract) {
                 Ok(t) => {
-                    carved |= t.parent.iter().any(|f| matches!(f, Parent::B(_)));
+                    let reached = t.parent.iter().any(|f| matches!(f, Parent::B(_)));
+                    carved |= reached;
                     let faces = vec![c.index; c.solid.f.len()];
-                    let beads = apart.beads(&t, &c.solid, false, &[c], &faces, &mut out.notes, &mut touched)?;
-                    apart.take(t, &vec![p.index; c.solid.f.len()], p.index, base);
-                    apart.lay(beads, Op::Subtract, base, Some(p.index), &mut out)?;
+                    let beads = apart.beads(&t, &c.solid, false, &[c], &faces, &buried, &mut out.notes, &mut touched)?;
+                    let walls = if reached { out.pocket(p.index, c.index) } else { p.index };
+                    apart.take(t, &vec![walls; c.solid.f.len()], p.index, base);
+                    apart.lay(beads, Op::Subtract, base, Some(walls), &mut out)?;
                 }
                 Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
                 Err(Snag::Empty) => {
@@ -520,22 +582,55 @@ pub(crate) fn into_mesh(mut solid: Solid, band_normals: &[Vec3], origin: Vec<u32
     Mesh { vertices: solid.v.iter().map(|p| to_v3(*p)).collect(), normals, faces: solid.f, corner_normals, origin: from }
 }
 
+/// Why a ring of parts alone whose bodies are all cuts builds nothing.
+pub const NO_METAL: &str = "Every part of this ring is a cut: there is no metal to carve";
+
+/// A part's evaluated body as a csg solid.
+fn solid_of(c: &cad::EvaluatedComponent) -> Solid {
+    Solid { v: c.trace.positions.clone(), f: c.mesh.faces.clone() }
+}
+
+/// Whether a component of a ring of parts alone is metal, rather than a stone or a cut.
+fn is_metal(c: &cad::EvaluatedComponent) -> bool {
+    !c.settings.reference && c.attach != Attach::Cut
+}
+
+/// Whether a component of a ring of parts alone is a cut.
+fn is_cut(c: &cad::EvaluatedComponent) -> bool {
+    !c.settings.reference && c.attach == Attach::Cut
+}
+
+/// Whether a cut has metal to carve in `design`: the band, or a part a ring of parts alone sets apart or joins.
+pub fn carvable(design: &RingDesign) -> bool {
+    design.band_is_procedural() || design.cad.as_ref().is_some_and(|d| d.attachments().iter().any(|(_, attach, _)| *attach != Attach::Cut))
+}
+
+/// Whether `design` is a ring of parts alone carrying a cut.
+pub fn cuts_apart(design: &RingDesign) -> bool {
+    !design.band_is_procedural() && design.cad.as_ref().is_some_and(|d| d.attachments().iter().any(|(_, attach, _)| *attach == Attach::Cut))
+}
+
 /// A CAD-only ring's components as one mesh: parts whose boxes meet are united so a shank and the
 /// head standing in it are counted once, parts that touch nothing ride along as their own shells,
-/// and a union that will not resolve leaves both shells as they were, said in the notes. Each
-/// vertex's origin names its part from index 0, and the evaluation rides in the [`Resolved`].
+/// and a union that will not resolve leaves both shells as they were, said in the notes. Each cut
+/// then carves the united parts its box meets. Each vertex's origin names its part from index 0,
+/// a cut's walls the cut after them, and the evaluation rides in the [`Resolved`].
 pub fn assembled(e: cad::Evaluated, cancel: Option<&AtomicBool>) -> Result<(Mesh, Resolved)> {
     let mut out = Resolved { notes: status_notes(&e), ..Default::default() };
-    let metal: Vec<&cad::EvaluatedComponent> = e.components.iter().filter(|c| !c.settings.reference).collect();
-    out.references = e.components.len() - metal.len();
+    let metal: Vec<&cad::EvaluatedComponent> = e.components.iter().filter(|c| is_metal(c)).collect();
+    let cutting: Vec<&cad::EvaluatedComponent> = e.components.iter().filter(|c| is_cut(c)).collect();
+    out.references = e.components.len() - metal.len() - cutting.len();
     if metal.is_empty() {
-        anyhow::bail!(e.first_error().unwrap_or_else(|| "The design contains only reference components".into()));
+        let only = if cutting.is_empty() { "The design contains only reference components" } else { NO_METAL };
+        anyhow::bail!(e.first_error().unwrap_or_else(|| only.into()));
     }
-    let solids: Vec<Solid> = metal.iter().map(|c| Solid { v: c.trace.positions.clone(), f: c.mesh.faces.clone() }).collect();
+    let solids: Vec<Solid> = metal.iter().map(|c| solid_of(c)).collect();
+    let cuts: Vec<Solid> = cutting.iter().map(|c| solid_of(c)).collect();
     let refs: Vec<&Solid> = solids.iter().collect();
     let name_of = |i: usize| SOLID_VERTEX + i as u32;
     let mut solid = Solid::default();
     let mut origin: Vec<u32> = Vec::new();
+    let mut reached = vec![false; cuts.len()];
     for group in csg::cluster(&refs, 0.0) {
         let mut tool = solids[group[0]].clone();
         let mut named = vec![name_of(group[0]); tool.v.len()];
@@ -553,16 +648,87 @@ pub fn assembled(e: cad::Evaluated, cancel: Option<&AtomicBool>) -> Result<(Mesh
                 }
             }
         }
-        solid.push(&tool);
-        origin.extend(named);
+        let names = || group.iter().map(|g| metal[*g].name.as_str()).collect::<Vec<_>>().join(", ");
+        let (mut carved, mut consumed) = (false, false);
+        for (k, cut) in cuts.iter().enumerate() {
+            if !meets(&tool, cut) {
+                continue;
+            }
+            let index = (metal.len() + k) as u32;
+            match csg::combine_traced(&tool, cut, Op::Subtract, cancel) {
+                Ok(t) => {
+                    let hit = t.parent.iter().any(|f| matches!(f, Parent::B(_)));
+                    extend_origin(&mut named, &t, tool.v.len(), &vec![index; cut.f.len()], group[0] as u32, 0);
+                    tool = t.solid;
+                    carved |= hit;
+                    reached[k] |= hit;
+                }
+                Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
+                Err(Snag::Empty) => {
+                    out.notes.push(format!("{}: the cut {} consumed it whole", names(), cutting[k].name));
+                    reached[k] = true;
+                    consumed = true;
+                    break;
+                }
+                Err(err) => out.notes.push(format!("{}: could not be cut from {} ({err})", cutting[k].name, names())),
+            }
+        }
+        if carved || consumed {
+            out.carved.extend(group.iter().map(|g| metal[*g].id));
+        }
+        if !consumed {
+            solid.push(&tool);
+            origin.extend(named);
+        }
     }
+    for (c, hit) in cutting.iter().zip(&reached) {
+        if !hit {
+            out.notes.push(format!("{}: reaches no part to carve", c.name));
+        }
+    }
+    anyhow::ensure!(!solid.f.is_empty(), "The cuts take every part of this ring away");
     let mesh = into_mesh(solid, &[], origin);
     out.first = 0;
-    out.features = metal.iter().map(|c| c.id).collect();
+    out.features = metal.iter().chain(&cutting).map(|c| c.id).collect();
     out.separate = metal.len();
+    out.cut = reached.iter().filter(|hit| **hit).count();
     out.faces = mesh.faces.len();
     out.evaluated = Some(e);
     Ok((mesh, out))
+}
+
+/// Each metal part of a ring of parts alone a cut reaches, carved on its own: its mesh, or `None` where a cut takes it whole.
+pub fn carved_apart(e: &cad::Evaluated, cancel: Option<&AtomicBool>) -> Result<Vec<(Id, Option<Mesh>)>> {
+    let cuts: Vec<Solid> = e.components.iter().filter(|c| is_cut(c)).map(solid_of).collect();
+    let mut out = Vec::new();
+    for c in e.components.iter().filter(|c| is_metal(c)) {
+        let mut part = solid_of(c);
+        let (mut hit, mut gone) = (false, false);
+        for cut in &cuts {
+            if !meets(&part, cut) {
+                continue;
+            }
+            match csg::combine_traced(&part, cut, Op::Subtract, cancel) {
+                Ok(t) => {
+                    hit |= t.parent.iter().any(|f| matches!(f, Parent::B(_)));
+                    part = t.solid;
+                }
+                Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
+                Err(Snag::Empty) => {
+                    gone = true;
+                    break;
+                }
+                Err(_) => {}
+            }
+        }
+        if gone {
+            out.push((c.id, None));
+        } else if hit {
+            let n = part.v.len();
+            out.push((c.id, Some(into_mesh(part, &[], vec![SOLID_VERTEX; n]))));
+        }
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -718,6 +884,18 @@ mod tests {
         let (palm, faces) = own(&carved, 1);
         assert_eq!((palm.len(), faces.len()), (8, 12));
         assert_eq!(own(&plain, 1), (palm, faces));
+        // The pocket's walls belong to the top block and name the cut that carved them, inside the cut's own box.
+        assert_eq!(carved.parts.pockets, [(0, 2)]);
+        let origin = &carved.mesh.origin;
+        let walls: Vec<usize> = (0..origin.len()).filter(|v| carved.parts.named_of(origin[*v]) == Some(3)).collect();
+        assert!(walls.len() >= 8, "{} wall vertices", walls.len());
+        assert!(walls.iter().all(|v| carved.parts.feature_of(origin[*v]) == Some(1)));
+        let tool = carved.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 3).unwrap().mesh.bounds().unwrap();
+        let within = |p: crate::Vec3| p.0 >= tool.0.0 - 1e-4 && p.0 <= tool.1.0 + 1e-4 && p.1 >= tool.0.1 - 1e-4 && p.1 <= tool.1.1 + 1e-4 && p.2 >= tool.0.2 - 1e-4 && p.2 <= tool.1.2 + 1e-4;
+        assert!(walls.iter().all(|v| within(carved.mesh.vertices[*v])));
+        // Every other vertex is named as it belongs.
+        assert!((0..origin.len()).filter(|v| !walls.contains(v)).all(|v| carved.parts.named_of(origin[v]) == carved.parts.feature_of(origin[v])));
+        assert_eq!(plain.parts.named_of(plain.parts.origin_of(0)), Some(1));
     }
 
     #[test]
@@ -905,6 +1083,63 @@ mod tests {
         assert!(built.report.validation.watertight);
         assert!((built.report.volume_mm3 - 96.0).abs() < 0.01, "two 64 mm³ boxes overlapping by 32: {}", built.report.volume_mm3);
         assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
+    }
+
+    /// A ring of parts alone holding `features`.
+    fn alone(features: Vec<Feature>) -> RingDesign {
+        let mut doc = Document::default();
+        for f in features {
+            doc.append(f).unwrap();
+        }
+        RingDesign { cad: Some(doc), ..RingDesign::default() }
+    }
+
+    #[test]
+    fn a_cut_carves_a_ring_of_parts_alone_and_its_walls_name_the_cut() {
+        let lib = AlphaLibrary::builtin();
+        let block = || part(1, "block", Operation::Box { size: [4.0, 3.0, 2.0] }, Attach::Separate, Stage::Cast, Placement::Free);
+        // A 2 × 1.5 tool raised to stand 0.8 mm into the block's top face.
+        let tool = |size: [f64; 3], z: f64| {
+            let raw = part(2, "tool", Operation::Box { size }, Attach::Separate, Stage::Cast, Placement::Free);
+            let moved = part(3, "pocket", Operation::Transform { source: 2, translation: [0.0, 0.0, z], rotation_deg: [0.0; 3] }, Attach::Cut, Stage::Cast, Placement::Free);
+            vec![raw, moved]
+        };
+        let plain = alone(vec![block()]);
+        assert!(carvable(&plain) && !cuts_apart(&plain));
+        let whole = crate::mesh::try_build(&plain, &lib, params()).unwrap();
+        assert!((whole.report.volume_mm3 - 24.0).abs() < 1e-6);
+        let d = alone([vec![block()], tool([2.0, 1.5, 1.6], 1.0)].concat());
+        assert!(!d.band_is_procedural() && carvable(&d) && cuts_apart(&d));
+        // Written at format 6, and read back whole.
+        assert_eq!((crate::library::format_version_for(&plain), crate::library::format_version_for(&d)), (crate::library::PLAIN_FORMAT_VERSION, crate::library::FORMAT_VERSION));
+        let text = crate::library::design_json(&d).unwrap();
+        assert!(text.contains("\"format_version\": 6"));
+        assert_eq!(serde_json::to_value(&crate::library::load_design_str(&text).unwrap().cad).unwrap(), serde_json::to_value(&d.cad).unwrap());
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        assert!(built.report.validation.watertight, "{:?} {:?}", built.report.validation, built.parts.notes);
+        assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
+        assert_eq!((built.parts.separate, built.parts.cut, built.parts.carved.as_slice(), built.parts.features.as_slice()), (1, 1, &[1][..], &[1, 3][..]));
+        let taken = whole.report.volume_mm3 - built.report.volume_mm3;
+        assert!((taken - 2.4).abs() < 1e-6, "2 × 1.5 × 0.8 = 2.4 mm³ out of the block: {taken:.6}");
+        let walls = built.mesh.origin.iter().filter(|o| built.parts.feature_of(**o) == Some(3)).count();
+        assert!(walls >= 8, "the pocket's walls name the cut: {walls}");
+        // A cut that reaches no part says so and leaves the block whole.
+        let missed = crate::mesh::try_build(&alone([vec![block()], tool([2.0, 1.5, 1.6], 9.0)].concat()), &lib, params()).unwrap();
+        assert_eq!(missed.parts.notes, ["pocket: reaches no part to carve"]);
+        assert!((missed.report.volume_mm3 - 24.0).abs() < 1e-6 && missed.parts.cut == 0 && missed.parts.carved.is_empty());
+        // One that takes the block whole leaves no ring, and says why.
+        let error = crate::mesh::try_build(&alone([vec![block()], tool([5.0, 4.0, 3.0], 0.0)].concat()), &lib, params()).err().unwrap().to_string();
+        assert_eq!(error, "The cuts take every part of this ring away");
+        // A ring whose only body is a cut has no metal to carve.
+        let only = alone(tool([2.0, 1.5, 1.6], 1.0));
+        assert!(!carvable(&only) && cuts_apart(&only));
+        assert_eq!(crate::mesh::try_build(&only, &lib, params()).err().unwrap().to_string(), NO_METAL);
+        // Carved on its own, the block is what the build carved.
+        let e = built.parts.evaluated.as_ref().unwrap();
+        let apart = carved_apart(e, None).unwrap();
+        assert_eq!(apart.len(), 1);
+        let mesh = apart[0].1.as_ref().unwrap();
+        assert!(apart[0].0 == 1 && mesh.validate().watertight && (mesh.volume_mm3() - 21.6).abs() < 1e-6, "{}", mesh.volume_mm3());
     }
 
     /// A bezel of radius `r` standing 2.5 mm on the top of the ring, its foot sunk `sink` into the
