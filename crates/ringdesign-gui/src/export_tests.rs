@@ -143,8 +143,8 @@ fn export_step_writes_the_ring_off_the_ui_thread_and_it_imports_back() {
     assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Post", false), ("Court", true)]);
     // The line says the file's size, the band's facets and how near every vertex of the export build stands to them.
     let band = solids[1].mesh.as_ref().unwrap();
-    let size = crate::export::size_words(std::fs::metadata(&step).unwrap().len() as usize);
-    assert!(status.contains(&format!(" • {size} • band {} facets from ", crate::export::grouped(band.faces.len()))), "{status}");
+    let size = ringdesign_core::cad::step::size_words(std::fs::metadata(&step).unwrap().len() as usize);
+    assert!(status.contains(&format!(" • {size} • band {} facets from ", ringdesign_core::cad::step::grouped(band.faces.len()))), "{status}");
     let within: f64 = status.split("every vertex of the export build within ").nth(1).and_then(|s| s.strip_suffix(" mm")).and_then(|s| s.parse().ok()).unwrap_or_else(|| panic!("{status}"));
     assert!(within <= ringdesign_core::cad::step::BAND_TOLERANCE_MM, "{status}");
     let built = ringdesign_core::cad::step::read_solids(&ringdesign_core::cad::step::ring(&d, &h.state().lib, h.state().export_params, "Court").unwrap()).unwrap();

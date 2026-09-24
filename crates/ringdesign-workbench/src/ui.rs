@@ -710,7 +710,7 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
             in_plane,
             ..
         } => {
-            let (at, along) = if *in_plane { ("Pivot in the sketch's plane mm", "Axis in the sketch's plane") } else { ("Pivot mm", "Axis") };
+            let (at, along) = if *in_plane { ("Axis origin in the sketch's plane mm", "Axis direction in the sketch's plane") } else { ("Pivot mm", "Axis") };
             xyz(ui, at, pivot);
             xyz(ui, along, axis);
             number(ui, "Revolution °", degrees);

@@ -215,51 +215,15 @@ pub(crate) fn export_step_to(app: &mut RingDesignerApp, path: PathBuf) {
     spawn_export(app, "STEP", move || {
         match step::ring_sized(&job.design, &job.lib, job.params, step::BAND_TOLERANCE_MM, &job.design.name) {
             Ok(sized) => {
-                let text = &sized.text;
-                let exact = text.matches("=MANIFOLD_SOLID_BREP(").count() + text.matches("=BREP_WITH_VOIDS(").count();
-                let faceted = text.matches("=FACETED_BREP(").count();
                 let nominal = if job.shrink.is_some() { " • nominal size, STEP is never scaled for shrink" } else { "" };
-                match library::write_atomic(&path, text.as_bytes()) {
-                    Ok(()) => format!(
-                        "Wrote {} • {exact} exact and {faceted} faceted solid{} • {} • {}{nominal}",
-                        path.display(),
-                        if exact + faceted == 1 { "" } else { "s" },
-                        size_words(text.len()),
-                        band_words(sized.band.as_ref())
-                    ),
+                match library::write_atomic(&path, sized.text.as_bytes()) {
+                    Ok(()) => format!("Wrote {} • {}{nominal}", path.display(), sized.summary()),
                     Err(e) => format!("STEP export failed: {e}"),
                 }
             }
             Err(e) => format!("STEP export failed: {e:#}"),
         }
     });
-}
-
-/// A file's size in the unit that reads.
-pub(crate) fn size_words(bytes: usize) -> String {
-    if bytes >= 1 << 20 { format!("{:.1} MB", bytes as f64 / 1048576.0) } else { format!("{:.1} KB", bytes as f64 / 1024.0) }
-}
-
-/// `n` with its thousands grouped.
-pub(crate) fn grouped(n: usize) -> String {
-    let digits = n.to_string();
-    let mut out = String::new();
-    for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i) % 3 == 0 {
-            out.push(',');
-        }
-        out.push(c);
-    }
-    out
-}
-
-/// What a STEP file's band holds: its facets, and how near every vertex of the export build stands to them.
-fn band_words(band: Option<&ringdesign_core::cad::step::BandFacets>) -> String {
-    match band {
-        Some(b) if b.written < b.built => format!("band {} facets from {}, every vertex of the export build within {:.3} mm", grouped(b.written), grouped(b.built), b.deviation_mm),
-        Some(b) => format!("band {} facets as the export build made them", grouped(b.written)),
-        None => "no band: every part as it was built".into(),
-    }
 }
 
 pub fn export_3mf(app: &mut RingDesignerApp) {

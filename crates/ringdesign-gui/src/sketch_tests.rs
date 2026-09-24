@@ -654,7 +654,17 @@ fn a_region_revolves_about_the_line_clicked_for_its_axis() {
     assert_eq!((sketch.feature(), *degrees, *in_plane), (Some(id), 180.0, true));
     // Read in the section's plane, whose x runs out from the finger and y along it.
     assert!(axis[0].abs() < 1e-9 && (axis[1].abs() - 1.0).abs() < 1e-9 && axis[2].abs() < 1e-9, "the rectangle's inner side runs along the finger: {axis:?}");
-    assert!((pivot[0] - r).abs() < 1e-9 && pivot[2].abs() < 1e-9, "{pivot:?}");
+    assert!((pivot[0] - r).abs() < 1e-9 && (pivot[1].abs() - 0.5).abs() < 1e-9 && pivot[2].abs() < 1e-9, "a corner of the inner side: {pivot:?}");
+    // In the world the line runs along the finger r out at 45°, through that corner half a millimetre off the mid-plane.
+    let Some(Operation::Sketch { sketch: drawn }) = h.state().design.cad.as_ref().unwrap().feature(id).map(|f| &f.operation) else { panic!("#{id} holds no sketch") };
+    let plane = drawn.plane.plane().unwrap();
+    let n = plane.normal().unwrap();
+    let world = |v: &[f64; 3]| -> [f64; 3] { std::array::from_fn(|k| plane.x_axis[k] * v[0] + plane.y_axis[k] * v[1] + n[k] * v[2]) };
+    let along = world(axis);
+    let at: [f64; 3] = std::array::from_fn(|k| plane.origin[k] + world(pivot)[k]);
+    assert!(along[0].abs() < 1e-9 && along[1].abs() < 1e-9 && (along[2].abs() - 1.0).abs() < 1e-9, "{along:?}");
+    let radial = [45f64.to_radians().cos(), 45f64.to_radians().sin()];
+    assert!((at[0] * radial[0] + at[1] * radial[1] - r).abs() < 1e-9 && (at[2].abs() - 0.5).abs() < 1e-9, "{at:?}");
     assert_eq!(revolve.component.attach, Attach::Join);
 }
 
