@@ -1,7 +1,8 @@
 //! One request run in a worker process with a timeout; a crash, a hang or garbage comes back as a [`Failure`].
+use crate::embedded::Embedded;
 use crate::protocol::{MARKER, Request, Response};
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -30,6 +31,8 @@ pub enum Failure {
     Crashed { status: String, stderr: String },
     /// It answered something that is not a response.
     Garbled(String),
+    /// The worker the executable carries would not come out of it.
+    Unpack(String),
 }
 
 impl std::fmt::Display for Failure {
@@ -42,11 +45,45 @@ impl std::fmt::Display for Failure {
             Self::Crashed { status, stderr } if stderr.is_empty() => write!(f, "OpenCascade's worker died ({status})"),
             Self::Crashed { status, stderr } => write!(f, "OpenCascade's worker died ({status}): {stderr}"),
             Self::Garbled(e) => write!(f, "OpenCascade's worker answered nonsense: {e}"),
+            Self::Unpack(e) => write!(f, "OpenCascade's worker would not unpack: {e}"),
         }
     }
 }
 
 impl std::error::Error for Failure {}
+
+/// Where a worker would come from, found without unpacking or starting anything.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Found {
+    /// Named by [`WORKER_ENV`].
+    Named(PathBuf),
+    /// [`WORKER_NAME`] beside the running executable.
+    Beside(PathBuf),
+    /// Carried inside the executable; `unpacked` once a copy of it sits in the data folder.
+    Embedded { unpacked: bool },
+}
+
+/// [`WORKER_NAME`] beside the running executable, whether or not it is there.
+fn beside_executable() -> Result<PathBuf, Failure> {
+    let exe = std::env::current_exe().map_err(|e| Failure::Spawn(e.to_string()))?;
+    Ok(exe.with_file_name(format!("{WORKER_NAME}{}", std::env::consts::EXE_SUFFIX)))
+}
+
+/// The worker [`Worker::find`] would run: the one [`WORKER_ENV`] names, else one beside the executable, else `embedded` under `root`.
+pub fn probe(embedded: &Embedded, root: &Path) -> Result<Found, Failure> {
+    if let Some(named) = std::env::var_os(WORKER_ENV) {
+        let named = PathBuf::from(named);
+        return if named.is_file() { Ok(Found::Named(named)) } else { Err(Failure::Missing(named)) };
+    }
+    let beside = beside_executable()?;
+    if beside.is_file() {
+        return Ok(Found::Beside(beside));
+    }
+    if embedded.is_present() {
+        return Ok(Found::Embedded { unpacked: embedded.is_unpacked(root) });
+    }
+    Err(Failure::Missing(beside))
+}
 
 /// A worker program and the arguments it is started with.
 #[derive(Clone, Debug, PartialEq)]
@@ -64,14 +101,20 @@ impl Worker {
     pub fn locate() -> Result<Self, Failure> {
         let program = match std::env::var_os(WORKER_ENV) {
             Some(p) => PathBuf::from(p),
-            None => std::env::current_exe()
-                .map_err(|e| Failure::Spawn(e.to_string()))?
-                .with_file_name(format!("{WORKER_NAME}{}", std::env::consts::EXE_SUFFIX)),
+            None => beside_executable()?,
         };
         if !program.is_file() {
             return Err(Failure::Missing(program));
         }
         Ok(Self::at(program))
+    }
+
+    /// [`Worker::locate`]'s worker when there is one, else `embedded` unpacked under `root` on its first use; a name in [`WORKER_ENV`] is never passed over.
+    pub fn find(embedded: &Embedded, root: &Path) -> Result<Self, Failure> {
+        match probe(embedded, root)? {
+            Found::Named(program) | Found::Beside(program) => Ok(Self::at(program)),
+            Found::Embedded { .. } => embedded.unpack(root).map(|u| Self::at(u.path)),
+        }
     }
 
     /// The running executable answering [`WORKER_FLAG`], for a host that dispatches to `kernel::serve` itself.
@@ -88,13 +131,15 @@ impl Worker {
     /// [`Worker::run`], its worker killed as soon as `cancel` is set.
     pub fn run_cancellable(&self, request: &Request, timeout: Duration, cancel: &AtomicBool) -> Result<Response, Failure> {
         let input = serde_json::to_vec(request).map_err(|e| Failure::Spawn(e.to_string()))?;
-        let mut child = Command::new(&self.program)
-            .args(&self.args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| Failure::Spawn(format!("{}: {e}", self.program.display())))?;
+        let mut command = Command::new(&self.program);
+        command.args(&self.args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            // CREATE_NO_WINDOW: a console worker started by a windowed app opens no console of its own.
+            command.creation_flags(0x0800_0000);
+        }
+        let mut child = command.spawn().map_err(|e| Failure::Spawn(format!("{}: {e}", self.program.display())))?;
         let mut stdin = child.stdin.take().ok_or_else(|| Failure::Spawn("no stdin".into()))?;
         let mut stdout = child.stdout.take().ok_or_else(|| Failure::Spawn("no stdout".into()))?;
         let mut stderr = child.stderr.take().ok_or_else(|| Failure::Spawn("no stderr".into()))?;

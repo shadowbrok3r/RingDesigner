@@ -590,8 +590,7 @@ fn reader_of(path: &std::path::Path) -> &'static str {
 /// The part `path` holds, joined at the top of the ring and chosen, one History entry; a file over [`SYNC_IMPORT_BYTES`], and any STEP OpenCascade reads, is read off the UI thread.
 pub(crate) fn import_part_path(app: &mut RingDesignerApp, path: &std::path::Path) {
     let file = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
-    #[cfg(feature = "kernel-occt")]
-    if ringdesign_mcp::import::is_step(path) {
+    if ringdesign_mcp::import::is_step(path) && crate::occt::available() {
         let path = path.to_path_buf();
         app.start_import(file, "OpenCascade", move |cancel| crate::occt::import_step(&path, cancel));
         return;

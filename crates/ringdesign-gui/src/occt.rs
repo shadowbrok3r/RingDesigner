@@ -1,9 +1,9 @@
-//! OpenCascade in the CAD pane: the chosen edges filleted by a worker process and committed as one stored-mesh feature.
+//! OpenCascade in the CAD pane: fillets, shells and the torus-and-cylinder junction made by a worker process and committed as one stored-mesh feature.
 use crate::app::RingDesignerApp;
+use crate::occt_embedded;
 use crate::theme;
-use ringdesign_core::cad::{BuildCtx, EdgeRef, EvaluatedComponent, Feature, Operation, edge_signature, edit::CadEdit, evaluate_with};
+use ringdesign_core::cad::{BuildCtx, EdgeRef, EvaluatedComponent, Feature, Operation, Placement, edge_signature, edit::CadEdit, evaluate_with};
 use ringdesign_core::sketch::Id;
-use ringdesign_occt::client::Worker;
 use ringdesign_occt::parts;
 use ringdesign_occt::protocol::{Request, Response, Tolerance};
 use ringdesign_workbench::{icons::Icon, viewport::Sel};
@@ -62,12 +62,31 @@ fn face_point(c: &EvaluatedComponent, face: u32) -> Option<[f64; 3]> {
     Some(ringdesign_core::cad::pattern::inverse(&c.frame).point(world))
 }
 
+/// Whether a worker is there to run OpenCascade, embedded or beside the app.
+pub fn available() -> bool {
+    occt_embedded::missing().is_none()
+}
+
+/// The torus and the cylinder a junction fuses: two chosen parts, a torus standing free and a cylinder, in either order.
+fn chosen_junction(app: &RingDesignerApp) -> Option<(Id, Id)> {
+    let doc = app.design.cad.as_ref()?;
+    let parts: Vec<Id> = app.selection.items.iter().filter_map(|s| if let Sel::Part(id) = s { Some(*id) } else { None }).collect();
+    let [a, b] = parts[..] else { return None };
+    let is_torus = |id: Id| doc.feature(id).is_some_and(|f| matches!(f.operation, Operation::Torus { .. }) && f.component.placement == Placement::Free);
+    let is_cylinder = |id: Id| doc.feature(id).is_some_and(|f| matches!(f.operation, Operation::Cylinder { .. }));
+    match (is_torus(a) && is_cylinder(b), is_torus(b) && is_cylinder(a)) {
+        (true, _) => Some((a, b)),
+        (_, true) => Some((b, a)),
+        _ => None,
+    }
+}
+
 /// A STEP file's solids read by OpenCascade in a worker process, kept as one stored part at the top of the ring and joined.
 pub fn import_step(path: &std::path::Path, cancel: &std::sync::atomic::AtomicBool) -> Result<(Feature, Vec<String>), String> {
     let file = path.file_name().and_then(|n| n.to_str()).unwrap_or("The file").to_string();
     let step = std::fs::read_to_string(path).map_err(|e| format!("{file} could not be read: {e}"))?;
     let request = Request::Import { step, tolerance: Tolerance::EXPORT };
-    let response = Worker::locate().map_err(|e| e.to_string())?.run_cancellable(&request, TIMEOUT, cancel).map_err(|e| e.to_string())?;
+    let response = occt_embedded::worker()?.run_cancellable(&request, TIMEOUT, cancel).map_err(|e| e.to_string())?;
     let (solids, notes) = match response {
         Response::Done { solids, notes, .. } => (solids, notes),
         Response::Refused { message } => return Err(format!("{file}: {message}")),
@@ -113,10 +132,10 @@ fn start(job: &Shared, ctx: &egui::Context, request: Request, edit: impl FnOnce(
     let (job, ctx) = (job.clone(), ctx.clone());
     if let Ok(mut j) = job.lock() {
         j.running = true;
-        j.message = Some("OpenCascade is working".into());
+        j.message = Some(if occt_embedded::unpacks_first() { "Unpacking OpenCascade for its first use" } else { "OpenCascade is working" }.into());
     }
     std::thread::spawn(move || {
-        let outcome = Worker::locate().map_err(|e| e.to_string()).and_then(|w| w.run(&request, TIMEOUT).map_err(|e| e.to_string())).and_then(|response| match response {
+        let outcome = occt_embedded::worker().and_then(|w| w.run(&request, TIMEOUT).map_err(|e| e.to_string())).and_then(|response| match response {
             Response::Done { solids, .. } => solids.first().map(edit).ok_or_else(|| "OpenCascade built nothing".to_string()),
             Response::Refused { message } => Err(message),
         });
@@ -182,73 +201,123 @@ pub fn cad_pane(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         let Operation::Stored { recipe, sources, .. } = &f.operation else { return None };
         (recipe.kernel == "occt" && recipe.op == "fillet" && sources.len() == 1 && recipe.digest != ringdesign_core::cad::stored::digest(doc.as_ref()?, sources)).then_some(f)
     });
+    let missing = occt_embedded::missing();
+    let has_torus = doc.as_ref().is_some_and(|d| d.features.iter().any(|f| matches!(f.operation, Operation::Torus { .. })));
+    let junction = chosen_junction(app);
+    let post = junction.and_then(|(_, cylinder)| component(app, cylinder));
+    let (show_fillet, show_shell) = (chosen.is_some() || rerun.is_some(), faces.is_some());
     let rect = ui.max_rect();
-    egui::Area::new(ui.id().with("occt-pane")).order(egui::Order::Middle).fixed_pos(rect.left_bottom() + egui::vec2(8.0, -8.0)).pivot(egui::Align2::LEFT_BOTTOM).show(&ctx, |ui| {
+    // Bottom right, clear of the feature column's inspector and above the pane's own bar.
+    egui::Area::new(ui.id().with("occt-pane")).order(egui::Order::Middle).fixed_pos(rect.right_bottom() + egui::vec2(-8.0, -44.0)).pivot(egui::Align2::RIGHT_BOTTOM).show(&ctx, |ui| {
         egui::Frame::new().fill(theme::FLOAT.gamma_multiply(0.94)).corner_radius(4).inner_margin(6).show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.strong("OpenCascade");
-                ui.add(egui::DragValue::new(&mut radius).range(0.01..=5.0).speed(0.01).suffix(" mm").prefix("r "));
-                let why = match (&chosen, &target) {
-                    _ if running => Some("OpenCascade is already working"),
-                    (None, _) => Some("Choose one part's edges in the Ring viewport: click an edge, Shift adds more"),
-                    (Some(_), None) => Some("The chosen part is not built yet"),
-                    (Some(_), Some(c)) if c.brep().is_none() => Some("OpenCascade rounds a kernel part; this one is a mesh"),
-                    _ => None,
-                };
-                let label = chosen.as_ref().map_or("Fillet with OpenCascade".to_string(), |(_, e)| format!("Fillet {} edge{} with OpenCascade", e.len(), if e.len() == 1 { "" } else { "s" }));
-                let clicked = ui
-                    .add_enabled(why.is_none(), egui::Button::new((Icon::CadFillet.image(ui, 18.0), label)))
-                    .on_hover_text("Round the chosen edges in OpenCascade, in a process of its own; the result is kept in the file as a mesh every build can show")
-                    .on_disabled_hover_text(why.unwrap_or_default())
-                    .clicked();
-                if let (true, Some((part, edges)), Some(c), Some(doc)) = (clicked, &chosen, &target, &doc) {
-                    match parts::fillet(c, edges, radius, Tolerance::EXPORT) {
-                        Ok((request, params)) => {
-                            let (doc, part, request2) = (doc.clone(), *part, request.clone());
-                            let settings = doc.feature(part).map(|f| f.component.clone()).unwrap_or_default();
-                            start(&job, ui.ctx(), request, move |built| CadEdit::Add { feature: parts::stored_feature(&doc, &[part], &request2, params, built, settings), after: None });
-                        }
-                        Err(e) => app.set_status(format!("{e:#}")),
-                    }
-                }
-                if let Some(f) = &rerun {
-                    let again = ui.add_enabled(!running, egui::Button::new((Icon::Rebuild.image(ui, 18.0), "Run again"))).on_hover_text("Its source changed since OpenCascade made it: fillet the same edges of the part as it is now");
-                    if again.clicked() {
-                        rerun_fillet(app, &job, ui.ctx(), f);
-                    }
+                let about = missing.as_deref().unwrap_or("Each run starts a worker process of its own; a crash or a hang stops only it");
+                ui.strong("OpenCascade").on_hover_text(about);
+                if !(show_fillet || show_shell || has_torus) {
+                    ui.weak(if missing.is_some() { "no worker in this build" } else { "choose a part's edges to fillet, or its faces to shell" }).on_hover_text(about);
                 }
                 if running {
                     ui.spinner();
                 }
             });
-            ui.horizontal(|ui| {
-                ui.add(egui::DragValue::new(&mut wall).range(0.05..=5.0).speed(0.01).suffix(" mm").prefix("wall "));
-                let why = match (&faces, &hollowed) {
-                    _ if running => Some("OpenCascade is already working"),
-                    (None, _) => Some("Choose the faces to leave open, all of one part: click a face, Shift adds more"),
-                    (Some(_), None) => Some("The chosen part is not built yet"),
-                    (Some(_), Some(c)) if c.brep().is_none() => Some("OpenCascade hollows a kernel part; this one is a mesh"),
-                    _ => None,
-                };
-                let label = faces.as_ref().map_or("Shell with OpenCascade".to_string(), |(_, f)| format!("Shell with OpenCascade, {} face{} open", f.len(), if f.len() == 1 { "" } else { "s" }));
-                let clicked = ui
-                    .add_enabled(why.is_none(), egui::Button::new((Icon::CadShell.image(ui, 18.0), label)))
-                    .on_hover_text("Hollow the chosen part to walls this thick in OpenCascade, the chosen faces left open; the result is kept in the file as a mesh every build can show")
-                    .on_disabled_hover_text(why.unwrap_or_default())
-                    .clicked();
-                if let (true, Some((part, open)), Some(c), Some(doc)) = (clicked, &faces, &hollowed, &doc) {
-                    let points: Option<Vec<[f64; 3]>> = open.iter().map(|f| face_point(c, *f)).collect();
-                    let prepared = points.ok_or_else(|| "A chosen face has no triangles to point at".to_string()).and_then(|points| parts::shell(c, &points, wall, Tolerance::EXPORT).map_err(|e| format!("{e:#}")));
-                    match prepared {
-                        Ok((request, params)) => {
-                            let (doc, part, request2) = (doc.clone(), *part, request.clone());
-                            let settings = doc.feature(part).map(|f| f.component.clone()).unwrap_or_default();
-                            start(&job, ui.ctx(), request, move |built| CadEdit::Add { feature: parts::stored_feature(&doc, &[part], &request2, params, built, settings), after: None });
+            if show_fillet {
+                ui.horizontal(|ui| {
+                    ui.add(egui::DragValue::new(&mut radius).range(0.01..=5.0).speed(0.01).suffix(" mm").prefix("r "));
+                    let why = match (&chosen, &target) {
+                        _ if missing.is_some() => missing.as_deref(),
+                        _ if running => Some("OpenCascade is already working"),
+                        (None, _) => Some("Choose one part's edges in the Ring viewport: click an edge, Shift adds more"),
+                        (Some(_), None) => Some("The chosen part is not built yet"),
+                        (Some(_), Some(c)) if c.brep().is_none() => Some("OpenCascade rounds a kernel part; this one is a mesh"),
+                        _ => None,
+                    };
+                    let label = chosen.as_ref().map_or("Fillet with OpenCascade".to_string(), |(_, e)| format!("Fillet {} edge{} with OpenCascade", e.len(), if e.len() == 1 { "" } else { "s" }));
+                    let clicked = ui
+                        .add_enabled(why.is_none(), egui::Button::new((Icon::CadFillet.image(ui, 18.0), label)))
+                        .on_hover_text("Round the chosen edges in OpenCascade, in a process of its own; the result is kept in the file as a mesh every build can show")
+                        .on_disabled_hover_text(why.unwrap_or_default())
+                        .clicked();
+                    if let (true, Some((part, edges)), Some(c), Some(doc)) = (clicked, &chosen, &target, &doc) {
+                        match parts::fillet(c, edges, radius, Tolerance::EXPORT) {
+                            Ok((request, params)) => {
+                                let (doc, part, request2) = (doc.clone(), *part, request.clone());
+                                let settings = doc.feature(part).map(|f| f.component.clone()).unwrap_or_default();
+                                start(&job, ui.ctx(), request, move |built| CadEdit::Add { feature: parts::stored_feature(&doc, &[part], &request2, params, built, settings), after: None });
+                            }
+                            Err(e) => app.set_status(format!("{e:#}")),
                         }
-                        Err(e) => app.set_status(e),
                     }
-                }
-            });
+                    if let Some(f) = &rerun {
+                        let again = ui
+                            .add_enabled(!running && missing.is_none(), egui::Button::new((Icon::Rebuild.image(ui, 18.0), "Run again")))
+                            .on_hover_text("Its source changed since OpenCascade made it: fillet the same edges of the part as it is now")
+                            .on_disabled_hover_text(missing.as_deref().unwrap_or("OpenCascade is already working"));
+                        if again.clicked() {
+                            rerun_fillet(app, &job, ui.ctx(), f);
+                        }
+                    }
+                });
+            }
+            if show_shell {
+                ui.horizontal(|ui| {
+                    ui.add(egui::DragValue::new(&mut wall).range(0.05..=5.0).speed(0.01).suffix(" mm").prefix("wall "));
+                    let why = match (&faces, &hollowed) {
+                        _ if missing.is_some() => missing.as_deref(),
+                        _ if running => Some("OpenCascade is already working"),
+                        (None, _) => Some("Choose the faces to leave open, all of one part: click a face, Shift adds more"),
+                        (Some(_), None) => Some("The chosen part is not built yet"),
+                        (Some(_), Some(c)) if c.brep().is_none() => Some("OpenCascade hollows a kernel part; this one is a mesh"),
+                        _ => None,
+                    };
+                    let label = faces.as_ref().map_or("Shell with OpenCascade".to_string(), |(_, f)| format!("Shell with OpenCascade, {} face{} open", f.len(), if f.len() == 1 { "" } else { "s" }));
+                    let clicked = ui
+                        .add_enabled(why.is_none(), egui::Button::new((Icon::CadShell.image(ui, 18.0), label)))
+                        .on_hover_text("Hollow the chosen part to walls this thick in OpenCascade, the chosen faces left open; the result is kept in the file as a mesh every build can show")
+                        .on_disabled_hover_text(why.unwrap_or_default())
+                        .clicked();
+                    if let (true, Some((part, open)), Some(c), Some(doc)) = (clicked, &faces, &hollowed, &doc) {
+                        let points: Option<Vec<[f64; 3]>> = open.iter().map(|f| face_point(c, *f)).collect();
+                        let prepared = points.ok_or_else(|| "A chosen face has no triangles to point at".to_string()).and_then(|points| parts::shell(c, &points, wall, Tolerance::EXPORT).map_err(|e| format!("{e:#}")));
+                        match prepared {
+                            Ok((request, params)) => {
+                                let (doc, part, request2) = (doc.clone(), *part, request.clone());
+                                let settings = doc.feature(part).map(|f| f.component.clone()).unwrap_or_default();
+                                start(&job, ui.ctx(), request, move |built| CadEdit::Add { feature: parts::stored_feature(&doc, &[part], &request2, params, built, settings), after: None });
+                            }
+                            Err(e) => app.set_status(e),
+                        }
+                    }
+                });
+            }
+            if has_torus {
+                ui.horizontal(|ui| {
+                    if !show_fillet {
+                        ui.add(egui::DragValue::new(&mut radius).range(0.01..=5.0).speed(0.01).suffix(" mm").prefix("r "));
+                    }
+                    let why = match (junction, &post) {
+                        _ if missing.is_some() => missing.as_deref(),
+                        _ if running => Some("OpenCascade is already working"),
+                        (None, _) => Some("Choose a torus standing free round the finger and a cylinder on it: click one part, Shift adds the other"),
+                        (Some(_), None) => Some("The chosen cylinder is not built yet"),
+                        _ => None,
+                    };
+                    let clicked = ui
+                        .add_enabled(why.is_none(), egui::Button::new((Icon::CadUnion.image(ui, 18.0), "Fuse torus and cylinder with OpenCascade")))
+                        .on_hover_text("Fuse the chosen torus and cylinder in OpenCascade and round every edge where they meet by r; the result replaces both and is kept in the file as a mesh every build can show")
+                        .on_disabled_hover_text(why.unwrap_or_default())
+                        .clicked();
+                    if let (true, Some((torus, cylinder)), Some(c), Some(doc)) = (clicked, junction, &post, &doc) {
+                        match parts::junction(doc, torus, c, radius, Tolerance::EXPORT) {
+                            Ok((request, params)) => {
+                                let (doc, request2) = (doc.clone(), request.clone());
+                                let settings = doc.feature(torus).map(|f| f.component.clone()).unwrap_or_default();
+                                start(&job, ui.ctx(), request, move |built| CadEdit::Add { feature: parts::stored_feature(&doc, &[torus, cylinder], &request2, params, built, settings), after: None });
+                            }
+                            Err(e) => app.set_status(format!("{e:#}")),
+                        }
+                    }
+                });
+            }
             if let Some(m) = message.filter(|m| !m.is_empty()) {
                 let colour = if running { ui.visuals().weak_text_color() } else if m.starts_with("Add ") || m.starts_with("Edit ") { theme::GOOD } else { theme::BAD };
                 ui.colored_label(colour, m);
@@ -312,6 +381,92 @@ mod tests {
         doc.append(Feature { id: 2, name: "Block".into(), enabled: true, operation: Operation::Box { size: [4.0, 6.0, 2.0] }, component: block }).unwrap();
         let base = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
         RingDesign { cad: Some(doc), ..base }
+    }
+
+    #[test]
+    fn without_a_worker_the_opencascade_rows_are_greyed_and_say_why() {
+        use egui_kittest::kittest::NodeT;
+        if crate::occt_embedded::EMBEDDED.is_present() {
+            eprintln!("this build carries a worker; there is nothing to grey");
+            return;
+        }
+        // SAFETY: tests here run one at a time, and each one that wants a worker names it again.
+        unsafe { std::env::remove_var(ringdesign_occt::client::WORKER_ENV) };
+        let mut h = harness();
+        {
+            let app = h.state_mut();
+            app.switch_desktop(crate::dock::Desktop::Cad);
+            app.design = court_with_block();
+            app.history.commit(&app.design);
+            app.rebuild_now();
+        }
+        wait_for_build(&mut h);
+        h.state_mut().selection.items.clear();
+        h.run_steps(3);
+        assert!(h.query_by_label("no worker in this build").is_some() && h.query_by_label_contains("with OpenCascade").is_none(), "one line until a row applies");
+        h.state_mut().selection.items = vec![Sel::Edge { feature: 2, edge: 0 }, Sel::Face { feature: 2, face: 0 }];
+        h.run_steps(3);
+        let reason = format!("This build carries no OpenCascade worker: put occt-worker{} beside RingDesigner, or name one in RINGDESIGN_OCCT_WORKER", std::env::consts::EXE_SUFFIX);
+        assert_eq!(crate::occt_embedded::missing(), Some(reason));
+        assert!(!super::available());
+        for label in ["Fillet 1 edge with OpenCascade", "Shell with OpenCascade, 1 face open"] {
+            assert!(h.get_by_label(label).accesskit_node().is_disabled(), "{label}");
+        }
+        assert!(h.query_by_label("Fuse torus and cylinder with OpenCascade").is_none(), "offered only beside a torus");
+    }
+
+    #[test]
+    fn a_torus_and_a_cylinder_fuse_in_opencascade_and_replace_both() {
+        if worker().is_none() {
+            return;
+        }
+        let (major, minor) = (9.85, 1.2);
+        let design = |post: Placement| {
+            let mut doc = Document::default();
+            let shank = Component { role: ComponentRole::Shank, ..Component::default() };
+            doc.append(Feature { id: 1, name: "Shank".into(), enabled: true, operation: Operation::Torus { major_mm: major, minor_mm: minor }, component: shank }).unwrap();
+            doc.append(Feature { id: 2, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 0.8, height_mm: 2.5 }, component: Component { placement: post, ..Component::default() } }).unwrap();
+            RingDesign { cad: Some(doc), ..RingDesign::default() }
+        };
+        let mut h = harness();
+        let seat = |h: &mut egui_kittest::Harness<'static, crate::app::RingDesignerApp>, d: RingDesign| {
+            let app = h.state_mut();
+            app.design = d;
+            app.history.commit(&app.design);
+            app.rebuild_now();
+            wait_for_build(h);
+            h.state().build.as_ref().unwrap().parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 2).unwrap().frame.origin[1]
+        };
+        h.state_mut().switch_desktop(crate::dock::Desktop::Cad);
+        // The post's foot half a millimetre into the tube's crest, however the seat is read.
+        let r0 = seat(&mut h, design(Placement::ring(90.0, 0.0)));
+        let seated = seat(&mut h, design(Placement::ring(90.0, major + minor + 1.25 - 0.5 - r0)));
+        assert!((seated - (major + minor + 0.75)).abs() < 1e-6, "{seated}");
+        h.state_mut().selection.items = vec![Sel::Part(2), Sel::Part(1)];
+        h.run_steps(3);
+        let entries = h.state().history.timeline().len();
+        h.get_by_label("Fuse torus and cylinder with OpenCascade").click();
+        let started = std::time::Instant::now();
+        while !h.state().design.cad.as_ref().unwrap().features.iter().any(|f| matches!(f.operation, Operation::Stored { .. })) {
+            h.run_steps(2);
+            assert!(started.elapsed() < std::time::Duration::from_secs(30), "OpenCascade never answered");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let doc = h.state().design.cad.clone().unwrap();
+        let f = doc.features.last().unwrap();
+        let Operation::Stored { recipe, sources, mesh } = &f.operation else { unreachable!() };
+        assert_eq!((f.name.as_str(), recipe.op.as_str(), sources.as_slice(), doc.outputs.as_slice()), ("Junction (OpenCascade)", "junction", &[1, 2][..], &[f.id][..]));
+        assert_eq!(f.component.role, ComponentRole::Shank);
+        let timeline = h.state().history.timeline();
+        assert_eq!((timeline.len(), timeline.last().unwrap().0.as_str()), (entries + 1, "Add Junction (OpenCascade)"), "one History entry");
+        // The tube and the post less their overlap, with a little back in the rounded corner.
+        let (tube, post) = (2.0 * std::f64::consts::PI.powi(2) * major * minor * minor, std::f64::consts::PI * 0.8 * 0.8 * 2.5);
+        let volume = mesh.made().unwrap().solid().volume();
+        assert!(volume > tube && volume < tube + post, "{volume} against {tube} + {post}");
+        h.state_mut().rebuild_now();
+        wait_for_build(&mut h);
+        let built = h.state().build.clone().unwrap();
+        assert!(built.report.validation.watertight, "{:?}", built.report.validation);
     }
 
     #[test]

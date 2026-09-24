@@ -1281,7 +1281,6 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         state.draft = Some(g);
     }
     app.cad = state;
-    #[cfg(feature = "kernel-occt")]
     crate::occt::cad_pane(app, ui);
 }
 

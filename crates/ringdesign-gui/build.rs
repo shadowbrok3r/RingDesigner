@@ -22,9 +22,67 @@ use std::path::PathBuf;
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     texture_gate();
+    occt_worker();
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         resources();
     }
+}
+
+/// The OpenCascade worker the app carries, when `RINGDESIGNER_OCCT_WORKER`
+/// names a built one.
+///
+/// The file is deflated into `OUT_DIR` and described, with its SHA-256 and
+/// length, by a generated `occt_worker.rs` that `src/occt_embedded.rs`
+/// includes; the app unpacks it into its data folder on first use. Without the
+/// variable the generated file names no worker and nothing is embedded, so an
+/// ordinary build and every CI job are unchanged. The file's first bytes are
+/// checked against the target, so a Linux worker cannot ride inside a Windows
+/// app.
+fn occt_worker() {
+    use flate2::{Compression, write::DeflateEncoder};
+    use sha2::{Digest, Sha256};
+
+    println!("cargo:rerun-if-env-changed=RINGDESIGNER_OCCT_WORKER");
+    let out = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let generated = out.join("occt_worker.rs");
+    let Some(worker) = env::var_os("RINGDESIGNER_OCCT_WORKER").filter(|v| !v.is_empty()).map(PathBuf::from) else {
+        std::fs::write(&generated, "pub static EMBEDDED: Embedded = Embedded::NONE;\n").unwrap();
+        return;
+    };
+    println!("cargo:rerun-if-changed={}", worker.display());
+    let raw = std::fs::read(&worker).unwrap_or_else(|e| panic!("RINGDESIGNER_OCCT_WORKER={}: {e}", worker.display()));
+    let os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    let (magic, kind): (&[&[u8]], &str) = match os.as_str() {
+        "windows" => (&[b"MZ"], "a Windows executable"),
+        "macos" => (&[&[0xcf, 0xfa, 0xed, 0xfe], &[0xca, 0xfe, 0xba, 0xbe]], "a Mach-O executable"),
+        _ => (&[b"\x7fELF"], "an ELF executable"),
+    };
+    assert!(
+        magic.iter().any(|m| raw.starts_with(m)),
+        "RINGDESIGNER_OCCT_WORKER={} is not {kind}, which a {os} app needs",
+        worker.display()
+    );
+    let started = std::time::Instant::now();
+    let sha256: String = Sha256::digest(&raw).iter().map(|b| format!("{b:02x}")).collect();
+    let mut encoder = DeflateEncoder::new(Vec::new(), Compression::best());
+    encoder.write_all(&raw).unwrap();
+    let deflated = encoder.finish().unwrap();
+    let packed = out.join("occt-worker.deflate");
+    std::fs::write(&packed, &deflated).unwrap();
+    let packed = packed.to_str().expect("OUT_DIR is UTF-8");
+    std::fs::write(
+        &generated,
+        format!("pub static EMBEDDED: Embedded = Embedded {{ deflated: include_bytes!({packed:?}), sha256: {sha256:?}, bytes: {} }};\n", raw.len()),
+    )
+    .unwrap();
+    let mb = |n: usize| n as f64 / 1e6;
+    println!(
+        "cargo:warning=ringdesigner: carries the OpenCascade worker {}: {:.1} MB deflated to {:.1} MB in {:.1} s, SHA-256 {sha256}",
+        worker.display(),
+        mb(raw.len()),
+        mb(deflated.len()),
+        started.elapsed().as_secs_f64()
+    );
 }
 
 /// The texture server's address and key, compiled in so a jeweller's copy can

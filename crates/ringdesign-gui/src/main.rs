@@ -14,9 +14,10 @@ mod cutter_tools;
 mod dock;
 mod export;
 mod gems;
+mod licences;
 mod mcp_host;
-#[cfg(feature = "kernel-occt")]
 mod occt;
+mod occt_embedded;
 mod pane;
 mod panels;
 mod patterns;
@@ -60,6 +61,7 @@ impl eframe::App for RingDesignerApp {
         self.poll_export();
         self.updater.poll(ui.ctx());
         panels::render(self, ui);
+        licences::window(ui.ctx());
         if std::mem::take(&mut self.install_update) {
             if let Some(storage) = frame.storage_mut() {
                 match self.persist_session(storage) {

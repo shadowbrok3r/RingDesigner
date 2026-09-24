@@ -13,11 +13,12 @@ default = []
 ui-shot = ["egui_kittest/wgpu", "egui_kittest/snapshot"]
 ## Free mode's solid kernel (Manifold, C++ via cmake on first build).
 kernel = ["ringdesign-graph/kernel-manifold", "ringdesign-script/kernel"]
-## OpenCascade for fillets, shells and STEP import (desktop only).
-kernel-occt = ["dep:ringdesign-occt", "ringdesign-occt/kernel-occt"]
+## The app needs no feature for OpenCascade: it finds a worker at run time, one embedded by build.rs from
+## RINGDESIGNER_OCCT_WORKER included. This one compiles the worker's kernel into the workspace build as well.
+kernel-occt = ["ringdesign-occt/kernel-occt"]
 
 [dependencies]
-ringdesign-occt = { path = "../ringdesign-occt", optional = true }
+ringdesign-occt = { path = "../ringdesign-occt" }
 ringdesign-assets.workspace = true
 ringdesign-core.workspace = true
 ringdesign-workbench = { path = "../ringdesign-workbench", features = ["glow"] }
@@ -52,6 +53,9 @@ self-replace = "1.5"
 [build-dependencies]
 dotenvy.workspace = true
 embed-resource.workspace = true
+# The OpenCascade worker named by RINGDESIGNER_OCCT_WORKER, deflated and digested into the executable.
+flate2.workspace = true
+sha2 = "0.10.9"
 
 [dev-dependencies]
 egui_kittest = { version = "0.36", features = ["eframe"] }
