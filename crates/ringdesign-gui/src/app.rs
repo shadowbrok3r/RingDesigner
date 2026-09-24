@@ -358,6 +358,8 @@ pub struct RingDesignerApp {
     pub active_pane: usize,
     /// Frame the next completed build. Set on new/open, never on rebuilds.
     pub fit_pending: bool,
+    /// The pending fit keeps each pane's zoom and its pan about the ring's middle.
+    pub fit_keeps_view: bool,
     /// Where each tool panel is docked, and how tall.
     pub dock: Dock,
     pub selected_layer: Option<usize>,
@@ -514,6 +516,7 @@ impl RingDesignerApp {
             graph_inline_edit: ws.graph_inline_edit,
             active_pane: ws.active_pane,
             fit_pending,
+            fit_keeps_view: false,
             dock: cc
                 .storage
                 .and_then(|s| s.get_string(DOCK_STORAGE_KEY))
@@ -789,8 +792,18 @@ impl RingDesignerApp {
                     // on every edit.
                     if self.fit_pending {
                         self.fit_pending = false;
+                        let keep = std::mem::take(&mut self.fit_keeps_view);
                         let bounds = build.mesh.bounds();
                         for pane in &mut self.panes {
+                            if keep {
+                                // Keeps the zoom and the pan, taken about the ring's middle.
+                                pane.camera.pivot_home();
+                            } else {
+                                // Frames the new ring whole: no turn, zoom 1, centred on its middle.
+                                pane.turn = None;
+                                pane.camera.zoom = 1.0;
+                                pane.camera.centre_home();
+                            }
                             pane.camera.fit(bounds);
                         }
                     }

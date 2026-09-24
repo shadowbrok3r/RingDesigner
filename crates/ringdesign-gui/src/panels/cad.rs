@@ -274,6 +274,18 @@ impl CadState {
         self.explode = mm;
         upload(self, false);
     }
+    /// The 3D canvas's camera, and whether a turn is still easing it.
+    pub fn view_camera(&self) -> (OrbitCamera, bool) {
+        (self.camera, self.display.turn.is_some())
+    }
+    /// Chooses `feature` in the tree, as a click on it does.
+    pub fn choose_feature(&mut self, feature: u64) {
+        self.selected = Some(NodeId(feature));
+    }
+    /// The part `id`'s bounds as the canvas draws it.
+    pub fn drawn_bounds(&self, id: u64) -> Option<(ringdesign_core::Vec3, ringdesign_core::Vec3)> {
+        drawn_part(self, id).map(|(b, _)| b)
+    }
 }
 fn hash<T: serde::Serialize>(v: &T) -> u64 {
     ringdesign_core::manufacturing::package::fingerprint(&serde_json::to_vec(v).unwrap_or_default())
@@ -541,9 +553,10 @@ fn add_feature(state: &mut CadState, g: &mut Graph, mut operation: Operation, an
         Err(e) => state.error = Some(e.to_string()),
     }
 }
-fn upload(state: &mut CadState, fit: bool) {
+/// Stages the view's metal, stones and edges, refitting the camera to the metal when `fit`; the metal's bounds as drawn.
+fn upload(state: &mut CadState, fit: bool) -> Option<(ringdesign_core::Vec3, ringdesign_core::Vec3)> {
     let Some(view) = &state.view else {
-        return;
+        return None;
     };
     let mut metal = ringdesign_core::Mesh::default();
     let mut gems = ringdesign_core::Mesh::default();
@@ -576,8 +589,10 @@ fn upload(state: &mut CadState, fit: bool) {
             .extend(c.mesh.faces.iter().map(|f| f.map(|i| i + offset)));
     }
     let metal = whole.map_or(&metal, |b| &b.mesh);
+    let bounds = metal.bounds();
     if fit {
-        state.camera.fit(metal.bounds());
+        state.camera.pivot_home();
+        state.camera.fit(bounds);
     }
     let edges = view_edges(view, whole.is_some(), state);
     if let Ok(mut r) = state.renderer.lock() {
@@ -589,6 +604,34 @@ fn upload(state: &mut CadState, fit: bool) {
         r.prepare_gems(stones);
         r.prepare_view_edges(state.view_key as usize, edges);
     }
+    bounds
+}
+
+/// The part `id` as `upload` draws it, exploded along with the rest; `None` when it is hidden, isolated away or no part.
+fn drawn_part(state: &CadState, id: u64) -> Option<((ringdesign_core::Vec3, ringdesign_core::Vec3), String)> {
+    let view = state.view.as_ref()?;
+    let (index, c) = view.evaluated.components.iter().enumerate()
+        .find(|(_, c)| c.id == id && c.settings.visible && state.isolated.is_none_or(|i| i == c.id))?;
+    let (lo, hi) = c.mesh.bounds()?;
+    let dz = index as f32 * state.explode as f32;
+    Some(((ringdesign_core::Vec3(lo.0, lo.1, lo.2 + dz), ringdesign_core::Vec3(hi.0, hi.1, hi.2 + dz)), c.name.clone()))
+}
+
+/// Eases the view onto the chosen part as drawn when `chosen` and there is one, else all the metal drawn, the pivot moved onto its middle.
+fn fit_view(state: &mut CadState, chosen: bool) -> Option<ringdesign_workbench::touch::view::Framed> {
+    use ringdesign_workbench::touch::view::Framed;
+    let shown = upload(state, false)?;
+    let part = state.selected.filter(|_| chosen).and_then(|id| drawn_part(state, id.0));
+    let alone = state.isolated.and_then(|id| drawn_part(state, id));
+    state.camera.refit(shown);
+    let (bounds, framed) = match (part, alone) {
+        (Some((b, name)), _) => (b, Framed::Chosen(vec![name])),
+        (None, Some((_, name))) => (shown, Framed::Alone(vec![name])),
+        (None, None) => (shown, Framed::Ring),
+    };
+    let to = state.camera.framing(bounds);
+    state.display.turn = Some(ringdesign_workbench::focus::Turn::new(state.camera.pose(), to));
+    Some(framed)
 }
 
 /// The view's parts' edges for the edge pass: none while a part is isolated, the parts are exploded or the Part edges
@@ -1031,6 +1074,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             notes.push((theme::WARN, e.into()));
         }
         let mut redraw = false;
+        let mut fit_all = false;
         egui::Panel::bottom(ui.id().with("cad-view-footer"))
             .frame(egui::Frame::new().inner_margin(6).fill(theme::PANEL)).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -1039,6 +1083,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         if ui.button(view.label()).clicked() {
                             let angles = ringdesign_workbench::navigation::Action::View(view)
                                 .apply([state.camera.yaw,state.camera.pitch,state.camera.roll],app.design.shank.head.theta_deg as f32);
+                            state.camera.pivot_home();
                             let from = state.camera.pose();
                             state.display.turn = Some(ringdesign_workbench::focus::Turn::new(from,
                                 ringdesign_workbench::focus::Pose { yaw:angles[0],pitch:angles[1],roll:angles[2],pan:[0.;2],..from }));
@@ -1047,7 +1092,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     }
                     ui.checkbox(&mut state.display.navigation.locked, "Lock orbit (drag to pan)");
                 });
-                if icons::compact(ui,Icon::Fit,false).clicked() { redraw = true; }
+                if icons::compact(ui,Icon::Fit,false).clicked() { fit_all = true; }
                 if icons::compact(ui,Icon::Wire,state.display.wire).clicked() {state.display.wire = !state.display.wire;}
                 if icons::compact(ui,Icon::Grid,state.display.grid).clicked() {state.display.grid = !state.display.grid;}
                 let ring_built = state.view.as_ref().is_some_and(|v| v.built.is_some());
@@ -1077,6 +1122,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             });
         });
         if redraw { upload(&mut state, true); }
+        if fit_all && let Some(framed) = fit_view(&mut state, false) { app.set_status(framed.said()); }
         if state.tab == 2 && state.view_key == current && state.rollback.is_none() {
             if let Some(view) = &state.view {
                 egui::CollapsingHeader::new("Interference and assembly clearance").show(ui, |ui| {
@@ -1219,6 +1265,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         let ring_radius = state.view.as_ref().map(|v| v.design.inner_radius_mm() + v.design.profile.thickness_mm);
         let part_name = hit.and_then(|h| state.view.as_ref()?.evaluated.components.iter().find(|c| c.id == h.part).map(|c| c.name.clone()));
         let mut refit = false;
+        let mut fit = false;
         response.context_menu(|ui| {
             ui.set_min_width(190.);
             if let Some(hit) = hit {
@@ -1264,14 +1311,15 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 ui.close();
             }
             ui.separator();
-            if ui.button((Icon::Fit.image(ui, 18.), "Fit view")).clicked() {
-                refit = true;
+            if ui.button((Icon::Fit.image(ui, 18.), "Fit view")).on_hover_text("Frame the chosen part, else all the metal shown").clicked() {
+                fit = true;
                 ui.close();
             }
             ui.checkbox(&mut state.display.wire, "Wireframe");
             ui.checkbox(&mut state.display.grid, "Grid");
         });
         if refit { upload(&mut state, true); }
+        if fit && let Some(framed) = fit_view(&mut state, true) { app.set_status(framed.said()); }
         if matches!(state.tab, 0 | 2) && state.rollback.is_none() {
             direct_handles(ui, rect, &state, &mut g);
         }

@@ -57,6 +57,7 @@ pub fn render(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     d.bake_all(lib);
                     app.selected_layer = None;
                     app.fit_pending = true;
+                    app.fit_keeps_view = true;
                     app.show_grid = false;
                     app.finish = 0;
                     app.mark_dirty();
@@ -74,7 +75,8 @@ pub fn render(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         if matches!(view, View::ThreeQuarter) {
                             pane.camera.yaw -= 0.48;
                         }
-                        pane.camera.pan = [0.; 2];
+                        pane.turn = None;
+                        pane.camera.centre_home();
                         pane.camera.zoom = 1.23;
                         pane.shade = viewport::ShadeMode::Metal;
                     }
@@ -494,7 +496,8 @@ fn camera_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
                 cam.yaw = app.design.shank.head.theta_deg.to_radians() as f32
                     - if angled { std::f32::consts::FRAC_PI_8 } else { 0. };
                 cam.pitch = if angled { -0.55 } else { 0. };
-                cam.pan = [0.; 2];
+                cam.centre_home();
+                app.panes[i].turn = None;
                 app.active_pane = i;
             }
         }
@@ -504,6 +507,7 @@ fn camera_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize) {
         let t = crate::swatch::view_chip(ui.ctx(), v);
         if crate::swatch::row(ui, &t, v.label(), false).clicked() {
             app.panes[i].camera.set_view(v);
+            app.panes[i].turn = None;
             app.active_pane = i;
         }
     }
@@ -843,6 +847,7 @@ impl Command {
                 app.history.reset(&app.design.clone());
                 app.selected_layer = None;
                 app.fit_pending = true;
+                app.fit_keeps_view = false;
                 app.mark_dirty();
             }
             Command::Open => export::open_design(app),

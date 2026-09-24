@@ -428,11 +428,18 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         ringdesign_workbench::navigation::show(ui, rect, ui.id().with(("desktop-view", pane)),
             &mut app.panes[pane].navigation, [camera.yaw, camera.pitch, camera.roll], head)
     };
+    #[cfg(test)]
+    ui.ctx().data_mut(|d| d.insert_temp(navigator_key(Some(pane)), nav.controls.clone()));
     if let Some(action) = nav.action {
         let angles = action.apply([camera.yaw, camera.pitch, camera.roll], head);
         if action.recentres() {
-            // A view from the cube eases in, as a chosen node's does.
-            let from = camera.pose();
+            // A view from the cube eases in, as a chosen node's does, about the ring's own middle again.
+            let cam = &mut app.panes[pane].camera;
+            if let Some(ring) = app.build.as_ref().and_then(|b| b.mesh.bounds()) {
+                cam.refit(ring);
+            }
+            cam.pivot_home();
+            let from = cam.pose();
             app.panes[pane].turn = Some(ringdesign_workbench::focus::Turn::new(from, ringdesign_workbench::focus::Pose { yaw: angles[0], pitch: angles[1], roll: angles[2], pan: [0.0; 2], ..from }));
         } else {
             app.panes[pane].turn = None;
@@ -788,9 +795,12 @@ pub fn candidate_view(
     let (rect, response) = ui.allocate_exact_size(available, egui::Sense::click_and_drag());
     let nav = ringdesign_workbench::navigation::show_camera(ui,rect,ui.id().with("cad-cube"),
         &mut display.navigation,[camera.yaw,camera.pitch,camera.roll],head);
+    #[cfg(test)]
+    ui.ctx().data_mut(|d| d.insert_temp(navigator_key(None), nav.controls.clone()));
     if let Some(action) = nav.action {
         let angles = action.apply([camera.yaw,camera.pitch,camera.roll],head);
         if action.recentres() {
+            camera.pivot_home();
             let from = camera.pose();
             display.turn = Some(ringdesign_workbench::focus::Turn::new(from,
                 ringdesign_workbench::focus::Pose { yaw:angles[0],pitch:angles[1],roll:angles[2],pan:[0.;2],..from }));
@@ -1215,10 +1225,7 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
         MenuAction::FilletEdge { feature, edge } => cad::add_modifier(app, "Fillet", feature, edge as usize),
         MenuAction::ChamferEdge { feature, edge } => cad::add_modifier(app, "Chamfer", feature, edge as usize),
         MenuAction::IsolateInCad(id) => cad::ask(app, CadRequest::Isolate { feature: id }),
-        MenuAction::FitView => {
-            let bounds = app.build.as_ref().and_then(|b| b.mesh.bounds());
-            app.panes[pane].camera.fit(bounds);
-        }
+        MenuAction::FitView => fit_view(app, pane),
         MenuAction::OpenCad => app.focus(crate::pane::PaneKind::Cad),
         MenuAction::ToggleWire => app.show_wireframe = !app.show_wireframe,
         MenuAction::ToggleGrid => app.show_grid = !app.show_grid,
@@ -1245,6 +1252,31 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
         MenuAction::EditStamp(index) => app.stamp_inspector = Some(index),
         MenuAction::Stamp { index, edit } => stamp_edit(app, index, &edit),
     }
+}
+
+/// Where the navigator's controls stood last frame, keyed by the Ring pane they drew in, or `None` for a candidate view.
+#[cfg(test)]
+pub(crate) fn navigator_key(pane: Option<usize>) -> egui::Id {
+    egui::Id::new(("navigator-controls", pane))
+}
+
+/// The navigator's controls as last drawn over the Ring pane `pane`, or over a candidate view for `None`.
+#[cfg(test)]
+pub(crate) fn navigator_controls(ctx: &egui::Context, pane: Option<usize>) -> Vec<(&'static str, egui::Rect)> {
+    ctx.data(|d| d.get_temp::<Vec<(&'static str, egui::Rect)>>(navigator_key(pane))).unwrap_or_default()
+}
+
+/// Eases the pane onto the chosen parts, seats, stamps and stones, else the whole ring, the pivot moved onto their middle.
+pub(crate) fn fit_view(app: &mut RingDesignerApp, pane: usize) {
+    let Some(build) = app.build.clone() else { return };
+    let Some((bounds, framed)) = ringdesign_workbench::touch::view::framed(&build, &app.design, &app.selection.items, &[]) else { return };
+    let Some(p) = app.panes.get_mut(pane) else { return };
+    if let Some(ring) = build.mesh.bounds() {
+        p.camera.refit(ring);
+    }
+    let to = p.camera.framing(bounds);
+    p.turn = Some(ringdesign_workbench::focus::Turn::new(p.camera.pose(), to));
+    app.set_status(framed.said());
 }
 
 /// The layer a seat's made solid stands on, chosen in the Layers tool, or its node on a driven design.

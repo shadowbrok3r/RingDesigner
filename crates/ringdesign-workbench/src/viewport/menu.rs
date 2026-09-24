@@ -234,7 +234,7 @@ pub fn context_items_in(sel: &Selection, under: Option<&Pick>, design: &RingDesi
         Subject::Stamp(index) => items.extend(super::made::stamp_items(design, index)),
         Subject::Band(None) | Subject::Nothing => {}
     }
-    items.push(MenuItem::new("Fit view", Icon::Fit, MenuAction::FitView, "Frame the whole ring"));
+    items.push(MenuItem::new("Fit view", Icon::Fit, MenuAction::FitView, "Frame what is chosen, else the whole ring"));
     items.push(MenuItem::new("Open CAD workspace", Icon::Workshop, MenuAction::OpenCad, "The feature tree and the parts pane"));
     items.push(MenuItem::new("Wireframe", Icon::Wire, MenuAction::ToggleWire, "Draw the mesh's edges over the metal"));
     items.push(MenuItem::new("Grid", Icon::Grid, MenuAction::ToggleGrid, "The ground grid and axes"));
