@@ -1265,6 +1265,64 @@ fn a_design_opened_after_a_fit_opens_whole_at_zoom_one_about_its_middle() {
     assert!(within_depth(&cam, rect, ring));
 }
 
+/// Rebuilds now and steps until the build has landed.
+fn land(h: &mut Harness<'static, RingDesignerApp>) {
+    h.state_mut().rebuild_now();
+    wait_for_build(h);
+    h.run_steps(2);
+}
+
+#[test]
+fn the_construction_guides_rebuilds_keep_the_view_it_set_and_the_readers_zoom() {
+    use ringdesign_workbench::viewport::Sel;
+    let mut h = harness();
+    let pane = on_one_ring_view(&mut h, posted());
+    looking(&mut h, pane, 0.3, 0.35);
+    h.state_mut().selection.items = vec![Sel::Part(2)];
+    fit_from_menu(&mut h, pane);
+    assert!(h.state().panes[pane].camera.zoom > 8.0, "framed close on the post: {}", h.state().panes[pane].camera.zoom);
+    h.state_mut().selection.items.clear();
+    // Started from a blank band, the guide's own 3/4 view at 1.23 holds when the band lands, centred on it.
+    h.state_mut().construction.open = true;
+    h.run_steps(3);
+    h.get_by_label("Start from a blank band").click();
+    h.run_steps(3);
+    assert!(h.state().fit_pending && h.state().fit_keeps_view);
+    land(&mut h);
+    let (mid, _) = ball(h.state().build.as_ref().unwrap().mesh.bounds().unwrap());
+    let rect = ring_rect(&h);
+    let cam = h.state().panes[pane].camera;
+    assert!(!h.state().fit_pending && !h.state().fit_keeps_view);
+    assert_eq!((cam.zoom, cam.pan), (1.23, [0.0; 2]));
+    assert!(near(cam.target, mid, 1e-4), "{:?} against {mid:?}", cam.target);
+    assert!((cam.projector(rect).at(mid) - rect.center()).length() < 0.5);
+    // The Cheek view, then the reader's own zoom and pan: an applied operation keeps both, about the new band's middle.
+    h.query_all_by_label("Cheek").find(|n| n.rect().right() < 400.0).expect("the guide's Cheek view").click();
+    h.run_steps(3);
+    assert_eq!((h.state().panes[pane].camera.zoom, h.state().panes[pane].camera.pitch), (1.23, -1.30));
+    h.state_mut().panes[pane].camera.zoom = 2.5;
+    h.state_mut().panes[pane].camera.pan = [0.8, -0.5];
+    h.get_by_label("Apply operation").click();
+    h.run_steps(3);
+    assert!(h.state().fit_pending && h.state().fit_keeps_view);
+    land(&mut h);
+    let (applied, _) = ball(h.state().build.as_ref().unwrap().mesh.bounds().unwrap());
+    let cam = h.state().panes[pane].camera;
+    assert_eq!((cam.zoom, cam.pan, cam.pitch), (2.5, [0.8, -0.5], -1.30));
+    assert!(near(cam.target, applied, 1e-4), "{:?} against {applied:?}", cam.target);
+    // A new design started before the guide's rebuild lands opens whole all the same.
+    h.get_by_label("Apply settings").click();
+    h.run_steps(3);
+    assert!(h.state().fit_keeps_view);
+    crate::panels::Command::New.run(h.state_mut());
+    assert!(h.state().fit_pending && !h.state().fit_keeps_view);
+    land(&mut h);
+    let (fresh, _) = ball(h.state().build.as_ref().unwrap().mesh.bounds().unwrap());
+    let cam = h.state().panes[pane].camera;
+    assert_eq!((cam.zoom, cam.pan), (1.0, [0.0; 2]));
+    assert!(near(cam.target, fresh, 1e-4), "{:?} against {fresh:?}", cam.target);
+}
+
 /// Steps until the CAD pane has evaluated and staged its view.
 fn wait_for_cad(h: &mut Harness<'static, RingDesignerApp>) {
     let start = std::time::Instant::now();

@@ -57,6 +57,7 @@ pub fn render(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     d.bake_all(lib);
                     app.selected_layer = None;
                     app.fit_pending = true;
+                    app.fit_keeps_view = true;
                     app.show_grid = false;
                     app.finish = 0;
                     app.mark_dirty();
@@ -846,6 +847,7 @@ impl Command {
                 app.history.reset(&app.design.clone());
                 app.selected_layer = None;
                 app.fit_pending = true;
+                app.fit_keeps_view = false;
                 app.mark_dirty();
             }
             Command::Open => export::open_design(app),
