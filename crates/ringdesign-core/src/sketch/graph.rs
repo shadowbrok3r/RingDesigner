@@ -705,9 +705,12 @@ mod tests {
         s.add_line(p[4], p[0], false).unwrap();
         assert_eq!(areas(&s), [60.0]);
         let q = [[5.0, 9.0], [5.0, 6.0]].map(|xy| s.point(xy));
-        s.add_line(q[0], q[1], false).unwrap();
+        let whisker = s.add_line(q[0], q[1], false).unwrap();
         let why = s.profile_regions().unwrap_err().to_string();
         assert!(why.contains(&format!("open at point #{}", q[0])), "{why}");
+        // The loop through its sides is still its five lines, the one hanging off it no part of it.
+        let ring = s.loop_through(s.entities[0].id).unwrap();
+        assert!(ring.len() == 5 && !ring.contains(&whisker), "{ring:?}");
         // A triangle with a line off one corner: the line's free end, not the corner it leaves.
         let mut s = Sketch::default();
         let p = [[0.0, 0.0], [4.0, 0.0], [2.0, 3.0], [2.0, -3.0]].map(|xy| s.point(xy));

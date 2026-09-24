@@ -168,13 +168,13 @@ impl Sketch {
         for e in &mut drawn.entities {
             e.construction = false;
         }
-        // The entities joined to this one at their ends or where an end lands on one, and nothing else.
+        // The entities joined to this one on loops, at their ends or where an end lands on one, and nothing else.
         let graph = Graph::build(&drawn)?;
         let mut picked = BTreeSet::from([entity]);
         let mut ends: BTreeSet<Key> = BTreeSet::new();
         loop {
             let before = picked.len();
-            for p in &graph.pieces {
+            for p in graph.pieces.iter().zip(&graph.alive).filter(|(_, alive)| **alive).map(|(p, _)| p) {
                 if picked.contains(&p.entity) || p.ends.iter().any(|k| ends.contains(k)) {
                     picked.insert(p.entity);
                     ends.extend(p.ends);

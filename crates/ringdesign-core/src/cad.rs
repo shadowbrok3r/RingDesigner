@@ -1841,13 +1841,10 @@ fn body_for(
             );
             ensure!(crate::mesh::norm(*axis) > 1e-8, "Revolution axis is zero");
             let sketch = profile(from, sketches)?;
-            crate::sketch::solid::revolve(
-                plane_of(sketch, values, frames, notes)?,
-                &regions_of(from, sketch, notes)?,
-                *pivot,
-                *axis,
-                degrees.to_radians(),
-            )
+            let plane = plane_of(sketch, values, frames, notes)?;
+            let regions = regions_of(from, sketch, notes)?;
+            let (plane, angle) = if cut && *degrees < 360.0 { cleared_turn(plane, &regions, *pivot, *axis, *degrees) } else { (plane, degrees.to_radians()) };
+            crate::sketch::solid::revolve(plane, &regions, *pivot, *axis, angle)
         }
         Operation::Sweep { sketch: from, path } => {
             ensure!(
@@ -2029,6 +2026,36 @@ pub const CUT_CLEAR_MM: f64 = 0.05;
 /// Whether `f`'s part is cut from the band, which clears an extrusion running below its plane off it.
 fn cuts(f: &Feature) -> bool {
     f.component.attach == Attach::Cut && !f.component.reference
+}
+/// A cut revolution of `regions` on `plane` about the axis through `pivot` along `axis` by `degrees`,
+/// started a turn before its plane so its first cap stands [`CUT_CLEAR_MM`] clear of it at the region's
+/// far reach, and carried as far past its end where a half turn brings the regions back into the plane.
+fn cleared_turn(plane: cadkernel::space::Plane, regions: &[crate::sketch::Region], pivot: [f64; 3], axis: [f64; 3], degrees: f64) -> (cadkernel::space::Plane, f64) {
+    let len = crate::mesh::norm(axis);
+    let a: [f64; 3] = std::array::from_fn(|k| axis[k] / len);
+    let dot = |u: [f64; 3], v: [f64; 3]| u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    let reach = regions
+        .iter()
+        .flat_map(|r| r.outer.iter())
+        .flat_map(|c| (0..=8).map(move |k| c.point_at(f64::from(k) / 8.0)))
+        .map(|uv| {
+            let d: [f64; 3] = std::array::from_fn(|k| plane.point_at(uv)[k] - pivot[k]);
+            let along = dot(d, a);
+            dot(d, d) - along * along
+        })
+        .fold(0.0_f64, f64::max)
+        .sqrt();
+    let turn = if reach > 1e-9 { (CUT_CLEAR_MM / reach).min(5f64.to_radians()) } else { 0.0 };
+    let (s, c) = (-turn).sin_cos();
+    let rotate = |v: [f64; 3]| -> [f64; 3] {
+        let x = [a[1] * v[2] - a[2] * v[1], a[2] * v[0] - a[0] * v[2], a[0] * v[1] - a[1] * v[0]];
+        let along = dot(a, v) * (1.0 - c);
+        std::array::from_fn(|k| v[k] * c + x[k] * s + a[k] * along)
+    };
+    let o = rotate(std::array::from_fn(|k| plane.origin[k] - pivot[k]));
+    let back = cadkernel::space::Plane::from_axes(std::array::from_fn(|k| pivot[k] + o[k]), rotate(plane.x_axis), rotate(plane.y_axis));
+    let returns = (degrees - 180.0).abs() < 1e-9;
+    (back, degrees.to_radians() + turn * if returns { 2.0 } else { 1.0 })
 }
 /// Bodies and tessellations a default [`Cache`] holds before the least recently used is dropped.
 pub const CACHE_ENTRIES: usize = 512;
@@ -2321,8 +2348,8 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
         if matches!(f.operation, Operation::Pattern { .. } | Operation::Twist { .. }) {
             (params.theta_steps >= 512).hash(&mut h);
         }
-        // An extrusion running below its plane clears the plane when it cuts.
-        if matches!(f.operation, Operation::Extrude { height_mm, .. } if height_mm < 0.0) {
+        // An extrusion running below its plane, and a revolution short of a whole turn, clear the plane when they cut.
+        if matches!(f.operation, Operation::Extrude { height_mm, .. } if height_mm < 0.0) || matches!(f.operation, Operation::Revolve { degrees, .. } if degrees < 360.0) {
             cuts(f).hash(&mut h);
         }
         sigs.insert(f.id, h.finish());
@@ -3946,6 +3973,27 @@ mod sketch_tests {
         assert!((low + 1.0).abs() < 1e-9 && (high - CUT_CLEAR_MM).abs() < 1e-9, "{low} .. {high}");
         let (low, high) = reach(&cut(Attach::Join));
         assert!((low + 1.0).abs() < 1e-9 && high.abs() < 1e-9, "{low} .. {high}");
+        // A 1 mm square turned half round the face's own y axis into the block starts and ends clear of the face too.
+        let mut square = Sketch::rectangle(1.0, 1.0);
+        for p in &mut square.points {
+            p.xy[0] += 1.0;
+        }
+        square.plane.on_face = rect.plane.on_face.clone();
+        let mut d = d.clone();
+        let doc = d.cad.as_mut().unwrap();
+        doc.append(feature(3, Operation::Sketch { sketch: square })).unwrap();
+        let mut turn = feature(4, Operation::Revolve { sketch: Profile::Feature { feature: 3 }, pivot: plane.origin, axis: plane.y_axis, degrees: 180.0 });
+        turn.component.attach = Attach::Cut;
+        doc.append(turn).unwrap();
+        let turned = crate::mesh::build(&d, &lib, params);
+        let taken = built.mesh.volume_mm3() - turned.mesh.volume_mm3();
+        assert!((taken / PI - 1.0).abs() < 0.005, "π/2 × (1.5² − 0.5²) × 1 = π mm³ out of the block: {taken}");
+        let lids = turned.mesh.faces.iter().filter(|f| {
+            let q: Vec<[f64; 3]> = f.iter().map(|i| turned.mesh.vertices[*i as usize]).map(|v| [f64::from(v.0), f64::from(v.1), f64::from(v.2)]).collect();
+            let centre: [f64; 3] = std::array::from_fn(|k| (q[0][k] + q[1][k] + q[2][k]) / 3.0 - plane.origin[k]);
+            q.iter().all(|p| dot(sub(*p, plane.origin), n).abs() < 1e-4) && (dot(centre, plane.x_axis).abs() - 1.0).abs() < 0.45 && dot(centre, plane.y_axis).abs() < 0.45
+        });
+        assert_eq!(lids.count(), 0, "both mouths of the half ring open through the face");
     }
 
     #[test]

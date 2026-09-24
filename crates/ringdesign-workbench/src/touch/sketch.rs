@@ -27,8 +27,6 @@ const MIN_REACH_MM: f64 = 3.0;
 const MIN_FACE_REACH_MM: f64 = 1.0;
 /// Lines and axes take this share of a finger's reach, so a tap between them lands on the grid.
 pub const LINE_SHARE: f64 = 0.4;
-/// A cut's tool stands this far proud of the plane it was drawn on, so none of its faces lies on the metal's, mm.
-pub const CUT_CLEAR_MM: f64 = 0.05;
 /// Why a ring of parts alone takes no cut.
 const ALL_PARTS: &str = "The ring is all parts: a cut has no band to carve";
 
@@ -44,12 +42,6 @@ fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
 }
 fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
-
-/// `plane` moved `depth` against its own normal, its axes kept: in the frame it is read in when anchored, in the world when not.
-fn lowered(plane: &Workplane, depth: f64) -> Workplane {
-    let n = unit(cross(plane.x, plane.y)).unwrap_or([0.0, 0.0, 1.0]);
-    Workplane { origin: std::array::from_fn(|k| plane.origin[k] - n[k] * depth), ..plane.clone() }
 }
 
 /// A sketch's plane in the world: its origin, unit axes, and the normal `x × y` out of it.
@@ -331,6 +323,8 @@ pub struct Pad {
     error: Option<String>,
     snaps: Option<(u64, SnapCache)>,
     regions: Option<(u64, Result<Vec<Region>, String>)>,
+    /// Why every region together would not sweep as one solid, when it would not.
+    whole: Option<(u64, Option<String>)>,
     height: Amount,
     draft: Amount,
     degrees: Amount,
@@ -361,6 +355,7 @@ impl Pad {
             error: None,
             snaps: None,
             regions: None,
+            whole: None,
             height: Amount::new(1.0),
             draft: Amount::new(0.0),
             degrees: Amount::new(360.0),
@@ -425,6 +420,15 @@ impl Pad {
             Ok(r) => Ok(r.as_slice()),
             Err(e) => Err(e.as_str()),
         }
+    }
+
+    /// Why every region at once would not sweep as one solid, as where the curves between them branch; `None` when it would.
+    pub fn apart(&mut self) -> Option<String> {
+        let v = self.version();
+        if self.whole.as_ref().is_none_or(|(k, _)| *k != v) {
+            self.whole = Some((v, self.working.sweep_regions().err().map(|e| format!("{e:#}"))));
+        }
+        self.whole.as_ref().expect("filled above").1.clone()
     }
 
     /// The regions a solid sweeps: the one picked, else every one.
@@ -712,10 +716,15 @@ impl Pad {
         }
     }
 
-    /// Starts making `make` from the regions: an extrusion at once, a revolution once its axis is tapped.
+    /// Starts making `make` from the regions: an extrusion at once, a revolution once its axis is tapped; regions sharing a curve are made one at a time.
     pub fn make(&mut self, make: Make) -> Outcome {
         if self.regions().map_or(true, |r| r.is_empty()) {
             return Outcome::Refused("A solid is made from closed regions; go back and close a loop".into());
+        }
+        if self.pick.is_none()
+            && let Some(why) = self.apart()
+        {
+            return Outcome::Refused(format!("{why}; or tap one region to make it alone"));
         }
         self.stage = match make {
             Make::Extrude => Stage::Extrude,
@@ -733,8 +742,12 @@ impl Pad {
         }
         let under = regions.iter().position(|r| r.contains(xy));
         let same = under.is_some() && picked.and_then(|p| p.position(regions)).map(|(i, _)| i) == under;
-        let next = under.filter(|_| !same).and_then(|i| RegionRef::at(&regions[i], xy));
+        let next = under.filter(|_| !same).and_then(|i| RegionRef::among(regions, i, xy));
         let n = regions.len();
+        // Regions sharing a curve are only ever made one at a time.
+        if next.is_none() && self.stage != Stage::Offer && self.apart().is_some() {
+            return Outcome::Refused("These regions share a curve: one is made at a time, so tap another to change it".into());
+        }
         self.pick = next;
         Outcome::Edited(match next {
             Some(_) => "That region alone".into(),
@@ -805,11 +818,6 @@ impl Pad {
         Some((f.point(*pivot), if self.cutting() { a.map(|v| -v) } else { a }))
     }
 
-    /// How deep a cut extrusion's sketch lies under the plane it was drawn on; `None` for any other solid.
-    fn floor(&self) -> Option<f64> {
-        (self.stage == Stage::Extrude && self.cutting()).then_some(self.height.value)
-    }
-
     /// Reads the solid's number off a finger's ray: an extrusion's height moved as far along its rise as the finger has moved since it took the arrow, a revolution's angle round its axis where the finger stands; false when a typed number holds it.
     pub fn pull(&mut self, ray: Ray) -> bool {
         let Some(base) = self.anchor() else { return false };
@@ -849,7 +857,7 @@ impl Pad {
     }
 
     /// The operation the solid being set makes of sketch feature `sketch`; `None` while no solid is set.
-    /// A cut extrusion rises from its sketch at the floor to [`CUT_CLEAR_MM`] past the plane it was drawn on, its walls opening toward it by the draft.
+    /// A cut extrusion runs from the plane it was drawn on down into the metal, its walls opening toward the plane by the draft.
     pub fn solid(&self, sketch: Id) -> Option<Operation> {
         self.frame?;
         let profile = match self.pick {
@@ -857,7 +865,7 @@ impl Pad {
             None => Profile::Feature { feature: sketch },
         };
         match &self.stage {
-            Stage::Extrude if self.cutting() => Some(Operation::Extrude { sketch: profile, height_mm: self.height.value + CUT_CLEAR_MM, draft_deg: -self.draft.value }),
+            Stage::Extrude if self.cutting() => Some(Operation::Extrude { sketch: profile, height_mm: -self.height.value, draft_deg: self.draft.value }),
             Stage::Extrude => Some(Operation::Extrude { sketch: profile, height_mm: self.height.value, draft_deg: self.draft.value }),
             Stage::Revolve { .. } => {
                 let (pivot, axis) = self.revolution()?;
@@ -868,45 +876,35 @@ impl Pad {
     }
 
     /// What finishing leaves `design` as, one funnel commit: the sketch added or its feature replaced, then the solid the stage sets, attached as chosen; empty when nothing changes.
-    /// A cut extrusion reads its sketch at the floor it carves to; a sketch another feature already reads keeps its plane, and the cut reads a copy of it there.
+    /// The solid reads the sketch where it was drawn, whichever way it runs and whatever else reads it.
     pub fn edits(&self, design: &RingDesign) -> Result<Vec<CadEdit>, String> {
         let mut next = fresh_ids(design);
         let mut edits = Vec::new();
-        let floor = self.floor();
-        let at_floor = |s: &Sketch| match floor {
-            Some(depth) => Sketch { plane: lowered(&s.plane, depth), ..s.clone() },
-            None => s.clone(),
-        };
         let id = match self.feature {
             Some(id) => {
-                let doc = design.cad.as_ref();
-                let f = doc.and_then(|d| d.feature(id)).ok_or_else(|| format!("Sketch #{id} left the document"))?;
-                let read = floor.is_some() && doc.is_some_and(|d| d.features.iter().any(|g| g.id != id && g.operation.sources().contains(&id)));
-                let own = if read { self.working.clone() } else { at_floor(&self.working) };
+                let f = design.cad.as_ref().and_then(|d| d.feature(id)).ok_or_else(|| format!("Sketch #{id} left the document"))?;
                 let mut operation = f.operation.clone();
                 let Some(sketch) = operation.sketch_mut() else { return Err(format!("{} holds no sketch", f.name)) };
-                if *sketch != own {
-                    *sketch = own;
+                if *sketch != self.working {
+                    *sketch = self.working.clone();
                     edits.push(CadEdit::Operation { id, operation });
                 }
-                if read {
-                    let copy = next();
-                    let feature = Feature { id: copy, name: format!("{} at the cut's floor", f.name), enabled: true, operation: Operation::Sketch { sketch: at_floor(&self.working) }, component: Component::default() };
-                    edits.push(CadEdit::Add { feature, after: None });
-                    copy
-                } else {
-                    id
-                }
+                id
             }
             None if self.working.entities.is_empty() => return Ok(Vec::new()),
             None => {
                 let id = next();
-                let feature = Feature { id, name: "Sketch".into(), enabled: true, operation: Operation::Sketch { sketch: at_floor(&self.working) }, component: Component::default() };
+                let feature = Feature { id, name: "Sketch".into(), enabled: true, operation: Operation::Sketch { sketch: self.working.clone() }, component: Component::default() };
                 edits.push(CadEdit::Add { feature, after: None });
                 id
             }
         };
         if let Some(operation) = self.solid(id) {
+            if self.pick.is_none()
+                && let Err(why) = self.working.sweep_regions()
+            {
+                return Err(format!("{why:#}; tap one region to make it alone"));
+            }
             let (shank, fallback) = shank_for_body(design, &mut next);
             // A ring of parts alone has no band to join to or carve.
             let attach = match (fallback, self.attach) {
@@ -924,6 +922,7 @@ impl Pad {
     /// What the stage in hand asks of a finger, in a finger's words.
     pub fn prompt(&mut self) -> String {
         let what = if self.pick.is_some() { " this region" } else { "" };
+        let apart = self.stage == Stage::Offer && self.pick.is_none() && self.apart().is_some();
         match self.stage.clone() {
             Stage::Draw if self.erase => "Erase: tap a curve or a point to delete it".into(),
             Stage::Draw => {
@@ -937,6 +936,7 @@ impl Pad {
             Stage::Offer => match self.regions() {
                 Ok([]) | Err(_) => "Keep the sketch as it is, or Back to close a loop".into(),
                 Ok([_]) => "Extrude or Revolve the region, or keep the sketch".into(),
+                Ok(_) if apart => "These regions share a curve: tap one to make it alone, then Extrude or Revolve, or keep the sketch".into(),
                 Ok(_) => format!("Extrude or Revolve{}, or keep the sketch; tap a region to make it alone", if what.is_empty() { " every region" } else { what }),
             },
             Stage::Extrude if self.cutting() => format!("Cut{what}: drag the arrow into the metal or type the depth, then Extrude"),
@@ -1508,6 +1508,18 @@ mod tests {
         assert!(pad.tools.chosen_entities.is_empty() && !pad.tools.busy());
     }
 
+    /// How many faces of `mesh` lie in `frame`'s plane over the places `over` holds: metal left as a skin over a cut's mouth.
+    fn skin(mesh: &Mesh, frame: &Frame, over: impl Fn([f64; 2]) -> bool) -> usize {
+        mesh.faces
+            .iter()
+            .filter(|f| {
+                let q: Vec<[f64; 3]> = f.iter().map(|i| mesh.vertices[*i as usize]).map(|v| [f64::from(v.0), f64::from(v.1), f64::from(v.2)]).collect();
+                let centre: [f64; 3] = std::array::from_fn(|k| (q[0][k] + q[1][k] + q[2][k]) / 3.0);
+                q.iter().all(|p| dot(sub(*p, frame.origin), frame.n).abs() < 1e-4) && over(frame.local(centre))
+            })
+            .count()
+    }
+
     /// The pad on the box's top with a 2 × 1.5 mm rectangle on it, finished and set to extrude.
     fn extruding(d: &RingDesign) -> (BuildResult, Pad) {
         let (built, mut pad) = on_top(d);
@@ -1539,28 +1551,29 @@ mod tests {
         assert!(pad.pull(ray(0.4)) && pad.pull(ray(0.65)));
         assert!((pad.height_mm() - 1.25).abs() < 1e-9, "{}", pad.height_mm());
         pad.pull_end();
-        assert_eq!(pad.typed("height", 0.5), Outcome::Continue);
+        assert_eq!(pad.typed("height", 1.0), Outcome::Continue);
         let edits = pad.edits(&d).unwrap();
         let p = prepare(&d, &edits, built.parts.evaluated.as_ref()).unwrap().unwrap();
         assert_eq!(p.label, "Add Sketch · Add Extrude cut", "one commit, one undo step");
         let doc = p.design.cad.as_ref().unwrap();
         let (sketch, cut) = (p.applied[0].id.unwrap(), p.applied[1].id.unwrap());
-        // The sketch lies at the cut's floor, still on the box's face; the cut rises from it past the face.
+        // The sketch stays where it was drawn, on the box's face; the cut runs 1 mm down from it.
         let Operation::Sketch { sketch: s } = &doc.feature(sketch).unwrap().operation else { panic!() };
-        assert!(s.plane.on_face.is_some() && s.plane.origin == [0.0, 0.0, -0.5], "{:?}", s.plane);
+        assert!(s.plane.on_face.is_some() && s.plane.origin == [0.0; 3], "{:?}", s.plane);
         let f = doc.feature(cut).unwrap();
         assert_eq!(f.component.attach, Attach::Cut);
-        assert!(matches!(f.operation, Operation::Extrude { height_mm, .. } if (height_mm - 0.5 - CUT_CLEAR_MM).abs() < 1e-12));
+        assert!(matches!(f.operation, Operation::Extrude { sketch: Profile::Feature { feature }, height_mm, .. } if feature == sketch && height_mm == -1.0));
         let after = mesh::build(&p.design, &AlphaLibrary::builtin(), params());
         assert_eq!((after.parts.joined, after.parts.cut), (1, 1), "{:?}", after.parts.notes);
         let c = after.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == cut).expect("the cut built");
         let face = pad.frame().unwrap().origin;
         let rise = |p: &ringdesign_core::Vec3| dot(sub([p.0 as f64, p.1 as f64, p.2 as f64], face), n);
         let (low, high) = c.mesh.vertices.iter().map(rise).fold((f64::MAX, f64::MIN), |(l, h), r| (l.min(r), h.max(r)));
-        assert!((low + 0.5).abs() < 1e-4 && (high - CUT_CLEAR_MM).abs() < 1e-4, "the tool runs {low} to {high} along the face's normal");
+        assert!((low + 1.0).abs() < 1e-4 && (high - cad::CUT_CLEAR_MM).abs() < 1e-4, "the tool runs {low} to {high} along the face's normal");
         let taken = before - after.mesh.volume_mm3();
-        assert!((taken - 1.5).abs() < 0.015, "2 × 1.5 × 0.5 = 1.5 mm³ carved out of the box: {taken}");
+        assert!((taken - 3.0).abs() < 1e-3, "2 × 1.5 × 1 = 3 mm³ carved out of the box: {taken}");
         assert!(after.report.validation.watertight);
+        assert_eq!(skin(&after.mesh, pad.frame().unwrap(), |uv| uv[0].abs() < 0.95 && (uv[1] - 0.25).abs() < 0.7), 0, "the cut opens through the face");
     }
 
     #[test]
@@ -1604,7 +1617,7 @@ mod tests {
     }
 
     #[test]
-    fn a_revolution_cut_turns_into_the_metal_and_a_cut_from_a_sketch_already_read_takes_a_copy_at_its_floor() {
+    fn a_revolution_cut_turns_into_the_metal_and_a_cut_reads_a_sketch_another_feature_reads_where_it_is() {
         let d = boxed();
         let (_, mut pad) = on_top(&d);
         pad.set_tool(Tool::Rectangle);
@@ -1630,7 +1643,9 @@ mod tests {
         let taken = built.mesh.volume_mm3() - after.mesh.volume_mm3();
         assert_eq!(after.parts.cut, 1, "{:?}", after.parts.notes);
         assert!((taken - std::f64::consts::PI).abs() < 0.01, "π/2 × (1.5² − 0.5²) × 1 = π mm³ out of the box: {taken:.4}");
-        // A sketch an extrusion already reads keeps its plane; the cut reads a copy of it at its floor.
+        // It starts, and ends where the half turn brings it back to the face, clear of the face: no skin over either mouth.
+        assert_eq!(skin(&after.mesh, &f, |uv| (uv[0].abs() - 1.0).abs() < 0.45 && uv[1].abs() < 0.45), 0);
+        // A sketch an extrusion already reads is cut from as it is: no copy, no plane moved.
         let (built, mut first) = extruding(&d);
         first.typed("height", 0.8);
         let p = prepare(&d, &first.edits(&d).unwrap(), built.parts.evaluated.as_ref()).unwrap().unwrap();
@@ -1643,13 +1658,45 @@ mod tests {
         again.set_attach(&p.design, Attach::Cut);
         again.typed("height", 0.3);
         let edits = again.edits(&p.design).unwrap();
-        let [CadEdit::Add { feature: copy, .. }, CadEdit::Add { feature: cut, .. }] = &edits[..] else { panic!("{edits:?}") };
-        assert_eq!(copy.name, "Sketch at the cut's floor");
-        assert!(matches!(&copy.operation, Operation::Sketch { sketch: s } if s.plane.origin == [0.0, 0.0, -0.3] && s.entities == sketch.entities));
-        assert!(matches!(&cut.operation, Operation::Extrude { sketch: Profile::Feature { feature }, .. } if *feature == copy.id));
+        let [CadEdit::Add { feature: cut, .. }] = &edits[..] else { panic!("{edits:?}") };
+        assert!(matches!(&cut.operation, Operation::Extrude { sketch: Profile::Feature { feature }, height_mm, .. } if *feature == sketch_id && *height_mm == -0.3));
         let q = prepare(&p.design, &edits, None).unwrap().unwrap();
         let doc = q.design.cad.as_ref().unwrap();
         assert!(matches!(&doc.feature(sketch_id).unwrap().operation, Operation::Sketch { sketch: s } if *s == sketch), "the drawn sketch keeps its plane");
         assert!(matches!(&doc.feature(joined).unwrap().operation, Operation::Extrude { sketch: Profile::Feature { feature }, .. } if *feature == sketch_id));
+        assert_eq!(doc.features.iter().filter(|f| matches!(f.operation, Operation::Sketch { .. })).count(), 1, "one sketch, read by both");
+        let after = mesh::build(&q.design, &AlphaLibrary::builtin(), params());
+        assert_eq!((after.parts.joined, after.parts.cut), (2, 1), "{:?}", after.parts.notes);
+    }
+
+    #[test]
+    fn regions_sharing_a_curve_are_made_one_at_a_time_and_a_tap_names_each_by_its_own_side() {
+        let d = boxed();
+        let (built, mut pad) = on_top(&d);
+        // A 2 × 1.5 rectangle with a line across it from the bottom side to the top, ending on both.
+        pad.set_tool(Tool::Rectangle);
+        tap(&mut pad, [-1.0, -0.5]);
+        pad.typed("width", 2.0);
+        pad.typed("height", 1.5);
+        pad.confirm();
+        let (a, b) = (pad.working.place([0.5, -0.5]), pad.working.place([0.5, 1.0]));
+        pad.working.add_line(a, b, false).unwrap();
+        pad.bumps += 1;
+        assert!(matches!(pad.finish(), Outcome::Edited(w) if w.starts_with("2 closed regions")));
+        assert_eq!(pad.prompt(), "These regions share a curve: tap one to make it alone, then Extrude or Revolve, or keep the sketch");
+        let refused = pad.make(Make::Extrude);
+        assert!(matches!(&refused, Outcome::Refused(w) if w.contains("joins 3 curves") && w.ends_with("tap one region to make it alone")), "{refused:?}");
+        assert_eq!(pad.stage, Stage::Offer);
+        // A tap on the wider part picks it; the line they share never names it.
+        assert!(matches!(tap(&mut pad, [-0.3, 0.2]), Outcome::Edited(w) if w == "That region alone"));
+        let pick = pad.pick.unwrap();
+        assert!(pad.working.entities.iter().any(|e| e.id == pick.entity && matches!(e.geometry, ringdesign_core::sketch::Geometry::Line { .. })));
+        assert_eq!(pad.make(Make::Extrude), Outcome::Continue);
+        assert!(matches!(tap(&mut pad, [-0.3, 0.2]), Outcome::Refused(_)), "the pick is not let go while the regions share a curve");
+        pad.typed("height", 0.4);
+        let p = prepare(&d, &pad.edits(&d).unwrap(), built.parts.evaluated.as_ref()).unwrap().unwrap();
+        let after = mesh::build(&p.design, &AlphaLibrary::builtin(), params());
+        let grew = after.mesh.volume_mm3() - built.mesh.volume_mm3();
+        assert!((grew - 1.5 * 1.5 * 0.4).abs() < 1e-3, "1.5 × 1.5 × 0.4 = 0.9 mm³ on the face: {grew}");
     }
 }

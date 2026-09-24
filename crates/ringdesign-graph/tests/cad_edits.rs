@@ -369,6 +369,52 @@ fn patterns_work_planes_and_a_press_pull_round_trip_byte_for_byte_through_both_a
 }
 
 #[test]
+fn a_cut_below_its_sketch_round_trips_byte_for_byte_through_both_appliers() {
+    use ringdesign_core::{cad::Profile, sketch::Sketch};
+    let lib = AlphaLibrary::builtin();
+    let base = band_and_cylinder();
+    // A 2 × 1.5 rectangle on the bezel's plane at its top, cut 1 mm down into it, then 0.6, joined, then cut again and turned half round a line beside it.
+    let mut rect = Sketch::rectangle(2.0, 1.5);
+    let e = cad::evaluate(&base, &lib, params()).unwrap();
+    let frame = e.components.iter().find(|c| c.id == 2).unwrap().frame;
+    rect.plane.origin = std::array::from_fn(|k| frame.origin[k] + frame.z_axis[k] * 1.25);
+    (rect.plane.x, rect.plane.y) = (frame.x_axis, frame.y_axis);
+    let mut cut = feature(21, "Extrude cut", Operation::Extrude { sketch: Profile::Feature { feature: 20 }, height_mm: -1.0, draft_deg: 3.0 });
+    cut.component.attach = Attach::Cut;
+    let pivot = std::array::from_fn(|k| rect.plane.origin[k] - frame.x_axis[k] * 1.5);
+    let mut turn = feature(22, "Revolve cut", Operation::Revolve { sketch: Profile::Feature { feature: 20 }, pivot, axis: frame.y_axis, degrees: 180.0 });
+    turn.component.attach = Attach::Cut;
+    let edits = [
+        CadEdit::Add { feature: feature(20, "Sketch", Operation::Sketch { sketch: rect }), after: None },
+        CadEdit::Add { feature: cut, after: None },
+        CadEdit::Operation { id: 21, operation: Operation::Extrude { sketch: Profile::Feature { feature: 20 }, height_mm: -0.6, draft_deg: 3.0 } },
+        CadEdit::Attach { id: 21, attach: Attach::Join },
+        CadEdit::Attach { id: 21, attach: Attach::Cut },
+        CadEdit::Add { feature: turn, after: None },
+    ];
+    let mut plain = base.clone();
+    let mut g = graph_cad::from_document(&base).unwrap();
+    for edit in &edits {
+        let (p, a) = (plain.apply_cad_edit(edit).unwrap(), graph_cad::apply_edit(&mut g, edit).unwrap());
+        assert_eq!((p.id, &p.label), (a.id, &a.label), "{edit:?}");
+        let out = evaluate(&g).unwrap();
+        assert_eq!(cad_bytes(&out), cad_bytes(&plain), "{edit:?}");
+    }
+    assert!(cad_bytes(&plain).contains(r#""height_mm":-0.6"#), "the height keeps its sign");
+    let reread: Graph = serde_json::from_str(&serde_json::to_string(&g).unwrap()).unwrap();
+    assert_eq!(cad_bytes(&evaluate(&reread).unwrap()), cad_bytes(&plain));
+    // Both build the same parts, the cuts carving the bezel.
+    let parts = |d: &RingDesign| {
+        let e = cad::evaluate(d, &lib, params()).unwrap();
+        assert!(e.failures().is_empty(), "{:?}", e.failures());
+        e.components.iter().map(|c| (c.id, c.attach, c.mesh.faces.len())).collect::<Vec<_>>()
+    };
+    let (a, b) = (parts(&plain), parts(&evaluate(&g).unwrap()));
+    assert_eq!(a, b);
+    assert_eq!(a.iter().map(|(id, attach, _)| (*id, *attach)).collect::<Vec<_>>(), [(2, Attach::Join), (21, Attach::Cut), (22, Attach::Cut)]);
+}
+
+#[test]
 fn a_part_appended_after_the_lifts_property_nodes_still_edits_to_the_same_document() {
     let base = cad::examples::design("solitaire").unwrap();
     let mut g = graph_cad::from_document(&base).unwrap();

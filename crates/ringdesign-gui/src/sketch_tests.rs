@@ -3,8 +3,8 @@
 use crate::interaction_tests::*;
 use crate::app::RingDesignerApp;
 use egui::{Event, Key, Modifiers, PointerButton, Pos2};
-use egui_kittest::{Harness, kittest::Queryable};
-use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation, Placement, SurfaceKind};
+use egui_kittest::{Harness, kittest::{NodeT, Queryable}};
+use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation, Placement, Profile, SurfaceKind};
 use ringdesign_core::sketch::{Geometry, Sketch, distance};
 use ringdesign_core::{ProfileStyle, RingDesign};
 use std::time::{Duration, Instant};
@@ -558,6 +558,75 @@ fn unfinished_strokes_extrude_as_one_edit_and_the_part_rises_with_the_face_it_st
     wait_for_build(&mut h);
     let (low, high) = heights(&h, extrude.id, origin, n);
     assert!((low - 0.5).abs() < 1e-3 && (high - 2.0).abs() < 1e-3, "{low} .. {high}");
+}
+
+#[test]
+fn a_cut_runs_from_the_face_it_was_drawn_on_into_the_metal_and_takes_its_area_times_its_depth() {
+    let mut h = harness();
+    let pane = court_with_a_box(&mut h);
+    let id = sketch_on_the_top(&mut h, pane);
+    wait_for_build(&mut h);
+    let before = h.state().build.as_ref().unwrap().mesh.volume_mm3();
+    let (origin, n) = (h.state().sketch.world([0.0; 2]).unwrap(), h.state().sketch.normal().unwrap());
+    let mut rect = Sketch { plane: working(&h).plane, ..Sketch::default() };
+    rect.add_rectangle([-1.0, -0.75], [1.0, 0.75], false).unwrap();
+    h.state_mut().sketch.set_working(rect);
+    h.run_steps(2);
+    region_menu(&mut h, pane, [0.5, 0.5], "Extrude");
+    assert!(h.state().status.starts_with("Extrude:"), "a part beside the procedural shank starts joined: {}", h.state().status);
+    // The toolbar's Cut turns the solid into the metal; J steps on to apart, then joined, then cut again.
+    h.get_by_label("Cut").click();
+    h.run_steps(2);
+    assert!(h.state().status.starts_with("Cut: the solid carves"), "{}", h.state().status);
+    for want in ["Separate:", "Join:", "Cut:"] {
+        press(&mut h, Key::J);
+        assert!(h.state().status.starts_with(want), "{want} · {}", h.state().status);
+    }
+    text(&mut h, "1");
+    press(&mut h, Key::Enter);
+    assert!(!h.state().sketch.is_live(), "{}", h.state().status);
+    let cut = h.state().design.cad.as_ref().unwrap().features.last().cloned().unwrap();
+    assert_eq!((cut.name.as_str(), cut.component.attach), ("Extrude cut", Attach::Cut));
+    assert!(matches!(cut.operation, Operation::Extrude { sketch: Profile::Feature { feature }, height_mm, .. } if feature == id && height_mm == -1.0), "{:?}", cut.operation);
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let built = h.state().build.clone().unwrap();
+    assert_eq!(built.parts.cut, 1, "{:?}", built.parts.notes);
+    let taken = before - built.mesh.volume_mm3();
+    assert!((taken - 3.0).abs() < 1e-3, "2 × 1.5 × 1 = 3 mm³ out of the box: {taken}");
+    let (low, high) = heights(&h, cut.id, origin, n);
+    assert!((low + 1.0).abs() < 1e-3 && (high - ringdesign_core::cad::CUT_CLEAR_MM).abs() < 1e-3, "the tool runs {low} to {high} along the face's normal");
+}
+
+#[test]
+fn regions_sharing_a_line_extrude_one_at_a_time_from_the_menu() {
+    let mut h = harness();
+    let pane = court_with_a_box(&mut h);
+    sketch_on_the_top(&mut h, pane);
+    wait_for_build(&mut h);
+    let before = h.state().build.as_ref().unwrap().mesh.volume_mm3();
+    // A 4 × 3 rectangle with a line from its bottom to its top, 1 mm in from its left side.
+    let mut s = Sketch { plane: working(&h).plane, ..Sketch::default() };
+    s.add_rectangle([-2.0, -1.5], [2.0, 1.5], false).unwrap();
+    let (a, b) = (s.point([-1.0, -1.5]), s.point([-1.0, 1.5]));
+    s.add_line(a, b, false).unwrap();
+    h.state_mut().sketch.set_working(s);
+    h.run_steps(2);
+    let at = on_plane(&h, pane, [0.5, 0.0]);
+    h.hover_at(at);
+    h.run_steps(2);
+    click_at(&mut h, at, PointerButton::Secondary, Modifiers::NONE);
+    let whole = h.get_by_label("Extrude");
+    assert!(whole.accesskit_node().is_disabled(), "every region at once is not offered where they share a line");
+    h.get_by_label("Extrude this region").click();
+    h.run_steps(2);
+    text(&mut h, "0.5");
+    press(&mut h, Key::Enter);
+    assert!(!h.state().sketch.is_live(), "{}", h.state().status);
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let grew = h.state().build.as_ref().unwrap().mesh.volume_mm3() - before;
+    assert!((grew - 3.0 * 3.0 * 0.5).abs() < 1e-3, "the 3 × 3 part alone, 0.5 mm high: {grew}");
 }
 
 #[test]
