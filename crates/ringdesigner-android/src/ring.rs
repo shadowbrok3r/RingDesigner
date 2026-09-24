@@ -399,9 +399,11 @@ pub struct Done {
     pub params: BuildParams,
     /// The mesh shows one isolated layer rather than the design.
     pub isolated: bool,
-    /// The part the mesh shows alone, when one was asked for and it stands on the ring.
-    pub alone: Option<ringdesign_core::sketch::Id>,
-    /// Why the part asked for could not be shown alone.
+    /// The parts the mesh shows alone, of those asked for; empty for the whole ring.
+    pub alone: Vec<ringdesign_core::sketch::Id>,
+    /// The parts asked for that could not stand alone.
+    pub left_out: Vec<ringdesign_core::sketch::Id>,
+    /// Why they could not.
     pub alone_note: Option<String>,
     /// Where the worker's time went, milliseconds.
     pub timings: Timings,
@@ -423,7 +425,7 @@ struct Job {
     analyze: bool,
     gems: bool,
     view_layer: Option<usize>,
-    view_part: Option<ringdesign_core::sketch::Id>,
+    view_parts: Vec<ringdesign_core::sketch::Id>,
     cuts: Cuts,
 }
 
@@ -546,18 +548,31 @@ impl Worker {
                     // Isolation is a rendering operation: the reports read the complete source, and exports never see these copies.
                     let layer_build = view_layer.is_some().then(|| ringdesign_core::mesh::build(&visible, &job.lib, job.params));
                     let parts = job.design.cad.is_some();
-                    let (alone, alone_note) = match job.view_part.filter(|_| view_layer.is_none() && parts) {
-                        Some(id) => match ringdesign_workbench::touch::isolate::alone(&out, id) {
-                            Ok(b) => (Some(b), None),
-                            Err(why) => (None, Some(why)),
-                        },
-                        None => (None, None),
+                    // Parts that cannot stand alone are left out and said; when none can, the whole ring shows.
+                    let (mut left_out, mut alone_note) = (Vec::new(), None);
+                    let alone = if job.view_parts.is_empty() || view_layer.is_some() || !parts {
+                        None
+                    } else {
+                        match ringdesign_workbench::touch::isolate::alone(&out, &job.view_parts) {
+                            Ok(a) => {
+                                if !a.left_out.is_empty() {
+                                    alone_note = Some(a.left_out.iter().map(|(_, why)| why.as_str()).collect::<Vec<_>>().join(" · "));
+                                    left_out = a.left_out.iter().map(|(id, _)| *id).collect();
+                                }
+                                Some((a.build, a.shown))
+                            }
+                            Err(why) => {
+                                alone_note = Some(why);
+                                left_out = job.view_parts.clone();
+                                None
+                            }
+                        }
                     };
                     let plain = view_layer.is_some() || alone.is_some();
                     // Parts and stones are chosen through one scene over what is on screen; a plain band needs none.
                     let choosable = parts || !ringdesign_core::setstone::set_stones(&visible).is_empty();
                     let (field, cast, verts, gems, scene, stage_ms, scene_ms) = std::thread::scope(|s| {
-                        let display = alone.as_ref().or(layer_build.as_ref()).unwrap_or(&out);
+                        let display = alone.as_ref().map(|(b, _)| b).or(layer_build.as_ref()).unwrap_or(&out);
                         // The pick scene builds on its own thread beside the verdict and the staging, which never read it.
                         let picking = s.spawn(|| {
                             let clock = std::time::Instant::now();
@@ -608,7 +623,7 @@ impl Worker {
                         let (scene, scene_ms) = picking.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
                         (field, cast, verts, gems, scene, stage_ms, scene_ms)
                     });
-                    let alone_id = alone.as_ref().and(job.view_part);
+                    let (alone, shown) = alone.map_or((None, Vec::new()), |(b, shown)| (Some(b), shown));
                     let mut out = alone.or(layer_build).unwrap_or(out);
                     // A design with parts keeps the band they stand on as its ring frame; one without drops the copy.
                     if !parts {
@@ -654,7 +669,8 @@ impl Worker {
                         graph,
                         params: job.params,
                         isolated: view_layer.is_some(),
-                        alone: alone_id,
+                        alone: shown,
+                        left_out,
                         alone_note,
                         timings: Timings { worker_ms: clock.elapsed().as_secs_f64() * 1e3, stage_ms, scene_ms },
                     };
@@ -683,7 +699,7 @@ impl Worker {
         analyze: bool,
         gems: bool,
         view_layer: Option<usize>,
-        view_part: Option<ringdesign_core::sketch::Id>,
+        view_parts: &[ringdesign_core::sketch::Id],
         cuts: Cuts,
     ) -> bool {
         self.jobs
@@ -695,7 +711,7 @@ impl Worker {
                 analyze,
                 gems,
                 view_layer,
-                view_part,
+                view_parts: view_parts.to_vec(),
                 cuts,
             })
             .is_ok()

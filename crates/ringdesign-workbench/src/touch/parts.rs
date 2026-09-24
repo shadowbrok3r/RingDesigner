@@ -3,7 +3,7 @@ use crate::cad_tools;
 use crate::command::Effect;
 use crate::command::pattern::pattern_feature;
 use ringdesign_core::{
-    Mesh, RingDesign,
+    Mesh, RingDesign, Vec3,
     cad::{Attach, Component, ComponentRole, EdgeRef, Evaluated, EvaluatedComponent, Feature, MirrorPlane, Operation, PatternKind, Placement, builders, edit::CadEdit, pattern},
     gem::Gem,
     sketch::Id,
@@ -180,6 +180,39 @@ pub fn stone_by(design: &RingDesign, evaluated: &Evaluated, f: &Feature, c: &Eva
     evaluated.components.iter().filter(|s| is_stone(s.id)).map(|s| (s.id, gap(s.frame.origin))).filter(|(_, d)| *d <= STONE_REACH_MM).min_by(|a, b| a.1.total_cmp(&b.1)).map(|(id, _)| id)
 }
 
+/// A pattern's copies as its ghost shows them: the source's mesh carried onto each, which triangles belong to a copy left out, and what is said of those.
+#[derive(Clone, Debug, Default)]
+pub struct Copies {
+    pub mesh: Mesh,
+    /// Per face: part of a copy the pattern leaves out for standing off its face.
+    pub refused: Vec<bool>,
+    pub note: Option<String>,
+}
+
+/// Every copy a pattern `kind` of `source_id` would stand, as the evaluation places them on the parts `evaluated` on `surface`: `source`, the part's mesh,
+/// carried onto each, the copies it would leave out for standing off their face refused and named by their angle.
+pub fn copies(design: &RingDesign, surface: Option<&Mesh>, evaluated: &Evaluated, source_id: Id, source: &Mesh, kind: &PatternKind) -> Option<Copies> {
+    let instances = pattern::copy_instances(design, surface, evaluated, source_id, kind).ok()?;
+    let mut out = Copies::default();
+    for i in &instances {
+        let (m, base) = (i.motion, out.mesh.vertices.len() as u32);
+        out.mesh.vertices.extend(source.vertices.iter().map(|v| {
+            let p = m.point([f64::from(v.0), f64::from(v.1), f64::from(v.2)]);
+            Vec3(p[0] as f32, p[1] as f32, p[2] as f32)
+        }));
+        let flip = m.reflects();
+        out.mesh.faces.extend(source.faces.iter().map(|f| if flip { [f[0] + base, f[2] + base, f[1] + base] } else { f.map(|k| k + base) }));
+        out.refused.extend(std::iter::repeat_n(i.off_face, source.faces.len()));
+    }
+    let off: Vec<String> = instances.iter().filter(|i| i.off_face).map(|i| format!("{:.0}°", i.angle_deg)).collect();
+    if !off.is_empty() {
+        let host = design.cad.as_ref().and_then(|d| d.feature(ringdesign_core::cad::face_stone(d, source_id)?.1)).map_or_else(|| "its part".to_string(), |f| format!("#{} {}", f.id, f.name));
+        let stand = if off.len() == 1 { "1 copy stands".to_string() } else { format!("{} copies stand", off.len()) };
+        out.note = Some(format!("{stand} off the face of {host}, left out: {}", off.join(", ")));
+    }
+    Some(out)
+}
+
 /// A command's effects as funnel edits and whether one adds a part; a first body brings its shank, a ring of parts keeps it apart.
 pub fn effect_edits(design: &RingDesign, effects: Vec<Effect>) -> (Vec<CadEdit>, bool) {
     let mut edits = Vec::new();
@@ -349,5 +382,54 @@ mod tests {
         assert_eq!(stone_by(&d, &e, &f, &c), Some(stone), "a head stands on its stone");
         let (f, c) = of(far);
         assert_eq!(stone_by(&d, &e, &f, &c), None, "the palm is further than 8 mm from the stone at the top");
+    }
+
+    /// The Court band with a 4 × 14 mm plate joined at its top and a 1.5 mm stone on the plate in four claws, the head #4.
+    fn plate_with_head() -> RingDesign {
+        use ringdesign_core::{
+            cad::{FaceSeat, Document},
+            gem::{Gem, GemCut},
+        };
+        let mut d = template("Court band");
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component { role: ComponentRole::Shank, ..Component::default() } }).unwrap();
+        let plate = Component { attach: Attach::Join, placement: Placement::ring(90.0, 0.65), ..Component::default() };
+        doc.append(Feature { id: 2, name: "Plate".into(), enabled: true, operation: Operation::Box { size: [4.0, 14.0, 1.5] }, component: plate }).unwrap();
+        d.cad = Some(doc.clone());
+        let built = mesh::build(&d, &AlphaLibrary::builtin(), params());
+        let host = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 2).unwrap();
+        // The plate's top: the planar face turned most nearly along the part's own z.
+        let outward = |f: u32| FaceSeat::on(host, f, None, 0.0).ok().and_then(|s| s.face_of(host).ok()).map(|fr| (0..3).map(|k| fr.normal[k] * host.frame.z_axis[k]).sum::<f64>());
+        let top = (0..host.body.faces.len() as u32).filter_map(|f| outward(f).map(|w| (f, w))).max_by(|a, b| a.1.total_cmp(&b.1)).unwrap().0;
+        let gem = Gem::calibrated(GemCut::Round, 1.5);
+        let seat = FaceSeat::on(host, top, None, builders::stand_off_mm("claw4", gem)).unwrap();
+        doc.append(ringdesign_core::cad::stone_on_face(3, gem, 2, &seat)).unwrap();
+        doc.append(builders::feature_on(4, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }))).unwrap();
+        d.cad = Some(doc);
+        d
+    }
+
+    #[test]
+    fn a_face_arrays_ghost_shows_the_copies_it_would_leave_out_refused_and_names_them() {
+        let d = plate_with_head();
+        let built = mesh::build(&d, &AlphaLibrary::builtin(), params());
+        let e = built.parts.evaluated.as_ref().unwrap();
+        let head = e.components.iter().find(|c| c.id == 4).expect("the head built");
+        let n = head.mesh.faces.len();
+        // Four heads 24° apart over 72°: the copies at 48° and 72° stand off the plate's 14 mm.
+        let kind = PatternKind::Ring { count: 4, span_deg: 72.0 };
+        let c = copies(&d, built.band.as_deref(), e, 4, &head.mesh, &kind).unwrap();
+        assert_eq!((c.mesh.faces.len(), c.refused.len(), c.mesh.vertices.len()), (3 * n, 3 * n, 3 * head.mesh.vertices.len()));
+        assert!(c.refused[..n].iter().all(|r| !r) && c.refused[n..].iter().all(|r| *r), "the 24° copy stays, the other two are refused");
+        assert_eq!(c.note.as_deref(), Some("2 copies stand off the face of #2 Plate, left out: 48°, 72°"));
+        // Two over 24° keep both on the plate and say nothing.
+        let near = copies(&d, built.band.as_deref(), e, 4, &head.mesh, &PatternKind::Ring { count: 2, span_deg: 24.0 }).unwrap();
+        assert!(near.refused.iter().all(|r| !r) && near.note.is_none() && near.mesh.faces.len() == n);
+        // Each kept copy is the head carried by the motion the evaluation places it with.
+        let motions = pattern::copy_motions(&d, built.band.as_deref(), e, 4, &kind).unwrap();
+        let v = head.mesh.vertices[0];
+        let at = motions[0].point([f64::from(v.0), f64::from(v.1), f64::from(v.2)]);
+        let got = c.mesh.vertices[0];
+        assert!((0..3).all(|k| (f64::from([got.0, got.1, got.2][k]) - at[k]).abs() < 1e-4), "{got:?} against {at:?}");
     }
 }

@@ -27,8 +27,10 @@ pub enum Extra {
     PlaneOnFace { feature: Id, face: u32 },
     /// A work plane through the finger's axis at a typed angle, `theta_deg` where the band was pressed.
     PlaneAtAngle { theta_deg: f64 },
-    /// The whole ring shown again after a part was shown alone.
+    /// The whole ring shown again after parts were shown alone.
     ShowAll,
+    /// Part `id` taken out of the parts shown alone, the others staying.
+    TakeOut(Id),
 }
 
 /// One of the phone's own rows: its mark, its words, what it does, and why not when it is not offered.
@@ -41,8 +43,9 @@ pub struct ExtraItem {
     pub hint: String,
 }
 
-/// The rows the phone adds for what lies under the finger, else the last thing chosen: a work plane on a flat face or through the axis where the band was pressed, and the whole ring again while a part is shown alone.
-pub fn extras(under: Option<&Pick>, chosen: Option<&Sel>, evaluated: Option<&Evaluated>, isolated: Option<Id>) -> Vec<ExtraItem> {
+/// The rows the phone adds for what lies under the finger, else the last thing chosen: a work plane on a flat face or through the axis where the band was pressed,
+/// and while parts are shown alone, taking one of several out and the whole ring again.
+pub fn extras(under: Option<&Pick>, chosen: Option<&Sel>, evaluated: Option<&Evaluated>, isolated: &[Id]) -> Vec<ExtraItem> {
     let mut out = Vec::new();
     let subject = match (under, chosen) {
         (Some(p), _) => Some((p.entity.clone(), p.world)),
@@ -80,20 +83,37 @@ pub fn extras(under: Option<&Pick>, chosen: Option<&Sel>, evaluated: Option<&Eva
         }),
         _ => {}
     }
-    if isolated.is_some() {
+    // A part among several shown alone can be taken out of the view.
+    let part = match (under.map(|p| &p.entity), chosen) {
+        (Some(Entity::Part { feature } | Entity::Face { feature, .. } | Entity::Edge { feature, .. } | Entity::Vertex { feature, .. }), _) => Some(*feature),
+        (Some(_), _) => None,
+        (None, Some(s)) => s.feature(),
+        (None, None) => None,
+    };
+    if let Some(id) = part.filter(|id| isolated.len() > 1 && isolated.contains(id)) {
+        let n = isolated.len() - 1;
+        let hint = if n == 1 { "1 other part stays shown alone".to_string() } else { format!("{n} other parts stay shown alone") };
+        out.push(ExtraItem { icon: Icon::Close, label: "Take it out of the view", act: Extra::TakeOut(id), enabled: true, hint });
+    }
+    if !isolated.is_empty() {
         out.push(ExtraItem { icon: Icon::Layers, label: "Show the whole ring", act: Extra::ShowAll, enabled: true, hint: "Every part and the band again".into() });
     }
     out
 }
 
-/// The desktop's items as the phone offers them: everything kept in its place, what it cannot do yet disabled and saying why.
-pub fn phone_items(items: Vec<MenuItem>) -> Vec<MenuItem> {
+/// The desktop's items as the phone offers them: everything kept in its place, what it cannot do yet disabled and saying why;
+/// Isolate adds a part to the parts shown alone, and is not offered for one already there.
+pub fn phone_items(items: Vec<MenuItem>, isolated: &[Id]) -> Vec<MenuItem> {
     items
         .into_iter()
+        .filter(|item| !matches!(item.action, MenuAction::IsolateInCad(id) if isolated.contains(&id)))
         .map(|mut item| {
             if let Some(why) = not_here(&item.action) {
                 item.enabled = false;
                 item.hint = why;
+            }
+            if matches!(item.action, MenuAction::IsolateInCad(_)) {
+                (item.label, item.hint) = if isolated.is_empty() { ("Isolate".into(), "Show this part alone on the ring") } else { ("Isolate with the others".into(), "Show this part beside the parts already shown alone") };
             }
             item
         })
@@ -302,20 +322,20 @@ mod tests {
     fn the_band_menu_offers_parts_stones_a_sketch_and_a_work_plane_and_greys_only_the_grid() {
         let d = design();
         let under = pick(Entity::Band, [0.0, 9.5, 0.0]);
-        let items = phone_items(context_items(&Selection::default(), Some(&under), &d));
+        let items = phone_items(context_items(&Selection::default(), Some(&under), &d), &[]);
         let off: Vec<(&str, &str)> = items.iter().filter(|i| !i.enabled).map(|i| (i.label.as_str(), i.hint)).collect();
         assert_eq!(off, [("Grid", "The phone's view has no ground grid")]);
         assert!(items.iter().any(|i| i.enabled && i.action == MenuAction::SketchOnPlane { theta_deg: 90.0, across_mm: 0.0 }));
         // The phone's own row: a plane through the axis at the angle pressed, and the whole ring back while a part stands alone.
-        let own = extras(Some(&under), None, None, None);
+        let own = extras(Some(&under), None, None, &[]);
         assert_eq!(own.iter().map(|x| (x.label, x.act.clone(), x.enabled)).collect::<Vec<_>>(), [("Work plane at angle…", Extra::PlaneAtAngle { theta_deg: 90.0 }, true)]);
         // Pressed below the axis, the angle reads on 0–360° as the band's readout does.
-        let low = extras(Some(&pick(Entity::Band, [2.25, -9.74, 0.0])), None, None, None);
+        let low = extras(Some(&pick(Entity::Band, [2.25, -9.74, 0.0])), None, None, &[]);
         assert_eq!(low[0].act, Extra::PlaneAtAngle { theta_deg: 283.0 });
-        let alone = extras(Some(&under), None, None, Some(3));
+        let alone = extras(Some(&under), None, None, &[3]);
         assert_eq!(alone.last().map(|x| x.act.clone()), Some(Extra::ShowAll));
         // A face that has not built cannot carry one, and says so.
-        let face = extras(Some(&pick(Entity::Face { feature: 3, face: 1 }, [0.0, 10.0, 0.0])), None, None, None);
+        let face = extras(Some(&pick(Entity::Face { feature: 3, face: 1 }, [0.0, 10.0, 0.0])), None, None, &[]);
         assert_eq!((face[0].label, face[0].enabled, face[0].hint.as_str()), ("Work plane here…", false, "Part #3 has not built yet"));
         let top = rows(&items, None);
         let subs: Vec<(&str, usize)> = top.iter().filter_map(|r| match r {
@@ -336,7 +356,7 @@ mod tests {
     fn a_face_menu_keeps_press_pull_and_patterns_and_greys_only_what_the_phone_lacks() {
         let d = design();
         let under = pick(Entity::Face { feature: 3, face: 1 }, [0.0, 10.0, 0.0]);
-        let items = phone_items(context_items(&Selection::default(), Some(&under), &d));
+        let items = phone_items(context_items(&Selection::default(), Some(&under), &d), &[]);
         let off: Vec<&str> = items.iter().filter(|i| !i.enabled).map(|i| i.label.as_str()).collect();
         assert_eq!(off, ["Grid"], "sketching and isolating are the phone's now");
         assert!(items.iter().any(|i| i.enabled && i.action == MenuAction::IsolateInCad(3)));
@@ -362,7 +382,7 @@ mod tests {
     fn a_menu_keeps_the_side_it_opened_on_when_a_shorter_page_replaces_its_list() {
         let d = design();
         let under = pick(Entity::Band, [0.0, 9.5, 0.0]);
-        let items = phone_items(context_items(&Selection::default(), Some(&under), &d));
+        let items = phone_items(context_items(&Selection::default(), Some(&under), &d), &[]);
         let view = Rect::from_min_size(Pos2::ZERO, egui::vec2(420.0, 1000.0));
         let mut menu = Menu::new(egui::pos2(200.0, 700.0), Some("Band at 90°".into()), items);
         let ctx = egui::Context::default();
@@ -395,7 +415,7 @@ mod tests {
         stone.component.reference = true;
         d.cad.as_mut().unwrap().append(stone).unwrap();
         let under = pick(Entity::Part { feature: 5 }, [0.0, 10.0, 0.0]);
-        let items = phone_items(context_items(&Selection::default(), Some(&under), &d));
+        let items = phone_items(context_items(&Selection::default(), Some(&under), &d), &[]);
         let shut: Vec<(&str, Option<&str>)> = rows(&items, None)
             .into_iter()
             .filter_map(|r| match r {
@@ -405,5 +425,30 @@ mod tests {
             .filter(|(_, why)| why.is_some())
             .collect();
         assert_eq!(shut, [("Attach", Some("A reference stone is never metal")), ("Stage", Some("A reference stone is never metal"))]);
+    }
+
+    #[test]
+    fn isolate_adds_a_part_to_those_alone_and_a_part_already_alone_is_offered_out_instead() {
+        let mut d = design();
+        d.cad.as_mut().unwrap().append(Feature { id: 4, name: "Block".into(), enabled: true, operation: Operation::Box { size: [1.0; 3] }, component: Component::default() }).unwrap();
+        let on = |id: Id| pick(Entity::Face { feature: id, face: 0 }, [0.0, 10.0, 0.0]);
+        let isolate = |items: &[MenuItem]| items.iter().find(|i| matches!(i.action, MenuAction::IsolateInCad(_))).map(|i| (i.label.clone(), i.action.clone()));
+        // Nothing alone: the post's menu isolates it, and there is nothing to take out or bring back.
+        let items = phone_items(context_items(&Selection::default(), Some(&on(3)), &d), &[]);
+        assert_eq!(isolate(&items), Some(("Isolate".into(), MenuAction::IsolateInCad(3))));
+        assert!(extras(Some(&on(3)), None, None, &[]).iter().all(|x| !matches!(x.act, Extra::TakeOut(_) | Extra::ShowAll)));
+        // The post alone: its own menu no longer isolates it, the block's adds the block beside it.
+        let items = phone_items(context_items(&Selection::default(), Some(&on(3)), &d), &[3]);
+        assert_eq!(isolate(&items), None);
+        let block = phone_items(context_items(&Selection::default(), Some(&on(4)), &d), &[3]);
+        assert_eq!(isolate(&block), Some(("Isolate with the others".into(), MenuAction::IsolateInCad(4))));
+        // One part alone is taken out by showing the whole ring; of two, either comes out alone.
+        let acts = |under: &Pick, alone: &[Id]| extras(Some(under), None, None, alone).into_iter().map(|x| x.act).filter(|a| matches!(a, Extra::TakeOut(_) | Extra::ShowAll)).collect::<Vec<_>>();
+        assert_eq!(acts(&on(3), &[3]), [Extra::ShowAll]);
+        assert_eq!(acts(&on(3), &[3, 4]), [Extra::TakeOut(3), Extra::ShowAll]);
+        assert_eq!(acts(&on(4), &[3, 4]), [Extra::TakeOut(4), Extra::ShowAll]);
+        // With nothing under the finger, the last part chosen is the one taken out.
+        let chosen = extras(None, Some(&Sel::Part(4)), None, &[3, 4]);
+        assert_eq!(chosen.iter().find(|x| matches!(x.act, Extra::TakeOut(_))).map(|x| (x.act.clone(), x.hint.as_str())), Some((Extra::TakeOut(4), "1 other part stays shown alone")));
     }
 }

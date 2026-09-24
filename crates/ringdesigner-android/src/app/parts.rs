@@ -10,7 +10,7 @@ impl RingApp {
         self.cad.live.cancel(&mut said);
         self.cad.clear();
         self.cad.drop_sketch();
-        self.cad.isolated = None;
+        self.cad.isolated.clear();
     }
 
     /// A feature's name as the document holds it.
@@ -23,14 +23,10 @@ impl RingApp {
         for r in self.cad.take_requests() {
             match r {
                 Request::Edit { edits, then } => {
-                    let ok = self.cad_edit(&edits, then);
-                    let alone = self.cad.isolated;
-                    self.cad.edit_landed(ok);
-                    // The ring comes back round a sketch's new solid under the part's own framing.
-                    if alone.is_some() && self.cad.isolated.is_none() {
-                        self.shown_alone = None;
-                    }
-                    if ok {
+                    let added = self.cad_edit(&edits, then);
+                    self.cad.edit_landed(added.is_some());
+                    if let Some(added) = added {
+                        self.isolate_made(&added);
                         host.haptic(Haptic::Success);
                     }
                 }
@@ -42,15 +38,18 @@ impl RingApp {
                     self.camera_turn = None;
                     self.pane.camera.pan_by(by, rect);
                 }
-                Request::Isolate(part) => {
-                    if self.editor.isolate {
-                        self.editor.isolate = false;
-                    }
-                    self.cad.isolated = part;
+                Request::Isolate(Some(id)) => self.isolate(id),
+                Request::Isolate(None) => {
+                    self.cad.isolated.clear();
                     self.request_view_update();
-                    self.status = match part {
-                        Some(id) => format!("{} shown alone: the verdict still reads the whole ring; Show the whole ring or Clear brings it back", self.feature_name(id)),
-                        None => "The whole ring again".into(),
+                    self.status = "The whole ring again".into();
+                }
+                Request::TakeOut(id) => {
+                    self.cad.isolated.retain(|x| *x != id);
+                    self.request_view_update();
+                    self.status = match self.cad.isolated.len() {
+                        0 => "The whole ring again".into(),
+                        n => format!("{} taken out of the view; {n} part{} still shown alone", self.feature_name(id), if n == 1 { "" } else { "s" }),
                     };
                 }
                 Request::Status(text) => self.status = text,
@@ -88,8 +87,33 @@ impl RingApp {
         }
     }
 
-    /// The one road a CAD edit takes on the phone: the funnel as one undo step, then the choice it asks for.
-    fn cad_edit(&mut self, edits: &[CadEdit], then: Then) -> bool {
+    /// Part `id` added to the parts shown alone on the ring.
+    fn isolate(&mut self, id: u64) {
+        if self.editor.isolate {
+            self.editor.isolate = false;
+        }
+        if !self.cad.isolated.contains(&id) {
+            self.cad.isolated.push(id);
+        }
+        self.request_view_update();
+        self.status = match self.cad.isolated.len() {
+            1 => format!("{} shown alone: the verdict still reads the whole ring; Show the whole ring or Clear brings it back", self.feature_name(id)),
+            n => format!("{} shown alone beside {} other part{}", self.feature_name(id), n - 1, if n == 2 { "" } else { "s" }),
+        };
+    }
+
+    /// Parts an edit `added` join the parts shown alone, in place of any they replace.
+    pub(super) fn isolate_made(&mut self, added: &[u64]) {
+        let Some(doc) = self.design.cad.as_ref() else { return };
+        let next = ringdesign_workbench::touch::isolate::after_edit(&self.cad.isolated, doc, added);
+        if next != self.cad.isolated {
+            self.cad.isolated = next;
+            self.request_view_update();
+        }
+    }
+
+    /// The one road a CAD edit takes on the phone: the funnel as one undo step, then the choice it asks for; the features it added, `None` when nothing landed.
+    pub(super) fn cad_edit(&mut self, edits: &[CadEdit], then: Then) -> Option<Vec<u64>> {
         let evaluated = self.preview_mesh.as_ref().and_then(|b| b.evaluated());
         match crate::cad::commit(&mut self.design, &mut self.history, edits, evaluated) {
             Ok(Some(done)) => {
@@ -104,12 +128,12 @@ impl RingApp {
                     self.cad.choose_made(&self.design, id);
                 }
                 self.status = done.label;
-                true
+                Some(done.applied.iter().filter_map(|a| a.id).collect())
             }
-            Ok(None) => false,
+            Ok(None) => None,
             Err(why) => {
                 self.status = why;
-                false
+                None
             }
         }
     }
@@ -135,13 +159,11 @@ impl RingApp {
                     self.status = format!("#{id}: edit its numbers on the Workshop's CAD tab");
                     self.tab = Tab::Workshop;
                 }
-                strip::Routed::Isolate(id) => {
-                    self.cad.isolated = Some(id);
-                    self.request_view_update();
-                    self.status = format!("{} shown alone; Clear brings the whole ring back", self.feature_name(id));
-                }
+                strip::Routed::Isolate(id) => self.isolate(id),
                 strip::Routed::Commit(edits) => {
-                    self.cad_edit(&edits, Then::Keep);
+                    if let Some(added) = self.cad_edit(&edits, Then::Keep) {
+                        self.isolate_made(&added);
+                    }
                 }
                 strip::Routed::Say(text) => self.status = text,
             }

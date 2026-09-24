@@ -8,7 +8,7 @@ use ringdesign_workbench::visual::{Pointer as VisualPointer, Tool as VisualTool}
 
 impl RingApp {
     pub(super) fn clear_viewport_selection(&mut self) {
-        let isolated = self.editor.isolate || self.cad.isolated.take().is_some();
+        let isolated = self.editor.isolate || !std::mem::take(&mut self.cad.isolated).is_empty();
         self.cad.clear();
         self.editor.reset_selection();
         self.probe_info = None;
@@ -1404,8 +1404,9 @@ impl RingApp {
             "Before latest edit — release to return".to_string()
         } else if self.editor.isolate {
             "Isolated layer preview · full design preserved".to_string()
-        } else if let Some(id) = self.cad.isolated {
-            format!("{} alone · full design preserved", self.design.cad.as_ref().and_then(|d| d.feature(id)).map_or_else(|| format!("#{id}"), |f| f.name.clone()))
+        } else if !self.cad.isolated.is_empty() {
+            let names: Vec<String> = self.cad.isolated.iter().map(|id| self.design.cad.as_ref().and_then(|d| d.feature(*id)).map_or_else(|| format!("#{id}"), |f| f.name.clone())).collect();
+            format!("{} alone · full design preserved", names.join(", "))
         } else if self.editor.check_pending {
             "Updating shape / checking…".to_string()
         } else if self.dfm_pending {

@@ -523,7 +523,7 @@ fn a_stone_added_on_the_band_is_drawn_with_the_stones_and_its_setting_is_built_r
     // The stone built, chosen, and set in four claws.
     let mut b = Bench::new(d);
     b.cad.choose(2);
-    let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&b.cad.selection, None, &b.d));
+    let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&b.cad.selection, None, &b.d), &[]);
     let four = items.iter().find(|i| i.label == "Four claws").expect("a chosen stone offers its settings").action.clone();
     let d = b.d.clone();
     let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
@@ -879,14 +879,16 @@ fn a_sketch_on_the_posts_end_squares_the_view_draws_by_taps_and_extrudes_as_one_
     let done = commit(&mut d, &mut history, &edits, b.built.evaluated()).unwrap().unwrap();
     assert_eq!(done.label, "Add Sketch · Add Extrude");
     assert_eq!(history.timeline().len(), 2, "one undo step");
-    // Landed, the sketch closes, the camera turns back to where it opened, and a post shown alone lets the ring back round the new solid.
-    b.cad.isolated = Some(2);
+    // Landed, the sketch closes and the camera turns back to where it opened; a post shown alone keeps the view, and the new solid joins it.
+    b.cad.isolated = vec![2];
     b.cad.edit_landed(true);
     assert!(!b.cad.sketching());
-    assert_eq!(b.cad.isolated, None);
+    assert_eq!(b.cad.isolated, [2]);
     assert!(b.cad.take_requests().iter().any(|r| matches!(r, Request::Look(p) if *p == camera.pose())), "back to the view the sketch opened from");
-    // Built, the square stands 0.6 mm proud of the post's end: 0.6 mm³ of its own, joined into the ring.
     let extrude = done.applied.last().and_then(|a| a.id).unwrap();
+    let added: Vec<Id> = done.applied.iter().filter_map(|a| a.id).collect();
+    assert_eq!(touch::isolate::after_edit(&b.cad.isolated, d.cad.as_ref().unwrap(), &added), [2, extrude], "the sketch stays out of the view, the extrusion joins it");
+    // Built, the square stands 0.6 mm proud of the post's end: 0.6 mm³ of its own, joined into the ring.
     let after = Bench::new(d);
     let c = after.built.evaluated().unwrap().components.iter().find(|c| c.id == extrude).expect("the extrusion built");
     assert!((c.mesh.volume_mm3() - 0.6).abs() < 1e-3, "{}", c.mesh.volume_mm3());
@@ -904,10 +906,10 @@ fn a_work_plane_by_touch_waits_on_the_face_for_its_offset_and_a_part_is_asked_to
     let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
     // The Actions button's menu for a chosen face offers the plane too, and a curved face refuses one by name.
     let chosen = Sel::Face { feature: 2, face };
-    assert!(menu::extras(None, Some(&chosen), b.built.evaluated(), None).iter().any(|x| x.enabled && x.act == menu::Extra::PlaneOnFace { feature: 2, face }));
+    assert!(menu::extras(None, Some(&chosen), b.built.evaluated(), &[]).iter().any(|x| x.enabled && x.act == menu::Extra::PlaneOnFace { feature: 2, face }));
     let post = b.built.evaluated().unwrap().components.iter().find(|c| c.id == 2).unwrap();
     let side = (0..post.trace.face_kind.len() as u32).find(|f| post.trace.face_kind[*f as usize] == ringdesign_core::cad::SurfaceKind::Cylinder).unwrap();
-    let curved = menu::extras(None, Some(&Sel::Face { feature: 2, face: side }), b.built.evaluated(), None);
+    let curved = menu::extras(None, Some(&Sel::Face { feature: 2, face: side }), b.built.evaluated(), &[]);
     assert!(!curved[0].enabled && curved[0].hint.ends_with("is a cylinder; a work plane lies on a flat face"), "{:?}", curved[0].hint);
     b.cad.extra(&v, menu::Extra::PlaneOnFace { feature: 2, face });
     assert!(b.cad.live.is_live());
@@ -938,8 +940,236 @@ fn a_work_plane_by_touch_waits_on_the_face_for_its_offset_and_a_part_is_asked_to
     // Isolate in CAD asks the app to show the post alone; Show all brings the ring back.
     b.cad.act(&v, MenuAction::IsolateInCad(2));
     assert!(b.cad.take_requests().iter().any(|r| matches!(r, Request::Isolate(Some(2)))));
-    b.cad.isolated = Some(2);
-    assert!(menu::extras(None, None, b.built.evaluated(), b.cad.isolated).iter().any(|x| x.act == menu::Extra::ShowAll));
+    b.cad.isolated = vec![2];
+    assert!(menu::extras(None, None, b.built.evaluated(), &b.cad.isolated).iter().any(|x| x.act == menu::Extra::ShowAll));
     b.cad.extra(&v, menu::Extra::ShowAll);
     assert!(b.cad.take_requests().iter().any(|r| matches!(r, Request::Isolate(None))));
+}
+
+/// Opens a sketch on the post's end as its menu row does, the camera squared to it; the plane's frame.
+fn sketch_on_end(b: &mut Bench) -> touch::sketch::Frame {
+    b.step(Vec::new());
+    let face = top_face(&b.built, 2);
+    let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
+    let lib = AlphaLibrary::builtin();
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    b.cad.act(&v, MenuAction::SketchOnFace { feature: 2, face });
+    let look = b.cad.take_requests().into_iter().find_map(|r| if let Request::Look(p) = r { Some(p) } else { None }).expect("the camera turns");
+    b.camera.set_pose(look);
+    *b.cad.sketch().unwrap().pad.frame().expect("the face's plane is read")
+}
+
+/// Where plane point `uv` of `frame` lands on the bench's screen.
+fn on_screen(b: &Bench, frame: &touch::sketch::Frame, uv: [f64; 2]) -> Pos2 {
+    b.camera.projector(b.rect).at(frame.point(uv).map(|x| x as f32))
+}
+
+/// Where the sketch's `k`th tool button stands: eight a row in the bench's 420-point view, 47 points apart inside the popup's margin.
+fn tool_button(b: &Bench, k: usize) -> Pos2 {
+    let r = sketch::drawn_rect(&b.ctx, sketch::tools_area()).expect("the tools are drawn");
+    egui::pos2(r.left() + 5.0 + (k % 8) as f32 * 47.0 + 22.0, r.top() + 5.0 + (k / 8) as f32 * 47.0 + 22.0)
+}
+
+#[test]
+fn the_sketch_bar_offers_every_tool_and_a_finger_picks_one_then_chamfers_a_corner_by_tap_and_keyboard() {
+    use ringdesign_workbench::sketch_tools::Tool;
+    let mut b = Bench::new(posted());
+    let frame = sketch_on_end(&mut b);
+    let listed: Vec<String> = sketch::tool_buttons(&b.cad.sketch().unwrap().pad, true).into_iter().map(|t| t.name).collect();
+    let tools = ["Select tool", "Line tool", "Rectangle tool", "Circle tool", "Arc tool", "Trim tool", "Offset tool", "Fillet corner tool", "Chamfer corner tool", "Mirror tool", "Dimension tool", "Erase tool"];
+    assert_eq!(listed[..12], tools);
+    assert_eq!(listed[12..], ["Undo sketch edit", "Redo sketch edit", "Construction", "Look at the sketch"], "a face's sketch has no plane to switch");
+    // A square on the post's end by two taps.
+    b.cad.sketch_mut().unwrap().pad.set_tool(Tool::Rectangle);
+    b.tap(on_screen(&b, &frame, [-0.5, -0.5]));
+    b.tap(on_screen(&b, &frame, [0.5, 0.5]));
+    assert_eq!(b.cad.sketch().unwrap().pad.working.entities.len(), 4);
+    // Each new tool is a thumb's tap on the bar, and the tap is the bar's, not the plane's.
+    for (k, tool) in [(5, Tool::Trim), (6, Tool::Offset), (9, Tool::Mirror), (8, Tool::Chamfer)] {
+        b.press_button(tool_button(&b, k));
+        assert_eq!(b.cad.sketch().unwrap().pad.tools.tool, tool);
+    }
+    assert_eq!(b.cad.sketch().unwrap().pad.working.entities.len(), 4, "no tap reached the plane");
+    // A tap on the corner takes it and gives the distance field the keyboard; typed and entered, the corner is cut.
+    b.tap(on_screen(&b, &frame, [0.49, 0.51]));
+    assert!(b.cad.sketch().unwrap().pad.tools.busy());
+    b.step(Vec::new());
+    b.step(vec![Event::Text("0.2".into())]);
+    b.step(vec![Event::Key { key: egui::Key::Enter, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() }]);
+    let pad = &mut b.cad.sketch_mut().unwrap().pad;
+    assert_eq!(pad.working.entities.len(), 5, "four sides and the chamfer");
+    let area = pad.regions().unwrap()[0].area();
+    assert!((area - (1.0 - 0.02)).abs() < 1e-9, "a 0.2 mm chamfer takes 0.02 mm² off the square: {area}");
+    assert!(b.said().iter().any(|s| s == "Chamfer 0.200 mm"));
+}
+
+#[test]
+fn a_sketch_finishes_joined_cut_or_apart_and_a_cut_carves_the_post_it_stands_on_as_one_undo_step() {
+    use ringdesign_core::cad::Attach;
+    use ringdesign_workbench::{sketch_tools::Tool, touch::sketch::Make};
+    let mut b = Bench::new(posted());
+    let frame = sketch_on_end(&mut b);
+    b.cad.sketch_mut().unwrap().pad.set_tool(Tool::Rectangle);
+    b.tap(on_screen(&b, &frame, [-0.5, -0.5]));
+    b.tap(on_screen(&b, &frame, [0.5, 0.5]));
+    let (d, built) = (b.d.clone(), b.built.clone());
+    let lib = AlphaLibrary::builtin();
+    let camera = b.camera;
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    b.cad.serve_sketch(&v, vec![sketch::Ask::Finish, sketch::Ask::Make(Make::Extrude)]);
+    // The view tilts to watch the solid rise, which is how its arrow is seen.
+    b.step(Vec::new());
+    let tilt = b.cad.take_requests().into_iter().find_map(|r| if let Request::Look(p) = r { Some(p) } else { None }).expect("the camera tilts");
+    b.camera.set_pose(tilt);
+    let camera = b.camera;
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    let row = |b: &mut Bench, design: &RingDesign| sketch::stage_buttons(b.cad.sketch_mut().unwrap(), design).into_iter().map(|(x, _)| (x.label, x.checked, x.enabled)).collect::<Vec<_>>();
+    assert_eq!(row(&mut b, &d), [("Join", true, true), ("Cut", false, true), ("Separate", false, true), ("Extrude", false, true), ("Back", false, true)]);
+    let (_, joined_tip) = Cad::arrow(b.cad.sketch_mut().unwrap(), &v, sketch::px_per_mm(&v)).unwrap();
+    // Cut: ticked, and the arrow turns to run into the post.
+    b.cad.serve_sketch(&v, vec![sketch::Ask::Attach(Attach::Cut)]);
+    assert_eq!(row(&mut b, &d)[..3], [("Join", false, true), ("Cut", true, true), ("Separate", false, true)]);
+    assert!(b.said().iter().any(|s| s.starts_with("Cut: the solid carves")));
+    let (foot, cut_tip) = Cad::arrow(b.cad.sketch_mut().unwrap(), &v, sketch::px_per_mm(&v)).unwrap();
+    assert!((cut_tip - foot).dot(joined_tip - foot) < 0.0, "the arrow points the other way: {foot:?} {cut_tip:?} {joined_tip:?}");
+    // A ring of parts alone offers no cut.
+    let mut parts_only = d.clone();
+    parts_only.cad.as_mut().unwrap().features.retain(|f| !matches!(f.operation, Operation::Band));
+    assert_eq!(row(&mut b, &parts_only)[1], ("Cut", true, false));
+    // Typed 0.4 deep, the cut leaves as one funnel commit and carves 1 × 1 × 0.4 mm out of the post's end.
+    b.cad.serve_sketch(&v, vec![sketch::Ask::Typed("height", 0.4)]);
+    b.cad.sketch_commit(&v);
+    let Some(Request::Edit { edits, then }) = b.cad.take_requests().into_iter().find(|r| matches!(r, Request::Edit { .. })) else { panic!("finishing is an edit") };
+    assert_eq!(then, Then::LastAdded);
+    let mut d2 = b.d.clone();
+    let mut history = History::new(&d2);
+    let done = commit(&mut d2, &mut history, &edits, b.built.evaluated()).unwrap().unwrap();
+    assert_eq!(done.label, "Add Sketch · Add Extrude cut");
+    assert_eq!(history.timeline().len(), 2, "one undo step");
+    let after = Bench::new(d2);
+    assert_eq!(after.built.0.parts.cut, 1, "{:?}", after.built.0.parts.notes);
+    let taken = b.built.volume_mm3() - after.built.volume_mm3();
+    assert!((taken - 0.4).abs() < 0.005, "1 × 1 × 0.4 = 0.4 mm³ out of the post: {taken}");
+}
+
+#[test]
+fn the_sketch_tools_bar_and_fields_never_overlap_as_the_keyboard_shortens_the_view() {
+    use ringdesign_workbench::sketch_tools::Tool;
+    let mut b = Bench::new(posted());
+    let frame = sketch_on_end(&mut b);
+    // A rectangle's first corner: the bar offers Done and the fields take its width and height.
+    b.cad.sketch_mut().unwrap().pad.set_tool(Tool::Rectangle);
+    b.tap(on_screen(&b, &frame, [-0.5, -0.5]));
+    assert!(b.cad.sketch().unwrap().pad.tools.busy());
+    for (tall, tools) in [(600.0, true), (400.0, true), (300.0, true), (240.0, true), (200.0, false)] {
+        b.rect = egui::Rect::from_min_size(RECT.min, vec2(420.0, tall));
+        b.step(Vec::new());
+        b.step(Vec::new());
+        let bar = sketch::drawn_rect(&b.ctx, bar::area()).expect("the bar is drawn");
+        let fields = sketch::drawn_rect(&b.ctx, sketch::fields_area()).expect("the fields are drawn");
+        let drawn = sketch::drawn_rect(&b.ctx, sketch::tools_area());
+        assert_eq!(drawn.is_some(), tools, "tools in a {tall}-point view");
+        let all: Vec<egui::Rect> = [bar, fields].into_iter().chain(drawn).collect();
+        for (i, a) in all.iter().enumerate() {
+            assert!(b.rect.contains_rect(*a), "{a:?} in a {tall}-point view");
+            for c in &all[i + 1..] {
+                assert!(!a.intersects(*c), "{a:?} against {c:?} in a {tall}-point view");
+            }
+        }
+        // Wrapped rows on a tall view, one scrolling row once the keyboard is up.
+        if let Some(t) = drawn {
+            assert!(if tall < sketch::ROW_VIEW_PT { t.height() < 70.0 } else { t.height() > 90.0 }, "{t:?} in a {tall}-point view");
+        }
+    }
+}
+
+/// The Court band with a 4 × 14 mm plate joined at its top and a 1.5 mm stone on the plate in four claws, the head #4.
+fn plate_with_head() -> RingDesign {
+    use ringdesign_core::{
+        cad::{Attach, Component, ComponentRole, Document, FaceSeat, Feature, builders},
+        gem::{Gem, GemCut},
+    };
+    let mut d = court();
+    let mut doc = Document::default();
+    doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component { role: ComponentRole::Shank, ..Component::default() } }).unwrap();
+    let plate = Component { attach: Attach::Join, placement: Placement::ring(90.0, 0.65), ..Component::default() };
+    doc.append(Feature { id: 2, name: "Plate".into(), enabled: true, operation: Operation::Box { size: [4.0, 14.0, 1.5] }, component: plate }).unwrap();
+    d.cad = Some(doc.clone());
+    let (built, _, _) = build(&d);
+    let host = built.evaluated().unwrap().components.iter().find(|c| c.id == 2).unwrap();
+    let outward = |f: u32| FaceSeat::on(host, f, None, 0.0).ok().and_then(|s| s.face_of(host).ok()).map(|fr| (0..3).map(|k| fr.normal[k] * host.frame.z_axis[k]).sum::<f64>());
+    let top = (0..host.body.faces.len() as u32).filter_map(|f| outward(f).map(|w| (f, w))).max_by(|a, b| a.1.total_cmp(&b.1)).unwrap().0;
+    let gem = Gem::calibrated(GemCut::Round, 1.5);
+    let seat = FaceSeat::on(host, top, None, builders::stand_off_mm("claw4", gem)).unwrap();
+    doc.append(ringdesign_core::cad::stone_on_face(3, gem, 2, &seat)).unwrap();
+    doc.append(builders::feature_on(4, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }))).unwrap();
+    d.cad = Some(doc);
+    d
+}
+
+#[test]
+fn an_array_ghost_draws_the_copies_it_would_leave_out_in_the_refusal_colour_and_says_which() {
+    use ringdesign_workbench::command::StepInput;
+    let mut b = Bench::new(plate_with_head());
+    let d = b.d.clone();
+    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
+    b.cad.act(&v, MenuAction::Pattern { feature: 4, key: keys::RING_ARRAY });
+    assert!(b.cad.live.is_live(), "the array waits for how many");
+    // Four heads 24° apart over 72°: the copies at 48° and 72° stand off the plate's 14 mm.
+    b.cad.live.session.feed(StepInput::Typed { key: "count", value: 4.0 });
+    b.cad.live.session.feed(StepInput::Typed { key: "span", value: 72.0 });
+    b.step(Vec::new());
+    let red = ringdesign_core::FaceClass::Undercut.rgb();
+    let shares = |b: &Bench| {
+        let r = b.renderer.lock().unwrap();
+        let (verts, model, draft) = r.preview_state();
+        let verts = verts.expect("the copies are staged");
+        // Twelve floats a corner, three corners a face, the colour sixth to eighth.
+        let faces = verts.len() / 36;
+        let refused = verts.chunks(36).filter(|f| f[6..9] == red).count();
+        (faces, refused, model.is_some(), draft)
+    };
+    let (faces, refused, placed, draft) = shares(&b);
+    assert!(placed && draft, "a ghost with copies left out shades by its classes");
+    assert!(faces > 0 && (refused as f64 / faces as f64 - 2.0 / 3.0).abs() < 0.01, "two copies of three refused: {refused} of {faces} faces");
+    assert_eq!(b.cad.live.ghost_note(), Some("2 copies stand off the face of #2 Plate, left out: 48°, 72°"));
+    // Two over 24° both stand on the plate: the ghost is plain and says nothing.
+    b.cad.live.session.feed(StepInput::Typed { key: "count", value: 2.0 });
+    b.cad.live.session.feed(StepInput::Typed { key: "span", value: 24.0 });
+    b.step(Vec::new());
+    let (faces, refused, _, draft) = shares(&b);
+    assert!(faces > 0 && refused == 0 && !draft);
+    assert_eq!(b.cad.live.ghost_note(), None);
+}
+
+#[test]
+fn parts_shown_alone_are_offered_out_one_at_a_time_and_the_worker_builds_them_together() {
+    let mut b = Bench::new(two_posts());
+    b.camera.zoom *= 2.5;
+    b.cad.isolated = vec![2, 3];
+    // Held, post #2's menu offers taking it out of the view, and no Isolate for it.
+    assert!(b.hold(middle(&b, 2)));
+    let m = b.cad.menu.clone().expect("the post's menu is open");
+    assert!(!m.items.iter().any(|i| matches!(i.action, MenuAction::IsolateInCad(_))), "{:?}", m.items.iter().map(|i| &i.label).collect::<Vec<_>>());
+    let acts: Vec<menu::Extra> = m.extras.iter().map(|x| x.act.clone()).filter(|a| matches!(a, menu::Extra::TakeOut(_) | menu::Extra::ShowAll)).collect();
+    assert_eq!(acts, [menu::Extra::TakeOut(2), menu::Extra::ShowAll]);
+    b.cad.menu = None;
+    let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &b.lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    b.cad.extra(&v, menu::Extra::TakeOut(2));
+    assert!(b.cad.take_requests().iter().any(|r| matches!(r, Request::TakeOut(2))));
+    // The worker builds both posts alone, each its own closed solid, and leaves a part the ring does not hold out, saying so.
+    let worker = crate::ring::Worker::spawn(egui::Context::default());
+    let params = BuildParams { theta_steps: 192, profile_steps: 96, refine: None, ..BuildParams::default() };
+    assert!(worker.dispatch(1, &d, &Arc::new(AlphaLibrary::builtin()), params, false, false, None, &[2, 3, 9], Default::default()));
+    let done = (0..1000).find_map(|_| worker.poll().or_else(|| {
+        std::thread::sleep(Duration::from_millis(10));
+        None
+    })).expect("the build lands");
+    assert_eq!((done.alone.as_slice(), done.left_out.as_slice()), (&[2, 3][..], &[9][..]));
+    assert!(done.alone_note.as_deref().is_some_and(|n| n.contains("#9")), "{:?}", done.alone_note);
+    let own = |id: Id| built.evaluated().unwrap().components.iter().find(|c| c.id == id).unwrap().mesh.faces.len();
+    assert_eq!(done.build.mesh.faces.len(), own(2) + own(3));
+    let check = done.build.mesh.validate();
+    assert!(check.watertight && check.boundary_edges == 0, "{check:?}");
 }

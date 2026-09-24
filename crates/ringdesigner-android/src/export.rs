@@ -22,12 +22,14 @@ pub enum ExportKind {
     Render,
     Turntable,
     StoneMap,
+    Step,
 }
 
 impl ExportKind {
     pub fn ext(self) -> &'static str {
         match self {
             ExportKind::StoneMap => "_stones.svg",
+            ExportKind::Step => ".step",
             ExportKind::Stl => ".stl",
             ExportKind::ThreeMf => ".3mf",
             ExportKind::Glb => ".glb",
@@ -42,6 +44,7 @@ impl ExportKind {
     pub fn mime(self) -> &'static str {
         match self {
             ExportKind::StoneMap => "image/svg+xml",
+            ExportKind::Step => "model/step",
             ExportKind::Stl => "model/stl",
             ExportKind::ThreeMf => "model/3mf",
             ExportKind::Glb => "model/gltf-binary",
@@ -54,6 +57,7 @@ impl ExportKind {
     pub fn label(self) -> &'static str {
         match self {
             ExportKind::StoneMap => "stone map",
+            ExportKind::Step => "STEP",
             ExportKind::Stl => "STL",
             ExportKind::ThreeMf => "3MF",
             ExportKind::Glb => "GLB",
@@ -104,6 +108,14 @@ fn write(job: &ExportJob) -> Result<String, Box<dyn std::error::Error>> {
     use ringdesign_core::metal;
     if let Some(dir) = job.path.parent() {
         std::fs::create_dir_all(dir)?;
+    }
+    // STEP is the finished ring at its nominal size, kernel parts exact and the rest faceted.
+    if job.kind == ExportKind::Step {
+        let text = ringdesign_core::cad::step::ring(&job.design, &job.lib, job.params, &job.design.name)?;
+        let exact = text.matches("=MANIFOLD_SOLID_BREP(").count() + text.matches("=BREP_WITH_VOIDS(").count();
+        let faceted = text.matches("=FACETED_BREP(").count();
+        ringdesign_core::library::write_atomic(&job.path, text.as_bytes())?;
+        return Ok(format!("STEP · {exact} exact and {faceted} faceted solid{} · {:.1} KB", if exact + faceted == 1 { "" } else { "s" }, text.len() as f64 / 1024.0));
     }
     // Mesh files are patterns: under sand the made settings are left out and each seat carries its drill
     // mark. Everything else shows the finished ring.
@@ -164,6 +176,7 @@ fn write(job: &ExportJob) -> Result<String, Box<dyn std::error::Error>> {
             ringdesign_core::stonemap::write_stone_map_svg(&job.path, &job.design, stones.as_ref())?;
             "stone map".into()
         }
+        ExportKind::Step => unreachable!("written above, before any mesh is built"),
     })
 }
 
@@ -187,7 +200,7 @@ mod tests {
 
     #[test]
     fn kinds_name_their_files_and_types() {
-        let all = [ExportKind::Stl, ExportKind::ThreeMf, ExportKind::Glb, ExportKind::Sheet, ExportKind::Render, ExportKind::Turntable, ExportKind::StoneMap];
+        let all = [ExportKind::Stl, ExportKind::ThreeMf, ExportKind::Glb, ExportKind::Sheet, ExportKind::Render, ExportKind::Turntable, ExportKind::StoneMap, ExportKind::Step];
         for (i, a) in all.iter().enumerate() {
             for b in &all[i + 1..] {
                 assert_ne!(a.ext(), b.ext());
@@ -228,6 +241,36 @@ mod tests {
         assert!(std::fs::read_to_string(&sheet.path).unwrap().to_lowercase().contains("<html"));
         let bad = run(ExportJob { path: PathBuf::from("/proc/no/such/dir/ring.stl"), ..job(ExportKind::Stl, None) });
         assert!(!bad.ok && bad.status.starts_with("STL failed"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_step_export_carries_the_band_faceted_and_a_joined_kernel_part_exact_at_nominal_size() {
+        use ringdesign_core::cad::step;
+        let dir = std::env::temp_dir().join(format!("rd-step-{}", std::process::id()));
+        let mut design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let (edits, _) = ringdesign_workbench::touch::parts::part_here(&design, "Cylinder", 90.0, 0.0).unwrap();
+        design = ringdesign_workbench::touch::prepare(&design, &edits, None).unwrap().unwrap().design;
+        let job = ExportJob {
+            kind: ExportKind::Step,
+            path: dir.join(format!("ring{}", ExportKind::Step.ext())),
+            design,
+            lib: Arc::new(AlphaLibrary::builtin()),
+            params: BuildParams { theta_steps: 96, profile_steps: 48, ..Default::default() },
+            shrink: Some((1.9, "Silver 925".into())),
+            generator: "test".into(),
+        };
+        let done = run(job);
+        assert!(done.ok, "{}", done.status);
+        assert_eq!(done.name, "ring.step");
+        assert!(done.status.starts_with("STEP · 1 exact and 1 faceted solids"), "{}", done.status);
+        let text = std::fs::read_to_string(&done.path).unwrap();
+        assert!(text.starts_with("ISO-10303-21;"));
+        // Read back, the band is one faceted solid and the post the exact one beside it.
+        let solids = step::read_solids(&text).unwrap();
+        assert_eq!(solids.iter().map(|s| s.faceted).collect::<Vec<_>>(), [false, true]);
+        let (meshes, notes) = step::faceted_meshes(&text, "ring.step").unwrap();
+        assert!(meshes.len() == 1 && meshes[0].validate().watertight && notes.len() == 1, "{notes:?}");
         let _ = std::fs::remove_dir_all(dir);
     }
 }

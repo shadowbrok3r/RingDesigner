@@ -174,8 +174,8 @@ pub struct RingApp {
     status: String,
     /// The status line under the ring: when its words changed, and whether it is open whole.
     status_seen: crate::status::Line,
-    /// The part the mesh on screen shows alone, which the camera was last fitted to.
-    shown_alone: Option<u64>,
+    /// The parts the mesh on screen shows alone, which the camera was last fitted to.
+    shown_alone: Vec<u64>,
     dirty_at: Option<Instant>,
     generation: u64,
 
@@ -245,6 +245,10 @@ pub struct RingApp {
     camera_turn: Option<crate::focus::Turn>,
     /// Exports in flight, one thread each; none is ever dropped as stale.
     exports: Vec<std::sync::mpsc::Receiver<ExportDone>>,
+    /// A part file being read for import, off the UI thread.
+    importing: Option<std::sync::mpsc::Receiver<crate::import::Read>>,
+    /// The part files on offer and when they were listed.
+    part_files: (Option<Instant>, Vec<crate::import::PartFile>),
 }
 
 /// A showcase reel in flight: the design it tells the story of, where it has got to, and what to put back.
@@ -334,7 +338,7 @@ impl RingApp {
             shrink_metal: None,
             status: "starting".into(),
             status_seen: Default::default(),
-            shown_alone: None,
+            shown_alone: Vec::new(),
             dirty_at: None,
             generation: 0,
             data_root: None,
@@ -377,6 +381,8 @@ impl RingApp {
             node_focus: NodeFocus::default(),
             camera_turn: None,
             exports: Vec::new(),
+            importing: None,
+            part_files: (None, Vec::new()),
         }
     }
 
@@ -584,7 +590,7 @@ impl RingApp {
             analyze,
             self.show_gems,
             view_layer,
-            self.cad.isolated,
+            &self.cad.isolated,
             self.cuts,
         ) {
             self.status = "build worker stopped".into();
@@ -619,10 +625,10 @@ impl RingApp {
                     });
                 }
                 self.preview_in_flight = false;
-                // A part that cannot stand alone lets the whole ring back and says why.
+                // A part that cannot stand alone leaves the view and says why; with none left the whole ring comes back.
                 let alone_note = done.alone_note.clone();
-                if alone_note.is_some() {
-                    self.cad.isolated = None;
+                if !done.left_out.is_empty() {
+                    self.cad.isolated.retain(|id| !done.left_out.contains(id));
                 }
                 if done.cast.is_some() {
                     let t = done.timings;
@@ -636,7 +642,7 @@ impl RingApp {
                         done.triangles
                     );
                 }
-                // A part shown alone, or the whole ring again, is framed as it arrives.
+                // Parts shown alone, or the whole ring again, are framed as they arrive.
                 if self.fit_next || self.preview_mesh.is_none() || done.alone != self.shown_alone {
                     self.pane.camera.fit(done.bounds);
                     if done.alone != self.shown_alone {
@@ -645,7 +651,7 @@ impl RingApp {
                         self.camera_turn = None;
                     }
                     self.fit_next = false;
-                    self.shown_alone = done.alone;
+                    self.shown_alone = done.alone.clone();
                 }
                 self.preview_gems = done.gems.clone();
                 self.node_focus.mesh_generation = done.generation;
@@ -2774,6 +2780,13 @@ impl RingApp {
                 {
                     self.export(ExportKind::Turntable, &exports, ui.ctx());
                 }
+                if ui
+                    .button("STEP — the ring for CAD")
+                    .on_hover_text("Kernel parts exact, the band and made parts faceted: the finished ring at its nominal size")
+                    .clicked()
+                {
+                    self.export(ExportKind::Step, &exports, ui.ctx());
+                }
             });
             {
                 use ringdesign_core::metal::METALS;
@@ -2808,6 +2821,10 @@ impl RingApp {
             });
             ui.ctx().request_repaint_after(Duration::from_millis(200));
         }
+
+        ui.separator();
+        ui.label(egui::RichText::new("import a part").weak());
+        self.import_rows(ui, &root);
 
         ui.separator();
         ui.label(egui::RichText::new("desktop").weak());
@@ -3231,7 +3248,7 @@ impl EguiApp for RingApp {
         // `library.rs` reads XDG_DATA_HOME / HOME, both unset on Android, and falls back to ".".
         if let Some(dir) = host.documents_dir() {
             let root = std::path::PathBuf::from(dir).join("ringdesigner");
-            for sub in ["designs", "alphas", "exports"] {
+            for sub in ["designs", "alphas", "exports", "imports"] {
                 let _ = std::fs::create_dir_all(root.join(sub));
             }
             // Imported textures were written here; without this they come back as blank layers,
@@ -3313,6 +3330,7 @@ impl EguiApp for RingApp {
         self.graph.sync(&self.design);
         self.sync_node_focus(ui.ctx());
         self.poll_exports(host);
+        self.poll_import(host);
         self.poll_generate(host);
 
         let history_state = (
