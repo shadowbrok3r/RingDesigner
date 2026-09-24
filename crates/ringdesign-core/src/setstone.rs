@@ -88,24 +88,12 @@ pub fn kept(entry: &LayerEntry, ctx: &FieldContext, theta_deg: f64, v_mm: f64) -
 /// stones its CAD parts carry, seated on the bare band. A seat without a
 /// stone is stock, not a stone, and is not listed.
 pub fn set_stones(design: &RingDesign) -> Vec<SetStone> {
-    let ctx = design.field_context();
-    let mut out = seat_stones_in(design, &ctx);
-    if design.cad.is_some() {
-        out.extend(cad_stones(design, &ctx, &Analytic::new(design)));
-    }
-    out
+    record(design, None).stones
 }
 
 /// [`set_stones`] with the CAD stones read off `built`'s own evaluation, where its parts stand.
 pub fn set_stones_built(design: &RingDesign, built: &BuildResult) -> Vec<SetStone> {
-    let ctx = design.field_context();
-    let mut out = seat_stones_in(design, &ctx);
-    match built.parts.evaluated.as_ref() {
-        Some(e) if design.cad.is_some() => out.extend(cad_stones(design, &ctx, &Built { design, e, surface: built.band.as_deref(), bare: Analytic::new(design) })),
-        _ if design.cad.is_some() => out.extend(cad_stones(design, &ctx, &Analytic::new(design))),
-        _ => {}
-    }
-    out
+    record(design, Some(built)).stones
 }
 
 /// The stones the layer stack's seats carry, and none of the CAD parts'.
@@ -191,6 +179,8 @@ fn walk(ctx: &FieldContext, stack: &LayerStack, prefix: &str, path: &mut Vec<usi
 
 // --- Stones the CAD parts carry ---------------------------------------------------------------
 
+/// Most stones the CAD parts carry into the record; a part carrying past it is counted to it and named.
+pub const MAX_CAD_STONES: usize = 480;
 /// How deep a chain of patterns and heads is followed to the stones it carries.
 const MAX_CARRY_DEPTH: u32 = 16;
 /// Closer than this, two stones of the same size and cut are one stone, mm.
@@ -201,6 +191,84 @@ const SECTION_STEPS: usize = 192;
 const FACE_PARTS_KEPT: usize = 8;
 /// Half the angle between the two sections a seat's lean round the ring is read from, degrees.
 const NORMAL_STEP_DEG: f64 = 0.05;
+/// Band recipes a thread keeps seated points for.
+const BANDS_KEPT: usize = 4;
+/// Seated points a thread keeps per band before it starts over.
+const POINTS_KEPT: usize = 16_384;
+
+/// The stones the design sets, and the CAD parts carrying more than [`MAX_CAD_STONES`] let in.
+#[derive(Clone, Debug, Default)]
+pub struct Record {
+    pub stones: Vec<SetStone>,
+    /// Each part whose stones ran past the cap, with a stone it carries.
+    pub past_cap: Vec<(Id, Gem)>,
+}
+
+/// [`set_stones`], or [`set_stones_built`] with `built`, and the parts whose stones ran past the cap.
+pub fn record(design: &RingDesign, built: Option<&BuildResult>) -> Record {
+    let ctx = design.field_context();
+    let mut stones = seat_stones_in(design, &ctx);
+    if design.cad.is_none() {
+        return Record { stones, past_cap: Vec::new() };
+    }
+    let (cad, past_cap) = match built.and_then(|b| b.parts.evaluated.as_ref().map(|e| (b, e))) {
+        Some((b, e)) => cad_stones(design, &ctx, &Built { design, e, surface: b.band.as_deref(), bare: Analytic::new(design) }),
+        None => cad_stones(design, &ctx, &Analytic::new(design)),
+    };
+    stones.extend(cad);
+    Record { stones, past_cap }
+}
+
+/// The head or halo holding the stones feature `id` carries: a stone's own head, a head or halo itself, a head a
+/// pattern copies. A pattern of a bare stone copies no head, so its copies are held by none.
+pub fn holder(doc: &Document, id: Id) -> Option<&Feature> {
+    held_by(doc, id, false, 0)
+}
+
+fn held_by(doc: &Document, id: Id, copied: bool, depth: u32) -> Option<&Feature> {
+    let f = doc.feature(id)?;
+    if depth > MAX_CARRY_DEPTH {
+        return None;
+    }
+    match &f.operation {
+        Operation::Builder { key, .. } if key == builders::STONE => (!copied).then(|| builders::head_on(doc, id)).flatten(),
+        Operation::Builder { key, .. } if key == builders::HALO || builders::HEADS.contains(&key.as_str()) => Some(f),
+        Operation::Pattern { source, .. } => held_by(doc, *source, true, depth + 1),
+        Operation::Fillet { source, .. } | Operation::Chamfer { source, .. } | Operation::Shell { source, .. } | Operation::PressPull { source, .. } => {
+            held_by(doc, *source, copied, depth + 1)
+        }
+        _ => None,
+    }
+}
+
+/// The nearest point of the bare band's surface section to a stone, at the stone's own bearing.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Foot {
+    pub r: f64,
+    pub z: f64,
+    pub nr: f64,
+    pub nz: f64,
+    /// Its arc along the section's surface from the low bore edge, mm.
+    pub along_mm: f64,
+    /// The section's whole surface arc, mm.
+    pub surface_len_mm: f64,
+    /// The section's reach along the finger, mm.
+    pub width_mm: f64,
+}
+
+/// The bare band's sections the CAD stones are charted on, remembered on this thread with the record's.
+pub struct BareBand<'a>(Analytic<'a>);
+
+impl<'a> BareBand<'a> {
+    pub fn new(design: &'a RingDesign) -> Self {
+        Self(Analytic::new(design))
+    }
+
+    /// The bare band under a CAD stone's girdle, where the record charted it; `None` for a seat's stone.
+    pub fn under(&self, st: &SetStone) -> Option<Foot> {
+        self.0.foot(st.frame?.origin)
+    }
+}
 
 /// Where the CAD stones stand: off an evaluation of the parts as built, or off the band's own sections.
 trait Frames {
@@ -210,8 +278,8 @@ trait Frames {
     fn stone(&self, f: &Feature) -> Option<(Gem, Motion)>;
     /// The motions carrying `source` onto each copy of pattern `f`.
     fn copies(&self, f: &Feature, source: Id, kind: &PatternKind) -> Vec<Motion>;
-    /// The bare band's section at `theta_deg`, for charting a stone.
-    fn section(&self, theta_deg: f64) -> Rc<ProfileLoop>;
+    /// The bare band's surface under a stone's girdle centre, for charting it.
+    fn foot(&self, origin: [f64; 3]) -> Option<Foot>;
 }
 
 /// The frames an evaluation of the parts gave, dropped on `surface`: what a build shows.
@@ -237,24 +305,82 @@ impl Frames for Built<'_> {
         }
         pattern::copy_motions(self.design, self.surface, self.e, source, kind).unwrap_or_default()
     }
-    fn section(&self, theta_deg: f64) -> Rc<ProfileLoop> {
-        self.bare.at(theta_deg)
+    fn foot(&self, origin: [f64; 3]) -> Option<Foot> {
+        self.bare.foot(origin)
     }
+}
+
+/// What rays and stones met one band's surface at, remembered across calls on a thread.
+#[derive(Default)]
+struct Seated {
+    /// A ray's hit and normal by its angle and offset along the finger.
+    hits: HashMap<[u64; 2], Option<([f64; 3], [f64; 3])>>,
+    /// A stone's foot by its girdle centre.
+    feet: HashMap<[u64; 3], Option<Foot>>,
+}
+
+thread_local! {
+    static BANDS: RefCell<Vec<(u64, Rc<RefCell<Seated>>)>> = const { RefCell::new(Vec::new()) };
+}
+
+#[cfg(test)]
+thread_local! {
+    static SECTIONS_SAMPLED: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Counts one bare section sampled on this thread.
+#[cfg(test)]
+pub(crate) fn section_sampled() {
+    SECTIONS_SAMPLED.with(|c| c.set(c.get() + 1));
+}
+
+/// A hash of everything a bare section of the band is made from; `None` when it cannot be read.
+fn band_key(design: &RingDesign) -> Option<u64> {
+    let mut h = std::hash::DefaultHasher::new();
+    serde_json::to_vec(&(design.size, &design.profile, &design.shank)).ok()?.hash(&mut h);
+    if let Some(b) = &design.imported_base {
+        b.source.fingerprint().hash(&mut h);
+        serde_json::to_vec(&b.chart).ok()?.hash(&mut h);
+        (b.bare, b.sand_envelope).hash(&mut h);
+    }
+    SECTION_STEPS.hash(&mut h);
+    Some(h.finish())
+}
+
+/// The seated points this thread keeps for the design's band, a fresh set for a band that cannot be keyed.
+fn seated_for(design: &RingDesign) -> Rc<RefCell<Seated>> {
+    let Some(key) = band_key(design) else { return Rc::default() };
+    BANDS.with(|b| {
+        let mut b = b.borrow_mut();
+        if let Some(at) = b.iter().position(|(k, _)| *k == key) {
+            let hit = b.remove(at);
+            let seated = hit.1.clone();
+            b.push(hit);
+            return seated;
+        }
+        if b.len() >= BANDS_KEPT {
+            b.remove(0);
+        }
+        let seated = Rc::<RefCell<Seated>>::default();
+        b.push((key, seated.clone()));
+        seated
+    })
 }
 
 /// The frames the placements give on the bare band's own sections, with no build: `Placement::frame_on`
 /// read off the section at the part's angle rather than off a swept mesh.
 struct Analytic<'a> {
     design: &'a RingDesign,
-    reference: ProfileLoop,
+    reference: std::cell::OnceCell<ProfileLoop>,
     /// One section serves every angle.
     uniform: bool,
     sections: RefCell<HashMap<i64, Rc<ProfileLoop>>>,
+    seated: Rc<RefCell<Seated>>,
 }
 
 impl<'a> Analytic<'a> {
     fn new(design: &'a RingDesign) -> Self {
-        Self { design, reference: design.reference_loop(), uniform: uniform(design), sections: RefCell::default() }
+        Self { design, reference: Default::default(), uniform: uniform(design), sections: RefCell::default(), seated: seated_for(design) }
     }
 
     fn doc(&self) -> Option<&'a Document> {
@@ -267,7 +393,12 @@ impl<'a> Analytic<'a> {
         self.sections
             .borrow_mut()
             .entry(key)
-            .or_insert_with(|| Rc::new(self.design.section_at(theta_deg, SECTION_STEPS, None, Some(&self.reference))))
+            .or_insert_with(|| {
+                #[cfg(test)]
+                section_sampled();
+                let reference = self.reference.get_or_init(|| self.design.reference_loop());
+                Rc::new(self.design.section_at(theta_deg, SECTION_STEPS, None, Some(reference)))
+            })
             .clone()
     }
 
@@ -299,6 +430,20 @@ impl<'a> Analytic<'a> {
 
     /// [`Self::crossing`] with the surface's normal, which leans round the ring wherever the band's crest falls.
     fn hit(&self, theta_deg: f64, across_mm: f64) -> Option<([f64; 3], [f64; 3])> {
+        let key = [theta_deg.to_bits(), across_mm.to_bits()];
+        if let Some(hit) = self.seated.borrow().hits.get(&key) {
+            return *hit;
+        }
+        let hit = self.hit_on_sections(theta_deg, across_mm);
+        let mut seated = self.seated.borrow_mut();
+        if seated.hits.len() >= POINTS_KEPT {
+            seated.hits.clear();
+        }
+        seated.hits.insert(key, hit);
+        hit
+    }
+
+    fn hit_on_sections(&self, theta_deg: f64, across_mm: f64) -> Option<([f64; 3], [f64; 3])> {
         let (p, across) = self.crossing(theta_deg, across_mm)?;
         let (sin, cos) = theta_deg.to_radians().sin_cos();
         let radial = [cos, sin, 0.0];
@@ -311,6 +456,53 @@ impl<'a> Analytic<'a> {
         let len = norm(n);
         let n = if len > 1e-12 { n.map(|v| v / len) } else { flat.map(|v| -v) };
         Some((p, if dot(n, radial) < 0.0 { n.map(|v| -v) } else { n }))
+    }
+
+    /// The bare section's surface point nearest `origin`, at `origin`'s own bearing.
+    fn foot(&self, origin: [f64; 3]) -> Option<Foot> {
+        let key = origin.map(f64::to_bits);
+        if let Some(foot) = self.seated.borrow().feet.get(&key) {
+            return *foot;
+        }
+        let foot = self.foot_on_section(origin);
+        let mut seated = self.seated.borrow_mut();
+        if seated.feet.len() >= POINTS_KEPT {
+            seated.feet.clear();
+        }
+        seated.feet.insert(key, foot);
+        foot
+    }
+
+    fn foot_on_section(&self, o: [f64; 3]) -> Option<Foot> {
+        let section = self.at(bearing(o));
+        let (r, z) = (o[0].hypot(o[1]), o[2]);
+        let (lo, hi) = section.z_range();
+        let n = section.pts.len();
+        let mut best: Option<(f64, Foot)> = None;
+        for i in 0..n {
+            let (a, b) = (&section.pts[i], &section.pts[(i + 1) % n]);
+            if !(a.surface && b.surface) {
+                continue;
+            }
+            let (dr, dz) = (b.r - a.r, b.z - a.z);
+            let t = (((r - a.r) * dr + (z - a.z) * dz) / (dr * dr + dz * dz).max(1e-18)).clamp(0.0, 1.0);
+            let (fr, fz) = (a.r + dr * t, a.z + dz * t);
+            let d = (r - fr).hypot(z - fz);
+            if best.is_none_or(|b| d < b.0) {
+                let lerp = |p: f64, q: f64| p + (q - p) * t;
+                let foot = Foot {
+                    r: fr,
+                    z: fz,
+                    nr: lerp(a.nr, b.nr),
+                    nz: lerp(a.nz, b.nz),
+                    along_mm: lerp(a.v_mm, b.v_mm),
+                    surface_len_mm: section.surface_len_mm,
+                    width_mm: (hi - lo).max(0.0),
+                };
+                best = Some((d, foot));
+            }
+        }
+        best.map(|(_, f)| f)
     }
 
     /// [`Placement::frame_on`] with the bare band's section for the surface; `frame()` where the parts are the ring.
@@ -483,8 +675,8 @@ impl Frames for Analytic<'_> {
             .unwrap_or_default()
     }
 
-    fn section(&self, theta_deg: f64) -> Rc<ProfileLoop> {
-        self.at(theta_deg)
+    fn foot(&self, origin: [f64; 3]) -> Option<Foot> {
+        Analytic::foot(self, origin)
     }
 }
 
@@ -528,34 +720,37 @@ fn evaluated_alone(design: &RingDesign, part: Id) -> Option<Arc<EvaluatedCompone
     built
 }
 
-/// The stones feature `f` carries to wherever it is copied: a stone its own, a head its stone, a halo its melee,
-/// a pattern each copy's.
-fn carried(doc: &Document, frames: &dyn Frames, f: &Feature, depth: u32) -> Vec<(Gem, Motion)> {
+/// The stones feature `f` carries to wherever it is copied — a stone its own, a head its stone, a halo its melee, a
+/// pattern each copy's — at most [`MAX_CAD_STONES`] of them, and whether it carries more.
+fn carried(doc: &Document, frames: &dyn Frames, f: &Feature, depth: u32) -> (Vec<(Gem, Motion)>, bool) {
     if !f.enabled || depth > MAX_CARRY_DEPTH {
-        return Vec::new();
+        return (Vec::new(), false);
     }
     let stone_of = |id: Id| doc.feature(id).filter(|s| is_stone(s));
     match &f.operation {
-        Operation::Builder { key, .. } if key == builders::STONE => frames.stone(f).into_iter().collect(),
+        Operation::Builder { key, .. } if key == builders::STONE => (frames.stone(f).into_iter().collect(), false),
         Operation::Builder { key, on: Some(stone), params } if key == builders::HALO => {
-            let Some((gem, frame)) = stone_of(*stone).filter(|s| s.enabled).and_then(|s| frames.stone(s)) else { return Vec::new() };
-            let Ok((melee, stations)) = builders::halo_melee(gem, params) else { return Vec::new() };
-            stations.iter().map(|p| (melee, Motion { origin: frame.point(*p), ..frame })).collect()
+            let Some((gem, frame)) = stone_of(*stone).filter(|s| s.enabled).and_then(|s| frames.stone(s)) else { return (Vec::new(), false) };
+            let Ok((melee, stations)) = builders::halo_melee(gem, params) else { return (Vec::new(), false) };
+            let over = stations.len() > MAX_CAD_STONES;
+            (stations.iter().take(MAX_CAD_STONES).map(|p| (melee, Motion { origin: frame.point(*p), ..frame })).collect(), over)
         }
         Operation::Builder { key, on: Some(stone), .. } if builders::HEADS.contains(&key.as_str()) => {
-            stone_of(*stone).map_or_else(Vec::new, |s| carried(doc, frames, s, depth + 1))
+            stone_of(*stone).map_or_else(|| (Vec::new(), false), |s| carried(doc, frames, s, depth + 1))
         }
         Operation::Fillet { source, .. } | Operation::Chamfer { source, .. } | Operation::Shell { source, .. } | Operation::PressPull { source, .. } => {
-            doc.feature(*source).map_or_else(Vec::new, |s| carried(doc, frames, s, depth + 1))
+            doc.feature(*source).map_or_else(|| (Vec::new(), false), |s| carried(doc, frames, s, depth + 1))
         }
         Operation::Pattern { source, kind } => {
-            let inner = doc.feature(*source).map_or_else(Vec::new, |s| carried(doc, frames, s, depth + 1));
+            let (inner, over) = doc.feature(*source).map_or_else(|| (Vec::new(), false), |s| carried(doc, frames, s, depth + 1));
             if inner.is_empty() {
-                return Vec::new();
+                return (Vec::new(), over);
             }
-            frames.copies(f, *source, kind).iter().flat_map(|m| inner.iter().map(move |(g, s)| (*g, moved(m, s)))).collect()
+            let copies = frames.copies(f, *source, kind);
+            let over = over || copies.len().saturating_mul(inner.len()) > MAX_CAD_STONES;
+            (copies.iter().flat_map(|m| inner.iter().map(move |(g, s)| (*g, moved(m, s)))).take(MAX_CAD_STONES).collect(), over)
         }
-        _ => Vec::new(),
+        _ => (Vec::new(), false),
     }
 }
 
@@ -563,11 +758,29 @@ fn is_stone(f: &Feature) -> bool {
     matches!(&f.operation, Operation::Builder { key, .. } if key == builders::STONE)
 }
 
-/// Every stone the document's parts carry, each once: a stone part, a halo's melee, every copy a pattern makes
-/// of a stone, a head or a halo. A head standing on a stone adds none; its stone is its own part.
-fn cad_stones(design: &RingDesign, ctx: &FieldContext, frames: &dyn Frames) -> Vec<SetStone> {
-    let Some(doc) = &design.cad else { return Vec::new() };
-    let mut found: Vec<(Id, &str, Gem, Motion)> = Vec::new();
+/// A stone found among the parts' outputs, and the part it is counted under.
+struct Found<'d> {
+    feature: Id,
+    name: &'d str,
+    /// Whether a head or halo holds the stones `feature` carries.
+    held: bool,
+    gem: Gem,
+    frame: Motion,
+}
+
+/// The cell of the grid [`SAME_STONE_MM`] on a side that holds `p`.
+fn cell_of(p: [f64; 3]) -> [i64; 3] {
+    p.map(|v| (v / SAME_STONE_MM).floor() as i64)
+}
+
+/// Every stone the document's parts carry, each once and at most [`MAX_CAD_STONES`] of them — a stone part, a halo's
+/// melee, every copy a pattern makes of a stone, a head or a halo — and the parts carrying past the cap. A head standing
+/// on a stone adds none; its stone is its own part. Two parts carrying one stone count it under the one that holds it.
+fn cad_stones(design: &RingDesign, ctx: &FieldContext, frames: &dyn Frames) -> (Vec<SetStone>, Vec<(Id, Gem)>) {
+    let Some(doc) = &design.cad else { return Default::default() };
+    let mut found: Vec<Found> = Vec::new();
+    let mut grid: HashMap<[i64; 3], Vec<usize>> = HashMap::new();
+    let mut past_cap = Vec::new();
     for id in frames.outputs(doc) {
         let Some(f) = doc.feature(id).filter(|f| f.enabled) else { continue };
         let carries = match &f.operation {
@@ -578,25 +791,48 @@ fn cad_stones(design: &RingDesign, ctx: &FieldContext, frames: &dyn Frames) -> V
         if !carries {
             continue;
         }
-        for (gem, frame) in carried(doc, frames, f, 0) {
-            let same = |(_, _, g, m): &(Id, &str, Gem, Motion)| {
-                g.cut == gem.cut && (g.w_mm - gem.w_mm).abs() < 1e-9 && (g.l_mm - gem.l_mm).abs() < 1e-9 && norm(sub(m.origin, frame.origin)) < SAME_STONE_MM
+        let held = holder(doc, id).is_some();
+        let (stones, mut over) = carried(doc, frames, f, 0);
+        let first = stones.first().map(|(g, _)| *g);
+        for (gem, frame) in stones {
+            let cell = cell_of(frame.origin);
+            let same = |k: &usize| {
+                let s = &found[*k];
+                s.gem.cut == gem.cut
+                    && s.gem.form == gem.form
+                    && (s.gem.w_mm - gem.w_mm).abs() < 1e-9
+                    && (s.gem.l_mm - gem.l_mm).abs() < 1e-9
+                    && norm(sub(s.frame.origin, frame.origin)) < SAME_STONE_MM
             };
-            if !found.iter().any(same) {
-                found.push((id, f.name.as_str(), gem, frame));
+            let near = (0..27).find_map(|n| {
+                let c = [cell[0] + n % 3 - 1, cell[1] + n / 3 % 3 - 1, cell[2] + n / 9 - 1];
+                grid.get(&c).and_then(|ks| ks.iter().copied().find(|k| same(k)))
+            });
+            match near {
+                Some(k) if held && !found[k].held => found[k] = Found { feature: id, name: &f.name, held, ..found[k] },
+                Some(_) => {}
+                None if found.len() < MAX_CAD_STONES => {
+                    grid.entry(cell).or_default().push(found.len());
+                    found.push(Found { feature: id, name: &f.name, held, gem, frame });
+                }
+                None => over = true,
             }
+        }
+        if let (true, Some(gem)) = (over, first) {
+            past_cap.push((id, gem));
         }
     }
     let mut copies: HashMap<Id, u32> = HashMap::new();
-    found
+    let stones = found
         .into_iter()
-        .map(|(feature, name, gem, frame)| {
+        .map(|Found { feature, name, gem, frame, .. }| {
             let copy = copies.entry(feature).or_default();
-            let st = charted(ctx, &frames.section(bearing(frame.origin)), name, StoneSource::Cad { feature, copy: *copy }, gem, frame);
+            let st = charted(ctx, frames.foot(frame.origin), name, StoneSource::Cad { feature, copy: *copy }, gem, frame);
             *copy += 1;
             st
         })
-        .collect()
+        .collect();
+    (stones, past_cap)
 }
 
 /// A point's angle round the ring, degrees in [0, 360).
@@ -606,33 +842,16 @@ fn bearing(p: [f64; 3]) -> f64 {
 
 /// A CAD stone in the record: its chart point where its girdle stands over the band, and the seat that holds
 /// its plan at its bearing and its girdle at its stand-off.
-fn charted(ctx: &FieldContext, section: &ProfileLoop, label: &str, source: StoneSource, gem: Gem, frame: Motion) -> SetStone {
+fn charted(ctx: &FieldContext, foot: Option<Foot>, label: &str, source: StoneSource, gem: Gem, frame: Motion) -> SetStone {
     let o = frame.origin;
     let theta = bearing(o);
     let (sin, cos) = theta.to_radians().sin_cos();
-    let (r, z) = (o[0].hypot(o[1]), o[2]);
-    let n = section.pts.len();
-    let mut best: Option<(f64, f64, f64, f64, f64, f64)> = None;
-    for i in 0..n {
-        let (a, b) = (&section.pts[i], &section.pts[(i + 1) % n]);
-        if !(a.surface && b.surface) {
-            continue;
-        }
-        let (dr, dz) = (b.r - a.r, b.z - a.z);
-        let t = (((r - a.r) * dr + (z - a.z) * dz) / (dr * dr + dz * dz).max(1e-18)).clamp(0.0, 1.0);
-        let (fr, fz) = (a.r + dr * t, a.z + dz * t);
-        let d = (r - fr).hypot(z - fz);
-        if best.is_none_or(|b| d < b.0) {
-            let lerp = |p: f64, q: f64| p + (q - p) * t;
-            best = Some((d, fr, fz, lerp(a.v_mm, b.v_mm), lerp(a.nr, b.nr), lerp(a.nz, b.nz)));
-        }
-    }
-    let (v_mm, stand_off, rot) = match best {
-        Some((_, fr, fz, v, nr, nz)) => {
-            let foot = [fr * cos, fr * sin, fz];
-            let v_chart = v / section.surface_len_mm.max(1e-9) * ctx.band_v_len_mm;
+    let (v_mm, stand_off, rot) = match foot {
+        Some(Foot { r, z, nr, nz, along_mm, surface_len_mm, .. }) => {
+            let foot = [r * cos, r * sin, z];
             let (t, across) = ([-sin, cos, 0.0], [-nz * cos, -nz * sin, nr]);
             let x = frame.x_axis;
+            let v_chart = along_mm / surface_len_mm.max(1e-9) * ctx.band_v_len_mm;
             (v_chart, dot(sub(o, foot), frame.z_axis), dot(x, across).atan2(dot(x, t)).to_degrees())
         }
         None => (ctx.crest_v_mm, 0.0, 0.0),
@@ -912,6 +1131,111 @@ mod tests {
             assert!(gap < 0.05 && turn < 1.0, "{} at {:.0}°: {gap:.4} mm and {turn:.3}° from the build", a.label, a.theta_deg);
         }
         assert!(missed > 0.25, "the head stands off the reference crest: {missed:.3} mm");
+    }
+
+    /// The claw solitaire's cad on `band`, its head arrayed `count` round the ring as feature #5.
+    fn heads_round(band: RingDesign, count: u32) -> RingDesign {
+        let mut d = RingDesign { cad: cad::examples::design("claw-solitaire").unwrap().cad, ..band };
+        let operation = Operation::Pattern { source: 3, kind: PatternKind::Ring { count, span_deg: 360.0 } };
+        let array = Feature { id: 5, name: "Ring array of Four-claw head".into(), enabled: true, operation, component: builders::component(builders::CLAW) };
+        d.cad.as_mut().unwrap().append(array).unwrap();
+        d
+    }
+
+    fn sampled() -> usize {
+        SECTIONS_SAMPLED.with(|c| c.get())
+    }
+
+    /// Three arrays of 120 nested in one another carry 1.7 million stones on paper; the record counts 480 and names the parts past it.
+    #[test]
+    fn nested_arrays_are_counted_to_the_cap_and_the_report_says_so() {
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut d = heads_round(court, 120);
+        let doc = d.cad.as_mut().unwrap();
+        for (id, source) in [(6, 5), (7, 6)] {
+            let operation = Operation::Pattern { source, kind: PatternKind::Ring { count: 120, span_deg: 11.9 } };
+            doc.append(Feature { id, name: format!("Nest {id}"), enabled: true, operation, component: builders::component(builders::CLAW) }).unwrap();
+        }
+        let clock = std::time::Instant::now();
+        let record = record(&d, None);
+        let took = clock.elapsed().as_secs_f64();
+        eprintln!("nested arrays: {} stones, {} parts past the cap, in {:.1} ms", record.stones.len(), record.past_cap.len(), took * 1e3);
+        assert_eq!(record.stones.len(), MAX_CAD_STONES, "the record stops at the cap");
+        let past: Vec<Id> = record.past_cap.iter().map(|(id, _)| *id).collect();
+        assert!(past.contains(&6) && past.contains(&7) && !past.contains(&5), "the nests are named, the plain array is not: {past:?}");
+        assert!(took < 20.0, "counted in {took:.1} s");
+        let report = crate::stones::report(&d, 0.0).unwrap();
+        assert_eq!(report.stone_count as usize, MAX_CAD_STONES);
+        let capped: Vec<&crate::stones::SeatCheck> = report.seats.iter().filter(|s| s.warnings.iter().any(|w| w.contains("480"))).collect();
+        assert_eq!(capped.len(), 2, "each nest says it runs past the cap");
+        assert!(capped.iter().all(|s| s.made.as_deref() == Some("Four-claw head")));
+    }
+
+    /// A redraw asks for the same stones again and samples no section for them; a changed band samples afresh.
+    #[test]
+    fn a_second_look_at_the_same_band_samples_no_section() {
+        let mut signet = RingDesign::default();
+        signet.profile.width_mm = 12.0;
+        signet.shank.apply_signet(12.0);
+        let mut pinched = RingDesign::default();
+        pinched.shank.kind = crate::profile::ShankKind::Pinched;
+        for (name, band) in [("lofted signet", signet), ("pinched", pinched)] {
+            let d = heads_round(band, 24);
+            let (before, clock) = (sampled(), std::time::Instant::now());
+            let first = set_stones(&d);
+            let (cold, cold_ms) = (sampled() - before, clock.elapsed().as_secs_f64() * 1e3);
+            let (before, clock) = (sampled(), std::time::Instant::now());
+            let again = set_stones(&d);
+            let (warm, warm_ms) = (sampled() - before, clock.elapsed().as_secs_f64() * 1e3);
+            eprintln!("{name}: 24 heads, {cold} sections in {cold_ms:.2} ms, then {warm} in {warm_ms:.2} ms");
+            assert_eq!(first.len(), 24);
+            assert!(cold > 24 && cold <= 4 * 24, "{cold} sections the first time");
+            assert_eq!(warm, 0, "nothing sampled again");
+            let (before, clock) = (sampled(), std::time::Instant::now());
+            let report = crate::stones::report(&d, 0.0).unwrap();
+            eprintln!("{name}: the report after it in {:.2} ms", clock.elapsed().as_secs_f64() * 1e3);
+            assert_eq!((report.stone_count, sampled() - before), (24, 0), "the report reads the same sections");
+            for (a, b) in first.iter().zip(&again) {
+                assert_eq!((a.theta_deg, a.v_mm, a.frame.unwrap().origin, a.seat.height_mm), (b.theta_deg, b.v_mm, b.frame.unwrap().origin, b.seat.height_mm));
+            }
+            let mut wider = d.clone();
+            wider.profile.width_mm += 0.5;
+            let before = sampled();
+            let moved = set_stones(&wider);
+            assert!(sampled() > before, "a new band is sampled");
+            let shift = first.iter().zip(&moved).map(|(a, b)| norm(sub(a.frame.unwrap().origin, b.frame.unwrap().origin))).fold(0.0, f64::max);
+            assert!(shift > 1e-3, "{name}: the stones move with the band, {shift:.4} mm");
+        }
+    }
+
+    /// A pattern of a bare stone copies no claws; the same copies carried by a pattern of the head are held by it.
+    #[test]
+    fn a_pattern_of_a_bare_stone_is_held_by_nothing_until_its_head_is_arrayed_with_it() {
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut d = RingDesign { cad: cad::examples::design("claw-solitaire").unwrap().cad, ..court };
+        let doc = d.cad.as_mut().unwrap();
+        let operation = Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
+        doc.append(Feature { id: 5, name: "Ring array of Stone".into(), enabled: true, operation, component: builders::component(builders::STONE) }).unwrap();
+        let report = crate::stones::report(&d, 0.0).unwrap();
+        let bare = report.seats.iter().find(|s| s.label == "Ring array of Stone").unwrap();
+        assert_eq!((bare.count, bare.made.as_deref()), (2, None), "two copies, no claws");
+        assert!(bare.warnings.iter().any(|w| w.starts_with("no setting holds this stone")));
+        let own = report.seats.iter().find(|s| s.count == 1 && s.gem.is_some()).unwrap();
+        assert_eq!(own.made.as_deref(), Some("Four-claw head"), "the stone the head stands on is held");
+        let lib = crate::AlphaLibrary::builtin();
+        let built = crate::mesh::try_build(&d, &lib, crate::BuildParams { theta_steps: 128, profile_steps: 64, ..Default::default() }).unwrap();
+        let field = crate::castability::analyze_field(&d, &lib, &d.draft, 96, 64);
+        let stones = crate::stones::report_built(&d, field.parting_z_mm, &built);
+        let sheet = crate::spec::html(&d, &built.report, &field, stones.as_ref(), &[], "test build");
+        assert!(sheet.contains("Ring array of Stone ×2</td>"), "the sheet names no head for the copies");
+
+        let operation = Operation::Pattern { source: 3, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
+        d.cad.as_mut().unwrap().append(Feature { id: 6, name: "Ring array of Four-claw head".into(), enabled: true, operation, component: builders::component(builders::CLAW) }).unwrap();
+        let stones = set_stones(&d);
+        assert_eq!(stones.len(), 3, "the arrays carry the same two copies");
+        assert!(stones[1..].iter().all(|s| s.cad_feature() == Some(6)), "counted under the array that holds them");
+        let report = crate::stones::report(&d, 0.0).unwrap();
+        assert!(report.seats.iter().all(|s| s.made.as_deref() == Some("Four-claw head") && s.warnings.is_empty()), "{:?}", report.seats.iter().map(|s| (&s.label, &s.made, &s.warnings)).collect::<Vec<_>>());
     }
 
     #[test]

@@ -166,15 +166,16 @@ pub const TIGHT_MULTIPLE: f64 = 1.5;
 /// the cast report's when there is one; 0 is the crest plane every profile
 /// puts its crest on by construction.
 pub fn report(design: &RingDesign, parting_z_mm: f64) -> Option<StonesReport> {
-    report_of(design, parting_z_mm, crate::setstone::set_stones(design))
+    report_of(design, parting_z_mm, crate::setstone::record(design, None))
 }
 
 /// [`report`] with the CAD stones read where `built` stands them.
 pub fn report_built(design: &RingDesign, parting_z_mm: f64, built: &crate::mesh::BuildResult) -> Option<StonesReport> {
-    report_of(design, parting_z_mm, crate::setstone::set_stones_built(design, built))
+    report_of(design, parting_z_mm, crate::setstone::record(design, Some(built)))
 }
 
-fn report_of(design: &RingDesign, parting_z_mm: f64, stations: Vec<SetStone>) -> Option<StonesReport> {
+fn report_of(design: &RingDesign, parting_z_mm: f64, record: crate::setstone::Record) -> Option<StonesReport> {
+    let crate::setstone::Record { stones: stations, past_cap } = record;
     let ctx = design.field_context();
     let inner_r = design.inner_radius_mm();
     let crest_r = ctx.crest_radius_mm;
@@ -182,7 +183,7 @@ fn report_of(design: &RingDesign, parting_z_mm: f64, stations: Vec<SetStone>) ->
     let mut acc = Acc::default();
     walk(design, &ctx, inner_r, crest_r, parting_z_mm, &design.layers, "", &mut acc);
     let Acc { mut seats } = acc;
-    seats.extend(cad_checks(design, &ctx, inner_r, parting_z_mm, &stations));
+    seats.extend(cad_checks(design, &ctx, inner_r, parting_z_mm, &stations, &past_cap));
     if seats.is_empty() {
         return None;
     }
@@ -374,7 +375,14 @@ pub fn frames_of(design: &RingDesign, stones: Vec<SetStone>) -> Vec<(SetStone, S
 
 /// One line per CAD feature and stone size: where its stones sit on the band, the metal under their pavilions,
 /// and the made setting that holds them.
-fn cad_checks(design: &RingDesign, ctx: &FieldContext, inner_r: f64, parting_z: f64, stations: &[SetStone]) -> Vec<SeatCheck> {
+fn cad_checks(
+    design: &RingDesign,
+    ctx: &FieldContext,
+    inner_r: f64,
+    parting_z: f64,
+    stations: &[SetStone],
+    past_cap: &[(crate::sketch::Id, Gem)],
+) -> Vec<SeatCheck> {
     let mut groups: Vec<(crate::sketch::Id, Gem, Vec<&SetStone>)> = Vec::new();
     for st in stations {
         let Some(feature) = st.cad_feature() else { continue };
@@ -385,13 +393,17 @@ fn cad_checks(design: &RingDesign, ctx: &FieldContext, inner_r: f64, parting_z: 
         }
     }
     let doc = design.cad.as_ref();
-    groups
+    let bare = crate::setstone::BareBand::new(design);
+    let mut checks: Vec<(crate::sketch::Id, SeatCheck)> = groups
         .into_iter()
         .map(|(feature, gem, members)| {
-            let made = doc.and_then(|d| made_by(d, feature, 0));
+            let made = doc.and_then(|d| made_by(d, feature));
             let (mut side, mut worst_draft, mut clearance, mut depth) = (true, f64::MAX, f64::MAX, f64::MAX);
             for st in &members {
-                let b = base_at(design, inner_r, ctx.crest_radius_mm, ctx, st.theta_deg, st.v_mm);
+                let b = match bare.under(st) {
+                    Some(f) => BasePoint { r: f.r, z: f.z, nr: f.nr, nz: f.nz, width: f.width_mm, along: f.along_mm, surface_len: f.surface_len_mm },
+                    None => base_at(design, inner_r, ctx.crest_radius_mm, ctx, st.theta_deg, st.v_mm),
+                };
                 side &= b.nz.abs().asin().to_degrees() >= SIDE_FACE_MIN_DRAFT_DEG;
                 let (sin, cos) = st.theta_deg.to_radians().sin_cos();
                 worst_draft = worst_draft.min(draft_angle([b.nr * cos, b.nr * sin, b.nz], b.z, parting_z));
@@ -411,7 +423,7 @@ fn cad_checks(design: &RingDesign, ctx: &FieldContext, inner_r: f64, parting_z: 
                     "culet needs {need:.2} mm; {depth:.2} mm before the {MIN_WALL_MM} mm wall — raise the stone or take a shallower one"
                 ));
             }
-            SeatCheck {
+            let check = SeatCheck {
                 label: members[0].label.clone(),
                 style: if made.as_ref().is_some_and(|(_, key)| *key == crate::cad::builders::BEZEL) { SeatStyle::Bezel } else { SeatStyle::Boss },
                 count: members.len() as u32,
@@ -425,35 +437,46 @@ fn cad_checks(design: &RingDesign, ctx: &FieldContext, inner_r: f64, parting_z: 
                 shared_prongs: None,
                 made: made.map(|(name, _)| name),
                 warnings,
-            }
+            };
+            (feature, check)
         })
-        .collect()
+        .collect();
+    for &(feature, gem) in past_cap {
+        let note = format!(
+            "carries more stones than the {} one report counts; those past it are not counted here",
+            crate::setstone::MAX_CAD_STONES
+        );
+        match checks.iter_mut().find(|(f, _)| *f == feature) {
+            Some((_, check)) => check.warnings.push(note),
+            None => checks.push((
+                feature,
+                SeatCheck {
+                    label: doc.and_then(|d| d.feature(feature)).map_or_else(|| format!("#{feature}"), |f| f.name.clone()),
+                    style: SeatStyle::Boss,
+                    count: 0,
+                    seat_diameter_mm: gem.w_mm,
+                    gem: Some(gem),
+                    footing: SeatFooting::Crown(0.0),
+                    edge_clearance_mm: 0.0,
+                    depth_available_mm: 0.0,
+                    bridge_mm: None,
+                    carats_override: None,
+                    shared_prongs: None,
+                    made: doc.and_then(|d| made_by(d, feature)).map(|(name, _)| name),
+                    warnings: vec![note],
+                },
+            )),
+        }
+    }
+    checks.into_iter().map(|(_, check)| check).collect()
 }
 
-/// The made setting holding the stones feature `id` carries, and its builder: a stone's head, a halo, a head a
-/// pattern copies.
-fn made_by(doc: &crate::cad::Document, id: crate::sketch::Id, depth: u32) -> Option<(String, &'static str)> {
+/// The made setting holding the stones feature `id` carries, and its builder.
+fn made_by(doc: &crate::cad::Document, id: crate::sketch::Id) -> Option<(String, &'static str)> {
     use crate::cad::{builders, Operation};
-    let f = doc.feature(id)?;
-    let key_of = |key: &str| builders::spec(key).map(|s| s.key);
-    match &f.operation {
-        Operation::Builder { key, .. } if key == builders::STONE => {
-            let head = builders::head_on(doc, id)?;
-            let Operation::Builder { key, .. } = &head.operation else { return None };
-            Some((head.name.clone(), key_of(key)?))
-        }
-        Operation::Builder { key, .. } if key == builders::HALO || builders::HEADS.contains(&key.as_str()) => Some((f.name.clone(), key_of(key)?)),
-        Operation::Pattern { source, .. }
-        | Operation::Fillet { source, .. }
-        | Operation::Chamfer { source, .. }
-        | Operation::Shell { source, .. }
-        | Operation::PressPull { source, .. }
-            if depth < 16 =>
-        {
-            made_by(doc, *source, depth + 1)
-        }
-        _ => None,
-    }
+    let head = crate::setstone::holder(doc, id)?;
+    let Operation::Builder { key, .. } = &head.operation else { return None };
+    Some((head.name.clone(), builders::spec(key)?.key))
 }
 
 /// Every stone against every other, in millimetres of real metal.
@@ -862,6 +885,8 @@ fn base_at(
     theta_deg: f64,
     v_mm: f64,
 ) -> BasePoint {
+    #[cfg(test)]
+    crate::setstone::section_sampled();
     let l = design.section_at(theta_deg, 192, None, None);
     let v_norm = (v_mm / ctx.band_v_len_mm.max(1e-9)).clamp(0.0, 1.0);
     let target = v_norm * l.surface_len_mm;
