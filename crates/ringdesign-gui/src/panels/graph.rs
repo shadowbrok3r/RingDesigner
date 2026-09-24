@@ -119,9 +119,7 @@ fn empty_state(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         ui.add_space(6.0);
         ui.menu_button(format!("{} Open a template graph", icon::FOLDER_OPEN), |ui| {
             if let Some(template) = ringdesign_workbench::templates::menu(ui) {
-                crate::export::load_catalog_template(app, template);
-                if app.design.graph.is_none() { app.convert_to_graph(); }
-                app.show_graph_pane();
+                app.open_template(template, true);
                 ui.close();
             }
         });

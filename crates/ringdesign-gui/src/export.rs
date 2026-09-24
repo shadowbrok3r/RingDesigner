@@ -504,17 +504,16 @@ pub fn open_design_path(app: &mut RingDesignerApp, path: &std::path::Path) {
     }
 }
 
-/// Start a template from the shared collection library.
-pub fn load_catalog_template(app: &mut RingDesignerApp, t: &ringdesign_workbench::templates::Template) {
-    match t.instantiate(&app.graph_reg, &app.lib) {
-        Ok(design) => adopt_template(app, design, t.name),
-        Err(e) => app.set_status(format!("Could not open template: {e}")),
-    }
+/// Start a template from the shared collection library, opened off the UI thread.
+pub fn load_catalog_template(app: &mut RingDesignerApp, t: &'static ringdesign_workbench::templates::Template) {
+    app.open_template(t, false);
 }
 
-fn adopt_template(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, name: &str) {
-    design.unpack_embedded(app.library_mut());
-    design.bake_all(app.library_mut());
+/// The opened template as the new design, its artwork already baked into the library it brings.
+pub(crate) fn adopt_template(app: &mut RingDesignerApp, opened: ringdesign_workbench::templates::Opened, name: &str) {
+    app.lib = opened.library_for(&app.lib);
+    app.clear_thumbnails();
+    let design = opened.design;
     app.document_path = None;
     let named = app.stamps_named();
     app.design = design;
@@ -610,6 +609,35 @@ pub(crate) fn import_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
         });
     if cancel {
         app.cancel_import();
+    }
+}
+
+/// The plate over the view while a template opens and until its first build lands: how far it has got, and Cancel while it is still opening.
+pub(crate) fn template_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
+    use ringdesign_workbench::templates::{self, Stage};
+    let (name, stage) = match (&app.opening, app.opened_building) {
+        (Some((opening, _)), _) => (opening.name, opening.stage()),
+        (None, Some((name, _))) => (name, Stage::Building),
+        (None, None) => return,
+    };
+    let mut cancel = false;
+    egui::Area::new(egui::Id::new("template-open"))
+        .order(egui::Order::Foreground)
+        .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -84.0))
+        .show(ctx, |ui| {
+            egui::Frame::new().fill(crate::theme::FLOAT).corner_radius(6).inner_margin(egui::Margin::symmetric(10, 6)).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.set_width(420.0);
+                    let bar = if stage == Stage::Building { 420.0 } else { 330.0 };
+                    ui.add_sized([bar, ui.spacing().interact_size.y], |ui: &mut egui::Ui| templates::progress(ui, name, stage));
+                    if stage != Stage::Building {
+                        cancel = ui.button("Cancel").on_hover_text("Stop opening the template; the design on screen stays").clicked();
+                    }
+                });
+            });
+        });
+    if cancel {
+        app.cancel_template();
     }
 }
 

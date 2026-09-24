@@ -1,9 +1,13 @@
 //! One metadata-only template library for desktop and Android menus.
 //! Ring data is parsed only after a choice; thumbnails are small bundled renders.
-use std::sync::LazyLock;
+use std::sync::{
+    Arc, LazyLock, Mutex,
+    atomic::{AtomicBool, Ordering},
+    mpsc::{self, TryRecvError},
+};
 use egui::{TextureHandle, Ui};
 use ringdesign_core::{AlphaLibrary, RingDesign};
-use ringdesign_graph::{registry::Registry, templates::TemplateGraph};
+use ringdesign_graph::{registry::Registry, templates::{Step, TemplateGraph}};
 
 pub struct Template {
     pub name: &'static str,
@@ -13,6 +17,7 @@ pub struct Template {
 }
 /// `Design` names a bundled `.ring.json`; the document is decompressed only
 /// when that template is chosen, not to list it in a menu.
+#[derive(Clone, Copy)]
 enum Source { Graph(&'static TemplateGraph), Starter(&'static ringdesign_core::templates::Template), Design(&'static str) }
 impl Template {
     pub fn instantiate(&self, reg: &Registry, lib: &AlphaLibrary) -> anyhow::Result<RingDesign> {
@@ -26,6 +31,171 @@ impl Template {
         }
     }
 }
+
+impl Template {
+    /// Opens this template on a thread of its own against `lib`, calling `wake` whenever it gets further; poll the [`Opening`] for the design.
+    pub fn open(&'static self, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, wake: impl Fn() + Send + Sync + 'static) -> Opening {
+        open(self.name, self.source, reg, lib, wake)
+    }
+}
+
+/// [`Template::open`] for a bundled template graph, opened as its graph even where a starter of its name exists.
+pub fn open_graph(graph: &'static TemplateGraph, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, wake: impl Fn() + Send + Sync + 'static) -> Opening {
+    open(graph.name, Source::Graph(graph), reg, lib, wake)
+}
+
+fn open(name: &'static str, source: Source, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, wake: impl Fn() + Send + Sync + 'static) -> Opening {
+    let stage = Arc::new(Mutex::new(Stage::Reading));
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let (tx, answer) = mpsc::channel();
+    let wake = Arc::new(wake);
+    let (at, stop, woken) = (stage.clone(), cancelled.clone(), wake.clone());
+    let set: Arc<dyn Fn(Stage) + Send + Sync> = Arc::new(move |next| {
+        *at.lock().unwrap_or_else(|e| e.into_inner()) = next;
+        woken();
+    });
+    let spawned = std::thread::Builder::new().name("template-open".into()).spawn(move || {
+        let opened = opened(source, &reg, &lib, &set, &stop).map(|(design, after)| Opened { design, before: lib, after });
+        if !stop.load(Ordering::Relaxed) {
+            let _ = tx.send(opened.map_err(|e| format!("{e:#}")));
+            wake();
+        }
+    });
+    if let Err(e) = spawned {
+        let (tx, failed) = mpsc::channel();
+        let _ = tx.send(Err(format!("no thread to open it on: {e}")));
+        return Opening { name, stage, answer: failed, cancelled };
+    }
+    Opening { name, stage, answer, cancelled }
+}
+
+/// The design `source` makes and `lib` with its artwork baked in, telling `set` each stage; `Err` once `stop` is set.
+fn opened(source: Source, reg: &Registry, lib: &Arc<AlphaLibrary>, set: &Arc<dyn Fn(Stage) + Send + Sync>, stop: &AtomicBool) -> anyhow::Result<(RingDesign, Arc<AlphaLibrary>)> {
+    let (design, baked) = match source {
+        Source::Graph(graph) => {
+            let told = set.clone();
+            graph.open(reg, lib, Arc::new(move |step| told(Stage::from(step))))?
+        }
+        Source::Starter(template) => (template.design(), None),
+        Source::Design(slug) => {
+            set(Stage::Reading);
+            let asset = ringdesign_assets::find(ringdesign_assets::DESIGNS, slug).ok_or_else(|| anyhow::anyhow!("{slug} is not bundled"))?;
+            (ringdesign_graph::templates::refine_sources(&serde_json::from_str(&asset.text())?), None)
+        }
+    };
+    anyhow::ensure!(!stop.load(Ordering::Relaxed), "stopped");
+    let after = match baked {
+        Some(baked) => baked,
+        None => {
+            set(Stage::Baking);
+            let mut baked = (**lib).clone();
+            design.unpack_embedded(&mut baked);
+            design.bake_all(&mut baked);
+            Arc::new(baked)
+        }
+    };
+    Ok((design, after))
+}
+
+/// How far a template being opened has got.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Stage {
+    Reading,
+    Evaluating { done: usize, of: usize },
+    Baking,
+    /// Landed, and its ring is being built.
+    Building,
+}
+
+impl From<Step> for Stage {
+    fn from(step: Step) -> Self {
+        match step {
+            Step::Reading => Stage::Reading,
+            Step::Evaluating { done, of } => Stage::Evaluating { done, of },
+            Step::Baking => Stage::Baking,
+        }
+    }
+}
+
+impl Stage {
+    /// Share of the whole open done, 0 to 1.
+    pub fn fraction(self) -> f32 {
+        match self {
+            Stage::Reading => 0.05,
+            Stage::Evaluating { done, of } => 0.1 + 0.4 * done.min(of) as f32 / of.max(1) as f32,
+            Stage::Baking => 0.55,
+            Stage::Building => 0.8,
+        }
+    }
+
+    /// What the stage is doing, in words.
+    pub fn words(self) -> String {
+        match self {
+            Stage::Reading => "reading it".into(),
+            Stage::Evaluating { done, of } => format!("running its graph, node {} of {of}", (done + 1).min(of.max(1))),
+            Stage::Baking => "baking its artwork".into(),
+            Stage::Building => "building the ring".into(),
+        }
+    }
+}
+
+/// A template being opened off the UI thread; dropping it stops the thread before its bake and discards what it made.
+pub struct Opening {
+    /// The template's name.
+    pub name: &'static str,
+    stage: Arc<Mutex<Stage>>,
+    answer: mpsc::Receiver<Result<Opened, String>>,
+    cancelled: Arc<AtomicBool>,
+}
+
+impl Opening {
+    /// Where it has got.
+    pub fn stage(&self) -> Stage {
+        *self.stage.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// The opened template once it has landed, or why it could not be opened.
+    pub fn poll(&self) -> Option<Result<Opened, String>> {
+        match self.answer.try_recv() {
+            Ok(opened) => Some(opened),
+            Err(TryRecvError::Empty) => None,
+            Err(TryRecvError::Disconnected) => Some(Err("the thread opening it stopped without an answer".into())),
+        }
+    }
+}
+
+impl Drop for Opening {
+    fn drop(&mut self) {
+        self.cancelled.store(true, Ordering::Relaxed);
+    }
+}
+
+/// A template's design, and the library it was opened against with its artwork baked in.
+pub struct Opened {
+    pub design: RingDesign,
+    before: Arc<AlphaLibrary>,
+    after: Arc<AlphaLibrary>,
+}
+
+impl Opened {
+    /// `current` with the artwork the template baked: the baked library itself while `current` is still the one it was opened against, else `current` with the alphas the bake inserted, shared.
+    pub fn library_for(&self, current: &Arc<AlphaLibrary>) -> Arc<AlphaLibrary> {
+        if Arc::ptr_eq(current, &self.before) {
+            return self.after.clone();
+        }
+        let mut lib = (**current).clone();
+        for alpha in self.after.changed_since(&self.before) {
+            lib.insert_shared(alpha.clone());
+        }
+        Arc::new(lib)
+    }
+}
+
+/// The bar a template being opened shows: its name and how far it has got.
+pub fn progress(ui: &mut Ui, name: &str, stage: Stage) -> egui::Response {
+    ui.add(egui::ProgressBar::new(stage.fraction()).text(format!("Opening {name}: {}", stage.words())).animate(true))
+}
+
 pub struct Collection { pub name: &'static str, pub templates: Vec<Template> }
 
 pub fn collections() -> &'static [Collection] {
@@ -151,5 +321,59 @@ mod tests {
             assert!(png.pixels().any(|p| p.0.iter().copied().max().unwrap() > 100), "{} preview is blank", entry.slug);
         }
         assert_eq!(slugs.len(), 31);
+    }
+
+    #[test]
+    fn a_template_opens_off_the_ui_thread_as_it_instantiates_with_its_artwork_baked_as_the_ui_thread_baked_it() {
+        let reg = Arc::new(ringdesign_script::registry());
+        let lib = Arc::new(AlphaLibrary::builtin());
+        let find = |slug: &str| collections().iter().flat_map(|c| &c.templates).find(|t| t.slug == slug).unwrap();
+        // A graph carrying artwork, a starter, and a bundled design.
+        for slug in ["aster-atelier", "court-band", "aster-workshop"] {
+            let template = find(slug);
+            let wakes = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let woken = wakes.clone();
+            let opening = template.open(reg.clone(), lib.clone(), move || {
+                woken.fetch_add(1, Ordering::Relaxed);
+            });
+            let started = std::time::Instant::now();
+            let opened = loop {
+                if let Some(opened) = opening.poll() {
+                    break opened.unwrap();
+                }
+                assert!(started.elapsed().as_secs() < 60, "{slug} never landed at {:?}", opening.stage());
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            };
+            assert!(wakes.load(Ordering::Relaxed) >= 2, "{slug} wakes the UI as it goes and when it lands");
+            assert_eq!(serde_json::to_value(&opened.design).unwrap(), serde_json::to_value(template.instantiate(&reg, &lib).unwrap()).unwrap(), "{slug}");
+            // What the UI thread used to bake, the thread baked: every alpha it inserted, texel for texel.
+            let mut old = (*lib).clone();
+            opened.design.unpack_embedded(&mut old);
+            opened.design.bake_all(&mut old);
+            let landed = opened.library_for(&lib);
+            assert!(Arc::ptr_eq(&landed, &opened.after));
+            let inserted: Vec<&Arc<ringdesign_core::alpha::Alpha>> = old.changed_since(&lib).collect();
+            assert_eq!(inserted.len(), opened.after.changed_since(&lib).count(), "{slug}");
+            for alpha in &inserted {
+                assert_eq!(landed.get(&alpha.name).map(|a| &a.data), Some(&alpha.data), "{slug}: {}", alpha.name);
+            }
+            // A library changed while it opened keeps its own entries and gains the template's, shared.
+            let mut moved = (*lib).clone();
+            moved.insert(ringdesign_core::alpha::Alpha::new("mine", 2, 2, vec![0.5; 4]));
+            let moved = Arc::new(moved);
+            let merged = opened.library_for(&moved);
+            assert!(merged.get("mine").is_some());
+            for alpha in &inserted {
+                assert!(std::ptr::eq(merged.get(&alpha.name).unwrap(), opened.after.get(&alpha.name).unwrap()), "{slug}: {}", alpha.name);
+            }
+        }
+    }
+
+    #[test]
+    fn an_opening_moves_forward_through_its_stages() {
+        let stages = [Stage::Reading, Stage::Evaluating { done: 0, of: 40 }, Stage::Evaluating { done: 39, of: 40 }, Stage::Baking, Stage::Building];
+        assert!(stages.windows(2).all(|w| w[0].fraction() < w[1].fraction()), "{stages:?}");
+        assert_eq!(Stage::Evaluating { done: 39, of: 40 }.words(), "running its graph, node 40 of 40");
+        assert_eq!(Stage::Evaluating { done: 0, of: 0 }.fraction(), 0.1);
     }
 }

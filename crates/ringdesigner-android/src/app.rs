@@ -117,6 +117,10 @@ pub struct RingApp {
     preview_gems: Vec<f32>,
     fit_next: bool,
     preview_in_flight: bool,
+    /// A template being opened off the UI thread, and whether it lands as a new design on the Ring tab.
+    opening: Option<(ringdesign_workbench::templates::Opening, bool)>,
+    /// The template that landed and the last generation dispatched before it, until a later build lands.
+    opened_building: Option<(&'static str, u64)>,
     live_requested: bool,
     last_preview_at: Instant,
     workshop: ringdesign_workbench::Workshop,
@@ -309,6 +313,8 @@ impl RingApp {
             preview_gems: Vec::new(),
             fit_next: true,
             preview_in_flight: false,
+            opening: None,
+            opened_building: None,
             live_requested: false,
             last_preview_at: Instant::now(),
             workshop: Default::default(),
@@ -426,6 +432,11 @@ impl RingApp {
     /// Take a design from somewhere other than an edit — a file, a paste, a
     /// pull, a template — and start the history over from it.
     fn adopt(&mut self, design: RingDesign) {
+        self.adopt_with(design, None);
+    }
+
+    /// [`adopt`](Self::adopt), with `baked` as the library when the design's artwork was already baked into it off the UI thread.
+    fn adopt_with(&mut self, design: RingDesign, baked: Option<Arc<AlphaLibrary>>) {
         self.fit_next = true;
         // A new ring is framed whole: a zoom left on the last ring's detail
         // opens this one on a close-up of nothing in particular.
@@ -443,9 +454,14 @@ impl RingApp {
         if self.design.shank.kind == ringdesign_core::ShankKind::Signet {
             self.frame_head(true);
         }
-        let lib = Arc::make_mut(&mut self.lib);
-        self.design.unpack_embedded(lib);
-        self.design.bake_all(lib);
+        match baked {
+            Some(lib) => self.lib = lib,
+            None => {
+                let lib = Arc::make_mut(&mut self.lib);
+                self.design.unpack_embedded(lib);
+                self.design.bake_all(lib);
+            }
+        }
         self.thumbs.clear();
         self.picked_alpha = None;
         // A row index from the old stack would point at a different layer.
@@ -612,10 +628,14 @@ impl RingApp {
         if let Some(worker) = self.worker.as_ref() {
             while let Ok((generation, error)) = worker.errors.try_recv() {
                 if generation == self.generation { self.preview_in_flight = false; self.status = error; }
+                if self.opened_building.is_some_and(|(_, g)| generation > g) { self.opened_building = None; }
             }
             while let Some(done) = worker.poll() {
                 if done.generation != self.generation {
                     continue;
+                }
+                if self.opened_building.is_some_and(|(_, g)| done.generation > g) {
+                    self.opened_building = None;
                 }
                 if let Some(mut g) = done.graph {
                     if g.ok {
@@ -1545,16 +1565,8 @@ impl RingApp {
                 ui.label(egui::RichText::new("template graphs").weak());
                 for template in templates::catalog() {
                     if ui.button(template.name).clicked() {
-                        match template.instantiate(&self.graph.reg, &self.lib) {
-                            Ok(design) => {
-                                self.load_template_design(design, template.name);
-                                self.graph.sync(&self.design);
-                                if let Some(ed) = &mut self.graph.ed {
-                                    ed.arrange(&self.graph.reg);
-                                }
-                            }
-                            Err(e) => self.status = format!("could not open template: {e}"),
-                        }
+                        let opening = ringdesign_workbench::templates::open_graph(template, self.graph.reg.clone(), self.lib.clone(), Self::opening_wake(ui.ctx()));
+                        self.start_opening(opening, false);
                     }
                 }
             });
@@ -3142,6 +3154,74 @@ impl RingApp {
         self.status = format!("started from {what}");
     }
 
+    /// Opens `opening`'s template off the UI thread in place of any still opening; it lands as a new design on the Ring tab when `new_design` is set, else where the app stands.
+    fn start_opening(&mut self, opening: ringdesign_workbench::templates::Opening, new_design: bool) {
+        self.status = format!("opening {}", opening.name);
+        self.opening = Some((opening, new_design));
+        self.opened_building = None;
+    }
+
+    /// The wake a template being opened calls as it gets further.
+    fn opening_wake(ctx: &egui::Context) -> impl Fn() + Send + Sync + 'static {
+        let ctx = ctx.clone();
+        move || ctx.request_repaint()
+    }
+
+    /// Takes in a template that has opened, its artwork already baked, and shows how far one still opening has got.
+    fn poll_template(&mut self, ctx: &egui::Context) {
+        let landed = self.opening.as_ref().and_then(|(opening, _)| opening.poll());
+        if let Some(opened) = landed {
+            let Some((opening, new_design)) = self.opening.take() else { return };
+            match opened {
+                Ok(opened) => {
+                    let lib = opened.library_for(&self.lib);
+                    self.adopt_with(opened.design, Some(lib));
+                    self.status = format!("started from {}", opening.name);
+                    self.graph.sync(&self.design);
+                    if let Some(editor) = &mut self.graph.ed {
+                        editor.arrange(&self.graph.reg);
+                    }
+                    if new_design {
+                        self.show_new_design();
+                    }
+                    self.opened_building = Some((opening.name, self.generation));
+                }
+                Err(e) => self.status = format!("could not open {}: {e}", opening.name),
+            }
+        }
+        self.template_plate(ctx);
+    }
+
+    /// The plate over the screen while a template opens and until a build shows it: how far it has got, and Cancel while it is still opening.
+    fn template_plate(&mut self, ctx: &egui::Context) {
+        use ringdesign_workbench::templates::{self, Stage};
+        let (name, stage) = match (&self.opening, self.opened_building) {
+            (Some((opening, _)), _) => (opening.name, opening.stage()),
+            (None, Some((name, _))) => (name, Stage::Building),
+            (None, None) => return,
+        };
+        let bounds = crate::theme::content_bounds(ctx);
+        let width = (bounds.width() - 32.0).clamp(160.0, 420.0);
+        let mut cancel = false;
+        egui::Area::new(egui::Id::new("template-open"))
+            .order(egui::Order::Foreground)
+            .pivot(egui::Align2::CENTER_TOP)
+            .fixed_pos(bounds.center_top() + egui::vec2(0.0, 64.0))
+            .show(ctx, |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.set_width(width);
+                    ui.add_sized([width, 28.0], |ui: &mut egui::Ui| templates::progress(ui, name, stage));
+                    if stage != Stage::Building {
+                        cancel = ui.add_sized([width, ringdesign_workbench::touch::TARGET_PT], egui::Button::new("Cancel")).clicked();
+                    }
+                });
+            });
+        if cancel {
+            self.opening = None;
+            self.status = format!("stopped opening {name}: the design is unchanged");
+        }
+    }
+
     /// Builds and writes an export on its own thread; the share sheet opens
     /// from `poll_exports` when the file lands.
     fn export(&mut self, kind: ExportKind, dir: &std::path::Path, ctx: &egui::Context) {
@@ -3345,6 +3425,7 @@ impl EguiApp for RingApp {
         ui.ctx()
             .request_repaint_after(std::time::Duration::from_millis(200));
         self.poll_sync(host);
+        self.poll_template(ui.ctx());
         self.tick(ui.ctx());
         ringdesign_graph_ui::alpha_picker::set_library(ui.ctx(), self.lib.clone());
         if std::mem::take(&mut self.verdict_fell) {

@@ -19,6 +19,17 @@ pub struct TemplateGraph {
     pub slug: &'static str,
 }
 
+/// How far [`TemplateGraph::open`] has got.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Step {
+    /// Decompressing and parsing the template's document.
+    Reading,
+    /// Running its nodes: `done` of the `of` its design needs.
+    Evaluating { done: usize, of: usize },
+    /// Baking the design's artwork into the library.
+    Baking,
+}
+
 impl TemplateGraph {
     /// The template's document, decompressed out of the bundle on demand.
     /// The artwork these carry as base64 is 99 MB across the catalogue and
@@ -38,14 +49,26 @@ impl TemplateGraph {
     /// manufacturing setup. Attaching just the graph to the old project
     /// lets the hosts' metadata-preserving rebuild overwrite those fields.
     pub fn instantiate(&self, reg: &crate::registry::Registry, lib: &ringdesign_core::AlphaLibrary) -> Result<ringdesign_core::RingDesign, GraphError> {
+        self.open(reg, lib, std::sync::Arc::new(|_| {})).map(|(design, _)| design)
+    }
+
+    /// [`instantiate`](Self::instantiate), telling `step` how far it has got, with `lib` as the design's artwork baked into it (`None` when it carries none).
+    pub fn open(&self, reg: &crate::registry::Registry, lib: &ringdesign_core::AlphaLibrary, step: std::sync::Arc<dyn Fn(Step) + Send + Sync>) -> Result<(ringdesign_core::RingDesign, Option<std::sync::Arc<ringdesign_core::AlphaLibrary>>), GraphError> {
+        step(Step::Reading);
         let graph = self.load();
-        let out = crate::eval::evaluate_design(&mut crate::eval::Evaluator::new(), &graph, reg, lib, 0)?;
-        if !out.notes.is_empty() {
-            return Err(GraphError { node: None, message: out.notes.join("; ") });
+        let mut ev = crate::eval::Evaluator::new();
+        let evaluating = step.clone();
+        ev.progress = Some(std::sync::Arc::new(move |done, of| evaluating(Step::Evaluating { done, of })));
+        let (design, report) = crate::eval::design_of(&mut ev, &graph, reg, lib, 0)?;
+        let notes = report.notes(&graph);
+        if !notes.is_empty() {
+            return Err(GraphError { node: None, message: notes.join("; ") });
         }
-        let mut design = (*out.design).clone();
+        step(Step::Baking);
+        let baked = crate::eval::baked(&design, lib);
+        let mut design = (*design).clone();
         design.graph = Some(serde_json::to_value(&graph).map_err(|e| GraphError { node: None, message: e.to_string() })?);
-        Ok(design)
+        Ok((design, baked))
     }
 }
 
@@ -607,6 +630,32 @@ pub fn arrange(g: &mut Graph) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_open_says_each_step_and_makes_what_an_evaluation_makes_with_the_library_it_baked() {
+        use std::sync::{Arc, Mutex};
+        let reg = crate::registry::Registry::builtin();
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let template = catalog().find(|t| t.slug == "aster-atelier").unwrap();
+        let steps = Arc::new(Mutex::new(Vec::new()));
+        let seen = steps.clone();
+        let (design, baked) = template.open(&reg, &lib, Arc::new(move |step| seen.lock().unwrap().push(step))).unwrap();
+        let steps = steps.lock().unwrap().clone();
+        let of = match steps[1] { Step::Evaluating { of, .. } => of, other => panic!("{other:?}") };
+        let mut want = vec![Step::Reading];
+        want.extend((0..of).map(|done| Step::Evaluating { done, of }));
+        want.push(Step::Baking);
+        assert_eq!(steps, want);
+        let graph = template.load();
+        let out = crate::eval::evaluate_design(&mut crate::eval::Evaluator::new(), &graph, &reg, &lib, 0).unwrap();
+        let mut evaluated = (*out.design).clone();
+        evaluated.graph = Some(serde_json::to_value(&graph).unwrap());
+        assert_eq!(serde_json::to_value(&design).unwrap(), serde_json::to_value(&evaluated).unwrap());
+        let (baked, theirs) = (baked.expect("its artwork"), out.baked_library.unwrap());
+        let names = |l: &ringdesign_core::AlphaLibrary| l.changed_since(&lib).map(|a| (a.name.clone(), a.data.clone())).collect::<Vec<_>>();
+        assert!(!names(&baked).is_empty());
+        assert_eq!(names(&baked), names(&theirs));
+    }
     use crate::eval::{Evaluator, evaluate_design};
     use crate::registry::Registry;
     use ringdesign_core::AlphaLibrary;

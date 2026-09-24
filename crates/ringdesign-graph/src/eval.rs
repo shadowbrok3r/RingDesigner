@@ -156,6 +156,8 @@ pub struct Evaluator {
     pub depth: usize,
     /// Runs expression pins; without one they fail with a clear line.
     pub exprs: Option<Arc<dyn ExprEvaluator>>,
+    /// Told the nodes done and the nodes wanted after each wanted node, cached or run.
+    pub progress: Option<Arc<dyn Fn(usize, usize) + Send + Sync>>,
 }
 
 impl Evaluator {
@@ -240,12 +242,17 @@ impl Evaluator {
             sigs.insert(id, h.finish());
         }
 
+        let mut done = 0;
         for &id in &order {
             report.order.push(id);
             if !wanted.contains(&id) {
                 report.status.insert(id, NodeStatus { skipped: true, ..Default::default() });
                 continue;
             }
+            if let Some(progress) = &self.progress {
+                progress(done, wanted.len());
+            }
+            done += 1;
             let node = g.node(id).expect("in order");
             let spec = reg.get(&node.kind).expect("validated");
             let sig = sigs[&id];
@@ -513,6 +520,15 @@ pub struct DesignOut {
 /// feeds the output sink's `design` input, or, without a sink, the last
 /// single design any node produced.
 pub fn evaluate_design(ev: &mut Evaluator, g: &Graph, reg: &Registry, lib: &AlphaLibrary, lib_epoch: u64) -> Result<DesignOut, GraphError> {
+    let (design, report) = design_of(ev, g, reg, lib, lib_epoch)?;
+    let notes = report.notes(g);
+    let baked_library = baked(&design, lib);
+    let field = attributed_field_report(&design, baked_library.as_deref().unwrap_or(lib), &design.draft, FIELD_THETA_STEPS, FIELD_PROFILE_STEPS);
+    Ok(DesignOut { design, field, baked_library, notes, report })
+}
+
+/// The design `g` evaluates to, its imported base's shape checked, with the report that made it: [`evaluate_design`] unbaked and unjudged.
+pub fn design_of(ev: &mut Evaluator, g: &Graph, reg: &Registry, lib: &AlphaLibrary, lib_epoch: u64) -> Result<(Arc<RingDesign>, EvalReport), GraphError> {
     let report = ev.evaluate(g, reg, lib, lib_epoch, Targets::Design);
     if let Some(e) = report.errors.first() {
         return Err(e.clone());
@@ -521,18 +537,18 @@ pub fn evaluate_design(ev: &mut Evaluator, g: &Graph, reg: &Registry, lib: &Alph
     if let Some(base) = &design.imported_base {
         base.validate_shape(&design).map_err(|e| GraphError { node: None, message: e.to_string() })?;
     }
-    let notes = report.notes(g);
+    Ok((design, report))
+}
+
+/// `lib` with `design`'s embedded, drawn, lettered, imported and recipe artwork baked in; `None` when it carries none.
+pub fn baked(design: &RingDesign, lib: &AlphaLibrary) -> Option<Arc<AlphaLibrary>> {
     let has_sources = !(design.texts.is_empty() && design.svgs.is_empty() && design.drawn.is_empty() && design.recipes.is_empty() && design.embedded.is_empty());
-    let baked_library = if has_sources {
+    has_sources.then(|| {
         let mut baked = lib.clone();
         design.unpack_embedded(&mut baked);
         design.bake_all(&mut baked);
-        Some(Arc::new(baked))
-    } else {
-        None
-    };
-    let field = attributed_field_report(&design, baked_library.as_deref().unwrap_or(lib), &design.draft, FIELD_THETA_STEPS, FIELD_PROFILE_STEPS);
-    Ok(DesignOut { design, field, baked_library, notes, report })
+        Arc::new(baked)
+    })
 }
 
 fn find_design(g: &Graph, report: &EvalReport) -> Result<Arc<RingDesign>, GraphError> {

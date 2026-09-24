@@ -270,9 +270,23 @@ fn file_menu_has_preview_collections_and_opens_the_selected_template() {
     }
     h.get_by_label_contains("Reptilia collection").click();
     h.run_steps(3);
+    let before = h.state().design.name.clone();
     h.get_by_label("Ecdysis — ventral scales").click();
-    h.run_steps(3);
+    h.run_steps(1);
+    // The frame that chose it returns at once: the design on screen stays while a plate says how far the template has got.
+    assert!(h.state().opening.is_some());
+    assert_eq!(h.state().design.name, before);
+    h.run_steps(1);
+    assert!(h.state().opening.is_some());
+    assert!(h.query_by_label_contains("Opening Ecdysis — ventral scales: ").is_some());
+    crate::interaction_tests::wait_for_template(&mut h);
     assert!(h.state().design.name.starts_with("Ecdysis"));
+    // Landed, it builds at once and says so until the build shows it.
+    assert!(h.state().is_building() && h.state().opened_building.is_some());
+    assert!(h.query_by_label("Opening Ecdysis — ventral scales: building the ring").is_some());
+    crate::interaction_tests::wait_for_build(&mut h);
+    h.run_steps(2);
+    assert!(h.state().opened_building.is_none() && h.query_by_label_contains("Opening Ecdysis").is_none());
     assert!(h.state().design.graph.is_some());
     assert!(h.state().document_path.is_none());
     assert!(!h.state().graph_ed.as_ref().unwrap().graph().nodes.iter().any(|n| n.kind == "head"));

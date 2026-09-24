@@ -309,6 +309,15 @@ pub(crate) fn wait_for_build(h: &mut Harness<'static, RingDesignerApp>) {
         std::thread::sleep(std::time::Duration::from_millis(30));
     }
 }
+/// Steps until the template being opened has landed.
+pub(crate) fn wait_for_template(h: &mut Harness<'static, RingDesignerApp>) {
+    let start = std::time::Instant::now();
+    while h.state().opening.is_some() {
+        h.run_steps(1);
+        assert!(start.elapsed() < std::time::Duration::from_secs(60), "the template never opened");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
 /// A press and release at `pos` with the modifiers held across both.
 pub(crate) fn click_at(h: &mut Harness<'static, RingDesignerApp>, pos: egui::Pos2, button: egui::PointerButton, modifiers: egui::Modifiers) {
     h.event(egui::Event::ModifiersChanged(modifiers));
@@ -1242,6 +1251,7 @@ fn a_design_opened_after_a_fit_opens_whole_at_zoom_one_about_its_middle() {
     h.state_mut().panes[pane].camera.pan = [0.8, -0.5];
     let tide = ringdesign_workbench::templates::collections().iter().flat_map(|c| c.templates.iter()).find(|t| t.slug == "tide-workshop").expect("the Tide template");
     crate::export::load_catalog_template(h.state_mut(), tide);
+    wait_for_template(&mut h);
     assert!(h.state().fit_pending);
     h.state_mut().rebuild_now();
     wait_for_build(&mut h);

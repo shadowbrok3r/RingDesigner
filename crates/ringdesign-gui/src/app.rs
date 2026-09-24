@@ -329,6 +329,10 @@ pub struct RingDesignerApp {
     pub exporting: Option<std::sync::mpsc::Receiver<String>>,
     /// A part file being read off the UI thread, applied when it lands.
     pub importing: Option<PendingImport>,
+    /// A template being opened off the UI thread, and whether it lands in the graph pane.
+    pub opening: Option<(ringdesign_workbench::templates::Opening, bool)>,
+    /// The template that landed and the build generation that shows it, until that build lands.
+    pub opened_building: Option<(&'static str, u64)>,
     /// Where OpenCascade's worker is looked for: read from the environment at start, set per harness in tests.
     pub occt: ringdesign_occt::client::Locator,
     /// The stamp whose inspector is open, by its index in the design's stamps.
@@ -499,6 +503,8 @@ impl RingDesignerApp {
             prices: load_prices(),
             exporting: None,
             importing: None,
+            opening: None,
+            opened_building: None,
             occt: crate::occt_embedded::locator(),
             stamp_inspector: None,
             palette_open: false,
@@ -636,6 +642,51 @@ impl RingDesignerApp {
         self.status = self.importing.as_ref().map(PendingImport::words).unwrap_or_default();
     }
 
+    /// Opens `template` on a thread of its own, in place of any template still opening; it lands as a new design, in the graph pane when `graph_pane` is set.
+    pub fn open_template(&mut self, template: &'static ringdesign_workbench::templates::Template, graph_pane: bool) {
+        let wake = self.egui_ctx.clone();
+        let opening = template.open(self.graph_reg.clone(), self.lib.clone(), move || wake.request_repaint());
+        self.opening = Some((opening, graph_pane));
+        self.opened_building = None;
+        self.set_status(format!("Opening {}…", template.name));
+    }
+
+    /// Stops opening the template: what it makes is dropped.
+    pub fn cancel_template(&mut self) {
+        if let Some((opening, _)) = self.opening.take() {
+            self.set_status(format!("Stopped opening {}: the design is unchanged", opening.name));
+        }
+    }
+
+    /// Takes in a template that has opened, building it at once, or shows how far it has got.
+    fn poll_template(&mut self, ctx: &egui::Context) {
+        let Some((opening, _)) = &self.opening else {
+            crate::export::template_plate(self, ctx);
+            return;
+        };
+        let Some(opened) = opening.poll() else {
+            crate::export::template_plate(self, ctx);
+            return;
+        };
+        let Some((opening, graph_pane)) = self.opening.take() else { return };
+        let name = opening.name;
+        match opened {
+            Ok(opened) => {
+                crate::export::adopt_template(self, opened, name);
+                if graph_pane {
+                    if self.design.graph.is_none() {
+                        self.convert_to_graph();
+                    }
+                    self.show_graph_pane();
+                }
+                self.rebuild_now();
+                self.opened_building = Some((name, self.generation));
+                crate::export::template_plate(self, ctx);
+            }
+            Err(e) => self.set_status(format!("Could not open template {name}: {e}")),
+        }
+    }
+
     /// Stops waiting for the part being read: what it reads is dropped when it lands.
     pub fn cancel_import(&mut self) {
         if let Some(p) = self.importing.take() {
@@ -729,6 +780,7 @@ impl RingDesignerApp {
 
     /// Poll the worker, fire debounced rebuilds, and refresh the section slice.
     pub fn tick(&mut self, ctx: &egui::Context) {
+        self.poll_template(ctx);
         self.sync_graph();
         // A design opened from another file takes the pins an older workspace kept for that file.
         if self.document_path != self.pins_path {
@@ -750,6 +802,9 @@ impl RingDesignerApp {
         match self.worker.done.try_recv() {
             Ok(WorkerMsg::Failed { generation, message }) => {
                 self.in_flight = false;
+                if self.opened_building.is_some_and(|(_, g)| generation >= g) {
+                    self.opened_building = None;
+                }
                 if generation == self.generation {
                     self.last_build_valid = false;
                     self.set_status(format!(
@@ -760,6 +815,9 @@ impl RingDesignerApp {
             }
             Ok(WorkerMsg::Done(mut done)) => {
                 self.in_flight = false;
+                if self.opened_building.is_some_and(|(_, g)| done.generation >= g) {
+                    self.opened_building = None;
+                }
                 if done.generation == self.generation && self.dirty_at.is_none() {
                     self.last_build_valid = done.graph.as_ref().is_none_or(|g|g.ok);
                     let r = &done.result.report;
@@ -1222,6 +1280,11 @@ impl RingDesignerApp {
 
     pub fn library_mut(&mut self) -> &mut AlphaLibrary {
         Arc::make_mut(&mut self.lib)
+    }
+
+    /// Drops every cached alpha preview, for a library whose alphas may have changed under their names.
+    pub(crate) fn clear_thumbnails(&mut self) {
+        self.thumbs.clear();
     }
 
     /// Cached grayscale preview texture for an alpha.

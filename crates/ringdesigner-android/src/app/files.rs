@@ -155,21 +155,14 @@ impl RingApp {
         }
         ui.separator();
         if let Some(template) = ringdesign_workbench::templates::menu(ui) {
-            match template.instantiate(&self.graph.reg, &self.lib) {
-                Ok(design) => {
-                    self.load_template_design(design, template.name);
-                    self.graph.sync(&self.design);
-                    if let Some(editor) = &mut self.graph.ed { editor.arrange(&self.graph.reg); }
-                    self.show_new_design();
-                    ui.close();
-                }
-                Err(e) => self.status = format!("could not open template: {e}"),
-            }
+            let opening = template.open(self.graph.reg.clone(), self.lib.clone(), Self::opening_wake(ui.ctx()));
+            self.start_opening(opening, true);
+            ui.close();
         }
     }
 
 
-    fn show_new_design(&mut self) {
+    pub(super) fn show_new_design(&mut self) {
         self.editor.isolate = false;
         self.editor.palette = None;
         self.editor.mode = Mode::Shape;
