@@ -11,7 +11,7 @@ Decisions Logan made this session:
 
 | Question | Answer |
 | --- | --- |
-| Kernel | Pure-Rust default; optional OpenCascade behind an off-by-default desktop feature |
+| Kernel | Pure-Rust default; OpenCascade as a desktop child-process worker found at run time, carried inside `package.sh --occt` builds |
 | Interaction | Ring-aware hybrid: gumball + osnaps, feature history + sketch-on-face + in-canvas dimensions, G/R/S + axis lock + typed values, right-click menu, Ctrl+K |
 | Order | Unblock first, then the viewport tool framework, then builders |
 | Phone | Shared core/workbench, desktop UI first, touch a milestone or two behind |
@@ -90,9 +90,10 @@ spot-verified against the code):
    palette entry and a menu path (a test in the spirit of `every_node_has_its_own_mark`).
 9. **One v5 migration**, landed once in M1, walking `cad.feature` params inside `design.graph`
    too; a paired Android release ships with it so the phone keeps opening desktop files.
-10. **OCCT is late, optional, desktop-only, child-process** (`ringdesign-occt` behind `kernel-occt`,
-    cadrum): fillet/shell/general sweep/STEP import; results cached as meshes in the design file
-    so default, phone and wasm builds still render and judge them.
+10. **OCCT is late, optional, desktop-only, child-process** (the `occt-worker` built with
+    `kernel-occt`, cadrum; since batch 14 the app finds it at run time and a `package.sh --occt`
+    build carries it): fillet/shell/general sweep/STEP import; results cached as meshes in the
+    design file so default, phone and wasm builds still render and judge them.
 
 ## Milestones (merged order from three plans + sequencing critic)
 
@@ -536,6 +537,102 @@ worktrees, then verified, measured and committed by the integrator.
 - **Verified live**: right-click a post ▸ Pattern ▸ Array round the ring…, the six ghosts round the
   ring with the caption and the Instances field, type 4, Enter → "Ring array of Cylinder" on the
   timeline, three copies at 90° steps, one History entry "Add Ring array of Cylinder".
+
+### Batch 14 status — 2026-09-24 (on master: `cad-fixes`, `desktop-fit`, `occt-embedded`, `phone-eguimobile` merged, and their integration; not pushed)
+
+- **A revolution's line is read in its sketch's plane** (`Operation::Revolve { in_plane }`), and a design
+  carrying one is written at format 6 (graph, cluster and preset files at 2) so an older build refuses
+  it by name instead of turning the region about a world line; every other file is byte for byte.
+- **A cut carves what it reaches**: a Cut part is taken from the band and from every Separate part its
+  box meets (a 2 × 1.5 pocket 0.8 mm into a 4 × 3 × 2 block set apart takes 2.4 mm³); a part it
+  swallows is taken away with a note, and STEP writes a carved part as the build carved it (a bored
+  post, joined or apart, 3.061 mm³). Scale, grips and press-pull keep a cut's sign (−1 scaled 2× is
+  −2; a grip dragged through stops at −0.001; pushing past the floor is refused by name), and a
+  sketch-made cut grips its depth — live, a 0.5 mm cut into the Court band dragged to 0.74 mm took
+  the ring from 387.23 to 387.11 mm³.
+- **Every STEP writer sizes the band** (`step::ring_sized`) and says it in one line (`Sized::summary`,
+  solids counted by record): MCP's Court band with a post 1.5 MB (5,052 facets from 16,794), the CLI's
+  claw solitaire 2.8 MB, the assembly package 2.8 MB reading back at −0.30%, the phone's Court band
+  with a post 1.8 MB (5,922 facets from 655,360, 1.7–2.1 s).
+- **Fit view frames what is chosen on the desktop** (a post at zoom 8.98, half-extent 1.99 mm, the orbit
+  turning about it), named views and the cube go back to the ring's middle, the construction guide's
+  rebuilds keep the reader's view, and dimension fields grow to their hint (the Height field read
+  "1.0…" at 40 pt).
+- **OpenCascade ships inside the desktop app**: `packaging/package.sh --occt` embeds the stripped
+  worker (27.8 MB, deflated to 11.6 MB; the Linux app 93.2 → 104.9 MB stripped, Windows 95.6 → 159.2
+  MB), unpacked under the data folder on first use (67 ms; a later start checks the digest in 12 ms).
+  No build feature is needed; STEP import reads in the core first and hands OpenCascade only what it
+  leaves; Tools > Licences carries the licences, the LGPL notices and the build's commit. Live: a
+  fillet through the embedded worker, unpacked to `occt/d23e82e8…` on the spot.
+- **The phone runs on EguiMobile 274baae**: number fields get the number keypad, shares queue one per
+  frame and say where the copy landed, a dark splash, a seat pressed near a ring feature snaps as the
+  desktop's click does, Fit view, plane names clear of the navigator, and the stamp window stands
+  under the navigator, directly over the Tools rail and under any palette opened after it.
+- **Templates open off the UI thread** (asked for while the batch ran): opening one ran the graph, a
+  56 ms, 326 MB copy of the alpha library, a bake `instantiate` threw away, an unread field verdict
+  and the same bake again in the app — 0.4–1.0 s here, seconds on the phone. `Template::open` runs it
+  on a thread with a plate (reading, each node, baking, building the ring, Cancel) and lands the
+  design with the library already baked; `AlphaLibrary` holds its entries behind `Arc`, so every
+  clone and `Arc::make_mut` of it now copies pointers. Live, Zenith opened and built within a second
+  on the desktop, and Nocturne in about 1.5 s on rdsmoke with the old ring on screen until it landed.
+- The integration also fixed: the phone's STEP line counting solids by substring; a design opened
+  after a guide change keeping the old view; the stamp window burying palettes opened after it (a
+  sublayer of the rail now); a removal leaving `sdf_index` pointing at shifted entries; a refused
+  cut also said to have found no seam; the dead `Worker::locate`; the licences window eating "Tools >
+  Licences"'s ">"; and the OpenCascade plate ignoring the edge its own CAD canvas picked.
+- Verified: core 681 (golden 1), workbench 211 (225 with glow), gui 174, graph 100, graph-ui 26, mcp
+  45, cli 11, configurator 5, script 5, occt 7, solid 1, assets 4, phone 197; NDK arm64, wasm and the
+  locked workspace clean with zero warnings; the desktop live-checked with the worker embedded; the
+  phone's template plate on rdsmoke from the release APK.
+- Closed: batch 13's list, and from older lists the phone's numeric keyboard and OpenCascade's
+  shipping (bar the LGPL written offer and CI).
+- Open: the worker re-bakes a driven design's artwork on every build (`eval::evaluate_design`: 413 ms
+  a rebuild on Nocturne, 355 on Thalassa), and a landed template is evaluated a second time there;
+  the sketch's Cut refuses a ring of parts alone although a cut now carves Separate parts
+  (`sketch_mode.rs` `ALL_PARTS`); the CAD pane's Fit view reads the Ring viewport's selection, not
+  its own history pick; a named view after a close fit keeps the zoom (deliberate, as on the phone)
+  and so shows the bore close up; the template plate stands over the CAD timeline while it shows;
+  OpenCascade on Windows and macOS unverified, the LGPL §6 offer and a CI build carrying the worker
+  undecided; the phone's stamp window can fall below a landscape view with the keypad up, a DragValue
+  may re-parse its rounded text on losing focus, and EguiMobile's Done leaves a field focused and
+  fast keypad typing reorders; the reviewers' nits (a part's pocket walls name the part, a carved
+  joined clone's STEP bead, run-time relative worker paths, the packed-refs commit watch).
+
+### Batch 13 status — 2026-09-24 (on master: `m8-sketch-regions`, `desktop-files`, `m12-phone-view` merged and `a883233`; integrated locally, pushed with batch 14)
+
+- **A sketch closes wherever its curves meet** (`sketch/graph.rs`): every entity is cut where another's
+  end lies on it and the pieces left hanging off a loop are pruned, so a rectangle with one overhang
+  trimmed extrudes to its area times the height; "open at point" is said only of a real free end.
+  Where curves branch, `profile_regions` gives the faces they divide the plane into (a line across a
+  rectangle makes two), `RegionRef::among` names one by a side only it runs along, and 200 held
+  rectangles read their regions in 1.46 ms.
+- **An extrusion runs either way off its plane**: `Operation::Extrude` takes a negative height with
+  no schema change; a cut starts `CUT_CLEAR_MM` above its face, since a tool face lying in it left a
+  skin over the mouth. The phone's Cut and the desktop's sketch solid step (Join, Cut, Separate; J
+  cycles) cut from where the sketch was drawn: a 2 × 1.5 rectangle 1 mm into a block takes 3 mm³ on
+  both apps, and a half-ring revolve cut leaves no skin (six faces before).
+- **Big part files read off the UI thread in every build** (over 1 MB, at 13 ms a MB or less in
+  release in every format; the 216 MB export-grid STEP held the UI 5.4 s before).
+- **Export STEP collapses the band to 0.01 mm** (`step::ring_sized`, a checked half-edge collapse on a
+  quarter-octave bucket queue — 6.23 M of 6.57 M heap pops were stale, 4.0 s to 1.1 s on a 655k-face
+  band): at 1024 × 320 the claw solitaire 217.0 MB to 2.7 MB in 1.62 s against 3.12 s as built,
+  Zenith 213.2 to 3.0 MB, the Braided band 215.5 to 7.4 MB.
+- **A chosen stamp or seat station is kept by identity** across Undo, Redo, a history jump, MCP, a
+  graph evaluation and an open (`viewport::made::follow`); one stone of a run hovers, lights and
+  chooses alone; the stamp inspector opens apart from the tool inspector.
+- **The phone's view follows the work**: a pinch keeps the metal under the fingers
+  (`OrbitCamera::keep_under`; a 2× pinch carried the Block ~90 pt off them before) and the pivot moves
+  onto it (2.3 ms over 649k triangles on rdsmoke); Fit view frames the chosen parts; box select
+  filters parts, faces, edges or vertices; the band's long press makes a plane square to the band or
+  on the parting plane; Box, Cylinder and Sphere are dragged out from the band as one History entry.
+- Closed from batch 12: Trim's T-junction read as open, the cut sketch on a lowered plane, the
+  blocking big import, the desktop's 220 MB STEP, the phone's zoom-pivot drift and whole-ring Fit
+  view, the stale chosen-stamp index, the stamp and tool inspectors on one spot, the seat run
+  lighting whole.
+- Left for batch 14: a cut on a Separate part carved only the band (pinned, ignored); the desktop's
+  Fit view framed the whole ring; MCP, the CLI and the phone still wrote STEP at the export grid; a
+  revolution's line was read in world coordinates with no fence for older builds; Scale, grips and
+  press-pull dropped a cut's sign; OpenCascade only under `kernel-occt`; the phone's numeric keyboard.
 
 ### Batch 12 status — 2026-09-24 (on master: `desktop-picks`, `m13-sweeps`, `m12-phone-tools` merged, integration `dc71b18`)
 

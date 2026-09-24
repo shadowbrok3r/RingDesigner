@@ -187,16 +187,26 @@ timestamps, deterministic bytes) so `unit="millimeter"` and the design's
 name and size travel with the mesh; no zip dependency was bought for a
 container three files big.
 
-A design carrying an `Operation::Stored` mesh is written at format 6
+A design carrying an `Operation::Stored` mesh, or a revolution whose line is
+read in its sketch's plane (`Operation::Revolve { in_plane }`,
+`cad::turns_in_plane`, which looks in the document and anywhere in the
+graph's JSON, clusters included), is written at format 6
 (`library::format_version_for`), everything else still at 5, so an older
-build keeps opening a plain design and refuses a stored one by name. A 6
+build keeps opening a plain design and refuses the others by name — an
+older build would read an in-plane line as a world one and turn the region
+about the wrong axis without a word. Graph, cluster and preset files carrying
+an in-plane revolution are fenced the same way at their own version 2
+(`graph_to_string`, `preset_to_string`, which every writer goes through);
+every other graph file is still 1, byte for byte. A 6
 file holds every packed mesh **once**, in a top-level `stored_meshes` table
 keyed by content digest, and each occurrence — the document's and the
 graph's `cad.feature` params — is a `{"stored_mesh": digest}` reference
 resolved on load. A driven design carried each mesh twice before; the
 table halves such a file (15.4 MB to 7.7 MB at 786k triangles), and the
 writer falls back to inline meshes if the file would not reopen bit for
-bit. The session a desktop restores goes through the same ladder.
+bit. `design_json` decides on the table by `stored::carried_by`, not by the
+version, so an in-plane design with no stored mesh is written inline at 6.
+The session a desktop restores goes through the same ladder.
 
 ### Refined builds: a tolerance instead of a step count
 
@@ -1384,19 +1394,37 @@ The CLI speaks all of them: `--formats stl,obj,3mf,glb,ply,step`.
 
 A ring carrying CAD parts leaves whole and a part comes in. OBJ writes one
 named object per `threemf::objects` object — the band with its joined and
-cut parts, each Separate part its own — as 3MF always did. STEP
-(`cad::step::ring`; File > Export STEP…, MCP `export_step`) writes analytic
-parts exactly and the band and faceted parts as faceted solids, always the
-finished ring at nominal size, never a shrunk pattern. File > Import part…
+cut parts, each Separate part its own — as 3MF always did. Every STEP
+writer — File > Export STEP…, MCP `export_step`, the CLI, the assembly
+package and the phone's Share — goes through `cad::step::ring_sized`: kernel
+parts no cut carves are written exactly, the band and every other part
+faceted as built, always the finished ring at nominal size, never a shrunk
+pattern. The band's solid is collapsed while every vertex of the export
+build stays within `BAND_TOLERANCE_MM` (0.01) of what is written: at
+1024 × 320 the claw solitaire's 217.0 MB goes to 2.7 MB, the phone's Court
+band with a post to 1.8 MB (5,922 facets from 655,360). A part a cut carved
+is written as the build carved it, and one a cut consumed is left out, as
+the build left it. `Sized::summary` is the one line both apps say — the
+solids counted by record, the size, the band's facets and the measured
+distance. File > Import part…
 (MCP `import_part`) takes STL and OBJ through the solid crate's readers
-(welded, refused unless watertight) and STEP through `step::solid_meshes`:
-faceted solids as written, and exact ones through cadkernel (plane,
-cylinder, cone, sphere and torus faces — every solid our own export
-writes, so a ring round-trips without OpenCascade). A solid carrying a
-B-spline surface is named as needing OpenCascade, whose worker reads any
-STEP under `kernel-occt`, off the UI thread and killed by Cancel
-(`Worker::run_cancellable`). The part lands as an `Operation::Stored`
-component joined at the top of the ring, its recipe naming the file.
+(welded, refused unless watertight) and STEP through `step::solid_meshes`
+first, in every build: faceted solids as written, and exact ones through
+cadkernel (plane, cylinder, cone, sphere and torus faces — every solid our
+own export writes, so a ring round-trips without OpenCascade). Only a file
+the core refuses, or leaves a solid in (a B-spline surface), goes on to
+OpenCascade, whose worker is found at run time — named by
+`RINGDESIGN_OCCT_WORKER`, beside the executable, or carried inside a
+`packaging/package.sh --occt` build and unpacked under the data folder on
+first use (67 ms here; a later start checks its digest in 12 ms) — and runs
+off the UI thread, killed by Cancel (`Worker::run_cancellable`). No build
+feature is needed for any of it; the published releases carry no worker,
+and the updater says so before replacing a build that does. The part lands
+as an `Operation::Stored` component joined at the top of the ring, its
+recipe naming the file. Tools > Licences carries the app's MIT and Apache
+licences and the third-party notices — OpenCascade's LGPL 2.1 with its
+exception, where its exact source is, how to swap a rebuilt worker in — and
+the commit the build came from.
 `Report.quality` (`Mesh::quality`) carries worst-triangle statistics — min
 corner angle, aspect, degenerate count — on the report panel and the sheet.
 
@@ -2310,6 +2338,15 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   the stone it is built round — its ring placement, or its `FaceSeat` on a
   part's face — and the head follows. A Transform wrapped round a head would
   leave the stone where it was.
+- **A cut carves what it reaches.** A Cut part is taken from the band and
+  from every Separate part its box meets; each vertex it makes in a part set
+  apart names that part, so `threemf::objects` still gives closed objects,
+  and `Resolved::carved` lists what it touched. A part it consumes whole is
+  taken away with a note; one whose box it meets but whose solid it misses
+  stays bit for bit. A 2 × 1.5 pocket 0.8 mm into a 4 × 3 × 2 block set
+  apart takes 2.4 mm³. A cut keeps its sign through Scale, grips and
+  press-pull: a sketch-made cut grips its depth and its floor pulls it
+  deeper.
 
 ## Python: `crates/ringdesign-py`
 
@@ -2357,6 +2394,30 @@ created on demand, so everything the app writes lands in one predictable tree.
 `Workspace.recent` keeps the last ten opened/saved design paths (File >
 Recent, missing files disabled rather than hidden); File > New from template
 lists `templates::all()` with blurbs as hover text.
+
+### A template opens off the UI thread
+
+Choosing a template used to evaluate it on the UI thread, and most of the
+cost was not the graph. On Thalassa the nodes run in 4 ms; `instantiate` then
+copied the whole alpha library (56 ms, 326 MB — 81.6 M f32 texels installed),
+baked the artwork into the copy (355 ms), judged the field and threw both
+away, and the app baked the same artwork again: 0.4–1.0 s at opt-level 3 on
+this machine for the atelier templates, seconds on the phone.
+`workbench::templates::Template::open` (and `open_graph`, the phone's Graph
+tab opening a template as its graph even where a starter shares its name)
+runs it on a thread of its own and reports each stage — reading, each node
+of the graph, baking — through `Stage`, which both apps draw as one bar with
+Cancel. The design lands with the library the thread baked, taken whole when
+the app's library has not moved and merged by shared entry when it has
+(`Opened::library_for`); both apps build it at once and keep the plate up,
+reading "building the ring", until that build shows it. `TemplateGraph::open`
+bakes once and skips the verdict; `instantiate` is it without the progress.
+
+What made it cheap to hand a library between threads: **`AlphaLibrary` holds
+its entries behind `Arc`**, so a clone copies names and pointers and never
+texels. Every graph evaluation carrying artwork and every `Arc::make_mut` of
+the library used to copy all of it; `changed_since` and `insert_shared` move
+what one clone baked into another.
 
 ### The graph pane, the node tool, and the bridge
 
@@ -2533,8 +2594,8 @@ versa. The desktop's unrolled pane has a Paint mode (floating brush bar:
 size, depth with a live mm readout, soft, erase, last-stroke undo; the
 cursor shows the local ceiling and warns when the ask exceeds it); the
 Android app is the pen-first version with real pressure and palm rejection.
-Bakes happen on stroke end, not per sample — `Arc::make_mut` deep-copies the
-library — and the unrolled field cache hashes the stroke tally, because a
+Bakes happen on stroke end, not per sample — a bake re-rasterizes the whole
+drawing — and the unrolled field cache hashes the stroke tally, because a
 re-baked drawing keeps its name and size.
 
 ### The unrolled editor grips every layer
