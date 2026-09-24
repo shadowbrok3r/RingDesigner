@@ -46,16 +46,34 @@ fn literal_fenced(l: &Literal) -> bool {
     }
 }
 
-/// The version `g` is written at: the newest when a node carries a revolution read in its sketch's plane, or its `cad.feature` nodes, or a cluster's, make a ring of parts alone carrying a cut.
-pub fn graph_version_for(g: &Graph) -> u32 {
-    let features = g.nodes.iter().filter(|n| n.kind == "cad.feature").map(|n| &n.params);
-    let nested = |n: &Node| ringdesign_core::cad::turns_in_plane_json(&n.params) || ringdesign_core::parts::cuts_apart_json(&n.params) || n.inputs.values().any(literal_fenced);
-    if ringdesign_core::parts::features_cut_apart(features) || g.nodes.iter().any(nested) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
+/// Whether `g`, read with every node's pins, its wires and its exposures, may evaluate to a ring of parts alone carrying a cut, clusters included.
+fn graph_cuts_apart(g: &Graph) -> bool {
+    serde_json::to_value(g).map_or(true, |v| ringdesign_core::parts::cuts_apart_json(&v))
 }
 
-/// The version `p` is written at: the newest when a value carries a revolution read in its sketch's plane or a ring of parts alone carrying a cut.
+/// The version `g` is written at: the newest when a node carries a revolution read in its sketch's plane, or the graph, or a cluster in it, may evaluate to a ring of parts alone carrying a cut.
+pub fn graph_version_for(g: &Graph) -> u32 {
+    let turned = |n: &Node| ringdesign_core::cad::turns_in_plane_json(&n.params) || n.inputs.values().any(literal_fenced);
+    if g.nodes.iter().any(turned) || graph_cuts_apart(g) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
+}
+
+/// The version `p` is written at: the newest when a value is fenced, or when `cluster` with the preset's values on the pins they reach may evaluate to a ring of parts alone carrying a cut.
+pub fn preset_version_in(p: &Preset, cluster: Option<&Graph>) -> u32 {
+    let applied = |c: &Graph| {
+        let mut g = c.clone();
+        for e in std::mem::take(&mut g.exposed) {
+            if let (Some(v), Some(n)) = (p.values.get(&e.name), g.node_mut(e.node)) {
+                n.inputs.insert(e.input, v.clone());
+            }
+        }
+        graph_cuts_apart(&g)
+    };
+    if p.values.values().any(literal_fenced) || cluster.is_some_and(applied) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
+}
+
+/// [`preset_version_in`] against the cluster `p` names, read from the user's clusters and the bundled ones.
 pub fn preset_version_for(p: &Preset) -> u32 {
-    if p.values.values().any(literal_fenced) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
+    preset_version_in(p, load_cluster(&p.cluster, None).as_ref())
 }
 
 /// The version of a graph or preset document, refused by `kind` when it is newer than `reads_up_to`.
@@ -390,6 +408,91 @@ mod tests {
         assert_eq!(load_preset_str(&text).unwrap(), preset(false));
         let older = read_preset(&text, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
         assert_eq!(older, "preset file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner");
+    }
+
+    #[test]
+    fn a_band_its_pins_may_take_away_leaves_its_cut_fenced_in_the_graph_the_cluster_and_the_preset_that_reaches_it() {
+        use crate::graph::{Exposed, ExposedOut, NodeId};
+        use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation};
+        let reg = Registry::builtin();
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let feature = |id: u64, name: &str, operation: Operation, attach: Attach| Feature { id, name: name.into(), enabled: true, operation, component: Component { attach, ..Component::default() } };
+        let mut doc = Document::default();
+        for f in [feature(1, "Procedural shank", Operation::Band, Attach::Separate), feature(2, "Block", Operation::Box { size: [4.0, 3.0, 2.0] }, Attach::Separate), feature(3, "Pocket", Operation::Box { size: [2.0, 1.5, 1.6] }, Attach::Cut)] {
+            doc.append(f).unwrap();
+        }
+        let banded = crate::nodes::cad::from_document(&ringdesign_core::RingDesign { cad: Some(doc), ..ringdesign_core::RingDesign::default() }).unwrap();
+        let (band, pocket) = (NodeId(1), NodeId(3));
+        let apart = |g: &Graph| ringdesign_core::parts::cuts_apart(&crate::eval::design_of(&mut crate::eval::Evaluator::new(), g, &reg, &lib, 0).unwrap().0);
+        let with = |edit: &dyn Fn(&mut Graph)| {
+            let mut g = banded.clone();
+            edit(&mut g);
+            g
+        };
+        let band_off = |g: &mut Graph| g.set_input(band, "enabled", Literal::Bool(false)).unwrap();
+        let expose = |g: &mut Graph| g.exposed.push(Exposed { node: band, input: "enabled".into(), name: "Band".into(), doc: String::new() });
+        let cases = [
+            ("as converted", with(&|_| {}), false, false),
+            ("band pinned off", with(&band_off), true, true),
+            ("band pinned on", with(&|g| g.set_input(band, "enabled", Literal::Bool(true)).unwrap()), false, false),
+            (
+                "band wired off",
+                with(&|g| {
+                    let off = g.add("bool").unwrap();
+                    g.set_input(off, "value", Literal::Bool(false)).unwrap();
+                    g.connect(off, "out", band, "enabled").unwrap();
+                }),
+                true,
+                true,
+            ),
+            ("band exposed", with(&expose), true, false),
+            ("band's operation replaced", with(&|g| g.set_input(band, "operation", Literal::Json(serde_json::to_value(Operation::Box { size: [1.0; 3] }).unwrap())).unwrap()), true, true),
+            (
+                "band's feature rewritten",
+                with(&|g| {
+                    crate::nodes::cad::append_property(g, "/cad/features/0/enabled", serde_json::json!(false)).unwrap();
+                }),
+                true,
+                true,
+            ),
+            (
+                "band and cut pinned off",
+                with(&|g| {
+                    band_off(g);
+                    g.set_input(pocket, "enabled", Literal::Bool(false)).unwrap();
+                }),
+                false,
+                false,
+            ),
+        ];
+        for (name, g, fenced, evaluates_apart) in &cases {
+            assert_eq!(apart(g), *evaluates_apart, "{name} evaluates");
+            let want = if *fenced { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION };
+            let mut in_cluster = Graph::new("Parts cluster", Mode::Free);
+            let c = in_cluster.add("cluster").unwrap();
+            in_cluster.node_mut(c).unwrap().params = serde_json::json!({ "graph": serde_json::to_value(g).unwrap() });
+            for (at, g) in [("graph", g), ("cluster", &in_cluster)] {
+                assert_eq!(graph_version_for(g), want, "{name} in the {at}");
+                let text = graph_to_string(g).unwrap();
+                assert!(text.contains(&format!("\"format_version\": {want}")), "{name} in the {at}");
+                assert_eq!(read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).is_ok(), !fenced, "{name} in the {at}");
+            }
+        }
+        // A preset is fenced when the value it sets on the cluster's exposed pin takes the band away, and only then.
+        let mut cluster = with(&expose);
+        cluster.name = "Parts cluster".into();
+        let last = cluster.wire_into(cluster.nodes.iter().find(|n| n.kind == crate::eval::OUTPUT_KIND).unwrap().id, crate::eval::OUTPUT_DESIGN_PIN).unwrap().from;
+        cluster.outputs.push(ExposedOut { node: last, out: "design".into(), name: "Design".into(), doc: String::new() });
+        let preset = |value: Option<bool>| Preset { name: "Parts".into(), cluster: cluster.name.clone(), values: value.map(|b| ("Band".to_string(), Literal::Bool(b))).into_iter().collect(), doc: String::new() };
+        for (value, fenced) in [(Some(false), true), (Some(true), false), (None, false)] {
+            let mut outer = Graph::new("Uses parts", Mode::Free);
+            let c = crate::nodes::cluster::add_cluster(&mut outer, &cluster).unwrap();
+            assert!(preset(value).apply(outer.node_mut(c).unwrap(), &reg).is_empty());
+            assert_eq!(apart(&outer), fenced, "{value:?} evaluates");
+            assert_eq!(preset_version_in(&preset(value), Some(&cluster)), if fenced { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }, "{value:?}");
+            assert_eq!(graph_version_for(&outer), GRAPH_FORMAT_VERSION, "{value:?}: the exposed band is in doubt in the graph that carries it");
+        }
+        assert_eq!(preset_version_in(&preset(Some(false)), None), PLAIN_GRAPH_FORMAT_VERSION);
     }
 
     /// Marks the node it migrates with the version the file had.

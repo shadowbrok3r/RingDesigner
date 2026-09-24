@@ -605,7 +605,7 @@ pub fn carvable(design: &RingDesign) -> bool {
     design.band_is_procedural() || design.cad.as_ref().is_some_and(|d| d.attachments().iter().any(|(_, attach, _)| *attach != Attach::Cut))
 }
 
-/// Whether `design` is a ring of parts alone carrying a cut, in its document or anywhere in its graph, clusters included.
+/// Whether `design` is a ring of parts alone carrying a cut in its document, or may evaluate to one anywhere in its graph, clusters included.
 pub fn cuts_apart(design: &RingDesign) -> bool {
     let in_document = !design.band_is_procedural() && design.cad.as_ref().is_some_and(|d| d.attachments().iter().any(|(_, attach, _)| *attach == Attach::Cut));
     in_document || design.graph.as_ref().is_some_and(cuts_apart_json)
@@ -623,18 +623,61 @@ pub fn features_cut_apart<'a>(features: impl IntoIterator<Item = &'a serde_json:
     cut && !band
 }
 
-/// Whether `v` holds a ring of parts alone carrying a cut anywhere: a list of features, or of graph nodes whose `cad.feature` params are features, with a cut and no band.
+/// Whether `v` holds a ring of parts alone carrying a cut anywhere: a list of features with a cut and no band, or a graph whose `cad.feature` nodes, read with their pins, may evaluate to one.
 pub fn cuts_apart_json(v: &serde_json::Value) -> bool {
     use serde_json::Value;
     match v {
         Value::Array(items) => {
-            let feature = |x: &'_ Value| -> bool { x.get("operation").is_some() && x.get("component").is_some() };
-            let listed = items.iter().filter_map(|x| if x.get("kind").and_then(Value::as_str) == Some("cad.feature") { x.get("params") } else { Some(x).filter(|x| feature(x)) });
-            features_cut_apart(listed) || items.iter().any(cuts_apart_json)
+            let feature = |x: &&Value| x.get("operation").is_some() && x.get("component").is_some();
+            features_cut_apart(items.iter().filter(feature)) || items.iter().any(cuts_apart_json)
         }
-        Value::Object(map) => map.values().any(cuts_apart_json),
+        Value::Object(map) => graph_cuts_apart(map) || map.values().any(cuts_apart_json),
         _ => false,
     }
+}
+
+/// A graph node's pin as its JSON holds it: `None` when a wire or an exposure feeds it, else its literal, if any.
+fn pin_literal<'a>(graph: &'a serde_json::Map<String, serde_json::Value>, node: &'a serde_json::Value, pin: &str) -> Option<Option<&'a serde_json::Value>> {
+    use serde_json::Value;
+    let id = node.get("id").and_then(Value::as_u64)?;
+    let fed = |list: &str, at: &str| graph.get(list).and_then(Value::as_array).is_some_and(|l| l.iter().any(|x| x.get(at).and_then(Value::as_u64) == Some(id) && x.get("input").and_then(Value::as_str) == Some(pin)));
+    if fed("wires", "to") || fed("exposed", "node") {
+        return None;
+    }
+    Some(node.get("inputs").and_then(|i| i.get(pin)))
+}
+
+/// Whether a graph's JSON may evaluate to a ring of parts alone carrying a cut: a band counts only where it is certain, a cut wherever it is possible.
+fn graph_cuts_apart(graph: &serde_json::Map<String, serde_json::Value>) -> bool {
+    use serde_json::Value;
+    let Some(nodes) = graph.get("nodes").and_then(Value::as_array) else { return false };
+    let kind = |n: &Value, k: &str| n.get("kind").and_then(Value::as_str) == Some(k);
+    let features: Vec<&Value> = nodes.iter().filter(|n| kind(n, "cad.feature")).collect();
+    let writes_features = |n: &&Value| match pin_literal(graph, n, "pointer") {
+        Some(held) => held.and_then(Value::as_str).is_some_and(|p| p == "/cad" || p == "/cad/features" || p.starts_with("/cad/features/")),
+        None => true,
+    };
+    if !features.is_empty() && nodes.iter().filter(|n| kind(n, "design.set")).any(|n| writes_features(&n)) {
+        return true;
+    }
+    let (mut band, mut cut) = (false, false);
+    for n in features {
+        let Some(f) = n.get("params").filter(|f| f.get("enabled").and_then(Value::as_bool) != Some(false)) else { continue };
+        let enabled = match pin_literal(graph, n, "enabled") {
+            Some(None) => Some(true),
+            Some(Some(v)) => v.as_bool(),
+            None => None,
+        };
+        let operation = match pin_literal(graph, n, "operation") {
+            Some(None | Some(Value::Null)) => f.get("operation"),
+            Some(held) => held,
+            None => None,
+        };
+        band |= enabled == Some(true) && operation.and_then(Value::as_str) == Some("Band");
+        let component = |key: &str| f.get("component").and_then(|c| c.get(key));
+        cut |= enabled != Some(false) && component("attach").and_then(Value::as_str) == Some("cut") && component("reference").and_then(Value::as_bool) != Some(true);
+    }
+    cut && !band
 }
 
 /// A CAD-only ring's components as one mesh: parts whose boxes meet are united so a shank and the
@@ -1152,6 +1195,32 @@ mod tests {
             assert_eq!(cuts_apart(&driven), fenced, "{name}");
             let version = if fenced { crate::library::FORMAT_VERSION } else { crate::library::PLAIN_FORMAT_VERSION };
             assert_eq!(crate::library::format_version_for(&driven), version, "{name}");
+        }
+        // Read with its pins: a band that a pin, a wire, an exposure, an operation or a write under /cad/features may take away no longer counts, and a cut its pin suppresses is no cut.
+        let edited = |features: &[Feature], edit: &dyn Fn(&mut serde_json::Value)| {
+            let mut g = nodes(features);
+            edit(&mut g);
+            g
+        };
+        let set = |pointer: &'static str| move |g: &mut serde_json::Value| g["nodes"].as_array_mut().unwrap().push(serde_json::json!({ "id": 60, "kind": "design.set", "inputs": { "pointer": pointer } }));
+        let cases = [
+            ("band pinned off", edited(&banded, &|g| g["nodes"][0]["inputs"] = serde_json::json!({ "enabled": false })), true),
+            ("band pinned on", edited(&banded, &|g| g["nodes"][0]["inputs"] = serde_json::json!({ "enabled": true })), false),
+            ("band pinned by an expression", edited(&banded, &|g| g["nodes"][0]["inputs"] = serde_json::json!({ "enabled": { "expr": "i > 0" } })), true),
+            ("band wired", edited(&banded, &|g| g["wires"] = serde_json::json!([{ "from": 50, "out": "out", "to": 9, "input": "enabled" }])), true),
+            ("band exposed", edited(&banded, &|g| g["exposed"] = serde_json::json!([{ "node": 9, "input": "enabled", "name": "Band" }])), true),
+            ("band's operation replaced", edited(&banded, &|g| g["nodes"][0]["inputs"] = serde_json::json!({ "operation": { "Box": { "size": [1.0, 1.0, 1.0] } } })), true),
+            ("band's operation pin empty", edited(&banded, &|g| g["nodes"][0]["inputs"] = serde_json::json!({ "operation": null })), false),
+            ("features rewritten", edited(&banded, &set("/cad/features/0/enabled")), true),
+            ("outputs rewritten", edited(&banded, &set("/cad/outputs")), false),
+            ("cut pinned off", edited(&features, &|g| g["nodes"][2]["inputs"] = serde_json::json!({ "enabled": false })), false),
+            ("cut exposed", edited(&features, &|g| g["exposed"] = serde_json::json!([{ "node": 3, "input": "enabled", "name": "Pocket" }])), true),
+        ];
+        for (name, graph, fenced) in cases {
+            let in_cluster = serde_json::json!({ "name": "Outer", "nodes": [{ "id": 1, "kind": "cluster", "params": { "graph": graph.clone() } }] });
+            for (at, graph) in [("graph", graph), ("cluster", in_cluster)] {
+                assert_eq!(cuts_apart(&RingDesign { graph: Some(graph), ..RingDesign::default() }), fenced, "{name} in the {at}");
+            }
         }
         let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
         assert!(built.report.validation.watertight, "{:?} {:?}", built.report.validation, built.parts.notes);
