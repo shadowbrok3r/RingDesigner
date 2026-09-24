@@ -1318,6 +1318,22 @@ pub struct Applied {
     pub notes: Vec<String>,
     /// The layer path behind each stone a [`crate::Mesh::origin`] names, in the order it counts them.
     pub paths: Vec<Vec<usize>>,
+    /// Stamps a [`crate::Mesh::origin`] numbers after the stones: the design's own, as struck.
+    pub stamps: usize,
+}
+
+impl Applied {
+    /// The stone whose solid made a vertex of origin `origin`, by its index in `paths`.
+    pub fn stone_of(&self, origin: u32) -> Option<usize> {
+        let i = origin.checked_sub(crate::mesh::SOLID_VERTEX)? as usize;
+        (i < self.paths.len()).then_some(i)
+    }
+
+    /// The stamp that made a vertex of origin `origin`, by its index in the design's stamps.
+    pub fn stamp_of(&self, origin: u32) -> Option<usize> {
+        let k = (origin.checked_sub(crate::mesh::SOLID_VERTEX)? as usize).checked_sub(self.paths.len())?;
+        (k < self.stamps).then_some(k)
+    }
 }
 
 /// Whether any enabled seat in the design carries a solid.
@@ -1341,6 +1357,7 @@ pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut c
     }
     let clock = crate::mesh::BuildClock::start();
     out.paths = stones.iter().map(|(s, _)| s.path.clone()).collect();
+    out.stamps = design.stamps.len();
     let ctx = design.field_context();
     let inner = design.inner_radius_mm();
     let band_vertices = mesh.vertices.len();

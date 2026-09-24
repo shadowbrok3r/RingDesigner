@@ -390,6 +390,41 @@ fn a_chosen_separate_part_is_cast_alone_and_a_chosen_ring_member_casts_the_ring(
 }
 
 #[test]
+fn a_rolled_back_document_pours_the_ring_it_evaluates_to_its_separate_part_named_and_its_bench_part_marked() {
+    use crate::cad::{Attach, Component, Feature, Operation, Placement, Stage};
+    let lib = AlphaLibrary::builtin();
+    let setup = Setup::default();
+    let mut bench = post();
+    bench.component.stage = Stage::Bench;
+    // A block joined at the palm after the rollback's feature, which the rolled-back ring does not reach.
+    let block = Feature { id: 4, name: "Block".into(), enabled: true, operation: Operation::Box { size: [1.2; 3] }, component: Component { attach: Attach::Join, placement: Placement::ring(270.0, 0.0), ..Component::default() } };
+    let mut rolled = court_with(vec![bench.clone(), spacer(), block]);
+    rolled.cad.as_mut().unwrap().through = Some(3);
+    let plain = court_with(vec![bench, spacer()]);
+    // The finished ring as rolled back sets the spacer beside the band and the bench post on it.
+    let finished = crate::mesh::try_build(&rolled, &lib, params()).unwrap();
+    assert_eq!((finished.parts.joined, finished.parts.separate), (1, 1), "{:?}", finished.parts.notes);
+    let (a, b) = (prepare(&rolled, &lib, &setup, params()).unwrap(), prepare(&plain, &lib, &setup, params()).unwrap());
+    // Poured, it is the band with the post's locating mark: the spacer named as its own casting, the post left to the bench.
+    assert_eq!(a.design.cad.as_ref().unwrap().outputs, Vec::<crate::sketch::Id>::new());
+    assert_eq!(a.notes, vec!["#3 Spacer is its own casting and not in this pattern: choose it as the casting component to prepare it".to_string()]);
+    assert_eq!(a.bench_layers, vec!["Post (part)".to_string()]);
+    assert!(a.mesh.vertices == b.mesh.vertices && a.mesh.faces == b.mesh.faces, "the same pattern as the ring written without the rollback");
+    let bare = prepare(&court_with(Vec::new()), &lib, &setup, params()).unwrap();
+    let mark = a.build.volume_mm3 - bare.build.volume_mm3;
+    eprintln!("rolled back: finished {:.4} mm³, poured {:.4} (the bare band {:.4} and a {mark:.4} mm³ mark)", finished.report.volume_mm3, a.build.volume_mm3, bare.build.volume_mm3);
+    assert!(mark > 0.0 && mark < 0.5, "only the mark rides the band: {mark}");
+    assert!(finished.report.volume_mm3 - a.build.volume_mm3 > 3.375, "the spacer and the post stay out of the pour");
+    // Its stages and its inspection read the same ring.
+    let (sa, sb) = (stages::evaluate(&rolled, &lib, &setup, params()).unwrap(), stages::evaluate(&plain, &lib, &setup, params()).unwrap());
+    assert!((sa.nominal.volume_mm3() - sb.nominal.volume_mm3()).abs() < 1e-9 && sa.pattern.vertices == sb.pattern.vertices);
+    let i = inspect(&rolled, &lib, &setup, params()).unwrap();
+    assert!(i.details.iter().any(|d| d.starts_with("#3 Spacer is its own casting")), "{:?}", i.details);
+    // The source design keeps its rollback and its later part.
+    assert_eq!((rolled.cad.as_ref().unwrap().through, rolled.cad.as_ref().unwrap().features.len()), (Some(3), 4));
+}
+
+#[test]
 fn recipe_persistence_and_failed_production_export_leave_no_package() {
     let root = std::env::temp_dir().join(format!(
         "ring-recipe-{}-{}",

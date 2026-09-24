@@ -660,6 +660,7 @@ impl Cad {
             }
             MenuAction::IsolateInCad(id) => Ok(Request::Isolate(Some(id))),
             MenuAction::ToggleGrid => unreachable!("not_here answered for it"),
+            MenuAction::SeatLayer(_) | MenuAction::ToggleLiveCuts | MenuAction::ToggleCutters | MenuAction::EditStamp(_) | MenuAction::Stamp { .. } => Err("Not on the phone yet".to_string()),
         };
         match request {
             Ok(r) => self.requests.push(r),

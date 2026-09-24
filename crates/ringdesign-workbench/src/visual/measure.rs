@@ -287,7 +287,7 @@ pub fn picked(pick: &Pick, design: &RingDesign, built: &BuildResult) -> Option<P
             let (st, frame) = ringdesign_core::stones::stone_frames(design).into_iter().find(|(s, _)| s.path == *path)?;
             Picked::Point { at: frame.girdle, label: format!("stone {}", st.label) }
         }
-        Entity::Band => Picked::Point { at: pick.world, label },
+        Entity::Band | Entity::Seat { .. } | Entity::Stamp { .. } => Picked::Point { at: pick.world, label },
     })
 }
 

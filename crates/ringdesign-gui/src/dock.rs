@@ -80,6 +80,9 @@ impl Side {
     }
 }
 
+/// The default docks a fresh layout starts from: 1 is the CAD desktop's Report.
+pub const DOCK_DEFAULTS: u32 = 1;
+
 /// Both side trees plus their widths.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Dock {
@@ -87,6 +90,9 @@ pub struct Dock {
     pub right: egui_tiles::Tree<ToolKind>,
     pub left_width: f32,
     pub right_width: f32,
+    /// The [`DOCK_DEFAULTS`] this dock has taken in; one stored before has 0.
+    #[serde(default)]
+    pub defaults: u32,
 }
 
 impl Default for Dock {
@@ -104,6 +110,7 @@ impl Default for Dock {
             ),
             left_width: 336.0,
             right_width: 326.0,
+            defaults: DOCK_DEFAULTS,
         }
     }
 }
@@ -122,7 +129,24 @@ impl Dock {
             left: if left.is_empty() { egui_tiles::Tree::empty("dock_left") } else { egui_tiles::Tree::new_vertical("dock_left", left) },
             right: if right.is_empty() { egui_tiles::Tree::empty("dock_right") } else { egui_tiles::Tree::new_vertical("dock_right", right) },
             left_width: 336.0, right_width: if desktop == Desktop::Graph { 420.0 } else { 326.0 },
+            defaults: DOCK_DEFAULTS,
         }
+    }
+
+    /// Takes in [`DOCK_DEFAULTS`] once: an older CAD desktop's dock with nothing docked gains the desktop's own; returns whether it did.
+    pub fn catch_up(&mut self, desktop: Desktop) -> bool {
+        if self.defaults >= DOCK_DEFAULTS {
+            return false;
+        }
+        self.defaults = DOCK_DEFAULTS;
+        let empty = !ToolKind::ALL.iter().any(|t| self.is_open(*t));
+        if desktop != Desktop::Cad || !empty {
+            return false;
+        }
+        let fresh = Self::for_desktop(desktop);
+        self.left = fresh.left;
+        self.right = fresh.right;
+        true
     }
     pub fn tree(&self, side: Side) -> &egui_tiles::Tree<ToolKind> {
         match side {
@@ -291,6 +315,37 @@ mod tests {
         let cad = DesktopLayout::new(Desktop::Cad);
         assert_eq!((tools_on(&cad.dock, Side::Left), tools_on(&cad.dock, Side::Right)), (Default::default(), ["Report"].into()));
         assert!(cad.dock.is_open(ToolKind::Report));
+    }
+
+    #[test]
+    fn a_stored_cad_dock_with_the_old_empty_docks_gains_the_report_once() {
+        // A CAD desktop's dock as a build before the Report was docked stored it: both sides empty, no defaults mark.
+        let old = |dock: &Dock| {
+            let mut json = serde_json::to_value(dock).unwrap();
+            json.as_object_mut().unwrap().remove("defaults");
+            serde_json::from_value::<Dock>(json).unwrap()
+        };
+        let empty = Dock { left: egui_tiles::Tree::empty("dock_left"), right: egui_tiles::Tree::empty("dock_right"), ..Dock::for_desktop(Desktop::Cad) };
+        let mut stored = old(&empty);
+        assert_eq!(stored.defaults, 0);
+        assert!(stored.catch_up(Desktop::Cad));
+        assert_eq!((tools_on(&stored, Side::Left), tools_on(&stored, Side::Right)), (Default::default(), ["Report"].into()));
+        // Once: the Report closed again stays closed, through a round trip.
+        stored.close(ToolKind::Report);
+        assert!(!stored.catch_up(Desktop::Cad));
+        let again: Dock = serde_json::from_str(&serde_json::to_string(&stored).unwrap()).unwrap();
+        assert_eq!(again.defaults, DOCK_DEFAULTS);
+        assert!(!again.is_open(ToolKind::Report));
+        // A stored CAD dock someone arranged, and another desktop's empty one, are only marked.
+        let mut arranged = old(&empty);
+        arranged.open_on(ToolKind::Library, Side::Left);
+        assert!(!arranged.catch_up(Desktop::Cad) && !arranged.is_open(ToolKind::Report) && arranged.is_open(ToolKind::Library));
+        let mut casting = old(&empty);
+        assert!(!casting.catch_up(Desktop::Casting) && !casting.is_open(ToolKind::Report));
+        // A fresh one has seen them all.
+        for desktop in Desktop::ALL {
+            assert!(!Dock::for_desktop(desktop).catch_up(desktop), "{desktop:?}");
+        }
     }
 
     #[test]

@@ -798,3 +798,50 @@ fn the_cad_workspace_docks_the_report_beside_its_pane() {
     h.run_steps(2);
     assert_eq!(right(&h), [crate::dock::ToolKind::Report]);
 }
+
+/// A CAD desktop's dock as a build before it docked the Report stored it: nothing on either side and no defaults mark.
+fn old_empty_cad_dock() -> serde_json::Value {
+    let empty = crate::dock::Dock { left: egui_tiles::Tree::empty("dock_left"), right: egui_tiles::Tree::empty("dock_right"), ..crate::dock::Dock::for_desktop(Desktop::Cad) };
+    let mut json = serde_json::to_value(&empty).unwrap();
+    json.as_object_mut().unwrap().remove("defaults");
+    json
+}
+
+#[test]
+fn a_stored_cad_layout_with_the_old_empty_docks_gains_the_report_once() {
+    let report = |h: &Harness<'static, RingDesignerApp>| h.state().dock.is_open(ToolKind::Report);
+    // A session left on the Model desktop, its CAD layout stored with the old empty docks.
+    let mut h = harness([1600., 980.]);
+    h.state_mut().switch_desktop(Desktop::Cad);
+    h.state_mut().switch_desktop(Desktop::Model);
+    let mut storage = MemoryStorage::default();
+    h.state().persist_session(&mut storage).unwrap();
+    let key = crate::app::WORKSPACE_STORAGE_KEY;
+    let mut ws: serde_json::Value = serde_json::from_str(&storage.0[key]).unwrap();
+    ws["desktops"]["Cad"]["dock"] = old_empty_cad_dock();
+    storage.0.insert(key.into(), ws.to_string());
+    let mut h = relaunch(storage);
+    h.state_mut().switch_desktop(Desktop::Cad);
+    h.run_steps(2);
+    assert!(report(&h), "the CAD desktop gains its Report");
+    // Closed now, it stays closed: across desktops and across a restart.
+    h.state_mut().dock.close(ToolKind::Report);
+    h.state_mut().switch_desktop(Desktop::Model);
+    h.state_mut().switch_desktop(Desktop::Cad);
+    assert!(!report(&h), "once");
+    let mut storage = MemoryStorage::default();
+    h.state().persist_session(&mut storage).unwrap();
+    let mut h = relaunch(storage);
+    assert_eq!(h.state().desktop, Desktop::Cad);
+    assert!(!report(&h), "once, after a restart too");
+    h.state_mut().switch_desktop(Desktop::Model);
+    h.state_mut().switch_desktop(Desktop::Cad);
+    assert!(!report(&h));
+    // A session left on the CAD desktop itself, with the old empty docks, gains it at startup.
+    let mut storage = MemoryStorage::default();
+    h.state().persist_session(&mut storage).unwrap();
+    storage.0.insert(crate::app::DOCK_STORAGE_KEY.into(), old_empty_cad_dock().to_string());
+    let h = relaunch(storage);
+    assert_eq!(h.state().desktop, Desktop::Cad);
+    assert!(report(&h), "the stored dock of the desktop in hand catches up too");
+}
