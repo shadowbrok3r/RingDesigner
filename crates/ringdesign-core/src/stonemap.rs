@@ -12,7 +12,7 @@ const PAD: f64 = 4.0;
 
 /// The map as SVG text, or `None` when the design sets no stones.
 pub fn stone_map_svg(design: &RingDesign, report: Option<&StonesReport>) -> Option<String> {
-    let frames = crate::stones::stone_frames(design);
+    let frames = crate::stones::all_stone_frames(design);
     if frames.is_empty() {
         return None;
     }

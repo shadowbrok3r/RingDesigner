@@ -341,14 +341,20 @@ fn walk(
     }
 }
 
-/// Every stone the design sets with its girdle frame, in the order the
-/// record lists them.
+/// Every stone the layer stack's seats set with its girdle frame, in the
+/// order the record lists them: what the seat tools pick, snap to and edit.
 pub fn stone_frames(design: &RingDesign) -> Vec<(SetStone, StoneFrame)> {
+    frames_of(design, crate::setstone::seat_stones(design))
+}
+
+/// Every stone the design sets with its girdle frame, the CAD parts' among
+/// them, in the order the record lists them.
+pub fn all_stone_frames(design: &RingDesign) -> Vec<(SetStone, StoneFrame)> {
     frames_of(design, crate::setstone::set_stones(design))
 }
 
-/// [`stone_frames`] with the CAD stones read where `built` stands them.
-pub fn stone_frames_built(design: &RingDesign, built: &crate::mesh::BuildResult) -> Vec<(SetStone, StoneFrame)> {
+/// [`all_stone_frames`] with the CAD stones read where `built` stands them.
+pub fn all_stone_frames_built(design: &RingDesign, built: &crate::mesh::BuildResult) -> Vec<(SetStone, StoneFrame)> {
     frames_of(design, crate::setstone::set_stones_built(design, built))
 }
 

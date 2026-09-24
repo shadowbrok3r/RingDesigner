@@ -30,7 +30,7 @@ pub fn tint_of(gem: Gem) -> [f32; 3] {
 pub fn preview_vertices(design: &RingDesign, _lib: &AlphaLibrary) -> Vec<f32> {
     if design.imported_base.as_ref().is_some_and(|b|b.bare) { return Vec::new(); }
     let mut out = Vec::new();
-    for (st, frame) in crate::stones::frames_of(design, crate::setstone::seat_stones(design)) {
+    for (st, frame) in crate::stones::stone_frames(design) {
         place(st.gem, &frame, &mut out);
     }
     out
@@ -41,7 +41,7 @@ pub fn preview_vertices(design: &RingDesign, _lib: &AlphaLibrary) -> Vec<f32> {
 pub fn built_vertices(design: &RingDesign, _lib: &AlphaLibrary, built: &crate::mesh::BuildResult) -> Vec<f32> {
     let bare = design.imported_base.as_ref().is_some_and(|b| b.bare);
     let mut out = Vec::new();
-    let stones = crate::stones::stone_frames_built(design, built);
+    let stones = crate::stones::all_stone_frames_built(design, built);
     for (st, frame) in &stones {
         if !(bare && st.frame.is_none()) {
             place(st.gem, frame, &mut out);
