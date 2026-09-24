@@ -37,28 +37,44 @@ pub fn preview_vertices(design: &RingDesign, _lib: &AlphaLibrary) -> Vec<f32> {
 }
 
 /// Every stone of `built`: the seats' as [`preview_vertices`] draws them, every stone the CAD parts carry where
-/// the build stands it, and a reference part that records no stone as its own mesh.
+/// the build stands it — drawn from a stone part's own mesh when the build has one of that cut and size, faceted
+/// like a seat's otherwise — and a reference part that records no stone as its own mesh.
 pub fn built_vertices(design: &RingDesign, _lib: &AlphaLibrary, built: &crate::mesh::BuildResult) -> Vec<f32> {
     let bare = design.imported_base.as_ref().is_some_and(|b| b.bare);
     let mut out = Vec::new();
     let stones = crate::stones::all_stone_frames_built(design, built);
+    let references: Vec<&crate::cad::EvaluatedComponent> = built.parts.evaluated.iter().flat_map(|e| &e.components).filter(|c| c.settings.reference).collect();
+    let same = |a: Gem, b: Gem| a.cut == b.cut && a.form == b.form && (a.w_mm - b.w_mm).abs() < 1e-9 && (a.l_mm - b.l_mm).abs() < 1e-9;
     for (st, frame) in &stones {
-        if !(bare && st.frame.is_none()) {
-            place(st.gem, frame, &mut out);
+        if bare && st.frame.is_none() {
+            continue;
+        }
+        let own = st.frame.and_then(|to| references.iter().find(|c| c.made.as_ref().and_then(|m| m.gem).is_some_and(|g| same(g, st.gem))).map(|c| (to, *c)));
+        match own {
+            Some((to, c)) => {
+                let m = crate::cad::pattern::then(&to, &crate::cad::pattern::inverse(&c.frame));
+                mesh_into(&c.mesh, |p| m.point(p), tint_of(st.gem), &mut out);
+            }
+            None => place(st.gem, frame, &mut out),
         }
     }
     let recorded: std::collections::HashSet<crate::sketch::Id> = stones.iter().filter_map(|(st, _)| st.cad_feature()).collect();
-    for c in built.parts.evaluated.iter().flat_map(|e| &e.components).filter(|c| c.settings.reference && !recorded.contains(&c.id)) {
+    for c in references.iter().filter(|c| !recorded.contains(&c.id)) {
         let tint = c.made.as_ref().and_then(|m| m.gem).map_or(GEM_TINT, tint_of);
-        for f in &c.mesh.faces {
-            let n = c.mesh.face_normal(f).unwrap_or([0.0, 0.0, 1.0]).map(|v| v as f32);
-            for &i in f {
-                let Some(p) = c.mesh.vertices.get(i as usize) else { continue };
-                out.extend_from_slice(&[p.0, p.1, p.2, n[0], n[1], n[2], tint[0], tint[1], tint[2], tint[0], tint[1], tint[2]]);
-            }
-        }
+        mesh_into(&c.mesh, |p| p, tint, &mut out);
     }
     out
+}
+
+/// `mesh`'s triangles moved by `to`, each with its own facet normal, in `tint`.
+fn mesh_into(mesh: &crate::mesh::Mesh, to: impl Fn([f64; 3]) -> [f64; 3], tint: [f32; 3], out: &mut Vec<f32>) {
+    for f in &mesh.faces {
+        let Some(w) = f.iter().map(|&i| mesh.vertices.get(i as usize).map(|v| to([v.0 as f64, v.1 as f64, v.2 as f64]))).collect::<Option<Vec<_>>>() else { continue };
+        let n = normalize(cross(sub(w[1], w[0]), sub(w[2], w[0])));
+        for p in &w {
+            out.extend_from_slice(&[p[0] as f32, p[1] as f32, p[2] as f32, n[0] as f32, n[1] as f32, n[2] as f32, tint[0], tint[1], tint[2], tint[0], tint[1], tint[2]]);
+        }
+    }
 }
 
 /// [`built_vertices`] as one loose-triangle mesh per colour, for the software renderer.

@@ -1047,6 +1047,17 @@ mod tests {
         let e = built.parts.evaluated.as_ref().unwrap();
         let array = e.components.iter().find(|c| c.id == 5).unwrap();
         assert_eq!(array.made.as_ref().unwrap().gem, Some(analytic[0].gem));
+        // Every copy is drawn from the stone part's own mesh, standing where the build puts it.
+        let stone = e.components.iter().find(|c| c.id == 2).unwrap();
+        let soup = crate::gems::built_vertices(&d, &lib, &built);
+        assert_eq!(soup.len(), 3 * stone.mesh.faces.len() * 36, "three stones of {} facets", stone.mesh.faces.len());
+        for (k, s) in exact.iter().enumerate() {
+            let tris = &soup[k * stone.mesh.faces.len() * 36..(k + 1) * stone.mesh.faces.len() * 36];
+            let n = (tris.len() / 12) as f64;
+            let mean: [f64; 3] = std::array::from_fn(|i| tris.chunks_exact(12).map(|v| f64::from(v[i])).sum::<f64>() / n);
+            let local = pattern::inverse(&s.frame.unwrap()).point(mean);
+            assert!(local[0].hypot(local[1]) < 0.05, "copy {k} is centred on its girdle: {local:?}");
+        }
     }
 
     #[test]
