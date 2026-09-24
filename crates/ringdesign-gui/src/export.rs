@@ -541,7 +541,7 @@ pub(crate) fn import_part_path(app: &mut RingDesignerApp, path: &std::path::Path
     if ringdesign_mcp::import::is_step(path) {
         let file = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
         let path = path.to_path_buf();
-        app.start_import(file, "OpenCascade", move || crate::occt::import_step(&path));
+        app.start_import(file, "OpenCascade", move |cancel| crate::occt::import_step(&path, cancel));
         return;
     }
     match ringdesign_mcp::import::part_file(path) {

@@ -154,6 +154,8 @@ pub struct RingApp {
     /// The layer stack rides its own sheet, opened from the nav bar beside Design.
     /// Row the stack sheet has open, if any.
     selected_layer: Option<usize>,
+    /// The stamp open in the stamp window.
+    stamp_window: Option<usize>,
     /// The stone the generators place, and where.
     stone: crate::stones::Pick,
     /// The settled build's own report, and whether its sheet is open.
@@ -327,6 +329,7 @@ impl RingApp {
             reel_caption: None,
             history: ringdesign_core::history::History::new(&RingDesign::default()),
             selected_layer: None,
+            stamp_window: None,
             stone: crate::stones::Pick::default(),
             report: None,
             prefs: crate::prefs::Prefs::default(),

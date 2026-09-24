@@ -65,7 +65,7 @@ pub fn read(path: &Path) -> Result<(Feature, Vec<String>), String> {
         "obj" => ("obj", vec![ringdesign_solid::io::read_obj(path).map_err(|e| format!("{file} does not read as OBJ: {e:#}"))?], Vec::new()),
         "step" | "stp" => {
             let text = std::fs::read_to_string(path).map_err(|e| format!("{file} could not be read: {e}"))?;
-            let (meshes, notes) = step::faceted_meshes(&text, &file).map_err(|e| format!("{e:#}"))?;
+            let (meshes, notes) = step::solid_meshes(&text, &file).map_err(|e| format!("{e:#}"))?;
             ("step", meshes, notes)
         }
         _ => return Err(format!("{file}: a part comes in as STL, OBJ or STEP")),
@@ -144,7 +144,7 @@ mod tests {
         let obj = dir.join("Block.OBJ");
         ringdesign_core::stl::write_obj(&obj, &shape, "block").unwrap();
         assert_eq!(read(&obj).unwrap().0.name, "Block", "an OBJ, its extension in capitals");
-        // A STEP of a ring with a post: the band's faceted solid comes in, the post's exact one is said to need OpenCascade.
+        // A STEP of a ring with a post: the band's faceted solid and the post's exact one both come in.
         let mut d = court();
         let (edits, _) = ringdesign_workbench::touch::parts::part_here(&d, "Cylinder", 90.0, 0.0).unwrap();
         d = ringdesign_workbench::touch::prepare(&d, &edits, None).unwrap().unwrap().design;
@@ -152,8 +152,11 @@ mod tests {
         let step_file = dir.join("court.step");
         std::fs::write(&step_file, &text).unwrap();
         let (ring, notes) = read(&step_file).unwrap();
-        assert_eq!(ring.name, "court");
-        assert!(notes.len() == 1 && notes[0].contains("OpenCascade"), "{notes:?}");
+        assert_eq!((ring.name.as_str(), notes.len()), ("court", 0), "{notes:?}");
+        let Operation::Stored { mesh, .. } = &ring.operation else { panic!("{:?}", ring.operation) };
+        let whole: f64 = step::read_meshes(&text).unwrap().iter().map(|m| m.mesh.as_ref().unwrap().volume_mm3()).sum();
+        let packed = mesh.made().unwrap().solid().volume();
+        assert!((packed - whole).abs() < 5e-3 * whole, "{packed} against {whole}");
         // A cube with its lid missing does not close, and a file of another kind is refused.
         let mut open = shape.clone();
         open.faces.truncate(10);

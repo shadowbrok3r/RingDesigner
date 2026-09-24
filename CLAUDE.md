@@ -1322,7 +1322,11 @@ emits one line per distinct seat.
   depth stack and Escape clears. Right-click offers what the selection can
   do (`workbench::viewport::menu::context_items`). A click on the band
   still reads θ/v/relief/wall/class and makes the topmost contributing
-  layer the selection; distances are the Measure tool's two taps. Its pins
+  layer the selection; a made seat's solid and a struck stamp pick as
+  themselves (`Entity::Seat`, `Entity::Stamp`, claimed off the mesh's
+  origin ranges), with their own rows — the seat's layer, Live cuts and
+  Show cutters; a stamp's inspector, Cut or Join, Bench and Delete.
+  Distances are the Measure tool's two taps. Its pins
   travel in the design (`RingDesign::pins`, core `pins::Pin`), not the
   workspace: the lift leaves them out, and every graph evaluation on both
   apps and MCP carries them over.
@@ -1385,11 +1389,14 @@ cut parts, each Separate part its own — as 3MF always did. STEP
 parts exactly and the band and faceted parts as faceted solids, always the
 finished ring at nominal size, never a shrunk pattern. File > Import part…
 (MCP `import_part`) takes STL and OBJ through the solid crate's readers
-(welded, refused unless watertight) and STEP through `step::read_solids`,
-which reads faceted solids only and names the exact ones it leaves out;
-under `kernel-occt` the OpenCascade worker reads any STEP. The part lands
-as an `Operation::Stored` component joined at the top of the ring, its
-recipe naming the file.
+(welded, refused unless watertight) and STEP through `step::solid_meshes`:
+faceted solids as written, and exact ones through cadkernel (plane,
+cylinder, cone, sphere and torus faces — every solid our own export
+writes, so a ring round-trips without OpenCascade). A solid carrying a
+B-spline surface is named as needing OpenCascade, whose worker reads any
+STEP under `kernel-occt`, off the UI thread and killed by Cancel
+(`Worker::run_cancellable`). The part lands as an `Operation::Stored`
+component joined at the top of the ring, its recipe naming the file.
 `Report.quality` (`Mesh::quality`) carries worst-triangle statistics — min
 corner angle, aspect, degenerate count — on the report panel and the sheet.
 
@@ -2293,6 +2300,12 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   components refused every band-plus-part design. A Separate part is its own
   casting, poured only when chosen and otherwise named as not in this
   pattern; a reference stone never is.
+- **A twisted sweep is our own sweep** (`cad::twist`): the section carried
+  along its path and turned per station, capped, closed by construction
+  and traced, because cadkernel's tessellation of it left open edges.
+  Closed at every twist from −720° to 720°, its volume area × length to
+  0.05% on a straight path; like a builder's part it is a mesh, so fillet,
+  press-pull and sketch-on-face refuse it by name.
 - **A head moves by its stone.** G, R and the gizmo on a builder part act on
   the stone it is built round — its ring placement, or its `FaceSeat` on a
   part's face — and the head follows. A Transform wrapped round a head would

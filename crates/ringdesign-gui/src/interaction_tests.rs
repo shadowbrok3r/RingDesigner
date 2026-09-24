@@ -726,6 +726,15 @@ fn a_claw_head_on_a_seat_and_a_struck_stamp_answer_the_pointer_as_themselves() {
     h.state_mut().undo();
     let back = &h.state().design.stamps;
     assert_eq!((back.len(), back[0].name.as_str(), back[0].bench, back[0].theta_deg), (1, "Disc", true, 265.0));
+    // The Delete key takes a chosen stamp away as the menu row does.
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    click_at(&mut h, disc, egui::PointerButton::Primary, egui::Modifiers::NONE);
+    assert_eq!(h.state().selection.items, [Sel::Stamp(0)]);
+    h.key_press(egui::Key::Delete);
+    h.run_steps(3);
+    assert!(h.state().design.stamps.is_empty(), "the Delete key deletes the chosen stamp");
+    assert_eq!(h.state().history.undo_label(), Some("Delete stamp \"Disc\""));
 }
 
 /// A closed 16-sided post of radius 0.8 and height 2, its foot a hair under z 0, wound outward.
@@ -756,7 +765,7 @@ fn a_slow_part_import_keeps_the_window_live_says_so_can_be_cancelled_and_lands_a
     ringdesign_core::stl::write_stl(&stl, &post_mesh(), "post").unwrap();
     // A reader that takes its time, as OpenCascade does over a whole ring.
     let slow = |path: std::path::PathBuf, wait: u64| {
-        move || {
+        move |_: &std::sync::atomic::AtomicBool| {
             std::thread::sleep(std::time::Duration::from_millis(wait));
             ringdesign_mcp::import::part_file(&path).map_err(|e| format!("{e:#}"))
         }

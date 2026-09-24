@@ -101,6 +101,16 @@ pub enum Request {
     TakeOut(Id),
     /// The design's measure pins, the whole list as it now stands.
     Pins(Vec<Pin>),
+    /// A struck stamp changed or deleted, one undo step.
+    Stamp { index: usize, edit: ringdesign_workbench::viewport::StampEdit },
+    /// Stamp `index` open in the stamp window.
+    EditStamp(usize),
+    /// The layer a seat's made solid stands on, by its path.
+    SeatLayer(Vec<usize>),
+    /// Live cuts switched.
+    LiveCuts,
+    /// Show cutters switched.
+    Cutters,
 }
 
 /// What to choose once an edit lands.
@@ -148,6 +158,8 @@ pub struct View<'a> {
     pub active: bool,
     /// The Measure tool is out: a tap measures instead of choosing.
     pub measuring: bool,
+    /// The build switches a seat's and a stamp's menu rows toggle.
+    pub switches: ringdesign_workbench::viewport::Switches,
 }
 
 impl View<'_> {
@@ -454,7 +466,7 @@ impl Cad {
             self.menu = None;
             return;
         }
-        let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&self.selection, None, v.design), &self.isolated);
+        let items = menu::phone_items(ringdesign_workbench::viewport::context_items_in(&self.selection, None, v.design, v.switches), &self.isolated);
         let heading = ringdesign_workbench::viewport::heading(&self.selection, None, v.design);
         let mut menu = menu::Menu::new(v.rect.center(), heading, items);
         menu.extras = menu::extras(None, self.selection.items.last(), v.build.and_then(Built::evaluated), &self.isolated);
@@ -466,7 +478,7 @@ impl Cad {
         self.planes.menu = None;
         let picks = self.picks(v, p);
         let under = touch::menu_pick(&picks, &self.selection.items).or_else(|| if self.scene.is_none() { Self::band_pick(v, p) } else { None });
-        let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&self.selection, under.as_ref(), v.design), &self.isolated);
+        let items = menu::phone_items(ringdesign_workbench::viewport::context_items_in(&self.selection, under.as_ref(), v.design, v.switches), &self.isolated);
         let on_band = under.as_ref().is_some_and(|u| u.entity == Entity::Band);
         let heading = ringdesign_workbench::viewport::heading(&self.selection, under.as_ref(), v.design).or_else(|| {
             let mesh = v.build.filter(|_| on_band)?;
@@ -663,7 +675,11 @@ impl Cad {
             }
             MenuAction::IsolateInCad(id) => Ok(Request::Isolate(Some(id))),
             MenuAction::ToggleGrid => unreachable!("not_here answered for it"),
-            MenuAction::SeatLayer(_) | MenuAction::ToggleLiveCuts | MenuAction::ToggleCutters | MenuAction::EditStamp(_) | MenuAction::Stamp { .. } => Err("Not on the phone yet".to_string()),
+            MenuAction::SeatLayer(path) => Ok(Request::SeatLayer(path)),
+            MenuAction::ToggleLiveCuts => Ok(Request::LiveCuts),
+            MenuAction::ToggleCutters => Ok(Request::Cutters),
+            MenuAction::EditStamp(index) => Ok(Request::EditStamp(index)),
+            MenuAction::Stamp { index, edit } => Ok(Request::Stamp { index, edit }),
         };
         match request {
             Ok(r) => self.requests.push(r),

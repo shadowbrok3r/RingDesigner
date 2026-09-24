@@ -1824,7 +1824,7 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
         } => {
             number(ui, "Twist degrees", degrees);
             number(ui, "End scale", end_scale);
-            ui.weak("Edit the planar path in Debug; the section must contain straight segments.");
+            ui.weak("Edit the planar path in Debug; the section stands square to the path at its start.");
         }
         Operation::Loft { sections } => {
             for (i, p) in sections.iter_mut().enumerate() {

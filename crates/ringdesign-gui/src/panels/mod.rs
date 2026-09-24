@@ -607,6 +607,11 @@ fn shortcuts(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         if kind == Some(PaneKind::Cad) && app.cad.delete_shortcut() {
         } else if graph_pane && app.selected_node.is_some() {
             Command::DeleteNode.run(app);
+        } else if let Some(k) = app.selection.items.iter().rev().find_map(|s| match s {
+            ringdesign_workbench::viewport::Sel::Stamp(k) => Some(*k),
+            _ => None,
+        }) {
+            crate::viewport::stamp_edit(app, k, &ringdesign_workbench::viewport::StampEdit::Delete);
         } else {
             Command::DeleteLayer.run(app);
         }

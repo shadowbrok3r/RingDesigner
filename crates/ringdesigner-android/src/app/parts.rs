@@ -77,6 +77,38 @@ impl RingApp {
                     self.status = "Measure put away".into();
                 }
                 Request::Prefs => self.save_prefs(),
+                Request::Stamp { index, edit } => {
+                    self.history.commit(&self.design);
+                    match ringdesign_workbench::viewport::made::edit(&mut self.design, index, &edit) {
+                        Ok(label) => {
+                            if edit == ringdesign_workbench::viewport::StampEdit::Delete {
+                                self.cad.clear();
+                                self.stamp_window = None;
+                            }
+                            self.history.commit_as(&self.design, &label);
+                            self.mark_dirty();
+                            self.status = label;
+                        }
+                        Err(why) => self.status = why,
+                    }
+                }
+                Request::SeatLayer(path) => {
+                    self.selected_layer = path.first().copied();
+                    self.editor.sheet = Some(crate::editor::Sheet::Layers);
+                    self.status = ringdesign_workbench::viewport::selection::entry_at(&self.design, &path)
+                        .map_or_else(|| "Its layer".into(), |e| format!("Layer \"{}\" chosen", e.name));
+                }
+                Request::LiveCuts => {
+                    self.cuts.live = !self.cuts.live;
+                    self.save_prefs();
+                    self.mark_dirty();
+                }
+                Request::Cutters => {
+                    self.cuts.ghost = !self.cuts.ghost;
+                    self.save_prefs();
+                    self.mark_dirty();
+                }
+                Request::EditStamp(index) => self.stamp_window = Some(index),
                 Request::Pins(pins) => {
                     self.history.commit(&self.design);
                     self.design.pins = pins;
@@ -135,6 +167,30 @@ impl RingApp {
                 self.status = why;
                 None
             }
+        }
+    }
+
+    /// The stamp chosen for editing, in a window over the ring: a settled change is one History entry.
+    pub(super) fn stamp_window(&mut self, ctx: &egui::Context) {
+        let Some(i) = self.stamp_window else { return };
+        let Some(mut stamp) = self.design.stamps.get(i).cloned() else {
+            self.stamp_window = None;
+            return;
+        };
+        let mut open = true;
+        let mut read = ringdesign_workbench::viewport::made::Inspected::default();
+        egui::Window::new("Stamp").open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
+            read = ringdesign_workbench::viewport::made::inspector(ui, &mut stamp);
+        });
+        if read.changed {
+            self.design.stamps[i] = stamp;
+            self.mark_dirty();
+        }
+        if read.settled {
+            self.history.commit_as(&self.design, &format!("Edit stamp \"{}\"", self.design.stamps[i].name));
+        }
+        if !open {
+            self.stamp_window = None;
         }
     }
 

@@ -63,11 +63,11 @@ fn face_point(c: &EvaluatedComponent, face: u32) -> Option<[f64; 3]> {
 }
 
 /// A STEP file's solids read by OpenCascade in a worker process, kept as one stored part at the top of the ring and joined.
-pub fn import_step(path: &std::path::Path) -> Result<(Feature, Vec<String>), String> {
+pub fn import_step(path: &std::path::Path, cancel: &std::sync::atomic::AtomicBool) -> Result<(Feature, Vec<String>), String> {
     let file = path.file_name().and_then(|n| n.to_str()).unwrap_or("The file").to_string();
     let step = std::fs::read_to_string(path).map_err(|e| format!("{file} could not be read: {e}"))?;
     let request = Request::Import { step, tolerance: Tolerance::EXPORT };
-    let response = Worker::locate().map_err(|e| e.to_string())?.run(&request, TIMEOUT).map_err(|e| e.to_string())?;
+    let response = Worker::locate().map_err(|e| e.to_string())?.run_cancellable(&request, TIMEOUT, cancel).map_err(|e| e.to_string())?;
     let (solids, notes) = match response {
         Response::Done { solids, notes, .. } => (solids, notes),
         Response::Refused { message } => return Err(format!("{file}: {message}")),
@@ -372,7 +372,7 @@ mod tests {
         let step = dir.join("block.step");
         std::fs::write(&step, ringdesign_core::cad::step::ring(&d, &lib, params, "Court").unwrap()).unwrap();
         let started = std::time::Instant::now();
-        let (f, notes) = super::import_step(&step).unwrap();
+        let (f, notes) = super::import_step(&step, &std::sync::atomic::AtomicBool::new(false)).unwrap();
         eprintln!("OpenCascade read block.step in {:.0} ms: {notes:?}", started.elapsed().as_secs_f64() * 1e3);
         let Operation::Stored { recipe, mesh, .. } = &f.operation else { panic!() };
         assert_eq!((f.name.as_str(), recipe.kernel.as_str(), recipe.op.as_str(), recipe.params["file"].as_str()), ("block", "occt", "import", Some("block.step")));

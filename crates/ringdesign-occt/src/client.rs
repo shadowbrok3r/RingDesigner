@@ -3,6 +3,7 @@ use crate::protocol::{MARKER, Request, Response};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 /// The environment variable that names the worker program, over the one beside the executable.
@@ -23,6 +24,8 @@ pub enum Failure {
     Spawn(String),
     /// It ran past the timeout and was killed.
     Timeout(Duration),
+    /// Its caller stopped it, and it was killed.
+    Cancelled,
     /// It died without answering: how it ended and the tail of its stderr.
     Crashed { status: String, stderr: String },
     /// It answered something that is not a response.
@@ -35,6 +38,7 @@ impl std::fmt::Display for Failure {
             Self::Missing(p) => write!(f, "OpenCascade's worker is not at {}", p.display()),
             Self::Spawn(e) => write!(f, "OpenCascade's worker would not start: {e}"),
             Self::Timeout(t) => write!(f, "OpenCascade ran past {:.1} s and was stopped", t.as_secs_f64()),
+            Self::Cancelled => write!(f, "OpenCascade was stopped before it answered"),
             Self::Crashed { status, stderr } if stderr.is_empty() => write!(f, "OpenCascade's worker died ({status})"),
             Self::Crashed { status, stderr } => write!(f, "OpenCascade's worker died ({status}): {stderr}"),
             Self::Garbled(e) => write!(f, "OpenCascade's worker answered nonsense: {e}"),
@@ -78,6 +82,11 @@ impl Worker {
 
     /// `request` run in a fresh worker, killed once `timeout` passes.
     pub fn run(&self, request: &Request, timeout: Duration) -> Result<Response, Failure> {
+        self.run_cancellable(request, timeout, &AtomicBool::new(false))
+    }
+
+    /// [`Worker::run`], its worker killed as soon as `cancel` is set.
+    pub fn run_cancellable(&self, request: &Request, timeout: Duration, cancel: &AtomicBool) -> Result<Response, Failure> {
         let input = serde_json::to_vec(request).map_err(|e| Failure::Spawn(e.to_string()))?;
         let mut child = Command::new(&self.program)
             .args(&self.args)
@@ -107,6 +116,12 @@ impl Worker {
         let status = loop {
             match child.try_wait() {
                 Ok(Some(status)) => break status,
+                Ok(None) if cancel.load(Ordering::Relaxed) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    drop((writer, reader, errors));
+                    return Err(Failure::Cancelled);
+                }
                 Ok(None) if started.elapsed() >= timeout => {
                     let _ = child.kill();
                     let _ = child.wait();
@@ -159,6 +174,20 @@ mod tests {
         assert!(matches!(nonsense, Err(Failure::Garbled(_))), "{nonsense:?}");
         let missing = Worker::at("/nowhere/occt-worker").run(&Request::Ping, Duration::from_secs(5));
         assert!(matches!(missing, Err(Failure::Spawn(_))), "{missing:?}");
+    }
+
+    #[test]
+    fn a_cancelled_run_kills_its_worker_at_once() {
+        let cancel = std::sync::Arc::new(AtomicBool::new(false));
+        let flag = cancel.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(100));
+            flag.store(true, Ordering::Relaxed);
+        });
+        let started = Instant::now();
+        let stopped = script("sleep 30").run_cancellable(&Request::Ping, Duration::from_secs(60), &cancel);
+        assert!(matches!(stopped, Err(Failure::Cancelled)), "{stopped:?}");
+        assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
     }
 
     #[test]

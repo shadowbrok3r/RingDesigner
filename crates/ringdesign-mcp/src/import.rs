@@ -20,7 +20,7 @@ pub fn part_file(path: &Path) -> Result<(Feature, Vec<String>)> {
         "obj" => ("obj", vec![ringdesign_solid::io::read_obj(path).with_context(|| format!("{file} does not read as OBJ"))?], Vec::new()),
         _ if is_step(path) => {
             let text = std::fs::read_to_string(path).with_context(|| format!("{file} could not be read"))?;
-            let (meshes, notes) = step::faceted_meshes(&text, &file)?;
+            let (meshes, notes) = step::solid_meshes(&text, &file)?;
             ("step", meshes, notes)
         }
         _ => bail!("{file}: a part comes in as STL, OBJ or STEP"),

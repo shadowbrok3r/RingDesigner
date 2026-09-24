@@ -1263,7 +1263,7 @@ fn seat_layer(app: &mut RingDesignerApp, path: &[usize]) {
 }
 
 /// One change to stamp `index` of the design, one History entry, the selection and the inspector kept on the stamps that remain.
-fn stamp_edit(app: &mut RingDesignerApp, index: usize, edit: &ringdesign_workbench::viewport::StampEdit) {
+pub(crate) fn stamp_edit(app: &mut RingDesignerApp, index: usize, edit: &ringdesign_workbench::viewport::StampEdit) {
     app.history.commit(&app.design);
     let label = match ringdesign_workbench::viewport::made::edit(&mut app.design, index, edit) {
         Ok(label) => label,

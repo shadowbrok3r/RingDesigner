@@ -240,6 +240,8 @@ pub struct PendingImport {
     pub reader: &'static str,
     pub started: Instant,
     answer: Receiver<PartRead>,
+    /// Set to stop the reader.
+    cancel: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl PendingImport {
@@ -605,28 +607,31 @@ impl RingDesignerApp {
 
     /// Reads part file `file` on a thread of its own with `read`, named by `reader`; it lands joined at the top as one History entry.
     #[cfg(any(test, feature = "kernel-occt"))]
-    pub fn start_import(&mut self, file: String, reader: &'static str, read: impl FnOnce() -> PartRead + Send + 'static) {
+    pub fn start_import(&mut self, file: String, reader: &'static str, read: impl FnOnce(&std::sync::atomic::AtomicBool) -> PartRead + Send + 'static) {
         if let Some(p) = &self.importing {
             self.set_status(format!("{} is still being read; cancel it before importing another part", p.file));
             return;
         }
         let (tx, rx) = channel();
         let wake = self.egui_ctx.clone();
+        let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = cancel.clone();
         let spawned = std::thread::Builder::new().name("part-import".into()).spawn(move || {
-            let _ = tx.send(read());
+            let _ = tx.send(read(&flag));
             wake.request_repaint();
         });
         if let Err(e) = spawned {
             self.set_status(format!("{file} could not be read: {e}"));
             return;
         }
-        self.importing = Some(PendingImport { file, reader, started: Instant::now(), answer: rx });
+        self.importing = Some(PendingImport { file, reader, started: Instant::now(), answer: rx, cancel });
         self.status = self.importing.as_ref().map(PendingImport::words).unwrap_or_default();
     }
 
     /// Stops waiting for the part being read: what it reads is dropped when it lands.
     pub fn cancel_import(&mut self) {
         if let Some(p) = self.importing.take() {
+            p.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
             self.set_status(format!("Stopped reading {}: nothing was imported", p.file));
         }
     }

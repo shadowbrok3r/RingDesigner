@@ -141,16 +141,18 @@ fn export_step_writes_the_ring_off_the_ui_thread_and_it_imports_back() {
     assert!(status.starts_with(&format!("Wrote {} • 1 exact and 1 faceted solids", step.display())), "{status}");
     let solids = ringdesign_core::cad::step::read_solids(&std::fs::read_to_string(&step).unwrap()).unwrap();
     assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Post", false), ("Court", true)]);
-    // Imported back, the faceted band is one stored part and the exact post is named as left for OpenCascade.
+    // Imported back, the faceted band and the exact post come in together as one stored part.
     let start = h.state().history.present();
     crate::export::import_part_path(h.state_mut(), &step);
     assert_eq!(h.state().history.present(), start + 1, "{}", h.state().status);
-    assert!(h.state().status.ends_with("court.step: the exact solid Post reads only where OpenCascade is, and was left out"), "{}", h.state().status);
+    assert!(h.state().status.ends_with("Imported court at the top of the ring, joined: G moves it, R turns it"), "{}", h.state().status);
     let d = doc(&h);
     let back = d.features.last().unwrap();
     let Operation::Stored { mesh, recipe, .. } = &back.operation else { panic!() };
     assert_eq!((back.name.as_str(), recipe.params["format"].as_str()), ("court", Some("step")));
-    let (packed, faceted) = (mesh.made().unwrap().solid().volume(), solids[1].mesh.as_ref().unwrap().volume_mm3());
-    assert!((packed - faceted).abs() < 5e-3 * faceted, "{packed} against {faceted}");
+    let meshed = ringdesign_core::cad::step::read_meshes(&std::fs::read_to_string(&step).unwrap()).unwrap();
+    let whole: f64 = meshed.iter().map(|m| m.mesh.as_ref().unwrap().volume_mm3()).sum();
+    let packed = mesh.made().unwrap().solid().volume();
+    assert!((packed - whole).abs() < 5e-3 * whole, "{packed} against {whole}");
     let _ = std::fs::remove_dir_all(&dir);
 }

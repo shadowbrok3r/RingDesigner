@@ -85,7 +85,7 @@ fn a_tap_chooses_the_post_the_same_spot_walks_down_to_its_face_and_the_band_lets
     let camera = camera(&built);
     let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(420.0, 600.0));
     let lib = AlphaLibrary::builtin();
-    let v = View { rect, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     let post = built.evaluated().unwrap().components.iter().find(|c| c.id == 2).unwrap();
     let (lo, hi) = post.mesh.bounds().unwrap();
     let top = camera.projector(rect).at([(lo.0 + hi.0) * 0.5, (lo.1 + hi.1) * 0.5, (lo.2 + hi.2) * 0.5]);
@@ -138,12 +138,12 @@ impl Bench {
         Self { d, built, cad, camera, lib: AlphaLibrary::builtin(), ctx: egui::Context::default(), renderer: Default::default(), time: 1.0, rect: RECT, measuring: false }
     }
     fn view(&self) -> View<'_> {
-        View { rect: RECT, camera: &self.camera, design: &self.d, lib: &self.lib, build: Some(&self.built), field: None, covered: &[], active: true, measuring: self.measuring }
+        View { rect: RECT, camera: &self.camera, design: &self.d, lib: &self.lib, build: Some(&self.built), field: None, covered: &[], active: true, measuring: self.measuring, switches: Default::default() }
     }
     /// One frame with `events`, a tenth of a second after the last.
     fn step(&mut self, events: Vec<Event>) -> Took {
         self.time += 0.1;
-        let v = View { rect: self.rect, camera: &self.camera, design: &self.d, lib: &self.lib, build: Some(&self.built), field: None, covered: &[], active: true, measuring: self.measuring };
+        let v = View { rect: self.rect, camera: &self.camera, design: &self.d, lib: &self.lib, build: Some(&self.built), field: None, covered: &[], active: true, measuring: self.measuring, switches: Default::default() };
         frame(&self.ctx, &mut self.cad, &v, events, self.time, &self.renderer)
     }
     fn tap(&mut self, p: Pos2) -> Took {
@@ -214,7 +214,7 @@ fn a_stone_on_a_parts_face_takes_the_pressed_point_and_builds_on_the_part() {
     // Pressed at the part's own origin, off the face's middle.
     let at = c.frame.origin;
     let d = b.d.clone();
-    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.pressed = Some((at, [0.0, 0.0, 1.0]));
     b.cad.act(&v, MenuAction::AddStoneOnFace { feature: plate, face, key: "round-5" });
     assert!(b.cad.pressed.is_none(), "the press is spent");
@@ -283,7 +283,7 @@ fn a_ring_array_from_the_menu_waits_for_its_count_and_commits_one_pattern() {
     let mut b = Bench::new(posted());
     b.cad.choose(2);
     let d = b.d.clone();
-    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.act(&v, MenuAction::Pattern { feature: 2, key: keys::RING_ARRAY });
     assert!(b.cad.live.is_live(), "the array waits for how many");
     assert!(b.edits().is_empty());
@@ -494,7 +494,7 @@ fn a_long_press_opens_the_posts_menu_and_its_rows_serve_attach_and_refuse_what_t
     let took = b.step(vec![touch(1, TouchPhase::End, at)]);
     assert!(took.tap, "the lift after a long press is no tap");
     let d = b.d.clone();
-    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.act(&v, MenuAction::Attach(2, Attach::Cut));
     b.cad.act(&v, MenuAction::Pattern { feature: 2, key: keys::MIRROR_BAND });
     b.cad.act(&v, MenuAction::SketchOnPlane { theta_deg: 0.0, across_mm: 0.0 });
@@ -526,7 +526,7 @@ fn a_stone_added_on_the_band_is_drawn_with_the_stones_and_its_setting_is_built_r
     let items = menu::phone_items(ringdesign_workbench::viewport::context_items(&b.cad.selection, None, &b.d), &[]);
     let four = items.iter().find(|i| i.label == "Four claws").expect("a chosen stone offers its settings").action.clone();
     let d = b.d.clone();
-    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.act(&v, four);
     let (edits, then) = b.edits().remove(0);
     let names: Vec<String> = edits.iter().filter_map(|e| if let CadEdit::Add { feature, .. } = e { Some(feature.name.clone()) } else { None }).collect();
@@ -751,7 +751,7 @@ fn a_work_plane_is_drawn_chosen_by_a_tap_and_held_for_its_menu_which_mirrors_the
     assert!(b.cad.planes.menu.is_none() && b.cad.selection.items == [Sel::Part(2)]);
     // Its mirror row: one Mirror feature of the post across the plane.
     let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
-    let v = View { rect: RECT, camera: &camera, design: &d, lib: &b.lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &b.lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.plane_act(&v, 3, planes::Act::Mirror);
     let requests = b.cad.take_requests();
     let Some(Request::Edit { edits, then }) = requests.into_iter().next() else { panic!("the mirror is an edit") };
@@ -818,7 +818,7 @@ fn a_sketch_on_the_posts_end_squares_the_view_draws_by_taps_and_extrudes_as_one_
     b.cad.take_requests();
     let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
     let lib = AlphaLibrary::builtin();
-    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.act(&v, MenuAction::SketchOnFace { feature: 2, face });
     assert!(b.cad.sketching());
     // The view turns square to the face, its normal toward the eye.
@@ -852,7 +852,7 @@ fn a_sketch_on_the_posts_end_squares_the_view_draws_by_taps_and_extrudes_as_one_
     b.camera.set_pose(tilt);
     // Its arrow rises under the finger by all the finger moved along it, the slop before the drag included.
     let (grab, lift) = {
-        let v = View { rect: RECT, camera: &b.camera, design: &b.d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
+        let v = View { rect: RECT, camera: &b.camera, design: &b.d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
         let (foot, tip) = Cad::arrow(b.cad.sketch_mut().unwrap(), &v, sketch::px_per_mm(&v)).expect("the arrow stands on the extrusion");
         let grab = foot.lerp(tip, 0.5);
         (grab, grab + (tip - foot).normalized() * 40.0)
@@ -903,7 +903,7 @@ fn a_work_plane_by_touch_waits_on_the_face_for_its_offset_and_a_part_is_asked_to
     let face = top_face(&b.built, 2);
     let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
     let lib = AlphaLibrary::builtin();
-    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     // The Actions button's menu for a chosen face offers the plane too, and a curved face refuses one by name.
     let chosen = Sel::Face { feature: 2, face };
     assert!(menu::extras(None, Some(&chosen), b.built.evaluated(), &[]).iter().any(|x| x.enabled && x.act == menu::Extra::PlaneOnFace { feature: 2, face }));
@@ -952,7 +952,7 @@ fn sketch_on_end(b: &mut Bench) -> touch::sketch::Frame {
     let face = top_face(&b.built, 2);
     let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
     let lib = AlphaLibrary::builtin();
-    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.act(&v, MenuAction::SketchOnFace { feature: 2, face });
     let look = b.cad.take_requests().into_iter().find_map(|r| if let Request::Look(p) = r { Some(p) } else { None }).expect("the camera turns");
     b.camera.set_pose(look);
@@ -1015,14 +1015,14 @@ fn a_sketch_finishes_joined_cut_or_apart_and_a_cut_carves_the_post_it_stands_on_
     let (d, built) = (b.d.clone(), b.built.clone());
     let lib = AlphaLibrary::builtin();
     let camera = b.camera;
-    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.serve_sketch(&v, vec![sketch::Ask::Finish, sketch::Ask::Make(Make::Extrude)]);
     // The view tilts to watch the solid rise, which is how its arrow is seen.
     b.step(Vec::new());
     let tilt = b.cad.take_requests().into_iter().find_map(|r| if let Request::Look(p) = r { Some(p) } else { None }).expect("the camera tilts");
     b.camera.set_pose(tilt);
     let camera = b.camera;
-    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     let row = |b: &mut Bench, design: &RingDesign| sketch::stage_buttons(b.cad.sketch_mut().unwrap(), design).into_iter().map(|(x, _)| (x.label, x.checked, x.enabled)).collect::<Vec<_>>();
     assert_eq!(row(&mut b, &d), [("Join", true, true), ("Cut", false, true), ("Separate", false, true), ("Extrude", false, true), ("Back", false, true)]);
     let (_, joined_tip) = Cad::arrow(b.cad.sketch_mut().unwrap(), &v, sketch::px_per_mm(&v)).unwrap();
@@ -1112,7 +1112,7 @@ fn an_array_ghost_draws_the_copies_it_would_leave_out_in_the_refusal_colour_and_
     use ringdesign_workbench::command::StepInput;
     let mut b = Bench::new(plate_with_head());
     let d = b.d.clone();
-    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &b.camera, design: &d, lib: &b.lib, build: Some(&b.built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.act(&v, MenuAction::Pattern { feature: 4, key: keys::RING_ARRAY });
     assert!(b.cad.live.is_live(), "the array waits for how many");
     // Four heads 24° apart over 72°: the copies at 48° and 72° stand off the plate's 14 mm.
@@ -1155,7 +1155,7 @@ fn parts_shown_alone_are_offered_out_one_at_a_time_and_the_worker_builds_them_to
     assert_eq!(acts, [menu::Extra::TakeOut(2), menu::Extra::ShowAll]);
     b.cad.menu = None;
     let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
-    let v = View { rect: RECT, camera: &camera, design: &d, lib: &b.lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false };
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &b.lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.extra(&v, menu::Extra::TakeOut(2));
     assert!(b.cad.take_requests().iter().any(|r| matches!(r, Request::TakeOut(2))));
     // The worker builds both posts alone, each its own closed solid, and leaves a part the ring does not hold out, saying so.

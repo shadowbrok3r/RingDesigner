@@ -1177,6 +1177,7 @@ impl RingApp {
             covered: &covered,
             active: self.tab == Tab::Ring && matches!(self.visual.tool, VisualTool::Select | VisualTool::Measure) && !mould_active && !graph_sheet && !self.editor.hold_before && self.reel.is_none() && !visual_blocked && !overlay_blocked,
             measuring,
+            switches: ringdesign_workbench::viewport::Switches { live_cuts: self.cuts.live, show_cutters: self.cuts.ghost },
         };
         let cad_active = cad_view.active;
         let took = self.cad.frame(ui, &cad_view);
@@ -1339,8 +1340,10 @@ impl RingApp {
                 covered: &covered,
                 active: true,
                 measuring,
+                switches: ringdesign_workbench::viewport::Switches { live_cuts: self.cuts.live, show_cutters: self.cuts.ghost },
             };
             self.cad.draw(ui, &cad_view, &self.renderer);
+            self.stamp_window(ui.ctx());
         }
         self.serve_cad(host);
         if !self.editor.hold_before && !floating_blocked && !measuring {
