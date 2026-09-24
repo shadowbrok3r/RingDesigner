@@ -146,18 +146,6 @@ impl Worker {
         Self { program: program.into(), args: Vec::new() }
     }
 
-    /// [`WORKER_ENV`] when it is set, else [`WORKER_NAME`] beside the running executable.
-    pub fn locate() -> Result<Self, Failure> {
-        let program = match std::env::var_os(WORKER_ENV) {
-            Some(p) => PathBuf::from(p),
-            None => beside_executable()?,
-        };
-        if !program.is_file() {
-            return Err(Failure::Missing(program));
-        }
-        Ok(Self::at(program))
-    }
-
     /// The running executable answering [`WORKER_FLAG`], for a host that dispatches to `kernel::serve` itself.
     pub fn this_executable() -> Result<Self, Failure> {
         let program = std::env::current_exe().map_err(|e| Failure::Spawn(e.to_string()))?;
