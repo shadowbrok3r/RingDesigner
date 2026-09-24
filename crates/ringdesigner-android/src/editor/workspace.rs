@@ -158,6 +158,7 @@ fn normalized(bounds: egui::Rect, size: egui::Vec2, at: egui::Pos2) -> [f32; 2] 
 pub struct Floating<R> {
     pub inner: R,
     pub rect: egui::Rect,
+    pub layer: egui::LayerId,
     pub moved: bool,
     pub close: bool,
     pub dragging: bool,
@@ -298,6 +299,7 @@ pub fn floating<R>(
     Floating {
         inner: response.inner,
         rect: response.response.rect,
+        layer: response.response.layer_id,
         moved,
         close,
         dragging,

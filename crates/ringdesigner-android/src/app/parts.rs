@@ -112,18 +112,21 @@ impl RingApp {
         }
     }
 
-    /// Eases the view onto the chosen parts, else the parts shown alone, else the whole ring, the pivot moved onto their middle.
-    fn fit_view(&mut self) {
-        let Some(built) = self.preview_mesh.clone() else { return };
-        let Some((bounds, framed)) = ringdesign_workbench::touch::view::framed(&built.0, &self.design, &self.cad.selection.items, &self.cad.isolated) else { return };
-        let camera = &mut self.pane.camera;
-        if let Some(ring) = built.bounds() {
-            camera.refit(ring);
-        }
-        let to = camera.framing(bounds);
-        self.camera_turn = Some(crate::focus::Turn::new(camera.pose(), to));
+    /// Eases the view onto the chosen parts, else the parts shown alone, else the whole ring; with nothing framed, resets zoom and pan onto the ring.
+    pub(super) fn fit_view(&mut self) {
         self.pane.actual_size = false;
-        self.status = framed.said();
+        let built = self.preview_mesh.clone();
+        let camera = &mut self.pane.camera;
+        match built.as_ref().and_then(|b| camera.fit_view(&b.0, &self.design, &self.cad.selection.items, &self.cad.isolated)) {
+            Some((to, framed)) => {
+                self.camera_turn = Some(crate::focus::Turn::new(camera.pose(), to));
+                self.status = framed.said();
+            }
+            None => {
+                self.camera_turn = None;
+                camera.fit_whole(built.as_ref().and_then(|b| b.bounds()));
+            }
+        }
     }
 
     /// Part `id` added to the parts shown alone on the ring.
@@ -177,18 +180,14 @@ impl RingApp {
         }
     }
 
-    /// The stamp chosen for editing, in a window over the ring: a settled change is one History entry.
-    pub(super) fn stamp_window(&mut self, ctx: &egui::Context) {
+    /// The stamp chosen for editing, in a window low in `view` clear of what stands `over` it: a settled change is one History entry.
+    pub(super) fn stamp_window(&mut self, ctx: &egui::Context, view: egui::Rect, over: crate::cad::stamp::Over<'_>) {
         let Some(i) = self.stamp_window else { return };
         let Some(mut stamp) = self.design.stamps.get(i).cloned() else {
             self.stamp_window = None;
             return;
         };
-        let mut open = true;
-        let mut read = ringdesign_workbench::viewport::made::Inspected::default();
-        egui::Window::new("Stamp").open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
-            read = ringdesign_workbench::viewport::made::inspector(ui, &mut stamp);
-        });
+        let (read, open) = crate::cad::stamp::show(ctx, view, over, &mut stamp);
         if read.changed {
             self.design.stamps[i] = stamp;
             self.mark_dirty();

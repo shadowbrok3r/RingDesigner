@@ -272,13 +272,8 @@ impl RingApp {
                     self.pane.actual_size = false;
                 }
             }
-            if ui.button("Fit ring").clicked() {
-                if let Some(mesh) = &self.preview_mesh {
-                    self.pane.camera.fit(mesh.bounds());
-                }
-                self.pane.camera.zoom = 1.0;
-                self.pane.camera.pan = [0.0; 2];
-                self.pane.actual_size = false;
+            if ui.button("Fit view").clicked() {
+                self.fit_view();
             }
             ui.separator();
             ui.menu_button("Zoom", |ui| self.zoom_controls(ui));
@@ -548,7 +543,7 @@ impl RingApp {
                 }
                 match self.tab {
                     Tab::Ring => self.ring_tab(ui, host),
-                    Tab::Workshop => self.workshop_tab(ui, host),
+                    Tab::Workshop => self.workshop_tab(ui),
                     Tab::Band => self.paint_tab(ui, host, Domain::Band),
                     Tab::Tile => self.paint_tab(ui, host, Domain::Tile),
                     Tab::Graph => self.graph_tab(ui, host),
@@ -1349,7 +1344,8 @@ impl RingApp {
                 switches: ringdesign_workbench::viewport::Switches { live_cuts: self.cuts.live, show_cutters: self.cuts.ghost },
             };
             self.cad.draw(ui, &cad_view, &self.renderer);
-            self.stamp_window(ui.ctx());
+            let (floating, layers) = (self.editor.floating_rects.clone(), self.editor.floating_layers.clone());
+            self.stamp_window(ui.ctx(), view_rect, crate::cad::stamp::Over { floating: &floating, layers: &layers, fixed: &[nav.rect] });
         }
         self.serve_cad(host);
         if !self.editor.hold_before && !floating_blocked && !measuring {

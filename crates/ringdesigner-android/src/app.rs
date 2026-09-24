@@ -247,6 +247,10 @@ pub struct RingApp {
     camera_turn: Option<crate::focus::Turn>,
     /// Exports in flight, one thread each; none is ever dropped as stale.
     exports: Vec<std::sync::mpsc::Receiver<ExportDone>>,
+    /// Files for the share sheet, handed over one per frame once the last one is answered.
+    shares: export::Shares,
+    /// Which focused field takes numbers.
+    keys: crate::keypad::Focus,
     /// A part file being read for import, off the UI thread.
     importing: Option<std::sync::mpsc::Receiver<crate::import::Read>>,
     /// The part files on offer and when they were listed.
@@ -384,6 +388,8 @@ impl RingApp {
             node_focus: NodeFocus::default(),
             camera_turn: None,
             exports: Vec::new(),
+            shares: export::Shares::default(),
+            keys: crate::keypad::Focus::default(),
             importing: None,
             part_files: (None, Vec::new()),
         }
@@ -430,6 +436,7 @@ impl RingApp {
         self.can_compare = false;
         self.editor.hold_before = false;
         self.end_cad();
+        self.stamp_window = None;
         self.design = design;
         self.editor.reset_selection();
         self.probe_info = None;
@@ -460,7 +467,8 @@ impl RingApp {
         self.editor.check_pending = true;
         self.live_requested = true;
         self.end_cad();
-        self.design = design;
+        let before = std::mem::replace(&mut self.design, design);
+        self.stamp_window = crate::cad::stamp_after(self.stamp_window, &before.stamps, &self.design.stamps);
         self.editor.reset_selection();
         let lib = Arc::make_mut(&mut self.lib);
         self.design.unpack_embedded(lib);
@@ -2680,7 +2688,7 @@ impl RingApp {
         }
     }
 
-    fn workshop_tab(&mut self, ui: &mut egui::Ui, host: &Host) {
+    fn workshop_tab(&mut self, ui: &mut egui::Ui) {
         let before = self.design.clone();
         let events = self.workshop.show(ui, &mut self.design, &self.lib);
         if events.changed {
@@ -2712,12 +2720,8 @@ impl RingApp {
             })();
             match result {
                 Ok(path) => {
-                    host.share_media(
-                        path.to_string_lossy().into_owned(),
-                        file.name.clone(),
-                        file.mime.clone(),
-                    );
-                    self.workshop.message = format!("{} ready to share", file.name);
+                    self.workshop.message = format!("sharing {}", file.name);
+                    self.share(export::Share { path, mime: file.mime, sharing: export::Sharing::new(file.name, "").from_workshop() });
                 }
                 Err(e) => self.workshop.message = format!("Export delivery failed: {e}"),
             }
@@ -3037,7 +3041,7 @@ impl RingApp {
                 }
             }
             if ui.button("Share").clicked() {
-                host.share_media(key.clone(), f.file_name.clone(), "application/json");
+                self.share(export::Share { path: f.path.clone(), mime: "application/json".into(), sharing: export::Sharing::new(&f.file_name, "") });
             }
             if ui.small_button("Rename").clicked() {
                 self.renaming = Some((f.path.clone(), f.stem.clone()));
@@ -3174,23 +3178,40 @@ impl RingApp {
             Err(std::sync::mpsc::TryRecvError::Disconnected) => false,
         });
         for done in landed {
-            let too_big = done.ok.then(|| std::fs::metadata(&done.path).map_or(0, |m| m.len())).and_then(export::share_refusal);
-            if let Some(why) = too_big {
-                self.status = format!("{} · {why}", done.status);
-                host.haptic(Haptic::Warning);
-            } else if done.ok {
-                host.share_media(
-                    done.path.to_string_lossy().into_owned(),
-                    done.name,
-                    done.kind.mime(),
-                );
-                self.status = format!("{} · shared", done.status);
-                host.haptic(Haptic::Success);
+            if done.ok {
+                self.share(export::Share { path: done.path, mime: done.kind.mime().into(), sharing: export::Sharing::new(done.name, done.status) });
             } else {
                 self.status = done.status;
                 host.haptic(Haptic::Error);
             }
         }
+    }
+
+    /// Queues `share` for the share sheet.
+    fn share(&mut self, share: export::Share) {
+        self.shares.push(share);
+    }
+
+    /// Hands the next queued file to the share sheet once the last one is answered, the status line saying so.
+    fn hand_share(&mut self, host: &Host, ctx: &egui::Context) {
+        if let Some((share, status)) = self.shares.next() {
+            host.share_media(share.path.to_string_lossy().into_owned(), share.sharing.name, share.mime);
+            self.status = status;
+        }
+        if self.shares.busy() {
+            ctx.request_repaint();
+        }
+    }
+
+    /// Puts the handed share's outcome on the status line, and on the Workshop's when it asked.
+    fn poll_share(&mut self, host: &Host) {
+        let Some(outcome) = host.take_share_outcome() else { return };
+        let told = self.shares.answer(&outcome);
+        if told.workshop {
+            self.workshop.message = told.line;
+        }
+        self.status = told.status;
+        host.haptic(if told.ok { Haptic::Success } else { Haptic::Error });
     }
 
     fn bench_tab(&mut self, ui: &mut egui::Ui, host: &Host) {
@@ -3334,6 +3355,7 @@ impl EguiApp for RingApp {
         }
         self.graph.sync(&self.design);
         self.sync_node_focus(ui.ctx());
+        self.poll_share(host);
         self.poll_exports(host);
         self.poll_import(host);
         self.poll_generate(host);
@@ -3363,6 +3385,8 @@ impl EguiApp for RingApp {
         ) {
             ui.ctx().request_repaint_after(delay);
         }
+        self.hand_share(host, ui.ctx());
+        self.keys.pass(ui.ctx());
     }
 }
 

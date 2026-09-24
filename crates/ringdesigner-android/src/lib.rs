@@ -36,6 +36,7 @@ pub mod graph;
 pub mod export;
 pub mod editor;
 pub mod import;
+pub mod keypad;
 
 #[cfg(target_os = "android")]
 mod app;

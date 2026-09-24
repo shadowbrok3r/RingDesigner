@@ -6,6 +6,7 @@ pub mod measure;
 pub mod menu;
 pub mod planes;
 pub mod sketch;
+pub mod stamp;
 pub mod strip;
 
 use std::sync::Arc;
@@ -32,10 +33,20 @@ use ringdesign_workbench::{
 
 use crate::camera::OrbitCamera;
 
-/// The areas the CAD layer draws over the ring: its menus, a live command's caption and its dimension fields, a mode's bar, and a sketch's tools and fields.
-pub fn areas() -> [egui::Id; 6] {
+/// The areas the CAD layer draws over the ring: its menus, a live command's caption and its dimension fields, a mode's bar, a sketch's tools and fields, and the stamp window.
+pub fn areas() -> [egui::Id; 7] {
     let [tools, fields] = sketch::areas();
-    [menu::area(), command::caption_area(), command::fields_area(), bar::area(), tools, fields]
+    [menu::area(), command::caption_area(), command::fields_area(), bar::area(), tools, fields, stamp::id()]
+}
+
+/// Asks for the number keypad while a field of a live command's or a sketch's dimension bar holds the keyboard; whether it did.
+pub fn keypad(ctx: &egui::Context) -> bool {
+    crate::keypad::fields(ctx, &[command::fields_area(), sketch::fields_area()])
+}
+
+/// The stamp window's stamp once the stamps go from `before` to `after`: the same stamp found again, `None` once it is gone.
+pub fn stamp_after(window: Option<usize>, before: &[ringdesign_core::setting::Stamp], after: &[ringdesign_core::setting::Stamp]) -> Option<usize> {
+    window.and_then(|k| ringdesign_workbench::viewport::made::follow(before, after, k))
 }
 
 /// A settled build on screen: the mesh the view draws, with the parts it was made of.
@@ -551,6 +562,7 @@ impl Cad {
                 }
             }
             self.draw_sketch(ui, v);
+            keypad(ui.ctx());
             return;
         }
         self.draw_marks(&painter, v, &projector);
@@ -606,6 +618,7 @@ impl Cad {
             Some(planes::Choice::Close) => self.planes.menu = None,
             None => {}
         }
+        keypad(ui.ctx());
     }
 
     /// The chosen vertices and the pins, drawn over the ring; the edge pass lights the chosen edges.

@@ -2903,7 +2903,7 @@ Lock toggle (`Editor::editable`). Verify with `cargo test -p
 ringdesigner_android` on the host and `cargo ndk -t arm64-v8a check -p
 ringdesigner_android` from the crate dir with `ANDROID_NDK_HOME` set.
 
-The crate builds on `egui-mobile` from <https://github.com/shadowbrok3r/ios-egui>
+The crate builds on `egui-mobile` from <https://github.com/shadowbrok3r/EguiMobile>
 (checked out at `~/Documents/Rust/Mobile/EguiMobile`) as a **git dependency**,
 pinned in `Cargo.lock`: `cargo update -p egui-mobile` moves the pin, and the
 root `[patch.crates-io]` carries that repo's `android-activity` fork, which a
