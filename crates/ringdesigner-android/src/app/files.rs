@@ -138,7 +138,7 @@ impl RingApp {
         ui.separator();
         if let Some(template) = ringdesign_workbench::templates::menu(ui) {
             let opening = template.open(self.graph.reg.clone(), self.lib.clone(), Self::opening_wake(ui.ctx()));
-            self.start_opening(opening, true);
+            self.start_opening(opening, Lands::Template { new_design: true });
             ui.close();
         }
     }

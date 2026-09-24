@@ -85,8 +85,9 @@ fn open(name: Name, source: Source, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, 
             if measured {
                 anyhow::ensure!(!stop.load(Ordering::Relaxed), ringdesign_graph::eval::CANCELLED);
                 set(Stage::Measuring);
-                // Fills the detail measure's content cache before the design lands.
-                ringdesign_core::dfm::findings_in(&o.design, &o.after);
+                // Fills the detail measure's content cache before the design lands, given up once cancelled.
+                ringdesign_core::alpha::measuring_until(&stop, || ringdesign_core::dfm::findings_in(&o.design, &o.after));
+                anyhow::ensure!(!stop.load(Ordering::Relaxed), ringdesign_graph::eval::CANCELLED);
             }
             Ok(o)
         });
@@ -115,8 +116,9 @@ fn opened(source: Source, reg: &Registry, lib: &Arc<AlphaLibrary>, set: Arc<dyn 
         let opened = open(&mut evaluator, Arc::new(move |s| told(Stage::from(s))))
             .map_err(|e| if e.message == ringdesign_graph::eval::CANCELLED { stopped() } else { anyhow::Error::from(e) })?;
         let after = opened.library.clone().unwrap_or_else(|| lib.clone());
-        let seed = Seed { evaluator, design: opened.evaluated, report: opened.report, graph: opened.graph, base: lib.clone() };
-        Ok::<_, anyhow::Error>(Opened { design: opened.design, before: lib.clone(), after, artwork: opened.artwork, seed: Some(seed) })
+        let graph = Arc::new(opened.graph);
+        let seed = Seed { evaluator, design: opened.evaluated, report: opened.report, graph: graph.clone(), base: lib.clone() };
+        Ok::<_, anyhow::Error>(Opened { design: opened.design, before: lib.clone(), after, artwork: opened.artwork, seed: Some(seed), graph: Some(graph) })
     };
     let design = match source {
         Source::Graph(graph) => return evaluated(&|ev, step| graph.open(reg, lib, ev, step, stop)),
@@ -142,7 +144,9 @@ fn opened(source: Source, reg: &Registry, lib: &Arc<AlphaLibrary>, set: Arc<dyn 
     let mut baked = (**lib).clone();
     let artwork = design.unpack_and_bake_observed(&mut baked, &|done, of| set(Stage::Baking { done, of }), stop).ok_or_else(stopped)?;
     let after = if baked.revision() == lib.revision() { lib.clone() } else { Arc::new(baked) };
-    Ok(Opened { design, before: lib.clone(), after, artwork, seed: None })
+    anyhow::ensure!(!stop.load(Ordering::Relaxed), stopped());
+    let graph = design.graph.as_ref().and_then(|j| <Graph as serde::Deserialize>::deserialize(j).ok()).map(Arc::new);
+    Ok(Opened { design, before: lib.clone(), after, artwork, seed: None, graph })
 }
 
 /// How far a template being opened has got.
@@ -291,7 +295,7 @@ pub struct Seed {
     pub evaluator: Evaluator,
     pub design: Arc<RingDesign>,
     pub report: EvalReport,
-    pub graph: Graph,
+    pub graph: Arc<Graph>,
     /// The library it was evaluated against, before its artwork.
     pub base: Arc<AlphaLibrary>,
 }
@@ -303,9 +307,15 @@ pub struct Opened {
     after: Arc<AlphaLibrary>,
     artwork: Vec<Arc<Alpha>>,
     seed: Option<Seed>,
+    graph: Option<Arc<Graph>>,
 }
 
 impl Opened {
+    /// The design's graph, read on the opening thread; `None` for a design without one, or one that does not read.
+    pub fn graph(&self) -> Option<&Arc<Graph>> {
+        self.graph.as_ref()
+    }
+
     /// `current` with the template's artwork: the baked library itself while `current` is still the one it was opened against, else the artwork baked again onto `current`, which shares every raster the thread made.
     pub fn library_for(&self, current: &Arc<AlphaLibrary>) -> Arc<AlphaLibrary> {
         if Arc::ptr_eq(current, &self.before) {
@@ -332,45 +342,53 @@ pub fn progress(ui: &mut Ui, name: &str, progress: &Progress) -> egui::Response 
     ui.add(egui::ProgressBar::new(progress.fraction()).text(progress.words(name)).animate(true))
 }
 
-/// A host's one template opening at a time, and the one that landed until a build shows it.
-#[derive(Default)]
-pub struct Slot {
-    opening: Option<(Opening, bool)>,
+/// A host's one template or file opening at a time, and the one that landed until a build shows it; `T` is where the host said it lands.
+pub struct Slot<T = bool> {
+    opening: Option<(Opening, T)>,
     building: Option<(Name, u64, Arc<Progress>)>,
 }
 
+impl<T> Default for Slot<T> {
+    fn default() -> Self {
+        Slot { opening: None, building: None }
+    }
+}
+
 /// What a frame's poll of a [`Slot`] found.
-pub enum Polled {
+pub enum Polled<T = bool> {
     Idle,
     /// Still opening, in words for the status line.
     Waiting(String),
-    Landed(Landing),
+    Landed(Landing<T>),
     /// It could not be opened, in words.
     Failed(String),
 }
 
-/// A template that landed over the host's library.
-pub struct Landing {
+/// A template or file that landed over the host's library.
+pub struct Landing<T = bool> {
     pub name: Name,
     pub design: RingDesign,
-    /// The host's library with the template's artwork baked in.
+    /// The host's library with the design's artwork baked in.
     pub lib: Arc<AlphaLibrary>,
     /// The evaluation that made the design, while it was made against that library.
     pub seed: Option<Seed>,
-    /// What the host opened it with.
-    pub flag: bool,
+    /// The design's graph, read on the opening thread.
+    pub graph: Option<Arc<Graph>>,
+    /// Where the host said it lands.
+    pub lands: T,
     progress: Arc<Progress>,
 }
 
-impl Slot {
-    /// Opens `opening`'s template in place of any still opening, which stops; `flag` comes back with it.
-    pub fn start(&mut self, opening: Opening, flag: bool) {
-        self.opening = Some((opening, flag));
+impl<T> Slot<T> {
+    /// Opens `opening` in place of any still opening, which stops; `lands` comes back with it.
+    pub fn start(&mut self, opening: Opening, lands: T) {
+        self.opening = Some((opening, lands));
         self.building = None;
     }
 
-    /// Stops the template opening; what it makes is dropped. Its name, when one was.
+    /// Stops what is opening, dropping what it makes, and the plate of one that landed. Its name, when one was opening.
     pub fn cancel(&mut self) -> Option<Name> {
+        self.building = None;
         self.opening.take().map(|(opening, _)| opening.name.clone())
     }
 
@@ -385,21 +403,22 @@ impl Slot {
     }
 
     /// A template that landed, baked onto `current`, or where the one opening has got.
-    pub fn poll(&mut self, current: &Arc<AlphaLibrary>) -> Polled {
+    pub fn poll(&mut self, current: &Arc<AlphaLibrary>) -> Polled<T> {
         let Some((opening, _)) = &self.opening else { return Polled::Idle };
         let Some(answer) = opening.poll() else { return Polled::Waiting(opening.progress().words(&opening.name)) };
-        let Some((opening, flag)) = self.opening.take() else { return Polled::Idle };
+        let Some((opening, lands)) = self.opening.take() else { return Polled::Idle };
         match answer {
             Ok(opened) => {
+                let graph = opened.graph().cloned();
                 let (design, lib, seed) = opened.land(current);
-                Polled::Landed(Landing { name: opening.name.clone(), design, lib, seed, flag, progress: opening.progress() })
+                Polled::Landed(Landing { name: opening.name.clone(), design, lib, seed, graph, lands, progress: opening.progress() })
             }
             Err(e) => Polled::Failed(format!("could not open {}: {e}", opening.name)),
         }
     }
 
     /// `landing` is shown once a build after `generation` lands.
-    pub fn building(&mut self, landing: &Landing, generation: u64) {
+    pub fn building(&mut self, landing: &Landing<T>, generation: u64) {
         landing.progress.set(Stage::Building);
         self.building = Some((landing.name.clone(), generation, landing.progress.clone()));
     }
@@ -625,7 +644,26 @@ mod tests {
         }
     }
 
-    /// The phone's flow through a slot: the second choice stops the first, the plate says how far it has got, the landing is baked onto the library as it stands.
+    /// A wake that holds the opening thread at its first stage until the returned release is called.
+    fn held() -> (impl Fn() + Send + Sync + 'static, impl Fn()) {
+        let gate = Arc::new((Mutex::new(false), std::sync::Condvar::new()));
+        let wait = gate.clone();
+        let hold = move || {
+            let (open, turned) = &*wait;
+            let mut open = open.lock().unwrap_or_else(|e| e.into_inner());
+            let started = std::time::Instant::now();
+            while !*open && started.elapsed().as_secs() < 60 {
+                open = turned.wait_timeout(open, std::time::Duration::from_millis(100)).unwrap_or_else(|e| e.into_inner()).0;
+            }
+        };
+        let release = move || {
+            *gate.0.lock().unwrap_or_else(|e| e.into_inner()) = true;
+            gate.1.notify_all();
+        };
+        (hold, release)
+    }
+
+    /// The phone's flow through a slot: the second choice stops the first before its first node, the plate says how far it has got, the landing is baked onto the library as it stands.
     #[test]
     fn a_slot_lands_the_last_choice_and_holds_its_plate_until_a_later_build() {
         let reg = Arc::new(ringdesign_script::registry());
@@ -634,10 +672,18 @@ mod tests {
         let ctx = egui::Context::default();
         let mut slot = Slot::default();
         assert!(matches!(slot.poll(&lib), Polled::Idle));
-        slot.start(find("caiman-imported").open(reg.clone(), lib.clone(), || {}), false);
-        let first = slot.finished().expect("opening");
+        let (hold, release) = held();
+        let first = find("caiman-imported").open(reg.clone(), lib.clone(), hold);
+        let (first_progress, first_done) = (first.progress(), first.finished());
+        slot.start(first, false);
         slot.start(find("nocturne").open(reg.clone(), lib.clone(), || {}), true);
+        release();
         let started = std::time::Instant::now();
+        while !first_done.load(Ordering::Relaxed) {
+            assert!(started.elapsed().as_secs() < 60, "the replaced open never stopped");
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        assert_eq!(first_progress.stage(), Stage::Reading, "the replaced open stopped before its first node");
         let mut read = Vec::new();
         let landing = loop {
             ctx.run_ui(egui::RawInput::default(), |ui| assert_eq!(slot.plate(ui.ctx(), ui.ctx().content_rect()), None)).textures_delta.clear();
@@ -651,9 +697,8 @@ mod tests {
             assert!(started.elapsed().as_secs() < 60);
             std::thread::sleep(std::time::Duration::from_millis(2));
         };
-        assert!(first.load(Ordering::Relaxed), "the replaced open stopped");
         assert!(read.windows(2).all(|w| w[0] <= w[1]), "{read:?}");
-        assert!(landing.flag && landing.name == "Nocturne — original night garden");
+        assert!(landing.lands && landing.name == "Nocturne — original night garden");
         assert!(landing.design.name.starts_with("Nocturne") && landing.lib.get("Palmette").is_some() && landing.seed.is_some());
         assert!(!slot.is_opening() && slot.shown().is_none());
         slot.building(&landing, 7);
@@ -663,6 +708,62 @@ mod tests {
         assert!(slot.shown().is_some(), "a build dispatched before the landing does not show it");
         slot.built(8);
         assert!(slot.shown().is_none());
+        // A document replaced before the landing's build shows takes the plate down with it.
+        slot.building(&landing, 9);
+        assert_eq!(slot.cancel(), None);
+        assert!(slot.shown().is_none());
+    }
+
+    /// A design file whose one tiling reads a mask no other test measures.
+    fn file_with_a_fresh_mask(dir: &std::path::Path) -> std::path::PathBuf {
+        let n = 256;
+        let ink = 0.5 + (std::process::id() % 1000) as f32 * 1e-4;
+        let mask = Alpha::new("fresh-mask", n, n, (0..n * n).map(|i| if (i % n) % 11 < 3 || (i / n) % 13 < 2 { ink } else { 0.0 }).collect());
+        let mut design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let tiling = ringdesign_core::tiling::TilingLayer::default_for("fresh-mask", &design.field_context());
+        design.layers.layers.push(ringdesign_core::field::LayerEntry::new("Fresh", ringdesign_core::field::Layer::Tiling(tiling)));
+        let mut lib = AlphaLibrary::builtin();
+        lib.insert(mask);
+        std::fs::create_dir_all(dir).unwrap();
+        let path = dir.join("fresh.ring.json");
+        ringdesign_core::library::save_design_embedded(&path, &design, &lib).unwrap();
+        path
+    }
+
+    #[test]
+    fn a_cancel_while_measuring_gives_the_measure_up_and_keeps_none_of_it() {
+        let dir = std::env::temp_dir().join(format!("measure-cancel-{}", std::process::id()));
+        let path = file_with_a_fresh_mask(&dir);
+        let lib = Arc::new(AlphaLibrary::builtin());
+        let handles: Arc<std::sync::OnceLock<(Arc<Progress>, Arc<AtomicBool>)>> = Arc::default();
+        let measuring: Arc<Mutex<Option<std::time::Instant>>> = Arc::default();
+        let (seen, at) = (handles.clone(), measuring.clone());
+        let opening = open_file(path.clone(), lib.clone(), true, move || {
+            if let Some((progress, stop)) = seen.get() {
+                if progress.stage() == Stage::Measuring {
+                    at.lock().unwrap().get_or_insert_with(std::time::Instant::now);
+                    stop.store(true, Ordering::Relaxed);
+                }
+            }
+        });
+        handles.set((opening.progress(), opening.cancel_handle())).ok().expect("set once");
+        let started = std::time::Instant::now();
+        while !opening.is_finished() {
+            assert!(started.elapsed().as_secs() < 120, "the thread never stopped");
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        let given_up = measuring.lock().unwrap().expect("it reached the measure").elapsed();
+        assert!(!matches!(opening.poll(), Some(Ok(_))), "nothing lands");
+        // The same measure made whole, which it could not skip had the cancelled one kept anything.
+        let design = ringdesign_core::library::load_design(&path).unwrap();
+        let mut baked = (*lib).clone();
+        design.unpack_embedded(&mut baked);
+        design.bake_all(&mut baked);
+        let t = std::time::Instant::now();
+        ringdesign_core::dfm::findings_in(&design, &baked);
+        let whole = t.elapsed();
+        assert!(given_up * 3 < whole, "given up in {given_up:?} against {whole:?} for the whole measure");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -792,13 +893,16 @@ mod tests {
         }
         assert!(matches!(opening.stage(), Stage::Evaluating { done: 2, .. }), "{:?}", opening.stage());
         assert!(!matches!(opening.poll(), Some(Ok(_))));
-        // Dropped, as choosing another template drops it, a running open stops too.
-        let opening = find("caiman-imported").open(reg, lib, || {});
-        let finished = opening.finished();
+        // Dropped, as choosing another template drops it, a running open stops at its next check.
+        let (hold, release) = held();
+        let opening = find("caiman-imported").open(reg, lib, hold);
+        let (progress, finished) = (opening.progress(), opening.finished());
         drop(opening);
+        release();
         while !finished.load(Ordering::Relaxed) {
             assert!(started.elapsed().as_secs() < 60, "the thread never stopped");
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
+        assert_eq!(progress.stage(), Stage::Reading, "no node ran after the drop");
     }
 }

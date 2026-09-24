@@ -526,14 +526,15 @@ pub fn open_design_path(app: &mut RingDesignerApp, path: &std::path::Path) {
                 d.unpack_embedded(baked);
                 d.bake_all(baked);
             }
-            adopt_file(app, d, lib, path);
+            adopt_file(app, d, lib, path, None);
         }
         Err(e) => app.set_status(format!("Open failed: {e}")),
     }
 }
 
-/// The design read from `path` as the open document, with `lib`, the library its artwork is already baked into.
-pub(crate) fn adopt_file(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, lib: std::sync::Arc<ringdesign_core::AlphaLibrary>, path: &std::path::Path) {
+/// The design read from `path` as the open document, with `lib`, the library its artwork is already baked into, and `graph` its graph when it was read already; a template or file still opening stops.
+pub(crate) fn adopt_file(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, lib: std::sync::Arc<ringdesign_core::AlphaLibrary>, path: &std::path::Path, graph: Option<&std::sync::Arc<ringdesign_graph::graph::Graph>>) {
+    app.drop_opening();
     app.adopt_library(lib);
     let named = app.stamps_named();
     app.design = design;
@@ -544,6 +545,7 @@ pub(crate) fn adopt_file(app: &mut RingDesignerApp, design: ringdesign_core::Rin
     app.selected_layer = None;
     app.fit_pending = true;
     app.fit_keeps_view = false;
+    app.sync_graph_parsed(graph);
     app.mark_dirty();
     app.document_path = Some(path.to_path_buf());
     app.push_recent(path);
@@ -556,8 +558,9 @@ pub fn load_catalog_template(app: &mut RingDesignerApp, t: &'static ringdesign_w
 }
 
 /// The opened template as the new design, with `lib`, the library its artwork is already baked into.
-/// `graph` is the design's graph as the open parsed it, when it did.
-pub(crate) fn adopt_template(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, lib: std::sync::Arc<ringdesign_core::AlphaLibrary>, name: &str, graph: Option<&ringdesign_graph::graph::Graph>) {
+/// `graph` is the design's graph as the open parsed it, when it did; a template or file still opening stops.
+pub(crate) fn adopt_template(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, lib: std::sync::Arc<ringdesign_core::AlphaLibrary>, name: &str, graph: Option<&std::sync::Arc<ringdesign_graph::graph::Graph>>) {
+    app.drop_opening();
     app.adopt_library(lib);
     app.document_path = None;
     let named = app.stamps_named();

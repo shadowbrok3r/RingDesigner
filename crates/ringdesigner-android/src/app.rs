@@ -117,8 +117,8 @@ pub struct RingApp {
     preview_gems: Vec<f32>,
     fit_next: bool,
     preview_in_flight: bool,
-    /// The template opening off the UI thread, flagged when it lands as a new design on the Ring tab, and the one that landed until a later build shows it.
-    templates: ringdesign_workbench::templates::Slot,
+    /// The template or design file opening off the UI thread, where it lands, and the one that landed until a later build shows it.
+    templates: ringdesign_workbench::templates::Slot<Lands>,
     live_requested: bool,
     last_preview_at: Instant,
     workshop: ringdesign_workbench::Workshop,
@@ -436,7 +436,9 @@ impl RingApp {
     }
 
     /// [`adopt`](Self::adopt), with `baked` as the library when the design's artwork was already baked into it off the UI thread.
+    /// A template or file still opening stops: the design it would replace is gone.
     fn adopt_with(&mut self, design: RingDesign, baked: Option<Arc<AlphaLibrary>>) {
+        self.templates.cancel();
         self.fit_next = true;
         // A new ring is framed whole: a zoom left on the last ring's detail
         // opens this one on a close-up of nothing in particular.
@@ -1609,7 +1611,7 @@ impl RingApp {
                 for template in templates::catalog() {
                     if ui.button(template.name).clicked() {
                         let opening = ringdesign_workbench::templates::open_graph(template, self.graph.reg.clone(), self.lib.clone(), Self::opening_wake(ui.ctx()));
-                        self.start_opening(opening, false);
+                        self.start_opening(opening, Lands::Template { new_design: false });
                     }
                 }
             });
@@ -3085,15 +3087,8 @@ impl RingApp {
 
         ui.horizontal_wrapped(|ui| {
             if ui.button("Open").clicked() {
-                match library::load_design(&f.path) {
-                    Ok(d) => {
-                        self.adopt(d);
-                        self.prefs.push_recent(&key);
-                        self.save_prefs();
-                        self.status = format!("opened {}", f.stem);
-                    }
-                    Err(e) => self.status = format!("open failed: {e}"),
-                }
+                let opening = ringdesign_workbench::templates::open_file(f.path.clone(), self.lib.clone(), false, Self::opening_wake(ui.ctx()));
+                self.start_opening(opening, Lands::File { key: key.clone(), stem: f.stem.clone() });
             }
             if ui.button("Share").clicked() {
                 self.share(export::Share { path: f.path.clone(), mime: "application/json".into(), sharing: export::Sharing::new(&f.file_name, "") });
@@ -3197,10 +3192,10 @@ impl RingApp {
         self.status = format!("started from {what}");
     }
 
-    /// Opens `opening`'s template off the UI thread in place of any still opening, which stops; it lands as a new design on the Ring tab when `new_design` is set, else where the app stands.
-    fn start_opening(&mut self, opening: ringdesign_workbench::templates::Opening, new_design: bool) {
+    /// Opens `opening`'s template or file off the UI thread in place of any still opening, which stops; it lands as `lands` says.
+    fn start_opening(&mut self, opening: ringdesign_workbench::templates::Opening, lands: Lands) {
         self.status = format!("opening {}", opening.name);
-        self.templates.start(opening, new_design);
+        self.templates.start(opening, lands);
     }
 
     /// The wake a template being opened calls as it gets further.
@@ -3209,7 +3204,7 @@ impl RingApp {
         move || ctx.request_repaint()
     }
 
-    /// Takes in a template that has opened, its artwork already baked, and shows how far one still opening has got.
+    /// Takes in a template or file that has opened, its artwork already baked, and shows how far one still opening has got.
     fn poll_template(&mut self, ctx: &egui::Context) {
         use ringdesign_workbench::templates::Polled;
         match self.templates.poll(&self.lib) {
@@ -3217,13 +3212,22 @@ impl RingApp {
             Polled::Waiting(words) | Polled::Failed(words) => self.status = words,
             Polled::Landed(mut landing) => {
                 self.adopt_with(std::mem::take(&mut landing.design), Some(landing.lib.clone()));
-                self.status = format!("started from {}", landing.name);
                 self.graph.sync(&self.design);
                 if let Some(editor) = &mut self.graph.ed {
                     editor.arrange(&self.graph.reg);
                 }
-                if landing.flag {
-                    self.show_new_design();
+                match &landing.lands {
+                    Lands::Template { new_design } => {
+                        self.status = format!("started from {}", landing.name);
+                        if *new_design {
+                            self.show_new_design();
+                        }
+                    }
+                    Lands::File { key, stem } => {
+                        self.prefs.push_recent(key);
+                        self.save_prefs();
+                        self.status = format!("opened {stem}");
+                    }
                 }
                 self.templates.building(&landing, self.generation);
             }
@@ -3492,6 +3496,14 @@ impl EguiApp for RingApp {
         self.hand_share(host, ui.ctx());
         self.keys.pass(ui.ctx());
     }
+}
+
+/// Where a template or design file opened off the UI thread lands.
+enum Lands {
+    /// A new design, shown on the Ring tab when set.
+    Template { new_design: bool },
+    /// The saved design `key` names, shown as `stem`.
+    File { key: String, stem: String },
 }
 
 /// First tiling inside a layer, in the order `dfm::findings_in` walks them.

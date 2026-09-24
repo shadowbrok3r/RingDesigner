@@ -371,23 +371,164 @@ fn a_library_that_moved_while_a_template_opened_gets_the_template_artwork_baked_
     assert!(lib.sdf_of("Palmette").is_some_and(|f| f.data == fresh.sdf_of("Palmette").unwrap().data), "its field follows the template's art");
 }
 
-#[test]
-fn choosing_another_template_stops_the_first_and_only_the_second_lands() {
-    let mut h = harness([1600., 980.]);
-    crate::export::load_catalog_template(h.state_mut(), template("caiman-imported"));
-    let first = h.state().opening.as_ref().unwrap().0.finished();
-    h.run_steps(1);
-    crate::export::load_catalog_template(h.state_mut(), template("court-band"));
+/// A wake that holds an opening thread at its first stage until the returned release is called.
+fn held() -> (impl Fn() + Send + Sync + 'static, impl Fn()) {
+    let gate = std::sync::Arc::new((std::sync::Mutex::new(false), std::sync::Condvar::new()));
+    let wait = gate.clone();
+    let hold = move || {
+        let (open, turned) = &*wait;
+        let mut open = open.lock().unwrap_or_else(|e| e.into_inner());
+        let started = std::time::Instant::now();
+        while !*open && started.elapsed().as_secs() < 60 {
+            open = turned.wait_timeout(open, std::time::Duration::from_millis(100)).unwrap_or_else(|e| e.into_inner()).0;
+        }
+    };
+    let release = move || {
+        *gate.0.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        gate.1.notify_all();
+    };
+    (hold, release)
+}
+
+/// Caiman opening on the app, held at its first stage: its progress, the flag its thread sets on returning, and the release.
+fn caiman_held(h: &mut Harness<'static, RingDesignerApp>) -> (std::sync::Arc<ringdesign_workbench::templates::Progress>, std::sync::Arc<std::sync::atomic::AtomicBool>, impl Fn() + use<>) {
+    let (hold, release) = held();
+    let app = h.state_mut();
+    let opening = template("caiman-imported").open_measured(app.graph_reg.clone(), app.lib.clone(), hold);
+    let (progress, finished) = (opening.progress(), opening.finished());
+    app.start_opening(opening, crate::app::Lands::Template { graph_pane: false });
+    (progress, finished, release)
+}
+
+fn wait_until_returned(h: &mut Harness<'static, RingDesignerApp>, finished: &std::sync::atomic::AtomicBool) {
     let start = std::time::Instant::now();
-    while !first.load(std::sync::atomic::Ordering::Relaxed) {
+    while !finished.load(std::sync::atomic::Ordering::Relaxed) {
         h.run_steps(1);
         assert!(start.elapsed().as_secs() < 60, "the first open never stopped");
     }
+}
+
+#[test]
+fn choosing_another_template_stops_the_first_and_only_the_second_lands() {
+    let mut h = harness([1600., 980.]);
+    let (progress, finished, release) = caiman_held(&mut h);
+    h.run_steps(1);
+    crate::export::load_catalog_template(h.state_mut(), template("court-band"));
+    release();
+    wait_until_returned(&mut h, &finished);
+    assert_eq!(progress.stage(), ringdesign_workbench::templates::Stage::Reading, "the replaced open stopped before its first node");
     crate::interaction_tests::wait_for_template(&mut h);
     crate::interaction_tests::wait_for_build(&mut h);
     h.run_steps(3);
     assert_eq!(h.state().design.name, "Court band");
     assert!(h.state().opening.is_none() && h.state().opened_building.is_none());
+}
+
+#[test]
+fn a_file_opened_from_recent_stops_a_template_still_opening() {
+    let dir = std::env::temp_dir().join(format!("recent-stops-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("mine.ring.json");
+    let mut mine = ringdesign_core::RingDesign::default();
+    mine.name = "Opened from Recent".into();
+    ringdesign_core::library::save_design(&path, &mine).unwrap();
+    let mut h = harness([1600., 980.]);
+    let (progress, finished, release) = caiman_held(&mut h);
+    crate::export::open_design_path(h.state_mut(), &path);
+    assert!(h.state().opening.is_none(), "the file stopped the template");
+    release();
+    wait_until_returned(&mut h, &finished);
+    h.run_steps(3);
+    assert_eq!(progress.stage(), ringdesign_workbench::templates::Stage::Reading, "no node ran after the file opened");
+    assert_eq!(h.state().design.name, "Opened from Recent");
+    assert_eq!(h.state().document_path.as_deref(), Some(path.as_path()));
+    assert!(h.state().opened_building.is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Holds the detail thread for as long as it lives.
+struct DetailHeld;
+
+impl DetailHeld {
+    fn new() -> Self {
+        *crate::app::DETAIL_HELD.0.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        DetailHeld
+    }
+}
+
+impl Drop for DetailHeld {
+    fn drop(&mut self) {
+        *crate::app::DETAIL_HELD.0.lock().unwrap_or_else(|e| e.into_inner()) = false;
+        crate::app::DETAIL_HELD.1.notify_all();
+    }
+}
+
+#[test]
+fn a_build_lands_before_its_detail_findings_and_they_follow_it() {
+    let mut h = harness([1600., 980.]);
+    let braided = ringdesign_core::templates::all().iter().find(|t| t.name == "Braided band").unwrap().design();
+    let held = DetailHeld::new();
+    h.state_mut().design = braided;
+    h.state_mut().mark_dirty();
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    let generation = h.state().build_generation();
+    assert!(h.state().is_current(), "{}", h.state().status);
+    assert!(h.state().dfm_generation < generation, "the build landed while its detail was held");
+    drop(held);
+    let start = std::time::Instant::now();
+    while h.state().dfm_generation < generation {
+        h.run_steps(1);
+        assert!(start.elapsed().as_secs() < 60, "the detail never followed");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    let want: Vec<String> = ringdesign_core::dfm::findings_in(&h.state().design, &h.state().lib).into_iter().map(|f| f.message).collect();
+    let got: Vec<String> = h.state().dfm.iter().map(|f| f.message.clone()).collect();
+    assert!(!want.is_empty(), "the braid measures under the floor");
+    assert_eq!(got, want);
+}
+
+#[test]
+fn an_arrange_writes_only_the_positions_into_the_graph_json() {
+    let mut h = harness([1600., 980.]);
+    h.state_mut().design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+    h.state_mut().convert_to_graph();
+    let mut piled = h.state().graph_ed.as_ref().expect("driven").graph().clone();
+    for node in &mut piled.nodes {
+        node.pos = [0.0, 0.0];
+    }
+    h.state_mut().design.graph = serde_json::to_value(&piled).ok();
+    h.state_mut().sync_graph();
+    let before = h.state().design.graph.clone();
+    h.state_mut().arrange_graph();
+    let app = h.state();
+    assert_ne!(app.design.graph, before, "the arrange moved the piled nodes");
+    assert_eq!(app.design.graph, serde_json::to_value(app.graph_ed.as_ref().unwrap().graph()).ok(), "written in place, the same JSON as the graph written whole");
+    assert_eq!(app.graph_json, app.design.graph, "the editor stays in step");
+    assert!(ringdesign_core::history::graph_layout_only(before.as_ref(), app.design.graph.as_ref()), "layout, not an edit");
+}
+
+#[test]
+fn a_driven_design_file_lands_with_its_graph_read_on_the_opening_thread() {
+    let dir = std::env::temp_dir().join(format!("driven-file-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("driven.ring.json");
+    let mut h = harness([1600., 980.]);
+    h.state_mut().design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+    h.state_mut().convert_to_graph();
+    ringdesign_core::library::save_design(&path, &h.state().design).unwrap();
+    h.state_mut().design = ringdesign_core::RingDesign::default();
+    h.state_mut().sync_graph();
+    assert!(h.state().graph_ed.is_none());
+    let reads = RingDesignerApp::graph_reads();
+    h.state_mut().open_file(path.clone());
+    crate::interaction_tests::wait_for_template(&mut h);
+    crate::interaction_tests::wait_for_build(&mut h);
+    let app = h.state();
+    assert!(app.graph_ed.is_some() && app.design.graph.is_some() && app.graph_json == app.design.graph, "it lands driven, its editor in step");
+    assert_eq!(RingDesignerApp::graph_reads(), reads, "the graph was read on the opening thread, not the UI's");
+    assert!(app.is_current(), "{}", app.status);
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -561,6 +702,25 @@ fn ui_thread_costs_on_heavy_designs() {
             rows.push((format!("{slug}: arrange"), arrange));
             let (same, _) = ms(|| h.state_mut().sync_graph());
             rows.push((format!("{slug}: graph sync, nothing moved"), same));
+            // What a sync and a landing spend it on.
+            let app = h.state();
+            let (t, json) = ms(|| app.design.graph.clone());
+            rows.push((format!("{slug}:   graph JSON cloned ({:.1} MB)", serde_json::to_string(&json).map_or(0, |s| s.len()) as f64 / 1e6), t));
+            let (t, _) = ms(|| app.design.graph == json);
+            rows.push((format!("{slug}:   graph JSON compared, equal"), t));
+            let (t, parsed) = ms(|| <ringdesign_graph::graph::Graph as serde::Deserialize>::deserialize(json.as_ref().unwrap()).unwrap());
+            rows.push((format!("{slug}:   graph read from its JSON"), t));
+            let (t, copy) = ms(|| parsed.clone());
+            rows.push((format!("{slug}:   graph cloned"), t));
+            let (t, mut ed) = ms(|| ringdesign_graph_ui::Editor::new(copy, &app.graph_reg));
+            rows.push((format!("{slug}:   editor built"), t));
+            let (t, _) = ms(|| ed.arrange(&app.graph_reg));
+            rows.push((format!("{slug}:   editor arranged"), t));
+            let (t, _) = ms(|| serde_json::to_value(ed.graph()));
+            rows.push((format!("{slug}:   graph written whole to JSON"), t));
+            let mut history = ringdesign_core::history::History::new(&ringdesign_core::RingDesign::default());
+            let (t, _) = ms(|| history.reset(&app.design));
+            rows.push((format!("{slug}:   history reset"), t));
         }
         let (dispatch, _) = ms(|| h.state_mut().rebuild_now());
         rows.push((format!("{slug}: dispatch a build"), dispatch));

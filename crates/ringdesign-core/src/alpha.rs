@@ -489,23 +489,23 @@ impl Alpha {
     /// them, each read as the opening diameter at which a tenth of that
     /// phase's area disappears — granulometry on the distance field,
     /// bisected over the radius, on a 3x3 tiling so a seamless mask reads
-    /// seamless. `None` for an empty or single-phase mask. Cached by content.
+    /// seamless. `None` for an empty or single-phase mask, or one given up under [`measuring_until`]. Cached by content.
     pub fn min_feature_px(&self) -> Option<(f64, f64)> {
-        use std::collections::HashMap;
-        use std::sync::{Condvar, Mutex, OnceLock};
-        /// Measured masks by content, `None` while one thread measures it and the others wait.
-        type Measured = HashMap<u64, Option<Option<(f64, f64)>>>;
-        static CACHE: OnceLock<(Mutex<Measured>, Condvar)> = OnceLock::new();
         if self.is_empty() {
             return None;
         }
+        let stop = MEASURE_STOP.with(|s| s.borrow().clone());
+        let stopped = || stop.as_ref().is_some_and(|s| s.load(std::sync::atomic::Ordering::Relaxed));
         let key = self.content_key();
-        let (cache, landed) = CACHE.get_or_init(Default::default);
+        let (cache, landed) = MEASURED.get_or_init(Default::default);
         let mut held = cache.lock().unwrap_or_else(|e| e.into_inner());
         loop {
+            if stopped() {
+                return None;
+            }
             match held.get(&key) {
                 Some(Some(hit)) => return *hit,
-                Some(None) => held = landed.wait(held).unwrap_or_else(|e| e.into_inner()),
+                Some(None) => held = landed.wait_timeout(held, std::time::Duration::from_millis(50)).unwrap_or_else(|e| e.into_inner()).0,
                 None => break,
             }
         }
@@ -514,13 +514,18 @@ impl Alpha {
         }
         held.insert(key, None);
         drop(held);
-        let got = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.measure_features()));
+        let got = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.measure_features(&stopped)));
         let mut held = cache.lock().unwrap_or_else(|e| e.into_inner());
         match got {
-            Ok(got) => {
+            Ok(Ok(got)) => {
                 held.insert(key, Some(got));
                 landed.notify_all();
                 got
+            }
+            Ok(Err(GaveUp)) => {
+                held.remove(&key);
+                landed.notify_all();
+                None
             }
             Err(panic) => {
                 held.remove(&key);
@@ -546,14 +551,17 @@ impl Alpha {
         mum(h ^ P0, self.data.len() as u64 ^ P1)
     }
 
-    fn measure_features(&self) -> Option<(f64, f64)> {
+    fn measure_features(&self, stopped: &(dyn Fn() -> bool + Sync)) -> Result<Option<(f64, f64)>, GaveUp> {
         const LOST: f64 = 0.10;
         let (w, h) = (self.width, self.height);
         let (bw, bh) = (w * 3, h * 3);
         let ink: Vec<bool> = (0..bw * bh).map(|i| self.data[(i / bw % h) * w + (i % bw % w)] >= 0.5).collect();
         let n_ink = ink.iter().filter(|&&b| b).count();
         if n_ink == 0 || n_ink == ink.len() {
-            return None;
+            return Ok(None);
+        }
+        if stopped() {
+            return Err(GaveUp);
         }
         let dist_to = |set: &[bool]| -> Vec<f32> {
             let mut g: Vec<f32> = set.iter().map(|&b| if b { 0.0 } else { 1e12 }).collect();
@@ -568,6 +576,9 @@ impl Alpha {
         let (d_ink, d_ground) = (dist_to(&ground), dist_to(&ink));
         // Share of a phase (centre tile) that an opening by disc radius r removes.
         let loss = |phase: &[bool], d: &[f32], r: f32| -> f64 {
+            if stopped() {
+                return 1.0;
+            }
             let eroded: Vec<bool> = d.iter().map(|&v| v >= r).collect();
             let back = dist_to(&eroded);
             let (mut lost, mut all) = (0usize, 0usize);
@@ -590,7 +601,7 @@ impl Alpha {
                 return 2.0 * r_max as f64;
             }
             let (mut lo, mut hi) = (0.0f32, r_max);
-            while hi - lo > 0.25 {
+            while hi - lo > 0.25 && !stopped() {
                 let mid = 0.5 * (lo + hi);
                 if loss(phase, d, mid) >= LOST { hi = mid } else { lo = mid }
             }
@@ -600,8 +611,37 @@ impl Alpha {
         let (ink_px, gap_px) = rayon::join(|| feature(&ink, &d_ink), || feature(&ground, &d_ground));
         #[cfg(not(feature = "parallel"))]
         let (ink_px, gap_px) = (feature(&ink, &d_ink), feature(&ground, &d_ground));
-        Some((ink_px, gap_px))
+        if stopped() {
+            return Err(GaveUp);
+        }
+        Ok(Some((ink_px, gap_px)))
     }
+}
+
+/// A mask measure given up under [`measuring_until`].
+struct GaveUp;
+
+/// Measured masks by content, `None` while one thread measures one and the others wait.
+type Measured = HashMap<u64, Option<Option<(f64, f64)>>>;
+
+static MEASURED: std::sync::OnceLock<(std::sync::Mutex<Measured>, std::sync::Condvar)> = std::sync::OnceLock::new();
+
+thread_local! {
+    /// The flag the mask measures started on this thread give up on.
+    static MEASURE_STOP: std::cell::RefCell<Option<Arc<std::sync::atomic::AtomicBool>>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Runs `f` with every mask measure it starts on this thread given up once `stop` is set: one given up reads as `None` and is not cached.
+pub fn measuring_until<R>(stop: &Arc<std::sync::atomic::AtomicBool>, f: impl FnOnce() -> R) -> R {
+    struct Restore(Option<Arc<std::sync::atomic::AtomicBool>>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            let before = self.0.take();
+            MEASURE_STOP.with(|s| *s.borrow_mut() = before);
+        }
+    }
+    let _restore = Restore(MEASURE_STOP.with(|s| s.borrow_mut().replace(stop.clone())));
+    f()
 }
 
 /// Library name a mask's derived signed-distance field lands under.
@@ -3250,6 +3290,46 @@ mod feature_tests {
         let disc: Vec<f32> = (0..n * n).map(|i| { let (x, y) = ((i % n) as f64 - 32.0, (i / n) as f64 - 32.0); if x * x + y * y < 100.0 { 1.0 } else { 0.0 } }).collect();
         let (ink, _) = Alpha::new("disc", n, n, disc).min_feature_px().unwrap();
         assert!((ink - 20.0).abs() <= 2.0, "a 20 px disc: {ink}");
+    }
+
+    /// 4 px stripes 16 px apart, inked at `ink` so no other test has measured the same content.
+    fn stripes(n: usize, ink: f32) -> Alpha {
+        Alpha::new("stripes", n, n, (0..n * n).map(|i| if (i % n) % 16 < 4 { ink } else { 0.0 }).collect())
+    }
+
+    fn in_flight(key: u64) -> Option<bool> {
+        MEASURED.get().and_then(|(m, _)| m.lock().unwrap_or_else(|e| e.into_inner()).get(&key).map(Option::is_none))
+    }
+
+    #[test]
+    fn a_measure_given_up_reads_none_keeps_nothing_and_is_made_again() {
+        use std::sync::atomic::AtomicBool;
+        let a = stripes(64, 0.61);
+        let stop = Arc::new(AtomicBool::new(true));
+        assert_eq!(measuring_until(&stop, || a.min_feature_px()), None);
+        assert_eq!(in_flight(a.content_key()), None, "nothing kept");
+        let (ink, gap) = a.min_feature_px().expect("measured once nothing stops it");
+        assert!((ink - 4.0).abs() <= 1.0 && (gap - 12.0).abs() <= 2.0, "{ink} {gap}");
+        assert_eq!(measuring_until(&stop, || a.min_feature_px()), None, "a stopped scope reads nothing, kept or not");
+        assert_eq!(a.min_feature_px(), Some((ink, gap)), "the scope ends with its closure");
+    }
+
+    #[test]
+    fn a_measure_in_flight_stops_once_its_flag_is_set() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let a = Arc::new(stripes(512, 0.62));
+        let key = a.content_key();
+        let stop = Arc::new(AtomicBool::new(false));
+        let (flag, mask) = (stop.clone(), a.clone());
+        let measuring = std::thread::spawn(move || measuring_until(&flag, || mask.min_feature_px()));
+        let started = std::time::Instant::now();
+        while in_flight(key) != Some(true) {
+            assert!(started.elapsed().as_secs() < 60, "the measure never started");
+            std::thread::yield_now();
+        }
+        stop.store(true, Ordering::Relaxed);
+        assert_eq!(measuring.join().unwrap(), None, "given up part way");
+        assert_eq!(in_flight(key), None, "nothing kept, and nobody left waiting on it");
     }
 }
 

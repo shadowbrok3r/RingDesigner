@@ -157,4 +157,97 @@ mod tests {
         }
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    fn ms<T>(f: impl FnOnce() -> T) -> (f64, T) {
+        let t = std::time::Instant::now();
+        let out = f();
+        (t.elapsed().as_secs_f64() * 1e3, out)
+    }
+
+    /// The UI thread's cost of what the phone's landing, Files > Open, save, commit, undo and redo call, on the heaviest templates, timed on the host: `cargo test --release -p ringdesigner_android phone_ui_thread_costs -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "a timing table for release builds"]
+    fn phone_ui_thread_costs_on_heavy_designs() {
+        use ringdesign_workbench::templates::{Polled, Slot, collections, open_file};
+        let reg = Arc::new(ringdesign_script::registry());
+        let lib = Arc::new(ringdesign_core::AlphaLibrary::installed());
+        let dir = std::env::temp_dir().join(format!("phone-costs-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut rows: Vec<(String, f64)> = Vec::new();
+        let land = |slot: &mut Slot<bool>, rows: &mut Vec<(String, f64)>, what: String| {
+            let started = std::time::Instant::now();
+            loop {
+                let (t, polled) = ms(|| slot.poll(&lib));
+                match polled {
+                    Polled::Landed(landing) => {
+                        rows.push((what, t));
+                        break landing;
+                    }
+                    Polled::Failed(why) => panic!("{why}"),
+                    _ => assert!(started.elapsed().as_secs() < 120, "{what} never landed"),
+                }
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+        };
+        for slug in ["caiman-imported", "nocturne"] {
+            let template = collections().iter().flat_map(|c| &c.templates).find(|t| t.slug == slug).unwrap();
+            let mut slot = Slot::default();
+            let (t, _) = ms(|| slot.start(template.open(reg.clone(), lib.clone(), || {}), true));
+            rows.push((format!("{slug}: template chosen"), t));
+            let landing = land(&mut slot, &mut rows, format!("{slug}: template landed, baked onto the library"));
+            let mut graph = crate::graph::GraphState::new();
+            let (t, _) = ms(|| graph.sync(&landing.design));
+            rows.push((format!("{slug}: graph sync on landing"), t));
+            let (t, _) = ms(|| graph.ed.as_mut().map(|ed| ed.arrange(&graph.reg)));
+            rows.push((format!("{slug}: arrange on landing"), t));
+            // What that sync spends it on, and the same sync again in a fresh state.
+            let json = landing.design.graph.clone().expect("a graph template");
+            let (t, _) = ms(|| serde_json::from_value::<ringdesign_graph::graph::Graph>(json.clone()).unwrap());
+            rows.push((format!("{slug}:   graph read from a copy of its JSON, as graph.rs does"), t));
+            let (t, parsed) = ms(|| <ringdesign_graph::graph::Graph as serde::Deserialize>::deserialize(&json).unwrap());
+            rows.push((format!("{slug}:   graph read from its JSON in place"), t));
+            let (t, mut ed) = ms(|| ringdesign_graph_ui::Editor::new(parsed, &graph.reg));
+            rows.push((format!("{slug}:   editor built"), t));
+            let (t, _) = ms(|| ed.fit());
+            rows.push((format!("{slug}:   editor fitted"), t));
+            let (t, _) = ms(|| ed.arrange_if_tangled());
+            rows.push((format!("{slug}:   arranged if tangled"), t));
+            let (t, _) = ms(|| crate::graph::GraphState::new().sync(&landing.design));
+            rows.push((format!("{slug}:   the whole sync again, fresh state"), t));
+            let the_graph = landing.graph.clone().expect("read on the opening thread");
+            rows.push((format!("{slug}:   graph already read on the opening thread: {} nodes", the_graph.nodes.len()), 0.0));
+            let (t, _) = ms(|| graph.changed(&mut landing.design.clone()));
+            rows.push((format!("{slug}: graph written back after a move (with a design copy)"), t));
+            let mut history = ringdesign_core::history::History::new(&RingDesign::default());
+            let (t, _) = ms(|| history.reset(&landing.design));
+            rows.push((format!("{slug}: history reset on adopt"), t));
+            let (t, _) = ms(|| ringdesign_graph::eval::baked(&landing.design, &landing.lib));
+            rows.push((format!("{slug}: adopt's bake over the landed library"), t));
+            let (t, copy) = ms(|| landing.design.clone());
+            rows.push((format!("{slug}: save, autosave, save a copy: the design handed to the writer"), t));
+            let path = dir.join(format!("{slug}.ring.json"));
+            library::save_design_embedded(&path, &copy, &landing.lib).unwrap();
+            let (t, _) = ms(|| {
+                let d = library::load_design(&path).unwrap();
+                ringdesign_graph::eval::baked(&d, &lib)
+            });
+            rows.push((format!("{slug}: Files > Open as it was, read and baked on the UI thread"), t));
+            let (t, _) = ms(|| slot.start(open_file(path.clone(), lib.clone(), false, || {}), false));
+            rows.push((format!("{slug}: Files > Open now, started"), t));
+            let opened = land(&mut slot, &mut rows, format!("{slug}: Files > Open now, landed"));
+            let mut edited = opened.design.clone();
+            edited.name.push_str(" edited");
+            let (t, _) = ms(|| history.commit(&edited));
+            rows.push((format!("{slug}: history commit of a settled edit"), t));
+            let (t, _) = ms(|| history.undo().map(|d| ringdesign_graph::eval::baked(&d, &opened.lib)));
+            rows.push((format!("{slug}: undo, with its bake"), t));
+            let (t, _) = ms(|| history.redo().map(|d| ringdesign_graph::eval::baked(&d, &opened.lib)));
+            rows.push((format!("{slug}: redo, with its bake"), t));
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        println!("| phone UI thread, on the host | ms |\n| --- | --- |");
+        for (what, t) in rows {
+            println!("| {what} | {t:.1} |");
+        }
+    }
 }
