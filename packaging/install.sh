@@ -15,9 +15,10 @@ if [ "${1:-}" = "--uninstall" ]; then
   rm -f "$bin/ringdesigner" "$apps/ringdesigner.desktop"
   rm -f "$icons"/*/apps/ringdesigner.png "$icons/scalable/apps/ringdesigner.svg"
   rm -rf "$doc"
-  # The OpenCascade worker the app unpacked for itself goes with it.
-  rm -rf "$HOME/.local/share/ringdesigner/occt"
-  echo "Removed. Your designs in ~/.local/share/ringdesigner were left alone."
+  # The OpenCascade worker the app unpacked for itself goes with it, from the data folder the app uses.
+  data="${XDG_DATA_HOME:-$HOME/.local/share}/ringdesigner"
+  rm -rf "$data/occt"
+  echo "Removed. Your designs in $data were left alone."
 else
   mkdir -p "$bin" "$apps" "$icons/scalable/apps" "$doc"
   install -m755 "$here/ringdesigner" "$bin/ringdesigner"

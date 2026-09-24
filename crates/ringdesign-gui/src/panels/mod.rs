@@ -910,7 +910,7 @@ impl Command {
                     crate::command::start(app, key);
                 }
             }
-            Command::Licences => crate::licences::open(),
+            Command::Licences => crate::licences::open(&app.egui_ctx),
         }
     }
 }

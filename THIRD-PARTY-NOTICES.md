@@ -19,14 +19,20 @@ How it is used:
   TKPrim, TKBO, TKBool, TKShHealing, TKMesh, TKGeomBase, TKGeomAlgo, TKG3d,
   TKG2d, TKBin, TKXSBase, TKDE, TKDECascade, TKOffset, TKFillet, TKDESTEP) and
   linked into one program only: the OpenCascade worker, `occt-worker`, built
-  from `crates/ringdesign-occt` in this repository.
+  from `crates/ringdesign-occt` in RingDesigner's repository,
+  <https://github.com/shadowbrok3r/RingDesigner>, at the commit the app names
+  under Tools > Licences.
 - The desktop app does not link OCCT. It starts the worker as a separate
   process for each request and talks to it over its standard input and output
   (one JSON request, one JSON response).
-- A release build carries the worker inside the app and writes it out on first
-  use to `occt/<sha256>/occt-worker` under the app's data folder
-  (`~/.local/share/ringdesigner` on Linux and macOS,
-  `%LOCALAPPDATA%\RingDesigner` on Windows).
+- Only a build made by hand with `packaging/package.sh --occt` carries the
+  worker inside the app, and writes it out on first use to
+  `occt/<sha256>/occt-worker` under the app's data folder
+  (`~/.local/share/ringdesigner`, or `$XDG_DATA_HOME/ringdesigner`, on Linux
+  and macOS; `%LOCALAPPDATA%\RingDesigner` on Windows). The releases published
+  on GitHub, which the in-app updater installs, do not carry it: they run
+  OpenCascade only through a worker placed beside them or named by
+  `RINGDESIGN_OCCT_WORKER`.
 
 Licence: the GNU Lesser General Public License version 2.1 with the Open
 Cascade exception version 1.0; both texts are reproduced below, as OCCT ships
@@ -54,9 +60,11 @@ them.
 ### Using a different OpenCascade
 
 The app runs the worker named by the `RINGDESIGN_OCCT_WORKER` environment
-variable, or an `occt-worker` placed beside its executable, before the one it
-carries. To run RingDesigner with a modified OpenCascade, build the worker
-from this repository against it and point the app at that worker. cadrum
+variable (or, when that is unset, `RINGDESIGNER_OCCT_WORKER`), or an
+`occt-worker` placed beside its executable, before the one it carries. To run
+RingDesigner with a modified OpenCascade, build the worker from RingDesigner's
+repository, <https://github.com/shadowbrok3r/RingDesigner>, at the commit
+Tools > Licences names, against it, and point the app at that worker. cadrum
 reads OpenCascade from the folder `OCCT_ROOT` names when the folder is laid
 out as its prebuilt tarballs are (`include/opencascade`, `lib`, the two
 licence texts and the `OCCT-8_0_1` source folder), and cadrum's `source`
@@ -64,8 +72,13 @@ feature builds such a folder from the upstream tag with the changes you make:
 
 ```text
 OCCT_ROOT=/path/to/your/occt cargo build --release -p ringdesign-occt --bin occt-worker --features kernel-occt
-RINGDESIGN_OCCT_WORKER=target/release/occt-worker ringdesigner
+RINGDESIGN_OCCT_WORKER="$PWD/target/release/occt-worker" ringdesigner
 ```
+
+To carry that worker inside the app instead, name it in
+`RINGDESIGNER_OCCT_WORKER` while building `ringdesign-gui`; a relative path
+there is read from the workspace root, the folder holding the root
+`Cargo.toml`.
 
 ### GNU Lesser General Public License, version 2.1
 

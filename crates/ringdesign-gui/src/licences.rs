@@ -1,6 +1,6 @@
 //! The licences RingDesigner is under and the notices of the software it is built on, carried in the executable and shown in a window.
 use crate::theme;
-use std::sync::atomic::{AtomicBool, Ordering};
+use ringdesign_occt::client::Locator;
 
 /// RingDesigner's MIT licence.
 pub const MIT: &str = include_str!("../../../LICENSE-MIT");
@@ -9,15 +9,27 @@ pub const APACHE: &str = include_str!("../../../LICENSE-APACHE");
 /// OpenCascade's, cadrum's and MinGW-w64's notices and licences.
 pub const NOTICES: &str = include_str!("../../../THIRD-PARTY-NOTICES.md");
 
+/// Where RingDesigner's source is, the OpenCascade worker's included.
+pub const REPOSITORY: &str = "https://github.com/shadowbrok3r/RingDesigner";
+/// The commit this build was made from, as its build script found it.
+pub const COMMIT: &str = env!("RINGDESIGNER_COMMIT");
+
 /// Code blocks up to this many lines show open; longer ones fold under their heading.
 const OPEN_LINES: usize = 6;
 
-/// Set by a menu or the palette, taken by the window on its next frame.
-static ASKED: AtomicBool = AtomicBool::new(false);
+/// Whether the window is open, kept per context.
+fn open_id() -> egui::Id {
+    egui::Id::new("licences-open")
+}
 
-/// Opens the window on the next frame.
-pub fn open() {
-    ASKED.store(true, Ordering::Relaxed);
+/// Opens the window in `ctx` on its next frame.
+pub fn open(ctx: &egui::Context) {
+    ctx.data_mut(|d| d.insert_temp(open_id(), true));
+}
+
+/// Where this build's source is: the repository and the commit it was made from.
+pub fn source_line() -> String {
+    format!("Built from {REPOSITORY} at commit {COMMIT}.")
 }
 
 /// A piece of the notices file as the window draws it.
@@ -76,9 +88,9 @@ fn plain(text: &str) -> String {
 }
 
 /// What this build carries of OpenCascade, in a line.
-fn opencascade_line() -> String {
+fn opencascade_line(locator: &Locator) -> String {
     let carried = crate::occt_embedded::EMBEDDED;
-    match (carried.is_present(), crate::occt_embedded::missing()) {
+    match (carried.is_present(), crate::occt_embedded::missing(locator)) {
         (true, _) => format!("This build carries the OpenCascade worker ({:.1} MB, SHA-256 {}…).", carried.bytes as f64 / 1e6, &carried.sha256[..12]),
         (false, None) => "This build carries no OpenCascade worker; it runs the one beside it or the one RINGDESIGN_OCCT_WORKER names.".into(),
         (false, Some(_)) => "This build carries no OpenCascade worker, and none is beside it.".into(),
@@ -91,10 +103,10 @@ fn licence_text(ui: &mut egui::Ui, title: &str, text: &str) {
     });
 }
 
-/// The Licences window, while it is open.
-pub fn window(ctx: &egui::Context) {
-    let id = egui::Id::new("licences-open");
-    let mut open = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false) | ASKED.swap(false, Ordering::Relaxed);
+/// The Licences window, while it is open; `locator` is where the app looks for OpenCascade.
+pub fn window(ctx: &egui::Context, locator: &Locator) {
+    let id = open_id();
+    let mut open = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
     if !open {
         return;
     }
@@ -111,9 +123,10 @@ pub fn window(ctx: &egui::Context) {
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 ui.strong(format!("RingDesigner v{}", env!("CARGO_PKG_VERSION")));
                 ui.label("Licensed under the MIT licence or the Apache License 2.0, at your option.");
+                ui.label(source_line());
                 licence_text(ui, "MIT licence", MIT);
                 licence_text(ui, "Apache License 2.0", APACHE);
-                ui.weak(opencascade_line());
+                ui.weak(opencascade_line(locator));
                 ui.separator();
                 for (k, block) in blocks(NOTICES).into_iter().enumerate() {
                     match block {
@@ -149,18 +162,32 @@ mod tests {
 
     #[test]
     fn the_notices_carry_opencascades_licence_its_exception_and_where_its_source_is() {
-        let blocks = blocks(NOTICES);
+        // A Windows checkout's CRLF read as LF.
+        let notices = NOTICES.replace("\r\n", "\n");
+        let blocks = blocks(&notices);
         let headings: Vec<&str> = blocks.iter().filter_map(|b| if let Block::Heading(2, h) = b { Some(*h) } else { None }).collect();
         assert_eq!(headings, ["Open CASCADE Technology 8.0.1", "cadrum 0.8.20", "MinGW-w64 runtime (the Windows worker)", "Everything else"]);
         let code = |under: &str| blocks.iter().find_map(|b| if let Block::Code { under: u, text } = b { (*u == under).then_some(text.as_str()) } else { None }).unwrap();
         assert!(code("GNU Lesser General Public License, version 2.1").starts_with("                  GNU LESSER GENERAL PUBLIC LICENSE"));
         assert!(code("Open CASCADE exception, version 1.0").starts_with("Open CASCADE exception (version 1.0) to GNU LGPL version 2.1."));
         assert!(code("cadrum 0.8.20").contains("Copyright (c) 2026 cadrum Contributors"));
-        assert!(NOTICES.contains("https://github.com/Open-Cascade-SAS/OCCT/archive/refs/tags/V8_0_1.tar.gz"));
-        assert!(NOTICES.contains("makes use of, and is in part based on,\nfacilities provided by the Open CASCADE Technology software"));
+        assert!(notices.contains("https://github.com/Open-Cascade-SAS/OCCT/archive/refs/tags/V8_0_1.tar.gz"));
+        assert!(notices.contains("makes use of, and is in part based on,\nfacilities provided by the Open CASCADE Technology software"));
         assert!(MIT.contains("Copyright (c) 2026 Logan and the RingDesigner authors") && APACHE.contains("Version 2.0, January 2004"));
+        // RingDesigner's own source, the worker's included, and which releases carry the worker.
+        assert!(notices.contains(&format!("<{REPOSITORY}>")), "the repository");
+        let carried = blocks.iter().find_map(|b| if let Block::Text(t) = b { t.contains("package.sh --occt").then_some(t.as_str()) } else { None }).unwrap();
+        assert!(carried.contains("The releases published on GitHub, which the in-app updater installs, do not"), "{carried}");
         let prose = blocks.iter().find_map(|b| if let Block::Text(t) = b { t.contains("RingDesigner's desktop app makes use of").then_some(t.as_str()) } else { None }).unwrap();
         assert!(!prose.contains("**"), "{prose}");
+    }
+
+    #[test]
+    fn opening_the_window_in_one_context_leaves_another_alone() {
+        let (a, b) = (egui::Context::default(), egui::Context::default());
+        open(&a);
+        let shown = |ctx: &egui::Context| ctx.data(|d| d.get_temp::<bool>(open_id())).unwrap_or(false);
+        assert!(shown(&a) && !shown(&b));
     }
 
     #[test]
@@ -172,6 +199,10 @@ mod tests {
         h.key_press(egui::Key::Enter);
         h.run_steps(3);
         assert!(h.query_by_label("Licensed under the MIT licence or the Apache License 2.0, at your option.").is_some());
+        // The commit the build was made from, as git names one, or said to be unknown.
+        assert!(h.query_by_label(&source_line()).is_some());
+        let sha = COMMIT.trim_end_matches("-dirty");
+        assert!(COMMIT == "unknown" || (sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit())), "{COMMIT}");
         assert!(h.query_by_label("Open CASCADE Technology 8.0.1").is_some());
         assert!(h.query_by_label("GNU Lesser General Public License, version 2.1: full text").is_some());
         assert!(h.query_by_label_contains("Copyright (c) 2026 Logan").is_none(), "folded until asked for");

@@ -7,7 +7,7 @@ pub mod kernel;
 pub mod parts;
 pub mod protocol;
 
-/// Whether this build of the crate carries the OpenCascade kernel; a host asks [`client::probe`] whether it has a worker.
+/// Whether this build of the crate carries the OpenCascade kernel; a host asks [`client::Locator::probe`] whether it has a worker.
 pub fn available() -> bool {
     cfg!(feature = "kernel-occt")
 }

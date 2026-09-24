@@ -2,13 +2,15 @@
 use crate::embedded::Embedded;
 use crate::protocol::{MARKER, Request, Response};
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 /// The environment variable that names the worker program, over the one beside the executable.
 pub const WORKER_ENV: &str = "RINGDESIGN_OCCT_WORKER";
+/// The name a host's build reads its worker from, read at run time as well when [`WORKER_ENV`] is unset.
+pub const WORKER_ENV_ALIAS: &str = "RINGDESIGNER_OCCT_WORKER";
 /// The worker program's name beside the executable.
 pub const WORKER_NAME: &str = "occt-worker";
 /// The argument a host binary that also serves as its own worker answers to.
@@ -55,7 +57,7 @@ impl std::error::Error for Failure {}
 /// Where a worker would come from, found without unpacking or starting anything.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Found {
-    /// Named by [`WORKER_ENV`].
+    /// Named by [`WORKER_ENV`] or [`WORKER_ENV_ALIAS`].
     Named(PathBuf),
     /// [`WORKER_NAME`] beside the running executable.
     Beside(PathBuf),
@@ -69,20 +71,67 @@ fn beside_executable() -> Result<PathBuf, Failure> {
     Ok(exe.with_file_name(format!("{WORKER_NAME}{}", std::env::consts::EXE_SUFFIX)))
 }
 
-/// The worker [`Worker::find`] would run: the one [`WORKER_ENV`] names, else one beside the executable, else `embedded` under `root`.
-pub fn probe(embedded: &Embedded, root: &Path) -> Result<Found, Failure> {
-    if let Some(named) = std::env::var_os(WORKER_ENV) {
-        let named = PathBuf::from(named);
-        return if named.is_file() { Ok(Found::Named(named)) } else { Err(Failure::Missing(named)) };
+/// Where a host looks for its worker, in order: the path a variable names, [`WORKER_NAME`] beside the executable, the worker it carries.
+#[derive(Clone, Debug)]
+pub struct Locator {
+    /// The variable that named a worker and the path it names; a named worker is never passed over.
+    pub named: Option<(&'static str, PathBuf)>,
+    /// [`WORKER_NAME`] beside the running executable, whether or not it is there; `None` where the executable cannot be found.
+    pub beside: Option<PathBuf>,
+    /// The worker the host carries.
+    pub embedded: Embedded,
+    /// The folder the carried worker unpacks under.
+    pub root: PathBuf,
+}
+
+impl Locator {
+    /// Read from the environment once: [`WORKER_ENV`], else [`WORKER_ENV_ALIAS`], then beside the executable, then `embedded` under `root`.
+    pub fn from_env(embedded: Embedded, root: PathBuf) -> Self {
+        Self::from_vars(embedded, root, |var| std::env::var_os(var))
     }
-    let beside = beside_executable()?;
-    if beside.is_file() {
-        return Ok(Found::Beside(beside));
+
+    /// [`Locator::from_env`] with the variables read through `var`; an empty value counts as unset.
+    pub fn from_vars(embedded: Embedded, root: PathBuf, var: impl Fn(&str) -> Option<std::ffi::OsString>) -> Self {
+        let named = [WORKER_ENV, WORKER_ENV_ALIAS].into_iter().find_map(|name| var(name).filter(|v| !v.is_empty()).map(|v| (name, PathBuf::from(v))));
+        Self { named, beside: beside_executable().ok(), embedded, root }
     }
-    if embedded.is_present() {
-        return Ok(Found::Embedded { unpacked: embedded.is_unpacked(root) });
+
+    /// Only the worker at `program`, as [`WORKER_ENV`] would name it.
+    pub fn named(program: impl Into<PathBuf>) -> Self {
+        Self { named: Some((WORKER_ENV, program.into())), ..Self::nowhere() }
     }
-    Err(Failure::Missing(beside))
+
+    /// No worker anywhere.
+    pub fn nowhere() -> Self {
+        Self { named: None, beside: None, embedded: Embedded::NONE, root: PathBuf::new() }
+    }
+
+    /// The worker [`Locator::find`] would run, found without unpacking or starting anything.
+    pub fn probe(&self) -> Result<Found, Failure> {
+        if let Some((_, named)) = &self.named {
+            return if named.is_file() { Ok(Found::Named(named.clone())) } else { Err(Failure::Missing(named.clone())) };
+        }
+        if let Some(beside) = self.beside.as_ref().filter(|b| b.is_file()) {
+            return Ok(Found::Beside(beside.clone()));
+        }
+        if self.embedded.is_present() {
+            return Ok(Found::Embedded { unpacked: self.embedded.is_unpacked(&self.root) });
+        }
+        Err(Failure::Missing(self.beside.clone().unwrap_or_else(|| PathBuf::from(format!("{WORKER_NAME}{}", std::env::consts::EXE_SUFFIX)))))
+    }
+
+    /// The worker [`Locator::probe`] names, the carried one unpacked on its first use.
+    pub fn find(&self) -> Result<Worker, Failure> {
+        self.find_cancellable(&AtomicBool::new(false))
+    }
+
+    /// [`Locator::find`], a first unpack stopped as soon as `cancel` is set.
+    pub fn find_cancellable(&self, cancel: &AtomicBool) -> Result<Worker, Failure> {
+        match self.probe()? {
+            Found::Named(program) | Found::Beside(program) => Ok(Worker::at(program)),
+            Found::Embedded { .. } => self.embedded.unpack_cancellable(&self.root, cancel).map(|u| Worker::at(u.path)),
+        }
+    }
 }
 
 /// A worker program and the arguments it is started with.
@@ -107,14 +156,6 @@ impl Worker {
             return Err(Failure::Missing(program));
         }
         Ok(Self::at(program))
-    }
-
-    /// [`Worker::locate`]'s worker when there is one, else `embedded` unpacked under `root` on its first use; a name in [`WORKER_ENV`] is never passed over.
-    pub fn find(embedded: &Embedded, root: &Path) -> Result<Self, Failure> {
-        match probe(embedded, root)? {
-            Found::Named(program) | Found::Beside(program) => Ok(Self::at(program)),
-            Found::Embedded { .. } => embedded.unpack(root).map(|u| Self::at(u.path)),
-        }
     }
 
     /// The running executable answering [`WORKER_FLAG`], for a host that dispatches to `kernel::serve` itself.

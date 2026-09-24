@@ -193,6 +193,11 @@ impl Default for CadState {
     }
 }
 impl CadState {
+    /// The 3D canvas as laid out this frame, above the view's footer; `None` on the tabs that draw none.
+    pub(crate) fn canvas(&self) -> Option<egui::Rect> {
+        (!matches!(self.tab, 1 | 6) && self.canvas.is_positive()).then_some(self.canvas)
+    }
+
     /// Escape from the global shortcut router: backs out of pending sketch picks, then a history
     /// rollback. It never discards the candidate.
     pub fn cancel_shortcut(&mut self) -> bool {

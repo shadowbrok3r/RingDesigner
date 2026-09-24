@@ -587,24 +587,28 @@ fn reader_of(path: &std::path::Path) -> &'static str {
     }
 }
 
-/// The part `path` holds, joined at the top of the ring and chosen, one History entry; a file over [`SYNC_IMPORT_BYTES`], and any STEP OpenCascade reads, is read off the UI thread.
+/// The part `path` holds, joined at the top of the ring and chosen, one History entry, read off the UI thread past [`SYNC_IMPORT_BYTES`]; a STEP file goes to OpenCascade only for what the core leaves or refuses.
 pub(crate) fn import_part_path(app: &mut RingDesignerApp, path: &std::path::Path) {
     let file = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
-    if ringdesign_mcp::import::is_step(path) && crate::occt::available() {
-        let path = path.to_path_buf();
-        app.start_import(file, "OpenCascade", move |cancel| crate::occt::import_step(&path, cancel));
-        return;
-    }
+    let step = ringdesign_mcp::import::is_step(path);
     // Only a file known to be over the threshold goes to the slot.
     if std::fs::metadata(path).is_ok_and(|m| m.len() > SYNC_IMPORT_BYTES) {
-        let reader = reader_of(path);
-        let path = path.to_path_buf();
-        app.start_import(file, reader, move |_| ringdesign_mcp::import::part_file(&path).map_err(|e| format!("{e:#}")));
+        let (reader, path, occt) = (reader_of(path), path.to_path_buf(), app.occt.clone());
+        app.start_import(file, reader, move |cancel| {
+            let read = ringdesign_mcp::import::part_file(&path).map_err(|e| format!("{e:#}"));
+            if step { crate::occt::after_core(&path, &occt, read, cancel) } else { read }
+        });
         return;
     }
-    match ringdesign_mcp::import::part_file(path) {
+    let read = ringdesign_mcp::import::part_file(path).map_err(|e| format!("{e:#}"));
+    if step && crate::occt::leaves_for_occt(&read) && crate::occt::available(&app.occt) {
+        let (path, occt) = (path.to_path_buf(), app.occt.clone());
+        app.start_import(file, "OpenCascade", move |cancel| crate::occt::after_core(&path, &occt, read, cancel));
+        return;
+    }
+    match read {
         Ok(read) => land_part(app, read),
-        Err(e) => app.set_status(format!("{e:#}")),
+        Err(e) => app.set_status(e),
     }
 }
 

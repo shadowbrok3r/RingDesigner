@@ -329,6 +329,8 @@ pub struct RingDesignerApp {
     pub exporting: Option<std::sync::mpsc::Receiver<String>>,
     /// A part file being read off the UI thread, applied when it lands.
     pub importing: Option<PendingImport>,
+    /// Where OpenCascade's worker is looked for: read from the environment at start, set per harness in tests.
+    pub occt: ringdesign_occt::client::Locator,
     /// The stamp whose inspector is open, by its index in the design's stamps.
     pub stamp_inspector: Option<usize>,
     /// The Ctrl+K command palette.
@@ -405,7 +407,7 @@ pub struct RingDesignerApp {
     /// Why the last start attempt failed to bind.
     pub mcp_error: Option<String>,
 
-    egui_ctx: egui::Context,
+    pub(crate) egui_ctx: egui::Context,
     thumbs: HashMap<String, egui::TextureHandle>,
     worker: Worker,
     dirty_at: Option<Instant>,
@@ -495,6 +497,7 @@ impl RingDesignerApp {
             prices: load_prices(),
             exporting: None,
             importing: None,
+            occt: crate::occt_embedded::locator(),
             stamp_inspector: None,
             palette_open: false,
             palette_query: String::new(),

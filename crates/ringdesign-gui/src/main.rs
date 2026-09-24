@@ -61,7 +61,7 @@ impl eframe::App for RingDesignerApp {
         self.poll_export();
         self.updater.poll(ui.ctx());
         panels::render(self, ui);
-        licences::window(ui.ctx());
+        licences::window(ui.ctx(), &self.occt);
         if std::mem::take(&mut self.install_update) {
             if let Some(storage) = frame.storage_mut() {
                 match self.persist_session(storage) {

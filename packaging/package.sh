@@ -12,12 +12,19 @@
 # not use), stripped, and handed to the app's build.rs through
 # RINGDESIGNER_OCCT_WORKER, which deflates it into the executable. The app
 # unpacks it into its data folder the first time a fillet, a shell, a junction
-# or a STEP import asks for it. Without --occt nothing changes.
+# or a STEP import asks for it. Without --occt nothing is carried, even when
+# RINGDESIGNER_OCCT_WORKER is set in the calling shell. Only these hand builds
+# carry OpenCascade: the releases CI publishes, which the in-app updater
+# installs, do not.
+#
+# The paths this script hands build.rs are absolute. A relative
+# RINGDESIGNER_OCCT_WORKER is read from the workspace root (the folder holding
+# the root Cargo.toml), not from the crate's folder cargo runs build.rs in.
 #
 # macOS is built on a Mac and not here: there the same two steps are
 #   cargo build --release -p ringdesign-occt --bin occt-worker --features kernel-occt --target aarch64-apple-darwin
 #   strip -x target/aarch64-apple-darwin/release/occt-worker   # then: codesign -s - -f it
-#   RINGDESIGNER_OCCT_WORKER=target/aarch64-apple-darwin/release/occt-worker \
+#   RINGDESIGNER_OCCT_WORKER="$PWD/target/aarch64-apple-darwin/release/occt-worker" \
 #     cargo build --release -p ringdesign-gui --target aarch64-apple-darwin
 # (and x86_64-apple-darwin for Intel). A stripped Mach-O loses its ad-hoc
 # signature, and Apple silicon refuses to run an unsigned one.
@@ -42,6 +49,27 @@ for arg in "$@"; do
     *) echo "usage: $0 [linux|linux-portable|windows|both] [--occt]" >&2; exit 2 ;;
   esac
 done
+[ "$occt" = 1 ] || unset RINGDESIGNER_OCCT_WORKER
+
+# The commit the app says it was built from, dirty or not; the container has
+# no repository to ask.
+if [ -z "${RINGDESIGNER_COMMIT:-}" ] && commit="$(git rev-parse HEAD 2>/dev/null)"; then
+  git diff --quiet HEAD 2>/dev/null || commit="$commit-dirty"
+  export RINGDESIGNER_COMMIT="$commit"
+fi
+
+# Every DLL a Windows executable imports must be one Windows has: anything else
+# (a GCC or MSVC runtime) would fail on every jeweller's PC.
+system_dlls_only() {
+  local dlls foreign
+  dlls="$(x86_64-w64-mingw32-objdump -p "$1" | sed -n 's/^\s*DLL Name: //p' | tr 'A-Z' 'a-z' | sort -u)"
+  foreign="$(echo "$dlls" | grep -v -E '^(api-ms-win-.*|kernel32|kernelbase|ntdll|user32|gdi32|advapi32|userenv|ws2_32|bcrypt|bcryptprimitives|shell32|shlwapi|ole32|oleaut32|combase|msvcrt|ucrtbase|secur32|crypt32|psapi|dbghelp|dwmapi|imm32|uxtheme|opengl32|comctl32|comdlg32|winmm|version|setupapi|propsys|windowscodecs|ncrypt|iphlpapi|dnsapi|rpcrt4|winhttp)\.dll$' || true)"
+  echo "    $2 imports: $(echo "$dlls" | tr '\n' ' ')"
+  if [ -n "$foreign" ]; then
+    echo "$2 needs DLLs a PC does not have: $foreign" >&2
+    exit 1
+  fi
+}
 
 # The licences travel beside the program as well as inside it.
 licences() {
@@ -68,8 +96,7 @@ worker_linux() {
 }
 
 # The Windows worker: cadrum's MinGW OpenCascade links the GCC runtime
-# statically, so the .exe needs only system DLLs — which is checked here, since
-# a worker that asked for libstdc++-6.dll would fail on every jeweller's PC.
+# statically, so the .exe needs only system DLLs, which is checked.
 worker_windows() {
   echo "==> OpenCascade worker, windows x86_64 (MinGW, static)"
   CARGO_TARGET_DIR="$root/target/occt-mingw" \
@@ -77,14 +104,7 @@ worker_windows() {
   mkdir -p target/occt-embed/windows
   x86_64-w64-mingw32-strip -o target/occt-embed/windows/occt-worker.exe \
     target/occt-mingw/x86_64-pc-windows-gnu/release/occt-worker.exe
-  local dlls foreign
-  dlls="$(x86_64-w64-mingw32-objdump -p target/occt-embed/windows/occt-worker.exe | sed -n 's/^\s*DLL Name: //p' | tr 'A-Z' 'a-z' | sort -u)"
-  foreign="$(echo "$dlls" | grep -v -E '^(api-ms-win-.*|kernel32|ntdll|user32|advapi32|userenv|ws2_32|bcrypt|bcryptprimitives|shell32|ole32|oleaut32|msvcrt|secur32|crypt32|psapi|dbghelp)\.dll$' || true)"
-  echo "    imports: $(echo "$dlls" | tr '\n' ' ')"
-  if [ -n "$foreign" ]; then
-    echo "the Windows worker needs DLLs a PC does not have: $foreign" >&2
-    exit 1
-  fi
+  system_dlls_only target/occt-embed/windows/occt-worker.exe "the Windows worker"
   echo "    target/occt-embed/windows/occt-worker.exe  ($(mb target/occt-embed/windows/occt-worker.exe) stripped)"
   export RINGDESIGNER_OCCT_WORKER="$root/target/occt-embed/windows/occt-worker.exe"
 }
@@ -144,6 +164,7 @@ build_windows() {
   local stage="$dist/ringdesigner-$version-windows-x86_64"
   rm -rf "$stage"; mkdir -p "$stage"
   cp target/x86_64-pc-windows-msvc/release/ringdesigner.exe "$stage/"
+  system_dlls_only "$stage/ringdesigner.exe" "ringdesigner.exe"
   licences "$stage"
   (cd "$dist" && rm -f "$(basename "$stage").zip" && zip -qr "$(basename "$stage").zip" "$(basename "$stage")")
   echo "    ringdesigner.exe $(mb "$stage/ringdesigner.exe"); $stage.zip  ($(du -h "$stage.zip" | cut -f1))"
@@ -188,7 +209,7 @@ build_linux_portable() {
       && RINGDESIGNER_OCCT_WORKER=/target/occt-embed/occt-worker $build"
   fi
   "$engine" run --rm \
-    -e COMFY_GATE_URL -e COMFY_GATE_KEY \
+    -e COMFY_GATE_URL -e COMFY_GATE_KEY -e RINGDESIGNER_COMMIT \
     -v "$root":/src:ro \
     -v ringdesigner-build-target:/target \
     -v ringdesigner-build-cargo:/root/.cargo/registry \

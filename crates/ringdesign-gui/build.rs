@@ -17,19 +17,62 @@
 use std::collections::HashMap;
 use std::env;
 use std::io::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     texture_gate();
     occt_worker();
+    commit();
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         resources();
     }
 }
 
+/// The workspace root: the folder holding the root `Cargo.toml`, two above
+/// this crate's.
+fn workspace_root() -> PathBuf {
+    let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    manifest.parent().and_then(Path::parent).map_or(manifest.clone(), Path::to_path_buf)
+}
+
+/// The commit the app is built from, as `RINGDESIGNER_COMMIT`: that variable
+/// when set (the portable container has no repository to ask), else CI's
+/// `GITHUB_SHA`, else `git rev-parse HEAD`, else `unknown`. The Licences
+/// window shows it beside the repository's address.
+fn commit() {
+    println!("cargo:rerun-if-env-changed=RINGDESIGNER_COMMIT");
+    println!("cargo:rerun-if-env-changed=GITHUB_SHA");
+    let git = |args: &[&str]| {
+        Command::new("git")
+            .args(args)
+            .current_dir(workspace_root())
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let named = ["RINGDESIGNER_COMMIT", "GITHUB_SHA"].into_iter().find_map(|v| env::var(v).ok().filter(|s| !s.trim().is_empty()));
+    let commit = named.or_else(|| {
+        // Watched so a new commit or checkout rebuilds with its name; a path that is not there is not watched.
+        let mut watched = vec!["HEAD".to_string(), "packed-refs".to_string()];
+        watched.extend(git(&["symbolic-ref", "-q", "HEAD"]));
+        for name in watched {
+            if let Some(path) = git(&["rev-parse", "--path-format=absolute", "--git-path", &name]).map(PathBuf::from).filter(|p| p.is_file()) {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+        git(&["rev-parse", "HEAD"])
+    });
+    let commit = commit.filter(|c| !c.contains(['\n', '\r'])).unwrap_or_else(|| "unknown".into());
+    println!("cargo:rustc-env=RINGDESIGNER_COMMIT={commit}");
+}
+
 /// The OpenCascade worker the app carries, when `RINGDESIGNER_OCCT_WORKER`
-/// names a built one.
+/// names a built one; a relative path is read from the workspace root.
 ///
 /// The file is deflated into `OUT_DIR` and described, with its SHA-256 and
 /// length, by a generated `occt_worker.rs` that `src/occt_embedded.rs`
@@ -45,7 +88,7 @@ fn occt_worker() {
     println!("cargo:rerun-if-env-changed=RINGDESIGNER_OCCT_WORKER");
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
     let generated = out.join("occt_worker.rs");
-    let Some(worker) = env::var_os("RINGDESIGNER_OCCT_WORKER").filter(|v| !v.is_empty()).map(PathBuf::from) else {
+    let Some(worker) = env::var_os("RINGDESIGNER_OCCT_WORKER").filter(|v| !v.is_empty()).map(|v| workspace_root().join(v)) else {
         std::fs::write(&generated, "pub static EMBEDDED: Embedded = Embedded::NONE;\n").unwrap();
         return;
     };

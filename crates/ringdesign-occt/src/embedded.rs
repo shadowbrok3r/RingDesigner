@@ -4,10 +4,13 @@ use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant, SystemTime};
 
 /// Bytes read or written at a time while inflating and hashing.
 const CHUNK: usize = 1 << 20;
+/// A partial unpack untouched this long was left by a process that died, and is removed.
+const STALE_PART: Duration = Duration::from_secs(600);
 
 /// A deflated worker program and the digest and length of what it inflates to.
 #[derive(Clone, Copy, Debug)]
@@ -54,12 +57,23 @@ impl Embedded {
 
     /// The worker under `root`: a copy whose length and digest hold is reused, else the program is inflated beside it, checked, made executable and moved into place.
     pub fn unpack(&self, root: &Path) -> Result<Unpacked, Failure> {
+        self.unpack_cancellable(root, &AtomicBool::new(false))
+    }
+
+    /// [`Embedded::unpack`], stopped with nothing left behind as soon as `cancel` is set.
+    pub fn unpack_cancellable(&self, root: &Path, cancel: &AtomicBool) -> Result<Unpacked, Failure> {
         let started = Instant::now();
         if !self.is_present() {
             return Err(Failure::Unpack("this build carries no OpenCascade worker".into()));
         }
         let path = self.path_under(root);
         let _one = UNPACKING.lock().unwrap_or_else(|e| e.into_inner());
+        if cancel.load(Ordering::Relaxed) {
+            return Err(Failure::Cancelled);
+        }
+        if let Some(dir) = path.parent() {
+            sweep_stale_parts(dir);
+        }
         if self.is_unpacked(root) && (checked(&path) || digest_of(&path).is_ok_and(|d| d == self.sha256)) {
             remember(&path);
             return Ok(Unpacked { path, fresh: false, took: started.elapsed() });
@@ -67,7 +81,7 @@ impl Embedded {
         let dir = path.parent().ok_or_else(|| Failure::Unpack(format!("{} has no folder", path.display())))?;
         std::fs::create_dir_all(dir).map_err(|e| Failure::Unpack(format!("{}: {e}", dir.display())))?;
         let part = dir.join(format!("{WORKER_NAME}.{}.part", std::process::id()));
-        let written = self.inflate_to(&part);
+        let written = self.inflate_to(&part, cancel);
         if let Err(e) = written {
             let _ = std::fs::remove_file(&part);
             return Err(e);
@@ -96,13 +110,16 @@ impl Embedded {
         }
     }
 
-    /// The program inflated into `part`, its length and digest checked and its executable bit set.
-    fn inflate_to(&self, part: &Path) -> Result<(), Failure> {
+    /// The program inflated into `part`, its length and digest checked and its executable bit set; `cancel` stops it between chunks.
+    fn inflate_to(&self, part: &Path, cancel: &AtomicBool) -> Result<(), Failure> {
         let fail = |e: std::io::Error| Failure::Unpack(format!("{}: {e}", part.display()));
         let mut file = std::fs::File::create(part).map_err(fail)?;
         let mut inflate = flate2::read::DeflateDecoder::new(self.deflated);
         let (mut hash, mut length, mut buffer) = (Sha256::new(), 0u64, vec![0u8; CHUNK]);
         loop {
+            if cancel.load(Ordering::Relaxed) {
+                return Err(Failure::Cancelled);
+            }
             let n = inflate.read(&mut buffer).map_err(|e| Failure::Unpack(format!("the embedded worker does not inflate: {e}")))?;
             if n == 0 {
                 break;
@@ -126,6 +143,20 @@ impl Embedded {
             std::fs::set_permissions(part, std::fs::Permissions::from_mode(0o755)).map_err(fail)?;
         }
         Ok(())
+    }
+}
+
+/// Removes the partial unpacks in `dir` that no process has written to for [`STALE_PART`].
+fn sweep_stale_parts(dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let prefix = format!("{WORKER_NAME}.");
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        let old = entry.metadata().ok().and_then(|m| m.modified().ok()).and_then(|t| t.elapsed().ok()).is_some_and(|age| age >= STALE_PART);
+        if name.starts_with(&prefix) && name.ends_with(".part") && old {
+            let _ = std::fs::remove_file(entry.path());
+        }
     }
 }
 
@@ -218,20 +249,65 @@ mod tests {
 
     #[test]
     fn find_falls_back_on_the_embedded_worker_and_probe_says_so_without_unpacking() {
-        use crate::client::{Found, WORKER_ENV, probe};
-        if std::env::var_os(WORKER_ENV).is_some() {
-            eprintln!("{WORKER_ENV} is set; the fallback is not reached");
-            return;
-        }
-        let (worker, _) = payload("found");
+        use crate::client::{Found, Locator, WORKER_ENV, WORKER_ENV_ALIAS};
+        let (worker, raw) = payload("found");
         let root = scratch("find");
-        let none = probe(&Embedded::NONE, &root);
-        assert!(matches!(&none, Err(Failure::Missing(p)) if p.ends_with("occt-worker")), "{none:?}");
-        assert_eq!(probe(&worker, &root).unwrap(), Found::Embedded { unpacked: false });
+        let carried = |beside: Option<PathBuf>| Locator { named: None, beside, embedded: worker, root: root.clone() };
+        let none = Locator { embedded: Embedded::NONE, ..carried(Some(root.join("bin").join("occt-worker"))) }.probe();
+        assert!(matches!(&none, Err(Failure::Missing(p)) if *p == root.join("bin").join("occt-worker")), "{none:?}");
+        // With no executable to look beside, the carried worker is still found.
+        assert_eq!(carried(None).probe().unwrap(), Found::Embedded { unpacked: false });
         assert!(!root.exists(), "a probe unpacks nothing");
-        let found = Worker::find(&worker, &root).unwrap();
+        let found = carried(None).find().unwrap();
         assert_eq!(found, Worker::at(worker.path_under(&root)));
-        assert_eq!(probe(&worker, &root).unwrap(), Found::Embedded { unpacked: true });
+        assert_eq!(carried(None).probe().unwrap(), Found::Embedded { unpacked: true });
+        // A worker beside the executable comes first, and a named one before that, even when it is not there.
+        let beside = root.join("bin").join("occt-worker");
+        std::fs::create_dir_all(beside.parent().unwrap()).unwrap();
+        std::fs::write(&beside, &raw).unwrap();
+        assert_eq!(carried(Some(beside.clone())).probe().unwrap(), Found::Beside(beside.clone()));
+        let gone = root.join("gone");
+        let named = Locator { named: Some((WORKER_ENV, gone.clone())), ..carried(Some(beside.clone())) };
+        assert!(matches!(named.probe(), Err(Failure::Missing(p)) if p == gone));
+        // The build's name is read at run time when the client's own is unset, and an empty value is no name.
+        let vars = |run: Option<&str>, build: Option<&str>| {
+            Locator::from_vars(Embedded::NONE, root.clone(), move |var| match var {
+                WORKER_ENV => run.map(Into::into),
+                WORKER_ENV_ALIAS => build.map(Into::into),
+                _ => None,
+            })
+            .named
+        };
+        assert_eq!(vars(Some("/a"), Some("/b")), Some((WORKER_ENV, PathBuf::from("/a"))));
+        assert_eq!(vars(None, Some("/b")), Some((WORKER_ENV_ALIAS, PathBuf::from("/b"))));
+        assert_eq!(vars(Some(""), Some("/b")), Some((WORKER_ENV_ALIAS, PathBuf::from("/b"))));
+        assert_eq!(vars(None, None), None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_cancelled_unpack_leaves_nothing_and_a_dead_unpacks_part_is_swept() {
+        let (worker, raw) = payload("swept");
+        let root = scratch("swept");
+        let stopped = worker.unpack_cancellable(&root, &AtomicBool::new(true));
+        assert!(matches!(stopped, Err(Failure::Cancelled)), "{stopped:?}");
+        assert!(!worker.is_unpacked(&root));
+        let dir = worker.path_under(&root).parent().unwrap().to_path_buf();
+        assert_eq!(std::fs::read_dir(&dir).map(|d| d.count()).unwrap_or(0), 0);
+        // A killed unpack's part an hour old goes; another process's part written just now stays.
+        std::fs::create_dir_all(&dir).unwrap();
+        let (dead, live) = (dir.join("occt-worker.4000001.part"), dir.join("occt-worker.4000002.part"));
+        for part in [&dead, &live] {
+            std::fs::write(part, &raw[..10]).unwrap();
+        }
+        let hour_ago = SystemTime::now() - Duration::from_secs(3600);
+        std::fs::File::options().write(true).open(&dead).unwrap().set_modified(hour_ago).unwrap();
+        let path = worker.unpack(&root).unwrap().path;
+        assert!(!dead.exists() && live.exists() && path.is_file());
+        // The sweep runs on reuse too.
+        std::fs::write(&dead, &raw[..10]).unwrap();
+        std::fs::File::options().write(true).open(&dead).unwrap().set_modified(hour_ago).unwrap();
+        assert!(!worker.unpack(&root).unwrap().fresh && !dead.exists());
         let _ = std::fs::remove_dir_all(&root);
     }
 
