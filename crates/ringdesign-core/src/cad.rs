@@ -65,9 +65,14 @@ pub enum Operation {
     },
     Revolve {
         sketch: Profile,
+        /// A point on the line the profile turns about: in the world, or in the sketch's plane with `in_plane`.
         pivot: [f64; 3],
+        /// The line's direction, read the way `pivot` is.
         axis: [f64; 3],
         degrees: f64,
+        /// Pivot and axis read in the sketch's plane, x and y along its axes and z along its normal, so the line moves with the plane.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        in_plane: bool,
     },
     Sweep {
         sketch: Profile,
@@ -1833,6 +1838,7 @@ fn body_for(
             pivot,
             axis,
             degrees,
+            in_plane,
         } => {
             coords(&[*pivot, *axis])?;
             ensure!(
@@ -1842,9 +1848,10 @@ fn body_for(
             ensure!(crate::mesh::norm(*axis) > 1e-8, "Revolution axis is zero");
             let sketch = profile(from, sketches)?;
             let plane = plane_of(sketch, values, frames, notes)?;
+            let (pivot, axis) = if *in_plane { in_plane_line(&plane, *pivot, *axis)? } else { (*pivot, *axis) };
             let regions = regions_of(from, sketch, notes)?;
-            let (plane, angle) = if cut && *degrees < 360.0 { cleared_turn(plane, &regions, *pivot, *axis, *degrees) } else { (plane, degrees.to_radians()) };
-            crate::sketch::solid::revolve(plane, &regions, *pivot, *axis, angle)
+            let (plane, angle) = if cut && *degrees < 360.0 { cleared_turn(plane, &regions, pivot, axis, *degrees) } else { (plane, degrees.to_radians()) };
+            crate::sketch::solid::revolve(plane, &regions, pivot, axis, angle)
         }
         Operation::Sweep { sketch: from, path } => {
             ensure!(
@@ -2026,6 +2033,29 @@ pub const CUT_CLEAR_MM: f64 = 0.05;
 /// Whether `f`'s part is cut from the band, which clears an extrusion running below its plane off it.
 fn cuts(f: &Feature) -> bool {
     f.component.attach == Attach::Cut && !f.component.reference
+}
+/// The world line through `pivot` along `axis` read in `plane`: x and y along its axes, z along its normal.
+fn in_plane_line(plane: &cadkernel::space::Plane, pivot: [f64; 3], axis: [f64; 3]) -> Result<([f64; 3], [f64; 3])> {
+    let n = plane.normal().context("Sketch plane has no normal")?;
+    let (x, y) = (plane.x_axis, plane.y_axis);
+    let along = |v: [f64; 3]| -> [f64; 3] { std::array::from_fn(|k| x[k] * v[0] + y[k] * v[1] + n[k] * v[2]) };
+    let at = along(pivot);
+    Ok((std::array::from_fn(|k| plane.origin[k] + at[k]), along(axis)))
+}
+/// Whether `design` carries a revolution whose line is read in its sketch's plane, in its document or anywhere in its graph.
+pub fn turns_in_plane(design: &RingDesign) -> bool {
+    let in_document = design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(f.operation, Operation::Revolve { in_plane: true, .. })));
+    in_document || design.graph.as_ref().is_some_and(turns_in_plane_json)
+}
+/// Whether `v` holds a revolution read in its plane anywhere: an object keyed `Revolve` whose `in_plane` is true.
+fn turns_in_plane_json(v: &serde_json::Value) -> bool {
+    match v {
+        serde_json::Value::Object(map) => {
+            map.get("Revolve").and_then(|r| r.get("in_plane")).and_then(serde_json::Value::as_bool) == Some(true) || map.values().any(turns_in_plane_json)
+        }
+        serde_json::Value::Array(items) => items.iter().any(turns_in_plane_json),
+        _ => false,
+    }
 }
 /// A cut revolution of `regions` on `plane` about the axis through `pivot` along `axis` by `degrees`,
 /// started a turn before its plane so its first cap stands [`CUT_CLEAR_MM`] clear of it at the region's
@@ -3143,6 +3173,7 @@ mod tests {
                 pivot: [0.0; 3],
                 axis: [0.0, 0.0, 1.0],
                 degrees: 360.0,
+                in_plane: false,
             }],
             vec![Operation::Loft {
                 sections: vec![Sketch::rectangle(8.0, 6.0).into(), top.into()],
@@ -3446,7 +3477,7 @@ mod tests {
         };
         add(&mut doc, 1, Operation::Sketch { sketch: Sketch::rectangle(4.0, 3.0) });
         add(&mut doc, 2, Operation::Extrude { sketch: Profile::Feature { feature: 1 }, height_mm: 2.0, draft_deg: 0.0 });
-        add(&mut doc, 3, Operation::Revolve { sketch: Profile::Feature { feature: 1 }, pivot: [6.0, 0.0, 0.0], axis: [0.0, 1.0, 0.0], degrees: 360.0 });
+        add(&mut doc, 3, Operation::Revolve { sketch: Profile::Feature { feature: 1 }, pivot: [6.0, 0.0, 0.0], axis: [0.0, 1.0, 0.0], degrees: 360.0, in_plane: false });
         assert_eq!(doc.outputs, vec![2, 3], "a sketch is never an output");
         let mut d = RingDesign::default();
         d.cad = Some(doc.clone());
@@ -3982,7 +4013,7 @@ mod sketch_tests {
         let mut d = d.clone();
         let doc = d.cad.as_mut().unwrap();
         doc.append(feature(3, Operation::Sketch { sketch: square })).unwrap();
-        let mut turn = feature(4, Operation::Revolve { sketch: Profile::Feature { feature: 3 }, pivot: plane.origin, axis: plane.y_axis, degrees: 180.0 });
+        let mut turn = feature(4, Operation::Revolve { sketch: Profile::Feature { feature: 3 }, pivot: plane.origin, axis: plane.y_axis, degrees: 180.0, in_plane: false });
         turn.component.attach = Attach::Cut;
         doc.append(turn).unwrap();
         let turned = crate::mesh::build(&d, &lib, params);
@@ -4065,6 +4096,65 @@ mod sketch_tests {
         let e = evaluate(&d, &lib, params).unwrap();
         let foot = sub(frame_along(&e.components[1].body, down).origin, face.origin);
         assert!((dot(foot, out) - 0.5).abs() < 1e-9, "{foot:?}");
+    }
+
+    #[test]
+    fn a_revolution_read_in_its_sketch_plane_turns_about_a_line_that_follows_the_face() {
+        let lib = AlphaLibrary::builtin();
+        let params = BuildParams::default();
+        let seat = Placement::ring(90.0, 0.0);
+        let boxed = |h: f64| {
+            let mut f = feature(1, Operation::Box { size: [8.0, 6.0, h] });
+            f.component.placement = seat.clone();
+            f
+        };
+        let d = design_of(vec![boxed(2.0)], vec![1]);
+        let frame = seat.frame(&d).unwrap();
+        let block = evaluate(&d, &lib, params).unwrap().components.remove(0).body;
+        let top = face_along(&block, &frame, [0.0, 0.0, 1.0]);
+        // A 1 mm square 1 to 2 mm out along the top face's x, turned half round the face's own y axis.
+        let mut square = Sketch::rectangle(1.0, 1.0);
+        for p in &mut square.points {
+            p.xy[0] += 1.5;
+        }
+        square.plane.on_face = Some(FaceAnchor { feature: 1, face: FaceRef::signed(&block, top, &frame) });
+        let plane = sketch_plane(&square, &block, &frame, &mut Vec::new()).unwrap();
+        let turned = |h: f64, turn: &Operation| -> Result<(f64, [f64; 3]), String> {
+            let d = design_of(vec![boxed(h), feature(2, Operation::Sketch { sketch: square.clone() }), feature(3, turn.clone())], vec![1, 3]);
+            let e = evaluate(&d, &lib, params).unwrap();
+            if let Some((_, why)) = e.failures().first() {
+                return Err(why.to_string());
+            }
+            let c = e.components.into_iter().find(|c| c.id == 3).unwrap();
+            let n = c.trace.positions.len() as f64;
+            let mean: [f64; 3] = std::array::from_fn(|k| c.trace.positions.iter().map(|p| p[k]).sum::<f64>() / n);
+            Ok((c.mesh.volume_mm3(), mean))
+        };
+        let local = Operation::Revolve { sketch: Profile::Feature { feature: 2 }, pivot: [0.0; 3], axis: [0.0, 1.0, 0.0], degrees: 180.0, in_plane: true };
+        let world = Operation::Revolve { sketch: Profile::Feature { feature: 2 }, pivot: plane.origin, axis: plane.y_axis, degrees: 180.0, in_plane: false };
+        // Where the face stands as drawn, the line read in its plane is the world line through the same place.
+        let (v, at) = turned(2.0, &local).unwrap();
+        let (w, world_at) = turned(2.0, &world).unwrap();
+        assert!((v / (1.5 * PI) - 1.0).abs() < 0.005, "π/2 × (2² − 1²) × 1 = 1.5π mm³: {v}");
+        assert!((v - w).abs() < 1e-9 * v && sub(at, world_at).iter().all(|d| d.abs() < 1e-9), "{at:?} vs {world_at:?}");
+        // The box grows 2 mm about its centre: its top rises 1 mm, the line read in the face's plane rises with it and the ring it turns is the same.
+        let out = frame.z_axis;
+        let (v4, at4) = turned(4.0, &local).unwrap();
+        let step = sub(at4, at);
+        assert!((v4 - v).abs() < 1e-6 * v, "{v4} vs {v}");
+        assert!((dot(step, out) - 1.0).abs() < 1e-6 && dot(step, frame.x_axis).abs() < 1e-6 && dot(step, frame.y_axis).abs() < 1e-6, "{step:?}");
+        // The world line stays where it was drawn, a millimetre under the face, and a profile turns only about a line in its own plane.
+        assert_eq!(turned(4.0, &world), Err("Revolution: unsupported or degenerate geometry".into()));
+        // A build blind to the flag reads the plane's numbers as the world's: a line through the ring's centre, off the face, refused by name.
+        let blind = Operation::Revolve { sketch: Profile::Feature { feature: 2 }, pivot: [0.0; 3], axis: [0.0, 1.0, 0.0], degrees: 180.0, in_plane: false };
+        assert_eq!(turned(2.0, &blind), Err("Revolution: unsupported or degenerate geometry".into()));
+        // Saved, a world revolution writes no flag and reads back as it was; one read in its plane says so.
+        let text = serde_json::to_string(&Operation::Revolve { sketch: Profile::Feature { feature: 2 }, pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 90.0, in_plane: false }).unwrap();
+        assert_eq!(text, r#"{"Revolve":{"sketch":{"feature":2},"pivot":[0.0,0.0,0.0],"axis":[0.0,0.0,1.0],"degrees":90.0}}"#);
+        assert_eq!(serde_json::to_string(&serde_json::from_str::<Operation>(&text).unwrap()).unwrap(), text);
+        let text = serde_json::to_string(&local).unwrap();
+        assert!(text.ends_with(r#""degrees":180.0,"in_plane":true}}"#), "{text}");
+        assert!(matches!(serde_json::from_str::<Operation>(&text).unwrap(), Operation::Revolve { in_plane: true, .. }));
     }
 
     #[test]
@@ -4216,7 +4306,7 @@ mod sketch_tests {
             frame.entity(Geometry::Polyline { points: p.to_vec(), closed: true });
         }
         for (degrees, share) in [(360.0, 1.0), (180.0, 0.5)] {
-            let op = Operation::Revolve { sketch: frame.clone().into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees };
+            let op = Operation::Revolve { sketch: frame.clone().into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees, in_plane: false };
             let e = evaluate(&design_of(vec![feature(1, op)], vec![1]), &lib, export).unwrap();
             assert!(e.failures().is_empty(), "{degrees}: {:?}", e.failures());
             let c = &e.components[0];

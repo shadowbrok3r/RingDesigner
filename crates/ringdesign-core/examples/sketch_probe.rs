@@ -146,7 +146,7 @@ fn main() {
         section.entity(Geometry::Polyline { points: p.to_vec(), closed: true });
     }
     for degrees in [360.0, 180.0] {
-        let op = Operation::Revolve { sketch: section.clone().into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees };
+        let op = Operation::Revolve { sketch: section.clone().into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees, in_plane: false };
         let d = design(vec![feature(1, op)], vec![1]);
         let (ms, e) = best(|| cad::evaluate(&d, &lib, export).unwrap());
         let r = &e.components[0];

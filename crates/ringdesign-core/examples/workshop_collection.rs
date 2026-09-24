@@ -169,6 +169,7 @@ fn lantern() -> RingDesign {
             pivot: [0.; 3],
             axis: [0., 0., 1.],
             degrees: 360.,
+            in_plane: false,
         },
         ComponentRole::Shank,
     );

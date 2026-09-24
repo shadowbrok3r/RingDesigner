@@ -381,8 +381,7 @@ fn a_cut_below_its_sketch_round_trips_byte_for_byte_through_both_appliers() {
     (rect.plane.x, rect.plane.y) = (frame.x_axis, frame.y_axis);
     let mut cut = feature(21, "Extrude cut", Operation::Extrude { sketch: Profile::Feature { feature: 20 }, height_mm: -1.0, draft_deg: 3.0 });
     cut.component.attach = Attach::Cut;
-    let pivot = std::array::from_fn(|k| rect.plane.origin[k] - frame.x_axis[k] * 1.5);
-    let mut turn = feature(22, "Revolve cut", Operation::Revolve { sketch: Profile::Feature { feature: 20 }, pivot, axis: frame.y_axis, degrees: 180.0 });
+    let mut turn = feature(22, "Revolve cut", Operation::Revolve { sketch: Profile::Feature { feature: 20 }, pivot: [-1.5, 0.0, 0.0], axis: [0.0, 1.0, 0.0], degrees: 180.0, in_plane: true });
     turn.component.attach = Attach::Cut;
     let edits = [
         CadEdit::Add { feature: feature(20, "Sketch", Operation::Sketch { sketch: rect }), after: None },
@@ -401,6 +400,7 @@ fn a_cut_below_its_sketch_round_trips_byte_for_byte_through_both_appliers() {
         assert_eq!(cad_bytes(&out), cad_bytes(&plain), "{edit:?}");
     }
     assert!(cad_bytes(&plain).contains(r#""height_mm":-0.6"#), "the height keeps its sign");
+    assert!(cad_bytes(&plain).contains(r#""degrees":180.0,"in_plane":true"#), "the revolution's line stays read in its sketch's plane");
     let reread: Graph = serde_json::from_str(&serde_json::to_string(&g).unwrap()).unwrap();
     assert_eq!(cad_bytes(&evaluate(&reread).unwrap()), cad_bytes(&plain));
     // Both build the same parts, the cuts carving the bezel.

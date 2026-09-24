@@ -857,7 +857,8 @@ impl Pad {
     }
 
     /// The operation the solid being set makes of sketch feature `sketch`; `None` while no solid is set.
-    /// A cut extrusion runs from the plane it was drawn on down into the metal, its walls opening toward the plane by the draft.
+    /// A cut extrusion runs from the plane it was drawn on down into the metal, its walls opening toward the plane by the draft;
+    /// a revolution's line is read in the sketch's plane, so it moves with the face the sketch lies on.
     pub fn solid(&self, sketch: Id) -> Option<Operation> {
         self.frame?;
         let profile = match self.pick {
@@ -867,9 +868,9 @@ impl Pad {
         match &self.stage {
             Stage::Extrude if self.cutting() => Some(Operation::Extrude { sketch: profile, height_mm: -self.height.value, draft_deg: self.draft.value }),
             Stage::Extrude => Some(Operation::Extrude { sketch: profile, height_mm: self.height.value, draft_deg: self.draft.value }),
-            Stage::Revolve { .. } => {
-                let (pivot, axis) = self.revolution()?;
-                Some(Operation::Revolve { sketch: profile, pivot, axis, degrees: self.degrees.value })
+            Stage::Revolve { pivot, dir, .. } => {
+                let sign = if self.cutting() { -1.0 } else { 1.0 };
+                Some(Operation::Revolve { sketch: profile, pivot: [pivot[0], pivot[1], 0.0], axis: [dir[0] * sign, dir[1] * sign, 0.0], degrees: self.degrees.value, in_plane: true })
             }
             _ => None,
         }
@@ -1275,8 +1276,10 @@ mod tests {
         let ray = Ray { origin: std::array::from_fn(|k| to[k] + f.y[k] * 20.0), direction: f.y.map(|v| -v) };
         assert!(pad.pull(ray));
         assert!((pad.degrees() - 90.0).abs() < 1e-9, "{}", pad.degrees());
-        let Some(Operation::Revolve { pivot, axis, degrees, .. }) = pad.solid(7) else { panic!() };
-        assert!(distance(f.local(pivot), [0.0, 0.0]) < 1e-9 && dot(axis, f.y).abs() > 1.0 - 1e-9 && degrees == 90.0);
+        let Some(Operation::Revolve { pivot, axis: local, degrees, in_plane: true, .. }) = pad.solid(7) else { panic!() };
+        assert!(pivot == [0.0; 3] && local[0] == 0.0 && local[1].abs() == 1.0 && local[2] == 0.0 && degrees == 90.0, "the sketch's y axis, read in its plane");
+        let (at, axis) = pad.revolution().unwrap();
+        assert!(distance(f.local(at), [0.0, 0.0]) < 1e-9 && sub(axis, f.vector([local[0], local[1]])).iter().all(|v| v.abs() < 1e-12));
         let off = sub(base, quarter);
         assert!(dot(cross(axis, off), f.n) > 0.0, "a positive turn swings the region out of the face");
         // The other side of the axis reads the long way round.
@@ -1629,10 +1632,11 @@ mod tests {
         let (pivot, axis) = pad.revolution().unwrap();
         pad.set_attach(&d, Attach::Cut);
         assert_eq!(pad.revolution(), Some((pivot, axis.map(|v| -v))), "a cut turns the other way round the same line");
-        let Some(Operation::Revolve { axis: cut_axis, .. }) = pad.solid(7) else { panic!() };
-        assert_eq!(cut_axis, axis.map(|v| -v));
-        // A positive turn of the cut swings the region into the box, against the face's normal.
         let f = *pad.frame().unwrap();
+        let Some(Operation::Revolve { axis: local, in_plane: true, .. }) = pad.solid(7) else { panic!() };
+        let cut_axis = f.vector([local[0], local[1]]);
+        assert!(sub(cut_axis, axis.map(|v| -v)).iter().all(|v| v.abs() < 1e-12) && local[2] == 0.0);
+        // A positive turn of the cut swings the region into the box, against the face's normal.
         let base = pad.anchor().unwrap();
         assert!(dot(cross(cut_axis, sub(base, pivot)), f.n) < 0.0);
         // Half a turn carves a half ring of the region round the y axis out of the box.
@@ -1667,6 +1671,55 @@ mod tests {
         assert_eq!(doc.features.iter().filter(|f| matches!(f.operation, Operation::Sketch { .. })).count(), 1, "one sketch, read by both");
         let after = mesh::build(&q.design, &AlphaLibrary::builtin(), params());
         assert_eq!((after.parts.joined, after.parts.cut), (2, 1), "{:?}", after.parts.notes);
+    }
+
+    #[test]
+    fn a_revolution_cut_turns_about_a_line_in_its_sketch_plane_and_follows_the_face_it_was_drawn_on() {
+        let d = boxed();
+        let (built, mut pad) = on_top(&d);
+        pad.set_tool(Tool::Rectangle);
+        tap(&mut pad, [0.5, -0.5]);
+        tap(&mut pad, [1.5, 0.5]);
+        pad.finish();
+        pad.make(Make::Revolve);
+        tap(&mut pad, [0.05, 1.7]);
+        pad.set_attach(&d, Attach::Cut);
+        pad.typed("angle", 180.0);
+        let p = prepare(&d, &pad.edits(&d).unwrap(), built.parts.evaluated.as_ref()).unwrap().unwrap();
+        let turn = p.applied[1].id.unwrap();
+        let Operation::Revolve { pivot, axis, in_plane: true, .. } = p.design.cad.as_ref().unwrap().feature(turn).unwrap().operation else { panic!() };
+        assert!(pivot == [0.0; 3] && axis[0] == 0.0 && axis[1].abs() == 1.0 && axis[2] == 0.0, "the sketch's own y axis: {pivot:?} {axis:?}");
+        // The box grows a millimetre about its centre: its top rises half of it, the sketch with it, and the cut's line with the sketch.
+        let grown = |d: &RingDesign, cut: bool| {
+            let mut d = d.clone();
+            let doc = d.cad.as_mut().unwrap();
+            doc.features.iter_mut().find(|f| f.id == 2).unwrap().operation = Operation::Box { size: [6.0, 4.0, 3.0] };
+            doc.features.iter_mut().find(|f| f.id == turn).unwrap().enabled = cut;
+            d
+        };
+        let plain = mesh::build(&grown(&p.design, false), &AlphaLibrary::builtin(), params());
+        let after = mesh::build(&grown(&p.design, true), &AlphaLibrary::builtin(), params());
+        assert_eq!(after.parts.cut, 1, "{:?}", after.parts.notes);
+        let taken = plain.mesh.volume_mm3() - after.mesh.volume_mm3();
+        assert!((taken - std::f64::consts::PI).abs() < 0.01, "π mm³ out of the grown box: {taken:.4}");
+        let (_, sketch) = p.design.cad.as_ref().unwrap().features.iter().find_map(|f| match &f.operation {
+            Operation::Sketch { sketch } => Some((f.id, sketch.clone())),
+            _ => None,
+        }).unwrap();
+        let (risen, _) = resolve(&sketch, &after).unwrap();
+        let f = *pad.frame().unwrap();
+        assert!((dot(sub(risen.origin, f.origin), f.n) - 0.5).abs() < 1e-9, "the face rose half a millimetre");
+        let mouth = |uv: [f64; 2]| (uv[0].abs() - 1.0).abs() < 0.45 && uv[1].abs() < 0.45;
+        assert_eq!(skin(&after.mesh, &risen, mouth), 0, "the cut opens through the risen face");
+        // The same line in the world stays where it was drawn, half a millimetre under the risen face, and no profile turns about a line off its plane.
+        let mut world = p.design.clone();
+        let (at, line) = pad.revolution().unwrap();
+        let Operation::Revolve { pivot, axis, in_plane, .. } = &mut world.cad.as_mut().unwrap().features.iter_mut().find(|f| f.id == turn).unwrap().operation else { panic!() };
+        (*pivot, *axis, *in_plane) = (at, line, false);
+        let stayed = mesh::build(&grown(&world, true), &AlphaLibrary::builtin(), params());
+        assert_eq!(stayed.parts.cut, 0);
+        assert!(stayed.parts.notes.iter().any(|n| n.ends_with("Revolution: unsupported or degenerate geometry")), "{:?}", stayed.parts.notes);
+        assert!((stayed.mesh.volume_mm3() - plain.mesh.volume_mm3()).abs() < 1e-6, "nothing is carved from the grown box");
     }
 
     #[test]

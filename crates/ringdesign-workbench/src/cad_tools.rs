@@ -142,6 +142,7 @@ pub fn starters(source: u64, second: u64) -> Vec<Operation> {
             pivot: [0.0; 3],
             axis: [0.0, 0.0, 1.0],
             degrees: 360.0,
+            in_plane: false,
         },
         Operation::Sweep {
             sketch: Sketch::circle(1.0).into(),

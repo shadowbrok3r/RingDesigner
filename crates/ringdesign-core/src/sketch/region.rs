@@ -555,7 +555,7 @@ mod tests {
             assert!((c.mesh.volume_mm3() - volume).abs() < 1e-6, "{} against {volume}", c.mesh.volume_mm3());
         }
         // The left region turned a full turn about the finger's axis: a washer 5 to 7 mm out, 2 mm tall.
-        let turn = Operation::Revolve { sketch: Profile::Region { feature: 1, region: pick(a) }, pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0 };
+        let turn = Operation::Revolve { sketch: Profile::Region { feature: 1, region: pick(a) }, pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0, in_plane: false };
         let e = evaluate(&design(&s, turn), &lib, params).unwrap();
         assert!(e.failures().is_empty(), "{:?}", e.failures());
         let expected = std::f64::consts::PI * (49.0 - 25.0) * 2.0;

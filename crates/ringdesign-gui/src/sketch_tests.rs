@@ -650,11 +650,11 @@ fn a_region_revolves_about_the_line_clicked_for_its_axis() {
     press(&mut h, Key::Enter);
     assert!(!h.state().sketch.is_live(), "{}", h.state().status);
     let revolve = h.state().design.cad.as_ref().unwrap().features.last().cloned().unwrap();
-    let Operation::Revolve { sketch, pivot, axis, degrees } = &revolve.operation else { panic!("{:?}", revolve.operation) };
-    assert_eq!((sketch.feature(), *degrees), (Some(id), 180.0));
-    assert!(axis[0].abs() < 1e-9 && axis[1].abs() < 1e-9 && (axis[2].abs() - 1.0).abs() < 1e-9, "the rectangle's inner side runs along the finger: {axis:?}");
-    let radial = [45f64.to_radians().cos(), 45f64.to_radians().sin()];
-    assert!((pivot[0] * radial[0] + pivot[1] * radial[1] - r).abs() < 1e-9, "{pivot:?}");
+    let Operation::Revolve { sketch, pivot, axis, degrees, in_plane } = &revolve.operation else { panic!("{:?}", revolve.operation) };
+    assert_eq!((sketch.feature(), *degrees, *in_plane), (Some(id), 180.0, true));
+    // Read in the section's plane, whose x runs out from the finger and y along it.
+    assert!(axis[0].abs() < 1e-9 && (axis[1].abs() - 1.0).abs() < 1e-9 && axis[2].abs() < 1e-9, "the rectangle's inner side runs along the finger: {axis:?}");
+    assert!((pivot[0] - r).abs() < 1e-9 && pivot[2].abs() < 1e-9, "{pivot:?}");
     assert_eq!(revolve.component.attach, Attach::Join);
 }
 
