@@ -562,22 +562,84 @@ mod tests {
         assert!(Joints::new(0.0, 10.0, |_| 0.0, 1).0.len() < MAX_JOINTS + 1);
     }
 
-    /// A relief falling from the parting line keeps every texel; a bump 1.2 mm off it loses 0.44 mm; a second pass takes nothing.
+    /// Least share of a sample's normal along the radius at its column's crest row.
+    fn crest_facing(a: &Atlas) -> f64 {
+        (0..a.width)
+            .map(|x| {
+                let y = (1..a.height - 1).min_by(|p, q| a.at(x, *p).p[2].abs().total_cmp(&a.at(x, *q).p[2].abs())).unwrap();
+                let s = a.at(x, y);
+                (s.n[0] * s.p[0] + s.n[1] * s.p[1]) / s.p[0].hypot(s.p[1])
+            })
+            .fold(f64::MAX, f64::min)
+    }
+
+    /// Most the radius of the relieved surface climbs between two rows walking out from any column's crest, mm.
+    fn worst_climb(a: &Atlas, alpha: &Alpha, height_mm: f64) -> f64 {
+        let (w, h) = (a.width, a.height);
+        let mut worst = f64::MIN;
+        for x in 0..w {
+            let r = |y: usize| {
+                let (s, d) = (a.at(x, y), alpha.data[y * w + x] as f64 * height_mm);
+                (s.p[0] + d * s.n[0]).hypot(s.p[1] + d * s.n[1])
+            };
+            let crest = (1..h - 1).min_by(|p, q| a.at(x, *p).p[2].abs().total_cmp(&a.at(x, *q).p[2].abs())).unwrap();
+            for y in crest + 1..h - 1 {
+                worst = worst.max(r(y) - r(y - 1));
+            }
+            for y in 1..crest {
+                worst = worst.max(r(y) - r(y + 1));
+            }
+        }
+        worst
+    }
+
+    /// Normals face out; a relief falling from the parting line keeps every texel; a bump 1.2 mm off it climbs 0.070 mm a row, loses 0.44 mm and then climbs under 0.0005; a second pass takes nothing.
     #[test]
     fn the_draft_rule_cuts_what_faces_back_and_nothing_else() {
         let mut d = RingDesign::default();
         d.profile.apply_style(ProfileStyle::LowDome);
         let a = Atlas::of(&d, 256, 192).unwrap();
+        let facing = crest_facing(&a);
+        assert!(facing > 0.999, "a crest normal is only {facing} radial");
         let hide = Hide::of(&a);
         let mut falling = a.paint("falling", |s| 1.0 - hide.at(s).across.abs() / 3.0);
         assert_eq!(draft_clamp(&a, &mut falling, 0.5).unwrap(), ClampReport::default());
         let mut bump = a.paint("bump", |s| 1.0 - smoothstep(0.2, 0.6, (hide.at(s).across - 1.2).abs()));
+        let raw = worst_climb(&a, &bump, 0.5);
         let cut = draft_clamp(&a, &mut bump, 0.5).unwrap();
-        eprintln!("bump: {cut:?}");
-        assert!(cut.texels_cut > 256 && cut.worst_mm > 0.3, "{cut:?}");
+        let (bare, falls, held) = (worst_climb(&a, &Alpha::new("bare", 256, 192, vec![0.0; 256 * 192]), 0.5), worst_climb(&a, &falling, 0.5), worst_climb(&a, &bump, 0.5));
+        eprintln!("bump: {cut:?}; climb bare {bare:.6}, falling {falls:.6}, bump raw {raw:.6}, clamped {held:.6} mm");
+        assert!((cut.worst_mm - 0.4408).abs() < 0.005 && cut.texels_cut.abs_diff(6144) <= 32, "{cut:?}");
+        assert!(raw > 0.06, "the raw bump climbs only {raw} mm");
+        assert!(bare.max(falls) <= 0.0 && held < 5e-4, "bare {bare}, falling {falls}, clamped {held}");
         assert_eq!(draft_clamp(&a, &mut bump, 0.5).unwrap(), ClampReport::default());
         let mut wrong = Alpha::new("wrong", 8, 8, vec![0.0; 64]);
         assert!(draft_clamp(&a, &mut wrong, 0.5).is_err());
+    }
+
+    /// Relief climbing a squared side face away from the parting line faces the pull and keeps every texel.
+    #[test]
+    fn relief_climbs_a_face_that_faces_the_pull() {
+        let mut d = RingDesign::default();
+        d.profile.apply_style(ProfileStyle::Flat);
+        d.profile.flatten_sides();
+        let a = Atlas::of(&d, 256, 192).unwrap();
+        let facing = crest_facing(&a);
+        assert!(facing > 0.999, "a crest normal is only {facing} radial");
+        let hide = Hide::of(&a);
+        let mut climb = a.paint("climb", |s| {
+            let p = hide.at(s);
+            ((p.across.abs() - p.rim - 0.2) / 0.7).clamp(0.0, 1.0)
+        });
+        let rising: Vec<&Sample> = a.samples.iter().filter(|s| (0.01..0.99).contains(&climb.data[s.i])).collect();
+        let square = rising.iter().map(|s| s.n[2].abs()).fold(f64::MAX, f64::min);
+        let raised = climb.data.iter().filter(|t| **t > 0.99).count();
+        let before = worst_climb(&a, &climb, 0.5);
+        let cut = draft_clamp(&a, &mut climb, 0.5).unwrap();
+        eprintln!("side face: {} texels rising, least |n.z| {square:.4}, {raised} at full height, climb {before:.6} mm, {cut:?}", rising.len());
+        assert!(rising.len() > 256 * 16 && square > 0.99 && raised > 256 * 16, "{} rising at |n.z| >= {square}, {raised} raised", rising.len());
+        assert!(before <= 0.0, "{before}");
+        assert_eq!(cut, ClampReport::default());
     }
 
     /// On a plain band the hide reaches half the crest's circumference, crosses z = 0 on the parting line, and has no folds.
@@ -602,7 +664,7 @@ mod tests {
         assert_eq!((t.repeats_around, t.rows, t.v_span_mm, e.blend), (1, 1, d.field_context().band_v_len_mm, Blend::Max));
     }
 
-    /// 013's master is the same twice, its sections mirror within 0.004 mm, and its parting line runs through the head's centre.
+    /// 013's master is the same twice, its sections mirror within 0.004 mm, its atlas faces out, and its parting line runs through the head's centre.
     #[test]
     fn a_sand_master_is_its_own_mirror() {
         let source = crate::imported_base::PRESETS.iter().find(|p| p.id == "013").unwrap().load().unwrap();
@@ -627,6 +689,9 @@ mod tests {
         eprintln!("013 master: {} vertices, {} faces, worst section mirror miss {worst:.4} mm", a.vertices.len(), a.faces.len());
         assert!(worst < 0.02, "{worst}");
         let atlas = Atlas::of(&d, 256, 96).unwrap();
+        let facing = crest_facing(&atlas);
+        eprintln!("013 master: least crest normal share along the radius {facing:.4}");
+        assert!(facing > 0.7, "{facing}");
         let hide = Hide::of(&atlas);
         let head = hide.crest_point(&atlas, 0.0);
         assert!(head[0].abs() < 0.2 && head[2].abs() < 0.1 && head[1] > atlas.top - 0.2, "{head:?} against top {}", atlas.top);
