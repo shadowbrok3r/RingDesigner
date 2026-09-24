@@ -25,7 +25,7 @@ const WEB: &str = "Orb web";
 const PALM_WEB: &str = "Palm orb web";
 const PALM_DEG: f64 = 270.0;
 /// Half the palm web's reach round the ring and across the crown, chart mm.
-const PALM_WEB_HALF: [f64; 2] = [18.0, 2.8];
+const PALM_WEB_HALF: [f64; 2] = [21.5, 2.8];
 
 type P2 = [f64; 2];
 type P3 = [f64; 3];
@@ -83,7 +83,7 @@ fn carapace(ctx: &ringdesign_core::FieldContext) -> SeatPadLayer {
         metal_true: true,
         solid: SolidKind::Bezel,
         blend_mm: 0.6,
-        crown: 0.3,
+        crown: 0.72,
         ..Default::default()
     };
     seat.fit_stone(garnet());
@@ -102,7 +102,7 @@ fn abdomen(ctx: &ringdesign_core::FieldContext) -> SeatPadLayer {
         metal_true: true,
         solid: SolidKind::Bezel,
         blend_mm: 0.6,
-        crown: 0.1,
+        crown: 0.72,
         ..Default::default()
     };
     seat.fit_stone(onyx());
@@ -159,8 +159,8 @@ fn web(d: &mut RingDesign) -> Result<()> {
 }
 
 /// The palm's orb web in chart millimetres: a hub on the crest, radials to the crest's two ends and to
-/// anchors on both band edges, and capture threads round the hub, each sagging toward it, running only
-/// between radials long enough to hold them.
+/// anchors on both band edges, capture threads round the hub sagging toward it between radials long
+/// enough to hold them, and past the orb only the long anchor lines fanning up the shoulders.
 fn palm_web_svg(half: [f64; 2]) -> String {
     let [l, h] = half;
     let (radial_w, capture_w, hub_r) = (0.36, 0.32, 0.55);
@@ -168,9 +168,10 @@ fn palm_web_svg(half: [f64; 2]) -> String {
         r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="{:.4} {:.4} {:.4} {:.4}" width="{:.4}" height="{:.4}"><rect x="{:.4}" y="{:.4}" width="{:.4}" height="{:.4}" fill="#fff"/><g fill="none" stroke="#000" stroke-linecap="round">"##,
         -l, -h, 2.0 * l, 2.0 * h, 2.0 * l, 2.0 * h, -l, -h, 2.0 * l, 2.0 * h
     );
-    // Radials: the crest both ways, and anchors on each edge a little past the band.
-    let mut ends: Vec<[f64; 2]> = vec![[l * 1.02, 0.0], [-l * 1.02, 0.0]];
-    for u in [0.95, 2.7, 5.4, 9.2, 14.0] {
+    // Radials: the crest both ways to an anchor inside the web's reach, and anchors on each edge a little past the crown.
+    let crest_end = l - 0.45;
+    let mut ends: Vec<[f64; 2]> = vec![[crest_end, 0.0], [-crest_end, 0.0]];
+    for u in [0.95, 2.7, 5.4, 9.2, 14.0, 19.5] {
         for (su, sv) in [(1.0, 1.0), (-1.0, 1.0), (1.0, -1.0), (-1.0, -1.0)] {
             ends.push([su * u, sv * h * 1.08]);
         }
@@ -180,7 +181,7 @@ fn palm_web_svg(half: [f64; 2]) -> String {
         s += &format!(r##"<line x1="0" y1="0" x2="{:.4}" y2="{:.4}" stroke-width="{radial_w}"/>"##, e[0], e[1]);
     }
     let len = |e: &[f64; 2]| e[0].hypot(e[1]);
-    for d in [1.15, 1.75, 2.4, 3.15, 4.0, 5.0, 6.2, 7.6, 9.2, 11.0, 12.9, 14.9, 17.0] {
+    for d in [1.15, 1.75, 2.4, 3.15, 4.0, 5.0, 6.1, 7.3, 8.6, 10.0] {
         for k in 0..ends.len() {
             let (a, b) = (ends[k], ends[(k + 1) % ends.len()]);
             if len(&a) < d || len(&b) < d {
@@ -194,7 +195,10 @@ fn palm_web_svg(half: [f64; 2]) -> String {
             );
         }
     }
-    s += &format!(r##"</g><circle cx="0" cy="0" r="{hub_r}" fill="#000"/></svg>"##);
+    s += &format!(
+        r##"</g><circle cx="0" cy="0" r="{hub_r}" fill="#000"/><circle cx="{crest_end:.4}" cy="0" r="0.32" fill="#000"/><circle cx="{:.4}" cy="0" r="0.32" fill="#000"/></svg>"##,
+        -crest_end
+    );
     s
 }
 
@@ -615,9 +619,9 @@ fn abdomen_body(d: &mut RingDesign) -> Result<()> {
     let next = doc.features.iter().map(|f| f.id).max().unwrap_or(0) + 1;
     let gem = onyx();
     let wall = ringdesign_core::setting::collet_wall_mm(gem);
-    // A lip round the collet's wall just under the stone's back; the part's x runs across the band and y round the ring.
-    let (a, b) = (gem.w_mm * 0.5 + 0.03 + 0.87 * wall, gem.l_mm * 0.5 + 0.03 + 0.87 * wall);
-    let (top, bottom, widest, swell, foot) = (0.26, -2.3, 0.32, 0.1, 0.34);
+    // The collet's own wall just under the stone's back; the part's x runs across the band and y round the ring.
+    let (a, b) = (gem.w_mm * 0.5 + 0.03 + 0.78 * wall, gem.l_mm * 0.5 + 0.03 + 0.78 * wall);
+    let (top, bottom, widest, swell, foot) = (0.26, -2.3, 0.4, 0.14, 0.34);
     // Scale of the collet's plan down the belly: out to the swell, then round and in to the foot.
     let scale = |t: f64| {
         if t <= widest {
@@ -681,6 +685,9 @@ struct Report {
     parts_joined: usize,
     field_verdict: String,
     field_notes: Vec<String>,
+    /// The CAD parts read against a two-part pull on the built ring: reported under lost wax, never gating.
+    parts_undercut_mm2: f64,
+    parts_area_mm2: f64,
     undercut_percent: f64,
     worst_draft_deg: f64,
     thinnest_wall_mm: f64,
@@ -812,11 +819,11 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
     ] {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
     }
-    // The close-up frames on the spider: the metal within reach of its two stones.
+    // The close-up frames on the spider, the metal within reach of its two stones, and draws the whole ring.
     let frames = ringdesign_core::stones::stone_frames(d);
     let centre: P3 = std::array::from_fn(|k| frames.iter().map(|(_, f)| f.girdle[k]).sum::<f64>() / frames.len().max(1) as f64);
     let spider = crop(&built.mesh, centre, 11.0);
-    let mut close = vec![render::Part::metal(&spider, render::GOLD)];
+    let mut close = vec![render::Part::metal(&spider, render::GOLD), render::Part::metal(&built.mesh, render::GOLD)];
     close.extend(stone_parts());
     render::write_png_parts(out.join("stones.png"), &close, 0.35, 1.05, edge)?;
     // Bare stock against the finished ring, at the hero's angle.
@@ -899,7 +906,8 @@ fn main() -> Result<()> {
     let v = &built.report.validation;
     println!("  {} triangles in {build_s:.1} s; watertight {}; degenerate {}", built.mesh.faces.len(), v.watertight, built.report.quality.degenerate_faces);
     let (made_parts, seat_solids) = crossings(&d, &built);
-    let field = castability::attributed_field_report(&d, &lib, &d.draft, 256, 128);
+    let mut field = castability::attributed_field_report(&d, &lib, &d.draft, 256, 128);
+    castability::judge_parts(&mut field, &d, &built);
     let findings = dfm::findings_in(&d, &lib);
     let stones_report = ringdesign_core::stones::report(&d, field.parting_z_mm);
     let previewed = stones(&d, &lib).len();
@@ -937,6 +945,8 @@ fn main() -> Result<()> {
         parts_joined: built.parts.joined,
         field_verdict: field.verdict.label().into(),
         field_notes: field.notes.clone(),
+        parts_undercut_mm2: field.parts.iter().map(|p| p.undercut_area_mm2).sum(),
+        parts_area_mm2: field.parts.iter().map(|p| p.total_area_mm2).sum(),
         undercut_percent: field.undercut_fraction() * 100.0,
         worst_draft_deg: field.worst_draft_deg,
         thinnest_wall_mm: field.thinnest_wall_mm,
