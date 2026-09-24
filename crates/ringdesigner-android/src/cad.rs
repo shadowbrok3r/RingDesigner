@@ -33,10 +33,10 @@ use ringdesign_workbench::{
 
 use crate::camera::OrbitCamera;
 
-/// The areas the CAD layer draws over the ring: its menus, a live command's caption and its dimension fields, a mode's bar, and a sketch's tools and fields.
-pub fn areas() -> [egui::Id; 6] {
+/// The areas the CAD layer draws over the ring: its menus, a live command's caption and its dimension fields, a mode's bar, a sketch's tools and fields, and the stamp window.
+pub fn areas() -> [egui::Id; 7] {
     let [tools, fields] = sketch::areas();
-    [menu::area(), command::caption_area(), command::fields_area(), bar::area(), tools, fields]
+    [menu::area(), command::caption_area(), command::fields_area(), bar::area(), tools, fields, stamp::id()]
 }
 
 /// Asks for the number keypad while a field of a live command's or a sketch's dimension bar holds the keyboard; whether it did.

@@ -442,7 +442,7 @@ fn the_commands_bars_stand_away_from_the_finger_and_never_overlap_even_when_the_
     b.step(Vec::new());
     b.step(Vec::new());
     let areas = |b: &Bench| {
-        let [_, caption, fields, _, _, _] = super::areas().map(|id| b.ctx.memory(|m| m.area_rect(id)));
+        let [_, caption, fields, _, _, _, _] = super::areas().map(|id| b.ctx.memory(|m| m.area_rect(id)));
         (caption.expect("the caption is drawn"), fields.expect("the fields are drawn"))
     };
     let (caption, fields) = areas(&b);

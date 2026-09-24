@@ -180,14 +180,14 @@ impl RingApp {
         }
     }
 
-    /// The stamp chosen for editing, in a window low in `view` clear of `covered`: a settled change is one History entry.
-    pub(super) fn stamp_window(&mut self, ctx: &egui::Context, view: egui::Rect, covered: &[egui::Rect]) {
+    /// The stamp chosen for editing, in a window low in `view` clear of what stands `over` it: a settled change is one History entry.
+    pub(super) fn stamp_window(&mut self, ctx: &egui::Context, view: egui::Rect, over: crate::cad::stamp::Over<'_>) {
         let Some(i) = self.stamp_window else { return };
         let Some(mut stamp) = self.design.stamps.get(i).cloned() else {
             self.stamp_window = None;
             return;
         };
-        let (read, open) = crate::cad::stamp::show(ctx, view, covered, &mut stamp);
+        let (read, open) = crate::cad::stamp::show(ctx, view, over, &mut stamp);
         if read.changed {
             self.design.stamps[i] = stamp;
             self.mark_dirty();
