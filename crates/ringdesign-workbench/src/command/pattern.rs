@@ -141,7 +141,7 @@ pub enum Pull {
     BoxSize { axis: usize, sign: f64 },
     /// A cylinder's height, its seat moved half the pull along the normal.
     CylinderHeight { sign: f64 },
-    /// An extrusion's height: its base stays on its sketch.
+    /// An extrusion's height: its base stays on its sketch, and a cut's far face is the one below it.
     ExtrudeHeight,
 }
 
@@ -153,9 +153,9 @@ pub fn pull_of(f: &Feature, face: &FaceRef) -> Option<Pull> {
     match &f.operation {
         Operation::Box { .. } if upright && along_z => Some(Pull::BoxSize { axis: 2, sign: n[2].signum() }),
         Operation::Cylinder { .. } if upright && along_z => Some(Pull::CylinderHeight { sign: n[2].signum() }),
-        Operation::Extrude { sketch: Profile::Inline(s), .. } if s.plane.on_face.is_none() => {
+        Operation::Extrude { sketch: Profile::Inline(s), height_mm, .. } if s.plane.on_face.is_none() => {
             let normal = s.plane.plane().ok()?.normal()?;
-            (dot(normal, n) > 1.0 - 1e-6).then_some(Pull::ExtrudeHeight)
+            (dot(normal, n) * height_mm.signum() > 1.0 - 1e-6).then_some(Pull::ExtrudeHeight)
         }
         _ => None,
     }
@@ -234,7 +234,7 @@ impl PressPullCmd {
             ],
             (Some(Pull::ExtrudeHeight), Operation::Extrude { sketch, height_mm, draft_deg }) => vec![Effect::Operation {
                 feature,
-                operation: Operation::Extrude { sketch: sketch.clone(), height_mm: Self::grown("extrusion", *height_mm, d)?, draft_deg: *draft_deg },
+                operation: Operation::Extrude { sketch: sketch.clone(), height_mm: height_mm.signum() * Self::grown("extrusion", height_mm.abs(), d)?, draft_deg: *draft_deg },
             }],
             _ => {
                 let operation = Operation::PressPull { source: feature, face: self.face.clone(), distance_mm: d };
@@ -443,6 +443,18 @@ mod tests {
         let boss = part(5, "Boss", Operation::Extrude { sketch: Sketch::rectangle(2.0, 1.0).into(), height_mm: 1.5, draft_deg: 0.0 }, Placement::Free);
         assert_eq!(pull_of(&boss, &face(&boss, [0.0, 0.0, 1.0]).1), Some(Pull::ExtrudeHeight));
         assert_eq!(pull_of(&boss, &face(&boss, [0.0, 0.0, -1.0]).1), None);
+        // A cut's far cap faces down: pulled out 0.5 its 1.5 mm grows to 2.0 and stays a cut; its plane's cap is the kernel's.
+        let pocket = part(6, "Pocket", Operation::Extrude { sketch: Sketch::rectangle(2.0, 1.0).into(), height_mm: -1.5, draft_deg: 0.0 }, Placement::Free);
+        let (_, floor) = face(&pocket, [0.0, 0.0, -1.0]);
+        assert_eq!(pull_of(&pocket, &floor), Some(Pull::ExtrudeHeight));
+        assert_eq!(pull_of(&pocket, &face(&pocket, [0.0, 0.0, 1.0]).1), None);
+        let mut c = PressPullCmd::new(pocket.clone(), floor.clone(), Attach::Cut, [0.0, 0.0, -1.5], [0.0, 0.0, -1.0], 7);
+        c.feed(&StepInput::Typed { key: "distance", value: 0.5 });
+        let e = effects(c.feed(&StepInput::Confirm));
+        assert!(matches!(e.as_slice(), [Effect::Operation { feature: 6, operation: Operation::Extrude { height_mm, .. } }] if *height_mm == -2.0), "{e:?}");
+        let mut c = PressPullCmd::new(pocket, floor, Attach::Cut, [0.0, 0.0, -1.5], [0.0, 0.0, -1.0], 7);
+        c.feed(&StepInput::Typed { key: "distance", value: -2.0 });
+        assert_eq!(refused(c.feed(&StepInput::Confirm)), "Pushing 2.00 mm would flatten the extrusion; it is 1.50 mm through");
     }
 
     #[test]
