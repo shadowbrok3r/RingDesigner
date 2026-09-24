@@ -1454,9 +1454,7 @@ impl RingApp {
         self.design.drawn.len() - 1
     }
 
-    /// Re-bake one drawing into the shared library. `Arc::make_mut` deep-copies the whole library,
-    /// so this is done on stroke end rather than per sample — painting is a continuous stream of
-    /// edits against a continuously rebuilding preview, which is the pathological case for it.
+    /// Re-bake one drawing into the shared library, on stroke end rather than per sample: a bake re-rasterizes the whole drawing.
     fn bake(&mut self, index: usize) {
         let Some(d) = self.design.drawn.get(index) else {
             return;

@@ -1347,7 +1347,7 @@ fn paint_interaction(
 }
 
 /// Re-bake the band drawing into the shared library and refresh what shows it.
-/// On stroke end, not per sample: `Arc::make_mut` deep-copies the library.
+/// On stroke end, not per sample: a bake re-rasterizes the whole drawing.
 fn bake_band(app: &mut RingDesignerApp) {
     let Some(d) = app
         .design

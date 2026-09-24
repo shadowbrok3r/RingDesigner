@@ -729,8 +729,7 @@ impl RingDesignerApp {
         // A layer that reads a distance field and has not got one falls back
         // to brightness-as-height without a word, so turning "Crisp edge" on
         // looked like it did nothing. The check is a map lookup per
-        // edge-enabled layer; the bake — which deep-copies the library
-        // through `Arc::make_mut` — only runs when one is actually absent.
+        // edge-enabled layer; the bake only runs when one is actually absent.
         if self.design.sdfs_missing(&self.lib) {
             let design = self.design.clone();
             design.bake_sdfs(self.library_mut());
