@@ -349,13 +349,13 @@ const FEMUR_END_MM: f64 = 0.5;
 const KNEE_MM: f64 = 0.6;
 const TIBIA_END_MM: f64 = 0.42;
 const ANKLE_MM: f64 = 0.48;
-const TIP_MM: f64 = 0.29;
+const TIP_MM: f64 = 0.4;
 /// The ankle: this far out from the cheek and down from its top edge.
 const ANKLE_OUT_MM: f64 = 0.3;
 const ANKLE_DOWN_MM: f64 = 0.3;
 /// How deep the tarsus sits in the cheek at its middle and at its tip.
 const TARSUS_EMBED_MM: f64 = 0.16;
-const TIP_EMBED_MM: f64 = 0.42;
+const TIP_EMBED_MM: f64 = 0.5;
 
 /// One swept piece of a leg: its name, path, section and taper.
 struct Segment {
