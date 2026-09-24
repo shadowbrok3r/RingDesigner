@@ -11,7 +11,16 @@ use ringdesign_core::alpha::AlphaLibrary;
 use ringdesign_core::mesh::BuildParams;
 use ringdesign_core::RingDesign;
 
-use crate::ring::METAL_TINT;
+use crate::ring::{EXPORT, METAL_TINT, PREVIEW};
+
+/// The largest file handed to the share sheet, which copies it through one Java array.
+pub const SHARE_MAX_BYTES: u64 = 128 * 1024 * 1024;
+
+/// Why a written file `bytes` long is kept in the app's exports rather than shared, or `None` when it may go.
+pub fn share_refusal(bytes: u64) -> Option<String> {
+    let mb = |b: u64| b as f64 / 1048576.0;
+    (bytes > SHARE_MAX_BYTES).then(|| format!("{:.0} MB is past the {:.0} MB the share sheet carries: kept in the app's exports", mb(bytes), mb(SHARE_MAX_BYTES)))
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ExportKind {
@@ -66,6 +75,14 @@ impl ExportKind {
             ExportKind::Turntable => "turntable",
         }
     }
+
+    /// The grid a kind is built on: STEP's facets and the turntable's frames on the preview grid, every other file on the export grid.
+    pub fn params(self) -> BuildParams {
+        match self {
+            ExportKind::Step | ExportKind::Turntable => PREVIEW,
+            _ => EXPORT,
+        }
+    }
 }
 
 pub struct ExportJob {
@@ -115,7 +132,7 @@ fn write(job: &ExportJob) -> Result<String, Box<dyn std::error::Error>> {
         let exact = text.matches("=MANIFOLD_SOLID_BREP(").count() + text.matches("=BREP_WITH_VOIDS(").count();
         let faceted = text.matches("=FACETED_BREP(").count();
         ringdesign_core::library::write_atomic(&job.path, text.as_bytes())?;
-        return Ok(format!("STEP · {exact} exact and {faceted} faceted solid{} · {:.1} KB", if exact + faceted == 1 { "" } else { "s" }, text.len() as f64 / 1024.0));
+        return Ok(format!("STEP · {exact} exact and {faceted} faceted solid{} · {:.1} MB", if exact + faceted == 1 { "" } else { "s" }, text.len() as f64 / 1048576.0));
     }
     // Mesh files are patterns: under sand the made settings are left out and each seat carries its drill
     // mark. Everything else shows the finished ring.
@@ -263,7 +280,7 @@ mod tests {
         let done = run(job);
         assert!(done.ok, "{}", done.status);
         assert_eq!(done.name, "ring.step");
-        assert!(done.status.starts_with("STEP · 1 exact and 1 faceted solids"), "{}", done.status);
+        assert!(done.status.starts_with("STEP · 1 exact and 1 faceted solids · ") && done.status.ends_with(" MB"), "{}", done.status);
         let text = std::fs::read_to_string(&done.path).unwrap();
         assert!(text.starts_with("ISO-10303-21;"));
         // Read back, the band is one faceted solid and the post the exact one beside it.
@@ -272,5 +289,24 @@ mod tests {
         let (meshes, notes) = step::faceted_meshes(&text, "ring.step").unwrap();
         assert!(meshes.len() == 1 && meshes[0].validate().watertight && notes.len() == 1, "{notes:?}");
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_step_is_faceted_on_the_preview_grid_and_a_file_past_the_share_cap_stays_in_the_exports() {
+        let grid = |p: BuildParams| (p.theta_steps, p.profile_steps);
+        assert_eq!(grid(ExportKind::Step.params()), grid(PREVIEW));
+        assert_eq!(grid(ExportKind::Turntable.params()), grid(PREVIEW));
+        assert_eq!(grid(ExportKind::Stl.params()), grid(EXPORT));
+        // The Court band with a post as the phone shares it.
+        let mut design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let (edits, _) = ringdesign_workbench::touch::parts::part_here(&design, "Cylinder", 90.0, 0.0).unwrap();
+        design = ringdesign_workbench::touch::prepare(&design, &edits, None).unwrap().unwrap().design;
+        let text = ringdesign_core::cad::step::ring(&design, &AlphaLibrary::builtin(), ExportKind::Step.params(), "court").unwrap();
+        let mb = text.len() as f64 / 1048576.0;
+        assert!((mb - 34.91).abs() < 0.05, "110,592 band facets at about 330 bytes a facet: {mb:.2} MB");
+        assert_eq!(share_refusal(text.len() as u64), None);
+        assert_eq!(share_refusal(SHARE_MAX_BYTES), None);
+        // The 655k facets of the export grid wrote 227,548,616 bytes on the phone, and the share bridge ran out of heap copying them.
+        assert_eq!(share_refusal(227_548_616).unwrap(), "217 MB is past the 128 MB the share sheet carries: kept in the app's exports");
     }
 }

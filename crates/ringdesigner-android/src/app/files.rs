@@ -194,14 +194,17 @@ impl RingApp {
             ui.label(egui::RichText::new("No STL, OBJ or STEP in the app's imports or exports, or in Downloads").small().weak());
         }
         for f in files {
+            let too_big = crate::import::too_big(&f.name, f.bytes);
             ui.horizontal_wrapped(|ui| {
-                let import = ui.add_enabled(!busy, egui::Button::new(format!("Import {}", f.name)));
+                let import = ui.add_enabled(!busy && too_big.is_none(), egui::Button::new(format!("Import {}", f.name)));
                 crate::editor::layout::record(ui, format!("file/Import {}", f.name), import.rect);
                 if import.clicked() {
                     self.status = format!("Reading {}…", f.name);
                     self.importing = Some(crate::import::spawn(f.path.clone(), ui.ctx().clone()));
                 }
-                ui.label(egui::RichText::new(format!("{} · {:.0} KB", f.folder, f.bytes as f64 / 1024.0)).small().weak());
+                let size = if f.bytes < 1024 * 1024 { format!("{:.0} KB", f.bytes as f64 / 1024.0) } else { format!("{:.1} MB", f.bytes as f64 / 1048576.0) };
+                let note = if too_big.is_some() { " · too big to read here" } else { "" };
+                ui.label(egui::RichText::new(format!("{} · {size}{note}", f.folder)).small().weak());
             });
         }
         if busy {

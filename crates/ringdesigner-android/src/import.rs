@@ -13,6 +13,8 @@ pub const EXTENSIONS: [&str; 4] = ["stl", "obj", "step", "stp"];
 pub const DOWNLOADS: &str = "/storage/emulated/0/Download";
 /// The most part files one folder offers, newest first.
 const MAX_LISTED: usize = 40;
+/// The largest part file the phone reads.
+pub const MAX_IMPORT_BYTES: u64 = 32 * 1024 * 1024;
 
 /// A part file found in one of the folders looked in.
 #[derive(Clone, Debug, PartialEq)]
@@ -30,7 +32,7 @@ pub fn is_part(path: &Path) -> bool {
     path.extension().and_then(|e| e.to_str()).is_some_and(|e| EXTENSIONS.iter().any(|x| e.eq_ignore_ascii_case(x)))
 }
 
-/// The part files in `folders`, each folder's newest first; a folder that cannot be read offers none.
+/// The part files in `folders`, each folder's newest first, hidden and empty files left out; a folder that cannot be read offers none.
 pub fn candidates(folders: &[(&'static str, PathBuf)]) -> Vec<PartFile> {
     let mut out = Vec::new();
     for (folder, dir) in folders {
@@ -39,8 +41,9 @@ pub fn candidates(folders: &[(&'static str, PathBuf)]) -> Vec<PartFile> {
             .flatten()
             .filter_map(|e| {
                 let path = e.path();
-                let meta = e.metadata().ok().filter(|m| m.is_file())?;
-                is_part(&path).then(|| PartFile { name: e.file_name().to_string_lossy().into_owned(), folder, bytes: meta.len(), modified: meta.modified().ok(), path })
+                let name = e.file_name().to_string_lossy().into_owned();
+                let meta = e.metadata().ok().filter(|m| m.is_file() && m.len() > 0)?;
+                (is_part(&path) && !name.starts_with('.')).then(|| PartFile { name, folder, bytes: meta.len(), modified: meta.modified().ok(), path })
             })
             .collect();
         found.sort_by(|a, b| b.modified.cmp(&a.modified).then_with(|| a.name.cmp(&b.name)));
@@ -53,6 +56,9 @@ pub fn candidates(folders: &[(&'static str, PathBuf)]) -> Vec<PartFile> {
 /// The part `path` holds as a stored feature joined at the top of the ring, and what reading it said; refused in words naming the file.
 pub fn read(path: &Path) -> Result<(Feature, Vec<String>), String> {
     let file = path.file_name().and_then(|n| n.to_str()).unwrap_or("The file").to_string();
+    if let Some(why) = std::fs::metadata(path).ok().and_then(|m| too_big(&file, m.len())) {
+        return Err(why);
+    }
     let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).unwrap_or_default();
     let (format, solids, notes) = match ext.as_str() {
         "stl" => ("stl", vec![ringdesign_solid::io::read_stl(path).map_err(|e| format!("{file} does not read as STL: {e:#}"))?], Vec::new()),
@@ -66,6 +72,12 @@ pub fn read(path: &Path) -> Result<(Feature, Vec<String>), String> {
     };
     let feature = stored::imported(&file, format, &solids).map_err(|e| format!("{e:#}"))?;
     Ok((feature, notes))
+}
+
+/// Why a part file `bytes` long is not read, or `None` when it is within the phone's size.
+pub fn too_big(file: &str, bytes: u64) -> Option<String> {
+    let mb = |b: u64| b as f64 / 1048576.0;
+    (bytes > MAX_IMPORT_BYTES).then(|| format!("{file} is {:.0} MB; the phone reads parts up to {:.0} MB", mb(bytes), mb(MAX_IMPORT_BYTES)))
 }
 
 /// What reading a part file came to.
@@ -150,15 +162,22 @@ mod tests {
         let why = read(&lidless).unwrap_err();
         assert!(why.starts_with("lidless.stl is not a closed solid"), "{why}");
         assert_eq!(read(&dir.join("notes.txt")).unwrap_err(), "notes.txt: a part comes in as STL, OBJ or STEP");
+        // A file past the phone's size is refused before a byte of it is read.
+        let big = dir.join("ring.step");
+        std::fs::File::create(&big).unwrap().set_len(227_548_616).unwrap();
+        assert_eq!(read(&big).unwrap_err(), "ring.step is 217 MB; the phone reads parts up to 32 MB");
+        assert_eq!(too_big("post.stl", MAX_IMPORT_BYTES), None);
         let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
     fn the_list_offers_each_folders_part_files_newest_first_and_skips_what_is_not_one() {
         let (a, b) = (scratch("list-a"), scratch("list-b"));
-        for (dir, name) in [(&a, "old.stl"), (&a, "notes.txt"), (&b, "ring.step"), (&b, "part.stp")] {
+        for (dir, name) in [(&a, "old.stl"), (&a, "notes.txt"), (&b, "ring.step"), (&b, "part.stp"), (&b, ".pending-1790816067-ring.step")] {
             std::fs::write(dir.join(name), b"x").unwrap();
         }
+        // A file MediaStore is still writing is hidden and may be empty; neither is offered.
+        std::fs::write(b.join("empty.stl"), b"").unwrap();
         std::fs::create_dir_all(a.join("folder.stl")).unwrap();
         // Written a moment later, so it is the newer of the two in its folder.
         std::thread::sleep(std::time::Duration::from_millis(20));

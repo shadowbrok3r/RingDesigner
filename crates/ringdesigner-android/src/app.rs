@@ -3135,13 +3135,7 @@ impl RingApp {
     /// from `poll_exports` when the file lands.
     fn export(&mut self, kind: ExportKind, dir: &std::path::Path, ctx: &egui::Context) {
         use ringdesign_core::metal;
-        // The preview mesh for the spin: 36 software-rastered frames of the
-        // export mesh is seconds of spinner for no visible gain at 480 px.
-        let params = if kind == ExportKind::Turntable {
-            ring::PREVIEW
-        } else {
-            ring::EXPORT
-        };
+        let params = kind.params();
         let shrink = match kind {
             ExportKind::Stl | ExportKind::ThreeMf => self
                 .shrink_metal
@@ -3173,7 +3167,11 @@ impl RingApp {
             Err(std::sync::mpsc::TryRecvError::Disconnected) => false,
         });
         for done in landed {
-            if done.ok {
+            let too_big = done.ok.then(|| std::fs::metadata(&done.path).map_or(0, |m| m.len())).and_then(export::share_refusal);
+            if let Some(why) = too_big {
+                self.status = format!("{} · {why}", done.status);
+                host.haptic(Haptic::Warning);
+            } else if done.ok {
                 host.share_media(
                     done.path.to_string_lossy().into_owned(),
                     done.name,
