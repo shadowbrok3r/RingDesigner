@@ -21,11 +21,11 @@ default = []
 local-npu = ["dep:local-clip", "dep:local-sd"]
 
 [dependencies]
-# The Android framework: https://github.com/shadowbrok3r/ios-egui (checked out at
+# The Android framework: https://github.com/shadowbrok3r/EguiMobile (checked out at
 # ~/Documents/Rust/Mobile/EguiMobile). It, the local-* model crates and backdrop-blur-egui come
 # from that one git source; the root [patch.crates-io] repins its android-activity fork, which a
 # git dependency does not bring along.
-egui-mobile = { git = "https://github.com/shadowbrok3r/ios-egui" }
+egui-mobile = { git = "https://github.com/shadowbrok3r/EguiMobile" }
 egui.workspace = true
 # Direct, not via egui-mobile, which does not re-export it. Must be the same 0.36 egui_glow the
 # runtime uses: two copies in the graph make the paint callback's downcast fail, and the only
@@ -39,8 +39,8 @@ serde_json.workspace = true
 minreq = "3"
 # On-device models, behind `local-npu`. Their device paths compile on the host and only fail at
 # runtime without an NPU, so they need no target gate — the feature is the gate.
-local-clip = { git = "https://github.com/shadowbrok3r/ios-egui", optional = true }
-local-sd = { git = "https://github.com/shadowbrok3r/ios-egui", optional = true }
+local-clip = { git = "https://github.com/shadowbrok3r/EguiMobile", optional = true }
+local-sd = { git = "https://github.com/shadowbrok3r/EguiMobile", optional = true }
 # The geometry, unchanged.
 ringdesign-core.workspace = true
 # STL and OBJ readers for File import; pure Rust without its `manifold` feature.
@@ -74,6 +74,8 @@ keystore_password = "android"
 label = "RingDesigner"
 icon = "@mipmap/ic_launcher"
 has_code = true
+# Dark system window: the launch splash and anything Android draws in the window.
+theme = "@android:style/Theme.DeviceDefault.NoActionBar"
 
 # Without this stanza cargo-apk2 emits no launcher activity: the APK installs and
 # reports as present, but has no home-screen entry.
@@ -110,4 +112,4 @@ name = "android.permission.VIBRATE"
 [target.'cfg(target_os = "android")'.dependencies]
 android-activity = "0.6.1"
 # The framework repo's egui-0.36 fork of backdrop-blur (its patches/backdrop-blur); glow only.
-backdrop-blur-egui = { git = "https://github.com/shadowbrok3r/ios-egui", default-features = false, features = ["grab-pass"] }
+backdrop-blur-egui = { git = "https://github.com/shadowbrok3r/EguiMobile", default-features = false, features = ["grab-pass"] }

@@ -251,12 +251,19 @@ pub struct Drawn {
 }
 
 impl Drawn {
-    /// `shape` projected by `project`, its name `text` points in size written over its top corner, the left of two level ones.
-    pub fn new(shape: &Shape, project: impl Fn([f64; 3]) -> Pos2, text: Vec2) -> Self {
+    /// `shape` projected by `project`, its name `text` points in size written over its top corner, the left of two level ones;
+    /// where that lands on one of `clear`, such as the navigator, over the next corner down clear of them all, else under what it lands on.
+    pub fn new(shape: &Shape, project: impl Fn([f64; 3]) -> Pos2, text: Vec2, clear: &[Rect]) -> Self {
         let corners = shape.corners.map(project);
         let top = corners.iter().copied().fold(corners[0], |a, b| if b.y < a.y - 0.5 || ((b.y - a.y).abs() <= 0.5 && b.x < a.x) { b } else { a });
-        let at = top + egui::vec2(4.0, -4.0 - text.y);
-        Self { id: shape.id, corners, name: Rect::from_min_size(at, text) }
+        let over = |c: Pos2| Rect::from_min_size(c + egui::vec2(4.0, -4.0 - text.y), text);
+        let first = over(top);
+        let blocked = |r: &Rect| clear.iter().find(|c| c.intersects(*r)).copied();
+        let Some(hit) = blocked(&first) else { return Self { id: shape.id, corners, name: first } };
+        let mut rest: Vec<Pos2> = corners.iter().copied().filter(|c| *c != top).collect();
+        rest.sort_by(|a, b| a.y.total_cmp(&b.y).then(a.x.total_cmp(&b.x)));
+        let name = rest.into_iter().map(over).find(|r| blocked(r).is_none()).unwrap_or_else(|| first.translate(egui::vec2(0.0, hit.bottom() + 4.0 - first.top())));
+        Self { id: shape.id, corners, name }
     }
 
     /// Whether the rectangle is thinner than [`EDGE_ON_PT`] across on screen: its area over its longer side.
@@ -481,7 +488,7 @@ mod tests {
 
     fn drawn(corners: [Pos2; 4]) -> Drawn {
         let shape = Shape { id: 7, name: "P".into(), corners: [[0.0; 3]; 4] };
-        let mut d = Drawn::new(&shape, |_| Pos2::ZERO, vec2(30.0, 14.0));
+        let mut d = Drawn::new(&shape, |_| Pos2::ZERO, vec2(30.0, 14.0), &[]);
         d.corners = corners;
         let top = corners.iter().copied().fold(corners[0], |a, b| if b.y < a.y - 0.5 || ((b.y - a.y).abs() <= 0.5 && b.x < a.x) { b } else { a });
         d.name = Rect::from_min_size(top + vec2(4.0, -18.0), vec2(30.0, 14.0));
@@ -492,9 +499,31 @@ mod tests {
     fn its_name_stands_over_the_top_corner_the_left_of_two_level_ones() {
         let shape = Shape { id: 3, name: "Section".into(), corners: [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 1.0], [0.0, 0.0, 1.0]] };
         // Screen y grows down, so the corners at z = 1 stand highest; of those two the left one carries the name.
-        let d = Drawn::new(&shape, |c| pos2(100.0 + c[0] as f32 * 80.0, 300.0 - c[2] as f32 * 60.0), vec2(50.0, 14.0));
+        let d = Drawn::new(&shape, |c| pos2(100.0 + c[0] as f32 * 80.0, 300.0 - c[2] as f32 * 60.0), vec2(50.0, 14.0), &[]);
         assert_eq!(d.corners, [pos2(100.0, 300.0), pos2(180.0, 300.0), pos2(180.0, 240.0), pos2(100.0, 240.0)]);
         assert_eq!(d.name, Rect::from_min_size(pos2(104.0, 222.0), vec2(50.0, 14.0)));
+    }
+
+    #[test]
+    fn its_name_moves_clear_of_the_navigator_to_the_next_corner_down_or_under_it() {
+        let shape = Shape { id: 3, name: "Section".into(), corners: [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 1.0], [0.0, 0.0, 1.0]] };
+        let project = |c: [f64; 3]| pos2(100.0 + c[0] as f32 * 80.0, 300.0 - c[2] as f32 * 60.0);
+        // A 92-point navigator whose corner covers the top-left corner's name.
+        let navigator = Rect::from_min_size(pos2(60.0, 150.0), vec2(92.0, 92.0));
+        let d = Drawn::new(&shape, project, vec2(50.0, 14.0), &[navigator]);
+        assert_eq!(d.name, Rect::from_min_size(pos2(184.0, 222.0), vec2(50.0, 14.0)), "over the top-right corner");
+        assert!(!d.name.intersects(navigator));
+        // Covering the whole top edge sends it to the lower-left corner.
+        let wide = Rect::from_min_size(pos2(60.0, 150.0), vec2(200.0, 92.0));
+        let d = Drawn::new(&shape, project, vec2(50.0, 14.0), &[wide]);
+        assert_eq!(d.name, Rect::from_min_size(pos2(104.0, 282.0), vec2(50.0, 14.0)));
+        // Covering every corner, it stands under what it landed on, beside the top corner.
+        let all = Rect::from_min_size(pos2(0.0, 0.0), vec2(400.0, 305.0));
+        let d = Drawn::new(&shape, project, vec2(50.0, 14.0), &[all]);
+        assert_eq!(d.name, Rect::from_min_size(pos2(104.0, 309.0), vec2(50.0, 14.0)));
+        // A finger still takes the plane by the moved name.
+        let d = Drawn::new(&shape, project, vec2(50.0, 14.0), &[navigator]);
+        assert_eq!(name_at(&[d], d.name.center()), Some(3));
     }
 
     #[test]

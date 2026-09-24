@@ -20,6 +20,7 @@
 //! so their off-by-one behaviour is host-testable.
 
 use egui_mobile::egui;
+use crate::keypad::Numeric;
 use ringdesign_core::field::FieldContext;
 use ringdesign_core::field::{Blend, LayerStack, SideFacePick, VGate, Window};
 
@@ -357,7 +358,7 @@ pub fn sheet(
                 .changed();
         });
         dirty |= ui
-            .add(egui::Slider::new(&mut e.opacity, 0.0..=1.0).text("opacity"))
+            .add(egui::Slider::new(&mut e.opacity, 0.0..=1.0).text("opacity")).numeric()
             .changed();
         ui.horizontal_wrapped(|ui| {
             ui.label(egui::RichText::new("blend").small().weak());
@@ -375,7 +376,7 @@ pub fn sheet(
         });
         if e.blend.is_smooth() {
             dirty |= ui
-                .add(egui::Slider::new(&mut e.soft_mm, 0.0..=2.0).text("fillet mm"))
+                .add(egui::Slider::new(&mut e.soft_mm, 0.0..=2.0).text("fillet mm")).numeric()
                 .changed();
         }
         dirty |= window_controls(ui, i, &mut e.window, ctx);
@@ -442,13 +443,13 @@ pub fn window_controls(ui: &mut egui::Ui, id: usize, w: &mut Window, ctx: &Field
             fade_mm,
         } => {
             c |= ui
-                .add(egui::Slider::new(center_mm, 0.0..=v_max).text("centre v mm"))
+                .add(egui::Slider::new(center_mm, 0.0..=v_max).text("centre v mm")).numeric()
                 .changed();
             c |= ui
-                .add(egui::Slider::new(span_mm, 0.0..=v_max).text("span mm"))
+                .add(egui::Slider::new(span_mm, 0.0..=v_max).text("span mm")).numeric()
                 .changed();
             c |= ui
-                .add(egui::Slider::new(fade_mm, 0.0..=2.0).text("fade mm"))
+                .add(egui::Slider::new(fade_mm, 0.0..=2.0).text("fade mm")).numeric()
                 .changed();
             if ui
                 .small_button("Snap to side faces")
@@ -520,13 +521,13 @@ pub fn window_controls(ui: &mut egui::Ui, id: usize, w: &mut Window, ctx: &Field
     });
     if w.enabled {
         c |= ui
-            .add(egui::Slider::new(&mut w.theta_deg, 0.0..=360.0).text("centre deg"))
+            .add(egui::Slider::new(&mut w.theta_deg, 0.0..=360.0).text("centre deg")).numeric()
             .changed();
         c |= ui
-            .add(egui::Slider::new(&mut w.span_deg, 0.0..=360.0).text("span deg"))
+            .add(egui::Slider::new(&mut w.span_deg, 0.0..=360.0).text("span deg")).numeric()
             .changed();
         c |= ui
-            .add(egui::Slider::new(&mut w.fade_deg, 0.0..=90.0).text("fade deg"))
+            .add(egui::Slider::new(&mut w.fade_deg, 0.0..=90.0).text("fade deg")).numeric()
             .changed();
         if w.fade_deg < 1.0 && w.span_deg > 0.0 {
             ui.label(

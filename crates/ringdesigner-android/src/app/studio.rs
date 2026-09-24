@@ -272,13 +272,15 @@ impl RingApp {
                     self.pane.actual_size = false;
                 }
             }
-            if ui.button("Fit ring").clicked() {
-                if let Some(mesh) = &self.preview_mesh {
-                    self.pane.camera.fit(mesh.bounds());
+            // The long press's Fit view: the chosen parts, else the parts shown alone, else the whole ring.
+            if ui.button("Fit view").clicked() {
+                if self.preview_mesh.is_some() {
+                    self.fit_view();
+                } else {
+                    self.pane.camera.zoom = 1.0;
+                    self.pane.camera.pan = [0.0; 2];
+                    self.pane.actual_size = false;
                 }
-                self.pane.camera.zoom = 1.0;
-                self.pane.camera.pan = [0.0; 2];
-                self.pane.actual_size = false;
             }
             ui.separator();
             ui.menu_button("Zoom", |ui| self.zoom_controls(ui));

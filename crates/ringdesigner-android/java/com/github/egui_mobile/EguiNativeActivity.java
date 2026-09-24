@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.Editable;
 import android.text.InputType;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.ActionMode;
 import android.view.KeyEvent;
@@ -47,6 +48,13 @@ public class EguiNativeActivity extends NativeActivity {
     private boolean imeInsetVisible;
     /** Focused field is a password (egui IMEOutput.purpose); read by onCreateInputConnection. */
     private volatile boolean imePassword;
+    /** {@link #setImeKind} codes, matching egui-android's ime_bridge::set_ime_kind. */
+    static final int IME_KIND_TEXT = 0;
+    static final int IME_KIND_NUMBER = 1;
+    /** Keyboard kind the app marked the focused field with; read by onCreateInputConnection. */
+    private volatile int imeKind = IME_KIND_TEXT;
+    /** The hidden EditText's text after its last change, readable from the render thread. */
+    private volatile String imeTextSnapshot = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,8 +70,21 @@ public class EguiNativeActivity extends NativeActivity {
         } catch (Throwable t) {
             // nativeImeWake stays unresolved; Rust falls back to polling while the IME is up.
         }
+        applyDefaultTheme();
         super.onCreate(savedInstanceState);
         registerInstallReceiver();
+    }
+
+    /** Dark DeviceDefault theme for an activity whose manifest names no theme. */
+    private void applyDefaultTheme() {
+        try {
+            if (getPackageManager().getActivityInfo(getComponentName(), 0).getThemeResource() == 0) {
+                setTheme(android.R.style.Theme_DeviceDefault_NoActionBar);
+                Log.i("EguiTheme", "manifest names no theme; using Theme.DeviceDefault.NoActionBar");
+            }
+        } catch (Throwable t) {
+            Log.w("EguiTheme", "default theme not applied: " + t);
+        }
     }
 
     /** The activity is leaving the foreground. Rust turns this into `EguiApp::on_pause`, which is
@@ -273,6 +294,17 @@ public class EguiNativeActivity extends NativeActivity {
                 if (self.imePassword) {
                     outAttrs.imeOptions =
                             outAttrs.imeOptions | EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING;
+                } else if (self.imeKind == IME_KIND_NUMBER) {
+                    // Signed decimal keypad whose action key reads Done.
+                    outAttrs.inputType =
+                            InputType.TYPE_CLASS_NUMBER
+                                    | InputType.TYPE_NUMBER_FLAG_DECIMAL
+                                    | InputType.TYPE_NUMBER_FLAG_SIGNED;
+                    outAttrs.imeOptions =
+                            (outAttrs.imeOptions
+                                            & ~(EditorInfo.IME_MASK_ACTION
+                                                    | EditorInfo.IME_FLAG_NO_ENTER_ACTION))
+                                    | EditorInfo.IME_ACTION_DONE;
                 }
                 if (TRACE) Log.i("EguiIme", "onCreateInputConnection");
                 return new EguiImeBridge(base, self);
@@ -313,6 +345,14 @@ public class EguiNativeActivity extends NativeActivity {
         // egui draws Paste/Copy/Cut/Select-all; Android's ActionMode closes the IME on Select All.
         edit.setCustomSelectionActionModeCallback(NO_ACTION_MODE);
         edit.setCustomInsertionActionModeCallback(NO_ACTION_MODE);
+        // The two callbacks above kill the *standard* ActionMode, but some OEM shells (Samsung's
+        // among them) raise their own cut/copy/paste panel off a long-press on the focused field.
+        // That panel floats over the app's own input row. The hidden EditText is a keyboard proxy —
+        // egui owns every visible caret and selection — so a long-press on it has nothing to offer
+        // and is consumed here. `setTextIsSelectable(true)` is deliberately left alone: the IME
+        // bridge needs programmatic selection for the spacebar-trackpad cursor.
+        edit.setLongClickable(false);
+        edit.setOnLongClickListener(v -> true);
         // 1×1 on-screen (not off-screen): some IMEs refuse InputConnection for views outside the window.
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(1, 1);
         addContentView(edit, params);
@@ -329,6 +369,19 @@ public class EguiNativeActivity extends NativeActivity {
                         return v.onApplyWindowInsets(insets);
                     });
         }
+        edit.addTextChangedListener(
+                new TextWatcher() {
+                    @Override
+                    public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                    @Override
+                    public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+                    @Override
+                    public void afterTextChanged(Editable s) {
+                        imeTextSnapshot = s.toString();
+                    }
+                });
         imeEdit = edit;
     }
 
@@ -430,6 +483,60 @@ public class EguiNativeActivity extends NativeActivity {
     /** Apply DEL/FORWARD_DEL to the hidden Editable: composing span, else selection, else one
      * code point — the same range egui deletes for the key from the native queue.
      * Returns {deletedCodePoints, spanStartCodePoint} so Rust can delete the identical range. */
+    /** One code point deleted from inside the live composing span, returning the span's new text
+     *  — or null when the caret is not inside one and the caller should delete normally.
+     *
+     *  A DEL key while a word is composing is a backspace within that word, not a request to drop
+     *  it: keyboards that shorten the composition themselves say so with setComposingText, and
+     *  this is the same event by a different route. Deleting the whole span (which is what the
+     *  caret-and-composing union in {@link #mirrorDeleteKey} does) loses the whole word on the
+     *  first backspace of any un-accepted suggestion. */
+    String mirrorDeleteInComposition(boolean backspace) {
+        EditText edit = imeEdit;
+        Editable ed = edit != null ? edit.getText() : null;
+        if (ed == null) {
+            return null;
+        }
+        int a = Math.max(0, edit.getSelectionStart());
+        int b = Math.max(0, edit.getSelectionEnd());
+        // A real selection is deleted wholesale, composing or not.
+        if (a != b) {
+            return null;
+        }
+        int cs = BaseInputConnection.getComposingSpanStart(ed);
+        int ce = BaseInputConnection.getComposingSpanEnd(ed);
+        if (cs < 0 || ce < cs) {
+            return null;
+        }
+        int from;
+        int to;
+        if (backspace) {
+            // At the span's start there is nothing of the word behind the caret: that delete
+            // belongs to the text before it, which the caller handles.
+            if (a <= cs) {
+                return null;
+            }
+            from = Character.offsetByCodePoints(ed, a, -1);
+            to = a;
+        } else {
+            if (a >= ce) {
+                return null;
+            }
+            from = a;
+            to = Character.offsetByCodePoints(ed, a, 1);
+        }
+        suppressSelectionEnqueue = true;
+        try {
+            ed.delete(from, to);
+            // The span follows its own text; an emptied one may be dropped entirely.
+            int ns = BaseInputConnection.getComposingSpanStart(ed);
+            int ne = BaseInputConnection.getComposingSpanEnd(ed);
+            return ns >= 0 && ne >= ns ? ed.subSequence(ns, ne).toString() : "";
+        } finally {
+            suppressSelectionEnqueue = false;
+        }
+    }
+
     int[] mirrorDeleteKey(boolean backspace) {
         EditText edit = imeEdit;
         Editable ed = edit != null ? edit.getText() : null;
@@ -639,6 +746,25 @@ public class EguiNativeActivity extends NativeActivity {
                 });
     }
 
+    /** Set the focused field's keyboard kind (IME_KIND_*); restarts input unless a password field is focused. */
+    public void setImeKind(int kind) {
+        runOnUiThread(
+                () -> {
+                    if (imeKind == kind) {
+                        return;
+                    }
+                    imeKind = kind;
+                    EditText edit = imeEdit;
+                    if (edit == null || imePassword) {
+                        return;
+                    }
+                    InputMethodManager imm =
+                            (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                    imm.restartInput(edit);
+                    if (TRACE) Log.i("EguiIme", "setImeKind(" + kind + ")");
+                });
+    }
+
     public void showIme() {
         runOnUiThread(() -> showImeInner(false));
     }
@@ -697,6 +823,18 @@ public class EguiNativeActivity extends NativeActivity {
                         // IME service, after which showSoftInput on the EditText is ignored.
                     }
                 });
+    }
+
+    /** The hidden EditText's text, or null while IC events wait for Rust to drain them. */
+    public String getImeTextIfSettled() {
+        return pending.isEmpty() ? imeTextSnapshot : null;
+    }
+
+    /** Drop every undrained IC event now; safe from any thread. */
+    public void discardPending() {
+        int dropped = pending.size();
+        pending.clear();
+        if (TRACE && dropped > 0) Log.i("EguiIme", "discardPending dropped " + dropped);
     }
 
     public String[] takePending() {

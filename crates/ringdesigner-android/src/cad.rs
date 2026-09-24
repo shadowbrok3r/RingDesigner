@@ -38,6 +38,16 @@ pub fn areas() -> [egui::Id; 6] {
     [menu::area(), command::caption_area(), command::fields_area(), bar::area(), tools, fields]
 }
 
+/// Asks for the number keypad while a field of a live command's or a sketch's dimension bar holds the keyboard; whether it did.
+pub fn keypad(ctx: &egui::Context) -> bool {
+    crate::keypad::fields(ctx, &[command::fields_area(), sketch::fields_area()])
+}
+
+/// The stamp window's stamp once the design's stamps go from `before` to `after`, found by what it is: an Undo or Redo keeps the window on its stamp, or closes it when the stamp is gone.
+pub fn stamp_after(window: Option<usize>, before: &[ringdesign_core::setting::Stamp], after: &[ringdesign_core::setting::Stamp]) -> Option<usize> {
+    window.and_then(|k| ringdesign_workbench::viewport::made::follow(before, after, k))
+}
+
 /// A settled build on screen: the mesh the view draws, with the parts it was made of.
 #[derive(Clone)]
 pub struct Built(pub Arc<BuildResult>);
@@ -551,6 +561,7 @@ impl Cad {
                 }
             }
             self.draw_sketch(ui, v);
+            keypad(ui.ctx());
             return;
         }
         self.draw_marks(&painter, v, &projector);
@@ -606,6 +617,7 @@ impl Cad {
             Some(planes::Choice::Close) => self.planes.menu = None,
             None => {}
         }
+        keypad(ui.ctx());
     }
 
     /// The chosen vertices and the pins, drawn over the ring; the edge pass lights the chosen edges.

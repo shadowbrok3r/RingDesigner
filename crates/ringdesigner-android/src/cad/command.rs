@@ -487,15 +487,26 @@ impl Live {
     }
 
     /// Starts dragging out a `kind` seated at `at` on the ring, `normal` the surface's there: a drag sizes it and its lift goes on to the height, a second lift or Done adds it.
+    /// The seat lands on the ring's snaps under the finger, grid and crest included, as a click does on the desktop.
     pub fn add_primitive(&mut self, c: &Ctx, kind: Primitive, at: [f64; 3], normal: [f64; 3]) -> Result<String, String> {
-        let cmd = touch::primitive::start(c.design, kind, at, normal, c.band.map(|b| b.as_ref()))?;
+        let band = c.band.map(|b| b.as_ref());
+        let (cmd, hit) = match c.build {
+            Some(build) => {
+                let (view, _) = c.view_at(c.project(at));
+                self.landing(c, build, view, Dofs::ALL, self.snapper, |_, snap| touch::primitive::start(c.design, kind, at, normal, band, snap))
+            }
+            None => (touch::primitive::start(c.design, kind, at, normal, band, &|_| None), None),
+        };
+        let cmd = cmd?;
         let title = cmd.title();
         self.start(Box::new(cmd), None, None);
+        let seat = hit.as_ref().map(|h| format!(" on {}", h.label)).unwrap_or_default();
+        self.watch = Some(hit.as_ref().map_or(at, |h| h.world));
+        self.snapped = hit;
         self.adding = Some(Adding { kind, unit: unit_mesh(kind) });
-        self.watch = Some(at);
         self.bar.prefer(Some("radius"));
         let height = if kind == Primitive::Sphere { "" } else { ", then its height the same way" };
-        Ok(format!("{title}: drag its size out from where you pressed and lift{height}; or type them in the bar, then Done"))
+        Ok(format!("{title}{seat}: drag its size out from where you pressed and lift{height}; or type them in the bar, then Done"))
     }
 
     /// Feeds a primitive being dragged out the finger at `at`: its distance from the seat on the view plane, in steps.
@@ -567,6 +578,11 @@ impl Live {
 
     /// Feeds `token`, landing the carried part on the best snap of `dofs` over the ring's features; the hit it landed on.
     fn feed_landed(&mut self, c: &Ctx, build: &Built, token: StepInput, view: ViewScale, dofs: Dofs, snapper: Snapper) -> (Outcome, Option<SnapHit>) {
+        self.landing(c, build, view, dofs, snapper, |session, snap| land(session, token, snap))
+    }
+
+    /// Runs `f` with the session and the best snap of `dofs` over the ring's features, the pins and the parts' own points; what it gave and the last hit.
+    fn landing<R>(&mut self, c: &Ctx, build: &Built, view: ViewScale, dofs: Dofs, snapper: Snapper, f: impl FnOnce(&mut Session, &dyn Fn(RingPoint) -> Option<SnapHit>) -> R) -> (R, Option<SnapHit>) {
         self.snaps_for(build);
         let features = self.features_for(c, build);
         let Live { session, snaps, .. } = self;
@@ -588,8 +604,8 @@ impl Live {
             hit.replace(h.clone());
             h
         };
-        let o = land(session, token, &snap);
-        (o, hit.take())
+        let r = f(session, &snap);
+        (r, hit.take())
     }
 
     /// Where a point of the band at `world` snaps among the ring's features, the pins and the parts' own points, off the grid: what Measure reads.

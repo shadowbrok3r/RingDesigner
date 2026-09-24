@@ -1,7 +1,9 @@
 package com.github.egui_mobile;
 
+import android.os.SystemClock;
 import android.text.Editable;
 import android.util.Log;
+import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.CompletionInfo;
@@ -279,6 +281,15 @@ public class EguiImeBridge extends InputConnectionWrapper {
             int code = event.getKeyCode();
             if (code == KeyEvent.KEYCODE_DEL || code == KeyEvent.KEYCODE_FORWARD_DEL) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    // Inside a composing word this is a backspace within that word. Shipped as a
+                    // composition update — the shape a keyboard uses when it shortens a word
+                    // itself — so egui's preedit loses one character instead of all of them.
+                    String shortened = activity.mirrorDeleteInComposition(code == KeyEvent.KEYCODE_DEL);
+                    if (shortened != null) {
+                        activity.enqueue("C\t" + shortened);
+                        if (TRACE) trace("sendKeyEvent(" + KeyEvent.keyCodeToString(code) + ") composing -> \"" + clip(shortened) + "\"");
+                        return true;
+                    }
                     // Ships the exact deleted span so egui removes the same range instead of
                     // one char at its own (possibly drifted) caret.
                     int[] span = activity.mirrorDeleteKey(code == KeyEvent.KEYCODE_DEL);
@@ -297,9 +308,15 @@ public class EguiImeBridge extends InputConnectionWrapper {
 
     @Override
     public boolean performEditorAction(int editorAction) {
-        boolean ret = super.performEditorAction(editorAction);
-        trace("performEditorAction(" + editorAction + ")");
-        return ret;
+        // Every editor action reaches egui as an Enter press and release, via sendKeyEvent.
+        long down = SystemClock.uptimeMillis();
+        int flags = KeyEvent.FLAG_SOFT_KEYBOARD | KeyEvent.FLAG_KEEP_TOUCH_MODE | KeyEvent.FLAG_EDITOR_ACTION;
+        super.sendKeyEvent(new KeyEvent(down, down, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 0, 0,
+                KeyCharacterMap.VIRTUAL_KEYBOARD, 0, flags));
+        super.sendKeyEvent(new KeyEvent(SystemClock.uptimeMillis(), down, KeyEvent.ACTION_UP,
+                KeyEvent.KEYCODE_ENTER, 0, 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, flags));
+        trace("performEditorAction(" + editorAction + ") -> ENTER");
+        return true;
     }
 
     @Override

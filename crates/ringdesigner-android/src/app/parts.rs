@@ -113,14 +113,10 @@ impl RingApp {
     }
 
     /// Eases the view onto the chosen parts, else the parts shown alone, else the whole ring, the pivot moved onto their middle.
-    fn fit_view(&mut self) {
+    pub(super) fn fit_view(&mut self) {
         let Some(built) = self.preview_mesh.clone() else { return };
-        let Some((bounds, framed)) = ringdesign_workbench::touch::view::framed(&built.0, &self.design, &self.cad.selection.items, &self.cad.isolated) else { return };
         let camera = &mut self.pane.camera;
-        if let Some(ring) = built.bounds() {
-            camera.refit(ring);
-        }
-        let to = camera.framing(bounds);
+        let Some((to, framed)) = camera.fit_view(&built.0, &self.design, &self.cad.selection.items, &self.cad.isolated) else { return };
         self.camera_turn = Some(crate::focus::Turn::new(camera.pose(), to));
         self.pane.actual_size = false;
         self.status = framed.said();

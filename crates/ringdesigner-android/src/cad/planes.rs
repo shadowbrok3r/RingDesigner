@@ -120,7 +120,7 @@ impl Cad {
             .into_iter()
             .map(|s| {
                 let size = painter.layout_no_wrap(s.name.clone(), egui::FontId::proportional(NAME_PT), crate::theme::INK).size();
-                (Drawn::new(&s, |w| proj.at(w.map(|x| x as f32)), size), s.name)
+                (Drawn::new(&s, |w| proj.at(w.map(|x| x as f32)), size, v.covered), s.name)
             })
             .collect()
     }

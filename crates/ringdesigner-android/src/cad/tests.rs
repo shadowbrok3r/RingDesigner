@@ -1228,7 +1228,8 @@ fn a_box_is_dragged_out_where_the_band_was_held_its_size_then_its_height_and_lan
     b.cad.act(&v, MenuAction::AddPartHere { theta_deg: 90.0, height_mm: 0.0, label: "Box" });
     assert!(b.cad.pressed.is_none(), "the press is spent");
     assert_eq!(b.cad.live.session.command().map(|c| (c.key(), c.step())), Some(("add-box", 1)), "seated where the band was held, it waits for its size");
-    assert!(b.said().last().is_some_and(|s| s.starts_with("Add box: drag its size out from where you pressed")));
+    let said = b.said();
+    assert!(said.last().is_some_and(|s| s.starts_with("Add box on top 90.0° · parting line: drag its size out from where you pressed")), "{said:?}");
     let seat = b.camera.projector(RECT).at(at.map(|x| x as f32));
     // Looking down on the ring's top, a millimetre round the ring runs across the screen.
     let pt_per_mm = (b.camera.projector(RECT).at([at[0] as f32 + 1.0, at[1] as f32, at[2] as f32]) - seat).length();
@@ -1341,4 +1342,119 @@ fn a_work_plane_square_to_the_band_or_on_the_parting_plane_is_made_where_the_ban
     let (label, plane, _) = make(&mut b, menu::Extra::PlaneParting { at }, 0.4);
     assert_eq!(label, "Add Procedural shank · Add Parting +0.40 mm");
     assert_eq!((plane.origin, plane.normal), ([0.0, 0.0, 0.4], [0.0, 0.0, 1.0]));
+}
+
+#[test]
+fn a_part_dragged_out_near_the_top_seats_on_the_top_and_the_parting_line_as_the_desktops_click_does() {
+    let mut b = Bench::new(court());
+    b.step(Vec::new());
+    // Held 1.4° short of the top and 0.3 mm off the parting line.
+    let (at, n) = on_band(&b, 88.6, 0.3);
+    let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &b.lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
+    b.cad.pressed = Some((at, n));
+    b.cad.act(&v, MenuAction::AddPartHere { theta_deg: 88.6, height_mm: 0.0, label: "Cylinder" });
+    let placed = b.cad.live.session.preview().and_then(|p| p.placement);
+    let Some(Placement::Ring { theta_deg, across_mm, .. }) = placed else { panic!("{placed:?}") };
+    assert!((theta_deg - 90.0).abs() < 1e-9 && across_mm.abs() < 1e-9, "{theta_deg} {across_mm}");
+    let said = b.said();
+    assert!(said.last().is_some_and(|s| s.starts_with("Add cylinder on top 90.0° · parting line: drag its size out")), "{said:?}");
+    // The size is dragged from the snapped seat, on the band's top.
+    let seat = ringdesign_workbench::touch::primitive::centre(b.cad.live.session.command().unwrap()).unwrap();
+    let (top, _) = on_band(&b, 90.0, 0.0);
+    assert!((0..3).all(|k| (seat[k] - top[k]).abs() < 1e-3), "{seat:?} against {top:?}");
+}
+
+#[test]
+fn a_focused_dimension_field_asks_for_the_number_keypad_in_the_frame_it_holds_the_keyboard() {
+    use egui_mobile::keyboard::{KeyboardKind, requested};
+    let mut b = Bench::new(court());
+    b.step(Vec::new());
+    let (at, n) = on_band(&b, 90.0, 0.0);
+    let (d, camera, built, lib) = (b.d.clone(), b.camera, b.built.clone(), AlphaLibrary::builtin());
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
+    b.cad.pressed = Some((at, n));
+    b.cad.act(&v, MenuAction::AddPartHere { theta_deg: 90.0, height_mm: 0.0, label: "Cylinder" });
+    let kind = |b: &mut Bench, focus: bool| {
+        b.time += 0.1;
+        let input = egui::RawInput { time: Some(b.time), screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(420.0, 800.0))), ..Default::default() };
+        let mut kind = KeyboardKind::Text;
+        let mut out = b.ctx.run_ui(input, |ui| {
+            let (_, _) = ui.allocate_exact_size(RECT.size(), egui::Sense::click_and_drag());
+            b.cad.frame(ui, &v);
+            b.cad.draw(ui, &v, &b.renderer);
+            if focus {
+                ui.ctx().memory_mut(|m| m.request_focus(egui::Id::new("phone-ring-dimensions").with("radius")));
+                super::keypad(ui.ctx());
+            }
+            kind = requested(ui.ctx());
+        });
+        out.textures_delta.clear();
+        kind
+    };
+    assert_eq!(kind(&mut b, false), KeyboardKind::Text, "nothing holds the keyboard");
+    assert_eq!(kind(&mut b, true), KeyboardKind::Number, "the radius field, as a tap on it gives it the keyboard");
+    assert_eq!(kind(&mut b, false), KeyboardKind::Number, "drawn again with the field still focused");
+    b.ctx.memory_mut(|m| m.surrender_focus(egui::Id::new("phone-ring-dimensions").with("radius")));
+    assert_eq!(kind(&mut b, false), KeyboardKind::Text);
+}
+
+#[test]
+fn the_stamp_window_follows_its_stamp_across_undo_and_redo() {
+    let disc = |name: &str| ringdesign_core::setting::Stamp {
+        name: name.into(),
+        theta_deg: 270.0,
+        v_mm: 0.0,
+        rot_deg: 0.0,
+        outline: (0..12).map(|i| std::f64::consts::TAU * f64::from(i) / 12.0).map(|t| [t.cos(), t.sin()]).collect(),
+        height_mm: 0.4,
+        sink_mm: 0.3,
+        draft_deg: 0.0,
+        cut: false,
+        bench: false,
+        along_pull: false,
+    };
+    let mut d = court();
+    d.stamps = vec![disc("Moon"), disc("Star")];
+    let mut history = History::new(&d);
+    // The window is on the star, and the moon before it is deleted.
+    let mut window = Some(1);
+    let before = d.stamps.clone();
+    d.stamps.remove(0);
+    history.commit_as(&d, "Delete stamp \"Moon\"");
+    window = stamp_after(window, &before, &d.stamps);
+    assert_eq!(window, Some(0));
+    // Undo brings the moon back in front of it, Redo takes it away again: the window stays on the star.
+    let undone = history.undo().unwrap();
+    window = stamp_after(window, &d.stamps, &undone.stamps);
+    assert_eq!((window, undone.stamps[1].name.as_str()), (Some(1), "Star"));
+    let redone = history.redo().unwrap();
+    window = stamp_after(window, &undone.stamps, &redone.stamps);
+    assert_eq!(window, Some(0));
+    // A window on the moon closes when an Undo takes the moon away.
+    assert_eq!(stamp_after(Some(0), &undone.stamps, &redone.stamps), None);
+    assert_eq!(stamp_after(None, &undone.stamps, &redone.stamps), None);
+}
+
+#[test]
+fn fit_view_frames_the_chosen_part_else_the_whole_ring() {
+    let b = Bench::new(posted());
+    let d = b.d.clone();
+    let post = b.built.evaluated().unwrap().components.iter().find(|c| c.id == 2).unwrap();
+    let (lo, hi) = post.mesh.bounds().unwrap();
+    let middle = |lo: ringdesign_core::Vec3, hi: ringdesign_core::Vec3| [(lo.0 + hi.0) * 0.5, (lo.1 + hi.1) * 0.5, (lo.2 + hi.2) * 0.5];
+    // The post chosen: the pivot moves onto its middle and the zoom fills the view with it.
+    let mut camera = b.camera;
+    let (pose, framed) = camera.fit_view(&b.built.0, &d, &[Sel::Part(2)], &[]).unwrap();
+    assert_eq!(framed.said(), "Fit view: Cylinder, as chosen");
+    let want = middle(lo, hi);
+    assert!((0..3).all(|k| (camera.target[k] - want[k]).abs() < 1e-4), "{:?} against {want:?}", camera.target);
+    assert!(pose.zoom > 3.0 && pose.pan == [0.0; 2], "{pose:?}");
+    // Nothing chosen: the whole ring at its own zoom.
+    let mut camera = b.camera;
+    let (pose, framed) = camera.fit_view(&b.built.0, &d, &[], &[]).unwrap();
+    assert_eq!(framed.said(), "Fit view: the whole ring");
+    let (lo, hi) = b.built.bounds().unwrap();
+    let want = middle(lo, hi);
+    assert!((0..3).all(|k| (camera.target[k] - want[k]).abs() < 1e-4) && (pose.zoom - 1.0).abs() < 1e-4, "{:?} {pose:?}", camera.target);
 }

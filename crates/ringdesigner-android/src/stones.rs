@@ -12,6 +12,7 @@
 //! that does the work.
 
 use egui_mobile::egui;
+use crate::keypad::Numeric;
 use ringdesign_core::field::{SeatStyle, SideFacePick};
 use ringdesign_core::gem::{Gem, GemCut, GemForm};
 use ringdesign_core::pave::{PaveRegion, PaveSpec};
@@ -149,8 +150,8 @@ pub fn picker(ui: &mut egui::Ui, p: &mut Pick, band_v_len_mm: f64) -> bool {
         }
     });
 
-    c |= ui.add(egui::Slider::new(&mut p.theta_deg, 0.0..=360.0).text("centre deg")).changed();
-    c |= ui.add(egui::Slider::new(&mut p.span_deg, 10.0..=360.0).text("span deg")).changed();
+    c |= ui.add(egui::Slider::new(&mut p.theta_deg, 0.0..=360.0).text("centre deg")).numeric().changed();
+    c |= ui.add(egui::Slider::new(&mut p.span_deg, 10.0..=360.0).text("span deg")).numeric().changed();
     c |= ui.checkbox(&mut p.stagger, "stagger rows").changed();
 
     ui.horizontal_wrapped(|ui| {
@@ -162,7 +163,7 @@ pub fn picker(ui: &mut egui::Ui, p: &mut Pick, band_v_len_mm: f64) -> bool {
     });
     if let Some(v) = p.v_band.as_mut() {
         c |= ui
-            .add(egui::Slider::new(v, 0.0..=band_v_len_mm.max(0.5)).text("centre v mm"))
+            .add(egui::Slider::new(v, 0.0..=band_v_len_mm.max(0.5)).text("centre v mm")).numeric()
             .changed();
         ui.label(
             egui::RichText::new(

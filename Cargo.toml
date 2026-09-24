@@ -90,7 +90,7 @@ egui-scale = { path = "patches/egui-scale" }
 # For crates/ringdesigner-android: winit's implicit-only IME hides break egui-android's EditText
 # bridge, and the framework repo's fork skips them. A git dependency never brings its own root
 # [patch] table along, so the app's workspace has to carry it.
-android-activity = { git = "https://github.com/shadowbrok3r/ios-egui" }
+android-activity = { git = "https://github.com/shadowbrok3r/EguiMobile" }
 
 [profile.dev]
 opt-level = 1

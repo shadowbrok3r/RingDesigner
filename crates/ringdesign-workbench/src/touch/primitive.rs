@@ -1,6 +1,6 @@
 //! A primitive dragged out on the ring by one finger: seated where the menu was opened, its size and then its height dragged on the view plane through that point in twentieths of a millimetre, or typed.
-use crate::command::{AddPrimitiveCmd, BandSurface, Outcome, Primitive, Session, StepInput, ViewCommand, plane_basis, ring::on_view_plane, ring_point};
-use ringdesign_core::{RingDesign, interaction::pick::Ray};
+use crate::command::{AddPrimitiveCmd, BandSurface, Outcome, Primitive, RingPoint, Session, SnapHit, StepInput, ViewCommand, plane_basis, ring::on_view_plane, ring_point};
+use ringdesign_core::{RingDesign, cad::Placement, interaction::pick::Ray};
 
 /// A dragged size moves in steps of this, mm.
 pub const SIZE_STEP_MM: f64 = 0.05;
@@ -16,12 +16,19 @@ pub fn kind(label: &str) -> Option<Primitive> {
 }
 
 /// The add of `kind` seated at `at` on `design`'s ring, `normal` the surface's there and `band` the surface parts are seated on, waiting for its size; a plain ring's first part takes id 2, leaving 1 to its shank.
-pub fn start(design: &RingDesign, kind: Primitive, at: [f64; 3], normal: [f64; 3], band: Option<&BandSurface>) -> Result<AddPrimitiveCmd, String> {
+/// The seat lands on the ring point `snap` gives for where it would sit, as a click on the desktop does, and keeps the pressed point where it gives none.
+pub fn start(design: &RingDesign, kind: Primitive, at: [f64; 3], normal: [f64; 3], band: Option<&BandSurface>, snap: &dyn Fn(RingPoint) -> Option<SnapHit>) -> Result<AddPrimitiveCmd, String> {
     let empty = design.cad.as_ref().is_none_or(|d| d.features.is_empty());
     let id = if empty { 2 } else { crate::touch::parts::fresh_ids(design)() };
     let mut cmd = AddPrimitiveCmd::new(kind, id);
     let ring = ring_point(at, band, design.inner_radius_mm() + design.profile.thickness_mm);
     cmd.feed(&StepInput::Pointer { world: at, normal, theta_deg: ring.theta_deg, across_mm: ring.across_mm, height_mm: 0.0, snapped: None, dragging: false });
+    if let Some(Placement::Ring { theta_deg, across_mm, height_mm, .. }) = cmd.preview().placement
+        && let Some(hit) = snap(RingPoint { theta_deg, across_mm, height_mm })
+    {
+        let (theta_deg, across_mm) = (hit.ring.theta_deg, hit.ring.across_mm);
+        cmd.feed(&StepInput::Pointer { world: hit.world, normal, theta_deg, across_mm, height_mm: hit.ring.height_mm - height_mm, snapped: Some(hit), dragging: false });
+    }
     match cmd.feed(&StepInput::Click) {
         Outcome::NextStep => Ok(cmd),
         Outcome::Refused(why) => Err(why),
@@ -86,7 +93,7 @@ mod tests {
         let built = mesh::build(&d, &AlphaLibrary::builtin(), params);
         let (at, n) = ringdesign_core::cad::surface_hit(&built.mesh, 90.0, 0.0).unwrap();
         let mut s = Session::default();
-        s.start(Box::new(start(&d, Primitive::Box, at, n, None).unwrap()));
+        s.start(Box::new(start(&d, Primitive::Box, at, n, None, &|_| None).unwrap()));
         assert_eq!(s.command().map(|c| (c.key(), c.step())), Some(("add-box", 1)), "seated, it waits for its size");
         let c = centre(s.command().unwrap()).unwrap();
         assert_eq!(c, at);
@@ -122,7 +129,7 @@ mod tests {
         let d = court();
         let at = [0.0, 10.4, 0.0];
         let mut s = Session::default();
-        s.start(Box::new(start(&d, Primitive::Cylinder, at, [0.0, 1.0, 0.0], None).unwrap()));
+        s.start(Box::new(start(&d, Primitive::Cylinder, at, [0.0, 1.0, 0.0], None, &|_| None).unwrap()));
         s.feed(StepInput::Typed { key: "radius", value: 1.5 });
         s.feed(size_token(down(3.0, 0.0), at).unwrap());
         assert_eq!(s.dimensions()[0].value, 1.5, "a typed radius holds");
@@ -132,7 +139,7 @@ mod tests {
         assert!(matches!(feature.operation, Operation::Cylinder { radius_mm, height_mm } if radius_mm == 1.5 && height_mm == 1.0), "{:?}", feature.operation);
         // A sphere has no height: Done straight after the size.
         let mut s = Session::default();
-        s.start(Box::new(start(&d, Primitive::Sphere, at, [0.0, 1.0, 0.0], None).unwrap()));
+        s.start(Box::new(start(&d, Primitive::Sphere, at, [0.0, 1.0, 0.0], None, &|_| None).unwrap()));
         s.feed(size_token(down(0.0, 0.0), at).unwrap());
         assert!((s.dimensions()[0].value - SIZE_STEP_MM).abs() < 1e-12, "a finger on the seat still gives a size");
         let Outcome::Commit(effects) = finish(&mut s) else { panic!() };
@@ -141,12 +148,43 @@ mod tests {
     }
 
     #[test]
+    fn a_seat_pressed_by_a_ring_feature_lands_on_it_as_the_desktops_click_does() {
+        use crate::command::{Dofs, Grid, RingFeatures, Scene, SnapGeometry, Snapper};
+        use ringdesign_core::interaction::pick::ViewScale;
+        let d = court();
+        let features = RingFeatures::of(&d, 0.0);
+        let nominal = d.inner_radius_mm() + d.profile.thickness_mm;
+        let world_of = |p: RingPoint| {
+            let (s, c) = p.theta_deg.to_radians().sin_cos();
+            let r = nominal + p.height_mm;
+            Some([r * c, r * s, p.across_mm])
+        };
+        // Looking down on the top at 10 px a millimetre, the desktop's snapper: its 5° grid, the crest.
+        let view = ViewScale { right: [1.0, 0.0, 0.0], up: [0.0, 0.0, 1.0], px_per_mm: 10.0 };
+        let scene = Scene { view, aperture_px: crate::touch::APERTURE_PT, geometry: SnapGeometry::default(), features: &features, design: Some(&d), world_of: &world_of };
+        let snapper = Snapper { grid: Some(Grid { theta_deg: 5.0, across_mm: 0.5, height_mm: 0.5 }), crest: true, ..Snapper::default() };
+        let snap = |p: RingPoint| snapper.snap_ring(world_of(p)?, p, Dofs::ALL, &scene);
+        // Pressed 1.4° short of the top and 0.3 mm off the parting line: seated on both.
+        let pressed = world_of(RingPoint { theta_deg: 88.6, across_mm: 0.3, height_mm: 0.0 }).unwrap();
+        let cmd = start(&d, Primitive::Cylinder, pressed, [0.0, 1.0, 0.0], None, &snap).unwrap();
+        let Some(Placement::Ring { theta_deg, across_mm, .. }) = cmd.preview().placement else { panic!() };
+        assert!((theta_deg - 90.0).abs() < 1e-9 && across_mm.abs() < 1e-9, "{theta_deg} {across_mm}");
+        let at = centre(&cmd).unwrap();
+        assert!(at[0].abs() < 1e-9 && (at[1] - nominal).abs() < 1e-9 && at[2].abs() < 1e-9, "the size is dragged from the snapped seat: {at:?}");
+        assert!(cmd.preview().caption.ends_with("at 90.0° · top 90.0° · parting line"), "{}", cmd.preview().caption);
+        // Without a snap the press stands as it was.
+        let cmd = start(&d, Primitive::Cylinder, pressed, [0.0, 1.0, 0.0], None, &|_| None).unwrap();
+        let Some(Placement::Ring { theta_deg, across_mm, .. }) = cmd.preview().placement else { panic!() };
+        assert!((theta_deg - 88.6).abs() < 1e-9 && (across_mm - 0.3).abs() < 1e-9, "{theta_deg} {across_mm}");
+    }
+
+    #[test]
     fn a_second_part_takes_a_fresh_id() {
         let d = court();
         let (edits, _) = crate::touch::parts::part_here(&d, "Cylinder", 90.0, 0.0).unwrap();
         let d = crate::touch::prepare(&d, &edits, None).unwrap().unwrap().design;
         let mut s = Session::default();
-        s.start(Box::new(start(&d, Primitive::Box, [10.4, 0.0, 0.0], [1.0, 0.0, 0.0], None).unwrap()));
+        s.start(Box::new(start(&d, Primitive::Box, [10.4, 0.0, 0.0], [1.0, 0.0, 0.0], None, &|_| None).unwrap()));
         let Outcome::Commit(effects) = finish(&mut s) else { panic!() };
         let [Effect::Add { feature }] = effects.as_slice() else { panic!() };
         assert_eq!(feature.id, 3);

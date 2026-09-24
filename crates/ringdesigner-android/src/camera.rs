@@ -170,6 +170,22 @@ impl OrbitCamera {
         ringdesign_workbench::focus::Pose { pan: [0.0; 2], zoom, ..self.pose() }
     }
 
+    /// Fit view on `built`: the ring's bounds taken as its own, the pivot moved onto what [`framed`](ringdesign_workbench::touch::view::framed) frames,
+    /// and the pose that frames it with what it is; `None` for an empty build.
+    pub fn fit_view(
+        &mut self,
+        built: &ringdesign_core::BuildResult,
+        design: &ringdesign_core::RingDesign,
+        items: &[ringdesign_workbench::viewport::Sel],
+        isolated: &[ringdesign_core::sketch::Id],
+    ) -> Option<(ringdesign_workbench::focus::Pose, ringdesign_workbench::touch::view::Framed)> {
+        let (bounds, framed) = ringdesign_workbench::touch::view::framed(built, design, items, isolated)?;
+        if let Some(ring) = built.mesh.bounds() {
+            self.refit(ring);
+        }
+        Some((self.framing(bounds), framed))
+    }
+
     /// Takes `bounds` as the ring's own without moving the picture: the radius it is framed by and the middle a named view orbits.
     pub fn refit(&mut self, bounds: (Vec3, Vec3)) {
         let (centre, r) = sphere(bounds.0, bounds.1);
