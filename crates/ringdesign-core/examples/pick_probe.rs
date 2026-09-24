@@ -103,7 +103,7 @@ fn main() {
                         Entity::Vertex { .. } => 0,
                         Entity::Edge { .. } => 1,
                         Entity::Face { .. } => 2,
-                        Entity::Part { .. } => 3,
+                        Entity::Part { .. } | Entity::Seat { .. } | Entity::Stamp { .. } => 3,
                         Entity::Stone { .. } => 4,
                         Entity::Band => 5,
                     }] += 1;

@@ -3,7 +3,8 @@
 //! entity for the same ray. A pick is what is visible: the surface under the cursor, and the part
 //! vertices and edges within the aperture that lie on that surface and are not behind it.
 //! Box selection is x-ray: a part and its faces, edges and vertices are judged on the part's own
-//! placed geometry, whole; the band on the fused faces it owns; a stone on its facets.
+//! placed geometry, whole; the band, a seat's made solid and a stamp on the fused faces each owns;
+//! a stone on its facets.
 use super::bvh::{Bvh, cross, dist2, dot, sub};
 use crate::{AlphaLibrary, BuildResult, Mesh, RingDesign, sketch::Id};
 use std::collections::HashMap;
@@ -33,6 +34,10 @@ pub enum Entity {
     Edge { feature: Id, edge: u32 },
     Vertex { feature: Id, vertex: u32 },
     Stone { path: Vec<usize> },
+    /// A seat's made solid, by the layer path of the stone it seats.
+    Seat { path: Vec<usize> },
+    /// A struck stamp, by its index in `RingDesign::stamps`.
+    Stamp { index: usize },
 }
 
 /// One thing under the cursor: where on it, the unit normal of the surface there, its depth along
@@ -55,18 +60,20 @@ pub struct Filter {
     pub parts: bool,
     pub band: bool,
     pub stones: bool,
+    /// Seats' made solids and struck stamps.
+    pub made: bool,
 }
 
 impl Default for Filter {
     fn default() -> Self {
-        Self { vertices: true, edges: true, faces: true, parts: true, band: true, stones: true }
+        Self { vertices: true, edges: true, faces: true, parts: true, band: true, stones: true, made: true }
     }
 }
 
 impl Filter {
     /// Nothing; a starting point for `Filter { edges: true, ..Filter::none() }`.
     pub fn none() -> Self {
-        Self { vertices: false, edges: false, faces: false, parts: false, band: false, stones: false }
+        Self { vertices: false, edges: false, faces: false, parts: false, band: false, stones: false, made: false }
     }
 }
 
@@ -77,8 +84,12 @@ pub const ON_SURFACE_MM: f64 = 0.1;
 pub const OCCLUSION_MM: f64 = 0.1;
 /// A fused face whose centroid lies within this of a part's own surface is that part's.
 const ON_PART_MM: f64 = 1e-4;
-/// Owner of a fused face no part claims.
+/// Owner of a fused face no part, seat or stamp claims.
 const BAND: u32 = u32::MAX;
+/// Owner of a fused face a seat's solid made: `SEAT + i` for stone `i` of the build's solids.
+const SEAT: u32 = 1 << 30;
+/// Owner of a fused face a stamp made: `STAMP + k` for stamp `k` of the design.
+const STAMP: u32 = 1 << 31;
 
 /// One CAD part: its own placed tessellation for face ordinals and box selection, its B-rep edges and vertices.
 struct Part {
@@ -104,7 +115,7 @@ struct Stones {
 pub struct PickScene {
     mesh: Mesh,
     bvh: Bvh,
-    /// Per fused face: `BAND`, or the index into `parts`.
+    /// Per fused face: `BAND`, the index into `parts`, `SEAT + i` or `STAMP + k`.
     owner: Vec<u32>,
     /// Per fused face: the owning part's face ordinal, or `u32::MAX`.
     ordinal: Vec<u32>,
@@ -112,6 +123,8 @@ pub struct PickScene {
     stones: Option<Stones>,
     /// Reference parts — stones set as CAD parts — which are never metal but are chosen like parts.
     loose: Option<(Mesh, Bvh, Vec<Id>)>,
+    /// The layer path of each stone whose seat's solid the build resolved, by `SEAT` offset.
+    seats: Vec<Vec<usize>>,
 }
 
 /// Class order a pick is ranked by, before screen distance and depth.
@@ -120,7 +133,7 @@ fn rank(e: &Entity) -> u8 {
         Entity::Vertex { .. } => 0,
         Entity::Edge { .. } => 1,
         Entity::Face { .. } => 2,
-        Entity::Part { .. } => 3,
+        Entity::Part { .. } | Entity::Seat { .. } | Entity::Stamp { .. } => 3,
         Entity::Stone { .. } => 4,
         Entity::Band => 5,
     }
@@ -212,15 +225,91 @@ pub fn part_owners(built: &BuildResult) -> Vec<Option<u32>> {
     owner.into_iter().map(|o| if o == BAND { None } else { index[o as usize] }).collect()
 }
 
+/// Gives each band face some of whose vertices a seat's solid or a stamp made to the one most name, unless it lies on the band as swept; returns how many.
+fn claim_made(src: &Mesh, built: &BuildResult, owner: &mut [u32]) -> usize {
+    let solids = &built.solids;
+    if src.origin.len() != src.vertices.len() || (solids.paths.is_empty() && solids.stamps == 0) {
+        return 0;
+    }
+    let maker = |v: u32| -> Option<u32> {
+        let o = *src.origin.get(v as usize)?;
+        solids.stone_of(o).map(|i| SEAT + i as u32).or_else(|| solids.stamp_of(o).map(|k| STAMP + k as u32))
+    };
+    let mut claims: Vec<(usize, u32)> = Vec::new();
+    for (i, f) in src.faces.iter().enumerate() {
+        if owner[i] != BAND {
+            continue;
+        }
+        let named = f.map(maker);
+        // The maker most vertices name, the first of a tie.
+        let most = named.iter().flatten().fold(None, |best: Option<(u32, usize)>, m| {
+            let n = named.iter().filter(|x| **x == Some(*m)).count();
+            if best.is_some_and(|(_, k)| k >= n) { best } else { Some((*m, n)) }
+        });
+        if let Some((m, _)) = most {
+            claims.push((i, m));
+        }
+    }
+    if claims.is_empty() {
+        return 0;
+    }
+    let band = built.band.as_deref().map(|band| band_near(band, src, &claims));
+    let mut claimed = 0;
+    for (i, m) in claims {
+        let Some((a, b, c)) = src.triangle(&src.faces[i]) else { continue };
+        let centroid: [f64; 3] = std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0);
+        if band.as_ref().is_some_and(|(mesh, bvh)| bvh.nearest(mesh, centroid, ON_PART_MM).is_some()) {
+            continue;
+        }
+        owner[i] = m;
+        claimed += 1;
+    }
+    claimed
+}
+
+/// The band's faces within the padded bounds of any maker's claimed faces, as one mesh and its tree.
+fn band_near(band: &Mesh, src: &Mesh, claims: &[(usize, u32)]) -> (Mesh, Bvh) {
+    let pad = 2.0 * ON_PART_MM as f32;
+    let mut boxes: HashMap<u32, ([f32; 3], [f32; 3])> = HashMap::new();
+    for (i, m) in claims {
+        let b = boxes.entry(*m).or_insert(([f32::INFINITY; 3], [f32::NEG_INFINITY; 3]));
+        for v in src.faces[*i] {
+            let p = src.vertices[v as usize];
+            for (k, x) in [p.0, p.1, p.2].into_iter().enumerate() {
+                b.0[k] = b.0[k].min(x - pad);
+                b.1[k] = b.1[k].max(x + pad);
+            }
+        }
+    }
+    let boxes: Vec<([f32; 3], [f32; 3])> = boxes.into_values().collect();
+    let all = boxes.iter().fold(([f32::INFINITY; 3], [f32::NEG_INFINITY; 3]), |(lo, hi), (a, b)| (std::array::from_fn(|k| lo[k].min(a[k])), std::array::from_fn(|k| hi[k].max(b[k]))));
+    let meets = |lo: &[f32; 3], hi: &[f32; 3], b: &([f32; 3], [f32; 3])| (0..3).all(|k| lo[k] <= b.1[k] && hi[k] >= b.0[k]);
+    let faces: Vec<[u32; 3]> = band
+        .faces
+        .iter()
+        .filter(|f| {
+            let (Some(a), Some(b), Some(c)) = (band.vertices.get(f[0] as usize), band.vertices.get(f[1] as usize), band.vertices.get(f[2] as usize)) else { return false };
+            let lo = [a.0.min(b.0).min(c.0), a.1.min(b.1).min(c.1), a.2.min(b.2).min(c.2)];
+            let hi = [a.0.max(b.0).max(c.0), a.1.max(b.1).max(c.1), a.2.max(b.2).max(c.2)];
+            meets(&lo, &hi, &all) && boxes.iter().any(|b| meets(&lo, &hi, b))
+        })
+        .copied()
+        .collect();
+    let mesh = Mesh { vertices: band.vertices.clone(), faces, ..Default::default() };
+    let bvh = Bvh::build(&mesh);
+    (mesh, bvh)
+}
+
 impl PickScene {
-    /// The scene over a build: the fused mesh, the parts its origin names, and the design's stones.
+    /// The scene over a build: the fused mesh, the parts, seats' solids and stamps its origin names, and the design's stones.
     pub fn build(built: &BuildResult, design: &RingDesign) -> Self {
         let src = &built.mesh;
         let mesh = Mesh { vertices: src.vertices.clone(), faces: src.faces.clone(), ..Default::default() };
         let bvh = Bvh::build(&mesh);
         let parts = placed_parts(built);
-        let (owner, ordinal) = owners(src, &built.parts, &parts);
-        Self { mesh, bvh, owner, ordinal, parts, stones: stones_of(design), loose: reference_parts(built) }
+        let (mut owner, ordinal) = owners(src, &built.parts, &parts);
+        claim_made(src, built, &mut owner);
+        Self { mesh, bvh, owner, ordinal, parts, stones: stones_of(design), loose: reference_parts(built), seats: built.solids.paths.clone() }
     }
 
     /// Faces the fused mesh holds.
@@ -251,7 +340,22 @@ impl PickScene {
     /// What the feature id behind a fused face is, when a part owns it.
     pub fn feature_of_face(&self, face: usize) -> Option<Id> {
         let owner = *self.owner.get(face)?;
-        (owner != BAND).then(|| self.parts[owner as usize].feature)
+        (owner < SEAT).then(|| self.parts[owner as usize].feature)
+    }
+
+    /// The seat's solid or the stamp behind a fused face, when one made it.
+    pub fn made_of_face(&self, face: usize) -> Option<Entity> {
+        self.made(*self.owner.get(face)?)
+    }
+
+    /// The entity an owner value names when a seat's solid or a stamp made the face.
+    fn made(&self, owner: u32) -> Option<Entity> {
+        match owner {
+            BAND => None,
+            o if o >= STAMP => Some(Entity::Stamp { index: (o - STAMP) as usize }),
+            o if o >= SEAT => self.seats.get((o - SEAT) as usize).map(|path| Entity::Seat { path: path.clone() }),
+            _ => None,
+        }
     }
 
     /// Everything visible within `aperture_px` of the ray, best first: vertex over edge over face
@@ -285,6 +389,10 @@ impl PickScene {
                 if owner == BAND {
                     if filter.band {
                         out.push(Pick { entity: Entity::Band, world, normal, depth: t, px: 0.0 });
+                    }
+                } else if owner >= SEAT {
+                    if let Some(entity) = self.made(owner).filter(|_| filter.made) {
+                        out.push(Pick { entity, world, normal, depth: t, px: 0.0 });
                     }
                 } else {
                     let feature = self.parts[owner as usize].feature;
@@ -447,6 +555,23 @@ impl PickScene {
                     if seen[k] && if crossing { any_touch[k] } else { all_in[k] } {
                         out.push(Entity::Stone { path: s.paths[k].clone() });
                     }
+                }
+            }
+        }
+        if filter.made {
+            // Per seat's solid or stamp, in owner order: every face inside, or any face touching.
+            let mut made: std::collections::BTreeMap<u32, (bool, bool)> = std::collections::BTreeMap::new();
+            for (f, o) in self.mesh.faces.iter().zip(&self.owner).filter(|(_, o)| **o >= SEAT && **o != BAND) {
+                let (all_in, any_touch) = made.entry(*o).or_insert((true, false));
+                if crossing {
+                    *any_touch = *any_touch || tri_touch(&self.mesh, f);
+                } else if *all_in {
+                    *all_in = tri_in(&self.mesh, f);
+                }
+            }
+            for (o, (all_in, any_touch)) in made {
+                if if crossing { any_touch } else { all_in } {
+                    out.extend(self.made(o));
                 }
             }
         }
@@ -922,6 +1047,119 @@ mod tests {
         let planes = [[1.0, 0.0, 0.0, 3.0], [-1.0, 0.0, 0.0, 8.0], [0.0, 1.0, 0.0, 3.0], [0.0, -1.0, 0.0, 3.0]];
         let all = scene.box_select(planes, true, Filter::default());
         assert!(!all.contains(&Entity::Band) && all.contains(&Entity::Part { feature: 1 }) && all.contains(&Entity::Part { feature: 3 }), "{all:?}");
+    }
+
+    /// A 5 × 2.2 mm low dome, a 3 mm round in a claw head on layer "Centre" at the top, a 1.2 mm disc struck at the palm.
+    fn claw_seat_and_stamp() -> RingDesign {
+        use crate::field::{Layer, LayerEntry, SeatPadLayer, SeatStyle};
+        use crate::gem::{Gem, GemCut};
+        let mut d = RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 5.0;
+        d.profile.thickness_mm = 2.2;
+        let v = d.field_context().crest_v_mm;
+        let mut pad = SeatPadLayer { theta_deg: 90.0, v_mm: v, style: SeatStyle::Boss, blend_mm: 0.5, solid: crate::setting::SolidKind::Prong, ..Default::default() };
+        pad.fit_stone(Gem::calibrated(GemCut::Round, 3.0));
+        pad.height_mm = 0.3;
+        d.layers.layers.push(LayerEntry::new("Centre", Layer::SeatPad(pad)));
+        let disc = (0..40).map(|i| {
+            let t = std::f64::consts::TAU * f64::from(i) / 40.0;
+            [1.2 * t.cos(), 1.2 * t.sin()]
+        });
+        d.stamps.push(crate::setting::Stamp { name: "Disc".into(), theta_deg: 270.0, v_mm: v, rot_deg: 0.0, outline: disc.collect(), height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false });
+        d
+    }
+
+    #[test]
+    fn a_claw_head_on_a_seat_and_a_struck_stamp_pick_as_themselves_and_the_band_keeps_its_own_faces() {
+        let lib = AlphaLibrary::builtin();
+        let d = claw_seat_and_stamp();
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        assert_eq!((built.solids.resolved, built.solids.stamped, built.solids.paths.clone(), built.solids.stamps), (1, 1, vec![vec![0]], 1), "{:?}", built.solids.notes);
+        let scene = PickScene::build(&built, &d);
+        let seat = Entity::Seat { path: vec![0] };
+        let stamp = Entity::Stamp { index: 0 };
+        // The head's and the disc's faces stand off the band as swept; a band face carrying a seam's vertices lies on it.
+        let band = built.band.as_deref().unwrap();
+        let band_bvh = Bvh::build(band);
+        let off_band = |f: &[u32; 3]| {
+            let (a, b, c) = built.mesh.triangle(f).unwrap();
+            let centroid: [f64; 3] = std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0);
+            band_bvh.nearest(band, centroid, ON_PART_MM).is_none()
+        };
+        let named = |f: &[u32; 3]| f.iter().filter(|v| built.mesh.origin[**v as usize] >= crate::mesh::SOLID_VERTEX).count();
+        let (mut head, mut disc, mut seam, mut slivers) = (0, 0, 0, 0);
+        for (i, f) in built.mesh.faces.iter().enumerate() {
+            match scene.made_of_face(i) {
+                Some(e) if e == seat => head += 1,
+                Some(e) if e == stamp => disc += 1,
+                Some(e) => panic!("face {i} names {e:?}"),
+                None => {
+                    assert_eq!(scene.feature_of_face(i), None);
+                    if named(f) > 0 {
+                        assert!(!off_band(f), "face {i}: a band face with a seam's vertices lies on the band");
+                        seam += 1;
+                        slivers += usize::from(named(f) == 3);
+                    }
+                    continue;
+                }
+            }
+            assert!(off_band(f), "face {i}: a made face stands off the band");
+        }
+        eprintln!("claw head {head} faces, disc {disc}, band faces along the seams {seam}, of them {slivers} made only of seam vertices");
+        assert!(head > 1000 && disc > 100 && seam > 50, "head {head} disc {disc} seam {seam}");
+        assert!(slivers > 0, "the band test has slivers to keep: {slivers}");
+        // Straight down onto the claws: every pick on metal off the stone's own ground names the seat, never the band.
+        let (_, frame) = crate::stones::stone_frames(&d).into_iter().next().unwrap();
+        let gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Round, 3.0);
+        let plan = crate::setting::Plan::of(gem);
+        let no_stones = Filter { stones: false, ..Filter::default() };
+        let claws = plan.claw_angles(crate::setting::claw_count(gem, 0));
+        for phi in &claws {
+            let p = plan.point(*phi);
+            let over: [f64; 3] = std::array::from_fn(|k| frame.girdle[k] + frame.long[k] * p[0] + frame.short[k] * p[1] + frame.normal[k] * 10.0);
+            let picks = scene.pick(Ray { origin: over, direction: frame.normal.map(|v| -v) }, &top_view(), 0.0, no_stones);
+            assert_eq!(picks.first().map(|p| &p.entity), Some(&seat), "claw at {:.0}°: {picks:?}", phi.to_degrees());
+            assert!(picks[0].depth < 10.0 - gem.crown_mm() * 0.5, "over the girdle, on the claw: {:?}", picks[0]);
+        }
+        assert!(claws.len() >= 4, "{claws:?}");
+        // The disc's top, straight up from under the palm; the band beside it is the band.
+        let r = d.inner_radius_mm() + d.profile.thickness_mm;
+        let up = |x: f64, z: f64| Ray { origin: [x, -40.0, z], direction: [0.0, 1.0, 0.0] };
+        let picks = scene.pick(up(0.0, 0.0), &top_view(), 0.0, Filter::default());
+        assert_eq!(picks.iter().map(|p| &p.entity).collect::<Vec<_>>(), [&stamp], "{picks:?}");
+        assert!((picks[0].world[1] + r + 0.4).abs() < 0.05, "the disc's top stands 0.4 mm off the crest: {:?}", picks[0].world);
+        let beside = scene.pick(up(2.0, 0.0), &top_view(), 0.0, Filter::default());
+        assert_eq!(beside.first().map(|p| &p.entity), Some(&Entity::Band), "{beside:?}");
+        // Filtered out, a seat's solid or a stamp hides what is behind it and answers nothing.
+        assert!(scene.pick(up(0.0, 0.0), &top_view(), 0.0, Filter { made: false, ..Filter::default() }).is_empty());
+        // A window round the head down the finger takes the stone and its seat whole and nothing else; a crossing touches the band too.
+        let window = [[1.0, 0.0, 0.0, 4.0], [-1.0, 0.0, 0.0, 4.0], [0.0, 1.0, 0.0, -7.0], [0.0, -1.0, 0.0, 14.0]];
+        let stone = Entity::Stone { path: vec![0] };
+        assert_eq!(scene.box_select(window, false, Filter::default()), [stone.clone(), seat.clone()]);
+        assert_eq!(scene.box_select(window, true, Filter::default()), [stone, seat.clone(), Entity::Band]);
+        let palm = [[1.0, 0.0, 0.0, 4.0], [-1.0, 0.0, 0.0, 4.0], [0.0, 1.0, 0.0, 14.0], [0.0, -1.0, 0.0, -7.0]];
+        assert_eq!(scene.box_select(palm, false, Filter::default()), [stamp]);
+    }
+
+    /// `cargo test --release -p ringdesign-core -- --ignored claimed_at_export --nocapture` for the numbers.
+    #[test]
+    #[ignore]
+    fn the_seat_and_stamp_claim_measured_at_preview_and_export_claimed_at_export() {
+        let lib = AlphaLibrary::builtin();
+        let d = claw_seat_and_stamp();
+        for (name, params) in [("preview", BuildParams { theta_steps: 384, profile_steps: 144, ..BuildParams::default() }), ("export", BuildParams { theta_steps: 1024, profile_steps: 320, ..BuildParams::default() })] {
+            let built = crate::mesh::try_build(&d, &lib, params).unwrap();
+            let parts = placed_parts(&built);
+            let (mut owner, _) = owners(&built.mesh, &built.parts, &parts);
+            let started = std::time::Instant::now();
+            let claimed = claim_made(&built.mesh, &built, &mut owner);
+            let claim_ms = started.elapsed().as_secs_f64() * 1e3;
+            let started = std::time::Instant::now();
+            let scene = PickScene::build(&built, &d);
+            let scene_ms = started.elapsed().as_secs_f64() * 1e3;
+            println!("{name}: {} faces, {claimed} claimed by the seat and the stamp in {claim_ms:.1} ms; the whole scene {scene_ms:.1} ms", scene.faces());
+        }
     }
 
     /// Per face ordinal, the mean of its triangles' coordinate `axis`.

@@ -5,6 +5,7 @@
 use ringdesign_core::{
     BuildResult, Mesh, RingDesign,
     cad::EvaluatedComponent,
+    field::{Layer, LayerEntry, SeatPadLayer},
     interaction::{
         bvh::Bvh,
         pick::{Entity, Filter, Pick, Ray},
@@ -21,6 +22,10 @@ pub enum Sel {
     Edge { feature: Id, edge: u32 },
     Vertex { feature: Id, vertex: u32 },
     Stone(Vec<usize>),
+    /// A seat's made solid, by the layer path of the stone it seats.
+    Seat(Vec<usize>),
+    /// A struck stamp, by its index in the design's stamps.
+    Stamp(usize),
     /// A point on the band: where the click landed, in the chart and in the world.
     BandPoint { theta_deg: f64, v_mm: f64, world: [f64; 3] },
     Layer(usize),
@@ -29,17 +34,10 @@ pub enum Sel {
 impl Sel {
     /// The selection a pick becomes; `band` reads the chart position of a band hit.
     pub fn of(pick: &Pick, band: impl FnOnce([f64; 3]) -> (f64, f64)) -> Self {
-        match &pick.entity {
-            Entity::Band => {
-                let (theta_deg, v_mm) = band(pick.world);
-                Sel::BandPoint { theta_deg, v_mm, world: pick.world }
-            }
-            Entity::Part { feature } => Sel::Part(*feature),
-            Entity::Face { feature, face } => Sel::Face { feature: *feature, face: *face },
-            Entity::Edge { feature, edge } => Sel::Edge { feature: *feature, edge: *edge },
-            Entity::Vertex { feature, vertex } => Sel::Vertex { feature: *feature, vertex: *vertex },
-            Entity::Stone { path } => Sel::Stone(path.clone()),
-        }
+        Self::of_entity(&pick.entity).unwrap_or_else(|| {
+            let (theta_deg, v_mm) = band(pick.world);
+            Sel::BandPoint { theta_deg, v_mm, world: pick.world }
+        })
     }
 
     /// The selection an entity is, without a pick; the band has no place to name and is none.
@@ -51,6 +49,8 @@ impl Sel {
             Entity::Edge { feature, edge } => Sel::Edge { feature: *feature, edge: *edge },
             Entity::Vertex { feature, vertex } => Sel::Vertex { feature: *feature, vertex: *vertex },
             Entity::Stone { path } => Sel::Stone(path.clone()),
+            Entity::Seat { path } => Sel::Seat(path.clone()),
+            Entity::Stamp { index } => Sel::Stamp(*index),
         })
     }
 
@@ -78,6 +78,8 @@ impl Sel {
             (Sel::Edge { feature: a, edge: b }, Entity::Edge { feature, edge }) => a == feature && b == edge,
             (Sel::Vertex { feature: a, vertex: b }, Entity::Vertex { feature, vertex }) => a == feature && b == vertex,
             (Sel::Stone(a), Entity::Stone { path }) => a == path,
+            (Sel::Seat(a), Entity::Seat { path }) => a == path,
+            (Sel::Stamp(a), Entity::Stamp { index }) => a == index,
             _ => false,
         }
     }
@@ -371,6 +373,21 @@ fn paint(w: &mut [f32], built: &BuildResult, target: &Sel, weight: f32) {
                 }
             }
         }
+        Sel::Seat(path) => {
+            let solids = &built.solids;
+            for i in 0..w.len() {
+                if origin.get(i).and_then(|o| solids.stone_of(*o)).is_some_and(|s| solids.paths[s] == *path) {
+                    w[i] = weight;
+                }
+            }
+        }
+        Sel::Stamp(index) => {
+            for i in 0..w.len() {
+                if origin.get(i).and_then(|o| built.solids.stamp_of(*o)) == Some(*index) {
+                    w[i] = weight;
+                }
+            }
+        }
         Sel::Stone(_) | Sel::Layer(_) => {}
     }
 }
@@ -420,6 +437,34 @@ pub fn label(entity: &Entity, design: &RingDesign, built: Option<&BuildResult>) 
             Some(e) => format!("stone on {}", e.name),
             None => "stone".into(),
         },
+        Entity::Seat { path } => match entry_at(design, path) {
+            Some(e) => format!("{} on {}", seat_of(e).map_or("seat", |s| s.solid.label()).to_lowercase(), e.name),
+            None => "a seat's solid".into(),
+        },
+        Entity::Stamp { index } => match design.stamps.get(*index) {
+            Some(s) => format!("stamp \"{}\"", s.name),
+            None => format!("stamp {index}"),
+        },
+    }
+}
+
+/// The layer entry at `path`: a top-level index, then each group's own.
+pub fn entry_at<'a>(design: &'a RingDesign, path: &[usize]) -> Option<&'a LayerEntry> {
+    let (first, rest) = path.split_first()?;
+    let mut entry = design.layers.layers.get(*first)?;
+    for i in rest {
+        let Layer::Group(g) = &entry.layer else { return None };
+        entry = g.stack.layers.get(*i)?;
+    }
+    Some(entry)
+}
+
+/// The seat a layer entry carries, a pad's own or a run's.
+pub fn seat_of(entry: &LayerEntry) -> Option<&SeatPadLayer> {
+    match &entry.layer {
+        Layer::SeatPad(s) => Some(s),
+        Layer::SeatRun(r) => Some(&r.seat),
+        _ => None,
     }
 }
 
@@ -431,6 +476,8 @@ pub fn describe(sel: &Sel, design: &RingDesign, built: Option<&BuildResult>) -> 
         Sel::Edge { feature, edge } => label(&Entity::Edge { feature: *feature, edge: *edge }, design, built),
         Sel::Vertex { feature, vertex } => label(&Entity::Vertex { feature: *feature, vertex: *vertex }, design, built),
         Sel::Stone(path) => label(&Entity::Stone { path: path.clone() }, design, built),
+        Sel::Seat(path) => label(&Entity::Seat { path: path.clone() }, design, built),
+        Sel::Stamp(index) => label(&Entity::Stamp { index: *index }, design, built),
         Sel::BandPoint { theta_deg, v_mm, .. } => format!("band at {theta_deg:.0}°, v {v_mm:.2}"),
         Sel::Layer(i) => design.layers.layers.get(*i).map_or_else(|| format!("layer {i}"), |e| e.name.clone()),
     }
@@ -716,6 +763,51 @@ mod tests {
         assert_eq!(label(&top_face.entity, &design, Some(&built)), format!("Bezel face {} (plane)", match top_face.entity { Entity::Face { face, .. } => face, _ => 0 }));
         assert_eq!(label(&Entity::Band, &design, Some(&built)), "the band");
         assert_eq!(label(&Entity::Part { feature: 7 }, &design, None), "part #7");
+    }
+
+    /// A 5 × 2.2 mm low dome, a 3 mm round in a claw head on layer "Centre" at the top, a 1.2 mm disc struck at the palm.
+    fn seat_and_stamp() -> RingDesign {
+        use ringdesign_core::field::SeatStyle;
+        use ringdesign_core::gem::{Gem, GemCut};
+        let mut d = RingDesign::default();
+        d.profile.apply_style(ringdesign_core::ProfileStyle::LowDome);
+        d.profile.width_mm = 5.0;
+        d.profile.thickness_mm = 2.2;
+        let v = d.field_context().crest_v_mm;
+        let mut pad = SeatPadLayer { theta_deg: 90.0, v_mm: v, style: SeatStyle::Boss, blend_mm: 0.5, solid: ringdesign_core::setting::SolidKind::Prong, ..Default::default() };
+        pad.fit_stone(Gem::calibrated(GemCut::Round, 3.0));
+        pad.height_mm = 0.3;
+        d.layers.layers.push(LayerEntry::new("Centre", Layer::SeatPad(pad)));
+        let disc = (0..40).map(|i| {
+            let t = std::f64::consts::TAU * f64::from(i) / 40.0;
+            [1.2 * t.cos(), 1.2 * t.sin()]
+        });
+        d.stamps.push(ringdesign_core::setting::Stamp { name: "Disc".into(), theta_deg: 270.0, v_mm: v, rot_deg: 0.0, outline: disc.collect(), height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false });
+        d
+    }
+
+    #[test]
+    fn a_seats_solid_and_a_stamp_light_what_they_made_and_go_by_their_layer_and_their_name() {
+        let design = seat_and_stamp();
+        let lib = AlphaLibrary::builtin();
+        let built = mesh::build(&design, &lib, BuildParams { theta_steps: 256, profile_steps: 128, ..Default::default() });
+        let named = |of: &dyn Fn(u32) -> bool| built.mesh.origin.iter().filter(|o| of(**o)).count();
+        let (head, disc) = (named(&|o| built.solids.stone_of(o) == Some(0)), named(&|o| built.solids.stamp_of(o) == Some(0)));
+        assert!(head > 1000 && disc > 100, "{head} {disc}");
+        let mut s = Selection::default();
+        s.click(Some(Sel::Seat(vec![0])), Mods::default());
+        let count = |w: &[f32], x: f32| w.iter().filter(|v| **v == x).count();
+        assert_eq!(count(&tint(&s, &built), 1.0), head, "the chosen seat lights every vertex its solid made");
+        s.hovered(vec![pick(Entity::Stamp { index: 0 })]);
+        let w = tint(&s, &built);
+        assert_eq!((count(&w, 1.0), count(&w, 2.0)), (head, disc), "and the hovered stamp its own");
+        // Named for the layer and the stamp, and taken whole by a box.
+        assert_eq!(label(&Entity::Seat { path: vec![0] }, &design, Some(&built)), "claw head on Centre");
+        assert_eq!(describe(&Sel::Stamp(0), &design, None), "stamp \"Disc\"");
+        assert_eq!(label(&Entity::Stamp { index: 7 }, &design, None), "stamp 7");
+        s.boxed(&[Entity::Seat { path: vec![0] }, Entity::Band, Entity::Stamp { index: 0 }], Mods::default());
+        assert_eq!(s.items, [Sel::Seat(vec![0]), Sel::Stamp(0)]);
+        assert!(s.is_selected(&Entity::Stamp { index: 0 }) && !s.is_selected(&Entity::Stamp { index: 1 }) && s.one_part().is_none());
     }
 
     /// The viewport's hover path on an export build, timed: `cargo test --release -p

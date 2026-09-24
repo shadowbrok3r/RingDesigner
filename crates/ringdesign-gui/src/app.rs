@@ -226,6 +226,29 @@ fn load_prices() -> std::collections::HashMap<String, f64> {
 /// Quiet period after the last edit before a rebuild fires.
 const DEBOUNCE: Duration = Duration::from_millis(90);
 
+/// How often a part being read is looked for while nothing else asks for a frame.
+const IMPORT_POLL: Duration = Duration::from_millis(100);
+
+/// A part file read: the stored feature and what the reader noted, or why it made none.
+pub type PartRead = Result<(ringdesign_core::cad::Feature, Vec<String>), String>;
+
+/// A part file being read on a thread of its own.
+pub struct PendingImport {
+    /// The file's name.
+    pub file: String,
+    /// What reads it.
+    pub reader: &'static str,
+    pub started: Instant,
+    answer: Receiver<PartRead>,
+}
+
+impl PendingImport {
+    /// What the status line says while it is read.
+    pub fn words(&self) -> String {
+        format!("Reading {} in {}… {:.1} s — Cancel import stops it", self.file, self.reader, self.started.elapsed().as_secs_f64())
+    }
+}
+
 /// Longest edge of an uploaded alpha preview texture.
 const THUMB_TEXTURE_EDGE: usize = 128;
 
@@ -300,6 +323,10 @@ pub struct RingDesignerApp {
     pub prices: std::collections::HashMap<String, f64>,
     /// A background export in flight: its completion message arrives here.
     pub exporting: Option<std::sync::mpsc::Receiver<String>>,
+    /// A part file being read off the UI thread, applied when it lands.
+    pub importing: Option<PendingImport>,
+    /// The stamp whose inspector is open, by its index in the design's stamps.
+    pub stamp_inspector: Option<usize>,
     /// The Ctrl+K command palette.
     pub palette_open: bool,
     pub palette_query: String,
@@ -462,6 +489,8 @@ impl RingDesignerApp {
             pave_open: false,
             prices: load_prices(),
             exporting: None,
+            importing: None,
+            stamp_inspector: None,
             palette_open: false,
             palette_query: String::new(),
             palette_selection: 0,
@@ -519,6 +548,7 @@ impl RingDesignerApp {
             generation: 0,
         };
         app.command.planes.hidden = !ws.show_work_planes;
+        app.dock.catch_up(app.desktop);
         app.restore_desktop_view();
         app.carry_legacy_pins();
         app.mark_dirty();
@@ -570,6 +600,58 @@ impl RingDesignerApp {
         if let Some(msg) = done {
             self.exporting = None;
             self.set_status(msg);
+        }
+    }
+
+    /// Reads part file `file` on a thread of its own with `read`, named by `reader`; it lands joined at the top as one History entry.
+    #[cfg(any(test, feature = "kernel-occt"))]
+    pub fn start_import(&mut self, file: String, reader: &'static str, read: impl FnOnce() -> PartRead + Send + 'static) {
+        if let Some(p) = &self.importing {
+            self.set_status(format!("{} is still being read; cancel it before importing another part", p.file));
+            return;
+        }
+        let (tx, rx) = channel();
+        let wake = self.egui_ctx.clone();
+        let spawned = std::thread::Builder::new().name("part-import".into()).spawn(move || {
+            let _ = tx.send(read());
+            wake.request_repaint();
+        });
+        if let Err(e) = spawned {
+            self.set_status(format!("{file} could not be read: {e}"));
+            return;
+        }
+        self.importing = Some(PendingImport { file, reader, started: Instant::now(), answer: rx });
+        self.status = self.importing.as_ref().map(PendingImport::words).unwrap_or_default();
+    }
+
+    /// Stops waiting for the part being read: what it reads is dropped when it lands.
+    pub fn cancel_import(&mut self) {
+        if let Some(p) = self.importing.take() {
+            self.set_status(format!("Stopped reading {}: nothing was imported", p.file));
+        }
+    }
+
+    /// Takes in a part that has been read, or says on the status line what is still being read.
+    fn poll_import(&mut self, ctx: &egui::Context) {
+        let Some(p) = &self.importing else { return };
+        match p.answer.try_recv() {
+            Ok(read) => {
+                self.importing = None;
+                match read {
+                    Ok(read) => crate::export::land_part(self, read),
+                    Err(why) => self.set_status(why),
+                }
+            }
+            Err(TryRecvError::Empty) => {
+                self.status = p.words();
+                crate::export::import_plate(self, ctx);
+                ctx.request_repaint_after(IMPORT_POLL);
+            }
+            Err(TryRecvError::Disconnected) => {
+                let file = p.file.clone();
+                self.importing = None;
+                self.set_status(format!("Reading {file} stopped without an answer: nothing was imported"));
+            }
         }
     }
 
@@ -763,6 +845,8 @@ impl RingDesignerApp {
                 self.dispatch(self.preview_params);
             }
         }
+        // A part still being read holds the status line over a build's.
+        self.poll_import(ctx);
     }
 
     /// Force a rebuild now, ignoring the debounce.
@@ -869,6 +953,7 @@ impl RingDesignerApp {
         if desktop == Desktop::Graph && next.viewport_layout.is_none() {
             next = DesktopLayout::new(desktop);
         }
+        next.dock.catch_up(desktop);
         next.panes.resize_with(4, || Pane::defaults().remove(0));
         next.panes.truncate(4);
         self.dock = next.dock;

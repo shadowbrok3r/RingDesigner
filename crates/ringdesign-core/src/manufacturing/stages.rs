@@ -1,6 +1,6 @@
 //! Manufacturing stages are derived from source parameters, never repeatedly
 //! scaled in place. As-cast is the recipe's ideal uniform-shrink prediction.
-use super::{Casting, Setup, cast_alone, part_mesh, prepare_with_library, source_library};
+use super::{Casting, Setup, cast_alone, part_mesh, prepare_with_library, settle_rollback, source_library};
 use crate::{AlphaLibrary, BuildParams, Mesh, RingDesign};
 
 pub struct Stages {
@@ -25,6 +25,7 @@ pub fn evaluate(
         _ => None,
     };
     if let Some(doc) = &mut nominal.cad {
+        settle_rollback(doc);
         match alone {
             Some(id) => cast_alone(doc, id),
             None => doc.outputs = prepared.design.cad.as_ref().unwrap().outputs.clone(),

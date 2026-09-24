@@ -49,7 +49,7 @@ pub fn handle_at(layout: &Layout, p: Pos2, reach: f32, part: Option<(Pos2, f32)>
 /// A pick stack as a finger wants it: whole parts before stones, their faces, edges and vertices, and the band last.
 pub fn coarse_first(mut picks: Vec<Pick>) -> Vec<Pick> {
     let order = |e: &Entity| match e {
-        Entity::Part { .. } => 0,
+        Entity::Part { .. } | Entity::Seat { .. } | Entity::Stamp { .. } => 0,
         Entity::Stone { .. } => 1,
         Entity::Face { .. } => 2,
         Entity::Edge { .. } => 3,

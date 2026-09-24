@@ -318,6 +318,25 @@ pub struct Prepared {
     pub notes: Vec<String>,
 }
 
+/// A rolled-back document as the ring it evaluates to: the features and joints past the rollback dropped, its outputs listed.
+fn settle_rollback(doc: &mut Document) {
+    let Some(through) = doc.through else { return };
+    let Some(end) = doc.features.iter().position(|f| f.id == through) else { return };
+    doc.through = None;
+    doc.features.truncate(end + 1);
+    let kept: std::collections::HashSet<Id> = doc.features.iter().map(|f| f.id).collect();
+    doc.joints.retain(|j| kept.contains(&j.a) && kept.contains(&j.b));
+    let mut outputs: Vec<Id> = Vec::new();
+    for f in &doc.features {
+        let consumed = f.operation.consumes();
+        outputs.retain(|id| !consumed.contains(id));
+        if f.operation.has_body() {
+            outputs.push(f.id);
+        }
+    }
+    doc.outputs = outputs;
+}
+
 /// The outputs the ring pours: every part joined to or cut from the band, in output order.
 fn ring_parts(doc: &Document) -> Vec<Id> {
     let listed: std::collections::HashMap<Id, Attach> = doc.attachments().into_iter().map(|(id, attach, _)| (id, attach)).collect();
@@ -446,6 +465,7 @@ fn prepare_with_library(
     let mut notes = Vec::new();
     let stock = setup.radial_stock_mm + setup.axial_stock_mm + setup.bore_stock_mm;
     if let Some(doc) = &mut pattern.cad {
+        settle_rollback(doc);
         if doc.band().is_some() {
             casting = chosen(doc, setup.component)?;
             match casting {

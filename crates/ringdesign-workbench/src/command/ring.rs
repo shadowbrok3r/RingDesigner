@@ -494,7 +494,7 @@ impl Probe<'_> {
     fn carries(&self, e: &Entity) -> bool {
         let feature = match e {
             Entity::Part { feature } | Entity::Face { feature, .. } | Entity::Edge { feature, .. } | Entity::Vertex { feature, .. } => Some(*feature),
-            Entity::Band | Entity::Stone { .. } => None,
+            Entity::Band | Entity::Stone { .. } | Entity::Seat { .. } | Entity::Stamp { .. } => None,
         };
         feature.is_some() && feature == self.carried
     }

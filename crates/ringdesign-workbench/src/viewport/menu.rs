@@ -1,6 +1,7 @@
 //! What a right-click on the ring may do, decided by what lies under it — else by the last thing
 //! chosen — and said as data, so the desktop and the phone draw the same menu and a test reads it
 //! without a window.
+use super::made::Switches;
 use super::selection::{Sel, Selection, feature_name};
 use crate::icons::Icon;
 use ringdesign_core::{
@@ -48,6 +49,16 @@ pub enum MenuAction {
     CutHere { theta_deg: f64, across_mm: f64, key: &'static str },
     /// A builder `key` built under a reference stone.
     UnderStone { stone: Id, key: &'static str },
+    /// The layer a seat's made solid stands on, by its path, chosen in the Layers tool.
+    SeatLayer(Vec<usize>),
+    /// Seats' solids and stamps resolved into the preview, or the cast stock alone.
+    ToggleLiveCuts,
+    /// Every seat's cutters drawn over the ring as a ghost.
+    ToggleCutters,
+    /// Stamp `index`'s name and where it stands, in an inspector.
+    EditStamp(usize),
+    /// One change to stamp `index`, one History entry.
+    Stamp { index: usize, edit: super::made::StampEdit },
 }
 
 #[derive(Clone, Debug)]
@@ -91,6 +102,10 @@ enum Subject {
     Feature { id: Id, edge: Option<u32>, face: Option<u32> },
     /// A height-field stone, by its layer path when one is known.
     Stone(Option<Vec<usize>>),
+    /// A seat's made solid, by its stone's layer path.
+    Seat(Vec<usize>),
+    /// A struck stamp, by its index.
+    Stamp(usize),
     Nothing,
 }
 
@@ -102,12 +117,16 @@ fn subject(sel: &Selection, under: Option<&Pick>) -> Subject {
             Entity::Face { feature, face } => Subject::Feature { id: *feature, edge: None, face: Some(*face) },
             Entity::Edge { feature, edge } => Subject::Feature { id: *feature, edge: Some(*edge), face: None },
             Entity::Stone { path } => Subject::Stone(Some(path.clone())),
+            Entity::Seat { path } => Subject::Seat(path.clone()),
+            Entity::Stamp { index } => Subject::Stamp(*index),
         };
     }
     match sel.items.last() {
         Some(Sel::BandPoint { world, .. }) => Subject::Band(Some(*world)),
         Some(Sel::Layer(_)) => Subject::Band(None),
         Some(Sel::Stone(path)) => Subject::Stone(Some(path.clone())),
+        Some(Sel::Seat(path)) => Subject::Seat(path.clone()),
+        Some(Sel::Stamp(index)) => Subject::Stamp(*index),
         Some(Sel::Face { feature, face }) => Subject::Feature { id: *feature, edge: None, face: Some(*face) },
         Some(s) => match (s.feature(), s.edge()) {
             (Some(id), edge) => Subject::Feature { id, edge, face: None },
@@ -126,6 +145,11 @@ pub fn heading(sel: &Selection, under: Option<&Pick>, design: &RingDesign) -> Op
         Entity::Vertex { feature, vertex } => Some(format!("Vertex {vertex} of {}", name(*feature))),
         Entity::Part { feature } => Some(name(*feature)),
         Entity::Stone { .. } => Some("Stone".into()),
+        Entity::Seat { .. } | Entity::Stamp { .. } => {
+            let words = super::selection::label(entity, design, None);
+            let mut first = words.chars();
+            first.next().map(|c| c.to_uppercase().chain(first).collect())
+        }
         Entity::Band => None,
     };
     if let Some(p) = under {
@@ -137,6 +161,8 @@ pub fn heading(sel: &Selection, under: Option<&Pick>, design: &RingDesign) -> Op
         Sel::Vertex { feature, vertex } => of(&Entity::Vertex { feature: *feature, vertex: *vertex }),
         Sel::Part(id) => Some(name(*id)),
         Sel::Stone(_) => Some("Stone".into()),
+        Sel::Seat(path) => of(&Entity::Seat { path: path.clone() }),
+        Sel::Stamp(index) => of(&Entity::Stamp { index: *index }),
         Sel::BandPoint { .. } | Sel::Layer(_) => None,
     }
 }
@@ -144,6 +170,11 @@ pub fn heading(sel: &Selection, under: Option<&Pick>, design: &RingDesign) -> Op
 /// The items a right-click offers: what lies under it first, else the last thing chosen, then the
 /// view. Pure: the caller draws them and routes the actions.
 pub fn context_items(sel: &Selection, under: Option<&Pick>, design: &RingDesign) -> Vec<MenuItem> {
+    context_items_in(sel, under, design, Switches::default())
+}
+
+/// [`context_items`] with a seat's switches ticked as the view has them.
+pub fn context_items_in(sel: &Selection, under: Option<&Pick>, design: &RingDesign, switches: Switches) -> Vec<MenuItem> {
     let mut items = Vec::new();
     match subject(sel, under) {
         Subject::Band(Some(world)) => {
@@ -199,6 +230,8 @@ pub fn context_items(sel: &Selection, under: Option<&Pick>, design: &RingDesign)
             items.push(MenuItem::new("Isolate in CAD", Icon::Layers, MenuAction::IsolateInCad(id), "Show this part alone in the CAD pane"));
         }
         Subject::Stone(path) => items.extend(super::stones::setting_items(None, path)),
+        Subject::Seat(path) => items.extend(super::made::seat_items(design, &path, switches)),
+        Subject::Stamp(index) => items.extend(super::made::stamp_items(design, index)),
         Subject::Band(None) | Subject::Nothing => {}
     }
     items.push(MenuItem::new("Fit view", Icon::Fit, MenuAction::FitView, "Frame the whole ring"));

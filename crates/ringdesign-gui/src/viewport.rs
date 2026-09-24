@@ -361,6 +361,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                 app.visual.select(Tool::Select);
             }
         }
+        stamp_inspector(app, ui);
     }
     let mould_active = active && app.visual.tool == Tool::Mould && app.visual.study.is_some();
     if let Some((previous, camera)) = app.mould_camera {
@@ -1147,7 +1148,8 @@ fn select_click(app: &mut RingDesignerApp, camera: crate::camera::OrbitCamera, r
 /// The right-click menu: what the selection can do, said by `context_items` and drawn with its icons.
 fn show_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     let under = app.selection.under.clone();
-    let items = ringdesign_workbench::viewport::context_items(&app.selection, under.as_ref(), &app.design);
+    let switches = ringdesign_workbench::viewport::Switches { live_cuts: app.live_cuts, show_cutters: app.show_cutters };
+    let items = ringdesign_workbench::viewport::context_items_in(&app.selection, under.as_ref(), &app.design, switches);
     if let Some(heading) = ringdesign_workbench::viewport::heading(&app.selection, under.as_ref(), &app.design) {
         ui.weak(heading);
     }
@@ -1231,6 +1233,94 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
         MenuAction::AddStoneOnFace { feature, face, key } => crate::stone_tools::add_stone_on_face(app, feature, face, key),
         MenuAction::CutHere { theta_deg, across_mm, key } => crate::cutter_tools::cut_here(app, theta_deg, across_mm, key),
         MenuAction::UnderStone { stone, key } => crate::cutter_tools::under_stone(app, stone, key),
+        MenuAction::SeatLayer(path) => seat_layer(app, &path),
+        MenuAction::ToggleLiveCuts => {
+            app.live_cuts = !app.live_cuts;
+            app.mark_dirty();
+        }
+        MenuAction::ToggleCutters => {
+            app.show_cutters = !app.show_cutters;
+            app.mark_dirty();
+        }
+        MenuAction::EditStamp(index) => app.stamp_inspector = Some(index),
+        MenuAction::Stamp { index, edit } => stamp_edit(app, index, &edit),
+    }
+}
+
+/// The layer a seat's made solid stands on, chosen in the Layers tool, or its node on a driven design.
+fn seat_layer(app: &mut RingDesignerApp, path: &[usize]) {
+    let Some(&top) = path.first() else { return };
+    if app.graph_driven() {
+        app.edit_in_graph(top);
+        return;
+    }
+    app.selected_layer = Some(top);
+    if !app.dock.is_open(crate::dock::ToolKind::Layers) {
+        app.dock.open_on(crate::dock::ToolKind::Layers, crate::dock::Side::Left);
+    }
+    let name = ringdesign_workbench::viewport::selection::entry_at(&app.design, path).map_or_else(|| format!("#{top}"), |e| e.name.clone());
+    app.set_status(format!("Layer \"{name}\" chosen in the Layers tool"));
+}
+
+/// One change to stamp `index` of the design, one History entry, the selection and the inspector kept on the stamps that remain.
+fn stamp_edit(app: &mut RingDesignerApp, index: usize, edit: &ringdesign_workbench::viewport::StampEdit) {
+    app.history.commit(&app.design);
+    let label = match ringdesign_workbench::viewport::made::edit(&mut app.design, index, edit) {
+        Ok(label) => label,
+        Err(why) => {
+            app.set_status(why);
+            return;
+        }
+    };
+    if *edit == ringdesign_workbench::viewport::StampEdit::Delete {
+        let shift = |k: usize| (k != index).then(|| if k > index { k - 1 } else { k });
+        app.selection.items = std::mem::take(&mut app.selection.items).into_iter().filter_map(|s| match s {
+            Sel::Stamp(k) => shift(k).map(Sel::Stamp),
+            s => Some(s),
+        }).collect();
+        app.selection.hovered(Vec::new());
+        app.stamp_inspector = app.stamp_inspector.and_then(shift);
+    }
+    app.mark_dirty();
+    app.history.commit_as(&app.design, &label);
+    app.set_status(label);
+}
+
+/// The inspector over the chosen stamp: its name and where it stands, each field one History entry once let go.
+fn stamp_inspector(app: &mut RingDesignerApp, ui: &egui::Ui) {
+    let Some(index) = app.stamp_inspector.filter(|i| *i < app.design.stamps.len()) else {
+        app.stamp_inspector = None;
+        return;
+    };
+    let driven = app.graph_driven();
+    let mut stamp = app.design.stamps[index].clone();
+    let mut open = true;
+    let mut done = ringdesign_workbench::viewport::made::Inspected::default();
+    egui::Window::new("Stamp")
+        .id(egui::Id::new("stamp-inspector"))
+        .frame(egui::Frame::window(ui.style()).fill(theme::FLOAT))
+        .open(&mut open)
+        .default_width(220.0)
+        .pivot(egui::Align2::RIGHT_TOP)
+        .default_pos(ui.max_rect().right_top() + egui::vec2(-12.0, 44.0))
+        .constrain_to(ui.ctx().content_rect())
+        .resizable(false)
+        .show(ui.ctx(), |ui| {
+            if driven {
+                ui.weak(ringdesign_workbench::viewport::made::DRIVEN);
+            }
+            done = ui.add_enabled_ui(!driven, |ui| ringdesign_workbench::viewport::made::inspector(ui, &mut stamp)).inner;
+        });
+    if done.changed {
+        app.design.stamps[index] = stamp;
+        app.mark_dirty();
+    }
+    if done.settled {
+        let name = app.design.stamps[index].name.clone();
+        app.history.commit_as(&app.design, &format!("Edit stamp \"{name}\""));
+    }
+    if !open {
+        app.stamp_inspector = None;
     }
 }
 

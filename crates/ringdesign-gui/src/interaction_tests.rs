@@ -543,3 +543,275 @@ fn undo_takes_back_a_funnel_edit_on_a_driven_design_while_the_graph_pane_is_open
     assert_eq!(attach(&h), Attach::Join, "undo takes the cut back; timeline before it: {timeline:?}");
 }
 
+/// A 5 × 2.2 mm low dome, a 3 mm round in a claw head on layer "Centre" at the top, a 1.2 mm disc struck at the palm.
+pub(crate) fn claw_seat_and_stamp() -> ringdesign_core::RingDesign {
+    use ringdesign_core::field::{Layer, LayerEntry, SeatPadLayer, SeatStyle};
+    use ringdesign_core::gem::{Gem, GemCut};
+    let mut d = ringdesign_core::RingDesign::default();
+    d.profile.apply_style(ringdesign_core::ProfileStyle::LowDome);
+    d.profile.width_mm = 5.0;
+    d.profile.thickness_mm = 2.2;
+    let v = d.field_context().crest_v_mm;
+    let mut pad = SeatPadLayer { theta_deg: 90.0, v_mm: v, style: SeatStyle::Boss, blend_mm: 0.5, solid: ringdesign_core::setting::SolidKind::Prong, ..Default::default() };
+    pad.fit_stone(Gem::calibrated(GemCut::Round, 3.0));
+    pad.height_mm = 0.3;
+    d.layers.layers.push(LayerEntry::new("Centre", Layer::SeatPad(pad)));
+    let disc = (0..40).map(|i| {
+        let t = std::f64::consts::TAU * f64::from(i) / 40.0;
+        [1.2 * t.cos(), 1.2 * t.sin()]
+    });
+    d.stamps.push(ringdesign_core::setting::Stamp { name: "Disc".into(), theta_deg: 270.0, v_mm: v, rot_deg: 0.0, outline: disc.collect(), height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false });
+    d
+}
+
+/// `design` on one active Ring viewport, built and settled in its history.
+fn on_one_ring_view(h: &mut Harness<'static, RingDesignerApp>, design: ringdesign_core::RingDesign) -> usize {
+    let pane = {
+        let app = h.state_mut();
+        app.switch_desktop(crate::dock::Desktop::Model);
+        app.set_layout(crate::pane::Layout::Single);
+        let pane = app.visible_panes()[0];
+        app.panes[pane].kind = crate::pane::PaneKind::Solid;
+        app.active_pane = pane;
+        app.design = design;
+        app.history.commit(&app.design);
+        app.rebuild_now();
+        pane
+    };
+    wait_for_build(h);
+    pane
+}
+
+/// Turns the pane's camera to `yaw` and frames the ring: π/2 looks down −y onto the top, −π/2 up +y onto the palm.
+fn face(h: &mut Harness<'static, RingDesignerApp>, pane: usize, yaw: f32) -> egui::Rect {
+    {
+        let app = h.state_mut();
+        let bounds = app.build.as_ref().and_then(|b| b.mesh.bounds());
+        app.panes[pane].turn = None;
+        let cam = &mut app.panes[pane].camera;
+        cam.yaw = yaw;
+        cam.pitch = 0.0;
+        cam.roll = 0.0;
+        cam.fit(bounds);
+    }
+    h.run_steps(3);
+    h.query_all_by_label_contains("Ring viewport").next().expect("the Ring viewport").rect()
+}
+
+/// Opens the menu at `at` and chooses `item`, through `submenu` when there is one.
+fn menu_row(h: &mut Harness<'static, RingDesignerApp>, at: egui::Pos2, submenu: Option<&str>, item: &str) {
+    click_at(h, at, egui::PointerButton::Secondary, egui::Modifiers::NONE);
+    if let Some(sub) = submenu {
+        // A submenu's button carries egui's own arrow.
+        h.get_by_label(&format!("{sub} ⏵")).click();
+        h.run_steps(3);
+    }
+    h.get_by_label(item).click();
+    h.run_steps(3);
+}
+
+#[test]
+fn a_claw_head_on_a_seat_and_a_struck_stamp_answer_the_pointer_as_themselves() {
+    use ringdesign_core::interaction::pick::Entity;
+    use ringdesign_workbench::viewport::{Sel, tint};
+    let mut h = harness();
+    let pane = on_one_ring_view(&mut h, claw_seat_and_stamp());
+    let made = |h: &Harness<'static, RingDesignerApp>, of: &dyn Fn(&ringdesign_core::BuildResult, u32) -> bool| {
+        let b = h.state().build.clone().unwrap();
+        b.mesh.origin.iter().filter(|o| of(&b, **o)).count()
+    };
+    let head_vertices = made(&h, &|b, o| b.solids.stone_of(o) == Some(0));
+    let disc_vertices = made(&h, &|b, o| b.solids.stamp_of(o) == Some(0));
+    assert!(head_vertices > 1000 && disc_vertices > 100, "{head_vertices} {disc_vertices}");
+    let lit = |h: &Harness<'static, RingDesignerApp>, weight: f32| tint(&h.state().selection, h.state().build.as_ref().unwrap()).iter().filter(|w| **w == weight).count();
+    // Down onto the top, over one of the claws, wherever the viewport stands on screen.
+    face(&mut h, pane, std::f32::consts::FRAC_PI_2);
+    let claw_at = |h: &Harness<'static, RingDesignerApp>| {
+        let app = h.state();
+        let (_, frame) = ringdesign_core::stones::stone_frames(&app.design).remove(0);
+        let gem = ringdesign_core::gem::Gem::calibrated(ringdesign_core::gem::GemCut::Round, 3.0);
+        let plan = ringdesign_core::setting::Plan::of(gem);
+        let p = plan.point(plan.claw_angles(ringdesign_core::setting::claw_count(gem, 0))[0]);
+        let at: [f32; 3] = std::array::from_fn(|k| (frame.girdle[k] + frame.long[k] * p[0] + frame.short[k] * p[1]) as f32);
+        let rect = h.query_all_by_label_contains("Ring viewport").next().expect("the Ring viewport").rect();
+        app.panes[pane].camera.projector(rect).at(at)
+    };
+    let claw = claw_at(&h);
+    h.hover_at(claw);
+    h.run_steps(3);
+    assert!(viewport_label(&h).contains("hovering claw head on Centre"), "{}", viewport_label(&h));
+    assert_eq!(h.state().selection.hover.as_ref().map(|p| p.entity.clone()), Some(Entity::Seat { path: vec![0] }));
+    assert_eq!(lit(&h, 2.0), head_vertices, "the hover lights every vertex the head's solid made");
+    // A click chooses it and names it.
+    click_at(&mut h, claw, egui::PointerButton::Primary, egui::Modifiers::NONE);
+    assert_eq!(h.state().selection.items, [Sel::Seat(vec![0])]);
+    assert_eq!(h.state().status, "claw head on Centre");
+    // Its menu: its layer and the view's switches, ticked as they stand.
+    click_at(&mut h, claw, egui::PointerButton::Secondary, egui::Modifiers::NONE);
+    assert!(h.query_by_label("Claw head on Centre").is_some(), "the menu names what it is about");
+    for row in ["Select layer \"Centre\"", "Live cuts", "Show cutters"] {
+        assert!(h.query_by_label(row).is_some(), "{row}");
+    }
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    menu_row(&mut h, claw, None, "Show cutters");
+    assert!(h.state().show_cutters, "the cutters are drawn");
+    menu_row(&mut h, claw, None, "Select layer \"Centre\"");
+    assert_eq!(h.state().selected_layer, Some(0));
+    assert!(h.state().dock.is_open(crate::dock::ToolKind::Layers), "the Layers tool shows it");
+    assert_eq!(h.state().status, "Layer \"Centre\" chosen in the Layers tool");
+    // Live cuts off builds the stock alone, with nothing of the head; the chosen seat's menu off the ring turns them back on.
+    let before = serde_json::to_value(&h.state().design).unwrap();
+    h.run_steps(2);
+    let claw = claw_at(&h);
+    menu_row(&mut h, claw, None, "Live cuts");
+    assert!(!h.state().live_cuts);
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    let scene = h.state().pick_scene.clone().unwrap();
+    assert!((0..scene.faces()).all(|f| scene.made_of_face(f).is_none()), "no seat's solid and no stamp in the stock");
+    let off_ring = {
+        let rect = h.query_all_by_label_contains("Ring viewport").next().expect("the Ring viewport").rect();
+        rect.center() - egui::vec2(0.0, rect.height() * 0.35)
+    };
+    menu_row(&mut h, off_ring, None, "Live cuts");
+    h.state_mut().rebuild_now();
+    wait_for_build(&mut h);
+    assert!(h.state().live_cuts && serde_json::to_value(&h.state().design).unwrap() == before, "the switches never touch the design");
+
+    // Up onto the palm, over the disc.
+    let rect = face(&mut h, pane, -std::f32::consts::FRAC_PI_2);
+    let disc = {
+        let app = h.state();
+        let r = (app.design.inner_radius_mm() + app.design.profile.thickness_mm) as f32;
+        app.panes[pane].camera.projector(rect).at([0.0, -(r + 0.4), 0.0])
+    };
+    h.hover_at(disc);
+    h.run_steps(3);
+    assert!(viewport_label(&h).contains("hovering stamp \"Disc\""), "{}", viewport_label(&h));
+    assert_eq!(lit(&h, 2.0), disc_vertices, "the hover lights every vertex the disc made");
+    click_at(&mut h, disc, egui::PointerButton::Primary, egui::Modifiers::NONE);
+    assert_eq!(h.state().selection.items, [Sel::Stamp(0)]);
+    click_at(&mut h, disc, egui::PointerButton::Secondary, egui::Modifiers::NONE);
+    assert!(h.query_by_label("Stamp \"Disc\"").is_some());
+    for row in ["Edit stamp…", "Attach ⏵", "Stage ⏵", "Delete stamp"] {
+        assert!(h.query_by_label(row).is_some(), "{row}");
+    }
+    h.key_press(egui::Key::Escape);
+    h.run_steps(3);
+    // Staged for the bench: one undo step.
+    let start = h.state().history.present();
+    menu_row(&mut h, disc, Some("Stage"), "Bench");
+    assert!(h.state().design.stamps[0].bench);
+    assert_eq!(h.state().history.present(), start + 1);
+    assert_eq!(h.state().history.undo_label(), Some("Bench stamp \"Disc\""));
+    // Its inspector: a typed angle is one undo step of its own.
+    menu_row(&mut h, disc, None, "Edit stamp…");
+    assert!(h.query_by_label("Stamp name").is_some() && h.query_by_label("Stamp across").is_some());
+    h.get_by_label("Stamp angle").click_accesskit();
+    h.run_steps(2);
+    h.event(egui::Event::Text("265".into()));
+    h.run_steps(2);
+    h.key_press(egui::Key::Enter);
+    h.run_steps(3);
+    assert!((h.state().design.stamps[0].theta_deg - 265.0).abs() < 1e-9, "{}", h.state().design.stamps[0].theta_deg);
+    assert_eq!(h.state().history.present(), start + 2);
+    assert_eq!(h.state().history.undo_label(), Some("Edit stamp \"Disc\""));
+    // Deleted, one undo step; Undo brings it back as it was.
+    menu_row(&mut h, disc, None, "Delete stamp");
+    assert!(h.state().design.stamps.is_empty());
+    assert_eq!(h.state().history.present(), start + 3);
+    assert_eq!(h.state().status, "Delete stamp \"Disc\"");
+    assert!(h.state().selection.items.is_empty() && h.state().stamp_inspector.is_none(), "nothing is left naming it");
+    h.state_mut().undo();
+    let back = &h.state().design.stamps;
+    assert_eq!((back.len(), back[0].name.as_str(), back[0].bench, back[0].theta_deg), (1, "Disc", true, 265.0));
+}
+
+/// A closed 16-sided post of radius 0.8 and height 2, its foot a hair under z 0, wound outward.
+fn post_mesh() -> ringdesign_core::Mesh {
+    use ringdesign_core::Vec3;
+    let n = 16u32;
+    let at = |k: u32, z: f32| {
+        let a = f64::from(k) * std::f64::consts::TAU / f64::from(n);
+        Vec3((0.8 * a.cos()) as f32, (0.8 * a.sin()) as f32, z)
+    };
+    let mut m = ringdesign_core::Mesh { vertices: vec![Vec3(0.0, 0.0, -0.02), Vec3(0.0, 0.0, 1.98)], ..Default::default() };
+    for k in 0..n {
+        m.vertices.push(at(k, -0.02));
+        m.vertices.push(at(k, 1.98));
+    }
+    for k in 0..n {
+        let (b0, t0, b1, t1) = (2 + 2 * k, 3 + 2 * k, 2 + 2 * ((k + 1) % n), 3 + 2 * ((k + 1) % n));
+        m.faces.extend([[0, b1, b0], [1, t0, t1], [b0, b1, t1], [b0, t1, t0]]);
+    }
+    m
+}
+
+#[test]
+fn a_slow_part_import_keeps_the_window_live_says_so_can_be_cancelled_and_lands_as_one_undo_step() {
+    use ringdesign_workbench::viewport::Sel;
+    let dir = tempfile::tempdir().unwrap();
+    let stl = dir.path().join("post.stl");
+    ringdesign_core::stl::write_stl(&stl, &post_mesh(), "post").unwrap();
+    // A reader that takes its time, as OpenCascade does over a whole ring.
+    let slow = |path: std::path::PathBuf, wait: u64| {
+        move || {
+            std::thread::sleep(std::time::Duration::from_millis(wait));
+            ringdesign_mcp::import::part_file(&path).map_err(|e| format!("{e:#}"))
+        }
+    };
+    let mut h = harness();
+    on_one_ring_view(&mut h, ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design());
+    let start = h.state().history.present();
+    let asked = std::time::Instant::now();
+    h.state_mut().start_import("post.stl".into(), "a slow reader", slow(stl.clone(), 1500));
+    assert!(asked.elapsed() < std::time::Duration::from_millis(200), "asking returns at once: {:?}", asked.elapsed());
+    // The window stays live while it reads, and the status line and the plate say what is read.
+    for _ in 0..3 {
+        h.run_steps(1);
+    }
+    assert!(h.state().importing.is_some(), "three frames ran while the reader slept");
+    assert!(h.state().status.starts_with("Reading post.stl in a slow reader… "), "{}", h.state().status);
+    assert!(h.query_by_label("Cancel import").is_some());
+    // One import at a time.
+    h.state_mut().start_import("other.stl".into(), "a slow reader", slow(stl.clone(), 0));
+    assert_eq!(h.state().status, "post.stl is still being read; cancel it before importing another part");
+    assert_eq!(h.state().importing.as_ref().map(|p| p.file.as_str()), Some("post.stl"));
+    // It lands joined at the top and chosen, one undo step.
+    let waited = std::time::Instant::now();
+    while h.state().importing.is_some() {
+        h.run_steps(1);
+        assert!(waited.elapsed() < std::time::Duration::from_secs(20), "the part never landed");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    h.run_steps(2);
+    let doc = h.state().design.cad.clone().expect("the part's document");
+    assert_eq!(doc.features.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["Procedural shank", "post"]);
+    assert_eq!(h.state().history.present(), start + 1);
+    assert_eq!(h.state().selection.items, [Sel::Part(doc.features[1].id)]);
+    assert!(h.state().status.starts_with("Imported post at the top of the ring, joined"), "{}", h.state().status);
+    assert!(h.query_by_label("Cancel import").is_none(), "the plate is gone");
+    // Cancelled, what the reader finds is dropped: no undo step, nothing changes.
+    h.state_mut().start_import("again.stl".into(), "a slow reader", slow(stl.clone(), 400));
+    h.run_steps(2);
+    h.get_by_label("Cancel import").click();
+    h.run_steps(2);
+    assert!(h.state().importing.is_none());
+    assert_eq!(h.state().status, "Stopped reading again.stl: nothing was imported");
+    std::thread::sleep(std::time::Duration::from_millis(600));
+    h.run_steps(3);
+    assert_eq!(h.state().history.present(), start + 1);
+    assert_eq!(h.state().design.cad.as_ref().map(|d| d.features.len()), Some(2));
+    // A reader that fails says why, and nothing changes.
+    h.state_mut().start_import("missing.stl".into(), "a slow reader", slow(dir.path().join("missing.stl"), 0));
+    let waited = std::time::Instant::now();
+    while h.state().importing.is_some() {
+        h.run_steps(1);
+        assert!(waited.elapsed() < std::time::Duration::from_secs(20));
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(h.state().status.contains("missing.stl"), "{}", h.state().status);
+    assert_eq!(h.state().history.present(), start + 1);
+}
+

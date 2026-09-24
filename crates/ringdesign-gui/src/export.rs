@@ -535,15 +535,23 @@ pub fn import_part(app: &mut RingDesignerApp) {
     import_part_path(app, &path);
 }
 
-/// The part `path` holds, standing at the top of the ring, joined and chosen: one History entry, or a status saying why not.
+/// The part `path` holds, joined at the top of the ring and chosen, one History entry; OpenCascade reads a STEP file off the UI thread.
 pub(crate) fn import_part_path(app: &mut RingDesignerApp, path: &std::path::Path) {
-    let (feature, notes) = match read_part(path) {
-        Ok(read) => read,
-        Err(why) => {
-            app.set_status(why);
-            return;
-        }
-    };
+    #[cfg(feature = "kernel-occt")]
+    if ringdesign_mcp::import::is_step(path) {
+        let file = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
+        let path = path.to_path_buf();
+        app.start_import(file, "OpenCascade", move || crate::occt::import_step(&path));
+        return;
+    }
+    match ringdesign_mcp::import::part_file(path) {
+        Ok(read) => land_part(app, read),
+        Err(e) => app.set_status(format!("{e:#}")),
+    }
+}
+
+/// A part read from a file, stood at the top of the ring, joined and chosen through the edit funnel: one History entry.
+pub(crate) fn land_part(app: &mut RingDesignerApp, (feature, notes): (ringdesign_core::cad::Feature, Vec<String>)) {
     let name = feature.name.clone();
     let edits = ringdesign_core::cad::stored::import_edits(&app.design, feature);
     // A refused edit has said why on the status line already.
@@ -555,13 +563,26 @@ pub(crate) fn import_part_path(app: &mut RingDesignerApp, path: &std::path::Path
     app.set_status(format!("Imported {name} at the top of the ring, joined: G moves it, R turns it{said}"));
 }
 
-/// A part file as a stored feature: STEP through OpenCascade where this build carries it, everything else as the MCP import reads it.
-fn read_part(path: &std::path::Path) -> Result<(ringdesign_core::cad::Feature, Vec<String>), String> {
-    #[cfg(feature = "kernel-occt")]
-    if ringdesign_mcp::import::is_step(path) {
-        return crate::occt::import_step(path);
+/// The part being read, over the window's foot: what reads which file, for how long, and a way to stop waiting.
+pub(crate) fn import_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
+    let Some(p) = &app.importing else { return };
+    let words = format!("Reading {} in {}… {:.1} s", p.file, p.reader, p.started.elapsed().as_secs_f64());
+    let mut cancel = false;
+    egui::Area::new(egui::Id::new("part-import"))
+        .order(egui::Order::Foreground)
+        .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -40.0))
+        .show(ctx, |ui| {
+            egui::Frame::new().fill(crate::theme::FLOAT).corner_radius(6).inner_margin(egui::Margin::symmetric(10, 6)).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(words);
+                    cancel = ui.button("Cancel import").on_hover_text("Stop waiting for the part: nothing is imported, whatever the reader finds").clicked();
+                });
+            });
+        });
+    if cancel {
+        app.cancel_import();
     }
-    ringdesign_mcp::import::part_file(path).map_err(|e| format!("{e:#}"))
 }
 
 /// Import SVG files: the text travels in the design, the raster in the library.

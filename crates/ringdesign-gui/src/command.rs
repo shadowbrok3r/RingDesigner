@@ -285,7 +285,11 @@ pub fn blocked(app: &RingDesignerApp, key: &str) -> Option<String> {
         return None;
     }
     let Some(id) = selected_part(app) else {
-        return Some("Select a part first: click one on the ring".into());
+        return Some(match app.selection.items.last() {
+            Some(Sel::Seat(_)) => "A seat's made solid follows its layer: right-click it to choose the layer, and edit the seat there".into(),
+            Some(Sel::Stamp(_)) => "A stamp stands where its inspector puts it: right-click it, Edit stamp…".into(),
+            _ => "Select a part first: click one on the ring".into(),
+        });
     };
     let Some(f) = feature(app, id) else {
         return Some(format!("Part #{id} is not in the document"));
