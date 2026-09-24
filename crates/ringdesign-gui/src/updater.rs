@@ -13,6 +13,8 @@ pub const RELEASES: &str = "https://github.com/shadowbrok3r/RingDesigner/release
 const API: &str = "https://api.github.com/repos/shadowbrok3r/RingDesigner/releases?per_page=100";
 const MAX_BINARY: u64 = 512 * 1024 * 1024;
 pub static RESTART: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// Said beside Install when the running build carries OpenCascade.
+pub const OCCT_WARNING: &str = "This build carries OpenCascade and the update may not: after it, Fillet, Shell and the junction stay greyed and STEP files read only what RingDesigner reads itself, until an occt-worker stands beside the app.";
 
 #[derive(Clone, Debug, Deserialize)]
 struct Release {
@@ -44,6 +46,8 @@ enum Event {
 
 pub struct Updater {
     pub automatic: bool,
+    /// Whether the running build carries the OpenCascade worker.
+    pub carries_occt: bool,
     pub status: String,
     pub restart: bool,
     rx: Option<mpsc::Receiver<Event>>,
@@ -54,6 +58,7 @@ impl Updater {
     pub fn new(automatic: bool) -> Self {
         Self {
             automatic,
+            carries_occt: crate::occt_embedded::EMBEDDED.is_present(),
             status: "Updates have not been checked".into(),
             restart: false,
             rx: None,
@@ -170,6 +175,9 @@ impl Updater {
                     .on_disabled_hover_text("Wait for the current build or export to finish")
                     .clicked();
                 ui.weak("Your design and workspace will be saved before restarting.");
+                if self.carries_occt {
+                    ui.colored_label(crate::theme::WARN, OCCT_WARNING);
+                }
             }
             ui.hyperlink_to("Release notes", RELEASES);
         });
@@ -399,6 +407,22 @@ mod tests {
                 size: 3,
                 digest: None,
             }],
+        }
+    }
+    #[test]
+    fn an_update_offered_to_a_build_carrying_opencascade_warns_it_may_not() {
+        use egui_kittest::kittest::Queryable;
+        for carries in [true, false] {
+            let mut updater = Updater::new(false);
+            updater.carries_occt = carries;
+            updater.ready = Some(Ready { file: NamedTempFile::new().unwrap(), version: "desktop-v9.9.9".into(), size: 0, hash: String::new() });
+            let mut h = egui_kittest::Harness::new_ui_state(|ui, u: &mut Updater| {
+                u.menu(ui, true);
+            }, updater);
+            h.get_by_label("Update ready").click();
+            h.run();
+            assert!(h.query_by_label("Install and restart").is_some());
+            assert_eq!(h.query_by_label(OCCT_WARNING).is_some(), carries);
         }
     }
     #[test]

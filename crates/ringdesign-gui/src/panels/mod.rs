@@ -670,6 +670,7 @@ pub(crate) enum Command {
     ToolAttach,
     ToolArray,
     ToolPressPull,
+    Licences,
 }
 
 /// The strip over a panel whose design is driven by a graph.
@@ -771,6 +772,7 @@ impl Command {
         Command::ToolAttach,
         Command::ToolArray,
         Command::ToolPressPull,
+        Command::Licences,
     ];
 
     /// The viewport command catalog key an entry starts, as its hotkey and its rail slot start it.
@@ -836,6 +838,7 @@ impl Command {
             Command::ToolAttach => "Cycle Join / Cut / Separate  (J)",
             Command::ToolArray => "Array the selected part round the ring  (A)",
             Command::ToolPressPull => "Press-pull the selected face  (Q)",
+            Command::Licences => "Licences…",
         }
     }
 
@@ -912,6 +915,7 @@ impl Command {
                     crate::command::start(app, key);
                 }
             }
+            Command::Licences => crate::licences::open(&app.egui_ctx),
         }
     }
 }
@@ -1090,6 +1094,7 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             ui.menu_button("MCP server", |ui| mcp_control(app, ui));
             if ui.button("Feature request / bug report…").clicked() { ringdesign_workbench::feedback::open(ui.ctx()); ui.close(); }
             if ui.button("Command search…  Ctrl+K").clicked() { app.palette_open = true; ui.close(); }
+            if ui.button(Command::Licences.label()).on_hover_text("RingDesigner's licences, and OpenCascade's and the other notices of what it is built on").clicked() { Command::Licences.run(app); ui.close(); }
         });
         history_controls(app, ui);
         let left_end = ui.min_rect().right();

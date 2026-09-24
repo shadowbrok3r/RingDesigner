@@ -9,15 +9,23 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bin="$HOME/.local/bin"
 apps="$HOME/.local/share/applications"
 icons="$HOME/.local/share/icons/hicolor"
+doc="$HOME/.local/share/doc/ringdesigner"
 
 if [ "${1:-}" = "--uninstall" ]; then
   rm -f "$bin/ringdesigner" "$apps/ringdesigner.desktop"
   rm -f "$icons"/*/apps/ringdesigner.png "$icons/scalable/apps/ringdesigner.svg"
-  echo "Removed. Your designs in ~/.local/share/ringdesigner were left alone."
+  rm -rf "$doc"
+  # The OpenCascade worker the app unpacked for itself goes with it, from the data folder the app uses.
+  data="${XDG_DATA_HOME:-$HOME/.local/share}/ringdesigner"
+  rm -rf "$data/occt"
+  echo "Removed. Your designs in $data were left alone."
 else
-  mkdir -p "$bin" "$apps" "$icons/scalable/apps"
+  mkdir -p "$bin" "$apps" "$icons/scalable/apps" "$doc"
   install -m755 "$here/ringdesigner" "$bin/ringdesigner"
   install -m644 "$here/ringdesigner.desktop" "$apps/ringdesigner.desktop"
+  for licence in LICENSE-MIT LICENSE-APACHE THIRD-PARTY-NOTICES.md; do
+    if [ -e "$here/$licence" ]; then install -m644 "$here/$licence" "$doc/$licence"; fi
+  done
   install -m644 "$here/icons/ringdesigner.svg" "$icons/scalable/apps/ringdesigner.svg"
   for png in "$here"/icons/icon-*.png; do
     [ -e "$png" ] || continue
