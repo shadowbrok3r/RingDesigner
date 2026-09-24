@@ -220,7 +220,8 @@ pub fn record(design: &RingDesign, built: Option<&BuildResult>) -> Record {
 }
 
 /// The head or halo holding the stones feature `id` carries: a stone's own head, a head or halo itself, a head a
-/// pattern copies. A pattern of a bare stone copies no head, so its copies are held by none.
+/// pattern copies, a Transform moves or a Boolean keeps. A pattern of a bare stone copies no head, so its copies are
+/// held by none, and a stone a Transform moved is held by a head built round the moved stone.
 pub fn holder(doc: &Document, id: Id) -> Option<&Feature> {
     held_by(doc, id, false, 0)
 }
@@ -231,11 +232,16 @@ fn held_by(doc: &Document, id: Id, copied: bool, depth: u32) -> Option<&Feature>
         return None;
     }
     match &f.operation {
-        Operation::Builder { key, .. } if key == builders::STONE => (!copied).then(|| builders::head_on(doc, id)).flatten(),
+        _ if is_stone(doc, f) => (!copied).then(|| builders::head_on(doc, id)).flatten(),
         Operation::Builder { key, .. } if key == builders::HALO || builders::HEADS.contains(&key.as_str()) => Some(f),
         Operation::Pattern { source, .. } => held_by(doc, *source, true, depth + 1),
-        Operation::Fillet { source, .. } | Operation::Chamfer { source, .. } | Operation::Shell { source, .. } | Operation::PressPull { source, .. } => {
-            held_by(doc, *source, copied, depth + 1)
+        Operation::Fillet { source, .. }
+        | Operation::Chamfer { source, .. }
+        | Operation::Shell { source, .. }
+        | Operation::PressPull { source, .. }
+        | Operation::Transform { source, .. } => held_by(doc, *source, copied, depth + 1),
+        Operation::Boolean { a, b, kind } => {
+            held_by(doc, *a, copied, depth + 1).or_else(|| (*kind != cad::Boolean::Subtract).then(|| held_by(doc, *b, copied, depth + 1)).flatten())
         }
         _ => None,
     }
@@ -280,6 +286,10 @@ trait Frames {
     fn copies(&self, f: &Feature, source: Id, kind: &PatternKind) -> Vec<Motion>;
     /// The bare band's surface under a stone's girdle centre, for charting it.
     fn foot(&self, origin: [f64; 3]) -> Option<Foot>;
+    /// Where a ring placement seats a part.
+    fn seat(&self, p: &Placement) -> Option<Motion>;
+    /// Whether feature `id` built.
+    fn built(&self, id: Id) -> bool;
 }
 
 /// The frames an evaluation of the parts gave, dropped on `surface`: what a build shows.
@@ -296,17 +306,28 @@ impl Frames for Built<'_> {
         self.e.components.iter().map(|c| c.id).collect()
     }
     fn stone(&self, f: &Feature) -> Option<(Gem, Motion)> {
-        let c = self.e.components.iter().find(|c| c.id == f.id)?;
-        Some((c.made.as_ref()?.gem?, c.frame))
-    }
-    fn copies(&self, f: &Feature, source: Id, kind: &PatternKind) -> Vec<Motion> {
-        if !self.e.components.iter().any(|c| c.id == f.id) {
-            return Vec::new();
+        if let Some(c) = self.e.components.iter().find(|c| c.id == f.id) {
+            return Some((c.made.as_ref()?.gem?, c.frame));
         }
+        // A stone a later part consumed, seated as the build seated it; one on a part's face off the bare band.
+        let Operation::Builder { on: None, params, .. } = &f.operation else { return self.bare.stone(f) };
+        let gem = builders::gem_of(params).ok()?;
+        match &f.component.placement {
+            Placement::Free => Some((gem, Motion::IDENTITY)),
+            p => Some((gem, stone_turn(&self.seat(p)?))),
+        }
+    }
+    fn copies(&self, _f: &Feature, source: Id, kind: &PatternKind) -> Vec<Motion> {
         pattern::copy_motions(self.design, self.surface, self.e, source, kind).unwrap_or_default()
     }
     fn foot(&self, origin: [f64; 3]) -> Option<Foot> {
         self.bare.foot(origin)
+    }
+    fn seat(&self, p: &Placement) -> Option<Motion> {
+        p.frame_on(self.design, self.surface).ok()
+    }
+    fn built(&self, id: Id) -> bool {
+        self.e.status_of(id).is_some_and(cad::FeatureStatus::is_ok)
     }
 }
 
@@ -541,10 +562,26 @@ impl<'a> Analytic<'a> {
             Operation::Fillet { source, .. } | Operation::Chamfer { source, .. } | Operation::Shell { source, .. } | Operation::PressPull { source, .. } => {
                 self.frame_of(*source, depth + 1)
             }
-            _ => match &f.component.placement {
-                Placement::Free => None,
-                p => self.seated(p).ok(),
-            },
+            Operation::Transform { source, translation, rotation_deg } => {
+                let inner = self.frame_of(*source, depth + 1).map(|i| rigid(*translation, *rotation_deg).map(|m| pattern::then(&m, &i)));
+                self.placed(f, inner.flatten())
+            }
+            Operation::Boolean { a, b, .. } if self.doc()?.band().is_some_and(|band| band == *a || band == *b) => {
+                let other = if self.doc()?.band() == Some(*a) { *b } else { *a };
+                self.placed(f, self.frame_of(other, depth + 1))
+            }
+            _ => self.placed(f, None),
+        }
+    }
+
+    /// `inner`, the frame a part's body stands in, carried on by its own ring placement.
+    fn placed(&self, f: &Feature, inner: Option<Motion>) -> Option<Motion> {
+        match &f.component.placement {
+            Placement::Free => inner,
+            p => {
+                let seat = self.seated(p).ok()?;
+                Some(inner.map_or(seat, |i| pattern::then(&seat, &i)))
+            }
         }
     }
 
@@ -678,6 +715,12 @@ impl Frames for Analytic<'_> {
     fn foot(&self, origin: [f64; 3]) -> Option<Foot> {
         Analytic::foot(self, origin)
     }
+    fn seat(&self, p: &Placement) -> Option<Motion> {
+        self.seated(p).ok()
+    }
+    fn built(&self, _id: Id) -> bool {
+        true
+    }
 }
 
 /// The stone frame of a seat: turned a quarter about its normal, so the stone's length runs round the ring at no spin.
@@ -720,29 +763,51 @@ fn evaluated_alone(design: &RingDesign, part: Id) -> Option<Arc<EvaluatedCompone
     built
 }
 
-/// The stones feature `f` carries to wherever it is copied — a stone its own, a head its stone, a halo its melee, a
-/// pattern each copy's — at most [`MAX_CAD_STONES`] of them, and whether it carries more.
+/// The stones feature `f` carries to wherever it is copied or moved — a stone its own, a head its stone, a halo its melee, a
+/// pattern each copy's, a Transform its source's moved, a Boolean both operands' but a subtracted one's — at most
+/// [`MAX_CAD_STONES`] of them, and whether it carries more.
 fn carried(doc: &Document, frames: &dyn Frames, f: &Feature, depth: u32) -> (Vec<(Gem, Motion)>, bool) {
-    if !f.enabled || depth > MAX_CARRY_DEPTH {
+    if !f.enabled || depth > MAX_CARRY_DEPTH || !frames.built(f.id) {
         return (Vec::new(), false);
     }
-    let stone_of = |id: Id| doc.feature(id).filter(|s| is_stone(s));
+    let follow = |id: Id| doc.feature(id).map_or_else(|| (Vec::new(), false), |s| carried(doc, frames, s, depth + 1));
+    let stone_of = |id: Id| doc.feature(id).filter(|s| is_stone(doc, s)).map_or_else(|| (Vec::new(), false), |s| carried(doc, frames, s, depth + 1));
     match &f.operation {
         Operation::Builder { key, .. } if key == builders::STONE => (frames.stone(f).into_iter().collect(), false),
         Operation::Builder { key, on: Some(stone), params } if key == builders::HALO => {
-            let Some((gem, frame)) = stone_of(*stone).filter(|s| s.enabled).and_then(|s| frames.stone(s)) else { return (Vec::new(), false) };
+            let Some((gem, frame)) = stone_of(*stone).0.into_iter().next() else { return (Vec::new(), false) };
             let Ok((melee, stations)) = builders::halo_melee(gem, params) else { return (Vec::new(), false) };
             let over = stations.len() > MAX_CAD_STONES;
             (stations.iter().take(MAX_CAD_STONES).map(|p| (melee, Motion { origin: frame.point(*p), ..frame })).collect(), over)
         }
-        Operation::Builder { key, on: Some(stone), .. } if builders::HEADS.contains(&key.as_str()) => {
-            stone_of(*stone).map_or_else(|| (Vec::new(), false), |s| carried(doc, frames, s, depth + 1))
-        }
+        Operation::Builder { key, on: Some(stone), .. } if builders::HEADS.contains(&key.as_str()) => stone_of(*stone),
         Operation::Fillet { source, .. } | Operation::Chamfer { source, .. } | Operation::Shell { source, .. } | Operation::PressPull { source, .. } => {
-            doc.feature(*source).map_or_else(|| (Vec::new(), false), |s| carried(doc, frames, s, depth + 1))
+            follow(*source)
+        }
+        Operation::Transform { source, translation, rotation_deg } => {
+            let Some(m) = rigid(*translation, *rotation_deg) else { return (Vec::new(), false) };
+            let m = match &f.component.placement {
+                Placement::Free => m,
+                p => match frames.seat(p) {
+                    Some(seat) => pattern::then(&seat, &m),
+                    None => return (Vec::new(), false),
+                },
+            };
+            let (inner, over) = follow(*source);
+            (inner.iter().map(|(g, s)| (*g, moved(&m, s))).collect(), over)
+        }
+        Operation::Boolean { a, b, kind } => {
+            let (mut out, mut over) = follow(*a);
+            if *kind != cad::Boolean::Subtract {
+                let (more, past) = follow(*b);
+                over |= past || out.len() + more.len() > MAX_CAD_STONES;
+                out.extend(more);
+                out.truncate(MAX_CAD_STONES);
+            }
+            (out, over)
         }
         Operation::Pattern { source, kind } => {
-            let (inner, over) = doc.feature(*source).map_or_else(|| (Vec::new(), false), |s| carried(doc, frames, s, depth + 1));
+            let (inner, over) = follow(*source);
             if inner.is_empty() {
                 return (Vec::new(), over);
             }
@@ -754,8 +819,30 @@ fn carried(doc: &Document, frames: &dyn Frames, f: &Feature, depth: u32) -> (Vec
     }
 }
 
-fn is_stone(f: &Feature) -> bool {
-    matches!(&f.operation, Operation::Builder { key, .. } if key == builders::STONE)
+/// Whether `f` is a stone: a stone part, or one a Transform moved.
+fn is_stone(doc: &Document, f: &Feature) -> bool {
+    let mut at = f;
+    for _ in 0..=MAX_CARRY_DEPTH {
+        match &at.operation {
+            Operation::Builder { key, .. } => return key == builders::STONE,
+            Operation::Transform { source, .. } => match doc.feature(*source) {
+                Some(s) => at = s,
+                None => return false,
+            },
+            _ => return false,
+        }
+    }
+    false
+}
+
+/// The motion a Transform turns its source by, degrees about x, y then z, and then moves it by `translation`.
+fn rigid(translation: [f64; 3], degrees: [f64; 3]) -> Option<Motion> {
+    if !translation.iter().chain(&degrees).all(|v| v.is_finite() && v.abs() < 10000.0) {
+        return None;
+    }
+    let r = nalgebra::Rotation3::from_euler_angles(degrees[0].to_radians(), degrees[1].to_radians(), degrees[2].to_radians());
+    let col = |i: usize| -> [f64; 3] { std::array::from_fn(|j| r.matrix()[(j, i)]) };
+    Some(Motion { x_axis: col(0), y_axis: col(1), z_axis: col(2), origin: translation })
 }
 
 /// A stone found among the parts' outputs, and the part it is counted under.
@@ -774,8 +861,9 @@ fn cell_of(p: [f64; 3]) -> [i64; 3] {
 }
 
 /// Every stone the document's parts carry, each once and at most [`MAX_CAD_STONES`] of them — a stone part, a halo's
-/// melee, every copy a pattern makes of a stone, a head or a halo — and the parts carrying past the cap. A head standing
-/// on a stone adds none; its stone is its own part. Two parts carrying one stone count it under the one that holds it.
+/// melee, every copy a pattern makes of a stone, a head or a halo, and whatever a Transform moves or a Boolean keeps of
+/// them — and the parts carrying past the cap. A head standing on a stone adds none; its stone is its own part, or the
+/// part that moved it. Two parts carrying one stone count it under the one that holds it.
 fn cad_stones(design: &RingDesign, ctx: &FieldContext, frames: &dyn Frames) -> (Vec<SetStone>, Vec<(Id, Gem)>) {
     let Some(doc) = &design.cad else { return Default::default() };
     let mut found: Vec<Found> = Vec::new();
@@ -783,16 +871,14 @@ fn cad_stones(design: &RingDesign, ctx: &FieldContext, frames: &dyn Frames) -> (
     let mut past_cap = Vec::new();
     for id in frames.outputs(doc) {
         let Some(f) = doc.feature(id).filter(|f| f.enabled) else { continue };
-        let carries = match &f.operation {
-            Operation::Builder { key, .. } => key == builders::STONE || key == builders::HALO,
-            Operation::Pattern { .. } => true,
-            _ => false,
-        };
-        if !carries {
+        if matches!(&f.operation, Operation::Builder { key, .. } if builders::HEADS.contains(&key.as_str())) {
+            continue;
+        }
+        let (stones, mut over) = carried(doc, frames, f, 0);
+        if stones.is_empty() && !over {
             continue;
         }
         let held = holder(doc, id).is_some();
-        let (stones, mut over) = carried(doc, frames, f, 0);
         let first = stones.first().map(|(g, _)| *g);
         for (gem, frame) in stones {
             let cell = cell_of(frame.origin);
@@ -1247,6 +1333,104 @@ mod tests {
         assert!(stones[1..].iter().all(|s| s.cad_feature() == Some(6)), "counted under the array that holds them");
         let report = crate::stones::report(&d, 0.0).unwrap();
         assert!(report.seats.iter().all(|s| s.made.as_deref() == Some("Four-claw head") && s.warnings.is_empty()), "{:?}", report.seats.iter().map(|s| (&s.label, &s.made, &s.warnings)).collect::<Vec<_>>());
+    }
+
+    /// The claw solitaire's stone moved half a millimetre up the finger by Transform #9, its head re-pointed onto the moved stone.
+    fn moved_solitaire() -> RingDesign {
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut d = RingDesign { cad: cad::examples::design("claw-solitaire").unwrap().cad, ..court };
+        let doc = d.cad.as_mut().unwrap();
+        let lift = Operation::Transform { source: 2, translation: [0.0, 0.0, 0.5], rotation_deg: [0.0; 3] };
+        let feature = Feature { id: 9, name: "Move".into(), enabled: true, operation: lift, component: builders::component(builders::STONE) };
+        doc.apply(&cad::edit::CadEdit::Add { feature, after: Some(2) }).unwrap();
+        let head = Operation::Builder { key: builders::CLAW.into(), on: Some(9), params: serde_json::json!({ "prongs": 4 }) };
+        doc.apply(&cad::edit::CadEdit::Operation { id: 3, operation: head }).unwrap();
+        d
+    }
+
+    #[test]
+    fn a_stone_a_transform_moved_is_counted_where_the_build_moved_it() {
+        let lib = crate::AlphaLibrary::builtin();
+        let before = set_stones(&RingDesign { cad: cad::examples::design("claw-solitaire").unwrap().cad, ..moved_solitaire() });
+        let d = moved_solitaire();
+        let stones = set_stones(&d);
+        assert_eq!(stones.len(), 1, "the moved stone is the one stone");
+        assert!(matches!(stones[0].source, StoneSource::Cad { feature: 9, copy: 0 }));
+        let shift = sub(stones[0].frame.unwrap().origin, before[0].frame.unwrap().origin);
+        assert!(norm(sub(shift, [0.0, 0.0, 0.5])) < 1e-9, "moved by the Transform: {shift:?}");
+        let built = crate::mesh::try_build(&d, &lib, preview()).unwrap();
+        let exact = set_stones_built(&d, &built);
+        let part = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 9).unwrap();
+        assert_eq!(exact.len(), 1);
+        let gap = norm(sub(exact[0].frame.unwrap().origin, part.frame.origin));
+        assert!(gap < 1e-9 && dot(exact[0].frame.unwrap().z_axis, part.frame.z_axis) > 1.0 - 1e-12, "the moved part's own frame: {gap:.2e} mm");
+        assert!(norm(sub(stones[0].frame.unwrap().origin, part.frame.origin)) < 0.02, "the bare band seats it within 0.02 mm of the build");
+        let report = crate::stones::report(&d, 0.0).unwrap();
+        assert_eq!(report.stone_count, 1);
+        let check = report.seats.iter().find(|s| s.gem.is_some()).unwrap();
+        assert_eq!((check.label.as_str(), check.made.as_deref()), ("Move", Some("Four-claw head")), "held by the head built round the moved stone");
+        assert!(check.warnings.is_empty(), "{:?}", check.warnings);
+        assert!(crate::stonemap::stone_map_svg(&d, Some(&report)).is_some(), "the map draws it");
+        assert_eq!(crate::gems::built_vertices(&d, &lib, &built).len(), part.mesh.faces.len() * 36, "drawn once, from the moved part's mesh");
+
+        // Turned as well as moved, the record turns it the way the evaluation does.
+        let mut turned = d.clone();
+        let lift = Operation::Transform { source: 2, translation: [0.3, -0.2, 0.5], rotation_deg: [2.0, -3.0, 10.0] };
+        turned.cad.as_mut().unwrap().apply(&cad::edit::CadEdit::Operation { id: 9, operation: lift }).unwrap();
+        let turned_build = crate::mesh::try_build(&turned, &lib, preview()).unwrap();
+        let at = turned_build.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 9).unwrap().frame;
+        for s in [set_stones_built(&turned, &turned_build)[0].frame.unwrap(), set_stones(&turned)[0].frame.unwrap()] {
+            let axes = [(s.x_axis, at.x_axis), (s.y_axis, at.y_axis), (s.z_axis, at.z_axis)];
+            assert!(norm(sub(s.origin, at.origin)) < 0.02 && axes.iter().all(|(a, b)| dot(*a, *b) > 1.0 - 1e-6), "{s:?} against {at:?}");
+        }
+        let exact = set_stones_built(&turned, &turned_build)[0].frame.unwrap();
+        assert!(norm(sub(exact.origin, at.origin)) < 1e-9 && dot(exact.x_axis, at.x_axis) > 1.0 - 1e-12, "the built record is the part's own frame");
+
+        // A ring array of the head round the moved stone carries a stone in every copy.
+        let mut arrayed = d.clone();
+        let operation = Operation::Pattern { source: 3, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
+        arrayed.cad.as_mut().unwrap().append(Feature { id: 5, name: "Ring array of Four-claw head".into(), enabled: true, operation, component: builders::component(builders::CLAW) }).unwrap();
+        let stones = set_stones(&arrayed);
+        assert_eq!(stones.len(), 3, "the moved stone and two copies");
+        assert!(stones.iter().all(|s| (s.frame.unwrap().origin[2] - part.frame.origin[2]).abs() < 0.02), "every copy stands half a millimetre up the finger");
+        let built = crate::mesh::try_build(&arrayed, &lib, preview()).unwrap();
+        assert_eq!(set_stones_built(&arrayed, &built).len(), 3);
+        let report = crate::stones::report(&arrayed, 0.0).unwrap();
+        assert!(report.seats.iter().all(|s| s.made.as_deref() == Some("Four-claw head")), "every copy is held");
+    }
+
+    #[test]
+    fn a_boolean_keeps_the_stones_its_operands_carry_and_a_subtracted_one_carries_none() {
+        let lib = crate::AlphaLibrary::builtin();
+        let d = arrayed_claws();
+        assert_eq!(set_stones(&d).len(), 3);
+        let crest = d.inner_radius_mm() + d.profile.thickness_mm;
+        let rail = Feature { id: 6, name: "Rail".into(), enabled: true, operation: Operation::Torus { major_mm: crest + 1.0, minor_mm: 0.4 }, component: Default::default() };
+        let union = |kind, a, b| Feature { id: 7, name: "Heads and rail".into(), enabled: true, operation: Operation::Boolean { a, b, kind }, component: Default::default() };
+        let mut joined = d.clone();
+        let doc = joined.cad.as_mut().unwrap();
+        doc.append(rail.clone()).unwrap();
+        doc.append(union(cad::Boolean::Union, 5, 6)).unwrap();
+        let stones = set_stones(&joined);
+        assert_eq!(stones.len(), 3, "the three heads still hold three stones");
+        assert!(matches!(stones[0].source, StoneSource::Cad { feature: 2, copy: 0 }) && stones[1..].iter().all(|s| s.cad_feature() == Some(7)));
+        let built = crate::mesh::try_build(&joined, &lib, preview()).unwrap();
+        let e = built.parts.evaluated.as_ref().unwrap();
+        assert!(e.status_of(7).is_some_and(cad::FeatureStatus::is_ok), "{:?}", e.first_error());
+        let exact = set_stones_built(&joined, &built);
+        assert_eq!(exact.len(), 3, "the build's record keeps them too");
+        for (a, b) in stones.iter().zip(&exact) {
+            assert!(norm(sub(a.frame.unwrap().origin, b.frame.unwrap().origin)) < 0.02);
+        }
+        let report = crate::stones::report(&joined, 0.0).unwrap();
+        assert_eq!(report.stone_count, 3);
+        assert!(report.seats.iter().all(|s| s.made.as_deref() == Some("Four-claw head")), "the union's copies are held by the head it copies");
+
+        let mut cut = d.clone();
+        let doc = cut.cad.as_mut().unwrap();
+        doc.append(rail).unwrap();
+        doc.append(union(cad::Boolean::Subtract, 6, 5)).unwrap();
+        assert_eq!(set_stones(&cut).len(), 1, "heads subtracted from the rail hold nothing; the stone part stays");
     }
 
     #[test]
