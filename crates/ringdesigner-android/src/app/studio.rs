@@ -586,7 +586,7 @@ impl RingApp {
             data["navigation"] = serde_json::to_value(self.pane.navigation).unwrap_or_default();
             data["selection"] = serde_json::json!({"layer":self.selected_layer,"node":self.graph.shown,"hit":self.editor.selection.is_some(),"stone":self.editor.stone,"handles":self.editor.handles_active,"cutters":self.cuts.ghost,"tab":self.tab.label(),"sheet":format!("{:?}",self.editor.sheet)});
             data["visual"] = serde_json::json!({"tool":format!("{:?}",self.visual.tool),"path_points":self.visual.path.curve.points.len(),"navigating":self.visual.navigating()});
-            data["camera"] = serde_json::json!({"yaw":self.pane.camera.yaw,"pitch":self.pane.camera.pitch,"zoom":self.pane.camera.zoom,"pan":self.pane.camera.pan});
+            data["camera"] = serde_json::json!({"yaw":self.pane.camera.yaw,"pitch":self.pane.camera.pitch,"zoom":self.pane.camera.zoom,"pan":self.pane.camera.pan,"target":self.pane.camera.target});
             data["menu_avoidance"] = serde_json::json!({"shifts":self.editor.menu_avoidance.shifts,"last_delta":self.editor.menu_avoidance.last_delta});
             let text = data.to_string();
             if text != self.editor.last_layout {
@@ -705,7 +705,7 @@ impl RingApp {
                     if matches!(view, View::ThreeQuarter) {
                         self.pane.camera.yaw -= 0.48;
                     }
-                    self.pane.camera.pan = [0.; 2];
+                    self.pane.camera.centre_home();
                     self.pane.camera.zoom = 1.23;
                     self.pane.shade = ShadeMode::Metal;
                     self.pane.actual_size = false;
@@ -986,7 +986,7 @@ impl RingApp {
                 0.0
             };
         self.pane.camera.pitch = if angled { -0.55 } else { 0.0 };
-        self.pane.camera.pan = [0.0; 2];
+        self.pane.camera.centre_home();
         self.pane.actual_size = false;
     }
 
@@ -1114,7 +1114,11 @@ impl RingApp {
         if let Some(action) = nav.action {
             let angles = action.apply([self.pane.camera.yaw, self.pane.camera.pitch, self.pane.camera.roll], self.design.shank.head.theta_deg as f32);
             if action.recentres() {
-                // A view from the cube eases in, as a chosen node's does.
+                // A view from the cube eases in, as a chosen node's does, about the ring's own middle again.
+                if let Some(ring) = self.preview_mesh.as_ref().and_then(|m| m.bounds()) {
+                    self.pane.camera.refit(ring);
+                }
+                self.pane.camera.pivot_home();
                 let from = self.pane.camera.pose();
                 let to = crate::focus::Pose { yaw: angles[0], pitch: angles[1], roll: angles[2], pan: [0.0; 2], ..from };
                 self.camera_turn = Some(crate::focus::Turn::new(from, to));
@@ -1196,7 +1200,9 @@ impl RingApp {
         if mould_active {
             self.pane.shade = ShadeMode::Metal;
         }
-        let view = self.pane.ui(ui, renderer, self.px_per_mm, blocked);
+        // A pinch leaves the pivot on the metal on screen; not on a study's pattern or the before mesh, and not while a sketch keeps the view it came from.
+        let pivot = self.preview_mesh.as_ref().filter(|_| !mould_active && !self.editor.hold_before && !self.cad.sketching()).map(|b| &b.0.mesh);
+        let view = self.pane.ui(ui, renderer, self.px_per_mm, blocked, pivot);
         self.pane.shade = previous_shade;
         editor::layout::record(ui, "viewport", view.rect);
         let can_edit = self.design.graph.is_none() && !self.editor.hold_before;

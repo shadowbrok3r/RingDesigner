@@ -425,7 +425,7 @@ impl RingApp {
         // opens this one on a close-up of nothing in particular.
         self.camera_turn = None;
         self.pane.camera.zoom = 1.0;
-        self.pane.camera.pan = [0.0; 2];
+        self.pane.camera.centre_home();
         self.graph.shown = None;
         self.can_compare = false;
         self.editor.hold_before = false;
@@ -647,6 +647,8 @@ impl RingApp {
                 }
                 // Parts shown alone, or the whole ring again, are framed as they arrive.
                 if self.fit_next || self.preview_mesh.is_none() || done.alone != self.shown_alone {
+                    // The pan a fit keeps is the one about the ring's middle.
+                    self.pane.camera.pivot_home();
                     self.pane.camera.fit(done.bounds);
                     if done.alone != self.shown_alone {
                         self.pane.camera.pan = [0.0; 2];
@@ -1868,6 +1870,8 @@ impl RingApp {
     pub(super) fn play_reel(&mut self) {
         let full = self.design.clone();
         let steps = crate::reel::plan(&full);
+        // Its views turn about the ring's own middle.
+        self.pane.camera.pivot_home();
         self.reel = Some(Reel { full, steps, index: 0, shown: false, landed: None, spun: None, before: (self.show_gems, self.cuts) });
         self.sheet_close_for_reel();
         self.status = "Reel playing - tap the ring to stop".into();

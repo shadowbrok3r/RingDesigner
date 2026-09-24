@@ -1173,3 +1173,172 @@ fn parts_shown_alone_are_offered_out_one_at_a_time_and_the_worker_builds_them_to
     let check = done.build.mesh.validate();
     assert!(check.watertight && check.boundary_edges == 0, "{check:?}");
 }
+
+#[test]
+fn box_select_takes_parts_faces_edges_or_vertices_as_its_bar_says_and_a_tap_takes_the_same() {
+    use ringdesign_workbench::touch::boxes::{BoxOp, Takes};
+    let mut b = Bench::new(two_posts());
+    b.camera.zoom *= 2.5;
+    let post = b.built.evaluated().unwrap().components.iter().find(|c| c.id == 2).unwrap().clone();
+    let (faces, edges, vertices) = (post.trace.face_kind.len(), post.edges.len(), post.trace.vertices.len());
+    let (from, to) = (middle(&b, 2) - vec2(40.0, 40.0), middle(&b, 2) + vec2(40.0, 40.0));
+    b.cad.boxing.toggle();
+    // Faces: every face of the post the window holds whole, and the post itself not.
+    b.cad.boxing.takes = Takes::Faces;
+    assert!(b.drag(from, to, 5));
+    assert_eq!(b.cad.selection.items, (0..faces as u32).map(|face| Sel::Face { feature: 2, face }).collect::<Vec<_>>());
+    assert_eq!(b.said(), [format!("Window box of faces: {faces} selected")]);
+    // Edges, then vertices.
+    b.cad.boxing.takes = Takes::Edges;
+    b.drag(from, to, 5);
+    assert_eq!(b.cad.selection.items, (0..edges as u32).map(|edge| Sel::Edge { feature: 2, edge }).collect::<Vec<_>>());
+    b.cad.boxing.takes = Takes::Vertices;
+    b.drag(from, to, 5);
+    assert_eq!(b.cad.selection.items, (0..vertices as u32).map(|vertex| Sel::Vertex { feature: 2, vertex }).collect::<Vec<_>>());
+    // Parts: the post whole, as the box always took it.
+    b.cad.boxing.takes = Takes::Parts;
+    b.said();
+    b.drag(from, to, 5);
+    assert_eq!((b.cad.selection.items.clone(), b.said()), (vec![Sel::Part(2)], vec!["Window box: 1 selected".to_string()]));
+    // A tap while box select takes faces adds the face under it, not its part.
+    b.cad.boxing.takes = Takes::Faces;
+    b.cad.boxing.op = BoxOp::Add;
+    b.tap(middle(&b, 3));
+    assert!(matches!(b.cad.selection.items[..], [Sel::Part(2), Sel::Face { feature: 3, .. }]), "{:?}", b.cad.selection.items);
+    // The bar stands over the ring with what the box takes among its buttons.
+    b.step(Vec::new());
+    assert!(b.ctx.memory(|m| m.area_rect(bar::area())).is_some_and(|r| RECT.contains_rect(r)));
+    assert_eq!(boxes::caught_words("Crossing", Takes::Edges, 4), "Crossing box of edges: 4 selected");
+}
+
+/// The Court band's surface point at `theta_deg` and `across_mm`, and its normal.
+fn on_band(b: &Bench, theta_deg: f64, across_mm: f64) -> ([f64; 3], [f64; 3]) {
+    ringdesign_core::cad::surface_hit(&b.built.0.mesh, theta_deg, across_mm).expect("the band is there")
+}
+
+#[test]
+fn a_box_is_dragged_out_where_the_band_was_held_its_size_then_its_height_and_lands_as_one_undo_step() {
+    let mut b = Bench::new(court());
+    b.step(Vec::new());
+    let (at, n) = on_band(&b, 90.0, 0.0);
+    let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &b.lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
+    // The Add row's Box, chosen from the menu a hold on the band's top opened.
+    b.cad.pressed = Some((at, n));
+    b.cad.act(&v, MenuAction::AddPartHere { theta_deg: 90.0, height_mm: 0.0, label: "Box" });
+    assert!(b.cad.pressed.is_none(), "the press is spent");
+    assert_eq!(b.cad.live.session.command().map(|c| (c.key(), c.step())), Some(("add-box", 1)), "seated where the band was held, it waits for its size");
+    assert!(b.said().last().is_some_and(|s| s.starts_with("Add box: drag its size out from where you pressed")));
+    let seat = b.camera.projector(RECT).at(at.map(|x| x as f32));
+    // Looking down on the ring's top, a millimetre round the ring runs across the screen.
+    let pt_per_mm = (b.camera.projector(RECT).at([at[0] as f32 + 1.0, at[1] as f32, at[2] as f32]) - seat).length();
+    assert!(pt_per_mm > 10.0, "{pt_per_mm}");
+    // A finger dragged 60 pt out from the seat: the half-size follows it on the view plane, in twentieths.
+    assert!(b.drag(seat + vec2(4.0, 0.0), seat + vec2(60.0, 0.0), 6), "the finger holds the ring while it sizes");
+    let want = |pt: f32| ((f64::from(pt / pt_per_mm) / 0.05).round() * 0.05).max(0.05);
+    let dims = b.cad.live.session.dimensions();
+    assert_eq!(dims[0].key, "height", "the lift went on to the height");
+    let size = b.cad.live.session.preview().unwrap().operation.unwrap();
+    let Operation::Box { size: [x, y, _] } = size else { panic!("{size:?}") };
+    assert!((x - 2.0 * want(60.0)).abs() < 0.11 && (y - x).abs() < 1e-12, "{x} against {}", 2.0 * want(60.0));
+    {
+        let r = b.renderer.lock().unwrap();
+        let (verts, model, draft) = r.preview_state();
+        assert!(verts.is_some_and(|v| v.len() == 12 * 3 * 12) && model.is_some() && !draft, "a unit cube staged once, carried by the model matrix");
+    }
+    assert!(b.edits().is_empty(), "nothing lands before the height");
+    // Then 30 pt up the screen stands it that tall, and the lift adds it: the plain ring's shank and the box, one undo step.
+    b.drag(seat, seat - vec2(0.0, 30.0), 4);
+    let edits = b.edits();
+    assert_eq!(edits.len(), 1, "one lift, one edit");
+    let (edits, then) = edits.into_iter().next().unwrap();
+    assert_eq!(then, Then::LastAdded);
+    let [CadEdit::Add { feature: shank, .. }, CadEdit::Add { feature: part, .. }] = edits.as_slice() else { panic!("{edits:?}") };
+    assert!(matches!(shank.operation, Operation::Band));
+    let Operation::Box { size } = part.operation else { panic!("{:?}", part.operation) };
+    assert!((size[2] - want(30.0)).abs() < 0.051, "{size:?} against {}", want(30.0));
+    let mut d = b.d.clone();
+    let mut history = History::new(&d);
+    let done = commit(&mut d, &mut history, &edits, None).unwrap().unwrap();
+    assert_eq!((done.label.as_str(), history.timeline().len()), ("Add Procedural shank · Add Box", 2));
+    let after = Bench::new(d);
+    let c = after.built.evaluated().unwrap().components.iter().find(|c| c.id == part.id).expect("the box builds");
+    let (lo, hi) = c.mesh.bounds().unwrap();
+    assert!((f64::from(hi.0 - lo.0) - size[0]).abs() < 1e-3 && hi.1 > at[1] as f32, "{lo:?} {hi:?}");
+    assert!(!b.cad.live.is_live());
+}
+
+#[test]
+fn a_dragged_out_part_keeps_its_size_through_a_pinch_and_done_adds_it_as_it_stands() {
+    let mut b = Bench::new(posted());
+    b.step(Vec::new());
+    let (at, n) = on_band(&b, 45.0, 0.5);
+    let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &b.lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
+    b.cad.pressed = Some((at, n));
+    b.cad.act(&v, MenuAction::AddPartHere { theta_deg: 45.0, height_mm: 0.0, label: "Cylinder" });
+    let seat = b.camera.projector(RECT).at(at.map(|x| x as f32));
+    b.drag(seat, seat + vec2(0.0, 40.0), 4);
+    let radius = |b: &Bench| {
+        b.cad.live.session.preview().and_then(|p| p.operation).map(|op| match op {
+            Operation::Cylinder { radius_mm, .. } => radius_mm,
+            other => panic!("{other:?}"),
+        })
+    };
+    let sized = radius(&b).unwrap();
+    // A second finger lets the size be; the pinch is the camera's.
+    b.step(vec![touch(1, TouchPhase::Start, seat + vec2(60.0, 60.0))]);
+    let took = b.step(vec![touch(2, TouchPhase::Start, seat + vec2(120.0, 60.0))]);
+    assert!(!took.hold);
+    b.step(vec![touch(1, TouchPhase::Move, seat + vec2(40.0, 60.0)), touch(2, TouchPhase::Move, seat + vec2(150.0, 60.0))]);
+    b.step(vec![touch(1, TouchPhase::End, seat + vec2(40.0, 60.0)), touch(2, TouchPhase::End, seat + vec2(150.0, 60.0))]);
+    assert_eq!(radius(&b), Some(sized));
+    assert!(b.cad.live.is_live() && b.edits().is_empty());
+    // A typed height, then Done: the cylinder as it stands, joined beside the post.
+    b.cad.live.session.feed(ringdesign_workbench::command::StepInput::Typed { key: "height", value: 1.25 });
+    let o = ringdesign_workbench::touch::primitive::finish(&mut b.cad.live.session);
+    let ringdesign_workbench::command::Outcome::Commit(effects) = o else { panic!("{o:?}") };
+    let (edits, added) = touch::parts::effect_edits(&b.d, effects);
+    let [CadEdit::Add { feature, .. }] = edits.as_slice() else { panic!("the ring has its shank already: {edits:?}") };
+    assert!(added && feature.id == 3 && feature.component.attach == ringdesign_core::cad::Attach::Join);
+    assert!(matches!(feature.operation, Operation::Cylinder { radius_mm, height_mm } if radius_mm == sized && height_mm == 1.25), "{:?}", feature.operation);
+}
+
+#[test]
+fn a_work_plane_square_to_the_band_or_on_the_parting_plane_is_made_where_the_band_was_held() {
+    use ringdesign_core::cad::PlaneBase;
+    let mut b = Bench::new(court());
+    b.step(Vec::new());
+    let (at, n) = on_band(&b, 70.0, 0.4);
+    let pick = Pick { entity: Entity::Band, world: at, normal: n, depth: 1.0, px: 0.0 };
+    let rows: Vec<&str> = menu::extras(Some(&pick), None, None, &[]).iter().map(|x| x.label).collect();
+    assert_eq!(rows, ["Work plane at angle…", "Work plane square to the band…", "Work plane on the parting plane…"]);
+    let (d, camera, built) = (b.d.clone(), b.camera, b.built.clone());
+    let lib = AlphaLibrary::builtin();
+    let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
+    let make = |b: &mut Bench, extra: menu::Extra, offset: f64| {
+        b.cad.extra(&v, extra);
+        assert_eq!(b.cad.live.session.command().map(|c| c.key()), Some("work-plane"));
+        assert_eq!(b.cad.live.session.dimensions()[0].key, "offset");
+        b.cad.live.session.feed(ringdesign_workbench::command::StepInput::Typed { key: "offset", value: offset });
+        let ringdesign_workbench::command::Outcome::Commit(effects) = b.cad.live.session.enter() else { panic!("Done makes the plane") };
+        let (edits, _) = touch::parts::effect_edits(&b.d, effects);
+        let mut d = b.d.clone();
+        let done = commit(&mut d, &mut History::new(&b.d), &edits, None).unwrap().unwrap();
+        let id = done.applied.last().and_then(|a| a.id).unwrap();
+        let op = d.cad.as_ref().unwrap().feature(id).unwrap().operation.clone();
+        let after = Bench::new(d);
+        let plane = *after.built.evaluated().unwrap().plane(id).expect("the plane builds");
+        (done.label, plane, op)
+    };
+    // Square to the band where it was held, a quarter of a millimetre off it: the plain ring's first plane brings its shank.
+    let (label, plane, op) = make(&mut b, menu::Extra::PlaneTangent { at, normal: n }, 0.25);
+    assert_eq!(label, "Add Procedural shank · Add Tangent at 70° +0.25 mm");
+    assert!(matches!(op, Operation::Plane { base: PlaneBase::Tangent { theta_deg, across_mm }, offset_mm } if (theta_deg - 70.0).abs() < 1e-3 && (across_mm - 0.4).abs() < 1e-3 && offset_mm == 0.25), "{op:?}");
+    let want: [f64; 3] = std::array::from_fn(|k| at[k] + n[k] * 0.25);
+    assert!((0..3).all(|k| (plane.origin[k] - want[k]).abs() < 2e-4) && (0..3).map(|k| plane.normal[k] * n[k]).sum::<f64>() > 0.9999, "{plane:?} against {want:?}");
+    // On the parting plane, starting where the verdict parts the mould (0 here), raised 0.4.
+    let (label, plane, _) = make(&mut b, menu::Extra::PlaneParting { at }, 0.4);
+    assert_eq!(label, "Add Procedural shank · Add Parting +0.40 mm");
+    assert_eq!((plane.origin, plane.normal), ([0.0, 0.0, 0.4], [0.0, 0.0, 1.0]));
+}

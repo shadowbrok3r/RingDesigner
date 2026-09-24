@@ -290,10 +290,15 @@ impl Cad {
 
     /// Everything under the finger at `p`, whole parts first.
     fn picks(&self, v: &View, p: Pos2) -> Vec<Pick> {
+        self.picks_of(v, p, Filter::default())
+    }
+
+    /// What of `filter`'s classes lies under the finger at `p`, whole parts first.
+    fn picks_of(&self, v: &View, p: Pos2, filter: Filter) -> Vec<Pick> {
         let Some(scene) = &self.scene else { return Vec::new() };
         let ray = |q: Pos2| v.ray(q);
         let (view, r) = ringdesign_workbench::hover::view_scale(p, &ray);
-        touch::coarse_first(scene.pick(r, &view, touch::APERTURE_PT, Filter::default()))
+        touch::coarse_first(scene.pick(r, &view, touch::APERTURE_PT, filter))
     }
 
     /// The band under the finger when there is no scene to ask: the plain ring's own raycast.
@@ -403,7 +408,10 @@ impl Cad {
                     // A lift after a long press is not a tap, whatever the view's own click says.
                     took.tap = true;
                     self.boxing.let_go();
-                    if !self.live.tap_through() && self.live.holding() {
+                    // A finger held still over a primitive being dragged out leaves its size alone.
+                    if self.live.sizing() {
+                        self.live.let_go(&mut self.requests);
+                    } else if !self.live.tap_through() && self.live.holding() {
                         let c = ctx!(self, v);
                         self.live.release(v.rect.center(), false, &c, &mut self.requests);
                     }
@@ -421,9 +429,9 @@ impl Cad {
         took
     }
 
-    /// Chooses the plane, part, face, edge or vertex under a tap at `p`, one deeper on the same spot; with box select on, its op adds or takes away; whether the tap was taken.
+    /// Chooses the plane, part, face, edge or vertex under a tap at `p`, one deeper on the same spot; with box select on, only what it takes, and its op adds or takes away; whether the tap was taken.
     fn tap(&mut self, painter: &egui::Painter, v: &View, p: Pos2) -> bool {
-        let picks = self.picks(v, p);
+        let picks = if self.boxing.on { self.picks_of(v, p, self.boxing.takes.filter()) } else { self.picks(v, p) };
         let cad = picks.first().is_some_and(|k| is_part(&k.entity));
         if let Some(plane) = self.plane_at(painter, v, p, cad) {
             self.choose_plane(v, plane);
@@ -511,6 +519,18 @@ impl Cad {
             menu::Extra::PlaneAtAngle { theta_deg } => {
                 let cx = ctx!(self, v);
                 let said = self.live.plane(&cx, touch::planes::PlaneCmd::at_angle(theta_deg));
+                self.status(said);
+            }
+            menu::Extra::PlaneTangent { at, normal } => {
+                let cx = ctx!(self, v);
+                let said = self.live.plane(&cx, touch::planes::PlaneCmd::tangent(at, normal));
+                self.status(said);
+            }
+            menu::Extra::PlaneParting { at } => {
+                // It starts where the verdict parts the mould.
+                let parting = v.field.map_or(0.0, |f| f.parting_z_mm);
+                let cx = ctx!(self, v);
+                let said = self.live.plane(&cx, touch::planes::PlaneCmd::parting(at, parting));
                 self.status(said);
             }
             menu::Extra::ShowAll => self.requests.push(Request::Isolate(None)),
@@ -621,6 +641,12 @@ impl Cad {
         let design = v.design;
         let edit = |edits: Vec<CadEdit>, then: Then| Request::Edit { edits, then };
         let request = match action {
+            // A box, a cylinder or a sphere is dragged out from where the band was pressed; anything else lands there as it is.
+            MenuAction::AddPartHere { label, .. } if touch::primitive::kind(label).is_some() && self.pressed.is_some() => {
+                let (Some(kind), Some((at, normal))) = (touch::primitive::kind(label), self.pressed.take()) else { return };
+                let cx = ctx!(self, v);
+                self.live.add_primitive(&cx, kind, at, normal).map(Request::Status)
+            }
             MenuAction::AddPartHere { theta_deg, height_mm, label } => touch::parts::part_here(design, label, theta_deg, height_mm).map(|(edits, id)| edit(edits, Then::Part(id))),
             MenuAction::AddStone { theta_deg, key, .. } => touch::parts::stone_here(design, theta_deg, key).map(|(edits, id)| edit(edits, Then::Part(id))),
             MenuAction::AddStoneOnFace { feature, face, key } => {

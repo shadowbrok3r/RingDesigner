@@ -48,12 +48,15 @@ pub struct OrbitCamera {
     pub pitch: f32,
     /// Zoom factor: 1.0 frames the model exactly.
     pub zoom: f32,
+    /// What the camera orbits and the view's window is centred on less the pan: the ring's middle until a pinch or a fit moves it.
     pub target: [f32; 3],
     pub pan: [f32; 2],
     /// Radius of the fitted bounding sphere, mm.
     radius: f32,
     /// Turn about the view axis, radians: what lets the ring be seen upside down.
     pub roll: f32,
+    /// The fitted bounds' middle, which a named view orbits.
+    home: [f32; 3],
 }
 
 impl Default for OrbitCamera {
@@ -67,36 +70,113 @@ impl Default for OrbitCamera {
             pan: [0.0; 2],
             radius: 12.0,
             roll: 0.0,
+            home: [0.0; 3],
         }
     }
+}
+
+/// The middle of a box and the radius of the sphere round it, mm.
+fn sphere(min: Vec3, max: Vec3) -> ([f32; 3], f32) {
+    let ext = [max.0 - min.0, max.1 - min.1, max.2 - min.2];
+    ([(min.0 + max.0) * 0.5, (min.1 + max.1) * 0.5, (min.2 + max.2) * 0.5], 0.5 * dot(ext, ext).sqrt())
 }
 
 impl OrbitCamera {
     /// Recentre on new bounds, keeping the current orientation and zoom.
     pub fn fit(&mut self, bounds: Option<(Vec3, Vec3)>) {
         let Some((min, max)) = bounds else { return };
-        self.target = [
-            (min.0 + max.0) * 0.5,
-            (min.1 + max.1) * 0.5,
-            (min.2 + max.2) * 0.5,
-        ];
-        let ext = [max.0 - min.0, max.1 - min.1, max.2 - min.2];
-        let r = 0.5 * (ext[0] * ext[0] + ext[1] * ext[1] + ext[2] * ext[2]).sqrt();
+        let (centre, r) = sphere(min, max);
+        self.target = centre;
+        self.home = centre;
         self.radius = r.max(1.0);
     }
 
     pub fn reset(&mut self) {
-        let keep_radius = self.radius;
+        let keep = (self.radius, self.home);
         *self = Self::default();
-        self.radius = keep_radius;
+        (self.radius, self.home) = keep;
+        self.target = self.home;
     }
 
     pub fn set_view(&mut self, view: StandardView) {
         let (yaw, pitch) = view.angles();
         self.yaw = yaw;
         self.pitch = pitch;
+        self.target = self.home;
         self.pan = [0.0, 0.0];
         self.roll = 0.0;
+    }
+
+    /// Orbits the ring's own middle again, centred on it.
+    pub fn centre_home(&mut self) {
+        self.target = self.home;
+        self.pan = [0.0; 2];
+    }
+
+    /// Orbits the ring's own middle again without moving the picture.
+    pub fn pivot_home(&mut self) {
+        self.pivot_on(self.home);
+    }
+
+    /// The view's right, up and forward in the world.
+    fn axes(&self) -> ([f32; 3], [f32; 3], [f32; 3]) {
+        let f = normalize(sub(self.target, self.eye()));
+        let s = normalize(cross(f, self.up()));
+        (s, cross(s, f), f)
+    }
+
+    /// The window's half sizes along the view's right and up, mm.
+    fn half_sizes(&self, rect: egui::Rect) -> (f32, f32) {
+        let aspect = (rect.width() / rect.height().max(1.0)).max(1e-3);
+        let hh = self.half_extent() / aspect.min(1.0);
+        (hh * aspect, hh)
+    }
+
+    /// Pans so the world point `world` lands on screen at `at`.
+    pub fn keep_under(&mut self, world: [f32; 3], at: egui::Pos2, rect: egui::Rect) {
+        let (s, u, _) = self.axes();
+        let rel = sub(world, self.target);
+        let centre = rect.center();
+        let half = rect.size() * 0.5;
+        let x = (at.x - centre.x) / half.x.max(1.0);
+        let y = -(at.y - centre.y) / half.y.max(1.0);
+        let (hw, hh) = self.half_sizes(rect);
+        self.pan = [dot(rel, s) - x * hw, dot(rel, u) - y * hh];
+    }
+
+    /// Orbits `point` from now on without moving the picture: the pan takes up the difference.
+    pub fn pivot_on(&mut self, point: [f32; 3]) {
+        if !point.iter().all(|v| v.is_finite()) {
+            return;
+        }
+        let (s, u, _) = self.axes();
+        let d = sub(point, self.target);
+        self.pan = [self.pan[0] - dot(d, s), self.pan[1] - dot(d, u)];
+        self.target = point;
+    }
+
+    /// Orbits the point on the ray through the view's middle nearest the pivot: nothing moves, and a turn keeps the middle of the view where it is.
+    pub fn pivot_to_middle(&mut self, rect: egui::Rect) {
+        let (o, f) = self.ray(rect, rect.center());
+        let t = dot(sub(self.target, o), f);
+        self.pivot_on([o[0] + f[0] * t, o[1] + f[1] * t, o[2] + f[2] * t]);
+    }
+
+    /// Moves the pivot onto the middle of `bounds` without moving the picture; the pose that then frames them, the look kept, centred, their sphere filling the view's shorter side.
+    pub fn framing(&mut self, bounds: (Vec3, Vec3)) -> ringdesign_workbench::focus::Pose {
+        let (centre, r) = sphere(bounds.0, bounds.1);
+        self.pivot_on(centre);
+        let zoom = (self.radius / r.max(1e-3)).clamp(0.15, 24.0);
+        ringdesign_workbench::focus::Pose { pan: [0.0; 2], zoom, ..self.pose() }
+    }
+
+    /// Takes `bounds` as the ring's own without moving the picture: the radius it is framed by and the middle a named view orbits.
+    pub fn refit(&mut self, bounds: (Vec3, Vec3)) {
+        let (centre, r) = sphere(bounds.0, bounds.1);
+        let r = r.max(1.0);
+        self.zoom = (self.zoom * r / self.radius.max(1e-3)).clamp(0.15, 24.0);
+        self.radius = r;
+        self.home = centre;
     }
 
     pub fn orbit(&mut self, delta: egui::Vec2) {
@@ -437,6 +517,105 @@ mod tests {
             assert!((1.0..=3.5).contains(&aimed.zoom));
         }
         assert_eq!(cam.pose(), { let mut c = cam; c.set_pose(cam.pose()); c.pose() });
+    }
+
+    /// A camera fitted to a ring 25 mm across, turned to the three-quarter view.
+    fn ringed() -> OrbitCamera {
+        let mut cam = OrbitCamera::default();
+        cam.fit(Some((Vec3(-11., -11., -3.), Vec3(11., 12.5, 3.))));
+        cam
+    }
+
+    fn apart(a: egui::Pos2, b: egui::Pos2) -> f32 {
+        (a - b).length()
+    }
+
+    #[test]
+    fn a_point_kept_under_the_fingers_stays_there_through_a_zoom_and_a_roll() {
+        let r = rect();
+        let mut cam = ringed();
+        let at = egui::pos2(610.0, 180.0);
+        let (held, _) = cam.ray(r, at);
+        cam.zoom_by_factor(2.5);
+        cam.roll = 0.4;
+        let to = egui::pos2(560.0, 230.0);
+        cam.keep_under(held, to, r);
+        assert!(apart(cam.projector(r).at(held), to) < 0.01, "{:?}", cam.projector(r).at(held));
+        // Zoomed about the middle of the view instead, the same point runs 2.5 times as far from it: 363 pt off where the fingers stand.
+        let mut middle = ringed();
+        middle.zoom_by_factor(2.5);
+        let drift = apart(middle.projector(r).at(held), at);
+        assert!((drift - 362.8).abs() < 0.5, "{drift}");
+    }
+
+    #[test]
+    fn the_pivot_moves_without_moving_the_picture_and_a_turn_then_holds_it_still() {
+        let r = rect();
+        let mut cam = ringed();
+        cam.zoom = 3.0;
+        cam.pan = [4.0, -2.5];
+        let pivot = [3.0, 10.5, 1.0];
+        let probes = [[0.0, 0.0, 0.0], [10.0, 2.0, -1.0], pivot, [-5.0, -9.0, 2.0]];
+        let before: Vec<egui::Pos2> = probes.iter().map(|p| cam.projector(r).at(*p)).collect();
+        let stayed = cam;
+        cam.pivot_on(pivot);
+        assert_eq!(cam.target, pivot);
+        for (p, was) in probes.iter().zip(&before) {
+            assert!(apart(cam.projector(r).at(*p), *was) < 0.01, "{p:?} moved from {was:?}");
+        }
+        // A turn about the pivot keeps it where it stands on screen; about the old one it swings away.
+        let mut kept = cam;
+        kept.orbit(egui::vec2(60.0, 25.0));
+        assert!(apart(kept.projector(r).at(pivot), before[2]) < 0.05);
+        let mut swung = stayed;
+        swung.orbit(egui::vec2(60.0, 25.0));
+        let drift = apart(swung.projector(r).at(pivot), before[2]);
+        assert!(drift > 150.0, "turned about the ring's middle the pivot runs {drift} pt");
+        // Onto the middle of the view: nothing moves and the pan is spent.
+        let mut middle = stayed;
+        middle.pivot_to_middle(r);
+        assert!(middle.pan[0].abs() < 1e-4 && middle.pan[1].abs() < 1e-4, "{:?}", middle.pan);
+        assert!(apart(middle.projector(r).at(pivot), before[2]) < 0.01);
+        // A named view orbits the ring's middle again, centred.
+        cam.set_view(StandardView::Face);
+        assert_eq!((cam.target, cam.pan), ([0.0, 0.75, 0.0], [0.0; 2]));
+        cam.pivot_on(pivot);
+        cam.centre_home();
+        assert_eq!((cam.target, cam.pan), ([0.0, 0.75, 0.0], [0.0; 2]));
+        let mut back = stayed;
+        back.pivot_on(pivot);
+        back.pivot_home();
+        assert!(apart(back.projector(r).at(pivot), before[2]) < 0.01 && back.target == [0.0, 0.75, 0.0]);
+    }
+
+    #[test]
+    fn a_fit_centres_what_it_frames_and_fills_the_shorter_side_with_it() {
+        let r = rect();
+        let mut cam = ringed();
+        cam.pan = [5.0, 3.0];
+        // A 2 × 2 × 1 block at the ring's top.
+        let block = (Vec3(-1.0, 10.4, -1.0), Vec3(1.0, 11.4, 1.0));
+        let before = cam.projector(r).at([0.0, 10.9, 0.0]);
+        let to = cam.framing(block);
+        assert!(apart(cam.projector(r).at([0.0, 10.9, 0.0]), before) < 0.01, "the pivot moves first and nothing jumps");
+        cam.set_pose(to);
+        let centre = cam.projector(r).at([0.0, 10.9, 0.0]);
+        assert!(apart(centre, r.center()) < 0.01, "{centre:?}");
+        // Its 1.5 mm sphere spans the shorter side less the 15% margin: 600 pt / 2 / 1.15 = 261 pt from the middle.
+        let (s, _, _) = cam.axes();
+        let px_per_mm = apart(cam.projector(r).at([s[0], 10.9 + s[1], s[2]]), centre);
+        let reach = 1.5 * px_per_mm;
+        assert!((reach - 300.0 / 1.15).abs() < 0.5, "{reach}");
+        assert_eq!((to.yaw, to.pitch, to.roll), (ringed().yaw, ringed().pitch, 0.0), "the look is kept");
+        // A speck is framed at the camera's closest, not past it.
+        let mut speck = ringed();
+        assert_eq!(speck.framing((Vec3(0.0, 10.0, 0.0), Vec3(0.01, 10.01, 0.01))).zoom, 24.0);
+        // A new ring's bounds keep the picture while the fit's radius follows them.
+        let mut grown = ringed();
+        let was = grown.projector(r).at([5.0, 5.0, 1.0]);
+        grown.refit((Vec3(-16., -16., -3.), Vec3(16., 17., 3.)));
+        assert!(apart(grown.projector(r).at([5.0, 5.0, 1.0]), was) < 0.01);
+        assert!((grown.half_extent() - ringed().half_extent()).abs() < 1e-4);
     }
 
     #[test]

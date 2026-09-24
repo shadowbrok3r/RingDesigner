@@ -27,6 +27,10 @@ pub enum Extra {
     PlaneOnFace { feature: Id, face: u32 },
     /// A work plane through the finger's axis at a typed angle, `theta_deg` where the band was pressed.
     PlaneAtAngle { theta_deg: f64 },
+    /// A work plane square to the band at `at`, where it was pressed with the surface's `normal` there, offset by a drag or a typed distance.
+    PlaneTangent { at: [f64; 3], normal: [f64; 3] },
+    /// A work plane on the parting plane, its arrow standing on the band at `at`, raised by a drag or a typed height.
+    PlaneParting { at: [f64; 3] },
     /// The whole ring shown again after parts were shown alone.
     ShowAll,
     /// Part `id` taken out of the parts shown alone, the others staying.
@@ -43,18 +47,22 @@ pub struct ExtraItem {
     pub hint: String,
 }
 
-/// The rows the phone adds for what lies under the finger, else the last thing chosen: a work plane on a flat face or through the axis where the band was pressed,
-/// and while parts are shown alone, taking one of several out and the whole ring again.
+/// The rows the phone adds for what lies under the finger, else the last thing chosen: work planes on a flat face or where the band was pressed, and while parts are shown alone, taking one out and the whole ring again.
 pub fn extras(under: Option<&Pick>, chosen: Option<&Sel>, evaluated: Option<&Evaluated>, isolated: &[Id]) -> Vec<ExtraItem> {
     let mut out = Vec::new();
+    // A band point chosen without a pick faces out from the finger's axis.
+    let radial = |w: [f64; 3]| {
+        let r = w[0].hypot(w[1]);
+        if r > 1e-9 { [w[0] / r, w[1] / r, 0.0] } else { [0.0, 0.0, 1.0] }
+    };
     let subject = match (under, chosen) {
-        (Some(p), _) => Some((p.entity.clone(), p.world)),
-        (None, Some(Sel::Face { feature, face })) => Some((Entity::Face { feature: *feature, face: *face }, [0.0; 3])),
-        (None, Some(Sel::BandPoint { world, .. })) => Some((Entity::Band, *world)),
+        (Some(p), _) => Some((p.entity.clone(), p.world, p.normal)),
+        (None, Some(Sel::Face { feature, face })) => Some((Entity::Face { feature: *feature, face: *face }, [0.0; 3], [0.0, 0.0, 1.0])),
+        (None, Some(Sel::BandPoint { world, .. })) => Some((Entity::Band, *world, radial(*world))),
         _ => None,
     };
-    match subject.as_ref().map(|(e, w)| (e, *w)) {
-        Some((Entity::Face { feature, face }, _)) => {
+    match subject.as_ref().map(|(e, w, n)| (e, *w, *n)) {
+        Some((Entity::Face { feature, face }, _, _)) => {
             let part = evaluated.and_then(|e| e.components.iter().find(|c| c.id == *feature));
             let flat = match part {
                 None => Err(format!("Part #{feature} has not built yet")),
@@ -74,13 +82,29 @@ pub fn extras(under: Option<&Pick>, chosen: Option<&Sel>, evaluated: Option<&Eva
                 hint: flat.err().unwrap_or_else(|| "A plane on this face, moved off it by a drag or a typed distance".into()),
             });
         }
-        Some((Entity::Band, world)) => out.push(ExtraItem {
-            icon: Icon::Section,
-            label: "Work plane at angle…",
-            act: Extra::PlaneAtAngle { theta_deg: world[1].atan2(world[0]).to_degrees().round().rem_euclid(360.0) },
-            enabled: true,
-            hint: "A plane through the finger's axis, at the angle you type".into(),
-        }),
+        Some((Entity::Band, world, normal)) => {
+            out.push(ExtraItem {
+                icon: Icon::Section,
+                label: "Work plane at angle…",
+                act: Extra::PlaneAtAngle { theta_deg: world[1].atan2(world[0]).to_degrees().round().rem_euclid(360.0) },
+                enabled: true,
+                hint: "A plane through the finger's axis, at the angle you type".into(),
+            });
+            out.push(ExtraItem {
+                icon: Icon::Surface,
+                label: "Work plane square to the band…",
+                act: Extra::PlaneTangent { at: world, normal },
+                enabled: true,
+                hint: "A plane touching the band where you pressed, moved off it by a drag or a typed distance".into(),
+            });
+            out.push(ExtraItem {
+                icon: Icon::Mould,
+                label: "Work plane on the parting plane…",
+                act: Extra::PlaneParting { at: world },
+                enabled: true,
+                hint: "The plane the mould parts on, raised by a drag or a typed height".into(),
+            });
+        }
         _ => {}
     }
     // A part among several shown alone can be taken out of the view.
@@ -326,9 +350,19 @@ mod tests {
         let off: Vec<(&str, &str)> = items.iter().filter(|i| !i.enabled).map(|i| (i.label.as_str(), i.hint)).collect();
         assert_eq!(off, [("Grid", "The phone's view has no ground grid")]);
         assert!(items.iter().any(|i| i.enabled && i.action == MenuAction::SketchOnPlane { theta_deg: 90.0, across_mm: 0.0 }));
-        // The phone's own row: a plane through the axis at the angle pressed, and the whole ring back while a part stands alone.
+        // The phone's own rows: planes through the axis at the angle pressed, square to the band there and on the parting plane; the whole ring back while a part stands alone.
         let own = extras(Some(&under), None, None, &[]);
-        assert_eq!(own.iter().map(|x| (x.label, x.act.clone(), x.enabled)).collect::<Vec<_>>(), [("Work plane at angle…", Extra::PlaneAtAngle { theta_deg: 90.0 }, true)]);
+        assert_eq!(
+            own.iter().map(|x| (x.label, x.act.clone(), x.enabled)).collect::<Vec<_>>(),
+            [
+                ("Work plane at angle…", Extra::PlaneAtAngle { theta_deg: 90.0 }, true),
+                ("Work plane square to the band…", Extra::PlaneTangent { at: [0.0, 9.5, 0.0], normal: [0.0, 1.0, 0.0] }, true),
+                ("Work plane on the parting plane…", Extra::PlaneParting { at: [0.0, 9.5, 0.0] }, true),
+            ]
+        );
+        // A band point chosen without a pick faces out from the finger's axis.
+        let point = extras(None, Some(&Sel::BandPoint { theta_deg: 0.0, v_mm: 1.0, world: [10.0, 0.0, 0.5] }), None, &[]);
+        assert_eq!(point[1].act, Extra::PlaneTangent { at: [10.0, 0.0, 0.5], normal: [1.0, 0.0, 0.0] });
         // Pressed below the axis, the angle reads on 0–360° as the band's readout does.
         let low = extras(Some(&pick(Entity::Band, [2.25, -9.74, 0.0])), None, None, &[]);
         assert_eq!(low[0].act, Extra::PlaneAtAngle { theta_deg: 283.0 });
