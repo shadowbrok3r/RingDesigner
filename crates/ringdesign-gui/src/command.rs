@@ -286,7 +286,7 @@ pub fn blocked(app: &RingDesignerApp, key: &str) -> Option<String> {
     }
     let Some(id) = selected_part(app) else {
         return Some(match app.selection.items.last() {
-            Some(Sel::Seat(_)) => "A seat's made solid follows its layer: right-click it to choose the layer, and edit the seat there".into(),
+            Some(Sel::Seat { .. }) => "A seat's made solid follows its layer: right-click it to choose the layer, and edit the seat there".into(),
             Some(Sel::Stamp(_)) => "A stamp stands where its inspector puts it: right-click it, Edit stamp…".into(),
             _ => "Select a part first: click one on the ring".into(),
         });
@@ -1182,7 +1182,7 @@ fn finish_box(app: &mut RingDesignerApp, pane: usize, rect: Rect, from: Pos2, to
     };
     let planes = box_planes([ray(r.left_top()), ray(r.right_top()), ray(r.right_bottom()), ray(r.left_bottom())]);
     let crossing = to.x < from.x;
-    let caught = scene.box_select(planes, crossing, app.selection.filter);
+    let caught: Vec<_> = scene.box_select(planes, crossing, app.selection.filter).into_iter().filter_map(|e| app.entity_now(e)).collect();
     app.selection.boxed(&caught, mods);
     let n = app.selection.items.len();
     app.set_status(format!("{} box: {n} selected", if crossing { "Crossing" } else { "Window" }));

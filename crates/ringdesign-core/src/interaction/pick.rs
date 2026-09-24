@@ -34,8 +34,8 @@ pub enum Entity {
     Edge { feature: Id, edge: u32 },
     Vertex { feature: Id, vertex: u32 },
     Stone { path: Vec<usize> },
-    /// A seat's made solid, by the layer path of the stone it seats.
-    Seat { path: Vec<usize> },
+    /// A seat's made solid, by the layer path of the stone it seats and which of that layer's stones it is: 0 on a pad, a run's stations in the order the build sets them.
+    Seat { path: Vec<usize>, station: u32 },
     /// A struck stamp, by its index in `RingDesign::stamps`.
     Stamp { index: usize },
 }
@@ -123,8 +123,21 @@ pub struct PickScene {
     stones: Option<Stones>,
     /// Reference parts — stones set as CAD parts — which are never metal but are chosen like parts.
     loose: Option<(Mesh, Bvh, Vec<Id>)>,
-    /// The layer path of each stone whose seat's solid the build resolved, by `SEAT` offset.
-    seats: Vec<Vec<usize>>,
+    /// The layer path and station of each stone whose seat's solid the build resolved, by `SEAT` offset.
+    seats: Vec<(Vec<usize>, u32)>,
+}
+
+/// Which of its layer's stones each stone of `paths` is: how many before it the same layer sets.
+pub fn seat_stations(paths: &[Vec<usize>]) -> Vec<u32> {
+    let mut seen: HashMap<&[usize], u32> = HashMap::new();
+    paths
+        .iter()
+        .map(|p| {
+            let n = seen.entry(p.as_slice()).or_insert(0);
+            *n += 1;
+            *n - 1
+        })
+        .collect()
 }
 
 /// Class order a pick is ranked by, before screen distance and depth.
@@ -309,7 +322,9 @@ impl PickScene {
         let parts = placed_parts(built);
         let (mut owner, ordinal) = owners(src, &built.parts, &parts);
         claim_made(src, built, &mut owner);
-        Self { mesh, bvh, owner, ordinal, parts, stones: stones_of(design), loose: reference_parts(built), seats: built.solids.paths.clone() }
+        let paths = &built.solids.paths;
+        let seats = paths.iter().cloned().zip(seat_stations(paths)).collect();
+        Self { mesh, bvh, owner, ordinal, parts, stones: stones_of(design), loose: reference_parts(built), seats }
     }
 
     /// Faces the fused mesh holds.
@@ -353,7 +368,7 @@ impl PickScene {
         match owner {
             BAND => None,
             o if o >= STAMP => Some(Entity::Stamp { index: (o - STAMP) as usize }),
-            o if o >= SEAT => self.seats.get((o - SEAT) as usize).map(|path| Entity::Seat { path: path.clone() }),
+            o if o >= SEAT => self.seats.get((o - SEAT) as usize).map(|(path, station)| Entity::Seat { path: path.clone(), station: *station }),
             _ => None,
         }
     }
@@ -1077,7 +1092,7 @@ mod tests {
         let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
         assert_eq!((built.solids.resolved, built.solids.stamped, built.solids.paths.clone(), built.solids.stamps), (1, 1, vec![vec![0]], 1), "{:?}", built.solids.notes);
         let scene = PickScene::build(&built, &d);
-        let seat = Entity::Seat { path: vec![0] };
+        let seat = Entity::Seat { path: vec![0], station: 0 };
         let stamp = Entity::Stamp { index: 0 };
         // The head's and the disc's faces stand off the band as swept; a band face carrying a seam's vertices lies on it.
         let band = built.band.as_deref().unwrap();
@@ -1140,6 +1155,43 @@ mod tests {
         assert_eq!(scene.box_select(window, true, Filter::default()), [stone, seat.clone(), Entity::Band]);
         let palm = [[1.0, 0.0, 0.0, 4.0], [-1.0, 0.0, 0.0, 4.0], [0.0, 1.0, 0.0, 14.0], [0.0, -1.0, 0.0, -7.0]];
         assert_eq!(scene.box_select(palm, false, Filter::default()), [stamp]);
+    }
+
+    #[test]
+    fn each_station_of_a_seat_run_picks_as_its_own_seat_and_says_which() {
+        use crate::field::{Layer, LayerEntry, SeatRunLayer};
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 5.0;
+        d.profile.thickness_mm = 2.2;
+        let mut run = SeatRunLayer { count: 6, ..SeatRunLayer::default() };
+        run.seat.v_mm = d.field_context().crest_v_mm;
+        run.seat.solid = crate::setting::SolidKind::Flush;
+        d.layers.layers.push(LayerEntry::new("Row", Layer::SeatRun(run)));
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        assert_eq!((built.solids.resolved, built.solids.paths.clone()), (6, vec![vec![0]; 6]), "{:?}", built.solids.notes);
+        assert_eq!(seat_stations(&built.solids.paths), [0, 1, 2, 3, 4, 5]);
+        assert_eq!(seat_stations(&[vec![1], vec![0], vec![1], vec![2, 0], vec![0]]), [0, 0, 1, 0, 1], "counted layer by layer");
+        let scene = PickScene::build(&built, &d);
+        // Straight down each stone's axis onto its bur: the seat of that station, and no other.
+        let no_stones = Filter { stones: false, ..Filter::default() };
+        for (k, (_, frame)) in crate::stones::stone_frames(&d).iter().enumerate() {
+            let over: [f64; 3] = std::array::from_fn(|i| frame.girdle[i] + frame.normal[i] * 10.0);
+            let picks = scene.pick(Ray { origin: over, direction: frame.normal.map(|v| -v) }, &top_view(), 0.0, no_stones);
+            assert_eq!(picks.first().map(|p| &p.entity), Some(&Entity::Seat { path: vec![0], station: k as u32 }), "station {k}: {picks:?}");
+        }
+        // Every station owns faces of its own, and a window round the whole ring takes each apart.
+        let mut owned = [0usize; 6];
+        for f in 0..scene.faces() {
+            if let Some(Entity::Seat { station, .. }) = scene.made_of_face(f) {
+                owned[station as usize] += 1;
+            }
+        }
+        assert!(owned.iter().all(|n| *n > 20), "{owned:?}");
+        let everything = [[1.0, 0.0, 0.0, 40.0], [-1.0, 0.0, 0.0, 40.0], [0.0, 1.0, 0.0, 40.0], [0.0, -1.0, 0.0, 40.0]];
+        let boxed = scene.box_select(everything, false, Filter { made: true, ..Filter::none() });
+        assert_eq!(boxed, (0..6).map(|station| Entity::Seat { path: vec![0], station }).collect::<Vec<_>>());
     }
 
     /// `cargo test --release -p ringdesign-core -- --ignored claimed_at_export --nocapture` for the numbers.

@@ -270,6 +270,8 @@ pub struct RingDesignerApp {
     pub build: Option<Arc<BuildResult>>,
     /// The pick scene over `build`, rebuilt with it; what the Ring viewport hovers and selects through.
     pub pick_scene: Option<Arc<PickScene>>,
+    /// The stamps the pick scene was built over, which its stamp picks number.
+    pub pick_stamps: Vec<ringdesign_core::setting::Stamp>,
     /// What the Ring viewport has chosen and is hovering.
     pub selection: Selection,
     /// The Ring viewport's command session, its dimension bar and box select.
@@ -462,6 +464,7 @@ impl RingDesignerApp {
             lib: Arc::new(lib),
             build: None,
             pick_scene: None,
+            pick_stamps: Vec::new(),
             selection: Selection::default(),
             command: Default::default(),
             sketch: Default::default(),
@@ -606,7 +609,6 @@ impl RingDesignerApp {
     }
 
     /// Reads part file `file` on a thread of its own with `read`, named by `reader`; it lands joined at the top as one History entry.
-    #[cfg(any(test, feature = "kernel-occt"))]
     pub fn start_import(&mut self, file: String, reader: &'static str, read: impl FnOnce(&std::sync::atomic::AtomicBool) -> PartRead + Send + 'static) {
         if let Some(p) = &self.importing {
             self.set_status(format!("{} is still being read; cancel it before importing another part", p.file));
@@ -726,7 +728,9 @@ impl RingDesignerApp {
         if self.document_path != self.pins_path {
             self.carry_legacy_pins();
         }
+        let named = self.mcp.as_ref().and_then(|_| self.stamps_named());
         if self.mcp.as_mut().is_some_and(|h| h.poll(&mut self.design)) {
+            self.follow_stamps(named);
             if self
                 .selected_layer
                 .is_some_and(|i| i >= self.design.layers.layers.len())
@@ -807,11 +811,13 @@ impl RingDesignerApp {
                             }
                             // The evaluated design, under whatever the graph
                             // has become since the job was queued, and the pins as they stand.
+                            let named = self.stamps_named();
                             let graph = self.design.graph.take();
                             let pins = std::mem::take(&mut self.design.pins);
                             self.design = gd.design;
                             self.design.graph = graph;
                             self.design.pins = pins;
+                            self.follow_stamps(named);
                         }
                         self.graph_errors = gd.errors.iter().map(ToString::to_string).collect();
                         if gd.ok {
@@ -827,6 +833,7 @@ impl RingDesignerApp {
                     }
                     // The pick scene follows the mesh on screen, over the design as evaluated.
                     self.pick_scene = Some(done.pick);
+                    self.pick_stamps = std::mem::take(&mut done.stamps);
                     self.refresh_sections();
                     ctx.request_repaint();
                 }
@@ -1070,10 +1077,45 @@ impl RingDesignerApp {
         }
     }
 
+    /// The stamps as they stand, when the selection or the stamp inspector names one: what to follow them from once the design is replaced.
+    pub fn stamps_named(&self) -> Option<Vec<ringdesign_core::setting::Stamp>> {
+        let named = self.stamp_inspector.is_some() || self.selection.items.iter().any(|s| matches!(s, ringdesign_workbench::viewport::Sel::Stamp(_)));
+        named.then(|| self.design.stamps.clone())
+    }
+
+    /// The chosen stamps and the stamp inspector followed from `before` to the design's stamps by what each is; one gone is let go.
+    pub fn follow_stamps(&mut self, before: Option<Vec<ringdesign_core::setting::Stamp>>) {
+        let Some(before) = before.filter(|b| *b != self.design.stamps) else { return };
+        self.selection.follow_stamps(&before, &self.design.stamps);
+        self.stamp_inspector = self.stamp_inspector.and_then(|k| ringdesign_workbench::viewport::made::follow(&before, &self.design.stamps, k));
+    }
+
+    /// `entity` as the design now numbers it: a stamp of the pick scene followed to where it stands in the design, `None` when it is gone.
+    pub fn entity_now(&self, entity: ringdesign_core::interaction::pick::Entity) -> Option<ringdesign_core::interaction::pick::Entity> {
+        use ringdesign_core::interaction::pick::Entity;
+        match entity {
+            Entity::Stamp { index } if self.pick_stamps != self.design.stamps => ringdesign_workbench::viewport::made::follow(&self.pick_stamps, &self.design.stamps, index).map(|index| Entity::Stamp { index }),
+            e => Some(e),
+        }
+    }
+
+    /// Picks off the pick scene named as the design now numbers them; one naming a stamp the design no longer has drops out.
+    pub fn picks_now(&self, picks: Vec<ringdesign_core::interaction::pick::Pick>) -> Vec<ringdesign_core::interaction::pick::Pick> {
+        picks
+            .into_iter()
+            .filter_map(|mut p| {
+                p.entity = self.entity_now(p.entity)?;
+                Some(p)
+            })
+            .collect()
+    }
+
     /// Take a design back off the timeline. Goes around `mark_dirty` so the
     /// restore is not itself recorded as an edit.
     fn apply_history(&mut self, design: RingDesign, what: &str) {
+        let named = self.stamps_named();
         self.design = design;
+        self.follow_stamps(named);
         // Strokes, inscriptions and SVG art travel in the design as source
         // data and live in the shared library as rasters. Restoring the one
         // without re-deriving the other left painted metal on the band after
@@ -1567,6 +1609,8 @@ struct Done {
     edges: StagedEdges,
     /// The pick scene over `result`, over the design as evaluated.
     pick: Arc<PickScene>,
+    /// The stamps of that design, which the scene's stamp picks number.
+    stamps: Vec<ringdesign_core::setting::Stamp>,
     graph: Option<GraphDone>,
     /// The ring frame over the build's band, the one before it when the band did not change.
     band: Option<Arc<BandSurface>>,
@@ -1790,6 +1834,7 @@ impl Worker {
                             metal,
                             edges,
                             pick,
+                            stamps: job.design.stamps.clone(),
                             graph: graph_done,
                             band,
                             judge,

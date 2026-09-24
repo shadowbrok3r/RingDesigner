@@ -117,7 +117,7 @@ fn subject(sel: &Selection, under: Option<&Pick>) -> Subject {
             Entity::Face { feature, face } => Subject::Feature { id: *feature, edge: None, face: Some(*face) },
             Entity::Edge { feature, edge } => Subject::Feature { id: *feature, edge: Some(*edge), face: None },
             Entity::Stone { path } => Subject::Stone(Some(path.clone())),
-            Entity::Seat { path } => Subject::Seat(path.clone()),
+            Entity::Seat { path, .. } => Subject::Seat(path.clone()),
             Entity::Stamp { index } => Subject::Stamp(*index),
         };
     }
@@ -125,7 +125,7 @@ fn subject(sel: &Selection, under: Option<&Pick>) -> Subject {
         Some(Sel::BandPoint { world, .. }) => Subject::Band(Some(*world)),
         Some(Sel::Layer(_)) => Subject::Band(None),
         Some(Sel::Stone(path)) => Subject::Stone(Some(path.clone())),
-        Some(Sel::Seat(path)) => Subject::Seat(path.clone()),
+        Some(Sel::Seat { path, .. }) => Subject::Seat(path.clone()),
         Some(Sel::Stamp(index)) => Subject::Stamp(*index),
         Some(Sel::Face { feature, face }) => Subject::Feature { id: *feature, edge: None, face: Some(*face) },
         Some(s) => match (s.feature(), s.edge()) {
@@ -161,7 +161,7 @@ pub fn heading(sel: &Selection, under: Option<&Pick>, design: &RingDesign) -> Op
         Sel::Vertex { feature, vertex } => of(&Entity::Vertex { feature: *feature, vertex: *vertex }),
         Sel::Part(id) => Some(name(*id)),
         Sel::Stone(_) => Some("Stone".into()),
-        Sel::Seat(path) => of(&Entity::Seat { path: path.clone() }),
+        Sel::Seat { path, station } => of(&Entity::Seat { path: path.clone(), station: *station }),
         Sel::Stamp(index) => of(&Entity::Stamp { index: *index }),
         Sel::BandPoint { .. } | Sel::Layer(_) => None,
     }
