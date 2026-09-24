@@ -1,0 +1,231 @@
+{
+  "name": "Arachne — the weaver",
+  "process": "Lost wax",
+  "size": "US 7",
+  "bore_mm": 17.300154539981794,
+  "build": [
+    1536,
+    448
+  ],
+  "triangles": 1428824,
+  "build_s": 4.86860737,
+  "watertight": true,
+  "boundary_edges": 0,
+  "non_manifold_edges": 0,
+  "degenerate_faces": 0,
+  "made_parts": [
+    [
+      "Leg I femur, low side",
+      0
+    ],
+    [
+      "Leg I tibia, low side",
+      0
+    ],
+    [
+      "Leg I tarsus, low side",
+      0
+    ],
+    [
+      "Leg I knee, low side",
+      0
+    ],
+    [
+      "Leg I ankle, low side",
+      0
+    ],
+    [
+      "Leg I femur, high side",
+      0
+    ],
+    [
+      "Leg I tibia, high side",
+      0
+    ],
+    [
+      "Leg I tarsus, high side",
+      0
+    ],
+    [
+      "Leg I knee, high side",
+      0
+    ],
+    [
+      "Leg I ankle, high side",
+      0
+    ],
+    [
+      "Leg II femur, low side",
+      0
+    ],
+    [
+      "Leg II tibia, low side",
+      0
+    ],
+    [
+      "Leg II tarsus, low side",
+      0
+    ],
+    [
+      "Leg II knee, low side",
+      0
+    ],
+    [
+      "Leg II ankle, low side",
+      0
+    ],
+    [
+      "Leg II femur, high side",
+      0
+    ],
+    [
+      "Leg II tibia, high side",
+      0
+    ],
+    [
+      "Leg II tarsus, high side",
+      0
+    ],
+    [
+      "Leg II knee, high side",
+      0
+    ],
+    [
+      "Leg II ankle, high side",
+      0
+    ],
+    [
+      "Leg III femur, low side",
+      0
+    ],
+    [
+      "Leg III tibia, low side",
+      0
+    ],
+    [
+      "Leg III tarsus, low side",
+      0
+    ],
+    [
+      "Leg III knee, low side",
+      0
+    ],
+    [
+      "Leg III ankle, low side",
+      0
+    ],
+    [
+      "Leg III femur, high side",
+      0
+    ],
+    [
+      "Leg III tibia, high side",
+      0
+    ],
+    [
+      "Leg III tarsus, high side",
+      0
+    ],
+    [
+      "Leg III knee, high side",
+      0
+    ],
+    [
+      "Leg III ankle, high side",
+      0
+    ],
+    [
+      "Leg IV femur, low side",
+      0
+    ],
+    [
+      "Leg IV tibia, low side",
+      0
+    ],
+    [
+      "Leg IV tarsus, low side",
+      0
+    ],
+    [
+      "Leg IV knee, low side",
+      0
+    ],
+    [
+      "Leg IV ankle, low side",
+      0
+    ],
+    [
+      "Leg IV femur, high side",
+      0
+    ],
+    [
+      "Leg IV tibia, high side",
+      0
+    ],
+    [
+      "Leg IV tarsus, high side",
+      0
+    ],
+    [
+      "Leg IV knee, high side",
+      0
+    ],
+    [
+      "Leg IV ankle, high side",
+      0
+    ],
+    [
+      "Abdomen belly",
+      0
+    ]
+  ],
+  "seat_solids": [
+    [
+      "3.5 mm Round brilliant cabochon (0.18 ct) collet solid 1",
+      0
+    ],
+    [
+      "10.0x8.0 mm Oval cabochon (2.65 ct) collet solid 1",
+      0
+    ]
+  ],
+  "solids_notes": [],
+  "parts_notes": [],
+  "parts_joined": 41,
+  "field_verdict": "Castable",
+  "field_notes": [
+    "Lost wax: 3.18% of the surface would undercut a two-part pull (worst 50.5 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+    "41 CAD parts stand on the band (41 joined, 0 cut, 0 separate), not judged here: the built ring judges them.",
+    "Undercut 140–155° on the crest: 1.5 mm² leaning to 43° — caused by \"Dragline to the palm web\"; muting it clears it.",
+    "Undercut 162–173° on the crest: 0.7 mm² leaning to 44° — caused by \"Dragline to the palm web\"; muting it clears it.",
+    "Undercut 202–338° on the crest: 33.5 mm² leaning to 46° — caused by \"Orb web across the palm\"; muting it clears it.",
+    "2 made settings cast in place with the ring; the field judges the band under them."
+  ],
+  "undercut_percent": 3.184091713148086,
+  "worst_draft_deg": -50.54742396779037,
+  "thinnest_wall_mm": 1.8854746664150568,
+  "thinnest_wall_theta_deg": 264.375,
+  "investment_min_section_mm": 0.5,
+  "leg_min_diameter_mm": 0.58,
+  "leg_min_exposed_diameter_mm": 0.6255999999999999,
+  "clamp_bite_mm": null,
+  "dfm_findings": [],
+  "stones_reported": 2,
+  "stones_previewed": 2,
+  "stone_carats": 2.8318159099825717,
+  "stone_warnings": [
+    "flat-topped pad on -0° of base draft (min 3°) — its rim can lock; dome the pad or move it to a side face"
+  ],
+  "closest_stones": "Carapace, garnet in its collet to Abdomen, onyx in its collet: 2.86 mm at the girdle, 2.78 mm deep",
+  "layers": [
+    "Orb web on both cheeks",
+    "Orb web across the palm",
+    "Dragline to the palm web",
+    "Carapace, garnet in its collet",
+    "Abdomen, onyx in its collet"
+  ],
+  "cad_features": 50,
+  "grams_18k": 19.173127285665075,
+  "cold_reload_identical": true,
+  "gates_passed": true
+}
