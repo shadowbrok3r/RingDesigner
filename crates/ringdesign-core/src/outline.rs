@@ -576,6 +576,9 @@ mod tests {
         d.stamps = vec![strike("Beak", lanceolate(5.2, 2.0, 0.3), 0.3, StampTop::Gable { rise_mm: 0.35, axis_deg: 0.0 })];
         cells.push(("gable, beak".into(), d, 0.0));
         let mut d = band();
+        d.stamps = vec![Stamp { v_mm: v + 1.8, ..strike("Keel", keel(4.0, 1.6, 0.18), 0.3, StampTop::Gable { rise_mm: 0.3, axis_deg: 0.0 }) }];
+        cells.push(("gable, off the parting line".into(), d, 0.0));
+        let mut d = band();
         d.stamps = vec![strike("Rib", keel(4.4, 1.0, 0.2), 0.2, StampTop::Ridge { rise_mm: 0.4, from: [-1.6, 0.0], to: [1.8, 0.0], end_mm: 0.1 })];
         cells.push(("ridge, rib".into(), d, 0.0));
         let mut d = band();

@@ -1064,13 +1064,13 @@ impl<'a> Shape<'a> {
     /// The points and lines the cap must hold for this top.
     fn creases(&self) -> Creases {
         let mut out = Creases::default();
-        let inside = |p: [f64; 2]| inside_polygon(self.outline, p) && edge_distance(self.outline, p) > 2e-3;
+        let inside = |p: [f64; 2]| inside_polygon(self.outline, p) && edge_distance(self.outline, p) > CREASE_CLEAR;
         match self.top {
             StampTop::Flat | StampTop::Taper { .. } => {}
             StampTop::Gable { axis_deg, .. } => {
                 let a = [axis_deg.to_radians().cos(), axis_deg.to_radians().sin()];
                 for (t0, t1) in inside_runs(self.outline, self.shift, a, f64::MIN, f64::MAX) {
-                    out.line([self.shift[0] + a[0] * t0, self.shift[1] + a[1] * t0], [self.shift[0] + a[0] * t1, self.shift[1] + a[1] * t1]);
+                    out.line(self.outline, [self.shift[0] + a[0] * t0, self.shift[1] + a[1] * t0], [self.shift[0] + a[0] * t1, self.shift[1] + a[1] * t1]);
                 }
             }
             StampTop::Ridge { from, to, .. } => {
@@ -1079,7 +1079,7 @@ impl<'a> Shape<'a> {
                 if l > 1e-9 {
                     let a = [d[0] / l, d[1] / l];
                     for (t0, t1) in inside_runs(self.outline, from, a, 0.0, l) {
-                        out.line([from[0] + a[0] * t0, from[1] + a[1] * t0], [from[0] + a[0] * t1, from[1] + a[1] * t1]);
+                        out.line(self.outline, [from[0] + a[0] * t0, from[1] + a[1] * t0], [from[0] + a[0] * t1, from[1] + a[1] * t1]);
                     }
                 } else if inside(from) {
                     out.points.push(from);
@@ -1121,11 +1121,7 @@ impl<'a> Shape<'a> {
                 }
                 out.points.extend(ring.iter().map(|(p, _)| *p));
                 for v in corners {
-                    let (len, u) = ((v[0] - c[0]).hypot(v[1] - c[1]), unit2([v[0] - c[0], v[1] - c[1]]));
-                    let end = [c[0] + u[0] * (len - 2e-3), c[1] + u[1] * (len - 2e-3)];
-                    if len > 5e-3 && !crosses_outline(self.outline, c, end) {
-                        out.line(c, end);
-                    }
+                    out.line(self.outline, c, v);
                 }
             }
         }
@@ -1142,12 +1138,20 @@ struct Creases {
     lines: Vec<([f64; 2], [f64; 2])>,
 }
 
+/// How far inside its outline a crease point or a crease line's end must stand.
+const CREASE_CLEAR: f64 = 2e-3;
+
 impl Creases {
-    fn line(&mut self, a: [f64; 2], b: [f64; 2]) {
+    /// Holds `a`–`b` as a crease, each end drawn in along it until it stands clear of the outline.
+    fn line(&mut self, outline: &[[f64; 2]], a: [f64; 2], b: [f64; 2]) {
         let l = (b[0] - a[0]).hypot(b[1] - a[1]);
-        if l > 4e-3 {
-            let u = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
-            self.lines.push(([a[0] + u[0] * 1e-3, a[1] + u[1] * 1e-3], [b[0] - u[0] * 1e-3, b[1] - u[1] * 1e-3]));
+        if l <= 4.0 * CREASE_CLEAR {
+            return;
+        }
+        let u = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
+        let (Some(ta), Some(tb)) = (clear_along(outline, a, u, l), clear_along(outline, b, [-u[0], -u[1]], l)) else { return };
+        if ta + tb < l - 2.0 * CREASE_CLEAR {
+            self.lines.push(([a[0] + u[0] * ta, a[1] + u[1] * ta], [b[0] - u[0] * tb, b[1] - u[1] * tb]));
         }
     }
 
@@ -1161,6 +1165,26 @@ fn segment_distance(p: [f64; 2], a: [f64; 2], b: [f64; 2]) -> (f64, f64) {
     let (ex, ey) = (b[0] - a[0], b[1] - a[1]);
     let t = (((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / (ex * ex + ey * ey).max(1e-18)).clamp(0.0, 1.0);
     ((p[0] - a[0] - ex * t).hypot(p[1] - a[1] - ey * t), t)
+}
+
+/// Distance along `u` from `p`, within `limit`, to the first point standing 1.5 [`CREASE_CLEAR`] inside the outline.
+fn clear_along(outline: &[[f64; 2]], p: [f64; 2], u: [f64; 2], limit: f64) -> Option<f64> {
+    let want = 1.5 * CREASE_CLEAR;
+    let mut t = 0.0;
+    for _ in 0..400 {
+        let q = [p[0] + u[0] * t, p[1] + u[1] * t];
+        let d = edge_distance(outline, q);
+        let signed = if inside_polygon(outline, q) { d } else { -d };
+        if signed >= want {
+            return Some(t);
+        }
+        // Steps by the clearance still wanted, with a quarter to spare.
+        t += 1.25 * want - signed;
+        if t > limit {
+            return None;
+        }
+    }
+    None
 }
 
 /// Distance from `p` to the nearest edge of `outline`.
@@ -1227,7 +1251,12 @@ pub const MAX_STAMP_POINTS: usize = 1024;
 impl Stamp {
     /// Where the stamp stands: its origin on the bare surface, `z` out of the metal, `x` its outline's own.
     pub fn frame(&self, design: &crate::RingDesign, ctx: &crate::FieldContext) -> csg::Frame {
-        let (point, mut normal, mut along, mut across) = surface_at(design, ctx, self.theta_deg, self.v_mm);
+        self.frame_on(&BareSurface::new(design, ctx))
+    }
+
+    /// [`Stamp::frame`] read off a surface already sampled.
+    fn frame_on(&self, surface: &BareSurface) -> csg::Frame {
+        let (point, mut normal, mut along, mut across) = surface.at(self.theta_deg, self.v_mm);
         if self.along_pull && normal[2].abs() > 0.25 {
             normal = [0.0, 0.0, normal[2].signum()];
             let flat = [along[0], along[1], 0.0];
@@ -1547,6 +1576,7 @@ pub const MAX_ROW_STAMPS: u32 = 400;
 /// The row's stamps, named "Thorn, 3", or "Thorn, left 3" and "Thorn, right 3" when mirrored.
 pub fn stamp_row(design: &crate::RingDesign, row: &StampRow) -> Vec<Stamp> {
     let ctx = design.field_context();
+    let surface = BareSurface::new(design, &ctx);
     let span = row.to_deg - row.from_deg;
     let side_v = match row.path {
         RowPath::SideFace { high, frac } => {
@@ -1558,7 +1588,7 @@ pub fn stamp_row(design: &crate::RingDesign, row: &StampRow) -> Vec<Stamp> {
     };
     let v_at = |theta: f64, guess: f64| -> f64 {
         match row.path {
-            RowPath::PartingLine => parting_v(design, &ctx, theta, guess).unwrap_or(guess),
+            RowPath::PartingLine => surface.parting_v(theta, guess).unwrap_or(guess),
             RowPath::ChartV { v_mm } => v_mm,
             RowPath::SideFace { .. } => side_v.unwrap_or(guess),
         }
@@ -1571,7 +1601,7 @@ pub fn stamp_row(design: &crate::RingDesign, row: &StampRow) -> Vec<Stamp> {
         let theta = row.from_deg + span * k as f64 / samples as f64;
         let v = v_at(theta, guess);
         guess = v;
-        path.push((theta, v, surface_point(design, &ctx, theta, v)));
+        path.push((theta, v, surface.at(theta, v).0));
     }
     let mut arc = vec![0.0];
     for w in path.windows(2) {
@@ -1685,104 +1715,258 @@ fn path_folds(points: &[[f64; 3]], arc: &[f64]) -> Vec<f64> {
     out
 }
 
-/// The bare surface point at a chart point.
-fn surface_point(design: &crate::RingDesign, ctx: &crate::FieldContext, theta_deg: f64, v_mm: f64) -> [f64; 3] {
-    surface_at(design, ctx, theta_deg, v_mm).0
+/// Sections the bare surface keeps for reuse.
+const SECTIONS_KEPT: usize = 64;
+
+/// A design's bare surface at chart points, read against one reference section, its latest sections kept by angle and modulation.
+pub(crate) struct BareSurface<'a> {
+    design: &'a crate::RingDesign,
+    ctx: &'a crate::FieldContext,
+    reference: std::cell::OnceCell<crate::profile::ProfileLoop>,
+    sections: std::cell::RefCell<Vec<(u64, String, std::rc::Rc<(Vec<[f64; 5]>, f64)>)>>,
 }
 
-/// Point, normal and tangents of the bare surface at a chart point, interpolated on a swept band.
-fn surface_at(design: &crate::RingDesign, ctx: &crate::FieldContext, theta_deg: f64, v_mm: f64) -> ([f64; 3], [f64; 3], [f64; 3], [f64; 3]) {
-    if design.imported_base.is_some() {
-        return crate::stones::surface_frame(design, ctx, theta_deg, v_mm);
+impl<'a> BareSurface<'a> {
+    pub(crate) fn new(design: &'a crate::RingDesign, ctx: &'a crate::FieldContext) -> Self {
+        Self { design, ctx, reference: Default::default(), sections: Default::default() }
     }
-    let ([r, z], [nr, nz]) = section_point(design, ctx, theta_deg, v_mm);
-    let l = nr.hypot(nz).max(1e-12);
-    let (nr, nz) = (nr / l, nz / l);
-    let (sin, cos) = theta_deg.to_radians().sin_cos();
-    ([r * cos, r * sin, z], [nr * cos, nr * sin, nz], [-sin, cos, 0.0], [-nz * cos, -nz * sin, nr])
-}
 
-/// Reference-snapped surface samples `(v, r, z, nr, nz)` at a ring angle, and section arc per chart mm.
-fn surface_samples(design: &crate::RingDesign, ctx: &crate::FieldContext, theta_deg: f64) -> (Vec<[f64; 5]>, f64) {
-    let reference = design.reference_loop();
-    let l = design.section_at(theta_deg, crate::profile::REFERENCE_PROFILE_STEPS, None, Some(&reference));
-    let mut s: Vec<[f64; 5]> = l.pts.iter().filter(|p| p.surface).map(|p| [p.v_mm, p.r, p.z, p.nr, p.nz]).collect();
-    s.sort_by(|a, b| a[0].total_cmp(&b[0]));
-    (s, l.surface_len_mm / ctx.band_v_len_mm.max(1e-9))
-}
-
-/// The swept section's `(r, z)` and outward normal at chart `v`, between its samples.
-fn section_point(design: &crate::RingDesign, ctx: &crate::FieldContext, theta_deg: f64, v_mm: f64) -> ([f64; 2], [f64; 2]) {
-    let (s, k) = surface_samples(design, ctx, theta_deg);
-    match s.len() {
-        0 => return ([ctx.crest_radius_mm, 0.0], [1.0, 0.0]),
-        1 => return ([s[0][1], s[0][2]], [s[0][3], s[0][4]]),
-        _ => {}
+    /// Reference-snapped surface samples `(v, r, z, nr, nz)` at a ring angle, and section arc per chart mm.
+    fn samples(&self, theta_deg: f64) -> std::rc::Rc<(Vec<[f64; 5]>, f64)> {
+        let (design, steps) = (self.design, crate::profile::REFERENCE_PROFILE_STEPS);
+        let reference = self.reference.get_or_init(|| design.reference_loop());
+        if design.imported_base.is_some() {
+            return std::rc::Rc::new(self.read(&design.section_at(theta_deg, steps, None, Some(reference))));
+        }
+        let angle = theta_deg.to_bits();
+        if let Some(kept) = self.sections.borrow().iter().find(|(a, ..)| *a == angle).map(|(.., s)| s.clone()) {
+            return kept;
+        }
+        // What [`crate::RingDesign::section_at`] makes of a swept band, kept by the exact print of its modulation.
+        let inner = design.inner_radius_mm();
+        let m = design.modulation_at(theta_deg, inner, reference.crest_radius_mm);
+        let key = format!("{m:?}");
+        let found = self.sections.borrow().iter().find(|(_, k, _)| *k == key).map(|(.., s)| s.clone());
+        let made = found.unwrap_or_else(|| std::rc::Rc::new(self.read(&design.profile.sample_spaced(inner, steps, &m, None, Some(reference)))));
+        let mut kept = self.sections.borrow_mut();
+        if kept.len() >= SECTIONS_KEPT {
+            kept.remove(0);
+        }
+        kept.push((angle, key, made.clone()));
+        made
     }
-    let target = v_mm * k;
-    let j = s.partition_point(|p| p[0] <= target).clamp(1, s.len() - 1);
-    let (a, b) = (s[j - 1], s[j]);
-    let f = ((target - a[0]) / (b[0] - a[0]).max(1e-15)).clamp(0.0, 1.0);
-    let at = |i: usize| a[i] + (b[i] - a[i]) * f;
-    ([at(1), at(2)], [at(3), at(4)])
+
+    /// A section's surface samples sorted by `v`, and its arc per chart mm.
+    fn read(&self, l: &crate::profile::ProfileLoop) -> (Vec<[f64; 5]>, f64) {
+        let mut s: Vec<[f64; 5]> = l.pts.iter().filter(|p| p.surface).map(|p| [p.v_mm, p.r, p.z, p.nr, p.nz]).collect();
+        s.sort_by(|a, b| a[0].total_cmp(&b[0]));
+        (s, l.surface_len_mm / self.ctx.band_v_len_mm.max(1e-9))
+    }
+
+    /// The swept section's `(r, z)` and outward normal at chart `v`, between its samples.
+    fn section_point(&self, theta_deg: f64, v_mm: f64) -> ([f64; 2], [f64; 2]) {
+        let samples = self.samples(theta_deg);
+        let (s, k) = (&samples.0, samples.1);
+        match s.len() {
+            0 => return ([self.ctx.crest_radius_mm, 0.0], [1.0, 0.0]),
+            1 => return ([s[0][1], s[0][2]], [s[0][3], s[0][4]]),
+            _ => {}
+        }
+        let target = v_mm * k;
+        let j = s.partition_point(|p| p[0] <= target).clamp(1, s.len() - 1);
+        let (a, b) = (s[j - 1], s[j]);
+        let f = ((target - a[0]) / (b[0] - a[0]).max(1e-15)).clamp(0.0, 1.0);
+        let at = |i: usize| a[i] + (b[i] - a[i]) * f;
+        ([at(1), at(2)], [at(3), at(4)])
+    }
+
+    /// Point, normal and tangents of the bare surface at a chart point, interpolated on a swept band.
+    fn at(&self, theta_deg: f64, v_mm: f64) -> ([f64; 3], [f64; 3], [f64; 3], [f64; 3]) {
+        if self.design.imported_base.is_some() {
+            return crate::stones::surface_frame(self.design, self.ctx, theta_deg, v_mm);
+        }
+        let ([r, z], [nr, nz]) = self.section_point(theta_deg, v_mm);
+        let l = nr.hypot(nz).max(1e-12);
+        let (nr, nz) = (nr / l, nz / l);
+        let (sin, cos) = theta_deg.to_radians().sin_cos();
+        ([r * cos, r * sin, z], [nr * cos, nr * sin, nz], [-sin, cos, 0.0], [-nz * cos, -nz * sin, nr])
+    }
+
+    /// The chart `v` nearest `guess` at which the section at `theta_deg` crosses the parting plane.
+    fn parting_v(&self, theta_deg: f64, guess: f64) -> Option<f64> {
+        let (design, ctx) = (self.design, self.ctx);
+        if design.imported_base.is_some() {
+            let z = |v: f64| crate::stones::surface_frame(design, ctx, theta_deg, v).0[2];
+            let (lo_v, hi_v) = (0.0, ctx.band_v_len_mm);
+            let z0 = z(guess);
+            if z0 == 0.0 {
+                return Some(guess);
+            }
+            let mut bracket = None;
+            for k in 1..400 {
+                for dir in [1.0, -1.0] {
+                    let v = guess + dir * 0.02 * k as f64;
+                    if bracket.is_none() && (lo_v..=hi_v).contains(&v) && z(v).signum() != z0.signum() {
+                        bracket = Some((v - dir * 0.02, v));
+                    }
+                }
+                if bracket.is_some() {
+                    break;
+                }
+            }
+            let (mut a, mut b) = bracket?;
+            let za = z(a);
+            for _ in 0..60 {
+                let mid = 0.5 * (a + b);
+                if z(mid).signum() == za.signum() { a = mid } else { b = mid }
+            }
+            return Some(0.5 * (a + b));
+        }
+        let samples = self.samples(theta_deg);
+        let (s, k) = (&samples.0, samples.1);
+        let target = guess * k;
+        let mut best: Option<(f64, f64)> = None;
+        for w in s.windows(2) {
+            let (a, b) = (w[0], w[1]);
+            let v = if a[2] == 0.0 {
+                a[0]
+            } else if a[2] * b[2] < 0.0 {
+                a[0] + (b[0] - a[0]) * a[2] / (a[2] - b[2])
+            } else {
+                continue;
+            };
+            if best.is_none_or(|(_, d)| (v - target).abs() < d) {
+                best = Some((v, (v - target).abs()));
+            }
+        }
+        best.map(|(v, _)| v / k.max(1e-9))
+    }
 }
 
 /// Chart `v` where the section at `theta_deg` crosses the parting plane, nearest the reference crest.
 pub fn crest_v(design: &crate::RingDesign, theta_deg: f64) -> Option<f64> {
     let ctx = design.field_context();
-    parting_v(design, &ctx, theta_deg, ctx.crest_v_mm)
+    BareSurface::new(design, &ctx).parting_v(theta_deg, ctx.crest_v_mm)
 }
 
-/// The chart `v` nearest `guess` at which the section at `theta_deg` crosses the parting plane.
-fn parting_v(design: &crate::RingDesign, ctx: &crate::FieldContext, theta_deg: f64, guess: f64) -> Option<f64> {
-    if design.imported_base.is_some() {
-        let z = |v: f64| crate::stones::surface_frame(design, ctx, theta_deg, v).0[2];
-        let (lo_v, hi_v) = (0.0, ctx.band_v_len_mm);
-        let z0 = z(guess);
-        if z0 == 0.0 {
-            return Some(guess);
-        }
-        let mut bracket = None;
-        for k in 1..400 {
-            for dir in [1.0, -1.0] {
-                let v = guess + dir * 0.02 * k as f64;
-                if bracket.is_none() && (lo_v..=hi_v).contains(&v) && z(v).signum() != z0.signum() {
-                    bracket = Some((v - dir * 0.02, v));
-                }
-            }
-            if bracket.is_some() {
-                break;
-            }
-        }
-        let (mut a, mut b) = bracket?;
-        let za = z(a);
-        for _ in 0..60 {
-            let mid = 0.5 * (a + b);
-            if z(mid).signum() == za.signum() { a = mid } else { b = mid }
-        }
-        return Some(0.5 * (a + b));
+/// Each of a design's stamps' frames, made once on first ask.
+pub(crate) struct StampFrames<'a> {
+    surface: BareSurface<'a>,
+    made: Vec<Option<csg::Frame>>,
+}
+
+impl<'a> StampFrames<'a> {
+    pub(crate) fn new(design: &'a crate::RingDesign, ctx: &'a crate::FieldContext) -> Self {
+        Self { surface: BareSurface::new(design, ctx), made: vec![None; design.stamps.len()] }
     }
-    let (s, k) = surface_samples(design, ctx, theta_deg);
-    let target = guess * k;
-    let mut best: Option<(f64, f64)> = None;
-    for w in s.windows(2) {
-        let (a, b) = (w[0], w[1]);
-        let v = if a[2] == 0.0 {
-            a[0]
-        } else if a[2] * b[2] < 0.0 {
-            a[0] + (b[0] - a[0]) * a[2] / (a[2] - b[2])
-        } else {
+
+    pub(crate) fn get(&mut self, k: usize) -> csg::Frame {
+        if let Some(f) = self.made[k] {
+            return f;
+        }
+        let f = self.surface.design.stamps[k].frame_on(&self.surface);
+        self.made[k] = Some(f);
+        f
+    }
+}
+
+/// Furthest the stamp reaches from its origin in plan, its drafted walls included.
+pub(crate) fn plan_reach(s: &Stamp) -> f64 {
+    let lean = if s.cut { 0.0 } else { (s.height_mm + s.sink_mm).max(0.0) * s.draft_deg.clamp(0.0, 30.0).to_radians().tan() };
+    s.outline.iter().map(|p| p[0].hypot(p[1])).fold(0.0, f64::max) + 2.5 * lean
+}
+
+/// False when two stamps' ring angles part them by more than their reaches, on a surface no nearer the axis than 0.9 of the bore.
+pub(crate) fn may_touch(design: &crate::RingDesign, a: &Stamp, b: &Stamp) -> bool {
+    let turn = crate::field::wrap_delta(a.theta_deg - b.theta_deg, 360.0).abs().min(90.0).to_radians();
+    0.9 * design.inner_radius_mm() * turn.sin() <= plan_reach(a) + plan_reach(b) + 0.5
+}
+
+/// Whether two placed stamps face the same way on one stretch of surface, near enough to meet.
+pub(crate) fn same_ground(a: &Stamp, af: &csg::Frame, b: &Stamp, bf: &csg::Frame) -> bool {
+    let d: [f64; 3] = std::array::from_fn(|k| bf.origin[k] - af.origin[k]);
+    let dz = d[0] * af.z[0] + d[1] * af.z[1] + d[2] * af.z[2];
+    let lateral = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2] - dz * dz).max(0.0).sqrt();
+    let depth = a.height_mm.max(0.0) + a.sink_mm.max(0.0) + b.height_mm.max(0.0) + b.sink_mm.max(0.0);
+    af.z[0] * bf.z[0] + af.z[1] * bf.z[1] + af.z[2] * bf.z[2] > 0.5 && lateral <= plan_reach(a) + plan_reach(b) + 0.5 && dz.abs() <= 0.5 * lateral + depth
+}
+
+/// `other`'s outline, placed by `of`, drawn into `frame`'s plane.
+pub(crate) fn drawn_into(frame: &csg::Frame, other: &Stamp, of: &csg::Frame) -> Vec<[f64; 2]> {
+    other.outline.iter().map(|p| {
+        let w = of.point([p[0], p[1], 0.0]);
+        let d = [w[0] - frame.origin[0], w[1] - frame.origin[1], w[2] - frame.origin[2]];
+        [d[0] * frame.x[0] + d[1] * frame.x[1] + d[2] * frame.x[2], d[0] * frame.y[0] + d[1] * frame.y[1] + d[2] * frame.y[2]]
+    }).collect()
+}
+
+/// Points along an outline no more than `step` apart, each with the index of the edge it lies on.
+fn densified(outline: &[[f64; 2]], step: f64) -> Vec<([f64; 2], usize)> {
+    let n = outline.len();
+    (0..n).flat_map(|i| {
+        let (a, b) = (outline[i], outline[(i + 1) % n]);
+        let k = ((a[0] - b[0]).hypot(a[1] - b[1]) / step).ceil().clamp(1.0, 4096.0) as usize;
+        (0..k).map(move |q| {
+            let f = q as f64 / k as f64;
+            ([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f], i)
+        })
+    }).collect()
+}
+
+/// Outline points of `s` whose cap leaves the lower-tier stamps it overlaps, past a joined one's edge or over a cut; empty when it rests wholly on them or on none.
+fn overhang(design: &crate::RingDesign, frames: &mut StampFrames, s: &Stamp, frame: &csg::Frame) -> Vec<usize> {
+    const STEP: f64 = 0.05;
+    if s.cut || s.outline.len() < 3 {
+        return Vec::new();
+    }
+    let (mut joined, mut cuts) = (Vec::new(), Vec::new());
+    for (j, l) in design.stamps.iter().enumerate() {
+        if l.tier >= s.tier || l.outline.len() < 3 || !may_touch(design, s, l) {
             continue;
-        };
-        if best.is_none_or(|(_, d)| (v - target).abs() < d) {
-            best = Some((v, (v - target).abs()));
+        }
+        let f = frames.get(j);
+        if same_ground(s, frame, l, &f) {
+            if l.cut { cuts.push(drawn_into(frame, l, &f)) } else { joined.push(drawn_into(frame, l, &f)) }
         }
     }
-    best.map(|(v, _)| v / k.max(1e-9))
+    let own = densified(&s.outline, STEP);
+    let meets = |plan: &Vec<[f64; 2]>| own.iter().any(|(q, _)| inside_polygon(plan, *q)) || plan.iter().any(|q| inside_polygon(&s.outline, *q));
+    joined.retain(meets);
+    cuts.retain(meets);
+    if joined.is_empty() && cuts.is_empty() {
+        return Vec::new();
+    }
+    let clear = |plan: &Vec<[f64; 2]>, q: [f64; 2]| inside_polygon(plan, q) && edge_distance(plan, q) > 1e-3;
+    let nearest = |q: [f64; 2]| (0..s.outline.len()).min_by(|a, b| {
+        let d = |i: &usize| (s.outline[*i][0] - q[0]).hypot(s.outline[*i][1] - q[1]);
+        d(a).total_cmp(&d(b))
+    }).unwrap_or(0);
+    let mut bad = std::collections::BTreeSet::new();
+    for (q, i) in &own {
+        if !joined.iter().any(|p| clear(p, *q)) || cuts.iter().any(|c| inside_polygon(c, *q)) {
+            bad.insert(*i);
+        }
+    }
+    // An edge of what lies beneath running under the cap, with nothing else there to carry it.
+    for (a, plan) in joined.iter().enumerate() {
+        for (q, _) in densified(plan, STEP) {
+            if inside_polygon(&s.outline, q) && !joined.iter().enumerate().any(|(b, o)| b != a && clear(o, q)) {
+                bad.insert(nearest(q));
+            }
+        }
+    }
+    for plan in &cuts {
+        for (q, _) in densified(plan, STEP) {
+            if inside_polygon(&s.outline, q) {
+                bad.insert(nearest(q));
+            }
+        }
+    }
+    bad.into_iter().collect()
 }
 
 impl Stamp {
-    /// Checks each plan line along the pull meets it in one stretch across the parting line with a top never rising away from it; `Err` lists offending outline points.
+    /// Checks each plan line along the pull meets it in one stretch across the parting line with a top never rising away from it, resting wholly on any lower tier it overlaps; `Err` lists offending outline points.
     pub fn parting_monotone(&self, design: &crate::RingDesign) -> Result<(), Vec<usize>> {
         let o = &self.outline;
         let n = o.len();
@@ -1793,12 +1977,14 @@ impl Stamp {
             return Err((0..n).collect());
         }
         let ctx = design.field_context();
-        let frame = self.frame(design, &ctx);
+        let mut frames = StampFrames::new(design, &ctx);
+        let frame = self.frame_on(&frames.surface);
         let g = [frame.x[2], frame.y[2]];
         let slope = g[0].hypot(g[1]);
         if slope < 0.1 {
             return Ok(());
         }
+        let mut bad: std::collections::BTreeSet<usize> = overhang(design, &mut frames, self, &frame).into_iter().collect();
         let (d, e) = ([g[0] / slope, g[1] / slope], [-g[1] / slope, g[0] / slope]);
         let t0 = -frame.origin[2] / slope;
         let s_of = |p: [f64; 2]| p[0] * e[0] + p[1] * e[1];
@@ -1815,7 +2001,6 @@ impl Stamp {
                 ok
             })
         };
-        let mut bad = std::collections::BTreeSet::new();
         for i in 0..n {
             let (sa, sb) = (s_of(o[i]), s_of(o[(i + 1) % n]));
             if (sa - sb).abs() < 1e-9 {
@@ -2246,11 +2431,21 @@ pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut c
     let mut tiers: Vec<u8> = design.stamps.iter().map(|s| s.tier).collect();
     tiers.sort_unstable();
     tiers.dedup();
-    let make = |tier: u8, on: &Solid, notes: &mut Vec<String>| -> Vec<(usize, Solid)> {
-        design.stamps.iter().enumerate().filter(|(_, s)| s.tier == tier).filter_map(|(k, s)| match s.solid(&s.frame(design, &ctx), on) {
-            Ok(made) => Some((k, made)),
-            Err(why) => { notes.push(format!("{}: {why}", s.name)); None }
-        }).collect()
+    let mut frames = StampFrames::new(design, &ctx);
+    let make = |tier: u8, on: &Solid, notes: &mut Vec<String>, frames: &mut StampFrames| -> Vec<(usize, Solid)> {
+        let mut made = Vec::new();
+        for (k, s) in design.stamps.iter().enumerate().filter(|(_, s)| s.tier == tier) {
+            let frame = frames.get(k);
+            let spill = overhang(design, frames, s, &frame);
+            if !spill.is_empty() {
+                notes.push(format!("{}: its cap leaves the stamps beneath it at {} of its {} outline points and drapes over their edges", s.name, spill.len(), s.outline.len()));
+            }
+            match s.solid(&frame, on) {
+                Ok(solid) => made.push((k, solid)),
+                Err(why) => notes.push(format!("{}: {why}", s.name)),
+            }
+        }
+        made
     };
     let strike = |made: &[(usize, Solid)], op: Op, solid: &mut Solid, vouched: &mut bool, spans: &mut Vec<(usize, u32)>, out: &mut Applied| {
         let cut = op == Op::Subtract;
@@ -2267,13 +2462,13 @@ pub fn apply(design: &crate::RingDesign, lib: &crate::AlphaLibrary, mesh: &mut c
         }
     };
     // The lowest tier is made against the band as swept.
-    let first = tiers.first().map_or_else(Vec::new, |t| make(*t, &solid, &mut out.notes));
+    let first = tiers.first().map_or_else(Vec::new, |t| make(*t, &solid, &mut out.notes, &mut frames));
     for (op, pick) in [(Op::Union, 0usize), (Op::Subtract, 1)] {
         strike(&first, op, &mut solid, &mut vouched, &mut spans, &mut out);
         if pick == 1 {
             // Each higher tier is made against the ring as struck so far.
             for &tier in tiers.iter().skip(1) {
-                let made = make(tier, &solid, &mut out.notes);
+                let made = make(tier, &solid, &mut out.notes, &mut frames);
                 for op in [Op::Union, Op::Subtract] {
                     strike(&made, op, &mut solid, &mut vouched, &mut spans, &mut out);
                 }
@@ -2713,6 +2908,65 @@ mod tests {
         }
     }
 
+    /// A gable off the parting line holds its ridge as an edge of the cap, every vertex on it at full rise.
+    #[test]
+    fn an_off_chord_gable_creases_its_ridge_at_full_rise() {
+        let d = crest_band();
+        let ctx = d.field_context();
+        let lib = crate::AlphaLibrary::builtin();
+        let mesh = crate::mesh::try_build(&d, &lib, strike()).unwrap().mesh;
+        let band = Solid { v: mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: mesh.faces.clone() };
+        let (height, rise) = (0.3, 0.3);
+        let s = Stamp { top: StampTop::Gable { rise_mm: rise, axis_deg: 0.0 }, ..plain("Keel", 90.0, ctx.crest_v_mm + 1.8, crate::outline::keel(4.0, 1.6, 0.18), height) };
+        let frame = s.frame(&d, &ctx);
+        let made = s.solid(&frame, &band).unwrap();
+        sound(&made, "the keel");
+        let local = |w: &P3| {
+            let q = [w[0] - frame.origin[0], w[1] - frame.origin[1], w[2] - frame.origin[2]];
+            [frame.x, frame.y, frame.z].map(|a| q[0] * a[0] + q[1] * a[1] + q[2] * a[2])
+        };
+        let count = made.v.len() / 2;
+        let (top, floor): (Vec<P3>, Vec<P3>) = (made.v[..count].iter().map(local).collect(), made.v[count..].iter().map(local).collect());
+        let ridge: Vec<usize> = (0..count).filter(|i| top[*i][1].abs() < 1e-9).collect();
+        assert!(ridge.len() >= 15, "{} cap vertices on the ridge", ridge.len());
+        for i in ridge {
+            let lift = top[i][2] - floor[i][2] - height - s.sink_mm;
+            assert!((lift - rise).abs() < 1e-9, "the ridge stands {lift:.4} at x {:.3}", top[i][0]);
+        }
+        for f in made.f.iter().filter(|f| f.iter().all(|k| (*k as usize) < count)) {
+            let ys = f.map(|k| top[k as usize][1]);
+            assert!(!(ys.iter().any(|y| *y > 1e-9) && ys.iter().any(|y| *y < -1e-9)), "a cap facet straddles the ridge: {ys:?}");
+        }
+    }
+
+    /// A higher tier spilling past the stamp it stands on, or over a pit in it, is refused by the draft check and named by the build.
+    #[test]
+    fn a_tier_that_leaves_its_base_is_refused_and_named() {
+        let mut d = crest_band();
+        let (v, r) = (crest_v(&d, 90.0).unwrap(), d.field_context().crest_radius_mm);
+        let lib = crate::AlphaLibrary::builtin();
+        let plate = plain("Plate", 90.0, v, crate::outline::circle(1.6), 0.4);
+        let on = |name: &str, dia: f64, off_mm: f64| Stamp { tier: 1, ..plain(name, 90.0 + (off_mm / r).to_degrees(), v, crate::outline::circle(dia), 0.3) };
+        d.stamps = vec![plate.clone(), on("Boss", 1.2, 0.0)];
+        assert_eq!(d.stamps[1].parting_monotone(&d), Ok(()));
+        let built = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        assert!(built.solids.notes.is_empty() && built.solids.stamped == 2, "{:?}", built.solids.notes);
+        for upper in [on("Cap", 2.6, 0.0), on("Boss", 1.2, 0.9)] {
+            d.stamps = vec![plate.clone(), upper.clone()];
+            let bad = upper.parting_monotone(&d).expect_err(&upper.name);
+            assert!(!bad.is_empty() && bad.iter().all(|i| *i < upper.outline.len()));
+            let built = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+            assert!(built.solids.notes.iter().any(|n| n.starts_with(&format!("{}: its cap leaves", upper.name))), "{:?}", built.solids.notes);
+        }
+        // Over a pit cut in its plate it drops into the pit.
+        let pit = Stamp { cut: true, bench: true, ..plain("Pit", 90.0, v, crate::outline::circle(0.5), 0.2) };
+        d.stamps = vec![plate.clone(), pit, on("Boss", 1.2, 0.0)];
+        assert!(d.stamps[2].parting_monotone(&d).is_err());
+        // With nothing beneath it a higher tier stands on the band as a lower one does.
+        d.stamps = vec![plate, on("Stud", 1.0, 6.0)];
+        assert_eq!(d.stamps[1].parting_monotone(&d), Ok(()));
+    }
+
     #[test]
     fn shaped_tops_straddling_the_parting_line_crease_and_pull() {
         use crate::manufacturing::{inspect, Setup};
@@ -2815,7 +3069,7 @@ mod tests {
         let wave = stamp_row(&d, &StampRow { path: RowPath::PartingLine, from_deg: 0.0, to_deg: 300.0, count: 11, taper: 0.0, mirror_shoulders: false, ..row.clone() });
         assert_eq!(wave.len(), 11);
         for st in &wave {
-            assert!(section_point(&d, &ctx, st.theta_deg, st.v_mm).0[1].abs() < 1e-9, "{} stands off the parting line", st.name);
+            assert!(BareSurface::new(&d, &ctx).section_point(st.theta_deg, st.v_mm).0[1].abs() < 1e-9, "{} stands off the parting line", st.name);
             assert!(st.parting_monotone(&d).is_ok(), "{}", st.name);
         }
         let wander = wave.iter().map(|st| (st.v_mm - ctx.crest_v_mm).abs()).fold(0.0, f64::max);

@@ -178,7 +178,8 @@ pub fn findings(design: &RingDesign) -> Vec<DfmFinding> {
         });
     }
     // A stamp cut at the bench is not poured either.
-    for s in design.stamps.iter().filter(|s| !s.bench) {
+    let mut frames = crate::setting::StampFrames::new(design, &ctx);
+    for (k, s) in design.stamps.iter().enumerate().filter(|(_, s)| !s.bench) {
         let Some(finest) = stamp_finest_mm(&s.outline, min) else { continue };
         if finest < min {
             out.push(DfmFinding {
@@ -192,7 +193,7 @@ pub fn findings(design: &RingDesign) -> Vec<DfmFinding> {
             continue;
         }
         // Measures what higher tiers leave of it: a ledge round a stamp on it, a wall beside a cut in it.
-        let Some(exposed) = stamp_exposed_mm(design, &ctx, s, min) else { continue };
+        let Some(exposed) = stamp_exposed_mm(design, &mut frames, k, min) else { continue };
         if exposed < min {
             out.push(DfmFinding {
                 layer: STAMP,
@@ -207,22 +208,26 @@ pub fn findings(design: &RingDesign) -> Vec<DfmFinding> {
     out
 }
 
-/// Finest stroke of `s` left uncovered by poured higher-tier stamps drawn into its plane; `None` when none overlap.
-fn stamp_exposed_mm(design: &RingDesign, ctx: &crate::FieldContext, s: &crate::setting::Stamp, floor: f64) -> Option<f64> {
-    if s.cut || !design.stamps.iter().any(|u| u.tier > s.tier && !u.bench) {
+/// Finest stroke of stamp `k` left uncovered by the poured higher-tier stamps standing on it, drawn into its plane; `None` when none do.
+fn stamp_exposed_mm(design: &RingDesign, frames: &mut crate::setting::StampFrames, k: usize, floor: f64) -> Option<f64> {
+    use crate::setting::{drawn_into, may_touch, same_ground};
+    let s = &design.stamps[k];
+    let uppers: Vec<usize> = design.stamps.iter().enumerate().filter(|(_, u)| u.tier > s.tier && !u.bench && may_touch(design, s, u)).map(|(j, _)| j).collect();
+    if s.cut || uppers.is_empty() {
         return None;
     }
-    let frame = s.frame(design, ctx);
-    let (lo, hi) = s.outline.iter().fold(([f64::MAX; 2], [f64::MIN; 2]), |(lo, hi), p| ([lo[0].min(p[0]), lo[1].min(p[1])], [hi[0].max(p[0]), hi[1].max(p[1])]));
-    let holes: Vec<Vec<[f64; 2]>> = design.stamps.iter().filter(|u| u.tier > s.tier && !u.bench).filter_map(|u| {
-        let f = u.frame(design, ctx);
-        let plan: Vec<[f64; 2]> = u.outline.iter().map(|p| {
-            let w = f.point([p[0], p[1], 0.0]);
-            let d = [w[0] - frame.origin[0], w[1] - frame.origin[1], w[2] - frame.origin[2]];
-            [d[0] * frame.x[0] + d[1] * frame.x[1] + d[2] * frame.x[2], d[0] * frame.y[0] + d[1] * frame.y[1] + d[2] * frame.y[2]]
-        }).collect();
-        let overlaps = plan.iter().any(|p| p[0] > lo[0] && p[0] < hi[0] && p[1] > lo[1] && p[1] < hi[1]);
-        overlaps.then_some(plan)
+    let frame = frames.get(k);
+    let bounds = |o: &[[f64; 2]]| o.iter().fold(([f64::MAX; 2], [f64::MIN; 2]), |(lo, hi), p| ([lo[0].min(p[0]), lo[1].min(p[1])], [hi[0].max(p[0]), hi[1].max(p[1])]));
+    let (lo, hi) = bounds(&s.outline);
+    let holes: Vec<Vec<[f64; 2]>> = uppers.into_iter().filter_map(|j| {
+        let u = &design.stamps[j];
+        let f = frames.get(j);
+        if !same_ground(s, &frame, u, &f) {
+            return None;
+        }
+        let plan = drawn_into(&frame, u, &f);
+        let (plo, phi) = bounds(&plan);
+        (plo[0] < hi[0] && phi[0] > lo[0] && plo[1] < hi[1] && phi[1] > lo[1]).then_some(plan)
     }).collect();
     if holes.is_empty() {
         return None;
@@ -364,9 +369,60 @@ mod tests {
         assert!(thin.len() == 1 && thin[0].starts_with("what the stamps struck on it leave"), "a 0.08 mm ledge is found: {thin:?}");
         assert!(!ledge(disc("Well", 2.84, 1, true)).is_empty(), "a cut leaving a 0.08 mm wall is found");
         assert!(ledge(disc("Boss", 2.84, 0, false)).is_empty(), "a stamp on the same tier is not standing on it");
+        assert!(ledge(Stamp { theta_deg: 270.0, ..disc("Boss", 2.84, 1, false) }).is_empty(), "a boss on the palm stands on nothing of the plate");
         let exposed = plan_finest_mm(&crate::outline::circle(3.0), &[crate::outline::circle(1.6)], 0.3).unwrap();
         assert!((exposed - 0.7).abs() < 0.08, "{exposed}");
         assert_eq!(plan_finest_mm(&crate::outline::circle(3.0), &[crate::outline::circle(3.4)], 0.3), None, "nothing left, nothing to judge");
+        // On a squared band a boss on the high face stands on nothing of a plate on the low one.
+        let mut sq = RingDesign::default();
+        sq.draft.min_detail_mm = 0.3;
+        sq.profile.apply_style(crate::ProfileStyle::Flat);
+        sq.profile.thickness_mm = 3.0;
+        sq.profile.flatten_sides();
+        let faces = sq.field_context().side_faces_std().unwrap();
+        let (lo, hi) = (faces.low.unwrap(), faces.high.unwrap());
+        let face = |name: &str, dia: f64, tier: u8, v: (f64, f64)| Stamp { v_mm: 0.5 * (v.0 + v.1), along_pull: true, ..disc(name, dia, tier, false) };
+        sq.stamps = vec![face("Plate", 2.0, 0, lo), face("Boss", 1.84, 1, hi)];
+        assert!(findings(&sq).iter().all(|f| f.label != "Plate"), "{:?}", findings(&sq));
+        sq.stamps[1] = face("Boss", 1.84, 1, lo);
+        assert!(findings(&sq).iter().any(|f| f.label == "Plate"), "the same boss on the plate's own face leaves a 0.08 mm ledge");
+    }
+
+    /// 24 gabled keels on 24 plates cost a few times their judging on one tier, on a plain band and on a signet's modulated one.
+    #[test]
+    fn tiered_stamps_are_judged_at_the_cost_of_their_frames() {
+        use crate::setting::{Stamp, StampTop};
+        let mut band = RingDesign::default();
+        band.profile.apply_style(crate::ProfileStyle::LowDome);
+        band.profile.width_mm = 7.0;
+        band.profile.thickness_mm = 2.4;
+        let signet = crate::templates::all().iter().find(|t| t.name == "Heart signet").unwrap().design();
+        for base in [band, signet] {
+            let rows = |tiered: bool| {
+                let mut d = base.clone();
+                d.draft.min_detail_mm = 0.3;
+                let v = d.field_context().crest_v_mm;
+                for k in 0..24 {
+                    let plate = Stamp {
+                        name: format!("Plate {k}"), theta_deg: 90.0 + 15.0 * k as f64, v_mm: v, rot_deg: 0.0, outline: crate::outline::circle(2.4),
+                        height_mm: 0.3, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat,
+                    };
+                    let keel = Stamp {
+                        name: format!("Keel {k}"), outline: crate::outline::keel(1.6, 0.8, 0.18), tier: u8::from(tiered),
+                        top: StampTop::Gable { rise_mm: 0.2, axis_deg: 0.0 }, ..plate.clone()
+                    };
+                    d.stamps.extend([plate, keel]);
+                }
+                d
+            };
+            let time = |d: &RingDesign| (0..3).map(|_| {
+                let t = std::time::Instant::now();
+                assert!(findings(d).iter().all(|f| f.layer != STAMP));
+                t.elapsed().as_secs_f64()
+            }).fold(f64::MAX, f64::min);
+            let (flat, tiered) = (time(&rows(false)), time(&rows(true)));
+            assert!(tiered < 4.0 * flat + 0.04, "{}: {:.1} ms tiered against {:.1} ms on one tier", base.name, tiered * 1e3, flat * 1e3);
+        }
     }
 
     /// The solver is the checker read backwards: fitting to the sand's own
