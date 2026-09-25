@@ -1,0 +1,75 @@
+{
+  "source_commit": "9081d76",
+  "artistic_disposition": "CUT under the three-score review cap. The existing 5.8/10 score is unchanged; this diagnostic is not a new art review.",
+  "geometry_disposition": "No measured sub-0.30 mm warning is a sustained narrow neck. Each external warning is the terminal portion of an open bay or shallow surface cusp; one warning is a tangent to the broad bore. This supersedes the unresolved evidence item for this stable export, without overriding the raw release Review status or proving sand strength.",
+  "raw_sub_0p30_warning_count": 31,
+  "distinct_feature_count": 23,
+  "external_warning_count": 30,
+  "largest_depth_before_0p30_opening_or_unbounded_outlet_mm": 0.116,
+  "largest_external_scan_bay_depth_mm": 0.394,
+  "refinement": [
+    {
+      "id": "f07",
+      "step_mm": 0.0002,
+      "bay_depth_mm": 0.1416,
+      "tip_offset_mm": -0.0552,
+      "mouth_width_mm": 0.45428335528656116,
+      "width_at_0p10_mm": 0.2544239516707547,
+      "depth_to_0p30_mm": 0.1138,
+      "change_from_0p002_step_mm": -0.0024000000000000132
+    },
+    {
+      "id": "f08",
+      "step_mm": 0.0002,
+      "bay_depth_mm": 0.08480000000000001,
+      "tip_offset_mm": -0.06740000000000002,
+      "mouth_width_mm": 0.19644190095156056,
+      "width_at_0p10_mm": null,
+      "depth_to_0p30_mm": null,
+      "change_from_0p002_step_mm": -0.0011999999999999927
+    },
+    {
+      "id": "f05",
+      "step_mm": 0.0002,
+      "bay_depth_mm": 0.022200000000000004,
+      "tip_offset_mm": -0.013800000000000002,
+      "mouth_width_mm": 0.14351655649151734,
+      "width_at_0p10_mm": null,
+      "depth_to_0p30_mm": null,
+      "change_from_0p002_step_mm": -0.001799999999999996
+    },
+    {
+      "id": "f04",
+      "step_mm": 0.0002,
+      "bay_depth_mm": 0.05700000000000001,
+      "tip_offset_mm": -0.041800000000000004,
+      "mouth_width_mm": 0.14677514733030794,
+      "width_at_0p10_mm": null,
+      "depth_to_0p30_mm": null,
+      "change_from_0p002_step_mm": -0.000999999999999994
+    },
+    {
+      "id": "f13",
+      "step_mm": 0.0002,
+      "bay_depth_mm": 0.3916,
+      "tip_offset_mm": -0.06340000000000001,
+      "mouth_width_mm": 1.7389333415257269,
+      "width_at_0p10_mm": 0.29799860773289083,
+      "depth_to_0p30_mm": 0.10080000000000001,
+      "change_from_0p002_step_mm": -0.0024000000000000132
+    }
+  ],
+  "required_geometry_change": "None established by these sections for avoiding a sustained thin sand web. Do not shorten all thorns merely to zero the raster-warning count.",
+  "optional_finish_change": {
+    "where": "G04 / c05,f07 near 47.34 degrees in the z=0 section",
+    "measured": "The longest terminal narrowing reaches 0.30 mm after about 0.114 mm; at 0.10 mm its supported x chord is about 0.254 mm, with a 0.454 mm mouth.",
+    "change": "If retaining the candidate for a future casting trial, blend this sharp cusp with a 0.15 mm root radius over roughly 0.35 mm of the contour, or add 0.045 mm of local pattern metal at the root to remove its deepest tip. Preserve the already open side outlet; remeasure rather than applying a universal crest-gap claim. This is optional finish refinement, not a demonstrated missing gate."
+  },
+  "measurement_limits": [
+    "Exact piecewise-linear STL sections, not a voxel approximation.",
+    "Depth and outlet tracing at 0.002 mm; four disputed sections and the deepest bay rechecked at 0.0002 mm.",
+    "The width is a chord perpendicular to the tracked outlet direction, not a constant width over the whole pocket. Every rounded or V-shaped terminal tip tends to zero width.",
+    "No material-strength, compaction, pouring or bench-casting claim follows from these geometric measurements.",
+    "The fine release grid was capped: actual cells 0.074832 by 0.081112 mm, not square 0.075 mm cells."
+  ]
+}

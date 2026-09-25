@@ -25,6 +25,13 @@
     ],
     "status": "rejected; verified source restored"
   },
-  "sand_evidence": "The separate section review reconciles raw thin-slot warnings; it does not raise the art score.",
+  "sand_evidence": {
+    "report": "sand-sections/README.md",
+    "warnings_reviewed": 31,
+    "distinct_sections": 23,
+    "sustained_thin_necks_found": 0,
+    "raw_release_status": "Review",
+    "art_score_unchanged": 5.8
+  },
   "original_worktree": "The other active session and original bestiarium-draco branch are untouched."
 }
