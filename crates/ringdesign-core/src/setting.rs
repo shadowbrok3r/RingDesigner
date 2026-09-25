@@ -1601,7 +1601,7 @@ impl Stamp {
     }
 
     /// The stamp with every cap point dropped onto the solid beneath it.
-    fn solid(&self, frame: &csg::Frame, band: &Solid) -> Result<Solid, String> {
+    pub fn solid(&self, frame: &csg::Frame, band: &Solid) -> Result<Solid, String> {
         if let StampTop::Cone { at, .. } = self.top {
             if !inside_polygon(&self.outline, at) {
                 return Err("its cone's apex stands outside its outline".into());
