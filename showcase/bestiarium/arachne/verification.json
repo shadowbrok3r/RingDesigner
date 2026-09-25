@@ -1,0 +1,27 @@
+{
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "design_bytes": 2587949,
+  "design_set_patches": 7,
+  "exposed_controls": [
+    "US size",
+    "Band width",
+    "Band thickness"
+  ],
+  "graph_bytes": 2615625,
+  "nodes": 133,
+  "notes_empty": true,
+  "open_s": 0.203234674,
+  "patch_pointers": [
+    "/cad/outputs",
+    "/cad/joints",
+    "/cad/through",
+    "/draft/min_detail_mm",
+    "/draft/min_section_mm",
+    "/draft/process",
+    "/shank/keys"
+  ],
+  "source_identical": true,
+  "triangles": 803128,
+  "vertices_faces_normals_identical": true
+}
