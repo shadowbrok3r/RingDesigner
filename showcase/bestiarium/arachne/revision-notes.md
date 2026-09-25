@@ -1,4 +1,4 @@
-Arachne's final continuation candidate passes draft, export and cold template gates. Independent art-director approval is pending.
+Arachne's final continuation candidate passes draft, export and cold template gates. Independent final art review approves the candidate at 7.5/10; see `art-review.json`.
 
 | Gate | Result |
 | --- | --- |
@@ -29,6 +29,8 @@ The loft carries exact curve tangents at 24-sided adaptive sections. Retained ch
 Free radial roots start 1.6 mm from the palm hub and 1.3 mm from the other free hubs. Five differently draped inner threads connect six roots, with one diagonal break. The main hub remains concealed by the garnet. Crown radials are 0.30 × 0.22 mm, and capture silk is 0.21 × 0.15 mm. Nested SVG contours form a rounded profile over the full stroke width. Frame anchors end 0.20 mm before the fold; relief fades over the preceding 0.40 mm. Cheek catenaries and bore clearance remain in place.
 
 Source and remaining limits:
+
+- The supplied US 7 candidate is approved. Its stored free-position parts do not follow arbitrary band resizing; remove unvalidated size, width and thickness exposures during final packaging and repeat cold verification after P7.
 
 - The 644,207-byte design and 670,316-byte graph mix SVG silk, two painted PNG16 clearance atlases, and stored collet/limb solids. Compact component sizes are 138,189 bytes of atlases, 184,873 of SVG, 105,230 of collets and 126,548 of limbs. They exceed the procedural-only 300 KB allowance and remain below the painted-atlas 3 MB flag. Both are recorded; P7 will not shrink stored meshes automatically.
 - Stored limbs retain their generating centre-line recipes, but changing those recipe values alone does not regenerate a stored mesh. The example regenerates it. Collets remain stored because the current bezel builder does not reproduce the flare and rolled equator.
