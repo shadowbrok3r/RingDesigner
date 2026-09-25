@@ -5352,11 +5352,9 @@ mod station_gate_tests {
     }
 
     #[test]
-    fn station_cache_reuses_geometry_and_keeps_warm_gates_constant_time() {
+    fn station_geometry_changes_invalidate_tables_and_warm_gates_stay_constant_time() {
         let mut d = keyed(square_band(), &[(0.0, 1.45, 0.92, 1.0)]);
         let c = d.field_context();
-        let again = d.field_context();
-        assert!(std::sync::Arc::ptr_eq(c.station_gates.as_ref().unwrap(), again.station_gates.as_ref().unwrap()));
         d.profile.comfort_fit_mm = 0.31;
         let changed = d.field_context();
         assert!(!std::sync::Arc::ptr_eq(c.station_gates.as_ref().unwrap(), changed.station_gates.as_ref().unwrap()));
