@@ -616,6 +616,11 @@ struct StationTables {
 fn stretch_cached(key: u64, build: impl FnOnce() -> StationTables) -> StationTables {
     static CACHE: std::sync::Mutex<Vec<(u64, StationTables)>> = std::sync::Mutex::new(Vec::new());
     let mut c = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    station_cache_get(&mut c, key, build)
+}
+
+/// An isolated cache operation keeps retention checks independent of concurrent design builds.
+fn station_cache_get(c: &mut Vec<(u64, StationTables)>, key: u64, build: impl FnOnce() -> StationTables) -> StationTables {
     if let Some((_, t)) = c.iter().find(|(k, _)| *k == key) {
         return t.clone();
     }
@@ -625,6 +630,30 @@ fn stretch_cached(key: u64, build: impl FnOnce() -> StationTables) -> StationTab
     }
     c.push((key, t.clone()));
     t
+}
+
+#[cfg(test)]
+mod station_cache_tests {
+    use super::*;
+
+    #[test]
+    fn identical_station_keys_reuse_the_tables_and_eviction_stays_bounded() {
+        let mut design = RingDesign::default();
+        design.shank.kind = profile::ShankKind::Keyframes;
+        design.shank.keys = vec![profile::ShankKey { width_scale: 1.45, ..Default::default() }];
+        let tables = design.station_tables().unwrap();
+        let mut cache = Vec::new();
+        let first = station_cache_get(&mut cache, 1, || tables.clone());
+        let again = station_cache_get(&mut cache, 1, || panic!("an unchanged key rebuilt its tables"));
+        assert!(std::sync::Arc::ptr_eq(first.gates.as_ref().unwrap(), again.gates.as_ref().unwrap()));
+        for key in 2..=9 { station_cache_get(&mut cache, key, || tables.clone()); }
+        assert_eq!(cache.len(), 8);
+        assert!(!cache.iter().any(|(key, _)| *key == 1));
+        let mut rebuilt = false;
+        station_cache_get(&mut cache, 1, || { rebuilt = true; tables });
+        assert!(rebuilt);
+        assert_eq!(cache.len(), 8);
+    }
 }
 
 #[cfg(test)]

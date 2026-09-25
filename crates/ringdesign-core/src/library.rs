@@ -59,7 +59,7 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || crate::cad::pattern::several_sources(design)
         || crate::parts::cuts_apart(design)
         || design.stamps.iter().any(|s| !s.is_plain())
-        || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(&f.operation, crate::cad::Operation::Builder { key, params, .. } if crate::cad::builders::claw_geometry_extended(key, params))))
+        || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(&f.operation, crate::cad::Operation::Builder { key, params, .. } if crate::cad::builders::geometry_extended(key, params))))
         || station_gates_in_stack(&design.layers, design.gate_sections_are_reference())
         || design.imported_base.as_ref().is_some_and(|base| crate::imported_base::PresetSource::of(&base.source).is_some())
         || design.graph.as_ref().is_some_and(template_features_in_json)
@@ -87,7 +87,7 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
         || (kind == "window" && matches!(pin, "v_gate" | "draft_min_deg" | "draft_fade_deg"));
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
     if value.get("Builder").is_some_and(|builder| builder.get("key").and_then(serde_json::Value::as_str)
-        .is_some_and(|key| crate::cad::builders::claw_geometry_extended(key, &builder["params"]))) { return true; }
+        .is_some_and(|key| crate::cad::builders::geometry_extended(key, &builder["params"]))) { return true; }
     if value.get("v_gate").is_some_and(|gate| gate.get("Draft").is_some() || gate.get("SideFaces").is_some()) { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
         if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
@@ -119,11 +119,27 @@ mod template_source_tests {
     use std::sync::Arc;
 
     #[test]
+    fn shank_cutter_documents_and_nested_graphs_refuse_a_released_reader() {
+        use crate::cad::{Component, Document, Feature, Operation, builders};
+        for key in [builders::SPLIT, builders::WINDOW] {
+            let op = Operation::Builder { key: key.into(), on: None, params: serde_json::json!({}) };
+            let mut doc = Document::default();
+            doc.features.push(Feature { id: 1, name: "Shank cutter".into(), enabled: true, operation: op.clone(), component: Component::default() });
+            let graph = serde_json::json!({"nodes":[{"kind":"cluster","params":{"graph":{"nodes":[{"kind":"cad.feature","params":{"operation":op}}]}}}]});
+            for d in [RingDesign { cad: Some(doc), ..Default::default() }, RingDesign { graph: Some(graph), ..Default::default() }] {
+                let text = design_json(&d).unwrap();
+                assert_eq!(format_version_for(&d), FORMAT_VERSION);
+                assert!(read_design(&text, PLAIN_FORMAT_VERSION).is_err());
+            }
+        }
+    }
+
+    #[test]
     fn styled_claws_fence_documents_and_nested_graphs_but_legacy_defaults_stay_plain() {
         use crate::cad::{Component, Document, Feature, Operation};
         for key in [crate::cad::builders::CLAW, crate::cad::builders::BASKET] {
             for params in [serde_json::json!({}), serde_json::json!({"style":"Wire","grouping":"Even","tip":"Dome"}), serde_json::json!({"style":null,"grouping":null,"tip":null}), serde_json::json!({"style":"Talon"}), serde_json::json!({"grouping":"Feet"}), serde_json::json!({"tip":"Point"}), serde_json::json!({"style":"Unknown"})] {
-                let extended = crate::cad::builders::claw_geometry_extended(key, &params);
+                let extended = crate::cad::builders::geometry_extended(key, &params);
                 let expected = if extended { FORMAT_VERSION } else { PLAIN_FORMAT_VERSION };
                 let operation = Operation::Builder { key: key.into(), on: Some(1), params };
                 let mut doc = Document::default();

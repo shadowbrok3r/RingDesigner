@@ -2613,6 +2613,10 @@ fn build_made(
     let spec = builders::spec(key).ok_or_else(|| {
         anyhow::anyhow!("No builder called {key}; choose {}", builders::SPECS.iter().map(|s| s.key).collect::<Vec<_>>().join(", "))
     })?;
+    if matches!(key, builders::SPLIT | builders::WINDOW) {
+        ensure!(on.is_none() && f.component.placement == Placement::Free, "{} follows the band's ring angles; change its angle parameters to move it", spec.label);
+        ensure!(key != builders::SPLIT || f.component.stage != Stage::Cast || !builders::sand(design), "a true split is two crests; judge it for lost wax");
+    }
     let mut notes = Vec::new();
     let (gem, frame, seat) = if spec.on_stone {
         let stone = on.ok_or_else(|| anyhow::anyhow!("{} is built round a stone; choose the stone it stands on", spec.label))?;
