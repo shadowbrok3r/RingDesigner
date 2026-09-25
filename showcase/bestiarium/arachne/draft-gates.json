@@ -1,0 +1,409 @@
+{
+  "build": [
+    768,
+    320
+  ],
+  "triangles": 666134,
+  "watertight": true,
+  "boundary_edges": 0,
+  "non_manifold_edges": 0,
+  "degenerate_faces": 0,
+  "mesh_self_crossings": 0,
+  "solids_notes": [],
+  "parts_notes": [],
+  "field_verdict": "Castable",
+  "thinnest_wall_mm": 1.8862091226003415,
+  "investment_min_section_mm": 0.8,
+  "dfm_findings": [],
+  "stones_reported": 2,
+  "stones_previewed": 2,
+  "metal_inside_stones": [
+    [
+      "Carapace bed, garnet",
+      0
+    ],
+    [
+      "Abdomen bed, onyx",
+      0
+    ]
+  ],
+  "bore_clearance": [
+    [
+      "Carapace, round the garnet",
+      1.7101012728818432,
+      0
+    ],
+    [
+      "Abdomen, round the onyx",
+      1.051264742451126,
+      0
+    ],
+    [
+      "Pedicel",
+      3.0014285026607865,
+      0
+    ],
+    [
+      "Spinnerets",
+      2.523339097006927,
+      0
+    ],
+    [
+      "Leg I coxa, low side",
+      1.8218559192055377,
+      0
+    ],
+    [
+      "Leg I femur, low side",
+      1.7185188708998407,
+      0
+    ],
+    [
+      "Leg I tibia, low side",
+      1.097576424104373,
+      0
+    ],
+    [
+      "Leg I metatarsus, low side",
+      0.6103964940678708,
+      0
+    ],
+    [
+      "Leg I tarsus, low side",
+      0.3923665603758817,
+      0
+    ],
+    [
+      "Leg I knee, low side",
+      2.966763057999584,
+      0
+    ],
+    [
+      "Leg I ankle, low side",
+      0.8311521762945215,
+      0
+    ],
+    [
+      "Leg I metatarsal joint, low side",
+      0.5403623034606433,
+      0
+    ],
+    [
+      "Leg I coxa, high side",
+      1.8218559192055377,
+      0
+    ],
+    [
+      "Leg I femur, high side",
+      1.7185188708998407,
+      0
+    ],
+    [
+      "Leg I tibia, high side",
+      1.097576424104373,
+      0
+    ],
+    [
+      "Leg I metatarsus, high side",
+      0.6103964940678708,
+      0
+    ],
+    [
+      "Leg I tarsus, high side",
+      0.3923665603758817,
+      0
+    ],
+    [
+      "Leg I knee, high side",
+      2.966763057999584,
+      0
+    ],
+    [
+      "Leg I ankle, high side",
+      0.8311521762945215,
+      0
+    ],
+    [
+      "Leg I metatarsal joint, high side",
+      0.5403623034606433,
+      0
+    ],
+    [
+      "Leg II coxa, low side",
+      1.851703716552601,
+      0
+    ],
+    [
+      "Leg II femur, low side",
+      1.8505856969518923,
+      0
+    ],
+    [
+      "Leg II tibia, low side",
+      1.1946382031107028,
+      0
+    ],
+    [
+      "Leg II metatarsus, low side",
+      0.6949910230232366,
+      0
+    ],
+    [
+      "Leg II tarsus, low side",
+      0.43882182012694493,
+      0
+    ],
+    [
+      "Leg II knee, low side",
+      3.0591488656093517,
+      0
+    ],
+    [
+      "Leg II ankle, low side",
+      0.8971280676083104,
+      0
+    ],
+    [
+      "Leg II metatarsal joint, low side",
+      0.6223302518082914,
+      0
+    ],
+    [
+      "Leg II coxa, high side",
+      1.851703716552601,
+      0
+    ],
+    [
+      "Leg II femur, high side",
+      1.8505856969518923,
+      0
+    ],
+    [
+      "Leg II tibia, high side",
+      1.1946382031107028,
+      0
+    ],
+    [
+      "Leg II metatarsus, high side",
+      0.6949910230232366,
+      0
+    ],
+    [
+      "Leg II tarsus, high side",
+      0.43882182012694493,
+      0
+    ],
+    [
+      "Leg II knee, high side",
+      3.0591488656093517,
+      0
+    ],
+    [
+      "Leg II ankle, high side",
+      0.8971280676083104,
+      0
+    ],
+    [
+      "Leg II metatarsal joint, high side",
+      0.6223302518082914,
+      0
+    ],
+    [
+      "Leg III coxa, low side",
+      1.866789436906945,
+      0
+    ],
+    [
+      "Leg III femur, low side",
+      1.8737671485544158,
+      0
+    ],
+    [
+      "Leg III tibia, low side",
+      1.2676729612683388,
+      0
+    ],
+    [
+      "Leg III metatarsus, low side",
+      0.7881402436286713,
+      0
+    ],
+    [
+      "Leg III tarsus, low side",
+      0.5882463574984556,
+      0
+    ],
+    [
+      "Leg III knee, low side",
+      3.187881183099851,
+      0
+    ],
+    [
+      "Leg III ankle, low side",
+      0.9947281941183839,
+      0
+    ],
+    [
+      "Leg III metatarsal joint, low side",
+      0.7306470048349727,
+      0
+    ],
+    [
+      "Leg III coxa, high side",
+      1.866789436906945,
+      0
+    ],
+    [
+      "Leg III femur, high side",
+      1.873767148554414,
+      0
+    ],
+    [
+      "Leg III tibia, high side",
+      1.2676729612683388,
+      0
+    ],
+    [
+      "Leg III metatarsus, high side",
+      0.7881402436286713,
+      0
+    ],
+    [
+      "Leg III tarsus, high side",
+      0.5882463574984556,
+      0
+    ],
+    [
+      "Leg III knee, high side",
+      3.187881183099851,
+      0
+    ],
+    [
+      "Leg III ankle, high side",
+      0.9947281941183839,
+      0
+    ],
+    [
+      "Leg III metatarsal joint, high side",
+      0.7306470048349727,
+      0
+    ],
+    [
+      "Leg IV coxa, low side",
+      1.9006460853602967,
+      0
+    ],
+    [
+      "Leg IV femur, low side",
+      1.8999557023013303,
+      0
+    ],
+    [
+      "Leg IV tibia, low side",
+      1.2578432361788288,
+      0
+    ],
+    [
+      "Leg IV metatarsus, low side",
+      0.8633573905505578,
+      0
+    ],
+    [
+      "Leg IV tarsus, low side",
+      0.6065997613521201,
+      0
+    ],
+    [
+      "Leg IV knee, low side",
+      3.1951357753707157,
+      0
+    ],
+    [
+      "Leg IV ankle, low side",
+      1.0735512413221997,
+      0
+    ],
+    [
+      "Leg IV metatarsal joint, low side",
+      0.8038886510527181,
+      0
+    ],
+    [
+      "Leg IV coxa, high side",
+      1.9006460853602967,
+      0
+    ],
+    [
+      "Leg IV femur, high side",
+      1.8999557023013303,
+      0
+    ],
+    [
+      "Leg IV tibia, high side",
+      1.2578432361788288,
+      0
+    ],
+    [
+      "Leg IV metatarsus, high side",
+      0.8633573905505578,
+      0
+    ],
+    [
+      "Leg IV tarsus, high side",
+      0.6065997613521201,
+      0
+    ],
+    [
+      "Leg IV knee, high side",
+      3.1951357753707157,
+      0
+    ],
+    [
+      "Leg IV ankle, high side",
+      1.0735512413221997,
+      0
+    ],
+    [
+      "Leg IV metatarsal joint, high side",
+      0.8038886510527181,
+      0
+    ]
+  ],
+  "spider": {
+    "carapace_deg": 64.0,
+    "abdomen_deg": 104.45812023301147,
+    "spinneret_deg": 128.05814449008315,
+    "knee_deg": [
+      34.797196633163495,
+      46.95909094848277,
+      75.50371859632737,
+      82.97275824049495
+    ],
+    "claw_deg": [
+      4.0,
+      20.0,
+      108.0,
+      124.0
+    ],
+    "knee_proud_mm": 0.6000000000000001,
+    "knee_over_rim_mm": 0.5561163653305101,
+    "leg_most_proud_mm": 0.7214407299336627,
+    "leg_lowest_cheek_share": 0.5710356063647228,
+    "leg_abdomen_margin_mm": 0.4223241427529283,
+    "leg_lengths_mm": [
+      12.474046703705675,
+      10.619723112910185,
+      10.801919385011463,
+      12.501539196117848
+    ],
+    "leg_min_section_mm": 0.8,
+    "claw_diameter_mm": 0.8,
+    "tightest_bend_ratio": 1.2693159382101566,
+    "rim_flat_mm": [
+      0.34162773633240495,
+      0.265597048653874
+    ],
+    "wall_flare_deg": 9.0
+  },
+  "geometry_gates_passed": true
+}

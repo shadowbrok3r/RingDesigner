@@ -3,13 +3,13 @@
 //! target/release/examples/bestiarium_arachne [OUT_DIR] [--draft] [--verify] [--web-preview]
 use anyhow::{Result, ensure};
 use ringdesign_core::{
-    AlphaLibrary, Blend, BuildParams, FieldContext, Layer, LayerEntry, ProfileLoop, ProfileStyle, RingDesign, ShankKind,
+    Alpha, AlphaLibrary, Blend, BuildParams, FieldContext, Layer, LayerEntry, ProfileLoop, ProfileStyle, RingDesign, ShankKind,
     cad::{Attach, Component, Document, Feature, MirrorPlane, Operation, PatternKind, Placement, SurfaceKind, stored},
     castability::{self, CastProcess},
     csg, dfm,
     field::{Decal, DecalLayer, SeatPadLayer, SeatStyle, SideFacePick, Uv, VGate},
     gem::{Gem, GemCut, GemForm},
-    library, manufacturing as mf, mesh,
+    library, manufacturing as mf, mesh, skin,
     profile::ShankKey,
     render,
     setting::{self, Plan, SolidKind, Station},
@@ -32,7 +32,7 @@ type P3 = [f64; 3];
 const HUB_DEG: f64 = 64.0;
 /// Girdle heights over the bare crest: the carapace, and the prouder abdomen.
 const CARAPACE_RISE_MM: f64 = 0.4;
-const ABDOMEN_RISE_MM: f64 = 0.6;
+const ABDOMEN_RISE_MM: f64 = 0.4;
 /// Clearance round each stone in its pocket, and the pocket floor's height over the girdle, just clear of the bed's crown.
 const POCKET_CLEAR_MM: f64 = 0.03;
 const POCKET_FLOOR_MM: f64 = 0.01;
@@ -44,11 +44,11 @@ const BODY_GAP_MM: f64 = 1.0;
 /// Relief of every web thread.
 const WEB_HEIGHT_MM: f64 = 0.30;
 /// How far the crown web runs past the crown's edge onto the cheek.
-const EDGE_OVERRUN_MM: f64 = 0.12;
+const EDGE_OVERRUN_MM: f64 = 0.0;
 /// The main orb round the carapace: its rim, where its spiral starts, its radials and their offset from the ring's axis.
 const MAIN_RIM_MM: f64 = 6.2;
 const MAIN_SPIRAL_FROM_MM: f64 = 1.9;
-const MAIN_PITCH_MM: f64 = 0.95;
+const MAIN_PITCH_MM: f64 = 1.15;
 const MAIN_RADIALS: usize = 24;
 /// The squashed orbs round the ring: ring angle and radials.
 const ORBS: [(&str, f64, usize); 3] = [("Orb before her", 15.0, 16), ("Orb behind her", 170.0, 16), ("Orb at the palm", 270.0, 20)];
@@ -66,29 +66,22 @@ const W_ORB_MM: f64 = 0.30;
 const W_FRAME_MM: f64 = 0.27;
 const W_SPOKE_MM: f64 = 0.23;
 const W_CAPTURE_MM: f64 = 0.21;
-/// The cheek web: its zig-zag radials' lean off the finger's direction, their stroke, and the thread in each cell.
-const CHEEK_LEAN_DEG: f64 = 25.0;
+/// The cheek web's radial pitch and thread widths.
+const CHEEK_PITCH_MM: f64 = 1.3;
 const CHEEK_RADIAL_MM: f64 = 0.21;
 const CHEEK_THREAD_MM: f64 = 0.19;
 /// Most a knee may stand past the bare cheek, and the ring's half-reach along the finger (its reach at most 8.8 mm).
 const KNEE_PROUD_MM: f64 = 0.6;
 const HALF_REACH_MM: f64 = 4.38;
 /// The legs' local radius at the knee, the ankle and the metatarsal joint, and at the claw's tip.
-const KNEE_MM: f64 = 0.47;
+const KNEE_MM: f64 = 0.52;
 const ANKLE_MM: f64 = 0.47;
-const META_MM: f64 = 0.47;
+const META_MM: f64 = 0.43;
 const CLAW_MM: f64 = 0.40;
-/// A segment's sweep over its joints' radius: where it starts, how far it swells and where, and where it ends.
-const PINCH_IN: f64 = 0.90;
-const SWELL: f64 = 1.12;
-const SWELL_AT: f64 = 0.35;
-/// The tibia swells further down, so the knee reads slender from above.
-const TIBIA_SWELL_AT: f64 = 0.55;
 /// The femur's radius where it leaves its coxa.
-const FEMUR_MM: f64 = 0.46;
-const PINCH_OUT: f64 = 0.86;
+const FEMUR_MM: f64 = 0.58;
 /// Knuckles over the joint's radius, and the coxa's ball.
-const KNUCKLE: f64 = 0.95;
+const KNUCKLE: f64 = 1.12;
 const COXA_BALL_MM: f64 = 0.6;
 /// How far the knee stands over the crown's edge past riding it, so the femur arches up to it.
 const KNEE_LIFT_MM: f64 = 1.7;
@@ -130,6 +123,7 @@ fn band() -> RingDesign {
         key(330.0, 0.97, 0.98),
     ];
     CastProcess::LostWax.apply(&mut d.draft);
+    d.draft.min_section_mm = MIN_SECTION_MM;
     d
 }
 
@@ -137,7 +131,7 @@ fn garnet() -> Gem {
     Gem { cut: GemCut::Oval, w_mm: 3.5, l_mm: 5.0, form: GemForm::Cabochon, preview_tint: Some([0.42, 0.02, 0.05]) }
 }
 fn onyx() -> Gem {
-    let mut g = Gem::cabochon(GemCut::Oval, 7.8);
+    let mut g = Gem { l_mm: 9.0, ..Gem::cabochon(GemCut::Oval, 7.0) };
     g.preview_tint = Some([0.015, 0.015, 0.02]);
     g
 }
@@ -318,6 +312,24 @@ impl Bare {
         lerp(self.at(k * Self::STEP).half_width, self.at((k + 1.0) * Self::STEP).half_width, u)
     }
 
+    /// The bore wall at a vertex's ring angle and position along the finger.
+    fn bore_at(&self, theta: f64, z: f64) -> Option<f64> {
+        let s = self.at(theta);
+        if z.abs() > s.half_width {
+            return None;
+        }
+        s.loop_rz.iter().zip(s.loop_rz.iter().cycle().skip(1)).take(s.loop_rz.len())
+            .filter_map(|(a, b)| {
+                let dz = b[1] - a[1];
+                if dz.abs() < 1e-12 || z < a[1].min(b[1]) || z > a[1].max(b[1]) {
+                    None
+                } else {
+                    Some(lerp(a[0], b[0], (z - a[1]) / dz))
+                }
+            })
+            .min_by(f64::total_cmp)
+    }
+
     /// How far a leg may stand past the cheek at a ring angle: within the ring's reach, and never more than 0.8.
     fn proud(&self, theta: f64) -> f64 {
         smin(HALF_REACH_MM - 0.03 - self.half_width(theta), 0.8, 0.05)
@@ -482,6 +494,7 @@ fn body_part(body: &Body, around: usize) -> Result<Operation> {
 // --- The web ----------------------------------------------------------------
 
 /// A thread of web in the chart: (ring angle, signed arc from the crest) points, and its width.
+#[derive(Clone)]
 struct Thread {
     pts: Vec<P2>,
     w: f64,
@@ -670,7 +683,7 @@ impl Orb {
             a_t,
             radials,
             offset_deg: 180.0 / radials as f64,
-            spiral_from: 1.0 - ORB_TURNS * ORB_PITCH_MM / a_t,
+            spiral_from: (1.0 - ORB_TURNS * ORB_PITCH_MM / a_t).max(0.95 / a_t),
             turns: ORB_TURNS,
             rim: 1.0 + 0.5 / a_t,
         }
@@ -678,7 +691,22 @@ impl Orb {
     fn draw(&self, out: &mut Vec<Strand>) {
         let n = self.radials;
         for k in 0..n {
-            out.push(Strand { pts: seg(self.at(0.08, self.phi(k)), self.at(self.rim, self.phi(k)), 0.05), w: W_ORB_MM, radial: true });
+            let phi = self.phi(k);
+            let scale = (self.a_s * phi.cos()).hypot(self.a_t * phi.sin());
+            out.push(Strand { pts: seg(self.at(0.9 / scale, phi), self.at(self.rim, phi), 0.05), w: W_ORB_MM, radial: true });
+        }
+        let hub: Vec<P2> = (0..6)
+            .map(|k| {
+                let phi = self.phi(0) + k as f64 * 2.0 * PI / 6.0;
+                let r = [0.88, 0.65, 0.83, 0.72, 0.89, 0.70][k];
+                [self.s + r * phi.cos(), r * phi.sin()]
+            })
+            .collect();
+        for k in 0..5 {
+            let a = hub[k];
+            let b = hub[k + 1];
+            let m = lerp2(lerp2(a, b, 0.45), [self.s, 0.0], 0.23);
+            out.push(Strand { pts: [seg(a, m, 0.05), seg(m, b, 0.05)].concat(), w: W_CAPTURE_MM, radial: false });
         }
         let total = (n as f64 * self.turns).round() as usize;
         let node = |j: usize| self.at(self.spiral_from + (1.0 - self.spiral_from) * j as f64 / total as f64, self.phi(j % n));
@@ -687,7 +715,7 @@ impl Orb {
             let (a, b) = (node(j), node(j + 1));
             extend(&mut pts, sagged(a, b, [self.s, 0.0], 0.13 * dist2(a, b), 0.05));
         }
-        out.push(Strand { pts, w: W_ORB_MM, radial: false });
+        out.push(Strand { pts, w: W_CAPTURE_MM, radial: false });
         let mut ring = Vec::new();
         for k in 0..n {
             extend(&mut ring, seg(self.at(self.rim, self.phi(k)), self.at(self.rim, self.phi(k + 1)), 0.05));
@@ -806,7 +834,7 @@ fn window_svg(ch: &Chart, threads: &[Thread], dew: &[Dew], lo: f64, hi: f64, hal
     };
     let um = |v: f64| (v * 1000.0).round() as i64;
     let text = |v: i64| format!("{}{}.{:03}", if v < 0 { "-" } else { "" }, v.abs() / 1000, v.abs() % 1000);
-    let mut groups: std::collections::BTreeMap<i64, String> = std::collections::BTreeMap::new();
+    let mut groups: std::collections::BTreeMap<(i64, u8), String> = std::collections::BTreeMap::new();
     for t in threads {
         let mut runs: Vec<Vec<P2>> = vec![Vec::new()];
         for p in &t.pts {
@@ -838,7 +866,8 @@ fn window_svg(ch: &Chart, threads: &[Thread], dew: &[Dew], lo: f64, hi: f64, hal
                 let (c2, s2) = if len > 1e-12 { (along / len, across / len) } else { (1.0, 0.0) };
                 let wc = t.w / (kv * kv * c2 + ku * ku * s2).sqrt();
                 let pts: Vec<(f64, f64)> = run[start..=end].iter().map(|p| xy(*p)).collect();
-                let path = groups.entry((wc / 0.002).round() as i64).or_default();
+                let tone = 0;
+                let path = groups.entry(((wc / 0.002).round() as i64, tone)).or_default();
                 let mut last = (0i64, 0i64);
                 for (i, p) in simplify(&pts, 0.002).iter().enumerate() {
                     let q = (um(p.0), um(p.1));
@@ -857,8 +886,8 @@ fn window_svg(ch: &Chart, threads: &[Thread], dew: &[Dew], lo: f64, hi: f64, hal
         r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:.4} {h:.4}" width="{width:.4}" height="{h:.4}"><defs><radialGradient id="dew"><stop offset="0" stop-color="#000"/><stop offset="0.55" stop-color="#141414"/><stop offset="1" stop-color="#a0a0a0"/></radialGradient><filter id="soft" filterUnits="userSpaceOnUse" x="0" y="0" width="{width:.4}" height="{h:.4}"><feGaussianBlur stdDeviation="0.05"/></filter></defs><rect width="{width:.4}" height="{h:.4}" fill="#fff"/><g filter="url(#soft)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">"##,
         h = 2.0 * half
     );
-    for (key, d) in &groups {
-        s += &format!(r##"<path stroke-width="{:.3}" d="{d}"/>"##, *key as f64 * 0.002);
+    for ((key, tone), d) in &groups {
+        s += &format!(r##"<path stroke="#{tone:02x}{tone:02x}{tone:02x}" stroke-width="{:.3}" d="{d}"/>"##, *key as f64 * 0.002);
     }
     s += "</g>";
     for b in dew.iter().filter(|b| near(b.at[0])) {
@@ -871,35 +900,27 @@ fn window_svg(ch: &Chart, threads: &[Thread], dew: &[Dew], lo: f64, hi: f64, hal
     (s, width)
 }
 
-/// The cheek tile: radials leaning alternately either way off the finger's direction, a zig-zag of triangles,
-/// each a small web corner with one capture thread near its base hanging toward its anchor. The tile's top row is the bore's edge.
+/// The cheek silk has upright radials and two draped catenary rows.
 fn cheek_svg(cell_w: f64, cell_h: f64) -> String {
-    let lean = CHEEK_LEAN_DEG.to_radians().tan();
-    let over = 0.25;
-    let periods = (cell_w / (2.0 * (cell_h + 2.0 * over) * lean)).round().max(1.0) as i64;
-    let half = cell_w / (2 * periods) as f64;
-    let vertex = |i: i64| -> P2 { [i as f64 * half, if i.rem_euclid(2) == 0 { -over } else { cell_h + over }] };
+    let periods = (cell_w / CHEEK_PITCH_MM).round().max(1.0) as i64;
+    let pitch = cell_w / periods as f64;
     let mut s = format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cell_w:.4} {cell_h:.4}" width="{cell_w:.4}" height="{cell_h:.4}"><rect width="{cell_w:.4}" height="{cell_h:.4}" fill="#fff"/><g fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">"##
     );
-    let a = vertex(-2);
-    s += &format!(r##"<path stroke-width="{CHEEK_RADIAL_MM}" d="M{:.4} {:.4}"##, a[0], a[1]);
-    for i in -1..=2 * periods + 2 {
-        let p = vertex(i);
-        s += &format!(" L{:.4} {:.4}", p[0], p[1]);
-    }
-    s += r##""/>"##;
-    // Where the leg from vertex i to i+1 crosses height y.
-    let leg = |i: i64, y: f64| -> f64 {
-        let (p, q) = (vertex(i), vertex(i + 1));
-        lerp(p[0], q[0], (y - p[1]) / (q[1] - p[1]))
-    };
-    for i in -1..=2 * periods + 1 {
-        let apex_at_bore = i.rem_euclid(2) == 0;
-        let y = if apex_at_bore { 0.66 * cell_h } else { 0.34 * cell_h };
-        let (x0, x1) = (leg(i - 1, y), leg(i, y));
-        let sag = 0.2 * (x1 - x0).abs() * if apex_at_bore { -1.0 } else { 1.0 };
-        s += &format!(r##"<path stroke-width="{CHEEK_THREAD_MM}" d="M{x0:.4} {y:.4} Q{:.4} {:.4} {x1:.4} {y:.4}"/>"##, 0.5 * (x0 + x1), y + 2.0 * sag);
+    for k in -1..=periods + 1 {
+        let x = k as f64 * pitch;
+        s += &format!(r##"<path stroke-width="{CHEEK_RADIAL_MM}" d="M{x:.4} -0.1 V{:.4}"/>"##, cell_h + 0.1);
+        for share in [0.35, 0.70] {
+            let base = cell_h * share;
+            let a = pitch * 0.5;
+            let mut path = String::new();
+            for j in 0..=12 {
+                let u = j as f64 / 12.0;
+                let y = base + 0.25 * (1.0 - ((2.0 * u - 1.0).cosh() - 1.0) / (1.0f64.cosh() - 1.0));
+                path += &format!("{}{:.4} {y:.4}", if j == 0 { "M" } else { " L" }, x + 2.0 * a * u);
+            }
+            s += &format!(r##"<path stroke="#555" stroke-width="{CHEEK_THREAD_MM}" d="{path}"/>"##);
+        }
     }
     s += "</g></svg>";
     s
@@ -911,14 +932,14 @@ fn cheek_web(d: &mut RingDesign) -> Result<(f64, f64)> {
     let mut t = TilingLayer::default_for("Cheek web", &ctx);
     ensure!(t.fit_to_side_faces(&ctx, ringdesign_core::field::SIDE_FACE_MIN_DRAFT_DEG), "The band carries no side face for the web");
     t.repeats_around = 8;
-    t.height_mm = 0.32;
+    t.height_mm = 0.30;
     t.continuous = true;
     t.feather_mm = 0.0;
     t.edge_mm = 0.15;
     let (cw, ch) = t.cell_size(&ctx);
     println!("  cheek web cell {cw:.2} x {ch:.2} mm");
     d.svgs.push(SvgAlpha { name: "Cheek web".into(), svg: cheek_svg(cw, ch), invert: false });
-    let mut e = LayerEntry::new("Cheek web, radials to the finger", Layer::Tiling(t));
+    let mut e = LayerEntry::new("Cheek web, draped silk", Layer::Tiling(t));
     e.window.v_gate = VGate::SideFaces(SideFacePick::Both);
     e.blend = Blend::Max;
     d.layers.layers.push(e);
@@ -1031,14 +1052,18 @@ fn crown_web(d: &mut RingDesign, bare: &Bare, carapace: &Body, abdomen: &Body, p
     ];
     for (lo, hi, name) in windows {
         let (lo, hi) = (lo - 2.5, hi + 2.5);
-        let (svg, width) = window_svg(&ch, &threads, &dew, lo, hi, half);
-        stats.svg_bytes += svg.len();
-        stats.windows.push(name.to_string());
-        d.svgs.push(SvgAlpha { name: name.to_string(), svg, invert: false });
-        let stamp = Decal { theta_deg: (0.5 * (lo + hi)).rem_euclid(360.0), v_mm: ch.ctx.crest_v_mm, size_mm: width, rotation_deg: 0.0, height_mm: WEB_HEIGHT_MM, flip: false };
-        let mut e = LayerEntry::new(name, Layer::Decals(DecalLayer { alpha: name.to_string(), decals: vec![stamp], feather_mm: 0.05, invert: false }));
-        e.blend = Blend::Max;
-        d.layers.layers.push(e);
+        for fine in [false, true] {
+            let threads: Vec<_> = threads.iter().filter(|t| (t.w <= W_CAPTURE_MM + 1e-9) == fine).cloned().collect();
+            let name = if fine { format!("{name}, capture silk") } else { name.to_string() };
+            let (svg, width) = window_svg(&ch, &threads, if fine { &[] } else { &dew }, lo, hi, half);
+            stats.svg_bytes += svg.len();
+            stats.windows.push(name.clone());
+            d.svgs.push(SvgAlpha { name: name.clone(), svg, invert: false });
+            let stamp = Decal { theta_deg: (0.5 * (lo + hi)).rem_euclid(360.0), v_mm: ch.ctx.crest_v_mm, size_mm: width, rotation_deg: 0.0, height_mm: if fine { 0.20 } else { WEB_HEIGHT_MM }, flip: false };
+            let mut e = LayerEntry::new(&name, Layer::Decals(DecalLayer { alpha: name.clone(), decals: vec![stamp], feather_mm: 0.05, invert: false }));
+            e.blend = Blend::Max;
+            d.layers.layers.push(e);
+        }
     }
     Ok((stats, spinnerets))
 }
@@ -1098,11 +1123,11 @@ struct LegSpec {
 }
 
 const LEGS: [LegSpec; 4] = [
-    LegSpec { name: "Leg I", root_along: -1.35, reach_deg: 21.0, claw_deg: -60.0, shares: [0.74, 0.48, 0.30], at: [0.2, 0.5] },
-    LegSpec { name: "Leg II", root_along: -0.45, reach_deg: 33.0, claw_deg: -44.0, shares: [0.68, 0.44, 0.26], at: [0.2, 0.5] },
-    LegSpec { name: "Leg III", root_along: 0.45, reach_deg: 143.0, claw_deg: 44.0, shares: [0.68, 0.44, 0.26], at: [0.2, 0.5] },
-    // The hind leg drops steeply under the abdomen's overhang and runs low along the cheek behind it.
-    LegSpec { name: "Leg IV", root_along: 1.35, reach_deg: 146.0, claw_deg: 88.0, shares: [0.52, 0.40, 0.28], at: [0.12, 0.5] },
+    LegSpec { name: "Leg I", root_along: -1.35, reach_deg: 21.0, claw_deg: -60.0, shares: [0.86, 0.68, 0.60], at: [0.2, 0.5] },
+    LegSpec { name: "Leg II", root_along: -0.45, reach_deg: 33.0, claw_deg: -44.0, shares: [0.86, 0.70, 0.62], at: [0.2, 0.5] },
+    LegSpec { name: "Leg III", root_along: 0.45, reach_deg: 130.0, claw_deg: 44.0, shares: [0.86, 0.70, 0.62], at: [0.2, 0.5] },
+    // The hind leg grips the upper cheek behind the abdomen.
+    LegSpec { name: "Leg IV", root_along: 1.35, reach_deg: 137.5, claw_deg: 60.0, shares: [0.90, 0.74, 0.66], at: [0.24, 0.53] },
 ];
 
 /// A planar path as a chain of cubics in its plane, with the tube's radius at each end.
@@ -1122,16 +1147,6 @@ fn bezier(c: &[P2; 4], t: f64) -> P2 {
 fn piece_length(c: &[P2; 4]) -> f64 {
     (0..40).map(|i| dist2(bezier(c, i as f64 / 40.0), bezier(c, (i + 1) as f64 / 40.0))).sum()
 }
-/// A cubic split in two at parameter `t`.
-fn split_cubic(c: &[P2; 4], t: f64) -> ([P2; 4], [P2; 4]) {
-    let ab = lerp2(c[0], c[1], t);
-    let bc = lerp2(c[1], c[2], t);
-    let cd = lerp2(c[2], c[3], t);
-    let abc = lerp2(ab, bc, t);
-    let bcd = lerp2(bc, cd, t);
-    let m = lerp2(abc, bcd, t);
-    ([c[0], ab, abc, m], [m, bcd, cd, c[3]])
-}
 /// The smallest radius of curvature along a cubic.
 fn tightest_bend(c: &[P2; 4]) -> f64 {
     (0..=100)
@@ -1143,21 +1158,6 @@ fn tightest_bend(c: &[P2; 4]) -> f64 {
             d1[0].hypot(d1[1]).powi(3) / (d1[0] * d2[1] - d1[1] * d2[0]).abs().max(1e-12)
         })
         .fold(f64::MAX, f64::min)
-}
-/// A smooth chain of cubics through points, tangents by central differences.
-fn through(pts: &[P2]) -> Vec<[P2; 4]> {
-    let n = pts.len();
-    let m = |j: usize| -> P2 {
-        let (a, b) = (pts[j.saturating_sub(1)], pts[(j + 1).min(n - 1)]);
-        let k = if j == 0 || j == n - 1 { 1.0 } else { 0.5 };
-        [(b[0] - a[0]) * k, (b[1] - a[1]) * k]
-    };
-    (0..n - 1)
-        .map(|i| {
-            let (m0, m1) = (m(i), m(i + 1));
-            [pts[i], [pts[i][0] + m0[0] / 3.0, pts[i][1] + m0[1] / 3.0], [pts[i + 1][0] - m1[0] / 3.0, pts[i + 1][1] - m1[1] / 3.0], pts[i + 1]]
-        })
-        .collect()
 }
 
 impl LegPath {
@@ -1207,34 +1207,7 @@ impl LegPath {
     fn bend_ratio(&self) -> f64 {
         self.pieces.iter().map(tightest_bend).fold(f64::MAX, f64::min) / self.r0.max(self.r1)
     }
-    /// The path cut in two a share of its length along, the halves' radii to be set by the caller.
-    fn split(&self, share: f64) -> (LegPath, LegPath) {
-        let lens: Vec<f64> = self.pieces.iter().map(piece_length).collect();
-        let mut target = share * lens.iter().sum::<f64>();
-        let last = self.pieces.len() - 1;
-        for (k, c) in self.pieces.iter().enumerate() {
-            if target <= lens[k] || k == last {
-                let n = 200;
-                let (mut acc, mut t) = (0.0, 1.0);
-                for i in 0..n {
-                    let step = dist2(bezier(c, i as f64 / n as f64), bezier(c, (i + 1) as f64 / n as f64));
-                    if acc + step >= target {
-                        t = (i as f64 + ((target - acc) / step.max(1e-12)).clamp(0.0, 1.0)) / n as f64;
-                        break;
-                    }
-                    acc += step;
-                }
-                let (l, r) = split_cubic(c, t);
-                let mut first: Vec<[P2; 4]> = self.pieces[..k].to_vec();
-                first.push(l);
-                let mut second = vec![r];
-                second.extend_from_slice(&self.pieces[k + 1..]);
-                return (LegPath { pieces: first, ..self.clone() }, LegPath { pieces: second, ..self.clone() });
-            }
-            target -= lens[k];
-        }
-        unreachable!("a path has at least one piece")
-    }
+
 }
 
 /// One solved leg and what it measures.
@@ -1261,17 +1234,11 @@ fn cheek_plane(o: P3, a: P3) -> Workplane {
 fn cheek_run(a: P3, b: P3, r0: f64, r1: f64, out: &dyn Fn(f64, f64) -> f64) -> LegPath {
     let plane = cheek_plane(a, sub3(b, a));
     let end = [dot(sub3(b, a), plane.x), dot(sub3(b, a), plane.y)];
-    let n = 5;
-    let mut pts: Vec<P2> = (0..=n)
-        .map(|i| {
-            let u = i as f64 / n as f64;
-            let x = end[0] * u;
-            [x, out(u, theta_of(add3(a, plane.x, x))) - a[2].abs()]
-        })
-        .collect();
-    pts[0] = [0.0, 0.0];
-    pts[n] = end;
-    LegPath { plane, pieces: through(&pts), r0, r1 }
+    let y_at = |u: f64| out(u, theta_of(add3(a, plane.x, end[0] * u))) - a[2].abs();
+    let a1 = y_at(1.0 / 3.0) - end[1] / 27.0;
+    let a2 = y_at(2.0 / 3.0) - 8.0 * end[1] / 27.0;
+    let c = [[0.0, 0.0], [end[0] / 3.0, 3.0 * a1 - 1.5 * a2], [2.0 * end[0] / 3.0, -1.5 * a1 + 3.0 * a2], end];
+    LegPath { plane, pieces: vec![c], r0, r1 }
 }
 
 /// The femur as one cubic from root to knee: bending gently, lying on the crown, arching up to the knee, under the garnet's girdle.
@@ -1285,7 +1252,7 @@ fn fit_femur(l: f64, yk: f64, surface: &dyn Fn(f64) -> f64, r_at: &dyn Fn(f64) -
                     let (s0, c0) = a0.to_radians().sin_cos();
                     let (s1, c1) = a1.to_radians().sin_cos();
                     let c = [[0.0, 0.0], [h0 * l * c0, h0 * l * s0], [l - h1 * l * c1, yk - h1 * l * s1], [l, yk]];
-                    if tightest_bend(&c) < 1.2 * r0 {
+                    if tightest_bend(&c) < 1.25 * r0 {
                         continue;
                     }
                     let mut cost = 0.0;
@@ -1313,21 +1280,6 @@ fn fit_femur(l: f64, yk: f64, surface: &dyn Fn(f64) -> f64, r_at: &dyn Fn(f64) -
     best.map(|(_, c)| c)
 }
 
-/// How far a segment's taper starts back inside its swell, and how much narrower it starts than the swell ends.
-const SWELL_OVERLAP_MM: f64 = 0.06;
-const SWELL_STEP: f64 = 0.97;
-
-/// A segment's path cut into its two sweeps: swelling from its start to `at` of its length, then drawing in to its end.
-/// The taper starts a little back inside the swell and a little narrower, so no two caps coincide.
-fn swell(name: &str, path: &LegPath, r_start: f64, r_end: f64, at: f64) -> Vec<(String, LegPath)> {
-    let peak = SWELL * lerp(r_start, r_end, at);
-    let (mut a, _) = path.split(at);
-    let (_, mut b) = path.split(at - SWELL_OVERLAP_MM / path.length());
-    (a.r0, a.r1) = (PINCH_IN * r_start, peak);
-    (b.r0, b.r1) = (SWELL_STEP * peak, r_end);
-    vec![(format!("{name}, swell"), a), (format!("{name}, taper"), b)]
-}
-
 /// Solves one low-side leg: the femur arching from the coxa to a high knee over the edge, the tibia down over it,
 /// the metatarsus and tarsus down the cheek, the tarsus hooking its claw into the metal.
 fn solve_leg(spec: &LegSpec, bare: &Bare, carapace: &Body, abdomen: &Body) -> Result<Leg> {
@@ -1346,9 +1298,9 @@ fn solve_leg(spec: &LegSpec, bare: &Bare, carapace: &Body, abdomen: &Body) -> Re
     }
     let ks = bare.at(knee_deg);
     let knee_ball = KNUCKLE * KNEE_MM;
-    let knee = at_ring(knee_deg, ks.edge_r + 0.28 + KNEE_LIFT_MM, -(ks.half_width + KNEE_PROUD_MM - SWELL * KNEE_MM));
+    let knee = at_ring(knee_deg, ks.edge_r + 0.28 + KNEE_LIFT_MM, -(ks.half_width + KNEE_PROUD_MM - knee_ball));
     // Femur: in the upright plane through root and knee, lying on the crown and arching to the knee.
-    let (femur_r0, femur_r1) = (FEMUR_MM, PINCH_OUT * KNEE_MM);
+    let (femur_r0, femur_r1) = (FEMUR_MM, KNEE_MM);
     let up = unit3(at_ring(0.5 * (root_deg + knee_deg), 1.0, 0.0));
     let chord = sub3(knee, root);
     let x = unit3(add3(chord, up, -dot(chord, up)));
@@ -1387,7 +1339,7 @@ fn solve_leg(spec: &LegSpec, bare: &Bare, carapace: &Body, abdomen: &Body) -> Re
     let claw_deg = HUB_DEG + spec.claw_deg;
     let span = claw_deg - knee_deg;
     let (ankle_deg, meta_deg) = (knee_deg + spec.at[0] * span, knee_deg + spec.at[1] * span);
-    let stand = |r: f64, th: f64| bare.half_width(th) + smin(r - 0.12, bare.proud(th) - SWELL * r, 0.05);
+    let stand = |r: f64, th: f64| bare.half_width(th) + smin(r - 0.18, bare.proud(th) - KNUCKLE * r, 0.05);
     let joint = |deg: f64, share: f64, r: f64| {
         let p = bare.cheek(deg, share, 0.0);
         [p[0], p[1], -stand(r, deg)]
@@ -1417,11 +1369,13 @@ fn solve_leg(spec: &LegSpec, bare: &Bare, carapace: &Body, abdomen: &Body) -> Re
     let reach_hook = dist2(level, tip);
     pieces.push([level, [level[0] + 0.42 * reach_hook, level[1]], [tip[0] - 0.42 * reach_hook * turn.cos(), tip[1] + 0.42 * reach_hook * turn.sin()], tip]);
     let tarsus = LegPath { plane, pieces, r0: META_MM, r1: CLAW_MM };
-    // The sweeps: the femur rising out of its coxa, and each segment below it swelling then drawing in to its joint.
-    let mut sweeps = vec![("femur".to_string(), femur.clone())];
-    sweeps.extend(swell("tibia", &tibia, KNEE_MM, PINCH_OUT * ANKLE_MM, TIBIA_SWELL_AT));
-    sweeps.extend(swell("metatarsus", &metatarsus, ANKLE_MM, PINCH_OUT * META_MM, SWELL_AT));
-    sweeps.extend(swell("tarsus", &tarsus, META_MM, CLAW_MM, SWELL_AT));
+    // Each limb segment is one tapered sweep.
+    let sweeps = vec![
+        ("femur".to_string(), femur.clone()),
+        ("tibia".to_string(), tibia.clone()),
+        ("metatarsus".to_string(), metatarsus.clone()),
+        ("tarsus".to_string(), tarsus.clone()),
+    ];
     // What the leg measures.
     let total = femur.length() + tibia.length() + metatarsus.length() + tarsus.length();
     let knee_proud = knee[2].abs() + knee_ball - ks.half_width;
@@ -1430,6 +1384,13 @@ fn solve_leg(spec: &LegSpec, bare: &Bare, carapace: &Body, abdomen: &Body) -> Re
         let sec = bare.at(theta_of(p));
         most_proud = most_proud.max(p[2].abs() + r - sec.half_width);
         least_share = least_share.min((p[0].hypot(p[1]) - sec.bore_r) / (sec.edge_r - sec.bore_r));
+    }
+    if std::env::var("ARACHNE_DEBUG").is_ok() {
+        for (name, path) in &sweeps {
+            if let Some((p, r)) = path.samples().into_iter().min_by(|(a, ar), (b, br)| (abdomen.margin(*a) - ar).total_cmp(&(abdomen.margin(*b) - br))) {
+                println!("    {} {name}: abdomen margin {:.3} at {:?}", spec.name, abdomen.margin(p) - r, p);
+            }
+        }
     }
     let abdomen_margin = sweeps.iter().flat_map(|(_, path)| path.samples()).map(|(p, r)| abdomen.margin(p) - r).fold(f64::MAX, f64::min);
     Ok(Leg {
@@ -1455,7 +1416,7 @@ fn solve_legs(bare: &Bare, carapace: &Body, abdomen: &Body) -> Result<Vec<(LegSp
                     let bends: Vec<String> = p.pieces.iter().map(|c| format!("({:.2},{:.2}):{:.2}", c[0][0], c[0][1], tightest_bend(c))).collect();
                     println!("    {} {part}: {}", spec.name, bends.join(" "));
                 }
-                ensure!(p.bend_ratio() >= 1.15, "{} {part} bends at {:.2} of its radius", spec.name, p.bend_ratio());
+                ensure!(p.bend_ratio() >= 1.25, "{} {part} bends at {:.2} of its radius", spec.name, p.bend_ratio());
             }
             let radii: Vec<String> = leg.sweeps.iter().map(|(_, p)| format!("{:.2}-{:.2}", p.r0, p.r1)).collect();
             println!(
@@ -1472,6 +1433,67 @@ fn solve_legs(bare: &Bare, carapace: &Body, abdomen: &Body) -> Result<Vec<(LegSp
             Ok((*spec, leg))
         })
         .collect()
+}
+
+/// Web masks fade before both folds and clear every leg's surface footprint.
+fn web_masks(d: &mut RingDesign, lib: &mut AlphaLibrary, bare: &Bare, legs: &[(LegSpec, Leg)]) -> Result<()> {
+    let atlas = skin::Atlas::of(d, 2048, 512)?;
+    let ctx = d.field_context();
+    let sections: Vec<(f64, f64, f64, f64)> = (0..atlas.width)
+        .map(|i| {
+            let theta = i as f64 / atlas.width as f64 * 360.0;
+            let s = bare.at(theta);
+            (s.edge_t, s.edge_r, s.bore_r, ctx.station_stretch(theta))
+        })
+        .collect();
+    let samples: Vec<Vec<(P3, f64)>> = legs.iter().flat_map(|(_, leg)| leg.sweeps.iter().map(|(_, path)| path.samples())).collect();
+    let cheek_samples: Vec<Vec<(P3, f64)>> = legs.iter().flat_map(|(_, leg)| leg.sweeps.iter().skip(1).map(|(_, path)| path.samples())).collect();
+    let clearance = |p: P3| {
+        let p = [p[0], p[1], -p[2].abs()];
+        samples.iter().flat_map(|s| s.windows(2)).map(|w| {
+            let ab = sub3(w[1].0, w[0].0);
+            let t = (dot(sub3(p, w[0].0), ab) / dot(ab, ab).max(1e-12)).clamp(0.0, 1.0);
+            len3(sub3(p, add3(w[0].0, ab, t))) - lerp(w[0].1, w[1].1, t)
+        }).fold(f64::MAX, f64::min)
+    };
+    let cheek_clearance = |s: &skin::Sample| {
+        let r = s.p[0].hypot(s.p[1]);
+        cheek_samples.iter().flat_map(|p| p.windows(2)).map(|w| {
+            let (a, b) = (theta_of(w[0].0), theta_of(w[1].0));
+            let span = wrap180(b - a);
+            let t = (wrap180(s.theta - a) / span.abs().max(1e-12) * span.signum()).clamp(0.0, 1.0);
+            let centre = add3(w[0].0, sub3(w[1].0, w[0].0), t);
+            let reach = lerp(w[0].1, w[1].1, t) + 0.20;
+            let along = wrap180(s.theta - theta_of(centre)).to_radians().abs() * r;
+            smoothstep(reach, reach + 0.15, along).max(smoothstep(reach, reach + 0.15, r - centre[0].hypot(centre[1])))
+        }).fold(1.0, f64::min)
+    };
+    for (name, crown) in [("Crown web clearance", true), ("Cheek web clearance", false)] {
+        let mut alpha = atlas.paint(name, |s| {
+            let (edge, edge_r, bore, stretch) = sections[s.i % atlas.width];
+            let r = s.p[0].hypot(s.p[1]);
+            let fade = if crown {
+                smoothstep(0.0, 0.25, edge - ((s.v - ctx.crest_v_mm) * stretch).abs())
+            } else {
+                smoothstep(0.30, 0.50, r - bore) * smoothstep(0.0, 0.20, edge_r - r)
+            };
+            fade * if crown { smoothstep(0.20, 0.35, clearance(s.p)) } else { cheek_clearance(s) }
+        });
+        for v in &mut alpha.data {
+            *v = (*v * 255.0).round() / 255.0;
+        }
+        lib.insert(Alpha::from_png16(name, &alpha.to_png16()?)?);
+    }
+    for e in &mut d.layers.layers {
+        if e.name.starts_with("Cheek web") {
+            e.mask = Some("Cheek web clearance".into());
+        } else if matches!(e.layer, Layer::Decals(_)) {
+            e.mask = Some("Crown web clearance".into());
+        }
+    }
+    d.embed_alphas(lib);
+    d.embedded.retain(|a| a.name.ends_with("web clearance"));
+    Ok(())
 }
 
 // --- Assembly ---------------------------------------------------------------
@@ -1548,6 +1570,7 @@ fn author(preview: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Spider, W
     }
 
     let legs = solve_legs(&bare, &carapace, &abdomen)?;
+    web_masks(&mut d, &mut lib, &bare, &legs)?;
     let doc = d.cad.get_or_insert_with(Document::default);
     if doc.band().is_none() {
         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
@@ -1592,7 +1615,7 @@ fn author(preview: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Spider, W
         }
         for source in outputs {
             let name = parts.doc.feature(source).map(|f| f.name.replace("low side", "high side")).unwrap_or_default();
-            parts.add(name, Operation::Pattern { source, kind: PatternKind::Mirror { plane: MirrorPlane::Band } }, joined())?;
+            parts.add(name, Operation::Pattern { sources: source.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Band } }, joined())?;
         }
         spider.knee_deg.push(leg.knee_deg);
         spider.claw_deg.push(HUB_DEG + spec.claw_deg);
@@ -1672,6 +1695,10 @@ struct Report {
     export_clean: ExportClean,
     grams_18k: f64,
     cold_reload_identical: Option<bool>,
+    bore_clearance: Vec<(String, f64, usize)>,
+    mesh_self_crossings: usize,
+    geometry_gates_passed: bool,
+    template_gate_passed: Option<bool>,
     gates_passed: bool,
 }
 
@@ -1817,6 +1844,23 @@ fn crossings(built: &mesh::BuildResult) -> Vec<(String, usize)> {
             (c.name.clone(), n)
         })
         .collect()
+}
+
+/// Every made-part vertex inside the band's axial span clears the local bore by 0.10 mm.
+fn bore_clearance(d: &RingDesign, built: &mesh::BuildResult) -> Vec<(String, f64, usize)> {
+    let bare = Bare::new(d);
+    built.parts.evaluated.iter().flat_map(|e| e.components.iter()).map(|c| {
+        let mut minimum = f64::MAX;
+        let mut below = 0;
+        for p in &c.trace.positions {
+            if let Some(bore) = bare.bore_at(theta_of(*p), p[2]) {
+                let margin = p[0].hypot(p[1]) - bore;
+                minimum = minimum.min(margin);
+                below += usize::from(margin < 0.10);
+            }
+        }
+        (c.name.clone(), minimum, below)
+    }).collect()
 }
 
 /// Faces sharper than a twentieth of a degree at their sharpest corner, counted by the part their vertices came from.
@@ -2139,6 +2183,8 @@ fn main() -> Result<()> {
     let quality = built.report.quality;
     println!("  {} triangles in {build_s:.1} s; watertight {}; degenerate {}; sharpest corner {:.5} deg, worst aspect {:.0}", built.mesh.faces.len(), v.watertight, quality.degenerate_faces, quality.min_angle_deg, quality.worst_aspect);
     let made_parts = crossings(&built);
+    let bore_clearance = bore_clearance(&d, &built);
+    let mesh_self_crossings = csg::self_crossings(&csg::Solid { v: built.mesh.vertices.iter().map(|v| [v.0 as f64, v.1 as f64, v.2 as f64]).collect(), f: built.mesh.faces.clone() });
     let slivers_by_part = slivers(&d, &built);
     let (export_mesh, export_clean) = cleaned(&built.mesh, CLEAN_MM);
     println!(
@@ -2228,10 +2274,16 @@ fn main() -> Result<()> {
         export_clean,
         grams_18k: grams,
         cold_reload_identical: cold,
+        bore_clearance,
+        mesh_self_crossings,
+        geometry_gates_passed: false,
+        template_gate_passed: None,
         gates_passed: false,
     };
-    report.gates_passed = report.watertight
+    report.geometry_gates_passed = report.watertight
         && report.degenerate_faces == 0
+        && report.mesh_self_crossings == 0
+        && report.bore_clearance.iter().all(|(_, _, n)| *n == 0)
         && report.made_parts.iter().all(|(_, n)| *n == 0)
         && report.solids_notes.is_empty()
         && report.parts_notes.is_empty()
@@ -2245,6 +2297,10 @@ fn main() -> Result<()> {
         && report.spider.knee_over_rim_mm >= 0.4
         && report.spider.leg_min_section_mm >= MIN_SECTION_MM - 1e-9
         && report.spider.claw_diameter_mm >= MIN_SECTION_MM - 1e-9
+        && report.spider.tightest_bend_ratio >= 1.25
+        && report.spider.leg_lowest_cheek_share >= 0.35
+        && report.spider.leg_abdomen_margin_mm >= 0.40
+        && report.spider.leg_lengths_mm[3] <= 13.0
         && report.longest_bare_crown_run_mm <= 3.5
         && report.largest_bare_cell_mm <= 2.0
         && report.web.longest_parallel_run_mm <= 3.0
@@ -2252,6 +2308,14 @@ fn main() -> Result<()> {
         && report.export_clean.degenerate_faces == 0
         && report.cold_reload_identical != Some(false);
     std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report)?)?;
+    std::fs::write(out.join("verification.json"), serde_json::to_vec_pretty(&serde_json::json!({
+        "design_bytes": design_bytes,
+        "geometry_gates_passed": report.geometry_gates_passed,
+        "cold_design_reload": cold,
+        "template_gate_passed": null,
+        "gates_passed": false,
+        "status": "Template lift and cold graph validation pending for this design"
+    }))?)?;
     std::fs::write(out.join("mesh.json"), serde_json::to_vec_pretty(&built.report)?)?;
     let art = out.join("artwork");
     let _ = std::fs::remove_dir_all(&art);
@@ -2303,7 +2367,7 @@ fn main() -> Result<()> {
     for n in report.parts_notes.iter().chain(&report.solids_notes) {
         println!("    note: {n}");
     }
-    println!("  gates {}", if report.gates_passed { "passed" } else { "FAILED" });
-    ensure!(report.gates_passed, "Arachne failed its gates; see {}", out.join("report.json").display());
+    println!("  geometry gates {}; template gate pending", if report.geometry_gates_passed { "passed" } else { "FAILED" });
+    ensure!(report.geometry_gates_passed, "Arachne failed its geometry gates; see {}", out.join("report.json").display());
     Ok(())
 }
