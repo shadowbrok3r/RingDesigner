@@ -521,6 +521,33 @@ mod tests {
     }
 
     #[test]
+    fn a_lift_patches_only_the_cad_properties_its_feature_chain_cannot_replay() {
+        use ringdesign_core::cad::{Component, Document, Feature, Joint, Operation};
+        let reg = Registry::builtin();
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        let mut doc = Document::default();
+        for (id, operation) in [(1, Operation::Band), (2, Operation::Box { size: [2.0; 3] }), (3, Operation::Transform { source: 2, translation: [0.0, 0.0, 1.0], rotation_deg: [0.0; 3] })] {
+            doc.append(Feature { id, name: format!("Part {id}"), enabled: true, operation, component: Component::default() }).unwrap();
+        }
+        for custom in [false, true] {
+            if custom {
+                doc.outputs.reverse();
+                doc.joints.push(Joint { a: 1, b: 3, clearance_mm: 0.2, method: "Solder".into(), notes: "Foot to band".into() });
+                doc.through = Some(2);
+            }
+            d.cad = Some(doc.clone());
+            let (g, got, want) = round_trip(&d, &reg, &lib).unwrap();
+            assert_eq!(got, want);
+            let pointers: Vec<&str> = g.nodes.iter().filter(|n| n.kind == "design.set").filter_map(|n| match n.inputs.get("pointer") {
+                Some(Literal::Text(p)) if p.starts_with("/cad/") => Some(p.as_str()),
+                _ => None,
+            }).collect();
+            assert_eq!(pointers, if custom { vec!["/cad/outputs", "/cad/joints", "/cad/through"] } else { Vec::new() });
+        }
+    }
+
+    #[test]
     fn a_design_with_sources_and_odd_fields_still_lifts_exactly() {
         let reg = Registry::builtin();
         let lib = AlphaLibrary::builtin();

@@ -249,10 +249,10 @@ pub fn from_document(d: &RingDesign) -> Result<Graph, crate::graph::GraphError> 
     }
     Ok(g)
 }
-/// Chains after `from` one `cad.feature` node per feature, each carrying its feature's id, then the
-/// document's outputs, joints and rollback as property nodes; returns the chain's last node.
+/// Chains each feature after `from`, then any document properties the feature chain does not reproduce.
 pub fn chain_document(g: &mut Graph, from: NodeId, doc: &Document) -> Result<NodeId, GraphError> {
     let mut previous = from;
+    let mut replay = Document::default();
     for f in &doc.features {
         if g.node(NodeId(f.id)).is_some() {
             return Err(GraphError::global(format!("CAD feature #{} would take the id of a node already in the graph", f.id)));
@@ -263,15 +263,20 @@ pub fn chain_document(g: &mut Graph, from: NodeId, doc: &Document) -> Result<Nod
         node.params = serde_json::to_value(f).map_err(|e| GraphError::global(e.to_string()))?;
         g.connect(previous, "design", NodeId(f.id), "design")?;
         previous = NodeId(f.id);
+        replay.append(f.clone()).map_err(|e| GraphError::global(e.to_string()))?;
     }
-    for (path, value) in [
-        (OUTPUTS, serde_json::to_value(&doc.outputs)),
-        (JOINTS, serde_json::to_value(&doc.joints)),
-        (THROUGH, serde_json::to_value(doc.through)),
+    for (path, value, derived) in [
+        (OUTPUTS, serde_json::to_value(&doc.outputs), serde_json::to_value(&replay.outputs)),
+        (JOINTS, serde_json::to_value(&doc.joints), serde_json::to_value(&replay.joints)),
+        (THROUGH, serde_json::to_value(doc.through), serde_json::to_value(replay.through)),
     ] {
+        let value = value.map_err(|e| GraphError::global(e.to_string()))?;
+        if value == derived.map_err(|e| GraphError::global(e.to_string()))? {
+            continue;
+        }
         let id = g.add("design.set")?;
         g.set_input(id, "pointer", Literal::Text(path.into()))?;
-        g.node_mut(id).expect("added").params = serde_json::json!({ "json_value": value.map_err(|e| GraphError::global(e.to_string()))? });
+        g.node_mut(id).expect("added").params = serde_json::json!({ "json_value": value });
         g.connect(previous, "design", id, "design")?;
         previous = id;
     }
