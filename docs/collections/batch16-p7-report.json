@@ -161,6 +161,748 @@
     "Caiman is below the P7 3MB budget with only its manufacturing patch.",
     "Solstice and Aurelia retain inline sources because their saved meshes differ from current stock masters; source and export geometry remain exact.",
     "Timing was measured with parallel build activity and does not establish a speedup.",
-    "Full workspace checks are in progress; results will be recorded before master integration."
-  ]
+    "Every crate suite, workbench glow suite, Python smoke, workspace all-target, locked, NDK arm64 and wasm checks passed with no warnings. The fixture commit recorded files already present when the validation began; only this report changed afterward."
+  ],
+  "validation": {
+    "source_commit": "8ebe91a7185e7adf2ceb4abfb0a2fc292229e36e",
+    "fixture_commit": "962aed0",
+    "source_frozen_during_each_build_test_pair": true,
+    "warning_count": 0,
+    "checks": [
+      {
+        "check": "ringdesign-core-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-core",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 206.36,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-core-build.log"
+      },
+      {
+        "check": "ringdesign-core-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-core",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 57.81,
+        "results": [
+          "test result: ok. 738 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 50.34s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.73s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-core-test.log"
+      },
+      {
+        "check": "ringdesign-workbench-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-workbench",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 56.93,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-workbench-build.log"
+      },
+      {
+        "check": "ringdesign-workbench-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-workbench",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 5.56,
+        "results": [
+          "test result: ok. 218 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.29s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-workbench-test.log"
+      },
+      {
+        "check": "ringdesign-graph-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-graph",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 21.19,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-graph-build.log"
+      },
+      {
+        "check": "ringdesign-graph-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-graph",
+          "--no-fail-fast",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 43.08,
+        "results": [
+          "test result: ok. 99 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.78s",
+          "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.67s",
+          "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.12s",
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.74s",
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-graph-test.log"
+      },
+      {
+        "check": "ringdesign-graph-ui-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-graph-ui",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 4.8,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-graph-ui-build.log"
+      },
+      {
+        "check": "ringdesign-graph-ui-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-graph-ui",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 0.79,
+        "results": [
+          "test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-graph-ui-test.log"
+      },
+      {
+        "check": "ringdesign-script-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-script",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 32.26,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-script-build.log"
+      },
+      {
+        "check": "ringdesign-script-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-script",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 0.17,
+        "results": [
+          "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-script-test.log"
+      },
+      {
+        "check": "ringdesign-solid-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-solid",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 0.64,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-solid-build.log"
+      },
+      {
+        "check": "ringdesign-solid-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-solid",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 0.15,
+        "results": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-solid-test.log"
+      },
+      {
+        "check": "ringdesign-occt-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-occt",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 2.57,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-occt-build.log"
+      },
+      {
+        "check": "ringdesign-occt-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-occt",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 1.39,
+        "results": [
+          "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-occt-test.log"
+      },
+      {
+        "check": "ringdesign-mcp-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-mcp",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 50.0,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-mcp-build.log"
+      },
+      {
+        "check": "ringdesign-mcp-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-mcp",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 1.0,
+        "results": [
+          "test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-mcp-test.log"
+      },
+      {
+        "check": "ringdesign-mcpd-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-mcpd",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 5.33,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-mcpd-build.log"
+      },
+      {
+        "check": "ringdesign-mcpd-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-mcpd",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 0.15,
+        "results": [
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-mcpd-test.log"
+      },
+      {
+        "check": "ringdesign-cli-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-cli",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 34.96,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-cli-build.log"
+      },
+      {
+        "check": "ringdesign-cli-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-cli",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 12.41,
+        "results": [
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.77s",
+          "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.23s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-cli-test.log"
+      },
+      {
+        "check": "ringdesign-configurator-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-configurator",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 342.88,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-configurator-build.log"
+      },
+      {
+        "check": "ringdesign-configurator-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-configurator",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 1.31,
+        "results": [
+          "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-configurator-test.log"
+      },
+      {
+        "check": "ringdesign-assets-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-assets",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 18.07,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-assets-build.log"
+      },
+      {
+        "check": "ringdesign-assets-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-assets",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 0.28,
+        "results": [
+          "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-assets-test.log"
+      },
+      {
+        "check": "ringdesign-py-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-py",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 30.12,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-py-build.log"
+      },
+      {
+        "check": "ringdesign-py-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-py",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 0.19,
+        "results": [
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-py-test.log"
+      },
+      {
+        "check": "ringdesign-gui-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-gui",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 318.5,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesign-gui-build.log"
+      },
+      {
+        "check": "ringdesign-gui-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-gui",
+          "--",
+          "--test-threads=1"
+        ],
+        "exit_code": 0,
+        "seconds": 172.39,
+        "results": [
+          "test result: ok. 195 passed; 0 failed; 9 ignored; 0 measured; 0 filtered out; finished in 150.98s"
+        ],
+        "log": "target/p7-full-validation/ringdesign-gui-test.log"
+      },
+      {
+        "check": "ringdesigner_android-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesigner_android",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 153.13,
+        "results": [],
+        "log": "target/p7-full-validation/ringdesigner_android-build.log"
+      },
+      {
+        "check": "ringdesigner_android-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesigner_android",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 7.87,
+        "results": [
+          "test result: ok. 201 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.15s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/ringdesigner_android-test.log"
+      },
+      {
+        "check": "workbench-glow-build",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-workbench",
+          "--features",
+          "glow",
+          "--no-run"
+        ],
+        "exit_code": 0,
+        "seconds": 15.76,
+        "results": [],
+        "log": "target/p7-full-validation/workbench-glow-build.log"
+      },
+      {
+        "check": "workbench-glow-test",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "-p",
+          "MemoryMax=4G",
+          "--quiet",
+          "--",
+          "cargo",
+          "test",
+          "--offline",
+          "-p",
+          "ringdesign-workbench",
+          "--features",
+          "glow",
+          "--",
+          "--test-threads=4"
+        ],
+        "exit_code": 0,
+        "seconds": 5.61,
+        "results": [
+          "test result: ok. 232 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.34s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ],
+        "log": "target/p7-full-validation/workbench-glow-test.log"
+      },
+      {
+        "check": "workspace-all-targets",
+        "command": [
+          "cargo",
+          "check",
+          "--offline",
+          "--workspace",
+          "--all-targets"
+        ],
+        "exit_code": 0,
+        "seconds": 39.23,
+        "results": [],
+        "log": "target/p7-full-validation/workspace-all-targets.log"
+      },
+      {
+        "check": "locked",
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--offline",
+          "--workspace"
+        ],
+        "exit_code": 0,
+        "seconds": 23.15,
+        "results": [],
+        "log": "target/p7-full-validation/locked.log"
+      },
+      {
+        "check": "ndk-arm64",
+        "command": [
+          "cargo",
+          "ndk",
+          "-t",
+          "arm64-v8a",
+          "check",
+          "-p",
+          "ringdesigner_android"
+        ],
+        "exit_code": 0,
+        "seconds": 28.87,
+        "results": [],
+        "log": "target/p7-full-validation/ndk-arm64.log"
+      },
+      {
+        "check": "wasm",
+        "command": [
+          "cargo",
+          "check",
+          "--offline",
+          "-p",
+          "ringdesign-core",
+          "-p",
+          "ringdesign-configurator",
+          "--no-default-features",
+          "--target",
+          "wasm32-unknown-unknown"
+        ],
+        "exit_code": 0,
+        "seconds": 25.36,
+        "results": [],
+        "log": "target/p7-full-validation/wasm.log"
+      }
+    ],
+    "python_smoke": {
+      "command": "PYTHONPATH=target/p7-full-validation/python-module systemd-run --user --scope -p MemoryMax=4G --quiet -- python3 -m pytest crates/ringdesign-py/tests -q",
+      "exit_code": 0,
+      "passed": 8,
+      "seconds": 4.0
+    }
+  }
 }
