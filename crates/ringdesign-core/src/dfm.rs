@@ -388,7 +388,7 @@ mod tests {
         assert!(findings(&sq).iter().any(|f| f.label == "Plate"), "the same boss on the plate's own face leaves a 0.08 mm ledge");
     }
 
-    /// 24 gabled keels on 24 plates cost a few times one tier on a band first seen, plain or a signet's, and near one tier judged again.
+    /// 24 gabled keels on 24 plates make a point each and at most a section each on a band first seen, plain or a signet's, and nothing judged again.
     #[test]
     fn tiered_stamps_are_judged_at_the_cost_of_their_frames() {
         use crate::setting::{Stamp, StampTop};
@@ -417,18 +417,22 @@ mod tests {
                 d
             };
             let judge = |d: &RingDesign| {
-                let t = std::time::Instant::now();
+                let before = crate::setting::MADE.with(|m| m.get());
                 assert!(findings(d).iter().all(|f| f.layer != STAMP));
-                t.elapsed().as_secs_f64()
+                let after = crate::setting::MADE.with(|m| m.get());
+                [after[0] - before[0], after[1] - before[1]]
             };
-            let flat = (0..3).map(|_| judge(&rows(false, 0))).fold(f64::MAX, f64::min);
+            let fewest = |runs: &mut dyn Iterator<Item = [usize; 2]>| runs.fold([usize::MAX; 2], |a, b| [a[0].min(b[0]), a[1].min(b[1])]);
+            let flat = fewest(&mut (0..3).map(|_| judge(&rows(false, 0))));
             // A band a hair wider each call, none of its surface kept yet.
-            let first = (1..=3).map(|k| judge(&rows(true, k))).fold(f64::MAX, f64::min);
-            assert!(first < 4.0 * flat + 0.04, "{}: {:.2} ms tiered against {:.2} ms on one tier", base.name, first * 1e3, flat * 1e3);
+            let first = fewest(&mut (1..=3).map(|k| judge(&rows(true, k))));
             let again = rows(true, 0);
             judge(&again);
-            let warm = (0..5).map(|_| judge(&again)).fold(f64::MAX, f64::min);
-            assert!(warm < 2.0 * flat + 0.002, "{}: {:.2} ms judged again against {:.2} ms on one tier", base.name, warm * 1e3, flat * 1e3);
+            let warm = fewest(&mut (0..5).map(|_| judge(&again)));
+            eprintln!("{}: points and sections made: one tier {flat:?}, tiered first {first:?}, judged again {warm:?}", base.name);
+            assert_eq!(flat, [0, 0], "{}: one tier reads no frame", base.name);
+            assert!(first[0] == 24 && first[1] <= 24, "{}: {first:?} made on first sight, a point per keel", base.name);
+            assert_eq!(warm, [0, 0], "{}: judged again reads every frame from the store", base.name);
         }
     }
 

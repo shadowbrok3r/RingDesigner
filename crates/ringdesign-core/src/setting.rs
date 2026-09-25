@@ -1257,10 +1257,10 @@ impl Stamp {
         self.frame_on(&BareSurface::new(design, ctx))
     }
 
-    /// [`Stamp::frame`] read off a surface already sampled; in a design of plain stamps, at the nearest sample as a format-5 build reads it.
+    /// [`Stamp::frame`] read off a surface already sampled; in a design whose poured stamps are all plain, at the nearest sample as a format-5 build reads it.
     fn frame_on(&self, surface: &BareSurface) -> csg::Frame {
         let (point, mut normal, mut along, mut across) =
-            if self.is_plain() && !surface.shaped() { surface.nearest_at(self.theta_deg, self.v_mm) } else { surface.at(self.theta_deg, self.v_mm) };
+            if surface.shaped() { surface.at(self.theta_deg, self.v_mm) } else { surface.nearest_at(self.theta_deg, self.v_mm) };
         if self.along_pull && normal[2].abs() > 0.25 {
             normal = [0.0, 0.0, normal[2].signum()];
             let flat = [along[0], along[1], 0.0];
@@ -1577,7 +1577,7 @@ pub struct StampRow {
 /// The most stations a row strikes.
 pub const MAX_ROW_STAMPS: u32 = 400;
 
-/// The row's stamps, named "Thorn, 3"; mirrored, each side numbered outward from the head, less any reflection in the row's own span or meeting its original.
+/// The row's stamps, named "Thorn, 3"; mirrored, each side numbered outward from the head, less any reflection in the row's own span or meeting a struck stamp more than the row's own stations meet.
 pub fn stamp_row(design: &crate::RingDesign, row: &StampRow) -> Vec<Stamp> {
     let ctx = design.field_context();
     let surface = BareSurface::new(design, &ctx);
@@ -1690,6 +1690,10 @@ pub fn stamp_row(design: &crate::RingDesign, row: &StampRow) -> Vec<Stamp> {
         d <= span.abs() + 1e-9 || d >= 360.0 - 1e-9
     };
     let mut out = kept.clone();
+    let mut frames: Vec<csg::Frame> = out.iter().map(|s| s.frame_on(&surface)).collect();
+    let apart = |a: &csg::Frame, b: &csg::Frame| (0..3).map(|k| (a.origin[k] - b.origin[k]).powi(2)).sum::<f64>().sqrt();
+    let pitch = frames.windows(2).map(|w| apart(&w[0], &w[1])).fold(f64::MAX, f64::min);
+    let crowded = (1..kept.len()).any(|i| plans_meet(&kept[i - 1], &frames[i - 1], &kept[i], &frames[i]));
     for s in &kept {
         let theta = (2.0 * crate::profile::TOP_DEG - s.theta_deg).rem_euclid(360.0);
         if covered(theta) {
@@ -1701,10 +1705,12 @@ pub fn stamp_row(design: &crate::RingDesign, row: &StampRow) -> Vec<Stamp> {
         m.rot_deg = -s.rot_deg;
         m.outline = s.outline.iter().rev().map(|p| [-p[0], p[1]]).collect();
         m.top = s.top.mirrored();
-        if plans_meet(s, &s.frame_on(&surface), &m, &m.frame_on(&surface)) {
+        let frame = m.frame_on(&surface);
+        if out.iter().zip(&frames).any(|(o, f)| plans_meet(o, f, &m, &frame) && (!crowded || apart(f, &frame) < 0.5 * pitch)) {
             continue;
         }
         out.push(m);
+        frames.push(frame);
     }
     // Each side numbered outward from the head.
     let offset = |s: &Stamp| crate::field::wrap_delta(s.theta_deg - crate::profile::TOP_DEG, 360.0);
@@ -1780,6 +1786,22 @@ type SurfacePoint = ([f64; 3], [f64; 3], [f64; 3], [f64; 3]);
 /// Surface samples `(v, r, z, nr, nz)` with arc per chart mm, or with surface length for a plain read.
 type Samples = std::rc::Rc<(Vec<[f64; 5]>, f64)>;
 
+#[cfg(test)]
+thread_local! {
+    /// Bare-surface points and sections this thread has made rather than read from a store.
+    pub(crate) static MADE: std::cell::Cell<[usize; 2]> = const { std::cell::Cell::new([0; 2]) };
+}
+
+/// Counts one made point (`0`) or section (`1`) on this thread under test.
+fn count_made(_what: usize) {
+    #[cfg(test)]
+    MADE.with(|m| {
+        let mut n = m.get();
+        n[_what] += 1;
+        m.set(n);
+    });
+}
+
 /// Bare-surface points by band key, chart point and whether read off the nearest plain sample.
 fn kept_point(key: (u64, u64, u64, bool), make: impl FnOnce() -> SurfacePoint) -> SurfacePoint {
     type Kept = (std::collections::HashMap<(u64, u64, u64, bool), SurfacePoint>, std::collections::VecDeque<(u64, u64, u64, bool)>);
@@ -1816,9 +1838,9 @@ impl<'a> BareSurface<'a> {
         Self { design, ctx, reference: Default::default(), band: Default::default(), shaped: Default::default(), sections: Default::default() }
     }
 
-    /// Whether the design carries a stamp a format-5 build cannot strike.
+    /// Whether the design pours a stamp a format-5 build cannot strike.
     fn shaped(&self) -> bool {
-        *self.shaped.get_or_init(|| self.design.stamps.iter().any(|s| !s.is_plain()))
+        *self.shaped.get_or_init(|| self.design.stamps.iter().any(|s| !s.bench && !s.is_plain()))
     }
 
     /// Hash of everything the bare surface is made from; `None` when the band cannot be serialized.
@@ -1860,6 +1882,7 @@ impl<'a> BareSurface<'a> {
         let key = format!("{m:?}");
         let found = self.sections.borrow().iter().find(|(_, p, k, _)| *p == plain && *k == key).map(|(.., s)| s.clone());
         let made = found.unwrap_or_else(|| {
+            count_made(1);
             std::rc::Rc::new(if plain {
                 let l = design.profile.sample_spaced(inner, PLAIN_SECTION_STEPS, &m, None, None);
                 (l.pts.iter().filter(|p| p.surface).map(|p| [p.v_mm, p.r, p.z, p.nr, p.nz]).collect(), l.surface_len_mm)
@@ -1938,6 +1961,10 @@ impl<'a> BareSurface<'a> {
 
     /// A surface point from the cross-call store, made and kept on a miss.
     fn kept(&self, theta_deg: f64, v_mm: f64, plain: bool, make: impl FnOnce() -> SurfacePoint) -> SurfacePoint {
+        let make = || {
+            count_made(0);
+            make()
+        };
         match self.band_key() {
             Some(band) => kept_point((band, theta_deg.to_bits(), v_mm.to_bits(), plain), make),
             None => make(),
@@ -3002,6 +3029,13 @@ mod tests {
         let (plate, boss) = (d.stamps[0].frame(&d, &ctx), d.stamps[1].frame(&d, &ctx));
         assert_eq!(plate.origin[2], 0.0);
         assert_eq!(plate.origin, boss.origin);
+        // A tier cut at the bench leaves the poured plate where the pattern, which leaves the tier out, strikes it.
+        d.stamps[1].bench = true;
+        let (plate, boss) = (d.stamps[0].frame(&d, &ctx), d.stamps[1].frame(&d, &ctx));
+        let pattern = crate::castability::pattern_parts(&d, &crate::AlphaLibrary::builtin()).design;
+        assert_eq!(pattern.stamps.len(), 1);
+        assert_eq!(plate.origin, pattern.stamps[0].frame(&pattern, &ctx).origin);
+        assert!((plate.origin[2] + 0.043380).abs() < 1e-6 && plate.origin == boss.origin, "{:?} {:?}", plate.origin, boss.origin);
     }
 
     #[test]
@@ -3331,6 +3365,15 @@ mod tests {
         // A stamp reaching over the head would meet its own reflection, so it is struck once.
         let wide = row(92.0, 150.0, 5, true, crate::outline::circle(2.0));
         assert!(wide.len() == 9 && distinct(&wide) && wide.iter().all(|s| (s.theta_deg - 88.0).abs() > 1e-6));
+        // A span crossing the head unevenly strikes no reflection onto another stamp of the row.
+        let ctx = d.field_context();
+        let surface = BareSurface::new(&d, &ctx);
+        for (from, to, count) in [(60.0, 104.0, 4), (86.0, 130.0, 5)] {
+            let uneven = row(from, to, count, true, keel());
+            let frames: Vec<csg::Frame> = uneven.iter().map(|s| s.frame_on(&surface)).collect();
+            let meeting: Vec<(&str, &str)> = (0..uneven.len()).flat_map(|i| (0..i).map(move |j| (i, j))).filter(|(i, j)| plans_meet(&uneven[*i], &frames[*i], &uneven[*j], &frames[*j])).map(|(i, j)| (uneven[i].name.as_str(), uneven[j].name.as_str())).collect();
+            assert!(meeting.is_empty() && distinct(&uneven), "{from}..{to} x{count}: {meeting:?}");
+        }
         // A full turn ends where it starts, and strikes that station once.
         let turn = row(0.0, 360.0, 13, false, keel());
         assert!(turn.len() == 12 && distinct(&turn));

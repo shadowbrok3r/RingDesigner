@@ -1,4 +1,5 @@
 //! Stamp outlines: closed counter-clockwise polylines in mm, long axis along `x`, no edge longer than [`STEP`].
+//! A constructor fed sizes its shape cannot hold returns a self-crossing outline; [`check`] one built from typed sizes.
 use std::f64::consts::{PI, TAU};
 
 /// The longest edge an outline carries, mm.
