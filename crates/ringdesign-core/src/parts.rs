@@ -647,10 +647,37 @@ fn pin_literal<'a>(graph: &'a serde_json::Map<String, serde_json::Value>, node: 
     Some(node.get("inputs").and_then(|i| i.get(pin)))
 }
 
+/// The ids upstream of every node a graph hands its design out of, those included: its first `sink.output`, else each exposed output; empty with neither.
+fn feeding_output(graph: &serde_json::Map<String, serde_json::Value>, nodes: &[serde_json::Value]) -> std::collections::BTreeSet<u64> {
+    use serde_json::Value;
+    let id = |v: &Value, key: &str| v.get(key).and_then(Value::as_u64);
+    let roots: Vec<u64> = match nodes.iter().find(|n| n.get("kind").and_then(Value::as_str) == Some("sink.output")) {
+        Some(sink) => id(sink, "id").into_iter().collect(),
+        None => graph.get("outputs").and_then(Value::as_array).map(|o| o.iter().filter_map(|x| id(x, "node")).collect()).unwrap_or_default(),
+    };
+    let wires: Vec<(u64, u64)> = graph.get("wires").and_then(Value::as_array).map(|w| w.iter().filter_map(|x| Some((id(x, "from")?, id(x, "to")?))).collect()).unwrap_or_default();
+    let upstream = |root: u64| {
+        let mut seen = std::collections::BTreeSet::from([root]);
+        let mut stack = vec![root];
+        while let Some(at) = stack.pop() {
+            for (from, _) in wires.iter().filter(|(_, to)| *to == at) {
+                if seen.insert(*from) {
+                    stack.push(*from);
+                }
+            }
+        }
+        seen
+    };
+    let mut sets = roots.into_iter().map(upstream);
+    let first = sets.next().unwrap_or_default();
+    sets.fold(first, |all, next| all.intersection(&next).copied().collect())
+}
+
 /// Whether a graph's JSON may evaluate to a ring of parts alone carrying a cut: a band counts only where it is certain, a cut wherever it is possible.
 fn graph_cuts_apart(graph: &serde_json::Map<String, serde_json::Value>) -> bool {
     use serde_json::Value;
     let Some(nodes) = graph.get("nodes").and_then(Value::as_array) else { return false };
+    let on_chain = feeding_output(graph, nodes);
     let kind = |n: &Value, k: &str| n.get("kind").and_then(Value::as_str) == Some(k);
     let features: Vec<&Value> = nodes.iter().filter(|n| kind(n, "cad.feature")).collect();
     let writes_features = |n: &&Value| match pin_literal(graph, n, "pointer") {
@@ -673,7 +700,8 @@ fn graph_cuts_apart(graph: &serde_json::Map<String, serde_json::Value>) -> bool 
             Some(held) => held,
             None => None,
         };
-        band |= enabled == Some(true) && operation.and_then(Value::as_str) == Some("Band");
+        let reaches = n.get("id").and_then(Value::as_u64).is_some_and(|id| on_chain.contains(&id));
+        band |= reaches && enabled == Some(true) && operation.and_then(Value::as_str) == Some("Band");
         let component = |key: &str| f.get("component").and_then(|c| c.get(key));
         cut |= enabled != Some(false) && component("attach").and_then(Value::as_str) == Some("cut") && component("reference").and_then(Value::as_bool) != Some(true);
     }
@@ -1186,7 +1214,13 @@ mod tests {
         assert!(text.contains("\"format_version\": 6"));
         assert_eq!(serde_json::to_value(&crate::library::load_design_str(&text).unwrap().cad).unwrap(), serde_json::to_value(&d.cad).unwrap());
         // Carried only by its graph's feature nodes, or by a cluster inside it, it is fenced the same; beside a band it is not.
-        let nodes = |features: &[Feature]| serde_json::json!({ "name": "Parts", "nodes": features.iter().map(|f| serde_json::json!({ "id": f.id, "kind": "cad.feature", "params": f })).collect::<Vec<_>>() });
+        let nodes = |features: &[Feature]| {
+            let mut list: Vec<serde_json::Value> = features.iter().map(|f| serde_json::json!({ "id": f.id, "kind": "cad.feature", "params": f })).collect();
+            list.extend([serde_json::json!({ "id": 100, "kind": "design.new" }), serde_json::json!({ "id": 101, "kind": "sink.output" })]);
+            let chain: Vec<u64> = [100].into_iter().chain(features.iter().map(|f| f.id as u64)).chain([101]).collect();
+            let wires: Vec<serde_json::Value> = chain.windows(2).map(|w| serde_json::json!({ "from": w[0], "out": "design", "to": w[1], "input": "design" })).collect();
+            serde_json::json!({ "name": "Parts", "nodes": list, "wires": wires })
+        };
         let features = d.cad.as_ref().unwrap().features.clone();
         let banded = [vec![part(9, "Procedural shank", Operation::Band, Attach::Separate, Stage::Cast, Placement::Free)], features.clone()].concat();
         let cluster = serde_json::json!({ "name": "Outer", "nodes": [{ "id": 1, "kind": "cluster", "params": { "graph": nodes(&features) } }] });
@@ -1207,7 +1241,17 @@ mod tests {
             ("band pinned off", edited(&banded, &|g| g["nodes"][0]["inputs"] = serde_json::json!({ "enabled": false })), true),
             ("band pinned on", edited(&banded, &|g| g["nodes"][0]["inputs"] = serde_json::json!({ "enabled": true })), false),
             ("band pinned by an expression", edited(&banded, &|g| g["nodes"][0]["inputs"] = serde_json::json!({ "enabled": { "expr": "i > 0" } })), true),
-            ("band wired", edited(&banded, &|g| g["wires"] = serde_json::json!([{ "from": 50, "out": "out", "to": 9, "input": "enabled" }])), true),
+            ("band wired", edited(&banded, &|g| g["wires"].as_array_mut().unwrap().push(serde_json::json!({ "from": 50, "out": "out", "to": 9, "input": "enabled" }))), true),
+            ("band left off the chain", edited(&banded, &|g| g["wires"][1]["from"] = serde_json::json!(100)), true),
+            ("band with no output to reach", edited(&banded, &|g| g["nodes"].as_array_mut().unwrap().retain(|n| n["kind"] != "sink.output")), true),
+            (
+                "band feeding a cluster's exposed output",
+                edited(&banded, &|g| {
+                    g["nodes"].as_array_mut().unwrap().retain(|n| n["kind"] != "sink.output");
+                    g["outputs"] = serde_json::json!([{ "node": 3, "out": "design", "name": "Ring" }]);
+                }),
+                false,
+            ),
             ("band exposed", edited(&banded, &|g| g["exposed"] = serde_json::json!([{ "node": 9, "input": "enabled", "name": "Band" }])), true),
             ("band's operation replaced", edited(&banded, &|g| g["nodes"][0]["inputs"] = serde_json::json!({ "operation": { "Box": { "size": [1.0, 1.0, 1.0] } } })), true),
             ("band's operation pin empty", edited(&banded, &|g| g["nodes"][0]["inputs"] = serde_json::json!({ "operation": null })), false),

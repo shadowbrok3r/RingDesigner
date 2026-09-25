@@ -456,6 +456,15 @@ mod tests {
                 true,
             ),
             (
+                "band left off the chain",
+                with(&|g| {
+                    let into = g.wire_into(band, "design").unwrap().clone();
+                    g.connect(into.from, into.out, NodeId(2), "design").unwrap();
+                }),
+                true,
+                true,
+            ),
+            (
                 "band and cut pinned off",
                 with(&|g| {
                     band_off(g);
