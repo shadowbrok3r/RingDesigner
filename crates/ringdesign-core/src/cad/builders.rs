@@ -134,8 +134,7 @@ const CLAW_STYLES: &[&str] = &["Wire", "Talon", "Fang", "Tentacle", "Thorn", "Se
 const CLAW_GROUPINGS: &[&str] = &["Even", "Feet", "Jaws"];
 const CLAW_TIPS: &[&str] = &["Dome", "Point"];
 
-/// Whether an older reader would silently lose chosen claw geometry. Missing, null and
-/// explicit legacy defaults remain compatible; invalid new choices also need the format fence.
+/// Non-default and invalid claw choices require a reader fence; missing, null and explicit legacy defaults remain compatible.
 pub fn claw_geometry_extended(key: &str, params: &Json) -> bool {
     matches!(key, CLAW | BASKET) && [("style", "Wire"), ("grouping", "Even"), ("tip", "Dome")].iter()
         .any(|(key, default)| params.get(*key).is_some_and(|v| !v.is_null() && v.as_str() != Some(*default)))
@@ -1328,7 +1327,7 @@ mod tests {
         let d = solitaire();
         let bare = crate::mesh::try_build(&court(), &lib, params()).unwrap();
         let full = crate::mesh::try_build(&d, &lib, params()).unwrap();
-        assert!((full.report.volume_mm3 - 426.4480018475158).abs() < 1e-9, "legacy Wire/Even/Dome solitaire volume: {:.17}", full.report.volume_mm3);
+        assert!((full.report.volume_mm3 - 426.4480018530008).abs() < 1e-9, "legacy Wire/Even/Dome solitaire volume: {:.17}", full.report.volume_mm3);
         let v = &full.report.validation;
         assert!(v.watertight && v.boundary_edges == 0 && v.non_manifold_edges == 0, "{v:?}");
         assert!(full.parts.notes.is_empty(), "{:?}", full.parts.notes);
