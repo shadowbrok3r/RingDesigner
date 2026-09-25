@@ -74,6 +74,11 @@ fn window_node(g: &mut Graph, w: &ringdesign_core::Window) -> Result<NodeId, Gra
                 g.set_input(id, "side_pick", Literal::Text(s.into()))?;
             }
         }
+        VGate::Draft { min_deg, fade_deg } => {
+            g.set_input(id, "v_gate", Literal::Text("draft".into()))?;
+            g.set_input(id, "draft_min_deg", Literal::Number(*min_deg))?;
+            g.set_input(id, "draft_fade_deg", Literal::Number(*fade_deg))?;
+        }
     }
     Ok(id)
 }

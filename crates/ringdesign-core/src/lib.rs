@@ -589,13 +589,15 @@ impl RingDesign {
         Some(stretch_cached(h.finish(), build))
     }
 
-    fn gate_sections_are_reference(&self) -> bool {
+    /// Whether gate evaluation follows the unmodified reference section exactly.
+    pub fn gate_sections_are_reference(&self) -> bool {
         if self.imported_base.is_some() || self.profile.morph.is_some() { return false; }
         match self.shank.kind {
             ShankKind::Uniform => true,
             ShankKind::Keyframes => self.shank.keys.iter().take(16).all(|k| {
-                k.theta_deg.is_finite() && [k.width_scale, k.thickness_scale, k.crown_scale].into_iter().all(|v| v.is_finite() && (v == 1.0 || self.shank.amount == 0.0))
+                self.shank.amount.is_finite() && k.theta_deg.is_finite() && [k.width_scale, k.thickness_scale, k.crown_scale].into_iter().all(|v| v.is_finite() && (v == 1.0 || self.shank.amount <= 0.0))
             }),
+            ShankKind::Pinched | ShankKind::Bombe | ShankKind::Saddle | ShankKind::Wave | ShankKind::Twist | ShankKind::Tapered | ShankKind::ReverseTaper | ShankKind::Cathedral | ShankKind::Split => self.shank.amount.is_finite() && self.shank.amount <= 0.0,
             _ => false,
         }
     }
