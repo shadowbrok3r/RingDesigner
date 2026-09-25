@@ -264,7 +264,7 @@ fn write(job: &ExportJob) -> Result<(String, Option<ringdesign_core::cad::step::
                 112,
                 Some(&out),
             );
-            let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
+            let stones = ringdesign_core::stones::report_built(&job.design, field.parting_z_mm, &out);
             let dfm = ringdesign_core::dfm::findings_in(&job.design, &job.lib);
             let page = ringdesign_core::spec::html(&job.design, &out.report, &field, stones.as_ref(), &dfm, &job.generator);
             std::fs::write(&job.path, page)?;
@@ -280,7 +280,7 @@ fn write(job: &ExportJob) -> Result<(String, Option<ringdesign_core::cad::step::
         }
         ExportKind::StoneMap => {
             let field = ringdesign_core::castability::analyze_field(&job.design, &job.lib, &job.design.draft, 96, 64);
-            let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
+            let stones = ringdesign_core::stones::report_built(&job.design, field.parting_z_mm, &out);
             ringdesign_core::stonemap::write_stone_map_svg(&job.path, &job.design, stones.as_ref())?;
             "stone map".into()
         }

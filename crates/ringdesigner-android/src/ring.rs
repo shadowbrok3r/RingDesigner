@@ -469,20 +469,6 @@ impl Default for Cuts {
     }
 }
 
-/// Stones set as CAD parts, drawn with the preview stones: never metal, never exported.
-pub fn stones_as_parts(build: &ringdesign_core::BuildResult, gems: &mut Vec<f32>) {
-    let t = ringdesign_core::gems::GEM_TINT;
-    for c in build.parts.evaluated.iter().flat_map(|e| &e.components).filter(|c| c.settings.reference) {
-        for f in &c.mesh.faces {
-            let n = c.mesh.face_normal(f).unwrap_or([0.0, 0.0, 1.0]).map(|v| v as f32);
-            for &i in f {
-                let Some(p) = c.mesh.vertices.get(i as usize) else { continue };
-                gems.extend_from_slice(&[p.0, p.1, p.2, n[0], n[1], n[2], t[0], t[1], t[2], t[0], t[1], t[2]]);
-            }
-        }
-    }
-}
-
 pub struct Worker {
     jobs: Sender<Job>,
     pub done: Receiver<Done>,
@@ -634,14 +620,12 @@ impl Worker {
                                 job.design.draft.min_section_mm,
                             ),
                         );
-                        let mut gems = if job.gems && alone.is_none() {
-                            ringdesign_core::gems::preview_vertices(&visible, &job.lib)
+                        // Every stone where the build stands it, each in its own colour: never metal, never exported.
+                        let gems = if job.gems && alone.is_none() {
+                            ringdesign_core::gems::built_vertices(&visible, &job.lib, display)
                         } else {
                             Vec::new()
                         };
-                        if job.gems && alone.is_none() {
-                            stones_as_parts(display, &mut gems);
-                        }
                         let stage_ms = staging.elapsed().as_secs_f64() * 1e3;
                         // A panic building the scene fails this build, as one here does.
                         let (scene, scene_ms) = picking.join().unwrap_or_else(|p| std::panic::resume_unwind(p));

@@ -491,7 +491,7 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
                         )
                     })
                     .collect();
-                let gems = built.as_ref().map_or_else(Vec::new, |_| ringdesign_core::gems::preview_vertices(&d, &lib));
+                let gems = built.as_ref().map_or_else(Vec::new, |b| ringdesign_core::gems::built_vertices(&d, &lib, b));
                 Ok(View {
                     design: d,
                     evaluated,

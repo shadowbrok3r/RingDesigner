@@ -13,7 +13,7 @@ pub struct Envelope {
     pub worst_gap: f64,
 }
 pub fn envelopes(d: &RingDesign, gap: f64) -> Vec<Envelope> {
-    let frames = stones::stone_frames(d);
+    let frames = stones::all_stone_frames(d);
     frames
         .iter()
         .enumerate()

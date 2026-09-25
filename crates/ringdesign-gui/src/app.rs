@@ -2151,22 +2151,12 @@ impl Worker {
                                 job.design.inner_radius_mm(),
                                 field.parting_z_mm,
                             );
-                            let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
+                            let stones = ringdesign_core::stones::report_built(&job.design, field.parting_z_mm, &result);
                             let hot_spot = castability::modulus_scan(&job.design, &job.lib, 64)
                                 .into_iter()
                                 .max_by(|a, b| a.1.total_cmp(&b.1));
-                            let mut gems = crate::gems::preview_vertices(&job.design, &job.lib);
-                            // Stones set as CAD parts draw with the preview stones: never metal, never exported.
-                            for c in result.parts.evaluated.iter().flat_map(|e| &e.components).filter(|c| c.settings.reference) {
-                                let t = crate::gems::GEM_TINT;
-                                for f in &c.mesh.faces {
-                                    let n = c.mesh.face_normal(f).unwrap_or([0.0, 0.0, 1.0]).map(|v| v as f32);
-                                    for &i in f {
-                                        let p = c.mesh.vertices[i as usize];
-                                        gems.extend_from_slice(&[p.0, p.1, p.2, n[0], n[1], n[2], t[0], t[1], t[2], t[0], t[1], t[2]]);
-                                    }
-                                }
-                            }
+                            // Every stone where the build stands it, each in its own colour: never metal, never exported.
+                            let gems = crate::gems::built_vertices(&job.design, &job.lib, &result);
                             let metal = if job.design.band_is_procedural() {
                                 render::stage_mesh(&result.mesh, Some(&cast), (job.design.inner_radius_mm(), job.design.draft.min_section_mm))
                             } else {

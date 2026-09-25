@@ -2530,7 +2530,7 @@ impl Applied {
 
 /// Whether any enabled seat in the design carries a solid.
 pub fn any(design: &crate::RingDesign) -> bool {
-    !design.stamps.is_empty() || crate::setstone::set_stones(design).iter().any(|s| !s.seat.solid.is_none())
+    !design.stamps.is_empty() || crate::setstone::seat_stones(design).iter().any(|s| !s.seat.solid.is_none())
 }
 
 /// One boolean on the running solid: its census is paid while it is still the band as swept, and skipped

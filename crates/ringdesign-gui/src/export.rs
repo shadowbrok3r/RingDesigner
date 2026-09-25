@@ -394,7 +394,7 @@ pub fn export_spec(app: &mut RingDesignerApp) {
             128,
             Some(&out),
         );
-        let stones = ringdesign_core::stones::report(&job.design, field.parting_z_mm);
+        let stones = ringdesign_core::stones::report_built(&job.design, field.parting_z_mm, &out);
         let dfm = ringdesign_core::dfm::findings_in(&job.design, &job.lib);
         let provenance = format!(
             "RingDesigner {} • {} x {} sweep",

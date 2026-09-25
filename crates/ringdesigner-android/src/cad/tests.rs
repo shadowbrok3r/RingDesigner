@@ -534,8 +534,7 @@ fn a_stone_added_on_the_band_is_drawn_with_the_stones_and_its_setting_is_built_r
     assert_eq!(then, Then::Part(3), "the head is chosen once it lands");
     let stone = b.built.evaluated().unwrap().components.iter().find(|c| c.id == 2).unwrap();
     assert!(stone.settings.reference, "the stone is a reference part");
-    let mut gems = Vec::new();
-    crate::ring::stones_as_parts(&b.built.0, &mut gems);
+    let gems = ringdesign_core::gems::built_vertices(&b.d, &b.lib, &b.built.0);
     assert_eq!(gems.len(), stone.mesh.faces.len() * 3 * 12, "it is drawn with the preview stones");
 }
 

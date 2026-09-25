@@ -1381,7 +1381,7 @@ pub fn attributed_field_report(
     // Seats resolved as solids are in the finished ring, never in the field. Under sand the field has
     // just judged the pattern — stock and drill marks — and the cutting is the bench's; under lost
     // wax they are cast in place. Said either way, so nobody reads a clean pour as a judged setting.
-    let made = crate::setstone::set_stones(original).iter().filter(|s| !s.seat.solid.is_none()).count();
+    let made = crate::setstone::seat_stones(original).iter().filter(|s| !s.seat.solid.is_none()).count();
     if made > 0 {
         let s = if made == 1 { "" } else { "s" };
         f.notes.push(match settings.process {
