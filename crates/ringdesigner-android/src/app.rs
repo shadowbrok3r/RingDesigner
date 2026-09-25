@@ -3212,10 +3212,7 @@ impl RingApp {
             Polled::Waiting(words) | Polled::Failed(words) => self.status = words,
             Polled::Landed(mut landing) => {
                 self.adopt_with(std::mem::take(&mut landing.design), Some(landing.lib.clone()));
-                self.graph.sync(&self.design);
-                if let Some(editor) = &mut self.graph.ed {
-                    editor.arrange(&self.graph.reg);
-                }
+                self.graph.landed(&self.design, matches!(landing.lands, Lands::Template { .. }));
                 match &landing.lands {
                     Lands::Template { new_design } => {
                         self.status = format!("started from {}", landing.name);

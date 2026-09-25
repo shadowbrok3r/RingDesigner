@@ -323,7 +323,8 @@ fn a_template_opens_while_the_old_design_stays_live_and_its_first_build_takes_th
     h.state_mut().mark_dirty();
     h.state_mut().rebuild_now();
     assert_eq!(h.state().design.name, "Edited while it opened");
-    let evaluations = crate::app::GRAPH_EVALUATIONS.load(Ordering::Relaxed);
+    let probe = h.state().detail_probe();
+    let evaluations = probe.evaluations.load(Ordering::Relaxed);
     let start = std::time::Instant::now();
     while h.state().opening.is_some() {
         h.run_steps(1);
@@ -339,19 +340,20 @@ fn a_template_opens_while_the_old_design_stays_live_and_its_first_build_takes_th
     }
     assert!(read.windows(2).all(|w| w[0] <= w[1]), "the bar never falls back: {read:?}");
     assert!(h.state().is_current(), "{}", h.state().status);
-    assert_eq!(crate::app::GRAPH_EVALUATIONS.load(Ordering::Relaxed), evaluations, "the first build evaluated nothing again");
-    // A rebuild evaluates against the library the open ran on, whose cache the open left warm.
+    assert_eq!(probe.evaluations.load(Ordering::Relaxed), evaluations, "the first build evaluated nothing again");
+    // A rebuild evaluates once, against the library the open baked the template's artwork into.
     h.state_mut().rebuild_now();
     crate::interaction_tests::wait_for_build(&mut h);
     assert!(h.state().is_current(), "{}", h.state().status);
-    assert_eq!(crate::app::GRAPH_EVALUATIONS.load(Ordering::Relaxed), evaluations + 1);
+    assert_eq!(probe.evaluations.load(Ordering::Relaxed), evaluations + 1);
 }
 
 #[test]
 fn a_library_that_moved_while_a_template_opened_gets_the_template_artwork_baked_onto_it() {
     use ringdesign_core::alpha::Alpha;
     let mut h = harness([1600., 980.]);
-    let evaluations = crate::app::GRAPH_EVALUATIONS.load(std::sync::atomic::Ordering::Relaxed);
+    let probe = h.state().detail_probe();
+    let evaluations = probe.evaluations.load(std::sync::atomic::Ordering::Relaxed);
     crate::export::load_catalog_template(h.state_mut(), template("nocturne"));
     // The old design redraws one of the template's own sources and adds one of its own while it opens.
     h.state_mut().library_mut().insert(Alpha::new("Palmette", 2, 2, vec![0.5; 4]));
@@ -363,7 +365,7 @@ fn a_library_that_moved_while_a_template_opened_gets_the_template_artwork_baked_
     assert_eq!((palmette.width, palmette.height), (1024, 1024), "baked again onto the library as it stands");
     crate::interaction_tests::wait_for_build(&mut h);
     assert!(h.state().is_current(), "{}", h.state().status);
-    assert!(crate::app::GRAPH_EVALUATIONS.load(std::sync::atomic::Ordering::Relaxed) > evaluations, "an evaluation against a library that moved is made again, not carried over");
+    assert!(probe.evaluations.load(std::sync::atomic::Ordering::Relaxed) > evaluations, "an evaluation against a library that moved is made again, not carried over");
     let mut fresh = ringdesign_core::AlphaLibrary::builtin();
     h.state().design.unpack_embedded(&mut fresh);
     h.state().design.bake_all(&mut fresh);
@@ -394,7 +396,7 @@ fn held() -> (impl Fn() + Send + Sync + 'static, impl Fn()) {
 fn caiman_held(h: &mut Harness<'static, RingDesignerApp>) -> (std::sync::Arc<ringdesign_workbench::templates::Progress>, std::sync::Arc<std::sync::atomic::AtomicBool>, impl Fn() + use<>) {
     let (hold, release) = held();
     let app = h.state_mut();
-    let opening = template("caiman-imported").open_measured(app.graph_reg.clone(), app.lib.clone(), hold);
+    let opening = template("caiman-imported").open(app.graph_reg.clone(), app.lib.clone(), hold);
     let (progress, finished) = (opening.progress(), opening.finished());
     app.start_opening(opening, crate::app::Lands::Template { graph_pane: false });
     (progress, finished, release)
@@ -604,6 +606,49 @@ fn a_driven_design_file_lands_with_its_graph_read_on_the_opening_thread() {
     assert_eq!(RingDesignerApp::graph_reads(), reads, "the graph was read on the opening thread, not the UI's");
     assert!(app.is_current(), "{}", app.status);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_driven_graph_reads_its_own_lettering_by_name_once_the_host_holds_it() {
+    use ringdesign_graph::value::Literal;
+    let mut g = ringdesign_graph::graph::Graph::default();
+    let d = g.add("design.new").unwrap();
+    let motto = g.add("alpha.text").unwrap();
+    g.set_input(motto, "name", Literal::Text("Motto".into())).unwrap();
+    g.set_input(motto, "text", Literal::Text("ever".into())).unwrap();
+    let named = g.add("alpha.library").unwrap();
+    g.set_input(named, "name", Literal::Text("Motto".into())).unwrap();
+    let tiling = g.add("layer.tiling.fit").unwrap();
+    g.connect(d, "design", tiling, "design").unwrap();
+    g.connect(named, "alpha", tiling, "alpha").unwrap();
+    let entry = g.add("entry").unwrap();
+    g.connect(tiling, "layer", entry, "layer").unwrap();
+    let stack = g.add("stack").unwrap();
+    g.connect(entry, "entry", stack, "entries").unwrap();
+    let asm = g.add("design.assemble").unwrap();
+    g.connect(d, "design", asm, "design").unwrap();
+    g.connect(stack, "stack", asm, "stack").unwrap();
+    g.connect(motto, "source", asm, "alphas").unwrap();
+    let out = g.add(ringdesign_graph::eval::OUTPUT_KIND).unwrap();
+    g.connect(asm, "design", out, ringdesign_graph::eval::OUTPUT_DESIGN_PIN).unwrap();
+    let mut h = harness([1600., 980.]);
+    h.state_mut().design.graph = serde_json::to_value(&g).ok();
+    h.state_mut().sync_graph();
+    let alpha = |app: &RingDesignerApp| {
+        app.design.layers.layers.iter().find_map(|e| match &e.layer {
+            ringdesign_core::Layer::Tiling(t) => Some(t.alpha.clone()),
+            _ => None,
+        })
+    };
+    let mut read = Vec::new();
+    for _ in 0..3 {
+        h.state_mut().rebuild_now();
+        crate::interaction_tests::wait_for_build(&mut h);
+        read.push(alpha(h.state()));
+    }
+    assert!(h.state().lib.get("Motto").is_some(), "the lettering is baked into the host's library");
+    let motto = Some("Motto".to_string());
+    assert_eq!(read[1..], [motto.clone(), motto], "from the second build the tiling reads the lettering by name: {read:?}");
 }
 
 #[test]

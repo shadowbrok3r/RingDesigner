@@ -84,6 +84,16 @@ impl GraphState {
         true
     }
 
+    /// [`sync`](Self::sync) with a design just opened: a template's graph laid out afresh, a file's kept as it was saved.
+    pub fn landed(&mut self, design: &RingDesign, template: bool) {
+        self.sync(design);
+        if template {
+            if let Some(editor) = &mut self.ed {
+                editor.arrange(&self.reg);
+            }
+        }
+    }
+
     /// The editor moved the graph: writes it into the design. True when the
     /// design changed.
     pub fn changed(&mut self, design: &mut RingDesign) -> bool {
@@ -276,6 +286,25 @@ mod tests {
         assert!(st.bake(&mut design));
         assert!(design.graph.is_none() && !st.is_driven());
         assert!(!st.bake(&mut design));
+    }
+
+    #[test]
+    fn a_file_lands_with_its_saved_layout_and_a_template_is_laid_out() {
+        let mut g = ringdesign_graph::templates::graph("Court band").unwrap();
+        for (i, n) in g.nodes.iter_mut().enumerate() {
+            n.pos = [900.0 * i as f32, 40.0 * (i % 3) as f32];
+        }
+        let saved = serde_json::to_value(&g).ok();
+        let opened = || RingDesign { graph: saved.clone(), ..RingDesign::default() };
+        let mut file = GraphState::new();
+        let mut design = opened();
+        file.landed(&design, false);
+        assert!(!file.changed(&mut design), "a file keeps the layout it was saved with");
+        assert_eq!(design.graph, saved);
+        let mut template = GraphState::new();
+        let mut design = opened();
+        template.landed(&design, true);
+        assert!(template.changed(&mut design), "a template is laid out afresh");
     }
 
     #[test]

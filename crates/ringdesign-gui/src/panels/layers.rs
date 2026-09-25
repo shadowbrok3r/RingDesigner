@@ -394,7 +394,7 @@ fn list(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
     let mut action: Option<Action> = None;
     let mut dirty = false;
-    let dfm = ringdesign_core::dfm::findings_in(&app.design, &app.lib);
+    let dfm = app.detail_findings().to_vec();
 
     for i in 0..n {
         let selected = app.selected_layer == Some(i);

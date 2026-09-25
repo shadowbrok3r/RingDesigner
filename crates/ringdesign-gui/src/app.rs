@@ -668,14 +668,14 @@ impl RingDesignerApp {
     /// Opens `template` on a thread of its own, in place of any template or file still opening, which stops; it lands as a new design, in the graph pane when `graph_pane` is set.
     pub fn open_template(&mut self, template: &'static ringdesign_workbench::templates::Template, graph_pane: bool) {
         let wake = self.egui_ctx.clone();
-        let opening = template.open_measured(self.graph_reg.clone(), self.lib.clone(), move || wake.request_repaint());
+        let opening = template.open(self.graph_reg.clone(), self.lib.clone(), move || wake.request_repaint());
         self.start_opening(opening, Lands::Template { graph_pane });
     }
 
     /// Reads, migrates and bakes design file `path` on a thread of its own, in place of anything still opening; it lands as the open document.
     pub fn open_file(&mut self, path: std::path::PathBuf) {
         let wake = self.egui_ctx.clone();
-        let opening = ringdesign_workbench::templates::open_file(path.clone(), self.lib.clone(), true, move || wake.request_repaint());
+        let opening = ringdesign_workbench::templates::open_file(path.clone(), self.lib.clone(), false, move || wake.request_repaint());
         self.start_opening(opening, Lands::File(path));
     }
 
@@ -1043,7 +1043,6 @@ impl RingDesignerApp {
     }
 
     /// The detail findings of the last build measured; the first call starts the worker measuring them, beginning with the build on screen.
-    #[cfg_attr(not(test), expect(dead_code, reason = "the report and layers panels still call findings_in"))]
     pub fn detail_findings(&self) -> &[ringdesign_core::dfm::DfmFinding] {
         if !self.worker.detail_wanted.swap(true, std::sync::atomic::Ordering::SeqCst) {
             let _ = self.worker.jobs.send(Request::Detail);
@@ -1511,7 +1510,7 @@ impl RingDesignerApp {
             Some(g) if self.design.graph.is_some() => Some(g.clone()),
             _ => self.design.graph.as_ref().and_then(|j| {
                 #[cfg(test)]
-                GRAPH_READS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                GRAPH_READS.with(|n| n.set(n.get() + 1));
                 <Graph as serde::Deserialize>::deserialize(j).ok()
             }).map(Arc::new),
         };
@@ -1644,10 +1643,10 @@ impl RingDesignerApp {
         }
     }
 
-    /// How many times the UI thread has read a graph from its JSON, for the tests to read.
+    /// How many times this thread, the UI's under test, has read a graph from its JSON.
     #[cfg(test)]
     pub(crate) fn graph_reads() -> usize {
-        GRAPH_READS.load(std::sync::atomic::Ordering::Relaxed)
+        GRAPH_READS.with(|n| n.get())
     }
 
     /// The design's graph parsed, synced first when `design.graph` has moved since the editor saw it.
@@ -1790,13 +1789,11 @@ impl RingDesignerApp {
 /// What a ghost's judge reads: the band's epoch, then the parting plane, the draft floor and the bore radius as bits.
 type JudgeKey = (u64, u64, u64, u64);
 
-/// How many times the UI thread has read a design's graph from its JSON.
 #[cfg(test)]
-static GRAPH_READS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-
-/// How many graph evaluations the build worker has run, for the tests to read.
-#[cfg(test)]
-pub(crate) static GRAPH_EVALUATIONS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+thread_local! {
+    /// How many times this thread has read a design's graph from its JSON.
+    static GRAPH_READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
 
 struct Job {
     generation: u64,
@@ -1923,10 +1920,11 @@ impl Drop for Worker {
     }
 }
 
-/// When a worker's detail measures start and end, and a hold before each while `held` is set, for the tests to read.
+/// When a worker's detail measures start and end, a hold before each while `held` is set, and its graph evaluations, for the tests to read.
 #[cfg(test)]
 #[derive(Default)]
 pub(crate) struct DetailProbe {
+    pub evaluations: std::sync::atomic::AtomicUsize,
     pub started: std::sync::atomic::AtomicUsize,
     pub ended: Mutex<Option<Instant>>,
     pub held: Mutex<bool>,
@@ -1957,8 +1955,6 @@ impl Worker {
                 // The last band's ring frame, by the band's epoch, and the ghost's judge over it, by what it reads.
                 let mut last_band: Option<(u64, Arc<BandSurface>)> = None;
                 let mut last_judge: Option<(JudgeKey, Arc<GhostJudge>)> = None;
-                // The revision of the library the host holds after the last evaluation, and the library that evaluation ran against.
-                let mut base: Option<(u64, Arc<AlphaLibrary>)> = None;
                 // A job that arrived while the last build's detail was due, taken in its place.
                 let mut next: Option<Job> = None;
                 // The last build's design and library while its detail waits for a reader.
@@ -2024,7 +2020,6 @@ impl Worker {
                         let fits = job.graph.as_ref().is_some_and(|g| Arc::ptr_eq(g, &seed.graph) || **g == *seed.graph);
                         if fits {
                             evaluator = seed.evaluator;
-                            base = Some((job.lib.revision(), seed.base));
                             evaluated = Some((seed.design, seed.report));
                         }
                     }
@@ -2033,25 +2028,20 @@ impl Worker {
                     // the app went quietly read-only. Now it is one failed
                     // build with a message.
                     let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Done, String> {
-                        // The graph runs against the library before the design's own artwork while the host holds the last bake.
+                        // The graph runs against the host's library, the design's own artwork baked in, so a node reading that artwork by name finds it.
                         let mut graph_done = None;
                         let mut field_from_graph = None;
                         if let Some(g) = &job.graph {
-                            let against = match &base {
-                                Some((revision, lib)) if *revision == job.lib.revision() => lib.clone(),
-                                _ => job.lib.clone(),
-                            };
                             let out = match evaluated.take() {
                                 Some((design, report)) => Ok(ringdesign_graph::eval::judge(&mut evaluator, design, report, g, &job.lib)),
                                 None => {
                                     #[cfg(test)]
-                                    GRAPH_EVALUATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                                    ringdesign_graph::eval::evaluate_design_onto(&mut evaluator, g, &reg, &against, &job.lib)
+                                    probed.evaluations.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                    ringdesign_graph::eval::evaluate_design_onto(&mut evaluator, g, &reg, &job.lib, &job.lib)
                                 }
                             };
                             match out {
                                 Ok(out) => {
-                                    base = Some((out.baked_library.as_ref().unwrap_or(&job.lib).revision(), against));
                                     let mut d = (*out.design).clone();
                                     d.manufacturing = job.design.manufacturing.clone();
                                     d.casting_trials = job.design.casting_trials.clone();

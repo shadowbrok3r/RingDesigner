@@ -44,7 +44,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let already_draft =
         app.panes[pane].shade == ShadeMode::Draft && app.panes[pane].kind == PaneKind::Solid;
     let mut want_draft = false;
-    let dfm = ringdesign_core::dfm::findings_in(&app.design, &app.lib);
+    let dfm = app.detail_findings().to_vec();
     match app.cast.as_ref() {
         Some(cast) => {
             want_draft = castability(
