@@ -1,5 +1,5 @@
 {
-  "format_version": 4,
+  "format_version": 5,
   "name": "Lorica — crocodile armour",
   "size": 8.601420924223591,
   "profile": {
@@ -526,12 +526,7 @@
       },
       {
         "id": 15,
-        "inputs": {
-          "pointer": "/build/profile_steps",
-          "value": 480
-        },
-        "kind": "design.set",
-        "label": "Preserve /build/profile_steps",
+        "kind": "design.settings",
         "pos": [
           1200.0,
           0.0
@@ -540,14 +535,16 @@
       {
         "id": 16,
         "inputs": {
-          "pointer": "/build/theta_steps",
-          "value": 1536
+          "adaptive": false,
+          "min_wall_mm": 0.5,
+          "profile_steps": 480,
+          "soften_mm": 0.0,
+          "theta_steps": 1536
         },
-        "kind": "design.set",
-        "label": "Preserve /build/theta_steps",
+        "kind": "build.settings",
         "pos": [
-          1440.0,
-          0.0
+          0.0,
+          1050.0
         ]
       },
       {
@@ -595,7 +592,7 @@
         "kind": "design.set",
         "label": "Preserve /manufacturing",
         "pos": [
-          1680.0,
+          1440.0,
           0.0
         ]
       },
@@ -603,7 +600,7 @@
         "id": 18,
         "kind": "sink.output",
         "pos": [
-          1920.0,
+          1680.0,
           0.0
         ]
       }
@@ -694,13 +691,13 @@
         "to": 15
       },
       {
-        "from": 15,
-        "input": "design",
-        "out": "design",
-        "to": 16
+        "from": 16,
+        "input": "build",
+        "out": "build",
+        "to": 15
       },
       {
-        "from": 16,
+        "from": 15,
         "input": "design",
         "out": "design",
         "to": 17
