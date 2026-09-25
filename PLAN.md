@@ -538,6 +538,149 @@ worktrees, then verified, measured and committed by the integrator.
   ring with the caption and the Instances field, type 4, Enter → "Ring array of Cylinder" on the
   timeline, three copies at 90° steps, one History entry "Add Ring array of Cylinder".
 
+### Batch 15 status — 2026-09-24 (on master: `b15-leftovers`, `b15-stamps`, `b15-skin`, `b15-cad-stones`, `b15-open-speed` merged, and their integration; not pushed)
+
+The platform half of the director's plan (`scratch/b15/plan.md`, batch 0: P1–P4) and batch 14's leftovers.
+No ring was authored; the Bestiarium starts on this.
+
+- **Templates and files open cancellably, with expressions, and nothing is done twice (P1).** The
+  evaluator stops between nodes and the bake between sources, so Cancel, a second choice, or a file from
+  Recent stops an open within a step; both apps' opens run the script engine (a template with an
+  expression pin now opens from the menu); the bar never falls; the old design stays live until the new
+  one lands; a library that moved is baked onto again. Every raster a design's artwork makes is shared by
+  content digest and every distance field by its alpha, so a rebuild of an unchanged driven design bakes
+  nothing (Nocturne's per-build bake 397 ms to 0.2; undo and redo 442 ms to 1.5). File > Open and Save
+  run on threads; the phone autosaves on a writer thread. `template_open_probe`, release, ms:
+
+  | template | MB | unpack | read | evaluate | bake | first build | verdict | rebuild | detail cold / again |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | nocturne | 0.1 | 0 | 1 | 3 | 109 | 19 | 56 | 0.6 | 1355 / 35 |
+  | thalassa | 0.1 | 0 | 1 | 4 | 85 | 24 | 135 | 0.7 | 1957 / 66 |
+  | oriel | 0.1 | 0 | 1 | 5 | 10 | 316 | 67 | 1.0 | 383 / 56 |
+  | nocturne-imported | 3.8 | 6 | 8 | 16 | 8 | 266 | 58 | 2.3 | 2952 / 33 |
+  | vesper-imported | 3.8 | 5 | 8 | 19 | 7 | 261 | 67 | 2.4 | 4406 / 38 |
+  | solstice-imported | 13.5 | 11 | 28 | 58 | 6 | 16 | 24 | 4.3 | 1059 / 16 |
+  | zenith-imported | 9.1 | 6 | 22 | 48 | 2 | 260 | 8 | 3.1 | 71 / 12 |
+  | caiman-imported | 12.7 | 13 | 26 | 57 | 7 | 87 | 19 | 4.9 | 2803 / 20 |
+  | varanus-reptilia | 12.7 | 15 | 25 | 45 | 12 | 16 | 12 | 6.3 | 692 / 5 |
+
+  Every starter opens in under 1 ms of reading and 0–83 ms of evaluation; the shared bakes hold
+  41.8 Mtexels after the whole catalogue. Detail is no longer on the open's path: the worker measures
+  it after the first build, once a panel reads it.
+
+- **The UI thread stopped measuring detail.** The Report and Layers panels called `dfm::findings_in`
+  every frame (35–64 ms warm, and the first call on a new design measured every mask cold: a 29 s landing
+  frame on Caiman). They read `detail_findings()` now, which the build worker measures after it sends
+  each build, only once something has asked, and gives up when the next job is dispatched. Release,
+  `ui_thread_costs_on_heavy_designs`, ms (before = the lane at `e7ed75f`, panels still measuring):
+
+  | ms | Nocturne before | after | Caiman before | after |
+  | --- | --- | --- | --- | --- |
+  | idle frame (median) | 72.0 | 2.1–6.0 | 39.7 | 2.7–3.7 |
+  | slowest frame while it opened, landed and built | 147.7 | 53–57 | 103.4 | 42–46 |
+  | history commit of a settled edit | 1.3 | 1.3 | 31.1 | 31.0 |
+  | undo / redo | 1.1 / 1.1 | 1.1 / 1.0 | 34.1 / 33.9 | 32.3 / 32.4 |
+  | session save | 15.1 | 15.5 | 41.1 | 43.0 |
+  | open from Recent | 19.8 | 6.9 | 49.4 | 47.5 |
+
+  "Before" is e7ed75f's own release binary run today at the same load (the reviewer measured 73.4 and
+  40.0 idle). While the worker's cold measure runs — 1.4 to 4.4 s after a landing, on every core — the
+  UI thread's work is about half as fast again: Caiman's commit, undo and redo 47–58 ms, session save
+  62, Recent 77–88.
+
+- **CAD stones are stones everywhere (P2).** A stone part, a halo's melee, every copy a pattern makes
+  of a stone or a head, a stone a Transform moves and whatever a Boolean keeps enter the one record
+  (`StoneSource::Cad`), seated on the bare band's own section (0.0001 mm from a 1024-slice build on a
+  signet's shoulder, where the reference crest misses by 2.6 mm) or read off a build
+  (`set_stones_built`); the report, census, sheet, stone map (which refused a claw solitaire),
+  section view, reel and both viewports count them. `Operation::Pattern` takes several sources (fenced
+  at design 6 / graph 2). `render::finished` is the metal and every stone by colour; the stone builder
+  carries a tint; the CAD thumbnails and template shots are studio gold with stones set.
+- **The skin is core (P3).** `skin.rs` (`Atlas::of`, `Hide`, `Joints::eccentric`, `draft_clamp` →
+  `ClampReport`, `hide_layer`) and `imported_base::sand_master`, moved from the example so Saurian,
+  Zenith and Caiman rebuild byte for byte; the atlas lands on the swept mesh within 0.0006 mm on a
+  keyframed band and 0.049 mm on a bypass. The spikes: the eleven sand-safe plans bare through the master: 002 Kite, 006 Square, 015 Octagon
+  and 017 Tonneau Castable, 001 and 012 Cushion and 013 Round Marginal (at most 0.21%), and 003 Clover
+  13.2%, 005 Rosette 6.6%, 007 Quatrefoil 14.7% and 016 Star 2.9% NotCastable — Viscum, Sigillum,
+  Chelonia and Phrynosoma must answer their plans' own lobes first; 013 reaches 16 mm in two resize
+  steps (sand 0.045% at −1.1°); a prickle hooked in the parting plane pulls clean (tilted 2° it blocks
+  at 0.075 mm, spun 90° it blocks); side-face cells spill 0.51 mm onto the crown fillet at 1.36× width
+  and 1.00× thickness (NotCastable 3.43%), so Phoenix keys thickness at or above width until P5; a holly
+  leaf's spines may lean 20° on 006's parting line, and 25° blocks.
+- **Stamps, second version (P4).** Tiers (a stamp struck on the ring as struck so far), shaped tops
+  (Gable, Ridge, Cone, Dome, Taper; the floor of a cut), sixteen outline families, `parting_monotone`,
+  `hull_and_bays`/`cast_as_hull`, `stamp_row` along the parting line, a chart `v` or a side face, with
+  taper, fold clearance and mirrored shoulders, and tier-aware DFM. A design pouring only plain stamps
+  strikes them exactly as master did (hashes equal for Zenith, Caiman and the Heart signet, finished
+  and pattern); a tier, a shaped top or an outline past 512 points writes format 6.
+- **Leftovers.** A cut carves a ring of parts alone (desktop and phone sketches), and its graph, cluster
+  or preset is fenced at graph 2 when it may evaluate to one (a band counts only when it certainly
+  feeds the output); a pocket's walls pick as the cut; the CAD footer's Fit frames all the metal and
+  the canvas menu's Fit view the history pick; a primitive clicked on the spot keeps its default size;
+  relative worker paths read from the executable's folder; an install prunes the unpacked OpenCascade
+  worker; a node's migration runs only on files older than the shapes this build writes; the phone's
+  stamp window stays in a landscape view with the keypad up.
+- The integration also fixed: a Transform round a head counting its stone twice, both held (one, where
+  it was, unheld); a pattern's mesh drawn at every stone once a later Transform consumed the stone (six
+  bodies for three, 14.98 mm off); a pattern naming one `source` and one listed left at graph 1; the
+  desktop worker evaluating a driven graph against the library before its own artwork (a tiling reading
+  the design's lettering by name fell back on every build); two GUI pins reading process-wide counters
+  (failed in parallel); the phone re-arranging an opened file's graph; a mirrored row striking keels
+  0.26 mm apart when its span crossed the head unevenly; a wall-clock DFM pin that failed 3 runs in 4
+  under the guard (it counts points made now: 24 on first sight, none again); a bench stamp moving the
+  cast stamps off the frame the pattern strikes them on; a band dangling off a graph's chain keeping its
+  cut at graph 1; every stale format-6 doc line; and, found live, **an open's progress waking egui from
+  the rayon pool** (a four-core phone deadlocked opening Caiman: the UI thread held the Context lock
+  waiting on the pool for its tessellation while every worker waited on the lock in
+  `request_repaint`) and **the first Undo of a graph edit doing nothing** (the evaluation's splice sat
+  uncommitted until Undo committed and took back only it; `History::absorb` joins it to its edit).
+- Verified: core 736 (golden 1), workbench 218 (232 with glow), gui 195, graph 106, graph-ui 26, mcp 45,
+  cli 11, configurator 5, script 5, occt 9, solid 1, assets 4, phone 201, every suite under the 4 GB guard (the
+  GUI on one thread); NDK arm64, wasm and the locked workspace clean with zero warnings. Live: desktop (`shots/b15-*.png`): Caiman chosen from the menu and cancelled while reading
+  ("Stopped opening Caiman — armoured hide: the design is unchanged", Lorica still live); opened cold
+  it lands 0.22 s after the click and shows built at 1.18 s (0.34 s to landing warm); an edit, undo and
+  redo on Caiman each round-trip under 0.2 s, one History entry per graph edit once the integration's
+  undo fix landed (before it, "Graph edited" then "Profile width 14 mm -> 15 mm", and the first Undo
+  did nothing); the claw solitaire from CAD › Example projects shows its stone in the viewport, in the
+  Report's Stones section (1 stone, 1.04 ct, Round 6.5 mm, edge clearance 0.53 mm) and on the exported
+  stone map. Phone, x86_64 release on rdsmoke: opening Caiman deadlocked the app ("isn't responding";
+  fixed, see above); after the fix it builds within about 4 s with Nocturne on screen until then.
+- Closed: batch 14's open list (the per-build re-bake, the landed template evaluated twice, the
+  sketch's Cut on a ring of parts alone, the CAD pane's Fit view, the plate over the CAD timeline, the
+  phone's stamp window with the keypad up, the pocket-wall naming, the carved clone's STEP bead, the
+  run-time relative worker paths).
+- Open:
+  - The phone's first build after a landing evaluates the template's graph again; it ignores the seed
+    (`ringdesigner-android/src/ring.rs:518`).
+  - The worker's cold detail measure runs on every core for 1.4–4.4 s after a landing and halves the
+    UI thread's speed meanwhile (`ringdesign-gui/src/app.rs:1982`); `history::describe` serializes the
+    whole design twice per commit, 31 ms on Caiman (`ringdesign-core/src/history.rs:274`).
+  - Renders and turntables on the desktop, phone and configurator are metal only
+    (`ringdesign-gui/src/export.rs:282`, `:302`; `ringdesigner-android/src/export.rs:274`, `:278`;
+    `ringdesign-configurator/src/main.rs:322`); only the thumbnails, template shots and CLI go through
+    `render::finished`.
+  - CAD stones: the section view records every stone every frame (`panels/section.rs:330`; 92 ms a
+    frame dragging a band under 24 heads); the analytic `Frames::built` is always true
+    (`setstone.rs:721`); the stone map labels a CAD family "Round 6.5 mm 6.5" (`stonemap.rs:91`).
+  - Stamps: a graph's `/stamps` patch and a standalone graph file carrying a tier or a shaped top are
+    not fenced (`ringdesign-graph/src/file.rs:60`); the first shaped stamp moves the plain ones up to
+    0.043 mm, by design.
+  - Graph fence: two design chains behind a `flow.if`, an in-plane revolution through a wired operation
+    pin, and a root-pointer `design.set` are read as one document (`ringdesign-core/src/parts.rs:677`).
+  - Parts alone: a pocket's walls name the cut, so `Sel::Part` on the block misses them
+    (`parts.rs:716`); `carved_apart` swallows a failed boolean and STEP writes the part uncarved
+    (`parts.rs:819`); a partly buried seam still gets its whole bead (`parts.rs:224`); the primitive
+    rest zone snaps back to 2 mm when a drag returns under 0.2 mm (`command/commands.rs:941`).
+  - Skin: station-aware side-face gates (P5; `field.rs:443`); the draft rule is first order
+    (`skin.rs:408`); `skin::hash` is a generic public name (`skin.rs:332`); `stock_spike`'s crease
+    census reads sliver faces (`examples/stock_spike.rs:76`); the parting-stamp probe's −40° leaf
+    fails to join ("two cuts cross inside a face").
+  - Desktop saves are detached threads sharing one `.tmp` name, unjoined on exit
+    (`ringdesign-gui/src/export.rs:472`); the shared bakes hold up to 48 M texels on the phone too
+    (`alpha.rs:686`); the status line is rewritten every frame of an open (`app.rs:709`); the template
+    plate stands over the ring view's info card.
+  - Doctrine-level, unchanged: the axial web, and `LayerEntry::stage`.
+
 ### Batch 14 status — 2026-09-24 (on master: `cad-fixes`, `desktop-fit`, `occt-embedded`, `phone-eguimobile` merged, and their integration; not pushed)
 
 - **A revolution's line is read in its sketch's plane** (`Operation::Revolve { in_plane }`), and a design

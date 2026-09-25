@@ -1792,6 +1792,78 @@ first and cut back by the draft rule until they "look like arrows".
   The trails now taper to 0.36 mm over Delft's 0.30. The wall check judges
   the body with joined stamps left out: they only add metal.
 
+**Stamps stand on stamps, carry shaped tops, and come in families and
+rows.** What the second version added, each measured:
+
+- **A tier is struck on the ring as struck so far.** `Stamp::tier` 0 is
+  made against the band as swept; each higher tier against the ring with
+  every lower tier joined and cut, so a keel stands on its plate and a boss
+  on its shield. A higher tier whose cap leaves the stamp beneath — past a
+  joined edge, or over a cut — drapes, and the ray release reads the drape
+  as 0.19 mm obstructions: `overhang()` names those outline points,
+  `parting_monotone` fails them and the build notes them. DFM measures
+  what a higher tier leaves of the stamp beneath (the ledge round a boss,
+  the wall beside a cut) by the granulometry, counting a higher stamp only
+  on the same ground — drawn into the lower one's plane with the normal
+  dropped, a boss on the palm read as a 0.11 mm ledge on a plate carrying
+  nothing.
+- **A top is constraint geometry, never outline.** `StampTop` is `Flat`,
+  `Gable`, `Ridge`, `Cone { apex_mm, at, tip_mm }`, `Dome` or `Taper`, and
+  on a cut it shapes the floor. The apex, spokes and ridge are held in the
+  cap as constraint vertices and edges, split where they cross the parting
+  chord, and a ridge, apex or crown a hair off the chord is snapped onto
+  it. The first draft trimmed 1e-3 mm off each crease end and then culled
+  anything within 2e-3 of the outline, so every gable ridge reaching the
+  outline vanished and an off-chord gable read as a rolled strip; each end
+  is now drawn in along its line until it stands clear. A cone thorn on the
+  crest and a gabled keel on a plate both pull clean.
+- **Outline families** (`outline.rs`): closed, counter-clockwise, no edge
+  over 0.1 mm — circle, keel (Caiman's horn exactly), lanceolate, quill,
+  leaf (entire, serrate, lobed and holly margins), blossom, fork, spiral,
+  rounded triangle, comb lobe, toothed jaw. Each is pinned simple at one
+  size, and a constructor does not validate what it is fed: `fork(1.0, 30,
+  0.3, 0.5)` puts its crotch past its own arms and `spiral(3, 0.5, 2.0,
+  0.8, 0.8)` is wider than its pitch, both self-crossing; run
+  `outline::check` on typed sizes. A concave outline casts as its hull with
+  a bench cut per bay (`hull_and_bays`, `Stamp::cast_as_hull` — the
+  crescent cutter generalised; a holly leaf is six bays, hull less bays its
+  own area to 0.03 mm²).
+- **`Stamp::parting_monotone`** is the plan rule a stamp on a signet's face
+  must pass: every plan line along the pull meets the stamp in one stretch
+  across the parting line, its top never rising away from it, resting
+  wholly on any lower tier it overlaps.
+- **`stamp_row`** strikes one stamp along `RowPath::{PartingLine, ChartV,
+  SideFace}`: the parting line solved per station (`crest_v`), a raised
+  cosine taper at a constant gap, stations dropped near a fold, and
+  `mirror_shoulders` reflecting the row about the head with each side
+  numbered outward ("Thorn, left 2", a lone station on the head "Thorn,
+  head"). A reflection is left out where it lands in the row's own span, or
+  meets a struck stamp more than the row's own stations meet — any meeting
+  in a row whose stations do not touch, nearer than half the pitch in one
+  whose do. Over 60–120° the first draft struck ten keels, five of them
+  coincident; an uneven 60–104° ×4 later struck two 0.26 mm apart.
+
+**Plain stamps build as a format-5 build struck them.** `tier` and `top`
+are skipped when default, so a plain design serializes byte for byte; a
+tier, a shaped top or an outline past `PLAIN_MAX_STAMP_POINTS` (512 —
+every released build refuses more, and the spiral is 540 at its sheet
+size) writes the design at 6. A design whose *poured* stamps are all plain
+reads every frame as `stones::surface_frame` does — the nearest sample of a
+192-step section, up to half a sample off the parting line (a crest disc on
+a LowDome 7 × 2.4 stands at z = −0.0434) — and hashes the same as master
+built it, finished and pattern, Zenith and Caiman included. One that pours
+a tier or a shaped top reads between the samples of the reference-snapped
+section, so a tier stands concentric on its plate and a crest stamp sits on
+the line; adding the first such stamp moves the plain ones by up to
+0.043 mm. Bench stamps do not count, so the pattern, which leaves them out,
+strikes the cast stamps on the finished ring's own frames. Bare-surface
+points are kept across calls (4096, keyed by a hash of everything the band
+is made from and the chart point): on the Heart signet 24 gabled keels on
+24 plates make a point each on first sight (7.95 ms) and none judged again
+(1.25 ms, against 0.63 on one tier). A graph's `/stamps` patch and a
+standalone graph file are not fenced; an older build drops `tier` and `top`
+from them silently.
+
 **A saved design must reopen bit for bit, and `serde_json` does not promise
 that by default.** Without `float_roundtrip` a parsed float can be one unit
 in the last place off. Only the graph crate enabled it, so any build that
@@ -1853,6 +1925,52 @@ filter: every stone whose seat reaches the slice. The per-layer
 from the report's own walk, because they are properties of a seat *layer*
 rather than of a stone; `every_consumer_counts_the_same_stones` pins the
 report's count and carats to the record's.
+
+**A stone the CAD parts set is a stone everywhere.** The record lists it
+too (`StoneSource::Cad { feature, copy }`, with its girdle frame): a stone
+part, a halo's melee, every copy a pattern makes of a stone or of a head
+(a pattern's copies keep the gem their source was made for, and a pattern
+takes several sources — `Operation::Pattern { sources }`, read from
+`source` and `sources`, written as one `source` when there is one, a
+pattern of several fenced at design format 6 and graph format 2), a stone a
+Transform moves and whatever a Boolean keeps (a union both operands', a
+subtraction only `a`'s). Before this a claw solitaire's stone map refused
+it as "sets no stones", and every sheet, census and section view missed
+it. The rules that took a failure each:
+
+- **A head moves by its stone, so a Transform round a head carries none.**
+  The claw solitaire with its head lifted 0.8 mm counted two stones, both
+  held; it counts one, where it was, and `holder` no longer lets a head a
+  Transform moved hold anything — the report says no setting holds it.
+- **The bare band's own section seats the stone, not the reference
+  crest.** Charted off the modulated section the way `Placement::frame_on`
+  seats a part on the built mesh, a stone on a signet's shoulder agrees
+  with a 1024-slice build to 0.0001 mm where the reference-crest frame
+  misses by 2.6 mm; `set_stones_built` reads the same stones off a build's
+  evaluation, to 1e-9 mm of the part's own frame.
+- **Copies multiply before they are counted.** Three nested arrays of 120
+  carried 1.7 million stones on paper and a quadratic scan never finished,
+  on the UI thread that draws the section view. `carried` stops at
+  `MAX_CAD_STONES` (480), the record deduplicates through a grid hash and
+  names the parts past the cap (`Record::past_cap`), and seated points are
+  remembered per thread by the band's recipe (the section view's 24 heads
+  on a lofted signet: 18 ms cold, 0.30 warm).
+- **`stone_frames` stays the seats'.** The seat tools snap a carried part
+  to every stone it lists, and a CAD stone listed there snapped back onto
+  its own seat while dragged; `all_stone_frames` carries the CAD stones for
+  the stone map, the clearance envelopes and the preview.
+
+**The render is the finished ring.** `render::finished(design, lib, params)`
+is the built metal and every stone grouped by colour; the stone builder
+carries an optional tint, and `gems::tint_of` is the one colour the
+preview and the renderer read. `gems::built_vertices` draws every stone of
+a build — from a stone part's own mesh (768 facets for a 6.5 mm round)
+where the build has one of that cut and size, faceted otherwise — and both
+viewports, the CAD pane's preview, the thumbnails and the template shots
+stage it, so a ring array of claw heads shows three stones where it showed
+two empty heads. Only a *stone* part's mesh is taken: a ring pattern of the
+stone consumed after a Transform drew the whole pattern at every stone, six
+bodies for three, 14.98 mm off the ring.
 
 ### A seat is the stone's plan, not a circle round it
 
@@ -2419,6 +2537,70 @@ texels. Every graph evaluation carrying artwork and every `Arc::make_mut` of
 the library used to copy all of it; `changed_since` and `insert_shared` move
 what one clone baked into another.
 
+**An open stops when it is told, and nothing it did is done twice.** The
+evaluator checks the open's cancel between nodes and the bake between
+sources, so Cancel, a second choice, or anything that replaces the document
+(Recent, `--open`, every phone adopt) stops it within a step; both apps'
+opens run the script engine (`Evaluator::with_exprs`), without which a
+template carrying an expression pin could not open from the menu; the bar's
+fraction never falls; the old design stays live until the new one lands, and
+a library that moved meanwhile gets the template's artwork baked again onto
+it (`Opened::land`). The desktop's first build takes the open's evaluation
+(`Seed`) instead of running the graph again; the phone's still runs it.
+
+- **A bake is shared by what it bakes.** Every raster a design's artwork
+  makes is kept by content digest and every distance field by the alpha it
+  reads, process-wide up to `BAKE_CACHE_TEXELS` (48 M texels, about
+  200 MB), so a rebuild of an unchanged driven design bakes nothing:
+  Nocturne's per-build bake 397 ms to 0.2, a rebuild of an unchanged graph
+  0.1–6.3 ms across the catalogue against 50–457, undo and redo on Nocturne
+  442 ms to 1.5. A
+  cold bake runs every source on every core (Nocturne 397 ms to 99).
+- **The worker evaluates against the library the host holds.** The first
+  draft evaluated against the library from before the design's own
+  artwork, to keep the evaluation cache warm across the bake; a node
+  reading that artwork by name then never found it, and a tiling fed by
+  `alpha.library("Motto")` fell back on every build. Against the host's
+  library the nodes that read it run once more after each bake, and the
+  shared bakes make that cheap.
+- **Detail findings come from the worker, and only once something reads
+  them.** The Report and Layers panels called `dfm::findings_in` every
+  frame: the first call on a new design measured every mask cold on the UI
+  thread (a landing frame of 29 s on Caiman, 10.5 s on Nocturne), and the
+  warm calls still cost 35–64 ms a frame, most of it hashing texels. The
+  panels read `detail_findings()`; the first call asks the build worker,
+  which measures after it sends each build, gives a measure up when the
+  next job is dispatched or the app is dropped (`alpha::measuring_until`),
+  and measures a mask once however many threads ask. `Alpha::content_key`
+  folds sixteen bytes a step through a 128-bit multiply where SipHash read
+  every texel.
+- **Nothing on the pool may wake egui.** A bake tells each source done on
+  the global rayon pool, and the open's stage called `ctx.request_repaint()`
+  there, which waits on the Context lock — while the UI thread held that
+  lock waiting on the same pool for its parallel tessellation. On rdsmoke's
+  four cores all four workers sat in `request_repaint` and Caiman's open
+  hung the phone for good (Android's "isn't responding"; the desktop's 32
+  workers only made it rare). A stage now signals a `template-wake` thread
+  that calls the host's wake; pinned in the GUI crate, because the
+  workbench builds core without `parallel` and bakes serially there.
+- **What an open costs** (`template_open_probe`, release): Caiman unpacks
+  in 13 ms, reads its 12.7 MB graph in 26, evaluates in 57, bakes in 7 and
+  builds in 87; Thalassa evaluates in 4 and bakes in 85. The detail
+  measure the worker makes afterwards is the big number — 1.4 s cold on
+  Nocturne, 2.8 on Caiman, 4.4 on Vesper — and it runs on every core, so for those seconds after a
+  landing the UI thread's own work is about half as fast again (Caiman's
+  history commit 31 ms settled, 48 while it measures). Live on the desktop
+  a cold Caiman lands 0.22 s after the click and shows built at 1.18 s; on
+  rdsmoke it is built within about 4 s with Nocturne on screen until then.
+- **Files open and save off the UI thread.** File > Open reads, migrates
+  and bakes on the open's thread and lands like a template; File > Save
+  writes on a thread and the document takes the path when the write lands;
+  the phone's autosave, Save and Save a copy queue on `worker::Saver`, the
+  newest write of a path winning and `on_pause` flushing. An arrange writes
+  node positions into the graph JSON in place (Caiman 18 to 8.4 ms), and a
+  file opened on the phone keeps its saved graph layout — only a template
+  is laid out afresh.
+
 ### The graph pane, the node tool, and the bridge
 
 A design with `graph` set is **driven**: `app.sync_graph` rebuilds the
@@ -2454,6 +2636,11 @@ Fit and the minimap read the view transform snarl hands to
 `current_transform` each frame. History names a graph
 change as a document — converted, edited, baked — which is why
 `first_difference` treats a key present on one side only as a change.
+What the committed graph evaluates to joins the entry that committed it
+(`History::absorb`, on both apps where the evaluation lands): left
+uncommitted, the splice was committed by the next Undo as an entry of its
+own and taken back alone, so the graph kept the edit and evaluated straight
+back to it — the first Undo of any graph edit did nothing.
 
 ### The editor looks like the comfyui-android graph
 
@@ -2845,7 +3032,7 @@ they were about to get.
 `examples/stock_masterworks.rs` holds the two rings that came of it,
 **Saurian** (013, one stone) and **Zenith** (017, three), and the method:
 each ring is *one* height map painted from the stock's own 3D samples
-(`Atlas`, `Skin::spot`), so distances are metal millimetres and regions
+(`skin::Atlas`, `Skin::spot`), so distances are metal millimetres and regions
 hand over inside one skin. What the sand taught, all measured:
 
 - **On a signet's face, anything proud off the parting line is an
@@ -2919,6 +3106,79 @@ left to the bench. What it taught:
   sharp gable (a flat-topped one is all noise), and each horn stands 0.6
   mm clear of its plate's ends. `stock_masterworks` now inspects every
   sand ring at the template test's 384 x 192 as well as at its own.
+
+**The skin is core, and so is the sand master.** `skin.rs` is the painter
+the three rings grew in their example, moved as it was, so Saurian, Zenith
+and Caiman rebuild byte for byte: `Atlas::of(design, w, h)` samples the bare
+surface over the chart — an imported stock through its field surface, any
+procedural body (keyframed, bypass, a signet head) one modulated section per
+column against the reference loop — with normals from grid differences;
+`Hide` reads it in true millimetres (`at`, `crest_at`, `folds`, the last
+scanning only to the hide's own reach, which retired false 90° folds past
+it on any hide under 30.3 mm); `Joints::eccentric` grades a series at a
+constant ratio (3.2 to 1.7 mm over 30 mm closes on 13 plates, the count
+from the geometric mean, as the graded seat run's); `draft_clamp` returns
+what it took (`ClampReport { texels_cut, worst_mm }`); `hide_layer` shows a
+painted alpha as one tile over the whole chart, joined by `Max`.
+`imported_base::sand_master(Arc<Source>)` is the stock's upper half mirrored
+about its mid-plane, refined to 0.55 mm edges and drafted toward the pull,
+deterministic.
+
+- **The atlas is where the metal is.** Against the swept mesh at 1024 rows
+  a keyframed band misses by 0.0006 mm (0.005 of a texel) and a bypass by
+  0.049 mm (0.2 of a texel); the keyframed figure is pinned absolutely,
+  because half a column round the ring is 0.064 mm and a texel envelope
+  would pass it.
+- **The draft rule is first-order exact, not exact.** It reads the lean at
+  the outer sample of each step rather than the step's own, so on a convex
+  dome it over-allows about ½·d(tan)/ds·step²: a clamped bump still climbs
+  0.000148 mm a row against a raw 0.070. Reading the step's own lean would
+  shrink it and change the three rings' bytes. A face that already faces
+  the pull takes relief whole — a ramp up a flattened side face loses no
+  texel.
+- **Eleven plans survive the mirror; four of them carry their own
+  undercut.** Bare through the sand master (`examples/stock_spike.rs`):
+  002 Kite 0.0025%, 006 Square, 015 Octagon and 017 Tonneau 0.0000% field
+  Castable; 001 Cushion 0.10% at −1.6°, 012 Cushion 0.21% at −3.1° and
+  013 Round 0.066% at −0.8° Marginal; 003 Clover 13.2% at −74.8° and 007
+  Quatrefoil 14.7% at −64.1° NotCastable with the envelope refusing to fill
+  over 4 mm, 005 Rosette 6.6% at −28.1° and 016 Star 2.9% at −7.6°
+  NotCastable. A sand ring on 003, 005, 007 or 016 answers its head's own
+  lobes before any relief. Without the envelope every master pulls with
+  8–49 obstructions. (Its crease census reads 175–180° "folds" on sliver
+  faces — every build's minimum face angle is 0.0° — so its crease figures
+  are not quoted.)
+- **013 goes to 16 mm in two steps.** One resize past 130% of a master's
+  face is refused; two give a 16.23 mm face in wax (Castable, 0.028% under
+  a two-part pull) and a 15.83 × 3.66 mm table in sand (0.045% at −1.1°,
+  inside the fast-curve noise band).
+- **A hook lying in the parting plane pulls.** A prickle on a 7 × 3.4
+  LowDome crest with its hook in z = 0 fields 0.0000% and 0 obstructions,
+  on a knuckled node and on the 017 master's table, shoulder and shank too;
+  tilted 1° it reads 0.0037% at −9.3°, 2° blocks at 0.075 mm, 5° blocks
+  with 9 obstructions 0.109 mm deep, spun 90° blocks 0.954 mm deep, spun
+  180° is clean (`examples/prickle_probe.rs`). The bead-row-on-the-crest
+  rule, for a hook.
+- **Side-face relief is safe only while the gate stays on its station's
+  face.** A `SideFaces` gate resolves on the reference section, so a keyed
+  station wider than it is thick spills: on a Flat 6.6 × 3.4 band at 1.36×
+  width and 1.00× thickness 0.51 mm of the cells land on the crown fillet
+  (draft 26.8°) and field NotCastable 3.43% at −27.4°; keys holding
+  thickness at or above width stay clean, and Phoenix's own keys spill up
+  to 0.245 mm at 62° yet field 0.0000% at 0.5 mm cells, 0.11% at −6.5° at
+  1 mm (`examples/side_gate_probe.rs`). Station-aware gates are still open.
+- **A leaf on the parting line leans no further than its spines allow.**
+  A holly leaf on the 006 master's line (`examples/parting_stamp_probe.rs`)
+  pulls with its spines leaning up to 20°; past 23.6° a spine overhangs
+  (25°: 6 obstructions 0.649 mm deep). Leaning the other way the same
+  outline reads 1 obstruction 0.044 mm deep with the same defect (gap
+  1.119, hang 0.961, area 0.0764), so a rule for it belongs on the
+  outline's defect, not on ray depth. Bays 0 and 0.6 mm deep pull clean
+  with the spines upright; shifted 0.05 mm
+  off the line it blocks at 0.075 mm unless its ends are blunted 0.09 mm;
+  a 40° leaf filled to the rule with its bays cut at the bench pulls. Its
+  −40° row is not a result: the leaf failed to join ("two cuts cross inside
+  a face") and the row judged the bare table.
 
 ## Reels are played by the app, not by a finger
 
@@ -3184,6 +3444,17 @@ This machine has no swap, so an unbounded allocation does not thrash — the
 kernel OOM-killer takes down whatever it likes, including the user's other
 applications. `TilingLayer::cells()` once allocated 67 GB from a `u32` cell
 count and killed the desktop.
+
+**Allocate a big grid on the calling thread, not inside `rayon::join`.**
+glibc keeps freed memory in per-thread arenas, so a pool thread that once
+held a granulometry's distance fields keeps their pages; worse, an idle pool
+thread's first allocation can take over an arena a finished test thread
+filled with a freed 250 MB library. The one-process GUI suite was OOM-killed
+at 4 GB that way with no leak anywhere (with one arena the branch used what
+master used). The mask measure allocates its ten grids once on the calling
+thread, a bake of fewer than two sources runs inline so an empty one starts
+no pool, and a bake's distance fields are derived on the caller with each
+transform still parallel across its lines: the suite peaks at 2.8 GB.
 
 Use the cgroup guard above, not `ulimit -v`. `ulimit -v` caps *virtual* address
 space, and the threaded test harness reserves far more virtual than resident —
