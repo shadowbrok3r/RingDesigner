@@ -1,7 +1,7 @@
 {
   "cold_design_reload": true,
   "cold_graph_reload": true,
-  "design_bytes": 475459,
+  "design_bytes": 644207,
   "design_set_patches": 4,
   "exposed_controls": [
     "US size",
@@ -10,15 +10,15 @@
   ],
   "gates_passed": true,
   "geometry_gates_passed": true,
-  "graph_bytes": 514239,
-  "nodes": 189,
+  "graph_bytes": 670316,
+  "nodes": 129,
   "notes_empty": true,
   "open_ms": {
-    "bake": 0.15441000000000002,
-    "cold_build": 4831.594778000001,
-    "evaluate": 6.572761,
-    "first_build": 3234.992524,
-    "read": 1.1774349999999998
+    "bake": 0.211163,
+    "cold_build": 1624.594221,
+    "evaluate": 5.338731999999999,
+    "first_build": 1649.902641,
+    "read": 1.337956
   },
   "open_probe_method": "template_open_probe phases applied to the local, unregistered graph",
   "patch_budget": 4,
@@ -31,9 +31,26 @@
   ],
   "size_budget_enforced": false,
   "size_budget_procedural_bytes": 300000,
-  "size_flag": "over the procedural budget; binding after P7",
+  "size_flag": "Mixed-source graph exceeds the 300 KB procedural-only allowance and is below the 3 MB painted-atlas flag; both measurements retained for packaging classification.",
   "source_identical": true,
   "template_gate_passed": true,
-  "triangles": 1478112,
-  "vertices_faces_normals_identical": true
+  "triangles": 1323510,
+  "vertices_faces_normals_identical": true,
+  "source_classification": {
+    "base": "procedural keyframed band",
+    "silk": "authored SVG paths with rounded height contours",
+    "clearance": "two PNG16 atlases generated with Atlas::paint",
+    "made_parts": "stored collets and continuous local limb lofts, mirrored in CAD",
+    "class": "mixed SVG, painted-atlas clearance and stored CAD"
+  },
+  "source_payload_bytes": {
+    "measurement": "UTF-8 compact JSON component sizes; excludes enclosing design formatting",
+    "embedded_clearance_atlases": 138189,
+    "svg_sources": 184873,
+    "stored_collets": 105230,
+    "stored_limbs": 126548,
+    "cad_features_and_recipes": 19937
+  },
+  "size_budget_painted_atlas_flag_bytes": 3000000,
+  "painted_atlas_size_flag": false
 }
