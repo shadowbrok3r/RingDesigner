@@ -1,6 +1,6 @@
-//! Bestiarium — Arachne, the weaver: a spider at the hub of her own orb web, clasping the finger, cast in lost wax.
+//! Bestiarium — Arachne, the weaver: a spider at the hub of her own web, clasping the finger, cast in lost wax.
 //! cargo build --offline --release -p ringdesign-core --example bestiarium_arachne
-//! target/release/examples/bestiarium_arachne [OUT_DIR] [--draft] [--verify]
+//! target/release/examples/bestiarium_arachne [OUT_DIR] [--draft] [--verify] [--web-preview]
 use anyhow::{Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, Blend, BuildParams, FieldContext, Layer, LayerEntry, ProfileLoop, ProfileStyle, RingDesign, ShankKind,
@@ -12,7 +12,7 @@ use ringdesign_core::{
     library, manufacturing as mf, mesh,
     profile::ShankKey,
     render,
-    setting::{self, SolidKind},
+    setting::{self, Plan, SolidKind, Station},
     sketch::{Geometry, Id, Sketch, Workplane},
     stl,
     stones::StoneFrame,
@@ -28,52 +28,78 @@ use std::rc::Rc;
 type P2 = [f64; 2];
 type P3 = [f64; 3];
 
-/// Ring angle of the garnet carapace, which is also the web's hub.
+/// Ring angle of the garnet carapace, which is also the main orb's hub.
 const HUB_DEG: f64 = 64.0;
 /// Girdle heights over the bare crest: the carapace, and the prouder abdomen.
 const CARAPACE_RISE_MM: f64 = 0.4;
 const ABDOMEN_RISE_MM: f64 = 0.6;
-/// The collets' wall, which is also the flat of their rim.
-const COLLET_WALL_MM: f64 = 0.45;
-/// The made collet's clearance round the girdle, as `setting` builds it.
-const COLLET_CLEAR_MM: f64 = 0.03;
-/// How far the made collet reaches below the girdle.
-const COLLET_BASE_MM: f64 = 0.6;
-/// Where a collet is trimmed under its girdle, and its body takes over at its widest.
-const BODY_FULL_Z: f64 = -0.12;
-/// Collet wall to collet wall between carapace and abdomen, at the girdles.
+/// Clearance round each stone in its pocket, and the pocket floor's height over the girdle, just clear of the bed's crown.
+const POCKET_CLEAR_MM: f64 = 0.03;
+const POCKET_FLOOR_MM: f64 = 0.01;
+/// A body's wall flares outward toward its base by this much; its rim's outer edge is rounded by the other.
+const FLARE_DEG: f64 = 9.0;
+const RIM_ROUND_MM: f64 = 0.12;
+/// Body wall to body wall between carapace and abdomen, at the girdles.
 const BODY_GAP_MM: f64 = 1.0;
 /// Relief of every web thread.
 const WEB_HEIGHT_MM: f64 = 0.30;
-/// The orb: its capture spiral's first and last turn, and the reach of its radials.
-const SPIRAL_START_MM: f64 = 1.9;
-const SPIRAL_PITCH_MM: f64 = 0.9;
-const SPIRAL_TURNS: usize = 6;
-const RADIALS: usize = 12;
-/// The orb's capture rings past its spiral, before the spider and behind her, widening toward the palm.
-const FRONT_RINGS: [f64; 7] = [8.6, 10.1, 11.9, 14.0, 16.4, 19.2, 22.4];
-const BACK_RINGS: [f64; 6] = [16.4, 19.2, 22.4, 26.0, 30.0, 34.3];
-/// Dew beads on the dragline: diameter and pitch.
-const DEW_MM: f64 = 0.45;
-const DEW_PITCH_MM: f64 = 1.1;
+/// How far the crown web runs past the crown's edge onto the cheek.
+const EDGE_OVERRUN_MM: f64 = 0.12;
+/// The main orb round the carapace: its rim, where its spiral starts, its radials and their offset from the ring's axis.
+const MAIN_RIM_MM: f64 = 6.2;
+const MAIN_SPIRAL_FROM_MM: f64 = 1.9;
+const MAIN_PITCH_MM: f64 = 0.95;
+const MAIN_RADIALS: usize = 24;
+/// The squashed orbs round the ring: ring angle and radials.
+const ORBS: [(&str, f64, usize); 3] = [("Orb before her", 15.0, 16), ("Orb behind her", 170.0, 16), ("Orb at the palm", 270.0, 20)];
+/// The squashed orbs' capture spiral: turns and pitch across the band, and their length over their width.
+const ORB_TURNS: f64 = 3.0;
+const ORB_PITCH_MM: f64 = 0.6;
+const ORB_SQUASH: f64 = 1.45;
+/// The frieze of web corners between the orbs: the zig-zag's step along the ring, spokes per corner, and its capture arcs' first radius and pitch.
+const FRIEZE_STEP_MM: f64 = 4.4;
+const FRIEZE_SPOKES: usize = 3;
+const FRIEZE_ARC_FROM_MM: f64 = 1.25;
+const FRIEZE_ARC_PITCH_MM: f64 = 1.35;
+/// Stroke widths: orb radials and spiral, frames, frieze spokes and capture threads.
+const W_ORB_MM: f64 = 0.30;
+const W_FRAME_MM: f64 = 0.27;
+const W_SPOKE_MM: f64 = 0.23;
+const W_CAPTURE_MM: f64 = 0.21;
+/// The cheek web: its zig-zag radials' lean off the finger's direction, their stroke, and the thread in each cell.
+const CHEEK_LEAN_DEG: f64 = 25.0;
+const CHEEK_RADIAL_MM: f64 = 0.21;
+const CHEEK_THREAD_MM: f64 = 0.19;
 /// Most a knee may stand past the bare cheek, and the ring's half-reach along the finger (its reach at most 8.8 mm).
 const KNEE_PROUD_MM: f64 = 0.6;
 const HALF_REACH_MM: f64 = 4.38;
-/// The legs' taper: at the coxa and at the tarsal claw.
-const COXA_MM: f64 = 0.72;
-const CLAW_MM: f64 = 0.28;
-/// The legs' radius where the femur leaves the carapace, and at the knee; the rest tapers on from the knee.
-const EMERGE_MM: f64 = 1.1;
-const THIGH_MM: f64 = 0.58;
-const KNEE_MM: f64 = 0.52;
-/// How far the knee stands over the edge past riding it, so the femur arches up to it.
-const KNEE_LIFT_MM: f64 = 0.45;
-/// Knuckles over the tube they joint.
-const KNUCKLE: f64 = 1.08;
+/// The legs' local radius at the knee, the ankle and the metatarsal joint, and at the claw's tip.
+const KNEE_MM: f64 = 0.47;
+const ANKLE_MM: f64 = 0.47;
+const META_MM: f64 = 0.47;
+const CLAW_MM: f64 = 0.40;
+/// A segment's sweep over its joints' radius: where it starts, how far it swells and where, and where it ends.
+const PINCH_IN: f64 = 0.90;
+const SWELL: f64 = 1.12;
+const SWELL_AT: f64 = 0.35;
+/// The tibia swells further down, so the knee reads slender from above.
+const TIBIA_SWELL_AT: f64 = 0.55;
+/// The femur's radius where it leaves its coxa.
+const FEMUR_MM: f64 = 0.46;
+const PINCH_OUT: f64 = 0.86;
+/// Knuckles over the joint's radius, and the coxa's ball.
+const KNUCKLE: f64 = 0.95;
+const COXA_BALL_MM: f64 = 0.6;
+/// How far the knee stands over the crown's edge past riding it, so the femur arches up to it.
+const KNEE_LIFT_MM: f64 = 1.7;
 /// Where the legs root on the carapace's flanks, across the band.
 const ROOT_ACROSS_MM: f64 = 1.6;
-/// How deep the tarsal claw sinks into the cheek.
-const CLAW_SINK_MM: f64 = 0.3;
+/// The tarsal claw: the hook's length and its turn toward the band, and how deep its tip sits under the cheek.
+const HOOK_MM: f64 = 0.8;
+const HOOK_DEG: f64 = 35.0;
+const TIP_SINK_MM: f64 = 0.36;
+/// Thinnest section any leg may carry, the investment's fill floor.
+const MIN_SECTION_MM: f64 = 0.8;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -84,8 +110,7 @@ fn export_params() -> BuildParams {
 
 /// The keyed LowDome band, squared at the cheeks: broad and deep under the spider, slim at the palm.
 fn band() -> RingDesign {
-    let mut d = RingDesign::default();
-    d.name = "Arachne \u{2014} the weaver".into();
+    let mut d = RingDesign { name: "Arachne \u{2014} the weaver".into(), ..RingDesign::default() };
     d.profile.apply_style(ProfileStyle::LowDome);
     d.profile.width_mm = 5.6;
     d.profile.thickness_mm = 2.4;
@@ -117,7 +142,7 @@ fn onyx() -> Gem {
     g
 }
 
-/// A stone's bed: a low pad hidden under the stone that holds its girdle `rise` over the crest.
+/// A stone's bed: a low pad hidden inside the stone's body that holds its girdle `rise` over the crest.
 fn bed(theta: f64, v: f64, gem: Gem, rise: f64) -> SeatPadLayer {
     let mut s = SeatPadLayer { theta_deg: theta, v_mm: v, style: SeatStyle::Boss, metal_true: true, solid: SolidKind::None, blend_mm: 0.3, crown: 1.0, ..Default::default() };
     s.fit_stone(gem);
@@ -162,12 +187,21 @@ fn smoothstep(a: f64, b: f64, x: f64) -> f64 {
 fn lerp(a: f64, b: f64, t: f64) -> f64 {
     a + (b - a) * t
 }
+fn lerp2(a: P2, b: P2, t: f64) -> P2 {
+    [lerp(a[0], b[0], t), lerp(a[1], b[1], t)]
+}
+fn dist2(a: P2, b: P2) -> f64 {
+    (b[0] - a[0]).hypot(b[1] - a[1])
+}
+/// An angle folded onto (-180, 180].
+fn wrap180(a: f64) -> f64 {
+    180.0 - (180.0 - a).rem_euclid(360.0)
+}
 /// The smaller of two, rounded over `k`.
 fn smin(a: f64, b: f64, k: f64) -> f64 {
     let m = a.min(b);
     m - k * ((-(a - m) / k).exp() + (-(b - m) / k).exp()).ln()
 }
-
 
 /// One section of the bare band: its loop, and its outer surface from the crest down the low cheek.
 struct Section {
@@ -222,14 +256,21 @@ impl Bare {
         s
     }
 
-    /// Radius of the outer surface `t` of arc from the crest.
-    fn r_at_t(&self, theta: f64, t: f64) -> f64 {
+    /// Radius and place along the finger of the outer surface `t` of arc from the crest, on the side `t`'s sign names.
+    fn surface_at_t(&self, theta: f64, t: f64) -> (f64, f64) {
         let s = self.at(theta);
         let f = &s.flank;
-        let t = t.abs().clamp(0.0, f.last().unwrap()[0]);
-        let i = f.partition_point(|p| p[0] < t).clamp(1, f.len() - 1);
+        let ta = t.abs().clamp(0.0, f.last().unwrap()[0]);
+        let i = f.partition_point(|p| p[0] < ta).clamp(1, f.len() - 1);
         let (a, b) = (f[i - 1], f[i]);
-        lerp(a[1], b[1], ((t - a[0]) / (b[0] - a[0]).max(1e-12)).clamp(0.0, 1.0))
+        let u = ((ta - a[0]) / (b[0] - a[0]).max(1e-12)).clamp(0.0, 1.0);
+        let z = lerp(a[2], b[2], u);
+        (lerp(a[1], b[1], u), if t > 0.0 { -z } else { z })
+    }
+
+    /// Radius of the outer surface `t` of arc from the crest.
+    fn r_at_t(&self, theta: f64, t: f64) -> f64 {
+        self.surface_at_t(theta, t).0
     }
 
     /// Radius of the crown where it stands `across` mm from the band's mid-plane.
@@ -283,6 +324,8 @@ impl Bare {
     }
 }
 
+// --- Bodies -----------------------------------------------------------------
+
 /// One stone and the body built round it, in the stone's own frame.
 #[derive(Clone)]
 struct Body {
@@ -290,9 +333,13 @@ struct Body {
     f: StoneFrame,
     /// Which way along `f.long` the ring angle climbs.
     ahead: f64,
-    /// The collet's lip as a share of the stone's crown.
+    /// The rim's height over the girdle, as a share of the stone's crown.
     lip: f64,
-    /// The body's fall from its widest to the band: how far it draws in, and over what depth.
+    /// The body's widest reach past the girdle outline, at its equator.
+    widest: f64,
+    /// The equator's height over the girdle.
+    equator: f64,
+    /// The fall from the equator into the band: how far it draws in, and over what depth.
     fall: (f64, f64),
 }
 
@@ -310,35 +357,52 @@ impl Body {
         let d = sub3(w, self.f.girdle);
         [dot(d, self.f.long), dot(d, self.f.short), dot(d, self.f.normal)]
     }
-    /// The collet's outer wall at a height over the girdle, as an offset from the girdle outline.
-    fn collet_out(&self, z: f64) -> f64 {
-        let t = ((z + COLLET_BASE_MM) / (self.rim() - 0.16 + COLLET_BASE_MM)).clamp(0.0, 1.0);
-        COLLET_CLEAR_MM + COLLET_WALL_MM * (0.8 + 0.2 * t)
-    }
-    /// Height of the collet's rim over the girdle.
+    /// Height of the rim's top over the girdle.
     fn rim(&self) -> f64 {
         setting::girdle_half_mm(self.gem) + self.lip * self.gem.crown_mm()
     }
-    /// The body's widest offset, where the trimmed collet ends, a hair past its wall.
-    fn widest(&self) -> f64 {
-        self.collet_out(BODY_FULL_Z) + 0.02
+    /// The stone's plan at a height over its girdle, as a share of the girdle's.
+    fn stone_scale(&self, z: f64) -> f64 {
+        let c = self.gem.crown_mm().max(1e-6);
+        (1.0 - (z / c).clamp(0.0, 1.0).powi(2)).sqrt()
     }
-    /// The body's outer surface at a height over the girdle, as an offset from the girdle outline; `None` below its fall.
+    /// The outer surface as (reach past the girdle outline, height over the girdle), from buried in the band up to the rim's top:
+    /// one convex fall into the band, rolling through the equator into a wall that flares toward its base, and a rounded rim.
+    fn profile(&self) -> Vec<P2> {
+        let (inset, depth) = self.fall;
+        let slope = FLARE_DEG.to_radians().tan();
+        let psi_t = (slope * depth / inset).atan();
+        let centre = self.widest - inset;
+        let mut rows = vec![[centre, self.equator - depth - 0.45]];
+        let n = 11;
+        for i in 0..=n {
+            let psi = lerp(-0.5 * PI, psi_t, i as f64 / n as f64);
+            rows.push([centre + inset * psi.cos(), self.equator + depth * psi.sin()]);
+        }
+        let [o_t, z_t] = *rows.last().unwrap();
+        let top = self.rim() - RIM_ROUND_MM;
+        let o_top = o_t - (top - z_t) * slope;
+        rows.push([lerp(o_t, o_top, 0.5), lerp(z_t, top, 0.5)]);
+        for j in 0..=4 {
+            let a = 0.5 * PI * j as f64 / 4.0;
+            rows.push([o_top - RIM_ROUND_MM * (1.0 - a.cos()), top + RIM_ROUND_MM * a.sin()]);
+        }
+        rows
+    }
+    /// The body's outer surface at a height over the girdle, as a reach past the girdle outline; `None` above its rim or below its foot.
     fn wall(&self, z: f64) -> Option<f64> {
-        if z > self.rim() {
+        let p = self.profile();
+        if z < p[0][1] || z > p.last().unwrap()[1] {
             return None;
         }
-        if z >= BODY_FULL_Z {
-            return Some(self.collet_out(z));
-        }
-        let (inset, depth) = self.fall;
-        let dz = BODY_FULL_Z - z;
-        (dz <= depth).then(|| self.widest() - inset * (1.0 - (1.0 - (dz / depth).powi(2)).sqrt()))
+        let i = p.partition_point(|r| r[1] < z).clamp(1, p.len() - 1);
+        let (a, b) = (p[i - 1], p[i]);
+        Some(lerp(a[0], b[0], ((z - a[1]) / (b[1] - a[1]).max(1e-12)).clamp(0.0, 1.0)))
     }
-    /// The end of the collet facing along the ring, `sign` +1 toward higher angles.
+    /// The end of the body facing along the ring at the girdle, `sign` +1 toward higher angles.
     fn end(&self, sign: f64) -> P3 {
         let (a, _) = self.semi();
-        self.world([sign * self.ahead * (a + self.collet_out(0.0)), 0.0, 0.0])
+        self.world([sign * self.ahead * (a + self.wall(0.0).unwrap_or(self.widest)), 0.0, 0.0])
     }
     /// How far a world point stands outside the body at its own height, while beside it.
     fn margin(&self, w: P3) -> f64 {
@@ -350,38 +414,80 @@ impl Body {
     }
 }
 
-/// The two stones' frames as the stone record places them.
+/// The two stones' frames as the stone record places them, each with its body.
 fn bodies(d: &RingDesign) -> Result<(Body, Body)> {
     let frames = ringdesign_core::stones::stone_frames(d);
     ensure!(frames.len() == 2, "Arachne sets two stones, not {}", frames.len());
-    let body = |i: usize, gem: Gem, lip: f64, fall: (f64, f64)| {
+    let body = |i: usize, gem: Gem, lip: f64, widest: f64, equator: f64, fall: (f64, f64)| {
         let f = frames[i].1.clone();
         let tangent = at_ring(theta_of(f.girdle) + 90.0, 1.0, 0.0);
         let ahead = dot(f.long, tangent).signum();
-        Body { gem, f, ahead, lip, fall }
+        Body { gem, f, ahead, lip, widest, equator, fall }
     };
-    Ok((body(0, garnet(), 0.22, (1.2, 1.0)), body(1, onyx(), 0.16, (1.9, 1.5))))
+    Ok((body(0, garnet(), 0.22, 0.50, -0.2, (1.2, 1.0)), body(1, onyx(), 0.16, 0.47, -0.35, (1.9, 1.5))))
 }
 
-/// The abdomen's ring angle that leaves `BODY_GAP_MM` between the two collets.
+/// The abdomen's ring angle that leaves `BODY_GAP_MM` between the two bodies.
 fn abdomen_deg(bare: &Bare) -> f64 {
     let rc = bare.at(HUB_DEG).flank[0][1] + CARAPACE_RISE_MM;
     let ra = bare.at(HUB_DEG + 44.0).flank[0][1] + ABDOMEN_RISE_MM;
-    let reach = |g: Gem| g.l_mm * 0.5 + COLLET_CLEAR_MM + COLLET_WALL_MM;
-    HUB_DEG + ((reach(garnet()) / rc).atan() + (reach(onyx()) / ra).atan() + BODY_GAP_MM / (0.5 * (rc + ra))).to_degrees()
+    let reach = |g: Gem, widest: f64| g.l_mm * 0.5 + widest;
+    HUB_DEG + ((reach(garnet(), 0.43) / rc).atan() + (reach(onyx(), 0.37) / ra).atan() + BODY_GAP_MM / (0.5 * (rc + ra))).to_degrees()
+}
+
+/// A path point on a 10 nm grid, so the file carries no digits the build cannot see.
+fn snap(p: P2) -> P2 {
+    p.map(|v| (v * 1e5).round() / 1e5)
+}
+
+/// Points round each body's plan: the onyx's and the garnet's.
+const ONYX_AROUND: usize = 112;
+const GARNET_AROUND: usize = 80;
+
+/// A body's section in `setting::sweep`'s terms: from the pocket floor's centre out to its wall, up the stone's own
+/// dome to the rim, over the rim's flat, and down the outside to the axis deep in the band.
+fn body_section(body: &Body) -> Vec<Station> {
+    let st = |s: f64, o: f64, z: f64| Station { s, o, z };
+    let rim = body.rim();
+    let f = POCKET_FLOOR_MM;
+    let mut out = vec![st(0.0, 0.0, f), st(0.3, 0.0, f), st(0.65, 0.0, f)];
+    for i in 0..=3 {
+        let z = lerp(f, rim, i as f64 / 3.0);
+        out.push(st(body.stone_scale(z), POCKET_CLEAR_MM, z));
+    }
+    let profile = body.profile();
+    out.extend(profile.iter().rev().map(|p| st(1.0, p[0], p[1])));
+    out.push(st(0.0, 0.0, profile[0][1]));
+    out
+}
+
+/// A body swept round its stone's plan as one closed solid, packed as a stored part at the stone.
+fn body_part(body: &Body, around: usize) -> Result<Operation> {
+    let solid = setting::sweep(&Plan::of(body.gem), &body_section(body), around);
+    ensure!(solid.open_edges() == (0, 0), "{}: the body's sweep does not close", body.gem.display());
+    ensure!(csg::self_crossings(&solid) == 0, "{}: the body's sweep crosses itself", body.gem.display());
+    let flip = dot(cross3(body.f.long, body.f.short), body.f.normal) < 0.0;
+    let positions: Vec<P3> = solid.v.iter().map(|p| body.world(*p)).collect();
+    let triangles: Vec<[u32; 3]> = solid.f.iter().map(|t| if flip { [t[0], t[2], t[1]] } else { *t }).collect();
+    let mesh = stored::Packed::encode(&positions, &triangles, &vec![0; triangles.len()], &[SurfaceKind::Freeform])?;
+    let recipe = stored::Recipe {
+        kernel: "setting".into(),
+        op: "body".into(),
+        params: serde_json::json!({ "stone": body.gem.display(), "lip": body.lip, "widest_mm": body.widest, "equator_mm": body.equator, "fall_mm": [body.fall.0, body.fall.1], "flare_deg": FLARE_DEG, "around": around }),
+        digest: String::new(),
+    };
+    Ok(Operation::Stored { recipe, sources: Vec::new(), mesh })
 }
 
 // --- The web ----------------------------------------------------------------
 
-/// A thread of web in metal: (ring angle, signed arc from the crest) points, and its width.
+/// A thread of web in the chart: (ring angle, signed arc from the crest) points, and its width.
 struct Thread {
     pts: Vec<P2>,
     w: f64,
-    /// Ink, 1 for full relief.
-    ink: f64,
 }
 
-/// A dew bead on the dragline: its centre and radius.
+/// A dew bead or a hub's mat: its centre and radius.
 struct Dew {
     at: P2,
     r: f64,
@@ -406,61 +512,6 @@ impl Chart<'_> {
     fn edge(&self, theta: f64) -> f64 {
         self.bare.at(theta).edge_t
     }
-    /// The ring angle `s` mm of metal along from `theta` at arc `t` off the crest.
-    fn step(&self, theta: f64, t: f64, s: f64) -> f64 {
-        theta + (s / self.r(theta, t)).to_degrees()
-    }
-}
-
-/// Splits a thread where it leaves the crown, keeping the runs on it.
-fn on_crown(ch: &Chart, t: Thread) -> Vec<Thread> {
-    let mut out = Vec::new();
-    let mut run: Vec<P2> = Vec::new();
-    for p in t.pts {
-        if p[1].abs() <= ch.edge(p[0]) - 0.05 {
-            run.push(p);
-        } else if run.len() > 1 {
-            out.push(Thread { pts: std::mem::take(&mut run), w: t.w, ink: t.ink });
-        } else {
-            run.clear();
-        }
-    }
-    if run.len() > 1 {
-        out.push(Thread { pts: run, w: t.w, ink: t.ink });
-    }
-    out
-}
-
-/// The orb round the hub, drawn round in metal: radials, a six-turn capture spiral, and the hub itself.
-fn orb(ch: &Chart, hub: f64, out: &mut Vec<Thread>, dew: &mut Vec<Dew>) {
-    let at = |s: f64, t: f64| -> P2 { [ch.step(hub, t, s), t] };
-    let reach = SPIRAL_START_MM + SPIRAL_PITCH_MM * SPIRAL_TURNS as f64;
-    for k in 0..RADIALS {
-        let a = (15.0 + 360.0 / RADIALS as f64 * k as f64).to_radians();
-        let n = 90;
-        let pts = (0..=n).map(|i| 1.0 + (reach + 0.45 - 1.0) * i as f64 / n as f64).map(|rho| at(rho * a.cos(), rho * a.sin())).collect();
-        out.extend(on_crown(ch, Thread { pts, w: 0.36, ink: 1.0 }));
-    }
-    let node = |j: usize| -> P2 {
-        let a = (15.0 + 360.0 / RADIALS as f64 * j as f64).to_radians();
-        let rho = SPIRAL_START_MM + SPIRAL_PITCH_MM * j as f64 / RADIALS as f64;
-        [rho * a.cos(), rho * a.sin()]
-    };
-    let mut pts = Vec::new();
-    for j in 0..RADIALS * SPIRAL_TURNS {
-        let (a, b) = (node(j), node(j + 1));
-        let mid = [0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1])];
-        let m = mid[0].hypot(mid[1]).max(1e-9);
-        for i in 0..8 {
-            let u = i as f64 / 8.0;
-            let sag = 0.18 * 4.0 * u * (1.0 - u);
-            pts.push(at(lerp(a[0], b[0], u) - mid[0] / m * sag, lerp(a[1], b[1], u) - mid[1] / m * sag));
-        }
-    }
-    let end = node(RADIALS * SPIRAL_TURNS);
-    pts.push(at(end[0], end[1]));
-    out.extend(on_crown(ch, Thread { pts, w: 0.30, ink: 1.0 }));
-    dew.push(Dew { at: [hub, 0.0], r: 1.05 });
 }
 
 /// Crest arc along the ring from the hub, both ways round to the palm and past it.
@@ -493,127 +544,269 @@ impl Along {
     }
 }
 
-/// One side of the orb past its spiral: radials fanning toward the palm, late radials joining, rings widening and hanging toward the hub.
-fn fan(ch: &Chart, along: &Along, hub_s: f64, side: f64, palm_s: f64, radials: &[(f64, f64)], rings: &[f64], out: &mut Vec<Thread>, dew: &mut Vec<Dew>) {
-    let reach = (palm_s - hub_s).abs();
-    let last = rings.iter().copied().filter(|r| *r < reach - 1.5).fold(0.0, f64::max);
-    let at = |rho: f64, phi: f64| -> P2 {
-        let s = hub_s + side * rho * phi.to_radians().cos();
-        [along.theta_of(s), rho * phi.to_radians().sin()]
-    };
-    for &(alpha, start) in radials {
-        for sign in [-1.0, 1.0] {
-            let end = (last + 0.2) / alpha.to_radians().cos();
-            let n = ((end - start) / 0.1).ceil().max(2.0) as usize;
-            let pts = (0..=n).map(|i| at(lerp(start, end, i as f64 / n as f64), sign * alpha)).collect();
-            out.extend(on_crown(ch, Thread { pts, w: if start < 2.0 { 0.34 } else { 0.30 }, ink: 1.0 }));
-        }
+/// Web space: metal millimetres along the crest from the main hub, and arc across the crown from the crest.
+struct Web<'a> {
+    ch: &'a Chart<'a>,
+    along: Along,
+    /// The crest's circumference.
+    circ: f64,
+}
+
+impl<'a> Web<'a> {
+    fn new(ch: &'a Chart<'a>) -> Self {
+        let along = Along::new(ch, HUB_DEG);
+        let circ = along.s_of(HUB_DEG + 360.0) - along.s_of(HUB_DEG);
+        Self { ch, along, circ }
     }
-    for &rho in rings.iter().filter(|r| **r < reach - 1.5) {
-        let edge = ch.edge(along.theta_of(hub_s + side * rho));
-        let rim = (edge / rho).min(1.0).asin().to_degrees();
-        let mut nodes: Vec<f64> = radials.iter().filter(|(a, st)| *st <= rho && *a < rim).flat_map(|(a, _)| [-a, *a]).collect();
-        nodes.extend([-rim - 2.0, rim + 2.0]);
-        nodes.sort_by(|a, b| a.total_cmp(b));
-        let mut pts = Vec::new();
-        for (k, w) in nodes.windows(2).enumerate() {
-            let chord = rho * (w[1] - w[0]).to_radians();
-            let sag = (0.4 * chord).min(0.95);
-            for j in 0..12 {
-                let u = j as f64 / 12.0;
-                pts.push(at(rho - sag * (PI * u).sin(), lerp(w[0], w[1], u)));
-            }
-            // Dew gathers where the outer threads hang lowest, on every other one.
-            let low = at(rho - sag + 0.02, 0.5 * (w[0] + w[1]));
-            if rho >= 12.0 && chord >= 0.9 && k == 1 && low[1].abs() < ch.edge(low[0]) - 0.35 {
-                dew.push(Dew { at: low, r: 0.2 });
-            }
-        }
-        pts.push(at(rho, *nodes.last().unwrap()));
-        out.extend(on_crown(ch, Thread { pts, w: 0.28, ink: 1.0 }));
+    /// An along-coordinate folded onto the circumference centred on `mid`.
+    fn wrap(&self, s: f64, mid: f64) -> f64 {
+        mid + (s - mid + 0.5 * self.circ).rem_euclid(self.circ) - 0.5 * self.circ
+    }
+    fn theta(&self, s: f64) -> f64 {
+        self.along.theta_of(self.wrap(s, 0.0))
+    }
+    fn s_of(&self, theta: f64) -> f64 {
+        self.along.s_of(HUB_DEG + wrap180(theta - HUB_DEG))
+    }
+    /// The crown's half-width at `s`, and the overrun onto the cheek the web may take past it.
+    fn edge(&self, s: f64) -> f64 {
+        self.ch.edge(self.theta(s))
+    }
+    fn reach(&self, s: f64) -> f64 {
+        self.edge(s) + EDGE_OVERRUN_MM
     }
 }
 
-/// Where the orb's two halves meet round the finger: two anchor threads crossed over the palm from the last ring on one side to the last on the other.
-fn anchors(ch: &Chart, along: &Along, from: f64, to: f64, out: &mut Vec<Thread>) {
-    for sign in [-1.0, 1.0] {
-        let n = 160;
-        let pts = (0..=n)
-            .map(|i| {
-                let u = i as f64 / n as f64;
-                let th = along.theta_of(lerp(from, to, u));
-                [th, sign * lerp(-1.0, 1.0, u) * (ch.edge(th) - 0.1)]
+/// A thread in web space; `radial` when it runs from an orb's hub.
+struct Strand {
+    pts: Vec<P2>,
+    w: f64,
+    radial: bool,
+}
+
+/// Appends points, skipping any that repeats the last.
+fn extend(pts: &mut Vec<P2>, more: impl IntoIterator<Item = P2>) {
+    for p in more {
+        if pts.last().is_none_or(|q| dist2(*q, p) > 1e-6) {
+            pts.push(p);
+        }
+    }
+}
+/// A straight run from `a` to `b`, sampled every `step` mm.
+fn seg(a: P2, b: P2, step: f64) -> Vec<P2> {
+    let n = (dist2(a, b) / step).ceil().max(1.0) as usize;
+    (0..=n).map(|i| lerp2(a, b, i as f64 / n as f64)).collect()
+}
+/// A thread from `a` to `b` whose middle hangs `depth` toward `toward`.
+fn sagged(a: P2, b: P2, toward: P2, depth: f64, step: f64) -> Vec<P2> {
+    let mid = lerp2(a, b, 0.5);
+    let d = [toward[0] - mid[0], toward[1] - mid[1]];
+    let l = d[0].hypot(d[1]).max(1e-12);
+    let c = [mid[0] + 2.0 * depth * d[0] / l, mid[1] + 2.0 * depth * d[1] / l];
+    let n = (dist2(a, b) / step).ceil().max(2.0) as usize;
+    (0..=n)
+        .map(|i| {
+            let t = i as f64 / n as f64;
+            let u = 1.0 - t;
+            [u * u * a[0] + 2.0 * u * t * c[0] + t * t * b[0], u * u * a[1] + 2.0 * u * t * c[1] + t * t * b[1]]
+        })
+        .collect()
+}
+/// Splits a strand where `keep` fails, keeping the runs of two points or more.
+fn clip(s: Strand, keep: &dyn Fn(P2) -> bool) -> Vec<Strand> {
+    let mut out = Vec::new();
+    let mut run: Vec<P2> = Vec::new();
+    for p in s.pts {
+        if keep(p) {
+            run.push(p);
+        } else if run.len() > 1 {
+            out.push(Strand { pts: std::mem::take(&mut run), w: s.w, radial: s.radial });
+        } else {
+            run.clear();
+        }
+    }
+    if run.len() > 1 {
+        out.push(Strand { pts: run, w: s.w, radial: s.radial });
+    }
+    out
+}
+
+/// An orb of the web: a hub, its radials, its capture spiral and its frame, squashed to the crown in metal mm.
+struct Orb {
+    name: &'static str,
+    /// Along the crest from the main hub.
+    s: f64,
+    /// Half-extents along and across at the spiral's last turn.
+    a_s: f64,
+    a_t: f64,
+    radials: usize,
+    offset_deg: f64,
+    /// The spiral's first turn, as a share of its last.
+    spiral_from: f64,
+    turns: f64,
+    /// The frame thread's reach, as a share of the spiral's last turn.
+    rim: f64,
+}
+
+impl Orb {
+    fn at(&self, rho: f64, phi: f64) -> P2 {
+        [self.s + rho * self.a_s * phi.cos(), rho * self.a_t * phi.sin()]
+    }
+    fn phi(&self, k: usize) -> f64 {
+        (self.offset_deg + 360.0 * k as f64 / self.radials as f64).to_radians()
+    }
+    /// A point's reach from the hub, 1 on the spiral's last turn.
+    fn rho(&self, web: &Web, p: P2) -> f64 {
+        let ds = web.wrap(p[0], self.s) - self.s;
+        (ds / self.a_s).hypot(p[1] / self.a_t)
+    }
+    /// A squashed orb at a ring angle: three turns of 0.6 mm across the band, the frame half a millimetre past them.
+    fn squashed(web: &Web, name: &'static str, theta: f64, radials: usize) -> Self {
+        let a_t = (web.ch.edge(theta) - 0.12).min(2.5);
+        Self {
+            name,
+            s: web.s_of(theta),
+            a_s: ORB_SQUASH * a_t,
+            a_t,
+            radials,
+            offset_deg: 180.0 / radials as f64,
+            spiral_from: 1.0 - ORB_TURNS * ORB_PITCH_MM / a_t,
+            turns: ORB_TURNS,
+            rim: 1.0 + 0.5 / a_t,
+        }
+    }
+    fn draw(&self, out: &mut Vec<Strand>) {
+        let n = self.radials;
+        for k in 0..n {
+            out.push(Strand { pts: seg(self.at(0.08, self.phi(k)), self.at(self.rim, self.phi(k)), 0.05), w: W_ORB_MM, radial: true });
+        }
+        let total = (n as f64 * self.turns).round() as usize;
+        let node = |j: usize| self.at(self.spiral_from + (1.0 - self.spiral_from) * j as f64 / total as f64, self.phi(j % n));
+        let mut pts = Vec::new();
+        for j in 0..total {
+            let (a, b) = (node(j), node(j + 1));
+            extend(&mut pts, sagged(a, b, [self.s, 0.0], 0.13 * dist2(a, b), 0.05));
+        }
+        out.push(Strand { pts, w: W_ORB_MM, radial: false });
+        let mut ring = Vec::new();
+        for k in 0..n {
+            extend(&mut ring, seg(self.at(self.rim, self.phi(k)), self.at(self.rim, self.phi(k + 1)), 0.05));
+        }
+        out.push(Strand { pts: ring, w: W_FRAME_MM, radial: false });
+    }
+}
+
+/// The frieze round the ring: a zig-zag frame from edge to edge, each of its triangles a web corner anchored on the edge,
+/// its spokes fanning across the crown and its capture threads hanging toward the anchor. Returns the zig-zag's step.
+fn frieze(web: &Web, out: &mut Vec<Strand>) -> f64 {
+    let m = 2 * ((web.circ / FRIEZE_STEP_MM / 2.0).round().max(2.0) as i64);
+    let q = web.circ / m as f64;
+    let vtx = |k: i64| -> P2 {
+        let s = k as f64 * q;
+        [s, if k.rem_euclid(2) == 0 { 1.0 } else { -1.0 } * web.reach(s)]
+    };
+    for k in 0..m {
+        out.push(Strand { pts: seg(vtx(k), vtx(k + 1), 0.05), w: W_FRAME_MM, radial: false });
+    }
+    for k in 0..m {
+        let apex = vtx(k);
+        let (l, r) = (vtx(k - 1), vtx(k + 1));
+        let side = l[1].signum();
+        let feet: Vec<P2> = (0..=FRIEZE_SPOKES + 1)
+            .map(|j| {
+                let s = lerp(l[0], r[0], j as f64 / (FRIEZE_SPOKES + 1) as f64);
+                [s, side * web.reach(s)]
             })
             .collect();
-        out.extend(on_crown(ch, Thread { pts, w: 0.32, ink: 1.0 }));
+        for foot in &feet[1..=FRIEZE_SPOKES] {
+            out.push(Strand { pts: seg(apex, *foot, 0.05), w: W_SPOKE_MM, radial: false });
+        }
+        // Capture arcs round the anchor, each hanging toward it between spokes; an arc past the shortest spoke breaks where it leaves the crown.
+        let longest = feet.iter().map(|f| dist2(apex, *f)).fold(0.0, f64::max);
+        // Alternate corners start half a pitch apart, or the arcs of neighbours line up into rails along the ring.
+        let mut radius = FRIEZE_ARC_FROM_MM + if k.rem_euclid(2) == 0 { 0.0 } else { 0.5 * FRIEZE_ARC_PITCH_MM };
+        while radius < longest - 0.4 {
+            let p: Vec<P2> = feet
+                .iter()
+                .map(|f| {
+                    let d = dist2(apex, *f);
+                    lerp2(apex, *f, radius / d)
+                })
+                .collect();
+            let mut pts = Vec::new();
+            for w in p.windows(2) {
+                extend(&mut pts, sagged(w[0], w[1], apex, 0.14 * dist2(w[0], w[1]), 0.05));
+            }
+            out.push(Strand { pts, w: W_CAPTURE_MM, radial: false });
+            radius += FRIEZE_ARC_PITCH_MM;
+        }
     }
+    q
 }
 
-/// The dragline trailing from the spinnerets along the crest: a faint thread strung with dew, the beads shrinking as it goes.
-fn dragline(ch: &Chart, from: f64, out: &mut Vec<Thread>, dew: &mut Vec<Dew>) {
-    let beads = 12;
-    let mut th = from;
-    let mut pts = vec![[th, 0.0]];
-    for k in 0..beads {
-        th = ch.step(th, 0.0, DEW_PITCH_MM);
-        pts.push([th, 0.0]);
-        dew.push(Dew { at: [th, 0.0], r: 0.5 * lerp(DEW_MM, 0.34, k as f64 / (beads - 1) as f64) });
-    }
-    let fine: Vec<P2> = pts.windows(2).flat_map(|w| (0..6).map(move |j| [lerp(w[0][0], w[1][0], j as f64 / 6.0), 0.0])).collect();
-    out.push(Thread { pts: fine, w: 0.2, ink: 0.58 });
+/// What the crown web measures.
+#[derive(Default, serde::Serialize)]
+struct WebStats {
+    orbs: Vec<(String, f64, usize)>,
+    frieze_step_mm: f64,
+    frieze_corners: usize,
+    /// The longest visible stretch of any thread but an orb's radials within 15 degrees of the ring's own direction, metal mm.
+    longest_parallel_run_mm: f64,
+    /// The same for the orbs' radials, which converge on their hubs.
+    longest_orb_radial_along_ring_mm: f64,
+    windows: Vec<String>,
+    svg_bytes: usize,
 }
 
-/// A thread's outline in (ring angle, arc) with round ends, its width held in metal millimetres.
-fn outline(ch: &Chart, pts: &[P2], w: f64) -> Vec<P2> {
-    let n = pts.len();
-    let h = 0.5 * w;
-    let frame = |i: usize| -> (P2, P2, f64) {
-        let (a, b) = (pts[i.saturating_sub(1)], pts[(i + 1).min(n - 1)]);
-        let r = ch.r(pts[i][0], pts[i][1]);
-        let (ds, dt) = ((b[0] - a[0]).to_radians() * r, b[1] - a[1]);
-        let l = ds.hypot(dt).max(1e-12);
-        ([ds / l, dt / l], [-dt / l, ds / l], r)
-    };
-    let shift = |p: P2, v: P2, r: f64, k: f64| -> P2 { [p[0] + (v[0] * k / r).to_degrees(), p[1] + v[1] * k] };
-    let (mut left, mut right) = (Vec::with_capacity(n), Vec::with_capacity(n));
-    for i in 0..n {
-        let (_, nrm, r) = frame(i);
-        left.push(shift(pts[i], nrm, r, h));
-        right.push(shift(pts[i], nrm, r, -h));
+/// An open polyline with every point dropped that sits within `tol` of the chord its kept neighbours make.
+fn simplify(pts: &[(f64, f64)], tol: f64) -> Vec<(f64, f64)> {
+    fn rdp(p: &[(f64, f64)], tol: f64, out: &mut Vec<(f64, f64)>) {
+        let (a, b) = (p[0], p[p.len() - 1]);
+        let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+        let l = dx.hypot(dy).max(1e-12);
+        let (mut worst, mut at) = (0.0, 0);
+        for (i, q) in p.iter().enumerate().take(p.len() - 1).skip(1) {
+            let d = ((q.0 - a.0) * dy - (q.1 - a.1) * dx).abs() / l;
+            if d > worst {
+                worst = d;
+                at = i;
+            }
+        }
+        if worst > tol {
+            rdp(&p[..=at], tol, out);
+            rdp(&p[at..], tol, out);
+        } else {
+            out.push(b);
+        }
     }
-    let cap = |i: usize, dir: f64| -> Vec<P2> {
-        let (tan, nrm, r) = frame(i);
-        (1..8)
-            .map(|j| {
-                let a = PI * j as f64 / 8.0;
-                let v = [nrm[0] * a.cos() + dir * tan[0] * a.sin(), nrm[1] * a.cos() + dir * tan[1] * a.sin()];
-                shift(pts[i], [dir * v[0], dir * v[1]], r, h * dir)
-            })
-            .collect()
-    };
-    let mut ring = left;
-    ring.extend(cap(n - 1, 1.0));
-    ring.extend(right.into_iter().rev());
-    ring.extend(cap(0, -1.0));
-    ring
+    if pts.len() < 3 {
+        return pts.to_vec();
+    }
+    let mut out = vec![pts[0]];
+    rdp(pts, tol, &mut out);
+    out
 }
 
 /// One window of the web as SVG in chart millimetres, from ring angle `lo` to `hi`, `half` of its height either side of the crest.
+/// Each thread is stroked a piece at a time, the piece's chart width solved so it holds the thread's width in metal.
 fn window_svg(ch: &Chart, threads: &[Thread], dew: &[Dew], lo: f64, hi: f64, half: f64) -> (String, f64) {
     let width = ch.u(hi) - ch.u(lo);
+    let r_ref = ch.ctx.circumference_mm / (2.0 * PI);
+    let unwrap = |th: f64| {
+        let th = lo + (th - lo).rem_euclid(360.0);
+        if th > hi + 180.0 { th - 360.0 } else { th }
+    };
     let xy = |p: P2| -> (f64, f64) {
-        let th = lo + (p[0] - lo).rem_euclid(360.0);
-        let th = if th > hi + 180.0 { th - 360.0 } else { th };
+        let th = unwrap(p[0]);
         (ch.u(th) - ch.u(lo), half - (ch.v(th, p[1]) - ch.ctx.crest_v_mm))
     };
     let near = |th: f64| {
         let d = (th - lo).rem_euclid(360.0);
         d <= hi - lo + 2.0 || d >= 358.0
     };
-    let mut s = format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:.4} {h:.4}" width="{width:.4}" height="{h:.4}"><defs><radialGradient id="dew"><stop offset="0" stop-color="#000"/><stop offset="0.55" stop-color="#141414"/><stop offset="1" stop-color="#a0a0a0"/></radialGradient><filter id="soft" filterUnits="userSpaceOnUse" x="0" y="0" width="{width:.4}" height="{h:.4}"><feGaussianBlur stdDeviation="0.07"/></filter></defs><rect width="{width:.4}" height="{h:.4}" fill="#fff"/><g filter="url(#soft)">"##,
-        h = 2.0 * half
-    );
+    let um = |v: f64| (v * 1000.0).round() as i64;
+    let text = |v: i64| format!("{}{}.{:03}", if v < 0 { "-" } else { "" }, v.abs() / 1000, v.abs() % 1000);
+    let mut groups: std::collections::BTreeMap<i64, String> = std::collections::BTreeMap::new();
     for t in threads {
         let mut runs: Vec<Vec<P2>> = vec![Vec::new()];
         for p in &t.pts {
@@ -624,63 +817,96 @@ fn window_svg(ch: &Chart, threads: &[Thread], dew: &[Dew], lo: f64, hi: f64, hal
             }
         }
         for run in runs.iter().filter(|r| r.len() > 1) {
-            let ring = outline(ch, run, t.w);
-            let grey = ((1.0 - t.ink) * 255.0).round() as u8;
-            s += &format!(r##"<path fill="#{grey:02x}{grey:02x}{grey:02x}" d="M"##);
-            for (i, p) in ring.iter().enumerate() {
-                let (x, y) = xy(*p);
-                s += &format!("{}{x:.3} {y:.3}", if i == 0 { "" } else { " L" });
+            let mut start = 0;
+            while start + 1 < run.len() {
+                let (mut end, mut len, mut along, mut across) = (start, 0.0, 0.0, 0.0);
+                while end + 1 < run.len() && len < 1.5 {
+                    let (a, b) = (run[end], run[end + 1]);
+                    let ds = wrap180(b[0] - a[0]).to_radians() * ch.r(a[0], a[1]);
+                    let dt = b[1] - a[1];
+                    let l = ds.hypot(dt);
+                    if l > 1e-12 {
+                        along += ds * ds / l;
+                        across += dt * dt / l;
+                    }
+                    len += l;
+                    end += 1;
+                }
+                let mid = run[(start + end) / 2];
+                let ku = ch.r(mid[0], mid[1]) / r_ref;
+                let kv = ch.ctx.station_stretch(mid[0].rem_euclid(360.0));
+                let (c2, s2) = if len > 1e-12 { (along / len, across / len) } else { (1.0, 0.0) };
+                let wc = t.w / (kv * kv * c2 + ku * ku * s2).sqrt();
+                let pts: Vec<(f64, f64)> = run[start..=end].iter().map(|p| xy(*p)).collect();
+                let path = groups.entry((wc / 0.002).round() as i64).or_default();
+                let mut last = (0i64, 0i64);
+                for (i, p) in simplify(&pts, 0.002).iter().enumerate() {
+                    let q = (um(p.0), um(p.1));
+                    if i == 0 {
+                        *path += &format!("M{} {}", text(q.0), text(q.1));
+                    } else if q != last {
+                        *path += &format!("l{} {}", text(q.0 - last.0), text(q.1 - last.1));
+                    }
+                    last = q;
+                }
+                start = end;
             }
-            s += r##" Z"/>"##;
         }
+    }
+    let mut s = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:.4} {h:.4}" width="{width:.4}" height="{h:.4}"><defs><radialGradient id="dew"><stop offset="0" stop-color="#000"/><stop offset="0.55" stop-color="#141414"/><stop offset="1" stop-color="#a0a0a0"/></radialGradient><filter id="soft" filterUnits="userSpaceOnUse" x="0" y="0" width="{width:.4}" height="{h:.4}"><feGaussianBlur stdDeviation="0.05"/></filter></defs><rect width="{width:.4}" height="{h:.4}" fill="#fff"/><g filter="url(#soft)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">"##,
+        h = 2.0 * half
+    );
+    for (key, d) in &groups {
+        s += &format!(r##"<path stroke-width="{:.3}" d="{d}"/>"##, *key as f64 * 0.002);
     }
     s += "</g>";
     for b in dew.iter().filter(|b| near(b.at[0])) {
-        let ring: Vec<P2> = (0..24)
-            .map(|j| {
-                let a = 2.0 * PI * j as f64 / 24.0;
-                let t = b.at[1] + b.r * a.sin();
-                [ch.step(b.at[0], t, b.r * a.cos()), t]
-            })
-            .collect();
-        s += r##"<path fill="url(#dew)" d="M"##;
-        for (i, p) in ring.iter().enumerate() {
-            let (x, y) = xy(*p);
-            s += &format!("{}{x:.3} {y:.3}", if i == 0 { "" } else { " L" });
-        }
-        s += r##" Z"/>"##;
+        let (x, y) = xy(b.at);
+        let ku = ch.r(b.at[0], b.at[1]) / r_ref;
+        let kv = ch.ctx.station_stretch(b.at[0].rem_euclid(360.0));
+        s += &format!(r##"<ellipse cx="{x:.3}" cy="{y:.3}" rx="{:.3}" ry="{:.3}" fill="url(#dew)"/>"##, b.r / ku, b.r / kv);
     }
     s += "</svg>";
     (s, width)
 }
 
-/// The cheek tile: radials pointing at the finger, capture threads hanging between them as catenaries and climbing a row per tile.
-fn cheek_svg(cell_w: f64, cell_h: f64, radials: usize, pitch: f64) -> String {
-    let (radial_w, thread_w) = (0.34, 0.23);
+/// The cheek tile: radials leaning alternately either way off the finger's direction, a zig-zag of triangles,
+/// each a small web corner with one capture thread near its base hanging toward its anchor. The tile's top row is the bore's edge.
+fn cheek_svg(cell_w: f64, cell_h: f64) -> String {
+    let lean = CHEEK_LEAN_DEG.to_radians().tan();
+    let over = 0.25;
+    let periods = (cell_w / (2.0 * (cell_h + 2.0 * over) * lean)).round().max(1.0) as i64;
+    let half = cell_w / (2 * periods) as f64;
+    let vertex = |i: i64| -> P2 { [i as f64 * half, if i.rem_euclid(2) == 0 { -over } else { cell_h + over }] };
     let mut s = format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cell_w:.4} {cell_h:.4}" width="{cell_w:.4}" height="{cell_h:.4}"><rect width="{cell_w:.4}" height="{cell_h:.4}" fill="#fff"/><g fill="none" stroke="#000" stroke-linecap="round">"##
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cell_w:.4} {cell_h:.4}" width="{cell_w:.4}" height="{cell_h:.4}"><rect width="{cell_w:.4}" height="{cell_h:.4}" fill="#fff"/><g fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">"##
     );
-    let step = cell_w / radials as f64;
-    for j in 0..=radials {
-        let x = j as f64 * step;
-        s += &format!(r##"<line x1="{x:.4}" y1="-1" x2="{x:.4}" y2="{:.4}" stroke-width="{radial_w}"/>"##, cell_h + 1.0);
+    let a = vertex(-2);
+    s += &format!(r##"<path stroke-width="{CHEEK_RADIAL_MM}" d="M{:.4} {:.4}"##, a[0], a[1]);
+    for i in -1..=2 * periods + 2 {
+        let p = vertex(i);
+        s += &format!(" L{:.4} {:.4}", p[0], p[1]);
     }
-    let rows = (cell_h / pitch).ceil() as i32 + 3;
-    for m in -2..rows {
-        for j in 0..radials {
-            let (x0, x1) = (j as f64 * step, (j + 1) as f64 * step);
-            let y = |x: f64| m as f64 * pitch + pitch * x / cell_w + 0.5 * pitch;
-            let (y0, y1) = (y(x0), y(x1));
-            let sag = 1.24 * pitch;
-            s += &format!(r##"<path d="M{x0:.4} {y0:.4} Q{:.4} {:.4} {x1:.4} {y1:.4}" stroke-width="{thread_w}"/>"##, 0.5 * (x0 + x1), 0.5 * (y0 + y1) - 2.0 * sag);
-        }
+    s += r##""/>"##;
+    // Where the leg from vertex i to i+1 crosses height y.
+    let leg = |i: i64, y: f64| -> f64 {
+        let (p, q) = (vertex(i), vertex(i + 1));
+        lerp(p[0], q[0], (y - p[1]) / (q[1] - p[1]))
+    };
+    for i in -1..=2 * periods + 1 {
+        let apex_at_bore = i.rem_euclid(2) == 0;
+        let y = if apex_at_bore { 0.66 * cell_h } else { 0.34 * cell_h };
+        let (x0, x1) = (leg(i - 1, y), leg(i, y));
+        let sag = 0.2 * (x1 - x0).abs() * if apex_at_bore { -1.0 } else { 1.0 };
+        s += &format!(r##"<path stroke-width="{CHEEK_THREAD_MM}" d="M{x0:.4} {y:.4} Q{:.4} {:.4} {x1:.4} {y:.4}"/>"##, 0.5 * (x0 + x1), y + 2.0 * sag);
     }
     s += "</g></svg>";
     s
 }
 
 /// The cheek web on both side faces.
-fn cheek_web(d: &mut RingDesign) -> Result<()> {
+fn cheek_web(d: &mut RingDesign) -> Result<(f64, f64)> {
     let ctx = d.field_context();
     let mut t = TilingLayer::default_for("Cheek web", &ctx);
     ensure!(t.fit_to_side_faces(&ctx, ringdesign_core::field::SIDE_FACE_MIN_DRAFT_DEG), "The band carries no side face for the web");
@@ -688,122 +914,169 @@ fn cheek_web(d: &mut RingDesign) -> Result<()> {
     t.height_mm = 0.32;
     t.continuous = true;
     t.feather_mm = 0.0;
-    t.edge_mm = 0.08;
+    t.edge_mm = 0.15;
     let (cw, ch) = t.cell_size(&ctx);
     println!("  cheek web cell {cw:.2} x {ch:.2} mm");
-    d.svgs.push(SvgAlpha { name: "Cheek web".into(), svg: cheek_svg(cw, ch, 3, 1.0), invert: false });
+    d.svgs.push(SvgAlpha { name: "Cheek web".into(), svg: cheek_svg(cw, ch), invert: false });
     let mut e = LayerEntry::new("Cheek web, radials to the finger", Layer::Tiling(t));
     e.window.v_gate = VGate::SideFaces(SideFacePick::Both);
     e.blend = Blend::Max;
     d.layers.layers.push(e);
-    Ok(())
+    Ok((cw, ch))
 }
 
-/// The crown web: the orb round the hub, its ladder down both shoulders to the palm, and the dragline, in four decals.
-fn crown_web(d: &mut RingDesign, bare: &Bare, abdomen: &Body) -> Result<f64> {
-    let ch = Chart { bare, ctx: d.field_context() };
-    let (a, _) = abdomen.semi();
-    let spinnerets = theta_of(abdomen.world([abdomen.ahead * (a + abdomen.collet_out(0.0) + 0.3), 0.0, 0.0]));
-    let mut threads = Vec::new();
-    let mut dew = Vec::new();
-    orb(&ch, HUB_DEG, &mut threads, &mut dew);
-    let along = Along::new(&ch, HUB_DEG);
-    let hub_s = along.s_of(HUB_DEG);
-    let primary = [(15.0, 1.0), (45.0, 1.0), (75.0, 1.0)];
-    let (palm_front, palm_back) = (along.s_of(270.0 - 360.0), along.s_of(270.0));
-    fan(&ch, &along, hub_s, -1.0, palm_front, &[primary[0], primary[1], primary[2], (3.0, 9.0)], &FRONT_RINGS, &mut threads, &mut dew);
-    fan(&ch, &along, hub_s, 1.0, palm_back, &[primary[0], primary[1], primary[2], (2.2, 12.0)], &BACK_RINGS, &mut threads, &mut dew);
-    let last_front = FRONT_RINGS.iter().copied().fold(0.0, f64::max);
-    let last_back = BACK_RINGS.iter().copied().fold(0.0, f64::max);
-    // The back's last ring, read on the front's side of the palm.
-    let circumference = palm_back - palm_front;
-    anchors(&ch, &along, hub_s - last_front, hub_s + last_back - circumference, &mut threads);
-    dragline(&ch, spinnerets, &mut threads, &mut dew);
-    let half = (0..360).map(|k| ch.edge(k as f64) / ch.ctx.station_stretch(k as f64)).fold(0.0, f64::max) + 0.4;
-    let span = 42.0;
-    let mut windows = vec![(HUB_DEG - span, HUB_DEG + span, "Orb web round the spider".to_string())];
-    let (lo, hi) = (HUB_DEG + span - 360.0, HUB_DEG - span);
-    for k in 0..3 {
-        let (a, b) = (lerp(lo, hi, k as f64 / 3.0), lerp(lo, hi, (k + 1) as f64 / 3.0));
-        windows.push((a, b, format!("Orb web {}", ["behind her", "at the palm", "before her"][k])));
+/// The web in web space and what it measures: the main orb round the carapace, three squashed orbs round the ring,
+/// the frieze of web corners between them all, and a short dragline from the spinnerets.
+fn web_strands(web: &Web, spinnerets: f64, covered: &dyn Fn(P2) -> bool) -> (Vec<Strand>, Vec<Dew>, WebStats) {
+    let main = Orb {
+        name: "Main orb",
+        s: 0.0,
+        a_s: MAIN_RIM_MM,
+        a_t: MAIN_RIM_MM,
+        radials: MAIN_RADIALS,
+        offset_deg: 180.0 / MAIN_RADIALS as f64,
+        spiral_from: MAIN_SPIRAL_FROM_MM / MAIN_RIM_MM,
+        turns: (MAIN_RIM_MM - MAIN_SPIRAL_FROM_MM) / MAIN_PITCH_MM,
+        rim: 1.0 + 0.45 / MAIN_RIM_MM,
+    };
+    let mut orbs = vec![main];
+    orbs.extend(ORBS.iter().map(|(name, theta, radials)| Orb::squashed(web, name, *theta, *radials)));
+    let mut raw = Vec::new();
+    let mut dots = Vec::new();
+    let mut stats = WebStats { orbs: orbs.iter().map(|o| (o.name.to_string(), web.theta(o.s).rem_euclid(360.0), o.radials)).collect(), ..WebStats::default() };
+    let on_crown = |p: P2| p[1].abs() <= web.reach(p[0]) + 1e-6;
+    // The squashed orbs take precedence over the main orb where their frames overlap it.
+    for (k, o) in orbs.iter().enumerate() {
+        let mut mine = Vec::new();
+        o.draw(&mut mine);
+        let keep = |p: P2| on_crown(p) && (k > 0 || orbs[1..].iter().all(|q| q.rho(web, p) >= q.rim + 0.02));
+        raw.extend(mine.into_iter().flat_map(|s| clip(s, &keep)));
     }
+    let mut lattice = Vec::new();
+    stats.frieze_step_mm = frieze(web, &mut lattice);
+    stats.frieze_corners = (web.circ / stats.frieze_step_mm).round() as usize;
+    let clear = |p: P2| on_crown(p) && orbs.iter().all(|o| o.rho(web, p) >= o.rim + 0.02);
+    raw.extend(lattice.into_iter().flat_map(|s| clip(s, &clear)));
+    // Nothing is drawn where the bodies stand, so they meet a smooth crown.
+    let mut raw: Vec<Strand> = raw.into_iter().flat_map(|s| clip(s, &|p| !covered(p))).collect();
+    // The dragline: a few beads of dew on the thread the spider pays out behind her.
+    let from = web.s_of(spinnerets);
+    let mut line = vec![[from, 0.0]];
+    for k in 0..3 {
+        let at = from + 0.55 + 0.75 * k as f64;
+        dots.push(Dew { at: [at, 0.0], r: 0.5 * lerp(0.46, 0.36, k as f64 / 2.0) });
+        line.push([at, 0.0]);
+    }
+    raw.push(Strand { pts: line.windows(2).flat_map(|w| seg(w[0], w[1], 0.05)).collect(), w: 0.21, radial: false });
+    let run_along = |s: &Strand| {
+            let (mut run, mut worst) = (0.0f64, 0.0f64);
+            for w in s.pts.windows(2) {
+                let (ds, dt) = (w[1][0] - w[0][0], w[1][1] - w[0][1]);
+                if dt.abs() <= ds.abs() * 15f64.to_radians().tan() && !covered(w[0]) && !covered(w[1]) {
+                    run += ds.hypot(dt);
+                    if run > worst && run > 2.5 && std::env::var("ARACHNE_DEBUG").is_ok() {
+                        println!("    parallel run {run:.2} mm reaching ({:.2}, {:.2}) at {:.1} deg, width {}", w[1][0], w[1][1], web.theta(w[1][0]).rem_euclid(360.0), s.w);
+                    }
+                    worst = worst.max(run);
+                } else {
+                    run = 0.0;
+                }
+            }
+            worst
+    };
+    stats.longest_parallel_run_mm = raw.iter().filter(|s| !s.radial).map(run_along).fold(0.0, f64::max);
+    stats.longest_orb_radial_along_ring_mm = raw.iter().filter(|s| s.radial).map(run_along).fold(0.0, f64::max);
+    (raw, dots, stats)
+}
+
+/// The crown web as decals, window by window round the ring.
+fn crown_web(d: &mut RingDesign, bare: &Bare, carapace: &Body, abdomen: &Body, preview: Option<&Path>) -> Result<(WebStats, f64)> {
+    let ch = Chart { bare, ctx: d.field_context() };
+    let web = Web::new(&ch);
+    let (a, _) = abdomen.semi();
+    let spinnerets = theta_of(abdomen.world([abdomen.ahead * (a + abdomen.widest + 0.3), 0.0, 0.0]));
+    let covered = |p: P2| {
+        let th = web.theta(p[0]);
+        let (r, z) = bare.surface_at_t(th, p[1]);
+        let w = at_ring(th, r, z);
+        carapace.margin(w) < -0.05 || abdomen.margin(w) < -0.05
+    };
+    let (strands, dots, mut stats) = web_strands(&web, spinnerets, &covered);
+    if let Some(path) = preview {
+        preview_svg(&web, &strands, &dots, path)?;
+    }
+    // Ring angles run on continuously along each thread, across the seam where web space folds.
+    let threads: Vec<Thread> = strands
+        .iter()
+        .map(|s| {
+            let mut pts: Vec<P2> = Vec::with_capacity(s.pts.len());
+            for p in &s.pts {
+                let th = web.theta(p[0]);
+                let th = pts.last().map_or(th, |q| q[0] + wrap180(th - q[0]));
+                pts.push([th, p[1]]);
+            }
+            Thread { pts, w: s.w }
+        })
+        .collect();
+    let dew: Vec<Dew> = dots.iter().map(|b| Dew { at: [web.theta(b.at[0]), b.at[1]], r: b.r }).collect();
+    let half = (0..360).map(|k| (ch.edge(k as f64) + EDGE_OVERRUN_MM) / ch.ctx.station_stretch(k as f64)).fold(0.0, f64::max) + 0.35;
+    let windows = [
+        (34.0, 94.0, "Web round the spider"),
+        (94.0, 140.0, "Web behind the spinnerets"),
+        (140.0, 200.0, "Orb behind her"),
+        (200.0, 245.0, "Web toward the palm"),
+        (245.0, 295.0, "Orb at the palm"),
+        (295.0, 345.0, "Web past the palm"),
+        (345.0, 394.0, "Orb before her"),
+    ];
     for (lo, hi, name) in windows {
         let (lo, hi) = (lo - 2.5, hi + 2.5);
         let (svg, width) = window_svg(&ch, &threads, &dew, lo, hi, half);
-        d.svgs.push(SvgAlpha { name: name.clone(), svg, invert: false });
+        stats.svg_bytes += svg.len();
+        stats.windows.push(name.to_string());
+        d.svgs.push(SvgAlpha { name: name.to_string(), svg, invert: false });
         let stamp = Decal { theta_deg: (0.5 * (lo + hi)).rem_euclid(360.0), v_mm: ch.ctx.crest_v_mm, size_mm: width, rotation_deg: 0.0, height_mm: WEB_HEIGHT_MM, flip: false };
-        let mut e = LayerEntry::new(name.clone(), Layer::Decals(DecalLayer { alpha: name, decals: vec![stamp], feather_mm: 0.05, invert: false }));
+        let mut e = LayerEntry::new(name, Layer::Decals(DecalLayer { alpha: name.to_string(), decals: vec![stamp], feather_mm: 0.05, invert: false }));
         e.blend = Blend::Max;
         d.layers.layers.push(e);
     }
-    Ok(spinnerets)
+    Ok((stats, spinnerets))
 }
 
-// --- Bodies -----------------------------------------------------------------
-
-/// A made collet with a thin wall, from `setting`'s own section, packed as a stored part at the stone.
-fn collet(body: &Body) -> Result<Operation> {
-    let named = setting::collet_named(body.gem, COLLET_WALL_MM, body.lip, -COLLET_BASE_MM);
-    let reach = body.gem.l_mm + 4.0;
-    let slab = cuboid([-reach, -reach, -COLLET_BASE_MM - 1.0], [reach, reach, BODY_FULL_Z]);
-    let solid = csg::combine(&named.solid, &slab, csg::Op::Subtract).map_err(|e| anyhow::anyhow!("{}: the collet will not trim under its girdle: {e}", body.gem.display()))?;
-    ensure!(csg::self_crossings(&solid) == 0, "{}: the trimmed collet crosses itself", body.gem.display());
-    let flip = dot(cross3(body.f.long, body.f.short), body.f.normal) < 0.0;
-    let positions: Vec<P3> = solid.v.iter().map(|p| body.world(*p)).collect();
-    let triangles: Vec<[u32; 3]> = solid.f.iter().map(|t| if flip { [t[0], t[2], t[1]] } else { *t }).collect();
-    let mesh = stored::Packed::encode(&positions, &triangles, &vec![0; triangles.len()], &[SurfaceKind::Freeform])?;
-    let recipe = stored::Recipe {
-        kernel: "setting".into(),
-        op: "collet".into(),
-        params: serde_json::json!({ "stone": body.gem.display(), "wall_mm": COLLET_WALL_MM, "lip": body.lip, "base_mm": COLLET_BASE_MM }),
-        digest: String::new(),
-    };
-    Ok(Operation::Stored { recipe, sources: Vec::new(), mesh })
-}
-
-/// An outward-wound box.
-fn cuboid(lo: P3, hi: P3) -> csg::Solid {
-    let v: Vec<P3> = (0..8).map(|i: usize| std::array::from_fn(|k| if i >> k & 1 == 0 { lo[k] } else { hi[k] })).collect();
-    let quads: [[u32; 4]; 6] = [[0, 4, 6, 2], [1, 3, 7, 5], [0, 1, 5, 4], [2, 6, 7, 3], [0, 2, 3, 1], [4, 5, 7, 6]];
-    let f = quads.iter().flat_map(|q| [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]).collect();
-    csg::Solid { v, f }
-}
-
-/// Sides round each row of a body's loft.
-const BELLY_SIDES: usize = 144;
-
-/// A closed polygonal ellipse on the stone's girdle plane, `z` over it.
-fn row(body: &Body, a: f64, b: f64, z: f64) -> Sketch {
-    let f = &body.f;
-    let mut s = Sketch { name: "Body row".into(), plane: Workplane { origin: add3(f.girdle, f.normal, z), x: f.long, y: f.short, on_face: None }, ..Sketch::default() };
-    let ids: Vec<Id> = (0..BELLY_SIDES)
-        .map(|i| {
-            let t = (i as f64 + 0.5) / BELLY_SIDES as f64 * std::f64::consts::TAU;
-            s.point(snap([a * t.cos(), b * t.sin()]))
-        })
-        .collect();
-    s.entity(Geometry::Polyline { points: ids, closed: true });
-    s
-}
-
-/// A body under its trimmed collet: hidden in the collet's wall at the girdle, then one convex fall from the collet's foot into the band.
-fn belly(body: &Body) -> Result<Operation> {
-    let (a0, b0) = body.semi();
-    let o_top = body.collet_out(-0.08) - 0.06;
-    let mut rows: Vec<(f64, f64, f64)> = vec![(a0 + o_top, b0 + o_top, -0.08)];
-    let (inset, depth) = body.fall;
-    let n = 12;
-    for i in 0..=n {
-        let phi = 0.5 * PI * i as f64 / n as f64;
-        let o = body.widest() - inset * (1.0 - phi.cos());
-        rows.push((a0 + o, b0 + o, BODY_FULL_Z - depth * phi.sin()));
+/// The whole crown web unrolled in metal millimetres, for looking at before any build.
+fn preview_svg(web: &Web, strands: &[Strand], dots: &[Dew], path: &Path) -> Result<()> {
+    let (x0, x1) = (-0.5 * web.circ, 0.5 * web.circ);
+    let top = (0..720).map(|k| web.edge(x0 + (x1 - x0) * k as f64 / 720.0)).fold(0.0, f64::max) + 1.0;
+    let mut s = format!(r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x0:.3} {:.3} {:.3} {:.3}" width="{:.0}" height="{:.0}"><rect x="{x0:.3}" y="{:.3}" width="{:.3}" height="{:.3}" fill="#1a1a1a"/>"##, -top, x1 - x0, 2.0 * top, (x1 - x0) * 40.0, 2.0 * top * 40.0, -top, x1 - x0, 2.0 * top);
+    let mut edge_hi = String::from("M");
+    let mut edge_lo = String::from("M");
+    for k in 0..=720 {
+        let x = x0 + (x1 - x0) * k as f64 / 720.0;
+        let e = web.edge(x);
+        edge_hi += &format!("{}{x:.3} {:.3}", if k == 0 { "" } else { " L" }, -e);
+        edge_lo += &format!("{}{x:.3} {:.3}", if k == 0 { "" } else { " L" }, e);
     }
-    ensure!(body.widest() >= body.collet_out(BODY_FULL_Z) + 0.015, "{}: the body stands inside its collet's foot", body.gem.display());
-    rows.reverse();
-    if dot(cross3(body.f.long, body.f.short), body.f.normal) < 0.0 {
-        rows.reverse();
+    s += &format!(r##"<path d="{edge_hi}" stroke="#555" stroke-width="0.05" fill="none"/><path d="{edge_lo}" stroke="#555" stroke-width="0.05" fill="none"/>"##);
+    for st in strands {
+        let mut runs: Vec<Vec<P2>> = vec![Vec::new()];
+        for w in st.pts.windows(2) {
+            runs.last_mut().unwrap().push(w[0]);
+            if (web.wrap(w[1][0], 0.0) - web.wrap(w[0][0], 0.0)).abs() > 0.5 * web.circ {
+                runs.push(Vec::new());
+            }
+        }
+        runs.last_mut().unwrap().push(*st.pts.last().unwrap());
+        for run in runs.iter().filter(|r| r.len() > 1) {
+            let d: Vec<String> = run.iter().map(|p| format!("{:.3} {:.3}", web.wrap(p[0], 0.0), -p[1])).collect();
+            s += &format!(r##"<path d="M{}" stroke="#e8c870" stroke-width="{}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>"##, d.join(" L"), st.w);
+        }
     }
-    Ok(Operation::Loft { sections: rows.into_iter().map(|(a, b, z)| row(body, a, b, z).into()).collect() })
+    for b in dots {
+        s += &format!(r##"<circle cx="{:.3}" cy="{:.3}" r="{:.3}" fill="#fff0a0"/>"##, web.wrap(b.at[0], 0.0), -b.at[1], b.r);
+    }
+    s += "</svg>";
+    std::fs::write(path, s)?;
+    Ok(())
 }
 
 // --- The legs ---------------------------------------------------------------
@@ -820,16 +1093,20 @@ struct LegSpec {
     claw_deg: f64,
     /// Heights on the cheek, as shares of it over the bore: the ankle, the metatarsal joint and the claw.
     shares: [f64; 3],
+    /// Where the ankle and the metatarsal joint fall, as shares of the arc from knee to claw.
+    at: [f64; 2],
 }
 
 const LEGS: [LegSpec; 4] = [
-    LegSpec { name: "Leg I", root_along: -1.35, reach_deg: 25.0, claw_deg: -58.0, shares: [0.74, 0.48, 0.26] },
-    LegSpec { name: "Leg II", root_along: -0.45, reach_deg: 45.0, claw_deg: -36.0, shares: [0.68, 0.44, 0.18] },
-    LegSpec { name: "Leg III", root_along: 0.45, reach_deg: 132.0, claw_deg: 36.0, shares: [0.68, 0.44, 0.18] },
-    LegSpec { name: "Leg IV", root_along: 1.35, reach_deg: 146.0, claw_deg: 88.0, shares: [0.76, 0.5, 0.26] },
+    LegSpec { name: "Leg I", root_along: -1.35, reach_deg: 21.0, claw_deg: -60.0, shares: [0.74, 0.48, 0.30], at: [0.2, 0.5] },
+    LegSpec { name: "Leg II", root_along: -0.45, reach_deg: 33.0, claw_deg: -44.0, shares: [0.68, 0.44, 0.26], at: [0.2, 0.5] },
+    LegSpec { name: "Leg III", root_along: 0.45, reach_deg: 143.0, claw_deg: 44.0, shares: [0.68, 0.44, 0.26], at: [0.2, 0.5] },
+    // The hind leg drops steeply under the abdomen's overhang and runs low along the cheek behind it.
+    LegSpec { name: "Leg IV", root_along: 1.35, reach_deg: 146.0, claw_deg: 88.0, shares: [0.52, 0.40, 0.28], at: [0.12, 0.5] },
 ];
 
 /// A planar path as a chain of cubics in its plane, with the tube's radius at each end.
+#[derive(Clone)]
 struct LegPath {
     plane: Workplane,
     pieces: Vec<[P2; 4]>,
@@ -837,67 +1114,23 @@ struct LegPath {
     r1: f64,
 }
 
-impl LegPath {
-    fn world(&self, p: P2) -> P3 {
-        let w = &self.plane;
-        std::array::from_fn(|k| w.origin[k] + w.x[k] * p[0] + w.y[k] * p[1])
-    }
-    fn length(&self) -> f64 {
-        self.pieces.iter().map(|c| (0..20).map(|i| dist2(bezier(c, i as f64 / 20.0), bezier(c, (i + 1) as f64 / 20.0))).sum::<f64>()).sum()
-    }
-    /// Points along the path's centre line in the world, with the tube's radius there.
-    fn samples(&self) -> Vec<(P3, f64)> {
-        let n = self.pieces.len() * 8;
-        (0..=n)
-            .map(|i| {
-                let k = (i / 8).min(self.pieces.len() - 1);
-                let u = if i == n { 1.0 } else { (i % 8) as f64 / 8.0 };
-                (self.world(bezier(&self.pieces[k], u)), lerp(self.r0, self.r1, i as f64 / n as f64))
-            })
-            .collect()
-    }
-    fn sketch(&self, name: &str) -> Sketch {
-        let mut s = Sketch { name: name.into(), plane: self.plane.clone(), ..Sketch::default() };
-        let mut last: Option<Id> = None;
-        for c in &self.pieces {
-            let a = last.unwrap_or_else(|| s.point(c[0]));
-            let (b, cc, e) = (s.point(c[1]), s.point(c[2]), s.point(c[3]));
-            s.entity(Geometry::Bezier { points: [a, b, cc, e] });
-            last = Some(e);
-        }
-        s
-    }
-    /// The tube's circle square to the path where it starts.
-    fn section(&self) -> Sketch {
-        let c = &self.pieces[0];
-        let at = self.world(c[0]);
-        let d = [c[1][0] - c[0][0], c[1][1] - c[0][1]];
-        let t = unit3(add3(self.plane.x.map(|v| v * d[0]), self.plane.y, d[1]));
-        let helper = if t[2].abs() < 0.9 { [0.0, 0.0, 1.0] } else { [1.0, 0.0, 0.0] };
-        let x = unit3(cross3(helper, t));
-        let y = cross3(t, x);
-        let mut s = Sketch::circle(self.r0);
-        s.plane = Workplane { origin: at, x, y, on_face: None };
-        s
-    }
-    /// Tightest bend over the tube's radius where it bends; a tube folds under 1.
-    fn bend_ratio(&self) -> f64 {
-        let n = self.pieces.len() as f64;
-        self.pieces.iter().enumerate().map(|(k, c)| tightest_bend(c) / lerp(self.r0, self.r1, k as f64 / n)).fold(f64::MAX, f64::min)
-    }
-}
-
-/// A loft row's coordinate on a 10 nm grid, so the file carries no digits the build cannot see.
-fn snap(p: P2) -> P2 {
-    p.map(|v| (v * 1e5).round() / 1e5)
-}
-fn dist2(a: P2, b: P2) -> f64 {
-    (b[0] - a[0]).hypot(b[1] - a[1])
-}
 fn bezier(c: &[P2; 4], t: f64) -> P2 {
     let u = 1.0 - t;
     let (a, b, cc, d) = (u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t);
     [a * c[0][0] + b * c[1][0] + cc * c[2][0] + d * c[3][0], a * c[0][1] + b * c[1][1] + cc * c[2][1] + d * c[3][1]]
+}
+fn piece_length(c: &[P2; 4]) -> f64 {
+    (0..40).map(|i| dist2(bezier(c, i as f64 / 40.0), bezier(c, (i + 1) as f64 / 40.0))).sum()
+}
+/// A cubic split in two at parameter `t`.
+fn split_cubic(c: &[P2; 4], t: f64) -> ([P2; 4], [P2; 4]) {
+    let ab = lerp2(c[0], c[1], t);
+    let bc = lerp2(c[1], c[2], t);
+    let cd = lerp2(c[2], c[3], t);
+    let abc = lerp2(ab, bc, t);
+    let bcd = lerp2(bc, cd, t);
+    let m = lerp2(abc, bcd, t);
+    ([c[0], ab, abc, m], [m, bcd, cd, c[3]])
 }
 /// The smallest radius of curvature along a cubic.
 fn tightest_bend(c: &[P2; 4]) -> f64 {
@@ -911,7 +1144,6 @@ fn tightest_bend(c: &[P2; 4]) -> f64 {
         })
         .fold(f64::MAX, f64::min)
 }
-
 /// A smooth chain of cubics through points, tangents by central differences.
 fn through(pts: &[P2]) -> Vec<[P2; 4]> {
     let n = pts.len();
@@ -928,10 +1160,89 @@ fn through(pts: &[P2]) -> Vec<[P2; 4]> {
         .collect()
 }
 
+impl LegPath {
+    fn world(&self, p: P2) -> P3 {
+        let w = &self.plane;
+        std::array::from_fn(|k| w.origin[k] + w.x[k] * p[0] + w.y[k] * p[1])
+    }
+    fn length(&self) -> f64 {
+        self.pieces.iter().map(piece_length).sum()
+    }
+    /// Points along the path's centre line in the world, with the tube's radius there.
+    fn samples(&self) -> Vec<(P3, f64)> {
+        let n = self.pieces.len() * 8;
+        (0..=n)
+            .map(|i| {
+                let k = (i / 8).min(self.pieces.len() - 1);
+                let u = if i == n { 1.0 } else { (i % 8) as f64 / 8.0 };
+                (self.world(bezier(&self.pieces[k], u)), lerp(self.r0, self.r1, i as f64 / n as f64))
+            })
+            .collect()
+    }
+    fn sketch(&self, name: &str) -> Sketch {
+        let mut s = Sketch { name: name.into(), plane: self.plane.clone(), ..Sketch::default() };
+        let mut last: Option<Id> = None;
+        for c in &self.pieces {
+            let a = last.unwrap_or_else(|| s.point(snap(c[0])));
+            let (b, cc, e) = (s.point(snap(c[1])), s.point(snap(c[2])), s.point(snap(c[3])));
+            s.entity(Geometry::Bezier { points: [a, b, cc, e] });
+            last = Some(e);
+        }
+        s
+    }
+    /// The tube's circle square to the path where it starts.
+    fn section(&self) -> Sketch {
+        let c = &self.pieces[0];
+        let at = self.world(snap(c[0]));
+        let d = [snap(c[1])[0] - snap(c[0])[0], snap(c[1])[1] - snap(c[0])[1]];
+        let t = unit3(add3(self.plane.x.map(|v| v * d[0]), self.plane.y, d[1]));
+        let helper = if t[2].abs() < 0.9 { [0.0, 0.0, 1.0] } else { [1.0, 0.0, 0.0] };
+        let x = unit3(cross3(helper, t));
+        let y = cross3(t, x);
+        let mut s = Sketch::circle(self.r0);
+        s.plane = Workplane { origin: at, x, y, on_face: None };
+        s
+    }
+    /// Tightest bend over the tube's widest radius; a tube folds under 1.
+    fn bend_ratio(&self) -> f64 {
+        self.pieces.iter().map(tightest_bend).fold(f64::MAX, f64::min) / self.r0.max(self.r1)
+    }
+    /// The path cut in two a share of its length along, the halves' radii to be set by the caller.
+    fn split(&self, share: f64) -> (LegPath, LegPath) {
+        let lens: Vec<f64> = self.pieces.iter().map(piece_length).collect();
+        let mut target = share * lens.iter().sum::<f64>();
+        let last = self.pieces.len() - 1;
+        for (k, c) in self.pieces.iter().enumerate() {
+            if target <= lens[k] || k == last {
+                let n = 200;
+                let (mut acc, mut t) = (0.0, 1.0);
+                for i in 0..n {
+                    let step = dist2(bezier(c, i as f64 / n as f64), bezier(c, (i + 1) as f64 / n as f64));
+                    if acc + step >= target {
+                        t = (i as f64 + ((target - acc) / step.max(1e-12)).clamp(0.0, 1.0)) / n as f64;
+                        break;
+                    }
+                    acc += step;
+                }
+                let (l, r) = split_cubic(c, t);
+                let mut first: Vec<[P2; 4]> = self.pieces[..k].to_vec();
+                first.push(l);
+                let mut second = vec![r];
+                second.extend_from_slice(&self.pieces[k + 1..]);
+                return (LegPath { pieces: first, ..self.clone() }, LegPath { pieces: second, ..self.clone() });
+            }
+            target -= lens[k];
+        }
+        unreachable!("a path has at least one piece")
+    }
+}
+
 /// One solved leg and what it measures.
 struct Leg {
-    segments: Vec<(&'static str, LegPath)>,
+    /// Each sweep: the segment it belongs to and its path.
+    sweeps: Vec<(String, LegPath)>,
     joints: Vec<(&'static str, P3, f64)>,
+    coxa: (P3, f64),
     knee_deg: f64,
     knee_proud: f64,
     most_proud: f64,
@@ -950,7 +1261,7 @@ fn cheek_plane(o: P3, a: P3) -> Workplane {
 fn cheek_run(a: P3, b: P3, r0: f64, r1: f64, out: &dyn Fn(f64, f64) -> f64) -> LegPath {
     let plane = cheek_plane(a, sub3(b, a));
     let end = [dot(sub3(b, a), plane.x), dot(sub3(b, a), plane.y)];
-    let n = 16;
+    let n = 5;
     let mut pts: Vec<P2> = (0..=n)
         .map(|i| {
             let u = i as f64 / n as f64;
@@ -963,18 +1274,18 @@ fn cheek_run(a: P3, b: P3, r0: f64, r1: f64, out: &dyn Fn(f64, f64) -> f64) -> L
     LegPath { plane, pieces: through(&pts), r0, r1 }
 }
 
-/// The femur as one cubic from root to knee: bending gently, lying on the crown, rising to the knee, under the garnet's girdle.
-fn fit_femur(l: f64, yk: f64, surface: &dyn Fn(f64) -> f64, r_at: &dyn Fn(f64) -> f64, garnet_local: &dyn Fn(P2) -> P3, semi: (f64, f64)) -> Option<[P2; 4]> {
+/// The femur as one cubic from root to knee: bending gently, lying on the crown, arching up to the knee, under the garnet's girdle.
+fn fit_femur(l: f64, yk: f64, surface: &dyn Fn(f64) -> f64, r_at: &dyn Fn(f64) -> f64, garnet_local: &dyn Fn(P2) -> P3, semi: (f64, f64), r0: f64) -> Option<[P2; 4]> {
     let (a, b) = (semi.0 + 0.05, semi.1 + 0.05);
     let mut best: Option<(f64, [P2; 4])> = None;
-    for a0 in (-6..=8).map(|k| k as f64 * 5.0) {
+    for a0 in (-6..=12).map(|k| k as f64 * 5.0) {
         for a1 in (-18..=2).map(|k| k as f64 * 5.0) {
             for h0 in [0.25, 0.3, 0.35, 0.4, 0.45] {
                 'candidate: for h1 in [0.25, 0.3, 0.35, 0.4, 0.45] {
                     let (s0, c0) = a0.to_radians().sin_cos();
                     let (s1, c1) = a1.to_radians().sin_cos();
                     let c = [[0.0, 0.0], [h0 * l * c0, h0 * l * s0], [l - h1 * l * c1, yk - h1 * l * s1], [l, yk]];
-                    if tightest_bend(&c) < 1.2 * COXA_MM {
+                    if tightest_bend(&c) < 1.2 * r0 {
                         continue;
                     }
                     let mut cost = 0.0;
@@ -982,7 +1293,7 @@ fn fit_femur(l: f64, yk: f64, surface: &dyn Fn(f64) -> f64, r_at: &dyn Fn(f64) -
                         let p = bezier(&c, i as f64 / 40.0);
                         let r = r_at(p[0]);
                         let q = garnet_local(p);
-                        if (q[0] / a).powi(2) + (q[1] / b).powi(2) < 1.0 && q[2] + r > -0.03 {
+                        if (q[0] / a).powi(2) + (q[1] / b).powi(2) < 1.0 && q[2] + r > -0.05 {
                             continue 'candidate;
                         }
                         if p[0] > 0.3 * l && p[0] < 0.85 * l {
@@ -1002,24 +1313,30 @@ fn fit_femur(l: f64, yk: f64, surface: &dyn Fn(f64) -> f64, r_at: &dyn Fn(f64) -
     best.map(|(_, c)| c)
 }
 
-/// Solves one low-side leg: the femur over the crown to a knee on the edge, the tibia over it, the metatarsus and tarsus down the cheek to a sunk claw.
-fn solve_leg(spec: &LegSpec, bare: &Bare, carapace: &Body, abdomen: &Body, length: f64) -> Result<Leg> {
-    let knee_at = 0.36 * length;
-    let r_at = |s: f64| {
-        if s < EMERGE_MM {
-            lerp(COXA_MM, THIGH_MM, s / EMERGE_MM)
-        } else if s < knee_at {
-            lerp(THIGH_MM, KNEE_MM, (s - EMERGE_MM) / (knee_at - EMERGE_MM))
-        } else {
-            lerp(KNEE_MM, CLAW_MM, ((s - knee_at) / (length - knee_at)).clamp(0.0, 1.0))
-        }
-    };
+/// How far a segment's taper starts back inside its swell, and how much narrower it starts than the swell ends.
+const SWELL_OVERLAP_MM: f64 = 0.06;
+const SWELL_STEP: f64 = 0.97;
+
+/// A segment's path cut into its two sweeps: swelling from its start to `at` of its length, then drawing in to its end.
+/// The taper starts a little back inside the swell and a little narrower, so no two caps coincide.
+fn swell(name: &str, path: &LegPath, r_start: f64, r_end: f64, at: f64) -> Vec<(String, LegPath)> {
+    let peak = SWELL * lerp(r_start, r_end, at);
+    let (mut a, _) = path.split(at);
+    let (_, mut b) = path.split(at - SWELL_OVERLAP_MM / path.length());
+    (a.r0, a.r1) = (PINCH_IN * r_start, peak);
+    (b.r0, b.r1) = (SWELL_STEP * peak, r_end);
+    vec![(format!("{name}, swell"), a), (format!("{name}, taper"), b)]
+}
+
+/// Solves one low-side leg: the femur arching from the coxa to a high knee over the edge, the tibia down over it,
+/// the metatarsus and tarsus down the cheek, the tarsus hooking its claw into the metal.
+fn solve_leg(spec: &LegSpec, bare: &Bare, carapace: &Body, abdomen: &Body) -> Result<Leg> {
     let hub = bare.at(HUB_DEG);
     let crest = hub.flank[0][1];
     let root_deg = HUB_DEG + (spec.root_along / crest).to_degrees();
     let root = at_ring(root_deg, bare.crown_r(root_deg, ROOT_ACROSS_MM) - 0.3, -ROOT_ACROSS_MM);
     let (sin, cos) = spec.reach_deg.to_radians().sin_cos();
-    // The knee: where the femur's line in plan meets the edge, riding the corner.
+    // The knee: where the femur's line in plan meets the edge, standing high over the corner.
     let mid_r = 0.5 * (crest + hub.edge_r);
     let mut knee_deg = HUB_DEG;
     for _ in 0..6 {
@@ -1028,10 +1345,10 @@ fn solve_leg(spec: &LegSpec, bare: &Bare, carapace: &Body, abdomen: &Body, lengt
         knee_deg = HUB_DEG + (along / mid_r).to_degrees();
     }
     let ks = bare.at(knee_deg);
-    let femur_guess = len3(sub3(at_ring(knee_deg, ks.edge_r, -ks.half_width), root)) * 1.05;
-    let r_knee = r_at(femur_guess);
-    let knee = at_ring(knee_deg, ks.edge_r + 0.28 + KNEE_LIFT_MM, -(ks.half_width + KNEE_PROUD_MM - KNUCKLE * r_knee));
-    // Femur: in the upright plane through root and knee, lying on the crown.
+    let knee_ball = KNUCKLE * KNEE_MM;
+    let knee = at_ring(knee_deg, ks.edge_r + 0.28 + KNEE_LIFT_MM, -(ks.half_width + KNEE_PROUD_MM - SWELL * KNEE_MM));
+    // Femur: in the upright plane through root and knee, lying on the crown and arching to the knee.
+    let (femur_r0, femur_r1) = (FEMUR_MM, PINCH_OUT * KNEE_MM);
     let up = unit3(at_ring(0.5 * (root_deg + knee_deg), 1.0, 0.0));
     let chord = sub3(knee, root);
     let x = unit3(add3(chord, up, -dot(chord, up)));
@@ -1061,58 +1378,64 @@ fn solve_leg(spec: &LegSpec, bare: &Bare, carapace: &Body, abdomen: &Body, lengt
         let u = (xi / l * n as f64 - i as f64).clamp(0.0, 1.0);
         lerp(surface[i][1], surface[i + 1][1], u)
     };
-    let femur_curve = fit_femur(l, yk, &surface_at, &|xi| r_at(xi * 1.05), &|p| carapace.local(to_world(p)), carapace.semi())
+    let femur_curve = fit_femur(l, yk, &surface_at, &|xi| lerp(femur_r0, femur_r1, xi / l), &|p| carapace.local(to_world(p)), carapace.semi(), femur_r0)
         .ok_or_else(|| anyhow::anyhow!("{}: no femur arcs gently from under the carapace to its knee", spec.name))?;
-    let femur = LegPath { plane: fplane, pieces: vec![femur_curve], r0: COXA_MM, r1: r_knee };
+    let femur = LegPath { plane: fplane, pieces: vec![femur_curve], r0: femur_r0, r1: femur_r1 };
+    // The coxa: a ball where the femur leaves the carapace's body.
+    let coxa = femur.samples().into_iter().find(|(p, _)| carapace.margin(*p) >= 0.0).map_or(root, |(p, _)| p);
     // Down the cheek: the ankle, the metatarsal joint and the claw, each tube held a steady stand-off off the face.
     let claw_deg = HUB_DEG + spec.claw_deg;
     let span = claw_deg - knee_deg;
-    let (ankle_deg, meta_deg) = (knee_deg + 0.22 * span, knee_deg + 0.6 * span);
-    let mut s = femur.length();
-    let mut guess = |from: P3, to: P3| {
-        s += len3(sub3(to, from)) * 1.03;
-        (s, r_at(s))
+    let (ankle_deg, meta_deg) = (knee_deg + spec.at[0] * span, knee_deg + spec.at[1] * span);
+    let stand = |r: f64, th: f64| bare.half_width(th) + smin(r - 0.12, bare.proud(th) - SWELL * r, 0.05);
+    let joint = |deg: f64, share: f64, r: f64| {
+        let p = bare.cheek(deg, share, 0.0);
+        [p[0], p[1], -stand(r, deg)]
     };
-    let stand = |r: f64, th: f64| bare.half_width(th) + smin(r - 0.15, bare.proud(th) - KNUCKLE * r, 0.05);
-    let ankle_pt = |r: f64| {
-        let p = bare.cheek(ankle_deg, spec.shares[0], 0.0);
-        [p[0], p[1], -stand(r, ankle_deg)]
-    };
-    let (_, r_ankle) = guess(knee, ankle_pt(r_knee));
-    let ankle = ankle_pt(r_ankle);
-    let meta_pt = |r: f64| {
-        let p = bare.cheek(meta_deg, spec.shares[1], 0.0);
-        [p[0], p[1], -stand(r, meta_deg)]
-    };
-    let (s_meta, r_meta) = guess(ankle, meta_pt(r_ankle));
-    let meta = meta_pt(r_meta);
-    let claw = bare.cheek(claw_deg, spec.shares[2], -CLAW_SINK_MM);
-    let (s_claw, _) = guess(meta, claw);
-    let tibia = cheek_run(knee, ankle, r_knee, r_ankle, &|u, th| {
-        let r = lerp(r_knee, r_ankle, u);
-        lerp(knee[2].abs(), stand(r, th), 1.0 - (1.0 - u).powf(2.2))
-    });
-    let metatarsus = cheek_run(ankle, meta, r_ankle, r_meta, &|u, th| stand(lerp(r_ankle, r_meta, u), th));
-    let run = s_claw - s_meta;
-    let tarsus = cheek_run(meta, claw, r_meta, CLAW_MM, &|u, th| {
-        let r = lerp(r_meta, CLAW_MM, u);
-        let dive = smoothstep(1.0 - (1.8 / run).min(0.85), 1.0, u);
-        lerp(stand(r, th), bare.half_width(th) - CLAW_SINK_MM, dive)
-    });
+    let ankle = joint(ankle_deg, spec.shares[0], ANKLE_MM);
+    let meta = joint(meta_deg, spec.shares[1], META_MM);
+    let tibia = cheek_run(knee, ankle, KNEE_MM, ANKLE_MM, &|u, th| lerp(knee[2].abs(), stand(ANKLE_MM, th), 1.0 - (1.0 - u).powf(2.2)));
+    let metatarsus = cheek_run(ankle, meta, ANKLE_MM, META_MM, &|_, th| stand(META_MM, th));
+    // The tarsus: along the cheek, easing down onto it, then the hook turning its tip into the metal.
+    let claw = bare.cheek(claw_deg, spec.shares[2], 0.0);
+    let turn = HOOK_DEG.to_radians();
+    let bend_r = HOOK_MM / turn;
+    let sink = |th: f64| bare.half_width(th) - TIP_SINK_MM;
+    let hook_start = |th: f64| (bare.half_width(th) + CLAW_MM - 0.16).min(stand(META_MM, th));
+    let drop_arc = bend_r * (1.0 - turn.cos());
+    let dive = ((hook_start(claw_deg) - drop_arc - sink(claw_deg)) / turn.sin()).max(0.2);
+    let run_x = bend_r * turn.sin() + dive * turn.cos();
+    let plane = cheek_plane(meta, sub3(claw, meta));
+    let reach = dot(sub3(claw, meta), plane.x);
+    let pre_x = reach - run_x;
+    ensure!(pre_x > 0.8, "{}: the tarsus is too short for its hook ({reach:.2} mm to the claw, {run_x:.2} for the hook)", spec.name);
+    // One cubic along the cheek, leaving the metatarsal joint and arriving level at the hook.
+    let level = [pre_x, hook_start(theta_of(add3(meta, plane.x, pre_x))) - meta[2].abs()];
+    let mut pieces = vec![[[0.0, 0.0], [pre_x / 3.0, 0.0], [2.0 * pre_x / 3.0, level[1]], level]];
+    // The hook and the dive as one cubic: level where it leaves the run, turned the hook's angle into the metal at the tip.
+    let tip = [level[0] + run_x, level[1] - drop_arc - dive * turn.sin()];
+    let reach_hook = dist2(level, tip);
+    pieces.push([level, [level[0] + 0.42 * reach_hook, level[1]], [tip[0] - 0.42 * reach_hook * turn.cos(), tip[1] + 0.42 * reach_hook * turn.sin()], tip]);
+    let tarsus = LegPath { plane, pieces, r0: META_MM, r1: CLAW_MM };
+    // The sweeps: the femur rising out of its coxa, and each segment below it swelling then drawing in to its joint.
+    let mut sweeps = vec![("femur".to_string(), femur.clone())];
+    sweeps.extend(swell("tibia", &tibia, KNEE_MM, PINCH_OUT * ANKLE_MM, TIBIA_SWELL_AT));
+    sweeps.extend(swell("metatarsus", &metatarsus, ANKLE_MM, PINCH_OUT * META_MM, SWELL_AT));
+    sweeps.extend(swell("tarsus", &tarsus, META_MM, CLAW_MM, SWELL_AT));
     // What the leg measures.
     let total = femur.length() + tibia.length() + metatarsus.length() + tarsus.length();
-    let knee_proud = knee[2].abs() + KNUCKLE * r_knee - ks.half_width;
+    let knee_proud = knee[2].abs() + knee_ball - ks.half_width;
     let (mut most_proud, mut least_share) = (0.0f64, f64::MAX);
     for (p, r) in [&tibia, &metatarsus, &tarsus].into_iter().flat_map(|path| path.samples()) {
         let sec = bare.at(theta_of(p));
         most_proud = most_proud.max(p[2].abs() + r - sec.half_width);
         least_share = least_share.min((p[0].hypot(p[1]) - sec.bore_r) / (sec.edge_r - sec.bore_r));
     }
-    let segments = vec![("femur", femur), ("tibia", tibia), ("metatarsus", metatarsus), ("tarsus", tarsus)];
-    let abdomen_margin = segments.iter().flat_map(|(_, path)| path.samples()).map(|(p, r)| abdomen.margin(p) - r).fold(f64::MAX, f64::min);
+    let abdomen_margin = sweeps.iter().flat_map(|(_, path)| path.samples()).map(|(p, r)| abdomen.margin(p) - r).fold(f64::MAX, f64::min);
     Ok(Leg {
-        segments,
-        joints: vec![("knee", knee, KNUCKLE * r_knee), ("ankle", ankle, KNUCKLE * r_ankle), ("metatarsal joint", meta, KNUCKLE * r_meta)],
+        sweeps,
+        joints: vec![("knee", knee, knee_ball), ("ankle", ankle, KNUCKLE * ANKLE_MM), ("metatarsal joint", meta, KNUCKLE * META_MM)],
+        coxa: (coxa, COXA_BALL_MM),
         knee_deg,
         knee_proud,
         most_proud,
@@ -1122,31 +1445,26 @@ fn solve_leg(spec: &LegSpec, bare: &Bare, carapace: &Body, abdomen: &Body, lengt
     })
 }
 
-/// The four legs on the low side, each solved again until its taper runs its own length.
+/// The four legs on the low side.
 fn solve_legs(bare: &Bare, carapace: &Body, abdomen: &Body) -> Result<Vec<(LegSpec, Leg)>> {
     LEGS.iter()
         .map(|spec| {
-            let mut leg = solve_leg(spec, bare, carapace, abdomen, 10.0)?;
-            for _ in 0..3 {
-                leg = solve_leg(spec, bare, carapace, abdomen, leg.length)?;
-            }
-            for (part, p) in &leg.segments {
+            let leg = solve_leg(spec, bare, carapace, abdomen)?;
+            for (part, p) in &leg.sweeps {
                 if std::env::var("ARACHNE_DEBUG").is_ok() {
                     let bends: Vec<String> = p.pieces.iter().map(|c| format!("({:.2},{:.2}):{:.2}", c[0][0], c[0][1], tightest_bend(c))).collect();
                     println!("    {} {part}: {}", spec.name, bends.join(" "));
                 }
                 ensure!(p.bend_ratio() >= 1.15, "{} {part} bends at {:.2} of its radius", spec.name, p.bend_ratio());
             }
-            let radii: Vec<String> = leg.segments.iter().map(|(_, p)| format!("{:.2}", p.r0)).chain([format!("{CLAW_MM:.2}")]).collect();
-            let bends: Vec<String> = leg.segments.iter().map(|(_, p)| format!("{:.1}", p.bend_ratio())).collect();
+            let radii: Vec<String> = leg.sweeps.iter().map(|(_, p)| format!("{:.2}-{:.2}", p.r0, p.r1)).collect();
             println!(
-                "  {}: knee at {:.1} deg standing {:.2} proud; {:.1} mm long; radii {}; bends {}; most proud {:.2}; lowest share {:.2}; abdomen margin {}",
+                "  {}: knee at {:.1} deg standing {:.2} proud; {:.1} mm long; radii {}; most proud {:.2}; lowest share {:.2}; abdomen margin {}",
                 spec.name,
                 leg.knee_deg,
                 leg.knee_proud,
                 leg.length,
                 radii.join(" "),
-                bends.join(" "),
                 leg.most_proud,
                 leg.least_share,
                 if leg.abdomen_margin < 1e9 { format!("{:.2}", leg.abdomen_margin) } else { "none".into() },
@@ -1174,12 +1492,12 @@ impl Parts<'_> {
     /// A ball of `radius` at a world point, joined.
     fn ball(&mut self, name: &str, centre: P3, radius: f64) -> Result<Id> {
         let s = self.add(format!("{name} ball"), Operation::Sphere { radius_mm: radius }, Component::default())?;
-        self.add(name, Operation::Transform { source: s, translation: centre, rotation_deg: [0.0; 3] }, joined(0.0))
+        self.add(name, Operation::Transform { source: s, translation: centre, rotation_deg: [0.0; 3] }, joined())
     }
 }
 
-fn joined(blend_mm: f64) -> Component {
-    Component { attach: Attach::Join, placement: Placement::Free, blend_mm, ..Component::default() }
+fn joined() -> Component {
+    Component { attach: Attach::Join, placement: Placement::Free, blend_mm: 0.0, ..Component::default() }
 }
 
 /// What the spider measures, for the report.
@@ -1191,18 +1509,22 @@ struct Spider {
     knee_deg: Vec<f64>,
     claw_deg: Vec<f64>,
     knee_proud_mm: f64,
-    /// The highest knee's top over the carapace collet's rim, along the ring's radius.
+    /// The lowest knee's top over the carapace's rim, along the ring's radius.
     knee_over_rim_mm: f64,
     leg_most_proud_mm: f64,
     leg_lowest_cheek_share: f64,
     leg_abdomen_margin_mm: f64,
     leg_lengths_mm: Vec<f64>,
-    femur_tibia_min_diameter_mm: f64,
+    /// The thinnest section any leg sweep carries, and the claw's tip.
+    leg_min_section_mm: f64,
     claw_diameter_mm: f64,
     tightest_bend_ratio: f64,
+    /// Rim-flat widths of the two collets and their walls' flare.
+    rim_flat_mm: Vec<f64>,
+    wall_flare_deg: f64,
 }
 
-fn author() -> Result<(RingDesign, AlphaLibrary, Spider)> {
+fn author(preview: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Spider, WebStats, Vec<Body>)> {
     let mut d = band();
     let ctx = d.field_context();
     println!("  reference crest v {:.2} of {:.2}, crest r {:.2}", ctx.crest_v_mm, ctx.band_v_len_mm, ctx.crest_radius_mm);
@@ -1216,10 +1538,14 @@ fn author() -> Result<(RingDesign, AlphaLibrary, Spider)> {
     d.layers.layers.push(head);
     d.layers.layers.push(tail);
     let (carapace, abdomen) = bodies(&d)?;
-    let spinneret_deg = crown_web(&mut d, &bare, &abdomen)?;
+    let (web, spinneret_deg) = crown_web(&mut d, &bare, &carapace, &abdomen, preview)?;
     let mut lib = AlphaLibrary::builtin();
     d.bake_all(&mut lib);
     println!("  carapace at {HUB_DEG:.1} deg, abdomen at {abdomen_at:.1} deg, spinnerets at {spinneret_deg:.1} deg");
+    println!("  web: {} orbs, frieze of {} corners at {:.2} mm, longest parallel run {:.2} mm, {} KB of SVG", web.orbs.len(), web.frieze_corners, web.frieze_step_mm, web.longest_parallel_run_mm, web.svg_bytes / 1024);
+    if preview.is_some() {
+        return Ok((d, lib, Spider::default(), web, vec![carapace, abdomen]));
+    }
 
     let legs = solve_legs(&bare, &carapace, &abdomen)?;
     let doc = d.cad.get_or_insert_with(Document::default);
@@ -1228,44 +1554,60 @@ fn author() -> Result<(RingDesign, AlphaLibrary, Spider)> {
     }
     let next = doc.features.iter().map(|f| f.id).max().unwrap_or(0) + 1;
     let mut parts = Parts { doc, next };
-    parts.add("Carapace body", belly(&carapace)?, joined(0.0))?;
-    parts.add("Abdomen body", belly(&abdomen)?, joined(0.0))?;
-    parts.add("Carapace collet, garnet", collet(&carapace)?, joined(0.0))?;
-    parts.add("Abdomen collet, onyx", collet(&abdomen)?, joined(0.0))?;
-    // The pedicel: a waist between the collets, a little under the girdles.
+    parts.add("Carapace, round the garnet", body_part(&carapace, GARNET_AROUND)?, joined())?;
+    parts.add("Abdomen, round the onyx", body_part(&abdomen, ONYX_AROUND)?, joined())?;
+    // The pedicel: a waist between the bodies, a little under the girdles.
     let (ec, ea) = (carapace.end(1.0), abdomen.end(-1.0));
     let mid: P3 = std::array::from_fn(|k| 0.5 * (ec[k] + ea[k]));
     parts.ball("Pedicel", add3(mid, unit3([mid[0], mid[1], 0.0]), -0.35), 0.7)?;
     let sp = bare.at(spinneret_deg);
     parts.ball("Spinnerets", at_ring(spinneret_deg, sp.flank[0][1] + 0.18, 0.0), 0.5)?;
-    let mut spider = Spider { knee_over_rim_mm: f64::MIN, carapace_deg: HUB_DEG, abdomen_deg: abdomen_at, spinneret_deg, tightest_bend_ratio: f64::MAX, femur_tibia_min_diameter_mm: f64::MAX, leg_abdomen_margin_mm: f64::MAX, leg_lowest_cheek_share: f64::MAX, claw_diameter_mm: 2.0 * CLAW_MM, ..Spider::default() };
+    let rim_flat = |b: &Body| {
+        let (_, b0) = b.semi();
+        let outer = b.profile().last().unwrap()[0];
+        outer - (POCKET_CLEAR_MM - b0 * (1.0 - b.stone_scale(b.rim())))
+    };
+    let mut spider = Spider {
+        knee_over_rim_mm: f64::MAX,
+        carapace_deg: HUB_DEG,
+        abdomen_deg: abdomen_at,
+        spinneret_deg,
+        tightest_bend_ratio: f64::MAX,
+        leg_min_section_mm: f64::MAX,
+        leg_abdomen_margin_mm: f64::MAX,
+        leg_lowest_cheek_share: f64::MAX,
+        claw_diameter_mm: 2.0 * CLAW_MM,
+        rim_flat_mm: vec![rim_flat(&carapace), rim_flat(&abdomen)],
+        wall_flare_deg: FLARE_DEG,
+        ..Spider::default()
+    };
     for (spec, leg) in &legs {
-        let mut outputs = Vec::new();
-        for (part, path) in &leg.segments {
+        let mut outputs = vec![parts.ball(&format!("{} coxa, low side", spec.name), leg.coxa.0, leg.coxa.1)?];
+        for (part, path) in &leg.sweeps {
             let op = Operation::Twist { sketch: path.section().into(), path: path.sketch(&format!("{} {part} path", spec.name)), degrees: 0.0, end_scale: path.r1 / path.r0 };
-            outputs.push(parts.add(format!("{} {part}, low side", spec.name), op, joined(0.0))?);
+            outputs.push(parts.add(format!("{} {part}, low side", spec.name), op, joined())?);
         }
         for (joint, centre, radius) in &leg.joints {
             outputs.push(parts.ball(&format!("{} {joint}, low side", spec.name), *centre, *radius)?);
         }
         for source in outputs {
             let name = parts.doc.feature(source).map(|f| f.name.replace("low side", "high side")).unwrap_or_default();
-            parts.add(name, Operation::Pattern { source, kind: PatternKind::Mirror { plane: MirrorPlane::Band } }, joined(0.0))?;
+            parts.add(name, Operation::Pattern { source, kind: PatternKind::Mirror { plane: MirrorPlane::Band } }, joined())?;
         }
         spider.knee_deg.push(leg.knee_deg);
         spider.claw_deg.push(HUB_DEG + spec.claw_deg);
         spider.knee_proud_mm = spider.knee_proud_mm.max(leg.knee_proud);
         let (knee, radius) = (leg.joints[0].1, leg.joints[0].2);
         let rim = carapace.world([0.0, 0.0, carapace.rim()]);
-        spider.knee_over_rim_mm = spider.knee_over_rim_mm.max(knee[0].hypot(knee[1]) + radius - rim[0].hypot(rim[1]));
+        spider.knee_over_rim_mm = spider.knee_over_rim_mm.min(knee[0].hypot(knee[1]) + radius - rim[0].hypot(rim[1]));
         spider.leg_most_proud_mm = spider.leg_most_proud_mm.max(leg.most_proud);
         spider.leg_lowest_cheek_share = spider.leg_lowest_cheek_share.min(leg.least_share);
         spider.leg_abdomen_margin_mm = spider.leg_abdomen_margin_mm.min(leg.abdomen_margin);
         spider.leg_lengths_mm.push(leg.length);
-        spider.femur_tibia_min_diameter_mm = spider.femur_tibia_min_diameter_mm.min(2.0 * leg.segments[1].1.r1);
-        spider.tightest_bend_ratio = leg.segments.iter().map(|(_, p)| p.bend_ratio()).fold(spider.tightest_bend_ratio, f64::min);
+        spider.leg_min_section_mm = leg.sweeps.iter().map(|(_, p)| 2.0 * p.r0.min(p.r1)).fold(spider.leg_min_section_mm, f64::min);
+        spider.tightest_bend_ratio = leg.sweeps.iter().map(|(_, p)| p.bend_ratio()).fold(spider.tightest_bend_ratio, f64::min);
     }
-    Ok((d, lib, spider))
+    Ok((d, lib, spider, web, vec![carapace, abdomen]))
 }
 
 // --- Gates, report and renders ----------------------------------------------
@@ -1284,10 +1626,15 @@ struct Report {
     boundary_edges: usize,
     non_manifold_edges: usize,
     degenerate_faces: usize,
+    min_angle_deg: f64,
+    worst_aspect: f64,
+    /// Faces under a twentieth of a degree at their sharpest corner, by the part they came from.
+    slivers_by_part: Vec<(String, usize)>,
     made_parts: Vec<(String, usize)>,
     solids_notes: Vec<String>,
     parts_notes: Vec<String>,
     parts_joined: usize,
+    parts_cut: usize,
     field_verdict: String,
     field_notes: Vec<String>,
     /// Undercut read on the CAD parts against a two-part pull; reported under lost wax, never gating.
@@ -1310,11 +1657,19 @@ struct Report {
     z_extent_mm: f64,
     head_width_mm: f64,
     spider: Spider,
+    web: WebStats,
     cheek_web_ink: f64,
     crown_web_ink: Vec<(String, f64)>,
     longest_bare_crown_run_mm: f64,
+    /// The widest disc of bare polished crown anywhere clear of the spider's bodies: the web's largest cell.
+    largest_bare_cell_mm: f64,
+    largest_bare_cell_deg: f64,
     layers: Vec<String>,
     cad_features: usize,
+    design_bytes: u64,
+    design_format: u64,
+    embedded_alphas: usize,
+    export_clean: ExportClean,
     grams_18k: f64,
     cold_reload_identical: Option<bool>,
     gates_passed: bool,
@@ -1405,7 +1760,6 @@ fn side_by_side(path: &Path, left: &[u8], right: &[u8], edge: usize) -> Result<(
     Ok(())
 }
 
-
 /// Studio-gold renders with stones: named views, a spider close-up, and bare stock against the finished ring.
 fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult, edge: usize) -> Result<()> {
     let gems = stones(d, lib);
@@ -1448,7 +1802,7 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
     Ok(())
 }
 
-/// Every made part's self-crossings: the CAD parts as placed, the collets among them.
+/// Every made part's self-crossings: the CAD parts as placed.
 fn crossings(built: &mesh::BuildResult) -> Vec<(String, usize)> {
     built
         .parts
@@ -1463,6 +1817,120 @@ fn crossings(built: &mesh::BuildResult) -> Vec<(String, usize)> {
             (c.name.clone(), n)
         })
         .collect()
+}
+
+/// Faces sharper than a twentieth of a degree at their sharpest corner, counted by the part their vertices came from.
+fn slivers(d: &RingDesign, built: &mesh::BuildResult) -> Vec<(String, usize)> {
+    let m = &built.mesh;
+    let names: HashMap<Id, String> = d.cad.as_ref().map(|c| c.features.iter().map(|f| (f.id, f.name.clone())).collect()).unwrap_or_default();
+    let owner = |v: u32| -> String {
+        match m.origin.get(v as usize) {
+            Some(&o) if o >= mesh::SOLID_VERTEX => {
+                let i = (o - mesh::SOLID_VERTEX) as i64 - built.parts.first as i64;
+                usize::try_from(i).ok().and_then(|i| built.parts.features.get(i)).and_then(|id| names.get(id)).cloned().unwrap_or_else(|| "a seat or stamp".into())
+            }
+            Some(_) => "band".into(),
+            None => "unknown".into(),
+        }
+    };
+    let mut count: HashMap<String, usize> = HashMap::new();
+    for f in &m.faces {
+        let p = f.map(|i| m.vertices[i as usize]).map(|v| [v.0 as f64, v.1 as f64, v.2 as f64]);
+        let mut sharpest = 180.0f64;
+        for k in 0..3 {
+            let (a, b) = (sub3(p[(k + 1) % 3], p[k]), sub3(p[(k + 2) % 3], p[k]));
+            let (la, lb) = (len3(a), len3(b));
+            if la < 1e-12 || lb < 1e-12 {
+                sharpest = 0.0;
+                continue;
+            }
+            sharpest = sharpest.min((dot(a, b) / (la * lb)).clamp(-1.0, 1.0).acos().to_degrees());
+        }
+        if sharpest < 0.05 {
+            let mut who: Vec<String> = f.iter().map(|&v| owner(v)).collect();
+            who.sort();
+            who.dedup();
+            *count.entry(who.join(" / ")).or_default() += 1;
+        }
+    }
+    let mut out: Vec<(String, usize)> = count.into_iter().collect();
+    out.sort_by_key(|o| std::cmp::Reverse(o.1));
+    if std::env::var("ARACHNE_DEBUG").is_ok() {
+        let mut degenerate: HashMap<String, usize> = HashMap::new();
+        for f in &m.faces {
+            let p = f.map(|i| m.vertices[i as usize]).map(|v| [v.0 as f64, v.1 as f64, v.2 as f64]);
+            let area = 0.5 * len3(cross3(sub3(p[1], p[0]), sub3(p[2], p[0])));
+            if area < 1e-10 {
+                let mut who: Vec<String> = f.iter().map(|&v| owner(v)).collect();
+                who.sort();
+                who.dedup();
+                *degenerate.entry(format!("{} at ({:.3}, {:.3}, {:.3})", who.join(" / "), p[0][0], p[0][1], p[0][2])).or_default() += 1;
+            }
+        }
+        for (k, n) in degenerate {
+            println!("    degenerate: {n} on {k}");
+        }
+        let mut worst: Vec<(f64, usize)> = m
+            .faces
+            .iter()
+            .enumerate()
+            .map(|(k, f)| {
+                let p = f.map(|i| m.vertices[i as usize]).map(|v| [v.0 as f64, v.1 as f64, v.2 as f64]);
+                let e = [len3(sub3(p[1], p[0])), len3(sub3(p[2], p[1])), len3(sub3(p[0], p[2]))];
+                let longest = e[0].max(e[1]).max(e[2]);
+                let area = 0.5 * len3(cross3(sub3(p[1], p[0]), sub3(p[2], p[0])));
+                (longest * longest / (2.0 * area).max(1e-30), k)
+            })
+            .collect();
+        worst.sort_by(|a, b| b.0.total_cmp(&a.0));
+        for (aspect, k) in worst.iter().take(6) {
+            let f = m.faces[*k];
+            let p = f.map(|i| m.vertices[i as usize]).map(|v| [v.0 as f64, v.1 as f64, v.2 as f64]);
+            let e = [len3(sub3(p[1], p[0])), len3(sub3(p[2], p[1])), len3(sub3(p[0], p[2]))];
+            let who: Vec<String> = f.iter().map(|&v| owner(v)).collect();
+            println!("    worst face: aspect {aspect:.0}, edges {:.6} {:.6} {:.6} at ({:.3}, {:.3}, {:.3}) on {}", e[0], e[1], e[2], p[0][0], p[0][1], p[0][2], who.join(" / "));
+        }
+        let mut wide: Vec<(f64, u32)> = m.vertices.iter().enumerate().map(|(i, v)| (v.2.abs() as f64, i as u32)).collect();
+        wide.sort_by(|a, b| b.0.total_cmp(&a.0));
+        for (z, i) in wide.iter().take(4) {
+            let v = m.vertices[*i as usize];
+            println!("    widest: |z| {z:.3} at {:.1} deg on {}", (v.1 as f64).atan2(v.0 as f64).to_degrees(), owner(*i));
+        }
+    }
+    out
+}
+
+/// Slivers thinner than this are collapsed or flipped away in the exported mesh.
+const CLEAN_MM: f64 = 1e-3;
+
+/// What the export's clean did.
+#[derive(serde::Serialize)]
+struct ExportClean {
+    eps_mm: f64,
+    faces_removed: usize,
+    watertight: bool,
+    degenerate_faces: usize,
+    min_angle_deg: f64,
+    worst_aspect: f64,
+}
+
+/// The built mesh with every sliver thinner than `eps` collapsed or flipped away, as the export writes it.
+fn cleaned(m: &mesh::Mesh, eps: f64) -> (mesh::Mesh, ExportClean) {
+    let mut solid = csg::Solid { v: m.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: m.faces.clone() };
+    let faces_removed = csg::clean(&mut solid, eps);
+    let mut out = mesh::Mesh { vertices: solid.v.iter().map(|p| mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), faces: solid.f.clone(), ..mesh::Mesh::default() };
+    let mut normals = vec![[0.0f64; 3]; solid.v.len()];
+    for f in &solid.f {
+        let [a, b, c] = f.map(|i| solid.v[i as usize]);
+        let n = cross3(sub3(b, a), sub3(c, a));
+        for &i in f {
+            normals[i as usize] = add3(normals[i as usize], n, 1.0);
+        }
+    }
+    out.normals = normals.iter().map(|n| unit3(*n)).map(|n| mesh::Vec3(n[0] as f32, n[1] as f32, n[2] as f32)).collect();
+    let q = out.quality();
+    let stats = ExportClean { eps_mm: eps, faces_removed, watertight: out.validate().watertight, degenerate_faces: q.degenerate_faces, min_angle_deg: q.min_angle_deg, worst_aspect: q.worst_aspect };
+    (out, stats)
 }
 
 /// Metal vertices standing inside each cabochon, 0.03 mm in from its surface: the stones must sit clear.
@@ -1491,53 +1959,192 @@ fn ink(lib: &AlphaLibrary, name: &str) -> f64 {
     lib.get(name).map_or(0.0, |a| a.data.iter().filter(|v| **v >= 0.5).count() as f64 / a.data.len().max(1) as f64)
 }
 
-/// The longest run of bare polished crown along the crest and two lines either side, clear of the two bodies, metal mm.
-fn longest_bare_run(d: &RingDesign, lib: &AlphaLibrary, spider: &Spider) -> f64 {
+/// The crown sampled on a metal grid: whether each point is bare polish, or covered by the web, the bodies or the band's edge.
+struct CrownGrid {
+    step: f64,
+    cols: usize,
+    rows: usize,
+    /// Row 0 is `-top` across; true where the crown is bare.
+    bare: Vec<bool>,
+    top: f64,
+    theta: Vec<f64>,
+}
+
+fn crown_grid(d: &RingDesign, lib: &AlphaLibrary, bodies: &[Body]) -> CrownGrid {
     let ctx = d.field_context();
-    let bare = Bare::new(d);
-    let body = |th: f64| {
-        let wrap = |a: f64| (a + 180.0).rem_euclid(360.0) - 180.0;
-        wrap(th - spider.carapace_deg) > -16.0 && wrap(th - spider.abdomen_deg) < 28.0
-    };
+    let bare_band = Bare::new(d);
+    let ch = Chart { bare: &bare_band, ctx: d.field_context() };
+    let web = Web::new(&ch);
+    let step = 0.05;
+    let cols = (web.circ / step).round() as usize;
+    let top = (0..360).map(|k| ch.edge(k as f64)).fold(0.0, f64::max);
+    let rows = (2.0 * top / step).ceil() as usize + 1;
+    let theta: Vec<f64> = (0..cols).map(|i| web.theta(-0.5 * web.circ + i as f64 * step)).collect();
+    let mut bare = vec![false; cols * rows];
+    for (i, &th) in theta.iter().enumerate() {
+        let edge = ch.edge(th) - 0.15;
+        let u = ctx.u_of_theta(th.rem_euclid(360.0));
+        let stretch = ctx.station_stretch(th.rem_euclid(360.0));
+        for j in 0..rows {
+            let t = -top + j as f64 * step;
+            if t.abs() > edge {
+                continue;
+            }
+            let (r, z) = bare_band.surface_at_t(th, t);
+            let w = at_ring(th, r, z);
+            if bodies.iter().any(|b| b.margin(w) < 0.0) {
+                continue;
+            }
+            let h = d.layers.height(Uv { u, v: ctx.crest_v_mm + t / stretch }, &ctx, lib);
+            bare[j * cols + i] = h < 0.03;
+        }
+    }
+    CrownGrid { step, cols, rows, bare, top, theta }
+}
+
+/// Squared distances to the nearest zero, one dimension (Felzenszwalb and Huttenlocher).
+fn edt_1d(f: &[f64]) -> Vec<f64> {
+    let n = f.len();
+    let mut d = vec![0.0; n];
+    let mut v = vec![0usize; n];
+    let mut z = vec![0.0; n + 1];
+    let mut k = 0usize;
+    z[0] = f64::NEG_INFINITY;
+    z[1] = f64::INFINITY;
+    let inf = 1e20;
+    let mut first = true;
+    for q in 0..n {
+        if f[q] >= inf {
+            continue;
+        }
+        if first {
+            v[0] = q;
+            k = 0;
+            z[0] = f64::NEG_INFINITY;
+            z[1] = f64::INFINITY;
+            first = false;
+            continue;
+        }
+        loop {
+            let p = v[k];
+            let s = ((f[q] + (q * q) as f64) - (f[p] + (p * p) as f64)) / (2.0 * q as f64 - 2.0 * p as f64);
+            if s <= z[k] && k > 0 {
+                k -= 1;
+                continue;
+            }
+            if s <= z[k] {
+                v[0] = q;
+                z[0] = f64::NEG_INFINITY;
+                z[1] = f64::INFINITY;
+                k = 0;
+                break;
+            }
+            k += 1;
+            v[k] = q;
+            z[k] = s;
+            z[k + 1] = f64::INFINITY;
+            break;
+        }
+    }
+    if first {
+        return vec![inf; n];
+    }
+    k = 0;
+    for (q, out) in d.iter_mut().enumerate() {
+        while z[k + 1] < q as f64 {
+            k += 1;
+        }
+        let p = v[k];
+        *out = (q as f64 - p as f64).powi(2) + f[p];
+    }
+    d
+}
+
+/// The widest bare disc on the crown, diameter mm, and the ring angle it sits at.
+fn largest_bare_cell(g: &CrownGrid) -> (f64, f64) {
+    let pad = (3.0 / g.step) as usize;
+    let w = g.cols + 2 * pad;
+    let inf = 1e20;
+    let mut f = vec![0.0; w * g.rows];
+    for j in 0..g.rows {
+        for i in 0..w {
+            let c = (i + g.cols - pad) % g.cols;
+            f[j * w + i] = if g.bare[j * g.cols + c] { inf } else { 0.0 };
+        }
+    }
+    let mut col = vec![0.0; g.rows];
+    for i in 0..w {
+        for j in 0..g.rows {
+            col[j] = f[j * w + i];
+        }
+        let d = edt_1d(&col);
+        for j in 0..g.rows {
+            f[j * w + i] = d[j];
+        }
+    }
+    let (mut best, mut at) = (0.0f64, 0usize);
+    for j in 0..g.rows {
+        let d = edt_1d(&f[j * w..(j + 1) * w]);
+        for (i, di) in d.iter().enumerate().skip(pad).take(g.cols) {
+            if *di > best && *di < inf {
+                best = *di;
+                at = i - pad;
+            }
+        }
+    }
+    (2.0 * best.sqrt() * g.step, g.theta[at].rem_euclid(360.0))
+}
+
+/// The longest run of bare polished crown along the crest and two lines either side, clear of the bodies, metal mm.
+fn longest_bare_run(g: &CrownGrid) -> f64 {
     let mut worst: f64 = 0.0;
     for share in [0.0, 0.5, -0.5] {
+        let j = (((share * (g.top - 0.15)) + g.top) / g.step).round() as usize;
         let mut run = 0.0;
-        let step = 0.25;
-        for k in 0..(720.0 / step) as usize {
-            let th = k as f64 * step;
-            let t = share * bare.at(th).edge_t;
-            let v = ctx.crest_v_mm + t / ctx.station_stretch(th.rem_euclid(360.0));
-            let h = d.layers.height(Uv { u: ctx.u_of_theta(th.rem_euclid(360.0)), v }, &ctx, lib);
-            let ds = step.to_radians() * bare.r_at_t(th, t);
-            if h < 0.03 && !body(th) {
-                run += ds;
-            } else {
-                if run > worst && std::env::var("ARACHNE_DEBUG").is_ok() {
-                    println!("    bare run {run:.1} mm ending at {:.1} deg on share {share}", th.rem_euclid(360.0));
-                }
+        for i in 0..2 * g.cols {
+            if g.bare[j * g.cols + i % g.cols] {
+                run += g.step;
                 worst = worst.max(run);
+            } else {
                 run = 0.0;
             }
         }
     }
-    worst
+    worst.min(g.cols as f64 * g.step)
 }
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let draft = args.iter().any(|a| a == "--draft");
     let verify = args.iter().any(|a| a == "--verify");
+    let web_only = args.iter().any(|a| a == "--web-preview");
     let out = args.iter().find(|a| !a.starts_with("--")).map(PathBuf::from).unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../showcase/bestiarium/arachne"));
     std::fs::create_dir_all(&out)?;
     println!("Arachne");
-    let (d, lib, spider) = author()?;
+    if web_only {
+        let path = out.join("web-preview.svg");
+        let (d, ..) = author(Some(&path))?;
+        for svg in &d.svgs {
+            std::fs::write(out.join(format!("{}.svg", svg.name.to_lowercase().replace([' ', ','], "-").replace("--", "-"))), &svg.svg)?;
+        }
+        println!("  wrote {}", path.display());
+        return Ok(());
+    }
+    let (d, lib, spider, web, bodies) = author(None)?;
     let params = if draft { draft_params() } else { export_params() };
     let started = std::time::Instant::now();
     let built = mesh::try_build(&d, &lib, params)?;
     let build_s = started.elapsed().as_secs_f64();
     let v = &built.report.validation;
-    println!("  {} triangles in {build_s:.1} s; watertight {}; degenerate {}", built.mesh.faces.len(), v.watertight, built.report.quality.degenerate_faces);
+    let quality = built.report.quality;
+    println!("  {} triangles in {build_s:.1} s; watertight {}; degenerate {}; sharpest corner {:.5} deg, worst aspect {:.0}", built.mesh.faces.len(), v.watertight, quality.degenerate_faces, quality.min_angle_deg, quality.worst_aspect);
     let made_parts = crossings(&built);
+    let slivers_by_part = slivers(&d, &built);
+    let (export_mesh, export_clean) = cleaned(&built.mesh, CLEAN_MM);
+    println!(
+        "  export clean at {:.4} mm: {} faces gone; watertight {}; degenerate {}; sharpest corner {:.4} deg, worst aspect {:.0}",
+        export_clean.eps_mm, export_clean.faces_removed, export_clean.watertight, export_clean.degenerate_faces, export_clean.min_angle_deg, export_clean.worst_aspect
+    );
     let mut field = castability::attributed_field_report(&d, &lib, &d.draft, 256, 128);
     castability::judge_parts(&mut field, &d, &built);
     let findings = dfm::findings_in(&d, &lib);
@@ -1549,7 +2156,10 @@ fn main() -> Result<()> {
     let zs = built.mesh.vertices.iter().map(|p| p.2 as f64);
     let z_extent = zs.clone().fold(f64::MIN, f64::max) - zs.fold(f64::MAX, f64::min);
     let head_width = 2.0 * Bare::new(&d).at(90.0).half_width;
-    library::save_design_embedded(out.join("design.ring.json"), &d, &lib)?;
+    library::save_design(out.join("design.ring.json"), &d)?;
+    let text = std::fs::read_to_string(out.join("design.ring.json"))?;
+    let design_bytes = text.len() as u64;
+    let design_format = serde_json::from_str::<serde_json::Value>(&text)?.get("format_version").and_then(|v| v.as_u64()).unwrap_or(0);
     let cold = if verify {
         let saved = library::load_design(out.join("design.ring.json"))?;
         let cold_lib = mf::source_library(&saved, &AlphaLibrary::default()).into_owned();
@@ -1561,7 +2171,9 @@ fn main() -> Result<()> {
         None
     };
     let crown_web_ink: Vec<(String, f64)> = d.svgs.iter().filter(|s| s.name != "Cheek web").map(|s| (s.name.clone(), ink(&lib, &s.name))).collect();
-    let bare_run = longest_bare_run(&d, &lib, &spider);
+    let grid = crown_grid(&d, &lib, &bodies);
+    let bare_run = longest_bare_run(&grid);
+    let (cell, cell_deg) = largest_bare_cell(&grid);
     let mut report = Report {
         name: d.name.clone(),
         process: d.draft.process.label().into(),
@@ -1573,11 +2185,15 @@ fn main() -> Result<()> {
         watertight: v.watertight,
         boundary_edges: v.boundary_edges,
         non_manifold_edges: v.non_manifold_edges,
-        degenerate_faces: built.report.quality.degenerate_faces,
+        degenerate_faces: quality.degenerate_faces,
+        min_angle_deg: quality.min_angle_deg,
+        worst_aspect: quality.worst_aspect,
+        slivers_by_part,
         made_parts,
         solids_notes: built.solids.notes.clone(),
         parts_notes: built.parts.notes.clone(),
         parts_joined: built.parts.joined,
+        parts_cut: built.parts.cut,
         field_verdict: field.verdict.label().into(),
         field_notes: field.notes.clone(),
         parts_undercut_mm2: field.parts.iter().map(|p| p.undercut_area_mm2).sum(),
@@ -1598,11 +2214,18 @@ fn main() -> Result<()> {
         z_extent_mm: z_extent,
         head_width_mm: head_width,
         spider,
+        web,
         cheek_web_ink: ink(&lib, "Cheek web"),
         crown_web_ink,
         longest_bare_crown_run_mm: bare_run,
+        largest_bare_cell_mm: cell,
+        largest_bare_cell_deg: cell_deg,
         layers: d.layers.layers.iter().map(|e| e.name.clone()).collect(),
         cad_features: d.cad.as_ref().map_or(0, |c| c.features.len()),
+        design_bytes,
+        design_format,
+        embedded_alphas: d.embedded.len(),
+        export_clean,
         grams_18k: grams,
         cold_reload_identical: cold,
         gates_passed: false,
@@ -1619,7 +2242,14 @@ fn main() -> Result<()> {
         && report.metal_inside_stones.iter().all(|(_, n)| *n == 0)
         && report.z_extent_mm <= 8.8
         && report.spider.knee_proud_mm <= KNEE_PROUD_MM + 0.01
-        && report.spider.femur_tibia_min_diameter_mm >= 0.85
+        && report.spider.knee_over_rim_mm >= 0.4
+        && report.spider.leg_min_section_mm >= MIN_SECTION_MM - 1e-9
+        && report.spider.claw_diameter_mm >= MIN_SECTION_MM - 1e-9
+        && report.longest_bare_crown_run_mm <= 3.5
+        && report.largest_bare_cell_mm <= 2.0
+        && report.web.longest_parallel_run_mm <= 3.0
+        && report.export_clean.watertight
+        && report.export_clean.degenerate_faces == 0
         && report.cold_reload_identical != Some(false);
     std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report)?)?;
     std::fs::write(out.join("mesh.json"), serde_json::to_vec_pretty(&built.report)?)?;
@@ -1630,7 +2260,7 @@ fn main() -> Result<()> {
         std::fs::write(art.join(format!("{}.svg", svg.name.to_lowercase().replace([' ', ','], "-").replace("--", "-"))), &svg.svg)?;
     }
     if !draft {
-        stl::write_stl(out.join("finished-metal.stl"), &built.mesh, &d.name)?;
+        stl::write_stl(out.join("finished-metal.stl"), &export_mesh, &d.name)?;
     }
     renders(&out, &d, &lib, &built, if draft { 1000 } else { 1600 })?;
     println!(
@@ -1647,9 +2277,23 @@ fn main() -> Result<()> {
         report.parts_notes.len()
     );
     println!(
-        "  z extent {:.2} mm over a {:.2} mm head; knees {:.2} proud, legs {:.2}; cheek ink {:.2}; crown ink {:?}; longest bare crown run {:.1} mm",
-        report.z_extent_mm, report.head_width_mm, report.spider.knee_proud_mm, report.spider.leg_most_proud_mm, report.cheek_web_ink, report.crown_web_ink, report.longest_bare_crown_run_mm
+        "  z extent {:.2} mm over a {:.2} mm head; knees {:.2} proud and {:.2} over the rim, legs {:.2}; thinnest leg {:.2} mm; cheek ink {:.2}; longest bare crown run {:.1} mm; widest bare cell {:.2} mm at {:.0} deg; design {} KB at format {}",
+        report.z_extent_mm,
+        report.head_width_mm,
+        report.spider.knee_proud_mm,
+        report.spider.knee_over_rim_mm,
+        report.spider.leg_most_proud_mm,
+        report.spider.leg_min_section_mm,
+        report.cheek_web_ink,
+        report.longest_bare_crown_run_mm,
+        report.largest_bare_cell_mm,
+        report.largest_bare_cell_deg,
+        report.design_bytes / 1024,
+        report.design_format
     );
+    for (who, n) in report.slivers_by_part.iter().take(8) {
+        println!("    slivers: {n} on {who}");
+    }
     for (stone, n) in &report.metal_inside_stones {
         println!("    {stone}: {n} metal vertices inside the stone");
     }
@@ -1663,4 +2307,3 @@ fn main() -> Result<()> {
     ensure!(report.gates_passed, "Arachne failed its gates; see {}", out.join("report.json").display());
     Ok(())
 }
-

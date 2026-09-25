@@ -1,17 +1,22 @@
 {
+  "cad_chain_patches": 3,
   "cold_design_reload": true,
   "cold_graph_reload": true,
-  "design_bytes": 2587949,
+  "design_bytes": 418521,
+  "design_format": 6,
   "design_set_patches": 7,
+  "embedded_alphas": 0,
   "exposed_controls": [
     "US size",
     "Band width",
     "Band thickness"
   ],
-  "graph_bytes": 2615625,
-  "nodes": 133,
+  "graph_bytes": 455331,
+  "nodes": 176,
   "notes_empty": true,
-  "open_s": 0.203234674,
+  "open_s": 0.371041721,
+  "patch_budget": 4,
+  "patch_gate": "FAIL: over the plan's 4; needs the chain_document change (report) or the lead's ruling",
   "patch_pointers": [
     "/cad/outputs",
     "/cad/joints",
@@ -21,7 +26,28 @@
     "/draft/process",
     "/shank/keys"
   ],
+  "size_budget_procedural_bytes": 300000,
+  "size_flag": "over the 300 KB procedural budget (which applies after P7)",
   "source_identical": true,
-  "triangles": 803128,
-  "vertices_faces_normals_identical": true
+  "svg_sources": 8,
+  "triangles": 512850,
+  "true_patches": 4,
+  "vertices_faces_normals_identical": true,
+  "with_chain_document_change": {
+    "design_set_patches": 4,
+    "cad_chain_patches": 0,
+    "true_patches": 4,
+    "patch_pointers": [
+      "/draft/min_detail_mm",
+      "/draft/min_section_mm",
+      "/draft/process",
+      "/shank/keys"
+    ],
+    "patch_gate": "pass",
+    "source_identical": true,
+    "vertices_faces_normals_identical": true,
+    "notes_empty": true,
+    "graph_bytes": 453057,
+    "change": "chain_document adds /cad/outputs, /cad/joints and /cad/through only where the document differs from what Document::append derives (exact diff in the report); ringdesign-graph lift and nodes::cad tests: 15 passed"
+  }
 }
