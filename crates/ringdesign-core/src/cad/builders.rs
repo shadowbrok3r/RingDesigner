@@ -1327,7 +1327,7 @@ mod tests {
         let d = solitaire();
         let bare = crate::mesh::try_build(&court(), &lib, params()).unwrap();
         let full = crate::mesh::try_build(&d, &lib, params()).unwrap();
-        assert!((full.report.volume_mm3 - 426.4480018475158).abs() < 1e-9, "legacy Wire/Even/Dome solitaire volume: {:.17}", full.report.volume_mm3);
+        assert!((full.report.volume_mm3 - 426.4480018530008).abs() < 1e-9, "legacy Wire/Even/Dome solitaire volume: {:.17}", full.report.volume_mm3);
         let v = &full.report.validation;
         assert!(v.watertight && v.boundary_edges == 0 && v.non_manifold_edges == 0, "{v:?}");
         assert!(full.parts.notes.is_empty(), "{:?}", full.parts.notes);

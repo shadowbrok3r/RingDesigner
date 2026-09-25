@@ -637,9 +637,13 @@ pub fn relief_named(gem: Gem, from_z: f64, inset: f64, fit: &Fit) -> Option<Name
     let mut s = vec![pole(from_z), st(1.0, -inset, from_z), st(1.0, -inset, from_z - 0.05)];
     let waist = (1.0 - inset / plan.b.max(1e-6)).clamp(0.3, 1.0);
     let z_waist = -(1.0 - waist) * p - 0.2;
-    if z_waist < from_z - 0.1 { s.push(st(waist, 0.0, z_waist)); }
-    s.push(st(0.3, 0.0, -0.7 * p - 0.2));
+    if waist > 0.3 && z_waist < from_z - 0.1 { s.push(st(waist, 0.0, z_waist)); }
+    // A low band surface keeps the pilot below the relief neck instead of folding back up through it.
+    let pilot_z = -0.7 * p - 0.2;
+    let pilot_z = if pilot_z >= from_z - 0.05 { from_z - 0.15 } else { pilot_z };
+    s.push(st(0.3, 0.0, pilot_z));
     let floor = fit.through_mm.unwrap_or(blind).max(0.7 * p + 0.3);
+    let floor = if -floor >= pilot_z || -floor >= fit.surface_z { floor.max(-pilot_z + 0.1).max(0.05 - fit.surface_z) } else { floor };
     s.push(st(0.3, 0.0, -floor));
     s.push(pole(-floor));
     let mut names = vec!["Relief"; s.len() - 3];
@@ -3234,6 +3238,68 @@ mod tests {
         }
         sound(&envelope(Gem::cabochon(GemCut::Oval, 6.0), 0.02), "a cabochon");
         sound(&collet(Gem::cabochon(GemCut::Oval, 6.0)), "a cabochon's collet");
+    }
+
+    #[test]
+    fn raised_seat_burs_stay_below_the_opening_and_reach_the_requested_exit() {
+        use crate::cad::builders;
+        for (cut, width) in [(GemCut::Round, 6.5), (GemCut::Round, 5.5), (GemCut::Oval, 3.5)] {
+            let mut gem = Gem::calibrated(cut, width);
+            if cut == GemCut::Oval { gem.l_mm = 5.0; }
+            for extra_raise in [0.0, 1.0, 4.0] {
+                let surface_z = -builders::stand_off_mm("claw4", gem) - extra_raise;
+                let seat = builders::Seat { surface_z, through_mm: Some(2.4 - surface_z) };
+                for through in [false, true] {
+                    let made = builders::build(builders::BUR, gem, &serde_json::json!({"through": through}), seat, None).unwrap();
+                    let solid = made.solid();
+                    let check = solid.check(true);
+                    let who = format!("{cut:?} {width} raised {extra_raise} through {through}");
+                    assert_eq!((check.open_edges, check.repeated_edges, check.zero_area_faces, check.self_crossings), (0, 0, 0, Some(0)), "{who}: {check:?}");
+                    assert!(check.volume > 0.0, "{who}");
+                    let (lo, hi) = solid.bounds().unwrap();
+                    assert_eq!(hi[2], surface_z + 0.3, "{who}: no cutter above its opening");
+                    if through { assert_eq!(lo[2], -seat.through_mm.unwrap(), "{who}: the exit reaches open air"); }
+                    assert_eq!(csg::inside(solid, [0.0, 0.0, surface_z]), Some(true), "{who}: relief meets the band");
+                    let rows = &solid.v[..solid.v.len() - 2];
+                    assert!(rows.windows(2).all(|w| w[1][2] <= w[0][2]), "{who}: the side profile never folds upward");
+                    assert_eq!(made.named.patch.len(), solid.f.len());
+                    assert_eq!(made.named.names, ["Relief", "Pilot"]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn relief_keeps_already_descending_geometry_exact() {
+        for cut in [GemCut::Round, GemCut::Oval, GemCut::Marquise] {
+            let gem = Gem::calibrated(cut, 6.5);
+            let plan = Plan::of(gem);
+            let p = gem.pavilion_mm();
+            let fit = Fit { surface_z: 0.4, through_mm: Some(p + 2.0), prongs: 0 };
+            for from_z in [-0.4, 0.2, -0.7 * p - 0.125] {
+                let inset = 0.3;
+                let mut section = vec![pole(from_z), st(1.0, -inset, from_z), st(1.0, -inset, from_z - 0.05)];
+                let waist = (1.0 - inset / plan.b.max(1e-6)).clamp(0.3, 1.0);
+                let z_waist = -(1.0 - waist) * p - 0.2;
+                if z_waist < from_z - 0.1 { section.push(st(waist, 0.0, z_waist)); }
+                section.extend([st(0.3, 0.0, -0.7 * p - 0.2), st(0.3, 0.0, -fit.through_mm.unwrap()), pole(-fit.through_mm.unwrap())]);
+                let old = sweep(&plan, &section, plan.segments());
+                assert_eq!(old.check(true).self_crossings, Some(0));
+                let current = relief_named(gem, from_z, inset, &fit).unwrap().solid;
+                assert_eq!(current.v, old.v, "{cut:?} {from_z}");
+                assert_eq!(current.f, old.f, "{cut:?} {from_z}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_relief_waist_that_meets_the_pilot_emits_no_duplicate_row() {
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        let fit = Fit { surface_z: 0.1, through_mm: None, prongs: 0 };
+        let solid = relief(gem, 0.2, 0.8 * Plan::of(gem).b, &fit).unwrap();
+        let check = solid.check(true);
+        assert_eq!((check.open_edges, check.repeated_edges, check.zero_area_faces, check.self_crossings), (0, 0, 0, Some(0)), "{check:?}");
+        assert!(check.volume > 0.0);
     }
 
     #[test]
