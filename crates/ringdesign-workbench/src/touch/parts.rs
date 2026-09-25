@@ -335,8 +335,8 @@ mod tests {
         assert!(mirror(&d, &post, Attach::Join, MirrorPlane::Band).unwrap_err().contains("stands on that plane"));
         let CadEdit::Add { feature, .. } = mirror(&d, &post, Attach::Join, MirrorPlane::Section { theta_deg: 90.0 }).unwrap() else { unreachable!() };
         assert_eq!((feature.name.as_str(), feature.component.attach), ("Mirror of Cylinder", Attach::Join));
-        let Operation::Pattern { source, kind } = &feature.operation else { panic!() };
-        assert_eq!((*source, kind), (id, &PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg: 90.0 } }));
+        let Operation::Pattern { sources, kind } = &feature.operation else { panic!() };
+        assert_eq!((&sources[..], kind), (&[id][..], &PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg: 90.0 } }));
         assert!(mirror(&d, &post, Attach::Join, MirrorPlane::Section { theta_deg: 60.0 }).is_err(), "through the head it stands on");
         let CadEdit::Add { feature, .. } = modifier(&d, "Fillet", id, 3).unwrap() else { unreachable!() };
         let Operation::Fillet { source, edges, .. } = &feature.operation else { panic!() };

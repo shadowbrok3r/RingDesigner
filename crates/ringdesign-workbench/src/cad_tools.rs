@@ -194,11 +194,11 @@ pub fn starters(source: u64, second: u64) -> Vec<Operation> {
             rotation_deg: [0.0; 3],
         },
         Operation::Pattern {
-            source,
+            sources: source.into(),
             kind: PatternKind::Ring { count: 6, span_deg: 360.0 },
         },
         Operation::Pattern {
-            source,
+            sources: source.into(),
             kind: PatternKind::Mirror { plane: MirrorPlane::Band },
         },
     ]

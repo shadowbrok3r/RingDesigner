@@ -298,7 +298,7 @@ fn a_ring_array_from_the_menu_waits_for_its_count_and_commits_one_pattern() {
     b.step(vec![Event::Key { key: egui::Key::Enter, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() }]);
     let edits = b.edits();
     let [CadEdit::Add { feature, .. }] = edits[0].0.as_slice() else { panic!("{edits:?}") };
-    assert!(matches!(feature.operation, Operation::Pattern { source: 2, kind: ringdesign_core::cad::PatternKind::Ring { count: 6, .. } }), "{:?}", feature.operation);
+    assert!(matches!(feature.operation, Operation::Pattern { ref sources, kind: ringdesign_core::cad::PatternKind::Ring { count: 6, .. } } if sources[..] == [2]), "{:?}", feature.operation);
     assert_eq!(edits[0].1, Then::LastAdded);
     // Through the funnel it is one undo step.
     let mut d = b.d.clone();
@@ -756,7 +756,7 @@ fn a_work_plane_is_drawn_chosen_by_a_tap_and_held_for_its_menu_which_mirrors_the
     let requests = b.cad.take_requests();
     let Some(Request::Edit { edits, then }) = requests.into_iter().next() else { panic!("the mirror is an edit") };
     let [CadEdit::Add { feature, .. }] = edits.as_slice() else { panic!("{edits:?}") };
-    assert!(matches!(&feature.operation, Operation::Pattern { source: 2, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 3 } } }), "{:?}", feature.operation);
+    assert!(matches!(&feature.operation, Operation::Pattern { sources, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 3 } } } if sources[..] == [2]), "{:?}", feature.operation);
     assert_eq!(then, Then::LastAdded);
     // Through the funnel it is one undo step, and the copy stands across y = 0 from the post, under the ring.
     let mut d = b.d.clone();

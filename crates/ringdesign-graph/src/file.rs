@@ -20,9 +20,9 @@ use crate::value::Literal;
 pub const GRAPH_EXT: &str = "graph.json";
 pub const CLUSTER_EXT: &str = "cluster.json";
 pub const PRESET_EXT: &str = "preset.json";
-/// The newest version this build reads; version 2 fences an in-plane revolution, and a cut on a ring of parts alone, off from older readers.
+/// The newest version this build reads; version 2 fences an in-plane revolution, a pattern of several parts and a cut on a ring of parts alone off from older readers.
 pub const GRAPH_FORMAT_VERSION: u32 = 2;
-/// The version a file without an in-plane revolution or a cut on a ring of parts alone is written at.
+/// The version a file with none of them is written at.
 pub const PLAIN_GRAPH_FORMAT_VERSION: u32 = 1;
 /// The oldest version whose nodes this build reads as they stand: a node's own migration runs only on files older than it.
 pub const NODE_SHAPE_VERSION: u32 = 1;
@@ -34,13 +34,18 @@ static MIGRATIONS: &[fn(&mut serde_json::Value)] = &[migrate_v0_to_v1, migrate_v
 /// Version 0 is a bare `Graph` with no version key at all.
 fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
 
-/// Version 2 only fences an in-plane revolution and a cut on a ring of parts alone off from older readers; a version-1 document has the same shape.
+/// Version 2 only fences an in-plane revolution, a pattern of several parts and a cut on a ring of parts alone off from older readers; a version-1 document has the same shape.
 fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
 
-/// Whether a literal holds what an older reader must be fenced from: a revolution read in its sketch's plane, or a cut on a ring of parts alone.
+/// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, or a pattern of several parts.
+fn fenced_json(v: &serde_json::Value) -> bool {
+    ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::cad::pattern::several_sources_json(v)
+}
+
+/// Whether a literal holds what an older reader must be fenced from: what [`fenced_json`] fences, or a cut on a ring of parts alone.
 fn literal_fenced(l: &Literal) -> bool {
     match l {
-        Literal::Json(v) => ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::parts::cuts_apart_json(v),
+        Literal::Json(v) => fenced_json(v) || ringdesign_core::parts::cuts_apart_json(v),
         Literal::List(items) => items.iter().any(literal_fenced),
         _ => false,
     }
@@ -51,10 +56,10 @@ fn graph_cuts_apart(g: &Graph) -> bool {
     serde_json::to_value(g).map_or(true, |v| ringdesign_core::parts::cuts_apart_json(&v))
 }
 
-/// The version `g` is written at: the newest when a node carries a revolution read in its sketch's plane, or the graph, or a cluster in it, may evaluate to a ring of parts alone carrying a cut.
+/// The version `g` is written at: the newest when a node carries a revolution read in its sketch's plane or a pattern of several parts, or the graph, or a cluster in it, may evaluate to a ring of parts alone carrying a cut.
 pub fn graph_version_for(g: &Graph) -> u32 {
-    let turned = |n: &Node| ringdesign_core::cad::turns_in_plane_json(&n.params) || n.inputs.values().any(literal_fenced);
-    if g.nodes.iter().any(turned) || graph_cuts_apart(g) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
+    let fenced = |n: &Node| fenced_json(&n.params) || n.inputs.values().any(literal_fenced);
+    if g.nodes.iter().any(fenced) || graph_cuts_apart(g) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
 }
 
 /// The version `p` is written at: the newest when a value is fenced, or when `cluster` with the preset's values on the pins they reach may evaluate to a ring of parts alone carrying a cut.
@@ -361,6 +366,46 @@ mod tests {
         assert_eq!(load_preset_str(&text).unwrap(), preset(turn(true)));
         let older = read_preset(&text, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
         assert_eq!(older, "preset file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner");
+    }
+
+    /// A pattern of the stone and its head together, as a `cad.feature` node carries it.
+    fn pattern(sources: &[u64]) -> serde_json::Value {
+        let kind = serde_json::json!({ "ring": { "count": 3, "span_deg": 360.0 } });
+        match sources {
+            [one] => serde_json::json!({ "Pattern": { "source": one, "kind": kind } }),
+            _ => serde_json::json!({ "Pattern": { "sources": sources, "kind": kind } }),
+        }
+    }
+
+    #[test]
+    fn a_pattern_of_several_parts_fences_its_graph_cluster_and_preset_at_two_and_one_part_stays_at_one() {
+        let reg = Registry::builtin();
+        let mut plain = Graph::new("Arrayed", Mode::Free);
+        let n = plain.add("cad.feature").unwrap();
+        plain.node_mut(n).unwrap().params = serde_json::json!({ "id": 5, "name": "Ring array", "enabled": true, "operation": pattern(&[3]) });
+        let text = graph_to_string(&plain).unwrap();
+        assert_eq!(text, serde_json::to_string_pretty(&Versioned { format_version: 1, doc: &plain }).unwrap());
+        assert_eq!(read_graph(&text, Some(&reg), PLAIN_GRAPH_FORMAT_VERSION).unwrap(), plain);
+        let mut in_params = plain.clone();
+        in_params.nodes[0].params["operation"] = pattern(&[2, 3]);
+        let mut on_pin = plain.clone();
+        on_pin.nodes[0].inputs.insert("operation".into(), Literal::Json(pattern(&[2, 3])));
+        let mut in_cluster = Graph::new("Arrayed cluster", Mode::Free);
+        let c = in_cluster.add("cluster").unwrap();
+        in_cluster.node_mut(c).unwrap().params = serde_json::json!({ "graph": serde_json::to_value(&in_params).unwrap() });
+        let mut split = plain.clone();
+        split.nodes[0].params["operation"]["Pattern"]["sources"] = serde_json::json!([4]);
+        for (name, g) in [("params", &in_params), ("pin", &on_pin), ("cluster", &in_cluster), ("one source and one listed", &split)] {
+            assert_eq!(graph_version_for(g), GRAPH_FORMAT_VERSION, "{name}");
+            let text = graph_to_string(g).unwrap();
+            assert_eq!(&load_graph_str(&text, Some(&reg)).unwrap(), g, "{name}");
+            let older = read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
+            assert_eq!(older, "graph file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner", "{name}");
+        }
+        let preset = |op: serde_json::Value| Preset { name: "Arrayed".into(), cluster: "Arrayed cluster".into(), values: [("Operation".to_string(), Literal::Json(op))].into_iter().collect(), doc: String::new() };
+        assert!(preset_to_string(&preset(pattern(&[3]))).unwrap().contains("\"format_version\": 1"));
+        let text = preset_to_string(&preset(pattern(&[2, 3]))).unwrap();
+        assert_eq!(read_preset(&text, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string(), "preset file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner");
     }
 
     #[test]

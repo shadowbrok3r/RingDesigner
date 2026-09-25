@@ -28,7 +28,7 @@ pub fn pattern_name(kind: &PatternKind, source: &Feature) -> String {
 /// The feature a pattern gesture adds, named and staged for its source and meeting the band by `attach`.
 pub fn pattern_feature(id: Id, source: &Feature, attach: Attach, kind: PatternKind) -> Feature {
     let component = Component { placement: Placement::Free, attach, ..source.component.clone() };
-    Feature { id, name: pattern_name(&kind, source), enabled: true, operation: Operation::Pattern { source: source.id, kind }, component }
+    Feature { id, name: pattern_name(&kind, source), enabled: true, operation: Operation::Pattern { sources: source.id.into(), kind }, component }
 }
 
 /// Copies of a part round the ring, or round a stone or part: the count and the span typed in the dimension bar, Enter adds them.
@@ -387,7 +387,7 @@ mod tests {
         assert_eq!(s.preview().unwrap().caption, "Array round the ring: 3 in all over 90°, a copy every 45.0°");
         let feature = added(s.enter());
         assert_eq!((feature.id, feature.name.as_str(), feature.component.attach, feature.component.placement.clone()), (9, "Ring array of Post", Attach::Join, Placement::Free));
-        assert!(matches!(&feature.operation, Operation::Pattern { source: 4, kind: PatternKind::Ring { count: 3, span_deg } } if *span_deg == 90.0));
+        assert!(matches!(&feature.operation, Operation::Pattern { sources, kind: PatternKind::Ring { count: 3, span_deg } } if sources[..] == [4] && *span_deg == 90.0));
         assert!(!s.is_live(), "one commit ends it");
         // Round a stone the count is typed the same way; Escape clears it, then cancels.
         let mut s = Session::default();
@@ -399,7 +399,7 @@ mod tests {
         c.feed(&StepInput::Typed { key: "count", value: 6.0 });
         let feature = added(c.feed(&StepInput::Click));
         assert_eq!(feature.name, "Array of Post");
-        assert!(matches!(feature.operation, Operation::Pattern { source: 4, kind: PatternKind::About { part: 2, count: 6, .. } }));
+        assert!(matches!(feature.operation, Operation::Pattern { ref sources, kind: PatternKind::About { part: 2, count: 6, .. } } if sources[..] == [4]));
         assert_eq!(feature.component.attach, Attach::Separate, "an array meets the band as the build reads its source");
         let mirror = pattern_feature(11, &post, Attach::Join, PatternKind::Mirror { plane: MirrorPlane::Band });
         assert_eq!((mirror.name.as_str(), mirror.operation.sources()), ("Mirror of Post", vec![4]));

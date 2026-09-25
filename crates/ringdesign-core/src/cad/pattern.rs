@@ -399,22 +399,6 @@ pub fn copy_motions(design: &RingDesign, surface: Option<&Mesh>, e: &super::Eval
     Ok(copy_instances(design, surface, e, source, kind)?.into_iter().filter(|i| !i.off_face).map(|i| i.motion).collect())
 }
 
-/// A pattern of `source`: its tessellation carried onto each copy's seat, as one mesh part.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn build(
-    f: &Feature,
-    source: Id,
-    kind: &PatternKind,
-    design: &RingDesign,
-    ctx: &BuildCtx,
-    values: &BTreeMap<Id, Value>,
-    frames: &BTreeMap<Id, brep::Placement>,
-    who: &dyn Fn(Id) -> String,
-    scope: &Scope,
-) -> Result<Built> {
-    build_sources(f, &[source], kind, design, ctx, values, frames, who, scope)
-}
-
 /// A pattern of every one of `sources`, carried by the motions the first one's seat gives, as one mesh part.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn build_sources(
@@ -485,8 +469,7 @@ pub(super) fn build_sources(
 /// Most parts one pattern copies together.
 pub const MAX_PATTERN_SOURCES: usize = 16;
 
-/// The parts a pattern copies: read from one `source` or several `sources`, written as one `source` whenever there is
-/// only one, so a pattern of one part saves as every build before several could.
+/// The parts a pattern copies: read from one `source` and any `sources`, written as one `source` whenever there is only one.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(from = "SourcesWire", into = "SourcesWire")]
 pub struct Sources(pub Vec<Id>);
@@ -511,6 +494,27 @@ impl From<Sources> for SourcesWire {
             [one] => Self { source: Some(*one), sources: Vec::new() },
             _ => Self { source: None, sources: s.0 },
         }
+    }
+}
+
+/// Whether `design` carries a pattern of several parts, in its document or anywhere in its graph.
+pub fn several_sources(design: &RingDesign) -> bool {
+    let in_document = design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(&f.operation, Operation::Pattern { sources, .. } if sources.len() > 1)));
+    in_document || design.graph.as_ref().is_some_and(several_sources_json)
+}
+
+/// Whether `v` holds a pattern of several parts anywhere: an object keyed `Pattern` whose `source` and `sources` name more than one.
+pub fn several_sources_json(v: &serde_json::Value) -> bool {
+    match v {
+        serde_json::Value::Object(map) => {
+            let pattern = map.get("Pattern");
+            let one = pattern.and_then(|p| p.get("source")).is_some_and(|s| !s.is_null());
+            let listed = pattern.and_then(|p| p.get("sources")).and_then(serde_json::Value::as_array).map_or(0, Vec::len);
+            let many = usize::from(one) + listed > 1;
+            many || map.values().any(several_sources_json)
+        }
+        serde_json::Value::Array(items) => items.iter().any(several_sources_json),
+        _ => false,
     }
 }
 
@@ -830,28 +834,54 @@ mod tests {
         }
     }
 
-    /// A pattern's sources as the variant carries them, beside its kind.
-    #[derive(Serialize, Deserialize, Debug, PartialEq)]
-    struct Carried {
-        #[serde(flatten)]
-        sources: Sources,
-        kind: PatternKind,
-    }
-
     #[test]
     fn a_pattern_reads_one_source_or_several_and_writes_one_as_it_always_did() {
         let kind = PatternKind::Ring { count: 3, span_deg: 360.0 };
-        let one = Carried { sources: 3.into(), kind: kind.clone() };
-        let old = serde_json::to_string(&Operation::Pattern { source: 3, kind: kind.clone() }).unwrap();
-        assert_eq!(format!("{{\"Pattern\":{}}}", serde_json::to_string(&one).unwrap()), old, "one source writes the bytes a single-source pattern always wrote");
-        let body = &old["{\"Pattern\":".len()..old.len() - 1];
-        assert_eq!(serde_json::from_str::<Carried>(body).unwrap(), one, "and an old file reads as one source");
-        let two = Carried { sources: Sources(vec![3, 4]), kind };
-        let text = serde_json::to_string(&two).unwrap();
-        assert!(text.starts_with(r#"{"sources":[3,4],"kind""#), "{text}");
-        assert_eq!(serde_json::from_str::<Carried>(&text).unwrap(), two, "two sources round-trip");
-        assert_eq!(serde_json::from_str::<Carried>(r#"{"source":3,"sources":[4],"kind":{"mirror":{"plane":"band"}}}"#).unwrap().sources, Sources(vec![3, 4]));
-        assert_eq!((two.sources.first(), &*two.sources), (Some(3), &[3, 4][..]));
+        let old = r#"{"Pattern":{"source":3,"kind":{"ring":{"count":3,"span_deg":360.0}}}}"#;
+        assert_eq!(serde_json::to_string(&Operation::Pattern { sources: 3.into(), kind: kind.clone() }).unwrap(), old, "one source writes the bytes it always did");
+        let Operation::Pattern { sources, .. } = serde_json::from_str(old).unwrap() else { panic!() };
+        assert_eq!(sources, Sources(vec![3]), "and an old file reads as one source");
+        let two = serde_json::to_string(&Operation::Pattern { sources: Sources(vec![3, 4]), kind }).unwrap();
+        assert!(two.starts_with(r#"{"Pattern":{"sources":[3,4],"kind""#), "{two}");
+        let Operation::Pattern { sources, .. } = serde_json::from_str(&two).unwrap() else { panic!() };
+        assert_eq!((&sources[..], sources.first()), (&[3, 4][..], Some(3)), "two sources round-trip");
+        let both = r#"{"Pattern":{"source":3,"sources":[4],"kind":{"mirror":{"plane":"band"}}}}"#;
+        let Operation::Pattern { sources, .. } = serde_json::from_str(both).unwrap() else { panic!() };
+        assert_eq!(sources, Sources(vec![3, 4]));
+    }
+
+    #[test]
+    fn a_head_and_its_halo_array_as_one_pattern_their_stones_with_them_and_the_file_says_so() {
+        let lib = AlphaLibrary::builtin();
+        let gem = Gem::calibrated(GemCut::Round, 5.0);
+        let mut next = 2;
+        let mut features = vec![band(), builders::stone_feature(2, gem, Placement::ring(90.0, builders::stand_off_mm("claw4", gem)))];
+        features.extend(builders::setting_features("halo", 2, gem, false, &mut || { next += 1; next }).unwrap());
+        let sources = Sources(features.iter().filter(|f| matches!(&f.operation, Operation::Builder { key, .. } if key != builders::STONE && key != builders::BUR)).map(|f| f.id).collect());
+        assert_eq!(sources.len(), 2, "the head and the halo");
+        let array = feature(9, "Heads and halos", Operation::Pattern { sources: sources.clone(), kind: PatternKind::Ring { count: 3, span_deg: 360.0 } }, joined(Placement::Free));
+        features.push(array);
+        let d = with(template("Court band"), features);
+        let surface = bare(&d, &lib);
+        let e = on(&d, &lib, &surface);
+        let made = component(&e, 9).made.clone().unwrap();
+        for id in sources.iter() {
+            assert!(made.named.names.iter().any(|n| n.starts_with(&format!("Copy 2, #{id}, "))), "#{id} is copied");
+        }
+        let (melee, _) = builders::halo_melee(gem, &serde_json::json!({})).unwrap();
+        let stones = crate::setstone::set_stones(&d);
+        let per = 1 + stones.iter().filter(|s| s.gem == melee).count() / 3;
+        assert_eq!(stones.len(), 3 * per, "each copy carries the centre and its melee");
+        let text = crate::library::design_json(&d).unwrap();
+        assert!(text.contains(r#""sources""#), "several sources are written as such");
+        assert_eq!(crate::library::format_version_for(&d), crate::library::FORMAT_VERSION, "and fenced from builds that would read one");
+        let back = crate::library::load_design_str(&text).unwrap();
+        let Operation::Pattern { sources: again, .. } = &back.cad.as_ref().unwrap().feature(9).unwrap().operation else { panic!() };
+        assert_eq!(again, &sources, "and reopen as they were");
+        let mut single = d.clone();
+        let Operation::Pattern { sources: s, .. } = &mut single.cad.as_mut().unwrap().features.last_mut().unwrap().operation else { panic!() };
+        s.0.truncate(1);
+        assert_eq!(crate::library::format_version_for(&single), crate::library::PLAIN_FORMAT_VERSION, "one source is the plain format");
     }
 
     #[test]
@@ -899,7 +929,7 @@ mod tests {
                 stone,
                 feature(3, "Post", Operation::Cylinder { radius_mm: 0.45, height_mm: length }, Component::default()),
                 feature(4, "Prong", Operation::Transform { source: 3, translation: centre, rotation_deg: [-90.0, 0.0, 0.0] }, joined(Placement::Free)),
-                feature(5, "Prongs", Operation::Pattern { source: 4, kind: PatternKind::About { part: 2, count: 6, span_deg: 360.0 } }, joined(Placement::Free)),
+                feature(5, "Prongs", Operation::Pattern { sources: 4.into(), kind: PatternKind::About { part: 2, count: 6, span_deg: 360.0 } }, joined(Placement::Free)),
             ],
         );
         let e = on(&d6, &lib, &surface);
@@ -943,7 +973,7 @@ mod tests {
         let seat = Placement::ring(65.0, h);
         let kind = PatternKind::Ring { count: 3, span_deg: 360.0 };
         let head = feature(2, "Head", Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, Component { role: ComponentRole::Head, ..joined(seat.clone()) });
-        let d = with(heart.clone(), vec![band(), head, feature(3, "Heads", Operation::Pattern { source: 2, kind: kind.clone() }, joined(Placement::Free))]);
+        let d = with(heart.clone(), vec![band(), head, feature(3, "Heads", Operation::Pattern { sources: 2.into(), kind: kind.clone() }, joined(Placement::Free))]);
         let e = on(&d, &lib, &surface);
         assert!(e.failures().is_empty(), "{:?}", e.failures());
         let used = seat.frame_on(&d, Some(&surface)).unwrap();
@@ -977,7 +1007,7 @@ mod tests {
         let claws = builders::feature_on(3, "Four-claw head", builders::CLAW, 2, serde_json::json!({ "prongs": 4 }));
         let d = with(
             court.clone(),
-            vec![band(), builders::stone_feature(2, gem, stone_seat.clone()), claws, feature(4, "Heads", Operation::Pattern { source: 3, kind: kind.clone() }, joined(Placement::Free))],
+            vec![band(), builders::stone_feature(2, gem, stone_seat.clone()), claws, feature(4, "Heads", Operation::Pattern { sources: 3.into(), kind: kind.clone() }, joined(Placement::Free))],
         );
         assert_eq!(seat_of(d.cad.as_ref().unwrap(), 3), Some((2, stone_seat.clone())));
         let e = on(&d, &lib, &surface);
@@ -1012,8 +1042,8 @@ mod tests {
         let claws = builders::feature_on(4, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }));
         // Three stones 12° apart, the first the plate's own, and their heads.
         let kind = PatternKind::Ring { count: 3, span_deg: 24.0 };
-        let stones = feature(5, "Stones", Operation::Pattern { source: 3, kind: kind.clone() }, Component { reference: true, ..Component::default() });
-        let heads = feature(6, "Heads", Operation::Pattern { source: 4, kind: kind.clone() }, joined(Placement::Free));
+        let stones = feature(5, "Stones", Operation::Pattern { sources: 3.into(), kind: kind.clone() }, Component { reference: true, ..Component::default() });
+        let heads = feature(6, "Heads", Operation::Pattern { sources: 4.into(), kind: kind.clone() }, joined(Placement::Free));
         let d = with(court.clone(), vec![band(), plate, cad::stone_on_face(3, gem, 2, &stood), claws, stones, heads]);
         assert_eq!(seat_of(d.cad.as_ref().unwrap(), 4), None, "a stone on a face has no seat of its own on the band");
         let e = on(&d, &lib, &surface);
@@ -1063,7 +1093,7 @@ mod tests {
         let claws = builders::feature_on(4, "Four-claw head", builders::CLAW, 3, serde_json::json!({ "prongs": 4 }));
         // Four heads 24° apart over 72°: the stone 12.9 mm from the finger's axis, the second copy's foot lands 9.6 mm along a plate 7 mm either side.
         let kind = PatternKind::Ring { count: 4, span_deg: 72.0 };
-        let heads = feature(6, "Heads", Operation::Pattern { source: 4, kind: kind.clone() }, joined(Placement::Free));
+        let heads = feature(6, "Heads", Operation::Pattern { sources: 4.into(), kind: kind.clone() }, joined(Placement::Free));
         let d = with(court.clone(), vec![band(), plate.clone(), cad::stone_on_face(3, gem, 2, &stood), claws.clone(), heads]);
         let e = on(&d, &lib, &surface);
         assert!(e.failures().is_empty(), "{:?}", e.failures());
@@ -1092,7 +1122,7 @@ mod tests {
         assert!(dist(copy_centroid(&made, "Copy 1, "), all[0].motion.point(head)) < 1e-9 && n[2].abs() < 1.0);
         // A single copy 90° round is off the plate: the pattern has nothing left to stand and fails by name.
         let lone = PatternKind::Ring { count: 2, span_deg: 90.0 };
-        let heads = feature(6, "Heads", Operation::Pattern { source: 4, kind: lone }, joined(Placement::Free));
+        let heads = feature(6, "Heads", Operation::Pattern { sources: 4.into(), kind: lone }, joined(Placement::Free));
         let d = with(court, vec![band(), plate, cad::stone_on_face(3, gem, 2, &stood), claws, heads]);
         let why = failed(&on(&d, &lib, &surface), 6);
         assert!(why.starts_with("Every copy of") && why.contains("stands off the face of"), "{why}");
@@ -1104,7 +1134,7 @@ mod tests {
         let court = template("Court band");
         let surface = bare(&court, &lib);
         let seat = Placement::Ring { theta_deg: 90.0, across_mm: 1.0, height_mm: 0.3, spin_deg: 25.0, tilt_deg: 0.0, cant_deg: 0.0 };
-        let mirror = |plane| Operation::Pattern { source: 2, kind: PatternKind::Mirror { plane } };
+        let mirror = |plane| Operation::Pattern { sources: 2.into(), kind: PatternKind::Mirror { plane } };
         let d = with(
             court.clone(),
             vec![band(), feature(2, "Block", Operation::Box { size: [1.2, 0.8, 1.0] }, joined(seat)), feature(3, "Mirror of Block", mirror(MirrorPlane::Band), joined(Placement::Free))],
@@ -1307,8 +1337,8 @@ mod tests {
                 feature(5, "Sketch", Operation::Sketch { sketch: sketch.clone() }, Component::default()),
                 feature(6, "Boss", Operation::Extrude { sketch: Profile::Feature { feature: 5 }, height_mm: 1.0, draft_deg: 0.0 }, Component::default()),
                 feature(7, "Moved", Operation::Transform { source: 6, translation: [3.0, 0.0, 0.0], rotation_deg: [0.0; 3] }, Component::default()),
-                feature(8, "Mirror of Moved", Operation::Pattern { source: 7, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 2 } } }, Component::default()),
-                feature(9, "Mirror across the top", Operation::Pattern { source: 1, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 3 } } }, Component::default()),
+                feature(8, "Mirror of Moved", Operation::Pattern { sources: 7.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 2 } } }, Component::default()),
+                feature(9, "Mirror across the top", Operation::Pattern { sources: 1.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 3 } } }, Component::default()),
             ]
         };
         let d = with(RingDesign::default(), features(Operation::Box { size: [4.0, 3.0, 2.0] }));
@@ -1354,7 +1384,7 @@ mod tests {
         assert!(dist(bare_crest.origin, [r * 0.5, r * 3f64.sqrt() / 2.0, 0.5]) < 1e-9);
         // A mirror across a feature that is not a work plane says so.
         let mut d = with(RingDesign::default(), features(Operation::Box { size: [4.0, 3.0, 2.0] }));
-        d.cad.as_mut().unwrap().features[7].operation = Operation::Pattern { source: 7, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 1 } } };
+        d.cad.as_mut().unwrap().features[7].operation = Operation::Pattern { sources: 7.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 1 } } };
         assert_eq!(failed(&evaluate(&d, &lib, params()).unwrap(), 8), "#1 Block is not a work plane; a mirror reflects across one");
     }
 
@@ -1372,7 +1402,7 @@ mod tests {
             (c.hits(), c.misses())
         };
         let post = |r: f64| feature(2, "Post", Operation::Cylinder { radius_mm: r, height_mm: 2.0 }, joined(Placement::ring(90.0, 0.8)));
-        let ring = |count: u32| feature(3, "Posts", Operation::Pattern { source: 2, kind: PatternKind::Ring { count, span_deg: 360.0 } }, joined(Placement::Free));
+        let ring = |count: u32| feature(3, "Posts", Operation::Pattern { sources: 2.into(), kind: PatternKind::Ring { count, span_deg: 360.0 } }, joined(Placement::Free));
         let run = |d: &RingDesign, p: BuildParams| cad::evaluate_memo(d, &lib, p, &ctx, memo).unwrap();
         // Cold: the post, its tessellation read by the pattern, the pattern; the post's own output answers.
         run(&with(court.clone(), vec![band(), post(1.0), ring(3)]), params());
@@ -1400,7 +1430,7 @@ mod tests {
                 vec![
                     feature(1, "Post", cylinder(), Component::default()),
                     feature(2, "Plan", Operation::Sketch { sketch: Sketch::circle(1.0) }, Component::default()),
-                    feature(3, "Posts", Operation::Pattern { source: 1, kind }, Component { placement, ..Component::default() }),
+                    feature(3, "Posts", Operation::Pattern { sources: 1.into(), kind }, Component { placement, ..Component::default() }),
                 ],
             )
         };
@@ -1413,7 +1443,7 @@ mod tests {
         assert_eq!(why(ring(4, 360.0), Placement::ring(90.0, 0.0)), "A pattern stands where its copies do; move #1 Post to move them");
         assert_eq!(why(PatternKind::About { part: 1, count: 3, span_deg: 360.0 }, Placement::Free), "Part #1 stands free of the ring and of any stone; array round a stone or a seated part");
         let mut d = design(ring(3, 360.0), Placement::Free);
-        d.cad.as_mut().unwrap().features[2].operation = Operation::Pattern { source: 2, kind: ring(3, 360.0) };
+        d.cad.as_mut().unwrap().features[2].operation = Operation::Pattern { sources: 2.into(), kind: ring(3, 360.0) };
         assert_eq!(failed(&evaluate(&d, &lib, params()).unwrap(), 3), "#2 Plan has no body to copy");
         // Angles: a whole turn closes on itself, an open arc ends on its last.
         assert_eq!(ring(4, 360.0).angles().unwrap(), vec![90.0, 180.0, 270.0]);
@@ -1440,10 +1470,10 @@ mod tests {
         let claws = || builders::feature_on(3, "Four-claw head", builders::CLAW, 2, serde_json::json!({ "prongs": 4 }));
         let post = || feature(4, "Post", Operation::Cylinder { radius_mm: 0.45, height_mm: 3.0 }, joined(Placement::ring(80.0, 1.2)));
         let cases: Vec<(&str, Vec<Feature>)> = vec![
-            ("posts: ring array x12", vec![band(), post(), feature(5, "Posts", Operation::Pattern { source: 4, kind: PatternKind::Ring { count: 12, span_deg: 360.0 } }, joined(Placement::Free))]),
-            ("claw head: ring array x3", vec![band(), stone(), claws(), feature(5, "Heads", Operation::Pattern { source: 3, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } }, joined(Placement::Free))]),
-            ("post: round the stone x6", vec![band(), stone(), post(), feature(5, "Prongs", Operation::Pattern { source: 4, kind: PatternKind::About { part: 2, count: 6, span_deg: 360.0 } }, joined(Placement::Free))]),
-            ("post: mirror across the band", vec![band(), post(), feature(5, "Mirror", Operation::Pattern { source: 4, kind: PatternKind::Mirror { plane: MirrorPlane::Band } }, joined(Placement::Free))]),
+            ("posts: ring array x12", vec![band(), post(), feature(5, "Posts", Operation::Pattern { sources: 4.into(), kind: PatternKind::Ring { count: 12, span_deg: 360.0 } }, joined(Placement::Free))]),
+            ("claw head: ring array x3", vec![band(), stone(), claws(), feature(5, "Heads", Operation::Pattern { sources: 3.into(), kind: PatternKind::Ring { count: 3, span_deg: 360.0 } }, joined(Placement::Free))]),
+            ("post: round the stone x6", vec![band(), stone(), post(), feature(5, "Prongs", Operation::Pattern { sources: 4.into(), kind: PatternKind::About { part: 2, count: 6, span_deg: 360.0 } }, joined(Placement::Free))]),
+            ("post: mirror across the band", vec![band(), post(), feature(5, "Mirror", Operation::Pattern { sources: 4.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Band } }, joined(Placement::Free))]),
         ];
         let mut court = template("Court band");
         court.profile.width_mm = 8.0;
@@ -1473,12 +1503,12 @@ mod tests {
 
     #[test]
     fn the_new_operations_read_and_write_as_json_and_name_what_they_read() {
-        let pattern = Operation::Pattern { source: 3, kind: PatternKind::About { part: 2, count: 6, span_deg: 360.0 } };
+        let pattern = Operation::Pattern { sources: 3.into(), kind: PatternKind::About { part: 2, count: 6, span_deg: 360.0 } };
         let text = serde_json::to_string(&pattern).unwrap();
         assert_eq!(text, r#"{"Pattern":{"source":3,"kind":{"about":{"part":2,"count":6,"span_deg":360.0}}}}"#);
         let short: Operation = serde_json::from_str(r#"{"Pattern":{"source":3,"kind":{"ring":{"count":5}}}}"#).unwrap();
         assert!(matches!(short, Operation::Pattern { kind: PatternKind::Ring { count: 5, span_deg }, .. } if span_deg == 360.0), "a span left out is a whole turn");
-        let mirror = Operation::Pattern { source: 3, kind: PatternKind::Mirror { plane: MirrorPlane::Band } };
+        let mirror = Operation::Pattern { sources: 3.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Band } };
         assert_eq!(serde_json::to_string(&mirror).unwrap(), r#"{"Pattern":{"source":3,"kind":{"mirror":{"plane":"band"}}}}"#);
         let plane = Operation::Plane { base: PlaneBase::Face { feature: 3, face: FaceRef::bare(4) }, offset_mm: 0.5 };
         assert_eq!(serde_json::to_string(&plane).unwrap(), r#"{"Plane":{"base":{"face":{"feature":3,"face":{"ordinal":4}}},"offset_mm":0.5}}"#);
@@ -1489,7 +1519,7 @@ mod tests {
         }
         assert_eq!((pattern.sources(), pattern.consumes(), pattern.label()), (vec![3, 2], vec![], "Array round a part"));
         assert_eq!((mirror.sources(), mirror.consumes(), mirror.label()), (vec![3], vec![], "Mirror"));
-        let across = Operation::Pattern { source: 3, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 7 } } };
+        let across = Operation::Pattern { sources: 3.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 7 } } };
         assert_eq!(across.sources(), vec![3, 7]);
         assert_eq!((plane.sources(), plane.consumes(), plane.label(), plane.has_body()), (vec![3], vec![], "Work plane", false));
         assert_eq!((pull.sources(), pull.consumes(), pull.label(), pull.has_body()), (vec![3], vec![3], "Press-pull", true));
@@ -1504,6 +1534,6 @@ mod tests {
         assert_eq!(doc.outputs, vec![1, 2]);
         doc.apply(&CadEdit::Operation { id: 2, operation: Operation::Plane { base: PlaneBase::Parting, offset_mm: 0.0 } }).unwrap();
         assert_eq!(doc.outputs, vec![1]);
-        assert_eq!(CadEdit::Add { feature: feature(0, "", Operation::Pattern { source: 1, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } }, Component::default()), after: None }.label(), "Add Ring array");
+        assert_eq!(CadEdit::Add { feature: feature(0, "", Operation::Pattern { sources: 1.into(), kind: PatternKind::Ring { count: 3, span_deg: 360.0 } }, Component::default()), after: None }.label(), "Add Ring array");
     }
 }

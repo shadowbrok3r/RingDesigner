@@ -751,9 +751,9 @@ mod tests {
         use ringdesign_core::cad::{Attach, ComponentRole, FaceRef, MirrorPlane, PatternKind, Placement, PlaneBase};
         let d = ringdesign_core::cad::examples::design("claw-solitaire").unwrap();
         let mut g = from_document(&d).unwrap();
-        let array = append(&mut g, Operation::Pattern { source: 3, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } }).unwrap();
+        let array = append(&mut g, Operation::Pattern { sources: 3.into(), kind: PatternKind::Ring { count: 3, span_deg: 360.0 } }).unwrap();
         let plane = append(&mut g, Operation::Plane { base: PlaneBase::Section { theta_deg: 90.0 }, offset_mm: 0.0 }).unwrap();
-        let mirror = append(&mut g, Operation::Pattern { source: 3, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: plane.0 } } }).unwrap();
+        let mirror = append(&mut g, Operation::Pattern { sources: 3.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: plane.0 } } }).unwrap();
         let on_face = append(&mut g, Operation::Plane { base: PlaneBase::Face { feature: 3, face: FaceRef::bare(0) }, offset_mm: 0.2 }).unwrap();
         let feature = |id: NodeId| serde_json::from_value::<Feature>(g.node(id).unwrap().params.clone()).unwrap();
         let (a, p, m, f) = (feature(array), feature(plane), feature(mirror), feature(on_face));

@@ -70,9 +70,9 @@ fn band_and_patterns() -> RingDesign {
         f
     };
     doc.append(feature(6, "Section at 90°", Operation::Plane { base: PlaneBase::Section { theta_deg: 90.0 }, offset_mm: 0.0 })).unwrap();
-    doc.append(joined(7, "Ring array of Bezel", Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } })).unwrap();
-    doc.append(joined(8, "Prongs", Operation::Pattern { source: 4, kind: PatternKind::About { part: 3, count: 6, span_deg: 360.0 } })).unwrap();
-    doc.append(joined(9, "Mirror of Block", Operation::Pattern { source: 5, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 6 } } })).unwrap();
+    doc.append(joined(7, "Ring array of Bezel", Operation::Pattern { sources: 2.into(), kind: PatternKind::Ring { count: 3, span_deg: 360.0 } })).unwrap();
+    doc.append(joined(8, "Prongs", Operation::Pattern { sources: 4.into(), kind: PatternKind::About { part: 3, count: 6, span_deg: 360.0 } })).unwrap();
+    doc.append(joined(9, "Mirror of Block", Operation::Pattern { sources: 5.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 6 } } })).unwrap();
     doc.append(joined(10, "Pull", Operation::PressPull { source: 5, face: top, distance_mm: 0.4 })).unwrap();
     d
 }
@@ -153,8 +153,8 @@ fn edits_for(name: &str, doc: &Document) -> Vec<CadEdit> {
         "band+patterns" => {
             let (_, top) = pulled_box();
             edits.extend([
-                CadEdit::Operation { id: 7, operation: Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 4, span_deg: 180.0 } } },
-                CadEdit::Operation { id: 9, operation: Operation::Pattern { source: 5, kind: PatternKind::Mirror { plane: MirrorPlane::Band } } },
+                CadEdit::Operation { id: 7, operation: Operation::Pattern { sources: 2.into(), kind: PatternKind::Ring { count: 4, span_deg: 180.0 } } },
+                CadEdit::Operation { id: 9, operation: Operation::Pattern { sources: 5.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Band } } },
                 CadEdit::Operation { id: 6, operation: Operation::Plane { base: PlaneBase::Parting, offset_mm: 0.5 } },
                 CadEdit::Add { feature: feature(0, "Over the top", Operation::Plane { base: PlaneBase::Face { feature: 5, face: top.clone() }, offset_mm: 0.2 }), after: Some(5) },
                 CadEdit::Operation { id: 10, operation: Operation::PressPull { source: 5, face: top, distance_mm: -0.3 } },
@@ -337,12 +337,12 @@ fn patterns_work_planes_and_a_press_pull_round_trip_byte_for_byte_through_both_a
     let mut plain = base.clone();
     let mut g = g;
     let edits = [
-        CadEdit::Add { feature: feature(20, "Half ring", Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 3, span_deg: 180.0 } }), after: None },
+        CadEdit::Add { feature: feature(20, "Half ring", Operation::Pattern { sources: 2.into(), kind: PatternKind::Ring { count: 3, span_deg: 180.0 } }), after: None },
         CadEdit::Add { feature: feature(21, "Section at 30°", Operation::Plane { base: PlaneBase::Section { theta_deg: 30.0 }, offset_mm: 0.25 }), after: None },
-        CadEdit::Add { feature: feature(22, "Mirror of Prong", Operation::Pattern { source: 4, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 21 } } }), after: None },
-        CadEdit::Add { feature: feature(23, "Mirror through the head", Operation::Pattern { source: 2, kind: PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg: 90.0 } } }), after: None },
-        CadEdit::Operation { id: 20, operation: Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 5, span_deg: 240.0 } } },
-        CadEdit::Operation { id: 8, operation: Operation::Pattern { source: 4, kind: PatternKind::About { part: 3, count: 4, span_deg: 360.0 } } },
+        CadEdit::Add { feature: feature(22, "Mirror of Prong", Operation::Pattern { sources: 4.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 21 } } }), after: None },
+        CadEdit::Add { feature: feature(23, "Mirror through the head", Operation::Pattern { sources: 2.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg: 90.0 } } }), after: None },
+        CadEdit::Operation { id: 20, operation: Operation::Pattern { sources: 2.into(), kind: PatternKind::Ring { count: 5, span_deg: 240.0 } } },
+        CadEdit::Operation { id: 8, operation: Operation::Pattern { sources: 4.into(), kind: PatternKind::About { part: 3, count: 4, span_deg: 360.0 } } },
         CadEdit::Remove { id: 23 },
     ];
     for edit in &edits {

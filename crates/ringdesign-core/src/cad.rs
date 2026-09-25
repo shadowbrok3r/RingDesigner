@@ -121,9 +121,11 @@ pub enum Operation {
         #[serde(default)]
         params: serde_json::Value,
     },
-    /// Copies of `source` placed again, as one part of their own; the source stays a part beside them.
+    /// Copies of every one of `sources` placed again by the motions the first one's seat gives, as one part of
+    /// their own; the sources stay parts beside them. One source reads and writes as `source`.
     Pattern {
-        source: Id,
+        #[serde(flatten)]
+        sources: pattern::Sources,
         kind: PatternKind,
     },
     /// A plane with no body, for sketches to lie on and mirrors to reflect across.
@@ -229,7 +231,7 @@ impl Operation {
         match self {
             Self::Builder { on, params, .. } => on.iter().copied().chain(builders::head_param(params)).collect(),
             Self::Boolean { a, b, .. } => vec![*a, *b],
-            Self::Pattern { source, kind } => std::iter::once(*source).chain(kind.reads()).collect(),
+            Self::Pattern { sources, kind } => sources.iter().copied().chain(kind.reads()).collect(),
             Self::Plane { base, .. } => base.reads(),
             Self::Fillet { source, .. }
             | Self::Chamfer { source, .. }
@@ -2418,8 +2420,8 @@ fn build_feature(
     if let Operation::Builder { key, on, params: settings } = &f.operation {
         return build_made(f, key, *on, settings, design, ctx, values, frames, who, scope.doc);
     }
-    if let Operation::Pattern { source, kind } = &f.operation {
-        return pattern::build(f, *source, kind, design, ctx, values, frames, who, scope);
+    if let Operation::Pattern { sources, kind } = &f.operation {
+        return pattern::build_sources(f, sources, kind, design, ctx, values, frames, who, scope);
     }
     if let Operation::Stored { recipe, sources, mesh } = &f.operation {
         return stored::build(f, recipe, sources, mesh, design, ctx, values, frames, who, scope.doc);

@@ -297,8 +297,9 @@ pub fn blocked(app: &RingDesignerApp, key: &str) -> Option<String> {
     if key == "attach" && f.component.reference {
         return Some("A reference stone is never metal".into());
     }
-    if let (Operation::Pattern { source, .. }, "move" | "rotate" | "scale" | "place") = (&f.operation, key) {
-        let from = feature(app, *source).map_or_else(|| format!("#{source}"), |s| format!("\"{}\"", s.name));
+    if let (Operation::Pattern { sources, .. }, "move" | "rotate" | "scale" | "place") = (&f.operation, key) {
+        let source = sources.first().unwrap_or_default();
+        let from = feature(app, source).map_or_else(|| format!("#{source}"), |s| format!("\"{}\"", s.name));
         return Some(format!("{} follows its source: move {from} and its copies follow", f.name));
     }
     if key == "array" && f.component.reference {

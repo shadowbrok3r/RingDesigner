@@ -234,7 +234,7 @@ fn held_by(doc: &Document, id: Id, copied: bool, depth: u32) -> Option<&Feature>
     match &f.operation {
         _ if is_stone(doc, f) => (!copied).then(|| builders::head_on(doc, id)).flatten().filter(|h| !moved_away(doc, h.id)),
         Operation::Builder { key, .. } if key == builders::HALO || builders::HEADS.contains(&key.as_str()) => Some(f),
-        Operation::Pattern { source, .. } => held_by(doc, *source, true, depth + 1),
+        Operation::Pattern { sources, .. } => sources.iter().find_map(|id| held_by(doc, *id, true, depth + 1)),
         Operation::Fillet { source, .. }
         | Operation::Chamfer { source, .. }
         | Operation::Shell { source, .. }
@@ -807,12 +807,16 @@ fn carried(doc: &Document, frames: &dyn Frames, f: &Feature, depth: u32) -> (Vec
             }
             (out, over)
         }
-        Operation::Pattern { source, kind } => {
-            let (inner, over) = follow(*source);
-            if inner.is_empty() {
-                return (Vec::new(), over);
+        Operation::Pattern { sources, kind } => {
+            let (mut inner, mut over) = (Vec::new(), false);
+            for id in sources.iter() {
+                let (stones, past) = follow(*id);
+                inner.extend(stones);
+                over |= past || inner.len() > MAX_CAD_STONES;
+                inner.truncate(MAX_CAD_STONES);
             }
-            let copies = frames.copies(f, *source, kind);
+            let Some(first) = sources.first().filter(|_| !inner.is_empty()) else { return (Vec::new(), over) };
+            let copies = frames.copies(f, first, kind);
             let over = over || copies.len().saturating_mul(inner.len()) > MAX_CAD_STONES;
             (copies.iter().flat_map(|m| inner.iter().map(move |(g, s)| (*g, moved(m, s)))).take(MAX_CAD_STONES).collect(), over)
         }
@@ -1049,7 +1053,7 @@ mod tests {
         let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
         let mut d = RingDesign { cad: cad::examples::design("claw-solitaire").unwrap().cad, ..court };
         let doc = d.cad.as_mut().unwrap();
-        let operation = Operation::Pattern { source: 3, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
+        let operation = Operation::Pattern { sources: 3.into(), kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
         doc.append(Feature { id: 5, name: "Ring array of Four-claw head".into(), enabled: true, operation, component: builders::component(builders::CLAW) }).unwrap();
         d
     }
@@ -1175,7 +1179,7 @@ mod tests {
         let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
         let mut d = RingDesign { cad: cad::examples::design("claw-solitaire").unwrap().cad, ..court };
         let doc = d.cad.as_mut().unwrap();
-        let ring = Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
+        let ring = Operation::Pattern { sources: 2.into(), kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
         doc.append(Feature { id: 5, name: "Ring array of stone".into(), enabled: true, operation: ring, component: builders::component(builders::STONE) }).unwrap();
         let lift = Operation::Transform { source: 2, translation: [0.0, 0.0, 0.3], rotation_deg: [0.0; 3] };
         doc.append(Feature { id: 6, name: "Move".into(), enabled: true, operation: lift, component: builders::component(builders::STONE) }).unwrap();
@@ -1277,7 +1281,7 @@ mod tests {
     /// The claw solitaire's cad on `band`, its head arrayed `count` round the ring as feature #5.
     fn heads_round(band: RingDesign, count: u32) -> RingDesign {
         let mut d = RingDesign { cad: cad::examples::design("claw-solitaire").unwrap().cad, ..band };
-        let operation = Operation::Pattern { source: 3, kind: PatternKind::Ring { count, span_deg: 360.0 } };
+        let operation = Operation::Pattern { sources: 3.into(), kind: PatternKind::Ring { count, span_deg: 360.0 } };
         let array = Feature { id: 5, name: "Ring array of Four-claw head".into(), enabled: true, operation, component: builders::component(builders::CLAW) };
         d.cad.as_mut().unwrap().append(array).unwrap();
         d
@@ -1294,7 +1298,7 @@ mod tests {
         let mut d = heads_round(court, 120);
         let doc = d.cad.as_mut().unwrap();
         for (id, source) in [(6, 5), (7, 6)] {
-            let operation = Operation::Pattern { source, kind: PatternKind::Ring { count: 120, span_deg: 11.9 } };
+            let operation = Operation::Pattern { sources: source.into(), kind: PatternKind::Ring { count: 120, span_deg: 11.9 } };
             doc.append(Feature { id, name: format!("Nest {id}"), enabled: true, operation, component: builders::component(builders::CLAW) }).unwrap();
         }
         let clock = std::time::Instant::now();
@@ -1355,7 +1359,7 @@ mod tests {
         let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
         let mut d = RingDesign { cad: cad::examples::design("claw-solitaire").unwrap().cad, ..court };
         let doc = d.cad.as_mut().unwrap();
-        let operation = Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
+        let operation = Operation::Pattern { sources: 2.into(), kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
         doc.append(Feature { id: 5, name: "Ring array of Stone".into(), enabled: true, operation, component: builders::component(builders::STONE) }).unwrap();
         let report = crate::stones::report(&d, 0.0).unwrap();
         let bare = report.seats.iter().find(|s| s.label == "Ring array of Stone").unwrap();
@@ -1370,7 +1374,7 @@ mod tests {
         let sheet = crate::spec::html(&d, &built.report, &field, stones.as_ref(), &[], "test build");
         assert!(sheet.contains("Ring array of Stone ×2</td>"), "the sheet names no head for the copies");
 
-        let operation = Operation::Pattern { source: 3, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
+        let operation = Operation::Pattern { sources: 3.into(), kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
         d.cad.as_mut().unwrap().append(Feature { id: 6, name: "Ring array of Four-claw head".into(), enabled: true, operation, component: builders::component(builders::CLAW) }).unwrap();
         let stones = set_stones(&d);
         assert_eq!(stones.len(), 3, "the arrays carry the same two copies");
@@ -1432,7 +1436,7 @@ mod tests {
 
         // A ring array of the head round the moved stone carries a stone in every copy.
         let mut arrayed = d.clone();
-        let operation = Operation::Pattern { source: 3, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
+        let operation = Operation::Pattern { sources: 3.into(), kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
         arrayed.cad.as_mut().unwrap().append(Feature { id: 5, name: "Ring array of Four-claw head".into(), enabled: true, operation, component: builders::component(builders::CLAW) }).unwrap();
         let stones = set_stones(&arrayed);
         assert_eq!(stones.len(), 3, "the moved stone and two copies");

@@ -1964,8 +1964,10 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             vector(ui, "Rotation XYZ degrees", rotation_deg);
         }
         Operation::Builder { key, on, params } => crate::panels::builder::ui(ui, key, on, params, tree),
-        Operation::Pattern { source: id, kind } => {
-            source(ui, "Source", id, tree);
+        Operation::Pattern { sources, kind } => {
+            for (k, id) in sources.0.iter_mut().enumerate() {
+                source(ui, &if k == 0 { "Source".to_string() } else { format!("Source {}", k + 1) }, id, tree);
+            }
             match kind {
                 cad::PatternKind::Ring { count, span_deg } | cad::PatternKind::About { count, span_deg, .. } => {
                     ui.add(egui::DragValue::new(count).range(2..=cad::pattern::MAX_PATTERN_COUNT).prefix("Instances "));

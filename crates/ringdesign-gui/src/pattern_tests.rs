@@ -170,7 +170,7 @@ fn an_array_round_the_ring_takes_its_count_from_the_bar_shows_every_copy_and_is_
     assert_eq!(h.state().history.present(), start + 1, "one gesture, one undo step");
     let array = doc(&h).features.last().cloned().unwrap();
     assert_eq!((array.name.as_str(), array.component.attach, array.component.placement.clone()), ("Ring array of Post", Attach::Join, Placement::Free));
-    assert!(matches!(&array.operation, Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 3, span_deg } } if *span_deg == 360.0), "{:?}", array.operation);
+    assert!(matches!(&array.operation, Operation::Pattern { sources, kind: PatternKind::Ring { count: 3, span_deg } } if sources[..] == [2] && *span_deg == 360.0), "{:?}", array.operation);
     assert_eq!(h.state().selection.items.last(), Some(&Sel::Part(array.id)), "the copies are chosen");
     // Built: the post and its two copies stand joined in one watertight ring.
     h.state_mut().rebuild_now();
@@ -212,7 +212,7 @@ fn an_array_round_its_stone_turns_a_post_about_the_stone_it_stands_by_and_refuse
     press(&mut h, Key::Enter);
     let array = doc(&h).features.last().cloned().unwrap();
     assert_eq!(array.name, "Array of Prong");
-    assert!(matches!(&array.operation, Operation::Pattern { source: 3, kind: PatternKind::About { part: 2, count: 4, .. } }), "{:?}", array.operation);
+    assert!(matches!(&array.operation, Operation::Pattern { sources, kind: PatternKind::About { part: 2, count: 4, .. } } if sources[..] == [3]), "{:?}", array.operation);
     assert_eq!(h.state().history.present(), start + 1);
     // A post on the palm stands by no stone: refused by name, nothing started.
     crate::patterns::start(h.state_mut(), pane, 4, keys::STONE_ARRAY);
@@ -234,12 +234,12 @@ fn mirrors_across_the_band_and_through_the_head_land_at_once_and_a_part_on_the_p
     assert_eq!(live(&h), None, "a mirror has nothing to type");
     let mirror = doc(&h).features.last().cloned().unwrap();
     assert_eq!((mirror.name.as_str(), mirror.component.attach), ("Mirror of Block", Attach::Join));
-    assert!(matches!(&mirror.operation, Operation::Pattern { source: 2, kind: PatternKind::Mirror { plane: MirrorPlane::Band } }));
+    assert!(matches!(&mirror.operation, Operation::Pattern { sources, kind: PatternKind::Mirror { plane: MirrorPlane::Band } } if sources[..] == [2]));
     assert_eq!(h.state().history.present(), start + 1);
     assert_eq!(h.state().selection.items.last(), Some(&Sel::Part(mirror.id)));
     crate::patterns::start(h.state_mut(), pane, 3, keys::MIRROR_HEAD);
     let through = doc(&h).features.last().cloned().unwrap();
-    assert!(matches!(&through.operation, Operation::Pattern { source: 3, kind: PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg } } } if *theta_deg == 90.0), "{:?}", through.operation);
+    assert!(matches!(&through.operation, Operation::Pattern { sources, kind: PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg } } } if sources[..] == [3] && *theta_deg == 90.0), "{:?}", through.operation);
     assert_eq!(h.state().history.present(), start + 2);
     // A block on the band's mid-plane and on the head's plane is its own mirror.
     for key in [keys::MIRROR_BAND, keys::MIRROR_HEAD] {
@@ -391,7 +391,7 @@ fn an_arrays_ghost_on_a_signets_shoulders_stands_where_its_copies_are_built() {
     h.run_steps(2);
     press(&mut h, Key::Enter);
     let array = doc(&h).features.last().cloned().unwrap();
-    assert!(matches!(&array.operation, Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 6, .. } }), "{:?}", array.operation);
+    assert!(matches!(&array.operation, Operation::Pattern { sources, kind: PatternKind::Ring { count: 6, .. } } if sources[..] == [2]), "{:?}", array.operation);
     h.state_mut().rebuild_now();
     wait_for_build(&mut h);
     let built = component_mesh(&h, array.id);
@@ -442,7 +442,7 @@ fn a_ring_array_of_a_head_on_a_stone_on_a_plate_builds_each_copy_on_the_plate_wh
     let ghost = staged();
     press(&mut h, Key::Enter);
     let array = doc(&h).features.last().cloned().unwrap();
-    assert!(matches!(&array.operation, Operation::Pattern { source: 4, kind: PatternKind::Ring { count: 3, span_deg } } if *span_deg == 24.0), "{:?}", array.operation);
+    assert!(matches!(&array.operation, Operation::Pattern { sources, kind: PatternKind::Ring { count: 3, span_deg } } if sources[..] == [4] && *span_deg == 24.0), "{:?}", array.operation);
     h.state_mut().rebuild_now();
     wait_for_build(&mut h);
     let b = h.state().build.clone().unwrap();
@@ -516,7 +516,7 @@ fn an_arrays_ghost_shows_a_copy_off_the_plate_refused_and_the_built_pattern_leav
     assert!(draft(&h), "in the draft colours: kept green, refused red");
     press(&mut h, Key::Enter);
     let added = doc(&h).features.last().cloned().unwrap();
-    assert!(matches!(&added.operation, Operation::Pattern { source: 4, kind: PatternKind::Ring { count: 4, span_deg } } if *span_deg == 72.0), "{:?}", added.operation);
+    assert!(matches!(&added.operation, Operation::Pattern { sources, kind: PatternKind::Ring { count: 4, span_deg } } if sources[..] == [4] && *span_deg == 72.0), "{:?}", added.operation);
     h.state_mut().rebuild_now();
     wait_for_build(&mut h);
     // Built, the pattern stands the one copy the plate carries, and its status names the two it left out.
@@ -579,7 +579,7 @@ fn a_work_plane_is_drawn_named_and_right_clicked_to_sketch_on_or_mirror_the_chos
     h.get_by_label("Mirror the chosen part across it").click();
     h.run_steps(3);
     let mirror = doc(&h).features.last().cloned().unwrap();
-    assert!(matches!(&mirror.operation, Operation::Pattern { source: 2, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 3 } } }), "{:?}", mirror.operation);
+    assert!(matches!(&mirror.operation, Operation::Pattern { sources, kind: PatternKind::Mirror { plane: MirrorPlane::Plane { feature: 3 } } } if sources[..] == [2]), "{:?}", mirror.operation);
     assert_eq!(h.state().history.present(), start + 1);
     h.state_mut().rebuild_now();
     wait_for_build(&mut h);

@@ -43,18 +43,20 @@ pub const DESIGN_EXT: &str = "ring.json";
 // Version 4 protects the sand-support surface and high-resolution embedded maps.
 // Version 6 protects a stored mesh, which no earlier build can parse, and keeps each one once in the file's table;
 // it also protects a revolution whose line is read in its sketch's plane, which an earlier build would turn about the world's line,
-// a cut carved from a ring of parts alone, which an earlier build pours as metal, and a stamp with a tier, a shaped top or
-// an outline over 512 points, which an earlier build flattens or refuses.
+// a pattern of several parts, which an earlier build cannot parse, a cut carved from a ring of parts alone, which an earlier
+// build pours as metal, and a stamp with a tier, a shaped top or an outline over 512 points, which an earlier build flattens
+// or refuses.
 // A design with none of these is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
 /// The version a design carrying none of the format-6 features is written at, so builds that read up to it still open the file.
 pub const PLAIN_FORMAT_VERSION: u32 = 5;
 
-/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a cut on a ring of parts alone or a stamp a format-5 build cannot strike.
+/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a pattern of several parts, a cut on a ring of parts alone or a stamp a format-5 build cannot strike.
 pub fn format_version_for(design: &RingDesign) -> u32 {
     if crate::cad::stored::carried_by(design)
         || crate::cad::turns_in_plane(design)
+        || crate::cad::pattern::several_sources(design)
         || crate::parts::cuts_apart(design)
         || design.stamps.iter().any(|s| !s.is_plain())
     {
