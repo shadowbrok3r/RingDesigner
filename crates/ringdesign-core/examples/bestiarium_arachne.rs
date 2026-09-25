@@ -3573,8 +3573,9 @@ fn main() -> Result<()> {
         let saved = library::load_design(out.join("design.ring.json"))?;
         let cold_lib = mf::source_library(&saved, &AlphaLibrary::default()).into_owned();
         let rebuilt = mesh::try_build(&saved, &cold_lib, params)?;
-        let same =
-            rebuilt.mesh.vertices == built.mesh.vertices && rebuilt.mesh.faces == built.mesh.faces;
+        let same = rebuilt.mesh.vertices == built.mesh.vertices
+            && rebuilt.mesh.faces == built.mesh.faces
+            && rebuilt.mesh.normals == built.mesh.normals;
         println!(
             "  cold reload with an empty library: {}",
             if same { "identical" } else { "DIFFERENT" }
@@ -3725,6 +3726,44 @@ fn main() -> Result<()> {
     }
     if !draft {
         stl::write_stl(out.join("finished-metal.stl"), &export_mesh, &d.name)?;
+        let mut setup = mf::Setup::from_design(&d);
+        setup.recipe.name = "Arachne / investment / Gold 18k".into();
+        setup.recipe.alloy = "Gold 18k".into();
+        setup.recipe.sand = None;
+        setup.recipe.shrink_pct = ringdesign_core::metal::find("Gold 18k").unwrap().shrink_pct;
+        setup.recipe.calibration_note = "Starting shrink allowance; confirm with the caster's alloy, pattern material and measured trials.".into();
+        setup.bench_notes = "Investment cast the body and limbs. Clean investment from the web and limb clearances. Finish the two collet bearings for the actual garnet and onyx, then set after casting.".into();
+        let prepared = mf::prepare(&d, &lib, &setup, params)?;
+        let (pattern, clean) = cleaned(&prepared.mesh, CLEAN_MM);
+        let pattern_crossings = csg::self_crossings(&csg::Solid {
+            v: pattern
+                .vertices
+                .iter()
+                .map(|p| [p.0 as f64, p.1 as f64, p.2 as f64])
+                .collect(),
+            f: pattern.faces.clone(),
+        });
+        ensure!(
+            clean.watertight && clean.degenerate_faces == 0 && pattern_crossings == 0,
+            "Prepared investment pattern failed its mesh gates"
+        );
+        stl::write_stl(out.join("casting-pattern.stl"), &pattern, &d.name)?;
+        std::fs::write(
+            out.join("pattern-report.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "setup": setup, "scale": prepared.scale, "triangles": pattern.faces.len(),
+                "clean": clean, "self_crossings": pattern_crossings, "notes": prepared.notes,
+                "bench_layers": prepared.bench_layers
+            }))?,
+        )?;
+        for (stone, tint) in stones(&d, &lib) {
+            let name = if tint[0] > 0.1 {
+                "reference-garnet.stl"
+            } else {
+                "reference-onyx.stl"
+            };
+            stl::write_stl(out.join(name), &stone, "Arachne reference stone")?;
+        }
     }
     renders(&out, &d, &lib, &built, if draft { 1000 } else { 1600 })?;
     println!(
