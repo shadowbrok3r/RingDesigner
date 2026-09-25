@@ -10,6 +10,7 @@ use crate::registry::Registry;
 pub mod alpha;
 pub mod assembly;
 pub mod band;
+pub mod base;
 pub mod cluster;
 pub mod cad;
 pub mod gem;
@@ -20,6 +21,7 @@ pub mod list;
 pub mod math;
 pub mod shank;
 pub mod settings;
+pub mod stamp;
 pub mod sink;
 #[cfg(feature = "kernel-manifold")]
 pub mod solid;
@@ -34,8 +36,10 @@ pub fn register_all(reg: &mut Registry) {
     list::register(reg);
     text::register(reg);
     band::register(reg);
+    base::register(reg);
     shank::register(reg);
     settings::register(reg);
+    stamp::register(reg);
     gem::register(reg);
     layer::register(reg);
     assembly::register(reg);
@@ -93,7 +97,7 @@ mod tests {
             let spec = reg.get(key).unwrap();
             assert!(!spec.doc.is_empty(), "{key} has no doc");
             assert!(!spec.label.is_empty(), "{key} has no label");
-            assert!(key.contains('.') || matches!(key, "number" | "int" | "bool" | "text" | "series" | "range" | "shank" | "head" | "gem" | "entry" | "window" | "stack" | "cluster"), "{key} is not family.name");
+            assert!(key.contains('.') || matches!(key, "number" | "int" | "bool" | "text" | "series" | "range" | "shank" | "head" | "gem" | "entry" | "window" | "stack" | "cluster" | "stamp"), "{key} is not family.name");
             // Inputs and outputs are separate namespaces: a wire names one of each.
             for pins in [&spec.inputs, &spec.outputs] {
                 let mut seen = BTreeSet::new();

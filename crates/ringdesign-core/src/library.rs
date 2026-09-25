@@ -59,10 +59,116 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || crate::cad::pattern::several_sources(design)
         || crate::parts::cuts_apart(design)
         || design.stamps.iter().any(|s| !s.is_plain())
+        || design.imported_base.as_ref().is_some_and(|base| crate::imported_base::PresetSource::of(&base.source).is_some())
+        || design.graph.as_ref().is_some_and(template_features_in_json)
     {
         FORMAT_VERSION
     } else {
         PLAIN_FORMAT_VERSION
+    }
+}
+
+/// Source references and template controls whose geometry earlier readers cannot reproduce.
+pub fn template_features_in_json(value: &serde_json::Value) -> bool {
+    const PLACEMENT: &[&str] = &["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"];
+    let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && pin == "keys");
+    if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
+    if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
+        if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
+            || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") { return true; }
+        if value.get("inputs").and_then(serde_json::Value::as_object).is_some_and(|inputs| inputs.iter().any(|(pin, v)| new_pin(kind, pin) && !v.is_null())) { return true; }
+    }
+    if let Some(nodes) = value.get("nodes").and_then(serde_json::Value::as_array) {
+        for (list, target) in [("wires", "to"), ("exposed", "node")] {
+            if value.get(list).and_then(serde_json::Value::as_array).is_some_and(|items| items.iter().any(|item| {
+                nodes.iter().any(|node| item.get(target).is_some_and(|id| Some(id) == node.get("id"))
+                    && node.get("kind").and_then(serde_json::Value::as_str).is_some_and(|kind|
+                        item.get("input").and_then(serde_json::Value::as_str).is_some_and(|pin| new_pin(kind, pin))))
+            })) { return true; }
+        }
+    }
+    match value {
+        serde_json::Value::Object(object) => object.values().any(template_features_in_json),
+        serde_json::Value::Array(items) => items.iter().any(template_features_in_json),
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod template_source_tests {
+    use super::*;
+    use crate::imported_base::{ImportedBase, PRESETS, PresetSource, Source};
+    use std::sync::Arc;
+
+    #[test]
+    fn bundled_stock_references_reopen_exactly_and_inline_or_modified_stock_keeps_its_source() {
+        for preset in PRESETS {
+            for sand_master in [false, true].into_iter().filter(|sand| !sand || preset.sand_safe()) {
+                let reference = PresetSource { preset: preset.id.into(), sand_master };
+                let source = reference.load().unwrap();
+                let mut d = RingDesign::default();
+                ImportedBase::attach(&mut d, source.clone()).unwrap();
+                let text = design_json(&d).unwrap();
+                let saved: serde_json::Value = serde_json::from_str(&text).unwrap();
+                assert_eq!(saved["imported_base"]["source"], serde_json::to_value(&reference).unwrap());
+                assert_eq!(saved["format_version"], FORMAT_VERSION);
+                let loaded = load_design_str(&text).unwrap();
+                assert_eq!(serde_json::to_vec(&*loaded.imported_base.unwrap().source).unwrap(), serde_json::to_vec(&*source).unwrap());
+                assert!(read_design(&text, PLAIN_FORMAT_VERSION).unwrap_err().to_string().contains("format version 6"));
+                let mut inline = saved;
+                inline["format_version"] = serde_json::json!(PLAIN_FORMAT_VERSION);
+                inline["imported_base"]["source"] = serde_json::to_value(&*source).unwrap();
+                assert_eq!(serde_json::to_vec(&*load_design_str(&inline.to_string()).unwrap().imported_base.unwrap().source).unwrap(), serde_json::to_vec(&*source).unwrap());
+                assert!(text.len() < 25_000, "{}: {} bytes", preset.id, text.len());
+            }
+        }
+        let source = PRESETS[0].load().unwrap();
+        for field in ["name", "version", "source_sha256", "vertices", "faces", "calibration"] {
+            let mut value = serde_json::to_value(&*source).unwrap();
+            match field {
+                "name" => value["name"] = "Custom Signet 001".into(),
+                "version" => value["version"] = 2.into(),
+                "source_sha256" => value["source_sha256"] = "Different provenance".into(),
+                "vertices" => value["vertices"][0][0] = (value["vertices"][0][0].as_f64().unwrap() + 0.0001).into(),
+                "faces" => value["faces"][0].as_array_mut().unwrap().swap(1, 2),
+                _ => value["calibration"]["shoulder_start_mm"] = (value["calibration"]["shoulder_start_mm"].as_f64().unwrap() + 0.0001).into(),
+            }
+            let changed: Source = serde_json::from_value(value.clone()).unwrap();
+            assert!(PresetSource::of(&changed).is_none(), "{field}");
+            let base = ImportedBase { source: Arc::new(changed), chart: None, bare: false, sand_envelope: false };
+            let saved = serde_json::to_value(&base).unwrap();
+            assert_eq!(saved["source"], value, "{field}");
+            let reloaded: ImportedBase = serde_json::from_value(saved).unwrap();
+            assert_eq!(serde_json::to_value(&*reloaded.source).unwrap(), value, "{field}");
+        }
+        for source in [serde_json::json!({"preset":"999"}), serde_json::json!({"preset":"001","vertices":[]})] {
+            assert!(serde_json::from_value::<ImportedBase>(serde_json::json!({"source":source})).is_err());
+        }
+    }
+
+    #[test]
+    fn new_template_controls_are_fenced_even_when_only_wired_exposed_or_nested() {
+        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "theta_deg"), ("cad.feature", "blend_mm")] {
+            let node = serde_json::json!({"id":7,"kind":kind,"inputs":{}});
+            let plain = serde_json::json!({"nodes":[node],"wires":[],"exposed":[]});
+            assert!(!template_features_in_json(&plain));
+            for form in ["literal", "wire", "exposure"] {
+                let mut graph = plain.clone();
+                match form {
+                    "literal" => graph["nodes"][0]["inputs"][pin] = serde_json::json!([]),
+                    "wire" => graph["wires"] = serde_json::json!([{"from":8,"out":"value","to":7,"input":pin}]),
+                    _ => graph["exposed"] = serde_json::json!([{"name":"Edit", "node":7, "input":pin}]),
+                }
+                for value in [graph.clone(), serde_json::json!({"nested":[{"params":{"graph":graph}}]})] {
+                    let d = RingDesign { graph: Some(value), ..RingDesign::default() };
+                    assert_eq!(format_version_for(&d), FORMAT_VERSION, "{kind}.{pin}/{form}");
+                }
+            }
+        }
+        for kind in ["base.preset", "shank.key", "stamp", "stamp.top", "stamp.row", "design.stamps", "stamp.outline.keel", "cad.op.head.claw"] {
+            let d = RingDesign { graph: Some(serde_json::json!({"nodes":[{"kind":kind}]})), ..RingDesign::default() };
+            assert_eq!(format_version_for(&d), FORMAT_VERSION, "{kind}");
+        }
     }
 }
 
