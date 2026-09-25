@@ -180,7 +180,7 @@ mod tests {
     fn in_landscape_with_the_keypad_up_the_window_stays_inside_the_view() {
         let ctx = egui::Context::default();
         crate::theme::apply(&ctx);
-        let mut stamp = Stamp { name: "Moon".into(), theta_deg: 44.6, v_mm: 8.01, rot_deg: 180.0, outline: vec![[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]], height_mm: 0.34, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false };
+        let mut stamp = Stamp { name: "Moon".into(), theta_deg: 44.6, v_mm: 8.01, rot_deg: 180.0, outline: vec![[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]], height_mm: 0.34, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: Default::default() };
         // The view shorter than the navigator's foot, and the navigator within the window's reach.
         let view = Rect::from_min_size(pos2(0.0, 60.0), vec2(420.0, 150.0));
         let navigator = Rect::from_min_size(pos2(300.0, 70.0), vec2(106.0, 173.0));
