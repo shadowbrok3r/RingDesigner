@@ -232,7 +232,7 @@ fn held_by(doc: &Document, id: Id, copied: bool, depth: u32) -> Option<&Feature>
         return None;
     }
     match &f.operation {
-        _ if is_stone(doc, f) => (!copied).then(|| builders::head_on(doc, id)).flatten(),
+        _ if is_stone(doc, f) => (!copied).then(|| builders::head_on(doc, id)).flatten().filter(|h| !moved_away(doc, h.id)),
         Operation::Builder { key, .. } if key == builders::HALO || builders::HEADS.contains(&key.as_str()) => Some(f),
         Operation::Pattern { source, .. } => held_by(doc, *source, true, depth + 1),
         Operation::Fillet { source, .. }
@@ -784,6 +784,7 @@ fn carried(doc: &Document, frames: &dyn Frames, f: &Feature, depth: u32) -> (Vec
         Operation::Fillet { source, .. } | Operation::Chamfer { source, .. } | Operation::Shell { source, .. } | Operation::PressPull { source, .. } => {
             follow(*source)
         }
+        Operation::Transform { source, .. } if is_head(doc, finished_from(doc, *source)) => (Vec::new(), false),
         Operation::Transform { source, translation, rotation_deg } => {
             let Some(m) = rigid(*translation, *rotation_deg) else { return (Vec::new(), false) };
             let m = match &f.component.placement {
@@ -817,6 +818,28 @@ fn carried(doc: &Document, frames: &dyn Frames, f: &Feature, depth: u32) -> (Vec
         }
         _ => (Vec::new(), false),
     }
+}
+
+/// The part a chain of fillets, chamfers, shells and press-pulls starts from.
+fn finished_from(doc: &Document, id: Id) -> Id {
+    let mut at = id;
+    for _ in 0..=MAX_CARRY_DEPTH {
+        match doc.feature(at).map(|f| &f.operation) {
+            Some(Operation::Fillet { source, .. } | Operation::Chamfer { source, .. } | Operation::Shell { source, .. } | Operation::PressPull { source, .. }) => at = *source,
+            _ => break,
+        }
+    }
+    at
+}
+
+/// Whether part `id` is a head built round a stone.
+fn is_head(doc: &Document, id: Id) -> bool {
+    doc.feature(id).is_some_and(|f| matches!(&f.operation, Operation::Builder { key, .. } if builders::HEADS.contains(&key.as_str())))
+}
+
+/// Whether an enabled Transform moves head `id`, which leaves its stone where it was.
+fn moved_away(doc: &Document, id: Id) -> bool {
+    doc.features.iter().any(|t| t.enabled && matches!(&t.operation, Operation::Transform { source, .. } if finished_from(doc, *source) == id))
 }
 
 /// Whether `f` is a stone: a stone part, or one a Transform moved.
@@ -1147,6 +1170,27 @@ mod tests {
     }
 
     #[test]
+    fn a_stone_moved_after_a_pattern_of_it_draws_each_copy_as_one_stone() {
+        let lib = crate::AlphaLibrary::builtin();
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut d = RingDesign { cad: cad::examples::design("claw-solitaire").unwrap().cad, ..court };
+        let doc = d.cad.as_mut().unwrap();
+        let ring = Operation::Pattern { source: 2, kind: PatternKind::Ring { count: 3, span_deg: 360.0 } };
+        doc.append(Feature { id: 5, name: "Ring array of stone".into(), enabled: true, operation: ring, component: builders::component(builders::STONE) }).unwrap();
+        let lift = Operation::Transform { source: 2, translation: [0.0, 0.0, 0.3], rotation_deg: [0.0; 3] };
+        doc.append(Feature { id: 6, name: "Move".into(), enabled: true, operation: lift, component: builders::component(builders::STONE) }).unwrap();
+        let built = crate::mesh::try_build(&d, &lib, preview()).unwrap();
+        let exact = set_stones_built(&d, &built);
+        assert_eq!(exact.len(), 3);
+        let one = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 6).unwrap().mesh.faces.len() * 36;
+        let soup = crate::gems::built_vertices(&d, &lib, &built);
+        assert_eq!(soup.len(), 3 * one, "three stones' worth of facets");
+        let girdles: Vec<[f64; 3]> = exact.iter().map(|s| s.frame.unwrap().origin).collect();
+        let far = soup.chunks_exact(12).map(|v| girdles.iter().map(|g| norm(sub([f64::from(v[0]), f64::from(v[1]), f64::from(v[2])], *g))).fold(f64::MAX, f64::min)).fold(0.0, f64::max);
+        assert!(far < 0.6 * exact[0].gem.w_mm, "every drawn point stands within its stone of a girdle: {far:.2} mm");
+    }
+
+    #[test]
     fn a_halos_melee_are_stones_where_its_collets_stand() {
         let gem = Gem::calibrated(GemCut::Round, 6.0);
         let d = halo(gem);
@@ -1397,6 +1441,27 @@ mod tests {
         assert_eq!(set_stones_built(&arrayed, &built).len(), 3);
         let report = crate::stones::report(&arrayed, 0.0).unwrap();
         assert!(report.seats.iter().all(|s| s.made.as_deref() == Some("Four-claw head")), "every copy is held");
+    }
+
+    #[test]
+    fn a_transform_round_a_head_leaves_its_stone_where_it_was_and_unheld() {
+        let lib = crate::AlphaLibrary::builtin();
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let mut d = RingDesign { cad: cad::examples::design("claw-solitaire").unwrap().cad, ..court };
+        let original = set_stones(&d)[0].frame.unwrap().origin;
+        let lift = Operation::Transform { source: 3, translation: [0.0, 0.0, 0.8], rotation_deg: [0.0; 3] };
+        d.cad.as_mut().unwrap().append(Feature { id: 9, name: "Move head".into(), enabled: true, operation: lift, component: builders::component(builders::CLAW) }).unwrap();
+        let stones = set_stones(&d);
+        assert_eq!(stones.len(), 1, "{:?}", stones.iter().map(|s| (&s.label, s.source)).collect::<Vec<_>>());
+        assert!(matches!(stones[0].source, StoneSource::Cad { feature: 2, copy: 0 }));
+        assert!(norm(sub(stones[0].frame.unwrap().origin, original)) < 1e-9, "the stone stays where it was");
+        let built = crate::mesh::try_build(&d, &lib, preview()).unwrap();
+        assert_eq!(set_stones_built(&d, &built).len(), 1);
+        let report = crate::stones::report(&d, 0.0).unwrap();
+        assert_eq!(report.stone_count, 1);
+        let check = report.seats.iter().find(|s| s.gem.is_some()).unwrap();
+        assert_eq!(check.made, None, "the moved head holds nothing");
+        assert!(check.warnings.iter().any(|w| w.starts_with("no setting holds this stone")), "{:?}", check.warnings);
     }
 
     #[test]

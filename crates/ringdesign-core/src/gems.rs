@@ -37,7 +37,7 @@ pub fn preview_vertices(design: &RingDesign, _lib: &AlphaLibrary) -> Vec<f32> {
 }
 
 /// Every stone of `built`: the seats' as [`preview_vertices`] draws them, every stone the CAD parts carry where
-/// the build stands it — drawn from a stone part's own mesh when the build has one of that cut and size, faceted
+/// the build stands it — drawn from a single stone part's own mesh when the build has one of that cut and size, faceted
 /// like a seat's otherwise — and a reference part that records no stone as its own mesh.
 pub fn built_vertices(design: &RingDesign, _lib: &AlphaLibrary, built: &crate::mesh::BuildResult) -> Vec<f32> {
     let bare = design.imported_base.as_ref().is_some_and(|b| b.bare);
@@ -49,7 +49,7 @@ pub fn built_vertices(design: &RingDesign, _lib: &AlphaLibrary, built: &crate::m
         if bare && st.frame.is_none() {
             continue;
         }
-        let own = st.frame.and_then(|to| references.iter().find(|c| c.made.as_ref().and_then(|m| m.gem).is_some_and(|g| same(g, st.gem))).map(|c| (to, *c)));
+        let own = st.frame.and_then(|to| references.iter().find(|c| c.made.as_ref().is_some_and(|m| m.key == crate::cad::builders::STONE && m.gem.is_some_and(|g| same(g, st.gem)))).map(|c| (to, *c)));
         match own {
             Some((to, c)) => {
                 let m = crate::cad::pattern::then(&to, &crate::cad::pattern::inverse(&c.frame));
