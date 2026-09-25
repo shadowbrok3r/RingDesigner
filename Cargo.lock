@@ -5065,6 +5065,7 @@ dependencies = [
  "log",
  "ringdesign-assets",
  "ringdesign-core",
+ "ringdesign-script",
  "ringdesign-solid",
  "serde",
  "serde_json",
