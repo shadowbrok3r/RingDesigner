@@ -49,7 +49,8 @@ fn shank_node() -> NodeSpec {
     .field(PinSpec::item("head", ValueKind::Head).doc("The signet head."))
     .field_at(PinSpec::item("head_theta_deg", ValueKind::Number).widget(Widget::Angle).doc("Where the head sits; 90° is the top."), "/head/theta_deg")
     .field_at(PinSpec::item("head_length_mm", ValueKind::Number).widget(Widget::Mm { min: 2.0, max: 40.0 }).doc("The face's length along the ring, mm."), "/head/length_mm")
-    .hidden(&["extra_heads", "keys", "custom_outlines"])
+    .field(PinSpec::list("keys", ValueKind::Json).doc("Authored shank stations, ordered around the ring."))
+    .hidden(&["extra_heads", "custom_outlines"])
     .build()
 }
 
@@ -177,6 +178,17 @@ fn outline_library(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs,
 }
 
 pub fn register(reg: &mut Registry) {
+    reg.register(StructNode::new(
+        NodeSpec::new("shank.key", "Shank station", Category::Shank).doc("Width, thickness and crown at one angular station of a keyframed shank."),
+        "key", ringdesign_core::profile::ShankKey::default,
+        |key| serde_json::to_value(key).expect("key").into(),
+        |value| serde_json::from_value(value.to_json_any()?).ok(),
+    )
+    .field(PinSpec::item("theta_deg", ValueKind::Number).widget(Widget::Angle).doc("Angle around the ring, degrees."))
+    .field(PinSpec::item("width_scale", ValueKind::Number).doc("Band width relative to its reference section."))
+    .field(PinSpec::item("thickness_scale", ValueKind::Number).doc("Thickness relative to its reference section."))
+    .field(PinSpec::item("crown_scale", ValueKind::Number).doc("Crown relative to its reference section."))
+    .build()).expect("unique");
     let specs = [
         shank_node(),
         head_node(),

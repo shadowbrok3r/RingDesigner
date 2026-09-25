@@ -51,6 +51,7 @@ pub struct SurfaceChart {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ImportedBase {
+    #[serde(with = "preset_source")]
     pub source: Arc<Source>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chart: Option<SurfaceChart>,
@@ -61,6 +62,71 @@ pub struct ImportedBase {
     /// original stock remains embedded and the layer stack stays editable.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub sand_envelope: bool,
+}
+
+/// An exact bundled source, including its drafted sand-master construction.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PresetSource {
+    pub preset: String,
+    #[serde(default)]
+    pub sand_master: bool,
+}
+
+impl PresetSource {
+    pub fn load(&self) -> Result<Arc<Source>> {
+        type Sources = Mutex<HashMap<PresetSource, Arc<Source>>>;
+        static SOURCES: OnceLock<Sources> = OnceLock::new();
+        let cache = SOURCES.get_or_init(|| Mutex::new(HashMap::new()));
+        if let Some(source) = cache.lock().unwrap().get(self).cloned() {
+            return Ok(source);
+        }
+        let preset = PRESETS.iter().find(|p| p.id == self.preset)
+            .ok_or_else(|| anyhow::anyhow!("Unknown bundled base preset {:?}", self.preset))?;
+        let source = preset.load()?;
+        let source = if self.sand_master { sand_master(source)? } else { source };
+        Ok(cache.lock().unwrap().entry(self.clone()).or_insert(source).clone())
+    }
+
+    pub fn of(source: &Source) -> Option<Self> {
+        let (name, sand_master) = source.name.strip_suffix(" / drafted workshop master")
+            .map_or((source.name.as_str(), false), |name| (name, true));
+        let preset = PRESETS.iter().find(|p| name == p.stock_name())?;
+        let reference = Self { preset: preset.id.into(), sand_master };
+        let bundled = reference.load().ok()?;
+        if source.fingerprint() != bundled.fingerprint()
+            || source.version != bundled.version
+            || source.source_sha256 != bundled.source_sha256
+            || source.vertices != bundled.vertices
+            || source.faces != bundled.faces
+            || serde_json::to_value(&source.calibration).ok()? != serde_json::to_value(&bundled.calibration).ok()?
+        {
+            return None;
+        }
+        Some(reference)
+    }
+}
+
+mod preset_source {
+    use super::*;
+
+    pub fn serialize<S: serde::Serializer>(source: &Arc<Source>, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+        if let Some(reference) = PresetSource::of(source) {
+            reference.serialize(serializer)
+        } else {
+            source.serialize(serializer)
+        }
+    }
+
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> std::result::Result<Arc<Source>, D::Error> {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        if value.get("preset").is_some() {
+            let reference: PresetSource = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+            reference.load().map_err(serde::de::Error::custom)
+        } else {
+            serde_json::from_value(value).map_err(serde::de::Error::custom)
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Target {
@@ -1069,6 +1135,10 @@ pub struct Preset {
     pub plan: &'static [f32],
 }
 impl Preset {
+    pub fn sand_safe(&self) -> bool {
+        matches!(self.id, "001" | "002" | "003" | "005" | "006" | "007" | "012" | "013" | "015" | "016" | "017")
+    }
+
     /// The master file, decompressed out of the bundle on demand. Twenty
     /// masters are 8.8 MB of JSON and a picker only ever opens one.
     pub fn json(&self) -> Cow<'static, str> {

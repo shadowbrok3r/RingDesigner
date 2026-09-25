@@ -39,7 +39,7 @@ fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
 
 /// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, or a pattern of several parts.
 fn fenced_json(v: &serde_json::Value) -> bool {
-    ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::cad::pattern::several_sources_json(v)
+    ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::cad::pattern::several_sources_json(v) || library::template_features_in_json(v)
 }
 
 /// Whether a literal holds what an older reader must be fenced from: what [`fenced_json`] fences, or a cut on a ring of parts alone.
@@ -59,19 +59,21 @@ fn graph_cuts_apart(g: &Graph) -> bool {
 /// The version `g` is written at: the newest when a node carries a revolution read in its sketch's plane or a pattern of several parts, or the graph, or a cluster in it, may evaluate to a ring of parts alone carrying a cut.
 pub fn graph_version_for(g: &Graph) -> u32 {
     let fenced = |n: &Node| fenced_json(&n.params) || n.inputs.values().any(literal_fenced);
-    if g.nodes.iter().any(fenced) || graph_cuts_apart(g) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
+    let template = serde_json::to_value(g).is_ok_and(|v| library::template_features_in_json(&v));
+    if g.nodes.iter().any(fenced) || graph_cuts_apart(g) || template { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
 }
 
 /// The version `p` is written at: the newest when a value is fenced, or when `cluster` with the preset's values on the pins they reach may evaluate to a ring of parts alone carrying a cut.
 pub fn preset_version_in(p: &Preset, cluster: Option<&Graph>) -> u32 {
     let applied = |c: &Graph| {
+        let template = serde_json::to_value(c).is_ok_and(|v| library::template_features_in_json(&v));
         let mut g = c.clone();
         for e in std::mem::take(&mut g.exposed) {
             if let (Some(v), Some(n)) = (p.values.get(&e.name), g.node_mut(e.node)) {
                 n.inputs.insert(e.input, v.clone());
             }
         }
-        graph_cuts_apart(&g)
+        template || graph_version_for(&g) == GRAPH_FORMAT_VERSION
     };
     if p.values.values().any(literal_fenced) || cluster.is_some_and(applied) { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION }
 }
@@ -310,6 +312,35 @@ pub fn list_presets() -> Vec<Preset> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn template_controls_fence_graphs_clusters_and_presets_from_released_readers() {
+        use super::*;
+        use crate::graph::Mode;
+        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "blend_mm"), ("cad.feature", "theta_deg")] {
+            for form in ["literal", "wire", "exposure"] {
+                let mut g = Graph::new("Editable geometry", Mode::Free);
+                let node = g.add(kind).unwrap();
+                assert_eq!(graph_version_for(&g), PLAIN_GRAPH_FORMAT_VERSION);
+                match form {
+                    "literal" => g.set_input(node, pin, Literal::Json(serde_json::json!([]))).unwrap(),
+                    "wire" => {
+                        let src = g.add("util.json").unwrap();
+                        g.connect(src, "value", node, pin).unwrap();
+                    }
+                    _ => g.expose(node, pin, "Control").unwrap(),
+                }
+                assert_eq!(graph_version_for(&g), GRAPH_FORMAT_VERSION, "{kind}.{pin}/{form}");
+                let text = graph_to_string(&g).unwrap();
+                assert!(read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string().contains("format version 2"));
+                assert_eq!(serde_json::to_value(load_graph_str(&text, None).unwrap()).unwrap(), serde_json::to_value(&g).unwrap());
+                assert_eq!(preset_version_in(&Preset::default(), Some(&g)), GRAPH_FORMAT_VERSION);
+                let mut outer = Graph::new("Nested", Mode::Free);
+                let cluster = outer.add("cluster").unwrap();
+                outer.node_mut(cluster).unwrap().params = serde_json::json!({"graph":g});
+                assert_eq!(graph_version_for(&outer), GRAPH_FORMAT_VERSION);
+            }
+        }
+    }
     use super::*;
     use crate::graph::Mode;
 

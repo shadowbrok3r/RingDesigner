@@ -339,7 +339,13 @@ pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result
     let mut shank = None;
     if uses_head || json_of(&d.shank) != json_of(&ringdesign_core::ShankStyle::default()) {
         let id = g.add("shank")?;
-        set_fields(&mut g, id, reg, &json_of(&d.shank), &["head", "head_theta_deg", "head_length_mm"]);
+        set_fields(&mut g, id, reg, &json_of(&d.shank), &["head", "head_theta_deg", "head_length_mm", "keys"]);
+        let keys: Vec<_> = d.shank.keys.iter().map(|key| {
+            let node = g.add("shank.key")?;
+            set_fields(&mut g, node, reg, &json_of(key), &[]);
+            Ok(node)
+        }).collect::<Result<_, GraphError>>()?;
+        if let Some(keys) = merge_chain(&mut g, &keys, "key")? { g.connect(keys, "out", id, "keys")?; }
         g.node_mut(id).expect("added").label = Some(if d.imported_base.is_some() { "Stock body" } else { "Shoulders and taper" }.into());
         shank = Some(id);
         shank_out = Some(id);
@@ -404,8 +410,41 @@ pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result
         last = asm;
     }
 
+    if let Some(base) = &d.imported_base
+        && let Some(source) = ringdesign_core::imported_base::PresetSource::of(&base.source)
+    {
+        let id = g.add("base.preset")?;
+        g.set_input(id, "id", Literal::Text(source.preset))?;
+        g.set_input(id, "sand", Literal::Bool(source.sand_master))?;
+        g.set_input(id, "preserve_parameters", Literal::Bool(true))?;
+        g.set_input(id, "bare", Literal::Bool(base.bare))?;
+        g.set_input(id, "sand_envelope", Literal::Bool(base.sand_envelope))?;
+        g.set_input(id, "chart_enabled", Literal::Bool(base.chart.is_some()))?;
+        if let Some(chart) = &base.chart { g.set_input(id, "chart", Literal::Json(json_of(chart)))?; }
+        g.connect(last, "design", id, "design")?;
+        last = id;
+    }
+
     if let Some(doc) = cad {
         last = crate::nodes::cad::chain_document(&mut g, last, doc)?;
+        crate::nodes::cad::lift_builders(&mut g, doc, reg)?;
+    }
+
+    if !d.stamps.is_empty() {
+        let mut stamps = Vec::new();
+        for stamp in &d.stamps {
+            let id = g.add("stamp")?;
+            set_fields(&mut g, id, reg, &json_of(stamp), &["outline"]);
+            g.set_input(id, "outline", serde_json::from_value(json_of(&stamp.outline)).expect("points"))?;
+            g.node_mut(id).expect("added").label = Some(stamp.name.clone());
+            stamps.push(id);
+        }
+        let merge = merge_chain(&mut g, &stamps, "stamp")?.expect("nonempty stamps");
+        let apply = g.add("design.stamps")?;
+        g.connect(last, "design", apply, "design")?;
+        g.connect(merge, "out", apply, "stamps")?;
+        g.set_input(apply, "replace", Literal::Bool(true))?;
+        last = apply;
     }
 
     let defaults = RingDesign::default();

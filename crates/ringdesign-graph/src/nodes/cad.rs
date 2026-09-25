@@ -38,11 +38,28 @@ fn feature(_: &mut EvalCtx<'_>, n: &Node, i: &Inputs) -> Result<Outputs, NodeErr
         .map_err(|e| NodeError::input("operation", e.to_string()))?;
     }
     f.enabled &= i.bool("enabled")?;
+    component_inputs(&mut f, i)?;
     d.cad
         .get_or_insert_with(Document::default)
         .append(f)
         .map_err(|e| NodeError::new(e.to_string()))?;
     Ok(Outputs::one("design", d))
+}
+fn component_inputs(f: &mut Feature, i: &Inputs) -> Result<(), NodeError> {
+    if !i.get("placement").is_null() {
+        f.component.placement = serde_json::from_value(i.get("placement").to_json_any().ok_or_else(|| NodeError::input("placement", "expected placement JSON"))?)
+            .map_err(|e| NodeError::input("placement", e.to_string()))?;
+    }
+    if let Some(blend) = i.get("blend_mm").as_number() { f.component.blend_mm = blend; }
+    let mut placement = serde_json::to_value(&f.component.placement).map_err(|e| NodeError::new(e.to_string()))?;
+    for pin in ["theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"] {
+        if let Some(value) = i.get(pin).as_number() {
+            let target = placement.get_mut(pin).ok_or_else(|| NodeError::input(pin, "this placement does not carry that coordinate"))?;
+            *target = serde_json::json!(value);
+        }
+    }
+    f.component.placement = serde_json::from_value(placement).map_err(|e| NodeError::new(e.to_string()))?;
+    Ok(())
 }
 fn resize(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
     let d = match i.get("design") {
@@ -59,8 +76,18 @@ fn resize(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeErro
     Ok(Outputs::one("design", candidate.design))
 }
 pub fn register(reg: &mut Registry) {
+    register_builders(reg);
     reg.register(NodeSpec::new("cad.source","CAD source",Category::Assembly).doc("The nominal ring parameters behind a Free-mode feature history; source design in node settings.").output(PinSpec::item("design",ValueKind::Design).doc("Source parameters and an empty feature program.")).eval(source)).expect("unique");
-    reg.register(NodeSpec::new("cad.feature","CAD feature",Category::Assembly).doc("Append an analytic CAD feature. Source geometry and component settings remain editable in the feature tree.").input(PinSpec::item("design",ValueKind::Design).doc("Previous feature or nominal design.")).input(PinSpec::item("operation",ValueKind::Json).optional().doc("Optional operation JSON from upstream parameters; absent uses the feature editor's source recipe.")).input(PinSpec::item("enabled",ValueKind::Bool).default(true).doc("Suppress this feature without deleting its settings.")).output(PinSpec::item("design",ValueKind::Design).doc("Design with appended feature.")).eval(feature)).expect("unique");
+    let mut feature_spec = NodeSpec::new("cad.feature", "CAD feature", Category::Assembly)
+        .doc("Append an analytic CAD feature with editable operation and placement pins.")
+        .input(PinSpec::item("design", ValueKind::Design).doc("Previous feature or nominal design."))
+        .input(PinSpec::item("operation", ValueKind::Json).optional().doc("Operation recipe; uses the feature settings when absent."))
+        .input(PinSpec::item("placement", ValueKind::Json).optional().doc("Placement recipe; uses the feature settings when absent."))
+        .input(PinSpec::item("enabled", ValueKind::Bool).default(true).doc("Suppress the feature without deleting it."));
+    for (pin, doc) in [("blend_mm", "Junction blend radius, mm."), ("theta_deg", "Angle around the ring, degrees."), ("height_mm", "Height over the surface, mm."), ("across_mm", "Offset across the band, mm."), ("spin_deg", "Turn in the tangent plane, degrees."), ("cant_deg", "Cant from the tangent plane, degrees."), ("tilt_deg", "Tilt from the placement frame, degrees.")] {
+        feature_spec = feature_spec.input(PinSpec::item(pin, ValueKind::Number).optional().doc(doc));
+    }
+    reg.register(feature_spec.output(PinSpec::item("design", ValueKind::Design).doc("Design with appended feature.")).eval(feature)).expect("unique");
     reg.register(NodeSpec::new("manufacturing.inspect","Inspect pattern",Category::Util).doc("Shared arbitrary-pull release, stock, flask and wall inspection on the prepared pattern.").input(PinSpec::item("design",ValueKind::Design).doc("Evaluated source design and manufacturing setup.")).output(PinSpec::item("report",ValueKind::Json).doc("Identified sampled manufacturing report.")).eval(inspect_pattern)).expect("unique");
     reg.register(
         NodeSpec::new("cad.inspect", "Inspect assembly", Category::Util)
@@ -74,6 +101,96 @@ pub fn register(reg: &mut Registry) {
     )
     .expect("unique");
     reg.register(NodeSpec::new("design.resize","Resize ring",Category::Assembly).doc("Rebuild the shank to an exact bore, preserving measured stones and optionally head dimensions and ornament pitch.").input(PinSpec::item("design",ValueKind::Design).doc("Source ring design.")).input(PinSpec::item("bore_mm",ValueKind::Number).default(18.0).doc("Exact nominal bore diameter in millimeters.")).input(PinSpec::item("preserve_head",ValueKind::Bool).default(true).doc("Keep the existing head dimensions.")).input(PinSpec::item("preserve_pitch",ValueKind::Bool).default(true).doc("Adjust closed repeat counts to retain ornament pitch.")).output(PinSpec::item("design",ValueKind::Design).doc("Resized source geometry.")).eval(resize)).expect("unique");
+}
+
+fn builder_kind(kind: ringdesign_core::cad::builders::Kind) -> ValueKind {
+    use ringdesign_core::cad::builders::Kind;
+    match kind {
+        Kind::Number => ValueKind::Number,
+        Kind::Whole => ValueKind::Int,
+        Kind::Choice(_) => ValueKind::Text,
+        Kind::Flag => ValueKind::Bool,
+    }
+}
+fn builder_schema(key: &str) -> Option<Vec<ringdesign_core::cad::builders::Param>> {
+    use ringdesign_core::{cad::builders, gem::{Gem, GemCut}};
+    builders::SPECS.iter().any(|b| b.key == key)
+        .then(|| builders::schema(key, Gem::calibrated(GemCut::Round, 6.0)))
+}
+fn builder_operation(key: &str, schema: &[ringdesign_core::cad::builders::Param], i: &Inputs) -> Result<Operation, NodeError> {
+    let mut params = match i.get("params") {
+        Value::Null => serde_json::json!({}),
+        value => value.to_json_any().ok_or_else(|| NodeError::input("params", "expected an object"))?,
+    };
+    let fields = params.as_object_mut().ok_or_else(|| NodeError::input("params", "expected an object"))?;
+    for p in schema {
+        if !i.get(p.key).is_null() {
+            fields.insert(p.key.into(), i.get(p.key).to_json_any().ok_or_else(|| NodeError::input(p.key, "expected a builder parameter"))?);
+        }
+    }
+    let on = match i.get("on").as_int() {
+        Some(id) => Some(u64::try_from(id).map_err(|_| NodeError::input("on", "feature identity is outside the supported range"))?),
+        None => None,
+    };
+    Ok(Operation::Builder { key: key.into(), on, params })
+}
+/// Encodes exact typed literals and retains null, unknown and coercion-sensitive parameters in JSON.
+fn builder_inputs(key: &str, on: Option<u64>, params: &serde_json::Value) -> Option<std::collections::BTreeMap<String, Literal>> {
+    let schema = builder_schema(key)?;
+    let on = on.map(i64::try_from).transpose().ok()?;
+    let mut extra = params.as_object()?.clone();
+    let mut inputs = std::collections::BTreeMap::new();
+    for p in schema {
+        let Some(value) = extra.get(p.key).filter(|v| !v.is_null()) else { continue };
+        let Ok(literal) = serde_json::from_value::<Literal>(value.clone()) else { continue };
+        if matches!(literal, Literal::List(_) | Literal::Expr(_)) { continue; }
+        let Ok(coerced) = builder_kind(p.kind).coerce(Value::from(literal.clone())) else { continue };
+        if coerced.to_json_any().as_ref() == Some(value) {
+            inputs.insert(p.key.into(), literal);
+            extra.remove(p.key);
+        }
+    }
+    if !extra.is_empty() { inputs.insert("params".into(), Literal::Json(extra.into())); }
+    if let Some(on) = on { inputs.insert("on".into(), Literal::Int(on)); }
+    Some(inputs)
+}
+fn register_builders(reg: &mut Registry) {
+    use ringdesign_core::{cad::builders, gem::{Gem, GemCut}};
+    for builder in builders::SPECS {
+        let key = builder.key;
+        let schema = builders::schema(key, Gem::calibrated(GemCut::Round, 6.0));
+        let mut spec = NodeSpec::new(format!("cad.op.{key}"), builder.label, Category::Assembly)
+            .doc(builder.hint)
+            .input(PinSpec::item("params", ValueKind::Json).optional().doc("Additional source parameters retained with this builder."))
+            .input(PinSpec::item("on", ValueKind::Int).optional().doc("Feature the builder reads, usually its stone."));
+        for p in &schema {
+            let pin = match p.kind {
+                builders::Kind::Choice(names) => PinSpec::select(p.key, names.iter().map(|n| (*n).into()).collect()),
+                builders::Kind::Number => PinSpec::item(p.key, ValueKind::Number).widget(crate::registry::Widget::Slider { min: p.min, max: p.max }),
+                builders::Kind::Whole => PinSpec::item(p.key, ValueKind::Int),
+                builders::Kind::Flag => PinSpec::item(p.key, ValueKind::Bool),
+            };
+            spec = spec.input(pin.optional().doc(format!("{}; uses the builder's stone-dependent default when unset.", p.label)));
+        }
+        reg.register(spec.output(PinSpec::item("operation", ValueKind::Json).doc("Typed builder operation."))
+            .eval(move |_, _, i| {
+                let operation = builder_operation(key, &schema, i)?;
+                Ok(Outputs::one("operation", serde_json::to_value(operation).map_err(|e| NodeError::new(e.to_string()))?))
+            })).expect("unique");
+    }
+}
+
+pub(crate) fn lift_builders(g: &mut Graph, doc: &Document, reg: &Registry) -> Result<(), GraphError> {
+    for feature in &doc.features {
+        let Operation::Builder { key, on, params } = &feature.operation else { continue };
+        let kind = format!("cad.op.{key}");
+        if reg.get(&kind).is_none() { continue; }
+        let Some(inputs) = builder_inputs(key, *on, params) else { continue };
+        let id = g.add(&kind)?;
+        g.node_mut(id).expect("added").inputs = inputs;
+        g.connect(id, "operation", NodeId(feature.id), "operation")?;
+    }
+    Ok(())
 }
 fn inspect_pattern(ctx: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
     let d = match i.get("design") {
@@ -394,12 +511,39 @@ fn design_chain(g: &Graph) -> Vec<NodeId> {
     chain.reverse();
     chain
 }
-/// The feature a chain's `cad.feature` node appends, read as the node evaluates it.
-fn chain_feature(g: &Graph, n: &Node) -> Result<Feature, GraphError> {
-    if g.wire_into(n.id, "operation").is_some() {
-        return Err(unreadable(n.id, "this feature takes its operation from a wire"));
+/// Reads a scalar literal using the evaluator's pin coercion.
+fn literal_input(g: &Graph, n: &Node, pin: &str, kind: ValueKind) -> Result<Value, GraphError> {
+    if g.wire_into(n.id, pin).is_some() {
+        return Err(unreadable(n.id, format!("this node takes {pin} from a wire")));
     }
-    if n.inputs.get("operation").is_some_and(|l| *l != Literal::Null) {
+    let value = n.inputs.get(pin).cloned().unwrap_or(Literal::Null);
+    if matches!(value, Literal::List(_) | Literal::Expr(_)) {
+        return Err(unreadable(n.id, format!("this node's {pin} is not a single literal")));
+    }
+    kind.coerce(Value::from(value)).map_err(|e| unreadable(n.id, format!("{pin}: {e}")))
+}
+/// Reads a literal builder provider without evaluating a graph or its expressions.
+fn wired_builder(g: &Graph, n: &Node) -> Result<Option<(NodeId, Operation)>, GraphError> {
+    let Some(wire) = g.wire_into(n.id, "operation") else { return Ok(None) };
+    let provider = g.node(wire.from).ok_or_else(|| unreadable(n.id, "this feature's operation provider is missing"))?;
+    let schema = provider.kind.strip_prefix("cad.op.").and_then(builder_schema);
+    let Some(schema) = schema.filter(|_| wire.out == "operation") else {
+        return Err(unreadable(n.id, "this feature takes its operation from a wire"));
+    };
+    let mut inputs = Inputs::default();
+    for (pin, kind) in [("params", ValueKind::Json), ("on", ValueKind::Int)]
+        .into_iter().chain(schema.iter().map(|p| (p.key, builder_kind(p.kind))))
+    {
+        inputs.values.insert(pin.into(), literal_input(g, provider, pin, kind)?);
+    }
+    let key = provider.kind.strip_prefix("cad.op.").expect("builder kind");
+    let operation = builder_operation(key, &schema, &inputs).map_err(|e| unreadable(provider.id, e))?;
+    Ok(Some((provider.id, operation)))
+}
+/// Reads feature parameters together with concrete operation and placement controls.
+fn chain_feature(g: &Graph, n: &Node) -> Result<Feature, GraphError> {
+    let builder = wired_builder(g, n)?;
+    if builder.is_none() && n.inputs.get("operation").is_some_and(|l| *l != Literal::Null) {
         return Err(unreadable(n.id, "this feature takes its operation from its pin"));
     }
     if g.wire_into(n.id, "enabled").is_some() {
@@ -415,6 +559,13 @@ fn chain_feature(g: &Graph, n: &Node) -> Result<Feature, GraphError> {
     let mut f: Feature = serde_json::from_value(n.params.clone()).map_err(|e| GraphError::at(n.id, format!("CAD feature: {e}")))?;
     f.id = n.id.0;
     f.enabled &= pin;
+    if let Some((_, operation)) = builder { f.operation = operation; }
+    let mut inputs = Inputs::default();
+    for pin in ["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"] {
+        let kind = if pin == "placement" { ValueKind::Json } else { ValueKind::Number };
+        inputs.values.insert(pin.into(), literal_input(g, n, pin, kind)?);
+    }
+    component_inputs(&mut f, &inputs).map_err(|e| unreadable(n.id, e))?;
     Ok(f)
 }
 /// The document field a chain's `design.set` node writes and its value; a write elsewhere under `/cad` is refused.
@@ -651,10 +802,56 @@ fn settle_properties(g: &mut Graph, nodes: &mut Vec<NodeId>, doc: &Document) -> 
     }
     Ok(())
 }
-/// Rewrites each feature node's params; the `enabled` pin follows when the edit switches it or it holds a literal.
+/// Writes an operation edit back to an unshared literal builder or the feature source.
+fn write_builder(g: &mut Graph, id: NodeId, operation: &Operation) -> Result<(), GraphError> {
+    let n = g.node(id).ok_or_else(|| GraphError::at(id, "no such feature"))?;
+    let Some((provider, previous)) = wired_builder(g, n)? else { return Ok(()) };
+    if serde_json::to_value(previous).ok() == serde_json::to_value(operation).ok() { return Ok(()); }
+    if let Operation::Builder { key, on, params } = operation
+        && g.node(provider).is_some_and(|n| n.kind == format!("cad.op.{key}"))
+        && let Some(inputs) = builder_inputs(key, *on, params)
+    {
+        if g.wires_from(provider).count() != 1 || g.outputs.iter().any(|out| out.node == provider) {
+            return Err(unreadable(provider, "this builder operation is shared"));
+        }
+        g.node_mut(provider).expect("provider exists").inputs = inputs;
+    } else {
+        g.disconnect(id, "operation");
+        g.node_mut(id).expect("feature exists").inputs.remove("operation");
+        if g.wires_from(provider).next().is_none()
+            && !g.exposed.iter().any(|e| e.node == provider)
+            && !g.outputs.iter().any(|e| e.node == provider)
+        {
+            g.remove(provider)?;
+        }
+    }
+    Ok(())
+}
+/// Keeps literal component controls in agreement with the edited feature.
+fn write_component_inputs(n: &mut Node, f: &Feature) -> Result<(), GraphError> {
+    let placement = serde_json::to_value(&f.component.placement).map_err(|e| GraphError::at(n.id, e.to_string()))?;
+    if n.inputs.get("placement").is_some_and(|v| *v != Literal::Null) {
+        n.inputs.insert("placement".into(), Literal::Json(placement.clone()));
+    }
+    if n.inputs.get("blend_mm").is_some_and(|v| *v != Literal::Null) {
+        n.inputs.insert("blend_mm".into(), Literal::Number(f.component.blend_mm));
+    }
+    for pin in ["theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"] {
+        if n.inputs.get(pin).is_some_and(|v| *v != Literal::Null) {
+            if let Some(value) = placement.get(pin).and_then(serde_json::Value::as_f64) {
+                n.inputs.insert(pin.into(), Literal::Number(value));
+            } else {
+                n.inputs.remove(pin);
+            }
+        }
+    }
+    Ok(())
+}
+/// Rewrites feature sources and concrete controls to retain the edited document.
 fn write_features(g: &mut Graph, doc: &Document, edit: &CadEdit) -> Result<(), GraphError> {
     for f in &doc.features {
         let id = NodeId(f.id);
+        write_builder(g, id, &f.operation)?;
         let value = serde_json::to_value(f).map_err(|e| GraphError::at(id, e.to_string()))?;
         let n = g
             .node_mut(id)
@@ -663,6 +860,7 @@ fn write_features(g: &mut Graph, doc: &Document, edit: &CadEdit) -> Result<(), G
         if n.params != value {
             n.params = value;
         }
+        write_component_inputs(n, f)?;
         let switched = matches!(edit, CadEdit::Enable { id: target, .. } if *target == f.id);
         if switched || n.inputs.contains_key("enabled") {
             n.inputs.insert("enabled".into(), Literal::Bool(f.enabled));
@@ -711,6 +909,133 @@ pub fn edit_design(d: &mut RingDesign, edit: &CadEdit) -> anyhow::Result<Applied
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn evaluated_document(g: &Graph, reg: &Registry, lib: &ringdesign_core::AlphaLibrary) -> Document {
+        crate::eval::evaluate_design(&mut crate::eval::Evaluator::new(), g, reg, lib, 0).unwrap().design.cad.clone().unwrap()
+    }
+    fn lifted_claw(reg: &Registry) -> (Graph, Document, u64, NodeId) {
+        let mut design = ringdesign_core::cad::examples::design("claw-solitaire").unwrap();
+        let doc = design.cad.as_mut().unwrap();
+        let feature = doc.features.iter_mut().find(|f| matches!(&f.operation, Operation::Builder { key, .. } if key == ringdesign_core::cad::builders::CLAW)).unwrap();
+        let id = feature.id;
+        let Operation::Builder { params, .. } = &mut feature.operation else { unreachable!() };
+        *params = serde_json::json!({"prongs": 6.0, "wire_mm": null, "authored": {"raw": [null, 4, "kept"]}});
+        let doc = doc.clone();
+        let mut g = from_document(&design).unwrap();
+        lift_builders(&mut g, &doc, reg).unwrap();
+        let provider = g.wire_into(NodeId(id), "operation").unwrap().from;
+        (g, doc, id, provider)
+    }
+    #[test]
+    fn literal_builder_lifts_round_trip_through_the_cad_edit_funnel() {
+        let reg = Registry::builtin();
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let (mut g, mut expected, id, provider) = lifted_claw(&reg);
+        let bytes = |d: &Document| serde_json::to_string(d).unwrap();
+        assert_eq!(bytes(&document(&g).unwrap()), bytes(&expected));
+        assert_eq!(bytes(&evaluated_document(&g, &reg, &lib)), bytes(&expected));
+        let on = match &expected.feature(id).unwrap().operation { Operation::Builder { on, .. } => *on, _ => unreachable!() };
+        for edit in [
+            CadEdit::Rename { id, name: "Edited claw".into() },
+            CadEdit::Enable { id, enabled: false },
+            CadEdit::Enable { id, enabled: true },
+            CadEdit::Operation { id, operation: Operation::Builder { key: ringdesign_core::cad::builders::CLAW.into(), on, params: serde_json::json!({"prongs": 5, "wire_mm": 0.73, "retained": {"note": null}}) } },
+        ] {
+            expected.apply(&edit).unwrap();
+            apply_edit(&mut g, &edit).unwrap();
+            assert_eq!(g.wire_into(NodeId(id), "operation").unwrap().from, provider);
+            assert_eq!(bytes(&document(&g).unwrap()), bytes(&expected));
+            assert_eq!(bytes(&evaluated_document(&g, &reg, &lib)), bytes(&expected));
+        }
+        g.set_input(provider, "wire_mm", Literal::Number(0.61)).unwrap();
+        assert_eq!(bytes(&document(&g).unwrap()), bytes(&evaluated_document(&g, &reg, &lib)), "the reader follows current builder pins, not cached feature parameters");
+        let replacement = CadEdit::Operation { id, operation: Operation::Sphere { radius_mm: 1.2 } };
+        apply_edit(&mut g, &replacement).unwrap();
+        assert!(g.wire_into(NodeId(id), "operation").is_none());
+        assert_eq!(bytes(&document(&g).unwrap()), bytes(&evaluated_document(&g, &reg, &lib)));
+    }
+    #[test]
+    fn driven_and_shared_builder_edits_refuse_without_changing_the_graph() {
+        let reg = Registry::builtin();
+        let (base, _, id, provider) = lifted_claw(&reg);
+        let mut cases = Vec::new();
+        let mut expression = base.clone();
+        expression.set_input(provider, "wire_mm", serde_json::from_value(serde_json::json!({"expr": "0.6"})).unwrap()).unwrap();
+        cases.push(expression);
+        let mut list = base.clone();
+        list.set_input(provider, "wire_mm", Literal::List(vec![Literal::Number(0.6)])).unwrap();
+        cases.push(list);
+        let mut wire = base.clone();
+        let source = wire.add("design.get").unwrap();
+        wire.connect(source, "value", provider, "wire_mm").unwrap();
+        cases.push(wire);
+        for mut g in cases {
+            let before = g.clone();
+            let error = apply_edit(&mut g, &CadEdit::Rename { id, name: "Refused".into() }).unwrap_err();
+            assert_eq!(error.node, Some(provider));
+            assert!(error.message.ends_with("edit it in the graph"));
+            assert_eq!(g, before);
+        }
+        let mut shared = base;
+        let operation = document(&shared).unwrap().feature(id).unwrap().operation.clone();
+        let second = append(&mut shared, operation.clone()).unwrap();
+        shared.connect(provider, "operation", second, "operation").unwrap();
+        apply_edit(&mut shared, &CadEdit::Rename { id, name: "Shared source, own name".into() }).unwrap();
+        let Operation::Builder { key, on, mut params } = operation else { unreachable!() };
+        params["wire_mm"] = serde_json::json!(0.7);
+        let before = shared.clone();
+        let error = apply_edit(&mut shared, &CadEdit::Operation { id, operation: Operation::Builder { key, on, params } }).unwrap_err();
+        assert!(error.message.contains("shared"));
+        assert_eq!(shared, before);
+    }
+    #[test]
+    fn literal_placement_controls_follow_cad_edits_and_free_placement() {
+        use ringdesign_core::cad::Placement;
+        let reg = Registry::builtin();
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let mut g = start(&RingDesign::default()).unwrap();
+        let id = append(&mut g, Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }).unwrap();
+        g.set_input(id, "placement", Literal::Json(serde_json::to_value(Placement::ring(120.0, 0.2)).unwrap())).unwrap();
+        g.set_input(id, "height_mm", Literal::Number(0.42)).unwrap();
+        g.set_input(id, "spin_deg", Literal::Number(21.0)).unwrap();
+        g.set_input(id, "blend_mm", Literal::Number(0.12)).unwrap();
+        let mut expected = evaluated_document(&g, &reg, &lib);
+        let bytes = |d: &Document| serde_json::to_string(d).unwrap();
+        assert_eq!(bytes(&document(&g).unwrap()), bytes(&expected));
+        for edit in [
+            CadEdit::Placement { id: id.0, placement: Placement::ring(210.0, 1.1) },
+            CadEdit::Blend { id: id.0, blend_mm: 0.25 },
+            CadEdit::Placement { id: id.0, placement: Placement::Free },
+        ] {
+            expected.apply(&edit).unwrap();
+            apply_edit(&mut g, &edit).unwrap();
+            assert_eq!(bytes(&document(&g).unwrap()), bytes(&expected));
+            assert_eq!(bytes(&evaluated_document(&g, &reg, &lib)), bytes(&expected));
+        }
+        assert!(!g.node(id).unwrap().inputs.contains_key("height_mm"));
+        assert!(!g.node(id).unwrap().inputs.contains_key("spin_deg"));
+        let source = g.add("design.get").unwrap();
+        g.connect(source, "value", id, "placement").unwrap();
+        let before = g.clone();
+        assert!(apply_edit(&mut g, &CadEdit::Rename { id: id.0, name: "Driven placement".into() }).is_err());
+        assert_eq!(g, before);
+    }
+    #[test]
+    fn builder_lift_preserves_null_parameter_objects_and_unsigned_source_ids() {
+        use ringdesign_core::cad::{Component, builders};
+        let reg = Registry::builtin();
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let source = i64::MAX as u64 + 1;
+        let mut doc = Document::default();
+        doc.append(Feature { id: source, name: "High identity stone".into(), enabled: true, operation: Operation::Builder { key: builders::STONE.into(), on: None, params: serde_json::Value::Null }, component: builders::component(builders::STONE) }).unwrap();
+        doc.append(Feature { id: source + 1, name: "High identity setting".into(), enabled: true, operation: Operation::Builder { key: builders::BEZEL.into(), on: Some(source), params: serde_json::json!({"wall_mm": null, "author": "kept"}) }, component: Component::default() }).unwrap();
+        let mut d = RingDesign::default();
+        d.cad = Some(doc.clone());
+        let mut g = from_document(&d).unwrap();
+        lift_builders(&mut g, &doc, &reg).unwrap();
+        assert!(!g.nodes.iter().any(|n| n.kind.starts_with("cad.op.")));
+        assert_eq!(serde_json::to_string(&document(&g).unwrap()).unwrap(), serde_json::to_string(&doc).unwrap());
+        assert_eq!(serde_json::to_string(&evaluated_document(&g, &reg, &lib)).unwrap(), serde_json::to_string(&doc).unwrap());
+    }
     #[test]
     fn history_stops_before_later_resizes_and_their_errors() {
         let d = ringdesign_core::cad::examples::design("two-part-signet").unwrap();

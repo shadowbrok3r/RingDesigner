@@ -39,6 +39,8 @@ pub fn node(key: &str) -> Option<Icon> {
     // lands; the table below only names what differs inside a family.
     match key {
         k if k.starts_with("solid.") || k.starts_with("frame.") => return solid(k),
+        k if k.starts_with("cad.op.") => return Some(Icon::CadSketch),
+        k if k.starts_with("stamp.outline.") => return Some(Icon::Stamp),
         _ => {}
     }
     Some(match key {
@@ -56,6 +58,9 @@ pub fn node(key: &str) -> Option<Icon> {
         "band.size.fit" => Icon::NodeFit,
         "design.new" => Icon::Add,
         "design.settings" => Icon::Settings,
+        "base.preset" => Icon::NodeSignetpad,
+        "shank.key" => Icon::NodeShank,
+        "stamp" | "stamp.top" | "stamp.row" | "design.stamps" => Icon::Stamp,
         "build.settings" => Icon::NodeBuild,
         "draft.settings" => Icon::Casting,
 
