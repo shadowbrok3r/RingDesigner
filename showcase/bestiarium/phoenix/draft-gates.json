@@ -1,0 +1,1864 @@
+{
+  "build": {
+    "band_width_mm": 8.90999984741211,
+    "bounds_mm": [
+      26.527584075927734,
+      28.55832290649414,
+      9.670000076293945
+    ],
+    "build_ms": 51,
+    "inner_diameter_mm": 18.51770438027268,
+    "max_relief_mm": 0.8993052328833301,
+    "metals": [
+      {
+        "dwt": 11.554858348498021,
+        "grams": 17.969813428489726,
+        "metal": "Silver 925"
+      },
+      {
+        "dwt": 9.814937593318785,
+        "grams": 15.263934186361931,
+        "metal": "Bronze"
+      },
+      {
+        "dwt": 9.536104138963138,
+        "grams": 14.830299692431195,
+        "metal": "Brass"
+      },
+      {
+        "dwt": 12.882105591230905,
+        "grams": 20.033913619600035,
+        "metal": "Gold 10k"
+      },
+      {
+        "dwt": 14.577412993713239,
+        "grams": 22.670411342698912,
+        "metal": "Gold 14k"
+      },
+      {
+        "dwt": 17.376900875443937,
+        "grams": 27.02410166176351,
+        "metal": "Gold 18k"
+      },
+      {
+        "dwt": 19.852941950122087,
+        "grams": 30.87477596786845,
+        "metal": "Gold 22k"
+      },
+      {
+        "dwt": 21.54824935260442,
+        "grams": 33.51127369096733,
+        "metal": "Gold 24k"
+      },
+      {
+        "dwt": 13.38400580907107,
+        "grams": 20.81445570867536,
+        "metal": "Palladium 950"
+      },
+      {
+        "dwt": 23.92391038371453,
+        "grams": 37.2058395792572,
+        "metal": "Platinum 950"
+      }
+    ],
+    "min_relief_mm": 0.0,
+    "outer_diameter_mm": 27.474960327148438,
+    "quality": {
+      "degenerate_faces": 0,
+      "min_angle_deg": 0.00324584259913495,
+      "worst_aspect": 17652.08216407924
+    },
+    "refine": null,
+    "surface_area_mm2": 1565.1221963012747,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 501086,
+      "vertex_count": 250543,
+      "watertight": true
+    },
+    "volume_mm3": 1734.5379757229466
+  },
+  "cold_equal": true,
+  "design": "Phoenix",
+  "dfm": [],
+  "draft": true,
+  "field": {
+    "marginal_area_mm2": 20.618858504530053,
+    "notes": [
+      "Field-sampled: clean but for 0.005% at 0.8 deg, inside the sampling noise band of a fast-curving feature.",
+      "Undercut 117–117° on the upper shoulder: 0.1 mm² leaning to 1° — caused by \"Flame plumage\"; muting it clears it.",
+      "Cut at the bench after casting, and so not judged here: Hand-cut vane barbs, Cut rachis low, coverts 2, Cut rachis low, secondaries 2, Cut rachis low, primaries 2, Engraved eye, low, Cut rachis high, coverts 2, Cut rachis high, secondaries 2, Cut rachis high, primaries 2, Engraved eye, high.",
+      "15 made settings left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."
+    ],
+    "parting_z_mm": -0.004350585937500373,
+    "parts": [],
+    "process": "SandTwoPart",
+    "profile_samples": 128,
+    "theta_samples": 256,
+    "thinnest_wall_mm": 2.5586978616826226,
+    "thinnest_wall_theta_deg": 262.96875,
+    "total_area_mm2": 1337.7025643508987,
+    "undercut_area_mm2": 0.06576154886224085,
+    "verdict": "Castable",
+    "vertical_area_mm2": 6.931713928493126,
+    "worst_draft_deg": -0.841910126600933
+  },
+  "made_parts": {
+    "parts": [
+      {
+        "degenerate_faces": 0,
+        "faces": 780,
+        "name": "Wing low, coverts 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 392,
+        "volume_mm3": 2.5963533339502196
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 752,
+        "name": "Wing low, coverts 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 378,
+        "volume_mm3": 2.4452268660016023
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 732,
+        "name": "Wing low, coverts 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 368,
+        "volume_mm3": 2.295364467062222
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1024,
+        "name": "Wing low, secondaries 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 514,
+        "volume_mm3": 3.391793720281288
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 948,
+        "name": "Wing low, secondaries 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 476,
+        "volume_mm3": 3.2077587337215703
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 900,
+        "name": "Wing low, secondaries 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 452,
+        "volume_mm3": 3.0557505789979955
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1288,
+        "name": "Wing low, primaries 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 646,
+        "volume_mm3": 4.25485428600124
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1224,
+        "name": "Wing low, primaries 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 614,
+        "volume_mm3": 4.124267041618228
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1168,
+        "name": "Wing low, primaries 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 586,
+        "volume_mm3": 3.964058336903852
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1584,
+        "name": "Tail low, streamer 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 794,
+        "volume_mm3": 4.617533404849984
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1184,
+        "name": "Tail low, streamer 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 594,
+        "volume_mm3": 3.57671433874549
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 336,
+        "name": "Phoenix head, low",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 170,
+        "volume_mm3": 2.0749781695984684
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 792,
+        "name": "Wing high, coverts 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 398,
+        "volume_mm3": 2.5422533981204687
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 760,
+        "name": "Wing high, coverts 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 382,
+        "volume_mm3": 2.4447219332250896
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 728,
+        "name": "Wing high, coverts 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 366,
+        "volume_mm3": 2.3215197201893774
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1024,
+        "name": "Wing high, secondaries 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 514,
+        "volume_mm3": 3.3403549548778804
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 956,
+        "name": "Wing high, secondaries 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 480,
+        "volume_mm3": 3.2054929459105264
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 888,
+        "name": "Wing high, secondaries 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 446,
+        "volume_mm3": 3.078755421048328
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1292,
+        "name": "Wing high, primaries 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 648,
+        "volume_mm3": 4.211173003994913
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1228,
+        "name": "Wing high, primaries 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 616,
+        "volume_mm3": 4.110884720740546
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1168,
+        "name": "Wing high, primaries 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 586,
+        "volume_mm3": 4.026349901194149
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1568,
+        "name": "Tail high, streamer 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 786,
+        "volume_mm3": 4.585886342139749
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1188,
+        "name": "Tail high, streamer 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 596,
+        "volume_mm3": 3.5698726507649448
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 336,
+        "name": "Phoenix head, high",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 170,
+        "volume_mm3": 2.075127590283468
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 408,
+        "name": "Cut rachis low, coverts 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 206,
+        "volume_mm3": 0.13116746857578643
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 540,
+        "name": "Cut rachis low, secondaries 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 272,
+        "volume_mm3": 0.17517003457013566
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 700,
+        "name": "Cut rachis low, primaries 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 352,
+        "volume_mm3": 0.22708688269798458
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 72,
+        "name": "Engraved eye, low",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 38,
+        "volume_mm3": 0.024430510322191568
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 408,
+        "name": "Cut rachis high, coverts 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 206,
+        "volume_mm3": 0.13096707905063448
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 540,
+        "name": "Cut rachis high, secondaries 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 272,
+        "volume_mm3": 0.17492133500907042
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 700,
+        "name": "Cut rachis high, primaries 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 352,
+        "volume_mm3": 0.22637303472877424
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 72,
+        "name": "Engraved eye, high",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 38,
+        "volume_mm3": 0.02443051032218599
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 1728,
+        "name": "Fire opal, made collet head 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 864,
+        "volume_mm3": 34.048680738141336
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 560,
+        "name": "Fire trail, east cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 282,
+        "volume_mm3": 5.353555157468001
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.04840076239137358
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.04840076239137367
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.04840076239137371
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.048400762391373635
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 616,
+        "name": "Fire trail, east cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 310,
+        "volume_mm3": 6.687590303245295
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.06539355337643447
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.06539355337643442
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.06539355337643442
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.06539355337643447
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 672,
+        "name": "Fire trail, east cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 338,
+        "volume_mm3": 8.138705596091715
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.08505325911045089
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.08505325911045096
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.08505325911045089
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.08505325911045088
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 714,
+        "name": "Fire trail, east cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 359,
+        "volume_mm3": 9.415548244639336
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.1032075214825409
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.103207521482541
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.103207521482541
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.10320752148254096
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 420,
+        "name": "Fire trail, east cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 212,
+        "volume_mm3": 2.895066220216623
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.020712066803365882
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.02071206680336586
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.02071206680336586
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.0207120668033659
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 462,
+        "name": "Fire trail, east cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 233,
+        "volume_mm3": 3.4627574125295033
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.026597228276646085
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.02659722827664611
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.02659722827664609
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.026597228276646182
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 504,
+        "name": "Fire trail, east cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 254,
+        "volume_mm3": 4.271441484929186
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.03554774627107208
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.035547746271072087
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.0355477462710721
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, east bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.03554774627107212
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 714,
+        "name": "Fire trail, west cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 359,
+        "volume_mm3": 9.15384641562725
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.09941957338345135
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.09941957338345132
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.09941957338345142
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.09941957338345143
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 658,
+        "name": "Fire trail, west cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 331,
+        "volume_mm3": 7.8024136982339325
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.08040099198196465
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.08040099198196474
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.08040099198196461
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.0804009919819647
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 602,
+        "name": "Fire trail, west cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 303,
+        "volume_mm3": 6.358382113596372
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.06109643059083464
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.061096430590834624
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.06109643059083463
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.061096430590834694
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 546,
+        "name": "Fire trail, west cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 275,
+        "volume_mm3": 5.076333423821375
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.04502184640701044
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.04502184640701039
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.04502184640701024
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.04502184640701032
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 490,
+        "name": "Fire trail, west cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 247,
+        "volume_mm3": 4.058754720643363
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.03313751117499232
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.033137511174992314
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.033137511174992314
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.03313751117499231
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 448,
+        "name": "Fire trail, west cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 226,
+        "volume_mm3": 3.3099625681713665
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.024982866780187026
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.02498286678018702
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.024982866780186994
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.02498286678018702
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 420,
+        "name": "Fire trail, west cutter 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 212,
+        "volume_mm3": 2.7931514186080646
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 0",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.01968761220407746
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 1",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.019687612204077443
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 2",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.019687612204077463
+      },
+      {
+        "degenerate_faces": 0,
+        "faces": 224,
+        "name": "Fire trail, west bead 3",
+        "open_edges": 0,
+        "repeated_edges": 0,
+        "self_crossings": 0,
+        "vertices": 114,
+        "volume_mm3": 0.019687612204077404
+      }
+    ],
+    "stamp_projection_independence": [
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing low, coverts 1",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing low, coverts 2",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing low, coverts 3",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing low, secondaries 1",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing low, secondaries 2",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing low, secondaries 3",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing low, primaries 1",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing low, primaries 2",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing low, primaries 3",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Tail low, streamer 1",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Tail low, streamer 2",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Phoenix head, low",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing high, coverts 1",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing high, coverts 2",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing high, coverts 3",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing high, secondaries 1",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing high, secondaries 2",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing high, secondaries 3",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing high, primaries 1",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing high, primaries 2",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Wing high, primaries 3",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Tail high, streamer 1",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Tail high, streamer 2",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Phoenix head, high",
+        "same_topology": true,
+        "tier": 0
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Cut rachis low, coverts 2",
+        "same_topology": true,
+        "tier": 1
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Cut rachis low, secondaries 2",
+        "same_topology": true,
+        "tier": 1
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Cut rachis low, primaries 2",
+        "same_topology": true,
+        "tier": 1
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Engraved eye, low",
+        "same_topology": true,
+        "tier": 1
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Cut rachis high, coverts 2",
+        "same_topology": true,
+        "tier": 1
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Cut rachis high, secondaries 2",
+        "same_topology": true,
+        "tier": 1
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Cut rachis high, primaries 2",
+        "same_topology": true,
+        "tier": 1
+      },
+      {
+        "identical_coordinates": true,
+        "max_coordinate_delta_mm": 0.0,
+        "name": "Engraved eye, high",
+        "same_topology": true,
+        "tier": 1
+      }
+    ]
+  },
+  "mesh_self_crossings": 0,
+  "plumage_clamp_mm": 0.004750127792358398,
+  "preview_stone_components": 15,
+  "release_0_075": {
+    "bounds": [
+      [
+        -13.535989761352539,
+        -12.62674617767334,
+        -4.928644180297852
+      ],
+      [
+        13.629603385925293,
+        15.380348205566406,
+        4.928644180297852
+      ]
+    ],
+    "cell_mm": [
+      0.07483634475834114,
+      0.07488527909957152
+    ],
+    "fits_flask": true,
+    "frame": {
+      "x": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "y": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "z": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "grid": [
+      363,
+      374
+    ],
+    "low_draft_area_mm2": 228.42905256040513,
+    "notes": [
+      "228.43 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.075 × 0.075 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
+    "obstructions": [],
+    "occupied_rays": 52547,
+    "parting_mm": 0.0,
+    "sand_findings": [
+      {
+        "message": "Sand slot about 0.07 mm wide; inspect its support and depth",
+        "point": [
+          12.768985421204372,
+          -3.6030700461749725,
+          0.0
+        ],
+        "width_mm": 0.07488527909957152
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          -12.30119007283991,
+          2.8370639563881777,
+          2.464322090148926
+        ],
+        "width_mm": 0.5990822327965721
+      }
+    ],
+    "status": "Review",
+    "suggested_parting_mm": 0.0,
+    "tolerance_mm": 0.02,
+    "unresolved_rays": 0,
+    "worst_draft_deg": -0.29436171478812007
+  },
+  "release_0_1": {
+    "bounds": [
+      [
+        -13.535989761352539,
+        -12.62674617767334,
+        -4.928644180297852
+      ],
+      [
+        13.629603385925293,
+        15.380348205566406,
+        4.928644180297852
+      ]
+    ],
+    "cell_mm": [
+      0.0998735042179332,
+      0.09966937502932294
+    ],
+    "fits_flask": true,
+    "frame": {
+      "x": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "y": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "z": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "grid": [
+      272,
+      281
+    ],
+    "low_draft_area_mm2": 228.42905256040513,
+    "notes": [
+      "228.43 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
+    "obstructions": [],
+    "occupied_rays": 29593,
+    "parting_mm": 0.0,
+    "sand_findings": [
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          -12.487317967064241,
+          -4.404022737754198,
+          0.0
+        ],
+        "width_mm": 0.2990081250879688
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          12.780678600072857,
+          -3.506998362490291,
+          0.0
+        ],
+        "width_mm": 0.19933875005864587
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          12.780678600072857,
+          -2.6099739872263856,
+          0.0
+        ],
+        "width_mm": 0.39867750011729175
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          -12.287570958628375,
+          2.871841639386377,
+          2.464322090148926
+        ],
+        "width_mm": 0.39867750011729175
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          12.281311078983194,
+          2.871841639386377,
+          2.464322090148926
+        ],
+        "width_mm": 0.39867750011729175
+      }
+    ],
+    "status": "Review",
+    "suggested_parting_mm": 0.0,
+    "tolerance_mm": 0.02,
+    "unresolved_rays": 0,
+    "worst_draft_deg": -0.29436171478812007
+  },
+  "solids": {
+    "seats": 15,
+    "stamps": 32
+  },
+  "solids_notes": [],
+  "stones": {
+    "carats": 1.457095655957244,
+    "closest": {
+      "depth_mm": 1.8222102134551459,
+      "girdle_mm": 1.9512648299490525
+    },
+    "count": 15,
+    "crowding": [],
+    "stations": [
+      {
+        "gem": {
+          "cut": "Oval",
+          "form": "Cabochon",
+          "l_mm": 8.0,
+          "preview_tint": [
+            0.949999988079071,
+            0.18000000715255737,
+            0.03500000014901161
+          ],
+          "w_mm": 6.0
+        },
+        "girdle": [
+          9.330790528848069e-16,
+          15.238337348114621,
+          -0.08144742109331303
+        ],
+        "name": "Fire opal, made collet",
+        "theta": 90.0
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.6500000000000001,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.6500000000000001
+        },
+        "girdle": [
+          12.916782771421186,
+          0.0,
+          0.0
+        ],
+        "name": "Fire trail, east",
+        "theta": 0.0
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.8240840911798133,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.8240840911798133
+        },
+        "girdle": [
+          12.46996205735442,
+          4.160872048866751,
+          0.0
+        ],
+        "name": "Fire trail, east",
+        "theta": 18.452389589364657
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.9911173802416986,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.9911173802416986
+        },
+        "girdle": [
+          10.57281382962179,
+          8.35941378037636,
+          -0.001038767570984726
+        ],
+        "name": "Fire trail, east",
+        "theta": 38.33172110718437
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 2.1237513090894318,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 2.1237513090894318
+        },
+        "girdle": [
+          7.0768304955375285,
+          11.999849122352638,
+          8.881782943204404e-16
+        ],
+        "name": "Fire trail, east",
+        "theta": 59.470306861436875
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.2433909138801411,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.2433909138801411
+        },
+        "girdle": [
+          8.47268684438967,
+          -9.301867886478911,
+          3.404227556478261e-16
+        ],
+        "name": "Fire trail, east",
+        "theta": -47.670905510549574
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.351487407808945,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.351487407808945
+        },
+        "girdle": [
+          10.614677909645232,
+          -6.85933807168369,
+          0.0
+        ],
+        "name": "Fire trail, east",
+        "theta": -32.871051642900525
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.4886887299665148,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.4886887299665148
+        },
+        "girdle": [
+          12.186418962394718,
+          -3.7386085621466174,
+          6.184035370908199e-16
+        ],
+        "name": "Fire trail, east",
+        "theta": -17.05521945078202
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 2.0974446475495405,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 2.0974446475495405
+        },
+        "girdle": [
+          -8.044452620606569,
+          11.254138295288595,
+          0.0
+        ],
+        "name": "Fire trail, west",
+        "theta": 125.55716627609156
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.9541310211230265,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.9541310211230265
+        },
+        "girdle": [
+          -11.149350879265107,
+          7.399394577412785,
+          -0.0010243149637921166
+        ],
+        "name": "Fire trail, west",
+        "theta": 146.4293029887453
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.7832209434017843,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.7832209434017843
+        },
+        "girdle": [
+          -12.696514721772793,
+          3.1697389487886687,
+          0.0
+        ],
+        "name": "Fire trail, west",
+        "theta": 165.98240239392405
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.6106739844972588,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.6106739844972588
+        },
+        "girdle": [
+          -12.839510188788816,
+          -0.9204044902842137,
+          0.0
+        ],
+        "name": "Fire trail, west",
+        "theta": 184.1002528652573
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.4542525670787554,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.4542525670787554
+        },
+        "girdle": [
+          -11.881851509348481,
+          -4.525096126614817,
+          0.0
+        ],
+        "name": "Fire trail, west",
+        "theta": 200.84888458525342
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.3235711759173647,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.3235711759173647
+        },
+        "girdle": [
+          -10.158784586712168,
+          -7.491417828940443,
+          0.0
+        ],
+        "name": "Fire trail, west",
+        "theta": 216.4062691865251
+      },
+      {
+        "gem": {
+          "cut": "Round",
+          "form": "Faceted",
+          "l_mm": 1.222543231206573,
+          "preview_tint": [
+            0.9599999785423279,
+            0.28999999165534973,
+            0.04500000178813934
+          ],
+          "w_mm": 1.222543231206573
+        },
+        "girdle": [
+          -7.910687813155549,
+          -9.77041478834718,
+          0.0
+        ],
+        "name": "Fire trail, west",
+        "theta": 231.00438521097348
+      }
+    ],
+    "tight_pairs": 0,
+    "warnings": [
+      "Fire trail, east: bridge 0.92 mm is tight — 1.20 mm is safer in this sand",
+      "Fire trail, west: bridge 0.92 mm is tight — 1.20 mm is safer in this sand"
+    ]
+  }
+}
