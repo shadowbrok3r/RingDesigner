@@ -1,5 +1,11 @@
 # Vepres — *the thorned botanical collection*
 
+> **Logan's decisions after this file was written (2026-09-24) — these override the text below:**
+> - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
+> - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
+> - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. Cataphracta pours six rings in sand and two in wax.
+
+
 **Sheet subtitle:** FOUR SIGNETS · FOUR VINES · FIFTY-TWO STONES
 **Sheet footnote:** "Poured in sand where the thorn lies in the parting plane; lost to wax where it does not."
 **House line:** Kings of Alchemy. Final renders in studio 18k yellow gold, stones set, recesses darkened.

@@ -45,7 +45,7 @@ director's changes and Logan's answers.
 His taste, from many sessions: one theme face to palm (Palisade was retired as "random elements
 placed in various spots"); figurative motifs are stamps with true outlines (painted moons "look
 like arrows"); stones in made settings, never height-field prongs ("quite awful"); no faces, no
-snake eyes; signets start from factory stock, which has the hard angles where wall meets face;
+snake eyes (faces are allowed now if they are good, see below); signets start from factory stock, which has the hard angles where wall meets face;
 reptiles land, the celestial Zenith did not. His own ZBrush rings are in
 `/home/shadowbroker/jewelry-scan/RING/` (winged bands, honeycomb-scale signet faces, knotwork and
 scrollwork shanks, skulls and deity heads). The bar is Caiman
@@ -70,26 +70,21 @@ Check before resuming:
    (`git worktree list`). Finish their review rounds before starting new rings.
 3. Push `master` only when every suite is green.
 
-## Open decisions for Logan
+## Decisions made after the collection files were written
 
-The collection files were checked against the batch 15 probes, which changed four plans:
+Logan answered the open questions on 2026-09-24; each collection file carries them in a note at
+its top, and they override the text under it:
 
-1. **Chelonia (factory 007) and Phrynosoma (factory 016) fail in sand before any ornament.** The
-   bare 007 sand master reads NotCastable (14.7% at −64°) and 016 reads 2.9% at −7.6°; the sand
-   envelope cannot rescue either. Recommended: keep them in sand as procedural lofted heads on the
-   bundled "CG Quatrefoil" and "CG Star" outlines. Alternative: the real stock in lost wax (the
-   collection then pours seven in sand). `cataphracta.md` step 0 re-measures both at their own size.
-2. **Chamaeleo's 17 × 13 face is outside the stock's resize range** (70–130% of the master); the
-   file uses 17 × 14.5, and the bare 001 is borderline (0.10% at −1.6°), measured first.
-3. **Viscum cannot pour in sand on 003 Clover** (the envelope needs 4.2 mm). Recommended: lost wax
-   on the native 003, keeping the factory lobes (Vepres then pours three in sand, five in wax).
-   Alternative: a procedural clover signet in sand.
-4. **Skulls and gargoyles.** The writers read "no faces or eyes" strictly: Capsa's skull became
-   crossed bones under an hourglass, and Arcus's gargoyle a plain silhouette. Logan's rule came
-   from the reptile rings (no snake faces or eyes) and his own business rings are full of skulls,
-   so ask whether a skull is wanted in the reliquary.
+1. **Faces are allowed.** He had ruled them out only because earlier attempts were poor: "feel
+   free to impress me with a face." Capsa's skull comes back, Arcus's gargoyle may have a face, and
+   Bestiarium creatures may carry heads, all held to the render review's bar.
+2. **Viscum goes lost wax on the native 003 Clover.**
+3. **Chelonia (007) and Phrynosoma (016) go lost wax on the real factory stock** (the
+   recommendation: factory stock keeps the hard wall-to-face angles he prefers, and wax frees the
+   carapace and horns from the draft clamp). Cataphracta pours six in sand, two in wax.
+4. Chamaeleo's face is 17 × 14.5 (13 mm is below the stock's 70% resize floor), measured bare first.
 
-Also open in `tenebrae.md`: the lid hinge (a real bench hinge or cast shut), the alloys, and
+Still open in `tenebrae.md`: the lid hinge (a real bench hinge or cast shut), the alloys, and
 Oculus's weight (about 18 g of silver).
 
 ## Build order from here

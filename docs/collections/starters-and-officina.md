@@ -1,5 +1,11 @@
 # Starters and Officina: handoff plan
 
+> **Logan's decisions after this file was written (2026-09-24) — these override the text below:**
+> - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
+> - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
+> - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. Cataphracta pours six rings in sand and two in wax.
+
+
 This file is the plan for the File > New from template starter gallery (Starter bands, Stone settings, Starter signets), the six-lesson Officina collection that replaces the Workshop collection, and platform enablers P5–P8, which are built in the same batch. It is self-contained. A reader with this file and the repo can build every entry without the session that wrote it.
 
 - **Repo:** `/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner`. Written against branch `collections-handoff` at `30f0506`. Batch 15's merge commits (`b15-cad-stones`, `b15-skin`, `b15-stamps`, `b15-open-speed`) are already on that branch.

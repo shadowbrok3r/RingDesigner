@@ -1,5 +1,11 @@
 # Cataphracta — *Reptilia II*
 
+> **Logan's decisions after this file was written (2026-09-24) — these override the text below:**
+> - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
+> - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
+> - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. Cataphracta pours six rings in sand and two in wax.
+
+
 **Sheet subtitle:** EIGHT HIDES · FIVE BANDS · THREE SIGNETS · THREE STONES · ALL POURED IN SAND
 
 **Primary side of the app:** the height field used as a sculptor's layer stack under the sand's rules. Every hide is built from live, editable layers: masks, tie-exact `SmoothMax`, gradient-SVG alphas, warp, helix shear, graded tilings, keyframed bodies and terrace remaps. The draft rule is applied as a live clamp, and every figurative part is a struck stamp with a true outline. Every ring pours in two-part sand (six in Delft clay, two in Petrobond), carries at most one stone, and must come out **Castable** (not "Castable with care") with **zero DFM findings**.

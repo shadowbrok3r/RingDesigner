@@ -1,5 +1,11 @@
 # Bestiarium — the dark bestiary
 
+> **Logan's decisions after this file was written (2026-09-24) — these override the text below:**
+> - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
+> - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
+> - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. Cataphracta pours six rings in sand and two in wax.
+
+
 **Sheet subtitle (nine authored):** NINE BEASTS · THREE IN SAND · SIX IN WAX · THIRTY-FIVE STONES. After the first render round the weakest ring is dropped and the subtitle is recomputed from the eight that remain (Logan, 2026-09-24).
 
 **What the collection shows:** the app's sculpting side. Hides and plumage are painted in metal millimetres on the bare-surface atlas (`core/skin.rs`), on factory stock and on keyframed and bypass bodies. Emblems are struck as true outlines (stamps v2: `core/outline.rs`, tiers, tops and rows). Every stone is in a made setting, and the creatures' weapons are CAD parts: fang, talon and tentacle claws, a twisted-sweep stinger, lofted feathers. Each ring is judged against its own `DraftSettings::process`.
