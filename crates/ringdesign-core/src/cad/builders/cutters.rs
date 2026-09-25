@@ -1,5 +1,5 @@
 //! Piercings, azure windows and cathedral shoulders, each made in its own frame and reading the band through [`Bore`].
-use super::{AZURE, BASKET, BEZEL, BEZEL_SINK_MM, BUR, Bore, CATHEDRAL, CLAW, HEAD, Made, PIERCE, Seat, Values, build, component, gem_label, head_param, label, under_wall, walled_collet};
+use super::{AZURE, BASKET, BEZEL, BEZEL_SINK_MM, BUR, Bore, CATHEDRAL, CLAW, HEAD, Made, PIERCE, SPLIT, WINDOW, Seat, Values, build, component, gem_label, head_param, label, under_wall, walled_collet};
 use crate::RingDesign;
 use crate::cad::{Component, Feature, Operation, Placement, Stage};
 use crate::csg::{P3, Solid};
@@ -284,6 +284,156 @@ fn band<'b, 'a>(bore: Option<&'b Bore<'a>>, who: &str) -> Result<&'b Bore<'a>> {
 /// Refused for breaking through the band's edge.
 fn off_the_edge(who: &str) -> anyhow::Error {
     anyhow!("{who} would break through the band's edge: keep it {MIN_EDGE_MM} mm inside the band, or make it smaller")
+}
+
+/// A cutter in its builder frame with outward faces and one named wall patch.
+fn named_cutter(mut solid: Solid, bore: &Bore) -> Named {
+    if solid.volume() < 0.0 {
+        for f in &mut solid.f { f.swap(1, 2); }
+    }
+    solid.v.iter_mut().for_each(|p| *p = local(bore.frame(), *p));
+    Named { patch: vec![0; solid.f.len()], solid, names: vec!["Wall".into()] }
+}
+
+/// A radial section loft with shared vertices where either end closes to a line.
+fn split_loft(rings: &[Vec<P3>]) -> Solid {
+    let mut solid = Solid::default();
+    let mut index = std::collections::BTreeMap::new();
+    let mut ids = Vec::new();
+    for ring in rings {
+        ids.push(ring.iter().map(|&p| {
+            let key = p.map(|x| if x == 0.0 { 0 } else { x.to_bits() });
+            *index.entry(key).or_insert_with(|| {
+                let id = solid.v.len() as u32;
+                solid.v.push(p);
+                id
+            })
+        }).collect::<Vec<_>>());
+    }
+    let mut face = |f: [u32; 3]| {
+        if f[0] != f[1] && f[1] != f[2] && f[2] != f[0] { solid.f.push(f); }
+    };
+    for pair in ids.windows(2) {
+        for i in 0..pair[0].len() {
+            let j = (i + 1) % pair[0].len();
+            face([pair[0][i], pair[1][i], pair[1][j]]);
+            face([pair[0][i], pair[1][j], pair[0][j]]);
+        }
+    }
+    solid
+}
+
+/// The slot follows each actual section and leaves a named minimum rail on both sides.
+pub(super) fn split(v: &Values, bore: Option<&Bore>) -> Result<Named> {
+    let bore = band(bore, label(SPLIT))?;
+    let (centre, spread, gap) = (v.f("theta_deg"), v.f("spread_deg"), v.f("gap_mm"));
+    let steps = (spread * 2.0).ceil() as usize;
+    let mut rings = Vec::with_capacity(steps + 1);
+    for k in 0..=steps {
+        let x = 2.0 * k as f64 / steps as f64 - 1.0;
+        let theta = centre + spread * x;
+        let t = 1.0 - x.abs();
+        let share = if v.s("tip") == "Round" { (1.0 - x * x).max(0.0).sqrt() } else { t * t * t * (t * (6.0 * t - 15.0) + 10.0) };
+        let half = gap * 0.5 * share;
+        let (lo, hi) = bore.z_extent(theta).ok_or_else(|| off_the_edge(label(SPLIT)))?;
+        let rail = (hi - half).min(-half - lo);
+        let rounding = v.f("rail_round_mm") * share;
+        ensure!(rail - rounding >= MIN_EDGE_MM, "Split at {theta:.1}° leaves a {:.2} mm rail after rounding, below the {MIN_EDGE_MM} mm edge; narrow the gap or widen this station", rail - rounding);
+        let section = bore.section(theta).ok_or_else(|| off_the_edge(label(SPLIT)))?;
+        let r0 = section.iter().map(|p| p[0]).fold(f64::INFINITY, f64::min) - 0.8;
+        let r1 = section.iter().map(|p| p[0]).fold(f64::NEG_INFINITY, f64::max) + 0.8;
+        let (sin, cos) = theta.to_radians().sin_cos();
+        let side = |sign: f64| -> Result<Vec<P3>> {
+            let crossing = bore.crossings(theta, sign * half);
+            ensure!(crossing.len() == 2, "Split at {theta:.1}° needs one solid band section");
+            let (ri, ro) = (crossing[0], crossing[1]);
+            let radius = rounding.min((ro - ri) * 0.45);
+            let mut profile = vec![(r0, half + radius)];
+            for k in 0..=6 {
+                let a = FRAC_PI_2 * k as f64 / 6.0;
+                profile.push((ri + radius * (1.0 - a.cos()), half + radius * (1.0 - a.sin())));
+            }
+            for k in 0..=6 {
+                let a = FRAC_PI_2 * k as f64 / 6.0;
+                profile.push((ro - radius * (1.0 - a.sin()), half + radius * (1.0 - a.cos())));
+            }
+            profile.push((r1, half + radius));
+            Ok(profile.into_iter().map(|(r, z)| [r * cos, r * sin, sign * z]).collect())
+        };
+        let mut ring = side(-1.0)?;
+        ring.extend(side(1.0)?.into_iter().rev());
+        rings.push(ring);
+    }
+    Ok(named_cutter(split_loft(&rings), bore))
+}
+
+/// A parallel polygon offset, with its vertices retained for matched lofts.
+fn offset_window(plan: &[[f64; 2]], grow: f64) -> Result<Vec<[f64; 2]>> {
+    let n = plan.len();
+    (0..n).map(|i| {
+        let p = plan[i];
+        let normal = |q: [f64; 2], r: [f64; 2]| {
+            let d = [r[0] - q[0], r[1] - q[1]];
+            let len = d[0].hypot(d[1]);
+            [d[1] / len, -d[0] / len]
+        };
+        let (a, b) = (normal(plan[(i + n - 1) % n], p), normal(p, plan[(i + 1) % n]));
+        let den = 1.0 + a[0] * b[0] + a[1] * b[1];
+        ensure!(den.is_finite() && den > 0.01, "Gallery window turns too sharply at a tip; shorten its arc or reduce the rails");
+        Ok([p[0] + grow * (a[0] + b[0]) / den, p[1] + grow * (a[1] + b[1]) / den])
+    }).collect()
+}
+
+/// Two overlapping drafted halves share their exterior, with no coincident internal caps.
+pub(super) fn window(v: &Values, bore: Option<&Bore>) -> Result<Named> {
+    let bore = band(bore, label(WINDOW))?;
+    let start = v.f("from_deg");
+    let span = (v.f("to_deg") - start).rem_euclid(360.0);
+    ensure!(span >= 2.0 && span <= 300.0, "Gallery window needs an arc between 2° and 300°");
+    let steps = (span * 2.0).ceil() as usize;
+    let mut inner = Vec::with_capacity(steps + 1);
+    let mut outer = Vec::with_capacity(steps + 1);
+    let mut half_z: f64 = 0.0;
+    for k in 0..=steps {
+        let theta = start + span * k as f64 / steps as f64;
+        let crossings = bore.crossings(theta, 0.0);
+        ensure!(crossings.len() == 2, "Gallery window at {theta:.1}° needs one solid band section");
+        let r0 = crossings[0] + v.f("rail_in_mm");
+        let r1 = crossings[1] - v.f("rail_out_mm");
+        ensure!(r1 - r0 >= 0.05, "Gallery window at {theta:.1}° has no room between its rails; thicken this station or reduce the rails");
+        let radius = v.f("tip_round_mm").min((r1 - r0) * 0.45);
+        let along = (theta - start).min(start + span - theta).to_radians() * (r0 + r1) * 0.5;
+        let trim = if along < radius { radius - (2.0 * radius * along - along * along).max(0.0).sqrt() } else { 0.0 };
+        let (sin, cos) = theta.to_radians().sin_cos();
+        inner.push([(r0 + trim) * cos, (r0 + trim) * sin]);
+        outer.push([(r1 - trim) * cos, (r1 - trim) * sin]);
+        let (lo, hi) = bore.z_extent(theta).ok_or_else(|| off_the_edge(label(WINDOW)))?;
+        half_z = half_z.max(lo.abs()).max(hi.abs());
+    }
+    let m = outer.len();
+    let plan: Vec<[f64; 2]> = outer.into_iter().chain(inner.into_iter().rev()).collect();
+    let n = plan.len();
+    let height = half_z + PAST_MM;
+    let mut solid = Solid::default();
+    for z in [height, 0.0, -height] {
+        let outline = offset_window(&plan, (z.abs() + 0.05) * v.f("draft_deg").to_radians().tan())?;
+        solid.v.extend(outline.iter().map(|p| [p[0], p[1], z]));
+    }
+    let at = |layer: usize, i: usize| (layer * n + i % n) as u32;
+    for layer in 0..2 {
+        for i in 0..n {
+            solid.f.extend([[at(layer, i), at(layer + 1, i), at(layer + 1, i + 1)], [at(layer, i), at(layer + 1, i + 1), at(layer, i + 1)]]);
+        }
+    }
+    for (layer, reverse) in [(0, false), (2, true)] {
+        for i in 0..m - 1 {
+            for mut f in [[at(layer, i), at(layer, i + 1), at(layer, n - 2 - i)], [at(layer, i), at(layer, n - 2 - i), at(layer, n - 1 - i)]] {
+                if reverse { f.swap(1, 2); }
+                solid.f.push(f);
+            }
+        }
+    }
+    Ok(named_cutter(solid, bore))
 }
 
 /// A piercing down its frame's axis from over the surface to past the metal or to its depth, a 45° bright cut at the rim.

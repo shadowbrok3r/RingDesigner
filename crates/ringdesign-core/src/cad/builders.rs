@@ -29,6 +29,10 @@ pub const PIERCE: &str = "cutter.pierce";
 pub const AZURE: &str = "cutter.azure";
 /// Wire arches from the band's shoulders to a head's gallery rail.
 pub const CATHEDRAL: &str = "shank.cathedral";
+/// A through slot that parts a wax shank into two rails.
+pub const SPLIT: &str = "cutter.split";
+/// A drafted gallery window through the band along the pull.
+pub const WINDOW: &str = "cutter.window";
 /// The parameter a builder made round a stone's head names that head's feature by.
 pub const HEAD: &str = "head";
 /// The builders that are a stone's head: what azures keep clear of and cathedral shoulders meet.
@@ -67,6 +71,8 @@ pub const SPECS: &[Spec] = &[
     Spec { key: PIERCE, label: "Piercing", role: ComponentRole::Other, attach: Attach::Cut, reference: false, on_stone: false, hint: "A shaped hole cut through the band along its surface normal — round, oval, marquise, heart or drop — through to open air or blind to a depth, with a bright-cut chamfer at its rim" },
     Spec { key: AZURE, label: "Azures", role: ComponentRole::Setting, attach: Attach::Cut, reference: false, on_stone: true, hint: "Round or teardrop windows cut up through the band under a stone round its axis, clear of its seat and its head's claws and rails, letting light in from below" },
     Spec { key: CATHEDRAL, label: "Cathedral shoulders", role: ComponentRole::Shank, attach: Attach::Join, reference: false, on_stone: true, hint: "Two wire arches rising from the band's shoulders either side of the stone to the underside of its head's gallery rail, joined to both" },
+    Spec { key: SPLIT, label: "Split", role: ComponentRole::Shank, attach: Attach::Cut, reference: false, on_stone: false, hint: "A slot from crest to bore that parts the band into two rails, judged for lost wax" },
+    Spec { key: WINDOW, label: "Gallery window", role: ComponentRole::Shank, attach: Attach::Cut, reference: false, on_stone: false, hint: "A window along the pull with drafted walls and metal rails inside and outside" },
 ];
 
 /// The builder called `key`.
@@ -140,6 +146,11 @@ pub fn claw_geometry_extended(key: &str, params: &Json) -> bool {
         .any(|(key, default)| params.get(*key).is_some_and(|v| !v.is_null() && v.as_str() != Some(*default)))
 }
 
+/// Builder geometry that released readers cannot reproduce.
+pub fn geometry_extended(key: &str, params: &Json) -> bool {
+    matches!(key, SPLIT | WINDOW) || claw_geometry_extended(key, params)
+}
+
 fn number(key: &'static str, label: &'static str, unit: &'static str, min: f64, max: f64, default: f64) -> Param {
     Param { key, label, unit, min, max, kind: Kind::Number, default: json!(default) }
 }
@@ -207,6 +218,21 @@ pub fn schema(key: &str, gem: Gem) -> Vec<Param> {
             number("spread_deg", "Spread", "°", 12.0, 75.0, cutters::SPREAD_DEG),
             number("rise", "Rise", "", 0.15, 1.2, cutters::RISE),
             number("wire_mm", "Wire", "mm", 0.4, 2.0, cutters::arch_wire_mm(gem)),
+        ],
+        SPLIT => vec![
+            number("theta_deg", "Centre", "°", 0.0, 360.0, 90.0),
+            number("spread_deg", "Half arc", "°", 20.0, 80.0, 48.0),
+            number("gap_mm", "Gap", "mm", 0.3, 6.0, 2.6),
+            number("rail_round_mm", "Rail round", "mm", 0.0, 0.6, 0.3),
+            choice("tip", "Tip", &["Point", "Round"], json!("Point")),
+        ],
+        WINDOW => vec![
+            number("from_deg", "From", "°", 0.0, 360.0, 38.0),
+            number("to_deg", "To", "°", 0.0, 360.0, 142.0),
+            number("rail_in_mm", "Inner rail", "mm", 0.5, 3.0, 1.0),
+            number("rail_out_mm", "Outer rail", "mm", 0.5, 3.0, 1.0),
+            number("draft_deg", "Draft", "°", 0.0, 5.0, 2.0),
+            number("tip_round_mm", "Tip round", "mm", 0.0, 1.0, 0.35),
         ],
         _ => Vec::new(),
     }
@@ -801,6 +827,8 @@ pub fn build_in(key: &str, gem: Gem, params: &Json, seat: Seat, floor: Option<se
         }
         HALO => return halo(gem, &v, wall),
         PIERCE => return Made::of(key, cutters::pierce(&v, bore)?, None),
+        SPLIT => return Made::of(key, cutters::split(&v, bore)?, None),
+        WINDOW => return Made::of(key, cutters::window(&v, bore)?, None),
         AZURE => return cutters::azure(gem, &v, params, seat, floor, bore, wall),
         CATHEDRAL => cutters::cathedral(gem, &v, params, seat, floor, bore, wall)?,
         _ => unreachable!("checked above"),

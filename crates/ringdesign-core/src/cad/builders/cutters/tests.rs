@@ -16,6 +16,94 @@ fn params() -> BuildParams {
 fn court() -> RingDesign {
     crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design()
 }
+
+fn shank_cutter(key: &str, params: Json, stage: Stage) -> Feature {
+    Feature { id: 2, name: label(key).into(), enabled: true, operation: Operation::Builder { key: key.into(), on: None, params }, component: Component { stage, ..component(key) } }
+}
+
+fn gallery_band() -> RingDesign {
+    let mut d = RingDesign::default();
+    d.profile.apply_style(ProfileStyle::LowDome);
+    d.profile.width_mm = 4.2;
+    d.profile.thickness_mm = 1.8;
+    d.shank.kind = crate::profile::ShankKind::Keyframes;
+    d.shank.amount = 1.0;
+    d.shank.keys = [(270.0, 1.0), (200.0, 1.0), (340.0, 1.0), (150.0, 1.35), (30.0, 1.35), (120.0, 1.85), (60.0, 1.85), (90.0, 2.3)].into_iter().map(|(theta_deg, thickness_scale)| crate::profile::ShankKey { theta_deg, thickness_scale, ..Default::default() }).collect();
+    d
+}
+
+#[test]
+fn split_cutters_close_at_real_tips_leave_rails_and_refuse_sand_casting() {
+    let mut d = flat();
+    crate::castability::CastProcess::LostWax.apply(&mut d.draft);
+    for tip in ["Point", "Round"] {
+        let design = with(&d, vec![shank_cutter(SPLIT, json!({"tip":tip}), Stage::Cast)]);
+        let evaluated = cad::evaluate(&design, &AlphaLibrary::builtin(), params()).unwrap();
+        assert_eq!(evaluated.status_of(2), Some(&FeatureStatus::Ok));
+        let c = evaluated.components.iter().find(|c| c.id == 2).unwrap();
+        let check = c.made.as_ref().unwrap().solid().check(true);
+        assert_eq!((check.open_edges, check.repeated_edges, check.zero_area_faces, check.self_crossings), (0, 0, 0, Some(0)), "{tip}: {check:?}");
+        assert!(check.volume > 0.0);
+        assert_eq!(c.settings.blend_mm, 0.0, "the cutter rounds its own rims without a second seam operation");
+        let built = build(&design);
+        watertight(&built);
+        assert!(built.parts.notes.is_empty(), "{tip}: {:?}", built.parts.notes);
+        assert_eq!(pieces(&as_solid(&built.mesh)), 1);
+        let bvh = Bvh::build(&built.mesh);
+        let radius = d.inner_radius_mm() + d.profile.thickness_mm * 0.5;
+        assert!(bvh.ray(&built.mesh, [0.0, radius, -0.5], [0.0, 0.0, 1.0]).is_some(), "the upper rail remains");
+        assert!(bvh.ray(&built.mesh, [0.0, radius, 0.0], [0.0, 1.0, 0.0]).is_none(), "the slot opens from the bore to the crest");
+    }
+    let sand = with(&flat(), vec![shank_cutter(SPLIT, json!({}), Stage::Cast)]);
+    assert!(matches!(status(&sand, 2), FeatureStatus::Failed(m) if m.contains("a true split is two crests")));
+    let bench = with(&flat(), vec![shank_cutter(SPLIT, json!({}), Stage::Bench)]);
+    assert_eq!(status(&bench, 2), FeatureStatus::Ok);
+    let thin = with(&d, vec![shank_cutter(SPLIT, json!({"gap_mm":5.0}), Stage::Cast)]);
+    assert!(matches!(status(&thin, 2), FeatureStatus::Failed(m) if m.contains("Split at") && m.contains("rail")));
+}
+
+#[test]
+fn gallery_windows_are_closed_drafted_and_open_along_the_pull_with_both_rails() {
+    let d = gallery_band();
+    let design = with(&d, vec![shank_cutter(WINDOW, json!({}), Stage::Cast)]);
+    let built = build(&design);
+    watertight(&built);
+    assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
+    let c = part(&built, 2);
+    assert_eq!(c.stage, Stage::Cast);
+    let s = c.made.as_ref().unwrap().solid();
+    let check = s.check(true);
+    assert_eq!((check.open_edges, check.repeated_edges, check.zero_area_faces, check.self_crossings), (0, 0, 0, Some(0)), "{check:?}");
+    let bvh = Bvh::build(&built.mesh);
+    let bore = Bore::of(&d, &cadkernel::brep::Placement::IDENTITY);
+    let rs = bore.crossings(90.0, 0.0);
+    let mid = (rs[0] + rs[1]) * 0.5;
+    for z in [-5.0, 5.0] {
+        assert!(bvh.ray(&built.mesh, [0.0, mid, z], [0.0, 0.0, -z.signum()]).is_none(), "the gallery opens through both faces");
+    }
+    let inner = run(&built.mesh, &bvh, [0.0, rs[0] - 0.5, 0.0], [0.0, 1.0, 0.0]).unwrap().1;
+    let outer = run(&built.mesh, &bvh, [0.0, rs[1] + 0.5, 0.0], [0.0, -1.0, 0.0]).unwrap().1;
+    assert!(inner >= 0.8 && outer >= 0.8, "gallery rails {inner:.3}/{outer:.3} mm");
+    assert_eq!(pieces(&as_solid(&built.mesh)), 1);
+    let zero = with(&d, vec![shank_cutter(WINDOW, json!({"draft_deg":0.0,"tip_round_mm":0.0}), Stage::Cast)]);
+    assert_eq!(status(&zero, 2), FeatureStatus::Ok);
+    let no_room = with(&flat(), vec![shank_cutter(WINDOW, json!({"rail_in_mm":2.0,"rail_out_mm":2.0}), Stage::Cast)]);
+    assert!(matches!(status(&no_room, 2), FeatureStatus::Failed(m) if m.contains("Gallery window at") && m.contains("rails")));
+}
+
+#[test]
+fn shank_cutters_preserve_the_existing_format_fence_and_refuse_ignored_placements() {
+    for key in [SPLIT, WINDOW] {
+        let mut d = with(&gallery_band(), vec![shank_cutter(key, json!({}), Stage::Bench)]);
+        assert_eq!(crate::library::format_version_for(&d), 6);
+        let text = crate::library::design_json(&d).unwrap();
+        assert_eq!(serde_json::to_value(crate::library::load_design_str(&text).unwrap()).unwrap(), serde_json::to_value(&d).unwrap());
+        let graph = json!({"nodes":[{"kind":"cluster","params":{"graph":{"nodes":[{"kind":"cad.feature","params":{"operation":d.cad.as_ref().unwrap().feature(2).unwrap().operation}}]}}}]});
+        assert!(crate::library::template_features_in_json(&graph));
+        d.cad.as_mut().unwrap().features[1].component.placement = Placement::ring(90.0, 0.0);
+        assert!(matches!(status(&d, 2), FeatureStatus::Failed(m) if m.contains("ring angles")));
+    }
+}
 /// A flat band with square side faces, 5 mm wide and 2.5 mm thick.
 fn flat() -> RingDesign {
     let mut d = RingDesign::default();
@@ -691,4 +779,3 @@ fn measured_cutters() {
         }
     }
 }
-

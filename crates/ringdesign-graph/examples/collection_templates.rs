@@ -58,6 +58,7 @@ struct Options {
     output: PathBuf,
     templates: PathBuf,
     check_bundled: bool,
+    verify_export: bool,
     only: Option<String>,
 }
 
@@ -88,7 +89,7 @@ fn local_file(root: &Path, file: &Path) -> Result<PathBuf> {
 
 fn options(repo: &Path) -> Result<Options> {
     let mut args = std::env::args().skip(1);
-    let collection = args.next().context("usage: collection_templates COLLECTION [SOURCE_DIR] [--output-dir DIR] [--templates-dir DIR] [--only SLUG] [--check-bundled]")?;
+    let collection = args.next().context("usage: collection_templates COLLECTION [SOURCE_DIR] [--output-dir DIR] [--templates-dir DIR] [--only SLUG] [--check-bundled] [--verify-export]")?;
     ensure!(
         safe_slug(&collection),
         "invalid collection name {collection:?}"
@@ -98,6 +99,7 @@ fn options(repo: &Path) -> Result<Options> {
     let mut graphs = None;
     let mut only = None;
     let mut check_bundled = false;
+    let mut verify_export = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--output-dir" => {
@@ -112,6 +114,7 @@ fn options(repo: &Path) -> Result<Options> {
             }
             "--only" => only = Some(args.next().context("--only needs a slug")?),
             "--check-bundled" => check_bundled = true,
+            "--verify-export" => verify_export = true,
             _ if !arg.starts_with('-') && source.is_none() => source = Some(PathBuf::from(arg)),
             _ => bail!("unknown argument {arg:?}"),
         }
@@ -128,6 +131,7 @@ fn options(repo: &Path) -> Result<Options> {
         source,
         templates,
         check_bundled,
+        verify_export,
         only,
     })
 }
@@ -389,8 +393,18 @@ fn verify(opts: &Options, ring: &Ring, repo: &Path, reg: &Registry) -> Result<se
         "{}: warm rebuild changed source",
         ring.slug
     );
-    let before = mesh::try_build(&design, &lib, design.build)?;
-    let after = mesh::try_build(&cold_design, &cold, design.build)?;
+    let parity_params = if opts.verify_export {
+        BuildParams {
+            theta_steps: 1536,
+            profile_steps: 448,
+            refine: None,
+            ..design.build
+        }
+    } else {
+        design.build
+    };
+    let before = mesh::try_build(&design, &lib, parity_params)?;
+    let after = mesh::try_build(&cold_design, &cold, parity_params)?;
     ensure!(
         before.mesh.vertices == after.mesh.vertices
             && before.mesh.faces == after.mesh.faces
@@ -471,6 +485,8 @@ fn verify(opts: &Options, ring: &Ring, repo: &Path, reg: &Registry) -> Result<se
     let packaging = json!({
         "cold_design_reload": true, "cold_graph_reload": true, "editable_graph_reload": true,
         "source_identical": true, "vertices_faces_normals_identical": true, "source_method": method,
+        "geometry_check_resolution": {"theta_steps": parity_params.theta_steps, "profile_steps": parity_params.profile_steps, "refine": parity_params.refine},
+        "export_geometry_verified": opts.verify_export,
         "triangles": after.mesh.faces.len(), "nodes": graph.nodes.len(), "design_set_patches": patches,
         "exposed_controls": graph.exposed.iter().map(|p| &p.name).collect::<Vec<_>>(),
         "exposed_control_policy": ring.exposed_controls.as_ref().map(|_| "explicit_allowlist").unwrap_or("legacy_reptilia"),
@@ -708,6 +724,7 @@ mod tests {
             output: temp.join("output"),
             templates: temp.join("graphs"),
             check_bundled: false,
+            verify_export: false,
             only: None,
         };
         let ring = Ring {
