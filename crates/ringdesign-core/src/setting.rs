@@ -418,9 +418,7 @@ pub fn tube(path: &[P3], radii: &[f64], around: usize, dome: (bool, bool)) -> So
     out
 }
 
-/// An oval wire. The first radius lies in the path's bending plane, the second across it;
-/// a straight path uses the same initial frame as [`tube`]. Equal radii take its exact round path.
-/// Invalid samples return no solid; at most 4096 stations and 128 vertices round each ring are accepted.
+/// An oval wire with its first radius in the bending plane; invalid frames return no solid, and equal radii retain [`tube`]'s exact round path within the 4096-station and 128-vertex limits.
 pub fn tube_oval(path: &[P3], radii: &[(f64, f64)], around: usize, dome: (bool, bool)) -> Solid {
     if path.len() < 2 || path.len() > 4096 || radii.len() != path.len()
         || path.iter().flatten().any(|v| !v.is_finite())
@@ -428,9 +426,6 @@ pub fn tube_oval(path: &[P3], radii: &[(f64, f64)], around: usize, dome: (bool, 
         return Solid::default();
     }
     let n = around.clamp(6, 128);
-    if radii.iter().all(|(a, b)| a == b) {
-        return tube(path, &radii.iter().map(|r| r.0).collect::<Vec<_>>(), n, dome);
-    }
     let sub = |a: P3, b: P3| std::array::from_fn(|i| a[i] - b[i]);
     let add = |a: P3, b: P3, k: f64| std::array::from_fn(|i| a[i] + b[i] * k);
     let dot = |a: P3, b: P3| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -440,14 +435,27 @@ pub fn tube_oval(path: &[P3], radii: &[(f64, f64)], around: usize, dome: (bool, 
     if path.windows(2).any(|p| dot(sub(p[1], p[0]), sub(p[1], p[0])) < 1e-18) {
         return Solid::default();
     }
+    if path.windows(3).any(|p| dot(sub(p[2], p[0]), sub(p[2], p[0])) < 1e-18) {
+        return Solid::default();
+    }
     let tangent = |i: usize| unit(sub(path[(i + 1).min(m - 1)], path[i.saturating_sub(1)]));
     let t0 = tangent(0);
     let in_plane = path.iter().skip(2).map(|p| {
         let v = sub(*p, path[0]);
         add(v, t0, -dot(v, t0))
     }).find(|v| dot(*v, *v) > 1e-12);
-    let seed = in_plane.unwrap_or(if t0[2].abs() < 0.9 { [0.0, 0.0, 1.0] } else { [1.0, 0.0, 0.0] });
+    let round = radii.iter().all(|(a, b)| a == b);
+    let round_seed = if t0[2].abs() < 0.9 { [0.0, 0.0, 1.0] } else { [1.0, 0.0, 0.0] };
+    let seed = if round { round_seed } else { in_plane.unwrap_or(round_seed) };
     let mut u = unit(add(seed, t0, -dot(seed, t0)));
+    for i in 0..m {
+        let t = tangent(i);
+        let projected = add(u, t, -dot(u, t));
+        if dot(projected, projected) < 1e-18 { return Solid::default(); }
+        u = unit(projected);
+    }
+    if round { return tube(path, &radii.iter().map(|r| r.0).collect::<Vec<_>>(), n, dome); }
+    u = unit(add(seed, t0, -dot(seed, t0)));
     let mut rings = Vec::with_capacity(m + 8);
     let mut push = |c: P3, radii: (f64, f64), t: P3| {
         u = unit(add(u, t, -dot(u, t)));
@@ -629,9 +637,13 @@ pub fn relief_named(gem: Gem, from_z: f64, inset: f64, fit: &Fit) -> Option<Name
     let mut s = vec![pole(from_z), st(1.0, -inset, from_z), st(1.0, -inset, from_z - 0.05)];
     let waist = (1.0 - inset / plan.b.max(1e-6)).clamp(0.3, 1.0);
     let z_waist = -(1.0 - waist) * p - 0.2;
-    if z_waist < from_z - 0.1 { s.push(st(waist, 0.0, z_waist)); }
-    s.push(st(0.3, 0.0, -0.7 * p - 0.2));
+    if waist > 0.3 && z_waist < from_z - 0.1 { s.push(st(waist, 0.0, z_waist)); }
+    // A low band surface keeps the pilot below the relief neck instead of folding back up through it.
+    let pilot_z = -0.7 * p - 0.2;
+    let pilot_z = if pilot_z >= from_z - 0.05 { from_z - 0.15 } else { pilot_z };
+    s.push(st(0.3, 0.0, pilot_z));
     let floor = fit.through_mm.unwrap_or(blind).max(0.7 * p + 0.3);
+    let floor = if -floor >= pilot_z || -floor >= fit.surface_z { floor.max(-pilot_z + 0.1).max(0.05 - fit.surface_z) } else { floor };
     s.push(st(0.3, 0.0, -floor));
     s.push(pole(-floor));
     let mut names = vec!["Relief"; s.len() - 3];
@@ -759,7 +771,7 @@ pub enum HeadSnag {
     NoReach,
     /// A part would stand inside the wall over the finger, leaving `wall_mm` of metal; negative is inside the hole.
     Breaks { part: String, wall_mm: f64 },
-    /// The wall shortened this claw below the room its tangent arcs need.
+    /// The foot leaves too little room for this claw's safe profile.
     ShortClaw { claw: u32, style: ClawStyle },
 }
 
@@ -775,7 +787,10 @@ impl std::fmt::Display for HeadSnag {
             Self::Breaks { part, wall_mm } => {
                 write!(f, "{part} would thin the wall over the finger to {wall_mm:.2} mm, under its {wall} mm; seat the stone further onto the band or choose a smaller one")
             }
-            Self::ShortClaw { claw, style } => write!(f, "Claw {claw} has too little room for the {style:?} bend; raise the stone or choose a thinner wire"),
+            Self::ShortClaw { claw, style } => {
+                let remedy = if *style == ClawStyle::Fang { "choose a thicker wire or another claw style" } else { "raise the stone or choose a thinner wire" };
+                write!(f, "Claw {claw} has too little room for a safe {style:?} profile; {remedy}")
+            }
         }
     }
 }
@@ -875,8 +890,7 @@ fn grouped_claw_angles(plan: &Plan, count: u32, wire: f64, grouping: ClawGroupin
     if grouping == ClawGrouping::Even { return plan.claw_angles(count); }
     let n = count.clamp(3, 8) as usize;
     let groups = if grouping == ClawGrouping::Jaws { 2 } else { (n / 2).max(2) };
-    // Keep grouped toes distinct at ordinary wire sizes; a crowded small head spreads
-    // towards equal spacing rather than letting a cluster wrap into its neighbour.
+    // Crowded toes spread towards equal spacing without wrapping into neighbouring groups.
     let gap = (1.45 * wire / plan.a.min(plan.b).max(0.1)).min(0.85 * TAU / n as f64);
     let phase = if grouping == ClawGrouping::Feet { PI * 0.5 } else { 0.0 };
     let mut angles = Vec::with_capacity(n);
@@ -889,16 +903,24 @@ fn grouped_claw_angles(plan: &Plan, count: u32, wire: f64, grouping: ClawGroupin
     angles
 }
 
-/// Circular arcs tangent to their straight stem and crown run; no interpolating spline.
-/// Returns the path and distance along it, or no path if the unchanged foot cannot fit it.
+/// Tangent arcs or a straight Fang cone, with normalized path distance; an unsafe unchanged foot yields no path.
 fn shaped_claw_line(style: ClawStyle, wire: f64, foot: [f64; 2], target: [f64; 2], turn: f64, girdle: f64) -> Option<(Vec<[f64; 2]>, Vec<f64>)> {
+    if style == ClawStyle::Fang {
+        let target = [(-0.05 * wire).min(foot[0] - 0.05 * wire), girdle + 0.44 * wire];
+        let tip_radius = (-target[0] + 0.20 * wire).max(0.10 * wire);
+        let length = (target[0] - foot[0]).hypot(target[1] - foot[1]);
+        if !length.is_finite() || wire <= 0.0 || tip_radius >= 0.60 * wire || target[1] <= foot[1] { return None; }
+        let steps = (length / 0.12).ceil().clamp(2.0, 128.0) as usize;
+        let along: Vec<_> = (0..=steps).map(|i| i as f64 / steps as f64).collect();
+        let line = along.iter().map(|&t| std::array::from_fn(|i| foot[i] + t * (target[i] - foot[i]))).collect();
+        return Some((line, along));
+    }
     let lean = PRONG_LEAN.atan();
     let (arcs, target) = match style {
         ClawStyle::Talon => (vec![(0.64 * wire, -turn - 0.18)], target),
-        ClawStyle::Fang => (vec![(0.70 * wire, -0.55)], [-0.20 * wire, girdle + 0.44 * wire]),
+        ClawStyle::Fang => unreachable!(),
         ClawStyle::Tentacle => {
-            // A cabochon has a shallow foot. Open the lower S with the room above it,
-            // preserving both bend radii instead of squeezing a large curl into that foot.
+            // The lower S opens into a cabochon's available height while retaining both bend radii.
             let open = (((target[1] - foot[1]) / wire - 1.30) * 0.20).clamp(0.06, 0.40);
             (vec![(0.80 * wire, lean + open), (0.64 * wire, -turn)], target)
         }
@@ -953,8 +975,7 @@ fn shaped_claw_line(style: ClawStyle, wire: f64, foot: [f64; 2], target: [f64; 2
     Some((line, along))
 }
 
-/// Styled claws before joining, with the legacy reach search and rails; the wall still checks
-/// the actual swept vertices. A shortened foot that cannot fit a tangent bend is refused.
+/// Styled claws retain the legacy foot search and rails, check actual wall clearance, and refuse a foot without room for the chosen profile.
 pub fn claw_parts_reach_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor: Option<Floor>, wall: Option<Wall>, options: ClawOptions) -> Result<(Vec<Named>, Reach), HeadSnag> {
     let mut met = Reach::default();
     let plan = Plan::of(gem);
@@ -1049,9 +1070,10 @@ pub fn claw_parts_reach_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails
             let (shaped, along) = shaped_claw_line(options.style, d, [foot, base_z], *line.last().unwrap(), turn, g)
                 .ok_or(HeadSnag::ShortClaw { claw: claw as u32 + 1, style: options.style })?;
             line = shaped;
+            let fang_tip_radius = (-line.last().unwrap()[0] + 0.20 * d).max(0.10 * d);
             rs = along.iter().map(|&t| d * match options.style {
                 ClawStyle::Talon => if t < 0.80 { 0.60 - 0.10 * t / 0.80 } else { 0.50 - 0.41 * (t - 0.80) / 0.20 },
-                ClawStyle::Fang => 0.60 - 0.50 * t,
+                ClawStyle::Fang => 0.60 + (fang_tip_radius / d - 0.60) * t,
                 ClawStyle::Tentacle => if t < 0.85 { 0.60 - 0.38 * t } else { 0.277 - 0.137 * (t - 0.85) / 0.15 },
                 ClawStyle::Thorn => if t < 0.85 { 0.60 - 0.38 * t } else { 0.277 - 0.207 * (t - 0.85) / 0.15 },
                 ClawStyle::Sepal => if t < 0.35 { 0.60 - 0.24 * t / 0.35 } else if t < 0.80 { 0.36 } else { 0.36 - 0.26 * (t - 0.80) / 0.20 },
@@ -2981,8 +3003,7 @@ mod tests {
             let gem = Gem::calibrated(cut, 6.5);
             let parts = claw_parts(gem, 4);
             let head = claw_head(gem, 4).unwrap();
-            // Captured from master 27bc954 before the style extension, using every f64 bit
-            // and face index, including the original default foot, bend, cap and rails.
+            // Master 27bc954 supplies every pinned vertex bit and face index, including the original foot, bend, caps and rails.
             assert_eq!(parts.iter().map(fingerprint).collect::<Vec<_>>(), expected_parts, "{cut:?}");
             assert_eq!(fingerprint(&head), expected_head, "{cut:?}");
             let explicit = claw_head_named_styled(gem, 4, prong_wire_mm(gem), Rails::Seat, None, ClawOptions::default()).unwrap();
@@ -3125,6 +3146,56 @@ mod tests {
         assert_eq!(capped.v.len(), path.len() * 128 + 2);
     }
 
+    #[test]
+    fn oval_tubes_refuse_a_zero_central_tangent() {
+        let path = [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 0.0]];
+        for radii in [[(0.1, 0.2); 3], [(0.1, 0.1); 3]] {
+            let solid = tube_oval(&path, &radii, 14, (true, true));
+            assert!(solid.v.is_empty() && solid.f.is_empty());
+        }
+    }
+
+    #[test]
+    fn oval_tubes_refuse_a_frame_that_projects_to_zero() {
+        let path = [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]];
+        for radii in [[(0.1, 0.2); 3], [(0.1, 0.1); 3]] {
+            let solid = tube_oval(&path, &radii, 14, (false, false));
+            assert!(solid.v.is_empty() && solid.f.is_empty());
+        }
+    }
+
+    #[test]
+    fn fangs_are_straight_inward_cones_with_the_original_feet_and_live_girdle_stock() {
+        for cut in [GemCut::Round, GemCut::Oval] {
+            for gem in [Gem::calibrated(cut, 6.5), Gem::cabochon(cut, 10.0)] {
+                let wire = prong_wire_mm(gem);
+                let plan = Plan::of(gem);
+                let legacy = claw_parts(gem, 4);
+                let options = ClawOptions { style: ClawStyle::Fang, ..Default::default() };
+                let (parts, _) = claw_parts_reach_styled(gem, 4, wire, Rails::Seat, None, None, options).unwrap();
+                for ((part, old), phi) in parts.iter().take(4).zip(&legacy).zip(plan.claw_angles(4)) {
+                    let rings = (part.solid.v.len() - 2) / 14 - 4;
+                    let centres: Vec<P3> = part.solid.v[..rings * 14].chunks_exact(14).map(|ring| std::array::from_fn(|i| ring.iter().map(|p| p[i]).sum::<f64>() / 14.0)).collect();
+                    let first: P3 = std::array::from_fn(|i| old.v[..14].iter().map(|p| p[i]).sum::<f64>() / 14.0);
+                    for i in 0..3 { assert!((first[i] - centres[0][i]).abs() < 1e-12); }
+                    let (a, b) = (centres[0], *centres.last().unwrap());
+                    let n = plan.normal(phi);
+                    assert!((b[0] - a[0]) * n[0] + (b[1] - a[1]) * n[1] < 0.0);
+                    for p in &centres {
+                        let t = (p[2] - a[2]) / (b[2] - a[2]);
+                        assert!((p[0] - a[0] - t * (b[0] - a[0])).abs() < 1e-12);
+                        assert!((p[1] - a[1] - t * (b[1] - a[1])).abs() < 1e-12);
+                    }
+                    let t = -a[2] / (b[2] - a[2]);
+                    let center: P3 = std::array::from_fn(|i| a[i] + t * (b[i] - a[i]));
+                    let o = plan.point(phi);
+                    let stock = [o[0] + n[0] * 0.15 * wire, o[1] + n[1] * 0.15 * wire, center[2]];
+                    assert_eq!(csg::inside(&part.solid, stock), Some(true), "{cut:?} {:?}: the notch must leave connected metal outside the girdle", gem.form);
+                }
+            }
+        }
+    }
+
     /// Manual visual audit, like the CAD gallery: `RD_CLAW_GALLERY` chooses the output directory.
     #[test]
     #[ignore]
@@ -3167,6 +3238,68 @@ mod tests {
         }
         sound(&envelope(Gem::cabochon(GemCut::Oval, 6.0), 0.02), "a cabochon");
         sound(&collet(Gem::cabochon(GemCut::Oval, 6.0)), "a cabochon's collet");
+    }
+
+    #[test]
+    fn raised_seat_burs_stay_below_the_opening_and_reach_the_requested_exit() {
+        use crate::cad::builders;
+        for (cut, width) in [(GemCut::Round, 6.5), (GemCut::Round, 5.5), (GemCut::Oval, 3.5)] {
+            let mut gem = Gem::calibrated(cut, width);
+            if cut == GemCut::Oval { gem.l_mm = 5.0; }
+            for extra_raise in [0.0, 1.0, 4.0] {
+                let surface_z = -builders::stand_off_mm("claw4", gem) - extra_raise;
+                let seat = builders::Seat { surface_z, through_mm: Some(2.4 - surface_z) };
+                for through in [false, true] {
+                    let made = builders::build(builders::BUR, gem, &serde_json::json!({"through": through}), seat, None).unwrap();
+                    let solid = made.solid();
+                    let check = solid.check(true);
+                    let who = format!("{cut:?} {width} raised {extra_raise} through {through}");
+                    assert_eq!((check.open_edges, check.repeated_edges, check.zero_area_faces, check.self_crossings), (0, 0, 0, Some(0)), "{who}: {check:?}");
+                    assert!(check.volume > 0.0, "{who}");
+                    let (lo, hi) = solid.bounds().unwrap();
+                    assert_eq!(hi[2], surface_z + 0.3, "{who}: no cutter above its opening");
+                    if through { assert_eq!(lo[2], -seat.through_mm.unwrap(), "{who}: the exit reaches open air"); }
+                    assert_eq!(csg::inside(solid, [0.0, 0.0, surface_z]), Some(true), "{who}: relief meets the band");
+                    let rows = &solid.v[..solid.v.len() - 2];
+                    assert!(rows.windows(2).all(|w| w[1][2] <= w[0][2]), "{who}: the side profile never folds upward");
+                    assert_eq!(made.named.patch.len(), solid.f.len());
+                    assert_eq!(made.named.names, ["Relief", "Pilot"]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn relief_keeps_already_descending_geometry_exact() {
+        for cut in [GemCut::Round, GemCut::Oval, GemCut::Marquise] {
+            let gem = Gem::calibrated(cut, 6.5);
+            let plan = Plan::of(gem);
+            let p = gem.pavilion_mm();
+            let fit = Fit { surface_z: 0.4, through_mm: Some(p + 2.0), prongs: 0 };
+            for from_z in [-0.4, 0.2, -0.7 * p - 0.125] {
+                let inset = 0.3;
+                let mut section = vec![pole(from_z), st(1.0, -inset, from_z), st(1.0, -inset, from_z - 0.05)];
+                let waist = (1.0 - inset / plan.b.max(1e-6)).clamp(0.3, 1.0);
+                let z_waist = -(1.0 - waist) * p - 0.2;
+                if z_waist < from_z - 0.1 { section.push(st(waist, 0.0, z_waist)); }
+                section.extend([st(0.3, 0.0, -0.7 * p - 0.2), st(0.3, 0.0, -fit.through_mm.unwrap()), pole(-fit.through_mm.unwrap())]);
+                let old = sweep(&plan, &section, plan.segments());
+                assert_eq!(old.check(true).self_crossings, Some(0));
+                let current = relief_named(gem, from_z, inset, &fit).unwrap().solid;
+                assert_eq!(current.v, old.v, "{cut:?} {from_z}");
+                assert_eq!(current.f, old.f, "{cut:?} {from_z}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_relief_waist_that_meets_the_pilot_emits_no_duplicate_row() {
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        let fit = Fit { surface_z: 0.1, through_mm: None, prongs: 0 };
+        let solid = relief(gem, 0.2, 0.8 * Plan::of(gem).b, &fit).unwrap();
+        let check = solid.check(true);
+        assert_eq!((check.open_edges, check.repeated_edges, check.zero_area_faces, check.self_crossings), (0, 0, 0, Some(0)), "{check:?}");
+        assert!(check.volume > 0.0);
     }
 
     #[test]
