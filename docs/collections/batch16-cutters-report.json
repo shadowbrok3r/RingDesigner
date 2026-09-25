@@ -1,0 +1,49 @@
+{
+  "scope": "C-S2 split shank and C-S3 drafted gallery cutters",
+  "issue": 219,
+  "base_commit": "946d66b",
+  "source_sha256": {
+    "crates/ringdesign-core/src/cad.rs": "e4e9bfd822204f878557392eeb762108e5b457c91259e652cdb659eb1dfb8478",
+    "crates/ringdesign-core/src/cad/builders.rs": "733ab5044659a9cda430caed3d112dcab0566e494e10a37a17596e9d66e1ef55",
+    "crates/ringdesign-core/src/cad/builders/cutters.rs": "0c9dbf30969a1f22bda5d91726564dcd239b8b20a25c01883a1bc0ab965bd6b2",
+    "crates/ringdesign-core/src/cad/builders/cutters/tests.rs": "54911d4ffd68d3d35d8ef7113c373274da5fb9d272b91e998e738d3e0f7836c6",
+    "crates/ringdesign-core/src/field.rs": "7508edcd4737fd9d760cf5f571b1d30f8149ddc3027b652bd69244b3811ee188",
+    "crates/ringdesign-core/src/lib.rs": "0cdcfb32fae48d3548cb70538486375f9bbe2f8cec6c5d695a085df49ced8848",
+    "crates/ringdesign-core/src/library.rs": "2dd284564b909bb897a45c3c12b39ba062a15e351c6f3b97725ef18563958198"
+  },
+  "checks": [
+    {
+      "command": "cargo test --offline -p ringdesign-core -p ringdesign-graph --no-run",
+      "exit_code": 0,
+      "log": "target/cutters-validation/build-2.log"
+    },
+    {
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-core -p ringdesign-graph --no-fail-fast -- --test-threads=4",
+      "exit_code": 0,
+      "log": "target/cutters-validation/tests-2.log",
+      "results": [
+        "test result: ok. 759 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 93.52s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.75s",
+        "test result: ok. 101 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.54s",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.59s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.74s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.54s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ]
+    }
+  ],
+  "warnings": 0,
+  "geometry_pins": [
+    "Point and Round split tools: closed, positive volume, zero degenerate faces and self-crossings.",
+    "Both final split rings remain one connected watertight piece, with a clear bore-to-crest slot and retained rails.",
+    "Split Cast explicitly refuses sand; Bench remains an explicit author choice.",
+    "Rounded radial tool sections implement rail_round_mm directly, avoiding a seam bead that folded near the vanishing tips.",
+    "Gallery final mesh is one connected watertight piece, opens along both pull directions, and retains inner and outer crown rails of at least0.8mm.",
+    "Gallery tool has zero degenerate faces and self-crossings; zero draft/rounding is valid, insufficient stock refuses by station.",
+    "Direct and nested geometry keep the existing design6/graph2 fence; unsupported placements refuse."
+  ],
+  "cache_pin": "Isolated the existing bounded cache operation so concurrent8-entry eviction cannot invalidate the pointer-reuse test; retained explicit reuse, no-rebuild, eviction, geometry-invalidation and warm-gate performance checks.",
+  "pending": "Full workspace/platform validation and actual starter-gallery manufacturing gates run in the combined batch16 integration."
+}
