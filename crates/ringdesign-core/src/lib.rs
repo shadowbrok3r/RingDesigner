@@ -53,6 +53,7 @@ pub mod render;
 pub mod reptile;
 pub mod setstone;
 pub mod setting;
+pub mod skin;
 pub mod parts;
 pub mod pins;
 pub mod sizing;

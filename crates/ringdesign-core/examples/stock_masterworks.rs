@@ -13,7 +13,8 @@ use ringdesign_core::{
         Window, smoothstep,
     },
     gem::{Gem, GemCut},
-    imported_base::{ImportedBase, PRESETS, SurfaceChart},
+    imported_base::{ImportedBase, PRESETS, SurfaceChart, sand_master},
+    skin::{self, Atlas, Hide, HidePoint, Joints, Sample, draft_clamp, hash},
     manufacturing as mf,
     render::{self, Part},
     svg::SvgAlpha,
@@ -28,101 +29,6 @@ use std::{
 const AW: usize = 2048;
 const AH: usize = 768;
 
-#[derive(Clone, Copy, Default)]
-struct Sample {
-    p: [f64; 3],
-    n: [f64; 3],
-    theta: f64,
-    v: f64,
-    /// Where it sits in the atlas.
-    i: usize,
-}
-struct Atlas {
-    samples: Vec<Sample>,
-    top: f64,
-    bore: f64,
-    length: f64,
-    width: f64,
-}
-impl Atlas {
-    fn new(d: &RingDesign) -> Result<Self> {
-        let b = d.imported_base.as_ref().unwrap();
-        let span = d.reference_loop().surface_len_mm;
-        let surface = b.field_surface(d)?;
-        let mut samples = vec![Sample::default(); AW * AH];
-        for x in 0..AW {
-            let theta = x as f64 / AW as f64 * 360.;
-            for y in 0..AH {
-                let fraction = y as f64 / AH as f64;
-                samples[y * AW + x] = Sample {
-                    p: surface.point(theta, fraction),
-                    theta,
-                    v: fraction * span,
-                    i: y * AW + x,
-                    ..Default::default()
-                };
-            }
-        }
-        let top = samples.iter().map(|s| s.p[1]).fold(0_f64, f64::max);
-        for y in 1..AH - 1 {
-            for x in 0..AW {
-                let a = samples[y * AW + (x + 1) % AW].p;
-                let b = samples[y * AW + (x + AW - 1) % AW].p;
-                let c = samples[(y + 1) * AW + x].p;
-                let e = samples[(y - 1) * AW + x].p;
-                let u: [f64; 3] = std::array::from_fn(|i| a[i] - b[i]);
-                let v: [f64; 3] = std::array::from_fn(|i| c[i] - e[i]);
-                let n = [
-                    u[1] * v[2] - u[2] * v[1],
-                    u[2] * v[0] - u[0] * v[2],
-                    u[0] * v[1] - u[1] * v[0],
-                ];
-                let l = n.iter().map(|x| x * x).sum::<f64>().sqrt().max(1e-9);
-                samples[y * AW + x].n = n.map(|a| a / l);
-            }
-        }
-        Ok(Self {
-            samples,
-            top,
-            bore: d.inner_radius_mm(),
-            length: d.shank.head.length_mm,
-            width: d.profile.width_mm,
-        })
-    }
-    fn face(&self, s: Sample) -> f64 {
-        let a = s.p[0].abs() / (self.length * 0.5);
-        let b = s.p[2].abs() / (self.width * 0.5);
-        let q = a.max(b).max((a + b) / 1.68);
-        smoothstep(0.91, 0.985, s.n[1])
-            * (1. - smoothstep(0.82, 0.90, q))
-            * smoothstep(self.top - 3., self.top - 2., s.p[1])
-    }
-    fn cheek(&self, s: Sample) -> f64 {
-        let r = s.p[0].hypot(s.p[1]);
-        smoothstep(0.65, 0.9, s.n[2].abs())
-            * smoothstep(self.bore + 0.8, self.bore + 1.45, r)
-            * (1. - smoothstep(self.top - 1.1, self.top - 0.55, s.p[1]))
-            * smoothstep(-3., 2., s.p[1])
-    }
-    fn shoulder(&self, s: Sample) -> f64 {
-        smoothstep(0.38, 0.68, s.n[0].abs())
-            * (1. - smoothstep(0.28, 0.48, s.n[2].abs()))
-            * smoothstep(-1., 1.2, s.p[1])
-            * (1. - smoothstep(self.top - 3.5, self.top - 1.9, s.p[1]))
-            * smoothstep(self.bore + 0.8, self.bore + 1.3, s.p[0].hypot(s.p[1]))
-    }
-    fn alpha(&self, name: &str, f: impl Fn(Sample) -> f64) -> Alpha {
-        Alpha::new(
-            name,
-            AW,
-            AH,
-            self.samples
-                .iter()
-                .map(|&s| f(s).clamp(0., 1.) as f32)
-                .collect(),
-        )
-    }
-}
 fn portable(lib: &mut AlphaLibrary, a: Alpha) {
     lib.insert(Alpha::from_png16(a.name.clone(), &a.to_png16().unwrap()).unwrap());
 }
@@ -318,7 +224,7 @@ fn project_face(
             art.sample(u, v) as f64
         }
     };
-    let alpha = a.alpha(name, |s| {
+    let alpha = a.paint(name, |s| {
         if a.face(s) <= 0. {
             return 0.;
         }
@@ -335,11 +241,11 @@ fn project_cheek(
     height: f64,
 ) {
     let art = lib.get(source).unwrap().clone();
-    let alpha = a.alpha(name, |s| {
+    let alpha = a.paint(name, |s| {
         if a.cheek(s) <= 0. {
             return 0.;
         }
-        let u = 0.5 + s.p[0] / (a.length * 0.64);
+        let u = 0.5 + s.p[0] / (a.head_length_mm * 0.64);
         let v = (a.top - 0.8 - s.p[1]) / (a.top - a.bore - 1.6).max(1.2);
         if !(0.0..=1.).contains(&u) || !(0.0..=1.).contains(&v) {
             0.
@@ -377,11 +283,11 @@ fn project_shoulder(
             }
         }
     }
-    let alpha = a.alpha(name, |s| {
+    let alpha = a.paint(name, |s| {
         if a.shoulder(s) <= 0. {
             return 0.;
         }
-        let u = 0.5 + s.p[2] / (a.width * 0.53);
+        let u = 0.5 + s.p[2] / (a.band_width_mm * 0.53);
         let v = (a.top - 2.6 - s.p[1]) / (a.top - 3.0);
         if !(0.0..=1.).contains(&u) || !(0.0..=1.).contains(&v) {
             0.
@@ -408,10 +314,6 @@ fn stamp(name: &str, alpha: &str, theta: f64, v: f64, size: f64, height: f64) ->
         }),
     )
 }
-#[path = "common/sand_stock.rs"]
-mod sand_stock;
-use sand_stock::sand_stock;
-
 fn base(slug: &str) -> Result<RingDesign> {
     let (name, id, length, width, bore, sand) = match slug {
         "nocturne" => ("Nocturne — night garden", "015", 17.0, 16.5, 18.2, false),
@@ -436,7 +338,7 @@ fn base(slug: &str) -> Result<RingDesign> {
         .find(|p| p.id == id)
         .unwrap()
         .load()?;
-    ImportedBase::attach(&mut d, if sand { sand_stock(source)? } else { source })?;
+    ImportedBase::attach(&mut d, if sand { sand_master(source)? } else { source })?;
     d.imported_base.as_mut().unwrap().sand_envelope = sand;
     d.name = name.into();
     d.profile.apply_style(ProfileStyle::Flat);
@@ -517,10 +419,10 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
     let sand = matches!(slug, "solstice" | "aurelia");
     let grand = matches!(slug, "aurelia" | "vesper");
     let mut lib = AlphaLibrary::builtin();
-    let a = Atlas::new(&d)?;
-    portable(&mut lib, a.alpha("Face reserve", |s| a.face(s)));
-    portable(&mut lib, a.alpha("Cheek reserve", |s| a.cheek(s)));
-    portable(&mut lib, a.alpha("Shoulder reserve", |s| a.shoulder(s)));
+    let a = Atlas::of(&d, AW, AH)?;
+    portable(&mut lib, a.paint("Face reserve", |s| a.face(s)));
+    portable(&mut lib, a.paint("Cheek reserve", |s| a.cheek(s)));
+    portable(&mut lib, a.paint("Shoulder reserve", |s| a.shoulder(s)));
     let ctx = d.field_context();
     let centre = a
         .samples
@@ -622,8 +524,8 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
             &a,
             "Solar aureole",
             "Double aureole / drafted medallion",
-            a.length * 0.85,
-            a.width * 0.87,
+            a.head_length_mm * 0.85,
+            a.band_width_mm * 0.87,
             if grand { 0.10 } else { 0.08 },
             false,
         );
@@ -649,8 +551,8 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
                 "Solar emblem"
             },
             "Sculpted solar corolla",
-            a.length * 0.78,
-            a.width * 0.80,
+            a.head_length_mm * 0.78,
+            a.band_width_mm * 0.80,
             if grand { 0.18 } else { 0.14 },
             false,
         );
@@ -700,8 +602,8 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
                 &a,
                 "Sovereign corner scrolls",
                 "Four sovereign corner cartouches",
-                a.length * 0.89,
-                a.width * 0.90,
+                a.head_length_mm * 0.89,
+                a.band_width_mm * 0.90,
                 0.09,
                 false,
             );
@@ -721,8 +623,8 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
                 &a,
                 "Solar chasing",
                 "Petal veins / bench chasing",
-                a.length * 0.78,
-                a.width * 0.80,
+                a.head_length_mm * 0.78,
+                a.band_width_mm * 0.80,
                 0.045,
                 false,
             );
@@ -737,8 +639,8 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
             &a,
             "Engraved frame",
             "Inset double seal frame",
-            a.length * 0.92,
-            a.width * 0.92,
+            a.head_length_mm * 0.92,
+            a.band_width_mm * 0.92,
             0.22,
             false,
         );
@@ -748,8 +650,8 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
             &a,
             "Hand pearled perimeter",
             "Inset pearl gallery",
-            a.length * 0.79,
-            a.width * 0.79,
+            a.head_length_mm * 0.79,
+            a.band_width_mm * 0.79,
             0.21,
             false,
         );
@@ -763,8 +665,8 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
             } else {
                 "Eight night garden petals"
             },
-            a.length * 0.67,
-            a.width * 0.67,
+            a.head_length_mm * 0.67,
+            a.band_width_mm * 0.67,
             if grand { 0.34 } else { 0.27 },
             false,
         );
@@ -1151,10 +1053,10 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
             ("Seal engraving resist", 0),
             ("Shoulder engraving resist", 1),
         ] {
-            let mask = a.alpha(name, |s| {
+            let mask = a.paint(name, |s| {
                 let gate = if region == 0 {
-                    let x = (s.p[0] / (a.length * 0.5)).abs();
-                    let z = (s.p[2] / (a.width * 0.5)).abs();
+                    let x = (s.p[0] / (a.head_length_mm * 0.5)).abs();
+                    let z = (s.p[2] / (a.band_width_mm * 0.5)).abs();
                     a.face(s) * (1. - smoothstep(0.60, 0.65, x.max(z).max((x + z) / 1.68)))
                 } else {
                     a.shoulder(s)
@@ -1218,14 +1120,6 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
 // the regions hand over to each other inside one skin instead of as layers
 // laid side by side.
 
-fn hash(i: i64, j: i64) -> f64 {
-    let mut h = (i.wrapping_mul(0x9E37_79B9_7F4A_7C15u64 as i64) ^ j.wrapping_mul(0xC2B2_AE3D_27D4_EB4Fu64 as i64)) as u64;
-    h ^= h >> 29;
-    h = h.wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    h ^= h >> 32;
-    (h % 10_000) as f64 / 10_000.0
-}
-
 /// Where a sample stands on the ring, in the terms the painters think in.
 struct Spot {
     /// Arc from the head's centre along the ring, mm, signed by shoulder.
@@ -1250,7 +1144,7 @@ impl<'a> Skin<'a> {
             .collect();
         Self { a, half }
     }
-    fn spot(&self, s: Sample) -> Spot {
+    fn spot(&self, s: &Sample) -> Spot {
         let r = s.p[0].hypot(s.p[1]).max(1e-6);
         let signed = (s.theta - 90.0 + 180.0).rem_euclid(360.0) - 180.0;
         let x = ((s.theta / 360.0 * AW as f64).round() as usize) % AW;
@@ -1267,7 +1161,7 @@ impl<'a> Skin<'a> {
         let mut best = (f64::MAX, 0.0, 0.0);
         for x in 0..AW {
             let Some(s) = (1..AH - 1).map(|y| self.a.samples[y * AW + x]).min_by(|p, q| p.p[2].abs().total_cmp(&q.p[2].abs())) else { continue };
-            let miss = (self.spot(s).arc - arc).abs();
+            let miss = (self.spot(&s).arc - arc).abs();
             if miss < best.0 { best = (miss, s.theta, s.v); }
         }
         (best.1, best.2)
@@ -1277,7 +1171,7 @@ impl<'a> Skin<'a> {
     fn on_cheek(&self, rho: f64, phi: f64, side: f64) -> Option<(f64, f64)> {
         let (x, y) = (rho * phi.sin(), rho * phi.cos());
         self.a.samples.iter()
-            .filter(|s| s.p[2] * side > 0.0 && self.a.cheek(**s) > 0.9)
+            .filter(|s| s.p[2] * side > 0.0 && self.a.cheek(s) > 0.9)
             .map(|s| ((s.p[0] - x).hypot(s.p[1] - y), s))
             .filter(|(d, _)| *d < 0.12)
             .min_by(|a, b| a.0.total_cmp(&b.0))
@@ -1293,33 +1187,6 @@ impl<'a> Skin<'a> {
             .min_by(|p, q| ((p.p[0] - x).powi(2) + (p.p[2] - z).powi(2)).total_cmp(&((q.p[0] - x).powi(2) + (q.p[2] - z).powi(2))))
             .unwrap();
         (best.theta, best.v)
-    }
-}
-
-/// Make a painted skin pull from a two-part mould by construction. Walking out from the parting line
-/// across each section, relief may rise only as fast as the stock's own draft there allows — on a
-/// signet's face that is barely at all, on its cheeks without limit. What breaks the rule is cut back,
-/// never filled: a filled flank is a ridge to the parting line, and that is not what was drawn.
-fn draft_clamp(a: &Atlas, alpha: &mut Alpha, height_mm: f64) {
-    for x in 0..AW {
-        let at = |y: usize| a.samples[y * AW + x];
-        let Some(crest) = (1..AH - 1).min_by(|p, q| at(*p).p[2].abs().total_cmp(&at(*q).p[2].abs())) else { continue };
-        for dir in [1i64, -1] {
-            let mut y = crest as i64;
-            loop {
-                let next = y + dir;
-                if next < 1 || next >= AH as i64 - 1 { break; }
-                let (here, there) = (at(y as usize), at(next as usize));
-                let step = (0..3).map(|k| (there.p[k] - here.p[k]).powi(2)).sum::<f64>().sqrt();
-                // Draft the mould half sees: the normal's lean toward its own side of the parting line.
-                let lean = (there.n[2] * there.p[2].signum()).clamp(0.0, 0.9995);
-                let rise = lean / (1.0 - lean * lean).sqrt() * step / height_mm;
-                let cap = alpha.data[y as usize * AW + x] + rise as f32;
-                let cell = &mut alpha.data[next as usize * AW + x];
-                *cell = cell.min(cap.min(1.0));
-                y = next;
-            }
-        }
     }
 }
 
@@ -1362,21 +1229,16 @@ fn round_scales(row: f64, col: f64) -> f64 {
     best
 }
 
+/// A window round the ring with the painted layers' six-degree fade.
+fn window(centre: f64, span: f64) -> Window {
+    let mut w = Window::around(centre, span);
+    w.fade_deg = 6.0;
+    w
+}
+
+/// The skin stops short of the palm, the band's tightest station, and so does its layer.
 fn skin_layer(d: &RingDesign, name: &str, height: f64) -> LayerEntry {
-    let ctx = d.field_context();
-    let mut t = TilingLayer::default_for(name, &ctx);
-    t.repeats_around = 1;
-    t.rows = 1;
-    t.v_center_mm = ctx.band_v_len_mm * 0.5;
-    t.v_span_mm = ctx.band_v_len_mm;
-    t.height_mm = height;
-    t.feather_mm = 0.0;
-    let mut e = LayerEntry::new(name, Layer::Tiling(t));
-    // The skin stops short of the palm, and so does the layer: the palm is the band's tightest station,
-    // and a texture is judged at the tightest one it covers.
-    e.window = Window::around(90.0, 300.0);
-    e.window.fade_deg = 6.0;
-    e
+    skin::hide_layer(d, name, height, window(90.0, 300.0))
 }
 
 fn flush_seat(d: &mut RingDesign, skin: &Skin, name: &str, x: f64, z: f64, gem: Gem, mound: f64) {
@@ -1404,7 +1266,7 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
     // The sand envelope stays on as the release's guarantee, but the skin is drawn so that it has nothing
     // to fill: every form falls away from the parting line, and what the graver cuts is laid on afterwards.
     let mut lib = AlphaLibrary::builtin();
-    let a = Atlas::new(&d)?;
+    let a = Atlas::of(&d, AW, AH)?;
     let skin = Skin::new(&a);
     if slug == "caiman" {
         caiman(&mut d, &mut lib, &a, &skin)?;
@@ -1415,7 +1277,7 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
         setup.recipe.alloy = "Silver 925".into();
         setup.bench_notes = "Imported-stock master, one reptile skin from face to palm: pointed, keeled scutes the width of the band, graded from the face down both shoulders, and small round scales on the head's walls. Every wall faces round the ring or away from the parting line, so the skin pulls as drawn. Z=0 parting, opposed Z withdrawal. The stone is flush set at the bench: drill on the raised mark at the face's centre, cut the seat to the measured stone, burnish. Polish the reserved rims and the palm; leave the grooves satin.".into();
         const RELIEF: f64 = 0.60;
-        let mut alpha = a.alpha("Saurian skin", |s| {
+        let mut alpha = a.paint("Saurian skin", |s| {
             let at = skin.spot(s);
             // One form from face to palm: the pointed scute, 2.5 mm deep on the face and graded down the
             // shoulders to 1.5 by the palm, its point leading away from the stone on both sides.
@@ -1432,7 +1294,7 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
             let walls = a.cheek(s) * round_scales(s.p[0].atan2(s.p[1]).abs() * rho / 2.3, (rho - a.bore) / 1.9);
             face.max(scales).max(walls)
         });
-        draft_clamp(&a, &mut alpha, RELIEF);
+        draft_clamp(&a, &mut alpha, RELIEF)?;
         portable(&mut lib, alpha);
         d.layers.layers.push(skin_layer(&d, "Saurian skin", RELIEF));
         flush_seat(&mut d, &skin, "Flush stone on the spine", 0.0, 0.0, Gem::calibrated(GemCut::Round, 2.8), 0.50);
@@ -1447,7 +1309,7 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
         ];
         let pleiades = [(6.2, 3.1, 0.40), (6.75, 2.55, 0.34), (5.75, 2.45, 0.36), (6.45, 1.95, 0.32), (5.95, 3.55, 0.30), (6.95, 3.35, 0.30)];
         use ringdesign_core::setting::{Stamp, crescent_cutter, moon_outline};
-        let start = a.length * 0.5 + 2.6;
+        let start = a.head_length_mm * 0.5 + 2.6;
         let ctx = d.field_context();
         const RELIEF: f64 = 0.34;
         const HORN: f64 = 0.86;
@@ -1528,7 +1390,7 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
         // A pit or a bump off the parting line would lock in the sand; cut at the bench it costs nothing.
         let lines = [(0usize, 8usize), (1, 8), (2, 8), (3, 8), (0, 4), (1, 4)];
         let belt_ends = [(-2.9, 0.0), (2.9, 0.0)];
-        let graver = a.alpha("Graver's sky", |s| {
+        let graver = a.paint("Graver's sky", |s| {
             let at = skin.spot(s);
             let (x, z) = (s.p[0], s.p[2]);
             let mut cut: f64 = 0.0;
@@ -1565,169 +1427,27 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
     Ok((d, lib))
 }
 
-/// The stock's surface measured in millimetres the way a hide is: `along` the parting line from the
-/// head's centre (per column, signed by shoulder), `across` the section from the parting line (per
-/// sample, signed by side), and `rim`, how far across the outer surface runs on each side before it
-/// turns to face the pull. On a head's end wall the parting line runs down the wall, so rows laid by
-/// `along` keep their size there instead of crowding into the few degrees the wall spans.
-struct Hide {
-    along: Vec<f64>,
-    across: Vec<f64>,
-    rim: Vec<[f64; 2]>,
-    /// How far the wall runs down past the rim on each side before the bore's edge.
-    wall: Vec<[f64; 2]>,
-    /// The atlas row of the parting line in each column.
-    crest: Vec<usize>,
-}
-
-impl Hide {
-    fn new(a: &Atlas) -> Self {
-        let at = |x: usize, y: usize| a.samples[y * AW + x];
-        let dist = |p: [f64; 3], q: [f64; 3]| (0..3).map(|k| (p[k] - q[k]).powi(2)).sum::<f64>().sqrt();
-        let crest: Vec<usize> = (0..AW)
-            .map(|x| (1..AH - 1).min_by(|p, q| at(x, *p).p[2].abs().total_cmp(&at(x, *q).p[2].abs())).unwrap_or(AH / 2))
-            .collect();
-        let head = AW / 4;
-        let mut along = vec![0.0; AW];
-        for dir in [1i64, -1] {
-            let (mut acc, mut prev) = (0.0, head);
-            for k in 1..=AW / 2 {
-                let x = (head as i64 + dir * k as i64).rem_euclid(AW as i64) as usize;
-                acc += dist(at(prev, crest[prev]).p, at(x, crest[x]).p);
-                along[x] = dir as f64 * acc;
-                prev = x;
-            }
-        }
-        let mut across = vec![0.0; AW * AH];
-        let mut rim = vec![[0.0; 2]; AW];
-        let mut wall = vec![[0.0; 2]; AW];
-        for x in 0..AW {
-            let c = crest[x];
-            for dir in [1i64, -1] {
-                let (mut acc, mut y) = (0.0, c as i64);
-                let (mut edge, mut low) = (None, 0.0);
-                loop {
-                    let next = y + dir;
-                    if next < 0 || next >= AH as i64 {
-                        break;
-                    }
-                    let (p, q) = (at(x, y as usize), at(x, next as usize));
-                    acc += dist(p.p, q.p);
-                    across[next as usize * AW + x] = acc * q.p[2].signum();
-                    if edge.is_none() && q.n[2].abs() > 0.6 {
-                        edge = Some(acc);
-                    }
-                    if q.p[0].hypot(q.p[1]) > a.bore + 0.9 {
-                        low = acc;
-                    }
-                    y = next;
-                }
-                let side = if at(x, (c as i64 + dir * 4).clamp(0, AH as i64 - 1) as usize).p[2] < 0.0 { 0 } else { 1 };
-                rim[x][side] = edge.unwrap_or(acc).max(0.5);
-                wall[x][side] = (low - rim[x][side]).max(0.0);
-            }
-        }
-        // Each column finds its rim on its own, to within a row of the atlas; averaged along the ring the
-        // steps laid from it run straight instead of combing the plates between neighbouring columns.
-        let smooth = |v: &Vec<[f64; 2]>| -> Vec<[f64; 2]> {
-            (0..AW).map(|x| std::array::from_fn(|k| (-6i64..=6).map(|o| v[(x as i64 + o).rem_euclid(AW as i64) as usize][k]).sum::<f64>() / 13.0)).collect()
-        };
-        let (rim, wall) = (smooth(&rim), smooth(&wall));
-        Self { along, across, rim, wall, crest }
-    }
-    /// The point of the parting line `along` mm from the head's centre, to the atlas's resolution.
-    fn crest_point(&self, a: &Atlas, along: f64) -> [f64; 3] {
-        let x = (0..AW).min_by(|p, q| (self.along[*p] - along).abs().total_cmp(&(self.along[*q] - along).abs())).unwrap_or(AW / 4);
-        a.samples[self.crest[x] * AW + x].p
-    }
-    /// The chart point on the parting line `along` mm from the head's centre, signed by shoulder: `v` where
-    /// the section actually crosses `z = 0`, not the nearest row, which can stand a fiftieth off it.
-    fn crest_at(&self, a: &Atlas, along: f64) -> (f64, f64) {
-        let x = (0..AW).min_by(|p, q| (self.along[*p] - along).abs().total_cmp(&(self.along[*q] - along).abs())).unwrap_or(AW / 4);
-        let at = |y: usize| a.samples[y * AW + x];
-        let c = self.crest[x];
-        for (y0, y1) in [(c.saturating_sub(1), c), (c, (c + 1).min(AH - 1))] {
-            let (p, q) = (at(y0), at(y1));
-            if y0 != y1 && p.p[2] * q.p[2] <= 0.0 && p.p[2] != q.p[2] {
-                let f = p.p[2] / (p.p[2] - q.p[2]);
-                return (p.theta, p.v + (q.v - p.v) * f);
-            }
-        }
-        (at(c).theta, at(c).v)
-    }
-    /// A sample's `(along, across, rim, wall)`, the last two on its own side.
-    fn at(&self, s: Sample) -> (f64, f64, f64, f64) {
-        let (x, side) = (s.i % AW, if s.p[2] < 0.0 { 0 } else { 1 });
-        (self.along[x], self.across[s.i], self.rim[x][side], self.wall[x][side])
-    }
-}
-
-/// Where one series of plates is jointed along the ring, from `start` to `end` mm: lengths scattered
-/// about the local pitch, so neighbouring series never line up.
-struct Joints(Vec<f64>);
-
-impl Joints {
-    fn new(start: f64, end: f64, pitch: impl Fn(f64) -> f64, seed: i64) -> Self {
-        let mut g = vec![start];
-        let mut j = 0;
-        while *g.last().unwrap() < end {
-            let l = *g.last().unwrap();
-            g.push(l + pitch(l) * (0.72 + 0.56 * hash(seed, j)));
-            j += 1;
-        }
-        // Close on `end`: a stub shorter than half a plate joins the plate before it.
-        let n = g.len();
-        if n >= 3 && end - g[n - 2] < 0.5 * pitch(end) {
-            g.remove(n - 2);
-        }
-        *g.last_mut().unwrap() = end;
-        Self(g)
-    }
-    /// The plate at `l`: its index, how far along it from 0 to 1, and its length.
-    fn at(&self, l: f64) -> Option<(usize, f64, f64)> {
-        let g = &self.0;
-        if g.len() < 2 || l < g[0] || l > g[g.len() - 1] {
-            return None;
-        }
-        let j = g.partition_point(|x| *x <= l).saturating_sub(1).min(g.len() - 2);
-        let len = g[j + 1] - g[j];
-        Some((j, (l - g[j]) / len, len))
-    }
-}
-
 /// Clamp a painted layer to the sand's rule and say how much the rule took: a hide drawn to pull should
 /// lose next to nothing.
-fn clamped(a: &Atlas, mut alpha: Alpha, height_mm: f64) -> Alpha {
-    let before = alpha.data.clone();
-    draft_clamp(a, &mut alpha, height_mm);
-    let (mut cut, mut worst) = (0usize, 0.0f32);
-    for (b, c) in before.iter().zip(&alpha.data) {
-        if b - c > 0.02 {
-            cut += 1;
-        }
-        worst = worst.max(b - c);
-    }
-    println!("  {}: the draft rule cut {} texels, at most {:.3} mm", alpha.name, cut, worst as f64 * height_mm);
-    alpha
+fn clamped(a: &Atlas, mut alpha: Alpha, height_mm: f64) -> Result<Alpha> {
+    let cut = draft_clamp(a, &mut alpha, height_mm)?;
+    println!("  {}: the draft rule cut {} texels, at most {:.3} mm", alpha.name, cut.texels_cut, cut.worst_mm);
+    Ok(alpha)
 }
 
 /// A painted layer over the whole chart, one tile, windowed round the ring and joined by `Max`, so that
 /// each layer keeping the draft rule keeps the whole hide to it.
 fn hide_layer(d: &RingDesign, name: &str, height: f64, centre: f64, span: f64) -> LayerEntry {
-    let mut e = skin_layer(d, name, height);
-    e.blend = Blend::Max;
-    e.window = Window::around(centre, span);
-    e.window.fade_deg = 6.0;
-    e
+    skin::hide_layer(d, name, height, window(centre, span))
 }
 
 fn caiman(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, skin: &Skin) -> Result<()> {
     let setup = d.manufacturing.as_mut().unwrap();
     setup.bench_notes = "Imported-stock master, one crocodile hide from back to belly: dorsal plates in rows across the face and down both shoulders, grading from the spine to the rim, with a crest of horns struck along the spine and the emerald set as the central plate of the nuchal shield; granular flanks studded with bony tubercles on the head's walls; broad ventral scutes across the palm. Every plate steps down away from the parting line and every groove runs round the ring, so the hide pulls as drawn. Z=0 parting, opposed Z withdrawal. At the bench: drill on the raised mark at the face's centre and cut the emerald's seat to the measured stone; punch the pits into the dorsal plates; cut the two lines down the belly that divide its scutes into tiles. Polish the plates' tops and the palm, leave the grooves and granules satin.".into();
-    let hide = Hide::new(a);
+    let hide = Hide::of(a);
     // The palm carries six belly scutes a side at an even 2.1 mm, closing on a joint at its centre; the
     // dorsal mosaic runs from the head's centre to where they begin.
-    let lmax = hide.along.iter().fold(0.0_f64, |m, l| m.max(l.abs()));
+    let lmax = hide.reach();
     const BELLY_PITCH: f64 = 2.1;
     let l_belly = lmax - 6.0 * BELLY_PITCH;
     println!("  hide: {lmax:.2} mm to the palm, the belly from {l_belly:.2}");
@@ -1748,16 +1468,9 @@ fn caiman(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, skin: &Skin) ->
     // like the moons did, graded down both shoulders. Where the parting line folds over the head's end wall
     // onto the shoulder it turns at better than 12 degrees a millimetre, where the ring's own round is
     // under 5, and those millimetres are mapped first.
-    let turn = |p: [[f64; 3]; 3]| {
-        let (u, w): ([f64; 3], [f64; 3]) = (std::array::from_fn(|k| p[1][k] - p[0][k]), std::array::from_fn(|k| p[2][k] - p[1][k]));
-        let dot = u[0] * w[0] + u[1] * w[1] + u[2] * w[2];
-        (dot / (u.iter().map(|x| x * x).sum::<f64>() * w.iter().map(|x| x * x).sum::<f64>()).sqrt().max(1e-12)).clamp(-1.0, 1.0).acos().to_degrees()
-    };
+    let every_fold = hide.folds(a, 12.0);
     for sign in [1.0, -1.0] {
-        let folds: Vec<f64> = (0..300)
-            .map(|i| i as f64 * 0.1)
-            .filter(|l| turn([l - 0.4, *l, l + 0.4].map(|o| hide.crest_point(a, sign * o))) > 12.0 * 0.8)
-            .collect();
+        let folds: Vec<f64> = every_fold.iter().filter(|f| f.is_sign_positive() == (sign > 0.0)).map(|f| f.abs()).collect();
         for (j, pair) in rows.0.windows(2).enumerate() {
             let (centre, len) = (0.5 * (pair[0] + pair[1]), pair[1] - pair[0]);
             let fade = smoothstep(4.0, 28.0, centre);
@@ -1827,8 +1540,8 @@ fn caiman(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, skin: &Skin) ->
     // Floor at the joints, and the plate's height at its inner and outer edge, per series.
     const LEVELS: [(f64, f64, f64); 3] = [(0.0, 0.82, 0.82), (0.0, 0.46, 0.36), (0.0, 0.18, 0.08)];
     const DORSAL: f64 = 1.05;
-    let dorsal = a.alpha("Dorsal armour", |s| {
-        let (along, across, rim, _) = hide.at(s);
+    let dorsal = a.paint("Dorsal armour", |s| {
+        let HidePoint { along, across, rim, .. } = hide.at(s);
         let l = along.abs();
         if l > l_belly {
             return 0.0;
@@ -1871,13 +1584,13 @@ fn caiman(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, skin: &Skin) ->
         let top = ((h[0] * (1.0 - s0) + h[1] * s0) * (1.0 - s1) + h[2] * s1) * (1.0 - s2);
         top * close * (1.0 - 0.3 * smoothstep(9.0, 30.0, l)) / DORSAL
     });
-    let dorsal = clamped(a, dorsal, DORSAL);
+    let dorsal = clamped(a, dorsal, DORSAL)?;
     portable(lib, dorsal);
     d.layers.layers.push(hide_layer(d, "Dorsal armour", DORSAL, 90.0, 290.0));
     // Granules over every wall that faces the pull, where any relief casts.
     const FLANK: f64 = 0.30;
-    let flank = a.alpha("Flank granules", |s| {
-        let (_, across, rim, _) = hide.at(s);
+    let flank = a.paint("Flank granules", |s| {
+        let HidePoint { across, rim, .. } = hide.at(s);
         let rho = s.p[0].hypot(s.p[1]);
         let side = smoothstep(0.62, 0.80, s.n[2].abs()) * smoothstep(a.bore + 0.3, a.bore + 0.75, rho);
         if side <= 0.0 {
@@ -1899,14 +1612,14 @@ fn caiman(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, skin: &Skin) ->
         }
         best * side * 0.26 / FLANK
     });
-    let flank = clamped(a, flank, FLANK);
+    let flank = clamped(a, flank, FLANK)?;
     portable(lib, flank);
     d.layers.layers.push(hide_layer(d, "Flank granules", FLANK, 90.0, 359.0));
     // Bony tubercles in rows along the head's walls, graded down as the walls shorten.
     const HORN: f64 = 0.78;
-    let horn = a.alpha("Hornback", |s| {
+    let horn = a.paint("Hornback", |s| {
         let at = skin.spot(s);
-        let (_, across, rim, wall) = hide.at(s);
+        let HidePoint { across, rim, wall, .. } = hide.at(s);
         let side = smoothstep(0.78, 0.9, s.n[2].abs());
         if side <= 0.0 || at.away > 112.0 {
             return 0.0;
@@ -1934,13 +1647,13 @@ fn caiman(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, skin: &Skin) ->
         }
         best * side * 0.72 / HORN
     });
-    let horn = clamped(a, horn, HORN);
+    let horn = clamped(a, horn, HORN)?;
     portable(lib, horn);
     d.layers.layers.push(hide_layer(d, "Hornback", HORN, 90.0, 230.0));
     // Broad scutes across the palm, in step with the dorsal rows: the graver divides them into tiles.
     const BELLY: f64 = 0.30;
-    let belly = a.alpha("Belly scutes", |s| {
-        let (along, across, rim, _) = hide.at(s);
+    let belly = a.paint("Belly scutes", |s| {
+        let HidePoint { along, across, rim, .. } = hide.at(s);
         let l = along.abs();
         if l < l_belly {
             return 0.0;
@@ -1951,13 +1664,13 @@ fn caiman(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, skin: &Skin) ->
         let edge = 1.0 - smoothstep(rim * 0.9, rim + 0.25, across.abs());
         ml * pillow * edge
     });
-    let belly = clamped(a, belly, BELLY);
+    let belly = clamped(a, belly, BELLY)?;
     portable(lib, belly);
     d.layers.layers.push(hide_layer(d, "Belly scutes", BELLY, 270.0, 150.0));
     // After the pour: pits punched into the dorsal plates, and the two lines that tile the belly.
     const GRAVER: f64 = 0.12;
-    let graver = a.alpha("Graver's pits and tiles", |s| {
-        let (along, across, rim, _) = hide.at(s);
+    let graver = a.paint("Graver's pits and tiles", |s| {
+        let HidePoint { along, across, rim, .. } = hide.at(s);
         let (l, w) = (along.abs(), across.abs());
         let side = if across < 0.0 { 1i64 } else { 2 } + if along < 0.0 { 10 } else { 0 };
         let mut cut: f64 = 0.0;
@@ -2029,7 +1742,7 @@ fn caiman(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, skin: &Skin) ->
 }
 
 /// Half the band's width at a sample's own station, mm.
-fn self_half(skin: &Skin, s: Sample) -> f64 {
+fn self_half(skin: &Skin, s: &Sample) -> f64 {
     skin.half[((s.theta / 360.0 * AW as f64).round() as usize) % AW]
 }
 
