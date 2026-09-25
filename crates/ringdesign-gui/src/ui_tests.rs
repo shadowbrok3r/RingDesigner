@@ -505,19 +505,23 @@ fn a_build_lands_before_its_detail_findings_and_they_follow_it() {
 }
 
 #[test]
-fn the_worker_measures_no_detail_until_something_reads_it_and_then_the_build_on_screen() {
+fn the_worker_measures_no_detail_until_a_panel_reads_it_and_then_the_build_on_screen() {
     let mut h = harness([1600., 980.]);
     let probe = h.state().detail_probe();
+    h.state_mut().dock.close(ToolKind::Report);
+    h.state_mut().dock.close(ToolKind::Layers);
     h.state_mut().design = ringdesign_core::templates::all().iter().find(|t| t.name == "Braided band").unwrap().design();
     h.state_mut().mark_dirty();
     h.state_mut().rebuild_now();
     crate::interaction_tests::wait_for_build(&mut h);
     std::thread::sleep(std::time::Duration::from_millis(200));
     h.run_steps(3);
-    assert_eq!(probe.started.load(std::sync::atomic::Ordering::SeqCst), 0, "measured with no reader");
+    assert_eq!(probe.started.load(std::sync::atomic::Ordering::SeqCst), 0, "measured with no panel reading it");
     assert_eq!(h.state().dfm_generation, 0);
     let generation = h.state().build_generation();
-    h.state().detail_findings();
+    // The Report reads the worker's findings as it draws.
+    h.state_mut().dock.open_on(ToolKind::Report, crate::dock::Side::Right);
+    h.run_steps(1);
     wait_for_detail(&mut h);
     assert_eq!(h.state().build_generation(), generation, "the build on screen measured without another");
     assert_eq!(probe.started.load(std::sync::atomic::Ordering::SeqCst), 1);
