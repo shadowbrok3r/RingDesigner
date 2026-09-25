@@ -537,6 +537,9 @@ mod tests {
             eprintln!("{name}, {} rows: {checked} vertices, worst {worst:.5} mm, {ratio:.3} of the local texel", fine.profile_steps);
             assert!(checked > 150_000, "{name}: {checked}");
             assert!(ratio < 1.0, "{name}: {worst} mm is {ratio} of a texel");
+            if name == "keyframed" {
+                assert!(worst < 0.005, "keyframed: {worst} mm off, where half a column round the ring is 0.064");
+            }
             let (worst, ratio, rowed, _) = miss(&d, preview, &a);
             eprintln!("{name}, 160 rows: worst {worst:.5} mm, {ratio:.3} of the texel, {rowed:.3} of the texel and a row");
             assert!(rowed < 1.0, "{name}: {worst} mm is {rowed} of a texel and a row");
