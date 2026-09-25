@@ -1,0 +1,21 @@
+{
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "design_bytes": 10746704,
+  "design_set_patches": [
+    "\"/build/profile_steps\"",
+    "\"/build/theta_steps\"",
+    "\"/draft/min_detail_mm\"",
+    "\"/draft/min_section_mm\"",
+    "\"/draft/sand\"",
+    "\"/imported_base\"",
+    "\"/manufacturing\"",
+    "\"/stamps\""
+  ],
+  "editable_graph_bytes": 25833664,
+  "graph_bytes": 5228291,
+  "nodes": 41,
+  "source_identical": true,
+  "triangles": 1355052,
+  "vertices_faces_normals_identical": true
+}
