@@ -696,6 +696,8 @@ impl RingApp {
                         next.casting_trials = self.design.casting_trials.clone();
                         next.pins = self.design.pins.clone();
                         self.design = next;
+                        // What the committed graph evaluates to joins the entry that committed it.
+                        self.history.absorb(&self.design);
                     }
                     self.graph.apply(&GraphDone {
                         design: RingDesign::default(),

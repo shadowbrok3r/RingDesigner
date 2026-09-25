@@ -107,6 +107,15 @@ impl History {
         self.touched = None;
     }
 
+    /// Take `design` as the committed state with no entry of its own when nothing is pending and it carries the committed graph, as a graph evaluation's result does; true when taken.
+    pub fn absorb(&mut self, design: &RingDesign) -> bool {
+        if self.touched.is_some() || design.graph.is_none() || design.graph != self.baseline.graph {
+            return false;
+        }
+        self.baseline = design.clone();
+        true
+    }
+
     /// Whether an edit is waiting on the settle window.
     ///
     /// A caller that only draws on demand — the phone, which stops rendering
@@ -445,6 +454,34 @@ fn show(v: &Value, unit: &str) -> Option<String> {
 mod tests {
     use super::*;
     use crate::field::{Layer, LayerEntry, MilgrainLayer};
+
+    #[test]
+    fn a_graph_evaluation_joins_the_edit_that_asked_for_it() {
+        let graph = |w: f64| Some(serde_json::json!({"name": "g", "nodes": [{"id": 1, "kind": "band.profile", "inputs": {"width_mm": w}}]}));
+        let mut before = design();
+        before.graph = graph(4.0);
+        before.profile.width_mm = 4.0;
+        let mut h = History::new(&before);
+        let mut edited = before.clone();
+        edited.graph = graph(6.0);
+        h.touch();
+        assert_eq!(h.commit(&edited).as_deref(), Some("Graph edited"));
+        let mut evaluated = edited.clone();
+        evaluated.profile.width_mm = 6.0;
+        assert!(h.absorb(&evaluated), "the evaluation of the committed graph");
+        assert_eq!(h.commit(&evaluated), None, "no entry of its own");
+        assert_eq!(h.undo().map(|d| (d.graph, d.profile.width_mm)), Some((graph(4.0), 4.0)), "one undo takes the edit back");
+        assert_eq!(h.redo().map(|d| (d.graph, d.profile.width_mm)), Some((graph(6.0), 6.0)));
+        // A pending edit, or a design carrying another graph, is not taken.
+        h.touch();
+        assert!(!h.absorb(&evaluated));
+        h.commit(&evaluated);
+        let mut other = evaluated.clone();
+        other.graph = graph(7.0);
+        assert!(!h.absorb(&other));
+        other.graph = None;
+        assert!(!h.absorb(&other));
+    }
 
     #[test]
     fn a_graph_is_named_as_a_document_not_as_fields() {

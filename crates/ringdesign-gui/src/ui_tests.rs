@@ -656,6 +656,35 @@ fn a_driven_graph_reads_its_own_lettering_by_name_once_the_host_holds_it() {
 }
 
 #[test]
+fn one_undo_takes_back_a_graph_edit_and_what_it_evaluated_to() {
+    use ringdesign_graph::value::Literal;
+    let mut h = harness([1600., 980.]);
+    h.state_mut().design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+    h.state_mut().convert_to_graph();
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    let settled = h.state().design.clone();
+    h.state_mut().history.commit(&settled);
+    let (graph, width) = (h.state().design.graph.clone(), h.state().design.profile.width_mm);
+    let mut g = h.state().graph_ed.as_ref().expect("driven").graph().clone();
+    let profile = g.nodes.iter().find(|n| n.kind == "band.profile").expect("a profile node").id;
+    g.set_input(profile, "width_mm", Literal::Number(width + 2.0)).unwrap();
+    h.state_mut().design.graph = serde_json::to_value(&g).ok();
+    h.state_mut().mark_dirty();
+    let edited = h.state().design.clone();
+    assert_eq!(h.state_mut().history.commit(&edited).as_deref(), Some("Graph edited"));
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    assert_eq!(h.state().design.profile.width_mm, width + 2.0, "the edit evaluated");
+    h.state_mut().undo();
+    assert_eq!((h.state().design.graph.clone(), h.state().design.profile.width_mm), (graph, width), "one undo took the edit back");
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    h.state_mut().redo();
+    assert_eq!(h.state().design.profile.width_mm, width + 2.0, "and one redo brings it back");
+}
+
+#[test]
 fn a_template_with_an_expression_pin_opens_from_the_menu_path() {
     let mut g = ringdesign_graph::templates::graph("Court band").unwrap();
     g.set_input(ringdesign_graph::graph::NodeId(1), "width_mm", ringdesign_graph::value::Literal::expr("2.5 + 2.0")).unwrap();

@@ -960,6 +960,8 @@ impl RingDesignerApp {
                             self.design.graph = graph;
                             self.design.pins = pins;
                             self.follow_stamps(named);
+                            // What the committed graph evaluates to joins the entry that committed it.
+                            self.history.absorb(&self.design);
                         }
                         self.graph_errors = gd.errors.iter().map(ToString::to_string).collect();
                         if gd.ok {
