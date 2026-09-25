@@ -42,16 +42,26 @@ pub const DESIGN_EXT: &str = "ring.json";
 /// from being discarded by an older app. Every version has a migration step.
 // Version 4 protects the sand-support surface and high-resolution embedded maps.
 // Version 6 protects a stored mesh, which no earlier build can parse, and keeps each one once in the file's table;
-// it also protects a revolution whose line is read in its sketch's plane, which an earlier build would turn about the world's line.
-// A design with neither is still written at 5.
+// it also protects a revolution whose line is read in its sketch's plane, which an earlier build would turn about the world's line,
+// a cut carved from a ring of parts alone, which an earlier build pours as metal, and a stamp with a tier, a shaped top or
+// an outline over 512 points, which an earlier build flattens or refuses.
+// A design with none of these is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
-/// The version a design without a stored mesh or an in-plane revolution is written at, so builds that read up to it still open the file.
+/// The version a design carrying none of the format-6 features is written at, so builds that read up to it still open the file.
 pub const PLAIN_FORMAT_VERSION: u32 = 5;
 
-/// The version `design` is written at: the newest when it carries a stored mesh or a revolution read in its sketch's plane, in its document or in its graph.
+/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a cut on a ring of parts alone or a stamp a format-5 build cannot strike.
 pub fn format_version_for(design: &RingDesign) -> u32 {
-    if crate::cad::stored::carried_by(design) || crate::cad::turns_in_plane(design) || crate::parts::cuts_apart(design) { FORMAT_VERSION } else { PLAIN_FORMAT_VERSION }
+    if crate::cad::stored::carried_by(design)
+        || crate::cad::turns_in_plane(design)
+        || crate::parts::cuts_apart(design)
+        || design.stamps.iter().any(|s| !s.is_plain())
+    {
+        FORMAT_VERSION
+    } else {
+        PLAIN_FORMAT_VERSION
+    }
 }
 
 /// Version stamped into saved profile and outline files.

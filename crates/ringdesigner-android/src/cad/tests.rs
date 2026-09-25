@@ -1419,6 +1419,8 @@ fn the_stamp_window_follows_its_stamp_across_undo_and_redo() {
         cut: false,
         bench: false,
         along_pull: false,
+        tier: 0,
+        top: Default::default(),
     };
     let mut d = court();
     d.stamps = vec![disc("Moon"), disc("Star")];

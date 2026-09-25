@@ -1520,6 +1520,8 @@ mod tests {
             cut: false,
             bench: false,
             along_pull: false,
+            tier: 0,
+            top: Default::default(),
         });
         let mut doc = Document::default();
         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();

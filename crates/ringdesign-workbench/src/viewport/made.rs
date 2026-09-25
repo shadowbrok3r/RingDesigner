@@ -149,7 +149,7 @@ mod tests {
             let t = std::f64::consts::TAU * f64::from(i) / 12.0;
             [t.cos(), t.sin()]
         });
-        Stamp { name: name.into(), theta_deg: 270.0, v_mm: 0.0, rot_deg: 0.0, outline: outline.collect(), height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false }
+        Stamp { name: name.into(), theta_deg: 270.0, v_mm: 0.0, rot_deg: 0.0, outline: outline.collect(), height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: Default::default() }
     }
     fn design() -> RingDesign {
         use ringdesign_core::field::{Layer, LayerEntry, SeatPadLayer};

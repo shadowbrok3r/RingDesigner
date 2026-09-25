@@ -1452,7 +1452,7 @@ fn themed(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
         const RELIEF: f64 = 0.34;
         const HORN: f64 = 0.86;
         let stamp = |name: String, at: (f64, f64), rot: f64, outline: Vec<[f64; 2]>| Stamp {
-            name, theta_deg: at.0, v_mm: at.1, rot_deg: rot, outline, height_mm: RELIEF, sink_mm: 0.3, draft_deg: 4.0, cut: false, bench: false, along_pull: false,
+            name, theta_deg: at.0, v_mm: at.1, rot_deg: rot, outline, height_mm: RELIEF, sink_mm: 0.3, draft_deg: 4.0, cut: false, bench: false, along_pull: false, tier: 0, top: Default::default(),
         };
         let circle = |r: f64| -> Vec<[f64; 2]> { (0..56).map(|i| { let t = TAU * i as f64 / 56.0; [r * t.cos(), r * t.sin()] }).collect() };
         // A moon the sand can cast is one whose every wall faces away from the parting line or round the
@@ -1802,6 +1802,8 @@ fn caiman(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, skin: &Skin) ->
                 cut: false,
                 bench: false,
                 along_pull: false,
+                tier: 0,
+                top: Default::default(),
             });
         }
     }
