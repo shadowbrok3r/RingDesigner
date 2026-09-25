@@ -228,29 +228,26 @@
     },
     {
       "id": 15,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/build/profile_steps",
-        "value": 480
-      },
+      "kind": "design.settings",
       "pos": [
         1200.0,
         0.0
-      ],
-      "label": "Preserve /build/profile_steps"
+      ]
     },
     {
       "id": 16,
-      "kind": "design.set",
+      "kind": "build.settings",
       "inputs": {
-        "pointer": "/build/theta_steps",
-        "value": 1536
+        "adaptive": false,
+        "min_wall_mm": 0.5,
+        "profile_steps": 480,
+        "soften_mm": 0.0,
+        "theta_steps": 1536
       },
       "pos": [
-        1440.0,
-        0.0
-      ],
-      "label": "Preserve /build/theta_steps"
+        0.0,
+        1050.0
+      ]
     },
     {
       "id": 17,
@@ -296,7 +293,7 @@
         }
       },
       "pos": [
-        1680.0,
+        1440.0,
         0.0
       ],
       "label": "Preserve /manufacturing"
@@ -305,7 +302,7 @@
       "id": 18,
       "kind": "sink.output",
       "pos": [
-        1920.0,
+        1680.0,
         0.0
       ]
     }
@@ -396,13 +393,13 @@
       "input": "design"
     },
     {
-      "from": 15,
-      "out": "design",
-      "to": 16,
-      "input": "design"
+      "from": 16,
+      "out": "build",
+      "to": 15,
+      "input": "build"
     },
     {
-      "from": 16,
+      "from": 15,
       "out": "design",
       "to": 17,
       "input": "design"

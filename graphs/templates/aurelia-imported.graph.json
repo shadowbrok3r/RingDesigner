@@ -1348,71 +1348,46 @@
     },
     {
       "id": 81,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/build/profile_steps",
-        "value": 448
-      },
+      "kind": "design.settings",
       "pos": [
         4320.0,
         0.0
-      ],
-      "label": "Preserve /build/profile_steps"
+      ]
     },
     {
       "id": 82,
-      "kind": "design.set",
+      "kind": "build.settings",
       "inputs": {
-        "pointer": "/build/theta_steps",
-        "value": 1536
+        "adaptive": false,
+        "min_wall_mm": 0.5,
+        "profile_steps": 448,
+        "soften_mm": 0.0,
+        "theta_steps": 1536
       },
       "pos": [
-        4560.0,
-        0.0
-      ],
-      "label": "Preserve /build/theta_steps"
+        0.0,
+        6450.0
+      ]
     },
     {
       "id": 83,
-      "kind": "design.set",
+      "kind": "draft.settings",
       "inputs": {
-        "pointer": "/draft/min_detail_mm",
-        "value": 0.3
+        "auto_parting": true,
+        "min_detail_mm": 0.3,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.8,
+        "parting_z_mm": 0.0,
+        "process": "SandTwoPart",
+        "sand": "DelftClay"
       },
       "pos": [
-        4800.0,
-        0.0
-      ],
-      "label": "Preserve /draft/min_detail_mm"
+        0.0,
+        6600.0
+      ]
     },
     {
       "id": 84,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/draft/min_section_mm",
-        "value": 0.8
-      },
-      "pos": [
-        5040.0,
-        0.0
-      ],
-      "label": "Preserve /draft/min_section_mm"
-    },
-    {
-      "id": 85,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/draft/sand",
-        "value": "DelftClay"
-      },
-      "pos": [
-        5280.0,
-        0.0
-      ],
-      "label": "Preserve /draft/sand"
-    },
-    {
-      "id": 86,
       "kind": "design.set",
       "inputs": {
         "pointer": "/imported_base",
@@ -525513,13 +525488,13 @@
         }
       },
       "pos": [
-        5520.0,
+        4560.0,
         0.0
       ],
       "label": "Preserve /imported_base"
     },
     {
-      "id": 87,
+      "id": 85,
       "kind": "design.set",
       "inputs": {
         "pointer": "/manufacturing",
@@ -525591,16 +525566,16 @@
         }
       },
       "pos": [
-        5760.0,
+        4800.0,
         0.0
       ],
       "label": "Preserve /manufacturing"
     },
     {
-      "id": 88,
+      "id": 86,
       "kind": "sink.output",
       "pos": [
-        6000.0,
+        5040.0,
         0.0
       ]
     }
@@ -526087,19 +526062,19 @@
       "input": "design"
     },
     {
-      "from": 81,
-      "out": "design",
-      "to": 82,
-      "input": "design"
-    },
-    {
       "from": 82,
-      "out": "design",
-      "to": 83,
-      "input": "design"
+      "out": "build",
+      "to": 81,
+      "input": "build"
     },
     {
       "from": 83,
+      "out": "draft",
+      "to": 81,
+      "input": "draft"
+    },
+    {
+      "from": 81,
       "out": "design",
       "to": 84,
       "input": "design"
@@ -526114,18 +526089,6 @@
       "from": 85,
       "out": "design",
       "to": 86,
-      "input": "design"
-    },
-    {
-      "from": 86,
-      "out": "design",
-      "to": 87,
-      "input": "design"
-    },
-    {
-      "from": 87,
-      "out": "design",
-      "to": 88,
       "input": "design"
     }
   ],
@@ -526156,5 +526119,5 @@
       "name": "Face rise"
     }
   ],
-  "next_id": 89
+  "next_id": 87
 }
