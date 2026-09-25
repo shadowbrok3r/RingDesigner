@@ -42,6 +42,17 @@ class CollectionTools(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_manifest(self.root, "probe")
 
+    def test_explicit_images_are_local_pngs_from_an_existing_renderer(self):
+        for view in [
+            {"name": "hero", "image": "flat.png", "position": [0, 1, 2]},
+            {"name": "hero", "render": False, "image": "../flat.png"},
+            {"name": "hero", "render": False, "image": "flat.jpg"},
+            {"name": "hero", "render": "false", "image": "flat.png"},
+        ]:
+            self.write_manifest(views=[view])
+            with self.assertRaises(ValueError):
+                load_manifest(self.root, "probe")
+
     def test_local_asset_cannot_escape_through_parent_or_symlink(self):
         with self.assertRaises(ValueError):
             local_path(self.root, "../elsewhere.stl")
@@ -78,6 +89,31 @@ class CollectionTools(unittest.TestCase):
         with zipfile.ZipFile(self.root / "Probe-final-renders.zip") as archive:
             self.assertFalse(any("stale" in name for name in archive.namelist()))
             self.assertEqual(len(archive.namelist()), 3)
+
+    def test_starter_gallery_uses_explicit_flat_images_without_moving_them(self):
+        views = [
+            {"name": "hero", "label": "Portrait", "render": False, "image": "Court Band Hero.png"},
+            {"name": "side", "label": "Side", "render": False, "image": "court-band-side.png"},
+        ]
+        self.write_manifest(collection="starters", title="Starters", rings=[{"slug": "court-band", "title": "Court band", "views": views}])
+        images = {}
+        for i, view in enumerate(views):
+            path = self.root / view["image"]
+            Image.new("RGB", (16, 16), (70 + i * 20, 80, 90)).save(path)
+            images[path] = path.read_bytes()
+        catalog(self.root, load_manifest(self.root), REPO)
+        page = (self.root / "index.html").read_text()
+        self.assertIn('src="Court%20Band%20Hero.png"', page)
+        self.assertIn('data-image="court-band-side.png"', page)
+        self.assertIn('xlink:href="Court%20Band%20Hero.png"', (self.root / "contact-sheet.svg").read_text())
+        self.assertFalse((self.root / "court-band").exists())
+        for path, data in images.items():
+            self.assertEqual(path.read_bytes(), data)
+        records = json.loads((self.root / "renders/manifest.json").read_text())
+        self.assertEqual([r["source_image"] for r in records], [v["image"] for v in views])
+        self.assertTrue(all("source_mesh" not in r for r in records))
+        with zipfile.ZipFile(self.root / "Starters-final-renders.zip") as archive:
+            self.assertEqual(archive.read("Starters/Starters-court-band-portrait.png"), images[self.root / views[0]["image"]])
 
     def test_reptilia_sheet_pixels_match_original_tool(self):
         before, after = self.root / "before", self.root / "after"

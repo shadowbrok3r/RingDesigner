@@ -44,7 +44,12 @@ def finite_vector(value, size, label):
     return value
 
 
-def validate_views(views):
+def view_path(root, ring, view):
+    """Resolve an explicit catalog image or the usual per-ring render path."""
+    return local_path(root, view.get("image", f"{ring['slug']}/{view['name']}.png"))
+
+
+def validate_views(views, root):
     if not isinstance(views, list) or not 1 <= len(views) <= 32:
         raise ValueError("Each render set must list 1–32 views")
     names = set()
@@ -55,6 +60,13 @@ def validate_views(views):
         if name in names:
             raise ValueError(f"Duplicate view: {name}")
         names.add(name)
+        if not isinstance(view.get("render", True), bool):
+            raise ValueError("View render must be true or false")
+        if "image" in view:
+            if view.get("render", True) or not isinstance(view["image"], str):
+                raise ValueError("An explicit image path requires render:false")
+            if local_path(root, view["image"]).suffix.lower() != ".png":
+                raise ValueError("Catalog images must be PNG files")
         if view.get("render", True):
             finite_vector(view.get("position"), 3, "camera position")
         if not isinstance(view.get("label", name), str):
@@ -92,7 +104,7 @@ def load_manifest(root, collection=None):
     if not isinstance(rings, list) or not 1 <= len(rings) <= 100:
         raise ValueError("A collection must list 1–100 rings")
     slugs = set()
-    validate_views(manifest.get("views", DEFAULT_VIEWS))
+    validate_views(manifest.get("views", DEFAULT_VIEWS), root)
     for ring in rings:
         if not isinstance(ring, dict):
             raise ValueError("Each ring must be an object")
@@ -109,7 +121,7 @@ def load_manifest(root, collection=None):
         scale = ring.get("ortho_scale", 30.5)
         if isinstance(scale, bool) or not isinstance(scale, (int, float)) or not math.isfinite(scale) or scale <= 0:
             raise ValueError("Orthographic scale must be positive and finite")
-        validate_views(ring.get("views", manifest.get("views", DEFAULT_VIEWS)))
+        validate_views(ring.get("views", manifest.get("views", DEFAULT_VIEWS)), root)
         if "sheet_view" in ring:
             safe_name(ring["sheet_view"])
     manifest.setdefault("views", DEFAULT_VIEWS)

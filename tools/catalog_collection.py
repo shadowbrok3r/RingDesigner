@@ -8,8 +8,9 @@ import shutil
 import subprocess
 import zipfile
 from pathlib import Path
+from urllib.parse import quote
 
-from render_collection import load_manifest
+from render_collection import load_manifest, view_path
 
 PAGE = r"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Reptilia — five rings</title><style>
@@ -23,7 +24,7 @@ article{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(250px,1fr);gap
 <footer><a href="Reptilia-collection.png" download>Collection sheet ↗</a><p>Rendered from the finished ring meshes. Silver polish, darkened recesses and amethyst colour describe the intended finish. The editable designs include separate casting stock and subtractive finishing layers.</p><p>All five meshes are closed. Withdrawal screening found no obstructions at 0.100 and 0.075 mm. Low-draft and fine-detail findings still require workshop review; none of these designs has been physically cast.</p></footer>
 <dialog><button type="button" aria-label="Close enlarged render">Close ×</button><img alt=""></dialog><script>
 const modal=document.querySelector('dialog'),large=modal.querySelector('img');
-document.querySelectorAll('article').forEach(article=>{const img=article.querySelector('img');article.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{article.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));img.src=article.dataset.slug+'/'+button.dataset.view+'.png';img.alt=article.querySelector('h2').textContent+' — '+button.textContent;}));article.querySelector('.enlarge').addEventListener('click',()=>{large.src=img.src;large.alt=img.alt;modal.showModal();});});modal.querySelector('button').addEventListener('click',()=>modal.close());modal.addEventListener('click',e=>{if(e.target===modal)modal.close();});
+document.querySelectorAll('article').forEach(article=>{const img=article.querySelector('img');article.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{article.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));img.src=button.dataset.image;img.alt=article.querySelector('h2').textContent+' — '+button.textContent;}));article.querySelector('.enlarge').addEventListener('click',()=>{large.src=img.src;large.alt=img.alt;modal.showModal();});});modal.querySelector('button').addEventListener('click',()=>modal.close());modal.addEventListener('click',e=>{if(e.target===modal)modal.close();});
 </script></html>"""
 
 
@@ -37,9 +38,13 @@ def catalog(root, manifest, repo):
     legacy = manifest.get("layout") == "reptilia"
     if legacy and [r["slug"] for r in items] != ["ecdysis", "tessera", "lorica", "ophidian", "varanus"]:
         raise ValueError("Reptilia layout requires its five original rings in order")
+
+    def image_ref(item, view):
+        return quote(view_path(root, item, view).relative_to(root.resolve()).as_posix(), safe="/")
+
     for item in items:
         for view in item.get("views", manifest["views"]):
-            path = root / item["slug"] / (view["name"] + ".png")
+            path = view_path(root, item, view)
             if not path.is_file():
                 raise ValueError(f"Missing render: {path}")
     fonts = repo / "showcase/masterwork-signets"
@@ -51,15 +56,15 @@ def catalog(root, manifest, repo):
     for i, item in enumerate(items, 1):
         slug, name = item["slug"], item["title"]
         views = item.get("views", manifest["views"])
-        first = views[0]["name"]
-        options = "".join(f'<button type="button" data-view="{v["name"]}" aria-pressed="{str(j == 0).lower()}">{escape(v.get("label", v["name"]))}</button>' for j, v in enumerate(views))
+        first = image_ref(item, views[0])
+        options = "".join(f'<button type="button" data-view="{v["name"]}" data-image="{image_ref(item, v)}" aria-pressed="{str(j == 0).lower()}">{escape(v.get("label", v["name"]))}</button>' for j, v in enumerate(views))
         design = root / slug / "editable-graph.ring.json"
         download = f'<a href="{slug}/editable-graph.ring.json" download>Openable design + graph ↗</a>' if design.is_file() else ""
         sections.append(f'''<article id="{slug}" data-slug="{slug}">
-      <div class="object"><button class="enlarge" aria-label="Enlarge {escape(name)}"><img src="{slug}/{first}.png" alt="{escape(name)}, {escape(item['subtitle'].lower())}, in studio {manifest['metal']}" loading="lazy" width="1800" height="1800"></button>
+      <div class="object"><button class="enlarge" aria-label="Enlarge {escape(name)}"><img src="{first}" alt="{escape(name)}, {escape(item['subtitle'].lower())}, in studio {manifest['metal']}" loading="lazy" width="1800" height="1800"></button>
       <div class="views" aria-label="Views of {escape(name)}">{options}</div></div>
       <div class="caption"><span class="number">{i:02} / {escape(title.upper())}</span><h2>{escape(name)}</h2><p class="subtitle">{escape(item['subtitle'])}</p><p>{escape(item['description'])}</p><p class="spec">{escape(item['spec'])}</p>
-      <div class="downloads"><a href="{slug}/{first}.png" download="{escape(title)}-{slug}.png">Download render ↗</a>{download}</div></div>
+      <div class="downloads"><a href="{first}" download="{escape(title)}-{slug}.png">Download render ↗</a>{download}</div></div>
     </article>''')
     page = PAGE.replace("<title>Reptilia — five rings</title>", f"<title>{escape(title)} — {len(items)} rings</title>")
     page = page.replace("<h1>Reptilia</h1>", f"<h1>{escape(title)}</h1>")
@@ -67,7 +72,7 @@ def catalog(root, manifest, repo):
     page = page.replace("Reptilia-collection.png", escape(title) + "-collection.png")
     if not legacy:
         start, end = page.index("<footer>"), page.index("</footer>")
-        page = page[:start] + f'<footer><a href="{escape(title)}-collection.png" download>Collection sheet ↗</a><p>{escape(manifest.get("footer", "Rendered from exported finished-metal and reference-stone meshes. Casting reports and editable designs accompany each ring."))}</p>' + page[end:]
+        page = page[:start] + f'<footer><a href="{escape(title)}-collection.png" download>Collection sheet ↗</a><p>{escape(manifest.get("footer", "Rendered from the collection’s actual geometry using its declared views."))}</p>' + page[end:]
     page = page.replace("NAVIGATION", "".join(f'<a href="#{r["slug"]}">{escape(r["title"])}</a>' for r in items))
     (root / "index.html").write_text(page.replace("SECTIONS", "\n".join(sections)))
     height = 2920 if legacy else 650 + math.ceil(len(items) / min(4, len(items))) * 790 + 210
@@ -96,13 +101,19 @@ def catalog(root, manifest, repo):
             w = min(640, pitch - 20)
             x, y = 120 + (i % columns) * pitch, 540 + (i // columns) * 790
             tx, ty, size = x + 20, y + w + 55, 58
-        view = item.get("sheet_view", item.get("views", manifest["views"])[0]["name"])
-        if not (root / item["slug"] / (view + ".png")).is_file():
-            raise ValueError(f"Missing sheet view: {item['slug']}/{view}")
-        svg.append(f'<image x="{x}" y="{y}" width="{w}" height="{w}" xlink:href="{item["slug"]}/{escape(view)}.png"/>')
+        views = item.get("views", manifest["views"])
+        selected = item.get("sheet_view", views[0]["name"])
+        view = next((v for v in views if v["name"] == selected), {"name": selected})
+        if not view_path(root, item, view).is_file():
+            raise ValueError(f"Missing sheet view: {item['slug']}/{selected}")
+        svg.append(f'<image x="{x}" y="{y}" width="{w}" height="{w}" xlink:href="{image_ref(item, view)}"/>')
+        if not legacy:
+            size = min(size, (w - 40) / max(1, len(item["title"])) / 0.55)
         text(tx, ty, item["title"], size, family="EB Garamond, serif")
-        text(tx, ty + 52, item["subtitle"], 30, "#c3a7d0")
-        text(tx, ty + 100, item["spec"], 25, "#a6aaa5")
+        subsize = 30 if legacy else min(30, (w - 40) / max(1, len(item["subtitle"])) / 0.6)
+        specsize = 25 if legacy else min(25, (w - 40) / max(1, len(item["spec"])) / 0.6)
+        text(tx, ty + 52, item["subtitle"], subsize, "#c3a7d0")
+        text(tx, ty + 100, item["spec"], specsize, "#a6aaa5")
     text(120, height - 130, manifest.get("finish", "Studio gold · darkened recesses · stones set"), 30, "#a6aaa5")
     text(120, height - 74, manifest.get("sheet_note", "Rendered from the collection's actual ring geometry."), 26, "#a6aaa5")
     svg.append("</svg>")
@@ -122,9 +133,14 @@ def catalog(root, manifest, repo):
             dest = delivery / f"{title}-{name}-{label}.png"
             if dest in files:
                 raise ValueError(f"Duplicate delivery filename: {dest.name}")
-            shutil.copy2(root / item["slug"] / (view["name"] + ".png"), dest)
+            source_image = view_path(root, item, view)
+            shutil.copy2(source_image, dest)
             files.append(dest)
-            records.append({"file": dest.name, "sha256": hashlib.sha256(dest.read_bytes()).hexdigest(), "source_mesh": f"{item['slug']}/finished-metal.stl"})
+            record = {"file": dest.name, "sha256": hashlib.sha256(dest.read_bytes()).hexdigest(), "source_image": source_image.relative_to(root.resolve()).as_posix()}
+            mesh = root / item["slug"] / "finished-metal.stl"
+            if mesh.is_file():
+                record["source_mesh"] = mesh.relative_to(root).as_posix()
+            records.append(record)
     index = delivery / "manifest.json"
     index.write_text(json.dumps(records, indent=2) + "\n")
     files.append(index)
