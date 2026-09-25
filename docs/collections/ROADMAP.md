@@ -1,6 +1,6 @@
 # All collections: execution inventory
 
-As of 2026-09-25. Baseline: master `27bc954`; Batch 16 platform and starter lanes in progress; IN-FLIGHT.md is the current checkpoint. This is a planning inventory, not a new validation claim.
+As of 2026-09-25. Baseline: pushed master `56ccad4` (P7 complete); remaining Batch 16 platform and starter integration in progress; IN-FLIGHT.md is the current checkpoint. This is a planning inventory, not a new validation claim.
 
 **71 active deliverables: 32 master rings + 33 starters + 6 Officina lessons.** Draco remains a cut archive, and Wishbone remains a tracked optional return after C-S6. All later collection scope is preserved.
 
@@ -10,7 +10,7 @@ The Bestiarium package still stops for Logan’s review. The latest request auth
 
 1. Finish P5–P8 reviews and validation, integrate compatibility fences, then run every crate and platform check. Arachne is art-approved at 7.5/10; Draco is archived at 5.8.
 2. Finish starter part 1 (fixtures → stocks → cameras → settings → split starters → thumbnails/golden), in parallel with disjoint platform work.
-3. Start Phoenix and Basiliscus, with Harpyia’s one-wing loft spike when an author slot opens. C-S2/C-S3 and Officina’s first Rivet proof may use a disjoint enabler lane.
+3. Continue Phoenix round two and Basiliscus crease-safe relief; finish Harpyia’s active one-wing spike. C-S2/C-S3 and Officina’s first Rivet proof may use a disjoint enabler lane.
 4. Continue Corvus/Manticora, then Fenrir/Kraken after C-B1, then Harpyia. Package eight, send the final render ZIP by Taildrop, and stop for Logan.
 
 ## Entire master-ring queue
@@ -19,13 +19,13 @@ The Bestiarium package still stops for Logan’s review. The latest request auth
 |---|---|---|---|
 | Bestiarium | Draco | delft | cut_archive; landed APIs |
 | Bestiarium | Arachne | lost_wax | art_accepted_pending_integration; landed APIs |
-| Bestiarium | Phoenix | delft | queued; P3, P4, C-B3 |
-| Bestiarium | Basiliscus | lost_wax | queued; P3, P4, C-B3 |
+| Bestiarium | Phoenix | delft | round 1 revise 6.0; anatomical revision and sand-slot sections |
+| Bestiarium | Basiliscus | lost_wax | authoring; resolve paint folds at native creases |
 | Bestiarium | Corvus | delft | queued; P3, P4, C-B3 |
 | Bestiarium | Manticora | lost_wax | queued; P3, P4, C-B3 |
 | Bestiarium | Fenrir | lost_wax | queued; P6, P3, P4, C-B3 |
 | Bestiarium | Kraken | lost_wax | queued; P6, C-B1 |
-| Bestiarium | Harpyia | lost_wax | queued; P6, P2, C-B3 |
+| Bestiarium | Harpyia | lost_wax | active one-wing spike; loft tessellation failed, sweep fallback under test |
 | Cataphracta | Sphenodon | delft | queued; C-R2, C-R7 |
 | Cataphracta | Heloderma | delft | queued; C-R1, C-R2, C-R3, P5, C-R7 |
 | Cataphracta | Moloch | petrobond | queued; P4, C-R2, C-R7 |
