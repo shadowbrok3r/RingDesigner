@@ -313,6 +313,49 @@ pub fn list_presets() -> Vec<Preset> {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn station_gate_and_claw_controls_fence_graphs_presets_and_clusters() {
+        for (pin, value) in [("v_gate", Literal::Text("side_faces".into())), ("v_gate", Literal::Text("draft".into())), ("draft_min_deg", Literal::Number(80.0)), ("draft_fade_deg", Literal::Number(5.0))] {
+            for form in ["literal", "wire", "exposure"] {
+                let mut graph = Graph::new("Station gate", Mode::Free);
+                let window = graph.add("window").unwrap();
+                match form {
+                    "literal" => graph.set_input(window, pin, value.clone()).unwrap(),
+                    "wire" => { let source = graph.add("util.json").unwrap(); graph.connect(source, "value", window, pin).unwrap(); }
+                    _ => { graph.expose(window, pin, "Gate control").unwrap(); }
+                }
+                assert_eq!(graph_version_for(&graph), GRAPH_FORMAT_VERSION, "{pin}/{form}");
+                assert_eq!(preset_version_in(&Preset::default(), Some(&graph)), GRAPH_FORMAT_VERSION);
+                let text = graph_to_string(&graph).unwrap();
+                assert!(read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).is_err());
+                assert_eq!(load_graph_str(&text, None).unwrap(), graph);
+                let mut outer = Graph::new("Cluster", Mode::Free);
+                let node = outer.add("cluster").unwrap();
+                outer.node_mut(node).unwrap().params = serde_json::json!({"graph":graph});
+                assert_eq!(graph_version_for(&outer), GRAPH_FORMAT_VERSION);
+            }
+        }
+        for gate in ["off", "band"] {
+            let mut graph = Graph::new("Legacy window", Mode::Free);
+            let window = graph.add("window").unwrap();
+            graph.set_input(window, "v_gate", Literal::Text(gate.into())).unwrap();
+            assert_eq!(graph_version_for(&graph), PLAIN_GRAPH_FORMAT_VERSION);
+        }
+        for (params, expected) in [(serde_json::json!({}), PLAIN_GRAPH_FORMAT_VERSION), (serde_json::json!({"style":"Wire","grouping":"Even","tip":"Dome"}), PLAIN_GRAPH_FORMAT_VERSION), (serde_json::json!({"style":"Tentacle"}), GRAPH_FORMAT_VERSION), (serde_json::json!({"grouping":"Jaws"}), GRAPH_FORMAT_VERSION), (serde_json::json!({"tip":"Point"}), GRAPH_FORMAT_VERSION)] {
+            let operation = serde_json::json!({"Builder":{"key":"head.claw","on":1,"params":params}});
+            let mut graph = Graph::new("Claw", Mode::Free);
+            let node = graph.add("cad.feature").unwrap();
+            graph.set_input(node, "operation", Literal::Json(operation.clone())).unwrap();
+            assert_eq!(graph_version_for(&graph), expected);
+            let preset = Preset { values: [("Head".into(), Literal::Json(operation))].into_iter().collect(), ..Default::default() };
+            assert_eq!(preset_version_in(&preset, None), expected);
+        }
+        for gate in [serde_json::json!({"Draft":{"min_deg":80.0,"fade_deg":5.0}}), serde_json::json!({"SideFaces":"Both"})] {
+            let preset = Preset { values: [("Window".into(), Literal::Json(serde_json::json!({"v_gate":gate})))].into_iter().collect(), ..Default::default() };
+            assert_eq!(preset_version_in(&preset, None), GRAPH_FORMAT_VERSION);
+        }
+    }
+
+    #[test]
     fn template_controls_fence_graphs_clusters_and_presets_from_released_readers() {
         use super::*;
         use crate::graph::Mode;

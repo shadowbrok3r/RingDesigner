@@ -110,6 +110,8 @@ pub struct FieldContext {
     /// stands further out a chart millimetre round the ring is this many of
     /// metal — 1.15 on a signet's table.
     pub crest_scale: Option<std::sync::Arc<Vec<f32>>>,
+    /// Conservative station cells in the reference chart; absent on an unmodulated band.
+    pub station_gates: Option<std::sync::Arc<StationGates>>,
     /// Actual imported stock in the persistent chart, for rigid setting
     /// footprints instead of a whole-section average stretch.
     pub imported_surface: Option<std::sync::Arc<crate::imported_base::FieldSurface>>,
@@ -226,6 +228,131 @@ pub struct SideFaces {
     pub high: Option<(f64, f64)>,
 }
 
+pub(crate) const GATE_STATIONS: usize = 360;
+const GATE_V_CELLS: usize = 256;
+
+/// Bounded angular cells holding physical side runs and lower bounds on local draft.
+#[derive(Clone, Debug)]
+pub struct StationGates {
+    cells: Vec<GateCell>,
+}
+
+#[derive(Clone, Debug)]
+struct GateCell {
+    faces: Option<SideFaces>,
+    draft: [f32; GATE_V_CELLS],
+    valid: bool,
+}
+
+struct GateSection {
+    faces: Option<SideFaces>,
+    stretch: f64,
+    draft: [f32; GATE_V_CELLS],
+}
+
+impl GateSection {
+    fn from_loop(section: &crate::profile::ProfileLoop, reference_span: f64) -> Self {
+        let mut out = Self { faces: None, stretch: 0.0, draft: [0.0; GATE_V_CELLS] };
+        let span = section.surface_len_mm;
+        if !span.is_finite() || span <= 1e-9 || !reference_span.is_finite() || reference_span <= 1e-9 {
+            return out;
+        }
+        let points: Vec<_> = section.pts.iter().filter(|p| p.surface).collect();
+        if points.len() < 2 || points.iter().any(|p| !p.v_mm.is_finite() || !p.nr.is_finite()) {
+            return out;
+        }
+        let mut draft = [90.0f64; GATE_V_CELLS];
+        let mut covered = [false; GATE_V_CELLS];
+        for pair in points.windows(2) {
+            let lo = (pair[0].v_mm / span * GATE_V_CELLS as f64).floor().max(0.0) as usize;
+            let hi = (pair[1].v_mm / span * GATE_V_CELLS as f64).floor().max(0.0) as usize;
+            let bound = pair[0].nr.abs().max(pair[1].nr.abs()).clamp(0.0, 1.0).acos().to_degrees();
+            for i in lo.min(GATE_V_CELLS - 1)..=hi.min(GATE_V_CELLS - 1) {
+                draft[i] = draft[i].min(bound);
+                covered[i] = true;
+            }
+        }
+        for i in 0..GATE_V_CELLS {
+            let mut bound = 90.0f64;
+            for j in i.saturating_sub(1)..=(i + 1).min(GATE_V_CELLS - 1) {
+                bound = bound.min(if covered[j] { draft[j] } else { 0.0 });
+            }
+            let rounded = bound as f32;
+            out.draft[i] = if rounded as f64 > bound { f32::from_bits(rounded.to_bits() - 1) } else { rounded };
+        }
+        let local = FieldContext {
+            band_v_len_mm: span,
+            surface: SurfaceProfile::from_loop(section, GATE_V_CELLS + 1),
+            ..Default::default()
+        };
+        out.stretch = span / reference_span;
+        out.faces = local.side_faces_std().and_then(|faces| {
+            let step = reference_span / GATE_V_CELLS as f64;
+            let trim = |run: Option<(f64, f64)>, high: bool| {
+                let (lo, hi) = run?;
+                let lo = (lo / span * GATE_V_CELLS as f64).ceil() as usize;
+                let hi = ((hi / span * GATE_V_CELLS as f64).floor() as usize).min(GATE_V_CELLS);
+                let ok = |i: &usize| out.draft[*i] as f64 >= SIDE_FACE_MIN_DRAFT_DEG;
+                let (a, b) = if high {
+                    let b = (lo..hi).rev().find(ok)? + 1;
+                    let a = (lo..b).rev().find(|i| !ok(i)).map_or(lo, |i| i + 1);
+                    (a, b)
+                } else {
+                    let a = (lo..hi).find(ok)?;
+                    let b = (a..hi).find(|i| !ok(i)).unwrap_or(hi);
+                    (a, b)
+                };
+                let run = (a as f64 * step, b as f64 * step);
+                ((run.1 - run.0) * out.stretch >= MIN_SIDE_FACE_MM).then_some(run)
+            };
+            let faces = SideFaces { low: trim(faces.low, false), high: trim(faces.high, true) };
+            (faces.low.is_some() || faces.high.is_some()).then_some(faces)
+        });
+        out
+    }
+}
+
+impl StationGates {
+    pub(crate) fn build(reference_span: f64, mut angles: Vec<f64>, mut section: impl FnMut(f64) -> crate::profile::ProfileLoop) -> Self {
+        angles.extend((0..GATE_STATIONS * 2).map(|i| i as f64 * 0.5));
+        angles.retain(|a| a.is_finite());
+        for a in &mut angles { *a = a.rem_euclid(360.0); }
+        angles.sort_by(f64::total_cmp);
+        angles.dedup();
+        let samples: Vec<_> = angles.into_iter().map(|a| (a, GateSection::from_loop(&section(a), reference_span))).collect();
+        let cells = (0..GATE_STATIONS).map(|i| {
+            let mut faces = Some(SideFaces { low: Some((0.0, reference_span)), high: Some((0.0, reference_span)) });
+            let mut draft = [90.0f32; GATE_V_CELLS];
+            let mut stretch = f64::INFINITY;
+            for (angle, sample) in &samples {
+                // Half-degree guards bracket both angular boundaries, including the periodic seam.
+                if wrap_delta(*angle - (i as f64 + 0.5), 360.0).abs() > 1.0 { continue; }
+                stretch = stretch.min(sample.stretch);
+                faces = faces.zip(sample.faces).map(|(a, b)| {
+                    let intersect = |a: Option<(f64, f64)>, b: Option<(f64, f64)>| a.zip(b).and_then(|(a, b)| {
+                        let run = (a.0.max(b.0), a.1.min(b.1));
+                        (run.1 > run.0).then_some(run)
+                    });
+                    SideFaces { low: intersect(a.low, b.low), high: intersect(a.high, b.high) }
+                });
+                for (a, b) in draft.iter_mut().zip(sample.draft) { *a = a.min(b); }
+            }
+            if let Some(f) = &mut faces {
+                f.low = f.low.filter(|(a, b)| (b - a) * stretch >= MIN_SIDE_FACE_MM);
+                f.high = f.high.filter(|(a, b)| (b - a) * stretch >= MIN_SIDE_FACE_MM);
+                if f.low.is_none() && f.high.is_none() { faces = None; }
+            }
+            GateCell { faces, draft, valid: stretch.is_finite() && stretch > 0.0 }
+        }).collect();
+        Self { cells }
+    }
+
+    fn cell(&self, theta_deg: f64) -> Option<&GateCell> {
+        if !theta_deg.is_finite() { return None; }
+        self.cells.get(theta_deg.rem_euclid(360.0).floor() as usize)
+    }
+}
+
 impl SideFaces {
     pub fn low_width(&self) -> f64 {
         self.low.map_or(0.0, |(a, b)| (b - a).max(0.0))
@@ -252,6 +379,27 @@ impl FieldContext {
     /// [`side_faces`](Self::side_faces) at [`SIDE_FACE_MIN_DRAFT_DEG`], cached.
     pub fn side_faces_std(&self) -> Option<SideFaces> {
         *self.side_faces_cache.get_or_init(|| self.side_faces(SIDE_FACE_MIN_DRAFT_DEG))
+    }
+
+    /// Station-local faces in reference-v millimetres, with the original path for unmodulated bands.
+    pub fn side_faces_at(&self, theta_deg: f64) -> Option<SideFaces> {
+        match &self.station_gates {
+            None => self.side_faces_std(),
+            Some(table) => table.cell(theta_deg).and_then(|c| c.faces),
+        }
+    }
+
+    /// A conservative station-local draft bound at a reference-v coordinate.
+    pub fn draft_at(&self, theta_deg: f64, v: f64) -> Option<f64> {
+        if !v.is_finite() || !self.band_v_len_mm.is_finite() || self.band_v_len_mm <= 1e-9 || v < 0.0 || v > self.band_v_len_mm { return None; }
+        match &self.station_gates {
+            None => self.surface.draft_deg(v, self.band_v_len_mm).filter(|d| d.is_finite()),
+            Some(table) => {
+                let i = ((v / self.band_v_len_mm * GATE_V_CELLS as f64).floor() as usize).min(GATE_V_CELLS - 1);
+                let cell = table.cell(theta_deg)?;
+                cell.valid.then_some(cell.draft[i] as f64)
+            }
+        }
     }
 
     /// The run of `v` inward from each band edge whose base draft clears
@@ -427,6 +575,8 @@ pub enum VGate {
     /// The side-face runs the base profile guarantees castable, resolved at
     /// evaluation time so the gate tracks profile edits.
     SideFaces(SideFacePick),
+    /// Station-local base draft at or above the threshold, fading only above it.
+    Draft { min_deg: f64, fade_deg: f64 },
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -440,7 +590,7 @@ pub enum SideFacePick {
 
 impl VGate {
     /// Strength at a `v` position, 0..1.
-    pub fn mask(&self, v: f64, ctx: &FieldContext) -> f64 {
+    pub fn mask(&self, theta_deg: f64, v: f64, ctx: &FieldContext) -> f64 {
         match *self {
             VGate::Off => 1.0,
             VGate::Band { center_mm, span_mm, fade_mm } => {
@@ -454,7 +604,7 @@ impl VGate {
                 }
             }
             VGate::SideFaces(pick) => {
-                let Some(sf) = ctx.side_faces_std() else { return 0.0 };
+                let Some(sf) = ctx.side_faces_at(theta_deg) else { return 0.0 };
                 // Fades run inward, so the relief dies before leaving the run.
                 let run = |r: Option<(f64, f64)>| {
                     let Some((lo, hi)) = r else { return 0.0 };
@@ -467,6 +617,12 @@ impl VGate {
                     SideFacePick::Wider => run(sf.wider()),
                     SideFacePick::Both => run(sf.low).max(run(sf.high)),
                 }
+            }
+            VGate::Draft { min_deg, fade_deg } => {
+                if !min_deg.is_finite() || !fade_deg.is_finite() { return 0.0; }
+                let Some(draft) = ctx.draft_at(theta_deg, v) else { return 0.0; };
+                if draft < min_deg { return 0.0; }
+                if fade_deg <= 0.0 { 1.0 } else { smoothstep(min_deg, min_deg + fade_deg, draft) }
             }
         }
     }
@@ -519,6 +675,7 @@ impl Window {
         } else {
             let theta = ctx.theta_of_u(uv.u);
             if !theta.is_finite() {
+                if matches!(self.v_gate, VGate::Draft { .. }) || matches!(self.v_gate, VGate::SideFaces(_)) && ctx.station_gates.is_some() { return 0.0; }
                 return 1.0;
             }
             let d = wrap_delta(theta - self.theta_deg, 360.0).abs();
@@ -531,7 +688,7 @@ impl Window {
             };
             if self.invert { 1.0 - m } else { m }
         };
-        if self.v_gate.is_off() { am } else { am * self.v_gate.mask(uv.v, ctx) }
+        if self.v_gate.is_off() { am } else { am * self.v_gate.mask(ctx.theta_of_u(uv.u), uv.v, ctx) }
     }
 }
 
@@ -3661,7 +3818,7 @@ mod tests {
         let mut dc = dome.field_context();
         dc.side_faces_cache = Default::default();
         if dc.side_faces_std().is_none() {
-            assert_eq!(w.v_gate.mask(dc.crest_v_mm, &dc), 0.0);
+            assert_eq!(w.v_gate.mask(0.0, dc.crest_v_mm, &dc), 0.0);
         }
     }
 
@@ -5012,5 +5169,209 @@ mod bezel_tests {
         o.remove("bezel_bearing_mm");
         let s: SeatPadLayer = serde_json::from_value(v).unwrap();
         assert_eq!((s.bezel_lip, s.bezel_bearing_mm), (0.3, 0.3));
+    }
+}
+
+#[cfg(test)]
+mod station_gate_tests {
+    use super::*;
+    use crate::{ProfileStyle, RingDesign, profile::{ShankKey, ShankKind, REFERENCE_PROFILE_STEPS}};
+
+    fn square_band() -> RingDesign {
+        let mut d = RingDesign::default();
+        d.profile.width_mm = 6.6;
+        d.profile.thickness_mm = 3.4;
+        d.profile.apply_style(ProfileStyle::Flat);
+        d.profile.flatten_sides();
+        d.profile.comfort_fit_mm = 0.2;
+        d
+    }
+
+    fn keyed(mut d: RingDesign, keys: &[(f64, f64, f64, f64)]) -> RingDesign {
+        d.shank.kind = ShankKind::Keyframes;
+        d.shank.amount = 1.0;
+        d.shank.keys = keys.iter().map(|&(theta_deg, width_scale, thickness_scale, crown_scale)| ShankKey { theta_deg, width_scale, thickness_scale, crown_scale }).collect();
+        d
+    }
+
+    fn local_surface(d: &RingDesign, theta: f64) -> (SurfaceProfile, f64) {
+        let section = d.section_at(theta, REFERENCE_PROFILE_STEPS, None, Some(&d.reference_loop()));
+        (SurfaceProfile::from_loop(&section, 1025), section.surface_len_mm)
+    }
+
+    #[test]
+    fn uniform_and_identity_keys_keep_the_original_side_gate_bits() {
+        for mut d in [square_band(), RingDesign::default()] {
+            let original = d.field_context();
+            assert!(original.station_gates.is_none());
+            for (keys, amount) in [
+                (vec![], 1.0),
+                (vec![(0.0, 1.0, 1.0, 1.0), (90.0, 1.0, 1.0, 1.0)], 1.0),
+                (vec![(11.0, 2.0, 0.6, 1.4), (259.0, 0.5, 1.3, 0.8)], 0.0),
+            ] {
+                d = keyed(d, &keys);
+                d.shank.amount = amount;
+                let c = d.field_context();
+                assert!(d.gate_sections_are_reference() && c.station_gates.is_none());
+                assert_eq!(c.side_faces_at(f64::NAN), original.side_faces_std());
+                for pick in [SideFacePick::Low, SideFacePick::High, SideFacePick::Wider, SideFacePick::Both] {
+                    let gate = VGate::SideFaces(pick);
+                    for i in 0..1025 {
+                        let v = c.band_v_len_mm * i as f64 / 1024.0;
+                        for theta in [-721.0, 0.0, 90.25, 359.9, f64::NAN] {
+                            assert_eq!(gate.mask(theta, v, &c).to_bits(), gate.mask(0.0, v, &original).to_bits());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_wide_thin_station_keeps_side_relief_off_its_crown_fillet() {
+        let d = keyed(square_band(), &[(0.0, 1.45, 0.92, 1.0)]);
+        let c = d.field_context();
+        let mut old = c.clone();
+        old.station_gates = None;
+        let (surface, span) = local_surface(&d, 90.0);
+        let gate = VGate::SideFaces(SideFacePick::Both);
+        let (mut old_spill, mut active) = (0, 0);
+        for i in 0..4097 {
+            let fraction = i as f64 / 4096.0;
+            let v = c.band_v_len_mm * fraction;
+            let draft = surface.draft_deg(span * fraction, span).unwrap();
+            old_spill += usize::from(gate.mask(90.0, v, &old) > 0.0 && draft < SIDE_FACE_MIN_DRAFT_DEG);
+            if gate.mask(90.0, v, &c) > 0.0 {
+                active += 1;
+                assert!(draft >= SIDE_FACE_MIN_DRAFT_DEG, "v={v}, local draft={draft}");
+            }
+        }
+        assert!(old_spill > 30, "the old reference gate must reproduce the crown-filleting spill: {old_spill}");
+        assert!(active > 300, "closing the whole gate does not repair the spill: {active}");
+        assert_eq!(c.side_faces_at(-0.01), c.side_faces_at(359.99));
+        assert_eq!(c.side_faces_at(720.25), c.side_faces_at(0.25));
+        assert!(c.side_faces_at(f64::NAN).is_none());
+    }
+
+    #[test]
+    fn angular_cells_guard_narrow_keys_the_seam_and_draft_thresholds() {
+        let mut designs = vec![keyed(square_band(), &[
+            (359.65, 0.9, 1.1, 1.0), (0.10, 1.8, 0.7, 1.4), (0.17, 0.8, 1.1, 0.8),
+            (62.0, 1.36, 1.18, 0.9), (90.0, 1.45, 1.22, 0.85), (118.0, 1.36, 1.18, 0.9),
+            (152.0, 1.16, 1.07, 1.0), (270.0, 0.88, 0.92, 1.0),
+        ])];
+        let mut bypass = square_band();
+        bypass.shank.kind = ShankKind::Bypass;
+        bypass.shank.amount = 0.8;
+        designs.push(bypass);
+        let mut activations = [0, 0, 0];
+        for d in designs {
+            let c = d.field_context();
+            for theta in [359.51, 359.79, 359.99, 0.001, 0.09, 0.111, 0.137, 0.169, 0.499, 0.999, 1.01, 23.73, 61.99, 89.37, 90.61, 118.43, 160.29, 269.19] {
+                let (surface, span) = local_surface(&d, theta);
+                for (g, gate) in [VGate::SideFaces(SideFacePick::Both), VGate::Draft { min_deg: 65.0, fade_deg: 8.0 }, VGate::Draft { min_deg: 80.0, fade_deg: 0.0 }].into_iter().enumerate() {
+                    let min_deg = if g == 1 { 65.0 } else { 80.0 };
+                    for i in 0..513 {
+                        let fraction = (i as f64 + 0.31) / 513.0;
+                        let v = c.band_v_len_mm * fraction;
+                        if gate.mask(theta, v, &c) > 0.0 {
+                            activations[g] += 1;
+                            let draft = surface.draft_deg(span * fraction, span).unwrap();
+                            assert!(draft >= min_deg, "{:?} at theta={theta}, v={v} passes local draft={draft} below {min_deg}", d.shank.kind);
+                        }
+                    }
+                }
+            }
+        }
+        assert!(activations.into_iter().all(|n| n > 200), "{activations:?}");
+    }
+
+    #[test]
+    fn narrow_physical_faces_do_not_grow_usable_in_the_reference_chart() {
+        let mut d = square_band();
+        d.profile.thickness_mm = 1.5;
+        let d = keyed(d, &[(0.0, 0.3, 0.3, 1.0)]);
+        let c = d.field_context();
+        let section = d.section_at(0.0, REFERENCE_PROFILE_STEPS, None, Some(&d.reference_loop()));
+        let local = FieldContext { band_v_len_mm: section.surface_len_mm, surface: SurfaceProfile::from_loop(&section, 257), ..Default::default() };
+        assert!(c.side_faces_std().is_some());
+        assert!(local.side_faces_std().is_none(), "physical slivers must not meet the 0.45 mm minimum: {:?}", local.side_faces_std());
+        assert!(c.side_faces_at(0.0).is_none(), "mapping a sliver into a larger chart must not manufacture a usable face");
+    }
+
+    #[test]
+    fn imported_gates_follow_the_actual_stock_and_cache_the_chart_separately() {
+        let mut d = square_band();
+        let stock = crate::imported_base::PRESETS.iter().find(|p| p.id == "012").unwrap().load().unwrap();
+        crate::imported_base::ImportedBase::attach(&mut d, stock).unwrap();
+        let c = d.field_context();
+        assert!(!d.gate_sections_are_reference());
+        let (mut different, mut active) = (0, 0);
+        for theta in [0.01, 22.37, 48.11, 72.19, 89.97, 90.01, 117.73, 180.31, 269.99, 359.99] {
+            let (surface, span) = local_surface(&d, theta);
+            for i in 0..513 {
+                let fraction = (i as f64 + 0.21) / 513.0;
+                let v = fraction * c.band_v_len_mm;
+                let actual = surface.draft_deg(fraction * span, span).unwrap();
+                let bound = c.draft_at(theta, v).unwrap();
+                assert!(bound <= actual + 1e-5, "theta={theta}, v={v}, cached={bound}, actual={actual}");
+                different += usize::from((bound - c.surface.draft_deg(v, c.band_v_len_mm).unwrap()).abs() > 5.0);
+                active += usize::from(VGate::Draft { min_deg: 50.0, fade_deg: 5.0 }.mask(theta, v, &c) > 0.0);
+                if VGate::SideFaces(SideFacePick::Both).mask(theta, v, &c) > 0.0 {
+                    assert!(actual >= SIDE_FACE_MIN_DRAFT_DEG);
+                }
+            }
+        }
+        assert!(different > 100 && active > 100, "the reference profile cannot stand in for the stock: {different} differences, {active} active samples");
+        d.imported_base.as_mut().unwrap().chart.as_mut().unwrap().profile.width_mm += 0.5;
+        let changed = d.field_context();
+        assert!(!std::sync::Arc::ptr_eq(c.station_gates.as_ref().unwrap(), changed.station_gates.as_ref().unwrap()));
+        assert_ne!(c.band_v_len_mm.to_bits(), changed.band_v_len_mm.to_bits());
+    }
+
+    #[test]
+    fn draft_fades_only_above_its_threshold_and_missing_geometry_stays_closed() {
+        let surface = SurfaceProfile { samples: vec![(10.0, 0.5), (10.0, 0.5)] };
+        let c = FieldContext { band_v_len_mm: 2.0, surface, ..Default::default() };
+        let draft = c.draft_at(0.0, 1.0).unwrap();
+        assert_eq!(VGate::Draft { min_deg: draft + 0.01, fade_deg: 5.0 }.mask(0.0, 1.0, &c), 0.0);
+        assert_eq!(VGate::Draft { min_deg: draft, fade_deg: 5.0 }.mask(0.0, 1.0, &c), 0.0);
+        let half = VGate::Draft { min_deg: draft - 2.5, fade_deg: 5.0 }.mask(0.0, 1.0, &c);
+        assert!((half - 0.5).abs() < 1e-12);
+        assert_eq!(VGate::Draft { min_deg: draft, fade_deg: 0.0 }.mask(0.0, 1.0, &c), 1.0);
+        let gate = VGate::Draft { min_deg: 0.0, fade_deg: 0.0 };
+        assert_eq!(gate.mask(0.0, 1.0, &FieldContext::default()), 0.0);
+        for v in [-1.0, 3.0, f64::NAN, f64::INFINITY] { assert_eq!(gate.mask(0.0, v, &c), 0.0); }
+        for (min_deg, fade_deg) in [(f64::NAN, 1.0), (0.0, f64::INFINITY)] {
+            assert_eq!(VGate::Draft { min_deg, fade_deg }.mask(0.0, 1.0, &c), 0.0);
+        }
+        let mut missing = c.clone();
+        missing.station_gates = Some(std::sync::Arc::new(StationGates::build(2.0, vec![], |_| Default::default())));
+        assert_eq!(gate.mask(0.0, 1.0, &missing), 0.0);
+        assert_eq!(gate.mask(f64::NAN, 1.0, &missing), 0.0);
+    }
+
+    #[test]
+    fn station_geometry_changes_invalidate_tables_and_warm_gates_stay_constant_time() {
+        let mut d = keyed(square_band(), &[(0.0, 1.45, 0.92, 1.0)]);
+        let c = d.field_context();
+        d.profile.comfort_fit_mm = 0.31;
+        let changed = d.field_context();
+        assert!(!std::sync::Arc::ptr_eq(c.station_gates.as_ref().unwrap(), changed.station_gates.as_ref().unwrap()));
+        assert!(std::mem::size_of::<GateCell>() * GATE_STATIONS * 8 < 4 * 1024 * 1024);
+        let original = square_band().field_context();
+        let gate = VGate::SideFaces(SideFacePick::Both);
+        let time = |ctx: &FieldContext| {
+            let started = std::time::Instant::now();
+            for i in 0..200_000 {
+                let v = (i % 1000) as f64 / 1000.0 * ctx.band_v_len_mm;
+                std::hint::black_box(gate.mask((i % 3600) as f64 * 0.1, v, std::hint::black_box(ctx)));
+            }
+            started.elapsed()
+        };
+        let uniform = time(&original);
+        let station = time(&c);
+        eprintln!("200k gate reads: uniform {uniform:?}, station {station:?}; cache {} bytes/design", std::mem::size_of::<GateCell>() * GATE_STATIONS);
+        assert!(station < uniform * 12 + std::time::Duration::from_millis(10), "station gate rebuilt or walked its section per sample: {station:?} vs {uniform:?}");
     }
 }

@@ -59,6 +59,8 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || crate::cad::pattern::several_sources(design)
         || crate::parts::cuts_apart(design)
         || design.stamps.iter().any(|s| !s.is_plain())
+        || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(&f.operation, crate::cad::Operation::Builder { key, params, .. } if crate::cad::builders::geometry_extended(key, params))))
+        || station_gates_in_stack(&design.layers, design.gate_sections_are_reference())
         || design.imported_base.as_ref().is_some_and(|base| crate::imported_base::PresetSource::of(&base.source).is_some())
         || design.graph.as_ref().is_some_and(template_features_in_json)
     {
@@ -68,15 +70,31 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
     }
 }
 
+/// Gates whose geometry differs from the released reference-section evaluator.
+fn station_gates_in_stack(stack: &crate::LayerStack, reference: bool) -> bool {
+    use crate::field::{Layer, VGate};
+    stack.layers.iter().any(|entry| {
+        matches!(entry.window.v_gate, VGate::Draft { .. })
+            || (!reference && matches!(entry.window.v_gate, VGate::SideFaces(_)))
+            || matches!(&entry.layer, Layer::Group(group) if station_gates_in_stack(&group.stack, reference))
+    })
+}
+
 /// Source references and template controls whose geometry earlier readers cannot reproduce.
 pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     const PLACEMENT: &[&str] = &["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"];
-    let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && pin == "keys");
+    let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && pin == "keys")
+        || (kind == "window" && matches!(pin, "v_gate" | "draft_min_deg" | "draft_fade_deg"));
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
+    if value.get("Builder").is_some_and(|builder| builder.get("key").and_then(serde_json::Value::as_str)
+        .is_some_and(|key| crate::cad::builders::geometry_extended(key, &builder["params"]))) { return true; }
+    if value.get("v_gate").is_some_and(|gate| gate.get("Draft").is_some() || gate.get("SideFaces").is_some()) { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
         if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
             || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") { return true; }
-        if value.get("inputs").and_then(serde_json::Value::as_object).is_some_and(|inputs| inputs.iter().any(|(pin, v)| new_pin(kind, pin) && !v.is_null())) { return true; }
+        if value.get("inputs").and_then(serde_json::Value::as_object).is_some_and(|inputs| inputs.iter().any(|(pin, v)| {
+            new_pin(kind, pin) && !v.is_null() && (kind != "window" || pin != "v_gate" || matches!(v.as_str(), Some("side_faces" | "draft")))
+        })) { return true; }
     }
     if let Some(nodes) = value.get("nodes").and_then(serde_json::Value::as_array) {
         for (list, target) in [("wires", "to"), ("exposed", "node")] {
@@ -99,6 +117,76 @@ mod template_source_tests {
     use super::*;
     use crate::imported_base::{ImportedBase, PRESETS, PresetSource, Source};
     use std::sync::Arc;
+
+    #[test]
+    fn shank_cutter_documents_and_nested_graphs_refuse_a_released_reader() {
+        use crate::cad::{Component, Document, Feature, Operation, builders};
+        for key in [builders::SPLIT, builders::WINDOW] {
+            let op = Operation::Builder { key: key.into(), on: None, params: serde_json::json!({}) };
+            let mut doc = Document::default();
+            doc.features.push(Feature { id: 1, name: "Shank cutter".into(), enabled: true, operation: op.clone(), component: Component::default() });
+            let graph = serde_json::json!({"nodes":[{"kind":"cluster","params":{"graph":{"nodes":[{"kind":"cad.feature","params":{"operation":op}}]}}}]});
+            for d in [RingDesign { cad: Some(doc), ..Default::default() }, RingDesign { graph: Some(graph), ..Default::default() }] {
+                let text = design_json(&d).unwrap();
+                assert_eq!(format_version_for(&d), FORMAT_VERSION);
+                assert!(read_design(&text, PLAIN_FORMAT_VERSION).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn styled_claws_fence_documents_and_nested_graphs_but_legacy_defaults_stay_plain() {
+        use crate::cad::{Component, Document, Feature, Operation};
+        for key in [crate::cad::builders::CLAW, crate::cad::builders::BASKET] {
+            for params in [serde_json::json!({}), serde_json::json!({"style":"Wire","grouping":"Even","tip":"Dome"}), serde_json::json!({"style":null,"grouping":null,"tip":null}), serde_json::json!({"style":"Talon"}), serde_json::json!({"grouping":"Feet"}), serde_json::json!({"tip":"Point"}), serde_json::json!({"style":"Unknown"})] {
+                let extended = crate::cad::builders::geometry_extended(key, &params);
+                let expected = if extended { FORMAT_VERSION } else { PLAIN_FORMAT_VERSION };
+                let operation = Operation::Builder { key: key.into(), on: Some(1), params };
+                let mut doc = Document::default();
+                doc.features.push(Feature { id: 2, name: "Claw".into(), enabled: true, operation: operation.clone(), component: Component::default() });
+                let design = RingDesign { cad: Some(doc), ..RingDesign::default() };
+                let graph = serde_json::json!({"nodes":[{"kind":"cad.feature","params":{"operation":operation}}]});
+                for d in [design, RingDesign { graph: Some(graph.clone()), ..RingDesign::default() }, RingDesign { graph: Some(serde_json::json!({"nodes":[{"kind":"cluster","params":{"graph":graph}}]})), ..RingDesign::default() }] {
+                    assert_eq!(format_version_for(&d), expected);
+                    let text = design_json(&d).unwrap();
+                    assert_eq!(serde_json::to_value(load_design_str(&text).unwrap()).unwrap(), serde_json::to_value(&d).unwrap());
+                    assert_eq!(read_design(&text, PLAIN_FORMAT_VERSION).is_err(), extended);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn station_gates_fence_modulated_and_nested_layers_while_reference_side_faces_stay_plain() {
+        use crate::field::{GroupLayer, MilgrainLayer, SideFacePick, VGate};
+        use crate::profile::{ShankKey, ShankKind};
+        let mut entry = crate::LayerEntry::new("Sides", crate::Layer::Milgrain(MilgrainLayer::default()));
+        entry.window.v_gate = VGate::SideFaces(SideFacePick::Both);
+        let mut design = RingDesign::default();
+        design.layers.layers = vec![entry.clone()];
+        assert_eq!(format_version_for(&design), PLAIN_FORMAT_VERSION);
+        design.shank.kind = ShankKind::Keyframes;
+        design.shank.amount = 1.0;
+        design.shank.keys = vec![ShankKey { theta_deg: 90.0, width_scale: 1.0, thickness_scale: 1.0, crown_scale: 1.0 }];
+        assert!(design.gate_sections_are_reference());
+        assert_eq!(format_version_for(&design), PLAIN_FORMAT_VERSION);
+        design.shank.keys[0].width_scale = 2.0;
+        assert!(!design.gate_sections_are_reference());
+        assert_eq!(format_version_for(&design), FORMAT_VERSION);
+        let mut nested = RingDesign::default();
+        entry.window.v_gate = VGate::Draft { min_deg: 80.0, fade_deg: 5.0 };
+        nested.layers.layers = vec![crate::LayerEntry::new("Group", crate::Layer::Group(GroupLayer { stack: crate::LayerStack { layers: vec![entry] }, ..Default::default() }))];
+        for d in [&design, &nested] {
+            let text = design_json(d).unwrap();
+            assert_eq!(format_version_for(d), FORMAT_VERSION);
+            assert!(read_design(&text, PLAIN_FORMAT_VERSION).unwrap_err().to_string().contains("format version 6"));
+            assert_eq!(serde_json::to_value(load_design_str(&text).unwrap()).unwrap(), serde_json::to_value(d).unwrap());
+        }
+        nested.layers.layers.clear();
+        assert_eq!(format_version_for(&nested), PLAIN_FORMAT_VERSION);
+        design.layers.layers.clear();
+        assert_eq!(format_version_for(&design), PLAIN_FORMAT_VERSION);
+    }
 
     #[test]
     fn bundled_stock_references_reopen_exactly_and_inline_or_modified_stock_keeps_its_source() {
