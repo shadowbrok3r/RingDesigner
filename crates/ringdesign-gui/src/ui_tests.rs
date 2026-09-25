@@ -446,28 +446,48 @@ fn a_file_opened_from_recent_stops_a_template_still_opening() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Holds the detail thread for as long as it lives.
-struct DetailHeld;
+/// Holds a worker before its detail measures for as long as it lives.
+struct DetailHeld(std::sync::Arc<crate::app::DetailProbe>);
 
 impl DetailHeld {
-    fn new() -> Self {
-        *crate::app::DETAIL_HELD.0.lock().unwrap_or_else(|e| e.into_inner()) = true;
-        DetailHeld
+    fn new(probe: std::sync::Arc<crate::app::DetailProbe>) -> Self {
+        *probe.held.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        DetailHeld(probe)
     }
 }
 
 impl Drop for DetailHeld {
     fn drop(&mut self) {
-        *crate::app::DETAIL_HELD.0.lock().unwrap_or_else(|e| e.into_inner()) = false;
-        crate::app::DETAIL_HELD.1.notify_all();
+        *self.0.held.lock().unwrap_or_else(|e| e.into_inner()) = false;
+        self.0.released.notify_all();
     }
+}
+
+/// Steps until the detail findings of the build on screen have landed.
+fn wait_for_detail(h: &mut Harness<'static, RingDesignerApp>) {
+    let start = std::time::Instant::now();
+    while h.state().dfm_generation < h.state().build_generation() {
+        h.run_steps(1);
+        assert!(start.elapsed().as_secs() < 60, "the detail never followed");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
+fn detail_messages(h: &Harness<'static, RingDesignerApp>) -> (Vec<String>, Vec<String>) {
+    let want = ringdesign_core::dfm::findings_in(&h.state().design, &h.state().lib).into_iter().map(|f| f.message).collect();
+    let got = h.state().detail_findings().iter().map(|f| f.message.clone()).collect();
+    (got, want)
 }
 
 #[test]
 fn a_build_lands_before_its_detail_findings_and_they_follow_it() {
     let mut h = harness([1600., 980.]);
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    h.state().detail_findings();
+    wait_for_detail(&mut h);
     let braided = ringdesign_core::templates::all().iter().find(|t| t.name == "Braided band").unwrap().design();
-    let held = DetailHeld::new();
+    let held = DetailHeld::new(h.state().detail_probe());
     h.state_mut().design = braided;
     h.state_mut().mark_dirty();
     h.state_mut().rebuild_now();
@@ -476,16 +496,71 @@ fn a_build_lands_before_its_detail_findings_and_they_follow_it() {
     assert!(h.state().is_current(), "{}", h.state().status);
     assert!(h.state().dfm_generation < generation, "the build landed while its detail was held");
     drop(held);
-    let start = std::time::Instant::now();
-    while h.state().dfm_generation < generation {
-        h.run_steps(1);
-        assert!(start.elapsed().as_secs() < 60, "the detail never followed");
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
-    let want: Vec<String> = ringdesign_core::dfm::findings_in(&h.state().design, &h.state().lib).into_iter().map(|f| f.message).collect();
-    let got: Vec<String> = h.state().dfm.iter().map(|f| f.message.clone()).collect();
+    wait_for_detail(&mut h);
+    let (got, want) = detail_messages(&h);
     assert!(!want.is_empty(), "the braid measures under the floor");
     assert_eq!(got, want);
+}
+
+#[test]
+fn the_worker_measures_no_detail_until_something_reads_it_and_then_the_build_on_screen() {
+    let mut h = harness([1600., 980.]);
+    let probe = h.state().detail_probe();
+    h.state_mut().design = ringdesign_core::templates::all().iter().find(|t| t.name == "Braided band").unwrap().design();
+    h.state_mut().mark_dirty();
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    h.run_steps(3);
+    assert_eq!(probe.started.load(std::sync::atomic::Ordering::SeqCst), 0, "measured with no reader");
+    assert_eq!(h.state().dfm_generation, 0);
+    let generation = h.state().build_generation();
+    h.state().detail_findings();
+    wait_for_detail(&mut h);
+    assert_eq!(h.state().build_generation(), generation, "the build on screen measured without another");
+    assert_eq!(probe.started.load(std::sync::atomic::Ordering::SeqCst), 1);
+    let (got, want) = detail_messages(&h);
+    assert!(!want.is_empty(), "the braid measures under the floor");
+    assert_eq!(got, want);
+}
+
+#[test]
+fn a_dropped_app_gives_up_the_detail_measure_it_was_making() {
+    let mut h = harness([1600., 980.]);
+    let probe = h.state().detail_probe();
+    let n = 512;
+    let ink = 0.7 + (std::process::id() % 1000) as f32 * 1e-4;
+    let mask = ringdesign_core::alpha::Alpha::new("dropped-mask", n, n, (0..n * n).map(|i| if (i % n) % 9 < 2 || (i / n) % 17 < 3 { ink } else { 0.0 }).collect());
+    std::sync::Arc::make_mut(&mut h.state_mut().lib).insert(mask);
+    let mut design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+    let tiling = ringdesign_core::tiling::TilingLayer::default_for("dropped-mask", &design.field_context());
+    design.layers.layers.push(ringdesign_core::field::LayerEntry::new("Dropped", ringdesign_core::field::Layer::Tiling(tiling)));
+    let lib = h.state().lib.clone();
+    // Dispatched with no frame run, so no panel measures the mask before the worker does.
+    h.state().detail_findings();
+    h.state_mut().design = design.clone();
+    h.state_mut().rebuild_now();
+    let start = std::time::Instant::now();
+    while probe.started.load(std::sync::atomic::Ordering::SeqCst) == 0 {
+        assert!(start.elapsed().as_secs() < 60, "the measure never started");
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    std::thread::sleep(std::time::Duration::from_millis(10));
+    let dropped = std::time::Instant::now();
+    drop(h);
+    let ended = loop {
+        if let Some(at) = *probe.ended.lock().unwrap() {
+            break at;
+        }
+        assert!(dropped.elapsed().as_secs() < 120, "the measure never ended");
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    };
+    let given_up = ended.saturating_duration_since(dropped);
+    // The same measure made whole, which it could not skip had the dropped one kept anything.
+    let t = std::time::Instant::now();
+    ringdesign_core::dfm::findings_in(&design, &lib);
+    let whole = t.elapsed();
+    assert!(given_up * 3 < whole, "given up {given_up:?} after the drop against {whole:?} for the whole measure");
 }
 
 #[test]

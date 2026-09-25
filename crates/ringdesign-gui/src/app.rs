@@ -1034,12 +1034,27 @@ impl RingDesignerApp {
             show_cutters: self.show_cutters,
             selection: self.selection.clone(),
         };
-        if self.worker.jobs.send(job).is_err() {
+        if self.worker.jobs.send(Request::Build(job)).is_err() {
             self.in_flight = false;
             self.status = "Build worker stopped".into();
         }
         // Gives up the detail measure the worker is making, after the job is queued.
-        self.worker.measure_stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.worker.measure_stop.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// The detail findings of the last build measured; the first call starts the worker measuring them, beginning with the build on screen.
+    #[cfg_attr(not(test), expect(dead_code, reason = "the report and layers panels still call findings_in"))]
+    pub fn detail_findings(&self) -> &[ringdesign_core::dfm::DfmFinding] {
+        if !self.worker.detail_wanted.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            let _ = self.worker.jobs.send(Request::Detail);
+        }
+        &self.dfm
+    }
+
+    /// The build worker's detail probe.
+    #[cfg(test)]
+    pub(crate) fn detail_probe(&self) -> Arc<DetailProbe> {
+        self.worker.probe.clone()
     }
 
     /// Reslice every cross-section on screen; one out of sight is resliced by the layout that shows it.
@@ -1879,26 +1894,58 @@ enum WorkerMsg {
     Failed { generation: u64, message: String },
 }
 
+/// What the app asks of the build worker.
+enum Request {
+    Build(Job),
+    /// Measure the detail findings of the last build, which it skipped while nothing read them.
+    Detail,
+}
+
 struct Worker {
-    jobs: Sender<Job>,
+    jobs: Sender<Request>,
     done: Receiver<WorkerMsg>,
     /// A built design's detail findings by generation, measured after its build is sent.
     detail: Receiver<(u64, Vec<ringdesign_core::dfm::DfmFinding>)>,
-    /// Set by each dispatch: the worker gives up the detail measure it is making.
+    /// Set by each dispatch and on drop: the worker gives up the detail measure it is making.
     measure_stop: Arc<std::sync::atomic::AtomicBool>,
+    /// Set once something reads the detail findings; until then the worker measures none.
+    detail_wanted: Arc<std::sync::atomic::AtomicBool>,
+    /// When the worker's detail measures start and end.
+    #[cfg(test)]
+    probe: Arc<DetailProbe>,
 }
 
-/// Holds the worker before each detail measure while set, for the tests to read a build before its findings.
+impl Drop for Worker {
+    /// Disconnects the worker, then gives up the detail measure it is making.
+    fn drop(&mut self) {
+        drop(std::mem::replace(&mut self.jobs, channel().0));
+        self.measure_stop.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+/// When a worker's detail measures start and end, and a hold before each while `held` is set, for the tests to read.
 #[cfg(test)]
-pub(crate) static DETAIL_HELD: (Mutex<bool>, std::sync::Condvar) = (Mutex::new(false), std::sync::Condvar::new());
+#[derive(Default)]
+pub(crate) struct DetailProbe {
+    pub started: std::sync::atomic::AtomicUsize,
+    pub ended: Mutex<Option<Instant>>,
+    pub held: Mutex<bool>,
+    pub released: std::sync::Condvar,
+}
 
 impl Worker {
     fn spawn(wake: egui::Context) -> Self {
-        let (jobs_tx, jobs_rx) = channel::<Job>();
+        let (jobs_tx, jobs_rx) = channel::<Request>();
         let (done_tx, done_rx) = channel::<WorkerMsg>();
         let (detail_tx, detail_rx) = channel();
         let measure_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let stop = measure_stop.clone();
+        let detail_wanted = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let wanted = detail_wanted.clone();
+        #[cfg(test)]
+        let probe = Arc::new(DetailProbe::default());
+        #[cfg(test)]
+        let probed = probe.clone();
         std::thread::Builder::new()
             .name("ring-build".into())
             .spawn(move || {
@@ -1914,13 +1961,62 @@ impl Worker {
                 let mut base: Option<(u64, Arc<AlphaLibrary>)> = None;
                 // A job that arrived while the last build's detail was due, taken in its place.
                 let mut next: Option<Job> = None;
-                loop {
-                    let Some(mut job) = next.take().or_else(|| jobs_rx.recv().ok()) else { break };
-                    // Skip stale work: only the newest queued job matters; a seed a skipped job carried still counts.
-                    while let Ok(mut newer) = jobs_rx.try_recv() {
-                        newer.seed = newer.seed.or(job.seed.take());
-                        job = newer;
+                // The last build's design and library while its detail waits for a reader.
+                let mut unmeasured: Option<(u64, RingDesign, Arc<AlphaLibrary>)> = None;
+                // Measures a built design's detail unless a build is queued, handing that build back; `Err` once the app is gone.
+                let measure = |generation: u64, design: &RingDesign, lib: &AlphaLibrary| -> Result<Option<Job>, ()> {
+                    stop.store(false, std::sync::atomic::Ordering::SeqCst);
+                    #[cfg(test)]
+                    {
+                        let mut held = probed.held.lock().unwrap_or_else(|e| e.into_inner());
+                        while *held {
+                            held = probed.released.wait(held).unwrap_or_else(|e| e.into_inner());
+                        }
                     }
+                    match jobs_rx.try_recv() {
+                        Ok(Request::Build(job)) => return Ok(Some(job)),
+                        Ok(Request::Detail) | Err(TryRecvError::Empty) => {}
+                        Err(TryRecvError::Disconnected) => return Err(()),
+                    }
+                    #[cfg(test)]
+                    probed.started.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    let measured = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        ringdesign_core::alpha::measuring_until(&stop, || ringdesign_core::dfm::findings_in(design, lib))
+                    }));
+                    #[cfg(test)]
+                    {
+                        *probed.ended.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
+                    }
+                    if let Ok(findings) = measured {
+                        if !stop.load(std::sync::atomic::Ordering::SeqCst) {
+                            let _ = detail_tx.send((generation, findings));
+                            wake.request_repaint();
+                        }
+                    }
+                    Ok(None)
+                };
+                loop {
+                    let mut job = match next.take().map(Request::Build).or_else(|| jobs_rx.recv().ok()) {
+                        None => break,
+                        Some(Request::Build(job)) => job,
+                        Some(Request::Detail) => {
+                            if let Some((generation, design, lib)) = unmeasured.take() {
+                                match measure(generation, &design, &lib) {
+                                    Ok(queued) => next = queued,
+                                    Err(()) => break,
+                                }
+                            }
+                            continue;
+                        }
+                    };
+                    // Skip stale work: only the newest queued job matters; a seed a skipped job carried still counts.
+                    while let Ok(newer) = jobs_rx.try_recv() {
+                        if let Request::Build(mut newer) = newer {
+                            newer.seed = newer.seed.or(job.seed.take());
+                            job = newer;
+                        }
+                    }
+                    unmeasured = None;
                     let generation = job.generation;
                     // A landed template's evaluation seeds the cache the next evaluations run from.
                     let mut evaluated = None;
@@ -2127,28 +2223,15 @@ impl Worker {
                     if done_tx.send(msg).is_err() {
                         break;
                     }
-                    // The detail is measured once the build is sent, skipped for a job already queued and given up for one dispatched while it runs.
+                    // The detail is measured once the build is sent and something reads it, skipped for a job already queued and given up for one dispatched while it runs.
                     if built {
-                        stop.store(false, std::sync::atomic::Ordering::Relaxed);
-                        #[cfg(test)]
-                        {
-                            let (held, released) = &DETAIL_HELD;
-                            let mut held = held.lock().unwrap_or_else(|e| e.into_inner());
-                            while *held {
-                                held = released.wait(held).unwrap_or_else(|e| e.into_inner());
+                        if wanted.load(std::sync::atomic::Ordering::SeqCst) {
+                            match measure(generation, &job.design, &job.lib) {
+                                Ok(queued) => next = queued,
+                                Err(()) => break,
                             }
-                        }
-                        next = jobs_rx.try_recv().ok();
-                        if next.is_none() {
-                            let measured = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                ringdesign_core::alpha::measuring_until(&stop, || ringdesign_core::dfm::findings_in(&job.design, &job.lib))
-                            }));
-                            if let Ok(findings) = measured {
-                                if !stop.load(std::sync::atomic::Ordering::Relaxed) {
-                                    let _ = detail_tx.send((generation, findings));
-                                    wake.request_repaint();
-                                }
-                            }
+                        } else {
+                            unmeasured = Some((generation, job.design, job.lib));
                         }
                     }
                 }
@@ -2159,6 +2242,9 @@ impl Worker {
             done: done_rx,
             detail: detail_rx,
             measure_stop,
+            detail_wanted,
+            #[cfg(test)]
+            probe,
         }
     }
 }

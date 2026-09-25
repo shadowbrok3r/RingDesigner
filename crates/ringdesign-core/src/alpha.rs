@@ -374,8 +374,9 @@ impl Alpha {
                 }
             }
         }
+        let mut band = Vec::new();
         for grid in [&mut to_ink, &mut to_ground] {
-            edt_squared(grid, w3, h);
+            edt_squared(grid, w3, h, &mut band);
         }
         let mut out = Vec::with_capacity(w * h);
         for y in 0..h {
@@ -563,31 +564,37 @@ impl Alpha {
         if stopped() {
             return Err(GaveUp);
         }
-        let dist_to = |set: &[bool]| -> Vec<f32> {
-            let mut g: Vec<f32> = set.iter().map(|&b| if b { 0.0 } else { 1e12 }).collect();
-            edt_squared(&mut g, bw, bh);
-            g.iter_mut().for_each(|v| *v = v.sqrt());
-            g
-        };
         let ground: Vec<bool> = ink.iter().map(|&b| !b).collect();
-        #[cfg(feature = "parallel")]
-        let (d_ink, d_ground) = rayon::join(|| dist_to(&ground), || dist_to(&ink));
-        #[cfg(not(feature = "parallel"))]
-        let (d_ink, d_ground) = (dist_to(&ground), dist_to(&ink));
+        // Every grid the measure fills, allocated on this thread.
+        let (mut d_ink, mut d_ground) = (vec![0.0f32; bw * bh], vec![0.0f32; bw * bh]);
+        let mut grids = [Grids::new(bw, bh), Grids::new(bw, bh)];
+        let dist_to = |set: &[bool], g: &mut [f32], band: &mut Vec<f32>| {
+            for (v, &b) in g.iter_mut().zip(set) {
+                *v = if b { 0.0 } else { 1e12 };
+            }
+            edt_squared(g, bw, bh, band);
+            g.iter_mut().for_each(|v| *v = v.sqrt());
+        };
+        {
+            let [a, b] = &mut grids;
+            join(|| dist_to(&ground, &mut d_ink, &mut a.band), || dist_to(&ink, &mut d_ground, &mut b.band));
+        }
         // Share of a phase (centre tile) that an opening by disc radius r removes.
-        let loss = |phase: &[bool], d: &[f32], r: f32| -> f64 {
+        let loss = |phase: &[bool], d: &[f32], r: f32, g: &mut Grids| -> f64 {
             if stopped() {
                 return 1.0;
             }
-            let eroded: Vec<bool> = d.iter().map(|&v| v >= r).collect();
-            let back = dist_to(&eroded);
+            for (e, &v) in g.eroded.iter_mut().zip(d) {
+                *e = v >= r;
+            }
+            dist_to(&g.eroded, &mut g.back, &mut g.band);
             let (mut lost, mut all) = (0usize, 0usize);
             for y in h..2 * h {
                 for x in w..2 * w {
                     let i = y * bw + x;
                     if phase[i] {
                         all += 1;
-                        if back[i] > r {
+                        if g.back[i] > r {
                             lost += 1;
                         }
                     }
@@ -595,22 +602,20 @@ impl Alpha {
             }
             if all == 0 { 1.0 } else { lost as f64 / all as f64 }
         };
-        let feature = |phase: &[bool], d: &[f32]| -> f64 {
+        let feature = |phase: &[bool], d: &[f32], g: &mut Grids| -> f64 {
             let r_max = (w.min(h) as f32) * 0.5;
-            if loss(phase, d, r_max) < LOST {
+            if loss(phase, d, r_max, g) < LOST {
                 return 2.0 * r_max as f64;
             }
             let (mut lo, mut hi) = (0.0f32, r_max);
             while hi - lo > 0.25 && !stopped() {
                 let mid = 0.5 * (lo + hi);
-                if loss(phase, d, mid) >= LOST { hi = mid } else { lo = mid }
+                if loss(phase, d, mid, g) >= LOST { hi = mid } else { lo = mid }
             }
             2.0 * hi as f64
         };
-        #[cfg(feature = "parallel")]
-        let (ink_px, gap_px) = rayon::join(|| feature(&ink, &d_ink), || feature(&ground, &d_ground));
-        #[cfg(not(feature = "parallel"))]
-        let (ink_px, gap_px) = (feature(&ink, &d_ink), feature(&ground, &d_ground));
+        let [a, b] = &mut grids;
+        let (ink_px, gap_px) = join(|| feature(&ink, &d_ink, a), || feature(&ground, &d_ground, b));
         if stopped() {
             return Err(GaveUp);
         }
@@ -620,6 +625,31 @@ impl Alpha {
 
 /// A mask measure given up under [`measuring_until`].
 struct GaveUp;
+
+/// One phase's opening grids: the eroded set, its distance field and the transform's column band.
+struct Grids {
+    eroded: Vec<bool>,
+    back: Vec<f32>,
+    band: Vec<f32>,
+}
+
+impl Grids {
+    fn new(w: usize, h: usize) -> Self {
+        Grids { eroded: vec![false; w * h], back: vec![0.0; w * h], band: vec![0.0; EDT_BAND.min(w) * h] }
+    }
+}
+
+/// `a` and `b` on two of the pool's threads under `parallel`, one after the other without.
+fn join<A: Send, B: Send>(a: impl FnOnce() -> A + Send, b: impl FnOnce() -> B + Send) -> (A, B) {
+    #[cfg(feature = "parallel")]
+    {
+        rayon::join(a, b)
+    }
+    #[cfg(not(feature = "parallel"))]
+    {
+        (a(), b())
+    }
+}
 
 /// Measured masks by content, `None` while one thread measures one and the others wait.
 type Measured = HashMap<u64, Option<Option<(f64, f64)>>>;
@@ -772,10 +802,13 @@ pub fn bake_cache_texels() -> usize {
     Bakes::shared().texels
 }
 
+/// Columns the distance transform's column pass carries at a time.
+const EDT_BAND: usize = 256;
+
 /// In-place exact squared Euclidean distance transform (Felzenszwalb &
 /// Huttenlocher): a 1D lower-envelope pass down every column, then along
-/// every row.
-fn edt_squared(grid: &mut [f32], w: usize, h: usize) {
+/// every row. `band` is the column pass's scratch, grown to fit.
+fn edt_squared(grid: &mut [f32], w: usize, h: usize, band: &mut Vec<f32>) {
     if w == 0 || h == 0 {
         return;
     }
@@ -817,10 +850,9 @@ fn edt_squared(grid: &mut [f32], w: usize, h: usize) {
     };
 
     // Columns a band at a time into a column-major copy, scattered back; then every row in place.
-    const BAND: usize = 256;
-    let mut band = vec![0.0f32; BAND.min(w) * h];
-    for x0 in (0..w).step_by(BAND) {
-        let cols = BAND.min(w - x0);
+    band.resize(EDT_BAND.min(w) * h, 0.0);
+    for x0 in (0..w).step_by(EDT_BAND) {
+        let cols = EDT_BAND.min(w - x0);
         each_line(&mut band[..cols * h], h, &scratch, |(f, d, v, z), k, out| {
             for y in 0..h {
                 f[y] = grid[y * w + x0 + k];
@@ -3330,6 +3362,90 @@ mod feature_tests {
         stop.store(true, Ordering::Relaxed);
         assert_eq!(measuring.join().unwrap(), None, "given up part way");
         assert_eq!(in_flight(key), None, "nothing kept, and nobody left waiting on it");
+    }
+}
+
+#[cfg(all(test, feature = "parallel"))]
+pub(crate) mod grid_allocation_tests {
+    use super::*;
+    use std::alloc::{GlobalAlloc, Layout, System};
+    use std::cell::Cell;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// Blocks at least this large count as grids.
+    const GRID_BYTES: usize = 256 << 10;
+
+    /// A thread of the watched pool.
+    const POOL: u8 = 1;
+    /// A thread counting its own grids.
+    const CALLER: u8 = 2;
+
+    thread_local! {
+        static WATCH: Cell<u8> = const { Cell::new(0) };
+        /// Grids this thread has allocated while counting.
+        static CALLER_GRIDS: Cell<usize> = const { Cell::new(0) };
+    }
+
+    /// Grids the watched pool's threads allocated while not counting their own.
+    static POOL_GRIDS: AtomicUsize = AtomicUsize::new(0);
+
+    /// `f`'s result and the grids it allocated on this thread.
+    pub(crate) fn grids_on_this_thread<R>(f: impl FnOnce() -> R) -> (R, usize) {
+        let (watch, before) = (WATCH.with(|w| w.replace(CALLER)), CALLER_GRIDS.with(Cell::get));
+        let got = f();
+        WATCH.with(|w| w.set(watch));
+        (got, CALLER_GRIDS.with(Cell::get) - before)
+    }
+
+    /// The system allocator, counting the grids the watched pool allocates.
+    struct Watching;
+
+    fn note(size: usize) {
+        if size < GRID_BYTES {
+            return;
+        }
+        match WATCH.try_with(Cell::get) {
+            Ok(POOL) => {
+                POOL_GRIDS.fetch_add(1, Ordering::SeqCst);
+            }
+            Ok(CALLER) => {
+                let _ = CALLER_GRIDS.try_with(|c| c.set(c.get() + 1));
+            }
+            _ => {}
+        }
+    }
+
+    unsafe impl GlobalAlloc for Watching {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            note(layout.size());
+            unsafe { System.alloc(layout) }
+        }
+        unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+            note(layout.size());
+            unsafe { System.alloc_zeroed(layout) }
+        }
+        unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+            note(new_size);
+            unsafe { System.realloc(ptr, layout, new_size) }
+        }
+        unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+            unsafe { System.dealloc(ptr, layout) }
+        }
+    }
+
+    #[global_allocator]
+    static ALLOCATOR: Watching = Watching;
+
+    #[test]
+    fn a_mask_measure_allocates_every_grid_once_on_the_calling_thread() {
+        let pool = rayon::ThreadPoolBuilder::new().num_threads(4).start_handler(|_| WATCH.with(|w| w.set(POOL))).build().unwrap();
+        let n = 256;
+        let mask = Alpha::new("grids", n, n, (0..n * n).map(|i| if (i % n) % 16 < 5 || (i / n) % 23 < 2 { 0.87 } else { 0.0 }).collect());
+        let (measured, grids) = pool.install(|| grids_on_this_thread(|| mask.min_feature_px()));
+        assert!(measured.is_some());
+        // Ink and ground, their two distance fields, and each phase's eroded set, opening field and column band.
+        assert_eq!(grids, 10, "every grid on the calling thread, none per bisection step");
+        assert_eq!(POOL_GRIDS.load(Ordering::SeqCst), 0, "none on the pool's other threads");
     }
 }
 

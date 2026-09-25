@@ -204,14 +204,13 @@ impl Artwork<'_> {
     }
 }
 
-/// `each` over `items` on every core when the `parallel` feature is on, in order either way.
+/// `each` over `items` on every core when the `parallel` feature is on and there are two or more, in order either way.
 fn map_items<T: Sync, U: Send>(items: &[T], each: impl Fn(&T) -> U + Sync + Send) -> Vec<U> {
     #[cfg(feature = "parallel")]
-    {
+    if items.len() > 1 {
         use rayon::prelude::*;
-        items.par_iter().map(each).collect()
+        return items.par_iter().map(each).collect();
     }
-    #[cfg(not(feature = "parallel"))]
     items.iter().map(each).collect()
 }
 
@@ -254,7 +253,7 @@ impl RingDesign {
         out
     }
 
-    /// Rasterizes `sources` and, with `fields`, the stack's distance fields on every core, each field after its source, inserting rasters then fields; the rasters, or `None` once `cancel` is set.
+    /// Rasterizes `sources` on every core, then with `fields` derives the stack's distance fields on this thread, inserting rasters then fields; the rasters, or `None` once `cancel` is set.
     fn bake_pipeline(
         &self,
         sources: &[Artwork<'_>],
@@ -264,39 +263,41 @@ impl RingDesign {
         cancel: &std::sync::atomic::AtomicBool,
     ) -> Option<Vec<std::sync::Arc<Alpha>>> {
         use std::sync::atomic::{AtomicUsize, Ordering};
-        enum Task<'s, 'a> {
-            Source(&'s Artwork<'a>, bool),
-            Field(std::sync::Arc<Alpha>),
-        }
         let read = if fields { self.sdf_sources() } else { Vec::new() };
         // A field reads the last source of its name, else the library's own alpha.
         let last_of = |name: &str| sources.iter().rposition(|a| a.name() == name);
-        let mut tasks: Vec<Task<'_, '_>> = sources.iter().enumerate().map(|(i, a)| Task::Source(a, read.iter().any(|n| last_of(n) == Some(i)))).collect();
-        tasks.extend(read.iter().filter(|n| last_of(n).is_none()).filter_map(|n| lib.get_shared(n).cloned()).map(Task::Field));
-        let total = tasks.iter().map(|t| if matches!(t, Task::Source(_, true)) { 2 } else { 1 }).sum();
+        let chained: Vec<bool> = (0..sources.len()).map(|i| read.iter().any(|n| last_of(n) == Some(i))).collect();
+        let held: Vec<std::sync::Arc<Alpha>> = read.iter().filter(|n| last_of(n).is_none()).filter_map(|n| lib.get_shared(n).cloned()).collect();
+        let total = sources.len() + chained.iter().filter(|&&c| c).count() + held.len();
         progress(0, total);
         let counted = AtomicUsize::new(0);
         let tick = || progress(counted.fetch_add(1, Ordering::Relaxed) + 1, total);
         let stopped = || cancel.load(Ordering::Relaxed);
-        let rasters = map_items(&tasks, |task| match task {
-            _ if stopped() => None,
-            Task::Source(a, chained) => {
-                let raster = a.bake();
-                tick();
-                if *chained && !stopped() {
-                    if let Some(r) = &raster {
-                        alpha::shared_sdf(r);
-                    }
-                    tick();
-                }
-                raster
+        let rasters = map_items(sources, |a| {
+            if stopped() {
+                return None;
             }
-            Task::Field(source) => {
-                alpha::shared_sdf(source);
-                tick();
-                None
-            }
+            let raster = a.bake();
+            tick();
+            raster
         });
+        // Each distance field on this thread, its transform on every core.
+        for (raster, _) in rasters.iter().zip(&chained).filter(|(_, c)| **c) {
+            if stopped() {
+                return None;
+            }
+            if let Some(r) = raster {
+                alpha::shared_sdf(r);
+            }
+            tick();
+        }
+        for source in &held {
+            if stopped() {
+                return None;
+            }
+            alpha::shared_sdf(source);
+            tick();
+        }
         if stopped() {
             return None;
         }
@@ -607,6 +608,57 @@ mod shared_bake_tests {
         tiling.edge_mm = 0.2;
         d.layers.layers.push(LayerEntry::new("Bevelled", Layer::Tiling(tiling)));
         d
+    }
+
+    /// Threads this process runs.
+    #[cfg(all(target_os = "linux", feature = "parallel"))]
+    fn threads() -> usize {
+        std::fs::read_dir("/proc/self/task").map(|d| d.count()).unwrap_or(0)
+    }
+
+    /// Run alone in a fresh process by the test after it, where no pool exists yet.
+    #[cfg(all(target_os = "linux", feature = "parallel"))]
+    #[test]
+    #[ignore = "run in a process of its own by a_bake_with_nothing_to_bake_starts_no_threads"]
+    fn a_fresh_process_bakes_an_artless_design_on_its_own_thread() {
+        let before = threads();
+        RingDesign::default().bake_all(&mut AlphaLibrary::default());
+        assert_eq!(threads(), before, "the bake started the pool");
+    }
+
+    #[cfg(all(target_os = "linux", feature = "parallel"))]
+    #[test]
+    fn a_bake_with_nothing_to_bake_starts_no_threads() {
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "shared_bake_tests::a_fresh_process_bakes_an_artless_design_on_its_own_thread", "--ignored", "--test-threads=1"])
+            .output()
+            .unwrap();
+        let said = String::from_utf8_lossy(&out.stdout);
+        assert!(out.status.success() && said.contains("1 passed"), "{said}");
+    }
+
+    /// Four bevelled drawings whose rasters fall under the counted grid size and whose fields' two 3x-wide grids each reach it.
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn a_bakes_distance_fields_are_derived_on_the_calling_thread() {
+        let mut design = RingDesign::default();
+        let ctx = design.field_context();
+        for k in 0..4 {
+            let name = format!("Field grid {k}");
+            let mut drawn = DrawnAlpha::new(name.clone(), 256, 128);
+            let mut stroke = drawn::Stroke::new(0.05, 0.4, false);
+            stroke.push(0.1 + 0.1 * k as f32, 0.3, 1.0);
+            stroke.push(0.9, 0.7, 1.0);
+            drawn.strokes.push(stroke);
+            design.drawn.push(drawn);
+            let mut tiling = tiling::TilingLayer::default_for(name, &ctx);
+            tiling.edge_mm = 0.2;
+            design.layers.layers.push(LayerEntry::new(format!("Bevelled {k}"), Layer::Tiling(tiling)));
+        }
+        let mut lib = AlphaLibrary::builtin();
+        let ((), grids) = alpha::grid_allocation_tests::grids_on_this_thread(|| design.bake_all(&mut lib));
+        assert!((0..4).all(|k| lib.sdf_of(&format!("Field grid {k}")).is_some()));
+        assert_eq!(grids, 8, "both grids of each of the four fields");
     }
 
     #[test]
