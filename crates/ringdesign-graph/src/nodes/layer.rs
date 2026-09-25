@@ -433,7 +433,8 @@ fn window(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeErro
                 .map_err(|_| NodeError::input("side_pick", "expected Low, High, Wider or Both"))?;
             VGate::SideFaces(pick)
         }
-        other => return Err(NodeError::input("v_gate", format!("{other:?} is not off, band or side_faces"))),
+        "draft" => VGate::Draft { min_deg: i.number("draft_min_deg")?, fade_deg: i.number("draft_fade_deg")? },
+        other => return Err(NodeError::input("v_gate", format!("{other:?} is not off, band, side_faces or draft"))),
     };
     Ok(Outputs::one("window", w))
 }
@@ -524,11 +525,13 @@ pub fn register(reg: &mut Registry) {
             .input(PinSpec::item("fade_deg", ValueKind::Number).optional().doc("Fade at each end, degrees; a fifth of the span if unset."))
             .input(PinSpec::item("invert", ValueKind::Bool).default(false).widget(Widget::Checkbox).doc("Everything but the arc."))
             .input(PinSpec::item("enabled", ValueKind::Bool).default(true).widget(Widget::Checkbox).doc("Whether the window gates at all."))
-            .input(PinSpec::select("v_gate", vec!["off".into(), "band".into(), "side_faces".into()]).default("off").doc("The gate across the band."))
+            .input(PinSpec::select("v_gate", vec!["off".into(), "band".into(), "side_faces".into(), "draft".into()]).default("off").doc("The gate across the band."))
             .input(PinSpec::item("band_center_mm", ValueKind::Number).default(0.0).doc("Band gate centre, mm of section arc."))
             .input(PinSpec::item("band_span_mm", ValueKind::Number).default(2.0).doc("Band gate width, mm."))
             .input(PinSpec::item("band_fade_mm", ValueKind::Number).default(0.3).doc("Band gate fade, mm."))
             .input(PinSpec::select("side_pick", side_picks).default("Wider").doc("Which side face, for the side_faces gate."))
+            .input(PinSpec::item("draft_min_deg", ValueKind::Number).default(80.0).widget(Widget::Slider { min: 0.0, max: 90.0 }).doc("Minimum station-local base draft, degrees."))
+            .input(PinSpec::item("draft_fade_deg", ValueKind::Number).default(5.0).widget(Widget::Slider { min: 0.0, max: 30.0 }).doc("Fade above the draft threshold, degrees."))
             .output(PinSpec::item("window", ValueKind::Window).doc("The window."))
             .eval(window),
         NodeSpec::new("remap.curve", "Remap curve", Category::Layer)
@@ -560,6 +563,29 @@ mod tests {
 
     fn run(g: &Graph) -> crate::eval::EvalReport {
         Evaluator::new().evaluate(g, &Registry::builtin(), &AlphaLibrary::builtin(), 0, Targets::AllPure)
+    }
+
+    #[test]
+    fn a_draft_window_lifts_cold_and_drives_the_local_gate() {
+        let mut d = ringdesign_core::RingDesign::default();
+        let mut e = ringdesign_core::field::LayerEntry::new("Draft", Layer::Border(Default::default()));
+        e.window.v_gate = VGate::Draft { min_deg: 72.5, fade_deg: 6.25 };
+        d.layers.layers.push(e);
+        let reg = Registry::builtin();
+        let lib = AlphaLibrary::builtin();
+        let (g, got, want) = crate::lift::round_trip(&d, &reg, &lib).unwrap();
+        assert_eq!(got, want);
+        let cold: Graph = serde_json::from_str(&serde_json::to_string(&g).unwrap()).unwrap();
+        let out = crate::eval::evaluate_design(&mut Evaluator::new(), &cold, &reg, &lib, 0).unwrap();
+        assert_eq!(serde_json::to_value(&*out.design).unwrap(), serde_json::to_value(d).unwrap());
+        assert!(!g.nodes.iter().any(|n| n.kind == "design.set"));
+        let id = cold.nodes.iter().find(|n| n.kind == "window").unwrap().id;
+        let mut edited = cold;
+        edited.set_input(id, "draft_min_deg", Literal::Number(90.1)).unwrap();
+        let r = run(&edited);
+        let Some(Value::Window(window)) = r.value(id, "window") else { panic!("{:?}", r.notes(&edited)); };
+        let ctx = ringdesign_core::RingDesign::default().field_context();
+        assert_eq!(window.mask(ringdesign_core::field::Uv { u: 0.0, v: ctx.crest_v_mm }, &ctx), 0.0);
     }
 
     fn layer_of(r: &crate::eval::EvalReport, id: NodeId) -> Layer {

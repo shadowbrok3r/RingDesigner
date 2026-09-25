@@ -1935,8 +1935,23 @@ fn v_gate_controls(ui: &mut egui::Ui, w: &mut Window, fctx: &FieldContext) -> bo
                 c
             });
         }
+        VGate::Draft { min_deg, fade_deg } => {
+            c |= ui.add(egui::Slider::new(min_deg, 0.0..=90.0).text("Minimum base draft").suffix("°")).changed();
+            c |= ui.add(egui::Slider::new(fade_deg, 0.0..=30.0).text("Fade above minimum").suffix("°")).changed();
+            if ui.small_button("Snap to side faces").clicked() {
+                w.v_gate = VGate::SideFaces(SideFacePick::Wider);
+                c = true;
+            }
+            if ui.small_button("Use a fixed strip instead").clicked() {
+                w.v_gate = VGate::Band { center_mm: fctx.crest_v_mm, span_mm: (fctx.band_v_len_mm * 0.4).max(0.5), fade_mm: 0.4 };
+                c = true;
+            }
+        }
     }
-    // Switch between the two gate kinds under one combo.
+    if !matches!(w.v_gate, VGate::Off | VGate::Draft { .. }) && ui.small_button("Limit by base draft").clicked() {
+        w.v_gate = VGate::Draft { min_deg: SIDE_FACE_MIN_DRAFT_DEG, fade_deg: 5.0 };
+        c = true;
+    }
     if let VGate::Band { .. } = w.v_gate {
         ui.horizontal(|ui| {
             if ui
@@ -1952,7 +1967,7 @@ fn v_gate_controls(ui: &mut egui::Ui, w: &mut Window, fctx: &FieldContext) -> bo
             }
         });
     } else if let VGate::SideFaces(_) = w.v_gate {
-        if fctx.side_faces_std().is_none() {
+        if fctx.station_gates.is_none() && fctx.side_faces_std().is_none() {
             ui.label(
                 egui::RichText::new(format!(
                     "{} This profile has no side faces — the layer passes nothing. \
