@@ -1,52 +1,446 @@
 {
   "build": {
-    "ms": 273,
+    "ms": 230,
     "profile_steps": 448,
     "theta_steps": 1536,
-    "triangles": 1355052
+    "triangles": 1345484
   },
   "clamp": [
     {
       "layer": "Wings displayed",
       "texels_cut": 0,
-      "worst_mm": 0.01457834243774414
+      "worst_mm": 0.0
     },
     {
       "layer": "The wyvern's back",
       "texels_cut": 0,
-      "worst_mm": 0.0
+      "worst_mm": 1.430511474609375e-7
     },
     {
       "layer": "Neck and tail",
       "texels_cut": 0,
-      "worst_mm": 0.0037144526839256284
+      "worst_mm": 5.066394805908203e-8
     },
     {
-      "layer": "Wall scales",
-      "texels_cut": 20,
-      "worst_mm": 0.011586106717586519
+      "layer": "Scaled walls",
+      "texels_cut": 0,
+      "worst_mm": 4.76837158203125e-8
+    },
+    {
+      "layer": "Granular flanks",
+      "texels_cut": 12740,
+      "worst_mm": 0.02958956241607666
     }
   ],
+  "crest_slots": {
+    "narrowest_notch_mm": 0.352229293792357,
+    "notches_theta_depth_width": [
+      [
+        47.35,
+        0.46681852587528816,
+        0.352229293792357
+      ],
+      [
+        134.28,
+        0.12786224515883582,
+        0.5009434995277436
+      ],
+      [
+        31.64,
+        0.6047346679869285,
+        0.5191218270655031
+      ],
+      [
+        126.32000000000001,
+        0.18138977389123667,
+        0.6095306675694233
+      ],
+      [
+        124.91,
+        0.1807341261877582,
+        0.6121514210693303
+      ],
+      [
+        13.6,
+        0.5779445780484807,
+        0.6521869132768677
+      ],
+      [
+        149.87,
+        0.1249755339577856,
+        0.7260473758155831
+      ],
+      [
+        95.63,
+        0.7145619650100272,
+        0.7319418643710524
+      ],
+      [
+        223.15,
+        0.37300300492208294,
+        0.7870863729716436
+      ],
+      [
+        183.74,
+        0.5254003244842131,
+        0.7906988983415976
+      ],
+      [
+        234.55,
+        0.3756868251056531,
+        0.7915329943773144
+      ],
+      [
+        182.57,
+        0.5249252456350391,
+        0.7928781329888686
+      ],
+      [
+        181.64000000000001,
+        0.5207844188479189,
+        0.7931448132046598
+      ],
+      [
+        356.24,
+        0.541927551939084,
+        0.7992139392991208
+      ],
+      [
+        358.15000000000003,
+        0.533112372444327,
+        0.8019362389377692
+      ],
+      [
+        328.44,
+        0.4136486987785819,
+        0.8131809329363957
+      ],
+      [
+        305.44,
+        0.37342081971685204,
+        0.8169767765379332
+      ],
+      [
+        211.56,
+        0.39205044795908073,
+        0.8238882190273477
+      ],
+      [
+        198.51,
+        0.4452597681656254,
+        0.8247343445010008
+      ],
+      [
+        84.84,
+        0.7197062038230015,
+        0.8442924209148553
+      ],
+      [
+        316.83,
+        0.38060258795690416,
+        0.8444910526692793
+      ],
+      [
+        167.34,
+        0.12094470330313634,
+        0.8520898996462795
+      ],
+      [
+        341.72,
+        0.4676925395402165,
+        0.863283923584442
+      ],
+      [
+        344.99,
+        0.4542525950387315,
+        0.8706627141856932
+      ],
+      [
+        195.24,
+        0.43085706366504617,
+        0.8986212865082234
+      ],
+      [
+        71.95,
+        0.16699532987691867,
+        0.9475261109504571
+      ],
+      [
+        72.41,
+        0.16477413640907201,
+        0.950656634510607
+      ],
+      [
+        69.65,
+        0.1237055257039863,
+        0.9740306914068158
+      ],
+      [
+        245.69,
+        0.38833789582767153,
+        1.2380007760811673
+      ],
+      [
+        250.32,
+        0.35759330032972336,
+        1.2687624812142682
+      ],
+      [
+        108.28,
+        0.316568893157676,
+        1.5981560336819363
+      ],
+      [
+        294.40000000000003,
+        0.38590976041118985,
+        1.7679447836177002
+      ],
+      [
+        110.63,
+        0.28828450697573516,
+        1.7846707879438806
+      ],
+      [
+        109.89,
+        0.27190071963195805,
+        1.8316262097336182
+      ],
+      [
+        73.83,
+        0.12155633966520085,
+        1.8325664409626334
+      ],
+      [
+        44.97,
+        0.1275578819287002,
+        1.9738201478752833
+      ],
+      [
+        288.84000000000003,
+        0.3562600761128145,
+        1.9783868387608234
+      ],
+      [
+        168.27,
+        0.36998563948620955,
+        2.0105537165873044
+      ],
+      [
+        136.67000000000002,
+        0.14899789676596598,
+        2.3914721665721315
+      ],
+      [
+        151.70000000000002,
+        0.20552954490279696,
+        2.5136829000252816
+      ],
+      [
+        116.01,
+        0.11204727264670922,
+        2.739854212799174
+      ]
+    ],
+    "release_scan_0075": [
+      [
+        319.1983444529958,
+        0.07483202816763716
+      ],
+      [
+        149.8893209464279,
+        0.07483202816763716
+      ],
+      [
+        306.94324881070713,
+        0.14966405633527433
+      ],
+      [
+        221.41170495733508,
+        0.14966405633527433
+      ],
+      [
+        31.398645326955403,
+        0.14966405633527433
+      ],
+      [
+        47.319713246528046,
+        0.14966405633527433
+      ],
+      [
+        126.10039961147524,
+        0.14966405633527433
+      ],
+      [
+        116.10579201802007,
+        0.14966405633527433
+      ],
+      [
+        146.55342679561113,
+        0.16222421328226724
+      ],
+      [
+        121.04287023326944,
+        0.16222421328226724
+      ],
+      [
+        315.621887431054,
+        0.16222421328226724
+      ],
+      [
+        328.5370769635828,
+        0.16222421328226724
+      ],
+      [
+        342.25095622003903,
+        0.16222421328226724
+      ],
+      [
+        16.38608008205934,
+        0.16222421328226724
+      ],
+      [
+        198.50556007973253,
+        0.24333631992340088
+      ],
+      [
+        303.38043788574106,
+        0.24333631992340088
+      ],
+      [
+        69.76604984242194,
+        0.29932811267054865
+      ],
+      [
+        356.74478775648583,
+        0.3244484265645345
+      ],
+      [
+        233.40188285232836,
+        0.37416014083818583
+      ],
+      [
+        245.41847268006342,
+        0.44899216900582295
+      ],
+      [
+        164.36842510478894,
+        0.48667263984680176
+      ],
+      [
+        130.41524287386258,
+        0.48667263984680176
+      ],
+      [
+        119.654193991858,
+        0.48667263984680176
+      ]
+    ],
+    "release_scan_0100": [
+      [
+        295.4295780158651,
+        0.09968083141414263
+      ],
+      [
+        45.0347342351832,
+        0.09968083141414263
+      ],
+      [
+        47.30463032643472,
+        0.09968083141414263
+      ],
+      [
+        126.42850815591288,
+        0.09968083141414263
+      ],
+      [
+        69.7522788058525,
+        0.09968083141414263
+      ],
+      [
+        198.79015774310696,
+        0.09983028509677985
+      ],
+      [
+        224.72560953053465,
+        0.09983028509677985
+      ],
+      [
+        117.15003522511655,
+        0.09983028509677985
+      ],
+      [
+        328.37734934964567,
+        0.09983028509677985
+      ],
+      [
+        315.87177533552904,
+        0.1996605701935597
+      ],
+      [
+        221.1561821089064,
+        0.2990424942424279
+      ],
+      [
+        180.07098542212884,
+        0.2994908552903396
+      ],
+      [
+        342.2016176412028,
+        0.2994908552903396
+      ],
+      [
+        130.2735398666365,
+        0.3993211403871194
+      ],
+      [
+        15.866470577011473,
+        0.3993211403871194
+      ],
+      [
+        245.3076654178345,
+        0.49840415707071317
+      ],
+      [
+        233.53926420819175,
+        0.49840415707071317
+      ],
+      [
+        164.58740965186084,
+        0.49915142548389924
+      ],
+      [
+        146.44952103955367,
+        0.5989817105806792
+      ],
+      [
+        357.1919535204748,
+        0.5989817105806792
+      ]
+    ]
+  },
   "design": "Draco — the wyvern displayed",
   "dfm_findings": [],
+  "drag_pct": 1.0464976002589725,
   "field": {
-    "marginal_area_mm2": 6.957710884389896,
+    "marginal_area_mm2": 11.662908557616442,
     "notes": [
-      "Field-sampled: the surface itself carries no undercut at this parting.",
-      "Cut at the bench after casting, and so not judged here: Graver's veins, Spade tail, high barb cut at the bench, Spade tail, low barb cut at the bench."
+      "Field-sampled: clean but for 0.020% at 1.6 deg, inside the sampling noise band of a fast-curving feature.",
+      "Undercut 58–58° on the crest: 0.2 mm² leaning to 1° — caused by \"Neck and tail\"; muting it clears it.",
+      "Undercut 182–182° on the crest: 0.1 mm² leaning to 2° — no single layer explains it.",
+      "Cut at the bench after casting, and so not judged here: Graver's veins, Matted ground, Wyvern near eye socket, Wyvern near horn separation, Wyvern near jaw line, Wyvern near nostril, Wyvern far eye socket, Wyvern far horn separation, Wyvern far jaw line, Wyvern far nostril."
     ],
-    "parting_z_mm": -0.021486756986035027,
+    "parting_z_mm": -0.08138993691003771,
     "parts": [],
     "process": "SandTwoPart",
     "profile_samples": 128,
     "theta_samples": 256,
-    "thinnest_wall_mm": 1.601583063615081,
-    "thinnest_wall_theta_deg": 251.71875,
-    "total_area_mm2": 1521.5197455656,
-    "undercut_area_mm2": 0.0,
+    "thinnest_wall_mm": 1.3115197591592977,
+    "thinnest_wall_theta_deg": 336.09375,
+    "total_area_mm2": 1551.9924389702828,
+    "undercut_area_mm2": 0.30661681751000036,
     "verdict": "Castable",
-    "vertical_area_mm2": 0.768875420970634,
-    "worst_draft_deg": -0.33664360815871597
+    "vertical_area_mm2": 4.578655072408266,
+    "worst_draft_deg": -1.620756668665875
   },
   "gates": [
     {
@@ -84,59 +478,70 @@
     {
       "gate": "stones report matches preview",
       "pass": true
+    },
+    {
+      "gate": "no crest notch under 0.30 mm",
+      "pass": true
     }
   ],
   "geometry": {
     "boundary_edges": 0,
     "bounds_mm": [
-      25.46945571899414,
-      30.226369857788086,
-      21.909889221191406
+      25.620168685913086,
+      30.55525779724121,
+      22.330873489379883
     ],
     "degenerate_faces": 0,
     "non_manifold_edges": 0,
     "self_crossings": 0,
-    "volume_mm3": 2069.7982600337423,
+    "volume_mm3": 2093.8072577249636,
     "watertight": true
   },
   "made": {
     "notes": [],
-    "stamped": 22,
-    "stamps": 22
+    "stamped": 28,
+    "stamps": 28
   },
   "manufacturing": {
     "bench_layers": [
       "Graver's veins",
-      "Spade tail, high barb cut at the bench",
-      "Spade tail, low barb cut at the bench"
+      "Matted ground",
+      "Wyvern near eye socket",
+      "Wyvern near horn separation",
+      "Wyvern near jaw line",
+      "Wyvern near nostril",
+      "Wyvern far eye socket",
+      "Wyvern far horn separation",
+      "Wyvern far jaw line",
+      "Wyvern far nostril"
     ],
-    "cast_ring_grams": 21.467061566338725,
+    "cast_ring_grams": 21.716972514557654,
     "casting": "ring",
     "design": "Draco — the wyvern displayed",
     "detail_findings": [],
     "diagnostic_only": false,
     "estimated_channel_grams": 4.633594148938864,
-    "estimated_charge_grams": 26.10065571527759,
+    "estimated_charge_grams": 26.35056666349652,
     "feeding_proxy": [
-      73.125,
-      2.173265437497553
+      78.75,
+      2.154607248205425
     ],
     "format_version": 1,
     "geometry": {
       "bounds_mm": [
-        25.96274757385254,
-        30.811792373657227,
-        22.334238052368164
+        26.116378784179688,
+        31.147048950195312,
+        22.763376235961914
       ],
-      "surface_area_mm2": 1636.517553318436,
+      "surface_area_mm2": 1668.5796379381356,
       "validation": {
         "boundary_edges": 0,
         "non_manifold_edges": 0,
-        "triangle_count": 1353880,
-        "vertex_count": 676940,
+        "triangle_count": 1342302,
+        "vertex_count": 671151,
         "watertight": true
       },
-      "volume_mm3": 2194.8545696065344
+      "volume_mm3": 2220.4061874100307
     },
     "limits": [
       "Release is sampled; features between rays can be missed",
@@ -148,26 +553,26 @@
     "nominal_bore_mm": 18.6,
     "nominal_size": "US 8.6",
     "not_in_pattern": [],
-    "pattern_fingerprint": "d2de2cbb99ef8e93",
+    "pattern_fingerprint": "47da2f40f73f8dab",
     "pattern_scale": 1.019367991845056,
     "radial_wall_limit_mm": 0.8,
-    "radial_wall_mm": 1.6023805746631439,
+    "radial_wall_mm": 1.3111800715104085,
     "release": {
       "bounds": [
         [
-          -12.959446907043457,
-          -13.132833480834961,
-          -11.167119026184082
+          -13.116795539855957,
+          -13.239255905151367,
+          -11.381743431091309
         ],
         [
-          13.003300666809082,
-          17.678958892822266,
-          11.167119026184082
+          12.999582290649414,
+          17.907793045043945,
+          11.381632804870605
         ]
       ],
       "cell_mm": [
-        0.09985672143789438,
-        0.09971453842607517
+        0.09968083141414263,
+        0.09983028509677985
       ],
       "fits_flask": true,
       "frame": {
@@ -188,228 +593,219 @@
         ]
       },
       "grid": [
-        260,
-        309
+        262,
+        312
       ],
-      "low_draft_area_mm2": 432.1770269758297,
+      "low_draft_area_mm2": 443.6338832610012,
       "notes": [
-        "432.18 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+        "443.63 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
         "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
       ],
       "obstructions": [],
-      "occupied_rays": 32732,
+      "occupied_rays": 33021,
       "parting_mm": 0.0,
       "sand_findings": [
         {
           "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
           "point": [
-            3.966267376679642,
-            -11.686972673656872,
+            -5.192169442431617,
+            -11.29256534576416,
             0.0
           ],
-          "width_mm": 0.4992836071894719
+          "width_mm": 0.49840415707071317
         },
         {
-          "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
           "point": [
-            -3.922413616914016,
-            -11.587258135230796,
+            5.274317856053359,
+            -11.0929047755706,
             0.0
           ],
-          "width_mm": 0.29957016431368316
-        },
-        {
-          "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
-          "point": [
-            6.462685412627,
-            -10.590112750970045,
-            0.0
-          ],
-          "width_mm": 0.5991403286273663
+          "width_mm": 0.09968083141414263
         },
         {
           "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
           "point": [
-            8.659533284260679,
-            -8.795251059300691,
+            -7.385147733542756,
+            -9.994771639506023,
             0.0
           ],
-          "width_mm": 0.4992836071894719
+          "width_mm": 0.49840415707071317
+        },
+        {
+          "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+          "point": [
+            -9.378764361825608,
+            -8.197826507763985,
+            0.0
+          ],
+          "width_mm": 0.2990424942424279
         },
         {
           "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
           "point": [
-            -8.81539296737084,
-            -8.695536520874617,
+            10.358040258174634,
+            10.370606520237068,
             0.0
           ],
-          "width_mm": 0.09985672143789438
+          "width_mm": 0.09968083141414263
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            9.660274438275634,
+            10.470436805333847,
+            0.0
+          ],
+          "width_mm": 0.09968083141414263
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -8.980041036169037,
+            12.167551651979103,
+            0.0
+          ],
+          "width_mm": 0.09968083141414263
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            6.0717645073665,
+            16.46025391114064,
+            0.0
+          ],
+          "width_mm": 0.09968083141414263
         },
         {
           "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
           "point": [
-            10.656667713018564,
-            -6.501816675500962,
+            -12.269508472835744,
+            3.382486563462479,
             0.0
           ],
-          "width_mm": 0.4992836071894719
-        },
-        {
-          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "point": [
-            -11.3118110033182,
-            7.059360550445262,
-            0.0
-          ],
-          "width_mm": 0.19971344287578877
+          "width_mm": 0.49915142548389924
         },
         {
           "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
           "point": [
-            -10.313243788939255,
-            10.34994031850574,
+            -11.771104315765031,
+            -4.004954533699231,
             0.0
           ],
-          "width_mm": 0.09985672143789438
+          "width_mm": 0.09983028509677985
+        },
+        {
+          "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+          "point": [
+            -11.272700158694319,
+            7.475528252430451,
+            0.0
+          ],
+          "width_mm": 0.5989817105806792
         },
         {
           "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
           "point": [
-            -9.5143900174361,
-            10.54936939535789,
+            -9.47844519323975,
+            -0.01174312982803681,
             0.0
           ],
-          "width_mm": 0.29957016431368316
-        },
-        {
-          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "point": [
-            -5.61997788135822,
-            16.432527162496328,
-            0.0
-          ],
-          "width_mm": 0.19971344287578877
-        },
-        {
-          "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
-          "point": [
-            5.663831641123846,
-            16.432527162496328,
-            0.0
-          ],
-          "width_mm": 0.29957016431368316
-        },
-        {
-          "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
-          "point": [
-            -1.9252791881561273,
-            17.03081439305278,
-            0.0
-          ],
-          "width_mm": 0.29957016431368316
-        },
-        {
-          "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
-          "point": [
-            1.869276226483858,
-            17.03081439305278,
-            0.0
-          ],
-          "width_mm": 0.29957016431368316
+          "width_mm": 0.2994908552903396
         },
         {
           "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
           "point": [
-            -12.410234939135037,
-            -0.5189443699364519,
+            -9.378764361825608,
+            11.069418515914528,
             0.0
           ],
-          "width_mm": 0.39885815370430067
+          "width_mm": 0.3993211403871194
         },
         {
-          "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
           "point": [
-            -12.310378217697144,
-            3.3699226286804795,
+            -8.780679373340751,
+            -8.696977933247885,
             0.0
           ],
-          "width_mm": 0.598287230556451
+          "width_mm": 0.09983028509677985
         },
         {
-          "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
           "point": [
-            -11.910951331945565,
-            -3.8095241379969322,
+            -8.082913553441754,
+            15.76144191546318,
             0.0
           ],
-          "width_mm": 0.598287230556451
+          "width_mm": 0.09983028509677985
         },
         {
-          "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
           "point": [
-            -10.41310051037715,
-            -6.701245752353112,
+            8.862827786962496,
+            -8.597147648151104,
             0.0
           ],
-          "width_mm": 0.598287230556451
+          "width_mm": 0.1996605701935597
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            10.557401921002919,
+            -6.500711661118727,
+            0.0
+          ],
+          "width_mm": 0.09983028509677985
         },
         {
           "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
           "point": [
-            11.155951320208036,
-            7.25878962729741,
+            11.853252729386773,
+            -3.805293963505672,
             0.0
           ],
-          "width_mm": 0.2991436152782255
-        },
-        {
-          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "point": [
-            11.655234927397508,
-            -0.6186589083625277,
-            0.0
-          ],
-          "width_mm": 0.09971453842607517
-        },
-        {
-          "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
-          "point": [
-            11.755091648835403,
-            -3.909238676423008,
-            0.0
-          ],
-          "width_mm": 0.598287230556451
+          "width_mm": 0.2994908552903396
         },
         {
           "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
           "point": [
-            12.15451853458698,
-            3.3699226286804795,
+            12.251976055043345,
+            3.482316848559258,
             0.0
           ],
-          "width_mm": 0.39885815370430067
+          "width_mm": 0.3993211403871194
+        },
+        {
+          "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+          "point": [
+            12.45133771787163,
+            -0.6107248404087158,
+            0.0
+          ],
+          "width_mm": 0.5989817105806792
         },
         {
           "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
           "point": [
-            -3.822556895476121,
-            14.238807317122673,
-            5.583559513092041
+            -3.397914476977051,
+            14.563478494301823,
+            5.690816402435303
           ],
-          "width_mm": 0.09985672143789438
+          "width_mm": 0.09968083141414263
         }
       ],
       "status": "Review",
-      "suggested_parting_mm": 0.0,
+      "suggested_parting_mm": -0.0000553131103515625,
       "tolerance_mm": 0.02,
       "unresolved_rays": 0,
-      "worst_draft_deg": -0.05928350157770583
+      "worst_draft_deg": -0.13332850021292617
     },
     "sampled_local_wall": null,
     "setup": {
       "auto_parting": false,
       "axial_stock_mm": 0.0,
-      "bench_notes": "Imported-stock master, one wyvern flowing round the ring: its wings displayed across the kite's pitched table, an arm from each shoulder to a wrist knuckle by the forward rim and seven fingers fanning from it, the membrane stepping down finger by finger from the spine to the scalloped trailing edge; its keeled back on the ridge with three low raked spines struck between the wings; its neck and tail down the shoulders in graded scutes, the outer row pointed, a raked spine struck on each backbone plate; an arrowhead spade across the palm; round scales on the head's walls. Every panel steps down away from the parting line and every straight joint runs across the band, so the pattern pulls as drawn. Z=0 parting, opposed Z withdrawal. At the bench: cut the spade's two barb notches and engrave the membrane's veins. Polish the bones, the spines and the scutes' tops; leave the membranes and wall scales satin.",
+      "bench_notes": "Imported-stock master, one wyvern flowing round the ring: its wings displayed across the kite's pitched table, an arm from each shoulder to a wrist knuckle with a thumb claw pointing forward, three fingers to the kite's point and the aft rim, and four membranes stepping down from the spine, their trailing edges scalloped between the finger tips; its keeled back on the ridge with a line of raked dorsal thorns from palm to palm; its neck and tail down the shoulders in graded scutes with pointed outer rows; a horned wyvern head at the palm meeting the tail at its muzzle; round scales over the walls facing the pull. Every panel steps down away from the parting line and every straight joint runs across the band, so the pattern pulls as drawn. Z=0 parting, opposed Z withdrawal. At the bench: carve the head's horn separations, eye sockets, jaw lines and nostrils; engrave the membrane veins. Polish the bones, thorns, cranial ridge and scute tops; leave the membranes and scales satin.",
       "bore": "Molded",
       "bore_stock_mm": 0.0,
       "channels": [
@@ -473,114 +869,122 @@
       "tolerance_mm": 0.02
     },
     "source_build": {
-      "band_width_mm": 21.909889221191406,
+      "band_width_mm": 22.330873489379883,
       "bounds_mm": [
-        25.46945571899414,
-        30.226369857788086,
-        21.909889221191406
+        25.620168685913086,
+        30.55525779724121,
+        22.330873489379883
       ],
-      "build_ms": 285,
+      "build_ms": 250,
       "inner_diameter_mm": 18.599999036082675,
-      "max_relief_mm": 2.0384383571861235,
+      "max_relief_mm": 2.2770886293843398,
       "metals": [
         {
-          "dwt": 13.803641119849807,
-          "grams": 21.467061566338725,
+          "dwt": 13.964337591068054,
+          "grams": 21.716972514557654,
           "metal": "Silver 925"
         },
         {
-          "dwt": 11.72510056512339,
-          "grams": 18.234569670249112,
+          "dwt": 11.861599498204527,
+          "grams": 18.446849240164806,
           "metal": "Bronze"
         },
         {
-          "dwt": 11.392001117250567,
-          "grams": 17.716542122798852,
+          "dwt": 11.524622239732807,
+          "grams": 17.92279102311467,
           "metal": "Brass"
         },
         {
-          "dwt": 15.38919449172445,
-          "grams": 23.932872692201958,
+          "dwt": 15.56834934139344,
+          "grams": 24.211489627716304,
           "metal": "Gold 10k"
         },
         {
-          "dwt": 17.414439134791216,
-          "grams": 27.08248018069953,
+          "dwt": 17.617171072901495,
+          "grams": 27.397763587381135,
           "metal": "Gold 14k"
         },
         {
-          "dwt": 20.758757591434367,
-          "grams": 32.28347675710013,
+          "dwt": 21.000422747957554,
+          "grams": 32.6593080865645,
           "metal": "Gold 18k"
         },
         {
-          "dwt": 23.71668068854504,
-          "grams": 36.88356137845843,
+          "dwt": 23.992780803186424,
+          "grams": 37.31294505396971,
           "metal": "Gold 22k"
         },
         {
-          "dwt": 25.741925331611807,
-          "grams": 40.033168866956004,
+          "dwt": 26.04160253469448,
+          "grams": 40.499219013634544,
           "metal": "Gold 24k"
         },
         {
-          "dwt": 15.98877349789553,
-          "grams": 24.86532227761242,
+          "dwt": 16.174908406642533,
+          "grams": 25.15479441840655,
           "metal": "Palladium 950"
         },
         {
-          "dwt": 28.579932627488258,
-          "grams": 44.446763571232204,
+          "dwt": 28.912648776873528,
+          "grams": 44.964195022901706,
           "metal": "Platinum 950"
         }
       ],
       "min_relief_mm": 0.0,
-      "outer_diameter_mm": 29.292770385742188,
+      "outer_diameter_mm": 29.498653411865234,
       "quality": {
         "degenerate_faces": 0,
-        "min_angle_deg": 0.0017512385594077246,
-        "worst_aspect": 32717.292890861234
+        "min_angle_deg": 0.004035607677176566,
+        "worst_aspect": 14197.622531114965
       },
       "refine": null,
-      "surface_area_mm2": 1574.9208463044033,
+      "surface_area_mm2": 1605.7761541465331,
       "validation": {
         "boundary_edges": 0,
         "non_manifold_edges": 0,
-        "triangle_count": 1353880,
-        "vertex_count": 676940,
+        "triangle_count": 1342302,
+        "vertex_count": 671151,
         "watertight": true
       },
-      "volume_mm3": 2072.110189801035
+      "volume_mm3": 2096.232868200546
     },
     "units": "millimeter"
   },
   "release_0075": {
     "at": [],
     "deepest_mm": 0.0,
-    "low_draft_area_mm2": 432.1770269758297,
+    "low_draft_area_mm2": 443.6338832610012,
     "obstructions": 0,
-    "occupied_rays": 54277,
+    "occupied_rays": 54115,
     "status": "Review",
     "unresolved_rays": 0,
-    "worst_draft_deg": -0.05928350157770583
+    "worst_draft_deg": -0.13332850021292617
   },
   "release_0100": {
     "at": [],
     "deepest_mm": 0.0,
-    "low_draft_area_mm2": 432.1770269758297,
+    "low_draft_area_mm2": 443.6338832610012,
     "obstructions": 0,
-    "occupied_rays": 32732,
+    "occupied_rays": 33021,
     "status": "Review",
     "unresolved_rays": 0,
-    "worst_draft_deg": -0.05928350157770583
+    "worst_draft_deg": -0.13332850021292617
   },
   "reload": {
-    "faces": 1355052,
+    "faces": 1345484,
     "identical": true,
-    "vertices": 677526
+    "vertices": 672754
   },
   "stones": {
     "preview_faces": 0,
     "report": 0
+  },
+  "wing": {
+    "scallop_bites_mm": {
+      "first_to_second": 1.137074662471027,
+      "fore_edge": 0.7999999999999999,
+      "second_to_third": 0.9654376792049915,
+      "third_to_spine": 1.002781443904065
+    }
   }
 }

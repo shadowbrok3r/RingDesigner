@@ -1,21 +1,64 @@
 {
-  "cold_design_reload": true,
+  "clamp": [
+    {
+      "layer": "Wings displayed",
+      "texels_cut": 0,
+      "worst_mm": 0.0
+    },
+    {
+      "layer": "The wyvern's back",
+      "texels_cut": 0,
+      "worst_mm": 1.430511474609375e-7
+    },
+    {
+      "layer": "Neck and tail",
+      "texels_cut": 0,
+      "worst_mm": 5.066394805908203e-8
+    },
+    {
+      "layer": "Scaled walls",
+      "texels_cut": 0,
+      "worst_mm": 4.76837158203125e-8
+    },
+    {
+      "layer": "Granular flanks",
+      "texels_cut": 12740,
+      "worst_mm": 0.02958956241607666
+    }
+  ],
+  "clamp_worst_mm": 0.02958956241607666,
+  "cold_design_reload": {
+    "faces": 1345484,
+    "identical": true,
+    "vertices": 672754
+  },
   "cold_graph_reload": true,
-  "design_bytes": 10746704,
+  "design_bytes": 10883298,
   "design_set_patches": [
-    "\"/build/profile_steps\"",
-    "\"/build/theta_steps\"",
-    "\"/draft/min_detail_mm\"",
-    "\"/draft/min_section_mm\"",
-    "\"/draft/sand\"",
     "\"/imported_base\"",
     "\"/manufacturing\"",
     "\"/stamps\""
   ],
-  "editable_graph_bytes": 25833664,
-  "graph_bytes": 5228291,
-  "nodes": 41,
+  "drag_pct": 1.0464976002589725,
+  "editable_graph_bytes": 26118354,
+  "graph_bytes": 5352739,
+  "graph_over_3mb_flag": true,
+  "nodes": 50,
+  "open_ms": {
+    "bake_ms": 6.941008999999999,
+    "build_ms": 1893.127005,
+    "read_ms": 26.793473000000002,
+    "total_ms": 1945.170607,
+    "verdict_ms": 18.30912
+  },
   "source_identical": true,
-  "triangles": 1355052,
+  "template_open_ms": {
+    "bake": 0.5415599999999999,
+    "build": 2476.643479,
+    "evaluate_cli": 718.9595230011037,
+    "lift_cli": 998.167445002764,
+    "read_evaluated": 119.588794
+  },
+  "triangles": 1345484,
   "vertices_faces_normals_identical": true
 }
