@@ -563,7 +563,7 @@ impl<'a> Analytic<'a> {
                 self.frame_of(*source, depth + 1)
             }
             Operation::Transform { source, translation, rotation_deg } => {
-                let inner = self.frame_of(*source, depth + 1).map(|i| rigid(*translation, *rotation_deg).map(|m| pattern::then(&m, &i)));
+                let inner = self.frame_of(*source, depth + 1).map(|i| crate::cad::rotate_place(*translation, *rotation_deg).ok().map(|m| pattern::then(&m, &i)));
                 self.placed(f, inner.flatten())
             }
             Operation::Boolean { a, b, .. } if self.doc()?.band().is_some_and(|band| band == *a || band == *b) => {
@@ -786,7 +786,7 @@ fn carried(doc: &Document, frames: &dyn Frames, f: &Feature, depth: u32) -> (Vec
         }
         Operation::Transform { source, .. } if is_head(doc, finished_from(doc, *source)) => (Vec::new(), false),
         Operation::Transform { source, translation, rotation_deg } => {
-            let Some(m) = rigid(*translation, *rotation_deg) else { return (Vec::new(), false) };
+            let Some(m) = crate::cad::rotate_place(*translation, *rotation_deg).ok() else { return (Vec::new(), false) };
             let m = match &f.component.placement {
                 Placement::Free => m,
                 p => match frames.seat(p) {
@@ -860,16 +860,6 @@ fn is_stone(doc: &Document, f: &Feature) -> bool {
         }
     }
     false
-}
-
-/// The motion a Transform turns its source by, degrees about x, y then z, and then moves it by `translation`.
-fn rigid(translation: [f64; 3], degrees: [f64; 3]) -> Option<Motion> {
-    if !translation.iter().chain(&degrees).all(|v| v.is_finite() && v.abs() < 10000.0) {
-        return None;
-    }
-    let r = nalgebra::Rotation3::from_euler_angles(degrees[0].to_radians(), degrees[1].to_radians(), degrees[2].to_radians());
-    let col = |i: usize| -> [f64; 3] { std::array::from_fn(|j| r.matrix()[(j, i)]) };
-    Some(Motion { x_axis: col(0), y_axis: col(1), z_axis: col(2), origin: translation })
 }
 
 /// A stone found among the parts' outputs, and the part it is counted under.

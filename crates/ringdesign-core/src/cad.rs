@@ -1553,7 +1553,7 @@ fn coords(values: &[[f64; 3]]) -> Result<()> {
 fn maybe(body: Option<Body>, label: &str) -> Result<Body> {
     body.ok_or_else(|| anyhow::anyhow!("{label}: unsupported or degenerate geometry"))
 }
-fn rotate_place(translation: [f64; 3], degrees: [f64; 3]) -> Result<brep::Placement> {
+pub(crate) fn rotate_place(translation: [f64; 3], degrees: [f64; 3]) -> Result<brep::Placement> {
     coords(&[translation, degrees])?;
     let r = nalgebra::Rotation3::from_euler_angles(
         degrees[0].to_radians(),
