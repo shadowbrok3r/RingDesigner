@@ -134,8 +134,7 @@ const CLAW_STYLES: &[&str] = &["Wire", "Talon", "Fang", "Tentacle", "Thorn", "Se
 const CLAW_GROUPINGS: &[&str] = &["Even", "Feet", "Jaws"];
 const CLAW_TIPS: &[&str] = &["Dome", "Point"];
 
-/// Whether an older reader would silently lose chosen claw geometry. Missing, null and
-/// explicit legacy defaults remain compatible; invalid new choices also need the format fence.
+/// Non-default and invalid claw choices require a reader fence; missing, null and explicit legacy defaults remain compatible.
 pub fn claw_geometry_extended(key: &str, params: &Json) -> bool {
     matches!(key, CLAW | BASKET) && [("style", "Wire"), ("grouping", "Even"), ("tip", "Dome")].iter()
         .any(|(key, default)| params.get(*key).is_some_and(|v| !v.is_null() && v.as_str() != Some(*default)))
