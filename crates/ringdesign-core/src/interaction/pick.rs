@@ -729,7 +729,7 @@ mod tests {
         BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() }
     }
     fn template(name: &str) -> RingDesign {
-        templates::all().iter().find(|t| t.name == name).unwrap().design()
+        templates::fixture(name).unwrap_or_else(|| templates::all().iter().find(|t| t.name == name).unwrap().design())
     }
     /// A joined part at the top of the Court band, its centre `height` above the surface: a part
     /// sunk into the band buries its lower features, the ones a flat foot on a dome would float.

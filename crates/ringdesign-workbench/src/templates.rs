@@ -17,13 +17,15 @@ use ringdesign_graph::{
 pub struct Template {
     pub name: &'static str,
     pub slug: &'static str,
+    pub badge: Option<&'static str>,
+    pub family: Option<&'static str>,
     pub description: &'static str,
     source: Source,
 }
 /// `Design` names a bundled `.ring.json`; the document is decompressed only
 /// when that template is chosen, not to list it in a menu. `File` is a design file on disk.
 #[derive(Clone)]
-enum Source { Graph(&'static TemplateGraph), Document(&'static Graph), Starter(&'static ringdesign_core::templates::Template), Design(&'static str), File(std::path::PathBuf) }
+enum Source { Graph(&'static TemplateGraph), Document(&'static Graph), Starter(&'static ringdesign_core::templates::Template), Design(&'static str), File(std::path::PathBuf), Stock(&'static ringdesign_core::imported_base::Preset) }
 
 /// What an open is called: a template's name, or a file's.
 pub type Name = std::borrow::Cow<'static, str>;
@@ -31,7 +33,7 @@ pub type Name = std::borrow::Cow<'static, str>;
 impl Template {
     /// A template made from a graph document already read, opened like a bundled template graph.
     pub fn document(name: &'static str, slug: &'static str, graph: &'static Graph) -> Self {
-        Template { name, slug, description: "", source: Source::Document(graph) }
+        Template { name, slug, badge: None, family: None, description: "", source: Source::Document(graph) }
     }
 
     /// The template's design, made on the calling thread with expression pins run.
@@ -136,6 +138,10 @@ fn opened(source: Source, reg: &Registry, lib: &Arc<AlphaLibrary>, set: Arc<dyn 
         Source::Starter(template) => {
             set(Stage::Reading);
             template.design()
+        }
+        Source::Stock(preset) => {
+            set(Stage::Reading);
+            ringdesign_core::templates::stock(preset)?
         }
         Source::Design(slug) => {
             set(Stage::Reading);
@@ -471,6 +477,38 @@ impl<T> Slot<T> {
 
 pub struct Collection { pub name: &'static str, pub templates: Vec<Template> }
 
+struct StockText {
+    preset: &'static ringdesign_core::imported_base::Preset,
+    name: String,
+    slug: String,
+    description: String,
+    family: &'static str,
+}
+
+fn stock_templates() -> Vec<Template> {
+    static STOCKS: LazyLock<Vec<StockText>> = LazyLock::new(|| {
+        [
+            ("Round and square", &["013", "012", "001", "017", "006", "015"][..]),
+            ("Shields", &["004", "014", "020", "011", "019"][..]),
+            ("Lobed", &["003", "007", "005", "016", "018", "008"][..]),
+            ("Pointed", &["002", "009", "010"][..]),
+        ].into_iter().flat_map(|(family, ids)| ids.iter().map(move |id| {
+            let preset = ringdesign_core::imported_base::PRESETS.iter().find(|p| p.id == *id).expect("factory stock");
+            StockText {
+                preset, family,
+                name: ringdesign_core::templates::stock_name(preset),
+                slug: format!("stock-{}-{}", preset.id, preset.name.to_ascii_lowercase()),
+                description: format!("{} · factory stock, hard angles where wall meets face; bare, ready for a theme. {}", preset.label(), ringdesign_core::templates::stock_process_note(preset).unwrap_or("")),
+            }
+        })).collect()
+    });
+    STOCKS.iter().map(|s| Template {
+        name: &s.name, slug: &s.slug, description: &s.description, family: Some(s.family),
+        badge: Some(if ringdesign_core::templates::stock_sand_ready(s.preset) { "sand-safe plan" } else if s.preset.sand_safe() { "sand trial failed · lost wax" } else { "upright · lost wax" }),
+        source: Source::Stock(s.preset),
+    }).collect()
+}
+
 pub fn collections() -> &'static [Collection] {
     static CATALOG: LazyLock<Vec<Collection>> = LazyLock::new(|| {
         let group = |name, slugs: &[&str], description| Collection {
@@ -479,67 +517,98 @@ pub fn collections() -> &'static [Collection] {
                 let t = ringdesign_graph::templates::catalog().find(|t| t.slug == *slug).expect("catalogued graph");
                 let source = ringdesign_core::templates::all().iter().find(|starter| starter.name == t.name)
                     .map(Source::Starter).unwrap_or(Source::Graph(t));
-                Template { name: t.name, slug: t.slug, description, source }
+                Template { name: t.name, slug: t.slug, badge: None, family: None, description: ringdesign_core::templates::all().iter().find(|s| s.name == t.name).map_or(description, |s| s.blurb), source }
             }).collect(),
         };
         vec![
+            group("Starter bands", &["court-band", "braided-band", "split-shank", "split-gallery"], "Simple bands with editable sections and open rails."),
+            {
+                let mut signets = group("Starter signets", &["shouldered-cushion-signet"], "A blank table, ready for a theme.");
+                signets.templates.extend(stock_templates());
+                signets
+            },
+            group("Stone settings", &["cathedral-solitaire", "bezel-solitaire", "halo", "trilogy", "toi-et-moi", "split-shank-basket", "half-eternity", "gypsy-trio"], "Eight made settings · three pour in sand, five in lost wax"),
+            Collection { name: "Workshop collection", templates: vec![
+                Template { name: "Aster — cushion seal", slug: "aster-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", badge: None, family: None, source: Source::Design("aster-workshop") },
+                Template { name: "Tide — twelve reeds", slug: "tide-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", badge: None, family: None, source: Source::Design("tide-workshop") },
+                Template { name: "Lantern — pierced octagonal signet", slug: "lantern-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", badge: None, family: None, source: Source::Design("lantern-workshop") },
+                Template { name: "Aureole — half-turn ribbon", slug: "aureole-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", badge: None, family: None, source: Source::Design("aureole-workshop") },
+            ] },
             group("Reptilia collection", &["ecdysis-reptilia", "tessera-reptilia", "lorica-reptilia", "ophidian-reptilia", "varanus-reptilia"], "Sculpted reptile skins with editable artwork and geometry."),
             group("Stock masterworks", &["nocturne-imported", "solstice-imported", "aurelia-imported", "vesper-imported", "saurian-imported", "zenith-imported", "caiman-imported"], "Authored ornament on calibrated imported signet stock."),
-            Collection { name: "Workshop collection", templates: vec![
-                Template { name: "Aster — cushion seal", slug: "aster-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", source: Source::Design("aster-workshop") },
-                Template { name: "Tide — twelve reeds", slug: "tide-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", source: Source::Design("tide-workshop") },
-                Template { name: "Lantern — pierced octagonal signet", slug: "lantern-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", source: Source::Design("lantern-workshop") },
-                Template { name: "Aureole — half-turn ribbon", slug: "aureole-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", source: Source::Design("aureole-workshop") },
-            ] },
             {
                 let mut atelier = group("Atelier designs", &["aster-atelier", "thalassa", "oriel"], "Complete authored designs with their artwork and settings.");
-                atelier.templates.push(Template { name: "Aster — original botanical signet", slug: "aster-botanical", description: "The original botanical sand signet.", source: Source::Design("aster-botanical") });
+                atelier.templates.push(Template { name: "Aster — original botanical signet", slug: "aster-botanical", description: "The original botanical sand signet.", badge: None, family: None, source: Source::Design("aster-botanical") });
                 atelier
             },
             group("Original masterwork signets", &["nocturne", "solstice"], "Original sculpted designs, before the stock-based editions."),
-            group("Starter bands", &["court-band", "braided-band", "wishbone-wave", "split-shank"], "A simple parametric starting point for a band."),
-            group("Starter signets", &["heart-signet", "waved-hexagon-signet", "shouldered-cushion-signet"], "A parametric signet with an editable head and shank."),
-            group("Stone settings", &["cathedral-solitaire-stock", "toi-et-moi"], "Starter rings with editable stone settings."),
         ]
     });
     &CATALOG
 }
 
-pub fn preview_bytes(slug: &str) -> Option<&'static [u8]> {
-    Some(match slug {
-        "court-band" => include_bytes!("../assets/templates/court-band.png"),
-        "heart-signet" => include_bytes!("../assets/templates/heart-signet.png"),
-        "waved-hexagon-signet" => include_bytes!("../assets/templates/waved-hexagon-signet.png"),
-        "shouldered-cushion-signet" => include_bytes!("../assets/templates/shouldered-cushion-signet.png"),
-        "braided-band" => include_bytes!("../assets/templates/braided-band.png"),
-        "cathedral-solitaire-stock" => include_bytes!("../assets/templates/cathedral-solitaire-stock.png"),
-        "wishbone-wave" => include_bytes!("../assets/templates/wishbone-wave.png"),
-        "split-shank" => include_bytes!("../assets/templates/split-shank.png"),
-        "toi-et-moi" => include_bytes!("../assets/templates/toi-et-moi.png"),
-        "nocturne" => include_bytes!("../assets/templates/nocturne.png"),
-        "solstice" => include_bytes!("../assets/templates/solstice.png"),
-        "aster-atelier" => include_bytes!("../assets/templates/aster-atelier.png"),
-        "thalassa" => include_bytes!("../assets/templates/thalassa.png"),
-        "oriel" => include_bytes!("../assets/templates/oriel.png"),
-        "nocturne-imported" => include_bytes!("../assets/templates/nocturne-imported.png"),
-        "solstice-imported" => include_bytes!("../assets/templates/solstice-imported.png"),
-        "aurelia-imported" => include_bytes!("../assets/templates/aurelia-imported.png"),
-        "vesper-imported" => include_bytes!("../assets/templates/vesper-imported.png"),
-        "saurian-imported" => include_bytes!("../assets/templates/saurian-imported.png"),
-        "zenith-imported" => include_bytes!("../assets/templates/zenith-imported.png"),
-        "caiman-imported" => include_bytes!("../assets/templates/caiman-imported.png"),
-        "ecdysis-reptilia" => include_bytes!("../assets/templates/ecdysis-reptilia.png"),
-        "tessera-reptilia" => include_bytes!("../assets/templates/tessera-reptilia.png"),
-        "lorica-reptilia" => include_bytes!("../assets/templates/lorica-reptilia.png"),
-        "ophidian-reptilia" => include_bytes!("../assets/templates/ophidian-reptilia.png"),
-        "varanus-reptilia" => include_bytes!("../assets/templates/varanus-reptilia.png"),
-        "aster-botanical" => include_bytes!("../assets/templates/aster-botanical.png"),
-        "aster-workshop" => include_bytes!("../assets/templates/aster-workshop.png"),
-        "tide-workshop" => include_bytes!("../assets/templates/tide-workshop.png"),
-        "lantern-workshop" => include_bytes!("../assets/templates/lantern-workshop.png"),
-        "aureole-workshop" => include_bytes!("../assets/templates/aureole-workshop.png"),
-        _ => return None,
-    })
+macro_rules! thumbnails { ($($slug:literal),* $(,)?) => {
+    pub const SLUGS: &[&str] = &[$($slug),*];
+    pub fn preview_bytes(slug: &str) -> Option<&'static [u8]> {
+        Some(match slug { $($slug => include_bytes!(concat!("../assets/templates/", $slug, ".png")),)* _ => return None })
+    }
+}}
+thumbnails! {
+    "court-band",
+    "braided-band",
+    "split-shank",
+    "split-gallery",
+    "shouldered-cushion-signet",
+    "cathedral-solitaire",
+    "bezel-solitaire",
+    "halo",
+    "trilogy",
+    "toi-et-moi",
+    "split-shank-basket",
+    "half-eternity",
+    "gypsy-trio",
+    "nocturne",
+    "solstice",
+    "aster-atelier",
+    "thalassa",
+    "oriel",
+    "nocturne-imported",
+    "solstice-imported",
+    "aurelia-imported",
+    "vesper-imported",
+    "saurian-imported",
+    "zenith-imported",
+    "caiman-imported",
+    "ecdysis-reptilia",
+    "tessera-reptilia",
+    "lorica-reptilia",
+    "ophidian-reptilia",
+    "varanus-reptilia",
+    "aster-botanical",
+    "aster-workshop",
+    "tide-workshop",
+    "lantern-workshop",
+    "aureole-workshop",
+    "stock-001-cushion",
+    "stock-002-kite",
+    "stock-003-clover",
+    "stock-004-shield",
+    "stock-005-rosette",
+    "stock-006-square",
+    "stock-007-quatrefoil",
+    "stock-008-heart",
+    "stock-009-drop",
+    "stock-010-trillion",
+    "stock-011-badge",
+    "stock-012-cushion",
+    "stock-013-round",
+    "stock-014-heater",
+    "stock-015-octagon",
+    "stock-016-star",
+    "stock-017-tonneau",
+    "stock-018-butterfly",
+    "stock-019-jewel",
+    "stock-020-escutcheon",
 }
 
 fn thumbnail(ui: &Ui, template: &Template) -> TextureHandle {
@@ -559,9 +628,18 @@ pub fn menu(ui: &mut Ui) -> Option<&'static Template> {
         let size = (ui.spacing().interact_size.y - ui.spacing().button_padding.y * 2.).min(24.);
         ui.menu_button((egui::Image::new((thumb.id(), egui::vec2(size, size))), collection.name), |ui| {
             egui::ScrollArea::vertical().max_height((ui.ctx().content_rect().height() * 0.7).min(520.)).show(ui, |ui| {
+                let mut family = None;
                 for template in &collection.templates {
+                    if template.family != family {
+                        family = template.family;
+                        if let Some(name) = family { ui.weak(name); }
+                    }
                     let thumb = thumbnail(ui, template);
-                    let response = ui.add(egui::Button::new((egui::Image::new((thumb.id(), egui::vec2(size, size))), template.name)).image_tint_follows_text_color(false));
+                    let response = ui.horizontal(|ui| {
+                        let response = ui.add(egui::Button::new((egui::Image::new((thumb.id(), egui::vec2(size, size))), template.name)).image_tint_follows_text_color(false));
+                        if let Some(badge) = template.badge { ui.weak(badge); }
+                        response
+                    }).inner;
                     if response.clicked() { chosen = Some(template); ui.close(); }
                     response.on_hover_ui(|ui| {
                         ui.image((thumb.id(), egui::vec2(160., 160.)));
@@ -593,7 +671,8 @@ mod tests {
             assert_eq!((png.width(), png.height()), (160, 160));
             assert!(png.pixels().any(|p| p.0.iter().copied().max().unwrap() > 100), "{} preview is blank", entry.slug);
         }
-        assert_eq!(slugs.len(), 31);
+        assert_eq!(slugs.len(), 55);
+        assert_eq!(slugs, SLUGS.iter().copied().collect(), "thumbnail table and menu agree");
     }
 
     #[test]
@@ -602,7 +681,7 @@ mod tests {
         let lib = Arc::new(AlphaLibrary::builtin());
         let find = |slug: &str| collections().iter().flat_map(|c| &c.templates).find(|t| t.slug == slug).unwrap();
         // A graph carrying artwork, a starter, and a bundled design.
-        for slug in ["aster-atelier", "court-band", "aster-workshop"] {
+        for slug in ["aster-atelier", "court-band", "aster-botanical"] {
             let template = find(slug);
             let wakes = Arc::new(std::sync::atomic::AtomicUsize::new(0));
             let woken = wakes.clone();

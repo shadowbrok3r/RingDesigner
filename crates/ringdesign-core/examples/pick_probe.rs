@@ -54,13 +54,14 @@ fn main() {
         ("export 1024×384", BuildParams { theta_steps: 1024, profile_steps: 384, ..BuildParams::default() }),
     ] {
         println!("== {label}");
-        for t in templates::all().iter().filter(|t| ["Court band", "Heart signet", "Braided band", "Cathedral solitaire stock"].contains(&t.name)) {
-            let d = dressed(t.design());
+        for name in ["Court band", "Heart signet", "Braided band", "Cathedral solitaire stock"] {
+            let template = templates::fixture(name).unwrap_or_else(|| templates::all().iter().find(|t| t.name == name).unwrap().design());
+            let d = dressed(template);
             let started = Instant::now();
             let built = match mesh::try_build(&d, &lib, params) {
                 Ok(b) => b,
                 Err(e) => {
-                    println!("  {:<28} build failed: {e:#}", t.name);
+                    println!("  {:<28} build failed: {e:#}", name);
                     continue;
                 }
             };
@@ -73,7 +74,7 @@ fn main() {
             let scene_ms = started.elapsed().as_secs_f64() * 1e3;
             println!(
                 "  {:<28} {} faces ({} joined, {} cut, notes {}), {} parts, {} stones: build {build_ms:.0} ms, bvh {bvh_ms:.1} ms, scene {scene_ms:.1} ms",
-                t.name,
+                name,
                 built.mesh.faces.len(),
                 built.parts.joined,
                 built.parts.cut,

@@ -1,71 +1,34 @@
 {
   "court-band": {
-    "source": "target/template-library-review/starter-renders/court_band.png",
-    "source_sha256": "ce060f5f053cf81f7d86c3a01f287dae383633dd6445cc1368f645b63af0d0dd",
-    "size": [
-      160,
-      160
-    ]
-  },
-  "heart-signet": {
-    "source": "target/template-library-review/starter-renders/heart_signet.png",
-    "source_sha256": "3dcaa061e95db94cbd5bebc093f0d3abac74df3707930ff2256d50e34d5562d4",
-    "size": [
-      160,
-      160
-    ]
-  },
-  "waved-hexagon-signet": {
-    "source": "target/template-library-review/starter-renders/waved_hexagon_signet.png",
-    "source_sha256": "42bc64340c8ca69428ee47c844ef31738a96af5fdf6b032e7584d0fa7a8dd779",
+    "source": "target/template-library-review/starter-renders/court-band.png",
     "size": [
       160,
       160
     ]
   },
   "shouldered-cushion-signet": {
-    "source": "target/template-library-review/starter-renders/shouldered_cushion_signet.png",
-    "source_sha256": "6ff12c59781c9b6a0bbadb09fa57f85d00a83801289250df76a514e970ebddea",
+    "source": "target/template-library-review/starter-renders/shouldered-cushion-signet.png",
     "size": [
       160,
       160
     ]
   },
   "braided-band": {
-    "source": "target/template-library-review/starter-renders/braided_band.png",
-    "source_sha256": "fbca195bbe7a747f7566a8b859f3afbe3835cf20e28fc49ca2663fc5e69ac586",
-    "size": [
-      160,
-      160
-    ]
-  },
-  "cathedral-solitaire-stock": {
-    "source": "target/template-library-review/starter-renders/cathedral_solitaire_stock.png",
-    "source_sha256": "772d5af41998130e7403be17f34a28f5d232e0e2aa23b4cc967caacfe8ace593",
-    "size": [
-      160,
-      160
-    ]
-  },
-  "wishbone-wave": {
-    "source": "target/template-library-review/starter-renders/wishbone_wave.png",
-    "source_sha256": "318cc907c69bdc39e673290b9066ef18a4a28866fcb845adc5d921e3d8fd08c8",
+    "source": "target/template-library-review/starter-renders/braided-band.png",
     "size": [
       160,
       160
     ]
   },
   "split-shank": {
-    "source": "target/template-library-review/starter-renders/split_shank.png",
-    "source_sha256": "bed5d2a0e6530ff734907ff745d3f0e10d7a715f1904e5894c03d7e13ac2eb5e",
+    "source": "target/template-library-review/starter-renders/split-shank.png",
     "size": [
       160,
       160
     ]
   },
   "toi-et-moi": {
-    "source": "target/template-library-review/starter-renders/toi_et_moi.png",
-    "source_sha256": "c3b404ce21eff4acdee9be5fd2a4d4aeeae37b553d15753d2f61ffe5206d32e4",
+    "source": "target/template-library-review/starter-renders/toi-et-moi.png",
     "size": [
       160,
       160
@@ -242,6 +205,202 @@
   "aureole-workshop": {
     "source": "showcase/workshop-collection/aureole/hero.png",
     "source_sha256": "12b16df4d76ac41c5f9173e74082fc673bead705e8b18c0b652fc1fd6460d1f6",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "split-gallery": {
+    "source": "target/template-library-review/starter-renders/split-gallery.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "cathedral-solitaire": {
+    "source": "target/template-library-review/starter-renders/cathedral-solitaire.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "bezel-solitaire": {
+    "source": "target/template-library-review/starter-renders/bezel-solitaire.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "halo": {
+    "source": "target/template-library-review/starter-renders/halo.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "trilogy": {
+    "source": "target/template-library-review/starter-renders/trilogy.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "split-shank-basket": {
+    "source": "target/template-library-review/starter-renders/split-shank-basket.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "half-eternity": {
+    "source": "target/template-library-review/starter-renders/half-eternity.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "gypsy-trio": {
+    "source": "target/template-library-review/starter-renders/gypsy-trio.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-001-cushion": {
+    "source": "target/template-library-review/starter-renders/stock-001-cushion.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-002-kite": {
+    "source": "target/template-library-review/starter-renders/stock-002-kite.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-003-clover": {
+    "source": "target/template-library-review/starter-renders/stock-003-clover.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-004-shield": {
+    "source": "target/template-library-review/starter-renders/stock-004-shield.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-005-rosette": {
+    "source": "target/template-library-review/starter-renders/stock-005-rosette.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-006-square": {
+    "source": "target/template-library-review/starter-renders/stock-006-square.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-007-quatrefoil": {
+    "source": "target/template-library-review/starter-renders/stock-007-quatrefoil.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-008-heart": {
+    "source": "target/template-library-review/starter-renders/stock-008-heart.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-009-drop": {
+    "source": "target/template-library-review/starter-renders/stock-009-drop.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-010-trillion": {
+    "source": "target/template-library-review/starter-renders/stock-010-trillion.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-011-badge": {
+    "source": "target/template-library-review/starter-renders/stock-011-badge.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-012-cushion": {
+    "source": "target/template-library-review/starter-renders/stock-012-cushion.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-013-round": {
+    "source": "target/template-library-review/starter-renders/stock-013-round.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-014-heater": {
+    "source": "target/template-library-review/starter-renders/stock-014-heater.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-015-octagon": {
+    "source": "target/template-library-review/starter-renders/stock-015-octagon.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-016-star": {
+    "source": "target/template-library-review/starter-renders/stock-016-star.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-017-tonneau": {
+    "source": "target/template-library-review/starter-renders/stock-017-tonneau.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-018-butterfly": {
+    "source": "target/template-library-review/starter-renders/stock-018-butterfly.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-019-jewel": {
+    "source": "target/template-library-review/starter-renders/stock-019-jewel.png",
+    "size": [
+      160,
+      160
+    ]
+  },
+  "stock-020-escutcheon": {
+    "source": "target/template-library-review/starter-renders/stock-020-escutcheon.png",
     "size": [
       160,
       160

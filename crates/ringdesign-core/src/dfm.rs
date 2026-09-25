@@ -396,7 +396,7 @@ mod tests {
         band.profile.apply_style(crate::ProfileStyle::LowDome);
         band.profile.width_mm = 7.0;
         band.profile.thickness_mm = 2.4;
-        let signet = crate::templates::all().iter().find(|t| t.name == "Heart signet").unwrap().design();
+        let signet = crate::templates::fixture("Heart signet").unwrap();
         for base in [band, signet] {
             let rows = |tiered: bool, salt: u32| {
                 let mut d = base.clone();

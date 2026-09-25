@@ -3010,7 +3010,7 @@ mod tests {
 
     #[test]
     fn a_design_of_plain_stamps_stands_them_where_a_format_5_build_did() {
-        let heart = crate::templates::all().iter().find(|t| t.name == "Heart signet").unwrap().design();
+        let heart = crate::templates::fixture("Heart signet").unwrap();
         for d in [crest_band(), heart] {
             let ctx = d.field_context();
             let surface = BareSurface::new(&d, &ctx);
