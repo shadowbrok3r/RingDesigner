@@ -1,0 +1,30 @@
+{
+  "ring": "Draco",
+  "status": "cut",
+  "shipping": false,
+  "source_commit": "9081d76",
+  "scores": [
+    5.5,
+    4.5,
+    5.8
+  ],
+  "shipping_threshold": 7.5,
+  "reason": "The verified candidate remains below the art threshold. A head-on-face prototype also failed casting and looked weaker; it is excluded from the shipping collection.",
+  "unresolved_art": [
+    "Wings read as paired sails",
+    "Head reads as a mask on a plaque",
+    "Wall scale coverage is insufficient",
+    "Stock rim and shoulder highlights remain rough"
+  ],
+  "prototype": {
+    "retained_in": ".claude/collection-review/draco-final-draft",
+    "field": "CastableWithCare",
+    "release_obstructions": [
+      3,
+      4
+    ],
+    "status": "rejected; verified source restored"
+  },
+  "sand_evidence": "The separate section review reconciles raw thin-slot warnings; it does not raise the art score.",
+  "original_worktree": "The other active session and original bestiarium-draco branch are untouched."
+}
