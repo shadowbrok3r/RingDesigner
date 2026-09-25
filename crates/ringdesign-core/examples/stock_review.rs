@@ -21,7 +21,7 @@ fn main() -> Result<()> {
         let mut setup = mf::Setup::default();
         setup.sample_pitch_mm = 0.1;
         let release = mf::release::analyze(&built.mesh, &setup)?;
-        let id = &preset.name[..3];
+        let id = preset.id;
         render::write_png(
             out.join(format!("{id}.png")),
             &built.mesh,

@@ -12,7 +12,7 @@ const PAD: f64 = 4.0;
 
 /// The map as SVG text, or `None` when the design sets no stones.
 pub fn stone_map_svg(design: &RingDesign, report: Option<&StonesReport>) -> Option<String> {
-    let frames = crate::stones::stone_frames(design);
+    let frames = crate::stones::all_stone_frames(design);
     if frames.is_empty() {
         return None;
     }
@@ -68,7 +68,7 @@ pub fn stone_map_svg(design: &RingDesign, report: Option<&StonesReport>) -> Opti
     // sixteen identical labels on a row collide into nothing.
     let family = |st: &crate::setstone::SetStone| -> String {
         match st.source {
-            crate::setstone::StoneSource::Run { .. } => st.label.clone(),
+            crate::setstone::StoneSource::Run { .. } | crate::setstone::StoneSource::Cad { .. } => st.label.clone(),
             crate::setstone::StoneSource::Pad => match st.label.rsplit_once(" / ") {
                 Some((group, _)) => group.to_string(),
                 None => format!("{}@{:.1}", st.label, st.theta_deg),
@@ -196,5 +196,21 @@ mod tests {
         assert!(n > 1000);
         let _ = std::fs::remove_dir_all(dir);
         assert!(stone_map_svg(&RingDesign::default(), None).is_none(), "no stones, no map");
+    }
+
+    #[test]
+    fn a_stone_set_by_the_parts_has_its_map() {
+        let d = crate::cad::examples::design("claw-solitaire").unwrap();
+        let report = crate::stones::report(&d, 0.0).unwrap();
+        assert_eq!(report.stone_count, 1);
+        assert!((report.total_carats - 1.04).abs() < 0.01, "a 6.5 mm round is about a carat: {}", report.total_carats);
+        assert_eq!(report.seats[0].made.as_deref(), Some("Four-claw head"));
+        let svg = stone_map_svg(&d, Some(&report)).unwrap();
+        assert_eq!(svg.matches("class=\"stone\"").count(), 2, "plan and chart");
+        assert!(svg.contains(">Round 6.5 mm 6.5<") && svg.contains("1 stones, 1.04 ct"), "labelled and totalled");
+        let dir = std::env::temp_dir().join(format!("rd-cad-map-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(write_stone_map_svg(dir.join("m.svg"), &d, Some(&report)).is_ok(), "no longer refused as setting no stones");
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

@@ -158,9 +158,10 @@ pub fn html(
                 SeatFooting::Crown(d) => format!("crown {d:+.1}&deg;"),
             };
             h.push_str(&format!(
-                "<tr><td>{}{}</td><td>{}</td><td>{}</td><td>{:.2}</td><td>{:.2}</td></tr>",
+                "<tr><td>{}{}{}</td><td>{}</td><td>{}</td><td>{:.2}</td><td>{:.2}</td></tr>",
                 esc(&seat.label),
                 if seat.count > 1 { format!(" ×{}", seat.count) } else { String::new() },
+                seat.made.as_ref().map(|m| format!(" <span class=\"dim\">in {}</span>", esc(m))).unwrap_or_default(),
                 seat.gem.map(|g| esc(&g.display())).unwrap_or_else(|| "—".into()),
                 footing,
                 seat.edge_clearance_mm,
@@ -262,5 +263,19 @@ mod tests {
         // Self-contained: no external references at all.
         assert!(!page.contains("http"));
         assert!(!page.contains("src="));
+    }
+
+    #[test]
+    fn the_sheet_lists_a_stone_its_parts_set_and_the_head_that_holds_it() {
+        let lib = AlphaLibrary::builtin();
+        let d = crate::cad::examples::design("claw-solitaire").unwrap();
+        let params = BuildParams { theta_steps: 128, profile_steps: 64, ..Default::default() };
+        let built = crate::mesh::try_build(&d, &lib, params).unwrap();
+        let field = crate::castability::analyze_field(&d, &lib, &d.draft, 96, 64);
+        let stones = crate::stones::report_built(&d, field.parting_z_mm, &built);
+        let page = html(&d, &built.report, &field, stones.as_ref(), &[], "test build");
+        assert!(page.contains("1 stones • 1.04 ct total"), "the stone is counted");
+        assert!(page.contains("Round 6.5 mm <span class=\"dim\">in Four-claw head</span>"), "and its head named");
+        assert!(page.contains("6.5 mm Round brilliant (1.04 ct)"), "the stone itself");
     }
 }

@@ -262,12 +262,29 @@ pub fn gem_of(params: &Json) -> Result<Gem> {
     };
     let gem = Gem { l_mm: params.get("l_mm").and_then(Json::as_f64).unwrap_or(shaped.l_mm), ..shaped };
     let v = Values::of(STONE, gem, params)?;
-    Ok(Gem { w_mm: v.f("w_mm"), l_mm: v.f("l_mm"), ..gem })
+    Ok(Gem { w_mm: v.f("w_mm"), l_mm: v.f("l_mm"), preview_tint: tint_of(params)?, ..gem })
 }
 
-/// A stone builder's parameters for `gem`.
+/// The key a stone builder's parameters carry the stone's colour under: linear RGB, each 0 to 1.
+pub const TINT: &str = "tint";
+
+/// The colour a stone builder's parameters give its stone; refused unless it is three numbers from 0 to 1.
+fn tint_of(params: &Json) -> Result<Option<[f32; 3]>> {
+    let Some(v) = params.get(TINT).filter(|v| !v.is_null()) else { return Ok(None) };
+    let rgb = v.as_array().filter(|a| a.len() == 3).and_then(|a| {
+        let c: Vec<f64> = a.iter().filter_map(Json::as_f64).filter(|c| c.is_finite() && (0.0..=1.0).contains(c)).collect();
+        (c.len() == 3).then(|| [c[0] as f32, c[1] as f32, c[2] as f32])
+    });
+    rgb.map(Some).ok_or_else(|| anyhow::anyhow!("Stone: Tint must be three numbers from 0 to 1"))
+}
+
+/// A stone builder's parameters for `gem`, its colour among them when it has one.
 pub fn stone_params(gem: Gem) -> Json {
-    json!({ "cut": gem.cut, "w_mm": gem.w_mm, "l_mm": gem.l_mm, "form": gem.form })
+    let mut params = json!({ "cut": gem.cut, "w_mm": gem.w_mm, "l_mm": gem.l_mm, "form": gem.form });
+    if let (Some(rgb), Some(map)) = (gem.preview_tint, params.as_object_mut()) {
+        map.insert(TINT.into(), json!(rgb));
+    }
+    params
 }
 
 /// Where a stone meets the metal under it, in the stone's own frame.
@@ -797,8 +814,16 @@ fn at_arc(pts: &[[f64; 2]], arc: &[f64], frac: f64) -> [f64; 2] {
     [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t]
 }
 
-/// Melee in collets or claw heads round the grown outline at equal arc length, counted by `pave::halo`'s rule, tied by a rail.
-fn halo(gem: Gem, v: &Values, wall: Option<setting::Wall>) -> Result<Made> {
+/// A halo's melee round `gem`: the stone, the grown outline's semi-axes, and each girdle's centre in the centre stone's frame.
+struct HaloLayout {
+    melee: Gem,
+    a: f64,
+    b: f64,
+    stations: Vec<P3>,
+}
+
+/// Melee stations at equal arc length round the outline grown by the gap and half a footprint, counted by `pave::halo`'s rule.
+fn halo_layout(gem: Gem, v: &Values) -> HaloLayout {
     let melee = Gem::calibrated(GemCut::Round, v.f("melee_mm"));
     let footprint = melee.w_mm + 0.7;
     let grow = v.f("gap_mm") + footprint * 0.5;
@@ -808,6 +833,23 @@ fn halo(gem: Gem, v: &Values, wall: Option<setting::Wall>) -> Result<Made> {
     let pitch = footprint + v.f("bridge_mm");
     let n = if v.n("count") >= 3 { v.n("count") } else { ((perimeter / pitch).floor() as u32).max(6) };
     let z = -v.f("drop_mm");
+    let stations = (0..n).map(|k| {
+        let c = at_arc(&pts, &arc, k as f64 / n as f64);
+        [c[0], c[1], z]
+    }).collect();
+    HaloLayout { melee, a, b, stations }
+}
+
+/// The melee a halo with `params` sets round `gem`, and each girdle's centre in the centre stone's frame.
+pub fn halo_melee(gem: Gem, params: &Json) -> Result<(Gem, Vec<P3>)> {
+    let layout = halo_layout(gem, &Values::of(HALO, gem, params)?);
+    Ok((layout.melee, layout.stations))
+}
+
+/// Melee in collets or claw heads round the grown outline at equal arc length, counted by `pave::halo`'s rule, tied by a rail.
+fn halo(gem: Gem, v: &Values, wall: Option<setting::Wall>) -> Result<Made> {
+    let HaloLayout { melee, a, b, stations } = halo_layout(gem, v);
+    let z = -v.f("drop_mm");
     let claws = v.s("style") == "Claw";
     let unit = if claws {
         setting::claw_head_named(melee, 4, setting::prong_wire_mm(melee), Rails::Seat, None).map_err(|e| anyhow::anyhow!("Halo: a melee head would not resolve: {e}"))?
@@ -816,14 +858,10 @@ fn halo(gem: Gem, v: &Values, wall: Option<setting::Wall>) -> Result<Made> {
     };
     let (lo, hi) = unit.solid.bounds().unwrap_or(([0.0; 3], [0.0; 3]));
     let reach = hi[0].max(hi[1]).max(-lo[0]).max(-lo[1]);
-    let mut parts = Vec::with_capacity(n as usize + 1);
-    let mut stations = Vec::with_capacity(n as usize);
-    for k in 0..n {
-        let c = at_arc(&pts, &arc, k as f64 / n as f64);
-        let station = [c[0], c[1], z];
-        let frame = crate::csg::Frame { origin: station, ..crate::csg::Frame::IDENTITY };
+    let mut parts = Vec::with_capacity(stations.len() + 1);
+    for (k, station) in stations.iter().enumerate() {
+        let frame = crate::csg::Frame { origin: *station, ..crate::csg::Frame::IDENTITY };
         let placed = unit.solid.placed(&frame);
-        stations.push(station);
         parts.push(Named::whole(placed, format!("{} {}", if claws { "Melee head" } else { "Collet" }, k + 1)));
     }
     // The rail runs round the outside of the melee's bases, clear of their pavilions, so the ring is one piece.
@@ -1453,6 +1491,25 @@ mod tests {
         }
         // A given count wins over the rule.
         assert_eq!(build(HALO, gem, &json!({ "count": 16 }), Seat::default(), None).unwrap().stations.len(), 16);
+        // The melee the stone record lists are the ones the halo seats.
+        let (melee, stations) = halo_melee(oval, &json!({ "melee_mm": 1.2 })).unwrap();
+        assert_eq!((melee, stations), (Gem::calibrated(GemCut::Round, 1.2), made.stations));
+    }
+
+    #[test]
+    fn a_stones_colour_travels_in_its_parameters_and_nowhere_else() {
+        let gem = Gem { preview_tint: Some([0.27, 0.045, 0.46]), ..Gem::calibrated(GemCut::Oval, 5.0) };
+        let params = stone_params(gem);
+        assert_eq!(params[TINT], json!([0.27f32, 0.045f32, 0.46f32]));
+        assert_eq!(gem_of(&params).unwrap(), gem, "read back whole");
+        let plain = stone_params(Gem::calibrated(GemCut::Oval, 5.0));
+        assert!(plain.get(TINT).is_none(), "a stone with no colour writes none, as every older file reads");
+        assert_eq!(build(STONE, gem, &params, Seat::default(), None).unwrap().named.solid.v, build(STONE, gem, &plain, Seat::default(), None).unwrap().named.solid.v, "colour moves no geometry");
+        for bad in [json!([0.2, 0.3]), json!([0.2, 0.3, 1.5]), json!("red")] {
+            let mut p = params.clone();
+            p[TINT] = bad;
+            assert_eq!(gem_of(&p).unwrap_err().to_string(), "Stone: Tint must be three numbers from 0 to 1");
+        }
     }
 
     #[test]

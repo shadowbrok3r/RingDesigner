@@ -250,6 +250,17 @@ pub fn world_motions(kind: &PatternKind, frame_of: &dyn Fn(Id) -> Option<Motion>
 
 /// The motions carrying the placed source onto each copy, a `seat`ed source dropped onto `surface` at each.
 pub fn motions(kind: &PatternKind, design: &RingDesign, surface: Option<&Mesh>, seat: Option<(&Placement, &Motion)>, frame_of: &dyn Fn(Id) -> Option<Motion>) -> Result<Vec<Motion>> {
+    motions_seated(kind, design, &|p: &Placement| p.frame_on(design, surface), seat, frame_of)
+}
+
+/// [`motions`] with each copy's seat read by `seated` rather than off a built surface.
+pub fn motions_seated(
+    kind: &PatternKind,
+    design: &RingDesign,
+    seated: &dyn Fn(&Placement) -> Result<Motion>,
+    seat: Option<(&Placement, &Motion)>,
+    frame_of: &dyn Fn(Id) -> Option<Motion>,
+) -> Result<Vec<Motion>> {
     let Some((p, used)) = seat else { return world_motions(kind, frame_of) };
     let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } = *p else { return world_motions(kind, frame_of) };
     let back = inverse(used);
@@ -259,7 +270,7 @@ pub fn motions(kind: &PatternKind, design: &RingDesign, surface: Option<&Mesh>, 
             .into_iter()
             .map(|a| {
                 let at = Placement::Ring { theta_deg: theta_deg + a, across_mm, height_mm, spin_deg, tilt_deg, cant_deg };
-                Ok(then(&at.frame_on(design, surface)?, &back))
+                Ok(then(&seated(&at)?, &back))
             })
             .collect(),
         PatternKind::Mirror { plane: plane @ (MirrorPlane::Band | MirrorPlane::Section { .. }) } => {
@@ -269,7 +280,7 @@ pub fn motions(kind: &PatternKind, design: &RingDesign, surface: Option<&Mesh>, 
             };
             let q = Placement::Ring { theta_deg: theta, across_mm: across, height_mm, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
             let local = then(&inverse(&q.frame(design)?), &then(&mirror_of(plane, frame_of)?, &p.frame(design)?));
-            Ok(vec![then(&q.frame_on(design, surface)?, &then(&local, &back))])
+            Ok(vec![then(&seated(&q)?, &then(&local, &back))])
         }
         _ => world_motions(kind, frame_of),
     }
@@ -401,6 +412,24 @@ pub(super) fn build(
     who: &dyn Fn(Id) -> String,
     scope: &Scope,
 ) -> Result<Built> {
+    build_sources(f, &[source], kind, design, ctx, values, frames, who, scope)
+}
+
+/// A pattern of every one of `sources`, carried by the motions the first one's seat gives, as one mesh part.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn build_sources(
+    f: &Feature,
+    sources: &[Id],
+    kind: &PatternKind,
+    design: &RingDesign,
+    ctx: &BuildCtx,
+    values: &BTreeMap<Id, Value>,
+    frames: &BTreeMap<Id, brep::Placement>,
+    who: &dyn Fn(Id) -> String,
+    scope: &Scope,
+) -> Result<Built> {
+    let Some(&source) = sources.first() else { bail!("A pattern copies at least one part") };
+    ensure!(sources.len() <= MAX_PATTERN_SOURCES, "A pattern copies at most {MAX_PATTERN_SOURCES} parts together");
     ensure!(f.component.placement == Placement::Free, "A pattern stands where its copies do; move {} to move them", who(source));
     if let PatternKind::Mirror { plane: MirrorPlane::Plane { feature } } = kind {
         ensure!(
@@ -409,10 +438,15 @@ pub(super) fn build(
             who(*feature)
         );
     }
-    if scope.doc.feature(source).is_some_and(|s| !s.operation.has_body()) {
-        bail!("{} has no body to copy", who(source));
+    let mut parts = Vec::with_capacity(sources.len());
+    for (k, &id) in sources.iter().enumerate() {
+        ensure!(!sources[..k].contains(&id), "{} is named twice among the parts a pattern copies", who(id));
+        if scope.doc.feature(id).is_some_and(|s| !s.operation.has_body()) {
+            bail!("{} has no body to copy", who(id));
+        }
+        let value = values.get(&id).ok_or_else(|| anyhow!("Source feature #{id} is unavailable or suppressed"))?;
+        parts.push((id, value));
     }
-    let value = values.get(&source).ok_or_else(|| anyhow!("Source feature #{source} is unavailable or suppressed"))?;
     let frame_of = |id: Id| frames.get(&id).copied();
     let mut notes = Vec::new();
     // A stone on a part's face, and what is built round it, is dropped back onto that face, a copy whose foot falls off it left out
@@ -436,11 +470,68 @@ pub(super) fn build(
             motions(kind, design, ctx.surface, seat.as_ref().map(|(used, p)| (p, used)), &frame_of)?
         }
     };
-    let t = tessellated(value, scope.sigs.get(&source).copied().unwrap_or_default(), scope.bucket, scope.chord, scope.memo)?;
-    let faces = t.mesh.faces.len() * motions.len();
+    let mut tessellations = Vec::with_capacity(parts.len());
+    for (id, value) in parts {
+        tessellations.push((id, tessellated(value, scope.sigs.get(&id).copied().unwrap_or_default(), scope.bucket, scope.chord, scope.memo)?, value));
+    }
+    let faces = tessellations.iter().map(|(_, t, _)| t.mesh.faces.len()).sum::<usize>() * motions.len();
     ensure!(faces <= MAX_PATTERN_FACES, "{} copies of {} would carry {faces} faces, past {MAX_PATTERN_FACES}; take fewer copies or a lighter part", motions.len(), who(source));
-    let made = copies(&t, value, &motions, kind, &mut notes)?;
+    let sources: Vec<(Option<Id>, &Tessellated, &Value)> =
+        tessellations.iter().map(|(id, t, v)| ((tessellations.len() > 1).then_some(*id), t.as_ref(), *v)).collect();
+    let made = copies(&sources, &motions, kind, &mut notes)?;
     Ok(Built { value: Value::Mesh(Arc::new(made)), frame: None, attach: None, notes })
+}
+
+/// Most parts one pattern copies together.
+pub const MAX_PATTERN_SOURCES: usize = 16;
+
+/// The parts a pattern copies: read from one `source` or several `sources`, written as one `source` whenever there is
+/// only one, so a pattern of one part saves as every build before several could.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "SourcesWire", into = "SourcesWire")]
+pub struct Sources(pub Vec<Id>);
+
+#[derive(Serialize, Deserialize)]
+struct SourcesWire {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source: Option<Id>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    sources: Vec<Id>,
+}
+
+impl From<SourcesWire> for Sources {
+    fn from(w: SourcesWire) -> Self {
+        Self(w.source.into_iter().chain(w.sources).collect())
+    }
+}
+
+impl From<Sources> for SourcesWire {
+    fn from(s: Sources) -> Self {
+        match s.0.as_slice() {
+            [one] => Self { source: Some(*one), sources: Vec::new() },
+            _ => Self { source: None, sources: s.0 },
+        }
+    }
+}
+
+impl Sources {
+    /// The part whose seat the copies are carried from.
+    pub fn first(&self) -> Option<Id> {
+        self.0.first().copied()
+    }
+}
+
+impl From<Id> for Sources {
+    fn from(id: Id) -> Self {
+        Self(vec![id])
+    }
+}
+
+impl std::ops::Deref for Sources {
+    type Target = [Id];
+    fn deref(&self) -> &[Id] {
+        &self.0
+    }
 }
 
 /// Named solids joined end to end, each keeping its patches.
@@ -455,42 +546,51 @@ fn concat(pieces: Vec<Named>) -> Named {
     out
 }
 
-/// The source's tessellation carried by each motion as one named mesh, reflections wound outward.
-fn copies(t: &Tessellated, source: &Value, motions: &[Motion], kind: &PatternKind, notes: &mut Vec<String>) -> Result<Made> {
-    let seam = t.trace.face_kind.len() as u32;
-    let (names, kinds): (Vec<String>, Vec<SurfaceKind>) = match source {
-        Value::Mesh(m) => (m.named.names.clone(), m.kinds.clone()),
-        Value::Brep(_) => (
-            (0..seam).map(|f| format!("face {f}")).chain(["seam".to_string()]).collect(),
-            t.trace.face_kind.iter().copied().chain([SurfaceKind::Freeform]).collect(),
-        ),
-    };
-    let patch: Vec<u32> = match source {
-        Value::Mesh(m) => m.named.patch.clone(),
-        Value::Brep(_) => (0..t.mesh.faces.len()).map(|tri| t.trace.face_of(tri).unwrap_or(seam)).collect(),
-    };
+/// Each source's tessellation carried by each motion as one named mesh, reflections wound outward; a source's id
+/// prefixes its patches when there are several.
+fn copies(sources: &[(Option<Id>, &Tessellated, &Value)], motions: &[Motion], kind: &PatternKind, notes: &mut Vec<String>) -> Result<Made> {
     let label = |k: usize| match kind {
         PatternKind::Mirror { .. } => "Mirror".to_string(),
         _ => format!("Copy {}", k + 1),
     };
     let mut kind_of: HashMap<String, SurfaceKind> = HashMap::new();
-    let mut pieces = Vec::with_capacity(motions.len());
+    let mut pieces = Vec::with_capacity(motions.len() * sources.len());
+    let mut labels = Vec::with_capacity(pieces.capacity());
     let mut creases = Vec::new();
     let mut stations = Vec::new();
     for (k, m) in motions.iter().enumerate() {
         let flip = m.reflects();
-        let solid = Solid {
-            v: t.trace.positions.iter().map(|p| m.point(*p)).collect(),
-            f: t.mesh.faces.iter().map(|f| if flip { [f[0], f[2], f[1]] } else { *f }).collect(),
-        };
-        let own: Vec<String> = names.iter().map(|n| format!("{}, {n}", label(k))).collect();
-        for (n, s) in own.iter().zip(&kinds) {
-            kind_of.insert(n.clone(), *s);
-        }
-        pieces.push(Named { solid, patch: patch.clone(), names: own });
-        creases.extend(t.edges.iter().map(|l| l.iter().map(|p| m.point(*p)).collect::<Vec<_>>()));
-        if let Value::Mesh(src) = source {
-            stations.extend(src.stations.iter().map(|p| m.point(*p)));
+        for &(id, t, source) in sources {
+            let seam = t.trace.face_kind.len() as u32;
+            let (names, kinds): (Vec<String>, Vec<SurfaceKind>) = match source {
+                Value::Mesh(m) => (m.named.names.clone(), m.kinds.clone()),
+                Value::Brep(_) => (
+                    (0..seam).map(|f| format!("face {f}")).chain(["seam".to_string()]).collect(),
+                    t.trace.face_kind.iter().copied().chain([SurfaceKind::Freeform]).collect(),
+                ),
+            };
+            let patch: Vec<u32> = match source {
+                Value::Mesh(m) => m.named.patch.clone(),
+                Value::Brep(_) => (0..t.mesh.faces.len()).map(|tri| t.trace.face_of(tri).unwrap_or(seam)).collect(),
+            };
+            let solid = Solid {
+                v: t.trace.positions.iter().map(|p| m.point(*p)).collect(),
+                f: t.mesh.faces.iter().map(|f| if flip { [f[0], f[2], f[1]] } else { *f }).collect(),
+            };
+            let piece = match id {
+                Some(id) => format!("{}, #{id}", label(k)),
+                None => label(k),
+            };
+            let own: Vec<String> = names.iter().map(|n| format!("{piece}, {n}")).collect();
+            for (n, s) in own.iter().zip(&kinds) {
+                kind_of.insert(n.clone(), *s);
+            }
+            pieces.push(Named { solid, patch, names: own });
+            labels.push(piece);
+            creases.extend(t.edges.iter().map(|l| l.iter().map(|p| m.point(*p)).collect::<Vec<_>>()));
+            if let Value::Mesh(src) = source {
+                stations.extend(src.stations.iter().map(|p| m.point(*p)));
+            }
         }
     }
     // Copies whose boxes meet are united.
@@ -503,7 +603,7 @@ fn copies(t: &Tessellated, source: &Value, motions: &[Motion], kind: &PatternKin
             match acc.clone().union(&pieces[g]) {
                 Ok(u) => acc = u,
                 Err(e) => {
-                    notes.push(format!("{} overlaps the copies before it and would not unite with them ({e}); it stays a shell of its own", label(g)));
+                    notes.push(format!("{} overlaps the copies before it and would not unite with them ({e}); it stays a shell of its own", labels[g]));
                     united.push(pieces[g].clone());
                 }
             }
@@ -515,7 +615,9 @@ fn copies(t: &Tessellated, source: &Value, motions: &[Motion], kind: &PatternKin
     ensure!(open == 0 && repeated == 0 && !named.solid.is_empty(), "The copies did not close ({open} open edges, {repeated} repeated)");
     let kinds = named.names.iter().map(|n| kind_of.get(n).copied().unwrap_or(SurfaceKind::Freeform)).collect();
     creases.truncate(MAX_CREASES);
-    Ok(Made { key: PATTERN.to_string(), named, kinds, creases, gem: None, seat: None, stations })
+    // Every copy carries the stone its first source to hold one was made for.
+    let gem = sources.iter().find_map(|(_, _, v)| v.made().and_then(|m| m.gem));
+    Ok(Made { key: PATTERN.to_string(), named, kinds, creases, gem, seat: None, stations })
 }
 
 /// The work plane `base` names, moved `offset_mm` along its normal.
@@ -726,6 +828,54 @@ mod tests {
             Some(FeatureStatus::Failed(why)) => why.clone(),
             other => panic!("#{id} did not fail: {other:?}"),
         }
+    }
+
+    /// A pattern's sources as the variant carries them, beside its kind.
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    struct Carried {
+        #[serde(flatten)]
+        sources: Sources,
+        kind: PatternKind,
+    }
+
+    #[test]
+    fn a_pattern_reads_one_source_or_several_and_writes_one_as_it_always_did() {
+        let kind = PatternKind::Ring { count: 3, span_deg: 360.0 };
+        let one = Carried { sources: 3.into(), kind: kind.clone() };
+        let old = serde_json::to_string(&Operation::Pattern { source: 3, kind: kind.clone() }).unwrap();
+        assert_eq!(format!("{{\"Pattern\":{}}}", serde_json::to_string(&one).unwrap()), old, "one source writes the bytes a single-source pattern always wrote");
+        let body = &old["{\"Pattern\":".len()..old.len() - 1];
+        assert_eq!(serde_json::from_str::<Carried>(body).unwrap(), one, "and an old file reads as one source");
+        let two = Carried { sources: Sources(vec![3, 4]), kind };
+        let text = serde_json::to_string(&two).unwrap();
+        assert!(text.starts_with(r#"{"sources":[3,4],"kind""#), "{text}");
+        assert_eq!(serde_json::from_str::<Carried>(&text).unwrap(), two, "two sources round-trip");
+        assert_eq!(serde_json::from_str::<Carried>(r#"{"source":3,"sources":[4],"kind":{"mirror":{"plane":"band"}}}"#).unwrap().sources, Sources(vec![3, 4]));
+        assert_eq!((two.sources.first(), &*two.sources), (Some(3), &[3, 4][..]));
+    }
+
+    #[test]
+    fn two_sources_are_carried_by_one_motion_set_and_keep_their_stone() {
+        let gem = Gem::calibrated(GemCut::Round, 5.0);
+        let seat = builders::Seat { surface_z: -builders::stand_off_mm("claw4", gem), through_mm: None };
+        let head = builders::build(builders::CLAW, gem, &serde_json::json!({ "prongs": 4 }), seat, None).unwrap();
+        let halo = builders::build(builders::HALO, gem, &serde_json::json!({}), seat, None).unwrap();
+        let (th, tl) = (Tessellated::of_made(&head), Tessellated::of_made(&halo));
+        let (vh, vl) = (Value::Mesh(Arc::new(head.clone())), Value::Mesh(Arc::new(halo.clone())));
+        let motions = [turn_about([0.0, -30.0, 0.0], [0.0, 0.0, 1.0], 0.0), turn_about([0.0, -30.0, 0.0], [0.0, 0.0, 1.0], 90.0)];
+        let kind = PatternKind::Ring { count: 3, span_deg: 180.0 };
+        let mut notes = Vec::new();
+        let made = copies(&[(Some(3), &th, &vh), (Some(4), &tl, &vl)], &motions, &kind, &mut notes).unwrap();
+        assert!(notes.is_empty(), "{notes:?}");
+        for copy in ["Copy 1", "Copy 2"] {
+            assert!(made.named.names.iter().any(|n| n == &format!("{copy}, #3, Claw 1")), "{copy}: the head");
+            assert!(made.named.names.iter().any(|n| n == &format!("{copy}, #4, Halo rail")), "{copy}: the halo");
+        }
+        assert_eq!(made.stations.len(), 2 * halo.stations.len(), "each copy carries the halo's melee");
+        assert_eq!(made.gem, Some(gem), "and the stone its head was made for");
+        let one = copies(&[(None, &th, &vh)], &motions, &kind, &mut notes).unwrap();
+        assert!(one.named.names.iter().any(|n| n == "Copy 2, Claw 1"), "one source names its patches as it always did");
+        assert!(made.named.solid.volume() > one.named.solid.volume(), "the halo adds its own metal");
     }
 
     #[test]
