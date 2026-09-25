@@ -507,8 +507,9 @@ impl RingDesign {
             surface: field::SurfaceProfile::from_loop(&loop_, 257),
             bore_radius_mm: self.inner_radius_mm(),
             side_faces_cache: Default::default(),
-            stretch: tables.as_ref().map(|t| t.0.clone()),
-            crest_scale: tables.map(|t| t.1),
+            stretch: tables.as_ref().map(|t| t.stretch.clone()),
+            crest_scale: tables.as_ref().map(|t| t.crest.clone()),
+            station_gates: tables.and_then(|t| t.gates),
             imported_surface,
             imported_seats,
         }
@@ -547,7 +548,30 @@ impl RingDesign {
                     ((section.surface_len_mm / ref_len) as f32, (section.crest_radius_mm / ref_crest) as f32)
                 })
                 .collect();
-            (rows.iter().map(|r| r.0).collect(), rows.iter().map(|r| r.1).collect())
+            let gates = if self.gate_sections_are_reference() {
+                None
+            } else {
+                let reference = self.reference_loop();
+                let mut keys: Vec<_> = self.shank.keys.iter().take(16).map(|k| k.theta_deg.rem_euclid(360.0)).filter(|a| a.is_finite()).collect();
+                keys.sort_by(f64::total_cmp);
+                let mut angles = Vec::new();
+                if self.shank.kind == ShankKind::Keyframes && !keys.is_empty() {
+                    for i in 0..keys.len() {
+                        let a = keys[i];
+                        let mut b = keys[(i + 1) % keys.len()];
+                        if b <= a { b += 360.0; }
+                        angles.extend((0..16).map(|j| a + (b - a) * j as f64 / 16.0));
+                    }
+                }
+                Some(std::sync::Arc::new(field::StationGates::build(reference.surface_len_mm, angles, |theta| {
+                    self.section_at(theta, profile::REFERENCE_PROFILE_STEPS, None, Some(&reference))
+                })))
+            };
+            StationTables {
+                stretch: std::sync::Arc::new(rows.iter().map(|r| r.0).collect()),
+                crest: std::sync::Arc::new(rows.iter().map(|r| r.1).collect()),
+                gates,
+            }
         };
         use std::hash::{Hash, Hasher};
         let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -556,8 +580,7 @@ impl RingDesign {
             // A profile that cannot serialize cannot key the cache; build
             // uncached rather than serve someone else's table.
             Err(_) => {
-                let (stretch, crest) = build();
-                return Some((std::sync::Arc::new(stretch), std::sync::Arc::new(crest)));
+                return Some(build());
             }
         }
         if let Some(b)=&self.imported_base { b.source.fingerprint().hash(&mut h);
@@ -565,21 +588,36 @@ impl RingDesign {
         inner.to_bits().hash(&mut h);
         Some(stretch_cached(h.finish(), build))
     }
+
+    fn gate_sections_are_reference(&self) -> bool {
+        if self.imported_base.is_some() || self.profile.morph.is_some() { return false; }
+        match self.shank.kind {
+            ShankKind::Uniform => true,
+            ShankKind::Keyframes => self.shank.keys.iter().take(16).all(|k| {
+                k.theta_deg.is_finite() && [k.width_scale, k.thickness_scale, k.crown_scale].into_iter().all(|v| v.is_finite() && (v == 1.0 || self.shank.amount == 0.0))
+            }),
+            _ => false,
+        }
+    }
 }
 
-/// Per ring angle: the section's stretch, and its crest radius over the reference's.
-type StationTables = (std::sync::Arc<Vec<f32>>, std::sync::Arc<Vec<f32>>);
+/// Cached section metrics and conservative relief gates in the reference chart.
+#[derive(Clone)]
+struct StationTables {
+    stretch: std::sync::Arc<Vec<f32>>,
+    crest: std::sync::Arc<Vec<f32>>,
+    gates: Option<std::sync::Arc<field::StationGates>>,
+}
 
 /// Stretch tables are rebuilt only when something about the band changes:
 /// the last few are kept by a hash of everything that shapes them.
-fn stretch_cached(key: u64, build: impl FnOnce() -> (Vec<f32>, Vec<f32>)) -> StationTables {
+fn stretch_cached(key: u64, build: impl FnOnce() -> StationTables) -> StationTables {
     static CACHE: std::sync::Mutex<Vec<(u64, StationTables)>> = std::sync::Mutex::new(Vec::new());
     let mut c = CACHE.lock().unwrap_or_else(|e| e.into_inner());
     if let Some((_, t)) = c.iter().find(|(k, _)| *k == key) {
         return t.clone();
     }
-    let (stretch, crest) = build();
-    let t = (std::sync::Arc::new(stretch), std::sync::Arc::new(crest));
+    let t = build();
     if c.len() >= 8 {
         c.remove(0);
     }
