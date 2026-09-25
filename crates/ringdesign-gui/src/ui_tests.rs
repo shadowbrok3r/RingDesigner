@@ -278,18 +278,534 @@ fn file_menu_has_preview_collections_and_opens_the_selected_template() {
     assert_eq!(h.state().design.name, before);
     h.run_steps(1);
     assert!(h.state().opening.is_some());
-    assert!(h.query_by_label_contains("Opening Ecdysis — ventral scales: ").is_some());
+    assert!(h.query_all_by_label_contains("Opening Ecdysis — ventral scales — ").any(|n| n.accesskit_node().role() == egui::accesskit::Role::ProgressIndicator), "the plate says how far it has got");
+    assert!(h.state().status.starts_with("Opening Ecdysis — ventral scales — "), "and so does the status line: {}", h.state().status);
     crate::interaction_tests::wait_for_template(&mut h);
     assert!(h.state().design.name.starts_with("Ecdysis"));
     // Landed, it builds at once and says so until the build shows it.
     assert!(h.state().is_building() && h.state().opened_building.is_some());
-    assert!(h.query_by_label("Opening Ecdysis — ventral scales: building the ring").is_some());
+    assert!(h.query_by_label("Opening Ecdysis — ventral scales — building the ring").is_some());
     crate::interaction_tests::wait_for_build(&mut h);
     h.run_steps(2);
     assert!(h.state().opened_building.is_none() && h.query_by_label_contains("Opening Ecdysis").is_none());
     assert!(h.state().design.graph.is_some());
     assert!(h.state().document_path.is_none());
     assert!(!h.state().graph_ed.as_ref().unwrap().graph().nodes.iter().any(|n| n.kind == "head"));
+}
+
+/// The catalogue entry `slug`.
+fn template(slug: &str) -> &'static ringdesign_workbench::templates::Template {
+    ringdesign_workbench::templates::collections().iter().flat_map(|c| &c.templates).find(|t| t.slug == slug).expect(slug)
+}
+
+/// How far the open on screen has got, before and after it lands.
+fn open_fraction(app: &RingDesignerApp) -> Option<f32> {
+    match (&app.opening, &app.opened_building) {
+        (Some((opening, _)), _) => Some(opening.progress().fraction()),
+        (None, Some((_, _, progress))) => Some(progress.fraction()),
+        (None, None) => None,
+    }
+}
+
+#[test]
+fn a_template_opens_while_the_old_design_stays_live_and_its_first_build_takes_the_open_evaluation() {
+    use std::sync::atomic::Ordering;
+    let mut h = harness([1600., 980.]);
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    crate::export::load_catalog_template(h.state_mut(), template("nocturne"));
+    let mut read = vec![open_fraction(h.state()).expect("a plate from the first frame")];
+    h.run_steps(1);
+    read.extend(open_fraction(h.state()));
+    // The design on screen stays live: an edit made while the template opens lands and builds.
+    assert!(h.state().opening.is_some());
+    h.state_mut().design.name = "Edited while it opened".into();
+    h.state_mut().mark_dirty();
+    h.state_mut().rebuild_now();
+    assert_eq!(h.state().design.name, "Edited while it opened");
+    let evaluations = crate::app::GRAPH_EVALUATIONS.load(Ordering::Relaxed);
+    let start = std::time::Instant::now();
+    while h.state().opening.is_some() {
+        h.run_steps(1);
+        read.extend(open_fraction(h.state()));
+        assert!(start.elapsed().as_secs() < 60, "the template never opened");
+    }
+    assert!(h.state().design.name.starts_with("Nocturne"));
+    assert!(h.state().seed.is_none(), "the first build took the open's evaluation");
+    while h.state().opened_building.is_some() {
+        h.run_steps(1);
+        read.extend(open_fraction(h.state()));
+        assert!(start.elapsed().as_secs() < 60, "the template never built");
+    }
+    assert!(read.windows(2).all(|w| w[0] <= w[1]), "the bar never falls back: {read:?}");
+    assert!(h.state().is_current(), "{}", h.state().status);
+    assert_eq!(crate::app::GRAPH_EVALUATIONS.load(Ordering::Relaxed), evaluations, "the first build evaluated nothing again");
+    // A rebuild evaluates against the library the open ran on, whose cache the open left warm.
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    assert!(h.state().is_current(), "{}", h.state().status);
+    assert_eq!(crate::app::GRAPH_EVALUATIONS.load(Ordering::Relaxed), evaluations + 1);
+}
+
+#[test]
+fn a_library_that_moved_while_a_template_opened_gets_the_template_artwork_baked_onto_it() {
+    use ringdesign_core::alpha::Alpha;
+    let mut h = harness([1600., 980.]);
+    let evaluations = crate::app::GRAPH_EVALUATIONS.load(std::sync::atomic::Ordering::Relaxed);
+    crate::export::load_catalog_template(h.state_mut(), template("nocturne"));
+    // The old design redraws one of the template's own sources and adds one of its own while it opens.
+    h.state_mut().library_mut().insert(Alpha::new("Palmette", 2, 2, vec![0.5; 4]));
+    h.state_mut().library_mut().insert(Alpha::new("Mine", 2, 2, vec![0.25; 4]));
+    crate::interaction_tests::wait_for_template(&mut h);
+    let lib = h.state().lib.clone();
+    assert_eq!(lib.get("Mine").map(|a| a.data.clone()), Some(vec![0.25; 4]));
+    let palmette = lib.get("Palmette").expect("the template's own art");
+    assert_eq!((palmette.width, palmette.height), (1024, 1024), "baked again onto the library as it stands");
+    crate::interaction_tests::wait_for_build(&mut h);
+    assert!(h.state().is_current(), "{}", h.state().status);
+    assert!(crate::app::GRAPH_EVALUATIONS.load(std::sync::atomic::Ordering::Relaxed) > evaluations, "an evaluation against a library that moved is made again, not carried over");
+    let mut fresh = ringdesign_core::AlphaLibrary::builtin();
+    h.state().design.unpack_embedded(&mut fresh);
+    h.state().design.bake_all(&mut fresh);
+    assert_eq!(fresh.get("Palmette").map(|a| &a.data), Some(&palmette.data));
+    assert!(lib.sdf_of("Palmette").is_some_and(|f| f.data == fresh.sdf_of("Palmette").unwrap().data), "its field follows the template's art");
+}
+
+/// A wake that holds an opening thread at its first stage until the returned release is called.
+fn held() -> (impl Fn() + Send + Sync + 'static, impl Fn()) {
+    let gate = std::sync::Arc::new((std::sync::Mutex::new(false), std::sync::Condvar::new()));
+    let wait = gate.clone();
+    let hold = move || {
+        let (open, turned) = &*wait;
+        let mut open = open.lock().unwrap_or_else(|e| e.into_inner());
+        let started = std::time::Instant::now();
+        while !*open && started.elapsed().as_secs() < 60 {
+            open = turned.wait_timeout(open, std::time::Duration::from_millis(100)).unwrap_or_else(|e| e.into_inner()).0;
+        }
+    };
+    let release = move || {
+        *gate.0.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        gate.1.notify_all();
+    };
+    (hold, release)
+}
+
+/// Caiman opening on the app, held at its first stage: its progress, the flag its thread sets on returning, and the release.
+fn caiman_held(h: &mut Harness<'static, RingDesignerApp>) -> (std::sync::Arc<ringdesign_workbench::templates::Progress>, std::sync::Arc<std::sync::atomic::AtomicBool>, impl Fn() + use<>) {
+    let (hold, release) = held();
+    let app = h.state_mut();
+    let opening = template("caiman-imported").open_measured(app.graph_reg.clone(), app.lib.clone(), hold);
+    let (progress, finished) = (opening.progress(), opening.finished());
+    app.start_opening(opening, crate::app::Lands::Template { graph_pane: false });
+    (progress, finished, release)
+}
+
+fn wait_until_returned(h: &mut Harness<'static, RingDesignerApp>, finished: &std::sync::atomic::AtomicBool) {
+    let start = std::time::Instant::now();
+    while !finished.load(std::sync::atomic::Ordering::Relaxed) {
+        h.run_steps(1);
+        assert!(start.elapsed().as_secs() < 60, "the first open never stopped");
+    }
+}
+
+#[test]
+fn choosing_another_template_stops_the_first_and_only_the_second_lands() {
+    let mut h = harness([1600., 980.]);
+    let (progress, finished, release) = caiman_held(&mut h);
+    h.run_steps(1);
+    crate::export::load_catalog_template(h.state_mut(), template("court-band"));
+    release();
+    wait_until_returned(&mut h, &finished);
+    assert_eq!(progress.stage(), ringdesign_workbench::templates::Stage::Reading, "the replaced open stopped before its first node");
+    crate::interaction_tests::wait_for_template(&mut h);
+    crate::interaction_tests::wait_for_build(&mut h);
+    h.run_steps(3);
+    assert_eq!(h.state().design.name, "Court band");
+    assert!(h.state().opening.is_none() && h.state().opened_building.is_none());
+}
+
+#[test]
+fn a_file_opened_from_recent_stops_a_template_still_opening() {
+    let dir = std::env::temp_dir().join(format!("recent-stops-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("mine.ring.json");
+    let mut mine = ringdesign_core::RingDesign::default();
+    mine.name = "Opened from Recent".into();
+    ringdesign_core::library::save_design(&path, &mine).unwrap();
+    let mut h = harness([1600., 980.]);
+    let (progress, finished, release) = caiman_held(&mut h);
+    crate::export::open_design_path(h.state_mut(), &path);
+    assert!(h.state().opening.is_none(), "the file stopped the template");
+    release();
+    wait_until_returned(&mut h, &finished);
+    h.run_steps(3);
+    assert_eq!(progress.stage(), ringdesign_workbench::templates::Stage::Reading, "no node ran after the file opened");
+    assert_eq!(h.state().design.name, "Opened from Recent");
+    assert_eq!(h.state().document_path.as_deref(), Some(path.as_path()));
+    assert!(h.state().opened_building.is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Holds a worker before its detail measures for as long as it lives.
+struct DetailHeld(std::sync::Arc<crate::app::DetailProbe>);
+
+impl DetailHeld {
+    fn new(probe: std::sync::Arc<crate::app::DetailProbe>) -> Self {
+        *probe.held.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        DetailHeld(probe)
+    }
+}
+
+impl Drop for DetailHeld {
+    fn drop(&mut self) {
+        *self.0.held.lock().unwrap_or_else(|e| e.into_inner()) = false;
+        self.0.released.notify_all();
+    }
+}
+
+/// Steps until the detail findings of the build on screen have landed.
+fn wait_for_detail(h: &mut Harness<'static, RingDesignerApp>) {
+    let start = std::time::Instant::now();
+    while h.state().dfm_generation < h.state().build_generation() {
+        h.run_steps(1);
+        assert!(start.elapsed().as_secs() < 60, "the detail never followed");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
+fn detail_messages(h: &Harness<'static, RingDesignerApp>) -> (Vec<String>, Vec<String>) {
+    let want = ringdesign_core::dfm::findings_in(&h.state().design, &h.state().lib).into_iter().map(|f| f.message).collect();
+    let got = h.state().detail_findings().iter().map(|f| f.message.clone()).collect();
+    (got, want)
+}
+
+#[test]
+fn a_build_lands_before_its_detail_findings_and_they_follow_it() {
+    let mut h = harness([1600., 980.]);
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    h.state().detail_findings();
+    wait_for_detail(&mut h);
+    let braided = ringdesign_core::templates::all().iter().find(|t| t.name == "Braided band").unwrap().design();
+    let held = DetailHeld::new(h.state().detail_probe());
+    h.state_mut().design = braided;
+    h.state_mut().mark_dirty();
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    let generation = h.state().build_generation();
+    assert!(h.state().is_current(), "{}", h.state().status);
+    assert!(h.state().dfm_generation < generation, "the build landed while its detail was held");
+    drop(held);
+    wait_for_detail(&mut h);
+    let (got, want) = detail_messages(&h);
+    assert!(!want.is_empty(), "the braid measures under the floor");
+    assert_eq!(got, want);
+}
+
+#[test]
+fn the_worker_measures_no_detail_until_something_reads_it_and_then_the_build_on_screen() {
+    let mut h = harness([1600., 980.]);
+    let probe = h.state().detail_probe();
+    h.state_mut().design = ringdesign_core::templates::all().iter().find(|t| t.name == "Braided band").unwrap().design();
+    h.state_mut().mark_dirty();
+    h.state_mut().rebuild_now();
+    crate::interaction_tests::wait_for_build(&mut h);
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    h.run_steps(3);
+    assert_eq!(probe.started.load(std::sync::atomic::Ordering::SeqCst), 0, "measured with no reader");
+    assert_eq!(h.state().dfm_generation, 0);
+    let generation = h.state().build_generation();
+    h.state().detail_findings();
+    wait_for_detail(&mut h);
+    assert_eq!(h.state().build_generation(), generation, "the build on screen measured without another");
+    assert_eq!(probe.started.load(std::sync::atomic::Ordering::SeqCst), 1);
+    let (got, want) = detail_messages(&h);
+    assert!(!want.is_empty(), "the braid measures under the floor");
+    assert_eq!(got, want);
+}
+
+#[test]
+fn a_dropped_app_gives_up_the_detail_measure_it_was_making() {
+    let mut h = harness([1600., 980.]);
+    let probe = h.state().detail_probe();
+    let n = 512;
+    let ink = 0.7 + (std::process::id() % 1000) as f32 * 1e-4;
+    let mask = ringdesign_core::alpha::Alpha::new("dropped-mask", n, n, (0..n * n).map(|i| if (i % n) % 9 < 2 || (i / n) % 17 < 3 { ink } else { 0.0 }).collect());
+    std::sync::Arc::make_mut(&mut h.state_mut().lib).insert(mask);
+    let mut design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+    let tiling = ringdesign_core::tiling::TilingLayer::default_for("dropped-mask", &design.field_context());
+    design.layers.layers.push(ringdesign_core::field::LayerEntry::new("Dropped", ringdesign_core::field::Layer::Tiling(tiling)));
+    let lib = h.state().lib.clone();
+    // Dispatched with no frame run, so no panel measures the mask before the worker does.
+    h.state().detail_findings();
+    h.state_mut().design = design.clone();
+    h.state_mut().rebuild_now();
+    let start = std::time::Instant::now();
+    while probe.started.load(std::sync::atomic::Ordering::SeqCst) == 0 {
+        assert!(start.elapsed().as_secs() < 60, "the measure never started");
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    std::thread::sleep(std::time::Duration::from_millis(10));
+    let dropped = std::time::Instant::now();
+    drop(h);
+    let ended = loop {
+        if let Some(at) = *probe.ended.lock().unwrap() {
+            break at;
+        }
+        assert!(dropped.elapsed().as_secs() < 120, "the measure never ended");
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    };
+    let given_up = ended.saturating_duration_since(dropped);
+    // The same measure made whole, which it could not skip had the dropped one kept anything.
+    let t = std::time::Instant::now();
+    ringdesign_core::dfm::findings_in(&design, &lib);
+    let whole = t.elapsed();
+    assert!(given_up * 3 < whole, "given up {given_up:?} after the drop against {whole:?} for the whole measure");
+}
+
+#[test]
+fn an_arrange_writes_only_the_positions_into_the_graph_json() {
+    let mut h = harness([1600., 980.]);
+    h.state_mut().design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+    h.state_mut().convert_to_graph();
+    let mut piled = h.state().graph_ed.as_ref().expect("driven").graph().clone();
+    for node in &mut piled.nodes {
+        node.pos = [0.0, 0.0];
+    }
+    h.state_mut().design.graph = serde_json::to_value(&piled).ok();
+    h.state_mut().sync_graph();
+    let before = h.state().design.graph.clone();
+    h.state_mut().arrange_graph();
+    let app = h.state();
+    assert_ne!(app.design.graph, before, "the arrange moved the piled nodes");
+    assert_eq!(app.design.graph, serde_json::to_value(app.graph_ed.as_ref().unwrap().graph()).ok(), "written in place, the same JSON as the graph written whole");
+    assert_eq!(app.graph_json, app.design.graph, "the editor stays in step");
+    assert!(ringdesign_core::history::graph_layout_only(before.as_ref(), app.design.graph.as_ref()), "layout, not an edit");
+}
+
+#[test]
+fn a_driven_design_file_lands_with_its_graph_read_on_the_opening_thread() {
+    let dir = std::env::temp_dir().join(format!("driven-file-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("driven.ring.json");
+    let mut h = harness([1600., 980.]);
+    h.state_mut().design = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+    h.state_mut().convert_to_graph();
+    ringdesign_core::library::save_design(&path, &h.state().design).unwrap();
+    h.state_mut().design = ringdesign_core::RingDesign::default();
+    h.state_mut().sync_graph();
+    assert!(h.state().graph_ed.is_none());
+    let reads = RingDesignerApp::graph_reads();
+    h.state_mut().open_file(path.clone());
+    crate::interaction_tests::wait_for_template(&mut h);
+    crate::interaction_tests::wait_for_build(&mut h);
+    let app = h.state();
+    assert!(app.graph_ed.is_some() && app.design.graph.is_some() && app.graph_json == app.design.graph, "it lands driven, its editor in step");
+    assert_eq!(RingDesignerApp::graph_reads(), reads, "the graph was read on the opening thread, not the UI's");
+    assert!(app.is_current(), "{}", app.status);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_template_with_an_expression_pin_opens_from_the_menu_path() {
+    let mut g = ringdesign_graph::templates::graph("Court band").unwrap();
+    g.set_input(ringdesign_graph::graph::NodeId(1), "width_mm", ringdesign_graph::value::Literal::expr("2.5 + 2.0")).unwrap();
+    let t: &'static _ = Box::leak(Box::new(ringdesign_workbench::templates::Template::document("Court band by expression", "court-band-expression", Box::leak(Box::new(g)))));
+    let mut h = harness([1600., 980.]);
+    h.state_mut().open_template(t, true);
+    crate::interaction_tests::wait_for_template(&mut h);
+    assert_eq!(h.state().design.profile.width_mm, 4.5, "{}", h.state().status);
+    crate::interaction_tests::wait_for_build(&mut h);
+    assert!(h.state().is_current(), "{}", h.state().status);
+    assert!(h.state().graph_errors.is_empty(), "{:?}", h.state().graph_errors);
+    assert_eq!(h.state().design.profile.width_mm, 4.5);
+}
+
+#[test]
+fn a_design_file_saves_and_opens_off_the_ui_thread() {
+    let dir = std::env::temp_dir().join(format!("open-save-{}", std::process::id()));
+    let path = dir.join("saved.ring.json");
+    let mut h = harness([1600., 980.]);
+    h.state_mut().design.name = "Written off the UI thread".into();
+    crate::export::save_design_to(h.state_mut(), path.clone());
+    assert!(h.state().saving.is_some() && h.state().document_path.is_none(), "the document takes the path once the write lands");
+    let start = std::time::Instant::now();
+    while h.state().saving.is_some() {
+        h.run_steps(1);
+        assert!(start.elapsed().as_secs() < 60, "the save never landed");
+    }
+    assert_eq!(h.state().document_path.as_deref(), Some(path.as_path()), "{}", h.state().status);
+    assert_eq!(ringdesign_core::library::load_design(&path).unwrap().name, "Written off the UI thread");
+    h.state_mut().design.name = "Edited since".into();
+    h.state_mut().document_path = None;
+    h.state_mut().open_file(path.clone());
+    h.run_steps(1);
+    assert_eq!(h.state().design.name, "Edited since", "the design on screen stays until the file lands");
+    crate::interaction_tests::wait_for_template(&mut h);
+    assert_eq!(h.state().design.name, "Written off the UI thread");
+    assert_eq!(h.state().document_path.as_deref(), Some(path.as_path()));
+    assert!(!h.state().history.can_undo(), "a file opened is a new timeline");
+    // One that does not read says so and leaves the design alone.
+    std::fs::write(dir.join("broken.ring.json"), "{ not a design").unwrap();
+    h.state_mut().open_file(dir.join("broken.ring.json"));
+    crate::interaction_tests::wait_for_template(&mut h);
+    assert!(h.state().status.starts_with("Open failed"), "{}", h.state().status);
+    assert_eq!(h.state().design.name, "Written off the UI thread");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_template_plate_stands_clear_of_every_views_controls() {
+    use egui::containers::panel::PanelState;
+    for layout in [Layout::Single, Layout::Quad] {
+        let mut h = claw_solitaire(crate::app::Workspace::default().preview_params);
+        h.state_mut().set_layout(layout);
+        for pane in &mut h.state_mut().panes {
+            pane.kind = PaneKind::Solid;
+        }
+        h.run_steps(3);
+        assert!(crate::panels::timeline::shown(h.state()), "the claw solitaire shows its CAD timeline");
+        crate::export::load_catalog_template(h.state_mut(), template("caiman-imported"));
+        h.run_steps(2);
+        let bar = h.query_all_by_label_contains("Opening Caiman — armoured hide").find(|n| n.accesskit_node().role() == egui::accesskit::Role::ProgressIndicator).expect("the plate").rect();
+        let cancel = h.get_all_by_label("Cancel").map(|n| n.rect()).find(|r| r.center().y > bar.top() && r.center().y < bar.bottom()).expect("the plate's Cancel");
+        let plate = bar.union(cancel);
+        let canvases = crate::export::pane_canvases(h.state(), &h.ctx);
+        assert_eq!(canvases.len(), layout.count(), "{layout:?}");
+        for (i, canvas) in &canvases {
+            for strip in ["pane_head", "viewport-footer", "viewport-timeline"] {
+                let rect = PanelState::load(&h.ctx, egui::Id::new((strip, *i))).expect(strip).outer_rect;
+                assert!(!rect.intersects(plate), "{layout:?}: the plate {plate:?} covers pane {i}'s {strip} {rect:?}");
+            }
+            if canvas.intersects(plate) {
+                assert!(canvas.contains_rect(plate), "{layout:?}: the plate {plate:?} straddles pane {i}'s canvas {canvas:?}");
+                assert!(plate.right() <= canvas.right() - 110.0, "{layout:?}: clear of the navigator");
+                assert!(plate.left() >= canvas.left() + crate::command::RAIL_W, "{layout:?}: clear of the tool rail");
+            }
+        }
+        drop(h);
+    }
+}
+
+/// Milliseconds `f` holds the calling thread.
+fn ms<T>(f: impl FnOnce() -> T) -> (f64, T) {
+    let t = std::time::Instant::now();
+    let out = f();
+    (t.elapsed().as_secs_f64() * 1e3, out)
+}
+
+/// The UI thread's cost of the heavy operations on the heaviest designs: `cargo test --release -p ringdesign-gui ui_thread_costs -- --ignored --nocapture --test-threads=1`.
+#[test]
+#[ignore = "a timing table for release builds"]
+fn ui_thread_costs_on_heavy_designs() {
+    let dir = std::env::temp_dir().join(format!("ui-costs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut rows: Vec<(String, f64)> = Vec::new();
+    // The template menu, opened cold: every collection's thumbnail, then every entry's in one collection.
+    let mut h = harness([1600., 980.]);
+    h.run_steps(3);
+    h.get_by_label("File").click();
+    h.run_steps(2);
+    h.get_by_label_contains("New from template").click();
+    let (open_menu, _) = ms(|| h.run_steps(1));
+    rows.push(("template menu, first open".into(), open_menu));
+    h.get_by_label_contains("Stock masterworks").click();
+    let (open_group, _) = ms(|| h.run_steps(1));
+    rows.push(("template menu, first open of a collection".into(), open_group));
+    let (again, _) = ms(|| h.run_steps(1));
+    rows.push(("template menu, a frame after".into(), again));
+    drop(h);
+    for slug in ["caiman-imported", "nocturne"] {
+        let mut h = harness([1600., 980.]);
+        crate::export::load_catalog_template(h.state_mut(), template(slug));
+        let mut slowest: f64 = 0.0;
+        while h.state().opening.is_some() || h.state().opened_building.is_some() {
+            let (t, _) = ms(|| h.run_steps(1));
+            slowest = slowest.max(t);
+        }
+        rows.push((format!("{slug}: slowest frame while it opened, landed and built"), slowest));
+        crate::interaction_tests::wait_for_build(&mut h);
+        let idle: Vec<f64> = (0..10).map(|_| ms(|| h.run_steps(1)).0).collect();
+        rows.push((format!("{slug}: idle frame (median)"), { let mut i = idle.clone(); i.sort_by(f64::total_cmp); i[5] }));
+        let path = dir.join(format!("{slug}.ring.json"));
+        let (save, saved) = ms(|| ringdesign_core::library::save_design_embedded(&path, &h.state().design, &h.state().lib));
+        saved.unwrap();
+        rows.push((format!("{slug}: the writing a save does ({:.1} MB)", std::fs::metadata(&path).unwrap().len() as f64 / 1e6), save));
+        let (save, _) = ms(|| crate::export::save_design_to(h.state_mut(), path.clone()));
+        rows.push((format!("{slug}: save and save-as, on the UI thread"), save));
+        let start = std::time::Instant::now();
+        while h.state().saving.is_some() {
+            h.run_steps(1);
+            assert!(start.elapsed().as_secs() < 60, "the save never landed");
+        }
+        assert!(h.state().status.starts_with("Saved "), "{}", h.state().status);
+        let (snapshot, copy) = ms(|| (h.state().design.clone(), h.state().lib.clone()));
+        drop(copy);
+        rows.push((format!("{slug}: export snapshot"), snapshot));
+        let (session, _) = ms(|| h.state().session_design().unwrap());
+        rows.push((format!("{slug}: session save"), session));
+        let (open, _) = ms(|| crate::export::open_design_path(h.state_mut(), &path));
+        rows.push((format!("{slug}: open design file, Recent and --open"), open));
+        let (tick, _) = ms(|| h.run_steps(1));
+        rows.push((format!("{slug}: first frame after opening the file"), tick));
+        let (open, _) = ms(|| h.state_mut().open_file(path.clone()));
+        rows.push((format!("{slug}: open design file, the dialog, on the UI thread"), open));
+        let mut slowest: f64 = 0.0;
+        while h.state().opening.is_some() || h.state().opened_building.is_some() {
+            slowest = slowest.max(ms(|| h.run_steps(1)).0);
+        }
+        rows.push((format!("{slug}: slowest frame while the file opened, landed and built"), slowest));
+        h.state_mut().rebuild_now();
+        crate::interaction_tests::wait_for_build(&mut h);
+        // An edit, committed as the history commits a settled one.
+        h.state_mut().design.name.push_str(" edited");
+        h.state_mut().mark_dirty();
+        let (commit, _) = ms(|| {
+            let app = h.state_mut();
+            app.history.commit(&app.design)
+        });
+        rows.push((format!("{slug}: history snapshot of a settled edit"), commit));
+        let (undo, _) = ms(|| h.state_mut().undo());
+        rows.push((format!("{slug}: undo"), undo));
+        let (redo, _) = ms(|| h.state_mut().redo());
+        rows.push((format!("{slug}: redo"), redo));
+        if h.state().design.graph.is_some() {
+            h.state_mut().graph_json = None;
+            let (sync, _) = ms(|| h.state_mut().sync_graph());
+            rows.push((format!("{slug}: graph sync"), sync));
+            let (arrange, _) = ms(|| h.state_mut().arrange_graph());
+            rows.push((format!("{slug}: arrange"), arrange));
+            let (same, _) = ms(|| h.state_mut().sync_graph());
+            rows.push((format!("{slug}: graph sync, nothing moved"), same));
+            // What a sync and a landing spend it on.
+            let app = h.state();
+            let (t, json) = ms(|| app.design.graph.clone());
+            rows.push((format!("{slug}:   graph JSON cloned ({:.1} MB)", serde_json::to_string(&json).map_or(0, |s| s.len()) as f64 / 1e6), t));
+            let (t, _) = ms(|| app.design.graph == json);
+            rows.push((format!("{slug}:   graph JSON compared, equal"), t));
+            let (t, parsed) = ms(|| <ringdesign_graph::graph::Graph as serde::Deserialize>::deserialize(json.as_ref().unwrap()).unwrap());
+            rows.push((format!("{slug}:   graph read from its JSON"), t));
+            let (t, copy) = ms(|| parsed.clone());
+            rows.push((format!("{slug}:   graph cloned"), t));
+            let (t, mut ed) = ms(|| ringdesign_graph_ui::Editor::new(copy, &app.graph_reg));
+            rows.push((format!("{slug}:   editor built"), t));
+            let (t, _) = ms(|| ed.arrange(&app.graph_reg));
+            rows.push((format!("{slug}:   editor arranged"), t));
+            let (t, _) = ms(|| serde_json::to_value(ed.graph()));
+            rows.push((format!("{slug}:   graph written whole to JSON"), t));
+            let mut history = ringdesign_core::history::History::new(&ringdesign_core::RingDesign::default());
+            let (t, _) = ms(|| history.reset(&app.design));
+            rows.push((format!("{slug}:   history reset"), t));
+        }
+        let (dispatch, _) = ms(|| h.state_mut().rebuild_now());
+        rows.push((format!("{slug}: dispatch a build"), dispatch));
+        crate::interaction_tests::wait_for_build(&mut h);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+    println!("| UI thread | ms |\n| --- | --- |");
+    for (what, t) in rows {
+        println!("| {what} | {t:.1} |");
+    }
 }
 
 #[test]

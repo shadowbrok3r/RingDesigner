@@ -166,63 +166,199 @@ impl Default for RingDesign {
     }
 }
 
+/// One source of artwork a design carries, rasterized into the library on load.
+enum Artwork<'a> {
+    Embedded(&'a EmbeddedAlpha),
+    Drawn(&'a DrawnAlpha),
+    Text(&'a text::TextAlpha),
+    Svg(&'a svg::SvgAlpha),
+    Recipe(&'a alpha::ProcRecipe),
+}
+
+impl Artwork<'_> {
+    /// The library name its raster lands under.
+    fn name(&self) -> &str {
+        match self {
+            Artwork::Embedded(e) => &e.name,
+            Artwork::Drawn(d) => &d.name,
+            Artwork::Text(t) => &t.name,
+            Artwork::Svg(s) => &s.name,
+            Artwork::Recipe(r) => &r.name,
+        }
+    }
+
+    /// Its raster, shared with every earlier bake of the same content.
+    fn bake(&self) -> Option<std::sync::Arc<Alpha>> {
+        use base64::Engine as _;
+        match self {
+            Artwork::Embedded(e) => alpha::shared_bake(alpha::source_key("embedded", e), || {
+                let decoded = base64::engine::general_purpose::STANDARD
+                    .decode(&e.png)
+                    .map_err(anyhow::Error::from)
+                    .and_then(|bytes| Alpha::from_png16(&e.name, &bytes));
+                decoded.map_err(|err| log::warn!("could not unpack embedded alpha {}: {err}", e.name)).ok()
+            }),
+            Artwork::Drawn(d) => alpha::shared_bake(alpha::source_key("drawn", d), || Some(d.rasterize())),
+            Artwork::Text(t) => alpha::shared_bake(alpha::source_key("text", t), || Some(t.rasterize())),
+            Artwork::Svg(s) => alpha::shared_bake(alpha::source_key("svg", s), || Some(s.rasterize())),
+            Artwork::Recipe(r) => alpha::shared_bake(alpha::source_key("recipe-256", r), || Some(r.rasterize(256))),
+        }
+    }
+}
+
+/// `each` over `items` on every core when the `parallel` feature is on and there are two or more, in order either way.
+fn map_items<T: Sync, U: Send>(items: &[T], each: impl Fn(&T) -> U + Sync + Send) -> Vec<U> {
+    #[cfg(feature = "parallel")]
+    if items.len() > 1 {
+        use rayon::prelude::*;
+        return items.par_iter().map(each).collect();
+    }
+    items.iter().map(each).collect()
+}
+
 impl RingDesign {
+    /// The design's artwork in the order it lands: embedded images, then drawings, inscriptions, SVG art and recipes.
+    fn artwork(&self, embedded: bool, derived: bool) -> Vec<Artwork<'_>> {
+        let mut out = Vec::new();
+        if embedded {
+            out.extend(self.embedded.iter().map(Artwork::Embedded));
+        }
+        if derived {
+            out.extend(self.drawn.iter().filter(|d| !d.is_empty()).map(Artwork::Drawn));
+            out.extend(self.texts.iter().filter(|t| !t.is_empty()).map(Artwork::Text));
+            out.extend(self.svgs.iter().filter(|s| !s.is_empty()).map(Artwork::Svg));
+            out.extend(self.recipes.iter().map(Artwork::Recipe));
+        }
+        out
+    }
+
+    /// Every alpha a tiling or openwork reads with `edge_mm` set, once each, in stack order.
+    fn sdf_sources(&self) -> Vec<&str> {
+        fn walk<'a>(stack: &'a LayerStack, out: &mut Vec<&'a str>) {
+            for e in &stack.layers {
+                let read = match &e.layer {
+                    field::Layer::Tiling(t) if t.edge_mm > 1e-9 => Some(t.alpha.as_str()),
+                    field::Layer::Openwork(o) if o.tiling.edge_mm > 1e-9 => Some(o.tiling.alpha.as_str()),
+                    field::Layer::Group(g) => {
+                        walk(&g.stack, out);
+                        None
+                    }
+                    _ => None,
+                };
+                if let Some(name) = read.filter(|n| !out.contains(n)) {
+                    out.push(name);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(&self.layers, &mut out);
+        out
+    }
+
+    /// Rasterizes `sources` on every core, then with `fields` derives the stack's distance fields on this thread, inserting rasters then fields; the rasters, or `None` once `cancel` is set.
+    fn bake_pipeline(
+        &self,
+        sources: &[Artwork<'_>],
+        fields: bool,
+        lib: &mut AlphaLibrary,
+        progress: &(dyn Fn(usize, usize) + Sync),
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Option<Vec<std::sync::Arc<Alpha>>> {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let read = if fields { self.sdf_sources() } else { Vec::new() };
+        // A field reads the last source of its name, else the library's own alpha.
+        let last_of = |name: &str| sources.iter().rposition(|a| a.name() == name);
+        let chained: Vec<bool> = (0..sources.len()).map(|i| read.iter().any(|n| last_of(n) == Some(i))).collect();
+        let held: Vec<std::sync::Arc<Alpha>> = read.iter().filter(|n| last_of(n).is_none()).filter_map(|n| lib.get_shared(n).cloned()).collect();
+        let total = sources.len() + chained.iter().filter(|&&c| c).count() + held.len();
+        progress(0, total);
+        let counted = AtomicUsize::new(0);
+        let tick = || progress(counted.fetch_add(1, Ordering::Relaxed) + 1, total);
+        let stopped = || cancel.load(Ordering::Relaxed);
+        let rasters = map_items(sources, |a| {
+            if stopped() {
+                return None;
+            }
+            let raster = a.bake();
+            tick();
+            raster
+        });
+        // Each distance field on this thread, its transform on every core.
+        for (raster, _) in rasters.iter().zip(&chained).filter(|(_, c)| **c) {
+            if stopped() {
+                return None;
+            }
+            if let Some(r) = raster {
+                alpha::shared_sdf(r);
+            }
+            tick();
+        }
+        for source in &held {
+            if stopped() {
+                return None;
+            }
+            alpha::shared_sdf(source);
+            tick();
+        }
+        if stopped() {
+            return None;
+        }
+        let rasters: Vec<std::sync::Arc<Alpha>> = rasters.into_iter().flatten().collect();
+        for r in &rasters {
+            lib.insert_shared(r.clone());
+        }
+        // Each field is the shared one of the alpha the library now holds, derived above.
+        for name in read {
+            if let Some(source) = lib.get_shared(name).cloned() {
+                lib.insert_shared(alpha::shared_sdf(&source));
+            }
+        }
+        Some(rasters)
+    }
+
+    /// Units of work [`unpack_and_bake_observed`](Self::unpack_and_bake_observed) reports at most: artwork sources and distance fields.
+    pub fn bake_units(&self) -> usize {
+        self.artwork(true, true).len() + self.sdf_sources().len()
+    }
+
+    /// [`unpack_embedded`](Self::unpack_embedded) then [`bake_all`](Self::bake_all) on every core, telling `progress` each unit done; the rasters inserted, or `None` once `cancel` is set.
+    pub fn unpack_and_bake_observed(
+        &self,
+        lib: &mut AlphaLibrary,
+        progress: &(dyn Fn(usize, usize) + Sync),
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Option<Vec<std::sync::Arc<Alpha>>> {
+        self.bake_pipeline(&self.artwork(true, true), true, lib, progress, cancel)
+    }
+
     /// Rasterize every drawn alpha into `lib`, replacing any entry of the same name.
     ///
     /// Call after loading a design and whenever a drawing changes: the strokes are the source of
     /// truth and the raster is derived, so nothing else needs to keep them in step.
     pub fn bake_drawn(&self, lib: &mut AlphaLibrary) {
-        for d in &self.drawn {
-            if !d.is_empty() {
-                lib.insert(d.rasterize());
-            }
-        }
+        let sources: Vec<Artwork<'_>> = self.drawn.iter().filter(|d| !d.is_empty()).map(Artwork::Drawn).collect();
+        self.bake_pipeline(&sources, false, lib, &|_, _| {}, &Default::default());
     }
 
     /// Rasterize every inscription into `lib`, replacing same-named entries.
     /// Call wherever [`bake_drawn`](Self::bake_drawn) is called.
     pub fn bake_texts(&self, lib: &mut AlphaLibrary) {
-        for t in &self.texts {
-            if !t.is_empty() {
-                lib.insert(t.rasterize());
-            }
-        }
+        let sources: Vec<Artwork<'_>> = self.texts.iter().filter(|t| !t.is_empty()).map(Artwork::Text).collect();
+        self.bake_pipeline(&sources, false, lib, &|_, _| {}, &Default::default());
     }
 
     /// Rasterize every imported SVG into `lib`, replacing same-named entries.
     /// Call wherever [`bake_drawn`](Self::bake_drawn) is called.
     pub fn bake_svgs(&self, lib: &mut AlphaLibrary) {
-        for s in &self.svgs {
-            if !s.is_empty() {
-                lib.insert(s.rasterize());
-            }
-        }
+        let sources: Vec<Artwork<'_>> = self.svgs.iter().filter(|s| !s.is_empty()).map(Artwork::Svg).collect();
+        self.bake_pipeline(&sources, false, lib, &|_, _| {}, &Default::default());
     }
 
     /// Derive the signed-distance field of every alpha a tiling reads with
     /// `edge_mm` set. Derived data: regenerable from the source, never saved.
+    /// Each is derived once per shared source alpha and reused after.
     pub fn bake_sdfs(&self, lib: &mut AlphaLibrary) {
-        fn walk(stack: &LayerStack, lib: &mut AlphaLibrary) {
-            for e in &stack.layers {
-                match &e.layer {
-                    field::Layer::Tiling(t) if t.edge_mm > 1e-9 => {
-                        // Recomputed every bake: the source may have been
-                        // redrawn, and only edge-enabled layers pay.
-                        if let Some(src) = lib.get(&t.alpha).cloned() {
-                            lib.insert(src.signed_distance_px());
-                        }
-                    }
-                    field::Layer::Openwork(o) if o.tiling.edge_mm > 1e-9 => {
-                        if let Some(src) = lib.get(&o.tiling.alpha).cloned() {
-                            lib.insert(src.signed_distance_px());
-                        }
-                    }
-                    field::Layer::Group(g) => walk(&g.stack, lib),
-                    _ => {}
-                }
-            }
-        }
-        walk(&self.layers, lib);
+        self.bake_pipeline(&[], true, lib, &|_, _| {}, &Default::default());
     }
 
     /// Whether any layer reading a distance field is missing one.
@@ -251,21 +387,16 @@ impl RingDesign {
 
     /// Rasterize every parameterized generator recipe into `lib`.
     pub fn bake_recipes(&self, lib: &mut AlphaLibrary) {
-        for r in &self.recipes {
-            lib.insert(r.rasterize(256));
-        }
+        let sources: Vec<Artwork<'_>> = self.recipes.iter().map(Artwork::Recipe).collect();
+        self.bake_pipeline(&sources, false, lib, &|_, _| {}, &Default::default());
     }
 
     /// Every derived bake in order — strokes, inscriptions, SVG art,
     /// generator recipes, then the distance fields that read the results.
     /// The one call every load site makes; adding a bake means adding it
-    /// here, not at six sites.
+    /// here, not at six sites. A source baked before is shared, not redrawn.
     pub fn bake_all(&self, lib: &mut AlphaLibrary) {
-        self.bake_drawn(lib);
-        self.bake_texts(lib);
-        self.bake_svgs(lib);
-        self.bake_recipes(lib);
-        self.bake_sdfs(lib);
+        self.bake_pipeline(&self.artwork(false, true), true, lib, &|_, _| {}, &Default::default());
     }
 
     /// Capture every referenced alpha that cannot be regenerated — not a
@@ -294,24 +425,14 @@ impl RingDesign {
     /// Insert embedded alphas into `lib`. The local library wins on a name
     /// collision, so a machine that has the original keeps using it.
     pub fn unpack_embedded(&self, lib: &mut AlphaLibrary) {
-        use base64::Engine as _;
-        for e in &self.embedded {
-            // A design's own embedded copy is authoritative *for that
-            // design*, and the library accumulates for the whole session.
-            // Skipping a name already present meant that opening a second
-            // design carrying its own "band" or "sketch" silently rendered
-            // the first one's art. `embed_alphas` never embeds anything
-            // regenerable — no procedural builtin, no stroke, no inscription —
-            // so replacing here cannot clobber one of those.
-            let decoded = base64::engine::general_purpose::STANDARD
-                .decode(&e.png)
-                .map_err(anyhow::Error::from)
-                .and_then(|bytes| Alpha::from_png16(&e.name, &bytes));
-            match decoded {
-                Ok(a) => lib.insert(a),
-                Err(err) => log::warn!("could not unpack embedded alpha {}: {err}", e.name),
-            }
-        }
+        // A design's own embedded copy is authoritative *for that
+        // design*, and the library accumulates for the whole session.
+        // Skipping a name already present meant that opening a second
+        // design carrying its own "band" or "sketch" silently rendered
+        // the first one's art. `embed_alphas` never embeds anything
+        // regenerable — no procedural builtin, no stroke, no inscription —
+        // so replacing here cannot clobber one of those.
+        self.bake_pipeline(&self.artwork(true, false), false, lib, &|_, _| {}, &Default::default());
     }
 
     /// Whether the ring is the swept band: no CAD document, or one whose parts stand on a
@@ -464,6 +585,158 @@ fn stretch_cached(key: u64, build: impl FnOnce() -> (Vec<f32>, Vec<f32>)) -> Sta
     }
     c.push((key, t.clone()));
     t
+}
+
+#[cfg(test)]
+mod shared_bake_tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+    /// A drawing, an inscription, SVG art and a recipe, with the drawing read through a bevelled tiling.
+    fn artful(tag: &str) -> RingDesign {
+        let mut d = RingDesign::default();
+        let mut drawn = DrawnAlpha::new(format!("Drawn {tag}"), 64, 32);
+        let mut stroke = drawn::Stroke::new(0.1, 0.3, false);
+        stroke.push(0.2, 0.5, 1.0);
+        stroke.push(0.8, 0.5, 1.0);
+        drawn.strokes.push(stroke);
+        d.drawn.push(drawn);
+        d.texts.push(text::TextAlpha { name: format!("Text {tag}"), text: "Ab".into(), ..Default::default() });
+        d.svgs.push(svg::SvgAlpha { name: format!("Svg {tag}"), svg: r#"<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="9"/></svg>"#.into(), invert: false });
+        d.recipes.push(alpha::ProcRecipe { name: format!("Recipe {tag}"), ..Default::default() });
+        let ctx = d.field_context();
+        let mut tiling = tiling::TilingLayer::default_for(format!("Drawn {tag}"), &ctx);
+        tiling.edge_mm = 0.2;
+        d.layers.layers.push(LayerEntry::new("Bevelled", Layer::Tiling(tiling)));
+        d
+    }
+
+    /// Threads this process runs.
+    #[cfg(all(target_os = "linux", feature = "parallel"))]
+    fn threads() -> usize {
+        std::fs::read_dir("/proc/self/task").map(|d| d.count()).unwrap_or(0)
+    }
+
+    /// Run alone in a fresh process by the test after it, where no pool exists yet.
+    #[cfg(all(target_os = "linux", feature = "parallel"))]
+    #[test]
+    #[ignore = "run in a process of its own by a_bake_with_nothing_to_bake_starts_no_threads"]
+    fn a_fresh_process_bakes_an_artless_design_on_its_own_thread() {
+        let before = threads();
+        RingDesign::default().bake_all(&mut AlphaLibrary::default());
+        assert_eq!(threads(), before, "the bake started the pool");
+    }
+
+    #[cfg(all(target_os = "linux", feature = "parallel"))]
+    #[test]
+    fn a_bake_with_nothing_to_bake_starts_no_threads() {
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "shared_bake_tests::a_fresh_process_bakes_an_artless_design_on_its_own_thread", "--ignored", "--test-threads=1"])
+            .output()
+            .unwrap();
+        let said = String::from_utf8_lossy(&out.stdout);
+        assert!(out.status.success() && said.contains("1 passed"), "{said}");
+    }
+
+    /// Four bevelled drawings whose rasters fall under the counted grid size and whose fields' two 3x-wide grids each reach it.
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn a_bakes_distance_fields_are_derived_on_the_calling_thread() {
+        let mut design = RingDesign::default();
+        let ctx = design.field_context();
+        for k in 0..4 {
+            let name = format!("Field grid {k}");
+            let mut drawn = DrawnAlpha::new(name.clone(), 256, 128);
+            let mut stroke = drawn::Stroke::new(0.05, 0.4, false);
+            stroke.push(0.1 + 0.1 * k as f32, 0.3, 1.0);
+            stroke.push(0.9, 0.7, 1.0);
+            drawn.strokes.push(stroke);
+            design.drawn.push(drawn);
+            let mut tiling = tiling::TilingLayer::default_for(name, &ctx);
+            tiling.edge_mm = 0.2;
+            design.layers.layers.push(LayerEntry::new(format!("Bevelled {k}"), Layer::Tiling(tiling)));
+        }
+        let mut lib = AlphaLibrary::builtin();
+        let ((), grids) = alpha::grid_allocation_tests::grids_on_this_thread(|| design.bake_all(&mut lib));
+        assert!((0..4).all(|k| lib.sdf_of(&format!("Field grid {k}")).is_some()));
+        assert_eq!(grids, 8, "both grids of each of the four fields");
+    }
+
+    #[test]
+    fn a_source_baked_once_is_shared_after_and_a_library_holding_it_is_left_as_it_was() {
+        let design = artful("shared");
+        let (mut first, mut second) = (AlphaLibrary::builtin(), AlphaLibrary::builtin());
+        let before = first.revision();
+        design.unpack_embedded(&mut first);
+        design.bake_all(&mut first);
+        assert_ne!(first.revision(), before);
+        design.bake_all(&mut second);
+        for name in ["Drawn shared", "Text shared", "Svg shared", "Recipe shared", "Drawn shared##sdf"] {
+            let (a, b) = (first.get_shared(name).expect(name), second.get_shared(name).expect(name));
+            assert!(Arc::ptr_eq(a, b), "{name} is one raster in both libraries");
+        }
+        let held = first.revision();
+        design.bake_all(&mut first);
+        assert_eq!(first.revision(), held, "baking what a library already holds changes nothing");
+        // A drawing redrawn is a new raster, and its field follows it.
+        let mut redrawn = design.clone();
+        redrawn.drawn[0].strokes[0].push(0.5, 0.9, 1.0);
+        redrawn.bake_all(&mut first);
+        assert_ne!(first.revision(), held);
+        assert!(!Arc::ptr_eq(first.get_shared("Drawn shared").unwrap(), second.get_shared("Drawn shared").unwrap()));
+        assert!(!Arc::ptr_eq(first.get_shared("Drawn shared##sdf").unwrap(), second.get_shared("Drawn shared##sdf").unwrap()));
+        assert!(Arc::ptr_eq(first.get_shared("Svg shared").unwrap(), second.get_shared("Svg shared").unwrap()));
+    }
+
+    #[test]
+    fn an_observed_bake_counts_every_source_and_field_and_stops_when_cancelled() {
+        let design = artful("observed");
+        assert_eq!(design.bake_units(), 5);
+        let (seen, top) = (AtomicUsize::new(0), AtomicUsize::new(0));
+        let mut lib = AlphaLibrary::builtin();
+        let baked = design
+            .unpack_and_bake_observed(&mut lib, &|done, of| {
+                seen.fetch_add(1, Ordering::Relaxed);
+                top.fetch_max(done, Ordering::Relaxed);
+                assert_eq!(of, 5);
+            }, &AtomicBool::new(false))
+            .expect("not cancelled");
+        assert_eq!((seen.into_inner(), top.into_inner()), (6, 5), "the size, then one per unit");
+        assert_eq!(baked.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(), ["Drawn observed", "Text observed", "Svg observed", "Recipe observed"]);
+        assert!(lib.sdf_of("Drawn observed").is_some());
+        let mut untouched = AlphaLibrary::builtin();
+        let revision = untouched.revision();
+        assert!(artful("stopped").unpack_and_bake_observed(&mut untouched, &|_, _| {}, &AtomicBool::new(true)).is_none());
+        assert_eq!(untouched.revision(), revision, "a bake cancelled before it starts inserts nothing");
+    }
+
+    #[test]
+    fn the_revision_moves_only_when_the_content_does() {
+        let mut lib = AlphaLibrary::default();
+        assert_eq!(lib.revision(), 0);
+        let a = Arc::new(Alpha::new("a", 2, 2, vec![0.5; 4]));
+        lib.insert_shared(a.clone());
+        let one = lib.revision();
+        assert_ne!(one, 0);
+        lib.insert_shared(a.clone());
+        assert_eq!(lib.revision(), one, "the alpha it holds, inserted again");
+        let copy = lib.clone();
+        assert_eq!(copy.revision(), one);
+        lib.insert(Alpha::new("a", 2, 2, vec![0.5; 4]));
+        assert_ne!(lib.revision(), one, "equal texels in a new alpha are a change");
+        let two = lib.revision();
+        assert!(lib.remove("a") && lib.revision() != two);
+        assert_eq!(copy.revision(), one, "a clone keeps its own");
+    }
+
+    #[test]
+    fn a_mask_measured_on_several_threads_at_once_reads_one_measure() {
+        let mask = Alpha::new("stripes", 48, 48, (0..48 * 48).map(|i| if (i % 48) / 6 % 2 == 0 { 1.0 } else { 0.0 }).collect());
+        let got: Vec<Option<(f64, f64)>> = std::thread::scope(|s| (0..6).map(|_| s.spawn(|| mask.min_feature_px())).collect::<Vec<_>>().into_iter().map(|t| t.join().unwrap()).collect());
+        assert!(got[0].is_some() && got.iter().all(|g| *g == got[0]), "{got:?}");
+        assert_eq!(mask.min_feature_px(), got[0]);
+    }
 }
 
 #[cfg(test)]

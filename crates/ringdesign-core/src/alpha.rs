@@ -374,8 +374,9 @@ impl Alpha {
                 }
             }
         }
+        let mut band = Vec::new();
         for grid in [&mut to_ink, &mut to_ground] {
-            edt_squared(grid, w3, h);
+            edt_squared(grid, w3, h, &mut band);
         }
         let mut out = Vec::with_capacity(w * h);
         for y in 0..h {
@@ -489,64 +490,111 @@ impl Alpha {
     /// them, each read as the opening diameter at which a tenth of that
     /// phase's area disappears — granulometry on the distance field,
     /// bisected over the radius, on a 3x3 tiling so a seamless mask reads
-    /// seamless. `None` for an empty or single-phase mask. Cached by content.
+    /// seamless. `None` for an empty or single-phase mask, or one given up under [`measuring_until`]. Cached by content.
     pub fn min_feature_px(&self) -> Option<(f64, f64)> {
-        use std::collections::HashMap;
-        use std::hash::{Hash, Hasher};
-        use std::sync::{Mutex, OnceLock};
-        static CACHE: OnceLock<Mutex<HashMap<u64, Option<(f64, f64)>>>> = OnceLock::new();
         if self.is_empty() {
             return None;
         }
-        let mut h = std::hash::DefaultHasher::new();
-        (self.width, self.height).hash(&mut h);
-        for v in &self.data {
-            v.to_bits().hash(&mut h);
-        }
-        let key = h.finish();
-        let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-        if let Some(hit) = cache.lock().ok().and_then(|c| c.get(&key).copied()) {
-            return hit;
-        }
-        let got = self.measure_features();
-        if let Ok(mut c) = cache.lock() {
-            if c.len() > 512 {
-                c.clear();
+        let stop = MEASURE_STOP.with(|s| s.borrow().clone());
+        let stopped = || stop.as_ref().is_some_and(|s| s.load(std::sync::atomic::Ordering::Relaxed));
+        let key = self.content_key();
+        let (cache, landed) = MEASURED.get_or_init(Default::default);
+        let mut held = cache.lock().unwrap_or_else(|e| e.into_inner());
+        loop {
+            if stopped() {
+                return None;
             }
-            c.insert(key, got);
+            match held.get(&key) {
+                Some(Some(hit)) => return *hit,
+                Some(None) => held = landed.wait_timeout(held, std::time::Duration::from_millis(50)).unwrap_or_else(|e| e.into_inner()).0,
+                None => break,
+            }
         }
-        got
+        if held.len() > 512 {
+            held.retain(|_, v| v.is_none());
+        }
+        held.insert(key, None);
+        drop(held);
+        let got = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.measure_features(&stopped)));
+        let mut held = cache.lock().unwrap_or_else(|e| e.into_inner());
+        match got {
+            Ok(Ok(got)) => {
+                held.insert(key, Some(got));
+                landed.notify_all();
+                got
+            }
+            Ok(Err(GaveUp)) => {
+                held.remove(&key);
+                landed.notify_all();
+                None
+            }
+            Err(panic) => {
+                held.remove(&key);
+                landed.notify_all();
+                std::panic::resume_unwind(panic)
+            }
+        }
     }
 
-    fn measure_features(&self) -> Option<(f64, f64)> {
+    /// A 64-bit digest of the size and every sample, folded sixteen bytes at a time through a 128-bit multiply.
+    pub fn content_key(&self) -> u64 {
+        const P0: u64 = 0xa076_1d64_78bd_642f;
+        const P1: u64 = 0xe703_7ed1_a0b4_28db;
+        let mum = |a: u64, b: u64| {
+            let r = (a as u128).wrapping_mul(b as u128);
+            (r as u64) ^ ((r >> 64) as u64)
+        };
+        let word = |s: &[f32], i: usize| u64::from(s.get(i).map_or(0, |v| v.to_bits())) | (u64::from(s.get(i + 1).map_or(0, |v| v.to_bits())) << 32);
+        let mut h = mum(self.width as u64 ^ P0, self.height as u64 ^ P1) ^ self.data.len() as u64;
+        for chunk in self.data.chunks(4) {
+            h = mum(word(chunk, 0) ^ P0, word(chunk, 2) ^ h ^ P1);
+        }
+        mum(h ^ P0, self.data.len() as u64 ^ P1)
+    }
+
+    fn measure_features(&self, stopped: &(dyn Fn() -> bool + Sync)) -> Result<Option<(f64, f64)>, GaveUp> {
         const LOST: f64 = 0.10;
         let (w, h) = (self.width, self.height);
         let (bw, bh) = (w * 3, h * 3);
         let ink: Vec<bool> = (0..bw * bh).map(|i| self.data[(i / bw % h) * w + (i % bw % w)] >= 0.5).collect();
         let n_ink = ink.iter().filter(|&&b| b).count();
         if n_ink == 0 || n_ink == ink.len() {
-            return None;
+            return Ok(None);
         }
-        let dist_to = |set: &[bool]| -> Vec<f32> {
-            let mut g: Vec<f32> = set.iter().map(|&b| if b { 0.0 } else { 1e12 }).collect();
-            edt_squared(&mut g, bw, bh);
-            g.iter_mut().for_each(|v| *v = v.sqrt());
-            g
-        };
+        if stopped() {
+            return Err(GaveUp);
+        }
         let ground: Vec<bool> = ink.iter().map(|&b| !b).collect();
-        let d_ink = dist_to(&ground);
-        let d_ground = dist_to(&ink);
+        // Every grid the measure fills, allocated on this thread.
+        let (mut d_ink, mut d_ground) = (vec![0.0f32; bw * bh], vec![0.0f32; bw * bh]);
+        let mut grids = [Grids::new(bw, bh), Grids::new(bw, bh)];
+        let dist_to = |set: &[bool], g: &mut [f32], band: &mut Vec<f32>| {
+            for (v, &b) in g.iter_mut().zip(set) {
+                *v = if b { 0.0 } else { 1e12 };
+            }
+            edt_squared(g, bw, bh, band);
+            g.iter_mut().for_each(|v| *v = v.sqrt());
+        };
+        {
+            let [a, b] = &mut grids;
+            join(|| dist_to(&ground, &mut d_ink, &mut a.band), || dist_to(&ink, &mut d_ground, &mut b.band));
+        }
         // Share of a phase (centre tile) that an opening by disc radius r removes.
-        let loss = |phase: &[bool], d: &[f32], r: f32| -> f64 {
-            let eroded: Vec<bool> = d.iter().map(|&v| v >= r).collect();
-            let back = dist_to(&eroded);
+        let loss = |phase: &[bool], d: &[f32], r: f32, g: &mut Grids| -> f64 {
+            if stopped() {
+                return 1.0;
+            }
+            for (e, &v) in g.eroded.iter_mut().zip(d) {
+                *e = v >= r;
+            }
+            dist_to(&g.eroded, &mut g.back, &mut g.band);
             let (mut lost, mut all) = (0usize, 0usize);
             for y in h..2 * h {
                 for x in w..2 * w {
                     let i = y * bw + x;
                     if phase[i] {
                         all += 1;
-                        if back[i] > r {
+                        if g.back[i] > r {
                             lost += 1;
                         }
                     }
@@ -554,20 +602,76 @@ impl Alpha {
             }
             if all == 0 { 1.0 } else { lost as f64 / all as f64 }
         };
-        let feature = |phase: &[bool], d: &[f32]| -> f64 {
+        let feature = |phase: &[bool], d: &[f32], g: &mut Grids| -> f64 {
             let r_max = (w.min(h) as f32) * 0.5;
-            if loss(phase, d, r_max) < LOST {
+            if loss(phase, d, r_max, g) < LOST {
                 return 2.0 * r_max as f64;
             }
             let (mut lo, mut hi) = (0.0f32, r_max);
-            while hi - lo > 0.25 {
+            while hi - lo > 0.25 && !stopped() {
                 let mid = 0.5 * (lo + hi);
-                if loss(phase, d, mid) >= LOST { hi = mid } else { lo = mid }
+                if loss(phase, d, mid, g) >= LOST { hi = mid } else { lo = mid }
             }
             2.0 * hi as f64
         };
-        Some((feature(&ink, &d_ink), feature(&ground, &d_ground)))
+        let [a, b] = &mut grids;
+        let (ink_px, gap_px) = join(|| feature(&ink, &d_ink, a), || feature(&ground, &d_ground, b));
+        if stopped() {
+            return Err(GaveUp);
+        }
+        Ok(Some((ink_px, gap_px)))
     }
+}
+
+/// A mask measure given up under [`measuring_until`].
+struct GaveUp;
+
+/// One phase's opening grids: the eroded set, its distance field and the transform's column band.
+struct Grids {
+    eroded: Vec<bool>,
+    back: Vec<f32>,
+    band: Vec<f32>,
+}
+
+impl Grids {
+    fn new(w: usize, h: usize) -> Self {
+        Grids { eroded: vec![false; w * h], back: vec![0.0; w * h], band: vec![0.0; EDT_BAND.min(w) * h] }
+    }
+}
+
+/// `a` and `b` on two of the pool's threads under `parallel`, one after the other without.
+fn join<A: Send, B: Send>(a: impl FnOnce() -> A + Send, b: impl FnOnce() -> B + Send) -> (A, B) {
+    #[cfg(feature = "parallel")]
+    {
+        rayon::join(a, b)
+    }
+    #[cfg(not(feature = "parallel"))]
+    {
+        (a(), b())
+    }
+}
+
+/// Measured masks by content, `None` while one thread measures one and the others wait.
+type Measured = HashMap<u64, Option<Option<(f64, f64)>>>;
+
+static MEASURED: std::sync::OnceLock<(std::sync::Mutex<Measured>, std::sync::Condvar)> = std::sync::OnceLock::new();
+
+thread_local! {
+    /// The flag the mask measures started on this thread give up on.
+    static MEASURE_STOP: std::cell::RefCell<Option<Arc<std::sync::atomic::AtomicBool>>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Runs `f` with every mask measure it starts on this thread given up once `stop` is set: one given up reads as `None` and is not cached.
+pub fn measuring_until<R>(stop: &Arc<std::sync::atomic::AtomicBool>, f: impl FnOnce() -> R) -> R {
+    struct Restore(Option<Arc<std::sync::atomic::AtomicBool>>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            let before = self.0.take();
+            MEASURE_STOP.with(|s| *s.borrow_mut() = before);
+        }
+    }
+    let _restore = Restore(MEASURE_STOP.with(|s| s.borrow_mut().replace(stop.clone())));
+    f()
 }
 
 /// Library name a mask's derived signed-distance field lands under.
@@ -578,15 +682,138 @@ pub fn sdf_name(name: &str) -> String {
     format!("{name}{SDF_SUFFIX}")
 }
 
+/// Texels the shared bakes keep before the least recently used go.
+pub const BAKE_CACHE_TEXELS: usize = 48 << 20;
+
+/// Rasters baked from design sources by content digest, and distance fields by the shared alpha they read.
+#[derive(Default)]
+struct Bakes {
+    rasters: HashMap<u64, (Arc<Alpha>, u64)>,
+    fields: HashMap<usize, (Arc<Alpha>, Arc<Alpha>, u64)>,
+    texels: usize,
+    clock: u64,
+}
+
+impl Bakes {
+    fn shared() -> std::sync::MutexGuard<'static, Bakes> {
+        static BAKES: std::sync::OnceLock<std::sync::Mutex<Bakes>> = std::sync::OnceLock::new();
+        BAKES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn tick(&mut self) -> u64 {
+        self.clock += 1;
+        self.clock
+    }
+
+    /// Drops the least recently used entries until the kept texels are under three quarters of the cap.
+    fn trim(&mut self) {
+        if self.texels <= BAKE_CACHE_TEXELS {
+            return;
+        }
+        let mut ages: Vec<(u64, Result<u64, usize>)> =
+            self.rasters.iter().map(|(k, e)| (e.1, Ok(*k))).chain(self.fields.iter().map(|(k, e)| (e.2, Err(*k)))).collect();
+        ages.sort_unstable_by_key(|a| a.0);
+        for (_, key) in ages {
+            if self.texels <= BAKE_CACHE_TEXELS / 4 * 3 {
+                break;
+            }
+            let freed = match key {
+                Ok(k) => self.rasters.remove(&k).map(|e| e.0.data.len()),
+                Err(k) => self.fields.remove(&k).map(|e| e.0.data.len() + e.1.data.len()),
+            };
+            self.texels = self.texels.saturating_sub(freed.unwrap_or(0));
+        }
+    }
+}
+
+/// Feeds serialized bytes to a hasher.
+struct DigestWriter(std::hash::DefaultHasher);
+
+impl std::io::Write for DigestWriter {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        std::hash::Hasher::write(&mut self.0, bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Content digest of a baked source: `kind`, then the source serialized.
+pub fn source_key<T: Serialize + ?Sized>(kind: &str, source: &T) -> u64 {
+    use std::hash::Hasher;
+    let mut w = DigestWriter(std::hash::DefaultHasher::new());
+    w.0.write(kind.as_bytes());
+    w.0.write_u8(0);
+    if serde_json::to_writer(&mut w, source).is_err() {
+        w.0.write_u8(1);
+    }
+    w.0.finish()
+}
+
+/// The alpha baked from the source `key` names, else `make`'s, kept for the next bake of the same source; `None` when `make` has none.
+pub fn shared_bake(key: u64, make: impl FnOnce() -> Option<Alpha>) -> Option<Arc<Alpha>> {
+    {
+        let mut bakes = Bakes::shared();
+        let now = bakes.tick();
+        if let Some(hit) = bakes.rasters.get_mut(&key) {
+            hit.1 = now;
+            return Some(hit.0.clone());
+        }
+    }
+    let made = Arc::new(make()?);
+    let mut bakes = Bakes::shared();
+    let now = bakes.tick();
+    if let Some(raced) = bakes.rasters.get(&key) {
+        return Some(raced.0.clone());
+    }
+    bakes.texels += made.data.len();
+    bakes.rasters.insert(key, (made.clone(), now));
+    bakes.trim();
+    Some(made)
+}
+
+/// The signed-distance field of `source`, derived once per shared alpha.
+pub fn shared_sdf(source: &Arc<Alpha>) -> Arc<Alpha> {
+    let key = Arc::as_ptr(source) as usize;
+    {
+        let mut bakes = Bakes::shared();
+        let now = bakes.tick();
+        if let Some(hit) = bakes.fields.get_mut(&key) {
+            hit.2 = now;
+            return hit.1.clone();
+        }
+    }
+    let made = Arc::new(source.signed_distance_px());
+    let mut bakes = Bakes::shared();
+    let now = bakes.tick();
+    if let Some(raced) = bakes.fields.get(&key) {
+        return raced.1.clone();
+    }
+    bakes.texels += source.data.len() + made.data.len();
+    bakes.fields.insert(key, (source.clone(), made.clone(), now));
+    bakes.trim();
+    made
+}
+
+/// Texels the shared bakes hold now.
+pub fn bake_cache_texels() -> usize {
+    Bakes::shared().texels
+}
+
+/// Columns the distance transform's column pass carries at a time.
+const EDT_BAND: usize = 256;
+
 /// In-place exact squared Euclidean distance transform (Felzenszwalb &
 /// Huttenlocher): a 1D lower-envelope pass down every column, then along
-/// every row.
-fn edt_squared(grid: &mut [f32], w: usize, h: usize) {
+/// every row. `band` is the column pass's scratch, grown to fit.
+fn edt_squared(grid: &mut [f32], w: usize, h: usize, band: &mut Vec<f32>) {
+    if w == 0 || h == 0 {
+        return;
+    }
     let n = w.max(h);
-    let mut f = vec![0.0f32; n];
-    let mut d = vec![0.0f32; n];
-    let mut v = vec![0usize; n];
-    let mut z = vec![0.0f32; n + 1];
+    let scratch = || (vec![0.0f32; n], vec![0.0f32; n], vec![0usize; n], vec![0.0f32; n + 1]);
 
     let pass = |f: &[f32], d: &mut [f32], n: usize, v: &mut [usize], z: &mut [f32]| {
         let mut k = 0usize;
@@ -622,19 +849,43 @@ fn edt_squared(grid: &mut [f32], w: usize, h: usize) {
         }
     };
 
-    for x in 0..w {
-        for y in 0..h {
-            f[y] = grid[y * w + x];
-        }
-        pass(&f, &mut d, h, &mut v, &mut z);
-        for y in 0..h {
-            grid[y * w + x] = d[y];
+    // Columns a band at a time into a column-major copy, scattered back; then every row in place.
+    band.resize(EDT_BAND.min(w) * h, 0.0);
+    for x0 in (0..w).step_by(EDT_BAND) {
+        let cols = EDT_BAND.min(w - x0);
+        each_line(&mut band[..cols * h], h, &scratch, |(f, d, v, z), k, out| {
+            for y in 0..h {
+                f[y] = grid[y * w + x0 + k];
+            }
+            pass(f, d, h, v, z);
+            out.copy_from_slice(&d[..h]);
+        });
+        for (y, row) in grid.chunks_mut(w).enumerate() {
+            for (k, value) in row[x0..x0 + cols].iter_mut().enumerate() {
+                *value = band[k * h + y];
+            }
         }
     }
-    for y in 0..h {
-        f[..w].copy_from_slice(&grid[y * w..y * w + w]);
-        pass(&f, &mut d, w, &mut v, &mut z);
-        grid[y * w..y * w + w].copy_from_slice(&d[..w]);
+    each_line(grid, w, &scratch, |(f, d, v, z), _, row| {
+        f[..w].copy_from_slice(row);
+        pass(f, d, w, v, z);
+        row.copy_from_slice(&d[..w]);
+    });
+}
+
+/// `each` over every `len`-long line of `data` with its index, one scratch per worker, on every core under `parallel`.
+fn each_line<S: Send>(data: &mut [f32], len: usize, scratch: &(impl Fn() -> S + Sync + Send), each: impl Fn(&mut S, usize, &mut [f32]) + Sync + Send) {
+    #[cfg(feature = "parallel")]
+    {
+        use rayon::prelude::*;
+        data.par_chunks_mut(len).enumerate().for_each_init(scratch, |s, (i, line)| each(s, i, line));
+    }
+    #[cfg(not(feature = "parallel"))]
+    {
+        let mut s = scratch();
+        for (i, line) in data.chunks_mut(len).enumerate() {
+            each(&mut s, i, line);
+        }
     }
 }
 
@@ -1503,6 +1754,14 @@ pub struct AlphaLibrary {
     /// build (the mesh, the attributed field report, the modulus scan, the
     /// section view, the stones report), so the multiplier is real.
     sdf_index: HashMap<String, usize>,
+    /// Content version: fresh on every change, carried by a clone.
+    revision: u64,
+}
+
+/// Next library content version; 0 is the empty library's.
+fn next_revision() -> u64 {
+    static REVISIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    REVISIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 impl AlphaLibrary {
@@ -1528,45 +1787,44 @@ impl AlphaLibrary {
         self.insert_shared(Arc::new(alpha));
     }
 
-    /// [`insert`](Self::insert) an alpha another library already holds, without copying it.
+    /// [`insert`](Self::insert) an alpha another library already holds, without copying it; the one already held under its name leaves the library unchanged.
     pub fn insert_shared(&mut self, alpha: Arc<Alpha>) {
+        if let Some(&i) = self.index.get(&alpha.name) {
+            if !Arc::ptr_eq(&self.entries[i], &alpha) {
+                self.entries[i] = alpha;
+                self.revision = next_revision();
+            }
+            return;
+        }
+        if self.entries.len() >= Self::MAX_ENTRIES {
+            log::warn!("alpha library is full at {} entries; dropping {:?}", Self::MAX_ENTRIES, alpha.name);
+            return;
+        }
         // Keep the derived-field index in step, so the hot path is one lookup
         // on the base name with nothing allocated.
         if let Some(base) = alpha.name.strip_suffix(SDF_SUFFIX) {
-            let base = base.to_string();
-            match self.index.get(&alpha.name).copied() {
-                Some(i) => {
-                    self.entries[i] = alpha;
-                    return;
-                }
-                None => {
-                    if self.entries.len() < Self::MAX_ENTRIES {
-                        self.sdf_index.insert(base, self.entries.len());
-                    }
-                }
-            }
+            self.sdf_index.insert(base.to_string(), self.entries.len());
         }
-        match self.index.get(&alpha.name).copied() {
-            Some(i) => self.entries[i] = alpha,
-            None => {
-                if self.entries.len() >= Self::MAX_ENTRIES {
-                    log::warn!(
-                        "alpha library is full at {} entries; dropping {:?}",
-                        Self::MAX_ENTRIES,
-                        alpha.name
-                    );
-                    return;
-                }
-                self.index.insert(alpha.name.clone(), self.entries.len());
-                self.entries.push(alpha);
-            }
-        }
+        self.index.insert(alpha.name.clone(), self.entries.len());
+        self.entries.push(alpha);
+        self.revision = next_revision();
+    }
+
+    /// A content version: two libraries reading the same revision hold the same alphas, and every change takes a new one.
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    /// The shared alpha under `name`, for inserting into another library without copying it.
+    pub fn get_shared(&self, name: &str) -> Option<&Arc<Alpha>> {
+        self.index.get(name).and_then(|&i| self.entries.get(i))
     }
 
     pub fn remove(&mut self, name: &str) -> bool {
         let Some(i) = self.index.get(name).copied() else {
             return false;
         };
+        self.revision = next_revision();
         self.entries.remove(i);
         self.index = self
             .entries
@@ -3064,6 +3322,130 @@ mod feature_tests {
         let disc: Vec<f32> = (0..n * n).map(|i| { let (x, y) = ((i % n) as f64 - 32.0, (i / n) as f64 - 32.0); if x * x + y * y < 100.0 { 1.0 } else { 0.0 } }).collect();
         let (ink, _) = Alpha::new("disc", n, n, disc).min_feature_px().unwrap();
         assert!((ink - 20.0).abs() <= 2.0, "a 20 px disc: {ink}");
+    }
+
+    /// 4 px stripes 16 px apart, inked at `ink` so no other test has measured the same content.
+    fn stripes(n: usize, ink: f32) -> Alpha {
+        Alpha::new("stripes", n, n, (0..n * n).map(|i| if (i % n) % 16 < 4 { ink } else { 0.0 }).collect())
+    }
+
+    fn in_flight(key: u64) -> Option<bool> {
+        MEASURED.get().and_then(|(m, _)| m.lock().unwrap_or_else(|e| e.into_inner()).get(&key).map(Option::is_none))
+    }
+
+    #[test]
+    fn a_measure_given_up_reads_none_keeps_nothing_and_is_made_again() {
+        use std::sync::atomic::AtomicBool;
+        let a = stripes(64, 0.61);
+        let stop = Arc::new(AtomicBool::new(true));
+        assert_eq!(measuring_until(&stop, || a.min_feature_px()), None);
+        assert_eq!(in_flight(a.content_key()), None, "nothing kept");
+        let (ink, gap) = a.min_feature_px().expect("measured once nothing stops it");
+        assert!((ink - 4.0).abs() <= 1.0 && (gap - 12.0).abs() <= 2.0, "{ink} {gap}");
+        assert_eq!(measuring_until(&stop, || a.min_feature_px()), None, "a stopped scope reads nothing, kept or not");
+        assert_eq!(a.min_feature_px(), Some((ink, gap)), "the scope ends with its closure");
+    }
+
+    #[test]
+    fn a_measure_in_flight_stops_once_its_flag_is_set() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let a = Arc::new(stripes(512, 0.62));
+        let key = a.content_key();
+        let stop = Arc::new(AtomicBool::new(false));
+        let (flag, mask) = (stop.clone(), a.clone());
+        let measuring = std::thread::spawn(move || measuring_until(&flag, || mask.min_feature_px()));
+        let started = std::time::Instant::now();
+        while in_flight(key) != Some(true) {
+            assert!(started.elapsed().as_secs() < 60, "the measure never started");
+            std::thread::yield_now();
+        }
+        stop.store(true, Ordering::Relaxed);
+        assert_eq!(measuring.join().unwrap(), None, "given up part way");
+        assert_eq!(in_flight(key), None, "nothing kept, and nobody left waiting on it");
+    }
+}
+
+#[cfg(all(test, feature = "parallel"))]
+pub(crate) mod grid_allocation_tests {
+    use super::*;
+    use std::alloc::{GlobalAlloc, Layout, System};
+    use std::cell::Cell;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// Blocks at least this large count as grids.
+    const GRID_BYTES: usize = 256 << 10;
+
+    /// A thread of the watched pool.
+    const POOL: u8 = 1;
+    /// A thread counting its own grids.
+    const CALLER: u8 = 2;
+
+    thread_local! {
+        static WATCH: Cell<u8> = const { Cell::new(0) };
+        /// Grids this thread has allocated while counting.
+        static CALLER_GRIDS: Cell<usize> = const { Cell::new(0) };
+    }
+
+    /// Grids the watched pool's threads allocated while not counting their own.
+    static POOL_GRIDS: AtomicUsize = AtomicUsize::new(0);
+
+    /// `f`'s result and the grids it allocated on this thread.
+    pub(crate) fn grids_on_this_thread<R>(f: impl FnOnce() -> R) -> (R, usize) {
+        let (watch, before) = (WATCH.with(|w| w.replace(CALLER)), CALLER_GRIDS.with(Cell::get));
+        let got = f();
+        WATCH.with(|w| w.set(watch));
+        (got, CALLER_GRIDS.with(Cell::get) - before)
+    }
+
+    /// The system allocator, counting the grids the watched pool allocates.
+    struct Watching;
+
+    fn note(size: usize) {
+        if size < GRID_BYTES {
+            return;
+        }
+        match WATCH.try_with(Cell::get) {
+            Ok(POOL) => {
+                POOL_GRIDS.fetch_add(1, Ordering::SeqCst);
+            }
+            Ok(CALLER) => {
+                let _ = CALLER_GRIDS.try_with(|c| c.set(c.get() + 1));
+            }
+            _ => {}
+        }
+    }
+
+    unsafe impl GlobalAlloc for Watching {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            note(layout.size());
+            unsafe { System.alloc(layout) }
+        }
+        unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+            note(layout.size());
+            unsafe { System.alloc_zeroed(layout) }
+        }
+        unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+            note(new_size);
+            unsafe { System.realloc(ptr, layout, new_size) }
+        }
+        unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+            unsafe { System.dealloc(ptr, layout) }
+        }
+    }
+
+    #[global_allocator]
+    static ALLOCATOR: Watching = Watching;
+
+    #[test]
+    fn a_mask_measure_allocates_every_grid_once_on_the_calling_thread() {
+        let pool = rayon::ThreadPoolBuilder::new().num_threads(4).start_handler(|_| WATCH.with(|w| w.set(POOL))).build().unwrap();
+        let n = 256;
+        let mask = Alpha::new("grids", n, n, (0..n * n).map(|i| if (i % n) % 16 < 5 || (i / n) % 23 < 2 { 0.87 } else { 0.0 }).collect());
+        let (measured, grids) = pool.install(|| grids_on_this_thread(|| mask.min_feature_px()));
+        assert!(measured.is_some());
+        // Ink and ground, their two distance fields, and each phase's eroded set, opening field and column band.
+        assert_eq!(grids, 10, "every grid on the calling thread, none per bisection step");
+        assert_eq!(POOL_GRIDS.load(Ordering::SeqCst), 0, "none on the pool's other threads");
     }
 }
 

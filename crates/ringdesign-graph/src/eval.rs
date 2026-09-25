@@ -17,6 +17,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use ringdesign_core::castability::{FieldReport, attributed_field_report};
 use ringdesign_core::{AlphaLibrary, RingDesign};
@@ -148,6 +149,13 @@ struct CacheEntry {
     status: NodeStatus,
 }
 
+/// The verdict last judged, and the design and library content it was judged on.
+struct Judged {
+    design: Arc<RingDesign>,
+    lib: u64,
+    field: FieldReport,
+}
+
 /// Runs graphs and remembers what each node produced last time.
 #[derive(Default)]
 pub struct Evaluator {
@@ -158,7 +166,13 @@ pub struct Evaluator {
     pub exprs: Option<Arc<dyn ExprEvaluator>>,
     /// Told the nodes done and the nodes wanted after each wanted node, cached or run.
     pub progress: Option<Arc<dyn Fn(usize, usize) + Send + Sync>>,
+    /// Stops an evaluation between nodes once set; it then reports [`CANCELLED`].
+    pub cancel: Option<Arc<AtomicBool>>,
+    judged: Option<Judged>,
 }
+
+/// The error a cancelled evaluation reports.
+pub const CANCELLED: &str = "cancelled";
 
 impl Evaluator {
     pub fn new() -> Self {
@@ -248,6 +262,10 @@ impl Evaluator {
             if !wanted.contains(&id) {
                 report.status.insert(id, NodeStatus { skipped: true, ..Default::default() });
                 continue;
+            }
+            if self.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed)) {
+                report.errors.push(GraphError::global(CANCELLED));
+                return report;
             }
             if let Some(progress) = &self.progress {
                 progress(done, wanted.len());
@@ -519,12 +537,32 @@ pub struct DesignOut {
 /// Evaluate the design a graph is for and judge it. The design is what
 /// feeds the output sink's `design` input, or, without a sink, the last
 /// single design any node produced.
+/// `baked_library` is `None` when `lib` already holds the design's artwork; the verdict is reused while the design and the library's content stand.
 pub fn evaluate_design(ev: &mut Evaluator, g: &Graph, reg: &Registry, lib: &AlphaLibrary, lib_epoch: u64) -> Result<DesignOut, GraphError> {
     let (design, report) = design_of(ev, g, reg, lib, lib_epoch)?;
+    Ok(judge(ev, design, report, g, lib))
+}
+
+/// [`evaluate_design`] with the graph run against `base`, keyed by its revision, and the artwork baked onto `onto`.
+pub fn evaluate_design_onto(ev: &mut Evaluator, g: &Graph, reg: &Registry, base: &AlphaLibrary, onto: &AlphaLibrary) -> Result<DesignOut, GraphError> {
+    let (design, report) = design_of(ev, g, reg, base, base.revision())?;
+    Ok(judge(ev, design, report, g, onto))
+}
+
+/// A design already evaluated from `g`, its artwork baked onto `lib` and judged, as [`evaluate_design`] answers.
+pub fn judge(ev: &mut Evaluator, design: Arc<RingDesign>, report: EvalReport, g: &Graph, lib: &AlphaLibrary) -> DesignOut {
     let notes = report.notes(g);
     let baked_library = baked(&design, lib);
-    let field = attributed_field_report(&design, baked_library.as_deref().unwrap_or(lib), &design.draft, FIELD_THETA_STEPS, FIELD_PROFILE_STEPS);
-    Ok(DesignOut { design, field, baked_library, notes, report })
+    let judged_on = baked_library.as_deref().unwrap_or(lib);
+    let field = match &ev.judged {
+        Some(j) if Arc::ptr_eq(&j.design, &design) && j.lib == judged_on.revision() => j.field.clone(),
+        _ => {
+            let field = attributed_field_report(&design, judged_on, &design.draft, FIELD_THETA_STEPS, FIELD_PROFILE_STEPS);
+            ev.judged = Some(Judged { design: design.clone(), lib: judged_on.revision(), field: field.clone() });
+            field
+        }
+    };
+    DesignOut { design, field, baked_library, notes, report }
 }
 
 /// The design `g` evaluates to, its imported base's shape checked, with the report that made it: [`evaluate_design`] unbaked and unjudged.
@@ -540,15 +578,12 @@ pub fn design_of(ev: &mut Evaluator, g: &Graph, reg: &Registry, lib: &AlphaLibra
     Ok((design, report))
 }
 
-/// `lib` with `design`'s embedded, drawn, lettered, imported and recipe artwork baked in; `None` when it carries none.
+/// `lib` with `design`'s embedded, drawn, lettered, imported and recipe artwork baked in; `None` when that leaves it as it was.
 pub fn baked(design: &RingDesign, lib: &AlphaLibrary) -> Option<Arc<AlphaLibrary>> {
-    let has_sources = !(design.texts.is_empty() && design.svgs.is_empty() && design.drawn.is_empty() && design.recipes.is_empty() && design.embedded.is_empty());
-    has_sources.then(|| {
-        let mut baked = lib.clone();
-        design.unpack_embedded(&mut baked);
-        design.bake_all(&mut baked);
-        Arc::new(baked)
-    })
+    let mut baked = lib.clone();
+    design.unpack_embedded(&mut baked);
+    design.bake_all(&mut baked);
+    (baked.revision() != lib.revision()).then(|| Arc::new(baked))
 }
 
 fn find_design(g: &Graph, report: &EvalReport) -> Result<Arc<RingDesign>, GraphError> {

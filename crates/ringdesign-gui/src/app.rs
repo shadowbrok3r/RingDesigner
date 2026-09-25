@@ -16,7 +16,7 @@ use ringdesign_workbench::command::BandSurface;
 use ringdesign_workbench::render::{self, StagedEdges};
 use ringdesign_workbench::viewport::Selection;
 use ringdesign_workbench::viewport::pins::Pin;
-use ringdesign_graph::eval::{Evaluator, evaluate_design};
+use ringdesign_graph::eval::Evaluator;
 use ringdesign_graph::graph::{Graph, GraphError, NodeId as GraphNodeId};
 use ringdesign_graph::registry::Registry;
 use ringdesign_graph_ui::Editor;
@@ -254,6 +254,14 @@ impl PendingImport {
 /// Longest edge of an uploaded alpha preview texture.
 const THUMB_TEXTURE_EDGE: usize = 128;
 
+/// Where something opened off the UI thread lands.
+pub enum Lands {
+    /// A new design from a template, in the graph pane when set.
+    Template { graph_pane: bool },
+    /// The design file at this path, as the open document.
+    File(std::path::PathBuf),
+}
+
 pub struct RingDesignerApp {
     pub updater: crate::updater::Updater,
     pub install_update: bool,
@@ -281,6 +289,10 @@ pub struct RingDesignerApp {
     pub cast: Option<CastReport>,
     pub field: Option<ringdesign_core::castability::FieldReport>,
     pub stones: Option<ringdesign_core::stones::StonesReport>,
+    /// The detail findings of a design a build showed, measured by the worker after it sends the build.
+    pub dfm: Vec<ringdesign_core::dfm::DfmFinding>,
+    /// The build generation `dfm` was measured for.
+    pub dfm_generation: u64,
     /// Slowest-freezing slice, from the settled build's Chvorinov scan.
     pub hot_spot: Option<(f64, f64)>,
     pub casting: crate::panels::casting::CastingState,
@@ -327,12 +339,18 @@ pub struct RingDesignerApp {
     pub prices: std::collections::HashMap<String, f64>,
     /// A background export in flight: its completion message arrives here.
     pub exporting: Option<std::sync::mpsc::Receiver<String>>,
+    /// A design being written off the UI thread: its path and how the write went arrive here.
+    pub saving: Option<std::sync::mpsc::Receiver<(std::path::PathBuf, Result<(), String>)>>,
     /// A part file being read off the UI thread, applied when it lands.
     pub importing: Option<PendingImport>,
-    /// A template being opened off the UI thread, and whether it lands in the graph pane.
-    pub opening: Option<(ringdesign_workbench::templates::Opening, bool)>,
-    /// The template that landed and the build generation that shows it, until that build lands.
-    pub opened_building: Option<(&'static str, u64)>,
+    /// A template or design file being opened off the UI thread, and where it lands.
+    pub opening: Option<(ringdesign_workbench::templates::Opening, Lands)>,
+    /// The template or file that landed, the build generation that shows it and how far its open has got, until that build lands.
+    pub opened_building: Option<(ringdesign_workbench::templates::Name, u64, Arc<ringdesign_workbench::templates::Progress>)>,
+    /// The evaluation a landed template brought, for the build that shows it.
+    pub(crate) seed: Option<Box<ringdesign_workbench::templates::Seed>>,
+    /// `design.graph` parsed, as `graph_json` last saw it: what a build is handed.
+    graph_parsed: Option<Arc<Graph>>,
     /// Where OpenCascade's worker is looked for: read from the environment at start, set per harness in tests.
     pub occt: ringdesign_occt::client::Locator,
     /// The stamp whose inspector is open, by its index in the design's stamps.
@@ -479,6 +497,8 @@ impl RingDesignerApp {
             cast: None,
             field: None,
             stones: None,
+            dfm: Vec::new(),
+            dfm_generation: 0,
             hot_spot: None,
             casting: Default::default(),
             cad: Default::default(),
@@ -502,9 +522,12 @@ impl RingDesignerApp {
             pave_open: false,
             prices: load_prices(),
             exporting: None,
+            saving: None,
             importing: None,
             opening: None,
             opened_building: None,
+            seed: None,
+            graph_parsed: None,
             occt: crate::occt_embedded::locator(),
             stamp_inspector: None,
             palette_open: false,
@@ -558,7 +581,7 @@ impl RingDesignerApp {
             mcp_error: None,
             egui_ctx: cc.egui_ctx.clone(),
             thumbs: HashMap::new(),
-            worker: Worker::spawn(),
+            worker: Worker::spawn(cc.egui_ctx.clone()),
             dirty_at: None,
             in_flight: false,
             last_build_valid: false,
@@ -642,49 +665,90 @@ impl RingDesignerApp {
         self.status = self.importing.as_ref().map(PendingImport::words).unwrap_or_default();
     }
 
-    /// Opens `template` on a thread of its own, in place of any template still opening; it lands as a new design, in the graph pane when `graph_pane` is set.
+    /// Opens `template` on a thread of its own, in place of any template or file still opening, which stops; it lands as a new design, in the graph pane when `graph_pane` is set.
     pub fn open_template(&mut self, template: &'static ringdesign_workbench::templates::Template, graph_pane: bool) {
         let wake = self.egui_ctx.clone();
-        let opening = template.open(self.graph_reg.clone(), self.lib.clone(), move || wake.request_repaint());
-        self.opening = Some((opening, graph_pane));
+        let opening = template.open_measured(self.graph_reg.clone(), self.lib.clone(), move || wake.request_repaint());
+        self.start_opening(opening, Lands::Template { graph_pane });
+    }
+
+    /// Reads, migrates and bakes design file `path` on a thread of its own, in place of anything still opening; it lands as the open document.
+    pub fn open_file(&mut self, path: std::path::PathBuf) {
+        let wake = self.egui_ctx.clone();
+        let opening = ringdesign_workbench::templates::open_file(path.clone(), self.lib.clone(), true, move || wake.request_repaint());
+        self.start_opening(opening, Lands::File(path));
+    }
+
+    pub(crate) fn start_opening(&mut self, opening: ringdesign_workbench::templates::Opening, lands: Lands) {
+        let words = format!("Opening {}…", opening.name);
+        self.opening = Some((opening, lands));
         self.opened_building = None;
-        self.set_status(format!("Opening {}…", template.name));
+        self.set_status(words);
     }
 
-    /// Stops opening the template: what it makes is dropped.
+    /// Stops opening the template or file: what it makes is dropped.
     pub fn cancel_template(&mut self) {
-        if let Some((opening, _)) = self.opening.take() {
-            self.set_status(format!("Stopped opening {}: the design is unchanged", opening.name));
+        if let Some(name) = self.drop_opening() {
+            self.set_status(format!("Stopped opening {name}: the design is unchanged"));
         }
     }
 
-    /// Takes in a template that has opened, building it at once, or shows how far it has got.
+    /// The newest build generation dispatched.
+    #[cfg(test)]
+    pub(crate) fn build_generation(&self) -> u64 {
+        self.generation
+    }
+
+    /// Stops the template or file opening and takes down the plate of one that landed: a document that replaces the design replaces them. The name of the one stopped.
+    pub fn drop_opening(&mut self) -> Option<ringdesign_workbench::templates::Name> {
+        self.opened_building = None;
+        self.opening.take().map(|(opening, _)| opening.name.clone())
+    }
+
+    /// Takes in a template or file that has opened, building it at once with the evaluation it brought, or says how far it has got.
     fn poll_template(&mut self, ctx: &egui::Context) {
-        let Some((opening, _)) = &self.opening else {
-            crate::export::template_plate(self, ctx);
-            return;
-        };
-        let Some(opened) = opening.poll() else {
-            crate::export::template_plate(self, ctx);
-            return;
-        };
-        let Some((opening, graph_pane)) = self.opening.take() else { return };
-        let name = opening.name;
-        match opened {
-            Ok(opened) => {
-                crate::export::adopt_template(self, opened, name);
-                if graph_pane {
-                    if self.design.graph.is_none() {
-                        self.convert_to_graph();
-                    }
-                    self.show_graph_pane();
+        let landed = self.opening.as_ref().and_then(|(opening, _)| opening.poll());
+        match landed {
+            None => {
+                if let Some((opening, _)) = &self.opening {
+                    self.status = opening.progress().words(&opening.name);
                 }
-                self.rebuild_now();
-                self.opened_building = Some((name, self.generation));
-                crate::export::template_plate(self, ctx);
             }
-            Err(e) => self.set_status(format!("Could not open template {name}: {e}")),
+            Some(opened) => {
+                let Some((opening, lands)) = self.opening.take() else { return };
+                let name = opening.name.clone();
+                match (opened, lands) {
+                    (Ok(opened), Lands::Template { graph_pane }) => {
+                        let graph = opened.graph().cloned();
+                        let (design, lib, seed) = opened.land(&self.lib);
+                        crate::export::adopt_template(self, design, lib, &name, graph.as_ref());
+                        if graph_pane {
+                            if self.design.graph.is_none() {
+                                self.convert_to_graph();
+                            }
+                            self.show_graph_pane();
+                        }
+                        self.seed = seed.map(Box::new);
+                        self.rebuild_now();
+                        let progress = opening.progress();
+                        progress.set(ringdesign_workbench::templates::Stage::Building);
+                        self.opened_building = Some((name, self.generation, progress));
+                    }
+                    (Ok(opened), Lands::File(path)) => {
+                        let graph = opened.graph().cloned();
+                        let (design, lib, _) = opened.land(&self.lib);
+                        crate::export::adopt_file(self, design, lib, &path, graph.as_ref());
+                        self.rebuild_now();
+                        let progress = opening.progress();
+                        progress.set(ringdesign_workbench::templates::Stage::Building);
+                        self.opened_building = Some((name, self.generation, progress));
+                    }
+                    (Err(e), Lands::Template { .. }) => self.set_status(format!("Could not open template {name}: {e}")),
+                    (Err(e), Lands::File(_)) => self.set_status(format!("Open failed: {e}")),
+                }
+            }
         }
+        crate::export::template_plate(self, ctx);
     }
 
     /// Stops waiting for the part being read: what it reads is dropped when it lands.
@@ -780,6 +844,7 @@ impl RingDesignerApp {
     /// Poll the worker, fire debounced rebuilds, and refresh the section slice.
     pub fn tick(&mut self, ctx: &egui::Context) {
         self.poll_template(ctx);
+        crate::export::poll_save(self);
         self.sync_graph();
         // A design opened from another file takes the pins an older workspace kept for that file.
         if self.document_path != self.pins_path {
@@ -798,10 +863,15 @@ impl RingDesignerApp {
             self.queue_rebuild();
         }
 
+        while let Ok((generation, findings)) = self.worker.detail.try_recv() {
+            if generation >= self.dfm_generation {
+                (self.dfm_generation, self.dfm) = (generation, findings);
+            }
+        }
         match self.worker.done.try_recv() {
             Ok(WorkerMsg::Failed { generation, message }) => {
                 self.in_flight = false;
-                if self.opened_building.is_some_and(|(_, g)| generation >= g) {
+                if self.opened_building.as_ref().is_some_and(|(_, g, _)| generation >= *g) {
                     self.opened_building = None;
                 }
                 if generation == self.generation {
@@ -814,7 +884,7 @@ impl RingDesignerApp {
             }
             Ok(WorkerMsg::Done(mut done)) => {
                 self.in_flight = false;
-                if self.opened_building.is_some_and(|(_, g)| done.generation >= g) {
+                if self.opened_building.as_ref().is_some_and(|(_, g, _)| done.generation >= *g) {
                     self.opened_building = None;
                 }
                 if done.generation == self.generation && self.dirty_at.is_none() {
@@ -879,8 +949,7 @@ impl RingDesignerApp {
                     if let Some(gd) = done.graph {
                         if gd.ok {
                             if let Some(lib) = gd.baked_library {
-                                self.lib = lib;
-                                self.thumbs.clear();
+                                self.adopt_library(lib);
                             }
                             // The evaluated design, under whatever the graph
                             // has become since the job was queued, and the pins as they stand.
@@ -921,8 +990,7 @@ impl RingDesignerApp {
 
         // Diffed against the last committed design, so an edit is recorded
         // however it arrived — a panel, an MCP client, a loaded file.
-        let design = self.design.clone();
-        self.history.commit_if_settled(&design);
+        self.history.commit_if_settled(&self.design);
 
         if let Some(at) = self.dirty_at {
             if self.auto_rebuild && !self.in_flight && at.elapsed() >= DEBOUNCE {
@@ -950,20 +1018,43 @@ impl RingDesignerApp {
         if self.as_cast {
             params.soften_mm = self.design.draft.min_detail_mm;
         }
+        let graph = self.parsed_graph();
+        // The worker takes the graph parsed and the design without its JSON.
+        let json = self.design.graph.take();
+        let design = self.design.clone();
+        self.design.graph = json;
         let job = Job {
             generation: self.generation,
-            design: self.design.clone(),
+            design,
             lib: self.lib.clone(),
             params,
-            graph: self.design.graph.as_ref().and_then(|j| serde_json::from_value::<Graph>(j.clone()).ok()),
+            graph,
+            seed: self.seed.take(),
             live_cuts: self.live_cuts,
             show_cutters: self.show_cutters,
             selection: self.selection.clone(),
         };
-        if self.worker.jobs.send(job).is_err() {
+        if self.worker.jobs.send(Request::Build(job)).is_err() {
             self.in_flight = false;
             self.status = "Build worker stopped".into();
         }
+        // Gives up the detail measure the worker is making, after the job is queued.
+        self.worker.measure_stop.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// The detail findings of the last build measured; the first call starts the worker measuring them, beginning with the build on screen.
+    #[cfg_attr(not(test), expect(dead_code, reason = "the report and layers panels still call findings_in"))]
+    pub fn detail_findings(&self) -> &[ringdesign_core::dfm::DfmFinding] {
+        if !self.worker.detail_wanted.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            let _ = self.worker.jobs.send(Request::Detail);
+        }
+        &self.dfm
+    }
+
+    /// The build worker's detail probe.
+    #[cfg(test)]
+    pub(crate) fn detail_probe(&self) -> Arc<DetailProbe> {
+        self.worker.probe.clone()
     }
 
     /// Reslice every cross-section on screen; one out of sight is resliced by the layout that shows it.
@@ -1193,9 +1284,9 @@ impl RingDesignerApp {
         // data and live in the shared library as rasters. Restoring the one
         // without re-deriving the other left painted metal on the band after
         // Ctrl+Z, because the old raster was still what the layers read.
-        let restored = self.design.clone();
-        restored.unpack_embedded(self.library_mut());
-        restored.bake_all(self.library_mut());
+        if let Some(lib) = ringdesign_graph::eval::baked(&self.design, &self.lib) {
+            self.adopt_library(lib);
+        }
         if self
             .selected_layer
             .is_some_and(|i| i >= self.design.layers.layers.len())
@@ -1281,9 +1372,14 @@ impl RingDesignerApp {
         Arc::make_mut(&mut self.lib)
     }
 
-    /// Drops every cached alpha preview, for a library whose alphas may have changed under their names.
-    pub(crate) fn clear_thumbnails(&mut self) {
-        self.thumbs.clear();
+    /// Takes `lib` as the library, dropping the previews of only the alphas it changed.
+    pub(crate) fn adopt_library(&mut self, lib: Arc<AlphaLibrary>) {
+        if Arc::ptr_eq(&self.lib, &lib) {
+            return;
+        }
+        let old = std::mem::replace(&mut self.lib, lib);
+        let new = &self.lib;
+        self.thumbs.retain(|name, _| matches!((old.get_shared(name), new.get_shared(name)), (Some(a), Some(b)) if Arc::ptr_eq(a, b)));
     }
 
     /// Cached grayscale preview texture for an alpha.
@@ -1402,12 +1498,24 @@ impl RingDesignerApp {
     /// history, MCP, a file, a template — anything that replaces the design
     /// replaces the graph the editor shows.
     pub fn sync_graph(&mut self) {
+        self.sync_graph_parsed(None);
+    }
+
+    /// [`sync_graph`](Self::sync_graph) with `parsed`, the graph `design.graph` reads as when it is already in hand.
+    pub(crate) fn sync_graph_parsed(&mut self, parsed: Option<&Arc<Graph>>) {
         if self.design.graph == self.graph_json {
             return;
         }
         self.graph_json = self.design.graph.clone();
-        let parsed = self.design.graph.as_ref().and_then(|j| serde_json::from_value::<Graph>(j.clone()).ok());
-        match parsed {
+        self.graph_parsed = match parsed {
+            Some(g) if self.design.graph.is_some() => Some(g.clone()),
+            _ => self.design.graph.as_ref().and_then(|j| {
+                #[cfg(test)]
+                GRAPH_READS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                <Graph as serde::Deserialize>::deserialize(j).ok()
+            }).map(Arc::new),
+        };
+        match self.graph_parsed.as_deref().cloned() {
             Some(g) => {
                 match &mut self.graph_ed {
                     Some(ed) => ed.set_graph(g, &self.graph_reg),
@@ -1526,11 +1634,29 @@ impl RingDesignerApp {
         let Some(ed) = &self.graph_ed else { return };
         let json = serde_json::to_value(ed.graph()).ok();
         let moved_only = ringdesign_core::history::graph_layout_only(self.design.graph.as_ref(), json.as_ref());
+        if !moved_only {
+            self.graph_parsed = json.is_some().then(|| Arc::new(ed.graph().clone()));
+        }
         self.design.graph = json.clone();
         self.graph_json = json;
         if !moved_only {
             self.mark_dirty();
         }
+    }
+
+    /// How many times the UI thread has read a graph from its JSON, for the tests to read.
+    #[cfg(test)]
+    pub(crate) fn graph_reads() -> usize {
+        GRAPH_READS.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// The design's graph parsed, synced first when `design.graph` has moved since the editor saw it.
+    fn parsed_graph(&mut self) -> Option<Arc<Graph>> {
+        self.design.graph.as_ref()?;
+        if self.design.graph != self.graph_json {
+            self.sync_graph();
+        }
+        self.graph_parsed.clone()
     }
 
     /// Lift the design into a graph that evaluates back to it exactly, and
@@ -1590,7 +1716,32 @@ impl RingDesignerApp {
         if let Some(ed) = &mut self.graph_ed {
             ed.arrange(&reg);
         }
-        self.graph_changed();
+        if !self.write_positions() {
+            self.graph_changed();
+        }
+    }
+
+    /// Writes the editor's node positions into `design.graph` and `graph_json` in place, which a layout-only move needs and nothing more; false, writing nothing, when either does not list the editor's nodes in its order.
+    fn write_positions(&mut self) -> bool {
+        let Some(ed) = &self.graph_ed else { return false };
+        let nodes = &ed.graph().nodes;
+        let lists = |json: &Option<serde_json::Value>| {
+            json.as_ref().and_then(|j| j.get("nodes")).and_then(serde_json::Value::as_array).is_some_and(|listed| {
+                listed.len() == nodes.len() && listed.iter().zip(nodes).all(|(v, n)| v.get("id").and_then(serde_json::Value::as_u64) == Some(n.id.0))
+            })
+        };
+        if !(lists(&self.design.graph) && lists(&self.graph_json)) {
+            return false;
+        }
+        for json in [&mut self.design.graph, &mut self.graph_json] {
+            let listed = json.as_mut().and_then(|j| j.get_mut("nodes")).and_then(serde_json::Value::as_array_mut);
+            for (v, n) in listed.into_iter().flatten().zip(nodes) {
+                if let (Some(v), Ok(pos)) = (v.as_object_mut(), serde_json::to_value(n.pos)) {
+                    v.insert("pos".into(), pos);
+                }
+            }
+        }
+        true
     }
 
     /// Jump to the node that produced the k-th layer of the stack.
@@ -1639,13 +1790,24 @@ impl RingDesignerApp {
 /// What a ghost's judge reads: the band's epoch, then the parting plane, the draft floor and the bore radius as bits.
 type JudgeKey = (u64, u64, u64, u64);
 
+/// How many times the UI thread has read a design's graph from its JSON.
+#[cfg(test)]
+static GRAPH_READS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// How many graph evaluations the build worker has run, for the tests to read.
+#[cfg(test)]
+pub(crate) static GRAPH_EVALUATIONS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
 struct Job {
     generation: u64,
+    /// The design without its graph's JSON, which the worker never reads.
     design: RingDesign,
     lib: Arc<AlphaLibrary>,
     params: BuildParams,
     /// The design's graph, evaluated before the build when present.
-    graph: Option<Graph>,
+    graph: Option<Arc<Graph>>,
+    /// A landed template's evaluation of that graph, taken in place of evaluating it again.
+    seed: Option<Box<ringdesign_workbench::templates::Seed>>,
     /// Resolve made settings into the preview mesh.
     live_cuts: bool,
     /// Stage the seats' cutters as a ghost.
@@ -1732,15 +1894,58 @@ enum WorkerMsg {
     Failed { generation: u64, message: String },
 }
 
+/// What the app asks of the build worker.
+enum Request {
+    Build(Job),
+    /// Measure the detail findings of the last build, which it skipped while nothing read them.
+    Detail,
+}
+
 struct Worker {
-    jobs: Sender<Job>,
+    jobs: Sender<Request>,
     done: Receiver<WorkerMsg>,
+    /// A built design's detail findings by generation, measured after its build is sent.
+    detail: Receiver<(u64, Vec<ringdesign_core::dfm::DfmFinding>)>,
+    /// Set by each dispatch and on drop: the worker gives up the detail measure it is making.
+    measure_stop: Arc<std::sync::atomic::AtomicBool>,
+    /// Set once something reads the detail findings; until then the worker measures none.
+    detail_wanted: Arc<std::sync::atomic::AtomicBool>,
+    /// When the worker's detail measures start and end.
+    #[cfg(test)]
+    probe: Arc<DetailProbe>,
+}
+
+impl Drop for Worker {
+    /// Disconnects the worker, then gives up the detail measure it is making.
+    fn drop(&mut self) {
+        drop(std::mem::replace(&mut self.jobs, channel().0));
+        self.measure_stop.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+/// When a worker's detail measures start and end, and a hold before each while `held` is set, for the tests to read.
+#[cfg(test)]
+#[derive(Default)]
+pub(crate) struct DetailProbe {
+    pub started: std::sync::atomic::AtomicUsize,
+    pub ended: Mutex<Option<Instant>>,
+    pub held: Mutex<bool>,
+    pub released: std::sync::Condvar,
 }
 
 impl Worker {
-    fn spawn() -> Self {
-        let (jobs_tx, jobs_rx) = channel::<Job>();
+    fn spawn(wake: egui::Context) -> Self {
+        let (jobs_tx, jobs_rx) = channel::<Request>();
         let (done_tx, done_rx) = channel::<WorkerMsg>();
+        let (detail_tx, detail_rx) = channel();
+        let measure_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stop = measure_stop.clone();
+        let detail_wanted = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let wanted = detail_wanted.clone();
+        #[cfg(test)]
+        let probe = Arc::new(DetailProbe::default());
+        #[cfg(test)]
+        let probed = probe.clone();
         std::thread::Builder::new()
             .name("ring-build".into())
             .spawn(move || {
@@ -1752,27 +1957,102 @@ impl Worker {
                 // The last band's ring frame, by the band's epoch, and the ghost's judge over it, by what it reads.
                 let mut last_band: Option<(u64, Arc<BandSurface>)> = None;
                 let mut last_judge: Option<(JudgeKey, Arc<GhostJudge>)> = None;
-                while let Ok(mut job) = jobs_rx.recv() {
-                    // Skip stale work: only the newest queued job matters.
-                    while let Ok(newer) = jobs_rx.try_recv() {
-                        job = newer;
+                // The revision of the library the host holds after the last evaluation, and the library that evaluation ran against.
+                let mut base: Option<(u64, Arc<AlphaLibrary>)> = None;
+                // A job that arrived while the last build's detail was due, taken in its place.
+                let mut next: Option<Job> = None;
+                // The last build's design and library while its detail waits for a reader.
+                let mut unmeasured: Option<(u64, RingDesign, Arc<AlphaLibrary>)> = None;
+                // Measures a built design's detail unless a build is queued, handing that build back; `Err` once the app is gone.
+                let measure = |generation: u64, design: &RingDesign, lib: &AlphaLibrary| -> Result<Option<Job>, ()> {
+                    stop.store(false, std::sync::atomic::Ordering::SeqCst);
+                    #[cfg(test)]
+                    {
+                        let mut held = probed.held.lock().unwrap_or_else(|e| e.into_inner());
+                        while *held {
+                            held = probed.released.wait(held).unwrap_or_else(|e| e.into_inner());
+                        }
                     }
+                    match jobs_rx.try_recv() {
+                        Ok(Request::Build(job)) => return Ok(Some(job)),
+                        Ok(Request::Detail) | Err(TryRecvError::Empty) => {}
+                        Err(TryRecvError::Disconnected) => return Err(()),
+                    }
+                    #[cfg(test)]
+                    probed.started.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    let measured = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        ringdesign_core::alpha::measuring_until(&stop, || ringdesign_core::dfm::findings_in(design, lib))
+                    }));
+                    #[cfg(test)]
+                    {
+                        *probed.ended.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
+                    }
+                    if let Ok(findings) = measured {
+                        if !stop.load(std::sync::atomic::Ordering::SeqCst) {
+                            let _ = detail_tx.send((generation, findings));
+                            wake.request_repaint();
+                        }
+                    }
+                    Ok(None)
+                };
+                loop {
+                    let mut job = match next.take().map(Request::Build).or_else(|| jobs_rx.recv().ok()) {
+                        None => break,
+                        Some(Request::Build(job)) => job,
+                        Some(Request::Detail) => {
+                            if let Some((generation, design, lib)) = unmeasured.take() {
+                                match measure(generation, &design, &lib) {
+                                    Ok(queued) => next = queued,
+                                    Err(()) => break,
+                                }
+                            }
+                            continue;
+                        }
+                    };
+                    // Skip stale work: only the newest queued job matters; a seed a skipped job carried still counts.
+                    while let Ok(newer) = jobs_rx.try_recv() {
+                        if let Request::Build(mut newer) = newer {
+                            newer.seed = newer.seed.or(job.seed.take());
+                            job = newer;
+                        }
+                    }
+                    unmeasured = None;
                     let generation = job.generation;
+                    // A landed template's evaluation seeds the cache the next evaluations run from.
+                    let mut evaluated = None;
+                    if let Some(seed) = job.seed.take().map(|s| *s) {
+                        let fits = job.graph.as_ref().is_some_and(|g| Arc::ptr_eq(g, &seed.graph) || **g == *seed.graph);
+                        if fits {
+                            evaluator = seed.evaluator;
+                            base = Some((job.lib.revision(), seed.base));
+                            evaluated = Some((seed.design, seed.report));
+                        }
+                    }
                     // One panic used to end the session's rebuilding: the
                     // thread died, `jobs_tx.send` failed from then on, and
                     // the app went quietly read-only. Now it is one failed
                     // build with a message.
                     let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Done, String> {
-                        // A graph-driven design is evaluated first; the library's
-                        // identity is its epoch, so a replaced library re-runs it.
+                        // The graph runs against the library before the design's own artwork while the host holds the last bake.
                         let mut graph_done = None;
                         let mut field_from_graph = None;
                         if let Some(g) = &job.graph {
-                            let epoch = Arc::as_ptr(&job.lib) as usize as u64;
-                            match evaluate_design(&mut evaluator, g, &reg, &job.lib, epoch) {
+                            let against = match &base {
+                                Some((revision, lib)) if *revision == job.lib.revision() => lib.clone(),
+                                _ => job.lib.clone(),
+                            };
+                            let out = match evaluated.take() {
+                                Some((design, report)) => Ok(ringdesign_graph::eval::judge(&mut evaluator, design, report, g, &job.lib)),
+                                None => {
+                                    #[cfg(test)]
+                                    GRAPH_EVALUATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                    ringdesign_graph::eval::evaluate_design_onto(&mut evaluator, g, &reg, &against, &job.lib)
+                                }
+                            };
+                            match out {
                                 Ok(out) => {
+                                    base = Some((out.baked_library.as_ref().unwrap_or(&job.lib).revision(), against));
                                     let mut d = (*out.design).clone();
-                                    d.graph = job.design.graph.clone();
                                     d.manufacturing = job.design.manufacturing.clone();
                                     d.casting_trials = job.design.casting_trials.clone();
                                     d.pins = job.design.pins.clone();
@@ -1927,6 +2207,7 @@ impl Worker {
                             c.clear();
                         }
                     }
+                    let built = matches!(outcome, Ok(Ok(_)));
                     let msg = match outcome {
                         Ok(Ok(done)) => WorkerMsg::Done(Box::new(done)),
                         Ok(Err(message)) => WorkerMsg::Failed { generation, message },
@@ -1942,12 +2223,28 @@ impl Worker {
                     if done_tx.send(msg).is_err() {
                         break;
                     }
+                    // The detail is measured once the build is sent and something reads it, skipped for a job already queued and given up for one dispatched while it runs.
+                    if built {
+                        if wanted.load(std::sync::atomic::Ordering::SeqCst) {
+                            match measure(generation, &job.design, &job.lib) {
+                                Ok(queued) => next = queued,
+                                Err(()) => break,
+                            }
+                        } else {
+                            unmeasured = Some((generation, job.design, job.lib));
+                        }
+                    }
                 }
             })
             .expect("spawn build worker");
         Self {
             jobs: jobs_tx,
             done: done_rx,
+            detail: detail_rx,
+            measure_stop,
+            detail_wanted,
+            #[cfg(test)]
+            probe,
         }
     }
 }

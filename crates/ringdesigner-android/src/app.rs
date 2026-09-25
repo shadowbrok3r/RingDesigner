@@ -117,10 +117,8 @@ pub struct RingApp {
     preview_gems: Vec<f32>,
     fit_next: bool,
     preview_in_flight: bool,
-    /// A template being opened off the UI thread, and whether it lands as a new design on the Ring tab.
-    opening: Option<(ringdesign_workbench::templates::Opening, bool)>,
-    /// The template that landed and the last generation dispatched before it, until a later build lands.
-    opened_building: Option<(&'static str, u64)>,
+    /// The template or design file opening off the UI thread, where it lands, and the one that landed until a later build shows it.
+    templates: ringdesign_workbench::templates::Slot<Lands>,
     live_requested: bool,
     last_preview_at: Instant,
     workshop: ringdesign_workbench::Workshop,
@@ -129,6 +127,8 @@ pub struct RingApp {
     renderer: Arc<Mutex<GpuMeshRenderer>>,
     pane: RingPane,
     worker: Option<Worker>,
+    /// Writes design files off the UI thread.
+    saver: Option<crate::worker::Saver>,
     tab: Tab,
 
     cast: Option<CastReport>,
@@ -313,8 +313,7 @@ impl RingApp {
             preview_gems: Vec::new(),
             fit_next: true,
             preview_in_flight: false,
-            opening: None,
-            opened_building: None,
+            templates: Default::default(),
             live_requested: false,
             last_preview_at: Instant::now(),
             workshop: Default::default(),
@@ -323,6 +322,7 @@ impl RingApp {
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
             pane: RingPane::default(),
             worker: None,
+            saver: None,
             tab: Tab::Ring,
             cast: None,
             field: None,
@@ -436,7 +436,9 @@ impl RingApp {
     }
 
     /// [`adopt`](Self::adopt), with `baked` as the library when the design's artwork was already baked into it off the UI thread.
+    /// A template or file still opening stops: the design it would replace is gone.
     fn adopt_with(&mut self, design: RingDesign, baked: Option<Arc<AlphaLibrary>>) {
+        self.templates.cancel();
         self.fit_next = true;
         // A new ring is framed whole: a zoom left on the last ring's detail
         // opens this one on a close-up of nothing in particular.
@@ -454,20 +456,27 @@ impl RingApp {
         if self.design.shank.kind == ringdesign_core::ShankKind::Signet {
             self.frame_head(true);
         }
-        match baked {
-            Some(lib) => self.lib = lib,
-            None => {
-                let lib = Arc::make_mut(&mut self.lib);
-                self.design.unpack_embedded(lib);
-                self.design.bake_all(lib);
-            }
+        let lib = baked.or_else(|| ringdesign_graph::eval::baked(&self.design, &self.lib));
+        if let Some(lib) = lib {
+            self.adopt_library(lib);
         }
-        self.thumbs.clear();
         self.picked_alpha = None;
         // A row index from the old stack would point at a different layer.
         self.selected_layer = None;
         self.history.reset(&self.design);
         self.mark_dirty();
+    }
+
+    /// Takes `lib` as the library, forgetting the previews of only the alphas it changed.
+    fn adopt_library(&mut self, lib: Arc<AlphaLibrary>) {
+        if Arc::ptr_eq(&self.lib, &lib) {
+            return;
+        }
+        let changed: Vec<String> = lib.changed_since(&self.lib).map(|a| a.name.clone()).collect();
+        self.lib = lib;
+        for name in changed {
+            self.thumbs.forget(&name);
+        }
     }
 
     /// Put a design the history handed back on screen without recording it as a
@@ -486,10 +495,9 @@ impl RingApp {
         let before = std::mem::replace(&mut self.design, design);
         self.stamp_window = crate::cad::stamp_after(self.stamp_window, &before.stamps, &self.design.stamps);
         self.editor.reset_selection();
-        let lib = Arc::make_mut(&mut self.lib);
-        self.design.unpack_embedded(lib);
-        self.design.bake_all(lib);
-        self.thumbs.clear();
+        if let Some(lib) = ringdesign_graph::eval::baked(&self.design, &self.lib) {
+            self.adopt_library(lib);
+        }
         self.selected_layer = None;
         self.dirty_at = Some(Instant::now());
         self.status = what.to_string();
@@ -581,13 +589,52 @@ impl RingApp {
         self.packs = crate::npu::scan_many(&[mine.as_path(), shared.as_path()]);
     }
 
+    /// Writes the design to the autosave off the UI thread.
     fn autosave(&self) {
         let Some(root) = self.data_root.as_ref() else {
             return;
         };
-        let path = root.join(AUTOSAVE);
-        if let Err(e) = library::save_design(&path, &self.design) {
-            log::warn!("autosave {}: {e}", path.display());
+        self.save_to(root.join(AUTOSAVE), crate::worker::Purpose::Autosave);
+    }
+
+    /// Queues the design as it stands to be written to `path`; [`poll_saves`](Self::poll_saves) says how it went.
+    fn save_to(&self, path: std::path::PathBuf, purpose: crate::worker::Purpose) {
+        match &self.saver {
+            Some(saver) => saver.save(path, self.design.clone(), purpose),
+            None => {
+                if let Err(e) = library::save_design(&path, &self.design) {
+                    log::warn!("save {}: {e}", path.display());
+                }
+            }
+        }
+    }
+
+    /// Takes in the writes that have landed: a save is said, a copy goes on to Downloads, an autosave only logs a failure.
+    fn poll_saves(&mut self, host: &Host) {
+        use crate::worker::Purpose;
+        while let Some(saved) = self.saver.as_ref().and_then(|s| s.poll()) {
+            match (saved.purpose, saved.result) {
+                (Purpose::Autosave, Ok(())) => {}
+                (Purpose::Autosave, Err(e)) => log::warn!("autosave {}: {e}", saved.path.display()),
+                (Purpose::Save, Ok(())) => {
+                    self.prefs.push_recent(&saved.path.to_string_lossy());
+                    self.save_prefs();
+                    self.status = format!("saved {}", saved.path.display());
+                    host.haptic(Haptic::Success);
+                }
+                (Purpose::Downloads, Ok(())) => {
+                    let name = saved.path.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+                    self.status = match host.save_to_gallery(saved.path.to_string_lossy().into_owned(), name, "application/json") {
+                        Some(folder) => format!("copy saved to {folder}"),
+                        None => "could not write to Downloads".into(),
+                    };
+                    host.haptic(Haptic::Success);
+                }
+                (Purpose::Save | Purpose::Downloads, Err(e)) => {
+                    self.status = format!("save failed: {e}");
+                    host.haptic(Haptic::Error);
+                }
+            }
         }
     }
 
@@ -628,20 +675,20 @@ impl RingApp {
         if let Some(worker) = self.worker.as_ref() {
             while let Ok((generation, error)) = worker.errors.try_recv() {
                 if generation == self.generation { self.preview_in_flight = false; self.status = error; }
-                if self.opened_building.is_some_and(|(_, g)| generation > g) { self.opened_building = None; }
+                self.templates.built(generation);
             }
             while let Some(done) = worker.poll() {
                 if done.generation != self.generation {
                     continue;
                 }
-                if self.opened_building.is_some_and(|(_, g)| done.generation > g) {
-                    self.opened_building = None;
-                }
+                self.templates.built(done.generation);
                 if let Some(mut g) = done.graph {
                     if g.ok {
                         if let Some(lib) = g.baked_library.take() {
+                            for name in lib.changed_since(&self.lib).map(|a| a.name.clone()).collect::<Vec<_>>() {
+                                self.thumbs.forget(&name);
+                            }
                             self.lib = lib;
-                            self.thumbs.clear();
                         }
                         let mut next = g.design;
                         next.name = self.design.name.clone();
@@ -1564,7 +1611,7 @@ impl RingApp {
                 for template in templates::catalog() {
                     if ui.button(template.name).clicked() {
                         let opening = ringdesign_workbench::templates::open_graph(template, self.graph.reg.clone(), self.lib.clone(), Self::opening_wake(ui.ctx()));
-                        self.start_opening(opening, false);
+                        self.start_opening(opening, Lands::Template { new_design: false });
                     }
                 }
             });
@@ -3040,15 +3087,8 @@ impl RingApp {
 
         ui.horizontal_wrapped(|ui| {
             if ui.button("Open").clicked() {
-                match library::load_design(&f.path) {
-                    Ok(d) => {
-                        self.adopt(d);
-                        self.prefs.push_recent(&key);
-                        self.save_prefs();
-                        self.status = format!("opened {}", f.stem);
-                    }
-                    Err(e) => self.status = format!("open failed: {e}"),
-                }
+                let opening = ringdesign_workbench::templates::open_file(f.path.clone(), self.lib.clone(), false, Self::opening_wake(ui.ctx()));
+                self.start_opening(opening, Lands::File { key: key.clone(), stem: f.stem.clone() });
             }
             if ui.button("Share").clicked() {
                 self.share(export::Share { path: f.path.clone(), mime: "application/json".into(), sharing: export::Sharing::new(&f.file_name, "") });
@@ -3152,11 +3192,10 @@ impl RingApp {
         self.status = format!("started from {what}");
     }
 
-    /// Opens `opening`'s template off the UI thread in place of any still opening; it lands as a new design on the Ring tab when `new_design` is set, else where the app stands.
-    fn start_opening(&mut self, opening: ringdesign_workbench::templates::Opening, new_design: bool) {
+    /// Opens `opening`'s template or file off the UI thread in place of any still opening, which stops; it lands as `lands` says.
+    fn start_opening(&mut self, opening: ringdesign_workbench::templates::Opening, lands: Lands) {
         self.status = format!("opening {}", opening.name);
-        self.opening = Some((opening, new_design));
-        self.opened_building = None;
+        self.templates.start(opening, lands);
     }
 
     /// The wake a template being opened calls as it gets further.
@@ -3165,57 +3204,35 @@ impl RingApp {
         move || ctx.request_repaint()
     }
 
-    /// Takes in a template that has opened, its artwork already baked, and shows how far one still opening has got.
+    /// Takes in a template or file that has opened, its artwork already baked, and shows how far one still opening has got.
     fn poll_template(&mut self, ctx: &egui::Context) {
-        let landed = self.opening.as_ref().and_then(|(opening, _)| opening.poll());
-        if let Some(opened) = landed {
-            let Some((opening, new_design)) = self.opening.take() else { return };
-            match opened {
-                Ok(opened) => {
-                    let lib = opened.library_for(&self.lib);
-                    self.adopt_with(opened.design, Some(lib));
-                    self.status = format!("started from {}", opening.name);
-                    self.graph.sync(&self.design);
-                    if let Some(editor) = &mut self.graph.ed {
-                        editor.arrange(&self.graph.reg);
-                    }
-                    if new_design {
-                        self.show_new_design();
-                    }
-                    self.opened_building = Some((opening.name, self.generation));
+        use ringdesign_workbench::templates::Polled;
+        match self.templates.poll(&self.lib) {
+            Polled::Idle => {}
+            Polled::Waiting(words) | Polled::Failed(words) => self.status = words,
+            Polled::Landed(mut landing) => {
+                self.adopt_with(std::mem::take(&mut landing.design), Some(landing.lib.clone()));
+                self.graph.sync(&self.design);
+                if let Some(editor) = &mut self.graph.ed {
+                    editor.arrange(&self.graph.reg);
                 }
-                Err(e) => self.status = format!("could not open {}: {e}", opening.name),
+                match &landing.lands {
+                    Lands::Template { new_design } => {
+                        self.status = format!("started from {}", landing.name);
+                        if *new_design {
+                            self.show_new_design();
+                        }
+                    }
+                    Lands::File { key, stem } => {
+                        self.prefs.push_recent(key);
+                        self.save_prefs();
+                        self.status = format!("opened {stem}");
+                    }
+                }
+                self.templates.building(&landing, self.generation);
             }
         }
-        self.template_plate(ctx);
-    }
-
-    /// The plate over the screen while a template opens and until a build shows it: how far it has got, and Cancel while it is still opening.
-    fn template_plate(&mut self, ctx: &egui::Context) {
-        use ringdesign_workbench::templates::{self, Stage};
-        let (name, stage) = match (&self.opening, self.opened_building) {
-            (Some((opening, _)), _) => (opening.name, opening.stage()),
-            (None, Some((name, _))) => (name, Stage::Building),
-            (None, None) => return,
-        };
-        let bounds = crate::theme::content_bounds(ctx);
-        let width = (bounds.width() - 32.0).clamp(160.0, 420.0);
-        let mut cancel = false;
-        egui::Area::new(egui::Id::new("template-open"))
-            .order(egui::Order::Foreground)
-            .pivot(egui::Align2::CENTER_TOP)
-            .fixed_pos(bounds.center_top() + egui::vec2(0.0, 64.0))
-            .show(ctx, |ui| {
-                egui::Frame::popup(ui.style()).show(ui, |ui| {
-                    ui.set_width(width);
-                    ui.add_sized([width, 28.0], |ui: &mut egui::Ui| templates::progress(ui, name, stage));
-                    if stage != Stage::Building {
-                        cancel = ui.add_sized([width, ringdesign_workbench::touch::TARGET_PT], egui::Button::new("Cancel")).clicked();
-                    }
-                });
-            });
-        if cancel {
-            self.opening = None;
+        if let Some(name) = self.templates.plate(ctx, crate::theme::content_bounds(ctx)) {
             self.status = format!("stopped opening {name}: the design is unchanged");
         }
     }
@@ -3391,6 +3408,8 @@ impl EguiApp for RingApp {
         }
         self.worker = Some(Worker::spawn(ctx.clone()));
         let wake = ctx.clone();
+        self.saver = Some(crate::worker::Saver::spawn(move || wake.request_repaint()));
+        let wake = ctx.clone();
         self.node_focus.worker = Some(crate::focus::Worker::spawn(move || wake.request_repaint(), crate::focus::stage));
         self.history.reset(&self.design);
         if self.design.shank.kind == ringdesign_core::ShankKind::Signet {
@@ -3410,7 +3429,16 @@ impl EguiApp for RingApp {
     fn on_pause(&mut self, _host: &Host) {
         // Keep a queued check alive so it can finish when the app resumes.
         self.history.commit(&self.design);
-        self.autosave();
+        if let Some(root) = self.data_root.as_ref() {
+            let path = root.join(AUTOSAVE);
+            let flushed = match &self.saver {
+                Some(saver) => saver.flush(&path, &self.design),
+                None => library::save_design(&path, &self.design).map_err(|e| format!("{e:#}")),
+            };
+            if let Err(e) = flushed {
+                log::warn!("autosave {}: {e}", path.display());
+            }
+        }
         self.save_prefs();
         log::info!("on_pause: design and prefs flushed");
     }
@@ -3436,6 +3464,7 @@ impl EguiApp for RingApp {
         self.sync_node_focus(ui.ctx());
         self.poll_share(host);
         self.poll_exports(host);
+        self.poll_saves(host);
         self.poll_import(host);
         self.poll_generate(host);
 
@@ -3467,6 +3496,14 @@ impl EguiApp for RingApp {
         self.hand_share(host, ui.ctx());
         self.keys.pass(ui.ctx());
     }
+}
+
+/// Where a template or design file opened off the UI thread lands.
+enum Lands {
+    /// A new design, shown on the Ring tab when set.
+    Template { new_design: bool },
+    /// The saved design `key` names, shown as `stem`.
+    File { key: String, stem: String },
 }
 
 /// First tiling inside a layer, in the order `dfm::findings_in` walks them.

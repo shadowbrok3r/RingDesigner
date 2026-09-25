@@ -6,6 +6,7 @@ use ringdesign_core::castability::Verdict;
 use ringdesign_core::{library, metal, stl, threemf};
 
 use crate::app::RingDesignerApp;
+use crate::pane::PaneKind;
 
 /// Everything an export job needs, snapshotted so the build and the write
 /// can run off the UI thread while the app keeps painting.
@@ -459,13 +460,48 @@ pub fn save_design(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    match library::save_design_embedded(&path, &app.design, &app.lib) {
-        Ok(()) => {
+    save_design_to(app, path);
+}
+
+/// Writes the design as it stands to `path` on a thread of its own; the document takes the path when the write lands.
+pub(crate) fn save_design_to(app: &mut RingDesignerApp, path: std::path::PathBuf) {
+    let (design, lib) = (app.design.clone(), app.lib.clone());
+    let (tx, rx) = std::sync::mpsc::channel();
+    let wake = app.egui_ctx.clone();
+    let target = path.clone();
+    let spawned = std::thread::Builder::new().name("design-save".into()).spawn(move || {
+        let _ = tx.send((target, library::save_design_embedded(&path, &design, &lib).map_err(|e| format!("{e:#}"))));
+        wake.request_repaint();
+    });
+    match spawned {
+        Ok(_) => {
+            app.saving = Some(rx);
+            app.set_status("Saving…");
+        }
+        Err(e) => app.set_status(format!("Save failed: {e}")),
+    }
+}
+
+/// Takes in a save that has landed: the document takes its path, or the status line says why it failed.
+pub(crate) fn poll_save(app: &mut RingDesignerApp) {
+    let Some(rx) = &app.saving else { return };
+    let landed = match rx.try_recv() {
+        Ok(landed) => landed,
+        Err(std::sync::mpsc::TryRecvError::Empty) => return,
+        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+            app.saving = None;
+            app.set_status("Save failed: the thread writing it stopped");
+            return;
+        }
+    };
+    app.saving = None;
+    match landed {
+        (path, Ok(())) => {
             app.document_path = Some(path.clone());
             app.push_recent(&path);
             app.set_status(format!("Saved {}", path.display()));
         }
-        Err(e) => app.set_status(format!("Save failed: {e}")),
+        (_, Err(e)) => app.set_status(format!("Save failed: {e}")),
     }
 }
 
@@ -477,31 +513,43 @@ pub fn open_design(app: &mut RingDesignerApp) {
     else {
         return;
     };
-    open_design_path(app, &path);
+    app.open_file(path);
 }
 
-/// Load a design file directly — the Recent menu's entry point.
+/// Load a design file on the UI thread — the Recent menu's and the command line's entry point; the dialog's opens off it.
 pub fn open_design_path(app: &mut RingDesignerApp, path: &std::path::Path) {
     match library::load_design(path) {
         Ok(d) => {
-            d.unpack_embedded(app.library_mut());
-            d.bake_all(app.library_mut());
-            let named = app.stamps_named();
-            app.design = d;
-            app.follow_stamps(named);
-            // A different file is a different session; the old timeline does
-            // not describe it.
-            app.history.reset(&app.design.clone());
-            app.selected_layer = None;
-            app.fit_pending = true;
-            app.fit_keeps_view = false;
-            app.mark_dirty();
-            app.document_path = Some(path.to_path_buf());
-            app.push_recent(path);
-            app.set_status(format!("Opened {}", path.display()));
+            let mut lib = app.lib.clone();
+            {
+                let baked = std::sync::Arc::make_mut(&mut lib);
+                d.unpack_embedded(baked);
+                d.bake_all(baked);
+            }
+            adopt_file(app, d, lib, path, None);
         }
         Err(e) => app.set_status(format!("Open failed: {e}")),
     }
+}
+
+/// The design read from `path` as the open document, with `lib`, the library its artwork is already baked into, and `graph` its graph when it was read already; a template or file still opening stops.
+pub(crate) fn adopt_file(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, lib: std::sync::Arc<ringdesign_core::AlphaLibrary>, path: &std::path::Path, graph: Option<&std::sync::Arc<ringdesign_graph::graph::Graph>>) {
+    app.drop_opening();
+    app.adopt_library(lib);
+    let named = app.stamps_named();
+    app.design = design;
+    app.follow_stamps(named);
+    // A different file is a different session; the old timeline does
+    // not describe it.
+    app.history.reset(&app.design);
+    app.selected_layer = None;
+    app.fit_pending = true;
+    app.fit_keeps_view = false;
+    app.sync_graph_parsed(graph);
+    app.mark_dirty();
+    app.document_path = Some(path.to_path_buf());
+    app.push_recent(path);
+    app.set_status(format!("Opened {}", path.display()));
 }
 
 /// Start a template from the shared collection library, opened off the UI thread.
@@ -509,20 +557,20 @@ pub fn load_catalog_template(app: &mut RingDesignerApp, t: &'static ringdesign_w
     app.open_template(t, false);
 }
 
-/// The opened template as the new design, its artwork already baked into the library it brings.
-pub(crate) fn adopt_template(app: &mut RingDesignerApp, opened: ringdesign_workbench::templates::Opened, name: &str) {
-    app.lib = opened.library_for(&app.lib);
-    app.clear_thumbnails();
-    let design = opened.design;
+/// The opened template as the new design, with `lib`, the library its artwork is already baked into.
+/// `graph` is the design's graph as the open parsed it, when it did; a template or file still opening stops.
+pub(crate) fn adopt_template(app: &mut RingDesignerApp, design: ringdesign_core::RingDesign, lib: std::sync::Arc<ringdesign_core::AlphaLibrary>, name: &str, graph: Option<&std::sync::Arc<ringdesign_graph::graph::Graph>>) {
+    app.drop_opening();
+    app.adopt_library(lib);
     app.document_path = None;
     let named = app.stamps_named();
     app.design = design;
     app.follow_stamps(named);
-    app.history.reset(&app.design.clone());
+    app.history.reset(&app.design);
     app.selected_layer = None;
     app.fit_pending = true;
     app.fit_keeps_view = false;
-    app.sync_graph();
+    app.sync_graph_parsed(graph);
     app.arrange_graph();
     app.mark_dirty();
     app.set_status(format!("New design from template: {name}"));
@@ -612,25 +660,77 @@ pub(crate) fn import_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
     }
 }
 
-/// The plate over the view while a template opens and until its first build lands: how far it has got, and Cancel while it is still opening.
+/// Widest the template plate stands.
+const TEMPLATE_PLATE_W: f32 = 420.0;
+
+/// The canvas of each view on screen: its tile less the strips its controls stand in, as laid out last frame.
+pub(crate) fn pane_canvases(app: &RingDesignerApp, ctx: &egui::Context) -> Vec<(usize, egui::Rect)> {
+    let tiles = &app.viewport_layout.tree.tiles;
+    let strip = |name: &'static str, i: usize| egui::containers::panel::PanelState::load(ctx, egui::Id::new((name, i))).map(|s| s.outer_rect);
+    tiles
+        .iter()
+        .filter_map(|(id, tile)| match tile {
+            egui_tiles::Tile::Pane(i) => Some((*i, tiles.rect(*id)?)),
+            _ => None,
+        })
+        .map(|(i, tile)| {
+            let mut canvas = tile;
+            for top in ["pane_head", "surface-context"].into_iter().filter_map(|n| strip(n, i)).filter(|r| tile.intersects(*r)) {
+                canvas.min.y = canvas.min.y.max(top.bottom());
+            }
+            for foot in ["viewport-footer", "viewport-timeline"].into_iter().filter_map(|n| strip(n, i)).filter(|r| tile.intersects(*r)) {
+                canvas.max.y = canvas.max.y.min(foot.top());
+            }
+            (i, canvas)
+        })
+        .collect()
+}
+
+/// Where the template plate stands and how wide: atop a ring view's canvas between its rail and navigator, else mid the largest canvas.
+pub(crate) fn template_plate_spot(app: &RingDesignerApp, ctx: &egui::Context) -> (egui::Pos2, egui::Align2, f32) {
+    let canvases = pane_canvases(app, ctx);
+    let solid = |i: usize| app.panes.get(i).is_some_and(|p| p.kind == PaneKind::Solid);
+    let pick = canvases
+        .iter()
+        .filter(|(i, _)| solid(*i))
+        .max_by_key(|(i, c)| (*i == app.active_pane, (c.area() as i64)))
+        .or_else(|| canvases.iter().max_by_key(|(_, c)| c.area() as i64));
+    let Some(&(i, canvas)) = pick else {
+        return (ctx.content_rect().center(), egui::Align2::CENTER_CENTER, TEMPLATE_PLATE_W);
+    };
+    // Clear of the tool rail on the left and the navigator's 110 pt on the right.
+    let (left, right) = (canvas.left() + crate::command::RAIL_W + 8.0, canvas.right() - 118.0);
+    let room = right - left;
+    if solid(i) && room >= 260.0 {
+        let below = if crate::sketch_mode::active(app) { 48.0 } else { 8.0 };
+        let width = room.min(TEMPLATE_PLATE_W);
+        return (egui::pos2(0.5 * (left + right), canvas.top() + below), egui::Align2::CENTER_TOP, width);
+    }
+    (canvas.center(), egui::Align2::CENTER_CENTER, (canvas.width() - 16.0).clamp(200.0, TEMPLATE_PLATE_W))
+}
+
+/// The plate over a view's canvas while a template opens and until its first build lands: how far it has got, and Cancel while it is still opening.
 pub(crate) fn template_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
     use ringdesign_workbench::templates::{self, Stage};
-    let (name, stage) = match (&app.opening, app.opened_building) {
-        (Some((opening, _)), _) => (opening.name, opening.stage()),
-        (None, Some((name, _))) => (name, Stage::Building),
+    let (name, progress) = match (&app.opening, &app.opened_building) {
+        (Some((opening, _)), _) => (opening.name.clone(), opening.progress()),
+        (None, Some((name, _, progress))) => (name.clone(), progress.clone()),
         (None, None) => return,
     };
+    let building = progress.stage() == Stage::Building;
+    let (at, pivot, width) = template_plate_spot(app, ctx);
     let mut cancel = false;
     egui::Area::new(egui::Id::new("template-open"))
         .order(egui::Order::Foreground)
-        .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -84.0))
+        .pivot(pivot)
+        .fixed_pos(at)
         .show(ctx, |ui| {
             egui::Frame::new().fill(crate::theme::FLOAT).corner_radius(6).inner_margin(egui::Margin::symmetric(10, 6)).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.set_width(420.0);
-                    let bar = if stage == Stage::Building { 420.0 } else { 330.0 };
-                    ui.add_sized([bar, ui.spacing().interact_size.y], |ui: &mut egui::Ui| templates::progress(ui, name, stage));
-                    if stage != Stage::Building {
+                    ui.set_width(width - 20.0);
+                    let bar = if building { width - 20.0 } else { width - 110.0 };
+                    ui.add_sized([bar, ui.spacing().interact_size.y], |ui: &mut egui::Ui| templates::progress(ui, &name, &progress));
+                    if !building {
                         cancel = ui.button("Cancel").on_hover_text("Stop opening the template; the design on screen stays").clicked();
                     }
                 });
