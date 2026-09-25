@@ -1031,9 +1031,13 @@ fn a_sketch_finishes_joined_cut_or_apart_and_a_cut_carves_the_post_it_stands_on_
     assert!(b.said().iter().any(|s| s.starts_with("Cut: the solid carves")));
     let (foot, cut_tip) = Cad::arrow(b.cad.sketch_mut().unwrap(), &v, sketch::px_per_mm(&v)).unwrap();
     assert!((cut_tip - foot).dot(joined_tip - foot) < 0.0, "the arrow points the other way: {foot:?} {cut_tip:?} {joined_tip:?}");
-    // A ring of parts alone offers no cut.
+    // A ring of parts alone offers a cut into its parts, and none once no part of it is metal.
     let mut parts_only = d.clone();
     parts_only.cad.as_mut().unwrap().features.retain(|f| !matches!(f.operation, Operation::Band));
+    assert_eq!(row(&mut b, &parts_only)[1], ("Cut", true, true));
+    for f in &mut parts_only.cad.as_mut().unwrap().features {
+        f.component.reference = true;
+    }
     assert_eq!(row(&mut b, &parts_only)[1], ("Cut", true, false));
     // Typed 0.4 deep, the cut leaves as one funnel commit and carves 1 × 1 × 0.4 mm out of the post's end.
     b.cad.serve_sketch(&v, vec![sketch::Ask::Typed("height", 0.4)]);
