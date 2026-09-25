@@ -1114,71 +1114,46 @@
     },
     {
       "id": 63,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/build/profile_steps",
-        "value": 640
-      },
+      "kind": "design.settings",
       "pos": [
         3600.0,
         0.0
-      ],
-      "label": "Preserve /build/profile_steps"
+      ]
     },
     {
       "id": 64,
-      "kind": "design.set",
+      "kind": "build.settings",
       "inputs": {
-        "pointer": "/build/theta_steps",
-        "value": 1920
+        "adaptive": false,
+        "min_wall_mm": 0.5,
+        "profile_steps": 640,
+        "soften_mm": 0.0,
+        "theta_steps": 1920
       },
       "pos": [
-        3840.0,
-        0.0
-      ],
-      "label": "Preserve /build/theta_steps"
+        0.0,
+        4950.0
+      ]
     },
     {
       "id": 65,
-      "kind": "design.set",
+      "kind": "draft.settings",
       "inputs": {
-        "pointer": "/draft/min_detail_mm",
-        "value": 0.3
+        "auto_parting": true,
+        "min_detail_mm": 0.3,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.8,
+        "parting_z_mm": 0.0,
+        "process": "SandTwoPart",
+        "sand": "DelftClay"
       },
       "pos": [
-        4080.0,
-        0.0
-      ],
-      "label": "Preserve /draft/min_detail_mm"
+        0.0,
+        5100.0
+      ]
     },
     {
       "id": 66,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/draft/min_section_mm",
-        "value": 0.8
-      },
-      "pos": [
-        4320.0,
-        0.0
-      ],
-      "label": "Preserve /draft/min_section_mm"
-    },
-    {
-      "id": 67,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/draft/sand",
-        "value": "DelftClay"
-      },
-      "pos": [
-        4560.0,
-        0.0
-      ],
-      "label": "Preserve /draft/sand"
-    },
-    {
-      "id": 68,
       "kind": "design.set",
       "inputs": {
         "pointer": "/manufacturing",
@@ -1250,16 +1225,16 @@
         }
       },
       "pos": [
-        4800.0,
+        3840.0,
         0.0
       ],
       "label": "Preserve /manufacturing"
     },
     {
-      "id": 69,
+      "id": 67,
       "kind": "sink.output",
       "pos": [
-        5040.0,
+        4080.0,
         0.0
       ]
     }
@@ -1638,19 +1613,19 @@
       "input": "design"
     },
     {
-      "from": 63,
-      "out": "design",
-      "to": 64,
-      "input": "design"
-    },
-    {
       "from": 64,
-      "out": "design",
-      "to": 65,
-      "input": "design"
+      "out": "build",
+      "to": 63,
+      "input": "build"
     },
     {
       "from": 65,
+      "out": "draft",
+      "to": 63,
+      "input": "draft"
+    },
+    {
+      "from": 63,
       "out": "design",
       "to": 66,
       "input": "design"
@@ -1659,18 +1634,6 @@
       "from": 66,
       "out": "design",
       "to": 67,
-      "input": "design"
-    },
-    {
-      "from": 67,
-      "out": "design",
-      "to": 68,
-      "input": "design"
-    },
-    {
-      "from": 68,
-      "out": "design",
-      "to": 69,
       "input": "design"
     }
   ],
@@ -1736,5 +1699,5 @@
       "name": "Shank taper"
     }
   ],
-  "next_id": 70
+  "next_id": 68
 }

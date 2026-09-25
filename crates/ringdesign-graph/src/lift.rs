@@ -408,6 +408,22 @@ pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result
         last = crate::nodes::cad::chain_document(&mut g, last, doc)?;
     }
 
+    let defaults = RingDesign::default();
+    let build = json_of(&d.build);
+    let draft = json_of(&d.draft);
+    if build != json_of(&defaults.build) || draft != json_of(&defaults.draft) {
+        let apply = g.add("design.settings")?;
+        g.connect(last, "design", apply, "design")?;
+        for (pin, kind, value, default) in [("build", "build.settings", build, json_of(&defaults.build)), ("draft", "draft.settings", draft, json_of(&defaults.draft))] {
+            if value != default {
+                let id = g.add(kind)?;
+                set_fields(&mut g, id, reg, &value, &[]);
+                g.connect(id, pin, apply, pin)?;
+            }
+        }
+        last = apply;
+    }
+
     // Evaluate what the nodes express and patch the rest.
     let report = Evaluator::new().evaluate(&g, reg, lib, 0, Targets::Node(last));
     if let Some(e) = report.errors.first() {
@@ -521,6 +537,30 @@ mod tests {
     }
 
     #[test]
+    fn a_lift_exposes_casting_criteria_and_mesh_settings_without_property_patches() {
+        use ringdesign_core::castability::{CastProcess, SandProcess};
+        let reg = Registry::builtin();
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        SandProcess::DelftClay.apply(&mut d.draft);
+        d.draft.process = CastProcess::LostWax;
+        d.draft.min_section_mm = 0.8;
+        d.draft.parting_z_mm = 0.3;
+        d.draft.auto_parting = false;
+        d.build.theta_steps = 1536;
+        d.build.profile_steps = 448;
+        d.build.refine = Some(Default::default());
+        let (mut g, got, want) = round_trip(&d, &reg, &lib).unwrap();
+        assert_eq!(got, want);
+        assert!(g.nodes.iter().all(|n| n.kind != "design.set"));
+        let node = g.nodes.iter().find(|n| n.kind == "draft.settings").unwrap().id;
+        g.set_input(node, "min_section_mm", Literal::Number(1.1)).unwrap();
+        let (edited, _) = crate::eval::design_of(&mut Evaluator::new(), &g, &reg, &lib, 0).unwrap();
+        d.draft.min_section_mm = 1.1;
+        assert_eq!(json_of(&*edited), json_of(&d));
+    }
+
+    #[test]
     fn a_lift_patches_only_the_cad_properties_its_feature_chain_cannot_replay() {
         use ringdesign_core::cad::{Component, Document, Feature, Joint, Operation};
         let reg = Registry::builtin();
@@ -567,7 +607,9 @@ mod tests {
         let pointers: Vec<String> = g.nodes.iter().filter(|n| n.kind == "design.set").filter_map(|n| n.inputs.get("pointer")).filter_map(|l| if let Literal::Text(s) = l { Some(s.clone()) } else { None }).collect();
         assert!(pointers.iter().any(|p| p.starts_with("/profile/flange")), "{pointers:?}");
         assert!(!pointers.iter().any(|p| p.contains("warp")), "warp must travel with its layer, not a stack index: {pointers:?}");
-        assert!(pointers.iter().any(|p| p.starts_with("/draft")), "{pointers:?}");
+        assert!(!pointers.iter().any(|p| p.starts_with("/draft") || p.starts_with("/build")), "{pointers:?}");
+        assert!(g.nodes.iter().any(|n| n.kind == "draft.settings" && n.inputs.get("min_draft_deg") == Some(&Literal::Number(4.5))));
+        assert!(g.nodes.iter().any(|n| n.kind == "build.settings" && n.inputs.get("theta_steps") == Some(&Literal::Int(321))));
         assert_eq!(g.nodes.iter().filter(|n| n.kind == "alpha.text").count(), 1);
         assert_eq!(g.nodes.iter().filter(|n| n.kind == "remap.terrace").count(), 1);
     }
