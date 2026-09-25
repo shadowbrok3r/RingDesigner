@@ -27,8 +27,8 @@ const MIN_REACH_MM: f64 = 3.0;
 const MIN_FACE_REACH_MM: f64 = 1.0;
 /// Lines and axes take this share of a finger's reach, so a tap between them lands on the grid.
 pub const LINE_SHARE: f64 = 0.4;
-/// Why a ring of parts alone takes no cut.
-const ALL_PARTS: &str = "The ring is all parts: a cut has no band to carve";
+/// Why a ring of parts alone with no metal among them takes no cut.
+const ALL_PARTS: &str = "The ring is all parts and none of them metal: a cut has nothing to carve";
 
 fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
@@ -788,9 +788,9 @@ impl Pad {
         }
     }
 
-    /// Chooses how the solid meets the ring; a cut is refused on a ring that is all parts, where there is no band to carve.
+    /// Chooses how the solid meets the ring; a cut is refused where no metal is there to carve.
     pub fn set_attach(&mut self, design: &RingDesign, attach: Attach) -> Outcome {
-        if attach == Attach::Cut && design.cad.as_ref().is_some_and(|d| d.replaces_band()) {
+        if attach == Attach::Cut && !ringdesign_core::parts::carvable(design) {
             return Outcome::Refused(ALL_PARTS.into());
         }
         self.attach = attach;
@@ -798,7 +798,8 @@ impl Pad {
         Outcome::Edited(
             match attach {
                 Attach::Join => "Join: the solid is united with the band and what is joined to it",
-                Attach::Cut => "Cut: the solid carves into the band and the part it stands on",
+                Attach::Cut if design.band_is_procedural() => "Cut: the solid carves into the band and the part it stands on",
+                Attach::Cut => "Cut: the solid carves into every part it reaches",
                 Attach::Separate => "Separate: the solid stands apart as a casting of its own",
             }
             .into(),
@@ -913,9 +914,10 @@ impl Pad {
                 return Err(format!("{why:#}; tap one region to make it alone"));
             }
             let (shank, fallback) = shank_for_body(design, &mut next);
-            // A ring of parts alone has no band to join to or carve.
+            // A ring of parts alone has no band to join to; a cut carves the parts it reaches.
             let attach = match (fallback, self.attach) {
-                (Attach::Separate, Attach::Cut) => return Err(ALL_PARTS.into()),
+                (Attach::Separate, Attach::Cut) if !ringdesign_core::parts::carvable(design) => return Err(ALL_PARTS.into()),
+                (Attach::Separate, Attach::Cut) => Attach::Cut,
                 (Attach::Separate, _) => Attach::Separate,
                 (_, chosen) => chosen,
             };
@@ -1624,10 +1626,36 @@ mod tests {
         let own = std::f64::consts::PI * 0.3;
         let grew = apart.mesh.volume_mm3() - before;
         assert!((grew - own).abs() < 0.02 * own, "π × 1² × 0.3 = {own:.4} mm³ beside the band: {grew}");
-        // A ring that is all parts has no band to carve.
+        // A ring of parts alone takes a cut into its parts, and one whose only part is a stone refuses it.
         let mut parts_only = boxed();
         parts_only.cad.as_mut().unwrap().features.retain(|f| !matches!(f.operation, Operation::Band));
+        assert_eq!(pad.set_attach(&parts_only, Attach::Cut), Outcome::Edited("Cut: the solid carves into every part it reaches".into()));
+        parts_only.cad.as_mut().unwrap().features[0].component.reference = true;
         assert_eq!(pad.set_attach(&parts_only, Attach::Cut), Outcome::Refused(ALL_PARTS.into()));
+    }
+
+    #[test]
+    fn a_cut_on_a_ring_of_parts_alone_carves_the_part_it_stands_on() {
+        let mut d = boxed();
+        let doc = d.cad.as_mut().unwrap();
+        doc.features.retain(|f| !matches!(f.operation, Operation::Band));
+        doc.outputs.retain(|id| *id != 1);
+        assert!(!d.band_is_procedural());
+        let (built, mut pad) = extruding(&d);
+        let before = built.mesh.volume_mm3();
+        assert!(matches!(pad.set_attach(&d, Attach::Cut), Outcome::Edited(w) if w.starts_with("Cut: the solid carves into every part it reaches")));
+        pad.typed("height", 1.0);
+        let edits = pad.edits(&d).unwrap();
+        let p = prepare(&d, &edits, built.parts.evaluated.as_ref()).unwrap().unwrap();
+        assert_eq!(p.label, "Add Sketch · Add Extrude cut", "no shank comes with it");
+        let cut = p.applied[1].id.unwrap();
+        assert_eq!(p.design.cad.as_ref().unwrap().feature(cut).unwrap().component.attach, Attach::Cut);
+        let after = mesh::build(&p.design, &AlphaLibrary::builtin(), params());
+        assert!(after.parts.notes.is_empty(), "{:?}", after.parts.notes);
+        assert_eq!((after.parts.cut, after.parts.carved.as_slice()), (1, &[2][..]));
+        let taken = before - after.mesh.volume_mm3();
+        assert!((taken - 3.0).abs() < 1e-3, "2 × 1.5 × 1 = 3 mm³ carved out of the box: {taken}");
+        assert!(after.report.validation.watertight);
     }
 
     #[test]

@@ -827,7 +827,7 @@ pub(super) fn stage_buttons(live: &mut Live, design: &ringdesign_core::RingDesig
         ],
         Stage::Extrude | Stage::Revolve { .. } => {
             let attach = live.pad.attach;
-            let cut = !design.cad.as_ref().is_some_and(|d| d.replaces_band());
+            let cut = ringdesign_core::parts::carvable(design);
             let way = |icon: Icon, label: &'static str, of: Attach, enabled: bool| (bar::Button { icon, label, checked: attach == of, enabled }, Ask::Attach(of));
             let make = if live.pad.stage == Stage::Extrude { "Extrude" } else { "Revolve" };
             vec![

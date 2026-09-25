@@ -190,8 +190,8 @@ fn placed_parts(built: &BuildResult) -> Vec<Part> {
         .collect()
 }
 
-/// Per fused face, the owning index into `parts` and its face ordinal: a part's surface, else a bead all three vertices name.
-fn owners(src: &Mesh, resolved: &crate::parts::Resolved, parts: &[Part]) -> (Vec<u32>, Vec<u32>) {
+/// Per fused face, the owning index into `parts` and its face ordinal, each vertex's part read by `named`: a part's surface, else a bead all three vertices name.
+fn owners(src: &Mesh, resolved: &crate::parts::Resolved, parts: &[Part], named: fn(&crate::parts::Resolved, u32) -> Option<Id>) -> (Vec<u32>, Vec<u32>) {
     let n = src.faces.len();
     let mut owner = vec![BAND; n];
     let mut ordinal = vec![u32::MAX; n];
@@ -203,7 +203,7 @@ fn owners(src: &Mesh, resolved: &crate::parts::Resolved, parts: &[Part]) -> (Vec
         // Candidates are the parts the face's vertices name; the surface decides between them.
         let mut candidates = [BAND; 3];
         for (k, &v) in f.iter().enumerate() {
-            if let Some(p) = src.origin.get(v as usize).and_then(|o| resolved.feature_of(*o)).and_then(|id| by_feature.get(&id)) {
+            if let Some(p) = src.origin.get(v as usize).and_then(|o| named(resolved, *o)).and_then(|id| by_feature.get(&id)) {
                 candidates[k] = *p;
             }
         }
@@ -230,10 +230,10 @@ fn owners(src: &Mesh, resolved: &crate::parts::Resolved, parts: &[Part]) -> (Vec
     (owner, ordinal)
 }
 
-/// Per fused face, the index into `built.parts.features` of the part the pick scene names; `None` for the band.
+/// Per fused face, the index into `built.parts.features` of the part it is metal of; `None` for the band. A pocket's walls are the part's.
 pub fn part_owners(built: &BuildResult) -> Vec<Option<u32>> {
     let parts = placed_parts(built);
-    let (owner, _) = owners(&built.mesh, &built.parts, &parts);
+    let (owner, _) = owners(&built.mesh, &built.parts, &parts, crate::parts::Resolved::feature_of);
     let index: Vec<Option<u32>> = parts.iter().map(|p| built.parts.features.iter().position(|f| *f == p.feature).map(|i| i as u32)).collect();
     owner.into_iter().map(|o| if o == BAND { None } else { index[o as usize] }).collect()
 }
@@ -320,7 +320,7 @@ impl PickScene {
         let mesh = Mesh { vertices: src.vertices.clone(), faces: src.faces.clone(), ..Default::default() };
         let bvh = Bvh::build(&mesh);
         let parts = placed_parts(built);
-        let (mut owner, ordinal) = owners(src, &built.parts, &parts);
+        let (mut owner, ordinal) = owners(src, &built.parts, &parts, crate::parts::Resolved::named_of);
         claim_made(src, built, &mut owner);
         let paths = &built.solids.paths;
         let seats = paths.iter().cloned().zip(seat_stations(paths)).collect();
@@ -1027,6 +1027,31 @@ mod tests {
     }
 
     #[test]
+    fn a_pockets_walls_in_a_part_set_apart_pick_as_its_cut_and_stay_the_parts_metal() {
+        let lib = AlphaLibrary::builtin();
+        let mut d = template("Court band");
+        let mut doc = Document::default();
+        let part = |id, name: &str, size: [f64; 3], attach, height| Feature { id, name: name.into(), enabled: true, operation: Operation::Box { size }, component: Component { attach, placement: Placement::ring(90.0, height), ..Component::default() } };
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        doc.append(part(2, "block", [4.0, 3.0, 2.0], Attach::Separate, 5.0)).unwrap();
+        doc.append(part(3, "pocket", [2.0, 1.5, 1.3], Attach::Cut, 5.85)).unwrap();
+        d.cad = Some(doc);
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        assert_eq!(built.parts.carved, [2]);
+        let scene = PickScene::build(&built, &d);
+        let down = ViewScale { right: [1.0, 0.0, 0.0], up: [0.0, 0.0, 1.0], px_per_mm: 10.0 };
+        let first = |x: f64| scene.pick(Ray { origin: [x, 40.0, 0.0], direction: [0.0, -1.0, 0.0] }, &down, 0.0, Filter::default()).into_iter().next().map(|p| p.entity);
+        // Down into the pocket the floor is the cut's; beside it the block's top is the block's.
+        assert!(matches!(first(0.0), Some(Entity::Face { feature: 3, .. })), "{:?}", first(0.0));
+        assert!(matches!(first(1.2), Some(Entity::Face { feature: 2, .. })), "{:?}", first(1.2));
+        // As metal every face of the block, its pocket's walls included, is the block's.
+        let block = built.parts.features.iter().position(|f| *f == 2).map(|i| i as u32);
+        let own = part_owners(&built);
+        let named = (0..scene.faces()).filter(|f| scene.feature_of_face(*f) == Some(3)).collect::<Vec<_>>();
+        assert!(!named.is_empty() && named.iter().all(|f| own[*f] == block), "{} pocket faces", named.len());
+    }
+
+    #[test]
     fn a_ring_of_parts_only_names_each_part_and_never_the_band() {
         let lib = AlphaLibrary::builtin();
         let cylinder = || Operation::Cylinder { radius_mm: 1.5, height_mm: 3.0 };
@@ -1203,7 +1228,7 @@ mod tests {
         for (name, params) in [("preview", BuildParams { theta_steps: 384, profile_steps: 144, ..BuildParams::default() }), ("export", BuildParams { theta_steps: 1024, profile_steps: 320, ..BuildParams::default() })] {
             let built = crate::mesh::try_build(&d, &lib, params).unwrap();
             let parts = placed_parts(&built);
-            let (mut owner, _) = owners(&built.mesh, &built.parts, &parts);
+            let (mut owner, _) = owners(&built.mesh, &built.parts, &parts, crate::parts::Resolved::named_of);
             let started = std::time::Instant::now();
             let claimed = claim_made(&built.mesh, &built, &mut owner);
             let claim_ms = started.elapsed().as_secs_f64() * 1e3;

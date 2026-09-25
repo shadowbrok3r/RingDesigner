@@ -347,7 +347,7 @@ fn segment_dist2(p: [f64; 3], a: [f64; 3], b: [f64; 3]) -> f64 {
 fn paint(w: &mut [f32], built: &BuildResult, target: &Sel, weight: f32) {
     let mesh = &built.mesh;
     let origin = &mesh.origin;
-    let owned = |i: usize, feature: Id| origin.get(i).and_then(|o| built.parts.feature_of(*o)) == Some(feature);
+    let owned = |i: usize, feature: Id| origin.get(i).and_then(|o| built.parts.named_of(*o)) == Some(feature);
     match target {
         Sel::Part(feature) => {
             for i in 0..w.len() {
