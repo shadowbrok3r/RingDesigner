@@ -130,6 +130,15 @@ pub struct Param {
 pub const CUTS: &[&str] = &["Round", "Oval", "Cushion", "Princess", "Emerald", "Baguette", "Pear", "Marquise", "Trillion", "Heart", "Radiant", "Asscher", "Hexagon", "HalfMoon"];
 const FORMS: &[&str] = &["Faceted", "Cabochon"];
 const STYLES: &[&str] = &["Bezel", "Claw"];
+const CLAW_STYLES: &[&str] = &["Wire", "Talon", "Fang", "Tentacle", "Thorn", "Sepal"];
+const CLAW_GROUPINGS: &[&str] = &["Even", "Feet", "Jaws"];
+const CLAW_TIPS: &[&str] = &["Dome", "Point"];
+
+/// Non-default and invalid claw choices require a reader fence; missing, null and explicit legacy defaults remain compatible.
+pub fn claw_geometry_extended(key: &str, params: &Json) -> bool {
+    matches!(key, CLAW | BASKET) && [("style", "Wire"), ("grouping", "Even"), ("tip", "Dome")].iter()
+        .any(|(key, default)| params.get(*key).is_some_and(|v| !v.is_null() && v.as_str() != Some(*default)))
+}
 
 fn number(key: &'static str, label: &'static str, unit: &'static str, min: f64, max: f64, default: f64) -> Param {
     Param { key, label, unit, min, max, kind: Kind::Number, default: json!(default) }
@@ -147,6 +156,7 @@ pub fn melee_mm(gem: Gem) -> f64 {
 pub fn schema(key: &str, gem: Gem) -> Vec<Param> {
     let prongs = whole("prongs", "Claws", 3.0, 8.0, setting::claw_count(gem, 0));
     let wire = number("wire_mm", "Wire", "mm", 0.4, 2.0, setting::prong_wire_mm(gem));
+    let choice = |key, label, names, default| Param { key, label, unit: "", min: 0.0, max: 0.0, kind: Kind::Choice(names), default };
     match key {
         STONE => vec![
             Param { key: "cut", label: "Cut", unit: "", min: 0.0, max: 0.0, kind: Kind::Choice(CUTS), default: json!(gem.cut) },
@@ -154,8 +164,16 @@ pub fn schema(key: &str, gem: Gem) -> Vec<Param> {
             number("l_mm", "Length", "mm", 0.8, 30.0, gem.l_mm),
             Param { key: "form", label: "Make", unit: "", min: 0.0, max: 0.0, kind: Kind::Choice(FORMS), default: json!(gem.form) },
         ],
-        CLAW => vec![prongs, wire],
-        BASKET => vec![prongs, wire, whole("rails", "Rails", 1.0, 6.0, 3)],
+        CLAW | BASKET => {
+            let mut params = vec![prongs, wire];
+            if key == BASKET { params.push(whole("rails", "Rails", 1.0, 6.0, 3)); }
+            params.extend([
+                choice("style", "Claw style", CLAW_STYLES, json!("Wire")),
+                choice("grouping", "Claw grouping", CLAW_GROUPINGS, json!("Even")),
+                choice("tip", "Claw tip", CLAW_TIPS, json!("Dome")),
+            ]);
+            params
+        }
         BEZEL => vec![
             number("wall_mm", "Wall", "mm", 0.25, 1.5, setting::collet_wall_mm(gem)),
             number("lip", "Lip", "of crown", 0.1, 0.8, setting::collet_lip(gem)),
@@ -746,16 +764,20 @@ pub fn build_in(key: &str, gem: Gem, params: &Json, seat: Seat, floor: Option<se
     let who = label(key);
     ensure!(spec(key).is_some(), "No builder called {key}; choose {}", SPECS.iter().map(|s| s.key).collect::<Vec<_>>().join(", "));
     let v = Values::of(key, gem, params)?;
-    let snag = |e: crate::csg::Snag| anyhow::anyhow!("{who} would not resolve: {e}");
     let clearance = bore.map(|b| move |p: P3| b.clearance(p));
     let wall: Option<setting::Wall> = clearance.as_ref().map(|c| c as setting::Wall);
     let named = match key {
         STONE => setting::envelope_named(gem, 0.0),
         CLAW | BASKET => {
             let rails = if key == CLAW { Rails::Seat } else { Rails::Basket(v.n("rails")) };
+            let options = setting::ClawOptions {
+                style: serde_json::from_value(v.0["style"].clone())?,
+                grouping: serde_json::from_value(v.0["grouping"].clone())?,
+                tip: serde_json::from_value(v.0["tip"].clone())?,
+            };
             match wall {
-                Some(w) => setting::claw_head_within(gem, v.n("prongs"), v.f("wire_mm"), rails, floor, w).map_err(|e| refused(who, e))?,
-                None => setting::claw_head_named(gem, v.n("prongs"), v.f("wire_mm"), rails, floor).map_err(snag)?,
+                Some(w) => setting::claw_head_within_styled(gem, v.n("prongs"), v.f("wire_mm"), rails, floor, w, options).map_err(|e| refused(who, e))?,
+                None => setting::claw_head_named_styled(gem, v.n("prongs"), v.f("wire_mm"), rails, floor, options).map_err(|e| refused(who, e))?,
             }
         }
         BEZEL => {
@@ -1305,6 +1327,7 @@ mod tests {
         let d = solitaire();
         let bare = crate::mesh::try_build(&court(), &lib, params()).unwrap();
         let full = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        assert!((full.report.volume_mm3 - 426.4480018530008).abs() < 1e-9, "legacy Wire/Even/Dome solitaire volume: {:.17}", full.report.volume_mm3);
         let v = &full.report.validation;
         assert!(v.watertight && v.boundary_edges == 0 && v.non_manifold_edges == 0, "{v:?}");
         assert!(full.parts.notes.is_empty(), "{:?}", full.parts.notes);
@@ -1563,7 +1586,7 @@ mod tests {
             assert_eq!(component(spec.key).attach, spec.attach);
         }
         // Defaults come off the stone: the seats' own wire and claw count, the collet's own wall.
-        assert_eq!(defaults(CLAW, round), json!({ "prongs": 4, "wire_mm": setting::prong_wire_mm(round) }));
+        assert_eq!(defaults(CLAW, round), json!({ "prongs": 4, "wire_mm": setting::prong_wire_mm(round), "style": "Wire", "grouping": "Even", "tip": "Dome" }));
         assert_eq!(defaults(CLAW, Gem::calibrated(GemCut::Marquise, 4.0))["prongs"], 6);
         assert_eq!(defaults(BEZEL, round)["wall_mm"], setting::collet_wall_mm(round));
         assert!((defaults(HALO, round)["melee_mm"].as_f64().unwrap() - 1.3).abs() < 1e-12);
@@ -1595,6 +1618,43 @@ mod tests {
             let bur = features.iter().find(|f| matches!(&f.operation, Operation::Builder { key, .. } if key == BUR)).unwrap();
             assert_eq!((bur.component.attach, bur.component.stage), (Attach::Cut, Stage::Bench), "{}", s.key);
         }
+    }
+
+    #[test]
+    fn claw_choices_are_checked_dispatched_and_fenced_without_changing_stone_form() {
+        let gem = Gem::calibrated(GemCut::Oval, 6.5);
+        for key in [CLAW, BASKET] {
+            for style in CLAW_STYLES {
+                for grouping in CLAW_GROUPINGS {
+                    for tip in CLAW_TIPS {
+                        let p = json!({"style": style, "grouping": grouping, "tip": tip, "prongs": 5});
+                        assert_eq!(check_params(key, gem, &p), Ok(()));
+                        assert_eq!(claw_geometry_extended(key, &p), *style != "Wire" || *grouping != "Even" || *tip != "Dome");
+                        let made = build(key, gem, &p, Seat::default(), None).unwrap_or_else(|e| panic!("{key} {p}: {e}"));
+                        assert_eq!(made.count("Claw "), 5);
+                        let options = setting::ClawOptions {
+                            style: serde_json::from_value(json!(style)).unwrap(),
+                            grouping: serde_json::from_value(json!(grouping)).unwrap(),
+                            tip: serde_json::from_value(json!(tip)).unwrap(),
+                        };
+                        let rails = if key == CLAW { Rails::Seat } else { Rails::Basket(3) };
+                        let expected = setting::claw_head_named_styled(gem, 5, setting::prong_wire_mm(gem), rails, None, options).unwrap();
+                        assert_eq!(made.solid().v, expected.solid.v); assert_eq!(made.solid().f, expected.solid.f);
+                    }
+                }
+            }
+            for p in [Json::Null, json!({}), json!({"style": "Wire", "grouping": "Even", "tip": "Dome"}), json!({"style": null, "grouping": null, "tip": null})] {
+                assert!(!claw_geometry_extended(key, &p));
+            }
+            for p in [json!({"style": "Hook"}), json!({"grouping": false}), json!({"tip": 1})] {
+                assert!(claw_geometry_extended(key, &p));
+                assert!(check_params(key, gem, &p).is_err());
+            }
+        }
+        assert!(!claw_geometry_extended(STONE, &json!({"style": "Talon", "form": "Cabochon"})));
+        let form = schema(STONE, gem).into_iter().find(|p| p.key == "form").unwrap();
+        assert_eq!(form.kind, Kind::Choice(FORMS));
+        assert_eq!(form.default, json!("Faceted"));
     }
 
     /// Build costs for the report: `cargo test -p ringdesign-core measured_builders -- --ignored --nocapture`.
