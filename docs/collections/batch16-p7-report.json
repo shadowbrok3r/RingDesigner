@@ -1,0 +1,166 @@
+{
+  "scope": "Batch16 P7 template nodes and compact stock references",
+  "source_commit": "8ebe91a",
+  "generators": {
+    "imported_templates": {
+      "exit_code": 0,
+      "source_and_export_geometry_identical": true
+    },
+    "showcase_templates --write": {
+      "exit_code": 0,
+      "source_and_export_geometry_identical": true
+    },
+    "reptilia_templates": {
+      "exit_code": 0,
+      "source_and_export_geometry_identical": true
+    }
+  },
+  "templates": [
+    {
+      "template": "aurelia-imported.graph.json",
+      "bytes_before": 12662865,
+      "bytes_after": 12662191,
+      "nodes": 86,
+      "design_set_paths": [
+        "/imported_base",
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    },
+    {
+      "template": "caiman-imported.graph.json",
+      "bytes_before": 12677177,
+      "bytes_after": 2589669,
+      "nodes": 60,
+      "design_set_paths": [
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    },
+    {
+      "template": "ecdysis-reptilia.graph.json",
+      "bytes_before": 4187280,
+      "bytes_after": 4187178,
+      "nodes": 18,
+      "design_set_paths": [
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    },
+    {
+      "template": "lorica-reptilia.graph.json",
+      "bytes_before": 4022059,
+      "bytes_after": 4021957,
+      "nodes": 18,
+      "design_set_paths": [
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    },
+    {
+      "template": "nocturne-imported.graph.json",
+      "bytes_before": 3753155,
+      "bytes_after": 1856733,
+      "nodes": 113,
+      "design_set_paths": [
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    },
+    {
+      "template": "ophidian-reptilia.graph.json",
+      "bytes_before": 10047148,
+      "bytes_after": 4061287,
+      "nodes": 26,
+      "design_set_paths": [
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    },
+    {
+      "template": "saurian-imported.graph.json",
+      "bytes_before": 7970258,
+      "bytes_after": 1983825,
+      "nodes": 22,
+      "design_set_paths": [
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    },
+    {
+      "template": "solstice-imported.graph.json",
+      "bytes_before": 13461330,
+      "bytes_after": 13460656,
+      "nodes": 70,
+      "design_set_paths": [
+        "/imported_base",
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    },
+    {
+      "template": "tessera-reptilia.graph.json",
+      "bytes_before": 4208705,
+      "bytes_after": 4208603,
+      "nodes": 18,
+      "design_set_paths": [
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    },
+    {
+      "template": "varanus-reptilia.graph.json",
+      "bytes_before": 12681512,
+      "bytes_after": 3894191,
+      "nodes": 21,
+      "design_set_paths": [
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    },
+    {
+      "template": "vesper-imported.graph.json",
+      "bytes_before": 3750232,
+      "bytes_after": 1860295,
+      "nodes": 188,
+      "design_set_paths": [
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    },
+    {
+      "template": "zenith-imported.graph.json",
+      "bytes_before": 9086959,
+      "bytes_after": 274841,
+      "nodes": 76,
+      "design_set_paths": [
+        "/manufacturing"
+      ],
+      "exact_export_geometry": true
+    }
+  ],
+  "open_probe": {
+    "template": "caiman-imported",
+    "milliseconds": {
+      "unpack": 7,
+      "read": 8,
+      "evaluate": 90,
+      "bake": 7,
+      "bake_again": 0.6,
+      "detail": 4893,
+      "detail_again": 26.7,
+      "first_build": 113,
+      "first_verdict": 28,
+      "rebuild": 2.3
+    },
+    "artwork_mtexels": 7.86,
+    "concurrent_builds": true
+  },
+  "notes": [
+    "Design format6 and graph format2 are existing unreleased fences; no version bump.",
+    "Caiman is below the P7 3MB budget with only its manufacturing patch.",
+    "Solstice and Aurelia retain inline sources because their saved meshes differ from current stock masters; source and export geometry remain exact.",
+    "Timing was measured with parallel build activity and does not establish a speedup.",
+    "Full workspace checks are in progress; results will be recorded before master integration."
+  ]
+}
