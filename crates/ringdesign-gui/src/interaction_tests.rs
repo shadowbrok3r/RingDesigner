@@ -1275,6 +1275,107 @@ fn a_design_opened_after_a_fit_opens_whole_at_zoom_one_about_its_middle() {
     assert!(within_depth(&cam, rect, ring));
 }
 
+#[test]
+fn an_applied_operation_after_a_fit_keeps_the_post_on_screen_about_the_rings_middle() {
+    use ringdesign_workbench::viewport::Sel;
+    let mut h = harness();
+    let pane = on_one_ring_view(&mut h, guided_post());
+    looking(&mut h, pane, 0.3, 0.35);
+    h.state_mut().selection.items = vec![Sel::Part(2)];
+    fit_from_menu(&mut h, pane);
+    let build = h.state().build.clone().unwrap();
+    let (ring_mid, _) = ball(build.mesh.bounds().unwrap());
+    let (post_mid, _) = ball(build.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 2).unwrap().mesh.bounds().unwrap());
+    let before = h.state().panes[pane].camera;
+    assert!(before.zoom > 8.0 && near(before.target, post_mid, 1e-4) && !near(before.target, ring_mid, 5.0), "framed about the post: {} {:?}", before.zoom, before.target);
+    // With no view chosen, the guide's next operation lands and keeps the reader's framing.
+    h.state_mut().selection.items.clear();
+    h.state_mut().construction.open = true;
+    h.run_steps(3);
+    h.get_by_label("Continue this design").click();
+    h.run_steps(3);
+    h.get_by_label("Apply operation").click();
+    h.run_steps(3);
+    assert!(h.state().fit_pending && h.state().fit_keeps_view);
+    land(&mut h);
+    let build = h.state().build.clone().unwrap();
+    let (applied, _) = ball(build.mesh.bounds().unwrap());
+    let (post, _) = ball(build.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 2).unwrap().mesh.bounds().unwrap());
+    let rect = ring_rect(&h);
+    let cam = h.state().panes[pane].camera;
+    assert_eq!((cam.zoom, cam.yaw, cam.pitch), (before.zoom, before.yaw, before.pitch));
+    assert!(near(cam.target, applied, 1e-4), "it orbits the ring's middle again: {:?} against {applied:?}", cam.target);
+    // The post stays where the reader framed it, and the empty bore is nowhere near the middle of the view.
+    let at = cam.projector(rect).at(post);
+    assert!((at - rect.center()).length() < 0.2 * rect.height(), "the post at {at:?} in {rect:?}");
+    assert!((cam.projector(rect).at(applied) - rect.center()).length() > rect.height(), "the ring's middle stands off screen");
+}
+
+#[test]
+fn a_new_design_opened_while_a_fit_is_still_turning_opens_whole_and_stays() {
+    use ringdesign_workbench::viewport::Sel;
+    let mut h = harness();
+    let pane = on_one_ring_view(&mut h, posted());
+    looking(&mut h, pane, 0.3, 0.35);
+    h.state_mut().selection.items = vec![Sel::Part(2)];
+    crate::viewport::fit_view(h.state_mut(), pane);
+    let turn = h.state().panes[pane].turn.expect("Fit view turns toward the post");
+    assert!(turn.to.zoom > 8.0, "{}", turn.to.zoom);
+    crate::panels::Command::New.run(h.state_mut());
+    h.state_mut().rebuild_now();
+    // Every frame until the build lands starts with the Fit still turning.
+    let start = std::time::Instant::now();
+    while h.state().is_building() {
+        h.state_mut().panes[pane].turn = Some(ringdesign_workbench::focus::Turn::new(turn.from, turn.to));
+        h.run_steps(1);
+        assert!(start.elapsed() < std::time::Duration::from_secs(30), "the ring never built");
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let whole = |h: &Harness<'static, RingDesignerApp>| {
+        let (mid, r) = ball(h.state().build.as_ref().unwrap().mesh.bounds().unwrap());
+        let cam = h.state().panes[pane].camera;
+        assert!(h.state().panes[pane].turn.is_none(), "the landing stops the turn");
+        assert_eq!((cam.zoom, cam.pan), (1.0, [0.0; 2]));
+        assert!(near(cam.target, mid, 1e-4) && (cam.half_extent() - 1.15 * r).abs() < 1e-3, "{:?} against {mid:?}, {} for {r}", cam.target, cam.half_extent());
+    };
+    whole(&h);
+    // Past the turn's own length nothing carries the view back toward the post.
+    std::thread::sleep(std::time::Duration::from_secs_f32(ringdesign_workbench::focus::Turn::SECONDS + 0.1));
+    h.run_steps(4);
+    whole(&h);
+}
+
+#[test]
+fn a_cylinder_clicked_out_on_the_spot_takes_the_tools_default_size() {
+    use ringdesign_core::cad::Operation;
+    let mut h = harness();
+    let court = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+    let r = court.inner_radius_mm() + court.profile.thickness_mm;
+    let pane = on_one_ring_view(&mut h, court);
+    let rect = looking(&mut h, pane, std::f32::consts::FRAC_PI_2, 0.0);
+    let a = 70f64.to_radians();
+    let at = h.state().panes[pane].camera.projector(rect).at([(r * a.cos()) as f32, (r * a.sin()) as f32, 0.0]);
+    h.hover_at(at);
+    h.run_steps(2);
+    h.key_press_modifiers(egui::Modifiers::SHIFT, egui::Key::A);
+    h.run_steps(3);
+    h.get_by_label("Cylinder").click();
+    h.run_steps(3);
+    assert_eq!(h.state().command.session.command().map(|c| c.key()), Some("add-cylinder"));
+    // The base clicked, then the size and the height clicked a point off it: both stay the tool's own.
+    click_at(&mut h, at, egui::PointerButton::Primary, egui::Modifiers::NONE);
+    assert_eq!(h.state().command.session.command().map(|c| c.step()), Some(1), "the click seated the base");
+    let nudged = at + egui::vec2(1.0, 0.0);
+    h.hover_at(nudged);
+    h.run_steps(2);
+    click_at(&mut h, nudged, egui::PointerButton::Primary, egui::Modifiers::NONE);
+    assert_eq!(h.state().command.session.command().map(|c| c.step()), Some(2), "the second click fixed the radius");
+    click_at(&mut h, nudged, egui::PointerButton::Primary, egui::Modifiers::NONE);
+    assert_eq!(h.state().command.session.command().map(|c| c.key()), None);
+    let cyl = h.state().design.cad.as_ref().and_then(|d| d.features.iter().find(|f| f.name == "Cylinder")).cloned().expect("the cylinder");
+    assert!(matches!(cyl.operation, Operation::Cylinder { radius_mm, height_mm } if radius_mm == 1.0 && height_mm == 1.0), "{:?}", cyl.operation);
+}
+
 /// Rebuilds now and steps until the build has landed.
 fn land(h: &mut Harness<'static, RingDesignerApp>) {
     h.state_mut().rebuild_now();
@@ -1372,6 +1473,50 @@ fn cad_fit_from_menu(h: &mut Harness<'static, RingDesignerApp>, ring: &ringdesig
     settle_cad(h);
 }
 
+/// The Fit button on the CAD pane's footer, settled.
+fn cad_footer_fit(h: &mut Harness<'static, RingDesignerApp>) {
+    let (canvas, _) = h.state().cad.canvas_scale();
+    h.query_all_by_label("Camera and display").find(|n| n.rect().top() > canvas.bottom()).expect("the footer's Fit").click();
+    h.run_steps(2);
+    settle_cad(h);
+}
+
+#[test]
+fn the_cad_panes_fit_view_frames_the_part_a_history_pick_became() {
+    use ringdesign_core::cad::{Attach, Component, Feature, Operation, Placement};
+    let mut h = sized([1600., 980.]);
+    {
+        let app = h.state_mut();
+        let mut d = posted();
+        let doc = d.cad.as_mut().unwrap();
+        let stud = Component { attach: Attach::Separate, placement: Placement::ring(270.0, 3.0), ..Component::default() };
+        doc.append(Feature { id: 3, name: "Stud".into(), enabled: true, operation: Operation::Box { size: [1.0; 3] }, component: stud.clone() }).unwrap();
+        doc.append(Feature { id: 4, name: "Stud raised".into(), enabled: true, operation: Operation::Transform { source: 3, translation: [0.0, 0.0, 1.0], rotation_deg: [0.0; 3] }, component: stud }).unwrap();
+        app.design = d;
+        app.history.commit(&app.design);
+        app.rebuild_now();
+    }
+    wait_for_build(&mut h);
+    h.state_mut().switch_desktop(crate::dock::Desktop::Cad);
+    wait_for_cad(&mut h);
+    assert!(h.state().cad.drawn_bounds(3).is_none(), "the box is consumed by its move");
+    let (mid, r) = ball(h.state().cad.drawn_bounds(4).expect("the raised stud as drawn"));
+    let build = h.state().build.clone().unwrap();
+    let (ring_mid, _) = ball(build.mesh.bounds().unwrap());
+    // The box chosen in the history frames the stud it became, from the canvas's menu.
+    h.state_mut().cad.choose_feature(3);
+    cad_fit_from_menu(&mut h, &build.mesh);
+    assert_eq!(h.state().status, "Fit view: Stud raised, as chosen");
+    let (cam, _) = h.state().cad.view_camera();
+    assert!(near(cam.target, mid, 1e-4) && cam.pan[0].abs() < 1e-4 && cam.pan[1].abs() < 1e-4, "{:?} {:?} against {mid:?}", cam.target, cam.pan);
+    assert!((cam.half_extent() - 1.15 * r).abs() < 1e-3, "{} for {r}", cam.half_extent());
+    // The footer's Fit brings all the metal back with the box still chosen.
+    cad_footer_fit(&mut h);
+    assert_eq!(h.state().status, "Fit view: the whole ring");
+    let (cam, _) = h.state().cad.view_camera();
+    assert!((cam.zoom - 1.0).abs() < 1e-4 && near(cam.target, ring_mid, 0.05), "{} {:?} against {ring_mid:?}", cam.zoom, cam.target);
+}
+
 #[test]
 fn the_cad_panes_fit_view_frames_the_chosen_part_else_all_the_metal_shown() {
     let mut h = sized([1600., 980.]);
@@ -1412,9 +1557,7 @@ fn the_cad_panes_fit_view_frames_the_chosen_part_else_all_the_metal_shown() {
     assert!(near(cam.target, ring_mid, 0.05) && cam.pan[0].abs() < 1e-4 && cam.pan[1].abs() < 1e-4, "{:?} {:?} against {ring_mid:?}", cam.target, cam.pan);
     assert!((cam.zoom - framed).abs() < 1e-4);
     // The footer's Fit brings all the metal back, the post still chosen: zoom 1 about its middle.
-    h.query_all_by_label("Camera and display").find(|n| n.rect().top() > canvas.bottom()).expect("the footer's Fit").click();
-    h.run_steps(2);
-    settle_cad(&mut h);
+    cad_footer_fit(&mut h);
     assert_eq!(h.state().status, "Fit view: the whole ring");
     let (cam, _) = h.state().cad.view_camera();
     assert!((cam.zoom - 1.0).abs() < 1e-4 && cam.pan[0].abs() < 1e-4 && cam.pan[1].abs() < 1e-4 && near(cam.target, ring_mid, 0.05), "{} {:?} {:?}", cam.zoom, cam.pan, cam.target);

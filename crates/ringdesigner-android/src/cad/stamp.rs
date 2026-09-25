@@ -46,7 +46,7 @@ fn bands(view: Rect, covered: &[Rect]) -> Vec<(f32, f32)> {
     bands
 }
 
-/// The band across `view` a window `size` points big stands in: of those clear of the `floating` and `fixed` rects its width meets, the lowest that holds it, else the tallest that holds `least`, else from under `fixed` to the view's foot and at least `least` tall.
+/// The band across `view` a window `size` points big stands in: of those clear of the `floating` and `fixed` rects its width meets, the lowest that holds it, else the tallest that holds `least`, else from under `fixed` to the view's foot, raised to hold `least` inside the view where the view is that tall and the whole view where it is not.
 pub fn room(view: Rect, floating: &[Rect], fixed: &[Rect], size: Vec2, least: f32) -> Rect {
     let reach = view.left() + GAP_PT + size.x;
     let meets = |r: &&Rect| r.intersects(view) && r.left() < reach;
@@ -55,8 +55,8 @@ pub fn room(view: Rect, floating: &[Rect], fixed: &[Rect], size: Vec2, least: f3
     let bands = bands(view, &all);
     let tallest = bands.iter().copied().filter(|(lo, hi)| hi - lo >= least).max_by(|a, b| (a.1 - a.0).total_cmp(&(b.1 - b.0)));
     let (lo, hi) = bands.iter().rev().copied().find(|(lo, hi)| hi - lo >= size.y + GAP_PT).or(tallest).unwrap_or_else(|| {
-        let top = fixed.iter().map(|r| r.bottom() + GAP_PT).fold(view.top(), f32::max);
-        (top, view.bottom().max(top + least))
+        let under = fixed.iter().map(|r| r.bottom() + GAP_PT).fold(view.top(), f32::max);
+        (under.min(view.bottom() - least).max(view.top()), view.bottom())
     });
     Rect::from_x_y_ranges(view.x_range(), lo..=hi)
 }
@@ -139,9 +139,12 @@ mod tests {
         let phone = Rect::from_min_size(pos2(0.0, vt), vec2(411.0, 337.0));
         let (tools, cube) = (Rect::from_min_size(pos2(4.0, vt + 8.0), vec2(92.0, 340.0)), Rect::from_min_size(pos2(298.0, vt + 10.0), vec2(106.0, 173.0)));
         assert_eq!(room(phone, &[tools], &[cube], vec2(340.0, 255.0), least), Rect::from_x_y_ranges(phone.x_range(), vt + 191.0..=vt + 337.0));
-        // Too short under the navigator for the least window: under it all the same, past the view's foot.
+        // Too short under the navigator for the least window: the least window at the view's foot, over the navigator's.
         let stub = Rect::from_min_size(pos2(0.0, 100.0), vec2(420.0, 250.0));
-        assert_eq!(room(stub, &[rail], &[navigator], size, least), Rect::from_x_y_ranges(stub.x_range(), 308.0..=416.0));
+        assert_eq!(room(stub, &[rail], &[navigator], size, least), Rect::from_x_y_ranges(stub.x_range(), 242.0..=350.0));
+        // Landscape with the keypad up: a view shorter than the navigator's foot and than the least window keeps the window inside it.
+        let landscape = Rect::from_min_size(pos2(0.0, 60.0), vec2(420.0, 96.0));
+        assert_eq!(room(landscape, &[rail], &[navigator], size, least), landscape);
     }
 
     #[test]
@@ -171,6 +174,31 @@ mod tests {
         assert_eq!(quiet, std::time::Duration::MAX, "{passes:?}");
         assert!(!fitted.intersects(navigator) && shorter.contains_rect(fitted), "{fitted:?}");
         assert!(fitted.height() < scrolling.height() - 40.0, "{fitted:?}");
+    }
+
+    #[test]
+    fn in_landscape_with_the_keypad_up_the_window_stays_inside_the_view() {
+        let ctx = egui::Context::default();
+        crate::theme::apply(&ctx);
+        let mut stamp = Stamp { name: "Moon".into(), theta_deg: 44.6, v_mm: 8.01, rot_deg: 180.0, outline: vec![[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0]], height_mm: 0.34, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false };
+        // The view shorter than the navigator's foot, and the navigator within the window's reach.
+        let view = Rect::from_min_size(pos2(0.0, 60.0), vec2(420.0, 150.0));
+        let navigator = Rect::from_min_size(pos2(300.0, 70.0), vec2(106.0, 173.0));
+        let rail = Rect::from_min_size(pos2(4.0, 68.0), vec2(92.0, 340.0));
+        let mut pass = || {
+            let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(891.0, 411.0))), ..Default::default() };
+            let mut out = ctx.run_ui(input, |ui| {
+                show(ui.ctx(), view, Over { floating: &[rail], rail: None, fixed: &[navigator] }, &mut stamp);
+            });
+            out.textures_delta.clear();
+            ctx.memory(|m| m.area_rect(id())).unwrap()
+        };
+        for _ in 0..30 {
+            pass();
+        }
+        let window = pass();
+        assert!(view.contains_rect(window), "{window:?} inside {view:?}");
+        assert!(window.bottom() <= view.bottom() - GAP_PT + 0.5, "{window:?} pinned above the view's foot");
     }
 
     #[test]

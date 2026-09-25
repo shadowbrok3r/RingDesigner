@@ -51,7 +51,7 @@ pub const PLAIN_FORMAT_VERSION: u32 = 5;
 
 /// The version `design` is written at: the newest when it carries a stored mesh or a revolution read in its sketch's plane, in its document or in its graph.
 pub fn format_version_for(design: &RingDesign) -> u32 {
-    if crate::cad::stored::carried_by(design) || crate::cad::turns_in_plane(design) { FORMAT_VERSION } else { PLAIN_FORMAT_VERSION }
+    if crate::cad::stored::carried_by(design) || crate::cad::turns_in_plane(design) || crate::parts::cuts_apart(design) { FORMAT_VERSION } else { PLAIN_FORMAT_VERSION }
 }
 
 /// Version stamped into saved profile and outline files.

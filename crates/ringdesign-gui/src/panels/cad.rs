@@ -630,11 +630,24 @@ fn drawn_part(state: &CadState, id: u64) -> Option<((ringdesign_core::Vec3, ring
     Some(((ringdesign_core::Vec3(lo.0, lo.1, lo.2 + dz), ringdesign_core::Vec3(hi.0, hi.1, hi.2 + dz)), c.name.clone()))
 }
 
-/// Eases the view onto the chosen part as drawn when `chosen` and there is one, else all the metal drawn, the pivot moved onto its middle.
+/// The drawn part a feature chosen in the history stands for: its own, else the part that feature became by the features consuming it.
+fn chosen_part(state: &CadState, id: u64) -> Option<((ringdesign_core::Vec3, ringdesign_core::Vec3), String)> {
+    let doc = state.view.as_ref()?.design.cad.as_ref();
+    let mut at = id;
+    for _ in 0..=doc.map_or(0, |d| d.features.len()) {
+        if let Some(part) = drawn_part(state, at) {
+            return Some(part);
+        }
+        at = doc?.features.iter().find(|f| f.enabled && f.operation.consumes().contains(&at))?.id;
+    }
+    None
+}
+
+/// Eases the view onto the part chosen in the history as drawn when `chosen` and there is one, else all the metal drawn, the pivot moved onto its middle.
 fn fit_view(state: &mut CadState, chosen: bool) -> Option<ringdesign_workbench::touch::view::Framed> {
     use ringdesign_workbench::touch::view::Framed;
     let shown = upload(state, false)?;
-    let part = state.selected.filter(|_| chosen).and_then(|id| drawn_part(state, id.0));
+    let part = state.selected.filter(|_| chosen).and_then(|id| chosen_part(state, id.0));
     let alone = state.isolated.and_then(|id| drawn_part(state, id));
     state.camera.refit(shown);
     let (bounds, framed) = match (part, alone) {

@@ -834,14 +834,18 @@ pub struct AddPrimitiveCmd {
     snapped: Option<String>,
 }
 const MIN_DRAG_MM: f64 = 0.05;
+/// A primitive's size and height before either is dragged or typed, mm.
+const DEFAULT_SIZE_MM: f64 = 1.0;
+/// A box's or cylinder's size or height dragged less than this from its centre stays at [`DEFAULT_SIZE_MM`].
+const REST_BELOW_MM: f64 = 0.2;
 impl AddPrimitiveCmd {
     /// `id` is the feature id the added part takes; the integrator allocates it.
     pub fn new(kind: Primitive, id: u64) -> Self {
         let dofs = vec![
             Dof::new(Axis::Theta, "theta", "θ", Unit::Deg, 90.0),
             Dof::new(Axis::Across, "across", "Across", Unit::Mm, 0.0),
-            Dof::size(Axis::X, "radius", if kind == Primitive::Box { "Half-size" } else { "Radius" }, 1.0),
-            Dof::size(Axis::Z, "height", "Height", 1.0),
+            Dof::size(Axis::X, "radius", if kind == Primitive::Box { "Half-size" } else { "Radius" }, DEFAULT_SIZE_MM),
+            Dof::size(Axis::Z, "height", "Height", DEFAULT_SIZE_MM),
         ];
         Self { kind, id, step: 0, centre: None, world: [0.0; 3], dofs, snapped: None }
     }
@@ -932,7 +936,11 @@ impl ViewCommand for AddPrimitiveCmd {
                         self.dofs[1].pointer = across_mm;
                         self.snapped = snapped.as_ref().map(|s| s.label.clone());
                     }
-                    (n, Some(c)) => self.dofs[if n == 1 { 2 } else { 3 }].pointer = dist(world, c).max(MIN_DRAG_MM),
+                    (n, Some(c)) => {
+                        let d = dist(world, c);
+                        let rests = self.has_height() && d < REST_BELOW_MM;
+                        self.dofs[if n == 1 { 2 } else { 3 }].pointer = if rests { DEFAULT_SIZE_MM } else { d.max(MIN_DRAG_MM) };
+                    }
                     (_, None) => {}
                 }
                 Outcome::Continue
@@ -1498,6 +1506,54 @@ mod tests {
         assert!(matches!(f.operation, Operation::Sphere { radius_mm } if close(radius_mm, 0.75)));
         assert_eq!(f.component.placement.theta_deg(), Some(180.0));
         assert!(matches!(AddPrimitiveCmd::new(Primitive::Sphere, 9).feed(&StepInput::Back), Outcome::Cancelled));
+    }
+
+    #[test]
+    fn a_box_or_cylinder_barely_dragged_keeps_its_default_size_on_both_apps() {
+        // The desktop: the size and the height clicked 0.136 mm off the centre.
+        for kind in [Primitive::Box, Primitive::Cylinder] {
+            let mut c = AddPrimitiveCmd::new(kind, 8);
+            c.feed(&at([0.0, 9.5, 0.0]));
+            c.feed(&StepInput::Click);
+            c.feed(&at([0.136, 9.5, 0.0]));
+            assert_eq!(values(&c), [("radius", DEFAULT_SIZE_MM, false), ("height", DEFAULT_SIZE_MM, false)], "{kind:?}");
+            c.feed(&StepInput::Click);
+            c.feed(&at([0.0, 9.5, 0.136]));
+            let f = added(c.feed(&StepInput::Click));
+            match kind {
+                Primitive::Box => assert!(matches!(f.operation, Operation::Box { size: [2.0, 2.0, 1.0] }), "{:?}", f.operation),
+                _ => assert!(matches!(f.operation, Operation::Cylinder { radius_mm: 1.0, height_mm: 1.0 }), "{:?}", f.operation),
+            }
+            // A drag past the rest distance sizes it as ever.
+            let mut c = AddPrimitiveCmd::new(kind, 8);
+            c.feed(&at([0.0, 9.5, 0.0]));
+            c.feed(&StepInput::Click);
+            c.feed(&at([REST_BELOW_MM, 9.5, 0.0]));
+            assert_eq!(values(&c)[0], ("radius", REST_BELOW_MM, false), "{kind:?}");
+        }
+        // A sphere keeps the pointer's distance.
+        let mut s = AddPrimitiveCmd::new(Primitive::Sphere, 9);
+        s.feed(&at([0.0, 9.5, 0.0]));
+        s.feed(&StepInput::Click);
+        s.feed(&at([0.136, 9.5, 0.0]));
+        assert!(close(values(&s)[0].1, 0.136));
+        // The phone: a finger lifted on the seat, a twentieth of a millimetre off it, then Done.
+        let d = ringdesign_core::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let seat = [0.0, 10.4, 0.0];
+        let down = ringdesign_core::interaction::pick::Ray { origin: [0.0, 40.0, 0.0], direction: [0.0, -1.0, 0.0] };
+        for kind in [Primitive::Box, Primitive::Cylinder] {
+            let mut s = Session::default();
+            s.start(Box::new(crate::touch::primitive::start(&d, kind, seat, [0.0, 1.0, 0.0], None, &|_| None).unwrap()));
+            s.feed(crate::touch::primitive::size_token(down, seat).unwrap());
+            assert_eq!(s.dimensions()[0].value, DEFAULT_SIZE_MM, "{kind:?}");
+            let f = added(crate::touch::primitive::finish(&mut s));
+            let size = match f.operation {
+                Operation::Box { size } => size,
+                Operation::Cylinder { radius_mm, height_mm } => [2.0 * radius_mm, 2.0 * radius_mm, height_mm],
+                other => panic!("{other:?}"),
+            };
+            assert_eq!(size, [2.0, 2.0, 1.0], "{kind:?}");
+        }
     }
 
     #[test]

@@ -418,6 +418,18 @@ pub fn export(e: &Evaluated, name: &str) -> Result<String> {
 }
 /// STEP of the kernel bodies `keep` admits as analytic solids beside `faceted` meshes as faceted ones.
 pub fn export_with(e: &Evaluated, name: &str, keep: &dyn Fn(&EvaluatedComponent) -> bool, faceted: &[Faceted]) -> Result<String> {
+    write_with(e, name, keep, faceted).map(|t| t.text)
+}
+/// A STEP file's text with the solids written into it.
+struct Text {
+    text: String,
+    /// Analytic solids written.
+    exact: usize,
+    /// Faceted solids written.
+    faceted: usize,
+}
+/// [`export_with`] counting the solids it writes.
+fn write_with(e: &Evaluated, name: &str, keep: &dyn Fn(&EvaluatedComponent) -> bool, faceted: &[Faceted]) -> Result<Text> {
     let mut w = Writer::default();
     let app = w.add("APPLICATION_CONTEXT('automotive_design')".into());
     w.add(format!(
@@ -486,7 +498,7 @@ pub fn export_with(e: &Evaluated, name: &str, keep: &dyn Fn(&EvaluatedComponent)
         out.push_str(&format!("#{}={record};\n", index + 1));
     }
     out.push_str("ENDSEC;\nEND-ISO-10303-21;\n");
-    Ok(out)
+    Ok(Text { text: out, exact: bodies.len(), faceted: facets.len() })
 }
 /// The whole ring as STEP: kernel parts no cut carves as analytic solids, the band and every other part faceted as built.
 pub fn ring(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name: &str) -> Result<String> {
@@ -495,6 +507,10 @@ pub fn ring(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name: 
 /// What a ring's STEP file holds beside its text.
 struct Written {
     text: String,
+    /// Analytic solids written.
+    exact: usize,
+    /// Faceted solids written.
+    faceted: usize,
     /// Faceted triangles written.
     facets: usize,
     /// Metal the faceted solids enclose, mm³.
@@ -513,8 +529,10 @@ fn collapsed(solid: &Mesh, tolerance_mm: f64) -> Option<(Mesh, (usize, usize, f6
 /// [`ring`] with what it wrote faceted, the band's solid collapsed to within `collapse` mm of every vertex it had when asked.
 fn ring_built(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name: &str, collapse: Option<f64>) -> Result<Written> {
     let metal = |c: &EvaluatedComponent| !c.settings.reference;
-    let written = |text: String, faceted: &[Faceted], band_facets: usize, collapsed: Option<(usize, usize, f64)>| Written {
-        text,
+    let written = |text: Text, faceted: &[Faceted], band_facets: usize, collapsed: Option<(usize, usize, f64)>| Written {
+        text: text.text,
+        exact: text.exact,
+        faceted: text.faceted,
         facets: faceted.iter().map(|f| f.mesh.faces.len()).sum(),
         volume_mm3: faceted.iter().map(|f| f.mesh.volume_mm3()).sum(),
         band_facets,
@@ -526,13 +544,27 @@ fn ring_built(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name
         let small = collapse.and_then(|tol| collapsed(&built.mesh, tol));
         let solid = small.as_ref().map_or(&built.mesh, |(m, _)| m);
         let faceted = [Faceted { name: name.to_string(), mesh: solid }];
-        let text = export_with(&none, name, &metal, &faceted)?;
+        let text = write_with(&none, name, &metal, &faceted)?;
         return Ok(written(text, &faceted, solid.faces.len(), small.as_ref().map(|(_, c)| *c)));
     };
     if doc.replaces_band() {
+        // A ring of parts alone: a cut is no metal, and a part it carves is written as carved.
         let e = super::evaluate(design, lib, params)?;
-        let made: Vec<Faceted> = e.components.iter().filter(|c| metal(c) && c.made.is_some()).map(|c| Faceted { name: c.name.clone(), mesh: &c.mesh }).collect();
-        return Ok(written(export_with(&e, name, &metal, &made)?, &made, 0, None));
+        let carved = crate::parts::carved_apart(&e, None)?;
+        let as_carved = |id: Id| carved.iter().find(|(c, _)| *c == id);
+        let apart = |c: &EvaluatedComponent| metal(c) && c.attach != Attach::Cut;
+        let faceted: Vec<Faceted> = e
+            .components
+            .iter()
+            .filter(|c| apart(c))
+            .filter_map(|c| match as_carved(c.id) {
+                Some((_, Some(mesh))) => Some(Faceted { name: c.name.clone(), mesh }),
+                Some((_, None)) => None,
+                None => c.made.is_some().then(|| Faceted { name: c.name.clone(), mesh: &c.mesh }),
+            })
+            .collect();
+        let text = write_with(&e, name, &|c| apart(c) && as_carved(c.id).is_none(), &faceted)?;
+        return Ok(written(text, &faceted, 0, None));
     }
     // Kernel parts joined to the band are built beside it, so each stays its own solid.
     let before = super::evaluate(design, lib, params)?;
@@ -541,7 +573,7 @@ fn ring_built(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name
     for f in apart.cad.iter_mut().flat_map(|d| d.features.iter_mut()).filter(|f| joined.contains(&f.id)) {
         f.component.attach = Attach::Separate;
     }
-    let built = crate::mesh::try_build(&apart, lib, params)?;
+    let built = crate::parts::build_clones(&apart, lib, params, &joined)?;
     let e = built.parts.evaluated.as_ref().context("The ring's parts were not evaluated")?;
     let objects = crate::threemf::objects(&built, name);
     // A made part, and a kernel part a cut carved, is written as the build left it; one a cut consumed has no object.
@@ -556,7 +588,7 @@ fn ring_built(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name
         .map(|o| Faceted { name: o.name.clone(), mesh: match (&small, o.feature) { (Some((m, _)), None) => m, _ => o.mesh.as_ref() } })
         .collect();
     let band_facets = small.as_ref().map(|(m, _)| m.faces.len()).or(band.map(|o| o.mesh.faces.len())).unwrap_or(0);
-    let text = export_with(e, name, &|c| metal(c) && c.attach == Attach::Separate && !carved.contains(&c.id), &faceted)?;
+    let text = write_with(e, name, &|c| metal(c) && c.attach == Attach::Separate && !carved.contains(&c.id), &faceted)?;
     Ok(written(text, &faceted, band_facets, small.as_ref().map(|(_, c)| *c)))
 }
 /// How near a STEP file's faceted band stands to every vertex of the export build, mm.
@@ -586,16 +618,13 @@ pub struct Sized {
     pub facets: usize,
     /// Metal the faceted solids enclose, mm³.
     pub faceted_volume_mm3: f64,
+    /// Exact and faceted solid records written.
+    written: (usize, usize),
 }
 impl Sized {
-    /// Exact solids and faceted solids the file holds, counted by record.
+    /// Exact solids and faceted solids the file holds, as its writer counted the records.
     pub fn solids(&self) -> (usize, usize) {
-        let Ok((records, _)) = parse(&self.text) else { return (0, 0) };
-        records.values().fold((0, 0), |(exact, faceted), r| match r.kind.as_str() {
-            "MANIFOLD_SOLID_BREP" | "BREP_WITH_VOIDS" => (exact + 1, faceted),
-            "FACETED_BREP" => (exact, faceted + 1),
-            _ => (exact, faceted),
-        })
+        self.written
     }
     /// The file's solids, its size and its band, as the desktop's status line says them.
     pub fn summary(&self) -> String {
@@ -652,7 +681,7 @@ pub fn ring_sized(design: &RingDesign, lib: &AlphaLibrary, export: BuildParams, 
         Some((built, samples, far)) => BandFacets { params, built, written: w.band_facets, deviation_mm: far, samples },
         None => BandFacets { params, built: w.band_facets, written: w.band_facets, deviation_mm: 0.0, samples: 0 },
     });
-    Ok(Sized { text: w.text, band, facets: w.facets, faceted_volume_mm3: w.volume_mm3 })
+    Ok(Sized { text: w.text, band, facets: w.facets, faceted_volume_mm3: w.volume_mm3, written: (w.exact, w.faceted) })
 }
 /// A solid a STEP file holds, as [`read_solids`] finds it.
 #[derive(Clone, Debug)]
@@ -1326,6 +1355,84 @@ mod tests {
             assert!((post.volume_mm3() / bored - 1.0).abs() < 1e-4, "{attach:?}: the post as bored, {} against {bored}", post.volume_mm3());
             assert!((court.volume_mm3() / band - 1.0).abs() < 0.005, "{attach:?}: the band as bored, {} against {band}", court.volume_mm3());
         }
+    }
+
+    /// Exact and faceted solid records in a STEP text, read back.
+    fn counted(text: &str) -> (usize, usize) {
+        let (records, _) = parse(text).unwrap();
+        records.values().fold((0, 0), |(exact, faceted), r| match r.kind.as_str() {
+            "MANIFOLD_SOLID_BREP" | "BREP_WITH_VOIDS" => (exact + 1, faceted),
+            "FACETED_BREP" => (exact, faceted + 1),
+            _ => (exact, faceted),
+        })
+    }
+
+    #[test]
+    fn a_joined_posts_bore_carries_no_fillet_the_joined_build_does_not_lay() {
+        let lib = crate::AlphaLibrary::builtin();
+        let params = crate::BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() };
+        let blended = |attach| {
+            let mut d = court_with(attach, Vec::new());
+            d.cad.as_mut().unwrap().features[2].component.blend_mm = 0.1;
+            d
+        };
+        let bored = {
+            let built = crate::mesh::try_build(&court_with(Attach::Separate, Vec::new()), &lib, params).unwrap();
+            crate::threemf::objects(&built, "Court")[1].mesh.volume_mm3()
+        };
+        // Joined, the pilot is a void inside the band and the post, and the build lays no fillet.
+        let joined = crate::mesh::try_build(&blended(Attach::Join), &lib, params).unwrap();
+        assert_eq!(joined.parts.beads, 0);
+        assert_eq!(joined.parts.notes, ["Pilot: its fillet found no seam long enough to follow"]);
+        // Set apart for the file, the post and the band each open a rim the joined build buries.
+        let mut apart = blended(Attach::Join);
+        apart.cad.as_mut().unwrap().features[1].component.attach = Attach::Separate;
+        assert_eq!(crate::mesh::try_build(&apart, &lib, params).unwrap().parts.beads, 2);
+        let stand_ins = crate::parts::build_clones(&apart, &lib, params, &[2]).unwrap();
+        assert_eq!((stand_ins.parts.beads, stand_ins.parts.notes.clone()), (0, joined.parts.notes.clone()));
+        assert_eq!(stand_ins.parts.carved, [2]);
+        let sized = ring_sized(&blended(Attach::Join), &lib, params, BAND_TOLERANCE_MM, "Court").unwrap();
+        let solids = read_meshes(&sized.text).unwrap();
+        let post = solids[1].mesh.as_ref().unwrap().volume_mm3();
+        assert!((post / bored - 1.0).abs() < 1e-4, "the joined post as bored and unrounded: {post:.4} against {bored:.4}");
+        // Set apart in the design, the post is a casting of its own and its bore's rim is rounded.
+        let own = ring_sized(&blended(Attach::Separate), &lib, params, BAND_TOLERANCE_MM, "Court").unwrap();
+        let rounded = read_meshes(&own.text).unwrap()[1].mesh.as_ref().unwrap().volume_mm3();
+        assert!(rounded < bored - 2e-3, "{rounded:.4} against {bored:.4}");
+        // The writer's count is the file's.
+        for s in [&sized, &own] {
+            assert_eq!(s.solids(), counted(&s.text));
+        }
+    }
+
+    #[test]
+    fn a_ring_of_parts_alone_writes_what_its_cut_carved_and_never_the_cut() {
+        use crate::cad::{Component, Document, Feature, Operation, Placement};
+        let lib = crate::AlphaLibrary::builtin();
+        let params = crate::BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..Default::default() };
+        let feature = |id, name: &str, operation, attach| Feature { id, name: name.into(), enabled: true, operation, component: Component { attach, placement: Placement::Free, ..Component::default() } };
+        let alone = |features: Vec<Feature>| {
+            let mut doc = Document::default();
+            for f in features {
+                doc.append(f).unwrap();
+            }
+            RingDesign { cad: Some(doc), ..RingDesign::default() }
+        };
+        let block = feature(1, "Block", Operation::Box { size: [4.0, 3.0, 2.0] }, Attach::Separate);
+        let spacer = feature(4, "Spacer", Operation::Transform { source: 5, translation: [9.0, 0.0, 0.0], rotation_deg: [0.0; 3] }, Attach::Separate);
+        let raw_spacer = feature(5, "Spacer stock", Operation::Box { size: [1.5; 3] }, Attach::Separate);
+        let tool = feature(2, "Tool", Operation::Box { size: [2.0, 1.5, 1.6] }, Attach::Separate);
+        let pocket = feature(3, "Pocket", Operation::Transform { source: 2, translation: [0.0, 0.0, 1.0], rotation_deg: [0.0; 3] }, Attach::Cut);
+        let plain = ring_sized(&alone(vec![block.clone(), raw_spacer.clone(), spacer.clone()]), &lib, params, BAND_TOLERANCE_MM, "Parts").unwrap();
+        assert_eq!(plain.solids(), (2, 0));
+        let sized = ring_sized(&alone(vec![block, raw_spacer, spacer, tool, pocket]), &lib, params, BAND_TOLERANCE_MM, "Parts").unwrap();
+        assert!(sized.band.is_none());
+        assert_eq!((sized.solids(), counted(&sized.text)), ((1, 1), (1, 1)));
+        let solids = read_meshes(&sized.text).unwrap();
+        assert_eq!(solids.iter().map(|s| (s.name.as_str(), s.faceted)).collect::<Vec<_>>(), [("Spacer", false), ("Block", true)]);
+        let block = solids[1].mesh.as_ref().unwrap();
+        assert!(block.validate().watertight && (block.volume_mm3() - 21.6).abs() < 1e-6, "{}", block.volume_mm3());
+        assert!((sized.faceted_volume_mm3 - 21.6).abs() < 1e-6 && sized.facets == block.faces.len());
     }
 
     #[test]

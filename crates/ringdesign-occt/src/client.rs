@@ -7,9 +7,9 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-/// The environment variable that names the worker program, over the one beside the executable.
+/// The environment variable that names the worker program, over the one beside the executable; a relative path is read from the executable's folder, else from the working directory.
 pub const WORKER_ENV: &str = "RINGDESIGN_OCCT_WORKER";
-/// The name a host's build reads its worker from, read at run time as well when [`WORKER_ENV`] is unset.
+/// The name a host's build reads its worker from, read at run time as well when [`WORKER_ENV`] is unset, a relative path as [`WORKER_ENV`]'s is.
 pub const WORKER_ENV_ALIAS: &str = "RINGDESIGNER_OCCT_WORKER";
 /// The worker program's name beside the executable.
 pub const WORKER_NAME: &str = "occt-worker";
@@ -65,6 +65,15 @@ pub enum Found {
     Embedded { unpacked: bool },
 }
 
+/// `path` as it stands when absolute, else read from the first of `folder` and `cwd` holding a file there, else from `folder`.
+fn anchored(path: PathBuf, folder: Option<&std::path::Path>, cwd: Option<&std::path::Path>) -> PathBuf {
+    if path.is_absolute() {
+        return path;
+    }
+    let tried: Vec<PathBuf> = [folder, cwd].into_iter().flatten().map(|base| base.join(&path)).collect();
+    tried.iter().find(|p| p.is_file()).or(tried.first()).cloned().unwrap_or(path)
+}
+
 /// [`WORKER_NAME`] beside the running executable, whether or not it is there.
 fn beside_executable() -> Result<PathBuf, Failure> {
     let exe = std::env::current_exe().map_err(|e| Failure::Spawn(e.to_string()))?;
@@ -90,10 +99,17 @@ impl Locator {
         Self::from_vars(embedded, root, |var| std::env::var_os(var))
     }
 
-    /// [`Locator::from_env`] with the variables read through `var`; an empty value counts as unset.
+    /// [`Locator::from_env`] with the variables read through `var`; an empty value counts as unset, a relative path is read from the executable's folder, else the working directory.
     pub fn from_vars(embedded: Embedded, root: PathBuf, var: impl Fn(&str) -> Option<std::ffi::OsString>) -> Self {
-        let named = [WORKER_ENV, WORKER_ENV_ALIAS].into_iter().find_map(|name| var(name).filter(|v| !v.is_empty()).map(|v| (name, PathBuf::from(v))));
-        Self { named, beside: beside_executable().ok(), embedded, root }
+        Self::from_vars_in(embedded, root, var, std::env::current_dir().ok().as_deref())
+    }
+
+    /// [`Locator::from_vars`] with `cwd` as the working directory.
+    fn from_vars_in(embedded: Embedded, root: PathBuf, var: impl Fn(&str) -> Option<std::ffi::OsString>, cwd: Option<&std::path::Path>) -> Self {
+        let beside = beside_executable().ok();
+        let folder = beside.as_ref().and_then(|b| b.parent());
+        let named = [WORKER_ENV, WORKER_ENV_ALIAS].into_iter().find_map(|name| var(name).filter(|v| !v.is_empty()).map(|v| (name, anchored(PathBuf::from(v), folder, cwd))));
+        Self { named, beside, embedded, root }
     }
 
     /// Only the worker at `program`, as [`WORKER_ENV`] would name it.
@@ -262,6 +278,44 @@ mod tests {
         let stopped = script("sleep 30").run_cancellable(&Request::Ping, Duration::from_secs(60), &cancel);
         assert!(matches!(stopped, Err(Failure::Cancelled)), "{stopped:?}");
         assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
+    }
+
+    #[test]
+    fn a_relative_worker_path_is_read_from_the_executables_folder_wherever_the_app_starts() {
+        let folder = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
+        let named = |path: &str| Locator::from_vars(Embedded::NONE, PathBuf::new(), move |var| (var == WORKER_ENV_ALIAS).then(|| path.into())).named;
+        assert_eq!(named("occt-embed/linux/occt-worker"), Some((WORKER_ENV_ALIAS, folder.join("occt-embed/linux/occt-worker"))));
+        assert_eq!(named("../bin/occt-worker"), Some((WORKER_ENV_ALIAS, folder.join("../bin/occt-worker"))));
+        assert_eq!(named("/opt/occt-worker"), Some((WORKER_ENV_ALIAS, PathBuf::from("/opt/occt-worker"))));
+        // Found where the executable is, not where the process was started.
+        let beside = Locator::from_vars(Embedded::NONE, PathBuf::new(), |_| None).beside.unwrap();
+        let name = beside.file_name().unwrap().to_str().unwrap().to_string();
+        let relative = Locator::from_vars(Embedded::NONE, PathBuf::new(), move |var| (var == WORKER_ENV).then(|| name.clone().into())).named.unwrap();
+        assert_eq!(relative, (WORKER_ENV, beside));
+        assert_eq!(anchored(PathBuf::from("w"), None, None), PathBuf::from("w"));
+    }
+
+    #[test]
+    fn a_relative_worker_path_missing_beside_the_executable_is_read_from_the_working_directory() {
+        let base = std::env::temp_dir().join(format!("ringdesign-occt-anchored-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let (exe, cwd) = (base.join("target/release"), base.clone());
+        let relative = "target/occt-embed/linux/occt-worker";
+        std::fs::create_dir_all(cwd.join("target/occt-embed/linux")).unwrap();
+        std::fs::write(cwd.join(relative), b"worker").unwrap();
+        std::fs::create_dir_all(&exe).unwrap();
+        // `cargo run` from the workspace root: the build's own relative path is not beside the executable but is in the working directory.
+        assert_eq!(anchored(relative.into(), Some(&exe), Some(&cwd)), cwd.join(relative));
+        let found = Locator::from_vars_in(Embedded::NONE, PathBuf::new(), |var| (var == WORKER_ENV_ALIAS).then(|| relative.into()), Some(&cwd));
+        assert_eq!(found.probe().unwrap(), Found::Named(cwd.join(relative)));
+        // One beside the executable wins over the working directory's.
+        std::fs::create_dir_all(exe.join("target/occt-embed/linux")).unwrap();
+        std::fs::write(exe.join(relative), b"worker").unwrap();
+        assert_eq!(anchored(relative.into(), Some(&exe), Some(&cwd)), exe.join(relative));
+        // In neither, the executable's folder is where it was looked for.
+        assert_eq!(anchored("gone".into(), Some(&exe), Some(&cwd)), exe.join("gone"));
+        assert_eq!(anchored("gone".into(), None, Some(&cwd)), cwd.join("gone"));
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]
