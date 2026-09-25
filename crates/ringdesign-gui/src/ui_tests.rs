@@ -685,6 +685,34 @@ fn one_undo_takes_back_a_graph_edit_and_what_it_evaluated_to() {
 }
 
 #[test]
+fn an_open_wakes_its_host_only_from_its_own_threads_never_the_bakes_pool() {
+    use std::sync::{Arc, Mutex, atomic::{AtomicUsize, Ordering}};
+    let reg = Arc::new(ringdesign_script::registry());
+    let lib = Arc::new(ringdesign_core::AlphaLibrary::builtin());
+    let (strays, wakes) = (Arc::new(Mutex::new(Vec::<String>::new())), Arc::new(AtomicUsize::new(0)));
+    let (seen, counted) = (strays.clone(), wakes.clone());
+    let opening = template("caiman-imported").open(reg, lib, move || {
+        counted.fetch_add(1, Ordering::Relaxed);
+        let name = std::thread::current().name().unwrap_or("").to_owned();
+        if name != "template-wake" && name != "template-open" {
+            seen.lock().unwrap().push(name);
+        }
+    });
+    let started = std::time::Instant::now();
+    loop {
+        if let Some(opened) = opening.poll() {
+            opened.expect("opens");
+            break;
+        }
+        assert!(started.elapsed().as_secs() < 60);
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    assert!(wakes.load(Ordering::Relaxed) > 0);
+    let strays = strays.lock().unwrap();
+    assert!(strays.is_empty(), "woken {} times from threads that are neither its own: {:?}", strays.len(), strays.iter().take(3).collect::<Vec<_>>());
+}
+
+#[test]
 fn a_template_with_an_expression_pin_opens_from_the_menu_path() {
     let mut g = ringdesign_graph::templates::graph("Court band").unwrap();
     g.set_input(ringdesign_graph::graph::NodeId(1), "width_mm", ringdesign_graph::value::Literal::expr("2.5 + 2.0")).unwrap();

@@ -75,10 +75,17 @@ fn open(name: Name, source: Source, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, 
     let (tx, answer) = mpsc::channel();
     let (at, stop, done) = (progress.clone(), cancelled.clone(), finished.clone());
     let wake = Arc::new(wake);
+    // The host is woken from a thread of its own, never from the pool threads a bake tells its stages on.
+    let (signal, signalled) = mpsc::sync_channel::<()>(1);
     let woken = wake.clone();
+    let _ = std::thread::Builder::new().name("template-wake".into()).spawn(move || {
+        while signalled.recv().is_ok() {
+            woken();
+        }
+    });
     let set: Arc<dyn Fn(Stage) + Send + Sync> = Arc::new(move |stage| {
         at.set(stage);
-        woken();
+        let _ = signal.try_send(());
     });
     let spawned = std::thread::Builder::new().name("template-open".into()).spawn(move || {
         let opened = opened(source, &reg, &lib, set.clone(), &stop).and_then(|o| {
