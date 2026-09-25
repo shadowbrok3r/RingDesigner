@@ -19,6 +19,7 @@ pub mod layer;
 pub mod list;
 pub mod math;
 pub mod shank;
+pub mod settings;
 pub mod sink;
 #[cfg(feature = "kernel-manifold")]
 pub mod solid;
@@ -34,6 +35,7 @@ pub fn register_all(reg: &mut Registry) {
     text::register(reg);
     band::register(reg);
     shank::register(reg);
+    settings::register(reg);
     gem::register(reg);
     layer::register(reg);
     assembly::register(reg);

@@ -4190,74 +4190,48 @@
     },
     {
       "id": 247,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/build/profile_steps",
-        "value": 448
-      },
+      "kind": "design.settings",
       "pos": [
         6480.0,
         0.0
-      ],
-      "label": "Preserve /build/profile_steps"
+      ]
     },
     {
       "id": 248,
-      "kind": "design.set",
+      "kind": "build.settings",
       "inputs": {
-        "pointer": "/build/theta_steps",
-        "value": 1536
+        "adaptive": false,
+        "min_wall_mm": 0.5,
+        "profile_steps": 448,
+        "soften_mm": 0.0,
+        "theta_steps": 1536
       },
       "pos": [
-        6720.0,
-        0.0
-      ],
-      "label": "Preserve /build/theta_steps"
+        0.0,
+        15300.0
+      ]
     },
     {
       "id": 249,
-      "kind": "design.set",
+      "kind": "draft.settings",
       "inputs": {
-        "pointer": "/draft/min_detail_mm",
-        "value": 0.15
+        "auto_parting": true,
+        "min_detail_mm": 0.15,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.5,
+        "parting_z_mm": 0.0,
+        "process": "LostWax"
       },
       "pos": [
-        6960.0,
-        0.0
-      ],
-      "label": "Preserve /draft/min_detail_mm"
+        0.0,
+        15450.0
+      ]
     },
     {
       "id": 250,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/draft/min_section_mm",
-        "value": 0.5
-      },
-      "pos": [
-        7200.0,
-        0.0
-      ],
-      "label": "Preserve /draft/min_section_mm"
-    },
-    {
-      "id": 251,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/draft/process",
-        "value": "LostWax"
-      },
-      "pos": [
-        7440.0,
-        0.0
-      ],
-      "label": "Preserve /draft/process"
-    },
-    {
-      "id": 252,
       "kind": "sink.output",
       "pos": [
-        7680.0,
+        6720.0,
         0.0
       ]
     }
@@ -5740,33 +5714,21 @@
       "input": "design"
     },
     {
-      "from": 247,
-      "out": "design",
-      "to": 248,
-      "input": "design"
-    },
-    {
       "from": 248,
-      "out": "design",
-      "to": 249,
-      "input": "design"
+      "out": "build",
+      "to": 247,
+      "input": "build"
     },
     {
       "from": 249,
+      "out": "draft",
+      "to": 247,
+      "input": "draft"
+    },
+    {
+      "from": 247,
       "out": "design",
       "to": 250,
-      "input": "design"
-    },
-    {
-      "from": 250,
-      "out": "design",
-      "to": 251,
-      "input": "design"
-    },
-    {
-      "from": 251,
-      "out": "design",
-      "to": 252,
       "input": "design"
     }
   ],
@@ -5832,5 +5794,5 @@
       "name": "Shank taper"
     }
   ],
-  "next_id": 253
+  "next_id": 251
 }

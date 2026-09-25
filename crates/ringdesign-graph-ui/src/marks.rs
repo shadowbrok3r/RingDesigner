@@ -55,6 +55,9 @@ pub fn node(key: &str) -> Option<Icon> {
         "band.size" => Icon::NodeSize,
         "band.size.fit" => Icon::NodeFit,
         "design.new" => Icon::Add,
+        "design.settings" => Icon::Settings,
+        "build.settings" => Icon::NodeBuild,
+        "draft.settings" => Icon::Casting,
 
         // --- the shank and its head --------------------------------------
         "shank" => Icon::NodeShank,
