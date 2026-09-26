@@ -1,0 +1,759 @@
+{
+  "format_version": 2,
+  "name": "Trilogy",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 1,
+        "name": "Procedural shank",
+        "operation": "Band"
+      },
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "across_mm": 0.0,
+            "cant_deg": 0.0,
+            "height_mm": 2.4165000000000005,
+            "kind": "ring",
+            "spin_deg": 45.0,
+            "theta_deg": 90.0,
+            "tilt_deg": 0.0
+          },
+          "reference": true,
+          "role": "Stone",
+          "stage": "cast",
+          "stone_id": "Round 5.5 mm",
+          "visible": true
+        },
+        "enabled": true,
+        "id": 2,
+        "name": "Round 5.5 mm",
+        "operation": {
+          "Builder": {
+            "key": "stone",
+            "on": null,
+            "params": {
+              "cut": "Round",
+              "form": "Faceted",
+              "l_mm": 5.5,
+              "w_mm": 5.5
+            }
+          }
+        }
+      },
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "join",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Head",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 3,
+        "name": "Four-claw head",
+        "operation": {
+          "Builder": {
+            "key": "head.claw",
+            "on": 2,
+            "params": {
+              "prongs": 4,
+              "wire_mm": 1.0
+            }
+          }
+        }
+      },
+      "pos": [
+        960.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Setting",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 4,
+        "name": "Seat bur",
+        "operation": {
+          "Builder": {
+            "key": "seat.bur",
+            "on": 2,
+            "params": {
+              "through": true
+            }
+          }
+        }
+      },
+      "pos": [
+        1200.0,
+        0.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "across_mm": 0.0,
+            "cant_deg": 0.0,
+            "height_mm": 1.5650000000000002,
+            "kind": "ring",
+            "spin_deg": 90.0,
+            "theta_deg": 62.0,
+            "tilt_deg": 0.0
+          },
+          "reference": true,
+          "role": "Stone",
+          "stage": "cast",
+          "stone_id": "Oval 5 × 3.5",
+          "visible": true
+        },
+        "enabled": true,
+        "id": 5,
+        "name": "Oval 5 × 3.5",
+        "operation": {
+          "Builder": {
+            "key": "stone",
+            "on": null,
+            "params": {
+              "cut": "Oval",
+              "form": "Faceted",
+              "l_mm": 5.0,
+              "w_mm": 3.5
+            }
+          }
+        }
+      },
+      "pos": [
+        1440.0,
+        0.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "join",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Head",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 6,
+        "name": "Three-claw head",
+        "operation": {
+          "Builder": {
+            "key": "head.claw",
+            "on": 5,
+            "params": {
+              "prongs": 3,
+              "wire_mm": 1.0
+            }
+          }
+        }
+      },
+      "pos": [
+        1680.0,
+        0.0
+      ]
+    },
+    {
+      "id": 7,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Setting",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 7,
+        "name": "Seat bur",
+        "operation": {
+          "Builder": {
+            "key": "seat.bur",
+            "on": 5,
+            "params": {
+              "through": true
+            }
+          }
+        }
+      },
+      "pos": [
+        1920.0,
+        0.0
+      ]
+    },
+    {
+      "id": 8,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "across_mm": 0.0,
+            "cant_deg": 0.0,
+            "height_mm": 1.5650000000000002,
+            "kind": "ring",
+            "spin_deg": -90.0,
+            "theta_deg": 118.0,
+            "tilt_deg": 0.0
+          },
+          "reference": true,
+          "role": "Stone",
+          "stage": "cast",
+          "stone_id": "Oval 5 × 3.5",
+          "visible": true
+        },
+        "enabled": true,
+        "id": 8,
+        "name": "Oval 5 × 3.5",
+        "operation": {
+          "Builder": {
+            "key": "stone",
+            "on": null,
+            "params": {
+              "cut": "Oval",
+              "form": "Faceted",
+              "l_mm": 5.0,
+              "w_mm": 3.5
+            }
+          }
+        }
+      },
+      "pos": [
+        2160.0,
+        0.0
+      ]
+    },
+    {
+      "id": 9,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "join",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Head",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 9,
+        "name": "Three-claw head",
+        "operation": {
+          "Builder": {
+            "key": "head.claw",
+            "on": 8,
+            "params": {
+              "prongs": 3,
+              "wire_mm": 1.0
+            }
+          }
+        }
+      },
+      "pos": [
+        2400.0,
+        0.0
+      ]
+    },
+    {
+      "id": 10,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Setting",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 10,
+        "name": "Seat bur",
+        "operation": {
+          "Builder": {
+            "key": "seat.bur",
+            "on": 8,
+            "params": {
+              "through": true
+            }
+          }
+        }
+      },
+      "pos": [
+        2640.0,
+        0.0
+      ]
+    },
+    {
+      "id": 11,
+      "kind": "band.profile",
+      "inputs": {
+        "comfort_fit_mm": 0.25,
+        "crest_bias": 0.0,
+        "crown_mm": 1.3,
+        "edge_round_mm": 0.16,
+        "shape_a": 2.5,
+        "shape_b": 1.6,
+        "side_draft_deg": 2.0,
+        "style": "DShape",
+        "thickness_mm": 2.2,
+        "width_mm": 2.6
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Band section"
+    },
+    {
+      "id": 12,
+      "kind": "shank",
+      "inputs": {
+        "amount": 0.3,
+        "kind": "ReverseTaper",
+        "waves": 1
+      },
+      "pos": [
+        0.0,
+        150.0
+      ],
+      "label": "Shoulders and taper"
+    },
+    {
+      "id": 13,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Trilogy",
+        "size": 7.0
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 24,
+      "kind": "cad.op.stone",
+      "inputs": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 5.5,
+        "w_mm": 5.5
+      },
+      "pos": [
+        0.0,
+        300.0
+      ]
+    },
+    {
+      "id": 25,
+      "kind": "cad.op.head.claw",
+      "inputs": {
+        "on": 2,
+        "prongs": 4,
+        "wire_mm": 1.0
+      },
+      "pos": [
+        0.0,
+        450.0
+      ]
+    },
+    {
+      "id": 26,
+      "kind": "cad.op.seat.bur",
+      "inputs": {
+        "on": 2,
+        "through": true
+      },
+      "pos": [
+        0.0,
+        600.0
+      ]
+    },
+    {
+      "id": 27,
+      "kind": "cad.op.stone",
+      "inputs": {
+        "cut": "Oval",
+        "form": "Faceted",
+        "l_mm": 5.0,
+        "w_mm": 3.5
+      },
+      "pos": [
+        0.0,
+        750.0
+      ]
+    },
+    {
+      "id": 28,
+      "kind": "cad.op.head.claw",
+      "inputs": {
+        "on": 5,
+        "prongs": 3,
+        "wire_mm": 1.0
+      },
+      "pos": [
+        0.0,
+        900.0
+      ]
+    },
+    {
+      "id": 29,
+      "kind": "cad.op.seat.bur",
+      "inputs": {
+        "on": 5,
+        "through": true
+      },
+      "pos": [
+        0.0,
+        1050.0
+      ]
+    },
+    {
+      "id": 30,
+      "kind": "cad.op.stone",
+      "inputs": {
+        "cut": "Oval",
+        "form": "Faceted",
+        "l_mm": 5.0,
+        "w_mm": 3.5
+      },
+      "pos": [
+        0.0,
+        1200.0
+      ]
+    },
+    {
+      "id": 31,
+      "kind": "cad.op.head.claw",
+      "inputs": {
+        "on": 8,
+        "prongs": 3,
+        "wire_mm": 1.0
+      },
+      "pos": [
+        0.0,
+        1350.0
+      ]
+    },
+    {
+      "id": 32,
+      "kind": "cad.op.seat.bur",
+      "inputs": {
+        "on": 8,
+        "through": true
+      },
+      "pos": [
+        0.0,
+        1500.0
+      ]
+    },
+    {
+      "id": 33,
+      "kind": "design.settings",
+      "pos": [
+        2880.0,
+        0.0
+      ]
+    },
+    {
+      "id": 34,
+      "kind": "draft.settings",
+      "inputs": {
+        "auto_parting": true,
+        "min_detail_mm": 0.15,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.5,
+        "parting_z_mm": 0.0,
+        "process": "LostWax"
+      },
+      "pos": [
+        0.0,
+        1650.0
+      ]
+    },
+    {
+      "id": 35,
+      "kind": "sink.output",
+      "pos": [
+        3120.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 11,
+      "out": "profile",
+      "to": 13,
+      "input": "profile"
+    },
+    {
+      "from": 12,
+      "out": "shank",
+      "to": 13,
+      "input": "shank"
+    },
+    {
+      "from": 13,
+      "out": "design",
+      "to": 1,
+      "input": "design"
+    },
+    {
+      "from": 1,
+      "out": "design",
+      "to": 2,
+      "input": "design"
+    },
+    {
+      "from": 2,
+      "out": "design",
+      "to": 3,
+      "input": "design"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 4,
+      "input": "design"
+    },
+    {
+      "from": 4,
+      "out": "design",
+      "to": 5,
+      "input": "design"
+    },
+    {
+      "from": 5,
+      "out": "design",
+      "to": 6,
+      "input": "design"
+    },
+    {
+      "from": 6,
+      "out": "design",
+      "to": 7,
+      "input": "design"
+    },
+    {
+      "from": 7,
+      "out": "design",
+      "to": 8,
+      "input": "design"
+    },
+    {
+      "from": 8,
+      "out": "design",
+      "to": 9,
+      "input": "design"
+    },
+    {
+      "from": 9,
+      "out": "design",
+      "to": 10,
+      "input": "design"
+    },
+    {
+      "from": 24,
+      "out": "operation",
+      "to": 2,
+      "input": "operation"
+    },
+    {
+      "from": 25,
+      "out": "operation",
+      "to": 3,
+      "input": "operation"
+    },
+    {
+      "from": 26,
+      "out": "operation",
+      "to": 4,
+      "input": "operation"
+    },
+    {
+      "from": 27,
+      "out": "operation",
+      "to": 5,
+      "input": "operation"
+    },
+    {
+      "from": 28,
+      "out": "operation",
+      "to": 6,
+      "input": "operation"
+    },
+    {
+      "from": 29,
+      "out": "operation",
+      "to": 7,
+      "input": "operation"
+    },
+    {
+      "from": 30,
+      "out": "operation",
+      "to": 8,
+      "input": "operation"
+    },
+    {
+      "from": 31,
+      "out": "operation",
+      "to": 9,
+      "input": "operation"
+    },
+    {
+      "from": 32,
+      "out": "operation",
+      "to": 10,
+      "input": "operation"
+    },
+    {
+      "from": 10,
+      "out": "design",
+      "to": 33,
+      "input": "design"
+    },
+    {
+      "from": 34,
+      "out": "draft",
+      "to": 33,
+      "input": "draft"
+    },
+    {
+      "from": 33,
+      "out": "design",
+      "to": 35,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 13,
+      "input": "size",
+      "name": "US size"
+    },
+    {
+      "node": 11,
+      "input": "width_mm",
+      "name": "Band width"
+    },
+    {
+      "node": 11,
+      "input": "thickness_mm",
+      "name": "Band thickness"
+    }
+  ],
+  "next_id": 36
+}

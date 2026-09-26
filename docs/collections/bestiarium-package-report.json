@@ -1,0 +1,619 @@
+{
+  "scope": "Bestiarium packaging lane: Arachne and Manticora packaged, registered and validated",
+  "branch": "bestiarium-package",
+  "base": "f04ac07",
+  "validated_commit": "ee359c6",
+  "merged": {
+    "bestiarium-arachne": "a44f55c",
+    "bestiarium-manticora": "9a4252f",
+    "conflicts": "none"
+  },
+  "commits": [
+    "fe3c3d4 Merge bestiarium-arachne: Arachne, the weaver, approved at 7.5",
+    "64c3a5b Merge bestiarium-manticora: Manticora, the tail that throws, shipped at 7.5",
+    "e219474 Collection templates: bound controls drive every pin they select, and a ring's geometry gates complete its verdict",
+    "cdff418 Collection templates: rustfmt",
+    "a47b367 Bestiarium: Arachne and Manticora rebuilt on current master, with the collection manifest",
+    "653cb3b Register the Bestiarium in File > New from template and retire the Workshop group",
+    "f4c8170 Arachne writes its stone materials and orders tied sliver counts by name",
+    "e775a8b Bestiarium collection deliverables: studio renders, the sheet, the gallery and a README",
+    "ee359c6 GUI framing test opens the Braided band instead of the retired Tide workshop design"
+  ],
+  "rings": {
+    "arachne": {
+      "branch": "bestiarium-arachne",
+      "head": "a44f55c",
+      "review": "ship 7.5 (.claude/collection-review/arachne-final-art-review-20260924.json)",
+      "process": "Lost wax",
+      "size": "US 7",
+      "bore_mm": 17.3,
+      "gates": {
+        "build": [
+          1536,
+          448
+        ],
+        "triangles": 1323510,
+        "watertight": true,
+        "boundary_edges": 0,
+        "non_manifold_edges": 0,
+        "degenerate_faces": 0,
+        "mesh_self_crossings": 0,
+        "made_parts_with_crossings": 0,
+        "solids_notes": 0,
+        "parts_notes": 0,
+        "finger_hole_intrusions": 0,
+        "field_verdict": "Castable",
+        "thinnest_wall_mm": 1.881,
+        "investment_min_section_mm": 0.8,
+        "dfm_findings": 0,
+        "stones_reported": 2,
+        "stones_previewed": 2,
+        "metal_inside_stones": 0,
+        "export_clean": {
+          "watertight": true,
+          "degenerate_faces": 0
+        },
+        "cold_reload_identical": true,
+        "geometry_gates_passed": true,
+        "gates_passed_with_template": true,
+        "grams_18k": 15.79
+      },
+      "changed_on_master": "design.ring.json byte-identical; finished metal moved slightly on current master, which the lane last built before C-B6 merged (volume 1013.661 to 1013.496 mm3, surface 1369.85 to 1367.33 mm2, 18k 15.793 to 15.790 g, two-part undercut stat 13.236% to 13.238%); renders redrawn; sliver attributions reordered (report ties now sorted by name). Every gate still passes.",
+      "template": {
+        "file": "graphs/templates/arachne-bestiarium.graph.json",
+        "bytes": 671142,
+        "editable_design_bytes": 1093295,
+        "class": "painted",
+        "budget_bytes": 3000000,
+        "size_review_required": false,
+        "nodes": 137,
+        "design_set_patches": [],
+        "exposed_controls": [],
+        "source_method": "lift",
+        "cold_design_reload": true,
+        "cold_graph_reload": true,
+        "editable_graph_reload": true,
+        "source_identical": true,
+        "vertices_faces_normals_identical": true,
+        "geometry_check_resolution": {
+          "profile_steps": 448,
+          "refine": null,
+          "theta_steps": 1536
+        },
+        "triangles": 1323510,
+        "check_bundled_bytes_identical": true,
+        "detail_findings": 0,
+        "template_gate_passed": true,
+        "open_ms": {
+          "bake": 0.2,
+          "bake_again": 0.1,
+          "detail": 4631.8,
+          "detail_again": 69.9,
+          "evaluate": 2.3,
+          "first_build": 539.1,
+          "read": 1.4,
+          "rebuild": 1.2,
+          "unpack": null,
+          "verdict": 53.2
+        }
+      }
+    },
+    "manticora": {
+      "branch": "bestiarium-manticora",
+      "head": "9a4252f",
+      "review": "ship 7.5 (.claude/collection-review/manticora-round3-review.json)",
+      "process": "Lost wax",
+      "size": "US 8.6",
+      "bore_mm": 18.6,
+      "gates": {
+        "finished mesh watertight, 0 degenerate faces, 0 self-crossings": true,
+        "every CAD part, seat solid and stamp closed without crossings": true,
+        "solids and parts notes empty, every stamp and seat resolved": true,
+        "nothing enters the finger hole": true,
+        "lost-wax verdict Castable with the 0.8 mm fill": true,
+        "CAD lands at or above the floor, or excepted": true,
+        "zero DFM findings": true,
+        "stones reported equal the preview, no warnings": true,
+        "aculeus clears the collet and the ruby by 1.0 mm": true,
+        "the ruby seats: metal reaches at most 0.05 mm into it": true,
+        "investment pattern watertight, 0 degenerates, 0 crossings": true,
+        "gates hold at 384 x 192": true,
+        "export build within the 2 million triangle budget": true,
+        "cold reload identical": true,
+        "gates_passed": true,
+        "triangles": 1372332,
+        "field_verdict": "Castable",
+        "thinnest_wall_mm": 1.431,
+        "stones_reported": 11,
+        "stones_previewed": 11,
+        "grams_18k": 17.12
+      },
+      "changed_on_master": "Nothing: design, meshes, STLs and renders byte-identical; report differs only in timings.",
+      "template": {
+        "file": "graphs/templates/manticora-bestiarium.graph.json",
+        "bytes": 1244173,
+        "editable_design_bytes": 1979307,
+        "class": "painted",
+        "budget_bytes": 3000000,
+        "size_review_required": false,
+        "nodes": 114,
+        "design_set_patches": [
+          "/cad/joints"
+        ],
+        "exposed_controls": [],
+        "source_method": "lift",
+        "cold_design_reload": true,
+        "cold_graph_reload": true,
+        "editable_graph_reload": true,
+        "source_identical": true,
+        "vertices_faces_normals_identical": true,
+        "geometry_check_resolution": {
+          "profile_steps": 448,
+          "refine": null,
+          "theta_steps": 1536
+        },
+        "triangles": 1372332,
+        "check_bundled_bytes_identical": true,
+        "detail_findings": 0,
+        "template_gate_passed": true,
+        "open_ms": {
+          "bake": 0.3,
+          "bake_again": 0.2,
+          "detail": 612.1,
+          "detail_again": 18.6,
+          "evaluate": 4.7,
+          "first_build": 1179.8,
+          "read": 4.9,
+          "rebuild": 1.2,
+          "unpack": null,
+          "verdict": 22.7
+        }
+      }
+    }
+  },
+  "collection": {
+    "manifest": "showcase/bestiarium/collection.json",
+    "subtitle": "TWO BEASTS · TWO IN WAX · THIRTEEN STONES",
+    "metal": "gold",
+    "views": [
+      "studio",
+      "studio-face",
+      "studio-side",
+      "studio-palm"
+    ],
+    "deliverables": [
+      "README.md",
+      "index.html",
+      "Bestiarium-collection.png",
+      "contact-sheet.svg",
+      "renders/ (8 views, sheet, manifest.json)",
+      "Bestiarium-final-renders.zip (untracked)",
+      "<slug>/studio*.png (Blender)"
+    ]
+  },
+  "registration": {
+    "graph_static": "ringdesign_graph::templates::BESTIARIUM (chained into catalog())",
+    "menu_group": "Bestiarium, after Stock masterworks (lead's instruction; the plan's Officina group does not exist yet)",
+    "menu_order": [
+      "Starter bands",
+      "Starter signets",
+      "Stone settings",
+      "Reptilia collection",
+      "Stock masterworks",
+      "Bestiarium",
+      "Atelier designs",
+      "Original masterwork signets"
+    ],
+    "menu_templates": 53,
+    "workshop_retired": [
+      "four DESIGNS rows in crates/ringdesign-assets/build.rs",
+      "four previews",
+      "four sources.json entries",
+      "menu group",
+      "one fixture call site: the GUI framing test opened tide-workshop and now opens the Braided band",
+      "showcase/workshop-collection, examples/workshop_collection.rs and the workshop tools stay on disk"
+    ],
+    "pinned_counts": {
+      "workbench menu": "55 -> 53",
+      "graph catalog": "30 -> 32 (not pinned)",
+      "core code templates and Python smoke": "13, unchanged (the Bestiarium adds no code templates)"
+    },
+    "bundle": {
+      "graphs_blob_compressed_bytes": 23687940,
+      "bestiarium_compressed_bytes": 711074,
+      "bestiarium_raw_bytes": 1915315,
+      "workshop_designs_removed_raw_bytes": 33775
+    }
+  },
+  "tooling": {
+    "bound_controls": "collection_templates Control::Bound (core-change request 15): {\"name\", \"bind\": [{\"kind\" | \"label\", \"with\": {pin: value}, \"input\"}], \"min\"?, \"max\"?}; strict manifest parsing; tests run with the graph suite ([[example]] test = true)",
+    "verification_merge": "a ring's geometry_gates_passed and the template gate now complete verification.json's gates_passed",
+    "catalog_rows": "per-ring \"row\" groups rings on the sheet (sand row 0, wax row 1)",
+    "thumbnails": "tools/template_thumbnails.py takes slugs to regenerate only those",
+    "arachne_stones_json": "Arachne's example writes stones.json"
+  },
+  "reproduction": {
+    "method": "README commands into target/bestiarium-repro (fresh directory), collection_templates with --check-bundled",
+    "result": {
+      "arachne": {
+        "identical_files": 32,
+        "identical_but_timings": [
+          "mesh.json",
+          "report.json",
+          "verification.json"
+        ],
+        "blender_png_bytes_differ_max_one_level": [
+          "studio-face.png",
+          "studio-palm.png",
+          "studio-side.png",
+          "studio.png"
+        ],
+        "not_produced_by_the_pipeline": [
+          "art-review.json",
+          "draft-gates.json",
+          "revision-notes.md"
+        ]
+      },
+      "manticora": {
+        "identical_files": 27,
+        "identical_but_timings": [
+          "report.json",
+          "verification.json"
+        ],
+        "blender_png_bytes_differ_max_one_level": [
+          "studio-face.png",
+          "studio-palm.png",
+          "studio-side.png",
+          "studio.png"
+        ],
+        "not_produced_by_the_pipeline": []
+      }
+    },
+    "templates": "byte-identical to graphs/templates"
+  },
+  "add_a_ring": [
+    "Merge the ring branch into the packaging branch with --no-ff; resolve only packaging-side conflicts (showcase/bestiarium/collection.json, README, registration lists) and report any core conflict.",
+    "Check the ring's example writes showcase/bestiarium/<slug>/: design.ring.json, report.json, finished-metal.stl, casting-pattern.stl (sand: mesh::try_build_pattern; wax: manufacturing::prepare), one reference-<stone>.stl per stone and stones.json (mesh, name, tint from Gem::preview_tint, ior, dispersion, roughness, transmission), and the hero/face/palm/side/shoulder/reverse/stones/bare-vs-finished renders. If stones.json is missing, add it to the example as Arachne's does.",
+    "Export and verify on current master: cargo build --offline --release -p ringdesign-core --example bestiarium_<slug>; systemd-run --user --scope -p MemoryMax=8G --quiet -- target/release/examples/bestiarium_<slug> showcase/bestiarium/<slug> --verify. Confirm every gate in report.json and diff it against the lane's committed report to say what the platform changed.",
+    "Add the ring to showcase/bestiarium/collection.json rings in sheet order: slug, title, subtitle (the epithet), description, spec (short, 'Process · stones', about 40 characters so the sheet stays legible), row (0 for sand, 1 for wax), centre, ortho_scale, exposed_controls ([] or names, {name, min, max} or bound entries {name, bind: [{kind|label, with, input}], min, max}), template_class. Recompute the collection subtitle (BEASTS · IN SAND · IN WAX · STONES), description and footer.",
+    "Template gate: cargo build --offline --release -p ringdesign-graph --example collection_templates; systemd-run --user --scope -p MemoryMax=8G --quiet -- target/release/examples/collection_templates bestiarium --only <slug> --verify-export. It writes graphs/templates/<slug>-bestiarium.graph.json and the ring's template.graph.json, editable-graph.ring.json and verification.json; require template_gate_passed, at most 4 design.set patches and the class budget.",
+    "Register: add TemplateGraph { name: <the design's name>, slug: \"<slug>-bestiarium\" } to BESTIARIUM in crates/ringdesign-graph/src/templates.rs in manifest order; add the slug to the Bestiarium group and to thumbnails! in crates/ringdesign-workbench/src/templates.rs; raise assert_eq!(slugs.len(), 53) by one.",
+    "Thumbnail: add \"<slug>-bestiarium\": {\"source\": \"showcase/bestiarium/<slug>/hero.png\", \"size\": [160, 160]} to crates/ringdesign-workbench/assets/templates/sources.json and run python3 tools/template_thumbnails.py <slug>-bestiarium.",
+    "Renders: systemd-run --user --scope -p MemoryMax=8G --quiet -- env CUDA_VISIBLE_DEVICES=0 blender -b --factory-startup -P tools/render_collection.py -- showcase/bestiarium <slug> --collection bestiarium (add --draft first to check centre and ortho_scale); then systemd-run --user --scope -p MemoryMax=4G --quiet -- python3 tools/catalog_collection.py showcase/bestiarium --collection bestiarium.",
+    "README: add the ring's table row, its verification column and bench notes, and its example to the reproduce commands.",
+    "Validate: cargo test -p ringdesign-graph --test bestiarium_templates and -p ringdesign-workbench --lib templates:: (paired unguarded build, guarded run), then every suite, the four-core CI emulation, all-targets with zero warnings, --locked, wasm and NDK.",
+    "Commit in steps: the merge; the refreshed outputs and manifest; the registration with the template and thumbnail; the renders, sheet, gallery and README."
+  ],
+  "open_items": [
+    "Menu placement follows the lead's instruction (after Stock masterworks); the plan's Officina group does not exist yet, and when it lands the order in the_bestiarium_follows_the_masterworks_and_the_workshop_has_left_the_menu needs its name.",
+    "Arachne's report.json keeps template_gate_passed null and gates_passed false as its example writes them; the template gate and the whole verdict live in its verification.json (gates_passed true).",
+    "Not done here, by the lane rules: phone version bump and CHANGELOG line (Bestiarium added, Workshop retired), desktop version bump, tags, pushes, Taildrop, and the build reels (they need the rdsmoke emulator).",
+    "Core-change request 15 is implemented in collection_templates; its entry in .claude/collection-review/core-change-requests.md can be marked done.",
+    "Manticora's optional polish list from its round-3 review is unapplied (an art-lane decision)."
+  ],
+  "checks": [
+    {
+      "check": "ringdesign-core-build",
+      "commit": "e775a8b",
+      "command": "cargo test --offline -p ringdesign-core --no-run",
+      "exit_code": 0,
+      "seconds": 1.8,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-core-test",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-core -- --test-threads=4",
+      "exit_code": 0,
+      "seconds": 125.9,
+      "passed": 789,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-graph-build",
+      "commit": "e775a8b",
+      "command": "cargo test --offline -p ringdesign-graph --no-run",
+      "exit_code": 0,
+      "seconds": 34.4,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-graph-test",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-graph --no-fail-fast -- --test-threads=4",
+      "exit_code": 0,
+      "seconds": 53.1,
+      "passed": 126,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-graph-ui-build",
+      "commit": "e775a8b",
+      "command": "cargo test --offline -p ringdesign-graph-ui --no-run",
+      "exit_code": 0,
+      "seconds": 24.2,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-graph-ui-test",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-graph-ui -- --test-threads=4",
+      "exit_code": 0,
+      "seconds": 0.5,
+      "passed": 26,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-workbench-build",
+      "commit": "e775a8b",
+      "command": "cargo test --offline -p ringdesign-workbench --no-run",
+      "exit_code": 0,
+      "seconds": 9.6,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-workbench-test",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-workbench -- --test-threads=4",
+      "exit_code": 0,
+      "seconds": 8.1,
+      "passed": 220,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "workbench-glow-build",
+      "commit": "e775a8b",
+      "command": "cargo test --offline -p ringdesign-workbench --features glow --no-run",
+      "exit_code": 0,
+      "seconds": 20.3,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "workbench-glow-test",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-workbench --features glow -- --test-threads=4",
+      "exit_code": 0,
+      "seconds": 6.6,
+      "passed": 234,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesigner_android-build",
+      "commit": "e775a8b",
+      "command": "cargo test --offline -p ringdesigner_android --no-run",
+      "exit_code": 0,
+      "seconds": 33.7,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesigner_android-test",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesigner_android -- --test-threads=4",
+      "exit_code": 0,
+      "seconds": 12.4,
+      "passed": 201,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-mcp-build",
+      "commit": "e775a8b",
+      "command": "cargo test --offline -p ringdesign-mcp --no-run",
+      "exit_code": 0,
+      "seconds": 71.2,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-mcp-test",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-mcp -- --test-threads=4",
+      "exit_code": 0,
+      "seconds": 0.7,
+      "passed": 45,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-cli-build",
+      "commit": "e775a8b",
+      "command": "cargo test --offline -p ringdesign-cli --no-run",
+      "exit_code": 0,
+      "seconds": 29.2,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-cli-test",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-cli -- --test-threads=4",
+      "exit_code": 0,
+      "seconds": 3.7,
+      "passed": 11,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-assets-build",
+      "commit": "e775a8b",
+      "command": "cargo test --offline -p ringdesign-assets --no-run",
+      "exit_code": 0,
+      "seconds": 10.1,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-assets-test",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-assets -- --test-threads=4",
+      "exit_code": 0,
+      "seconds": 0.3,
+      "passed": 4,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-py-build",
+      "commit": "e775a8b",
+      "command": "cargo test --offline -p ringdesign-py --no-run",
+      "exit_code": 0,
+      "seconds": 27.0,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-py-test",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-py -- --test-threads=4",
+      "exit_code": 0,
+      "seconds": 0.2,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "python-module-build",
+      "commit": "e775a8b",
+      "command": "cargo build --offline --release -p ringdesign-py",
+      "exit_code": 0,
+      "seconds": 38.4,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "python-smoke",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- env PYTHONPATH=/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/bestiarium-package/target/pymodule /home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/tools/venv/bin/python -m pytest crates/ringdesign-py/tests -q",
+      "exit_code": 0,
+      "seconds": 9.7,
+      "passed": 8,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "collection-tool-tests",
+      "commit": "e775a8b",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- /home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/tools/venv/bin/python -m unittest test_collection_tools -v",
+      "exit_code": 0,
+      "seconds": 4.5,
+      "passed": 9,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ci-emulation-build",
+      "commit": "ee359c6",
+      "command": "cargo test --workspace --locked --offline --no-run",
+      "exit_code": 0,
+      "seconds": 197.9,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ci-emulation",
+      "commit": "ee359c6",
+      "command": "systemd-run --user --scope -p MemoryMax=14G --quiet -- taskset -c 0-3 cargo test --workspace --locked --offline --no-fail-fast",
+      "exit_code": 0,
+      "seconds": 393.5,
+      "passed": 1653,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "workspace-all-targets",
+      "commit": "ee359c6",
+      "command": "cargo check --offline --workspace --all-targets",
+      "exit_code": 0,
+      "seconds": 44.9,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "locked",
+      "commit": "ee359c6",
+      "command": "cargo check --locked --offline --workspace",
+      "exit_code": 0,
+      "seconds": 26.5,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "wasm",
+      "commit": "ee359c6",
+      "command": "cargo check --offline -p ringdesign-core -p ringdesign-configurator --no-default-features --target wasm32-unknown-unknown",
+      "exit_code": 0,
+      "seconds": 28.2,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ndk-arm64",
+      "commit": "ee359c6",
+      "command": "cargo ndk -t arm64-v8a check -p ringdesigner_android",
+      "exit_code": 0,
+      "seconds": 21.3,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-gui-build",
+      "commit": "ee359c6",
+      "command": "cargo test --offline -p ringdesign-gui --no-run",
+      "exit_code": 0,
+      "seconds": 12.9,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-gui-test",
+      "commit": "ee359c6",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-gui -- --test-threads=1",
+      "exit_code": 0,
+      "seconds": 183.1,
+      "passed": 197,
+      "failed": 0,
+      "warnings": 0
+    }
+  ],
+  "check_notes": [
+    "Each crate suite is an unguarded --no-run build followed by the guarded run, with no edits between; CARGO_INCREMENTAL=0 for both, and test executables pruned after each suite to keep the disk clear.",
+    "The first GUI run at e775a8b failed one test: interaction_tests::a_design_opened_after_a_fit_opens_whole_at_zoom_one_about_its_middle opened the retired tide-workshop template. ee359c6 opens the Braided band instead; the GUI pair was re-run there (197 passed). ee359c6 changes only that test file, so the other crate suites run at e775a8b stand for it; the CI emulation and the platform checks ran at ee359c6.",
+    "CI emulation: unguarded cargo test --workspace --locked --offline --no-run on all cores, then the guarded four-core run."
+  ],
+  "totals": {
+    "checks": 31,
+    "failed_checks": 0,
+    "tests_passed_in_crate_suites": 1853,
+    "tests_passed_in_ci_emulation": 1653,
+    "python_tests_passed": 17,
+    "warnings": 0
+  }
+}

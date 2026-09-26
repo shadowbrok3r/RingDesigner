@@ -75,7 +75,20 @@ def catalog(root, manifest, repo):
         page = page[:start] + f'<footer><a href="{escape(title)}-collection.png" download>Collection sheet ↗</a><p>{escape(manifest.get("footer", "Rendered from the collection’s actual geometry using its declared views."))}</p>' + page[end:]
     page = page.replace("NAVIGATION", "".join(f'<a href="#{r["slug"]}">{escape(r["title"])}</a>' for r in items))
     (root / "index.html").write_text(page.replace("SECTIONS", "\n".join(sections)))
-    height = 2920 if legacy else 650 + math.ceil(len(items) / min(4, len(items))) * 790 + 210
+    if legacy:
+        height = 2920
+    else:
+        # Groups rings by sheet row, four to a line, rows in ascending order.
+        groups = {}
+        for item in items:
+            groups.setdefault(item.get("row", 0), []).append(item)
+        columns = min(4, max(len(group) for group in groups.values()))
+        cells, lines = {}, 0
+        for key in sorted(groups):
+            for j, item in enumerate(groups[key]):
+                cells[item["slug"]] = (lines + j // columns, j % columns)
+            lines += math.ceil(len(groups[key]) / columns)
+        height = 650 + lines * 790 + 210
     svg = [f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="2400" height="{height}" viewBox="0 0 2400 {height}">', f'<rect width="2400" height="{height}" fill="#101313"/>']
 
     def text(x, y, content, size=32, colour="#eeeae1", family="sans-serif", extra=""):
@@ -96,10 +109,10 @@ def catalog(root, manifest, repo):
             x, y, w = 150 + (i - 3) * 1100, 1530, 1000
             tx, ty, size = x + 50, 2540, 86
         else:
-            columns = min(4, len(items))
             pitch = 2160 // columns
             w = min(640, pitch - 20)
-            x, y = 120 + (i % columns) * pitch, 540 + (i // columns) * 790
+            line, column = cells[item["slug"]]
+            x, y = 120 + column * pitch, 540 + line * 790
             tx, ty, size = x + 20, y + w + 55, 58
         views = item.get("views", manifest["views"])
         selected = item.get("sheet_view", views[0]["name"])

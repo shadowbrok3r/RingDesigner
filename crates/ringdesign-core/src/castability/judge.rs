@@ -671,7 +671,7 @@ mod tests {
             assert!((0..built.mesh.faces.len()).all(|i| scene.feature_of_face(i) == own[i].map(|k| built.parts.features[k as usize])));
         }
         // On a heart signet's asymmetric head the two planes are measurably apart; a post seated square on a court band leaves them together.
-        let heart = templates::all().iter().find(|t| t.name == "Heart signet").unwrap().design();
+        let heart = templates::fixture("Heart signet").unwrap();
         let d = with_part(heart, "Post", Operation::Cylinder { radius_mm: POST_R, height_mm: POST_H }, Attach::Join, Stage::Cast, post_at(0.0));
         let (built, f) = judged(&d);
         let auto = super::super::analyze(&built.mesh, &d.draft, d.inner_radius_mm());

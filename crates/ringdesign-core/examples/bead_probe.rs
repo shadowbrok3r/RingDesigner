@@ -109,8 +109,8 @@ fn band_solid(mesh: &Mesh) -> Solid {
 }
 
 fn build(name: &str, params: BuildParams) -> Option<(Mesh, Solid)> {
-    let t = templates::all().iter().find(|t| t.name == name)?;
-    let built = mesh::try_build(&t.design(), &AlphaLibrary::builtin(), params).ok()?;
+    let d = templates::fixture(name).or_else(|| templates::all().iter().find(|t| t.name == name).map(|t| t.design()))?;
+    let built = mesh::try_build(&d, &AlphaLibrary::builtin(), params).ok()?;
     let solid = band_solid(&built.mesh);
     Some((built.mesh, solid))
 }

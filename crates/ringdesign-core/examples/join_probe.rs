@@ -52,15 +52,16 @@ fn main() {
     let pilot = part(Operation::Cylinder { radius_mm: 1.2, height_mm: 12.0 });
     for (label, params) in [("preview 256×128", BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() }), ("export 1024×384", BuildParams { theta_steps: 1024, profile_steps: 384, ..BuildParams::default() })] {
         println!("== {label}");
-        for t in templates::all().iter().filter(|t| ["Court band", "Heart signet", "Braided band", "Cathedral solitaire stock"].contains(&t.name)) {
-            let d = t.design();
+        for name in ["Court band", "Heart signet", "Braided band", "Cathedral solitaire stock"] {
+            let template = templates::fixture(name).unwrap_or_else(|| templates::all().iter().find(|t| t.name == name).unwrap().design());
+            let d = template;
             let Ok(built) = mesh::try_build(&d, &lib, params) else { continue };
             let band = Solid {
                 v: built.mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(),
                 f: built.mesh.faces.clone(),
             };
             let (open, repeated) = band.open_edges();
-            println!("  {:<28} {} faces, open {open} repeated {repeated}", t.name, band.f.len());
+            println!("  {:<28} {} faces, open {open} repeated {repeated}", name, band.f.len());
             // Drop onto the surface at the top of the ring: a radial ray in the finger's plane.
             let theta = 90.0_f64.to_radians();
             let Some((face, hit)) = raycast(&built.mesh, [(40.0 * theta.cos()) as f32, (40.0 * theta.sin()) as f32, 0.0], [(-theta.cos()) as f32, (-theta.sin()) as f32, 0.0]) else {

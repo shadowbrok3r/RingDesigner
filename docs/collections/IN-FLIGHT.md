@@ -1,3 +1,31 @@
+# PAUSED by Logan (2026-09-26 afternoon)
+
+"once all current agents are finished, lets put a pause on the rest of the collections and such. we've already blown almost 40% of my weekly usage and it has only been 7 hours since my weekly reset"
+
+The agents running at that moment finish their current task (Kraken round 3, Basiliscus round 3, Fenrir round 2, Corvus round 2, Harpyia round 2, the packaging lane, Phoenix's final review). **No new agents, rounds, reviews or lanes start until Logan says so.** Each finished result is recorded in the table below with its next step. The desktop release waits with the rest.
+
+Packaging lane finished and merged (`bestiarium-package` `1c31c9c`, merge `89dc970`): Arachne and Manticora rebuilt on current master and registered as a Bestiarium group in File > New from template (menu 55 to 53, Workshop group retired; `showcase/workshop-collection` kept), bound template controls (request 15), studio renders, sheet and README. Every suite green on the branch, four-core CI emulation 1653. Its report, with the eleven steps to add one more shipped ring, is `docs/collections/bestiarium-package-report.json` (`add_a_ring`). Left for the release: the phone and desktop version bumps, a CHANGELOG line (Bestiarium added, Workshop retired), the tag and the Taildrop; build reels need an emulator. A tracked `crates/ringdesign-py/tests/__pycache__/*.pyc` is rewritten by every Python smoke run and should be untracked. Before the final Taildrop, smooth-shade the reference stones in the Blender renders: the onyx and ruby cabochons on `Bestiarium-collection.png` show stair-stepped highlights.
+
+# Checkpoint 2026-09-26 10:10 (Claude, at the account's 5-hour limit)
+
+Every lane below was stopped mid-round by the usage limit. Resume each by starting a fresh agent in its worktree with the shared brief (`.claude/collection-review/bestiarium-lane-brief.md`), its latest review JSON (in `.claude/collection-review/`, ignored dir) and "continue round N". Uncommitted files stay on disk: commit or finish them first.
+
+| Ring | Worktree / branch | Last commit | Latest review | Next |
+|---|---|---|---|---|
+| Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | **packaged, on master** (`89dc970`) |
+| Manticora | `bestiarium-manticora` | `9a4252f` round 3 | **shipped 7.5** (`manticora-round3-review.json`, optional polish listed) | **packaged, on master** (`89dc970`) |
+| Kraken | `bestiarium-kraken` (owns C-B1) | `567365a` round 3 (master merged as `62b2dfe`) | r3 author self-score 7.0 (r2 6.5): gates green at draft and export (1.77 M triangles), stone warning cleared by the C-B6 holder rule, template 0 patches at 242 KB of 300 KB with US size and Tentacle height exposed; short of the review: no root fillet (0.3 mm blends fold at the arm creases), outer claw roots at -28/+30 deg not +-34, coil A reads as a hook from the hero camera | final review (paused); ships at 7.5 or is cut |
+| Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `74dceaf` round 3 | **cut at 7.0** after round 3 (`phoenix-round3-review.json`: gates green, fails the 300 px read; optional polish listed) | none (kept on its branch) |
+| Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `4df7a53` round 3 | r3 author self-score 7.4 (r2 6.8): all nine punch items addressed, gates green at 384, draft and export (1.80 M triangles), template 0 patches at 1.55 MB of 3 MB; short: a dark crease where the coil laps the boss under the stone, feather walls streak at grazing angles, the circlet is small at 300 px, palm scutes still read as bars | **cut at 7.2** by the final review (cloud session, 2026-09-26: gates green; the head is still blocky at 3/4 and the 300 px hero does not name the animal; bare polished walls, palm scutes read as bars) |
+| Fenrir | `bestiarium-fenrir` | `5d67238` (+1 uncommitted; master merged for claw rails) | r1 5.5 (`fenrir-round1-review.json`) | round 2 |
+| Corvus | `bestiarium-corvus` | `518df5a` round 2 (master merged as `9e6cb50`) | r2 author self-score 6.5 (r1 5.0): gates green at 384, draft and export (release 0/0 at both pitches, field 0.0216% Castable), template 0 patches at 1.8 MB of 3 MB; heads read as ravens with hooked painted bills; short: the face view foreshortens the bills, a fold on each skull's tip-side flank where the bypass arm ends (core request 28), 27 sand slots named with bench treatment rather than closed | round 2 review (paused) |
+| Harpyia | `bestiarium-harpyia` (owns C-B4) | `6ce7589` round 2 (C-B4 meshed loft at `ca5c924`) | r2 author self-score 6.8 (r1 5.8): all nine punch items applied, gates green at draft and export (1.92 M triangles), template 0 patches at 96% of the painted budget; face legible only at full size, torso knobbly from above, claws cast blunt | round 2 review (paused) |
+
+- Platform on master (pushed `2af7974`): batch 16, the starter gallery with re-framed splits, the GUI and workbench CI fixes (CI green), the embedded-art fix, the phone icon, C-B5 claw rails and cabochon rise.
+- C-B6 is on master (`22912a5`): stamp drop-ray reach, hand-made heads as holders, finer parting search, flat-part clean, stoneless pads out of the stones report. Requests and proposed code: `.claude/collection-review/core-change-requests.md`.
+- Review prompt template: `.claude/collection-review/review-prompt-template.md` (a ring under 7.5 after round 3 is cut).
+- Then: package the shipped rings, register them in File > New from template (Workshop leaves the menu), bump the desktop version, tag `desktop-v<version>`, Taildrop the final renders (Logan's instruction below).
+
 # Takeover checkpoint (2026-09-26, Claude)
 
 Codex's account hit its usage limit at 10:14 MDT on 2026-09-25 and cannot resume before Oct 1, so Claude took over every lane. Codex's own record follows below this section.
@@ -10,10 +38,16 @@ Codex's account hit its usage limit at 10:14 MDT on 2026-09-25 and cannot resume
   - `bestiarium-basiliscus` (`codex/bestiarium-basiliscus`: the example is committed as `ab4c81e` and merged up to the platform; its export build fails the 2 million triangle budget);
   - Harpyia next, from the spike on `codex/harpyia-feather-spike` (probe committed as `826f825`), owning an enabler C-B4 for a closed feather construction, because the kernel loft tessellates open.
 - Arachne's validated pattern export is committed as `a44f55c` on `bestiarium-arachne`.
-- **Starter gallery** (`codex/starter-gallery`): Codex's uncommitted part-1 work (eight settings' graphs, thumbnails, golden corpus, tests) is still in the tree and being finished.
+- **Starter gallery part 1 is on master** as merge `bc697ba` (validated at `867967e`: 41 checks, 1,854 tests, `starters-part1-report.json`). Stocks open as measured: 002, 006, 015, 017 in Delft; 001, 003, 005, 007, 012, 013, 016 in wax after failed sand trials; the nine upright plans in wax. Open follow-ups:
+  - (done, merge `600ac22`) the split shank and split gallery re-framed and opened up so the Y and the window read at 160 px;
+  - Trilogy's side head has 2 degenerate faces in its own part mesh at export chords of 512 steps and up (the joined ring is clean; the fix belongs in the claw builder);
+  - the desktop "Imported signet base" picker shows a sand-master stock's raw source name instead of selecting its preset;
+  - the phone's retired "Imported signet base..." menu entry needs a CHANGELOG line at the next release.
+- **Icons (2026-09-26, Logan):** the phone's launcher icon is now the desktop icon (`crates/ringdesigner-android/icon/ic_launcher.svg` links to `bundled/icon/ringdesigner.svg`; mipmaps re-rendered). The app store listing `ringdesigner-android` already serves it (uploaded directly to the store's icon endpoint). Installed phones show it from the next APK; add a CHANGELOG line then.
 - Lane instructions shared by every ring: `.claude/collection-review/bestiarium-lane-brief.md` (ignored dir; the review prompt template sits beside it). Gates add two to the list in README: nothing may enter the finger hole (Arachne's leg did, 0.36 mm, and nothing caught it) and the export build must fit the 2 million triangle budget.
 - **Read another worktree's files with Bash, not the Read tool**: each worktree carries its own copy of the long CLAUDE.md, and the Read tool injects it into the reader's context once per worktree touched.
 - All seven lanes launched on 2026-09-25 died within minutes on the account's usage limit and were relaunched the next morning, fewer at a time.
+- **Logan, 2026-09-26:** "When 100% done with the rings and replacing the apps built in templates with the new rings, push the new windows desktop app via the CI and send the updated final renders via taildrop." When every Bestiarium ring has shipped at 7.5+ (or been cut) and is registered in File > New from template (the Workshop group leaves the menu), bump `crates/ringdesign-gui` from 0.6.0, push master, push the annotated tag `desktop-v<version>` (`desktop-release.yml` publishes only if Linux, Windows and both macOS builds pass), then Taildrop the final renders to `logans-s26-ultra`. This authorizes that bump and tag.
 
 # Continuation checkpoint (2026-09-25)
 

@@ -1,0 +1,42 @@
+{
+  "collection": "bestiarium",
+  "title": "Bestiarium",
+  "metal": "gold",
+  "subtitle": "TWO BEASTS · TWO IN WAX · THIRTEEN STONES",
+  "description": "Creatures told by hide, silk and weapons, face to palm.\nTwo beasts in lost wax. Thirteen stones in made settings.",
+  "finish": "Studio gold · darkened recesses · stones set",
+  "sheet_note": "Rendered from actual ring geometry. Stones are set at the bench after casting.",
+  "footer": "Rendered in studio gold from the exported finished-metal meshes, with each reference stone in its own material. Every ring passes its casting gates for lost wax; the investment pattern and reference stones are in each ring's folder. None of these designs has been physically cast.",
+  "views": [
+    {"name": "studio", "label": "Portrait", "position": [26, 39, 36]},
+    {"name": "studio-face", "label": "Face", "position": [2, 52, 14]},
+    {"name": "studio-side", "label": "Side", "position": [0, 4, 56]},
+    {"name": "studio-palm", "label": "Palm", "position": [26, -39, 36]}
+  ],
+  "rings": [
+    {
+      "slug": "arachne",
+      "title": "Arachne",
+      "subtitle": "The weaver",
+      "description": "A spider clasps the finger at the hub of her own orb web, on a keyframed low dome 5.6 × 2.4 mm. A 9 × 7 mm onyx abdomen and a 5 × 3.5 mm garnet carapace sit in collets, eight jointed legs grip the band, and the silk runs round the shoulders to the palm.",
+      "spec": "Lost wax · onyx and garnet cabochons",
+      "row": 1,
+      "centre": [0, 1.4, 0],
+      "ortho_scale": 33.5,
+      "exposed_controls": [],
+      "template_class": "painted"
+    },
+    {
+      "slug": "manticora",
+      "title": "Manticora",
+      "subtitle": "The tail that throws",
+      "description": "The ring is the manticore's scorpion tail, on a keyframed high dome 5.4 × 2.2 mm. Graded tergites rise from the palm to a venom bulb where a 7 × 5 mm ruby sits in a beaded collet, the hooked sting curls over the stone, and graded black spinel princesses run down each shoulder.",
+      "spec": "Lost wax · ruby and ten black spinels",
+      "row": 1,
+      "centre": [0, 1.6, 0],
+      "ortho_scale": 34.5,
+      "exposed_controls": [],
+      "template_class": "painted"
+    }
+  ]
+}
