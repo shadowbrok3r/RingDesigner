@@ -1,0 +1,222 @@
+{
+  "ring": "Harpyia — the snatcher",
+  "round": 1,
+  "candidate_head": "a5c8443ee7924bfe63f9e4e5cd661d7ee2e4bcf3",
+  "verdict": "revise",
+  "score": 5.8,
+  "summary": "Revise at 5.8 (author 6.5; Caiman 7; ship needs 7.5). One gate is red: report.json has no land_widths block, and the Talon Point tips taper to about 0.2 mm without being named, so the lost-wax land gate fails by the brief's own rule. Every other gate checks out against report.json and the template tool's verification.json. The lofted feathers are the best wing sculpture in the Bestiarium, and side.png reads as wings at a glance, rising beside the stone the way Hypnos's rise from his temples. But the ring reads neither as a harpy nor as a snatch. There is no head or body, so four wings float round a stone. The claws are six straight pins with conical points on a double gallery ring: a catalogue six-prong basket, not talons. The cathedral 'legs' are straight rods that stop on the crown. At 300 px, face.png reads as a bow tie and hero.png as an angel-wing solitaire. The palm tail is a flat four-lobed plate beside blank polish, and the ring weighs 41 g in 18k. The wings do not read flat, so the plan's drop trigger is not met, and she is not the weakest after round 1 (Draco 4.5, Corvus 5.0). A round that gives her a body, a head and real feet can reach 7.5.",
+  "strengths": [
+    "Lofted feathers: 33 per wing, each cambered with a raised rachis, in overlapping tiers with real undersides. They are dimensional, not flat region extrudes, and they are the first wings in the collection that stand as sculpture.",
+    "side.png: wings rise either side of the stone and sweep down both cheeks to crossing coverts at the palm. It is the clearest wing read in the collection and close to the Hypnos house read.",
+    "Distinct silhouette: the only Bestiarium ring with standing wing plates. In a 300 px strip beside Phoenix r2, Corvus r1 and Arachne it resembles none of them.",
+    "Crown contour feathers (reverse.png) are crisp teardrops with serrated barbs in overlapping rows, true outlines with small-scale detail inside them.",
+    "Clean build: watertight at 1.85 M triangles, 44 made parts with 0 crossings, 0 DFM findings, and a template that lifts with 0 patches at 93% of the painted budget."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm",
+      "result": "pass",
+      "reason": "Everything is raptor: wings, mantle, cheek contour feathers, scutes and a tail at the palm. Nothing is foreign. The palm tail and the zigzag scutes carry the theme weakest."
+    },
+    {
+      "item": "Figurative motifs with true outlines (painted relief with crisp outlines passes)",
+      "result": "partial",
+      "reason": "The lofted feathers and the crown contour feathers pass. The painted 'scutes under the arches' beside the stone read as vertical zigzag quilting (face.png, stones.png). The palm tail is a flat four-lobed plate that reads as a glove or a comb (palm.png)."
+    },
+    {
+      "item": "Faces allowed when good",
+      "result": "missing",
+      "reason": "No head and no face. A harpy is defined by her head, and without one the wings, talons and tail belong to no creature (punch item 3)."
+    },
+    {
+      "item": "Stones in visible made settings",
+      "result": "pass",
+      "reason": "The 8 mm sapphire sits in a visible made claw head with a through bur. It is a catalogue six-prong basket (straight pins, conical points, double gallery ring), not a harpy's grip."
+    },
+    {
+      "item": "Shoulder ornament not cut off toward the face",
+      "result": "partial",
+      "reason": "The mantle and the wing roots run into the head. But the two cathedral 'legs' are straight 1.3 mm rods that stop abruptly on the crown at 9 and 3 o'clock in face.png, and the wing plates end in blunt squared roots at the stone."
+    },
+    {
+      "item": "No flat, blocky or mechanical forms",
+      "result": "fail",
+      "reason": "Several forms are mechanical: the claw head (straight pins, double gallery ring); the rod legs; the primaries, stacked like equal slats with blunt ends at the top of side.png; and the leading-edge marginal coverts, equal segments that read as a caterpillar (hero.png upper right, stones.png right)."
+    },
+    {
+      "item": "Silhouette distinct from the other Bestiarium rings",
+      "result": "pass",
+      "reason": "Standing wing plates are unique in the collection: Phoenix r2 is a domed band with an opal, Corvus r1 a collet with heads, Arachne a spider. The risk is that four symmetric plates read as the generic angel-wing solitaire."
+    },
+    {
+      "item": "Reads as its subject (a harpy snatching her prey) at 300 px",
+      "result": "fail",
+      "reason": "At 300 px the hero reads as a winged solitaire, the face as a bow tie with a blue stone, and the side as angel wings flanking a gem. Neither 'harpy' nor 'snatching' reads: there is no body, no head and no feet, and the claws are pins."
+    },
+    {
+      "item": "Large, medium and small forms; density at least Caiman's",
+      "result": "partial",
+      "reason": "All three scales exist: large (four wing plates, the stone), medium (lofted feathers, tail lobes) and small (rachis ridges, serrated barbs). The head and flanks match Caiman's density. The palm falls short: blank polish either side of the tail in palm.png, and a smooth rail-like secondary along each cheek in reverse.png."
+    },
+    {
+      "item": "Wearability",
+      "result": "fail",
+      "reason": "41.1 g of 18k, of which the bare Flat 7.2 x 3.8 band is about 30 g. The ring is 12.6 mm along the finger at the head, with plates 2.7 mm proud of each side face. It reaches 18.5 mm radially, 5.2 mm over the crest, with primaries up to 5 mm over the crown. The 0.2 mm conical claw points will snag and scratch."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Finished mesh watertight, 0 degenerate faces",
+      "claimed": "Watertight, 0 degenerate at 1280x416",
+      "verified": "Export build [1280, 416]: 1,848,078 triangles; 0 boundary, 0 non-manifold and 0 degenerate edges or faces. Not gated: minimum angle 0.00034 deg, worst aspect 168,120 (slivers).",
+      "pass": true
+    },
+    {
+      "gate": "Export fits the 2 M triangle budget, params recorded",
+      "claimed": "1280x416 chosen because 1536x448 builds 2.11 M",
+      "verified": "1280x416 is recorded in report.json 'build' and comes to 1.85 M. Note only: the template tool's 1536x448 check built 2,111,682 triangles, so the app's standard export of this template runs over budget.",
+      "pass": true
+    },
+    {
+      "gate": "csg::self_crossings == 0 on the ring and every made part",
+      "claimed": "0 on the ring and 44 made parts",
+      "verified": "mesh_self_crossings 0. All 44 made_parts are 0: the stone, Talons, Legs, the seat bur, 33 feather sources and 7 mirrors.",
+      "pass": true
+    },
+    {
+      "gate": "built.solids.notes empty; every stamp resolved",
+      "claimed": "Notes empty",
+      "verified": "solids_notes [] and parts_notes []. There are no stamps.",
+      "pass": true
+    },
+    {
+      "gate": "Nothing enters the finger hole",
+      "claimed": "Bore clear",
+      "verified": "vertices_in_bore 0. The nearest vertex is 9.461750 mm from the axis against a bore radius of 9.461761 mm, a margin of -1.1e-5 mm inside the -0.01 mm allowance.",
+      "pass": true
+    },
+    {
+      "gate": "Field verdict, lost wax, fill at 0.8 mm",
+      "claimed": "Castable, thinnest wall 3.69 mm",
+      "verified": "Castable with investment_min_section_mm 0.8. Thinnest wall 3.69 mm at theta 78.75. The 9.57% two-part undercut is reported as wax-only and does not gate.",
+      "pass": true
+    },
+    {
+      "gate": "Lost-wax CAD land widths: land_widths block, every sub-0.8 mm stretch removed or named",
+      "claimed": "Feathers measured at 0.834 mm or more; Talon Point tips taper to about 0.2 mm and are not named",
+      "verified": "There is no land_widths block in report.json. free_part_sections_mm covers only the 33 feather sources (minimum 0.8345 mm, Secondary 6). Nothing covers the six claws, the head's rails, the two legs or the mirror copies. Ruling: the ~0.2 mm tips are an unnamed sub-floor stretch, which the brief fails outright, the same failure as Kraken's 0.50 mm claw ends in round 1.",
+      "pass": false
+    },
+    {
+      "gate": "dfm::findings_in == 0",
+      "claimed": "0 DFM",
+      "verified": "dfm_findings [].",
+      "pass": true
+    },
+    {
+      "gate": "Stones report count equals preview count; crowding census",
+      "claimed": "1 stone reported and previewed",
+      "verified": "1 reported and 1 previewed, 1.936 ct, no warnings. The census does not apply to a single stone.",
+      "pass": true
+    },
+    {
+      "gate": "--verify cold reload at the export build",
+      "claimed": "Identical",
+      "verified": "cold_reload_identical true.",
+      "pass": true
+    },
+    {
+      "gate": "Pattern mesh (sand only)",
+      "claimed": "Investment pattern clean",
+      "verified": "Does not apply to wax. For the record, the investment pattern is watertight with 0 degenerate faces and 0 crossings at scale 1.0132.",
+      "pass": true
+    },
+    {
+      "gate": "Template gate",
+      "claimed": "Lift, 0 patches, 61 nodes, 2,793,244 bytes, parity",
+      "verified": "target/tpl/harpyia/verification.json: template_gate_passed true, lift, design_set_patches [], 61 nodes, 2,793,244 of 3,000,000 bytes, source identical, vertices, faces and normals identical, cold design and graph reloads true. The first build takes 4.56 s at the 384x144 preview.",
+      "pass": true
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "high (gate)",
+      "zone": "Gate block in bestiarium_harpyia.rs and the Talons claw head",
+      "change": "Write a land_widths block into report.json for every joined part (42). Include each of the six claws (minimum section and arc length under 0.8 mm), the head's base and gallery rails, both legs, and every feather source and mirror copy. Then deal with the Talon Point tips: either cast them blunt at 0.8 mm or more (rounded tip), or name the stretch on each claw with its bench treatment ('cast at 0.8 mm, filed to a point after setting'). Casting blunt and pointing at the bench is preferred: a 0.2 mm cast point in 18k is a fill risk and a snag hazard.",
+      "acceptance": "report.json lists land_widths for all 42 joined parts. No stretch under 0.8 mm is unnamed, and each named exception carries its claw, its arc length and its bench treatment."
+    },
+    {
+      "number": 2,
+      "priority": "high",
+      "zone": "Head, theta 75-105: Talons, the gallery rails and the cathedral Legs",
+      "change": "Replace the six straight pins, the double gallery ring and the two rod legs with two raptor feet. Each foot has a scaled tarsus (about 1.4 mm, ringed with scutes) coming down from her body, three front toes and a hallux. Each toe is knuckled in 2-3 segments and ends in a hooked claw that curls at least 60 deg over its last 2 mm onto the girdle. Build the toes and tarsi with the meshed-loft builder the feathers use: round sections on a curved spine, swelling at each knuckle. Put the feet on opposite sides of the stone so the grip reads as a clutch, and choose no rails or hide them under the toes.",
+      "acceptance": "In stones.png and side.png each foot shows a tarsus, at least three curved toes and a hallux wrapping the girdle, with no straight pin and no visible gallery ring. At 300 px, hero.png reads as a stone held in two clawed feet. The land widths are asserted as in item 1."
+    },
+    {
+      "number": 3,
+      "priority": "high",
+      "zone": "Crown west of the stone, theta 100-125, between the wing roots",
+      "change": "Give her a figure: a head and breast rising behind the stone and bowed over it, with the wings rooting into her shoulders, built as lofted or stamped parts dressed in contour feathers. A woman's face is the harpy's signature and is welcome only if it is good: brow, eyes, nose and mouth legible, never a blob or a dome. If it cannot be made good, use a feathered hood bowed over the stone, face in shadow, whose profile still reads as a head.",
+      "acceptance": "At 300 px, hero.png, side.png and shoulder.png read as one creature, with head, body, wings and feet connected, crouched on the stone. Any face shows brow, eyes, nose and mouth in side.png and shoulder.png. radial_reach_mm stays at 18.6 or less."
+    },
+    {
+      "number": 4,
+      "priority": "high",
+      "zone": "Both cheeks east of the stone: mirror features 'East wing, near cheek, 1-3' and 'East wing, far cheek, 1'",
+      "change": "Drop the two through-stone mirrors and return to the plan's west-only wings, mirrored across the band only. Four plates round the stone read as angel wings flanking a gem and, from the face, as a bow tie, and the east pair can root in no body. Wings sweeping back from her shoulders are the Hypnos house read and give the ring a direction: a swoop onto the prey. The freed east shoulder carries the plan's scutellate scales running into her legs.",
+      "acceptance": "face.png no longer reads as a bow tie. side.png and hero.png show wings sweeping back from her shoulders toward the palm. grams_18k falls by the east plates' metal."
+    },
+    {
+      "number": 5,
+      "priority": "medium",
+      "zone": "Palm, theta 225-310",
+      "change": "Replace the flat four-lobed rectrix plate with a fanned tail of 7-9 rectrices. Each has its own outline, rachis and rounded or notched tip, and they overlap and fan from a rump at about theta 225 toward the palm. Keep them painted or in low relief, at most 0.6 mm proud, because the palm takes the grip. Carry the contour feathers up to the tail so the crown there has no polished blank.",
+      "acceptance": "palm.png shows at least 7 separate overlapping tail feathers in a fan, with no glove or comb shape. No blank polished field wider than 3 mm remains on the crown between theta 230 and 310."
+    },
+    {
+      "number": 6,
+      "priority": "medium",
+      "zone": "Crown either side of the stone, theta 60-80 and 100-120 (face.png)",
+      "change": "Replace the painted 'scutes under the arches', which read as vertical zigzag quilting, once real legs exist. Use either breast contour feathers flowing away from the stone, or true scutellate scales under the tarsi, each with its own closed outline.",
+      "acceptance": "face.png and stones.png show no zigzag or wave stripes, and every motif within 8 mm of the stone is a recognisable feather or scale."
+    },
+    {
+      "number": 7,
+      "priority": "medium",
+      "zone": "Wrist and leading edge of every wing plate, theta about 95-135",
+      "change": "(a) Grade the primaries' lengths, spread the fan by at least 25 deg, and separate the outer tips into fingered, emarginated raptor primaries with gaps between them. Today they stack as equal slats with blunt ends. (b) Grade the marginal coverts from about 1.2 mm at the wrist to 2.5 mm, stagger them in two rows and point their tips back along the wing. Today they are equal segments that read as a caterpillar.",
+      "acceptance": "side.png shows separated primary tips of graded length. hero.png and stones.png read the leading edge as small overlapping feathers, not a segmented ridge."
+    },
+    {
+      "number": 8,
+      "priority": "medium",
+      "zone": "Whole ring: band section, plates, points",
+      "change": "Bring the 18k weight down from 41.1 g. Dropping the through-stone plates (item 4) and thinning the band to about 3.2 mm, with the coverts re-seated, gets there; the 3.69 mm thinnest wall has room. Keep the plates' lateral stand-off and the head's height as they are or lower. Leave no cast point under the land-width floor unnamed.",
+      "acceptance": "report.json shows grams_18k at 35 or less, z_extent_mm at 12.6 or less, radial_reach_mm at 18.6 or less, and every gate green."
+    },
+    {
+      "number": 9,
+      "priority": "low",
+      "zone": "report.json",
+      "change": "Record the draft 768x320 gate numbers and the preview build time beside the export block, as plan step 9 asks. Note that the app's standard 1536x448 export of the template runs past the 2 M budget (2.11 M).",
+      "acceptance": "report.json carries a draft block, a preview build time and the triangle count at 1536x448."
+    }
+  ],
+  "viewed_images": [
+    ".claude/collection-review/harpyia-round1/hero.png",
+    ".claude/collection-review/harpyia-round1/face.png",
+    ".claude/collection-review/harpyia-round1/side.png",
+    ".claude/collection-review/harpyia-round1/palm.png",
+    ".claude/collection-review/harpyia-round1/shoulder.png",
+    ".claude/collection-review/harpyia-round1/reverse.png",
+    ".claude/collection-review/harpyia-round1/stones.png",
+    ".claude/collection-review/harpyia-round1/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png",
+    ".claude/collection-review/zbrush_top.png",
+    ".claude/collection-review/zbrush_sheet.png",
+    ".claude/collection-review/refs/arachne/hero.png",
+    ".claude/collection-review/harpyia-round1/_contact300.png (300 px strip: Harpyia hero, face, side; phoenix-round2/hero.png; corvus-round1/hero.png; refs/arachne/hero.png)"
+  ]
+}
