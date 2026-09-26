@@ -3197,6 +3197,21 @@ deterministic.
   −40° row is not a result: the leaf failed to join ("two cuts cross inside
   a face") and the row judged the bare table.
 
+**Sculpt is core too.** `sculpt.rs` is the toolkit Fenrir grew in its
+example, moved as it was, so any ring can carry a sculpted part as a stored
+mesh: a distance field built from `smin`/`smax`, `ellipsoid`, `round_cone`
+and `trapezoid`, met to the ring through a `Stock` field, meshed by
+`tetra_mesh`, `relax`ed, `clean_decimate`d to a budget (backing off until
+`csg::self_crossings` reads zero) and `settle`d — sliver collapse, edge-flip
+polish, fold-corner smoothing, each kept only while the mesh stays closed and
+uncrossed. A hollow is `Heights::first_air` eroded by a ball of the wall,
+kept by `open_shells` where it opens into the bore; `packed` refuses an open
+or crossing mesh. On Fenrir's own wolf the hollow and every stage up to
+fold-corner smoothing are bit for bit the example's. That one changed: it
+summed each corner's ring in `HashSet` order, so the example's head differed
+in its last bits run to run; the ring is sorted now and every tool is
+deterministic. A lattice is held to `MAX_GRID_POINTS` by coarsening its step.
+
 ## Reels are played by the app, not by a finger
 
 Tools → **Play build reel** (`reel.rs`, host-tested; the driver is
