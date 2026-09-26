@@ -15,6 +15,7 @@ Codex's account hit its usage limit at 10:14 MDT on 2026-09-25 and cannot resume
   - Trilogy's side head has 2 degenerate faces in its own part mesh at export chords of 512 steps and up (the joined ring is clean; the fix belongs in the claw builder);
   - the desktop "Imported signet base" picker shows a sand-master stock's raw source name instead of selecting its preset;
   - the phone's retired "Imported signet base..." menu entry needs a CHANGELOG line at the next release.
+- **Icons (2026-09-26, Logan):** the phone's launcher icon is now the desktop icon (`crates/ringdesigner-android/icon/ic_launcher.svg` links to `bundled/icon/ringdesigner.svg`; mipmaps re-rendered). The app store listing `ringdesigner-android` already serves it (uploaded directly to the store's icon endpoint). Installed phones show it from the next APK; add a CHANGELOG line then.
 - Lane instructions shared by every ring: `.claude/collection-review/bestiarium-lane-brief.md` (ignored dir; the review prompt template sits beside it). Gates add two to the list in README: nothing may enter the finger hole (Arachne's leg did, 0.36 mm, and nothing caught it) and the export build must fit the 2 million triangle budget.
 - **Read another worktree's files with Bash, not the Read tool**: each worktree carries its own copy of the long CLAUDE.md, and the Read tool injects it into the reader's context once per worktree touched.
 - All seven lanes launched on 2026-09-25 died within minutes on the account's usage limit and were relaunched the next morning, fewer at a time.
