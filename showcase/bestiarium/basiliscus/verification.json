@@ -4,10 +4,10 @@
     "theta_steps": 1536
   },
   "cold_design_reload": {
-    "bake_ms": 5.026395,
-    "build_ms": 3727.182026,
+    "bake_ms": 4.407173,
+    "build_ms": 3405.096893,
     "identical_vertices_faces_normals": true,
-    "read_ms": 0.8426790000000001
+    "read_ms": 0.552663
   },
-  "design_bytes": 1796491
+  "design_bytes": 1526065
 }

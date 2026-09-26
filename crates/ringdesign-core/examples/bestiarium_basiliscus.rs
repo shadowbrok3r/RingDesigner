@@ -22,7 +22,6 @@ use std::{f64::consts::PI, path::Path, time::Instant};
 
 const AW: usize = 2048;
 const HACKLE_HEIGHT: f64 = 0.75;
-const FLANK_HEIGHT: f64 = 0.40;
 const BELLY_HEIGHT: f64 = 0.30;
 /// Scale of the painted serpent layer, mm.
 const SERPENT_HEIGHT: f64 = 2.0;
@@ -32,8 +31,6 @@ const PIT_DEPTH: f64 = 0.09;
 const BEAD_HEIGHT: f64 = 0.26;
 /// The boss the tsavorite is set flush in, mm over the field.
 const STONE_BOSS: f64 = 0.9;
-/// Metal left round the tsavorite's plan in its boss, mm.
-const STONE_STOCK: f64 = 2.1;
 /// Relief sampling of the export build.
 const EXPORT_THETA: usize = 1536;
 /// Mask confining the hide's detail to where it paints: clear of the lower walls by the bore edges.
@@ -164,6 +161,27 @@ fn resample(poly: &[P2], step: f64) -> Vec<P2> {
             let (a, b) = (poly[j], poly[(j + 1) % n]);
             let t = (s - cum[j]) / (cum[j + 1] - cum[j]).max(1e-12);
             [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
+        })
+        .collect()
+}
+
+/// An open polyline at equal steps no longer than `step`, keeping both ends.
+fn open_resample(line: &[P2], step: f64) -> Vec<P2> {
+    let mut at = vec![0.0];
+    for w in line.windows(2) {
+        at.push(at.last().unwrap() + (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]));
+    }
+    let total = *at.last().unwrap();
+    let m = (total / step).ceil().max(1.0) as usize;
+    let mut j = 0;
+    (0..=m)
+        .map(|k| {
+            let s = total * k as f64 / m as f64;
+            while j + 2 < at.len() && at[j + 1] < s {
+                j += 1;
+            }
+            let t = ((s - at[j]) / (at[j + 1] - at[j]).max(1e-12)).clamp(0.0, 1.0);
+            [line[j][0] + (line[j + 1][0] - line[j][0]) * t, line[j][1] + (line[j + 1][1] - line[j][1]) * t]
         })
         .collect()
 }
@@ -350,52 +368,9 @@ fn tongue(line: &[P2], fork: f64, stem: f64, tine: f64, spread: f64) -> Vec<(Vec
     out
 }
 
-/// Box-blurs a `w` x `h` grid in place, wrapping round the ring and clamping across it.
-fn blur(data: &mut [f32], w: usize, h: usize, r: usize, passes: usize) {
-    let mut line = vec![0.0f32; w.max(h)];
-    let span = (2 * r + 1) as f32;
-    for _ in 0..passes {
-        for y in 0..h {
-            let row = &mut data[y * w..(y + 1) * w];
-            let mut acc: f32 = (0..=2 * r).map(|k| row[(k + w - r) % w]).sum();
-            for x in 0..w {
-                line[x] = acc / span;
-                acc += row[(x + r + 1) % w] - row[(x + w - r) % w];
-            }
-            row.copy_from_slice(&line[..w]);
-        }
-        for x in 0..w {
-            let at = |d: &[f32], y: i64| d[(y.clamp(0, h as i64 - 1) as usize) * w + x];
-            let mut acc: f32 = (-(r as i64)..=r as i64).map(|y| at(data, y)).sum();
-            for y in 0..h {
-                line[y] = acc / span;
-                acc += at(data, y as i64 + r as i64 + 1) - at(data, y as i64 - r as i64);
-            }
-            for y in 0..h {
-                data[y * w + x] = line[y];
-            }
-        }
-    }
-}
-
 /// Whether ring angle `theta` lies within `half` degrees of `centre`.
 fn within(theta: f64, centre: f64, half: f64) -> bool {
     (theta - centre + 180.0).rem_euclid(360.0) - 180.0 <= half && (theta - centre + 180.0).rem_euclid(360.0) - 180.0 >= -half
-}
-
-/// A convex quad's corners in counter-clockwise order round their centre.
-fn around(mut corners: Vec<P2>) -> Vec<P2> {
-    let c = centroid(&corners);
-    corners.sort_by(|p, q| {
-        (p[1] - c[1])
-            .atan2(p[0] - c[0])
-            .total_cmp(&(q[1] - c[1]).atan2(q[0] - c[0]))
-    });
-    corners
-}
-
-fn plate(corners: Vec<P2>, radius: f64) -> Vec<P2> {
-    ccw(outline::rounded_polygon(&around(corners), radius))
 }
 
 fn centroid(poly: &[P2]) -> P2 {
@@ -446,7 +421,12 @@ fn fang(root: P2, tip: P2, half: f64, bend: f64, point: f64) -> Vec<P2> {
 }
 
 /// The tsavorite's centre on the face; its long axis runs round the ring.
-const STONE: P2 = [0.2, 2.95];
+const STONE: P2 = [-0.2, 2.95];
+/// The seat's plan: semi-axes round the ring and across, and the superellipse's power. Rounder than the marquise's own
+/// 1.5, so the wall round its girdle holds 0.85 mm at the shoulders as well as at the ends and sides.
+const SEAT_PLAN: (f64, f64, f64) = (4.88, 2.88, 1.8);
+/// How far the coil laps onto the seat's rim, mm.
+const LAP: f64 = 0.52;
 /// Where the head's own frame stands on the face.
 const HEAD_AT: P2 = [-0.5, -2.33];
 /// The head in profile under its crown, in its own frame: facing round the ring toward -x, jaws open.
@@ -474,8 +454,8 @@ const HEAD: [P2; 27] = [
     [-3.82, 2.15],
     [-3.6, 2.58],
     [-2.35, 2.68],
-    [-0.9, 2.45],
-    [0.6, 2.05],
+    [-0.9, 2.38],
+    [0.6, 1.98],
     [1.9, 1.7],
     [3.0, 1.2],
 ];
@@ -484,54 +464,85 @@ const LIPS: [usize; 3] = [11, 15, 19];
 /// Samples a span of the head's spline.
 const HEAD_PER: usize = 40;
 /// The eye in the head's frame: centre, half-length, half-height, and how far the brow comes down over it.
-const EYE: (P2, f64, f64, f64) = ([-1.5, -0.78], 0.7, 0.62, 0.25);
+const EYE: (P2, f64, f64, f64) = ([-1.5, -0.8], 0.68, 0.58, 0.25);
 const NOSTRIL: P2 = [-3.55, -0.45];
-/// The fangs in the head's frame: root inside the jaw, tip, and bow toward the snout.
-const FANGS: [(P2, P2, f64); 2] = [([-3.5, -0.02], [-3.2, 0.95], 0.1), ([-1.42, 1.78], [-1.1, 0.8], -0.1)];
-/// The tongue's stroke in the head's frame, from inside the gape out past the snout.
-const TONGUE: [P2; 4] = [[-2.5, 1.32], [-3.6, 1.4], [-4.5, 1.55], [-5.05, 1.95]];
-/// Plate boundaries across the head's side, in its frame: nasal, preocular, postoculars and temporals.
-const PLATES: [&[P2]; 8] = [
-    &[[-3.3, -0.95], [-3.1, -0.5], [-3.12, -0.1]],
-    &[[-2.35, -1.2], [-2.52, -0.75], [-2.32, -0.28]],
-    &[[-0.76, -1.02], [-0.2, -1.2], [0.35, -1.25]],
-    &[[-0.78, -0.62], [-0.2, -0.6], [0.4, -0.42]],
-    &[[-0.82, -0.3], [-0.3, -0.05], [0.3, 0.12]],
-    &[[0.35, -1.25], [0.78, -0.55], [0.62, 0.22]],
-    &[[1.7, -1.25], [2.18, -0.4], [1.95, 0.5]],
-    &[[-0.05, 1.0], [0.7, 1.22], [1.5, 1.35]],
+/// Both fangs hang from the upper jaw, in the head's frame: root inside the jaw, tip in the gape, bow toward the snout.
+const FANGS: [(P2, P2, f64); 2] = [([-3.5, -0.02], [-3.2, 0.95], 0.1), ([-2.95, 0.1], [-2.67, 1.07], 0.09)];
+/// The tongue's stroke in the head's frame: from inside the gape, over the lower jaw's front labials and out.
+const TONGUE: [P2; 4] = [[-2.1, 1.25], [-3.0, 1.62], [-3.75, 2.05], [-4.62, 2.49]];
+/// The skull's plates between the eye and the crown, in the head's frame: corners, then the edges between them.
+const PLATE_CORNERS: [P2; 13] = [
+    [-0.82, -1.25],
+    [-0.15, -1.46],
+    [0.72, -1.6],
+    [1.95, -1.42],
+    [2.85, -1.2],
+    [-0.88, -0.4],
+    [0.05, -0.7],
+    [1.2, -0.5],
+    [2.05, -0.55],
+    [3.15, -0.25],
+    [0.3, 0.22],
+    [1.1, 0.38],
+    [2.35, 0.42],
 ];
-/// The jaws' rims over the gape's floor, the eye's socket, the brow over it and the plates' grooves, mm.
-const LIP: f64 = 0.65;
+const PLATE_EDGES: [(usize, usize); 16] = [
+    (0, 1),
+    (1, 2),
+    (2, 3),
+    (3, 4),
+    (1, 6),
+    (2, 7),
+    (3, 8),
+    (4, 9),
+    (5, 6),
+    (6, 7),
+    (7, 8),
+    (8, 9),
+    (6, 10),
+    (7, 11),
+    (8, 12),
+    (10, 11),
+];
+/// The eye's socket, the brow over it and the plates' grooves, mm.
 const SOCKET: f64 = 0.35;
 const BROW: f64 = 0.45;
 const GROOVE: f64 = 0.1;
-/// Labial plates along each jaw: count and pitch from the snout, mm.
-const LABIALS: (usize, f64) = (5, 0.9);
-/// The crown: how far its band comes down over the head's crest, the band's height in plan, its lift over the skull.
-const CROWN: (f64, f64, f64) = (0.65, 0.8, 0.4);
-/// The crown's points off the band's centre: offset, rise over the band, half-width at the base.
-const POINTS: [(f64, f64, f64); 3] = [(-1.6, 1.2, 0.55), (0.0, 1.5, 0.62), (1.6, 1.2, 0.55)];
-/// The points' centre off the band's, toward the head's back where the chief's cusp leaves them room, mm.
-const CROWN_SHIFT: f64 = 0.2;
+/// Labial plates along each jaw: count and pitch from the snout, and where across the lip they run, mm from the gape.
+const LABIALS: (usize, f64, f64, f64) = (4, 0.85, 0.2, 0.62);
+/// The crown's circlet, painted along the skull's own crest: its run in the head's frame, how far it sits into the skull
+/// and stands out past it, and its rise over the skull.
+const CIRCLET: (f64, f64, f64, f64, f64) = (-2.6, 3.6, 0.56, 0.3, 0.45);
+/// The crown's points off the circlet's middle: offset, height to the pearl's centre, half-width at the base.
+const POINTS: [(f64, f64, f64); 3] = [(-1.6, 1.1, 0.6), (0.0, 1.3, 0.65), (1.6, 1.1, 0.6)];
+/// Half the width of each point where it runs into its pearl, and the pearl's radius.
+const NECK: f64 = 0.22;
 const PEARL: f64 = 0.41;
-/// The serpent's spine from the throat, down past the stone, under it and up its far side to the tail.
-const SPINE: [P2; 10] = [
-    [2.4, -1.3],
-    [4.8, -0.4],
-    [5.6, 1.8],
-    [5.15, 4.5],
-    [2.95, 5.95],
-    [0.3, 6.6],
-    [-2.35, 6.2],
-    [-4.3, 5.0],
-    [-5.4, 3.3],
-    [-5.55, 2.0],
+/// The serpent's spine from the throat, down the right of the seat and round it, lapping its rim, to the tail.
+const SPINE: [P2; 17] = [
+    [2.0, -1.3],
+    [3.35, -1.2],
+    [4.25, -0.75],
+    [4.72, 0.25],
+    [4.9, 1.7],
+    [4.97, 2.86],
+    [4.67, 3.75],
+    [3.88, 4.6],
+    [2.7, 5.28],
+    [1.3, 5.71],
+    [-0.08, 5.85],
+    [-1.36, 5.68],
+    [-2.74, 5.24],
+    [-3.89, 4.56],
+    [-4.67, 3.76],
+    [-4.96, 3.01],
+    [-4.77, 2.32],
 ];
 /// Half-width of the body at the neck and at the tail's tip, mm.
-const GIRTH: (f64, f64) = (1.3, 0.4);
-/// The body's crown over its plinth, mm.
+const GIRTH: (f64, f64) = (1.25, 0.4);
+/// The body's crown over its plinth, and the relief of its scales, mm.
 const DOME: f64 = 1.4;
+const SCALE_RELIEF: f64 = 0.24;
 
 /// A point of the head's frame on the face.
 fn head_at(p: P2) -> P2 {
@@ -598,7 +609,7 @@ impl Body {
     }
 
     fn girth(&self, s: f64) -> f64 {
-        GIRTH.0 + (GIRTH.1 - GIRTH.0) * (s / self.length()).clamp(0.0, 1.0).powf(0.9)
+        GIRTH.1 + (GIRTH.0 - GIRTH.1) * (1.0 - (s / self.length()).clamp(0.0, 1.0)).powi(2)
     }
 
     /// Distance to the spine, arc length at the nearest spine point, and the signed offset across it.
@@ -620,7 +631,7 @@ impl Body {
         Some(best)
     }
 
-    /// The body's crest height and its steepest flank over the outer quarter of the girth, degrees, both unmodulated by skin.
+    /// The body's crest height and its steepest flank over the outer quarter of the girth, degrees, both without the scales.
     fn profile(&self) -> (f64, f64) {
         let (mut crest, mut steep): (f64, f64) = (0.0, 0.0);
         for i in (1..self.spine.len() - 1).step_by(4) {
@@ -628,12 +639,15 @@ impl Body {
             let l = (b[0] - a[0]).hypot(b[1] - a[1]).max(1e-12);
             let n = [-(b[1] - a[1]) / l, (b[0] - a[0]) / l];
             let w = self.girth(self.at[i]);
-            let at = |d: f64| self.height([self.spine[i][0] + n[0] * d, self.spine[i][1] + n[1] * d], 0.0);
+            let at = |d: f64| self.height([self.spine[i][0] + n[0] * d, self.spine[i][1] + n[1] * d], false);
             crest = crest.max(at(0.0));
             for k in 0..20 {
                 let d = w * (0.75 + 0.25 * k as f64 / 20.0);
                 let h = 0.0005;
-                steep = steep.max(((at(d - h) - at(d + h)) / (2.0 * h)).abs().atan().to_degrees());
+                let own = |d: f64| self.nearest([self.spine[i][0] + n[0] * d, self.spine[i][1] + n[1] * d]).is_some_and(|(_, s, _)| (s - self.at[i]).abs() < 0.5);
+                if own(d - h) && own(d + h) {
+                    steep = steep.max(((at(d - h) - at(d + h)) / (2.0 * h)).abs().atan().to_degrees());
+                }
             }
         }
         (crest, steep)
@@ -644,24 +658,27 @@ impl Body {
         self.nearest(p).map_or(f64::MAX, |(d, s, _)| d - self.girth(s))
     }
 
-    /// Painted body height, mm: a raised-cosine crown of keeled dorsal scales over a low plinth that gives the edge its line,
-    /// belly scutes down its inner side, the skin fading out over the outer quarter so the flanks stay smooth.
-    fn height(&self, p: P2, calm: f64) -> f64 {
+    /// Painted body height, mm: a raised-cosine crown over a low plinth that gives the edge its line, and with `skin` the
+    /// keeled dorsal scales at full relief over the inner seven tenths of the half-girth, faded out by nine tenths, with
+    /// belly scutes down its inner side.
+    fn height(&self, p: P2, skin: bool) -> f64 {
         let Some((d, s, lat)) = self.nearest(p) else { return 0.0 };
         let w = self.girth(s);
         if d >= w {
             return 0.0;
         }
-        let plinth = 0.1 * (w / 0.8).min(1.0) * smoothstep(0.0, (0.6 * w).min(0.3), w - d);
+        let plinth = 0.08 * (w / 0.8).min(1.0) * smoothstep(0.0, (0.6 * w).min(0.3), w - d);
         let x = d / w;
-        let crown = DOME.min(1.12 * w);
-        let dome = crown * 0.5 * (1.0 + (PI * x).cos());
+        let dome = DOME.min(1.1 * w) * 0.5 * (1.0 + (PI * x).cos());
+        if !skin {
+            return plinth + 0.9 * dome;
+        }
         let across = lat / w;
         let belly = smooth(-0.22, -0.42, across);
         let scales = reptile::snake(s / 0.85, lat / 0.62);
         let scutes = reptile::ventral(s / 0.6, ((across + 0.71) / 0.29).clamp(-1.0, 1.0));
-        let skin = (scales * (1.0 - belly) + (0.5 + 0.5 * scutes) * belly) * (1.0 - smooth(0.55, 0.75, d / w)) * calm;
-        plinth + dome * (0.88 + 0.12 * skin)
+        let pattern = scales * (1.0 - belly) + scutes * belly;
+        plinth + 0.9 * dome + SCALE_RELIEF * pattern * (1.0 - smooth(0.7, 0.9, x))
     }
 }
 
@@ -735,7 +752,7 @@ impl Line {
 /// Punched pits: radius, the pitch of the rows that outline each arm, the grain of the fill between them, mm.
 const PIT: (f64, f64, f64) = (0.21, 0.5, 0.78);
 /// The bordure's beads: inset from the table's edge, pitch and radius, mm.
-const BEADS: (f64, f64, f64) = (0.62, 0.66, 0.22);
+const BEADS: (f64, f64, f64) = (0.5, 0.62, 0.22);
 /// The seat's skirt beyond its rim, mm.
 const SKIRT: f64 = 0.45;
 
@@ -757,8 +774,11 @@ struct Arms {
     lips: [Line; 2],
     gape: (P2, P2),
     plates: Vec<Line>,
-    /// The crown band: its ends round the ring, its top edge toward the chief and its lower edge on the skull.
-    band: [f64; 4],
+    /// The circlet's centreline along the skull's crest, and the skull's height under its inner edge every 0.02 mm of it.
+    circlet: Line,
+    circlet_base: Vec<f64>,
+    /// The two jewels set on the circlet: centre and the circlet's direction there.
+    jewels: Vec<(P2, P2)>,
     beads: Vec<P2>,
     pits: Vec<P2>,
     grid: std::collections::HashMap<(i64, i64), Vec<usize>>,
@@ -782,12 +802,12 @@ impl Arms {
         let upper = Line::new(outline[up..=corner].to_vec());
         let lower = Line::new(outline[corner..=low].iter().rev().copied().collect());
         let gape = (outline[low], outline[up]);
-        let (ra, rb) = (4.0 + STONE_STOCK * 0.5, 2.0 + STONE_STOCK * 0.5);
+        let (ra, rb, pw) = SEAT_PLAN;
         let rim: Vec<P2> = (0..720)
             .map(|i| {
                 let t = 2.0 * PI * i as f64 / 720.0;
                 let (c, s) = (t.cos(), t.sin());
-                [STONE[0] + ra * c.signum() * c.abs().powf(2.0 / 1.5), STONE[1] + rb * s.signum() * s.abs().powf(2.0 / 1.5)]
+                [STONE[0] + ra * c.signum() * c.abs().powf(2.0 / pw), STONE[1] + rb * s.signum() * s.abs().powf(2.0 / pw)]
             })
             .collect();
         let boss = area_of("Boss", rim);
@@ -799,49 +819,79 @@ impl Arms {
         let eye_mid = [c[0], 0.5 * (clip + c[1] + ez)];
         let eye = Shape::new("Eye", eye_mid, ccw(resample(&lid, 0.05)), 0.33, 0.3, 0.0, 0, dome(0.12), false);
         let socket = Shape::new("Eye socket", eye_mid, eye.poly.clone(), 0.0, 0.0, 0.0, 0, flat, false);
-        let plates: Vec<Line> = PLATES.iter().map(|g| Line::new(open_spline(&g.iter().map(|p| head_at(*p)).collect::<Vec<_>>(), 12))).collect();
-
-        let crest = head.poly.iter().map(|p| p[1]).fold(f64::MAX, f64::min);
-        let z_low = crest + CROWN.0;
-        let z_top = z_low - CROWN.1;
-        let n = head.poly.len();
-        let cuts: Vec<f64> = (0..n)
-            .filter_map(|i| {
-                let (a, b) = (head.poly[i], head.poly[(i + 1) % n]);
-                ((a[1] - z_low) * (b[1] - z_low) <= 0.0 && a[1] != b[1] && a[1].min(b[1]) < HEAD_AT[1])
-                    .then(|| a[0] + (z_low - a[1]) / (b[1] - a[1]) * (b[0] - a[0]))
+        let plates: Vec<Line> = PLATE_EDGES
+            .iter()
+            .enumerate()
+            .map(|(e, &(i, j))| {
+                let (p, q) = (head_at(PLATE_CORNERS[i]), head_at(PLATE_CORNERS[j]));
+                let l = (q[0] - p[0]).hypot(q[1] - p[1]).max(1e-9);
+                let bow = if e % 2 == 0 { 0.07 } else { -0.07 };
+                Line::new((0..=24).map(|k| {
+                    let t = k as f64 / 24.0;
+                    let b = bow * 4.0 * t * (1.0 - t);
+                    [p[0] + (q[0] - p[0]) * t - (q[1] - p[1]) / l * b, p[1] + (q[1] - p[1]) * t + (q[0] - p[0]) / l * b]
+                }).collect())
             })
             .collect();
-        let (x0, x1) = (cuts.iter().copied().fold(f64::MAX, f64::min), cuts.iter().copied().fold(f64::MIN, f64::max));
-        ensure!(x1 - x0 > 4.0, "Crown band only {:.2} mm wide", x1 - x0);
-        let xc = 0.5 * (x0 + x1) + CROWN_SHIFT;
+
+        // The circlet runs along the skull's own crest: the head's top outline, sampled left to right, offset in by half
+        // the difference between how far it sits in and how far it stands out.
+        let (x0, x1, into, out, _) = CIRCLET;
+        let mut crest: Vec<P2> = outline
+            .iter()
+            .filter(|p| {
+                let q = [p[0] - HEAD_AT[0], p[1] - HEAD_AT[1]];
+                q[0] >= x0 && q[0] <= x1 && q[1] < -0.3
+            })
+            .copied()
+            .collect();
+        crest.sort_by(|a, b| a[0].total_cmp(&b[0]));
+        let crest = open_resample(&crest, 0.05);
+        let normal = |pts: &[P2], i: usize| {
+            let (a, b) = (pts[i.saturating_sub(1)], pts[(i + 1).min(pts.len() - 1)]);
+            let l = (b[0] - a[0]).hypot(b[1] - a[1]).max(1e-12);
+            [(b[1] - a[1]) / l, -(b[0] - a[0]) / l]
+        };
+        let mid_off = 0.5 * (out - into);
+        let circlet = Line::new((0..crest.len()).map(|i| {
+            let n = normal(&crest, i);
+            [crest[i][0] + n[0] * mid_off, crest[i][1] + n[1] * mid_off]
+        }).collect());
+        let half = 0.5 * (out + into);
         let mut s = Vec::new();
-        let band = plate(vec![[x0, z_low], [x1, z_low], [x1, z_top], [x0, z_top]], 0.12);
-        s.push(Shape::new("Crown", [0.5 * (x0 + x1), 0.5 * (z_top + z_low)], band, CROWN.2, 0.3, 2.0, 0, StampTop::Gable { rise_mm: 0.08, axis_deg: 0.0 }, false));
-        for (k, &(dx, rise, half)) in POINTS.iter().enumerate() {
-            let x = xc + dx;
-            let (base, tip) = (z_top + 0.1, z_top - rise);
-            let at = [x, base + 0.4 * (tip - base)];
-            let poly = ccw(resample(&outline::rounded_polygon(&[[x - half, base], [x, tip], [x + half, base]], 0.1), 0.03));
-            let end = tip + 0.1 / (half / (base - tip)).atan().sin();
-            let land = land_of(&poly, &[([x, base - 0.4], [x, end])]);
+        let at_x = |x: f64| -> (P2, P2) {
+            let i = circlet.pts.iter().position(|p| p[0] >= x).unwrap_or(circlet.pts.len() - 1).max(1);
+            (circlet.pts[i], normal(&circlet.pts, i))
+        };
+        let xc = 0.5 * (circlet.pts[0][0] + circlet.pts.last().unwrap()[0]);
+        for (k, &(dx, rise, wide)) in POINTS.iter().enumerate() {
+            let (c, n) = at_x(xc + dx);
+            let base = [c[0] + n[0] * (half - 0.15), c[1] + n[1] * (half - 0.15)];
+            let x = base[0];
+            let (zb, zt) = (base[1], c[1] + n[1] * half - rise);
+            let poly = ccw(resample(
+                &outline::rounded_polygon(&[[x - wide, zb], [x - NECK, zt], [x + NECK, zt], [x + wide, zb]], 0.08),
+                0.03,
+            ));
+            let waist = zt + PEARL;
+            let land = land_of(&poly, &[([x, zb - 0.3], [x, waist])]);
             s.push(
-                Shape::new(format!("Crown point, {}", k + 1), at, poly, 1.0, 0.3, 2.0, 0, StampTop::Cone { apex_mm: 0.4, at, tip_mm: 0.0 }, false)
-                    .land(land, Some("Pointed fleuron under its pearl: investment detail, cast in place and cleaned up with a graver")),
+                Shape::new(format!("Crown point, {}", k + 1), [x, 0.5 * (zb + zt)], poly, 0.85, 0.3, 0.0, 0,
+                    StampTop::Ridge { rise_mm: 0.25, from: [x, zb - 0.1], to: [x, zt], end_mm: 0.1 }, false)
+                    .land(land, Some("Fleuron's waist under its pearl: investment detail, cast in place and cleaned up with a graver")),
             );
-            s.push(Shape::new(format!("Crown pearl, {}", k + 1), [x, tip], ellipse([x, tip], PEARL, PEARL, 0.0), 1.05, 0.3, 2.0, 0, dome(0.35), false));
+            s.push(Shape::new(format!("Crown pearl, {}", k + 1), [x, zt], ellipse([x, zt], PEARL, PEARL, 0.0), 1.1, 0.3, 0.0, 0, dome(0.35), false));
         }
-        for (k, dx) in [-0.875, 0.875].into_iter().enumerate() {
-            let (x, z) = (xc + dx, z_low - 0.3);
-            let poly = plate(vec![[x - 0.4, z], [x, z - 0.25], [x + 0.4, z], [x, z + 0.25]], 0.06);
-            s.push(
-                Shape::new(format!("Crown jewel, {}", k + 1), [x + 1.2, z], poly, 0.06, 0.3, 0.0, 1, StampTop::Cone { apex_mm: 0.2, at: [x, z], tip_mm: 0.0 }, false)
-                    .land(0.0, Some("Faceted lozenge set on the band: investment detail, polished at the bench")),
-            );
-        }
+        let jewels: Vec<(P2, P2)> = [-0.82, 0.82]
+            .into_iter()
+            .map(|dx| {
+                let (c, n) = at_x(xc + dx);
+                (c, [-n[1], n[0]])
+            })
+            .collect();
         s.push(eye);
         let pupil_mid = eye_mid[1];
-        s.push(Shape::new("Pupil", [c[0] + 1.2, pupil_mid], lens([c[0], pupil_mid - 0.38], [c[0], pupil_mid + 0.38], 0.2, 0.04), 0.4, 0.1, 0.0, 1, StampTop::Gable { rise_mm: 0.45, axis_deg: 90.0 }, true));
+        s.push(Shape::new("Pupil", [c[0] + 1.2, pupil_mid], lens([c[0], pupil_mid - 0.37], [c[0], pupil_mid + 0.37], 0.2, 0.04), 0.4, 0.1, 0.0, 1, StampTop::Gable { rise_mm: 0.45, axis_deg: 90.0 }, true));
         let nose = head_at(NOSTRIL);
         s.push(Shape::new("Nostril", nose, ellipse(nose, 0.2, 0.12, -20.0), 0.3, 0.22, 0.0, 0, flat, true));
         for (k, (root, tip, bend)) in FANGS.into_iter().enumerate() {
@@ -859,7 +909,7 @@ impl Arms {
             let land = land_of(&poly, &spine.windows(2).map(|w| (w[0], w[1])).collect::<Vec<_>>());
             s.push(
                 Shape::new(format!("Fang, {}", k + 1), [0.5 * (root[0] + tip[0]), 0.5 * (root[1] + tip[1])], poly, 0.15, 0.3, 0.0, 0, StampTop::Taper { axis_deg: axis, tip_mm: 0.35 }, false)
-                    .land(land, Some("Fang curving to a rounded point: investment detail, cast in place")),
+                    .land(land, Some("Fang hanging from the upper jaw to a rounded point: investment detail, cast in place")),
             );
         }
         let line: Vec<P2> = TONGUE.iter().map(|p| head_at(*p)).collect();
@@ -895,13 +945,24 @@ impl Arms {
             lips: [upper, lower],
             gape,
             plates,
-            band: [x0, x1, z_top, z_low],
+            circlet,
+            circlet_base: Vec::new(),
+            jewels,
             beads: Vec::new(),
             pits: Vec::new(),
             grid: Default::default(),
         };
         arms.floor = arms.skull(eye_mid) - SOCKET;
         arms.socketed = true;
+        let n = (arms.circlet.length() / 0.02).ceil() as usize;
+        arms.circlet_base = (0..=n)
+            .map(|k| {
+                let s = arms.circlet.length() * k as f64 / n as f64;
+                let i = arms.circlet.at.iter().position(|&a| a >= s).unwrap_or(0).min(arms.circlet.pts.len() - 1);
+                let (c, nn) = (arms.circlet.pts[i], normal(&arms.circlet.pts, i));
+                arms.skull([c[0] - nn[0] * (half + 0.02), c[1] - nn[1] * (half + 0.02)])
+            })
+            .collect();
         arms.beads = arms.bordure();
         arms.pounce();
         Ok(arms)
@@ -921,16 +982,24 @@ impl Arms {
         best
     }
 
-    /// Distance outside every arm on the field, mm: the head with its gape, the body, the raised stamps, and the seat's skirt.
+    /// Distance outside the circlet's footprint, mm; negative inside it.
+    fn circlet_clear(&self, p: P2) -> f64 {
+        let half = 0.5 * (CIRCLET.2 + CIRCLET.3);
+        self.circlet.nearest(p, 1.0).map_or(f64::MAX, |(d, _)| d - half)
+    }
+
+    /// Distance outside every arm on the field, mm: the head with its gape and circlet, the body, the raised stamps,
+    /// and the seat's skirt.
     fn clear(&self, p: P2) -> f64 {
-        let mut d = (-self.full.sdf(p, 2.0)).min(self.body.clear(p)).min(-self.boss.sdf(p, 2.0) - SKIRT);
+        let mut d = (-self.full.sdf(p, 2.0)).min(self.body.clear(p)).min(-self.boss.sdf(p, 2.0) - SKIRT).min(self.circlet_clear(p));
         for s in self.shapes.iter().filter(|s| s.tier == 0 && !s.cut) {
             d = d.min(-s.sdf(p, 2.0));
         }
         d
     }
 
-    /// The head's painted relief before the crown's bed is laid under the band, mm.
+    /// The head's painted relief, mm: a pillow crowned across every jaw, bevelled into the gape, with lip scales along
+    /// both jaws, closed plates between the eye and the crown, and the eye's socket under its brow.
     fn skull(&self, p: P2) -> f64 {
         let df = self.full.sdf(p, 1.5);
         if df <= 0.0 {
@@ -941,17 +1010,18 @@ impl Arms {
             return 0.0;
         }
         let q = [p[0] - HEAD_AT[0], p[1] - HEAD_AT[1]];
-        let general = 0.35 * smooth(0.0, 0.3, df) + 0.95 * (1.0 - (1.0 - (df / 1.3).min(1.0)).powi(2));
+        let inner = df.min(dm);
+        let edge = (0.35 * smooth(0.0, 0.3, df)).min(0.25 * smooth(0.0, 0.2, dm));
+        let pillow = 0.95 * (1.0 - (1.0 - (inner / 1.3).min(1.0)).powi(2));
         let snout = 1.0 - 0.16 * smooth(-2.4, -3.9, q[0]);
         let cheek = {
             let (u, v) = ((q[0] - 1.5) / 1.5, (q[1] + 0.3) / 0.9);
             0.12 * (1.0 - (u * u + v * v)).max(0.0).powi(2) * smooth(0.2, 0.6, df)
         };
-        let lip = LIP * smooth(0.0, 0.22, dm) + 0.6 * smooth(0.64, 1.3, dm);
-        let mut h = (general * snout + cheek).min(lip) + self.labials(p, dm);
-        let plates = self.plates.iter().filter_map(|g| g.nearest(p, 0.2)).map(|n| n.0).fold(f64::MAX, f64::min);
-        let z_low = self.band[3];
-        h -= GROOVE * (1.0 - smooth(0.03, 0.09, plates)) * smooth(0.3, 0.5, df) * smooth(0.7, 0.8, dm) * smooth(z_low + 0.12, z_low + 0.3, p[1]);
+        let mut h = (edge + pillow) * snout + cheek + self.labials(p, dm);
+        let plates = self.plates.iter().filter_map(|g| g.nearest(p, 0.3)).map(|n| n.0).fold(f64::MAX, f64::min);
+        let keep = smooth(0.3, 0.5, df) * smooth(0.75, 0.9, dm);
+        h += (0.05 * smooth(0.05, 0.3, plates) - GROOVE * (1.0 - smooth(0.03, 0.08, plates))) * keep;
         if !self.socketed {
             return h;
         }
@@ -968,46 +1038,65 @@ impl Arms {
         socket.max(brow).max(0.0)
     }
 
-    /// Labial plates along each jaw's rim, mm: a domed plate every pitch from the snout, grooved against the head's plates above.
+    /// Lip scales along each jaw, mm: domed plates set back from the gape's bevel, a pitch apart from the snout.
     fn labials(&self, p: P2, dm: f64) -> f64 {
-        if dm > 0.9 {
+        let (count, pitch, from, to) = LABIALS;
+        if dm > to + 0.1 {
             return 0.0;
         }
-        let near: Vec<(f64, f64, f64)> = self.lips.iter().filter_map(|l| l.nearest(p, 1.0).map(|(d, s)| (d, s, l.length()))).collect();
-        let Some(&(_, s, _)) = near.iter().min_by(|a, b| a.0.total_cmp(&b.0)) else { return 0.0 };
-        let (count, pitch) = LABIALS;
+        let near: Vec<(f64, f64)> = self.lips.iter().filter_map(|l| l.nearest(p, 1.0)).collect();
+        let Some(&(_, s)) = near.iter().min_by(|a, b| a.0.total_cmp(&b.0)) else { return 0.0 };
         let k = (s / pitch).floor();
         if k < 0.0 || k as usize >= count {
             return 0.0;
         }
         let t = s / pitch - k;
-        let along = (1.0 - (2.0 * t - 1.0).powi(2)).max(0.0).powf(0.35);
-        let across = (1.0 - ((dm - 0.4) / 0.26).powi(2)).max(0.0).powf(0.5);
-        let fade = 1.0 - smooth(count as f64 - 0.4, count as f64, s / pitch);
-        0.11 * along * across - 0.07 * (1.0 - smooth(0.02, 0.07, (dm - 0.68).abs())) * fade
+        let (mid, half) = (0.5 * (from + to), 0.5 * (to - from));
+        let along = (1.0 - ((t - 0.5) / 0.5).powi(2)).max(0.0).powf(1.5);
+        let across = (1.0 - ((dm - mid) / half).powi(2)).max(0.0).powf(1.5);
+        0.16 * (0.55 + 0.45 * along) * across
     }
 
-    /// The head's painted relief with the crown's bed under the band: level with the skull at the band's lower edge,
-    /// eased down to the field over the band's last quarter millimetre toward the chief.
-    fn head_relief(&self, p: P2) -> f64 {
-        let [x0, x1, z_top, z_low] = self.band;
-        if p[0] >= x0 && p[0] <= x1 && p[1] < z_low {
-            if p[1] < z_top {
-                return 0.0;
-            }
-            return self.skull([p[0], z_low]) * smooth(z_top, z_top + 0.25, p[1]);
+    /// The circlet painted along the skull's crest, mm: rounded across and at its ends, rising from the skull under its
+    /// inner edge and falling to the field past the head's outline, with its two domed jewels.
+    fn circlet_height(&self, p: P2) -> f64 {
+        let (_, _, into, out, rise) = CIRCLET;
+        let half = 0.5 * (into + out);
+        let Some((d, s)) = self.circlet.nearest(p, half) else { return 0.0 };
+        if d >= half {
+            return 0.0;
         }
-        self.skull(p)
+        let k = ((s / self.circlet.length()) * (self.circlet_base.len() - 1) as f64).round() as usize;
+        let base_in = self.circlet_base[k.min(self.circlet_base.len() - 1)];
+        let t = ((-self.head.sdf(p, 2.0) + into) / (into + out)).clamp(0.0, 1.0);
+        let base = base_in * (1.0 - smooth(0.35, 1.0, t));
+        let bump = rise * (1.0 - (d / half).powi(2)).max(0.0).powf(0.6);
+        let jewel = self
+            .jewels
+            .iter()
+            .map(|(c, dir)| {
+                let v = [p[0] - c[0], p[1] - c[1]];
+                let (a, b) = ((v[0] * dir[0] + v[1] * dir[1]) / 0.4, (v[0] * dir[1] - v[1] * dir[0]) / 0.25);
+                0.24 * (1.0 - (a * a + b * b)).max(0.0).powf(0.5)
+            })
+            .fold(0.0, f64::max);
+        base + bump + jewel
     }
 
-    /// The serpent painted over the table, mm: the head with its crown's bed, and the body coiled round the seat.
-    fn serpent(&self, p: P2) -> f64 {
+    /// The head's painted relief with its circlet, mm.
+    fn head_relief(&self, p: P2) -> f64 {
+        self.skull(p).max(self.circlet_height(p))
+    }
+
+    /// The serpent painted over the table, mm: the head with its circlet, and the body coiled round the seat. Over the
+    /// seat's rim the body lies on the seat's own surface, `pad` there, so the coil laps over the setting.
+    fn serpent(&self, p: P2, pad: f64) -> f64 {
         if self.table.sdf(p, 1.0) <= 0.0 {
             return 0.0;
         }
         let df = self.full.sdf(p, 1.5);
-        let calm = smooth(-0.2, 0.5, -self.boss.sdf(p, 2.0) - SKIRT);
-        let body = self.body.height(p, calm) * (1.0 - smooth(0.0, 0.5, df));
+        let lie = self.body.height(p, true) * (1.0 - smooth(0.0, 0.5, df));
+        let body = if lie > 0.0 { lie + pad * smooth(0.0, 0.03, lie) } else { 0.0 };
         self.head_relief(p).max(body)
     }
 
@@ -1364,27 +1453,8 @@ fn strike(d: &mut RingDesign, a: &Atlas, face: &Arms) -> Result<Vec<Value>> {
     }
     Ok(placed)
 }
-fn round_scales(row: f64, col: f64) -> f64 {
-    let mut best: f64 = 0.0;
-    let i0 = row.floor() as i64;
-    for i in [i0 - 1, i0] {
-        let stagger = if i.rem_euclid(2) == 0 { 0.0 } else { 0.5 };
-        let centre = (col - stagger).round() + stagger;
-        let t = (row - i as f64) / 1.55;
-        if !(0.0..=1.0).contains(&t) {
-            continue;
-        }
-        let dc = (col - centre).abs();
-        let half = 0.56 * (1.0 - t.powf(2.4)).max(0.0).powf(0.6);
-        if dc >= half {
-            continue;
-        }
-        best = best.max(
-            smoothstep(0.0, 0.22, half - dc) * smoothstep(0.0, 0.16, 1.0 - t) * (0.35 + 0.65 * t),
-        );
-    }
-    best
-}
+/// The outer surface's half-width the mantling's rows are laid in: every column's own rim maps onto it, mm.
+const PLUME_WIDTH: f64 = 3.0;
 
 /// How far a hackle's shaft bows away from the pale by its tip, as a share of its length: a 20 degree sickle.
 const SICKLE: f64 = 0.182;
@@ -1421,10 +1491,11 @@ impl Hackles {
         me
     }
 
-    /// Row pitch across, feather length and the step between feathers along a row, mm.
+    /// Row pitch across, feather length and the step between feathers along a row, mm: long hackles, better than four
+    /// to one, shortening into scales through the morph.
     fn shape(&self, root: f64, morph: f64) -> (f64, f64, f64) {
-        let pitch = (1.5 + 0.8 * smooth(0.0, 8.0, root)) * (1.0 - morph) + 1.2 * morph;
-        let length = pitch * (3.2 * (1.0 - morph) + 1.2 * morph);
+        let pitch = (1.35 + 0.35 * smooth(0.0, 8.0, root)) * (1.0 - morph) + 1.2 * morph;
+        let length = pitch * (4.6 * (1.0 - morph) + 1.2 * morph);
         (pitch, length, 0.7 * length)
     }
 
@@ -1438,14 +1509,28 @@ impl Hackles {
         at(ko) + (at(ko + 1) - at(ko)) * to
     }
 
+    /// The distance past the table's edge where the row's phase reaches `phase`, mm: zero for a feather rooted under the table.
+    fn root_of(&self, phase: f64, off: f64) -> f64 {
+        if phase <= 0.0 {
+            return 0.0;
+        }
+        let (mut lo, mut hi) = (0.0, 60.0);
+        for _ in 0..28 {
+            let mid = 0.5 * (lo + hi);
+            if self.phase_at(mid, off) < phase { lo = mid } else { hi = mid }
+        }
+        0.5 * (lo + hi)
+    }
+
     /// Height and barbs, 0..1, at `root` mm past the table's edge (which lies `off` along the ring from the head's centre)
-    /// and `across` the section: each shaft bows away from the pale like a sickle, each free end stands over the row it overlaps.
-    fn at(&self, root: f64, off: f64, across: f64) -> (f64, f64) {
+    /// and `across` the section. Each hackle has a drawn-out tip, a shaft bowed like a sickle, a vane notched once on each
+    /// side and frayed along its barbs, and a free end standing over the row it overlaps. `keep` is asked once per
+    /// feather, with its root and its row's reach across, so a feather is drawn whole or not at all.
+    fn at(&self, root: f64, off: f64, across: f64, keep: &dyn Fn(f64, f64, f64) -> bool) -> (f64, f64) {
         let morph = smooth(self.l70, self.l110, root + off);
         let (pitch, length, _) = self.shape(root, morph);
         let phase = self.phase_at(root, off);
-        let fan = 1.0 + 0.065 * root * (1.0 - morph);
-        let cross = across / fan;
+        let cross = across;
         let row = (cross / pitch).round() as i64;
         let mut height: f64 = 0.0;
         let mut barbs: f64 = 0.0;
@@ -1457,20 +1542,32 @@ impl Hackles {
                 if !(0.0..=1.0).contains(&t) {
                     continue;
                 }
+                let r0 = self.root_of(i as f64 + stagger, off);
+                let m0 = smooth(self.l70, self.l110, r0 + off);
+                let (p0, l0, _) = self.shape(r0, m0);
+                let reach = (j as f64).abs() * p0 + 0.55 * p0;
+                if !keep(r0, l0, reach * (j as f64 + 0.001).signum()) {
+                    continue;
+                }
                 let bow = SICKLE * length * t * t * (1.0 - morph) * (j as f64).signum();
                 let y = cross - j as f64 * pitch - bow;
-                let half = 0.125 + (0.53 * pitch - 0.125) * (PI * t).sin().max(0.0).powf(0.68);
-                let edge = 1.0 - smooth((half - 0.23).max(0.0), half, y.abs());
-                let tip = 1.0 - smooth(0.90, 1.0, t);
+                let spread = (PI * t.powf(0.62)).sin().max(0.0).powf(0.8);
+                let barb = t * length - 1.43 * y.abs();
+                let fray = 1.0 - 0.14 * (1.0 - morph) * (1.0 - (2.0 * (barb / 0.45).rem_euclid(1.0) - 1.0).abs()) * smooth(0.2, 0.6, t);
+                let half = (0.09 + (0.5 * pitch - 0.09) * spread) * fray;
+                let edge = 1.0 - smooth((half - 0.2).max(0.0), half, y.abs());
+                let tip = 1.0 - smooth(0.92, 1.0, t);
                 let root_in = smooth(0.0, 0.30 - 0.17 * morph, t);
                 let lift = 0.13 * smooth(0.55, 0.9, t) * (1.0 - morph);
-                let vane = 0.44 + 0.33 * smooth(0.0, 0.86, t) - 0.12 * (y / half.max(0.1)).powi(2) + lift;
-                let rachis = 0.11 * (1.0 - smooth(0.04, 0.19, y.abs())) * smooth(0.05, 0.25, t);
-                let h = (vane + rachis) * edge * tip * root_in;
+                let vane = 0.44 + 0.33 * smooth(0.0, 0.8, t) - 0.12 * (y / half.max(0.1)).powi(2) + lift;
+                let rachis = 0.11 * (1.0 - smooth(0.03, 0.15, y.abs())) * smooth(0.05, 0.25, t);
+                let notch_at = if y > 0.0 { 0.52 } else { 0.7 };
+                let notch = 1.0 - (1.0 - morph) * (1.0 - smooth(0.02, 0.08, (barb - notch_at * length).abs())) * smooth(0.3, 0.55, y.abs() / half.max(0.1));
+                let h = (vane + rachis) * edge * tip * root_in * notch;
                 if h > height {
                     height = h;
-                    let line = ((t * length - 0.58 * y.abs()) / 0.80).rem_euclid(1.0);
-                    barbs = (1.0 - smooth(0.04, 0.17, (line - 0.5).abs())) * smooth(0.10, 0.25, y.abs()) * edge * tip * root_in;
+                    let line = (barb / 0.45).rem_euclid(1.0);
+                    barbs = (1.0 - smooth(0.05, 0.2, (line - 0.5).abs())) * smooth(0.08, 0.2, y.abs()) * edge * tip * root_in;
                 }
             }
         }
@@ -1520,6 +1617,50 @@ fn portable(
     Ok(())
 }
 
+/// The polished walls under the table's chief and point, and the one bead line run 0.5 mm under the table's edge there.
+struct RimBeads {
+    edge: Line,
+    stations: Vec<f64>,
+}
+
+/// The rim beads: how far under the table's edge they run, their pitch and radius, mm.
+const RIM_BEADS: (f64, f64, f64) = (0.5, 0.62, 0.22);
+
+impl RimBeads {
+    fn new(table: &[P2]) -> Self {
+        let mut ring = table.to_vec();
+        ring.push(table[0]);
+        let edge = Line::new(ring);
+        let (_, pitch, _) = RIM_BEADS;
+        let n = (edge.length() / pitch).floor() as usize;
+        let step = edge.length() / n as f64;
+        let stations = (0..n)
+            .map(|k| k as f64 * step)
+            .filter(|&s| {
+                let i = edge.at.iter().position(|&a| a >= s).unwrap_or(1).clamp(1, edge.pts.len() - 1);
+                let (a, b) = (edge.pts[i - 1], edge.pts[i]);
+                let l = (b[0] - a[0]).hypot(b[1] - a[1]).max(1e-12);
+                ((b[0] - a[0]) / l).abs() > 0.72
+            })
+            .collect();
+        Self { edge, stations }
+    }
+
+    /// Bead height at a wall sample, 0..1: `rim` its depth under the table's edge along the wall, `s` its place round it.
+    fn at(&self, s: f64, rim: f64) -> f64 {
+        let (depth, _, radius) = RIM_BEADS;
+        let k = self.stations.partition_point(|&t| t < s);
+        [k.saturating_sub(1), k.min(self.stations.len().saturating_sub(1))]
+            .into_iter()
+            .filter_map(|j| self.stations.get(j))
+            .map(|&t| {
+                let r = (s - t).hypot(rim - depth) / radius;
+                if r < 1.0 { (1.0 - r * r).sqrt() } else { 0.0 }
+            })
+            .fold(0.0, f64::max)
+    }
+}
+
 fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<Value>)> {
     let mut d = base()?;
     d.build = params;
@@ -1528,72 +1669,6 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
     let a = Atlas::of(&d, AW, ah)?;
     let hide = Hide::of(&a);
     let arms = Arms::new(table_outline(&a))?;
-    let l70 = hide.along[(AW as f64 * 160.0 / 360.0).round() as usize].abs();
-    let l110 = hide.along[(AW as f64 * 200.0 / 360.0).round() as usize].abs();
-    let on_table = |s: &Sample| s.n[1] > 0.95 && s.p[1] > a.top - 0.05;
-    let near_table = |s: &Sample| s.n[1] > 0.3 && s.p[1] > a.top - 1.2;
-    let off_table = a.paint("off", |s| if near_table(s) { smooth(0.05, 0.45, -arms.table.sdf([s.p[0], s.p[2]], 1.0)) } else { 1.0 });
-    let width: Vec<f64> = (0..=400).map(|k| arms.table_width_at(-10.0 + 0.05 * k as f64)).collect();
-    let width_at = |z: f64| width[((z + 10.0) / 0.05).round().clamp(0.0, 400.0) as usize];
-    let mut lib = AlphaLibrary::builtin();
-    let reach = a.paint(REACH, |s| smooth(a.bore + 1.0, a.bore + 1.1, s.p[0].hypot(s.p[1])));
-    lib.insert(Alpha::from_png16(REACH, &reach.to_png16()?)?);
-    let mut facing: Vec<f32> = a.samples.iter().map(|s| if s.n[2].abs() < 0.45 { 1.0 } else { 0.0 }).collect();
-    blur(&mut facing, a.width, a.height, 10, 3);
-    let plume = |s: &Sample| {
-        let h = hide.at(s);
-        smooth(-0.25, 0.55, h.rim - h.across.abs()) * facing[s.i] as f64
-    };
-    let hackles = Hackles::new(l70, l110);
-    let feather = |s: &Sample| {
-        let h = hide.at(s);
-        let (_, _, along) = skin_masks(&a, &hide, s);
-        let near = 1.0 - smooth(9.0, 14.0, along);
-        let off = width_at(s.p[2]) * near + 7.0 * (1.0 - near) + 0.2;
-        hackles.at((along - off).max(0.0), along.min(off), h.across)
-    };
-    let alpha = a.paint("Basiliscus", |s| if on_table(s) { arms.serpent([s.p[0], s.p[2]]) / SERPENT_HEIGHT } else { 0.0 });
-    let painted_peak = alpha.data.iter().copied().fold(0.0f32, f32::max) as f64 * SERPENT_HEIGHT;
-    portable(&mut d, &mut lib, alpha, SERPENT_HEIGHT, window(90.0, 70.0), false, None)?;
-    let mut face = Window::around(90.0, 64.0);
-    face.fade_deg = 1.0;
-    let alpha = a.paint("Beaded bordure", |s| if on_table(s) { arms.bordure_height([s.p[0], s.p[2]]) } else { 0.0 });
-    portable(&mut d, &mut lib, alpha, BEAD_HEIGHT, face, false, None)?;
-    let alpha = a.paint("Hackles into scales", |s| {
-        if !within(s.theta, 90.0, 126.0) {
-            return 0.0;
-        }
-        let (bore, _, _) = skin_masks(&a, &hide, s);
-        feather(s).0 * plume(s) * bore * off_table.data[s.i] as f64
-    });
-    portable(&mut d, &mut lib, alpha, HACKLE_HEIGHT, window(90.0, 240.0), false, Some(REACH))?;
-    let alpha = a.paint("Serpent flanks", |s| {
-        let h = hide.at(s);
-        let (bore, _, along) = skin_masks(&a, &hide, s);
-        let m = smooth(l70, l110 + 5.0, along);
-        let rounds = round_scales(h.along / 2.1, h.across / 2.8);
-        let shields = reptile::shields(h.along / 2.5, h.across / 2.8);
-        (rounds * (1.0 - m) + shields * m) * (1.0 - plume(s)) * bore * off_table.data[s.i] as f64
-    });
-    portable(&mut d, &mut lib, alpha, FLANK_HEIGHT, window(180.0, 360.0), false, Some(REACH))?;
-    let far = hide.reach();
-    let alpha = a.paint("Belly scutes", |s| {
-        if !within(s.theta, 270.0, 61.0) {
-            return 0.0;
-        }
-        let h = hide.at(s);
-        let (bore, _, _) = skin_masks(&a, &hide, s);
-        scute((far - h.along.abs()) / 2.2, h.across / h.rim.max(0.5)) * smooth(0.0, 0.8, h.rim - h.across.abs()) * bore
-    });
-    portable(&mut d, &mut lib, alpha, BELLY_HEIGHT, window(270.0, 110.0), false, Some(REACH))?;
-    let alpha = a.paint("Graver's barbs and keels", |s| {
-        if !within(s.theta, 90.0, 126.0) {
-            return 0.0;
-        }
-        let (bore, _, along) = skin_masks(&a, &hide, s);
-        feather(s).1 * plume(s) * bore * off_table.data[s.i] as f64 * (1.0 - smooth(l70 - 2.0, l70, along))
-    });
-    portable(&mut d, &mut lib, alpha, 0.065, window(90.0, 240.0), true, Some(REACH))?;
     let gem = Gem {
         l_mm: 8.0,
         preview_tint: Some([0.025, 0.30, 0.085]),
@@ -1613,9 +1688,86 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
         ..Default::default()
     };
     seat.fit_stone(gem);
-    seat.diameter_mm = gem.w_mm + STONE_STOCK;
-    seat.elong = (gem.l_mm + STONE_STOCK) / (gem.w_mm + STONE_STOCK);
+    let (ra, rb, pw) = SEAT_PLAN;
+    seat.diameter_mm = 2.0 * rb;
+    seat.elong = ra / rb;
+    seat.plan_pow = pw;
     seat.height_mm = STONE_BOSS;
+    let l70 = hide.along[(AW as f64 * 160.0 / 360.0).round() as usize].abs();
+    let l110 = hide.along[(AW as f64 * 200.0 / 360.0).round() as usize].abs();
+    let on_table = |s: &Sample| s.n[1] > 0.95 && s.p[1] > a.top - 0.05;
+    let near_table = |s: &Sample| s.n[1] > 0.3 && s.p[1] > a.top - 1.2;
+    let off_table = a.paint("off", |s| if near_table(s) { smooth(0.05, 0.45, -arms.table.sdf([s.p[0], s.p[2]], 1.0)) } else { 1.0 });
+    let width: Vec<f64> = (0..=400).map(|k| arms.table_width_at(-10.0 + 0.05 * k as f64)).collect();
+    let width_at = |z: f64| width[((z + 10.0) / 0.05).round().clamp(0.0, 400.0) as usize];
+    let mut lib = AlphaLibrary::builtin();
+    let reach = a.paint(REACH, |s| smooth(a.bore + 1.0, a.bore + 1.1, s.p[0].hypot(s.p[1])));
+    lib.insert(Alpha::from_png16(REACH, &reach.to_png16()?)?);
+    // Where the surface still faces outward it carries the mantling; past the rim, where it faces the pull, the walls
+    // are polished. Every gate is a Hide distance in true mm, asked once per feather at its root, so nothing is drawn in part.
+    let hackles = Hackles::new(l70, l110);
+    let feather = |s: &Sample| {
+        let h = hide.at(s);
+        let (_, _, along) = skin_masks(&a, &hide, s);
+        let near = 1.0 - smooth(9.0, 14.0, along);
+        let off = width_at(s.p[2]) * near + 7.0 * (1.0 - near) + 0.2;
+        // Rows are laid across the outer surface as a share of its own width, so they narrow with it down the shoulder;
+        // a row is kept whole when its feathers stay clear of the rim.
+        let keep = |_: f64, _: f64, reach: f64| reach.abs() < PLUME_WIDTH - 0.3;
+        hackles.at((along - off).max(0.0), along.min(off), h.across * PLUME_WIDTH / h.rim.max(0.5), &keep)
+    };
+    let alpha = a.paint("Basiliscus", |s| {
+        if !on_table(s) {
+            return 0.0;
+        }
+        let pad = seat.height(ringdesign_core::Uv { u: ctx.u_of_theta(s.theta), v: s.v }, &ctx);
+        arms.serpent([s.p[0], s.p[2]], pad) / SERPENT_HEIGHT
+    });
+    let painted_peak = alpha.data.iter().copied().fold(0.0f32, f32::max) as f64 * SERPENT_HEIGHT;
+    portable(&mut d, &mut lib, alpha, SERPENT_HEIGHT, window(90.0, 70.0), false, None)?;
+    let mut face = Window::around(90.0, 64.0);
+    face.fade_deg = 1.0;
+    let alpha = a.paint("Beaded bordure", |s| if on_table(s) { arms.bordure_height([s.p[0], s.p[2]]) } else { 0.0 });
+    portable(&mut d, &mut lib, alpha, BEAD_HEIGHT, face, false, None)?;
+    let rims = RimBeads::new(&arms.table.poly);
+    let alpha = a.paint("Rim beads", |s| {
+        if !within(s.theta, 90.0, 40.0) || on_table(s) || s.p[1] < a.top - 1.5 {
+            return 0.0;
+        }
+        let h = hide.at(s);
+        if h.rim - h.across.abs() > -0.2 {
+            return 0.0;
+        }
+        let Some((flat, round)) = rims.edge.nearest([s.p[0], s.p[2]], 1.0) else { return 0.0 };
+        rims.at(round, flat.hypot(a.top - s.p[1]))
+    });
+    portable(&mut d, &mut lib, alpha, RIM_BEADS.2, face, false, Some(REACH))?;
+    let alpha = a.paint("Hackles into scales", |s| {
+        if !within(s.theta, 90.0, 126.0) {
+            return 0.0;
+        }
+        let (bore, _, _) = skin_masks(&a, &hide, s);
+        feather(s).0 * bore * off_table.data[s.i] as f64
+    });
+    portable(&mut d, &mut lib, alpha, HACKLE_HEIGHT, window(90.0, 240.0), false, Some(REACH))?;
+    let far = hide.reach();
+    let alpha = a.paint("Belly scutes", |s| {
+        if !within(s.theta, 270.0, 61.0) {
+            return 0.0;
+        }
+        let h = hide.at(s);
+        let (bore, _, _) = skin_masks(&a, &hide, s);
+        scute((far - h.along.abs()) / 2.2, h.across / h.rim.max(0.5)) * smooth(0.0, 0.8, h.rim - h.across.abs()) * bore
+    });
+    portable(&mut d, &mut lib, alpha, BELLY_HEIGHT, window(270.0, 110.0), false, Some(REACH))?;
+    let alpha = a.paint("Graver's barbs and keels", |s| {
+        if !within(s.theta, 90.0, 126.0) {
+            return 0.0;
+        }
+        let (bore, _, along) = skin_masks(&a, &hide, s);
+        feather(s).1 * bore * off_table.data[s.i] as f64 * (1.0 - smooth(0.35, 0.9, smooth(l70, l110, along)))
+    });
+    portable(&mut d, &mut lib, alpha, 0.065, window(90.0, 240.0), true, Some(REACH))?;
     let lands = land_rows(&arms, &seat, gem);
     let mut e = LayerEntry::new("Tsavorite, flush", Layer::SeatPad(seat));
     e.blend = Blend::Max;
@@ -1624,16 +1776,25 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
     portable(&mut d, &mut lib, alpha, PIT_DEPTH, face, false, None)?;
     d.layers.layers.last_mut().unwrap().blend = Blend::Subtract;
     let placed = strike(&mut d, &a, &arms)?;
-    let [x0, x1, z_top, z_low] = arms.band;
     let (bare, edge, share) = arms.pounce_reach();
     let (crest, steep) = arms.body.profile();
     let pearls: Vec<f64> = arms.shapes.iter().filter(|s| s.name.starts_with("Crown pearl")).map(|s| arms.table.sdf(s.centre, 3.0) - PEARL).collect();
+    let c = &arms.circlet.pts;
+    let (x_lo, x_hi) = (c.iter().map(|p| p[0]).fold(f64::MAX, f64::min), c.iter().map(|p| p[0]).fold(f64::MIN, f64::max));
+    let chord = [c.last().unwrap()[0] - c[0][0], c.last().unwrap()[1] - c[0][1]];
+    let sagitta = c
+        .iter()
+        .map(|p| ((p[0] - c[0][0]) * chord[1] - (p[1] - c[0][1]) * chord[0]).abs() / chord[0].hypot(chord[1]))
+        .fold(0.0, f64::max);
     let composition = json!({
-        "stone_mm": STONE, "stone_stock_mm": STONE_STOCK, "stone_boss_mm": STONE_BOSS, "spine_mm": arms.body.length(), "girth_mm": [GIRTH.0, GIRTH.1], "body_crown_mm": DOME, "body_crest_mm": crest, "body_outer_quarter_steepest_deg": steep,
-        "crown_pearls_inside_chief_mm": pearls, "crown_points_mm": POINTS, "crown_band_overlap_on_crest_mm": CROWN.0,
+        "stone_mm": STONE, "seat_plan_mm": [SEAT_PLAN.0, SEAT_PLAN.1, SEAT_PLAN.2], "stone_boss_mm": STONE_BOSS, "coil_lap_on_seat_mm": LAP,
+        "spine_mm": arms.body.length(), "girth_mm": [GIRTH.0, GIRTH.1], "body_crown_mm": DOME, "body_scale_relief_mm": SCALE_RELIEF,
+        "body_crest_mm": crest, "body_outer_quarter_steepest_deg": steep,
+        "crown_pearls_inside_chief_mm": pearls, "crown_points_mm": POINTS,
+        "circlet_mm": {"width_across_the_ring": x_hi - x_lo, "plan_width": CIRCLET.2 + CIRCLET.3, "into_skull": CIRCLET.2, "sagitta": sagitta, "rise": CIRCLET.4},
         "serpent_layer_scale_mm": SERPENT_HEIGHT, "serpent_painted_peak_mm": painted_peak,
-        "pit_depth_mm": PIT_DEPTH, "pits": arms.pits.len(), "pit_reach_mm": {"widest_bare_field": bare, "furthest_arm_edge_from_a_pit": edge, "share_of_arm_edge_within_0_4": share}, "bead_height_mm": BEAD_HEIGHT, "beads": arms.beads.len(),
-        "crown_band_mm": {"x": [x0, x1], "z": [z_top, z_low], "width": x1 - x0, "height": z_low - z_top},
+        "pit_depth_mm": PIT_DEPTH, "pits": arms.pits.len(), "pit_reach_mm": {"widest_bare_field": bare, "furthest_arm_edge_from_a_pit": edge, "share_of_arm_edge_within_0_4": share},
+        "bead_height_mm": BEAD_HEIGHT, "beads": arms.beads.len(), "rim_beads": rims.stations.len(),
         "table_points": arms.table.poly.len(), "table_z_mm": [arms.table.lo[1], arms.table.hi[1]], "table_x_mm": [arms.table.lo[0], arms.table.hi[0]],
         "morph_start_along_mm": l70, "morph_end_along_mm": l110, "stock": "020 native unmirrored", "atlas": [AW, ah],
         "stamps": placed,
@@ -1711,7 +1872,10 @@ fn land_rows(arms: &Arms, seat: &SeatPadLayer, gem: Gem) -> Vec<Value> {
     let (up, low) = (chord(&arms.lips[0], -1.0), chord(&arms.lips[1], 1.0));
     rows.push(row("Upper jaw, lip to crown (painted)", "painted", up, None));
     rows.push(row("Lower jaw, lip to chin (painted)", "painted", low, None));
+    rows.push(row("Crown circlet (painted)", "painted", CIRCLET.2 + CIRCLET.3, None));
+    rows.push(row("Crown jewels, domed ovals on the circlet (painted)", "painted", 0.5, Some("Domed oval jewel on the circlet: investment detail, polished at the bench")));
     rows.push(row("Beaded bordure beads (painted)", "painted", 2.0 * BEADS.2, Some("Bordure bead: investment detail, cast in place and burnished")));
+    rows.push(row("Rim beads under the table's edge (painted)", "painted", 2.0 * RIM_BEADS.2, Some("Rim bead under the table's edge: investment detail, cast in place and burnished")));
     rows
 }
 

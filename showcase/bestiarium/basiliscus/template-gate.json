@@ -1,7 +1,7 @@
 {
   "authoring_ms": {
-    "graph_creation": 13.1694,
-    "source_read": 5.521929
+    "graph_creation": 16.802215999999998,
+    "source_read": 14.05973
   },
   "build": {
     "profile_steps": 448,
@@ -9,10 +9,10 @@
   },
   "cold_design_reload": true,
   "cold_graph_reload": true,
-  "design_bytes": 1796491,
+  "design_bytes": 1526065,
   "design_set_patches": [],
   "detail_findings": 0,
-  "editable_design_bytes": 3632747,
+  "editable_design_bytes": 3088492,
   "editable_graph_reload": true,
   "export_geometry_verified": true,
   "exposed_control_policy": "explicit_allowlist",
@@ -22,28 +22,28 @@
     "refine": null,
     "theta_steps": 1536
   },
-  "nodes": 78,
+  "nodes": 74,
   "open_ms": {
-    "bake": 0.22032200000000002,
-    "bake_again": 0.277763,
-    "detail": 2521.581233,
-    "detail_again": 17.662039,
-    "evaluate": 9.219829,
-    "first_build": 342.057929,
-    "read": 4.857881,
-    "rebuild": 1.554016,
+    "bake": 0.27767200000000003,
+    "bake_again": 0.256121,
+    "detail": 2672.026541,
+    "detail_again": 15.818011,
+    "evaluate": 8.73945,
+    "first_build": 327.581296,
+    "read": 4.631186,
+    "rebuild": 1.436998,
     "unpack": null,
-    "verdict": 17.178393
+    "verdict": 16.734315
   },
   "size_budget_bytes": 3000000,
   "size_review_required": false,
   "source_identical": true,
   "source_method": "lift",
-  "template_bytes": 1822422,
+  "template_bytes": 1549899,
   "template_class": "painted",
   "template_gate_passed": true,
   "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
-  "triangles": 1792118,
+  "triangles": 1799184,
   "vertices_faces_normals_identical": true,
   "exposed_controls_note": "US size is deliberately not exposed. Every painted layer is one tile over the whole (theta, v) chart and every stamp stands at a chart point, both measured off the 020 escutcheon at an 18.6 mm bore. The factory head keeps its size when the band resizes, so the table then covers a different span of theta: the painted serpent, pits and bordure would slide and stretch across it and the stamps would lose their frames. A size run re-authors the example at the new bore (base() takes the size), which repaints the atlas and restrikes the stamps."
 }
