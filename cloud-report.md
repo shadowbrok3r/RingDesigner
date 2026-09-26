@@ -27,10 +27,9 @@
 - `cargo test -p ringdesign-core -- --test-threads=4`: lib 789 passed, 0 failed, 16 ignored; golden 1 passed; doc-tests 0.
 - Graph crate not touched, so its tests were not run.
 
+## Push and PR
+- Pushed to `origin/claude/core-fold-errors-name-the-point`; PR: https://github.com/shadowbrok3r/RingDesigner/pull/225
+  (the first push attempts were refused by the git proxy until the repository was added to the session with push access).
+
 ## Not done
-- **Push and PR failed:** `git push` was refused by the git proxy (403: shadowbrok3r/RingDesigner is not in this
-  session's authorized repository set), so the branch and this report exist only in the cloud clone at
-  `/home/user/rd`, and no PR was opened. A mailbox patch of both commits
-  (`core-fold-errors-name-the-point.patch`, apply with `git am`) and a copy of this report were left in the session's
-  working directory. To land it, add the repository to the session's sources and push the branch.
-- Otherwise nothing outstanding. `Junction` (the `fillet_junction_report` summary) was left without a location, since it produces no message.
+- Nothing outstanding. `Junction` (the `fillet_junction_report` summary) was left without a location, since it produces no message.
