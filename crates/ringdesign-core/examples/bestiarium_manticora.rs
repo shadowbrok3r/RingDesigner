@@ -32,14 +32,16 @@ const BORE_MM: f64 = 18.6;
 /// The investment's fill floor, mm.
 const MIN_SECTION_MM: f64 = 0.8;
 /// Ring angle of the stinger's root, degrees past the top.
-const STING_ROOT_DEG: f64 = 22.5;
+const STING_ROOT_DEG: f64 = 23.5;
+/// How far the aculeus's keel turns from foot to point, degrees.
+const STING_TWIST_DEG: f64 = 70.0;
 /// How far the hook's plane leans off the mid-plane about the root's radial, degrees.
 const STING_LEAN_DEG: f64 = -15.0;
 /// Gap left under the stinger's foot for the solder, mm.
 const SOLDER_GAP_MM: f64 = 0.05;
 /// The stinger's foot: keel-to-back along the ring by across the band, mm.
-const SOCKET_LONG_MM: f64 = 3.1;
-const SOCKET_WIDE_MM: f64 = 2.3;
+const SOCKET_LONG_MM: f64 = 3.4;
+const SOCKET_WIDE_MM: f64 = 2.6;
 /// How far the socket's top stands over the bulb at its highest point, mm.
 const SOCKET_PROUD_MM: f64 = 0.25;
 /// How far the socket reaches into the bulb, mm, and its flare there, degrees.
@@ -50,6 +52,12 @@ const RUBY_SINK_MM: f64 = 1.15;
 /// The collet's wall, mm, and the venom sac's rise under it.
 const COLLET_WALL_MM: f64 = 0.55;
 const SAC_RISE_MM: f64 = 0.95;
+const SAC_SKIRT_MM: f64 = 1.7;
+/// The venom bulb layer's full height, and its beaded collar: bead diameter, pitch and rise, mm.
+const BULB_MM: f64 = 1.3;
+const COLLAR_BEAD_MM: f64 = 0.46;
+const COLLAR_PITCH_MM: f64 = 0.62;
+const COLLAR_RISE_MM: f64 = 0.24;
 /// The spinel mound: this much wider than its stone, this high, and the metal left between two, mm.
 const MOUND_STOCK_MM: f64 = 0.6;
 const MOUND_HEIGHT_MM: f64 = 0.72;
@@ -101,23 +109,23 @@ fn band(neck_off: f64) -> RingDesign {
     d.profile.comfort_fit_mm = 0.15;
     d.shank.kind = ShankKind::Keyframes;
     d.shank.amount = 1.0;
-    let key = |theta_deg: f64, width_scale: f64, thickness_scale: f64| ShankKey {
+    let key = |theta_deg: f64, width_scale: f64, thickness_scale: f64, crown_scale: f64| ShankKey {
         theta_deg,
         width_scale,
         thickness_scale,
-        crown_scale: 1.0,
+        crown_scale,
     };
-    let mut keys = vec![key(90.0, 1.30, 1.62), key(270.0, 0.92, 0.92)];
-    for (off, w, t) in [
-        (0.55 * neck_off, 1.27, 1.57),
-        (neck_off, 1.00, 1.08),
-        (neck_off + 17.0, 1.13, 1.30),
-        (85.0, 1.07, 1.19),
-        (120.0, 1.01, 1.08),
-        (152.0, 0.95, 0.98),
+    let mut keys = vec![key(90.0, 1.52, 1.62, 0.62), key(270.0, 0.92, 0.92, 1.0)];
+    for (off, w, t, c) in [
+        (0.5 * neck_off, 1.44, 1.55, 0.72),
+        (neck_off, 1.00, 1.08, 1.0),
+        (neck_off + 17.0, 1.13, 1.30, 1.0),
+        (85.0, 1.07, 1.19, 1.0),
+        (120.0, 1.01, 1.08, 1.0),
+        (152.0, 0.95, 0.98, 1.0),
     ] {
-        keys.push(key(90.0 - off, w, t));
-        keys.push(key(90.0 + off, w, t));
+        keys.push(key(90.0 - off, w, t, c));
+        keys.push(key(90.0 + off, w, t, c));
     }
     keys.iter_mut()
         .for_each(|k| k.theta_deg = k.theta_deg.rem_euclid(360.0));
@@ -443,7 +451,8 @@ struct Sting {
     root_theta: f64,
     length_mm: f64,
     tightest_bend_mm: f64,
-    socket_proud_mm: f64,
+    /// The socket's top over the bare crest at the root; it stands SOCKET_PROUD_MM over the finished surface.
+    socket_over_bare_mm: f64,
 }
 
 /// The aculeus: up off the bulb behind the collet, over the ruby, its point hanging over the far rim.
@@ -465,10 +474,10 @@ fn sting_path(d: &RingDesign, lib: &AlphaLibrary, a: &Atlas, lip_r: f64, table_r
     let psi = |theta: f64| root_theta - theta;
     let knots = [
         (at(0.0, foot_r), dir(0.0, 1.0, 0.0)),
-        (at(1.2, foot_r + 1.7), dir(1.2, 1.0, 0.55)),
-        (at(psi(98.0), table_r + 2.2), dir(psi(98.0), 0.25, 1.0)),
-        (at(psi(84.5), table_r + 1.6), dir(psi(84.5), -0.75, 1.0)),
-        (at(psi(79.0), lip_r + 0.95), dir(psi(79.0), -1.0, 0.3)),
+        (at(1.0, foot_r + 2.1), dir(1.0, 1.0, 0.5)),
+        (at(psi(99.0), table_r + 2.9), dir(psi(99.0), 0.3, 1.0)),
+        (at(psi(84.0), table_r + 2.2), dir(psi(84.0), -0.8, 1.0)),
+        (at(psi(78.0), lip_r + 1.0), dir(psi(78.0), -1.0, 0.28)),
     ];
     let pieces: Vec<[P2; 4]> = hermite_chain(&knots).into_iter().map(|c| c.map(snap)).collect();
     let length_mm = pieces
@@ -491,7 +500,7 @@ fn sting_path(d: &RingDesign, lib: &AlphaLibrary, a: &Atlas, lip_r: f64, table_r
         pieces,
         length_mm,
         tightest_bend_mm,
-        socket_proud_mm: socket_r - crest_r(d, root_theta),
+        socket_over_bare_mm: socket_r - crest_r(d, root_theta),
     }
 }
 
@@ -612,7 +621,7 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary) -> Result<Sting> {
     ))?;
     let sting = sting_path(d, lib, &a, lip_r, table_r);
     let (er, _) = frame_at(sting.root_theta);
-    let depth = SOCKET_DEPTH_MM + sting.socket_proud_mm;
+    let depth = SOCKET_DEPTH_MM + sting.socket_over_bare_mm;
     let base = [
         sting.socket[0] - er[0] * depth,
         sting.socket[1] - er[1] * depth,
@@ -670,7 +679,7 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary) -> Result<Sting> {
         Operation::Twist {
             sketch: Profile::Feature { feature: 7 },
             path: path_sketch(&sting),
-            degrees: 18.0,
+            degrees: STING_TWIST_DEG,
             end_scale: 0.08,
         },
         Component {
@@ -716,7 +725,7 @@ fn denticles(t: f64, n: f64) -> f64 {
 
 /// How far down the flank a plate reaches at `t`, as a share of the flank: lobed, shortest at the joints.
 fn plate_reach(x: f64, back: f64) -> f64 {
-    0.70 + 0.24 * smoothstep(0.1, 1.1, x.min(back)).sqrt()
+    0.86 + 0.04 * smoothstep(0.1, 0.9, x.min(back))
 }
 
 /// A metasomal segment at `t` from its anterior joint (0) to its posterior lip (1), on a plate `len` mm long,
@@ -735,22 +744,20 @@ fn segment(t: f64, q: f64, u: f64, len: f64) -> f64 {
     let furrow = 1.0 - 0.14 * (1.0 - smoothstep(0.2, DORSAL_Q - 0.05, qa));
     let keel_run = smoothstep(0.12, 0.5, x) * drop;
     let teeth = (len / 0.95).round().max(3.0);
-    let keel = |d: f64, h: f64, w: f64| (-(d / w).powi(2)).exp() * (h + 0.2 * denticles(t, teeth));
-    let dorsal = keel(qa - DORSAL_Q, 0.2, 0.06);
-    let lateral = keel(qa - LATERAL_Q, 0.15, 0.07);
+    let keel = |d: f64, h: f64, w: f64| (-(d / w).powi(2)).exp() * (h + 0.24 * denticles(t, teeth));
+    let dorsal = keel(qa - DORSAL_Q, 0.26, 0.065);
+    let lateral = keel(qa - LATERAL_Q, 0.17, 0.07);
     let keels = (dorsal + lateral) * keel_run;
     ((barrel * furrow + keels) * sleeve).clamp(0.0, 1.0)
 }
 
-/// A fold of the pleural membrane either side of each joint, down the lower flank: 0..1.
+/// Transverse wrinkles of the pleural membrane in the strip between the plates' margin and the bore edge: 0..1.
 fn pleura(t: f64, u: f64, len: f64) -> f64 {
-    let near = (t * len).min((1.0 - t) * len);
-    let fold = if near < 0.8 {
-        smoothstep(0.15, 0.55, 0.5 - 0.5 * (2.0 * PI * near / 0.8).cos())
-    } else {
-        0.0
-    };
-    fold * smoothstep(0.68, 0.71, u) * (1.0 - smoothstep(0.9, 0.93, u))
+    let n = (len / 0.62).round().max(3.0);
+    let wrinkle = smoothstep(0.2, 0.6, 0.5 - 0.5 * (2.0 * PI * n * t).cos());
+    let strip = smoothstep(0.86, 0.89, u) * (1.0 - smoothstep(0.945, 0.965, u));
+    let ends = smoothstep(0.15, 0.35, t * len) * smoothstep(0.15, 0.35, (1.0 - t) * len);
+    wrinkle * strip * ends
 }
 
 /// The nearest granule of a jittered hex lattice of `pitch` in hide millimetres: its centre, radius and cell.
@@ -759,8 +766,8 @@ fn granule_cell(along: f64, across: f64, pitch: f64, radius: f64) -> (P2, f64, i
     let shift = if (row as i64).rem_euclid(2) == 0 { 0.0 } else { 0.5 * pitch };
     let col = ((along - shift) / pitch).round();
     let (i, j) = (col as i64, row as i64);
-    let cx = col * pitch + shift + (skin::hash(i, j) - 0.5) * 0.24 * pitch;
-    let cy = row * pitch * 0.866 + (skin::hash(j, i + 7) - 0.5) * 0.24 * pitch;
+    let cx = col * pitch + shift + (skin::hash(i, j) - 0.5) * 0.36 * pitch;
+    let cy = row * pitch * 0.866 + (skin::hash(j, i + 7) - 0.5) * 0.36 * pitch;
     ([cx, cy], radius * (0.85 + 0.3 * skin::hash(i + 13, j)), i, j)
 }
 
@@ -807,7 +814,7 @@ fn paint(d: &mut RingDesign, lib: &mut AlphaLibrary, lat: &Lattice, art: &Path) 
     });
     let granules = a.paint("Manticora granulation", |s| {
         let p = hide.at(s);
-        let ([cx, cy], r, i, j) = granule_cell(p.along.abs(), p.across, 0.48, 0.18);
+        let ([cx, cy], r, i, j) = granule_cell(p.along.abs(), p.across, 0.56, 0.18);
         let d = (p.along.abs() - cx).hypot(p.across - cy) / r;
         if d >= 1.0 || skin::hash(i + 101, j) >= 0.72 {
             return 0.0;
@@ -826,14 +833,57 @@ fn paint(d: &mut RingDesign, lib: &mut AlphaLibrary, lat: &Lattice, art: &Path) 
         if on { (1.0 - d * d).sqrt() } else { 0.0 }
     });
     let ruby = ruby();
-    let (sac_along, sac_across) = (0.5 * ruby.w_mm + COLLET_WALL_MM + 0.45, 0.5 * ruby.l_mm + COLLET_WALL_MM + 0.45);
-    let sac = a.paint("Manticora venom sac", |s| {
+    let (wall_along, wall_across) = (0.5 * ruby.w_mm + COLLET_WALL_MM, 0.5 * ruby.l_mm + COLLET_WALL_MM);
+    let neck = joints.0[0];
+    let root_along = along_at(&hide, a.width, 90.0 + STING_ROOT_DEG);
+    let (bead_a, bead_b) = (wall_along + COLLAR_BEAD_MM * 0.5 + 0.05, wall_across + COLLAR_BEAD_MM * 0.5 + 0.05);
+    let collar_n = {
+        let h = ((bead_a - bead_b) / (bead_a + bead_b)).powi(2);
+        let perimeter = PI * (bead_a + bead_b) * (1.0 + 3.0 * h / (10.0 + (4.0 - 3.0 * h).sqrt()));
+        (perimeter / COLLAR_PITCH_MM).round().max(8.0)
+    };
+    let sac_share = SAC_RISE_MM / BULB_MM;
+    let bulb = a.paint("Manticora venom bulb", |s| {
         let p = hide.at(s);
-        let (x, y) = (p.along / sac_along, p.across / sac_across);
-        let q = (x.powi(4) + y.powi(4)).powf(0.25);
-        let fall = 1.0 - smoothstep(1.0, 1.0 + 1.5 / sac_along, q);
+        let la = p.along.abs();
+        if la > neck {
+            return 0.0;
+        }
         let u = p.across.abs() / (p.rim + p.wall).max(0.5);
-        fall * (1.0 - smoothstep(0.82, 0.97, u))
+        let qa = p.across.abs() / p.rim.max(0.3);
+        // The swelling that seats the collet: flush under it, a concave skirt outside it.
+        let q = (p.along / wall_along).hypot(p.across / wall_across);
+        let out = (q - 1.0) * wall_along.min(wall_across);
+        let skirt = if out <= 0.0 { 1.0 } else { (1.0 - out / SAC_SKIRT_MM).max(0.0).powi(2) };
+        let sac = skirt * sac_share;
+        // A beaded collar round the collet's foot.
+        let phi = (p.across / bead_b).atan2(p.along / bead_a);
+        let k = (phi / (2.0 * PI) * collar_n).round();
+        let bp = k / collar_n * 2.0 * PI;
+        let (bx, by) = (bead_a * bp.cos(), bead_b * bp.sin());
+        let bd = (p.along - bx).hypot(p.across - by) / (0.5 * COLLAR_BEAD_MM);
+        let bead = if bd < 1.0 { (1.0 - bd * bd).sqrt() * COLLAR_RISE_MM / BULB_MM } else { 0.0 };
+        let collar = (skirt * sac_share + bead) * f64::from(u8::from(bd < 1.0));
+        // The tail's carinae carried up the vesicle, fading into the skirt, the socket and the neck.
+        let clear = smoothstep(0.2, 0.9, out) * smoothstep(0.35, 0.9, (p.along - root_along).hypot(p.across) - 1.3);
+        let run = smoothstep(0.2, 0.8, neck - la) * clear;
+        let ridge = |c: f64, w: f64| (-((qa - c) / w).powi(2)).exp();
+        let keels = (0.30 * ridge(DORSAL_Q, 0.07) + 0.24 * ridge(LATERAL_Q, 0.08)) * run * (1.0 - smoothstep(0.86, 0.96, u));
+        // A condyle ring on the bulb's side of the neck joint.
+        let condyle = 0.28 * (-(((neck - la) - 0.55) / 0.2).powi(2)).exp() * (1.0 - smoothstep(0.86, 0.96, u));
+        let ([cx, cy], r, i, j) = granule_cell(p.along, p.across, 0.52, 0.17);
+        let gd = (p.along - cx).hypot(p.across - cy) / r;
+        let gq = (cx / wall_along).hypot(cy / wall_across);
+        let keep_g = skin::hash(i + 211, j) < 0.55
+            && (gq - 1.0) * wall_along.min(wall_across) > 0.9
+            && neck - cx.abs() > 1.0
+            && (cx - root_along).hypot(cy) > 2.0
+            && (cy.abs() / p.rim.max(0.3) - DORSAL_Q).abs() > 0.14
+            && (cy.abs() / p.rim.max(0.3) - LATERAL_Q).abs() > 0.14
+            && cy.abs() / (p.rim + p.wall).max(0.5) < 0.82;
+        let granule = if gd < 1.0 && keep_g { 0.12 / BULB_MM * (1.0 - gd * gd).sqrt() } else { 0.0 };
+        let detail = (keels + condyle) * 0.28 / BULB_MM * (1.0 / 0.3) + granule;
+        sac.max(collar).max(sac + detail)
     });
     let graver = a.paint("Manticora graver lines", |s| {
         let Some((t, q, len, _)) = plate(s) else { return 0.0 };
@@ -859,7 +909,7 @@ fn paint(d: &mut RingDesign, lib: &mut AlphaLibrary, lat: &Lattice, art: &Path) 
         (tergites, TERGITE_MM, Blend::Max, false),
         (pleurae, PLEURA_MM, Blend::Max, false),
         (articulations, ARTICULATION_MM, Blend::Subtract, false),
-        (sac, SAC_RISE_MM, Blend::Max, false),
+        (bulb, BULB_MM, Blend::Max, false),
         (granules, GRANULE_MM, Blend::Add, false),
         (graver, GRAVER_MM, Blend::Subtract, true),
     ] {
@@ -1000,7 +1050,8 @@ struct Composition {
     quills: Quills,
     stinger_length_mm: f64,
     stinger_tightest_bend_mm: f64,
-    socket_proud_mm: f64,
+    stinger_foot: P3,
+    socket_over_bare_mm: f64,
     spinel_stations: usize,
     spinel_taper: f64,
     neck_off_deg: f64,
@@ -1023,7 +1074,8 @@ fn author(art: &Path) -> Result<(RingDesign, AlphaLibrary, Composition)> {
             quills,
             stinger_length_mm: sting.length_mm,
             stinger_tightest_bend_mm: sting.tightest_bend_mm,
-            socket_proud_mm: sting.socket_proud_mm,
+            stinger_foot: sting.foot,
+            socket_over_bare_mm: sting.socket_over_bare_mm,
             spinel_stations: lat.run.count as usize,
             spinel_taper: lat.run.taper,
             neck_off_deg: lat.neck_off(),
@@ -1116,14 +1168,13 @@ fn made_solids(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Resul
         let c = part.check(true);
         out.push(json!({"name": stamp.name, "self_crossings": c.self_crossings, "zero_area_faces": c.zero_area_faces, "open_edges": c.open_edges, "repeated_edges": c.repeated_edges}));
     }
-    for (stone, frame) in ringdesign_core::stones::stone_frames(d) {
+    for (stone, _) in ringdesign_core::stones::stone_frames(d) {
         let stand = stone.stand_off_mm();
         let fit = setting::Fit {
             surface_z: stone.seat.height_mm - stand,
             through_mm: None,
             prongs: 0,
         };
-        let _ = frame;
         let parts = setting::parts(stone.gem, stone.seat.solid, fit).map_err(|e| anyhow::anyhow!("{e}"))?;
         for part in parts.add.iter().chain(&parts.cut) {
             let c = part.check(true);
@@ -1227,7 +1278,7 @@ struct StingClearance {
     foot_gap_mm: f64,
 }
 
-fn sting_clearance(built: &mesh::BuildResult, sting_shell: &mesh::Mesh, ring: &mesh::Mesh, ruby: Option<&mesh::Mesh>, foot: P3) -> StingClearance {
+fn sting_clearance(sting_shell: &mesh::Mesh, ring: &mesh::Mesh, ruby: Option<&mesh::Mesh>, foot: P3) -> StingClearance {
     let pts: Vec<P3> = sting_shell
         .vertices
         .iter()
@@ -1235,7 +1286,6 @@ fn sting_clearance(built: &mesh::BuildResult, sting_shell: &mesh::Mesh, ring: &m
         .collect();
     let away: Vec<P3> = pts.iter().copied().filter(|p| dot3(sub3(*p, foot), sub3(*p, foot)).sqrt() > 2.2).collect();
     let near: Vec<P3> = pts.iter().copied().filter(|p| dot3(sub3(*p, foot), sub3(*p, foot)).sqrt() <= 2.2).collect();
-    let _ = built;
     let mut out = StingClearance::default();
     if let Some((d, p, _)) = nearest(&away, ring, 1.5) {
         out.to_metal_mm = d;
@@ -1295,7 +1345,7 @@ fn section_svg(path: &Path, theta: f64, shells: &[(&mesh::Mesh, &str)], mark: Op
     let (w, h) = ((r1 - r0) * scale, (z1 - z0) * scale);
     std::fs::write(
         path,
-        format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {w:.0} {h:.0}\" width=\"{w:.0}\" height=\"{h:.0}\"><rect width=\"100%\" height=\"100%\" fill=\"#111\"/><text x=\"16\" y=\"34\" fill=\"#ddd\" font-family=\"sans-serif\" font-size=\"24\">Section at {theta:.1} deg: ring gold, stinger white, ruby red; radius right, finger axis down</text>\n{body}</svg>"),
+        format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {w:.0} {h:.0}\" width=\"{w:.0}\" height=\"{h:.0}\"><rect width=\"100%\" height=\"100%\" fill=\"#111\"/><text x=\"14\" y=\"28\" fill=\"#ddd\" font-family=\"sans-serif\" font-size=\"18\">Section at {theta:.1} deg</text><text x=\"14\" y=\"52\" fill=\"#999\" font-family=\"sans-serif\" font-size=\"14\">ring gold, aculeus white, ruby red; radius to the right</text>\n{body}</svg>"),
     )?;
     Ok(())
 }
@@ -1339,16 +1389,16 @@ fn side_by_side(path: &Path, left: &[u8], right: &[u8], edge: usize) -> Result<(
 
 /// The camera for each named view: yaw about the head's axis, pitch toward the finger's.
 const VIEWS: [(&str, f64, f64); 6] = [
-    ("hero", 0.3, 0.45),
+    ("hero", -0.65, 0.6),
     ("face", 0.0, PI * 0.5),
     ("palm", PI, 1.05),
     ("side", 0.0, 0.0),
-    ("shoulder", -0.9, 0.62),
+    ("shoulder", 0.75, 0.6),
     ("reverse", PI - 0.5, 0.35),
 ];
 
 /// Studio-gold renders with stones set, a close-up of the head, and the bare tail against the finished ring.
-fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult, gems: &[(mesh::Mesh, [f32; 3])], neck_off: f64, edge: usize) -> Result<()> {
+fn renders(out: &Path, lib: &AlphaLibrary, built: &mesh::BuildResult, gems: &[(mesh::Mesh, [f32; 3])], neck_off: f64, edge: usize) -> Result<()> {
     let mut parts = vec![render::Part::metal(&built.mesh, render::GOLD)];
     parts.extend(gems.iter().map(|(m, tint)| render::Part::tinted_stone(m, *tint)));
     for (name, yaw, pitch) in VIEWS {
@@ -1357,9 +1407,8 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
     let head = crop(&built.mesh, [0.0, 13.0, 0.0], 12.0);
     let mut close = vec![render::Part::metal(&head, render::GOLD), render::Part::metal(&built.mesh, render::GOLD)];
     close.extend(gems.iter().map(|(m, tint)| render::Part::tinted_stone(m, *tint)));
-    render::write_png_parts(out.join("stones.png"), &close, 0.4, 0.75, edge)?;
+    render::write_png_parts(out.join("stones.png"), &close, -0.45, 0.75, edge)?;
     let bare = mesh::try_build(&band(neck_off), lib, draft_params())?;
-    let _ = d;
     let (yaw, pitch) = (VIEWS[0].1, VIEWS[0].2);
     let bare_img = render::render_parts_ss(&[render::Part::metal(&bare.mesh, render::GOLD)], yaw, pitch, edge, edge, 3);
     let finished_img = render::render_parts_ss(&parts, yaw, pitch, edge, edge, 3);
@@ -1434,13 +1483,7 @@ fn main() -> Result<()> {
     let (sting_i, ring_i) = if far(&groups[0]) > far(&groups[1]) { (0, 1) } else { (1, 0) };
     let sting_shell = submesh(&built.mesh, &groups[sting_i]);
     let ring_shell = submesh(&built.mesh, &groups[ring_i]);
-    let foot = {
-        let s = sting_frame(90.0 + STING_ROOT_DEG);
-        let r = built.mesh.vertices.iter().filter(|_| false).count() as f64;
-        let _ = r;
-        s.er.map(|v| v * (crest_r(&d, 90.0 + STING_ROOT_DEG) + comp.socket_proud_mm + SOLDER_GAP_MM))
-    };
-    let clearance = sting_clearance(&built, &sting_shell, &ring_shell, ruby_mesh, foot);
+    let clearance = sting_clearance(&sting_shell, &ring_shell, ruby_mesh, comp.stinger_foot);
     let mut section_shells = vec![(&ring_shell, "#d9b76a"), (&sting_shell, "#f4f4f4")];
     if let Some(r) = ruby_mesh {
         section_shells.push((r, "#e0453a"));
@@ -1522,7 +1565,7 @@ fn main() -> Result<()> {
         "made_solids": solids,
         "solids": {"resolved": built.solids.resolved, "stamped": built.solids.stamped, "stamps": d.stamps.len(), "notes": built.solids.notes, "parts_notes": built.parts.notes, "parts_separate": built.parts.separate, "parts_joined": built.parts.joined, "parts_cut": built.parts.cut},
         "bore": {"radius_mm": d.inner_radius_mm(), "nearest_vertex_mm": least_r, "vertices_inside": inside},
-        "stinger": {"clearance": clearance, "length_mm": comp.stinger_length_mm, "tightest_bend_mm": comp.stinger_tightest_bend_mm, "foot_mm": [SOCKET_LONG_MM, SOCKET_WIDE_MM], "tip_mm": [SOCKET_LONG_MM * 0.08, SOCKET_WIDE_MM * 0.08], "twist_deg": 18.0, "lean_deg": STING_LEAN_DEG, "socket_proud_mm": comp.socket_proud_mm, "section": "stinger-section.svg"},
+        "stinger": {"clearance": clearance, "length_mm": comp.stinger_length_mm, "tightest_bend_mm": comp.stinger_tightest_bend_mm, "foot_mm": [SOCKET_LONG_MM, SOCKET_WIDE_MM], "tip_mm": [SOCKET_LONG_MM * 0.08, SOCKET_WIDE_MM * 0.08], "twist_deg": STING_TWIST_DEG, "lean_deg": STING_LEAN_DEG, "socket_over_finished_mm": SOCKET_PROUD_MM, "socket_over_bare_crest_mm": comp.socket_over_bare_mm, "solder_gap_mm": SOLDER_GAP_MM, "section": "stinger-section.svg"},
         "field": {"verdict": field.verdict.label(), "undercut_percent": field.undercut_fraction() * 100.0, "worst_draft_deg": field.worst_draft_deg, "thinnest_wall_mm": field.thinnest_wall_mm, "thinnest_wall_theta_deg": field.thinnest_wall_theta_deg, "notes": field.notes, "parts_undercut_mm2": field.parts.iter().map(|p| p.undercut_area_mm2).sum::<f64>(), "min_section_mm": d.draft.min_section_mm, "min_detail_mm": d.draft.min_detail_mm},
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "stones": {"reported": reported, "previewed": previewed, "carats": stones.as_ref().map_or(0.0, |s| s.total_carats), "tight_pairs": stones.as_ref().map_or(0, |s| s.tight_pairs), "closest": stones.as_ref().and_then(|s| s.closest.as_ref()).map(|p| format!("{} to {}: {:.2} mm at the girdle, {:.2} mm deep", p.a, p.b, p.gap_mm, p.gap_deep_mm)), "crowding": stones.as_ref().map(|s| s.crowding.iter().map(|p| format!("{} to {}: {:.2} / {:.2} mm", p.a, p.b, p.gap_mm, p.gap_deep_mm)).collect::<Vec<_>>()), "warnings": warnings},
@@ -1553,7 +1596,7 @@ fn main() -> Result<()> {
         }
         std::fs::write(out.join("stones.json"), serde_json::to_vec_pretty(&json!({"stones": entries}))?)?;
     }
-    renders(&out, &d, &lib, &built, &gems, comp.neck_off_deg, if draft { 1000 } else { 1600 })?;
+    renders(&out, &lib, &built, &gems, comp.neck_off_deg, if draft { 1000 } else { 1600 })?;
     println!(
         "  field {} ({:.4}% undercut), thinnest wall {:.2} mm at {:.0} deg; dfm {}; stones {reported} reported, {previewed} previewed; {:.2} g in 18k",
         field.verdict.label(),

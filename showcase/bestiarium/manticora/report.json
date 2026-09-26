@@ -1,0 +1,518 @@
+{
+  "alloy_for_weight": "Gold 18k",
+  "bore": {
+    "nearest_vertex_mm": 9.299999518041338,
+    "radius_mm": 9.3,
+    "vertices_inside": 0
+  },
+  "bore_mm": 18.599999036082675,
+  "build": {
+    "author_s": 1.028632351,
+    "build_s": 3.407739986,
+    "profile_steps": 448,
+    "theta_steps": 1536,
+    "triangles": 1357722
+  },
+  "coarse": {
+    "degenerate_faces": 0,
+    "self_crossings": 0,
+    "stamped": 24,
+    "watertight": true
+  },
+  "cold_reload_identical": true,
+  "composition": {
+    "hides": {
+      "ink": [
+        [
+          "Manticora tergites",
+          0.3959529492439031
+        ],
+        [
+          "Manticora pleural folds",
+          0.028131009447969053
+        ],
+        [
+          "Manticora articulations",
+          0.04612842433789129
+        ],
+        [
+          "Manticora venom bulb",
+          0.04425794225670218
+        ],
+        [
+          "Manticora granulation",
+          0.01799056082759402
+        ],
+        [
+          "Manticora graver lines",
+          0.03280101974069477
+        ]
+      ],
+      "neck_along_mm": 6.12035920754446,
+      "plate_mm": [
+        5.5321484144289474,
+        5.2132862329982625,
+        4.767316489282539,
+        4.367881831307958,
+        4.043751229028796,
+        3.8139592671202003,
+        3.685850064053433
+      ],
+      "plates_per_shoulder": 7,
+      "reach_mm": 37.5445527357646,
+      "rim_mm": [
+        2.0408891278453583,
+        2.146874329037534,
+        1.9764337589470506
+      ]
+    },
+    "neck_off_deg": 27.129232630479734,
+    "quills": {
+      "count": 24,
+      "taper": 0.4,
+      "v_offset_mm": 2.4692721008111564,
+      "worst_drift": 0.007832900304596054
+    },
+    "socket_over_bare_mm": 1.788895121200122,
+    "spinel_stations": 16,
+    "spinel_taper": 0.5484446799710365,
+    "stinger_foot": [
+      -5.463353901877857,
+      12.564853754147917,
+      0.0
+    ],
+    "stinger_length_mm": 14.293570376195746,
+    "stinger_tightest_bend_mm": 1.562105914620296
+  },
+  "design": {
+    "bytes": 755001,
+    "cad_features": 8,
+    "embedded_alphas": 6,
+    "format_version": 6
+  },
+  "dfm_findings": [],
+  "field": {
+    "min_detail_mm": 0.15,
+    "min_section_mm": 0.8,
+    "notes": [
+      "Lost wax: 6.57% of the surface would undercut a two-part pull (worst 46.2 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 119–76° on the crest: 70.3 mm² leaning to 41° — caused by \"Tergites\"; muting it clears it.",
+      "Undercut 103–108° on the crest: 0.9 mm² leaning to 5° — caused by \"Venom bulb\"; muting it clears it.",
+      "Cut at the bench after casting, and so not judged here: Graver lines.",
+      "10 made settings cast in place with the ring; the field judges the band under them.",
+      "Measured with the ring as built: 3 CAD parts (2 joined, 1 cut), 113.2 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Bezel \"Venom collet\" (#3) would undercut a two-part pull over 23.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Seat bur\" (#4) would undercut a two-part pull over 21.5 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Aculeus socket\" (#6) would undercut a two-part pull over 1.0 mm² (worst -33°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Twisted sweep \"Aculeus\" (#8) stands apart from the band: it is cast on its own and not judged against the ring's parting plane."
+    ],
+    "parts_undercut_mm2": 46.13289572265688,
+    "thinnest_wall_mm": 1.476144971801732,
+    "thinnest_wall_theta_deg": 270.0,
+    "undercut_percent": 9.678140648427016,
+    "verdict": "Castable",
+    "worst_draft_deg": -88.02551517552479
+  },
+  "gates": [
+    {
+      "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+      "pass": true
+    },
+    {
+      "gate": "every CAD part, seat solid and stamp closed without crossings",
+      "pass": true
+    },
+    {
+      "gate": "solids and parts notes empty, every stamp and seat resolved",
+      "pass": true
+    },
+    {
+      "gate": "nothing enters the finger hole",
+      "pass": true
+    },
+    {
+      "gate": "lost-wax verdict Castable with the 0.8 mm fill",
+      "pass": true
+    },
+    {
+      "gate": "zero DFM findings",
+      "pass": true
+    },
+    {
+      "gate": "stones reported equal the preview, no warnings",
+      "pass": true
+    },
+    {
+      "gate": "stinger clears the collet and the ruby by 0.3 mm",
+      "pass": true
+    },
+    {
+      "gate": "investment pattern watertight, 0 degenerates, 0 crossings",
+      "pass": true
+    },
+    {
+      "gate": "gates hold at 384 x 192",
+      "pass": true
+    },
+    {
+      "gate": "export build within the 2 million triangle budget",
+      "pass": true
+    },
+    {
+      "gate": "cold reload identical",
+      "pass": true
+    }
+  ],
+  "gates_passed": true,
+  "geometry": {
+    "boundary_edges": 0,
+    "degenerate_faces": 0,
+    "min_angle_deg": 0.0012732899764229025,
+    "non_manifold_edges": 0,
+    "self_crossings": 0,
+    "shells": 2,
+    "volume_mm3": 1122.3759078180053,
+    "watertight": true,
+    "worst_aspect": 44998.82159652178
+  },
+  "grams_18k": 17.486616643804524,
+  "layers": [
+    "Tergites",
+    "Pleural folds",
+    "Articulations",
+    "Venom bulb",
+    "Granulation",
+    "Graver lines",
+    "Venom spinels, west",
+    "Venom spinels, east"
+  ],
+  "made_parts": [
+    [
+      "Oval 7 × 5",
+      0
+    ],
+    [
+      "Venom collet",
+      0
+    ],
+    [
+      "Seat bur",
+      0
+    ],
+    [
+      "Aculeus socket",
+      0
+    ],
+    [
+      "Aculeus",
+      0
+    ]
+  ],
+  "made_solids": [
+    {
+      "name": "Quill: high flank, right 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: high flank, right 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: high flank, right 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: high flank, right 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: high flank, right 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: high flank, right 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: high flank, left 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: high flank, left 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: high flank, left 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: high flank, left 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: high flank, left 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: high flank, left 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, right 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, right 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, right 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, right 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, right 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, right 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, left 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, left 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, left 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, left 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, left 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Quill: low flank, left 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Venom spinels, west",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Venom spinels, west",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Venom spinels, west",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Venom spinels, west",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Venom spinels, west",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Venom spinels, east",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Venom spinels, east",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Venom spinels, east",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Venom spinels, east",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Venom spinels, east",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    }
+  ],
+  "name": "Manticora — the tail that throws",
+  "pattern": {
+    "degenerate_faces": 0,
+    "notes": [
+      "#8 Aculeus is its own casting and not in this pattern: choose it as the casting component to prepare it"
+    ],
+    "scale": 1.0131712259371835,
+    "self_crossings": 0,
+    "shells": 1,
+    "triangles": 1334316,
+    "watertight": true
+  },
+  "process": "Lost wax",
+  "size": "US 8.6",
+  "solids": {
+    "notes": [],
+    "parts_cut": 1,
+    "parts_joined": 2,
+    "parts_notes": [],
+    "parts_separate": 1,
+    "resolved": 10,
+    "stamped": 24,
+    "stamps": 24
+  },
+  "stinger": {
+    "clearance": {
+      "foot_gap_mm": 0.04999971047445418,
+      "metal_at": [
+        2.790167808532715,
+        14.838510513305664,
+        -2.2929742336273193
+      ],
+      "ruby_at": [
+        2.790167808532715,
+        14.838510513305664,
+        -2.2929742336273193
+      ],
+      "theta_deg": 79.35070376618918,
+      "to_metal_mm": 0.5932280166500594,
+      "to_ruby_mm": 1.1581379593774848
+    },
+    "foot_mm": [
+      3.4,
+      2.6
+    ],
+    "lean_deg": -15.0,
+    "length_mm": 14.293570376195746,
+    "section": "stinger-section.svg",
+    "socket_over_bare_crest_mm": 1.788895121200122,
+    "socket_over_finished_mm": 0.25,
+    "solder_gap_mm": 0.05,
+    "tightest_bend_mm": 1.562105914620296,
+    "tip_mm": [
+      0.272,
+      0.20800000000000002
+    ],
+    "twist_deg": 70.0
+  },
+  "stones": {
+    "carats": 0.8770091030113373,
+    "closest": "Venom spinels, west to Venom spinels, west: 2.75 mm at the girdle, 2.56 mm deep",
+    "crowding": [],
+    "previewed": 11,
+    "reported": 11,
+    "tight_pairs": 0,
+    "warnings": []
+  }
+}
