@@ -17,7 +17,7 @@ Every lane below was stopped mid-round by the usage limit. Resume each by starti
 | Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `40ca22d` round 2 | r2 6.8 (`basiliscus-round2-review.json`) | round 3, the last |
 | Fenrir | `bestiarium-fenrir` | `5d67238` (+1 uncommitted; master merged for claw rails) | r1 5.5 (`fenrir-round1-review.json`) | round 2 |
 | Corvus | `bestiarium-corvus` | `5df9089` round 1 | r1 5.0 (`corvus-round1-review.json`) | round 2 |
-| Harpyia | `bestiarium-harpyia` (owns C-B4) | `a5c8443` round 1 (C-B4 meshed loft at `ca5c924`) | r1 5.8 (`harpyia-round1-review.json`) | round 2 |
+| Harpyia | `bestiarium-harpyia` (owns C-B4) | `6ce7589` round 2 (C-B4 meshed loft at `ca5c924`) | r2 author self-score 6.8 (r1 5.8): all nine punch items applied, gates green at draft and export (1.92 M triangles), template 0 patches at 96% of the painted budget; face legible only at full size, torso knobbly from above, claws cast blunt | round 2 review (paused) |
 
 - Platform on master (pushed `2af7974`): batch 16, the starter gallery with re-framed splits, the GUI and workbench CI fixes (CI green), the embedded-art fix, the phone icon, C-B5 claw rails and cabochon rise.
 - C-B6 is on master (`22912a5`): stamp drop-ray reach, hand-made heads as holders, finer parting search, flat-part clean, stoneless pads out of the stones report. Requests and proposed code: `.claude/collection-review/core-change-requests.md`.
