@@ -150,6 +150,7 @@ pub fn starters(source: u64, second: u64) -> Vec<Operation> {
         },
         Operation::Loft {
             sections: vec![Sketch::rectangle(10.0, 8.0).into(), top.into()],
+            meshed: false,
         },
         Operation::Boolean {
             a: source,

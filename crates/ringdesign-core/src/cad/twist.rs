@@ -66,12 +66,12 @@ struct Rim {
 }
 
 /// The most a curved piece of the section turns between two points, radians: the kernel's own cap at this chord.
-fn angle_cap(chord: f64) -> f64 {
+pub(super) fn angle_cap(chord: f64) -> f64 {
     (0.15 * (chord / 0.04).sqrt()).clamp(0.01, 0.15)
 }
 
 /// The largest turn, radians, that holds a chord's sag within `chord` at `radius`, and never more than `cap_deg`.
-fn step_for(radius: f64, chord: f64, cap_deg: f64) -> f64 {
+pub(super) fn step_for(radius: f64, chord: f64, cap_deg: f64) -> f64 {
     let cap = cap_deg.to_radians();
     if radius.is_finite() && radius > chord {
         cap.min(2.0 * (1.0 - chord / radius).acos())
@@ -303,22 +303,22 @@ fn section(profile: &[Curve], senses: &[bool], chord: f64, longest: f64) -> Resu
     Ok((out, pieces))
 }
 
-/// Triangles filling a counter-clockwise simple polygon from its own points only, each counter-clockwise.
-fn fill(ring: &[[f64; 2]]) -> Result<Vec<[u32; 3]>> {
+/// Triangles filling a simple polygon from its own points only, each counter-clockwise; `what` names the feature in a refusal.
+pub(super) fn fill(ring: &[[f64; 2]], what: &str) -> Result<Vec<[u32; 3]>> {
     use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
     let n = ring.len();
-    ensure!(n >= 3, "Twisted sweep: the section has {n} points round; a cap needs three");
+    ensure!(n >= 3, "{what}: the section has {n} points round; a cap needs three");
     let mut cdt = ConstrainedDelaunayTriangulation::<Point2<f64>>::new();
     let mut index = HashMap::new();
     let mut handles = Vec::with_capacity(n);
     for (i, p) in ring.iter().enumerate() {
-        let h = cdt.insert(Point2::new(p[0], p[1])).map_err(|e| anyhow::anyhow!("Twisted sweep: the section's point {i} will not place ({e:?})"))?;
-        ensure!(index.insert(h, i as u32).is_none(), "Twisted sweep: the section meets itself at ({:.4}, {:.4})", p[0], p[1]);
+        let h = cdt.insert(Point2::new(p[0], p[1])).map_err(|e| anyhow::anyhow!("{what}: the section's point {i} will not place ({e:?})"))?;
+        ensure!(index.insert(h, i as u32).is_none(), "{what}: the section meets itself at ({:.4}, {:.4})", p[0], p[1]);
         handles.push(h);
     }
     for i in 0..n {
         let (a, b) = (handles[i], handles[(i + 1) % n]);
-        ensure!(cdt.can_add_constraint(a, b), "Twisted sweep: the section crosses itself");
+        ensure!(cdt.can_add_constraint(a, b), "{what}: the section crosses itself");
         cdt.add_constraint(a, b);
     }
     // Faces flood from the hull: outside against a hull edge the outline does not hold, flipping across each outline edge.
@@ -353,7 +353,7 @@ fn fill(ring: &[[f64; 2]]) -> Result<Vec<[u32; 3]>> {
         let area = (pb[0] - pa[0]) * (pc[1] - pa[1]) - (pc[0] - pa[0]) * (pb[1] - pa[1]);
         tris.push(if area >= 0.0 { [a, b, c] } else { [a, c, b] });
     }
-    ensure!(tris.len() == n - 2, "Twisted sweep: the section's cap did not fill ({} triangles for {n} points round)", tris.len());
+    ensure!(tris.len() == n - 2, "{what}: the section's cap did not fill ({} triangles for {n} points round)", tris.len());
     Ok(tris)
 }
 
@@ -481,7 +481,7 @@ pub fn sweep(profile_plane: Plane, profile: &[Curve], path_plane: Plane, path: &
             patch.extend([run_of[j] as u32; 2]);
         }
     }
-    let cap = fill(&rims.iter().map(|r| r.at).collect::<Vec<_>>())?;
+    let cap = fill(&rims.iter().map(|r| r.at).collect::<Vec<_>>(), "Twisted sweep")?;
     let last = st.len() - 1;
     for t in &cap {
         f.push([at(0, t[0] as usize), at(0, t[2] as usize), at(0, t[1] as usize)]);

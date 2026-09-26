@@ -147,9 +147,9 @@ fn main() {
         s
     };
     sweep("loft two rectangles (top size, height)", vec![
-        Operation::Loft { sections: vec![Sketch::rectangle(10.0.into(), 8.0).into(), top(8.0.into(), 6.0.into(), 5.0).into()] },
-        Operation::Loft { sections: vec![Sketch::rectangle(10.0.into(), 8.0).into(), top(4.0.into(), 3.0.into(), 5.0).into()] },
-        Operation::Loft { sections: vec![Sketch::rectangle(10.0.into(), 8.0).into(), top(8.0.into(), 6.0.into(), 12.0).into()] },
+        Operation::Loft { sections: vec![Sketch::rectangle(10.0.into(), 8.0).into(), top(8.0.into(), 6.0.into(), 5.0).into()], meshed: false },
+        Operation::Loft { sections: vec![Sketch::rectangle(10.0.into(), 8.0).into(), top(4.0.into(), 3.0.into(), 5.0).into()], meshed: false },
+        Operation::Loft { sections: vec![Sketch::rectangle(10.0.into(), 8.0).into(), top(8.0.into(), 6.0.into(), 12.0).into()], meshed: false },
     ]);
     sweep("sweep circle on a 3-station path", vec![
         Operation::Sweep { sketch: Sketch::circle(1.0).into(), path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]] },

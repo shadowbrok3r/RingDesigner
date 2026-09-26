@@ -537,7 +537,7 @@ fn sketch_of(op: &Operation) -> Option<&Sketch> {
             Profile::Inline(s) => Some(s),
             Profile::Feature { .. } | Profile::Region { .. } => None,
         },
-        Operation::Loft { sections } => sections.first().and_then(|p| match p {
+        Operation::Loft { sections, .. } => sections.first().and_then(|p| match p {
             Profile::Inline(s) => Some(s),
             Profile::Feature { .. } | Profile::Region { .. } => None,
         }),

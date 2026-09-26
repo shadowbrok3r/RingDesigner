@@ -20,7 +20,7 @@ use crate::value::Literal;
 pub const GRAPH_EXT: &str = "graph.json";
 pub const CLUSTER_EXT: &str = "cluster.json";
 pub const PRESET_EXT: &str = "preset.json";
-/// The newest version this build reads; version 2 fences an in-plane revolution, a pattern of several parts and a cut on a ring of parts alone off from older readers.
+/// The newest version this build reads; version 2 fences an in-plane revolution, a meshed loft, a pattern of several parts and a cut on a ring of parts alone off from older readers.
 pub const GRAPH_FORMAT_VERSION: u32 = 2;
 /// The version a file with none of them is written at.
 pub const PLAIN_GRAPH_FORMAT_VERSION: u32 = 1;
@@ -37,9 +37,9 @@ fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
 /// Version 2 only fences an in-plane revolution, a pattern of several parts and a cut on a ring of parts alone off from older readers; a version-1 document has the same shape.
 fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
 
-/// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, or a pattern of several parts.
+/// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, a meshed loft, or a pattern of several parts.
 fn fenced_json(v: &serde_json::Value) -> bool {
-    ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::cad::pattern::several_sources_json(v) || library::template_features_in_json(v)
+    ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::cad::lofts_meshed_json(v) || ringdesign_core::cad::pattern::several_sources_json(v) || library::template_features_in_json(v)
 }
 
 /// Whether a literal holds what an older reader must be fenced from: what [`fenced_json`] fences, or a cut on a ring of parts alone.
@@ -440,6 +440,45 @@ mod tests {
         assert_eq!(load_preset_str(&text).unwrap(), preset(turn(true)));
         let older = read_preset(&text, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
         assert_eq!(older, "preset file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner");
+    }
+
+    /// A loft of a 3 mm square to a 2 mm one 5 mm over it, meshed or through the kernel.
+    fn lofted(meshed: bool) -> serde_json::Value {
+        let square = |side: f64, z: f64| {
+            let mut s = ringdesign_core::sketch::Sketch::rectangle(side, side);
+            s.plane.origin = [0.0, 0.0, z];
+            s
+        };
+        let op = ringdesign_core::cad::Operation::Loft { sections: vec![square(3.0, 0.0).into(), square(2.0, 5.0).into()], meshed };
+        serde_json::to_value(op).unwrap()
+    }
+
+    #[test]
+    fn a_meshed_loft_fences_its_graph_cluster_and_preset_at_two_and_a_kernel_loft_stays_at_one() {
+        let reg = Registry::builtin();
+        let mut plain = Graph::new("Lofted", Mode::Free);
+        let n = plain.add("cad.feature").unwrap();
+        plain.node_mut(n).unwrap().params = serde_json::json!({ "id": 2, "name": "Loft", "enabled": true, "operation": lofted(false) });
+        let text = graph_to_string(&plain).unwrap();
+        assert_eq!(text, serde_json::to_string_pretty(&Versioned { format_version: 1, doc: &plain }).unwrap());
+        assert_eq!(read_graph(&text, Some(&reg), PLAIN_GRAPH_FORMAT_VERSION).unwrap(), plain);
+        let mut in_params = plain.clone();
+        in_params.nodes[0].params["operation"] = lofted(true);
+        let mut on_pin = plain.clone();
+        on_pin.nodes[0].inputs.insert("operation".into(), Literal::Json(lofted(true)));
+        let mut in_cluster = Graph::new("Lofted cluster", Mode::Free);
+        let c = in_cluster.add("cluster").unwrap();
+        in_cluster.node_mut(c).unwrap().params = serde_json::json!({ "graph": serde_json::to_value(&in_params).unwrap() });
+        for (name, g) in [("params", &in_params), ("pin", &on_pin), ("cluster", &in_cluster)] {
+            assert_eq!(graph_version_for(g), GRAPH_FORMAT_VERSION, "{name}");
+            let text = graph_to_string(g).unwrap();
+            assert!(text.contains("\"format_version\": 2"), "{name}");
+            assert_eq!(&load_graph_str(&text, Some(&reg)).unwrap(), g, "{name}");
+            assert!(read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).is_err(), "{name}");
+        }
+        let preset = |op: serde_json::Value| Preset { name: "Lofted".into(), cluster: "Lofted cluster".into(), values: [("Operation".to_string(), Literal::Json(op))].into_iter().collect(), doc: String::new() };
+        assert!(preset_to_string(&preset(lofted(false))).unwrap().contains("\"format_version\": 1"));
+        assert!(preset_to_string(&preset(lofted(true))).unwrap().contains("\"format_version\": 2"));
     }
 
     /// A pattern of the stone and its head together, as a `cad.feature` node carries it.

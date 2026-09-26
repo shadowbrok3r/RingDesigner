@@ -77,6 +77,7 @@ fn run() -> anyhow::Result<()> {
         "loft",
         vec![Op::Loft {
             sections: vec![ringdesign_core::sketch::Sketch::rectangle(8.0.into(), 6.0).into(), top.into()],
+            meshed: false,
         }],
     ));
     cases.push((

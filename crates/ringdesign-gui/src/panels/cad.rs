@@ -1901,7 +1901,9 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             number(ui, "End scale", end_scale);
             ui.weak("Edit the planar path in Debug; the section stands square to the path at its start.");
         }
-        Operation::Loft { sections } => {
+        Operation::Loft { sections, meshed } => {
+            ui.checkbox(meshed, "Smooth closed mesh")
+                .on_hover_text("Built as a closed mesh through the sections, blended smoothly across them.");
             for (i, p) in sections.iter_mut().enumerate() {
                 profile_source(ui, &format!("Section {i}"), p, tree, None);
                 if let Some(s) = p.sketch_mut() {

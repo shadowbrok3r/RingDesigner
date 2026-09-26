@@ -16,6 +16,7 @@ pub mod assembly;
 pub mod builders;
 pub mod edit;
 pub mod examples;
+pub mod loft;
 pub mod measure;
 pub mod pattern;
 pub mod step;
@@ -86,6 +87,9 @@ pub enum Operation {
     },
     Loft {
         sections: Vec<Profile>,
+        /// Built as a closed mesh of its own through the sections, matched piece for piece and blended smoothly, not as the kernel's surface.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        meshed: bool,
     },
     Boolean {
         a: Id,
@@ -244,7 +248,7 @@ impl Operation {
                 ids.extend(path.plane.on_face.iter().map(|a| a.feature));
                 ids
             }
-            Self::Loft { sections } => sections.iter().flat_map(Profile::dependencies).collect(),
+            Self::Loft { sections, .. } => sections.iter().flat_map(Profile::dependencies).collect(),
             Self::Sketch { sketch } => sketch.plane.on_face.iter().map(|a| a.feature).collect(),
             Self::Stored { sources, .. } => sources.clone(),
             _ => vec![],
@@ -263,7 +267,7 @@ impl Operation {
             | Self::Revolve { sketch, .. }
             | Self::Sweep { sketch, .. }
             | Self::Twist { sketch, .. } => sketch.feature().into_iter().collect(),
-            Self::Loft { sections } => sections.iter().filter_map(Profile::feature).collect(),
+            Self::Loft { sections, .. } => sections.iter().filter_map(Profile::feature).collect(),
             Self::Stored { sources, .. } => sources.clone(),
             _ => vec![],
         }
@@ -275,7 +279,7 @@ impl Operation {
             | Self::Revolve { sketch, .. }
             | Self::Sweep { sketch, .. }
             | Self::Twist { sketch, .. } => sketch.sketch_mut(),
-            Self::Loft { sections } => sections.first_mut().and_then(Profile::sketch_mut),
+            Self::Loft { sections, .. } => sections.first_mut().and_then(Profile::sketch_mut),
             _ => None,
         }
     }
@@ -1226,7 +1230,7 @@ pub fn sign_refs(op: &mut Operation, e: &Evaluated) -> usize {
             anchors.extend(sketch.sketch_mut().and_then(|s| s.plane.on_face.as_mut()));
             anchors.extend(path.plane.on_face.as_mut());
         }
-        Operation::Loft { sections } => anchors.extend(sections.iter_mut().filter_map(|p| p.sketch_mut()?.plane.on_face.as_mut())),
+        Operation::Loft { sections, .. } => anchors.extend(sections.iter_mut().filter_map(|p| p.sketch_mut()?.plane.on_face.as_mut())),
         _ => {}
     }
     for anchor in anchors {
@@ -1386,6 +1390,7 @@ impl Value {
             pattern::PATTERN => "a mesh of placed copies",
             stored::STORED => "a mesh another kernel made",
             twist::TWIST => "a twisted sweep's mesh",
+            loft::LOFT => "a meshed loft",
             _ => "a mesh a builder made",
         }
     }
@@ -1899,7 +1904,7 @@ fn body_for(
             let made = twist::sweep(plane, &outline, along, &path.solved_curves()?, degrees.to_radians(), *end_scale, part_chord(params))?;
             return Ok(Value::Mesh(Arc::new(made)));
         }
-        Operation::Loft { sections } => {
+        Operation::Loft { sections, meshed } => {
             ensure!(
                 sections.len() >= 2 && sections.len() <= 32,
                 "Loft needs 2–32 compatible sections"
@@ -1912,6 +1917,9 @@ fn body_for(
                     Ok((plane, region_loop(p, s, "Loft", notes)?))
                 })
                 .collect::<Result<Vec<_>>>()?;
+            if *meshed {
+                return Ok(Value::Mesh(Arc::new(loft::mesh(&profiles, part_chord(params))?)));
+            }
             ensure!(
                 profiles.iter().all(|(_, p)| p.len() == profiles[0].1.len()),
                 "Loft sections need matching curve counts and winding"
@@ -2056,6 +2064,21 @@ pub fn turns_in_plane_json(v: &serde_json::Value) -> bool {
             map.get("Revolve").and_then(|r| r.get("in_plane")).and_then(serde_json::Value::as_bool) == Some(true) || map.values().any(turns_in_plane_json)
         }
         serde_json::Value::Array(items) => items.iter().any(turns_in_plane_json),
+        _ => false,
+    }
+}
+/// Whether `design` carries a meshed loft, in its document or anywhere in its graph.
+pub fn lofts_meshed(design: &RingDesign) -> bool {
+    let in_document = design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(f.operation, Operation::Loft { meshed: true, .. })));
+    in_document || design.graph.as_ref().is_some_and(lofts_meshed_json)
+}
+/// Whether `v` holds a meshed loft anywhere: an object keyed `Loft` whose `meshed` is true.
+pub fn lofts_meshed_json(v: &serde_json::Value) -> bool {
+    match v {
+        serde_json::Value::Object(map) => {
+            map.get("Loft").and_then(|l| l.get("meshed")).and_then(serde_json::Value::as_bool) == Some(true) || map.values().any(lofts_meshed_json)
+        }
+        serde_json::Value::Array(items) => items.iter().any(lofts_meshed_json),
         _ => false,
     }
 }
@@ -2376,8 +2399,8 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
         if matches!(f.operation, Operation::TwistedRing { .. }) {
             (params.theta_steps, params.profile_steps).hash(&mut h);
         }
-        // A pattern's copies are its source's tessellation at this build's chord, and a twisted sweep is cut to it.
-        if matches!(f.operation, Operation::Pattern { .. } | Operation::Twist { .. }) {
+        // A pattern's copies are its source's tessellation at this build's chord, and a twisted sweep and a meshed loft are cut to it.
+        if matches!(f.operation, Operation::Pattern { .. } | Operation::Twist { .. } | Operation::Loft { meshed: true, .. }) {
             (params.theta_steps >= 512).hash(&mut h);
         }
         // An extrusion running below its plane, and a revolution short of a whole turn, clear the plane when they cut.
@@ -3183,6 +3206,7 @@ mod tests {
             }],
             vec![Operation::Loft {
                 sections: vec![Sketch::rectangle(8.0, 6.0).into(), top.into()],
+                meshed: false,
             }],
             vec![
                 Operation::Box { size: [8.0; 3] },
@@ -3268,8 +3292,8 @@ mod tests {
         // Lofted from the 3 mm square to the same square 5 mm over it: a prism again.
         let mut top = Sketch::rectangle(3.0, 3.0);
         top.plane.origin = [6.5, 0.0, 5.0];
-        near(run(Operation::Loft { sections: vec![pick(three), top.clone().into()] }), 9.0 * 5.0);
-        let holed = run(Operation::Loft { sections: vec![pick(framed), top.into()] }).unwrap_err();
+        near(run(Operation::Loft { sections: vec![pick(three), top.clone().into()], meshed: false }), 9.0 * 5.0);
+        let holed = run(Operation::Loft { sections: vec![pick(framed), top.into()], meshed: false }).unwrap_err();
         assert!(holed.contains("Loft: the region of sketch #1 has 1 hole; it takes one closed loop"), "{holed}");
     }
 

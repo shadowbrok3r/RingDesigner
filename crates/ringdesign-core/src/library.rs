@@ -45,7 +45,7 @@ pub const DESIGN_EXT: &str = "ring.json";
 // it also protects a revolution whose line is read in its sketch's plane, which an earlier build would turn about the world's line,
 // a pattern of several parts, which an earlier build cannot parse, a cut carved from a ring of parts alone, which an earlier
 // build pours as metal, and a stamp with a tier, a shaped top or an outline over 512 points, which an earlier build flattens
-// or refuses.
+// or refuses, and a meshed loft, which an earlier build would loft through the kernel instead.
 // A design with none of these is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
@@ -56,6 +56,7 @@ pub const PLAIN_FORMAT_VERSION: u32 = 5;
 pub fn format_version_for(design: &RingDesign) -> u32 {
     if crate::cad::stored::carried_by(design)
         || crate::cad::turns_in_plane(design)
+        || crate::cad::lofts_meshed(design)
         || crate::cad::pattern::several_sources(design)
         || crate::parts::cuts_apart(design)
         || design.stamps.iter().any(|s| !s.is_plain())

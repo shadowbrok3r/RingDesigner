@@ -735,7 +735,8 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
         Operation::Sweep { path, .. } => {
             for (i,p) in path.iter_mut().enumerate() { xyz(ui,&format!("Station {i} mm"),p); }
         }
-        Operation::Loft { sections } => {
+        Operation::Loft { sections, meshed } => {
+            ui.checkbox(meshed, "Smooth closed mesh");
             for (i,p) in sections.iter_mut().enumerate() { if let Some(s) = p.sketch_mut() { xyz(ui,&format!("Section {i} origin"),&mut s.plane.origin); } else { ui.weak(format!("Section {i}: sketch feature #{}", p.feature().unwrap_or(0))); } }
         }
         Operation::Sketch { .. } => { ui.weak("A closed profile for other features to extrude, revolve, sweep or loft; edit it below."); }
