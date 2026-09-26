@@ -135,7 +135,7 @@ static TEMPLATES: [Template; 13] = [
     },
     Template {
         name: "Cathedral solitaire",
-        blurb: "Six claws carry a round over two cathedral arches, with four teardrop azures; lost wax.",
+        blurb: "Six claws carry a round over two cathedral arches; a local flared bed holds four teardrop azures above the fine palm. Lost wax.",
         view: (0.55, 1.12),
         build: settings::cathedral_solitaire,
     },
@@ -206,9 +206,13 @@ pub fn stock_process_note(preset: &crate::imported_base::Preset) -> Option<&'sta
 
 /// A factory blank on its calibrated chart, using only verified sand masters.
 pub fn stock(preset: &'static crate::imported_base::Preset) -> anyhow::Result<RingDesign> {
+    stock_as(preset, stock_sand_ready(preset))
+}
+
+/// A factory blank as a Delft sand master with its envelope, or as native stock in lost wax.
+fn stock_as(preset: &'static crate::imported_base::Preset, sand: bool) -> anyhow::Result<RingDesign> {
     use crate::imported_base::{ImportedBase, SurfaceChart, sand_master};
     use crate::castability::{CastProcess, SandProcess};
-    let sand = stock_sand_ready(preset);
     let source = preset.load()?;
     let mut d = RingDesign::default();
     ImportedBase::attach(&mut d, if sand { sand_master(source)? } else { source })?;
@@ -246,6 +250,8 @@ mod tests {
             assert!(e.features.iter().all(|f| f.status.is_ok()), "{}: {:?}", d.name, e.features);
             for part in &e.components {
                 if !part.settings.reference {
+                    assert!(part.mesh.validate().watertight, "{} / {} is open", d.name, part.name);
+                    assert_eq!(part.mesh.quality().degenerate_faces, 0, "{} / {} is degenerate", d.name, part.name);
                     let solid = csg::Solid { v: part.mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: part.mesh.faces.clone() };
                     assert_eq!(csg::self_crossings(&solid), 0, "{} / {} crosses itself", d.name, part.name);
                 }
@@ -272,7 +278,17 @@ mod tests {
             } else {
                 assert!(dfm::findings_in(&d, &lib).is_empty(), "{}: {:?}", t.name, dfm::findings_in(&d, &lib));
             }
-            if let Some(report) = stones::report_built(&d, field.parting_z_mm, &out) {
+            let stone_count = match t.name {
+                "Cathedral solitaire" | "Bezel solitaire" | "Split-shank basket" => 1,
+                "Halo" => 16,
+                "Trilogy" | "Gypsy trio" => 3,
+                "Toi et moi" => 2,
+                "Half eternity" => 8,
+                _ => 0,
+            };
+            let report = stones::report_built(&d, field.parting_z_mm, &out);
+            assert_eq!(report.as_ref().map_or(0, |r| r.stone_count), stone_count, "{} count", t.name);
+            if let Some(report) = report {
                 assert_eq!(report.stone_count as usize, stones::all_stone_frames_built(&d, &out).len(), "{} preview/report disagree", t.name);
                 assert_eq!(report.tight_pairs, 0, "{}: {:?}", t.name, report.crowding_note());
                 for seat in &report.seats {
@@ -286,6 +302,33 @@ mod tests {
                 let inspected = manufacturing::inspect(&d, &lib, &setup, params()).unwrap();
                 assert!(inspected.release.obstructions.is_empty(), "{}: {:?}", t.name, inspected.release.obstructions);
                 assert_eq!(inspected.release.unresolved_rays, 0, "{}", t.name);
+            }
+        }
+    }
+
+    #[test]
+    fn gallery_keeps_both_rails_through_its_side_faces_and_releases_in_delft() {
+        let lib = AlphaLibrary::builtin();
+        let d = settings::split_gallery();
+        let params = BuildParams { theta_steps:384,profile_steps:144,..Default::default() };
+        for pitch in [0.1,0.075] {
+            let mut setup = manufacturing::Setup::from_design(&d);
+            setup.sample_pitch_mm = pitch;
+            let inspected = manufacturing::inspect(&d,&lib,&setup,params).unwrap();
+            assert!(inspected.release.obstructions.is_empty());
+            assert_eq!(inspected.release.unresolved_rays,0);
+            assert_eq!(inspected.field.as_ref().unwrap().verdict,Verdict::Castable);
+            let actual = inspected.prepared.mesh.scaled(1.0/inspected.prepared.scale);
+            let wall = crate::cad::measure::thickness(&actual,0.8);
+            assert!(wall.rays >= 380 && wall.unresolved == 0 && wall.below_limit == 0,"{wall:?}");
+            let rows = settings::gallery_rail_sections(&actual,d.profile.width_mm);
+            assert_eq!(rows.len(),11);
+            for row in rows {
+                assert_eq!(row.complete_sections,37,"{row:?}");
+                assert_eq!(row.missing_sections,0,"{row:?}");
+                assert!(row.inner_min_mm.is_some_and(|v|v>=0.8),"{row:?}");
+                assert!(row.outer_min_mm.is_some_and(|v|v>=0.8),"{row:?}");
+                eprintln!("gallery pitch={pitch}: {row:?}");
             }
         }
     }
@@ -314,13 +357,14 @@ mod tests {
     }
 
     #[test]
-    fn stock_processes_are_proven_by_their_actual_patterns() {
+    fn every_stock_starter_opens_clean() {
         let lib = AlphaLibrary::builtin();
         let mut sand = Vec::new();
         for preset in crate::imported_base::PRESETS {
             let d = stock(preset).unwrap();
             let source = &d.imported_base.as_ref().unwrap().source;
-            assert!(source.name == preset.stock_name() || source.name == format!("{} / drafted workshop master", preset.stock_name()));
+            let master = if stock_sand_ready(preset) { format!("{} / drafted workshop master", preset.stock_name()) } else { preset.stock_name() };
+            assert_eq!(source.name, master, "{}", preset.id);
             assert_eq!(d.name, stock_name(preset));
             assert_eq!(d.imported_base.as_ref().unwrap().sand_envelope, stock_sand_ready(preset));
             let out = geometry(&d, &lib);
@@ -343,6 +387,32 @@ mod tests {
             }
         }
         assert_eq!(sand, ["002", "006", "015", "017"]);
+    }
+
+    #[test]
+    fn a_failed_sand_trial_fails_as_its_note_says() {
+        let lib = AlphaLibrary::builtin();
+        let mut failed = Vec::new();
+        for preset in crate::imported_base::PRESETS.iter().filter(|p| p.sand_safe() && !stock_sand_ready(p)) {
+            let note = stock_process_note(preset).unwrap_or_else(|| panic!("{} has no sand-trial note", preset.id));
+            let d = stock_as(preset, true).unwrap();
+            assert_eq!(d.draft.process, CastProcess::SandTwoPart);
+            let finding = match mesh::try_build(&d, &lib, params()) {
+                Err(e) => {
+                    assert!(format!("{e:#}").contains("withdrawal support"), "{}: {e:#}", preset.id);
+                    "withdrawal support".to_string()
+                }
+                Ok(out) => {
+                    let report = castability::judged_field_report(&d, &lib, &d.draft, 192, 128, Some(&out));
+                    eprintln!("sand trial {}: {:?} at {:.4}% undercut", preset.id, report.verdict, report.undercut_fraction() * 100.0);
+                    assert_ne!(report.verdict, Verdict::Castable, "{} passes its sand trial", preset.id);
+                    format!("{:?} verdict", report.verdict)
+                }
+            };
+            assert!(note.contains(&finding), "{}: measured {finding}, note says {note:?}", preset.id);
+            failed.push(preset.id);
+        }
+        assert_eq!(failed, ["001", "003", "005", "007", "012", "013", "016"]);
     }
 
     #[test]

@@ -27,6 +27,7 @@ fn measure(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::R
         Err(e) => json!({"error":format!("{e:#}")}),
     };
     let measured_wall = (d.name == "Split gallery").then(|| inspection.as_ref().ok().map(|i| cad::measure::thickness(&i.prepared.mesh.scaled(1.0/i.prepared.scale),0.8)));
+    let gallery_sections = (d.name == "Split gallery").then(|| inspection.as_ref().ok().map(|i| templates::settings::gallery_rail_sections(&i.prepared.mesh.scaled(1.0/i.prepared.scale),d.profile.width_mm)));
     let warnings: Vec<_> = settings.iter().flat_map(|s| s.seats.iter().flat_map(|c| c.warnings.iter().map(|w| format!("{}: {w}",c.label)))).collect();
     let row = json!({
         "name":d.name,"process":format!("{:?}",d.draft.process),"build_ms":build_ms,"mesh":built.mesh.validate(),"degenerate_faces":built.mesh.quality().degenerate_faces,
@@ -34,29 +35,11 @@ fn measure(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::R
         "features":built.parts.evaluated.as_ref().map(|e|&e.features),"made_parts":parts,
         "verdict":format!("{:?}",field.verdict),"undercut_pct":field.undercut_fraction()*100.0,"field_notes":field.notes,"thinnest_wall_mm":field.thinnest_wall_mm,
         "dfm":dfm::findings_in(d,lib).iter().map(|f|format!("{}: {}",f.label,f.message)).collect::<Vec<_>>(),
+        "stone_groups":settings.as_ref().map(|s|s.seats.iter().map(|c|json!({"label":c.label,"count":c.count})).collect::<Vec<_>>()),
         "stone_count":settings.as_ref().map_or(0,|s|s.stone_count),"preview_count":stones::all_stone_frames_built(d,&built).len(),"stone_warnings":warnings,
-        "tight_pairs":settings.as_ref().map_or(0,|s|s.tight_pairs),"crowding":settings.as_ref().and_then(|s|s.crowding_note()),"release":release,"gallery_wall":measured_wall
+        "tight_pairs":settings.as_ref().map_or(0,|s|s.tight_pairs),"crowding":settings.as_ref().and_then(|s|s.crowding_note()),"release":release,"gallery_wall":measured_wall,"gallery_sections":gallery_sections
     });
     Ok((built,row))
-}
-
-fn scan_settings(lib: &AlphaLibrary) -> anyhow::Result<()> {
-    let params = BuildParams { theta_steps: 192, profile_steps: 96, ..Default::default() };
-    let d = templates::all().iter().find(|t| t.name == "Cathedral solitaire").unwrap().design();
-    for peak in [1.9, 2.0, 2.1, 2.2] {
-        for span in [20.0, 28.0, 36.0] {
-            let mut x = d.clone();
-            x.shank.kind = ringdesign_core::profile::ShankKind::Keyframes;
-            x.shank.amount = 1.0;
-            x.shank.keys = [(270.0,1.0),(180.0,0.89875),(90.0+span+15.0,0.83),(90.0+span,1.0),(105.0,peak),(90.0,peak),(75.0,peak),(90.0-span,1.0),(90.0-span-15.0,0.83),(0.0,0.89875)].map(|(theta_deg,width_scale)| {
-                let d = (1.0-(theta_deg-90.0_f64).to_radians().cos())*0.5;
-                ringdesign_core::profile::ShankKey { theta_deg,width_scale,thickness_scale:1.0-0.135*(1.0-d),..Default::default() }
-            }).to_vec();
-            let built = mesh::try_build(&x,lib,params)?;
-            println!("peak={peak} span={span}: {}",if built.parts.notes.is_empty() { "PASS".into() } else { built.parts.notes.join("; ") });
-        }
-    }
-    Ok(())
 }
 
 fn main() -> anyhow::Result<()> {
@@ -66,7 +49,6 @@ fn main() -> anyhow::Result<()> {
     let dir = Path::new(&dir);
     std::fs::create_dir_all(dir)?;
     let lib = AlphaLibrary::builtin();
-    if std::env::var_os("RD_STARTER_SCAN").is_some() { return scan_settings(&lib); }
     let mut rows = Vec::new();
     let mut rings = Vec::new();
     let params = BuildParams { theta_steps: 512, profile_steps: 192, ..Default::default() };
@@ -79,10 +61,16 @@ fn main() -> anyhow::Result<()> {
                 let f = render::finished_from(&d,&lib,built);
                 let parts = f.parts(render::GOLD);
                 render::write_png_parts(dir.join(format!("{slug}.png")),&parts,view.0,view.1,700)?;
-                render::write_png_parts(dir.join(format!("{slug}-side.png")),&parts,0.25,0.35,700)?;
+                let second = if view.1 < 0.5 { (0.55,1.12) } else { (0.25,0.35) };
+                render::write_png_parts(dir.join(format!("{slug}-side.png")),&parts,second.0,second.1,700)?;
                 println!("{slug}: {}",serde_json::to_string(&row)?);
+                let mut spec = format!("{:.2} mm bore · {}",2.0*d.inner_radius_mm(),d.draft.process.label());
+                if row["verdict"].as_str() != Some("Castable") {
+                    spec.push_str(&format!(" · {}",row["verdict"].as_str().unwrap_or("review")));
+                } else if d.name == "Split gallery" { spec.push_str(" · mould trial"); }
+                else if d.name == "Half eternity" { spec.push_str(" · setter review"); }
                 rows.push(row);
-                rings.push(json!({"slug":slug,"title":d.name,"description":description,"spec":format!("{:.2} mm bore · {}",2.0*d.inner_radius_mm(),d.draft.process.label()),"views":[{"name":"hero","label":"Portrait","render":false,"image":format!("{slug}.png")},{"name":"side","label":"Gallery","render":false,"image":format!("{slug}-side.png")}]}));
+                rings.push(json!({"slug":slug,"title":d.name,"description":description,"spec":spec,"views":[{"name":"hero","label":"Portrait","render":false,"image":format!("{slug}.png")},{"name":"side","label":"Gallery","render":false,"image":format!("{slug}-side.png")}]}));
             }
             Err(e) => {
                 eprintln!("{slug}: {e:#}");
@@ -101,7 +89,7 @@ fn main() -> anyhow::Result<()> {
         if !filter.is_empty() && !slug.contains(&filter) { continue; }
         let at = Instant::now();
         let d = templates::stock(preset)?;
-        let description = format!("Factory stock, hard angles where wall meets face; bare, ready for a theme. {}",templates::stock_process_note(preset).unwrap_or("Verified native process."));
+        let description = format!("Factory stock, hard angles where wall meets face; bare, ready for a theme. {}",templates::stock_process_note(preset).unwrap_or("Verified process at calibrated size."));
         shoot(slug,d,(0.55,1.12),&description,at.elapsed().as_millis())?;
     }
     std::fs::write(dir.join("collection.json"),serde_json::to_string_pretty(&json!({"collection":"starters","title":"Starters","metal":"gold","subtitle":"BLANKS FOR THE BENCH","description":"Bands, settings and factory stocks.","rings":rings}))?)?;

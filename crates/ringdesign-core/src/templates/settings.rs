@@ -1,12 +1,11 @@
 //! Editable documents and stone stock for the starter gallery.
 use crate::{ProfileStyle, RingDesign};
-use crate::cad::{Attach, Component, Document, FaceRef, Feature, MirrorPlane, Operation, PatternKind, Placement, PlaneBase, Profile, Stage, builders};
+use crate::cad::{Attach, Component, Document, Feature, Operation, Placement, Stage, builders};
 use crate::castability::{CastProcess, SandProcess};
 use crate::field::{Layer, LayerEntry, SeatPadLayer, SeatRunLayer, SeatStyle, Window};
 use crate::gem::{Gem, GemCut};
 use crate::profile::{ShankKey, ShankKind};
 use crate::setting::SolidKind;
-use crate::sketch::{FaceAnchor, Geometry, Sketch, Workplane};
 use anyhow::Result;
 use serde_json::json;
 
@@ -45,8 +44,14 @@ fn settings(doc: &mut Document, id: u64, gem: Gem, placement: Placement, key: &s
 
 pub fn cathedral_solitaire() -> RingDesign {
     let mut d = base(ProfileStyle::DShape, 2.1, 1.8, true);
-    d.shank.kind = ShankKind::ReverseTaper;
-    d.shank.amount = 0.45;
+    // Widens the band only under the head.
+    d.shank.kind = ShankKind::Keyframes;
+    d.shank.amount = 1.0;
+    d.shank.keys = [(270.0,1.0),(180.0,0.89875),(125.0,0.83),(110.0,1.0),(105.0,1.9),(90.0,1.9),(75.0,1.9),(70.0,1.0),(55.0,0.83),(0.0,0.89875)]
+        .map(|(theta_deg,width_scale)| {
+            let lower = (1.0-(theta_deg-90.0_f64).to_radians().cos())*0.5;
+            ShankKey { theta_deg,width_scale,thickness_scale:1.0-0.135*(1.0-lower),..Default::default() }
+        }).to_vec();
     d.cad = Some(cathedral_doc(&d).expect("curated cathedral document"));
     d
 }
@@ -135,7 +140,9 @@ pub fn trilogy_doc(_d: &RingDesign) -> Result<Document> {
         let mut at = Placement::ring(theta, builders::stand_off_mm("claw4", gem));
         if let Placement::Ring { spin_deg, .. } = &mut at { *spin_deg = spin; }
         settings(&mut doc, id, gem, at, "claw4", false)?;
-        if let Operation::Builder { params, .. } = &mut doc.features[(id) as usize].operation { params["prongs"] = json!(3); params["wire_mm"] = json!(1.0); }
+        let head = &mut doc.features[id as usize];
+        head.name = "Three-claw head".into();
+        if let Operation::Builder { params, .. } = &mut head.operation { params["prongs"] = json!(3); params["wire_mm"] = json!(1.0); }
     }
     Ok(doc)
 }
@@ -176,16 +183,10 @@ pub fn split_shank() -> RingDesign {
 
 pub fn split_doc(_d: &RingDesign) -> Result<Document> {
     let mut doc = band()?;
-    let sections = [(42.0_f64,0.025),(58.0,0.55),(74.0,1.05),(90.0,1.3),(106.0,1.05),(122.0,0.55),(138.0,0.025)].into_iter().map(|(theta, gap)| {
-        let mut s = Sketch::rectangle(3.6, gap * 2.0);
-        for p in &mut s.points { p.xy[0] += 9.65; }
-        let t = theta.to_radians();
-        s.plane = Workplane { x: [t.cos(),t.sin(),0.0], y: [0.0,0.0,1.0], ..Default::default() };
-        Profile::Inline(s)
-    }).collect();
-    let mut cut = feature(2, "Open split", Operation::Loft { sections }, Attach::Cut);
-    cut.component.blend_mm = 0.25;
-    doc.append(cut)?;
+    doc.append(feature(2, "Open split", Operation::Builder {
+        key: builders::SPLIT.into(), on: None,
+        params: json!({"theta_deg":90.0,"spread_deg":48.0,"gap_mm":2.6,"rail_round_mm":0.3,"tip":"Point"}),
+    }, Attach::Cut))?;
     Ok(doc)
 }
 
@@ -206,47 +207,23 @@ pub fn split_basket_doc(d: &RingDesign) -> Result<Document> {
 
 pub fn split_gallery() -> RingDesign {
     let mut d = base(ProfileStyle::LowDome, 4.2, 1.8, false);
+    d.profile.crown_mm = 0.2;
+    d.profile.edge_round_mm = 0.15;
+    d.profile.comfort_fit_mm = 0.1;
+    d.profile.flatten_sides();
     d.shank.kind = ShankKind::Keyframes;
     d.shank.amount = 1.0;
-    d.shank.keys = [(270.0,1.0),(200.0,1.0),(340.0,1.0),(150.0,1.35),(30.0,1.35),(120.0,1.85),(60.0,1.85),(90.0,2.3)].map(|(theta_deg,thickness_scale)| ShankKey { theta_deg, thickness_scale, ..Default::default() }).to_vec();
+    d.shank.keys = [(270.0,1.0),(200.0,1.0),(340.0,1.0),(150.0,1.6),(30.0,1.6),(120.0,1.85),(60.0,1.85),(90.0,2.3)].map(|(theta_deg,thickness_scale)| ShankKey { theta_deg, thickness_scale, ..Default::default() }).to_vec();
     d.cad = Some(gallery_doc(&d).expect("curated gallery document"));
     d
 }
 
 pub fn gallery_doc(_d: &RingDesign) -> Result<Document> {
     let mut doc = band()?;
-    doc.append(feature(2, "Window parting plane", Operation::Plane { base: PlaneBase::Parting, offset_mm: -0.05 }, Attach::Separate))?;
-    let mut s = Sketch { name: "Rounded gallery window".into(), ..Default::default() };
-    s.plane.on_face = Some(FaceAnchor { feature: 2, face: FaceRef::bare(0) });
-    let inner: f64 = 9.65;
-    let tip_y = inner * 38_f64.to_radians().sin();
-    let high: f64 = 11.75;
-    let cy = (high * high - inner * inner) / (2.0 * (high - tip_y));
-    let outer = high - cy;
-    let r: f64 = 0.35;
-    let fillet_y = ((inner + r).powi(2) - (outer - r).powi(2) + cy * cy) / (2.0 * cy);
-    let fillet_x = ((inner + r).powi(2) - fillet_y * fillet_y).sqrt();
-    let ci = s.point([0.0,0.0]);
-    let co = s.point([0.0,cy]);
-    let mut ends = Vec::new();
-    for sign in [1.0,-1.0] {
-        let centre = [sign * fillet_x,fillet_y];
-        let pi = [centre[0] * inner / (inner+r),centre[1] * inner / (inner+r)];
-        let po = [centre[0] * outer / (outer-r),cy+(centre[1]-cy)*outer/(outer-r)];
-        let c = s.point(centre);
-        let i = s.point(pi);
-        let o = s.point(po);
-        let ai = (pi[1]-centre[1]).atan2(pi[0]-centre[0]);
-        let ao = (po[1]-centre[1]).atan2(po[0]-centre[0]);
-        let (start,end) = if (ao-ai).rem_euclid(std::f64::consts::TAU) < std::f64::consts::PI { (i,o) } else { (o,i) };
-        s.entity(Geometry::Arc { center: c, start, end });
-        ends.push((i,o));
-    }
-    s.entity(Geometry::Arc { center: ci, start: ends[0].0, end: ends[1].0 });
-    s.entity(Geometry::Arc { center: co, start: ends[0].1, end: ends[1].1 });
-    doc.append(feature(3, "Window", Operation::Sketch { sketch: s }, Attach::Separate))?;
-    doc.append(feature(4, "Cope window", Operation::Extrude { sketch: Profile::Feature { feature: 3 }, height_mm: 2.65, draft_deg: -2.0 }, Attach::Cut))?;
-    doc.append(feature(5, "Drag window", Operation::Pattern { sources: 4.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Band } }, Attach::Cut))?;
+    doc.append(feature(2, "Gallery window", Operation::Builder {
+        key: builders::WINDOW.into(), on: None,
+        params: json!({"from_deg":38.0,"to_deg":142.0,"rail_in_mm":1.2,"rail_out_mm":1.5,"draft_deg":4.0,"tip_round_mm":0.35}),
+    }, Attach::Cut))?;
     Ok(doc)
 }
 
@@ -274,4 +251,44 @@ pub fn gypsy_trio() -> RingDesign {
         d.layers.layers.push(LayerEntry::new(name,Layer::SeatPad(seat)));
     }
     d
+}
+
+/// Radial stock inside and outside the gallery window at one offset across the band, sampled from a mesh section.
+#[derive(Debug, serde::Serialize)]
+pub struct GallerySection {
+    pub across_mm: f64,
+    pub complete_sections: usize,
+    pub missing_sections: usize,
+    pub inner_min_mm: Option<f64>,
+    pub outer_min_mm: Option<f64>,
+}
+
+pub fn gallery_rail_sections(mesh: &crate::Mesh, width_mm: f64) -> Vec<GallerySection> {
+    [-0.96,-0.9,-0.75,-0.5,-0.25,0.0,0.25,0.5,0.75,0.9,0.96].into_iter().map(|fraction| {
+        let across_mm = if fraction == 0.0 { 0.001 } else { width_mm * 0.5 * fraction };
+        let lines = crate::cad::measure::section(mesh,2,across_mm);
+        let mut row = GallerySection { across_mm,complete_sections:0,missing_sections:0,inner_min_mm:None,outer_min_mm:None };
+        // Ray angles sit 0.137° off the tessellation's vertex columns.
+        for theta in (39..=141).step_by(3).map(|t|t as f64+0.137).chain([38.137,141.863]) {
+            let (sin,cos) = theta.to_radians().sin_cos();
+            let mut hits: Vec<f64> = lines.iter().filter_map(|[a,b]| {
+                let delta = [b[0]-a[0],b[1]-a[1]];
+                let den = cos*delta[1]-sin*delta[0];
+                if den.abs()<1e-10 { return None; }
+                let radius = (a[0]*delta[1]-a[1]*delta[0])/den;
+                let at = (a[0]*sin-a[1]*cos)/den;
+                (radius>0.0 && (0.0..=1.0).contains(&at)).then_some(radius)
+            }).collect();
+            hits.sort_by(f64::total_cmp);
+            hits.dedup_by(|a,b|(*a-*b).abs()<1e-4);
+            if hits.len()==4 {
+                row.complete_sections+=1;
+                let inner=hits[1]-hits[0];
+                let outer=hits[3]-hits[2];
+                row.inner_min_mm=Some(row.inner_min_mm.map_or(inner,|v|v.min(inner)));
+                row.outer_min_mm=Some(row.outer_min_mm.map_or(outer,|v|v.min(outer)));
+            } else { row.missing_sections+=1; }
+        }
+        row
+    }).collect()
 }
