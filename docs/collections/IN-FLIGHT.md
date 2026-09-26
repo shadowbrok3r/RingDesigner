@@ -1,3 +1,23 @@
+# Checkpoint 2026-09-26 10:10 (Claude, at the account's 5-hour limit)
+
+Every lane below was stopped mid-round by the usage limit. Resume each by starting a fresh agent in its worktree with the shared brief (`.claude/collection-review/bestiarium-lane-brief.md`), its latest review JSON (in `.claude/collection-review/`, ignored dir) and "continue round N". Uncommitted files stay on disk: commit or finish them first.
+
+| Ring | Worktree / branch | Last commit | Latest review | Next |
+|---|---|---|---|---|
+| Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | package |
+| Manticora | `bestiarium-manticora` | `1bfdb33` round 2 | r1 6.3; **round 2 review was running** | rerun the round 2 review (`manticora-round2-review.json` if written) |
+| Kraken | `bestiarium-kraken` (owns C-B1) | `670a6b8` round 2 | r2 6.5 (`kraken-round2-review.json`) | round 3, the last |
+| Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `3250b82` round 2 | r2 6.5 (`phoenix-round2-review.json`) | round 3, the last |
+| Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `c2160ed` round 1 (+1 uncommitted) | r1 6.5 (`basiliscus-round1-review.json`) | round 2 |
+| Fenrir | `bestiarium-fenrir` | `5d67238` (+1 uncommitted; master merged for claw rails) | r1 5.5 (`fenrir-round1-review.json`) | round 2 |
+| Corvus | `bestiarium-corvus` | `5df9089` round 1 | r1 5.0 (`corvus-round1-review.json`) | round 2 |
+| Harpyia | `bestiarium-harpyia` (owns C-B4) | `ca5c924` C-B4 enabler (+2 uncommitted) | none yet | finish round 1 |
+
+- Platform on master (pushed `2af7974`): batch 16, the starter gallery with re-framed splits, the GUI and workbench CI fixes (CI green), the embedded-art fix, the phone icon, C-B5 claw rails and cabochon rise.
+- `b17-platform-fixes` (from `b611d2c`, nothing committed yet): stamp drop-ray reach, hand-made heads as holders, finer parting search, part sliver clean, stoneless-pad warning. Requests and proposed code: `.claude/collection-review/core-change-requests.md`.
+- Review prompt template: `.claude/collection-review/review-prompt-template.md` (a ring under 7.5 after round 3 is cut).
+- Then: package the shipped rings, register them in File > New from template (Workshop leaves the menu), bump the desktop version, tag `desktop-v<version>`, Taildrop the final renders (Logan's instruction below).
+
 # Takeover checkpoint (2026-09-26, Claude)
 
 Codex's account hit its usage limit at 10:14 MDT on 2026-09-25 and cannot resume before Oct 1, so Claude took over every lane. Codex's own record follows below this section.
