@@ -165,8 +165,7 @@ struct Stock {
 }
 
 impl Stock {
-    const REACH: f64 = 1.2;
-    fn of(a: &Atlas, relief: &Relief, table: f64, lo: P3, hi: P3, step: f64) -> Self {
+    fn of(a: &Atlas, relief: &Relief, table: f64, lo: P3, hi: P3, step: f64, reach_mm: f64) -> Self {
         use std::collections::HashMap;
         let cell = 0.4;
         let key = |p: P3| -> [i32; 3] { std::array::from_fn(|k| (p[k] / cell).floor() as i32) };
@@ -178,7 +177,7 @@ impl Stock {
             map.entry(key(s.p)).or_default().push(i as u32);
         }
         let n: [usize; 3] = std::array::from_fn(|k| ((hi[k] - lo[k]) / step).ceil() as usize + 1);
-        let reach = (Self::REACH / cell).ceil() as i32;
+        let reach = (reach_mm / cell).ceil() as i32;
         let g: Vec<f32> = (0..n[0] * n[1] * n[2])
             .into_par_iter()
             .map(|m| {
@@ -200,12 +199,12 @@ impl Stock {
                         }
                     }
                 }
-                if best.0.sqrt() <= Self::REACH {
+                if best.0.sqrt() <= reach_mm {
                     let s = &a.samples[best.1 as usize];
                     (best.0.sqrt() * dot(sub(p, s.p), s.n).signum()) as f32
                 } else {
                     let (x, u, h) = (p[0], -p[2], p[1] - table);
-                    if h < relief.at(x, u) { -Self::REACH as f32 } else { Self::REACH as f32 }
+                    if h < relief.at(x, u) { -reach_mm as f32 } else { reach_mm as f32 }
                 }
             })
             .collect();
@@ -1616,8 +1615,108 @@ fn wolf_of(d: &RingDesign, a: &Atlas) -> Result<Wolf> {
     let relief = Relief::of(a, table);
     let coarse = Atlas::of(d, 1024, 384)?;
     let (lo, hi) = sculpt_box(table);
-    let stock = Stock::of(&coarse, &relief, table, lo, hi, 0.25);
+    let stock = Stock::of(&coarse, &relief, table, lo, hi, 0.25, 1.2);
     Ok(Wolf::new(table, d.inner_radius_mm(), relief, stock))
+}
+
+/// The connected shells of `m` that reach inside radius `bore`, and how many others were left out.
+fn open_to_bore(m: &Nets, bore: f64) -> (Nets, usize) {
+    let mut parent: Vec<u32> = (0..m.v.len() as u32).collect();
+    fn find(p: &mut [u32], x: u32) -> u32 {
+        let mut r = x;
+        while p[r as usize] != r {
+            r = p[r as usize];
+        }
+        let mut y = x;
+        while p[y as usize] != r {
+            let next = p[y as usize];
+            p[y as usize] = r;
+            y = next;
+        }
+        r
+    }
+    for t in &m.f {
+        for e in 1..3 {
+            let (a, b) = (find(&mut parent, t[0]), find(&mut parent, t[e]));
+            if a != b {
+                parent[a as usize] = b;
+            }
+        }
+    }
+    let mut open = std::collections::HashSet::new();
+    let mut all = std::collections::HashSet::new();
+    for (i, p) in m.v.iter().enumerate() {
+        let root = find(&mut parent, i as u32);
+        all.insert(root);
+        if p[0].hypot(p[1]) < bore {
+            open.insert(root);
+        }
+    }
+    let f: Vec<[u32; 3]> = m.f.iter().copied().filter(|t| open.contains(&find(&mut parent, t[0]))).collect();
+    let mut remap = vec![u32::MAX; m.v.len()];
+    let mut v = Vec::new();
+    let f = f
+        .into_iter()
+        .map(|t| {
+            t.map(|x| {
+                if remap[x as usize] == u32::MAX {
+                    remap[x as usize] = v.len() as u32;
+                    v.push(m.v[x as usize]);
+                }
+                remap[x as usize]
+            })
+        })
+        .collect();
+    (Nets { v, f }, all.len() - open.len())
+}
+
+/// Metal kept over the hollow under the head, mm.
+const HOLLOW_WALL_MM: f64 = 1.15;
+
+/// The hollow scooped under the head from the finger hole: everything more than [`HOLLOW_WALL_MM`] inside both the stock
+/// and the head, from just inside the bore up, as a cut part.
+fn hollow_feature(d: &RingDesign, wolf: &Wolf) -> Result<(Feature, Value)> {
+    let t = Instant::now();
+    let table = wolf.table;
+    let (lo, hi) = ([-11.0, wolf.bore - 0.6, -11.0], [11.0, table + 1.0, 11.0]);
+    let coarse = Atlas::of(d, 1024, 384)?;
+    let deep = Stock::of(&coarse, &wolf.relief, table, lo, hi, 0.2, 2.4);
+    let bore = wolf.bore;
+    let field = |p: P3| -> f64 {
+        let r = p[0].hypot(p[1]);
+        let depth = (-deep.at(p)).max(-wolf.sdf(p));
+        (HOLLOW_WALL_MM - depth).max(bore - 0.3 - r)
+    };
+    if std::env::var("FENRIR_HOLLOW").is_ok() {
+        for k in 0..12 {
+            let y = bore - 0.5 + k as f64 * 0.45;
+            let p = [0.0, y, 0.0];
+            println!("    hollow field at y {y:.2}: {:.3} (stock {:.3}, head {:.3})", field(p), deep.at(p), wolf.sdf(p));
+        }
+    }
+    let mut raw = tetra_mesh(lo, hi, 0.1, &field);
+    // Only the pockets that open into the finger hole are kept: a sealed one would cast solid.
+    let (kept, dropped) = open_to_bore(&raw, bore);
+    raw = kept;
+    relax(&mut raw, &field, 2);
+    let nets = clean_decimate(&raw, 16_000);
+    let lowest = nets.v.iter().map(|p| p[0].hypot(p[1])).fold(f64::MAX, f64::min);
+    println!("  hollow reaches down to radius {lowest:.3}; {dropped} sealed pockets left out");
+    let (bad, volume) = closure(&nets.v, &nets.f);
+    ensure!(bad == 0 && volume > 0.0, "The hollow does not close: {bad} open edges");
+    let crossings = csg::self_crossings(&csg::Solid { v: nets.v.clone(), f: nets.f.clone() });
+    ensure!(crossings == 0, "The hollow crosses itself {crossings} times");
+    let mesh = cad::stored::Packed::encode(&nets.v, &nets.f, &vec![0; nets.f.len()], &[cad::SurfaceKind::Freeform])?;
+    println!("  hollow: {} triangles, {:.0} mm3 in {:.1} s, {} KB packed", nets.f.len(), volume, t.elapsed().as_secs_f64(), mesh.data.len() / 1024);
+    let stats = json!({"wall_mm": HOLLOW_WALL_MM, "triangles": nets.f.len(), "volume_mm3": volume, "packed_bytes": mesh.data.len()});
+    let recipe = cad::stored::Recipe {
+        kernel: "fenrir".into(),
+        op: "hollow".into(),
+        params: json!({"field": "bestiarium_fenrir.rs hollow_feature", "wall_mm": HOLLOW_WALL_MM}),
+        digest: String::new(),
+    };
+    let component = Component { attach: Attach::Cut, stage: Stage::Cast, placement: Placement::Free, ..Component::default() };
+    Ok((Feature { id: 5, name: "Hollow under the head".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh }, component }, stats))
 }
 
 /// The head as a stored part, joined to the stock.
@@ -1656,7 +1755,7 @@ struct Flame {
 }
 
 /// Flame locks on a chart where `along` runs with the fur and `across` over it: rows `pitch` apart, locks about `length`
-/// long and shingled half a lock apart, each bowed in an S of `bow` of its length, widest a third of the way along and
+/// long and shingled half a lock apart with their roots jittered, each bowed in an S of `bow` of its length, widest a third of the way along and
 /// drawn out to a point at both ends; `shape` gives a lock's height from its share along, its place across and its
 /// half-width. Lengths vary by a quarter and headings by ten degrees; neighbours join by a soft maximum of `soft`.
 #[allow(clippy::too_many_arguments)]
@@ -1668,10 +1767,13 @@ fn flames(along: f64, across: f64, pitch: f64, length: f64, bow: f64, soft: f64,
     for j in row - 1..=row + 1 {
         let shift = if j.rem_euclid(2) == 0 { 0.0 } else { 0.5 * step };
         let i0 = ((along - shift) / step).floor() as i64;
-        for i in i0 - 3..=i0 {
+        for i in i0 - 3..=i0 + 1 {
             let len_i = length * (0.75 + 0.5 * skin::hash(i * 7 + seed, j * 13 - seed));
             let tilt = ((skin::hash(j * 5 + seed, i * 11 + 3 * seed) - 0.5) * 20.0).to_radians();
-            let (ds, dc) = (along - (i as f64 * step + shift), across - j as f64 * pitch);
+            // Each lock's root is jittered along and across its row, so neither the points nor the slots line up.
+            let slide = (skin::hash(i * 3 + 2 * seed, j * 17 + seed) - 0.5) * 0.5 * step;
+            let sway = (skin::hash(j * 19 - seed, i * 5 + seed) - 0.5) * 0.3 * pitch;
+            let (ds, dc) = (along - (i as f64 * step + shift + slide), across - (j as f64 * pitch + sway));
             let (sn, cs) = tilt.sin_cos();
             let (sl, cl) = (ds * cs + dc * sn, -ds * sn + dc * cs);
             let t = sl / len_i;
@@ -1698,9 +1800,9 @@ fn flames(along: f64, across: f64, pitch: f64, length: f64, bow: f64, soft: f64,
     out
 }
 
-/// A painted lock: rounded across, rising toward its tip so each point lies over the root of the lock beyond it.
+/// A painted lock: rounded across, swelling from its root and drawn out to its point over the last half.
 fn painted_lock(t: f64, q: f64, _half: f64) -> f64 {
-    (q * PI * 0.5).cos().max(0.0).powf(1.1) * (0.3 + 0.7 * smooth(0.0, 0.8, t)) * (1.0 - smooth(0.9, 1.0, t))
+    (q * PI * 0.5).cos().max(0.0).powf(1.1) * smooth(0.0, 0.3, t) * (1.0 - smooth(0.45, 1.0, t)).powf(0.8)
 }
 
 /// A sculpted lock: its section a smooth hump, faded in at the root and out over the last quarter, and lowered where it
@@ -1722,73 +1824,130 @@ fn fur(along: f64, across: f64) -> (f64, f64) {
     (0.1 + 0.9 * f.h, hair)
 }
 
-/// The Gleipnir cord tile: parallel strands laid in an S across the band, each rounded across by stacked strokes and
-/// dipping where it turns under at the band's edges, drawn in metal millimetres and squeezed by the chart's own squash.
+/// A gradient across a strand, ink rising as a cosine from nothing at both edges to full at the middle.
+fn strand_gradient(id: &str, from: (f64, f64), to: (f64, f64)) -> String {
+    let stops: String = (0..=16)
+        .map(|k| {
+            let o = k as f64 / 16.0;
+            let ink = (PI * (o - 0.5)).cos().max(0.0);
+            let g = (255.0 * (1.0 - ink)).round() as u8;
+            format!(r##"<stop offset="{o:.4}" stop-color="#{g:02x}{g:02x}{g:02x}"/>"##)
+        })
+        .collect();
+    format!(r##"<linearGradient id="{id}" gradientUnits="userSpaceOnUse" x1="{:.4}" y1="{:.4}" x2="{:.4}" y2="{:.4}">{stops}</linearGradient>"##, from.0, from.1, to.0, to.1)
+}
+
+/// A mask that lets ink through in full along the cord's middle and fades it toward both edges, so every strand turns
+/// under the cord's round.
+fn cord_mask(id: &str, w: f64, h: f64) -> String {
+    let stops: String = (0..=16)
+        .map(|k| {
+            let o = k as f64 / 16.0;
+            let keep = (PI * (o - 0.5)).cos().max(0.0).powf(0.45);
+            let g = (255.0 * keep).round() as u8;
+            format!(r##"<stop offset="{o:.4}" stop-color="#{g:02x}{g:02x}{g:02x}"/>"##)
+        })
+        .collect();
+    format!(
+        r##"<linearGradient id="{id}g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="{h:.4}">{stops}</linearGradient><mask id="{id}" maskUnits="userSpaceOnUse" x="{:.4}" y="0" width="{:.4}" height="{h:.4}"><rect x="{:.4}" y="0" width="{:.4}" height="{h:.4}" fill="url(#{id}g)"/></mask>"##,
+        -w,
+        3.0 * w,
+        -w,
+        3.0 * w
+    )
+}
+
+/// The Gleipnir cord tile: rounded strands laid diagonally across the band like a rope's, each a cosine hump with its
+/// walls under 60 degrees, turning under at the band's edges; drawn in metal millimetres and squeezed by the chart's squash.
 fn gleipnir_svg(cell_w: f64, cell_h: f64, squash: f64) -> String {
     let (w, h) = (cell_w, cell_h * squash);
-    let strand = 1.1;
-    let per_tile = 1;
-    let lay = 1.1 * h;
+    let lay = 40f64.to_radians();
+    // Strands one tile apart along the ring; their width across themselves fills the pitch less a groove.
+    let run = h / lay.tan();
+    let pitch = w * lay.sin();
+    let half = 0.5 * pitch * 0.94;
+    let along = half / lay.sin();
     let mut s = format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cell_w:.4} {cell_h:.4}" width="{cell_w:.4}" height="{cell_h:.4}"><rect width="{cell_w:.4}" height="{cell_h:.4}" fill="#fff"/><defs>"##
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cell_w:.4} {cell_h:.4}" width="{cell_w:.4}" height="{cell_h:.4}"><rect width="{cell_w:.4}" height="{cell_h:.4}" fill="#fff"/><defs>{}"##,
+        cord_mask("m", w, h)
     );
-    let tiers = [(1.0, 0x80, 0x58), (0.76, 0x66, 0x3a), (0.52, 0x4c, 0x1e), (0.28, 0x34, 0x00)];
-    for (m, (_, end, mid)) in tiers.iter().enumerate() {
+    let bands: Vec<f64> = (-4i64..=((run / w).ceil() as i64 + 2)).map(|k| -(k as f64) * w).collect();
+    for (i, u0) in bands.iter().enumerate() {
+        // Across the band: from its lower-left edge to its upper-right, perpendicular to the strand.
+        let mid = (u0 + 0.5 * run, 0.5 * h);
+        let n = (lay.sin(), -lay.cos());
+        s += &strand_gradient(&format!("s{i}"), (mid.0 - half * n.0, mid.1 - half * n.1), (mid.0 + half * n.0, mid.1 + half * n.1));
+    }
+    s += &format!(r##"</defs><g transform="scale(1 {:.6})"><g mask="url(#m)">"##, 1.0 / squash.max(0.05));
+    for (i, u0) in bands.iter().enumerate() {
+        let (a0, a1) = (u0 - along, u0 + along);
         s += &format!(
-            r##"<linearGradient id="t{m}" gradientUnits="userSpaceOnUse" x1="0" y1="{:.4}" x2="0" y2="{:.4}"><stop offset="0" stop-color="#{e:02x}{e:02x}{e:02x}"/><stop offset="0.5" stop-color="#{c:02x}{c:02x}{c:02x}"/><stop offset="1" stop-color="#{e:02x}{e:02x}{e:02x}"/></linearGradient>"##,
-            0.06 * h,
-            0.94 * h,
-            e = end,
-            c = mid
+            r##"<path d="M{:.4} 0 L{:.4} 0 L{:.4} {h:.4} L{:.4} {h:.4} Z" fill="url(#s{i})"/>"##,
+            a0,
+            a1,
+            a1 + run,
+            a0 + run
         );
     }
-    s += &format!(r##"</defs><g transform="scale(1 {:.6})" fill="none" stroke-linecap="round">"##, 1.0 / squash.max(0.05));
-    let pitch = w / per_tile as f64;
-    for k in -4i64..=(per_tile as i64 + 2) {
-        let u0 = k as f64 * pitch;
-        let (a, b) = ((u0, 0.07 * h), (u0 + lay, 0.93 * h));
-        let path = format!(
-            "M{:.4} {:.4} C{:.4} {:.4} {:.4} {:.4} {:.4} {:.4}",
-            a.0,
-            a.1,
-            a.0 + 0.55 * lay,
-            a.1 - 0.05 * h,
-            b.0 - 0.55 * lay,
-            b.1 + 0.05 * h,
-            b.0,
-            b.1
-        );
-        for (m, (share, _, _)) in tiers.iter().enumerate() {
-            s += &format!(r##"<path d="{path}" stroke="url(#t{m})" stroke-width="{:.4}"/>"##, strand * share);
-        }
-    }
-    s += "</g></svg>";
+    s += "</g></g></svg>";
     s
 }
 
-/// The fetter's binding where it meets the fur: turns of cord wrapped across the band.
+/// The fetter's binding where it meets the fur: five rounded turns of cord wrapped round it at 75 degrees, the last
+/// one's end tucked back under the turns.
 fn binding_svg(w: f64, h: f64, squash: f64) -> String {
-    let cord = 0.62;
-    let gap = 0.3;
-    let turns = ((w + gap) / (cord + gap)).floor() as usize;
-    let used = turns as f64 * (cord + gap) - gap;
+    let hm = h * squash;
+    let lean = 15f64.to_radians();
+    let slant = hm * lean.tan();
+    let turns = 5;
+    let (wrap, gap) = (0.5, 0.08);
+    let used = turns as f64 * (wrap + gap) - gap;
+    let x0 = 0.5 * (w - used - slant);
     let mut s = format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w:.4} {h:.4}" width="{w:.4}" height="{h:.4}"><rect width="{w:.4}" height="{h:.4}" fill="#fff"/><defs><linearGradient id="c" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#555"/><stop offset="0.5" stop-color="#000"/><stop offset="1" stop-color="#555"/></linearGradient></defs>"##
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w:.4} {h:.4}" width="{w:.4}" height="{h:.4}"><rect width="{w:.4}" height="{h:.4}" fill="#fff"/><defs>{}"##,
+        cord_mask("m", w, hm)
     );
-    let slant = 0.35 * cord;
+    let n = (lean.cos(), -lean.sin());
     for k in 0..turns {
-        let x = 0.5 * (w - used) + k as f64 * (cord + gap);
-        let (top, bottom) = (0.06 * h, 0.94 * h);
+        let mid = (x0 + k as f64 * (wrap + gap) + 0.5 * wrap + 0.5 * slant, 0.5 * hm);
+        let r = 0.5 * wrap * lean.cos();
+        s += &strand_gradient(&format!("t{k}"), (mid.0 - r * n.0, mid.1 - r * n.1), (mid.0 + r * n.0, mid.1 + r * n.1));
+    }
+    // The tucked end: a short tapering tail running back from the last turn's foot and under the one before it.
+    let last = x0 + (turns - 1) as f64 * (wrap + gap);
+    let tail_mid = (last + 0.1 + 0.5 * slant, 0.8 * hm);
+    s += &strand_gradient("tail", (tail_mid.0, tail_mid.1 - 0.25), (tail_mid.0, tail_mid.1 + 0.25));
+    s += &format!(r##"</defs><g transform="scale(1 {:.6})"><g mask="url(#m)">"##, 1.0 / squash.max(0.05));
+    for k in 0..turns {
+        let a = x0 + k as f64 * (wrap + gap);
         s += &format!(
-            r##"<path d="M{:.4} {top:.4} L{:.4} {top:.4} L{:.4} {bottom:.4} L{:.4} {bottom:.4} Z" fill="url(#c)"/>"##,
-            x + slant,
-            x + cord + slant,
-            x + cord - slant,
-            x - slant
+            r##"<path d="M{:.4} 0 L{:.4} 0 L{:.4} {hm:.4} L{:.4} {hm:.4} Z" fill="url(#t{k})"/>"##,
+            a + slant,
+            a + slant + wrap,
+            a + wrap,
+            a
         );
     }
-    let _ = squash;
-    s += "</svg>";
+    s += &format!(
+        r##"<path d="M{:.4} {:.4} C{:.4} {:.4} {:.4} {:.4} {:.4} {:.4} L{:.4} {:.4} C{:.4} {:.4} {:.4} {:.4} {:.4} {:.4} Z" fill="url(#tail)"/>"##,
+        last + wrap,
+        0.62 * hm,
+        last + wrap - 0.4,
+        0.64 * hm,
+        last - 0.6,
+        0.7 * hm,
+        last - 1.1,
+        0.8 * hm,
+        last - 1.1,
+        0.8 * hm + 0.02,
+        last - 0.6,
+        0.9 * hm,
+        last - 0.4,
+        0.96 * hm,
+        last + wrap,
+        0.98 * hm
+    );
+    s += "</g></g></svg>";
     s
 }
 
@@ -1871,27 +2030,31 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Wolf)
     stone_and_fangs(&mut d)?;
     let (head, head_stats) = head_feature(&wolf)?;
     d.cad.as_mut().unwrap().append(head)?;
+    let (hollow, hollow_stats) = hollow_feature(&d, &wolf)?;
+    d.cad.as_mut().unwrap().append(hollow)?;
     let room = fold_room(&a);
     let paint = |d: &mut RingDesign, caps: &[P3]| -> Result<AlphaLibrary> {
         let mut lib = AlphaLibrary::builtin();
         d.layers.layers.retain(|e| e.name != "Ruff" && e.name != "Graver's hair lines");
+        // No paint round the moon on the table, where the fangs find their footing; the walls below may carry it.
         let clear = |s: &Sample| {
             let r = s.p[0].hypot(s.p[1]);
             let q = wolf.face(s.p);
-            let mouth = smooth(7.0, 8.2, q[0].hypot(q[1] - MOON_U));
+            let mouth = 1.0 - (1.0 - smooth(7.0, 8.2, q[0].hypot(q[1] - MOON_U))) * smooth(-2.2, -1.8, q[2]);
             smooth(a.bore + 1.0, a.bore + 1.5, r) * smooth(0.15, 0.8, wolf.sdf(s.p)) * off_folds(s.p, caps) * mouth
         };
-        let ruff = a.paint("Ruff", |s| {
+        // Round the ring the ruff flows along it from the head; on the apex wall under the throat it flows down it.
+        let pelt = |s: &Sample| -> (f64, f64) {
             let h = hide.at(s);
-            let (lock, _) = fur(h.along.abs(), h.across);
-            (lock * clear(s)).min(room[s.i] / RUFF_MM)
-        });
+            let q = wolf.face(s.p);
+            let apex = smooth(-7.8, -8.8, q[1]) * smooth(-0.6, -1.6, q[2]) * (1.0 - smooth(5.0, 6.5, q[0].abs()));
+            let (lock, line) = fur(h.along.abs(), h.across);
+            let (down, down_line) = fur(-q[2] - 0.6, q[0]);
+            ((lock * (1.0 - apex)).max(down * apex), (line * (1.0 - apex)).max(down_line * apex))
+        };
+        let ruff = a.paint("Ruff", |s| (pelt(s).0 * clear(s)).min(room[s.i] / RUFF_MM));
         portable(d, &mut lib, ruff, RUFF_MM, window(90.0, 262.0), false)?;
-        let hair = a.paint("Graver's hair lines", |s| {
-            let h = hide.at(s);
-            let (_, line) = fur(h.along.abs(), h.across);
-            line * clear(s)
-        });
+        let hair = a.paint("Graver's hair lines", |s| pelt(s).1 * clear(s));
         portable(d, &mut lib, hair, HAIR_LINES_MM, window(90.0, 262.0), true)?;
         Ok(lib)
     };
@@ -1948,6 +2111,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Wolf)
         "table_y_mm": a.top,
         "moon_across_mm": -MOON_U,
         "head": head_stats,
+        "hollow": hollow_stats,
         "palm_face_v_mm": [v0, v1],
         "palm_metal_per_chart_mm": squash,
         "gleipnir_cell_mm": [cw, ch],
@@ -2094,6 +2258,8 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         println!("  cold reload with an empty library: {}", if same { "identical" } else { "DIFFERENT" });
         cold = json!({"identical_vertices_faces_normals": same, "ms": t.elapsed().as_secs_f64() * 1000.0});
     }
+    let over_hollow = section_90(&built.mesh, &out.join("section-90.png"), 40.0)?;
+    println!("  section at theta 90: {over_hollow:.2} mm of metal over the hollow at its thinnest");
     let t_lands = Instant::now();
     let lands = measure_lands(out, &wolf, &built)?;
     println!("  lands and census in {:.1} s; unnamed sub-floor {:?}; head mass min {:.3} mm; longest 60 deg seam run {:.2} mm", t_lands.elapsed().as_secs_f64(), lands.unnamed, lands.head_min, lands.seam_run);
@@ -2109,6 +2275,7 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         ("investment pattern watertight with zero degenerates and crossings", pattern_validation.watertight && pattern_quality.degenerate_faces == 0 && pattern_cross == 0),
         ("cold reload identical", !verify || cold["identical_vertices_faces_normals"] == true),
         ("lost-wax land widths >= 0.8 mm or named", lands.unnamed.is_empty()),
+        ("hollow under the head: at most 32 g in 18k, 1.0 mm or more over it at theta 90", grams <= 32.0 && over_hollow >= 1.0 && over_hollow < 50.0),
     ];
     let report = json!({
         "name": d.name,
@@ -2124,6 +2291,7 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         "dfm": findings.iter().map(|f| json!({"label": f.label, "message": f.message})).collect::<Vec<_>>(),
         "stones": {"reported": stone_count, "previewed": previewed, "warnings": warnings, "carats": stone_report.as_ref().map_or(0.0, |r| r.total_carats)},
         "grams_18k": grams,
+        "hollow": {"wall_mm": HOLLOW_WALL_MM, "section_90_min_metal_over_mm": over_hollow, "section_png": "section-90.png"},
         "pattern": {"validation": pattern_validation, "quality": pattern_quality, "self_crossings": pattern_cross, "release": {"obstructions": inspection.release.obstructions.len()}},
         "design": {"bytes": design_bytes, "format_version": format, "layers": d.layers.layers.iter().map(|e| e.name.clone()).collect::<Vec<_>>(), "stamps": d.stamps.len(), "cad_features": d.cad.as_ref().map_or(0, |c| c.features.len())},
         "cold_reload": cold,
@@ -2728,6 +2896,63 @@ fn markers(points: &[P3], r: f64) -> Mesh {
         }
     }
     m
+}
+
+/// The finished ring cut by the plane through the head's centre (θ 90, x = 0): metal gold, the hollow and the finger
+/// dark, written as a PNG at `px_per_mm`; and the thinnest metal left over the hollow along the cut, mm.
+fn section_90(m: &Mesh, path: &Path, px_per_mm: f64) -> Result<f64> {
+    let (z0, z1, y0, y1) = (-13.0, 13.0, 8.0, 20.0);
+    let (w, h) = (((z1 - z0) * px_per_mm) as usize, ((y1 - y0) * px_per_mm) as usize);
+    // Each face crossing x = 0 leaves a segment in (z, y).
+    let mut segs: Vec<[f64; 4]> = Vec::new();
+    for t in &m.faces {
+        let p = t.map(|k| m.vertices[k as usize]).map(|v| [v.0 as f64, v.1 as f64, v.2 as f64]);
+        let mut cut: Vec<[f64; 2]> = Vec::new();
+        for e in 0..3 {
+            let (a, b) = (p[e], p[(e + 1) % 3]);
+            if (a[0] < 0.0) != (b[0] < 0.0) {
+                let s = a[0] / (a[0] - b[0]);
+                cut.push([a[2] + s * (b[2] - a[2]), a[1] + s * (b[1] - a[1])]);
+            }
+        }
+        if cut.len() == 2 {
+            segs.push([cut[0][0], cut[0][1], cut[1][0], cut[1][1]]);
+        }
+    }
+    let mut img = vec![18u8; w * h * 3];
+    let mut over_hollow = f64::MAX;
+    for col in 0..w {
+        let z = z0 + (col as f64 + 0.5) / px_per_mm;
+        let mut ys: Vec<f64> = segs
+            .iter()
+            .filter(|s| (s[0] < z) != (s[2] < z))
+            .map(|s| s[1] + (z - s[0]) / (s[2] - s[0]) * (s[3] - s[1]))
+            .collect();
+        ys.sort_by(f64::total_cmp);
+        if col == w / 2 && std::env::var("FENRIR_HOLLOW").is_ok() {
+            println!("    section crossings at z {z:.3}: {:?}", ys.iter().map(|y| (y * 1000.0).round() / 1000.0).collect::<Vec<_>>());
+        }
+        for pair in ys.chunks(2) {
+            if pair.len() < 2 {
+                continue;
+            }
+            for row in 0..h {
+                let y = y1 - (row as f64 + 0.5) / px_per_mm;
+                if y >= pair[0] && y <= pair[1] {
+                    let k = (row * w + col) * 3;
+                    img[k..k + 3].copy_from_slice(&[214, 178, 92]);
+                }
+            }
+        }
+        // Where the first metal starts clear of the finger's cylinder, the hollow opens under it.
+        if let Some(first) = ys.chunks(2).find(|p| p.len() == 2) {
+            if z.abs() < 8.0 && first[0] > 9.5 + 0.4 {
+                over_hollow = over_hollow.min(first[1] - first[0]);
+            }
+        }
+    }
+    image::save_buffer(path, &img, w as u32, h as u32, image::ColorType::Rgb8)?;
+    Ok(over_hollow)
 }
 
 /// Points where one face of `mesh` pierces another.
