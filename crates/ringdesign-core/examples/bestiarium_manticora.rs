@@ -32,16 +32,16 @@ type P3 = [f64; 3];
 /// Bore diameter, mm.
 const BORE_MM: f64 = 18.6;
 /// Ring angle of the ruby, degrees: a touch forward of the top, clear of the knob behind it.
-const STONE_DEG: f64 = 88.5;
+const STONE_DEG: f64 = 86.0;
 /// The investment's fill floor and detail floor, mm.
 const MIN_SECTION_MM: f64 = 0.8;
 const MIN_DETAIL_MM: f64 = 0.15;
 
 /// Ring angle of the knob the aculeus stands on, degrees.
-const KNOB_DEG: f64 = 110.0;
-/// The knob's plan: semi-axes along the ring and across it, mm; round, so its seam's bead can turn it.
-const KNOB_A_MM: f64 = 0.62;
-const KNOB_B_MM: f64 = 0.62;
+const KNOB_DEG: f64 = 108.0;
+/// The knob's plan: semi-axes in the hook's plane (along the ring) and across it, mm.
+const KNOB_A_MM: f64 = 1.0;
+const KNOB_B_MM: f64 = 1.2;
 /// How far the knob's top stands over the highest point of the finished bulb under it, mm.
 const KNOB_RISE_MM: f64 = 1.2;
 /// The seam bead where the knob meets the bulb, mm.
@@ -50,39 +50,50 @@ const KNOB_BLEND_MM: f64 = 0.4;
 const JOINT_ROLL_MM: f64 = 0.18;
 /// Gap left under the aculeus's foot for the solder, mm.
 const SOLDER_GAP_MM: f64 = 0.05;
-/// How far the hook's plane leans off the mid-plane about the knob's radial, degrees.
-const STING_LEAN_DEG: f64 = -15.0;
+/// How far the hook's plane turns off the ring's mid-plane about the chord from its foot to its point, degrees, and the
+/// shares of the length over which the turn comes in, so the foot stands straight on its knob.
+const STING_LEAN_DEG: f64 = -30.0;
+const STING_TWIST: (f64, f64) = (0.1, 0.55);
 /// The point's rounding radius and its last bend's radius, mm.
 const TIP_RADIUS_MM: f64 = 0.2;
 const TIP_BEND_MM: f64 = 0.95;
-/// Where the point hangs: round the ring from the ruby's centre toward the knob, and over its table, mm.
-const TIP_ALONG_MM: f64 = 1.15;
-const TIP_OVER_TABLE_MM: f64 = 1.7;
-/// The aculeus's heading at its point, degrees round from the knob's radial toward the ruby.
-const TIP_HEADING_DEG: f64 = 200.0;
-/// Half-sizes of the aculeus's section, in its bending plane and across it, by share of its length.
-const ACULEUS_A: [(f64, f64); 8] = [
-    (0.0, 0.62),
-    (0.08, 1.12),
-    (0.22, 1.72),
-    (0.37, 1.32),
-    (0.55, 0.5),
-    (0.7, 0.45),
-    (0.85, 0.43),
-    (1.0, 0.43),
+/// Where the point hangs: along the ring from the ruby's centre toward the knob, and over its table, mm.
+const TIP_ALONG_MM: f64 = 0.2;
+const TIP_OVER_TABLE_MM: f64 = 1.6;
+/// The heading the point is chosen for, degrees round from the foot's axis toward the ruby.
+const TIP_HEADING_DEG: f64 = 216.0;
+/// Half-sizes of the aculeus's section, in its bending plane and across it, by share of its length: the knob's outline at
+/// the foot, the vesicle's widest a quarter along, then one unbroken taper to the point.
+const ACULEUS_A: [(f64, f64); 12] = [
+    (0.0, 1.0),
+    (0.05, 1.22),
+    (0.12, 1.42),
+    (0.25, 1.5),
+    (0.35, 1.30),
+    (0.45, 1.02),
+    (0.54, 0.74),
+    (0.59, 0.56),
+    (0.63, 0.43),
+    (0.75, 0.42),
+    (0.85, 0.412),
+    (1.0, 0.405),
 ];
-const ACULEUS_B: [(f64, f64); 8] = [
-    (0.0, 0.62),
-    (0.08, 1.2),
-    (0.22, 1.62),
-    (0.37, 1.24),
-    (0.55, 0.5),
-    (0.7, 0.43),
-    (0.85, 0.42),
-    (1.0, 0.42),
+const ACULEUS_B: [(f64, f64); 12] = [
+    (0.0, 1.2),
+    (0.05, 1.33),
+    (0.12, 1.42),
+    (0.25, 1.45),
+    (0.35, 1.27),
+    (0.45, 1.0),
+    (0.54, 0.73),
+    (0.59, 0.55),
+    (0.63, 0.425),
+    (0.75, 0.415),
+    (0.85, 0.408),
+    (1.0, 0.402),
 ];
-/// How far the vesicle's belly swells to the outside of the bend, mm.
-const VESICLE_BELLY_MM: f64 = 0.45;
+/// How far the vesicle's belly swells to the bend's outside, mm.
+const VESICLE_BELLY_MM: f64 = 0.3;
 /// Points round the aculeus's section, and its step along the centre line, mm.
 const ACULEUS_AROUND: usize = 64;
 const ACULEUS_STEP_MM: f64 = 0.04;
@@ -91,15 +102,16 @@ const ACULEUS_STEP_MM: f64 = 0.04;
 const COLLET_WALL_MM: f64 = 0.8;
 const COLLET_LIP: f64 = 0.35;
 const LIP_OVER_CREST_MM: f64 = 0.2;
-/// The calyx round the collet: how far under the collet's top its flare leaves the wall, its keels and their rise, mm.
+/// The calyx round the collet: how far under the collet's top its flare leaves the wall, and the seam bead into the bulb, mm.
 const CALYX_UNDER_LIP_MM: f64 = 0.35;
-const CALYX_KEELS: usize = 6;
-const CALYX_KEEL_MM: f64 = 0.24;
+const CALYX_BLEND_MM: f64 = 0.3;
 /// The bead collar sunk into the calyx under the collet's plain wall: bead diameter, least pitch, sink, and the room left round the telson root, mm.
 const COLLAR_BEAD_MM: f64 = 0.4;
 const COLLAR_PITCH_MM: f64 = 0.6;
 const COLLAR_SINK_MM: f64 = 0.08;
 const COLLAR_KNOB_GAP_MM: f64 = 1.7;
+/// Least clearance a collar bead keeps from the bulb, mm.
+const COLLAR_GROUND_MM: f64 = 0.45;
 /// The collet builder's clearance round the girdle, mm.
 const COLLET_CLEAR_MM: f64 = 0.03;
 /// The dish carved under the ruby: its depth budget and clearance off the pavilion, mm, and the share of the plan its flat floor spans.
@@ -117,25 +129,34 @@ const NECK_MIN_DEG: f64 = 24.0;
 const SPINEL_REACH_DEG: f64 = 150.0;
 
 /// Painted layer heights, mm.
-const TERGITE_MM: f64 = 1.05;
+const TERGITE_MM: f64 = 1.12;
 const PLEURA_MM: f64 = 0.14;
 const GRAVER_MM: f64 = 0.06;
 const ARTICULATION_MM: f64 = 0.45;
 /// The plate's share of the tergite layer; the carinae take the rest.
-const PLATE_SHARE: f64 = 0.75;
+const PLATE_SHARE: f64 = 0.70;
+/// The dorsal carina's continuous ridge and each tooth over it, as shares of the tergite layer.
+const KEEL_RIDGE: f64 = 0.11;
+const KEEL_TOOTH: f64 = 0.16;
+/// How much narrower a plate stands at its anterior joint than at its widest, as a share of the rim.
+const PLAN_TAPER: f64 = 0.14;
+/// The articulation carve kept round the palm, and the arc it eases over, degrees from 270.
+const PALM_CARVE: f64 = 0.12;
+const PALM_EASE_DEG: (f64, f64) = (26.0, 40.0);
+/// Ground held flat along the ring round every quill's footprint, mm; it eases back over as much again.
+const QUILL_GROUND_MM: f64 = 0.3;
 /// The posterior condyle's roll, the plates' plan corners and the carinae's tooth pitch, mm.
 const CONDYLE_MM: f64 = 0.5;
 const CORNER_MM: f64 = 0.6;
-const DENTICLE_PITCH_MM: f64 = 0.5;
+const DENTICLE_PITCH_MM: f64 = 0.9;
 /// How far down the flank the plates reach, and the share of it their margin rolls over.
 const PLATE_REACH: f64 = 0.9;
 const MARGIN_ROLL: f64 = 0.22;
 /// The atlas the hide is painted on: square texels over the 72 x 6.8 mm chart.
 const AW: usize = 2048;
 const AH: usize = 192;
-/// Across the plate as shares of its rim: the dorsal and lateral carinae.
+/// Across the plate as a share of its rim: the two dorsal carinae.
 const DORSAL_Q: f64 = 0.44;
-const LATERAL_Q: f64 = 0.88;
 
 /// Quill length at the neck, its width, where it stands across the flank as a share of the rim, and its splay, mm and degrees.
 const QUILL_MM: f64 = 4.7;
@@ -547,19 +568,37 @@ fn along_at(hide: &Hide, width: usize, theta: f64) -> f64 {
     }
 }
 
-/// A saw-tooth row of denticles along a keel, `n` to a plate, each rising to a sharp point toward the condyle: 0..1.
+/// A sparse saw-tooth row along a keel, `n` to a plate: one sharp tooth in each pitch, rising toward the condyle, 0..1.
 fn denticles(t: f64, n: f64) -> f64 {
     let phase = (t * n).fract();
-    if phase < 0.72 {
-        (phase / 0.72).powf(1.4)
+    if !(0.45..0.84).contains(&phase) {
+        0.0
+    } else if phase < 0.74 {
+        ((phase - 0.45) / 0.29).powf(1.3)
     } else {
-        (1.0 - (phase - 0.72) / 0.2).max(0.0)
+        1.0 - (phase - 0.74) / 0.1
     }
 }
 
-/// A metasomal segment at `t` from its anterior joint (0) to its posterior condyle (1), on a plate `len` mm long,
-/// `q` across as a share of the rim, `u` as a share of the flank `flank` mm long: 0..1.
-fn segment(t: f64, q: f64, u: f64, len: f64, flank: f64) -> f64 {
+/// A sample's place on its plate.
+#[derive(Clone, Copy)]
+struct OnPlate {
+    /// Share along the plate from its anterior joint (0) to its posterior condyle (1).
+    t: f64,
+    /// Across as a share of the rim, signed.
+    q: f64,
+    /// Across as a share of the half-section from the crest line to the bore edge.
+    u: f64,
+    /// Across from the crest line, mm, signed.
+    across: f64,
+    len: f64,
+    flank: f64,
+    rim: f64,
+}
+
+/// A metasomal segment, barrel-shaped in plan, domed along the ring and rolled over its condyle: 0..1.
+fn segment(p: OnPlate) -> f64 {
+    let (t, q, len, flank) = (p.t, p.q, p.len, p.flank);
     let (x, back, qa) = (t * len, (1.0 - t) * len, q.abs());
     // A tucked ledge rising to a crest two thirds along, settling a little, then rolling over the condyle.
     let crest = 0.66 * len;
@@ -579,22 +618,24 @@ fn segment(t: f64, q: f64, u: f64, len: f64, flank: f64) -> f64 {
     } else {
         0.0
     };
-    let reach = PLATE_REACH - corner / flank.max(0.5);
-    let sleeve = 1.0 - smoothstep(reach - MARGIN_ROLL, reach, u);
+    // The margin stands in from the rim at the anterior joint and has rolled over it onto the flank by 60% along.
+    let full = PLATE_REACH * flank;
+    let edge = full - (full - (1.0 - PLAN_TAPER) * p.rim) * (1.0 - smoothstep(0.0, 0.6, t)) - corner;
+    let sleeve = 1.0 - smoothstep(edge - MARGIN_ROLL * flank, edge, p.across.abs());
     let across = 1.0 - 0.18 * q * q;
     let furrow = 1.0 - 0.1 * (1.0 - smoothstep(0.2, DORSAL_Q - 0.05, qa));
-    // Carinae: a continuous ridge toothed at a half-millimetre pitch, kept under the clamp.
-    let teeth = (len / DENTICLE_PITCH_MM).round().max(4.0);
-    let keel = |d: f64, h: f64, w: f64| (-(d / w).powi(2)).exp() * h * (0.45 + 0.55 * denticles(t, teeth));
-    let keels = (keel(qa - DORSAL_Q, 0.24, 0.06) + keel(qa - LATERAL_Q, 0.2, 0.07))
+    // Two dorsal carinae: a continuous ridge with a sharp tooth each pitch, kept under the clamp.
+    let teeth = (len / DENTICLE_PITCH_MM).round().max(3.0);
+    let keels = (-((qa - DORSAL_Q) / 0.06).powi(2)).exp()
+        * (KEEL_RIDGE + KEEL_TOOTH * denticles(t, teeth))
         * smoothstep(0.25, 0.7, x)
         * roll;
     ((PLATE_SHARE * along * across * furrow + keels) * sleeve).clamp(0.0, 1.0)
 }
 
-/// Soft transverse wrinkles of the pleural membrane in the strip above the bore edge: 0..1.
+/// Two or three soft transverse folds of the pleural membrane per plate, in the strip above the bore edge: 0..1.
 fn pleura(t: f64, u: f64, len: f64) -> f64 {
-    let n = (len / 0.62).round().max(3.0);
+    let n = (len / 1.7).round().clamp(2.0, 3.0);
     let wrinkle = 0.5 - 0.5 * (2.0 * PI * n * t).cos();
     let strip = smoothstep(0.83, 0.89, u) * (1.0 - smoothstep(0.93, 0.99, u));
     let ends = smoothstep(0.1, 0.4, t * len) * smoothstep(0.1, 0.4, (1.0 - t) * len);
@@ -612,7 +653,37 @@ struct Hides {
     ink: Vec<(String, f64)>,
 }
 
-fn paint(d: &mut RingDesign, lib: &mut AlphaLibrary, lat: &Lattice, hd: &Head, art: &Path) -> Result<Hides> {
+/// A quill's footprint in its own plane, and the atlas column its centre stands on.
+struct Ground {
+    frame: csg::Frame,
+    lo: P2,
+    hi: P2,
+    column: usize,
+}
+
+/// The footprint of every quill struck so far.
+fn quill_ground(d: &RingDesign) -> Vec<Ground> {
+    let ctx = d.field_context();
+    d.stamps
+        .iter()
+        .filter(|s| s.name.starts_with("Quill"))
+        .map(|s| {
+            let (mut lo, mut hi) = ([f64::MAX; 2], [f64::MIN; 2]);
+            for p in &s.outline {
+                lo = [lo[0].min(p[0]), lo[1].min(p[1])];
+                hi = [hi[0].max(p[0]), hi[1].max(p[1])];
+            }
+            Ground {
+                frame: s.frame(d, &ctx),
+                lo,
+                hi,
+                column: (s.theta_deg.rem_euclid(360.0) / 360.0 * AW as f64).round() as usize % AW,
+            }
+        })
+        .collect()
+}
+
+fn paint(d: &mut RingDesign, lib: &mut AlphaLibrary, lat: &Lattice, hd: &Head, art: &Path, ground: &[Ground]) -> Result<Hides> {
     let a = Atlas::of(d, AW, AH)?;
     let hide = Hide::of(&a);
     let joints = Joints(
@@ -625,37 +696,65 @@ fn paint(d: &mut RingDesign, lib: &mut AlphaLibrary, lat: &Lattice, hd: &Head, a
         joints.0.windows(2).all(|w| w[1] > w[0]),
         "The joints do not run in order along the hide"
     );
-    // Per sample on a plate: share along it, share of the rim across, its length, share of the flank, the flank's length.
-    let plate = |s: &Sample| -> Option<(f64, f64, f64, f64, f64)> {
+    let plate = |s: &Sample| -> Option<OnPlate> {
         let p = hide.at(s);
         let (_, f, len) = joints.at(p.along.abs())?;
         let flank = (p.rim + p.wall).max(0.5);
-        Some((1.0 - f, p.across / p.rim.max(0.3), len, p.across.abs() / flank, flank))
+        Some(OnPlate {
+            t: 1.0 - f,
+            q: p.across / p.rim.max(0.3),
+            u: p.across.abs() / flank,
+            across: p.across,
+            len,
+            flank,
+            rim: p.rim.max(0.3),
+        })
     };
-    let tergites = a.paint("Manticora tergites", |s| {
-        plate(s).map_or(0.0, |(t, q, len, u, flank)| segment(t, q, u, len, flank))
-    });
+    // Under every quill and QUILL_GROUND_MM round it the relief is read at the quill's own column: flat along the ring.
+    let flat = |s: &Sample, f: &dyn Fn(&Sample) -> f64| -> f64 {
+        let mut best: Option<(f64, usize)> = None;
+        for g in ground {
+            let d = sub3(s.p, g.frame.origin);
+            if dot3(d, g.frame.z).abs() > 1.5 {
+                continue;
+            }
+            let (lx, ly) = (dot3(d, g.frame.x), dot3(d, g.frame.y));
+            let out = (g.lo[0] - lx).max(lx - g.hi[0]).max(0.0).hypot((g.lo[1] - ly).max(ly - g.hi[1]).max(0.0));
+            let w = 1.0 - smoothstep(QUILL_GROUND_MM, 2.0 * QUILL_GROUND_MM, out);
+            if w > 0.0 && best.is_none_or(|b| w > b.0) {
+                best = Some((w, g.column));
+            }
+        }
+        let v = f(s);
+        match best {
+            Some((w, column)) => v * (1.0 - w) + f(a.at(column, s.i / a.width)) * w,
+            None => v,
+        }
+    };
+    let tergites = a.paint("Manticora tergites", |s| flat(s, &|s| plate(s).map_or(0.0, segment)));
     let pleurae = a.paint("Manticora pleural folds", |s| {
-        plate(s).map_or(0.0, |(t, _, len, u, _)| pleura(t, u, len))
+        flat(s, &|s| plate(s).map_or(0.0, |p| pleura(p.t, p.u, p.len)))
     });
     let neck = joints.0[0];
     let articulations = a.paint("Manticora articulations", |s| {
-        if s.p[1] > 0.0 && hide.at(s).along.abs() < neck {
-            return 0.0;
-        }
-        let Some((t, _, len, u, _)) = plate(s) else { return 0.0 };
-        let (x, back) = (t * len, (1.0 - t) * len);
-        let v = (1.0 - smoothstep(0.0, 0.4, x)).max(1.0 - smoothstep(0.0, 0.36, back));
-        v * v * (3.0 - 2.0 * v) * (1.0 - smoothstep(0.78, 0.9, u))
+        flat(s, &|s| {
+            if s.p[1] > 0.0 && hide.at(s).along.abs() < neck {
+                return 0.0;
+            }
+            let Some(p) = plate(s) else { return 0.0 };
+            let (x, back) = (p.t * p.len, (1.0 - p.t) * p.len);
+            let v = (1.0 - smoothstep(0.0, 0.4, x)).max(1.0 - smoothstep(0.0, 0.36, back));
+            let palm = 1.0 - smoothstep(PALM_EASE_DEG.0, PALM_EASE_DEG.1, wrap_delta(s.theta - 270.0, 360.0).abs());
+            v * v * (3.0 - 2.0 * v) * (1.0 - smoothstep(0.78, 0.9, p.u)) * (1.0 - (1.0 - PALM_CARVE) * palm)
+        })
     });
     let (g, pavilion) = (setting::girdle_half_mm(ruby()), ruby().pavilion_mm());
     let seat = a.paint("Manticora seat", |s| hd.seat_carve(s, g, pavilion) / SEAT_MM);
     let graver = a.paint("Manticora graver lines", |s| {
-        let Some((t, q, len, _, _)) = plate(s) else { return 0.0 };
-        let (x, back, qa) = (t * len, (1.0 - t) * len, q.abs());
+        let Some(p) = plate(s) else { return 0.0 };
+        let (x, back, qa) = (p.t * p.len, (1.0 - p.t) * p.len, p.q.abs());
         let run = smoothstep(0.35, 0.65, x) * smoothstep(CONDYLE_MM, CONDYLE_MM + 0.2, back);
-        let line = |c: f64| 1.0 - smoothstep(0.012, 0.024, (qa - c).abs());
-        line(DORSAL_Q).max(line(LATERAL_Q)) * run * (1.0 - smoothstep(0.96, 1.0, qa))
+        (1.0 - smoothstep(0.012, 0.024, (qa - DORSAL_Q).abs())) * run
     });
     let mut out = Hides {
         plates_per_shoulder: joints.plates(),
@@ -884,19 +983,20 @@ impl Spiral {
     }
 }
 
-/// The spiral with curvature exponent `p` whose point lands on `target` in the hook's plane.
-fn spiral_to(target: P2, p: f64) -> Option<Spiral> {
+/// The spiral `length` long whose point lands on `target` in the hook's plane: its start curvature and exponent solved.
+fn spiral_to(target: P2, length: f64) -> Option<Spiral> {
     let resid = |x: [f64; 2]| -> [f64; 2] {
-        let t = Spiral { length: x[0], k0: x[1], p }.tip();
+        let t = Spiral { length, k0: x[0], p: x[1] }.tip();
         [t[0] - target[0], t[1] - target[1]]
     };
     let norm = |r: [f64; 2]| r[0].hypot(r[1]);
-    let mut x = [9.0, 0.12];
+    let ok = |x: [f64; 2]| x[0] > 0.0 && x[0] < 1.0 / TIP_BEND_MM && x[1] > 0.3 && x[1] < 16.0;
+    let mut x = [0.2, 3.0];
     let mut r = resid(x);
-    for li in 0..=40 {
-        for ki in 1..=45 {
-            let y = [5.0 + 0.25 * li as f64, 0.02 * ki as f64];
-            if y[1] >= 1.0 / TIP_BEND_MM {
+    for ki in 1..48 {
+        for pi in 2..=60 {
+            let y = [0.02 * ki as f64, 0.25 * pi as f64];
+            if !ok(y) {
                 continue;
             }
             let ry = resid(y);
@@ -905,13 +1005,13 @@ fn spiral_to(target: P2, p: f64) -> Option<Spiral> {
             }
         }
     }
-    for _ in 0..60 {
+    for _ in 0..80 {
         if norm(r) < 1e-9 {
             break;
         }
         let mut j = [[0.0; 2]; 2];
         for c in 0..2 {
-            let h = [1e-6, 1e-7][c];
+            let h = [1e-7, 1e-6][c];
             let mut y = x;
             y[c] += h;
             let ry = resid(y);
@@ -927,7 +1027,7 @@ fn spiral_to(target: P2, p: f64) -> Option<Spiral> {
         let mut moved = false;
         while lam > 1e-6 {
             let y = [x[0] - lam * dx[0], x[1] - lam * dx[1]];
-            if y[0] > 3.0 && y[0] < 20.0 && y[1] > 0.0 && y[1] < 1.0 / TIP_BEND_MM {
+            if ok(y) {
                 let ry = resid(y);
                 if norm(ry) < norm(r) {
                     (x, r, moved) = (y, ry, true);
@@ -940,22 +1040,29 @@ fn spiral_to(target: P2, p: f64) -> Option<Spiral> {
             break;
         }
     }
-    (norm(r) < 1e-6).then_some(Spiral { length: x[0], k0: x[1], p })
+    (norm(r) < 1e-6).then_some(Spiral { length, k0: x[0], p: x[1] })
 }
 
-/// Of the spirals landing the point on `target`, the one whose point heads nearest `heading` radians.
-fn solve_spiral(target: P2, heading: f64) -> Result<Spiral> {
-    (0..=12)
-        .filter_map(|i| spiral_to(target, 1.0 + 0.5 * i as f64))
-        .min_by(|a, b| (a.heading(a.length) - heading).abs().total_cmp(&(b.heading(b.length) - heading).abs()))
-        .ok_or_else(|| anyhow::anyhow!("No spiral lands the aculeus's point at {target:?}"))
+/// Of the spirals 9.5-11 mm long landing the point on `target`, the one whose point heads nearest `TIP_HEADING_DEG`.
+fn solve_spiral(target: P2) -> Result<Spiral> {
+    (0..=15)
+        .filter_map(|k| spiral_to(target, 9.5 + 0.1 * k as f64))
+        .min_by(|a, b| {
+            let off = |s: &Spiral| (s.heading(s.length).to_degrees() - TIP_HEADING_DEG).abs();
+            off(a).total_cmp(&off(b))
+        })
+        .ok_or_else(|| anyhow::anyhow!("No spiral of 9.5-11 mm lands the aculeus's point at {target:?}"))
 }
 
-/// The aculeus as built: its mesh, its line and its sections.
+/// The aculeus as built: its mesh, its line, its sections and the frame its foot stands in.
 struct Aculeus {
     solid: csg::Solid,
     spiral: Spiral,
     foot: P3,
+    /// The foot's axis, and its section's axes: in the hook's plane toward the ruby, and across it.
+    axis: P3,
+    toward: P3,
+    across: P3,
     /// Arc length, centre, and half-sizes in its bending plane and across it.
     stations: Vec<(f64, P3, f64, f64)>,
     /// Most the section's in-plane half-size takes of the local bend radius.
@@ -981,20 +1088,29 @@ impl Aculeus {
             .map(|i| 1.0 / self.spiral.kappa(self.spiral.length - span * i as f64 / 100.0))
             .fold(f64::MAX, f64::min)
     }
+    /// The vesicle: its widest section, how far from the foot the width falls to 60% of it, and whether it only narrows past it.
+    fn vesicle(&self) -> (f64, f64, bool) {
+        let w: Vec<(f64, f64)> = self.stations.iter().map(|s| (s.0, 2.0 * s.2.max(s.3))).collect();
+        let (ip, peak) = w.iter().enumerate().fold((0, 0.0), |m, (i, x)| if x.1 > m.1 { (i, x.1) } else { m });
+        let end = w[ip..].iter().find(|x| x.1 <= 0.6 * peak).map_or(self.spiral.length, |x| x.0);
+        (peak, end, w[ip..].windows(2).all(|p| p[1].1 <= p[0].1 + 1e-9))
+    }
 }
 
-/// The aculeus: a section carried along a spiral from its foot on the knob, swelling, necking to a barb and rounded at the point.
-fn aculeus(kf: &KnobFrame, target_w: P3) -> Result<Aculeus> {
-    let (r_axis, x_ring) = (kf.axis, kf.toward);
-    let lean = STING_LEAN_DEG.to_radians();
-    let e_t = kf.toward;
-    let dvec = unit3(add3(e_t.map(|v| v * lean.cos()), kf.across, lean.sin()));
-    let np = unit3(cross3(r_axis, dvec));
-    let foot = add3(kf.top, kf.axis, SOLDER_GAP_MM);
-    let delta = [target_w[0] - foot[0], target_w[1] - foot[1], 0.0];
-    let target = [dot3(delta, r_axis), dot3(delta, e_t) / lean.cos()];
-    let spiral = solve_spiral(target, TIP_HEADING_DEG.to_radians())?;
+/// The aculeus: a vesicle swelling out of the knob's outline and tapering without a pinch into a slim barb, carried along a
+/// spiral solved in the ring's mid-plane whose arch then turns about the chord from its foot to its point.
+fn aculeus(foot: P3, axis: P3, toward: P3, target_w: P3) -> Result<Aculeus> {
+    let np = unit3(cross3(axis, toward));
+    let delta = sub3(target_w, foot);
+    ensure!(dot3(delta, np).abs() < 1e-6, "The aculeus's point is off the ring's mid-plane");
+    let spiral = solve_spiral([dot3(delta, axis), dot3(delta, toward)])?;
     let len = spiral.length;
+    let chord = unit3(delta);
+    let lean_at = |s: f64| STING_LEAN_DEG.to_radians() * smoothstep(STING_TWIST.0 * len, STING_TWIST.1 * len, s);
+    let turn = |v: P3, lean: f64| -> P3 {
+        let ((sl, cl), cv, d) = (lean.sin_cos(), cross3(chord, v), dot3(chord, v));
+        std::array::from_fn(|k| v[k] * cl + cv[k] * sl + chord[k] * d * (1.0 - cl))
+    };
     let n = 3000;
     let line = spiral.walk(n);
     let at = |s: f64| -> (P3, P3) {
@@ -1007,8 +1123,8 @@ fn aculeus(kf: &KnobFrame, target_w: P3) -> Result<Aculeus> {
         ];
         let h = spiral.heading(s);
         (
-            add3(add3(foot, r_axis, q[0]), dvec, q[1]),
-            unit3(add3(r_axis.map(|v| v * h.cos()), dvec, h.sin())),
+            add3(add3(foot, axis, q[0]), toward, q[1]),
+            unit3(add3(axis.map(|v| v * h.cos()), toward, h.sin())),
         )
     };
     let sizes = |s: f64| -> (f64, f64) {
@@ -1036,7 +1152,8 @@ fn aculeus(kf: &KnobFrame, target_w: P3) -> Result<Aculeus> {
     let mut solid = csg::Solid::default();
     let mut stations = Vec::with_capacity(rows.len());
     let mut fold_share: f64 = 0.0;
-    for (k, &(s, scale)) in rows.iter().enumerate() {
+    let place = |p: P3, lean: f64| add3(foot, turn(sub3(p, foot), lean), 1.0);
+    for &(s, scale) in &rows {
         let (c, t) = at(s);
         let (a, b) = sizes(s);
         let (a, b) = (a * scale, b * scale);
@@ -1044,14 +1161,8 @@ fn aculeus(kf: &KnobFrame, target_w: P3) -> Result<Aculeus> {
         let n2 = unit3(cross3(np, t));
         // The belly swells to the bend's outside, away from the ruby.
         let belly = VESICLE_BELLY_MM * smoothstep(0.0, 0.2, s / len) * (1.0 - smoothstep(0.24, 0.5, s / len));
-        let c = add3(c, n2, -belly);
-        let omega = lean * (1.0 - smoothstep(0.0, 2.5, s));
-        let (so, co) = omega.sin_cos();
-        let u = add3(n2.map(|v| v * co), np, so);
-        let v = add3(n2.map(|v| -v * so), np, co);
-        if k == 0 {
-            ensure!(dot3(u, x_ring).abs() > 0.9999, "The aculeus's foot is not turned as its knob is");
-        }
+        let lean = lean_at(s);
+        let (c, u, v) = (place(add3(c, n2, -belly), lean), turn(n2, lean), turn(np, lean));
         for j in 0..m {
             let al = 2.0 * PI * j as f64 / m as f64;
             solid.v.push(add3(add3(c, u, a * al.cos()), v, b * al.sin()));
@@ -1066,9 +1177,9 @@ fn aculeus(kf: &KnobFrame, target_w: P3) -> Result<Aculeus> {
         }
     }
     let base = solid.v.len() as u32;
-    solid.v.push(at(0.0).0);
+    solid.v.push(foot);
     let apex = solid.v.len() as u32;
-    solid.v.push(at(len).0);
+    solid.v.push(place(at(len).0, lean_at(len)));
     let last = rows.len() - 1;
     for k in 0..m {
         solid.f.push([base, ring(0, k), ring(0, k + 1)]);
@@ -1086,6 +1197,9 @@ fn aculeus(kf: &KnobFrame, target_w: P3) -> Result<Aculeus> {
         solid,
         spiral,
         foot,
+        axis,
+        toward,
+        across: np,
         stations,
         fold_share,
     })
@@ -1095,7 +1209,9 @@ fn aculeus(kf: &KnobFrame, target_w: P3) -> Result<Aculeus> {
 #[derive(Default, serde::Serialize)]
 struct KnobReport {
     top_r: f64,
-    /// Its top over the highest and the lowest point of the finished bulb under it.
+    /// How far its axis leans off the radial, across the band, degrees.
+    lean_deg: f64,
+    /// Its top over the highest and the lowest point of the finished bulb under it, along its axis.
     over_bulb_min_mm: f64,
     over_bulb_max_mm: f64,
     /// Along the ring where it meets the bulb.
@@ -1103,10 +1219,12 @@ struct KnobReport {
     collet_clear_mm: f64,
     neck_clear_mm: f64,
     groove_mm: f64,
+    /// The section left at the solder groove, in the hook's plane and across it.
     min_section_mm: f64,
+    min_section_across_mm: f64,
 }
 
-/// The knob's frame: its top's centre, its axis straight up the ruby's table, and the directions toward the ruby and across the band.
+/// The knob's frame: its top's centre, its axis, and its plan's axes toward the ruby and across.
 #[derive(Clone, Copy, serde::Serialize)]
 struct KnobFrame {
     top: P3,
@@ -1115,45 +1233,72 @@ struct KnobFrame {
     across: P3,
 }
 
-/// The knob the aculeus stands on: an elliptical boss swept straight up out of the bulb behind the collet, its top at `KNOB_DEG` and rolled into the solder groove.
-fn knob(d: &RingDesign, lib: &AlphaLibrary, hd: &Head, neck_deg: f64) -> Result<(csg::Solid, KnobReport, KnobFrame)> {
+/// The bulb round the knob: its top along the radial at `KNOB_DEG` before the hook turns it, and the finished surface there.
+struct KnobSeat {
+    top_r: f64,
+    surface: Vec<P3>,
+}
+
+impl KnobSeat {
+    /// Depths of the bulb under a knob's footprint below its top along its axis, within reach of the top.
+    fn depths(&self, top: P3, x: P3, y: P3, z: P3) -> Vec<f64> {
+        self.surface
+            .iter()
+            .filter_map(|p| {
+                let q = sub3(*p, top);
+                let (a, b, h) = (dot3(q, x), dot3(q, y), -dot3(q, z));
+                ((a / (KNOB_A_MM + 0.15)).powi(2) + (b / (KNOB_B_MM + 0.15)).powi(2) <= 1.0 && h > -0.5 && h < 3.5).then_some(h)
+            })
+            .collect()
+    }
+    /// How far the knob under this aculeus's foot rises over the highest bulb point under it.
+    fn rise(&self, ac: &Aculeus) -> f64 {
+        self.depths(add3(ac.foot, ac.axis, -SOLDER_GAP_MM), ac.toward, ac.across, ac.axis)
+            .into_iter()
+            .fold(f64::MAX, f64::min)
+    }
+}
+
+fn knob_seat(d: &RingDesign, lib: &AlphaLibrary) -> Result<KnobSeat> {
     let (axis, side) = (er(KNOB_DEG), eth(KNOB_DEG));
     let a = Atlas::of(d, AW, 384)?;
     let surface = displaced(d, lib, &a, |s| {
-        s.p[1] > 0.0 && wrap_delta(s.theta - KNOB_DEG, 360.0).abs() < 14.0
+        s.p[1] > 0.0 && wrap_delta(s.theta - KNOB_DEG, 360.0).abs() < 16.0
     });
-    let heights: Vec<f64> = surface
+    let high = surface
         .iter()
         .filter(|p| (dot3(**p, side) / (KNOB_A_MM + 0.15)).powi(2) + (p[2] / (KNOB_B_MM + 0.15)).powi(2) <= 1.0)
         .map(|p| dot3(*p, axis))
-        .collect();
-    ensure!(!heights.is_empty(), "No bulb under the knob");
-    let high = heights.iter().copied().fold(f64::MIN, f64::max);
-    let low = heights.iter().copied().fold(f64::MAX, f64::min);
-    let mean = heights.iter().sum::<f64>() / heights.len() as f64;
-    let top_r = high + KNOB_RISE_MM;
-    let frame = KnobFrame {
-        top: axis.map(|v| v * top_r),
-        axis,
-        toward: side.map(|v| -v),
-        across: [0.0, 0.0, 1.0],
-    };
+        .fold(f64::MIN, f64::max);
+    ensure!(high > f64::MIN, "No bulb under the knob");
+    Ok(KnobSeat { top_r: high + KNOB_RISE_MM, surface })
+}
+
+/// The knob the aculeus stands on: an elliptical boss grown out of the bulb along the aculeus's own foot axis, its top
+/// rolled like a condyle into the solder groove and its sides flaring into the bulb.
+fn knob(ks: &KnobSeat, ac: &Aculeus, hd: &Head, neck_deg: f64) -> Result<(csg::Solid, KnobReport, KnobFrame)> {
+    let (lx, ly, lz) = (ac.toward, ac.across, ac.axis);
+    let top = add3(ac.foot, lz, -SOLDER_GAP_MM);
+    let frame = KnobFrame { top, axis: lz, toward: lx, across: ly };
+    let depths = ks.depths(top, lx, ly, lz);
+    ensure!(!depths.is_empty(), "No bulb under the knob");
+    let over_min = depths.iter().copied().fold(f64::MAX, f64::min);
+    let over_max = depths.iter().copied().fold(f64::MIN, f64::max);
+    let mean = depths.iter().sum::<f64>() / depths.len() as f64;
     let e = JOINT_ROLL_MM;
     let mut sec = vec![Station { s: 0.0, o: 0.0, z: 0.0 }];
     sec.extend((0..=6).map(|k| {
         let b = k as f64 / 6.0 * 0.5 * PI;
         Station { s: 1.0, o: -e * (1.0 - b.sin()), z: -e * (1.0 - b.cos()) }
     }));
-    let flare = [(0.0, -0.45), (0.04, -0.66), (0.1, -0.84), (0.16, -0.98), (0.2, -1.12), (0.22, -1.4), (0.23, -1.9)];
+    let flare = [(0.0, -0.4), (0.04, -0.6), (0.09, -0.8), (0.14, -1.0), (0.19, -1.25), (0.22, -1.55), (0.24, -2.0)];
     sec.extend(flare.iter().map(|&(o, z)| Station { s: 1.0, o, z }));
-    let base = (top_r - low + 0.8).max(2.4);
-    sec.push(Station { s: 1.0, o: 0.24, z: -base });
+    let base = (over_max + 0.8).max(2.4);
+    sec.push(Station { s: 1.0, o: 0.25, z: -base });
     sec.push(Station { s: 0.0, o: 0.0, z: -base });
     let local = setting::sweep(&Plan { a: KNOB_A_MM, b: KNOB_B_MM, pow: 2.0 }, &sec, 96);
-    // Local x away from the ruby, y across, z up: right-handed.
-    let (lx, ly, lz) = (frame.toward.map(|v| -v), frame.across, frame.axis);
     ensure!(dot3(cross3(lx, ly), lz) > 0.99, "The knob's frame is not right-handed");
-    let world = |p: P3| add3(add3(add3(frame.top, lx, p[0]), ly, p[1]), lz, p[2]);
+    let world = |p: P3| add3(add3(add3(top, lx, p[0]), ly, p[1]), lz, p[2]);
     let solid = csg::Solid {
         v: local.v.iter().map(|p| world(*p)).collect(),
         f: local.f.clone(),
@@ -1161,11 +1306,11 @@ fn knob(d: &RingDesign, lib: &AlphaLibrary, hd: &Head, neck_deg: f64) -> Result<
     ensure!(solid.open_edges() == (0, 0), "The knob does not close");
     ensure!(csg::self_crossings(&solid) == 0, "The knob crosses itself");
     // Where the flare meets the bulb on average, and the outline there.
-    let z_s = mean - top_r;
+    let z_s = -mean;
     let o_s = flare
         .windows(2)
         .find(|w| z_s <= w[0].1 && z_s >= w[1].1)
-        .map_or(0.23, |w| w[0].0 + (w[1].0 - w[0].0) * (z_s - w[0].1) / (w[1].1 - w[0].1));
+        .map_or(0.24, |w| w[0].0 + (w[1].0 - w[0].0) * (z_s - w[0].1) / (w[1].1 - w[0].1));
     let outline = |grow: f64, z: f64| -> Vec<P3> {
         (0..128)
             .map(|k| {
@@ -1185,17 +1330,20 @@ fn knob(d: &RingDesign, lib: &AlphaLibrary, hd: &Head, neck_deg: f64) -> Result<
         .iter()
         .map(|p| (p[1].atan2(p[0]).to_degrees(), p[0].hypot(p[1])))
         .fold((0.0_f64, 0.0_f64), |m, (t, r)| if t > m.0 { (t, r) } else { m });
+    let shrink = 1.0 - e / KNOB_A_MM.min(KNOB_B_MM);
     Ok((
         solid,
         KnobReport {
-            top_r,
-            over_bulb_min_mm: top_r - high,
-            over_bulb_max_mm: top_r - low,
+            top_r: dot3(top, top).sqrt(),
+            lean_deg: dot3(lz, er(KNOB_DEG)).clamp(-1.0, 1.0).acos().to_degrees(),
+            over_bulb_min_mm: over_min,
+            over_bulb_max_mm: over_max,
             footprint_mm: 2.0 * (KNOB_A_MM + o_s),
             collet_clear_mm: collet_clear,
             neck_clear_mm: (neck_deg - far.0).to_radians() * far.1,
             groove_mm: e,
-            min_section_mm: 2.0 * KNOB_A_MM * (1.0 - e / KNOB_A_MM.min(KNOB_B_MM)),
+            min_section_mm: 2.0 * KNOB_A_MM * shrink,
+            min_section_across_mm: 2.0 * KNOB_B_MM * shrink,
         },
         frame,
     ))
@@ -1206,8 +1354,7 @@ fn knob(d: &RingDesign, lib: &AlphaLibrary, hd: &Head, neck_deg: f64) -> Result<
 struct CalyxReport {
     /// Plain collet wall left between the calyx and the collet's top, mm.
     plain_wall_mm: f64,
-    keels: usize,
-    keel_rise_mm: f64,
+    blend_mm: f64,
     /// The flare's run out from the wall over its first half millimetre down, degrees from vertical.
     flare_deg: f64,
     beads: usize,
@@ -1246,36 +1393,32 @@ fn bead(c: P3, r: f64) -> csg::Solid {
     s
 }
 
-/// The venom calyx: a flared skirt round the collet from just under its top down into the bulb, keels running up the wall to the lip.
-fn calyx(hd: &Head) -> Result<(csg::Solid, CalyxReport)> {
+/// The venom calyx: a flared skirt round the collet from just under its top down into the bulb, a bead collar round its upper run.
+fn calyx(hd: &Head, ground: &[P3]) -> Result<(csg::Solid, CalyxReport)> {
     let gem = ruby();
     let plan = Plan::of(gem);
     let top = setting::girdle_half_mm(gem) + COLLET_LIP * gem.crown_mm();
     let zc = top - CALYX_UNDER_LIP_MM;
-    // The section: offset out from the girdle's outline, height over its plane, and how much keel it carries.
-    let flare = [(0.80, 0.0), (0.84, -0.1), (0.90, -0.25), (0.98, -0.45), (1.08, -0.7), (1.2, -1.0), (1.32, -1.35), (1.42, -1.75), (1.5, -2.3)];
-    let mut sec: Vec<(f64, f64, f64)> = vec![(0.6, top - 0.06, 0.0), (0.74, top - 0.06, 0.5), (0.74, zc + 0.08, 1.0)];
-    sec.extend(flare.iter().map(|&(o, dz)| (o, zc + dz, 1.0)));
-    sec.push((1.52, -3.4, 0.0));
-    sec.push((0.6, -3.4, 0.0));
+    // The section: offset out from the girdle's outline and height over its plane. The flare is a bell leaving the
+    // wall at 29 degrees and steepening toward the bulb, so its foot stays inside the band's width.
+    let bell = |depth: f64| 0.80 + 0.45 * (1.0 - (-depth / 0.8).exp());
+    let flare: Vec<(f64, f64)> = [0.0, 0.1, 0.25, 0.45, 0.7, 1.0, 1.35, 1.75, 2.3].iter().map(|&h| (bell(h), -h)).collect();
+    let mut sec: Vec<(f64, f64)> = vec![(0.6, top - 0.06), (0.74, top - 0.06), (0.74, zc + 0.08)];
+    sec.extend(flare.iter().map(|&(o, dz)| (o, zc + dz)));
+    sec.push((bell(2.3) - 0.05, -3.0));
+    sec.push((0.6, -3.0));
     let n = 288;
-    let per = 2.0 * PI / CALYX_KEELS as f64;
-    let keel = |phi: f64| {
-        let d = (phi - (phi / per).round() * per).abs() * 3.0;
-        (-(d / 0.17).powi(2)).exp()
-    };
     // Local x along the stone's length (across the band), y along its width (round the ring), z up its table.
     let (long, short, up) = ([0.0, 0.0, 1.0], hd.w.map(|v| -v), hd.n);
     ensure!(dot3(cross3(long, short), up) > 0.99, "The calyx's frame is not right-handed");
     let centre = hd.n.map(|v| v * hd.girdle_r);
     let mut solid = csg::Solid::default();
-    for &(o, z, k) in &sec {
+    for &(o, z) in &sec {
         for j in 0..n {
             let phi = 2.0 * PI * j as f64 / n as f64;
             let (p, nn) = (plan.point(phi), plan.normal(phi));
-            // The flare reaches furthest at the stone's ends across the band, least along the ring.
-            let reach = if o > 0.8 { 0.8 + (o - 0.8) * (0.22 + 0.78 * phi.cos().powi(2)) } else { o };
-            let off = reach + CALYX_KEEL_MM * k * keel(phi);
+            // The flare reaches a fifth as far toward the knob.
+            let off = if o > 0.8 { 0.8 + (o - 0.8) * (1.0 - 0.8 * phi.sin().min(0.0).powi(2)) } else { o };
             let (x, y) = (p[0] + nn[0] * off, p[1] + nn[1] * off);
             solid.v.push(add3(add3(add3(centre, long, x), short, y), up, z));
         }
@@ -1294,20 +1437,13 @@ fn calyx(hd: &Head) -> Result<(csg::Solid, CalyxReport)> {
         }
     }
     ensure!(solid.open_edges() == (0, 0), "The calyx does not close");
-    // The bead collar: centred on the flare's upper run and sunk into it, evenly between the keels, parted round the telson root.
+    // The bead collar: sunk into the collet's wall just under its top, evenly round, parted round the telson root and
+    // wherever the bulb comes near enough to crowd the calyx's seam bead.
     let r = 0.5 * COLLAR_BEAD_MM;
-    let (s0, s1) = ((flare[1].0, zc + flare[1].1), (flare[2].0, zc + flare[2].1));
     let bead_at = |phi: f64| -> P3 {
         let (p, nn) = (plan.point(phi), plan.normal(phi));
-        let reach = |o: f64| 0.8 + (o - 0.8) * (0.22 + 0.78 * phi.cos().powi(2)) + CALYX_KEEL_MM * keel(phi);
-        let (o0, o1) = (reach(s0.0), reach(s1.0));
-        let (dz, dout) = (s1.1 - s0.1, o1 - o0);
-        let len = dz.hypot(dout).max(1e-9);
-        let (no, nz) = (-dz / len, dout / len);
-        let (om, zm) = (0.5 * (o0 + o1), 0.5 * (s0.1 + s1.1));
-        let out = add3(long.map(|v| v * nn[0]), short, nn[1]);
-        let surface = add3(add3(add3(centre, long, p[0] + nn[0] * om), short, p[1] + nn[1] * om), up, zm);
-        add3(surface, add3(out.map(|v| v * no), up, nz), r - COLLAR_SINK_MM)
+        let o = COLLET_CLEAR_MM + COLLET_WALL_MM + r - COLLAR_SINK_MM;
+        add3(add3(add3(centre, long, p[0] + nn[0] * o), short, p[1] + nn[1] * o), up, top - 0.02 - r)
     };
     let steps = 4096;
     let line: Vec<P3> = (0..=steps).map(|i| bead_at(2.0 * PI * i as f64 / steps as f64)).collect();
@@ -1315,24 +1451,21 @@ fn calyx(hd: &Head) -> Result<(csg::Solid, CalyxReport)> {
     for w in line.windows(2) {
         arc.push(arc.last().copied().unwrap_or(0.0) + dot3(sub3(w[1], w[0]), sub3(w[1], w[0])).sqrt());
     }
-    let arc_at = |phi: f64| arc[((phi / (2.0 * PI)) * steps as f64).round() as usize];
     let point_at = |s: f64| {
         let i = arc.partition_point(|&a| a < s).clamp(1, steps);
         let t = (s - arc[i - 1]) / (arc[i] - arc[i - 1]).max(1e-12);
         add3(line[i - 1], sub3(line[i], line[i - 1]), t)
     };
     let knob = er(KNOB_DEG);
-    let margin = r + 0.2;
+    let total = arc[steps];
+    let count = (total / COLLAR_PITCH_MM).floor().max(1.0) as usize;
     let mut centres = Vec::new();
-    for k in 0..CALYX_KEELS {
-        let (a, b) = (arc_at(per * k as f64) + margin, arc_at(per * (k + 1) as f64) - margin);
-        let count = ((b - a) / COLLAR_PITCH_MM).floor() as usize + 1;
-        for i in 0..count {
-            let c = point_at(a + (b - a) * i as f64 / (count - 1).max(1) as f64);
-            let off_axis = sub3(c, knob.map(|v| v * dot3(c, knob)));
-            if dot3(off_axis, off_axis).sqrt() >= COLLAR_KNOB_GAP_MM {
-                centres.push(c);
-            }
+    for i in 0..count {
+        let c = point_at(total * i as f64 / count as f64);
+        let off_axis = sub3(c, knob.map(|v| v * dot3(c, knob)));
+        let clear = ground.iter().map(|g| dot3(sub3(*g, c), sub3(*g, c))).fold(f64::MAX, f64::min).sqrt() - r;
+        if dot3(off_axis, off_axis).sqrt() >= COLLAR_KNOB_GAP_MM && clear >= COLLAR_GROUND_MM {
+            centres.push(c);
         }
     }
     let gap = centres
@@ -1347,8 +1480,7 @@ fn calyx(hd: &Head) -> Result<(csg::Solid, CalyxReport)> {
     ensure!(csg::self_crossings(&solid) == 0, "The calyx crosses itself");
     let report = CalyxReport {
         plain_wall_mm: CALYX_UNDER_LIP_MM,
-        keels: CALYX_KEELS,
-        keel_rise_mm: CALYX_KEEL_MM,
+        blend_mm: CALYX_BLEND_MM,
         flare_deg: ((flare[3].0 - flare[0].0) / (flare[0].1 - flare[3].1)).atan().to_degrees(),
         beads: centres.len(),
         bead_mm: COLLAR_BEAD_MM,
@@ -1415,23 +1547,42 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, hd: &Head, neck_deg: f64) -> Re
         json!({"wall_mm": COLLET_WALL_MM, "lip": COLLET_LIP}),
     ))?;
     doc.append(builders::feature_on(4, "Seat bur", builders::BUR, 2, json!({"through": false})))?;
-    let (calyx_solid, cr) = calyx(hd)?;
+    let collet_ground = {
+        let a = Atlas::of(d, AW, 384)?;
+        displaced(d, lib, &a, |s| s.p[1] > 0.0 && wrap_delta(s.theta - STONE_DEG, 360.0).abs() < 24.0)
+    };
+    let (calyx_solid, cr) = calyx(hd, &collet_ground)?;
     doc.append(feature(
         5,
         "Venom calyx",
         stored_op(
             &calyx_solid,
             "calyx",
-            json!({"under_lip_mm": CALYX_UNDER_LIP_MM, "keels": CALYX_KEELS, "keel_mm": CALYX_KEEL_MM, "wall_mm": COLLET_WALL_MM}),
+            json!({"under_lip_mm": CALYX_UNDER_LIP_MM, "beads": cr.beads, "bead_mm": COLLAR_BEAD_MM, "wall_mm": COLLET_WALL_MM}),
         )?,
         Component {
             attach: Attach::Join,
             stage: Stage::Cast,
             placement: Placement::Free,
+            blend_mm: CALYX_BLEND_MM,
             ..Component::default()
         },
     ))?;
-    let (knob_solid, kr, kf) = knob(d, lib, hd, neck_deg)?;
+    let ks = knob_seat(d, lib)?;
+    let (a0, t0) = (er(KNOB_DEG), eth(KNOB_DEG).map(|v| -v));
+    let target = hd.at(TIP_ALONG_MM, 0.0, hd.table_r + TIP_OVER_TABLE_MM);
+    let mut top_r = ks.top_r;
+    let mut ac = aculeus(a0.map(|v| v * (top_r + SOLDER_GAP_MM)), a0, t0, target)?;
+    // The foot rides up the radial until the knob stands its rise over the bulb along its own leaning axis.
+    for _ in 0..4 {
+        let short = KNOB_RISE_MM - ks.rise(&ac);
+        if short.abs() < 0.005 {
+            break;
+        }
+        top_r += short / dot3(a0, ac.axis).max(0.3);
+        ac = aculeus(a0.map(|v| v * (top_r + SOLDER_GAP_MM)), a0, t0, target)?;
+    }
+    let (knob_solid, kr, kf) = knob(&ks, &ac, hd, neck_deg)?;
     doc.append(feature(
         6,
         "Aculeus knob",
@@ -1448,14 +1599,13 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, hd: &Head, neck_deg: f64) -> Re
             ..Component::default()
         },
     ))?;
-    let ac = aculeus(&kf, hd.at(TIP_ALONG_MM, 0.0, hd.table_r + TIP_OVER_TABLE_MM))?;
     doc.append(feature(
         7,
         "Aculeus",
         stored_op(
             &ac.solid,
             "aculeus",
-            json!({"spiral": ac.spiral, "lean_deg": STING_LEAN_DEG, "tip_bend_mm": TIP_BEND_MM, "tip_radius_mm": TIP_RADIUS_MM, "in_plane_half_mm": ACULEUS_A, "across_half_mm": ACULEUS_B, "foot_roll_mm": JOINT_ROLL_MM}),
+            json!({"spiral": ac.spiral, "lean_deg": STING_LEAN_DEG, "belly_mm": VESICLE_BELLY_MM, "tip_bend_mm": TIP_BEND_MM, "tip_radius_mm": TIP_RADIUS_MM, "in_plane_half_mm": ACULEUS_A, "across_half_mm": ACULEUS_B, "foot_roll_mm": JOINT_ROLL_MM}),
         )?,
         Component {
             attach: Attach::Separate,
@@ -1498,9 +1648,10 @@ fn author(art: &Path) -> Result<(RingDesign, AlphaLibrary, Composition, Aculeus,
     let mut d = band(lat.neck_off());
     let hd = head(&d);
     let mut lib = AlphaLibrary::builtin();
-    let hides = paint(&mut d, &mut lib, &lat, &hd, art)?;
-    spinel_runs(&mut d, &lat);
     let quills = quill_rows(&mut d, &lat)?;
+    let ground = quill_ground(&d);
+    let hides = paint(&mut d, &mut lib, &lat, &hd, art, &ground)?;
+    spinel_runs(&mut d, &lat);
     d.bake_all(&mut lib);
     let (kr, cr, ac) = parts(&mut d, &lib, &hd, lat.joints_deg[0])?;
     let comp = Composition {
@@ -1939,18 +2090,26 @@ fn face_coverage(sting: &mesh::Mesh, hd: &Head) -> f64 {
 }
 
 /// The finished outline's crest radius every half degree down the west shoulder, and each joint's dip under its neighbours' crests.
-fn crest_table(ring: &mesh::Mesh, joints: &[f64]) -> (Vec<[f64; 2]>, Vec<[f64; 2]>) {
-    let bins = ((270.0 - 117.0) / 0.5) as usize + 1;
+/// The outer silhouette's radius every half degree from the west neck round the palm to the east neck, and the dip at
+/// every joint of both shoulders.
+fn crest_table(ring: &mesh::Mesh, west: &[f64]) -> (Vec<[f64; 2]>, Vec<[f64; 2]>) {
+    let (lo, hi) = (west[0], 540.0 - west[0]);
+    let bins = ((hi - lo) / 0.5).round() as usize + 1;
     let mut best = vec![0.0_f64; bins];
     for v in &ring.vertices {
-        let t = (v.1 as f64).atan2(v.0 as f64).to_degrees().rem_euclid(360.0);
-        if !(116.75..270.25).contains(&t) {
+        let mut t = (v.1 as f64).atan2(v.0 as f64).to_degrees().rem_euclid(360.0);
+        if t < lo - 0.25 {
+            t += 360.0;
+        }
+        if t > hi + 0.25 {
             continue;
         }
-        let i = (((t - 117.0) / 0.5).round() as isize).clamp(0, bins as isize - 1) as usize;
+        let i = (((t - lo) / 0.5).round() as isize).clamp(0, bins as isize - 1) as usize;
         best[i] = best[i].max((v.0 as f64).hypot(v.1 as f64));
     }
-    let table: Vec<[f64; 2]> = best.iter().enumerate().map(|(i, r)| [117.0 + 0.5 * i as f64, *r]).collect();
+    let table: Vec<[f64; 2]> = best.iter().enumerate().map(|(i, r)| [lo + 0.5 * i as f64, *r]).collect();
+    let mut joints = west.to_vec();
+    joints.extend(west.iter().rev().filter(|j| (**j - 270.0).abs() > 1e-6).map(|j| 540.0 - j));
     let span = |a: f64, b: f64, f: fn(f64, f64) -> f64, init: f64| {
         table.iter().filter(|p| p[0] >= a && p[0] <= b).map(|p| p[1]).fold(init, f)
     };
@@ -1966,10 +2125,10 @@ fn crest_table(ring: &mesh::Mesh, joints: &[f64]) -> (Vec<[f64; 2]>, Vec<[f64; 2
                 (Some(a), None) | (None, Some(a)) => a,
                 (None, None) => low,
             };
-            [j, crest - low]
+            [j.rem_euclid(360.0), crest - low]
         })
         .collect();
-    (table, dips)
+    (table.iter().map(|p| [p[0].rem_euclid(360.0), p[1]]).collect(), dips)
 }
 
 /// The section through the finger axis at `theta`: every shell cut, the aculeus's line projected and dashed, and the marked gaps.
@@ -2020,9 +2179,9 @@ fn section_svg(
             body.push_str(&format!("<circle cx=\"{x:.1}\" cy=\"{y:.1}\" r=\"{:.1}\" stroke=\"#888888\" stroke-dasharray=\"3 4\" stroke-width=\"0.8\" fill=\"none\"/>\n", r * scale));
         }
     }
-    for (a, b, gap) in marks {
+    for (k, (a, b, gap)) in marks.iter().enumerate() {
         let ((x0, y0), (x1, y1)) = (map(*a), map(*b));
-        body.push_str(&format!("<line x1=\"{x0:.1}\" y1=\"{y0:.1}\" x2=\"{x1:.1}\" y2=\"{y1:.1}\" stroke=\"#e0453a\" stroke-width=\"2\"/><circle cx=\"{x0:.1}\" cy=\"{y0:.1}\" r=\"5\" stroke=\"#e0453a\" stroke-width=\"2\" fill=\"none\"/><text x=\"{:.1}\" y=\"{:.1}\" fill=\"#e0453a\" font-family=\"sans-serif\" font-size=\"18\">{gap:.2} mm</text>\n", x0 + 10.0, y0 - 8.0));
+        body.push_str(&format!("<line x1=\"{x0:.1}\" y1=\"{y0:.1}\" x2=\"{x1:.1}\" y2=\"{y1:.1}\" stroke=\"#e0453a\" stroke-width=\"2\"/><circle cx=\"{x0:.1}\" cy=\"{y0:.1}\" r=\"5\" stroke=\"#e0453a\" stroke-width=\"2\" fill=\"none\"/><text x=\"{:.1}\" y=\"{:.1}\" fill=\"#e0453a\" font-family=\"sans-serif\" font-size=\"18\">{gap:.2} mm</text>\n", x0 + 10.0, y0 - 8.0 + 26.0 * k as f64));
     }
     let (w, h) = ((r1 - r0) * scale, (z1 - z0) * scale);
     std::fs::write(
@@ -2122,6 +2281,14 @@ fn main() -> Result<()> {
         &[(clearance.collet_pair[0], clearance.collet_pair[1], clearance.to_collet_mm), (clearance.ruby_pair[0], clearance.ruby_pair[1], clearance.to_ruby_mm)],
     )?;
     section_svg(
+        &out.join("knob-section.svg"),
+        KNOB_DEG,
+        &format!("Section at {KNOB_DEG:.1} deg through the knob, the solder groove and the aculeus's foot"),
+        &section_shells,
+        &line,
+        &[],
+    )?;
+    section_svg(
         &out.join("stinger-section-90.svg"),
         90.0,
         "Section at 90.0 deg through the ruby, the collet's lip and the barb",
@@ -2131,17 +2298,28 @@ fn main() -> Result<()> {
     )?;
     let (w25, w60) = (ac.at_share(0.25), ac.at_share(0.60));
     let ratio = w25.0 / w60.0.max(1e-9);
-    let over_ruby_width = ac
+    let over_ruby: Vec<&(f64, P3, f64, f64)> = ac
         .stations
         .iter()
         .filter(|s| {
             let [x, z] = comp.head.plan(s.1);
             (x / comp.head.girdle[0]).powi(2) + (z / comp.head.girdle[1]).powi(2) <= 1.0
         })
-        .map(|s| 2.0 * s.3)
-        .fold(0.0, f64::max);
+        .collect();
+    let over_ruby_width = over_ruby.iter().map(|s| 2.0 * s.3).fold(0.0, f64::max);
+    let over_ruby_from = over_ruby.iter().map(|s| s.0 / ac.spiral.length).fold(1.0, f64::min);
+    let vesicle = ac.vesicle();
+    // The centre line seen from the face: how far it bows off the chord from its foot to its point.
+    let seen: Vec<P2> = ac.stations.iter().map(|s| [s.1[0], s.1[2]]).collect();
+    let (f0, f1) = (seen[0], seen[seen.len() - 1]);
+    let (cx, cz) = (f1[0] - f0[0], f1[1] - f0[1]);
+    let cl = cx.hypot(cz).max(1e-9);
+    let sagitta = seen.iter().map(|q| ((q[0] - f0[0]) * cz - (q[1] - f0[1]) * cx).abs() / cl).fold(0.0, f64::max);
+    let point = ac.stations[ac.stations.len() - 1].1;
+    let point_off = { let [x, z] = comp.head.plan(point); x.hypot(z) };
+    let point_up = dot3(point, comp.head.n) - comp.head.table_r;
     println!(
-        "  aculeus: {:.3} mm off the collet, {:.3} off the ruby, {:.3} off the ring beyond the joint, groove {:.3}, foot gap {:.3}; covers {:.1}% of the ruby; 25%/60% width {:.2}/{:.2} = {ratio:.2}; widest over the ruby {over_ruby_width:.2}; last 3 mm bend {:.2} mm",
+        "  aculeus: {:.3} mm off the collet, {:.3} off the ruby, {:.3} off the ring beyond the joint, groove {:.3}, foot gap {:.3}; covers {:.1}% of the ruby; 25%/60% width {:.2}/{:.2} = {ratio:.2}; widest over the ruby {over_ruby_width:.2} from {over_ruby_from:.2} of its length; vesicle {:.2} wide, {:.2} long, aspect {:.2}, narrowing only {}; face sagitta {sagitta:.2}; point {point_off:.2} off the ruby's centre, {point_up:.2} over its table; last 3 mm bend {:.2} mm",
         clearance.to_collet_mm,
         clearance.to_ruby_mm,
         clearance.to_ring_mm,
@@ -2150,6 +2328,10 @@ fn main() -> Result<()> {
         100.0 * coverage,
         2.0 * w25.0,
         2.0 * w60.0,
+        vesicle.0,
+        vesicle.1,
+        vesicle.1 / vesicle.0.max(1e-9),
+        vesicle.2,
         ac.tail_bend_mm(3.0)
     );
     let band_field = castability::attributed_field_report(&d, &lib, &d.draft, 256, 128);
@@ -2172,7 +2354,7 @@ fn main() -> Result<()> {
         "collet_wall_mm": COLLET_WALL_MM,
         "collet_wall_buried_foot_mm": 0.8 * COLLET_WALL_MM,
         "collet_lip": {"height_mm": comp.head.lip_mm, "exception": "the burnished bezel lip: pushed over the ruby's crown at the bench, thinner than the fill floor by design"},
-        "knob_min_section_mm": comp.knob.min_section_mm,
+        "knob_groove_mm": [comp.knob.min_section_mm, comp.knob.min_section_across_mm],
         "aculeus_foot_mm": [2.0 * foot.0, 2.0 * foot.1],
         "aculeus_5mm_from_point_mm": [2.0 * a5.0, 2.0 * a5.1],
         "aculeus_2mm_from_point_mm": [2.0 * a2.0, 2.0 * a2.1],
@@ -2184,7 +2366,9 @@ fn main() -> Result<()> {
         "collar_note": "relief beads sunk into the calyx, judged at the detail floor",
     });
     let lands_ok = COLLET_WALL_MM >= MIN_SECTION_MM
-        && comp.knob.min_section_mm >= MIN_SECTION_MM
+        && comp.knob.min_section_mm >= 1.6
+        && comp.knob.min_section_across_mm >= 1.6
+        && 2.0 * foot.0.min(foot.1) >= 1.6
         && 2.0 * a5.0.min(a5.1) >= MIN_SECTION_MM
         && 2.0 * a2.0.min(a2.1) >= MIN_SECTION_MM
         && 2.0 * foot.0.min(foot.1) >= MIN_SECTION_MM
@@ -2197,7 +2381,7 @@ fn main() -> Result<()> {
     let coarse = mesh::try_build(&d, &lib, coarse_params)?;
     let (cw, cd, cx) = geometry(&coarse.mesh);
     let coarse_ok = cw && cd == 0 && cx == 0 && coarse.solids.stamped == d.stamps.len() && coarse.solids.notes.is_empty() && coarse.parts.notes.is_empty();
-    println!("  384 x 192: watertight {cw}, degenerate {cd}, crossings {cx}, stamps {}/{}", coarse.solids.stamped, d.stamps.len());
+    println!("  384 x 192: watertight {cw}, degenerate {cd}, crossings {cx}, stamps {}/{}; notes {:?} {:?}", coarse.solids.stamped, d.stamps.len(), coarse.solids.notes, coarse.parts.notes);
     // The investment pattern: the ring's own casting; the aculeus pours apart.
     let mut setup = mf::Setup::from_design(&d);
     setup.recipe.name = "Manticora / investment / Gold 18k".into();
@@ -2250,13 +2434,22 @@ fn main() -> Result<()> {
         "made_solids": solids,
         "solids": {"resolved": built.solids.resolved, "stamped": built.solids.stamped, "stamps": d.stamps.len(), "notes": built.solids.notes, "parts_notes": built.parts.notes, "parts_separate": built.parts.separate, "parts_joined": built.parts.joined, "parts_cut": built.parts.cut},
         "bore": {"radius_mm": d.inner_radius_mm(), "nearest_vertex_mm": least_r, "vertices_inside": inside},
-        "lands": lands,
+        "land_widths": lands,
         "aculeus": {
             "clearance": clearance,
             "face_coverage_of_ruby": coverage,
             "width_at_25_percent_mm": 2.0 * w25.0,
             "width_at_60_percent_mm": 2.0 * w60.0,
             "width_ratio_25_to_60": ratio,
+            "peak_width_mm": vesicle.0,
+            "vesicle_length_mm": vesicle.1,
+            "vesicle_aspect": vesicle.1 / vesicle.0.max(1e-9),
+            "width_monotone_after_peak": vesicle.2,
+            "face_sagitta_mm": sagitta,
+            "point_from_ruby_centre_mm": point_off,
+            "point_over_table_mm": point_up,
+            "over_ruby_from_share": over_ruby_from,
+            "twist_shares": STING_TWIST,
             "widest_over_ruby_mm": over_ruby_width,
             "tightest_bend_last_3mm": ac.tail_bend_mm(3.0),
             "point_diameter_mm": 2.0 * TIP_RADIUS_MM,
@@ -2264,7 +2457,7 @@ fn main() -> Result<()> {
             "spiral": ac.spiral,
             "fold_share": ac.fold_share,
             "lean_deg": STING_LEAN_DEG,
-            "sections": ["stinger-section.svg", "stinger-section-90.svg"],
+            "sections": ["stinger-section.svg", "stinger-section-90.svg", "knob-section.svg"],
         },
         "knob": comp.knob,
         "ruby_seat": seat,
@@ -2275,13 +2468,19 @@ fn main() -> Result<()> {
             "with_parts_worst_draft_deg": field.worst_draft_deg,
             "note": "reported only: lost wax judges fill and detail, never the pull",
         },
-        "crests": {"table_deg_r": crests, "joint_dips_mm": dips, "least_dip_mm": least_dip},
+        "crests": {
+            "table_deg_r": crests,
+            "joint_dips_mm": dips,
+            "west_dips_mm": dips.iter().filter(|d| d[0] > 116.0 && d[0] <= 270.0).collect::<Vec<_>>(),
+            "east_dips_mm": dips.iter().filter(|d| d[0] > 270.0 || d[0] < 64.0).collect::<Vec<_>>(),
+            "least_dip_mm": least_dip,
+        },
         "field": {"verdict": field.verdict.label(), "thinnest_wall_mm": field.thinnest_wall_mm, "thinnest_wall_theta_deg": field.thinnest_wall_theta_deg, "notes": field.notes, "parts_undercut_mm2": field.parts.iter().map(|p| p.undercut_area_mm2).sum::<f64>(), "min_section_mm": d.draft.min_section_mm, "min_detail_mm": d.draft.min_detail_mm},
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "stones": {"reported": reported, "previewed": previewed, "carats": stones.as_ref().map_or(0.0, |s| s.total_carats), "tight_pairs": stones.as_ref().map_or(0, |s| s.tight_pairs), "closest": stones.as_ref().and_then(|s| s.closest.as_ref()).map(|p| format!("{} to {}: {:.2} mm at the girdle, {:.2} mm deep", p.a, p.b, p.gap_mm, p.gap_deep_mm)), "crowding": stones.as_ref().map(|s| s.crowding.iter().map(|p| format!("{} to {}: {:.2} / {:.2} mm", p.a, p.b, p.gap_mm, p.gap_deep_mm)).collect::<Vec<_>>()), "warnings": warnings},
         "composition": comp,
         "grams_18k": grams,
-        "coarse": {"watertight": cw, "degenerate_faces": cd, "self_crossings": cx, "stamped": coarse.solids.stamped},
+        "coarse": {"watertight": cw, "degenerate_faces": cd, "self_crossings": cx, "stamped": coarse.solids.stamped, "notes": [&coarse.solids.notes, &coarse.parts.notes]},
         "pattern": {"watertight": pw, "degenerate_faces": pd, "self_crossings": px, "triangles": prepared.mesh.faces.len(), "shells": shells(&prepared.mesh).len(), "scale": prepared.scale, "notes": prepared.notes},
         "design": {"bytes": text.len(), "format_version": design_format, "embedded_alphas": d.layers.referenced_alphas().len(), "cad_features": d.cad.as_ref().map_or(0, |c| c.features.len())},
         "layers": d.layers.layers.iter().map(|e| e.name.clone()).collect::<Vec<_>>(),
