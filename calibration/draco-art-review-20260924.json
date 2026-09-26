@@ -1,0 +1,84 @@
+{
+  "ring": "Draco \u2014 the wyvern displayed",
+  "review": "Continuation round 1, independent art direction",
+  "date": "2026-09-24",
+  "verdict": "revise",
+  "score": 5.8,
+  "reference_score": {
+    "Caiman": 7.0
+  },
+  "summary": "The three-finger structure improves on the shell fan, but at 300 px the face still reads as paired sails on a mechanical belt. The palm head is a mask on a plaque, and the shoulder walls remain visibly underworked. This is below Caiman and well below 7.5. One structural revision is plausible; cut if the next face and head renders still require the caption to identify the wyvern.",
+  "gates": {
+    "reported_geometry_and_process_checks": "PASS: watertight; no boundary, non-manifold, degenerate or crossing faces; no made-part notes or DFM findings; Castable; 0 obstructions and unresolved rays at both pitches; 0 stones matches preview",
+    "clamp_worst_mm": 0.02958956241607666,
+    "triangles": 1345484,
+    "cold_design_and_graph_geometry": "identical",
+    "template_patches": 3,
+    "graph_bytes": 5352739,
+    "graph_size_flag": "Over 3 MB; P7 debt remains, not concealed by the patch pass",
+    "sand_web_review": "OPEN: raw release has 14 widths below 0.30 mm at 0.100 pitch and 17 at 0.075 pitch. The custom notch minimum is 0.3522 mm measured 0.10 mm above local floors, which is a different quantity."
+  },
+  "punch": [
+    {
+      "n": 1,
+      "priority": "blocking art",
+      "where": "face.png, face-300.png, detail.png",
+      "finding": "The membrane perimeter is almost convex and the broad central panels read as sails. Scallop bites are 1.137, 0.965 and 1.003 mm, below the prior 1.2\u20131.8 mm request. The spine belt takes visual precedence.",
+      "change": "Deepen all three trailing scallops to 1.4\u20131.6 mm normal to their tip chords. Make the shoulder-to-wrist arm visibly round and 0.8\u20131.0 mm wide; fingers 0.50\u20130.60 tapering to 0.30. Keep a distinct 0.8 mm thumb. Lower the broad membrane planes about 0.20\u20130.25 mm relative to these bones while preserving a monotone pull. Reduce the table spine belt width about 25%; retain the thorns as separated pointed silhouettes.",
+      "acceptance": "An unlabelled 300 px face must read as two bat wings attached to a creature, with three concave bays per side; clamp remains at most 0.05 mm."
+    },
+    {
+      "n": 2,
+      "priority": "blocking art",
+      "where": "head.png, palm.png, reverse.png",
+      "finding": "The 7.65 mm hull has a single roof-like ridge, a blunt flat muzzle, incised symbols for eyes, and no separated horn silhouette. Its rectangular resting plate is conspicuous.",
+      "change": "Remove the rectangular plate outline: fade its roughly 9.2 mm-long bed into the shank over at least 1.0 mm at each end, with no straight perimeter exposed around the head. Sculpt distinct cheek masses and a brow 0.30\u20130.40 mm above the sockets; taper the muzzle to 1.4\u20131.6 mm wide and give it a separate lower-jaw plane. Give both horns about 1.2\u20131.5 mm of visible swept projection behind the skull, with tips at least 0.4 mm wide. Preserve sand withdrawal or assign only the actual recesses to explicit bench work.",
+      "acceptance": "Show palm and oblique head crops of the casting pattern and finished metal separately. Both must read as a horned reptile head, not a bottle-shaped badge."
+    },
+    {
+      "n": 3,
+      "priority": "blocking art",
+      "where": "cheek.png, shoulder.png, side.png",
+      "finding": "Large smooth head-wall panels and most shank side faces remain bare. The scale layer exists in code but is largely masked or flattened in the result; small texture strips near the bore do not satisfy the coverage request.",
+      "change": "Rework the wall masks and relief so the actual cast wall carries graded scales from rim to bore: 1.6 to 1.1 mm on the head, 1.2 to 0.95 mm on the shank, at least 0.12 mm visible rise. Keep gaps at least 0.30 mm. Target no bare external patch exceeding 3 by 3 mm, except intentional narrow edge breaks.",
+      "acceptance": "Side and cheek renders must show continuous graduated hide comparable with Caiman; count coverage on the rendered or exported surface, not the unmasked alpha."
+    },
+    {
+      "n": 4,
+      "priority": "blocking finish",
+      "where": "detail.png lower kite rim; side.png and shoulder.png at the stock fold",
+      "finding": "The lower rim remains rippled and the wing falls have combing highlights; a large V crease interrupts the shoulder. Some rippling already occurs on bare stock, so this is not solely a painter defect.",
+      "change": "Keep added wing relief 0.8 mm from point walls and troublesome folds and widen the fall transition to 0.8 mm. Then compare bare and finished normals and mesh sections. Escalate inherited stock or normal defects to the lead if they persist.",
+      "acceptance": "Hard factory wall-to-table angles remain crisp; no sawtooth silhouette, wavy rim strip or V-shaped collapsed highlight."
+    },
+    {
+      "n": 5,
+      "priority": "blocking evidence",
+      "where": "report.json crest_slots, release-fine.json, crest_notches()",
+      "finding": "The release scanner reports 0.0748\u20130.2993 mm crest slots, while the new gate measures angular width 0.10 mm above each notch floor and drops notches shallower than 0.05 mm. It cannot by itself prove that every reported narrow sand wedge is harmless. Raw widths are warnings, so neither automatic rejection nor blanket dismissal is justified.",
+      "change": "For each distinct sub-0.30 mm location, provide a mesh cross-section with the actual depth, minimum supported sand neck and outlet. Explicitly correlate at least 47.32, 126.10, 149.89 and 319.20 degrees to the custom notch data. Widen genuinely constrained necks to at least 0.40 mm; classify shallow tangential slice artefacts with measured depth/support. Preserve all raw findings and call the result reviewed only after that reconciliation.",
+      "acceptance": "A reviewer can trace every thin-slot warning to a corrected slot or a measured open, shallow feature; no gate substitution."
+    }
+  ],
+  "renders_reviewed": [
+    "/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/draco-codex/showcase/bestiarium/draco/hero.png",
+    "/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/draco-codex/showcase/bestiarium/draco/face.png",
+    "/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/draco-codex/showcase/bestiarium/draco/face-300.png",
+    "/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/draco-codex/showcase/bestiarium/draco/palm.png",
+    "/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/draco-codex/showcase/bestiarium/draco/side.png",
+    "/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/draco-codex/showcase/bestiarium/draco/cheek.png",
+    "/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/draco-codex/showcase/bestiarium/draco/shoulder.png",
+    "/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/draco-codex/showcase/bestiarium/draco/reverse.png",
+    "/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/draco-codex/showcase/bestiarium/draco/detail.png",
+    "/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/draco-codex/showcase/bestiarium/draco/head.png",
+    "/home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/.claude/worktrees/draco-codex/showcase/bestiarium/draco/bare-finished.png"
+  ],
+  "references_reviewed": [
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png",
+    ".claude/collection-review/zbrush_top.png",
+    ".claude/collection-review/zbrush_sheet.png"
+  ],
+  "report_sha256": "4454d26ac2ac17865e77ae4d6a6d0419916e03cf5a05c91c619c59aaf5a12a17",
+  "limits": "Gate values inspected from the supplied export reports; no independent rebuild or shop casting. Bench-cut detail must not be presented as already cast."
+}
