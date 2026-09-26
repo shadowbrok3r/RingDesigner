@@ -1,0 +1,17 @@
+{
+  "stones": [
+    {
+      "dispersion": 0.012,
+      "ior": 1.53,
+      "mesh": "reference-moonstone.stl",
+      "name": "Moonstone",
+      "roughness": 0.12,
+      "tint": [
+        0.6600000262260437,
+        0.7200000286102295,
+        0.8600000143051147
+      ],
+      "transmission": 0.45
+    }
+  ]
+}
