@@ -13,7 +13,7 @@ Every lane below was stopped mid-round by the usage limit. Resume each by starti
 | Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | package |
 | Manticora | `bestiarium-manticora` | `9a4252f` round 3 | **shipped 7.5** (`manticora-round3-review.json`, optional polish listed) | package |
 | Kraken | `bestiarium-kraken` (owns C-B1) | `670a6b8` round 2 | r2 6.5 (`kraken-round2-review.json`) | round 3, the last |
-| Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `3250b82` round 2 | r2 6.5 (`phoenix-round2-review.json`) | round 3, the last |
+| Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `74dceaf` round 3 | **cut at 7.0** after round 3 (`phoenix-round3-review.json`: gates green, fails the 300 px read; optional polish listed) | none (kept on its branch) |
 | Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `40ca22d` round 2 | r2 6.8 (`basiliscus-round2-review.json`) | round 3, the last |
 | Fenrir | `bestiarium-fenrir` | `5d67238` (+1 uncommitted; master merged for claw rails) | r1 5.5 (`fenrir-round1-review.json`) | round 2 |
 | Corvus | `bestiarium-corvus` | `5df9089` round 1 | r1 5.0 (`corvus-round1-review.json`) | round 2 |
