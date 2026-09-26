@@ -18,6 +18,9 @@ Logan resumed the work on a credit that pays for plain cloud sessions only (not 
 | Core request 18 (`Hide::steadied`) | `cloud/core-hide-steadied` | `claude/core-hide-steadied` |
 | Core request 1 (graded run centre phase) | `cloud/core-graded-centre-phase` | `claude/core-graded-centre-phase` |
 | Core request 24 (fold errors name the point) | `cloud/core-fold-errors-name-the-point` | `claude/core-fold-errors-name-the-point` |
+| Fenrir round 2 review | `review/fenrir-r2` | `claude/review-fenrir-r2` |
+| Core request 29 (railless claw feet on a sloped table) | `cloud/core-claw-foot-lift` | `claude/core-claw-foot-lift` |
+| Core request 9 (sculpt tools into core) | `cloud/core-sculpt-tools` | `claude/core-sculpt-tools` |
 
 # Checkpoint 2026-09-26 10:10 (Claude, at the account's 5-hour limit)
 
@@ -30,7 +33,7 @@ Every lane below was stopped mid-round by the usage limit. Resume each by starti
 | Kraken | `bestiarium-kraken` (owns C-B1) | `567365a` round 3 (master merged as `62b2dfe`) | r3 author self-score 7.0; **cut at 7.0** by the final review (cloud session, 2026-09-26: gates green, claws splayed and curled as asked; short of 7.5) | none (kept on its branch) |
 | Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `74dceaf` round 3 | **cut at 7.0** after round 3 (`phoenix-round3-review.json`: gates green, fails the 300 px read; optional polish listed) | none (kept on its branch) |
 | Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `4df7a53` round 3 | r3 author self-score 7.4; **cut at 7.2** by the final review (cloud: gates green; the head is still blocky at 3/4, and the 300 px hero does not name the animal) | none (kept on its branch) |
-| Fenrir | `bestiarium-fenrir` | `5d67238` (+1 uncommitted; master merged for claw rails) | r1 5.5 (`fenrir-round1-review.json`) | round 2 |
+| Fenrir | `bestiarium-fenrir` | `55022f3` round 2 (master `b611d2c` merged) | r2 author self-score 7.0 (r1 5.5): all 11 punch items applied, gates green at draft and export (1.27 M triangles, 31.0 g in 18k after a hollow under the head), template 0 patches at 2.68 MB of 3 MB; short: the small teeth read as beads from above, the upper-lip frame is heavy, the ruff locks read slightly scaly | round 2 review running in the cloud (session `session_01SgmpuuY9GAvqpEUss1cqcq`, pushes to `claude/review-fenrir-r2`) |
 | Corvus | `bestiarium-corvus` | `518df5a` round 2 (master merged as `9e6cb50`) | r2 **revise 6.2** (cloud review `corvus-round2-review.json`: gates green; not yet a raven at 300 px) | **round 3 running in the cloud** (session `session_01FyUHJc3mdXtvkxL8VyEA6z`, pushes to `claude/bestiarium-corvus-r3`; owns enabler C-B7, request 28) |
 | Harpyia | `bestiarium-harpyia` (owns C-B4) | `6ce7589` round 2 (C-B4 meshed loft at `ca5c924`) | r2 **revise 6.5** (cloud review `harpyia-round2-review.json`: one red gate, the Torso's land width never measured) | **round 3 running in the cloud** (session `session_01TYVKsGXLRHXfoG7nNw4FGJ`, pushes to `claude/bestiarium-harpyia-r3`) |
 
