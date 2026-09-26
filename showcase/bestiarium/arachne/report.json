@@ -1,0 +1,562 @@
+{
+  "bore_clearance": [
+    [
+      "Carapace, round the garnet",
+      1.7101012728818432,
+      0
+    ],
+    [
+      "Abdomen, round the onyx",
+      1.051264742451126,
+      0
+    ],
+    [
+      "Pedicel",
+      3.0014285026607865,
+      0
+    ],
+    [
+      "Spinnerets",
+      2.523339097006927,
+      0
+    ],
+    [
+      "Leg I coxa, low side",
+      1.8218559192055377,
+      0
+    ],
+    [
+      "Leg I continuous limb, low side",
+      0.40423119967721455,
+      0
+    ],
+    [
+      "Leg I coxa, high side",
+      1.8218559192055377,
+      0
+    ],
+    [
+      "Leg I continuous limb, high side",
+      0.40423119967721455,
+      0
+    ],
+    [
+      "Leg II coxa, low side",
+      1.807440170253816,
+      0
+    ],
+    [
+      "Leg II continuous limb, low side",
+      0.45732837594874454,
+      0
+    ],
+    [
+      "Leg II coxa, high side",
+      1.807440170253816,
+      0
+    ],
+    [
+      "Leg II continuous limb, high side",
+      0.45732837594874454,
+      0
+    ],
+    [
+      "Leg III coxa, low side",
+      2.829239516816642,
+      0
+    ],
+    [
+      "Leg III continuous limb, low side",
+      0.5868595151151919,
+      0
+    ],
+    [
+      "Leg III coxa, high side",
+      2.829239516816642,
+      0
+    ],
+    [
+      "Leg III continuous limb, high side",
+      0.5868595151151919,
+      0
+    ],
+    [
+      "Leg IV coxa, low side",
+      1.907909840384983,
+      0
+    ],
+    [
+      "Leg IV continuous limb, low side",
+      0.6034881159685384,
+      0
+    ],
+    [
+      "Leg IV coxa, high side",
+      1.907909840384983,
+      0
+    ],
+    [
+      "Leg IV continuous limb, high side",
+      0.6034881159685384,
+      0
+    ]
+  ],
+  "bore_mm": 17.300154539981794,
+  "boundary_edges": 0,
+  "build": [
+    1536,
+    448
+  ],
+  "build_s": 1.584150865,
+  "cad_features": 27,
+  "cheek_web_ink": 0.4133952833850932,
+  "clamp_bite_mm": null,
+  "closest_stones": "Carapace bed, garnet to Abdomen bed, onyx: 1.33 mm at the girdle, 1.26 mm deep",
+  "cold_reload_identical": true,
+  "crown_web_ink": [
+    [
+      "Web round the spider",
+      0.16620207644139887
+    ],
+    [
+      "Web round the spider, capture silk",
+      0.08568459061909263
+    ],
+    [
+      "Web behind the spinnerets",
+      0.07272280092592592
+    ],
+    [
+      "Web behind the spinnerets, capture silk",
+      0.05836082175925926
+    ],
+    [
+      "Orb behind her",
+      0.23532387169187147
+    ],
+    [
+      "Orb behind her, capture silk",
+      0.1298625059073724
+    ],
+    [
+      "Web toward the palm",
+      0.1600540515988372
+    ],
+    [
+      "Web toward the palm, capture silk",
+      0.11570846202761628
+    ],
+    [
+      "Orb at the palm",
+      0.2478191144169329
+    ],
+    [
+      "Orb at the palm, capture silk",
+      0.14781973841853036
+    ],
+    [
+      "Web past the palm",
+      0.15822652505990414
+    ],
+    [
+      "Web past the palm, capture silk",
+      0.11654165834664537
+    ],
+    [
+      "Orb before her",
+      0.24717456093014128
+    ],
+    [
+      "Orb before her, capture silk",
+      0.12576806563971743
+    ]
+  ],
+  "degenerate_faces": 0,
+  "design_bytes": 644207,
+  "design_format": 6,
+  "dfm_findings": [],
+  "embedded_alphas": 2,
+  "export_clean": {
+    "degenerate_faces": 0,
+    "eps_mm": 0.001,
+    "faces_removed": 2598,
+    "min_angle_deg": 0.02449912266379775,
+    "watertight": true,
+    "worst_aspect": 2359.505907501767
+  },
+  "field_notes": [
+    "Lost wax: 8.72% of the surface would undercut a two-part pull (worst 43.5 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Undercut 112–52° on the crest: 80.2 mm² leaning to 40° — no single layer explains it.",
+    "Undercut 58–86° on the crest: 5.1 mm² leaning to 30° — no single layer explains it.",
+    "Undercut 92–97° on the crest: 0.3 mm² leaning to 12° — no single layer explains it.",
+    "Measured with the ring as built: 20 CAD parts (20 joined, 0 cut), 363.1 mm² of part surface; under lost wax they are reported, never gating.",
+    "Lost wax: Stored mesh \"Carapace, round the garnet\" (#2) would undercut a two-part pull over 5.3 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Stored mesh \"Abdomen, round the onyx\" (#3) would undercut a two-part pull over 14.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Pedicel\" (#5) would undercut a two-part pull over 0.1 mm² (worst -11°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Spinnerets\" (#7) would undercut a two-part pull over 0.1 mm² (worst -15°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Stored mesh \"Leg I continuous limb, low side\" (#10) would undercut a two-part pull over 11.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg I continuous limb, high side\" (#12) would undercut a two-part pull over 11.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Stored mesh \"Leg II continuous limb, low side\" (#15) would undercut a two-part pull over 9.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg II continuous limb, high side\" (#17) would undercut a two-part pull over 9.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg III coxa, low side\" (#19) would undercut a two-part pull over 0.5 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Stored mesh \"Leg III continuous limb, low side\" (#20) would undercut a two-part pull over 6.5 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg III coxa, high side\" (#21) would undercut a two-part pull over 0.5 mm² (worst -60°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg III continuous limb, high side\" (#22) would undercut a two-part pull over 6.5 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Leg IV coxa, low side\" (#24) would undercut a two-part pull over 0.0 mm² (worst -40°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Stored mesh \"Leg IV continuous limb, low side\" (#25) would undercut a two-part pull over 9.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg IV coxa, high side\" (#26) would undercut a two-part pull over 0.0 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Leg IV continuous limb, high side\" (#27) would undercut a two-part pull over 9.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+  ],
+  "field_verdict": "Castable",
+  "gates_passed": true,
+  "geometry_gates_passed": true,
+  "grams_18k": 15.792839021299496,
+  "head_width_mm": 7.570682298673841,
+  "investment_min_section_mm": 0.8,
+  "largest_bare_cell_deg": 49.335624800790136,
+  "largest_bare_cell_mm": 1.746424919657298,
+  "layers": [
+    "Cheek web, draped silk",
+    "Carapace bed, garnet",
+    "Abdomen bed, onyx",
+    "Web round the spider",
+    "Web round the spider, capture silk",
+    "Web behind the spinnerets",
+    "Web behind the spinnerets, capture silk",
+    "Orb behind her",
+    "Orb behind her, capture silk",
+    "Web toward the palm",
+    "Web toward the palm, capture silk",
+    "Orb at the palm",
+    "Orb at the palm, capture silk",
+    "Web past the palm",
+    "Web past the palm, capture silk",
+    "Orb before her",
+    "Orb before her, capture silk"
+  ],
+  "longest_bare_crown_run_mm": 3.149999999999997,
+  "made_parts": [
+    [
+      "Carapace, round the garnet",
+      0
+    ],
+    [
+      "Abdomen, round the onyx",
+      0
+    ],
+    [
+      "Pedicel",
+      0
+    ],
+    [
+      "Spinnerets",
+      0
+    ],
+    [
+      "Leg I coxa, low side",
+      0
+    ],
+    [
+      "Leg I continuous limb, low side",
+      0
+    ],
+    [
+      "Leg I coxa, high side",
+      0
+    ],
+    [
+      "Leg I continuous limb, high side",
+      0
+    ],
+    [
+      "Leg II coxa, low side",
+      0
+    ],
+    [
+      "Leg II continuous limb, low side",
+      0
+    ],
+    [
+      "Leg II coxa, high side",
+      0
+    ],
+    [
+      "Leg II continuous limb, high side",
+      0
+    ],
+    [
+      "Leg III coxa, low side",
+      0
+    ],
+    [
+      "Leg III continuous limb, low side",
+      0
+    ],
+    [
+      "Leg III coxa, high side",
+      0
+    ],
+    [
+      "Leg III continuous limb, high side",
+      0
+    ],
+    [
+      "Leg IV coxa, low side",
+      0
+    ],
+    [
+      "Leg IV continuous limb, low side",
+      0
+    ],
+    [
+      "Leg IV coxa, high side",
+      0
+    ],
+    [
+      "Leg IV continuous limb, high side",
+      0
+    ]
+  ],
+  "mesh_self_crossings": 0,
+  "metal_inside_stones": [
+    [
+      "Carapace bed, garnet",
+      0
+    ],
+    [
+      "Abdomen bed, onyx",
+      0
+    ]
+  ],
+  "min_angle_deg": 0.0013147415591931487,
+  "name": "Arachne — the weaver",
+  "non_manifold_edges": 0,
+  "parts_area_mm2": 363.12817352818826,
+  "parts_cut": 0,
+  "parts_joined": 20,
+  "parts_notes": [],
+  "parts_undercut_mm2": 93.50341712495877,
+  "process": "Lost wax",
+  "size": "US 7",
+  "slivers_by_part": [
+    [
+      "Leg IV continuous limb, low side",
+      27
+    ],
+    [
+      "Leg IV continuous limb, high side",
+      22
+    ],
+    [
+      "Leg II continuous limb, high side",
+      17
+    ],
+    [
+      "Carapace, round the garnet",
+      16
+    ],
+    [
+      "Leg III continuous limb, low side",
+      14
+    ],
+    [
+      "Leg I continuous limb, high side",
+      12
+    ],
+    [
+      "Abdomen, round the onyx",
+      12
+    ],
+    [
+      "Leg II continuous limb, low side",
+      12
+    ],
+    [
+      "Leg III continuous limb, high side",
+      11
+    ],
+    [
+      "Leg I continuous limb, low side",
+      9
+    ],
+    [
+      "Leg III continuous limb, low side / Leg III coxa, low side",
+      4
+    ],
+    [
+      "Leg III continuous limb, high side / Leg III coxa, high side",
+      4
+    ],
+    [
+      "Carapace, round the garnet / Leg II continuous limb, high side",
+      3
+    ],
+    [
+      "Carapace, round the garnet / Leg IV continuous limb, high side",
+      3
+    ],
+    [
+      "Leg IV continuous limb, high side / Leg IV coxa, high side",
+      2
+    ],
+    [
+      "Carapace, round the garnet / Leg II coxa, low side",
+      2
+    ],
+    [
+      "Leg IV continuous limb, low side / Leg IV coxa, low side",
+      2
+    ],
+    [
+      "Pedicel / band",
+      2
+    ],
+    [
+      "Spinnerets",
+      1
+    ],
+    [
+      "Spinnerets / band",
+      1
+    ],
+    [
+      "Leg III continuous limb, low side / Leg IV continuous limb, low side",
+      1
+    ],
+    [
+      "Carapace, round the garnet / Leg I continuous limb, low side",
+      1
+    ],
+    [
+      "Carapace, round the garnet / Leg III coxa, low side",
+      1
+    ],
+    [
+      "Carapace, round the garnet / Leg II continuous limb, low side",
+      1
+    ],
+    [
+      "Leg IV continuous limb, low side / band",
+      1
+    ],
+    [
+      "Leg III coxa, low side",
+      1
+    ],
+    [
+      "Carapace, round the garnet / Leg III coxa, high side",
+      1
+    ],
+    [
+      "Leg III continuous limb, low side / band",
+      1
+    ],
+    [
+      "Leg III coxa, high side",
+      1
+    ],
+    [
+      "Leg III continuous limb, high side / Leg IV continuous limb, high side",
+      1
+    ]
+  ],
+  "solids_notes": [],
+  "spider": {
+    "abdomen_deg": 104.45812023301147,
+    "carapace_deg": 64.0,
+    "claw_deg": [
+      4.0,
+      20.0,
+      108.0,
+      124.0
+    ],
+    "claw_diameter_mm": 0.8,
+    "joint_ease_mm": 0.35,
+    "joint_loft_bend_ratio": 1.27787996315429,
+    "knee_deg": [
+      34.797196633163495,
+      46.95909094848277,
+      75.50371859632737,
+      82.1581933436046
+    ],
+    "knee_over_rim_mm": 0.5561163653305101,
+    "knee_proud_mm": 0.6000000000000001,
+    "leg_abdomen_margin_mm": 0.5186501096217865,
+    "leg_lengths_mm": [
+      12.475110451468382,
+      10.775343345431976,
+      11.13270726482705,
+      12.759062588271021
+    ],
+    "leg_lowest_cheek_share": 0.5710356063647228,
+    "leg_min_section_mm": 0.8,
+    "leg_most_proud_mm": 0.7214407299336627,
+    "leg_vertex_abdomen_margin_mm": 0.4133149026277479,
+    "rim_flat_mm": [
+      0.34162773633240495,
+      0.265597048653874
+    ],
+    "spinneret_deg": 128.05814449008315,
+    "tightest_bend_ratio": 1.2674201050323006,
+    "wall_flare_deg": 9.0
+  },
+  "stone_carats": 2.082781681550425,
+  "stone_warnings": [],
+  "stones_previewed": 2,
+  "stones_reported": 2,
+  "template_gate_passed": true,
+  "thinnest_wall_mm": 1.8808131411513767,
+  "thinnest_wall_theta_deg": 254.53125,
+  "triangles": 1323510,
+  "undercut_percent": 13.236039800265617,
+  "watertight": true,
+  "web": {
+    "free_hub_root_gap_mm": 0.20059028812873886,
+    "frieze_corners": 16,
+    "frieze_step_mm": 4.401373071046577,
+    "longest_orb_radial_along_ring_mm": 3.0063728740869236,
+    "longest_parallel_run_mm": 2.0500000000000007,
+    "orbs": [
+      [
+        "Main orb",
+        64.0,
+        24
+      ],
+      [
+        "Orb before her",
+        14.999999999999991,
+        16
+      ],
+      [
+        "Orb behind her",
+        170.00000000000003,
+        16
+      ],
+      [
+        "Orb at the palm",
+        270.0,
+        20
+      ]
+    ],
+    "svg_bytes": 168435,
+    "windows": [
+      "Web round the spider",
+      "Web round the spider, capture silk",
+      "Web behind the spinnerets",
+      "Web behind the spinnerets, capture silk",
+      "Orb behind her",
+      "Orb behind her, capture silk",
+      "Web toward the palm",
+      "Web toward the palm, capture silk",
+      "Orb at the palm",
+      "Orb at the palm, capture silk",
+      "Web past the palm",
+      "Web past the palm, capture silk",
+      "Orb before her",
+      "Orb before her, capture silk"
+    ]
+  },
+  "worst_aspect": 43628.27330500821,
+  "worst_draft_deg": -89.18415298873794,
+  "z_extent_mm": 8.719320297241211
+}
