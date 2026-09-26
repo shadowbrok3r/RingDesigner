@@ -2272,7 +2272,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Wolf)
             let r = s.p[0].hypot(s.p[1]);
             let q = wolf.face(s.p);
             let mouth = 1.0 - (1.0 - smooth(7.0, 8.2, q[0].hypot(q[1] - MOON_U))) * smooth(-2.2, -1.8, q[2]);
-            smooth(a.bore + 1.0, a.bore + 1.5, r) * smooth(0.15, 0.8, wolf.sdf(s.p)) * off_folds(s.p, caps) * mouth
+            smooth(a.bore + 1.0, a.bore + 1.5, r) * smooth(0.0, 0.4, wolf.sdf(s.p)) * off_folds(s.p, caps) * mouth
         };
         // Round the ring the ruff flows along it from the head; on the apex wall under the throat it flows down it.
         let pelt = |s: &Sample| -> (f64, f64) {
