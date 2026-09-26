@@ -983,23 +983,28 @@ mod tests {
         let err = find("caiman-imported").instantiate_with(&reg, &lib, &progress, &stop).err().expect("cancelled");
         assert_eq!(err.to_string(), ringdesign_graph::eval::CANCELLED);
         assert!(!matches!(progress.stage(), Stage::Baking { .. }));
-        // Cancelled at its third node, from the thread itself, the next node never runs and nothing lands.
-        let handles: Arc<std::sync::OnceLock<(Arc<Progress>, Arc<AtomicBool>)>> = Arc::default();
-        let seen = handles.clone();
-        let opening = find("caiman-imported").open(reg.clone(), lib.clone(), move || {
-            if let Some((progress, stop)) = seen.get() {
-                if matches!(progress.stage(), Stage::Evaluating { done, .. } if done >= 2) {
-                    stop.store(true, Ordering::Relaxed);
-                }
+        // Cancelled from its own report of the second node, the next node never runs.
+        let stop = Arc::new(AtomicBool::new(false));
+        let last = Arc::new(Mutex::new(None));
+        let (halt, seen) = (stop.clone(), last.clone());
+        let set: Arc<dyn Fn(Stage) + Send + Sync> = Arc::new(move |stage| {
+            if matches!(stage, Stage::Evaluating { done, .. } if done >= 2) {
+                halt.store(true, Ordering::Relaxed);
             }
+            *seen.lock().unwrap_or_else(|e| e.into_inner()) = Some(stage);
         });
-        handles.set((opening.progress(), opening.cancel_handle())).ok().expect("set once");
+        let err = opened(find("caiman-imported").source.clone(), &reg, &lib, set, &stop).err().expect("cancelled");
+        assert_eq!(err.to_string(), ringdesign_graph::eval::CANCELLED);
+        let stage = *last.lock().unwrap_or_else(|e| e.into_inner());
+        assert!(matches!(stage, Some(Stage::Evaluating { done: 2, .. })), "{stage:?}");
+        // Cancelled through its handle on its own thread, it stops and lands nothing.
+        let opening = find("caiman-imported").open(reg.clone(), lib.clone(), || {});
+        opening.cancel_handle().store(true, Ordering::Relaxed);
         let started = std::time::Instant::now();
         while !opening.is_finished() {
             assert!(started.elapsed().as_secs() < 60, "the thread never stopped");
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
-        assert!(matches!(opening.stage(), Stage::Evaluating { done: 2, .. }), "{:?}", opening.stage());
         assert!(!matches!(opening.poll(), Some(Ok(_))));
         // Dropped, as choosing another template drops it, a running open stops at its next check.
         let (hold, release) = held();
