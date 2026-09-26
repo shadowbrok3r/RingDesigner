@@ -22,3 +22,6 @@ New tests, each failing without its change:
 
 ## Not done
 - The Bestiarium examples have no ray-based land check today: Manticora and Arachne write their lands from the design constants (`COLLET_WALL_MM`, `CLAW_MM`, the sweep radii). So `part_sections` is matched to those numbers on equivalent lathe solids in the test. It is not wired into the examples, and the examples were not re-run.
+
+## Push
+Pushing to `shadowbrok3r/RingDesigner` was refused by the git proxy with a 403: the repository is not in this session's authorized set. No pull request was opened. The commit (`13b558f` in the clone) is saved here as `core-dfm-texels-hide-lands.patch`; apply it on RingDesigner master with `git am`. This task repository has no remote, so this commit is local only.
