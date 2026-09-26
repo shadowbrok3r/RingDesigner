@@ -1,0 +1,43 @@
+{
+  "authoring_ms": {
+    "graph_creation": 69.720834,
+    "source_read": 21.70118
+  },
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "design_set_patches": [],
+  "detail_findings": 0,
+  "editable_design_bytes": 5762849,
+  "editable_graph_reload": true,
+  "export_geometry_verified": true,
+  "exposed_control_policy": "explicit_allowlist",
+  "exposed_controls": [],
+  "geometry_check_resolution": {
+    "profile_steps": 448,
+    "refine": null,
+    "theta_steps": 1536
+  },
+  "nodes": 90,
+  "open_ms": {
+    "bake": 0.182135,
+    "bake_again": 0.14946299999999998,
+    "detail": 258.93258000000003,
+    "detail_again": 8.482276,
+    "evaluate": 23.017502,
+    "first_build": 5521.711048,
+    "read": 10.561853,
+    "rebuild": 5.631974,
+    "unpack": null,
+    "verdict": 36.902314
+  },
+  "size_budget_bytes": 3000000,
+  "size_review_required": false,
+  "source_identical": true,
+  "source_method": "lift",
+  "template_bytes": 2796862,
+  "template_class": "painted",
+  "template_gate_passed": true,
+  "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
+  "triangles": 1982572,
+  "vertices_faces_normals_identical": true
+}

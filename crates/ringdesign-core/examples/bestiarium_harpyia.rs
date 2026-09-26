@@ -639,14 +639,14 @@ fn wing() -> Vec<Feather> {
         let root = polar(th, r - lerp(0.4, 1.0, f));
         out.push(Feather {
             bow: 0.35,
-            width: 3.0,
+            width: 3.2,
             thick: 0.9,
             under: under + 0.12 - 0.015 * k as f64,
             lift: 0.12,
             round: 0.16,
-            notch: (k < 5).then_some((0.6, 0.72)),
+            notch: (k < 5).then_some((0.6, 0.8)),
             stations: PRIMARY,
-            channels: k < 4,
+            channels: k < 2,
             dome: true,
             lead: 1.0 / 3.0,
             taper: 0.3,
@@ -919,7 +919,7 @@ impl Head {
             path.push(add(last, mul(fall, 2.3)));
             let sp = Spine::through(&path, self.side);
             let len = sp.length();
-            let mut at: Vec<f64> = (0..=6).map(|i| (len - r) * i as f64 / 6.0).collect();
+            let mut at: Vec<f64> = (0..=5).map(|i| (len - r) * i as f64 / 5.0).collect();
             at.extend([len - 0.5 * r, len - 0.12 * r]);
             let radius = |d: f64| if d > len - r { let x = (d - (len - r)) / r; r * (1.0 - x * x).max(0.0).sqrt() } else { r };
             out.push((format!("Hair lock {}", k + 1), round_loft(&sp, &at, radius), self.up));
@@ -1044,8 +1044,9 @@ const ANKLE: [f64; 3] = [5.35, 118.0, -2.9];
 /// How near the stone a toe runs where its gap to its neighbours counts: along the girdle, where round 2's toes closed
 /// into a ring. Nearer the ankle they spring from one pad.
 const GIRDLE_BAND: f64 = 1.3;
-/// The knee from the ankle, mm: the tarsus drops forward and out from it to the foot.
-const KNEE: P3 = [-1.7, 1.75, -0.6];
+/// The knee from the ankle, mm: tucked under her flank, the long bare tarsus thrust forward and down from it to the foot,
+/// a raptor's strike.
+const KNEE: P3 = [-3.2, 1.3, -0.85];
 /// Radius and height where each claw leaves its toe, below the girdle.
 const CLAW_BASE: [f64; 2] = [4.78, -1.35];
 /// A toe's radius where it leaves the ankle, mm: 1.2 mm across.
@@ -1066,7 +1067,7 @@ struct Toe {
 }
 
 const TOES: [Toe; 4] = [
-    Toe { name: "hallux", hook_psi: 150.0, bow: 0.45, contact_rho: 3.5, curl: 104.0 },
+    Toe { name: "hallux", hook_psi: 142.0, bow: 0.45, contact_rho: 3.5, curl: 104.0 },
     Toe { name: "inner toe", hook_psi: 116.0, bow: 0.2, contact_rho: 3.62, curl: 86.0 },
     Toe { name: "outer toe", hook_psi: 94.0, bow: 0.25, contact_rho: 3.7, curl: 70.0 },
     Toe { name: "middle toe", hook_psi: 72.0, bow: 0.35, contact_rho: 3.25, curl: 104.0 },
@@ -1111,15 +1112,21 @@ fn foot(st: &Stone, fig: &Figure) -> Result<Foot> {
     let (hip, hn) = fig.torso_skin(0.74, 70.0);
     let hip = sub(hip, mul(hn, 0.6));
     let knee = add(ankle, KNEE);
-    let thigh = Spine::through(&[hip, add(mul(add(hip, knee), 0.5), [0.0, 0.35, 0.3]), knee], [0.0, 1.0, 0.0]);
+    let past = add(knee, mul(unit(sub(knee, hip)), 0.8));
+    let thigh = Spine::through(&[hip, add(mul(add(hip, knee), 0.5), [0.0, 0.35, 0.3]), knee, past], [0.0, 1.0, 0.0]);
     // A drumstick of a thigh, dressed in three lanceolate feathers laid down it toward the knee.
-    let tl = thigh.length();
-    let thigh_r = |d: f64| lerp(1.1, 0.78, smooth(0.0, tl, d));
+    // It rounds off over the knee.
+    let tl = thigh.length() - 0.8;
+    let thigh_r = |d: f64| {
+        let r = lerp(1.1, 0.85, smooth(0.0, tl, d));
+        if d > tl { r * (1.0 - ((d - tl) / 0.8).powi(2)).max(0.0).sqrt() } else { r }
+    };
     for i in 0..=20 {
         let d = tl * i as f64 / 20.0;
         nearest = nearest.min(st.gap(thigh.at(d).0) - thigh_r(d));
     }
-    let at: Vec<f64> = (0..=4).map(|i| tl * i as f64 / 4.0).collect();
+    let mut at: Vec<f64> = (0..=4).map(|i| tl * i as f64 / 4.0).collect();
+    at.extend([tl + 0.45, tl + 0.74]);
     parts.push(("Thigh".to_string(), round_loft(&thigh, &at, thigh_r)));
     for (k, around) in [0.0f64, 55.0, -55.0].into_iter().enumerate() {
         let thick = 0.84;
@@ -1143,9 +1150,10 @@ fn foot(st: &Stone, fig: &Figure) -> Result<Foot> {
     let joint = len - 0.4;
     const PITCH: f64 = 0.62;
     const STEP: f64 = 0.12;
-    let scuted = (joint - 3.0 * PITCH).max(0.35);
+    let scutes = (((joint - 0.5) / PITCH).floor() as usize).min(4);
+    let scuted = joint - scutes as f64 * PITCH;
     let mut at: Vec<(f64, f64)> = vec![(0.0, 0.0), (scuted - 0.02, 0.0)];
-    for k in 0..3 {
+    for k in 0..scutes {
         let root = scuted + k as f64 * PITCH;
         at.extend([(root + 0.03, 0.0), (root + 0.55 * PITCH, 0.55), (root + PITCH - 0.03, 1.0)]);
     }
@@ -1958,7 +1966,7 @@ fn main() -> Result<()> {
         library::save_design(out.join("look.ring.json"), &d)?;
         let mut tris: Vec<(usize, String)> = built.parts.evaluated.iter().flat_map(|e| e.components.iter()).map(|c| (c.mesh.faces.len(), c.name.clone())).collect();
         tris.sort_by(|a, b| b.0.cmp(&a.0));
-        println!("  part triangles {}: {:?}", tris.iter().map(|t| t.0).sum::<usize>(), &tris.iter().filter(|t| t.1.starts_with("High") || t.1.starts_with("Hair") || t.1 == "Torso" || t.1 == "Neck").collect::<Vec<_>>());
+        println!("  part triangles {}: {:?}", tris.iter().map(|t| t.0).sum::<usize>(), &tris);
         println!("  design {} bytes; reach {:.3}; z {:.3}", std::fs::metadata(out.join("look.ring.json"))?.len(), built.mesh.vertices.iter().map(|p| (p.0 as f64).hypot(p.1 as f64)).fold(0.0, f64::max), built.mesh.vertices.iter().map(|p| p.2 as f64).fold(0.0, f64::max) * 2.0);
         let finished = render::finished_from(&d, &lib, built);
         let parts = finished.parts(render::GOLD);
