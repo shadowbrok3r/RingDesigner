@@ -3103,7 +3103,11 @@ left to the bench. What it taught:
   face the pull, the wall below it). The chart's `theta` crosses a head's
   end wall in a few degrees; rows laid by distance along the parting line
   keep their size down it. Per-column rims are averaged along the ring, or
-  the steps laid from them comb the plates.
+  the steps laid from them comb the plates. Where sections run through an
+  arm tip's end wall a few columns spike (0.91 to 4.08 mm on a bypass) and
+  the average smears them into a bump: `Hide::steadied(half)` takes the
+  median over `2 * half + 1` columns first (opt-in; `steadied(0)` is the
+  plain hide).
 - **Layers joined by `Max` keep the draft clamp's guarantee**: each layer
   clamped alone is clamped together. Only the flanks' granules and knobs
   are trimmed at all, where the shank's walls lean back (0.2 mm at most).
