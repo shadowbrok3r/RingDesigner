@@ -1088,8 +1088,8 @@ pins both directions. On top of that:
   the shipped templates (`dfm::measured_tests::the_templates_measured`,
   `--nocapture`) it names three: Waves at 0.04 mm strokes on the waved
   hexagon signet's 11.8 × 0.8 mm cells, Chevron at 0.03 mm gaps on the
-  shouldered cushion's 7.6 × 0.6 mm shoulders, Braid at 0.04 mm gaps on
-  the braided band — all castable by the field, all casting softer than
+  shouldered cushion's 7.6 × 0.6 mm shoulders, Braid at 0.10 mm gaps on
+  the braided band (0.04 before its tall texels were read square) — all castable by the field, all casting softer than
   drawn, which is what the chip now says instead of nothing.
 
   **A tiling is measured at the tightest station its window covers**, not
@@ -1101,7 +1101,24 @@ pins both directions. On top of that:
   two figures above moved from 0.10 and 0.07 when `worst_arc_ratio` was
   added, and the finding now names the angle (185° on both). A *decal* had
   always done this per station; a tiling covers an arc, so what matters is
-  the worst one in it.
+  the worst one in it. A **hide** — one tile round the whole ring — lays
+  each column at its own angle, so it is judged at the worst station where
+  it stands half its height, not where its window reaches: a table-only
+  texture had been read at a 50° station's 0.43 scale. And granulometry's
+  disc is round in texels, so on texels more than 5% from square the
+  coarser axis is repeated out to the finer pitch before it is read (the
+  proposed box-average down to the coarse pitch quantized a thin bar to two
+  texels and read it 25% fat); the finer pitch alone had read bars across a
+  tall cell at a quarter of their width. `fit_to_floor` keeps its closed
+  form at the finer pitch, because examples build from it: on tall texels
+  its solve is safe but not tight (Chevron solves 16 and flags from 24).
+
+  A **made part** is not a layer, and a lost-wax ring's lands are judged
+  on it: `dfm::part_sections(solid, up, floor)` reads each face by one ray
+  along its inward normal and returns the thinnest section and the area
+  under the floor — a claw's diameter, a collet's wall, a point as a little
+  area to except by name. With `up`, the part's axis, faces turned toward
+  its ends are not read.
 
   A **flute** is measured *around* the ring, not across the band. It was
   filed as a `FeatureFootprint::across` — whose own doc named a flute —
