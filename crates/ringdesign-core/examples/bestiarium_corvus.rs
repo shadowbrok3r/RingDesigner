@@ -83,6 +83,12 @@ fn smooth(a: f64, b: f64, x: f64) -> f64 {
     t * t * (3.0 - 2.0 * t)
 }
 
+/// Smooth minimum of `a` and `b`, blended over `r`.
+fn soft_min(a: f64, b: f64, r: f64) -> f64 {
+    let h = (r - (a - b).abs()).max(0.0) / r;
+    a.min(b) - 0.25 * r * h * h
+}
+
 fn smoother(a: f64, b: f64, x: f64) -> f64 {
     let t = ((x - a) / (b - a)).clamp(0.0, 1.0);
     t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
@@ -199,8 +205,10 @@ impl Lean {
     }
 }
 
-/// Share of the bare crest's lean the heads take out.
+/// Share of the bare crest's lean the beaks take out.
 const LEVEL: f64 = 0.35;
+/// Share of the bare crest's lean the skulls take out.
+const SKULL_LEVEL: f64 = 0.15;
 
 /// A sample in hide millimetres with `across` measured from the exact parting line.
 fn hide_at(hide: &Hide, zero: &[f64], s: &skin::Sample) -> skin::HidePoint {
@@ -249,12 +257,16 @@ struct HeadSpec {
     beak_w: f64,
 }
 
-const HEAD: HeadSpec = HeadSpec { nape: 5.2, skull: 5.6, root: 5.95, beak: 6.0, crown: 2.9, lore_h: 1.5, tip_h: 0.95, beak_w: 1.25 };
-/// How far the painted beak runs past the struck one, mm.
-const BEAK_RUN: f64 = 0.55;
+const HEAD: HeadSpec = HeadSpec { nape: 5.2, skull: 5.6, root: 5.95, beak: 6.0, crown: 2.9, lore_h: 2.35, tip_h: 1.25, beak_w: 1.05 };
+/// Length of the hooked drop at the beak's tip, mm.
+const HOOK: f64 = 0.6;
 
 /// Height of the flat each head stands on, mm: the plumage's own height beside it.
 const HEAD_FLOOR: f64 = 0.85;
+/// Share of the beak's height over the floor at which the gape runs.
+const GAPE: f64 = 0.4;
+/// Where the gape starts, mm forward of the skull's rear: under the eye's front corner.
+const RICTUS_U: f64 = 4.3;
 /// Eye socket depth below the crown's edge, mm.
 const SOCKET_MM: f64 = 0.35;
 /// The eye's distance forward of the skull's rear, mm.
@@ -266,48 +278,56 @@ impl HeadSpec {
         let s = (2.0 * u / self.skull - 1.0).clamp(-1.0, 1.0);
         if s < 0.0 { 1.0 - (-s).powi(3) } else { 1.0 - s.powi(6) }
     }
-    /// Skull half-width `u` mm forward of its rear, before the side's own room.
+    /// Skull half-width `u` mm forward of its rear, before the side's own room: an egg, widest behind the eye, drawn into the beak.
     fn skull_half(&self, u: f64) -> f64 {
-        (1.85 + 0.6 * smoother(0.0, 1.6, u)).min(2.45 - (2.45 - self.beak_w) * smoother(3.9, self.skull, u))
+        const WIDEST: f64 = 2.8;
+        if u <= WIDEST {
+            let t = 1.0 - u / WIDEST;
+            1.25 + 0.85 * (1.0 - t * t).max(0.0).sqrt()
+        } else {
+            self.beak_w + (2.1 - self.beak_w) * (1.0 - smoother(WIDEST, self.skull + 0.2, u))
+        }
     }
     /// Painted beak half-width `v` mm forward of its root.
     fn beak_half(&self, v: f64) -> f64 {
         let t = (v / self.beak).clamp(0.0, 1.0);
         (self.beak_w * (1.0 - t.powf(1.8)).max(0.0).sqrt()).max(0.32)
     }
-    /// Painted beak crest height `v` mm forward of its root: an arch falling to the tip.
+    /// Culmen height `v` mm forward of the beak's root: level off the forehead, arching down to the tip, then hooked into the floor.
     fn beak_line(&self, v: f64) -> f64 {
-        let t = (v / self.beak).clamp(0.0, 1.0);
-        self.tip_h + (self.lore_h - self.tip_h) * (1.0 - t * t).max(0.0).sqrt()
+        if v <= self.beak {
+            let t = (v / self.beak).clamp(0.0, 1.0);
+            return self.tip_h + (self.lore_h - self.tip_h) * (1.0 - t.powf(2.4));
+        }
+        let k = ((v - self.beak) / HOOK).min(1.0);
+        self.tip_h * (1.0 - k * k).max(0.0).sqrt()
     }
-    /// Eye-socket depth at `u`, mm.
+    /// Depth of the terrace under the brow at `u`, mm: opening behind the eye and running forward to the beak.
     fn socket(&self, u: f64) -> f64 {
-        let e = ((u - EYE_U) / 0.85).abs();
-        SOCKET_MM * (1.0 - smoother(0.75, 1.0, e))
+        SOCKET_MM * smoother(EYE_U - 3.1, EYE_U - 1.3, u)
     }
     /// Head relief, mm, `u` forward of the skull's rear and `x` off the crest on a side with `room`, and the head's half-width there.
     fn head(&self, u: f64, x: f64, room: f64) -> (f64, f64) {
-        if !(0.0..=self.root + self.beak + BEAK_RUN).contains(&u) {
+        if !(0.0..=self.root + self.beak + HOOK).contains(&u) {
             return (0.0, 0.0);
         }
         let xe = (x - HEAD_FLAT).max(0.0);
         let (mut h, mut half): (f64, f64) = (0.0, 0.0);
         if u <= self.skull {
-            let wide = self.skull_half(u).min(room);
+            let wide = soft_min(self.skull_half(u), room, 0.4);
             let we = (wide - HEAD_FLAT).max(0.15);
             let a = self.skull_along(u);
             let dome = |e: f64| self.crown * (a - (e / we).powi(2)).max(0.0).sqrt();
-            let e = ((u - EYE_U) / 0.85).clamp(-1.0, 1.0);
-            let xs = 0.35 * we + 0.3 * (1.0 - (1.0 - e * e).sqrt());
-            let cap = if xe > xs { dome(xs) - self.socket(u) - 0.3 * (xe - xs) } else { f64::MAX };
-            h = dome(xe).min(cap);
+            let xs = 0.35 * we;
+            let cap = if xe > xs { dome(xs) - self.socket(u) * smoother(0.0, 0.25, xe - xs) - 0.3 * (xe - xs) } else { f64::MAX };
+            h = soft_min(dome(xe), cap, 0.3);
             half = wide;
         }
         if u >= self.skull - 0.6 {
             let v = (u - self.root).max(0.0);
             let wide = self.beak_half(v).min(room);
-            let flat = HEAD_FLAT.min(wide - 0.03).max(CREST_FLAT);
-            let fall = ((x - flat).max(0.0) / (wide - flat).max(0.03)).min(1.0);
+            let flat = CREST_FLAT.min(wide - 0.02);
+            let fall = ((x - flat).max(0.0) / (wide - flat).max(0.02)).min(1.0);
             h = h.max(self.beak_line(v) * (1.0 - fall * fall).sqrt());
             half = half.max(wide);
         }
@@ -316,9 +336,24 @@ impl HeadSpec {
     fn head_mm(&self, u: f64, x: f64, room: f64) -> f64 {
         self.head(u, x, room).0
     }
+    /// Height of the gape line `u` mm forward of the skull's rear: level from the mouth's corner, then a share of the beak's height over the floor.
+    fn gape_h(&self, u: f64) -> f64 {
+        let v = (u - self.root).max(0.0);
+        HEAD_FLOOR + GAPE * (self.beak_line(v.min(self.beak)) - HEAD_FLOOR)
+    }
+    /// The gape line's distance off the crest `u` mm forward of the skull's rear on a side with `room`.
+    fn gape_x(&self, u: f64, room: f64) -> f64 {
+        let (target, half) = (self.gape_h(u), self.head(u, 0.0, room).1);
+        let (mut lo, mut hi) = (CREST_FLAT, half);
+        for _ in 0..24 {
+            let mid = 0.5 * (lo + hi);
+            if self.head_mm(u, mid, room) > target { lo = mid } else { hi = mid }
+        }
+        0.5 * (lo + hi)
+    }
     /// The eye's distance off the crest on a side with `room`: on its socket's terrace.
     fn eye_x(&self, room: f64) -> f64 {
-        let we = (self.skull_half(EYE_U).min(room) - HEAD_FLAT).max(0.15);
+        let we = (soft_min(self.skull_half(EYE_U), room, 0.4) - HEAD_FLAT).max(0.15);
         HEAD_FLAT + 0.35 * we + 0.4
     }
 }
@@ -342,7 +377,8 @@ fn paint_heads(a: &Atlas, hide: &Hide, zero: &[f64], lean: &Lean) -> Alpha {
                 let q = on_bird(p, sign, palm);
                 let u = -q.o - HEAD.nape;
                 let h = HEAD.head_mm(u, q.w.abs(), room(q.rim));
-                if h > 0.0 { (h - lean.level(s.i % a.width, HEAD.head_mm(u, 0.0, room(q.rim)), q.w, LEVEL)).max(0.0) } else { 0.0 }
+                let k = SKULL_LEVEL + (LEVEL - SKULL_LEVEL) * smoother(HEAD.skull - 1.2, HEAD.skull - 0.2, u);
+                if h > 0.0 { (h - lean.level(s.i % a.width, HEAD.head_mm(u, 0.0, room(q.rim)), q.w, k)).max(0.0) } else { 0.0 }
             })
             .fold(0.0, f64::max)
             / PAINT_MM
@@ -612,28 +648,10 @@ fn side_feather(a: &Atlas, name: String, theta: f64, side: f64, r0: f64, tip: f6
     })
 }
 
-/// One raven's struck beak on the parting line, pointing away from the stone, gabled along its culmen, and its two bench-cut almond eyes.
-fn raven_head(d: &RingDesign, a: &Atlas, hide: &Hide, zero: &[f64], name: &str, sign: f64) -> Result<Vec<Stamp>> {
+/// One raven's struck beak on the parting line, pointing away from the stone, its culmen a ridge falling to the tip, and its two bench-cut almond eyes.
+fn raven_head(a: &Atlas, hide: &Hide, zero: &[f64], name: &str, sign: f64) -> Vec<Stamp> {
     let h = HEAD;
-    let half_len = 0.5 * h.beak;
-    let theta = theta_at(a, hide, sign * (h.nape + h.root + half_len));
-    let v = setting::crest_v(d, theta).ok_or_else(|| anyhow::anyhow!("No crest at {theta}"))?;
-    let half = |x: f64| 0.92 * h.beak_half(x + half_len);
-    let mut out = vec![Stamp {
-        name: format!("{name}, beak"),
-        theta_deg: theta,
-        v_mm: v,
-        rot_deg: if sign > 0.0 { 0.0 } else { 180.0 },
-        outline: banded(-half_len, half_len, half, |x| -half(x)),
-        height_mm: 0.33,
-        sink_mm: 0.5,
-        draft_deg: 4.0,
-        cut: false,
-        bench: false,
-        along_pull: false,
-        tier: 0,
-        top: StampTop::Gable { rise_mm: 0.4, axis_deg: 0.0 },
-    }];
+    let mut out = Vec::new();
     let eye = banded(-0.55, 0.55, |x| 0.35 * (1.0 - (x / 0.55).powi(2)).max(0.0).powf(0.75), |x| -0.35 * (1.0 - (x / 0.55).powi(2)).max(0.0).powf(0.75));
     let along = sign * (h.nape + EYE_U);
     let col = column(a, theta_at(a, hide, along));
@@ -656,7 +674,7 @@ fn raven_head(d: &RingDesign, a: &Atlas, hide: &Hide, zero: &[f64], name: &str, 
             top: StampTop::Flat,
         });
     }
-    Ok(out)
+    out
 }
 
 /// One raven's throat hackles: shingled lances under its skull and beak on both side faces, pointing back toward the nape.
@@ -707,7 +725,9 @@ fn raven_neck(a: &Atlas, name: &str, sign: f64) -> Vec<Stamp> {
 }
 
 /// Depth of the graver's work at alpha 1, mm.
-const BARB_MM: f64 = 0.07;
+const BARB_MM: f64 = 0.1;
+/// Share of the graver's depth the barbs, rachises and bristles take.
+const FINE: f64 = 0.7;
 /// How far a barb trails back toward the root per mm it runs out from the rachis.
 const BARB_SLOPE: f64 = 1.0;
 
@@ -737,17 +757,22 @@ fn paint_barbs(a: &Atlas, hide: &Hide, zero: &[f64]) -> Alpha {
         let heads = BIRDS.iter().any(|&(_, sign)| {
             let q = on_bird(p, sign, palm);
             let u = -q.o - HEAD.nape;
-            (0.0..=HEAD.root + HEAD.beak + BEAK_RUN).contains(&u) && q.w.abs() < HEAD.head(u, q.w.abs(), room(q.rim)).1 + 0.15
+            (0.0..=HEAD.root + HEAD.beak + HOOK).contains(&u) && q.w.abs() < HEAD.head(u, q.w.abs(), room(q.rim)).1 + 0.15
         });
         for (_, sign) in BIRDS {
             let q = on_bird(p, sign, palm);
             let u = -q.o - HEAD.nape;
-            if (0.0..=HEAD.root + HEAD.beak + BEAK_RUN).contains(&u) && q.w.abs() < HEAD.head(u, q.w.abs(), room(q.rim)).1 + 0.15 {
+            if (0.0..=HEAD.root + HEAD.beak + HOOK).contains(&u) && q.w.abs() < HEAD.head(u, q.w.abs(), room(q.rim)).1 + 0.15 {
                 if (HEAD.root - 0.75..HEAD.root + 0.05).contains(&u) {
                     for w0 in [-0.75, -0.45, -0.15, 0.15, 0.45, 0.75] {
                         let fan = w0 * (1.0 + 0.35 * (u - HEAD.root + 0.75));
-                        cut = cut.max(line(q.w - fan, 0.05) * smooth(HEAD.root - 0.75, HEAD.root - 0.6, u));
+                        cut = cut.max(FINE * line(q.w - fan, 0.05) * smooth(HEAD.root - 0.75, HEAD.root - 0.6, u));
                     }
+                }
+                let end = HEAD.root + HEAD.beak - 0.2;
+                if (RICTUS_U..end).contains(&u) {
+                    let fade = smooth(RICTUS_U, RICTUS_U + 0.25, u) * (1.0 - smooth(end - 0.6, end, u));
+                    cut = cut.max(line(q.w.abs() - HEAD.gape_x(u, room(q.rim)), 0.065) * fade);
                 }
                 continue;
             }
@@ -758,16 +783,16 @@ fn paint_barbs(a: &Atlas, hide: &Hide, zero: &[f64]) -> Alpha {
             if let Some((_, centre, half, _, t)) = plume.rectrix(q.o, x) {
                 let b = x - centre;
                 if t > 0.2 && t < 0.97 {
-                    cut = cut.max(line(b, 0.06));
+                    cut = cut.max(FINE * line(b, 0.06));
                 }
-                cut = cut.max(vane(q.o, b, half, 0.42));
+                cut = cut.max(FINE * vane(q.o, b, half, 0.42));
             } else if let Some(f) = plume.contour(q.o, x) {
                 let b = x - f.centre;
                 if f.t > 0.1 && f.t < f.end - 0.12 {
-                    cut = cut.max(line(b, 0.055));
+                    cut = cut.max(FINE * line(b, 0.055));
                 }
                 if f.pitch > 1.6 {
-                    cut = cut.max(vane(q.o + 0.21 * f.lane, b, f.half, 0.3 + 0.12 * (f.pitch - 1.0)) * smooth(0.0, 0.1, f.t));
+                    cut = cut.max(FINE * vane(q.o + 0.21 * f.lane, b, f.half, 0.3 + 0.12 * (f.pitch - 1.0)) * smooth(0.0, 0.1, f.t));
                 }
             }
         }
@@ -855,11 +880,21 @@ fn author(art: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Clamps)> {
     e.bench_only = true;
     d.layers.layers.push(e);
     for (name, sign) in BIRDS {
-        let head = raven_head(&d, &a, &hide, &zero, name, sign)?;
-        d.stamps.extend(head);
+        d.stamps.extend(raven_head(&a, &hide, &zero, name, sign));
         d.stamps.extend(raven_hackles(&a, &hide, name, sign));
         d.stamps.extend(raven_wings(&a, name, sign));
         d.stamps.extend(raven_neck(&a, name, sign));
+    }
+    if std::env::var("CORVUS_HEAD").is_ok() {
+        for (name, sign) in BIRDS {
+            for k in 0..26 {
+                let u = 0.5 * k as f64;
+                let along = sign * (HEAD.nape + u);
+                let x = column(&a, theta_at(&a, &hide, along));
+                let (rl, rh) = (hide.rim[x][0], hide.rim[x][1]);
+                println!("    {name} u {u:.1} theta {:.1} rim lo {rl:.2} hi {rh:.2} wall {:.2}/{:.2} skull_half {:.2} head half lo {:.2} hi {:.2} crest {:.2}", a.at(x, 0).theta, hide.wall[x][0], hide.wall[x][1], HEAD.skull_half(u), HEAD.head(u, 0.0, room(rl)).1, HEAD.head(u, 0.0, room(rh)).1, HEAD.head_mm(u, 0.0, room(rh)));
+            }
+        }
     }
     let ctx = d.field_context();
     for s in d.stamps.iter().filter(|s| s.along_pull) {
@@ -1061,7 +1096,7 @@ fn preview_stones(d: &RingDesign, lib: &AlphaLibrary, b: &mesh::BuildResult) -> 
 
 /// Views of the finished ring, yaw and pitch.
 const VIEWS: [(&str, f64, f64); 6] =
-    [("hero", 0.62, 0.92), ("face", 0.0, PI * 0.5), ("palm", PI, PI * 0.5), ("side", 0.0, 0.0), ("shoulder", -0.95, 0.55), ("reverse", PI + 0.5, 0.35)];
+    [("hero", -0.4, 0.8), ("face", 0.0, PI * 0.5), ("palm", PI, PI * 0.5), ("side", 0.0, 0.0), ("shoulder", -0.95, 0.55), ("reverse", PI + 0.5, 0.35)];
 
 /// The metal as the renders show it, with smooth vertex normals.
 fn display(b: &mesh::BuildResult) -> mesh::Mesh {
@@ -1073,9 +1108,9 @@ fn display(b: &mesh::BuildResult) -> mesh::Mesh {
 /// A three-quarter close-up of Huginn's head: its crop, yaw and pitch.
 fn head_view(d: &RingDesign, m: &mesh::Mesh) -> Result<(mesh::Mesh, f64, f64)> {
     let ctx = d.field_context();
-    let beak = d.stamps.iter().find(|s| s.name == "Huginn, beak").ok_or_else(|| anyhow::anyhow!("No beak"))?;
-    let f = beak.frame(d, &ctx);
-    let t = f.origin[1].atan2(f.origin[0]) - 0.3;
+    let eye = d.stamps.iter().find(|s| s.name == "Huginn, eye high").ok_or_else(|| anyhow::anyhow!("No eye"))?;
+    let f = eye.frame(d, &ctx);
+    let t = f.origin[1].atan2(f.origin[0]) + 0.133;
     let centre = [12.8 * t.cos(), 12.8 * t.sin(), 0.0];
     Ok((crop(m, centre, 8.0), PI * 0.5 - t + 0.55, 0.62))
 }
@@ -1127,16 +1162,16 @@ fn preview_sheets(out: &Path, d: &RingDesign, b: &mesh::BuildResult, gems: &[(me
     let (head, yaw, pitch) = head_view(d, &display)?;
     let mut cparts = vec![render::Part::metal(&head, render::GOLD), render::Part::metal(&display, render::GOLD)];
     cparts.extend(gems.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    let tiles: Vec<Vec<u8>> = [(yaw, pitch), (yaw + 0.6, pitch), (yaw - 0.5, 0.35), (yaw + 1.2, 0.9)]
+    let tiles: Vec<Vec<u8>> = [(yaw, pitch), (yaw + 0.6, pitch), (0.0, 0.0), (PI, 0.0), (yaw - 0.55, PI * 0.5), (yaw + 1.2, 0.9)]
         .iter()
         .map(|(y, p)| render::render_parts_ss(&cparts, *y, *p, edge, edge, 2))
         .collect();
-    sheet(&out.join("preview-head.png"), &tiles, edge, 2)?;
+    sheet(&out.join("preview-head.png"), &tiles, edge, 3)?;
     let small: Vec<Vec<u8>> = VIEWS.iter().map(|(_, y, p)| render::render_parts_ss(&parts, *y, *p, 300, 300, 3)).collect();
     sheet(&out.join("preview-300.png"), &small, 300, 3)?;
     let big: Vec<Vec<u8>> = VIEWS.iter().map(|(_, y, p)| render::render_parts_ss(&parts, *y, *p, 600, 600, 2)).collect();
     sheet(&out.join("preview-views.png"), &big, 600, 3)?;
-    let heroes: Vec<Vec<u8>> = [(0.62, 0.92), (1.3, 0.8), (1.8, 0.7), (2.2, 0.85), (-0.4, 0.8), (0.9, 1.1)]
+    let heroes: Vec<Vec<u8>> = [(-0.4, 0.8), (-0.6, 0.7), (-0.75, 0.62), (-0.9, 0.55), (-0.6, 0.9), (-1.1, 0.7)]
         .iter()
         .map(|(y, p)| render::render_parts_ss(&parts, *y, *p, 500, 500, 2))
         .collect();
@@ -1308,17 +1343,6 @@ fn main() -> Result<()> {
         return Ok(());
     }
     let (gems, previewed) = preview_stones(&d, &lib, &built);
-    if std::env::var("CORVUS_STL").is_ok() {
-        stl::write_stl(out.join("probe-metal.stl"), &built.mesh, &d.name)?;
-        let mut prior = d.clone();
-        prior.stamps.clear();
-        let staged = mesh::try_build(&prior, &lib, params)?;
-        let ctx = d.field_context();
-        let s = d.stamps.iter().find(|s| s.name == "Huginn, beak").ok_or_else(|| anyhow::anyhow!("No beak"))?;
-        let part = s.solid(&s.frame(&d, &ctx), &solid(&staged.mesh)).map_err(anyhow::Error::msg)?;
-        let m = mesh::Mesh { vertices: part.v.iter().map(|p| mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), faces: part.f.clone(), ..Default::default() };
-        stl::write_stl(out.join("probe-beak.stl"), &m, "beak")?;
-    }
     if preview {
         preview_sheets(&out, &d, &built, &gems)?;
         println!("  wrote preview sheets");
@@ -1338,9 +1362,6 @@ fn main() -> Result<()> {
     println!("  collet wall over its surroundings: {:?}", walls.iter().map(|w| (w * 100.0).round() / 100.0).collect::<Vec<_>>());
     let pattern = &inspection.prepared.mesh;
     let pattern_check = solid(pattern).check(true);
-    if std::env::var("CORVUS_STL").is_ok() {
-        stl::write_stl(out.join("probe-pattern.stl"), pattern, &d.name)?;
-    }
     let stamps_small = {
         let small = mesh::try_build(&d, &lib, stamp_params())?;
         let (mut block, clear) = release_block(&d, &lib, stamp_params())?;
