@@ -477,7 +477,7 @@ mod tests {
     fn template_controls_fence_graphs_clusters_and_presets_from_released_readers() {
         use super::*;
         use crate::graph::Mode;
-        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "blend_mm"), ("cad.feature", "theta_deg")] {
+        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "blend_mm"), ("cad.feature", "theta_deg"), ("layer.curve", "widths"), ("layer.curve", "heights"), ("layer.curve", "beads")] {
             for form in ["literal", "wire", "exposure"] {
                 let mut g = Graph::new("Editable geometry", Mode::Free);
                 let node = g.add(kind).unwrap();
