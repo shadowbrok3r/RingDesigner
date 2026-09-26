@@ -7,55 +7,70 @@
     1536,
     448
   ],
-  "build_s": 1.4500212399999999,
-  "clamp_worst_mm": 0.002249479293823242,
+  "build_s": 6.465531958,
+  "clamp_worst_mm": 0.007576406002044678,
   "clamps": [
     {
-      "layer": "Onyx nest",
+      "layer": "Collet bed",
       "texels_cut": 0,
-      "worst_mm": 0.0008481502532958984
+      "worst_mm": 0.0017659902572631837
     },
     {
       "layer": "Raven plumage",
       "texels_cut": 0,
-      "worst_mm": 0.0004553183913230896
+      "worst_mm": 0.007576406002044678
     },
     {
       "layer": "Raven heads",
       "texels_cut": 0,
-      "worst_mm": 0.002249479293823242
+      "worst_mm": 0.0
     }
   ],
   "cold_reload_identical": true,
-  "crest_line_median_z_mm": -0.013614775160029867,
+  "collet_wall_mm": [
+    0.46712542105875743,
+    0.5227108722233599,
+    0.583739389586071,
+    0.5778103387450781,
+    0.5595349070127782,
+    0.5611092524145368,
+    0.48598591309079,
+    0.4706962889021796,
+    0.4727404376732418,
+    0.5380198950181301,
+    0.5406851729045613,
+    0.5578960908869531,
+    0.5592088980767017,
+    0.5184452614259492,
+    0.4833249490508056,
+    0.4738865866883315
+  ],
+  "crest_line_median_z_mm": 0.012116567502546317,
   "degenerate_faces": 0,
   "design": "Corvus — Huginn and Muninn",
-  "design_bytes": 1078820,
+  "design_bytes": 1717198,
   "dfm": [],
   "embedded_alphas": 0,
   "field": {
-    "marginal_area_mm2": 14.554271337139888,
+    "marginal_area_mm2": 29.955370988632993,
     "notes": [
-      "Field-sampled: clean but for 0.012% at 1.1 deg, inside the sampling noise band of a fast-curving feature.",
-      "Undercut 63–63° on the crest: 0.1 mm² leaning to 3° — caused by \"Raven heads\"; muting it clears it.",
-      "Undercut 124–124° on the upper shoulder: 0.1 mm² leaning to 2° — no single layer explains it.",
-      "Undercut 137–137° on the upper shoulder: 0.1 mm² leaning to 1° — no single layer explains it.",
-      "Undercut 144–144° on the upper shoulder: 0.1 mm² leaning to 1° — no single layer explains it.",
-      "Cut at the bench after casting, and so not judged here: Graver's work, Huginn, eye near, Huginn, eye far, Muninn, eye near, Muninn, eye far.",
+      "Field-sampled: clean but for 0.022% at 1.0 deg, inside the sampling noise band of a fast-curving feature.",
+      "Undercut 54–54° on the lower shoulder: 0.2 mm² leaning to 1° — no single layer explains it.",
+      "Cut at the bench after casting, and so not judged here: Graver's work, Huginn, eye high, Huginn, eye low, Muninn, eye high, Muninn, eye low.",
       "1 made setting left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."
     ],
-    "parting_z_mm": -0.04058043543718265,
+    "parting_z_mm": -0.03764150832259738,
     "parts": [],
     "process": "SandTwoPart",
     "profile_samples": 128,
     "theta_samples": 256,
-    "thinnest_wall_mm": 2.35452090921048,
-    "thinnest_wall_theta_deg": 60.46875,
-    "total_area_mm2": 1336.4143807668424,
-    "undercut_area_mm2": 0.15821767308681695,
+    "thinnest_wall_mm": 2.280883682074421,
+    "thinnest_wall_theta_deg": 54.84375,
+    "total_area_mm2": 1377.8865326270743,
+    "undercut_area_mm2": 0.2978002905623117,
     "verdict": "Castable",
-    "vertical_area_mm2": 1.4581921345240094,
-    "worst_draft_deg": -1.1081816434546408
+    "vertical_area_mm2": 10.057721364372846,
+    "worst_draft_deg": -0.9903294613032212
   },
   "gates": {
     "bore_clear": true,
@@ -66,6 +81,7 @@
     "pattern_mesh": true,
     "release_0_075": true,
     "release_0_1": true,
+    "release_draft": true,
     "self_crossings": true,
     "solids_notes_empty": true,
     "stamps_384": true,
@@ -77,7 +93,7 @@
   "gates_passed": true,
   "layers": [
     "Onyx, made collet",
-    "Onyx nest",
+    "Collet bed",
     "Raven plumage",
     "Raven heads",
     "Graver's work"
@@ -85,63 +101,723 @@
   "made_parts": [
     {
       "degenerate_faces": 0,
-      "faces": 1060,
-      "name": "Huginn, beak",
+      "faces": 256,
+      "name": "Huginn, eye high",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
-      "vertices": 532,
-      "volume_mm3": 7.677247480570209
+      "vertices": 130,
+      "volume_mm3": 0.5501877215714249
     },
     {
       "degenerate_faces": 0,
-      "faces": 1060,
-      "name": "Muninn, beak",
+      "faces": 256,
+      "name": "Huginn, eye low",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
-      "vertices": 532,
-      "volume_mm3": 7.678767364503322
+      "vertices": 130,
+      "volume_mm3": 0.5501877215714377
     },
     {
       "degenerate_faces": 0,
-      "faces": 460,
-      "name": "Huginn, eye near",
+      "faces": 308,
+      "name": "Huginn, hackle high 5",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
-      "vertices": 232,
-      "volume_mm3": 5.420264277087569
+      "vertices": 156,
+      "volume_mm3": 0.6535200646690041
     },
     {
       "degenerate_faces": 0,
-      "faces": 460,
-      "name": "Huginn, eye far",
+      "faces": 308,
+      "name": "Huginn, hackle high 6",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
-      "vertices": 232,
-      "volume_mm3": 5.420264277087655
+      "vertices": 156,
+      "volume_mm3": 0.6533320446885693
     },
     {
       "degenerate_faces": 0,
-      "faces": 460,
-      "name": "Muninn, eye near",
+      "faces": 308,
+      "name": "Huginn, hackle high 7",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
-      "vertices": 232,
-      "volume_mm3": 5.420264277087721
+      "vertices": 156,
+      "volume_mm3": 0.6532253330454074
     },
     {
       "degenerate_faces": 0,
-      "faces": 460,
-      "name": "Muninn, eye far",
+      "faces": 312,
+      "name": "Huginn, hackle low 1",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
-      "vertices": 232,
-      "volume_mm3": 5.420264277087648
+      "vertices": 158,
+      "volume_mm3": 0.6540059478054325
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Huginn, hackle low 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6534914287766509
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Huginn, hackle low 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6533755494387243
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Huginn, hackle low 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6533535300917837
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Huginn, hackle low 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6533509247383678
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Huginn, hackle low 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6533560601722153
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Huginn, hackle low 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.653370914046923
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Huginn, primary high 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.521474403863396
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Huginn, primary high 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.521654128037871
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Huginn, primary high 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.521536885078277
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Huginn, primary high 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.52158461793453
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Huginn, primary high 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.521081695275313
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Huginn, primary high 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.5218055876293874
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Huginn, primary high 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.522385643701412
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 816,
+      "name": "Huginn, primary low 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 410,
+      "volume_mm3": 4.521194047671352
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 816,
+      "name": "Huginn, primary low 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 410,
+      "volume_mm3": 4.521587841931436
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 816,
+      "name": "Huginn, primary low 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 410,
+      "volume_mm3": 4.521651293692414
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 816,
+      "name": "Huginn, primary low 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 410,
+      "volume_mm3": 4.521651971024132
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 816,
+      "name": "Huginn, primary low 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 410,
+      "volume_mm3": 4.521617908906716
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 816,
+      "name": "Huginn, primary low 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 410,
+      "volume_mm3": 4.521237044197759
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 816,
+      "name": "Huginn, primary low 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 410,
+      "volume_mm3": 4.521884458989221
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 236,
+      "name": "Huginn, neck 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 120,
+      "volume_mm3": 0.363985114113007
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 236,
+      "name": "Huginn, neck 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 120,
+      "volume_mm3": 0.36285868843431307
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 236,
+      "name": "Huginn, neck 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 120,
+      "volume_mm3": 0.36273001989852727
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 236,
+      "name": "Huginn, neck 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 120,
+      "volume_mm3": 0.362787889321374
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 236,
+      "name": "Huginn, neck 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 120,
+      "volume_mm3": 0.3632236641648304
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 236,
+      "name": "Huginn, neck 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 120,
+      "volume_mm3": 0.3642723455425229
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 236,
+      "name": "Huginn, neck 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 120,
+      "volume_mm3": 0.3630443411044088
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 236,
+      "name": "Huginn, neck 8",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 120,
+      "volume_mm3": 0.3624561576313363
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 236,
+      "name": "Huginn, neck 9",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 120,
+      "volume_mm3": 0.362606394887978
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 236,
+      "name": "Huginn, neck 10",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 120,
+      "volume_mm3": 0.3626649492290795
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 256,
+      "name": "Muninn, eye high",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 130,
+      "volume_mm3": 0.5501877215714303
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 256,
+      "name": "Muninn, eye low",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 130,
+      "volume_mm3": 0.5501877215714284
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Muninn, hackle high 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6539187281456701
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Muninn, hackle high 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6534132006447889
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Muninn, hackle high 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6533597590977811
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Muninn, hackle high 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6533422808927776
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Muninn, hackle high 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6533428708673733
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Muninn, hackle high 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6533437470282465
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 312,
+      "name": "Muninn, hackle high 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 158,
+      "volume_mm3": 0.6533625153144763
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 304,
+      "name": "Muninn, hackle low 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 154,
+      "volume_mm3": 0.6534824510447713
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 308,
+      "name": "Muninn, hackle low 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 156,
+      "volume_mm3": 0.6533625306236903
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 304,
+      "name": "Muninn, hackle low 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 154,
+      "volume_mm3": 0.6531558765601801
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Muninn, primary high 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.522769114573062
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Muninn, primary high 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.523638841898251
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Muninn, primary high 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.524143222020854
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Muninn, primary high 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.523976631502179
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Muninn, primary high 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.524023573088312
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Muninn, primary high 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.523252688200562
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 820,
+      "name": "Muninn, primary high 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 412,
+      "volume_mm3": 4.52227093714497
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 812,
+      "name": "Muninn, primary low 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 408,
+      "volume_mm3": 4.526460400784215
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 812,
+      "name": "Muninn, primary low 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 408,
+      "volume_mm3": 4.524940071739472
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 812,
+      "name": "Muninn, primary low 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 408,
+      "volume_mm3": 4.524177462512062
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 812,
+      "name": "Muninn, primary low 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 408,
+      "volume_mm3": 4.523430638534508
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 812,
+      "name": "Muninn, primary low 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 408,
+      "volume_mm3": 4.523705436120089
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 812,
+      "name": "Muninn, primary low 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 408,
+      "volume_mm3": 4.52290850090651
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 812,
+      "name": "Muninn, primary low 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 408,
+      "volume_mm3": 4.52175483905209
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 228,
+      "name": "Muninn, neck 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 116,
+      "volume_mm3": 0.36376215024244624
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 228,
+      "name": "Muninn, neck 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 116,
+      "volume_mm3": 0.36283821167855596
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 228,
+      "name": "Muninn, neck 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 116,
+      "volume_mm3": 0.3626428518211634
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 228,
+      "name": "Muninn, neck 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 116,
+      "volume_mm3": 0.3626776902175049
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 228,
+      "name": "Muninn, neck 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 116,
+      "volume_mm3": 0.36307394674906157
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 228,
+      "name": "Muninn, neck 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 116,
+      "volume_mm3": 0.36435324871425584
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 228,
+      "name": "Muninn, neck 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 116,
+      "volume_mm3": 0.36308706720313527
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 228,
+      "name": "Muninn, neck 8",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 116,
+      "volume_mm3": 0.3625205476124674
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 228,
+      "name": "Muninn, neck 9",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 116,
+      "volume_mm3": 0.36266721683282366
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 228,
+      "name": "Muninn, neck 10",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 116,
+      "volume_mm3": 0.3627170128249993
     },
     {
       "degenerate_faces": 0,
@@ -157,66 +833,66 @@
   "mesh_self_crossings": 0,
   "metals": [
     {
-      "dwt": 10.366857149182767,
-      "grams": 16.122265041426015,
+      "dwt": 10.973410025891384,
+      "grams": 17.065560207860003,
       "metal": "Silver 925"
     },
     {
-      "dwt": 8.805824605483432,
-      "grams": 13.694588066076154,
+      "dwt": 9.321043265235927,
+      "grams": 14.495842647603094,
       "metal": "Bronze"
     },
     {
-      "dwt": 8.555659133736743,
-      "grams": 13.305537268744445,
+      "dwt": 9.05624089974627,
+      "grams": 14.08402893602346,
       "metal": "Brass"
     },
     {
-      "dwt": 11.557644794697005,
-      "grams": 17.97414683672495,
+      "dwt": 12.233869285622154,
+      "grams": 19.02579347497906,
       "metal": "Gold 10k"
     },
     {
-      "dwt": 13.07865086291687,
-      "grams": 20.339575684501742,
+      "dwt": 13.843867667799268,
+      "grams": 21.52962084138323,
       "metal": "Gold 14k"
     },
     {
-      "dwt": 15.590312199253622,
-      "grams": 24.2456456897121,
+      "dwt": 16.502483417315425,
+      "grams": 25.66423050564275,
       "metal": "Gold 18k"
     },
     {
-      "dwt": 17.811781588364216,
-      "grams": 27.700416770017675,
+      "dwt": 18.85392842286358,
+      "grams": 29.321136264469892,
       "metal": "Gold 22k"
     },
     {
-      "dwt": 19.332787656584077,
-      "grams": 30.065845617794462,
+      "dwt": 20.463926805040693,
+      "grams": 31.824963630874063,
       "metal": "Gold 24k"
     },
     {
-      "dwt": 12.007942643841044,
-      "grams": 18.67443827192203,
+      "dwt": 12.710513543503534,
+      "grams": 19.767058155822397,
       "metal": "Palladium 950"
     },
     {
-      "dwt": 21.464197475865863,
-      "grams": 33.38055841106062,
+      "dwt": 22.720042959012567,
+      "grams": 35.333616453532535,
       "metal": "Platinum 950"
     }
   ],
-  "min_angle_deg": 0.0031967697869035444,
+  "min_angle_deg": 0.003331586788648386,
   "non_manifold_edges": 0,
   "parting_monotone_failures": [],
   "pattern": {
     "bench_layers": [
       "Graver's work",
-      "Huginn, eye near",
-      "Huginn, eye far",
-      "Muninn, eye near",
-      "Muninn, eye far",
+      "Huginn, eye high",
+      "Huginn, eye low",
+      "Muninn, eye high",
+      "Muninn, eye low",
       "Onyx, made collet (setting)"
     ],
     "degenerate_faces": 0,
@@ -225,25 +901,25 @@
     "repeated_edges": 0,
     "scale": 1.019367991845056,
     "self_crossings": 0,
-    "triangles": 1368160
+    "triangles": 1360666
   },
   "process": "Sand (two-part)",
   "release_0_075": {
     "bounds": [
       [
-        -14.515239715576172,
-        -13.19957447052002,
-        -4.559908866882324
+        -13.501802444458008,
+        -13.505733489990234,
+        -4.943120956420898
       ],
       [
-        14.516000747680664,
-        13.26075267791748,
-        4.554576396942139
+        13.51321029663086,
+        14.473045349121094,
+        4.9319963455200195
       ]
     ],
     "cell_mm": [
-      0.07560218870639801,
-      0.07495843384826487
+      0.07483383030772539,
+      0.07480956908853297
     ],
     "fits_flask": true,
     "frame": {
@@ -264,203 +940,321 @@
       ]
     },
     "grid": [
-      384,
-      353
+      361,
+      374
     ],
-    "low_draft_area_mm2": 398.53798504105345,
+    "low_draft_area_mm2": 520.3129610790647,
     "notes": [
-      "398.54 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
-      "Sample spacing 0.076 × 0.075 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+      "520.31 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.075 × 0.075 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
+      "Some faces have negative draft without a resolved interval obstruction; inspect at finer sampling"
     ],
     "obstructions": [],
-    "occupied_rays": 58130,
-    "parting_mm": -0.0026662349700927734,
+    "occupied_rays": 60403,
+    "parting_mm": -0.005562305450439453,
     "sand_findings": [
-      {
-        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
-        "point": [
-          4.876721687614918,
-          -12.337552481264973,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.30240875482559204
-      },
-      {
-        "message": "Sand slot about 0.38 mm wide; inspect its support and depth",
-        "point": [
-          -4.800358466804028,
-          -12.262594047416709,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.37801094353199005
-      },
-      {
-        "message": "Sand slot about 0.23 mm wide; inspect its support and depth",
-        "point": [
-          -5.631982542574406,
-          12.773522857903757,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.22680656611919403
-      },
-      {
-        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
-        "point": [
-          5.632743574678898,
-          12.773522857903757,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.15120437741279602
-      },
-      {
-        "message": "Sand slot about 0.53 mm wide; inspect its support and depth",
-        "point": [
-          -3.3639168813824654,
-          12.998398159448552,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.5292153209447861
-      },
-      {
-        "message": "Sand slot about 0.53 mm wide; inspect its support and depth",
-        "point": [
-          3.3646779134869576,
-          12.998398159448552,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.5292153209447861
-      },
       {
         "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
         "point": [
-          -13.343405790627003,
-          1.529757780664027,
-          -0.0026662349700927734
+          0.005703926086426114,
+          -13.094280860003304,
+          -0.005562305450439453
         ],
-        "width_mm": 0.5996674707861189
-      },
-      {
-        "message": "Sand slot about 0.45 mm wide; inspect its support and depth",
-        "point": [
-          -11.453351072967052,
-          9.925102371669691,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.4497506030895892
-      },
-      {
-        "message": "Sand slot about 0.22 mm wide; inspect its support and depth",
-        "point": [
-          11.302907727658749,
-          9.925102371669691,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.2248753015447946
-      },
-      {
-        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
-        "point": [
-          13.1173602566123,
-          1.529757780664027,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.14991686769652973
-      },
-      {
-        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
-        "point": [
-          11.454112105071545,
-          4.977845737684212,
-          2.275955080986023
-        ],
-        "width_mm": 0.15120437741279602
-      },
-      {
-        "message": "Sand slot about 0.38 mm wide; inspect its support and depth",
-        "point": [
-          5.859550140798092,
-          10.749645144000606,
-          2.275955080986023
-        ],
-        "width_mm": 0.37801094353199005
-      },
-      {
-        "message": "Sand slot about 0.45 mm wide; inspect its support and depth",
-        "point": [
-          -11.982566393911839,
-          -2.8927898163836003,
-          2.275955080986023
-        ],
-        "width_mm": 0.4497506030895892
+        "width_mm": 0.5986706424618031
       },
       {
         "message": "Sand slot about 0.07 mm wide; inspect its support and depth",
         "point": [
-          11.907725237309933,
-          2.504217420691469,
-          2.275955080986023
+          -5.981002498531606,
+          12.864639613717637,
+          -0.005562305450439453
         ],
-        "width_mm": 0.07495843384826487
+        "width_mm": 0.07483383030772539
+      },
+      {
+        "message": "Sand slot about 0.07 mm wide; inspect its support and depth",
+        "point": [
+          5.992410350704457,
+          12.864639613717637,
+          -0.005562305450439453
+        ],
+        "width_mm": 0.07483383030772539
       },
       {
         "message": "Sand slot about 0.45 mm wide; inspect its support and depth",
         "point": [
-          11.98332742601633,
-          -2.8927898163836003,
-          2.275955080986023
+          -13.38955169899642,
+          0.2218224377555647,
+          -0.005562305450439453
         ],
-        "width_mm": 0.4497506030895892
+        "width_mm": 0.44885741453119776
+      },
+      {
+        "message": "Sand slot about 0.52 mm wide; inspect its support and depth",
+        "point": [
+          -13.090216377765518,
+          2.3912999413230214,
+          -0.005562305450439453
+        ],
+        "width_mm": 0.5236669836197307
+      },
+      {
+        "message": "Sand slot about 0.52 mm wide; inspect its support and depth",
+        "point": [
+          9.434766544859823,
+          -0.0026062695100339053,
+          -0.005562305450439453
+        ],
+        "width_mm": 0.5236669836197307
+      },
+      {
+        "message": "Sand slot about 0.22 mm wide; inspect its support and depth",
+        "point": [
+          13.026790399630642,
+          2.4661095104115542,
+          -0.005562305450439453
+        ],
+        "width_mm": 0.22442870726559888
+      },
+      {
+        "message": "Sand slot about 0.45 mm wide; inspect its support and depth",
+        "point": [
+          13.400959551169269,
+          0.14701286866703184,
+          -0.005562305450439453
+        ],
+        "width_mm": 0.44885741453119776
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          -3.9604890802230197,
+          -11.448470340055577,
+          2.46321702003479
+        ],
+        "width_mm": 0.5986706424618031
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          4.046730762703596,
+          -11.448470340055577,
+          2.46321702003479
+        ],
+        "width_mm": 0.5986706424618031
+      },
+      {
+        "message": "Sand slot about 0.37 mm wide; inspect its support and depth",
+        "point": [
+          -6.879008462224311,
+          -10.326326803727584,
+          2.46321702003479
+        ],
+        "width_mm": 0.37416915153862695
+      },
+      {
+        "message": "Sand slot about 0.37 mm wide; inspect its support and depth",
+        "point": [
+          6.890416314397161,
+          -10.326326803727584,
+          2.46321702003479
+        ],
+        "width_mm": 0.37416915153862695
+      },
+      {
+        "message": "Sand slot about 0.07 mm wide; inspect its support and depth",
+        "point": [
+          -8.749854219917445,
+          -8.75532585286839,
+          2.46321702003479
+        ],
+        "width_mm": 0.07483383030772539
+      },
+      {
+        "message": "Sand slot about 0.07 mm wide; inspect its support and depth",
+        "point": [
+          8.761262072090297,
+          -8.75532585286839,
+          2.46321702003479
+        ],
+        "width_mm": 0.07483383030772539
       },
       {
         "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
         "point": [
-          -11.90696420520544,
-          2.504217420691469,
-          -2.2812875509262085
+          -7.70218059560929,
+          11.368448231946976,
+          2.46321702003479
         ],
-        "width_mm": 0.15120437741279602
+        "width_mm": 0.14966766061545078
       },
       {
-        "message": "Sand slot about 0.08 mm wide; inspect its support and depth",
+        "message": "Sand slot about 0.45 mm wide; inspect its support and depth",
         "point": [
-          -11.377748884260654,
-          4.977845737684212,
-          -2.2812875509262085
+          -12.341878074688264,
+          -0.15222540768709963,
+          2.46321702003479
         ],
-        "width_mm": 0.07560218870639801
+        "width_mm": 0.44885741453119776
       },
       {
-        "message": "Sand slot about 0.38 mm wide; inspect its support and depth",
+        "message": "Sand slot about 0.45 mm wide; inspect its support and depth",
         "point": [
-          -5.8587891086936,
-          10.749645144000606,
-          -2.2812875509262085
+          -11.818041262534187,
+          2.241680803145954,
+          2.46321702003479
         ],
-        "width_mm": 0.37801094353199005
+        "width_mm": 0.44885741453119776
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          -5.981002498531606,
+          9.947066419264852,
+          2.46321702003479
+        ],
+        "width_mm": 0.14961913817706593
+      },
+      {
+        "message": "Sand slot about 0.37 mm wide; inspect its support and depth",
+        "point": [
+          -5.382331856069804,
+          10.919590817415779,
+          2.46321702003479
+        ],
+        "width_mm": 0.37404784544266484
+      },
+      {
+        "message": "Sand slot about 0.22 mm wide; inspect its support and depth",
+        "point": [
+          10.632107829783429,
+          6.281397533926734,
+          2.46321702003479
+        ],
+        "width_mm": 0.22442870726559888
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          11.455279963168408,
+          4.411158306713412,
+          2.46321702003479
+        ],
+        "width_mm": 0.14961913817706593
+      },
+      {
+        "message": "Sand slot about 0.45 mm wide; inspect its support and depth",
+        "point": [
+          12.053950605630213,
+          2.241680803145954,
+          2.46321702003479
+        ],
+        "width_mm": 0.44885741453119776
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          12.353285926861115,
+          -0.15222540768709963,
+          2.46321702003479
+        ],
+        "width_mm": 0.29923827635413186
+      },
+      {
+        "message": "Sand slot about 0.07 mm wide; inspect its support and depth",
+        "point": [
+          7.71358844778214,
+          11.368448231946976,
+          -2.474341630935669
+        ],
+        "width_mm": 0.07483383030772539
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          -0.1439637345290251,
+          13.837164011868564,
+          -2.474341630935669
+        ],
+        "width_mm": 0.29933532123090156
+      },
+      {
+        "message": "Sand slot about 0.45 mm wide; inspect its support and depth",
+        "point": [
+          -11.518705941303285,
+          4.411158306713412,
+          -2.474341630935669
+        ],
+        "width_mm": 0.44885741453119776
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          -10.620699977610581,
+          6.281397533926734,
+          -2.474341630935669
+        ],
+        "width_mm": 0.14961913817706593
+      },
+      {
+        "message": "Sand slot about 0.37 mm wide; inspect its support and depth",
+        "point": [
+          5.393739708242652,
+          10.919590817415779,
+          -2.474341630935669
+        ],
+        "width_mm": 0.37404784544266484
+      },
+      {
+        "message": "Sand slot about 0.22 mm wide; inspect its support and depth",
+        "point": [
+          5.992410350704457,
+          9.872256850176319,
+          -2.474341630935669
+        ],
+        "width_mm": 0.22442870726559888
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          6.815582484089436,
+          10.096685557441917,
+          -2.474341630935669
+        ],
+        "width_mm": 0.14961913817706593
+      },
+      {
+        "message": "Sand slot about 0.37 mm wide; inspect its support and depth",
+        "point": [
+          8.910929732705746,
+          3.812681754005146,
+          -2.474341630935669
+        ],
+        "width_mm": 0.37404784544266484
       }
     ],
     "status": "Review",
-    "suggested_parting_mm": -0.0026662349700927734,
+    "suggested_parting_mm": -0.005562305450439453,
     "tolerance_mm": 0.02,
     "unresolved_rays": 0,
-    "worst_draft_deg": -0.8763609535015894
+    "worst_draft_deg": -2.9280080391837675
   },
   "release_0_1": {
     "bounds": [
       [
-        -14.515239715576172,
-        -13.19957447052002,
-        -4.559908866882324
+        -13.501802444458008,
+        -13.505733489990234,
+        -4.943120956420898
       ],
       [
-        14.516000747680664,
-        13.26075267791748,
-        4.554576396942139
+        13.51321029663086,
+        14.473045349121094,
+        4.9319963455200195
       ]
     ],
     "cell_mm": [
-      0.09976371293215408,
-      0.09985029112617924
+      0.09968639387855671,
+      0.09992421013968332
     ],
     "fits_flask": true,
     "frame": {
@@ -481,235 +1275,589 @@
       ]
     },
     "grid": [
-      291,
-      265
+      271,
+      280
     ],
-    "low_draft_area_mm2": 398.53798504105345,
+    "low_draft_area_mm2": 520.3129610790647,
     "notes": [
-      "398.54 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
-      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+      "520.31 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
+      "Some faces have negative draft without a resolved interval obstruction; inspect at finer sampling"
     ],
     "obstructions": [],
-    "occupied_rays": 33092,
-    "parting_mm": -0.0026662349700927734,
+    "occupied_rays": 33980,
+    "parting_mm": -0.005562305450439453,
     "sand_findings": [
       {
-        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
         "point": [
-          4.8888024497277955,
-          -12.350846995947496,
-          -0.0026662349700927734
+          0.005703926086425837,
+          -13.155998754501343,
+          -0.005562305450439453
         ],
-        "width_mm": 0.3990548517286163
+        "width_mm": 0.5981183632713403
       },
       {
-        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
         "point": [
-          -4.78827770469115,
-          -12.250996704821317,
-          -0.0026662349700927734
+          -5.9754797066269765,
+          12.924220091956002,
+          -0.005562305450439453
         ],
-        "width_mm": 0.3990548517286163
+        "width_mm": 0.19937278775711342
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          6.0865739526783855,
+          12.924220091956002,
+          -0.005562305450439453
+        ],
+        "width_mm": 0.19937278775711342
       },
       {
         "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
         "point": [
-          -5.6861511210805356,
-          12.711576076723496,
-          -0.0026662349700927734
+          -13.352272853640173,
+          0.23384540421622202,
+          -0.005562305450439453
         ],
-        "width_mm": 0.09976371293215408
+        "width_mm": 0.09992421013968332
       },
       {
         "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
         "point": [
-          5.587148440252876,
-          12.811426367849673,
-          -0.0026662349700927734
+          -13.053213672004503,
+          2.4321780272892557,
+          -0.005562305450439453
         ],
-        "width_mm": 0.29929113879646224
-      },
-      {
-        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
-        "point": [
-          -2.194421168455142,
-          13.011126950102032,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.19952742586430816
-      },
-      {
-        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
-        "point": [
-          2.2949459134917922,
-          13.011126950102032,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.19952742586430816
+        "width_mm": 0.29977263041904995
       },
       {
         "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
         "point": [
-          -13.268193303924246,
-          1.5283434705914187,
-          -0.0026662349700927734
+          13.064621524177355,
+          2.4321780272892557,
+          -0.005562305450439453
         ],
-        "width_mm": 0.39940116450471697
-      },
-      {
-        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
-        "point": [
-          -11.472446471145473,
-          9.915767925190476,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.49925145563089623
-      },
-      {
-        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
-        "point": [
-          11.273680077385658,
-          9.915767925190476,
-          -0.0026662349700927734
-        ],
-        "width_mm": 0.09985029112617924
+        "width_mm": 0.3996968405587333
       },
       {
         "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
         "point": [
-          13.169190623096585,
-          1.5283434705914187,
-          -0.0026662349700927734
+          13.363680705813024,
+          0.23384540421622202,
+          -0.005562305450439453
         ],
-        "width_mm": 0.19970058225235848
-      },
-      {
-        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
-        "point": [
-          11.373443790317813,
-          4.923253368881514,
-          2.275955080986023
-        ],
-        "width_mm": 0.09976371293215408
-      },
-      {
-        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
-        "point": [
-          5.8864395790493385,
-          10.71457025419991,
-          2.275955080986023
-        ],
-        "width_mm": 0.19952742586430816
-      },
-      {
-        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
-        "point": [
-          -12.270556174602705,
-          -0.06926118742744954,
-          2.275955080986023
-        ],
-        "width_mm": 0.2995508733785377
-      },
-      {
-        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
-        "point": [
-          -11.971265035806242,
-          -2.964919630086647,
-          2.275955080986023
-        ],
-        "width_mm": 0.49925145563089623
-      },
-      {
-        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
-        "point": [
-          11.972026067910738,
-          -2.964919630086647,
-          2.275955080986023
-        ],
-        "width_mm": 0.49925145563089623
-      },
-      {
-        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
-        "point": [
-          -11.372682758213317,
-          5.023103660007691,
-          -2.2812875509262085
-        ],
-        "width_mm": 0.09976371293215408
-      },
-      {
-        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
-        "point": [
-          -5.785914834012691,
-          10.71457025419991,
-          -2.2812875509262085
-        ],
-        "width_mm": 0.19952742586430816
-      },
-      {
-        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
-        "point": [
-          3.4921104686776387,
-          12.711576076723496,
-          -2.2812875509262085
-        ],
-        "width_mm": 0.4988185646607704
+        "width_mm": 0.19984842027936664
       },
       {
         "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
         "point": [
-          -11.971265035806242,
-          2.227295508474673,
-          -2.2812875509262085
+          3.9931596812286934,
+          -11.457287182126727,
+          2.46321702003479
         ],
-        "width_mm": 0.5991017467570754
+        "width_mm": 0.5981183632713403
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          -3.981751829055842,
+          -11.357362971987044,
+          2.46321702003479
+        ],
+        "width_mm": 0.19937278775711342
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          -6.872657251533987,
+          -10.258196660450526,
+          2.46321702003479
+        ],
+        "width_mm": 0.09968639387855671
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          6.884065103706838,
+          -10.258196660450526,
+          2.46321702003479
+        ],
+        "width_mm": 0.19937278775711342
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          -8.766698735226564,
+          -8.759333508355276,
+          2.46321702003479
+        ],
+        "width_mm": 0.19937278775711342
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          8.877792981277974,
+          -8.759333508355276,
+          2.46321702003479
+        ],
+        "width_mm": 0.19937278775711342
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          -7.769834796440997,
+          11.425356939860755,
+          2.46321702003479
+        ],
+        "width_mm": 0.19937278775711342
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          -1.6889647698490382,
+          13.72361377307347,
+          2.46321702003479
+        ],
+        "width_mm": 0.09968639387855671
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          -12.355408914854605,
+          -0.2657756464821953,
+          2.46321702003479
+        ],
+        "width_mm": 0.4996210506984166
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          -11.856976945461822,
+          2.2323296070098877,
+          2.46321702003479
+        ],
+        "width_mm": 0.4996210506984166
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          -5.9754797066269765,
+          9.926493787765505,
+          2.46321702003479
+        ],
+        "width_mm": 0.09992421013968332
       },
       {
         "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
         "point": [
-          12.2713172067072,
-          -0.06926118742744954,
-          -2.2812875509262085
+          -5.377361343355636,
+          10.925735889162336,
+          2.46321702003479
         ],
-        "width_mm": 0.2995508733785377
+        "width_mm": 0.29977263041904995
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          11.469639222120449,
+          4.43066223008292,
+          2.46321702003479
+        ],
+        "width_mm": 0.19984842027936664
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          12.067757585391789,
+          2.2323296070098877,
+          2.46321702003479
+        ],
+        "width_mm": 0.3996968405587333
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          12.366816767027458,
+          -0.2657756464821953,
+          2.46321702003479
+        ],
+        "width_mm": 0.4996210506984166
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          7.781242648613851,
+          11.425356939860755,
+          -2.474341630935669
+        ],
+        "width_mm": 0.09968639387855671
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          -11.458231369947596,
+          4.43066223008292,
+          -2.474341630935669
+        ],
+        "width_mm": 0.19984842027936664
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          5.388769195528489,
+          10.925735889162336,
+          -2.474341630935669
+        ],
+        "width_mm": 0.3996968405587333
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          5.986887558799829,
+          9.926493787765505,
+          -2.474341630935669
+        ],
+        "width_mm": 0.19984842027936664
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          6.784378709828282,
+          10.126342208044871,
+          -2.474341630935669
+        ],
+        "width_mm": 0.3996968405587333
       }
     ],
     "status": "Review",
-    "suggested_parting_mm": -0.0026662349700927734,
+    "suggested_parting_mm": -0.005562305450439453,
     "tolerance_mm": 0.02,
     "unresolved_rays": 0,
-    "worst_draft_deg": -0.8763609535015894
+    "worst_draft_deg": -2.9280080391837675
+  },
+  "release_at": {
+    "0_075": [],
+    "0_1": []
+  },
+  "release_draft": {
+    "build": [
+      768,
+      320
+    ],
+    "release_0_075": {
+      "at": [],
+      "obstructions": 0,
+      "parting_mm": -0.014761636964976788,
+      "unresolved": 0
+    },
+    "release_0_1": {
+      "at": [],
+      "obstructions": 0,
+      "parting_mm": -0.024356842041015625,
+      "unresolved": 0
+    }
+  },
+  "sand_slots": {
+    "0_075": [
+      {
+        "bench": "chase the dip with a half-round graver",
+        "r": 14.187013190882512,
+        "theta": 114.93456447510523,
+        "width_mm": 0.07483383030772539,
+        "z": -0.005562305450439453,
+        "zone": "nape dip between a skull and the collet's feathered collar"
+      },
+      {
+        "bench": "chase the dip with a half-round graver",
+        "r": 14.191826316653646,
+        "theta": 65.0236722141005,
+        "width_mm": 0.07483383030772539,
+        "z": -0.005562305450439453,
+        "zone": "nape dip between a skull and the collet's feathered collar"
+      },
+      {
+        "bench": "file the flash off the beak and recut the hook",
+        "r": 13.258165945305231,
+        "theta": 10.719838836106502,
+        "width_mm": 0.22442870726559888,
+        "z": -0.005562305450439453,
+        "zone": "beak and hooked tip against the other raven's back feathers"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.378032140033921,
+        "theta": 225.01790906826554,
+        "width_mm": 0.07483383030772539,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.386098816243699,
+        "theta": 315.0194170403572,
+        "width_mm": 0.07483383030772539,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "chase with a graver",
+        "r": 13.73190449755017,
+        "theta": 124.11783664772956,
+        "width_mm": 0.14966766061545078,
+        "z": 2.46321702003479,
+        "zone": "neck and collar feathers beside the collet or a head's flank"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 11.606744644244905,
+        "theta": 121.01778013804979,
+        "width_mm": 0.14961913817706593,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.348994772181376,
+        "theta": 30.574387042793383,
+        "width_mm": 0.22442870726559888,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.275249758821786,
+        "theta": 21.060519280027115,
+        "width_mm": 0.14961913817706593,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.354223802632458,
+        "theta": 359.2939990201468,
+        "width_mm": 0.29923827635413186,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "chase with a graver",
+        "r": 13.738306371027559,
+        "theta": 55.842775366854774,
+        "width_mm": 0.07483383030772539,
+        "z": -2.474341630935669,
+        "zone": "neck and collar feathers beside the collet or a head's flank"
+      },
+      {
+        "bench": "chase with a graver",
+        "r": 13.837912900730734,
+        "theta": 90.59609156765745,
+        "width_mm": 0.29933532123090156,
+        "z": -2.474341630935669,
+        "zone": "neck and collar feathers beside the collet or a head's flank"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.33917432382079,
+        "theta": 149.39866876882127,
+        "width_mm": 0.14961913817706593,
+        "z": -2.474341630935669,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 11.54861191343285,
+        "theta": 58.742459409683036,
+        "width_mm": 0.22442870726559888,
+        "z": -2.474341630935669,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.181757830595835,
+        "theta": 55.97940355940201,
+        "width_mm": 0.14961913817706593,
+        "z": -2.474341630935669,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      }
+    ],
+    "0_1": [
+      {
+        "bench": "chase the dip with a half-round graver",
+        "r": 14.23874371950103,
+        "theta": 114.81333881976474,
+        "width_mm": 0.19937278775711342,
+        "z": -0.005562305450439453,
+        "zone": "nape dip between a skull and the collet's feathered collar"
+      },
+      {
+        "bench": "chase the dip with a half-round graver",
+        "r": 14.285721804191141,
+        "theta": 64.78222659410739,
+        "width_mm": 0.19937278775711342,
+        "z": -0.005562305450439453,
+        "zone": "nape dip between a skull and the collet's feathered collar"
+      },
+      {
+        "bench": "file the flash off the beak and recut the hook",
+        "r": 13.354320425657358,
+        "theta": 178.9966513375757,
+        "width_mm": 0.09992421013968332,
+        "z": -0.005562305450439453,
+        "zone": "beak and hooked tip against the other raven's back feathers"
+      },
+      {
+        "bench": "file the flash off the beak and recut the hook",
+        "r": 13.27787170910436,
+        "theta": 169.4452334978285,
+        "width_mm": 0.29977263041904995,
+        "z": -0.005562305450439453,
+        "zone": "beak and hooked tip against the other raven's back feathers"
+      },
+      {
+        "bench": "file the flash off the beak and recut the hook",
+        "r": 13.365726530196268,
+        "theta": 1.002492332752074,
+        "width_mm": 0.19984842027936664,
+        "z": -0.005562305450439453,
+        "zone": "beak and hooked tip against the other raven's back feathers"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.035117004236058,
+        "theta": 250.67996100280396,
+        "width_mm": 0.19937278775711342,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.347632016769087,
+        "theta": 236.1792043085266,
+        "width_mm": 0.09968639387855671,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.353985230546156,
+        "theta": 303.8647505437193,
+        "width_mm": 0.19937278775711342,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.392777341049042,
+        "theta": 224.97592173835048,
+        "width_mm": 0.19937278775711342,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.471613036372801,
+        "theta": 315.3848203837895,
+        "width_mm": 0.19937278775711342,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "chase with a graver",
+        "r": 13.81698642856718,
+        "theta": 124.21773240641954,
+        "width_mm": 0.19937278775711342,
+        "z": 2.46321702003479,
+        "zone": "neck and collar feathers beside the collet or a head's flank"
+      },
+      {
+        "bench": "chase with a graver",
+        "r": 13.827153611147995,
+        "theta": 97.01610944895234,
+        "width_mm": 0.09968639387855671,
+        "z": 2.46321702003479,
+        "zone": "neck and collar feathers beside the collet or a head's flank"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 11.586269315135825,
+        "theta": 121.04679867716504,
+        "width_mm": 0.09992421013968332,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.17734452730748,
+        "theta": 116.20520447097027,
+        "width_mm": 0.29977263041904995,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.295665564851996,
+        "theta": 21.121288360979886,
+        "width_mm": 0.19984842027936664,
+        "z": 2.46321702003479,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "chase with a graver",
+        "r": 13.823404731101213,
+        "theta": 55.74316838445198,
+        "width_mm": 0.09968639387855671,
+        "z": -2.474341630935669,
+        "zone": "neck and collar feathers beside the collet or a head's flank"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 12.2850247832202,
+        "theta": 158.85953965363336,
+        "width_mm": 0.19984842027936664,
+        "z": -2.474341630935669,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      },
+      {
+        "bench": "lift the flash along the tip with a flat graver",
+        "r": 11.592156898535292,
+        "theta": 58.90489382156195,
+        "width_mm": 0.19984842027936664,
+        "z": -2.474341630935669,
+        "zone": "feather tips on the flank: contour rows, primaries or rectrices"
+      }
+    ],
+    "floor_mm": 0.3
   },
   "seats_resolved": 1,
   "size": "US 8.5",
   "solids_notes": [],
-  "stamped": 6,
-  "stamps": 6,
+  "stamped": 72,
+  "stamps": 72,
   "stamps_384": {
-    "at": [
-      {
-        "depth_mm": 0.06279574034563992,
-        "r": 15.161933109925155,
-        "theta": 153.46569847054383,
-        "z": -0.07120166418902371
-      }
-    ],
     "build": [
       384,
       192
     ],
     "degenerate_faces": 0,
     "notes": [],
+    "passed": true,
     "release_0_075": {
-      "obstructions": 1,
+      "at": [],
+      "obstructions": 0,
+      "parting_mm": -0.026976872235536575,
       "unresolved": 0
     },
     "release_0_1": {
+      "at": [],
       "obstructions": 0,
+      "parting_mm": -0.024600929813459516,
       "unresolved": 0
     },
     "self_crossings": 0,
-    "stamped": 6,
+    "stamped": 72,
     "watertight": true
   },
   "stones": {
@@ -719,8 +1867,8 @@
     "tight_pairs": 0,
     "warnings": []
   },
-  "triangles": 1365176,
-  "volume_mm3": 1556.2031893268356,
+  "triangles": 1355766,
+  "volume_mm3": 1647.2548463185333,
   "watertight": true,
-  "worst_aspect": 17925.92231717224
+  "worst_aspect": 17221.933032511544
 }

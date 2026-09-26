@@ -702,7 +702,7 @@ fn raven_head(a: &Atlas, hide: &Hide, zero: &[f64], name: &str, sign: f64) -> Ve
             rot_deg: 0.0,
             outline: eye.clone(),
             height_mm: 0.6,
-            sink_mm: 0.22,
+            sink_mm: 0.4,
             draft_deg: 0.0,
             cut: true,
             bench: true,
@@ -907,21 +907,6 @@ fn author(art: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Clamps)> {
         }
         clamps.push((name, clamp));
     }
-    if std::env::var("CORVUS_DISP").is_ok() {
-        let heads = paint_heads(&a, &hide, &zero, &lean);
-        for w in [0.0, 0.5, 1.0, 1.5, 2.0] {
-            for k in 0..=16 {
-                let t = 116.0 + k as f64;
-                let x = column(&a, t);
-                let y = (0..a.height).min_by(|p, q| (hide.across[*p * a.width + x] - zero[x] - w).abs().total_cmp(&(hide.across[*q * a.width + x] - zero[x] - w).abs())).unwrap_or(0);
-                let s = a.at(x, y);
-                let h = heads.data[y * a.width + x] as f64 * PAINT_MM;
-                let dz = s.p[2] + h * s.n[2];
-                let dr = s.p[0].hypot(s.p[1]) + h * (s.n[0] * s.p[0] + s.n[1] * s.p[1]) / s.p[0].hypot(s.p[1]);
-                println!("    w {w:.1} th {t:.0}: B r {:.2} z {:+.2} nz {:+.2} h {h:.2} -> D r {dr:.2} z {dz:+.2}", s.p[0].hypot(s.p[1]), s.p[2], s.n[2]);
-            }
-        }
-    }
     let barbs = paint_barbs(&a, &hide, &zero);
     lib.insert(Alpha::from_png16(barbs.name.clone(), &barbs.to_png16()?)?);
     if let Some(art) = art {
@@ -936,31 +921,6 @@ fn author(art: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Clamps)> {
         d.stamps.extend(raven_hackles(&a, &hide, name, sign));
         d.stamps.extend(raven_wings(&a, name, sign));
         d.stamps.extend(raven_neck(&a, name, sign));
-    }
-    if std::env::var("CORVUS_SEC").is_ok() {
-        for t in [105.0, 112.0, 118.0, 122.0, 124.0, 126.0, 128.0, 132.0, 136.0, 142.0, 150.0] {
-            let x = column(&a, t);
-            let pts: Vec<String> = [-2.5, -2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
-                .iter()
-                .map(|w: &f64| {
-                    let y = (0..a.height).min_by(|p, q| (hide.across[*p * a.width + x] - zero[x] - w).abs().total_cmp(&(hide.across[*q * a.width + x] - zero[x] - w).abs())).unwrap_or(0);
-                    let s = a.at(x, y);
-                    format!("{w:+.1}:({:.2},{:+.2},n{:+.2})", s.p[0].hypot(s.p[1]), s.p[2], s.n[2])
-                })
-                .collect();
-            println!("    th {t}: {}", pts.join(" "));
-        }
-    }
-    if std::env::var("CORVUS_HEAD").is_ok() {
-        for (name, sign) in BIRDS {
-            for k in 0..26 {
-                let u = 0.5 * k as f64;
-                let along = sign * (HEAD.nape + u);
-                let x = column(&a, theta_at(&a, &hide, along));
-                let (rl, rh) = (hide.rim[x][0], hide.rim[x][1]);
-                println!("    {name} u {u:.1} theta {:.1} rim lo {rl:.2} hi {rh:.2} wall {:.2}/{:.2} skull_half {:.2} head half lo {:.2} hi {:.2} crest {:.2}", a.at(x, 0).theta, hide.wall[x][0], hide.wall[x][1], HEAD.skull_half(u), HEAD.head(u, 0.0, room(rl)).1, HEAD.head(u, 0.0, room(rh)).1, HEAD.head_mm(u, 0.0, room(rh)));
-            }
-        }
     }
     let ctx = d.field_context();
     for s in d.stamps.iter().filter(|s| s.along_pull) {
@@ -1052,6 +1012,44 @@ fn obstructions(r: &mf::release::ReleaseReport) -> Vec<serde_json::Value> {
     r.obstructions
         .iter()
         .map(|o| json!({"theta": o.world[1].atan2(o.world[0]).to_degrees().rem_euclid(360.0), "r": o.world[0].hypot(o.world[1]), "z": o.world[2], "depth_mm": o.depth_mm, "samples": o.samples}))
+        .collect()
+}
+
+/// Delft clay's sand floor, mm: a slot narrower than this leaves a fin that will not survive packing.
+const SAND_FLOOR_MM: f64 = 0.30;
+
+/// Where a sand slot lies and how the bench takes its flash away, from its ring angle, radius and height.
+fn slot_treatment(theta: f64, r: f64, z: f64) -> (&'static str, &'static str) {
+    let off = (theta - 90.0 + 180.0).rem_euclid(360.0) - 180.0;
+    let d = off.abs();
+    if z.abs() < 0.5 {
+        if (18.0..34.0).contains(&d) {
+            ("nape dip between a skull and the collet's feathered collar", "chase the dip with a half-round graver")
+        } else if (40.0..100.0).contains(&d) {
+            ("beak and hooked tip against the other raven's back feathers", "file the flash off the beak and recut the hook")
+        } else if d >= 150.0 {
+            ("rectrix tips meeting at the palm", "open the meeting with a saw blade and file the tips")
+        } else {
+            ("contour-feather step on the crown", "lift the flash with a flat graver")
+        }
+    } else if r >= 13.5 {
+        ("neck and collar feathers beside the collet or a head's flank", "chase with a graver")
+    } else {
+        ("feather tips on the flank: contour rows, primaries or rectrices", "lift the flash along the tip with a flat graver")
+    }
+}
+
+/// Every sand slot under [`SAND_FLOOR_MM`] with where it lies and its bench treatment.
+fn sand_slots(r: &mf::release::ReleaseReport) -> Vec<serde_json::Value> {
+    r.sand_findings
+        .iter()
+        .filter(|f| f.width_mm < SAND_FLOOR_MM - 1e-6)
+        .map(|f| {
+            let p = f.point;
+            let (theta, rad) = (p[1].atan2(p[0]).to_degrees().rem_euclid(360.0), p[0].hypot(p[1]));
+            let (zone, treatment) = slot_treatment(theta, rad, p[2]);
+            json!({"theta": theta, "r": rad, "z": p[2], "width_mm": f.width_mm, "zone": zone, "bench": treatment})
+        })
         .collect()
 }
 
@@ -1237,7 +1235,7 @@ fn preview_sheets(out: &Path, d: &RingDesign, b: &mesh::BuildResult, gems: &[(me
     sheet(&out.join("preview-300.png"), &small, 300, 3)?;
     let big: Vec<Vec<u8>> = VIEWS.iter().map(|(_, y, p)| render::render_parts_ss(&parts, *y, *p, 600, 600, 2)).collect();
     sheet(&out.join("preview-views.png"), &big, 600, 3)?;
-    let heroes: Vec<Vec<u8>> = [(0.4, 0.8), (0.6, 0.7), (0.75, 0.62), (0.9, 0.55), (0.6, 0.9), (-0.6, 0.7)]
+    let heroes: Vec<Vec<u8>> = [(0.62, 0.7), (0.4, 0.8), (0.75, 0.62), (-0.6, 0.7), (-0.95, 0.55), (0.9, 1.1)]
         .iter()
         .map(|(y, p)| render::render_parts_ss(&parts, *y, *p, 500, 500, 2))
         .collect();
@@ -1321,93 +1319,6 @@ fn main() -> Result<()> {
         built.solids.notes,
         built.solids.stamped
     );
-    if std::env::var("CORVUS_BARE").is_ok() {
-        let mut bare = band();
-        seat(&mut bare)?;
-        let f = castability::attributed_field_report(&bare, &AlphaLibrary::default(), &bare.draft, 256, 128);
-        println!("    bare: {:?} {:.4}% worst {:.2} parting {:.4} undercut {:.4} mm2 {:?}", f.verdict, f.undercut_fraction() * 100.0, f.worst_draft_deg, f.parting_z_mm, f.undercut_area_mm2, f.notes);
-        let mut layers = d.clone();
-        layers.stamps.clear();
-        for i in 0..layers.layers.layers.len() {
-            let mut one = layers.clone();
-            for (k, e) in one.layers.layers.iter_mut().enumerate() {
-                e.enabled = k == i || k == 0;
-            }
-            let f = castability::attributed_field_report(&one, &lib, &one.draft, 256, 128);
-            println!("    only {}: {:.4}% worst {:.2} parting {:.4} undercut {:.4}", one.layers.layers[i].name, f.undercut_fraction() * 100.0, f.worst_draft_deg, f.parting_z_mm, f.undercut_area_mm2);
-        }
-        return Ok(());
-    }
-    if let Ok(t) = std::env::var("CORVUS_ROWS") {
-        let t: f64 = t.parse().unwrap_or(50.625);
-        let cast = castability::casting_pattern(&d, &lib).0.into_owned();
-        for x in [t - 360.0 / 256.0, t, t + 360.0 / 256.0] {
-            let sec = castability::section_at(&cast, &lib, x, 128);
-            let rows: Vec<String> = (72..90).map(|j| format!("{j}:{:.3}/{:.3}", sec.points[j].r, sec.points[j].z)).collect();
-            println!("    rows th {x:.2}: {}", rows.join(" "));
-        }
-        return Ok(());
-    }
-    if std::env::var("CORVUS_CREST").is_ok() {
-        for t in [15.0, 30.0, 45.0, 55.0, 75.0, 90.0, 97.0, 125.0, 135.0, 150.0, 165.0, 200.0, 230.0, 262.0, 268.0, 300.0, 340.0] {
-            for steps in [128usize, 512] {
-                let sec = castability::section_at(&d, &lib, t, steps);
-                let best = sec.points.iter().filter(|p| p.surface).max_by(|a, b| a.r.total_cmp(&b.r));
-                if let Some(b) = best {
-                    let near: Vec<String> = sec.points.iter().filter(|p| p.surface && p.r > b.r - 0.004).map(|p| format!("{:.3}", p.z)).collect();
-                    println!("    crest th {t} steps {steps}: r {:.4} z {:.4} within 4um at z [{}]", b.r, b.z, near.join(" "));
-                }
-            }
-        }
-        return Ok(());
-    }
-    if let Ok(range) = std::env::var("CORVUS_UNDER") {
-        let (t0, t1): (f64, f64) = range.split_once(',').map(|(a, b)| (a.parse().unwrap_or(20.0), b.parse().unwrap_or(60.0))).unwrap_or((20.0, 60.0));
-        let parting: f64 = std::env::var("CORVUS_PARTING").ok().and_then(|v| v.parse().ok()).unwrap_or(-0.0255);
-        let (steps, dt): (usize, f64) = (128, 360.0 / 256.0);
-        let cast = castability::casting_pattern(&d, &lib).0.into_owned();
-        let pt = |sec: &castability::Section, j: usize| {
-            let p = &sec.points[j];
-            let (s, c) = sec.theta_deg.to_radians().sin_cos();
-            [p.r * c, p.r * s, p.z]
-        };
-        let mut t = t0;
-        while t <= t1 {
-            let secs: Vec<castability::Section> = [t - dt, t, t + dt].iter().map(|&x| castability::section_at(&cast, &lib, x, steps)).collect();
-            let rows = secs[1].points.len();
-            for j in 1..rows - 1 {
-                if !secs[1].points[j].surface {
-                    continue;
-                }
-                let (a, b) = (pt(&secs[2], j), pt(&secs[0], j));
-                let (c, e) = (pt(&secs[1], j + 1), pt(&secs[1], j - 1));
-                let tu = [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-                let ts = [c[0] - e[0], c[1] - e[1], c[2] - e[2]];
-                let n = [tu[1] * ts[2] - tu[2] * ts[1], tu[2] * ts[0] - tu[0] * ts[2], tu[0] * ts[1] - tu[1] * ts[0]];
-                let draft = castability::draft_angle(n, secs[1].points[j].z, parting);
-                if draft < -0.5 {
-                    let p = &secs[1].points[j];
-                    let area = (tu[0] * ts[0] + tu[1] * ts[1] + tu[2] * ts[2]).abs().max(0.0) * 0.0 + (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt() * 0.25;
-                    println!("    under th {t:.2} j {j} z {:.3} r {:.3} draft {draft:.2} area {area:.4}", p.z, p.r);
-                }
-            }
-            t += dt;
-        }
-        return Ok(());
-    }
-    if std::env::var("CORVUS_BISECT").is_ok() {
-        for family in ["beak", "eye", "hackle", "primary", "neck"] {
-            let mut part = d.clone();
-            part.stamps.retain(|s| s.name.contains(family));
-            let b = mesh::try_build(&part, &lib, params)?;
-            println!("    {family}: {} stamps, crossings {}, notes {:?}", part.stamps.len(), csg::self_crossings(&solid(&b.mesh)), b.solids.notes);
-        }
-        let mut bare = d.clone();
-        bare.stamps.clear();
-        let b = mesh::try_build(&bare, &lib, params)?;
-        println!("    no stamps: crossings {}", csg::self_crossings(&solid(&b.mesh)));
-        return Ok(());
-    }
     let (gems, previewed) = preview_stones(&d, &lib, &built);
     if preview {
         preview_sheets(&out, &d, &built, &gems)?;
@@ -1495,6 +1406,7 @@ fn main() -> Result<()> {
         "dfm": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "release_0_1": inspection.release, "release_0_075": release_fine,
         "release_at": {"0_1": obstructions(&inspection.release), "0_075": obstructions(&release_fine)},
+        "sand_slots": {"floor_mm": SAND_FLOOR_MM, "0_1": sand_slots(&inspection.release), "0_075": sand_slots(&release_fine)},
         "release_draft": draft_block.as_ref().map(|b| b.0.clone()),
         "crest_line_median_z_mm": crest_z,
         "collet_wall_mm": walls,
@@ -1512,7 +1424,7 @@ fn main() -> Result<()> {
     });
     std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report)?)?;
     println!(
-        "  field {:?} ({:.4}% undercut, worst {:.2} deg, drag {:.1}%), wall {:.2} mm; release {}/{} and {}/{}; draft {:?}; 384 {}; clamp {:.4}; dfm {}; stones {} / {}; bore {:.3} mm; crossings {}; pattern {}/{}/{:?}; sand slots {}",
+        "  field {:?} ({:.4}% undercut, worst {:.2} deg, drag {:.1}%), wall {:.2} mm; release {}/{} and {}/{}; draft {:?}; 384 {}; clamp {:.4}; dfm {}; stones {} / {}; bore {:.3} mm; crossings {}; pattern {}/{}/{:?}; sand slots {} ({} under the floor, each named with its bench work)",
         field.verdict,
         field.undercut_fraction() * 100.0,
         field.worst_draft_deg,
@@ -1533,7 +1445,8 @@ fn main() -> Result<()> {
         pattern_check.open_edges,
         pattern_check.zero_area_faces,
         pattern_check.self_crossings,
-        inspection.release.sand_findings.len()
+        inspection.release.sand_findings.len(),
+        sand_slots(&inspection.release).len()
     );
     for f in &findings {
         println!("    dfm: {} {}", f.label, f.message);
