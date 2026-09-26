@@ -3,30 +3,53 @@
   "process": "Lost wax",
   "size": "US 9",
   "bore_mm": 18.923522733626356,
-  "build": [
-    1280,
-    416
+  "band_mm": [
+    7.2,
+    3.2
   ],
-  "triangles": 1848078,
-  "build_s": 12.343449489,
-  "watertight": true,
-  "boundary_edges": 0,
-  "non_manifold_edges": 0,
-  "degenerate_faces": 0,
-  "min_angle_deg": 0.00034080222850958703,
-  "worst_aspect": 168120.33943323887,
-  "mesh_self_crossings": 0,
+  "build": {
+    "params": [
+      1536,
+      448
+    ],
+    "triangles": 1921480,
+    "build_s": 7.491074478,
+    "watertight": true,
+    "boundary_edges": 0,
+    "non_manifold_edges": 0,
+    "degenerate_faces": 0,
+    "min_angle_deg": 0.0009635409617963068,
+    "mesh_self_crossings": 0,
+    "parts_crossed": 0,
+    "solids_notes": [],
+    "parts_notes": [],
+    "parts_joined": 63,
+    "parts_cut": 1
+  },
+  "draft": {
+    "params": [
+      768,
+      320
+    ],
+    "triangles": 1086264,
+    "build_s": 6.155821942,
+    "watertight": true,
+    "boundary_edges": 0,
+    "non_manifold_edges": 0,
+    "degenerate_faces": 0,
+    "min_angle_deg": 0.0010459810880393268,
+    "mesh_self_crossings": 0,
+    "parts_crossed": 0,
+    "solids_notes": [],
+    "parts_notes": [],
+    "parts_joined": 63,
+    "parts_cut": 1
+  },
+  "preview_build_s": 2.295277767,
+  "triangles_at_1536x448": 1921480,
   "made_parts": [
     [
       "Round 8 mm",
-      0
-    ],
-    [
-      "Talons",
-      0
-    ],
-    [
-      "Legs",
       0
     ],
     [
@@ -34,6 +57,98 @@
       0
     ],
     [
+      "Torso",
+      0
+    ],
+    [
+      "Neck",
+      0
+    ],
+    [
+      "Head",
+      0
+    ],
+    [
+      "Face",
+      0
+    ],
+    [
+      "Hair plume 1",
+      0
+    ],
+    [
+      "Hair plume 2",
+      0
+    ],
+    [
+      "Hair plume 3",
+      0
+    ],
+    [
+      "Breast feather 1",
+      0
+    ],
+    [
+      "Breast feather 2",
+      0
+    ],
+    [
+      "Breast feather 3",
+      0
+    ],
+    [
+      "Breast feather 4",
+      0
+    ],
+    [
+      "Breast feather 5",
+      0
+    ],
+    [
+      "Breast feather 6",
+      0
+    ],
+    [
+      "Breast feather 7",
+      0
+    ],
+    [
+      "Breast feather 8",
+      0
+    ],
+    [
+      "Mantle feather 1",
+      0
+    ],
+    [
+      "Mantle feather 2",
+      0
+    ],
+    [
+      "Mantle feather 3",
+      0
+    ],
+    [
+      "High tarsus",
+      0
+    ],
+    [
+      "High talon, hallux",
+      0
+    ],
+    [
+      "High talon, inner toe",
+      0
+    ],
+    [
+      "High talon, middle toe",
+      0
+    ],
+    [
+      "High talon, outer toe",
+      0
+    ],
+    [
       "Secondary 1",
       0
     ],
@@ -82,6 +197,10 @@
       0
     ],
     [
+      "Primary 7",
+      0
+    ],
+    [
       "Greater covert 1",
       0
     ],
@@ -99,10 +218,6 @@
     ],
     [
       "Greater covert 5",
-      0
-    ],
-    [
-      "Greater covert 6",
       0
     ],
     [
@@ -126,294 +241,638 @@
       0
     ],
     [
-      "Lesser covert 6",
+      "Marginal covert a1",
       0
     ],
     [
-      "Marginal covert 1",
+      "Marginal covert a2",
       0
     ],
     [
-      "Marginal covert 2",
+      "Marginal covert a3",
       0
     ],
     [
-      "Marginal covert 3",
+      "Marginal covert a4",
       0
     ],
     [
-      "Marginal covert 4",
+      "Marginal covert a5",
       0
     ],
     [
-      "Marginal covert 5",
+      "Marginal covert a6",
       0
     ],
     [
-      "Marginal covert 6",
+      "Marginal covert a7",
       0
     ],
     [
-      "Marginal covert 7",
+      "Marginal covert b1",
       0
     ],
     [
-      "Marginal covert 8",
+      "Marginal covert b2",
       0
     ],
     [
-      "Marginal covert 9",
+      "Marginal covert b3",
       0
     ],
     [
-      "West wing, far cheek, 1",
+      "Marginal covert b4",
       0
     ],
     [
-      "West wing, far cheek, 2",
+      "Marginal covert b5",
       0
     ],
     [
-      "West wing, far cheek, 3",
+      "Marginal covert b6",
       0
     ],
     [
-      "East wing, near cheek, 1",
+      "Low foot",
       0
     ],
     [
-      "East wing, near cheek, 2",
+      "Low wing, 1",
       0
     ],
     [
-      "East wing, near cheek, 3",
+      "Low wing, 2",
       0
     ],
     [
-      "East wing, far cheek, 1",
+      "Low wing, 3",
       0
     ]
   ],
-  "solids_notes": [],
-  "parts_notes": [],
-  "parts_joined": 42,
-  "parts_cut": 1,
-  "feathers": 33,
-  "authored_min_section_mm": 0.9,
-  "free_part_sections_mm": [
+  "feathers_per_wing": 36,
+  "land_widths": [
+    {
+      "part": "Torso",
+      "measured": "round, every direction",
+      "min_section_mm": 1.7976931348623157e+308,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Neck",
+      "measured": "round, every direction",
+      "min_section_mm": 1.59901220075696,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Head",
+      "measured": "round, every direction",
+      "min_section_mm": 2.143812732476166,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Face",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8330431370778041,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Hair plume 1",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.070433390055285,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Hair plume 2",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8585840474382387,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Hair plume 3",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8582022693433835,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Breast feather 1",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.1027997681402888,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Breast feather 2",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8522226970747596,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Breast feather 3",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8506366131555322,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Breast feather 4",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.1823822224236022,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Breast feather 5",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.1855479505985038,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Breast feather 6",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.1967466647022098,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Breast feather 7",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.1983753520395133,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Breast feather 8",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.1779477456913905,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Mantle feather 1",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.1981072880613624,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Mantle feather 2",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.191874708844339,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Mantle feather 3",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.193209979574504,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "High tarsus",
+      "measured": "round, every direction",
+      "min_section_mm": 1.4561991643429424,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "High talon, hallux",
+      "measured": "round, every direction",
+      "min_section_mm": 0.8340892729370012,
+      "under_floor_mm2": 0.0,
+      "note": "claw cast blunt with a 0.85 mm round tip; points filed after setting if wanted"
+    },
+    {
+      "part": "High talon, inner toe",
+      "measured": "round, every direction",
+      "min_section_mm": 0.8340971229190978,
+      "under_floor_mm2": 0.0,
+      "note": "claw cast blunt with a 0.85 mm round tip; points filed after setting if wanted"
+    },
+    {
+      "part": "High talon, middle toe",
+      "measured": "round, every direction",
+      "min_section_mm": 0.834090017526275,
+      "under_floor_mm2": 0.0,
+      "note": "claw cast blunt with a 0.85 mm round tip; points filed after setting if wanted"
+    },
+    {
+      "part": "High talon, outer toe",
+      "measured": "round, every direction",
+      "min_section_mm": 0.8340890544703009,
+      "under_floor_mm2": 0.0,
+      "note": "claw cast blunt with a 0.85 mm round tip; points filed after setting if wanted"
+    },
+    {
+      "part": "Secondary 1",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8840193228744161,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Secondary 2",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8846925662037496,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Secondary 3",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8855296990564893,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Secondary 4",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8861563492702824,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Secondary 5",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8866551018307675,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Secondary 6",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8868511813934059,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Primary 1",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.065384553644882,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Primary 2",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.9328865340038957,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Primary 3",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8939818151168453,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Primary 4",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8928137244238684,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Primary 5",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8904002944646375,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Primary 6",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8861912008860575,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Primary 7",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.9383016703358339,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Greater covert 1",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.625078756870409,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Greater covert 2",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.6146996729909437,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Greater covert 3",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.6032471657588163,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Greater covert 4",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.6209284747835915,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Greater covert 5",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.6410221898816473,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Lesser covert 1",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.7150240043392229,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Lesser covert 2",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.7020702206713996,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Lesser covert 3",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.7054954548514514,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Lesser covert 4",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.7164586081092355,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Lesser covert 5",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.718884177059881,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert a1",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.4035652642414882,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert a2",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.340675068855676,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert a3",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.27270193271829,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert a4",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.2000913938218993,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert a5",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.035623058593496,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert a6",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.0046110786011826,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert a7",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.9742577899262924,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert b1",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.3717302447997457,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert b2",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.3026223044563594,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert b3",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.2360400003460035,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert b4",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.036084695469754,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert b5",
+      "measured": "plate, belly to top",
+      "min_section_mm": 1.026025374403002,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Marginal covert b6",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.9854621383265277,
+      "under_floor_mm2": 0.0,
+      "note": ""
+    },
+    {
+      "part": "Low foot",
+      "measured": "round, every direction",
+      "min_section_mm": 0.8340890544702992,
+      "under_floor_mm2": 0.0,
+      "note": "mirror of the high foot; every claw cast blunt with a 0.85 mm round tip, points filed after setting if wanted"
+    },
+    {
+      "part": "Low wing, 1",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.8813242320696622,
+      "under_floor_mm2": 0.0,
+      "note": "mirror of 16 parts"
+    },
+    {
+      "part": "Low wing, 2",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.9742577899262923,
+      "under_floor_mm2": 0.0,
+      "note": "mirror of 16 parts"
+    },
+    {
+      "part": "Low wing, 3",
+      "measured": "plate, belly to top",
+      "min_section_mm": 0.9854621383265277,
+      "under_floor_mm2": 0.0,
+      "note": "mirror of 4 parts"
+    }
+  ],
+  "land_min_mm": 0.8330431370778041,
+  "land_under_floor_mm2": 0.0,
+  "talon_curls_deg": [
     [
-      "Secondary 1",
-      0.8391512348344522
+      "Talon, hallux",
+      90.53150325924295
     ],
     [
-      "Secondary 2",
-      0.8377615839218779
+      "Talon, inner toe",
+      90.62971827570739
     ],
     [
-      "Secondary 3",
-      0.8360301914338467
+      "Talon, middle toe",
+      90.38340625420909
     ],
     [
-      "Secondary 4",
-      0.8352459508977336
-    ],
-    [
-      "Secondary 5",
-      0.8353948492033909
-    ],
-    [
-      "Secondary 6",
-      0.8344787036029987
-    ],
-    [
-      "Primary 1",
-      0.8713323441463481
-    ],
-    [
-      "Primary 2",
-      0.8697073752144956
-    ],
-    [
-      "Primary 3",
-      0.8685264297511264
-    ],
-    [
-      "Primary 4",
-      0.8662349884885591
-    ],
-    [
-      "Primary 5",
-      0.8612225093621434
-    ],
-    [
-      "Primary 6",
-      0.8565803621001513
-    ],
-    [
-      "Greater covert 1",
-      1.0978906989683077
-    ],
-    [
-      "Greater covert 2",
-      1.0956896827752827
-    ],
-    [
-      "Greater covert 3",
-      1.0926432295771549
-    ],
-    [
-      "Greater covert 4",
-      1.0970376804246411
-    ],
-    [
-      "Greater covert 5",
-      1.0985549887130859
-    ],
-    [
-      "Greater covert 6",
-      1.097927981006118
-    ],
-    [
-      "Lesser covert 1",
-      1.2551745130090715
-    ],
-    [
-      "Lesser covert 2",
-      1.2531770223339735
-    ],
-    [
-      "Lesser covert 3",
-      1.2548929686946975
-    ],
-    [
-      "Lesser covert 4",
-      1.2549674887655473
-    ],
-    [
-      "Lesser covert 5",
-      1.2548859333613998
-    ],
-    [
-      "Lesser covert 6",
-      1.254829788332489
-    ],
-    [
-      "Marginal covert 1",
-      1.3999732923998451
-    ],
-    [
-      "Marginal covert 2",
-      1.39683782885848
-    ],
-    [
-      "Marginal covert 3",
-      1.3931705872145435
-    ],
-    [
-      "Marginal covert 4",
-      1.3772368464572835
-    ],
-    [
-      "Marginal covert 5",
-      1.3789350447470887
-    ],
-    [
-      "Marginal covert 6",
-      1.3759746341100385
-    ],
-    [
-      "Marginal covert 7",
-      1.3712569685020544
-    ],
-    [
-      "Marginal covert 8",
-      1.3686010681786855
-    ],
-    [
-      "Marginal covert 9",
-      1.3673189582167864
+      "Talon, outer toe",
+      90.17243019908184
     ]
   ],
-  "free_part_min_section_mm": 0.8344787036029987,
+  "talon_stone_gap_mm": 0.03997816596470388,
+  "figure_stone_gap_mm": 0.12114821839076428,
+  "metal_inside_stone": 0,
+  "metal_nearest_stone_mm": 0.042549955320223834,
   "bore_radius_mm": 9.461761366813178,
-  "nearest_to_axis_mm": 9.461750343385143,
+  "nearest_to_axis_mm": 9.461762811153008,
   "vertices_in_bore": 0,
   "field_verdict": "Castable",
   "field_notes": [
-    "Lost wax: 9.57% of the surface would undercut a two-part pull (worst 38.7 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Undercut 295–74° on the crest: 66.9 mm² leaning to 35° — caused by \"Plumage\"; muting it clears it.",
-    "Undercut 106–288° on the crest: 79.0 mm² leaning to 35° — caused by \"Plumage\"; muting it clears it.",
-    "Measured with the ring as built: 43 CAD parts (42 joined, 1 cut), 1214.5 mm² of part surface; under lost wax they are reported, never gating.",
-    "Lost wax: Claw head \"Talons\" (#3) would undercut a two-part pull over 99.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Seat bur \"Seat bur\" (#5) would undercut a two-part pull over 28.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Secondary 1\" (#6) would undercut a two-part pull over 1.6 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Secondary 2\" (#7) would undercut a two-part pull over 7.9 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Secondary 3\" (#8) would undercut a two-part pull over 10.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Secondary 4\" (#9) would undercut a two-part pull over 5.4 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Secondary 5\" (#10) would undercut a two-part pull over 3.4 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Secondary 6\" (#11) would undercut a two-part pull over 2.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Primary 1\" (#12) would undercut a two-part pull over 3.3 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Primary 2\" (#13) would undercut a two-part pull over 4.2 mm² (worst -70°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Primary 3\" (#14) would undercut a two-part pull over 3.9 mm² (worst -72°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Primary 4\" (#15) would undercut a two-part pull over 2.2 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Primary 6\" (#17) would undercut a two-part pull over 0.4 mm² (worst -39°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Greater covert 1\" (#18) would undercut a two-part pull over 0.7 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Greater covert 2\" (#19) would undercut a two-part pull over 0.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Greater covert 3\" (#20) would undercut a two-part pull over 0.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Greater covert 4\" (#21) would undercut a two-part pull over 1.1 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Greater covert 5\" (#22) would undercut a two-part pull over 1.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Greater covert 6\" (#23) would undercut a two-part pull over 2.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Lesser covert 1\" (#24) would undercut a two-part pull over 0.2 mm² (worst -39°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Lesser covert 2\" (#25) would undercut a two-part pull over 0.9 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Lesser covert 3\" (#26) would undercut a two-part pull over 1.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Lesser covert 4\" (#27) would undercut a two-part pull over 1.2 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Lesser covert 5\" (#28) would undercut a two-part pull over 1.2 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Lesser covert 6\" (#29) would undercut a two-part pull over 1.4 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Marginal covert 1\" (#30) would undercut a two-part pull over 1.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Marginal covert 2\" (#31) would undercut a two-part pull over 1.2 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Marginal covert 3\" (#32) would undercut a two-part pull over 1.5 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Marginal covert 4\" (#33) would undercut a two-part pull over 1.5 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Marginal covert 5\" (#34) would undercut a two-part pull over 1.5 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Marginal covert 6\" (#35) would undercut a two-part pull over 1.6 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Marginal covert 7\" (#36) would undercut a two-part pull over 1.0 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Marginal covert 8\" (#37) would undercut a two-part pull over 1.2 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Loft \"Marginal covert 9\" (#38) would undercut a two-part pull over 3.5 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"West wing, far cheek, 1\" (#39) would undercut a two-part pull over 47.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"West wing, far cheek, 2\" (#40) would undercut a two-part pull over 21.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"West wing, far cheek, 3\" (#41) would undercut a two-part pull over 3.5 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"East wing, near cheek, 1\" (#42) would undercut a two-part pull over 47.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"East wing, near cheek, 2\" (#43) would undercut a two-part pull over 21.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"East wing, near cheek, 3\" (#44) would undercut a two-part pull over 3.5 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Lost wax: Mirror \"East wing, far cheek, 1\" (#45) would undercut a two-part pull over 72.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
+    "Lost wax: 11.16% of the surface would undercut a two-part pull (worst 38.8 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Undercut 115–86° on the crest: 158.8 mm² leaning to 35° — caused by \"Plumage\"; muting it clears it.",
+    "Undercut 92–97° on the high flank: 0.3 mm² leaning to 8° — caused by \"Plumage\"; muting it clears it.",
+    "Undercut 103–108° on the high flank: 0.3 mm² leaning to 8° — caused by \"Plumage\"; muting it clears it.",
+    "Measured with the ring as built: 64 CAD parts (63 joined, 1 cut), 714.1 mm² of part surface; under lost wax they are reported, never gating.",
+    "Lost wax: Seat bur \"Seat bur\" (#3) would undercut a two-part pull over 35.3 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Face\" (#7) would undercut a two-part pull over 0.0 mm² (worst -6°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Hair plume 2\" (#9) would undercut a two-part pull over 0.1 mm² (worst -28°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Hair plume 3\" (#10) would undercut a two-part pull over 0.1 mm² (worst -28°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Breast feather 2\" (#12) would undercut a two-part pull over 2.1 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Breast feather 3\" (#13) would undercut a two-part pull over 2.1 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Breast feather 4\" (#14) would undercut a two-part pull over 2.4 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Breast feather 5\" (#15) would undercut a two-part pull over 2.4 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Breast feather 6\" (#16) would undercut a two-part pull over 0.2 mm² (worst -26°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Breast feather 7\" (#17) would undercut a two-part pull over 0.2 mm² (worst -58°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Mantle feather 2\" (#20) would undercut a two-part pull over 3.3 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Mantle feather 3\" (#21) would undercut a two-part pull over 3.3 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"High tarsus\" (#22) would undercut a two-part pull over 5.1 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"High talon, hallux\" (#23) would undercut a two-part pull over 5.8 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"High talon, inner toe\" (#24) would undercut a two-part pull over 4.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"High talon, middle toe\" (#25) would undercut a two-part pull over 4.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"High talon, outer toe\" (#26) would undercut a two-part pull over 9.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Secondary 1\" (#27) would undercut a two-part pull over 13.8 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Secondary 2\" (#28) would undercut a two-part pull over 11.4 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Secondary 3\" (#29) would undercut a two-part pull over 6.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Secondary 4\" (#30) would undercut a two-part pull over 2.9 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Secondary 5\" (#31) would undercut a two-part pull over 0.4 mm² (worst -61°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Secondary 6\" (#32) would undercut a two-part pull over 0.4 mm² (worst -58°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Primary 1\" (#33) would undercut a two-part pull over 4.8 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Primary 2\" (#34) would undercut a two-part pull over 5.2 mm² (worst -70°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Primary 3\" (#35) would undercut a two-part pull over 5.9 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Primary 4\" (#36) would undercut a two-part pull over 3.0 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Primary 6\" (#38) would undercut a two-part pull over 0.1 mm² (worst -43°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Primary 7\" (#39) would undercut a two-part pull over 0.3 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Greater covert 1\" (#40) would undercut a two-part pull over 1.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Greater covert 2\" (#41) would undercut a two-part pull over 0.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Greater covert 3\" (#42) would undercut a two-part pull over 0.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Greater covert 4\" (#43) would undercut a two-part pull over 0.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Greater covert 5\" (#44) would undercut a two-part pull over 0.1 mm² (worst -35°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Lesser covert 1\" (#45) would undercut a two-part pull over 0.2 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Lesser covert 2\" (#46) would undercut a two-part pull over 0.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Lesser covert 3\" (#47) would undercut a two-part pull over 0.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Lesser covert 4\" (#48) would undercut a two-part pull over 1.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Lesser covert 5\" (#49) would undercut a two-part pull over 2.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert a1\" (#50) would undercut a two-part pull over 1.7 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert a2\" (#51) would undercut a two-part pull over 1.3 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert a3\" (#52) would undercut a two-part pull over 1.3 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert a4\" (#53) would undercut a two-part pull over 1.2 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert a5\" (#54) would undercut a two-part pull over 1.1 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert a6\" (#55) would undercut a two-part pull over 1.1 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert a7\" (#56) would undercut a two-part pull over 1.5 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert b1\" (#57) would undercut a two-part pull over 0.3 mm² (worst -70°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert b2\" (#58) would undercut a two-part pull over 0.2 mm² (worst -61°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert b3\" (#59) would undercut a two-part pull over 1.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert b4\" (#60) would undercut a two-part pull over 1.5 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert b5\" (#61) would undercut a two-part pull over 1.5 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Loft \"Marginal covert b6\" (#62) would undercut a two-part pull over 1.9 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Low foot\" (#63) would undercut a two-part pull over 29.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Low wing, 1\" (#64) would undercut a two-part pull over 57.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Low wing, 2\" (#65) would undercut a two-part pull over 14.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Low wing, 3\" (#66) would undercut a two-part pull over 6.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
   ],
-  "parts_undercut_mm2": 416.03080215203477,
-  "undercut_percent": 20.32022167727868,
-  "thinnest_wall_mm": 3.691637958228428,
-  "thinnest_wall_theta_deg": 78.75,
+  "undercut_percent": 19.69445410434472,
+  "thinnest_wall_mm": 3.0880378455586364,
+  "thinnest_wall_theta_deg": 80.15625,
   "investment_min_section_mm": 0.8,
   "dfm_findings": [],
   "stones_reported": 1,
   "stones_previewed": 1,
   "stone_carats": 1.936384,
-  "stone_warnings": [],
-  "closest_stones": null,
-  "z_extent_mm": 12.620147705078125,
-  "radial_reach_mm": 18.53472603020854,
+  "stone_warnings": [
+    "no setting holds this stone; add claws, a basket or a bezel round it"
+  ],
+  "stone_warnings_explained": "The report knows claws, baskets and bezels built by the setting builders; this stone is held by the eight lofted claws of her two feet, which the report cannot see as a head.",
+  "z_extent_mm": 12.070141792297363,
+  "radial_reach_mm": 18.567884745432917,
+  "grams_18k": 32.50010807045377,
   "layers": [
     "Plumage"
   ],
-  "cad_features": 45,
-  "design_bytes": 2782056,
+  "cad_features": 66,
+  "design_bytes": 2864193,
   "design_format": 6,
   "embedded_alphas": 1,
-  "grams_18k": 41.10132877459457,
   "cold_reload_identical": true,
   "pattern": {
     "degenerate_faces": 0,
     "notes": [],
     "scale": 1.0131712259371835,
     "self_crossings": 0,
-    "triangles": 1848078,
+    "triangles": 1921480,
     "watertight": true
   },
   "geometry_gates_passed": true
