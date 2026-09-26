@@ -1,8 +1,8 @@
 {
   "build": {
-    "build_ms": 2294,
+    "build_ms": 2034,
     "export_note": "The hide's layers carry the Relief reach mask, which keeps imported_base::subdivide from detailing the lower walls by the bore edges; without it 1536 x 448 overruns its 2 million triangle budget",
-    "faces": 1781600,
+    "faces": 1792118,
     "profile_steps": 448,
     "theta_steps": 1536
   },
@@ -20,16 +20,16 @@
     "self_crossings": 0,
     "solids_notes": [],
     "solids_resolved": 1,
-    "stamps": 21,
-    "stamps_struck": 21,
-    "triangles": 172614,
+    "stamps": 17,
+    "stamps_struck": 17,
+    "triangles": 175514,
     "watertight": true
   },
   "cold_reload": {
-    "bake_ms": 6.179092,
-    "build_ms": 3853.764243,
+    "bake_ms": 5.026395,
+    "build_ms": 3727.182026,
     "identical_vertices_faces_normals": true,
-    "read_ms": 0.885565
+    "read_ms": 0.8426790000000001
   },
   "composition": {
     "atlas": [
@@ -37,171 +37,206 @@
       560
     ],
     "bead_height_mm": 0.26,
-    "beads": 42,
+    "beads": 32,
+    "body_crest_mm": 1.332,
+    "body_crown_mm": 1.4,
+    "body_outer_quarter_steepest_deg": 56.9874146777027,
+    "crown_band_mm": {
+      "height": 0.8000000000000003,
+      "width": 6.370086978945965,
+      "x": [
+        -3.490027105931193,
+        2.8800598730147717
+      ],
+      "z": [
+        -4.605915133227323,
+        -3.8059151332273227
+      ]
+    },
+    "crown_band_overlap_on_crest_mm": 0.65,
+    "crown_pearls_inside_chief_mm": [
+      0.6602460928551674,
+      0.8965352384138501,
+      0.7184971035549539
+    ],
+    "crown_points_mm": [
+      [
+        -1.6,
+        1.2,
+        0.55
+      ],
+      [
+        0.0,
+        1.5,
+        0.62
+      ],
+      [
+        1.6,
+        1.2,
+        0.55
+      ]
+    ],
     "girth_mm": [
       1.3,
-      0.3
+      0.4
     ],
     "morph_end_along_mm": 25.814397118817936,
     "morph_start_along_mm": 17.79535254752604,
-    "pounce_height_mm": 0.07,
-    "serpent_height_mm": 2.0,
-    "spine_mm": 22.505491993867025,
+    "pit_depth_mm": 0.09,
+    "pit_reach_mm": {
+      "furthest_arm_edge_from_a_pit": 0.5740201381374659,
+      "share_of_arm_edge_within_0_4": 0.9075144508670521,
+      "widest_bare_field": 0.4228985853967808
+    },
+    "pits": 74,
+    "serpent_layer_scale_mm": 2.0,
+    "serpent_painted_peak_mm": 1.5468943119049072,
+    "spine_mm": 21.524003253458815,
     "stamps": [
       {
         "cut": false,
+        "land_mm": 0.7999103599494424,
         "name": "Crown",
-        "origin_error_mm": 4.1207013801169985e-8,
-        "points": 89,
+        "origin_error_mm": 5.403385122265601e-6,
+        "points": 144,
         "tier": 0
       },
       {
         "cut": false,
+        "land_mm": 0.18494017959328168,
         "name": "Crown point, 1",
-        "origin_error_mm": 0.00016359790761630367,
-        "points": 30,
+        "origin_error_mm": 0.00003199515836732003,
+        "points": 116,
         "tier": 0
       },
       {
         "cut": false,
+        "land_mm": 0.8151025550945883,
         "name": "Crown pearl, 1",
-        "origin_error_mm": 0.00017258184257331236,
-        "points": 24,
+        "origin_error_mm": 0.00003199790121077228,
+        "points": 29,
         "tier": 0
       },
       {
         "cut": false,
+        "land_mm": 0.18415443451227453,
         "name": "Crown point, 2",
-        "origin_error_mm": 8.163231854164444e-16,
-        "points": 38,
+        "origin_error_mm": 0.0009024214688261114,
+        "points": 140,
         "tier": 0
       },
       {
         "cut": false,
+        "land_mm": 0.8151025550945894,
         "name": "Crown pearl, 2",
-        "origin_error_mm": 1.2063351309936483e-15,
-        "points": 24,
+        "origin_error_mm": 0.0012367058331142521,
+        "points": 29,
         "tier": 0
       },
       {
         "cut": false,
+        "land_mm": 0.18494017959328168,
         "name": "Crown point, 3",
-        "origin_error_mm": 0.0001560499570094341,
-        "points": 30,
+        "origin_error_mm": 0.000025904950005203425,
+        "points": 116,
         "tier": 0
       },
       {
         "cut": false,
+        "land_mm": 0.8151025550945887,
         "name": "Crown pearl, 3",
-        "origin_error_mm": 0.00017480470487346225,
-        "points": 24,
+        "origin_error_mm": 0.000027798010052666267,
+        "points": 29,
         "tier": 0
       },
       {
         "cut": false,
-        "name": "Fang, 1",
-        "origin_error_mm": 0.00004175487056358049,
-        "points": 25,
-        "tier": 0
-      },
-      {
-        "cut": false,
-        "name": "Fang, 2",
-        "origin_error_mm": 0.000057041882490649064,
-        "points": 22,
-        "tier": 0
-      },
-      {
-        "cut": false,
-        "name": "Forked tongue",
-        "origin_error_mm": 0.00017296034237433531,
-        "points": 87,
-        "tier": 0
-      },
-      {
-        "cut": false,
-        "name": "Eye",
-        "origin_error_mm": 0.00016908529755366362,
-        "points": 44,
-        "tier": 0
-      },
-      {
-        "cut": true,
-        "name": "Pupil",
-        "origin_error_mm": 2.8343725786613224e-6,
+        "land_mm": 0.4239572166545588,
+        "name": "Crown jewel, 1",
+        "origin_error_mm": 0.0008630779046791624,
         "points": 22,
         "tier": 1
       },
       {
         "cut": false,
-        "name": "Brow",
-        "origin_error_mm": 0.00019026942348701758,
-        "points": 50,
+        "land_mm": 0.4239572166545589,
+        "name": "Crown jewel, 2",
+        "origin_error_mm": 0.00002297385295602048,
+        "points": 22,
+        "tier": 1
+      },
+      {
+        "cut": false,
+        "land_mm": 0.9888960021579862,
+        "name": "Eye",
+        "origin_error_mm": 0.000012782329732570862,
+        "points": 80,
         "tier": 0
       },
       {
         "cut": true,
+        "land_mm": 0.0,
+        "name": "Pupil",
+        "origin_error_mm": 0.00004255047178562073,
+        "points": 21,
+        "tier": 1
+      },
+      {
+        "cut": true,
+        "land_mm": 0.0,
         "name": "Nostril",
-        "origin_error_mm": 0.00007522746902451481,
+        "origin_error_mm": 0.00006860569317963911,
         "points": 12,
         "tier": 0
       },
       {
         "cut": false,
-        "name": "Crown jewel, 1",
-        "origin_error_mm": 0.00001194563149880561,
-        "points": 14,
-        "tier": 1
-      },
-      {
-        "cut": false,
-        "name": "Crown jewel, 2",
-        "origin_error_mm": 0.000011912154994404447,
-        "points": 14,
-        "tier": 1
-      },
-      {
-        "cut": false,
-        "name": "Upper lip scale, 1",
-        "origin_error_mm": 0.00008248396426418998,
-        "points": 24,
+        "land_mm": 0.1775381105937573,
+        "name": "Fang, 1",
+        "origin_error_mm": 0.000059247375340357655,
+        "points": 101,
         "tier": 0
       },
       {
         "cut": false,
-        "name": "Upper lip scale, 2",
-        "origin_error_mm": 0.00004565896771941516,
-        "points": 24,
+        "land_mm": 0.17753731598318367,
+        "name": "Fang, 2",
+        "origin_error_mm": 0.0009673929138604943,
+        "points": 102,
         "tier": 0
       },
       {
         "cut": false,
-        "name": "Upper lip scale, 3",
-        "origin_error_mm": 0.0017146476034825846,
-        "points": 24,
+        "land_mm": 0.39735008917738185,
+        "name": "Forked tongue",
+        "origin_error_mm": 0.000052746674362334454,
+        "points": 128,
         "tier": 0
       },
       {
         "cut": false,
-        "name": "Lower lip scale, 1",
-        "origin_error_mm": 0.00003251736592705757,
-        "points": 24,
+        "land_mm": 0.2971911562752631,
+        "name": "Forked tongue, upper tine",
+        "origin_error_mm": 0.00011296300724202439,
+        "points": 65,
         "tier": 0
       },
       {
         "cut": false,
-        "name": "Lower lip scale, 2",
-        "origin_error_mm": 0.000020812330001070398,
-        "points": 24,
+        "land_mm": 0.2971911562752634,
+        "name": "Forked tongue, lower tine",
+        "origin_error_mm": 0.00035183717477078386,
+        "points": 65,
         "tier": 0
       }
     ],
     "stock": "020 native unmirrored",
     "stone_boss_mm": 0.9,
     "stone_mm": [
-      -0.3,
-      1.6
+      0.2,
+      2.95
     ],
+    "stone_stock_mm": 2.1,
     "table_points": 608,
     "table_x_mm": [
       -7.823003137224834,
@@ -210,26 +245,16 @@
     "table_z_mm": [
       -7.425,
       8.675
-    ],
-    "tube_mm": 1.1
+    ]
   },
-  "design_bytes": 2879140,
+  "design_bytes": 1796491,
   "dfm": [],
   "field": {
     "marginal_area_mm2": 0.0,
     "notes": [
-      "Lost wax: 10.96% of the surface would undercut a two-part pull (worst 81.2 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Undercut 326–0° on the crest: 9.1 mm² leaning to 59° — caused by \"Hackles into scales\"; muting it clears it.",
-      "Undercut 20–22° on the crest: 0.1 mm² leaning to 5° — no single layer explains it.",
-      "Undercut 29–151° on the crest: 131.1 mm² leaning to 67° — no single layer explains it.",
-      "Undercut 158–162° on the crest: 0.2 mm² leaning to 6° — no single layer explains it.",
-      "Undercut 180–214° on the crest: 8.7 mm² leaning to 60° — caused by \"Hackles into scales\"; muting it clears it.",
-      "Undercut 241–241° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
-      "Undercut 254–254° on the crest: 0.1 mm² leaning to 1° — no single layer explains it.",
-      "Undercut 270–270° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
-      "Undercut 286–286° on the crest: 0.1 mm² leaning to 2° — no single layer explains it.",
-      "Undercut 299–299° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
-      "Undercut 313–313° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
+      "Lost wax: 10.99% of the surface would undercut a two-part pull (worst 78.8 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 328–178° on the crest: 141.0 mm² leaning to 71° — no single layer explains it.",
+      "Undercut 184–212° on the crest: 8.4 mm² leaning to 60° — caused by \"Hackles into scales\"; muting it clears it.",
       "Cut at the bench after casting, and so not judged here: Graver's barbs and keels.",
       "1 made setting cast in place with the ring; the field judges the band under it."
     ],
@@ -238,13 +263,13 @@
     "process": "LostWax",
     "profile_samples": 128,
     "theta_samples": 256,
-    "thinnest_wall_mm": 1.6771637338001373,
-    "thinnest_wall_theta_deg": 309.375,
-    "total_area_mm2": 1446.8139855120235,
-    "undercut_area_mm2": 158.5165153349489,
+    "thinnest_wall_mm": 1.670165094861444,
+    "thinnest_wall_theta_deg": 232.03125,
+    "total_area_mm2": 1423.642545815943,
+    "undercut_area_mm2": 156.5169815518557,
     "verdict": "Castable",
-    "vertical_area_mm2": 51.152012788952625,
-    "worst_draft_deg": -81.1888848026404
+    "vertical_area_mm2": 52.40119772123942,
+    "worst_draft_deg": -78.8310674293308
   },
   "gates": [
     {
@@ -265,6 +290,10 @@
     },
     {
       "gate": "lost wax verdict Castable with 0.8 mm fill",
+      "pass": true
+    },
+    {
+      "gate": "lost-wax land widths at or above 0.8 mm or named",
       "pass": true
     },
     {
@@ -294,11 +323,160 @@
     "self_crossings": 0,
     "solids_notes": [],
     "solids_resolved": 1,
-    "stamps": 21,
-    "stamps_struck": 21,
-    "triangles": 1781600,
+    "stamps": 17,
+    "stamps_struck": 17,
+    "triangles": 1792118,
     "watertight": true
   },
+  "land_widths": [
+    {
+      "exception": false,
+      "kind": "seat",
+      "min_land_mm": 0.843,
+      "name": "Boss wall round the girdle",
+      "status": "at or above 0.8"
+    },
+    {
+      "exception": true,
+      "kind": "seat",
+      "min_land_mm": 0.664,
+      "name": "Boss rim at the bright-cut bevel's top edge",
+      "status": "Bright-cut bevel over the girdle: cast as a chamfer, recut by the setter and burnished over the tsavorite"
+    },
+    {
+      "exception": false,
+      "kind": "stamp",
+      "min_land_mm": 0.8,
+      "name": "Crown",
+      "status": "at or above 0.8"
+    },
+    {
+      "exception": true,
+      "kind": "stamp",
+      "min_land_mm": 0.185,
+      "name": "Crown point, 1",
+      "status": "Pointed fleuron under its pearl: investment detail, cast in place and cleaned up with a graver"
+    },
+    {
+      "exception": false,
+      "kind": "stamp",
+      "min_land_mm": 0.815,
+      "name": "Crown pearl, 1",
+      "status": "at or above 0.8"
+    },
+    {
+      "exception": true,
+      "kind": "stamp",
+      "min_land_mm": 0.184,
+      "name": "Crown point, 2",
+      "status": "Pointed fleuron under its pearl: investment detail, cast in place and cleaned up with a graver"
+    },
+    {
+      "exception": false,
+      "kind": "stamp",
+      "min_land_mm": 0.815,
+      "name": "Crown pearl, 2",
+      "status": "at or above 0.8"
+    },
+    {
+      "exception": true,
+      "kind": "stamp",
+      "min_land_mm": 0.185,
+      "name": "Crown point, 3",
+      "status": "Pointed fleuron under its pearl: investment detail, cast in place and cleaned up with a graver"
+    },
+    {
+      "exception": false,
+      "kind": "stamp",
+      "min_land_mm": 0.815,
+      "name": "Crown pearl, 3",
+      "status": "at or above 0.8"
+    },
+    {
+      "exception": true,
+      "kind": "stamp",
+      "min_land_mm": 0.424,
+      "name": "Crown jewel, 1",
+      "status": "Faceted lozenge set on the band: investment detail, polished at the bench"
+    },
+    {
+      "exception": true,
+      "kind": "stamp",
+      "min_land_mm": 0.424,
+      "name": "Crown jewel, 2",
+      "status": "Faceted lozenge set on the band: investment detail, polished at the bench"
+    },
+    {
+      "exception": false,
+      "kind": "stamp",
+      "min_land_mm": 0.989,
+      "name": "Eye",
+      "status": "at or above 0.8"
+    },
+    {
+      "exception": true,
+      "kind": "stamp",
+      "min_land_mm": 0.178,
+      "name": "Fang, 1",
+      "status": "Fang curving to a rounded point: investment detail, cast in place"
+    },
+    {
+      "exception": true,
+      "kind": "stamp",
+      "min_land_mm": 0.178,
+      "name": "Fang, 2",
+      "status": "Fang curving to a rounded point: investment detail, cast in place"
+    },
+    {
+      "exception": true,
+      "kind": "stamp",
+      "min_land_mm": 0.397,
+      "name": "Forked tongue",
+      "status": "Tongue's stem, 0.4 mm and ridged: investment detail cast in place"
+    },
+    {
+      "exception": true,
+      "kind": "stamp",
+      "min_land_mm": 0.297,
+      "name": "Forked tongue, upper tine",
+      "status": "Tongue's tine, 0.3 mm and ridged to a rounded end: investment detail cast in place"
+    },
+    {
+      "exception": true,
+      "kind": "stamp",
+      "min_land_mm": 0.297,
+      "name": "Forked tongue, lower tine",
+      "status": "Tongue's tine, 0.3 mm and ridged to a rounded end: investment detail cast in place"
+    },
+    {
+      "exception": false,
+      "kind": "painted",
+      "min_land_mm": 0.8,
+      "name": "Serpent's body to the tail's tip (painted)",
+      "status": "at or above 0.8"
+    },
+    {
+      "exception": false,
+      "kind": "painted",
+      "min_land_mm": 1.521,
+      "name": "Upper jaw, lip to crown (painted)",
+      "status": "at or above 0.8"
+    },
+    {
+      "exception": false,
+      "kind": "painted",
+      "min_land_mm": 0.874,
+      "name": "Lower jaw, lip to chin (painted)",
+      "status": "at or above 0.8"
+    },
+    {
+      "exception": true,
+      "kind": "painted",
+      "min_land_mm": 0.44,
+      "name": "Beaded bordure beads (painted)",
+      "status": "Bordure bead: investment detail, cast in place and burnished"
+    }
+  ],
   "made_parts": [
     {
       "name": "Crown",
@@ -357,6 +535,22 @@
       "zero_area_faces": 0
     },
     {
+      "name": "Eye",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Nostril",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
       "name": "Fang, 1",
       "open_edges": 0,
       "repeated_edges": 0,
@@ -381,7 +575,7 @@
       "zero_area_faces": 0
     },
     {
-      "name": "Eye",
+      "name": "Forked tongue, upper tine",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
@@ -389,67 +583,11 @@
       "zero_area_faces": 0
     },
     {
-      "name": "Brow",
+      "name": "Forked tongue, lower tine",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "tier": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Nostril",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "tier": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Upper lip scale, 1",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "tier": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Upper lip scale, 2",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "tier": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Upper lip scale, 3",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "tier": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Lower lip scale, 1",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "tier": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Lower lip scale, 2",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "tier": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Pupil",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "tier": 1,
       "zero_area_faces": 0
     },
     {
@@ -469,6 +607,14 @@
       "zero_area_faces": 0
     },
     {
+      "name": "Pupil",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 1,
+      "zero_area_faces": 0
+    },
+    {
       "name": "Tsavorite, flush",
       "open_edges": 0,
       "repeated_edges": 0,
@@ -479,17 +625,17 @@
   "mesh": {
     "quality": {
       "degenerate_faces": 0,
-      "min_angle_deg": 0.0006643549535220723,
-      "worst_aspect": 86242.75619081571
+      "min_angle_deg": 0.0016502256412005607,
+      "worst_aspect": 34720.04209124548
     },
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 1781600,
-      "vertex_count": 890798,
+      "triangle_count": 1792118,
+      "vertex_count": 896057,
       "watertight": true
     },
-    "volume_mm3": 1706.9177866304897
+    "volume_mm3": 1698.3405909906487
   },
   "name": "Basiliscus — king of serpents",
   "pattern": {
@@ -499,17 +645,17 @@
     "notes": [],
     "quality": {
       "degenerate_faces": 0,
-      "min_angle_deg": 0.0006648644070170942,
-      "worst_aspect": 86176.61865282162
+      "min_angle_deg": 0.0016472404814506386,
+      "worst_aspect": 34782.95607581304
     },
     "scale": 1.019367991845056,
     "self_crossings": 0,
-    "triangles": 1781600,
+    "triangles": 1792118,
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 1781600,
-      "vertex_count": 890798,
+      "triangle_count": 1792118,
+      "vertex_count": 896057,
       "watertight": true
     }
   },
@@ -518,6 +664,11 @@
     "minimum_section_mm": 0.8,
     "name": "LostWax",
     "release_gates": "Not applicable: native upright stock in investment"
+  },
+  "relief": {
+    "built_max_relief_mm": 1.5344412326812744,
+    "note": "The painted serpent's peak and the finished mesh's highest relief over the bare stock; the layer's 2.0 mm is only its alpha scale",
+    "serpent_painted_peak_mm": 1.5468943119049072
   },
   "stones": {
     "previewed": 1,
