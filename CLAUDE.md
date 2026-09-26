@@ -1430,8 +1430,10 @@ corner angle, aspect, degenerate count — on the report panel and the sheet.
 
 ### Templates are code, and the field verdict edits them
 
-`templates.rs` holds the File-menu gallery (and MCP `apply_template`): nine
-starters built from the same API the panels drive, so they cannot go stale
+`templates.rs` holds the File-menu gallery (and MCP `apply_template`):
+thirteen starters (four bands, the shouldered cushion signet and eight stone
+settings) plus the twenty factory stocks, each stock opening in the process
+its own sand trial measured, built from the same API the panels drive, so they cannot go stale
 against the format. Only builtin alphas, so they open identically on an
 empty machine. The test holds every one to `analyze_field` — and that test
 did real work the day it was written: showcase 5's rails-and-milgrain crest
@@ -2246,7 +2248,7 @@ What the runtime settled while being built, each pinned by a test:
 - **`RingDesign::graph`** is the design's provenance (no ladder bump — an
   absent key reads `None`, an older build ignores it). Graph, cluster and
   preset files have their own ladder in `file.rs`, one step per version.
-- **The nine templates are committed graphs** (`graphs/templates/*.graph.json`,
+- **The thirteen starter templates are committed graphs** (`graphs/templates/*.graph.json`,
   bundled by `include_str!`) generated from builders in `templates.rs`;
   the golden test holds each file to its builder and each evaluation to the
   code template **byte for byte**. Regenerate with

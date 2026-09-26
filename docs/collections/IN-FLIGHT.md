@@ -10,7 +10,11 @@ Codex's account hit its usage limit at 10:14 MDT on 2026-09-25 and cannot resume
   - `bestiarium-basiliscus` (`codex/bestiarium-basiliscus`: the example is committed as `ab4c81e` and merged up to the platform; its export build fails the 2 million triangle budget);
   - Harpyia next, from the spike on `codex/harpyia-feather-spike` (probe committed as `826f825`), owning an enabler C-B4 for a closed feather construction, because the kernel loft tessellates open.
 - Arachne's validated pattern export is committed as `a44f55c` on `bestiarium-arachne`.
-- **Starter gallery** (`codex/starter-gallery`): Codex's uncommitted part-1 work (eight settings' graphs, thumbnails, golden corpus, tests) is still in the tree and being finished.
+- **Starter gallery part 1 is on master** as merge `bc697ba` (validated at `867967e`: 41 checks, 1,854 tests, `starters-part1-report.json`). Stocks open as measured: 002, 006, 015, 017 in Delft; 001, 003, 005, 007, 012, 013, 016 in wax after failed sand trials; the nine upright plans in wax. Open follow-ups:
+  - the split shank's and split gallery's thumbnails do not show the Y or the window at 160 px (lane asked to re-frame them);
+  - Trilogy's side head has 2 degenerate faces in its own part mesh at export chords of 512 steps and up (the joined ring is clean; the fix belongs in the claw builder);
+  - the desktop "Imported signet base" picker shows a sand-master stock's raw source name instead of selecting its preset;
+  - the phone's retired "Imported signet base..." menu entry needs a CHANGELOG line at the next release.
 - Lane instructions shared by every ring: `.claude/collection-review/bestiarium-lane-brief.md` (ignored dir; the review prompt template sits beside it). Gates add two to the list in README: nothing may enter the finger hole (Arachne's leg did, 0.36 mm, and nothing caught it) and the export build must fit the 2 million triangle budget.
 - **Read another worktree's files with Bash, not the Read tool**: each worktree carries its own copy of the long CLAUDE.md, and the Read tool injects it into the reader's context once per worktree touched.
 - All seven lanes launched on 2026-09-25 died within minutes on the account's usage limit and were relaunched the next morning, fewer at a time.
