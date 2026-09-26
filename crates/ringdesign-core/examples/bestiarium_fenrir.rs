@@ -294,7 +294,12 @@ impl Wolf {
         if (s[0] - centre.0).hypot(s[1] - centre.1) > 0.5 * l + w + 1.0 {
             return 1.0 + (s[0] - centre.0).hypot(s[1] - centre.1) - 0.5 * l - w;
         }
-        let n = if root_h.is_some() { [0.0, 0.0, 1.0] } else { self.up(root.0, root.1) };
+        let n = if root_h.is_some() {
+            let (sn, cs) = deg.to_radians().sin_cos();
+            self.up(root.0 + 0.6 * l * cs, root.1 + 0.6 * l * sn)
+        } else {
+            self.up(root.0, root.1)
+        };
         let flat = 3.0;
         let squash = |p: P3, o: P3| {
             let d = sub(p, o);
@@ -358,11 +363,17 @@ impl Wolf {
         d = smin(d, nose, 0.5);
         // Upper and lower jaws as two masses over the mouth's region, the chin under them.
         let upper = ellipsoid(sub(s, [0.0, MOON_U + 3.2, -0.2]), [7.0, 4.6, 3.2]);
-        let lower = ellipsoid(sub(s, [0.0, MOON_U - 3.4, -1.3]), [6.1, 4.1, 2.7]);
         d = smin(d, upper, 1.2);
-        d = smin(d, lower, 1.0);
-        let chin = ellipsoid(sub(s, [0.0, MOON_U - 6.2, -0.3]), [2.4, 1.2, 1.4]);
-        d = smin(d, chin, 0.9);
+        // A slender mandible along the moon's lower arc, the chin at its point.
+        let mut mandible = f64::MAX;
+        let arc = |a: f64| Self::rim(6.05, a, lerp(0.35, 0.15, smooth(-38.0, -90.0, a)));
+        for k in 0..24 {
+            let (a0, a1) = (lerp(-30.0, -90.0, k as f64 / 24.0), lerp(-30.0, -90.0, (k + 1) as f64 / 24.0));
+            let (r0, r1) = (lerp(0.95, 0.8, (-30.0 - a0) / 60.0), lerp(0.95, 0.8, (-30.0 - a1) / 60.0));
+            mandible = mandible.min(round_cone(s, arc(a0), arc(a1), r0, r1));
+        }
+        let chin = ellipsoid(sub(s, [0.0, MOON_U - 6.55, -0.15]), [1.9, 1.05, 1.1]);
+        d = smin(d, smin(mandible, chin, 0.6), 0.9);
         for (u, h) in [(2.95, 5.15), (3.55, 4.7), (4.15, 4.2), (4.75, 3.7)] {
             let groove = round_cone(s, [0.0, u, h + 0.05], [1.5, u + 0.35, h - 0.65], 0.2, 0.14);
             d = smax(d, -groove, 0.15);
@@ -764,8 +775,8 @@ fn moonstone() -> Gem {
 }
 
 /// Atlas the hide is painted on.
-const AW: usize = 2048;
-const AH: usize = 768;
+const AW: usize = 1536;
+const AH: usize = 576;
 /// Marching grid of the head, mm, and the faces it is decimated to.
 const SCULPT_STEP: f64 = 0.11;
 const SCULPT_FACES: usize = 90_000;
@@ -773,7 +784,7 @@ const SCULPT_FACES: usize = 90_000;
 const HEAD_BLEND_MM: f64 = 0.0;
 /// The ruff's relief and the palm's fetter, mm.
 const RUFF_MM: f64 = 0.7;
-const GLEIPNIR_MM: f64 = 0.45;
+const GLEIPNIR_MM: f64 = 0.6;
 const BINDING_MM: f64 = 0.5;
 const HAIR_LINES_MM: f64 = 0.08;
 
@@ -895,10 +906,11 @@ fn head_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
 }
 
 /// A lock of the ruff at hide point (`along` from the head, `across`): height 0..1 and the crest groove 0..1.
+/// Flames pointed at both ends, bowed in an S and shingled half a lock apart, flowing away from the head.
 fn fur(along: f64, across: f64) -> (f64, f64) {
-    let pitch = 1.1;
-    let length = 3.0;
-    let step = length * 0.58;
+    let pitch = 1.15;
+    let length = 4.4;
+    let step = length * 0.5;
     let row = (across / pitch).round() as i64;
     let (mut best, mut crest) = (0.0f64, 0.0f64);
     for j in row - 1..=row + 1 {
@@ -910,51 +922,53 @@ fn fur(along: f64, across: f64) -> (f64, f64) {
                 continue;
             }
             let wave = if (i + j).rem_euclid(2) == 0 { 1.0 } else { -1.0 };
-            let centre = j as f64 * pitch + 0.2 * wave * (2.0 * PI * t).sin() + 0.12 * across.signum() * t;
-            let half = 0.54 * pitch * (1.0 - t.powf(2.2)).max(0.0).sqrt() * smooth(-0.05, 0.14, t);
+            let centre = j as f64 * pitch + 0.32 * wave * (1.6 * PI * t).sin() + 0.18 * across.signum() * t;
+            let half = 0.56 * pitch * (PI * t.powf(0.75)).sin().max(0.0).powf(0.85);
             let y = across - centre;
             if y.abs() >= half {
                 continue;
             }
-            let body = (1.0 - (y / half).powi(2)).max(0.0).powf(0.6);
-            let h = body * (0.5 + 0.5 * smooth(0.0, 0.7, t)) * (1.0 - 0.3 * smooth(0.86, 1.0, t));
+            let body = (1.0 - (y / half).powi(2)).max(0.0).powf(0.55);
+            let strands = 0.06 * (0.5 - 0.5 * (2.0 * PI * y / 0.32).cos());
+            let h = body * (PI * t.powf(0.7)).sin().max(0.0).powf(0.6) * (0.75 + 0.25 * t) - strands;
             if h > best {
                 best = h;
-                crest = (1.0 - smooth(0.0, 0.2, y.abs() / half)) * smooth(0.1, 0.35, t);
+                crest = (1.0 - smooth(0.0, 0.18, y.abs() / half)) * smooth(0.1, 0.3, t) * (1.0 - smooth(0.75, 0.95, t));
             }
         }
     }
     (best, crest)
 }
 
-/// The Gleipnir braid tile: strands from alternate edges meeting over the centre line, each tucked under the next.
+/// The Gleipnir braid tile: strands from alternate edges meeting over the centre line, each tucked under the next,
+/// drawn in metal millimetres and squeezed across the band by the chart's own squash.
 fn gleipnir_svg(cell_w: f64, cell_h: f64, squash: f64) -> String {
-    let (w, h) = (cell_w, cell_h);
-    let strand = 0.95 / squash.max(0.1);
-    let gap = 0.28 / squash.max(0.1);
+    let (w, h) = (cell_w, cell_h * squash);
+    let strand = 1.15;
+    let gap = 0.4;
     let mut s = format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w:.4} {h:.4}" width="{w:.4}" height="{h:.4}"><rect width="{w:.4}" height="{h:.4}" fill="#fff"/><defs>"##
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cell_w:.4} {cell_h:.4}" width="{cell_w:.4}" height="{cell_h:.4}"><rect width="{cell_w:.4}" height="{cell_h:.4}" fill="#fff"/><defs>"##
     );
     let pieces: Vec<(f64, f64, f64, f64)> = (-3i64..=4)
         .map(|k| {
             let u0 = k as f64 * 0.5 * w;
-            let (v0, v1) = if k.rem_euclid(2) == 0 { (0.1 * h, 0.64 * h) } else { (0.9 * h, 0.36 * h) };
-            (u0, v0, u0 + 0.62 * w, v1)
+            let (v0, v1) = if k.rem_euclid(2) == 0 { (0.13 * h, 0.62 * h) } else { (0.87 * h, 0.38 * h) };
+            (u0, v0, u0 + 0.6 * w, v1)
         })
         .collect();
     for (k, (x0, y0, x1, y1)) in pieces.iter().enumerate() {
         s += &format!(
-            r##"<linearGradient id="g{k}" gradientUnits="userSpaceOnUse" x1="{x0:.4}" y1="{y0:.4}" x2="{x1:.4}" y2="{y1:.4}"><stop offset="0" stop-color="#3a3a3a"/><stop offset="0.45" stop-color="#000"/><stop offset="1" stop-color="#5c5c5c"/></linearGradient>"##
+            r##"<linearGradient id="g{k}" gradientUnits="userSpaceOnUse" x1="{x0:.4}" y1="{y0:.4}" x2="{x1:.4}" y2="{y1:.4}"><stop offset="0" stop-color="#404040"/><stop offset="0.4" stop-color="#000"/><stop offset="1" stop-color="#6a6a6a"/></linearGradient>"##
         );
     }
-    s += "</defs>";
+    s += &format!(r##"</defs><g transform="scale(1 {:.6})">"##, 1.0 / squash.max(0.05));
     for (k, (x0, y0, x1, y1)) in pieces.iter().enumerate() {
         s += &format!(
             r##"<path d="M{x0:.4} {y0:.4} L{x1:.4} {y1:.4}" stroke="#fff" stroke-width="{:.4}" stroke-linecap="round" fill="none"/><path d="M{x0:.4} {y0:.4} L{x1:.4} {y1:.4}" stroke="url(#g{k})" stroke-width="{strand:.4}" stroke-linecap="round" fill="none"/>"##,
             strand + 2.0 * gap
         );
     }
-    s += "</svg>";
+    s += "</g></svg>";
     s
 }
 
@@ -1014,20 +1028,29 @@ fn fold_room(a: &Atlas) -> Vec<f64> {
         .collect()
 }
 
-/// Folds in the factory stock's own facets where relief crosses the mesh: ring angle, finger-axis z, radius, mm.
-const FOLD_CAPS: [(f64, f64, f64); 1] = [(48.4, -6.05, 10.93)];
+/// How much relief the stock takes at `p` away from the facet folds `caps`, 0..1.
+fn off_folds(p: P3, caps: &[P3]) -> f64 {
+    caps.iter().fold(1.0, |m, c| m * smooth(0.5, 1.3, len(sub(p, *c))))
+}
 
-/// How much relief the stock takes at `p` away from its facet folds, 0..1.
-fn off_folds(p: P3) -> f64 {
-    FOLD_CAPS.iter().fold(1.0, |m, &(deg, z, r)| {
-        let (s, c) = deg.to_radians().sin_cos();
-        m * smooth(0.5, 1.3, len(sub(p, [r * c, r * s, z])))
-    })
+/// Where the painted stack alone crosses the stock's own mesh, at the draft and the export resolution.
+fn fold_sites(d: &RingDesign, lib: &AlphaLibrary) -> Result<Vec<P3>> {
+    let mut part = d.clone();
+    part.cad = None;
+    let mut out = Vec::new();
+    for theta_steps in [768, EXPORT_THETA] {
+        let params = BuildParams { theta_steps, profile_steps: if theta_steps == 768 { 320 } else { 448 }, refine: None, ..Default::default() };
+        out.extend(crossing_sites(&mesh::try_build(&part, lib, params)?.mesh));
+    }
+    Ok(out)
 }
 
 /// A painted alpha stored as portable 16-bit PNG and shown as one tile over the chart.
-fn portable(d: &mut RingDesign, lib: &mut AlphaLibrary, alpha: Alpha, height: f64, win: Window, bench: bool) -> Result<()> {
+fn portable(d: &mut RingDesign, lib: &mut AlphaLibrary, mut alpha: Alpha, height: f64, win: Window, bench: bool) -> Result<()> {
     let name = alpha.name.clone();
+    for v in &mut alpha.data {
+        *v = (*v * 255.0).round() / 255.0;
+    }
     lib.insert(Alpha::from_png16(&name, &alpha.to_png16()?)?);
     let mut layer = skin::hide_layer(d, &name, height, win);
     layer.bench_only = bench;
@@ -1053,26 +1076,44 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value)> {
     stone_and_fangs(&mut d)?;
     let (head, head_stats) = head_feature(&wolf)?;
     d.cad.as_mut().unwrap().append(head)?;
-    let mut lib = AlphaLibrary::builtin();
-    // The ruff and its hair lines, masked off the bore edges and wherever the head covers the stock.
-    let clear = |s: &Sample| {
-        let r = s.p[0].hypot(s.p[1]);
-        smooth(a.bore + 1.0, a.bore + 1.5, r) * smooth(-0.05, 0.7, wolf.sdf(s.p)) * off_folds(s.p)
-    };
     let room = fold_room(&a);
-    let ruff = a.paint("Ruff", |s| {
-        let h = hide.at(s);
-        let (lock, crest) = fur(h.along.abs(), h.across);
-        ((lock - 0.22 * crest * lock) * clear(s)).min(room[s.i] / RUFF_MM)
-    });
-    portable(&mut d, &mut lib, ruff, RUFF_MM, window(90.0, 262.0), false)?;
-    let hair = a.paint("Graver's hair lines", |s| {
-        let h = hide.at(s);
-        let (lock, _) = fur(h.along.abs(), h.across);
-        let line = (h.across * 7.5 + 0.9 * (h.along.abs() * 0.8).sin()).fract();
-        (1.0 - smooth(0.0, 0.18, (line - 0.5).abs())) * smooth(0.35, 0.6, lock) * clear(s)
-    });
-    portable(&mut d, &mut lib, hair, HAIR_LINES_MM, window(90.0, 262.0), true)?;
+    let paint = |d: &mut RingDesign, caps: &[P3]| -> Result<AlphaLibrary> {
+        let mut lib = AlphaLibrary::builtin();
+        d.layers.layers.retain(|e| e.name != "Ruff" && e.name != "Graver's hair lines");
+        let clear = |s: &Sample| {
+            let r = s.p[0].hypot(s.p[1]);
+            smooth(a.bore + 1.0, a.bore + 1.5, r) * smooth(-0.05, 0.7, wolf.sdf(s.p)) * off_folds(s.p, caps)
+        };
+        let ruff = a.paint("Ruff", |s| {
+            let h = hide.at(s);
+            let (lock, crest) = fur(h.along.abs(), h.across);
+            ((lock - 0.22 * crest * lock) * clear(s)).min(room[s.i] / RUFF_MM)
+        });
+        portable(d, &mut lib, ruff, RUFF_MM, window(90.0, 262.0), false)?;
+        let hair = a.paint("Graver's hair lines", |s| {
+            let h = hide.at(s);
+            let (lock, _) = fur(h.along.abs(), h.across);
+            let line = (h.across * 7.5 + 0.9 * (h.along.abs() * 0.8).sin()).fract();
+            (1.0 - smooth(0.0, 0.18, (line - 0.5).abs())) * smooth(0.35, 0.6, lock) * clear(s)
+        });
+        portable(d, &mut lib, hair, HAIR_LINES_MM, window(90.0, 262.0), true)?;
+        Ok(lib)
+    };
+    let mut caps: Vec<P3> = Vec::new();
+    let mut lib = paint(&mut d, &caps)?;
+    for round in 0..4 {
+        let sites = fold_sites(&d, &lib)?;
+        if sites.is_empty() {
+            break;
+        }
+        for p in sites {
+            if caps.iter().all(|c| len(sub(*c, p)) > 0.6) {
+                caps.push(p);
+            }
+        }
+        println!("  fold round {round}: {} caps", caps.len());
+        lib = paint(&mut d, &caps)?;
+    }
     // Gleipnir at the palm: its outer face in the chart, and how the chart squeezes it there.
     let x = (270.0 / 360.0 * AW as f64).round() as usize % AW;
     let face: Vec<&Sample> = (0..AH).map(|y| a.at(x, y)).filter(|s| {
@@ -1115,6 +1156,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value)> {
         "palm_metal_per_chart_mm": squash,
         "gleipnir_cell_mm": [cw, ch],
         "ruff_window_deg": [90.0 - 131.0, 90.0 + 131.0],
+        "fold_caps": caps.iter().map(|p| json!({"theta_deg": p[1].atan2(p[0]).to_degrees(), "z_mm": p[2], "r_mm": p[0].hypot(p[1])})).collect::<Vec<_>>(),
     });
     Ok((d, lib, composition))
 }
@@ -1210,7 +1252,7 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
     let pattern_cross = csg::self_crossings(&solid(pattern));
     let pattern_validation = pattern.validate();
     let pattern_quality = pattern.quality();
-    library::save_design(out.join("design.ring.json"), &d)?;
+    library::save_design_embedded(out.join("design.ring.json"), &d, &lib)?;
     let text = std::fs::read_to_string(out.join("design.ring.json"))?;
     let design_bytes = text.len();
     let format = serde_json::from_str::<Value>(&text)?.get("format_version").and_then(Value::as_u64).unwrap_or(0);
