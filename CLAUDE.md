@@ -1657,6 +1657,21 @@ and halos carry the field through their seats.
   subtracted), which is what flattens each claw onto its facet and cuts
   the girdle's bite. The envelope is the stone as `gems.rs` draws it, so
   the seat fits the stone the viewport shows.
+- **Claws take a style, a grouping, rails and a rise** (`setting::ClawOptions`,
+  the `head.claw` and `head.basket` params). Styles Wire, Talon, Fang,
+  Tentacle, Thorn and Sepal shape each claw; groupings Even, Feet and Jaws
+  place them; `rails` "Seat" keeps the base and gallery rails, "Base" only
+  the base rail, "None" none (a basket takes 0 to 6). A railless claw must
+  find metal at its own foot or the head is refused by name, so a claw landing
+  past a narrow band's edge asks for the Jaws grouping or a stone seated
+  further onto the band. On a cabochon the shaped styles climb the dome and
+  rest on it, the tip at `rise` of the dome's height (0.3 by default, at most
+  0.6, lower where the claw's bends cannot fit); a Seat rail hides most of a
+  climbing claw, so railless heads are what make fangs and tentacles read.
+  Defaults are bit-identical to the plain wire head, and anything else is
+  fenced at design format 6 and graph format 2. Every head is cleaned of
+  sub-20 nm slivers after the stone's notch: overlapping rails left
+  4.8e-7 mm edges that f32 turned into degenerate faces.
 - **Beads** are centres and radii, not solids, until every seat is placed:
   `apply` merges any two within 1.4 radii in ring space, so neighbours share
   the beads between them (pinned by volume: three stones gain less than
