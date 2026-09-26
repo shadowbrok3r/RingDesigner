@@ -1,0 +1,13 @@
+{
+  "build": {
+    "profile_steps": 448,
+    "theta_steps": 1536
+  },
+  "cold_design_reload": {
+    "bake_ms": 13.671526,
+    "build_ms": 5206.125991000001,
+    "identical_vertices_faces_normals": true,
+    "read_ms": 0.751177
+  },
+  "design_bytes": 1526525
+}

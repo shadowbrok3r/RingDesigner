@@ -1,0 +1,17 @@
+{
+  "stones": [
+    {
+      "dispersion": 0.028,
+      "ior": 1.74,
+      "mesh": "reference-tsavorite.stl",
+      "name": "Tsavorite",
+      "roughness": 0.06,
+      "tint": [
+        0.02500000037252903,
+        0.30000001192092896,
+        0.08500000089406967
+      ],
+      "transmission": 0.7
+    }
+  ]
+}

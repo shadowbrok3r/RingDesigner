@@ -1,0 +1,248 @@
+{
+  "ring": "Basiliscus — king of serpents",
+  "round": 1,
+  "candidate_head": "c2160ed",
+  "verdict": "revise",
+  "score": 6.5,
+  "summary": "The strongest face-on subject read in the wax row: a crowned heraldic serpent coils round a flush tsavorite on the native 020 escutcheon, inside a 42-bead bordure on a pounced field, with feathered mantling pouring off both sides. The build is clean at three resolutions and the template lifts with 0 patches. It does not ship. The lost-wax land-width gate is missing. Nothing asserts or names the boss's 0.6 mm lip, the proud stamps under 0.8 mm (nine of the ten proud stamp families: pearls 0.68, fangs 0.36-0.40 to a point, tongue 0.26-0.36, brow 0.40, lip scales 0.38-0.42, crown jewels 0.30, crown band 0.65, the pointed crown points), the 0.44 mm beads or the painted tail's 0.6 mm tip. That alone is an automatic revise. The craft also falls short where Logan looks hardest. The head is a smooth, scale-less duck bill with stamps pasted on: a bead eye whose pupil does not read face-on, sticker lip scales and droplet fangs. The flat-topped forked tongue vanishes face-on and is a Y bracket at 3/4. The 3.8 mm crown reads as three dots at 300 px, and face-on the shield reads closer to the Slytherin crest than to a crowned basilisk. At 3/4 the painted body's flanks comb vertically and its edges fringe. The hackle roots on the head walls are truncated slabs, the hackle-to-scale morph is a corrugated band, and the palm scutes are tread blocks. The author's 'about 2 mm' relief measures 1.385 mm. Score 6.5 against a self-score of 7.5. One focused round on the head, crown, tongue and walls, plus the land-width gate, can reach 7.5.",
+  "strengths": [
+    "Face-on the composition is clear and heraldic: an S-coiled serpent, its head under the chief, its body round the stone's right end and underside, its tail curling into the shield's point. face.png and face-300.png read 'serpent on a shield' without a caption.",
+    "One theme face to palm: the crest on the table, feathered mantling that morphs to keeled scale on the shoulders, round scales on the head walls and shank, and ventral scutes on the palm.",
+    "The native, unmirrored 020 keeps its hard table edge and its cusped chief and point (bare-vs-finished.png). It is the only escutcheon in the collection, a silhouette distinct from Arachne's band, Draco's kite and Fenrir's trillion.",
+    "The tsavorite sits in a made flush bur with a through pilot and is visible from every face-side view. The stone report is clean: 1 of 1 previewed, 0 warnings, 0 tight pairs.",
+    "The small-scale texture is well judged face-on: the 42-bead bordure at 0.66 mm pitch and the pounced field give the table heraldic density above Caiman's.",
+    "The engineering is clean. It is watertight at 384 x 192, 768 x 320 and 1536 x 448 (1,781,600 triangles), with 0 degenerates, 0 self-crossings, 21/21 stamps struck and 0 DFM findings. It fields Castable in wax at a 1.677 mm wall, lifts with 0 patches at 2.90 MB, and cold reloads identically."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "pass",
+      "reason": "One heraldic basilisk throughout: the crowned serpent on the table, feathered mantling that turns to keeled scale 70-110 deg off the head, round scales and shields on the head walls and shank, and ventral scutes on the palm. Nothing is scattered. Face-on, the mantling fans read as palm fronds or laurel rather than hackles (item 7)."
+    },
+    {
+      "item": "Figurative motifs are stamps or parts with true outlines, not painted smudges",
+      "result": "pass",
+      "reason": "The serpent's body and head are painted, but from exact spline SDFs, so face-on the silhouette is crisp and nowhere blurs into 'arrows'. The crown, eye, fangs, tongue and lip scales are stamps. Two render faults undercut it. At 3/4 the body's steep flanks comb into vertical streaks, with a sawtooth fringe along the plinth edge (shoulder.png 1100-1320 x 460-740, stones.png 420-900 x 900-1160). The flat-topped tongue stamp is invisible face-on (items 3 and 5)."
+    },
+    {
+      "item": "Faces and eyes are allowed when they read well; a poor face is a defect",
+      "result": "fail",
+      "reason": "A poor face. The head is a smooth, scale-less dome with two flat jaw plates, and at 3/4 it reads as a duck bill (stones.png 300-760 x 230-640). The eye is a proud glossy bead on top of the skull with no socket. Its 0.26 mm slit pupil does not read face-on, and the brow is a flat lens floating above it. The five lip scales are pasted-on ellipses and the 0.6-0.7 mm fangs read as water droplets. There is no menace: no brow overhang, no head plates, no recessed gape."
+    },
+    {
+      "item": "Stones sit in made settings and are visible",
+      "result": "pass",
+      "reason": "The tsavorite marquise 8 x 4 is flush in a 0.9 mm boss with a made bur (SolidKind::Flush) and a through pilot. It is visible in the hero, face and stones views, and the pilot shows in the bore (palm.png) as expected. The boss lip is only 0.6 mm (5.2 x 9.2 mm boss on a 4 x 8 stone), which item 1 must widen or name."
+    },
+    {
+      "item": "Shoulder ornament is not cut off toward the face",
+      "result": "pass",
+      "reason": "The hackles emerge from under the table edge on both sides (face.png) and run unbroken to the morph; nothing ends in a hard line short of the table. Their roots on the diagonal head walls are a separate craft defect (item 6)."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms are sculpted",
+      "result": "fail",
+      "reason": "Five mechanical reads. (a) The forked tongue is a flat-topped, vertical-walled Y slab (stones.png 340-490 x 520-600). (b) The hackle roots on the head walls are truncated slabs with vertically striated ends (hero.png 470-650 x 760-900). (c) The palm's belly scutes are flat rounded rectangles like a tank tread, ending square on the shank sides (palm.png 400-1250 x 380-560, reverse.png 1170-1440 x 400-820). (d) The 0.07 mm pounce plateau draws L-shaped ledges and leaves a sliver island (face.png 430-700 x 490-600, 713-847 x 1057-1090). (e) The painted body's flanks comb vertically at 3/4."
+    },
+    {
+      "item": "Factory stock keeps its hard wall-to-face angles",
+      "result": "pass",
+      "reason": "bare-vs-finished.png shows the 020's table edge, cusped chief and point intact. The bordure sits 0.62 mm inside the edge and nothing rolls the rim. The prism corner under the point still runs as a crisp vertical arris down the end wall (side.png)."
+    },
+    {
+      "item": "A silhouette distinct from the other Bestiarium rings",
+      "result": "pass",
+      "reason": "It is the only escutcheon in the Bestiarium: an upright shield head on a plain shank, unlike Arachne's keyframed band, Draco's kite and Fenrir's trillion. It is a crest ring, not a snake-head plan, so it stays clear of Serpentarium's viper-head signet. The risk is recorded under the 300 px read: face-on, a serpent in an S round a green stone on a shield reads as the Slytherin crest."
+    },
+    {
+      "item": "Reads as its subject at a glance at 300 px, without the caption",
+      "result": "fail",
+      "reason": "face-300.png reads 'serpent on a shield', but the 3.8 mm crown is three dots (about 36 px wide) and nothing says 'king' or 'basilisk', so the read is closer to the Hogwarts house crest. hero-300.png, the image the sheet uses, loses the head and the crown entirely; it reads as a coil round a green stone in a dotted shield."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "pass",
+      "reason": "Large forms: the shield, the S-serpent and the stone. Medium: the head, the mantling fans and the flank scales. Small: beads, pits, scale keels and barbs. Face-on, the density and the subject read exceed Caiman's hero. At 3/4 the shoulders turn noisy rather than dense, with glinting fragments at the hackle roots; items 5-7 address that."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Draft build 768 x 320",
+      "claimed": "Watertight, 0 degenerate faces, 0 self-crossings.",
+      "verified": "draft-gates.json: 499,860 triangles, watertight, 0 boundary and 0 non-manifold edges, 0 degenerate, 0 self-crossings, 21/21 stamps struck, 1 solid resolved, notes empty, 0 bore vertices inside, cold reload identical.",
+      "pass": true
+    },
+    {
+      "gate": "Export build 1536 x 448 within the 2 million triangle budget",
+      "claimed": "1,781,600 triangles; watertight, 0 degenerate, 0 self-crossings.",
+      "verified": "report.json and mesh.json: 1,781,600 triangles and 890,798 vertices, with 0 boundary and 0 non-manifold edges, 0 degenerate and 0 self-crossings. The worst sliver has a 0.00066 deg corner and an aspect of 86,243; these are slivers, not degenerate faces.",
+      "pass": true
+    },
+    {
+      "gate": "Coarse build 384 x 192",
+      "claimed": "Same gates pass.",
+      "verified": "coarse_384x192: 172,614 triangles, watertight, 0 degenerate, 0 self-crossings, 21/21 stamps, 1 solid, notes empty.",
+      "pass": true
+    },
+    {
+      "gate": "Every stamp struck, every solid resolved, notes empty",
+      "claimed": "21/21 stamps struck, 1 solid resolved, notes empty.",
+      "verified": "stamps_struck 21 of 21 and solids_resolved 1, with solids_notes and parts_notes empty, at all three resolutions.",
+      "pass": true
+    },
+    {
+      "gate": "Made parts closed and uncrossed",
+      "claimed": "Made parts clean.",
+      "verified": "made_parts has 22 entries (the 21 stamps by tier, plus the tsavorite's bur). Every one has 0 open edges, 0 repeated edges, 0 self-crossings and 0 zero-area faces.",
+      "pass": true
+    },
+    {
+      "gate": "Nothing inside the finger hole",
+      "claimed": "Bore clearance clean.",
+      "verified": "0 vertices more than 0.01 mm inside the bore. The worst is -0.00023 mm at (-7.26, 5.81, -0.22), which is f32 noise on the bore surface itself.",
+      "pass": true
+    },
+    {
+      "gate": "Field verdict for the ring's own process (lost wax, 0.8 mm fill)",
+      "claimed": "Castable; thinnest wall 1.677 mm at 309.4 deg; undercut 10.96% informational.",
+      "verified": "design.ring.json draft: LostWax, min_section 0.8, min_detail 0.15, min_draft 0. Verdict Castable, thinnest wall 1.6772 mm at 309.375 deg. Undercut is 158.5 of 1446.8 mm2 = 10.96% (worst -81.2 deg), informational under wax.",
+      "pass": true
+    },
+    {
+      "gate": "Lost-wax CAD land widths asserted (boss, every proud stamp, every section at or above 0.8 mm or named as an exception)",
+      "claimed": "Not claimed.",
+      "verified": "Missing. The gate list (bestiarium_basiliscus.rs:1179-1188) has no land-width term, and report.json has no land_widths block. These sub-0.8 mm proud features are left unnamed: the boss lip, 0.6 mm (diameter 5.2 on a 4.0 mm stone, long axis 9.2 on 8.0); the Crown band, 0.65 mm (z -5.95 to -5.3); Crown points 1-3, with 1.0-1.16 mm bases rising 0.9-1.25 mm to cone apexes; Crown pearls, 0.68 mm; Fangs, 0.36-0.40 mm roots to 0.06 mm tips; the Forked tongue, stem 0.36 and arms 0.26 mm; the Brow, 0.40 mm at most; Crown jewels, 0.48 x 0.30 mm; lip scales, 0.38-0.42 mm on the minor axis; the 42 bordure beads, 0.44 mm; and the painted tail tip, 0.6 mm (GIRTH.1 is a 0.3 mm half-width). The Eye (1.44 x 1.04 mm) is the only proud stamp over the floor.",
+      "pass": false
+    },
+    {
+      "gate": "0 DFM findings",
+      "claimed": "0 DFM findings.",
+      "verified": "dfm is [] in report.json, and template-gate.json has detail_findings 0.",
+      "pass": true
+    },
+    {
+      "gate": "Stone count equals the preview count",
+      "claimed": "1 stone reported and previewed, no warnings.",
+      "verified": "stones: reported 1, previewed 1, warnings [], tight_pairs 0. stones.json lists one tsavorite.",
+      "pass": true
+    },
+    {
+      "gate": "Investment pattern",
+      "claimed": "Investment pattern clean.",
+      "verified": "The pattern has 1,781,600 triangles, is watertight, and has 0 degenerate faces and 0 self-crossings. Its scale is 1.0194 (the silver shrink), and the bench layer 'Graver's barbs and keels' is left out.",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload identical",
+      "claimed": "Identical at export.",
+      "verified": "verification.json at 1536 x 448 and cold_reload in draft-gates.json both report identical vertices, faces and normals. The reports are committed in c2160ed and postdate the last source edit (08:32:22).",
+      "pass": true
+    },
+    {
+      "gate": "Template gate (at most 4 design.set patches, painted budget 3 MB)",
+      "claimed": "Lift with 0 patches, 83 nodes, 2,901,819 bytes; cold source and export mesh identical.",
+      "verified": "template-gate.json: source_method lift, design_set_patches [], 83 nodes, template_bytes 2,901,819 against 3,000,000. That is 96.7% of the budget, with no headroom for another painted layer. source_identical and vertices_faces_normals_identical are true at 1536 x 448. exposed_controls is empty where the plan asks for US size (item 11).",
+      "pass": true
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P0 (gate)",
+      "zone": "report.json and the gate list (bestiarium_basiliscus.rs:1179-1188); seat 'Tsavorite, flush' at theta 91.3 deg; every proud stamp; the painted tail and bordure",
+      "change": "Assert the lost-wax land widths. Add a land_widths block and a matching gate term. Give the boss lip and each proud stamp its measured minimum land, and give the painted body its minimum width along the spine. Either raise a feature to at least 0.8 mm or name it as an exception with its bench treatment. Concretely: widen the boss stock from 1.2 to 1.6 mm (diameter 5.6, long axis 9.6), or name the 0.6 mm lip as the burnished lip over the girdle. Raise GIRTH.1 from 0.3 to 0.4 so the tail ends at 0.8 mm, or name the tip. Name the pointed features (crown points, fangs, tongue tines) and the fine lands (pearls, brow, lip scales, crown jewels, beads) as investment-detail exceptions at or above the 0.15 mm floor.",
+      "acceptance": "report.json carries land_widths, with one row per proud feature (name, minimum land in mm, and either 'at or above 0.8' or the exception text). gates has an entry 'lost-wax land widths at or above 0.8 mm or named' that is true, and it goes false if any row under 0.8 lacks an exception. Both the --draft --verify run and the export run pass every gate."
+    },
+    {
+      "number": 2,
+      "priority": "P1",
+      "zone": "Painted layer 'Basiliscus', the head (HEAD spline, x -4.3..3.6, z -5.3..-1.5 on the table, theta about 72-106 deg); stamps Eye, Pupil, Brow, Upper lip scale 1-3, Lower lip scale 1-2, Fang 1-2",
+      "change": "Model a serpent's head instead of a smooth dome, keeping its 7.9 x 3.8 mm footprint. (a) Paint a supraocular ridge into the skull field that stands 0.3 mm over the eye and overhangs it by 0.25 mm, then delete the flat 'Brow' lens. (b) Cut head plates (frontal, two parietals, supraoculars) as 0.08-0.12 mm grooves across the cranium. (c) Paint a continuous labial row of 5-6 plates, 0.9 x 0.5 mm each, along each jaw line as part of the head field, then delete the five Dome ellipse stamps. (d) Recess the gape: the mouth interior at least 0.35 mm below the jaw rims, with the jaws' inner edges bevelled. (e) Sink the eye into a socket so its dome stands no more than 0.15 mm over the surrounding skull. Widen the Pupil cut from 0.26 to 0.36 mm, at least 0.25 mm deep. (f) Lengthen the fangs from 0.63-0.72 mm to 1.0 mm, curved back toward the throat, with their roots inside the jaw line.",
+      "acceptance": "In face.png, the head (x 580-920, y 500-700) shows a brow ridge shading the eye, a readable vertical slit pupil, at least 4 labial plates per jaw and at least 3 head plates. In stones.png, the head (x 300-760, y 230-640) no longer reads as a smooth bill: grooves, a recessed gape and the overhanging brow are visible, and no ellipse sits proud of the jaw like a sticker."
+    },
+    {
+      "number": 3,
+      "priority": "P1",
+      "zone": "Stamp 'Forked tongue' (bestiarium_basiliscus.rs:546, root at x -5.0, z -2.95, theta about 68 deg) and the pounce clearance round it",
+      "change": "Replace the flat-topped Y slab, which is invisible face-on because the renderer shades a flat top exactly like the field, with a rounded tongue that leaves the mouth. Start the stem at least 0.5 mm inside the gape between the jaws. Make it one curved stroke 2.8 mm long that forks in its last 0.9 mm. Give it StampTop::Ridge, or a Dome with a crown of at least 0.15 mm. Use a 0.4 mm stem and 0.3 mm arms (named in item 1). Let the pounced field's pits come to within 0.35 mm of it, so no bare bay is left in front of the mouth.",
+      "acceptance": "In face.png (x 440-620, y 560-700), the forked tongue's outline visibly issues from the mouth, with no blank bay and no L-shaped ledge round it. In stones.png the tongue has a rounded or ridged top, with no flat face and no vertical-walled Y bracket."
+    },
+    {
+      "number": 4,
+      "priority": "P1",
+      "zone": "Stamps 'Crown', 'Crown point, 1-3', 'Crown pearl, 1-3' and 'Crown jewel, 1-2' (CROWN_BAND x +-1.9, z -5.95..-5.3), and the head's crown swell",
+      "change": "Make the crown the ring's second read and the thing that separates it from the Slytherin crest. Widen the band from 3.8 to 5.6 mm and make it 0.8 mm tall in plan, which also meets the floor. Raise the points to stand 1.3 mm above the band in plan, the centre one 1.5 mm, and 1.0 mm proud with Cone tops. Enlarge the pearls to 0.8 mm. Move the band about 0.9 mm down onto the skull so it overlaps the head's crest by at least 0.5 mm, with the swell under it; the crown should sit on the head, not at the chief. Keep the pearls at least 0.6 mm inside the chief edge; today the centre pearl is about 0.2 mm from it. Replace the 0.48 x 0.30 mm crown jewels with two 0.8 x 0.5 mm domed lozenges so they read at all.",
+      "acceptance": "In face-300.png the crown spans at least 50 px, with three separate points and pearls. In hero-300.png a serrated crown silhouette is visible above the head. In face.png the crown band's lower edge merges into the skull with no gap line."
+    },
+    {
+      "number": 5,
+      "priority": "P1",
+      "zone": "Painted layer 'Basiliscus', the body (Body::height at bestiarium_basiliscus.rs:461-468, SPINE, GIRTH 1.3 to 0.3, TUBE 1.1); the whole coil, theta about 58-124 deg",
+      "change": "Stop the body's flanks combing and fringing. Fade the scale and scute 'skin' modulation to zero over the outer 25% of the girth (d/w > 0.75). Replace the sqrt tube profile, which has a vertical tangent at its edge, with one whose flank slope is at most 60 deg over the outer quarter. Widen the 0.3 mm plinth ramp from 0.12 to 0.30 mm so the 1536 x 448 grid resolves it. Keep the crest height, 1.385 mm today, at 1.3 mm or more.",
+      "acceptance": "shoulder.png (x 1100-1320, y 460-740) and stones.png (x 420-900, y 900-1160) show smooth or scaled flanks with no vertical striations, and the tail ends as a rounded taper, not a ragged hook. A 3x crop of face.png (x 600-850, y 980-1100) shows the body edge with no sawtooth fringe."
+    },
+    {
+      "number": 6,
+      "priority": "P1",
+      "zone": "Layers 'Hackles into scales' and 'Serpent flanks' on the head walls under the table (theta about 50-130 deg; the diagonal walls below the chief and point flanks, where 0.5 < |n.z| < 0.85)",
+      "change": "Stop painting truncated feathers on the head walls. The hackles' crown weight (1 - smooth(0.52, 0.80, |n.z|), bestiarium_basiliscus.rs:849) slices feathers wherever the wall turns, and the slices stand out as flat, vertically striated slabs. Gate the hackles to walls that face round the ring (|n.z| < 0.45) with a ramp at least 1.0 mm wide in along-distance, not by normal. Hand the diagonal walls wholly to 'Serpent flanks' scales. Taper every hackle root over 30% of its length; the root ramp at line 827 is 13% today.",
+      "acceptance": "hero.png (x 440-760, y 660-920), stones.png (x 1150-1420, y 560-1060) and reverse.png (x 160-620, y 300-900) show no flat-faced or vertically combed slab under the table rim. Each wall carries one continuous skin: feathers where it faces round the ring, scales where it turns toward the band edge."
+    },
+    {
+      "number": 7,
+      "priority": "P2",
+      "zone": "The morph in layer 'Hackles into scales' (70-110 deg off the head, theta 160-200 and 340-20), and the bench layer 'Graver's barbs and keels'",
+      "change": "Make the mantling read as plumage, not as palm fronds or corrugation. Curve each hackle's shaft 15-20 deg toward the palm, a sickle rather than a lanceolate leaf. Lift each feather's free edge 0.1 mm over the next (legal in wax) so the rows shingle. End the bench barbs at the morph's start (l70), not at l110 + 5 mm (line 935); inside the morph they compress into a band of dense parallel ribs. If the morph still reads muddy, take the plan's fallback: a hard hand-over along one scale joint.",
+      "acceptance": "reverse.png (x 820-1020, y 330-460) shows feathers giving way to scales with no band of dense parallel ribs. In face.png the mantling fans read as feathers, with curved shafts and shingled edges, not straight leaves."
+    },
+    {
+      "number": 8,
+      "priority": "P2",
+      "zone": "Layer 'Belly scutes' (window 270 +- 55 deg) and its hand-over to 'Serpent flanks' on the shank sides",
+      "change": "Dome each scute across the band (crown 0.08 mm). Shingle them toward the head, each trailing edge lifted 0.08 mm over the next. Round the lateral ends into the flank scales over at least 0.8 mm, so no scute ends in a square step on the shank side.",
+      "acceptance": "In palm.png (x 400-1250, y 380-560), each plate shows a highlight gradient across it and a shadow line at each overlap. reverse.png (x 1170-1440, y 400-820) shows no square-ended slabs."
+    },
+    {
+      "number": 9,
+      "priority": "P2",
+      "zone": "Layer 'Pounced field' (Arms::pounce at line 677, the 0.07 mm plateau)",
+      "change": "Sink the pits into the table instead of raising them on a 0.07 mm plateau, or drop any plateau island narrower than 1.2 mm. Today the plateau's edges draw L-shaped ledges round the mouth and in the chief corners, and it leaves a sliver island between the lower coil and the point.",
+      "acceptance": "face.png shows no raised ledge lines in the field (x 430-700, y 490-600 and x 500-600, y 650-760) and no sliver island (x 713-847, y 1057-1090). The pits reach to within 0.4 mm of every arm."
+    },
+    {
+      "number": 10,
+      "priority": "P2",
+      "zone": "The head's gape and the tsavorite's boss (stone centre x -0.3, z 1.6)",
+      "change": "Recommended; this is the strongest separation from the Slytherin crest. Take the Visconti biscione's defining act. Turn the head 35-45 deg toward the marquise so the open jaws close on the stone's upper-left flank, with the fang tips within 0.6 mm of the boss rim; that is 'devouring the tsavorite', as the example's own Arms doc (line 505) already says. If this is not done, item 4's crown must carry the distinction alone.",
+      "acceptance": "In face.png the jaws engage the boss, with fang tips within 0.6 mm of its rim, and in face-300.png the head, crown and stone read as one group."
+    },
+    {
+      "number": 11,
+      "priority": "P3",
+      "zone": "The composition block of report.json, and template-gate.json",
+      "change": "Report the measured relief, not the alpha scale. serpent_height_mm says 2.0, but the painted peak is 1.385 mm (the Basiliscus.png peak is 45386/65535 x 2.0 mm, and mesh.json max_relief_mm is 1.3848). Expose US size as the plan asks, or record in template-gate.json why the painted stock cannot resize. Keep template_bytes under 3,000,000; at 2,901,819 today, deleting the Brow and lip-scale stamps is fine, but any new painted layer needs a matching cut.",
+      "acceptance": "report.json states the measured serpent relief. template-gate.json lists exposed_controls ['US size'] or carries a note explaining why not, template_bytes is at most 3,000,000, and design_set_patches is still empty."
+    }
+  ],
+  "viewed_images": [
+    ".claude/collection-review/basiliscus-round1/hero.png",
+    ".claude/collection-review/basiliscus-round1/face.png",
+    ".claude/collection-review/basiliscus-round1/side.png",
+    ".claude/collection-review/basiliscus-round1/shoulder.png",
+    ".claude/collection-review/basiliscus-round1/palm.png",
+    ".claude/collection-review/basiliscus-round1/reverse.png",
+    ".claude/collection-review/basiliscus-round1/stones.png",
+    ".claude/collection-review/basiliscus-round1/bare-vs-finished.png",
+    ".claude/collection-review/basiliscus-round1/hero-300.png",
+    ".claude/collection-review/basiliscus-round1/face-300.png",
+    ".claude/collection-review/basiliscus-round1/artwork/Basiliscus.png (theta 50-130 deg crop)",
+    ".claude/collection-review/basiliscus-round1/artwork/Hackles-into-scales.png",
+    "crops (scratchpad): face head, tongue bay, crown, lower-left and tail; stones head and tail; hero shoulder, lower-left, crown and hackle-root blocks; side cheek wall; shoulder table wall; reverse shank and head wall",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png",
+    ".claude/collection-review/zbrush_top.png",
+    ".claude/collection-review/zbrush_sheet.png",
+    ".claude/collection-review/refs/arachne/hero.png",
+    ".claude/collection-review/refs/arachne/face.png"
+  ]
+}
