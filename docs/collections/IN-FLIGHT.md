@@ -1,3 +1,9 @@
+# PAUSED by Logan (2026-09-26 afternoon)
+
+"once all current agents are finished, lets put a pause on the rest of the collections and such. we've already blown almost 40% of my weekly usage and it has only been 7 hours since my weekly reset"
+
+The agents running at that moment finish their current task (Kraken round 3, Basiliscus round 3, Fenrir round 2, Corvus round 2, Harpyia round 2, the packaging lane, Phoenix's final review). **No new agents, rounds, reviews or lanes start until Logan says so.** Each finished result is recorded in the table below with its next step. The desktop release waits with the rest.
+
 # Checkpoint 2026-09-26 10:10 (Claude, at the account's 5-hour limit)
 
 Every lane below was stopped mid-round by the usage limit. Resume each by starting a fresh agent in its worktree with the shared brief (`.claude/collection-review/bestiarium-lane-brief.md`), its latest review JSON (in `.claude/collection-review/`, ignored dir) and "continue round N". Uncommitted files stay on disk: commit or finish them first.
