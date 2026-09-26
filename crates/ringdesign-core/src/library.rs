@@ -63,6 +63,7 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || station_gates_in_stack(&design.layers, design.gate_sections_are_reference())
         || design.imported_base.as_ref().is_some_and(|base| crate::imported_base::PresetSource::of(&base.source).is_some())
         || design.graph.as_ref().is_some_and(template_features_in_json)
+        || design.shank.bypass_fair_deg != 0.0
     {
         FORMAT_VERSION
     } else {
@@ -83,7 +84,7 @@ fn station_gates_in_stack(stack: &crate::LayerStack, reference: bool) -> bool {
 /// Source references and template controls whose geometry earlier readers cannot reproduce.
 pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     const PLACEMENT: &[&str] = &["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"];
-    let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && pin == "keys")
+    let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && matches!(pin, "keys" | "bypass_fair_deg"))
         || (kind == "window" && matches!(pin, "v_gate" | "draft_min_deg" | "draft_fade_deg"));
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
     if value.get("Builder").is_some_and(|builder| builder.get("key").and_then(serde_json::Value::as_str)
@@ -562,7 +563,7 @@ pub fn load_design_str(text: &str) -> anyhow::Result<RingDesign> {
 }
 
 /// [`load_design_str`] as a build that reads up to version `newest` runs it.
-fn read_design(text: &str, newest: u32) -> anyhow::Result<RingDesign> {
+pub(crate) fn read_design(text: &str, newest: u32) -> anyhow::Result<RingDesign> {
     let mut doc: serde_json::Value = serde_json::from_str(text)?;
     let version = match doc.get(VERSION_KEY) {
         Some(v) => v.as_u64().ok_or_else(|| anyhow::anyhow!("Invalid design format version"))?,
