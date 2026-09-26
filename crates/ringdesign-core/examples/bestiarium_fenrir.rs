@@ -304,7 +304,14 @@ fn lower_lip(deg: f64) -> (f64, f64) {
 /// a pointed chin.
 fn jaw_out(deg: f64) -> f64 {
     let a = deg.clamp(-90.0, -CORNER_DEG);
-    7.2 - 0.25 * smooth(-40.0, -CORNER_DEG, a) + 1.0 * smooth(-50.0, -90.0, a)
+    let t = (a + 90.0).abs() / (90.0 - CORNER_DEG);
+    7.1 + 2.2 * (1.0 - t).powf(1.8)
+}
+
+/// Short fur over the mandible, flowing out and down from the lower lip, 0..1.
+fn jaw_fur(s: P3) -> f64 {
+    let (dx, du) = (s[0], s[1] - MOON_U);
+    flames(dx.hypot(du) - 6.2, du.atan2(dx) * 7.8, 1.0, 2.2, 0.16, 0.3, 41, &sculpted_lock(1.0)).h
 }
 
 /// The facial fur, 0..1: flames flowing up and out toward a point past each ear, in two overlapping tiers, long at the
@@ -419,15 +426,10 @@ impl Wolf {
         smin(ellipsoid(sub(s, [0.0, 7.15, -1.0]), [5.2, 2.7, 3.9]), root, 0.6)
     }
     fn cheek(s: P3) -> f64 {
-        ellipsoid(sub(s, [5.0, 2.3, -1.5]), [2.8, 3.4, 2.5])
+        ellipsoid(sub(s, [5.0, 2.8, -1.5]), [2.8, 3.9, 2.5])
     }
     fn jowl(s: P3) -> f64 {
         ellipsoid(sub(s, [6.1, -1.9, -1.3]), [2.0, 2.6, 2.1])
-    }
-    /// The unit normal of an ellipsoid's level set through `p`.
-    fn ellipsoid_normal(p: P3, c: P3, r: P3) -> P3 {
-        let g: P3 = std::array::from_fn(|k| (p[k] - c[k]) / (r[k] * r[k]));
-        mul(g, 1.0 / len(g).max(1e-12))
     }
     fn brow(s: P3) -> f64 {
         round_cone(s, [1.05, 5.75, 2.75], [3.55, 7.35, 2.05], 0.55, 0.32)
@@ -489,7 +491,9 @@ impl Wolf {
         let ang = (s[1] - MOON_U).atan2(s[0]).to_degrees();
         let lip = if ang >= 0.0 { upper_lip(ang).0 } else { lower_lip(ang).0 };
         let end = (CORNER_DEG + 3.0 - ang.abs()).to_radians() * rho.max(1.0);
-        smax((rho - lip - 0.35).max(s[2] - GUM_H).max(-(s[2] + 1.2)), end, 0.4)
+        // Below the lip the gum widens into the jaw, so no slot opens between them.
+        let widen = if ang < 0.0 { 1.4 * smooth(0.8, -1.0, s[2]) } else { 0.0 };
+        smax((rho - lip - 0.35 - widen).max(s[2] - GUM_H).max(-(s[2] + 1.2)), end, 0.4)
     }
     /// The throat under the chin, hanging over the apex wall, its lowest point a millimetre and more over the finger.
     fn throat(s: P3) -> f64 {
@@ -529,7 +533,7 @@ impl Wolf {
     /// The head's masses and smooth features, without fur or carved detail.
     fn masses(&self, q: P3) -> f64 {
         let s = [q[0].abs(), q[1], q[2]];
-        let mut d = smin(smin(Self::cranium(s), Self::cheek(s), 1.1), Self::jowl(s), 0.9);
+        let mut d = smin(smin(Self::cranium(s), Self::cheek(s), 1.5), Self::jowl(s), 0.9);
         d = smin(d, Self::upper_jaw(s), 0.7);
         d = smin(d, Self::brow(s), 0.5);
         d = smin(d, Self::muzzle(s), 0.6);
@@ -542,55 +546,59 @@ impl Wolf {
     /// none on the lips or round the eyes, full on the cheeks, crown and throat.
     fn fur_room(&self, f: P3) -> f64 {
         let over = self.stock.at([f[0], f[2] + self.table, -f[1]]);
-        smooth(0.35, 1.35, over)
+        smooth(0.1, 0.6, over)
     }
-    /// A mass `d` at `s` with fur `amp` mm high laid over its surface along `n`, fading out `fade` by where it lands.
-    fn furred(&self, s: P3, x: f64, d: f64, n: P3, amp: f64, fur: &dyn Fn(P3, P3) -> f64) -> f64 {
-        if d.abs() > 1.6 {
-            return d;
-        }
-        let f = sub(s, mul(n, d));
-        let signed = [x.signum() * f[0], f[1], f[2]];
-        d - amp * fur(f, signed) * self.fur_room(signed) * (1.0 - smooth(0.9, 1.6, d.abs()))
-    }
-    /// The masses with their fur: the cheeks and jowls, the crown and the throat, each furred on its own convex surface
-    /// so no lock is ever raised along converging normals.
-    fn body(&self, q: P3) -> f64 {
+    /// The fur's relief at face point `q`, mm: cheeks and jowls flowing up and out toward the ears, the crown flowing back
+    /// between the ears, the throat flowing down the apex wall; none on the lips, round the eyes, on the muzzle or ears,
+    /// and none within half a millimetre of the stock the head stands on. It is read where `q` drops onto the skin, so
+    /// it stands straight out of it; it dies away in hollows tighter than a millimetre and on walls the smooth carrier
+    /// does not share, where locks raised along converging normals would fold.
+    fn pelt(&self, q: P3) -> f64 {
         let s = [q[0].abs(), q[1], q[2]];
-        let x = if q[0] == 0.0 { 1.0 } else { q[0] };
-        let off_face = |f: P3| {
-            let rho = f[0].hypot(f[1] - MOON_U);
-            let ang = (f[1] - MOON_U).atan2(f[0]).to_degrees();
-            let lip = lerp(lower_lip(ang).0, upper_lip(ang).0, smooth(-8.0, 8.0, ang));
-            smooth(lip + 0.9, lip + 2.2, rho) * smooth(1.5, 3.2, f[0]) * smooth(1.2, 2.6, (f[0] - Self::EYE.0).hypot(f[1] - Self::EYE.1))
+        let core = self.masses(q);
+        if core.abs() > 1.6 {
+            return 0.0;
+        }
+        let _ = s;
+        let grad = |field: &dyn Fn(P3) -> f64, p: P3, e: f64| -> (P3, f64) {
+            let c = field(p);
+            let mut g = [0.0; 3];
+            let mut lap = 0.0;
+            for k in 0..3 {
+                let (mut a, mut b) = (p, p);
+                a[k] += e;
+                b[k] -= e;
+                let (fa, fb) = (field(a), field(b));
+                g[k] = fa - fb;
+                lap += (fa + fb - 2.0 * c) / (e * e);
+            }
+            (mul(g, 1.0 / len(g).max(1e-12)), lap)
         };
-        let cheek_fur_at = |f: P3, _: P3| cheek_fur(f) * off_face(f) * (1.0 - smooth(6.0, 7.8, f[1]));
-        let (cc, cr) = ([5.0, 2.3, -1.5], [2.8, 3.4, 2.5]);
-        let cheek = self.furred(s, x, Self::cheek(s), Self::ellipsoid_normal(s, cc, cr), 0.42, &cheek_fur_at);
-        let (jc, jr) = ([6.1, -1.9, -1.3], [2.0, 2.6, 2.1]);
-        let jowl = self.furred(s, x, Self::jowl(s), Self::ellipsoid_normal(s, jc, jr), 0.42, &cheek_fur_at);
-        let (kc, kr) = ([0.0, 7.15, -1.0], [5.2, 2.7, 3.9]);
-        let crown_at = |f: P3, signed: P3| {
-            crown_fur(signed) * smooth(6.2, 7.6, f[1]) * (1.0 - smooth(3.0, 4.6, f[0])) * smooth(-0.4, 1.0, f[2]) * smooth(0.1, 1.0, Self::ear(f))
-        };
-        let crown = self.furred(s, x, ellipsoid(sub(s, kc), kr), Self::ellipsoid_normal(s, kc, kr), 0.26, &crown_at);
-        let root = ellipsoid(sub(s, [4.5, 7.7, 0.5]), [1.4, 1.4, 1.4]);
-        let throat_n = Self::ellipsoid_normal(s, [0.0, MOON_U - 6.1, -1.25], [2.3, 1.5, 1.55]);
-        let throat_at = |f: P3, signed: P3| throat_fur(signed) * smooth(-0.2, -1.2, f[2]) * (1.0 - smooth(MOON_U - 5.5, MOON_U - 3.5, f[1]));
-        let throat = self.furred(s, x, Self::throat(s), throat_n, 0.38, &throat_at);
-        let mut d = smin(smin(smin(crown, root, 0.6), cheek, 1.1), jowl, 0.9);
-        d = smin(d, Self::upper_jaw(s), 0.7);
-        d = smin(d, Self::brow(s), 0.5);
-        d = smin(d, Self::muzzle(s), 0.6);
-        d = smin(d, Self::nose(s), 0.4);
-        let jaws = smin(Self::mandible(s), Self::gums(s), 0.3);
-        d = smin(d, smin(jaws, throat, 0.9), 0.5);
-        smin(d, Self::ear(s), 0.5)
+        let masses = |p: P3| self.masses(p);
+        let (n, _) = grad(&masses, q, 0.03);
+        let f = sub(q, mul(n, core));
+        let fs = [f[0].abs(), f[1], f[2]];
+        let rho = fs[0].hypot(fs[1] - MOON_U);
+        let ang = (fs[1] - MOON_U).atan2(fs[0]).to_degrees();
+        let lip = lerp(lower_lip(ang).0, upper_lip(ang).0, smooth(-8.0, 8.0, ang));
+        let off_lips = smooth(lip + 0.6, lip + 1.6, rho);
+        let off_face = off_lips * smooth(1.8, 3.4, fs[0]) * smooth(1.3, 2.7, (fs[0] - Self::EYE.0).hypot(fs[1] - Self::EYE.1));
+        let cheeks = 0.38 * cheek_fur(fs) * off_face * (1.0 - smooth(5.8, 7.6, fs[1])) * smooth(MOON_U - 1.5, MOON_U + 1.0, fs[1]);
+        let jaw = 0.3 * jaw_fur(fs) * off_lips * (1.0 - smooth(MOON_U - 0.5, MOON_U + 1.5, fs[1])) * smooth(-0.6, 0.2, fs[2]);
+        let crown = 0.26 * crown_fur(f) * smooth(6.2, 7.6, fs[1]) * (1.0 - smooth(3.0, 4.6, fs[0])) * smooth(-0.4, 1.0, fs[2]) * smooth(0.1, 1.0, Self::ear(fs));
+        let throat = 0.34 * throat_fur(f) * smooth(-0.2, -1.2, fs[2]) * (1.0 - smooth(MOON_U - 5.5, MOON_U - 3.5, fs[1]));
+        let fur = cheeks.max(jaw).max(crown).max(throat) * self.fur_room(f);
+        if fur < 1e-5 {
+            return 0.0;
+        }
+        let (_, lap) = grad(&masses, f, 0.2);
+        fur * smooth(-2.0, -0.8, lap) * (1.0 - smooth(0.9, 1.6, core.abs()))
     }
     fn head(&self, q: P3) -> f64 {
         let s = [q[0].abs(), q[1], q[2]];
-        let core = self.body(q);
+        let core = self.masses(q);
         let near = 1.0 - smooth(0.6, 1.2, core.abs());
+        let core = core - self.pelt(q);
         let mut d = core;
         // The stop furrow between the brows, 3 mm up the forehead.
         d += 0.3 * near * (-(q[0] / 0.3).powi(2)).exp() * smooth(5.3, 5.8, q[1]) * (1.0 - smooth(8.4, 9.0, q[1]));
@@ -1100,6 +1108,14 @@ fn fold_causes(wolf: &Wolf, m: &Nets, field: &(dyn Fn(P3) -> f64 + Sync)) {
             *real.entry(q.map(|c| (c * 2.0).round() as i64)).or_default() += 1;
         }
         let e = len(sub(m.v[k.0 as usize], m.v[k.1 as usize]));
+        let others: Vec<f64> = m.f.iter().filter(|t| t.contains(&k.0) && t.contains(&k.1)).map(|t| {
+            let ps = t.map(|x| m.v[x as usize]);
+            (0..3).map(|j| len(sub(ps[j], ps[(j + 1) % 3]))).fold(f64::MAX, f64::min)
+        }).collect();
+        if shown < 12 && turn < 10.0 {
+            println!("    artifact fold at ({:.2}, {:.2}, {:.2}): edge {e:.3} mm, shortest edges of its faces {:?}", q[0], q[1], q[2], others.iter().map(|x| (x * 1000.0).round() / 1000.0).collect::<Vec<_>>());
+            shown += 1;
+        }
         if shown < 0 {
             println!("    fold at face ({:.2}, {:.2}, {:.2}): field turns {turn:.0} deg across it, edge {e:.3} mm, face spread {:.3} mm", q[0], q[1], q[2], len(sub(fs[0].1, fs[1].1)));
             shown += 1;
@@ -1128,11 +1144,12 @@ fn fold_causes(wolf: &Wolf, m: &Nets, field: &(dyn Fn(P3) -> f64 + Sync)) {
             println!("    h {h:5.2} {line}");
         }
     }
-    for c in [[1.15, -10.8, 1.65], [1.05, -10.8, 1.65], [0.95, -10.8, 1.65]] {
+    for c in [[4.45, 5.5, 0.2], [4.2, 5.5, 0.2], [5.6, 5.5, -0.05], [5.5, 5.5, -0.05]] {
         let s = c;
         let teeth = wolf.teeth.iter().map(|t| (t.name.clone(), t.sdf(s))).fold(("".to_string(), f64::MAX), |a, b| if b.1 < a.1 { b } else { a });
         let parts = [("cranium", Wolf::cranium(s)), ("cheek", Wolf::cheek(s)), ("jowl", Wolf::jowl(s)), ("upper jaw", Wolf::upper_jaw(s)), ("brow", Wolf::brow(s)), ("muzzle", Wolf::muzzle(s)), ("nose", Wolf::nose(s)), ("mandible", Wolf::mandible(s)), ("gums", Wolf::gums(s)), ("throat", Wolf::throat(s)), ("ear", Wolf::ear(s)), ("tuft", Wolf::chin_tuft(s))];
-        println!("    at {c:?}: masses {:.3}, body {:.3}, head {:.3}, nearest tooth {} {:.3}; {}", wolf.masses(s), wolf.body(s), wolf.head(s), teeth.0, teeth.1, parts.iter().map(|(n, v)| format!("{n} {v:.2}")).collect::<Vec<_>>().join(", "));
+        let world = [s[0], s[2] + wolf.table, -s[1]];
+        println!("    at {c:?}: masses {:.3}, pelt {:.3}, head {:.3}, sdf {:.3}, stock {:.3}, nearest tooth {} {:.3}; {}", wolf.masses(s), wolf.pelt(s), wolf.head(s), wolf.sdf(world), wolf.stock.at(world), teeth.0, teeth.1, parts.iter().map(|(n, v)| format!("{n} {v:.2}")).collect::<Vec<_>>().join(", "));
     }
     println!("  field creases by half-mm cell (face x, u, h): {:?}", real.iter().map(|(c, n)| (c.map(|x| x as f64 / 2.0), *n)).collect::<Vec<_>>());
 }
@@ -1158,12 +1175,231 @@ fn zone_folds(wolf: &Wolf, m: &Nets) -> usize {
         .count()
 }
 
-/// Two more rounds of relaxing on a decimated mesh, kept only if it still does not cross itself.
+/// Two more rounds of relaxing on a decimated mesh and the meshing's folds flipped away, each kept only if the mesh
+/// still does not cross itself.
 fn settle(nets: Nets, field: &(dyn Fn(P3) -> f64 + Sync)) -> Nets {
+    let clean = |n: &Nets| csg::self_crossings(&csg::Solid { v: n.v.clone(), f: n.f.clone() }) == 0;
     let mut relaxed = Nets { v: nets.v.clone(), f: nets.f.clone() };
     relax(&mut relaxed, field, 2);
-    if csg::self_crossings(&csg::Solid { v: relaxed.v.clone(), f: relaxed.f.clone() }) == 0 { relaxed } else { nets }
+    let nets = if clean(&relaxed) { relaxed } else { nets };
+    let mut avoid: Vec<P3> = Vec::new();
+    let mut nets = nets;
+    for round in 0..3 {
+        let mut shorter = Nets { v: nets.v.clone(), f: nets.f.clone() };
+        let collapsed = collapse_short(&mut shorter, field, 0.02, &avoid);
+        let (bad, _) = closure(&shorter.v, &shorter.f);
+        let solid = csg::Solid { v: shorter.v.clone(), f: shorter.f.clone() };
+        let crossings = csg::self_crossings(&solid);
+        println!("  sliver collapse {round}: {collapsed} edges, {bad} open edges, {crossings} crossings");
+        if bad == 0 && crossings == 0 {
+            nets = shorter;
+            break;
+        }
+        let as_mesh = Mesh { vertices: shorter.v.iter().map(|p| Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), faces: shorter.f.clone(), ..Default::default() };
+        avoid.extend(crossing_sites(&as_mesh));
+    }
+    let mut flipped = Nets { v: nets.v.clone(), f: nets.f.clone() };
+    let n = polish(&mut flipped, field, 6);
+    let (bad, _) = closure(&flipped.v, &flipped.f);
+    if bad == 0 && clean(&flipped) {
+        println!("  flipped {n} edges");
+        flipped
+    } else {
+        nets
+    }
 }
+
+/// Collapses edges shorter than `min_len` onto their midpoints stepped back onto the field, where the collapse keeps
+/// the mesh a manifold and turns no face round it over.
+fn collapse_short(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), min_len: f64, avoid: &[P3]) -> usize {
+    use std::collections::HashSet;
+    let mut total = 0;
+    for _ in 0..6 {
+        let mut vfaces: Vec<Vec<u32>> = vec![Vec::new(); nets.v.len()];
+        for (i, t) in nets.f.iter().enumerate() {
+            for &x in t {
+                vfaces[x as usize].push(i as u32);
+            }
+        }
+        let mut short: Vec<(f64, u32, u32)> = Vec::new();
+        for t in &nets.f {
+            for e in 0..3 {
+                let (a, b) = (t[e], t[(e + 1) % 3]);
+                let l = len(sub(nets.v[a as usize], nets.v[b as usize]));
+                let mid = mul(add(nets.v[a as usize], nets.v[b as usize]), 0.5);
+                if a < b && l < min_len && avoid.iter().all(|c| len(sub(*c, mid)) > 0.4) {
+                    short.push((l, a, b));
+                }
+            }
+        }
+        short.sort_by(|x, y| x.0.total_cmp(&y.0));
+        let mut dead = vec![false; nets.f.len()];
+        let mut busy = vec![false; nets.v.len()];
+        let mut done = 0;
+        for (_, a, b) in short {
+            if busy[a as usize] || busy[b as usize] {
+                continue;
+            }
+            let fa: Vec<u32> = vfaces[a as usize].iter().copied().filter(|f| !dead[*f as usize]).collect();
+            let fb: Vec<u32> = vfaces[b as usize].iter().copied().filter(|f| !dead[*f as usize]).collect();
+            let shared: Vec<u32> = fa.iter().copied().filter(|f| nets.f[*f as usize].contains(&b)).collect();
+            if shared.len() != 2 {
+                continue;
+            }
+            let ring = |fs: &[u32], me: u32| -> HashSet<u32> { fs.iter().flat_map(|f| nets.f[*f as usize]).filter(|x| *x != me).collect() };
+            let (na, nb) = (ring(&fa, a), ring(&fb, b));
+            if na.intersection(&nb).count() != 2 {
+                continue;
+            }
+            let mut p = mul(add(nets.v[a as usize], nets.v[b as usize]), 0.5);
+            for _ in 0..2 {
+                let g = gradient(field, p);
+                p = sub(p, mul(g, field(p) / dot(g, g).max(1e-9)));
+            }
+            let ok = fa.iter().chain(&fb).filter(|f| !shared.contains(f)).all(|f| {
+                let t = nets.f[*f as usize];
+                let old = t.map(|x| nets.v[x as usize]);
+                let new = t.map(|x| if x == a || x == b { p } else { nets.v[x as usize] });
+                let (n0, n1) = (cross(sub(old[1], old[0]), sub(old[2], old[0])), cross(sub(new[1], new[0]), sub(new[2], new[0])));
+                len(n1) > 1e-14 && dot(n0, n1) > 0.5 * len(n0) * len(n1)
+            });
+            if !ok {
+                continue;
+            }
+            nets.v[a as usize] = p;
+            for f in &shared {
+                dead[*f as usize] = true;
+            }
+            for f in &fb {
+                if !dead[*f as usize] {
+                    for x in nets.f[*f as usize].iter_mut() {
+                        if *x == b {
+                            *x = a;
+                        }
+                    }
+                }
+            }
+            for x in na.iter().chain(nb.iter()).chain([a, b].iter()) {
+                busy[*x as usize] = true;
+            }
+            done += 1;
+        }
+        let mut keep = 0;
+        for i in 0..nets.f.len() {
+            if !dead[i] {
+                nets.f[keep] = nets.f[i];
+                keep += 1;
+            }
+        }
+        nets.f.truncate(keep);
+        total += done;
+        if done == 0 {
+            break;
+        }
+    }
+    // Drop vertices no face uses.
+    let mut remap = vec![u32::MAX; nets.v.len()];
+    let mut v = Vec::new();
+    for t in nets.f.iter_mut() {
+        for x in t.iter_mut() {
+            if remap[*x as usize] == u32::MAX {
+                remap[*x as usize] = v.len() as u32;
+                v.push(nets.v[*x as usize]);
+            }
+            *x = remap[*x as usize];
+        }
+    }
+    nets.v = v;
+    total
+}
+
+
+/// Flips and smooths away folds the meshing made on a smooth stretch of the field: an edge turning 40 degrees or more
+/// whose two faces the field itself sees within 20 degrees of each other. Each change is kept only if no face round it
+/// turns over and the worst fold round it shrinks.
+fn polish(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), passes: usize) -> usize {
+    use std::collections::HashMap;
+    let unit = |g: P3| mul(g, 1.0 / len(g).max(1e-12));
+    let normal = |t: &[u32; 3], v: &[P3]| unit(cross(sub(v[t[1] as usize], v[t[0] as usize]), sub(v[t[2] as usize], v[t[0] as usize])));
+    let centre = |t: &[u32; 3], v: &[P3]| mul(add(add(v[t[0] as usize], v[t[1] as usize]), v[t[2] as usize]), 1.0 / 3.0);
+    let mut fixed = 0;
+    for _ in 0..passes {
+        let mut edges: HashMap<(u32, u32), Vec<usize>> = HashMap::new();
+        for (i, t) in nets.f.iter().enumerate() {
+            for e in 0..3 {
+                let (a, b) = (t[e], t[(e + 1) % 3]);
+                edges.entry((a.min(b), a.max(b))).or_default().push(i);
+            }
+        }
+        let mut touched = vec![false; nets.f.len()];
+        let mut bad: Vec<((u32, u32), usize, usize)> = edges
+            .iter()
+            .filter(|(_, fs)| fs.len() == 2)
+            .filter_map(|(k, fs)| {
+                let (n0, n1) = (normal(&nets.f[fs[0]], &nets.v), normal(&nets.f[fs[1]], &nets.v));
+                if dot(n0, n1) > 40f64.to_radians().cos() {
+                    return None;
+                }
+                let (g0, g1) = (unit(gradient(field, centre(&nets.f[fs[0]], &nets.v))), unit(gradient(field, centre(&nets.f[fs[1]], &nets.v))));
+                (dot(g0, g1) > 20f64.to_radians().cos()).then_some((*k, fs[0], fs[1]))
+            })
+            .collect();
+        bad.sort_unstable();
+        let mut changed = 0;
+        for ((a, b), f0, f1) in bad {
+            if touched[f0] || touched[f1] {
+                continue;
+            }
+            let (t0, t1) = (nets.f[f0], nets.f[f1]);
+            // Orient so t0 runs a -> b.
+            let (a, b) = if (0..3).any(|e| t0[e] == a && t0[(e + 1) % 3] == b) { (a, b) } else { (b, a) };
+            let c = *t0.iter().find(|x| **x != a && **x != b).unwrap();
+            let d = *t1.iter().find(|x| **x != a && **x != b).unwrap();
+            if c == d || edges.contains_key(&(c.min(d), c.max(d))) {
+                continue;
+            }
+            let worst = |faces: &[[u32; 3]]| -> f64 {
+                let mut m: HashMap<(u32, u32), Vec<P3>> = HashMap::new();
+                for t in faces {
+                    let n = normal(t, &nets.v);
+                    for e in 0..3 {
+                        let (p, q) = (t[e], t[(e + 1) % 3]);
+                        m.entry((p.min(q), p.max(q))).or_default().push(n);
+                    }
+                }
+                m.values().filter(|ns| ns.len() == 2).map(|ns| dot(ns[0], ns[1])).fold(1.0, f64::min)
+            };
+            // The ring of faces across the quad's four outer edges, which the flip's new faces must also sit well with.
+            let mut ring: Vec<[u32; 3]> = Vec::new();
+            for (p, q) in [(a, d), (d, b), (b, c), (c, a)] {
+                if let Some(fs) = edges.get(&(p.min(q), p.max(q))) {
+                    ring.extend(fs.iter().filter(|f| **f != f0 && **f != f1).map(|f| nets.f[*f]));
+                }
+            }
+            let (n0, n1) = ([a, d, c], [d, b, c]);
+            let g = unit(gradient(field, mul(add(nets.v[c as usize], nets.v[d as usize]), 0.5)));
+            if dot(normal(&n0, &nets.v), g) < 0.3 || dot(normal(&n1, &nets.v), g) < 0.3 {
+                continue;
+            }
+            let before: Vec<[u32; 3]> = [t0, t1].into_iter().chain(ring.iter().copied()).collect();
+            let after: Vec<[u32; 3]> = [n0, n1].into_iter().chain(ring.iter().copied()).collect();
+            if worst(&after) > worst(&before) + 1e-6 {
+                nets.f[f0] = n0;
+                nets.f[f1] = n1;
+                touched[f0] = true;
+                touched[f1] = true;
+                changed += 1;
+            }
+        }
+        fixed += changed;
+        if changed == 0 {
+            break;
+        }
+    }
+    fixed
+}
+
+
 
 /// Undirected edges used other than twice, and whether the mesh encloses positive volume.
 fn closure(v: &[P3], f: &[[u32; 3]]) -> (usize, f64) {
@@ -1304,7 +1540,7 @@ fn sculpt_preview(out: &Path, step: f64) -> Result<()> {
     let nets = settle(clean_decimate(&raw, SCULPT_FACES), &field);
     println!("  relaxed and decimated to {} in {:.1} s", nets.f.len(), t.elapsed().as_secs_f64());
     println!("  face-zone folds of 60 degrees: raw {}, decimated {}", zone_folds(&wolf, &raw), zone_folds(&wolf, &nets));
-    fold_causes(&wolf, &raw, &field);
+    fold_causes(&wolf, &nets, &field);
     let sculpt = to_mesh(&nets, &field);
     stone_and_fangs(&mut d)?;
     let (head, _) = head_feature(&wolf)?;
