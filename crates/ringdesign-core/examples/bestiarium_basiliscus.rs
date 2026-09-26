@@ -588,9 +588,15 @@ fn open_spline(ctrl: &[P2], per: usize) -> Vec<P2> {
 struct Body {
     spine: Vec<P2>,
     at: Vec<f64>,
+    /// How many scales down the spine each vertex lies: the integral of one over the scale's length, which shrinks with
+    /// the girth, so the rows stay continuous as the body tapers.
+    phase: Vec<f64>,
     lo: P2,
     hi: P2,
 }
+
+/// A dorsal scale's width across the body, as a share of the girth, and its bounds, mm; and its length over its width.
+const SCALE_CELL: (f64, f64, f64, f64) = (0.36, 0.25, 0.55, 1.37);
 
 impl Body {
     fn new() -> Self {
@@ -601,7 +607,27 @@ impl Body {
         }
         let lo = [spine.iter().map(|p| p[0]).fold(f64::MAX, f64::min) - GIRTH.0, spine.iter().map(|p| p[1]).fold(f64::MAX, f64::min) - GIRTH.0];
         let hi = [spine.iter().map(|p| p[0]).fold(f64::MIN, f64::max) + GIRTH.0, spine.iter().map(|p| p[1]).fold(f64::MIN, f64::max) + GIRTH.0];
-        Self { spine, at, lo, hi }
+        let mut me = Self { spine, at, phase: Vec::new(), lo, hi };
+        me.phase = vec![0.0];
+        for w in me.at.windows(2) {
+            let step = (w[1] - w[0]) / (SCALE_CELL.3 * me.scale_width(0.5 * (w[0] + w[1])));
+            me.phase.push(me.phase.last().unwrap() + step);
+        }
+        me
+    }
+
+    /// A dorsal scale's width across the body at `s` along the spine, mm: a fixed share of the girth, so every station
+    /// carries the same rows, bounded so the neck's are not coarse and the tail's stay above the detail floor.
+    fn scale_width(&self, s: f64) -> f64 {
+        (SCALE_CELL.0 * self.girth(s)).clamp(SCALE_CELL.1, SCALE_CELL.2)
+    }
+
+    /// Scales counted down the spine to `s`.
+    fn phase_at(&self, s: f64) -> f64 {
+        let i = self.at.partition_point(|&a| a < s).clamp(1, self.at.len() - 1);
+        let (a, b) = (self.at[i - 1], self.at[i]);
+        let t = ((s - a) / (b - a).max(1e-12)).clamp(0.0, 1.0);
+        self.phase[i - 1] + (self.phase[i] - self.phase[i - 1]) * t
     }
 
     fn length(&self) -> f64 {
@@ -659,8 +685,8 @@ impl Body {
     }
 
     /// Painted body height, mm: a raised-cosine crown over a low plinth that gives the edge its line, and with `skin` the
-    /// keeled dorsal scales at full relief over the inner seven tenths of the half-girth, faded out by nine tenths, with
-    /// belly scutes down its inner side.
+    /// keeled dorsal scales, sized to the girth, at full relief over the inner seven tenths of the half-girth and faded out
+    /// by nine tenths. The belly lies on the field; its scutes are on the palm.
     fn height(&self, p: P2, skin: bool) -> f64 {
         let Some((d, s, lat)) = self.nearest(p) else { return 0.0 };
         let w = self.girth(s);
@@ -673,12 +699,8 @@ impl Body {
         if !skin {
             return plinth + 0.9 * dome;
         }
-        let across = lat / w;
-        let belly = smooth(-0.22, -0.42, across);
-        let scales = reptile::snake(s / 0.85, lat / 0.62);
-        let scutes = reptile::ventral(s / 0.6, ((across + 0.71) / 0.29).clamp(-1.0, 1.0));
-        let pattern = scales * (1.0 - belly) + scutes * belly;
-        plinth + 0.9 * dome + SCALE_RELIEF * pattern * (1.0 - smooth(0.7, 0.9, x))
+        let scales = reptile::snake(self.phase_at(s), lat / self.scale_width(s));
+        plinth + 0.9 * dome + SCALE_RELIEF * scales * (1.0 - smooth(0.7, 0.9, x))
     }
 }
 
@@ -1789,6 +1811,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
     let composition = json!({
         "stone_mm": STONE, "seat_plan_mm": [SEAT_PLAN.0, SEAT_PLAN.1, SEAT_PLAN.2], "stone_boss_mm": STONE_BOSS, "coil_lap_on_seat_mm": LAP,
         "spine_mm": arms.body.length(), "girth_mm": [GIRTH.0, GIRTH.1], "body_crown_mm": DOME, "body_scale_relief_mm": SCALE_RELIEF,
+        "body_scale_width": {"share_of_girth": SCALE_CELL.0, "bounds_mm": [SCALE_CELL.1, SCALE_CELL.2], "length_over_width": SCALE_CELL.3},
         "body_crest_mm": crest, "body_outer_quarter_steepest_deg": steep,
         "crown_pearls_inside_chief_mm": pearls, "crown_points_mm": POINTS,
         "circlet_mm": {"width_across_the_ring": x_hi - x_lo, "plan_width": CIRCLET.2 + CIRCLET.3, "into_skull": CIRCLET.2, "sagitta": sagitta, "rise": CIRCLET.4},

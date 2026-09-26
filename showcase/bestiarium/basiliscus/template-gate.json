@@ -1,7 +1,7 @@
 {
   "authoring_ms": {
-    "graph_creation": 16.802215999999998,
-    "source_read": 14.05973
+    "graph_creation": 13.458705,
+    "source_read": 5.291869
   },
   "build": {
     "profile_steps": 448,
@@ -9,10 +9,10 @@
   },
   "cold_design_reload": true,
   "cold_graph_reload": true,
-  "design_bytes": 1526065,
+  "design_bytes": 1526525,
   "design_set_patches": [],
   "detail_findings": 0,
-  "editable_design_bytes": 3088492,
+  "editable_design_bytes": 3089412,
   "editable_graph_reload": true,
   "export_geometry_verified": true,
   "exposed_control_policy": "explicit_allowlist",
@@ -24,22 +24,22 @@
   },
   "nodes": 74,
   "open_ms": {
-    "bake": 0.27767200000000003,
-    "bake_again": 0.256121,
-    "detail": 2672.026541,
-    "detail_again": 15.818011,
-    "evaluate": 8.73945,
-    "first_build": 327.581296,
-    "read": 4.631186,
-    "rebuild": 1.436998,
+    "bake": 0.18577200000000002,
+    "bake_again": 0.17763199999999998,
+    "detail": 2554.616176,
+    "detail_again": 14.353323,
+    "evaluate": 9.219046,
+    "first_build": 320.27840299999997,
+    "read": 4.167058000000001,
+    "rebuild": 1.398153,
     "unpack": null,
-    "verdict": 16.734315
+    "verdict": 16.590664
   },
   "size_budget_bytes": 3000000,
   "size_review_required": false,
   "source_identical": true,
   "source_method": "lift",
-  "template_bytes": 1549899,
+  "template_bytes": 1550359,
   "template_class": "painted",
   "template_gate_passed": true,
   "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
