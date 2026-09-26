@@ -326,6 +326,16 @@ impl Named {
     pub fn compact(&mut self) {
         self.solid.compact();
     }
+
+    /// [`csg::clean`] at `eps`, each face it keeps keeping its patch.
+    pub fn clean(&mut self, eps: f64) -> usize {
+        let (removed, kept) = csg::clean_traced(&mut self.solid, eps);
+        if let Some(kept) = kept {
+            let mut flags = kept.into_iter();
+            self.patch.retain(|_| flags.next().unwrap_or(true));
+        }
+        removed
+    }
 }
 
 /// Every face marked `u32::MAX` takes the patch of a neighbour across an edge, spreading until none is left.
@@ -722,6 +732,8 @@ const FOOT_WALL_SLACK_MM: f64 = 0.01;
 pub struct Reach {
     pub reached: u32,
     pub walled: u32,
+    /// The first claw, counted from 1, whose foot found no metal where there was a floor to find.
+    pub free: Option<u32>,
 }
 
 /// The profile a claw follows from its existing foot to the crown.
@@ -754,13 +766,22 @@ pub enum ClawTip {
 }
 
 /// The default preserves the original claw mesh, including its sampling and caps.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ClawOptions {
     pub style: ClawStyle,
     pub grouping: ClawGrouping,
     pub tip: ClawTip,
+    /// Share of a cabochon's dome height a shaped claw's tip climbs to; 0 keeps the claw's own target.
+    pub rise: f64,
 }
+
+/// Share of its dome a shaped claw climbs on a cabochon when its head does not say.
+pub const CAB_RISE: f64 = 0.3;
+/// Highest share of its dome a shaped claw may climb.
+pub const MAX_RISE: f64 = 0.6;
+/// Step by which a claw whose bends do not fit its asked rise climbs higher.
+const RISE_STEP: f64 = 0.025;
 
 /// Why a made part cannot stand where its stone is.
 #[derive(Clone, Debug, PartialEq)]
@@ -773,6 +794,8 @@ pub enum HeadSnag {
     Breaks { part: String, wall_mm: f64 },
     /// The foot leaves too little room for this claw's safe profile.
     ShortClaw { claw: u32, style: ClawStyle },
+    /// No rail ties this claw, and its foot finds no metal to stand in.
+    Floats { claw: u32 },
 }
 
 impl std::fmt::Display for HeadSnag {
@@ -790,6 +813,9 @@ impl std::fmt::Display for HeadSnag {
             Self::ShortClaw { claw, style } => {
                 let remedy = if *style == ClawStyle::Fang { "choose a thicker wire or another claw style" } else { "raise the stone or choose a thinner wire" };
                 write!(f, "Claw {claw} has too little room for a safe {style:?} profile; {remedy}")
+            }
+            Self::Floats { claw } => {
+                write!(f, "Claw {claw} would stand clear of the metal with no rail to tie it; add a rail, or seat the stone further onto the band")
             }
         }
     }
@@ -816,8 +842,16 @@ pub fn breaks_wall(parts: &[Named], wall: Wall) -> Option<HeadSnag> {
 
 /// [`claw_head`] with its wire and rails chosen, every claw and rail named, each claw reaching the metal `floor` finds.
 pub fn claw_head_named(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor: Option<Floor>) -> Result<Named, Snag> {
-    let head = Named::union_all(claw_parts_named(gem, prongs, wire_mm, rails, floor))?;
-    let mut head = head.notched(&envelope(gem, 0.02))?;
+    finish_head(gem, claw_parts_named(gem, prongs, wire_mm, rails, floor))
+}
+
+/// Shortest edge and least height a head's face keeps, mm.
+const SLIVER_MM: f64 = 2e-5;
+
+/// Claws and rails joined, notched by the stone, and cleared of slivers an f32 mesh cannot hold.
+fn finish_head(gem: Gem, parts: Vec<Named>) -> Result<Named, Snag> {
+    let mut head = Named::union_all(parts)?.notched(&envelope(gem, 0.02))?;
+    head.clean(SLIVER_MM);
     head.compact();
     Ok(head)
 }
@@ -831,10 +865,7 @@ pub fn claw_head_within(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor
     if let Some(snag) = breaks_wall(&parts, wall) {
         return Err(snag);
     }
-    let head = Named::union_all(parts)?;
-    let mut head = head.notched(&envelope(gem, 0.02))?;
-    head.compact();
-    Ok(head)
+    Ok(finish_head(gem, parts)?)
 }
 
 /// A chosen claw profile, with the same named rails, foot search and stone notch as [`claw_head_named`].
@@ -850,10 +881,11 @@ pub fn claw_head_within_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails
 fn claw_head_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails, floor: Option<Floor>, wall: Option<Wall>, options: ClawOptions) -> Result<Named, HeadSnag> {
     let (parts, reach) = claw_parts_reach_styled(gem, prongs, wire_mm, rails, floor, wall, options)?;
     if floor.is_some() && reach.reached == 0 && reach.walled > 0 { return Err(HeadSnag::NoReach); }
+    // Claws no chosen rail ties must each stand in the metal.
+    let untied = rails != Rails::Seat && parts.iter().all(|p| p.names.first().is_some_and(|n| n.starts_with("Claw ")));
+    if let (true, Some(claw)) = (untied, reach.free) { return Err(HeadSnag::Floats { claw }); }
     if let Some(snag) = wall.and_then(|w| breaks_wall(&parts, w)) { return Err(snag); }
-    let mut head = Named::union_all(parts)?.notched(&envelope(gem, 0.02))?;
-    head.compact();
-    Ok(head)
+    Ok(finish_head(gem, parts)?)
 }
 
 /// The claws and rails of a head before they are joined, each closed on its own.
@@ -866,7 +898,11 @@ pub fn claw_parts(gem: Gem, prongs: u32) -> Vec<Solid> {
 pub enum Rails {
     /// A base rail on stones from 1.6 mm, and a gallery rail at 0.45 of the depth from 2.4 mm: the seats' own head.
     Seat,
-    /// A basket: this many rails, evenly from the base rail up to 0.35 of the pavilion under the girdle.
+    /// The seat head's base rail alone, the claws standing free above it.
+    Base,
+    /// No rail: every claw stands in the metal on its own foot.
+    None,
+    /// A basket: this many rails, evenly from the base rail up to 0.35 of the pavilion under the girdle; none at 0.
     Basket(u32),
 }
 
@@ -903,9 +939,65 @@ fn grouped_claw_angles(plan: &Plan, count: u32, wire: f64, grouping: ClawGroupin
     angles
 }
 
-/// Tangent arcs or a straight Fang cone, with normalized path distance; an unsafe unchanged foot yields no path.
-fn shaped_claw_line(style: ClawStyle, wire: f64, foot: [f64; 2], target: [f64; 2], turn: f64, girdle: f64) -> Option<(Vec<[f64; 2]>, Vec<f64>)> {
-    if style == ClawStyle::Fang {
+/// Where a head's claws stand round the stone's axis, radians, as `grouping` arranges them.
+pub fn claw_bearings(gem: Gem, prongs: u32, wire_mm: f64, grouping: ClawGrouping) -> Vec<f64> {
+    grouped_claw_angles(&Plan::of(gem), claw_count(gem, prongs), wire_mm, grouping)
+}
+
+/// A climbing Fang's tip radius, as a share of the wire.
+const FANG_CLIMB_TIP: f64 = 0.25;
+/// A climbing Fang's bend radius, as a share of the wire.
+const FANG_BEND: f64 = 1.0;
+
+/// A shaped claw's tip radii, in its bending plane and across it, as shares of the wire.
+fn tip_radii(style: ClawStyle) -> (f64, f64) {
+    match style {
+        ClawStyle::Talon => (0.09, 0.09),
+        ClawStyle::Fang => (FANG_CLIMB_TIP, FANG_CLIMB_TIP),
+        ClawStyle::Tentacle => (0.14, 0.14),
+        ClawStyle::Thorn => (0.07, 0.07),
+        ClawStyle::Sepal => (0.10, 0.44),
+        ClawStyle::Wire => (0.36, 0.36),
+    }
+}
+
+/// How far past the crown's line a style's last bend turns in, radians.
+fn hook(style: ClawStyle) -> f64 {
+    match style {
+        ClawStyle::Talon => -0.18,
+        ClawStyle::Sepal => -0.12,
+        _ => 0.0,
+    }
+}
+
+/// A shaped claw's run end, half its tip radius off the dome's section over its support line, and the dome's heading there, with the tip `rise` of the dome up.
+fn dome_climb(style: ClawStyle, tip: ClawTip, wire: f64, support: f64, crown: f64, rise: f64) -> ([f64; 2], f64) {
+    let (bend, across) = tip_radii(style);
+    let lift = 0.5 * bend * wire;
+    let reach = wire * if tip == ClawTip::Point { 1.2 * bend.max(across) } else { bend.min(across) };
+    let at = |theta: f64| {
+        let (s, c) = theta.sin_cos();
+        let (nx, nz) = (crown * c, support * s);
+        let l = nx.hypot(nz).max(1e-12);
+        ([support * (c - 1.0) + lift * nx / l, crown * s + lift * nz / l], (-support * s).atan2(crown * c))
+    };
+    let top = |theta: f64| {
+        let (p, heading) = at(theta);
+        p[1] + reach * (heading + hook(style)).cos()
+    };
+    let goal = rise.clamp(0.0, MAX_RISE) * crown;
+    let (mut lo, mut hi) = (0.0, 1.4);
+    if top(lo) >= goal { return at(lo); }
+    for _ in 0..48 {
+        let mid = 0.5 * (lo + hi);
+        if top(mid) < goal { lo = mid } else { hi = mid }
+    }
+    at(hi)
+}
+
+/// Tangent arcs or a straight Fang cone, with normalized path distance, ending on a `climb`'s point and heading when given; an unsafe foot yields no path.
+fn shaped_claw_line(style: ClawStyle, wire: f64, foot: [f64; 2], target: [f64; 2], turn: f64, girdle: f64, climb: Option<([f64; 2], f64)>) -> Option<(Vec<[f64; 2]>, Vec<f64>)> {
+    if style == ClawStyle::Fang && climb.is_none() {
         let target = [(-0.05 * wire).min(foot[0] - 0.05 * wire), girdle + 0.44 * wire];
         let tip_radius = (-target[0] + 0.20 * wire).max(0.10 * wire);
         let length = (target[0] - foot[0]).hypot(target[1] - foot[1]);
@@ -916,16 +1008,17 @@ fn shaped_claw_line(style: ClawStyle, wire: f64, foot: [f64; 2], target: [f64; 2
         return Some((line, along));
     }
     let lean = PRONG_LEAN.atan();
+    let (target, end) = climb.unwrap_or((target, -turn));
     let (arcs, target) = match style {
-        ClawStyle::Talon => (vec![(0.64 * wire, -turn - 0.18)], target),
-        ClawStyle::Fang => unreachable!(),
+        ClawStyle::Talon => (vec![(0.64 * wire, end + hook(style))], target),
+        ClawStyle::Fang => (vec![(FANG_BEND * wire, end)], target),
         ClawStyle::Tentacle => {
             // The lower S opens into a cabochon's available height while retaining both bend radii.
             let open = (((target[1] - foot[1]) / wire - 1.30) * 0.20).clamp(0.06, 0.40);
-            (vec![(0.80 * wire, lean + open), (0.64 * wire, -turn)], target)
+            (vec![(0.80 * wire, lean + open), (0.64 * wire, end)], target)
         }
-        ClawStyle::Thorn => (vec![(0.64 * wire, -turn)], target),
-        ClawStyle::Sepal => (vec![(1.05 * wire, -turn - 0.12)], target),
+        ClawStyle::Thorn => (vec![(0.64 * wire, end)], target),
+        ClawStyle::Sepal => (vec![(1.05 * wire, end + hook(style))], target),
         ClawStyle::Wire => return None,
     };
     let step_arc = |from: f64, to: f64, radius: f64| {
@@ -1029,6 +1122,7 @@ pub fn claw_parts_reach_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails
                 [o[0] + n[0] * foot, o[1] + n[1] * foot]
             };
             let mut z = own;
+            let reached = met.reached;
             while z > own - CLAW_REACH_MM {
                 if !keeps(z) {
                     met.walled += 1;
@@ -1043,6 +1137,9 @@ pub fn claw_parts_reach_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails
                     break;
                 }
                 z -= 0.05;
+            }
+            if met.reached == reached && met.free.is_none() {
+                met.free = Some(claw as u32 + 1);
             }
         }
         // A foot already inside the wall is shortened up its own line to it.
@@ -1067,10 +1164,18 @@ pub fn claw_parts_reach_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails
         rs.push(0.36 * d);
         let mut oval = Vec::new();
         if options.style != ClawStyle::Wire {
-            let (shaped, along) = shaped_claw_line(options.style, d, [foot, base_z], *line.last().unwrap(), turn, g)
+            let shaped = |climb| shaped_claw_line(options.style, d, [foot, base_z], *line.last().unwrap(), turn, g, climb);
+            // A cabochon's claw climbs to the lowest rise from the asked one its bends fit, else keeps its own target.
+            let support = (o[0] * n[0] + o[1] * n[1]).max(0.1);
+            let climbed = (gem.form == GemForm::Cabochon && options.rise > 0.0)
+                .then(|| (0..).map(|k| options.rise.min(MAX_RISE) + RISE_STEP * k as f64).take_while(|r| *r <= MAX_RISE + 1e-9)
+                    .find_map(|r| shaped(Some(dome_climb(options.style, options.tip, d, support, c, r)))))
+                .flatten();
+            let climbing = climbed.is_some();
+            let (shaped, along) = climbed.or_else(|| shaped(None))
                 .ok_or(HeadSnag::ShortClaw { claw: claw as u32 + 1, style: options.style })?;
             line = shaped;
-            let fang_tip_radius = (-line.last().unwrap()[0] + 0.20 * d).max(0.10 * d);
+            let fang_tip_radius = if climbing { FANG_CLIMB_TIP * d } else { (-line.last().unwrap()[0] + 0.20 * d).max(0.10 * d) };
             rs = along.iter().map(|&t| d * match options.style {
                 ClawStyle::Talon => if t < 0.80 { 0.60 - 0.10 * t / 0.80 } else { 0.50 - 0.41 * (t - 0.80) / 0.20 },
                 ClawStyle::Fang => 0.60 + (fang_tip_radius / d - 0.60) * t,
@@ -1110,9 +1215,13 @@ pub fn claw_parts_reach_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails
             if gem.w_mm >= 1.6 { parts.push(rail(-depth + 0.18, 0.45 * d, "Base rail".into())); }
             if gem.w_mm >= 2.4 { parts.push(rail(-0.45 * depth, 0.36 * d, "Gallery rail".into())); }
         }
+        Rails::Base => {
+            if gem.w_mm >= 1.6 { parts.push(rail(-depth + 0.18, 0.45 * d, "Base rail".into())); }
+        }
+        Rails::None => {}
         Rails::Basket(n) => {
             let (low, high) = (-depth + 0.18, -g - 0.35 * p);
-            let n = n.clamp(1, 6);
+            let n = n.min(6);
             for k in 0..n {
                 let t = if n > 1 { k as f64 / (n - 1) as f64 } else { 0.0 };
                 let name = if k == 0 { "Base rail".to_string() } else { format!("Gallery rail {k}") };
@@ -3070,7 +3179,7 @@ mod tests {
                 for style in CLAW_STYLES {
                     for tip in [ClawTip::Dome, ClawTip::Point] {
                         for prongs in 3..=8 {
-                            let options = ClawOptions { style, grouping, tip };
+                            let options = ClawOptions { style, grouping, tip, ..ClawOptions::default() };
                             let who = format!("{cut:?} {prongs} {options:?}");
                             let (parts, _) = claw_parts_reach_styled(gem, prongs, wire, Rails::Basket(3), None, None, options).unwrap_or_else(|e| panic!("{who}: {e}"));
                             for (part, phi) in parts.iter().take(prongs as usize).zip(grouped_claw_angles(&plan, prongs, wire, grouping)) {
@@ -3095,24 +3204,211 @@ mod tests {
         assert!(missing_bites.is_empty(), "no girdle bite before notching: {missing_bites:#?}");
     }
 
+    /// Whether a point is strictly inside the stone, a cabochon's read off its dome's own equation.
+    fn stone_of(gem: Gem) -> impl Fn(P3) -> bool {
+        let (plan, crown, drawn) = (Plan::of(gem), gem.crown_mm(), envelope(gem, 0.0));
+        move |p: P3| match gem.form {
+            GemForm::Cabochon => {
+                let gauge = ((p[0].abs() / plan.a).powf(plan.pow) + (p[1].abs() / plan.b).powf(plan.pow)).powf(1.0 / plan.pow);
+                p[2] > 0.0 && p[2] < crown && gauge < (1.0 - (p[2] / crown).powi(2)).sqrt()
+            }
+            GemForm::Faceted => csg::inside(&drawn, p) == Some(true),
+        }
+    }
+
+    /// Each ring of an unnotched claw tube, 14 vertices round, `caps` of them rounding its tip: the ring's vertices and centre.
+    fn claw_rings(s: &Solid, caps: usize) -> Vec<(&[P3], P3)> {
+        let rings = (s.v.len() - 2) / 14 - caps;
+        s.v[..rings * 14].chunks_exact(14).map(|ring| (ring, std::array::from_fn(|i| ring.iter().map(|p| p[i]).sum::<f64>() / 14.0))).collect()
+    }
+
     #[test]
     fn claw_styles_fit_the_bestiarium_cabochons() {
         for cut in [GemCut::Round, GemCut::Oval] {
             let gem = Gem::cabochon(cut, 10.0);
-            let stone = envelope(gem, 0.0);
+            let in_stone = stone_of(gem);
+            assert!(in_stone([0.0, 0.0, 1.0]) && !in_stone([0.0, 0.0, gem.crown_mm() + 0.01]));
             for style in CLAW_STYLES {
                 for grouping in [ClawGrouping::Even, ClawGrouping::Jaws] {
-                    let options = ClawOptions { style, grouping, tip: ClawTip::Point };
-                    let who = format!("10 mm {cut:?} cabochon {options:?}");
-                    let (parts, _) = claw_parts_reach_styled(gem, 6, 1.4, Rails::Seat, None, None, options).unwrap_or_else(|e| panic!("{who}: {e}"));
-                    for part in &parts { assert_eq!(csg::self_crossings(&part.solid), 0, "{who} {:?}", part.names); }
-                    let head = claw_head_named_styled(gem, 6, 1.4, Rails::Seat, None, options).unwrap_or_else(|e| panic!("{who}: {e}"));
-                    sound(&head.solid, &who);
-                    assert_eq!(csg::self_crossings(&head.solid), 0, "{who}");
-                    assert!(head.solid.v.iter().all(|p| csg::inside(&stone, *p) != Some(true)), "{who}: metal in stone");
+                    for rise in [0.0, CAB_RISE] {
+                        let options = ClawOptions { style, grouping, tip: ClawTip::Point, rise };
+                        let who = format!("10 mm {cut:?} cabochon {options:?}");
+                        let (parts, _) = claw_parts_reach_styled(gem, 6, 1.4, Rails::Seat, None, None, options).unwrap_or_else(|e| panic!("{who}: {e}"));
+                        for part in &parts { assert_eq!(csg::self_crossings(&part.solid), 0, "{who} {:?}", part.names); }
+                        let head = claw_head_named_styled(gem, 6, 1.4, Rails::Seat, None, options).unwrap_or_else(|e| panic!("{who}: {e}"));
+                        sound(&head.solid, &who);
+                        assert_eq!(csg::self_crossings(&head.solid), 0, "{who}");
+                        assert!(head.solid.v.iter().all(|p| !in_stone(*p)), "{who}: metal in stone");
+                    }
                 }
             }
         }
+    }
+
+    #[test]
+    fn a_cabochons_shaped_claws_climb_its_dome_on_its_surface_and_a_faceted_stones_keep_their_own() {
+        for cut in [GemCut::Round, GemCut::Oval] {
+            let gem = Gem::cabochon(cut, 10.0);
+            let (crown, in_stone) = (gem.crown_mm(), stone_of(gem));
+            for style in CLAW_STYLES.into_iter().filter(|s| *s != ClawStyle::Wire) {
+                // Fenrir's four Jaws fangs on a 1.5 mm wire and Kraken's six even tentacles on 1.4, for every shaped style.
+                for (prongs, wire, grouping) in [(4, 1.5, ClawGrouping::Jaws), (6, 1.4, ClawGrouping::Even)] {
+                    for tip in [ClawTip::Dome, ClawTip::Point] {
+                        let options = ClawOptions { style, grouping, tip, rise: CAB_RISE };
+                        let who = format!("10 mm {cut:?} cabochon {prongs} {options:?}");
+                        let (parts, _) = claw_parts_reach_styled(gem, prongs, wire, Rails::None, None, None, options).unwrap_or_else(|e| panic!("{who}: {e}"));
+                        assert_eq!(parts.len(), prongs as usize, "{who}: no rails");
+                        for part in &parts {
+                            sound(&part.solid, &who);
+                            assert_eq!(csg::self_crossings(&part.solid), 0, "{who} {:?}", part.names);
+                            if tip == ClawTip::Dome { claw_bends_clear_the_local_radius(&part.solid, &who); }
+                            // No ring's centre is in the stone, and every ring wholly over the girdle has its inner side in it: the claw rides the dome.
+                            let rings = claw_rings(&part.solid, if tip == ClawTip::Dome { 4 } else { 0 });
+                            assert!(rings.iter().all(|(_, c)| !in_stone(*c)), "{who} {:?}: the claw's line enters the stone", part.names);
+                            let over: Vec<_> = rings.iter().filter(|(ring, _)| ring.iter().all(|p| p[2] > 0.02)).collect();
+                            assert!(over.len() >= 2 && over.iter().all(|(ring, _)| ring.iter().any(|p| in_stone(*p))), "{who} {:?}: the claw leaves the dome", part.names);
+                        }
+                        let head = claw_head_named_styled(gem, prongs, wire, Rails::None, None, options).unwrap_or_else(|e| panic!("{who}: {e}"));
+                        sound(&head.solid, &who);
+                        assert_eq!(csg::self_crossings(&head.solid), 0, "{who}");
+                        assert!(head.solid.v.iter().all(|p| !in_stone(*p)), "{who}: metal in stone");
+                        for k in 1..=prongs {
+                            let patch = head.names.iter().position(|n| *n == format!("Claw {k}")).unwrap() as u32;
+                            let top = head.solid.f.iter().zip(&head.patch).filter(|(_, p)| **p == patch).flat_map(|(f, _)| *f).map(|i| head.solid.v[i as usize][2]).fold(f64::MIN, f64::max);
+                            assert!(top >= 1.2 && (top - CAB_RISE * crown).abs() < 0.05, "{who}: claw {k}'s tip stands {top:.3} mm over the girdle");
+                        }
+                    }
+                }
+            }
+        }
+        // Faceted stones and a cabochon asked for no rise keep today's claws, bit for bit.
+        let same = |a: &[Named], b: &[Named]| a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.solid.v == y.solid.v && x.solid.f == y.solid.f);
+        for gem in [Gem::calibrated(GemCut::Round, 6.5), Gem::calibrated(GemCut::Oval, 6.5)] {
+            for style in CLAW_STYLES {
+                let (plain, _) = claw_parts_reach_styled(gem, 5, prong_wire_mm(gem), Rails::Seat, None, None, ClawOptions { style, ..ClawOptions::default() }).unwrap();
+                let (asked, _) = claw_parts_reach_styled(gem, 5, prong_wire_mm(gem), Rails::Seat, None, None, ClawOptions { style, rise: CAB_RISE, ..ClawOptions::default() }).unwrap();
+                assert!(same(&plain, &asked), "{style:?} on a faceted stone");
+            }
+        }
+        let cab = Gem::cabochon(GemCut::Round, 10.0);
+        let (wire, _) = claw_parts_reach_styled(cab, 4, 1.5, Rails::Seat, None, None, ClawOptions { rise: CAB_RISE, ..ClawOptions::default() }).unwrap();
+        assert!(same(&wire, &claw_parts_named(cab, 4, 1.5, Rails::Seat, None)), "a Wire claw keeps its own run on a cabochon");
+    }
+
+    #[test]
+    fn a_claw_that_cannot_land_where_asked_climbs_to_where_its_bends_fit() {
+        // An 8 mm oval's Sepal points cannot bend under 0.3 of the dome; they land at the lowest rise their bends fit, never refused.
+        let gem = Gem::cabochon(GemCut::Oval, 8.0);
+        let (wire, crown, in_stone) = (prong_wire_mm(gem), gem.crown_mm(), stone_of(gem));
+        let options = ClawOptions { style: ClawStyle::Sepal, tip: ClawTip::Point, rise: CAB_RISE, grouping: ClawGrouping::Jaws };
+        let head = claw_head_named_styled(gem, 4, wire, Rails::Seat, None, options).unwrap();
+        sound(&head.solid, "the Sepal head");
+        assert!(head.solid.v.iter().all(|p| !in_stone(*p)));
+        let top = head.solid.v.iter().map(|p| p[2]).fold(f64::MIN, f64::max);
+        assert!(top > CAB_RISE * crown + 0.02 && top < MAX_RISE * crown, "{top:.3} against a {crown:.2} mm dome");
+        // Across cabochons from 4 to 12 mm every shaped claw builds at every rise from nothing up.
+        for w in [4.0, 6.0, 8.0, 12.0] {
+            for cut in [GemCut::Round, GemCut::Oval] {
+                let gem = Gem::cabochon(cut, w);
+                for style in CLAW_STYLES.into_iter().filter(|s| *s != ClawStyle::Wire) {
+                    for tip in [ClawTip::Dome, ClawTip::Point] {
+                        for rise in [0.05, CAB_RISE, MAX_RISE] {
+                            for prongs in [3, 6] {
+                                let options = ClawOptions { style, tip, rise, grouping: ClawGrouping::Jaws };
+                                assert!(claw_parts_reach_styled(gem, prongs, prong_wire_mm(gem), Rails::None, None, None, options).is_ok(), "{w} mm {cut:?} {prongs} {options:?}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn rails_seat_base_none_and_an_empty_basket_close_uncrossed_three_to_eight_across_the_styles() {
+        for gem in [Gem::calibrated(GemCut::Round, 6.5), Gem::calibrated(GemCut::Oval, 6.5), Gem::cabochon(GemCut::Round, 10.0)] {
+            let wire = prong_wire_mm(gem);
+            let rise = if gem.form == GemForm::Cabochon { CAB_RISE } else { 0.0 };
+            for style in CLAW_STYLES {
+                let options = ClawOptions { style, rise, ..ClawOptions::default() };
+                for prongs in 3..=8 {
+                    let claws: Vec<String> = (1..=prongs).map(|k| format!("Claw {k}")).collect();
+                    let (seat, _) = claw_parts_reach_styled(gem, prongs, wire, Rails::Seat, None, None, options).unwrap();
+                    for (rails, extra) in [(Rails::Seat, &["Base rail", "Gallery rail"][..]), (Rails::Base, &["Base rail"][..]), (Rails::None, &[][..]), (Rails::Basket(0), &[][..])] {
+                        let who = format!("{:?} {:?} {style:?} {prongs} {rails:?}", gem.form, gem.cut);
+                        let (parts, _) = claw_parts_reach_styled(gem, prongs, wire, rails, None, None, options).unwrap_or_else(|e| panic!("{who}: {e}"));
+                        // The claws are the same whatever ties them, and the rails the seat head's own.
+                        assert_eq!(parts.len(), prongs as usize + extra.len(), "{who}");
+                        assert!(parts.iter().all(|p| seat.iter().any(|q| q.names == p.names && q.solid.v == p.solid.v && q.solid.f == p.solid.f)), "{who}");
+                        for part in &parts {
+                            sound(&part.solid, &who);
+                            assert_eq!(csg::self_crossings(&part.solid), 0, "{who} {:?}", part.names);
+                        }
+                        if rails == Rails::Basket(0) { continue; }
+                        let head = claw_head_named_styled(gem, prongs, wire, rails, None, options).unwrap_or_else(|e| panic!("{who}: {e}"));
+                        sound(&head.solid, &who);
+                        assert_eq!(csg::self_crossings(&head.solid), 0, "{who}");
+                        assert_eq!(head.names, claws.iter().map(String::as_str).chain(extra.iter().copied()).collect::<Vec<_>>(), "{who}");
+                    }
+                }
+            }
+        }
+        // A basket keeps its rail count from one up.
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        let rails = |n: u32| claw_parts_reach_styled(gem, 4, prong_wire_mm(gem), Rails::Basket(n), None, None, ClawOptions::default()).unwrap().0.len() - 4;
+        assert_eq!((rails(0), rails(1), rails(3), rails(6), rails(9)), (0, 1, 3, 6, 6));
+    }
+
+    #[test]
+    fn untied_claws_each_stand_in_the_metal_or_the_head_is_refused_by_name() {
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        let wire = prong_wire_mm(gem);
+        // Metal 3 mm down everywhere: every claw's foot sinks into it, rails or none.
+        let everywhere = |_: [f64; 2]| Some(-3.0);
+        for rails in [Rails::Seat, Rails::Base, Rails::None, Rails::Basket(0)] {
+            let (_, met) = claw_parts_reach_styled(gem, 4, wire, rails, Some(&everywhere), None, ClawOptions::default()).unwrap();
+            assert_eq!(met, Reach { reached: 4, walled: 0, free: None }, "{rails:?}");
+            assert!(claw_head_named_styled(gem, 4, wire, rails, Some(&everywhere), ClawOptions::default()).is_ok(), "{rails:?}");
+        }
+        // Metal only on the +x side: a rail holds the claws over the gap, and with none the first claw clear of it is named.
+        let half = |p: [f64; 2]| (p[0] > 0.0).then_some(-3.0);
+        let (_, met) = claw_parts_reach_styled(gem, 4, wire, Rails::None, Some(&half), None, ClawOptions::default()).unwrap();
+        let free = met.free.expect("a claw over no metal");
+        assert!(met.reached == 2 && (1..=4).contains(&free), "{met:?}");
+        for rails in [Rails::Seat, Rails::Base] {
+            assert!(claw_head_named_styled(gem, 4, wire, rails, Some(&half), ClawOptions::default()).is_ok(), "{rails:?}");
+        }
+        for rails in [Rails::None, Rails::Basket(0)] {
+            let snag = claw_head_named_styled(gem, 4, wire, rails, Some(&half), ClawOptions::default()).unwrap_err();
+            assert_eq!(snag, HeadSnag::Floats { claw: free }, "{rails:?}");
+            assert!(snag.to_string().starts_with(&format!("Claw {free} would stand clear of the metal with no rail to tie it")), "{snag}");
+        }
+        // With no floor at all there is nothing to stand in and nothing to refuse.
+        let (_, met) = claw_parts_reach_styled(gem, 4, wire, Rails::None, None, None, ClawOptions::default()).unwrap();
+        assert_eq!(met, Reach::default());
+    }
+
+    #[test]
+    fn a_heads_slivers_are_cleared_and_each_face_keeps_its_patch() {
+        // A 3.5 x 5 oval's base and gallery rails overlap, and their join leaves edges under a nanometre that f32 closes to a point.
+        let gem = Gem { l_mm: 5.0, ..Gem::calibrated(GemCut::Oval, 3.5) };
+        let parts = claw_parts_named(gem, 3, 1.0, Rails::Seat, None);
+        let mut raw = Named::union_all(parts).unwrap().notched(&envelope(gem, 0.02)).unwrap();
+        let before = raw.clone();
+        let removed = raw.clean(SLIVER_MM);
+        raw.compact();
+        let head = claw_head_named(gem, 3, 1.0, Rails::Seat, None).unwrap();
+        assert!(removed > 0 && head.solid.f.len() == before.solid.f.len() - removed, "{removed} of {} faces", before.solid.f.len());
+        assert_eq!((head.solid.v.clone(), head.solid.f.clone(), head.patch.clone()), (raw.solid.v, raw.solid.f, raw.patch));
+        assert_eq!(head.patch.len(), head.solid.f.len());
+        assert!(head.census().iter().all(|n| *n > 0), "every patch keeps faces: {:?}", head.names);
+        sound(&head.solid, "the cleaned head");
+        assert!((head.solid.volume() - before.solid.volume()).abs() < 1e-9, "{} against {}", head.solid.volume(), before.solid.volume());
+        let shortest = |s: &Solid| s.f.iter().flat_map(|f| (0..3).map(move |k| (f[k], f[(k + 1) % 3]))).map(|(a, b)| {
+            let (p, q) = (s.v[a as usize], s.v[b as usize]);
+            ((p[0] - q[0]).powi(2) + (p[1] - q[1]).powi(2) + (p[2] - q[2]).powi(2)).sqrt()
+        }).fold(f64::INFINITY, f64::min);
+        assert!(shortest(&before.solid) < 1e-6 && shortest(&head.solid) >= SLIVER_MM, "{:.2e} then {:.2e}", shortest(&before.solid), shortest(&head.solid));
     }
 
     #[test]
@@ -3123,7 +3419,7 @@ mod tests {
         for style in CLAW_STYLES {
             let options = ClawOptions { style, ..ClawOptions::default() };
             let (_, reach) = claw_parts_reach_styled(gem, 4, wire, Rails::Seat, Some(&shallow), Some(&wall), options).unwrap();
-            assert_eq!(reach, Reach { reached: 4, walled: 0 }, "{style:?}");
+            assert_eq!(reach, Reach { reached: 4, walled: 0, free: None }, "{style:?}");
             let head = claw_head_within_styled(gem, 4, wire, Rails::Seat, Some(&shallow), &wall, options).unwrap();
             assert!(thinnest_wall(&head.solid, &wall) >= crate::mesh::MIN_WALL_MM, "{style:?}");
             assert_eq!(claw_head_within_styled(gem, 4, wire, Rails::Seat, Some(&deep), &wall, options).unwrap_err(), HeadSnag::NoReach, "{style:?}");
@@ -3219,6 +3515,28 @@ mod tests {
                 let first = mesh(parts[0].solid.clone());
                 let path = std::path::Path::new(&dest).join(format!("{style:?}-{tip:?}-profile.png"));
                 crate::render::write_png(path, &first, 0.0, -PI * 0.5, 480, [1.0, 0.766, 0.336]).unwrap();
+            }
+        }
+    }
+
+    /// Manual visual audit of the Bestiarium's cabochon heads with no rise and Seat rails, then climbing on Seat and on no rails: `RD_CLAW_GALLERY` chooses the output directory.
+    #[test]
+    #[ignore]
+    fn bestiarium_claw_heads_gallery() {
+        let Some(dest) = std::env::var_os("RD_CLAW_GALLERY") else { return };
+        std::fs::create_dir_all(&dest).unwrap();
+        let gem = Gem::cabochon(GemCut::Round, 10.0);
+        let mesh = |s: Solid| { let n = s.v.len(); crate::parts::into_mesh(s, &[], vec![u32::MAX; n]) };
+        let stone = mesh(envelope(gem, 0.0));
+        for (name, prongs, wire, style, grouping) in [("tentacle6", 6, 1.4, ClawStyle::Tentacle, ClawGrouping::Even), ("fang4-jaws", 4, 1.5, ClawStyle::Fang, ClawGrouping::Jaws)] {
+            for (state, rails, rise) in [("before-seat", Rails::Seat, 0.0), ("after-seat", Rails::Seat, CAB_RISE), ("after-none", Rails::None, CAB_RISE)] {
+                let options = ClawOptions { style, grouping, tip: ClawTip::Point, rise };
+                let head = mesh(claw_head_named_styled(gem, prongs, wire, rails, None, options).unwrap().solid);
+                let parts = [crate::render::Part::metal(&head, crate::render::GOLD), crate::render::Part::tinted_stone(&stone, [0.30, 0.36, 0.46])];
+                for (view, yaw, pitch) in [("hero", 0.55, -1.12), ("side", 0.35, -1.5)] {
+                    let path = std::path::Path::new(&dest).join(format!("{name}-{state}-{view}.png"));
+                    crate::render::write_png_parts(path, &parts, yaw, pitch, 720).unwrap();
+                }
             }
         }
     }
@@ -4040,14 +4358,14 @@ mod tests {
         // Metal 4.2 mm down: the claws sink their feet half a millimetre into it and keep the wall.
         let shallow = |_: [f64; 2]| Some(-4.2);
         let (_, met) = claw_parts_reach(gem, 4, wire, Rails::Seat, Some(&shallow), Some(&hole));
-        assert_eq!(met, Reach { reached: 4, walled: 0 });
+        assert_eq!(met, Reach { reached: 4, walled: 0, free: None });
         let head = claw_head_within(gem, 4, wire, Rails::Seat, Some(&shallow), &hole).unwrap();
         let bottom = low(&head.solid);
         assert!(bottom >= -5.5 + keep && bottom < -4.2 - FOOT_SINK_MM, "{bottom}");
         // Metal 4.6 mm down: a foot half a millimetre into it would leave under the wall, so the wall stops every claw first.
         let deep = |_: [f64; 2]| Some(-4.6);
         let (_, met) = claw_parts_reach(gem, 4, wire, Rails::Seat, Some(&deep), Some(&hole));
-        assert_eq!(met, Reach { reached: 0, walled: 4 });
+        assert_eq!(met, Reach { reached: 0, walled: 4, free: Some(1) });
         assert_eq!(claw_head_within(gem, 4, wire, Rails::Seat, Some(&deep), &hole).unwrap_err(), HeadSnag::NoReach);
         // Floored by nothing, the same claws went down past the wall.
         let through = low(&claw_head_named(gem, 4, wire, Rails::Seat, Some(&deep)).unwrap().solid);

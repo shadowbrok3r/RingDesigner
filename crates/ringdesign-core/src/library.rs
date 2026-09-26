@@ -138,7 +138,16 @@ mod template_source_tests {
     fn styled_claws_fence_documents_and_nested_graphs_but_legacy_defaults_stay_plain() {
         use crate::cad::{Component, Document, Feature, Operation};
         for key in [crate::cad::builders::CLAW, crate::cad::builders::BASKET] {
-            for params in [serde_json::json!({}), serde_json::json!({"style":"Wire","grouping":"Even","tip":"Dome"}), serde_json::json!({"style":null,"grouping":null,"tip":null}), serde_json::json!({"style":"Talon"}), serde_json::json!({"grouping":"Feet"}), serde_json::json!({"tip":"Point"}), serde_json::json!({"style":"Unknown"})] {
+            let claw = key == crate::cad::builders::CLAW;
+            // Rails and a rise, fenced as a released build would misread them: a claw head's rails by name, a basket's empty count, any rise.
+            let rails_and_rise = [
+                (serde_json::json!({"rails":"Seat"}), false), (serde_json::json!({"rails":"Base"}), claw), (serde_json::json!({"rails":"None"}), claw),
+                (serde_json::json!({"rails":3}), claw), (serde_json::json!({"rails":0}), true), (serde_json::json!({"rise":0.0}), false), (serde_json::json!({"rise":0.3}), true),
+            ];
+            for (params, fenced) in rails_and_rise.iter() {
+                assert_eq!(crate::cad::builders::geometry_extended(key, params), *fenced, "{key} {params}");
+            }
+            for params in [serde_json::json!({}), serde_json::json!({"style":"Wire","grouping":"Even","tip":"Dome"}), serde_json::json!({"style":null,"grouping":null,"tip":null}), serde_json::json!({"style":"Talon"}), serde_json::json!({"grouping":"Feet"}), serde_json::json!({"tip":"Point"}), serde_json::json!({"style":"Unknown"})].into_iter().chain(rails_and_rise.into_iter().map(|(p, _)| p)) {
                 let extended = crate::cad::builders::geometry_extended(key, &params);
                 let expected = if extended { FORMAT_VERSION } else { PLAIN_FORMAT_VERSION };
                 let operation = Operation::Builder { key: key.into(), on: Some(1), params };

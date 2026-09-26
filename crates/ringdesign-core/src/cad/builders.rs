@@ -139,11 +139,18 @@ const STYLES: &[&str] = &["Bezel", "Claw"];
 const CLAW_STYLES: &[&str] = &["Wire", "Talon", "Fang", "Tentacle", "Thorn", "Sepal"];
 const CLAW_GROUPINGS: &[&str] = &["Even", "Feet", "Jaws"];
 const CLAW_TIPS: &[&str] = &["Dome", "Point"];
+const CLAW_RAILS: &[&str] = &["Seat", "Base", "None"];
 
 /// Non-default and invalid claw choices require a reader fence; missing, null and explicit legacy defaults remain compatible.
 pub fn claw_geometry_extended(key: &str, params: &Json) -> bool {
-    matches!(key, CLAW | BASKET) && [("style", "Wire"), ("grouping", "Even"), ("tip", "Dome")].iter()
-        .any(|(key, default)| params.get(*key).is_some_and(|v| !v.is_null() && v.as_str() != Some(*default)))
+    let set = |k: &str| params.get(k).filter(|v| !v.is_null());
+    let chosen = |k: &str, legacy: &str| set(k).is_some_and(|v| v.as_str() != Some(legacy));
+    let rails = match key {
+        CLAW => chosen("rails", "Seat"),
+        BASKET => set("rails").and_then(Json::as_f64) == Some(0.0),
+        _ => return false,
+    };
+    rails || chosen("style", "Wire") || chosen("grouping", "Even") || chosen("tip", "Dome") || set("rise").is_some_and(|v| v.as_f64() != Some(0.0))
 }
 
 /// Builder geometry that released readers cannot reproduce.
@@ -177,12 +184,14 @@ pub fn schema(key: &str, gem: Gem) -> Vec<Param> {
         ],
         CLAW | BASKET => {
             let mut params = vec![prongs, wire];
-            if key == BASKET { params.push(whole("rails", "Rails", 1.0, 6.0, 3)); }
+            params.push(if key == BASKET { whole("rails", "Rails", 0.0, 6.0, 3) } else { choice("rails", "Rails", CLAW_RAILS, json!("Seat")) });
             params.extend([
                 choice("style", "Claw style", CLAW_STYLES, json!("Wire")),
                 choice("grouping", "Claw grouping", CLAW_GROUPINGS, json!("Even")),
                 choice("tip", "Claw tip", CLAW_TIPS, json!("Dome")),
             ]);
+            let rise = if gem.form == GemForm::Cabochon { setting::CAB_RISE } else { 0.0 };
+            params.push(number("rise", "Tip rise", "of dome", 0.0, setting::MAX_RISE, rise));
             params
         }
         BEZEL => vec![
@@ -780,6 +789,23 @@ fn walled_collet(gem: Gem, wall_mm: f64, lip: f64, base_z: f64, wall: setting::W
     Ok(make(hi))
 }
 
+/// A claw head's or basket's rails and claw options as its resolved parameters choose them.
+fn claw_choice(key: &str, v: &Values) -> Result<(Rails, setting::ClawOptions)> {
+    let rails = match (key, v.s("rails")) {
+        (BASKET, _) => Rails::Basket(v.n("rails")),
+        (_, "Base") => Rails::Base,
+        (_, "None") => Rails::None,
+        _ => Rails::Seat,
+    };
+    let options = setting::ClawOptions {
+        style: serde_json::from_value(v.0["style"].clone())?,
+        grouping: serde_json::from_value(v.0["grouping"].clone())?,
+        tip: serde_json::from_value(v.0["tip"].clone())?,
+        rise: v.f("rise"),
+    };
+    Ok((rails, options))
+}
+
 /// What builder `key` makes for `gem` in the stone's frame, over metal at `seat` and wherever `floor` finds it.
 pub fn build(key: &str, gem: Gem, params: &Json, seat: Seat, floor: Option<setting::Floor>) -> Result<Made> {
     build_in(key, gem, params, seat, floor, None)
@@ -795,12 +821,7 @@ pub fn build_in(key: &str, gem: Gem, params: &Json, seat: Seat, floor: Option<se
     let named = match key {
         STONE => setting::envelope_named(gem, 0.0),
         CLAW | BASKET => {
-            let rails = if key == CLAW { Rails::Seat } else { Rails::Basket(v.n("rails")) };
-            let options = setting::ClawOptions {
-                style: serde_json::from_value(v.0["style"].clone())?,
-                grouping: serde_json::from_value(v.0["grouping"].clone())?,
-                tip: serde_json::from_value(v.0["tip"].clone())?,
-            };
+            let (rails, options) = claw_choice(key, &v)?;
             match wall {
                 Some(w) => setting::claw_head_within_styled(gem, v.n("prongs"), v.f("wire_mm"), rails, floor, w, options).map_err(|e| refused(who, e))?,
                 None => setting::claw_head_named_styled(gem, v.n("prongs"), v.f("wire_mm"), rails, floor, options).map_err(|e| refused(who, e))?,
@@ -1614,7 +1635,7 @@ mod tests {
             assert_eq!(component(spec.key).attach, spec.attach);
         }
         // Defaults come off the stone: the seats' own wire and claw count, the collet's own wall.
-        assert_eq!(defaults(CLAW, round), json!({ "prongs": 4, "wire_mm": setting::prong_wire_mm(round), "style": "Wire", "grouping": "Even", "tip": "Dome" }));
+        assert_eq!(defaults(CLAW, round), json!({ "prongs": 4, "wire_mm": setting::prong_wire_mm(round), "rails": "Seat", "style": "Wire", "grouping": "Even", "tip": "Dome", "rise": 0.0 }));
         assert_eq!(defaults(CLAW, Gem::calibrated(GemCut::Marquise, 4.0))["prongs"], 6);
         assert_eq!(defaults(BEZEL, round)["wall_mm"], setting::collet_wall_mm(round));
         assert!((defaults(HALO, round)["melee_mm"].as_f64().unwrap() - 1.3).abs() < 1e-12);
@@ -1664,6 +1685,7 @@ mod tests {
                             style: serde_json::from_value(json!(style)).unwrap(),
                             grouping: serde_json::from_value(json!(grouping)).unwrap(),
                             tip: serde_json::from_value(json!(tip)).unwrap(),
+                            rise: 0.0,
                         };
                         let rails = if key == CLAW { Rails::Seat } else { Rails::Basket(3) };
                         let expected = setting::claw_head_named_styled(gem, 5, setting::prong_wire_mm(gem), rails, None, options).unwrap();
@@ -1683,6 +1705,126 @@ mod tests {
         let form = schema(STONE, gem).into_iter().find(|p| p.key == "form").unwrap();
         assert_eq!(form.kind, Kind::Choice(FORMS));
         assert_eq!(form.default, json!("Faceted"));
+    }
+
+    #[test]
+    fn rails_and_the_tip_rise_are_checked_dispatched_and_fenced() {
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        let cab = Gem::cabochon(GemCut::Round, 10.0);
+        // A claw head's rails are a choice and a basket's a count down to none; the rise is a cabochon's by default and nothing on a faceted stone.
+        let param = |key, gem, name: &str| schema(key, gem).into_iter().find(|p| p.key == name).unwrap();
+        let (claw, basket) = (param(CLAW, gem, "rails"), param(BASKET, gem, "rails"));
+        assert_eq!((claw.kind, claw.default), (Kind::Choice(CLAW_RAILS), json!("Seat")));
+        assert_eq!((basket.kind, basket.min, basket.max, basket.default), (Kind::Whole, 0.0, 6.0, json!(3)));
+        for key in [CLAW, BASKET] {
+            for (stone, default) in [(gem, 0.0), (cab, setting::CAB_RISE)] {
+                let rise = param(key, stone, "rise");
+                assert_eq!((rise.kind, rise.min, rise.max, rise.default), (Kind::Number, 0.0, setting::MAX_RISE, json!(default)), "{key}");
+            }
+        }
+        // A faceted stone's claws keep their own reach at any rise.
+        let faceted = |p: Json| build(CLAW, gem, &p, Seat::default(), None).unwrap().named.solid;
+        let (plain, asked) = (faceted(json!({"style": "Fang"})), faceted(json!({"style": "Fang", "rise": 0.5})));
+        assert!(plain.v == asked.v && plain.f == asked.f);
+        // Each rail choice builds the setting's own rails, named as it makes them.
+        for (key, p, rails, names) in [
+            (CLAW, json!({}), Rails::Seat, &["Base rail", "Gallery rail"][..]),
+            (CLAW, json!({"rails": "Seat"}), Rails::Seat, &["Base rail", "Gallery rail"][..]),
+            (CLAW, json!({"rails": "Base"}), Rails::Base, &["Base rail"][..]),
+            (CLAW, json!({"rails": "None"}), Rails::None, &[][..]),
+            (BASKET, json!({}), Rails::Basket(3), &["Base rail", "Gallery rail 1", "Gallery rail 2"][..]),
+            (BASKET, json!({"rails": 0}), Rails::Basket(0), &[][..]),
+        ] {
+            let made = build(key, gem, &p, Seat::default(), None).unwrap_or_else(|e| panic!("{key} {p}: {e}"));
+            let expected = setting::claw_head_named_styled(gem, 4, setting::prong_wire_mm(gem), rails, None, setting::ClawOptions::default()).unwrap();
+            assert!(made.solid().v == expected.solid.v && made.solid().f == expected.solid.f, "{key} {p}");
+            let claws = (1..=4).map(|k| format!("Claw {k}"));
+            assert_eq!(made.named.names, claws.chain(names.iter().map(|n| n.to_string())).collect::<Vec<_>>(), "{key} {p}");
+        }
+        // A cabochon's shaped claws climb by the default rise; asked for none they keep their own low target.
+        let top = |p: Json| build(CLAW, cab, &p, Seat::default(), None).unwrap().solid().v.iter().map(|v| v[2]).fold(f64::MIN, f64::max);
+        let (climbed, own) = (top(json!({"style": "Fang", "tip": "Point"})), top(json!({"style": "Fang", "tip": "Point", "rise": 0.0})));
+        assert!((climbed - setting::CAB_RISE * cab.crown_mm()).abs() < 0.05 && own < 1.2, "{climbed:.3} against {own:.3}");
+        assert_eq!(top(json!({"style": "Fang", "tip": "Point", "rise": setting::CAB_RISE})), climbed);
+        assert!(top(json!({"style": "Fang", "tip": "Point", "rise": 0.5})) > climbed + 0.8);
+        // Out of range or of the wrong kind is refused by name before anything is built.
+        for (key, gem, p, why) in [
+            (CLAW, gem, json!({"rails": "Gallery"}), "Claw head: Rails must be one of Seat, Base, None"),
+            (CLAW, gem, json!({"rails": 2}), "Claw head: Rails must be one of Seat, Base, None"),
+            (BASKET, gem, json!({"rails": 7}), "Basket: Rails must be between 0 and 6"),
+            (BASKET, gem, json!({"rails": "None"}), "Basket: Rails must be a number"),
+            (CLAW, cab, json!({"rise": 0.7}), "Claw head: Tip rise must be between 0 and 0.6 of dome"),
+            (BASKET, gem, json!({"rise": -0.1}), "Basket: Tip rise must be between 0 and 0.6 of dome"),
+        ] {
+            assert_eq!(check_params(key, gem, &p), Err(why.to_string()), "{key} {p}");
+        }
+        // A released build ignores rails, an empty basket and a rise, so each fences the file; today's values and nulls stay plain.
+        for (key, p, fenced) in [
+            (CLAW, json!({"rails": "Seat"}), false), (CLAW, json!({"rails": null}), false), (CLAW, json!({"rails": "Base"}), true),
+            (CLAW, json!({"rails": "None"}), true), (CLAW, json!({"rails": "Gallery"}), true),
+            (BASKET, json!({"rails": 3}), false), (BASKET, json!({"rails": 1}), false), (BASKET, json!({"rails": null}), false),
+            (BASKET, json!({"rails": 0}), true), (BASKET, json!({"rails": 0.0}), true), (BASKET, json!({"rails": 7}), false),
+            (CLAW, json!({"rise": 0.0}), false), (CLAW, json!({"rise": null}), false), (CLAW, json!({"rise": 0.3}), true),
+            (BASKET, json!({"rise": 0.45}), true), (CLAW, json!({"rise": "high"}), true),
+            (STONE, json!({"rails": "None", "rise": 0.3}), false), (BEZEL, json!({"rails": "None"}), false),
+        ] {
+            assert_eq!(claw_geometry_extended(key, &p), fenced, "{key} {p}");
+            assert_eq!(geometry_extended(key, &p), fenced, "{key} {p}");
+        }
+    }
+
+    #[test]
+    fn a_head_without_rails_joins_the_band_claw_by_claw_and_one_that_cannot_is_refused_by_name() {
+        let lib = AlphaLibrary::builtin();
+        let bare = crate::mesh::try_build(&court(), &lib, params()).unwrap();
+        let ring_with = |gem: Gem, spin: f64, head: Json, extra: Option<Feature>| {
+            let mut doc = Document::default();
+            doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+            let mut at = Placement::ring(90.0, stand_off_mm("claw4", gem));
+            if let Placement::Ring { spin_deg, .. } = &mut at { *spin_deg = spin; }
+            doc.append(stone_feature(2, gem, at)).unwrap();
+            doc.append(feature_on(3, "Head", CLAW, 2, head)).unwrap();
+            if let Some(f) = extra { doc.append(f).unwrap(); }
+            RingDesign { cad: Some(doc), ..court() }
+        };
+        for (label, gem, prongs, head) in [
+            ("four wire claws round a 5 mm round", Gem::calibrated(GemCut::Round, 5.0), 4, json!({"prongs": 4, "rails": "None"})),
+            ("six wire claws in jaws round a 6.5 mm round", Gem::calibrated(GemCut::Round, 6.5), 6, json!({"prongs": 6, "rails": "None", "grouping": "Jaws"})),
+            ("Fenrir's four Jaws fangs round a 10 mm cabochon", Gem::cabochon(GemCut::Round, 10.0), 4, json!({"prongs": 4, "wire_mm": 1.5, "rails": "None", "style": "Fang", "grouping": "Jaws", "tip": "Point"})),
+            ("six tentacles in jaws round a 10 mm cabochon", Gem::cabochon(GemCut::Round, 10.0), 6, json!({"prongs": 6, "wire_mm": 1.4, "rails": "None", "style": "Tentacle", "grouping": "Jaws", "tip": "Point"})),
+        ] {
+            let d = ring_with(gem, 0.0, head, None);
+            let built = crate::mesh::try_build(&d, &lib, params()).unwrap_or_else(|e| panic!("{label}: {e:#}"));
+            let v = &built.report.validation;
+            assert!(v.watertight && built.parts.notes.is_empty(), "{label}: {v:?} {:?}", built.parts.notes);
+            let made = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.id == 3).and_then(|c| c.made.clone()).unwrap();
+            assert_eq!(made.named.names.len(), prongs, "{label}: claws alone");
+            // The claws stand apart, yet the ring is one piece of metal: every claw's foot joined the band.
+            assert_eq!(pieces(made.solid()), prongs, "{label}");
+            assert_eq!(pieces(&as_solid(&built.mesh)), 1, "{label}: a claw floats");
+            assert!(built.report.volume_mm3 > bare.report.volume_mm3 + 0.5, "{label}");
+        }
+        // Turned 45° on the 4 mm Court band, two of the 6.5 mm stone's four claws stand past its edges: a rail carries them, and with none the head is refused.
+        let round = Gem::calibrated(GemCut::Round, 6.5);
+        for (rails, joined) in [("Seat", true), ("Base", true), ("None", false)] {
+            let d = ring_with(round, 45.0, json!({"prongs": 4, "rails": rails}), None);
+            let e = crate::cad::evaluate_with(&d, &lib, params(), &BuildCtx::new(&AtomicBool::new(false)).with_surface(&bare.mesh)).unwrap();
+            match e.status_of(3) {
+                Some(FeatureStatus::Ok) => assert!(joined, "{rails}"),
+                Some(FeatureStatus::Failed(why)) => {
+                    assert!(!joined, "{rails}: {why}");
+                    assert!(why.starts_with("Claw head: Claw ") && why.contains("would stand clear of the metal with no rail to tie it"), "{why}");
+                }
+                other => panic!("{rails}: {other:?}"),
+            }
+        }
+        // Cathedral shoulders rise to a gallery rail, so a head with none turns them away by name; azures keep clear of the claws alone.
+        let d = ring_with(round, 0.0, json!({"prongs": 6, "rails": "None", "grouping": "Jaws"}), Some(cutters::cathedral_feature(4, 2, 3, Stage::Cast)));
+        let e = crate::cad::evaluate_with(&d, &lib, params(), &BuildCtx::new(&AtomicBool::new(false)).with_surface(&bare.mesh)).unwrap();
+        assert!(matches!(e.status_of(4), Some(FeatureStatus::Failed(why)) if why.contains("has no rail on its one side for an arch to meet")), "{:?}", e.status_of(4));
+        let d = ring_with(round, 0.0, json!({"prongs": 6, "rails": "None", "grouping": "Jaws"}), Some(cutters::azure_feature(4, 2, Some(3), 6, Stage::Cast)));
+        let e = crate::cad::evaluate_with(&d, &lib, params(), &BuildCtx::new(&AtomicBool::new(false)).with_surface(&bare.mesh)).unwrap();
+        assert_eq!(e.status_of(4), Some(&FeatureStatus::Ok));
     }
 
     /// Build costs for the report: `cargo test -p ringdesign-core measured_builders -- --ignored --nocapture`.

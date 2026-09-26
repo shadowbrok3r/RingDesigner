@@ -261,6 +261,24 @@ mod tests {
     }
 
     #[test]
+    fn the_trilogys_heads_mesh_without_degenerate_faces_at_the_export_chord() {
+        let lib = AlphaLibrary::builtin();
+        let d = settings::trilogy();
+        for steps in [512, 1024] {
+            let params = BuildParams { theta_steps: steps, profile_steps: 192, ..Default::default() };
+            assert_eq!(crate::cad::part_chord(params), crate::cad::EXPORT_CHORD_MM);
+            let out = mesh::try_build(&d, &lib, params).unwrap();
+            let e = out.parts.evaluated.as_ref().unwrap();
+            assert_eq!(e.components.iter().filter(|p| p.name == "Three-claw head").count(), 2, "{steps}");
+            for part in e.components.iter().filter(|p| !p.settings.reference) {
+                assert!(part.mesh.validate().watertight, "{steps}: {} is open", part.name);
+                assert_eq!(part.mesh.quality().degenerate_faces, 0, "{steps}: {} #{}", part.name, part.id);
+            }
+            assert_eq!(out.mesh.quality().degenerate_faces, 0, "{steps}: the ring");
+        }
+    }
+
+    #[test]
     fn every_new_starter_has_real_parts_and_matching_stones() {
         let lib = AlphaLibrary::builtin();
         assert_eq!(all().len(), 13);
