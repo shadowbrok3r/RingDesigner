@@ -130,6 +130,7 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     if value.get("taper").is_some() && value.get("law").is_some_and(|law| law == "Cosine" || law.get("Spiral").is_some()) { return true; }
     if value.get("Curve").is_some_and(crate::curve::profiled_json) { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
+        if kind == "layer.curve" && value.get("inputs").and_then(|i| i.get("profile")).and_then(serde_json::Value::as_str) == Some("Tube") { return true; }
         if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
             || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") { return true; }
         if value.get("inputs").and_then(serde_json::Value::as_object).is_some_and(|inputs| inputs.iter().any(|(pin, v)| {
@@ -306,6 +307,7 @@ mod template_source_tests {
             CurveLayer { widths: vec![1.0, 0.5], ..CurveLayer::default() },
             CurveLayer { heights: vec![0.5], ..CurveLayer::default() },
             CurveLayer { beads: Some(CurveBeads::default()), ..CurveLayer::default() },
+            CurveLayer { profile: crate::curve::WireProfile::Tube, ..CurveLayer::default() },
         ];
         for c in profiled {
             let group = crate::LayerEntry::new("Group", crate::Layer::Group(GroupLayer { stack: stack(vec![entry(c.clone())]), ..Default::default() }));
@@ -318,6 +320,9 @@ mod template_source_tests {
             }
             assert_eq!(format_version_for(&RingDesign { graph: Some(patch(&c)), ..RingDesign::default() }), FORMAT_VERSION);
         }
+        let node = |profile: &str| serde_json::json!({"nodes":[{"id":1,"kind":"layer.curve","inputs":{"profile":profile}}]});
+        assert_eq!(format_version_for(&RingDesign { graph: Some(node("Round")), ..RingDesign::default() }), PLAIN_FORMAT_VERSION);
+        assert_eq!(format_version_for(&RingDesign { graph: Some(node("Tube")), ..RingDesign::default() }), FORMAT_VERSION);
     }
 
     #[test]

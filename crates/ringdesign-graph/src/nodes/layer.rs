@@ -291,7 +291,7 @@ fn curve_node() -> NodeSpec {
     .field(PinSpec::item("mirror_v", ValueKind::Bool).doc("Mirror onto the other side face."))
     .extra(PinSpec::list("widths", ValueKind::Number).doc("Per point, times the width; a short list repeats its last value."))
     .extra(PinSpec::list("heights", ValueKind::Number).doc("Per point, times the height; a short list repeats its last value."))
-    .extra(PinSpec::item("beads", ValueKind::Json).doc("A bead row: pitch_mm, diameter_mm, height_mm, offset, graded, phase, span, stagger."))
+    .extra(PinSpec::item("beads", ValueKind::Json).doc("A bead row: pitch_mm, diameter_mm, height_mm, offset, graded, phase, span, stagger, cup."))
     .finish(curve_profile)
     .build()
 }
@@ -633,7 +633,7 @@ mod tests {
             repeats_around: 1,
             widths: vec![1.0, 0.5, 0.2],
             heights: vec![1.0, 0.4],
-            beads: Some(CurveBeads { offset: -0.6, stagger: 0.2, span: [0.1, 0.8], ..CurveBeads::default() }),
+            beads: Some(CurveBeads { offset: -0.6, stagger: 0.2, span: [0.1, 0.8], cup: 0.6, ..CurveBeads::default() }),
             ..CurveLayer::default()
         };
         d.layers.layers.push(ringdesign_core::field::LayerEntry::new("Arm", Layer::Curve(arm.clone())));

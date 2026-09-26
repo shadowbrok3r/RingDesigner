@@ -37,6 +37,9 @@ const BLOCK_CHORDS: usize = 16;
 /// Largest per-point multiplier read; hostile values clamp here.
 const MAX_MULTIPLIER: f64 = 64.0;
 
+/// A cupped bead's dimple, fraction of its diameter.
+pub const CUP_SPAN: f64 = 0.5;
+
 /// Wire cross-sections. A subset of the border rails: rope needs a phase along
 /// the rail, which a free path does not carry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,17 +47,20 @@ pub enum WireProfile {
     Round,
     Flat,
     Knife,
+    /// A semicircle, vertical at its own edge: a limb lying on the band, for lost wax.
+    Tube,
 }
 
 impl WireProfile {
     pub const ALL: &'static [WireProfile] =
-        &[WireProfile::Round, WireProfile::Flat, WireProfile::Knife];
+        &[WireProfile::Round, WireProfile::Flat, WireProfile::Knife, WireProfile::Tube];
 
     pub fn label(self) -> &'static str {
         match self {
             WireProfile::Round => "Round wire",
             WireProfile::Flat => "Flat strap",
             WireProfile::Knife => "Knife edge",
+            WireProfile::Tube => "Tube (lost wax)",
         }
     }
 
@@ -71,6 +77,7 @@ impl WireProfile {
             WireProfile::Round => 0.5 + 0.5 * (std::f64::consts::PI * x.clamp(0.0, 1.0)).cos(),
             WireProfile::Flat => 1.0 - smoothstep(0.7, 1.0, x),
             WireProfile::Knife => 1.0 - x,
+            WireProfile::Tube => (1.0 - x * x).max(0.0).sqrt(),
         }
     }
 }
@@ -139,6 +146,9 @@ pub struct CurveBeads {
     /// Alternate beads step this far either side of `offset`, fraction of the half-width.
     #[serde(default)]
     pub stagger: f64,
+    /// Depth of a dimple at each bead's centre, fraction of its height: 0 is a dome, toward 1 a cup.
+    #[serde(default)]
+    pub cup: f64,
 }
 
 fn full_span() -> [f64; 2] {
@@ -147,23 +157,23 @@ fn full_span() -> [f64; 2] {
 
 impl Default for CurveBeads {
     fn default() -> Self {
-        Self { pitch_mm: 0.75, diameter_mm: 0.55, height_mm: 0.25, offset: 0.0, graded: true, phase: 0.0, span: full_span(), stagger: 0.0 }
+        Self { pitch_mm: 0.75, diameter_mm: 0.55, height_mm: 0.25, offset: 0.0, graded: true, phase: 0.0, span: full_span(), stagger: 0.0, cup: 0.0 }
     }
 }
 
-/// Whether any wire in `stack`, groups included, carries per-point widths, heights or beads.
+/// Whether any wire in `stack`, groups included, carries per-point widths, heights, beads or the tube section.
 pub fn profiled_in(stack: &crate::LayerStack) -> bool {
     stack.layers.iter().any(|e| match &e.layer {
-        crate::Layer::Curve(c) => !c.is_plain(),
+        crate::Layer::Curve(c) => !c.is_plain() || c.profile == WireProfile::Tube,
         crate::Layer::Group(g) => profiled_in(&g.stack),
         _ => false,
     })
 }
 
-/// Whether a serialized wire carries per-point widths, heights or beads.
+/// Whether a serialized wire carries per-point widths, heights, beads or the tube section.
 pub fn profiled_json(curve: &serde_json::Value) -> bool {
     let listed = |key: &str| curve.get(key).and_then(serde_json::Value::as_array).is_some_and(|a| !a.is_empty());
-    listed("widths") || listed("heights") || curve.get("beads").is_some_and(|b| !b.is_null())
+    listed("widths") || listed("heights") || curve.get("beads").is_some_and(|b| !b.is_null()) || curve.get("profile").and_then(serde_json::Value::as_str) == Some("Tube")
 }
 
 impl CurveLayer {
@@ -295,7 +305,7 @@ impl CurveLayer {
         (circ > 1e-9).then(|| circ / self.repeats_around.clamp(1, 400) as f64)
     }
 
-    /// Beads one instance places, and the smallest one's diameter in mm (infinite with none).
+    /// Beads one instance places, and the smallest one's finest feature in mm (infinite with none).
     pub fn bead_census(&self, ctx: &FieldContext) -> (usize, f64) {
         match self.cell_mm(ctx) {
             Some(cell) if self.beads.is_some() && self.points.len().min(MAX_CURVE_POINTS) >= 2 => {
@@ -485,6 +495,8 @@ struct Profiled {
     tall: Vec<f64>,
     /// Beads as centre, radius and height.
     beads: Vec<([f64; 2], f64, f64)>,
+    /// Dimple depth of every bead, fraction of its height.
+    cup: f64,
     blocks: Vec<Block>,
 }
 
@@ -498,7 +510,8 @@ struct Block {
 
 impl Profiled {
     fn new(c: &CurveLayer, cell_mm: f64) -> Self {
-        let mut out = Self { pts: Vec::new(), half: Vec::new(), tall: Vec::new(), beads: Vec::new(), blocks: Vec::new() };
+        let cup = c.beads.map_or(0.0, |b| if b.cup.is_finite() { b.cup.clamp(0.0, 1.0) } else { 0.0 });
+        let mut out = Self { pts: Vec::new(), half: Vec::new(), tall: Vec::new(), beads: Vec::new(), cup, blocks: Vec::new() };
         let n = c.points.len().min(MAX_CURVE_POINTS);
         if n < 2 || !(cell_mm > 1e-9) {
             return out;
@@ -644,7 +657,9 @@ impl Profiled {
                 for &(c, r, h) in &self.beads[b.beads.clone()] {
                     let d = ((q[0] - c[0]).powi(2) + (q[1] - c[1]).powi(2)).sqrt();
                     if d < r {
-                        bead = bead.max(h * profile.shape(d / r));
+                        let x = d / r;
+                        let dimple = if x < CUP_SPAN { self.cup * profile.shape(x / CUP_SPAN) } else { 0.0 };
+                        bead = bead.max(h * (profile.shape(x) - dimple));
                     }
                 }
             }
@@ -652,12 +667,13 @@ impl Profiled {
         wire + bead
     }
 
-    /// The smallest bead's diameter and the `v` span the row covers, mm.
+    /// The smallest bead's finest feature (its diameter, or its dimple when cupped) and the `v` span the row covers, mm.
     fn bead_extent(&self) -> Option<(f64, (f64, f64))> {
         let mut d = f64::INFINITY;
         let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
+        let scale = if self.cup > 0.0 { CUP_SPAN } else { 1.0 };
         for &(c, r, _) in &self.beads {
-            d = d.min(2.0 * r);
+            d = d.min(2.0 * r * scale);
             lo = lo.min(c[1] - r);
             hi = hi.max(c[1] + r);
         }
@@ -672,7 +688,7 @@ struct ProfiledKey {
     points: Vec<[u64; 2]>,
     widths: Vec<u64>,
     heights: Vec<u64>,
-    beads: Option<[u64; 9]>,
+    beads: Option<[u64; 10]>,
 }
 
 impl ProfiledKey {
@@ -680,13 +696,13 @@ impl ProfiledKey {
         [c.width_mm.to_bits(), c.height_mm.to_bits(), c.taper.to_bits(), cell_mm.to_bits()]
     }
 
-    fn beads(b: &CurveBeads) -> [u64; 9] {
-        let f = [b.pitch_mm, b.diameter_mm, b.height_mm, b.offset, b.phase, b.span[0], b.span[1], b.stagger];
-        let mut out = [0; 9];
+    fn beads(b: &CurveBeads) -> [u64; 10] {
+        let f = [b.pitch_mm, b.diameter_mm, b.height_mm, b.offset, b.phase, b.span[0], b.span[1], b.stagger, b.cup];
+        let mut out = [0; 10];
         for (o, x) in out.iter_mut().zip(f) {
             *o = x.to_bits();
         }
-        out[8] = u64::from(b.graded);
+        out[9] = u64::from(b.graded);
         out
     }
 
@@ -996,7 +1012,7 @@ mod tests {
             width_mm: 2.0,
             height_mm: 0.8,
             widths: vec![1.0, 0.25],
-            beads: Some(CurveBeads { pitch_mm: 1.0, diameter_mm: 0.8, height_mm: 0.3, offset: 0.5, graded: true, phase: 0.0, span: [0.0, 1.0], stagger: 0.0 }),
+            beads: Some(CurveBeads { pitch_mm: 1.0, diameter_mm: 0.8, height_mm: 0.3, offset: 0.5, graded: true, phase: 0.0, span: [0.0, 1.0], stagger: 0.0, cup: 0.0 }),
             ..CurveLayer::default()
         }
     }
@@ -1024,6 +1040,25 @@ mod tests {
         let mut mirrored = arm.clone();
         mirrored.mirror_v = true;
         assert_eq!(mirrored.feature_footprints(&c).len(), 4);
+        let mut cupped = arm.clone();
+        cupped.beads.as_mut().unwrap().cup = 0.7;
+        let centre = cupped.height(Uv { u: 3.0, v: 4.5 }, &c);
+        assert!((centre - (0.4 + 0.3 * 0.3)).abs() < 1e-9, "a cup dimples the bead's centre: {centre}");
+        assert!(cupped.height(Uv { u: 3.12, v: 4.5 }, &c) > centre + 0.05, "and leaves a rim round it");
+        assert!((cupped.bead_census(&c).1 - smallest * CUP_SPAN).abs() < 1e-12, "a cupped row's finest feature is its smallest dimple");
+    }
+
+    #[test]
+    fn a_tube_stands_vertical_at_its_edge_and_is_fenced() {
+        let c = ctx();
+        let tube = CurveLayer { points: vec![[0.0, 4.0], [1.0, 4.0]], repeats_around: 1, taper: 0.0, width_mm: 2.0, height_mm: 1.0, profile: WireProfile::Tube, ..CurveLayer::default() };
+        assert!(tube.is_plain(), "a tube alone keeps the plain construction");
+        let at = |dv: f64| tube.height(Uv { u: 30.0, v: 4.0 + dv }, &c);
+        assert!((at(0.0) - 1.0).abs() < 1e-9 && (at(0.6) - 0.8).abs() < 1e-9, "a semicircle: {} {}", at(0.0), at(0.6));
+        assert!(at(0.999) > 0.04 && at(1.001) == 0.0, "vertical at the edge: {}", at(0.999));
+        let d = crate::RingDesign { layers: crate::LayerStack { layers: vec![crate::LayerEntry::new("Arm", crate::Layer::Curve(tube.clone()))] }, ..Default::default() };
+        assert_eq!(crate::library::format_version_for(&d), crate::library::FORMAT_VERSION);
+        assert!(profiled_json(&serde_json::to_value(&tube).unwrap()));
     }
 
     #[test]
