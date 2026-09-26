@@ -160,7 +160,7 @@ impl Chain<'_> {
                     out.bead_stations += bead.stations;
                     out.bead_clamped += bead.clamped;
                     if bead.min_radius_mm <= blend::RADIUS_MIN_MM + 1e-9 {
-                        out.notes.push(format!("{}: its fillet pinches to {:.2} mm at {} of {} stations", part.name, bead.min_radius_mm, bead.clamped, bead.stations));
+                        out.notes.push(format!("{}: its fillet pinches to {:.2} mm at {} of {} stations, smallest at {}", part.name, bead.min_radius_mm, bead.clamped, bead.stations, blend::station_at(bead.min_at)));
                     }
                 }
                 Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
@@ -1405,7 +1405,8 @@ mod tests {
         assert!(built.report.validation.watertight, "{:?}", built.report.validation);
         assert_eq!(built.parts.joined, 1);
         eprintln!("lying wire: {} beads, {} of {} clamped, notes {:?}", built.parts.beads, built.parts.bead_clamped, built.parts.bead_stations, built.parts.notes);
-        let pinched = built.parts.beads == 1 && built.parts.notes.iter().any(|n| n.contains("pinches"));
+        // A pinch says where: the ring angle, the section position and the point, near the wire at the top.
+        let pinched = built.parts.beads == 1 && built.parts.notes.iter().any(|n| n.contains("pinches") && n.split_once("smallest at ").and_then(|(_, at)| at.split('°').next()?.parse::<f64>().ok()).is_some_and(|t| (t - 90.0).abs() < 15.0) && n.contains("mm in its section, point ("));
         let refused = built.parts.beads == 0 && built.parts.notes.iter().any(|n| n.contains("fillet could not be laid"));
         assert!(pinched || refused, "{} beads, {:?}", built.parts.beads, built.parts.notes);
     }
