@@ -745,7 +745,7 @@ fn a_design_file_saves_and_opens_off_the_ui_thread() {
     h.state_mut().design.name = "Edited since".into();
     h.state_mut().document_path = None;
     h.state_mut().open_file(path.clone());
-    h.run_steps(1);
+    assert!(h.state().opening.is_some(), "the file opens on a thread of its own");
     assert_eq!(h.state().design.name, "Edited since", "the design on screen stays until the file lands");
     crate::interaction_tests::wait_for_template(&mut h);
     assert_eq!(h.state().design.name, "Written off the UI thread");
