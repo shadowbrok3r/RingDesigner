@@ -498,7 +498,7 @@ fn stock_templates() -> Vec<Template> {
                 preset, family,
                 name: ringdesign_core::templates::stock_name(preset),
                 slug: format!("stock-{}-{}", preset.id, preset.name.to_ascii_lowercase()),
-                description: format!("{} · factory stock, hard angles where wall meets face; bare, ready for a theme. {}", preset.label(), ringdesign_core::templates::stock_process_note(preset).unwrap_or("")),
+                description: format!("{} · factory stock, hard angles where wall meets face; bare, ready for a theme.{}", preset.label(), ringdesign_core::templates::stock_process_note(preset).map_or(String::new(), |note| format!(" {note}"))),
             }
         })).collect()
     });
@@ -676,12 +676,34 @@ mod tests {
     }
 
     #[test]
+    fn the_starter_groups_lead_the_menu_and_each_stock_is_badged_by_its_process() {
+        let names: Vec<_> = collections().iter().map(|c| c.name).collect();
+        assert_eq!(names[..3], ["Starter bands", "Starter signets", "Stone settings"]);
+        assert_eq!(collections()[..3].iter().map(|c| c.templates.len()).collect::<Vec<_>>(), [4, 21, 8]);
+        let signets = &collections()[1].templates;
+        assert_eq!(signets[0].slug, "shouldered-cushion-signet");
+        let mut families = Vec::new();
+        let mut badges = std::collections::BTreeMap::new();
+        for t in &signets[1..] {
+            let Source::Stock(preset) = &t.source else { panic!("{} is not a stock", t.name) };
+            if families.last() != t.family.as_ref() { families.push(t.family.unwrap()); }
+            let badge = t.badge.expect("a stock names its process");
+            *badges.entry(badge).or_insert(0) += 1;
+            assert_eq!(badge == "sand-safe plan", ringdesign_core::templates::stock_sand_ready(preset), "{}", t.name);
+            assert_eq!(badge == "upright · lost wax", !preset.sand_safe(), "{}", t.name);
+            assert!(t.description.starts_with(&preset.label()) && !t.description.ends_with(' '), "{:?}", t.description);
+        }
+        assert_eq!(families, ["Round and square", "Shields", "Lobed", "Pointed"]);
+        assert_eq!(badges, std::collections::BTreeMap::from([("sand trial failed · lost wax", 7), ("sand-safe plan", 4), ("upright · lost wax", 9)]));
+    }
+
+    #[test]
     fn a_template_opens_off_the_ui_thread_as_it_instantiates_with_its_artwork_baked_as_the_ui_thread_baked_it() {
         let reg = Arc::new(ringdesign_script::registry());
         let lib = Arc::new(AlphaLibrary::builtin());
         let find = |slug: &str| collections().iter().flat_map(|c| &c.templates).find(|t| t.slug == slug).unwrap();
-        // A graph carrying artwork, a starter, and a bundled design.
-        for slug in ["aster-atelier", "court-band", "aster-botanical"] {
+        // A graph carrying artwork, a starter, a factory stock and a bundled design.
+        for slug in ["aster-atelier", "court-band", "stock-017-tonneau", "aster-botanical"] {
             let template = find(slug);
             let wakes = Arc::new(std::sync::atomic::AtomicUsize::new(0));
             let woken = wakes.clone();
