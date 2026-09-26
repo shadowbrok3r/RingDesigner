@@ -223,9 +223,11 @@ impl Crest {
 
     /// `f` at `q` with its ridge shifted so the displaced ridge lands on the parting line.
     fn centred(&self, x: usize, q: On, f: impl Fn(On) -> f64) -> f64 {
-        let ridge = f(On { w: 0.0, ..q });
-        let shift = -ridge * self.lean[x] / (1.0 + ridge * self.curve[x]).max(0.2);
-        f(On { w: q.w - shift, ..q })
+        f(On { w: q.w - self.shift(x, f(On { w: 0.0, ..q })), ..q })
+    }
+    /// Offset across column `x` that lands a displaced ridge `ridge` mm tall on the parting plane.
+    fn shift(&self, x: usize, ridge: f64) -> f64 {
+        -ridge * self.lean[x] / (1.0 + ridge * self.curve[x]).max(0.2)
     }
 }
 
@@ -443,20 +445,58 @@ fn feather(top: f64, lane: f64, t: f64, within: f64) -> f64 {
     top * LANE_FALL.powf(lane) * (1.0 - PLATE_RISE * (1.0 - t.powf(0.85)) - RIDGE_FALL * within)
 }
 
+/// Share of its lane's height a tail feather stands where the other raven's crosses over it.
+const UNDER: f64 = 0.86;
+/// How far a crossing tail feather falls over its last 1.3 mm, as a share of its lane's height.
+const TIP_FALL: f64 = 0.04;
+
 impl BodySpec {
+    /// Neck, covert and secondary rows at share `x` of the reach: lanes, front edge and crest height.
+    fn rows(&self, x: f64) -> [(Lanes, f64, f64); 3] {
+        let bulge = |at: f64, by: f64| at - by * (1.0 - x * x);
+        [
+            (Lanes { from: self.neck - 3.6, lanes: 5.0, pitch: 0.95, stagger: 0.45, round: 0.55 }, bulge(self.neck, 3.6), 0.52),
+            (Lanes { from: self.shoulder - 1.6, lanes: 4.0, pitch: 1.35, stagger: 0.6, round: 0.8 }, bulge(self.shoulder, 1.6), 0.92),
+            (Lanes { from: self.secondaries - 1.2, lanes: 3.0, pitch: 1.9, stagger: 0.85, round: 1.1 }, bulge(self.secondaries, 1.2), 1.0),
+        ]
+    }
+    /// Front of the primaries at share `x` of the reach.
+    fn primaries_front(&self, x: f64) -> f64 {
+        self.primaries - (1.0 - x * x)
+    }
+    /// The primary under `(o, w)`: lane, share across it, its tip at that share, and the fan's width.
+    fn primary(&self, o: f64, w: f64, reach: f64) -> Option<(f64, f64, f64, f64)> {
+        let run = (self.apex - self.primaries).max(1.0);
+        let s = ((o - self.primaries) / run).clamp(0.0, 1.0);
+        let fan = (reach * (1.0 - s.powf(1.3))).max(FAN_MIN);
+        if w >= fan {
+            return None;
+        }
+        let lanes = self.lanes as f64;
+        let j = (lanes * w / fan).floor().min(lanes - 1.0);
+        let within = lanes * w / fan - j;
+        let tip = self.apex - j * self.lane_step - 0.7 * self.lane_step * within;
+        (o <= tip).then_some((j, within, tip, fan))
+    }
+    /// The tail feather of the raven on `sign` under `(o, w)`: lane, share across it, its end, and whether it crosses the palm.
+    fn tail(&self, o: f64, w: f64, reach: f64, palm: f64, sign: f64) -> Option<(f64, f64, f64, bool)> {
+        let lanes = self.tail_lanes as f64;
+        let lane_w = reach / lanes;
+        let k = (w / lane_w).floor().min(lanes - 1.0);
+        let within = (w - k * lane_w) / lane_w;
+        let own = (k as usize).is_multiple_of(2) == (sign > 0.0);
+        let past = (self.overlap - 0.45 * k - 0.55 * within).max(0.3);
+        let end = if own { palm + past } else { palm - past };
+        (o <= end).then_some((k, within, end, own))
+    }
     /// Body plumage of one raven at `q`, mm: neck, coverts, secondaries, primaries fan and interlocking tail.
     fn plume_mm(&self, q: On, palm: f64, sign: f64) -> f64 {
         let w = q.w.abs();
         let reach = q.reach();
         let x = (w / reach).min(1.0);
-        let bulge = |at: f64, by: f64| at - by * (1.0 - x * x);
         let mut h: f64 = 0.0;
-        let groups = [
-            (Lanes { from: self.neck - 3.6, lanes: 5.0, pitch: 0.95, stagger: 0.45, round: 0.55 }, bulge(self.neck, 3.6), 0.52),
-            (Lanes { from: self.shoulder - 1.6, lanes: 4.0, pitch: 1.35, stagger: 0.6, round: 0.8 }, bulge(self.shoulder, 1.6), 0.92),
-            (Lanes { from: self.secondaries - 1.2, lanes: 3.0, pitch: 1.9, stagger: 0.85, round: 1.1 }, bulge(self.secondaries, 1.2), 1.0),
-        ];
-        let primaries = bulge(self.primaries, 1.0);
+        let groups = self.rows(x);
+        let primaries = self.primaries_front(x);
         for (g, (lanes, front, top)) in groups.iter().enumerate() {
             let next = groups.get(g + 1).map_or(primaries, |n| n.1);
             if q.o >= *front && q.o < next {
@@ -465,28 +505,13 @@ impl BodySpec {
             }
         }
         if q.o >= primaries {
-            let run = (self.apex - self.primaries).max(1.0);
-            let s = ((q.o - self.primaries) / run).clamp(0.0, 1.0);
-            let fan = (reach * (1.0 - s.powf(1.3))).max(FAN_MIN);
-            if w < fan {
-                let lanes = self.lanes as f64;
-                let j = (lanes * w / fan).floor().min(lanes - 1.0);
-                let within = lanes * w / fan - j;
-                let tip = self.apex - j * self.lane_step - 0.7 * self.lane_step * within;
-                if q.o <= tip {
-                    let t = 1.0 - smooth(tip - 1.8, tip, q.o);
-                    h = h.max(1.02 * LANE_FALL.powf(j) * (1.0 - RIDGE_FALL * within - 0.1 * (1.0 - t)));
-                }
+            if let Some((j, within, tip, _)) = self.primary(q.o, w, reach) {
+                let t = 1.0 - smooth(tip - 1.8, tip, q.o);
+                h = h.max(1.02 * LANE_FALL.powf(j) * (1.0 - RIDGE_FALL * within - 0.1 * (1.0 - t)));
             }
-            let lanes = self.tail_lanes as f64;
-            let lane_w = reach / lanes;
-            let k = (w / lane_w).floor().min(lanes - 1.0);
-            let within = (w - k * lane_w) / lane_w;
-            let own = (k as usize).is_multiple_of(2) == (sign > 0.0);
-            let past = self.overlap - 0.45 * k - 0.55 * within;
-            let end = if own { palm + past } else { palm - past };
-            if q.o <= end {
-                h = h.max(0.64 * LANE_FALL.powf(k) * (1.0 - RIDGE_FALL * within - 0.1 * smooth(end - 1.3, end, q.o)));
+            if let Some((k, within, end, own)) = self.tail(q.o, w, reach, palm, sign) {
+                let (under, fall) = if own { (1.0, TIP_FALL) } else { (UNDER, 0.0) };
+                h = h.max(0.64 * under * LANE_FALL.powf(k) * (1.0 - RIDGE_FALL * within - fall * smooth(end - 1.3, end, q.o)));
             }
         }
         h
@@ -512,29 +537,32 @@ impl BodySpec {
 
 /// Height of the ridge along each raven's spine, mm.
 const SPINE_MM: f64 = 0.05;
+/// Half-width of the flat the plumage keeps along the crest, mm.
+const CREST_FLAT: f64 = 0.1;
 
 /// Both ravens' body plumage on the atlas, as a share of [`PLUME_MM`].
 fn paint_plumage(a: &Atlas, hide: &Hide, zero: &[f64], crest: &Crest, h: HeadSpec, b: BodySpec) -> ringdesign_core::Alpha {
     let palm = hide.reach();
+    let bird = |sign: f64, q: On| {
+        let q = On { w: q.w.signum() * (q.w.abs() - CREST_FLAT).max(0.0), ..q };
+        let fade = q.rim + 0.6 * q.wall;
+        let edge = 1.0 - smooth(fade, (q.rim + q.wall + 0.15).max(fade + 0.5), q.w.abs());
+        let body = b.plume_mm(q, palm, sign);
+        let spine = if body > 0.0 { SPINE_MM * (1.0 - q.w.abs() / 0.4).max(0.0) } else { 0.0 };
+        (body + spine).max(b.hackles_mm(q, h)) * edge * crowned(q)
+    };
     a.paint("Raven plumage", |s| {
         let p = hide_at(hide, zero, s);
-        let x = s.i % a.width;
-        [1.0, -1.0]
-            .iter()
-            .map(|&sign| {
-                let mut q = on_bird(p, sign);
-                if q.o < 0.0 {
-                    q.o += 2.0 * palm;
-                }
-                crest.centred(x, q, |q| {
-                    let edge = 1.0 - smooth(q.reach() - 0.1, (q.rim + q.wall + 0.15).max(q.reach() + 0.25), q.w.abs());
-                    let body = b.plume_mm(q, palm, sign);
-                    let spine = if body > 0.0 { SPINE_MM * (1.0 - q.w.abs() / 0.4).max(0.0) } else { 0.0 };
-                    (body + spine).max(b.hackles_mm(q, h)) * edge * crowned(q)
-                })
-            })
-            .fold(0.0, f64::max)
-            / PLUME_MM
+        let birds = [1.0, -1.0].map(|sign| {
+            let mut q = on_bird(p, sign);
+            if q.o < 0.0 {
+                q.o += 2.0 * palm;
+            }
+            (sign, q)
+        });
+        let ridge = birds.iter().map(|&(sign, q)| bird(sign, On { w: 0.0, ..q })).fold(0.0, f64::max);
+        let shift = crest.shift(s.i % a.width, ridge);
+        birds.iter().map(|&(sign, q)| bird(sign, On { w: q.w - shift, ..q })).fold(0.0, f64::max) / PLUME_MM
     })
 }
 
@@ -623,7 +651,33 @@ fn painted(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, mut alpha: rin
 /// Depth of the graver's work at alpha 1, mm.
 const BARB_MM: f64 = 0.07;
 
-/// Bench cuts: a rachis on every primary and tail feather, and each beak's gape.
+/// Spacing of the barbs along a feather, mm.
+const BARB_PITCH: f64 = 0.42;
+/// How far a barb trails back toward the root per mm it runs out from the rachis.
+const BARB_SLOPE: f64 = 1.0;
+
+/// Barbs trailing back from a rachis, `b` mm across a vane `half` mm wide, chevrons pointing along +`o`.
+fn vane(o: f64, b: f64, half: f64) -> f64 {
+    let across = b.abs();
+    if across < 0.05 || across > half - 0.07 {
+        return 0.0;
+    }
+    let phase = (o + BARB_SLOPE * across) / BARB_PITCH;
+    let d = (phase - phase.round()).abs() * BARB_PITCH / (1.0 + BARB_SLOPE * BARB_SLOPE).sqrt();
+    0.8 * (1.0 - smooth(0.03, 0.06, d))
+}
+
+/// Rachis and barbs of one feather `b` mm off its centre line, `half` mm to its edge, `to_tip` mm short of where it ends.
+fn quill(o: f64, b: f64, half: f64, to_tip: f64, pointed: bool) -> f64 {
+    if to_tip <= 0.12 {
+        return 0.0;
+    }
+    let narrow = if pointed { (to_tip / 0.9).min(1.0).sqrt() } else { 1.0 };
+    let rachis = if !pointed || to_tip > 0.35 { 1.0 - smooth(0.04, 0.07, b.abs()) } else { 0.0 };
+    rachis.max(vane(o, b, half * narrow))
+}
+
+/// Bench cuts: rachis and barbs on every primary and tail feather, a rachis on each secondary, and each beak's gape.
 fn paint_barbs(a: &Atlas, hide: &Hide, zero: &[f64], h: HeadSpec, b: BodySpec) -> ringdesign_core::Alpha {
     let palm = hide.reach();
     let line = |d: f64, half: f64| 1.0 - smooth(half * 0.6, half, d.abs());
@@ -637,30 +691,23 @@ fn paint_barbs(a: &Atlas, hide: &Hide, zero: &[f64], h: HeadSpec, b: BodySpec) -
             }
             let w = q.w.abs();
             let reach = q.reach();
-            if q.o >= b.primaries && q.o < b.apex {
-                let run = (b.apex - b.primaries).max(1.0);
-                let sv = ((q.o - b.primaries) / run).clamp(0.0, 1.0);
-                let fan = (reach * (1.0 - sv.powf(1.3))).max(FAN_MIN);
-                if w < fan {
-                    let lanes = b.lanes as f64;
-                    let x = lanes * w / fan;
-                    let j = x.floor().min(lanes - 1.0);
-                    let tip = b.apex - j * b.lane_step;
-                    let half_mm = (x - j - 0.5) * fan / lanes;
-                    if q.o < tip - 1.0 {
-                        cut = cut.max(line(half_mm, 0.07));
+            let x = (w / reach).min(1.0);
+            if w < reach - 0.12 {
+                let (lanes, front, _) = &b.rows(x)[2];
+                if q.o >= *front && q.o < b.primaries_front(x) {
+                    let (_, t, within) = lanes.at(q.o, x);
+                    let off = (within - 0.5) * reach / lanes.lanes;
+                    cut = cut.max(line(off, 0.06) * smooth(0.1, 0.22, t) * (1.0 - smooth(0.72, 0.84, t)));
+                }
+                if q.o >= b.primaries_front(x) {
+                    if let Some((j, within, tip, fan)) = b.primary(q.o, w, reach) {
+                        let lane_w = fan / b.lanes as f64;
+                        cut = cut.max(quill(q.o + 0.15 * j, (within - 0.5) * lane_w, 0.5 * lane_w, tip - q.o, true));
+                    } else if let Some((k, within, end, own)) = b.tail(q.o, w, reach, palm, sign) {
+                        let lane_w = reach / b.tail_lanes as f64;
+                        cut = cut.max(quill(q.o + 0.21 * k, (within - 0.5) * lane_w, 0.5 * lane_w, end - q.o, own));
                     }
                 }
-            }
-            let lanes = b.tail_lanes as f64;
-            let lane_w = reach / lanes;
-            let k = (w / lane_w).floor().min(lanes - 1.0);
-            let mid = (w - (k + 0.5) * lane_w).abs();
-            let own = (k as usize).is_multiple_of(2) == (sign > 0.0);
-            let past = b.overlap - 0.45 * k;
-            let end = if own { palm + past } else { palm - past };
-            if q.o > b.apex - 2.0 && q.o < end - 0.6 {
-                cut = cut.max(line(mid, 0.07));
             }
             let u = q.o - h.tip;
             if (0.35..h.beak + 0.3).contains(&u) {
@@ -672,6 +719,25 @@ fn paint_barbs(a: &Atlas, hide: &Hide, zero: &[f64], h: HeadSpec, b: BodySpec) -
     })
 }
 
+/// Running median of each column's rim and wall over 61 columns, then a mean over 17, wrapping round the ring.
+fn steady(hide: &mut Hide) {
+    let n = hide.rim.len();
+    let window = |v: &[[f64; 2]], x: usize, side: usize, half: usize, median: bool| {
+        let mut w: Vec<f64> = (0..=2 * half).map(|k| v[(x + n + k - half) % n][side]).collect();
+        if median {
+            w.sort_by(f64::total_cmp);
+            w[half]
+        } else {
+            w.iter().sum::<f64>() / w.len() as f64
+        }
+    };
+    for field in [&mut hide.rim, &mut hide.wall] {
+        let raw = field.clone();
+        let med: Vec<[f64; 2]> = (0..n).map(|x| [0, 1].map(|side| window(&raw, x, side, 30, true))).collect();
+        *field = (0..n).map(|x| [0, 1].map(|side| window(&med, x, side, 8, false))).collect();
+    }
+}
+
 /// Every painted layer's draft-clamp report, by name.
 type Clamps = Vec<(String, skin::ClampReport)>;
 
@@ -680,7 +746,8 @@ fn author(art: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Clamps)> {
     let mut d = band();
     seat(&mut d)?;
     let a = Atlas::of(&d, ATLAS_W, atlas_rows(&d))?;
-    let hide = Hide::of(&a);
+    let mut hide = Hide::of(&a);
+    steady(&mut hide);
     let mut lib = AlphaLibrary::default();
     let mut clamps = Vec::new();
     let zero = zero_across(&a, &hide);
