@@ -528,14 +528,9 @@ pub fn collections() -> &'static [Collection] {
                 signets
             },
             group("Stone settings", &["cathedral-solitaire", "bezel-solitaire", "halo", "trilogy", "toi-et-moi", "split-shank-basket", "half-eternity", "gypsy-trio"], "Eight made settings · three pour in sand, five in lost wax"),
-            Collection { name: "Workshop collection", templates: vec![
-                Template { name: "Aster — cushion seal", slug: "aster-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", badge: None, family: None, source: Source::Design("aster-workshop") },
-                Template { name: "Tide — twelve reeds", slug: "tide-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", badge: None, family: None, source: Source::Design("tide-workshop") },
-                Template { name: "Lantern — pierced octagonal signet", slug: "lantern-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", badge: None, family: None, source: Source::Design("lantern-workshop") },
-                Template { name: "Aureole — half-turn ribbon", slug: "aureole-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", badge: None, family: None, source: Source::Design("aureole-workshop") },
-            ] },
             group("Reptilia collection", &["ecdysis-reptilia", "tessera-reptilia", "lorica-reptilia", "ophidian-reptilia", "varanus-reptilia"], "Sculpted reptile skins with editable artwork and geometry."),
             group("Stock masterworks", &["nocturne-imported", "solstice-imported", "aurelia-imported", "vesper-imported", "saurian-imported", "zenith-imported", "caiman-imported"], "Authored ornament on calibrated imported signet stock."),
+            group("Bestiarium", &["arachne-bestiarium", "manticora-bestiarium"], "Creatures told by hide, silk and weapons, face to palm."),
             {
                 let mut atelier = group("Atelier designs", &["aster-atelier", "thalassa", "oriel"], "Complete authored designs with their artwork and settings.");
                 atelier.templates.push(Template { name: "Aster — original botanical signet", slug: "aster-botanical", description: "The original botanical sand signet.", badge: None, family: None, source: Source::Design("aster-botanical") });
@@ -585,10 +580,8 @@ thumbnails! {
     "ophidian-reptilia",
     "varanus-reptilia",
     "aster-botanical",
-    "aster-workshop",
-    "tide-workshop",
-    "lantern-workshop",
-    "aureole-workshop",
+    "arachne-bestiarium",
+    "manticora-bestiarium",
     "stock-001-cushion",
     "stock-002-kite",
     "stock-003-clover",
@@ -671,7 +664,7 @@ mod tests {
             assert_eq!((png.width(), png.height()), (160, 160));
             assert!(png.pixels().any(|p| p.0.iter().copied().max().unwrap() > 100), "{} preview is blank", entry.slug);
         }
-        assert_eq!(slugs.len(), 55);
+        assert_eq!(slugs.len(), 53);
         assert_eq!(slugs, SLUGS.iter().copied().collect(), "thumbnail table and menu agree");
     }
 
@@ -695,6 +688,17 @@ mod tests {
         }
         assert_eq!(families, ["Round and square", "Shields", "Lobed", "Pointed"]);
         assert_eq!(badges, std::collections::BTreeMap::from([("sand trial failed · lost wax", 7), ("sand-safe plan", 4), ("upright · lost wax", 9)]));
+    }
+
+    #[test]
+    fn the_bestiarium_follows_the_masterworks_and_the_workshop_has_left_the_menu() {
+        let names: Vec<_> = collections().iter().map(|c| c.name).collect();
+        assert_eq!(names, ["Starter bands", "Starter signets", "Stone settings", "Reptilia collection", "Stock masterworks", "Bestiarium", "Atelier designs", "Original masterwork signets"]);
+        let bestiarium = &collections()[5].templates;
+        assert_eq!(bestiarium.iter().map(|t| t.slug).collect::<Vec<_>>(), ringdesign_graph::templates::BESTIARIUM.iter().map(|t| t.slug).collect::<Vec<_>>());
+        assert!(bestiarium.iter().all(|t| matches!(t.source, Source::Graph(g) if g.slug == t.slug)));
+        assert!(collections().iter().flat_map(|c| &c.templates).all(|t| !t.slug.ends_with("-workshop")));
+        assert!(ringdesign_assets::DESIGNS.iter().all(|a| !a.name.ends_with("-workshop")));
     }
 
     #[test]

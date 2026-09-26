@@ -183,38 +183,6 @@
       160
     ]
   },
-  "aster-workshop": {
-    "source": "showcase/workshop-collection/aster/hero.png",
-    "source_sha256": "5b8bdefffa7fbc06a86d34c70cb0d88babb2eccaf229b676b6f8c60f77a176f7",
-    "size": [
-      160,
-      160
-    ]
-  },
-  "tide-workshop": {
-    "source": "showcase/workshop-collection/tide/hero.png",
-    "source_sha256": "d822eb12dc5dc0251b0f732a53b9ead5a27da0bcd0466c7ca39025a70805938e",
-    "size": [
-      160,
-      160
-    ]
-  },
-  "lantern-workshop": {
-    "source": "showcase/workshop-collection/lantern/hero.png",
-    "source_sha256": "21279a9edcf1957473ec90e3dcb4b55f1d4a565e884672bb4c0187f340741a83",
-    "size": [
-      160,
-      160
-    ]
-  },
-  "aureole-workshop": {
-    "source": "showcase/workshop-collection/aureole/hero.png",
-    "source_sha256": "12b16df4d76ac41c5f9173e74082fc673bead705e8b18c0b652fc1fd6460d1f6",
-    "size": [
-      160,
-      160
-    ]
-  },
   "split-gallery": {
     "source": "target/template-library-review/starter-renders/split-gallery.png",
     "size": [
@@ -438,5 +406,21 @@
       160
     ],
     "source_sha256": "abae17d5b79484962a1a0f6358d976ced18ad0e3cbc85bca35deeb2f11815513"
+  },
+  "arachne-bestiarium": {
+    "source": "showcase/bestiarium/arachne/hero.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "acc9ef8fc82813eb8d00cab67491fbb699eba1eb10dddbaeb9cbba19a014cf62"
+  },
+  "manticora-bestiarium": {
+    "source": "showcase/bestiarium/manticora/hero.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "51b1502782e70080b9d6e8af302668b08da81b45a24c4c05bcb127716774a0ff"
   }
 }
