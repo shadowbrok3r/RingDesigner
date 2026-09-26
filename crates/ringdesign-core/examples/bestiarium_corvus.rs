@@ -268,7 +268,7 @@ const GAPE: f64 = 0.4;
 /// Where the gape starts, mm forward of the skull's rear: under the eye's front corner.
 const RICTUS_U: f64 = 4.3;
 /// Eye socket depth below the crown's edge, mm.
-const SOCKET_MM: f64 = 0.35;
+const SOCKET_MM: f64 = 0.32;
 /// The eye's distance forward of the skull's rear, mm.
 const EYE_U: f64 = 3.9;
 
@@ -360,28 +360,65 @@ impl HeadSpec {
 
 /// Crown a side of the section offers a head, mm off the crest: its rim and a little way onto the fillet.
 fn room(rim: f64) -> f64 {
-    rim + 0.55
+    rim + ROOM_PAST_RIM
 }
+
+/// How far past its rim a side lets a head run over the fillet, mm.
+const ROOM_PAST_RIM: f64 = 1.3;
 
 /// Height of head relief painted on the atlas at alpha 1, mm.
 const PAINT_MM: f64 = 3.5;
 
-/// Both heads painted on the atlas, as a share of [`PAINT_MM`].
+/// Bare point and normal `w` mm off the exact crest in column `x`, between the rows either side.
+fn base_at(a: &Atlas, hide: &Hide, zero: &[f64], x: usize, w: f64) -> Option<([f64; 3], [f64; 3])> {
+    let across = |y: usize| hide.across[y * a.width + x] - zero[x];
+    let y = (0..a.height - 1).find(|&y| (across(y) - w) * (across(y + 1) - w) <= 0.0 && across(y) != across(y + 1))?;
+    let t = (w - across(y)) / (across(y + 1) - across(y));
+    let (p, q) = (a.at(x, y), a.at(x, y + 1));
+    Some((std::array::from_fn(|k| p.p[k] + (q.p[k] - p.p[k]) * t), std::array::from_fn(|k| p.n[k] + (q.n[k] - p.n[k]) * t)))
+}
+
+/// Columns either side the heads' bare surface is faired over, and the fairing's spread in columns.
+const FAIR_REACH: usize = 48;
+const FAIR_SIGMA: f64 = 16.0;
+
+/// Both heads painted on the atlas, as a share of [`PAINT_MM`]: each head stands on the bare surface faired along the ring, so an arm's tip under it does not crease it.
 fn paint_heads(a: &Atlas, hide: &Hide, zero: &[f64], lean: &Lean) -> Alpha {
     let palm = hide.reach();
     a.paint("Raven heads", |s| {
         let p = hide_at(hide, zero, s);
-        BIRDS
+        let x = s.i % a.width;
+        let h = BIRDS
             .iter()
             .map(|&(_, sign)| {
                 let q = on_bird(p, sign, palm);
                 let u = -q.o - HEAD.nape;
                 let h = HEAD.head_mm(u, q.w.abs(), room(q.rim));
                 let k = SKULL_LEVEL + (LEVEL - SKULL_LEVEL) * smoother(HEAD.skull - 1.2, HEAD.skull - 0.2, u);
-                if h > 0.0 { (h - lean.level(s.i % a.width, HEAD.head_mm(u, 0.0, room(q.rim)), q.w, k)).max(0.0) } else { 0.0 }
+                if h > 0.0 { (h - lean.level(x, HEAD.head_mm(u, 0.0, room(q.rim)), q.w, k)).max(0.0) } else { 0.0 }
             })
-            .fold(0.0, f64::max)
-            / PAINT_MM
+            .fold(0.0, f64::max);
+        if h <= 0.0 {
+            return 0.0;
+        }
+        let (mut b, mut n, mut wsum) = ([0.0; 3], [0.0; 3], 0.0);
+        for k in 0..=2 * FAIR_REACH {
+            let c = (x + a.width + k - FAIR_REACH) % a.width;
+            if let Some((bp, bn)) = base_at(a, hide, zero, c, p.across) {
+                let g = (-0.5 * ((k as f64 - FAIR_REACH as f64) / FAIR_SIGMA).powi(2)).exp();
+                for j in 0..3 {
+                    b[j] += g * bp[j];
+                    n[j] += g * bn[j];
+                }
+                wsum += g;
+            }
+        }
+        if wsum <= 0.0 {
+            return h / PAINT_MM;
+        }
+        let nl = n.iter().map(|v| v * v).sum::<f64>().sqrt().max(1e-9);
+        let target: [f64; 3] = std::array::from_fn(|j| b[j] / wsum + h * n[j] / nl);
+        (0..3).map(|j| (target[j] - s.p[j]) * s.n[j]).sum::<f64>().max(0.0) / PAINT_MM
     })
 }
 
@@ -870,6 +907,21 @@ fn author(art: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Clamps)> {
         }
         clamps.push((name, clamp));
     }
+    if std::env::var("CORVUS_DISP").is_ok() {
+        let heads = paint_heads(&a, &hide, &zero, &lean);
+        for w in [0.0, 0.5, 1.0, 1.5, 2.0] {
+            for k in 0..=16 {
+                let t = 116.0 + k as f64;
+                let x = column(&a, t);
+                let y = (0..a.height).min_by(|p, q| (hide.across[*p * a.width + x] - zero[x] - w).abs().total_cmp(&(hide.across[*q * a.width + x] - zero[x] - w).abs())).unwrap_or(0);
+                let s = a.at(x, y);
+                let h = heads.data[y * a.width + x] as f64 * PAINT_MM;
+                let dz = s.p[2] + h * s.n[2];
+                let dr = s.p[0].hypot(s.p[1]) + h * (s.n[0] * s.p[0] + s.n[1] * s.p[1]) / s.p[0].hypot(s.p[1]);
+                println!("    w {w:.1} th {t:.0}: B r {:.2} z {:+.2} nz {:+.2} h {h:.2} -> D r {dr:.2} z {dz:+.2}", s.p[0].hypot(s.p[1]), s.p[2], s.n[2]);
+            }
+        }
+    }
     let barbs = paint_barbs(&a, &hide, &zero);
     lib.insert(Alpha::from_png16(barbs.name.clone(), &barbs.to_png16()?)?);
     if let Some(art) = art {
@@ -884,6 +936,20 @@ fn author(art: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Clamps)> {
         d.stamps.extend(raven_hackles(&a, &hide, name, sign));
         d.stamps.extend(raven_wings(&a, name, sign));
         d.stamps.extend(raven_neck(&a, name, sign));
+    }
+    if std::env::var("CORVUS_SEC").is_ok() {
+        for t in [105.0, 112.0, 118.0, 122.0, 124.0, 126.0, 128.0, 132.0, 136.0, 142.0, 150.0] {
+            let x = column(&a, t);
+            let pts: Vec<String> = [-2.5, -2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
+                .iter()
+                .map(|w: &f64| {
+                    let y = (0..a.height).min_by(|p, q| (hide.across[*p * a.width + x] - zero[x] - w).abs().total_cmp(&(hide.across[*q * a.width + x] - zero[x] - w).abs())).unwrap_or(0);
+                    let s = a.at(x, y);
+                    format!("{w:+.1}:({:.2},{:+.2},n{:+.2})", s.p[0].hypot(s.p[1]), s.p[2], s.n[2])
+                })
+                .collect();
+            println!("    th {t}: {}", pts.join(" "));
+        }
     }
     if std::env::var("CORVUS_HEAD").is_ok() {
         for (name, sign) in BIRDS {
@@ -1096,7 +1162,7 @@ fn preview_stones(d: &RingDesign, lib: &AlphaLibrary, b: &mesh::BuildResult) -> 
 
 /// Views of the finished ring, yaw and pitch.
 const VIEWS: [(&str, f64, f64); 6] =
-    [("hero", -0.4, 0.8), ("face", 0.0, PI * 0.5), ("palm", PI, PI * 0.5), ("side", 0.0, 0.0), ("shoulder", -0.95, 0.55), ("reverse", PI + 0.5, 0.35)];
+    [("hero", 0.62, 0.7), ("face", 0.0, PI * 0.5), ("palm", PI, PI * 0.5), ("side", 0.0, 0.0), ("shoulder", -0.95, 0.55), ("reverse", PI + 0.5, 0.35)];
 
 /// The metal as the renders show it, with smooth vertex normals.
 fn display(b: &mesh::BuildResult) -> mesh::Mesh {
@@ -1105,14 +1171,14 @@ fn display(b: &mesh::BuildResult) -> mesh::Mesh {
     m
 }
 
-/// A three-quarter close-up of Huginn's head: its crop, yaw and pitch.
+/// A three-quarter close-up of Muninn's head from its open side: its crop, yaw and pitch.
 fn head_view(d: &RingDesign, m: &mesh::Mesh) -> Result<(mesh::Mesh, f64, f64)> {
     let ctx = d.field_context();
-    let eye = d.stamps.iter().find(|s| s.name == "Huginn, eye high").ok_or_else(|| anyhow::anyhow!("No eye"))?;
+    let eye = d.stamps.iter().find(|s| s.name == "Muninn, eye high").ok_or_else(|| anyhow::anyhow!("No eye"))?;
     let f = eye.frame(d, &ctx);
-    let t = f.origin[1].atan2(f.origin[0]) + 0.133;
+    let t = f.origin[1].atan2(f.origin[0]) - 0.133;
     let centre = [12.8 * t.cos(), 12.8 * t.sin(), 0.0];
-    Ok((crop(m, centre, 8.0), PI * 0.5 - t + 0.55, 0.62))
+    Ok((crop(m, centre, 8.0), PI * 0.5 - t - 0.55, 0.62))
 }
 
 /// Studio-gold renders with the onyx set: six views, 300 px hero and face, a head close-up, the stone close-up and bare against finished.
@@ -1162,7 +1228,7 @@ fn preview_sheets(out: &Path, d: &RingDesign, b: &mesh::BuildResult, gems: &[(me
     let (head, yaw, pitch) = head_view(d, &display)?;
     let mut cparts = vec![render::Part::metal(&head, render::GOLD), render::Part::metal(&display, render::GOLD)];
     cparts.extend(gems.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    let tiles: Vec<Vec<u8>> = [(yaw, pitch), (yaw + 0.6, pitch), (0.0, 0.0), (PI, 0.0), (yaw - 0.55, PI * 0.5), (yaw + 1.2, 0.9)]
+    let tiles: Vec<Vec<u8>> = [(yaw, pitch), (yaw - 0.6, pitch), (0.0, 0.0), (PI, 0.0), (yaw + 0.55, PI * 0.5), (yaw - 1.2, 0.9)]
         .iter()
         .map(|(y, p)| render::render_parts_ss(&cparts, *y, *p, edge, edge, 2))
         .collect();
@@ -1171,7 +1237,7 @@ fn preview_sheets(out: &Path, d: &RingDesign, b: &mesh::BuildResult, gems: &[(me
     sheet(&out.join("preview-300.png"), &small, 300, 3)?;
     let big: Vec<Vec<u8>> = VIEWS.iter().map(|(_, y, p)| render::render_parts_ss(&parts, *y, *p, 600, 600, 2)).collect();
     sheet(&out.join("preview-views.png"), &big, 600, 3)?;
-    let heroes: Vec<Vec<u8>> = [(-0.4, 0.8), (-0.6, 0.7), (-0.75, 0.62), (-0.9, 0.55), (-0.6, 0.9), (-1.1, 0.7)]
+    let heroes: Vec<Vec<u8>> = [(0.4, 0.8), (0.6, 0.7), (0.75, 0.62), (0.9, 0.55), (0.6, 0.9), (-0.6, 0.7)]
         .iter()
         .map(|(y, p)| render::render_parts_ss(&parts, *y, *p, 500, 500, 2))
         .collect();
