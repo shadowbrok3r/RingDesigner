@@ -1235,6 +1235,31 @@ mod tests {
     }
 
     #[test]
+    fn painted_art_under_a_builtin_name_travels_with_the_design() {
+        use crate::field::{Layer, LayerEntry};
+        use crate::tiling::TilingLayer;
+
+        let name = crate::alpha::Procedural::Rope.label();
+        let mut design = RingDesign::default();
+        let ctx = design.field_context();
+        design.layers.layers.push(LayerEntry::new("rope", Layer::Tiling(TilingLayer::default_for(name, &ctx))));
+        let mut lib = crate::AlphaLibrary::builtin();
+        let painted = crate::Alpha::new(name, 64, 64, (0..64 * 64).map(|i| (i % 64) as f32 / 63.0).collect());
+        lib.insert(painted.clone());
+        design.embed_alphas(&lib);
+        assert_eq!(design.embedded.len(), 1, "the painted art is embedded, not taken for the builtin");
+        let reopened = load_design_str(&design_json(&design).unwrap()).unwrap();
+        let mut cold = crate::AlphaLibrary::builtin();
+        reopened.unpack_embedded(&mut cold);
+        let expected = crate::Alpha::from_png16(name, &painted.to_png16().unwrap()).unwrap();
+        assert_eq!(cold.get(name).unwrap().content_key(), expected.content_key(), "reopens as the painted art");
+        // A recipe of the design's own that bakes under a builtin's name is regenerated, not embedded.
+        design.recipes.push(crate::alpha::ProcRecipe { name: name.into(), ..Default::default() });
+        design.embed_alphas(&lib);
+        assert!(design.embedded.is_empty());
+    }
+
+    #[test]
     fn a_newer_version_is_refused_with_a_clear_error() {
         let mut doc = serde_json::to_value(RingDesign::default()).unwrap();
         for version in [u64::from(FORMAT_VERSION) + 1, 1u64 << 32] {
