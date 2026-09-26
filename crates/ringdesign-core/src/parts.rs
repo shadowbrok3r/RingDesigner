@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Boxes closer than this are one cluster of joined parts, united into one tool before the band sees it.
 pub const CLUSTER_PAD_MM: f64 = 0.1;
-/// Sliver tolerance after each bead is laid, the same the finished mesh is cleaned at.
+/// Sliver tolerance for a part carrying a flat face and after each bead is laid, the same the finished mesh is cleaned at.
 const CLEAN_MM: f64 = 2e-5;
 
 /// What resolving the CAD parts did to a build.
@@ -247,10 +247,14 @@ fn resolve_inner(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, c
             out.references += 1;
             continue;
         }
+        let mut solid = Solid { v: c.trace.positions.clone(), f: c.mesh.faces.clone() };
+        if solid.any_flat() {
+            csg::clean(&mut solid, CLEAN_MM);
+        }
         let part = Part {
             index: out.features.len() as u32,
             name: c.name.clone(),
-            solid: Solid { v: c.trace.positions.clone(), f: c.mesh.faces.clone() },
+            solid,
             blend_mm: if c.settings.blend_mm.is_finite() { c.settings.blend_mm.max(0.0) } else { 0.0 },
         };
         out.features.push(c.id);
@@ -1582,4 +1586,102 @@ mod tests {
         }
     }
 
+    /// FNV-1a over a mesh's vertex bits and face indices.
+    fn mesh_hash(m: &Mesh) -> u64 {
+        m.vertices
+            .iter()
+            .flat_map(|v| [v.0, v.1, v.2].map(|x| u64::from(x.to_bits())))
+            .chain(m.faces.iter().flatten().map(|i| u64::from(*i)))
+            .fold(0xcbf29ce484222325u64, |h, v| (h ^ v).wrapping_mul(0x100000001b3))
+    }
+
+    /// Every CAD example, and the Split shank whose cutter carries slivers thinner than 20 nm that are no flat face, builds as master b611d2c built it.
+    #[test]
+    fn parts_with_no_flat_face_resolve_as_master_resolved_them() {
+        let lib = AlphaLibrary::builtin();
+        let cases = [
+            ("twisted-band", 0x1d82af502cff565f_u64, 420.173636359),
+            ("two-part-signet", 0xff447d47d3393211, 430.880071429),
+            ("solitaire", 0x53e638fc45d78eda, 260.724419800),
+            ("inlay-band", 0x34548793a83421ea, 516.069838767),
+            ("gallery", 0x1a588317e1239829, 67.805697927),
+            ("claw-solitaire", 0xeed8ce2f54cee1b5, 604.831625415),
+        ];
+        for (name, hash, volume) in cases {
+            let built = crate::mesh::try_build(&cad::examples::design(name).unwrap(), &lib, params()).unwrap();
+            assert_eq!(mesh_hash(&built.mesh), hash, "{name}");
+            assert!((built.report.volume_mm3 - volume).abs() < 1e-8, "{name}: {}", built.report.volume_mm3);
+        }
+        let pattern = crate::mesh::try_build_pattern(&cad::examples::design("claw-solitaire").unwrap(), &lib, params()).unwrap();
+        assert_eq!(mesh_hash(&pattern.mesh), 0xa0454db6dbae2d0e);
+        assert!((pattern.report.volume_mm3 - 610.783903645).abs() < 1e-8, "{}", pattern.report.volume_mm3);
+        let split = template("Split shank");
+        let built = crate::mesh::try_build(&split, &lib, params()).unwrap();
+        let cutter = built.parts.evaluated.as_ref().unwrap().components.iter().find(|c| c.name == "Open split").unwrap();
+        let solid = Solid { v: cutter.trace.positions.clone(), f: cutter.mesh.faces.clone() };
+        assert!(!solid.any_flat() && csg::clean(&mut solid.clone(), CLEAN_MM) > 0, "the cutter carries thin slivers and no flat face");
+        assert_eq!((mesh_hash(&built.mesh), built.parts.cut), (0xb076496deab589f2, 1));
+        assert!((built.report.volume_mm3 - 244.481746597).abs() < 1e-8, "{}", built.report.volume_mm3);
+    }
+
+    /// A closed sphere of `r` round `c`, eight rings of sixteen, wound outward.
+    fn bead(c: P3, r: f64) -> Solid {
+        let (rings, around) = (8usize, 16usize);
+        let mut s = Solid::default();
+        s.v.push([c[0], c[1], c[2] + r]);
+        for i in 1..rings {
+            let t = std::f64::consts::PI * i as f64 / rings as f64;
+            for j in 0..around {
+                let a = 2.0 * std::f64::consts::PI * j as f64 / around as f64;
+                s.v.push([c[0] + r * t.sin() * a.cos(), c[1] + r * t.sin() * a.sin(), c[2] + r * t.cos()]);
+            }
+        }
+        s.v.push([c[0], c[1], c[2] - r]);
+        let last = (s.v.len() - 1) as u32;
+        let ring = |i: usize, j: usize| (1 + (i - 1) * around + j % around) as u32;
+        for j in 0..around {
+            s.f.push([0, ring(1, j), ring(1, j + 1)]);
+            s.f.push([last, ring(rings - 1, j + 1), ring(rings - 1, j)]);
+        }
+        for i in 1..rings - 1 {
+            for j in 0..around {
+                s.f.push([ring(i, j), ring(i + 1, j), ring(i + 1, j + 1)]);
+                s.f.push([ring(i, j), ring(i + 1, j + 1), ring(i, j + 1)]);
+            }
+        }
+        s
+    }
+
+    /// Thirty-five beads united on the crest and stored on the 10 nm grid carry flat faces the band refuses at every nudge; cleaned first, they join.
+    #[test]
+    fn a_stored_part_carrying_flat_faces_is_cleaned_and_joins() {
+        use crate::cad::{stored, SurfaceKind};
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        let bare = crate::mesh::try_build(&court, &lib, params()).unwrap();
+        let crest = bare.mesh.vertices.iter().map(|p| (p.0 as f64).hypot(p.1 as f64)).fold(0.0, f64::max);
+        let (r, off) = (0.4, 0.0137);
+        let pitch = r * 1.4;
+        let beads: Vec<Solid> = (0..35)
+            .map(|i| {
+                let theta = (90.0 + (i as f64 - 17.0) * pitch / crest * 180.0 / std::f64::consts::PI + off).to_radians();
+                bead([crest * theta.cos(), crest * theta.sin(), 0.4 * (i as f64 * 0.9 + off).sin()], r)
+            })
+            .collect();
+        let row = csg::union_all(&beads).unwrap();
+        let mesh = stored::Packed::encode(&row.v, &row.f, &vec![0; row.f.len()], &[SurfaceKind::Freeform]).unwrap();
+        let stored_row = mesh.made().unwrap().named.solid;
+        assert!(!row.any_flat() && stored_row.any_flat(), "the grid flattens slivers the union left");
+        let band = Solid { v: bare.mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: bare.mesh.faces.clone() };
+        assert!(matches!(csg::combine_traced(&band, &stored_row, Op::Union, None), Err(Snag::Degenerate("a vertex lies in a face's plane"))));
+        let recipe = stored::Recipe { kernel: "bead row".into(), op: "union".into(), ..Default::default() };
+        let operation = Operation::Stored { recipe, sources: Vec::new(), mesh };
+        let d = with_parts(court, vec![part(1, "Bead row", operation, Attach::Join, Stage::Cast, Placement::Free)]);
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
+        assert_eq!(built.parts.joined, 1);
+        assert!(built.report.validation.watertight && built.report.quality.degenerate_faces == 0, "{:?}", built.report.validation);
+        let added = built.report.volume_mm3 - bare.report.volume_mm3;
+        assert!(added > 1.0 && added < row.volume(), "the row adds {added:.3} mm3 of its {:.3}", row.volume());
+    }
 }

@@ -1809,14 +1809,20 @@ impl Stamp {
         let area: f64 = (0..n).map(|i| { let (a, b) = (self.outline[i], self.outline[(i + 1) % n]); a[0] * b[1] - b[0] * a[1] }).sum();
         if area <= 1e-6 { return Err("its outline must run counter-clockwise and enclose something".into()); }
         let reach = self.outline.iter().map(|p| p[0].hypot(p[1])).fold(0.0, f64::max) + 1.0;
+        const ABOVE: f64 = 8.0;
+        // Faces with a corner within `reach` of the stamp's axis, no further along it than the drop starts or `reach`.
+        let along = ABOVE.max(reach);
         let near: Vec<[P3; 3]> = band.f.iter().filter_map(|f| {
             let t = f.map(|k| band.v[k as usize]);
-            t.iter().any(|q| (0..3).map(|k| (q[k] - frame.origin[k]).powi(2)).sum::<f64>() < reach * reach).then_some(t)
+            t.iter().any(|q| {
+                let d: P3 = std::array::from_fn(|k| q[k] - frame.origin[k]);
+                let up = d[0] * frame.z[0] + d[1] * frame.z[1] + d[2] * frame.z[2];
+                up.abs() < along && d[0] * d[0] + d[1] * d[1] + d[2] * d[2] - up * up < reach * reach
+            }).then_some(t)
         }).collect();
         let pitch = (reach / 14.0).clamp(0.12, 0.35);
         let cap = if creases.is_empty() { cap_faces(&self.outline, pitch, chords) } else { cap_faces_with(&self.outline, pitch, chords, creases) };
         let (points, tris) = cap.ok_or("its outline will not triangulate")?;
-        const ABOVE: f64 = 8.0;
         let down = [-frame.z[0], -frame.z[1], -frame.z[2]];
         let mut surface = Vec::with_capacity(points.len());
         for p in &points {
@@ -3919,6 +3925,97 @@ mod tests {
         assert_eq!(pattern.stamps.len(), 1);
         assert_eq!(plate.origin, pattern.stamps[0].frame(&pattern, &ctx).origin);
         assert!((plate.origin[2] + 0.043380).abs() < 1e-6 && plate.origin == boss.origin, "{:?} {:?}", plate.origin, boss.origin);
+    }
+
+    /// FNV-1a over a mesh's vertex bits and face indices.
+    fn mesh_hash(m: &crate::Mesh) -> u64 {
+        m.vertices
+            .iter()
+            .flat_map(|v| [v.0, v.1, v.2].map(|x| u64::from(x.to_bits())))
+            .chain(m.faces.iter().flatten().map(|i| u64::from(*i)))
+            .fold(0xcbf29ce484222325u64, |h, v| (h ^ v).wrapping_mul(0x100000001b3))
+    }
+
+    /// A stock masterwork as the showcase saved it, its art in the library.
+    fn masterwork(slug: &str) -> (crate::RingDesign, crate::AlphaLibrary) {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../showcase/stock-masterworks/{slug}/design.ring.json"));
+        let mut lib = crate::AlphaLibrary::builtin();
+        let d = crate::library::load_design(&path).unwrap();
+        d.unpack_embedded(&mut lib);
+        d.bake_all(&mut lib);
+        (d, lib)
+    }
+
+    /// Every stamp strikes as master b611d2c struck it, finished and pattern, now that the drop reaches along the stamp's axis.
+    #[test]
+    fn stamps_strike_as_master_struck_them() {
+        let mut designs = Vec::new();
+        let (zenith, lib) = masterwork("zenith");
+        designs.push(("Zenith", zenith, lib, 0xf3e4f9af8fa0f5ed_u64, 0xbdc5d4386648efef_u64));
+        let (caiman, lib) = masterwork("caiman");
+        designs.push(("Caiman", caiman, lib, 0x83f281a4aab24658, 0x733b84427d4ab92e));
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crest_band();
+        let v = d.field_context().crest_v_mm;
+        d.stamps = vec![plain("Disc", 90.0, v, crate::outline::circle(1.6), 0.4)];
+        designs.push(("a crest disc", d, lib.clone(), 0x74e264e6f8bc9910, 0x74e264e6f8bc9910));
+        let mut d = crest_band();
+        d.stamps = vec![plain("Disc", 90.0, v + 1.6, crate::outline::circle(1.2), 0.3)];
+        designs.push(("an off-crest disc", d, lib.clone(), 0x5d21faa0158b8b94, 0x5d21faa0158b8b94));
+        let mut d = crate::templates::fixture("Heart signet").unwrap();
+        let ctx = d.field_context();
+        let (v, len) = (ctx.crest_v_mm, ctx.band_v_len_mm);
+        d.stamps = vec![
+            plain("Head", 90.0, v, crate::outline::circle(1.4), 0.3),
+            plain("Left", 55.0, v, crate::outline::circle(0.9), 0.3),
+            plain("Right", 125.0, v, moon_outline(1.0, 0.5, 0.85), 0.3),
+            plain("High", 90.0, v + 2.5, crate::outline::circle(1.0), 0.25),
+            Stamp { along_pull: true, ..plain("Cheek", 70.0, len * 0.1, crate::outline::circle(0.6), 0.25) },
+            Stamp { cut: true, ..plain("Palm", 270.0, v, crate::outline::circle(1.0), 0.2) },
+        ];
+        designs.push(("six on the Heart signet", d, lib.clone(), 0x8dc3fe2821e3ceb9, 0x8dc3fe2821e3ceb9));
+        let mut d = crest_band();
+        let v = d.field_context().crest_v_mm;
+        d.stamps = vec![
+            Stamp { top: StampTop::Cone { apex_mm: 0.7, at: [0.0, 0.0], tip_mm: 0.3 }, ..plain("Thorn", 60.0, v, crate::outline::circle(1.6), 0.25) },
+            plain("Plate", 120.0, v, crate::outline::circle(3.2), 0.35),
+            Stamp { tier: 1, top: StampTop::Gable { rise_mm: 0.25, axis_deg: 0.0 }, ..plain("Plate: keel", 120.0, v, crate::outline::keel(2.2, 1.2, 0.18), 0.3) },
+        ];
+        designs.push(("a cone, a plate and a keel on it", d, lib, 0x4968711c39104f5c, 0x4968711c39104f5c));
+        for (name, d, lib, finished, pattern) in &designs {
+            let f = crate::mesh::try_build(d, lib, strike()).unwrap();
+            let p = crate::mesh::try_build_pattern(d, lib, strike()).unwrap();
+            assert!(f.solids.notes.is_empty(), "{name}: {:?}", f.solids.notes);
+            assert_eq!((mesh_hash(&f.mesh), mesh_hash(&p.mesh)), (*finished, *pattern), "{name}");
+        }
+    }
+
+    /// An eye on relief standing further over the bare surface than the eye reaches: the drop finds the relief along its axis.
+    #[test]
+    fn a_small_stamp_on_tall_relief_stands_on_the_relief() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crest_band();
+        let v = d.field_context().crest_v_mm;
+        let boss = crate::field::SeatPadLayer { theta_deg: 90.0, v_mm: v, diameter_mm: 4.0, height_mm: 1.5, crown: 0.0, blend_mm: 0.4, ..Default::default() };
+        d.layers.layers.push(crate::LayerEntry::new("Boss", crate::Layer::SeatPad(boss)));
+        let bare = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        let band = Solid { v: bare.mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: bare.mesh.faces.clone() };
+        let eye = plain("Eye", 90.0, v, crate::outline::circle(0.6), 0.2);
+        let frame = eye.frame(&d, &d.field_context());
+        let (reach, down, above) = (0.3 + 1.0, frame.z.map(|c| -c), frame.point([0.0, 0.0, 8.0]));
+        let faces: Vec<[P3; 3]> = band.f.iter().map(|f| f.map(|k| band.v[k as usize])).collect();
+        let top = 8.0 - first_hit(&faces, above, down).unwrap();
+        assert!(top > reach, "the boss stands {top:.3} mm over the eye's origin");
+        let near: Vec<[P3; 3]> = faces.iter().copied().filter(|t| t.iter().any(|q| (0..3).map(|k| (q[k] - frame.origin[k]).powi(2)).sum::<f64>() < reach * reach)).collect();
+        assert_eq!(first_hit(&near, above, down), None, "no face within the eye's reach of its origin lies under it");
+        sound(&eye.solid(&frame, &band).unwrap(), "the eye");
+        d.stamps = vec![eye];
+        let built = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        assert!(built.solids.notes.is_empty() && built.solids.stamped == 1, "{:?}", built.solids.notes);
+        assert!(built.report.validation.watertight && built.report.quality.degenerate_faces == 0, "{:?}", built.report.validation);
+        let crown = |m: &crate::Mesh| m.vertices.iter().filter(|p| ((p.1 as f64).atan2(p.0 as f64).to_degrees() - 90.0).abs() < 3.0).map(|p| (p.0 as f64).hypot(p.1 as f64)).fold(0.0, f64::max);
+        let rise = crown(&built.mesh) - crown(&bare.mesh);
+        assert!((rise - 0.2).abs() < 0.02, "the eye stands {rise:.3} mm over the boss, where 0.2 was asked");
     }
 
     #[test]
