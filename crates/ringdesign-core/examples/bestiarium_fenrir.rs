@@ -232,7 +232,7 @@ const KEEP_OUT_MM: f64 = 5.03;
 /// The gums round the moon stand this high over the table, over the fangs' base rail, mm.
 const GUM_H: f64 = 1.35;
 /// Half the angle each open mouth corner spans at the moon's side, degrees.
-const CORNER_DEG: f64 = 16.0;
+const CORNER_DEG: f64 = 19.0;
 /// The fangs' bearing round the moon, degrees from +x.
 const FANG_DEG: f64 = 73.4;
 /// Where the facial fur flows toward, out past each ear: face `x` and `u`.
@@ -1545,7 +1545,7 @@ const SCULPT_FACES: usize = 120_000;
 /// Seam bead where the head meets the stock, mm.
 const HEAD_BLEND_MM: f64 = 0.0;
 /// The ruff's relief and the palm's fetter, mm.
-const RUFF_MM: f64 = 0.7;
+const RUFF_MM: f64 = 0.6;
 const GLEIPNIR_MM: f64 = 0.6;
 const BINDING_MM: f64 = 0.5;
 const HAIR_LINES_MM: f64 = 0.08;
@@ -1759,44 +1759,131 @@ fn open_to_bore(m: &Nets, bore: f64) -> (Nets, usize) {
     (Nets { v, f }, all.len() - open.len())
 }
 
-/// Metal kept over the hollow under the head, mm.
-const HOLLOW_WALL_MM: f64 = 1.15;
+/// A height map on a regular (`x`, `u`) grid.
+struct Heights {
+    x0: f64,
+    u0: f64,
+    step: f64,
+    nx: usize,
+    nu: usize,
+    h: Vec<f64>,
+}
 
-/// The hollow scooped under the head from the finger hole: everything more than [`HOLLOW_WALL_MM`] inside both the stock
-/// and the head, from just inside the bore up, as a cut part.
-fn hollow_feature(d: &RingDesign, wolf: &Wolf) -> Result<(Feature, Value)> {
-    let t = Instant::now();
-    let table = wolf.table;
-    let (lo, hi) = ([-11.0, wolf.bore - 0.6, -11.0], [11.0, table + 1.0, 11.0]);
-    let coarse = Atlas::of(d, 1024, 384)?;
-    let deep = Stock::of(&coarse, &wolf.relief, table, lo, hi, 0.2, 2.4);
-    let bore = wolf.bore;
-    let field = |p: P3| -> f64 {
-        let r = p[0].hypot(p[1]);
-        let depth = (-deep.at(p)).max(-wolf.sdf(p));
-        (HOLLOW_WALL_MM - depth).max(bore - 0.3 - r)
-    };
-    if std::env::var("FENRIR_HOLLOW").is_ok() {
-        for k in 0..12 {
-            let y = bore - 0.5 + k as f64 * 0.45;
-            let p = [0.0, y, 0.0];
-            println!("    hollow field at y {y:.2}: {:.3} (stock {:.3}, head {:.3})", field(p), deep.at(p), wolf.sdf(p));
-        }
+impl Heights {
+    fn at(&self, x: f64, u: f64) -> f64 {
+        let fx = ((x - self.x0) / self.step).clamp(0.0, (self.nx - 2) as f64);
+        let fu = ((u - self.u0) / self.step).clamp(0.0, (self.nu - 2) as f64);
+        let (i, j) = (fx.floor() as usize, fu.floor() as usize);
+        let (tx, tu) = (fx - i as f64, fu - j as f64);
+        let g = |a: usize, b: usize| self.h[(j + b) * self.nx + i + a];
+        lerp(lerp(g(0, 0), g(1, 0), tx), lerp(g(0, 1), g(1, 1), tx), tu)
     }
-    let mut raw = tetra_mesh(lo, hi, 0.1, &field);
+    /// The least height within `r` mm of each cell.
+    fn eroded(&self, r: f64) -> Self {
+        let k = (r / self.step).ceil() as i64;
+        let h: Vec<f64> = (0..self.h.len())
+            .into_par_iter()
+            .map(|c| {
+                let (i, j) = ((c % self.nx) as i64, (c / self.nx) as i64);
+                let mut m = f64::MAX;
+                for dj in -k..=k {
+                    for di in -k..=k {
+                        if ((di * di + dj * dj) as f64).sqrt() * self.step > r {
+                            continue;
+                        }
+                        let (a, b) = (i + di, j + dj);
+                        let v = if a < 0 || b < 0 || a >= self.nx as i64 || b >= self.nu as i64 { f64::MIN } else { self.h[b as usize * self.nx + a as usize] };
+                        m = m.min(v);
+                    }
+                }
+                m
+            })
+            .collect();
+        Self { h, ..*self }
+    }
+    /// A Gaussian blur of `sigma` mm.
+    fn blurred(&self, sigma: f64) -> Self {
+        let k = (3.0 * sigma / self.step).ceil() as i64;
+        let w: Vec<f64> = (-k..=k).map(|d| (-0.5 * (d as f64 * self.step / sigma).powi(2)).exp()).collect();
+        let sum: f64 = w.iter().sum();
+        let pass = |src: &[f64], along_x: bool| -> Vec<f64> {
+            (0..src.len())
+                .into_par_iter()
+                .map(|c| {
+                    let (i, j) = ((c % self.nx) as i64, (c / self.nx) as i64);
+                    (-k..=k)
+                        .zip(&w)
+                        .map(|(d, wt)| {
+                            let (a, b) = if along_x { ((i + d).clamp(0, self.nx as i64 - 1), j) } else { (i, (j + d).clamp(0, self.nu as i64 - 1)) };
+                            wt * src[b as usize * self.nx + a as usize]
+                        })
+                        .sum::<f64>()
+                        / sum
+                })
+                .collect()
+        };
+        let h = pass(&pass(&self.h, true), false);
+        Self { h, ..*self }
+    }
+}
+
+/// Metal kept over the hollow under the head, mm.
+const HOLLOW_WALL_MM: f64 = 1.05;
+
+/// The hollow scooped under the head from the finger hole: over each point of the head's plan, up to [`HOLLOW_WALL_MM`]
+/// under the first air above the bore, that air eroded 1.3 mm round and smoothed, within a rounded footprint; as a cut
+/// part.
+fn hollow_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
+    let t = Instant::now();
+    let (table, bore) = (wolf.table, wolf.bore);
+    let union = |q: P3| {
+        let p = [q[0], q[2] + table, -q[1]];
+        wolf.stock.at(p).min(wolf.sdf(p))
+    };
+    let step = 0.1;
+    let (x0, u0) = (-9.0, -12.0);
+    let (nx, nu) = ((18.0 / step) as usize + 1, (21.0 / step) as usize + 1);
+    let floor = |x: f64| (bore * bore - x * x).max(0.0).sqrt() - table;
+    let first_air: Vec<f64> = (0..nx * nu)
+        .into_par_iter()
+        .map(|c| {
+            let (x, u) = (x0 + (c % nx) as f64 * step, u0 + (c / nx) as f64 * step);
+            let mut h = floor(x) + 0.05;
+            if union([x, u, h]) > 0.0 {
+                return floor(x);
+            }
+            while h < 8.0 && union([x, u, h]) < 0.0 {
+                h += 0.04;
+            }
+            h
+        })
+        .collect();
+    let air = Heights { x0, u0, step, nx, nu, h: first_air };
+    let roof = air.eroded(1.3).blurred(0.3);
+    let footprint = |q: P3| {
+        let (x, u) = (q[0].abs() - 6.8, (q[1] + 0.5).abs() - 8.6);
+        let r = 2.2;
+        len([x.max(-r) + r, u.max(-r) + r, 0.0]).max(0.0) + x.max(u).min(-r) + r - r
+    };
+    let field = |p: P3| -> f64 {
+        let q = wolf.face(p);
+        let r = p[0].hypot(p[1]);
+        smax((q[2] - (roof.at(q[0], q[1]) - HOLLOW_WALL_MM)).max(bore - 0.3 - r), footprint(q), 0.5)
+    };
+    let (lo, hi) = ([-9.0, bore - 0.6, -11.0], [9.0, table + 1.0, 13.0]);
+    let raw = tetra_mesh(lo, hi, 0.12, &field);
     // Only the pockets that open into the finger hole are kept: a sealed one would cast solid.
-    let (kept, dropped) = open_to_bore(&raw, bore);
-    raw = kept;
-    relax(&mut raw, &field, 2);
-    let nets = clean_decimate(&raw, 16_000);
-    let lowest = nets.v.iter().map(|p| p[0].hypot(p[1])).fold(f64::MAX, f64::min);
-    println!("  hollow reaches down to radius {lowest:.3}; {dropped} sealed pockets left out");
+    let (raw, dropped) = open_to_bore(&raw, bore);
+    let mut nets = decimate(&raw, 12_000, 1e-2, 3.0, 25.0, 40.0);
+    if csg::self_crossings(&csg::Solid { v: nets.v.clone(), f: nets.f.clone() }) > 0 {
+        nets = clean_decimate(&raw, 12_000);
+    }
     let (bad, volume) = closure(&nets.v, &nets.f);
     ensure!(bad == 0 && volume > 0.0, "The hollow does not close: {bad} open edges");
     let crossings = csg::self_crossings(&csg::Solid { v: nets.v.clone(), f: nets.f.clone() });
     ensure!(crossings == 0, "The hollow crosses itself {crossings} times");
     let mesh = cad::stored::Packed::encode(&nets.v, &nets.f, &vec![0; nets.f.len()], &[cad::SurfaceKind::Freeform])?;
-    println!("  hollow: {} triangles, {:.0} mm3 in {:.1} s, {} KB packed", nets.f.len(), volume, t.elapsed().as_secs_f64(), mesh.data.len() / 1024);
+    println!("  hollow: {} triangles, {:.0} mm3 in {:.1} s, {} KB packed; {dropped} sealed pockets left out", nets.f.len(), volume, t.elapsed().as_secs_f64(), mesh.data.len() / 1024);
     let stats = json!({"wall_mm": HOLLOW_WALL_MM, "triangles": nets.f.len(), "volume_mm3": volume, "packed_bytes": mesh.data.len()});
     let recipe = cad::stored::Recipe {
         kernel: "fenrir".into(),
@@ -1891,7 +1978,7 @@ fn flames(along: f64, across: f64, pitch: f64, length: f64, bow: f64, soft: f64,
 
 /// A painted lock: rounded across, swelling from its root and drawn out to its point over the last half.
 fn painted_lock(t: f64, q: f64, _half: f64) -> f64 {
-    (q * PI * 0.5).cos().max(0.0).powf(1.1) * smooth(0.0, 0.3, t) * (1.0 - smooth(0.45, 1.0, t)).powf(0.8)
+    (q * PI * 0.5).cos().max(0.0).powf(1.1) * smooth(0.0, 0.25, t) * (1.0 - smooth(0.35, 1.0, t)).powf(0.7)
 }
 
 /// A sculpted lock: its section a smooth hump, faded in at the root and out over the last quarter, and lowered where it
@@ -1907,7 +1994,7 @@ fn sculpted_lock(pitch: f64) -> impl Fn(f64, f64, f64) -> f64 {
 /// The painted pelt at hide point (`along` from the head, `across`): height 0..1, and the hair line 0..1 running along
 /// its lock, 0.22 mm apart where the lock is wide and fading out where the lines would crowd under 0.15 mm.
 fn fur(along: f64, across: f64) -> (f64, f64) {
-    let f = flames(along, across, 1.3, 4.6, 0.27, 0.0, 17, &painted_lock);
+    let f = flames(along, across, 1.2, 5.8, 0.3, 0.0, 17, &painted_lock);
     let lines = 0.5 - 0.5 * (2.0 * PI * f.across * f.half / 0.22).cos();
     let hair = lines * smooth(0.3, 0.6, f.h) * smooth(0.45, 0.65, f.half);
     (0.1 + 0.9 * f.h, hair)
@@ -2119,7 +2206,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Wolf)
     stone_and_fangs(&mut d)?;
     let (head, head_stats) = head_feature(&wolf)?;
     d.cad.as_mut().unwrap().append(head)?;
-    let (hollow, hollow_stats) = hollow_feature(&d, &wolf)?;
+    let (hollow, hollow_stats) = hollow_feature(&wolf)?;
     d.cad.as_mut().unwrap().append(hollow)?;
     let room = fold_room(&a);
     let paint = |d: &mut RingDesign, caps: &[P3]| -> Result<AlphaLibrary> {
