@@ -1,3 +1,20 @@
+# Takeover checkpoint (2026-09-26, Claude)
+
+Codex's account hit its usage limit at 10:14 MDT on 2026-09-25 and cannot resume before Oct 1, so Claude took over every lane. Codex's own record follows below this section.
+
+- **Batch 16 is on master** as merge `67887c0` (tree identical to the validated `a89f4e4`): P5, P6, P8, the C-S2/C-S3 cutters, projected stamp solids and the fences. 36 checks, 1,836 tests, 0 failures, 0 warnings, plus 8 Python smoke tests: `batch16-integration-report.json`. Draft PRs #210, #216, #217 and #221 are contained in it.
+- **Ring lanes**, one worktree each under `.claude/worktrees/`, all built from `a89f4e4` or merged up to it:
+  - `bestiarium-corvus`, `bestiarium-manticora`, `bestiarium-fenrir` (new rings, not started by Codex);
+  - `bestiarium-kraken` (new ring, and owns enabler C-B1 in `core/curve.rs` and `graph/nodes/layer.rs`);
+  - `bestiarium-phoenix` (`codex/bestiarium-phoenix`: round-2 revision, Codex's uncommitted round-2 edits still in the tree);
+  - `bestiarium-basiliscus` (`codex/bestiarium-basiliscus`: the example is committed as `ab4c81e` and merged up to the platform; its export build fails the 2 million triangle budget);
+  - Harpyia next, from the spike on `codex/harpyia-feather-spike` (probe committed as `826f825`), owning an enabler C-B4 for a closed feather construction, because the kernel loft tessellates open.
+- Arachne's validated pattern export is committed as `a44f55c` on `bestiarium-arachne`.
+- **Starter gallery** (`codex/starter-gallery`): Codex's uncommitted part-1 work (eight settings' graphs, thumbnails, golden corpus, tests) is still in the tree and being finished.
+- Lane instructions shared by every ring: `.claude/collection-review/bestiarium-lane-brief.md` (ignored dir; the review prompt template sits beside it). Gates add two to the list in README: nothing may enter the finger hole (Arachne's leg did, 0.36 mm, and nothing caught it) and the export build must fit the 2 million triangle budget.
+- **Read another worktree's files with Bash, not the Read tool**: each worktree carries its own copy of the long CLAUDE.md, and the Read tool injects it into the reader's context once per worktree touched.
+- All seven lanes launched on 2026-09-25 died within minutes on the account's usage limit and were relaunched the next morning, fewer at a time.
+
 # Continuation checkpoint (2026-09-25)
 
 - Batch 15: all reviewer findings were already fixed with regression pins; every crate suite, NDK, wasm, locked and all-target checks passed. Master `9992ffa` was pushed. The b15 worktrees and branches had already been removed by the preceding integrator. Docs handoff merged and pushed as `1bd70a4`.
