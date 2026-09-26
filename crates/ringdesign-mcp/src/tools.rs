@@ -469,6 +469,11 @@ pub struct SetShankParams {
     /// Strength of the modulation, 0 to 1. On Signet this is how far the shank
     /// narrows: 1 takes it to 16% of the head width.
     pub amount: Option<f64>,
+    /// Bypass only: degrees along the ring (0 to 12) the two arms' union is
+    /// faired over, so each arm's rounded tip ramps into the other arm
+    /// instead of stepping. 0 keeps the hard union; a non-zero value saves
+    /// the design at format 6.
+    pub bypass_fair_deg: Option<f64>,
     /// Signet only: plan silhouette of the face — Oval, Round, Cushion,
     /// Rectangle, Hexagon, Octagon, Marquise, Shield, or Heart. The band's own
     /// width follows it.
@@ -1724,6 +1729,7 @@ impl RingDesignServer {
             applied.push(format!("kind={kind:?}"));
         }
         put_range(&mut d.shank.amount, p.amount, "amount", 0.0, 1.0, &mut applied)?;
+        put_range(&mut d.shank.bypass_fair_deg, p.bypass_fair_deg, "bypass_fair_deg", 0.0, 12.0, &mut applied)?;
         if let Some(outline) = outline {
             d.shank.head.outline = outline;
             // Sized to the shape unless the call says otherwise, so an outline
