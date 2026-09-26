@@ -4,14 +4,16 @@
 
 The agents running at that moment finish their current task (Kraken round 3, Basiliscus round 3, Fenrir round 2, Corvus round 2, Harpyia round 2, the packaging lane, Phoenix's final review). **No new agents, rounds, reviews or lanes start until Logan says so.** Each finished result is recorded in the table below with its next step. The desktop release waits with the rest.
 
+Packaging lane finished and merged (`bestiarium-package` `1c31c9c`, merge `89dc970`): Arachne and Manticora rebuilt on current master and registered as a Bestiarium group in File > New from template (menu 55 to 53, Workshop group retired; `showcase/workshop-collection` kept), bound template controls (request 15), studio renders, sheet and README. Every suite green on the branch, four-core CI emulation 1653. Its report, with the eleven steps to add one more shipped ring, is `docs/collections/bestiarium-package-report.json` (`add_a_ring`). Left for the release: the phone and desktop version bumps, a CHANGELOG line (Bestiarium added, Workshop retired), the tag and the Taildrop; build reels need an emulator. A tracked `crates/ringdesign-py/tests/__pycache__/*.pyc` is rewritten by every Python smoke run and should be untracked.
+
 # Checkpoint 2026-09-26 10:10 (Claude, at the account's 5-hour limit)
 
 Every lane below was stopped mid-round by the usage limit. Resume each by starting a fresh agent in its worktree with the shared brief (`.claude/collection-review/bestiarium-lane-brief.md`), its latest review JSON (in `.claude/collection-review/`, ignored dir) and "continue round N". Uncommitted files stay on disk: commit or finish them first.
 
 | Ring | Worktree / branch | Last commit | Latest review | Next |
 |---|---|---|---|---|
-| Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | package |
-| Manticora | `bestiarium-manticora` | `9a4252f` round 3 | **shipped 7.5** (`manticora-round3-review.json`, optional polish listed) | package |
+| Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | **packaged, on master** (`89dc970`) |
+| Manticora | `bestiarium-manticora` | `9a4252f` round 3 | **shipped 7.5** (`manticora-round3-review.json`, optional polish listed) | **packaged, on master** (`89dc970`) |
 | Kraken | `bestiarium-kraken` (owns C-B1) | `670a6b8` round 2 | r2 6.5 (`kraken-round2-review.json`) | round 3, the last |
 | Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `74dceaf` round 3 | **cut at 7.0** after round 3 (`phoenix-round3-review.json`: gates green, fails the 300 px read; optional polish listed) | none (kept on its branch) |
 | Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `40ca22d` round 2 | r2 6.8 (`basiliscus-round2-review.json`) | round 3, the last |
