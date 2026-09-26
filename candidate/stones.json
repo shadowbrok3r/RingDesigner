@@ -1,0 +1,17 @@
+{
+  "stones": [
+    {
+      "dispersion": 0.0,
+      "ior": 1.54,
+      "mesh": "reference-onyx.stl",
+      "name": "Black onyx",
+      "roughness": 0.05,
+      "tint": [
+        0.014999999664723873,
+        0.014999999664723873,
+        0.019999999552965164
+      ],
+      "transmission": 0.0
+    }
+  ]
+}

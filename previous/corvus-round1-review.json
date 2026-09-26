@@ -1,0 +1,235 @@
+{
+  "ring": "Corvus — Huginn and Muninn",
+  "round": 1,
+  "candidate_head": "5df9089",
+  "verdict": "revise",
+  "score": 5.0,
+  "summary": "Revise at 5.0 (author 6.0; Caiman 7; ship needs 7.5). The export build is clean and the template lifts with 0 patches. Two release gates are red, and the ring does not read as Odin's ravens. At 300 px it reads as a black cab in a tall plain collet, with a serpent- or eel-like head lying along the band and biting it. Two heads facing a stone, on a band that runs on out of their mouths, is the double-serpent ring layout. The cause is the composition, which reverses the plan. Each beak (stamps at θ 53.3° and 126.9°) points at the stone from the middle of its own arm. Each arm therefore runs on about 55° past its bird's beak, under the stone, as a blank polished slab. The slab ends in the bypass tip's step right under the other bird's beak (tips at θ 55° and 125°). In hero and shoulder that step reads as a crack from beak root to bore edge. The plan puts the heads on the arm tips with the beaks pointing outward, which is also how Logan's RavenRing runs its beak down the band. The heads are smooth painted domes whose painted feather lanes (0.1 mm deep at most) render as streaks and a comb along the flanks. The eyes are round craters that read as rivets. The beak stamps stand only 0.07 mm at their edges over a 2.5 mm painted mass, so they read as a lozenge plate, not a mandible. There is no medium-scale feather: the shingles read as rounded tread blocks, the herringbone as a knit or wheat hatch, and the crossing tails as two faint diagonal seams. The hero's near side face and the crossing flanks are bare. The collet shows about 1.5-2 mm of plain stepped wall and outweighs the birds in the hero, whose composition repeats Arachne's black onyx in a plain bezel beside a figure. Gates: everything passes at 1536×448. The draft 768×320 release is Blocked with 1 obstruction at 0.100 mm, and the author's own gate block exits 'Corvus failed its gates' there. The 384×192 run records 1 obstruction at 0.075 mm, 0.063 mm deep, under a stamps_384 flag that does not test release. Ruling: plausibly crest-row phantoms, not proven; the gate is not met and not waived. Another round is worth it: this is the collection's only two-creature bypass, with real sculptural mass, a lean 1.09 MB graph and a clean export.",
+  "strengths": [
+    "The concept uses the bypass structurally: each arm is one bird, and this is the collection's only two-creature ring. Nothing on it is foreign: heads, beaks, plumage, tails and graver work are all raven by intent.",
+    "The export engineering at 1536×448 (1,365,176 triangles) is clean:\n- watertight, 0 degenerate faces, 0 self-crossings on the ring and on all 7 made parts;\n- solids notes empty, 6/6 stamps parting-monotone, bore clear (margin -4.5e-7 mm);\n- field Castable at 0.0118% (worst -1.11°, thinnest wall 2.35 mm) with 2.65 mm painted heads on a sliding body;\n- clamp bite 0.0022 mm at most, 0 DFM findings, cold reload identical, pattern closed and uncrossed.",
+    "I verified the template gate from target/tpl/corvus/verification.json, run on the committed design byte for byte:\n- lift with 0 design.set patches, 43 nodes, 1,091,248 bytes (36% of the 3 MB painted budget);\n- cold design, graph and editable-graph reloads all pass;\n- export geometry verified at 1536×448, with identical vertices, faces and normals.",
+    "The ring has real sculptural mass. The heads stand about 2.9 mm proud (r ≈ 15.1 mm against a 12.26 mm crest), so the side view carries two shoulder masses, a profile no other Bestiarium ring has.",
+    "The sand staging is correct:\n- the eyes and graver barbs are bench-only;\n- the collet is soldered after the pour, and the pattern carries a raised 0.8 mm drill dot;\n- each beak's culmen gable is struck on the parting line.",
+    "The palm herringbone is the densest small-scale work on the ring and reads as fine plumage in full-size close-ups.",
+    "The author's self-review was honest (smooth heads, the far-head lump, the stone-heavy hero, the weak 300 px read), and it reported the draft and 384 release hits instead of hiding them."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "pass",
+      "reason": "Every zone is raven by intent: heads and beaks at the top, plumage down both shoulders, tails at the palm, graver barbs throughout. Nothing comes from outside the subject. Caveat: the 'Onyx nest' smear and the two blank arm runs beside the collet belong to no bird, and they sit in the most-viewed zone."
+    },
+    {
+      "item": "Figurative motifs have true outlines (stamps, parts, or crisp painted relief with no combing, smearing or stair-steps)",
+      "result": "fail",
+      "reason": "- The beak stamps are true outlines, but they stand only 0.07 mm at their edges (height_mm 0.07, gable rise 0.38) over a painted beak 2.5 mm deep. The outline barely registers, and the beak reads as a lozenge plate.\n- The heads are painted domes. The skull's painted 'feathered' lanes (0.1 mm deep at most) render as streaks and a comb along the flanks in side.png.\n- The crossing tails at the palm are faint diagonal seams, not feathers.\n- The shoulder shingles read as rounded rectangular blocks."
+    },
+    {
+      "item": "Faces and eyes read well (a poor face is a defect)",
+      "result": "fail",
+      "reason": "The skulls are smooth rounded masses with none of a raven's markers: no culmen-to-crown step, no flat crown, no nasal bristles, no throat hackles. The bench-cut eyes are round craters with a raised centre (a Cone top), and they read as rivets or bolt holes in hero.png and side.png. From the hero angle the far head reads as a lump, as the author concedes."
+    },
+    {
+      "item": "Stones sit in made settings and are visible",
+      "result": "pass",
+      "reason": "The 8 × 6 onyx sits in a made bezel collet (1,728 faces, closed, 0 crossings) and is clearly visible. The stones report and the preview each count 1. The collet is soldered after the pour, and the pattern carries its drill dot. The collet itself is plain and tall: see checklist 6 and punch item 5."
+    },
+    {
+      "item": "Shoulder ornament is not cut off toward the face",
+      "result": "fail",
+      "reason": "Plumage stops at each head, and the beak tips stop at the collet. Beyond each beak, its own arm runs on as a bare polished slab past the stone: arm A over θ ≈ 70-125°, arm B over θ ≈ 55-110°. Each slab ends in the bypass tip's step under the other bird's beak (θ 55° and 125°). In hero.png and shoulder.png that step is a straight line from beak root to bore edge, and it reads as a crack."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms are sculpted",
+      "result": "fail",
+      "reason": "- stones.png: a tall cylindrical collet with a stepped double rim and about 1.5-2 mm of plain wall.\n- face.png: flat polished crossing flanks on either side of the collet.\n- shoulder.png and reverse.png: shoulder shingles that read as rounded tread blocks with inset slots.\n- hero.png: long straight lines along the band under the near head."
+    },
+    {
+      "item": "Factory stock keeps its hard wall-to-face angles",
+      "result": "n/a",
+      "reason": "Procedural bypass LowDome 6.0 × 3.0; no factory stock."
+    },
+    {
+      "item": "A silhouette distinct from the other Bestiarium rings",
+      "result": "fail",
+      "reason": "Only partly distinct. The side view's two heavy shoulder masses and the collet box are unlike any other ring in the collection. At 300 px, though, the hero repeats Arachne's composition: a black oval onyx in a plain bezel at left with a figure beside it. The face view reads as a stone flanked by two horns. The bypass crossing, the ring's one structural signature, is not legible."
+    },
+    {
+      "item": "Reads as its subject at a glance at 300 px, without the caption",
+      "result": "fail",
+      "reason": "In _contact300.png and _compare300.png the hero reads as a black cab with a serpent- or eel-like head biting it, and the face reads as a cab between two horns. Without the caption nobody would name ravens or count two birds. Heads facing a stone on a band that continues out of their mouths is the double-serpent ring."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "fail",
+      "reason": "The large forms (heads) and the small forms (barbs at 0.42 mm pitch) are there, but the medium scale is missing: there are no individual feathers of 1.5-3 mm, and the herringbone reads as hatch. The hero's near side face and the crossing flanks are bare polished metal. For comparison, Caiman reads at plate, knob and granule scale everywhere, and Logan's RavenRing carries chevron feathers about 2 mm wide that read at thumbnail size."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Finished mesh watertight, 0 degenerate faces",
+      "claimed": "Watertight; 0 boundary, non-manifold and degenerate",
+      "verified": "Export 1536×448 (report.json): 1,365,176 triangles, boundary 0, non-manifold 0, degenerate 0, watertight. Draft 768×320 (target/corvus-draft/report.json): 493,328 triangles, watertight, 0 degenerate. Not gated: min angle 0.0032°, worst aspect 17,926 (slivers).",
+      "pass": true
+    },
+    {
+      "gate": "csg::self_crossings == 0 on the ring and every made part",
+      "claimed": "0 crossings; 2 beaks, 4 eye cutters and the collet clean",
+      "verified": "mesh_self_crossings 0. Made parts all have open 0, repeated 0, degenerate 0 and self-crossings 0: Huginn and Muninn beaks (1,060 faces each), four eye cutters (460 each), collet head (1,728).",
+      "pass": true
+    },
+    {
+      "gate": "built.solids.notes empty; every stamp resolved",
+      "claimed": "Notes empty; 6/6 stamps; parting_monotone clean",
+      "verified": "Export: solids_notes [], stamped 6 of 6, parting_monotone_failures []. At 384×192: stamped 6, notes [].",
+      "pass": true
+    },
+    {
+      "gate": "Nothing enters the finger hole",
+      "claimed": "Nothing in the bore",
+      "verified": "bore_vertices_inside 0 and bore_margin -4.5e-7 mm, against the -0.01 mm allowance. Bore 18.518 mm (US 8.5).",
+      "pass": true
+    },
+    {
+      "gate": "Field verdict, sand: attributed_field_report 256×128 Castable",
+      "claimed": "Castable at 0.0118%, worst -1.11°, thinnest wall 2.35 mm",
+      "verified": "Castable, SandTwoPart DelftClay (3.0°, 0.8 mm, 0.30 mm):\n- undercut 0.158 of 1,336 mm² (0.0118%), worst -1.108°;\n- thinnest wall 2.355 mm at θ 60.5°.\nNotes to carry into round 2:\n- 0.1 mm² leaning 3° at θ 63° (Huginn's painted beak), attributed to 'Raven heads';\n- 0.1 mm² each at θ 124°, 137° and 144° (Muninn's beak and forehead), leaning 1-2°, with no single layer responsible.",
+      "pass": true
+    },
+    {
+      "gate": "Ray release 0 obstructions / 0 unresolved at 0.100 and 0.075 mm, export 1536×448",
+      "claimed": "0/0 and 0/0",
+      "verified": "0 obstructions and 0 unresolved at both pitches (grids 291×265 and 384×353, tolerance 0.020 mm). Status is 'Review' because 398.5 mm² carries under 3° (bore walls included) and there are 18-20 sand-slot advisories, several only 1-2 cells wide (punch item 7).",
+      "pass": true
+    },
+    {
+      "gate": "Ray release 0 obstructions / 0 unresolved at 0.100 and 0.075 mm, draft 768×320",
+      "claimed": "1 obstruction at 0.100 mm, called a phantom",
+      "verified": "target/corvus-draft/report.json: status Blocked. 1 obstruction (drag half, 1 sample, 0.00996 mm²) at θ 294.9°, r 13.51 mm, z -0.0324 mm, 0.0279 mm deep against the 0.020 mm tolerance. The depth equals exactly the gap to the release plane at z -0.0045 mm. The same mesh shows 0 at 0.075 mm. The author's gate block printed 'gates FAILED … release_0_1: false' and exited 'Corvus failed its gates'. The committed report.json carries no draft block at all.",
+      "pass": false,
+      "ruling": "Not met, and not waived this round.\n\nThe phantom reading is plausible:\n- each hit is a single ray cell, and the other pitch on the same mesh misses it;\n- each sits on the crest line of a painted apex, its metal top below the release plane by exactly its depth (0.028 mm at 768×320, 0.063 mm at 384×192), about half the local row pitch at each build. That is Caiman's documented 'nearest row stands off z = 0' signature;\n- the export mesh, which becomes the pattern, is clean.\n\nIt is not proven:\n- only three builds were run, and neither spot was tracked across them;\n- the true-surface field independently finds 1-2° lean at θ 137° and 144°, 10-16° from the 384 hit on the same head, and attributes a 3° lean at θ 63° to 'Raven heads';\n- the candidate planes disagree by up to 0.04 mm, twice the tolerance: field parting -0.041 mm, release plane -0.003 to -0.004 mm, export crest-line median -0.014 mm.\n\nEither of these would settle it:\n(1) A true-surface probe. Sample the design's surface, not a mesh, on a 0.005 mm z grid across θ 294.9 ± 0.5° and θ 153.5 ± 1°. Find each column's widest point and its offset from the release plane. An offset of 0.010 mm or less everywhere means phantom; 0.020 mm or more means real.\n(2) A convergence table. Build at 384×192, 512×224, 640×288, 768×320, 1024×384, 1536×448 and 2048×640, plus the row-shifted twins 768×321 and 1536×449. Release each at 0.100, 0.075 and 0.050 mm against one pinned parting plane, and list every obstruction's θ, z and depth. A phantom recurs nowhere within ±1°, and its depth tracks the row pitch. A real obstruction recurs and converges above 0.020 mm.\n\nThe cheaper path is punch item 1: remove the mechanism so all three builds read 0/0, which is what the gate asks for anyway."
+    },
+    {
+      "gate": "Gates at 384×192 (the ring carries stamps)",
+      "claimed": "1 obstruction at 0.075 mm on Muninn's skull, called a phantom; stamps_384 true",
+      "verified": "At 384×192 the stamp checks pass: watertight, 0 degenerate, 0 crossings, 6/6 stamped, notes []. Release at 0.100 mm is 0/0, but at 0.075 mm there is 1 obstruction at θ 153.5°, r 15.16 mm, z -0.071 mm, 0.063 mm deep (3× the tolerance). gates.stamps_384 reads true only because the flag (bestiarium_corvus.rs lines 1154-1158) tests notes, stamp count, watertightness, degenerates and crossings, not the release it records. The brief says to run the gates at 384×192. See the ruling above.",
+      "pass": false
+    },
+    {
+      "gate": "Every skin::draft_clamp bite at most 0.05 mm",
+      "claimed": "At most 0.0022 mm",
+      "verified": "Onyx nest 0.0008 mm, Raven plumage 0.0005 mm, Raven heads 0.0022 mm; 0 texels cut on each.",
+      "pass": true
+    },
+    {
+      "gate": "dfm::findings_in returns 0 findings",
+      "claimed": "0",
+      "verified": "dfm [] at export.",
+      "pass": true
+    },
+    {
+      "gate": "stones::report count equals the preview count; crowding clean",
+      "claimed": "1 stone reported and previewed",
+      "verified": "Reported 1, previewed 1, 1.194 ct, tight_pairs 0, warnings []. stones.json lists the black onyx with reference-onyx.stl.",
+      "pass": true
+    },
+    {
+      "gate": "--verify cold reload identical at export",
+      "claimed": "Identical",
+      "verified": "cold_reload_identical true at 1536×448. The gate block compares vertices, faces and normals.",
+      "pass": true
+    },
+    {
+      "gate": "Sand pattern mesh watertight, 0 degenerates, 0 crossings",
+      "claimed": "Pattern clean",
+      "verified": "1,368,160 triangles; open 0, repeated 0, degenerate 0, self-crossings 0, notes []. Bench layers are left out: Graver's work, the 4 eyes and the collet setting. Pattern scale 1.01937.",
+      "pass": true
+    },
+    {
+      "gate": "Export within the 2,000,000 triangle budget",
+      "claimed": "1,365,176",
+      "verified": "1,365,176; pattern 1,368,160.",
+      "pass": true
+    },
+    {
+      "gate": "Template gate: at most 4 design.set patches, within the painted budget, cold parity",
+      "claimed": "0 patches, 43 nodes, 1,091,248 bytes against 3 MB; cold reloads and export parity pass",
+      "verified": "target/tpl/corvus/verification.json, run on a source design byte-identical to the committed one:\n- design_set_patches [], nodes 43, template_bytes 1,091,248 of 3,000,000;\n- cold design, graph and editable-graph reloads true;\n- export geometry verified at 1536×448, vertices, faces and normals identical;\n- template_gate_passed true.",
+      "pass": true
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "high",
+      "zone": "Gate block in bestiarium_corvus.rs (the stamps_384 flag at lines 1154-1158 and the report assembly), plus every painted apex on the crest: the primaries' fan apex at θ 285-305° and both heads' crests and foreheads",
+      "change": "(a) Make stamps_384 require 0 obstructions and 0 unresolved rays at both 0.100 and 0.075 mm.\n(b) Write the draft 768×320 release blocks into report.json beside the export and 384 blocks, each with θ, r, z and depth for every obstruction.\n(c) Remove the crest-row mechanism by construction:\n- Hold every painted apex that sits on the parting line flat along the ring for ±0.3 mm across the crest (CREST_FLAT 0.1 → 0.3 mm in those windows).\n- End the primaries' fan before its rays converge on the crest, or move its apex at least 0.5 mm off it.\n- Seat painted crests on the interpolated crest (setting::crest_v or Hide::crest_at), not on the nearest atlas row. This is Caiman's rule for anything pointed on the crest.\n(d) If a single-cell hit survives and is still called a phantom, attach the true-surface probe or the convergence table from the gate ruling.",
+      "acceptance": "report.json shows 0 obstructions and 0 unresolved rays at both 0.100 and 0.075 mm at 384×192, 768×320 and 1536×448. The draft run exits 0 with gates_passed true, and stamps_384 is true under the tightened definition."
+    },
+    {
+      "number": 2,
+      "priority": "high",
+      "zone": "Crossing and upper shoulders, θ ≈ 10-170°: stamps 'Huginn, beak' and 'Muninn, beak'; layers 'Raven heads', 'Onyx nest' and 'Raven plumage'",
+      "change": "Restore the plan's composition. Each bird runs the full length of its arm, with its head at the arm's tip beside the stone and its beak pointing outward ('thought and memory sent out').\n- Today's Huginn rides the arm that ends at θ 125°, and his body stays on the θ < 90° shoulder:\n  - his neck crosses under the collet;\n  - his skull covers θ ≈ 110-135°, its rear against the collet skirt, with the arm's rounded tip under his throat;\n  - his beak lies on the parting line from θ ≈ 135° outward, tip no further than θ 170° (flip rot_deg).\n- Muninn mirrors him: skull θ ≈ 45-70°, beak θ ≈ 10-45° pointing outward.\n- Sizes along the crest: skull 5.0-6.0 mm, beak 6.0-7.2 mm.\n- Raise each struck beak's edge from 0.07 mm to 0.30-0.35 mm, with a gable rise of 0.35-0.45 mm. Alternatively use the plan's fallback 2, a Ridge falling toward the tip. Either way the mandible outline must read, and the beak stays parting-monotone.\n- Replace the 'Onyx nest' smear on the crossing flanks with the feathers of the two crossed necks, so no polished run longer than 2 mm lies between the collet and a head.\nWhy: nothing in front of a bird's face can account for the arm running on past its beak. On a bypass, the facing layout will always read as a serpent biting the band.",
+      "acceptance": "Add hero-300.png and face-300.png to the output. At 300 px:\n- face: the stone sits between two heads whose beaks point away from it, toward 3 and 9 o'clock;\n- hero: one raven head in profile beside the stone, with its beak running down the near shoulder;\n- no straight tip seam from beak root to bore edge appears in hero, face or shoulder.\nShown uncaptioned to a fresh reviewer, the hero, face and side views at 300 px are named as raven, crow or bird (not snake, lizard or fish), and two heads are counted. Stamps stay resolved and parting-monotone, and the field stays Castable."
+    },
+    {
+      "number": 3,
+      "priority": "high",
+      "zone": "Both skulls and beaks after item 2: layer 'Raven heads', the four eye stamps, and the plumage and graver alphas under the head footprint",
+      "change": "- Profile. These all vary only along the ring on the parting line, which pulls:\n  - the culmen arches from the tip up to the root;\n  - a forehead step of at least 0.5 mm over no more than 1.0 mm;\n  - a flat crown at least 2.5 mm long;\n  - a nape dip of at least 0.6 mm into the neck feathers.\n- Eyes. Replace the round Cone cutter with an almond 1.1 × 0.7 mm bench cut, with no raised centre, at the front third of the skull. Set it in a socket stepped 0.3-0.4 mm down from the crown's edge; a step that falls away from the parting line is legal.\n- Throat hackles, the raven's diagnostic beard. Strike 6-8 lanceolate stamps per side face under each skull:\n  - 1.6-2.4 mm long, 0.5-0.7 mm wide, 0.30 mm proud;\n  - pointing back along the ring and shingled;\n  - on the side faces, so their walls stand along the pull.\n- Nasal bristles. Add a bench-only engraved tuft of 5-7 forward-lying lines over each beak root.\n- Clean mass. Drop the skull's painted 'feathered' lanes (0.1 mm deep at most). Mask the plumage and graver alphas out of the head footprint with a 0.3 mm fade, so skull and beak read as one clean glossy mass. Any crown texture should be cast scallops 0.8-1.0 mm across with strokes of at least 0.35 mm.",
+      "acceptance": "- A new head.png (a three-quarter close-up of one head at 3× or more the hero scale) shows the beak, forehead step, flat crown and nape dip, the almond eye under its step, and hackles on the side face, with no streaks or comb on the skull.\n- side.png shows the beak, forehead, crown and nape silhouette on both heads.\n- The field report attributes no undercut to 'Raven heads'.\n- DFM stays at 0, and every stamp is resolved and parting-monotone."
+    },
+    {
+      "number": 4,
+      "priority": "high",
+      "zone": "Bodies from the crossed necks down both shoulders to the palm, on the outer surface and both side faces: layer 'Raven plumage' plus new wing stamps",
+      "change": "- Side faces. Fold a wing on each bird as 6-8 true-outline primaries (outline::quill or lanceolate):\n  - 7-10 mm long along the ring, 0.9-1.2 mm wide, 0.30-0.40 mm proud;\n  - shingled, with the tips toward the palm;\n  - struck with stamp_row(RowPath::SideFace), walls along the pull.\n  Choose the face per station on the built ring, because the arms slide. Keep the wings flat on the band, so Corvus does not overlap Harpyia's lofted wings.\n- Crown. Replace the rounded-rectangle shingles with contour feathers that have outlined tips:\n  - scalloped or pointed tips, graded from 1.0 mm near the heads to 2.4 mm on the backs;\n  - tips toward the palm, each row stepping down at least 0.20 mm toward it.\n- Keep the herringbone barbs only as bench graver work inside those feathers, never as the feather pattern itself.",
+      "acceptance": "- At 300 px, side.png and hero.png show countable feathers on every shoulder and side face: at least 12 distinct feather outlines per shoulder in side.png, the way the chevrons read on Logan's RavenRing.\n- In hero.png the near side face has no bare polished run longer than 3 mm between θ 190° and 350°.\n- DFM stays at 0, clamp bite stays at or under 0.05 mm, the field stays Castable, and stamps stay parting-monotone."
+    },
+    {
+      "number": 5,
+      "priority": "medium",
+      "zone": "Crossing top, θ ≈ 70-110°: seat 'Onyx, made collet' (GypsyMound, height_mm 0.55, Bezel) and whatever replaces 'Onyx nest'",
+      "change": "Cut the plain wall showing above the surrounding metal from about 1.5-2 mm to 0.8 mm or less:\n- lower the gypsy pad (height_mm 0.55 → about 0.25);\n- sink the girdle with set_depth_mm as far as the bezel lip allows;\n- bring the necks' feather relief up to the collet's foot on all sides.\nOnly the collet's lip should ring the stone, with no stepped second rim. Read the onyx as Odin's eye between his ravens, not as a chimney.",
+      "acceptance": "- stones.png shows 0.8 mm or less of plain collet wall above the surrounding relief on every side.\n- In hero.png the two heads together cover more image area than the collet and stone.\n- The stones report and the preview still count 1, and the pattern keeps its drill dot."
+    },
+    {
+      "number": 6,
+      "priority": "medium",
+      "zone": "Palm, θ ≈ 245-295°: tails in 'Raven plumage'",
+      "change": "Paint two wedge tails, one per bird, pointing opposite ways round the ring and interleaving at 270°:\n- 5 rectrices each, 1.1-1.3 mm wide;\n- central feather 9-11 mm long, outer ones 6-7 mm, with rounded tips;\n- each outer feather stepping down 0.20-0.25 mm from the central pair, the one shingle the plan proves legal.\nKeep the barbs inside the feathers as bench work only. This also removes the fan apex that produced the draft hit at θ 294.9°.",
+      "acceptance": "- palm.png at 300 px shows two opposed wedge silhouettes, each with at least 5 countable feather tips.\n- Release is 0/0 at θ 285-305° at all three builds."
+    },
+    {
+      "number": 7,
+      "priority": "low",
+      "zone": "Export release sand_findings: z ±2.28 mm near θ 12°, 24° and 156° (0.07-0.15 mm wide), and on the parting plane beside today's beaks and foreheads (θ ≈ 41°, 66°, 76°, 104°, 114° and 139°)",
+      "change": "After items 2-4, re-read sand_findings. Close or widen every sand slot under Delft's 0.30 mm floor: a sand fin 0.07-0.15 mm thick will not survive packing, and it pours as flash.",
+      "acceptance": "The export release lists no sand slot under 0.30 mm, or the report names each remaining slot with its bench treatment."
+    }
+  ],
+  "viewed_images": [
+    ".claude/collection-review/corvus-round1/hero.png",
+    ".claude/collection-review/corvus-round1/face.png",
+    ".claude/collection-review/corvus-round1/side.png",
+    ".claude/collection-review/corvus-round1/palm.png",
+    ".claude/collection-review/corvus-round1/shoulder.png",
+    ".claude/collection-review/corvus-round1/reverse.png",
+    ".claude/collection-review/corvus-round1/stones.png",
+    ".claude/collection-review/corvus-round1/bare-vs-finished.png",
+    ".claude/collection-review/corvus-round1/_contact300.png (hero, face, side, palm, shoulder, reverse at 300 px)",
+    ".claude/collection-review/corvus-round1/_compare300.png (Arachne, Caiman, Corvus and Phoenix round-1 heroes at 300 px)",
+    ".claude/collection-review/corvus-round1/_arachne_vs_corvus300.png (Arachne and Corvus face and side at 300 px)",
+    ".claude/collection-review/corvus-round1/_crop_head_plumage.png (hero near head; shoulder plumage)",
+    ".claude/collection-review/corvus-round1/_crop_lower_face.png (hero lower band; face collet and beaks)",
+    ".claude/collection-review/corvus-round1/_crop_palm_sidehead.png (palm tails; side-view head)",
+    ".claude/collection-review/corvus-round1/_zb_raven_top.png (Logan's RavenRing, cropped from zbrush_top.png)",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png",
+    ".claude/collection-review/zbrush_top.png",
+    ".claude/collection-review/zbrush_sheet.png",
+    ".claude/collection-review/refs/arachne/hero.png"
+  ]
+}
