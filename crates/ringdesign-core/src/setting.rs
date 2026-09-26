@@ -1076,6 +1076,13 @@ pub fn claw_parts_reach_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails
     let d = wire_mm;
     let count = claw_count(gem, prongs);
     let depth = p + 0.2;
+    // Whether a rail will tie the claws, as `claw_head_styled` judges it.
+    let tied = match rails {
+        Rails::Seat => true,
+        Rails::Base => gem.w_mm >= 1.6,
+        Rails::None => false,
+        Rails::Basket(n) => n > 0,
+    };
     let mut parts = Vec::new();
     for (claw, phi) in grouped_claw_angles(&plan, count, wire_mm, options.grouping).into_iter().enumerate() {
         let (o, n) = (plan.point(phi), plan.normal(phi));
@@ -1123,6 +1130,22 @@ pub fn claw_parts_reach_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails
             };
             let mut z = own;
             let reached = met.reached;
+            // An untied foot whose own base already lies deeper in the metal than the scan accepts is raised up its
+            // own line until its inner edge sinks FOOT_SINK_MM, instead of being called free; a tied one keeps today's foot.
+            if !tied && let Some(metal) = floor(inner(own)).filter(|metal| own < metal - FOOT_SINK_MM - 0.5) {
+                let mut lifted = metal - FOOT_SINK_MM;
+                for _ in 0..16 {
+                    let Some(metal) = floor(inner(lifted)) else { break };
+                    if (metal - FOOT_SINK_MM - lifted).abs() < 1e-12 { break; }
+                    lifted = metal - FOOT_SINK_MM;
+                }
+                let lifted = lifted.min(start[1] - 0.4);
+                if floor(inner(lifted)).is_some_and(|metal| lifted <= metal - FOOT_SINK_MM + 1e-9) && keeps(lifted) {
+                    base_z = lifted;
+                    met.reached += 1;
+                    z = own - CLAW_REACH_MM;
+                }
+            }
             while z > own - CLAW_REACH_MM {
                 if !keeps(z) {
                     met.walled += 1;
@@ -3392,6 +3415,37 @@ mod tests {
         // With no floor at all there is nothing to stand in and nothing to refuse.
         let (_, met) = claw_parts_reach_styled(gem, 4, wire, Rails::None, None, None, ClawOptions::default()).unwrap();
         assert_eq!(met, Reach::default());
+    }
+
+    #[test]
+    fn railless_claws_buried_by_a_sloped_table_rise_to_their_sink() {
+        // Fenrir's moon: a 10 mm cabochon, four Jaws fangs on a 1.5 mm wire; and a faceted stone whose feet have room to rise.
+        let fang = ClawOptions { style: ClawStyle::Fang, grouping: ClawGrouping::Jaws, tip: ClawTip::Point, rise: CAB_RISE };
+        for (gem, wire) in [(Gem::cabochon(GemCut::Round, 10.0), 1.5), (Gem::calibrated(GemCut::Round, 6.5), prong_wire_mm(Gem::calibrated(GemCut::Round, 6.5)))] {
+            let who = format!("{:?} {} mm", gem.form, gem.w_mm);
+            // Each claw's own foot, the start of its path, and the metal under that foot's inner edge.
+            let feet = |parts: &[Named]| parts.iter().filter(|p| p.names[0].starts_with("Claw ")).map(|p| p.solid.v[p.solid.v.len() - 2]).collect::<Vec<P3>>();
+            let under = |f: P3, floor: Floor| { let l = f[0].hypot(f[1]); floor([f[0] * (1.0 - 0.60 * wire / l), f[1] * (1.0 - 0.60 * wire / l)]).unwrap() - f[2] };
+            let (free, _) = claw_parts_reach_styled(gem, 4, wire, Rails::None, None, None, fang).unwrap();
+            let own = feet(&free)[0][2];
+            // A table sloping 4 degrees across the stone, under every foot deeper than the scan accepts.
+            let slope = 4f64.to_radians().tan();
+            let floor = move |p: [f64; 2]| Some(own + 1.35 + p[0] * slope);
+            let (parts, met) = claw_parts_reach_styled(gem, 4, wire, Rails::None, Some(&floor), None, fang).unwrap();
+            assert_eq!(met, Reach { reached: 4, walled: 0, free: None }, "{who}");
+            let head = claw_head_named_styled(gem, 4, wire, Rails::None, Some(&floor), fang).unwrap_or_else(|e| panic!("{who}: {e}"));
+            sound(&head.solid, &who);
+            for (k, (f, bare)) in feet(&parts).into_iter().zip(feet(&free)).enumerate() {
+                let sink = under(f, &floor);
+                assert!(sink >= FOOT_SINK_MM - 1e-9, "{who}: claw {} sinks {sink:.4} mm", k + 1);
+                // A foot with room to rise stops exactly FOOT_SINK_MM in; one already at its head's own base stays there.
+                if f[2] > bare[2] + 1e-9 { assert!((sink - FOOT_SINK_MM).abs() < 1e-6, "{who}: claw {} sinks {sink:.6} mm", k + 1); }
+                else { assert_eq!(f, bare, "{who}: claw {}", k + 1); }
+            }
+            // A rail ties the claws, so its head keeps today's feet over the same table.
+            let (_, tied) = claw_parts_reach_styled(gem, 4, wire, Rails::Base, Some(&floor), None, fang).unwrap();
+            assert!(tied.free.is_some(), "{who}: {tied:?}");
+        }
     }
 
     #[test]
