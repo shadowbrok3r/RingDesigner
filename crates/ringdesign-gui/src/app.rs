@@ -699,6 +699,12 @@ impl RingDesignerApp {
         self.generation
     }
 
+    /// The generation of the build on screen.
+    #[cfg(test)]
+    pub(crate) fn landed_generation(&self) -> u64 {
+        self.node_focus.mesh_generation
+    }
+
     /// Stops the template or file opening and takes down the plate of one that landed: a document that replaces the design replaces them. The name of the one stopped.
     pub fn drop_opening(&mut self) -> Option<ringdesign_workbench::templates::Name> {
         self.opened_building = None;
@@ -870,7 +876,10 @@ impl RingDesignerApp {
         }
         match self.worker.done.try_recv() {
             Ok(WorkerMsg::Failed { generation, message }) => {
-                self.in_flight = false;
+                // A superseded build's result leaves the newest one in flight.
+                if generation == self.generation {
+                    self.in_flight = false;
+                }
                 if self.opened_building.as_ref().is_some_and(|(_, g, _)| generation >= *g) {
                     self.opened_building = None;
                 }
@@ -883,7 +892,10 @@ impl RingDesignerApp {
                 }
             }
             Ok(WorkerMsg::Done(mut done)) => {
-                self.in_flight = false;
+                // A superseded build's result leaves the newest one in flight.
+                if done.generation == self.generation {
+                    self.in_flight = false;
+                }
                 if self.opened_building.as_ref().is_some_and(|(_, g, _)| done.generation >= *g) {
                     self.opened_building = None;
                 }
