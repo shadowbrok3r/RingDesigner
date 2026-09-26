@@ -3464,6 +3464,16 @@ a 4 GB `-v` cap fails ~10 unrelated tests that pass individually, which reads as
 a regression that is not there. `MemoryMax` caps actual RSS, which is what
 matters.
 
+**Never build two checkouts into one target directory.** Cargo gives a
+workspace member the same build hash in a git worktree as in the main checkout,
+so a `CARGO_TARGET_DIR` shared between them shares build-script outputs, and
+`ringdesign-assets` keeps the bundle of whichever checkout last swept its files:
+its `rerun-if-changed` paths point there, so a template changed in the other
+checkout never re-runs it. On 2026-09-26 master's graph tests ran against a
+worktree's two-day-old templates and failed four ways with nothing wrong. Give
+every worktree its own `target/`; after a shared build, `cargo clean -p
+ringdesign-assets`.
+
 Anything sized by a `u32`/`usize` struct field rather than a constant needs an
 explicit cap. `MAX_CELLS` is the pattern: clamp the loop bounds *and* break on
 the accumulated length, and keep `cell_size` on the unclamped counts so

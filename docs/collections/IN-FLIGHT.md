@@ -11,7 +11,7 @@ Codex's account hit its usage limit at 10:14 MDT on 2026-09-25 and cannot resume
   - Harpyia next, from the spike on `codex/harpyia-feather-spike` (probe committed as `826f825`), owning an enabler C-B4 for a closed feather construction, because the kernel loft tessellates open.
 - Arachne's validated pattern export is committed as `a44f55c` on `bestiarium-arachne`.
 - **Starter gallery part 1 is on master** as merge `bc697ba` (validated at `867967e`: 41 checks, 1,854 tests, `starters-part1-report.json`). Stocks open as measured: 002, 006, 015, 017 in Delft; 001, 003, 005, 007, 012, 013, 016 in wax after failed sand trials; the nine upright plans in wax. Open follow-ups:
-  - the split shank's and split gallery's thumbnails do not show the Y or the window at 160 px (lane asked to re-frame them);
+  - (done, merge `600ac22`) the split shank and split gallery re-framed and opened up so the Y and the window read at 160 px;
   - Trilogy's side head has 2 degenerate faces in its own part mesh at export chords of 512 steps and up (the joined ring is clean; the fix belongs in the claw builder);
   - the desktop "Imported signet base" picker shows a sand-master stock's raw source name instead of selecting its preset;
   - the phone's retired "Imported signet base..." menu entry needs a CHANGELOG line at the next release.

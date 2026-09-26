@@ -149,6 +149,12 @@ static per collection in `ringdesign-graph/src/templates.rs`; a menu group in
   (`ringdesign-gui` with `--test-threads=1`; the graph suite with `--no-fail-fast`). Never edit
   sources between the two. The machine has no swap.
 - Heavy ring builds run in release under `systemd-run --user --scope -p MemoryMax=8G --quiet --`.
+- Every worktree builds into its own `target/`. Never point `CARGO_TARGET_DIR` at another checkout's:
+  the checkouts then share build-script outputs and the asset bundle silently keeps the other
+  checkout's templates (CLAUDE.md, "Running the tests").
+- CI runs `cargo test --workspace --locked` on a four-core runner with default test threads and
+  stops at the first failing binary. Emulate it before pushing platform work:
+  `systemd-run --user --scope -p MemoryMax=14G --quiet -- taskset -c 0-3 cargo test --workspace --locked --offline --no-fail-fast`.
 - Zero warnings (`cargo check --offline --workspace --all-targets`). Also: the phone
   (`cargo test --offline -p ringdesigner_android`, and from `crates/ringdesigner-android` with
   `ANDROID_NDK_HOME=~/Android/Sdk/ndk/28.0.12674087`: `cargo ndk -t arm64-v8a check -p ringdesigner_android`),
