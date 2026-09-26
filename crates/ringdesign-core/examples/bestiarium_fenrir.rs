@@ -1586,6 +1586,8 @@ const SCULPT_FACES: usize = 120_000;
 const HEAD_BLEND_MM: f64 = 0.0;
 /// The ruff's relief and the palm's fetter, mm.
 const RUFF_MM: f64 = 0.6;
+/// How far the ruff's rows beside the head lean back toward the ears, degrees.
+const RUFF_LEAN_DEG: f64 = 42.0;
 const GLEIPNIR_MM: f64 = 0.6;
 const BINDING_MM: f64 = 0.5;
 const HAIR_LINES_MM: f64 = 0.08;
@@ -2279,7 +2281,12 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Wolf)
             let h = hide.at(s);
             let q = wolf.face(s.p);
             let apex = smooth(-7.8, -8.8, q[1]) * smooth(-0.6, -1.6, q[2]) * (1.0 - smooth(5.0, 6.5, q[0].abs()));
-            let (lock, line) = fur(h.along.abs(), h.across);
+            // Beside the head the ruff's first rows lean back toward the ears as the head's own cheek fur does, and
+            // straighten out along the ring by 7 mm on; the chart's `across` grows toward +z, away from the ears.
+            let lean = RUFF_LEAN_DEG.to_radians() * (1.0 - smooth(11.0, 18.0, h.along.abs()));
+            let (sn, cs) = lean.sin_cos();
+            let (al, ac) = (h.along.abs() * cs - h.across * sn, h.along.abs() * sn + h.across * cs);
+            let (lock, line) = fur(al, ac);
             let (down, down_line) = fur(-q[2] - 0.6, q[0]);
             ((lock * (1.0 - apex)).max(down * apex), (line * (1.0 - apex)).max(down_line * apex))
         };
@@ -3372,6 +3379,14 @@ fn main() -> Result<()> {
         }
         let gem = moonstone();
         println!("girdle over the table {:.3}, crown {:.3}, pavilion {:.3}", builders::stand_off_mm(builders::CLAW, gem), gem.crown_mm(), gem.pavilion_mm());
+        let hide = Hide::of(&a);
+        for x in [a.width / 8, a.width / 8 + 60, 3 * a.width / 8] {
+            for y in [a.height / 4, a.height / 2, 3 * a.height / 4] {
+                let s = a.at(x, y);
+                let h = hide.at(s);
+                println!("  sample at world ({:.2}, {:.2}, {:.2}): along {:.2}, across {:.2}", s.p[0], s.p[1], s.p[2], h.along, h.across);
+            }
+        }
         return Ok(());
     }
     if args.iter().any(|a| a == "--sculpt") {
