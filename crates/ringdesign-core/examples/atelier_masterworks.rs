@@ -179,7 +179,7 @@ fn palisade() -> RingDesign {
         let mut seat = SeatPadLayer { v_mm: crest, style: SeatStyle::GypsyMound, height_mm: 0.36, crown: 1.0, blend_mm: 0.45, solid: SolidKind::Flush, through: true, ..Default::default() };
         let gem = Gem::calibrated(GemCut::Round, 1.75);
         seat.fit_stone(gem);
-        let run = SeatRunLayer { seat, count: 17, gem, bridge_mm: 0.85, taper: 0.45, taper_theta_deg: TOP_DEG, shared_prong_mm: 0.0, tilt_deg: 0.0 };
+        let run = SeatRunLayer { seat, count: 17, gem, bridge_mm: 0.85, taper: 0.45, taper_theta_deg: TOP_DEG, shared_prong_mm: 0.0, tilt_deg: 0.0, centre_phase: None };
         let mut e = LayerEntry::new(name, Layer::SeatRun(run));
         e.window = Window { fade_deg: 0.5, ..Window::around(TOP_DEG + side * 70.0, 64.0) };
         d.layers.layers.push(e);

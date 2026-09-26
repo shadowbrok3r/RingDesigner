@@ -362,6 +362,24 @@ mod tests {
     }
 
     #[test]
+    fn a_centred_seat_run_fences_graphs_and_presets_while_an_anchored_one_stays_plain() {
+        use super::*;
+        use crate::graph::Mode;
+        use ringdesign_core::field::SeatRunLayer;
+        for (phase, expected) in [(None, PLAIN_GRAPH_FORMAT_VERSION), (Some(0.5), GRAPH_FORMAT_VERSION)] {
+            let run = serde_json::json!({"SeatRun": SeatRunLayer { taper: 0.4, centre_phase: phase, ..SeatRunLayer::default() }});
+            let mut g = Graph::new("Graded row", Mode::Free);
+            let node = g.add("layer.seatrun").unwrap();
+            g.set_input(node, "layer", Literal::Json(run.clone())).unwrap();
+            assert_eq!(graph_version_for(&g), expected);
+            let text = graph_to_string(&g).unwrap();
+            assert_eq!(read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).is_err(), phase.is_some());
+            let preset = Preset { values: [("Row".into(), Literal::Json(run))].into_iter().collect(), ..Default::default() };
+            assert_eq!(preset_version_in(&preset, None), expected);
+        }
+    }
+
+    #[test]
     fn template_controls_fence_graphs_clusters_and_presets_from_released_readers() {
         use super::*;
         use crate::graph::Mode;
