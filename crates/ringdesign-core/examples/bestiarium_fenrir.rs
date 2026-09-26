@@ -228,12 +228,16 @@ impl Stock {
 const BORE_CLEAR_MM: f64 = 0.35;
 /// How deep the sculpt reaches under the stock's surface, mm.
 const BURY_MM: f64 = 0.6;
-/// No sculpt within this radius of the moon's axis over the table, so the stone drops into its claws.
-const KEEP_OUT_MM: f64 = 5.06;
-/// The gums round the moon stand this high over the table, over the fangs' collar, mm.
-const GUM_H: f64 = 1.0;
+/// No sculpt within this radius of the moon's axis over the table, so the stone drops past the gums.
+const KEEP_OUT_MM: f64 = 5.03;
+/// The gums round the moon stand this high over the table, over the fangs' base rail, mm.
+const GUM_H: f64 = 1.1;
 /// Half the angle each open mouth corner spans at the moon's side, degrees.
-const CORNER_DEG: f64 = 15.0;
+const CORNER_DEG: f64 = 16.0;
+/// The fangs' bearing round the moon, degrees from +x.
+const FANG_DEG: f64 = 73.4;
+/// Where the facial fur flows toward, beyond each ear: face `x` and `u`.
+const FUR_SINK: (f64, f64) = (11.5, 12.5);
 
 /// A point `rho` from the moon's axis, `deg` from +x toward +u, at height `h`.
 fn rim(rho: f64, deg: f64, h: f64) -> P3 {
@@ -241,10 +245,8 @@ fn rim(rho: f64, deg: f64, h: f64) -> P3 {
     [rho * c, MOON_U + rho * s, h]
 }
 
-/// Distance from `p` to the box `lo`..`hi`, zero inside.
-fn box_gap(p: P3, lo: P3, hi: P3) -> f64 {
-    let d: P3 = std::array::from_fn(|k| (lo[k] - p[k]).max(p[k] - hi[k]).max(0.0));
-    len(d)
+fn bell(x: f64, c: f64, w: f64) -> f64 {
+    (-((x - c) / w).powi(2)).exp()
 }
 
 /// Distance in the section plane to an isosceles trapezoid `r1` half-wide at `y = -he`, `r2` at `y = he`.
@@ -259,7 +261,7 @@ fn trapezoid(p: [f64; 2], r1: f64, r2: f64, he: f64) -> f64 {
     s * (ca[0] * ca[0] + ca[1] * ca[1]).min(cb[0] * cb[0] + cb[1] * cb[1]).sqrt()
 }
 
-/// A tooth: a thick body from `root` to `knee`, then a short point to `tip`, with radii at the three.
+/// A tooth: a stout body from `root` to `knee`, then a short point to `tip`, with radii at the three.
 struct Tooth {
     name: String,
     root: P3,
@@ -269,61 +271,83 @@ struct Tooth {
 }
 
 impl Tooth {
+    fn new(name: String, root: P3, tip: P3, r_root: f64) -> Self {
+        let l = len(sub(tip, root));
+        let knee = lerp3(tip, root, (0.52 / l.max(1e-9)).min(0.6));
+        Self { name, root, knee, tip, r: [r_root, 0.42, 0.06] }
+    }
     fn sdf(&self, q: P3) -> f64 {
-        smin(round_cone(q, self.root, self.knee, self.r[0], self.r[1]), round_cone(q, self.knee, self.tip, self.r[1], self.r[2]), 0.12)
+        smin(round_cone(q, self.root, self.knee, self.r[0], self.r[1]), round_cone(q, self.knee, self.tip, self.r[1], self.r[2]), 0.1)
     }
 }
 
-/// A lock of fur swept through `pts` (point, radius), flattened along `n` by `flat`, strands along it.
-struct Lock {
-    name: String,
-    pts: Vec<(P3, f64)>,
-    n: P3,
-    flat: f64,
-    lo: P3,
-    hi: P3,
+/// Where the upper lip's inner edge stands from the moon's axis, and how high, by moon bearing in degrees: three
+/// scallops over the incisors, lifted and drawn back over each fang, pulled well back over the premolars.
+fn upper_lip(deg: f64) -> (f64, f64) {
+    let a = (90.0 - (90.0 - deg).abs()).clamp(CORNER_DEG, 90.0);
+    let scallops = if a > 76.0 { (3.0 * PI * (a - 76.0) / 28.0).sin().powi(2) } else { 0.0 };
+    let rho = 5.7 + 0.95 * bell(a, 38.0, 17.0) - 0.2 * scallops + 0.3 * bell(a, FANG_DEG, 5.0);
+    let h = lerp(1.8, 2.4, smooth(CORNER_DEG, 88.0, a)) + 0.4 * bell(a, FANG_DEG, 5.5);
+    (rho, h)
 }
 
-impl Lock {
-    fn new(name: String, pts: Vec<(P3, f64)>, n: P3, flat: f64) -> Self {
-        let pad = pts.iter().map(|p| p.1).fold(0.0, f64::max) + 0.1;
-        let lo = std::array::from_fn(|k| pts.iter().map(|p| p.0[k]).fold(f64::MAX, f64::min) - pad);
-        let hi = std::array::from_fn(|k| pts.iter().map(|p| p.0[k]).fold(f64::MIN, f64::max) + pad);
-        Self { name, pts, n, flat, lo, hi }
-    }
-    fn squash(&self, p: P3) -> P3 {
-        let o = self.pts[0].0;
-        let d = sub(p, o);
-        let k = dot(d, self.n);
-        add(o, add(sub(d, mul(self.n, k)), mul(self.n, k * self.flat)))
-    }
-    fn sdf(&self, s: P3) -> f64 {
-        let gap = box_gap(s, self.lo, self.hi);
-        if gap > 0.6 {
-            return gap;
+/// Where the lower lip's inner edge stands from the moon's axis, and how high: near the moon at the corners, falling
+/// away toward the chin.
+fn lower_lip(deg: f64) -> (f64, f64) {
+    let a = deg.clamp(-90.0, -CORNER_DEG);
+    let rho = 6.0 + 0.35 * bell(a, -32.0, 9.0) + 0.75 * smooth(-45.0, -90.0, a);
+    let h = lerp(1.6, 1.25, smooth(-CORNER_DEG, -90.0, a)) + 0.3 * bell(a, -FANG_DEG, 5.5);
+    (rho, h)
+}
+
+/// How far from the moon's axis the mandible's outline runs at bearing `deg`: close under the corners, narrowing to
+/// a pointed chin.
+fn jaw_out(deg: f64) -> f64 {
+    let a = deg.clamp(-90.0, -CORNER_DEG);
+    7.2 - 0.25 * smooth(-40.0, -CORNER_DEG, a) + 1.0 * smooth(-50.0, -90.0, a)
+}
+
+/// A lock's relief with two hair grooves along it, from a flame.
+fn combed(f: Flame) -> f64 {
+    f.h * (1.0 - 0.14 * (0.5 + 0.5 * (2.0 * PI * f.across).cos()) * smooth(0.15, 0.5, f.h))
+}
+
+/// The facial fur, 0..1: flames flowing up and out toward a point past each ear, in a chart whose scale grows with the
+/// distance from that point, so the locks run long at the jowls and short by the eyes.
+fn cheek_fur(s: P3) -> f64 {
+    let (dx, du) = (FUR_SINK.0 - s[0], FUR_SINK.1 - s[1]);
+    let d = dx.hypot(du).max(0.5);
+    let k = 14.3;
+    combed(flames(k * (15.0 / d).ln(), k * du.atan2(dx), 1.55, 4.0, 0.16, 0.35, 5))
+}
+
+/// Fur over the crown, flowing back from the brows between the ears, 0..1.
+fn crown_fur(s: P3) -> f64 {
+    combed(flames(s[1] - 6.3, s[0], 1.5, 3.3, 0.16, 0.35, 31))
+}
+
+/// Fur on the throat, flowing down the apex wall, 0..1.
+fn throat_fur(s: P3) -> f64 {
+    combed(flames(-s[2] - 0.4, s[0], 1.4, 3.0, 0.16, 0.35, 53))
+}
+
+/// A raised fold of skin along a bowed curve from `a` to `b` (face `x`, `u`), tapering at both ends.
+fn fold(q: P3, a: (f64, f64), b: (f64, f64), bow: f64, amp: f64) -> f64 {
+    let (dx, du) = (b.0 - a.0, b.1 - a.1);
+    let l = dx.hypot(du).max(1e-9);
+    let mid = (0.5 * (a.0 + b.0) - bow * du / l, 0.5 * (a.1 + b.1) + bow * dx.abs() / l);
+    let mut best = (f64::MAX, 0.0);
+    for i in 0..=20 {
+        let t = i as f64 / 20.0;
+        let x = (1.0 - t) * (1.0 - t) * a.0 + 2.0 * t * (1.0 - t) * mid.0 + t * t * b.0;
+        let u = (1.0 - t) * (1.0 - t) * a.1 + 2.0 * t * (1.0 - t) * mid.1 + t * t * b.1;
+        let d = (q[0] - x).hypot(q[1] - u);
+        if d < best.0 {
+            best = (d, t);
         }
-        let q = self.squash(s);
-        let mut near: Vec<(f64, f64)> = Vec::with_capacity(self.pts.len());
-        for w in self.pts.windows(2) {
-            let ((a, ra), (b, rb)) = (w[0], w[1]);
-            let d = round_cone(q, self.squash(a), self.squash(b), ra, rb);
-            let dir = sub(b, a);
-            let side = cross(self.n, dir);
-            let side = mul(side, 1.0 / len(side).max(1e-9));
-            let t = (dot(sub(s, a), dir) / dot(dir, dir).max(1e-12)).clamp(0.0, 1.0);
-            let across = dot(sub(s, a), side) / lerp(ra, rb, t).max(0.05);
-            let groove = (0.5 - 0.5 * (3.0 * PI * across).cos()) * smooth(1.05, 0.65, across.abs());
-            near.push((d, groove));
-        }
-        let d = near.iter().fold(f64::MAX, |m, x| m.min(x.0));
-        let (mut wsum, mut gsum) = (0.0, 0.0);
-        for (di, gi) in &near {
-            let w = (-(di - d) / 0.04).exp();
-            wsum += w;
-            gsum += w * gi;
-        }
-        d + 0.07 * (gsum / wsum.max(1e-12)) * smooth(0.35, 0.0, d)
     }
+    let taper = smooth(0.0, 0.25, best.1) * (1.0 - smooth(0.55, 1.0, best.1));
+    amp * (-(best.0 / 0.24).powi(2)).exp() * taper
 }
 
 /// The wolf's head as a signed distance field, in face coordinates: `x` across, `u` toward the ears, `h` out of the table.
@@ -333,50 +357,8 @@ struct Wolf {
     relief: Relief,
     stock: Stock,
     teeth: Vec<Tooth>,
-    locks: Vec<Lock>,
-    /// The head's surface height where each eye sits.
+    /// The masses' surface height where each eye sits.
     eye_h: f64,
-}
-
-/// Where the upper lip's inner edge stands from the moon's axis, and how high: scalloped over the incisors, lifted over the canine.
-fn upper_lip(deg: f64) -> (f64, f64) {
-    let a = deg.clamp(CORNER_DEG, 90.0);
-    let bump = |c: f64, w: f64| (-((a - c) / w).powi(2)).exp();
-    let rho = 5.36 + 0.3 * (bump(90.0, 5.5) + bump(73.4, 5.5)) + 0.42 * bump(57.0, 6.5) + 0.12 * smooth(35.0, CORNER_DEG, a);
-    let h = lerp(1.35, 2.45, smooth(CORNER_DEG, 85.0, a)) + 0.35 * bump(57.0, 7.0);
-    (rho, h)
-}
-
-/// Where the lower lip's inner edge stands from the moon's axis, and how high: on the moon's round at the corners,
-/// then straight on to the chin in a V.
-fn lower_lip(deg: f64) -> (f64, f64) {
-    let a = deg.clamp(-90.0, -CORNER_DEG);
-    let h = lerp(1.2, 0.95, smooth(-CORNER_DEG, -90.0, a));
-    if a >= -40.0 {
-        return (5.36, h);
-    }
-    let p = rim(5.36, -40.0, 0.0);
-    let c = [0.0, MOON_U - 6.9];
-    let (s, co) = a.to_radians().sin_cos();
-    let (dx, du) = (c[0] - p[0], c[1] - p[1]);
-    let t = (p[0] * du - (p[1] - MOON_U) * dx) / (co * du - s * dx);
-    (t.max(5.36), h)
-}
-
-/// Fur sculpted into the head's masses, 0..1: flames flowing up and back off the forehead, and down over the jaw and throat.
-fn pelt(s: P3) -> f64 {
-    let (x, u) = (s[0], s[1]);
-    let region = |cx: f64, cu: f64, r0: f64, arc: f64, pitch: f64, length: f64, seed: i64| {
-        let (dx, du) = (x - cx, u - cu);
-        flames(dx.hypot(du) - r0, du.atan2(dx) * arc, pitch, length, 0.18, 0.12, seed).h
-    };
-    let crown = region(0.0, 5.0, 1.0, 3.0, 0.95, 2.8, 3) * smooth(6.0, 6.8, u) * (1.0 - smooth(9.4, 10.4, u));
-    let jaw = region(0.0, MOON_U - 3.5, 2.5, 4.0, 0.95, 2.8, 9) * (1.0 - smooth(MOON_U - 3.5, MOON_U - 1.5, u)) * (1.0 - smooth(3.6, 4.6, x));
-    let eye = smooth(1.0, 1.7, (x - 2.75).hypot(u - 5.55));
-    let rho = x.hypot(u - MOON_U);
-    let ang = (u - MOON_U).atan2(x).to_degrees();
-    let lip = if ang >= 0.0 { upper_lip(ang).0 } else { lower_lip(ang).0 };
-    crown.max(jaw) * eye * smooth(lip + 0.35, lip + 1.0, rho)
 }
 
 impl Wolf {
@@ -384,12 +366,13 @@ impl Wolf {
         [p[0], -p[2], p[1] - self.table]
     }
     fn new(table: f64, bore: f64, relief: Relief, stock: Stock) -> Self {
-        let mut w = Self { table, bore, relief, stock, teeth: Vec::new(), locks: Vec::new(), eye_h: 0.0 };
-        w.eye_h = w.surface_h(2.75, 5.55);
+        let mut w = Self { table, bore, relief, stock, teeth: Vec::new(), eye_h: 0.0 };
+        w.eye_h = w.surface_h(Self::EYE.0, Self::EYE.1);
         w.teeth = Self::dentition();
-        w.locks = w.fur_locks();
         w
     }
+    /// Where each eye sits, face `x` and `u`.
+    const EYE: (f64, f64) = (2.45, 5.5);
     /// The head's top surface over face point (`x`, `u`): the stock's, or the head's masses where they stand higher.
     fn surface_h(&self, x: f64, u: f64) -> f64 {
         let floor = self.relief.at(x, u);
@@ -411,122 +394,45 @@ impl Wolf {
         }
         lo.max(floor)
     }
-    /// The surface point over face point (`x`, `u`), raised `lift`.
-    fn on(&self, x: f64, u: f64, lift: f64) -> P3 {
-        [x, u, self.surface_h(x, u) + lift]
-    }
-    /// The top surface's normal over face point (`x`, `u`).
-    fn up(&self, x: f64, u: f64) -> P3 {
-        let e = 0.25;
-        let gx = self.surface_h(x + e, u) - self.surface_h(x - e, u);
-        let gu = self.surface_h(x, u + e) - self.surface_h(x, u - e);
-        let n = [-gx, -gu, 2.0 * e];
-        mul(n, 1.0 / len(n))
-    }
-    /// Four teeth a jaw a side: a canine crossing in front of the fang's root, two premolars and a molar at the corner,
-    /// each a thick body with a short point, standing clear of the stone.
+    /// Five teeth a jaw a side counting the fang: an incisor, then two premolars and a molar behind the fang, each a
+    /// stout body with a short point, standing on the gums clear of the stone.
     fn dentition() -> Vec<Tooth> {
         let mut teeth = Vec::new();
         for (side, sx) in [("right", 1.0), ("left", -1.0)] {
             let m = |p: P3| [p[0] * sx, p[1], p[2]];
-            for (name, a, l, r, lean) in [("upper canine", 58.0, 2.5, 0.62, 8.0), ("upper premolar", 42.0, 1.35, 0.52, 2.0), ("upper second premolar", 30.0, 1.05, 0.52, 1.0), ("upper molar", 20.0, 0.85, 0.54, 0.0)] {
-                let (rho, h) = upper_lip(a);
-                let root = rim(rho + 0.35, a, h - 0.15);
-                let tip = rim(KEEP_OUT_MM + 0.55, a + lean, (h - 0.15 - l).max(GUM_H + 0.1));
-                let knee = lerp3(root, tip, 0.82);
-                teeth.push(Tooth { name: format!("{name}, {side}"), root: m(root), knee: m(knee), tip: m(tip), r: [r, 0.48, 0.08] });
+            for (name, a, reach, drop, r) in [("upper incisor", 84.5, 0.7, 0.2, 0.5), ("upper premolar", 61.0, 1.1, 0.35, 0.6), ("upper second premolar", 48.0, 1.5, 0.45, 0.62), ("upper molar", 35.0, 1.0, 0.3, 0.62)] {
+                let (rho, _) = upper_lip(a);
+                let root = rim(rho + 0.15, a, GUM_H + 0.45);
+                let tip = rim((rho + 0.15 - reach).max(KEEP_OUT_MM + 0.12), a, GUM_H + 0.45 - drop);
+                teeth.push(Tooth::new(format!("{name}, {side}"), m(root), m(tip), r));
             }
-            for (name, a, l, r, lean) in [("lower canine", -58.0, 2.2, 0.6, -8.0), ("lower premolar", -43.0, 1.2, 0.52, -2.0), ("lower second premolar", -31.0, 0.95, 0.52, -1.0), ("lower molar", -21.0, 0.8, 0.54, 0.0)] {
-                let (rho, h) = lower_lip(a);
-                let root = rim(rho + 0.35, a, h - 0.2);
-                let tip = rim(KEEP_OUT_MM + 0.55, a + lean, h - 0.2 + l);
-                let knee = lerp3(root, tip, 0.82);
-                teeth.push(Tooth { name: format!("{name}, {side}"), root: m(root), knee: m(knee), tip: m(tip), r: [r, 0.48, 0.08] });
+            for (name, a, reach, rise, r) in [("lower incisor", -84.5, 0.8, 0.25, 0.5), ("lower premolar", -61.0, 1.05, 0.3, 0.6), ("lower second premolar", -48.0, 0.9, 0.35, 0.6), ("lower molar", -35.0, 1.25, 0.25, 0.62)] {
+                let (rho, _) = lower_lip(a);
+                let root = rim(rho + 0.1, a, GUM_H + 0.3);
+                let tip = rim((rho + 0.1 - reach).max(KEEP_OUT_MM + 0.12), a, GUM_H + 0.3 + rise);
+                teeth.push(Tooth::new(format!("{name}, {side}"), m(root), m(tip), r));
             }
         }
         teeth
     }
-    /// A lock over the head's top surface from `root` along `deg` (+x toward +u), `l` long, bowed by `bend`, `w`
-    /// half-wide at its widest, pointed at both ends; shortened to end on its surface where that surface falls away.
-    fn lock_path(&self, root: (f64, f64), deg: f64, l: f64, bend: f64, w: f64) -> Vec<(P3, f64)> {
-        let path = self.lock_try(root, deg, l, bend, w);
-        if path.len() == 11 {
-            return path;
-        }
-        let keep = (path.len().saturating_sub(2)) as f64 / 10.0;
-        self.lock_try(root, deg, l * keep.max(0.3), bend * keep.max(0.3), w)
+    fn cranium(s: P3) -> f64 {
+        let root = ellipsoid(sub(s, [4.5, 7.7, 0.5]), [1.4, 1.4, 1.4]);
+        smin(ellipsoid(sub(s, [0.0, 7.15, -1.0]), [5.2, 2.7, 3.9]), root, 0.6)
     }
-    fn lock_try(&self, root: (f64, f64), deg: f64, l: f64, bend: f64, w: f64) -> Vec<(P3, f64)> {
-        let (sn, cs) = deg.to_radians().sin_cos();
-        let mut last_h = f64::NAN;
-        (0..=10)
-            .map_while(|i| {
-                let t = i as f64 / 10.0;
-                let b = bend * (PI * t).sin() - 0.5 * bend * t * t;
-                let (x, u) = (root.0 + t * l * cs - b * sn, root.1 + t * l * sn + b * cs);
-                let r = w * (PI * t.powf(0.55)).sin().max(0.0).powf(0.75) + 0.04;
-                let p = self.on(x, u, 0.12 * r);
-                if !last_h.is_nan() && (p[2] - last_h).abs() > 1.2 {
-                    return None;
-                }
-                last_h = p[2];
-                Some((p, r))
-            })
-            .collect()
+    fn cheek(s: P3) -> f64 {
+        ellipsoid(sub(s, [5.0, 2.3, -1.5]), [2.8, 3.4, 2.5])
     }
-    fn fur_locks(&self) -> Vec<Lock> {
-        let mut locks = Vec::new();
-        // Three overlapping tiers on each cheek sweeping back toward the ears and neck: short by the eyes, long at the
-        // jowls, the outer tier running on over the head's walls onto the painted ruff.
-        let tiers: [(&str, f64, &[(f64, f64, f64, f64, f64)]); 3] = [
-            ("jowl", 3.0, &[(6.6, 3.6, 34.0, 3.8, 0.95), (6.9, 1.6, 28.0, 4.2, 1.0), (6.9, -0.4, 22.0, 4.4, 1.0), (6.6, -2.4, 18.0, 4.0, 0.95)]),
-            ("cheek", 2.8, &[(5.2, 4.6, 52.0, 3.0, 0.85), (5.5, 2.8, 44.0, 3.3, 0.88), (5.6, 1.0, 38.0, 3.4, 0.9), (5.5, -0.8, 32.0, 3.2, 0.88), (5.2, -2.6, 28.0, 2.9, 0.85)]),
-            ("face", 2.6, &[(3.9, 4.1, 72.0, 2.3, 0.72), (4.1, 2.6, 64.0, 2.5, 0.75), (4.2, 1.1, 56.0, 2.6, 0.76), (4.1, -0.4, 50.0, 2.4, 0.74), (3.9, -1.9, 44.0, 2.2, 0.72)]),
-        ];
-        for (sx, side) in [(1.0, "right"), (-1.0, "left")] {
-            for (tier, flat, specs) in tiers {
-                for (k, &(x, u, deg, l, w)) in specs.iter().enumerate() {
-                    let deg = if sx > 0.0 { deg } else { 180.0 - deg };
-                    let bend = 0.22 * l * if k % 2 == 0 { 1.0 } else { -0.7 };
-                    let path = self.lock_path((x * sx, u), deg, l, bend * sx, w);
-                    if path.len() < 4 {
-                        continue;
-                    }
-                    let mid = path[path.len() / 2].0;
-                    let n = self.up(mid[0], mid[1]);
-                    locks.push(Lock::new(format!("{tier} lock {} {side}", k + 1), path, n, flat));
-                }
-            }
-        }
-        // A short tuft hanging from the chin.
-        let pts: Vec<(P3, f64)> = (0..=8)
-            .map(|i| {
-                let t = i as f64 / 8.0;
-                (lerp3([0.0, MOON_U - 7.7, -0.4], [0.0, MOON_U - 8.6, -1.9], t), 0.6 * (1.0 - t).powf(0.8) + 0.04)
-            })
-            .collect();
-        locks.push(Lock::new("chin tuft".into(), pts, [0.0, -0.83, 0.55], 1.6));
-        locks
+    fn brow(s: P3) -> f64 {
+        round_cone(s, [1.05, 5.75, 2.75], [3.55, 7.35, 2.05], 0.55, 0.32)
     }
-    /// A raised fold of skin along a bowed curve from `a` to `b` (face `x`, `u`), dying out toward `b`.
-    fn fold(q: P3, a: (f64, f64), b: (f64, f64), bow: f64, amp: f64) -> f64 {
-        let mid = (0.5 * (a.0 + b.0), 0.5 * (a.1 + b.1) + bow);
-        let mut best = (f64::MAX, 0.0);
-        for i in 0..=16 {
-            let t = i as f64 / 16.0;
-            let x = (1.0 - t) * (1.0 - t) * a.0 + 2.0 * t * (1.0 - t) * mid.0 + t * t * b.0;
-            let u = (1.0 - t) * (1.0 - t) * a.1 + 2.0 * t * (1.0 - t) * mid.1 + t * t * b.1;
-            let d = (q[0] - x).hypot(q[1] - u);
-            if d < best.0 {
-                best = (d, t);
-            }
-        }
-        let taper = smooth(0.0, 0.2, best.1) * (1.0 - smooth(0.45, 1.0, best.1));
-        amp * (-(best.0 / 0.13).powi(2)).exp() * taper
+    /// The brow's crest height over face `x`.
+    fn brow_crest(x: f64) -> f64 {
+        let t = ((x - 1.05) / 2.5).clamp(0.0, 1.0);
+        lerp(2.75, 2.05, t) + lerp(0.55, 0.32, t)
     }
-    /// The muzzle: a narrow trapezoid section with a flat nasal bridge, from the stop to the nose.
+    /// The muzzle: a trapezoid section with a flat bridge and crisp side planes, from the stop to the nose.
     fn muzzle(s: P3) -> f64 {
-        let (st, nz) = ([0.0, 5.7, 1.35], [0.0, 1.55, 3.05]);
+        let (st, nz) = ([0.0, 5.55, 0.95], [0.0, 1.7, 2.35]);
         let axis = sub(nz, st);
         let l = len(axis);
         let a = mul(axis, 1.0 / l);
@@ -535,125 +441,170 @@ impl Wolf {
         let t = dot(ps, a) / l;
         let tc = t.clamp(0.0, 1.0);
         let sec = [s[0], dot(ps, b)];
-        let body = trapezoid(sec, lerp(2.0, 1.35, tc), lerp(1.0, 0.72, tc), lerp(1.75, 1.45, tc)) - 0.28;
-        smax(body, (t - 1.0) * l, 0.3).max(-t * l - 1.0)
+        let body = trapezoid(sec, lerp(1.74, 1.29, tc), lerp(0.99, 0.74, tc), lerp(1.39, 1.09, tc)) - 0.22;
+        smax(body, (t - 1.0) * l, 0.3).max(-t * l - 1.2)
     }
-    /// The furred masses: skull, cheeks, the jaws with their gums, tongue and chin, and the throat under them.
-    fn hide_masses(s: P3) -> f64 {
-        let skull = ellipsoid(sub(s, [0.0, 7.1, -0.8]), [5.0, 3.1, 3.3]);
-        let cheek = ellipsoid(sub(s, [5.0, 2.7, -1.1]), [2.7, 3.3, 1.85]);
-        let d = smin(skull, cheek, 1.2);
+    /// The nose pad: wider than it is deep, its top running on from the bridge, its front turned down toward the moon.
+    fn nose_frame(s: P3) -> P3 {
+        turn(sub(s, [0.0, 1.25, 3.5]), 1, 2, 22.0)
+    }
+    fn nose(s: P3) -> f64 {
+        let p = Self::nose_frame(s);
+        let pad = [1.3, 0.72, 0.55];
+        let q: P3 = std::array::from_fn(|k| (p[k].abs() - pad[k] + 0.4).max(0.0));
+        let inner = (p[0].abs() - pad[0] + 0.4).max(p[1].abs() - pad[1] + 0.4).max(p[2].abs() - pad[2] + 0.4).min(0.0);
+        smax(len(q) + inner - 0.4, ellipsoid(sub(p, [0.0, 0.0, -0.1]), [1.45, 0.95, 0.85]), 0.25)
+    }
+    /// The upper jaw at the query's bearing: a rolled lip over the gums, full under the nose and thinning to the
+    /// corners, falling back into the cheeks.
+    fn upper_jaw(s: P3) -> f64 {
+        let ang = (s[1] - MOON_U).atan2(s[0]).to_degrees();
+        let a = ang.clamp(CORNER_DEG, 90.0);
+        let (rho, h) = upper_lip(a);
+        let r = lerp(0.46, 0.62, smooth(25.0, 80.0, a));
+        let back = lerp(1.5, 2.4, smooth(20.0, 60.0, a));
+        round_cone(s, rim(rho + r, a, h), rim(rho + back, a, -1.0), r, lerp(0.95, 1.25, smooth(20.0, 60.0, a)))
+    }
+    /// The mandible at the query's bearing: a rolled lip inside a V that narrows to the chin, rounded underneath.
+    fn mandible(s: P3) -> f64 {
+        let ang = (s[1] - MOON_U).atan2(s[0]).to_degrees();
+        let a = ang.clamp(-90.0, -CORNER_DEG);
+        let (rho, h) = lower_lip(a);
+        let out = jaw_out(a).max(rho + 1.1);
+        let r = lerp(0.46, 0.55, smooth(-25.0, -70.0, a));
+        let jaw = round_cone(s, rim(rho + r, a, h), rim(out + 0.1, a, -1.3), r, 0.9);
+        let chin = ellipsoid(sub(s, [0.0, MOON_U - 7.55, -0.2]), [1.2, 0.85, 0.95]);
+        smin(jaw, chin, 0.5)
+    }
+    /// The gums between the lips and the stone, up to `GUM_H`, left open at the mouth's corners.
+    fn gums(s: P3) -> f64 {
         let rho = s[0].hypot(s[1] - MOON_U);
         let ang = (s[1] - MOON_U).atan2(s[0]).to_degrees();
-        let (ur, uh) = upper_lip(ang);
-        let ua = ang.clamp(CORNER_DEG, 90.0);
-        let upper = round_cone(s, rim(ur + 1.3, ua, -1.4), rim(ur + 0.4, ua, uh), 1.3, 0.42);
-        let (lr, lh) = lower_lip(ang);
-        let la = ang.clamp(-90.0, -CORNER_DEG);
-        let ramus = round_cone(s, rim(lr + 0.95, la, -0.55), rim(lr + 0.42, la, lh), 0.62, 0.42);
-        let chin = ellipsoid(sub(s, [0.0, MOON_U - 7.3, -0.3]), [1.45, 1.0, 1.0]);
-        let tongue = ellipsoid(sub(s, [0.0, MOON_U - 5.95, GUM_H + 0.05]), [1.6, 0.75, 0.38]);
-        let tongue = tongue + 0.08 * (-(s[0] / 0.18).powi(2)).exp() * smooth(0.5, 0.0, tongue.abs());
-        let beyond = |deg: f64| deg.to_radians() * rho.max(1.0);
-        let gums = if ang >= 0.0 { (rho - ur - 0.2).max(s[2] - GUM_H).max(beyond(CORNER_DEG - ang)) } else { (rho - lr - 0.2).max(s[2] - GUM_H).max(beyond(ang + CORNER_DEG)) };
-        let jaws = smin(smin(upper, smin(ramus, chin, 0.6), 0.3), smin(gums.max(-1.6 - s[2]), tongue, 0.25), 0.3);
-        let throat = round_cone(s, [0.0, MOON_U - 6.2, -0.9], [0.0, MOON_U - 5.2, -3.4], 2.3, 1.7);
-        let throat = smax(throat, -(s[2] + 0.2 - 0.15 * s[0] * s[0]), 0.5);
-        smin(d, smin(jaws, throat, 0.8), 0.6)
+        let lip = if ang >= 0.0 { upper_lip(ang).0 } else { lower_lip(ang).0 };
+        let end = (CORNER_DEG + 3.0 - ang.abs()).to_radians() * rho.max(1.0);
+        smax((rho - lip - 0.35).max(s[2] - GUM_H).max(-(s[2] + 1.2)), end, 0.4)
     }
-    /// Smooth features on the masses: brows, muzzle, nose and ears, with the mouth's corners open.
-    fn features(s: P3, d: f64) -> f64 {
-        let brow = round_cone(s, [1.1, 5.8, 3.05], [3.75, 7.35, 2.45], 0.52, 0.4);
-        let mut d = smin(d, brow, 0.5);
-        d = smin(d, Self::muzzle(s), 0.9);
-        let nose = ellipsoid(sub(s, [0.0, 1.25, 4.15]), [1.45, 0.92, 0.95]);
-        d = smin(d, nose, 0.45);
-        d = smax(d, -Self::corner(s), 0.3);
-        smin(d, Self::ear(s), 0.8)
+    fn throat(s: P3) -> f64 {
+        round_cone(s, [0.0, MOON_U - 6.0, -0.9], [0.0, MOON_U - 5.5, -2.5], 2.8, 1.5)
     }
-    /// The open corner of the mouth at the moon's side, down to the table.
-    fn corner(s: P3) -> f64 {
-        round_cone([s[0], s[1], 0.0], rim(5.2, 0.0, 0.0), rim(7.2, -4.0, 0.0), 1.0, 0.55).max(-0.2 - s[2])
-    }
-    /// The head's masses and smooth features without fur or detail, which the fur's locks lie on.
-    fn masses(&self, q: P3) -> f64 {
-        let s = [q[0].abs(), q[1], q[2]];
-        Self::features(s, Self::hide_masses(s))
-    }
-    fn head(&self, q: P3) -> f64 {
-        let s = [q[0].abs(), q[1], q[2]];
-        let hide = Self::hide_masses(s);
-        let hide = hide - 0.32 * pelt(s) * smooth(0.6, 0.0, hide.abs());
-        let mut d = Self::features(s, hide);
-        let near = smooth(0.6, 0.0, d.abs());
-        // The stop furrow between the brows.
-        d += 0.3 * near * (-(q[0] / 0.2).powi(2)).exp() * smooth(5.5, 6.1, q[1]) * (1.0 - smooth(8.3, 9.0, q[1]));
-        // Three raised folds across the bridge, unequal and bowed toward the eyes on alternating sides; two by each nose corner.
-        let folds = Self::fold(q, (2.3, 2.3), (0.25, 2.8), 0.22, 0.15)
-            + Self::fold(q, (-1.85, 3.4), (-0.3, 3.85), 0.26, 0.14)
-            + Self::fold(q, (1.35, 4.6), (0.3, 4.8), 0.18, 0.12)
-            + Self::fold(s, (1.35, 1.05), (2.55, 1.75), 0.1, 0.11)
-            + Self::fold(s, (1.2, 0.65), (2.45, 1.15), -0.08, 0.09);
-        d -= folds * near;
-        // Nostrils with a septum between them, and the groove under the nose.
-        d = smax(d, -ellipsoid(sub(s, [0.7, 0.9, 4.6]), [0.3, 0.24, 0.36]), 0.18);
-        d += 0.12 * near * (-(s[0] / 0.16).powi(2)).exp() * smooth(1.0, 0.6, s[1]) * smooth(0.2, 0.45, s[1]);
-        // Eyes sunk under the brows: a pocket into the surface, continuous with the brow, a low ball with a drilled pupil.
-        let eye = turn(sub(s, [2.75, 5.55, self.eye_h + 0.2]), 0, 1, -28.0);
-        d = smax(d, -ellipsoid(eye, [1.45, 0.72, 0.62]), 0.3);
-        let ball = ellipsoid(sub(eye, [0.0, -0.05, -0.84]), [1.2, 0.52, 0.34]);
-        let ball = smax(ball, -ellipsoid(sub(eye, [0.2, -0.02, -0.5]), [0.24, 0.24, 0.2]), 0.12);
-        d = smin(d, ball, 0.18);
-        let teeth = self.teeth.iter().fold(f64::MAX, |m, t| m.min(t.sdf(q)));
-        d = smin(d, teeth, 0.15);
-        let fur = self.locks.iter().fold(f64::MAX, |m, l| m.min(l.sdf(q)));
-        let d = smin(d, fur, 0.35);
-        smax(d, -Self::corner(s), 0.3)
-    }
-    /// The feature a face point lies on, and that feature's tip.
-    fn label(&self, q: P3) -> (String, P3) {
-        let s = [q[0].abs(), q[1], q[2]];
-        let side = if q[0] >= 0.0 { "right" } else { "left" };
-        let mut best = ("head".to_string(), q, f64::MAX);
-        let mut take = |name: String, d: f64, tip: P3| {
-            if d.abs() < best.2 {
-                best = (name, tip, d.abs());
-            }
-        };
-        take(format!("ear, {side}"), Self::ear(s), [5.9 * q[0].signum(), 9.8, 4.2]);
-        for t in &self.teeth {
-            take(t.name.clone(), t.sdf(q), t.tip);
-        }
-        for l in &self.locks {
-            take(l.name.clone(), l.sdf(q), l.pts.last().unwrap().0);
-        }
-        if best.2 > 0.08 {
-            return ("head mass".into(), q);
-        }
-        (best.0, best.1)
-    }
-    /// A pricked ear laid forward over the head's top corner: a curved triangular plate 1.1 mm thick with a rolled rim,
-    /// cupped 0.25 mm deep on its outer face.
+    /// A pricked ear: a thick triangle standing up from the crown's corner, curling back at its point, cupped 0.35 mm
+    /// deep on the face it turns to the viewer, with a rolled rim.
     fn ear(s: P3) -> f64 {
-        let (base, tip) = ([4.3, 7.9, 1.6], [5.9, 9.8, 4.2]);
+        let (base, tip) = ([3.7, 7.9, 1.3], [5.1, 11.0, 2.2]);
         let axis = sub(tip, base);
         let l = len(axis);
         let a = mul(axis, 1.0 / l);
-        let face = [0.0, -0.75, 1.0];
+        let face = [-0.35, -0.3, 1.0];
         let n0 = sub(face, mul(a, dot(face, a)));
         let n = mul(n0, 1.0 / len(n0));
         let w = cross(a, n);
         let p = sub(s, base);
         let (x, y, z) = (dot(p, w), dot(p, a), dot(p, n));
         let t = (y / l).clamp(0.0, 1.0);
-        let half = 1.8 * (1.0 - t).powf(0.85);
+        let half = 1.5 * (1.0 - t).powf(0.85);
+        let thick = 1.0 - 0.42 * t;
+        let z = z + 0.25 * t * t;
+        let r = 0.38;
         let outline = (x.abs() - half).max(-y).max(y - l) * 0.9;
-        let z = z - 0.35 * t * t;
-        let (r, h) = (0.5, 0.55);
-        let q = [outline + r, z.abs() - h + r];
+        let q = [outline + r, z.abs() - thick + r];
         let plate = len([q[0].max(0.0), q[1].max(0.0), 0.0]) + q[0].max(q[1]).min(0.0) - r;
-        let cup = ellipsoid([x / (0.62 * half.max(0.05)), y - 0.5 * l, z - (h + 0.9)], [1.0, 0.36 * l, 1.15]);
-        smax(plate, -cup, 0.25)
+        // The cup: a parabolic hollow inside the rim, deepest along the ear's middle and shallowing toward both ends.
+        let w = (half - 0.45).max(0.01);
+        let depth = 0.3 * smooth(0.02, 0.18, t) * (1.0 - smooth(0.5, 0.72, t));
+        let cup = (thick - depth * (1.0 - (x / w).powi(2)).max(0.0) - z).max(x.abs() - w).max(0.1 - y).max(y - 0.8 * l);
+        smax(plate, -cup, 0.2)
+    }
+    fn chin_tuft(s: P3) -> f64 {
+        round_cone(s, [0.0, MOON_U - 7.9, -0.55], [0.0, MOON_U - 8.75, -1.5], 0.5, 0.12)
+    }
+    /// The head's masses and smooth features, without fur or carved detail.
+    fn masses(&self, q: P3) -> f64 {
+        let s = [q[0].abs(), q[1], q[2]];
+        let mut d = smin(Self::cranium(s), Self::cheek(s), 1.1);
+        d = smin(d, Self::upper_jaw(s), 0.7);
+        d = smin(d, Self::brow(s), 0.5);
+        d = smin(d, Self::muzzle(s), 0.6);
+        d = smin(d, Self::nose(s), 0.4);
+        let jaws = smin(Self::mandible(s), Self::gums(s), 0.3);
+        d = smin(d, smin(jaws, Self::throat(s), 0.9), 0.5);
+        smin(d, Self::ear(s), 0.5)
+    }
+    /// The fur's relief over the masses at `s`, mm.
+    fn pelt(s: P3, n: P3) -> f64 {
+        let rho = s[0].hypot(s[1] - MOON_U);
+        let ang = (s[1] - MOON_U).atan2(s[0]).to_degrees();
+        let lip = if ang >= 0.0 { upper_lip(ang).0 } else { lower_lip(ang).0 };
+        let off_lips = smooth(lip + 0.6, lip + 1.3, rho);
+        let off_face = smooth(1.9, 2.9, s[0]) * smooth(1.5, 2.2, (s[0] - Self::EYE.0).hypot(s[1] - Self::EYE.1));
+        // Charts drawn over the face plane lie flat only where the skin faces out of the table.
+        let up = smooth(0.2, 0.5, n[2]);
+        let cheeks = 0.42 * up * cheek_fur(s) * off_lips * off_face * smooth(MOON_U - 7.6, MOON_U - 6.4, s[1]) * (1.0 - smooth(6.6, 7.6, s[1]));
+        let crown = 0.26 * up * crown_fur(s) * smooth(6.7, 7.5, s[1]) * (1.0 - smooth(3.4, 4.4, s[0])) * smooth(0.0, 0.6, s[2]) * smooth(0.15, 0.7, Self::ear(s));
+        let throat = 0.38 * smooth(0.2, 0.5, -n[1]) * throat_fur(s) * smooth(-0.3, -0.9, s[2]) * (1.0 - smooth(MOON_U - 5.0, MOON_U - 4.0, s[1]));
+        cheeks.max(crown).max(throat)
+    }
+    fn head(&self, q: P3) -> f64 {
+        let s = [q[0].abs(), q[1], q[2]];
+        let core = self.masses(q);
+        let near = 1.0 - smooth(1.0, 1.8, core.abs());
+        // The fur is read where the query drops onto the masses, so every lock stands straight out of the skin.
+        let pelt = if near > 0.0 {
+            let e = 0.02;
+            let g: P3 = std::array::from_fn(|k| {
+                let (mut a, mut b) = (q, q);
+                a[k] += e;
+                b[k] -= e;
+                self.masses(a) - self.masses(b)
+            });
+            let n = mul(g, 1.0 / len(g).max(1e-9));
+            let f = sub(q, mul(n, core));
+            Self::pelt([f[0].abs(), f[1], f[2]], [n[0] * q[0].signum(), n[1], n[2]])
+        } else {
+            0.0
+        };
+        let mut d = core - pelt * near;
+        // The stop furrow between the brows, 3 mm up the forehead.
+        d += 0.3 * near * (-(q[0] / 0.3).powi(2)).exp() * smooth(5.3, 5.8, q[1]) * (1.0 - smooth(8.4, 9.0, q[1]));
+        // Three raised folds across the bridge, unequal, bowed toward the eyes, dying out short of the midline on
+        // alternating sides; two more from each nose corner back along the lifted lip.
+        let folds = fold(q, (2.5, 2.45), (0.3, 3.2), 0.22, 0.15)
+            + fold(q, (-2.05, 3.65), (-0.3, 4.05), 0.2, 0.14)
+            + fold(q, (1.45, 4.72), (0.3, 4.78), 0.12, 0.12)
+            + fold(s, (1.35, 1.05), (2.7, 1.85), -0.1, 0.12)
+            + fold(s, (1.25, 0.62), (2.5, 0.72), 0.08, 0.1);
+        d -= folds * near;
+        // Nostrils on the nose's front, and the groove under it.
+        d = smax(d, -ellipsoid(sub(Self::nose_frame(s), [0.55, -0.8, -0.12]), [0.26, 0.2, 0.17]), 0.1);
+        d += 0.1 * near * (-(s[0] / 0.14).powi(2)).exp() * smooth(0.95, 0.6, s[1]) * smooth(0.25, 0.5, s[1]);
+        // Eyes sunk under the brows: a slanted pocket whose upper rim is the brow, a ball low in it.
+        let top = (self.eye_h - 0.05).min(Self::brow_crest(Self::EYE.0) - 0.45);
+        let eye = turn(sub(s, [Self::EYE.0, Self::EYE.1, self.eye_h + 0.15]), 0, 1, -25.0);
+        d = smax(d, -ellipsoid(eye, [0.98, 0.52, 0.6]), 0.3);
+        let ball = ellipsoid(sub(eye, [0.0, -0.04, top - 0.26 - self.eye_h - 0.15]), [0.7, 0.34, 0.26]);
+        d = smin(d, ball, 0.22);
+        let teeth = self.teeth.iter().fold(f64::MAX, |m, t| m.min(t.sdf(q)));
+        d = smin(d, teeth, 0.12);
+        smin(d, Self::chin_tuft(s), 0.3)
+    }
+    /// The feature a face point lies on, and that feature's tip.
+    fn label(&self, q: P3) -> (String, P3) {
+        let s = [q[0].abs(), q[1], q[2]];
+        let side = if q[0] >= 0.0 { "right" } else { "left" };
+        let mut best = ("head mass".to_string(), q, 0.1);
+        let mut take = |name: String, d: f64, tip: P3| {
+            if d.abs() < best.2 {
+                best = (name, tip, d.abs());
+            }
+        };
+        take(format!("ear, {side}"), Self::ear(s), [5.1 * q[0].signum(), 11.0, 2.2]);
+        for t in &self.teeth {
+            take(t.name.clone(), t.sdf(q), t.tip);
+        }
+        take("chin tuft".into(), Self::chin_tuft(s), [0.0, MOON_U - 8.75, -1.5]);
+        take(format!("brow, {side}"), Self::brow(s), q);
+        take("mandible".into(), Self::mandible(s), q);
+        take("nose".into(), Self::nose(s), q);
+        (best.0, best.1)
     }
     fn sdf(&self, p: P3) -> f64 {
         let q = self.face(p);
@@ -1159,14 +1110,21 @@ fn joined(blend: f64) -> Component {
     Component { attach: Attach::Join, stage: Stage::Cast, placement: Placement::Free, blend_mm: blend, ..Component::default() }
 }
 
+/// How far up the moonstone's dome the fangs' points rest, of its height.
+const FANG_RISE: f64 = 0.6;
+/// The moonstone leans back this far to stand level over the table's slope toward the apex, degrees.
+const MOON_TILT_DEG: f64 = 4.0;
+/// The fangs' wire, which also sizes their base rail, mm.
+const FANG_WIRE_MM: f64 = 1.6;
+
 /// The band anchor, the moonstone and its four fangs.
 fn stone_and_fangs(d: &mut RingDesign) -> Result<()> {
     let gem = moonstone();
     let doc = d.cad.get_or_insert_with(Document::default);
     doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
-    let placement = Placement::Ring { theta_deg: 90.0, across_mm: -MOON_U, height_mm: builders::stand_off_mm(builders::CLAW, gem), spin_deg: 90.0, tilt_deg: 0.0, cant_deg: 0.0 };
+    let placement = Placement::Ring { theta_deg: 90.0, across_mm: -MOON_U, height_mm: builders::stand_off_mm(builders::CLAW, gem), spin_deg: 90.0, tilt_deg: MOON_TILT_DEG, cant_deg: 0.0 };
     doc.append(builders::stone_feature(2, gem, placement))?;
-    let mut fangs = builders::feature_on(3, "Fangs", builders::CLAW, 2, json!({"prongs": 4, "wire_mm": 2.0, "style": "Fang", "grouping": "Jaws", "tip": "Point"}));
+    let mut fangs = builders::feature_on(3, "Fangs", builders::CLAW, 2, json!({"prongs": 4, "wire_mm": FANG_WIRE_MM, "rails": "Base", "style": "Fang", "grouping": "Jaws", "tip": "Point", "rise": FANG_RISE}));
     fangs.component.attach = Attach::Join;
     fangs.component.stage = Stage::Cast;
     fangs.component.blend_mm = 0.0;
@@ -1193,6 +1151,11 @@ fn sculpt_preview(out: &Path, step: f64) -> Result<()> {
     let params = BuildParams { theta_steps: 768, profile_steps: 320, refine: None, ..Default::default() };
     let built = mesh::try_build(&d, &lib, params)?;
     let gems = ringdesign_core::gems::built_meshes(&d, &lib, &built);
+    for tip in fang_tips(&built) {
+        let q = wolf.face(tip);
+        let rho = q[0].hypot(q[1] - MOON_U);
+        println!("  fang tip at face ({:.2}, {:.2}, {:.2}): {:.2} mm inside the girdle", q[0], q[1], q[2], MOON_MM * 0.5 - rho);
+    }
     let mut parts = vec![Part::metal(&built.mesh, render::GOLD), Part::metal(&sculpt, render::GOLD)];
     parts.extend(gems.iter().map(|(m, tint)| Part::tinted_stone(m, *tint)));
     for (name, yaw, pitch) in [("face", 0.0, PI * 0.5), ("hero", 0.55, 1.0), ("low", 0.3, 0.45), ("side", PI * 0.5, 0.25)] {
@@ -1251,11 +1214,14 @@ struct Flame {
     h: f64,
     /// Across the winning lock, -1..1.
     across: f64,
+    /// The winning lock's half-width here, in chart units.
+    half: f64,
 }
 
 /// Flame locks on a chart where `along` runs with the fur and `across` over it: rows `pitch` apart, locks about `length`
-/// long and shingled half a lock apart, each bowed in an S of `bow` of its length, pointed at both ends, rounded across,
-/// its length varied by a quarter and its heading by ten degrees; neighbours joined by a soft maximum of `soft`.
+/// long and shingled half a lock apart, each bowed in an S of `bow` of its length, widest a third of the way along and
+/// drawn out to a point at both ends, rounded across, rising toward its tip so each point lies over the root of the lock
+/// beyond it; lengths vary by a quarter and headings by ten degrees, neighbours joined by a soft maximum of `soft`.
 fn flames(along: f64, across: f64, pitch: f64, length: f64, bow: f64, soft: f64, seed: i64) -> Flame {
     let step = length * 0.45;
     let row = (across / pitch).round() as i64;
@@ -1275,15 +1241,16 @@ fn flames(along: f64, across: f64, pitch: f64, length: f64, bow: f64, soft: f64,
                 continue;
             }
             let centre = bow * len_i * (2.0 * PI * t).sin() * (PI * t).sin();
-            let half = 0.6 * pitch * (PI * t.powf(0.7)).sin().max(0.0).powf(0.8);
+            let half = 0.6 * pitch * (PI * t.powf(0.6)).sin().max(0.0).powf(0.8);
             let y = cl - centre;
             if y.abs() >= half {
                 continue;
             }
             let q = y / half;
-            let h = (q * PI * 0.5).cos().max(0.0).powf(1.2) * (PI * t.powf(0.75)).sin().max(0.0).powf(0.7) * (0.8 + 0.2 * t);
+            let rise = (0.3 + 0.7 * smooth(0.0, 0.8, t)) * smooth(0.0, 0.1, t) * (1.0 - smooth(0.9, 1.0, t));
+            let h = (q * PI * 0.5).cos().max(0.0).powf(1.5) * rise;
             if h > out.h {
-                out = Flame { h, across: q };
+                out = Flame { h, across: q, half };
             }
             acc = if soft > 0.0 { smax(acc, h, soft) } else { acc.max(h) };
         }
@@ -1294,10 +1261,12 @@ fn flames(along: f64, across: f64, pitch: f64, length: f64, bow: f64, soft: f64,
     out
 }
 
-/// The painted pelt at hide point (`along` from the head, `across`): height 0..1, and the hair line 0..1 running along its lock.
+/// The painted pelt at hide point (`along` from the head, `across`): height 0..1, and the hair line 0..1 running along
+/// its lock, 0.22 mm apart where the lock is wide and fading out where the lines would crowd under 0.15 mm.
 fn fur(along: f64, across: f64) -> (f64, f64) {
-    let f = flames(along, across, 1.3, 4.6, 0.2, 0.0, 17);
-    let hair = (0.5 - 0.5 * (2.0 * PI * f.across * 0.6 * 1.3 / 0.22).cos()) * smooth(0.3, 0.6, f.h);
+    let f = flames(along, across, 1.3, 4.6, 0.27, 0.0, 17);
+    let lines = 0.5 - 0.5 * (2.0 * PI * f.across * f.half / 0.22).cos();
+    let hair = lines * smooth(0.3, 0.6, f.h) * smooth(0.45, 0.65, f.half);
     (0.1 + 0.9 * f.h, hair)
 }
 
@@ -1675,7 +1644,7 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
     }
     let t_lands = Instant::now();
     let head_id: ringdesign_core::sketch::Id = 4;
-    let lands_head = head_lands(&wolf, &built, head_id);
+    let (lands_head, thin_at) = head_lands(&wolf, &built, head_id);
     let lands_fangs = fang_lands(&built);
     let rule = |feature: &str| -> Option<(f64, &'static str)> {
         if feature.starts_with("ear") {
@@ -1704,8 +1673,34 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         }
     }
     let head_min = lands_head.iter().filter(|l| rule(&l.feature).is_none()).map(|l| l.min_section_mm).fold(f64::MAX, f64::min);
-    let crease_census = census(&wolf, &built.mesh);
-    let seam_run = seam_creases(&built, head_id);
+    let (crease_census, crease_at) = census(&wolf, &built.mesh);
+    let (seam_run, seam_at) = seam_creases(&built, head_id);
+    if std::env::var("FENRIR_DEBUG").is_ok() {
+        let thin_points: Vec<P3> = thin_at.iter().map(|t| t.0).collect();
+        let (thin, creases, seams) = (markers(&thin_points, 0.07), markers(&crease_at, 0.06), markers(&seam_at, 0.05));
+        // Zoomed views of the largest clusters of thin samples, each seen from along its own normal.
+        let mut cells: std::collections::HashMap<[i64; 3], Vec<usize>> = std::collections::HashMap::new();
+        for (k, t) in thin_at.iter().enumerate() {
+            cells.entry(t.0.map(|c| (c / 1.5).floor() as i64)).or_default().push(k);
+        }
+        let mut clusters: Vec<Vec<usize>> = cells.into_values().collect();
+        clusters.sort_by_key(|c| std::cmp::Reverse(c.len()));
+        for (ci, c) in clusters.iter().take(10).enumerate() {
+            let centre = mul(c.iter().fold([0.0; 3], |s, k| add(s, thin_at[*k].0)), 1.0 / c.len() as f64);
+            let n = c.iter().fold([0.0; 3], |s, k| add(s, thin_at[*k].1));
+            let n = mul(n, 1.0 / len(n).max(1e-9));
+            let (yaw, pitch) = (n[0].atan2(n[1]), n[2].clamp(-1.0, 1.0).acos());
+            let frame = markers(&[add(centre, [-1.6, -1.6, -1.6]), add(centre, [1.6, 1.6, 1.6])], 0.01);
+            let zoom = vec![Part::metal(&frame, render::GOLD), Part::metal(&built.mesh, render::GOLD), Part::tinted_stone(&thin, [0.9, 0.1, 0.1]), Part::tinted_stone(&creases, [0.1, 0.3, 0.95])];
+            let q = wolf.face(centre);
+            println!("  thin cluster {ci}: {} samples at face ({:.2}, {:.2}, {:.2}), {}", c.len(), q[0], q[1], q[2], thin_at[c[0]].2);
+            render::write_png_parts(out.join(format!("debug-thin-{ci}.png")), &zoom, yaw, pitch, 700)?;
+        }
+        let parts = vec![Part::metal(&built.mesh, render::GOLD), Part::tinted_stone(&thin, [0.9, 0.1, 0.1]), Part::tinted_stone(&creases, [0.1, 0.3, 0.95]), Part::tinted_stone(&seams, [0.1, 0.85, 0.2])];
+        for (name, yaw, pitch) in [("face", 0.0, PI * 0.5), ("hero", 0.55, 0.95), ("side", 0.0, 0.0), ("back", PI, 0.35), ("right", -PI * 0.5, 0.45), ("left", PI * 0.5, 0.45)] {
+            render::write_png_parts(out.join(format!("debug-{name}.png")), &parts, yaw, pitch, 1100)?;
+        }
+    }
     println!("  lands and census in {:.1} s; unnamed sub-floor {:?}; head mass min {head_min:.3} mm; longest 60 deg seam run {seam_run:.2} mm", t_lands.elapsed().as_secs_f64(), unnamed);
     let gates = [
         ("finished mesh watertight with zero degenerates", built.report.validation.watertight && built.report.quality.degenerate_faces == 0),
@@ -1906,12 +1901,12 @@ struct Land {
 
 /// Sections of the finished ring's head by rays into the metal, gathered by the feature each vertex lies on; seam and
 /// crease vertices, whose normals the boolean leaves ragged, are left out.
-fn head_lands(wolf: &Wolf, built: &mesh::BuildResult, head_id: ringdesign_core::sketch::Id) -> Vec<Land> {
+fn head_lands(wolf: &Wolf, built: &mesh::BuildResult, head_id: ringdesign_core::sketch::Id) -> (Vec<Land>, Vec<(P3, P3, String)>) {
     let m = &built.mesh;
     let v: Vec<P3> = m.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect();
     let mine: Vec<usize> = (0..v.len()).filter(|&i| m.origin.get(i).is_some_and(|o| built.parts.feature_of(*o) == Some(head_id))).collect();
     if mine.is_empty() {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     }
     let (lo, hi) = mine.iter().fold(([f64::MAX; 3], [f64::MIN; 3]), |(lo, hi), &i| (std::array::from_fn(|k| lo[k].min(v[i][k] - 4.5)), std::array::from_fn(|k| hi[k].max(v[i][k] + 4.5))));
     let rays = Rays::new(&v, &m.faces, 0.2, |p| (0..3).all(|k| p[k] >= lo[k] && p[k] <= hi[k]));
@@ -1929,15 +1924,28 @@ fn head_lands(wolf: &Wolf, built: &mesh::BuildResult, head_id: ringdesign_core::
             dot(n, normals[i]) > 0.5 * len(n)
         })
     };
-    let rows: Vec<(String, f64, f64, P3)> = mine
+    let rows: Vec<(String, f64, f64, P3, usize)> = mine
         .par_iter()
         .filter(|&&i| smooth_here(i))
         .map(|&i| {
             let t = section(&rays, v[i], normals[i], i as u32);
             let (name, tip) = wolf.label(wolf.face(v[i]));
-            (name, t, len(sub(wolf.face(v[i]), tip)), wolf.face(v[i]))
+            (name, t, len(sub(wolf.face(v[i]), tip)), wolf.face(v[i]), i)
         })
         .collect();
+    let thin_at: Vec<(P3, P3, String)> = rows.iter().filter(|r| r.1 < 0.8).map(|r| (v[r.4], normals[r.4], r.0.clone())).collect();
+    if std::env::var("FENRIR_DEBUG").is_ok() {
+        for r in rows.iter().filter(|r| r.1 < 0.8).step_by(9).take(24) {
+            let (p, n) = (v[r.4], normals[r.4]);
+            let mut s = 0.0;
+            while s < 3.0 && wolf.sdf(sub(p, mul(n, s + 0.02))) < 0.0 {
+                s += 0.02;
+            }
+            let o = add(p, mul(n, -1e-4));
+            let hit = rays.hit(o, mul(n, -1.0), 0.01, 4.0, r.4 as u32);
+            println!("    {} at face {:?}: section {:.2}, straight ray {:?}, field depth {:.2}, sdf at p {:.3}", r.0, wolf.face(p).map(|c| (c * 100.0).round() / 100.0), r.1, hit.map(|h| (h * 100.0).round() / 100.0), s, wolf.sdf(p));
+        }
+    }
     for who in ["head mass", "ear, right"] {
         let mut thin: Vec<[i64; 3]> = rows.iter().filter(|r| r.0 == who && r.1 < 0.8).map(|r| r.3.map(|c| (c * 2.0).round() as i64)).collect();
         thin.sort_unstable();
@@ -1947,7 +1955,7 @@ fn head_lands(wolf: &Wolf, built: &mesh::BuildResult, head_id: ringdesign_core::
         }
     }
     let mut out: Vec<Land> = Vec::new();
-    for (name, t, from_tip, _) in rows {
+    for (name, t, from_tip, _, _) in rows {
         let k = match out.iter().position(|l| l.feature == name) {
             Some(k) => k,
             None => {
@@ -1964,6 +1972,26 @@ fn head_lands(wolf: &Wolf, built: &mesh::BuildResult, head_id: ringdesign_core::
         }
     }
     out.sort_by(|a, b| a.feature.cmp(&b.feature));
+    (out, thin_at)
+}
+
+/// Each claw's point in world millimetres: its vertex furthest up the ring's radius.
+fn fang_tips(built: &mesh::BuildResult) -> Vec<P3> {
+    let mut out = Vec::new();
+    for c in built.parts.evaluated.iter().flat_map(|e| e.components.iter()) {
+        let Some(made) = &c.made else { continue };
+        if !made.key.contains("claw") {
+            continue;
+        }
+        let s = made.solid();
+        for (pi, name) in made.named.names.iter().enumerate() {
+            if !name.starts_with("Claw") {
+                continue;
+            }
+            let tip = s.f.iter().zip(&made.named.patch).filter(|(_, p)| **p as usize == pi).flat_map(|(t, _)| t.map(|x| s.v[x as usize])).fold([0.0, f64::MIN, 0.0], |b, p| if p[1] > b[1] { p } else { b });
+            out.push(tip);
+        }
+    }
     out
 }
 
@@ -2003,7 +2031,7 @@ fn fang_lands(built: &mesh::BuildResult) -> Vec<Land> {
 }
 
 /// Dihedral census of the finished mesh by zone: edges at or over 60 and 90 degrees, their length, and 1 mm cells.
-fn census(wolf: &Wolf, m: &Mesh) -> Value {
+fn census(wolf: &Wolf, m: &Mesh) -> (Value, Vec<P3>) {
     use std::collections::{HashMap, HashSet};
     let v: Vec<P3> = m.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect();
     let fnrm: Vec<P3> = m
@@ -2022,7 +2050,8 @@ fn census(wolf: &Wolf, m: &Mesh) -> Value {
             edges.entry((a.min(b), a.max(b))).or_default().push(i as u32);
         }
     }
-    let ear_tips = [[5.9, 9.8, 4.2], [-5.9, 9.8, 4.2]];
+    let ear_tips = [[5.1, 11.0, 2.2], [-5.1, 11.0, 2.2]];
+    let mut face_marks: Vec<P3> = Vec::new();
     let mut zones: HashMap<&str, (usize, f64, usize, HashSet<[i64; 3]>)> = HashMap::new();
     for ((a, b), fs) in &edges {
         if fs.len() != 2 {
@@ -2044,6 +2073,9 @@ fn census(wolf: &Wolf, m: &Mesh) -> Value {
         } else {
             "elsewhere"
         };
+        if zone == "cheeks, brow and muzzle" || zone == "ears and crown" {
+            face_marks.push(mid);
+        }
         let z = zones.entry(zone).or_insert((0, 0.0, 0, HashSet::new()));
         z.0 += 1;
         z.1 += len(sub(v[*a as usize], v[*b as usize]));
@@ -2061,15 +2093,20 @@ fn census(wolf: &Wolf, m: &Mesh) -> Value {
     for (zone, (n, l, n90, cells)) in zones {
         out.insert(zone.into(), json!({"edges_60": n, "length_mm": l, "edges_90": n90, "cells_1mm": cells.len()}));
     }
-    Value::Object(out)
+    (Value::Object(out), face_marks)
 }
 
 /// The longest run of seam edges turning 60 degrees or more where the head meets the stock, mm.
-fn seam_creases(built: &mesh::BuildResult, head_id: ringdesign_core::sketch::Id) -> f64 {
+fn seam_creases(built: &mesh::BuildResult, head_id: ringdesign_core::sketch::Id) -> (f64, Vec<P3>) {
     use std::collections::HashMap;
     let m = &built.mesh;
     let v: Vec<P3> = m.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect();
-    let head = |i: u32| m.origin.get(i as usize).is_some_and(|o| built.parts.feature_of(*o) == Some(head_id));
+    // 0 the band, 1 the head, 2 any other part.
+    let class = |i: u32| match m.origin.get(i as usize).map(|o| built.parts.feature_of(*o)) {
+        Some(Some(id)) if id == head_id => 1,
+        Some(Some(_)) => 2,
+        _ => 0,
+    };
     let fnrm: Vec<P3> = m
         .faces
         .iter()
@@ -2092,8 +2129,8 @@ fn seam_creases(built: &mesh::BuildResult, head_id: ringdesign_core::sketch::Id)
             continue;
         }
         let mixed = |f: u32| {
-            let hs = m.faces[f as usize].iter().filter(|x| head(**x)).count();
-            hs > 0 && hs < 3
+            let cs = m.faces[f as usize].map(class);
+            cs.contains(&1) && cs.contains(&0) && !cs.contains(&2)
         };
         if !(mixed(fs[0]) || mixed(fs[1])) {
             continue;
@@ -2105,6 +2142,7 @@ fn seam_creases(built: &mesh::BuildResult, head_id: ringdesign_core::sketch::Id)
             graph.entry(*b).or_default().push((*a, l));
         }
     }
+    let marks: Vec<P3> = graph.keys().map(|k| v[*k as usize]).collect();
     let mut seen = std::collections::HashSet::new();
     let mut longest: f64 = 0.0;
     for &start in graph.keys() {
@@ -2122,7 +2160,28 @@ fn seam_creases(built: &mesh::BuildResult, head_id: ringdesign_core::sketch::Id)
         }
         longest = longest.max(total);
     }
-    longest
+    (longest, marks)
+}
+
+/// Small octahedra at `points`, `r` across, for marking places on a render.
+fn markers(points: &[P3], r: f64) -> Mesh {
+    let dirs: [P3; 6] = [[r, 0.0, 0.0], [-r, 0.0, 0.0], [0.0, r, 0.0], [0.0, -r, 0.0], [0.0, 0.0, r], [0.0, 0.0, -r]];
+    let tris = [[0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4], [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5]];
+    let mut m = Mesh::default();
+    for p in points {
+        for t in tris {
+            let base = m.vertices.len() as u32;
+            let c = t.map(|k| add(*p, dirs[k]));
+            let n = cross(sub(c[1], c[0]), sub(c[2], c[0]));
+            let n = mul(n, 1.0 / len(n).max(1e-12));
+            for q in c {
+                m.vertices.push(Vec3(q[0] as f32, q[1] as f32, q[2] as f32));
+                m.normals.push(Vec3(n[0] as f32, n[1] as f32, n[2] as f32));
+            }
+            m.faces.push([base, base + 1, base + 2]);
+        }
+    }
+    m
 }
 
 /// Points where one face of `mesh` pierces another.
@@ -2217,6 +2276,19 @@ fn main() -> Result<()> {
     let out = args.iter().find(|s| !s.starts_with("--")).map_or("showcase/bestiarium/fenrir", String::as_str);
     if args.iter().any(|a| a == "--probe") {
         return probe(if args.iter().any(|a| a == "--draft") { 768 } else { EXPORT_THETA });
+    }
+    if args.iter().any(|a| a == "--map") {
+        let d = base()?;
+        let a = Atlas::of(&d, AW, atlas_rows(&d))?;
+        let relief = Relief::of(&a, a.top);
+        println!("table {:.3} bore {:.3}; stock height over the table, x across -12..12, u from 12 down to -14", a.top, d.inner_radius_mm());
+        for j in (-14..=12).rev() {
+            let row: Vec<String> = (-12..=12).map(|i| { let h = relief.at(i as f64, j as f64); if h < -9.0 { "   .".into() } else { format!("{h:4.1}") } }).collect();
+            println!("u {j:3}: {}", row.join(""));
+        }
+        let gem = moonstone();
+        println!("girdle over the table {:.3}, crown {:.3}, pavilion {:.3}", builders::stand_off_mm(builders::CLAW, gem), gem.crown_mm(), gem.pavilion_mm());
+        return Ok(());
     }
     if args.iter().any(|a| a == "--sculpt") {
         return sculpt_preview(Path::new(out), SCULPT_STEP);
