@@ -108,13 +108,13 @@ static TEMPLATES: [Template; 13] = [
     Template {
         name: "Split shank",
         blurb: "Two open rails meet at each shoulder on a fine band; pour in lost wax.",
-        view: (0.0, 1.35),
+        view: (0.0, 1.08),
         build: settings::split_shank,
     },
     Template {
         name: "Split gallery",
         blurb: "Daylight between two arched rails along the sand pull; mould trial required.",
-        view: (0.25, 0.35),
+        view: (0.15, 0.1),
         build: settings::split_gallery,
     },
     Template {

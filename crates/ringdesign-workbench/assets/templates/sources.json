@@ -29,7 +29,7 @@
       160,
       160
     ],
-    "source_sha256": "1186d9d82cb7d8fa6688c51f07ac209b95b81f4b2e2a5a85f1a22bb1925a3136"
+    "source_sha256": "95a4c346180eff66ce0717f586488f93992ffd7965d01d682e742886180b91e0"
   },
   "toi-et-moi": {
     "source": "target/template-library-review/starter-renders/toi-et-moi.png",
@@ -221,7 +221,7 @@
       160,
       160
     ],
-    "source_sha256": "b7552d392d2b07dcdf9b5a735cbcfe34ae7bec2afba5aafccffadaae6f0ae6f9"
+    "source_sha256": "7976d9ec8cb886da7e38a8bbf313ae0b34ec55e8be3a84e41e6c387990f8459f"
   },
   "cathedral-solitaire": {
     "source": "target/template-library-review/starter-renders/cathedral-solitaire.png",
@@ -261,7 +261,7 @@
       160,
       160
     ],
-    "source_sha256": "cba329264816caf80d0f5228333abd9999a7fa14bd8cd91578de9df16b4cb080"
+    "source_sha256": "b1683c6dde07d5741e1524a4dc191a174eb8d4ba5b7873b745bff9f95cef8267"
   },
   "half-eternity": {
     "source": "target/template-library-review/starter-renders/half-eternity.png",

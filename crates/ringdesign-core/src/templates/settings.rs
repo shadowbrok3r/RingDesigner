@@ -185,7 +185,7 @@ pub fn split_doc(_d: &RingDesign) -> Result<Document> {
     let mut doc = band()?;
     doc.append(feature(2, "Open split", Operation::Builder {
         key: builders::SPLIT.into(), on: None,
-        params: json!({"theta_deg":90.0,"spread_deg":48.0,"gap_mm":2.6,"rail_round_mm":0.3,"tip":"Point"}),
+        params: json!({"theta_deg":90.0,"spread_deg":56.0,"gap_mm":3.2,"rail_round_mm":0.3,"tip":"Point"}),
     }, Attach::Cut))?;
     Ok(doc)
 }
@@ -213,7 +213,7 @@ pub fn split_gallery() -> RingDesign {
     d.profile.flatten_sides();
     d.shank.kind = ShankKind::Keyframes;
     d.shank.amount = 1.0;
-    d.shank.keys = [(270.0,1.0),(200.0,1.0),(340.0,1.0),(150.0,1.6),(30.0,1.6),(120.0,1.85),(60.0,1.85),(90.0,2.3)].map(|(theta_deg,thickness_scale)| ShankKey { theta_deg, thickness_scale, ..Default::default() }).to_vec();
+    d.shank.keys = [(270.0,1.0),(200.0,1.0),(340.0,1.0),(150.0,1.6),(30.0,1.6),(120.0,2.24),(60.0,2.24),(90.0,2.67)].map(|(theta_deg,thickness_scale)| ShankKey { theta_deg, thickness_scale, ..Default::default() }).to_vec();
     d.cad = Some(gallery_doc(&d).expect("curated gallery document"));
     d
 }

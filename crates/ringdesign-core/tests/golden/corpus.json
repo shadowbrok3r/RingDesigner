@@ -26,13 +26,13 @@
   {
     "name": "template/Split shank",
     "verdict": "Castable",
-    "undercut_pct": 9.311179960189344,
-    "worst_draft_deg": -89.96869388697036,
+    "undercut_pct": 10.375549515128974,
+    "worst_draft_deg": -89.97216827953193,
     "thinnest_wall_mm": 1.3233555862162074,
-    "volume_mm3": 261.01836619901627,
-    "surface_area_mm2": 542.7183935430772,
+    "volume_mm3": 244.39623802609887,
+    "surface_area_mm2": 531.6217243177684,
     "max_relief_mm": 0.0,
-    "triangles": 42346,
+    "triangles": 42510,
     "watertight": true
   },
   {
@@ -41,10 +41,10 @@
     "undercut_pct": 0.0,
     "worst_draft_deg": 0.2837830797167488,
     "thinnest_wall_mm": 1.5883176682231923,
-    "volume_mm3": 538.9721813980517,
-    "surface_area_mm2": 901.9596674052748,
+    "volume_mm3": 540.5957156244675,
+    "surface_area_mm2": 912.3465723426538,
     "max_relief_mm": 0.0,
-    "triangles": 40604,
+    "triangles": 40048,
     "watertight": true
   },
   {
@@ -122,13 +122,13 @@
   {
     "name": "template/Split-shank basket",
     "verdict": "Castable",
-    "undercut_pct": 17.391811513817213,
-    "worst_draft_deg": -89.96869388697036,
+    "undercut_pct": 17.97329259861302,
+    "worst_draft_deg": -89.97216827953193,
     "thinnest_wall_mm": 1.3233555862162074,
-    "volume_mm3": 301.55842713000646,
-    "surface_area_mm2": 703.7764959086328,
+    "volume_mm3": 283.34377222679274,
+    "surface_area_mm2": 691.804951918655,
     "max_relief_mm": 0.0,
-    "triangles": 50602,
+    "triangles": 50870,
     "watertight": true
   },
   {
