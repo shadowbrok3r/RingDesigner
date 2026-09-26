@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="2400" height="1650" viewBox="0 0 2400 1650">
+<rect width="2400" height="1650" fill="#101313"/>
+<text x="120" y="130" fill="#a6aaa5" font-size="28" font-family="sans-serif" letter-spacing="7">KINGS OF ALCHEMY</text>
+<text x="120" y="345" fill="#eeeae1" font-size="225" font-family="EB Garamond, serif" >Bestiarium</text>
+<text x="123" y="422" fill="#a6aaa5" font-size="28" font-family="sans-serif" letter-spacing="4">TWO BEASTS · TWO IN WAX · THIRTEEN STONES</text>
+<path d="M120 485H2280 M120 1440H2280" stroke="#333936" stroke-width="2"/>
+<image x="120" y="540" width="640" height="640" xlink:href="arachne/studio.png"/>
+<text x="140" y="1235" fill="#eeeae1" font-size="58" font-family="EB Garamond, serif" >Arachne</text>
+<text x="140" y="1287" fill="#c3a7d0" font-size="30" font-family="sans-serif" >The weaver</text>
+<text x="140" y="1335" fill="#a6aaa5" font-size="25" font-family="sans-serif" >Lost wax · onyx and garnet cabochons</text>
+<image x="1200" y="540" width="640" height="640" xlink:href="manticora/studio.png"/>
+<text x="1220" y="1235" fill="#eeeae1" font-size="58" font-family="EB Garamond, serif" >Manticora</text>
+<text x="1220" y="1287" fill="#c3a7d0" font-size="30" font-family="sans-serif" >The tail that throws</text>
+<text x="1220" y="1335" fill="#a6aaa5" font-size="25" font-family="sans-serif" >Lost wax · ruby and ten black spinels</text>
+<text x="120" y="1520" fill="#a6aaa5" font-size="30" font-family="sans-serif" >Studio gold · darkened recesses · stones set</text>
+<text x="120" y="1576" fill="#a6aaa5" font-size="26" font-family="sans-serif" >Rendered from actual ring geometry. Stones are set at the bench after casting.</text>
+</svg>
