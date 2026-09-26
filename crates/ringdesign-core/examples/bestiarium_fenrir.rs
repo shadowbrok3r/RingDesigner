@@ -420,9 +420,11 @@ impl Wolf {
         }
         teeth
     }
+    /// The skull, its underside rounded off well clear of the finger where it hangs past the stock's back edge.
     fn cranium(s: P3) -> f64 {
         let root = ellipsoid(sub(s, [4.5, 7.7, 0.5]), [1.4, 1.4, 1.4]);
-        smin(ellipsoid(sub(s, [0.0, 7.15, -1.0]), [5.2, 2.7, 3.9]), root, 0.6)
+        let skull = smax(ellipsoid(sub(s, [0.0, 7.15, -1.0]), [5.2, 2.7, 3.9]), -(s[2] + 3.0), 0.8);
+        smin(skull, root, 0.6)
     }
     fn cheek(s: P3) -> f64 {
         ellipsoid(sub(s, [5.0, 2.8, -1.5]), [2.8, 3.9, 2.5])
@@ -1113,7 +1115,7 @@ fn fold_causes(wolf: &Wolf, m: &Nets, field: &(dyn Fn(P3) -> f64 + Sync)) {
             let ps = t.map(|x| m.v[x as usize]);
             (0..3).map(|j| len(sub(ps[j], ps[(j + 1) % 3]))).fold(f64::MAX, f64::min)
         }).collect();
-        if shown < 12 && turn < 10.0 {
+        if shown < 12 {
             println!("    artifact fold at ({:.2}, {:.2}, {:.2}): edge {e:.3} mm, shortest edges of its faces {:?}", q[0], q[1], q[2], others.iter().map(|x| (x * 1000.0).round() / 1000.0).collect::<Vec<_>>());
             shown += 1;
         }
@@ -1202,13 +1204,97 @@ fn settle(nets: Nets, field: &(dyn Fn(P3) -> f64 + Sync)) -> Nets {
     let mut flipped = Nets { v: nets.v.clone(), f: nets.f.clone() };
     let n = polish(&mut flipped, field, 6);
     let (bad, _) = closure(&flipped.v, &flipped.f);
-    if bad == 0 && clean(&flipped) {
-        println!("  flipped {n} edges");
-        flipped
+    let nets = if bad == 0 && clean(&flipped) { flipped } else { nets };
+    let mut smoothed = Nets { v: nets.v.clone(), f: nets.f.clone() };
+    let m = smooth_folds(&mut smoothed, field, 16);
+    if clean(&smoothed) {
+        println!("  flipped {n} edges, moved {m} fold corners");
+        smoothed
     } else {
+        println!("  flipped {n} edges; fold smoothing crossed itself and was dropped");
         nets
     }
 }
+
+/// Moves the corners of the meshing's remaining folds toward their neighbours on the surface: a move is kept when no
+/// face round the corner turns against the field and the worst fold round it shrinks.
+fn smooth_folds(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), passes: usize) -> usize {
+    use std::collections::{HashMap, HashSet};
+    let unit = |g: P3| mul(g, 1.0 / len(g).max(1e-12));
+    let mut vfaces: Vec<Vec<u32>> = vec![Vec::new(); nets.v.len()];
+    for (i, t) in nets.f.iter().enumerate() {
+        for &x in t {
+            vfaces[x as usize].push(i as u32);
+        }
+    }
+    let face_n = |t: &[u32; 3], v: &[P3]| unit(cross(sub(v[t[1] as usize], v[t[0] as usize]), sub(v[t[2] as usize], v[t[0] as usize])));
+    // The worst dihedral cosine over edges touching `x`, faces taken from its two rings.
+    let worst_round = |x: u32, v: &[P3], faces: &[[u32; 3]], vfaces: &[Vec<u32>]| -> f64 {
+        let ring: HashSet<u32> = vfaces[x as usize].iter().flat_map(|f| faces[*f as usize]).collect();
+        let near: HashSet<u32> = ring.iter().flat_map(|y| vfaces[*y as usize].iter().copied()).collect();
+        let mut m: HashMap<(u32, u32), Vec<P3>> = HashMap::new();
+        for f in &near {
+            let t = faces[*f as usize];
+            let n = face_n(&t, v);
+            for e in 0..3 {
+                let (p, q) = (t[e], t[(e + 1) % 3]);
+                if ring.contains(&p) && ring.contains(&q) {
+                    m.entry((p.min(q), p.max(q))).or_default().push(n);
+                }
+            }
+        }
+        m.values().filter(|ns| ns.len() == 2).map(|ns| dot(ns[0], ns[1])).fold(1.0, f64::min)
+    };
+    let mut moved = 0;
+    for _ in 0..passes {
+        let mut edges: HashMap<(u32, u32), Vec<usize>> = HashMap::new();
+        for (i, t) in nets.f.iter().enumerate() {
+            for e in 0..3 {
+                let (a, b) = (t[e], t[(e + 1) % 3]);
+                edges.entry((a.min(b), a.max(b))).or_default().push(i);
+            }
+        }
+        let mut corners: Vec<u32> = edges
+            .iter()
+            .filter(|(_, fs)| fs.len() == 2 && dot(face_n(&nets.f[fs[0]], &nets.v), face_n(&nets.f[fs[1]], &nets.v)) < 35f64.to_radians().cos())
+            .flat_map(|(_, fs)| nets.f[fs[0]].into_iter().chain(nets.f[fs[1]]))
+            .collect();
+        corners.sort_unstable();
+        corners.dedup();
+        let mut changed = 0;
+        for x in corners {
+            let p = nets.v[x as usize];
+            let n = unit(gradient(field, p));
+            let ring: HashSet<u32> = vfaces[x as usize].iter().flat_map(|f| nets.f[*f as usize]).filter(|y| *y != x).collect();
+            if ring.is_empty() {
+                continue;
+            }
+            let c = mul(ring.iter().fold([0.0; 3], |s, y| add(s, nets.v[*y as usize])), 1.0 / ring.len() as f64);
+            let dv = sub(c, p);
+            let mut q = add(p, sub(dv, mul(n, dot(dv, n))));
+            for _ in 0..2 {
+                let g = gradient(field, q);
+                q = sub(q, mul(g, field(q) / dot(g, g).max(1e-9)));
+            }
+            let before = worst_round(x, &nets.v, &nets.f, &vfaces);
+            let old = nets.v[x as usize];
+            nets.v[x as usize] = q;
+            let flipped = vfaces[x as usize].iter().any(|f| dot(face_n(&nets.f[*f as usize], &nets.v), n) < 0.2);
+            if flipped || worst_round(x, &nets.v, &nets.f, &vfaces) <= before + 1e-6 {
+                nets.v[x as usize] = old;
+            } else {
+                changed += 1;
+            }
+        }
+        moved += changed;
+        if changed == 0 {
+            break;
+        }
+    }
+    moved
+}
+
+
 
 /// Collapses edges shorter than `min_len` onto their midpoints stepped back onto the field, where the collapse keeps
 /// the mesh a manifold and turns no face round it over.
@@ -2882,12 +2968,17 @@ fn seam_creases(built: &mesh::BuildResult, head_id: ringdesign_core::sketch::Id)
     let marks: Vec<P3> = graph.keys().map(|k| v[*k as usize]).collect();
     let mut seen = std::collections::HashSet::new();
     let mut longest: f64 = 0.0;
+    let mut runs: Vec<(f64, P3, P3)> = Vec::new();
     for &start in graph.keys() {
         if !seen.insert(start) {
             continue;
         }
         let (mut stack, mut total) = (vec![start], 0.0);
+        let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
         while let Some(x) = stack.pop() {
+            let p = v[x as usize];
+            lo = std::array::from_fn(|k| lo[k].min(p[k]));
+            hi = std::array::from_fn(|k| hi[k].max(p[k]));
             for &(y, l) in &graph[&x] {
                 total += 0.5 * l;
                 if seen.insert(y) {
@@ -2896,6 +2987,13 @@ fn seam_creases(built: &mesh::BuildResult, head_id: ringdesign_core::sketch::Id)
             }
         }
         longest = longest.max(total);
+        runs.push((total, lo, hi));
+    }
+    runs.sort_by(|a, b| b.0.total_cmp(&a.0));
+    for (l, lo, hi) in runs.iter().take(6) {
+        if *l > 0.5 {
+            println!("    seam crease run {l:.2} mm between {:?} and {:?}", lo.map(|c| (c * 100.0).round() / 100.0), hi.map(|c| (c * 100.0).round() / 100.0));
+        }
     }
     (longest, marks)
 }
