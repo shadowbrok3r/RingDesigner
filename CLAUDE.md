@@ -1664,9 +1664,12 @@ and halos carry the field through their seats.
   the base rail, "None" none (a basket takes 0 to 6). A railless claw must
   find metal at its own foot or the head is refused by name, so a claw landing
   past a narrow band's edge asks for the Jaws grouping or a stone seated
-  further onto the band. On a cabochon the shaped styles climb the dome and
-  rest on it, the tip at `rise` of the dome's height (0.3 by default, at most
-  0.6, lower where the claw's bends cannot fit); a Seat rail hides most of a
+  further onto the band. A railless foot that already starts buried deeper
+  than the search accepts (a sloped table) is raised up its own line until it
+  sinks `FOOT_SINK_MM`, not called free; tied claws keep their own foot. On a
+  cabochon the shaped styles climb the dome and rest on it, the tip at `rise`
+  of the dome's height (0.3 by default, at most 0.6, lower where the claw's
+  bends cannot fit); a Seat rail hides most of a
   climbing claw, so railless heads are what make fangs and tentacles read.
   Defaults are bit-identical to the plain wire head, and anything else is
   fenced at design format 6 and graph format 2. Every head is cleaned of
