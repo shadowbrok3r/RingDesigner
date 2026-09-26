@@ -1,0 +1,482 @@
+{
+  "format_version": 1,
+  "name": "Gypsy trio",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.profile",
+      "inputs": {
+        "comfort_fit_mm": 0.25,
+        "crest_bias": 0.0,
+        "crown_mm": 0.8,
+        "edge_round_mm": 0.5,
+        "shape_a": 2.0,
+        "shape_b": 1.0,
+        "side_draft_deg": 2.0,
+        "style": "LowDome",
+        "thickness_mm": 2.4,
+        "width_mm": 6.5
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Band section"
+    },
+    {
+      "id": 2,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Gypsy trio",
+        "size": 7.0
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "layer.seat",
+      "inputs": {
+        "bezel_bearing_mm": 0.3,
+        "bezel_lip": 0.3,
+        "bezel_wall_mm": 0.5,
+        "blend_mm": 0.6,
+        "crown": 1.0,
+        "diameter_mm": 5.8,
+        "dimple_mm": 0.0,
+        "elong": 1.0,
+        "height_mm": 0.55,
+        "mark_mm": 0.8,
+        "metal_true": false,
+        "plan_pow": 2.0,
+        "prong_mm": 0.9,
+        "prongs": 0,
+        "recess_mm": 0.5,
+        "rot_deg": 0.0,
+        "solid": "Flush",
+        "style": "GypsyMound",
+        "theta_deg": 90.0,
+        "through": true,
+        "v_mm": 4.578389862814923
+      },
+      "pos": [
+        240.0,
+        150.0
+      ],
+      "label": "Centre"
+    },
+    {
+      "id": 4,
+      "kind": "gem",
+      "inputs": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 4.0,
+        "w_mm": 4.0
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "entry",
+      "inputs": {
+        "bench_only": false,
+        "blend": "Max",
+        "enabled": true,
+        "name": "Centre",
+        "opacity": 1.0,
+        "soft_mm": 0.3
+      },
+      "pos": [
+        480.0,
+        0.0
+      ],
+      "label": "Centre / blend"
+    },
+    {
+      "id": 6,
+      "kind": "window",
+      "inputs": {
+        "enabled": false,
+        "fade_deg": 12.0,
+        "invert": false,
+        "span_deg": 90.0,
+        "theta_deg": 90.0
+      },
+      "pos": [
+        0.0,
+        300.0
+      ],
+      "label": "Centre / placement"
+    },
+    {
+      "id": 7,
+      "kind": "stack",
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 8,
+      "kind": "layer.seat",
+      "inputs": {
+        "bezel_bearing_mm": 0.3,
+        "bezel_lip": 0.3,
+        "bezel_wall_mm": 0.5,
+        "blend_mm": 0.5,
+        "crown": 1.0,
+        "diameter_mm": 4.3,
+        "dimple_mm": 0.0,
+        "elong": 1.0,
+        "height_mm": 0.4,
+        "mark_mm": 0.6,
+        "metal_true": false,
+        "plan_pow": 2.0,
+        "prong_mm": 0.9,
+        "prongs": 0,
+        "recess_mm": 0.5,
+        "rot_deg": 0.0,
+        "solid": "Flush",
+        "style": "GypsyMound",
+        "theta_deg": 62.0,
+        "through": true,
+        "v_mm": 4.578389862814923
+      },
+      "pos": [
+        240.0,
+        300.0
+      ],
+      "label": "Right"
+    },
+    {
+      "id": 9,
+      "kind": "gem",
+      "inputs": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 2.5,
+        "w_mm": 2.5
+      },
+      "pos": [
+        0.0,
+        450.0
+      ]
+    },
+    {
+      "id": 10,
+      "kind": "entry",
+      "inputs": {
+        "bench_only": false,
+        "blend": "Max",
+        "enabled": true,
+        "name": "Right",
+        "opacity": 1.0,
+        "soft_mm": 0.3
+      },
+      "pos": [
+        480.0,
+        150.0
+      ],
+      "label": "Right / blend"
+    },
+    {
+      "id": 11,
+      "kind": "window",
+      "inputs": {
+        "enabled": false,
+        "fade_deg": 12.0,
+        "invert": false,
+        "span_deg": 90.0,
+        "theta_deg": 90.0
+      },
+      "pos": [
+        0.0,
+        600.0
+      ],
+      "label": "Right / placement"
+    },
+    {
+      "id": 12,
+      "kind": "stack",
+      "pos": [
+        960.0,
+        0.0
+      ]
+    },
+    {
+      "id": 13,
+      "kind": "layer.seat",
+      "inputs": {
+        "bezel_bearing_mm": 0.3,
+        "bezel_lip": 0.3,
+        "bezel_wall_mm": 0.5,
+        "blend_mm": 0.5,
+        "crown": 1.0,
+        "diameter_mm": 4.3,
+        "dimple_mm": 0.0,
+        "elong": 1.0,
+        "height_mm": 0.4,
+        "mark_mm": 0.6,
+        "metal_true": false,
+        "plan_pow": 2.0,
+        "prong_mm": 0.9,
+        "prongs": 0,
+        "recess_mm": 0.5,
+        "rot_deg": 0.0,
+        "solid": "Flush",
+        "style": "GypsyMound",
+        "theta_deg": 118.0,
+        "through": true,
+        "v_mm": 4.578389862814923
+      },
+      "pos": [
+        240.0,
+        450.0
+      ],
+      "label": "Left"
+    },
+    {
+      "id": 14,
+      "kind": "gem",
+      "inputs": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 2.5,
+        "w_mm": 2.5
+      },
+      "pos": [
+        0.0,
+        750.0
+      ]
+    },
+    {
+      "id": 15,
+      "kind": "entry",
+      "inputs": {
+        "bench_only": false,
+        "blend": "Max",
+        "enabled": true,
+        "name": "Left",
+        "opacity": 1.0,
+        "soft_mm": 0.3
+      },
+      "pos": [
+        480.0,
+        300.0
+      ],
+      "label": "Left / blend"
+    },
+    {
+      "id": 16,
+      "kind": "window",
+      "inputs": {
+        "enabled": false,
+        "fade_deg": 12.0,
+        "invert": false,
+        "span_deg": 90.0,
+        "theta_deg": 90.0
+      },
+      "pos": [
+        0.0,
+        900.0
+      ],
+      "label": "Left / placement"
+    },
+    {
+      "id": 17,
+      "kind": "stack",
+      "pos": [
+        1200.0,
+        0.0
+      ]
+    },
+    {
+      "id": 18,
+      "kind": "design.assemble",
+      "pos": [
+        1440.0,
+        0.0
+      ]
+    },
+    {
+      "id": 19,
+      "kind": "design.settings",
+      "pos": [
+        1680.0,
+        0.0
+      ]
+    },
+    {
+      "id": 20,
+      "kind": "draft.settings",
+      "inputs": {
+        "auto_parting": true,
+        "min_detail_mm": 0.3,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.8,
+        "parting_z_mm": 0.0,
+        "process": "SandTwoPart",
+        "sand": "DelftClay"
+      },
+      "pos": [
+        0.0,
+        1050.0
+      ]
+    },
+    {
+      "id": 21,
+      "kind": "sink.output",
+      "pos": [
+        1920.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "profile",
+      "to": 2,
+      "input": "profile"
+    },
+    {
+      "from": 4,
+      "out": "gem",
+      "to": 3,
+      "input": "gem"
+    },
+    {
+      "from": 3,
+      "out": "layer",
+      "to": 5,
+      "input": "layer"
+    },
+    {
+      "from": 6,
+      "out": "window",
+      "to": 5,
+      "input": "window"
+    },
+    {
+      "from": 5,
+      "out": "entry",
+      "to": 7,
+      "input": "entries"
+    },
+    {
+      "from": 9,
+      "out": "gem",
+      "to": 8,
+      "input": "gem"
+    },
+    {
+      "from": 8,
+      "out": "layer",
+      "to": 10,
+      "input": "layer"
+    },
+    {
+      "from": 11,
+      "out": "window",
+      "to": 10,
+      "input": "window"
+    },
+    {
+      "from": 7,
+      "out": "stack",
+      "to": 12,
+      "input": "stack"
+    },
+    {
+      "from": 10,
+      "out": "entry",
+      "to": 12,
+      "input": "entries"
+    },
+    {
+      "from": 14,
+      "out": "gem",
+      "to": 13,
+      "input": "gem"
+    },
+    {
+      "from": 13,
+      "out": "layer",
+      "to": 15,
+      "input": "layer"
+    },
+    {
+      "from": 16,
+      "out": "window",
+      "to": 15,
+      "input": "window"
+    },
+    {
+      "from": 12,
+      "out": "stack",
+      "to": 17,
+      "input": "stack"
+    },
+    {
+      "from": 15,
+      "out": "entry",
+      "to": 17,
+      "input": "entries"
+    },
+    {
+      "from": 2,
+      "out": "design",
+      "to": 18,
+      "input": "design"
+    },
+    {
+      "from": 17,
+      "out": "stack",
+      "to": 18,
+      "input": "stack"
+    },
+    {
+      "from": 18,
+      "out": "design",
+      "to": 19,
+      "input": "design"
+    },
+    {
+      "from": 20,
+      "out": "draft",
+      "to": 19,
+      "input": "draft"
+    },
+    {
+      "from": 19,
+      "out": "design",
+      "to": 21,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 2,
+      "input": "size",
+      "name": "US size"
+    },
+    {
+      "node": 1,
+      "input": "width_mm",
+      "name": "Band width"
+    },
+    {
+      "node": 1,
+      "input": "thickness_mm",
+      "name": "Band thickness"
+    }
+  ],
+  "next_id": 22
+}

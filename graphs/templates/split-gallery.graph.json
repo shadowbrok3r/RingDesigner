@@ -1,0 +1,444 @@
+{
+  "format_version": 2,
+  "name": "Split gallery",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 1,
+        "name": "Procedural shank",
+        "operation": "Band"
+      },
+      "pos": [
+        1440.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 2,
+        "name": "Gallery window",
+        "operation": {
+          "Builder": {
+            "key": "cutter.window",
+            "on": null,
+            "params": {
+              "draft_deg": 4.0,
+              "from_deg": 38.0,
+              "rail_in_mm": 1.2,
+              "rail_out_mm": 1.5,
+              "tip_round_mm": 0.35,
+              "to_deg": 142.0
+            }
+          }
+        }
+      },
+      "pos": [
+        1680.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "band.profile",
+      "inputs": {
+        "comfort_fit_mm": 0.1,
+        "crest_bias": 0.0,
+        "crown_mm": 0.2,
+        "edge_round_mm": 0.05,
+        "shape_a": 2.0,
+        "shape_b": 1.0,
+        "side_draft_deg": 0.0,
+        "style": "LowDome",
+        "thickness_mm": 1.8,
+        "width_mm": 4.2
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Band section"
+    },
+    {
+      "id": 4,
+      "kind": "shank",
+      "inputs": {
+        "amount": 1.0,
+        "kind": "Keyframes",
+        "waves": 1
+      },
+      "pos": [
+        960.0,
+        0.0
+      ],
+      "label": "Shoulders and taper"
+    },
+    {
+      "id": 5,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 270.0,
+        "thickness_scale": 1.0,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 200.0,
+        "thickness_scale": 1.0,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        300.0
+      ]
+    },
+    {
+      "id": 7,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 340.0,
+        "thickness_scale": 1.0,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        450.0
+      ]
+    },
+    {
+      "id": 8,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 150.0,
+        "thickness_scale": 1.6,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        600.0
+      ]
+    },
+    {
+      "id": 9,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 30.0,
+        "thickness_scale": 1.6,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        750.0
+      ]
+    },
+    {
+      "id": 10,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 120.0,
+        "thickness_scale": 1.85,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        900.0
+      ]
+    },
+    {
+      "id": 11,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 60.0,
+        "thickness_scale": 1.85,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        1050.0
+      ]
+    },
+    {
+      "id": 12,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 90.0,
+        "thickness_scale": 2.3,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        1200.0
+      ]
+    },
+    {
+      "id": 13,
+      "kind": "list.merge",
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 14,
+      "kind": "list.merge",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 15,
+      "kind": "list.merge",
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 16,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Split gallery",
+        "size": 7.0
+      },
+      "pos": [
+        1200.0,
+        0.0
+      ]
+    },
+    {
+      "id": 19,
+      "kind": "cad.op.cutter.window",
+      "inputs": {
+        "draft_deg": 4.0,
+        "from_deg": 38.0,
+        "rail_in_mm": 1.2,
+        "rail_out_mm": 1.5,
+        "tip_round_mm": 0.35,
+        "to_deg": 142.0
+      },
+      "pos": [
+        0.0,
+        1350.0
+      ]
+    },
+    {
+      "id": 20,
+      "kind": "design.settings",
+      "pos": [
+        1920.0,
+        0.0
+      ]
+    },
+    {
+      "id": 21,
+      "kind": "draft.settings",
+      "inputs": {
+        "auto_parting": true,
+        "min_detail_mm": 0.3,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.8,
+        "parting_z_mm": 0.0,
+        "process": "SandTwoPart",
+        "sand": "DelftClay"
+      },
+      "pos": [
+        0.0,
+        1500.0
+      ]
+    },
+    {
+      "id": 22,
+      "kind": "sink.output",
+      "pos": [
+        2160.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 5,
+      "out": "key",
+      "to": 13,
+      "input": "a"
+    },
+    {
+      "from": 6,
+      "out": "key",
+      "to": 13,
+      "input": "b"
+    },
+    {
+      "from": 7,
+      "out": "key",
+      "to": 13,
+      "input": "c"
+    },
+    {
+      "from": 13,
+      "out": "out",
+      "to": 14,
+      "input": "a"
+    },
+    {
+      "from": 8,
+      "out": "key",
+      "to": 14,
+      "input": "b"
+    },
+    {
+      "from": 9,
+      "out": "key",
+      "to": 14,
+      "input": "c"
+    },
+    {
+      "from": 10,
+      "out": "key",
+      "to": 14,
+      "input": "d"
+    },
+    {
+      "from": 14,
+      "out": "out",
+      "to": 15,
+      "input": "a"
+    },
+    {
+      "from": 11,
+      "out": "key",
+      "to": 15,
+      "input": "b"
+    },
+    {
+      "from": 12,
+      "out": "key",
+      "to": 15,
+      "input": "c"
+    },
+    {
+      "from": 15,
+      "out": "out",
+      "to": 4,
+      "input": "keys"
+    },
+    {
+      "from": 3,
+      "out": "profile",
+      "to": 16,
+      "input": "profile"
+    },
+    {
+      "from": 4,
+      "out": "shank",
+      "to": 16,
+      "input": "shank"
+    },
+    {
+      "from": 16,
+      "out": "design",
+      "to": 1,
+      "input": "design"
+    },
+    {
+      "from": 1,
+      "out": "design",
+      "to": 2,
+      "input": "design"
+    },
+    {
+      "from": 19,
+      "out": "operation",
+      "to": 2,
+      "input": "operation"
+    },
+    {
+      "from": 2,
+      "out": "design",
+      "to": 20,
+      "input": "design"
+    },
+    {
+      "from": 21,
+      "out": "draft",
+      "to": 20,
+      "input": "draft"
+    },
+    {
+      "from": 20,
+      "out": "design",
+      "to": 22,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 16,
+      "input": "size",
+      "name": "US size"
+    },
+    {
+      "node": 3,
+      "input": "width_mm",
+      "name": "Band width"
+    },
+    {
+      "node": 3,
+      "input": "thickness_mm",
+      "name": "Band thickness"
+    }
+  ],
+  "next_id": 23
+}

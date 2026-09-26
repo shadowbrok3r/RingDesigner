@@ -1,0 +1,766 @@
+{
+  "format_version": 2,
+  "name": "Halo",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 1,
+        "name": "Procedural shank",
+        "operation": "Band"
+      },
+      "pos": [
+        1680.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "across_mm": 0.0,
+            "cant_deg": 0.0,
+            "height_mm": 2.618,
+            "kind": "ring",
+            "spin_deg": 45.0,
+            "theta_deg": 90.0,
+            "tilt_deg": 0.0
+          },
+          "reference": true,
+          "role": "Stone",
+          "stage": "cast",
+          "stone_id": "Cushion 6 mm",
+          "visible": true
+        },
+        "enabled": true,
+        "id": 2,
+        "name": "Cushion 6 mm",
+        "operation": {
+          "Builder": {
+            "key": "stone",
+            "on": null,
+            "params": {
+              "cut": "Cushion",
+              "form": "Faceted",
+              "l_mm": 6.0,
+              "w_mm": 6.0
+            }
+          }
+        }
+      },
+      "pos": [
+        1920.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "join",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Head",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 3,
+        "name": "Four-claw head",
+        "operation": {
+          "Builder": {
+            "key": "head.claw",
+            "on": 2,
+            "params": {
+              "prongs": 4,
+              "wire_mm": 1.0
+            }
+          }
+        }
+      },
+      "pos": [
+        2160.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "join",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Setting",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 4,
+        "name": "Halo",
+        "operation": {
+          "Builder": {
+            "key": "halo",
+            "on": 2,
+            "params": {
+              "bridge_mm": 0.8,
+              "gap_mm": 0.95,
+              "melee_mm": 1.2,
+              "style": "Bezel"
+            }
+          }
+        }
+      },
+      "pos": [
+        2400.0,
+        0.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Setting",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 5,
+        "name": "Seat bur",
+        "operation": {
+          "Builder": {
+            "key": "seat.bur",
+            "on": 2,
+            "params": {
+              "through": true
+            }
+          }
+        }
+      },
+      "pos": [
+        2640.0,
+        0.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "band.profile",
+      "inputs": {
+        "comfort_fit_mm": 0.25,
+        "crest_bias": 0.0,
+        "crown_mm": 1.3,
+        "edge_round_mm": 0.16,
+        "shape_a": 2.5,
+        "shape_b": 1.6,
+        "side_draft_deg": 2.0,
+        "style": "DShape",
+        "thickness_mm": 1.8,
+        "width_mm": 2.2
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Band section"
+    },
+    {
+      "id": 7,
+      "kind": "shank",
+      "inputs": {
+        "amount": 0.2,
+        "kind": "ReverseTaper",
+        "waves": 1
+      },
+      "pos": [
+        0.0,
+        150.0
+      ],
+      "label": "Shoulders and taper"
+    },
+    {
+      "id": 8,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Halo",
+        "size": 7.0
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 9,
+      "kind": "layer.seatrun",
+      "inputs": {
+        "bridge_mm": 0.8,
+        "count": 20,
+        "shared_prong_mm": 0.0,
+        "taper": 0.0,
+        "taper_theta_deg": 90.0,
+        "tilt_deg": 0.0
+      },
+      "pos": [
+        480.0,
+        0.0
+      ],
+      "label": "Shoulder pavé, right"
+    },
+    {
+      "id": 10,
+      "kind": "gem",
+      "inputs": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 1.2,
+        "w_mm": 1.2
+      },
+      "pos": [
+        0.0,
+        300.0
+      ]
+    },
+    {
+      "id": 11,
+      "kind": "layer.seat",
+      "inputs": {
+        "bezel_bearing_mm": 0.3,
+        "bezel_lip": 0.3,
+        "bezel_wall_mm": 0.5,
+        "blend_mm": 0.3,
+        "crown": 1.0,
+        "diameter_mm": 2.4,
+        "dimple_mm": 0.0,
+        "elong": 1.0,
+        "height_mm": 0.2,
+        "mark_mm": 0.0,
+        "metal_true": false,
+        "plan_pow": 2.0,
+        "prong_mm": 0.9,
+        "prongs": 0,
+        "recess_mm": 0.5,
+        "rot_deg": 0.0,
+        "solid": "Bead",
+        "style": "Boss",
+        "theta_deg": 90.0,
+        "through": false,
+        "v_mm": 2.1324720419709533
+      },
+      "pos": [
+        240.0,
+        150.0
+      ]
+    },
+    {
+      "id": 12,
+      "kind": "gem",
+      "inputs": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 1.2,
+        "w_mm": 1.2
+      },
+      "pos": [
+        0.0,
+        450.0
+      ]
+    },
+    {
+      "id": 13,
+      "kind": "entry",
+      "inputs": {
+        "bench_only": false,
+        "blend": "Max",
+        "enabled": true,
+        "name": "Shoulder pavé, right",
+        "opacity": 1.0,
+        "soft_mm": 0.3
+      },
+      "pos": [
+        720.0,
+        0.0
+      ],
+      "label": "Shoulder pavé, right / blend"
+    },
+    {
+      "id": 14,
+      "kind": "window",
+      "inputs": {
+        "enabled": true,
+        "fade_deg": 1.0,
+        "invert": false,
+        "span_deg": 32.0,
+        "theta_deg": 40.0
+      },
+      "pos": [
+        0.0,
+        600.0
+      ],
+      "label": "Shoulder pavé, right / placement"
+    },
+    {
+      "id": 15,
+      "kind": "stack",
+      "pos": [
+        960.0,
+        0.0
+      ]
+    },
+    {
+      "id": 16,
+      "kind": "layer.seatrun",
+      "inputs": {
+        "bridge_mm": 0.8,
+        "count": 20,
+        "shared_prong_mm": 0.0,
+        "taper": 0.0,
+        "taper_theta_deg": 90.0,
+        "tilt_deg": 0.0
+      },
+      "pos": [
+        480.0,
+        150.0
+      ],
+      "label": "Shoulder pavé, left"
+    },
+    {
+      "id": 17,
+      "kind": "gem",
+      "inputs": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 1.2,
+        "w_mm": 1.2
+      },
+      "pos": [
+        0.0,
+        750.0
+      ]
+    },
+    {
+      "id": 18,
+      "kind": "layer.seat",
+      "inputs": {
+        "bezel_bearing_mm": 0.3,
+        "bezel_lip": 0.3,
+        "bezel_wall_mm": 0.5,
+        "blend_mm": 0.3,
+        "crown": 1.0,
+        "diameter_mm": 2.4,
+        "dimple_mm": 0.0,
+        "elong": 1.0,
+        "height_mm": 0.2,
+        "mark_mm": 0.0,
+        "metal_true": false,
+        "plan_pow": 2.0,
+        "prong_mm": 0.9,
+        "prongs": 0,
+        "recess_mm": 0.5,
+        "rot_deg": 0.0,
+        "solid": "Bead",
+        "style": "Boss",
+        "theta_deg": 90.0,
+        "through": false,
+        "v_mm": 2.1324720419709533
+      },
+      "pos": [
+        240.0,
+        300.0
+      ]
+    },
+    {
+      "id": 19,
+      "kind": "gem",
+      "inputs": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 1.2,
+        "w_mm": 1.2
+      },
+      "pos": [
+        0.0,
+        900.0
+      ]
+    },
+    {
+      "id": 20,
+      "kind": "entry",
+      "inputs": {
+        "bench_only": false,
+        "blend": "Max",
+        "enabled": true,
+        "name": "Shoulder pavé, left",
+        "opacity": 1.0,
+        "soft_mm": 0.3
+      },
+      "pos": [
+        720.0,
+        150.0
+      ],
+      "label": "Shoulder pavé, left / blend"
+    },
+    {
+      "id": 21,
+      "kind": "window",
+      "inputs": {
+        "enabled": true,
+        "fade_deg": 1.0,
+        "invert": false,
+        "span_deg": 32.0,
+        "theta_deg": 140.0
+      },
+      "pos": [
+        0.0,
+        1050.0
+      ],
+      "label": "Shoulder pavé, left / placement"
+    },
+    {
+      "id": 22,
+      "kind": "stack",
+      "pos": [
+        1200.0,
+        0.0
+      ]
+    },
+    {
+      "id": 23,
+      "kind": "design.assemble",
+      "pos": [
+        1440.0,
+        0.0
+      ]
+    },
+    {
+      "id": 29,
+      "kind": "cad.op.stone",
+      "inputs": {
+        "cut": "Cushion",
+        "form": "Faceted",
+        "l_mm": 6.0,
+        "w_mm": 6.0
+      },
+      "pos": [
+        0.0,
+        1200.0
+      ]
+    },
+    {
+      "id": 30,
+      "kind": "cad.op.head.claw",
+      "inputs": {
+        "on": 2,
+        "prongs": 4,
+        "wire_mm": 1.0
+      },
+      "pos": [
+        0.0,
+        1350.0
+      ]
+    },
+    {
+      "id": 31,
+      "kind": "cad.op.halo",
+      "inputs": {
+        "bridge_mm": 0.8,
+        "gap_mm": 0.95,
+        "melee_mm": 1.2,
+        "on": 2,
+        "style": "Bezel"
+      },
+      "pos": [
+        0.0,
+        1500.0
+      ]
+    },
+    {
+      "id": 32,
+      "kind": "cad.op.seat.bur",
+      "inputs": {
+        "on": 2,
+        "through": true
+      },
+      "pos": [
+        0.0,
+        1650.0
+      ]
+    },
+    {
+      "id": 33,
+      "kind": "design.settings",
+      "pos": [
+        2880.0,
+        0.0
+      ]
+    },
+    {
+      "id": 34,
+      "kind": "draft.settings",
+      "inputs": {
+        "auto_parting": true,
+        "min_detail_mm": 0.15,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.5,
+        "parting_z_mm": 0.0,
+        "process": "LostWax"
+      },
+      "pos": [
+        0.0,
+        1800.0
+      ]
+    },
+    {
+      "id": 35,
+      "kind": "sink.output",
+      "pos": [
+        3120.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 6,
+      "out": "profile",
+      "to": 8,
+      "input": "profile"
+    },
+    {
+      "from": 7,
+      "out": "shank",
+      "to": 8,
+      "input": "shank"
+    },
+    {
+      "from": 10,
+      "out": "gem",
+      "to": 9,
+      "input": "gem"
+    },
+    {
+      "from": 12,
+      "out": "gem",
+      "to": 11,
+      "input": "gem"
+    },
+    {
+      "from": 11,
+      "out": "layer",
+      "to": 9,
+      "input": "seat"
+    },
+    {
+      "from": 9,
+      "out": "layer",
+      "to": 13,
+      "input": "layer"
+    },
+    {
+      "from": 14,
+      "out": "window",
+      "to": 13,
+      "input": "window"
+    },
+    {
+      "from": 13,
+      "out": "entry",
+      "to": 15,
+      "input": "entries"
+    },
+    {
+      "from": 17,
+      "out": "gem",
+      "to": 16,
+      "input": "gem"
+    },
+    {
+      "from": 19,
+      "out": "gem",
+      "to": 18,
+      "input": "gem"
+    },
+    {
+      "from": 18,
+      "out": "layer",
+      "to": 16,
+      "input": "seat"
+    },
+    {
+      "from": 16,
+      "out": "layer",
+      "to": 20,
+      "input": "layer"
+    },
+    {
+      "from": 21,
+      "out": "window",
+      "to": 20,
+      "input": "window"
+    },
+    {
+      "from": 15,
+      "out": "stack",
+      "to": 22,
+      "input": "stack"
+    },
+    {
+      "from": 20,
+      "out": "entry",
+      "to": 22,
+      "input": "entries"
+    },
+    {
+      "from": 8,
+      "out": "design",
+      "to": 23,
+      "input": "design"
+    },
+    {
+      "from": 22,
+      "out": "stack",
+      "to": 23,
+      "input": "stack"
+    },
+    {
+      "from": 23,
+      "out": "design",
+      "to": 1,
+      "input": "design"
+    },
+    {
+      "from": 1,
+      "out": "design",
+      "to": 2,
+      "input": "design"
+    },
+    {
+      "from": 2,
+      "out": "design",
+      "to": 3,
+      "input": "design"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 4,
+      "input": "design"
+    },
+    {
+      "from": 4,
+      "out": "design",
+      "to": 5,
+      "input": "design"
+    },
+    {
+      "from": 29,
+      "out": "operation",
+      "to": 2,
+      "input": "operation"
+    },
+    {
+      "from": 30,
+      "out": "operation",
+      "to": 3,
+      "input": "operation"
+    },
+    {
+      "from": 31,
+      "out": "operation",
+      "to": 4,
+      "input": "operation"
+    },
+    {
+      "from": 32,
+      "out": "operation",
+      "to": 5,
+      "input": "operation"
+    },
+    {
+      "from": 5,
+      "out": "design",
+      "to": 33,
+      "input": "design"
+    },
+    {
+      "from": 34,
+      "out": "draft",
+      "to": 33,
+      "input": "draft"
+    },
+    {
+      "from": 33,
+      "out": "design",
+      "to": 35,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 8,
+      "input": "size",
+      "name": "US size"
+    },
+    {
+      "node": 6,
+      "input": "width_mm",
+      "name": "Band width"
+    },
+    {
+      "node": 6,
+      "input": "thickness_mm",
+      "name": "Band thickness"
+    }
+  ],
+  "next_id": 36
+}

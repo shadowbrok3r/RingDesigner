@@ -1,0 +1,343 @@
+{
+  "format_version": 2,
+  "name": "Bezel solitaire",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 1,
+        "name": "Procedural shank",
+        "operation": "Band"
+      },
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "across_mm": 0.0,
+            "cant_deg": 0.0,
+            "height_mm": 1.27,
+            "kind": "ring",
+            "spin_deg": 0.0,
+            "theta_deg": 90.0,
+            "tilt_deg": 0.0
+          },
+          "reference": true,
+          "role": "Stone",
+          "stage": "cast",
+          "stone_id": "Oval 7 × 5",
+          "visible": true
+        },
+        "enabled": true,
+        "id": 2,
+        "name": "Oval 7 × 5",
+        "operation": {
+          "Builder": {
+            "key": "stone",
+            "on": null,
+            "params": {
+              "cut": "Oval",
+              "form": "Faceted",
+              "l_mm": 7.0,
+              "w_mm": 5.0
+            }
+          }
+        }
+      },
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "join",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Setting",
+          "stage": "bench",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 3,
+        "name": "Bezel",
+        "operation": {
+          "Builder": {
+            "key": "head.bezel",
+            "on": 2,
+            "params": {}
+          }
+        }
+      },
+      "pos": [
+        960.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Setting",
+          "stage": "bench",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 4,
+        "name": "Seat bur",
+        "operation": {
+          "Builder": {
+            "key": "seat.bur",
+            "on": 2,
+            "params": {
+              "through": false
+            }
+          }
+        }
+      },
+      "pos": [
+        1200.0,
+        0.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "band.profile",
+      "inputs": {
+        "comfort_fit_mm": 0.25,
+        "crest_bias": 0.0,
+        "crown_mm": 0.8,
+        "edge_round_mm": 0.5,
+        "shape_a": 2.0,
+        "shape_b": 1.0,
+        "side_draft_deg": 2.0,
+        "style": "LowDome",
+        "thickness_mm": 1.7,
+        "width_mm": 2.4
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Band section"
+    },
+    {
+      "id": 6,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Bezel solitaire",
+        "size": 7.0
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 11,
+      "kind": "cad.op.stone",
+      "inputs": {
+        "cut": "Oval",
+        "form": "Faceted",
+        "l_mm": 7.0,
+        "w_mm": 5.0
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 12,
+      "kind": "cad.op.head.bezel",
+      "inputs": {
+        "on": 2
+      },
+      "pos": [
+        0.0,
+        300.0
+      ]
+    },
+    {
+      "id": 13,
+      "kind": "cad.op.seat.bur",
+      "inputs": {
+        "on": 2,
+        "through": false
+      },
+      "pos": [
+        0.0,
+        450.0
+      ]
+    },
+    {
+      "id": 14,
+      "kind": "design.settings",
+      "pos": [
+        1440.0,
+        0.0
+      ]
+    },
+    {
+      "id": 15,
+      "kind": "draft.settings",
+      "inputs": {
+        "auto_parting": true,
+        "min_detail_mm": 0.3,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.8,
+        "parting_z_mm": 0.0,
+        "process": "SandTwoPart",
+        "sand": "DelftClay"
+      },
+      "pos": [
+        0.0,
+        600.0
+      ]
+    },
+    {
+      "id": 16,
+      "kind": "sink.output",
+      "pos": [
+        1680.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 5,
+      "out": "profile",
+      "to": 6,
+      "input": "profile"
+    },
+    {
+      "from": 6,
+      "out": "design",
+      "to": 1,
+      "input": "design"
+    },
+    {
+      "from": 1,
+      "out": "design",
+      "to": 2,
+      "input": "design"
+    },
+    {
+      "from": 2,
+      "out": "design",
+      "to": 3,
+      "input": "design"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 4,
+      "input": "design"
+    },
+    {
+      "from": 11,
+      "out": "operation",
+      "to": 2,
+      "input": "operation"
+    },
+    {
+      "from": 12,
+      "out": "operation",
+      "to": 3,
+      "input": "operation"
+    },
+    {
+      "from": 13,
+      "out": "operation",
+      "to": 4,
+      "input": "operation"
+    },
+    {
+      "from": 4,
+      "out": "design",
+      "to": 14,
+      "input": "design"
+    },
+    {
+      "from": 15,
+      "out": "draft",
+      "to": 14,
+      "input": "draft"
+    },
+    {
+      "from": 14,
+      "out": "design",
+      "to": 16,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 6,
+      "input": "size",
+      "name": "US size"
+    },
+    {
+      "node": 5,
+      "input": "width_mm",
+      "name": "Band width"
+    },
+    {
+      "node": 5,
+      "input": "thickness_mm",
+      "name": "Band thickness"
+    }
+  ],
+  "next_id": 17
+}

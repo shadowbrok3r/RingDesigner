@@ -1,75 +1,43 @@
 {
   "court-band": {
-    "source": "target/template-library-review/starter-renders/court_band.png",
-    "source_sha256": "ce060f5f053cf81f7d86c3a01f287dae383633dd6445cc1368f645b63af0d0dd",
+    "source": "target/template-library-review/starter-renders/court-band.png",
     "size": [
       160,
       160
-    ]
-  },
-  "heart-signet": {
-    "source": "target/template-library-review/starter-renders/heart_signet.png",
-    "source_sha256": "3dcaa061e95db94cbd5bebc093f0d3abac74df3707930ff2256d50e34d5562d4",
-    "size": [
-      160,
-      160
-    ]
-  },
-  "waved-hexagon-signet": {
-    "source": "target/template-library-review/starter-renders/waved_hexagon_signet.png",
-    "source_sha256": "42bc64340c8ca69428ee47c844ef31738a96af5fdf6b032e7584d0fa7a8dd779",
-    "size": [
-      160,
-      160
-    ]
+    ],
+    "source_sha256": "6fc8f4658ba193c916318354bb5c88483740d54ed7ff4c54e2c5eeb520aba3f6"
   },
   "shouldered-cushion-signet": {
-    "source": "target/template-library-review/starter-renders/shouldered_cushion_signet.png",
-    "source_sha256": "6ff12c59781c9b6a0bbadb09fa57f85d00a83801289250df76a514e970ebddea",
+    "source": "target/template-library-review/starter-renders/shouldered-cushion-signet.png",
     "size": [
       160,
       160
-    ]
+    ],
+    "source_sha256": "edaf9a49ebbeaad211c930df5f64c4296d6c6415863d627c331df2ab15d59392"
   },
   "braided-band": {
-    "source": "target/template-library-review/starter-renders/braided_band.png",
-    "source_sha256": "fbca195bbe7a747f7566a8b859f3afbe3835cf20e28fc49ca2663fc5e69ac586",
+    "source": "target/template-library-review/starter-renders/braided-band.png",
     "size": [
       160,
       160
-    ]
-  },
-  "cathedral-solitaire-stock": {
-    "source": "target/template-library-review/starter-renders/cathedral_solitaire_stock.png",
-    "source_sha256": "772d5af41998130e7403be17f34a28f5d232e0e2aa23b4cc967caacfe8ace593",
-    "size": [
-      160,
-      160
-    ]
-  },
-  "wishbone-wave": {
-    "source": "target/template-library-review/starter-renders/wishbone_wave.png",
-    "source_sha256": "318cc907c69bdc39e673290b9066ef18a4a28866fcb845adc5d921e3d8fd08c8",
-    "size": [
-      160,
-      160
-    ]
+    ],
+    "source_sha256": "6bcdca77e22edd9df26043627700cd5401196bf29b7927c2e3193ecbf207ab0d"
   },
   "split-shank": {
-    "source": "target/template-library-review/starter-renders/split_shank.png",
-    "source_sha256": "bed5d2a0e6530ff734907ff745d3f0e10d7a715f1904e5894c03d7e13ac2eb5e",
+    "source": "target/template-library-review/starter-renders/split-shank.png",
     "size": [
       160,
       160
-    ]
+    ],
+    "source_sha256": "1186d9d82cb7d8fa6688c51f07ac209b95b81f4b2e2a5a85f1a22bb1925a3136"
   },
   "toi-et-moi": {
-    "source": "target/template-library-review/starter-renders/toi_et_moi.png",
-    "source_sha256": "c3b404ce21eff4acdee9be5fd2a4d4aeeae37b553d15753d2f61ffe5206d32e4",
+    "source": "target/template-library-review/starter-renders/toi-et-moi.png",
     "size": [
       160,
       160
-    ]
+    ],
+    "source_sha256": "ca0d7c9ea8d08ace90e34219cd0227daae46720adef8e1cd5123a06f0869b420"
   },
   "nocturne": {
     "source": "showcase/masterwork-signets/nocturne/hero.png",
@@ -246,5 +214,229 @@
       160,
       160
     ]
+  },
+  "split-gallery": {
+    "source": "target/template-library-review/starter-renders/split-gallery.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "b7552d392d2b07dcdf9b5a735cbcfe34ae7bec2afba5aafccffadaae6f0ae6f9"
+  },
+  "cathedral-solitaire": {
+    "source": "target/template-library-review/starter-renders/cathedral-solitaire.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "af75c02eb16512c52b705d7f573e989a8b17cca25c3bb85360150feb8380bd1d"
+  },
+  "bezel-solitaire": {
+    "source": "target/template-library-review/starter-renders/bezel-solitaire.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "fc4e7f6f64992c480cd4836a1aa23c85a2b48e9bda46f14ff970dfefd957aca1"
+  },
+  "halo": {
+    "source": "target/template-library-review/starter-renders/halo.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "31546a17ca9828ed5a64cf0cdb9f89e8e99162b16befc0de86da28cc9639c03e"
+  },
+  "trilogy": {
+    "source": "target/template-library-review/starter-renders/trilogy.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "afab0a48e84d3c2e4091cbb5cb67ceba0ffb10df7d43722f381b536012421e9d"
+  },
+  "split-shank-basket": {
+    "source": "target/template-library-review/starter-renders/split-shank-basket.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "cba329264816caf80d0f5228333abd9999a7fa14bd8cd91578de9df16b4cb080"
+  },
+  "half-eternity": {
+    "source": "target/template-library-review/starter-renders/half-eternity.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "a93c1c5122752956f1c70a18cb2c0f77d5e48fc3eb8adfbf619ff959e1e1d0f2"
+  },
+  "gypsy-trio": {
+    "source": "target/template-library-review/starter-renders/gypsy-trio.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "a41a7299576a606fe61657d50eae4750950087a0f4e87b296c8249de15626c96"
+  },
+  "stock-001-cushion": {
+    "source": "target/template-library-review/starter-renders/stock-001-cushion.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "71fee950cdff58383b6cf8a911b1836d421c8a8a8a2dba659d0570bf66ea1a7b"
+  },
+  "stock-002-kite": {
+    "source": "target/template-library-review/starter-renders/stock-002-kite.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "b9a58454fea2f67f88ad7b74f294d2c6b8ad2da3198ddb9ebe9403d2c03c1615"
+  },
+  "stock-003-clover": {
+    "source": "target/template-library-review/starter-renders/stock-003-clover.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "6b89b94f9602a8dc976178781e1e11f408af36cc64977aa702a9c7bad6748acc"
+  },
+  "stock-004-shield": {
+    "source": "target/template-library-review/starter-renders/stock-004-shield.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "83211e2638a427cced118d573064b4206e9dc314580c65f60486cb3aa9654931"
+  },
+  "stock-005-rosette": {
+    "source": "target/template-library-review/starter-renders/stock-005-rosette.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "7a1e7aa24cdc83347529c13a782b2312c1bad63001eb0ff5b3ca924dc1824730"
+  },
+  "stock-006-square": {
+    "source": "target/template-library-review/starter-renders/stock-006-square.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "a0c46deaa602c2bae75088ce2c7e3b65a2c0957ec05707532be2a964bf59b9b8"
+  },
+  "stock-007-quatrefoil": {
+    "source": "target/template-library-review/starter-renders/stock-007-quatrefoil.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "d9b507177f13c012822b9e361e783ec59eeb5b5f185f009e8e22a67327385394"
+  },
+  "stock-008-heart": {
+    "source": "target/template-library-review/starter-renders/stock-008-heart.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "1c39e241752e178a8bf45bb63ac1193e2705dd4e127c9d5d51ca57990bf0e339"
+  },
+  "stock-009-drop": {
+    "source": "target/template-library-review/starter-renders/stock-009-drop.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "25b23370a965b6ad896fbb178c1d383478d86d3d147e449173670fedca9cf09e"
+  },
+  "stock-010-trillion": {
+    "source": "target/template-library-review/starter-renders/stock-010-trillion.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "5ade27ac7e24547acd1bf4b7759431a0aed9e59db5fb6f0ccfb3feb554ab8564"
+  },
+  "stock-011-badge": {
+    "source": "target/template-library-review/starter-renders/stock-011-badge.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "f320ebfdc722d3d9f3b3759a77d0439f583797e4aa191d688266b99012b52f9e"
+  },
+  "stock-012-cushion": {
+    "source": "target/template-library-review/starter-renders/stock-012-cushion.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "2f600869171a2e14816a3557b1a8dc5ce0b5fb8500fc125fd4874eb2238560e1"
+  },
+  "stock-013-round": {
+    "source": "target/template-library-review/starter-renders/stock-013-round.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "5d8cad4da2a2b7b0063d7633a773f68abc058c88d4b435631ba84d46d3f0d9a3"
+  },
+  "stock-014-heater": {
+    "source": "target/template-library-review/starter-renders/stock-014-heater.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "cdf0917f4ec22630a50a620234d0194810c5c19c76dc80c39d8098a41622da6e"
+  },
+  "stock-015-octagon": {
+    "source": "target/template-library-review/starter-renders/stock-015-octagon.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "ff1f7ae8b5793b3d13430343ef80d9ad5d4c44fc7472ff28e94497d730ceb0aa"
+  },
+  "stock-016-star": {
+    "source": "target/template-library-review/starter-renders/stock-016-star.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "830b4ca225459c7fb486aab75e7a27651aa94526657d828be82278b45f4bcfbb"
+  },
+  "stock-017-tonneau": {
+    "source": "target/template-library-review/starter-renders/stock-017-tonneau.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "2fe8ca3fbc9d2da355878208e97db736aef59a65d66225e7aa5e6ad7a3134dcb"
+  },
+  "stock-018-butterfly": {
+    "source": "target/template-library-review/starter-renders/stock-018-butterfly.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "5955701f032da6066a988bfcb0095283ca0eb02054d318fd99bf62bc1def36f9"
+  },
+  "stock-019-jewel": {
+    "source": "target/template-library-review/starter-renders/stock-019-jewel.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "d484d296593a80e0b267344b2b0173484cf45f022e2e0b6a838d8f928053986e"
+  },
+  "stock-020-escutcheon": {
+    "source": "target/template-library-review/starter-renders/stock-020-escutcheon.png",
+    "size": [
+      160,
+      160
+    ],
+    "source_sha256": "abae17d5b79484962a1a0f6358d976ced18ad0e3cbc85bca35deeb2f11815513"
   }
 }

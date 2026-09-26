@@ -377,7 +377,7 @@ fn farthest(a: &[ringdesign_core::Vec3], b: &[ringdesign_core::Vec3]) -> f64 {
 #[test]
 fn an_arrays_ghost_on_a_signets_shoulders_stands_where_its_copies_are_built() {
     let mut h = harness();
-    let heart = ringdesign_core::templates::all().iter().find(|t| t.name == "Heart signet").unwrap().design();
+    let heart = ringdesign_core::templates::fixture("Heart signet").unwrap();
     // A post on the shoulder at 45°: six round the ring stand on the shoulders, the head's edge and the shank.
     let pane = ring_on(&mut h, heart, vec![post(2, 45.0)]);
     let source = component_mesh(&h, 2);

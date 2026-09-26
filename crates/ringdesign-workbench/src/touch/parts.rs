@@ -247,7 +247,7 @@ mod tests {
     use ringdesign_core::{AlphaLibrary, BuildParams, cad::Stage, mesh, templates};
 
     fn template(name: &str) -> RingDesign {
-        templates::all().iter().find(|t| t.name == name).unwrap().design()
+        templates::fixture(name).unwrap_or_else(|| templates::all().iter().find(|t| t.name == name).unwrap().design())
     }
     fn params() -> BuildParams {
         BuildParams { theta_steps: 128, profile_steps: 64, refine: None, ..BuildParams::default() }

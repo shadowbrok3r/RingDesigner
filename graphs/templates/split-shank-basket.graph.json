@@ -1,0 +1,637 @@
+{
+  "format_version": 2,
+  "name": "Split-shank basket",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 1,
+        "name": "Procedural shank",
+        "operation": "Band"
+      },
+      "pos": [
+        1440.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 2,
+        "name": "Open split",
+        "operation": {
+          "Builder": {
+            "key": "cutter.split",
+            "on": null,
+            "params": {
+              "gap_mm": 2.6,
+              "rail_round_mm": 0.3,
+              "spread_deg": 48.0,
+              "theta_deg": 90.0,
+              "tip": "Point"
+            }
+          }
+        }
+      },
+      "pos": [
+        1680.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "across_mm": 0.0,
+            "cant_deg": 0.0,
+            "height_mm": 2.54,
+            "kind": "ring",
+            "spin_deg": 0.0,
+            "theta_deg": 90.0,
+            "tilt_deg": 0.0
+          },
+          "reference": true,
+          "role": "Stone",
+          "stage": "cast",
+          "stone_id": "Oval 8 × 6",
+          "visible": true
+        },
+        "enabled": true,
+        "id": 3,
+        "name": "Oval 8 × 6",
+        "operation": {
+          "Builder": {
+            "key": "stone",
+            "on": null,
+            "params": {
+              "cut": "Oval",
+              "form": "Faceted",
+              "l_mm": 8.0,
+              "w_mm": 6.0
+            }
+          }
+        }
+      },
+      "pos": [
+        1920.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "join",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Head",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 4,
+        "name": "Basket",
+        "operation": {
+          "Builder": {
+            "key": "head.basket",
+            "on": 3,
+            "params": {
+              "prongs": 4,
+              "rails": 2
+            }
+          }
+        }
+      },
+      "pos": [
+        2160.0,
+        0.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Setting",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 5,
+        "name": "Seat bur",
+        "operation": {
+          "Builder": {
+            "key": "seat.bur",
+            "on": 3,
+            "params": {
+              "through": true
+            }
+          }
+        }
+      },
+      "pos": [
+        2400.0,
+        0.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "band.profile",
+      "inputs": {
+        "comfort_fit_mm": 0.1,
+        "crest_bias": 0.0,
+        "crown_mm": 0.8,
+        "edge_round_mm": 0.5,
+        "shape_a": 2.0,
+        "shape_b": 1.0,
+        "side_draft_deg": 2.0,
+        "style": "LowDome",
+        "thickness_mm": 1.8,
+        "width_mm": 2.4
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Band section"
+    },
+    {
+      "id": 7,
+      "kind": "shank",
+      "inputs": {
+        "amount": 1.0,
+        "kind": "Keyframes",
+        "waves": 1
+      },
+      "pos": [
+        960.0,
+        0.0
+      ],
+      "label": "Shoulders and taper"
+    },
+    {
+      "id": 8,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 270.0,
+        "thickness_scale": 1.0,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 9,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 200.0,
+        "thickness_scale": 1.0,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        300.0
+      ]
+    },
+    {
+      "id": 10,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 340.0,
+        "thickness_scale": 1.0,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        450.0
+      ]
+    },
+    {
+      "id": 11,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 150.0,
+        "thickness_scale": 1.0,
+        "width_scale": 1.35
+      },
+      "pos": [
+        0.0,
+        600.0
+      ]
+    },
+    {
+      "id": 12,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 30.0,
+        "thickness_scale": 1.0,
+        "width_scale": 1.35
+      },
+      "pos": [
+        0.0,
+        750.0
+      ]
+    },
+    {
+      "id": 13,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 125.0,
+        "thickness_scale": 1.05,
+        "width_scale": 2.0
+      },
+      "pos": [
+        0.0,
+        900.0
+      ]
+    },
+    {
+      "id": 14,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 55.0,
+        "thickness_scale": 1.05,
+        "width_scale": 2.0
+      },
+      "pos": [
+        0.0,
+        1050.0
+      ]
+    },
+    {
+      "id": 15,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 90.0,
+        "thickness_scale": 1.1,
+        "width_scale": 2.75
+      },
+      "pos": [
+        0.0,
+        1200.0
+      ]
+    },
+    {
+      "id": 16,
+      "kind": "list.merge",
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 17,
+      "kind": "list.merge",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 18,
+      "kind": "list.merge",
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 19,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Split-shank basket",
+        "size": 7.0
+      },
+      "pos": [
+        1200.0,
+        0.0
+      ]
+    },
+    {
+      "id": 25,
+      "kind": "cad.op.cutter.split",
+      "inputs": {
+        "gap_mm": 2.6,
+        "rail_round_mm": 0.3,
+        "spread_deg": 48.0,
+        "theta_deg": 90.0,
+        "tip": "Point"
+      },
+      "pos": [
+        0.0,
+        1350.0
+      ]
+    },
+    {
+      "id": 26,
+      "kind": "cad.op.stone",
+      "inputs": {
+        "cut": "Oval",
+        "form": "Faceted",
+        "l_mm": 8.0,
+        "w_mm": 6.0
+      },
+      "pos": [
+        0.0,
+        1500.0
+      ]
+    },
+    {
+      "id": 27,
+      "kind": "cad.op.head.basket",
+      "inputs": {
+        "on": 3,
+        "prongs": 4,
+        "rails": 2
+      },
+      "pos": [
+        0.0,
+        1650.0
+      ]
+    },
+    {
+      "id": 28,
+      "kind": "cad.op.seat.bur",
+      "inputs": {
+        "on": 3,
+        "through": true
+      },
+      "pos": [
+        0.0,
+        1800.0
+      ]
+    },
+    {
+      "id": 29,
+      "kind": "design.settings",
+      "pos": [
+        2640.0,
+        0.0
+      ]
+    },
+    {
+      "id": 30,
+      "kind": "draft.settings",
+      "inputs": {
+        "auto_parting": true,
+        "min_detail_mm": 0.15,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.5,
+        "parting_z_mm": 0.0,
+        "process": "LostWax"
+      },
+      "pos": [
+        0.0,
+        1950.0
+      ]
+    },
+    {
+      "id": 31,
+      "kind": "sink.output",
+      "pos": [
+        2880.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 8,
+      "out": "key",
+      "to": 16,
+      "input": "a"
+    },
+    {
+      "from": 9,
+      "out": "key",
+      "to": 16,
+      "input": "b"
+    },
+    {
+      "from": 10,
+      "out": "key",
+      "to": 16,
+      "input": "c"
+    },
+    {
+      "from": 16,
+      "out": "out",
+      "to": 17,
+      "input": "a"
+    },
+    {
+      "from": 11,
+      "out": "key",
+      "to": 17,
+      "input": "b"
+    },
+    {
+      "from": 12,
+      "out": "key",
+      "to": 17,
+      "input": "c"
+    },
+    {
+      "from": 13,
+      "out": "key",
+      "to": 17,
+      "input": "d"
+    },
+    {
+      "from": 17,
+      "out": "out",
+      "to": 18,
+      "input": "a"
+    },
+    {
+      "from": 14,
+      "out": "key",
+      "to": 18,
+      "input": "b"
+    },
+    {
+      "from": 15,
+      "out": "key",
+      "to": 18,
+      "input": "c"
+    },
+    {
+      "from": 18,
+      "out": "out",
+      "to": 7,
+      "input": "keys"
+    },
+    {
+      "from": 6,
+      "out": "profile",
+      "to": 19,
+      "input": "profile"
+    },
+    {
+      "from": 7,
+      "out": "shank",
+      "to": 19,
+      "input": "shank"
+    },
+    {
+      "from": 19,
+      "out": "design",
+      "to": 1,
+      "input": "design"
+    },
+    {
+      "from": 1,
+      "out": "design",
+      "to": 2,
+      "input": "design"
+    },
+    {
+      "from": 2,
+      "out": "design",
+      "to": 3,
+      "input": "design"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 4,
+      "input": "design"
+    },
+    {
+      "from": 4,
+      "out": "design",
+      "to": 5,
+      "input": "design"
+    },
+    {
+      "from": 25,
+      "out": "operation",
+      "to": 2,
+      "input": "operation"
+    },
+    {
+      "from": 26,
+      "out": "operation",
+      "to": 3,
+      "input": "operation"
+    },
+    {
+      "from": 27,
+      "out": "operation",
+      "to": 4,
+      "input": "operation"
+    },
+    {
+      "from": 28,
+      "out": "operation",
+      "to": 5,
+      "input": "operation"
+    },
+    {
+      "from": 5,
+      "out": "design",
+      "to": 29,
+      "input": "design"
+    },
+    {
+      "from": 30,
+      "out": "draft",
+      "to": 29,
+      "input": "draft"
+    },
+    {
+      "from": 29,
+      "out": "design",
+      "to": 31,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 19,
+      "input": "size",
+      "name": "US size"
+    },
+    {
+      "node": 6,
+      "input": "width_mm",
+      "name": "Band width"
+    },
+    {
+      "node": 6,
+      "input": "thickness_mm",
+      "name": "Band thickness"
+    }
+  ],
+  "next_id": 32
+}

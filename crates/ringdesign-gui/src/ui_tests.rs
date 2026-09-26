@@ -293,6 +293,31 @@ fn file_menu_has_preview_collections_and_opens_the_selected_template() {
     assert!(!h.state().graph_ed.as_ref().unwrap().graph().nodes.iter().any(|n| n.kind == "head"));
 }
 
+#[test]
+fn file_menu_opens_a_factory_stock_on_its_sand_master() {
+    let mut h = harness([1600., 980.]);
+    h.run_steps(3);
+    h.get_by_label("File").click();
+    h.run_steps(3);
+    h.get_by_label_contains("New from template").click();
+    h.run_steps(3);
+    h.get_by_label_contains("Starter signets").click();
+    h.run_steps(3);
+    assert!(h.query_all_by_label("sand-safe plan").next().is_some() && h.query_all_by_label("sand trial failed · lost wax").next().is_some(), "stock rows carry their process");
+    h.get_by_label("Octagon signet · 015").click();
+    h.run_steps(1);
+    assert!(h.state().opening.is_some());
+    crate::interaction_tests::wait_for_template(&mut h);
+    let design = &h.state().design;
+    assert_eq!(design.name, "Octagon signet · 015");
+    let base = design.imported_base.as_ref().expect("the stock opens as an imported base");
+    assert!(base.sand_envelope);
+    assert_eq!(base.source.name, "Signet 015 / drafted workshop master");
+    assert_eq!(design.draft.process, ringdesign_core::castability::CastProcess::SandTwoPart);
+    crate::interaction_tests::wait_for_build(&mut h);
+    assert!(h.state().is_current(), "{}", h.state().status);
+}
+
 /// The catalogue entry `slug`.
 fn template(slug: &str) -> &'static ringdesign_workbench::templates::Template {
     ringdesign_workbench::templates::collections().iter().flat_map(|c| &c.templates).find(|t| t.slug == slug).expect(slug)

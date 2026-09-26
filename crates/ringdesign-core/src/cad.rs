@@ -3613,7 +3613,7 @@ mod tests {
         let lib = AlphaLibrary::builtin();
         let params = BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() };
         // The reference-crest anchor buries a part's foot on a signet's shoulder; the surface drop does not.
-        let heart = crate::templates::all().iter().find(|t| t.name == "Heart signet").unwrap().design();
+        let heart = crate::templates::fixture("Heart signet").unwrap();
         let built = crate::mesh::try_build(&heart, &lib, params).unwrap();
         let seat = Placement::ring(45.0, 0.0);
         let reference = seat.frame(&heart).unwrap();

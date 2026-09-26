@@ -120,21 +120,6 @@ impl RingApp {
             self.show_new_design();
             ui.close();
         }
-        if file_action(ui, "Imported signet base...").clicked() {
-            let preset = &ringdesign_core::imported_base::PRESETS[0];
-            let mut design = RingDesign::default();
-            match preset.load().and_then(|source| {
-                ringdesign_core::imported_base::ImportedBase::attach(&mut design, source)
-            }) {
-                Ok(()) => {
-                    design.name = "Imported signet".into();
-                    self.load_template_design(design, preset.name);
-                    self.show_new_design();
-                    ui.close();
-                }
-                Err(e) => self.status = format!("could not open base: {e}"),
-            }
-        }
         ui.separator();
         if let Some(template) = ringdesign_workbench::templates::menu(ui) {
             let opening = template.open(self.graph.reg.clone(), self.lib.clone(), Self::opening_wake(ui.ctx()));

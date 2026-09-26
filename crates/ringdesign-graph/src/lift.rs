@@ -635,7 +635,7 @@ mod tests {
     fn a_design_with_sources_and_odd_fields_still_lifts_exactly() {
         let reg = Registry::builtin();
         let lib = AlphaLibrary::builtin();
-        let mut d = ringdesign_core::templates::all()[2].design();
+        let mut d = ringdesign_core::templates::fixture("Waved hexagon signet").unwrap();
         d.texts.push(ringdesign_core::text::TextAlpha { name: "Motto".into(), text: "ever".into(), font: ringdesign_core::text::TextFont::Script, tracking: 0.1 });
         d.recipes.push(ringdesign_core::alpha::ProcRecipe { name: "R".into(), repeats: 3, ..Default::default() });
         d.profile.flange.enabled = true;

@@ -22,7 +22,7 @@ def strip_graph(design):
 
 def test_templates_and_version():
     names = rd.templates()
-    assert "Court band" in names and "Heart signet" in names and len(names) == 9
+    assert "Court band" in names and "Cathedral solitaire" in names and len(names) == 13
     assert rd.version()
 
 
@@ -78,7 +78,7 @@ def test_verdict_and_reports():
     assert len(s["points"]) == 64
     scan = d.modulus_scan(16)
     assert len(scan) == 16
-    stones = rd.Design.template("Cathedral solitaire stock").stones()
+    stones = rd.Design.template("Cathedral solitaire").stones()
     assert stones["count"] == 1 and stones["carats"] > 0
 
 
